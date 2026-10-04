@@ -288,6 +288,24 @@
     <string name="conversation_link_failed">Couldn't open this link.</string>
     <string name="invite_request">Request to join</string>
     <string name="invite_request_sent">Request sent. An admin will review it.</string>
+    <string name="folder_invite_title">Add folder</string>
+    <string name="folder_invite_new">Add the folder and join the chats you pick.</string>
+    <string name="folder_invite_new_all_joined">You are already in every chat of this folder. Only the folder will be added.</string>
+    <string name="folder_invite_existing">New chats were added to this folder. Pick the ones to join.</string>
+    <string name="folder_invite_existing_none">You already have this folder with all its chats.</string>
+    <string name="folder_invite_chats">Chats to join</string>
+    <string name="folder_invite_add">Add folder</string>
+    <plurals name="folder_invite_join">
+        <item quantity="one">Join %1$d chat</item>
+        <item quantity="other">Join %1$d chats</item>
+    </plurals>
+    <plurals name="folder_invite_already_joined">
+        <item quantity="one">You are already in %1$d chat of this folder.</item>
+        <item quantity="other">You are already in %1$d chats of this folder.</item>
+    </plurals>
+    <string name="folder_invite_added">Folder “%1$s” added</string>
+    <string name="folder_invite_joined">Chats added to folder “%1$s”</string>
+    <string name="folder_invite_failed">Couldn't add the folder.</string>
     <string name="conversation_mention_not_found">Couldn't find that chat.</string>
     <string name="conversation_sticker_send_failed">Couldn't send the sticker.</string>
     <string name="conversation_attachments_limit">You can send at most %1$d attachments at once.</string>
@@ -1728,4 +1746,22 @@
     <string name="topic_color_green">Green</string>
     <string name="topic_color_pink">Pink</string>
     <string name="topic_color_red">Red</string>
+    <string name="chat_folder_share_header">Sharing</string>
+    <string name="chat_folder_share_create">Create folder link</string>
+    <string name="chat_folder_share_help">Anyone who opens the link adds the folder and joins its groups and channels.</string>
+    <string name="chat_folder_share_unsaved">Save your changes first, then create the link.</string>
+    <string name="chat_folder_share_not_shareable">Only a folder of chosen chats can be shared — without chat types or excluded chats.</string>
+    <plurals name="chat_folder_share_chats">
+        <item quantity="one">%1$d chat</item>
+        <item quantity="other">%1$d chats</item>
+    </plurals>
+    <string name="chat_folder_share_copy">Copy link</string>
+    <string name="chat_folder_share_share">Share link</string>
+    <string name="chat_folder_share_delete">Delete link</string>
+    <string name="chat_folder_share_delete_title">Delete the link?</string>
+    <string name="chat_folder_share_delete_body">The link stops working. Anyone who already added the folder keeps it.</string>
+    <string name="chat_folder_share_nothing">There is no group or channel in this folder that can be shared.</string>
+    <string name="chat_folder_share_failed">Couldn't create the link.</string>
+    <string name="chat_folder_share_delete_failed">Couldn't delete the link.</string>
+    <string name="chat_folder_shared_only_chosen">A shared folder contains only the chosen chats.</string>
 </resources>

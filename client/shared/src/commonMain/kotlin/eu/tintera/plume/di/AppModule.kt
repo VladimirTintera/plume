@@ -296,7 +296,7 @@ fun appModule() = module {
     viewModelOf(::BlockedSendersViewModel)
     viewModelOf(::ChatFoldersViewModel)
     // Id složky je Int a nic jiného téhož typu parametry nemají, `get()` ho nezamění.
-    viewModel { parameters -> ChatFolderEditViewModel(folderId = parameters.get(), chats = get(), folders = get()) }
+    viewModel { parameters -> ChatFolderEditViewModel(folderId = parameters.get(), chats = get(), folders = get(), clipboard = get(), sharer = get()) }
     viewModelOf(::BlockSenderViewModel)
     viewModelOf(::SensitiveContentViewModel)
     viewModelOf(::DefaultAutoDeleteViewModel)

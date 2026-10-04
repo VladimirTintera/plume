@@ -1753,6 +1753,40 @@ Nastavení → Obecné → Složky chatů (`ChatFoldersScreen`, `ChatFolderEditS
   archivu se ukazuje se skutečnou hodnotou účtu; **zápis ověřený není** (mění nastavení účtu).
   **iOS jen přeložené.**
 
+#### Sdílené složky
+
+Odkaz `t.me/addlist/…` ve zprávě otevře náhled složky (`FolderInviteSheet`, `InternalLink.FolderInvite`
+z `checkChatFolderInviteLink`), v editoru vlastní složky je sekce Sdílení s odkazy
+(`ChatFolderRepository.links` / `createLink` / `deleteLink`).
+
+- **Nic se nepřidá bez potvrzení**, stejně jako u pozvánky do chatu: přidání složky znamená
+  připojit se k jejím chatům. Chaty k připojení jsou zaškrtnuté všechny a jdou odškrtnout.
+  Novou složku jde přidat i bez nich, když v některých chatech uživatel už je; u složky, kterou
+  už má, se přidávají jen vybrané nové chaty, a když žádné nejsou, tlačítko není.
+- **Sdílet jde jen složku z vybraných chatů** (`ChatFolderDraft.canBeShared`): TDLib odkaz na
+  složku s druhy chatů nebo vynechanými odmítne. Editor to řekne pod tlačítkem, místo aby
+  odkaz skončil chybou, a **sdílená složka druhy ani vynechané nenabízí** — uložení by server
+  odmítl.
+- **Odkaz nese chaty z `getChatsForChatFolderInviteLink`** — jen skupiny a kanály, kam smí
+  uživatel zvát; soukromé chaty a boti v odkazu nejsou („1 chat" u složky se třemi). Bez nich
+  odkaz vytvořit nejde (`NothingToShareException`, vlastní věta).
+- **Odkaz se dělá z ULOŽENÉ složky**, takže s rozepsanými změnami tlačítko zašedne a řekne
+  proč. Nový odkaz se rovnou zkopíruje, jako pozvánka do chatu.
+- **Sdílenou se složka stane prvním odkazem a přestane být smazáním posledního** — a to
+  potvrdí až `UpdateChatFolders`, ne odpověď na smazání. Proto nese `ChatFolderTab` příznak
+  `isShareable`: bez něj `chatFolders` (StateFlow) update odfiltroval jako beze změny a editor
+  dál schovával druhy chatů u složky, která sdílená už nebyla.
+- **Po smazání posledního odkazu vrátí `getChatFolderInviteLinks` chvíli `FILTER_ID_INVALID`**,
+  proto smazaný odkaz zmizí ze seznamu hned, ať čtení dopadne jakkoli.
+- **Načtení náhledu trvá pár vteřin** (dotaz na server). Kdo ťukne podruhé, trefí závoj sheetu
+  a zavře ho — při ověřování přes `adb` se po ťuknutí čeká.
+- **Ověřeno na emulátoru** (anglicky i česky): odkaz na složku „Plume test" (s testovací
+  skupinou), sdílení schovalo druhy a vynechané, odkaz poslaný botem otevřel náhled „složku už
+  máš"; smazání odkazu vrátilo složku na nesdílenou i v otevřeném editoru; u složky s druhem Boti
+  vysvětlení. Náhled nové složky s chatem k připojení **jen sondou** (podstrčené `folderId = 0`
+  a chaty), odškrtnutí chatu. **Skutečné přidání složky z cizího odkazu ověřené NENÍ** — chtělo
+  by to druhý účet, nebo se připojit ke skutečným cizím chatům. **iOS jen přeložené.**
+
 ### Ověření a štítek podvodu
 
 Za jménem chatu je fajfka ověřeného účtu, nebo štítek „PODVOD" / „FALEŠNÝ" (`VerificationBadge`

@@ -52,7 +52,30 @@ sealed interface InternalLink {
      * až z `searchWebApp` na obrazovce mini aplikace — jako odkaz se rozpozná jen tvarem.
      */
     data class WebApp(val botUserId: Long, val shortName: String, val startParameter: String) : InternalLink
+
+    /**
+     * Pozvánka do sdílené složky (`t.me/addlist/…`). Jako u pozvánky do chatu nejdřív náhled,
+     * přidává se až na potvrzení — do chatů složky se uživatel přidá.
+     */
+    data class FolderInvite(val link: String, val preview: FolderInvitePreview) : InternalLink
 }
+
+/**
+ * Co řekne pozvánka do sdílené složky (`checkChatFolderInviteLink`).
+ *
+ * - [folderId] je `0`, dokud složku uživatel nemá; s nenulovým id pozvánka jen doplňuje chaty
+ *   do složky, kterou už má.
+ * - [missingChats] jsou chaty, ve kterých uživatel ještě není — přidáním složky se do nich
+ *   přidá. Ty, ve kterých už je, jdou do složky samy a počítá je [alreadyJoined].
+ */
+data class FolderInvitePreview(
+    val title: String,
+    val titleEntities: List<MessageEntity>,
+    val iconName: String?,
+    val folderId: Int,
+    val missingChats: List<ChatSummary>,
+    val alreadyJoined: Int,
+)
 
 /** Co o chatu řekne pozvánka, než se do něj uživatel přidá (`checkChatInviteLink`). */
 data class InvitePreview(

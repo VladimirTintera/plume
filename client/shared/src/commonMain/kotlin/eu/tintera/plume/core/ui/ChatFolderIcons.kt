@@ -1,4 +1,4 @@
-package eu.tintera.plume.features.settings
+package eu.tintera.plume.core.ui
 
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.campaign_24dp

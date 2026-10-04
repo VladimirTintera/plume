@@ -1950,6 +1950,15 @@ fun ConversationScreen(
             InviteSheet(invite = invite, onJoin = viewModel::joinInvite, onDismiss = viewModel::dismissInvite)
         }
 
+        state.folderInvite?.let { invite ->
+            FolderInviteSheet(
+                invite = invite,
+                onToggle = viewModel::toggleFolderInviteChat,
+                onAdd = viewModel::addFolderInvite,
+                onDismiss = viewModel::dismissFolderInvite,
+            )
+        }
+
         state.loginRequest?.let { request ->
             LoginUrlDialog(prompt = request.prompt, onConfirm = viewModel::confirmLogin, onDismiss = viewModel::dismissLogin)
         }

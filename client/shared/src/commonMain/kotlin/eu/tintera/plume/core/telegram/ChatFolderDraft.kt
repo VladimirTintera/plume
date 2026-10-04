@@ -34,6 +34,13 @@ data class ChatFolderDraft(
     val includesAnyKind: Boolean
         get() = includeContacts || includeNonContacts || includeGroups || includeChannels || includeBots
 
+    /**
+     * Sdílet jde jen složku z výslovně vybraných chatů: TDLib odkaz na složku s druhy chatů
+     * nebo vynechanými odmítne („Shareable folders can't have excluded chats").
+     */
+    val canBeShared: Boolean
+        get() = !includesAnyKind && excludedChatIds.isEmpty() && !excludeMuted && !excludeRead && !excludeArchived
+
     /** Nový název; vlastní emoji patří starému textu, takže se zahodí. */
     fun withTitle(text: String): ChatFolderDraft =
         if (text == title) this else copy(title = text, titleEntities = emptyList())
@@ -89,6 +96,9 @@ const val CHAT_FOLDER_TITLE_MAX = 12
 /** Složka, kterou Telegram doporučuje založit (Nepřečtené, Osobní…), s větou, co v ní bude. */
 data class RecommendedChatFolder(val draft: ChatFolderDraft, val description: String, val iconName: String? = null)
 
+/** Odkaz na sdílenou složku (`t.me/addlist/…`) a kolik chatů z ní nabízí. */
+data class ChatFolderLink(val url: String, val name: String, val chatIds: List<Long>)
+
 /** Ve kterých složkách chat je a do kterých jde přidat — pro „Přidat do složky" nad chatem. */
 data class ChatFolderMembership(val member: Set<Int>, val canAdd: Set<Int>)
 
@@ -111,4 +121,17 @@ interface ChatFolderRepository {
     suspend fun membership(chatId: Long): Result<ChatFolderMembership>
     suspend fun addChat(folderId: Int, chatId: Long): Result<Unit>
     suspend fun removeChat(folderId: Int, chatId: Long): Result<Unit>
+
+    /** Vlastní odkazy na sdílenou složku. */
+    suspend fun links(folderId: Int): Result<List<ChatFolderLink>>
+
+    /**
+     * Nový odkaz se všemi chaty složky, které sdílet jde (skupiny a kanály, kam smí zvát;
+     * `getChatsForChatFolderInviteLink`). Složka se tím stane sdílenou.
+     */
+    suspend fun createLink(folderId: Int): Result<ChatFolderLink>
+    suspend fun deleteLink(folderId: Int, url: String): Result<Unit>
 }
+
+/** Ve složce není nic, co by šlo sdílet — jen lidé a boti, nebo skupiny bez práva zvát. */
+class NothingToShareException : IllegalStateException("Ve složce není chat, který jde sdílet.")

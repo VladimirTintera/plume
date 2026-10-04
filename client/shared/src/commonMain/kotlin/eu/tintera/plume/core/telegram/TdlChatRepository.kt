@@ -16,6 +16,7 @@ import dev.g000sha256.tdl.dto.InternalLinkTypeStickerSet
 import dev.g000sha256.tdl.dto.InternalLinkTypeBotStart
 import dev.g000sha256.tdl.dto.InternalLinkTypeMainWebApp
 import dev.g000sha256.tdl.dto.InternalLinkTypeWebApp
+import dev.g000sha256.tdl.dto.InternalLinkTypeChatFolderInvite
 import dev.g000sha256.tdl.dto.InternalLinkTypeChatInvite
 import dev.g000sha256.tdl.dto.InternalLinkTypeMessage
 import dev.g000sha256.tdl.dto.InternalLinkTypePublicChat
@@ -652,6 +653,23 @@ class TdlChatRepository(
                     if (isBot) InternalLink.WebApp(chat.id, type.webAppShortName, type.startParameter) else InternalLink.Chat(chat.id)
                 }
 
+            is InternalLinkTypeChatFolderInvite ->
+                client.checkChatFolderInviteLink(inviteLink = type.inviteLink).toResult().map { info ->
+                    val folder = info.chatFolderInfo
+                    val title = folder.name.text.toBody()
+                    InternalLink.FolderInvite(
+                        link = type.inviteLink,
+                        preview = FolderInvitePreview(
+                            title = title.text,
+                            titleEntities = title.entities,
+                            iconName = folder.icon.name,
+                            folderId = folder.id,
+                            missingChats = summariesFor(info.missingChatIds),
+                            alreadyJoined = info.addedChatIds.size,
+                        ),
+                    )
+                }
+
             is InternalLinkTypeStickerSet ->
                 client.searchStickerSet(name = type.stickerSetName, ignoreCache = false).toResult()
                     .map { InternalLink.StickerSet(it.id) }
@@ -674,6 +692,10 @@ class TdlChatRepository(
                 is ChatJoinResultGuardBotApprovalRequired -> error("Přidání vyžaduje schválení botem.")
             }
         }
+
+    override suspend fun addFolderByInvite(link: String, chatIds: List<Long>): Result<Unit> =
+        client.addChatFolderByInviteLink(inviteLink = link, chatIds = chatIds.toLongArray()).toResult().map { }
+            .onFailure { logger.w(it) { "Sdílenou složku se nepodařilo přidat." } }
 
     override suspend fun chatByUsername(username: String): Result<Long> =
         client.searchPublicChat(username = username).toResult().map { it.id }
@@ -1499,7 +1521,7 @@ private fun ChatFolder.toChatList(): ChatList = when (this) {
 
 private fun ChatFolderInfo.toTab(): ChatFolderTab {
     val body = name.text.toBody()
-    return ChatFolderTab(id = id, title = body.text, titleEntities = body.entities, iconName = icon.name)
+    return ChatFolderTab(id = id, title = body.text, titleEntities = body.entities, iconName = icon.name, isShareable = isShareable)
 }
 
 private fun Array<ChatPosition>.toFolderPositions(): Map<ChatFolder, FolderPosition> =
