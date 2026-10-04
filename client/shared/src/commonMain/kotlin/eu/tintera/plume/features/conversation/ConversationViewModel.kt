@@ -2588,7 +2588,8 @@ class ConversationViewModel(
      * Čas v médiu („1:23"). Médium je v téže zprávě, nebo ve zprávě, na kterou odpovídá
      * (`hasTimestampedMedia`) — tak to definuje TDLib. Video se otevře v prohlížeči od toho
      * místa (navigace je věc obrazovky, proto stav [ConversationState.openMediaAt]); hlasovka,
-     * skladba a kolečko hrají v chatu, jako po ťuknutí na ně.
+     * skladba a kolečko hrají v chatu, jako po ťuknutí na ně; video z náhledu odkazu se otevře na
+     * webu od toho místa.
      */
     private fun playMediaAt(messageId: Long, seconds: Int) {
         val state = _state.value
@@ -2611,8 +2612,9 @@ class ConversationViewModel(
                 _state.update { it.copy(soundingVideoNote = target.id, soundingVideoNoteFromMs = startMs) }
                 if (!target.isOutgoing && !media.isViewed) reportListened(target.id)
             }
-            // Video v náhledu odkazu (YouTube…) v aplikaci nepřehráváme; čas nemá kam vést.
-            else -> Unit
+            // Video v náhledu odkazu (YouTube…) v aplikaci nepřehráváme: otevře se jeho web
+            // od toho místa, kde to adresa umí (`videoLinkAt`).
+            else -> target.linkPreview?.takeIf { it.isVideo }?.let { openLink(videoLinkAt(it.url, seconds)) }
         }
     }
 

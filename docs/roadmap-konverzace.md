@@ -505,7 +505,8 @@ snadno na to uživatel narazí.
   ověřená nejsou** — bot nic z toho poslat nesmí (viz CLAUDE.md).
 - ~~**Příkaz bota** (`BotCommand`)~~ — hotovo: ťuknutí příkaz pošle (`CLAUDE.md`, „Příkazy bota“).
 - ~~**Čas v médiu**~~ — hotovo: „1:23" pustí video, hlasovku, skladbu i kolečko od toho místa,
-  v téže zprávě i v odpovědi (`CLAUDE.md`, „Čas v médiu"). Zbývá video v náhledu odkazu.
+  v téže zprávě i v odpovědi, video v náhledu odkazu otevře web od toho místa
+  (`CLAUDE.md`, „Čas v médiu").
 - ~~**Datum a čas** (`DateTime`)~~ — hotovo: v místním pásmu a jazyce aplikace, jako inline
   obsah místo textu pisatele, takže se offsety neposouvají (`CLAUDE.md`, „Datum a čas v textu").
   Karta a cashtag jsou okrajové.

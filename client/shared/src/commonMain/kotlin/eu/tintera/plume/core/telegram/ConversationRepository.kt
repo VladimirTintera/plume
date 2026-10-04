@@ -1520,6 +1520,12 @@ data class LinkPreview(
      * (`hasLargeMedia`). U přijaté zprávy nic neznamená.
      */
     val canChangeSize: Boolean = false,
+    /**
+     * Odkaz vede na video (YouTube, Vimeo…: `LinkPreviewTypeVideo` nebo vložený přehrávač).
+     * Čas „1:23" v odpovědi na takovou zprávu ho otevře od toho místa — TDLib entitu času u něj
+     * vyrobí stejně jako u videa poslaného přímo.
+     */
+    val isVideo: Boolean = false,
 )
 
 /**

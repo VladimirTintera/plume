@@ -1069,6 +1069,7 @@ internal fun TdlLinkPreview.toDomain(): LinkPreview? {
         largePhoto = preview.showLargeMedia,
         showAboveText = preview.showAboveText,
         canChangeSize = preview.hasLargeMedia,
+        isVideo = preview.type is LinkPreviewTypeVideo || preview.type is LinkPreviewTypeEmbeddedVideoPlayer,
     )
     if (result.siteName == null && result.title == null && result.description == null && photo == null) {
         return null
