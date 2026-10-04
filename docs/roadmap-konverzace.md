@@ -278,9 +278,6 @@ Co zbývá:
   softwarový dekodér (libvpx), iOS WebM neumí vůbec.
 - **Průběh stahování originálu.** `RemoteImage` ukazuje náhled z bubliny, dokud nedorazí ostrá
   verze, ale u velké fotky na pomalé síti není poznat, že se něco děje.
-- **Let z bubliny na širokém rozvržení.** `LocalTwoPane` tam sdílené prvky vypíná kvůli seznamu
-  vedle konverzace; pro prohlížeč to neplatí (ten překryje všechno), ale rozlišit to znamená
-  zjemnit ten příznak.
 
 ## E) Skryté fotky a časovaná média — HOTOVO
 

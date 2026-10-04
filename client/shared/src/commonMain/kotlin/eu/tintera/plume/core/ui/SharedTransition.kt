@@ -222,9 +222,15 @@ fun Modifier.sharedNavElement(
     shape: Shape? = null,
     /** Zaoblení druhé strany páru, ze kterého se rohy přelévají do [shape]. */
     flightFromCorner: Dp = MEDIA_CARD_CORNER,
+    /**
+     * Letět i v dvoupanelovém rozvržení. Smí jen pár, jehož druhá strana dvoupanel NAHRADÍ —
+     * prohlížeč médií jde přes celou plochu, takže fotka z bubliny nemá s kým se přetahovat
+     * (seznam vlevo klíč fotky nenese). Avatar a název chatu letět nesmí, viz [LocalTwoPane].
+     */
+    inTwoPane: Boolean = false,
 ): Modifier {
     val shared = LocalSharedTransitionScope.current ?: return this
-    if (LocalTwoPane.current) return this
+    if (LocalTwoPane.current && !inTwoPane) return this
     val scope = LocalNavAnimatedContentScope.current
     val area = LocalSharedElementClip.current
 

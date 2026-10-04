@@ -1479,9 +1479,12 @@ Na compactu (a na zaklapnutém Foldu) se to nedělo, protože jeden panel scaffo
 proto to dlouho vypadalo jako chyba konverzace. Výchozí hodnota je `true` a nastavuje ji
 i konstruktor `PaneScaffoldDirective` BEZ toho parametru, takže se musí předat výslovně.
 
-**V dvoupanelu se nesdílí nic** (`LocalTwoPane`, poskytuje ho shell). Seznam vedle konverzace
-zůstává vidět, takže by avatar odletěl z položky, která je pořád na obrazovce, a o jeden klíč
-by se přetahovaly dva prvky naráz.
+**V dvoupanelu se nesdílí nic — kromě fotky do prohlížeče** (`LocalTwoPane`, poskytuje ho
+shell). Seznam vedle konverzace zůstává vidět, takže by avatar odletěl z položky, která je pořád
+na obrazovce, a o jeden klíč by se přetahovaly dva prvky naráz. Prohlížeč médií ale nahradí celý
+dvoupanel, takže fotka z bubliny nemá s kým se přetahovat — `sharedNavElement(inTwoPane = true)`
+proto dostávají všechny klíče `photoKey` a nic jiného. **Kdo přidá `inTwoPane` jinam, musí vědět,
+že druhá strana letu dvoupanel nahrazuje**, jinak se vrátí přesně ten souboj o klíč.
 
 **Text se sdílí přes `sharedBounds` + `scaleToBounds`, ne přes `sharedElement`.** Název chatu má
 v hlavičce jinou velikost písma; se `sharedElement` by se text na konci letu přeskládal skokem.
@@ -6058,8 +6061,8 @@ obsahu bývá zlomek zpráv.
   není místo pro obsah, který má po zhlédnutí zmizet.
 - **Dlaždice mřížky nese sdílený prvek, ale s JINÝM klíčem než bublina v konverzaci**
   (`LocalSharedMediaFlight`, který podle `MediaRoute.fromSharedMedia` poskytuje i prohlížeč).
-  Prohlížeč z dlaždice vyroste a při zavření se do ní vrátí; na široké ploše sdílení vypíná
-  `LocalTwoPane` jako všude. **Se společným klíčem se ty dvě strany spárovaly mezi sebou** —
+  Prohlížeč z dlaždice vyroste a při zavření se do ní vrátí, i na široké ploše (`inTwoPane`
+  jako u bubliny — prohlížeč nahradí celý dvoupanel). **Se společným klíčem se ty dvě strany spárovaly mezi sebou** —
   tady stávalo, že „konverzace pod profilem je nesložená, takže se o klíč nic nepře", jenže při
   VÝMĚNĚ obrazovek jsou složené obě, a otevření profilu (i návrat z něj) je výměna jako každá
   jiná. Fotka proto při každém otevření profilu přelétla přes celou obrazovku z bubliny na
@@ -6696,7 +6699,9 @@ obrazovky, sluchátek a hodinek. Na Androidu přes Media3 MediaSession, na iOS p
   zobrazená fotka, i z alba; ze seznamu ji odebere až `deletedMessages` a po poslední fotce se
   prohlížeč zavře.
 - **Let z bubliny jede přes sdílený prvek** (`photoKey`), stejně jako avatar a název chatu.
-  Na širokém rozvržení se nekoná: `LocalTwoPane` tam sdílení vypíná.
+  Na širokém rozvržení taky (`inTwoPane`, viz „Navigace"): prohlížeč jde přes celou plochu,
+  takže fotka z pravého panelu vyletí na celou obrazovku a při zavření se do bubliny vrátí.
+  Ověřeno na rozloženém Foldu sérií surových snímků se zpomalenými animacemi, tam i zpět.
 - **Sdílený prvek se během letu kreslí v PŘEKRYVU nad celou aplikací, mimo ořezy rodičů** — tedy
   i přes hlavičku obrazovky. Fotka, která v konverzaci zpola mizí pod hlavičkou, tak po návratu
   z prohlížeče dosedla na místo, ale kreslila se PŘES hlavičku, a teprve na konci přechodu
