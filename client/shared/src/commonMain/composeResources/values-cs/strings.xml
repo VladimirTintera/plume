@@ -264,6 +264,7 @@
     <string name="profile_shared_photo">Fotka</string>
     <string name="profile_shared_failed">Sdílený obsah se nepodařilo načíst.</string>
     <string name="profile_search">Hledat</string>
+    <string name="profile_open_app">Otevřít</string>
     <string name="profile_info">Informace</string>
     <string name="profile_username">Uživatelské jméno</string>
     <string name="profile_username_value">@%1$s</string>

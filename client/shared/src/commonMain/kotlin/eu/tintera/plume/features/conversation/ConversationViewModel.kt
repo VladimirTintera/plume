@@ -2149,6 +2149,9 @@ class ConversationViewModel(
                         is InternalLink.BotStart -> openBotStart(link)
                         // Skupinu vybírá obrazovka výběru; přidání se potvrzuje až tam.
                         is InternalLink.BotStartInGroup -> _state.update { it.copy(addBotToGroup = link) }
+                        is InternalLink.MainWebApp -> requestWebApp(
+                            WebAppRequest(link.botUserId, url = "", launch = false, main = true, startParameter = link.startParameter),
+                        )
                     }
                 }
                 .onFailure { failure ->
@@ -2268,7 +2271,7 @@ class ConversationViewModel(
             }
             is BotButtonKind.User -> openMentioned { chatRepository.privateChat(kind.userId) }
             is BotButtonKind.WebApp -> requestWebApp(
-                WebAppRequest(botOf(message), botNameOf(message), kind.url, launch = true),
+                WebAppRequest(botOf(message), kind.url, launch = true),
             )
             BotButtonKind.Disabled -> Unit
             is BotButtonKind.LoginUrl -> loginWithButton(messageId, kind)
@@ -2344,32 +2347,17 @@ class ConversationViewModel(
 
     /** Obrazovka formulář ankety otevřela. */
     /**
-     * Mini aplikace bota. **Poprvé u každého bota se ptá** — TDLib to u `openWebApp` předepisuje:
-     * mini aplikace posílá botovi data a uživatel to má vědět dřív, než ji otevře. Potvrzení se
-     * pamatuje ([AppSettings.confirmedWebAppBots]).
+     * Mini aplikace bota. Souhlas před prvním otevřením u bota se ptá až obrazovka mini aplikace
+     * (`WebAppViewModel`) — vstupů je víc než konverzace.
      */
     private fun requestWebApp(request: WebAppRequest) {
-        if (request.botUserId in settings.confirmedWebAppBots.value) {
-            _state.update { it.copy(openWebApp = request) }
-        } else {
-            _state.update { it.copy(webAppConsent = request) }
-        }
+        _state.update { it.copy(openWebApp = request) }
     }
-
-    fun confirmWebApp() {
-        val request = _state.value.webAppConsent ?: return
-        settings.confirmWebAppBot(request.botUserId)
-        _state.update { it.copy(webAppConsent = null, openWebApp = request) }
-    }
-
-    fun dismissWebAppConsent() = _state.update { it.copy(webAppConsent = null) }
 
     fun consumeOpenWebApp() = _state.update { it.copy(openWebApp = null) }
 
     /** Bot, kterému zpráva s tlačítkem patří: odesílatel (kladné id = uživatel), jinak chat s botem. */
     private fun botOf(message: ChatMessage?): Long = message?.senderId?.takeIf { it > 0 } ?: chatId
-
-    private fun botNameOf(message: ChatMessage?): String = message?.senderName ?: _state.value.info?.title.orEmpty()
 
     fun consumeOpenPollComposer() {
         _state.update { it.copy(openPollComposer = null) }
@@ -2595,7 +2583,7 @@ class ConversationViewModel(
             is ReplyKeyboardButtonKind.WebApp -> {
                 val owner = _state.value.messages.firstOrNull { it.id == keyboard.messageId }
                 requestWebApp(
-                    WebAppRequest(botOf(owner), botNameOf(owner), kind.url, launch = false, keyboardButtonText = button.text),
+                    WebAppRequest(botOf(owner), kind.url, launch = false, keyboardButtonText = button.text),
                 )
             }
             is ReplyKeyboardButtonKind.Unsupported ->
@@ -2610,7 +2598,7 @@ class ConversationViewModel(
     fun openBotMenuApp() {
         val app = _state.value.botMenuApp ?: return
         closeCommands()
-        requestWebApp(WebAppRequest(chatId, _state.value.info?.title.orEmpty(), app.url, launch = true))
+        requestWebApp(WebAppRequest(chatId, app.url, launch = true))
     }
 
     /** Tlačítko příkazů u pole: otevře seznam, druhé ťuknutí ho zavře. */
@@ -2786,7 +2774,7 @@ class ConversationViewModel(
             is InlineResultsButton.StartBot ->
                 openBotStart(InternalLink.BotStart(inline.bot.userId, button.parameter, autostart = true))
             is InlineResultsButton.WebApp ->
-                requestWebApp(WebAppRequest(inline.bot.userId, "@${inline.bot.username}", button.url, launch = false))
+                requestWebApp(WebAppRequest(inline.bot.userId, button.url, launch = false))
             null -> Unit
         }
     }
@@ -4744,8 +4732,6 @@ data class ConversationState(
     val pendingContact: MessageMedia.Contact? = null,
     /** Jednorázová událost: tlačítko bota chce formulář nové ankety (v tomhle režimu). */
     val openPollComposer: PollComposerMode? = null,
-    /** Mini aplikace čeká na souhlas (poprvé u tohoto bota); `null` = žádná. */
-    val webAppConsent: WebAppRequest? = null,
     /** Mini aplikace k otevření — obrazovka ji otevře a událost vynuluje. */
     val openWebApp: WebAppRequest? = null,
     /** Jednorázová událost: otevřít sheet sady samolepek z odkazu `t.me/addstickers/…`. */
@@ -4977,15 +4963,17 @@ private data class LinkPreviewStash(
 
 /**
  * Mini aplikace, kterou chce konverzace otevřít. [launch] = přes `openWebApp` (tlačítko pod
- * zprávou), jinak jen adresa (`getWebAppUrl`: vlastní klávesnice, tlačítko nad výsledky inline
- * bota). [keyboardButtonText] jen u vlastní klávesnice — s ním smí mini aplikace poslat data.
+ * zprávou, nabídka bota), jinak jen adresa (`getWebAppUrl`: vlastní klávesnice, tlačítko nad
+ * výsledky inline bota). [keyboardButtonText] jen u vlastní klávesnice — s ním smí mini aplikace
+ * poslat data. [main] = hlavní mini aplikace bota (`getMainWebApp`), [url] je pak prázdná.
  */
 data class WebAppRequest(
     val botUserId: Long,
-    val botName: String,
     val url: String,
     val launch: Boolean,
     val keyboardButtonText: String? = null,
+    val main: Boolean = false,
+    val startParameter: String = "",
 )
 
 /** Přihlášení na web z tlačítka bota, které čeká na potvrzení. */

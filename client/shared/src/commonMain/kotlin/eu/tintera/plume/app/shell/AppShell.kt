@@ -532,6 +532,10 @@ private fun shellEntryProvider(
             onOpenMemberRights = { userId, admin ->
                 chatsStack.add(MemberRightsRoute(route.chatId, userId, admin))
             },
+            // Soukromý chat s botem má id bota, takže chat je zároveň bot.
+            onOpenMainWebApp = {
+                chatsStack.add(WebAppRoute(route.chatId, route.chatId, url = "", launch = false, archive = false, main = true))
+            },
         )
     }
 
@@ -671,6 +675,10 @@ private fun shellEntryProvider(
             onOpenMemberRights = { userId, admin ->
                 chatsStack.add(ArchiveMemberRightsRoute(route.chatId, userId, admin))
             },
+            // Soukromý chat s botem má id bota, takže chat je zároveň bot.
+            onOpenMainWebApp = {
+                chatsStack.add(WebAppRoute(route.chatId, route.chatId, url = "", launch = false, archive = true, main = true))
+            },
         )
     }
 
@@ -725,8 +733,13 @@ private fun shellEntryProvider(
     entry<WebAppRoute> { route ->
         WebAppScreen(
             viewModel = koinViewModel(
-                key = "web-app-${route.chatId}-${route.botUserId}-${route.url.hashCode()}",
-                parameters = { parametersOf(route.chatId, route.botUserId, route.url, route.launch, route.keyboardButtonText) },
+                key = "web-app-${route.chatId}-${route.botUserId}-${route.url.hashCode()}-${route.main}-${route.startParameter}",
+                parameters = {
+                    parametersOf(
+                        route.chatId, route.botUserId, route.url, route.launch, route.keyboardButtonText,
+                        route.main, route.startParameter,
+                    )
+                },
             ),
             onClose = { chatsStack.pop(route) },
             onOpenChat = { target ->
@@ -1011,6 +1024,8 @@ private fun webAppRoute(chatId: Long, request: WebAppRequest, archive: Boolean) 
     launch = request.launch,
     keyboardButtonText = request.keyboardButtonText,
     archive = archive,
+    main = request.main,
+    startParameter = request.startParameter,
 )
 
 private fun SwitchInlinePick.toRoute() = SwitchInlineRoute(

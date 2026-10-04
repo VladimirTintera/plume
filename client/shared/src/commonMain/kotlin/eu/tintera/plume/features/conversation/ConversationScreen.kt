@@ -2048,9 +2048,6 @@ fun ConversationScreen(
                 onOpenWebApp(request)
             }
         }
-        state.webAppConsent?.let { request ->
-            WebAppConsentDialog(botName = request.botName, onOpen = viewModel::confirmWebApp, onDismiss = viewModel::dismissWebAppConsent)
-        }
 
         state.pendingPin?.let { pending ->
             PinMessageDialog(

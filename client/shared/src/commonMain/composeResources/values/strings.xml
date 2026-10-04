@@ -261,6 +261,7 @@
     <string name="profile_shared_photo">Photo</string>
     <string name="profile_shared_failed">Shared content couldn't be loaded.</string>
     <string name="profile_search">Search</string>
+    <string name="profile_open_app">Open</string>
     <string name="profile_info">Info</string>
     <string name="profile_username">Username</string>
     <string name="profile_username_value">@%1$s</string>

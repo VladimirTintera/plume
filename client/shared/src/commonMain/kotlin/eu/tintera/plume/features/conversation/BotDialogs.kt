@@ -32,9 +32,6 @@ import eu.tintera.plume.resources.bot_share_phone_confirm
 import eu.tintera.plume.resources.bot_share_phone_text
 import eu.tintera.plume.resources.bot_share_phone_title
 import eu.tintera.plume.resources.common_cancel
-import eu.tintera.plume.resources.webapp_consent_open
-import eu.tintera.plume.resources.webapp_consent_text
-import eu.tintera.plume.resources.webapp_consent_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -72,21 +69,6 @@ internal fun SharePhoneDialog(onShare: () -> Unit, onDismiss: () -> Unit) {
         title = { Text(stringResource(Res.string.bot_share_phone_title)) },
         text = { Text(stringResource(Res.string.bot_share_phone_text)) },
         confirmButton = { TextButton(onClick = onShare) { Text(stringResource(Res.string.bot_share_phone_confirm)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
-    )
-}
-
-/**
- * Souhlas před prvním otevřením mini aplikace u bota. TDLib ho předepisuje: mini aplikace
- * dostane údaje o účtu a co v ní uživatel udělá, může dostat i bot. Ptá se jednou na bota.
- */
-@Composable
-internal fun WebAppConsentDialog(botName: String, onOpen: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.webapp_consent_title)) },
-        text = { Text(stringResource(Res.string.webapp_consent_text, botName)) },
-        confirmButton = { TextButton(onClick = onOpen) { Text(stringResource(Res.string.webapp_consent_open)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }

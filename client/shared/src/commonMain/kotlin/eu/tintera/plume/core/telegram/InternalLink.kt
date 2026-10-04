@@ -39,6 +39,13 @@ sealed interface InternalLink {
      * nese celý: práva i parametr si při přidání přečte znovu hranice TDLib ([ChatRepository.addBotToGroup]).
      */
     data class BotStartInGroup(val url: String, val botChatId: Long, val asAdmin: Boolean) : InternalLink
+
+    /**
+     * Hlavní mini aplikace bota (`t.me/bot?startapp=…`). Soukromý chat s botem má id bota, takže
+     * [botUserId] je zároveň chat. Bot, který hlavní mini aplikaci nemá, se z odkazu otevře jako
+     * chat ([Chat]) — tak to dělají i oficiální klienti.
+     */
+    data class MainWebApp(val botUserId: Long, val startParameter: String) : InternalLink
 }
 
 /** Co o chatu řekne pozvánka, než se do něj uživatel přidá (`checkChatInviteLink`). */

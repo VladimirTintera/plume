@@ -5746,8 +5746,9 @@ obsahu bývá zlomek zpráv.
 
 ## Mini aplikace botů
 
-Tlačítko pod zprávou (`web_app`), tlačítko vlastní klávesnice bota a tlačítko nad výsledky inline
-bota otevřou mini aplikaci přes celou obrazovku (`WebAppRoute`, `WebAppScreen`, `WebAppViewModel`).
+Tlačítko pod zprávou (`web_app`), tlačítko vlastní klávesnice bota, tlačítko nad výsledky inline
+bota, tlačítko nabídky bota, dlaždice „Otevřít" v profilu bota a odkaz `t.me/bot?startapp` otevřou
+mini aplikaci přes celou obrazovku (`WebAppRoute`, `WebAppScreen`, `WebAppViewModel`).
 Adresu i podepsaná data uživatele skládá TDLib (`WebAppRepository`); aplikace stránku jen
 zobrazí a zprostředkuje její události.
 
@@ -5770,6 +5771,10 @@ zobrazí a zprostředkuje její události.
   jméno by mini aplikace nepoznaly.
 - **Poprvé u každého bota souhlas** (`WebAppConsentDialog`, `AppSettings.confirmedWebAppBots`) —
   TDLib u `openWebApp` předepisuje jednou ukázat, že mini aplikace posílá data botovi.
+  **Ptá se obrazovka mini aplikace, ne místo, odkud se otevírá** (`WebAppViewModel.start`, nic
+  se nenačte, dokud se nepotvrdí; „Zrušit" obrazovku zavře). Dokud se ptala konverzace, musel by
+  si souhlas hlídat každý nový vstup zvlášť — profil bota i odkaz by na něj zapomněly. Dialog
+  čeká na jméno bota (lokální `getUser`), jinak by na okamžik jmenoval „Mini aplikaci".
 - **Spuštění přes `openWebApp` se musí zavřít** (`closeWebApp` v `onCleared` přes `appScope`).
   Klávesnice a inline tlačítko jdou přes `getWebAppUrl` a spuštění nemají; **data botovi**
   (`web_app_data_send`) smí poslat jen mini aplikace z vlastní klávesnice (`keyboardButtonText`).
@@ -5793,6 +5798,24 @@ zobrazí a zprostředkuje její události.
   - **Ověřuje se `setChatMenuButton` botem** s `chat_id` vlastního účtu (jen pro náš chat,
     ne globálně) a po ověření vrátit `{"type":"default"}`. Ověřeno na emulátoru (Fold, světlý
     i tmavý motiv): pilulka, sbalení s konceptem, souhlas a otevření ukázky `cafe`.
+- **Hlavní mini aplikace bota** (`getMainWebApp`, `WebAppRoute.main`): dlaždice „Otevřít" v profilu
+  bota (`ChatProfile.hasMainWebApp` z `UserTypeBot.hasMainWebApp`), první v řadě — u bota
+  s aplikací je to to, kvůli čemu do profilu přišel. A odkaz `t.me/bot?startapp=…`
+  (`InternalLink.MainWebApp`, parametr jde do `getMainWebApp`).
+  - **Spuštění nemá, takže se nezavírá** — `getMainWebApp` vrací jen adresu.
+  - **Bot bez hlavní mini aplikace se z odkazu otevře jako chat**, ne chybou; tak to dělají
+    i oficiální klienti. Režim z odkazu (kompaktní / celá obrazovka) se neřeší, Plume kreslí
+    vždy přes celou obrazovku. Panel s podmínkami botů v nabídce příloh (`getAttachmentMenuBot`)
+    taky ne — nabídku příloh botů Plume nemá.
+  - **Odkaz na jinou mini aplikaci z mini aplikace otevře chat jejího bota**, ne druhou mini
+    aplikaci nad první — vrstvené by zpět mátlo.
+  - **Ověřuje se na @BotFatherovi** — má hlavní mini aplikaci (správa vlastních botů), testovací
+    bot ji mít nemůže (nastavuje se jen v BotFatheru). V ní nic neměnit, jen otevřít a zavřít.
+    Ověřeno na emulátoru: odkaz se souhlasem i bez něj, „Zrušit" vrátí do konverzace, dlaždice
+    v profilu.
+- **Tmavá hlavička od stránky přepne ikony stavové lišty na světlé** (`DarkSystemBars`).
+  BotFather si nastaví tmavou hlavičku i ve světlém motivu aplikace a tmavé ikony na ní nebyly
+  vidět. Rozhoduje táž světlost, podle které se volí popředí hlavičky.
 - **Ověřeno na emulátoru** s ukázkou Telegramu `webappcontent.telegram.org/cafe` (bot ji pošle
   jako `web_app` tlačítko): souhlas jen poprvé, motiv, hlavní tlačítko v barvě od stránky a změna
   jeho textu, vlastní „zpět" v hlavičce i systémovým gestem, potvrzení zavření s plným košíkem,

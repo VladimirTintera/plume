@@ -150,6 +150,7 @@ class TdlProfileRepository(
             isBlocked = full?.blockList != null,
             verification = user.verificationStatus.toVerification(),
             botVerification = botVerificationNote(full?.botVerification),
+            hasMainWebApp = (user.type as? UserTypeBot)?.hasMainWebApp == true,
         )
     }
 
