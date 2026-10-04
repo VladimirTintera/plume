@@ -89,10 +89,10 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
     omezení, štítek, vyhodit s dobou, předat vlastnictví; `CLAUDE.md`, „Správa členů").
     ~~Sdílet kontakt~~ — hotovo (⋮ → Sdílet kontakt). ~~Správa pozvánek~~ — hotovo (odkazy
     s limitem, platností a schvalováním, zrušení a mazání, žádosti o vstup; `CLAUDE.md`,
-    „Pozvánky a žádosti o vstup"). U pozvánek zbývá: ~~sdílet odkaz~~ (hotovo),
-    odkazy ostatních správců (vlastník, `getChatInviteLinkCounts`), kdo se přes odkaz přidal
-    (`getChatInviteLinkMembers`), pruh s čekajícími žádostmi nahoře v konverzaci skupiny
-    a **ověřit skutečnou žádost o vstup** (chce druhý účet).
+    „Pozvánky a žádosti o vstup"; sdílení odkazu, odkazy ostatních správců, kdo se přidal
+    a pruh s čekajícími žádostmi v konverzaci jsou hotové). U pozvánek zbývá **ověřit
+    skutečnou žádost o vstup a „kdo se přidal" se skutečnými lidmi** (chce druhý účet)
+    a pruh žádostí i v seznamu témat (skupina s tématy ho zatím ukazuje až v tématu).
     Uložení úpravy skupiny **není ověřené na zařízení**: mění skutečnou skupinu. Totéž platí
     pro uložení práv člena, omezení, vyhození, štítek a dokončený převod vlastnictví — ověřené
     je jen to, co skutečnou skupinu nemění (viz „Správa členů" v `CLAUDE.md`). Převod navíc

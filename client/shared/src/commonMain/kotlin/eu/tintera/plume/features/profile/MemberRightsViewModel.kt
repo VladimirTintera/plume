@@ -9,6 +9,7 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.AdminRights
 import eu.tintera.plume.core.telegram.GroupPermissions
 import eu.tintera.plume.core.telegram.MemberDetail
+import eu.tintera.plume.core.telegram.MemberRole
 import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
@@ -122,12 +123,16 @@ class MemberRightsViewModel(
     /**
      * Je co ukládat. U správce se počítá i změna z „žádná práva" na nějaká (povýšení) a zpátky
      * (sesazení); u omezení i změna samotné doby.
+     *
+     * **Povýšení je změna i s nabídnutými právy.** Kdo správce není, dostane v
+     * [MemberDetail.adminRights] výchozí nabídku, takže porovnání s ní by vyšlo „beze změny"
+     * a povýšit by šlo jen s upraveným přepínačem.
      */
     val changed: Boolean
         get() {
             val detail = member ?: return false
             return if (admin) {
-                rights != detail.adminRights
+                rights != detail.adminRights || detail.role == MemberRole.Member && rights.any
             } else {
                 permissions != detail.permissions || !keepsCurrentEnd && duration != remaining
             }

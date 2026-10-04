@@ -482,6 +482,7 @@ private fun shellEntryProvider(
             onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
             onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
             onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
+            onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
         )
     }
 
@@ -656,6 +657,7 @@ private fun shellEntryProvider(
             onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
             onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
             onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
+            onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
         )
     }
 

@@ -1761,6 +1761,35 @@
     <string name="join_requests_declined">Žádost odmítnuta.</string>
     <string name="join_requests_failed">Žádost se nepodařilo vyřídit.</string>
     <string name="join_requests_load_failed">Žádosti se nepodařilo načíst.</string>
+    <string name="invite_links_others">Odkazy ostatních správců</string>
+    <plurals name="invite_links_admin_active">
+        <item quantity="one">%1$s odkaz</item>
+        <item quantity="few">%1$s odkazy</item>
+        <item quantity="other">%1$s odkazů</item>
+    </plurals>
+    <plurals name="invite_links_admin_revoked">
+        <item quantity="one">%1$s zrušený</item>
+        <item quantity="few">%1$s zrušené</item>
+        <item quantity="other">%1$s zrušených</item>
+    </plurals>
+    <string name="invite_links_admin_title">Odkazy: %1$s</string>
+    <string name="invite_links_admin_help">Jako vlastník je můžeš zrušit a smazat. Upravit je může jen správce, který je založil.</string>
+    <string name="invite_links_admin_bot_help">Odkazy, které založil bot, může zrušit jen bot sám. Můžeš je sdílet a kopírovat.</string>
+    <string name="invite_links_keep">Ponechat</string>
+    <string name="invite_links_admin_empty">Žádné odkazy.</string>
+    <string name="invite_links_members">Kdo se přidal</string>
+    <string name="invite_links_members_title">Kdo se přidal tímhle odkazem</string>
+    <string name="invite_links_members_empty">Nikdo z těch, kdo se přidali, už tu není.</string>
+    <string name="invite_links_member_joined">Vstup: %1$s</string>
+    <string name="invite_links_member_via_folder">přes sdílenou složku</string>
+    <string name="invite_links_members_failed">Nepodařilo se načíst, kdo se přidal.</string>
+    <plurals name="join_requests_bar">
+        <item quantity="one">%1$s žádost o vstup</item>
+        <item quantity="few">%1$s žádosti o vstup</item>
+        <item quantity="other">%1$s žádostí o vstup</item>
+    </plurals>
+    <string name="join_requests_bar_more">%1$s a další</string>
+    <string name="join_requests_bar_hide">Skrýt žádosti o vstup</string>
     <string name="forum_topic_new">Nové téma</string>
     <string name="forum_topic_rename_title">Přejmenovat téma</string>
     <string name="forum_topic_name">Název</string>

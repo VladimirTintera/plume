@@ -1708,6 +1708,32 @@
     <string name="join_requests_declined">Request dismissed.</string>
     <string name="join_requests_failed">Couldn't process the request.</string>
     <string name="join_requests_load_failed">Couldn't load the join requests.</string>
+    <string name="invite_links_others">Other admins' links</string>
+    <plurals name="invite_links_admin_active">
+        <item quantity="one">%1$s link</item>
+        <item quantity="other">%1$s links</item>
+    </plurals>
+    <plurals name="invite_links_admin_revoked">
+        <item quantity="one">%1$s revoked</item>
+        <item quantity="other">%1$s revoked</item>
+    </plurals>
+    <string name="invite_links_admin_title">Links by %1$s</string>
+    <string name="invite_links_admin_help">As the owner you can revoke and delete them. Editing stays with the admin who created them.</string>
+    <string name="invite_links_admin_bot_help">Links created by a bot can be revoked only by the bot itself. You can share and copy them.</string>
+    <string name="invite_links_keep">Keep</string>
+    <string name="invite_links_admin_empty">No links.</string>
+    <string name="invite_links_members">Who joined</string>
+    <string name="invite_links_members_title">Who joined with this link</string>
+    <string name="invite_links_members_empty">Nobody who joined is still here.</string>
+    <string name="invite_links_member_joined">Joined %1$s</string>
+    <string name="invite_links_member_via_folder">via a shared folder</string>
+    <string name="invite_links_members_failed">Couldn't load who joined.</string>
+    <plurals name="join_requests_bar">
+        <item quantity="one">%1$s join request</item>
+        <item quantity="other">%1$s join requests</item>
+    </plurals>
+    <string name="join_requests_bar_more">%1$s and others</string>
+    <string name="join_requests_bar_hide">Hide join requests</string>
     <string name="forum_topic_new">New topic</string>
     <string name="forum_topic_rename_title">Rename topic</string>
     <string name="forum_topic_name">Name</string>
