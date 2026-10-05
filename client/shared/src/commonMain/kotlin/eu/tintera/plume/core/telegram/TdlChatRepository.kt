@@ -20,6 +20,10 @@ import dev.g000sha256.tdl.dto.InternalLinkTypeChatFolderInvite
 import dev.g000sha256.tdl.dto.InternalLinkTypeChatInvite
 import dev.g000sha256.tdl.dto.InternalLinkTypeMessage
 import dev.g000sha256.tdl.dto.InternalLinkTypePublicChat
+import dev.g000sha256.tdl.dto.InternalLinkTypeMessageDraft
+import dev.g000sha256.tdl.dto.InternalLinkTypeSavedMessages
+import dev.g000sha256.tdl.dto.InternalLinkTypeUserPhoneNumber
+import dev.g000sha256.tdl.dto.InternalLinkTypeUserToken
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.TdlResult
@@ -65,6 +69,7 @@ import dev.g000sha256.tdl.dto.ReportChatResultOk
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
 import dev.g000sha256.tdl.dto.MessageSender
+import dev.g000sha256.tdl.dto.User
 import dev.g000sha256.tdl.dto.UserTypeBot
 import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageTopicForum
@@ -611,7 +616,31 @@ class TdlChatRepository(
             ?: return Result.success(null)
         return when (type) {
             is InternalLinkTypePublicChat ->
-                client.searchPublicChat(username = type.chatUsername).toResult().map { InternalLink.Chat(it.id) }
+                client.searchPublicChat(username = type.chatUsername).toResult().map {
+                    InternalLink.Chat(it.id, draftText = type.draftText.ifBlank { null }, openProfile = type.openProfile)
+                }
+
+            // Člověk podle čísla (`t.me/+420…`). Server ho vydá, jen když číslo neskrývá, nebo je
+            // v kontaktech; jinak 400/404, a to má vlastní větu.
+            is InternalLinkTypeUserPhoneNumber ->
+                privateChatLink(
+                    client.searchUserByPhoneNumber(phoneNumber = type.phoneNumber, onlyLocal = false),
+                    draftText = type.draftText,
+                    openProfile = type.openProfile,
+                )
+
+            // Kontaktní odkaz (`t.me/contact/…`), který si člověk vyrobil ve svém profilu.
+            is InternalLinkTypeUserToken ->
+                privateChatLink(client.searchUserByToken(token = type.token), draftText = "", openProfile = false)
+
+            // `t.me/share/url?url=…&text=…`. TDLib adresu i text složí do jednoho textu sám.
+            is InternalLinkTypeMessageDraft ->
+                Result.success(type.text.text.takeIf { it.isNotBlank() }?.let { InternalLink.ShareText(it) })
+
+            is InternalLinkTypeSavedMessages -> {
+                val saved = savedMessagesChatId.value ?: client.getMe().toResult().getOrNull()?.id
+                Result.success(saved?.let { InternalLink.Chat(it) })
+            }
 
             is InternalLinkTypeMessage ->
                 client.getMessageLinkInfo(url = type.url).toResult().mapCatching { info ->
@@ -700,6 +729,25 @@ class TdlChatRepository(
             else -> Result.success(null)
         }
     }
+
+    /**
+     * Soukromý chat s uživatelem, kterého vydalo hledání podle čísla nebo kontaktního odkazu.
+     * Chat se založí lokálně (`createPrivateChat`), jinak by ho TDLib neznal a nešel by otevřít.
+     */
+    private suspend fun privateChatLink(user: TdlResult<User>, draftText: String, openProfile: Boolean): Result<InternalLink?> =
+        when (user) {
+            is TdlResult.Failure ->
+                if (user.code == BAD_REQUEST || user.code == NOT_FOUND) {
+                    logger.i { "Uživatel z odkazu nenalezen: ${user.code} ${user.message}" }
+                    Result.failure(LinkUserNotFoundException())
+                } else {
+                    user.toResult().map { null }
+                }
+            is TdlResult.Success ->
+                client.createPrivateChat(userId = user.result.id, force = false).toResult().map { chat ->
+                    InternalLink.Chat(chat.id, draftText = draftText.ifBlank { null }, openProfile = openProfile)
+                }
+        }
 
     override suspend fun joinByInvite(link: String): Result<InviteJoinResult> =
         client.joinChatByInviteLink(inviteLink = link).toResult().mapCatching { result ->
@@ -1398,6 +1446,9 @@ class TdlChatRepository(
 
         /** TDLib hlásí „už není co načítat" jako 404. */
         const val NOT_FOUND = 404
+
+        /** Hledání uživatele podle čísla nebo tokenu hlásí neexistující účet i jako 400. */
+        const val BAD_REQUEST = 400
 
         /**
          * Ztlumení „navždy". TDLib bere sekundy, ne příznak, takže se dává maximum Intu —

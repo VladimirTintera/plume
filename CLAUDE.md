@@ -4376,6 +4376,24 @@ všechny podoby (`t.me`, `telegram.me`, `tg://`) a my jen vybíráme, co umíme 
   větu v `userMessage`.
 - **Sada samolepek** (`t.me/addstickers/…`, `searchStickerSet`) otevře tentýž sheet jako ťuknutí
   na samolepku.
+- **Člověk podle čísla (`t.me/+420…`) a kontaktní odkaz (`t.me/contact/…`)** jdou přes
+  `searchUserByPhoneNumber` / `searchUserByToken` a `createPrivateChat` (lokálně — bez něj by
+  TDLib chat neznal). Neexistující číslo vrátí `404 Not Found` a má vlastní větu
+  (`LinkUserNotFoundException`), ne obecné „odkaz nejde otevřít": uživatel z ní pozná, že
+  odkaz je v pořádku a jen ten člověk na Telegramu není (nebo číslo skrývá).
+- **`?text=…` u chatu se jen VLOŽÍ do pole, nic se neodesílá** — text napsal autor odkazu. Jde
+  přes `ShareRequests` s vybraným chatem (`ShareTarget(confirm = false)`), tedy cestou
+  sdíleného textu: připojí se za rozepsaný koncept, a to až po jeho obnovení. Vlastní „request"
+  holder by zdvojil přesně tu logiku. Shell sdílení s vybraným chatem nikam nenaviguje, takže
+  chat otevírá dál konverzace (`openTarget`); odkaz na TENTÝŽ chat vloží text rovnou.
+- **`?profile` otevře profil nad konverzací** (`ConversationState.openProfile`), text z odkazu
+  se pak zahodí — patří chatu, ne profilu.
+- **`t.me/share/url?url=…&text=…` je sdílení bez vybraného chatu** (`shareRequests.start`): shell
+  otevře výběr chatu sám, jako u sdílení ze systému. Adresu i text TDLib složí do jednoho textu.
+- **Ověřeno na emulátoru** odkazy od testovacího bota: `?text=` v témže chatu, `?profile`,
+  `t.me/share` do Uložených zpráv, neexistující číslo (hláška) a vlastní číslo (Uložené zprávy
+  s textem). **Kontaktní odkaz ověřený NENÍ** (chce token jiného účtu), Uložené zprávy z odkazu
+  taky ne (bot `tg://` odkaz v textu neoznačí).
 
 ### Čas v médiu
 

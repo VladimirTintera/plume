@@ -54,6 +54,7 @@ import eu.tintera.plume.core.telegram.SenderInfo
 import eu.tintera.plume.core.telegram.ForwardOrigin
 import eu.tintera.plume.resources.invite_request_sent
 import eu.tintera.plume.resources.conversation_link_failed
+import eu.tintera.plume.resources.conversation_link_user_not_found
 import eu.tintera.plume.core.telegram.FolderInvitePreview
 import eu.tintera.plume.core.telegram.InvitePreview
 import eu.tintera.plume.core.telegram.InviteJoinResult
@@ -83,6 +84,8 @@ import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSharer
 import eu.tintera.plume.core.files.SaveAsLauncher
 import eu.tintera.plume.core.share.ShareRequests
+import eu.tintera.plume.core.telegram.LinkUserNotFoundException
+import eu.tintera.plume.core.share.ShareTarget
 import eu.tintera.plume.core.share.SharedContent
 import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.settings.AppSettings
@@ -2193,8 +2196,9 @@ class ConversationViewModel(
                         } else {
                             urlOpener.open(url)
                         }
-                        is InternalLink.Chat ->
-                            if (link.chatId != chatId) openTarget(ChatTarget(link.chatId))
+                        is InternalLink.Chat -> openChatLink(link)
+                        // Výběr chatu otevře shell sám — sdílení bez vybraného chatu (viz ShareRequests).
+                        is InternalLink.ShareText -> shareRequests.start(link.text, hasFiles = false)
                         is InternalLink.Message -> when {
                             // Tentýž chat, a v tématu jen totéž téma — zpráva z jiného tématu
                             // v téhle historii není, skok by skončil „už není k dispozici".
@@ -2227,10 +2231,31 @@ class ConversationViewModel(
                     }
                 }
                 .onFailure { failure ->
-                    val message = failure.reported(Res.string.conversation_link_failed)
+                    val message = if (failure is LinkUserNotFoundException) {
+                        UiText(Res.string.conversation_link_user_not_found)
+                    } else {
+                        failure.reported(Res.string.conversation_link_failed)
+                    }
                     _state.update { it.copy(error = message) }
                 }
         }
+    }
+
+    /**
+     * Odkaz na chat. Profil (`?profile`) se otevře nad touhle konverzací; jinak chat, a text
+     * z odkazu (`?text=…`) čeká v jeho poli jako sdílený text — připojí se za rozepsaný koncept,
+     * nic se neodesílá. Jde přes [ShareRequests] s vybraným chatem: konverzace si ho vyzvedne,
+     * až obnoví vlastní koncept, a v tomhle chatu ho vyzvedne rovnou.
+     */
+    private fun openChatLink(link: InternalLink.Chat) {
+        if (link.openProfile) {
+            _state.update { it.copy(openProfile = link.chatId) }
+            return
+        }
+        link.draftText?.let { text ->
+            shareRequests.start(text, hasFiles = false, target = ShareTarget(link.chatId, confirm = false))
+        }
+        if (link.chatId != chatId) openTarget(ChatTarget(link.chatId))
     }
 
     /**
