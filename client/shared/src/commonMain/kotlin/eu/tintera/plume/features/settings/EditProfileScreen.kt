@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.settings
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import eu.tintera.plume.resources.profile_photos_open
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.CircleShape
@@ -32,13 +34,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
@@ -46,9 +46,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.NAME_MAX_LENGTH
 import eu.tintera.plume.core.telegram.USERNAME_MAX_LENGTH
-import eu.tintera.plume.core.telegram.UsernameCheck
-import eu.tintera.plume.core.telegram.UsernameFormatError
-import eu.tintera.plume.core.telegram.usernameFormatError
+import eu.tintera.plume.core.ui.usernameMessage
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.resolve
@@ -69,19 +67,8 @@ import eu.tintera.plume.resources.edit_profile_last_name
 import eu.tintera.plume.resources.edit_profile_save
 import eu.tintera.plume.resources.edit_profile_title
 import eu.tintera.plume.resources.edit_profile_username
-import eu.tintera.plume.resources.edit_profile_username_available
-import eu.tintera.plume.resources.edit_profile_username_characters
-import eu.tintera.plume.resources.edit_profile_username_checking
-import eu.tintera.plume.resources.edit_profile_username_end
 import eu.tintera.plume.resources.edit_profile_username_help
-import eu.tintera.plume.resources.edit_profile_username_invalid
-import eu.tintera.plume.resources.edit_profile_username_occupied
 import eu.tintera.plume.resources.edit_profile_username_prefix
-import eu.tintera.plume.resources.edit_profile_username_purchasable
-import eu.tintera.plume.resources.edit_profile_username_start
-import eu.tintera.plume.resources.edit_profile_username_too_long
-import eu.tintera.plume.resources.edit_profile_username_too_many
-import eu.tintera.plume.resources.edit_profile_username_too_short
 import eu.tintera.plume.resources.photo_camera_24dp
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
@@ -266,38 +253,6 @@ fun EditProfileScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
-    }
-}
-
-/**
- * Věta pod polem uživatelského jména a jestli je to chyba; `null` = nápověda. Nejdřív místní
- * pravidla (hned při psaní), pak odpověď serveru.
- */
-@Composable
-private fun usernameMessage(username: String, original: String, status: UsernameStatus): Pair<String, Boolean>? {
-    if (username == original) return null
-    usernameFormatError(username)?.let { error ->
-        val text = when (error) {
-            UsernameFormatError.Characters -> Res.string.edit_profile_username_characters
-            UsernameFormatError.Start -> Res.string.edit_profile_username_start
-            UsernameFormatError.TooShort -> Res.string.edit_profile_username_too_short
-            UsernameFormatError.TooLong -> Res.string.edit_profile_username_too_long
-            UsernameFormatError.End -> Res.string.edit_profile_username_end
-        }
-        return stringResource(text) to true
-    }
-    return when (status) {
-        UsernameStatus.Idle -> null
-        UsernameStatus.Checking -> stringResource(Res.string.edit_profile_username_checking) to false
-        UsernameStatus.Available -> stringResource(Res.string.edit_profile_username_available) to false
-        is UsernameStatus.Unavailable -> stringResource(
-            when (status.check) {
-                UsernameCheck.Occupied -> Res.string.edit_profile_username_occupied
-                UsernameCheck.Purchasable -> Res.string.edit_profile_username_purchasable
-                UsernameCheck.TooManyPublic -> Res.string.edit_profile_username_too_many
-                UsernameCheck.Invalid, UsernameCheck.Available -> Res.string.edit_profile_username_invalid
-            },
-        ) to true
     }
 }
 

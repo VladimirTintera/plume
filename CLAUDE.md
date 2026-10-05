@@ -2172,6 +2172,18 @@ a fotka (`CreateChatRoute`, `CreateChatScreen`); kanál rovnou formulář s popi
   bez Uložených zpráv (`groupMemberCandidates`).
 - **Pokračovat jde i bez členů** (`ChatPicker(confirmWhenEmpty = true)`): skupina smí vzniknout
   prázdná a pozvat se dá odkazem.
+- **Soukromý, nebo veřejný** (spojená přepínací tlačítka pod názvem, výchozí soukromý — veřejný
+  chat najde kdokoli a to má být vědomá volba). Veřejný chce odkaz `t.me/…`, kontrolovaný jako
+  vlastní uživatelské jméno: místní pravidla hned, dostupnost po pauze (`UsernameStatus`
+  a `usernameMessage` se proto přestěhovaly z úpravy profilu do `core/ui/UsernameMessage.kt`).
+  **Zakládaný chat se ptá `checkChatUsername(chatId = 0)`** — tak to TDLib pro chat, který ještě
+  neexistuje, chce. Strop veřejných chatů (`PublicChatsTooMany`) má vlastní větu.
+- **Veřejné jméno se nastavuje až stojící supergroupě** (`setSupergroupUsername`),
+  `createNewSupergroupChat` ho nebere. Když to selže (jméno mezitím někdo vzal), chat zůstane
+  soukromý a řekne to dialog po založení — zakládat znovu by vyrobilo druhý chat.
+- **Komu server nedovolil přidání, tomu jde po založení poslat pozvánku** — tytéž věty a tatáž
+  cesta (`ProfileRepository.sendInviteLink`) jako u přidávání členů. Pozvánku vlastníkovi vydá
+  `profile(chatId).inviteLink`; když ji zjistit nejde, dialog jen vyjmenuje, koho přidat nešlo.
 - **Fotka se ořízne hned po výběru** (`SquarePhoto`) a nahraje až s id chatu — náhled ukazuje
   přesně to, co odejde.
 - **Po založení se z Chatů odebere celá větev** (nová zpráva, členové, formulář) a zpět z nového
@@ -2182,6 +2194,8 @@ a fotka (`CreateChatRoute`, `CreateChatScreen`); kanál rovnou formulář s popi
   seznamu. Bot jde do výběru členů přes hledání — v kontaktech není. **Neověřeno**: fotka při
   založení, dialog s lidmi, které server nepustil (chce cizí účet se zakázaným přidáváním),
   a předání výchozí doby mazání. Testovací skupina a kanál na účtu zůstaly.
+  Volba veřejného chatu a pozvánka nepuštěným lidem ověřené na zařízení NEJSOU — účet na
+  emulátoru se mezitím odhlásil (viz PR).
 
 ### Jeden výběr chatu: `ChatPicker`
 

@@ -1,8 +1,8 @@
 package eu.tintera.plume.features.settings
 
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -25,15 +25,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
-
-/** Stav kontroly uživatelského jména, jak ho ukazuje pole. */
-sealed interface UsernameStatus {
-    /** Beze změny, prázdné, nebo se teprve píše. */
-    data object Idle : UsernameStatus
-    data object Checking : UsernameStatus
-    data object Available : UsernameStatus
-    data class Unavailable(val check: UsernameCheck) : UsernameStatus
-}
+import eu.tintera.plume.core.ui.USERNAME_CHECK_DELAY_MS
+import eu.tintera.plume.core.ui.UsernameStatus
 
 /**
  * Úprava vlastního profilu: jméno, uživatelské jméno, bio a fotka.
@@ -211,9 +204,5 @@ class EditProfileViewModel(
     private fun Throwable.reported(message: org.jetbrains.compose.resources.StringResource): UiText {
         logger.w(this) { message.key }
         return userMessage(message)
-    }
-
-    private companion object {
-        const val USERNAME_CHECK_DELAY_MS = 400L
     }
 }
