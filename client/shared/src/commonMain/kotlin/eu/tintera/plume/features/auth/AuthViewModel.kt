@@ -342,3 +342,13 @@ internal fun AuthStage.canGoBack(): Boolean = when (this) {
     is AuthStage.WaitCode, is AuthStage.WaitPassword, is AuthStage.WaitQrConfirmation -> true
     else -> false
 }
+
+/**
+ * Jestli přihlášení nabízí proxy. Jen v krocích, kde se čeká na uživatele: start klienta
+ * (`Connecting`) ještě nemá parametry TDLib a odhlašování ani chyba proxy nespraví.
+ */
+internal fun AuthStage.offersProxy(): Boolean = when (this) {
+    AuthStage.WaitPhoneNumber, is AuthStage.WaitCode, is AuthStage.WaitPassword,
+    is AuthStage.WaitQrConfirmation, AuthStage.WaitRegistration -> true
+    else -> false
+}

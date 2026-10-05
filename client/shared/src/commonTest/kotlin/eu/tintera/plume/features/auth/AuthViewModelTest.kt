@@ -150,6 +150,16 @@ class AuthViewModelTest {
     }
 
     @Test
+    fun proxySeNabiziJenVKrocichPrihlaseni() {
+        assertTrue(AuthStage.WaitPhoneNumber.offersProxy())
+        assertTrue(AuthStage.WaitPassword(hint = null).offersProxy())
+        assertTrue(AuthStage.WaitRegistration.offersProxy())
+        // Start klienta, odhlašování a chyba se proxy nespraví.
+        assertFalse(AuthStage.Connecting.offersProxy())
+        assertFalse(AuthStage.LoggingOut.offersProxy())
+    }
+
+    @Test
     fun hesloSeNeorezava() = runTest {
         val session = FakeSession(AuthStage.WaitPassword(hint = null))
         val viewModel = AuthViewModel(session)
