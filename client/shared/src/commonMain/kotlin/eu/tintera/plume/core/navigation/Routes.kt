@@ -60,6 +60,10 @@ data object BlockedSendersRoute : Route
 @Serializable
 data object BlockSenderRoute : Route
 
+/** Proxy — vrší se nad sekci Obecné stejně jako složky chatů. */
+@Serializable
+data object ProxySettingsRoute : Route
+
 /** Složky chatů — vrší se nad sekci Obecné stejně jako seznam blokovaných. */
 @Serializable
 data object ChatFoldersRoute : Route
@@ -384,6 +388,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(BlockedSendersRoute::class, BlockedSendersRoute.serializer())
             subclass(BlockSenderRoute::class, BlockSenderRoute.serializer())
             subclass(ChatFoldersRoute::class, ChatFoldersRoute.serializer())
+            subclass(ProxySettingsRoute::class, ProxySettingsRoute.serializer())
             subclass(ChatFolderEditRoute::class, ChatFolderEditRoute.serializer())
             subclass(ArchiveRoute::class, ArchiveRoute.serializer())
             subclass(ArchiveConversationRoute::class, ArchiveConversationRoute.serializer())

@@ -204,6 +204,10 @@ import eu.tintera.plume.core.telegram.SharePhoneBar
 import eu.tintera.plume.features.chats.SpamCleanup
 import eu.tintera.plume.features.chats.cleanUpSpam
 import eu.tintera.plume.features.report.ReportFlow
+import eu.tintera.plume.features.proxy.ProxyLinkFlow
+import eu.tintera.plume.core.telegram.ProxyRepository
+import eu.tintera.plume.core.telegram.UnsupportedProxyException
+import eu.tintera.plume.resources.proxy_unsupported
 import eu.tintera.plume.resources.chats_blocked
 import eu.tintera.plume.resources.chats_unarchived
 import eu.tintera.plume.resources.spam_bar_contact_added
@@ -309,6 +313,7 @@ class ConversationViewModel(
     private val inlineQueryRequests: InlineQueryRequests,
     /** Jen kvůli pruhu s čekajícími žádostmi o vstup (vidí ho správce, který je smí vyřizovat). */
     private val inviteLinks: InviteLinkRepository,
+    proxies: ProxyRepository,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -400,6 +405,9 @@ class ConversationViewModel(
 
     /** Průvodce nahlášením — z nabídky nad zprávou i z pruhu proti spamu. */
     val reportFlow = ReportFlow(viewModelScope, chatRepository::report)
+
+    /** Proxy z odkazu `t.me/proxy` — přidá se až po potvrzení v dialogu. */
+    val proxyLinkFlow = ProxyLinkFlow(viewModelScope, proxies)
 
     private val _chatGone = MutableStateFlow(false)
 
@@ -2213,6 +2221,7 @@ class ConversationViewModel(
                             it.copy(folderInvite = FolderInviteSheetState(link.link, link.preview))
                         }
                         is InternalLink.StickerSet -> _state.update { it.copy(openStickerSet = link.setId) }
+                        is InternalLink.Proxy -> proxyLinkFlow.open(link.config)
                         is InternalLink.BotStart -> openBotStart(link)
                         // Skupinu vybírá obrazovka výběru; přidání se potvrzuje až tam.
                         is InternalLink.BotStartInGroup -> _state.update { it.copy(addBotToGroup = link) }
@@ -2231,10 +2240,10 @@ class ConversationViewModel(
                     }
                 }
                 .onFailure { failure ->
-                    val message = if (failure is LinkUserNotFoundException) {
-                        UiText(Res.string.conversation_link_user_not_found)
-                    } else {
-                        failure.reported(Res.string.conversation_link_failed)
+                    val message = when (failure) {
+                        is LinkUserNotFoundException -> UiText(Res.string.conversation_link_user_not_found)
+                        is UnsupportedProxyException -> UiText(Res.string.proxy_unsupported)
+                        else -> failure.reported(Res.string.conversation_link_failed)
                     }
                     _state.update { it.copy(error = message) }
                 }

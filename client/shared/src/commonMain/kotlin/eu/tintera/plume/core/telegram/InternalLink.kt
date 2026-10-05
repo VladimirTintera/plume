@@ -27,6 +27,12 @@ sealed interface InternalLink {
     data class ShareText(val text: String) : InternalLink
 
     /**
+     * Proxy (`t.me/proxy?…`, `t.me/socks?…`). Nic se nepřidá samo: odkaz může poslat kdokoli
+     * a proxy vidí, kam se aplikace připojuje — přidává se až po potvrzení.
+     */
+    data class Proxy(val config: ProxyConfig) : InternalLink
+
+    /**
      * Odkaz na zprávu. [messageId] je `null`, když chat otevřít jde, ale zprávu samotnou server
      * nevydal (smazaná, soukromý chat bez přístupu ke starší historii) — otevře se aspoň chat.
      */
@@ -76,6 +82,9 @@ sealed interface InternalLink {
      */
     data class FolderInvite(val link: String, val preview: FolderInvitePreview) : InternalLink
 }
+
+/** Odkaz na proxy druhu, který TDLib nezná (`InternalLinkTypeProxy.proxy == null`). */
+class UnsupportedProxyException : Exception("Unsupported proxy")
 
 /**
  * Odkaz vede na člověka podle čísla nebo kontaktního odkazu, ale takový účet na Telegramu není

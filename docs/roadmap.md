@@ -123,8 +123,9 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
      hledání zpráv). Odkazy na Telegram (chat, zpráva, pozvánka, sada samolepek) se otevírají
      v aplikaci (`CLAUDE.md`, „Odkazy na Telegram"); ~~boti se `start`, mini aplikace, sdílené
      složky, člověk podle čísla a kontaktního odkazu, `?text=` a `?profile`, `t.me/share`,
-     Uložené zprávy~~ hotové. Zbývá: odkazy do Nastavení (`tg://settings/…`), nová skupina
-     a kanál, proxy, videochat a přihlašovací kódy — jdou dál do prohlížeče. ~~**Veřejné příspěvky
+     Uložené zprávy, proxy (`t.me/proxy`, `t.me/socks`)~~ hotové. Zbývá: odkazy do Nastavení
+     (`tg://settings/…`), nová skupina a kanál, videochat a přihlašovací kódy — jdou dál do
+     prohlížeče. ~~**Veřejné příspěvky
      s tagem**~~ — hotovo (přepínač „Vaše chaty / Veřejné příspěvky" u hashtagu).
   3. ~~**Hledání v konverzaci**~~ — hotovo (lupa v hlavičce, šipky mezi výsledky, viz
      `CLAUDE.md`, „Hledání v konverzaci"). Hledané slovo je v bublinách zvýrazněné.
@@ -410,6 +411,13 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
     (`confirmQrCodeAuthentication`) proti skutečnému kódu z Telegram Desktop / webu zatím nikdo
     neviděl. Na iOS se čtečka dá vyzkoušet jen na telefonu, simulátor kameru nemá.
   - **Připojení boti (Telegram Business)** v seznamu relací ani v kartě „Byli jste to vy?" nejsou.
+- ~~**Proxy**~~ — hotovo (Obecné → Připojení → Proxy a odkazy `t.me/proxy`; `CLAUDE.md`,
+  „Proxy"). Zbývá:
+  - **Proxy už na přihlašovací obrazovce.** Kde je Telegram blokovaný, se bez ní nepřihlásí —
+    a Nastavení je až za přihlášením. TDLib proxy bere i před autorizací.
+  - **Sponzorovaný chat od provozovatele MTProto proxy** (`ChatSourceMtprotoProxy`) — chat se
+    v seznamu ukáže, ale bez vysvětlení, proč tam je.
+  - **Stav proxy v řádku Nastavení** (které je zapnutá) — řádek zatím jen vede na obrazovku.
 - ~~**Řádky sekcí nemají ikony.**~~ — hotovo (`SettingsSection.icon`).
 
 ## Aktualizace z obchodu
