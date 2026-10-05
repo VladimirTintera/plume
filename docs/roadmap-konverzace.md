@@ -468,7 +468,7 @@ snadno na to uživatel narazí.
 - ~~**Komentáře u příspěvků kanálu**~~ — hotovo: čip „N komentářů" pod příspěvkem otevře
   vlákno v diskusní skupině (`CLAUDE.md`, „Komentáře"). ~~Odeslání komentáře ověřit~~ —
   ověřeno v testovacím kanálu (diskusi jde nově připojit v úpravě kanálu, `CLAUDE.md`, „Diskuse ke
-  kanálu"; zbývá ukázat propojený kanál v úpravě skupiny), ~~komentovat bez vstupu do skupiny (`joinToSendMessages`)~~ —
+  kanálu"; propojený chat je v Informacích profilu na obou stranách), ~~komentovat bez vstupu do skupiny (`joinToSendMessages`)~~ —
   hotovo (pole se ukáže, odeslání ověřené není), ~~tváře
   posledních komentujících (`recentReplierIds`)~~ — hotovo, ~~hledání a koncept ve vlákně
   (`topicId`)~~ — hotovo,

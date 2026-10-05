@@ -194,6 +194,8 @@ import eu.tintera.plume.resources.profile_bot
 import eu.tintera.plume.resources.profile_photos_open
 import eu.tintera.plume.resources.profile_description
 import eu.tintera.plume.resources.profile_info
+import eu.tintera.plume.resources.profile_linked_channel
+import eu.tintera.plume.resources.profile_linked_discussion
 import eu.tintera.plume.resources.profile_mute
 import eu.tintera.plume.resources.profile_phone
 import eu.tintera.plume.resources.profile_search
@@ -395,12 +397,13 @@ fun ChatProfileScreen(
                 val notifications = state.notifications
                 val showsAutoDelete = profile.canSetAutoDelete || profile.autoDeleteTime > 0
                 if (profile.usernames.isNotEmpty() || profile.phone != null || profile.about.isNotBlank() ||
-                    notifications != null || showsAutoDelete
+                    notifications != null || showsAutoDelete || profile.linkedChat != null
                 ) {
                     ProfileInfo(
                         profile,
                         notifications = notifications,
                         onLinkClick = viewModel::openLink,
+                        onOpenLinkedChat = viewModel::openLinkedChat,
                         onOpenNotifications = viewModel::openNotificationSheet,
                         onOpenAutoDelete = viewModel::openAutoDeleteSheet.takeIf { profile.canSetAutoDelete },
                     )
@@ -1027,6 +1030,7 @@ private fun ProfileInfo(
     profile: ChatProfile,
     notifications: ChatNotificationPrefs?,
     onLinkClick: (String) -> Unit,
+    onOpenLinkedChat: () -> Unit,
     onOpenNotifications: () -> Unit,
     /** `null` = mazání měnit nesmí; řádek se pak jen ukáže, když je zapnuté. */
     onOpenAutoDelete: (() -> Unit)?,
@@ -1062,6 +1066,20 @@ private fun ProfileInfo(
                         // `surfaceContainerLowest`, takže blok musí být o stupeň výš.
                         quoteBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
                     )
+                }
+            }
+        }
+        // Propojený chat je údaj o chatu jako popis — za ním, před nastaveními. Ťuknutí ho otevře.
+        profile.linkedChat?.let { linked ->
+            add { shape ->
+                InfoRow(
+                    label = stringResource(
+                        if (profile.kind == ProfileKind.Channel) Res.string.profile_linked_discussion else Res.string.profile_linked_channel,
+                    ),
+                    shape = shape,
+                    onClick = onOpenLinkedChat,
+                ) {
+                    Text(linked.title, style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }

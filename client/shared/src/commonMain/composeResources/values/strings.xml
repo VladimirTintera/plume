@@ -265,6 +265,8 @@
     <string name="profile_search">Search</string>
     <string name="profile_open_app">Open</string>
     <string name="profile_info">Info</string>
+    <string name="profile_linked_discussion">Discussion group</string>
+    <string name="profile_linked_channel">Linked channel</string>
     <string name="profile_username">Username</string>
     <string name="profile_username_value">@%1$s</string>
     <string name="profile_phone">Phone</string>

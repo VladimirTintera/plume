@@ -268,6 +268,8 @@
     <string name="profile_search">Hledat</string>
     <string name="profile_open_app">Otevřít</string>
     <string name="profile_info">Informace</string>
+    <string name="profile_linked_discussion">Diskusní skupina</string>
+    <string name="profile_linked_channel">Propojený kanál</string>
     <string name="profile_username">Uživatelské jméno</string>
     <string name="profile_username_value">@%1$s</string>
     <string name="profile_phone">Telefon</string>

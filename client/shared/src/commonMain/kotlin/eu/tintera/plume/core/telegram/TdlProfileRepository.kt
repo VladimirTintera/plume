@@ -108,6 +108,11 @@ class TdlProfileRepository(
                     verification = group?.verificationStatus.toVerification(),
                     botVerification = botVerificationNote(full?.botVerification),
                     usernames = group?.usernames?.activeUsernames?.toList().orEmpty(),
+                    linkedChat = full?.linkedChatId?.takeIf { it != 0L }?.let { linkedId ->
+                        // Lokální dotaz; chat, který TDLib nezná (soukromý kanál bez členství), se vynechá.
+                        client.getChat(chatId = linkedId).toResult().getOrNull()
+                            ?.let { LinkedChat(chatId = it.id, title = it.title, photoFileId = it.photo?.small?.id) }
+                    },
                     memberCount = (full?.memberCount ?: group?.memberCount)?.takeIf { it > 0 },
                     // Kanál členy vydá jen správcům a skupina se skrytými členy vůbec.
                     canListMembers = !type.isChannel && full?.canGetMembers == true,
