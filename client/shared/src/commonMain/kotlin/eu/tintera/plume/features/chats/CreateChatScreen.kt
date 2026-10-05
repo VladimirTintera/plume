@@ -52,6 +52,7 @@ import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.ui.ChatTypeSection
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.grouped
+import eu.tintera.plume.core.ui.PhotoCropOverlay
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
@@ -126,104 +127,112 @@ fun CreateChatScreen(
     val picker = rememberAttachmentPicker(onPicked = viewModel::setPhoto, onError = viewModel::reportError)
     val channel = viewModel.channel
 
-    Scaffold(
-        modifier = modifier,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(if (channel) Res.string.new_chat_new_channel else Res.string.new_chat_new_group)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack, enabled = !viewModel.creating) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+    // Ořez fotky leží přes celou obrazovku, nad Scaffoldem.
+    Box(Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = modifier,
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = {
+                TopAppBar(
+                    title = { Text(stringResource(if (channel) Res.string.new_chat_new_channel else Res.string.new_chat_new_group)) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack, enabled = !viewModel.creating) {
+                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        }
+                    },
+                    actions = {
+                        if (viewModel.creating) {
+                            LoadingIndicator(Modifier.padding(end = 12.dp).size(40.dp))
+                        } else {
+                            TextButton(onClick = viewModel::create, enabled = viewModel.canCreate) {
+                                Text(stringResource(Res.string.create_chat_create))
+                            }
+                        }
+                    },
+                )
+            },
+        ) { padding ->
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                PhotoSlot(
+                    path = viewModel.photoPath,
+                    channel = channel,
+                    busy = viewModel.photoBusy,
+                    enabled = !viewModel.creating,
+                    onPick = picker::pickMedia,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = picker::pickMedia, enabled = !viewModel.photoBusy && !viewModel.creating) {
+                        Icon(painterResource(Res.drawable.photo_camera_24dp), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                        Text(
+                            stringResource(
+                                if (viewModel.photoPath == null) Res.string.create_chat_add_photo else Res.string.edit_profile_change_photo,
+                            ),
+                        )
                     }
-                },
-                actions = {
-                    if (viewModel.creating) {
-                        LoadingIndicator(Modifier.padding(end = 12.dp).size(40.dp))
-                    } else {
-                        TextButton(onClick = viewModel::create, enabled = viewModel.canCreate) {
-                            Text(stringResource(Res.string.create_chat_create))
+                    if (viewModel.photoPath != null) {
+                        TextButton(onClick = viewModel::removePhoto, enabled = !viewModel.creating) {
+                            Text(stringResource(Res.string.edit_chat_delete_photo))
                         }
                     }
-                },
-            )
-        },
-    ) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            PhotoSlot(
-                path = viewModel.photoPath,
-                channel = channel,
-                busy = viewModel.photoBusy,
-                enabled = !viewModel.creating,
-                onPick = picker::pickMedia,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = picker::pickMedia, enabled = !viewModel.photoBusy && !viewModel.creating) {
-                    Icon(painterResource(Res.drawable.photo_camera_24dp), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                    Text(
-                        stringResource(
-                            if (viewModel.photoPath == null) Res.string.create_chat_add_photo else Res.string.edit_profile_change_photo,
-                        ),
-                    )
                 }
-                if (viewModel.photoPath != null) {
-                    TextButton(onClick = viewModel::removePhoto, enabled = !viewModel.creating) {
-                        Text(stringResource(Res.string.edit_chat_delete_photo))
-                    }
-                }
-            }
 
-            OutlinedTextField(
-                value = viewModel.title,
-                onValueChange = { viewModel.title = it.take(TITLE_MAX_LENGTH) },
-                label = { Text(stringResource(Res.string.edit_chat_name)) },
-                singleLine = true,
-                enabled = !viewModel.creating,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Sentences,
-                    imeAction = if (channel) ImeAction.Next else ImeAction.Done,
-                ),
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            if (channel) {
                 OutlinedTextField(
-                    value = viewModel.description,
-                    onValueChange = { viewModel.description = it.take(DESCRIPTION_MAX_LENGTH) },
-                    label = { Text(stringResource(Res.string.edit_chat_description)) },
-                    minLines = 2,
+                    value = viewModel.title,
+                    onValueChange = { viewModel.title = it.take(TITLE_MAX_LENGTH) },
+                    label = { Text(stringResource(Res.string.edit_chat_name)) },
+                    singleLine = true,
                     enabled = !viewModel.creating,
-                    supportingText = { Text(stringResource(Res.string.edit_chat_description_help)) },
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = if (channel) ImeAction.Next else ImeAction.Done,
+                    ),
                     modifier = Modifier.fillMaxWidth(),
                 )
-            }
 
-            ChatTypeSection(
-                channel = channel,
-                isPublic = viewModel.isPublic,
-                onPublicChange = { viewModel.isPublic = it },
-                username = viewModel.username,
-                onUsernameChange = { viewModel.username = it },
-                status = viewModel.usernameStatus,
-                enabled = !viewModel.creating,
-            )
+                if (channel) {
+                    OutlinedTextField(
+                        value = viewModel.description,
+                        onValueChange = { viewModel.description = it.take(DESCRIPTION_MAX_LENGTH) },
+                        label = { Text(stringResource(Res.string.edit_chat_description)) },
+                        minLines = 2,
+                        enabled = !viewModel.creating,
+                        supportingText = { Text(stringResource(Res.string.edit_chat_description_help)) },
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
 
-            if (channel) {
-                Hint(stringResource(Res.string.create_channel_help))
-            } else {
-                Members(count = viewModel.memberCount, names = viewModel.memberNames)
+                ChatTypeSection(
+                    channel = channel,
+                    isPublic = viewModel.isPublic,
+                    onPublicChange = { viewModel.isPublic = it },
+                    username = viewModel.username,
+                    onUsernameChange = { viewModel.username = it },
+                    status = viewModel.usernameStatus,
+                    enabled = !viewModel.creating,
+                )
+
+                if (channel) {
+                    Hint(stringResource(Res.string.create_channel_help))
+                } else {
+                    Members(count = viewModel.memberCount, names = viewModel.memberNames)
+                }
             }
         }
+        PhotoCropOverlay(
+            path = viewModel.cropping,
+            onCancel = viewModel::cancelCrop,
+            onConfirm = viewModel::cropPhoto,
+        )
     }
 }
 

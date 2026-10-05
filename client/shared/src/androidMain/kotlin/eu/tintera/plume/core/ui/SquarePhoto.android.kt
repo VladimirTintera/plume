@@ -10,10 +10,10 @@ import java.util.UUID
 
 class AndroidSquarePhoto(private val context: Context) : SquarePhoto {
 
-    override suspend fun crop(path: String): String = withContext(Dispatchers.Default) {
+    override suspend fun crop(path: String, region: CropRegion?): String = withContext(Dispatchers.Default) {
         val source = BitmapFactory.decodeFile(path) ?: error("Obrázek nejde dekódovat.")
-        val side = minOf(source.width, source.height)
-        val square = Bitmap.createBitmap(source, (source.width - side) / 2, (source.height - side) / 2, side, side)
+        val (left, top, side) = squarePixels(region, source.width, source.height)
+        val square = Bitmap.createBitmap(source, left, top, side, side)
         val edge = minOf(side, PROFILE_PHOTO_EDGE)
         val scaled = if (edge == side) square else Bitmap.createScaledBitmap(square, edge, edge, true)
         val directory = File(context.cacheDir, "$OUTGOING_DIRECTORY/${UUID.randomUUID()}").apply { mkdirs() }

@@ -1320,8 +1320,9 @@ jméno, příjmení, uživatelské jméno a bio.
   ní a gesto zpět odešlo z Nastavení rovnou do Chatů. Klik na jinou sekci úpravu ze zásobníku
   odebere taky, jinak by visela pod novou sekcí.
 - **Fotka se ukládá hned, texty až tlačítkem Uložit.** Fotka má vlastní nahrávání; kdyby čekala
-  na Uložit, zmizela by s odchodem. Ořízne se na čtverec ze středu (`SquarePhoto`, platformní)
-  — kreslí se v kruhu a neořezanou by každý klient ořízl jinak.
+  na Uložit, zmizela by s odchodem. Ořízne se na čtverec podle výřezu z ořezu (`SquarePhoto`,
+  platformní; viz „Ořez profilové fotky") — kreslí se v kruhu a neořezanou by každý klient
+  ořízl jinak.
 - **Text polí je Compose stav přímo ve ViewModelu**, ne `StateFlow` — jinak poskakuje kurzor.
 - **Uživatelské jméno se kontroluje dvakrát**: místní pravidla hned při psaní
   (`usernameFormatError`, testy `UsernameFormatTest`), pak dostupnost na serveru po pauze
@@ -1336,6 +1337,33 @@ jméno, příjmení, uživatelské jméno a bio.
 - **Ověřeno bez zásahu do účtu**: načtení, všechny tři stavy kontroly jména (krátké, obsazené
   „durov", volné), odchod bez uložení a zpět v dvoupanelu. Uložení a změna fotky mění skutečný
   profil, proto se zkouší jen se souhlasem.
+
+### Ořez profilové fotky
+
+Vybraná fotka (vlastní profil, úprava skupiny i založení skupiny nebo kanálu) se napřed otevře
+v ořezu (`PhotoCropOverlay`): fotka pod kruhovým výřezem, posun a přiblížení prsty, „Hotovo"
+vrátí výřez a teprve pak se fotka ořízne a nahraje. Dřív se ořezávala vždycky ze středu.
+
+- **Výřez je v PODÍLECH rozměrů fotky** (`CropRegion`), ne v pixelech. Ořez ukazuje fotku
+  zmenšenou na 1600 px (Coil), platforma ořezává originál; poměr stran mají oba stejný.
+  Na pixely ho převádí `squarePixels` a srovná na čtverec uvnitř fotky — zaokrouhlení podílů
+  by jinak z kruhu udělalo elipsu o pixel.
+- **Geometrie je čistá funkce** (`PhotoCropGeometry`, testy `PhotoCropGeometryTest`): fotka
+  musí kruh vždycky celý zakrývat, přiblížení 1–5× kolem prstů (bod pod prsty zůstane na
+  místě, jako v prohlížeči médií).
+- **Překryv přes celou obrazovku, ne `Dialog`.** Dialog je na Androidu vlastní okno a ve
+  společném kódu (`DialogProperties` má jen tři volby) nejde nechat sahat pod stavovou lištu;
+  nad černým ořezem by svítil pruh ztmavené obrazovky. Obrazovka ho proto dává za Scaffold do
+  `Box`u, zpět zavírá `NavigationBackHandler`. Stejná cesta jako náhled přílohy nad polem.
+- **Fotka čeká ve ViewModelu** (`cropping`), ne v obrazovce: výběr fotky je ve ViewModelu
+  odjakživa a otočení displeje ořez nesmí zavřít.
+- **Ověřeno na emulátoru** ve formuláři „Nová skupina" (náhled fotky ukazuje výsledek bez
+  nahrání čehokoli): fotka na šířku vyplní kruh výškou, posun doleva se zastaví na okraji
+  fotky a náhled ukáže přesně výřez z kruhu; zpět ořez zavře a fotka se nezmění. **Přiblížení
+  dvěma prsty ověřené jen testy** (přes `adb` dvěma prsty neťukneš), iOS jen přeložené.
+- **Výběr fotek na emulátoru může být prázdný**, než si picker načte knihovnu — po pár
+  vteřinách se mřížka objeví sama. Testovací obrázek jde do galerie `adb push` do
+  `/sdcard/Pictures` a vysílání `MEDIA_SCANNER_SCAN_FILE`; po ověření ho smazat i z MediaStore.
 
 ## Jazyky
 
@@ -5860,8 +5888,8 @@ název, popis a výchozí práva členů.
 - **Název a popis jsou dvě volání.** Když první selže, druhé se neposílá a co prošlo, se zapíše
   jako výchozí stav — další pokus to neposílá znovu. Přesně jako u vlastního profilu.
 - **Fotka jde přes CESTU** (`InputChatPhotoStatic` + `InputFileLocal`), ne přes systémové URI —
-  TDLib jiné nepřijme, stejně jako u příloh. Ořezává se na čtverec ze středu (`SquarePhoto`),
-  protože se kreslí v kruhu. Odebrání je `setChatPhoto(photo = null)`; jiné volání na to není.
+  TDLib jiné nepřijme, stejně jako u příloh. Ořezává se na čtverec podle výřezu z ořezu
+  (`SquarePhoto`, viz „Ořez profilové fotky"), protože se kreslí v kruhu. Odebrání je `setChatPhoto(photo = null)`; jiné volání na to není.
 - **Úprava má vlastní routu v OBOU větvích** (`EditChatRoute`, `ArchiveEditChatRoute`). Scéna se
   určuje metadaty, takže jedna routa nemůže patřit hlavnímu seznamu i archivu — stejně jako
   u konverzace a profilu.

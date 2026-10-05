@@ -1884,4 +1884,8 @@
     <string name="server_summary_copied">Summary copied</string>
     <string name="server_summary_note">Summarized by Telegram. It may leave something out or get it wrong.</string>
     <string name="error_summary_premium_limit">Without Telegram Premium, summaries are limited. Try again later.</string>
+    <string name="photo_crop_title">Crop photo</string>
+    <string name="photo_crop_hint">Drag and pinch to fit the photo in the circle</string>
+    <string name="photo_crop_done">Done</string>
+    <string name="photo_crop_failed">The photo can't be loaded</string>
 </resources>

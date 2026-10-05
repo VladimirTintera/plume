@@ -13,6 +13,7 @@ import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.UsernameCheck
 import eu.tintera.plume.core.telegram.usernameFormatError
 import eu.tintera.plume.core.telegram.userMessage
+import eu.tintera.plume.core.ui.CropRegion
 import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
@@ -159,16 +160,33 @@ class EditProfileViewModel(
         }
     }
 
-    /** Z výběru příloh; bere se první fotka, video profilovou fotkou být nemůže. */
+    /** Fotka čekající na ořez ([PhotoCropOverlay]); `null` = ořez zavřený. */
+    var cropping by mutableStateOf<String?>(null)
+        private set
+
+    /**
+     * Z výběru příloh; bere se první fotka, video profilovou fotkou být nemůže. Fotka napřed
+     * jde do ořezu — nahraje se až s vybraným výřezem ([cropPhoto]).
+     */
     fun setPhoto(attachments: List<OutgoingAttachment>) {
         val photo = attachments.firstOrNull() as? OutgoingAttachment.Photo
         if (photo == null) {
             notice = UiText(Res.string.edit_profile_not_photo)
             return
         }
+        cropping = photo.path
+    }
+
+    fun cancelCrop() {
+        cropping = null
+    }
+
+    fun cropPhoto(region: CropRegion) {
+        val path = cropping ?: return
+        cropping = null
         photoBusy = true
         viewModelScope.launch {
-            runCatching { squarePhoto.crop(photo.path) }
+            runCatching { squarePhoto.crop(path, region) }
                 .mapCatching { account.setPhoto(it).getOrThrow() }
                 .onSuccess { reloadPhoto() }
                 .onFailure { notice = it.reported(Res.string.edit_profile_photo_failed) }

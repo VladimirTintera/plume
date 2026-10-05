@@ -1,0 +1,219 @@
+package eu.tintera.plume.core.ui
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
+import coil3.compose.AsyncImagePainter
+import coil3.compose.LocalPlatformContext
+import coil3.compose.rememberAsyncImagePainter
+import coil3.request.ImageRequest
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.common_cancel
+import eu.tintera.plume.resources.photo_crop_done
+import eu.tintera.plume.resources.photo_crop_failed
+import eu.tintera.plume.resources.photo_crop_hint
+import eu.tintera.plume.resources.photo_crop_title
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+import kotlin.math.min
+
+/**
+ * Ořez profilové fotky: fotka pod kruhovým výřezem, posun a přiblížení prsty, „Hotovo" vrátí
+ * výřez ([CropRegion]). Ořezává až platforma ([SquarePhoto]) — tady se jen vybírá.
+ *
+ * **Překryv přes celou obrazovku, ne `Dialog`.** Dialog je na Androidu vlastní okno a ve
+ * společném kódu nejde nastavit, aby sahal pod stavovou lištu; nad černým ořezem by svítil
+ * pruh ztmavené obrazovky. Stejná cesta jako náhled přílohy nad vstupním polem — obrazovka
+ * překryv dává za svůj obsah.
+ *
+ * [path] `null` = zavřeno; při zavírání se dál kreslí poslední fotka, ať prolnutí nedobíhá
+ * s prázdnem.
+ */
+@Composable
+fun PhotoCropOverlay(path: String?, onCancel: () -> Unit, onConfirm: (CropRegion) -> Unit) {
+    var last by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(path) { if (path != null) last = path }
+    // `NavigationBackHandler`, ne `BackHandler` — ten by zabil predictive back.
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = path != null,
+        onBackCompleted = onCancel,
+    )
+    AnimatedVisibility(visible = path != null, enter = fadeIn(), exit = fadeOut()) {
+        val shown = path ?: last
+        if (shown != null) PhotoCrop(shown, isOpen = path != null, onCancel = onCancel, onConfirm = onConfirm)
+    }
+}
+
+@Composable
+private fun PhotoCrop(path: String, isOpen: Boolean, onCancel: () -> Unit, onConfirm: (CropRegion) -> Unit) {
+    // Podklad je černý v obou motivech, takže i ikony systémových lišt musí být světlé.
+    if (isOpen) DarkSystemBars()
+    val context = LocalPlatformContext.current
+    // Nejvýš 1600 px: na výběr výřezu stačí a fotka z foťáku by jinak zabrala desítky MB.
+    // Na poměru stran se zmenšením nic nemění, a výřez je v podílech.
+    val request = remember(path) { ImageRequest.Builder(context).data("file://$path").size(PREVIEW_EDGE).build() }
+    val painter = rememberAsyncImagePainter(request)
+    val state by painter.state.collectAsState()
+    val imageSize = (state as? AsyncImagePainter.State.Success)?.painter?.intrinsicSize
+        ?.takeIf { it.width > 0f && it.height > 0f }
+    var geometry by remember(path) { mutableStateOf<PhotoCropGeometry?>(null) }
+    var placement by remember(path) { mutableStateOf(CropPlacement()) }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .windowInsetsPadding(WindowInsets.safeDrawing),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onCancel) {
+                Icon(
+                    painterResource(Res.drawable.close_24dp),
+                    contentDescription = stringResource(Res.string.common_cancel),
+                    tint = Color.White,
+                )
+            }
+            Text(
+                text = stringResource(Res.string.photo_crop_title),
+                style = MaterialTheme.typography.titleLarge,
+                color = Color.White,
+            )
+        }
+
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+            val density = LocalDensity.current
+            val circle = with(density) { min(maxWidth.toPx(), maxHeight.toPx()) - 2 * CIRCLE_MARGIN.toPx() }
+            when {
+                imageSize != null && circle > 0f -> {
+                    val current = remember(imageSize, circle) { PhotoCropGeometry(imageSize, circle) }
+                    LaunchedEffect(current) {
+                        geometry = current
+                        placement = current.clamped(placement)
+                    }
+                    val base = current.displayedSize(1f)
+                    Box(
+                        Modifier
+                            .fillMaxSize()
+                            .pointerInput(current) {
+                                detectTransformGestures { centroid, pan, zoom, _ ->
+                                    val center = Offset(size.width / 2f, size.height / 2f)
+                                    placement = current.transformed(placement, centroid - center, pan, zoom)
+                                }
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Image(
+                            painter = painter,
+                            contentDescription = null,
+                            contentScale = ContentScale.FillBounds,
+                            modifier = Modifier
+                                .requiredSize(with(density) { base.width.toDp() }, with(density) { base.height.toDp() })
+                                .graphicsLayer {
+                                    scaleX = placement.scale
+                                    scaleY = placement.scale
+                                    translationX = placement.offset.x
+                                    translationY = placement.offset.y
+                                },
+                        )
+                        CropMask(circle)
+                    }
+                }
+                state is AsyncImagePainter.State.Error -> Text(
+                    text = stringResource(Res.string.photo_crop_failed),
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                else -> LoadingIndicator()
+            }
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(Res.string.photo_crop_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.7f),
+            )
+            Button(
+                onClick = { geometry?.let { onConfirm(it.region(placement)) } },
+                enabled = geometry != null && isOpen,
+            ) {
+                Text(stringResource(Res.string.photo_crop_done))
+            }
+        }
+    }
+}
+
+/** Ztmavení všeho kromě kruhu a jeho obrys — co zůstane ve světle, bude profilovka. */
+@Composable
+private fun CropMask(circle: Float) {
+    Canvas(Modifier.fillMaxSize()) {
+        val center = Offset(size.width / 2, size.height / 2)
+        val hole = Rect(center, circle / 2)
+        val veil = Path().apply {
+            fillType = PathFillType.EvenOdd
+            addRect(Rect(Offset.Zero, Size(size.width, size.height)))
+            addOval(hole)
+        }
+        drawPath(veil, Color.Black.copy(alpha = VEIL_ALPHA))
+        drawCircle(Color.White.copy(alpha = 0.8f), radius = circle / 2, center = center, style = Stroke(1.5.dp.toPx()))
+    }
+}
+
+private const val PREVIEW_EDGE = 1600
+private const val VEIL_ALPHA = 0.6f
+private val CIRCLE_MARGIN = 24.dp
