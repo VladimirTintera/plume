@@ -1095,13 +1095,18 @@ fun ConversationScreen(
      * Odpočet čeká, až se scrollování uklidní — jinak by při rychlém průletu odešla jedna žádost
      * na každý snímek. Efekt proto **nesmí záviset na `state.messages`**: s ním se restartoval
      * při každé nové zprávě a odpočet začínal znovu od nuly.
+     *
+     * Hlásí se ZMĚNA, a proto se vedle viditelných položek čtou i zprávy s nepřečtenou reakcí
+     * nebo hlasem v anketě (`unreadMarkedIds`). Reakce na zprávu, která už je vidět, viditelné
+     * položky nezmění — bez toho by zůstala nepřečtená a tlačítko „❤" by viselo nad zprávou,
+     * na kterou se uživatel právě dívá, dokud by nezaroloval.
      */
     LaunchedEffect(listState) {
         snapshotFlow {
-            listState.layoutInfo.visibleItemsInfo.mapNotNull { it.key as? Long }
+            listState.layoutInfo.visibleItemsInfo.mapNotNull { it.key as? Long } to state.unreadMarkedIds()
         }
             .debounce(READ_DEBOUNCE_MS)
-            .collect(viewModel::markRead)
+            .collect { (keys, _) -> viewModel.markRead(keys) }
     }
 
     // Nabídka nad zprávou je vrstva NAD Scaffoldem (viz `MessageMenuLayer`), proto obal.

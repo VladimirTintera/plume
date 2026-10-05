@@ -526,15 +526,16 @@ snadno na to uživatel narazí.
   při tom opravené zaseknuté nepřečtené v tématu; `CLAUDE.md`, „Témata ve skupinách").
 - ~~**Nepřečtené zmínky a reakce**~~ — hotovo: tlačítka „@" a „❤" nad tlačítkem dolů, odznaky
   v seznamu chatů, „Označit vše" podržením (`CLAUDE.md`, „Nepřečtené zmínky, reakce a hlasy v anketě"). Zbývá:
-  **ověřit skutečnou zmínku ve skupině** a **skutečný nový hlas v anketě** (tlačítko s anketou je
+  ~~ověřit skutečnou zmínku ve skupině~~ (ověřeno, při tom opravené přečtení reakce na viditelné
+  zprávě) a **skutečný nový hlas v anketě** (tlačítko s anketou je
   hotové, ověřené jen podstrčeným počtem). ~~Zvýraznění, KDO reagoval~~ — hotovo (`CLAUDE.md`,
-  „Reakce"); jména ve skutečné skupině ověřená nejsou.
+  „Reakce"); jména ve skupině ověřená v testovací skupině s botem.
 - ~~**Prázdný chat s botem**~~ — hotovo: profil bota (tvář, jméno, popis), tlačítko Start
   i parametr ze startovacího odkazu (`CLAUDE.md`, „Spuštění bota"). ~~Klikatelné odkazy
-  v popisu~~ — hotovo. ~~Startovací odkaz do skupiny (`t.me/bot?startgroup=…`)~~ — hotovo (výběr skupiny a potvrzení; samotné přidání ověřené není, chce testovací skupinu). Zbývá ověřit obrázek a GIF od bota.
+  v popisu~~ — hotovo. ~~Startovací odkaz do skupiny (`t.me/bot?startgroup=…`)~~ — hotovo (výběr skupiny, potvrzení i samotné přidání ověřené v testovací skupině). Zbývá ověřit obrázek a GIF od bota.
 - **Napovídání při psaní**: ~~`/` příkazy bota~~ — hotovo i s tlačítkem seznamu příkazů
-  (`CLAUDE.md`, „Příkazy bota“; ve skupině ověřit příponu `@bot`). ~~`@` členové skupiny~~ —
-  hotovo i se zmínkou jménem (`CLAUDE.md`, „Napovídání zmínek"; ve skutečné skupině ověřit).
+  (`CLAUDE.md`, „Příkazy bota“; příponu `@bot` ve skupině ověřená). ~~`@` členové skupiny~~ —
+  hotovo i se zmínkou jménem (`CLAUDE.md`, „Napovídání zmínek"; ve skupině ověřené).
   ~~Tlačítko nabídky bota s mini aplikací (`BotMenuButton`)~~ — hotovo. ~~Emoji podle slov~~ — hotovo
   (`CLAUDE.md`, „Emoji podle slov"). ~~Inline boti
   (`@gif kočka` v poli)~~ — hotovo i s „přes @bot" u zprávy (`CLAUDE.md`, „Inline boti"); zbývá
