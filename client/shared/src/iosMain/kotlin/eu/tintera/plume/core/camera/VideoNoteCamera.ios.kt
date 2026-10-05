@@ -42,7 +42,11 @@ import platform.AVFoundation.AVLayerVideoGravityResizeAspectFill
 import platform.AVFoundation.AVMediaType
 import platform.AVFoundation.AVMediaTypeAudio
 import platform.AVFoundation.AVMediaTypeVideo
+import platform.AVFoundation.AVMutableComposition
 import platform.AVFoundation.AVMutableVideoComposition
+import platform.AVFoundation.addMutableTrackWithMediaType
+import platform.AVFoundation.insertTimeRange
+import platform.AVFoundation.setPreferredTransform
 import platform.AVFoundation.AVMutableVideoCompositionInstruction
 import platform.AVFoundation.AVMutableVideoCompositionLayerInstruction
 import platform.AVFoundation.AVURLAsset
@@ -60,6 +64,7 @@ import platform.CoreGraphics.CGAffineTransformMakeTranslation
 import platform.CoreGraphics.CGRectApplyAffineTransform
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
+import platform.CoreMedia.CMTimeAdd
 import platform.CoreMedia.CMTimeGetSeconds
 import platform.CoreMedia.CMTimeMake
 import platform.CoreMedia.CMTimeRangeMake
@@ -160,6 +165,16 @@ private class IosVideoNoteCamera private constructor(
     override val canSwitch: Boolean = false
 
     override fun switchCamera() = Unit
+
+    override suspend fun join(previous: String, next: String): String {
+        val target = joinVideoNotes(previous, next) ?: error("Kolečka nejde spojit.")
+        val files = NSFileManager.defaultManager
+        files.removeItemAtPath(previous, error = null)
+        // Složka předchozího kolečka zůstala bez souborů (náhledový snímek maže volající).
+        files.removeItemAtPath(previous.substringBeforeLast('/'), error = null)
+        files.removeItemAtPath(next, error = null)
+        return target
+    }
 
     @Composable
     override fun Preview(modifier: Modifier) {
@@ -321,6 +336,43 @@ private suspend fun exportSquare(source: String): String? {
     // Index na začátek: kolečko se u příjemce přehrává, ještě než se celé stáhne.
     session.shouldOptimizeForNetworkUse = true
 
+    val completed = suspendCancellableCoroutine { continuation ->
+        session.exportAsynchronouslyWithCompletionHandler {
+            continuation.resume(session.status == AVAssetExportSessionStatusCompleted)
+        }
+        continuation.invokeOnCancellation { session.cancelExport() }
+    }
+    return target.takeIf { completed }
+}
+
+/**
+ * Dvě kolečka za sebou do jednoho MP4 vedle [next]. Obě už prošla [exportSquare], takže mají
+ * stejnou čtvercovou stranu a otočení — stačí `AVMutableComposition` se stopou obrazu a zvuku
+ * a export, žádná `AVMutableVideoComposition`. `null`, když export selže.
+ */
+@OptIn(ExperimentalForeignApi::class)
+private suspend fun joinVideoNotes(previous: String, next: String): String? {
+    val composition = AVMutableComposition()
+    val video = composition.addMutableTrackWithMediaType(AVMediaTypeVideo, preferredTrackID = 0) ?: return null
+    val audio = composition.addMutableTrackWithMediaType(AVMediaTypeAudio, preferredTrackID = 0)
+    var cursor = CMTimeMake(value = 0, timescale = 1)
+    for (path in listOf(previous, next)) {
+        val asset = AVURLAsset(uRL = NSURL.fileURLWithPath(path), options = null)
+        val range = CMTimeRangeMake(CMTimeMake(value = 0, timescale = 1), asset.duration)
+        val videoTrack = asset.tracksWithMediaType(AVMediaTypeVideo).firstOrNull() as? AVAssetTrack ?: return null
+        if (!video.insertTimeRange(range, ofTrack = videoTrack, atTime = cursor, error = null)) return null
+        if (path == previous) video.preferredTransform = videoTrack.preferredTransform
+        (asset.tracksWithMediaType(AVMediaTypeAudio).firstOrNull() as? AVAssetTrack)?.let { audioTrack ->
+            audio?.insertTimeRange(range, ofTrack = audioTrack, atTime = cursor, error = null)
+        }
+        cursor = CMTimeAdd(cursor, asset.duration)
+    }
+
+    val target = next.substringBeforeLast('/') + "/video-note-joined.mp4"
+    val session = AVAssetExportSession(asset = composition, presetName = AVAssetExportPresetHighestQuality) ?: return null
+    session.outputURL = NSURL.fileURLWithPath(target)
+    session.outputFileType = AVFileTypeMPEG4
+    session.shouldOptimizeForNetworkUse = true
     val completed = suspendCancellableCoroutine { continuation ->
         session.exportAsynchronouslyWithCompletionHandler {
             continuation.resume(session.status == AVAssetExportSessionStatusCompleted)

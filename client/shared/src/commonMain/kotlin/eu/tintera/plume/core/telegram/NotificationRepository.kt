@@ -37,6 +37,12 @@ interface NotificationRepository {
      * pak zobrazí až při dalším probuzení, tedy často vůbec.
      */
     suspend fun awaitDelivered(timeout: Duration): Boolean
+
+    /**
+     * Odmítne příchozí hovor (`discardCall`). Přijmout ho Plume neumí — hovory nemají přenos
+     * zvuku —, ale odmítnout ano: volající to pozná hned a nečeká na vyzvánění do ztracena.
+     */
+    suspend fun declineCall(callId: Int, isVideo: Boolean): Result<Unit>
 }
 
 /** Platformní push token. */
@@ -61,7 +67,28 @@ sealed interface NotificationUpdate {
 
     /** Účet se odhlásil — pryč musí všechno, co o něm aplikace systému předala. */
     data object Cleared : NotificationUpdate
+
+    /**
+     * Příchozí hovor (`NotificationTypeNewCall`). Zruší ho [Removed] se stejným [IncomingCall.groupId],
+     * jakmile hovor skončí (přijatý jinde, odmítnutý, zmeškaný) — to hlídá TDLib.
+     */
+    data class Call(val call: IncomingCall) : NotificationUpdate
 }
+
+/**
+ * Příchozí hovor pro notifikaci. **Přijmout ho Plume neumí** (TDLib dělá jen signalizaci, přenos
+ * zvuku chce tgcalls, viz `docs/roadmap.md`, „Hovory"), takže notifikace jen ohlásí, kdo volá,
+ * a nabídne odmítnutí — kdo má jen Plume, se o hovoru jinak nedozví vůbec.
+ */
+data class IncomingCall(
+    val groupId: Int,
+    val callId: Int,
+    /** Soukromý chat s volajícím; ťuknutí na notifikaci ho otevře. */
+    val chatId: Long,
+    val callerName: String,
+    val avatarPath: String?,
+    val isVideo: Boolean,
+)
 
 data class ChatNotification(
     val groupId: Int,

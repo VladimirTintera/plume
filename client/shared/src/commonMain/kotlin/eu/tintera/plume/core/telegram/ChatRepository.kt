@@ -22,6 +22,18 @@ interface ChatRepository {
     fun chats(folder: ChatFolder = ChatFolder.Main): StateFlow<ChatListState>
 
     /**
+     * Složky Telegramu, živě (`UpdateChatFolders` — přichází hned po startu a po každé změně,
+     * i z jiného zařízení). Bez složek je seznam prázdný a řádek nad chaty se nekreslí.
+     */
+    val chatFolders: StateFlow<ChatFolders>
+
+    /**
+     * Nepřečtené chaty ve složkách Telegramu podle id složky (`UpdateUnreadChatCount`). Počítá
+     * TDLib, takže to platí i pro složku, kterou uživatel ještě neotevřel.
+     */
+    val folderUnread: StateFlow<Map<Int, ArchiveUnread>>
+
+    /**
      * Co se v chatu zrovna děje („píše…") a kdo to dělá, bez ohledu na to, ve které složce chat
      * je — i v chatu, který není v žádné (otevřený z notifikace, z odkazu). `null`, když nic.
      */
@@ -52,6 +64,15 @@ interface ChatRepository {
     val availableEffectIds: StateFlow<List<Long>>
 
     /**
+     * Zkušební přepisy řeči pro účet bez Premium. Server je pošle po startu
+     * (`UpdateSpeechRecognitionTrial`) a po každém využitém přepisu; `null`, dokud nepřišly.
+     */
+    val speechTrial: StateFlow<SpeechTrial?>
+
+    /** Jestli má přihlášený účet Premium; zjišťuje se po přihlášení. */
+    val isPremium: StateFlow<Boolean>
+
+    /**
      * Připraví chat Uložené zprávy k otevření a vrátí jeho id. TDLib ho zná, až když ho
      * vytvoří `createPrivateChat` — u účtu, který si nic neuložil, v databázi být nemusí.
      */
@@ -66,6 +87,13 @@ interface ChatRepository {
 
     /** Přidá se do chatu přes pozvánku ([InternalLink.Invite]). */
     suspend fun joinByInvite(link: String): Result<InviteJoinResult>
+
+    /**
+     * Přidá sdílenou složku z pozvánky ([InternalLink.FolderInvite]) a přidá se do [chatIds] —
+     * podmnožiny [FolderInvitePreview.missingChats], kterou si uživatel vybral.
+     */
+    suspend fun addFolderByInvite(link: String, chatIds: List<Long>): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
 
     /** Chat veřejného uživatele, skupiny nebo kanálu podle uživatelského jména (bez `@`). */
     suspend fun chatByUsername(username: String): Result<Long>
@@ -87,6 +115,9 @@ interface ChatRepository {
      * Pro každý kontakt zajistí privátní chat (lokálně v TDLib).
      */
     suspend fun contacts(): Result<List<ChatSummary>>
+
+    /** Položky pro známé chaty [chatIds] v tomtéž pořadí; neznámé vypadnou (editor složky). */
+    suspend fun summaries(chatIds: List<Long>): List<ChatSummary> = emptyList()
 
     /**
      * Skupiny ze seznamu chatů (i archivu), do kterých smí uživatel přidat bota ([canAddBot]);
@@ -250,6 +281,13 @@ interface ChatRepository {
      */
     fun chatBar(chatId: Long): Flow<ChatBar?>
 
+    /**
+     * Probíhající nebo naplánovaný videochat (ve skupině) či živé vysílání (v kanálu), nebo
+     * `null`. Živé: chat hlásí začátek a konec (`UpdateChatVideoChat`), hovor počet účastníků
+     * (`UpdateGroupCall`).
+     */
+    fun videoChat(chatId: Long): Flow<VideoChatInfo?>
+
     /** Zavře pruh nad konverzací napořád (`removeChatActionBar`). */
     suspend fun dismissChatBar(chatId: Long): Result<Unit>
 
@@ -267,6 +305,21 @@ interface ChatRepository {
     /** Přidá protějšek soukromého chatu do kontaktů pod jménem, které má v Telegramu. */
     suspend fun addToContacts(chatId: Long): Result<Unit>
 }
+
+/**
+ * Videochat chatu pro pruh nad konverzací. Připojit se Plume neumí (přenos zvuku a obrazu chce
+ * tgcalls, viz `docs/roadmap.md`, „Hovory"); pruh jen řekne, že se něco děje.
+ */
+data class VideoChatInfo(
+    /** Živé vysílání (kanál, RTMP) — jiná věta než videochat skupiny. */
+    val isLiveStream: Boolean,
+    /** Kolik lidí je připojených; `null`, dokud se hovor nenačte. */
+    val participantCount: Int?,
+    /** Unixový čas naplánovaného začátku, nebo `null`, když už běží. */
+    val scheduledStart: Int?,
+    /** Název, který mu dal správce; prázdný = bez názvu. */
+    val title: String,
+)
 
 /**
  * Zablokovaný odesílatel. [id] je id uživatele (kladné), nebo chatu (záporné) — stejná
@@ -348,31 +401,75 @@ data class FoundMessage(
 )
 
 /**
- * Složka seznamu chatů. Vlastní složky (`ChatListFolder`) zatím nejsou.
+ * Seznam chatů: hlavní, archiv, nebo složka Telegramu ([Custom], `ChatListFolder`).
  *
- * Chat je v nejvýš jedné z nich — archivace ho z hlavního seznamu přesune, nezkopíruje.
+ * Hlavní seznam a archiv se vylučují — archivace chat přesune, nezkopíruje. Složka Telegramu je
+ * jen výběr: tentýž chat v ní je VEDLE hlavního seznamu (nebo archivu), s vlastní pozicí
+ * a vlastním připnutím.
  */
-enum class ChatFolder { Main, Archive }
+sealed interface ChatFolder {
+    data object Main : ChatFolder
+
+    data object Archive : ChatFolder
+
+    /** Složka Telegramu s [id] z [ChatFolderTab.id]. */
+    data class Custom(val id: Int) : ChatFolder
+}
 
 /**
- * Nepřečtené chaty v archivu. [unmutedChats] je podmnožina [chats] — archiv je místo, kam se
- * ztlumené chaty ukládají, takže „je tam něco nepřečteného" a „je tam něco, co si žádá pozornost"
- * jsou dvě různé věci.
+ * Složka Telegramu, jak ji kreslí řádek nad seznamem chatů (`ChatFolderInfo`).
+ *
+ * Název může nést vlastní emoji ([titleEntities]); co do složky patří, se tu neřeší — to ví
+ * TDLib a do seznamu složky to posílá pozicemi.
+ */
+data class ChatFolderTab(
+    val id: Int,
+    val title: String,
+    val titleEntities: List<MessageEntity> = emptyList(),
+    /** Jméno ikony od TDLib (zvolené, jinak výchozí podle obsahu složky). */
+    val iconName: String? = null,
+    /** Složka má (nebo měla) odkaz ke sdílení — pak nenese druhy chatů ani vynechané. */
+    val isShareable: Boolean = false,
+    /**
+     * Uživatel má na složku vlastní odkazy, tedy ji sdílí sám. Sdílená složka BEZ nich je přidaná
+     * z cizího odkazu — a jen u takové mají smysl nové chaty od autora.
+     */
+    val hasMyInviteLinks: Boolean = false,
+)
+
+/**
+ * Složky účtu v pořadí, které si uživatel nastavil (`UpdateChatFolders`).
+ *
+ * [mainPosition] je místo „Všech chatů" mezi nimi — s Premium jde hlavní seznam zařadit jinam
+ * než na začátek, a řádek složek to má respektovat stejně jako oficiální klienti.
+ */
+data class ChatFolders(
+    val folders: List<ChatFolderTab> = emptyList(),
+    val mainPosition: Int = 0,
+)
+
+/**
+ * Nepřečtené chaty v archivu (nebo ve složce, viz [ChatRepository.folderUnread]). [unmutedChats]
+ * je podmnožina [chats] — archiv je místo, kam se ztlumené chaty ukládají, takže „je tam něco
+ * nepřečteného" a „je tam něco, co si žádá pozornost" jsou dvě různé věci.
  */
 data class ArchiveUnread(val chats: Int = 0, val unmutedChats: Int = 0)
 
 /**
  * Nastavení archivu (`ArchiveChatListSettings`).
  *
- * `keepChatsFromFoldersArchived` tu není: týká se vlastních složek Telegramu, které aplikace
- * nemá, takže by to byla volba bez následku. Zápis ho přesto přenese z aktuálního stavu —
- * nastavit ho mohl jiný klient.
+ * Zapisuje se vždycky celý objekt, takže všechny tři volby jdou na server spolu.
  */
 data class ArchiveSettings(
     /** Nové chaty od lidí mimo kontakty jdou rovnou do archivu a ztlumené. */
     val archiveUnknownSenders: Boolean,
     /** Neztlumený chat zůstane v archivu i po nové zprávě, místo aby se vrátil mezi chaty. */
     val keepUnmutedArchived: Boolean,
+    /**
+     * Neztlumený chat, který je ve složce vybraný nebo připnutý, zůstane v archivu i po nové
+     * zprávě. TDLib ho ignoruje, když platí [keepUnmutedArchived] — ten drží v archivu všechny.
+     */
+    val keepFromFoldersArchived: Boolean = false,
     /**
      * Smí se [archiveUnknownSenders] vůbec zapnout? Server to povoluje jen některým účtům
      * (`can_archive_and_mute_new_chats_from_unknown_users`) a zapnutí jinde odmítne.
@@ -409,8 +506,13 @@ data class ChatSummary(
     val unreadPollVoteCount: Int = 0,
     val isPinned: Boolean,
     val order: Long,
-    /** Složka, ze které položka pochází — podle ní se nabízí archivace, nebo vrácení z archivu. */
+    /** Složka, ze které položka pochází — v ní se připíná. */
     val folder: ChatFolder = ChatFolder.Main,
+    /**
+     * Chat je v archivu — podle toho se nabízí archivace, nebo vrácení. Nečte se z [folder]:
+     * ve složce Telegramu může být archivovaný chat vedle nearchivovanými.
+     */
+    val isArchived: Boolean = folder == ChatFolder.Archive,
     /** `fileId` malé varianty avataru, nebo `null` když chat obrázek nemá. */
     val avatarFileId: Int?,
     /** Ztlumený chat notifikace nevydává. TDLib to řeší za nás, tohle je jen pro zobrazení. */

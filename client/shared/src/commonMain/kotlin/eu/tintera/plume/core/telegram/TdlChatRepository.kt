@@ -14,6 +14,9 @@ import dev.g000sha256.tdl.dto.ChatJoinResultSuccess
 import dev.g000sha256.tdl.dto.InviteLinkChatTypeChannel
 import dev.g000sha256.tdl.dto.InternalLinkTypeStickerSet
 import dev.g000sha256.tdl.dto.InternalLinkTypeBotStart
+import dev.g000sha256.tdl.dto.InternalLinkTypeMainWebApp
+import dev.g000sha256.tdl.dto.InternalLinkTypeWebApp
+import dev.g000sha256.tdl.dto.InternalLinkTypeChatFolderInvite
 import dev.g000sha256.tdl.dto.InternalLinkTypeChatInvite
 import dev.g000sha256.tdl.dto.InternalLinkTypeMessage
 import dev.g000sha256.tdl.dto.InternalLinkTypePublicChat
@@ -25,6 +28,8 @@ import dev.g000sha256.tdl.toResult
 import dev.g000sha256.tdl.dto.ArchiveChatListSettings
 import dev.g000sha256.tdl.dto.ChatList
 import dev.g000sha256.tdl.dto.ChatListArchive
+import dev.g000sha256.tdl.dto.ChatListFolder
+import dev.g000sha256.tdl.dto.ChatFolderInfo
 import dev.g000sha256.tdl.dto.ChatListMain
 import dev.g000sha256.tdl.dto.ChatNotificationSettings
 import dev.g000sha256.tdl.dto.ChatPosition
@@ -50,6 +55,7 @@ import dev.g000sha256.tdl.dto.ChatActionBarReportAddBlock
 import dev.g000sha256.tdl.dto.ChatActionBarAddContact
 import dev.g000sha256.tdl.dto.ChatActionBarJoinRequest
 import dev.g000sha256.tdl.dto.ChatActionBarSharePhoneNumber
+import dev.g000sha256.tdl.dto.ChatActionBarInviteMembers
 import dev.g000sha256.tdl.dto.ImportedContact
 import dev.g000sha256.tdl.dto.ReportChatResultMessagesRequired
 import dev.g000sha256.tdl.dto.ReportChatResultOptionRequired
@@ -86,6 +92,12 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import dev.g000sha256.tdl.dto.GroupCall
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -134,9 +146,29 @@ class TdlChatRepository(
     private val positions = mutableMapOf<Long, Map<ChatFolder, FolderPosition>>()
     private val mutex = Mutex()
 
-    private val lists = ChatFolder.entries.associateWith {
-        MutableStateFlow<ChatListState>(ChatListState.Loading)
+    /**
+     * Seznam každé složky, o kterou si někdo řekl. Hlavní seznam a archiv jsou tu od začátku,
+     * složky Telegramu přibývají až s [chats] — publikovat seznam složky, kterou nikdo nečte,
+     * by byla práce navíc při každém updatu. Mapa se jen rozšiřuje a čte bez zámku
+     * (`chats` není `suspend`), proto `MutableStateFlow` s výměnou celé mapy.
+     */
+    private val lists = MutableStateFlow<Map<ChatFolder, MutableStateFlow<ChatListState>>>(
+        listOf(ChatFolder.Main, ChatFolder.Archive).associateWith { MutableStateFlow(ChatListState.Loading) },
+    )
+
+    private fun listFor(folder: ChatFolder): MutableStateFlow<ChatListState> {
+        lists.value[folder]?.let { return it }
+        lists.update { current -> if (folder in current) current else current + (folder to MutableStateFlow(ChatListState.Loading)) }
+        return lists.value.getValue(folder)
     }
+
+    private val _chatFolders = MutableStateFlow(ChatFolders())
+
+    override val chatFolders: StateFlow<ChatFolders> = _chatFolders.asStateFlow()
+
+    private val _folderUnread = MutableStateFlow<Map<Int, ArchiveUnread>>(emptyMap())
+
+    override val folderUnread: StateFlow<Map<Int, ArchiveUnread>> = _folderUnread.asStateFlow()
 
     /** Všechny známé chaty — pro [typing], které na složce nezáleží. */
     private val all = MutableStateFlow<Map<Long, ChatSummary>>(emptyMap())
@@ -152,7 +184,13 @@ class TdlChatRepository(
 
     override val archiveUnread: StateFlow<ArchiveUnread> = _archiveUnread.asStateFlow()
 
-    override fun chats(folder: ChatFolder): StateFlow<ChatListState> = lists.getValue(folder).asStateFlow()
+    override fun chats(folder: ChatFolder): StateFlow<ChatListState> {
+        val list = listFor(folder)
+        // Seznam složky, kterou už repository zná z pozic, se publikuje hned — jinak by do
+        // prvního updatu ukazoval načítání, i když chaty v paměti jsou.
+        if (folder is ChatFolder.Custom) scope.launch { publish() }
+        return list.asStateFlow()
+    }
 
     override fun typing(chatId: Long): Flow<ChatTyping?> =
         combine(
@@ -182,6 +220,12 @@ class TdlChatRepository(
     private val effects = MutableStateFlow<List<Long>>(emptyList())
     override val availableEffectIds: StateFlow<List<Long>> = effects.asStateFlow()
 
+    private val trial = MutableStateFlow<SpeechTrial?>(null)
+    override val speechTrial: StateFlow<SpeechTrial?> = trial.asStateFlow()
+
+    private val premium = MutableStateFlow(false)
+    override val isPremium: StateFlow<Boolean> = premium.asStateFlow()
+
     /** Odpočty zhasnutí „píše…", jeden na chat. */
     private val activityTimers = mutableMapOf<Long, Job>()
 
@@ -206,6 +250,7 @@ class TdlChatRepository(
                         // Vlastní id se potřebuje u „píše…", aby se nehlásila naše vlastní
                         // činnost. Zjišťuje se jednou, ne při každém updatu.
                         me.value = session.me().getOrNull()?.id
+                        premium.value = client.getMe().toResult().getOrNull()?.isPremium == true
                         // Uložené zprávy musí TDLib znát, jinak je nejde otevřít ani do nich
                         // přeposlat či sdílet — u účtu, který si nic neuložil, v databázi
                         // nejsou. `createPrivateChat` je lokální a nic neposílá.
@@ -223,6 +268,20 @@ class TdlChatRepository(
     private fun collectUpdates() {
         scope.launch {
             holder.updates { diceEmojisUpdates }.collect { update -> dice.value = update.emojis.toList() }
+        }
+        scope.launch {
+            holder.updates { speechRecognitionTrialUpdates }.collect { update ->
+                logger.i {
+                    "Zkušební přepisy: ${update.leftCount} z ${update.weeklyCount} za týden, " +
+                        "do ${update.maxMediaDuration} s, obnova ${update.nextResetDate}"
+                }
+                trial.value = SpeechTrial(
+                    maxMediaDurationSeconds = update.maxMediaDuration,
+                    weeklyCount = update.weeklyCount,
+                    leftCount = update.leftCount,
+                    nextResetDate = update.nextResetDate.toLong(),
+                )
+            }
         }
         scope.launch {
             holder.updates { availableMessageEffectsUpdates }.collect { update ->
@@ -401,19 +460,34 @@ class TdlChatRepository(
         }
 
         /*
-         * Počet nepřečtených chatů v archivu. Nepočítá se nad [chats] — archiv se načítá až při
-         * otevření, takže dokud ho nikdo neotevřel, není z čeho počítat; tohle chodí i bez něj.
-         * TDLib ho posílá jen se zapnutou databází zpráv (`useMessageDatabase`).
+         * Počet nepřečtených chatů v archivu a ve složkách. Nepočítá se nad [chats] — archiv
+         * i složka se načítají až při otevření, takže dokud je nikdo neotevřel, není z čeho
+         * počítat; tohle chodí i bez nich. TDLib ho posílá jen se zapnutou databází zpráv
+         * (`useMessageDatabase`).
          */
         scope.launch {
-            holder.updates { unreadChatCountUpdates }
-                .filter { it.chatList is ChatListArchive }
-                .collect { update ->
-                    _archiveUnread.value = ArchiveUnread(
-                        chats = update.unreadCount,
-                        unmutedChats = update.unreadUnmutedCount,
-                    )
+            holder.updates { unreadChatCountUpdates }.collect { update ->
+                val unread = ArchiveUnread(chats = update.unreadCount, unmutedChats = update.unreadUnmutedCount)
+                when (val list = update.chatList) {
+                    is ChatListArchive -> _archiveUnread.value = unread
+                    is ChatListFolder -> _folderUnread.update { it + (list.chatFolderId to unread) }
+                    else -> Unit
                 }
+            }
+        }
+
+        /*
+         * Složky Telegramu. Přijdou hned po startu klienta a po každé změně (i z jiného
+         * zařízení) celé najednou, takže se seznam jen nahradí. Složka, která zmizela, nechá
+         * po sobě pozice chatů — TDLib je ruší sám odebráním ze seznamu.
+         */
+        scope.launch {
+            holder.updates { chatFoldersUpdates }.collect { update ->
+                _chatFolders.value = ChatFolders(
+                    folders = update.chatFolders.map { it.toTab() },
+                    mainPosition = update.mainChatListPosition,
+                )
+            }
         }
     }
 
@@ -476,29 +550,24 @@ class TdlChatRepository(
             ArchiveSettings(
                 archiveUnknownSenders = settings.archiveAndMuteNewChatsFromUnknownUsers,
                 keepUnmutedArchived = settings.keepUnmutedChatsArchived,
+                keepFromFoldersArchived = settings.keepChatsFromFoldersArchived,
                 canArchiveUnknownSenders = (canArchiveUnknown as? OptionValueBoolean)?.value == true,
             ),
         )
     }
 
-    /**
-     * Zapisuje se celým objektem, jako ztlumení chatu: `keepChatsFromFoldersArchived` se přenese
-     * z aktuálního stavu, jinak by se tiše přepsalo, co si uživatel nastavil v jiném klientovi.
-     */
-    override suspend fun setArchiveSettings(settings: ArchiveSettings): Result<Unit> {
-        val current = client.getArchiveChatListSettings().toResult()
-            .getOrElse { return Result.failure(it) }
-        return client.setArchiveChatListSettings(
+    /** Zapisuje se celým objektem — všechny tři volby jsou v [ArchiveSettings]. */
+    override suspend fun setArchiveSettings(settings: ArchiveSettings): Result<Unit> =
+        client.setArchiveChatListSettings(
             settings = ArchiveChatListSettings(
                 archiveAndMuteNewChatsFromUnknownUsers = settings.archiveUnknownSenders,
                 keepUnmutedChatsArchived = settings.keepUnmutedArchived,
-                keepChatsFromFoldersArchived = current.keepChatsFromFoldersArchived,
+                keepChatsFromFoldersArchived = settings.keepFromFoldersArchived,
             ),
         )
             .toResult()
             .map { }
             .onFailure { logger.w(it) { "Nastavení archivu se nepodařilo uložit." } }
-    }
 
     override fun muted(chatId: Long): Flow<Boolean?> =
         all.map { it[chatId]?.isMuted }.distinctUntilChanged()
@@ -588,6 +657,40 @@ class TdlChatRepository(
                     InternalLink.BotStartInGroup(url, chat.id, asAdmin = type.administratorRights != null)
                 }
 
+            // Režim (kompaktní / přes celou obrazovku) se neřeší: Plume mini aplikaci kreslí vždy
+            // přes celou obrazovku. Panel s podmínkami pro boty v nabídce příloh
+            // (`getAttachmentMenuBot`) taky ne — nabídku příloh botů Plume nemá.
+            is InternalLinkTypeMainWebApp ->
+                client.searchPublicChat(username = type.botUsername).toResult().map { chat ->
+                    val bot = client.getUser(userId = chat.id).toResult().getOrNull()?.type as? UserTypeBot
+                    if (bot?.hasMainWebApp == true) InternalLink.MainWebApp(chat.id, type.startParameter) else InternalLink.Chat(chat.id)
+                }
+
+            // Odkaz na pojmenovanou mini aplikaci: tady se jen ověří, že je to bot. Jestli ji bot
+            // má, řekne `searchWebApp` až obrazovka mini aplikace (tam je i souhlas a chyba).
+            is InternalLinkTypeWebApp ->
+                client.searchPublicChat(username = type.botUsername).toResult().map { chat ->
+                    val isBot = client.getUser(userId = chat.id).toResult().getOrNull()?.type is UserTypeBot
+                    if (isBot) InternalLink.WebApp(chat.id, type.webAppShortName, type.startParameter) else InternalLink.Chat(chat.id)
+                }
+
+            is InternalLinkTypeChatFolderInvite ->
+                client.checkChatFolderInviteLink(inviteLink = type.inviteLink).toResult().map { info ->
+                    val folder = info.chatFolderInfo
+                    val title = folder.name.text.toBody()
+                    InternalLink.FolderInvite(
+                        link = type.inviteLink,
+                        preview = FolderInvitePreview(
+                            title = title.text,
+                            titleEntities = title.entities,
+                            iconName = folder.icon.name,
+                            folderId = folder.id,
+                            missingChats = summariesFor(info.missingChatIds),
+                            alreadyJoined = info.addedChatIds.size,
+                        ),
+                    )
+                }
+
             is InternalLinkTypeStickerSet ->
                 client.searchStickerSet(name = type.stickerSetName, ignoreCache = false).toResult()
                     .map { InternalLink.StickerSet(it.id) }
@@ -611,6 +714,10 @@ class TdlChatRepository(
             }
         }
 
+    override suspend fun addFolderByInvite(link: String, chatIds: List<Long>): Result<Unit> =
+        client.addChatFolderByInviteLink(inviteLink = link, chatIds = chatIds.toLongArray()).toResult().map { }
+            .onFailure { logger.w(it) { "Sdílenou složku se nepodařilo přidat." } }
+
     override suspend fun chatByUsername(username: String): Result<Long> =
         client.searchPublicChat(username = username).toResult().map { it.id }
 
@@ -625,7 +732,7 @@ class TdlChatRepository(
     override suspend fun groupsForBot(asAdmin: Boolean): List<ChatSummary> {
         // Pořadí jako v seznamu chatů: hlavní seznam, pak archiv.
         val listed = listOf(ChatFolder.Main, ChatFolder.Archive)
-            .flatMap { folder -> (lists.getValue(folder).value as? ChatListState.Ready)?.chats.orEmpty() }
+            .flatMap { folder -> (listFor(folder).value as? ChatListState.Ready)?.chats.orEmpty() }
             .distinctBy { it.id }
             .filter { it.kind == ChatKind.Group }
         return listed.filter { summary ->
@@ -641,7 +748,7 @@ class TdlChatRepository(
     override suspend fun inlineQueryTargets(target: SwitchInlineTarget.Chosen): List<ChatSummary> {
         val saved = savedMessagesChatId.value
         val listed = listOf(ChatFolder.Main, ChatFolder.Archive)
-            .flatMap { folder -> (lists.getValue(folder).value as? ChatListState.Ready)?.chats.orEmpty() }
+            .flatMap { folder -> (listFor(folder).value as? ChatListState.Ready)?.chats.orEmpty() }
             .distinctBy { it.id }
             .filter { it.id != saved }
         /*
@@ -711,6 +818,8 @@ class TdlChatRepository(
             val summaries = summariesFor(chatIds.toLongArray()).map { it.withPresence() }
             summaries.sortedBy { it.title.lowercase() }
         }
+
+    override suspend fun summaries(chatIds: List<Long>): List<ChatSummary> = summariesFor(chatIds.toLongArray())
 
     override suspend fun openSavedMessages(): Result<Long> {
         val userId = me.value ?: session.me().getOrNull()?.id
@@ -838,6 +947,49 @@ class TdlChatRepository(
             .onStart { emit(Unit) }
             .map { client.getChat(chatId = chatId).toResult().getOrNull()?.chatBar() }
             .distinctUntilChanged()
+
+    /**
+     * Chat říká, ŽE videochat je (`groupCallId`, nula = není), hovor, kolik v něm je lidí a jestli
+     * teprve začne. Při změně hovoru se odběr přepne (`flatMapLatest`).
+     *
+     * **Pruh se ukáže hned, i když se hovor nenačte** (počet pak chybí): `getGroupCall` jde na
+     * server a pruh, který naskočí až po něm, by poskočil. Skončený hovor (`isActive = false`
+     * a nic naplánovaného) pruh schová, i kdyby update chatu ještě nedorazil.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun videoChat(chatId: Long): Flow<VideoChatInfo?> =
+        holder.updates { chatVideoChatUpdates }
+            .filter { it.chatId == chatId }
+            .map { it.videoChat.groupCallId }
+            .onStart { emit(client.getChat(chatId = chatId).toResult().getOrNull()?.videoChat?.groupCallId ?: 0) }
+            .distinctUntilChanged()
+            .flatMapLatest { callId -> if (callId == 0) flowOf(null) else groupCall(chatId, callId) }
+            .distinctUntilChanged()
+
+    private fun groupCall(chatId: Long, callId: Int): Flow<VideoChatInfo?> = flow {
+        val isChannel = (client.getChat(chatId = chatId).toResult().getOrNull()?.type as? ChatTypeSupergroup)?.isChannel == true
+        emit(VideoChatInfo(isLiveStream = isChannel, participantCount = null, scheduledStart = null, title = ""))
+        client.getGroupCall(groupCallId = callId).toResult()
+            .onSuccess { emit(it.toVideoChatInfo(isChannel)) }
+            .onFailure { logger.w(it) { "Videochat $callId chatu $chatId se nepodařilo načíst." } }
+        emitAll(
+            holder.updates { groupCallUpdates }
+                .filter { it.groupCall.id == callId }
+                .map { it.groupCall.toVideoChatInfo(isChannel) },
+        )
+    }
+
+    private fun GroupCall.toVideoChatInfo(isChannel: Boolean): VideoChatInfo? =
+        if (!isActive && scheduledStartDate == 0) {
+            null
+        } else {
+            VideoChatInfo(
+                isLiveStream = isChannel || isRtmpStream,
+                participantCount = participantCount,
+                scheduledStart = scheduledStartDate.takeIf { it > 0 },
+                title = title,
+            )
+        }
 
     override suspend fun dismissChatBar(chatId: Long): Result<Unit> =
         client.removeChatActionBar(chatId = chatId).toResult().map { }
@@ -1011,9 +1163,11 @@ class TdlChatRepository(
     }
 
     private fun ChatSummary.inFolderOf(folders: Map<ChatFolder, FolderPosition>?): ChatSummary {
-        val folder = folders?.keys?.firstOrNull() ?: return this
+        // Podtitul „V archivu" říká, ve kterém z dvojice hlavní seznam / archiv chat je; složka
+        // Telegramu je jen výběr vedle nich, a do odpovědi nepatří.
+        val folder = folders?.keys?.firstOrNull { it !is ChatFolder.Custom } ?: return this
         val position = folders.getValue(folder)
-        return copy(folder = folder, order = position.order, isPinned = position.isPinned)
+        return copy(folder = folder, order = position.order, isPinned = position.isPinned, isArchived = folder == ChatFolder.Archive)
     }
 
     override suspend fun loadMore(folder: ChatFolder) {
@@ -1031,7 +1185,7 @@ class TdlChatRepository(
                     // Když už nějaké chaty máme, chybu nedeklarujeme jako prázdný stav —
                     // uživatel by přišel o seznam kvůli selhání dotažení dalších.
                     if (mutex.withLock { countIn(folder) } == 0) {
-                        lists.getValue(folder).value = ChatListState.Failed(UiText(Res.string.chats_load_failed))
+                        listFor(folder).value = ChatListState.Failed(UiText(Res.string.chats_load_failed))
                         return
                     }
                 }
@@ -1176,10 +1330,14 @@ class TdlChatRepository(
             activityTimers.clear()
         }
         me.value = null
+        premium.value = false
+        trial.value = null
         all.value = emptyMap()
         activitySenders.value = emptyMap()
         _archiveUnread.value = ArchiveUnread()
-        lists.values.forEach { it.value = ChatListState.Loading }
+        _folderUnread.value = emptyMap()
+        _chatFolders.value = ChatFolders()
+        lists.value.values.forEach { it.value = ChatListState.Loading }
     }
 
     /**
@@ -1188,22 +1346,29 @@ class TdlChatRepository(
      * „prázdný".
      */
     private suspend fun publish() {
+        val folders = lists.value.keys
         val (snapshot, byFolder, ready) = mutex.withLock {
-            val byFolder = ChatFolder.entries.associateWith { folder ->
+            val byFolder = folders.associateWith { folder ->
                 known.values
                     .mapNotNull { chat ->
-                        positions[chat.id]?.get(folder)?.let { position ->
-                            chat.copy(order = position.order, isPinned = position.isPinned, folder = folder)
+                        val chatPositions = positions[chat.id]
+                        chatPositions?.get(folder)?.let { position ->
+                            chat.copy(
+                                order = position.order,
+                                isPinned = position.isPinned,
+                                folder = folder,
+                                isArchived = ChatFolder.Archive in chatPositions,
+                            )
                         }
                     }
                     .sortedByDescending { it.order }
             }
-            Triple(known.toMap(), byFolder, ChatFolder.entries.filter { it in synced || byFolder.getValue(it).isNotEmpty() })
+            Triple(known.toMap(), byFolder, folders.filter { it in synced || byFolder.getValue(it).isNotEmpty() })
         }
 
         all.value = snapshot
         ready.forEach { folder ->
-            lists.getValue(folder).value = ChatListState.Ready(
+            listFor(folder).value = ChatListState.Ready(
                 chats = byFolder.getValue(folder),
                 canLoadMore = folder !in exhausted,
             )
@@ -1325,6 +1490,7 @@ private fun Chat.warnsEmojiStatus(): Boolean = blockableUserId() != null && emoj
 /** Pruh nad konverzací; `null` u pruhů, které aplikace nekreslí. */
 private fun Chat.chatBar(): ChatBar? = when (val bar = actionBar) {
     is ChatActionBarSharePhoneNumber -> SharePhoneBar
+    is ChatActionBarInviteMembers -> InviteMembersBar
     is ChatActionBarJoinRequest -> JoinRequestBar(
         chatTitle = bar.title,
         isChannel = bar.isChannel,
@@ -1363,16 +1529,29 @@ private fun Long.toMessageSender(): MessageSender =
 
 private fun ChatPosition.toFolderPosition() = FolderPosition(order = order, isPinned = isPinned)
 
-/** Vlastní složky (`ChatListFolder`) zatím nejsou, takže vrací `null`. */
 private fun ChatList?.folder(): ChatFolder? = when (this) {
     is ChatListMain -> ChatFolder.Main
     is ChatListArchive -> ChatFolder.Archive
+    is ChatListFolder -> ChatFolder.Custom(chatFolderId)
     else -> null
 }
 
 private fun ChatFolder.toChatList(): ChatList = when (this) {
     ChatFolder.Main -> ChatListMain()
     ChatFolder.Archive -> ChatListArchive()
+    is ChatFolder.Custom -> ChatListFolder(chatFolderId = id)
+}
+
+private fun ChatFolderInfo.toTab(): ChatFolderTab {
+    val body = name.text.toBody()
+    return ChatFolderTab(
+        id = id,
+        title = body.text,
+        titleEntities = body.entities,
+        iconName = icon.name,
+        isShareable = isShareable,
+        hasMyInviteLinks = hasMyInviteLinks,
+    )
 }
 
 private fun Array<ChatPosition>.toFolderPositions(): Map<ChatFolder, FolderPosition> =

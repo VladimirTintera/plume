@@ -17,15 +17,22 @@ import eu.tintera.plume.core.telegram.FormatSpan
 import eu.tintera.plume.core.telegram.composedFormatsOf
 import eu.tintera.plume.core.telegram.within
 import eu.tintera.plume.core.telegram.UnreadMarkKind
+import eu.tintera.plume.resources.bot_location_unavailable
 import eu.tintera.plume.core.telegram.BotCommandItem
+import kotlinx.coroutines.flow.flowOf
+import eu.tintera.plume.resources.video_chat_join_elsewhere
+import eu.tintera.plume.core.telegram.VideoChatInfo
+import eu.tintera.plume.core.telegram.InviteLinkRepository
+import eu.tintera.plume.core.telegram.PendingJoinRequests
+import eu.tintera.plume.core.telegram.BotChatRequest
+import eu.tintera.plume.core.telegram.BotMenuApp
+import eu.tintera.plume.core.telegram.BotUsersRequest
 import eu.tintera.plume.core.telegram.UnreadMarks
 import eu.tintera.plume.core.telegram.ChatReplyMarkup
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.ReplyKeyboardButtonKind
 import eu.tintera.plume.core.telegram.UnsupportedKeyboardButton
 import eu.tintera.plume.resources.poll_add_option_failed
-import eu.tintera.plume.resources.bot_unsupported_location
-import eu.tintera.plume.resources.bot_unsupported_pick_chat
 import eu.tintera.plume.resources.bot_unsupported_managed_bot
 import eu.tintera.plume.core.telegram.BotButtonKind
 import eu.tintera.plume.core.telegram.SwitchInlineTarget
@@ -37,7 +44,6 @@ import eu.tintera.plume.resources.poll_retract_failed
 import eu.tintera.plume.resources.poll_stop_failed
 import eu.tintera.plume.resources.poll_vote_failed
 import eu.tintera.plume.resources.bot_text_copied
-import eu.tintera.plume.resources.bot_unsupported_web_app
 import eu.tintera.plume.resources.bot_login_failed
 import eu.tintera.plume.core.telegram.LoginUrlPrompt
 import eu.tintera.plume.resources.bot_unsupported_switch_inline
@@ -48,10 +54,12 @@ import eu.tintera.plume.core.telegram.SenderInfo
 import eu.tintera.plume.core.telegram.ForwardOrigin
 import eu.tintera.plume.resources.invite_request_sent
 import eu.tintera.plume.resources.conversation_link_failed
+import eu.tintera.plume.core.telegram.FolderInvitePreview
 import eu.tintera.plume.core.telegram.InvitePreview
 import eu.tintera.plume.core.telegram.InviteJoinResult
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.platformLanguageCode
+import eu.tintera.plume.core.language.LanguageDetector
 import eu.tintera.plume.core.telegram.MessageBody
 import eu.tintera.plume.core.telegram.NameMention
 import eu.tintera.plume.core.telegram.MentionCandidate
@@ -90,6 +98,7 @@ import eu.tintera.plume.resources.conversation_bot_start_failed
 import eu.tintera.plume.core.telegram.MessageSchedule
 import eu.tintera.plume.core.telegram.MessageEffect
 import eu.tintera.plume.core.telegram.SendOptions
+import eu.tintera.plume.core.telegram.SpeechTrial
 import eu.tintera.plume.resources.conversation_scheduled_load_failed
 import eu.tintera.plume.resources.conversation_schedule_failed
 import eu.tintera.plume.resources.conversation_scheduled_notice
@@ -129,8 +138,12 @@ import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.folder_invite_added
+import eu.tintera.plume.resources.folder_invite_failed
+import eu.tintera.plume.resources.folder_invite_joined
 import eu.tintera.plume.resources.chat_bar_phone_shared
 import eu.tintera.plume.resources.paid_media_unsupported
+import eu.tintera.plume.resources.transcribe_failed
 import eu.tintera.plume.resources.conversation_selection_limit
 import eu.tintera.plume.resources.conversation_attachments_limit
 import eu.tintera.plume.resources.conversation_content_not_allowed
@@ -195,6 +208,7 @@ import eu.tintera.plume.resources.spam_bar_failed
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -215,6 +229,9 @@ import kotlin.time.Duration.Companion.milliseconds
 import eu.tintera.plume.core.telegram.inlineQueryOf
 import eu.tintera.plume.resources.conversation_via_bot_draft_busy
 import eu.tintera.plume.resources.translation_copied
+import eu.tintera.plume.resources.server_summary_copied
+import eu.tintera.plume.resources.translation_failed
+import eu.tintera.plume.resources.server_summary_failed
 
 /**
  * Stav a stránkování jedné konverzace.
@@ -255,6 +272,8 @@ class ConversationViewModel(
     private val appScope: CoroutineScope,
     private val urlOpener: UrlOpener,
     private val clipboard: TextClipboard,
+    /** Jen kvůli „Přeložit": zpráva, která už je v jazyce překladu, ho nenabízí. */
+    private val languageDetector: LanguageDetector,
     /** Jen kvůli hlasovkám: soubor se stáhne až při prvním přehrání. */
     private val fileRepository: FileRepository,
     private val voicePlayer: VoicePlayer,
@@ -280,6 +299,8 @@ class ConversationViewModel(
     private val replyRequests: ConversationReplyRequests,
     /** Inline dotaz z tlačítka bota v jiném chatu ([BotButtonKind.SwitchInline]). */
     private val inlineQueryRequests: InlineQueryRequests,
+    /** Jen kvůli pruhu s čekajícími žádostmi o vstup (vidí ho správce, který je smí vyřizovat). */
+    private val inviteLinks: InviteLinkRepository,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -325,6 +346,10 @@ class ConversationViewModel(
     /** Zvolená rychlost přehrávání; jedna pro celou aplikaci, proto rovnou z přehrávače. */
     val voiceSpeed: StateFlow<VoiceSpeed> = voicePlayer.speed
 
+    /** Premium a zkušební přepisy řeči — rozhodují, jestli se u hlasovky nabídne přepis. */
+    val isPremium: StateFlow<Boolean> = chatRepository.isPremium
+    val speechTrial: StateFlow<SpeechTrial?> = chatRepository.speechTrial
+
     private val _state = MutableStateFlow(ConversationState(threadRootId = threadRootId, forumTopicId = forumTopicId))
     val state: StateFlow<ConversationState> = _state.asStateFlow()
 
@@ -334,6 +359,28 @@ class ConversationViewModel(
      */
     val chatBar: StateFlow<ChatBar?> = chatRepository.chatBar(chatId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * Videochat skupiny / živé vysílání kanálu pro pruh nad konverzací. Ve vlákně komentářů ne —
+     * patří diskusní skupině, ne příspěvku.
+     */
+    val videoChat: StateFlow<VideoChatInfo?> =
+        (if (threadRootId == null) chatRepository.videoChat(chatId) else flowOf(null))
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * Čekající žádosti o vstup pro pruh nad konverzací. TDLib je posílá jen správci, který je smí
+     * vyřizovat (`Chat.pendingJoinRequests`), takže tu o právech rozhodovat netřeba. Ve vlákně
+     * komentářů ne, ze stejného důvodu jako videochat.
+     */
+    val joinRequests: StateFlow<PendingJoinRequests?> =
+        (if (threadRootId == null) inviteLinks.pendingJoinRequests(chatId) else flowOf(null))
+            .map { requests -> requests?.takeIf { it.count > 0 } }
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Ťuknutí na pruh videochatu: připojit se jde zatím jen jinde. */
+    fun explainVideoChat() = _state.update { it.copy(notice = UiText(Res.string.video_chat_join_elsewhere)) }
 
     /** Průvodce nahlášením — z nabídky nad zprávou i z pruhu proti spamu. */
     val reportFlow = ReportFlow(viewModelScope, chatRepository::report)
@@ -480,6 +527,10 @@ class ConversationViewModel(
         // po prvním dotazu lokální. Nezjištěné = žádné, napovídání se neukáže.
         viewModelScope.launch {
             repository.botCommands(chatId).onSuccess { commands -> _state.update { it.copy(botCommands = commands) } }
+        }
+        // Tlačítko nabídky bota s mini aplikací: totéž čtení, jen pro soukromý chat s botem.
+        viewModelScope.launch {
+            repository.botMenuApp(chatId).onSuccess { app -> _state.update { it.copy(botMenuApp = app) } }
         }
 
         // Automatické mazání se ukazuje v hlavičce; mění se i z jiného zařízení nebo od protějšku.
@@ -731,8 +782,6 @@ class ConversationViewModel(
 
     /** Lupa v hlavičce: hledání v chatu. */
     fun openSearch() {
-        // Hledání ve vlákně by hledalo v celé diskusní skupině (`searchChatMessages` bez tématu).
-        if (threadRootId != null) return
         if (_state.value.search == null) _state.update { it.copy(search = InChatSearch()) }
     }
 
@@ -2141,10 +2190,25 @@ class ConversationViewModel(
                             else -> openTarget(ChatTarget(link.chatId, link.messageId, topicId = link.topicId))
                         }
                         is InternalLink.Invite -> _state.update { it.copy(invite = InviteSheetState(link.link, link.preview)) }
+                        is InternalLink.FolderInvite -> _state.update {
+                            it.copy(folderInvite = FolderInviteSheetState(link.link, link.preview))
+                        }
                         is InternalLink.StickerSet -> _state.update { it.copy(openStickerSet = link.setId) }
                         is InternalLink.BotStart -> openBotStart(link)
                         // Skupinu vybírá obrazovka výběru; přidání se potvrzuje až tam.
                         is InternalLink.BotStartInGroup -> _state.update { it.copy(addBotToGroup = link) }
+                        is InternalLink.MainWebApp -> requestWebApp(
+                            WebAppRequest(link.botUserId, url = "", launch = false, main = true, startParameter = link.startParameter),
+                        )
+                        is InternalLink.WebApp -> requestWebApp(
+                            WebAppRequest(
+                                link.botUserId,
+                                url = "",
+                                launch = false,
+                                startParameter = link.startParameter,
+                                shortName = link.shortName,
+                            ),
+                        )
                     }
                 }
                 .onFailure { failure ->
@@ -2263,6 +2327,9 @@ class ConversationViewModel(
                 _state.update { it.copy(notice = UiText(Res.string.bot_text_copied)) }
             }
             is BotButtonKind.User -> openMentioned { chatRepository.privateChat(kind.userId) }
+            is BotButtonKind.WebApp -> requestWebApp(
+                WebAppRequest(botOf(message), kind.url, launch = true),
+            )
             BotButtonKind.Disabled -> Unit
             is BotButtonKind.LoginUrl -> loginWithButton(messageId, kind)
             is BotButtonKind.SwitchInline -> when (val target = kind.target) {
@@ -2336,6 +2403,21 @@ class ConversationViewModel(
     }
 
     /** Obrazovka formulář ankety otevřela. */
+    /**
+     * Mini aplikace bota. Souhlas před prvním otevřením u bota se ptá až obrazovka mini aplikace
+     * (`WebAppViewModel`) — vstupů je víc než konverzace.
+     */
+    private fun requestWebApp(request: WebAppRequest) {
+        _state.update { it.copy(openWebApp = request) }
+    }
+
+    fun consumeOpenWebApp() = _state.update { it.copy(openWebApp = null) }
+
+    /** Bot, kterému zpráva s tlačítkem patří: odesílatel (kladné id = uživatel), jinak chat s botem. */
+    private fun botOf(message: ChatMessage?): Long = message?.senderId?.takeIf { it > 0 } ?: chatId
+
+    fun consumeOpenBotShare() = _state.update { it.copy(openBotShare = null) }
+
     fun consumeOpenPollComposer() {
         _state.update { it.copy(openPollComposer = null) }
     }
@@ -2382,6 +2464,39 @@ class ConversationViewModel(
 
     fun dismissInvite() {
         _state.update { it.copy(invite = null) }
+    }
+
+    fun toggleFolderInviteChat(chatId: Long) {
+        _state.update { state ->
+            val invite = state.folderInvite?.takeUnless { it.adding } ?: return@update state
+            val selected = if (chatId in invite.selected) invite.selected - chatId else invite.selected + chatId
+            state.copy(folderInvite = invite.copy(selected = selected))
+        }
+    }
+
+    /**
+     * Přidá sdílenou složku (nebo jen nové chaty do složky, kterou uživatel už má). Do vybraných
+     * chatů se tím uživatel přidá; složka se pak objeví v řádku nad seznamem chatů sama
+     * (`UpdateChatFolders`), takže se nikam nenaviguje — stačí hláška.
+     */
+    fun addFolderInvite() {
+        val invite = _state.value.folderInvite?.takeUnless { it.adding || !it.canAdd } ?: return
+        _state.update { it.copy(folderInvite = invite.copy(adding = true)) }
+        viewModelScope.launch {
+            chatRepository.addFolderByInvite(invite.link, invite.preview.missingChats.map { it.id }.filter { it in invite.selected })
+                .onSuccess {
+                    val done = if (invite.preview.folderId == 0) Res.string.folder_invite_added else Res.string.folder_invite_joined
+                    _state.update { it.copy(folderInvite = null, notice = UiText(done, invite.preview.title)) }
+                }
+                .onFailure { failure ->
+                    val message = failure.reported(Res.string.folder_invite_failed)
+                    _state.update { it.copy(folderInvite = it.folderInvite?.copy(adding = false), error = message) }
+                }
+        }
+    }
+
+    fun dismissFolderInvite() {
+        _state.update { it.copy(folderInvite = null) }
     }
 
     /** Obrazovka sheet sady otevřela. */
@@ -2474,7 +2589,8 @@ class ConversationViewModel(
      * Čas v médiu („1:23"). Médium je v téže zprávě, nebo ve zprávě, na kterou odpovídá
      * (`hasTimestampedMedia`) — tak to definuje TDLib. Video se otevře v prohlížeči od toho
      * místa (navigace je věc obrazovky, proto stav [ConversationState.openMediaAt]); hlasovka,
-     * skladba a kolečko hrají v chatu, jako po ťuknutí na ně.
+     * skladba a kolečko hrají v chatu, jako po ťuknutí na ně; video z náhledu odkazu se otevře na
+     * webu od toho místa.
      */
     private fun playMediaAt(messageId: Long, seconds: Int) {
         val state = _state.value
@@ -2497,8 +2613,9 @@ class ConversationViewModel(
                 _state.update { it.copy(soundingVideoNote = target.id, soundingVideoNoteFromMs = startMs) }
                 if (!target.isOutgoing && !media.isViewed) reportListened(target.id)
             }
-            // Video v náhledu odkazu (YouTube…) v aplikaci nepřehráváme; čas nemá kam vést.
-            else -> Unit
+            // Video v náhledu odkazu (YouTube…) v aplikaci nepřehráváme: otevře se jeho web
+            // od toho místa, kde to adresa umí (`videoLinkAt`).
+            else -> target.linkPreview?.takeIf { it.isVideo }?.let { openLink(videoLinkAt(it.url, seconds)) }
         }
     }
 
@@ -2555,11 +2672,35 @@ class ConversationViewModel(
             }
             // Číslo je údaj o uživateli; odejde až po potvrzení.
             ReplyKeyboardButtonKind.PhoneNumber -> _state.update { it.copy(confirmSharePhone = true) }
+            // Poloha taky; zjišťuje ji až obrazovka po potvrzení (oprávnění a GPS jsou její).
+            ReplyKeyboardButtonKind.Location -> _state.update { it.copy(confirmShareLocation = true) }
+            // Výběr lidí a chatu je obrazovka nad konverzací; tlačítko patří zprávě s klávesnicí.
+            is ReplyKeyboardButtonKind.Users ->
+                _state.update { it.copy(openBotShare = BotShareRequest(keyboard.messageId, users = kind.request)) }
+            is ReplyKeyboardButtonKind.Chat ->
+                _state.update { it.copy(openBotShare = BotShareRequest(keyboard.messageId, chat = kind.request)) }
             // Formulář je obrazovka nad konverzací; otevírá ho obrazovka, ViewModel jen řekne jaký.
             is ReplyKeyboardButtonKind.Poll -> _state.update { it.copy(openPollComposer = kind.mode) }
+            is ReplyKeyboardButtonKind.WebApp -> {
+                val owner = _state.value.messages.firstOrNull { it.id == keyboard.messageId }
+                requestWebApp(
+                    WebAppRequest(botOf(owner), kind.url, launch = false, keyboardButtonText = button.text),
+                )
+            }
             is ReplyKeyboardButtonKind.Unsupported ->
                 _state.update { it.copy(notice = UiText(kind.feature.explanation())) }
         }
+    }
+
+    /**
+     * Tlačítko nabídky bota: mini aplikace přes `openWebApp`, jako z tlačítka pod zprávou —
+     * TDLib bere adresu z `botMenuButton` právě tam. Soukromý chat s botem má id bota.
+     */
+    fun openBotMenuApp() {
+        val app = _state.value.botMenuApp ?: return
+        closeCommands()
+        // Odkaz `t.me/bot/app` se zpracuje jako odkaz (TDLib to u tlačítka nabídky předepisuje).
+        if (app.isLink) openLink(app.url) else requestWebApp(WebAppRequest(chatId, app.url, launch = true))
     }
 
     /** Tlačítko příkazů u pole: otevře seznam, druhé ťuknutí ho zavře. */
@@ -2735,7 +2876,7 @@ class ConversationViewModel(
             is InlineResultsButton.StartBot ->
                 openBotStart(InternalLink.BotStart(inline.bot.userId, button.parameter, autostart = true))
             is InlineResultsButton.WebApp ->
-                _state.update { it.copy(notice = UiText(Res.string.bot_unsupported_web_app)) }
+                requestWebApp(WebAppRequest(inline.bot.userId, button.url, launch = false))
             null -> Unit
         }
     }
@@ -2753,6 +2894,29 @@ class ConversationViewModel(
     }
 
     fun dismissSharePhone() = _state.update { it.copy(confirmSharePhone = false) }
+
+    fun dismissShareLocation() = _state.update { it.copy(confirmShareLocation = false) }
+
+    /**
+     * Poloha z tlačítka klávesnice bota, už zjištěná obrazovkou. `null` = uživatel nedovolil
+     * polohu, nebo ji zařízení nezjistilo — to musí být vidět, jinak by ťuknutí vypadalo, že nic
+     * neudělalo. Jako odpověď ve skupině, stejně jako text tlačítka.
+     */
+    fun sendKeyboardLocation(point: GeoPoint?) {
+        _state.update { it.copy(confirmShareLocation = false) }
+        if (point == null) {
+            _state.update { it.copy(notice = UiText(Res.string.bot_location_unavailable)) }
+            return
+        }
+        val keyboard = _state.value.replyMarkup as? ChatReplyMarkup.Keyboard
+        viewModelScope.launch {
+            repository.sendLocation(chatId, Place("", "", point.latitude, point.longitude), keyboard?.replyTarget(), quote = null)
+                .onSuccess { keyboard?.let(::keyboardUsed) }
+                .onFailure { failure ->
+                    _state.update { it.copy(error = failure.reported(Res.string.conversation_location_send_failed)) }
+                }
+        }
+    }
 
     private fun ChatReplyMarkup.replyTarget(): Long? = messageId.takeIf { _state.value.info?.isGroup == true }
 
@@ -2975,7 +3139,28 @@ class ConversationViewModel(
     private fun showTranslation(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
         _state.update { it.copy(messageMenu = null) }
-        translate(message, settings.translationLanguage.value ?: normalizedLanguageCode(platformLanguageCode))
+        translate(message, translationTarget())
+    }
+
+    /** Jazyk překladu: zvolený v nastavení, jinak jazyk aplikace. */
+    private fun translationTarget(): String =
+        settings.translationLanguage.value ?: normalizedLanguageCode(platformLanguageCode)
+
+    /**
+     * Shrnutí zprávy od serveru (`summarizeMessage`) v témž sheetu jako překlad a ve stejném
+     * jazyce — kdo si překlady nastavil do češtiny, chce v ní i shrnutí. Nabízí se jen u zprávy,
+     * u které ho server dovolí ([ChatMessage.summaryLanguage]).
+     */
+    private fun showSummary(messageId: Long) {
+        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+        val canCopy = _state.value.messageMenu?.actions?.canCopy ?: false
+        _state.update { it.copy(messageMenu = null) }
+        translate(
+            message,
+            translationTarget(),
+            summary = true,
+            canCopy = canCopy,
+        )
     }
 
     /**
@@ -2986,25 +3171,35 @@ class ConversationViewModel(
     fun changeTranslationLanguage(code: String) {
         val open = _state.value.translation ?: return
         settings.setTranslationLanguage(code.takeUnless { it == normalizedLanguageCode(platformLanguageCode) })
-        translate(open.message, code)
+        translate(open.message, code, open.summary, open.canCopy)
     }
 
-    private fun translate(message: ChatMessage, language: String) {
-        _state.update { it.copy(translation = TranslationSheet(message, language)) }
+    private fun translate(message: ChatMessage, language: String, summary: Boolean = false, canCopy: Boolean = true) {
+        _state.update { it.copy(translation = TranslationSheet(message, language, summary = summary, canCopy = canCopy)) }
 
         viewModelScope.launch {
-            val result = repository.translateMessage(chatId, message.id, language)
+            val result = if (summary) {
+                // Ve vlastním jazyce zprávy se shrnutí nepřekládá — server by překládal sám do sebe.
+                val target = language.takeUnless { it == message.summaryLanguage?.let(::normalizedLanguageCode) }
+                repository.summarizeMessage(chatId, message.id, target)
+            } else {
+                repository.translateMessage(chatId, message.id, language)
+            }
             _state.update { state ->
                 // Mezitím mohl uživatel sheet zavřít, otevřít u jiné zprávy nebo vybrat jiný jazyk.
                 val open = state.translation
-                    ?.takeIf { it.message.id == message.id && it.languageCode == language }
+                    ?.takeIf { it.message.id == message.id && it.languageCode == language && it.summary == summary }
                     ?: return@update state
                 state.copy(
                     translation = result.fold(
                         onSuccess = { open.copy(body = it) },
                         onFailure = { failure ->
-                            logger.w(failure) { "Zprávu se nepodařilo přeložit." }
-                            open.copy(failed = true)
+                            logger.w(failure) { if (summary) "Zprávu se nepodařilo shrnout." else "Zprávu se nepodařilo přeložit." }
+                            open.copy(
+                                error = failure.userMessage(
+                                    if (summary) Res.string.server_summary_failed else Res.string.translation_failed,
+                                ),
+                            )
                         },
                     ),
                 )
@@ -3021,9 +3216,11 @@ class ConversationViewModel(
      * sheetem by vidět nebylo (stejně jako u odkazu v „Informace").
      */
     fun copyTranslation() {
-        val text = _state.value.translation?.body?.text ?: return
+        val open = _state.value.translation?.takeIf { it.canCopy } ?: return
+        val text = open.body?.text ?: return
         viewModelScope.launch { clipboard.copy(text) }
-        _state.update { it.copy(translation = null, notice = UiText(Res.string.translation_copied)) }
+        val notice = if (open.summary) Res.string.server_summary_copied else Res.string.translation_copied
+        _state.update { it.copy(translation = null, notice = UiText(notice)) }
     }
 
     /**
@@ -3158,6 +3355,7 @@ class ConversationViewModel(
                 if (it.soundingVideoNote == messageId) it.copy(soundingVideoNote = null) else it
             }
             MessageAction.CycleVoiceSpeed -> voicePlayer.cycleSpeed()
+            MessageAction.Transcribe -> transcribe(messageId)
             is MessageAction.SeekVoice -> seekVoice(messageId, action.fraction)
             MessageMenuAction.Edit -> startEdit(messageId)
             MessageMenuAction.Copy -> copyMessage(messageId)
@@ -3167,6 +3365,7 @@ class ConversationViewModel(
             MessageMenuAction.Forward -> requestForward(messageId)
             MessageMenuAction.Info -> showMessageInfo(messageId)
             MessageMenuAction.Translate -> showTranslation(messageId)
+            MessageMenuAction.Summarize -> showSummary(messageId)
             MessageMenuAction.SelectText -> selectText(messageId)
             MessageMenuAction.Pin -> requestPin(messageId)
             MessageMenuAction.Unpin -> unpinFromMenu(messageId)
@@ -3189,7 +3388,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             val sticker = message.media as? MessageMedia.Sticker
 
-            val (emoji, actions, favorite) = coroutineScope {
+            val (emoji, actions, favorite, inTranslationLanguage) = coroutineScope {
                 val emojiTask = async { repository.availableReactions(chatId, messageId) }
                 val actionsTask = async { repository.messageActions(chatId, messageId) }
                 // Oblíbenost jen u samolepky; seznam oblíbených je krátký a TDLib ho má lokálně.
@@ -3198,13 +3397,22 @@ class ConversationViewModel(
                         stickerRepository.favoriteStickers().first().any { it.sendFileId == s.stickerFileId }
                     }
                 }
-                Triple(
+                // Rozpoznání jazyka jen kvůli „Přeložit", a se stropem: nabídka čeká na všechny
+                // úlohy a pomalé rozpoznání (studený model) ji nesmí zdržet — pak se prostě nabízí.
+                val languageTask = async {
+                    val text = languageDetectionText(message.text)
+                    if (MessageMenuAction.Translate !in items || text == null) return@async false
+                    val detected = withTimeoutOrNull(LANGUAGE_DETECTION_TIMEOUT_MS) { languageDetector.detect(text) }
+                    alreadyInLanguage(detected, translationTarget())
+                }
+                MenuLoad(
                     emojiTask.await().getOrDefault(emptyList()),
                     actionsTask.await().getOrElse { failure ->
                         logger.w(failure) { "Příznaky zprávy $messageId se nepodařilo zjistit." }
                         MessageActions.Fallback
                     },
                     favoriteTask.await(),
+                    languageTask.await(),
                 )
             }
 
@@ -3220,11 +3428,19 @@ class ConversationViewModel(
                         items = items,
                         favoriteSticker = favorite,
                         pressedMessageId = pressed?.takeIf { it != messageId },
+                        inTranslationLanguage = inTranslationLanguage,
                     ),
                 )
             }
         }
     }
+
+    private data class MenuLoad(
+        val emoji: List<String>,
+        val actions: MessageActions,
+        val favorite: Boolean?,
+        val inTranslationLanguage: Boolean,
+    )
 
     /**
      * Přidá samolepku ze zprávy do oblíbených, nebo ji z nich odebere.
@@ -3741,6 +3957,19 @@ class ConversationViewModel(
     }
 
     /**
+     * Pošle hlasovku nebo kolečko k přepisu. Výsledek nese obsah zprávy a dorazí úpravou
+     * ([ConversationRepository.editedMessages]) — napřed rozpracovaný, pak hotový.
+     */
+    private fun transcribe(messageId: Long) {
+        viewModelScope.launch {
+            repository.recognizeSpeech(chatId, messageId).onFailure { failure ->
+                logger.w(failure) { "Přepis zprávy $messageId se nepodařilo spustit." }
+                _state.update { it.copy(notice = failure.userMessage(Res.string.transcribe_failed)) }
+            }
+        }
+    }
+
+    /**
      * Pustí video kolečko se zvukem, nebo ho vrátí do tiché smyčky.
      *
      * Kolečko se zvukem je jedno na konverzaci a hrající hlasovka se zastaví. Příchozí
@@ -3902,7 +4131,7 @@ class ConversationViewModel(
                 reportRecordingLost(tooShort)
                 return@launch
             }
-            _voicePreview.value = VoicePreview(recorded)
+            _voicePreview.value = VoicePreview(recorded, canContinue = voiceRecorder.canContinue(recorded))
         }
     }
 
@@ -3914,6 +4143,21 @@ class ConversationViewModel(
 
     fun seekVoicePreview(fraction: Float) {
         voicePlayer.seek(voicePreviewKey(chatId), fraction)
+    }
+
+    /**
+     * Nahrávat dál po poslechu náhledu: nové nahrávání naváže na hotovou hlasovku (čas běží od
+     * jejího konce) a po ■ nebo odeslání se oba úseky spojí do jedné ([VoiceRecorder.start]).
+     * Nahrávání je rovnou zamčené — spouští ho ťuknutí, ne podržení; zamčení drží obrazovka.
+     */
+    fun continueVoicePreview() {
+        val preview = _voicePreview.value?.takeIf { it.canContinue } ?: return
+        val voice = preview.voice ?: return
+        if (videoRecorder.state.value != null) return
+        silencePlayback()
+        voiceRecorder.start(continuing = voice)
+            .onSuccess { _voicePreview.value = null }
+            .onFailure { _state.update { it.copy(error = UiText(Res.string.conversation_recording_start_failed)) } }
     }
 
     /** Koš u náhledu, i odchod z chatu: nic, co uživatel neodeslal, neodejde, a soubor se smaže. */
@@ -3993,8 +4237,33 @@ class ConversationViewModel(
                 reportRecordingLost(tooShort && recorded == null)
                 return@launch
             }
-            _videoNotePreview.value = VideoNotePreview(note)
+            // Kolečko těsně pod minutovým stropem: navázaný úsek by po zlomku vteřiny odešel sám.
+            val roomLeft = recorded.durationMs < VIDEO_NOTE_MAX_DURATION_MS - MIN_DURATION_MS
+            _videoNotePreview.value = VideoNotePreview(
+                note,
+                recorded,
+                canContinue = roomLeft && videoRecorder.canContinue(recorded),
+            )
         }
+    }
+
+    /**
+     * Nahrávat dál po přehrání náhledu kolečka — jako [continueVoicePreview]: kamera se znovu
+     * otevře, čas běží od konce náhledu a po ■ nebo odeslání se obě kolečka spojí do jednoho
+     * ([eu.tintera.plume.core.camera.VideoNoteCamera.join]). Náhledový snímek patří starému
+     * souboru, takže jde pryč hned; nový se přečte z výsledku.
+     */
+    fun continueVideoNotePreview() {
+        val preview = _videoNotePreview.value?.takeIf { it.canContinue } ?: return
+        val recorded = preview.recorded ?: return
+        if (voiceRecorder.state.value != null) return
+        silencePlayback()
+        videoRecorder.start(continuing = recorded)
+            .onSuccess {
+                _videoNotePreview.value = null
+                preview.note?.thumbnail?.path?.let(::deleteQuietly)
+            }
+            .onFailure { _state.update { it.copy(error = UiText(Res.string.conversation_video_note_start_failed)) } }
     }
 
     /** Koš u náhledu kolečka, i odchod z chatu: nic neodejde a soubory se smažou. */
@@ -4315,6 +4584,24 @@ data class MediaAt(val messageId: Long, val seconds: Int)
 /** Otevřený náhled pozvánky; [joining] = přidávání běží a tlačítko je neaktivní. */
 data class InviteSheetState(val link: String, val preview: InvitePreview, val joining: Boolean = false)
 
+/**
+ * Náhled sdílené složky. Vybrané jsou zpočátku všechny chaty, ke kterým se dá připojit — tak to
+ * dělají oficiální klienti; kdo nechce do některého, odškrtne ho.
+ */
+data class FolderInviteSheetState(
+    val link: String,
+    val preview: FolderInvitePreview,
+    val selected: Set<Long> = preview.missingChats.mapTo(LinkedHashSet()) { it.id },
+    val adding: Boolean = false,
+) {
+    /**
+     * Novou složku jde přidat i bez připojení k chatům, když v některých už uživatel je (složka
+     * nebude prázdná). Do složky, kterou už má, se přidává jen to, co vybral.
+     */
+    val canAdd: Boolean
+        get() = selected.isNotEmpty() || (preview.folderId == 0 && preview.alreadyJoined > 0)
+}
+
 /** Skok na zprávu, která se teprve načítá; obrazovka mezitím odjíždí směrem k ní. */
 data class PendingJump(val messageId: Long, val older: Boolean)
 
@@ -4338,7 +4625,15 @@ data class TranslationSheet(
     val message: ChatMessage,
     val languageCode: String,
     val body: MessageBody? = null,
-    val failed: Boolean = false,
+    /** Proč se to nepovedlo; `null`, dokud se čeká nebo když se to povedlo. */
+    val error: UiText? = null,
+    /** Shrnutí od serveru místo překladu — tentýž sheet, jiné volání a jiné texty. */
+    val summary: Boolean = false,
+    /**
+     * Jestli smí výsledek do schránky. Překlad se u chráněného obsahu nenabízí vůbec, shrnutí
+     * ano (dostupnost řídí server) — jen bez kopírování, chráněný obsah ven nesmí ani převyprávěný.
+     */
+    val canCopy: Boolean = true,
 )
 
 /**
@@ -4399,6 +4694,11 @@ data class MessageMenu(
      * uživatel podržel. Ostatní položky (reakce, přeposlání, smazání) jdou dál na celý blok.
      */
     val pressedMessageId: Long? = null,
+    /**
+     * Text zprávy je už v jazyce překladu (rozpoznáno v zařízení, [alreadyInLanguage]) —
+     * „Přeložit" se nenabízí. Nerozpoznaný jazyk je `false`: položka navíc nevadí, chybějící ano.
+     */
+    val inTranslationLanguage: Boolean = false,
 ) {
     /** Do rychlého řádku se vejde jen pár; zbytek je za „+". */
     val quickEmoji: List<String> get() = emoji.take(MAX_QUICK_REACTIONS)
@@ -4641,12 +4941,16 @@ data class ConversationState(
     val memberPicker: MemberPicker? = null,
     /** Náhled chatu z pozvánky; `null` = zavřený. */
     val invite: InviteSheetState? = null,
+    /** Náhled sdílené složky z odkazu `t.me/addlist/…`; `null` = zavřený. */
+    val folderInvite: FolderInviteSheetState? = null,
     /** Vlastní klávesnice bota nebo vynucená odpověď v chatu; `null` = žádná. */
     val replyMarkup: ChatReplyMarkup? = null,
     /** Příkazy botů v chatu — napovídání po „/" a seznam z tlačítka u pole; prázdné = žádní boti. */
     val botCommands: List<BotCommandItem> = emptyList(),
     /** Seznam příkazů otevřený tlačítkem u pole (bez ohledu na to, co je v poli). */
     val commandsOpen: Boolean = false,
+    /** Mini aplikace z tlačítka nabídky bota; když je, stojí u pole místo tlačítka příkazů. */
+    val botMenuApp: BotMenuApp? = null,
     /** Po kolika sekundách se nové zprávy chatu samy mažou; 0 = nemažou (odznak v hlavičce). */
     val autoDeleteTime: Int = 0,
     /** Rozepsaný dotaz na inline bota (`@gif kočka`) a jeho výsledky; `null` = žádný. */
@@ -4655,6 +4959,8 @@ data class ConversationState(
     val mentionSuggestions: MentionSuggestions? = null,
     /** Tlačítko bota chce sdílet telefonní číslo a čeká se na potvrzení. */
     val confirmSharePhone: Boolean = false,
+    /** Tlačítko bota chce polohu; po potvrzení ji zjistí obrazovka. */
+    val confirmShareLocation: Boolean = false,
     /** Odkaz z tlačítka bota, který čeká na potvrzení; `null` = žádný. */
     val confirmLink: String? = null,
     /** Tlačítko bota chce uživatele přihlásit na web; čeká se na potvrzení v dialogu. */
@@ -4691,6 +4997,10 @@ data class ConversationState(
     val pendingContact: MessageMedia.Contact? = null,
     /** Jednorázová událost: tlačítko bota chce formulář nové ankety (v tomhle režimu). */
     val openPollComposer: PollComposerMode? = null,
+    /** Jednorázová událost: tlačítko bota chce výběr lidí nebo chatu. */
+    val openBotShare: BotShareRequest? = null,
+    /** Mini aplikace k otevření — obrazovka ji otevře a událost vynuluje. */
+    val openWebApp: WebAppRequest? = null,
     /** Jednorázová událost: otevřít sheet sady samolepek z odkazu `t.me/addstickers/…`. */
     val openStickerSet: Long? = null,
     /** Běží přidání ke skupině / kanálu ([ConversationViewModel.join]). */
@@ -4860,7 +5170,6 @@ private val DOWNLOAD_START_TIMEOUT = 30.seconds
 data class BotButtonRef(val messageId: Long, val row: Int, val column: Int)
 
 private fun UnsupportedBotButton.explanation(): StringResource = when (this) {
-    UnsupportedBotButton.WebApp -> Res.string.bot_unsupported_web_app
     UnsupportedBotButton.SwitchInline -> Res.string.bot_unsupported_switch_inline
     UnsupportedBotButton.Buy -> Res.string.bot_unsupported_buy
     UnsupportedBotButton.Game -> Res.string.bot_unsupported_game
@@ -4879,9 +5188,6 @@ val ConversationState.inputPlaceholder: String?
     }
 
 private fun UnsupportedKeyboardButton.explanation(): StringResource = when (this) {
-    UnsupportedKeyboardButton.Location -> Res.string.bot_unsupported_location
-    UnsupportedKeyboardButton.Users, UnsupportedKeyboardButton.Chat -> Res.string.bot_unsupported_pick_chat
-    UnsupportedKeyboardButton.WebApp -> Res.string.bot_unsupported_web_app
     UnsupportedKeyboardButton.ManagedBot -> Res.string.bot_unsupported_managed_bot
 }
 
@@ -4920,8 +5226,35 @@ private data class LinkPreviewStash(
     val options: LinkPreviewOptions = LinkPreviewOptions(),
 )
 
+/**
+ * Mini aplikace, kterou chce konverzace otevřít. [launch] = přes `openWebApp` (tlačítko pod
+ * zprávou, nabídka bota), jinak jen adresa (`getWebAppUrl`: vlastní klávesnice, tlačítko nad
+ * výsledky inline bota). [keyboardButtonText] jen u vlastní klávesnice — s ním smí mini aplikace
+ * poslat data. [main] = hlavní mini aplikace bota (`getMainWebApp`), [shortName] = pojmenovaná
+ * z odkazu `t.me/bot/app`; [url] je u obou prázdná.
+ */
+data class WebAppRequest(
+    val botUserId: Long,
+    val url: String,
+    val launch: Boolean,
+    val keyboardButtonText: String? = null,
+    val main: Boolean = false,
+    val startParameter: String = "",
+    /** Pojmenovaná mini aplikace z odkazu `t.me/bot/app` (`getWebAppLinkUrl`). */
+    val shortName: String = "",
+)
+
+/** Výběr pro tlačítko bota „vyber lidi" ([users]) / „vyber chat" ([chat]) ve zprávě [messageId]. */
+data class BotShareRequest(val messageId: Long, val users: BotUsersRequest? = null, val chat: BotChatRequest? = null)
+
 /** Přihlášení na web z tlačítka bota, které čeká na potvrzení. */
 data class LoginRequest(val messageId: Long, val buttonId: Long, val prompt: LoginUrlPrompt.Confirm)
 
 /** Tlačítko bota s inline dotazem do chatu, který se teprve vybere ([SwitchInlineTarget.Chosen]). */
 data class SwitchInlinePick(val bot: String, val query: String, val target: SwitchInlineTarget.Chosen)
+
+/**
+ * Strop pro rozpoznání jazyka při otevírání nabídky nad zprávou. Rychlé je v řádu milisekund,
+ * jen první volání po startu načítá model; nabídka na něj čekat nemá.
+ */
+private const val LANGUAGE_DETECTION_TIMEOUT_MS = 300L

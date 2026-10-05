@@ -686,9 +686,10 @@ internal fun MessageSelfDestructType.toSelfDestructType(): SelfDestructType = wh
  * Placené médium v doménové podobě.
  *
  * **Zaplacené je obyčejná fotka nebo video** (`PaidMediaPhoto` / `PaidMediaVideo`), a tak se
- * i kreslí — i s prohlížečem a reakcemi. Nezaplacené (`PaidMediaPreview`) je jen náhled s cenou.
- * Z víc položek se ukazuje PRVNÍ: album zaplacených médií v jedné zprávě neumíme kreslit jako
- * mřížku (alba jsou jinak víc zpráv) a u nezaplaceného stačí počet.
+ * i kreslí — i s prohlížečem a reakcemi. Nezaplacené (`PaidMediaPreview`) jsou jen náhledy
+ * s cenou, všech položek (konverzace je kreslí mřížkou). Ze ZAPLACENÝCH víc položek se ukazuje
+ * PRVNÍ: prohlížeč i reakce stojí na tom, že jedna zpráva je jedna fotka (alba jsou jinak víc
+ * zpráv), a ověřit by to nešlo — zaplatit Plume neumí.
  */
 internal fun MessagePaidMedia.toPaidMedia(hideSensitive: Boolean): MessageMedia? {
     val items = media.filterNotNull()
@@ -701,14 +702,17 @@ internal fun MessagePaidMedia.toPaidMedia(hideSensitive: Boolean): MessageMedia?
             else -> null
         }
     }
-    val preview = first as? PaidMediaPreview
     return MessageMedia.PaidMedia(
         starCount = starCount,
-        itemCount = items.size,
-        width = preview?.width ?: 0,
-        height = preview?.height ?: 0,
-        durationSeconds = preview?.duration ?: 0,
-        minithumbnail = preview?.minithumbnail?.toDomain(),
+        previews = items.map { item ->
+            val preview = item as? PaidMediaPreview
+            MessageMedia.PaidPreview(
+                width = preview?.width ?: 0,
+                height = preview?.height ?: 0,
+                durationSeconds = preview?.duration ?: 0,
+                minithumbnail = preview?.minithumbnail?.toDomain(),
+            )
+        },
     )
 }
 
@@ -779,6 +783,7 @@ internal suspend fun Message.messageMedia(
         durationSeconds = content.voiceNote.duration,
         waveform = decodeWaveform(content.voiceNote.waveform),
         isListened = content.isListened,
+        transcript = content.voiceNote.speechRecognitionResult?.toTranscript(),
     )
     is MessageSticker -> content.sticker.toMedia().copy(isSensitive = hideSensitive)
 
@@ -796,12 +801,15 @@ internal suspend fun Message.messageMedia(
         sizeBytes = content.videoNote.video.expectedSize,
         isViewed = content.isViewed,
         minithumbnail = content.videoNote.minithumbnail?.toDomain(),
+        transcript = content.videoNote.speechRecognitionResult?.toTranscript(),
     )
 
-    is MessageGame -> MessageMedia.Attachment(
-        label = UiText(Res.string.content_game, content.game.title),
-        thumbnailFileId = content.game.photo.sizes.filterNotNull()
-            .minByOrNull { it.width * it.height }?.photo?.id,
+    is MessageGame -> MessageMedia.Product(
+        kind = ProductKind.Game,
+        title = content.game.title,
+        description = content.game.description,
+        photo = content.game.photo.toMedia(),
+        price = null,
     )
 
     is MessageLocation -> MessageMedia.Location(content.location.latitude, content.location.longitude)
@@ -833,10 +841,14 @@ internal suspend fun Message.messageMedia(
         isThisChat = content.contact.userId != 0L && content.contact.userId == chatId,
     )
 
-    is MessageInvoice -> MessageMedia.Attachment(
-        label = UiText(Res.string.content_invoice, content.productInfo.title),
-        thumbnailFileId = content.productInfo.photo?.sizes?.filterNotNull()
-            ?.minByOrNull { it.width * it.height }?.photo?.id,
+    is MessageInvoice -> MessageMedia.Product(
+        kind = ProductKind.Invoice,
+        title = content.productInfo.title,
+        description = content.productInfo.description.text,
+        photo = content.productInfo.photo?.toMedia(),
+        price = Price(amount = content.totalAmount, currency = content.currency),
+        isTest = content.isTest,
+        isPaid = content.receiptMessageId != 0L,
     )
 
     else -> null
@@ -1067,6 +1079,7 @@ internal fun TdlLinkPreview.toDomain(): LinkPreview? {
         largePhoto = preview.showLargeMedia,
         showAboveText = preview.showAboveText,
         canChangeSize = preview.hasLargeMedia,
+        isVideo = preview.type is LinkPreviewTypeVideo || preview.type is LinkPreviewTypeEmbeddedVideoPlayer,
     )
     if (result.siteName == null && result.title == null && result.description == null && photo == null) {
         return null

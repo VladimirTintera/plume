@@ -69,12 +69,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -90,6 +94,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.NewReaction
 import eu.tintera.plume.core.telegram.SendState
@@ -923,9 +928,30 @@ internal fun MessageBox(
                 .maxWidthFraction(maxWidthFraction)
                 .widthIn(max = 560.dp)
                 .then(beforeClip)
+                /*
+                 * Vrstva ořezává tvarem BUBLINY, vlnky jsou jen ořez při kreslení.
+                 *
+                 * Ořez vrstvy rozhoduje i o tom, kam jde dotyk: Compose u ořezané vrstvy zkouší,
+                 * jestli bod leží v obrysu. Dokud vrstva nesla `WavyShape` (obrys je polygon
+                 * s tisíci body), dotyk do zvýrazněné zprávy neprošel — nabídka nad ukázaným
+                 * výsledkem hledání (i nad hrající hlasovkou) se dlouhým stiskem neotevřela
+                 * a nic uvnitř nereagovalo. Kreslení na hit test nemá vliv a vlnky leží uvnitř
+                 * bubliny, takže dvojí ořez vypadá stejně. Fáze se čte až při kreslení, takže
+                 * obíhání dál nerekomponuje.
+                 */
                 .graphicsLayer {
-                    shape = WavyShape(bodyScope.shape, progress = wave.value, phase = wavePhase.value)
+                    shape = bodyScope.shape
                     clip = true
+                }
+                .drawWithContent {
+                    val progress = wave.value
+                    if (progress <= 0f) {
+                        drawContent()
+                    } else {
+                        val outline = WavyShape(bodyScope.shape, progress = progress, phase = wavePhase.value)
+                            .createOutline(size, layoutDirection, this)
+                        clipPath(Path().apply { addOutline(outline) }) { this@drawWithContent.drawContent() }
+                    }
                 }
                 .then(afterClip),
         ) {
@@ -1452,8 +1478,19 @@ internal fun MessageBodyScope.Attachment(
             accent = accent,
             onAccent = if (message.isOutgoing) bubbleColor else MaterialTheme.colorScheme.onPrimary,
         ),
+        transcript = (media as? MessageMedia.VoiceNote)?.let { rememberTranscript(it.transcript, it.durationSeconds) },
     )
 }
+
+/** Přepis záznamu téhle zprávy: co nabídnout, rozhoduje [ConversationItemScope.transcribeOffer]. */
+@Composable
+internal fun MessageBodyScope.rememberTranscript(transcript: SpeechTranscript?, durationSeconds: Int): TranscriptState =
+    rememberTranscriptState(
+        key = message.id,
+        transcript = transcript,
+        offer = items.transcribeOffer(durationSeconds),
+        onTranscribe = { act(MessageAction.Transcribe) },
+    )
 
 /** Mřížka (nebo seznam) alba. [shape] je tvar mřížky bez bubliny; `null` uvnitř bubliny. */
 @Composable

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MAX_AUTOPLAY_ANIMATION_BYTES
@@ -269,6 +270,8 @@ private val MessageMedia.carriesCaption: Boolean
         is MessageMedia.VideoNote,
         // Popisek placeného média jde upravit jen prodejci, a to ověřené není.
         is MessageMedia.PaidMedia,
+        // Faktura ani hra popisek nemají; jejich text je popis zboží od bota.
+        is MessageMedia.Product,
         -> false
     }
 
@@ -284,6 +287,9 @@ internal fun ChatMessage.copyableText(): String = text.ifBlank {
         is MessageMedia.Dice -> media.label
         // Kontakt kopíruje jméno a číslo — to jediné, co z karty jde odnést jinam.
         is MessageMedia.Contact -> listOf(media.name, media.phone).filter { it.isNotBlank() }.joinToString("\n")
+        // Hotový přepis hlasovky a kolečka je text — jde zkopírovat, vybrat i přeložit.
+        is MessageMedia.VoiceNote -> (media.transcript as? SpeechTranscript.Done)?.text.orEmpty()
+        is MessageMedia.VideoNote -> (media.transcript as? SpeechTranscript.Done)?.text.orEmpty()
         else -> ""
     }
 }

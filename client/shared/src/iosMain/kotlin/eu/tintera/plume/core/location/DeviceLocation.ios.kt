@@ -10,6 +10,7 @@ import platform.CoreLocation.CLLocationManagerDelegateProtocol
 import platform.CoreLocation.kCLAuthorizationStatusAuthorizedAlways
 import platform.CoreLocation.kCLAuthorizationStatusAuthorizedWhenInUse
 import platform.CoreLocation.kCLAuthorizationStatusNotDetermined
+import platform.CoreLocation.kCLLocationAccuracyBest
 import platform.CoreLocation.kCLLocationAccuracyKilometer
 import platform.Foundation.NSError
 import platform.darwin.NSObject
@@ -26,11 +27,15 @@ import platform.darwin.DISPATCH_TIME_NOW
  * toho by ho garbage collector uklidil dřív, než poloha dorazí — stejná past jako u výběru příloh.
  */
 @Composable
-actual fun rememberDeviceLocation(): DeviceLocation = remember { IosDeviceLocation() }
+actual fun rememberDeviceLocation(precise: Boolean): DeviceLocation = remember(precise) { IosDeviceLocation(precise) }
 
 @OptIn(ExperimentalForeignApi::class)
-private class IosDeviceLocation : DeviceLocation {
-    private val manager = CLLocationManager().apply { desiredAccuracy = kCLLocationAccuracyKilometer }
+private class IosDeviceLocation(precise: Boolean) : DeviceLocation {
+    // Přesnost „nejlepší" jen pro tlačítko bota; iOS ji stejně zúží, když uživatel vypnul
+    // přesnou polohu v nastavení aplikace.
+    private val manager = CLLocationManager().apply {
+        desiredAccuracy = if (precise) kCLLocationAccuracyBest else kCLLocationAccuracyKilometer
+    }
     private var pending: ((GeoPoint?) -> Unit)? = null
 
     private val delegate = object : NSObject(), CLLocationManagerDelegateProtocol {

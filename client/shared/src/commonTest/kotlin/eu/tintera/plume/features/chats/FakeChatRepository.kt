@@ -2,6 +2,7 @@ package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.telegram.ChatTyping
 import eu.tintera.plume.core.telegram.ChatFolder
+import eu.tintera.plume.core.telegram.ChatFolders
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ArchiveSettings
 import eu.tintera.plume.core.telegram.ArchiveUnread
@@ -15,10 +16,12 @@ import eu.tintera.plume.core.telegram.SpamActions
 import eu.tintera.plume.core.telegram.ReportRequest
 import eu.tintera.plume.core.telegram.ReportStep
 import eu.tintera.plume.core.telegram.ChatBar
+import eu.tintera.plume.core.telegram.VideoChatInfo
 import eu.tintera.plume.core.telegram.BlockedSendersPage
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.InviteJoinResult
 import kotlinx.coroutines.flow.Flow
+import eu.tintera.plume.core.telegram.SpeechTrial
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -35,6 +38,8 @@ open class FakeChatRepository(
 
     override val diceEmojis: StateFlow<List<String>> = MutableStateFlow(emptyList())
     override val availableEffectIds: StateFlow<List<Long>> = MutableStateFlow(emptyList())
+    override val speechTrial: StateFlow<SpeechTrial?> = MutableStateFlow(null)
+    override val isPremium: StateFlow<Boolean> = MutableStateFlow(false)
 
     override fun chats(folder: ChatFolder): StateFlow<ChatListState> =
         MutableStateFlow(ChatListState.Ready(emptyList(), canLoadMore = false))
@@ -81,6 +86,8 @@ open class FakeChatRepository(
     override suspend fun topChats(): Result<List<ChatSummary>> = Result.success(emptyList())
 
     override val archiveUnread: StateFlow<ArchiveUnread> = MutableStateFlow(ArchiveUnread())
+    override val chatFolders: StateFlow<ChatFolders> = MutableStateFlow(ChatFolders())
+    override val folderUnread: StateFlow<Map<Int, ArchiveUnread>> = MutableStateFlow(emptyMap())
 
     override suspend fun archiveSettings(): Result<ArchiveSettings> =
         Result.success(ArchiveSettings(false, false, canArchiveUnknownSenders = false))
@@ -111,6 +118,7 @@ open class FakeChatRepository(
 
     override suspend fun report(chatId: Long, request: ReportRequest): Result<ReportStep> = Result.success(ReportStep.Done)
     override fun chatBar(chatId: Long): Flow<ChatBar?> = flowOf(null)
+    override fun videoChat(chatId: Long): Flow<VideoChatInfo?> = flowOf(null)
     override suspend fun dismissChatBar(chatId: Long): Result<Unit> = Result.success(Unit)
     override suspend fun sharePhoneNumber(chatId: Long): Result<Unit> = Result.success(Unit)
     override suspend fun unarchiveFromSpamBar(chatId: Long): Result<Unit> = Result.success(Unit)

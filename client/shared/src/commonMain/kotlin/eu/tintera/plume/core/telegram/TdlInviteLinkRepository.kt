@@ -3,6 +3,9 @@ package eu.tintera.plume.core.telegram
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.toResult
 import dev.g000sha256.tdl.dto.ChatInviteLink
+import dev.g000sha256.tdl.dto.ChatInviteLinkMember
+import dev.g000sha256.tdl.dto.User
+import dev.g000sha256.tdl.dto.UserTypeBot
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -24,8 +27,8 @@ class TdlInviteLinkRepository(
 
     private val client: TdlClient get() = holder.client
 
-    override suspend fun links(chatId: Long): Result<InviteLinks> = runCatching {
-        val me = client.getMe().toResult().getOrThrow().id
+    override suspend fun links(chatId: Long, creatorUserId: Long?): Result<InviteLinks> = runCatching {
+        val me = creatorUserId ?: client.getMe().toResult().getOrThrow().id
         InviteLinks(
             active = page(chatId, me, revoked = false)
                 .sortedWith(compareByDescending<InviteLink> { it.isPrimary }.thenByDescending { it.createdAt }),
@@ -49,6 +52,53 @@ class TdlInviteLinkRepository(
             if (links.size < PAGE_SIZE) return all.map { it.toInviteLink() }
         }
         return all.map { it.toInviteLink() }
+    }
+
+    override suspend fun otherAdminsLinks(chatId: Long): Result<List<AdminInviteLinks>> = runCatching {
+        val me = client.getMe().toResult().getOrThrow().id
+        // Správce, který vlastníkem není, dostane chybu — pro něj žádní další správci nejsou.
+        val counts = client.getChatInviteLinkCounts(chatId = chatId).toResult().getOrNull()
+            ?.inviteLinkCounts.orEmpty()
+        counts.filter { it.userId != me && it.inviteLinkCount + it.revokedInviteLinkCount > 0 }
+            .mapNotNull { count ->
+                // Jméno a fotka jsou lokální dotaz: správce TDLib zná, když zná jeho odkazy.
+                val user = client.getUser(userId = count.userId).toResult().getOrNull() ?: return@mapNotNull null
+                AdminInviteLinks(
+                    userId = count.userId,
+                    name = user.fullName(),
+                    avatarFileId = user.profilePhoto?.small?.id,
+                    active = count.inviteLinkCount,
+                    revoked = count.revokedInviteLinkCount,
+                    isBot = user.type is UserTypeBot,
+                )
+            }
+    }
+
+    override suspend fun linkMembers(chatId: Long, url: String): Result<List<InviteLinkMember>> = runCatching {
+        val all = mutableListOf<ChatInviteLinkMember>()
+        repeat(MAX_PAGES) {
+            val members = client.getChatInviteLinkMembers(
+                chatId = chatId,
+                inviteLink = url,
+                onlyWithExpiredSubscription = false,
+                offsetMember = all.lastOrNull(),
+                limit = PAGE_SIZE,
+            ).toResult().getOrThrow().members
+            all += members.filterNot { member -> all.any { it.userId == member.userId } }
+            if (members.size < PAGE_SIZE) return@runCatching all.mapNotNull { it.toMember() }
+        }
+        all.mapNotNull { it.toMember() }
+    }
+
+    private suspend fun ChatInviteLinkMember.toMember(): InviteLinkMember? {
+        val user = client.getUser(userId = userId).toResult().getOrNull() ?: return null
+        return InviteLinkMember(
+            userId = userId,
+            name = user.fullName(),
+            avatarFileId = user.profilePhoto?.small?.id,
+            joinedAt = joinedChatDate,
+            viaFolder = viaChatFolderInviteLink,
+        )
     }
 
     override suspend fun create(chatId: Long, draft: InviteLinkDraft): Result<InviteLink> {
@@ -80,20 +130,28 @@ class TdlInviteLinkRepository(
     override suspend fun deleteRevoked(chatId: Long, url: String): Result<Unit> =
         client.deleteRevokedChatInviteLink(chatId = chatId, inviteLink = url).toResult().map { }
 
-    override suspend fun deleteAllRevoked(chatId: Long): Result<Unit> = runCatching {
-        val me = client.getMe().toResult().getOrThrow().id
+    override suspend fun deleteAllRevoked(chatId: Long, creatorUserId: Long?): Result<Unit> = runCatching {
+        val me = creatorUserId ?: client.getMe().toResult().getOrThrow().id
         client.deleteAllRevokedChatInviteLinks(chatId = chatId, creatorUserId = me).toResult().getOrThrow()
     }
 
-    override fun pendingJoinRequests(chatId: Long): Flow<Int> =
+    override fun pendingJoinRequests(chatId: Long): Flow<PendingJoinRequests> =
         holder.updates { chatPendingJoinRequestsUpdates }
             .filter { it.chatId == chatId }
-            .map { it.pendingJoinRequests?.totalCount ?: 0 }
+            .map { it.pendingJoinRequests }
             // Odběr stojí před prvním čtením, aby se změna mezi nimi neztratila.
-            .onStart {
-                emit(client.getChat(chatId = chatId).toResult().getOrNull()?.pendingJoinRequests?.totalCount ?: 0)
-            }
+            .onStart { emit(client.getChat(chatId = chatId).toResult().getOrNull()?.pendingJoinRequests) }
             .distinctUntilChanged()
+            .map { info ->
+                PendingJoinRequests(
+                    count = info?.totalCount ?: 0,
+                    // Tváře jsou lokální dotaz: TDLib žadatele zná, když zná žádost.
+                    recent = info?.userIds?.toList().orEmpty().take(MAX_RECENT_REQUESTERS).mapNotNull { userId ->
+                        val user = client.getUser(userId = userId).toResult().getOrNull() ?: return@mapNotNull null
+                        SenderInfo(id = userId, title = user.fullName(), avatarFileId = user.profilePhoto?.small?.id)
+                    },
+                )
+            }
 
     override suspend fun joinRequests(chatId: Long): Result<List<JoinRequest>> = runCatching {
         client.getChatJoinRequests(
@@ -107,7 +165,7 @@ class TdlInviteLinkRepository(
             val user = client.getUser(userId = request.userId).toResult().getOrNull() ?: return@mapNotNull null
             JoinRequest(
                 userId = request.userId,
-                name = listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" "),
+                name = user.fullName(),
                 avatarFileId = user.profilePhoto?.small?.id,
                 date = request.date,
                 bio = request.bio,
@@ -136,6 +194,11 @@ private fun ChatInviteLink.toInviteLink() = InviteLink(
     createsJoinRequest = createsJoinRequest,
     isSubscription = subscriptionPricing != null,
 )
+
+private fun User.fullName(): String = listOf(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
+
+/** Tváří posledních žadatelů v pruhu nad konverzací — víc se jich přes sebe nevejde. */
+private const val MAX_RECENT_REQUESTERS = 3
 
 private const val PAGE_SIZE = 100
 

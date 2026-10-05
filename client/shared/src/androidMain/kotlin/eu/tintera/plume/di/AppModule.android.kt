@@ -28,6 +28,8 @@ import eu.tintera.plume.core.telegram.TelegramPaths
 import eu.tintera.plume.core.update.AppUpdates
 import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.core.ui.TextClipboard
+import eu.tintera.plume.core.language.LanguageDetector
+import eu.tintera.plume.core.language.AndroidLanguageDetector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -56,6 +58,7 @@ actual fun Module.platformModule() {
     single { AppForeground(androidContext()) }
     single { AppUpdates(androidContext()) }
     single { TextClipboard(androidContext()) }
+    single<LanguageDetector> { AndroidLanguageDetector(androidContext()) }
     single<SquarePhoto> { AndroidSquarePhoto(androidContext()) }
     // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.
     factory { AudioRecorder(androidContext()) }

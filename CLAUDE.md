@@ -1479,9 +1479,12 @@ Na compactu (a na zaklapnutém Foldu) se to nedělo, protože jeden panel scaffo
 proto to dlouho vypadalo jako chyba konverzace. Výchozí hodnota je `true` a nastavuje ji
 i konstruktor `PaneScaffoldDirective` BEZ toho parametru, takže se musí předat výslovně.
 
-**V dvoupanelu se nesdílí nic** (`LocalTwoPane`, poskytuje ho shell). Seznam vedle konverzace
-zůstává vidět, takže by avatar odletěl z položky, která je pořád na obrazovce, a o jeden klíč
-by se přetahovaly dva prvky naráz.
+**V dvoupanelu se nesdílí nic — kromě fotky do prohlížeče** (`LocalTwoPane`, poskytuje ho
+shell). Seznam vedle konverzace zůstává vidět, takže by avatar odletěl z položky, která je pořád
+na obrazovce, a o jeden klíč by se přetahovaly dva prvky naráz. Prohlížeč médií ale nahradí celý
+dvoupanel, takže fotka z bubliny nemá s kým se přetahovat — `sharedNavElement(inTwoPane = true)`
+proto dostávají všechny klíče `photoKey` a nic jiného. **Kdo přidá `inTwoPane` jinam, musí vědět,
+že druhá strana letu dvoupanel nahrazuje**, jinak se vrátí přesně ten souboj o klíč.
 
 **Text se sdílí přes `sharedBounds` + `scaleToBounds`, ne přes `sharedElement`.** Název chatu má
 v hlavičce jinou velikost písma; se `sharedElement` by se text na konci letu přeskládal skokem.
@@ -1618,8 +1621,8 @@ Dole je `HorizontalFloatingToolbar` s FAB „Nová zpráva" (M3 Expressive) a v 
 Vše, Nepřečtené, Lidé, Skupiny, Kanály (`ChatFilter`, čistá funkce `filteredBy` v `ChatGroups.kt`,
 testy v `ChatGroupsTest`). Nahradil spodní navigační lištu.
 
-- **Filtr je lokální, nad načteným seznamem.** Vlastní složky Telegramu (`ChatListFolder`) zatím
-  nejsou; tohle je jejich nejčastější náhrada. Skupiny (`chatGroups`) se dělají až nad výsledkem.
+- **Filtr je lokální, nad načteným seznamem**, a platí i UVNITŘ vybrané složky Telegramu (viz
+  „Složky chatů"). Skupiny (`chatGroups`) se dělají až nad výsledkem.
   Druh chatu nese `ChatSummary.kind` (`ChatKind`: tajný chat i bot jsou `Private`, základní
   skupina i supergroup `Group`, kanál `Channel`); `isPrivate` je z něj odvozené.
 - **Nepřečtené = `hasUnread`**, tedy i ručně označené — přesně ty, u kterých svítí odznak.
@@ -1661,6 +1664,157 @@ testy v `ChatGroupsTest`). Nahradil spodní navigační lištu.
 - Prázdný výsledek filtru je `IntroEmptyState` (u Nepřečtených „Všechno přečteno", jinak ikona
   filtru a „Tomuhle filtru žádný chat neodpovídá"), ne „Zatím tu nic není" — chaty jsou, jen ne
   tyhle. Stejný prázdný stav jako archiv a placeholder detailu.
+
+### Složky chatů
+
+Složky Telegramu (`ChatListFolder`) jsou řádek přepínacích tlačítek pod pilulkou hledání:
+„Všechny chaty · Práce 3 · Rodina…" (`ChatFolderRow`, pravidla `folderTabs` a `selectedFolderId`
+v `ChatFolderTabs.kt`, testy `ChatFolderTabsTest`). Bez složek se řádek nekreslí.
+
+- **Složka je další `ChatFolder` (`Custom(id)`), ne nový druh seznamu.** Repository drží pozice
+  chatu ve VŠECH seznamech, které TDLib hlásí (`positions`), takže seznam složky se skládá
+  stejným `publish` jako hlavní a archiv. Seznamy se ale publikují jen pro složky, o které si
+  někdo řekl (`lists` roste s `chats(folder)`) — skládat seznam každé složky při každém updatu
+  by byla práce pro nic.
+- **Složka se načítá až při výběru** (`loadMore(Custom)`), jako archiv. Do té doby je `Loading`;
+  pozice chatů ve složce TDLib pošle teprve po `loadChats` nad ní.
+- **Archivovaný chat může být ve složce** (`excludeArchived = false`), takže archivace se už
+  nerozhoduje podle složky, ze které položka přišla, ale podle `ChatSummary.isArchived`
+  (pozice v archivu). `folder` zůstává jen pro připínání — připnutí patří složce.
+- **Uložené zprávy ve složce JSOU vidět i nepřipnuté** (`hiddenSavedMessagesChatId`). Do složky
+  je uživatel dal sám; v hlavním seznamu zůstávají schované jako dřív.
+- **Vybraná složka žije jako filtr**: `SavedStateHandle`, ne nastavení. Návrat z konverzace
+  i zabití procesu ji zachovají, nové spuštění začne na všech chatech. Smazaná složka (třeba
+  na jiném zařízení) spadne na celý seznam, ale výběr se NEPŘEPISUJE — po startu přichází
+  `UpdateChatFolders` až po prvním složení a uložená volba by se jinak ztratila.
+- **Řádek odjíždí spolu s pilulkou.** Scroll behavior nenese `AppBarWithSearch`, ale sloupec
+  kolem pilulky i řádku (`Modifier.searchBarScrollBehavior()` je veřejný); bar sám ho nedostane,
+  jinak by odjel jen on a řádek zůstal viset nahoře.
+- **Jen ťuknutím, ne tahem do strany.** Vodorovný tah po seznamu patří archivaci.
+- **„Všechny chaty" stojí, kam ho uživatel v Telegramu přesunul** (`mainChatListPosition`,
+  bez Premium vždycky první); pozice za koncem (složka mezitím zmizela) jde na konec.
+- **Číslo u složky je počet nepřečtených NEZTLUMENÝCH chatů** (`UpdateUnreadChatCount` pro
+  `ChatListFolder`), jako odznak archivu. Složku plnou ztlumených kanálů by jinak číslo
+  zdobilo napořád. Chodí jen se zapnutou databází zpráv.
+- **Název složky může nést vlastní emoji** (`ChatFolderName.text` je `FormattedText`) — kreslí
+  se jako v náhledu seznamu chatů (`appendWithCustomEmoji`).
+- **Ověřeno na emulátoru** dvěma složkami založenými sondou (`createChatFolder`; jedna s vybranými
+  chaty včetně Uložených zpráv, druhá „všichni boti"): řádek, přepnutí, číslo u složky, filtry
+  toolbaru uvnitř složky, obnova po `am kill`, odjetí s pilulkou. **iOS jen přeložené.**
+
+#### Správa složek
+
+Nastavení → Obecné → Složky chatů (`ChatFoldersScreen`, `ChatFolderEditScreen`, hranice
+`ChatFolderRepository` / `TdlChatFolderRepository`, pravidla konceptu `ChatFolderDraft`, testy
+`ChatFolderDraftTest`) a „Přidat do složky" v nabídce nad chatem (`folderChoices`).
+
+- **Seznam a pořadí složek jsou živé z `ChatRepository.chatFolders`**, správa jen zapisuje.
+  Po založení, úpravě i smazání přijde `UpdateChatFolders` sám; nic se nepřepisuje lokálně.
+- **Složka se zapisuje CELÁ** (`editChatFolder` bere celý `ChatFolder`), takže co aplikace
+  nenabízí — ikona, barva, sdílení, připnuté chaty, vlastní emoji v názvu — se přenáší
+  z načtené složky (`ChatFolderDraft`). Vlastní emoji patří textu, ve kterém přišly; změněný
+  název je zahodí (`withTitle`), jinak by ukazovaly do jiných znaků.
+- **Prázdnou složku server odmítne**: musí mít aspoň jeden vybraný chat nebo druh chatů,
+  a název 1–12 znaků. Hlídá to `problem()` a Uložit ukáže důvod hned, ne chybu od serveru.
+- **Vybraný chat nemůže být zároveň vynechaný** — `withChosen` / `withExcluded` ho z druhého
+  seznamu vyřadí; server by jinak celou úpravu odmítl.
+- **Odebrat chat ze složky nestačí z vybraných.** Složka „všichni boti" drží bota DRUHEM, takže
+  `removeChat` ho navíc vynechá (`withoutChat(coveredByKind)`); jinak by zaškrtávátko nad chatem
+  zhaslo a chat ve složce zůstal. Přidání (`addChatToList(ChatListFolder)`) vynechání zruší
+  samo — ověřeno: Notifikátor ze „Boti" ven a zpátky.
+- **„Přidat do složky" nabízí složky, ve kterých chat je, a ty, kam jde přidat**
+  (`getChatListsToAddChat`), zaškrtávátkem a přímo v nabídce (rozbalení jako doby ztlumení).
+  Členství se čte až při otevření nabídky, přepnutí se ukáže hned a při chybě vrátí.
+- **Pořadí se mění tažením za úchyt** (`DragReorder`) a server dostane nové pořadí až po
+  PUŠTĚNÍ (`snapshotFlow { draggedKey }` → `reorderChatFolders`), ne po každé výměně. „Všechny
+  chaty" úchyt nemají — přesunout je jde jen s Premium.
+- **Doporučené složky** (`getRecommendedChatFolders`) se čtou znovu po každé změně složek;
+  přidaná doporučená z nabídky zmizí. Server je nevrací vždycky: při prvním otevření na emulátoru
+  přišel prázdný seznam bez chyby, po smazání jiné složky „Nepřečtené" a „Osobní".
+- **Výběr chatů do složky je `ChatPicker` přes celou obrazovku nad editorem**, ne routa: výběr
+  patří rozdělanému konceptu, který by navigace musela přenášet. „Hotovo (0)" jde potvrdit
+  i prázdné (`confirmWhenEmpty`) — tak se vybrané chaty odebírají všechny naráz.
+- **Ikona složky je jméno od TDLib** (`ChatFolderIcon.name`: „Bots", „Cat", „Work"… — pevný seznam
+  z dokumentace) a kreslí se Material Symbols (`CHAT_FOLDER_ICONS`, `folderIcon`), ne grafikou
+  Telegramu. Neznámé jméno z novější verze je obecná složka a při úpravě se přenese dál.
+- **Bez vybrané ikony ji volí Telegram podle obsahu** (`getChatFolderDefaultIconName`, lokální)
+  a editor ukazuje tu, kterou by zvolil, přepočítanou s každou změnou konceptu: zapnutí „Boti" ji
+  samo změní na robota. **S vybranými chaty je výchozí „Custom"**, tedy obecná složka — i u
+  složky „všichni boti" s jedním chatem navíc. Není to chyba, tak to TDLib počítá.
+- **`ChatFolderInfo.icon` v `UpdateChatFolders` je už ta výsledná** (zvolená, jinak výchozí),
+  takže seznam složek si nic nedopočítává. Doporučené složky ikonu nemají a dopočítá se jim jen
+  pro zobrazení (`RecommendedChatFolder.iconName`) — do konceptu nejde, přidaná složka si ji
+  dál volí podle obsahu.
+- **Výběr je sheet s „Automaticky" a mřížkou**, ikona stojí v poli s názvem jako v oficiálních
+  klientech. Řádek složek nad seznamem chatů ikony nekreslí — je to text, jako u oficiálního
+  klienta na Androidu, a ikona vedle názvu by z tlačítek udělala dvojnásobnou šířku.
+- **Ověřeno na emulátoru** (anglicky, složený Fold): založení složky se dvěma chaty, přeřazení
+  tažením (server pořadí převzal, řádek nad seznamem ho ukázal), úprava (druh Boti, odebraný
+  chat) a smazání s potvrzením, doporučená „Unread" přidaná a zase smazaná, „Přidat do složky"
+  oběma směry. Ikona: výběr tlapky, uložení (server ji převzal, seznam ji ukázal), návrat na
+  „Automaticky", robot u nové složky s Boty a ikony doporučených. „Chaty ze složek" v nastavení
+  archivu se ukazuje se skutečnou hodnotou účtu; **zápis ověřený není** (mění nastavení účtu).
+  **iOS jen přeložené.**
+
+#### Sdílené složky
+
+Odkaz `t.me/addlist/…` ve zprávě otevře náhled složky (`FolderInviteSheet`, `InternalLink.FolderInvite`
+z `checkChatFolderInviteLink`), v editoru vlastní složky je sekce Sdílení s odkazy
+(`ChatFolderRepository.links` / `createLink` / `deleteLink`).
+
+- **Nic se nepřidá bez potvrzení**, stejně jako u pozvánky do chatu: přidání složky znamená
+  připojit se k jejím chatům. Chaty k připojení jsou zaškrtnuté všechny a jdou odškrtnout.
+  Novou složku jde přidat i bez nich, když v některých chatech uživatel už je; u složky, kterou
+  už má, se přidávají jen vybrané nové chaty, a když žádné nejsou, tlačítko není.
+- **Sdílet jde jen složku z vybraných chatů** (`ChatFolderDraft.canBeShared`): TDLib odkaz na
+  složku s druhy chatů nebo vynechanými odmítne. Editor to řekne pod tlačítkem, místo aby
+  odkaz skončil chybou, a **sdílená složka druhy ani vynechané nenabízí** — uložení by server
+  odmítl.
+- **Odkaz nese chaty z `getChatsForChatFolderInviteLink`** — jen skupiny a kanály, kam smí
+  uživatel zvát; soukromé chaty a boti v odkazu nejsou („1 chat" u složky se třemi). Bez nich
+  odkaz vytvořit nejde (`NothingToShareException`, vlastní věta).
+- **Odkaz se dělá z ULOŽENÉ složky**, takže s rozepsanými změnami tlačítko zašedne a řekne
+  proč. Nový odkaz se rovnou zkopíruje, jako pozvánka do chatu.
+- **Sdílenou se složka stane prvním odkazem a přestane být smazáním posledního** — a to
+  potvrdí až `UpdateChatFolders`, ne odpověď na smazání. Proto nese `ChatFolderTab` příznak
+  `isShareable`: bez něj `chatFolders` (StateFlow) update odfiltroval jako beze změny a editor
+  dál schovával druhy chatů u složky, která sdílená už nebyla.
+- **Po smazání posledního odkazu vrátí `getChatFolderInviteLinks` chvíli `FILTER_ID_INVALID`**,
+  proto smazaný odkaz zmizí ze seznamu hned, ať čtení dopadne jakkoli.
+- **Nové chaty v přidané složce** (autor do ní doplnil chaty) jsou karta nad seznamem chatů
+  vybrané složky (`NewFolderChatsCard`, `ChatsViewModel.newFolderChats`), ne dialog: sheet se
+  chaty k připojení se otevře až „Zobrazit". „Skrýt" pošle `processChatFolderNewChats`
+  s prázdným seznamem — server tím nabídku zapomene. Ptá se jen u složky, která je sdílená
+  a NENÍ moje (`isShareable && !hasMyInviteLinks`; `ChatFolderTab.hasMyInviteLinks` kvůli tomu).
+- **`getChatFolderNewChats` se nesmí volat při každém výběru složky.** Dokumentace dovoluje
+  nejvýš jednou za `chat_folder_new_chats_update_period` sekund (výchozí hodina), proto má
+  `TdlChatFolderRepository` vlastní keš na složku; po vyřízení je prázdná.
+- **Jeden sheet a jeden blok řádků pro „které z těchhle chatů"** (`FolderChatsSheet`,
+  `CheckableChatRows` v `core/ui`): náhled z odkazu, nové chaty, chaty v odkazu i chaty
+  k opuštění. Dřív byl sheet jen v `features/conversation` a seznam chatů by na konverzaci
+  závisel.
+- **Smazání přidané složky se ptá, které chaty opustit** (`getChatFolderChatsToLeave`, pak
+  `deleteChatFolder(leaveChatIds)`), zaškrtnuté všechny, jako oficiální klienti. Dialog se
+  otevře až s odpovědí — kdyby během čtení povyrostl o seznam, vypadalo by to jako chyba.
+  U vlastní složky je seznam prázdný a dialog je stejný jako dřív.
+- **Odkaz jde upravit: název a chaty** (`FolderLinkSheet`, `editChatFolderInviteLink`).
+  Nabízí se chaty z `getChatsForChatFolderInviteLink` PLUS ty, které odkaz už nese — jinak by
+  chat, který sdílet přestal jít, nešlo z odkazu odebrat. Bez chatů server odkaz odmítne, Uložit
+  zašedne s větou. Ťuknutí na odkaz otevře sheet, sdílení zůstalo ikonou v řádku (nejčastější
+  akce bez kroku navíc).
+- **Potvrzení v sheetu hlásí sheet sám** (kopírování fajfkou, chyba uložení větou nad Uložit):
+  snackbar obrazovky je pod modálním sheetem schovaný.
+- **Načtení náhledu trvá pár vteřin** (dotaz na server). Kdo ťukne podruhé, trefí závoj sheetu
+  a zavře ho — při ověřování přes `adb` se po ťuknutí čeká.
+- **Ověřeno na emulátoru** (anglicky i česky): odkaz na složku „Plume test" (s testovací
+  skupinou), sdílení schovalo druhy a vynechané, odkaz poslaný botem otevřel náhled „složku už
+  máš"; smazání odkazu vrátilo složku na nesdílenou i v otevřeném editoru; u složky s druhem Boti
+  vysvětlení. Náhled nové složky s chatem k připojení **jen sondou** (podstrčené `folderId = 0`
+  a chaty), odškrtnutí chatu. **Skutečné přidání složky z cizího odkazu ověřené NENÍ** — chtělo
+  by to druhý účet, nebo se připojit ke skutečným cizím chatům. Úprava odkazu ověřená naostro
+  (přejmenování, odškrtnutí jediného chatu s větou, uložení, smazání ze sheetu). Dialog
+  s chaty k opuštění a karta nových chatů **jen sondou** (podstrčené chaty u vlastní složky,
+  nic se nepotvrdilo) — přidaná cizí složka na testovacím účtu není. **iOS jen přeložené.**
 
 ### Ověření a štítek podvodu
 
@@ -1875,6 +2029,31 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
   se stavem `ChatMemberStatusLeft`, `getSupergroup` je lokální) nahradí vstupní pole tlačítkem
   „Přidat se" (`joinChat`). Psát do cizí skupiny nejde a nabízet pole by znamenalo chybu po
   odeslání.
+- **Na široké ploše je hledání panel pod pilulkou, ne celá obrazovka** (`ExpandedDockedSearchBarWithGap`
+  podle `LocalTwoPane`). Material doporučuje docked od střední šířky; celoobrazovkové hledání by
+  na rozloženém Foldu přikrylo i otevřenou konverzaci vpravo. Panel je široký jako pilulka (tedy
+  levý panel), zbytek obrazovky pod závojem; výšku i místo nad klávesnicí (`imePadding`) si řeší
+  komponenta sama, takže výsledky v panelu spodní inset NEBEROU (`LocalDockedResults`) — jinak by
+  pod posledním výsledkem zůstala mezera o výšku klávesnice. Obsah (`SearchResults`) je pro obě
+  podoby jeden.
+- **Zpět v panelu napřed schová klávesnici, teprve další zpět zavře hledání** (`PopupBackAfterKeyboard`
+  v `core/ui/PopupBack.kt`), jako na telefonu. Panel je popup a dvě věci to rozbíjely:
+  - **Popup si na Androidu 13+ registruje zpět s `PRIORITY_OVERLAY`**, takže předběhne
+    klávesnici, a registruje ho JEN při připojení okna — změna `dismissOnBackPress` za běhu se už
+    nepromítne (přečteno ve zdroji `AndroidPopup.android.kt`). Proto `dismissOnBackPress = false`
+    (`popupDismissesOnBack`) a vlastní callback přímo v okně popupu (`PopupBackHandler`,
+    `view.findOnBackInvokedDispatcher()`). Vnitřní `BackHandler` komponenty i `NavigationBackHandler`
+    jdou přes dispatcher aktivity a zpět z okna popupu k nim nedojde — bez vlastního callbacku
+    druhé zpět nedělalo nic.
+  - **Callback je zapnutý pořád a rozhoduje až při vyvolání** (klávesnice vidět → schovat, jinak
+    zavřít). Nezáleží pak na tom, do kterého okna si klávesnice registruje vlastní zpět, ani kdy
+    během gesta zhasne `isImeVisible`. Klávesa zpět jde do klávesnice sama.
+  - **Ověřuje se gestem v horní půlce obrazovky.** `input swipe` od levého okraje ve výšce těsně
+    nad klávesnicí (y = 1100 na rozloženém Foldu) systém jako gesto zpět nevzal — v logu nebyl
+    `startBackNavigation` — a tah dopadl do závoje popupu jako ťuknutí, takže zavřel hledání
+    i s klávesnicí; vypadalo to, že oprava nefunguje. Proč zrovna tam, zjištěné není. Ve výšce
+    700 gesto prošlo. Jestli zpět opravdu proběhlo, říká `adb logcat | grep
+    startBackNavigation` (`CoreBackPreview`).
 - **Spodní inset si berou seznamy výsledků, ne `ExpandedFullScreenSearchBar`.** Jeho výchozí
   `windowInsets` je `safeDrawing` a spodek dává obsahu jako padding, takže výsledky končily
   useknuté nad navigační lištou na holé ploše. Hledání dostane jen `Top + Horizontal`, seznamy
@@ -2194,9 +2373,11 @@ snackbar s „Vrátit".
 - **TDLib na změnu `ArchiveChatListSettings` NEPOSÍLÁ update**, takže sheet je jediný zdroj pravdy:
   přepínač se pohne hned a při selhání se vrátí. Čekat na potvrzení by znamenalo přepínač, který
   se po ťuknutí nehýbe.
-- **Zapisuje se celým objektem**, jako ztlumení chatu: `keepChatsFromFoldersArchived` se přenese
-  z aktuálního stavu. Aplikace vlastní složky Telegramu nemá, takže ho jako volbu nenabízí — ale
-  nastavit ho mohl jiný klient a přepsat mu ho tiše by bylo horší než ho nenabízet.
+- **Zapisuje se celým objektem**, jako ztlumení chatu — všechny tři volby nese `ArchiveSettings`.
+- **„Nechávat v archivu chaty ze složek" (`keepChatsFromFoldersArchived`) jen se složkami a jen
+  bez „Nechávat chaty v archivu"** (`AnimatedVisibility` v sheetu). Týká se neztlumených chatů,
+  které jsou ve složce vybrané nebo připnuté, a TDLib ho ignoruje, když platí volba nad ním —
+  ta drží v archivu všechny neztlumené. Přepínač bez následku by sliboval něco, co se nestane.
 - **„Archivovat chaty od neznámých" povoluje server** (`can_archive_and_mute_new_chats_from_unknown_users`);
   kde ho nepovolí, TDLib zapnutí odmítne. Přepínač se tam proto nenabízí vůbec — stejné pravidlo
   jako u filtrů seznamu, které nemají co odfiltrovat.
@@ -2349,7 +2530,8 @@ nad chatem (a totéž jako sheet v profilu, `DeleteChatOptions`) a **„Nahlási
   → `sharePhoneNumber`, po potvrzení dialogem — odchází osobní údaj) a `JoinRequestBar`
   (správce skupiny nebo kanálu, kam uživatel žádal o vstup — jinak by zpráva od něj vypadala
   jako spam). Nespamové pruhy kreslí `ChatNoticeBarCard` týmž tvarem; křížek je u všech
-  `removeChatActionBar`. Pozvání členů (`InviteMembers`) zatím není, chce vlastní výběr.
+  `removeChatActionBar`. `InviteMembersBar` (čerstvě založená skupina) vede na výběr lidí,
+  viz „Přidání členů".
 - **Den z `asDayLabel` nepatří doprostřed věty** — je nadpisový („Včera"). U žádosti o vstup
   stojí proto na vlastním řádku za dvojtečkou („Žádost odeslána: Včera").
 - **Text a tlačítka pruhu jsou v jednom sloupci, křížek vedle.** V řádku s `IconButton` (48 dp)
@@ -3745,9 +3927,24 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   vrcholy vlnek leží na původním okraji, takže pozadí bubliny, fotka i samolepka (každá ořezaná
   vlastním zaobleným tvarem) se do vlnek ořežou a nic nepřečnívá. Obsah má odsazení 8–14 dp,
   vlnky 3 dp do textu nesáhnou.
-- **Tvar jde přes `graphicsLayer { shape; clip }`, ne `Modifier.clip`.** Fáze se mění každý
-  snímek a `WavyShape` je pokaždé nový objekt; ve vrstvě to přepočítá jen obrys, v `clip` by to
-  rekomponovalo zprávu. Vlnek je po obvodu celý počet, jinak by na spoji byl zub.
+- **Vrstva ořezává tvarem bubliny, vlnky jsou jen ořez při kreslení** (`drawWithContent`
+  + `clipPath` nad `WavyShape`). Fáze se mění každý snímek a `WavyShape` je pokaždé nový objekt;
+  čte se až při kreslení, takže obíhání nerekomponuje (v `Modifier.clip` by rekomponovalo).
+  Vlnek je po obvodu celý počet, jinak by na spoji byl zub.
+- **Ořez VRSTVY rozhoduje i o dotyku — vlnitý obrys v něm nesmí být.** Dokud nesla vrstva
+  `graphicsLayer { shape = WavyShape; clip = true }`, nešlo nad ukázaným výsledkem hledání otevřít
+  nabídku dlouhým stiskem a nic uvnitř zprávy nereagovalo; po zavření hledání (zvýraznění zmizí)
+  ano. Compose u ořezané vrstvy zkouší, jestli bod leží v obrysu, a u `Outline.Generic` to dělá
+  průnikem obrysu se čtverečkem 0,01 px přes `Path.op` (`ShapeContainingUtil.isInPath`) — u vlnitého
+  polygonu s tisíci body (zpráva vysoká přes 3 000 px) vyšel prázdný. Dotyk pak k rodiči kolem
+  zprávy dorazil nespotřebovaný, ale k ničemu uvnitř ne. Zvlněná hrající hlasovka měla totéž.
+  **Obecně: kde má obsah pod vlastním tvarem reagovat na dotyk, patří do ořezu vrstvy jen
+  jednoduchý tvar (zaoblený obdélník), složitý obrys jen do kreslení.** Jestli selhával i krátký
+  zvýrazněný text, ověřené není — na opravě to nic nemění.
+- **Ověřilo se to sondou, ne úvahou**: log v `requestMenu` (při hledání se nezavolá vůbec), log
+  událostí v `PointerEventPass.Final` na rámu (`Press`/`Release` nespotřebované) a pokus s
+  `clip = false` u zvlnění (nabídka se otevře). Pozor na falešnou stopu: dokud se hledání načítá,
+  zpráva ještě zvýrazněná není a nabídka se otevře — vypadalo to, že rozhoduje klávesnice.
 - **Stažená nároží se při zvýraznění zakulatí** — zpráva se z bloku vyčlení i tvarem.
 
 - **Odchozí bublina je `primary`, ne `primaryContainer`.** Se dvěma světlými plochami o podobné
@@ -4096,7 +4293,14 @@ médium od toho místa: video v prohlížeči, hlasovku, skladbu a kolečko př�
   bere z `ConversationState.soundingVideoNoteFromMs`.
 - **Klikatelný je čas jen v konverzaci** (`RichText(timestampsClickable)`), jinde (bio, popis)
   zůstane textem — vedl by nikam.
-- **Video v náhledu odkazu (YouTube) čas nepustí** — v aplikaci ho nepřehráváme.
+- **Video v náhledu odkazu se otevře na webu od toho místa** (`videoLinkAt`, testy
+  `MediaTimestampTest`): YouTube dostane `t=43s` v dotazu (stávající `t` se přepíše), Vimeo kotvu
+  `#t=43s`, jiný web holou adresu — přehrávač na něm neznáme a hádat parametr nestojí za to.
+  V aplikaci se cizí video nepřehrává. Video pozná náhled podle druhu od serveru
+  (`LinkPreview.isVideo`: `LinkPreviewTypeVideo` a `EmbeddedVideoPlayer`), u článku nebo fotky
+  čas nevede nikam. Ověřeno botem: odpověď „Refrén je od 0:43" na zprávu s odkazem na YouTube
+  otevřela aplikaci YouTube s `…&t=43s` (vidět v `capturedLink` v logcatu — `START` adresu
+  zkrátí na `https://youtube.com/...`).
 - **Ověřeno na emulátoru botem**: popisek videa, odpověď na video (prohlížeč na celé obrazovce
   od 0:02), odpověď na skladbu, na hlasovku (m4a přes `sendVoice`) a na kolečko — vše hraje
   od 0:02. **Neověřeno**: iOS (jen přeložené).
@@ -4351,8 +4555,9 @@ skupiny dávají před vstup — odpověď napsaná textem se nepočítá, bot �
 - **Odkaz mimo Telegram se napřed potvrzuje** (`OpenLinkDialog` s celou adresou). U odkazu
   v textu uživatel adresu vidí, na tlačítku ne. Odkaz na Telegram (`resolveLink`) se otevře
   rovnou, jako odkaz v textu.
-- **Co Plume neumí, je vidět a ťuknutí to vysvětlí** (`BotButtonKind.Unsupported`: mini
-  aplikace, platba, hra, heslo, inline dotaz s cílem daným odkazem). Schované tlačítko by
+- **Co Plume neumí, je vidět a ťuknutí to vysvětlí** (`BotButtonKind.Unsupported`: platba,
+  hra, heslo, inline dotaz s cílem daným odkazem). Mini aplikace a přihlášení na web už umí
+  (viz níž a „Mini aplikace botů"). Schované tlačítko by
   z klávesnice bota vykouslo řádek nebo jeho část a změnilo, co bot nabízí.
 - **Inline dotaz tlačítkem** (`BotButtonKind.SwitchInline`, `SwitchInlineTarget`) dá do pole
   `@bot dotaz` — v tomhle chatu, nebo v chatu z výběru (`SwitchInlinePickerScreen`). Nic se
@@ -4425,8 +4630,36 @@ polem; doména `ChatReplyMarkup`, zdroj `ConversationRepository.replyMarkup`.
 - **Ve skupině jde text tlačítka jako odpověď** na zprávu s klávesnicí, jako u oficiálního
   klienta; v soukromém chatu je citace šum.
 - **Sdílení čísla je za potvrzením** (`SharePhoneDialog`) — údaj o uživateli nejde odeslat na
-  jedno ťuknutí. Poloha, anketa, výběr lidí a chatů, mini aplikace a zakládání botů se jen
-  vysvětlí, jako u tlačítek pod zprávou.
+  jedno ťuknutí. Zakládání botů (`RequestManagedBot`) se jen vysvětlí, jako u tlačítek pod
+  zprávou; anketa otevře formulář, mini aplikace se otevře (viz „Mini aplikace botů").
+- **Poloha z tlačítka je PŘESNÁ a za potvrzením** (`ShareLocationDialog`,
+  `rememberDeviceLocation(precise = true)`). Bot s ní volá taxi nebo kurýra; kilometrová
+  přesnost, která stačí na místa v okolí, by tam nic neřekla. Android žádá přesnou spolu
+  s přibližnou (uživatel smí zvolit přibližnou a pošle se ta), iOS `kCLLocationAccuracyBest`.
+  Když čerstvá nepřijde (GPS v budově), pošle se poslední známá do deseti minut, jinak hláška.
+  - **GPS emulátoru nové fixy samo nedává a `adb emu geo fix` ho nezmění.** Polohu podstrčí
+    testovací poskytovatel: `adb shell appops set com.android.shell android:mock_location allow`,
+    `cmd location providers add-test-provider fused`, `set-test-provider-enabled fused true`,
+    `set-test-provider-location fused --location 50.0875,14.4208`. Po testu
+    `remove-test-provider fused` a appop vrátit na `deny`.
+- **Výběr lidí a chatu je obrazovka** (`BotShareRoute`, `BotShareScreen` nad `ChatPicker`,
+  `shareUsersWithBot` / `shareChatWithBot`). Lidí se vybírá víc (nejvýš `max_quantity`) a sdílí
+  tlačítkem, chat se po ťuknutí potvrzuje dialogem. Nabízí se jen to, co seznam ví
+  (`botShareCandidates`, testy `BotShareCandidatesTest`): soukromé chaty, nebo skupiny / kanály
+  s tématy či bez nich; zbytek omezení (bot, prémiový účet, vlastník, veřejné jméno) ověří
+  server při výběru (`onlyCheck`) a nevyhovující řádek se ohlásí hned, ne po odeslání.
+  - **Že se bot do chatu PŘIDÁ a dostane práva správce, říká karta i dialog výslovně**
+    (`botIsMember`, `botAdministratorRights`) — z tlačítka „vyber skupinu" to nikdo nečeká.
+  - **`request_name` / `request_title` / `request_photo` klient NEVIDÍ.** V TDLib jsou „bots
+    only" a uživatelský klient je dostane vždycky `false` — ověřeno: bot o název žádal, TDLib
+    hlásil `requestTitle=false` a bot název přesto dostal. Karta proto říká, co bot dostat MŮŽE
+    (jméno / název, uživatelské jméno, fotku), ne co žádá.
+  - **Bot API chce u `bot_administrator_rights` i `user_administrator_rights`** (podmnožinu),
+    jinak `USER_RIGHTS_MISSING`.
+  - **Ověřuje se tlačítkem, které chce BOTY** (`user_is_bot: true`): sdílení lidí by testovacímu
+    botovi poslalo účty skutečných kontaktů. Ověřeno na emulátoru: odmítnutí bota u tlačítka
+    pro lidi, sdílení dvou botů (`users_shared`), vlastní testovací skupiny (`chat_shared`)
+    a dialog u skupiny s botem jako správcem (zrušený — bot se do skupiny nepřidal).
 - **Vynucená odpověď přepne pole na odpověď sama, jednou na zprávu**, a jen když se zrovna
   neupravuje ani neodpovídá jinam. Zpráva bota do seznamu dorazí klidně až po updatu, proto se
   na ni chvíli čeká. Po odeslání odpovědi se odebere (`deleteChatReplyMarkup`).
@@ -4465,8 +4698,8 @@ které seznam otevře celý (`BotCommandsPanel`, doména `BotCommandItem`, pravi
   z tlačítka, napovídání po „/n", ťuknutí na návrh (pole prázdné) i na příkaz v textu — všechny
   tři příkazy dorazily botovi (`getUpdates`). V Uložených zprávách tlačítko není. **Skupina
   s botem ověřená není** (přípona `@bot`) — do skutečných skupin se testovací zprávy nepíšou.
-- **Tlačítko nabídky bota (`BotMenuButton`) je mini aplikace** a ta se zatím jen vysvětluje;
-  seznam příkazů ji nenahrazuje.
+- **Tlačítko nabídky bota (`BotMenuButton`) stojí na místě tlačítka příkazů** — viz „Mini
+  aplikace botů". Příkazy pak napovídá jen „/", jako u oficiálních klientů.
 
 ### Spuštění bota
 
@@ -4968,9 +5201,52 @@ na iOS. Dlouhý stisk v SEZNAMU dál otevírá nabídku — o gesto se nedělí,
   položka v nabídce, načítání, překlad, kopírování se snackbarem; výběr jazyka s hledáním
   („cin"), překlad do čínštiny (Tchaj-wan), zapamatování po znovuotevření, zpět zavře jen výběr,
   a po volbě češtiny a přepnutí aplikace do angličtiny „To English". **iOS jen přeložené.**
+- **Zpráva, která už JE v jazyce překladu, „Přeložit" nemá** (`MessageMenu.inTranslationLanguage`,
+  pravidla `alreadyInLanguage` a `languageDetectionText`, testy `AlreadyInLanguageTest`). Jazyk
+  rozpoznává zařízení (`LanguageDetector` v `core/language`: Android `TextClassifier.detectLanguage`
+  od Androidu 10, iOS `NLLanguageRecognizer`); nic se neposílá a nic se nestahuje. Starší Android
+  rozpoznávat neumí a položku nabízí vždycky.
+  - **Rozpoznává se při otevření nabídky, souběžně s právy**, se stropem 300 ms — nabídka čeká na
+    všechny úlohy a pomalý první start modelu ji nesmí zdržet. Nestihnuté = nabídnout.
+  - **Chyba směrem „schovat" je horší než „nabídnout"**, proto: krátký text (pod deset písmen —
+    „ok", „Zítra?") se nerozpoznává vůbec, a čínština se neschovává nikdy (cíl je písmo
+    `zh-CN` / `zh-TW`, rozpoznání ho nerozliší).
+  - **Práh jistoty je 0,7, ne 0,8** (`MIN_LANGUAGE_CONFIDENCE`). Změřeno na emulátoru: „Dneska je
+    krásné počasí, pojďme se projít do parku." dostala češtinu jen 0,76 (zbytek slovenština),
+    přitom slovenskou a polskou větu model pozná na 0,99 a češtinu u jiných vět na 0,998.
+    Hypotézy se dají vypsat dočasným logem v `AndroidLanguageDetector` (`getLocale(i)`,
+    `getConfidenceScore`); necommituje se.
+  - **Ověřeno na emulátoru** (aplikace česky): dvě české věty bez „Přeložit", slovenská, polská,
+    anglická a krátké „Zítra?" s ním. **iOS jen přeložené.**
+  - **Pozor při ověřování přes `adb`**: zpět po zavřené nabídce odejde z konverzace a další dlouhé
+    stisky trefí řádky seznamu chatů (se skutečnými lidmi). Před zpět ověřit dumpem, že je nabídka
+    otevřená (text „Odpovědět").
 - **Dlouhý stisk přes `adb` podle polohy z dumpu se může trefit do odkazu**, když se seznam mezi
   dumpem a stiskem posune — pak se místo nabídky otevře prohlížeč. Poloha se bere těsně před
   stiskem a mimo řádek s odkazem.
+
+### Shrnutí od serveru
+
+„Shrnout" v nabídce nad dlouhou zprávou otevře tentýž sheet jako překlad, jen s jinými texty
+(`TranslationSheet.summary`, `MessageMenuAction.Summarize`, `summarizeMessage`). Je to jiná věc
+než „Shrnout" v hlavičce konverzace (model v zařízení, viz „AI v zařízení") — tohle shrnuje
+JEDNU zprávu a počítá to Telegram.
+
+- **Kdy se nabídne, rozhoduje server** (`Message.summaryLanguageCode` → `ChatMessage.summaryLanguage`,
+  prázdný = shrnout nejde). Aplikace délku zprávy neposuzuje; v kanálu s krátkými hlášeními ho
+  měl jediný dlouhý příspěvek.
+- **Nabízí se i u chráněného obsahu**, na rozdíl od překladu — dostupnost řídí server. Jen se
+  tam výsledek nedá zkopírovat (`TranslationSheet.canCopy`): chráněný obsah ven nesmí ani
+  převyprávěný. Testovací kanál GFN Catalog chráněný je, a „Shrnout" se tam napřed neukázalo,
+  protože stálo na `canCopy` jako překlad.
+- **Jazyk je tentýž jako u překladu** (`AppSettings.translationLanguage`, výběr ve sheetu ho
+  mění pro obojí). Když se shoduje s jazykem zprávy, posílá se prázdný — server by jinak
+  „překládal" sám do sebe.
+- **Bez Premium je shrnutí omezené**: `SUMMARY_FLOOD_PREMIUM` má vlastní větu v `userMessage`.
+  Sheet proto nese důvod (`TranslationSheet.error: UiText?`), ne jen příznak selhání — platí to
+  i pro překlad. **Testovací účet Premium nemá a chybu dostal hned u prvního pokusu**, takže
+  samotné shrnutí (text, změna jazyka, kopírování) ověřené NENÍ.
+- **Pod shrnutím je věta, že ho psal Telegram a může něco vynechat** — text nepíše odesílatel.
 
 ### Automatické mazání zpráv
 
@@ -5669,6 +5945,33 @@ testy `MemberManagementTest`).
   data přidání), vlastní profilovky z úpravy profilu („3 z 3", ✕ i zpět vrací do úpravy
   profilu). **Animovaná profilovka ani skupina s několika změnami fotky ověřené nejsou.**
 
+### Přidání členů
+
+Pruh „Pozvat členy" nad čerstvou skupinou (`InviteMembersBar` z `ChatActionBarInviteMembers`)
+a ⋮ → „Přidat členy" / „Přidat odběratele" v profilu otevřou `AddMembersRoute`
+(`AddMembersScreen`, `AddMembersViewModel`): tentýž `ChatPicker` jako kontakty, víc lidí naráz,
+přidává se tlačítkem s počtem. Kdo smí, je čistá funkce `canInviteMembers` (testy
+`InviteMembersTest`), kdo se nabídne, `addMemberCandidates` (testy `AddMemberCandidatesTest`).
+
+- **Pravidlo „kdo smí" je totéž jako u bota bez práv správce** (`canAddBot`): vlastník, správce
+  s právem zvát, člen podle výchozích práv skupiny, omezený podle svých. **V kanálu členové
+  nezvou nikdy** — `chat.permissions.canInviteUsers` tam nic neznamená.
+- **Supergroup a kanál berou všechny naráz (`addChatMembers`), základní skupina jen po jednom**
+  (`addChatMember`) a novému členovi rovnou přepošle posledních 100 zpráv (`forwardLimit`,
+  `BASIC_GROUP_HISTORY`) — jinak by vstoupil do skupiny, ve které nic nevidí.
+- **Odmítnutí kvůli soukromí NENÍ chyba.** Obě volání vrací `FailedToAddMembers` a přidání
+  ostatních proběhne; obrazovka ty odmítnuté vyjmenuje a nabídne poslat jim pozvánku
+  (`sendInviteLink`, s entitou odkazu z `getTextEntities` — server ji v textu sám neoznačí).
+  Bez pozvánky (vidí ji jen správce s právem zvát) dialog jen řekne, koho přidat nešlo.
+- **Kdo už členem je, se nenabízí** — ale jen z první stránky členů (200). Číst kvůli výběru
+  tisíce členů nestojí za to; server už přidaného podruhé nepřidá.
+- **Ověřeno na emulátoru** v testovací skupině: pruh podstrčenou sondou, přidání testovacího bota
+  (Bot API `getChatMember` → `member`, v konverzaci „Members joined the group"), bot se pak
+  podruhé nenabídne, položka v ⋮ profilu. Dialog odmítnutých sondou (repository vrátil všechny
+  jako odmítnuté) anglicky i česky a „Poslat pozvánku" — bot dostal odkaz s entitou `url`.
+  **Skutečné odmítnutí kvůli soukromí a základní skupina ověřené NEJSOU** — chtělo by to
+  přidávat skutečné lidi. Bota z testovací skupiny jde zase odebrat `leaveChat` přes Bot API.
+
 ### Pozvánky a žádosti o vstup
 
 V úpravě skupiny (⋮ v profilu → Upravit) je blok Pozvánky se dvěma řádky: **Odkazy k pozvání**
@@ -5685,8 +5988,26 @@ testy `InviteLinkEditorTest`).
   telefon nevešla), u dalších odkazů je „Sdílet" první položka nabídky. Odkaz se zakládá, aby
   šel někomu poslat — i mimo Telegram. Ověřeno na emulátoru: nabídka se otevře s adresou,
   zpět vrátí do Plume; skutečné odeslání se nezkoušelo.
-- **Seznam odkazů je jen vlastní** (`getChatInviteLinks` bere tvůrce): hlavní odkaz, další
-  odkazy a zrušené. Odkazy ostatních správců vidí jen vlastník a zatím se nenabízejí.
+- **Seznam odkazů je vlastní** (`getChatInviteLinks` bere tvůrce): hlavní odkaz, další
+  odkazy a zrušené. **Odkazy ostatních správců vidí jen vlastník** — sekce pod vlastními
+  (`getChatInviteLinkCounts`, ostatním správcům vrací chybu, a to je prázdná sekce, ne
+  selhání) a ťuknutí na správce otevře sheet s jeho odkazy. Vlastník je smí zrušit a smazat,
+  **upravit ne** — nastavení patří tomu, kdo odkaz založil, takže nabídka nad cizím odkazem
+  „Upravit" nemá.
+- **Odkazy bota smí zrušit a smazat jen bot sám.** Vlastníkovi server odpoví
+  `EDIT_BOT_INVITE_FORBIDDEN`; sheet bota proto nabízí jen sdílet a kopírovat a řekne proč
+  (`AdminInviteLinks.isBot`). Našlo se to až zkouškou — z dokumentace to poznat nejde.
+- **Počty u správce se můžou chvíli rozcházet se seznamem.** Hned po založení dvou odkazů hlásil
+  server u bota 1 platný, jeho seznam vrátil dva (hlavní a založený), po pár minutách 2. Pravdu
+  má seznam, který se čte při otevření sheetu.
+- **Chyba akce v sheetu se ukazuje v sheetu** (`AdminLinksView.error`), ne snackbarem —
+  ten by zůstal pod modálním sheetem a selhání by vypadalo jako ťuknutí, které nic neudělalo.
+  Přesně tak se schoval `EDIT_BOT_INVITE_FORBIDDEN` při první zkoušce.
+- **Kdo se přidal** (`getChatInviteLinkMembers`, stránky po 100 přes `offsetMember`): sheet
+  s tváří, jménem, dnem vstupu a „přes sdílenou složku". Na kartě hlavního odkazu je tlačítko
+  „Kdo se přidal · N" (nabídku nad sebou karta nemá), u dalších odkazů položka nabídky —
+  i u zrušeného, lidé ve skupině zůstávají. Jen s `memberCount > 0`.
+- **Dialog zrušení odkazu má „Ponechat", ne „Zrušit"** — česky by byla obě tlačítka „Zrušit".
 - **Po každé změně se seznam čte znovu**, nic se nepřepisuje lokálně — zrušení hlavního odkazu
   vyrobí na serveru nový a jeho adresu zná jen server. Hlavní odkaz se proto „vyměňuje", ne ruší.
 - **Se schvalováním se limit nesmí poslat** — TDLib `member_limit` u odkazu se žádostmi odmítne.
@@ -5707,6 +6028,39 @@ testy `InviteLinkEditorTest`).
   (limit zmizel, platnost zůstala), zrušení s potvrzením, smazání zrušených, prázdné žádosti,
   anglicky i česky. **Skutečná žádost o vstup ověřená NENÍ** — bot se přes pozvánku nepřidá,
   chce to druhý účet; seznam žádostí jen podstrčenými daty a vyřízení vůbec.
+- **Odkazy ostatních správců ověřené skutečnými daty**: testovací bot je v testovací skupině
+  správce s právem zvát a odkazy si zakládá a ruší přes Bot API (`createChatInviteLink`,
+  `revokeChatInviteLink`). „Kdo se přidal" s lidmi jen sondou (přidat se odkazem chce druhý
+  účet), prázdný seznam skutečně.
+
+#### Pruh s čekajícími žádostmi
+
+Nad konverzací skupiny nebo kanálu, kde jsou žádosti o vstup, je pruh „5 žádostí o vstup"
+s tvářemi posledních žadatelů a jmény (`JoinRequestsBar`, `InviteLinkRepository
+.pendingJoinRequests` → `PendingJoinRequests`). Ťuknutí otevře Žádosti o vstup, ✕ ho schová.
+
+- **Kdo pruh vidí, rozhoduje TDLib**: `Chat.pendingJoinRequests` dostane jen správce, který
+  žádosti smí vyřizovat — aplikace práva neřeší.
+- **✕ schová pruh, dokud nepřibude další žádost** (pamatuje se počet, `rememberSaveable` podle
+  chatu). Napořád by správce o nové žádosti nevěděl, při každém otevření chatu by zase ukazoval
+  totéž.
+- **Tvarem a sklem jako videochat a připnuté**, hned pod pruhem spamu — obojí čeká na
+  rozhodnutí. Ve vlákně komentářů není, v tématu skupiny ano (žádosti patří skupině).
+- **Skupina s tématy ho má i nad seznamem témat** — otevírá se jím, takže by správce o žádostech
+  věděl až po otevření tématu. Tam je to první blok seznamu nad hledáním (`floating = false`:
+  bez stínu a vlastního odsazení, plocha `surfaceContainerHigh`), ne plovoucí pruh — seznam
+  témat nad sebou nic nescrolluje a sklo by nemělo co rozostřit. ✕ platí pro každou obrazovku
+  zvlášť.
+- **Ověřeno sondou** (podstrčený počet a žadatelé pro testovací skupinu): pruh v tématu
+  General, ťuknutí na žádosti, ✕. Skutečná žádost chce druhý účet.
+
+#### Povýšení na správce s výchozími právy
+
+Při povýšení jsou předvyplněná výchozí práva (`AdminRights.Default`) a „Uložit" bylo zašedlé:
+porovnání s `MemberDetail.adminRights` vyšlo „beze změny", protože u nesprávce nese právě tu
+výchozí nabídku. **Povýšit šlo jen s upraveným přepínačem.** Povýšení je proto změna i bez
+úprav (`MemberRightsViewModel.changed`). Našlo se to až povýšením bota v testovací skupině —
+předchozí ověření správy členů skutečné uložení nezkoušelo.
 
 ### Sdílená média v profilu
 
@@ -5742,8 +6096,8 @@ obsahu bývá zlomek zpráv.
   není místo pro obsah, který má po zhlédnutí zmizet.
 - **Dlaždice mřížky nese sdílený prvek, ale s JINÝM klíčem než bublina v konverzaci**
   (`LocalSharedMediaFlight`, který podle `MediaRoute.fromSharedMedia` poskytuje i prohlížeč).
-  Prohlížeč z dlaždice vyroste a při zavření se do ní vrátí; na široké ploše sdílení vypíná
-  `LocalTwoPane` jako všude. **Se společným klíčem se ty dvě strany spárovaly mezi sebou** —
+  Prohlížeč z dlaždice vyroste a při zavření se do ní vrátí, i na široké ploše (`inTwoPane`
+  jako u bubliny — prohlížeč nahradí celý dvoupanel). **Se společným klíčem se ty dvě strany spárovaly mezi sebou** —
   tady stávalo, že „konverzace pod profilem je nesložená, takže se o klíč nic nepře", jenže při
   VÝMĚNĚ obrazovek jsou složené obě, a otevření profilu (i návrat z něj) je výměna jako každá
   jiná. Fotka proto při každém otevření profilu přelétla přes celou obrazovku z bubliny na
@@ -5777,6 +6131,112 @@ obsahu bývá zlomek zpráv.
 - **`mailto:` se v adrese neukazuje** (`displayUrl`, testy `SharedMediaTest`). Filtr odkazů bere
   i e-maily a schéma u nich nic neříká; `https` od `tg` odlišit potřeba je, takže se zahazuje
   jen ono.
+
+## Mini aplikace botů
+
+Tlačítko pod zprávou (`web_app`), tlačítko vlastní klávesnice bota, tlačítko nad výsledky inline
+bota, tlačítko nabídky bota, dlaždice „Otevřít" v profilu bota a odkazy `t.me/bot?startapp`
+a `t.me/bot/app` otevřou mini aplikaci přes celou obrazovku (`WebAppRoute`, `WebAppScreen`, `WebAppViewModel`).
+Adresu i podepsaná data uživatele skládá TDLib (`WebAppRepository`); aplikace stránku jen
+zobrazí a zprostředkuje její události.
+
+- **`core/webview` je hranice** jako `core/camera`: `android.webkit` a `platform.WebKit` jen tam.
+  WebView stránce vystavuje JEDINOU věc, `window.TelegramWebviewProxy.postEvent(typ, data)` —
+  Android `addJavascriptInterface`, iOS stejně pojmenovaný objekt vložený skriptem na začátku
+  dokumentu, který posílá do `WKScriptMessageHandler`. Soubory zařízení vypnuté, jiná schémata
+  než http(s) stránka sama neotevře (má na to `web_app_open_link`).
+- **Události překládá čistý most** (`WebAppBridge.kt`, testy `WebAppBridgeTest`), WebView data
+  jen přenáší. Zpět se doručují `Telegram.WebView.receiveEvent(typ, data)`; typ i data jdou do
+  skriptu jako JSON literály, nic se neescapuje ručně.
+- **Na co stránka čeká odpověď, na to se odpoví, i když to Plume neumí** (telefon, zápis, faktura,
+  celá obrazovka, plocha): „zrušeno" / „nepodporováno". Jinak by mini aplikace visela.
+  Schránku mini aplikacím nedáváme (`data: null`).
+- **Motiv jsou barvy aplikace** (`webAppTheme`: stránka `surface`, sekce `surfaceContainerLowest`
+  jako bloky seznamů, tlačítka `primary`) — do adresy přes TDLib i do `theme_changed` po změně
+  motivu. Hlavička a hlavní tlačítko jsou naše, přebarvit je smí stránka; popředí se pak volí
+  podle světlosti.
+- **`applicationName` je `android` / `ios`**, TDLib ho dá stránce jako `tgWebAppPlatform`. Vlastní
+  jméno by mini aplikace nepoznaly.
+- **Poprvé u každého bota souhlas** (`WebAppConsentDialog`, `AppSettings.confirmedWebAppBots`) —
+  TDLib u `openWebApp` předepisuje jednou ukázat, že mini aplikace posílá data botovi.
+  **Ptá se obrazovka mini aplikace, ne místo, odkud se otevírá** (`WebAppViewModel.start`, nic
+  se nenačte, dokud se nepotvrdí; „Zrušit" obrazovku zavře). Dokud se ptala konverzace, musel by
+  si souhlas hlídat každý nový vstup zvlášť — profil bota i odkaz by na něj zapomněly. Dialog
+  čeká na jméno bota (lokální `getUser`), jinak by na okamžik jmenoval „Mini aplikaci".
+- **Spuštění přes `openWebApp` se musí zavřít** (`closeWebApp` v `onCleared` přes `appScope`).
+  Klávesnice a inline tlačítko jdou přes `getWebAppUrl` a spuštění nemají; **data botovi**
+  (`web_app_data_send`) smí poslat jen mini aplikace z vlastní klávesnice (`keyboardButtonText`).
+- **Zpět jde napřed do mini aplikace**, když má vlastní „zpět" (šipka v hlavičce místo ✕),
+  jinak zavírá — s potvrzením, když si ho stránka vyžádala (`need_confirmation`).
+  `NavigationBackHandler`, ne `BackHandler`.
+- **Odkaz na Telegram z mini aplikace** (`web_app_open_tg_link`) ji zavře a otevře chat nad
+  konverzací pod ní (`WebAppRoute.archive` říká, do které větve); jiné druhy odkazů jdou do
+  prohlížeče.
+- **Tlačítko nabídky bota** (`BotInfo.menuButton`, `BotMenuApp`, `BotMenuAppButton`) stojí
+  u pole MÍSTO tlačítka příkazů a otevírá mini aplikaci přes `openWebApp`, jako tlačítko pod
+  zprávou — TDLib adresu z `botMenuButton` bere právě tam. Jen v soukromém chatu s botem;
+  čte se jednou při otevření chatu, jako příkazy.
+  - **V prázdném poli plná pilulka s textem od bota, při psaní (a s přílohami) jen ikona** —
+    text bývá dlouhý a na úzkém telefonu by poli ukousl místo, zrovna když se píše. Sbalená má
+    barvu ostatních ikon v kartě, ne plnou plochu: vedle plného odesílacího tlačítka by se
+    dvě sytá kolečka prala. Text se zkracuje na 120 dp.
+  - **Adresa typu `t.me/bot/app` se otevírá jako odkaz** (`BotMenuApp.isLink`), ne přes
+    `openWebApp` — tak to TDLib u tlačítka předepisuje.
+  - **Adresa tlačítka NENÍ adresa stránky**, ale `menu://<adresa>` (ověřeno sondou). Server ji
+    pošle takhle a `openWebApp` si ji přeloží sám. **Odkaz `t.me/bot/app` nastavený přes Bot API
+    server zahodí** — přijde holé `menu://` a `openWebApp` skončí `URL_INVALID`. Cestu
+    s `isLink` proto Bot API ověřit nejde (asi ji vyrobí jen BotFather); stojí na dokumentaci.
+  - **Ověřuje se `setChatMenuButton` botem** s `chat_id` vlastního účtu (jen pro náš chat,
+    ne globálně) a po ověření vrátit `{"type":"default"}`. Ověřeno na emulátoru (Fold, světlý
+    i tmavý motiv): pilulka, sbalení s konceptem, souhlas a otevření ukázky `cafe`.
+- **Hlavní mini aplikace bota** (`getMainWebApp`, `WebAppRoute.main`): dlaždice „Otevřít" v profilu
+  bota (`ChatProfile.hasMainWebApp` z `UserTypeBot.hasMainWebApp`), první v řadě — u bota
+  s aplikací je to to, kvůli čemu do profilu přišel. A odkaz `t.me/bot?startapp=…`
+  (`InternalLink.MainWebApp`, parametr jde do `getMainWebApp`).
+  - **Spuštění nemá, takže se nezavírá** — `getMainWebApp` vrací jen adresu.
+  - **Bot bez hlavní mini aplikace se z odkazu otevře jako chat**, ne chybou; tak to dělají
+    i oficiální klienti. Režim z odkazu (kompaktní / celá obrazovka) se neřeší, Plume kreslí
+    vždy přes celou obrazovku. Panel s podmínkami botů v nabídce příloh (`getAttachmentMenuBot`)
+    taky ne — nabídku příloh botů Plume nemá.
+  - **Odkaz na jinou mini aplikaci z mini aplikace otevře chat jejího bota**, ne druhou mini
+    aplikaci nad první — vrstvené by zpět mátlo.
+  - **Ověřuje se na @BotFatherovi** — má hlavní mini aplikaci (správa vlastních botů), testovací
+    bot ji mít nemůže (nastavuje se jen v BotFatheru). V ní nic neměnit, jen otevřít a zavřít.
+    Ověřeno na emulátoru: odkaz se souhlasem i bez něj, „Zrušit" vrátí do konverzace, dlaždice
+    v profilu.
+- **Pojmenovaná mini aplikace z odkazu `t.me/bot/app?startapp=…`** (`InternalLink.WebApp`,
+  `WebAppRoute.shortName`): napřed `searchWebApp` (jestli ji bot má — jinak věta „neexistuje",
+  ne obecná chyba), pak `getWebAppLinkUrl`. Spuštění nemá, nezavírá se.
+  - **Ptá se i u potvrzeného bota, když to server chce** (`needsWebAppConsent`, testy
+    `WebAppConsentTest`): `skipConfirmation = false` znamená, že odkaz může poslat kdokoli, a
+    `requestWriteAccess` se rozhoduje pokaždé zaškrtávátkem „Dovolit … posílat mi zprávy"
+    (výchozí zapnuté, jako u přihlášení na web).
+  - **Ověřeno na emulátoru** s `t.me/DurgerKingBot/menu` (ukázka Telegramu, žádá o psaní —
+    zaškrtávátko se při ověřování VYPÍNÁ, jinak smí bot účtu psát) a s neexistující
+    `t.me/BotFather/neexistuje`.
+- **Druhé tlačítko** (`web_app_setup_secondary_button`, `WebAppBottomBar`) stojí vůči hlavnímu,
+  kde si stránka řekne: vlevo a vpravo sdílí řádek napůl, nahoře a dole jsou pod sebou;
+  viditelné jen jedno jde přes celou šířku. Bez barvy od stránky je hlavní plné (`primary`)
+  a druhé tonální (`secondaryContainer`) — dvě plná vedle sebe by neřekla, které je hlavní.
+  Barvu lišty smí stránka změnit (`web_app_set_bottom_bar_color`: hex, nebo klíč z motivu
+  v TÉMŽE poli — rozliší se podle „#").
+  - **Žádná dostupná mini aplikace druhé tlačítko neukazuje** (Durger King i BotFather ho
+    posílají s `is_visible: false`), takže se ověřovalo sondou: po `web_app_ready` ViewModel
+    sám podstrčí události, jaké by poslala stránka, a projde všechny polohy. Necommituje se.
+    Že ťuknutí dorazí do stránky, se pozná z logu skriptu Telegramu v konzoli WebView
+    (`adb logcat | grep receiveEvent` → `secondary_button_pressed`).
+  - **Server po prvním otevření pojmenované mini aplikace vrací `skipConfirmation`** a o psaní
+    už nežádá — souhlas se zaškrtávátkem se tak ukáže jen napoprvé. Kdo ověřuje souhlas,
+    potřebuje aplikaci, kterou účet ještě neotevřel.
+- **Tmavá hlavička od stránky přepne ikony stavové lišty na světlé** (`DarkSystemBars`).
+  BotFather si nastaví tmavou hlavičku i ve světlém motivu aplikace a tmavé ikony na ní nebyly
+  vidět. Rozhoduje táž světlost, podle které se volí popředí hlavičky.
+- **Ověřeno na emulátoru** s ukázkou Telegramu `webappcontent.telegram.org/cafe` (bot ji pošle
+  jako `web_app` tlačítko): souhlas jen poprvé, motiv, hlavní tlačítko v barvě od stránky a změna
+  jeho textu, vlastní „zpět" v hlavičce i systémovým gestem, potvrzení zavření s plným košíkem,
+  otevření z vlastní klávesnice (ukázka tam hlásí „zavřeno" — objednávat dovolí jen s `query_id`
+  z `openWebApp`, to je vlastnost ukázky). **Neověřeno**: popup, vlastní metody, `web_app_data_send`,
+  odkaz na Telegram z mini aplikace a iOS (jen přeložené).
 
 ## Hlasovky
 
@@ -5983,6 +6443,20 @@ v `RecordControls.kt`, rozhodnutí o tahu čistá funkce `recordDragOutcome` (te
     Odeslat v něm nejde. Koš během dokončování náhled zruší a hotový soubor pak smaže — hlídá
     to porovnání instance mezistavu, jinak by se náhled po koši vrátil.
   - **Kolečko ■ má taky** — viz „Nahrávání koleček".
+  - **Po poslechu jde nahrávat dál** (mikrofon na konci pruhu náhledu, `continueVoicePreview`,
+    `VoiceRecorder.start(continuing)`, testy `VoiceRecorderContinueTest`). Nahrávání naváže
+    rovnou zamčené (spouští ho ťuknutí, ne podržení; zamčení nastaví obrazovka), čas a úrovně
+    běží od konce náhledu a po ■ nebo odeslání se oba úseky spojí `joinOggOpus` do souboru
+    nového úseku; původní se smaže. **Spojuje nahrávač, ne `VoiceRecorder`**
+    (`MediaCapture.canJoin` / `join`): výchozí je Ogg/Opus, kamera spojuje MP4 kodérem
+    platformy (viz „Nahrávání koleček"). **Waveform se počítá znovu ze VŠECH úrovní**
+    (`RecordedVoice.levels`) — normuje se na špičku celé nahrávky, takže dva hotové waveformy
+    slepit nejde. Koš během navazování zahodí celou hlasovku, ne jen dovětek. Dovětek pod
+    300 ms (`MIN_SEGMENT_MS`) se zahodí a zůstane původní nahrávka — `MediaRecorder` tak krátký
+    úsek nedokončí. **M4A (Android 9 a starší) spojit nejde** (`VoicePreview.canContinue`),
+    tlačítko tam není. Selhané spojení nechá původní nahrávku.
+    Ověřeno na emulátoru: dva úseky, odeslaný soubor má podle granule v Oggu 35,1 s, tedy oba
+    (délku v Bot API hlásíme sami, ta nic nedokazuje). iOS jen přeložené.
   - Ověřeno na emulátoru uživatelem (nahrát, zamknout, ■, přehrát, odeslat). iOS jen přeložené.
 - **Nahrávač je `factory`, ne `single`** — patří obrazovce. Odchod z chatu nahrávku zahodí,
   spuštění nahrávání zastaví hrající hlasovku (nahrávala by se z reproduktoru).
@@ -6260,7 +6734,9 @@ obrazovky, sluchátek a hodinek. Na Androidu přes Media3 MediaSession, na iOS p
   zobrazená fotka, i z alba; ze seznamu ji odebere až `deletedMessages` a po poslední fotce se
   prohlížeč zavře.
 - **Let z bubliny jede přes sdílený prvek** (`photoKey`), stejně jako avatar a název chatu.
-  Na širokém rozvržení se nekoná: `LocalTwoPane` tam sdílení vypíná.
+  Na širokém rozvržení taky (`inTwoPane`, viz „Navigace"): prohlížeč jde přes celou plochu,
+  takže fotka z pravého panelu vyletí na celou obrazovku a při zavření se do bubliny vrátí.
+  Ověřeno na rozloženém Foldu sérií surových snímků se zpomalenými animacemi, tam i zpět.
 - **Sdílený prvek se během letu kreslí v PŘEKRYVU nad celou aplikací, mimo ořezy rodičů** — tedy
   i přes hlavičku obrazovky. Fotka, která v konverzaci zpola mizí pod hlavičkou, tak po návratu
   z prohlížeče dosedla na místo, ale kreslila se PŘES hlavičku, a teprve na konci přechodu
@@ -6503,6 +6979,24 @@ AVFoundation na iOS.
   - **Ověřeno na emulátoru** (Pixel_10_Pro_XL, emulovaná kamera) v chatu s botem: zamknout, ■,
     tichá smyčka, zvuk s průběhem a časem (audio focus drží jen po dobu zvuku), návrat po dohrání,
     odeslání (bot dostal `video_note`, 480 px, 19 s) a koš (soubory pryč). iOS jen přeložené.
+  - **Po přehrání jde nahrávat dál** (kamera na konci pruhu náhledu, `continueVideoNotePreview`)
+    — totéž co u hlasovky, jen spojuje kamera (`VideoNoteCamera.join`) do nového souboru vedle
+    nového úseku a vstupy maže až po úspěchu. Náhledový snímek starého kolečka jde pryč hned,
+    nový se přečte z výsledku. Kolečko pod minutovým stropem (méně než vteřina místa) tlačítko
+    nemá — dovětek by po zlomku vteřiny odešel sám.
+    - **Android: Transformer s JEDNOU sekvencí dvou položek**, obě přes `Presentation` na 480 px.
+      **Zvuk se musí vynutit do AAC** (`setAudioMimeType`): sekvenci Transformer zvukem vždycky
+      překódovává a kodér volí podle vstupu — emulátor nahrává AMR-NB (8 kHz) a s kodérem AMR
+      se export zasekl, hlídač ho po 25 s ukončil („Abort: no output sample written in the last
+      25000 milliseconds", nahoře „Muxer error"). Zmenšení jednoho úseku (`shrinkIfNeeded`)
+      zvuk jen přenáší, proto tam to vidět nebylo.
+    - **iOS: `AVMutableComposition`** se stopou obrazu a zvuku a export do MP4. Obě kolečka už
+      prošla čtvercovým exportem, takže `AVMutableVideoComposition` netřeba. Jen přeložené —
+      simulátor kameru nemá.
+    - **Ověřeno na emulátoru** v chatu s botem: 4 s + 4 s, náhled ukázal 0:08, výsledek AAC
+      mono 7,9 s, bot dostal `video_note` (8 s, 480 px); koš během navazování smazal původní
+      kolečko i rozpracovaný úsek. Po prvním (zaseknutém) pokusu zůstalo původní kolečko
+      k odeslání — záchrana funguje.
 - **Ověřeno na emulátoru** (Plume_Galerie_Fold, emulovaná přední kamera) v chatu s botem:
   přepnutí ťuknutím s nápovědou, dotazy na mikrofon a kameru, podržení s náhledem v kruhu,
   průběhem a zámkem, puštění (bot dostal `video_note`, 480 px), zrušení tahem doleva, zamčení
@@ -6512,6 +7006,40 @@ AVFoundation na iOS.
   pádu — CameraX i Media3 si keep pravidla nesou samy, do `proguard-rules.pro` nic nepřibylo.
   **Neověřeno**: přepnutí na zadní kameru během nahrávání, akce pro
   čtečku obrazovky, skutečný telefon a iOS.
+
+### Přepis řeči
+
+Hlasovka i kolečko mají vedle sebe malé tlačítko „Přepsat do textu"; přepis se ukáže pod
+záznamem (u kolečka v kartě v barvě bubliny) a ťuknutím se schová. Doména `SpeechTranscript`
+a `TranscribeOffer` (`core/telegram/SpeechRecognition.kt`, testy `TranscribeOfferTest`), UI
+`items/Transcript.kt`.
+
+- **Přepisuje server (`recognizeSpeech`) a výsledek NEVRACÍ** — přijde úpravou obsahu zprávy
+  (`speechRecognitionResult` u `VoiceNote` i `VideoNote`): napřed `Pending` s částečným textem,
+  pak text, nebo chyba. Jde tedy existující cestou `editedMessages` a ViewModel nic nedrží.
+  Přepis zůstane ve zprávě i po zavření chatu.
+- **I chyba přijde ve zprávě, ne z volání.** Účet bez Premium dostane od `recognizeSpeech` `Ok`
+  a pak `SpeechRecognitionResultError` s `403 PREMIUM_ACCOUNT_REQUIRED` — ověřeno na emulátoru.
+  Text chyby se uživateli neukazuje; `MSG_VOICE_TOO_LONG` a `PREMIUM_ACCOUNT_REQUIRED` mají
+  vlastní větu a znovu se nezkoušejí, cokoli jiného jde zkusit znovu ťuknutím.
+- **Kdy nabídnout, rozhoduje Premium a zkušební přepisy** (`UpdateSpeechRecognitionTrial`,
+  chodí po startu jednou, proto ho drží eager `ChatRepository` jako emoji kostek). Bez
+  zkušebních přepisů (`weeklyCount` 0) se tlačítko nenabízí; došlé přepisy a záznam delší než
+  `maxMediaDuration` tlačítko nechají a ťuknutí místo přepisu vysvětlí proč, přímo pod
+  záznamem. **Testovací účet má 0 z 0** — bez Premium tedy tlačítko správně nevidí; Telegram
+  bezplatné přepisy tomuhle účtu nedává.
+- **Ve skupině s dost boosty smí přepisovat každý** (`group_transcribe_level_min`), to zatím
+  nepoznáme — tlačítko se tam bez Premium nenabídne.
+- **Viditelnost přepisu je stav obrazovky** (`rememberSaveable` podle zprávy), výsledek stav
+  zprávy. Přepis, který už ve zprávě je, je vidět hned.
+- **Přepis je pod záznamem zalomený na jeho šířku** (`BelowWithSameWidth`, vlastní `Layout`):
+  dlouhý text nemá bublinu rozšířit.
+- **Hotový přepis jde kopírovat a vybrat** (`copyableText`), **přeložit ne** — server
+  překládá text zprávy (`translateMessageText`) a přepis jím není.
+- **Ověřeno na emulátoru sondou**: vynucené nabídnutí (server vrátil Premium-chybu a její věta
+  se ukázala u hlasovky i kolečka) a podstrčený hotový a rozpracovaný přepis (vzhled, schování).
+  **Skutečný přepis ověřený NENÍ** — chce účet s Premium. Hlasovku i kolečko posílá testovací
+  bot (`sendVoice` s m4a z `say -v Zuzana`, `sendVideoNote` se záznamem obrazovky emulátoru).
 
 ### GIFy a samolepky z klávesnice
 
@@ -6992,10 +7520,18 @@ a kořenová zpráva), a otevře se `ConversationRoute(chatId = skupina, threadI
   když přijde prázdná stránka (začátek vlákna), a stránka „od kořene" je vždycky prázdná.
 - **Citace kořene se nekreslí** (`state.threadRootId` v builderu, test
   `veVlaknuSeKorenNecituje`) — odpovídá mu skoro každý komentář.
-- **Ve vlákně se vypíná, co patří chatu skupiny:** koncept (objevil by se v hlavním chatu),
-  „píše…" (viděla by ho celá skupina), připnuté zprávy, reklamy, počty zmínek a reakcí (jsou za
-  skupinu), hledání (`searchChatMessages` bez tématu hledá v celé skupině), shrnutí, profil
+- **Ve vlákně se vypíná, co patří chatu skupiny:** „píše…" (viděla by ho celá skupina),
+  připnuté zprávy, reklamy, počty zmínek a reakcí (jsou za skupinu), shrnutí, profil
   z hlavičky a ankety (zakládá je obrazovka, která o vláknu neví).
+- **Hledání a koncept patří VLÁKNU** (`searchInThread`, `saveThreadDraft` s `MessageTopicThread`;
+  koncept se čte z `MessageThreadInfo.draftMessage`, `CommentThread.draft`). Bez tématu by
+  hledání prošlo celou diskusní skupinu a koncept skončil v jejím hlavním chatu i v seznamu
+  chatů. Koncept skupiny zůstává nedotčený; odpověď kořeni se z obnoveného konceptu zahazuje —
+  je to výchozí cíl komentáře, ne citace.
+- **Ověřeno na emulátoru** (FilipHorky – zprávy, bez členství, diskusní skupina psaní bez
+  vstupu dovoluje): „binance" našlo ve vlákně 6 výsledků a všechny se otevřou ve vlákně; pole
+  místo „Přidat se"; rozepsaný komentář se po odchodu a návratu vrátil do pole a po smazání
+  zmizel. Koncept skupiny zůstal prázdný (ověřeno sondou). **Nic se neodeslalo.**
 - **Nepřečtené komentáře jsou vlákna, ne skupiny**: otevření skočí na první nepřečtený
   s předělem nad ním, jako v chatu. Počet dá `getMessageThread` (`unreadMessageCount`),
   vlákno ho podstrčí do `chatInfo` místo počtu skupiny (`ThreadConversationRepository`).
@@ -7016,9 +7552,12 @@ a kořenová zpráva), a otevře se `ConversationRoute(chatId = skupina, threadI
   po skoku propadne; když se neskáče, odejde.
 - **Hlavička: „Komentáře" a pod tím název skupiny**, bez sdílených prvků — vlákno je jiná
   obrazovka než chat skupiny a klíč by se přetahoval s položkou v seznamu.
-- **Psát jde jen jako člen skupiny.** Nečlen vidí „Přidat se" (`writeAccess`). Skupina smí
-  psaní bez vstupu povolit (`Supergroup.joinToSendMessages == false`) a oficiální klient pak
-  komentovat nechá — to zatím neumíme.
+- **Komentovat jde i bez vstupu do skupiny, když to skupina dovolí**
+  (`Supergroup.joinToSendMessages == false` → `writeAccess(nonMembersCanSend)`, testy
+  `WriteAccessTest`). Nečlen pak má pole, ne „Přidat se" (`canJoin` je `false`), a platí pro něj
+  výchozí práva skupiny; vyhozenému to nepomůže. Jinak vidí „Přidat se". Bot API pole
+  `join_to_send_messages` u skupiny, která psaní bez vstupu dovoluje, vůbec neposílá — tak se
+  pozná diskusní skupina k ověření (`getChat` na `linked_chat_id` kanálu).
 - **Čip nese tváře posledních komentujících místo ikony** (`MessageReplyInfo.recentReplierIds` →
   `PostStats.commenters`, nejvýš `MAX_RECENT_COMMENTERS` = 3, jména z keše odesílatelů). Kreslí je
   tentýž `FaceStack` (`core/ui`) jako tváře hlasujících v anketě — dvě kopie hromádky by se
@@ -7185,21 +7724,51 @@ funkce `openTarget` (`ChatsStack.kt`, testy `ChatsStackTest`).
 ### Placená média
 
 `MessagePaidMedia` (fotka nebo video za hvězdy, častá v kanálech) je `MessageMedia.PaidMedia`:
-holé médium s rozmazaným náhledem, cenou s hvězdou uprostřed a v rohu počtem položek nebo
-délkou videa (`PaidMediaPreview` v `Attachments.kt`, převod `toPaidMedia`, testy `PaidMediaTest`).
+holé médium s rozmazaným náhledem, cenou s hvězdou uprostřed a u videa délkou v rohu
+(`PaidMediaPreview` v `Attachments.kt`, převod `toPaidMedia`, testy `PaidMediaTest`).
 
 - **Server před zaplacením vydá jen náhled** (`PaidMediaPreview`: rozměry, délka, minithumbnail),
   ne soubor. Rozmazání je tedy všechno, co je; nestahuje se nic a nic se neodkrývá.
 - **Zaplacené médium je obyčejná fotka nebo video** (`PaidMediaPhoto` / `PaidMediaVideo` →
   `Photo` / `Video`), i s prohlížečem a reakcemi — týká se i prodejce, který vidí vlastní
-  příspěvek odemčený. Z víc položek se ukazuje PRVNÍ: album je jinak víc zpráv a mřížka v jedné
-  zprávě by byla vlastní cesta.
+  příspěvek odemčený. Ze ZAPLACENÝCH víc položek se ukazuje PRVNÍ: prohlížeč i reakce stojí
+  na tom, že zpráva je jedna fotka (album je jinak víc zpráv), a ověřit by to nešlo.
+- **Nezaplacené víc položek je mřížka** (`PaidPreviewGrid`) se stejnými řádky a výškami jako
+  album (`albumRowSizes`, `ALBUM_GAP`, `ALBUM_TILE_MAX_HEIGHT`) a s JEDNOU cenou přes celou
+  mřížku — kupuje se všechno naráz, cena u každé dlaždice by tvrdila, že jde koupit kus. Model
+  proto nese náhledy všech položek (`PaidMedia.previews`), ne jen první s počtem; „N položek"
+  zbyl jen v popisu pro čtečku. Položka, kterou TDLib nezná, je prázdná dlaždice.
 - **Odemknout (koupit za hvězdy) Plume neumí**, ťuknutí to řekne snackbarem
   (`MessageAction.ExplainPaidMedia`) místo prohlížeče, který by neměl co ukázat.
 - **Bot placené médium do soukromého chatu pošle** (`sendPaidMedia` se `star_count`), takže se
-  to ověřuje bez kanálu. Ověřeno na emulátoru česky: fotka s popiskem (25 hvězd), album dvou
-  fotek („2 položky"), ťuknutí s vysvětlením. **Neověřeno**: zaplacené médium (zaplatit nejde),
-  video, iOS (jen přeložené).
+  to ověřuje bez kanálu. Ověřeno na emulátoru česky: fotka s popiskem (25 hvězd), mřížka tří
+  fotek a mřížka 2 × 2 s videem (délka na dlaždici) a popiskem, ťuknutí s vysvětlením, popis
+  pro čtečku („4 položky, Placený obsah za 40 hvězd"). **Neověřeno**: zaplacené médium
+  (zaplatit nejde), iOS (jen přeložené).
+
+### Faktura a hra
+
+`MessageInvoice` a `MessageGame` jsou příloha `MessageMedia.Product` a v bublině karta
+(`ProductCard`): obrázek přes celou šířku bubliny, název, popis a u faktury cena — hvězdy ikonou,
+jiné měny částkou s kódem („12,50 EUR"), u zaplacené „Zaplaceno", u testovací „Testovací platba".
+Dřív to byl řádek „Platba: …" s malým náhledem, ze kterého nebylo poznat, co a za kolik se prodává.
+Seznam chatů, citace a notifikace dál píšou „Platba: …" / „Hra: …".
+
+- **Karta na ťuknutí nereaguje.** Zaplatit a hrát jde jen tlačítkem bota pod zprávou („Pay",
+  „Play"), které Telegram k faktuře i hře přikládá vždycky — a to už říká, že to Plume neumí
+  (`bot_unsupported_buy` / `_game`). Obrázek do prohlížeče nevede: ten otevírá fotku ZPRÁVY.
+- **Kolik desetinných míst měna má, TDLib neříká** — částka chodí v nejmenších jednotkách
+  (`totalAmount`). Rozkládá ji `Price.parts` s tabulkou výjimek (`currencyExponent`: hvězdy
+  `XTR` a JPY bez desetin, KWD tři; testy `PriceTest`), neznámá měna dostane dvě. Oddělovač
+  patří jazyku (`decimal_number`), stejně jako u velikosti souboru.
+- **Hra ukazuje fotku, ne animaci** (`Game.animation` se zatím zahazuje), a popis `description`;
+  `text` hry (výsledková tabulka) ne.
+- **Ověřuje se botem** fakturou v hvězdách: `sendInvoice` s `currency=XTR` nepotřebuje
+  `provider_token` (jiné měny ano, takže je testovací bot poslat nemůže). Ověřeno na emulátoru
+  česky: karta s obrázkem z `photo_url` i bez něj, cena „★ 1 500", tlačítko Pay vysvětlí, že
+  platby Plume neumí. **Neověřeno**: jiná měna, „Zaplaceno", testovací faktura, hra (chce hru
+  založenou v BotFatheru) a iOS (jen přeložené). Obrázek z `photo_url` vyšel měkký — jakou
+  velikost server vydá, zjištěné není.
 
 ### Kontakt
 
@@ -7679,6 +8248,16 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
   jsou vygenerované z téhož `emoji-test.txt` (`EmojiSkinTones.kt`), jen se stejným odstínem pro
   všechny osoby: kombinace dvou odstínů by znamenaly 25 variant. Nabídka je `Popup` s vlastním
   `PopupPositionProvider` (nad buňku, vodorovně uvnitř okna), zpět obsluhuje sám.
+- **Emoji se dvěma osobami (👫, 🤝, 💑, 💏 a jejich varianty, 13 emoji) mají místo řady mřížku
+  5 × 5** (`mixedSkinToneGrid`, `EMOJI_MIXED_SKIN_TONES_PACKED`): řádek je odstín první osoby,
+  sloupec druhé, na úhlopříčce stejný. Zvolený pár se pamatuje jako každá varianta (podle
+  základu), takže se pak kreslí i vkládá obyčejným ťuknutím. Smíšené varianty jsou v Unicode do
+  15.0 (handshake 14.0, páry 12.0–13.1), takže mez katalogu platí i tu.
+- **Odstíny generuje `client/tools/emoji_skin_tones.py`** z `emoji-test.txt` (návod v hlavičce
+  skriptu). Původní generátor v repu nebyl; nový vyrobil stejnorodé varianty znak po znaku
+  shodně se starým souborem, než se přidaly smíšené. **Základ se hledá podle JMÉNA, ne kódových
+  bodů**: smíšené varianty páru se píšou rozloženě (👩🏻‍🤝‍👨🏼), kdežto základ je jeden znak (👫);
+  „kiss: person, person" jako emoji neexistuje, jeho základ je 💏 (jméno před dvojtečkou).
 - **`catalogEmoji` pozná i varianty** — nedávná je ukládají, a bez toho by při čtení vypadla.
 - **Výšky obou částí sedí**: náhled textu si ukousne z výšky mřížky, takže přepnutí Emoji /
   Samolepky sheet nenatáhne.
@@ -8075,6 +8654,56 @@ a odložené rušení prázdné notifikace.
   `mCurrentFocus=null`, `visibleRequested=false`); na skutečném telefonu to zhasne samo, proto
   je to past jen emulátorová. Před testováním notifikací na telefonu tedy emulátor zhasnout,
   odejít v něm z konverzace, nebo ho odhlásit.
+
+### Ohlášení příchozího hovoru
+
+Hovory Plume přijmout neumí (viz `docs/roadmap.md`, „Hovory"), ale příchozí hovor ohlásí
+notifikací: kdo volá, s videem nebo bez, „Přijmout jde zatím jen v oficiální aplikaci Telegramu"
+a akce „Odmítnout" (`NotificationUpdate.Call`, `IncomingCall`, `showCall`). Dřív hovor propadl
+bez stopy a kdo měl jen Plume, dozvěděl se o něm až ze zmeškaného hovoru.
+
+- **Jde přes notifikace TDLib, ne přes vlastní odběr `updateCall`.** TDLib k příchozímu hovoru
+  vydá `NotificationTypeNewCall` ve skupině `NotificationGroupTypeCalls` a sám ji zruší, když
+  hovor skončí (přijatý jinde, odmítnutý, zmeškaný) — `Removed` téže skupiny, kterou presenter
+  zruší celou, protože ji v paměti nemá. Z pushe by to mělo jít toutéž cestou jako zprávy
+  (ověřené NENÍ). `updateCall` se odebírá jen kvůli videu (notifikace nese jen id hovoru).
+- **Vlastní notifikace v kanálu `calls`, ne řádek konverzace** — „Odpovědět" ani „Přečteno"
+  k hovoru nepatří. Kanál zvlášť, aby si ho šlo vypnout samotný.
+- **`CallStyle` ne.** Od Androidu 12 chce službu v popředí, nebo celoobrazovkový intent, a
+  přijmout hovor stejně nejde. Kategorie je `CALL`, notifikace `ongoing` (dokud zvoní, nemá jít
+  smáznout omylem) a po 90 s zmizí i sama (`setTimeoutAfter`), kdyby se zrušení ztratilo.
+- **Odmítnutí je `discardCall`** (`NotificationActions.declineCall`), notifikaci pak stáhne
+  TDLib. Volající pozná hned, že hovor nikdo nepřijme.
+- **Ověřit to jde jen sondou**: bot volat neumí a na vlastní účet zavolat nejde. Sonda v
+  `groupUpdate` vyrobí z notifikace zprávy `#hovor` od testovacího bota `NotificationUpdate.Call`
+  se stejnou skupinou — přečtení zprávy pak ověří i rušení. Necommituje se. **Pozor:** aplikace
+  na pozadí na emulátoru notifikaci nedostala (zmrazený proces, push nepřišel); ověřovat
+  s aplikací v popředí v jiném chatu (Uložené zprávy). Ověřeno: vzhled, „Odmítnout" dojde
+  k `discardCall`, přečtení notifikaci stáhne. **Skutečný hovor (a hovor z pushe) ověřený NENÍ.**
+
+### Pruh videochatu
+
+Probíhající nebo naplánovaný videochat skupiny (v kanálu živé vysílání) má nad konverzací pruh
+(`VideoChatBar`, `ChatRepository.videoChat`, `VideoChatInfo`): „Probíhá videochat · název ·
+12 účastníků", „Videochat začne zítra 18:00". Připojit se Plume neumí; ťuknutí řekne, že to
+jde zatím jen v oficiální aplikaci. Bez pruhu by kdo má jen Plume o videochatu nevěděl.
+
+- **Chat říká ŽE, hovor KOLIK.** `Chat.videoChat.groupCallId` (živě `UpdateChatVideoChat`,
+  nula = žádný) přepíná odběr hovoru (`flatMapLatest`); počet účastníků, název a naplánovaný
+  začátek nese `GroupCall` (`getGroupCall`, živě `UpdateGroupCall`).
+- **Pruh naskočí hned, i bez načteného hovoru** (počet pak chybí) — `getGroupCall` jde na server
+  a pruh, který by se objevil až po něm, by pod hlavičkou poskočil. Skončený hovor
+  (`isActive = false` a nic naplánovaného) pruh schová, i kdyby update chatu ještě nedorazil.
+- **Tvar a sklo jako pruh připnutých**, mezi pruhem proti spamu a připnutými; měří se s nimi,
+  seznam se odsazuje o výšku všech. Odznak je kamera v TERCIÁRNÍM kruhu (terciární role nese
+  v aplikaci „živé" věci), takže se od špendlíku připnutých liší i barvou. Ve vlákně komentářů
+  pruh není — videochat patří diskusní skupině.
+- **Ověřuje se ve vlastní testovací skupině sondou**: bot videochat založit neumí. Sonda v
+  `videoChat` (necommituje se) zavolala `createVideoChat` se začátkem za den, po 20 s
+  `startScheduledVideoChat` a po dalších 25 s `endGroupCall`. Ověřeno na emulátoru: naplánovaný
+  pruh, přechod na probíhající živě (s počtem), zmizení po ukončení, hláška po ťuknutí. Ve
+  skupině po tom zůstanou tři servisní zprávy. **Kanál s živým vysíláním a hovor s účastníky
+  ověřené NEJSOU.**
 
 ### Kanály a nastavení notifikací
 
@@ -8647,6 +9276,14 @@ cesta je známá až po stažení a průběh chodí updaty. Překlad do jednoho 
   byl `ContainedLoadingIndicator` uprostřed: nad rozmazanou fotkou barevný disk, který k obrázku
   nepatřil a vypadal jako nálepka. Na průhledné podložce bez náhledu (samolepka) se nekreslí
   nic, pruh by přejížděl přes prázdno; pod 24 dp (malé avatary) taky ne.
+- **Lesk běží i přes ZMENŠENINU, dokud se stahuje ostrá verze** (`sharpening` v `RemoteImage`).
+  V prohlížeči médií stojí za ostrou fotkou zmenšenina z bubliny (`thumbnailFileId`) a dřív
+  vypadala jako hotový obrázek — u velké fotky na pomalé síti nebylo poznat, že se něco děje.
+  Náhled (`thumbnailFileId`) předávají jen fotky, takže pruh je vždycky ten nad fotkou.
+  **Ověřuje se letovým režimem**: zmenšenina v konverzaci se načte, pak `adb shell cmd
+  connectivity airplane-mode enable` a otevřít prohlížeč — ostrá verze zůstane ve stahování
+  a lesk běží; po vypnutí letového režimu se dotáhne a obraz stojí. Zpomalení sítě na
+  emulátoru nefunguje (viz „Video").
 - **Lesk se ověřuje sondou a zpomalenými animacemi**: v `RemoteImage` dočasně `if (true)` místo
   `current == null` a `shimmer` bez podmínky na `Downloading`, pak `animator_duration_scale 5`
   a série `screencap`. V normální rychlosti snímek trefí pauzu mezi průjezdy a pruh „chybí".

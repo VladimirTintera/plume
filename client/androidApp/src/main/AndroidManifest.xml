@@ -23,13 +23,19 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
-    <!-- Přibližná poloha jen pro hledání míst v okolí u přílohy ankety; ptá se až tehdy.
-         Přesnou polohu vyhledání kavárny v okolí nepotřebuje. -->
+    <!-- Přibližná poloha pro hledání míst v okolí (anketa, sponka → Poloha); ptá se až tehdy.
+         Přesnou chce jen tlačítko bota „pošli polohu" — taxi ani kurýr s kilometrovou přesností
+         nic nenadělají. I tam smí uživatel povolit jen přibližnou a pošle se ta. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- Oprávnění k poloze by jinak udělalo z polohy povinný hardware a aplikace by zmizela
          z Play pro zařízení bez něj; bez polohy se jen nenajdou místa v okolí. -->
     <uses-feature
         android:name="android.hardware.location"
+        android:required="false" />
+    <!-- Přesná poloha by jinak vyžadovala GPS. -->
+    <uses-feature
+        android:name="android.hardware.location.gps"
         android:required="false" />
     <uses-feature
         android:name="android.hardware.location.network"
@@ -147,6 +153,7 @@
                 <action android:name="eu.tintera.plume.action.NOTIFICATION_REPLY" />
                 <action android:name="eu.tintera.plume.action.NOTIFICATION_MARK_READ" />
                 <action android:name="eu.tintera.plume.action.NOTIFICATION_MUTE" />
+                <action android:name="eu.tintera.plume.action.NOTIFICATION_DECLINE_CALL" />
             </intent-filter>
         </receiver>
 

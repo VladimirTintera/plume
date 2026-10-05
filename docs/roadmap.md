@@ -89,10 +89,9 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
     omezení, štítek, vyhodit s dobou, předat vlastnictví; `CLAUDE.md`, „Správa členů").
     ~~Sdílet kontakt~~ — hotovo (⋮ → Sdílet kontakt). ~~Správa pozvánek~~ — hotovo (odkazy
     s limitem, platností a schvalováním, zrušení a mazání, žádosti o vstup; `CLAUDE.md`,
-    „Pozvánky a žádosti o vstup"). U pozvánek zbývá: ~~sdílet odkaz~~ (hotovo),
-    odkazy ostatních správců (vlastník, `getChatInviteLinkCounts`), kdo se přes odkaz přidal
-    (`getChatInviteLinkMembers`), pruh s čekajícími žádostmi nahoře v konverzaci skupiny
-    a **ověřit skutečnou žádost o vstup** (chce druhý účet).
+    „Pozvánky a žádosti o vstup"; sdílení odkazu, odkazy ostatních správců, kdo se přidal
+    a pruh s čekajícími žádostmi v konverzaci jsou hotové). U pozvánek zbývá **ověřit
+    skutečnou žádost o vstup a „kdo se přidal" se skutečnými lidmi** (chce druhý účet).
     Uložení úpravy skupiny **není ověřené na zařízení**: mění skutečnou skupinu. Totéž platí
     pro uložení práv člena, omezení, vyhození, štítek a dokončený převod vlastnictví — ověřené
     je jen to, co skutečnou skupinu nemění (viz „Správa členů" v `CLAUDE.md`). Převod navíc
@@ -100,6 +99,17 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   - ~~**Seznam členů velké skupiny**~~ — hotovo (stránky po 50, hledání, věta u skupiny se
     skrytými členy; `CLAUDE.md`, „Členové velké skupiny"). **Zbývá ověřit ve skupině, kde členy
     vidět jsou** — testovací účet v takové velké není; ověřené je to sondou s malou stránkou.
+- ~~**Složky chatů**~~ — zobrazení i správa hotové (řádek pod pilulkou, přepínání, nepřečtené;
+  Nastavení → Obecné → Složky chatů: založit, upravit, smazat, přeřadit, doporučené; „Přidat do
+  složky" nad chatem; `CLAUDE.md`, „Složky chatů"). Zbývá:
+  - **„Všechny chaty" jinde než první** (`mainChatListPosition`, jen Premium) — správa ho drží
+    na místě, kde je.
+  - ~~**Sdílené složky**~~ — hotovo: náhled a přidání z odkazu, odkazy na vlastní složku i jejich
+    úprava, nové chaty v přidané složce a chaty k opuštění při jejím smazání. Skutečné přidání
+    cizí složky a nové chaty od autora ověřené nejsou (chce to druhý účet).
+  - **Štítky složek u chatů** (`toggleChatFolderTags`, jen Premium) a barva složky.
+  - ~~**Ikona složky**~~ a ~~**„Nechávat chaty ze složek v archivu"**~~ — hotovo. Zápis volby
+    archivu ověřený není (mění nastavení účtu).
 - **Hledání.** ~~Chaty ve všech složkách (lokálně i na serveru), historie hledání a nejčastější
   lidé, totéž ve výběru pro přeposílání a sdílení~~ — hotovo (`ChatSearch`, poučení
   v `CLAUDE.md`, „Hledání chatů"). Zbývá, po krocích:
@@ -112,7 +122,7 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   2. ~~**Klikatelné zmínky a hashtagy v textu**~~ — hotovo (`@jméno` otevře chat, `#tag`
      hledání zpráv). Odkazy na Telegram (chat, zpráva, pozvánka, sada samolepek) se otevírají
      v aplikaci (`CLAUDE.md`, „Odkazy na Telegram"); zbývající druhy (boti se `start`,
-     proxy, sdílené složky, přihlašovací kódy…) jdou dál do prohlížeče. ~~**Veřejné příspěvky
+     proxy, přihlašovací kódy…) jdou dál do prohlížeče; ~~sdílené složky~~ hotové. ~~**Veřejné příspěvky
      s tagem**~~ — hotovo (přepínač „Vaše chaty / Veřejné příspěvky" u hashtagu).
   3. ~~**Hledání v konverzaci**~~ — hotovo (lupa v hlavičce, šipky mezi výsledky, viz
      `CLAUDE.md`, „Hledání v konverzaci"). Hledané slovo je v bublinách zvýrazněné.
@@ -120,14 +130,16 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   4. ~~**Filtry obsahu** (média, soubory, odkazy), hlavně pro profil chatu~~ — hotovo (záložky
      profilu s hledáním). Zbývá hledání médií podle popisku, kdyby o něj byl zájem.
 
-  Na rozloženém Foldu by místo celoobrazovkového hledání sedělo `ExpandedDockedSearchBar`.
+  ~~Na rozloženém Foldu by místo celoobrazovkového hledání sedělo `ExpandedDockedSearchBar`~~ —
+  hotovo (panel pod pilulkou, `CLAUDE.md`, „Hledání chatů“); ~~zpět s otevřenou klávesnicí
+  zavřel celé hledání~~ — opraveno (napřed schová klávesnici).
 - ~~**Nová konverzace a kontakty.**~~ — hotovo (FAB v plovoucím toolbaru seznamu chatů,
   `NewChatRoute`, Uložené zprávy, kontakty z TDLib s dostupností, globální vyhledávání lidí podle
   @username; poučení v `CLAUDE.md`, „Nová konverzace").
   ~~**Založení skupiny a kanálu**~~ — hotovo („Nová skupina" / „Nový kanál" nad kontakty, výběr
   členů, název a fotka, u kanálu popis; `CLAUDE.md`, „Založení skupiny a kanálu"). Zbývá:
-  veřejné jméno a typ kanálu (veřejný / soukromý) hned při založení, nabídka poslat pozvánku
-  lidem, které server do skupiny nepustil, a přidání odběratelů do kanálu z výběru kontaktů.
+  veřejné jméno a typ kanálu (veřejný / soukromý) hned při založení a nabídka poslat pozvánku
+  lidem, které server do nové skupiny nepustil (umí to už přidávání členů, `AddMembersScreen`).
 - **Ochrana před spamem.** ~~Zablokovat z nabídky nad chatem a při mazání rovnou zablokovat
   i nahlásit~~, ~~průvodce nahlášením s volbou důvodu~~ (i zprávy z nabídky nad zprávou),
   ~~pruh nad konverzací u chatu od neznámého~~ — hotovo (`CLAUDE.md`, „Blokování a nahlášení
@@ -144,10 +156,9 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
       s emoji statusy (`SpamBar.warnsEmojiStatus`), ověřené podstrčeným pruhem.
     - ~~**`SharePhoneNumber`**~~ a ~~**`JoinRequest`**~~ — hotovo (`ChatNoticeBarCard`, ověřené
       podstrčeným pruhem; skutečné nasdílení čísla ověřené není).
-    - **`InviteMembers`** — čerstvě založená skupina, do které jde pozvat členy. Výběr víc
-      kontaktů a `addChatMembers` už jsou (výběr členů při založení skupiny, `ChatCreation`);
-      zbývá z nich udělat přidání členů do existující skupiny. Ověřit jde jen se souhlasem,
-      přidává skutečné lidi.
+    - ~~**`InviteMembers`**~~ — hotovo (`InviteMembersBar`, výběr `AddMembersScreen`, i z ⋮
+      v profilu). Pruh ověřený podstrčeným stavem, přidání testovacím botem; odmítnutí kvůli
+      soukromí jen sondou — skutečný člověk s takovým nastavením ověřený není.
     - **Pruh firemního bota** (`UpdateChatBusinessBotManageBar`, jen účty s Telegram Business):
       pozastavit bota v chatu a odkaz na jeho správu. Je to samostatný update, ne `ChatActionBar`.
   - ~~**Nahlásit z režimu výběru víc zpráv**~~ — hotovo (vlajka v liště výběru).
@@ -208,11 +219,13 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    - ~~**Zpráva o hovoru jako řádek, ne bublina s jedním slovem**~~ — hotovo (směr, zmeškaný /
      odmítnutý / zrušený, délka, video; `CLAUDE.md`, „Zpráva o hovoru"). Ťuknutí nevede nikam.
      **Skutečný hovor v historii ověřený není** — jen sondou v chatu s botem.
-   - **Příchozí hovor ohlásit** (`updateCall` s `CallStateWaiting`/`Pending`): notifikace nebo
-     pruh „X ti volá — přijmout jde v oficiální aplikaci", ať hovor nepropadne bez stopy.
-     Zmeškaný hovor pak přijde jako zpráva sám.
-   - **Hovory ve skupině** (`MessageVideoChatStarted` a spol. už mají servisní text): pruh
-     „Probíhá videochat" v hlavičce konverzace, jako oficiální klient.
+   - ~~**Příchozí hovor ohlásit**~~ — hotovo na Androidu: notifikace v kanálu Hovory
+     s „Odmítnout" (`CLAUDE.md`, „Ohlášení příchozího hovoru"). **Skutečný hovor ověřený NENÍ**
+     (chce druhý účet), jen sondou. Na iOS ohlásí hovor push od Telegramu sám (`PHONE_CALL_REQUEST`
+     v textech pushe); v popředí aplikace se zatím neohlašuje nic.
+   - ~~**Hovory ve skupině**~~ — hotovo: pruh „Probíhá videochat" / „Živé vysílání" / naplánovaný
+     nad konverzací s počtem účastníků (`CLAUDE.md`, „Pruh videochatu"). Připojit se nejde;
+     ťuknutí řekne, kde to jde.
 2. **Skutečné hovory** (největší samostatný kus práce v projektu). Přenos jde dvěma cestami:
    - **A) Přeložit tgcalls s WebRTC** pro Android (ABI) i iOS a napojit přes JNI / cinterop
      nebo Swift. Ověřená kompatibilita (tgcalls používají oficiální klienti), ale překlad

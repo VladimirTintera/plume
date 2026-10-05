@@ -52,8 +52,9 @@ internal fun List<NavKey>.shownChatFolder(): ChatFolder =
  * (viz `nothingToPick` v `AppShell`).
  */
 internal fun List<NavKey>.hasOpenConversation(folder: ChatFolder): Boolean = when (folder) {
-    // Seznam témat stojí na místě konverzace (skupina s tématy se otevírá jím).
-    ChatFolder.Main -> any { it is ConversationRoute || it is ForumTopicsRoute }
+    // Seznam témat stojí na místě konverzace (skupina s tématy se otevírá jím). Složka Telegramu
+    // je výběr z hlavního seznamu a sdílí jeho větev.
+    ChatFolder.Main, is ChatFolder.Custom -> any { it is ConversationRoute || it is ForumTopicsRoute }
     ChatFolder.Archive -> any { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute }
 }
 

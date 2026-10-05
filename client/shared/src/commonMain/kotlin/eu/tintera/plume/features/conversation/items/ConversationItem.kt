@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoiceSpeed
+import eu.tintera.plume.core.telegram.TranscribeOffer
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.SponsoredMessage
 import eu.tintera.plume.core.ui.localDate
@@ -71,6 +72,9 @@ internal interface ConversationItemScope {
 
     /** Zvolená rychlost přehrávání hlasovek; jedna pro celou aplikaci. */
     fun voiceSpeed(): VoiceSpeed
+
+    /** Jestli a jak nabídnout přepis záznamu té délky (Premium a zkušební přepisy účtu). */
+    fun transcribeOffer(durationSeconds: Int): TranscribeOffer = TranscribeOffer.Hidden
 
     fun documentProgress(fileId: Int): Float?
 

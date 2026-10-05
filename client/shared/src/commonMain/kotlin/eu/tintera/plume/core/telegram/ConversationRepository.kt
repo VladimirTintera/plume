@@ -46,6 +46,32 @@ interface ConversationRepository {
      */
     suspend fun threadHistory(chatId: Long, threadId: Long, fromMessageId: Long, limit: Int, offset: Int): Result<List<ChatMessage>>
 
+    /**
+     * Totéž co [searchInChat], jen ve vlákně komentářů [threadId] (`searchChatMessages`
+     * s `MessageTopicThread`). Bez tématu by se hledalo v celé diskusní skupině.
+     */
+    suspend fun searchInThread(
+        chatId: Long,
+        threadId: Long,
+        query: String,
+        fromMessageId: Long = 0,
+        senderUserId: Long? = null,
+    ): Result<ChatSearchPage> = Result.success(ChatSearchPage(messageIds = emptyList(), total = 0, nextFromMessageId = null))
+
+    /**
+     * Totéž co [saveDraft], jen koncept vlákna komentářů [threadId]. Vlákno ho drží zvlášť od
+     * chatu skupiny — koncept skupiny by se objevil v jejím hlavním chatu a v seznamu chatů.
+     */
+    suspend fun saveThreadDraft(
+        chatId: Long,
+        threadId: Long,
+        text: String,
+        replyToMessageId: Long?,
+        linkPreview: LinkPreviewOptions? = null,
+        quote: ReplyQuote? = null,
+        formats: List<FormatSpan> = emptyList(),
+    ): Result<Unit> = Result.success(Unit)
+
     /** Nové zprávy v tomhle chatu, jak přicházejí. */
     fun newMessages(chatId: Long): Flow<ChatMessage>
 
@@ -154,6 +180,13 @@ interface ConversationRepository {
 
     /** Nahlásí, že uživatel obsah zprávy otevřel (pustil hlasovku). */
     suspend fun openContent(chatId: Long, messageId: Long): Result<Unit>
+
+    /**
+     * Požádá server o přepis hlasovky nebo kolečka. Výsledek nevrací — přijde úpravou obsahu
+     * zprávy ([editedMessages]): napřed [SpeechTranscript.Pending], pak text nebo chyba.
+     * Selhání tady znamená, že server přepis vůbec nepřijal (Premium, zpráva to neumí).
+     */
+    suspend fun recognizeSpeech(chatId: Long, messageId: Long): Result<Unit>
 
     /** Reakce a počty příspěvku, které se u zprávy změnily. Klíč je `messageId`. */
     fun interactionUpdates(chatId: Long): Flow<MessageInteractions>
@@ -641,6 +674,25 @@ interface ConversationRepository {
     suspend fun botCommands(chatId: Long): Result<List<BotCommandItem>>
 
     /**
+     * Tlačítko nabídky bota (`BotInfo.menuButton`): mini aplikace, kterou bot nabízí u pole
+     * místo seznamu příkazů. Jen v soukromém chatu s botem; `null` = bot žádné nemá.
+     */
+    suspend fun botMenuApp(chatId: Long): Result<BotMenuApp?>
+
+    /**
+     * Sdílí účty [userIds] s botem přes tlačítko klávesnice ve zprávě [messageId]. S [onlyCheck]
+     * se jen ověří, že je tlačítko přijme (bot, prémiový účet…) — nic neodejde.
+     */
+    suspend fun shareUsersWithBot(chatId: Long, messageId: Long, buttonId: Int, userIds: List<Long>, onlyCheck: Boolean): Result<Unit>
+
+    /**
+     * Sdílí chat [sharedChatId] s botem. S [onlyCheck] jen ověří omezení tlačítka; to, jestli
+     * bot do chatu smí (člen, správce), se ověří až při skutečném sdílení — TDLib ho tam případně
+     * přidá a práva udělí sám.
+     */
+    suspend fun shareChatWithBot(chatId: Long, messageId: Long, buttonId: Int, sharedChatId: Long, onlyCheck: Boolean): Result<Unit>
+
+    /**
      * Změny toho, jestli se do chatu smí psát a jestli se k němu jde přidat (správce změní
      * práva, uživatel se přidá nebo odejde). Soukromý chat nic nevydá — tam se píše vždycky.
      */
@@ -686,6 +738,12 @@ interface ConversationRepository {
      * [query]; prázdný dotaz vrátí ty, se kterými se v chatu píše nejvíc. Vlastní účet ne.
      */
     suspend fun mentionCandidates(chatId: Long, query: String): Result<List<MentionCandidate>>
+
+    /**
+     * Shrnutí zprávy od serveru, jen u zprávy s [ChatMessage.summaryLanguage]. [languageCode]
+     * = jazyk, do kterého se shrnutí přeloží; `null` = v jazyce zprávy.
+     */
+    suspend fun summarizeMessage(chatId: Long, messageId: Long, languageCode: String?): Result<MessageBody>
 
     /**
      * Text (nebo popisek) zprávy přeložený do jazyka [languageCode] (`translateMessageText`).
@@ -1154,6 +1212,11 @@ data class ChatMessage(
      * na médium zprávy, na kterou odpovídá (`Message.hasTimestampedMedia`).
      */
     val hasTimestampedMedia: Boolean = false,
+    /**
+     * Jazyk, ve kterém jde zprávu nechat shrnout serverem (`Message.summaryLanguageCode`);
+     * `null` = shrnutí server pro tuhle zprávu nenabízí. Server ho dává jen delším textům.
+     */
+    val summaryLanguage: String? = null,
 )
 
 /**
@@ -1200,6 +1263,17 @@ data class CommentThread(
     val lastReadMessageId: Long = 0,
     /** Nepřečtené komentáře; počet chatu je za celou diskusní skupinu, tenhle jen za vlákno. */
     val unreadCount: Int = 0,
+    /** Rozepsaný komentář (`MessageThreadInfo.draftMessage`), `null` = žádný. */
+    val draft: SavedDraft? = null,
+)
+
+/** Uložený koncept, jak ho vrátí TDLib: text s ručním formátováním, odpověď a volba náhledu. */
+data class SavedDraft(
+    val text: String,
+    val formats: List<FormatSpan> = emptyList(),
+    val replyToMessageId: Long? = null,
+    val quote: ReplyQuote? = null,
+    val linkPreview: LinkPreviewOptions? = null,
 )
 
 /**
@@ -1241,6 +1315,9 @@ sealed interface BotButtonKind {
     /** Bot tlačítko vypnul; kreslí se zašedlé a ťuknout nejde. */
     data object Disabled : BotButtonKind
 
+    /** Mini aplikace bota (`openWebApp` s touto adresou). */
+    data class WebApp(val url: String) : BotButtonKind
+
     /**
      * Odkaz, který uživatele na webu přihlásí účtem Telegramu (`getLoginUrlInfo`). [url] je
      * záloha: když přihlášení selže, otevře se jako obyčejný odkaz.
@@ -1260,7 +1337,7 @@ sealed interface BotButtonKind {
     data class Unsupported(val feature: UnsupportedBotButton) : BotButtonKind
 }
 
-enum class UnsupportedBotButton { WebApp, SwitchInline, Buy, Game, Password }
+enum class UnsupportedBotButton { SwitchInline, Buy, Game, Password }
 
 /** Kam tlačítko s inline dotazem vede. */
 sealed interface SwitchInlineTarget {
@@ -1341,14 +1418,55 @@ sealed interface ReplyKeyboardButtonKind {
     /** Pošle vlastní telefonní číslo jako kontakt — po potvrzení, je to údaj o uživateli. */
     data object PhoneNumber : ReplyKeyboardButtonKind
 
+    /** Pošle přesnou polohu zařízení — po potvrzení, je to údaj o uživateli (jen soukromý chat). */
+    data object Location : ReplyKeyboardButtonKind
+
+    /** Výběr lidí, jejichž účty dostane bot (`shareUsersWithBot`). */
+    data class Users(val request: BotUsersRequest) : ReplyKeyboardButtonKind
+
+    /** Výběr skupiny nebo kanálu, který dostane bot (`shareChatWithBot`). */
+    data class Chat(val request: BotChatRequest) : ReplyKeyboardButtonKind
+
     /** Otevře formulář nové ankety; bot si smí vynutit kvíz, nebo běžnou anketu. */
     data class Poll(val mode: PollComposerMode) : ReplyKeyboardButtonKind
 
     /** Druh, který Plume zatím neumí; tlačítko je vidět a ťuknutí to vysvětlí. */
+    /** Mini aplikace (`getWebAppUrl`); data, která pošle, dostane bot jako zprávu. */
+    data class WebApp(val url: String) : ReplyKeyboardButtonKind
+
     data class Unsupported(val feature: UnsupportedKeyboardButton) : ReplyKeyboardButtonKind
 }
 
-enum class UnsupportedKeyboardButton { Location, Users, Chat, WebApp, ManagedBot }
+enum class UnsupportedKeyboardButton { ManagedBot }
+
+/**
+ * Tlačítko bota „vyber lidi". [buttonId] patří botovi (podle něj pozná, na co odpověď je).
+ * [bots] = jen boti / jen lidé / `null` kdokoli; [maxQuantity] nejvýš kolik. Prémiové omezení
+ * se ověří až serverem.
+ *
+ * **Jestli bot chce i jméno, uživatelské jméno a fotku, klient NEVÍ**: `request_name` a spol.
+ * jsou v TDLib „bots only" a uživatelský klient je dostane vždycky `false` (ověřeno — bot
+ * o jméno žádal, TDLib hlásil `false`). Karta výběru proto říká, co bot dostat MŮŽE.
+ */
+data class BotUsersRequest(
+    val buttonId: Int,
+    val bots: Boolean?,
+    val maxQuantity: Int,
+)
+
+/**
+ * Tlačítko bota „vyber chat". [channel] = kanál, jinak skupina; [forum] = jen s tématy / bez
+ * nich / `null` jedno. [botIsMember] = bot se do chatu přidá, [botAdministrator] = dostane
+ * práva správce — obojí se před sdílením výslovně potvrzuje. Zbytek omezení (vlastník, veřejné
+ * jméno, práva uživatele) ověří server (`onlyCheck`). Název, jméno a fotku viz [BotUsersRequest].
+ */
+data class BotChatRequest(
+    val buttonId: Int,
+    val channel: Boolean,
+    val forum: Boolean?,
+    val botIsMember: Boolean,
+    val botAdministrator: Boolean,
+)
 
 /** Barva, kterou si bot pro tlačítko přeje (TDLib `ButtonStyle`). */
 enum class BotButtonStyle { Default, Primary, Success, Danger }
@@ -1439,6 +1557,12 @@ data class LinkPreview(
      * (`hasLargeMedia`). U přijaté zprávy nic neznamená.
      */
     val canChangeSize: Boolean = false,
+    /**
+     * Odkaz vede na video (YouTube, Vimeo…: `LinkPreviewTypeVideo` nebo vložený přehrávač).
+     * Čas „1:23" v odpovědi na takovou zprávu ho otevře od toho místa — TDLib entitu času u něj
+     * vyrobí stejně jako u videa poslaného přímo.
+     */
+    val isVideo: Boolean = false,
 )
 
 /**
@@ -1769,6 +1893,8 @@ sealed interface MessageMedia {
         val sizeBytes: Long,
         val isViewed: Boolean,
         val minithumbnail: Minithumbnail? = null,
+        /** Přepis řeči, když si o něj někdo řekl (`recognizeSpeech`); jinak `null`. */
+        val transcript: SpeechTranscript? = null,
     ) : MessageMedia {
         val autoPlays: Boolean get() = sizeBytes in 1..MAX_AUTOPLAY_ANIMATION_BYTES
     }
@@ -1834,13 +1960,41 @@ sealed interface MessageMedia {
      */
     data class PaidMedia(
         val starCount: Long,
-        /** Kolik položek se prodává naráz (album). */
-        val itemCount: Int,
+        /**
+         * Náhledy položek, které se prodávají naráz, v pořadí od serveru. Položka bez náhledu
+         * (druh, který TDLib nezná) má nulové rozměry a žádný [PaidPreview.minithumbnail].
+         */
+        val previews: List<PaidPreview>,
+    ) : MessageMedia {
+        /** Rozmazaný náhled první položky — do citace a pruhu připnutých stačí jeden. */
+        val minithumbnail: Minithumbnail? get() = previews.firstOrNull()?.minithumbnail
+    }
+
+    /** Náhled jedné položky nezaplaceného placeného média: rozměry, délka videa, rozmazání. */
+    data class PaidPreview(
         val width: Int,
         val height: Int,
-        /** Délka první položky, je-li to video; `0` u fotky. */
+        /** Délka videa; `0` u fotky. */
         val durationSeconds: Int,
         val minithumbnail: Minithumbnail? = null,
+    )
+
+    /**
+     * Faktura (`MessageInvoice`) nebo hra (`MessageGame`) od bota: obrázek, název, popis a u
+     * faktury cena. Kreslí se jako karta, ne jako řádek „Platba: …" — z toho nebylo poznat, co
+     * a za kolik se prodává. Zaplatit ani hrát Plume neumí; ťuknutí to vysvětlí.
+     */
+    data class Product(
+        val kind: ProductKind,
+        val title: String,
+        val description: String,
+        val photo: Photo?,
+        /** Cena faktury; u hry `null`. */
+        val price: Price?,
+        /** Faktura z testovacího prostředí plateb — skutečné peníze se za ni neplatí. */
+        val isTest: Boolean = false,
+        /** Faktura je zaplacená (server k ní drží účtenku). */
+        val isPaid: Boolean = false,
     ) : MessageMedia
 
     /**
@@ -1854,6 +2008,8 @@ sealed interface MessageMedia {
         val durationSeconds: Int,
         val waveform: List<Int>,
         val isListened: Boolean,
+        /** Přepis řeči, když si o něj někdo řekl (`recognizeSpeech`); jinak `null`. */
+        val transcript: SpeechTranscript? = null,
     ) : MessageMedia
 
     /**

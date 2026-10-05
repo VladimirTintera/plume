@@ -10,6 +10,8 @@ import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.ForumRepository
 import eu.tintera.plume.core.telegram.ForumTopic
 import eu.tintera.plume.core.telegram.ForumTopicsOffset
+import eu.tintera.plume.core.telegram.InviteLinkRepository
+import eu.tintera.plume.core.telegram.PendingJoinRequests
 import eu.tintera.plume.core.telegram.NotificationSettingsRepository
 import eu.tintera.plume.core.telegram.TOPIC_COLORS
 import eu.tintera.plume.core.telegram.TopicRights
@@ -33,7 +35,11 @@ import kotlinx.coroutines.flow.transformLatest
 import org.jetbrains.compose.resources.StringResource
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -101,12 +107,23 @@ class ForumTopicsViewModel(
     private val forums: ForumRepository,
     private val conversations: ConversationRepository,
     private val notifications: NotificationSettingsRepository,
+    /** Jen kvůli pruhu s čekajícími žádostmi o vstup — skupina s tématy nemá jednu konverzaci. */
+    inviteLinks: InviteLinkRepository,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("ForumTopics")
 
     private val _state = MutableStateFlow(ForumTopicsState())
     val state: StateFlow<ForumTopicsState> = _state.asStateFlow()
+
+    /**
+     * Čekající žádosti o vstup, jako nad konverzací. Skupina s tématy se otevírá tímhle
+     * seznamem, takže bez pruhu tady by o žádostech správce věděl až po otevření tématu.
+     */
+    val joinRequests: StateFlow<PendingJoinRequests?> = inviteLinks.pendingJoinRequests(chatId)
+        .map { requests -> requests.takeIf { it.count > 0 } }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val pageLock = Mutex()
     private val query = MutableStateFlow("")

@@ -232,7 +232,11 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageM
     if (poll == null && message.copyableText().isNotBlank()) {
         add(MessageMenuAction.Copy)
         add(MessageMenuAction.SelectText)
-        add(MessageMenuAction.Translate)
+        // Překládá server text ZPRÁVY (`translateMessageText`); přepis hlasovky textem zprávy není.
+        if (message.media !is MessageMedia.VoiceNote && message.media !is MessageMedia.VideoNote) {
+            add(MessageMenuAction.Translate)
+        }
+        if (message.summaryLanguage != null) add(MessageMenuAction.Summarize)
     }
     if (message.media is MessageMedia.Sticker) add(MessageMenuAction.ToggleFavoriteSticker)
     add(MessageMenuAction.Forward)

@@ -56,6 +56,7 @@ import dev.g000sha256.tdl.dto.KeyboardButtonTypeRequestUsers
 import dev.g000sha256.tdl.dto.KeyboardButtonTypeRequestChat
 import dev.g000sha256.tdl.dto.KeyboardButtonTypeWebApp
 import dev.g000sha256.tdl.dto.KeyboardButtonTypeRequestManagedBot
+import dev.g000sha256.tdl.dto.KeyboardButtonSourceMessage
 import dev.g000sha256.tdl.dto.ButtonStyle
 import dev.g000sha256.tdl.dto.InputMessageContact
 import dev.g000sha256.tdl.dto.Contact
@@ -124,6 +125,7 @@ import dev.g000sha256.tdl.dto.InputThumbnail
 import dev.g000sha256.tdl.dto.InputVideo
 import dev.g000sha256.tdl.dto.InputVideoNote
 import dev.g000sha256.tdl.dto.InputVoiceNote
+import dev.g000sha256.tdl.dto.InternalLinkTypeWebApp
 import dev.g000sha256.tdl.dto.Message
 import dev.g000sha256.tdl.dto.MessageInteractionInfo
 import dev.g000sha256.tdl.dto.MessageOrigin
@@ -304,6 +306,7 @@ class TdlConversationRepository(
         rootMessageId = messageThreadId,
         lastReadMessageId = replyInfo?.lastReadInboxMessageId ?: 0L,
         unreadCount = unreadMessageCount,
+        draft = draftMessage?.toSavedDraft(),
     )
 
     override suspend fun threadHistory(
@@ -345,6 +348,9 @@ class TdlConversationRepository(
 
     override suspend fun openContent(chatId: Long, messageId: Long): Result<Unit> =
         client.openMessageContent(chatId = chatId, messageId = messageId).toResult().map { }
+
+    override suspend fun recognizeSpeech(chatId: Long, messageId: Long): Result<Unit> =
+        client.recognizeSpeech(chatId = chatId, messageId = messageId).toResult().map { }
 
     override fun editedMessages(chatId: Long): Flow<ChatMessage> =
         merge(
@@ -565,6 +571,23 @@ class TdlConversationRepository(
      */
     override suspend fun searchInChat(
         chatId: Long,
+        query: String,
+        fromMessageId: Long,
+        senderUserId: Long?,
+    ): Result<ChatSearchPage> = search(chatId, topic, query, fromMessageId, senderUserId)
+
+    override suspend fun searchInThread(
+        chatId: Long,
+        threadId: Long,
+        query: String,
+        fromMessageId: Long,
+        senderUserId: Long?,
+    ): Result<ChatSearchPage> =
+        search(chatId, MessageTopicThread(messageThreadId = threadId), query, fromMessageId, senderUserId)
+
+    private suspend fun search(
+        chatId: Long,
+        topic: MessageTopic?,
         query: String,
         fromMessageId: Long,
         senderUserId: Long?,
@@ -1635,6 +1658,34 @@ class TdlConversationRepository(
         linkPreview: LinkPreviewOptions?,
         quote: ReplyQuote?,
         formats: List<FormatSpan>,
+    ): Result<Unit> = setDraft(chatId, topic, text, replyToMessageId, linkPreview, quote, formats)
+
+    override suspend fun saveThreadDraft(
+        chatId: Long,
+        threadId: Long,
+        text: String,
+        replyToMessageId: Long?,
+        linkPreview: LinkPreviewOptions?,
+        quote: ReplyQuote?,
+        formats: List<FormatSpan>,
+    ): Result<Unit> = setDraft(
+        chatId = chatId,
+        topic = MessageTopicThread(messageThreadId = threadId),
+        text = text,
+        replyToMessageId = replyToMessageId,
+        linkPreview = linkPreview,
+        quote = quote,
+        formats = formats,
+    )
+
+    private suspend fun setDraft(
+        chatId: Long,
+        topic: MessageTopic?,
+        text: String,
+        replyToMessageId: Long?,
+        linkPreview: LinkPreviewOptions?,
+        quote: ReplyQuote?,
+        formats: List<FormatSpan>,
     ): Result<Unit> =
         client.setChatDraftMessage(
             chatId = chatId,
@@ -1666,7 +1717,7 @@ class TdlConversationRepository(
                 val access = chatAccess(chat, forumTopic)
                 val restriction = client.restrictionInfoOf(chat)
                 // V tématu koncept tématu; koncept skupiny do něj nepatří.
-                val draftMessage = if (forumTopicId != null) forumTopic?.draftMessage else chat.draftMessage
+                val draft = (if (forumTopicId != null) forumTopic?.draftMessage else chat.draftMessage)?.toSavedDraft()
                 ChatInfo(
                     id = chat.id,
                     title = chat.title,
@@ -1680,20 +1731,14 @@ class TdlConversationRepository(
                     // po přihlášení ho TDLib zná bez dotazu na server.
                     isSavedMessages = (chat.type as? ChatTypePrivate)?.userId
                         ?.let { it == client.getMe().toResult().getOrNull()?.id } == true,
-                    draftText = draftMessage?.toChatDraft()?.text,
-                    draftFormats = (draftMessage?.content as? DraftMessageContentText)?.text
-                        ?.let { draft -> draft.toBody().let { draftFormatsOf(it.text, it.entities) } }
-                        .orEmpty(),
+                    draftText = draft?.text,
+                    draftFormats = draft?.formats.orEmpty(),
                     canJoin = access.canJoin,
                     writeAccess = access.writeAccess,
                     content = access.content,
-                    draftReplyToMessageId = (draftMessage?.replyTo as? InputMessageReplyToMessage)
-                        ?.messageId,
-                    draftReplyQuote = (draftMessage?.replyTo as? InputMessageReplyToMessage)
-                        ?.quote
-                        ?.let { ReplyQuote(text = it.text.text, position = it.position) },
-                    draftLinkPreview = (draftMessage?.content as? DraftMessageContentText)
-                        ?.linkPreviewOptions?.toDomain(),
+                    draftReplyToMessageId = draft?.replyToMessageId,
+                    draftReplyQuote = draft?.quote,
+                    draftLinkPreview = draft?.linkPreview,
                     verification = client.verificationOf(chat),
                     emojiStatus = chat.emojiStatus.statusEmojiId(),
                     restriction = restriction?.reasonText,
@@ -1710,6 +1755,22 @@ class TdlConversationRepository(
                 )
             }
 
+
+    /** Koncept, jak ho čte konverzace: chat, téma i vlákno komentářů ho nesou stejně. */
+    private fun DraftMessage.toSavedDraft(): SavedDraft? {
+        val text = toChatDraft()?.text ?: return null
+        val reply = replyTo as? InputMessageReplyToMessage
+        val content = content as? DraftMessageContentText
+        return SavedDraft(
+            text = text,
+            formats = content?.text
+                ?.let { draft -> draft.toBody().let { draftFormatsOf(it.text, it.entities) } }
+                .orEmpty(),
+            replyToMessageId = reply?.messageId,
+            quote = reply?.quote?.let { ReplyQuote(text = it.text.text, position = it.position) },
+            linkPreview = content?.linkPreviewOptions?.toDomain(),
+        )
+    }
 
     override suspend fun botIntro(chatId: Long): Result<BotIntro?> = runCatching {
         val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
@@ -1760,6 +1821,51 @@ class TdlConversationRepository(
         }
     }
 
+    /**
+     * Tlačítko nabídky z plných údajů bota (po prvním dotazu lokální, jako příkazy).
+     *
+     * **Odkaz typu `t.me/bot/app` se otevírá jako odkaz** ([BotMenuApp.isLink]). TDLib u tlačítka
+     * předepisuje: když je adresa interní odkaz na mini aplikaci (`InternalLinkTypeWebApp`), musí
+     * se zpracovat jako ten odkaz (`getWebAppLinkUrl`), ne poslat do `openWebApp`.
+     */
+    override suspend fun botMenuApp(chatId: Long): Result<BotMenuApp?> = runCatching {
+        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+        val userId = (chat.type as? ChatTypePrivate)?.userId ?: return@runCatching null
+        val button = client.getUserFullInfo(userId = userId).toResult().getOrNull()?.botInfo?.menuButton
+            ?: return@runCatching null
+        if (button.url.isBlank() || button.text.isBlank()) return@runCatching null
+        val linkType = client.getInternalLinkType(link = button.url).toResult().getOrNull()
+        BotMenuApp(text = button.text, url = button.url, isLink = linkType is InternalLinkTypeWebApp)
+    }
+
+    override suspend fun shareUsersWithBot(
+        chatId: Long,
+        messageId: Long,
+        buttonId: Int,
+        userIds: List<Long>,
+        onlyCheck: Boolean,
+    ): Result<Unit> =
+        client.shareUsersWithBot(
+            source = KeyboardButtonSourceMessage(chatId = chatId, messageId = messageId),
+            buttonId = buttonId,
+            sharedUserIds = userIds.toLongArray(),
+            onlyCheck = onlyCheck,
+        ).toResult().map { }
+
+    override suspend fun shareChatWithBot(
+        chatId: Long,
+        messageId: Long,
+        buttonId: Int,
+        sharedChatId: Long,
+        onlyCheck: Boolean,
+    ): Result<Unit> =
+        client.shareChatWithBot(
+            source = KeyboardButtonSourceMessage(chatId = chatId, messageId = messageId),
+            buttonId = buttonId,
+            sharedChatId = sharedChatId,
+            onlyCheck = onlyCheck,
+        ).toResult().map { }
+
     /** Příkazy všech botů ve skupině, každý s jménem svého bota (viz [botCommandText]). */
     private suspend fun groupCommands(bots: Array<BotCommands>?): List<BotCommandItem> =
         bots.orEmpty().flatMap { bot ->
@@ -1779,13 +1885,21 @@ class TdlConversationRepository(
     private suspend fun chatAccess(chat: Chat, forumTopic: TdlForumTopic? = null): ChatAccess {
         val status = client.ownMemberStatus(chat)
         val supergroup = chat.type as? ChatTypeSupergroup
+        // Diskusní skupina kanálu smí dovolit psaní i bez vstupu (`joinToSendMessages`). Dotaz je
+        // lokální a ptá se jen ten, kdo členem není.
+        val nonMembersCanSend = supergroup != null && !supergroup.isChannel &&
+            status == OwnMemberStatus.Left &&
+            client.getSupergroup(supergroupId = supergroup.supergroupId).toResult().getOrNull()
+                ?.joinToSendMessages == false
         val chatWrite = writeAccess(
             isChannel = supergroup?.isChannel == true,
             status = status,
             membersCanSend = chat.permissions.canSendBasicMessages,
+            nonMembersCanSend = nonMembersCanSend,
         )
         return ChatAccess(
-            canJoin = supergroup != null && status == OwnMemberStatus.Left,
+            // Kdo smí psát bez vstupu, dostane pole, ne „Přidat se" — jako u oficiálních klientů.
+            canJoin = supergroup != null && status == OwnMemberStatus.Left && !nonMembersCanSend,
             writeAccess = topicWriteAccess(chatWrite, status, topicClosed = forumTopic?.info?.isClosed == true),
             content = contentAccess(status = status, groupDefaults = chat.permissions.toContentAccess()).let {
                 // Právo skupiny nestačí: do soukromého chatu s člověkem anketa nejde vůbec.
@@ -1976,6 +2090,7 @@ class TdlConversationRepository(
                 ?.takeIf { sender != null },
             senderBoostCount = senderBoostCount.takeIf { sender != null } ?: 0,
             effect = effectId.takeIf { it != 0L }?.let { messageEffect(it) },
+            summaryLanguage = summaryLanguageCode.ifBlank { null },
             factCheck = factCheck?.let { check ->
                 val body = check.text.toBody()
                 FactCheck(body.text, body.entities, check.countryCode.ifBlank { null })
@@ -2490,6 +2605,17 @@ class TdlConversationRepository(
         resolveSender(senderId)?.let { Result.success(it) }
             ?: Result.failure(IllegalStateException("Odesílatel $senderId není známý"))
 
+    override suspend fun summarizeMessage(chatId: Long, messageId: Long, languageCode: String?): Result<MessageBody> =
+        client.summarizeMessage(
+            chatId = chatId,
+            messageId = messageId,
+            translateToLanguageCode = languageCode.orEmpty(),
+            // Prázdný = výchozí tón; volbu tónu aplikace nenabízí, stejně jako u překladu.
+            tone = "",
+        )
+            .toResult()
+            .map { it.toBody() }
+
     override suspend fun translateMessage(chatId: Long, messageId: Long, languageCode: String): Result<MessageBody> =
         client.translateMessageText(
             chatId = chatId,
@@ -2834,7 +2960,7 @@ private fun ReplyMarkupInlineKeyboard.toBotKeyboard(inlineBot: String?): BotKeyb
                     is InlineKeyboardButtonTypeCopyText -> BotButtonKind.CopyText(type.text)
                     is InlineKeyboardButtonTypeUser -> BotButtonKind.User(type.userId)
                     is InlineKeyboardButtonTypeDisabled -> BotButtonKind.Disabled
-                    is InlineKeyboardButtonTypeWebApp -> BotButtonKind.Unsupported(UnsupportedBotButton.WebApp)
+                    is InlineKeyboardButtonTypeWebApp -> BotButtonKind.WebApp(type.url)
                     is InlineKeyboardButtonTypeLoginUrl -> BotButtonKind.LoginUrl(type.url, type.id)
                     is InlineKeyboardButtonTypeSwitchInline -> type.toSwitchInline(inlineBot)
                         ?: BotButtonKind.Unsupported(UnsupportedBotButton.SwitchInline)
@@ -2883,7 +3009,7 @@ private fun Message.toChatReplyMarkup(): ChatReplyMarkup? = when (val markup = r
                     kind = when (val type = button.type) {
                         is KeyboardButtonTypeText -> ReplyKeyboardButtonKind.Text
                         is KeyboardButtonTypeRequestPhoneNumber -> ReplyKeyboardButtonKind.PhoneNumber
-                        is KeyboardButtonTypeRequestLocation -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.Location)
+                        is KeyboardButtonTypeRequestLocation -> ReplyKeyboardButtonKind.Location
                         is KeyboardButtonTypeRequestPoll -> ReplyKeyboardButtonKind.Poll(
                             when {
                                 type.forceQuiz -> PollComposerMode.QuizOnly
@@ -2891,9 +3017,23 @@ private fun Message.toChatReplyMarkup(): ChatReplyMarkup? = when (val markup = r
                                 else -> PollComposerMode.Any
                             },
                         )
-                        is KeyboardButtonTypeRequestUsers -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.Users)
-                        is KeyboardButtonTypeRequestChat -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.Chat)
-                        is KeyboardButtonTypeWebApp -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.WebApp)
+                        is KeyboardButtonTypeRequestUsers -> ReplyKeyboardButtonKind.Users(
+                            BotUsersRequest(
+                                buttonId = type.id,
+                                bots = type.userIsBot.takeIf { type.restrictUserIsBot },
+                                maxQuantity = type.maxQuantity.coerceAtLeast(1),
+                            ),
+                        )
+                        is KeyboardButtonTypeRequestChat -> ReplyKeyboardButtonKind.Chat(
+                            BotChatRequest(
+                                buttonId = type.id,
+                                channel = type.chatIsChannel,
+                                forum = type.chatIsForum.takeIf { type.restrictChatIsForum },
+                                botIsMember = type.botIsMember,
+                                botAdministrator = type.botAdministratorRights != null,
+                            ),
+                        )
+                        is KeyboardButtonTypeWebApp -> ReplyKeyboardButtonKind.WebApp(type.url)
                         is KeyboardButtonTypeRequestManagedBot -> ReplyKeyboardButtonKind.Unsupported(UnsupportedKeyboardButton.ManagedBot)
                     },
                     style = button.style.toBotButtonStyle(),

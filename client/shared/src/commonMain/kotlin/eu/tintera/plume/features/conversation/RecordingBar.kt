@@ -29,6 +29,9 @@ import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_continue_recording
+import eu.tintera.plume.resources.mic_24dp
+import eu.tintera.plume.resources.videocam_24dp
 import eu.tintera.plume.resources.content_video_note
 import eu.tintera.plume.resources.conversation_play_video_note
 import eu.tintera.plume.resources.conversation_stop_video_note
@@ -188,16 +191,23 @@ fun VoicePreviewBar(
     onSeek: (Float) -> Unit,
     onDiscard: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Nahrávat dál; mikrofon v pruhu je jen u nahrávky, na kterou navázat jde
+     * ([VoicePreview.canContinue] — M4A ze staršího Androidu ne).
+     */
+    onContinue: (() -> Unit)? = null,
 ) {
     val current = playback()
     val voice = preview.voice
+    val continuable = onContinue != null && voice != null && preview.canContinue
     val accent = accentOn(
         background = MaterialTheme.colorScheme.tertiaryContainer,
         accent = MaterialTheme.colorScheme.tertiary,
         fallback = MaterialTheme.colorScheme.onTertiaryContainer,
     )
     Row(
-        modifier.fillMaxWidth().heightIn(min = 56.dp).padding(end = 16.dp),
+        // Mikrofon na konci si nese vlastní odsazení, jako ■ v pruhu nahrávání.
+        modifier.fillMaxWidth().heightIn(min = 56.dp).padding(end = if (continuable) 4.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onDiscard) {
@@ -245,6 +255,20 @@ fun VoicePreviewBar(
             text = formatDuration(seconds),
             style = MaterialTheme.typography.bodyLarge.tabularNumbers(),
         )
+        /*
+         * Mikrofon na konci pruhu, na místě ■ z nahrávání: to je ta cesta zpátky. Nahrávání pak
+         * pokračuje od konce náhledu a odejde jako jedna hlasovka. Dokud se nahrávka dokončuje,
+         * není na co navázat.
+         */
+        if (continuable) {
+            IconButton(onClick = onContinue) {
+                Icon(
+                    painterResource(Res.drawable.mic_24dp),
+                    contentDescription = stringResource(Res.string.conversation_continue_recording),
+                    tint = accent,
+                )
+            }
+        }
     }
 }
 
@@ -261,15 +285,18 @@ internal fun VideoNotePreviewBar(
     playback: VideoNotePreviewPlayback,
     onDiscard: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Nahrávat dál ([VideoNotePreview.canContinue]) — kamera na konci pruhu, jako mikrofon u hlasovky. */
+    onContinue: (() -> Unit)? = null,
 ) {
     val note = preview.note
+    val continuable = onContinue != null && note != null && preview.canContinue
     val accent = accentOn(
         background = MaterialTheme.colorScheme.tertiaryContainer,
         accent = MaterialTheme.colorScheme.tertiary,
         fallback = MaterialTheme.colorScheme.onTertiaryContainer,
     )
     Row(
-        modifier.fillMaxWidth().heightIn(min = 56.dp).padding(end = 16.dp),
+        modifier.fillMaxWidth().heightIn(min = 56.dp).padding(end = if (continuable) 4.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onDiscard) {
@@ -304,6 +331,15 @@ internal fun VideoNotePreviewBar(
             text = formatDuration(seconds),
             style = MaterialTheme.typography.bodyLarge.tabularNumbers(),
         )
+        if (continuable) {
+            IconButton(onClick = onContinue) {
+                Icon(
+                    painterResource(Res.drawable.videocam_24dp),
+                    contentDescription = stringResource(Res.string.conversation_continue_recording),
+                    tint = accent,
+                )
+            }
+        }
     }
 }
 

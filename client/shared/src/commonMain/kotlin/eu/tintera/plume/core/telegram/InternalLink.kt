@@ -39,7 +39,43 @@ sealed interface InternalLink {
      * nese celý: práva i parametr si při přidání přečte znovu hranice TDLib ([ChatRepository.addBotToGroup]).
      */
     data class BotStartInGroup(val url: String, val botChatId: Long, val asAdmin: Boolean) : InternalLink
+
+    /**
+     * Hlavní mini aplikace bota (`t.me/bot?startapp=…`). Soukromý chat s botem má id bota, takže
+     * [botUserId] je zároveň chat. Bot, který hlavní mini aplikaci nemá, se z odkazu otevře jako
+     * chat ([Chat]) — tak to dělají i oficiální klienti.
+     */
+    data class MainWebApp(val botUserId: Long, val startParameter: String) : InternalLink
+
+    /**
+     * Pojmenovaná mini aplikace bota (`t.me/bot/app?startapp=…`). Zda ji bot opravdu má, se pozná
+     * až z `searchWebApp` na obrazovce mini aplikace — jako odkaz se rozpozná jen tvarem.
+     */
+    data class WebApp(val botUserId: Long, val shortName: String, val startParameter: String) : InternalLink
+
+    /**
+     * Pozvánka do sdílené složky (`t.me/addlist/…`). Jako u pozvánky do chatu nejdřív náhled,
+     * přidává se až na potvrzení — do chatů složky se uživatel přidá.
+     */
+    data class FolderInvite(val link: String, val preview: FolderInvitePreview) : InternalLink
 }
+
+/**
+ * Co řekne pozvánka do sdílené složky (`checkChatFolderInviteLink`).
+ *
+ * - [folderId] je `0`, dokud složku uživatel nemá; s nenulovým id pozvánka jen doplňuje chaty
+ *   do složky, kterou už má.
+ * - [missingChats] jsou chaty, ve kterých uživatel ještě není — přidáním složky se do nich
+ *   přidá. Ty, ve kterých už je, jdou do složky samy a počítá je [alreadyJoined].
+ */
+data class FolderInvitePreview(
+    val title: String,
+    val titleEntities: List<MessageEntity>,
+    val iconName: String?,
+    val folderId: Int,
+    val missingChats: List<ChatSummary>,
+    val alreadyJoined: Int,
+)
 
 /** Co o chatu řekne pozvánka, než se do něj uživatel přidá (`checkChatInviteLink`). */
 data class InvitePreview(

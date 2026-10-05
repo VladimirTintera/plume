@@ -129,14 +129,15 @@ fun ChatPicker(
      */
     selected: Set<Long>? = null,
     onConfirm: () -> Unit = {},
+    /**
+     * Tlačítko i bez vybraného — kde výběr upravuje existující množinu (chaty ve složce)
+     * a odznačit všechno je platná odpověď, nebo kde prázdný výběr dává smysl (nová skupina
+     * bez členů, pozvat jde i odkazem).
+     */
+    confirmWhenEmpty: Boolean = false,
     /** Popisek tlačítka odeslání s počtem cílů (`%1$d`) — „Přeposlat (2)", „Poslat (2)". */
     confirmLabel: StringResource = Res.string.forward_send,
     confirmIcon: DrawableResource = Res.drawable.forward_24dp,
-    /**
-     * Potvrdit jde i bez výběru. Nová skupina smí vzniknout bez členů (pozvat jde i odkazem);
-     * cíl přeposlání naopak musí být.
-     */
-    confirmWhenEmpty: Boolean = false,
     /**
      * Dostupnost protějšku pod jménem. Patří tam, kde se vybírá ČLOVĚK (nová konverzace), ne
      * kam se posílá obsah — u přeposílání by „naposledy před hodinou" o cíli nic neříkalo
@@ -208,7 +209,7 @@ fun ChatPicker(
         floatingActionButton = {
             // Bez vybraného cíle není co odeslat — tlačítko naskočí, až je kam.
             AnimatedVisibility(
-                visible = selected != null && (selected.isNotEmpty() || confirmWhenEmpty),
+                visible = selected != null && (confirmWhenEmpty || selected.isNotEmpty()),
                 enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
                     scaleIn(MaterialTheme.motionScheme.defaultSpatialSpec(), initialScale = 0.8f),
                 exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) +

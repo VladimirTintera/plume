@@ -11,8 +11,10 @@ import eu.tintera.plume.core.audio.resampleWaveform
  *
  * [voice] je `null`, dokud se nahrávka dokončuje: na iOS se po zastavení teprve kóduje do Opusu
  * a bez tohohle mezistavu by karta na tu chvíli ukázala textové pole — jako by nahrávka zmizela.
+ *
+ * [canContinue]: na hlasovku jde navázat dalším nahráváním (M4A ze staršího Androidu ne).
  */
-class VoicePreview(val voice: RecordedVoice?) {
+class VoicePreview(val voice: RecordedVoice?, val canContinue: Boolean = false) {
     /** Sloupce waveformu pro pruh náhledu; počítá se jednou, ne při každém snímku přehrávání. */
     val bars: List<Float> = voice?.let { resampleWaveform(decodeWaveform(it.waveform), VOICE_PREVIEW_BARS) }.orEmpty()
 }
@@ -35,5 +37,12 @@ internal const val VOICE_PREVIEW_BARS = 48
  *
  * [note] je `null`, dokud se nahrávka dokončuje a připravuje: zmenšení na Androidu i ořez na iOS
  * trvá vteřiny a kruh by jinak na tu chvíli zmizel, jako by nahrávka propadla.
+ *
+ * [recorded] je táž nahrávka, jak ji vrátil nahrávač (délka v ms a úrovně hlasitosti) — na ni
+ * navazuje „nahrávat dál". [note] přidává jen to, co se čte ze souboru; cesta je tatáž.
  */
-class VideoNotePreview(val note: OutgoingVideoNote?)
+class VideoNotePreview(
+    val note: OutgoingVideoNote?,
+    val recorded: RecordedVoice? = null,
+    val canContinue: Boolean = false,
+)

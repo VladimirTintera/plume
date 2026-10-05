@@ -213,6 +213,7 @@ internal fun VideoPage(
                         .sharedNavElement(
                             photoKey(messageId),
                             shape = RoundedCornerShape(MEDIA_CARD_CORNER * (1f - immersion())),
+                            inTwoPane = true,
                         )
                         .spoilerBlur(hasSpoiler, revealed, spoilerStyle),
                 )

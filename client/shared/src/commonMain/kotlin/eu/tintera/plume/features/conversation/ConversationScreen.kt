@@ -21,6 +21,8 @@ import eu.tintera.plume.resources.conversation_record_hint_voice
 import eu.tintera.plume.resources.conversation_record_video_note
 import eu.tintera.plume.resources.conversation_send_video_note
 import eu.tintera.plume.resources.videocam_24dp
+import eu.tintera.plume.core.telegram.SpeechTrial
+import eu.tintera.plume.core.telegram.TranscribeOffer
 import eu.tintera.plume.core.telegram.codeBlockAt
 import androidx.compose.material3.IconToggleButton
 import eu.tintera.plume.resources.format_open
@@ -42,6 +44,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 import eu.tintera.plume.core.ui.rememberAfterKeyboardHidden
 import eu.tintera.plume.core.ui.AutoDeleteBadge
 import eu.tintera.plume.core.ui.longPress
+import eu.tintera.plume.core.telegram.BotMenuApp
+import eu.tintera.plume.core.telegram.VideoChatInfo
+import eu.tintera.plume.core.telegram.PendingJoinRequests
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.MessageSchedule
@@ -383,6 +388,7 @@ import kotlin.time.Clock
 import kotlinx.coroutines.flow.debounce
 import eu.tintera.plume.core.telegram.SpamBar
 import eu.tintera.plume.core.telegram.ChatBar
+import eu.tintera.plume.core.telegram.InviteMembersBar
 import eu.tintera.plume.core.telegram.JoinRequestBar
 import eu.tintera.plume.core.telegram.SharePhoneBar
 import eu.tintera.plume.features.report.ReportHost
@@ -420,10 +426,18 @@ fun ConversationScreen(
     onUnarchived: () -> Unit = {},
     /** Sponka → Anketa (a tlačítko bota „vytvořit anketu"): formulář nové ankety nad konverzací. */
     onCreatePoll: (PollComposerRequest) -> Unit = {},
+    /** Mini aplikace bota — obrazovka přes celou plochu nad konverzací. */
+    onOpenWebApp: (WebAppRequest) -> Unit = {},
+    /** Tlačítko bota „vyber lidi / chat": výběr nad konverzací. */
+    onOpenBotShare: (BotShareRequest) -> Unit = {},
     /** Odkaz `t.me/bot?startgroup=…`: výběr skupiny, do které bota přidat. */
     onAddBotToGroup: (InternalLink.BotStartInGroup) -> Unit = {},
     /** Tlačítko bota s inline dotazem do jiného chatu: výběr chatu. */
     onSwitchInline: (SwitchInlinePick) -> Unit = {},
+    /** Pruh „Pozvat členy" nad čerstvou skupinou: výběr lidí. */
+    onAddMembers: () -> Unit = {},
+    /** Pruh s čekajícími žádostmi o vstup: otevře jejich seznam. */
+    onOpenJoinRequests: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
@@ -474,6 +488,8 @@ fun ConversationScreen(
     // Čte se až v bublině hlasovky, takže změna pozice nepřekresluje celou obrazovku.
     val voicePlayback = viewModel.voicePlayback.collectAsStateWithLifecycle()
     val voiceSpeed = viewModel.voiceSpeed.collectAsStateWithLifecycle()
+    val isPremium = viewModel.isPremium.collectAsStateWithLifecycle()
+    val speechTrial = viewModel.speechTrial.collectAsStateWithLifecycle()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     // Nahrávání se mění po 50 ms; obrazovka čte jen jestli běží, čas a úrovně až pruh nahrávání.
     val voiceRecordingState = viewModel.voiceRecording.collectAsStateWithLifecycle()
@@ -520,6 +536,12 @@ fun ConversationScreen(
     val snackbarHostState = remember { SnackbarHostState() }
 
     val chatBar by viewModel.chatBar.collectAsStateWithLifecycle()
+    val videoChat by viewModel.videoChat.collectAsStateWithLifecycle()
+    val joinRequests by viewModel.joinRequests.collectAsStateWithLifecycle()
+    // ✕ schová pruh do té doby, než přibude další žádost — pamatuje se počet, u kterého se
+    // schoval. Napořád by správce o nové žádosti nevěděl; při každém otevření chatu by zase
+    // otravoval tím, co už viděl.
+    var joinRequestsHiddenAt by rememberSaveable(viewModel.chatId) { mutableIntStateOf(0) }
     val spamBar = chatBar as? SpamBar
     var confirmSharePhone by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(chatBar) { if (chatBar !is SharePhoneBar) confirmSharePhone = false }
@@ -791,6 +813,8 @@ fun ConversationScreen(
             state = stateHolder,
             voicePlayback = voicePlayback,
             voiceSpeed = voiceSpeed,
+            isPremium = isPremium,
+            speechTrial = speechTrial,
             contentTop = contentTop,
             onMenuAnchor = { menuAnchor = it },
             menuKey = menuKey,
@@ -1375,8 +1399,7 @@ fun ConversationScreen(
                             )
                         }
                     }
-                    // Hledání ve vlákně by hledalo v celé diskusní skupině.
-                    if (state.threadRootId == null && !botIntro) {
+                    if (!botIntro) {
                         IconButton(onClick = viewModel::openSearch) {
                             Icon(
                                 painterResource(Res.drawable.search_24dp),
@@ -1713,6 +1736,10 @@ fun ConversationScreen(
                 },
                 onToggleVoicePreview = viewModel::toggleVoicePreview,
                 onSeekVoicePreview = viewModel::seekVoicePreview,
+                onContinueVoicePreview = {
+                    haptics.toggle(on = true)
+                    viewModel.continueVoicePreview()
+                },
                 onDiscardVoicePreview = {
                     haptics.reject()
                     viewModel.discardVoicePreview()
@@ -1722,6 +1749,10 @@ fun ConversationScreen(
                 onDiscardVideoNotePreview = {
                     haptics.reject()
                     viewModel.discardVideoNotePreview()
+                },
+                onContinueVideoNotePreview = {
+                    haptics.toggle(on = true)
+                    viewModel.continueVideoNotePreview()
                 },
                 onSendRecording = { options ->
                     haptics.confirm()
@@ -1740,6 +1771,8 @@ fun ConversationScreen(
                 // Kontakt je taky „základní zpráva" (TDLib ho řadí k textu), jako poloha.
                 onShareContact = viewModel::openContactPicker,
                 onToggleCommands = viewModel::toggleCommands.takeIf { state.botCommands.isNotEmpty() },
+                menuApp = state.botMenuApp,
+                onOpenMenuApp = viewModel::openBotMenuApp,
                 attachments = state.attachments,
                 attachmentsPreparing = mediaSelection.preparing,
                 onRemoveAttachment = viewModel::removeAttachment,
@@ -1938,6 +1971,15 @@ fun ConversationScreen(
             InviteSheet(invite = invite, onJoin = viewModel::joinInvite, onDismiss = viewModel::dismissInvite)
         }
 
+        state.folderInvite?.let { invite ->
+            FolderInviteSheet(
+                invite = invite,
+                onToggle = viewModel::toggleFolderInviteChat,
+                onAdd = viewModel::addFolderInvite,
+                onDismiss = viewModel::dismissFolderInvite,
+            )
+        }
+
         state.loginRequest?.let { request ->
             LoginUrlDialog(prompt = request.prompt, onConfirm = viewModel::confirmLogin, onDismiss = viewModel::dismissLogin)
         }
@@ -1951,6 +1993,17 @@ fun ConversationScreen(
 
         if (state.confirmSharePhone) {
             SharePhoneDialog(onShare = viewModel::sharePhone, onDismiss = viewModel::dismissSharePhone)
+        }
+        // Přesná: bot polohou volá taxi nebo kurýra, kilometrová přesnost tam nic neřekne.
+        val keyboardLocation = rememberDeviceLocation(precise = true)
+        if (state.confirmShareLocation) {
+            ShareLocationDialog(
+                onShare = {
+                    viewModel.dismissShareLocation()
+                    keyboardLocation.request(viewModel::sendKeyboardLocation)
+                },
+                onDismiss = viewModel::dismissShareLocation,
+            )
         }
 
         openStickerSetId?.let { setId ->
@@ -2035,6 +2088,18 @@ fun ConversationScreen(
             LaunchedEffect(mode) {
                 onCreatePoll(PollComposerRequest(mode, state.replyingTo?.id, state.replyQuote))
                 viewModel.consumeOpenPollComposer()
+            }
+        }
+        state.openBotShare?.let { request ->
+            LaunchedEffect(request) {
+                viewModel.consumeOpenBotShare()
+                onOpenBotShare(request)
+            }
+        }
+        state.openWebApp?.let { request ->
+            LaunchedEffect(request) {
+                viewModel.consumeOpenWebApp()
+                onOpenWebApp(request)
             }
         }
 
@@ -2261,12 +2326,61 @@ fun ConversationScreen(
                             onUnarchive = viewModel::unarchiveFromSpamBar,
                             onDismiss = viewModel::dismissChatBar,
                         )
-                        SharePhoneBar, is JoinRequestBar -> ChatNoticeBarCard(
+                        SharePhoneBar, InviteMembersBar, is JoinRequestBar -> ChatNoticeBarCard(
                             bar = bar,
                             onSharePhone = { confirmSharePhone = true },
+                            onInviteMembers = onAddMembers,
                             onDismiss = viewModel::dismissChatBar,
                         )
                         null -> Unit
+                    }
+                }
+                // Žádosti o vstup hned pod spamem: čekají na rozhodnutí, jako on.
+                val shownJoinRequests = joinRequests?.takeIf { it.count > joinRequestsHiddenAt }
+                val lastJoinRequests = remember { arrayOf<PendingJoinRequests?>(null) }
+                if (shownJoinRequests != null) lastJoinRequests[0] = shownJoinRequests
+                AnimatedVisibility(
+                    visible = shownJoinRequests != null && !chatHidden,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut(),
+                ) {
+                    lastJoinRequests[0]?.let { requests ->
+                        JoinRequestsBar(
+                            requests = requests,
+                            onClick = onOpenJoinRequests,
+                            onHide = { joinRequestsHiddenAt = requests.count },
+                            glass = Modifier.hazeBlur(
+                                input = HazeInput.Sources(listHaze),
+                                style = glassStyle(
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    alpha = GLASS_TEXT_TINT_ALPHA,
+                                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                                ),
+                            ),
+                        )
+                    }
+                }
+                // Videochat mezi spamem a připnutými: o dění v chatu, ne o obsahu.
+                val lastVideoChat = remember { arrayOf<VideoChatInfo?>(null) }
+                if (videoChat != null) lastVideoChat[0] = videoChat
+                AnimatedVisibility(
+                    visible = videoChat != null && !chatHidden,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut(),
+                ) {
+                    lastVideoChat[0]?.let { info ->
+                        VideoChatBar(
+                            info = info,
+                            onClick = viewModel::explainVideoChat,
+                            glass = Modifier.hazeBlur(
+                                input = HazeInput.Sources(listHaze),
+                                style = glassStyle(
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    alpha = GLASS_TEXT_TINT_ALPHA,
+                                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                                ),
+                            ),
+                        )
                     }
                 }
                 AnimatedVisibility(
@@ -2681,6 +2795,9 @@ private fun MessageInput(
     onShareContact: (() -> Unit)?,
     /** Seznam příkazů botů; `null` v chatu bez botů s příkazy. */
     onToggleCommands: (() -> Unit)?,
+    /** Tlačítko nabídky bota s mini aplikací; když je, stojí místo tlačítka příkazů. */
+    menuApp: BotMenuApp? = null,
+    onOpenMenuApp: () -> Unit = {},
     isRecording: Boolean,
     /** Čte se až v pruhu nahrávání — čas a úrovně se mění dvacetkrát za vteřinu. */
     recording: () -> VoiceRecording?,
@@ -2714,10 +2831,12 @@ private fun MessageInput(
     onToggleVoicePreview: () -> Unit = {},
     onSeekVoicePreview: (Float) -> Unit = {},
     onDiscardVoicePreview: () -> Unit = {},
+    onContinueVoicePreview: () -> Unit = {},
     /** Zastavené kolečko; samo hraje v kruhu nad konverzací, karta ukazuje jen ovládání. */
     videoNotePreview: VideoNotePreview? = null,
     videoNotePlayback: VideoNotePreviewPlayback? = null,
     onDiscardVideoNotePreview: () -> Unit = {},
+    onContinueVideoNotePreview: () -> Unit = {},
     onSendRecording: (SendOptions) -> Unit,
     /** Nabídka odeslání nad hlasovkou se otevřela (`true`) nebo zavřela bez volby (`false`). */
     onVoiceMenu: (open: Boolean) -> Unit = {},
@@ -2996,6 +3115,11 @@ private fun MessageInput(
                         preview = videoNotePreview,
                         playback = videoNotePlayback,
                         onDiscard = onDiscardVideoNotePreview,
+                        // Jako u hlasovky: ťuknutím, takže nahrávání je rovnou zamčené.
+                        onContinue = {
+                            recordLocked = true
+                            onContinueVideoNotePreview()
+                        },
                     )
                 } else if (voicePreview != null) {
                     VoicePreviewBar(
@@ -3004,6 +3128,11 @@ private fun MessageInput(
                         onToggle = onToggleVoicePreview,
                         onSeek = onSeekVoicePreview,
                         onDiscard = onDiscardVoicePreview,
+                        // Spouští se ťuknutím, ne podržením: nahrávání je rovnou zamčené.
+                        onContinue = {
+                            recordLocked = true
+                            onContinueVoicePreview()
+                        },
                     )
                 } else if (isRecording) {
                     RecordingBar(
@@ -3024,7 +3153,17 @@ private fun MessageInput(
             // Přílohy jen při psaní — k úpravě textové zprávy příloha nepatří.
             // Poloha jde všude, kde se smí psát, takže sponka zůstává i ve skupině bez příloh.
             // Příkazy bota: v chatu s botem je to hlavní ovládání, jako „Menu" u oficiálních klientů.
-            if (editing == null && onToggleCommands != null) {
+            // Bot s mini aplikací v nabídce ji má na tom místě místo příkazů (ty dál napovídá „/").
+            val botButton = editing == null && (menuApp != null || onToggleCommands != null)
+            if (editing == null && menuApp != null) {
+                BotMenuAppButton(
+                    text = menuApp.text,
+                    compact = draft.text.isNotBlank() || attachments.isNotEmpty(),
+                    iconColor = inputIconColor(),
+                    onClick = onOpenMenuApp,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                )
+            } else if (editing == null && onToggleCommands != null) {
                 IconButton(
                     onClick = onToggleCommands,
                     colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
@@ -3048,7 +3187,7 @@ private fun MessageInput(
                     onShareContact = onShareContact,
                     contentColor = inputIconColor(),
                     // Za tlačítkem příkazů bez odsazení: glyfy mají kolem sebe vzduch samy.
-                    modifier = Modifier.padding(start = if (onToggleCommands != null) 0.dp else 4.dp, bottom = 4.dp),
+                    modifier = Modifier.padding(start = if (botButton) 0.dp else 4.dp, bottom = 4.dp),
                 )
             }
             Box(Modifier.weight(1f)) {
@@ -3989,6 +4128,8 @@ private class ScreenItemScope(
     private val state: State<ConversationState>,
     private val voicePlayback: State<VoicePlayback?>,
     private val voiceSpeed: State<VoiceSpeed>,
+    private val isPremium: State<Boolean>,
+    private val speechTrial: State<SpeechTrial?>,
     private val contentTop: State<Float?>,
     private val onMenuAnchor: (MenuAnchor) -> Unit,
     private val menuKey: State<Long?>,
@@ -4020,6 +4161,9 @@ private class ScreenItemScope(
         voicePlayback.value?.takeIf { it.key.messageId == messageId }
 
     override fun voiceSpeed(): VoiceSpeed = voiceSpeed.value
+
+    override fun transcribeOffer(durationSeconds: Int): TranscribeOffer =
+        eu.tintera.plume.core.telegram.transcribeOffer(isPremium.value, speechTrial.value, durationSeconds)
 
     override fun videoNoteSounding(messageId: Long): Boolean = state.value.soundingVideoNote == messageId
 

@@ -2,6 +2,8 @@ package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.resources.edit_chat_forum_failed
 import eu.tintera.plume.core.telegram.ForumRepository
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -53,7 +55,7 @@ class EditChatViewModel(
         private set
 
     /** Čekající žádosti o vstup — podtitul řádku, který na ně vede. Živě, vyřizuje je i jiný správce. */
-    val pendingJoinRequests: StateFlow<Int> = inviteLinks.pendingJoinRequests(chatId)
+    val pendingJoinRequests: StateFlow<Int> = inviteLinks.pendingJoinRequests(chatId).map { it.count }.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     private val logger = Logger.withTag("EditChat")

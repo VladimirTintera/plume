@@ -39,8 +39,8 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    i ~~audio focus a přerušení hovorem~~ a ~~sluchátko u ucha~~; `CLAUDE.md`, „Hlasovky"
    a „Hlasovka u ucha"; sluchátko u ucha ověřeno na Pixelu 11 Pro Foldu). **Hlasovky jsou tím
    hotové celé.** ~~Nahrávání~~ — hotovo, ~~podržením se zamčením~~ i ~~s náhledem před
-   odesláním~~ (`CLAUDE.md`, „Nahrávání"). ~~Náhled u kolečka~~ — hotovo. Zbývá navázání v nahrávání po
-   poslechu náhledu.
+   odesláním~~ (`CLAUDE.md`, „Nahrávání"). ~~Náhled u kolečka~~ — hotovo. ~~Navázání v nahrávání po
+   poslechu náhledu~~ — hotovo u hlasovky i kolečka (kolečko na iOS jen přeložené).
    ~~Video~~ — hotovo v prohlížeči (Media3 / AVPlayer). ~~GIFy~~ — hotovo (hrají v bublině ve
    smyčce bez zvuku; `CLAUDE.md`, „GIFy"). ~~GIFy z klávesnice~~ — hotovo na Androidu (Gboard;
    `CLAUDE.md`, „GIFy a samolepky z klávesnice"); ~~výběr GIFů v aplikaci~~ — hotovo
@@ -276,11 +276,8 @@ Co zbývá:
   čtením kódu; `adb input` dvojité ťuknutí nestihne a štípnutí neumí.
 - **Samolepky `.webm`** (VP9 s průhledností) jsou pořád jen statický náhled — potřebují
   softwarový dekodér (libvpx), iOS WebM neumí vůbec.
-- **Průběh stahování originálu.** `RemoteImage` ukazuje náhled z bubliny, dokud nedorazí ostrá
-  verze, ale u velké fotky na pomalé síti není poznat, že se něco děje.
-- **Let z bubliny na širokém rozvržení.** `LocalTwoPane` tam sdílené prvky vypíná kvůli seznamu
-  vedle konverzace; pro prohlížeč to neplatí (ten překryje všechno), ale rozlišit to znamená
-  zjemnit ten příznak.
+- ~~**Průběh stahování originálu.**~~ — hotovo (lesk přes zmenšeninu, dokud se ostrá verze
+  stahuje; `CLAUDE.md`, „Soubory a média").
 
 ## E) Skryté fotky a časovaná média — HOTOVO
 
@@ -377,14 +374,16 @@ kreslí s úryvkem (`CLAUDE.md`, „Citace z nabídky"). Zbývá:
 kopírování textu, uživatel, zašedlé tlačítko a barvy od bota (`CLAUDE.md`, „Tlačítka botů pod
 zprávou"). Zbývá:
 
-- **Druhy, které Plume zatím jen vysvětlí**: mini aplikace (`openWebApp` — WebView s předáním
-  dat), ~~přihlášení na web~~ (hotovo; se skutečnou doménou bota ověřit — chce `/setdomain`
+- **Druhy, které Plume zatím jen vysvětlí**: ~~mini aplikace~~ (hotovo, `CLAUDE.md`, „Mini
+  aplikace botů"; ~~tlačítko nabídky bota `BotMenuButton`~~ hotovo; ~~hlavní mini aplikace bota
+  `getMainWebApp`~~ hotovo (profil bota, `t.me/bot?startapp`); ~~odkazy `t.me/bot/app`~~ hotovo; ~~druhé tlačítko `web_app_setup_secondary_button`~~ hotovo),
+  ~~přihlášení na web~~ (hotovo; se skutečnou doménou bota ověřit — chce `/setdomain`
   v BotFatheru), ~~inline dotaz do jiného chatu~~ (hotovo; s botem v inline režimu ověřit
   výsledky pod polem, cíl daný odkazem `TargetChatInternalLink` se jen vysvětlí), platba, hra
   a zpětné volání s heslem dvoufázového ověření.
 - ~~**Vlastní klávesnice** a **vynucená odpověď**~~ — hotovo, klávesnice nad polem
-  (`CLAUDE.md`, „Vlastní klávesnice bota"). Zbývá: tlačítka polohy, ankety, výběru lidí
-  a chatů (`shareUsersWithBot`, `shareChatWithBot`), mini aplikace a zakládání botů; ověřit
+  (`CLAUDE.md`, „Vlastní klávesnice bota"). ~~Tlačítka polohy, ankety, výběru lidí
+  a chatů~~ a ~~mini aplikace~~ — hotovo (`CLAUDE.md`, „Vlastní klávesnice bota"). Zbývá zakládání botů (`RequestManagedBot`); ověřit
   odeslání čísla; jednorázová klávesnice se po znovuotevření chatu ukáže rozbalená (TDLib
   neříká, že už byla použitá).
 - ~~**Vlastní emoji v popisku tlačítka** (`iconCustomEmojiId`)~~ — hotovo.
@@ -395,8 +394,8 @@ zprávou"). Zbývá:
 Hotové: záložky Nedávné, Oblíbené, Trendy a sady se swipem; hledání samolepek i emoji; oblíbené;
 sada ze samolepky v chatu; emoji vkládané do textu včetně nedávných. Zbývá:
 
-- **Dvě různé pleti u emoji s více osobami** (👫 s různým odstínem každé osoby) — nabízí se jen
-  stejný odstín pro všechny.
+- ~~**Dvě různé pleti u emoji s více osobami**~~ — hotovo (mřížka 5 × 5 u 13 emoji se dvěma
+  osobami; `CLAUDE.md`, „Výběr emoji"). Rodiny se třemi a víc osobami odstíny v Unicode nemají.
 - **Emoji novější než Unicode 15.0** — až je budou znát systémová písma podporovaných verzí.
 
 ## Co TDLib umí a Plume zatím ne (audit září 2026)
@@ -425,7 +424,10 @@ snadno na to uživatel narazí.
 - ~~**Video kolečka** (`MessageVideoNote`)~~ — hotovo: kulatě bez bubliny, samy potichu ve
   smyčce, zvuk s průběhem po ťuknutí, zhlédnutí (`CLAUDE.md`, „Video kolečka"). ~~**Nahrávání
   kolečka**~~ — hotovo (přepnutí ťuknutím, nahrávání podržením s tahem na zrušení a zámek;
-  `CLAUDE.md`, „Nahrávání koleček"). Zbývá přepis řeči (`speechRecognitionResult`), ověřit
+  `CLAUDE.md`, „Nahrávání koleček"). ~~Přepis řeči~~ — hotovo u hlasovky i kolečka
+  (`CLAUDE.md`, „Přepis řeči"); zbývá ho ověřit s účtem, který přepisovat smí (Premium nebo
+  zkušební přepisy), přepis ve skupině s boosty (`group_transcribe_level_min`) a hodnocení
+  přepisu (`rateSpeechRecognition`). Dál zbývá ověřit
   zhlédnutí u odesílatele, **nahrávání na iOS ověřit na telefonu** (simulátor kameru nemá),
   **přepnutí kamery během nahrávání na iOS** (chce `AVAssetWriter` místo
   `AVCaptureMovieFileOutput`) a na Androidu ověřit přepnutí na zadní kameru. ~~Náhled před odesláním~~ — hotovo (■ u zamčeného kolečka; `CLAUDE.md`, „Nahrávání koleček").
@@ -449,9 +451,13 @@ snadno na to uživatel narazí.
   (`CLAUDE.md`, „Hod kostkou"). Samotné 🎲 (a ostatní emoji
   hodu) z pole odejde jako hod. ~~Efekt výhry~~ — hotovo (konfety na snímku výhry, jen u vlastního hodu).
 - ~~**Placená média** (`MessagePaidMedia`) — rozmazaný náhled s cenou~~ — hotovo (`CLAUDE.md`,
-  „Placená média"). Zbývá odemknutí za hvězdy (placení nemáme) a mřížka víc zaplacených položek.
-- **Sdílený příběh** (`MessageStory`), **dárky, soutěže, faktury, hry** — dnes text. Stojí na
-  stories a hvězdách, které aplikace nemá; zvážit aspoň kartu s náhledem.
+  „Placená média"), i mřížka víc nezaplacených položek. Zbývá odemknutí za hvězdy (placení
+  nemáme) a mřížka víc ZAPLACENÝCH položek (prohlížeč i reakce počítají s jednou fotkou na
+  zprávu; bez možnosti zaplatit to nejde ověřit).
+- ~~**Faktury a hry**~~ — hotovo jako karta s obrázkem, popisem a cenou (`CLAUDE.md`, „Faktura
+  a hra"). Zbývá animace hry a placení (hvězdy ani platby nemáme).
+- **Sdílený příběh** (`MessageStory`), **dárky, soutěže** — dnes text. Stojí na stories
+  a hvězdách, které aplikace nemá; zvážit aspoň kartu s náhledem.
 - ~~**Článek** (`MessageRichMessage`)~~ — hotovo jako text s formátováním (`CLAUDE.md`, „Článek"). Zbývá kreslit média článku (dnes „[Fotka]" s popiskem), sbalitelné bloky a posílání článků (jen s Premium).
 
 **Údaje o zprávě, které TDLib posílá a my zahazujeme**
@@ -461,8 +467,10 @@ snadno na to uživatel narazí.
   (testovací účet neodebírá kanál s diskusí).
 - ~~**Komentáře u příspěvků kanálu**~~ — hotovo: čip „N komentářů" pod příspěvkem otevře
   vlákno v diskusní skupině (`CLAUDE.md`, „Komentáře"). Zbývá: **odeslání komentáře ověřit**
-  (veřejné, jen se souhlasem), komentovat bez vstupu do skupiny (`joinToSendMessages`), ~~tváře
-  posledních komentujících (`recentReplierIds`)~~ — hotovo, hledání a koncept ve vlákně (`topicId`),
+  (veřejné, jen se souhlasem), ~~komentovat bez vstupu do skupiny (`joinToSendMessages`)~~ —
+  hotovo (pole se ukáže, odeslání ověřené není), ~~tváře
+  posledních komentujících (`recentReplierIds`)~~ — hotovo, ~~hledání a koncept ve vlákně
+  (`topicId`)~~ — hotovo,
   ~~skok na první nepřečtený komentář~~ — hotovo (`CLAUDE.md`, „Komentáře").
 - ~~**Odpověď na zprávu z jiného chatu**~~ — hotovo (citace z `origin` a `content`, ťuknutí
   otevře ten chat; `CLAUDE.md`, „Odpovědi"). **Ověřené jen sondou**, skutečnou odpověď
@@ -500,7 +508,8 @@ snadno na to uživatel narazí.
   ověřená nejsou** — bot nic z toho poslat nesmí (viz CLAUDE.md).
 - ~~**Příkaz bota** (`BotCommand`)~~ — hotovo: ťuknutí příkaz pošle (`CLAUDE.md`, „Příkazy bota“).
 - ~~**Čas v médiu**~~ — hotovo: „1:23" pustí video, hlasovku, skladbu i kolečko od toho místa,
-  v téže zprávě i v odpovědi (`CLAUDE.md`, „Čas v médiu"). Zbývá video v náhledu odkazu.
+  v téže zprávě i v odpovědi, video v náhledu odkazu otevře web od toho místa
+  (`CLAUDE.md`, „Čas v médiu").
 - ~~**Datum a čas** (`DateTime`)~~ — hotovo: v místním pásmu a jazyce aplikace, jako inline
   obsah místo textu pisatele, takže se offsety neposouvají (`CLAUDE.md`, „Datum a čas v textu").
   Karta a cashtag jsou okrajové.
@@ -526,7 +535,7 @@ snadno na to uživatel narazí.
 - **Napovídání při psaní**: ~~`/` příkazy bota~~ — hotovo i s tlačítkem seznamu příkazů
   (`CLAUDE.md`, „Příkazy bota“; ve skupině ověřit příponu `@bot`). ~~`@` členové skupiny~~ —
   hotovo i se zmínkou jménem (`CLAUDE.md`, „Napovídání zmínek"; ve skutečné skupině ověřit).
-  Zbývá tlačítko nabídky bota s mini aplikací (`BotMenuButton`). ~~Emoji podle slov~~ — hotovo
+  ~~Tlačítko nabídky bota s mini aplikací (`BotMenuButton`)~~ — hotovo. ~~Emoji podle slov~~ — hotovo
   (`CLAUDE.md`, „Emoji podle slov"). ~~Inline boti
   (`@gif kočka` v poli)~~ — hotovo i s „přes @bot" u zprávy (`CLAUDE.md`, „Inline boti"); zbývá
   ověřit tlačítko „nastavit u bota", bota s polohou a inline bota ve skupině.
@@ -547,9 +556,10 @@ snadno na to uživatel narazí.
   samotný zápis ověřený není, mění účet). Zbývá ověřit ve skupině se správcovskými právy.
 - ~~**Překlad zprávy**~~ (`translateMessageText`) — hotovo, sheet z nabídky nad zprávou
   (`CLAUDE.md`, „Překlad zprávy"). ~~Volba cílového jazyka~~ — hotovo. Zbývá překlad celého chatu
-  (`UpdateChatIsTranslatable`, Premium) a skrýt „Přeložit" u zprávy, která už je v jazyce
-  aplikace (chce to rozpoznání jazyka v zařízení). **Shrnutí od serveru** (`summarizeMessage`,
-  `summaryLanguageCode`) — vedle shrnutí v zařízení.
+  (`UpdateChatIsTranslatable`, Premium). ~~Skrýt „Přeložit" u zprávy, která už je v jazyce
+  překladu~~ — hotovo (rozpoznání jazyka v zařízení; na iOS jen přeložené). ~~**Shrnutí od serveru**~~ (`summarizeMessage`)
+  — hotovo, „Shrnout" v nabídce nad zprávou (`CLAUDE.md`, „Shrnutí od serveru"). Samotné shrnutí
+  ověřené NENÍ: testovací účet bez Premium dostane hned `SUMMARY_FLOOD_PREMIUM`.
 - **Vědomě NE**: tapeta a téma chatu (`Chat.background`, `theme`) a barvy jmen podle profilu
   (`accentColorId`) — aplikace má vlastní Material vzhled a `senderColor`; kdyby se přidávaly,
   je to rozhodnutí o vzhledu, ne chybějící funkce.

@@ -44,6 +44,8 @@ import eu.tintera.plume.resources.text_select_24dp
 import eu.tintera.plume.resources.star_filled_24dp
 import eu.tintera.plume.resources.translate_24dp
 import eu.tintera.plume.resources.menu_translate
+import eu.tintera.plume.resources.menu_summarize
+import eu.tintera.plume.resources.summarize_24dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 
@@ -185,6 +187,9 @@ sealed interface MessageAction {
 
     /** Přepne rychlost přehrávání na další v pořadí. Platí pro celou aplikaci, ne pro tuhle zprávu. */
     data object CycleVoiceSpeed : MessageAction
+
+    /** Požádá server o přepis hlasovky nebo kolečka do textu. */
+    data object Transcribe : MessageAction
 }
 
 /**
@@ -280,11 +285,23 @@ sealed interface MessageMenuAction : MessageAction {
     /**
      * Přeložit text zprávy do jazyka aplikace. Kandidát za stejných podmínek jako [Copy]: bez
      * textu není co překládat a chráněný obsah ven nesmí ani v jiném jazyce. Otevře sheet — je to
-     * jednorázová akce jako „Informace", ne podnabídka.
+     * jednorázová akce jako „Informace", ne podnabídka. Zpráva, která už JE v jazyce překladu
+     * ([MessageMenu.inTranslationLanguage]), ji nemá — překlad by vrátil totéž.
      */
     data object Translate : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
-            MenuPresentation(Res.drawable.translate_24dp, Res.string.menu_translate).takeIf { menu.actions.canCopy }
+            MenuPresentation(Res.drawable.translate_24dp, Res.string.menu_translate)
+                .takeIf { menu.actions.canCopy && !menu.inTranslationLanguage }
+    }
+
+    /**
+     * Shrnutí dlouhé zprávy od serveru. Kandidát jen u zprávy, které ho server nabízí
+     * (`summaryLanguage`); stojí na témže právu jako překlad — chráněný obsah ven nesmí ani
+     * zkrácený.
+     */
+    data object Summarize : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.summarize_24dp, Res.string.menu_summarize)
     }
 
     /** Kandidát jen u samolepky. Jestli už v oblíbených je, se zjistí při otevření nabídky. */

@@ -68,6 +68,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.foundation.background
+import eu.tintera.plume.features.conversation.JoinRequestsBar
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ForumTopic
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -154,6 +158,8 @@ fun ForumTopicsScreen(
     onOpenProfile: () -> Unit,
     /** Celá skupina jako jedna konverzace, jak ji znají klienti bez témat. */
     onViewAsMessages: () -> Unit,
+    /** Pruh s čekajícími žádostmi o vstup: otevře jejich seznam. */
+    onOpenJoinRequests: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -172,6 +178,9 @@ fun ForumTopicsScreen(
         currentOnOpenTopic(created)
         viewModel.createdTopicOpened()
     }
+    val joinRequests by viewModel.joinRequests.collectAsStateWithLifecycle()
+    // ✕ schová pruh do další žádosti, stejně jako nad konverzací (pamatuje se počet).
+    var joinRequestsHiddenAt by rememberSaveable(viewModel.chatId) { mutableIntStateOf(0) }
     var actionsFor by remember { mutableStateOf<ForumTopic?>(null) }
     var deleteTarget by remember { mutableStateOf<ForumTopic?>(null) }
 
@@ -343,6 +352,20 @@ fun ForumTopicsScreen(
                         )
                     }
                     return@LazyColumn
+                }
+                // Žádosti o vstup nad hledáním: čekají na rozhodnutí správce, jako nad konverzací.
+                // Blok seznamu, ne plovoucí pruh — seznam témat nad sebou nic nescrolluje.
+                joinRequests?.takeIf { it.count > joinRequestsHiddenAt }?.let { requests ->
+                    item(key = "join-requests") {
+                        JoinRequestsBar(
+                            requests = requests,
+                            onClick = onOpenJoinRequests,
+                            onHide = { joinRequestsHiddenAt = requests.count },
+                            glass = Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                            floating = false,
+                            modifier = Modifier.animateItem().padding(bottom = 12.dp),
+                        )
+                    }
                 }
                 item(key = "search") {
                     SearchPill(

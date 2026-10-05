@@ -50,6 +50,11 @@ import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.core.ui.tick
+import eu.tintera.plume.features.conversation.items.BelowWithSameWidth
+import eu.tintera.plume.features.conversation.items.TranscribeButton
+import eu.tintera.plume.features.conversation.items.TranscriptState
+import eu.tintera.plume.features.conversation.items.TranscriptText
+import androidx.compose.material3.LocalContentColor
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_play_voice
 import eu.tintera.plume.resources.conversation_voice_progress
@@ -79,7 +84,7 @@ import org.jetbrains.compose.resources.stringResource
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun VoiceNoteContent(
+internal fun VoiceNoteContent(
     voice: MessageMedia.VoiceNote,
     playback: () -> VoicePlayback?,
     speed: () -> VoiceSpeed,
@@ -89,11 +94,35 @@ fun VoiceNoteContent(
     accent: Color,
     onAccent: Color,
     modifier: Modifier = Modifier,
+    transcript: TranscriptState? = null,
+) {
+    BelowWithSameWidth(
+        modifier = modifier,
+        top = {
+            VoiceRow(voice, playback, speed, onToggle, onSeek, onCycleSpeed, accent, onAccent, transcript)
+        },
+        below = {
+            if (transcript != null) TranscriptText(transcript, color = LocalContentColor.current)
+        },
+    )
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun VoiceRow(
+    voice: MessageMedia.VoiceNote,
+    playback: () -> VoicePlayback?,
+    speed: () -> VoiceSpeed,
+    onToggle: () -> Unit,
+    onSeek: (Float) -> Unit,
+    onCycleSpeed: () -> Unit,
+    accent: Color,
+    onAccent: Color,
+    transcript: TranscriptState?,
 ) {
     val current = playback()
     val bars = remember(voice.waveform) { resampleWaveform(voice.waveform, VOICE_BARS) }
     Row(
-        modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -160,6 +189,14 @@ fun VoiceNoteContent(
                     SpeedChip(speed = speed(), accent = accent, onAccent = onAccent, onClick = onCycleSpeed)
                 }
             }
+        }
+
+        if (transcript?.hasButton == true) {
+            TranscribeButton(
+                state = transcript,
+                container = accent.copy(alpha = 0.15f),
+                content = accent,
+            )
         }
     }
 }

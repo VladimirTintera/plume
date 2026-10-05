@@ -49,7 +49,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.draw.clip
-import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.ui.chatTitle
 import eu.tintera.plume.core.ui.isSavedMessages
 import eu.tintera.plume.resources.chats_search_archived
@@ -75,6 +74,14 @@ import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.AppBarWithSearch
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.ExpandedFullScreenSearchBar
+import eu.tintera.plume.core.ui.LocalTwoPane
+import eu.tintera.plume.core.ui.PopupBackAfterKeyboard
+import eu.tintera.plume.core.ui.popupDismissesOnBack
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.ExpandedDockedSearchBarWithGap
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -153,6 +160,11 @@ internal fun ChatSearchBar(
     onRequestHandled: () -> Unit,
     /** Konec sbalené pilulky (menu účtu). V rozbaleném hledání není — tam je ✕ dotazu. */
     trailing: @Composable () -> Unit,
+    /**
+     * Pod pilulkou (řádek složek). Odjíždí a vrací se SPOLU s ní: scroll behavior nese sloupec
+     * kolem obou, ne bar sám — jinak by řádek po odjetí pilulky visel nahoře sám.
+     */
+    below: @Composable () -> Unit = {},
 ) {
     val searchBarState = rememberSearchBarState()
     val textFieldState = rememberTextFieldState()
@@ -268,28 +280,23 @@ internal fun ChatSearchBar(
         snapshotFlow { textFieldState.text.toString() }.collect { onQueryChangeLatest(it) }
     }
 
-    AppBarWithSearch(
-        state = searchBarState,
-        inputField = inputField,
-        colors = colors,
-        // Barva stránky výslovně. Bar ji má mít sám (`appBarContainerColor`), ale bez scroll
-        // behavior ji v téhle alphě nenakreslil a chaty pod ním prosvítaly.
-        modifier = Modifier.background(MaterialTheme.colorScheme.surface),
-        scrollBehavior = scrollBehavior,
-    )
-
-    ExpandedFullScreenSearchBar(
-        state = searchBarState,
-        inputField = inputField,
-        colors = colors.searchBarColors,
-        /*
-         * Spodní inset si berou seznamy výsledků (`resultsPadding`), ne hledání. Výchozí
-         * `safeDrawing` dává obsahu spodek jako padding, takže výsledky končily useknuté nad
-         * navigační lištou na holé ploše. Takhle jedou pod lištu a poslední položka se nad ni
-         * doroluje. Klávesnice je ve `safeDrawing` taky, takže nic nezakryje.
-         */
-        windowInsets = { WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal) },
+    // Barva stránky výslovně. Bar ji má mít sám (`appBarContainerColor`), ale bez scroll
+    // behavior ji v téhle alphě nenakreslil a chaty pod ním prosvítaly.
+    Column(
+        Modifier
+            .background(MaterialTheme.colorScheme.surface)
+            .then(with(scrollBehavior) { Modifier.searchBarScrollBehavior() }),
     ) {
+        AppBarWithSearch(
+            state = searchBarState,
+            inputField = inputField,
+            colors = colors,
+            modifier = Modifier.background(MaterialTheme.colorScheme.surface),
+        )
+        below()
+    }
+
+    val results: @Composable ColumnScope.() -> Unit = {
         SearchResults(
             query = textFieldState.text.toString(),
             search = search,
@@ -307,7 +314,58 @@ internal fun ChatSearchBar(
             onFilterChange = onFilterChange,
         )
     }
+
+    /*
+     * Na široké ploše (dva panely) se hledání rozbalí jako panel pod pilulkou, ne přes celou
+     * obrazovku. Seznam chatů tam je jen levý panel a celoobrazovkové hledání by zakrylo
+     * i otevřenou konverzaci vpravo — a výsledky by se natáhly přes celý rozložený Fold.
+     * Material doporučuje přesně tohle: docked na střední a velké šířce, full screen na telefonu.
+     */
+    if (LocalTwoPane.current) {
+        /*
+         * Zpět má napřed schovat klávesnici, teprve další zpět hledání zavřít — jako na telefonu.
+         * Panel je popup a ten si na Androidu 13+ bere zpět PŘED klávesnicí: zavřel hledání
+         * i s ní. Zavírá ho proto `PopupBackAfterKeyboard`, až když klávesnice vidět není; jestli
+         * je, ví jen okno popupu (klávesnice patří jemu), tak sedí v poli uvnitř.
+         */
+        CompositionLocalProvider(LocalDockedResults provides true) {
+            ExpandedDockedSearchBarWithGap(
+                state = searchBarState,
+                inputField = {
+                    PopupBackAfterKeyboard { collapse() }
+                    inputField()
+                },
+                colors = colors.searchBarColors,
+                properties = PopupProperties(
+                    focusable = true,
+                    clippingEnabled = false,
+                    dismissOnBackPress = popupDismissesOnBack,
+                ),
+                content = results,
+            )
+        }
+    } else {
+        ExpandedFullScreenSearchBar(
+            state = searchBarState,
+            inputField = inputField,
+            colors = colors.searchBarColors,
+            /*
+             * Spodní inset si berou seznamy výsledků (`resultsPadding`), ne hledání. Výchozí
+             * `safeDrawing` dává obsahu spodek jako padding, takže výsledky končily useknuté nad
+             * navigační lištou na holé ploše. Takhle jedou pod lištu a poslední položka se nad ni
+             * doroluje. Klávesnice je ve `safeDrawing` taky, takže nic nezakryje.
+             */
+            windowInsets = { WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal) },
+            content = results,
+        )
+    }
 }
+
+/**
+ * Výsledky leží v panelu pod pilulkou (široká plocha), ne přes celou obrazovku. Panel ke spodku
+ * okna nesahá, takže spodní lišta ani klávesnice do jeho odsazení nepatří.
+ */
+private val LocalDockedResults = staticCompositionLocalOf { false }
 
 /**
  * Obsah rozbaleného hledání. Bez dotazu návrhy (řádek nejčastějších lidí, historie hledání),
@@ -447,7 +505,7 @@ private fun SearchResults(
                     chatId = chat.id,
                     title = chat.title,
                     avatarFileId = chat.avatarFileId,
-                    archived = chat.folder == ChatFolder.Archive,
+                    archived = chat.isArchived,
                     onClick = { onPickLatest(chat.id) },
                     // Serverové výsledky přibývají za lokálními — plynule, ne skokem.
                     modifier = Modifier.animateItem(),
@@ -606,7 +664,7 @@ private fun Suggestions(
                     chatId = chat.id,
                     title = chatTitle(chat.id, chat.title),
                     avatarFileId = chat.avatarFileId,
-                    archived = chat.folder == ChatFolder.Archive,
+                    archived = chat.isArchived,
                     onClick = { onPick(chat.id) },
                     modifier = Modifier.animateItem(),
                     avatarShape = chat.kind.avatarShape(),
@@ -695,7 +753,11 @@ private val TOP_CHAT_WIDTH = 76.dp
 /** Odsazení seznamů v hledání: spodní systémové lišty a klávesnice (viz `windowInsets` hledání). */
 @Composable
 private fun resultsPadding(): PaddingValues {
-    val bottom = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues().calculateBottomPadding()
+    val bottom = if (LocalDockedResults.current) {
+        0.dp
+    } else {
+        WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues().calculateBottomPadding()
+    }
     return PaddingValues(top = 8.dp, bottom = 8.dp + bottom)
 }
 

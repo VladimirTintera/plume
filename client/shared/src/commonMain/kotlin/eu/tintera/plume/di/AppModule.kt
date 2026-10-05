@@ -1,6 +1,10 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.features.forward.ShareContactViewModel
+import eu.tintera.plume.features.profile.AddMembersViewModel
+import eu.tintera.plume.features.forward.BotShareViewModel
+import eu.tintera.plume.core.telegram.BotChatRequest
+import eu.tintera.plume.core.telegram.BotUsersRequest
 import eu.tintera.plume.features.profile.JoinRequestsViewModel
 import eu.tintera.plume.features.profile.InviteLinksViewModel
 import eu.tintera.plume.features.settings.EditProfileViewModel
@@ -8,10 +12,15 @@ import eu.tintera.plume.core.telegram.TdlAccountRepository
 import eu.tintera.plume.core.telegram.AccountRepository
 import eu.tintera.plume.features.profile.ChatProfileViewModel
 import eu.tintera.plume.features.forum.ForumTopicsViewModel
+import eu.tintera.plume.features.webapp.WebAppViewModel
+import eu.tintera.plume.core.telegram.WebAppRepository
+import eu.tintera.plume.core.telegram.TdlWebAppRepository
 import eu.tintera.plume.features.profile.EditChatViewModel
 import eu.tintera.plume.features.profile.MemberRightsViewModel
 import eu.tintera.plume.core.telegram.TdlProfileRepository
 import eu.tintera.plume.core.telegram.InviteLinkRepository
+import eu.tintera.plume.core.telegram.ChatFolderRepository
+import eu.tintera.plume.core.telegram.TdlChatFolderRepository
 import eu.tintera.plume.core.telegram.TdlInviteLinkRepository
 import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.DeviceRepository
@@ -88,6 +97,8 @@ import eu.tintera.plume.features.settings.AppearanceViewModel
 import eu.tintera.plume.features.settings.SettingsViewModel
 import eu.tintera.plume.features.settings.BlockSenderViewModel
 import eu.tintera.plume.features.settings.BlockedSendersViewModel
+import eu.tintera.plume.features.settings.ChatFolderEditViewModel
+import eu.tintera.plume.features.settings.ChatFoldersViewModel
 import eu.tintera.plume.features.settings.SensitiveContentViewModel
 import eu.tintera.plume.features.settings.DefaultAutoDeleteViewModel
 import eu.tintera.plume.features.settings.NotificationSettingsViewModel
@@ -150,10 +161,11 @@ fun appModule() = module {
     // drží ConversationViewModel.
     single<ConversationRepository> { TdlConversationRepository(holder = get()) }
     single<ForumRepository> { TdlForumRepository(holder = get()) }
+    single<WebAppRepository> { TdlWebAppRepository(holder = get()) }
 
     // Odpověď z notifikace. Nad ConversationRepository, ne v něm: jde o pořadí kroků (odeslat,
     // dočkat se potvrzení, pak teprve přečíst), ne o další volání TDLib.
-    single { NotificationActions(session = get(), conversations = get(), chats = get()) }
+    single { NotificationActions(session = get(), conversations = get(), chats = get(), notifications = get()) }
 
     // Eagerně: v konstruktoru se přihlašuje k `fileUpdates` a průběh stahování chodí pro všechny
     // soubory. Při líné konstrukci by se ztratily updaty k souborům, jejichž stahování už běží.
@@ -228,6 +240,7 @@ fun appModule() = module {
     single { SelfDestructTimers() }
     single<ProfileRepository> { TdlProfileRepository(holder = get()) }
     single<InviteLinkRepository> { TdlInviteLinkRepository(holder = get()) }
+    single<ChatFolderRepository> { TdlChatFolderRepository(holder = get()) }
     single<NotificationSettingsRepository> { TdlNotificationSettingsRepository(holder = get()) }
     single<SensitiveContentSettings> { TdlSensitiveContentSettings(holder = get()) }
     single<DefaultAutoDeleteSettings> { TdlDefaultAutoDeleteSettings(holder = get()) }
@@ -255,6 +268,7 @@ fun appModule() = module {
             devices = get(),
             accounts = get(),
             savedState = get(),
+            folderRepository = get(),
         )
     }
     viewModelOf(::StickerPickerViewModel)
@@ -284,6 +298,9 @@ fun appModule() = module {
     }
     viewModelOf(::SettingsViewModel)
     viewModelOf(::BlockedSendersViewModel)
+    viewModelOf(::ChatFoldersViewModel)
+    // Id složky je Int a nic jiného téhož typu parametry nemají, `get()` ho nezamění.
+    viewModel { parameters -> ChatFolderEditViewModel(folderId = parameters.get(), chats = get(), folders = get(), clipboard = get(), sharer = get()) }
     viewModelOf(::BlockSenderViewModel)
     viewModelOf(::SensitiveContentViewModel)
     viewModelOf(::DefaultAutoDeleteViewModel)
@@ -320,6 +337,7 @@ fun appModule() = module {
             appScope = get(named(APP_SCOPE)),
             urlOpener = get(),
             clipboard = get(),
+            languageDetector = get(),
             fileRepository = get(),
             voicePlayer = get(),
             musicQueue = get(),
@@ -334,11 +352,37 @@ fun appModule() = module {
             botStartRequests = get(),
             replyRequests = get(),
             inlineQueryRequests = get(),
+            inviteLinks = get(),
         )
     }
 
     viewModel { parameters ->
-        ForumTopicsViewModel(chatId = parameters.get(), forums = get(), conversations = get(), notifications = get())
+        ForumTopicsViewModel(
+            chatId = parameters.get(),
+            forums = get(),
+            conversations = get(),
+            notifications = get(),
+            inviteLinks = get(),
+        )
+    }
+
+    // Parametry INDEXEM: chat a bot jsou dvě `Long` a podle typu by se zaměnily.
+    viewModel { parameters ->
+        WebAppViewModel(
+            chatId = parameters.values[0] as Long,
+            botUserId = parameters.values[1] as Long,
+            url = parameters.values[2] as String,
+            launch = parameters.values[3] as Boolean,
+            keyboardButtonText = parameters.values.getOrNull(4) as? String,
+            main = parameters.values.getOrNull(5) as? Boolean ?: false,
+            startParameter = parameters.values.getOrNull(6) as? String ?: "",
+            shortName = parameters.values.getOrNull(7) as? String ?: "",
+            repository = get(),
+            settings = get(),
+            chats = get(),
+            urlOpener = get(),
+            appScope = get(named(APP_SCOPE)),
+        )
     }
 
     viewModel { parameters ->
@@ -414,8 +458,22 @@ fun appModule() = module {
         )
     }
 
+    viewModel { parameters -> AddMembersViewModel(chatId = parameters.get(), profiles = get(), chats = get()) }
+
     viewModel { parameters ->
         ShareContactViewModel(userId = parameters.get(), repository = get(), chatRepository = get(), shareTargets = get())
+    }
+
+    // Parametry INDEXEM: chat a zpráva jsou dvě `Long`, požadavky bývají `null`.
+    viewModel { parameters ->
+        BotShareViewModel(
+            chatId = parameters.values[0] as Long,
+            messageId = parameters.values[1] as Long,
+            users = parameters.values[2] as? BotUsersRequest,
+            chat = parameters.values[3] as? BotChatRequest,
+            repository = get(),
+            chatRepository = get(),
+        )
     }
 
     // Parametry z routy. `get()` bez indexu je bere podle pořadí, ve kterém přišly; třetí

@@ -61,8 +61,16 @@ internal sealed interface OwnMemberStatus {
  * - V kanálu smí publikovat jen vlastník a správce s `canPostMessages`; členové a omezení čtou.
  * - Ve skupině rozhoduje [membersCanSend] (výchozí práva celé skupiny, `Chat.permissions`),
  *   u omezeného člena jeho vlastní práva — ta výchozí přebíjejí. Správce a vlastník píšou vždy.
+ * - [nonMembersCanSend]: diskusní skupina kanálu může psaní dovolit i těm, kdo do ní nevstoupili
+ *   (`Supergroup.joinToSendMessages == false`) — komentovat příspěvek pak jde bez „Přidat se".
+ *   Platí pro ně výchozí práva skupiny jako pro člena; vyhozenému to nepomůže.
  */
-internal fun writeAccess(isChannel: Boolean, status: OwnMemberStatus?, membersCanSend: Boolean): WriteAccess =
+internal fun writeAccess(
+    isChannel: Boolean,
+    status: OwnMemberStatus?,
+    membersCanSend: Boolean,
+    nonMembersCanSend: Boolean = false,
+): WriteAccess =
     when (status) {
         null -> WriteAccess.Allowed
         is OwnMemberStatus.Creator -> if (status.isMember) WriteAccess.Allowed else WriteAccess.NotMember
@@ -76,12 +84,17 @@ internal fun writeAccess(isChannel: Boolean, status: OwnMemberStatus?, membersCa
             else -> WriteAccess.Restricted
         }
         is OwnMemberStatus.Restricted -> when {
-            !status.isMember -> WriteAccess.NotMember
+            !status.isMember && !(nonMembersCanSend && !isChannel) -> WriteAccess.NotMember
             isChannel -> WriteAccess.ChannelReadOnly
             status.canSendMessages -> WriteAccess.Allowed
             else -> WriteAccess.Restricted
         }
-        OwnMemberStatus.Left, OwnMemberStatus.Banned -> WriteAccess.NotMember
+        OwnMemberStatus.Left -> when {
+            !nonMembersCanSend || isChannel -> WriteAccess.NotMember
+            membersCanSend -> WriteAccess.Allowed
+            else -> WriteAccess.Restricted
+        }
+        OwnMemberStatus.Banned -> WriteAccess.NotMember
     }
 
 /**
@@ -249,3 +262,10 @@ internal fun canAddBot(status: OwnMemberStatus?, membersCanInvite: Boolean, asAd
         is OwnMemberStatus.Restricted -> !asAdmin && status.isMember && status.canInviteUsers
         OwnMemberStatus.Left, OwnMemberStatus.Banned -> false
     }
+
+/**
+ * Smí uživatel do skupiny nebo kanálu přidávat lidi? Totéž pravidlo jako u bota bez práv správce
+ * ([canAddBot]); v kanálu členové zvát nesmí nikdy ([isChannel]), tam je to jen pro správce.
+ */
+internal fun canInviteMembers(status: OwnMemberStatus?, isChannel: Boolean, membersCanInvite: Boolean): Boolean =
+    canAddBot(status, membersCanInvite = !isChannel && membersCanInvite, asAdmin = false)

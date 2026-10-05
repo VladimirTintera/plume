@@ -18,13 +18,19 @@ class PaidMediaTest {
     )
 
     @Test
-    fun nezaplaceneNeseCenuPocetARozmeryPrvni() {
+    fun nezaplaceneNeseCenuANahledyVsechPolozek() {
         val media = paid(
             PaidMediaPreview(width = 800, height = 600, duration = 0, minithumbnail = null),
             PaidMediaPreview(width = 100, height = 100, duration = 12, minithumbnail = null),
         ).toPaidMedia(hideSensitive = false)
         assertEquals(
-            MessageMedia.PaidMedia(starCount = 150, itemCount = 2, width = 800, height = 600, durationSeconds = 0),
+            MessageMedia.PaidMedia(
+                starCount = 150,
+                previews = listOf(
+                    MessageMedia.PaidPreview(width = 800, height = 600, durationSeconds = 0),
+                    MessageMedia.PaidPreview(width = 100, height = 100, durationSeconds = 12),
+                ),
+            ),
             media,
         )
     }
@@ -32,7 +38,10 @@ class PaidMediaTest {
     @Test
     fun neznamyDruhJeZamceneBezNahledu() {
         val media = paid(PaidMediaUnsupported()).toPaidMedia(hideSensitive = false)
-        assertEquals(MessageMedia.PaidMedia(starCount = 150, itemCount = 1, width = 0, height = 0, durationSeconds = 0), media)
+        assertEquals(
+            MessageMedia.PaidMedia(starCount = 150, previews = listOf(MessageMedia.PaidPreview(width = 0, height = 0, durationSeconds = 0))),
+            media,
+        )
     }
 
     @Test

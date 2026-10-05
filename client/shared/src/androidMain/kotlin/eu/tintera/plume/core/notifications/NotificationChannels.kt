@@ -7,6 +7,8 @@ import android.os.Build
 import eu.tintera.plume.core.share.shortcutId
 import eu.tintera.plume.core.telegram.NotificationChannelKind
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.notification_channel_calls
+import eu.tintera.plume.resources.notification_channel_calls_description
 import eu.tintera.plume.resources.notification_channel_channels
 import eu.tintera.plume.resources.notification_channel_channels_description
 import eu.tintera.plume.resources.notification_channel_groups
@@ -59,6 +61,12 @@ suspend fun createNotificationChannels(context: Context) {
         ).apply { this.description = getString(description) }
         manager.createNotificationChannel(channel)
     }
+    // Hovory mají kanál zvlášť: zvoní jinak než zprávy a kdo hovory v Plume nechce (přijmout
+    // je stejně nejde), vypne si jen tenhle.
+    manager.createNotificationChannel(
+        NotificationChannel(CALLS_CHANNEL_ID, getString(Res.string.notification_channel_calls), NotificationManager.IMPORTANCE_HIGH)
+            .apply { description = getString(Res.string.notification_channel_calls_description) },
+    )
     // Jediný kanál z dřívějška — jinak by v systémovém nastavení visel jako prázdná položka.
     manager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
 }
@@ -110,3 +118,6 @@ fun deleteConversationChannels(context: Context) {
 }
 
 private const val LEGACY_CHANNEL_ID = "messages"
+
+/** Kanál příchozích hovorů. **Nesmí se měnit**, ze stejného důvodu jako [channelId]. */
+const val CALLS_CHANNEL_ID = "calls"

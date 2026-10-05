@@ -2,6 +2,8 @@ package eu.tintera.plume.app.shell
 
 import eu.tintera.plume.features.forward.ShareContactScreen
 import eu.tintera.plume.core.navigation.ShareContactRoute
+import eu.tintera.plume.core.navigation.AddMembersRoute
+import eu.tintera.plume.features.profile.AddMembersScreen
 import eu.tintera.plume.features.profile.JoinRequestsScreen
 import eu.tintera.plume.features.profile.InviteLinksScreen
 import eu.tintera.plume.core.navigation.JoinRequestsRoute
@@ -18,6 +20,10 @@ import eu.tintera.plume.core.navigation.EditChatRoute
 import eu.tintera.plume.core.navigation.EditProfileRoute
 import eu.tintera.plume.core.navigation.BlockSenderRoute
 import eu.tintera.plume.core.navigation.BlockedSendersRoute
+import eu.tintera.plume.core.navigation.ChatFolderEditRoute
+import eu.tintera.plume.core.navigation.ChatFoldersRoute
+import eu.tintera.plume.features.settings.ChatFolderEditScreen
+import eu.tintera.plume.features.settings.ChatFoldersScreen
 import eu.tintera.plume.features.settings.BlockSenderScreen
 import eu.tintera.plume.features.settings.BlockedSendersScreen
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
@@ -76,6 +82,14 @@ import eu.tintera.plume.features.forum.ForumTopicsScreen
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import eu.tintera.plume.core.navigation.ForwardRoute
 import eu.tintera.plume.core.navigation.PollComposerRoute
+import eu.tintera.plume.features.conversation.WebAppRequest
+import eu.tintera.plume.features.webapp.WebAppScreen
+import eu.tintera.plume.core.navigation.WebAppRoute
+import eu.tintera.plume.core.telegram.BotChatRequest
+import eu.tintera.plume.core.telegram.BotUsersRequest
+import eu.tintera.plume.features.conversation.BotShareRequest
+import eu.tintera.plume.features.forward.BotShareScreen
+import eu.tintera.plume.core.navigation.BotShareRoute
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.features.conversation.PollComposerScreen
 import eu.tintera.plume.features.conversation.PollComposerRequest
@@ -332,7 +346,7 @@ private fun ShellContent(
                          */
                         backNavigationBehavior = if (
                             navigation.section == ChatsRoute ||
-                            settingsStack.lastOrNull().let { it == EditProfileRoute || it == BlockedSendersRoute || it == BlockSenderRoute }
+                            settingsStack.lastOrNull().isOverSettingsSection()
                         ) {
                             BackNavigationBehavior.PopUntilContentChange
                         } else {
@@ -497,8 +511,12 @@ private fun shellEntryProvider(
             onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
             onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(chatId)) },
             onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
+            onOpenWebApp = { request -> chatsStack.add(webAppRoute(route.chatId, request, archive = false)) },
+            onOpenBotShare = { request -> chatsStack.add(botShareRoute(route.chatId, request)) },
             onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
             onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
+            onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
+            onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
         )
     }
 
@@ -517,6 +535,7 @@ private fun shellEntryProvider(
             },
             onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
             onViewAsMessages = { chatsStack.add(ConversationRoute(route.chatId)) },
+            onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
         )
     }
 
@@ -531,6 +550,7 @@ private fun shellEntryProvider(
             },
             onOpenProfile = { chatsStack.add(ArchiveChatProfileRoute(route.chatId)) },
             onViewAsMessages = { chatsStack.add(ArchiveConversationRoute(route.chatId)) },
+            onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
         )
     }
 
@@ -559,8 +579,13 @@ private fun shellEntryProvider(
             onChatGone = { chatsStack.closeChat(route.chatId) },
             onEdit = { if (chatsStack.lastOrNull() != EditChatRoute(route.chatId)) chatsStack.add(EditChatRoute(route.chatId)) },
             onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(userId)) },
+            onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
             onOpenMemberRights = { userId, admin ->
                 chatsStack.add(MemberRightsRoute(route.chatId, userId, admin))
+            },
+            // Soukromý chat s botem má id bota, takže chat je zároveň bot.
+            onOpenMainWebApp = {
+                chatsStack.add(WebAppRoute(route.chatId, route.chatId, url = "", launch = false, archive = false, main = true))
             },
         )
     }
@@ -663,8 +688,12 @@ private fun shellEntryProvider(
             onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(chatId)) },
             onUnarchived = { chatsStack.moveConversationToMain(route.chatId) },
             onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
+            onOpenWebApp = { request -> chatsStack.add(webAppRoute(route.chatId, request, archive = true)) },
+            onOpenBotShare = { request -> chatsStack.add(botShareRoute(route.chatId, request)) },
             onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
             onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
+            onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
+            onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
         )
     }
 
@@ -697,8 +726,13 @@ private fun shellEntryProvider(
                 }
             },
             onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(userId)) },
+            onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
             onOpenMemberRights = { userId, admin ->
                 chatsStack.add(ArchiveMemberRightsRoute(route.chatId, userId, admin))
+            },
+            // Soukromý chat s botem má id bota, takže chat je zároveň bot.
+            onOpenMainWebApp = {
+                chatsStack.add(WebAppRoute(route.chatId, route.chatId, url = "", launch = false, archive = true, main = true))
             },
         )
     }
@@ -750,6 +784,26 @@ private fun shellEntryProvider(
      * se cílový chat — uživatel tak skončí tam, kam zprávu poslal, a zpět ho
      * vrátí do původní konverzace.
      */
+    // Mini aplikace bota. Odkaz na chat z ní zavře ji a otevře chat nad konverzací pod ní.
+    entry<WebAppRoute> { route ->
+        WebAppScreen(
+            viewModel = koinViewModel(
+                key = "web-app-${route.chatId}-${route.botUserId}-${route.url.hashCode()}-${route.main}-${route.shortName}-${route.startParameter}",
+                parameters = {
+                    parametersOf(
+                        route.chatId, route.botUserId, route.url, route.launch, route.keyboardButtonText,
+                        route.main, route.startParameter, route.shortName,
+                    )
+                },
+            ),
+            onClose = { chatsStack.pop(route) },
+            onOpenChat = { target ->
+                chatsStack.pop(route)
+                chatsStack.openTarget(target, archive = route.archive)
+            },
+        )
+    }
+
     // Nová anketa. Po odeslání odejde — pod ní je konverzace, do které anketa přibyla.
     entry<PollComposerRoute> { route ->
         val mode = when {
@@ -814,6 +868,30 @@ private fun shellEntryProvider(
                     chatsStack.add(ConversationRoute(chatId))
                 }
             },
+        )
+    }
+
+    // Výběr lidí / chatu pro tlačítko bota. Po sdílení se vrátí do konverzace, kde tlačítko bylo.
+    entry<BotShareRoute> { route ->
+        val users = route.usersRequest()
+        val chat = route.chatRequest()
+        BotShareScreen(
+            viewModel = koinViewModel(
+                key = "bot-share-${route.chatId}-${route.messageId}-${route.buttonId}",
+                parameters = { parametersOf(route.chatId, route.messageId, users, chat) },
+            ),
+            users = users,
+            chat = chat,
+            onBack = { chatsStack.pop(route) },
+            onShared = { chatsStack.pop(route) },
+        )
+    }
+
+    entry<AddMembersRoute> { route ->
+        AddMembersScreen(
+            viewModel = koinViewModel(key = "add-members-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+            onDone = { chatsStack.pop(route) },
         )
     }
 
@@ -890,7 +968,7 @@ private fun shellEntryProvider(
             onSectionClick = { section ->
                 // I s obrazovkami, které se vrší nad sekci — jinak by zůstaly pod novou sekcí.
                 settingsStack.removeAll {
-                    it is SettingsSectionRoute || it is EditProfileRoute || it is BlockedSendersRoute || it is BlockSenderRoute
+                    it is SettingsSectionRoute || it.isOverSettingsSection()
                 }
                 settingsStack.add(SettingsSectionRoute(section))
             },
@@ -913,6 +991,27 @@ private fun shellEntryProvider(
             onBack = if (wide) null else popSection,
             onEditProfile = { if (settingsStack.lastOrNull() != EditProfileRoute) settingsStack.add(EditProfileRoute) },
             onOpenBlocked = { if (settingsStack.lastOrNull() != BlockedSendersRoute) settingsStack.add(BlockedSendersRoute) },
+            onOpenFolders = { if (settingsStack.lastOrNull() != ChatFoldersRoute) settingsStack.add(ChatFoldersRoute) },
+        )
+    }
+
+    // Složky chatů nad sekcí Obecné, jako seznam blokovaných; editor složky nad nimi.
+    entry<ChatFoldersRoute>(
+        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+    ) { route ->
+        ChatFoldersScreen(
+            viewModel = koinViewModel(),
+            onBack = { settingsStack.pop(route) },
+            onEdit = { id -> if (settingsStack.lastOrNull() !is ChatFolderEditRoute) settingsStack.add(ChatFolderEditRoute(id)) },
+        )
+    }
+
+    entry<ChatFolderEditRoute>(
+        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+    ) { route ->
+        ChatFolderEditScreen(
+            viewModel = koinViewModel(key = "chat-folder-${route.folderId}", parameters = { parametersOf(route.folderId) }),
+            onBack = { settingsStack.pop(route) },
         )
     }
 
@@ -1018,6 +1117,36 @@ private const val ARCHIVE_SCENE = "archive"
  */
 private const val SETTINGS_SCENE = "settings"
 
+private fun botShareRoute(chatId: Long, request: BotShareRequest) = BotShareRoute(
+    chatId = chatId,
+    messageId = request.messageId,
+    buttonId = request.users?.buttonId ?: request.chat?.buttonId ?: 0,
+    users = request.users != null,
+    bots = request.users?.bots,
+    maxQuantity = request.users?.maxQuantity ?: 1,
+    channel = request.chat?.channel ?: false,
+    forum = request.chat?.forum,
+    botIsMember = request.chat?.botIsMember ?: false,
+    botAdministrator = request.chat?.botAdministrator ?: false,
+)
+
+private fun BotShareRoute.usersRequest() = BotUsersRequest(buttonId, bots, maxQuantity).takeIf { users }
+
+private fun BotShareRoute.chatRequest() =
+    BotChatRequest(buttonId, channel, forum, botIsMember, botAdministrator).takeUnless { users }
+
+private fun webAppRoute(chatId: Long, request: WebAppRequest, archive: Boolean) = WebAppRoute(
+    chatId = chatId,
+    botUserId = request.botUserId,
+    url = request.url,
+    launch = request.launch,
+    keyboardButtonText = request.keyboardButtonText,
+    archive = archive,
+    main = request.main,
+    startParameter = request.startParameter,
+    shortName = request.shortName,
+)
+
 private fun SwitchInlinePick.toRoute() = SwitchInlineRoute(
     bot = bot,
     query = query,
@@ -1051,3 +1180,8 @@ private fun conversationBelow(stack: List<NavKey>, route: MediaRoute): Long? {
     }
     return chatId?.takeIf { it == route.chatId && !route.fromSharedMedia && route.pollMedia == NO_POLL_MEDIA }
 }
+
+/** Obrazovky, které se vrší nad sekci Nastavení: úprava profilu, blokovaní, složky chatů. */
+private fun NavKey?.isOverSettingsSection(): Boolean =
+    this == EditProfileRoute || this == BlockedSendersRoute || this == BlockSenderRoute ||
+        this == ChatFoldersRoute || this is ChatFolderEditRoute

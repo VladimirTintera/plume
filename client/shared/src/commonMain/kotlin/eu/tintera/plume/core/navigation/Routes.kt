@@ -60,6 +60,14 @@ data object BlockedSendersRoute : Route
 @Serializable
 data object BlockSenderRoute : Route
 
+/** Složky chatů — vrší se nad sekci Obecné stejně jako seznam blokovaných. */
+@Serializable
+data object ChatFoldersRoute : Route
+
+/** Editor složky nad seznamem složek; [folderId] `0` = nová složka. */
+@Serializable
+data class ChatFolderEditRoute(val folderId: Int) : Route
+
 /**
  * Archivované chaty. V list-detail rozvržení je to LIST panel scény archivu:
  * má vlastní detail panel [ArchiveConversationRoute], takže neovlivňuje otevřenou konverzaci
@@ -211,6 +219,35 @@ const val NO_START = -1
 @Serializable
 data class ForwardRoute(val fromChatId: Long, val messageIds: List<Long>) : Route
 
+/**
+ * Výběr pro tlačítko klávesnice bota „vyber lidi" ([users] `true`) nebo „vyber chat" ve zprávě
+ * [messageId] chatu [chatId]. Omezení tlačítka nese routa rozložená do polí — domácí typy
+ * (`BotUsersRequest`, `BotChatRequest`) serializovatelné nejsou a do `core/telegram` anotace
+ * navigace nepatří. Bez metadat scény: jde přes celou plochu z obou větví, jako formulář ankety.
+ */
+@Serializable
+data class BotShareRoute(
+    val chatId: Long,
+    val messageId: Long,
+    val buttonId: Int,
+    val users: Boolean,
+    /** Lidé: `true` jen boti, `false` jen lidé, `null` kdokoli. */
+    val bots: Boolean? = null,
+    val maxQuantity: Int = 1,
+    /** Chat: kanál, jinak skupina. */
+    val channel: Boolean = false,
+    val forum: Boolean? = null,
+    val botIsMember: Boolean = false,
+    val botAdministrator: Boolean = false,
+) : Route
+
+/**
+ * Výběr lidí, které přidat do skupiny nebo kanálu [chatId] (pruh „Pozvat členy", ⋮ v profilu).
+ * Bez metadat scény: jde přes celou plochu z obou větví, jako sdílení kontaktu.
+ */
+@Serializable
+data class AddMembersRoute(val chatId: Long) : Route
+
 /** Výběr chatů, do kterých poslat kontakt uživatele [userId] (z profilu, ⋮ → Sdílet kontakt). */
 @Serializable
 data class ShareContactRoute(val userId: Long) : Route
@@ -251,6 +288,29 @@ data class PollComposerRoute(
     /** Citovaný úryvek té odpovědi; `null` = celá zpráva. */
     val quoteText: String? = null,
     val quotePosition: Int = 0,
+) : Route
+
+/**
+ * Mini aplikace bota přes celou obrazovku. Bez metadat scény, jako formulář ankety: jde z hlavního
+ * seznamu i z archivu ([archive] říká, kam vést odkaz na chat, který mini aplikace otevře).
+ * Po zabití procesu se spustí znovu — stav stránky si drží mini aplikace sama.
+ */
+@Serializable
+data class WebAppRoute(
+    val chatId: Long,
+    val botUserId: Long,
+    val url: String,
+    /** Spuštění přes `openWebApp` (tlačítko pod zprávou); jinak jen adresa (`getWebAppUrl`). */
+    val launch: Boolean,
+    /** Text tlačítka vlastní klávesnice — jen s ním smí mini aplikace poslat data botovi. */
+    val keyboardButtonText: String? = null,
+    val archive: Boolean = false,
+    /** Hlavní mini aplikace bota (`getMainWebApp`); [url] je pak prázdná. */
+    val main: Boolean = false,
+    /** Parametr z odkazu `t.me/bot?startapp=…` / `t.me/bot/app?startapp=…`; jinak prázdný. */
+    val startParameter: String = "",
+    /** Pojmenovaná mini aplikace z odkazu `t.me/bot/app` (`getWebAppLinkUrl`); [url] je pak prázdná. */
+    val shortName: String = "",
 ) : Route
 
 /**
@@ -312,6 +372,8 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(EditProfileRoute::class, EditProfileRoute.serializer())
             subclass(BlockedSendersRoute::class, BlockedSendersRoute.serializer())
             subclass(BlockSenderRoute::class, BlockSenderRoute.serializer())
+            subclass(ChatFoldersRoute::class, ChatFoldersRoute.serializer())
+            subclass(ChatFolderEditRoute::class, ChatFolderEditRoute.serializer())
             subclass(ArchiveRoute::class, ArchiveRoute.serializer())
             subclass(ArchiveConversationRoute::class, ArchiveConversationRoute.serializer())
             subclass(ArchiveForumTopicsRoute::class, ArchiveForumTopicsRoute.serializer())
@@ -330,7 +392,10 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
             subclass(ShareContactRoute::class, ShareContactRoute.serializer())
+            subclass(AddMembersRoute::class, AddMembersRoute.serializer())
+            subclass(BotShareRoute::class, BotShareRoute.serializer())
             subclass(PollComposerRoute::class, PollComposerRoute.serializer())
+            subclass(WebAppRoute::class, WebAppRoute.serializer())
             subclass(AddBotToGroupRoute::class, AddBotToGroupRoute.serializer())
             subclass(SwitchInlineRoute::class, SwitchInlineRoute.serializer())
             subclass(ShareRoute::class, ShareRoute.serializer())

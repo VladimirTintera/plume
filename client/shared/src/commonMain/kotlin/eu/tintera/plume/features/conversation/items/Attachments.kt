@@ -40,7 +40,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import eu.tintera.plume.features.conversation.MAX_PHOTO_HEIGHT
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.files.DocumentKind
@@ -128,6 +130,8 @@ internal fun MessageAttachment(
      * výhry posílá právě kvůli odeslanému hodu (viz [DiceImage]).
      */
     diceCelebrate: Boolean = false,
+    /** Přepis hlasovky (tlačítko a text pod ní); `null` = bez přepisu (kopie v nabídce, náhledy). */
+    transcript: TranscriptState? = null,
 ) {
     val shape = RoundedCornerShape(12.dp)
     // Náhled souboru zůstává malý čtvereček bez ohledu na tvar bubliny — velké zaoblení bubliny
@@ -164,7 +168,7 @@ internal fun MessageAttachment(
                         modifier = Modifier
                             .size(frame)
                             .clip(pictureShape)
-                            .sharedNavElement(photoKey(messageId), shape = pictureShape)
+                            .sharedNavElement(photoKey(messageId), shape = pictureShape, inTwoPane = true)
                             /*
                              * Gesta patří FOTCE, ne celé bublině.
                              *
@@ -248,6 +252,8 @@ internal fun MessageAttachment(
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
+
+        is MessageMedia.Product -> ProductCard(media, accent)
 
         is MessageMedia.Sticker -> StickerImage(
             sticker = media,
@@ -391,6 +397,7 @@ internal fun MessageAttachment(
             onCycleSpeed = voice.onCycleSpeed,
             accent = voice.accent,
             onAccent = voice.onAccent,
+            transcript = transcript,
         )
     }
 }
@@ -638,7 +645,7 @@ internal fun VideoThumbnail(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .sharedNavElement(photoKey(messageId), shape = shape)
+                    .sharedNavElement(photoKey(messageId), shape = shape, inTwoPane = true)
                     .spoilerBlur(shouldBlur, revealed = false, spoilerStyle),
             )
         }
@@ -796,7 +803,7 @@ private fun LargeDocumentPreview(
                 .clip(shape)
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                 // Z náhledu vyroste prohlížeč, stejně jako z fotky; co jde systému, neletí nikam.
-                .then(if (inViewer) Modifier.sharedNavElement(photoKey(messageId), shape = shape) else Modifier)
+                .then(if (inViewer) Modifier.sharedNavElement(photoKey(messageId), shape = shape, inTwoPane = true) else Modifier)
                 .combinedClickable(
                     enabled = !uploading,
                     onClick = onOpen,
@@ -1034,7 +1041,9 @@ private val STICKER_COVER_CORNER = 24.dp
 
 /**
  * Nezaplacené placené médium: rozmazaný náhled od serveru, uprostřed cena v hvězdách, v rohu
- * počet položek nebo délka videa. Rámeček podle poměru stran jako u fotky ([photoFrame]).
+ * délka videa. Jedna položka má rámeček podle poměru stran jako fotka ([photoFrame]); víc
+ * položek je mřížka jako album ([albumRowSizes]), s JEDNOU cenou přes celou mřížku — kupuje se
+ * všechno naráz, cena u každé dlaždice by tvrdila, že jde koupit kus.
  *
  * **Rozmazání je jediné, co server dá** — soubor se vydá až po zaplacení, takže tu není co
  * stahovat ani co odkrývat. Ťuknutí vysvětlí, že odemknout to Plume zatím neumí.
@@ -1051,18 +1060,31 @@ private fun PaidMediaPreview(
         media.starCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
         media.starCount.toInt().grouped(),
     )
+    val items = if (media.previews.size > 1) {
+        pluralStringResource(Res.plurals.paid_media_items, media.previews.size, media.previews.size)
+    } else {
+        null
+    }
     BoxWithConstraints {
-        val ratio = if (media.width > 0 && media.height > 0) media.width.toFloat() / media.height else 1f
-        val frame = photoFrame(maxWidth, ratio, fillWidth)
+        val single = media.previews.singleOrNull()
+        val width = maxWidth
+        val gridModifier = modifier
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .semantics { contentDescription = listOfNotNull(items, description).joinToString(", ") }
         Box(
-            modifier
-                .size(frame)
-                .clip(shape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                .semantics { contentDescription = description },
+            if (single != null) {
+                gridModifier.size(photoFrame(width, single.ratio(default = 1f), fillWidth))
+            } else {
+                gridModifier.width(width)
+            },
             contentAlignment = Alignment.Center,
         ) {
-            media.minithumbnail?.let { BlurredThumbnail(it, Modifier.fillMaxSize()) }
+            if (single != null) {
+                PaidPreviewTile(single, Modifier.fillMaxSize())
+            } else {
+                PaidPreviewGrid(media.previews, width)
+            }
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
@@ -1084,25 +1106,55 @@ private fun PaidMediaPreview(
                     )
                 }
             }
-            val corner = when {
-                media.itemCount > 1 -> pluralStringResource(Res.plurals.paid_media_items, media.itemCount, media.itemCount)
-                media.durationSeconds > 0 -> formatDuration(media.durationSeconds)
-                else -> null
+        }
+    }
+}
+
+/** Mřížka náhledů placeného média; řádky a výšky jako u alba (viz `AlbumContent`). */
+@Composable
+private fun PaidPreviewGrid(previews: List<MessageMedia.PaidPreview>, width: Dp) {
+    Column(verticalArrangement = Arrangement.spacedBy(ALBUM_GAP)) {
+        var start = 0
+        albumRowSizes(previews.size).forEach { size ->
+            val row = previews.subList(start, start + size)
+            start += size
+            val alone = row.singleOrNull()
+            val height = if (alone != null) {
+                (width / alone.ratio(default = 16f / 9f)).coerceAtMost(MAX_PHOTO_HEIGHT)
+            } else {
+                ((width - ALBUM_GAP * (size - 1)) / size).coerceAtMost(ALBUM_TILE_MAX_HEIGHT)
             }
-            corner?.let {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
-                    contentColor = Color.White,
-                    modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
-                ) {
-                    Text(
-                        text = it,
-                        style = MaterialTheme.typography.labelMedium.tabularNumbers(),
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                    )
+            Row(horizontalArrangement = Arrangement.spacedBy(ALBUM_GAP)) {
+                row.forEach { preview ->
+                    PaidPreviewTile(preview, Modifier.weight(1f).height(height))
                 }
             }
         }
     }
 }
+
+/** Jeden rozmazaný náhled; u videa délka v rohu. */
+@Composable
+private fun PaidPreviewTile(preview: MessageMedia.PaidPreview, modifier: Modifier) {
+    Box(modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
+        preview.minithumbnail?.let { BlurredThumbnail(it, Modifier.fillMaxSize()) }
+        if (preview.durationSeconds > 0) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
+                contentColor = Color.White,
+                modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
+            ) {
+                Text(
+                    text = formatDuration(preview.durationSeconds),
+                    style = MaterialTheme.typography.labelMedium.tabularNumbers(),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                )
+            }
+        }
+    }
+}
+
+/** Poměr stran náhledu; bez rozměrů [default]. */
+private fun MessageMedia.PaidPreview.ratio(default: Float): Float =
+    if (width > 0 && height > 0) width.toFloat() / height else default
