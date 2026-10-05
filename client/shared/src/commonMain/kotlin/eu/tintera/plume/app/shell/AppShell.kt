@@ -77,6 +77,9 @@ import eu.tintera.plume.core.navigation.ArchiveRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForumTopicsRoute
+import eu.tintera.plume.core.navigation.SavedTopicsRoute
+import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.features.saved.SavedTopicsScreen
 import eu.tintera.plume.core.navigation.ArchiveForumTopicsRoute
 import eu.tintera.plume.features.forum.ForumTopicsScreen
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
@@ -379,11 +382,20 @@ private fun shellEntryProvider(
             detailPlaceholder = { ConversationPlaceholder() },
         ),
     ) {
+        val settings = koinInject<AppSettings>()
+        val savedMessagesChatId = LocalSavedMessagesChatId.current
         ChatListScreen(
             viewModel = koinViewModel(),
-            selectedChatId = chatsStack.lastOrNull { it is ConversationRoute || it is ForumTopicsRoute }
-                ?.let { (it as? ConversationRoute)?.chatId ?: (it as ForumTopicsRoute).chatId },
-            onChatClick = { chatId -> chatsStack.openConversation(chatId) },
+            selectedChatId = chatsStack.lastOrNull { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute }
+                ?.let { (it as? ConversationRoute)?.chatId ?: (it as? ForumTopicsRoute)?.chatId ?: (it as SavedTopicsRoute).chatId },
+            onChatClick = { chatId ->
+                // Uložené zprávy po chatech, když si to uživatel zvolil („Zobrazit jako chaty").
+                if (chatId == savedMessagesChatId && settings.savedMessagesAsChats.value) {
+                    chatsStack.openSavedTopics(chatId)
+                } else {
+                    chatsStack.openConversation(chatId)
+                }
+            },
             onForumClick = { chatId -> chatsStack.openForum(chatId) },
             onMessageClick = { chatId, messageId, topicId -> chatsStack.openFoundMessage(chatId, messageId, topicId) },
             searchRequest = navigation.searchRequest,
@@ -479,14 +491,15 @@ private fun shellEntryProvider(
     }
 
     entry<ConversationRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
+        val settings = koinInject<AppSettings>()
         ConversationScreen(
             // Klíč MUSÍ obsahovat chatId. ViewModel se cachuje podle klíče, takže
             // konstantní klíč znamená, že druhá otevřená konverzace dostane ViewModel
             // té první — i se zprávami. Koin navíc u cachované instance ignoruje
             // nové `parameters`, takže se to neprojeví ani chybou, jen špatným obsahem.
             viewModel = koinViewModel(
-                key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}",
-                parameters = { parametersOf(route.chatId, route.messageId, route.threadId, route.topicId) },
+                key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}-${route.savedTopicId}",
+                parameters = { parametersOf(route.chatId, route.messageId, route.threadId, route.topicId, route.savedTopicId) },
             ),
             // Odebírá SVOU položku, ne poslední — viz `pop`.
             onBack = { chatsStack.pop(route) },
@@ -517,6 +530,28 @@ private fun shellEntryProvider(
             onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
             onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
             onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
+            // Uložené zprávy po chatech: volba se pamatuje a seznam témat nahradí konverzaci.
+            onViewAsChats = {
+                settings.setSavedMessagesAsChats(true)
+                chatsStack.openSavedTopics(route.chatId)
+            },
+        )
+    }
+
+    /*
+     * Témata Uložených zpráv stojí na místě konverzace (detail panel), jako témata skupiny;
+     * téma se otevře jako konverzace nad nimi.
+     */
+    entry<SavedTopicsRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
+        SavedTopicsScreen(
+            viewModel = koinViewModel(key = "saved-topics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+            onOpenTopic = { topicId ->
+                if ((chatsStack.lastOrNull() as? ConversationRoute)?.savedTopicId != topicId) {
+                    chatsStack.add(ConversationRoute(route.chatId, savedTopicId = topicId))
+                }
+            },
+            onViewAsMessages = { chatsStack.openConversation(route.chatId) },
         )
     }
 
@@ -1061,14 +1096,20 @@ private fun List<NavKey>.isOpenConversation(chatId: Long): Boolean =
  * jako sekce v Nastavení.
  */
 private fun MutableList<NavKey>.openConversation(chatId: Long, messageId: Long? = null) {
-    removeAll { it is ConversationRoute || it is ForumTopicsRoute }
+    removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute }
     add(ConversationRoute(chatId, messageId))
 }
 
 /** Skupina s tématy: místo konverzace seznam témat, jinak totéž co [openConversation]. */
 private fun MutableList<NavKey>.openForum(chatId: Long) {
-    removeAll { it is ConversationRoute || it is ForumTopicsRoute }
+    removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute }
     add(ForumTopicsRoute(chatId))
+}
+
+/** Uložené zprávy po chatech: místo konverzace seznam témat, jinak totéž co [openConversation]. */
+private fun MutableList<NavKey>.openSavedTopics(chatId: Long) {
+    removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute }
+    add(SavedTopicsRoute(chatId))
 }
 
 /** Totéž co [isOpenConversation], ale pro větev archivu. */

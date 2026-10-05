@@ -145,6 +145,7 @@ import dev.g000sha256.tdl.dto.MessageReplyToMessage
 import dev.g000sha256.tdl.dto.MessageTopicThread
 import dev.g000sha256.tdl.dto.MessageTopic
 import dev.g000sha256.tdl.dto.MessageTopicForum
+import dev.g000sha256.tdl.dto.MessageTopicSavedMessages
 import dev.g000sha256.tdl.dto.MessageSourceForumTopicHistory
 import dev.g000sha256.tdl.dto.ForumTopic as TdlForumTopic
 import kotlinx.coroutines.flow.flowOf
@@ -210,13 +211,39 @@ class TdlConversationRepository(
      * metod jen kvůli jednomu argumentu.
      */
     private val forumTopicId: Int? = null,
+    /** Téma Uložených zpráv (zprávy uložené z jednoho chatu), viz [inSavedTopic]; `null` = všechny. */
+    private val savedTopicId: Long? = null,
+    /** Odkud vzít hlavičku tématu Uložených zpráv — TDLib jedno téma dotazem nevydá. */
+    private val savedTopics: SavedTopicsRepository? = null,
 ) : ConversationRepository {
 
-    /** Téma pro volání TDLib; `null` = celý chat. */
+    /**
+     * Téma pro ODESLÁNÍ, koncept, „píše…" a zmínky; `null` = celý chat. Téma Uložených zpráv sem
+     * nepatří: TDLib do něj odeslat nedovolí a zpráva bez tématu padne do Mých poznámek.
+     */
     private val topic: MessageTopic? = forumTopicId?.let { MessageTopicForum(forumTopicId = it) }
 
+    /** Téma pro ČTENÍ — hledání, připnuté, nepřečtené značky. Tady téma Uložených zpráv platí. */
+    private val readTopic: MessageTopic? =
+        topic ?: savedTopicId?.let { MessageTopicSavedMessages(savedMessagesTopicId = it) }
+
     override fun inForumTopic(topicId: Int): ConversationRepository =
-        TdlConversationRepository(holder = holder, forumTopicId = topicId)
+        TdlConversationRepository(holder = holder, forumTopicId = topicId, savedTopics = savedTopics)
+
+    override fun inSavedTopic(topicId: Long): ConversationRepository =
+        TdlConversationRepository(holder = holder, savedTopicId = topicId, savedTopics = savedTopics)
+
+    /**
+     * Téma Uložených zpráv, jak ho zná seznam témat. Konverzace obnovená po zabití procesu ho
+     * mít nemusí — pak se témata napřed dotáhnou.
+     */
+    private suspend fun savedTopic(): SavedTopic? {
+        val id = savedTopicId ?: return null
+        val repository = savedTopics ?: return null
+        repository.topics.value?.firstOrNull { it.id == id }?.let { return it }
+        repository.load()
+        return repository.topics.value?.firstOrNull { it.id == id }
+    }
 
     /** Téma, jak ho TDLib zná teď — počty, hranice přečtení a koncept jsou jeho, ne skupiny. */
     private suspend fun forumTopic(chatId: Long): TdlForumTopic? = forumTopicId?.let {
@@ -224,8 +251,11 @@ class TdlConversationRepository(
     }
 
     /** Patří zpráva do konverzace? V tématu jen zprávy tématu, jinak všechny. */
-    private fun inScope(message: Message): Boolean =
-        forumTopicId == null || (message.topicId as? MessageTopicForum)?.forumTopicId == forumTopicId
+    private fun inScope(message: Message): Boolean = when {
+        forumTopicId != null -> (message.topicId as? MessageTopicForum)?.forumTopicId == forumTopicId
+        savedTopicId != null -> (message.topicId as? MessageTopicSavedMessages)?.savedMessagesTopicId == savedTopicId
+        else -> true
+    }
 
 
     private val logger = Logger.withTag("Conversation")
@@ -270,6 +300,17 @@ class TdlConversationRepository(
             return client.getForumTopicHistory(
                 chatId = chatId,
                 forumTopicId = forumTopicId,
+                fromMessageId = fromMessageId,
+                offset = offset,
+                limit = limit,
+            )
+                .toResult()
+                .map { messages -> messages.messages.filterNotNull().map { it.toChatMessage(isGroup) } }
+        }
+
+        if (savedTopicId != null) {
+            return client.getSavedMessagesTopicHistory(
+                savedMessagesTopicId = savedTopicId,
                 fromMessageId = fromMessageId,
                 offset = offset,
                 limit = limit,
@@ -437,7 +478,7 @@ class TdlConversationRepository(
     override suspend fun oldestUnreadMark(chatId: Long, kind: UnreadMarkKind): Result<Long?> =
         client.searchChatMessages(
             chatId = chatId,
-            topicId = topic,
+            topicId = readTopic,
             query = "",
             senderId = null,
             fromMessageId = 0L,
@@ -574,7 +615,7 @@ class TdlConversationRepository(
         query: String,
         fromMessageId: Long,
         senderUserId: Long?,
-    ): Result<ChatSearchPage> = search(chatId, topic, query, fromMessageId, senderUserId)
+    ): Result<ChatSearchPage> = search(chatId, readTopic, query, fromMessageId, senderUserId)
 
     override suspend fun searchInThread(
         chatId: Long,
@@ -621,7 +662,7 @@ class TdlConversationRepository(
         do {
             val page = client.searchChatMessages(
                 chatId = chatId,
-                topicId = topic,
+                topicId = readTopic,
                 query = "",
                 senderId = null,
                 fromMessageId = from,
@@ -1714,6 +1755,7 @@ class TdlConversationRepository(
             .toResult()
             .map { chat ->
                 val forumTopic = forumTopic(chat.id)
+                val savedTopic = savedTopic()
                 val access = chatAccess(chat, forumTopic)
                 val restriction = client.restrictionInfoOf(chat)
                 // V tématu koncept tématu; koncept skupiny do něj nepatří.
@@ -1734,7 +1776,13 @@ class TdlConversationRepository(
                     draftText = draft?.text,
                     draftFormats = draft?.formats.orEmpty(),
                     canJoin = access.canJoin,
-                    writeAccess = access.writeAccess,
+                    // Do tématu uloženého z jiného chatu TDLib odeslat nedovolí; Moje poznámky
+                    // jsou Uložené zprávy bez tématu, tam se píše jako dřív.
+                    writeAccess = if (savedTopicId != null && savedTopic?.kind != SavedTopicKind.MyNotes) {
+                        WriteAccess.SavedTopic
+                    } else {
+                        access.writeAccess
+                    },
                     content = access.content,
                     draftReplyToMessageId = draft?.replyToMessageId,
                     draftReplyQuote = draft?.quote,
@@ -1752,6 +1800,7 @@ class TdlConversationRepository(
                             isClosed = it.isClosed,
                         )
                     },
+                    savedTopic = savedTopic?.header,
                 )
             }
 

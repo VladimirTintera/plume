@@ -346,9 +346,9 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
 - **Triáž chatů.** Odznak „čeká na odpověď" vs. „jen informace" v seznamu chatů. Rozhodnutí
   ano/ne nad krátkým textem je rychlé (0,2–0,4 s), ale **počítá se pro každý chat zvlášť**,
   takže musí běžet nad načteným seznamem a výsledek se musí kešovat podle id zprávy.
-- **Štítky Uložených zpráv.** Témata Uložených zpráv (`SavedMessagesTopic`) a štítky od
-  Telegramu nemáme; automatické zatřídění by je nahradilo bez serverové podpory a je to zase
-  klasifikace.
+- **Štítky Uložených zpráv.** Témata Uložených zpráv (dělení podle chatu) už jsou, štítky od
+  Telegramu (`SavedMessagesTag`, jen s Premium) ne; automatické zatřídění by je nahradilo bez
+  serverové podpory a je to zase klasifikace.
 - **Přepsat před odesláním** („kratší", „zdvořileji", „bez překlepů"). Sloh drhne, ale uživatel
   výsledek VIDÍ a rozhodne — chyba je levná, na rozdíl od našeptávání, kde se text podepisuje
   naslepo. Patří do nabídky nad vstupním polem, ne do automatiky.

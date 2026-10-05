@@ -132,7 +132,18 @@ data class ConversationRoute(
     val threadId: Long? = null,
     /** Téma skupiny s tématy (viz [ForumTopicsRoute]); `null` = celý chat. */
     val topicId: Int? = null,
+    /** Téma Uložených zpráv (viz [SavedTopicsRoute]); `null` = všechny uložené zprávy. */
+    val savedTopicId: Long? = null,
 ) : Route
+
+/**
+ * Uložené zprávy rozdělené podle chatu, ze kterého se zpráva uložila. Stojí na místě konverzace
+ * Uložených zpráv, když si to uživatel zvolil („Zobrazit jako chaty"); téma se otevře jako
+ * [ConversationRoute] se `savedTopicId` nad ním. Jen v hlavní větvi — Uložené zprávy archivovat
+ * nejdou.
+ */
+@Serializable
+data class SavedTopicsRoute(val chatId: Long) : Route
 
 /**
  * Seznam témat skupiny s tématy (fórum). Ťuknutí na takovou skupinu v seznamu chatů otevře
@@ -378,6 +389,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ArchiveConversationRoute::class, ArchiveConversationRoute.serializer())
             subclass(ArchiveForumTopicsRoute::class, ArchiveForumTopicsRoute.serializer())
             subclass(ForumTopicsRoute::class, ForumTopicsRoute.serializer())
+            subclass(SavedTopicsRoute::class, SavedTopicsRoute.serializer())
             subclass(ArchiveChatProfileRoute::class, ArchiveChatProfileRoute.serializer())
             subclass(ArchiveEditChatRoute::class, ArchiveEditChatRoute.serializer())
             subclass(ArchiveMemberRightsRoute::class, ArchiveMemberRightsRoute.serializer())

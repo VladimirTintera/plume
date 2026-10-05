@@ -12,6 +12,7 @@ import eu.tintera.plume.core.telegram.TdlAccountRepository
 import eu.tintera.plume.core.telegram.AccountRepository
 import eu.tintera.plume.features.profile.ChatProfileViewModel
 import eu.tintera.plume.features.forum.ForumTopicsViewModel
+import eu.tintera.plume.features.saved.SavedTopicsViewModel
 import eu.tintera.plume.features.webapp.WebAppViewModel
 import eu.tintera.plume.core.telegram.WebAppRepository
 import eu.tintera.plume.core.telegram.TdlWebAppRepository
@@ -67,6 +68,8 @@ import eu.tintera.plume.core.notifications.NotificationActions
 import eu.tintera.plume.core.telegram.TdlChatRepository
 import eu.tintera.plume.core.telegram.TdlConversationRepository
 import eu.tintera.plume.core.telegram.TdlForumRepository
+import eu.tintera.plume.core.telegram.TdlSavedTopicsRepository
+import eu.tintera.plume.core.telegram.SavedTopicsRepository
 import eu.tintera.plume.core.telegram.ForumRepository
 import eu.tintera.plume.core.telegram.TdlFileRepository
 import eu.tintera.plume.core.telegram.TdlNotificationRepository
@@ -159,8 +162,12 @@ fun appModule() = module {
 
     // Bezstavová — na rozdíl od seznamu chatů nemusí vznikat dopředu, stránkovací stav
     // drží ConversationViewModel.
-    single<ConversationRepository> { TdlConversationRepository(holder = get()) }
+    single<ConversationRepository> { TdlConversationRepository(holder = get(), savedTopics = get()) }
     single<ForumRepository> { TdlForumRepository(holder = get()) }
+    // Eagerně: témata Uložených zpráv chodí jen updaty, dotaz na seznam TDLib nemá.
+    single<SavedTopicsRepository>(createdAtStart = true) {
+        TdlSavedTopicsRepository(holder = get(), scope = get(named(APP_SCOPE)))
+    }
     single<WebAppRepository> { TdlWebAppRepository(holder = get()) }
 
     // Odpověď z notifikace. Nad ConversationRepository, ne v něm: jde o pořadí kroků (odeslat,
@@ -321,14 +328,18 @@ fun appModule() = module {
     viewModel { parameters ->
         val threadRootId = parameters.values.getOrNull(2) as Long?
         val forumTopicId = parameters.values.getOrNull(3) as Int?
+        // Pátý: téma Uložených zpráv (podle zdrojového chatu); `null` = všechny uložené zprávy.
+        val savedTopicId = parameters.values.getOrNull(4) as Long?
         ConversationViewModel(
             chatId = parameters.get(),
             initialMessageId = parameters.values.getOrNull(1) as Long?,
             threadRootId = threadRootId,
             forumTopicId = forumTopicId,
+            savedTopicId = savedTopicId,
             repository = when {
                 threadRootId != null -> ThreadConversationRepository(delegate = get(), rootMessageId = threadRootId)
                 forumTopicId != null -> get<ConversationRepository>().inForumTopic(forumTopicId)
+                savedTopicId != null -> get<ConversationRepository>().inSavedTopic(savedTopicId)
                 else -> get()
             },
             chatRepository = get(),
@@ -364,6 +375,10 @@ fun appModule() = module {
             notifications = get(),
             inviteLinks = get(),
         )
+    }
+
+    viewModel { parameters ->
+        SavedTopicsViewModel(chatId = parameters.get(), repository = get(), settings = get())
     }
 
     // Parametry INDEXEM: chat a bot jsou dvě `Long` a podle typu by se zaměnily.

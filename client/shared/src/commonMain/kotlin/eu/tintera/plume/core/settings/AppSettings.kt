@@ -97,6 +97,15 @@ interface AppSettings {
     fun setSeparateUnreadChats(separate: Boolean)
 
     /**
+     * Otevírají se Uložené zprávy jako seznam chatů, ze kterých se ukládalo (témata), místo
+     * jedné konverzace? Výchozí `false` — tak se aplikace chovala dřív; přepíná se v hlavičce
+     * Uložených zpráv a pamatuje se, jako u oficiálních klientů.
+     */
+    val savedMessagesAsChats: StateFlow<Boolean>
+
+    fun setSavedMessagesAsChats(asChats: Boolean)
+
+    /**
      * Experimentální funkce s jazykovým modelem v zařízení (shrnutí konverzace, viz `core/ai`).
      *
      * Výchozí je `false`: model má gigabajty a funkce je jen pro toho, kdo o ni stojí.
@@ -312,6 +321,16 @@ class DataStoreAppSettings(
         }
     }
 
+    override val savedMessagesAsChats: StateFlow<Boolean> = value(false) { preferences ->
+        preferences[SAVED_MESSAGES_AS_CHATS] ?: false
+    }
+
+    override fun setSavedMessagesAsChats(asChats: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[SAVED_MESSAGES_AS_CHATS] = asChats }
+        }
+    }
+
     override val onDeviceAiEnabled: StateFlow<Boolean> = value(false) { preferences ->
         preferences[ON_DEVICE_AI_ENABLED] ?: false
     }
@@ -463,6 +482,7 @@ class DataStoreAppSettings(
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val SEPARATE_UNREAD_CHATS = booleanPreferencesKey("separate_unread_chats")
+        val SAVED_MESSAGES_AS_CHATS = booleanPreferencesKey("saved_messages_as_chats")
         val ON_DEVICE_AI_ENABLED = booleanPreferencesKey("on_device_ai_enabled")
         val REPLY_SUGGESTIONS_ENABLED = booleanPreferencesKey("reply_suggestions_enabled")
         val ON_DEVICE_AI_PREVIEW = booleanPreferencesKey("on_device_ai_preview")

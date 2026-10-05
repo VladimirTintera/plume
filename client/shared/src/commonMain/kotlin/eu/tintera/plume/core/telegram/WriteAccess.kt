@@ -18,6 +18,12 @@ enum class WriteAccess {
 
     /** Uzavřené téma ve skupině s tématy — psát do něj smí jen vlastník a správce témat. */
     TopicClosed,
+
+    /**
+     * Téma Uložených zpráv uložené z jiného chatu: TDLib do něj odesílat nedovolí („Messages
+     * can't be explicitly sent to a Saved Messages topic"), psát se dá jen do Mých poznámek.
+     */
+    SavedTopic,
 }
 
 /** Postavení uživatele ve skupině nebo kanálu, zúžené na to, co z něj aplikace potřebuje. */
