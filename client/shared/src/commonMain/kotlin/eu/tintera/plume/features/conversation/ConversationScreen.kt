@@ -1520,7 +1520,12 @@ fun ConversationScreen(
             // Vlastní klávesnice bota stojí NAD polem (viz `ReplyKeyboardPanel`); při úpravě
             // zprávy ne — tlačítko by poslalo novou zprávu uprostřed opravy staré.
             (state.replyMarkup as? ChatReplyMarkup.Keyboard)?.takeIf { state.editing == null }?.let { keyboard ->
-                var collapsed by rememberSaveable(keyboard.messageId) { mutableStateOf(false) }
+                // Použitá jednorázová klávesnice se otevírá sbalená i po návratu do chatu — TDLib
+                // si použití nepamatuje a klávesnice v chatu zůstává (viz `keyboardUsed`).
+                val usedKeyboard by viewModel.usedKeyboardMessageId.collectAsStateWithLifecycle()
+                var collapsed by rememberSaveable(keyboard.messageId) {
+                    mutableStateOf(keyboard.oneTime && usedKeyboard == keyboard.messageId)
+                }
                 ReplyKeyboardPanel(
                     keyboard = keyboard,
                     collapsed = collapsed,

@@ -384,8 +384,8 @@ zprávou"). Zbývá:
 - ~~**Vlastní klávesnice** a **vynucená odpověď**~~ — hotovo, klávesnice nad polem
   (`CLAUDE.md`, „Vlastní klávesnice bota"). ~~Tlačítka polohy, ankety, výběru lidí
   a chatů~~ a ~~mini aplikace~~ — hotovo (`CLAUDE.md`, „Vlastní klávesnice bota"). Zbývá zakládání botů (`RequestManagedBot`); ověřit
-  odeslání čísla; jednorázová klávesnice se po znovuotevření chatu ukáže rozbalená (TDLib
-  neříká, že už byla použitá).
+  odeslání čísla. ~~Jednorázová klávesnice se po znovuotevření chatu ukáže rozbalená~~ —
+  hotovo, použití si pamatuje aplikace.
 - ~~**Vlastní emoji v popisku tlačítka** (`iconCustomEmojiId`)~~ — hotovo.
 - **Ověřit na iOS** — kód je společný, na simulátoru to nikdo neviděl.
 
