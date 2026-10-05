@@ -412,13 +412,13 @@ snadno na to uživatel narazí.
   ukončení, kdo hlasoval; `CLAUDE.md`, „Ankety a kvízy"). Zbývá:
   - ~~**Zakládání anket**~~ — hotovo (sponka → Anketa, i tlačítko bota, jako odpověď, s dobou
     trvání nebo přesným časem konce, popisem, „výsledky až po skončení" a v kanálu omezením na
-    členy a země). Zbývá ověřit v kanálu (omezení hlasujících) a ve skupině.
+    členy a země). Ověřené ve skupině i v kanálu (s „jen členové"; že omezení platí, ověřit nejde).
   - ~~**Média v anketě a v odpovědích**~~ — hotovo (zobrazení všech druhů, otevření
     v prohlížeči; formulář nabízí fotku, video, GIF, samolepku, odkaz a místo). ~~Média ve
     vysvětlení kvízu (`explanationMedia`)~~ — hotovo (zobrazení i formulář).
   - ~~**Přidání odpovědi**~~ — hotovo (`canAddOption`, `addPollOption`, dialog pod odpověďmi).
-    ~~Přidání odpovědi s médiem~~ — hotovo (tatáž nabídka příloh jako ve formuláři). Zbývá
-    ověřit ve skupině.
+    ~~Přidání odpovědi s médiem~~ — hotovo (tatáž nabídka příloh jako ve formuláři). Ve skupině
+    ověřené.
   - ~~**Tváře posledních hlasujících**~~ — hotovo (`recentVoterIds`, až tři přes sebe v zápatí).
     Zbývá ověřit se skutečnými hlasy víc lidí (testovací účet hlasuje jen sám za sebe).
 - ~~**Video kolečka** (`MessageVideoNote`)~~ — hotovo: kulatě bez bubliny, samy potichu ve
@@ -540,7 +540,7 @@ snadno na to uživatel narazí.
   ~~Tlačítko nabídky bota s mini aplikací (`BotMenuButton`)~~ — hotovo. ~~Emoji podle slov~~ — hotovo
   (`CLAUDE.md`, „Emoji podle slov"). ~~Inline boti
   (`@gif kočka` v poli)~~ — hotovo i s „přes @bot" u zprávy (`CLAUDE.md`, „Inline boti"); zbývá
-  ověřit tlačítko „nastavit u bota", bota s polohou a inline bota ve skupině.
+  ověřit tlačítko „nastavit u bota" a bota s polohou (ve skupině ověřené).
 - ~~**Naplánované zprávy a odeslání bez zvuku**~~ — hotovo: podržení odesílacího tlačítka,
   seznam naplánovaných za hodinami u pole (`CLAUDE.md`, „Naplánované zprávy"). ~~Plánování
   hlasovky a ankety~~ — hotovo. ~~Plánování samolepky~~ — hotovo (tlačítko u podržené
@@ -555,7 +555,7 @@ snadno na to uživatel narazí.
 - ~~**Emoji status** u jména~~ — hotovo. ~~**Časovač automatického mazání chatu**~~ — hotovo
   (odznak v hlavičce, nastavení v profilu, „Smaže se" v Informace; `CLAUDE.md`, „Automatické
   mazání zpráv"). ~~Výchozí doba pro nové chaty~~ — hotovo (Nastavení → Obecné → Soukromí;
-  samotný zápis ověřený není, mění účet). Zbývá ověřit ve skupině se správcovskými právy.
+  samotný zápis ověřený není, mění účet). Ve skupině ověřené (vlastník).
 - ~~**Překlad zprávy**~~ (`translateMessageText`) — hotovo, sheet z nabídky nad zprávou
   (`CLAUDE.md`, „Překlad zprávy"). ~~Volba cílového jazyka~~ — hotovo. Zbývá překlad celého chatu
   (`UpdateChatIsTranslatable`, Premium). ~~Skrýt „Přeložit" u zprávy, která už je v jazyce
