@@ -504,8 +504,7 @@ snadno na to uživatel narazí.
 - ~~**Vlastní emoji v textu zprávy**~~ a ~~**mimo text**~~ (reakce, emoji status u jména, náhled
   v seznamu chatů, citace, ikona tlačítka bota) — hotovo (`CLAUDE.md`, „Vlastní emoji v textu“
   a „Vlastní emoji mimo text“). Zbývá **posílání** (jen s Premium, výběr vlastních emoji a reakcí
-  mimo nabídnuté) a vlastní emoji ve výsledcích hledání zpráv (ukázka se ořezává, offsety by se
-  musely posunout). V notifikaci zůstává náhradní znak záměrně. **Skutečná data od člověka
+  mimo nabídnuté). ~~Vlastní emoji ve výsledcích hledání zpráv~~ — hotovo (`snippetOf`). V notifikaci zůstává náhradní znak záměrně. **Skutečná data od člověka
   ověřená nejsou** — bot nic z toho poslat nesmí (viz CLAUDE.md).
 - ~~**Příkaz bota** (`BotCommand`)~~ — hotovo: ťuknutí příkaz pošle (`CLAUDE.md`, „Příkazy bota“).
 - ~~**Čas v médiu**~~ — hotovo: „1:23" pustí video, hlasovku, skladbu i kolečko od toho místa,

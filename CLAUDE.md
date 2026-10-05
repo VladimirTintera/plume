@@ -2065,6 +2065,11 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
 - **Ukázka zprávy začíná kousek před nalezeným slovem** (`snippetAround`, „…" na začátku).
   Ve dvou řádcích by slovo z konce dlouhé zprávy bylo za výpustkou a řádek by nevysvětlil,
   proč se našel. Slovo jen v adrese skrytého odkazu vidět nebude — text ji nenese.
+- **Vlastní emoji jsou v ukázce obrázkem**, jako v náhledu seznamu chatů (`FoundMessage.entities`
+  z `previewEntities`, `snippetOf`, testy `ChatSearchTest`). Offsety se posouvají o uříznutý
+  začátek a výpustku; spoiler přes začátek ukázky se zkrátí (emoji v něm zůstane skryté),
+  useknuté vlastní emoji vypadne. Ověřeno sondou — bot vlastní emoji poslat nesmí (viz
+  „Vlastní emoji v textu").
 - **Ťuknutí na zprávu otevře chat se skokem na ni**: `ConversationRoute(chatId, messageId)`,
   ViewModel dostane `initialMessageId` a místo skoku na nepřečtené zavolá `jumpToMessage`
   (okno kolem zprávy a zvýraznění jako u citace, viz „Okno v historii"). Druhý parametr
