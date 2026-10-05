@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.telegram.AdminRights
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.MAX_MEMBERS_REQUEST
 import eu.tintera.plume.core.telegram.ProfileKind
@@ -128,29 +129,71 @@ class AddMembersViewModel(
         selectedChats.update { it + summary }
     }
 
-    /** Přidá vybrané; [onDone] = všichni přidáni, obrazovka odchází. */
+    /**
+     * Přidá vybrané; [onDone] = všichni přidáni, obrazovka odchází.
+     *
+     * **Boti do kanálu jdou zvlášť.** Odběratelem bot být nemůže (`USER_BOT`), jen správcem —
+     * a to je jiné rozhodnutí než „přidat odběratele", takže se na ně obrazovka zeptá
+     * ([AddMembersState.pendingBots]), až se přidají lidé.
+     */
     fun add(onDone: () -> Unit) {
         val chosen = selectedChats.value.takeIf { it.isNotEmpty() } ?: return
         if (local.value.adding) return
         local.update { it.copy(adding = true) }
         viewModelScope.launch {
             // Soukromý chat má id uživatele.
-            profiles.addMembers(chatId, chosen.map { it.id })
-                .onSuccess { failedIds ->
-                    val refused = chosen.filter { it.id in failedIds }
-                    if (refused.isEmpty()) {
-                        onDone()
-                    } else {
-                        local.update { it.copy(adding = false, refused = refused) }
-                    }
-                }
-                .onFailure { failure ->
+            val botIds = if (local.value.isChannel) profiles.botsAmong(chosen.map { it.id }).toSet() else emptySet()
+            val bots = chosen.filter { it.id in botIds }
+            val people = chosen.filterNot { it.id in botIds }
+            val failedIds = if (people.isEmpty()) {
+                emptyList()
+            } else {
+                profiles.addMembers(chatId, people.map { it.id }).getOrElse { failure ->
                     logger.w(failure) { "Přidání členů do $chatId se nepodařilo." }
                     local.update {
                         it.copy(adding = false, error = failure.userMessage(Res.string.add_members_failed))
                     }
+                    return@launch
                 }
+            }
+            val refused = people.filter { it.id in failedIds }
+            if (refused.isEmpty() && bots.isEmpty()) {
+                onDone()
+            } else {
+                local.update { it.copy(adding = false, refused = refused, pendingBots = bots) }
+            }
         }
+    }
+
+    /**
+     * Přidá čekající boty do kanálu jako správce s právem zveřejňovat, upravovat a mazat
+     * příspěvky — to je to, kvůli čemu se bot do kanálu přidává. Další práva jdou změnit
+     * u člena kanálu. Pak obrazovka pokračuje dialogem s odmítnutými lidmi, nebo odchází.
+     */
+    fun addBotsAsAdmins(onDone: () -> Unit) {
+        val bots = local.value.pendingBots.takeIf { it.isNotEmpty() } ?: return
+        local.update { it.copy(adding = true) }
+        viewModelScope.launch {
+            val failed = bots.filter { bot ->
+                profiles.setAdminRights(chatId, bot.id, BOT_CHANNEL_RIGHTS)
+                    .onFailure { logger.w(it) { "Bota ${bot.id} se do $chatId nepodařilo přidat jako správce." } }
+                    .isFailure
+            }
+            local.update {
+                it.copy(
+                    adding = false,
+                    pendingBots = emptyList(),
+                    error = if (failed.isNotEmpty()) UiText(Res.string.add_members_failed) else null,
+                )
+            }
+            if (failed.isEmpty() && local.value.refused.isEmpty()) onDone()
+        }
+    }
+
+    /** Bota nepřidávat; když nikdo jiný nečeká na dialog, obrazovka odchází. */
+    fun skipBots(onDone: () -> Unit) {
+        local.update { it.copy(pendingBots = emptyList()) }
+        if (local.value.refused.isEmpty()) onDone()
     }
 
     /** Pošle pozvánku těm, které server nepřidal; pak obrazovka odchází ([onDone]). */
@@ -186,5 +229,10 @@ data class AddMembersState(
     val adding: Boolean = false,
     /** Koho server nepřidal kvůli jejich soukromí; neprázdné = dialog. */
     val refused: List<ChatSummary> = emptyList(),
+    /** Boti vybraní do kanálu — přidat je jde jen jako správce; neprázdné = dialog (před [refused]). */
+    val pendingBots: List<ChatSummary> = emptyList(),
     val error: UiText? = null,
 )
+
+/** Co dostane bot přidaný do kanálu: zveřejňovat, upravovat a mazat příspěvky. */
+private val BOT_CHANNEL_RIGHTS = AdminRights(postMessages = true, editMessages = true, deleteMessages = true)

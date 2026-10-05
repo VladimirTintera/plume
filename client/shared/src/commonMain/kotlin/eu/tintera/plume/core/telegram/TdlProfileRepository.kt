@@ -588,6 +588,10 @@ class TdlProfileRepository(
         failed.filterNotNull().map { it.userId }
     }
 
+    override suspend fun botsAmong(userIds: List<Long>): List<Long> = userIds.filter { userId ->
+        client.getUser(userId = userId).toResult().getOrNull()?.type is UserTypeBot
+    }
+
     override suspend fun sendInviteLink(userIds: List<Long>, link: String): Result<Unit> = runCatching {
         // Server odkaz v textu sám neoznačí; bez entity by u příjemce nešel ťuknout.
         val entities = client.getTextEntities(text = link).toResult().getOrNull()?.entities ?: emptyArray()

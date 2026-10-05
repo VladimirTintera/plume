@@ -5998,6 +5998,13 @@ přidává se tlačítkem s počtem. Kdo smí, je čistá funkce `canInviteMembe
   Bez pozvánky (vidí ji jen správce s právem zvát) dialog jen řekne, koho přidat nešlo.
 - **Kdo už členem je, se nenabízí** — ale jen z první stránky členů (200). Číst kvůli výběru
   tisíce členů nestojí za to; server už přidaného podruhé nepřidá.
+- **Bot do KANÁLU nejde přidat jako odběratel** — `addChatMembers` celé volání odmítne s
+  `USER_BOT` (ne jako odmítnutého v `FailedToAddMembers`), takže dřív selhalo přidání úplně a
+  ukázala se jen obecná hláška. V kanálu se proto boti z výběru oddělí (`botsAmong`, `getUser`
+  → `UserTypeBot`), lidé se přidají jako dřív a na boty se obrazovka zeptá: „Přidat bota jako
+  správce?" s právy zveřejňovat, upravovat a mazat příspěvky (`setAdminRights` na nečlena bota
+  rovnou přidá). Ve skupině bot jako člen jde, tam se nic nemění. Ověřeno na emulátoru: bot
+  v testovacím kanálu jako `administrator` s `can_post_messages` (Bot API `my_chat_member`).
 - **Ověřeno na emulátoru** v testovací skupině: pruh podstrčenou sondou, přidání testovacího bota
   (Bot API `getChatMember` → `member`, v konverzaci „Members joined the group"), bot se pak
   podruhé nenabídne, položka v ⋮ profilu. Dialog odmítnutých sondou (repository vrátil všechny
@@ -8836,8 +8843,11 @@ JEHO kanálu (`ACTION_CHANNEL_NOTIFICATION_SETTINGS`).
   `channel=` u notifikace; kanály aplikace jsou v `dumpsys notification` pod
   `AppSettings: eu.tintera.plume` (smazaný má `mDeleted=true`). Soukromá zpráva od bota přišla
   kanálem `private`, odkaz „Zvuk a vibrace" otevřel systémové nastavení správného kanálu, zápis
-  rozsahu i obnovení výjimky se projevily hned (emulátor). Skupiny, kanály a zmínky kanálem
-  ověřené nejsou — do skutečných skupin se testovací zprávy neposílají.
+  rozsahu i obnovení výjimky se projevily hned (emulátor). **Skupiny, zmínky i kanály ověřené
+  na emulátoru testovacím botem** v testovací skupině a kanálu (bot jako člen skupiny a správce
+  kanálu): zpráva ve skupině kanálem `groups`, `text_mention` účtu kanálem `mentions` jako
+  samostatná notifikace téhož chatu, příspěvek kanálu kanálem `channels`. Do skutečných skupin
+  se testovací zprávy neposílají — test jde jen tam, kde je bot.
 
 ### Akce z notifikace
 

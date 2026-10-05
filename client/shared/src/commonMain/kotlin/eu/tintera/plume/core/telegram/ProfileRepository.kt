@@ -160,6 +160,12 @@ interface ProfileRepository {
     suspend fun addMembers(chatId: Long, userIds: List<Long>): Result<List<Long>>
 
     /**
+     * Kteří z [userIds] jsou boti. Do KANÁLU bota přidat jako odběratele nejde (server odpoví
+     * `USER_BOT`) — jen rovnou jako správce ([setAdminRights]), takže je výběr musí oddělit.
+     */
+    suspend fun botsAmong(userIds: List<Long>): List<Long>
+
+    /**
      * Pošle [link] (pozvánku) každému z [userIds] do soukromého chatu. Pro ty, které server
      * přidat nedovolil ([addMembers]): přes pozvánku se přidají sami.
      */
