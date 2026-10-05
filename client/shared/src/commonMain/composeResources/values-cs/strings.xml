@@ -1947,4 +1947,19 @@
     <string name="photo_crop_hint">Posuň a přibliž fotku, ať sedí v kruhu</string>
     <string name="photo_crop_done">Hotovo</string>
     <string name="photo_crop_failed">Fotku se nepodařilo načíst</string>
+    <string name="saved_topic_my_notes">Moje poznámky</string>
+    <string name="saved_topic_author_hidden">Skrytý autor</string>
+    <string name="saved_topic_unknown_chat">Neznámý chat</string>
+    <string name="saved_topic_open_chat">Otevřít chat</string>
+    <string name="saved_topic_read_only">Uloženo z jiného chatu. Psát se dá jen do Mých poznámek.</string>
+    <string name="saved_view_as_chats">Zobrazit jako chaty</string>
+    <string name="saved_view_as_messages">Zobrazit jako zprávy</string>
+    <string name="saved_topics_subtitle">Podle chatů</string>
+    <string name="saved_topics_empty_title">Zatím nic uloženého</string>
+    <string name="saved_topics_empty">Zprávy, které sem přepošleš, se tu řadí podle chatu, ze kterého jsou.</string>
+    <string name="saved_topics_load_failed">Uložené zprávy se nepodařilo načíst</string>
+    <string name="saved_topic_delete">Smazat</string>
+    <string name="saved_topic_delete_title">Smazat zprávy uložené z „%1$s“?</string>
+    <string name="saved_topic_delete_body">Zmizí z Uložených zpráv, původní chat zůstane, jak je. Vrátit to nejde.</string>
+    <string name="saved_topic_action_failed">Nepovedlo se, zkus to znovu</string>
 </resources>

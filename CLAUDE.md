@@ -2170,8 +2170,35 @@ uživatele z `getMe()`. Všichni klienti je ale kreslí jinak a my taky:
 - **V hlavičce není „online"** — vlastní dostupnost v Uložených zprávách nic neříká.
 - **Zkratka konverzace a notifikace** (připomínka v Uložených zprávách) mají název
   „Uložené zprávy" a záložku (`bookmarkIcon`), ne jméno a fotku účtu.
-- **Témata Uložených zpráv (`SavedMessagesTopic`, dělení podle původního chatu) a štítky zatím
-  nejsou.** Konverzace ukazuje všechny uložené zprávy dohromady, jako dřív.
+- **Štítky Uložených zpráv (`SavedMessagesTag`) zatím nejsou.** Témata ano, viz níž.
+
+#### Témata Uložených zpráv
+
+„Zobrazit jako chaty" v hlavičce Uložených zpráv přepne na seznam témat (`SavedTopicsRoute`,
+`SavedTopicsScreen`): Moje poznámky, pak chaty, ze kterých se zprávy uložily, s poslední uloženou
+zprávou. Téma se otevře jako konverzace (`ConversationRoute.savedTopicId`), „Zobrazit jako zprávy"
+v ⋮ vrátí jednu konverzaci. Hranice je `SavedTopicsRepository` (`TdlSavedTopicsRepository`).
+
+- **Témata chodí JEN updaty** (`UpdateSavedMessagesTopic`). Dotaz na seznam ani na jedno téma
+  TDLib nemá; `loadSavedMessagesTopics` nic nevrací, jen řekne „pošli další". Repository je proto
+  eager a drží mapu podle id, a `load()` se volá při každém otevření seznamu (po startu je TDLib
+  sám nepošle). **Konec načítání je chyba 404**, ne prázdná odpověď. `order == 0` = téma v seznamu
+  není, jako u chatů.
+- **Do tématu jiného než Moje poznámky psát NEJDE.** TDLib odesílání s `MessageTopicSavedMessages`
+  odmítne („Messages can't be explicitly sent to a Saved Messages topic", ověřeno sondou) —
+  zpráva bez tématu skončí v Mých poznámkách (id tématu = id vlastního účtu). Konverzace tématu
+  proto rozlišuje dvě pole: `readTopic` (historie, hledání, připnuté, nepřečtené) a `topic`
+  (odeslání, koncept, „píše…"), které u Uložených zpráv zůstává `null`. Cizí téma je jen pro čtení
+  (`WriteAccess.SavedTopic`) s tlačítkem „Otevřít chat" do zdrojového chatu.
+- **Volba „jako chaty" se pamatuje** (`AppSettings.savedMessagesAsChats`, výchozí ne) a řídí jen
+  ťuknutí ze seznamu chatů a z menu účtu (obojí jde přes `onChatClick`). Notifikace, hledání
+  a výběry otevírají dál celou konverzaci — míří na konkrétní zprávu.
+- **Smazání tématu je `deleteSavedMessagesTopicHistory`**: zmizí uložené zprávy, zdrojový chat ne.
+  U Mých poznámek se nenabízí — smazalo by všechny vlastní poznámky jedním ťuknutím.
+- **Ověřeno na emulátoru** (česky): seznam čtyř témat, Moje poznámky s polem (zpráva odešla
+  a objevila se v tématu i v jeho náhledu), téma Notifikator jen pro čtení a „Otevřít chat",
+  připnutí a odepnutí (seznam se přeskládá sám updatem), dialog smazání (zrušený), volba přežije
+  restart. **Smazání tématu ověřené NENÍ** — mazalo by skutečné uložené zprávy. iOS jen přeložené.
 
 ### Nová konverzace a kontakty
 

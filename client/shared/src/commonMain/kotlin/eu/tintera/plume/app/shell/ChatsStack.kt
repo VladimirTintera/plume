@@ -18,6 +18,7 @@ import eu.tintera.plume.core.navigation.ArchiveEditChatRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ArchiveForumTopicsRoute
 import eu.tintera.plume.core.navigation.ForumTopicsRoute
+import eu.tintera.plume.core.navigation.SavedTopicsRoute
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.features.chats.ArchiveChange
 import eu.tintera.plume.features.conversation.ChatTarget
@@ -54,7 +55,7 @@ internal fun List<NavKey>.shownChatFolder(): ChatFolder =
 internal fun List<NavKey>.hasOpenConversation(folder: ChatFolder): Boolean = when (folder) {
     // Seznam témat stojí na místě konverzace (skupina s tématy se otevírá jím). Složka Telegramu
     // je výběr z hlavního seznamu a sdílí jeho větev.
-    ChatFolder.Main, is ChatFolder.Custom -> any { it is ConversationRoute || it is ForumTopicsRoute }
+    ChatFolder.Main, is ChatFolder.Custom -> any { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute }
     ChatFolder.Archive -> any { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute }
 }
 
@@ -108,7 +109,7 @@ internal fun MutableList<NavKey>.moveConversationToMain(chatId: Long) {
             is ArchiveEditChatRoute, is ArchiveMemberRightsRoute, is ArchiveInviteLinksRoute, is ArchiveJoinRequestsRoute -> true
             // Detail hlavního seznamu patřil jinému chatu; nový chat ho nahradí celý, jinak by
             // zpět z něj vedlo do profilu toho předchozího.
-            is ConversationRoute, is ForumTopicsRoute, is ChatProfileRoute, is EditChatRoute, is MemberRightsRoute,
+            is ConversationRoute, is ForumTopicsRoute, is SavedTopicsRoute, is ChatProfileRoute, is EditChatRoute, is MemberRightsRoute,
             is InviteLinksRoute, is JoinRequestsRoute -> true
             else -> false
         }
@@ -180,7 +181,7 @@ internal fun MutableList<NavKey>.openTarget(target: ChatTarget, archive: Boolean
  * ze seznamu chatů — zpět tak vede tam, kam by vedl z tématu otevřeného ručně.
  */
 internal fun MutableList<NavKey>.openFoundMessage(chatId: Long, messageId: Long, topicId: Int?) {
-    removeAll { it is ConversationRoute || it is ForumTopicsRoute }
+    removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute }
     if (topicId != null) add(ForumTopicsRoute(chatId))
     add(ConversationRoute(chatId, messageId, topicId = topicId))
 }

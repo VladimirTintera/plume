@@ -23,6 +23,13 @@ interface ConversationRepository {
     fun inForumTopic(topicId: Int): ConversationRepository = this
 
     /**
+     * Konverzace zúžená na jedno téma Uložených zpráv (zprávy uložené z jednoho chatu): historie,
+     * nové zprávy, hledání a připnuté. Odesílat do tématu TDLib nedovolí — psát se dá jen do
+     * Mých poznámek, a ty jsou Uložené zprávy bez tématu.
+     */
+    fun inSavedTopic(topicId: Long): ConversationRepository = this
+
+    /**
      * Načte [limit] zpráv **starších** než [fromMessageId] (i ji samu, když existuje).
      *
      * `fromMessageId = 0` znamená „od nejnovější". Prázdný výsledek znamená konec historie —
@@ -986,6 +993,8 @@ data class ChatInfo(
      * téma, ne skupinu; nepřečtené, koncept a právo psát jsou tématu, ne celé skupiny.
      */
     val topic: TopicHeader? = null,
+    /** Téma Uložených zpráv, do kterého je konverzace zúžená; hlavička pak ukazuje zdrojový chat. */
+    val savedTopic: SavedTopicHeader? = null,
 )
 
 /**

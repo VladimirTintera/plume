@@ -1888,4 +1888,19 @@
     <string name="photo_crop_hint">Drag and pinch to fit the photo in the circle</string>
     <string name="photo_crop_done">Done</string>
     <string name="photo_crop_failed">The photo can't be loaded</string>
+    <string name="saved_topic_my_notes">My Notes</string>
+    <string name="saved_topic_author_hidden">Hidden author</string>
+    <string name="saved_topic_unknown_chat">Unknown chat</string>
+    <string name="saved_topic_open_chat">Open chat</string>
+    <string name="saved_topic_read_only">Saved from another chat. You can only write to My Notes.</string>
+    <string name="saved_view_as_chats">View as chats</string>
+    <string name="saved_view_as_messages">View as messages</string>
+    <string name="saved_topics_subtitle">By chat</string>
+    <string name="saved_topics_empty_title">Nothing saved yet</string>
+    <string name="saved_topics_empty">Messages you forward here are sorted by the chat they came from.</string>
+    <string name="saved_topics_load_failed">Saved messages couldn't be loaded</string>
+    <string name="saved_topic_delete">Delete</string>
+    <string name="saved_topic_delete_title">Delete messages saved from “%1$s”?</string>
+    <string name="saved_topic_delete_body">They will be removed from Saved Messages. The original chat stays as it is. This can't be undone.</string>
+    <string name="saved_topic_action_failed">That didn't work, try again</string>
 </resources>

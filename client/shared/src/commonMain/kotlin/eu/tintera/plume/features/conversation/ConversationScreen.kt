@@ -1,5 +1,12 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.forum_24dp
+import eu.tintera.plume.resources.saved_view_as_chats
+import eu.tintera.plume.resources.saved_topic_read_only
+import eu.tintera.plume.resources.saved_topic_open_chat
+import eu.tintera.plume.core.ui.savedTopicTitle
+import eu.tintera.plume.core.ui.SavedTopicAvatar
+import eu.tintera.plume.core.telegram.SavedTopicKind
 import androidx.compose.runtime.DisposableEffect
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.core.ui.threshold
@@ -438,6 +445,11 @@ fun ConversationScreen(
     onAddMembers: () -> Unit = {},
     /** Pruh s čekajícími žádostmi o vstup: otevře jejich seznam. */
     onOpenJoinRequests: () -> Unit = {},
+    /**
+     * Uložené zprávy jako seznam témat podle zdrojového chatu. `null` = nenabízet (každá jiná
+     * konverzace i téma samo).
+     */
+    onViewAsChats: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
@@ -1259,7 +1271,12 @@ fun ConversationScreen(
                                 modifier = Modifier.padding(end = 12.dp),
                             )
                         }
-                        state.info?.takeIf { it.topic == null }?.let { info ->
+                        // Téma Uložených zpráv: fotka chatu, ze kterého se ukládalo (Moje poznámky
+                        // záložka). Taky nic neletí, řádek v seznamu témat je jiná obrazovka.
+                        state.info?.savedTopic?.let { topic ->
+                            SavedTopicAvatar(topic = topic, size = HEADER_AVATAR, modifier = Modifier.padding(end = 12.dp))
+                        }
+                        state.info?.takeIf { it.topic == null && it.savedTopic == null }?.let { info ->
                           AnimatedVisibility(
                               visible = headerAvatar,
                               enter = fadeIn() + expandHorizontally(),
@@ -1314,6 +1331,7 @@ fun ConversationScreen(
                                     text = when {
                                         state.threadRootId != null -> stringResource(Res.string.comments_title)
                                         state.info?.topic != null -> state.info?.topic?.name.orEmpty()
+                                        state.info?.savedTopic != null -> savedTopicTitle(state.info!!.savedTopic!!)
                                         else -> state.info?.let { chatTitle(it.id, it.title) }
                                             ?: stringResource(Res.string.conversation_fallback_title)
                                     },
@@ -1359,7 +1377,7 @@ fun ConversationScreen(
                             // Ve vlákně komentářů a v tématu říká podtitul, ve které skupině se diskutuje.
                             val threadSubtitle = state.info
                                 ?.takeIf { state.narrowed }
-                                ?.let { HeaderSubtitle(it.title) }
+                                ?.let { HeaderSubtitle(chatTitle(it.id, it.title)) }
                             val subtitle = threadSubtitle ?: state.presence
                                 ?.takeIf { shownConnection == null }
                                 // Vlastní dostupnost v Uložených zprávách nic neříká — byl bys
@@ -1401,6 +1419,15 @@ fun ConversationScreen(
                             Icon(
                                 painterResource(Res.drawable.summarize_24dp),
                                 contentDescription = stringResource(Res.string.summary_action),
+                            )
+                        }
+                    }
+                    // Uložené zprávy podle zdrojového chatu: jen u celých Uložených zpráv, ne v tématu.
+                    if (onViewAsChats != null && state.info?.isSavedMessages == true && !state.narrowed) {
+                        IconButton(onClick = onViewAsChats) {
+                            Icon(
+                                painterResource(Res.drawable.forum_24dp),
+                                contentDescription = stringResource(Res.string.saved_view_as_chats),
                             )
                         }
                     }
@@ -1502,6 +1529,22 @@ fun ConversationScreen(
                 }
                 WriteAccess.TopicClosed -> {
                     ReadOnlyNote(Res.string.conversation_topic_closed, barGlass)
+                    return@Box
+                }
+                // Téma Uložených zpráv uložené odjinud: odeslat do něj TDLib nedovolí. Zdrojový
+                // chat aspoň jde otevřít — tam se odpovídá; bez známého chatu jen proč.
+                WriteAccess.SavedTopic -> {
+                    val source = (state.info?.savedTopic?.kind as? SavedTopicKind.FromChat)?.chatId
+                    if (source != null) {
+                        JoinBar(
+                            joining = false,
+                            onJoin = { onOpenChat(ChatTarget(source)) },
+                            label = Res.string.saved_topic_open_chat,
+                            modifier = barGlass,
+                        )
+                    } else {
+                        ReadOnlyNote(Res.string.saved_topic_read_only, barGlass)
+                    }
                     return@Box
                 }
                 WriteAccess.Allowed, null -> Unit

@@ -255,6 +255,11 @@ class ConversationViewModel(
      * (`inForumTopic`), tady jen to, co je vidět: hlavička a plánování.
      */
     private val forumTopicId: Int? = null,
+    /**
+     * Téma Uložených zpráv (zprávy uložené z jednoho chatu); `null` u běžné konverzace. Zdroj
+     * zpráv zužuje [repository] (`inSavedTopic`), tady jen hlavička.
+     */
+    private val savedTopicId: Long? = null,
     private val repository: ConversationRepository,
     /**
      * Jen kvůli „píše…". Činnost v chatu už sleduje repository chatů — i s odpočtem, který ji zhasne,
@@ -358,7 +363,7 @@ class ConversationViewModel(
     val isPremium: StateFlow<Boolean> = chatRepository.isPremium
     val speechTrial: StateFlow<SpeechTrial?> = chatRepository.speechTrial
 
-    private val _state = MutableStateFlow(ConversationState(threadRootId = threadRootId, forumTopicId = forumTopicId))
+    private val _state = MutableStateFlow(ConversationState(threadRootId = threadRootId, forumTopicId = forumTopicId, savedTopicId = savedTopicId))
     val state: StateFlow<ConversationState> = _state.asStateFlow()
 
     /**
@@ -2193,7 +2198,9 @@ class ConversationViewModel(
                         is InternalLink.Message -> when {
                             // Tentýž chat, a v tématu jen totéž téma — zpráva z jiného tématu
                             // v téhle historii není, skok by skončil „už není k dispozici".
-                            link.chatId == chatId && (forumTopicId == null || link.topicId == forumTopicId) ->
+                            // V tématu Uložených zpráv odkaz téma nenese, takže se otevře celý chat.
+                            link.chatId == chatId && savedTopicId == null &&
+                                (forumTopicId == null || link.topicId == forumTopicId) ->
                                 link.messageId?.let { jumpToMessage(it, fromSearch = true) }
                             else -> openTarget(ChatTarget(link.chatId, link.messageId, topicId = link.topicId))
                         }
@@ -4859,6 +4866,8 @@ data class ConversationState(
     val threadRootId: Long? = null,
     /** Téma skupiny s tématy; `null` u běžné konverzace. */
     val forumTopicId: Int? = null,
+    /** Téma Uložených zpráv; `null` u běžné konverzace. */
+    val savedTopicId: Long? = null,
     /**
      * Nepřečtené zmínky a reakce v chatu — tlačítka „@" a „❤" nad tlačítkem dolů. Ve vlákně
      * komentářů zůstávají nulové: počty patří celé diskusní skupině.
@@ -5056,7 +5065,7 @@ data class ConversationState(
     val error: UiText? = null,
 ) {
     /** Konverzace zúžená na část chatu (vlákno komentářů, téma): hlavička patří jí, ne chatu. */
-    val narrowed: Boolean get() = threadRootId != null || forumTopicId != null
+    val narrowed: Boolean get() = threadRootId != null || forumTopicId != null || savedTopicId != null
 
     /**
      * Jestli se u připravené přílohy smí nabídnout mizení — pro [attachmentCount] příloh.
