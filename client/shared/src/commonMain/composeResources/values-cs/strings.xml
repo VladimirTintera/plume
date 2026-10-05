@@ -1943,4 +1943,8 @@
     <string name="server_summary_copied">Shrnutí zkopírováno</string>
     <string name="server_summary_note">Shrnul Telegram. Něco může vynechat nebo popsat nepřesně.</string>
     <string name="error_summary_premium_limit">Bez Telegram Premium jsou shrnutí omezená. Zkus to později.</string>
+    <string name="photo_crop_title">Upravit fotku</string>
+    <string name="photo_crop_hint">Posuň a přibliž fotku, ať sedí v kruhu</string>
+    <string name="photo_crop_done">Hotovo</string>
+    <string name="photo_crop_failed">Fotku se nepodařilo načíst</string>
 </resources>

@@ -72,6 +72,7 @@ import eu.tintera.plume.resources.forum_24dp
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ChatTypeSection
 import eu.tintera.plume.core.ui.avatarShape
+import eu.tintera.plume.core.ui.PhotoCropOverlay
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.toggle
@@ -176,156 +177,164 @@ fun EditChatScreen(
 
     val chat = viewModel.original
 
-    Scaffold(
-        modifier = modifier,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        stringResource(
-                            if (chat?.isChannel == true) Res.string.edit_chat_title_channel else Res.string.edit_chat_title,
-                        ),
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
-                    }
-                },
-                actions = {
-                    // Uložit se nabízí, jen když je co ukládat — fotka a práva jdou na server hned.
-                    if (chat?.rights?.canChangeInfo == true) {
-                        TextButton(onClick = viewModel::save, enabled = viewModel.canSave) {
-                            Text(stringResource(Res.string.edit_profile_save))
+    // Ořez fotky leží přes celou obrazovku, nad Scaffoldem.
+    Box(Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = modifier,
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Text(
+                            stringResource(
+                                if (chat?.isChannel == true) Res.string.edit_chat_title_channel else Res.string.edit_chat_title,
+                            ),
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                         }
-                    }
-                },
-            )
-        },
-    ) { padding ->
-        if (chat == null) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                if (!viewModel.loadFailed) LoadingIndicator()
-            }
-            return@Scaffold
-        }
-
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            if (chat.rights.canChangeInfo) {
-                Box(contentAlignment = Alignment.Center) {
-                    Avatar(
-                        chatId = chat.chatId,
-                        title = viewModel.title,
-                        avatarFileId = chat.photoFileId ?: chat.photoThumbnailFileId,
-                        size = AVATAR_SIZE,
-                        // Tentýž tvar jako v seznamu a v hlavičce — skupina sušenka, kanál čtverec.
-                        shape = (if (chat.isChannel) ChatKind.Channel else ChatKind.Group).avatarShape(),
-                    )
-                    // Nahrávání fotky trvá: kolečko přes avatar, jako průběh nahrávání přílohy.
-                    if (viewModel.photoBusy) CircularWavyProgressIndicator(Modifier.size(AVATAR_SIZE))
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = picker::pickMedia, enabled = !viewModel.photoBusy) {
-                        Icon(painterResource(Res.drawable.photo_camera_24dp), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                        Text(stringResource(Res.string.edit_profile_change_photo))
-                    }
-                    if (chat.photoFileId != null) {
-                        TextButton(onClick = { confirmDeletePhoto = true }, enabled = !viewModel.photoBusy) {
-                            Text(stringResource(Res.string.edit_chat_delete_photo))
+                    },
+                    actions = {
+                        // Uložit se nabízí, jen když je co ukládat — fotka a práva jdou na server hned.
+                        if (chat?.rights?.canChangeInfo == true) {
+                            TextButton(onClick = viewModel::save, enabled = viewModel.canSave) {
+                                Text(stringResource(Res.string.edit_profile_save))
+                            }
                         }
-                    }
-                }
-
-                OutlinedTextField(
-                    value = viewModel.title,
-                    onValueChange = { viewModel.title = it.take(TITLE_MAX_LENGTH) },
-                    label = { Text(stringResource(Res.string.edit_chat_name)) },
-                    singleLine = true,
-                    isError = viewModel.title.isBlank(),
-                    supportingText = if (viewModel.title.isBlank()) {
-                        { Text(stringResource(Res.string.edit_chat_name_required)) }
-                    } else null,
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-
-                OutlinedTextField(
-                    value = viewModel.description,
-                    onValueChange = { viewModel.description = it.take(DESCRIPTION_MAX_LENGTH) },
-                    label = { Text(stringResource(Res.string.edit_chat_description)) },
-                    minLines = 2,
-                    supportingText = { Text(stringResource(Res.string.edit_chat_description_help)) },
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-
-            // Veřejný odkaz mění jen vlastník supergroupy nebo kanálu (`EditableChat.canChangeUsername`).
-            if (chat.rights.canChangeInfo && chat.canChangeUsername) {
-                ChatTypeSection(
-                    channel = chat.isChannel,
-                    isPublic = viewModel.isPublic,
-                    onPublicChange = { viewModel.isPublic = it },
-                    username = viewModel.username,
-                    onUsernameChange = { viewModel.username = it },
-                    status = viewModel.usernameStatus,
-                    enabled = !viewModel.saving,
-                    original = chat.username,
-                )
-            }
-
-            // Diskuse ke kanálu — skupina pro komentáře pod příspěvky (`EditableChat.canSetDiscussion`).
-            if (chat.canSetDiscussion) {
-                DiscussionGroup(
-                    linked = viewModel.linkedChat,
-                    busy = viewModel.discussionBusy,
-                    onClick = {
-                        viewModel.loadDiscussionCandidates()
-                        showDiscussion = true
                     },
                 )
+            },
+        ) { padding ->
+            if (chat == null) {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    if (!viewModel.loadFailed) LoadingIndicator()
+                }
+                return@Scaffold
             }
 
-            // Témata zapíná jen vlastník supergroupy (viz `EditableChat.canToggleForum`).
-            if (chat.canToggleForum) {
-                Card(Modifier.fillMaxWidth()) {
-                    Column {
-                        SwitchRow(Res.string.edit_chat_forum, viewModel.isForum, viewModel::toggleForum)
-                        Text(
-                            stringResource(Res.string.edit_chat_forum_help),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                if (chat.rights.canChangeInfo) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Avatar(
+                            chatId = chat.chatId,
+                            title = viewModel.title,
+                            avatarFileId = chat.photoFileId ?: chat.photoThumbnailFileId,
+                            size = AVATAR_SIZE,
+                            // Tentýž tvar jako v seznamu a v hlavičce — skupina sušenka, kanál čtverec.
+                            shape = (if (chat.isChannel) ChatKind.Channel else ChatKind.Group).avatarShape(),
                         )
+                        // Nahrávání fotky trvá: kolečko přes avatar, jako průběh nahrávání přílohy.
+                        if (viewModel.photoBusy) CircularWavyProgressIndicator(Modifier.size(AVATAR_SIZE))
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(onClick = picker::pickMedia, enabled = !viewModel.photoBusy) {
+                            Icon(painterResource(Res.drawable.photo_camera_24dp), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                            Text(stringResource(Res.string.edit_profile_change_photo))
+                        }
+                        if (chat.photoFileId != null) {
+                            TextButton(onClick = { confirmDeletePhoto = true }, enabled = !viewModel.photoBusy) {
+                                Text(stringResource(Res.string.edit_chat_delete_photo))
+                            }
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = viewModel.title,
+                        onValueChange = { viewModel.title = it.take(TITLE_MAX_LENGTH) },
+                        label = { Text(stringResource(Res.string.edit_chat_name)) },
+                        singleLine = true,
+                        isError = viewModel.title.isBlank(),
+                        supportingText = if (viewModel.title.isBlank()) {
+                            { Text(stringResource(Res.string.edit_chat_name_required)) }
+                        } else null,
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+
+                    OutlinedTextField(
+                        value = viewModel.description,
+                        onValueChange = { viewModel.description = it.take(DESCRIPTION_MAX_LENGTH) },
+                        label = { Text(stringResource(Res.string.edit_chat_description)) },
+                        minLines = 2,
+                        supportingText = { Text(stringResource(Res.string.edit_chat_description_help)) },
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
+                // Veřejný odkaz mění jen vlastník supergroupy nebo kanálu (`EditableChat.canChangeUsername`).
+                if (chat.rights.canChangeInfo && chat.canChangeUsername) {
+                    ChatTypeSection(
+                        channel = chat.isChannel,
+                        isPublic = viewModel.isPublic,
+                        onPublicChange = { viewModel.isPublic = it },
+                        username = viewModel.username,
+                        onUsernameChange = { viewModel.username = it },
+                        status = viewModel.usernameStatus,
+                        enabled = !viewModel.saving,
+                        original = chat.username,
+                    )
+                }
+
+                // Diskuse ke kanálu — skupina pro komentáře pod příspěvky (`EditableChat.canSetDiscussion`).
+                if (chat.canSetDiscussion) {
+                    DiscussionGroup(
+                        linked = viewModel.linkedChat,
+                        busy = viewModel.discussionBusy,
+                        onClick = {
+                            viewModel.loadDiscussionCandidates()
+                            showDiscussion = true
+                        },
+                    )
+                }
+
+                // Témata zapíná jen vlastník supergroupy (viz `EditableChat.canToggleForum`).
+                if (chat.canToggleForum) {
+                    Card(Modifier.fillMaxWidth()) {
+                        Column {
+                            SwitchRow(Res.string.edit_chat_forum, viewModel.isForum, viewModel::toggleForum)
+                            Text(
+                                stringResource(Res.string.edit_chat_forum_help),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                            )
+                        }
                     }
                 }
-            }
 
-            /*
-             * Práva členů jen ve skupině a jen s právem omezovat (`setChatPermissions` ho
-             * vyžaduje). Kanál výchozí práva nemá — nikdo do něj nepíše, takže není co omezovat.
-             */
-            val permissions = viewModel.permissions
-            if (chat.rights.canRestrictMembers && !chat.isChannel && permissions != null) {
-                PermissionsGroup(permissions, viewModel::setPermission)
-            }
+                /*
+                 * Práva členů jen ve skupině a jen s právem omezovat (`setChatPermissions` ho
+                 * vyžaduje). Kanál výchozí práva nemá — nikdo do něj nepíše, takže není co omezovat.
+                 */
+                val permissions = viewModel.permissions
+                if (chat.rights.canRestrictMembers && !chat.isChannel && permissions != null) {
+                    PermissionsGroup(permissions, viewModel::setPermission)
+                }
 
-            // Pozvánky: vlastník a správce s právem zvát (`ChatEditRights.canManageInvites`).
-            if (chat.rights.canManageInvites) {
-                val pending by viewModel.pendingJoinRequests.collectAsStateWithLifecycle()
-                InvitesGroup(pending = pending, onOpenInviteLinks = onOpenInviteLinks, onOpenJoinRequests = onOpenJoinRequests)
+                // Pozvánky: vlastník a správce s právem zvát (`ChatEditRights.canManageInvites`).
+                if (chat.rights.canManageInvites) {
+                    val pending by viewModel.pendingJoinRequests.collectAsStateWithLifecycle()
+                    InvitesGroup(pending = pending, onOpenInviteLinks = onOpenInviteLinks, onOpenJoinRequests = onOpenJoinRequests)
+                }
             }
         }
+        PhotoCropOverlay(
+            path = viewModel.cropping,
+            onCancel = viewModel::cancelCrop,
+            onConfirm = viewModel::cropPhoto,
+        )
     }
 }
 

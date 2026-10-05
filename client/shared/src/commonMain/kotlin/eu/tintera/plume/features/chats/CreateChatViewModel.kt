@@ -17,6 +17,7 @@ import eu.tintera.plume.core.telegram.usernameFormatError
 import eu.tintera.plume.core.ui.USERNAME_CHECK_DELAY_MS
 import eu.tintera.plume.core.ui.UsernameStatus
 import eu.tintera.plume.core.telegram.userMessage
+import eu.tintera.plume.core.ui.CropRegion
 import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
@@ -51,7 +52,7 @@ data class CreatedReport(
  * o dispatch později poskakuje kurzorem.
  *
  * **Fotka se jen připraví a nahraje až s chatem** (`setChatPhoto` potřebuje id). Ořezává se hned
- * po výběru, aby náhled ukazoval přesně to, co odejde. Když nahrání selže, chat už stojí —
+ * po výběru výřezu ([PhotoCropOverlay]), aby náhled ukazoval přesně to, co odejde. Když nahrání selže, chat už stojí —
  * zakládat ho kvůli fotce znovu by vyrobilo druhý; řekne se to a fotka jde přidat v úpravě.
  */
 class CreateChatViewModel(
@@ -147,6 +148,10 @@ class CreateChatViewModel(
             return title.isNotBlank() && !creating && !photoBusy && usernameOk
         }
 
+    /** Fotka čekající na ořez ([PhotoCropOverlay]); `null` = ořez zavřený. */
+    var cropping by mutableStateOf<String?>(null)
+        private set
+
     /** Z výběru příloh; bere se první fotka, video fotkou chatu být nemůže. */
     fun setPhoto(attachments: List<OutgoingAttachment>) {
         val photo = attachments.firstOrNull() as? OutgoingAttachment.Photo
@@ -154,9 +159,19 @@ class CreateChatViewModel(
             notice = UiText(Res.string.edit_profile_not_photo)
             return
         }
+        cropping = photo.path
+    }
+
+    fun cancelCrop() {
+        cropping = null
+    }
+
+    fun cropPhoto(region: CropRegion) {
+        val path = cropping ?: return
+        cropping = null
         photoBusy = true
         viewModelScope.launch {
-            runCatching { squarePhoto.crop(photo.path) }
+            runCatching { squarePhoto.crop(path, region) }
                 .onSuccess { photoPath = it }
                 .onFailure { failure ->
                     logger.w(failure) { "Fotku pro nový chat se nepodařilo připravit." }

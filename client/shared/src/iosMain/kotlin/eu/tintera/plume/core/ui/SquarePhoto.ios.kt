@@ -15,12 +15,13 @@ import kotlin.math.min
 
 class IosSquarePhoto : SquarePhoto {
 
-    /** Kreslí se do čtverce posunutá o polovinu přesahu — tím vznikne ořez ze středu. */
+    /** Kreslí se do čtverce posunutá o levý horní roh výřezu — tím vznikne ořez. */
     @OptIn(ExperimentalForeignApi::class)
-    override suspend fun crop(path: String): String = withContext(Dispatchers.Default) {
+    override suspend fun crop(path: String, region: CropRegion?): String = withContext(Dispatchers.Default) {
         val image = UIImage.imageWithContentsOfFile(path) ?: error("Obrázek nejde dekódovat.")
         val (width, height) = image.size.useContents { width * image.scale to height * image.scale }
-        val side = min(width, height)
+        val (left, top, sidePixels) = squarePixels(region, width.toInt(), height.toInt())
+        val side = sidePixels.toDouble()
         val edge = min(side, PROFILE_PHOTO_EDGE.toDouble())
         val factor = edge / side
         val format = UIGraphicsImageRendererFormat.defaultFormat().apply {
@@ -30,7 +31,7 @@ class IosSquarePhoto : SquarePhoto {
         val renderer = UIGraphicsImageRenderer(size = CGSizeMake(edge, edge), format = format)
         val square = renderer.imageWithActions { _ ->
             image.drawInRect(
-                CGRectMake(-(width - side) / 2 * factor, -(height - side) / 2 * factor, width * factor, height * factor),
+                CGRectMake(-left * factor, -top * factor, width * factor, height * factor),
             )
         }
         val jpeg = UIImageJPEGRepresentation(square, PHOTO_JPEG_QUALITY / 100.0) ?: error("JPEG nejde vytvořit.")
