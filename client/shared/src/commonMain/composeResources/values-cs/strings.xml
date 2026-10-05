@@ -297,6 +297,7 @@
     <string name="conversation_topic_closed">Téma je uzavřené. Psát do něj můžou jen správci.</string>
     <string name="conversation_join_failed">Přidat se nepodařilo.</string>
     <string name="conversation_link_failed">Odkaz se nepodařilo otevřít.</string>
+    <string name="conversation_link_user_not_found">Tenhle člověk na Telegramu není, nebo své číslo skrývá.</string>
     <string name="invite_request">Požádat o přijetí</string>
     <string name="invite_request_sent">Žádost odeslána, schválí ji správce.</string>
     <string name="folder_invite_title">Přidat složku</string>

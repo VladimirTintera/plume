@@ -6,8 +6,25 @@ package eu.tintera.plume.core.telegram
  * zná všechny podoby (`t.me/…`, `telegram.me/…`, `tg://…`), my jen vybíráme, co umíme ukázat.
  */
 sealed interface InternalLink {
-    /** Veřejný chat, uživatel nebo kanál (`t.me/jméno`), případně chat z pozvánky, kde už uživatel je. */
-    data class Chat(val chatId: Long) : InternalLink
+    /**
+     * Chat: veřejný (`t.me/jméno`), člověk podle čísla (`t.me/+420…`) nebo z kontaktního odkazu
+     * (`t.me/contact/…`), Uložené zprávy, případně chat z pozvánky, kde už uživatel je.
+     *
+     * - [draftText] je text, který odkaz předvyplní do pole (`?text=…`). Jen se VLOŽÍ, neodešle —
+     *   napsal ho autor odkazu, ne uživatel.
+     * - [openProfile] = odkaz chce profil, ne konverzaci (`?profile`).
+     */
+    data class Chat(
+        val chatId: Long,
+        val draftText: String? = null,
+        val openProfile: Boolean = false,
+    ) : InternalLink
+
+    /**
+     * Text ke sdílení (`t.me/share/url?url=…&text=…`): otevře výběr chatu jako sdílení ze
+     * systému, text pak čeká nad polem vybraného chatu. Nic se neposílá samo.
+     */
+    data class ShareText(val text: String) : InternalLink
 
     /**
      * Odkaz na zprávu. [messageId] je `null`, když chat otevřít jde, ale zprávu samotnou server
@@ -59,6 +76,12 @@ sealed interface InternalLink {
      */
     data class FolderInvite(val link: String, val preview: FolderInvitePreview) : InternalLink
 }
+
+/**
+ * Odkaz vede na člověka podle čísla nebo kontaktního odkazu, ale takový účet na Telegramu není
+ * (nebo číslo skrývá a v kontaktech není). Vlastní věta, ne obecné „odkaz nejde otevřít".
+ */
+class LinkUserNotFoundException : IllegalStateException("Uživatel z odkazu na Telegramu není.")
 
 /**
  * Co řekne pozvánka do sdílené složky (`checkChatFolderInviteLink`).

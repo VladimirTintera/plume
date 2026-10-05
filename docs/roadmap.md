@@ -121,8 +121,10 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
        publikovat má místo pole Ztlumit (`CLAUDE.md`, „Práva psát").
   2. ~~**Klikatelné zmínky a hashtagy v textu**~~ — hotovo (`@jméno` otevře chat, `#tag`
      hledání zpráv). Odkazy na Telegram (chat, zpráva, pozvánka, sada samolepek) se otevírají
-     v aplikaci (`CLAUDE.md`, „Odkazy na Telegram"); zbývající druhy (boti se `start`,
-     proxy, přihlašovací kódy…) jdou dál do prohlížeče; ~~sdílené složky~~ hotové. ~~**Veřejné příspěvky
+     v aplikaci (`CLAUDE.md`, „Odkazy na Telegram"); ~~boti se `start`, mini aplikace, sdílené
+     složky, člověk podle čísla a kontaktního odkazu, `?text=` a `?profile`, `t.me/share`,
+     Uložené zprávy~~ hotové. Zbývá: odkazy do Nastavení (`tg://settings/…`), nová skupina
+     a kanál, proxy, videochat a přihlašovací kódy — jdou dál do prohlížeče. ~~**Veřejné příspěvky
      s tagem**~~ — hotovo (přepínač „Vaše chaty / Veřejné příspěvky" u hashtagu).
   3. ~~**Hledání v konverzaci**~~ — hotovo (lupa v hlavičce, šipky mezi výsledky, viz
      `CLAUDE.md`, „Hledání v konverzaci"). Hledané slovo je v bublinách zvýrazněné.

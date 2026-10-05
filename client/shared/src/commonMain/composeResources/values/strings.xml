@@ -294,6 +294,7 @@
     <string name="conversation_topic_closed">This topic is closed. Only admins can post in it.</string>
     <string name="conversation_join_failed">Couldn't join.</string>
     <string name="conversation_link_failed">Couldn't open this link.</string>
+    <string name="conversation_link_user_not_found">This person isn't on Telegram, or keeps their number hidden.</string>
     <string name="invite_request">Request to join</string>
     <string name="invite_request_sent">Request sent. An admin will review it.</string>
     <string name="folder_invite_title">Add folder</string>
