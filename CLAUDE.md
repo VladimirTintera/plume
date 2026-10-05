@@ -4499,8 +4499,10 @@ v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, 
   kvízem, anketa jako odpověď s dobou 1 hodina (citace v bublině, „končí 08:30", odpověď nad
   polem zmizela), popis s odkazem a vlastní čas konce („končí zítra 18:48"). **Blok „Kdo smí
   hlasovat" jen podstrčeným `isChannel = true`** (sonda, necommituje se): výběr zemí, „2 země",
-  neplatný čas; odeslání s omezeními do kanálu ověřené NENÍ. **V kanálu a ve skupině zakládání
-  ověřené NENÍ** — testovací zprávy do skutečných skupin nepatří.
+  neplatný čas. **V testovacím kanálu a skupině ověřené**: anketa ve skupině (odeslání,
+  hlas, 100 % / 0 %), přidání odpovědi do cizí ankety ve skupině (bot `sendPoll`
+  s `allow_adding_options`, „Sushi" přibylo) a anketa v kanálu s „jen členové" (server ji přijal).
+  Že omezení opravdu platí, ověřit nejde — hlasovat by musel nečlen.
 - **Sheet se na snímku ukáže až po chvíli.** `screencap` hned po ťuknutí zachytí obrazovku bez
   něj a vypadá to, že tlačítko nefunguje; `uiautomator dump` už ho vidí.
 
@@ -4851,8 +4853,10 @@ testy `InlineQueryTest`).
   „via @gif"), ťuknutí na „via @gif" (`@gif ` v poli, nápověda a populární), `@wiki Prague`
   (řádky, odeslání jako karta odkazu s „via @wiki"), `@pic cat` (fotky a tlačítko mini
   aplikace), `@BotFather x` (bez panelu). **Neověřeno**: tlačítko „nastavit u bota" (žádný
-  z vyzkoušených botů ho neposlal), bot s polohou, video a samolepky ve výsledcích, ve skupině
-  a iOS (jen přeložené).
+  z vyzkoušených botů ho neposlal), bot s polohou, video a samolepky ve výsledcích a iOS (jen
+  přeložené). **Ve skupině ověřené** (`@gif cat` v testovací skupině, GIF odešel). Obraz GIFů
+  ve výsledcích i ve zprávě zůstal na emulátoru prázdný — selhává dekodér
+  (`queueInputBuffer() failed`), viz „GIFy".
 - **`chat_<id>` v `EXTRA_SHORTCUT_ID` se sdíleným textem je nejrychlejší cesta, jak dostat dotaz
   do pole** (`am start -a android.intent.action.SEND … --es android.intent.extra.TEXT '@gif kočka'`),
   i s diakritikou. Pozor na id testovacího bota — viz „Na snímcích nesmí být skuteční lidé".
@@ -5324,8 +5328,9 @@ Hlavička konverzace to ukazuje odznakem s hodinami za názvem (`AutoDeleteBadge
   skutečný účet, takže se ověřuje jen čtení a otevření výběru** (zavřít gestem zpět).
 - **Ověřeno na emulátoru** v chatu s testovacím botem (česky): řádek v profilu, sheet, nastavení
   1 dne (odznak v hlavičce, servisní zpráva s dobou), „Smaže se: zítra 20:54" u nové zprávy
-  a vypnutí (odznak zmizel, servisní zpráva „vypnuto"). **Skupina a kanál ověřené nejsou**
-  (práva správce), **iOS jen přeložené**.
+  a vypnutí (odznak zmizel, servisní zpráva „vypnuto"). **Ve skupině ověřené** (testovací
+  skupina, vlastník): nastavení i vypnutí s odznakem a servisními zprávami. Kanál a správce bez
+  vlastnictví ověřené nejsou, **iOS jen přeložené**.
 
 ### Výběr víc zpráv
 
@@ -9572,6 +9577,12 @@ vkus toho, kdo zrovna píše obrazovku.
   pozná jedině rukou na telefonu.**
 
 ## Gotchas
+
+- **`adb shell input text` do pole BEZ fokusu jde jako klávesnice do obrazovky a mezera
+  (`keyevent 62`) „ťukne" na zaostřené tlačítko.** Formulář ankety se tak zavřel přes Zavřít,
+  pak šipkou zpět odešla i konverzace a zbytek textu skončil v hledání seznamu chatů — bez
+  jediného cizího příkazu (ověřeno v logu `adbd service requested`). Před psaním ověřit
+  `focused="true"` ve výpisu a mezery psát jako `input text "%s"`, ne `keyevent 62`.
 
 - **`ExtendedFloatingActionButton(text = …, icon = …)` popisek skrývá před čtečkou obrazovky**
   (`clearAndSetSemantics` uvnitř animace rozbalení) — tlačítko pak ve stromu přístupnosti nemá
