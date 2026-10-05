@@ -26,7 +26,7 @@ Teď je prázdné.
 - **Seznam chatů na snímcích obrazovky chybí.** Na účtu jsou skutečné osoby; snímek seznamu
   chce demo účet se smyšlenými chaty.
 - ~~**`isShrinkResources` není zapnuté.**~~ — hotovo (release proklikaný na emulátoru;
-  `CLAUDE.md`, „R8"). Na iOS obdoba není potřeba.
+  `CLAUDE.md`, „R8").
 
 ## iOS
 
