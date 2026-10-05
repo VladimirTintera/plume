@@ -415,7 +415,6 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
   „Proxy"). Zbývá:
   - **Sponzorovaný chat od provozovatele MTProto proxy** (`ChatSourceMtprotoProxy`) — chat se
     v seznamu ukáže, ale bez vysvětlení, proč tam je.
-  - **Stav proxy v řádku Nastavení** (které je zapnutá) — řádek zatím jen vede na obrazovku.
 - ~~**Řádky sekcí nemají ikony.**~~ — hotovo (`SettingsSection.icon`).
 
 ## Aktualizace z obchodu

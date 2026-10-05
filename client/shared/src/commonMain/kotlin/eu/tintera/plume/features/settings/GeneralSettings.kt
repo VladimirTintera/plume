@@ -95,7 +95,7 @@ fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onO
         onOpenBlocked = onOpenBlocked,
     )
 
-    ConnectionSettings(onOpenProxy = onOpenProxy)
+    ConnectionSettings(viewModel = koinViewModel(), onOpenProxy = onOpenProxy)
 
     // Experimentální funkce s modelem v zařízení. Nad odhlášením, které má zůstat poslední.
     OnDeviceAiSettings(viewModel = koinViewModel())

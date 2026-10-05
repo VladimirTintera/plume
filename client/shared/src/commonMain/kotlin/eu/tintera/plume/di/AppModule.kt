@@ -105,6 +105,7 @@ import eu.tintera.plume.features.settings.BlockedSendersViewModel
 import eu.tintera.plume.features.settings.ChatFolderEditViewModel
 import eu.tintera.plume.features.settings.ChatFoldersViewModel
 import eu.tintera.plume.features.proxy.ProxySettingsViewModel
+import eu.tintera.plume.features.proxy.ProxyStatusViewModel
 import eu.tintera.plume.features.settings.SensitiveContentViewModel
 import eu.tintera.plume.features.settings.DefaultAutoDeleteViewModel
 import eu.tintera.plume.features.settings.NotificationSettingsViewModel
@@ -311,6 +312,7 @@ fun appModule() = module {
     viewModelOf(::BlockedSendersViewModel)
     viewModelOf(::ChatFoldersViewModel)
     viewModelOf(::ProxySettingsViewModel)
+    viewModelOf(::ProxyStatusViewModel)
     // Id složky je Int a nic jiného téhož typu parametry nemají, `get()` ho nezamění.
     viewModel { parameters -> ChatFolderEditViewModel(folderId = parameters.get(), chats = get(), folders = get(), clipboard = get(), sharer = get()) }
     viewModelOf(::BlockSenderViewModel)

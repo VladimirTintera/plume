@@ -1953,4 +1953,6 @@
     <string name="proxy_connect_failed">The proxy couldn't be added</string>
     <string name="proxy_unsupported">This proxy type isn't supported</string>
     <string name="auth_proxy">Connect through a proxy</string>
+    <string name="proxy_row_direct">Off · direct connection</string>
+    <string name="proxy_row_via">On · %1$s</string>
 </resources>
