@@ -409,6 +409,7 @@ fun appModule() = module {
             squarePhoto = get(),
             inviteLinks = get(),
             forums = get(),
+            chats = get(),
         )
     }
 

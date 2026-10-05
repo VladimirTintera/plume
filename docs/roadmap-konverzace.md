@@ -463,11 +463,12 @@ snadno na to uživatel narazí.
 **Údaje o zprávě, které TDLib posílá a my zahazujeme**
 
 - ~~**Zhlédnutí u příspěvků kanálu**~~ — hotovo: zhlédnutí, přeposlání a počet komentářů pod
-  příspěvkem (`CLAUDE.md`, „Počty pod příspěvkem"). Počet komentářů ověřený na zařízení není
-  (testovací účet neodebírá kanál s diskusí).
+  příspěvkem (`CLAUDE.md`, „Počty pod příspěvkem"). Počet komentářů ověřený v testovacím kanálu
+  s diskusí.
 - ~~**Komentáře u příspěvků kanálu**~~ — hotovo: čip „N komentářů" pod příspěvkem otevře
-  vlákno v diskusní skupině (`CLAUDE.md`, „Komentáře"). Zbývá: **odeslání komentáře ověřit**
-  (veřejné, jen se souhlasem), ~~komentovat bez vstupu do skupiny (`joinToSendMessages`)~~ —
+  vlákno v diskusní skupině (`CLAUDE.md`, „Komentáře"). ~~Odeslání komentáře ověřit~~ —
+  ověřeno v testovacím kanálu (diskusi jde nově připojit v úpravě kanálu, `CLAUDE.md`, „Diskuse ke
+  kanálu"; zbývá ukázat propojený kanál v úpravě skupiny), ~~komentovat bez vstupu do skupiny (`joinToSendMessages`)~~ —
   hotovo (pole se ukáže, odeslání ověřené není), ~~tváře
   posledních komentujících (`recentReplierIds`)~~ — hotovo, ~~hledání a koncept ve vlákně
   (`topicId`)~~ — hotovo,

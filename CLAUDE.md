@@ -6046,6 +6046,33 @@ a popisem (`ProfileRepository.setUsername` → `setSupergroupUsername`, prázdn�
   (Bot API hlásí `CHANNEL_PRIVATE`), profil po návratu pokaždé aktuální. **Neověřeno**:
   veřejná skupina (kód je společný), iOS.
 
+### Diskuse ke kanálu
+
+V úpravě kanálu je řádek „Diskuse" (`DiscussionSheet`): „Bez diskuse" a skupiny, které jde
+připojit (`ChatRepository.suitableDiscussionChats` nad `getSuitableDiscussionChats`).
+Připojení i odpojení je `ProfileRepository.setDiscussionGroup` (`setChatDiscussionGroup`,
+prázdné = `0`). Pod příspěvky se pak objeví „Komentovat" a vlákno vede do připojené skupiny
+(viz „Komentáře").
+
+- **Smí správce kanálu s právem měnit údaje** (`EditableChat.canSetDiscussion`). Skupina musí
+  být supergroupa, kde je uživatel vlastník nebo správce — tu podmínku hlídá server výběrem
+  vhodných skupin, aplikace ji nepočítá.
+- **Připojení se potvrzuje, odpojení ne.** Připojená skupina dostává všechny příspěvky a její
+  historie bude vidět i novým členům; odpojení jen vypne komentáře a jde vrátit.
+- **Propojený chat čte `SupergroupFullInfo.linkedChatId`** (`EditableChat.linkedChat`); řádek se
+  změní až po potvrzení serverem.
+- **Ve výběru jsou i skutečné skupiny uživatele** (na testovacím účtu „Kuřáci 2.0", „Testing
+  group") — při ověřování ťukat jen podle textu z čerstvého výpisu.
+- **Bot API `getChat` hlásí `linked_chat_id` s pár vteřinovým zpožděním** — po propojení ještě
+  `None`, o chvíli později správně. Ověřovat s odstupem, jinak to vypadá jako nepovedené volání.
+- **Automatická kopie příspěvku v diskusní skupině dorazí jako zpráva skupiny** a vyvolá
+  notifikaci skupiny, i když uživatel zrovna čte kanál. Jestli ji oficiální klienti potlačují,
+  ověřené není.
+- **Ověřeno na emulátoru**: testovací kanál ↔ testovací skupina (Bot API `linked_chat_id` na obou
+  stranách), příspěvek od bota s „Komentovat", komentář ve vlákně a „1 komentář" pod
+  příspěvkem, odpojení (`linked_chat_id` zmizel) a znovu připojení. **Propojený kanál se v úpravě
+  SKUPINY zatím neukazuje.**
+
 ### Pozvánky a žádosti o vstup
 
 V úpravě skupiny (⋮ v profilu → Upravit) je blok Pozvánky se dvěma řádky: **Odkazy k pozvání**
