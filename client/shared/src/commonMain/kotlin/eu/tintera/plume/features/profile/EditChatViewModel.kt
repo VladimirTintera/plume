@@ -27,10 +27,18 @@ import eu.tintera.plume.resources.edit_chat_permissions_failed
 import eu.tintera.plume.resources.edit_chat_photo_failed
 import eu.tintera.plume.resources.edit_chat_save_failed
 import eu.tintera.plume.resources.edit_profile_not_photo
+import androidx.compose.runtime.snapshotFlow
+import eu.tintera.plume.core.telegram.UsernameCheck
+import eu.tintera.plume.core.telegram.usernameFormatError
+import eu.tintera.plume.core.ui.USERNAME_CHECK_DELAY_MS
+import eu.tintera.plume.core.ui.UsernameStatus
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
- * Úprava skupiny nebo kanálu: název, popis, fotka a výchozí práva členů.
+ * Úprava skupiny nebo kanálu: název, popis, veřejný odkaz, fotka a výchozí práva členů.
  *
  * Stavěno na [EditProfileViewModel][eu.tintera.plume.features.settings.EditProfileViewModel] —
  * text polí je **Compose stav přímo ve ViewModelu**, ne `StateFlow`: hodnota vrácená přes tok
@@ -68,6 +76,15 @@ class EditChatViewModel(
     var title by mutableStateOf("")
     var description by mutableStateOf("")
 
+    /** Veřejný chat s odkazem [username]; ukládá se tlačítkem Uložit spolu s texty. */
+    var isPublic by mutableStateOf(false)
+    var username by mutableStateOf("")
+    var usernameStatus by mutableStateOf<UsernameStatus>(UsernameStatus.Idle)
+        private set
+
+    /** Veřejné jméno, jak by se uložilo: u soukromého chatu prázdné. */
+    private val effectiveUsername: String get() = if (isPublic) username.trim() else ""
+
     /**
      * Práva členů, jak je ukazují přepínače. TDLib na jejich změnu žádný update neposílá, takže
      * je tohle jediný zdroj pravdy: přepínač se pohne hned a při selhání se vrátí — stejně jako
@@ -97,6 +114,8 @@ class EditChatViewModel(
                     description = chat.description
                     permissions = chat.permissions
                     isForum = chat.isForum
+                    username = chat.username
+                    isPublic = chat.username.isNotEmpty()
                 }
                 .onFailure { failure ->
                     loadFailed = true
@@ -105,18 +124,51 @@ class EditChatViewModel(
         }
     }
 
+    init {
+        // Dostupnost se ptá serveru po pauze v psaní a jen nad jménem, které projde místními
+        // pravidly a není to současné jméno chatu — stejně jako u vlastního uživatelského jména.
+        viewModelScope.launch {
+            snapshotFlow { effectiveUsername }
+                .distinctUntilChanged()
+                .collectLatest { name ->
+                    val unchanged = name.equals(original?.username.orEmpty(), ignoreCase = true)
+                    if (name.isEmpty() || unchanged || usernameFormatError(name) != null) {
+                        usernameStatus = UsernameStatus.Idle
+                        return@collectLatest
+                    }
+                    usernameStatus = UsernameStatus.Checking
+                    delay(USERNAME_CHECK_DELAY_MS)
+                    usernameStatus = repository.checkUsername(chatId, name).fold(
+                        onSuccess = { if (it == UsernameCheck.Available) UsernameStatus.Available else UsernameStatus.Unavailable(it) },
+                        // Nezjištěná dostupnost ukládání neblokuje — rozhodne server.
+                        onFailure = { UsernameStatus.Idle },
+                    )
+                }
+        }
+    }
+
     val changed: Boolean
         get() {
             val chat = original ?: return false
-            return title.trim() != chat.title || description.trim() != chat.description
+            return title.trim() != chat.title || description.trim() != chat.description ||
+                effectiveUsername != chat.username
         }
 
-    /** Název je povinný — chat bez názvu server odmítne. */
-    val canSave: Boolean get() = changed && !saving && title.isNotBlank()
+    val canSave: Boolean
+        get() {
+            val chat = original ?: return false
+            val name = effectiveUsername
+            // Veřejný chat chce jméno; soukromý (prázdné) projde vždycky.
+            val usernameOk = name == chat.username || (!isPublic) || (
+                name.isNotEmpty() && usernameFormatError(name) == null &&
+                    usernameStatus !is UsernameStatus.Unavailable && usernameStatus != UsernameStatus.Checking
+                )
+            return changed && !saving && title.isNotBlank() && usernameOk
+        }
 
     /**
-     * Uloží, co se změnilo. Název a popis jsou dvě různá volání: když první selže, druhé se
-     * neposílá a obrazovka zůstane otevřená s hláškou — co prošlo, se zapíše do [original],
+     * Uloží, co se změnilo. Název, popis a veřejný odkaz jsou tři různá volání: když jedno selže,
+     * další se neposílají a obrazovka zůstane otevřená s hláškou — co prošlo, se zapíše do [original],
      * takže další pokus to neposílá znovu. Stejně to dělá úprava vlastního profilu.
      */
     fun save() {
@@ -135,6 +187,11 @@ class EditChatViewModel(
                 if (about != current.description) {
                     repository.setDescription(chatId, about).getOrThrow()
                     current = current.copy(description = about)
+                }
+                val link = effectiveUsername
+                if (link != current.username) {
+                    repository.setUsername(chatId, link).getOrThrow()
+                    current = current.copy(username = link)
                 }
             }
             original = current

@@ -206,8 +206,21 @@ class TdlProfileRepository(
             isForum = supergroup?.isForum == true,
             canToggleForum = supergroup != null && !isChannel && !supergroup.hasLinkedChat &&
                 (client.ownMemberStatus(chat) as? OwnMemberStatus.Creator)?.isMember == true,
+            username = supergroup?.usernames?.editableUsername.orEmpty(),
+            canChangeUsername = supergroup != null &&
+                (client.ownMemberStatus(chat) as? OwnMemberStatus.Creator)?.isMember == true,
         )
     }
+
+    override suspend fun setUsername(chatId: Long, username: String): Result<Unit> = runCatching {
+        val type = client.getChat(chatId = chatId).toResult().getOrThrow().type as? ChatTypeSupergroup
+            ?: error("Veřejné jméno má jen supergroupa nebo kanál.")
+        client.setSupergroupUsername(supergroupId = type.supergroupId, username = username).toResult().getOrThrow()
+        Unit
+    }
+
+    override suspend fun checkUsername(chatId: Long, username: String): Result<UsernameCheck> =
+        client.checkChatUsername(chatId = chatId, username = username).toResult().map { it.toUsernameCheck() }
 
     override suspend fun setTitle(chatId: Long, title: String): Result<Unit> =
         client.setChatTitle(chatId = chatId, title = title).toResult().map { }

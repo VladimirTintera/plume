@@ -1095,6 +1095,7 @@
     <string name="create_chat_link_prefix">t.me/</string>
     <string name="create_chat_link_help">Písmena a–z, číslice a podtržítko, aspoň 5 znaků</string>
     <string name="create_chat_username_too_many">Máš příliš mnoho veřejných skupin a kanálů</string>
+    <string name="chat_type_link_released">Odkaz t.me/%1$s se uvolní a může si ho vzít kdokoli jiný.</string>
     <string name="create_group_username_failed">Veřejný odkaz se nepodařilo nastavit, skupina zůstala soukromá.</string>
     <string name="create_channel_username_failed">Veřejný odkaz se nepodařilo nastavit, kanál zůstal soukromý.</string>
     <string name="settings_section_notifications">Notifikace</string>

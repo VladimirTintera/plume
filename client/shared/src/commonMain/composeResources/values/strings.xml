@@ -1074,6 +1074,7 @@
     <string name="create_chat_link_prefix">t.me/</string>
     <string name="create_chat_link_help">Letters a–z, digits and underscores, at least 5 characters</string>
     <string name="create_chat_username_too_many">You have too many public groups and channels</string>
+    <string name="chat_type_link_released">The link t.me/%1$s will be released and anyone can take it.</string>
     <string name="create_group_username_failed">The public link couldn't be set, so the group stayed private.</string>
     <string name="create_channel_username_failed">The public link couldn't be set, so the channel stayed private.</string>
     <string name="settings_section_notifications">Notifications</string>

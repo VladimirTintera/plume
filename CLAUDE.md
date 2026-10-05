@@ -5991,6 +5991,29 @@ přidává se tlačítkem s počtem. Kdo smí, je čistá funkce `canInviteMembe
   **Skutečné odmítnutí kvůli soukromí a základní skupina ověřené NEJSOU** — chtělo by to
   přidávat skutečné lidi. Bota z testovací skupiny jde zase odebrat `leaveChat` přes Bot API.
 
+### Veřejný odkaz v úpravě chatu
+
+Úprava skupiny nebo kanálu má tentýž blok Soukromý / Veřejný jako založení (`ChatTypeSection`
+v `core/ui`, sdílený s `CreateChatScreen`). Odkaz se ukládá tlačítkem Uložit spolu s názvem
+a popisem (`ProfileRepository.setUsername` → `setSupergroupUsername`, prázdné = soukromý).
+
+- **Jen vlastník supergroupy nebo kanálu** (`EditableChat.canChangeUsername`). Základní skupina
+  by se musela převést na supergroupu (jiné id chatu), takže se jí blok nenabízí.
+- **Bere se `usernames.editableUsername`**, ne první aktivní jméno: sběratelská jména z Fragmentu
+  (`collectibleUsernames`) se tudy měnit nedají a do pole nepatří.
+- **Přepnutí na soukromý řekne předem, že se odkaz uvolní** (`chat_type_link_released`) — vrátit
+  ho nemusí jít, když si ho mezitím vezme někdo jiný.
+- **Dostupnost se ptá `checkChatUsername(chatId)` existujícího chatu**; současné jméno se
+  nekontroluje (bylo by „obsazené" sebou).
+- **Profil chatu se po návratu z úpravy čte znovu** (`ChatProfileViewModel.refreshOnReturn`).
+  Data čte jen při otevření a TDLib změnu názvu, popisu ani odkazu profilu nehlásí — po uložení
+  ukazoval staré hodnoty, dokud se neotevřel znovu. Platilo to i pro název a popis, jen to dřív
+  nikdo nezkoušel na zařízení.
+- **Ověřeno na emulátoru** na testovacím kanálu: načtení veřejného odkazu, varování
+  o uvolnění, přejmenování (Bot API `getChat` najde nové jméno, staré ne) a přepnutí na soukromý
+  (Bot API hlásí `CHANNEL_PRIVATE`), profil po návratu pokaždé aktuální. **Neověřeno**:
+  veřejná skupina (kód je společný), iOS.
+
 ### Pozvánky a žádosti o vstup
 
 V úpravě skupiny (⋮ v profilu → Upravit) je blok Pozvánky se dvěma řádky: **Odkazy k pozvání**

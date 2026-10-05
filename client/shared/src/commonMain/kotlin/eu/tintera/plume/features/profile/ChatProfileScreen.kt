@@ -247,6 +247,9 @@ fun ChatProfileScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // Návrat z úpravy chatu (název, popis, veřejný odkaz): profil se tu skládá znovu, ale
+    // ViewModel přežil a jinak by ukazoval, co přečetl při otevření.
+    LaunchedEffect(Unit) { viewModel.refreshOnReturn() }
     val snackbarHostState = remember { SnackbarHostState() }
     ReportHost(viewModel.reportFlow, snackbarHostState)
     val currentOnOpenChat by rememberUpdatedState(onOpenChat)

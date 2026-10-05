@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.GroupPermissions
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.ChatTypeSection
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.resolve
@@ -101,7 +102,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Úprava skupiny nebo kanálu z profilu: fotka, název, popis a výchozí práva členů.
+ * Úprava skupiny nebo kanálu z profilu: fotka, název, popis, veřejný odkaz a výchozí práva členů.
  *
  * **Ukazuje se jen to, na co uživatel má právo.** Název, popis a fotka stojí na `canChangeInfo`,
  * práva členů na `canRestrictMembers` — správce může mít jen jedno z nich, takže se o každém
@@ -247,6 +248,20 @@ fun EditChatScreen(
                     supportingText = { Text(stringResource(Res.string.edit_chat_description_help)) },
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     modifier = Modifier.fillMaxWidth(),
+                )
+            }
+
+            // Veřejný odkaz mění jen vlastník supergroupy nebo kanálu (`EditableChat.canChangeUsername`).
+            if (chat.rights.canChangeInfo && chat.canChangeUsername) {
+                ChatTypeSection(
+                    channel = chat.isChannel,
+                    isPublic = viewModel.isPublic,
+                    onPublicChange = { viewModel.isPublic = it },
+                    username = viewModel.username,
+                    onUsernameChange = { viewModel.username = it },
+                    status = viewModel.usernameStatus,
+                    enabled = !viewModel.saving,
+                    original = chat.username,
                 )
             }
 
