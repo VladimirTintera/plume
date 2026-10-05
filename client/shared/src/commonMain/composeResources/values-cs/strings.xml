@@ -1721,6 +1721,9 @@
     <string name="add_members_refused_text">Jejich nastavení soukromí nedovoluje, aby je někdo přidával: %1$s. Můžeš jim poslat pozvánku a přidají se sami.</string>
     <string name="add_members_refused_text_no_link">Jejich nastavení soukromí nedovoluje, aby je někdo přidával: %1$s.</string>
     <string name="add_members_refused_invite">Poslat pozvánku</string>
+    <string name="add_members_bot_admin_title">Přidat bota jako správce?</string>
+    <string name="add_members_bot_admin_text">Do kanálu jde bot přidat jen jako správce. %1$s bude smět zveřejňovat, upravovat a mazat příspěvky — další práva jde změnit u člena kanálu.</string>
+    <string name="add_members_bot_admin_confirm">Přidat jako správce</string>
     <string name="chat_bar_invite_members_hint">Pozvi do nové skupiny lidi.</string>
     <string name="chat_bar_invite_members">Pozvat členy</string>
     <string name="share_contact_title">Poslat kontakt</string>

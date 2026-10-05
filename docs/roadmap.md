@@ -428,8 +428,8 @@ Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení
 - ~~**Kanály podle druhu chatu a sekce Notifikace v Nastavení**~~ — hotovo (kanály Soukromé
   chaty / Skupiny / Kanály / Zmínky, u každého rozsahu zapnutí, náhled, připnuté, zmínky, výjimky
   a odkaz do systémového kanálu; poučení v `CLAUDE.md`, „Kanály a nastavení notifikací"). Zbývá:
-  - **Ověřit kanály Skupiny, Kanály a Zmínky skutečnou zprávou** — na emulátoru prošla jen
-    soukromá zpráva od bota; do skutečných skupin se testovací zprávy neposílají.
+  - ~~**Ověřit kanály Skupiny, Kanály a Zmínky skutečnou zprávou**~~ — ověřeno testovacím botem
+    v testovací skupině a kanálu (při tom opravené přidání bota do kanálu jako správce).
   - ~~**Upozornění jednoho chatu v profilu**~~ — hotovo (doba ztlumení, náhled, připnuté,
     zmínky, obnovení, zvuk přes kanál konverzace) a doby ztlumení i v nabídce chatu v seznamu.
   - **Stories** (`muteStories`, `showStoryPoster`), až budou stories.

@@ -1669,6 +1669,9 @@
     <string name="add_members_refused_text">Their privacy settings don’t allow adding them: %1$s. You can send them an invite link so they can join themselves.</string>
     <string name="add_members_refused_text_no_link">Their privacy settings don’t allow adding them: %1$s.</string>
     <string name="add_members_refused_invite">Send invite link</string>
+    <string name="add_members_bot_admin_title">Add the bot as an admin?</string>
+    <string name="add_members_bot_admin_text">Bots can only join a channel as admins. %1$s will be able to post, edit and delete posts; you can change its rights in the channel's members.</string>
+    <string name="add_members_bot_admin_confirm">Add as admin</string>
     <string name="chat_bar_invite_members_hint">Invite people to your new group.</string>
     <string name="chat_bar_invite_members">Invite members</string>
     <string name="share_contact_title">Send contact to</string>

@@ -11,6 +11,9 @@ import eu.tintera.plume.core.ui.ChatPicker
 import eu.tintera.plume.core.ui.PickerSection
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_members_confirm_count
+import eu.tintera.plume.resources.add_members_bot_admin_confirm
+import eu.tintera.plume.resources.add_members_bot_admin_text
+import eu.tintera.plume.resources.add_members_bot_admin_title
 import eu.tintera.plume.resources.add_members_refused_invite
 import eu.tintera.plume.resources.add_members_refused_text
 import eu.tintera.plume.resources.add_members_refused_text_no_link
@@ -19,6 +22,7 @@ import eu.tintera.plume.resources.add_members_search
 import eu.tintera.plume.resources.add_members_title
 import eu.tintera.plume.resources.add_subscribers_title
 import eu.tintera.plume.resources.chats_search_section_chats
+import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.common_close
 import eu.tintera.plume.resources.new_chat_contacts
 import eu.tintera.plume.resources.new_chat_empty
@@ -66,7 +70,25 @@ fun AddMembersScreen(
         modifier = modifier,
     )
 
-    if (state.refused.isNotEmpty()) {
+    // Boti do kanálu jen jako správci — zeptat se dřív, než se ukáže, koho přidat nešlo.
+    if (state.pendingBots.isNotEmpty()) {
+        val names = state.pendingBots.joinToString(", ") { it.title }
+        AlertDialog(
+            onDismissRequest = { if (!state.adding) viewModel.skipBots(onDone) },
+            title = { Text(stringResource(Res.string.add_members_bot_admin_title)) },
+            text = { Text(stringResource(Res.string.add_members_bot_admin_text, names)) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.addBotsAsAdmins(onDone) }, enabled = !state.adding) {
+                    Text(stringResource(Res.string.add_members_bot_admin_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.skipBots(onDone) }, enabled = !state.adding) {
+                    Text(stringResource(Res.string.common_cancel))
+                }
+            },
+        )
+    } else if (state.refused.isNotEmpty()) {
         val names = state.refused.joinToString(", ") { it.title }
         val link = state.inviteLink
         AlertDialog(
