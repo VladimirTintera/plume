@@ -12,6 +12,10 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chat_folders_row_help
 import eu.tintera.plume.resources.chat_folders_title
 import eu.tintera.plume.resources.folder_24dp
+import eu.tintera.plume.resources.proxy_row_help
+import eu.tintera.plume.resources.proxy_title
+import eu.tintera.plume.resources.settings_connection_group
+import eu.tintera.plume.resources.vpn_lock_24dp
 import eu.tintera.plume.resources.settings_chat_folders_group
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -26,6 +30,23 @@ internal fun ChatsSettings(onOpenFolders: () -> Unit) {
             headlineContent = { Text(stringResource(Res.string.chat_folders_title)) },
             supportingContent = { Text(stringResource(Res.string.chat_folders_row_help)) },
             modifier = Modifier.clickable(onClick = onOpenFolders),
+        )
+    }
+}
+
+/**
+ * Připojení: proxy. Vlastní skupina, protože nesouvisí s chaty ani se soukromím — řeší, jestli
+ * se aplikace k Telegramu vůbec dostane.
+ */
+@Composable
+internal fun ConnectionSettings(onOpenProxy: () -> Unit) {
+    SettingsGroup(Res.string.settings_connection_group) {
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            leadingContent = { Icon(painterResource(Res.drawable.vpn_lock_24dp), contentDescription = null) },
+            headlineContent = { Text(stringResource(Res.string.proxy_title)) },
+            supportingContent = { Text(stringResource(Res.string.proxy_row_help)) },
+            modifier = Modifier.clickable(onClick = onOpenProxy),
         )
     }
 }

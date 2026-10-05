@@ -9,6 +9,8 @@ import eu.tintera.plume.features.profile.JoinRequestsViewModel
 import eu.tintera.plume.features.profile.InviteLinksViewModel
 import eu.tintera.plume.features.settings.EditProfileViewModel
 import eu.tintera.plume.core.telegram.TdlAccountRepository
+import eu.tintera.plume.core.telegram.TdlProxyRepository
+import eu.tintera.plume.core.telegram.ProxyRepository
 import eu.tintera.plume.core.telegram.AccountRepository
 import eu.tintera.plume.features.profile.ChatProfileViewModel
 import eu.tintera.plume.features.forum.ForumTopicsViewModel
@@ -102,6 +104,7 @@ import eu.tintera.plume.features.settings.BlockSenderViewModel
 import eu.tintera.plume.features.settings.BlockedSendersViewModel
 import eu.tintera.plume.features.settings.ChatFolderEditViewModel
 import eu.tintera.plume.features.settings.ChatFoldersViewModel
+import eu.tintera.plume.features.proxy.ProxySettingsViewModel
 import eu.tintera.plume.features.settings.SensitiveContentViewModel
 import eu.tintera.plume.features.settings.DefaultAutoDeleteViewModel
 import eu.tintera.plume.features.settings.NotificationSettingsViewModel
@@ -253,6 +256,7 @@ fun appModule() = module {
     single<DefaultAutoDeleteSettings> { TdlDefaultAutoDeleteSettings(holder = get()) }
     single<ChatCreation> { TdlChatCreation(holder = get()) }
     single<AccountRepository> { TdlAccountRepository(holder = get()) }
+    single<ProxyRepository> { TdlProxyRepository(holder = get()) }
     // Eager: nepotvrzené přihlášení TDLib ohlásí hned po startu (viz TdlDeviceRepository).
     single<DeviceRepository>(createdAtStart = true) {
         TdlDeviceRepository(holder = get(), scope = get(named(APP_SCOPE)))
@@ -306,6 +310,7 @@ fun appModule() = module {
     viewModelOf(::SettingsViewModel)
     viewModelOf(::BlockedSendersViewModel)
     viewModelOf(::ChatFoldersViewModel)
+    viewModelOf(::ProxySettingsViewModel)
     // Id složky je Int a nic jiného téhož typu parametry nemají, `get()` ho nezamění.
     viewModel { parameters -> ChatFolderEditViewModel(folderId = parameters.get(), chats = get(), folders = get(), clipboard = get(), sharer = get()) }
     viewModelOf(::BlockSenderViewModel)
@@ -364,6 +369,7 @@ fun appModule() = module {
             replyRequests = get(),
             inlineQueryRequests = get(),
             inviteLinks = get(),
+            proxies = get(),
         )
     }
 

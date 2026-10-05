@@ -37,7 +37,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * [SettingsSectionScreen].
  */
 @Composable
-fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onOpenBlocked: () -> Unit, onOpenFolders: () -> Unit) {
+fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onOpenBlocked: () -> Unit, onOpenFolders: () -> Unit, onOpenProxy: () -> Unit) {
     val account by viewModel.account.collectAsStateWithLifecycle()
     var confirmLogOut by rememberSaveable { mutableStateOf(false) }
 
@@ -94,6 +94,8 @@ fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onO
         autoDelete = koinViewModel(),
         onOpenBlocked = onOpenBlocked,
     )
+
+    ConnectionSettings(onOpenProxy = onOpenProxy)
 
     // Experimentální funkce s modelem v zařízení. Nad odhlášením, které má zůstat poslední.
     OnDeviceAiSettings(viewModel = koinViewModel())

@@ -399,6 +399,7 @@ import eu.tintera.plume.core.telegram.InviteMembersBar
 import eu.tintera.plume.core.telegram.JoinRequestBar
 import eu.tintera.plume.core.telegram.SharePhoneBar
 import eu.tintera.plume.features.report.ReportHost
+import eu.tintera.plume.features.proxy.ProxyLinkHost
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
@@ -577,6 +578,7 @@ fun ConversationScreen(
     LaunchedEffect(unarchived) { if (unarchived) onUnarchived() }
 
     ReportHost(viewModel.reportFlow, snackbarHostState)
+    ProxyLinkHost(viewModel.proxyLinkFlow, snackbarHostState)
 
     // Pruh mezitím zmizel (přidán kontakt, zavřeno jinde) — sheet nemá čeho se týkat.
     LaunchedEffect(spamBar) { if (spamBar == null) spamBarAction = null }

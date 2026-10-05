@@ -22,6 +22,8 @@ import eu.tintera.plume.core.navigation.BlockSenderRoute
 import eu.tintera.plume.core.navigation.BlockedSendersRoute
 import eu.tintera.plume.core.navigation.ChatFolderEditRoute
 import eu.tintera.plume.core.navigation.ChatFoldersRoute
+import eu.tintera.plume.core.navigation.ProxySettingsRoute
+import eu.tintera.plume.features.proxy.ProxySettingsScreen
 import eu.tintera.plume.features.settings.ChatFolderEditScreen
 import eu.tintera.plume.features.settings.ChatFoldersScreen
 import eu.tintera.plume.features.settings.BlockSenderScreen
@@ -1027,7 +1029,14 @@ private fun shellEntryProvider(
             onEditProfile = { if (settingsStack.lastOrNull() != EditProfileRoute) settingsStack.add(EditProfileRoute) },
             onOpenBlocked = { if (settingsStack.lastOrNull() != BlockedSendersRoute) settingsStack.add(BlockedSendersRoute) },
             onOpenFolders = { if (settingsStack.lastOrNull() != ChatFoldersRoute) settingsStack.add(ChatFoldersRoute) },
+            onOpenProxy = { if (settingsStack.lastOrNull() != ProxySettingsRoute) settingsStack.add(ProxySettingsRoute) },
         )
+    }
+
+    entry<ProxySettingsRoute>(
+        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+    ) { route ->
+        ProxySettingsScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Složky chatů nad sekcí Obecné, jako seznam blokovaných; editor složky nad nimi.
@@ -1225,4 +1234,4 @@ private fun conversationBelow(stack: List<NavKey>, route: MediaRoute): Long? {
 /** Obrazovky, které se vrší nad sekci Nastavení: úprava profilu, blokovaní, složky chatů. */
 private fun NavKey?.isOverSettingsSection(): Boolean =
     this == EditProfileRoute || this == BlockedSendersRoute || this == BlockSenderRoute ||
-        this == ChatFoldersRoute || this is ChatFolderEditRoute
+        this == ChatFoldersRoute || this is ChatFolderEditRoute || this == ProxySettingsRoute

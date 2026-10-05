@@ -1174,6 +1174,36 @@ chodit. Dokud se nesledovalo, vypadala nepřipojená aplikace úplně normálně
   „Návrat do popředí, obnovuji spojení"), zapnout a vypnout letový režim (`adb shell cmd
   connectivity airplane-mode enable`), otočit displej (v logu nesmí být NIC).
 
+## Proxy
+
+Nastavení → Obecné → Připojení → Proxy (`ProxySettingsScreen`, `features/proxy`) a odkazy
+`t.me/proxy?…` / `t.me/socks?…` (`InternalLink.Proxy`, dialog `ProxyLinkDialog` přes
+`ProxyLinkFlow`). Hranice je `ProxyRepository` (`TdlProxyRepository`), pravidla `problem()`
+a `shareLink()` v `core/telegram/Proxy.kt` (testy `ProxyTest`).
+
+- **Proxy si drží TDLib** (`addProxy`, `enableProxy`, `disableProxy`), ne nastavení aplikace.
+  Přežije restart, platí i před přihlášením a zapnutá smí být jen jedna — přepnutí řeší TDLib.
+- **O změně seznamu TDLib update nepošle**, takže se seznam po každé akci ČTE ZNOVU. Odezva
+  (`pingProxy`) se měří souběžně při otevření a tlačítkem v liště; zapnutí ani vypnutí ji
+  neměří znovu. Nedostupná proxy odpoví až po vypršení (asi 10 s), mezitím „Měřím…".
+- **Odkaz nic nezapíná sám**: dialog ukáže server, port, druh a odezvu a teprve „Připojit"
+  proxy přidá a zapne. Odkaz může poslat kdokoli a provozovatel proxy vidí, kdy a odkud se
+  aplikace připojuje. Dialog je třída nad `CoroutineScope` jako `ReportFlow` — odkaz může přijít
+  z kterékoli obrazovky s textem a druhý ViewModel kvůli jednomu dialogu nestojí za to.
+- **`InternalLinkTypeProxy.proxy` smí být `null`** (druh, který TDLib nezná) — vlastní hláška
+  (`UnsupportedProxyException`), do prohlížeče by to nevedlo nikam.
+- **TDLib tajný klíč MTProto PŘEVEDE**: z odkazu s hex klíčem (`ee…`) vrací `getProxies` týž klíč
+  v base64url. Editor i odkaz z „Kopírovat odkaz" ukazují tuhle podobu; Telegram ji bere taky.
+- **„Zapnutá", ne „připojeno přes ni"**: zapnutá proxy nemusí fungovat a připojení visí na
+  „Připojování…" (avatar ve vyhledávací pilulce se zvlní). Proto je odezva u každé proxy — kdo
+  si zapne mrtvou, vrátí se ťuknutím na „Přímé připojení".
+- **Nově přidaná proxy se rovnou zapne**, upravená si stav nechá. HTTP proxy odkaz Telegramu
+  nemá (`shareLink() == null`), „Kopírovat odkaz" se u ní nenabízí.
+- **Ověřeno na emulátoru** neexistující proxy (`203.0.113.7`, dokumentační rozsah, a
+  `127.0.0.1:1080`): odkaz od testovacího bota, dialog s „Nedostupná", připojení (spojení spadlo
+  na „Připojování…"), přepnutí na přímé, úprava, kopírování odkazu, ruční SOCKS5 a smazání.
+  **Fungující proxy ověřená NENÍ** — žádná po ruce nebyla. iOS jen přeložené.
+
 ## Nastavení aplikace
 
 `AppSettings` (`core/settings`) nad **DataStore Preferences** — multiplatformní, soubor
@@ -4376,6 +4406,7 @@ všechny podoby (`t.me`, `telegram.me`, `tg://`) a my jen vybíráme, co umíme 
   větu v `userMessage`.
 - **Sada samolepek** (`t.me/addstickers/…`, `searchStickerSet`) otevře tentýž sheet jako ťuknutí
   na samolepku.
+- **Proxy** (`t.me/proxy`, `t.me/socks`) se jen nabídne dialogem — viz „Proxy".
 - **Člověk podle čísla (`t.me/+420…`) a kontaktní odkaz (`t.me/contact/…`)** jdou přes
   `searchUserByPhoneNumber` / `searchUserByToken` a `createPrivateChat` (lokálně — bez něj by
   TDLib chat neznal). Neexistující číslo vrátí `404 Not Found` a má vlastní větu

@@ -22,6 +22,7 @@ import dev.g000sha256.tdl.dto.InternalLinkTypeMessage
 import dev.g000sha256.tdl.dto.InternalLinkTypePublicChat
 import dev.g000sha256.tdl.dto.InternalLinkTypeMessageDraft
 import dev.g000sha256.tdl.dto.InternalLinkTypeSavedMessages
+import dev.g000sha256.tdl.dto.InternalLinkTypeProxy
 import dev.g000sha256.tdl.dto.InternalLinkTypeUserPhoneNumber
 import dev.g000sha256.tdl.dto.InternalLinkTypeUserToken
 import co.touchlab.kermit.Logger
@@ -636,6 +637,10 @@ class TdlChatRepository(
             // `t.me/share/url?url=…&text=…`. TDLib adresu i text složí do jednoho textu sám.
             is InternalLinkTypeMessageDraft ->
                 Result.success(type.text.text.takeIf { it.isNotBlank() }?.let { InternalLink.ShareText(it) })
+
+            // Bez proxy = druh, který tahle TDLib nezná; do prohlížeče by to nevedlo nikam.
+            is InternalLinkTypeProxy -> type.proxy?.let { Result.success(InternalLink.Proxy(it.toProxyConfig())) }
+                ?: Result.failure(UnsupportedProxyException())
 
             is InternalLinkTypeSavedMessages -> {
                 val saved = savedMessagesChatId.value ?: client.getMe().toResult().getOrNull()?.id
