@@ -2012,4 +2012,6 @@
     <string name="proxy_connect_failed">Proxy se nepodařilo přidat</string>
     <string name="proxy_unsupported">Tenhle druh proxy aplikace nepodporuje</string>
     <string name="auth_proxy">Připojit přes proxy</string>
+    <string name="proxy_row_direct">Vypnutá · přímé připojení</string>
+    <string name="proxy_row_via">Zapnutá · %1$s</string>
 </resources>

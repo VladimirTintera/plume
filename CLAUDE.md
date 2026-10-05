@@ -1203,6 +1203,13 @@ a `shareLink()` v `core/telegram/Proxy.kt` (testy `ProxyTest`).
   `127.0.0.1:1080`): odkaz od testovacího bota, dialog s „Nedostupná", připojení (spojení spadlo
   na „Připojování…"), přepnutí na přímé, úprava, kopírování odkazu, ruční SOCKS5 a smazání.
   **Fungující proxy ověřená NENÍ** — žádná po ruce nebyla. iOS jen přeložené.
+- **Řádek Proxy v Obecných říká stav** („Zapnutá · server:port" / „Vypnutá · přímé
+  připojení"; `ProxyStatusViewModel`, `proxyStatus`, testy `ProxyStatusTest`). Zapnutá mrtvá
+  proxy je nejčastější důvod věčného „Připojování…" a bez stavu v řádku se na ni přišlo až na
+  obrazovce proxy. Stav se čte znovu při každém návratu (`LifecycleResumeEffect`) — TDLib změnu
+  proxy nehlásí. **Odezvu řádek neměří**: `pingProxy` jde přes každou uloženou proxy a patří na
+  obrazovku proxy, ne ke každému otevření Nastavení. Dokud stav nedorazí, podtitul není žádný.
+  Ověřeno na emulátoru: vypnutá → přidaná proxy → návrat ukáže zapnutou → smazání → vypnutá.
 - **Proxy jde nastavit i na přihlašovací obrazovce** („Připojit přes proxy" pod krokem,
   `AuthStage.offersProxy`, testy `AuthViewModelTest`). Kde je Telegram blokovaný, nedorazí kód
   — a Nastavení je až za přihlášením. Je to TÁŽ `ProxySettingsScreen` přes celou plochu
