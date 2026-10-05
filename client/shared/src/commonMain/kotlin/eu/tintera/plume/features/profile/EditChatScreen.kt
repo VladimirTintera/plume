@@ -63,6 +63,12 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.GroupPermissions
+import eu.tintera.plume.core.telegram.LinkedChat
+import eu.tintera.plume.resources.edit_chat_discussion
+import eu.tintera.plume.resources.edit_chat_discussion_none
+import eu.tintera.plume.resources.edit_chat_discussion_off
+import eu.tintera.plume.resources.edit_chat_discussion_on
+import eu.tintera.plume.resources.forum_24dp
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ChatTypeSection
 import eu.tintera.plume.core.ui.avatarShape
@@ -120,6 +126,7 @@ fun EditChatScreen(
     val scope = rememberCoroutineScope()
     val currentOnBack by rememberUpdatedState(onBack)
     var confirmDeletePhoto by rememberSaveable { mutableStateOf(false) }
+    var showDiscussion by rememberSaveable { mutableStateOf(false) }
 
     val notice = viewModel.notice
     val noticeText = notice?.resolve()
@@ -152,6 +159,18 @@ fun EditChatScreen(
             dismissButton = {
                 TextButton(onClick = { confirmDeletePhoto = false }) { Text(stringResource(Res.string.common_cancel)) }
             },
+        )
+    }
+
+    if (showDiscussion) {
+        DiscussionSheet(
+            current = viewModel.linkedChat,
+            candidates = viewModel.discussionCandidates,
+            onSelect = { group ->
+                showDiscussion = false
+                viewModel.setDiscussion(group)
+            },
+            onDismiss = { showDiscussion = false },
         )
     }
 
@@ -265,6 +284,18 @@ fun EditChatScreen(
                 )
             }
 
+            // Diskuse ke kanálu — skupina pro komentáře pod příspěvky (`EditableChat.canSetDiscussion`).
+            if (chat.canSetDiscussion) {
+                DiscussionGroup(
+                    linked = viewModel.linkedChat,
+                    busy = viewModel.discussionBusy,
+                    onClick = {
+                        viewModel.loadDiscussionCandidates()
+                        showDiscussion = true
+                    },
+                )
+            }
+
             // Témata zapíná jen vlastník supergroupy (viz `EditableChat.canToggleForum`).
             if (chat.canToggleForum) {
                 Card(Modifier.fillMaxWidth()) {
@@ -349,6 +380,44 @@ private fun PermissionsGroup(
                     onChange { it.copy(changeInfo = value) }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Diskuse ke kanálu: jedna karta s řádkem, který otevře výběr skupiny. Podtitul říká, co platí
+ * teď — připojená skupina, nebo že komentáře vypnuté.
+ */
+@Composable
+private fun DiscussionGroup(linked: LinkedChat?, busy: Boolean, onClick: () -> Unit) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            stringResource(Res.string.edit_chat_discussion),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
+        )
+        Card(Modifier.fillMaxWidth()) {
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                headlineContent = {
+                    Text(linked?.title ?: stringResource(Res.string.edit_chat_discussion_none))
+                },
+                supportingContent = {
+                    Text(
+                        stringResource(
+                            if (linked != null) Res.string.edit_chat_discussion_on else Res.string.edit_chat_discussion_off,
+                        ),
+                    )
+                },
+                leadingContent = { Icon(painterResource(Res.drawable.forum_24dp), contentDescription = null) },
+                trailingContent = if (busy) {
+                    { LoadingIndicator(Modifier.size(32.dp)) }
+                } else {
+                    null
+                },
+                modifier = Modifier.clickable(enabled = !busy, onClick = onClick),
+            )
         }
     }
 }

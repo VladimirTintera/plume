@@ -804,6 +804,14 @@ class TdlChatRepository(
         Unit
     }
 
+    override suspend fun suitableDiscussionChats(): List<ChatSummary> =
+        client.getSuitableDiscussionChats().toResult()
+            .map { summariesFor(it.chatIds) }
+            .getOrElse { failure ->
+                logger.w(failure) { "Skupiny pro diskusi kanálu se nepodařilo načíst." }
+                emptyList()
+            }
+
     override suspend fun contacts(): Result<List<ChatSummary>> =
         client.getContacts().toResult().map { users ->
             val chatIds = users.userIds.toList().mapNotNull { userId ->

@@ -111,6 +111,12 @@ interface ChatRepository {
     suspend fun isForum(chatId: Long): Boolean = false
 
     /**
+     * Skupiny, které jde připojit ke kanálu jako diskusi (`getSuitableDiscussionChats`): kde je
+     * uživatel vlastníkem nebo správcem s potřebnými právy. Výchozí prázdné pro podvrhy v testech.
+     */
+    suspend fun suitableDiscussionChats(): List<ChatSummary> = emptyList()
+
+    /**
      * Kontakty uživatele seřazené podle jména, s dostupností protějšku.
      * Pro každý kontakt zajistí privátní chat (lokálně v TDLib).
      */

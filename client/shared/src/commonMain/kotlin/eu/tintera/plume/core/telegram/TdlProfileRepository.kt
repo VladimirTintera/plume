@@ -183,13 +183,24 @@ class TdlProfileRepository(
         val supergroup = (chat.type as? ChatTypeSupergroup)?.let {
             client.getSupergroup(supergroupId = it.supergroupId).toResult().getOrNull()
         }
+        val supergroupInfo = (chat.type as? ChatTypeSupergroup)?.let {
+            client.getSupergroupFullInfo(supergroupId = it.supergroupId).toResult().getOrNull()
+        }
         val description = when (val type = chat.type) {
             is ChatTypeBasicGroup ->
                 client.getBasicGroupFullInfo(basicGroupId = type.basicGroupId).toResult().getOrNull()?.description
-            is ChatTypeSupergroup ->
-                client.getSupergroupFullInfo(supergroupId = type.supergroupId).toResult().getOrNull()?.description
+            is ChatTypeSupergroup -> supergroupInfo?.description
             else -> null
         }
+        val linkedChat = supergroupInfo?.linkedChatId?.takeIf { it != 0L }?.let { linkedId ->
+            client.getChat(chatId = linkedId).toResult().getOrNull()
+                ?.let { LinkedChat(chatId = it.id, title = it.title, photoFileId = it.photo?.small?.id) }
+        }
+        val rights = chatEditRights(
+            isChannel = isChannel,
+            status = client.ownMemberStatus(chat),
+            membersCanChangeInfo = chat.permissions.canChangeInfo,
+        )
         EditableChat(
             chatId = chatId,
             title = chat.title,
@@ -197,11 +208,7 @@ class TdlProfileRepository(
             photoFileId = chat.photo?.big?.id,
             photoThumbnailFileId = chat.photo?.small?.id,
             isChannel = isChannel,
-            rights = chatEditRights(
-                isChannel = isChannel,
-                status = client.ownMemberStatus(chat),
-                membersCanChangeInfo = chat.permissions.canChangeInfo,
-            ),
+            rights = rights,
             permissions = chat.permissions.toGroupPermissions(),
             isForum = supergroup?.isForum == true,
             canToggleForum = supergroup != null && !isChannel && !supergroup.hasLinkedChat &&
@@ -209,8 +216,13 @@ class TdlProfileRepository(
             username = supergroup?.usernames?.editableUsername.orEmpty(),
             canChangeUsername = supergroup != null &&
                 (client.ownMemberStatus(chat) as? OwnMemberStatus.Creator)?.isMember == true,
+            linkedChat = linkedChat,
+            canSetDiscussion = isChannel && rights.canChangeInfo,
         )
     }
+
+    override suspend fun setDiscussionGroup(channelId: Long, groupId: Long?): Result<Unit> =
+        client.setChatDiscussionGroup(chatId = channelId, discussionChatId = groupId ?: 0).toResult().map { }
 
     override suspend fun setUsername(chatId: Long, username: String): Result<Unit> = runCatching {
         val type = client.getChat(chatId = chatId).toResult().getOrThrow().type as? ChatTypeSupergroup

@@ -65,6 +65,12 @@ interface ProfileRepository {
     suspend fun setDescription(chatId: Long, description: String): Result<Unit>
 
     /**
+     * Připojí ke kanálu [channelId] diskusní skupinu [groupId] — pod příspěvky pak jdou komentáře.
+     * `null` diskusi odpojí. Smí správce kanálu s právem měnit údaje (`EditableChat.canSetDiscussion`).
+     */
+    suspend fun setDiscussionGroup(channelId: Long, groupId: Long?): Result<Unit>
+
+    /**
      * Veřejné jméno supergroupy nebo kanálu (`t.me/…`); prázdné = chat bude soukromý. Smí jen
      * vlastník ([EditableChat.canChangeUsername]).
      */
@@ -193,6 +199,10 @@ data class EditableChat(
      * mít nemůže (`toggleSupergroupIsForum`). Základní skupina by se musela napřed převést.
      */
     val canToggleForum: Boolean = false,
+    /** Diskusní skupina kanálu (u skupiny propojený kanál); `null` = žádná. */
+    val linkedChat: LinkedChat? = null,
+    /** Kanálu jde vybrat nebo odpojit diskusní skupinu (správce s právem měnit údaje). */
+    val canSetDiscussion: Boolean = false,
     /** Současné veřejné jméno (`t.me/…`); prázdné = soukromý chat. */
     val username: String = "",
     /**
@@ -202,6 +212,9 @@ data class EditableChat(
      */
     val canChangeUsername: Boolean = false,
 )
+
+/** Propojený chat — diskusní skupina kanálu, nebo kanál, ke kterému skupina patří. */
+data class LinkedChat(val chatId: Long, val title: String, val photoFileId: Int?)
 
 /**
  * Výchozí práva členů skupiny, zúžená na to, co aplikace umí a na čem uživateli záleží.

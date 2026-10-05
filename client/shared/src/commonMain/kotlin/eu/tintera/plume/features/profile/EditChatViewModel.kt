@@ -14,7 +14,13 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.EditableChat
+import eu.tintera.plume.core.telegram.LinkedChat
+import eu.tintera.plume.resources.edit_chat_discussion_failed
+import eu.tintera.plume.resources.edit_chat_discussion_linked
+import eu.tintera.plume.resources.edit_chat_discussion_unlinked
 import eu.tintera.plume.core.telegram.GroupPermissions
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.ProfileRepository
@@ -53,7 +59,19 @@ class EditChatViewModel(
     private val squarePhoto: SquarePhoto,
     inviteLinks: InviteLinkRepository,
     private val forums: ForumRepository,
+    private val chats: ChatRepository,
 ) : ViewModel() {
+
+    /** Diskusní skupina kanálu, jak ji ukazuje řádek „Diskuse"; mění se po potvrzení serverem. */
+    var linkedChat by mutableStateOf<LinkedChat?>(null)
+        private set
+
+    /** Skupiny k výběru v sheetu; `null`, dokud se nenačtou. */
+    var discussionCandidates by mutableStateOf<List<ChatSummary>?>(null)
+        private set
+
+    var discussionBusy by mutableStateOf(false)
+        private set
 
     /**
      * Témata zapnutá, jak je ukazuje přepínač. Pohne se hned a při selhání se vrátí, jako práva
@@ -114,6 +132,7 @@ class EditChatViewModel(
                     description = chat.description
                     permissions = chat.permissions
                     isForum = chat.isForum
+                    linkedChat = chat.linkedChat
                     username = chat.username
                     isPublic = chat.username.isNotEmpty()
                 }
@@ -255,6 +274,30 @@ class EditChatViewModel(
                 isForum = !forum
                 notice = failure.reported(Res.string.edit_chat_forum_failed)
             }
+        }
+    }
+
+    /** Načte skupiny, které jde připojit; volá se při otevření sheetu, ne dopředu. */
+    fun loadDiscussionCandidates() {
+        discussionCandidates = null
+        viewModelScope.launch { discussionCandidates = chats.suitableDiscussionChats() }
+    }
+
+    /**
+     * Připojí diskusní skupinu (`null` odpojí). Řádek se změní až po potvrzení serverem —
+     * propojení má podmínky (práva ve skupině), které zná jen on.
+     */
+    fun setDiscussion(group: ChatSummary?) {
+        if (discussionBusy) return
+        discussionBusy = true
+        viewModelScope.launch {
+            repository.setDiscussionGroup(chatId, group?.id)
+                .onSuccess {
+                    linkedChat = group?.let { LinkedChat(it.id, it.title, it.avatarFileId) }
+                    notice = UiText(if (group != null) Res.string.edit_chat_discussion_linked else Res.string.edit_chat_discussion_unlinked)
+                }
+                .onFailure { notice = it.reported(Res.string.edit_chat_discussion_failed) }
+            discussionBusy = false
         }
     }
 
