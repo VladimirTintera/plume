@@ -3283,8 +3283,14 @@ vlastní zprávy) a anketa (nové hlasy ve vlastní anketě, TDLib 15) s počtem
 - **Ověřuje se botem**: `setMessageReaction` na vlastní zprávu v chatu s botem vyrobí nepřečtenou
   reakci (změna emoji je nová nepřečtená). Ověřeno na emulátoru: odznak v seznamu, tlačítko
   s počtem, skok se zvýrazněním a zhasnutí, podržení a „Označit vše". **Skutečná zmínka ověřená
-  NENÍ** (bot zmínku v soukromém chatu nevyrobí, ve skupině by šla cizím lidem); tlačítko „@"
-  se ověřilo podstrčeným počtem — cesta je táž jako u reakcí, liší se jen filtr hledání.
+  v testovací skupině s botem** (`text_mention` účtu): tlačítko „@" s počtem, skok na zmínku
+  a zhasnutí. Aby tlačítko vůbec naskočilo, musí zmínka přijít MIMO obrazovku (odrolovat nahoru,
+  pak ji poslat) — viditelná se přečte hned.
+- **Reakce na zprávu, která už JE vidět, se musí přečíst taky** (`unreadMarkedIds` ve
+  `snapshotFlow` hlášení přečtení, test `zpravySNeprectenouReakciNeboHlasem`). Hlášení chodí jen
+  na ZMĚNU viditelných položek a příchod reakce je nezmění — tlačítko „❤" pak viselo nad zprávou,
+  na kterou se uživatel díval, dokud nezaroloval nebo na něj neťukl. Ověřeno pokusem: před
+  opravou tlačítko po 10 s pořád, po ní se neukáže vůbec.
 - **Hlas v anketě bot nevyrobí** (Bot API hlasovat neumí) a vlastní účet ve vlastní anketě
   nepočítá. Tlačítko s anketou i odznak v seznamu se proto ověřily podstrčeným počtem pro chat
   s testovacím botem; ťuknutí prošlo hledáním s `SearchMessagesFilterUnreadPollVote` bez chyby
@@ -4729,8 +4735,10 @@ které seznam otevře celý (`BotCommandsPanel`, doména `BotCommandItem`, pravi
   v Material čtou jako navigační zásuvka.
 - **Ověřeno testovacím botem**: `setMyCommands` (tři příkazy), zpráva s příkazy v textu. Seznam
   z tlačítka, napovídání po „/n", ťuknutí na návrh (pole prázdné) i na příkaz v textu — všechny
-  tři příkazy dorazily botovi (`getUpdates`). V Uložených zprávách tlačítko není. **Skupina
-  s botem ověřená není** (přípona `@bot`) — do skutečných skupin se testovací zprávy nepíšou.
+  tři příkazy dorazily botovi (`getUpdates`). V Uložených zprávách tlačítko není. **Ve skupině
+  ověřené** (testovací skupina s botem): seznam nabízí `/stav@NoTiBoBoBot` a odejde s příponou.
+  **`getUpdates` testovacího bota si občas vybere jiný proces** (sdílený token), takže update
+  zmizí dřív, než se na něj dojde — bublina v konverzaci je pak spolehlivější doklad.
 - **Tlačítko nabídky bota (`BotMenuButton`) stojí na místě tlačítka příkazů** — viz „Mini
   aplikace botů". Příkazy pak napovídá jen „/", jako u oficiálních klientů.
 
@@ -4795,8 +4803,9 @@ a pošle mu `/start` s parametrem (`ChatRepository.addBotToGroup`). Pak se otev�
   (`addChatMember`) a pak jmenuje; supergroupa ho přidá rovnou `setChatMemberStatus`.
 - **Přidání se potvrzuje dialogem** — bot tím dostane přístup ke zprávám skupiny.
 - **Ověřeno na emulátoru jen po potvrzovací dialog** (zprávou od testovacího bota s oběma
-  odkazy, anglicky i česky, zrušení i zpět). **Samotné přidání a `/start` ve skupině ověřené
-  NEJSOU** — do skutečných skupin se bez souhlasu nic nepřidává.
+  odkazy, anglicky i česky, zrušení i zpět). **Samotné přidání a `/start` ověřené v testovací
+  skupině** (bot z ní napřed odešel přes Bot API `leaveChat`): „Do skupiny přibyli členové",
+  `/start@bot` a Bot API `getChatMember` → `member`. Do skutečných skupin se nic nepřidává.
 
 ### Inline boti
 
@@ -4909,9 +4918,11 @@ vloží `@jmeno`, nebo u člena bez veřejného jména jeho křestní jméno se 
 - **Ověřeno na emulátoru sondou**: účet na emulátoru v žádné skupině, kam smí psát, není (Kotlin
   Community i Android Developers tam ukazují „Join"), takže se napovídání dočasně povolilo
   v chatu s testovacím botem a vynutila se zmínka jménem. Panel po `@`, vložení jména s mezerou
-  a bot přes `getUpdates` dostal `text_mention` se svým id. **Ve skutečné skupině ověřené NENÍ**
-  (filtrování serverem, `@jmeno` u člena s uživatelským jménem); v soukromém chatu se bez sondy
-  nenapovídá nic.
+  a bot přes `getUpdates` dostal `text_mention` se svým id. **Ve skupině ověřené** (testovací
+  skupina s botem): po `@` panel s botem i jeho `@jménem`, ťuknutí vloží `@NoTiBoBoBot ` a zpráva
+  odejde se zmínkou. **Bot v režimu soukromí zmínku ve skupině NEDOSTANE** — dostává jen příkazy
+  `/x@bot`, odpovědi na sebe a servisní zprávy —, takže to přes `getUpdates` ověřit nejde; vidět je
+  to na podtržené zmínce v bublině.
 - **Id veřejné skupiny zjistí Bot API** (`getChat?chat_id=@jmeno`, bot nemusí být členem)
   a otevře ji `am start … --el eu.tintera.plume.extra.CHAT_ID <id>` — bez ťukání v seznamu
   chatů se skutečnými lidmi.
@@ -8461,8 +8472,9 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
 - **Ověřuje se botem**: vlastní zpráva do chatu s botem, `setMessageReaction` botem (změna emoji
   je nová nepřečtená), pak chat otevřít. Pulz jde vidět jen zpomaleně
   (`animator_duration_scale 5`) a změřením plochy emoji ve snímcích. Jména se kreslí jen ve
-  skupině, takže se v chatu s botem ukážou jen sondou (`namesReactors = true`, necommituje se);
-  **ve skutečné skupině ověřená nejsou**.
+  skupině, takže se v chatu s botem ukážou jen sondou (`namesReactors = true`, necommituje se).
+  **Ve skupině ověřená** (testovací skupina s botem, `setMessageReaction` na vlastní zprávu,
+  id zprávy v supergroupě = id u serveru): pilulka „Notifikator" vedle čipu.
 
 ## Odpovědi (reply)
 

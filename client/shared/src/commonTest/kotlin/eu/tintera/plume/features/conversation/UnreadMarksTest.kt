@@ -133,4 +133,16 @@ class UnreadMarksTest {
         val state = ConversationState(messages = listOf(message(14, outgoing = true), message(12, outgoing = false)))
         assertEquals(listOf(12L), state.messagesToView(setOf(12L, 14L)))
     }
+
+    @Test
+    fun zpravySNeprectenouReakciNeboHlasem() {
+        val state = ConversationState(
+            messages = listOf(
+                message(3, outgoing = true, unreadReactions = true),
+                message(2, outgoing = true, unreadPollVotes = true),
+                message(1, outgoing = false),
+            ),
+        )
+        assertEquals(setOf(3L, 2L), state.unreadMarkedIds())
+    }
 }

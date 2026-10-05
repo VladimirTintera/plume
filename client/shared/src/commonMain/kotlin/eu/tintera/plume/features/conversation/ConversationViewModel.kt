@@ -4826,6 +4826,10 @@ data class Typing(val activity: ChatActivity, val sender: SenderInfo?)
  * nad hranicí žádná nebyla, takže se nehlásilo nic, hranice stála a odznak „2" u tématu zůstal
  * napořád, i když v něm uživatel četl a psal. Nahlášená vlastní zpráva hranici posune přes ni.
  */
+/** Zprávy, jejichž zhlédnutí něco přečte — nepřečtená reakce nebo hlas v anketě. */
+internal fun ConversationState.unreadMarkedIds(): Set<Long> =
+    messages.filter { it.hasUnreadReactions || it.hasUnreadPollVotes }.mapTo(HashSet()) { it.id }
+
 internal fun ConversationState.messagesToView(visibleKeys: Set<Long>): List<Long> {
     val albums = messages
         .filter { keyOf(it) in visibleKeys }
