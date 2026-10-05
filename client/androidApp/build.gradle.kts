@@ -122,9 +122,16 @@ android {
 
     // Rozdělení podle ABI. Univerzální APK má kvůli TDLib přes 100 MB, protože nese nativní
     // knihovnu pro všechny čtyři architektury; samostatné arm64 APK je zhruba třetinové.
+    //
+    // **Jen pro APK, u bundlu vypnuté.** S `isShrinkResources` vyrobí AGP zmenšené prostředky
+    // pro každou ABI variantu zvlášť a `bundleRelease` pak spadne na „Multiple shrunk-resources
+    // files found" (issuetracker 402800800). Bundlu splity stejně nic nedávají — APK pro
+    // konkrétní zařízení si z AAB skládá Play sám. Požadované úlohy jsou součástí klíče
+    // konfigurační keše, takže se `assembleRelease` a `bundleRelease` nepletou.
+    val buildsBundle = gradle.startParameter.taskNames.any { it.contains("bundle", ignoreCase = true) }
     splits {
         abi {
-            isEnable = true
+            isEnable = !buildsBundle
             reset()
             include("arm64-v8a", "armeabi-v7a")
             // Univerzální varianta zůstává jako záloha pro případ, že by ABI nesedělo.

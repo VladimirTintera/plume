@@ -136,6 +136,11 @@ API, které aplikace z drtivé většiny nevolá.
     a Crashlytics ano (`google_app_id`, `gcm_defaultSenderId`, id mapping souboru), ale ty drží
     keep XML z jejich pluginů — v `build/outputs/mapping/release/resources.txt` je u nich
     „reachable from keep xml file". Tam se kontroluje, proč prostředek zůstal nebo zmizel.
+  - **S ABI splity rozbíjí `bundleRelease`** („Multiple shrunk-resources files found",
+    issuetracker 402800800): AGP zmenší prostředky pro každou ABI variantu zvlášť a bundle
+    čeká jeden soubor. Splity se proto u úloh `bundle*` vypínají (`buildsBundle`
+    v `build.gradle.kts`). **Ověřovalo se přes APK, a tak to prošlo** — release staví AAB,
+    takže po zásahu do release konfigurace se musí sestavit i `bundleRelease`.
   - **Soubory v `META-INF/services` mezi buildy mění jména** (R8 přejmenuje rozhraní služby),
     počet zůstává. Při porovnávání APK to vypadá jako ztráta, a není.
   - **Ověřeno na emulátoru** release APK podepsaným debug klíčem přes debug build: konverzace,
