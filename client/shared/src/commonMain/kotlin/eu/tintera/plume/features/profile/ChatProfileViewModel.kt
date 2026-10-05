@@ -501,6 +501,12 @@ class ChatProfileViewModel(
         }
     }
 
+    /** Propojený chat z řádku v Informacích — diskusní skupina kanálu, nebo kanál skupiny. */
+    fun openLinkedChat() {
+        val linked = _state.value.profile?.linkedChat ?: return
+        _state.update { it.copy(openChat = linked.chatId) }
+    }
+
     /** Člen skupiny: otevře se soukromý chat s ním (TDLib ho založí lokálně, nic se neposílá). */
     fun openMember(userId: Long) {
         viewModelScope.launch {

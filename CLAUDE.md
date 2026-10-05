@@ -6070,8 +6070,12 @@ prázdné = `0`). Pod příspěvky se pak objeví „Komentovat" a vlákno vede 
   ověřené není.
 - **Ověřeno na emulátoru**: testovací kanál ↔ testovací skupina (Bot API `linked_chat_id` na obou
   stranách), příspěvek od bota s „Komentovat", komentář ve vlákně a „1 komentář" pod
-  příspěvkem, odpojení (`linked_chat_id` zmizel) a znovu připojení. **Propojený kanál se v úpravě
-  SKUPINY zatím neukazuje.**
+  příspěvkem, odpojení (`linked_chat_id` zmizel) a znovu připojení.
+- **Profil ukazuje propojený chat v Informacích** (`ChatProfile.linkedChat`): u kanálu „Diskusní
+  skupina", u skupiny „Propojený kanál"; ťuknutí ho otevře. Řádek stojí za popisem — je to údaj
+  o chatu, ne nastavení. Chat, který TDLib lokálně nezná (soukromý kanál, kde uživatel není),
+  se vynechá. Ověřeno na emulátoru oběma směry. Odpojit jde jen z úpravy KANÁLU
+  (`setChatDiscussionGroup` bere id kanálu a chce jeho správce).
 
 ### Pozvánky a žádosti o vstup
 

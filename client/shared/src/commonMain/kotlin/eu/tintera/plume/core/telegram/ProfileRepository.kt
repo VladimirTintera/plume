@@ -289,6 +289,8 @@ data class ChatProfile(
     val canAddMembers: Boolean = false,
     /** Bot má hlavní mini aplikaci (`UserTypeBot.hasMainWebApp`): profil nabídne „Otevřít aplikaci". */
     val hasMainWebApp: Boolean = false,
+    /** Diskusní skupina kanálu, u skupiny kanál, ke kterému patří; `null` = žádný. */
+    val linkedChat: LinkedChat? = null,
 ) {
     /** Odkaz ke sdílení: veřejné jméno, jinak pozvánka; `null` = není co sdílet. */
     val link: String?
