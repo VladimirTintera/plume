@@ -1,0 +1,293 @@
+package eu.tintera.plume.features.chats
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import eu.tintera.plume.core.telegram.ChatKind
+import eu.tintera.plume.core.ui.avatarShape
+import eu.tintera.plume.core.ui.grouped
+import eu.tintera.plume.core.ui.rememberAttachmentPicker
+import eu.tintera.plume.core.ui.resolve
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.arrow_back_24dp
+import eu.tintera.plume.resources.campaign_24dp
+import eu.tintera.plume.resources.common_back
+import eu.tintera.plume.resources.common_close
+import eu.tintera.plume.resources.create_channel_created
+import eu.tintera.plume.resources.create_channel_help
+import eu.tintera.plume.resources.create_chat_add_photo
+import eu.tintera.plume.resources.create_chat_create
+import eu.tintera.plume.resources.create_chat_not_added
+import eu.tintera.plume.resources.create_chat_photo_failed
+import eu.tintera.plume.resources.create_group_created
+import eu.tintera.plume.resources.create_group_no_members
+import eu.tintera.plume.resources.edit_chat_delete_photo
+import eu.tintera.plume.resources.edit_chat_description
+import eu.tintera.plume.resources.edit_chat_description_help
+import eu.tintera.plume.resources.edit_chat_name
+import eu.tintera.plume.resources.edit_profile_change_photo
+import eu.tintera.plume.resources.group_24dp
+import eu.tintera.plume.resources.invite_members
+import eu.tintera.plume.resources.new_chat_new_channel
+import eu.tintera.plume.resources.new_chat_new_group
+import eu.tintera.plume.resources.photo_camera_24dp
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
+
+/**
+ * Druhý krok založení skupiny (první je výběr členů) a jediný krok založení kanálu: fotka,
+ * název, u kanálu popis. Rozložením je to úprava chatu (`EditChatScreen`) — kdo pak skupinu
+ * upravuje, vidí tentýž formulář.
+ *
+ * **Popis jen u kanálu.** Kanál se představuje lidem, kteří ho najdou a ještě v něm nejsou;
+ * skupina vzniká pro lidi, které uživatel právě vybral. Doplnit ho jde v úpravě.
+ */
+@Composable
+fun CreateChatScreen(
+    viewModel: CreateChatViewModel,
+    onBack: () -> Unit,
+    onCreated: (chatId: Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val currentOnCreated by rememberUpdatedState(onCreated)
+
+    val notice = viewModel.notice
+    val noticeText = notice?.resolve()
+    // Snackbar mimo tělo efektu: vynulování hlášky mění klíč a zrušilo by ho (viz „Vrátit").
+    LaunchedEffect(notice) {
+        if (noticeText != null) {
+            viewModel.noticeShown()
+            scope.launch { snackbarHostState.showSnackbar(noticeText) }
+        }
+    }
+    LaunchedEffect(viewModel.created) {
+        viewModel.created?.let { currentOnCreated(it) }
+    }
+
+    viewModel.report?.let { report -> CreatedReportDialog(report, viewModel.channel, onDismiss = { onCreated(report.chatId) }) }
+
+    val picker = rememberAttachmentPicker(onPicked = viewModel::setPhoto, onError = viewModel::reportError)
+    val channel = viewModel.channel
+
+    Scaffold(
+        modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(if (channel) Res.string.new_chat_new_channel else Res.string.new_chat_new_group)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack, enabled = !viewModel.creating) {
+                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                    }
+                },
+                actions = {
+                    if (viewModel.creating) {
+                        LoadingIndicator(Modifier.padding(end = 12.dp).size(40.dp))
+                    } else {
+                        TextButton(onClick = viewModel::create, enabled = viewModel.canCreate) {
+                            Text(stringResource(Res.string.create_chat_create))
+                        }
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            PhotoSlot(
+                path = viewModel.photoPath,
+                channel = channel,
+                busy = viewModel.photoBusy,
+                enabled = !viewModel.creating,
+                onPick = picker::pickMedia,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = picker::pickMedia, enabled = !viewModel.photoBusy && !viewModel.creating) {
+                    Icon(painterResource(Res.drawable.photo_camera_24dp), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                    Text(
+                        stringResource(
+                            if (viewModel.photoPath == null) Res.string.create_chat_add_photo else Res.string.edit_profile_change_photo,
+                        ),
+                    )
+                }
+                if (viewModel.photoPath != null) {
+                    TextButton(onClick = viewModel::removePhoto, enabled = !viewModel.creating) {
+                        Text(stringResource(Res.string.edit_chat_delete_photo))
+                    }
+                }
+            }
+
+            OutlinedTextField(
+                value = viewModel.title,
+                onValueChange = { viewModel.title = it.take(TITLE_MAX_LENGTH) },
+                label = { Text(stringResource(Res.string.edit_chat_name)) },
+                singleLine = true,
+                enabled = !viewModel.creating,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Sentences,
+                    imeAction = if (channel) ImeAction.Next else ImeAction.Done,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            if (channel) {
+                OutlinedTextField(
+                    value = viewModel.description,
+                    onValueChange = { viewModel.description = it.take(DESCRIPTION_MAX_LENGTH) },
+                    label = { Text(stringResource(Res.string.edit_chat_description)) },
+                    minLines = 2,
+                    enabled = !viewModel.creating,
+                    supportingText = { Text(stringResource(Res.string.edit_chat_description_help)) },
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Hint(stringResource(Res.string.create_channel_help))
+            } else {
+                Members(count = viewModel.memberCount, names = viewModel.memberNames)
+            }
+        }
+    }
+}
+
+/** Fotka v tvaru, jaký bude mít chat v seznamu — skupina sušenka, kanál čtverec. */
+@Composable
+private fun PhotoSlot(path: String?, channel: Boolean, busy: Boolean, enabled: Boolean, onPick: () -> Unit) {
+    val shape = (if (channel) ChatKind.Channel else ChatKind.Group).avatarShape()
+    Box(contentAlignment = Alignment.Center) {
+        Surface(
+            shape = shape,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.size(AVATAR_SIZE).clip(shape).clickable(enabled = enabled && !busy, onClick = onPick),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                if (path != null) {
+                    AsyncImage(
+                        model = "file://$path",
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    Icon(
+                        painterResource(if (channel) Res.drawable.campaign_24dp else Res.drawable.group_24dp),
+                        contentDescription = null,
+                        modifier = Modifier.size(40.dp),
+                    )
+                }
+            }
+        }
+        if (busy) CircularWavyProgressIndicator(Modifier.size(AVATAR_SIZE))
+    }
+}
+
+@Composable
+private fun Members(count: Int, names: List<String>) {
+    if (count == 0) {
+        Hint(stringResource(Res.string.create_group_no_members))
+        return
+    }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            pluralStringResource(Res.plurals.invite_members, count, count.grouped()),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        if (names.isNotEmpty()) {
+            Text(
+                names.joinToString(", "),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun Hint(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+    )
+}
+
+/**
+ * Chat stojí, ale něco se nepovedlo. Dialog, ne snackbar: obrazovka hned odchází do chatu
+ * a snackbar by nebylo kde ukázat — a koho nešlo přidat, uživatel potřebuje vědět, aby mu
+ * poslal pozvánku.
+ */
+@Composable
+private fun CreatedReportDialog(report: CreatedReport, channel: Boolean, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(if (channel) Res.string.create_channel_created else Res.string.create_group_created)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (report.notAdded.isNotEmpty()) {
+                    Text(stringResource(Res.string.create_chat_not_added, report.notAdded.joinToString(", ")))
+                }
+                if (report.photoFailed) Text(stringResource(Res.string.create_chat_photo_failed))
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_close)) } },
+    )
+}
+
+private const val TITLE_MAX_LENGTH = 128
+private const val DESCRIPTION_MAX_LENGTH = 255
+private val AVATAR_SIZE = 96.dp

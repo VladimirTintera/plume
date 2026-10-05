@@ -337,6 +337,17 @@ data class ShareToChatRoute(val chatId: Long) : Route
 @Serializable
 data object NewChatRoute : Route
 
+/** Výběr členů nové skupiny; „Další" vede na [CreateChatRoute]. */
+@Serializable
+data object NewGroupMembersRoute : Route
+
+/**
+ * Založení skupiny ([channel] = `false`, s vybranými [memberChatIds]) nebo kanálu: název, fotka,
+ * u kanálu popis.
+ */
+@Serializable
+data class CreateChatRoute(val channel: Boolean, val memberChatIds: List<Long> = emptyList()) : Route
+
 /**
  * Konfigurace pro ukládání navigačního zásobníku.
  *
@@ -390,6 +401,8 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ShareRoute::class, ShareRoute.serializer())
             subclass(ShareToChatRoute::class, ShareToChatRoute.serializer())
             subclass(NewChatRoute::class, NewChatRoute.serializer())
+            subclass(NewGroupMembersRoute::class, NewGroupMembersRoute.serializer())
+            subclass(CreateChatRoute::class, CreateChatRoute.serializer())
         }
     }
 }

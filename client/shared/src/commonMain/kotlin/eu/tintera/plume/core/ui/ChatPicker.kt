@@ -131,7 +131,8 @@ fun ChatPicker(
     onConfirm: () -> Unit = {},
     /**
      * Tlačítko i bez vybraného — kde výběr upravuje existující množinu (chaty ve složce)
-     * a odznačit všechno je platná odpověď.
+     * a odznačit všechno je platná odpověď, nebo kde prázdný výběr dává smysl (nová skupina
+     * bez členů, pozvat jde i odkazem).
      */
     confirmWhenEmpty: Boolean = false,
     /** Popisek tlačítka odeslání s počtem cílů (`%1$d`) — „Přeposlat (2)", „Poslat (2)". */

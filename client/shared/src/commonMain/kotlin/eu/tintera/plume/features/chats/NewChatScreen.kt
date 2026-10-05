@@ -1,12 +1,31 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.ui.ChatPicker
+import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
+import eu.tintera.plume.core.ui.GROUP_SPACING
 import eu.tintera.plume.core.ui.PickerSection
+import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.campaign_24dp
+import eu.tintera.plume.resources.group_24dp
+import eu.tintera.plume.resources.new_chat_new_channel
+import eu.tintera.plume.resources.new_chat_new_group
 import eu.tintera.plume.resources.chats_search_section_chats
 import eu.tintera.plume.resources.chats_search_section_global
 import eu.tintera.plume.resources.new_chat_contacts
@@ -16,6 +35,9 @@ import eu.tintera.plume.resources.new_chat_search
 import eu.tintera.plume.resources.new_chat_title
 import eu.tintera.plume.resources.person_24dp
 import eu.tintera.plume.resources.search_off_24dp
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -29,12 +51,17 @@ import org.jetbrains.compose.resources.stringResource
  *
  * Co přibylo proti přeposílání: **sekce s nadpisy** (odkud výsledek je) a **dostupnost pod
  * jménem** — tady se vybírá člověk, ne cíl pro obsah.
+ *
+ * **Nad kontakty je založení skupiny a kanálu**, jako u oficiálních klientů: „Nová zpráva" je
+ * jediné místo, odkud se cokoli nového zakládá. Při hledání se schovají — hledá se chat.
  */
 @Composable
 fun NewChatScreen(
     viewModel: NewChatViewModel,
     onBack: () -> Unit,
     onChatSelected: (chatId: Long) -> Unit,
+    onNewGroup: () -> Unit,
+    onNewChannel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -66,6 +93,39 @@ fun NewChatScreen(
         onBack = onBack,
         error = state.error,
         onErrorShown = viewModel::consumeError,
+        header = { if (blankQuery) CreateChatRows(onNewGroup = onNewGroup, onNewChannel = onNewChannel) },
         modifier = modifier,
     )
+}
+
+/** Dva řádky jako jeden blok, stejným tvarem jako „Zablokovat uživatele" nad seznamem blokovaných. */
+@Composable
+private fun CreateChatRows(onNewGroup: () -> Unit, onNewChannel: () -> Unit) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+        modifier = Modifier.fillMaxWidth().padding(bottom = GROUP_SPACING - GROUP_ITEM_SPACING),
+    ) {
+        CreateChatRow(Res.drawable.group_24dp, Res.string.new_chat_new_group, index = 0, onClick = onNewGroup)
+        CreateChatRow(Res.drawable.campaign_24dp, Res.string.new_chat_new_channel, index = 1, onClick = onNewChannel)
+    }
+}
+
+@Composable
+private fun CreateChatRow(icon: DrawableResource, title: StringResource, index: Int, onClick: () -> Unit) {
+    Surface(
+        shape = groupItemShape(index, count = 2),
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        ListItem(
+            colors = ListItemDefaults.colors(
+                containerColor = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.primary,
+                leadingContentColor = MaterialTheme.colorScheme.primary,
+            ),
+            leadingContent = { Icon(painterResource(icon), contentDescription = null) },
+            headlineContent = { Text(stringResource(title)) },
+            modifier = Modifier.clickable(onClick = onClick),
+        )
+    }
 }

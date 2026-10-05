@@ -77,6 +77,9 @@ import eu.tintera.plume.features.auth.AuthViewModel
 import eu.tintera.plume.features.chats.ChatsViewModel
 import eu.tintera.plume.features.chats.AddBotToGroupViewModel
 import eu.tintera.plume.features.chats.NewChatViewModel
+import eu.tintera.plume.features.chats.CreateChatViewModel
+import eu.tintera.plume.core.telegram.ChatCreation
+import eu.tintera.plume.core.telegram.TdlChatCreation
 import eu.tintera.plume.features.conversation.ConversationViewModel
 import eu.tintera.plume.core.telegram.ThreadConversationRepository
 import eu.tintera.plume.features.conversation.StickerPickerViewModel
@@ -241,6 +244,7 @@ fun appModule() = module {
     single<NotificationSettingsRepository> { TdlNotificationSettingsRepository(holder = get()) }
     single<SensitiveContentSettings> { TdlSensitiveContentSettings(holder = get()) }
     single<DefaultAutoDeleteSettings> { TdlDefaultAutoDeleteSettings(holder = get()) }
+    single<ChatCreation> { TdlChatCreation(holder = get()) }
     single<AccountRepository> { TdlAccountRepository(holder = get()) }
     // Eager: nepotvrzené přihlášení TDLib ohlásí hned po startu (viz TdlDeviceRepository).
     single<DeviceRepository>(createdAtStart = true) {
@@ -491,6 +495,19 @@ fun appModule() = module {
     }
 
     viewModelOf(::NewChatViewModel)
+
+    // Druh a členové jdou z routy; indexem, `get()` by bral podle typu.
+    viewModel { parameters ->
+        @Suppress("UNCHECKED_CAST")
+        CreateChatViewModel(
+            channel = parameters.values[0] as Boolean,
+            memberChatIds = parameters.values[1] as List<Long>,
+            creation = get(),
+            profiles = get(),
+            squarePhoto = get(),
+            conversations = get(),
+        )
+    }
 
     // Odkaz, bot a jestli chce správce jdou z routy; indexem, `get()` by bral podle typu.
     viewModel { parameters ->
