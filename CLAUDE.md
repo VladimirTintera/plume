@@ -4704,6 +4704,12 @@ polem; doména `ChatReplyMarkup`, zdroj `ConversationRepository.replyMarkup`.
   be available … the user can press a special button to see it again". `deleteChatReplyMarkup`,
   které TDLib po klientovi chce, update nepošle a klávesnice v chatu zůstává; panel se proto
   po použití jen sbalí. Kdo čeká, že klávesnice zmizí, hledá chybu, která tam není.
+- **Že byla jednorázová klávesnice použitá, si pamatuje aplikace** (`AppSettings.usedOneTimeKeyboards`,
+  chat → id zprávy s klávesnicí, nejvýš 200 chatů). TDLib to neví: klávesnice v chatu zůstává
+  a po znovuotevření chatu se ukázala rozbalená, jako by ji nikdo nepoužil. Oficiální klient na
+  Androidu to řeší stejně (`hidekeyboard_<dialog>` v preferencích). Pamatuje se ZPRÁVA, ne
+  příznak: nová klávesnice od bota má jiné id a ukáže se rozbalená. Ověřeno na emulátoru
+  i po `force-stop`.
 - **Text z tlačítka nemaže rozepsaný koncept** (`sendKeyboardText` s `clearDraft = false`).
   Běžné odeslání (`send`) koncept maže, protože posílá obsah pole — tlačítko ne.
 - **Ve skupině jde text tlačítka jako odpověď** na zprávu s klávesnicí, jako u oficiálního

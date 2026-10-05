@@ -163,6 +163,16 @@ interface AppSettings {
     fun confirmWebAppBot(botUserId: Long)
 
     /**
+     * Použité jednorázové klávesnice botů: chat → zpráva, ze které klávesnice pochází. Klávesnice
+     * po použití v chatu ZŮSTÁVÁ (Bot API ji jen schová) a TDLib si nepamatuje, že byla použitá —
+     * bez tohohle by se při každém otevření chatu ukázala zase rozbalená. Tak to drží i oficiální
+     * klient (`hidekeyboard_<chat>` v nastavení).
+     */
+    val usedOneTimeKeyboards: StateFlow<Map<Long, Long>>
+
+    fun markOneTimeKeyboardUsed(chatId: Long, messageId: Long)
+
+    /**
      * Do jakého jazyka se překládají zprávy; `null` = jazyk aplikace (výchozí). Platí pro celou
      * aplikaci, ne pro jeden chat: kdo si jednou vybere angličtinu, čte v ní i další překlady.
      */
@@ -386,6 +396,32 @@ class DataStoreAppSettings(
         }
     }
 
+    override val usedOneTimeKeyboards: StateFlow<Map<Long, Long>> = value(emptyMap()) { preferences ->
+        preferences[USED_ONE_TIME_KEYBOARDS]?.decodeKeyboards().orEmpty()
+    }
+
+    override fun markOneTimeKeyboardUsed(chatId: Long, messageId: Long) {
+        scope.launch {
+            edit { preferences ->
+                // Nejnovější na konec; nejstarší chaty vypadnou, aby záznam nerostl donekonečna.
+                val current = preferences[USED_ONE_TIME_KEYBOARDS]?.decodeKeyboards().orEmpty() - chatId
+                preferences[USED_ONE_TIME_KEYBOARDS] = (current + (chatId to messageId)).entries
+                    .toList()
+                    .takeLast(MAX_USED_KEYBOARDS)
+                    .joinToString(KEYBOARD_ENTRY_SEPARATOR) { "${it.key}$TONE_PAIR_SEPARATOR${it.value}" }
+            }
+        }
+    }
+
+    /** `chat:zpráva` oddělené mezerou, v pořadí od nejstaršího. */
+    private fun String.decodeKeyboards(): Map<Long, Long> =
+        split(KEYBOARD_ENTRY_SEPARATOR).mapNotNull { entry ->
+            val parts = entry.split(TONE_PAIR_SEPARATOR, limit = 2)
+            val chat = parts.getOrNull(0)?.toLongOrNull() ?: return@mapNotNull null
+            val message = parts.getOrNull(1)?.toLongOrNull() ?: return@mapNotNull null
+            chat to message
+        }.toMap(LinkedHashMap())
+
     override fun dismissUpdate(versionCode: Int) {
         scope.launch {
             edit { preferences -> preferences[DISMISSED_UPDATE_VERSION_CODE] = versionCode }
@@ -438,6 +474,9 @@ class DataStoreAppSettings(
         val DISMISSED_UPDATE_VERSION_CODE = intPreferencesKey("dismissed_update_version_code")
         val CONFIRMED_WEB_APP_BOTS = stringPreferencesKey("confirmed_web_app_bots")
         val TRANSLATION_LANGUAGE = stringPreferencesKey("translation_language")
+        val USED_ONE_TIME_KEYBOARDS = stringPreferencesKey("used_one_time_keyboards")
+        const val KEYBOARD_ENTRY_SEPARATOR = " "
+        const val MAX_USED_KEYBOARDS = 200
         const val EMOJI_SEPARATOR = " "
         const val TONE_ENTRY_SEPARATOR = ";"
         const val TONE_PAIR_SEPARATOR = ":"

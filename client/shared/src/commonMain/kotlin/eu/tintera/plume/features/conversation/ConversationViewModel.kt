@@ -338,6 +338,14 @@ class ConversationViewModel(
     val recordMode: StateFlow<RecordMode> = settings.recordMode
 
     /**
+     * Zpráva s jednorázovou klávesnicí bota, kterou uživatel v tomhle chatu už použil — panel
+     * se pak otevře sbalený (viz `AppSettings.usedOneTimeKeyboards`).
+     */
+    val usedKeyboardMessageId: StateFlow<Long?> = settings.usedOneTimeKeyboards
+        .map { it[chatId] }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, settings.usedOneTimeKeyboards.value[chatId])
+
+    /**
      * Přehrávání hlasovky. Samostatný tok, ne součást [state]: pozice se mění dvacetkrát za
      * vteřinu a přepočítávat kvůli tomu celý stav konverzace by bylo zbytečné.
      */
@@ -2927,6 +2935,7 @@ class ConversationViewModel(
      */
     private fun keyboardUsed(keyboard: ChatReplyMarkup.Keyboard) {
         if (!keyboard.oneTime) return
+        settings.markOneTimeKeyboardUsed(chatId, keyboard.messageId)
         viewModelScope.launch {
             repository.dismissReplyMarkup(chatId, keyboard.messageId).onFailure { failure ->
                 logger.w(failure) { "Jednorázovou klávesnici bota se nepodařilo odebrat." }
