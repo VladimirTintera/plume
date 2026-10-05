@@ -398,7 +398,7 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
 účtu (jméno, telefon, uživatelské jméno) a odhlášení; Notifikace oprávnění a volby po rozsazích; Vzhled motiv aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
 
 - ~~**Úprava vlastního profilu**~~ — hotovo (fotka, jméno, uživatelské jméno s kontrolou
-  dostupnosti, bio; `CLAUDE.md`, „Úprava profilu"). ~~Historie profilových fotek~~ — hotovo v profilu chatu i u vlastního účtu (`CLAUDE.md`, „Historie profilových fotek"); zbývá nastavit starší fotku jako hlavní a smazat jednotlivou fotku z historie (mění účet, ověřit jen se souhlasem). Zbývá: ořez
+  dostupnosti, bio; `CLAUDE.md`, „Úprava profilu"). ~~Historie profilových fotek~~ — hotovo v profilu chatu i u vlastního účtu (`CLAUDE.md`, „Historie profilových fotek"), u vlastního i s nastavením starší fotky jako hlavní a smazáním jednotlivé fotky. Zbývá: ořez
   fotky ručně (dnes ze středu) a video jako profilovka.
 - ~~**Sekce Notifikace**~~ — hotovo, viz [Notifikace](#notifikace) níž.
 - ~~**Sekce Zařízení**~~ — hotovo (seznam, odhlášení, weby, automatické odhlášení, „Byli jste

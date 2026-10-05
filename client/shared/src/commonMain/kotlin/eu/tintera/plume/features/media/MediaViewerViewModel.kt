@@ -33,6 +33,8 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_delete_failed
 import eu.tintera.plume.resources.conversation_reaction_failed
 import eu.tintera.plume.resources.media_photo_load_failed
+import eu.tintera.plume.resources.media_profile_photo_failed
+import eu.tintera.plume.resources.media_profile_photo_set
 import eu.tintera.plume.resources.media_profile_photos_none
 import eu.tintera.plume.resources.media_save_denied
 import eu.tintera.plume.resources.media_save_failed
@@ -334,6 +336,7 @@ class MediaViewerViewModel(
      * a sdílení — reagovat, přeposlat ani smazat se profilovka odsud nedá.
      */
     private suspend fun loadProfilePhotos() {
+        val own = profileRepository.isOwnAccount(chatId)
         profileRepository.profilePhotos(chatId)
             .onSuccess { photos ->
                 val items = photos.asReversed().map { photo ->
@@ -352,6 +355,7 @@ class MediaViewerViewModel(
                         initialMessageId = items.lastOrNull()?.messageId ?: it.initialMessageId,
                         initialPosition = items.size.takeIf { size -> size > 0 }?.let { size -> PhotoPosition(size, size) },
                         actions = items.associate { item -> item.messageId to PROFILE_PHOTO_ACTIONS },
+                        ownProfilePhotos = own,
                         reachedOldest = true,
                         reachedNewest = true,
                         loading = false,
@@ -691,6 +695,58 @@ class MediaViewerViewModel(
         }
     }
 
+    /**
+     * Starší vlastní profilovka bude zase hlavní. Bez potvrzení — jde to vrátit stejnou cestou.
+     * Seznam se pak čte znovu: server fotku přesune na začátek historie.
+     */
+    fun setMainProfilePhoto(photoId: Long) {
+        if (!_state.value.ownProfilePhotos) return
+        viewModelScope.launch {
+            profileRepository.setMainProfilePhoto(photoId)
+                .onSuccess {
+                    loadProfilePhotos()
+                    // Fotka nastavená znovu dostane NOVÉ id a je teď aktuální, tedy poslední.
+                    _state.update {
+                        it.copy(notice = UiText(Res.string.media_profile_photo_set), focusMessageId = it.items.lastOrNull()?.messageId)
+                    }
+                }
+                .onFailure { failure ->
+                    _state.update { it.copy(notice = failure.reported(Res.string.media_profile_photo_failed)) }
+                }
+        }
+    }
+
+    fun focusShown() {
+        _state.update { it.copy(focusMessageId = null) }
+    }
+
+    fun requestDeleteProfilePhoto(photoId: Long) {
+        if (_state.value.ownProfilePhotos) _state.update { it.copy(pendingProfilePhotoDelete = photoId) }
+    }
+
+    fun dismissDeleteProfilePhoto() {
+        _state.update { it.copy(pendingProfilePhotoDelete = null) }
+    }
+
+    /** Smaže vlastní profilovku; po poslední se prohlížeč zavře, jinak se seznam čte znovu. */
+    fun confirmDeleteProfilePhoto() {
+        val photoId = _state.value.pendingProfilePhotoDelete ?: return
+        _state.update { it.copy(pendingProfilePhotoDelete = null) }
+        viewModelScope.launch {
+            profileRepository.deleteProfilePhoto(photoId)
+                .onSuccess {
+                    if (_state.value.items.size <= 1) {
+                        _state.update { it.copy(closed = true) }
+                    } else {
+                        loadProfilePhotos()
+                    }
+                }
+                .onFailure { failure ->
+                    _state.update { it.copy(notice = failure.reported(Res.string.media_profile_photo_failed)) }
+                }
+        }
+    }
+
     private companion object {
         /**
          * Profilovka jde uložit a sdílet, jako v oficiálních klientech; ochranu obsahu jako
@@ -781,6 +837,19 @@ data class MediaViewerState(
     /** Co se se zprávou smí, podle id. Chybí, dokud se nenačte — akce se do té doby nenabízejí. */
     val actions: Map<Long, MessageActions> = emptyMap(),
     val pendingDelete: PendingDelete? = null,
+    /**
+     * Profilovky vlastního účtu — jde je nastavit jako hlavní a mazat (`setMainProfilePhoto`,
+     * `deleteProfilePhoto`). Cizí profilovky a fotky skupin ne: TDLib to umí jen u vlastního účtu.
+     */
+    val ownProfilePhotos: Boolean = false,
+    /** Vlastní profilovka čekající na potvrzení smazání. */
+    val pendingProfilePhotoDelete: Long? = null,
+    /**
+     * Stránka, na kterou má pager dojet — jednorázově, obrazovka ji po posunu vynuluje
+     * ([MediaViewerViewModel.focusShown]). Fotka nastavená jako hlavní se přesune na konec
+     * (a dostane nové id) a pager by jinak zůstal na indexu, tedy na jiné fotce.
+     */
+    val focusMessageId: Long? = null,
     /** Zprávy, se kterými právě běží uložení nebo sdílení, a co to je — točí se místo tlačítka. */
     val busy: Map<Long, MediaTask> = emptyMap(),
     /** Jednorázová hláška do snackbaru (nepovedená reakce, mazání, uložení). */
