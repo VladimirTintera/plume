@@ -62,6 +62,10 @@ import eu.tintera.plume.core.ui.QrCode
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.auth_proxy
+import eu.tintera.plume.resources.vpn_lock_24dp
+import eu.tintera.plume.features.proxy.ProxySettingsScreen
+import org.koin.compose.viewmodel.koinViewModel
 import eu.tintera.plume.resources.auth_back_to_password
 import eu.tintera.plume.resources.auth_change_number
 import eu.tintera.plume.resources.auth_continue
@@ -142,6 +146,7 @@ fun AuthScreen(
     val recoveryUnavailable by viewModel.recoveryUnavailable.collectAsStateWithLifecycle()
 
     var pickingCountry by rememberSaveable { mutableStateOf(false) }
+    var showingProxy by rememberSaveable { mutableStateOf(false) }
 
     // Krok hesla platí jen nad heslem; ViewModel ho při odchodu nuluje až z odběru, takže by
     // na jeden snímek mohl viset nad jiným stavem.
@@ -151,11 +156,20 @@ fun AuthScreen(
     // na špatné číslo. `NavigationBackHandler`, ne `BackHandler`: ten by zabil predictive back.
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
-        isBackEnabled = stage.canGoBack() && !busy,
+        isBackEnabled = stage.canGoBack() && !busy && !showingProxy,
         onBackCompleted = viewModel::back,
     )
 
-    Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+    // Proxy přes přihlášení: kde je Telegram blokovaný, se bez ní k přihlášení nikdo nedostane,
+    // a Nastavení je až za ním. Tatáž obrazovka jako v Nastavení, přes celou plochu.
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = showingProxy,
+        onBackCompleted = { showingProxy = false },
+    )
+
+    Box(modifier.fillMaxSize()) {
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         Box(
             Modifier
                 .fillMaxSize()
@@ -280,8 +294,24 @@ fun AuthScreen(
                         }
                     }
                 }
+
+                if (stage.offersProxy()) {
+                    TextButton(onClick = { showingProxy = true }) {
+                        Icon(
+                            painterResource(Res.drawable.vpn_lock_24dp),
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 8.dp).size(18.dp),
+                        )
+                        Text(stringResource(Res.string.auth_proxy))
+                    }
+                }
             }
         }
+    }
+
+    if (showingProxy) {
+        ProxySettingsScreen(viewModel = koinViewModel(key = "proxy-auth"), onBack = { showingProxy = false })
+    }
     }
 
     if (recoveryUnavailable) {

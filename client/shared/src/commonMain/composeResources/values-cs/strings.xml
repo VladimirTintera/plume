@@ -2011,4 +2011,5 @@
     <string name="proxy_connected">Proxy je zapnutá</string>
     <string name="proxy_connect_failed">Proxy se nepodařilo přidat</string>
     <string name="proxy_unsupported">Tenhle druh proxy aplikace nepodporuje</string>
+    <string name="auth_proxy">Připojit přes proxy</string>
 </resources>

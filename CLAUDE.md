@@ -1203,6 +1203,19 @@ a `shareLink()` v `core/telegram/Proxy.kt` (testy `ProxyTest`).
   `127.0.0.1:1080`): odkaz od testovacího bota, dialog s „Nedostupná", připojení (spojení spadlo
   na „Připojování…"), přepnutí na přímé, úprava, kopírování odkazu, ruční SOCKS5 a smazání.
   **Fungující proxy ověřená NENÍ** — žádná po ruce nebyla. iOS jen přeložené.
+- **Proxy jde nastavit i na přihlašovací obrazovce** („Připojit přes proxy" pod krokem,
+  `AuthStage.offersProxy`, testy `AuthViewModelTest`). Kde je Telegram blokovaný, nedorazí kód
+  — a Nastavení je až za přihlášením. Je to TÁŽ `ProxySettingsScreen` přes celou plochu
+  přihlášení, ne routa: přihlášení stojí mimo `NavDisplay`. Nabízí se jen v krocích, kde se čeká
+  na uživatele; start klienta, odhlašování a chybu proxy nespraví.
+  - **Zpět mají DVĚ obsluhy a ta přihlašovací se s otevřenou proxy vypíná**
+    (`isBackEnabled = … && !showingProxy`). V kódu, hesle a QR zpět volá `restartLogin`
+    (`destroy`) — bez toho by gesto zpět nad proxy zahodilo rozdělané přihlášení.
+  - **Ověřeno na emulátoru podstrčeným stavem** (`WaitPhoneNumber`, pak `WaitCode`; necommituje
+    se): přidání, zapnutí a smazání proxy, šipka i gesto zpět vrací na přihlášení. **V kroku
+    kódu sonda nahradila `back()` logem** — skutečný `restartLogin` by účet na emulátoru zavřel;
+    první zpět zavřelo jen proxy, `back()` přišlo až druhým. Nepřihlášená aplikace ověřená
+    není (proxy pak platí pro první spojení), iOS jen přeložené.
 
 ## Nastavení aplikace
 

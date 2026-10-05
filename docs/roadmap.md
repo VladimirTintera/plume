@@ -413,8 +413,6 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
   - **Připojení boti (Telegram Business)** v seznamu relací ani v kartě „Byli jste to vy?" nejsou.
 - ~~**Proxy**~~ — hotovo (Obecné → Připojení → Proxy a odkazy `t.me/proxy`; `CLAUDE.md`,
   „Proxy"). Zbývá:
-  - **Proxy už na přihlašovací obrazovce.** Kde je Telegram blokovaný, se bez ní nepřihlásí —
-    a Nastavení je až za přihlášením. TDLib proxy bere i před autorizací.
   - **Sponzorovaný chat od provozovatele MTProto proxy** (`ChatSourceMtprotoProxy`) — chat se
     v seznamu ukáže, ale bez vysvětlení, proč tam je.
   - **Stav proxy v řádku Nastavení** (které je zapnutá) — řádek zatím jen vede na obrazovku.
