@@ -23,6 +23,19 @@ interface ProfileRepository {
      */
     suspend fun profilePhotos(chatId: Long): Result<List<ProfilePhoto>>
 
+    /** Je [chatId] chat s vlastním účtem (Uložené zprávy)? Jen tam jde profilovky spravovat. */
+    suspend fun isOwnAccount(chatId: Long): Boolean
+
+    /**
+     * Starší vlastní profilovka [photoId] bude zase hlavní (`setProfilePhoto` s
+     * `InputChatPhotoPrevious`). Jen pro vlastní účet — u skupiny TDLib starší fotku znovu
+     * použít neumí.
+     */
+    suspend fun setMainProfilePhoto(photoId: Long): Result<Unit>
+
+    /** Smaže vlastní profilovku [photoId] z historie (`deleteProfilePhoto`). */
+    suspend fun deleteProfilePhoto(photoId: Long): Result<Unit>
+
     /**
      * Nastaví automatické mazání NOVÝCH zpráv chatu po [seconds] (`setChatMessageAutoDeleteTime`),
      * 0 = vypnout. Platí pro všechny v chatu; do chatu přibude servisní zpráva.

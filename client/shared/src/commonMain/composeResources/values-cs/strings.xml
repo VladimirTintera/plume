@@ -183,6 +183,12 @@
     <string name="media_share_failed">Sdílení se nepodařilo</string>
     <string name="media_photo_load_failed">Fotku se nepodařilo načíst.</string>
     <string name="media_profile_photos_none">Žádné profilové fotky</string>
+    <string name="media_profile_photo_set_main">Nastavit jako profilovou</string>
+    <string name="media_profile_photo_delete">Smazat fotku</string>
+    <string name="media_profile_photo_delete_title">Smazat fotku?</string>
+    <string name="media_profile_photo_delete_text">Zmizí z tvého profilu pro všechny.</string>
+    <string name="media_profile_photo_set">Profilová fotka změněna</string>
+    <string name="media_profile_photo_failed">Profilové fotky se nepodařilo změnit</string>
     <string name="media_video_download_failed">Video se nepodařilo stáhnout.</string>
     <string name="media_download_progress">Průběh stahování</string>
     <string name="media_play">Přehrát</string>

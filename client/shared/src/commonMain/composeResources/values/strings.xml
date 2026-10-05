@@ -182,6 +182,12 @@
     <string name="media_share_failed">Couldn't share</string>
     <string name="media_photo_load_failed">Couldn't load the photo.</string>
     <string name="media_profile_photos_none">No profile photos</string>
+    <string name="media_profile_photo_set_main">Set as profile photo</string>
+    <string name="media_profile_photo_delete">Delete photo</string>
+    <string name="media_profile_photo_delete_title">Delete this photo?</string>
+    <string name="media_profile_photo_delete_text">It disappears from your profile for everyone.</string>
+    <string name="media_profile_photo_set">Profile photo changed</string>
+    <string name="media_profile_photo_failed">Couldn't change the profile photos</string>
     <string name="media_video_download_failed">Couldn't download the video.</string>
     <string name="media_download_progress">Download progress</string>
     <string name="media_play">Play</string>

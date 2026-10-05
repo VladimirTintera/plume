@@ -118,6 +118,14 @@ import eu.tintera.plume.resources.menu_delete
 import eu.tintera.plume.resources.media_more
 import eu.tintera.plume.resources.media_save
 import eu.tintera.plume.resources.media_save_as
+import eu.tintera.plume.resources.media_profile_photo_delete_text
+import eu.tintera.plume.resources.media_profile_photo_delete_title
+import eu.tintera.plume.resources.media_profile_photo_delete
+import eu.tintera.plume.resources.media_profile_photo_set_main
+import eu.tintera.plume.resources.person_24dp
+import eu.tintera.plume.resources.common_cancel
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import eu.tintera.plume.resources.media_share
 import eu.tintera.plume.resources.more_vert_24dp
 import eu.tintera.plume.resources.schedule_24dp
@@ -242,6 +250,9 @@ fun MediaViewerScreen(
                         }
                     }
                 },
+                onSetMainProfilePhoto = viewModel::setMainProfilePhoto,
+                onDeleteProfilePhoto = viewModel::requestDeleteProfilePhoto,
+                onFocusShown = viewModel::focusShown,
                 onDismiss = {
                     viewModel.onDismiss()
                     onBack()
@@ -277,6 +288,22 @@ fun MediaViewerScreen(
         )
     }
 
+    if (state.pendingProfilePhotoDelete != null) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissDeleteProfilePhoto,
+            title = { Text(stringResource(Res.string.media_profile_photo_delete_title)) },
+            text = { Text(stringResource(Res.string.media_profile_photo_delete_text)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::confirmDeleteProfilePhoto) {
+                    Text(stringResource(Res.string.menu_delete), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::dismissDeleteProfilePhoto) { Text(stringResource(Res.string.common_cancel)) }
+            },
+        )
+    }
+
     state.pendingDelete?.let { pending ->
         MessageDeleteDialog(
             pending = pending,
@@ -306,6 +333,9 @@ private fun ViewerContent(
     onSave: (messageId: Long) -> Unit,
     onShare: (messageId: Long) -> Unit,
     onSaveAs: ((messageId: Long) -> Unit)?,
+    onSetMainProfilePhoto: (photoId: Long) -> Unit,
+    onDeleteProfilePhoto: (photoId: Long) -> Unit,
+    onFocusShown: () -> Unit,
     onDismiss: () -> Unit,
     startSeconds: Int,
 ) {
@@ -323,6 +353,14 @@ private fun ViewerContent(
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect(onPageChanged)
+    }
+
+    // Vynuluje se až po posunu: vynulování mění klíč efektu a zrušilo by rozjetý posun.
+    LaunchedEffect(state.focusMessageId) {
+        val target = state.focusMessageId ?: return@LaunchedEffect
+        val index = items.indexOfFirst { it.messageId == target }
+        if (index >= 0) pagerState.animateScrollToPage(index)
+        onFocusShown()
     }
 
     val current = items.getOrNull(pagerState.currentPage)
@@ -494,6 +532,8 @@ private fun ViewerContent(
                     onSave = { onSave(current.messageId) },
                     onShare = { onShare(current.messageId) },
                     onSaveAs = onSaveAs?.let { saveAs -> { saveAs(current.messageId) } },
+                    onSetMainProfilePhoto = { onSetMainProfilePhoto(current.messageId) },
+                    onDeleteProfilePhoto = { onDeleteProfilePhoto(current.messageId) },
                 )
             }
         }
@@ -659,6 +699,8 @@ private fun TopBar(
     onSave: () -> Unit,
     onShare: () -> Unit,
     onSaveAs: (() -> Unit)?,
+    onSetMainProfilePhoto: () -> Unit,
+    onDeleteProfilePhoto: () -> Unit,
 ) {
     val actions = state.actions[item.messageId]
 
@@ -726,7 +768,11 @@ private fun TopBar(
         val canForward = actions?.canForward == true
         val canDelete = actions != null && (actions.canDeleteForSelf || actions.canDeleteForAll)
         val saveAs = onSaveAs?.takeIf { canSave }
-        if (canForward || canDelete || saveAs != null) {
+        // Vlastní profilovky: starší jde nastavit zase jako hlavní (ta nejnovější hlavní je)
+        // a každou smazat. Cizí profilovky a fotky skupin tohle nemají — TDLib to neumí.
+        val own = state.ownProfilePhotos
+        val canSetMain = own && item.messageId != state.items.lastOrNull()?.messageId
+        if (canForward || canDelete || saveAs != null || own) {
             var menuOpen by remember { mutableStateOf(false) }
             BusyOr(busy == MediaTask.SaveAs) {
                 Box {
@@ -738,10 +784,21 @@ private fun TopBar(
                             listOfNotNull(
                                 MenuAction(stringResource(Res.string.menu_forward), Res.drawable.forward_24dp, onClick = onForward).takeIf { canForward },
                                 saveAs?.let { MenuAction(stringResource(Res.string.media_save_as), Res.drawable.description_24dp, onClick = it) },
+                                MenuAction(
+                                    stringResource(Res.string.media_profile_photo_set_main),
+                                    Res.drawable.person_24dp,
+                                    onClick = onSetMainProfilePhoto,
+                                ).takeIf { canSetMain },
                             ),
                             // Smazání zvlášť: nevratné, nemá stát mezi častými akcemi.
                             listOfNotNull(
                                 MenuAction(stringResource(Res.string.menu_delete), Res.drawable.delete_24dp, destructive = true, onClick = onDelete).takeIf { canDelete },
+                                MenuAction(
+                                    stringResource(Res.string.media_profile_photo_delete),
+                                    Res.drawable.delete_24dp,
+                                    destructive = true,
+                                    onClick = onDeleteProfilePhoto,
+                                ).takeIf { own },
                             ),
                         ),
                     )

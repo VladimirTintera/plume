@@ -30,6 +30,7 @@ import dev.g000sha256.tdl.dto.ChatTypeSecret
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.InputMessageText
+import dev.g000sha256.tdl.dto.InputChatPhotoPrevious
 import dev.g000sha256.tdl.dto.InputChatPhotoStatic
 import dev.g000sha256.tdl.dto.InputFileLocal
 import dev.g000sha256.tdl.dto.MessageSenderUser
@@ -300,6 +301,8 @@ class TdlProfileRepository(
         val chat = client.getChat(chatId = chatId).toResult().getOrElse { failure ->
             if (chatId > 0) null else throw failure
         }
+        // Fotky uživatele drží pořadí od serveru: první je aktuální. Podle data řadit nejde —
+        // starší fotka nastavená znovu jako hlavní si nechává původní `addedDate`.
         val photos = when (val type = chat?.type) {
             null -> userPhotos(chatId)
             is ChatTypePrivate -> userPhotos(type.userId)
@@ -314,10 +317,18 @@ class TdlProfileRepository(
             )
         }
         // Aktuální fotka skupiny je zároveň v poslední zprávě o změně — jednou stačí.
-        photos.distinctBy { it.id }
-            .sortedByDescending { it.addedDate }
-            .mapNotNull { it.toProfilePhoto() }
+        photos.distinctBy { it.id }.mapNotNull { it.toProfilePhoto() }
     }
+
+    override suspend fun isOwnAccount(chatId: Long): Boolean =
+        client.getMe().toResult().getOrNull()?.id == chatId
+
+    override suspend fun setMainProfilePhoto(photoId: Long): Result<Unit> =
+        client.setProfilePhoto(photo = InputChatPhotoPrevious(chatPhotoId = photoId), isPublic = false)
+            .toResult().map { }
+
+    override suspend fun deleteProfilePhoto(photoId: Long): Result<Unit> =
+        client.deleteProfilePhoto(profilePhotoId = photoId).toResult().map { }
 
     /** Fotky uživatele po stránkách, dokud je server má (strop [MAX_PROFILE_PHOTOS]). */
     private suspend fun userPhotos(userId: Long): List<ChatPhoto> {
@@ -357,7 +368,7 @@ class TdlProfileRepository(
             if (messages.isEmpty() || next == from) break
             from = next
         } while (from != 0L && found.size < MAX_PROFILE_PHOTOS)
-        return found
+        return found.sortedByDescending { it.addedDate }
     }
 
     /**

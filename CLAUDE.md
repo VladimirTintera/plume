@@ -5979,6 +5979,10 @@ testy `MemberManagementTest`).
   jako náhledem.
 - **Datum v liště je, kdy si chat fotku nastavil** (`addedDate`), a podle něj se jmenuje i
   uložený soubor.
+- **Fotky uživatele se NEŘADÍ podle data, drží pořadí od serveru** (první = aktuální). Starší
+  fotka nastavená znovu jako hlavní si nechává původní `addedDate`: dokud se řadilo podle data,
+  zůstala po nastavení uprostřed a jako aktuální se dál tvářila ta předchozí. Podle data se
+  řadí jen skupiny, kde se historie skládá ze zpráv o změně fotky.
 - **Let z avataru do prohlížeče není.** Avatar v profilu už nese sdílený klíč letu z hlavičky
   konverzace (`chatAvatarKey`); druhý klíč na tomtéž prvku by se s ním pral. Prohlížeč se
   otevře běžným přechodem.
@@ -5989,6 +5993,20 @@ testy `MemberManagementTest`).
 - **Prohlížeč pak leží v zásobníku NASTAVENÍ, ne Chatů** — a zavírá se z toho, ve kterém leží
   (`chatsStack.pop(route) || settingsStack.pop(route)`). Dokud šlo zavírání jen přes zásobník
   Chatů, ✕ by v Nastavení nedělalo nic; systémové zpět to nepotřebuje, bere vybranou sekci.
+- **Vlastní profilovky jde v ⋮ nastavit jako hlavní a smazat** (`setProfilePhoto`
+  s `InputChatPhotoPrevious`, `deleteProfilePhoto`; `MediaViewerState.ownProfilePhotos` podle
+  `getMe`). Jen u vlastního účtu — starší fotku skupiny znovu použít ani jednotlivě smazat TDLib
+  neumí. „Nastavit jako profilovou" se u aktuální fotky nenabízí, smazání se potvrzuje dialogem
+  a po smazání poslední fotky se prohlížeč zavře. Nastavená fotka se přesune na konec, takže
+  pager na ni dojede sám (`focusMessageId`) — jinak by zůstal na indexu, tedy na jiné fotce.
+- **Znovu nastavená fotka dostane NOVÉ id** (ověřeno sondou: …131 → …133). Hledat ji po
+  nastavení podle id, se kterým se nastavovala, nejde; pager se proto posílá na aktuální
+  (poslední) fotku.
+- **Ověřeno na emulátoru** (česky, se souhlasem, na skutečném účtu): starší fotka nastavená
+  jako hlavní (snackbar, „3 z 3" a pager na ní) a hned vrácená původní, nabídka bez
+  „Nastavit…" u aktuální fotky. **Smazání ověřené jen po potvrzovací dialog** — mazalo by
+  skutečnou fotku. **Že u cizího profilu nabídka chybí, ověřené na zařízení NENÍ** (otevřel by
+  se profil skutečného člověka).
 - **Ověřeno na emulátoru** (česky): člověk se třemi fotkami („3 z 3", listování ke staršímu
   datu), kanál s jednou fotkou („1 z 1"), uložení do galerie (`Pictures/Plume`, jméno podle
   data přidání), vlastní profilovky z úpravy profilu („3 z 3", ✕ i zpět vrací do úpravy
