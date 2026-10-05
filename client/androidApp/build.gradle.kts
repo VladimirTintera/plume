@@ -103,10 +103,13 @@ android {
             // Pozor: chybějící keep pravidlo se neprojeví při buildu, ale AŽ ZA BĚHU. Po zásahu
             // do závislostí nebo reflexe je potřeba release build reálně proklikat.
             //
-            // `isShrinkResources` schválně zapnuté NENÍ — zkracování prostředků je samostatný
-            // krok, který umí uklidit composeResources, a zapínat obojí naráz by znamenalo
-            // nevědět, co z toho případný pád způsobilo.
+            // `isShrinkResources` vyhodí prostředky Androidu (`res/`), na které po R8 nic
+            // neukazuje. Zapínal se zvlášť od minifikace, aby bylo poznat, co případný pád
+            // způsobilo. **composeResources se ho netýkají** — leží v `assets/`, ne v `res/`.
+            // Podle jména (`getIdentifier`) náš kód na prostředky nesahá; Firebase a Crashlytics
+            // ano, ale shrinker v bezpečném režimu takové prostředky drží. Viz CLAUDE.md, „R8".
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",

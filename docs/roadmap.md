@@ -25,8 +25,8 @@ Teď je prázdné.
   hodnocení obsahu (IARC), cílová skupina, bezpečnost dat a prohlášení o reklamách.
 - **Seznam chatů na snímcích obrazovky chybí.** Na účtu jsou skutečné osoby; snímek seznamu
   chce demo účet se smyšlenými chaty.
-- **`isShrinkResources` není zapnuté.** Je to samostatný krok od minifikace a umí uklidit
-  composeResources; zapínat se má zvlášť, aby bylo poznat, co případný pád způsobilo.
+- ~~**`isShrinkResources` není zapnuté.**~~ — hotovo (release proklikaný na emulátoru;
+  `CLAUDE.md`, „R8").
 
 ## iOS
 
