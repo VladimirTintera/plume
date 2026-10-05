@@ -4817,8 +4817,14 @@ data class Typing(val activity: ChatActivity, val sender: SenderInfo?)
  * Které zprávy z viditelných položek ([visibleKeys] jsou KLÍČE, ne id) se hlásí jako zhlédnuté.
  *
  * Cizí zprávy vždycky; album celé, protože je v seznamu jednou položkou s klíčem nejstarší
- * zprávy a ostatní fotky by jinak zůstaly v počtu nepřečtených napořád. Vlastní zprávu jen
- * tehdy, když nese nepřečtené reakce nebo hlasy v anketě — přečte je právě zhlédnutí.
+ * zprávy a ostatní fotky by jinak zůstaly v počtu nepřečtených napořád. Vlastní zprávu tehdy,
+ * když nese nepřečtené reakce nebo hlasy v anketě — přečte je právě zhlédnutí —, **a když leží
+ * nad hranicí nepřečtených** ([ConversationState.unreadBoundaryId]).
+ *
+ * To poslední je kvůli tématům: server v tématu počítá jako nepřečtené i VLASTNÍ zprávy nad
+ * hranicí (servisní „přibyli členové" po přidání, zpráva poslaná z jiného zařízení). Cizí zpráva
+ * nad hranicí žádná nebyla, takže se nehlásilo nic, hranice stála a odznak „2" u tématu zůstal
+ * napořád, i když v něm uživatel četl a psal. Nahlášená vlastní zpráva hranici posune přes ni.
  */
 internal fun ConversationState.messagesToView(visibleKeys: Set<Long>): List<Long> {
     val albums = messages
@@ -4828,7 +4834,7 @@ internal fun ConversationState.messagesToView(visibleKeys: Set<Long>): List<Long
         .toSet()
     return messages
         .filter {
-            (!it.isOutgoing || it.hasUnreadReactions || it.hasUnreadPollVotes) &&
+            (!it.isOutgoing || it.hasUnreadReactions || it.hasUnreadPollVotes || it.id > (unreadBoundaryId ?: Long.MAX_VALUE)) &&
                 (keyOf(it) in visibleKeys || it.mediaAlbumId in albums)
         }
         .map { it.id }
