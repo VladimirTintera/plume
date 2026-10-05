@@ -38,6 +38,9 @@ import dev.g000sha256.tdl.dto.ChatFolderInfo
 import dev.g000sha256.tdl.dto.ChatListMain
 import dev.g000sha256.tdl.dto.ChatNotificationSettings
 import dev.g000sha256.tdl.dto.ChatPosition
+import dev.g000sha256.tdl.dto.ChatSource
+import dev.g000sha256.tdl.dto.ChatSourceMtprotoProxy
+import dev.g000sha256.tdl.dto.ChatSourcePublicServiceAnnouncement
 import dev.g000sha256.tdl.dto.ChatType
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypePrivate
@@ -889,10 +892,12 @@ class TdlChatRepository(
     }
 
     override suspend fun deleteOrLeave(chatId: Long): Result<Unit> {
-        val summary = mutex.withLock { known[chatId] }
-            ?: return Result.failure(IllegalStateException("Chat není známý."))
+        val (summary, sponsor) = mutex.withLock { known[chatId] to positions[chatId]?.get(ChatFolder.Main)?.sponsor }
+        summary ?: return Result.failure(IllegalStateException("Chat není známý."))
 
-        val result = if (summary.isPrivate) {
+        // Oznámení od Telegramu se skrývá smazáním historie s odebráním ze seznamu; z kanálu se
+        // neodchází, uživatel v něm není (TDLib `delete_dialog_history` u sponzorovaného chatu).
+        val result = if (summary.isPrivate || sponsor is ChatSponsor.Announcement) {
             client.deleteChatHistory(
                 chatId = chatId,
                 // Chat zmizí i ze seznamu, ne jen vyprázdní.
@@ -1420,6 +1425,7 @@ class TdlChatRepository(
                                 isPinned = position.isPinned,
                                 folder = folder,
                                 isArchived = ChatFolder.Archive in chatPositions,
+                                sponsor = position.sponsor,
                             )
                         }
                     }
@@ -1521,7 +1527,7 @@ internal fun DraftMessage.toChatDraft(): ChatDraft? {
 }
 
 /** Pozice chatu v jedné složce. */
-private data class FolderPosition(val order: Long, val isPinned: Boolean)
+private data class FolderPosition(val order: Long, val isPinned: Boolean, val sponsor: ChatSponsor? = null)
 
 /**
  * Koho v chatu jde zablokovat, nebo `null`, když nikoho.
@@ -1592,7 +1598,14 @@ private fun Chat.chatBar(): ChatBar? = when (val bar = actionBar) {
 private fun Long.toMessageSender(): MessageSender =
     if (this > 0) MessageSenderUser(userId = this) else MessageSenderChat(chatId = this)
 
-private fun ChatPosition.toFolderPosition() = FolderPosition(order = order, isPinned = isPinned)
+private fun ChatPosition.toFolderPosition() =
+    FolderPosition(order = order, isPinned = isPinned, sponsor = source?.toSponsor())
+
+/** `when` bez `else`: nový zdroj v novější TDLib rozbije překlad, ne tiše řádek. */
+private fun ChatSource.toSponsor(): ChatSponsor = when (this) {
+    is ChatSourceMtprotoProxy -> ChatSponsor.Proxy
+    is ChatSourcePublicServiceAnnouncement -> ChatSponsor.Announcement(type = type, text = text)
+}
 
 private fun ChatList?.folder(): ChatFolder? = when (this) {
     is ChatListMain -> ChatFolder.Main

@@ -49,10 +49,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.telegram.ChatSponsor
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.SpamActions
 import eu.tintera.plume.core.telegram.isPrivate
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.chats_sponsor_announcement_explanation
+import eu.tintera.plume.resources.chats_sponsor_hide
+import eu.tintera.plume.resources.chats_sponsor_open_proxy
+import eu.tintera.plume.resources.chats_sponsor_proxy_explanation
+import eu.tintera.plume.resources.visibility_off_24dp
+import eu.tintera.plume.resources.vpn_lock_24dp
 import eu.tintera.plume.resources.chat_action_folders
 import eu.tintera.plume.resources.folder_24dp
 import eu.tintera.plume.resources.archive_24dp
@@ -105,7 +112,28 @@ fun ChatActionsSheet(
     /** Smazání potvrzené v podmenu, s volbami proti spamu. */
     onDelete: (SpamCleanup) -> Unit,
     onDismiss: () -> Unit,
+    /** Nastavení proxy; nabízí se jen u chatu od provozovatele proxy ([ChatSponsor.Proxy]). */
+    onOpenProxySettings: () -> Unit = {},
 ) {
+    // Sponzorovaný chat není uživatelův: připnout, archivovat, přidat do složky ani opustit ho
+    // nejde (TDLib to odmítne), takže má vlastní, kratší nabídku s vysvětlením.
+    chat.sponsor?.let { sponsor ->
+        SponsoredChatSheet(
+            chat = chat,
+            sponsor = sponsor,
+            onMute = { onMute(null) },
+            onUnmute = onUnmute,
+            onToggleUnread = onToggleUnread,
+            onOpenProxySettings = {
+                onDismiss()
+                onOpenProxySettings()
+            },
+            onHide = { onDelete(SpamCleanup()) },
+            onDismiss = onDismiss,
+        )
+        return
+    }
+
     /*
      * Celý, bez napůl rozbaleného stavu, a obsah scrollovatelný. Podmenu smazání se rozbaluje
      * na KONCI nabídky; u polovičního sheetu by jeho tlačítko skončilo pod okrajem obrazovky
@@ -368,6 +396,79 @@ private fun FolderChoices(folders: List<FolderChoice>, onToggle: (Int) -> Unit) 
                         Checkbox(checked = folder.member, onCheckedChange = null)
                     },
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Nabídka nad chatem, který do seznamu dal někdo jiný ([ChatSponsor]). Napřed věta, PROČ tu je —
+ * uživatel do něj nevstoupil a bez vysvětlení vypadá jako cizí kanál, který se objevil sám.
+ *
+ * - **Od proxy** smazat ani opustit nejde (TDLib „Can't delete the chat"); jediná cesta ven je
+ *   proxy vypnout, a proto vede nabídka do jejího nastavení.
+ * - **Oznámení** jde skrýt (`deleteChatHistory` s odebráním ze seznamu, [ChatRepository.deleteOrLeave]).
+ *   Bez potvrzení: nic se nemaže, jen oznámení zmizí ze seznamu.
+ */
+@Composable
+private fun SponsoredChatSheet(
+    chat: ChatSummary,
+    sponsor: ChatSponsor,
+    onMute: () -> Unit,
+    onUnmute: () -> Unit,
+    onToggleUnread: () -> Unit,
+    onOpenProxySettings: () -> Unit,
+    onHide: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            Text(
+                text = chatTitle(chat.id, chat.title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            )
+            Text(
+                text = when (sponsor) {
+                    ChatSponsor.Proxy -> stringResource(Res.string.chats_sponsor_proxy_explanation)
+                    is ChatSponsor.Announcement ->
+                        sponsor.text.ifBlank { stringResource(Res.string.chats_sponsor_announcement_explanation) }
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                SheetActionRow(
+                    icon = if (chat.isMuted) Res.drawable.notifications_24dp else Res.drawable.notifications_off_24dp,
+                    label = stringResource(if (chat.isMuted) Res.string.chats_action_unmute else Res.string.chats_action_mute),
+                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
+                    onClick = if (chat.isMuted) onUnmute else onMute,
+                )
+                SheetActionRow(
+                    icon = Res.drawable.mark_chat_unread_24dp,
+                    label = stringResource(if (chat.hasUnread) Res.string.chats_action_mark_read else Res.string.chats_action_mark_unread),
+                    shape = RoundedCornerShape(4.dp),
+                    onClick = onToggleUnread,
+                )
+                when (sponsor) {
+                    ChatSponsor.Proxy -> SheetActionRow(
+                        icon = Res.drawable.vpn_lock_24dp,
+                        label = stringResource(Res.string.chats_sponsor_open_proxy),
+                        shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp),
+                        onClick = onOpenProxySettings,
+                    )
+                    is ChatSponsor.Announcement -> SheetActionRow(
+                        icon = Res.drawable.visibility_off_24dp,
+                        label = stringResource(Res.string.chats_sponsor_hide),
+                        shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp),
+                        onClick = onHide,
+                    )
+                }
             }
         }
     }

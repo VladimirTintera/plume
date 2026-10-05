@@ -17,6 +17,7 @@ import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForumTopicsRoute
 import eu.tintera.plume.core.navigation.NavSavedStateConfiguration
+import eu.tintera.plume.core.navigation.ProxySettingsRoute
 import eu.tintera.plume.core.navigation.SettingsRoute
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.navigation.SettingsSectionRoute
@@ -64,6 +65,17 @@ class AppNavigation internal constructor(
     fun openSettings() {
         popToRoot(SettingsRoute)
         selected.value = SettingsRoute
+    }
+
+    /**
+     * Nastavení proxy zvenčí (nabídka nad chatem od provozovatele proxy): Nastavení → Obecné →
+     * Proxy, takže zpět vede po krocích, kudy by se tam uživatel proklikal sám.
+     */
+    fun openProxySettings() {
+        openSettings()
+        val settings = stack(SettingsRoute)
+        settings.add(SettingsSectionRoute(SettingsSection.General))
+        settings.add(ProxySettingsRoute)
     }
 
     /**

@@ -114,6 +114,7 @@ import eu.tintera.plume.features.devices.UnconfirmedLoginCard
 import eu.tintera.plume.core.update.rememberStartUpdate
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.features.report.ReportHost
+import eu.tintera.plume.core.telegram.ChatSponsor
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.ui.Avatar
@@ -128,6 +129,8 @@ import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.core.telegram.ArchiveUnread
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.chats_sponsor_announcement
+import eu.tintera.plume.resources.chats_sponsor_proxy
 import eu.tintera.plume.resources.archive_24dp
 import eu.tintera.plume.resources.chats_action_archive
 import eu.tintera.plume.resources.chats_action_unarchive
@@ -210,6 +213,7 @@ fun ChatListScreen(
     onChatArchived: ((ArchiveChange) -> Unit)? = null,
     /** Menu účtu → Nastavení. Na telefonu jediný vstup, spodní lišta není. */
     onOpenSettings: () -> Unit = {},
+    onOpenProxySettings: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val search by viewModel.search.state.collectAsStateWithLifecycle()
@@ -259,7 +263,12 @@ fun ChatListScreen(
         }
     }
 
-    ChatActionsHost(viewModel, snackbarHostState, onArchived = onChatArchived)
+    ChatActionsHost(
+        viewModel,
+        snackbarHostState,
+        onArchived = onChatArchived,
+        onOpenProxySettings = onOpenProxySettings,
+    )
     newFolderChats?.takeIf { it.sheetOpen }?.let { folderChats ->
         NewFolderChatsSheet(
             state = folderChats,
@@ -694,6 +703,8 @@ internal fun ChatActionsHost(
     viewModel: ChatsViewModel,
     snackbarHostState: SnackbarHostState,
     onArchived: ((ArchiveChange) -> Unit)? = null,
+    /** Nabídka nad chatem od provozovatele proxy vede do nastavení proxy (jen hlavní seznam). */
+    onOpenProxySettings: () -> Unit = {},
 ) {
     val actions by viewModel.actions.collectAsStateWithLifecycle()
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
@@ -749,6 +760,7 @@ internal fun ChatActionsHost(
         ChatActionsSheet(
             chat = chat,
             spam = actions.spam,
+            onOpenProxySettings = onOpenProxySettings,
             onTogglePinned = { viewModel.togglePinned(chat) },
             onMute = { duration -> viewModel.mute(chat, duration) },
             onUnmute = { viewModel.unmute(chat) },
@@ -925,7 +937,8 @@ internal fun ChatListContent(
                         SwipeToArchive(
                             archived = chat.isArchived,
                             // Uložené zprávy archivovat nejdou, stejně jako v nabídce po dlouhém stisku.
-                            enabled = chat.id != savedMessagesChatId,
+                            // Sponzorovaný chat taky ne — není uživatelův a TDLib ho v seznamu drží sám.
+                            enabled = chat.id != savedMessagesChatId && chat.sponsor == null,
                             shape = shape,
                             onSwipe = { viewModel.toggleArchived(chat) },
                             // Animace přeskládání při změně pořadí — bez toho by chaty
@@ -1274,7 +1287,21 @@ private fun ChatRow(
                     // soupeřil o místo s náhledem zprávy, který bývá dlouhý.
                     // Koncept posouvá chat v seznamu nahoru, takže čas musí jít s ním — jinak by
                     // u chatu nahoře stálo datum starší než u těch pod ním.
-                    listOfNotNull(chat.lastMessageTimestamp, chat.draft?.timestamp).maxOrNull()?.let { timestamp ->
+                    // Sponzorovaný chat má místo času důvod, proč v seznamu je: uživatel do něj
+                    // nevstoupil a bez štítku by vypadal jako kanál, který si přidal a zapomněl.
+                    chat.sponsor?.let { sponsor ->
+                        Text(
+                            text = stringResource(
+                                when (sponsor) {
+                                    ChatSponsor.Proxy -> Res.string.chats_sponsor_proxy
+                                    is ChatSponsor.Announcement -> Res.string.chats_sponsor_announcement
+                                },
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = secondaryColor,
+                            maxLines = 1,
+                        )
+                    } ?: listOfNotNull(chat.lastMessageTimestamp, chat.draft?.timestamp).maxOrNull()?.let { timestamp ->
                         Text(
                             text = timestamp.asRelativeTime(),
                             // Časy stojí pod sebou u pravého okraje — stejně široké číslice

@@ -410,6 +410,7 @@ private fun shellEntryProvider(
             },
             onChatArchived = chatsStack::closeConversationOf,
             onOpenSettings = navigation::openSettings,
+            onOpenProxySettings = navigation::openProxySettings,
             modifier = Modifier.listPaneInsets(twoPane),
         )
     }

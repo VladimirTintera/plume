@@ -1955,4 +1955,10 @@
     <string name="auth_proxy">Connect through a proxy</string>
     <string name="proxy_row_direct">Off · direct connection</string>
     <string name="proxy_row_via">On · %1$s</string>
+    <string name="chats_sponsor_proxy">Proxy sponsor</string>
+    <string name="chats_sponsor_announcement">Announcement</string>
+    <string name="chats_sponsor_proxy_explanation">The operator of the proxy you connect through added this channel to your chat list. Telegram allows proxy servers to do that. It disappears once you turn the proxy off.</string>
+    <string name="chats_sponsor_announcement_explanation">A public service announcement from Telegram.</string>
+    <string name="chats_sponsor_open_proxy">Proxy settings</string>
+    <string name="chats_sponsor_hide">Hide announcement</string>
 </resources>

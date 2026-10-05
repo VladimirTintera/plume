@@ -6,7 +6,8 @@ import eu.tintera.plume.core.telegram.ChatSummary
 /**
  * Rozdělení seznamu chatů na skupiny se společným zaoblením.
  *
- * Připnuté mají vlastní blok vždycky — jsou nahoře, protože si je tam uživatel dal.
+ * Připnuté mají vlastní blok vždycky — jsou nahoře, protože si je tam uživatel dal. Nad nimi je
+ * jen sponzorovaný chat ([ChatSummary.sponsor]), v bloku sám.
  * Nepřečtené jen tehdy, když si o to řekl v nastavení ([separateUnread]): vyčlenění pomáhá,
  * když je chatů hodně, jinak seznam rozbíjí a chat po přečtení „uteče" dolů z místa,
  * na které se ťuklo.
@@ -30,13 +31,17 @@ fun chatGroups(
     savedMessagesChatId: Long? = null,
 ): List<List<ChatSummary>> {
     val visible = chats.filter { it.id != savedMessagesChatId || it.isPinned }
-    val pinned = visible.filter { it.isPinned }
-    val rest = visible.filter { !it.isPinned }
+    // Sponzorovaný chat (proxy, oznámení) stojí nahoře zvlášť, nad připnutými, jako u oficiálních
+    // klientů. Mezi vlastními chaty by se pletl s tím, co si uživatel do seznamu dal sám.
+    val sponsored = visible.filter { it.sponsor != null }
+    val own = visible.filter { it.sponsor == null }
+    val pinned = own.filter { it.isPinned }
+    val rest = own.filter { !it.isPinned }
 
     val groups = if (separateUnread) {
-        listOf(pinned, rest.filter { it.unreadCount > 0 }, rest.filter { it.unreadCount == 0 })
+        listOf(sponsored, pinned, rest.filter { it.unreadCount > 0 }, rest.filter { it.unreadCount == 0 })
     } else {
-        listOf(pinned, rest)
+        listOf(sponsored, pinned, rest)
     }
 
     return groups.filter { it.isNotEmpty() }

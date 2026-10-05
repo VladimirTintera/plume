@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.telegram.ChatKind
+import eu.tintera.plume.core.telegram.ChatSponsor
 import eu.tintera.plume.core.telegram.ChatSummary
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -151,6 +152,17 @@ class ChatGroupsTest {
     }
 
     private fun List<List<ChatSummary>>.ids(): List<List<Long>> = map { group -> group.map { it.id } }
+
+    @Test
+    fun sponzorovanyChatJeNahoreZvlastNadPripnutymi() {
+        val sponsored = chat(4).copy(sponsor = ChatSponsor.Proxy)
+        val pinned = chat(1, pinned = true)
+        val rest = chat(2)
+        assertEquals(
+            listOf(listOf(sponsored), listOf(pinned), listOf(rest)),
+            chatGroups(listOf(pinned, sponsored, rest), separateUnread = false),
+        )
+    }
 
     private fun chat(
         id: Long,
