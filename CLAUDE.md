@@ -126,8 +126,22 @@ API, které aplikace z drtivé většiny nevolá.
   ne výčet tříd — JNI hranici určuje knihovna a výčet by se při bumpu tiše rozešel. **Při
   bumpu knihovny zkontrolovat, jestli už `proguard.txt` nese** (`unzip -l` na AAR); pak
   pravidlo pryč. Ověřeno na emulátoru: bez pravidla pád, s ním shrnutí i návrhy.
-- **`isShrinkResources` zapnuté NENÍ.** Je to samostatný krok, který umí uklidit
-  composeResources; zapínat ho spolu s minifikací by znamenalo nevědět, co z toho pád způsobilo.
+- **`isShrinkResources` je zapnuté, ale až zvlášť po minifikaci** — zapínat obojí naráz by
+  znamenalo nevědět, co z toho případný pád způsobilo.
+  - **composeResources se ho NETÝKAJÍ.** Leží v `assets/` (v APK je jich před i po 180 souborů),
+    shrinker uklízí jen `res/`. Starší poznámka, že „umí uklidit composeResources", neplatí.
+  - **Ušetří málo: arm64 APK 54,6 → 53,5 MB** (z `res/` zmizelo 390 souborů nepoužitých
+    prostředků knihoven). Většinu APK tvoří nativní knihovny (TDLib, LiteRT-LM).
+  - **Prostředky hledané podle jména zůstávají.** Náš kód `getIdentifier` nevolá; Firebase
+    a Crashlytics ano (`google_app_id`, `gcm_defaultSenderId`, id mapping souboru), ale ty drží
+    keep XML z jejich pluginů — v `build/outputs/mapping/release/resources.txt` je u nich
+    „reachable from keep xml file". Tam se kontroluje, proč prostředek zůstal nebo zmizel.
+  - **Soubory v `META-INF/services` mezi buildy mění jména** (R8 přejmenuje rozhraní služby),
+    počet zůstává. Při porovnávání APK to vypadá jako ztráta, a není.
+  - **Ověřeno na emulátoru** release APK podepsaným debug klíčem přes debug build: konverzace,
+    výběr emoji, nabídka příloh, prohlížeč fotky, notifikace s ikonou a třemi akcemi a obnova
+    do konverzace po zabití procesu. **`am kill` release proces nezabije, dokud není v keši**
+    a `run-as` na release nejde — odsunout ho otevřením systémového Nastavení, pak `am kill`.
 - **Chybějící keep pravidlo se při buildu nepozná, projeví se AŽ ZA BĚHU.** Release build se
   proto musí proklikat, ne jen přeložit.
 - **`::class.simpleName` v release buildu nic neříká.** R8 třídy přejmenovává, takže z
