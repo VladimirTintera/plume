@@ -2194,8 +2194,13 @@ a fotka (`CreateChatRoute`, `CreateChatScreen`); kanál rovnou formulář s popi
   seznamu. Bot jde do výběru členů přes hledání — v kontaktech není. **Neověřeno**: fotka při
   založení, dialog s lidmi, které server nepustil (chce cizí účet se zakázaným přidáváním),
   a předání výchozí doby mazání. Testovací skupina a kanál na účtu zůstaly.
-  Volba veřejného chatu a pozvánka nepuštěným lidem ověřené na zařízení NEJSOU — účet na
-  emulátoru se mezitím odhlásil (viz PR).
+  Veřejný kanál ověřený na emulátoru: obsazené jméno („durov") i chybný formát hlásí pole,
+  volné potvrdí, a založený kanál má `@plume_test_1005` v profilu i podle Bot API (`getChat`).
+  **Dialog s pozvánkou jen sondou** (založení podstrčené výsledkem s testovacím botem mezi
+  odmítnutými a selhaným odkazem, necommituje se): obě věty, „Poslat pozvánku" a bot dostal
+  pozvánku jako odkaz s entitou `url`. Skutečný člověk, který přidávání zakazuje, ověřený není.
+  Pozvánka je i u veřejného chatu odkaz `t.me/+…` (`profile.inviteLink`), ne `t.me/jméno` —
+  funguje stejně.
 
 ### Jeden výběr chatu: `ChatPicker`
 

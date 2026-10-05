@@ -140,7 +140,8 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   členů, název a fotka, u kanálu popis, ~~soukromý / veřejný s odkazem~~ a ~~pozvánka lidem,
   které server nepustil~~; `CLAUDE.md`, „Založení skupiny a kanálu"). Zbývá: **veřejný odkaz
   v úpravě chatu** (změnit nebo odebrat ho u existující skupiny či kanálu — dnes jen při
-  založení) a ověřit veřejný chat a pozvánku na zařízení.
+  založení) a ověřit pozvánku se skutečným člověkem, který přidávání zakazuje (dialog jen
+  sondou).
 - **Ochrana před spamem.** ~~Zablokovat z nabídky nad chatem a při mazání rovnou zablokovat
   i nahlásit~~, ~~průvodce nahlášením s volbou důvodu~~ (i zprávy z nabídky nad zprávou),
   ~~pruh nad konverzací u chatu od neznámého~~ — hotovo (`CLAUDE.md`, „Blokování a nahlášení
