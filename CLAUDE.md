@@ -1224,6 +1224,32 @@ a `shareLink()` v `core/telegram/Proxy.kt` (testy `ProxyTest`).
     první zpět zavřelo jen proxy, `back()` přišlo až druhým. Nepřihlášená aplikace ověřená
     není (proxy pak platí pro první spojení), iOS jen přeložené.
 
+### Sponzorovaný chat (proxy a oznámení)
+
+Cizí chat, který do hlavního seznamu dal někdo jiný (TDLib `ChatPosition.source` →
+`ChatSummary.sponsor`, `ChatSponsor`): kanál od provozovatele MTProto proxy, nebo veřejné
+oznámení od Telegramu. Stojí nahoře ve vlastním bloku (`chatGroups`, test
+`sponzorovanyChatJeNahoreZvlastNadPripnutymi`), místo času má štítek „Sponzor proxy" /
+„Oznámení" a dlouhý stisk otevře vlastní nabídku s vysvětlením (`SponsoredChatSheet`).
+
+- **Zdroj patří POZICI, ne chatu** (`FolderPosition.sponsor`), a TDLib ho posílá jen v hlavním
+  seznamu. Kdo by ho hledal na `Chat`, nenajde nic.
+- **Od proxy smazat ani opustit nejde** — TDLib `delete_dialog_history` u sponzorovaného chatu
+  odpoví „Can't delete the chat" (přečteno ve zdroji `MessagesManager.cpp`). Jediná cesta ven je
+  proxy vypnout, a proto nabídka vede do Nastavení → Obecné → Proxy
+  (`AppNavigation.openProxySettings`, zpět po krocích).
+- **Oznámení jde skrýt** `deleteChatHistory(removeFromChatList = true)` — tak to TDLib u
+  `chatSourcePublicServiceAnnouncement` chce (jinak „Can't delete chat history without removing
+  the chat"); `deleteOrLeave` z kanálu neodchází, uživatel v něm není. Text oznámení posílá
+  server a stojí v nabídce; prázdný nahradí obecná věta.
+- **Připnout, archivovat (ani tahem), přidat do složky, zablokovat a smazat se nenabízí** — chat
+  není uživatelův. Zbývá ztlumit (navždy) a označit jako (ne)přečtené.
+- **Ověřeno na emulátoru jen sondou** (Notifikátor v `publish` dočasně vydávaný za chat od proxy,
+  pak za oznámení; necommituje se): blok nahoře, štítky, obě nabídky, „Nastavení proxy" a zpět.
+  **Skrytí oznámení se nezkoušelo** — se sondou by smazalo historii chatu s botem. Skutečný chat
+  od proxy chce fungující proxy se sponzorovaným kanálem a oznámení server posílá jen některým
+  účtům.
+
 ## Nastavení aplikace
 
 `AppSettings` (`core/settings`) nad **DataStore Preferences** — multiplatformní, soubor

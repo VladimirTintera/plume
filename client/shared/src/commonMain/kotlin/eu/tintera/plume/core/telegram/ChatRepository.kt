@@ -560,7 +560,27 @@ data class ChatSummary(
      * ne `Chat`, a správce ho může za běhu zapnout i vypnout (`UpdateSupergroup`).
      */
     val isForum: Boolean = false,
+    /**
+     * Proč je v seznamu chat, do kterého uživatel nevstoupil (viz [ChatSponsor]); `null` u běžného
+     * chatu. Patří POZICI ve složce, ne chatu — TDLib ho posílá jen v hlavním seznamu.
+     */
+    val sponsor: ChatSponsor? = null,
 )
+
+/**
+ * Cizí chat, který do hlavního seznamu dal někdo jiný než uživatel (TDLib `ChatSource`).
+ *
+ * - [Proxy]: kanál, který si do seznamu přidá provozovatel MTProto proxy, přes kterou se
+ *   aplikace připojuje. Smazat ani opustit ho nejde (TDLib „Can't delete the chat"); zmizí, až
+ *   se proxy vypne.
+ * - [Announcement]: veřejné oznámení od Telegramu. Skrýt jde (`deleteChatHistory` s odebráním
+ *   ze seznamu, viz [ChatRepository.deleteOrLeave]); [text] je věta od serveru a může být prázdná.
+ */
+sealed interface ChatSponsor {
+    data object Proxy : ChatSponsor
+
+    data class Announcement(val type: String, val text: String) : ChatSponsor
+}
 
 /**
  * Soukromý chat s jedním člověkem.

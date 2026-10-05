@@ -411,10 +411,8 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
     (`confirmQrCodeAuthentication`) proti skutečnému kódu z Telegram Desktop / webu zatím nikdo
     neviděl. Na iOS se čtečka dá vyzkoušet jen na telefonu, simulátor kameru nemá.
   - **Připojení boti (Telegram Business)** v seznamu relací ani v kartě „Byli jste to vy?" nejsou.
-- ~~**Proxy**~~ — hotovo (Obecné → Připojení → Proxy a odkazy `t.me/proxy`; `CLAUDE.md`,
-  „Proxy"). Zbývá:
-  - **Sponzorovaný chat od provozovatele MTProto proxy** (`ChatSourceMtprotoProxy`) — chat se
-    v seznamu ukáže, ale bez vysvětlení, proč tam je.
+- ~~**Proxy**~~ — hotovo (Obecné → Připojení → Proxy, odkazy `t.me/proxy`, přihlašovací
+  obrazovka, stav v řádku a sponzorovaný chat; `CLAUDE.md`, „Proxy").
 - ~~**Řádky sekcí nemají ikony.**~~ — hotovo (`SettingsSection.icon`).
 
 ## Aktualizace z obchodu
