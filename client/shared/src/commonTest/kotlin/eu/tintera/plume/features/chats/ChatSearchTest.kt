@@ -7,6 +7,8 @@ import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.FoundMessage
+import eu.tintera.plume.core.telegram.MessageEntity
+import eu.tintera.plume.core.telegram.MessageEntityType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -106,6 +108,33 @@ class ChatSearchTest {
         assertTrue(snippet[1] != ' ' && text.contains(" " + snippet.drop(1)), snippet)
         // Krátký text i výskyt u začátku zůstávají celé.
         assertEquals("durov je tu", snippetAround("durov je tu", "durov"))
+    }
+
+    /** Vlastní emoji a spoilery v ukázce: offsety posunuté o uříznutý začátek a výpustku. */
+    @Test
+    fun entityUkazkySePosunouSTextem() {
+        val text = "Úvodní věta, která je dost dlouhá, aby se hledané slovo nevešlo, a pak X durov na konci."
+        val emojiAtStart = MessageEntity(0, 1, MessageEntityType.CustomEmoji(1))
+        val emojiNearWord = MessageEntity(text.indexOf("X"), 1, MessageEntityType.CustomEmoji(2))
+        val spoilerAcross = MessageEntity(10, text.indexOf("X") - 10, MessageEntityType.Spoiler)
+        val snippet = snippetOf(text, "durov", listOf(emojiAtStart, emojiNearWord, spoilerAcross))
+
+        assertEquals(snippetAround(text, "durov"), snippet.text)
+        val emoji = snippet.entities.single { it.type is MessageEntityType.CustomEmoji }
+        // Emoji z uříznutého začátku vypadne, to u slova ukazuje na tentýž znak.
+        assertEquals(MessageEntityType.CustomEmoji(2), emoji.type)
+        assertEquals("X", snippet.text.substring(emoji.offset, emoji.offset + emoji.length))
+        // Spoiler přes začátek ukázky začíná hned za výpustkou a končí, kde končil.
+        val spoiler = snippet.entities.single { it.type == MessageEntityType.Spoiler }
+        assertEquals(1, spoiler.offset)
+        assertEquals(snippet.text.indexOf("X"), spoiler.offset + spoiler.length)
+    }
+
+    /** Krátký text se neořezává, takže entity zůstanou, jak jsou. */
+    @Test
+    fun bezOrezuZustanouEntity() {
+        val entities = listOf(MessageEntity(0, 2, MessageEntityType.CustomEmoji(1)))
+        assertEquals(Snippet("😀 durov", entities), snippetOf("😀 durov", "durov", entities))
     }
 
     /** Hashtag je jedno slovo s mřížkou; samotná mřížka ani věta hashtagem nejsou. */

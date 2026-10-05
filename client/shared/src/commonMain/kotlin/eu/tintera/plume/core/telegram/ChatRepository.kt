@@ -393,6 +393,11 @@ data class FoundMessage(
     val messageId: Long,
     /** Text nalezené zprávy, nebo náš popis (Fotka); přeloží se až ve výsledcích. */
     val text: UiText,
+    /**
+     * Vlastní emoji a spoilery v [text], jako náhled v seznamu chatů (`previewEntities`).
+     * Rozsahy platí pro text zprávy doslova; náš popis žádné nemá.
+     */
+    val entities: List<MessageEntity> = emptyList(),
     /** Unixový čas. */
     val date: Int,
     val isOutgoing: Boolean,

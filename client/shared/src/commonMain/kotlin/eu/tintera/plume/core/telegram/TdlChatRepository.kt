@@ -1098,6 +1098,7 @@ class TdlChatRepository(
                     chat = chat,
                     messageId = message.id,
                     text = message.previewText(),
+                    entities = message.previewEntities(),
                     date = message.date,
                     isOutgoing = message.isOutgoing,
                     senderName = if (chat.kind == ChatKind.Group && !message.isOutgoing) {

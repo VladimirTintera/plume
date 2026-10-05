@@ -32,6 +32,10 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.FoundMessage
+import eu.tintera.plume.core.telegram.MessageEntity
+import eu.tintera.plume.core.telegram.MessageEntityType
+import eu.tintera.plume.core.ui.appendWithCustomEmoji
+import eu.tintera.plume.core.ui.customEmojiInlineContent
 import eu.tintera.plume.core.telegram.MessageSearchFilter
 import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.tabularNumbers
@@ -586,17 +590,21 @@ private fun MessageResultRow(
         ?: stringResource(Res.string.sender_you).takeIf { found.isOutgoing && found.chat.kind != ChatKind.Channel }
     val senderColor = MaterialTheme.colorScheme.onSurface
     val foundText = found.text.resolve()
-    val text = remember(foundText, query, highlight, sender, senderColor) {
-        val snippet = snippetAround(foundText.replace('\n', ' '), query)
-        buildAnnotatedString {
+    val (text, customEmoji) = remember(foundText, found.entities, query, highlight, sender, senderColor) {
+        // Zalomení by ve dvouřádkové ukázce plýtvalo místem; mezera je stejně dlouhá, takže
+        // offsety vlastních emoji sedí dál.
+        val snippet = snippetOf(foundText.replace('\n', ' '), query, found.entities)
+        var emoji = emptySet<Long>()
+        val annotated = buildAnnotatedString {
             sender?.let {
                 withStyle(SpanStyle(color = senderColor)) { append(it) }
                 append(": ")
             }
             val start = length
-            append(snippet)
-            highlightRanges(snippet, query).forEach { addStyle(highlight, start + it.first, start + it.last + 1) }
+            emoji = appendWithCustomEmoji(snippet.text, snippet.entities)
+            highlightRanges(snippet.text, query).forEach { addStyle(highlight, start + it.first, start + it.last + 1) }
         }
+        annotated to emoji
     }
     ListItem(
         headlineContent = {
@@ -615,7 +623,14 @@ private fun MessageResultRow(
                 )
             }
         },
-        supportingContent = { Text(text, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        supportingContent = {
+            Text(
+                text,
+                inlineContent = customEmojiInlineContent(customEmoji),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
         leadingContent = {
             Avatar(
                 chatId = found.chat.id,
@@ -772,13 +787,36 @@ private const val LOAD_MORE_THRESHOLD = 5
  * prvním výskytem, na začátku slova, se „…" na začátku. Výsledek má dva řádky a slovo z konce
  * dlouhé zprávy by jinak skončilo za výpustkou — řádek by pak nevysvětlil, proč se našel.
  */
-internal fun snippetAround(text: String, query: String): String {
-    val first = highlightRanges(text, query).firstOrNull()?.first ?: return text
-    if (first <= SNIPPET_CONTEXT) return text
+internal fun snippetAround(text: String, query: String): String = snippetOf(text, query).text
+
+/** Ukázka nalezené zprávy a entity, které do ní padnou, s offsety posunutými na ni. */
+internal data class Snippet(val text: String, val entities: List<MessageEntity>)
+
+/**
+ * [snippetAround] i s [entities] (vlastní emoji, spoilery). Ukázka začíná kus před nalezeným
+ * slovem, takže se offsety posunou o uříznutý začátek a výpustku. Entita, která končí před
+ * ukázkou, vypadne; spoiler zasahující přes začátek se zkrátí (emoji v něm má zůstat skryté),
+ * useknuté vlastní emoji vypadne — kreslit půlku obrázku nejde.
+ */
+internal fun snippetOf(text: String, query: String, entities: List<MessageEntity> = emptyList()): Snippet {
+    val first = highlightRanges(text, query).firstOrNull()?.first
+    if (first == null || first <= SNIPPET_CONTEXT) return Snippet(text, entities)
     val space = text.lastIndexOf(' ', first - SNIPPET_CONTEXT)
     val start = if (space in 0 until first) space + 1 else first - SNIPPET_CONTEXT
-    return "…" + text.substring(start)
+    val shift = ELLIPSIS.length - start
+    val shifted = entities.mapNotNull { entity ->
+        val end = entity.offset + entity.length
+        when {
+            end <= start -> null
+            entity.offset >= start -> entity.copy(offset = entity.offset + shift)
+            entity.type == MessageEntityType.Spoiler -> entity.copy(offset = ELLIPSIS.length, length = end - start)
+            else -> null
+        }
+    }
+    return Snippet(ELLIPSIS + text.substring(start), shifted)
 }
+
+private const val ELLIPSIS = "…"
 
 /** Kolik znaků před nalezeným slovem zůstane ve výsledku vidět. */
 private const val SNIPPET_CONTEXT = 24
