@@ -64,6 +64,15 @@ interface ProfileRepository {
 
     suspend fun setDescription(chatId: Long, description: String): Result<Unit>
 
+    /**
+     * Veřejné jméno supergroupy nebo kanálu (`t.me/…`); prázdné = chat bude soukromý. Smí jen
+     * vlastník ([EditableChat.canChangeUsername]).
+     */
+    suspend fun setUsername(chatId: Long, username: String): Result<Unit>
+
+    /** Dá se [username] použít pro chat [chatId]? Až nad jménem, které projde [usernameFormatError]. */
+    suspend fun checkUsername(chatId: Long, username: String): Result<UsernameCheck>
+
     /** Nová fotka chatu z lokálního souboru; kulatý ořez dělá až vykreslení. */
     suspend fun setPhoto(chatId: Long, path: String): Result<Unit>
 
@@ -178,6 +187,14 @@ data class EditableChat(
      * mít nemůže (`toggleSupergroupIsForum`). Základní skupina by se musela napřed převést.
      */
     val canToggleForum: Boolean = false,
+    /** Současné veřejné jméno (`t.me/…`); prázdné = soukromý chat. */
+    val username: String = "",
+    /**
+     * Veřejné jméno jde měnit: jen vlastník supergroupy nebo kanálu (`setSupergroupUsername`).
+     * Základní skupina by se musela napřed převést na supergroupu — jiné id chatu, viz
+     * „Založení skupiny a kanálu" v CLAUDE.md —, takže se jí volba nenabízí.
+     */
+    val canChangeUsername: Boolean = false,
 )
 
 /**

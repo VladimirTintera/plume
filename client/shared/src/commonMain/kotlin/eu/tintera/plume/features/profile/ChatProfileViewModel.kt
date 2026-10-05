@@ -672,6 +672,22 @@ class ChatProfileViewModel(
         loadMembers(state.memberQuery.trim(), limit = state.members.reloadLimit)
     }
 
+    private var composedOnce = false
+
+    /**
+     * Profil se znovu skládá po návratu z obrazovky nad ním (úprava chatu, správa členů) —
+     * NavDisplay kreslí jen horní scénu. Data se čtou jen při otevření a změnu názvu, popisu
+     * nebo veřejného odkazu TDLib profilu nehlásí, takže by zůstala stará. Poprvé nic: první
+     * načtení dělá `init`.
+     */
+    fun refreshOnReturn() {
+        if (!composedOnce) {
+            composedOnce = true
+            return
+        }
+        reloadProfile()
+    }
+
     private fun reloadProfile() {
         viewModelScope.launch {
             profiles.profile(chatId).onSuccess { profile -> _state.update { it.copy(profile = profile) } }
