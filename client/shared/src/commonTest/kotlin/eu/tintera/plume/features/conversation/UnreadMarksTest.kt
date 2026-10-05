@@ -111,4 +111,26 @@ class UnreadMarksTest {
         )
         assertEquals(listOf(12L, 11L, 10L), state.messagesToView(setOf(10L)))
     }
+
+    @Test
+    fun vlastniZpravaNadHraniciNeprectenychSeHlasi() {
+        // Téma s nepřečtenými, nad hranicí jen vlastní zprávy — bez jejich hlášení by se
+        // hranice nepohnula a počet nepřečtených by zůstal napořád.
+        val state = ConversationState(
+            unreadBoundaryId = 12,
+            messages = listOf(
+                message(14, outgoing = true),
+                message(13, outgoing = true),
+                message(12, outgoing = false),
+                message(11, outgoing = true),
+            ),
+        )
+        assertEquals(listOf(14L, 13L, 12L), state.messagesToView(setOf(11L, 12L, 13L, 14L)))
+    }
+
+    @Test
+    fun bezHraniceSeVlastniZpravaNehlasi() {
+        val state = ConversationState(messages = listOf(message(14, outgoing = true), message(12, outgoing = false)))
+        assertEquals(listOf(12L), state.messagesToView(setOf(12L, 14L)))
+    }
 }

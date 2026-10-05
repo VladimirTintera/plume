@@ -522,8 +522,8 @@ snadno na to uživatel narazí.
   témat podle názvu a zapnutí témat ve skupině~~ — hotovo (`CLAUDE.md`, „Správa témat"). Zbývá:
   **ikona tématu vlastním emoji** (výběr emoji; jen s Premium), ~~podrobná upozornění tématu~~
   (hotovo, `CLAUDE.md`, „Správa témat"), ~~pořadí připnutých~~ (hotovo), **téma
-  v notifikaci na iOS**, **psaní do tématu ověřit** (teď už jde v testovací skupině „Plume test
-  pozvánek" se zapnutými tématy) a **dvoupanel na širokém displeji**.
+  v notifikaci na iOS**, ~~psaní do tématu ověřit~~ a ~~dvoupanel na širokém displeji~~ (ověřeno,
+  při tom opravené zaseknuté nepřečtené v tématu; `CLAUDE.md`, „Témata ve skupinách").
 - ~~**Nepřečtené zmínky a reakce**~~ — hotovo: tlačítka „@" a „❤" nad tlačítkem dolů, odznaky
   v seznamu chatů, „Označit vše" podržením (`CLAUDE.md`, „Nepřečtené zmínky, reakce a hlasy v anketě"). Zbývá:
   **ověřit skutečnou zmínku ve skupině** a **skutečný nový hlas v anketě** (tlačítko s anketou je

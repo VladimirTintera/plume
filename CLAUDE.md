@@ -7664,7 +7664,20 @@ funkce v `ForumTopics.kt` (testy `ForumTopicsTest`).
   místo pole „Join", na který se neťuká): seznam témat s ikonami z vlastních emoji, odesílatel
   v náhledu, stránkování, konverzace tématu (hlavička, připnuté zprávy tématu 6 proti 86 ve
   skupině), „Zobrazit jako zprávy" a zpět. **Psaní do tématu, uzavřené téma, přečtení
-  a dvoupanel ověřené NEJSOU** — skupinu s tématy, kam smí psát, testovací účet nemá.
+  a dvoupanel ověřené** v testovací skupině „Plume test pozvánek" (vlastník píše i do uzavřeného
+  General). Dvoupanel na emulátoru zvětšeném jako rozložený Fold (`adb shell wm size 2208x1840`,
+  pak `wm size reset`): seznam témat vpravo, téma ho nahradí, zpět vrátí seznam témat a další
+  zpět placeholder.
+- **Vlastní zprávy nad hranicí nepřečtených se hlásí jako zhlédnuté** (`messagesToView`, testy
+  `UnreadMarksTest`). Server v tématu počítal jako nepřečtené i VLASTNÍ zprávy nad hranicí
+  (servisní „přibyli členové", zpráva z jiného zařízení); cizí nad ní nebyla, nehlásilo se nic
+  a odznak „2" u tématu zůstal, i když v něm uživatel četl a psal. Ověřeno dočasným logem:
+  před opravou `getForumTopic` `unreadCount = 2` s hranicí pod oběma vlastními zprávami, po ní
+  `unreadCount = 0` a hranice na nejnovější zprávě. Vlastní zprávu bez hranice (nic
+  nepřečteného) se hlásit nemusí.
+- **Domněnka, která se nepotvrdila:** že krátká konverzace po skoku na první nepřečtenou
+  přečtení nenahlásí, protože se viditelné položky nezmění. Skok vloží předěl nepřečtených,
+  viditelné položky se tím změní a hlášení odejde — ověřeno pokusem v krátké skupině s botem.
 
 #### Správa témat
 
