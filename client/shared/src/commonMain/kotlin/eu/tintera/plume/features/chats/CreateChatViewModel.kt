@@ -11,23 +11,37 @@ import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.CreatedChat
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.ProfileRepository
+import eu.tintera.plume.core.telegram.RefusedMember
+import eu.tintera.plume.core.telegram.UsernameCheck
+import eu.tintera.plume.core.telegram.usernameFormatError
+import eu.tintera.plume.core.ui.USERNAME_CHECK_DELAY_MS
+import eu.tintera.plume.core.ui.UsernameStatus
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.create_channel_failed
 import eu.tintera.plume.resources.create_group_failed
+import eu.tintera.plume.resources.add_members_invite_failed
 import eu.tintera.plume.resources.edit_chat_photo_failed
 import eu.tintera.plume.resources.edit_profile_not_photo
+import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 
 /** Co se po založení ukáže, než se chat otevře — jen když je co hlásit. */
 data class CreatedReport(
     val chatId: Long,
-    val notAdded: List<String>,
+    /** Koho server nepustil (soukromí); jde jim poslat [inviteLink]. */
+    val refused: List<RefusedMember>,
     val photoFailed: Boolean,
+    val usernameFailed: Boolean,
+    /** Pozvánka nového chatu; `null` = nezjištěná, pak se jen řekne, koho přidat nešlo. */
+    val inviteLink: String?,
 )
 
 /**
@@ -53,6 +67,15 @@ class CreateChatViewModel(
 
     var title by mutableStateOf("")
     var description by mutableStateOf("")
+
+    /**
+     * Veřejný chat (`t.me/[username]`), nebo soukromý — jen pozvánkou. Výchozí je soukromý:
+     * veřejný najde kdokoli a to má být vědomá volba, ne přehlédnutý přepínač.
+     */
+    var isPublic by mutableStateOf(false)
+    var username by mutableStateOf("")
+    var usernameStatus by mutableStateOf<UsernameStatus>(UsernameStatus.Idle)
+        private set
 
     /** Oříznutá fotka na disku; `null` = bez fotky. */
     var photoPath by mutableStateOf<String?>(null)
@@ -81,6 +104,25 @@ class CreateChatViewModel(
         private set
 
     init {
+        // Dostupnost se ptá serveru až po pauze v psaní a jen nad jménem, které projde místními
+        // pravidly — stejně jako u vlastního uživatelského jména.
+        viewModelScope.launch {
+            snapshotFlow { if (isPublic) username.trim() else "" }
+                .distinctUntilChanged()
+                .collectLatest { name ->
+                    if (name.isEmpty() || usernameFormatError(name) != null) {
+                        usernameStatus = UsernameStatus.Idle
+                        return@collectLatest
+                    }
+                    usernameStatus = UsernameStatus.Checking
+                    delay(USERNAME_CHECK_DELAY_MS)
+                    usernameStatus = creation.checkUsername(name).fold(
+                        onSuccess = { if (it == UsernameCheck.Available) UsernameStatus.Available else UsernameStatus.Unavailable(it) },
+                        // Nezjištěná dostupnost založení neblokuje — rozhodne server.
+                        onFailure = { UsernameStatus.Idle },
+                    )
+                }
+        }
         if (memberChatIds.isNotEmpty()) {
             viewModelScope.launch {
                 memberNames = memberChatIds
@@ -91,8 +133,19 @@ class CreateChatViewModel(
         }
     }
 
-    /** Název je povinný — chat bez názvu server odmítne. */
-    val canCreate: Boolean get() = title.isNotBlank() && !creating && !photoBusy
+    /**
+     * Název je povinný — chat bez názvu server odmítne. Veřejný chat chce jméno, které projde
+     * pravidly a server ho neodmítl; nezjištěná dostupnost neblokuje.
+     */
+    val canCreate: Boolean
+        get() {
+            val name = username.trim()
+            val usernameOk = !isPublic || (
+                name.isNotEmpty() && usernameFormatError(name) == null &&
+                    usernameStatus !is UsernameStatus.Unavailable && usernameStatus != UsernameStatus.Checking
+                )
+            return title.isNotBlank() && !creating && !photoBusy && usernameOk
+        }
 
     /** Z výběru příloh; bere se první fotka, video fotkou chatu být nemůže. */
     fun setPhoto(attachments: List<OutgoingAttachment>) {
@@ -134,6 +187,7 @@ class CreateChatViewModel(
                 description = description.trim(),
                 channel = channel,
                 memberChatIds = memberChatIds,
+                username = if (isPublic) username.trim() else "",
             ).onSuccess { chat -> finish(chat) }
                 .onFailure { failure ->
                     logger.w(failure) { "Založení ${if (channel) "kanálu" else "skupiny"} selhalo." }
@@ -150,10 +204,35 @@ class CreateChatViewModel(
                 .isFailure
         } ?: false
         // `creating` zůstává: chat stojí a obrazovka odchází, druhé ťuknutí by založilo další.
-        if (chat.notAdded.isEmpty() && !photoFailed) {
+        if (chat.refused.isEmpty() && !photoFailed && !chat.usernameFailed) {
             created = chat.chatId
-        } else {
-            report = CreatedReport(chat.chatId, chat.notAdded, photoFailed)
+            return
+        }
+        // Pozvánku vydá server vlastníkovi hned; bez ní dialog jen řekne, koho přidat nešlo.
+        val link = if (chat.refused.isEmpty()) null else profiles.profile(chat.chatId).getOrNull()?.inviteLink
+        report = CreatedReport(chat.chatId, chat.refused, photoFailed, chat.usernameFailed, link)
+    }
+
+    /**
+     * Pošle pozvánku těm, které server nepustil — přidají se sami, když budou chtít. Tatáž cesta
+     * jako u přidávání členů (`ProfileRepository.sendInviteLink`). Pak se chat otevře.
+     */
+    fun sendInvites() {
+        val current = report ?: return
+        val link = current.inviteLink ?: return
+        if (sendingInvites) return
+        sendingInvites = true
+        viewModelScope.launch {
+            profiles.sendInviteLink(current.refused.map { it.userId }, link)
+                .onSuccess { created = current.chatId }
+                .onFailure { failure ->
+                    logger.w(failure) { "Pozvánku do nového chatu se nepodařilo poslat." }
+                    notice = UiText(Res.string.add_members_invite_failed)
+                    sendingInvites = false
+                }
         }
     }
+
+    var sendingInvites by mutableStateOf(false)
+        private set
 }

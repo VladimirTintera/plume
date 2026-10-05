@@ -3,10 +3,21 @@ package eu.tintera.plume.core.telegram
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.ChatTypePrivate
+import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.toResult
 
-/** Založená skupina nebo kanál; [notAdded] jsou jména lidí, které server do skupiny nepustil. */
-data class CreatedChat(val chatId: Long, val notAdded: List<String> = emptyList())
+/** Člověk, kterého server do nové skupiny nepustil (soukromí); [name] může být prázdné. */
+data class RefusedMember(val userId: Long, val name: String)
+
+/**
+ * Založená skupina nebo kanál. [refused] jsou lidé, které server nepustil; [usernameFailed] =
+ * chat stojí, ale veřejný odkaz se nastavit nepodařilo (zůstal soukromý).
+ */
+data class CreatedChat(
+    val chatId: Long,
+    val refused: List<RefusedMember> = emptyList(),
+    val usernameFailed: Boolean = false,
+)
 
 /**
  * Zakládání skupin a kanálů. Samostatné rozhraní, ne další metoda [ChatRepository]: ten má
@@ -17,14 +28,22 @@ interface ChatCreation {
     /**
      * Založí supergroupu ([channel] = `false`) nebo kanál a do skupiny přidá [memberChatIds]
      * (soukromé chaty, tedy lidi a boty). Nová skupina dostane výchozí dobu automatického
-     * mazání z nastavení účtu ([DefaultAutoDeleteSettings]).
+     * mazání z nastavení účtu ([DefaultAutoDeleteSettings]). Neprázdné [username] udělá chat
+     * veřejným (`t.me/username`).
      */
     suspend fun create(
         title: String,
         description: String,
         channel: Boolean,
         memberChatIds: List<Long>,
+        username: String = "",
     ): Result<CreatedChat>
+
+    /**
+     * Dá se [username] použít pro chat, který se teprve zakládá? Volá se až nad jménem, které
+     * projde [usernameFormatError].
+     */
+    suspend fun checkUsername(username: String): Result<UsernameCheck>
 }
 
 /**
@@ -44,6 +63,7 @@ class TdlChatCreation(private val holder: TelegramClientHolder) : ChatCreation {
         description: String,
         channel: Boolean,
         memberChatIds: List<Long>,
+        username: String,
     ): Result<CreatedChat> = runCatching {
         // Výchozí doba platí „pro nově založené chaty", ale u supergroupy ji TDLib sám nepoužije —
         // posílá ji klient. Nezjištěná doba založení neblokuje.
@@ -58,21 +78,45 @@ class TdlChatCreation(private val holder: TelegramClientHolder) : ChatCreation {
             forImport = false,
         ).toResult().getOrThrow()
 
-        if (channel || memberChatIds.isEmpty()) return@runCatching CreatedChat(chat.id)
+        val usernameFailed = username.isNotEmpty() && setUsername(chat.type, username).isFailure
+        if (channel || memberChatIds.isEmpty()) return@runCatching CreatedChat(chat.id, usernameFailed = usernameFailed)
 
         // Výběr dává chaty; soukromý chat má id uživatele, ale ověřuje se to přes typ chatu —
         // tajný chat má id jiné.
         val userIds = memberChatIds.mapNotNull { chatId ->
             (client.getChat(chatId = chatId).toResult().getOrNull()?.type as? ChatTypePrivate)?.userId
         }
-        if (userIds.isEmpty()) return@runCatching CreatedChat(chat.id)
+        if (userIds.isEmpty()) return@runCatching CreatedChat(chat.id, usernameFailed = usernameFailed)
 
         // Skupina už stojí: selhání přidání ji nesmí zahodit, jen se ohlásí, kdo v ní chybí.
         val failed = client.addChatMembers(chatId = chat.id, userIds = userIds.toLongArray()).toResult()
             .onFailure { logger.w(it) { "Členy se do nové skupiny ${chat.id} nepodařilo přidat." } }
             .map { result -> result.failedToAddMembers.map { it.userId } }
             .getOrElse { userIds }
-        CreatedChat(chat.id, notAdded = failed.map { userId -> userName(userId) }.filter { it.isNotBlank() })
+        CreatedChat(
+            chatId = chat.id,
+            refused = failed.map { userId -> RefusedMember(userId, userName(userId)) },
+            usernameFailed = usernameFailed,
+        )
+    }
+
+    /**
+     * Chat, který ještě neexistuje, se ptá s `chatId = 0` — tak to `checkChatUsername` pro
+     * zakládaný chat chce. Strop veřejných chatů hlásí jako `PublicChatsTooMany`.
+     */
+    override suspend fun checkUsername(username: String): Result<UsernameCheck> =
+        client.checkChatUsername(chatId = 0, username = username).toResult().map { it.toUsernameCheck() }
+
+    /**
+     * Veřejné jméno jde nastavit až stojící supergroupě (`createNewSupergroupChat` ho nebere).
+     * Když to selže (jméno mezitím někdo vzal), chat zůstane soukromý — zakládat ho kvůli tomu
+     * znovu by vyrobilo druhý.
+     */
+    private suspend fun setUsername(type: dev.g000sha256.tdl.dto.ChatType, username: String): Result<Unit> {
+        val supergroupId = (type as? ChatTypeSupergroup)?.supergroupId
+            ?: return Result.failure(IllegalStateException("Nový chat není supergroupa."))
+        return client.setSupergroupUsername(supergroupId = supergroupId, username = username).toResult().map { }
+            .onFailure { logger.w(it) { "Veřejné jméno nového chatu se nepodařilo nastavit." } }
     }
 
     private suspend fun userName(userId: Long): String =

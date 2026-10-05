@@ -1,5 +1,35 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ToggleButton
+import eu.tintera.plume.core.telegram.USERNAME_MAX_LENGTH
+import eu.tintera.plume.core.ui.UsernameStatus
+import eu.tintera.plume.core.ui.usernameMessage
+import eu.tintera.plume.resources.add_members_refused_invite
+import eu.tintera.plume.resources.add_members_refused_text
+import eu.tintera.plume.resources.add_members_refused_text_no_link
+import eu.tintera.plume.resources.add_members_refused_title
+import eu.tintera.plume.resources.check_24dp
+import eu.tintera.plume.resources.create_channel_private
+import eu.tintera.plume.resources.create_channel_private_help
+import eu.tintera.plume.resources.create_channel_public
+import eu.tintera.plume.resources.create_channel_public_help
+import eu.tintera.plume.resources.create_channel_username_failed
+import eu.tintera.plume.resources.create_chat_link
+import eu.tintera.plume.resources.create_chat_link_help
+import eu.tintera.plume.resources.create_chat_link_prefix
+import eu.tintera.plume.resources.create_chat_username_too_many
+import eu.tintera.plume.resources.create_group_private
+import eu.tintera.plume.resources.create_group_private_help
+import eu.tintera.plume.resources.create_group_public
+import eu.tintera.plume.resources.create_group_public_help
+import eu.tintera.plume.resources.create_group_username_failed
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -56,7 +86,6 @@ import eu.tintera.plume.resources.create_channel_created
 import eu.tintera.plume.resources.create_channel_help
 import eu.tintera.plume.resources.create_chat_add_photo
 import eu.tintera.plume.resources.create_chat_create
-import eu.tintera.plume.resources.create_chat_not_added
 import eu.tintera.plume.resources.create_chat_photo_failed
 import eu.tintera.plume.resources.create_group_created
 import eu.tintera.plume.resources.create_group_no_members
@@ -107,7 +136,15 @@ fun CreateChatScreen(
         viewModel.created?.let { currentOnCreated(it) }
     }
 
-    viewModel.report?.let { report -> CreatedReportDialog(report, viewModel.channel, onDismiss = { onCreated(report.chatId) }) }
+    viewModel.report?.let { report ->
+        CreatedReportDialog(
+            report = report,
+            channel = viewModel.channel,
+            sending = viewModel.sendingInvites,
+            onSendInvites = viewModel::sendInvites,
+            onDismiss = { onCreated(report.chatId) },
+        )
+    }
 
     val picker = rememberAttachmentPicker(onPicked = viewModel::setPhoto, onError = viewModel::reportError)
     val channel = viewModel.channel
@@ -192,6 +229,19 @@ fun CreateChatScreen(
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     modifier = Modifier.fillMaxWidth(),
                 )
+            }
+
+            ChatTypeSection(
+                channel = channel,
+                isPublic = viewModel.isPublic,
+                onPublicChange = { viewModel.isPublic = it },
+                username = viewModel.username,
+                onUsernameChange = { viewModel.username = it },
+                status = viewModel.usernameStatus,
+                enabled = !viewModel.creating,
+            )
+
+            if (channel) {
                 Hint(stringResource(Res.string.create_channel_help))
             } else {
                 Members(count = viewModel.memberCount, names = viewModel.memberNames)
@@ -267,24 +317,159 @@ private fun Hint(text: String) {
 }
 
 /**
- * Chat stojí, ale něco se nepovedlo. Dialog, ne snackbar: obrazovka hned odchází do chatu
- * a snackbar by nebylo kde ukázat — a koho nešlo přidat, uživatel potřebuje vědět, aby mu
- * poslal pozvánku.
+ * Soukromý, nebo veřejný chat — spojená přepínací tlačítka jako filtry hledání, pod nimi věta,
+ * co volba znamená, a u veřejného pole s odkazem. Jméno se kontroluje stejně jako vlastní
+ * uživatelské jméno (`usernameMessage`): místní pravidla hned, dostupnost po pauze v psaní.
  */
 @Composable
-private fun CreatedReportDialog(report: CreatedReport, channel: Boolean, onDismiss: () -> Unit) {
+private fun ChatTypeSection(
+    channel: Boolean,
+    isPublic: Boolean,
+    onPublicChange: (Boolean) -> Unit,
+    username: String,
+    onUsernameChange: (String) -> Unit,
+    status: UsernameStatus,
+    enabled: Boolean,
+) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
+            listOf(false, true).forEachIndexed { index, public ->
+                val checked = public == isPublic
+                ToggleButton(
+                    checked = checked,
+                    onCheckedChange = { if (!checked) onPublicChange(public) },
+                    enabled = enabled,
+                    shapes = if (index == 0) {
+                        ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    } else {
+                        ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    if (checked) {
+                        Icon(
+                            painterResource(Res.drawable.check_24dp),
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 4.dp).size(ButtonDefaults.IconSize),
+                        )
+                    }
+                    Text(
+                        stringResource(
+                            when {
+                                channel && public -> Res.string.create_channel_public
+                                channel -> Res.string.create_channel_private
+                                public -> Res.string.create_group_public
+                                else -> Res.string.create_group_private
+                            },
+                        ),
+                    )
+                }
+            }
+        }
+        Hint(
+            stringResource(
+                when {
+                    channel && isPublic -> Res.string.create_channel_public_help
+                    channel -> Res.string.create_channel_private_help
+                    isPublic -> Res.string.create_group_public_help
+                    else -> Res.string.create_group_private_help
+                },
+            ),
+        )
+        // Pole se objeví jen u veřejného chatu, a s ním i místo — přepnutí na soukromý
+        // rozepsané jméno nemaže, jen se nepošle.
+        AnimatedVisibility(
+            visible = isPublic,
+            enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+            exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec()),
+        ) {
+            val message = usernameMessage(
+                username = username.trim(),
+                original = "",
+                status = status,
+                tooManyPublic = Res.string.create_chat_username_too_many,
+            )
+            OutlinedTextField(
+                value = username,
+                // Zavináč a adresa napsané ze zvyku se zahodí — prefix pole je `t.me/`.
+                onValueChange = { onUsernameChange(it.removePrefix("@").removePrefix("t.me/").take(USERNAME_MAX_LENGTH)) },
+                label = { Text(stringResource(Res.string.create_chat_link)) },
+                prefix = { Text(stringResource(Res.string.create_chat_link_prefix)) },
+                singleLine = true,
+                enabled = enabled,
+                isError = message?.second == true,
+                supportingText = { Text(message?.first ?: stringResource(Res.string.create_chat_link_help)) },
+                keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, imeAction = ImeAction.Done),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            )
+        }
+    }
+}
+
+/**
+ * Chat stojí, ale něco se nepovedlo. Dialog, ne snackbar: obrazovka hned odchází do chatu
+ * a snackbar by nebylo kde ukázat. **Komu server nedovolil přidání, tomu jde rovnou poslat
+ * pozvánku** — tytéž věty a tatáž cesta jako při přidávání členů (`AddMembersScreen`).
+ */
+@Composable
+private fun CreatedReportDialog(
+    report: CreatedReport,
+    channel: Boolean,
+    sending: Boolean,
+    onSendInvites: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val refused = report.refused
+    val names = refused.map { it.name }.filter { it.isNotBlank() }.joinToString(", ")
+    val canInvite = refused.isNotEmpty() && report.inviteLink != null
     AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(if (channel) Res.string.create_channel_created else Res.string.create_group_created)) },
+        // Chat stojí, takže zavření dialogu = otevřít ho.
+        onDismissRequest = { if (!sending) onDismiss() },
+        title = {
+            Text(
+                if (refused.isNotEmpty()) {
+                    pluralStringResource(Res.plurals.add_members_refused_title, refused.size, refused.size)
+                } else {
+                    stringResource(if (channel) Res.string.create_channel_created else Res.string.create_group_created)
+                },
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (report.notAdded.isNotEmpty()) {
-                    Text(stringResource(Res.string.create_chat_not_added, report.notAdded.joinToString(", ")))
+                if (refused.isNotEmpty()) {
+                    Text(
+                        stringResource(
+                            if (canInvite) Res.string.add_members_refused_text else Res.string.add_members_refused_text_no_link,
+                            names,
+                        ),
+                    )
+                }
+                if (report.usernameFailed) {
+                    Text(
+                        stringResource(
+                            if (channel) Res.string.create_channel_username_failed else Res.string.create_group_username_failed,
+                        ),
+                    )
                 }
                 if (report.photoFailed) Text(stringResource(Res.string.create_chat_photo_failed))
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_close)) } },
+        confirmButton = {
+            if (canInvite) {
+                TextButton(onClick = onSendInvites, enabled = !sending) {
+                    Text(stringResource(Res.string.add_members_refused_invite))
+                }
+            } else {
+                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_close)) }
+            }
+        },
+        dismissButton = if (canInvite) {
+            { TextButton(onClick = onDismiss, enabled = !sending) { Text(stringResource(Res.string.common_close)) } }
+        } else {
+            null
+        },
     )
 }
 

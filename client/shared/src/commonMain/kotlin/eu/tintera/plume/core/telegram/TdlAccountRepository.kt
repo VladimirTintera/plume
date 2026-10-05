@@ -2,6 +2,7 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
+import dev.g000sha256.tdl.dto.CheckChatUsernameResult
 import dev.g000sha256.tdl.dto.CheckChatUsernameResultOk
 import dev.g000sha256.tdl.dto.CheckChatUsernameResultPublicChatsTooMany
 import dev.g000sha256.tdl.dto.CheckChatUsernameResultPublicGroupsUnavailable
@@ -79,16 +80,7 @@ class TdlAccountRepository(
     override suspend fun checkUsername(username: String): Result<UsernameCheck> {
         val me = client.getMe().toResult().getOrElse { return Result.failure(it) }
         return client.checkChatUsername(chatId = me.id, username = username).toResult()
-            .map { result ->
-                when (result) {
-                    is CheckChatUsernameResultOk -> UsernameCheck.Available
-                    is CheckChatUsernameResultUsernameInvalid -> UsernameCheck.Invalid
-                    is CheckChatUsernameResultUsernameOccupied -> UsernameCheck.Occupied
-                    is CheckChatUsernameResultUsernamePurchasable -> UsernameCheck.Purchasable
-                    is CheckChatUsernameResultPublicChatsTooMany,
-                    is CheckChatUsernameResultPublicGroupsUnavailable -> UsernameCheck.TooManyPublic
-                }
-            }
+            .map { it.toUsernameCheck() }
     }
 
     override suspend fun setBio(bio: String): Result<Unit> =
@@ -121,4 +113,14 @@ class TdlAccountRepository(
         /** Kdyby server volbu neposlal. Tolik má účet bez Premium. */
         const val DEFAULT_BIO_MAX = 70
     }
+}
+
+/** Sdílí ho vlastní účet i veřejný odkaz nové skupiny nebo kanálu (`TdlChatCreation`). */
+internal fun CheckChatUsernameResult.toUsernameCheck(): UsernameCheck = when (this) {
+    is CheckChatUsernameResultOk -> UsernameCheck.Available
+    is CheckChatUsernameResultUsernameInvalid -> UsernameCheck.Invalid
+    is CheckChatUsernameResultUsernameOccupied -> UsernameCheck.Occupied
+    is CheckChatUsernameResultUsernamePurchasable -> UsernameCheck.Purchasable
+    is CheckChatUsernameResultPublicChatsTooMany,
+    is CheckChatUsernameResultPublicGroupsUnavailable -> UsernameCheck.TooManyPublic
 }

@@ -137,9 +137,11 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   `NewChatRoute`, Uložené zprávy, kontakty z TDLib s dostupností, globální vyhledávání lidí podle
   @username; poučení v `CLAUDE.md`, „Nová konverzace").
   ~~**Založení skupiny a kanálu**~~ — hotovo („Nová skupina" / „Nový kanál" nad kontakty, výběr
-  členů, název a fotka, u kanálu popis; `CLAUDE.md`, „Založení skupiny a kanálu"). Zbývá:
-  veřejné jméno a typ kanálu (veřejný / soukromý) hned při založení a nabídka poslat pozvánku
-  lidem, které server do nové skupiny nepustil (umí to už přidávání členů, `AddMembersScreen`).
+  členů, název a fotka, u kanálu popis, ~~soukromý / veřejný s odkazem~~ a ~~pozvánka lidem,
+  které server nepustil~~; `CLAUDE.md`, „Založení skupiny a kanálu"). Zbývá: **veřejný odkaz
+  v úpravě chatu** (změnit nebo odebrat ho u existující skupiny či kanálu — dnes jen při
+  založení) a ověřit pozvánku se skutečným člověkem, který přidávání zakazuje (dialog jen
+  sondou).
 - **Ochrana před spamem.** ~~Zablokovat z nabídky nad chatem a při mazání rovnou zablokovat
   i nahlásit~~, ~~průvodce nahlášením s volbou důvodu~~ (i zprávy z nabídky nad zprávou),
   ~~pruh nad konverzací u chatu od neznámého~~ — hotovo (`CLAUDE.md`, „Blokování a nahlášení
