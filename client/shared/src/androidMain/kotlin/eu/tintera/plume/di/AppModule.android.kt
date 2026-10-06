@@ -4,6 +4,8 @@ import eu.tintera.plume.core.ai.LiteRtOnDeviceAi
 import eu.tintera.plume.core.ai.MlKitOnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.RoutingOnDeviceAi
+import eu.tintera.plume.core.ui.AndroidProfileVideo
+import eu.tintera.plume.core.ui.ProfileVideo
 import eu.tintera.plume.core.ui.AndroidSquarePhoto
 import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.audio.AudioEngine
@@ -61,6 +63,7 @@ actual fun Module.platformModule() {
     single { TextClipboard(androidContext()) }
     single<LanguageDetector> { AndroidLanguageDetector(androidContext()) }
     single<SquarePhoto> { AndroidSquarePhoto(androidContext()) }
+    single<ProfileVideo> { AndroidProfileVideo(androidContext()) }
     // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.
     factory { AudioRecorder(androidContext()) }
     // Nový na každou přehrávanou hlasovku; Context je kvůli audio focus.

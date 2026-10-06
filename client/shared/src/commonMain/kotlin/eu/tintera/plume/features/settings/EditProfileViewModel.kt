@@ -14,7 +14,7 @@ import eu.tintera.plume.core.telegram.UsernameCheck
 import eu.tintera.plume.core.telegram.usernameFormatError
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.CropRegion
-import eu.tintera.plume.core.ui.SquarePhoto
+import eu.tintera.plume.core.ui.ProfilePhotoCrop
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.edit_profile_load_failed
@@ -42,7 +42,7 @@ import eu.tintera.plume.core.ui.UsernameStatus
 @OptIn(FlowPreview::class)
 class EditProfileViewModel(
     private val account: AccountRepository,
-    private val squarePhoto: SquarePhoto,
+    private val photoCrop: ProfilePhotoCrop,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("EditProfile")
@@ -160,34 +160,35 @@ class EditProfileViewModel(
         }
     }
 
-    /** Fotka čekající na ořez ([PhotoCropOverlay]); `null` = ořez zavřený. */
-    var cropping by mutableStateOf<String?>(null)
-        private set
+    /** Obrázek čekající na ořez ([PhotoCropOverlay]); `null` = ořez zavřený. */
+    val cropping: String? get() = photoCrop.image
+
+    /** V ořezu je snímek videa — ořez řekne, že se zkrátí a přijde o zvuk. */
+    val croppingVideo: Boolean get() = photoCrop.isVideo
 
     /**
-     * Z výběru příloh; bere se první fotka, video profilovou fotkou být nemůže. Fotka napřed
-     * jde do ořezu — nahraje se až s vybraným výřezem ([cropPhoto]).
+     * Z výběru příloh; bere se první fotka nebo video (animovaná profilovka). Napřed jde do
+     * ořezu — nahraje se až s vybraným výřezem ([cropPhoto]).
      */
     fun setPhoto(attachments: List<OutgoingAttachment>) {
-        val photo = attachments.firstOrNull() as? OutgoingAttachment.Photo
-        if (photo == null) {
-            notice = UiText(Res.string.edit_profile_not_photo)
-            return
+        photoBusy = true
+        viewModelScope.launch {
+            runCatching { photoCrop.open(attachments) }
+                .onSuccess { opened -> if (!opened) notice = UiText(Res.string.edit_profile_not_photo) }
+                .onFailure { notice = it.reported(Res.string.edit_profile_photo_failed) }
+            photoBusy = false
         }
-        cropping = photo.path
     }
 
     fun cancelCrop() {
-        cropping = null
+        photoCrop.cancel()
     }
 
     fun cropPhoto(region: CropRegion) {
-        val path = cropping ?: return
-        cropping = null
         photoBusy = true
         viewModelScope.launch {
-            runCatching { squarePhoto.crop(path, region) }
-                .mapCatching { account.setPhoto(it).getOrThrow() }
+            runCatching { photoCrop.crop(region) }
+                .mapCatching { prepared -> prepared?.let { account.setPhoto(it.file).getOrThrow() } }
                 .onSuccess { reloadPhoto() }
                 .onFailure { notice = it.reported(Res.string.edit_profile_photo_failed) }
             photoBusy = false

@@ -1482,6 +1482,45 @@ vrátí výřez a teprve pak se fotka ořízne a nahraje. Dřív se ořezávala 
 - **Výběr fotek na emulátoru může být prázdný**, než si picker načte knihovnu — po pár
   vteřinách se mřížka objeví sama. Testovací obrázek jde do galerie `adb push` do
   `/sdcard/Pictures` a vysílání `MEDIA_SCANNER_SCAN_FILE`; po ověření ho smazat i z MediaStore.
+- **Ořez se nesmí kreslit mimo svou plochu** (`clipToBounds` na ploše fotky). Posunutá nebo
+  přiblížená fotka (`graphicsLayer`) jinak přetekla přes nadpis i stavovou lištu.
+
+#### Video jako profilovka
+
+Z výběru jde vybrat i video: stejný ořez, nadpis „Upravit video" a věta, že se použije jen
+prvních 10 s bez zvuku. Nahraje se jako animovaná fotka (`InputChatPhotoAnimation`,
+`ProfilePhotoFile.Animated`) — u vlastního profilu, úpravy skupiny i založení chatu. Postup
+sdílí všechny tři obrazovky (`ProfilePhotoCrop` v `core/ui`, testy `ProfilePhotoCropTest`),
+převádí platforma (`ProfileVideo`).
+
+- **Podmínky Telegramu jsou přísné**: čtvercové MP4, nejvýš 10 s, strana 160–1280 px, do 2 MB.
+  Video z galerie nesplní skoro nikdy, takže se vždycky převádí: výřez, zmenšení na 800 px,
+  prvních 10 s, bez zvuku. Statickou podobu vyrobí server z prvního snímku (`mainFrameTimestamp = 0`).
+- **Výřez se vybírá nad prvním SNÍMKEM** (`ProfileVideo.frame`, 1600 px) a v podílech platí pro
+  celé video. Náhled z výběru příloh má jen 320 px — výřez by se vybíral z rozmazaného obrázku.
+  Náhled u zakládaného chatu je týž výřez ze snímku, ne video.
+- **Android: Media3 Transformer** (`Crop`, `Presentation`, ořez `MediaItem`, `setRemoveAudio`).
+  `Crop` bere souřadnice −1…1, svisle zdola nahoru. Výřez platí pro OTOČENÝ obraz — dekodér
+  snímky otočí dřív, než na ně jdou efekty; ověřeno videem z kamery s `orientation=270`. Export
+  sdílí s kolečky `exportVideo` (`core/video`), datový tok 1,2 Mbit/s a když soubor přesto
+  přeteče 2 MB, zkusí se polovina.
+- **iOS: kompozice jen se stopou obrazu** (tím zmizí zvuk), zkrácená na 10 s,
+  `AVMutableVideoComposition` s výřezem a export `MediumQuality` s `fileLengthLimit` na 2 MB
+  (datový tok export nastavit neumí). `fileLengthLimit` se zapisuje setterem s vlastním importem
+  (`setFileLengthLimit`) — jako vlastnost ho Kotlin nevidí. **Jen přeložené.**
+- **Na emulátoru Transformer padá v dekodéru H.264** (`c2.goldfish.h264.decoder`,
+  `queueInputBuffer error: 14`, v logu zamítnuté `memfd` SELinuxem) — tatáž vada jako u GIFů
+  a videa. Převod se ověřil sondou, která v `exportVideo` vyřadí dekodéry goldfish
+  (`DefaultAssetLoaderFactory` s `DefaultDecoderFactory.setMediaCodecSelector`); necommituje se.
+- **Testovací video na emulátoru natočí systémová kamera** (`am start -a
+  android.media.action.VIDEO_CAMERA`, ťuknutí na spoušť): virtuální scéna, žádní lidé, a video
+  na výšku s otočením v metadatech. Dotaz na polohu odmítnout. Po ověření videa i fotky smazat
+  z MediaStore.
+- **Ověřeno na emulátoru** v testovací skupině „Plume test zalozeni": 21s video na výšku →
+  čtverec 718 × 718, 9,7 s, 604 kB, natočený správně a přesně podle výřezu; prohlížeč
+  profilovek ukazuje u fotky „Přehrát" (server ji vzal jako animovanou). Fotka jde dál starou
+  cestou. **Vlastní profil a založení chatu s videem ověřené nejsou** (mění skutečný účet /
+  zakládají další chat), jdou ale stejnou cestou.
 
 ## Jazyky
 

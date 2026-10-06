@@ -9,8 +9,6 @@ import dev.g000sha256.tdl.dto.CheckChatUsernameResultPublicGroupsUnavailable
 import dev.g000sha256.tdl.dto.CheckChatUsernameResultUsernameInvalid
 import dev.g000sha256.tdl.dto.CheckChatUsernameResultUsernameOccupied
 import dev.g000sha256.tdl.dto.CheckChatUsernameResultUsernamePurchasable
-import dev.g000sha256.tdl.dto.InputChatPhotoStatic
-import dev.g000sha256.tdl.dto.InputFileLocal
 import dev.g000sha256.tdl.dto.OptionValueInteger
 import dev.g000sha256.tdl.dto.User
 import dev.g000sha256.tdl.toResult
@@ -88,8 +86,8 @@ class TdlAccountRepository(
             .onFailure { logger.w(it) { "Bio se nepodařilo uložit." } }
 
     /** Veřejná fotka (`isPublic`) je jen pro ty, kdo vidí skutečnou fotku zakázanou nastavením — tady ne. */
-    override suspend fun setPhoto(path: String): Result<Unit> =
-        client.setProfilePhoto(photo = InputChatPhotoStatic(photo = InputFileLocal(path = path)), isPublic = false)
+    override suspend fun setPhoto(photo: ProfilePhotoFile): Result<Unit> =
+        client.setProfilePhoto(photo = photo.toInputChatPhoto(), isPublic = false)
             .toResult().map { }
             .onFailure { logger.w(it) { "Fotku se nepodařilo nastavit." } }
 

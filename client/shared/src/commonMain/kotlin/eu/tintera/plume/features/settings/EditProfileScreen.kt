@@ -261,6 +261,7 @@ fun EditProfileScreen(
             path = viewModel.cropping,
             onCancel = viewModel::cancelCrop,
             onConfirm = viewModel::cropPhoto,
+            isVideo = viewModel.croppingVideo,
         )
     }
 }

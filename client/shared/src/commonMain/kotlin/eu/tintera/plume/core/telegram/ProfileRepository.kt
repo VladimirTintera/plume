@@ -92,8 +92,8 @@ interface ProfileRepository {
     /** Dá se [username] použít pro chat [chatId]? Až nad jménem, které projde [usernameFormatError]. */
     suspend fun checkUsername(chatId: Long, username: String): Result<UsernameCheck>
 
-    /** Nová fotka chatu z lokálního souboru; kulatý ořez dělá až vykreslení. */
-    suspend fun setPhoto(chatId: Long, path: String): Result<Unit>
+    /** Nová fotka chatu z lokálního souboru (fotka, nebo krátké čtvercové video). */
+    suspend fun setPhoto(chatId: Long, photo: ProfilePhotoFile): Result<Unit>
 
     suspend fun deletePhoto(chatId: Long): Result<Unit>
 

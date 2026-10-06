@@ -1,12 +1,7 @@
 package eu.tintera.plume.core.camera
 
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.resume
-import androidx.media3.transformer.Transformer
-import androidx.media3.transformer.ExportResult
-import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.Effects
+import eu.tintera.plume.core.video.exportVideo
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Composition
@@ -313,32 +308,8 @@ private class AndroidVideoNoteCamera(
             )
             .build()
 
-    private suspend fun export(composition: Composition, target: File, audioMimeType: String? = null) {
-        withContext(Dispatchers.Main) {
-            suspendCancellableCoroutine { continuation ->
-                // Transformer chce vlákno s Looperem a ozývá se na něm; hlavní ho má.
-                val transformer = Transformer.Builder(context)
-                    .setVideoMimeType(MimeTypes.VIDEO_H264)
-                    .apply { audioMimeType?.let(::setAudioMimeType) }
-                    .addListener(object : Transformer.Listener {
-                        override fun onCompleted(composition: Composition, exportResult: ExportResult) {
-                            continuation.resume(Unit)
-                        }
-
-                        override fun onError(
-                            composition: Composition,
-                            exportResult: ExportResult,
-                            exportException: ExportException,
-                        ) {
-                            continuation.resumeWithException(exportException)
-                        }
-                    })
-                    .build()
-                transformer.start(composition, target.absolutePath)
-                continuation.invokeOnCancellation { transformer.cancel() }
-            }
-        }
-    }
+    private suspend fun export(composition: Composition, target: File, audioMimeType: String? = null) =
+        exportVideo(context, composition, target, audioMimeType)
 
     override fun cancel() {
         val active = recording ?: return
