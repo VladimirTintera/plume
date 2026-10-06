@@ -42,8 +42,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsTopHeight
@@ -70,6 +73,7 @@ import eu.tintera.plume.core.ui.rememberConnectionIndicator
 import eu.tintera.plume.core.ui.rememberShownConnection
 import eu.tintera.plume.core.telegram.ConnectionState
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -490,20 +494,27 @@ fun ChatListScreen(
             /*
              * Nad navigační lištou A nad klávesnicí. Scaffold dává do paddingu jen systémové
              * lišty, takže vysunutá klávesnice (hledání, dvoupanel s psaním vpravo) FAB
-             * i snackbar překryla. Padding ze Scaffoldu se zkonzumuje a `imePadding` pak přidá
-             * jen to, o co je klávesnice vyšší než lišta — jinak by se obojí sečetlo.
+             * i snackbar překryla. Sjednocení (`union`) bere větší z obou, jinak by se lišta
+             * a klávesnice sečetly.
+             *
+             * Insety, ne `padding(scaffoldPadding)` + `consumeWindowInsets(PaddingValues)`.
+             * Hodnota `PaddingValues` se mění s rozložením Foldu, a to ve chvíli, kdy NavDisplay
+             * přesouvá seznam do list-detail scény: `update` modifikátoru pak běží nad
+             * odpojeným uzlem a Compose 1.12 spadne („visitSubtreeIf called on an unattached
+             * node"). Insety jsou popis, ne čísla, takže se modifikátor při rozložení nemění.
              *
              * FAB a snackbar nejsou ve slotech Scaffoldu: Scaffold by je postavil jen nad
              * systémové lišty, ne nad klávesnici.
              */
-            val bottomPadding = PaddingValues(bottom = scaffoldPadding.calculateBottomPadding())
             Column(
                 horizontalAlignment = Alignment.End,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(bottomPadding)
-                    .consumeWindowInsets(bottomPadding)
-                    .imePadding(),
+                    .windowInsetsPadding(
+                        ScaffoldDefaults.contentWindowInsets
+                            .only(WindowInsetsSides.Bottom)
+                            .union(WindowInsets.ime),
+                    ),
             ) {
                 SnackbarHost(snackbarHostState, Modifier.fillMaxWidth())
                 NewChatFab(
