@@ -2,6 +2,8 @@ package eu.tintera.plume.features.chats
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,6 +72,12 @@ internal fun ChatFolderRow(
             .padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
         tabs.forEachIndexed { index, tab ->
+            /*
+             * Vybraná složka musí být vidět: po přidání doporučené složky z „+" se vybere ta
+             * nová, a ta stojí na konci řádku — za okrajem, kde by výběr nebyl poznat.
+             */
+            val bringIntoView = remember { BringIntoViewRequester() }
+            LaunchedEffect(tab.selected) { if (tab.selected) bringIntoView.bringIntoView() }
             ToggleButton(
                 checked = tab.selected,
                 onCheckedChange = { if (!tab.selected) onSelect(tab.id) },
@@ -80,7 +89,7 @@ internal fun ChatFolderRow(
                     else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
                 },
                 contentPadding = PaddingValues(horizontal = BUTTON_PADDING),
-                modifier = Modifier.semantics { selected = tab.selected },
+                modifier = Modifier.bringIntoViewRequester(bringIntoView).semantics { selected = tab.selected },
             ) {
                 AnimatedVisibility(visible = tab.selected) {
                     Icon(

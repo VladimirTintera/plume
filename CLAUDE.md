@@ -1806,7 +1806,15 @@ v Google Zprávách.
   lišty, takže by je vysunutá klávesnice zakryla. Seznam má dole `FAB_CLEARANCE`.
 - **Popisek FAB nese i ikona** (`contentDescription`): `ExtendedFloatingActionButton(text = …)`
   popisek před čtečkou schovává (viz „Gotchas").
-- **Ověřeno na emulátoru** (česky): viz popis PR.
+- **Vybraná složka se v řádku vždycky ukáže** (`bringIntoViewRequester` u vybraného tlačítka):
+  přidaná doporučená složka stojí na konci řádku a vybrala by se za okrajem obrazovky.
+- **Server doporučené složky vracet nemusí** — účtu, který už má „Unread" i „Personal", nevrátil
+  žádnou. Sheet se pak ověřuje sondou (podstrčená doporučená složka v `openFolderSuggestions`;
+  necommituje se), založení jde skutečným `createChatFolder`.
+- **Ověřeno na emulátoru** (česky, světlý i tmavý motiv): FAB se sbalením, řádek s „+", sheet
+  bez doporučených i se sondou, přidání složky (vybraná a dojetá v řádku), prázdná složka
+  s ikonou, „Nová složka" do editoru a „Spravovat složky" do seznamu složek, zpět po krocích.
+  Testovací složka se pak smazala. **iOS jen přeložené.**
 
 ### Složky chatů
 
