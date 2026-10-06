@@ -2189,4 +2189,15 @@
     <string name="location_proximity_body">Ozvu se, až se k tobě přiblíží někdo z chatu, kdo sdílí živou polohu.</string>
     <string name="location_proximity_off">Vypnout upozornění</string>
     <string name="location_proximity_failed">Upozornění na blízkost nejde nastavit.</string>
+    <string name="location_dock_you_sharing">Sdílíš živou polohu</string>
+    <string name="location_dock_other_sharing">%1$s sdílí polohu</string>
+    <plurals name="location_dock_many_sharing">
+        <item quantity="one">Živou polohu sdílí %1$d člověk</item>
+        <item quantity="few">Živou polohu sdílejí %1$d lidé</item>
+        <item quantity="other">Živou polohu sdílí %1$d lidí</item>
+    </plurals>
+    <string name="location_dock_you">Ty</string>
+    <string name="location_dock_expand">Zobrazit živou polohu</string>
+    <string name="location_dock_collapse">Skrýt živou polohu</string>
+    <string name="location_dock_show_message">Přejít na zprávu</string>
 </resources>
