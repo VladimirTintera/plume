@@ -452,7 +452,8 @@ snadno na to uživatel narazí.
   odjede z obrazovky, je řádek pod pruhy s průběhem, pauzou, „další" a ✕; skladba z jiného chatu
   je v něm pořád (`CLAUDE.md`, „Mini přehrávač v docku"). Zbývá **kolečko se zvukem** (jeho
   přehrávač žije v kompozici položky a odscrollováním zmlkne — chtělo by to přehrávač mimo
-  položku) a **přehrávač nad seznamem chatů**, když hudba hraje dál po odchodu z konverzace.
+  položku). ~~**Přehrávač nad seznamem chatů**~~ — hotovo (`CLAUDE.md`, „Přehrávač nad
+  seznamem chatů").
 - ~~**Kontakt** (`MessageContact`)~~ — hotovo: karta s tváří, jménem a číslem, „Napsat
   zprávu" (`CLAUDE.md`, „Kontakt"). ~~**Přidat do kontaktů**~~ — hotovo (z karty se „Vrátit"
   a v ⋮ profilu přidat i odebrat; s člověkem ověřené jen sondou na testovacím botovi)

@@ -84,6 +84,7 @@ import eu.tintera.plume.core.telegram.TelegramClientHolder
 import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.features.auth.AuthViewModel
 import eu.tintera.plume.features.chats.ChatsViewModel
+import eu.tintera.plume.features.chats.NowPlayingViewModel
 import eu.tintera.plume.features.chats.AddBotToGroupViewModel
 import eu.tintera.plume.features.chats.NewChatViewModel
 import eu.tintera.plume.features.chats.CreateChatViewModel
@@ -280,6 +281,7 @@ fun appModule() = module {
     }
 
     viewModelOf(::AuthViewModel)
+    viewModelOf(::NowPlayingViewModel)
     // Složka je parametr: hlavní seznam i archiv jsou tentýž ViewModel. Bez parametru hlavní.
     viewModel { parameters ->
         ChatsViewModel(

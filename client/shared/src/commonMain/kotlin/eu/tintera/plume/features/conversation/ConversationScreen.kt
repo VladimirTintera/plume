@@ -1047,7 +1047,7 @@ fun ConversationScreen(
                 music = true,
                 title = (track?.title ?: audio?.title)?.ifBlank { null } ?: audio?.fileName.orEmpty(),
                 label = track?.performer ?: audio?.performer?.ifBlank { null },
-                coverFileId = audio?.coverFileId,
+                coverFileId = track?.coverFileId ?: audio?.coverFileId,
                 hasNext = nowPlaying?.takeIf { it.key == key }?.next != null,
             )
         } else {

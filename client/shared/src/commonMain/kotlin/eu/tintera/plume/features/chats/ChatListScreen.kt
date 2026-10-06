@@ -108,6 +108,17 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.blur.hazeBlur
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
+import eu.tintera.plume.features.conversation.DockedPlayer
+import eu.tintera.plume.features.conversation.GLASS_FALLBACK_ALPHA
+import eu.tintera.plume.features.conversation.GLASS_TEXT_TINT_ALPHA
+import eu.tintera.plume.features.conversation.PlayerDockBar
+import eu.tintera.plume.features.conversation.glassStyle
+import org.koin.compose.viewmodel.koinViewModel
+import androidx.compose.ui.layout.onSizeChanged
 import eu.tintera.plume.features.devices.UnconfirmedLoginCard
 import eu.tintera.plume.core.update.rememberStartUpdate
 import eu.tintera.plume.core.telegram.ChatListState
@@ -191,6 +202,9 @@ fun ChatListScreen(
     onCreateFolder: () -> Unit = {},
     /** „+" v řádku složek → Spravovat složky. */
     onManageFolders: () -> Unit = {},
+    /** Vedle seznamu je otevřená konverzace (dvoupanel) — hudbu pak ukazuje její dock. */
+    conversationOpen: Boolean = false,
+    nowPlayingViewModel: NowPlayingViewModel = koinViewModel(),
     modifier: Modifier = Modifier,
 ) {
     val search by viewModel.search.state.collectAsStateWithLifecycle()
@@ -212,6 +226,26 @@ fun ChatListScreen(
     val scrollBehavior = SearchBarDefaults.enterAlwaysSearchBarScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    /*
+     * Hudba, která hraje dál po odchodu z konverzace (viz `CLAUDE.md`, „Přehrávač nad seznamem
+     * chatů"). Tentýž řádek jako dock v konverzaci; při zasouvání kreslí poslední skladbu.
+     */
+    val nowPlaying by nowPlayingViewModel.nowPlaying.collectAsStateWithLifecycle()
+    val shownPlayer = nowPlaying?.takeIf { !conversationOpen }?.let {
+        DockedPlayer(
+            key = it.key,
+            music = true,
+            title = it.track.title,
+            label = it.track.performer,
+            coverFileId = it.track.coverFileId,
+            hasNext = it.next != null,
+        )
+    }
+    val lastPlayer = remember { arrayOf<DockedPlayer?>(null) }
+    if (shownPlayer != null) lastPlayer[0] = shownPlayer
+    var playerHeight by remember { mutableIntStateOf(0) }
+    val listHaze = rememberHazeState()
 
     val listState = rememberLazyListState()
     // FAB s popiskem: rozbalený nahoře a při scrollu nahoru, při scrollu dolů z něj zbude ikona.
@@ -351,79 +385,83 @@ fun ChatListScreen(
         // Poslední chat se musí dát odscrollovat nad FAB, jinak by pod ním zůstal schovaný.
         val padding = PaddingValues(
             top = scaffoldPadding.calculateTopPadding(),
-            bottom = scaffoldPadding.calculateBottomPadding() + FAB_CLEARANCE,
+            bottom = scaffoldPadding.calculateBottomPadding() + FAB_CLEARANCE +
+                with(LocalDensity.current) { playerHeight.toDp() },
         )
         Box(Modifier.fillMaxSize()) {
-            ChatListContent(
-                viewModel = viewModel,
-                selectedChatId = selectedChatId,
-                onChatClick = onChatClick,
-                onForumClick = onForumClick,
-                padding = padding,
-                scrollToChat = scrollToChat,
-                onScrolledToChat = { scrollToChat = null },
-                listState = listState,
-                // Položky hlavičky: nové přihlášení a karta s aktualizací.
-                headerItemCount = listOfNotNull(unconfirmedLogin, updateCard, newFolderChats).size,
-                empty = {
-                    /*
-                     * Prázdná SLOŽKA je jiný stav než prázdný účet: chaty jsou, jen ne tyhle (třeba
-                     * „Nepřečtené" se vším přečteným). Tentýž animovaný stav jako archiv, s ikonou
-                     * složky; klíč podle složky, aby se úvodní animace pustila u každé zvlášť.
-                     */
-                    if (selectedFolder != null) {
-                        key(selectedFolder.id) {
-                            IntroEmptyState(
-                                icon = folderIcon(selectedFolder.iconName),
-                                title = stringResource(Res.string.chats_folder_empty_title),
-                                text = stringResource(Res.string.chats_folder_empty),
+            Box(Modifier.fillMaxSize().hazeSource(listHaze)) {
+                ChatListContent(
+                    viewModel = viewModel,
+                    selectedChatId = selectedChatId,
+                    onChatClick = onChatClick,
+                    onForumClick = onForumClick,
+                    padding = padding,
+                    scrollToChat = scrollToChat,
+                    onScrolledToChat = { scrollToChat = null },
+                    listState = listState,
+                    // Položky hlavičky: nové přihlášení a karta s aktualizací.
+                    headerItemCount = listOfNotNull(unconfirmedLogin, updateCard, newFolderChats).size,
+                    empty = {
+                        /*
+                         * Prázdná SLOŽKA je jiný stav než prázdný účet: chaty jsou, jen ne tyhle (třeba
+                         * „Nepřečtené" se vším přečteným). Tentýž animovaný stav jako archiv, s ikonou
+                         * složky; klíč podle složky, aby se úvodní animace pustila u každé zvlášť.
+                         */
+                        if (selectedFolder != null) {
+                            key(selectedFolder.id) {
+                                IntroEmptyState(
+                                    icon = folderIcon(selectedFolder.iconName),
+                                    title = stringResource(Res.string.chats_folder_empty_title),
+                                    text = stringResource(Res.string.chats_folder_empty),
+                                )
+                            }
+                        } else {
+                            Text(
+                                stringResource(Res.string.chats_empty),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.align(Alignment.Center).padding(24.dp),
                             )
                         }
-                    } else {
-                        Text(
-                            stringResource(Res.string.chats_empty),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.align(Alignment.Center).padding(24.dp),
-                        )
+                    },
+                ) {
+                    // Nad chaty, jako vlastní bloky se stejnou mezerou jako mezi skupinami. Přihlášení
+                    // napřed: týká se bezpečnosti účtu, aktualizace počká.
+                    unconfirmedLogin?.let { login ->
+                        item(key = UNCONFIRMED_LOGIN_KEY, contentType = UNCONFIRMED_LOGIN_KEY) {
+                            UnconfirmedLoginCard(
+                                device = login,
+                                enabled = true,
+                                onConfirm = { viewModel.confirmLogin(login.sessionId) },
+                                onTerminate = { viewModel.terminateLogin(login.sessionId) },
+                                modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
+                            )
+                        }
                     }
-                },
-            ) {
-                // Nad chaty, jako vlastní bloky se stejnou mezerou jako mezi skupinami. Přihlášení
-                // napřed: týká se bezpečnosti účtu, aktualizace počká.
-                unconfirmedLogin?.let { login ->
-                    item(key = UNCONFIRMED_LOGIN_KEY, contentType = UNCONFIRMED_LOGIN_KEY) {
-                        UnconfirmedLoginCard(
-                            device = login,
-                            enabled = true,
-                            onConfirm = { viewModel.confirmLogin(login.sessionId) },
-                            onTerminate = { viewModel.terminateLogin(login.sessionId) },
-                            modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
-                        )
+                    newFolderChats?.let { folderChats ->
+                        item(key = NEW_FOLDER_CHATS_KEY, contentType = NEW_FOLDER_CHATS_KEY) {
+                            NewFolderChatsCard(
+                                state = folderChats,
+                                onShow = viewModel::openNewFolderChats,
+                                onHide = { viewModel.processNewFolderChats(join = false) },
+                                modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
+                            )
+                        }
                     }
-                }
-                newFolderChats?.let { folderChats ->
-                    item(key = NEW_FOLDER_CHATS_KEY, contentType = NEW_FOLDER_CHATS_KEY) {
-                        NewFolderChatsCard(
-                            state = folderChats,
-                            onShow = viewModel::openNewFolderChats,
-                            onHide = { viewModel.processNewFolderChats(join = false) },
-                            modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
-                        )
-                    }
-                }
-                updateCard?.let { update ->
-                    item(key = UPDATE_CARD_KEY, contentType = UPDATE_CARD_KEY) {
-                        UpdateCard(
-                            state = update,
-                            onUpdate = startUpdate,
-                            onDismiss = viewModel::dismissUpdate,
-                            onRestart = viewModel::completeUpdate,
-                            modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
-                        )
+                    updateCard?.let { update ->
+                        item(key = UPDATE_CARD_KEY, contentType = UPDATE_CARD_KEY) {
+                            UpdateCard(
+                                state = update,
+                                onUpdate = startUpdate,
+                                onDismiss = viewModel::dismissUpdate,
+                                onRestart = viewModel::completeUpdate,
+                                modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
+                            )
+                        }
                     }
                 }
+
             }
 
             /*
@@ -473,6 +511,36 @@ fun ChatListScreen(
                     onClick = onNewChat,
                     modifier = Modifier.padding(FAB_MARGIN),
                 )
+                /*
+                 * Pod FAB, u palce, jako u hudebních aplikací — a hlavně mimo lištu hledání, která
+                 * při scrollu odjíždí. Seznam se odsazuje o jeho výšku, poslední chat je nad ním.
+                 */
+                AnimatedVisibility(
+                    visible = shownPlayer != null,
+                    enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+                    exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
+                    modifier = Modifier.onSizeChanged { playerHeight = it.height },
+                ) {
+                    lastPlayer[0]?.let { player ->
+                        PlayerDockBar(
+                            player = player,
+                            playback = { nowPlayingViewModel.playback.value?.takeIf { it.key == player.key } },
+                            reveal = { 1f },
+                            onToggle = nowPlayingViewModel::togglePlaying,
+                            onNext = nowPlayingViewModel::skipToNext,
+                            onStop = nowPlayingViewModel::stop,
+                            onShow = { onMessageClick(player.key.chatId, player.key.messageId, null) },
+                            glass = Modifier.hazeBlur(
+                                input = HazeInput.Sources(listHaze),
+                                style = glassStyle(
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    alpha = GLASS_TEXT_TINT_ALPHA,
+                                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                                ),
+                            ),
+                        )
+                    }
+                }
             }
         }
     }
