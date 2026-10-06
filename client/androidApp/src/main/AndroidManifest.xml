@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -18,6 +19,9 @@
          v deklaraci služeb v popředí. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Stahování modelu Gemma (gigabajty) jako úloha WorkManageru se službou v popředí
+         (ModelDownloadWorker). Typ dataSync Play taky chce vysvětlit v deklaraci služeb v popředí. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <!-- Uložení fotky a videa do galerie. Od Androidu 10 zapisuje MediaStore bez oprávnění. -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
@@ -168,6 +172,13 @@
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
+
+        <!-- Služba v popředí, kterou WorkManager spouští pro dlouhé úlohy. Od Androidu 14 musí
+             mít typ v manifestu; jediná taková úloha je stahování modelu (dataSync). -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
 
         <!-- Bez google-services.json se služba nikdy nespustí, protože Firebase se
              neinicializuje; deklarace tedy nevadí ani v buildu bez pushe. -->

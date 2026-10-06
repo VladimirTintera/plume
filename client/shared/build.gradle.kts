@@ -196,6 +196,9 @@ kotlin {
             implementation(libs.media3.ui)
             // Hudba na pozadí: MediaSession, notifikace s ovládáním a služba v popředí.
             implementation(libs.media3.session)
+            // Stahování modelu Gemma na pozadí (core/ai/ModelDownloadWorker). V aplikaci už je
+            // kvůli notifikacím, APK se tím nezvětší.
+            implementation(libs.androidx.work.runtime)
             implementation(libs.play.app.update)
             // Čtečka QR kódů pro přihlášení jiného zařízení — viz core/ui/QrScanner.
             implementation(libs.play.code.scanner)

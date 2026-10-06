@@ -29,6 +29,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.AiProvider
+import eu.tintera.plume.core.ai.DownloadStoppedException
 import eu.tintera.plume.core.ai.GemmaModel
 import eu.tintera.plume.core.ai.ModelDownload
 import eu.tintera.plume.core.ai.ModelVariant
@@ -54,7 +55,10 @@ import eu.tintera.plume.resources.settings_on_device_ai_checking
 import eu.tintera.plume.resources.settings_on_device_ai_download
 import eu.tintera.plume.resources.settings_on_device_ai_download_progress
 import eu.tintera.plume.resources.settings_on_device_ai_downloadable_named
+import eu.tintera.plume.resources.settings_on_device_ai_discard_part
+import eu.tintera.plume.resources.settings_on_device_ai_paused
 import eu.tintera.plume.resources.settings_on_device_ai_resume
+import eu.tintera.plume.resources.settings_on_device_ai_stop
 import eu.tintera.plume.resources.settings_on_device_ai_waiting_for_network
 import eu.tintera.plume.resources.settings_on_device_ai_download_failed
 import eu.tintera.plume.resources.settings_on_device_ai_downloadable
@@ -96,6 +100,8 @@ sealed interface OnDeviceModelState {
     /** [progress] je `null`, dokud stahování neohlásí první bajty. */
     data class Downloading(val progress: ModelDownload?) : OnDeviceModelState
     data object DownloadFailed : OnDeviceModelState
+    /** Model je stažený zčásti a stahování neběží (zastavené, nebo po selhání a restartu). */
+    data object Paused : OnDeviceModelState
     data object NotEnoughSpace : OnDeviceModelState
     data class Ready(val name: String?, val tokenLimit: Int?) : OnDeviceModelState
 }
@@ -103,9 +109,10 @@ sealed interface OnDeviceModelState {
 /**
  * Volba „Shrnutí chatu", varianta modelu a jeho stažení.
  *
- * Stahování běží v [appScope], ne ve `viewModelScope`: trvá minuty a odchod z Nastavení ho
- * nemá zrušit. Nová obrazovka se k běžícímu stahování připojí (`download()` ve stavu
- * `Downloading`), takže průběh ukáže znovu.
+ * Sledování stahování běží v [appScope], ne ve `viewModelScope`: trvá minuty a odchod
+ * z Nastavení ho nemá zrušit. Nová obrazovka se k běžícímu stahování připojí (`download()` ve
+ * stavu `Downloading`), takže průběh ukáže znovu. Gemmu přitom stahuje úloha WorkManageru, ne
+ * tahle korutina — přežije i zabití procesu (viz `ModelDownloadWorker`).
  *
  * Varianta je jiný model: po její změně se stav čte znovu a preview, rychlá varianta nebo
  * jiná Gemma se může chtít stáhnout zvlášť. Totéž platí o volbě poskytovatele (Gemini Nano /
@@ -195,6 +202,20 @@ class OnDeviceAiSettingsViewModel(
         }
     }
 
+    /** Zastaví stahování modelu, který stahuje aplikace. Stažená část zůstává. */
+    fun stopDownload() {
+        val target = variant.value
+        appScope.launch {
+            try {
+                ai.stopDownload(target)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.w(e) { "Stahování se nepodařilo zastavit ($target)" }
+            }
+        }
+    }
+
     fun download() {
         if (download?.isActive == true) return
         val target = variant.value
@@ -207,6 +228,8 @@ class OnDeviceAiSettingsViewModel(
                 if (variant.value == target) refresh(target)
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: DownloadStoppedException) {
+                if (variant.value == target) _model.value = OnDeviceModelState.Paused
             } catch (e: NotEnoughSpaceException) {
                 logger.i(e) { "Na model není místo ($target)" }
                 if (variant.value == target) _model.value = OnDeviceModelState.NotEnoughSpace
@@ -222,6 +245,7 @@ class OnDeviceAiSettingsViewModel(
         _model.value = when (ai.status(variant)) {
             OnDeviceAiStatus.Unsupported -> OnDeviceModelState.Unsupported
             OnDeviceAiStatus.Downloadable -> OnDeviceModelState.Downloadable
+            OnDeviceAiStatus.Paused -> OnDeviceModelState.Paused
             OnDeviceAiStatus.Downloading -> {
                 download()
                 return
@@ -428,6 +452,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                         stringResource(Res.string.settings_on_device_ai_downloading)
                     }
                     OnDeviceModelState.DownloadFailed -> stringResource(Res.string.settings_on_device_ai_download_failed)
+                    OnDeviceModelState.Paused -> stringResource(Res.string.settings_on_device_ai_paused)
                     OnDeviceModelState.NotEnoughSpace -> stringResource(Res.string.settings_on_device_ai_not_enough_space)
                     is OnDeviceModelState.Ready -> current.name
                         ?.let { stringResource(Res.string.settings_on_device_ai_ready, it) }
@@ -471,11 +496,23 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                         } else {
                             LinearWavyProgressIndicator(Modifier.fillMaxWidth())
                         }
+                        /*
+                         * Stahování Gemmy běží ve WorkManageru a přežije i zabití aplikace, takže
+                         * bez tlačítka by ho nešlo zastavit vůbec. Systémový model stahuje AICore
+                         * a ten zastavit nedovolí.
+                         */
+                        if (variant.appManaged) {
+                            OutlinedButton(onClick = viewModel::stopDownload) {
+                                Text(stringResource(Res.string.settings_on_device_ai_stop))
+                            }
+                        }
                     }
-                    OnDeviceModelState.Downloadable, OnDeviceModelState.DownloadFailed, OnDeviceModelState.NotEnoughSpace ->
+                    OnDeviceModelState.Downloadable, OnDeviceModelState.DownloadFailed, OnDeviceModelState.NotEnoughSpace,
+                    OnDeviceModelState.Paused ->
                         FilledTonalButton(onClick = viewModel::download) {
-                            // Stažený kus se nezahazuje, takže po selhání tlačítko slibuje navázání.
-                            val resumes = model == OnDeviceModelState.DownloadFailed && variant.appManaged
+                            // Stažený kus se nezahazuje, takže po selhání i zastavení tlačítko slibuje navázání.
+                            val resumes = variant.appManaged &&
+                                (model == OnDeviceModelState.DownloadFailed || model == OnDeviceModelState.Paused)
                             Text(
                                 stringResource(
                                     if (resumes) Res.string.settings_on_device_ai_resume
@@ -499,6 +536,15 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                         }
                     }
                     else -> Unit
+                }
+                /*
+                 * Zčásti stažený model jsou klidně gigabajty, a bez tohohle by šly z telefonu
+                 * dostat jen dokončením stahování a smazáním hotového modelu.
+                 */
+                if (model == OnDeviceModelState.Paused && variant.appManaged) {
+                    OutlinedButton(onClick = viewModel::delete) {
+                        Text(stringResource(Res.string.settings_on_device_ai_discard_part))
+                    }
                 }
             }
         }

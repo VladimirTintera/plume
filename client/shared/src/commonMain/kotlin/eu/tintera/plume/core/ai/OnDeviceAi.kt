@@ -27,10 +27,18 @@ interface OnDeviceAi {
     suspend fun info(variant: ModelVariant): ModelInfo?
 
     /**
-     * Stáhne model a hlásí průběh. Tok skončí po dokončení, selhání se vyhodí jako výjimka.
-     * Volání ve stavu [OnDeviceAiStatus.Downloading] se připojí k běžícímu stahování.
+     * Stáhne model a hlásí průběh. Tok skončí po dokončení, selhání se vyhodí jako výjimka,
+     * zastavení ([stopDownload]) jako [DownloadStoppedException]. Volání ve stavu
+     * [OnDeviceAiStatus.Downloading] se připojí k běžícímu stahování, ve stavu
+     * [OnDeviceAiStatus.Paused] naváže na staženou část.
      */
     fun download(variant: ModelVariant): Flow<ModelDownload>
+
+    /**
+     * Zastaví stahování; stažená část zůstává a příští [download] na ni naváže. Jen tam, kde
+     * model stahuje aplikace sama ([ModelVariant.appManaged]) — stahování AICore řídí systém.
+     */
+    suspend fun stopDownload(variant: ModelVariant) {}
 
     /** Kolik tokenů zabere [prompt] na vstupu; `null`, když to model neumí říct. */
     suspend fun countTokens(variant: ModelVariant, prompt: String): Int?
@@ -126,6 +134,13 @@ enum class GemmaModel(
 class NotEnoughSpaceException(val neededBytes: Long) : Exception("Not enough space: $neededBytes B")
 
 /**
+ * Stahování zastavil uživatel ([OnDeviceAi.stopDownload]). Není to selhání: stažená část
+ * zůstává a obrazovka nabídne pokračování. Schválně ne `CancellationException` — tu volající
+ * posílají dál a o zastavení by se nedozvěděli.
+ */
+class DownloadStoppedException : Exception("Model download stopped")
+
+/**
  * Kus generované odpovědi.
  *
  * [text] je celý dosavadní text. [truncated] znamená, že model NEDOMLUVIL: došel mu strop
@@ -146,8 +161,14 @@ enum class OnDeviceAiStatus {
     /** Model jde stáhnout. */
     Downloadable,
 
-    /** Model se právě stahuje. */
+    /** Model se právě stahuje (nebo na stahování čeká, třeba na síť). */
     Downloading,
+
+    /**
+     * Model je stažený zčásti a stahování neběží — uživatel ho zastavil. Příští stažení naváže
+     * na to, co už je v telefonu. Jen u modelu, který stahuje aplikace.
+     */
+    Paused,
 
     /** Model je v zařízení a jde hned použít. */
     Ready,

@@ -26,7 +26,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.transformWhile
@@ -34,6 +36,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Gemma přes LiteRT-LM: model si stáhne a spravuje aplikace sama.
@@ -45,6 +48,10 @@ import kotlinx.coroutines.withContext
  *   znamená „kompletní model" a nic dalšího se kontrolovat nemusí. Přerušené stahování
  *   navazuje (`Range`) — u gigabajtů by začínat od nuly bylo nepoužitelné — a po výpadku
  *   sítě naváže samo, když se připojení vrátí ([fetch]).
+ * - **Stahuje úloha WorkManageru ([ModelDownloadWorker]), ne korutina téhle třídy.** Stahuje
+ *   se minuty a proces aplikace v pozadí systém klidně zabije; úloha přežije i to a naváže
+ *   na `.part`. Tahle třída drží jen stav pro obrazovku ([downloads]) — úloha běží v témže
+ *   procesu a průběh do něj zapisuje přes [runDownload].
  * - **Engine je v paměti nejvýš jeden** a po [IDLE_UNLOAD_MS] bez použití se uvolní. Drží
  *   gigabajty RAM; nechat ho viset po jednom shrnutí by znamenalo, že systém dřív zabije
  *   aplikaci v pozadí. Načtení trvá do deseti sekund (dokumentace LiteRT-LM), proto se neuvolňuje
@@ -74,7 +81,8 @@ class LiteRtOnDeviceAi(
     private fun GemmaModel.partFile() = File(modelsDir, "$fileName.part")
 
     private val downloads = ConcurrentHashMap<GemmaModel, MutableStateFlow<DownloadState>>()
-    private val downloadJobs = ConcurrentHashMap<GemmaModel, Job>()
+
+    private fun stateOf(model: GemmaModel) = downloads.getOrPut(model) { MutableStateFlow(DownloadState.Idle) }
 
     private val engineLock = Mutex()
     private var loaded: Pair<GemmaModel, Engine>? = null
@@ -84,8 +92,12 @@ class LiteRtOnDeviceAi(
         val model = variant.gemma
         return when {
             !deviceCanRun(model) -> OnDeviceAiStatus.Unsupported
-            downloadJobs[model]?.isActive == true -> OnDeviceAiStatus.Downloading
             model.file().exists() -> OnDeviceAiStatus.Ready
+            // Úloha naplánovaná z minulého běhu procesu (zabitého uprostřed stahování) se
+            // rozběhne sama, jen ještě nezapsala stav — pořád je to stahování.
+            stateOf(model).value is DownloadState.Running ||
+                ModelDownloadWorker.isPending(context, model) -> OnDeviceAiStatus.Downloading
+            model.partFile().exists() -> OnDeviceAiStatus.Paused
             else -> OnDeviceAiStatus.Downloadable
         }
     }
@@ -96,15 +108,24 @@ class LiteRtOnDeviceAi(
         return ModelInfo(name = model.displayName, tokenLimit = MAX_NUM_TOKENS - OUTPUT_RESERVE_TOKENS)
     }
 
+    /**
+     * Naplánuje stahování a sleduje jeho průběh. Běžící stahování (i úloha čekající na síť)
+     * se jen sleduje; `KEEP` při plánování zaručí, že se nespustí podruhé.
+     */
     override fun download(variant: ModelVariant): Flow<ModelDownload> = flow {
         val model = variant.gemma
-        val state = downloads.getOrPut(model) { MutableStateFlow<DownloadState>(DownloadState.Idle) }
-        // Běžící stahování se jen sleduje; nové se spustí, když žádné neběží.
-        synchronized(downloadJobs) {
-            if (downloadJobs[model]?.isActive != true) {
-                state.value = DownloadState.Running(ModelDownload(0, model.sizeBytes))
-                downloadJobs[model] = scope.launch { fetch(model, state) }
-            }
+        val state = stateOf(model)
+        if (state.value !is DownloadState.Running) {
+            // Než se úloha rozběhne, ukazuje se, co už je stažené — a bez sítě rovnou čekání:
+            // úloha se bez připojení vůbec nespustí (podmínka sítě), takže by stav jinak tvrdil,
+            // že se stahuje.
+            val offline = withTimeoutOrNull(NETWORK_CHECK_MS) {
+                networkMonitor.status.first().kind == NetworkKind.None
+            } == true
+            state.value = DownloadState.Running(
+                ModelDownload(model.partFile().length(), model.sizeBytes, waitingForNetwork = offline),
+            )
+            ModelDownloadWorker.enqueue(context, model)
         }
         state.transformWhile { current ->
             when (current) {
@@ -114,9 +135,65 @@ class LiteRtOnDeviceAi(
                 }
                 DownloadState.Done -> false
                 is DownloadState.Failed -> throw current.error
+                DownloadState.Stopped -> throw DownloadStoppedException()
                 DownloadState.Idle -> true
             }
         }.collect { emit(it) }
+    }
+
+    override suspend fun stopDownload(variant: ModelVariant) {
+        val model = variant.gemma
+        ModelDownloadWorker.cancel(context, model)
+        // Úloha to ohlásí taky ([onWorkerStopped]), jenže až doběhne zrušení; obrazovka má
+        // odpovědět hned. Úloha, která ještě nezačala, neohlásí nic.
+        stateOf(model).value = DownloadState.Stopped
+        logger.i { "Stahování zastavené (${model.displayName})" }
+    }
+
+    /** Průběh stahování pro notifikaci úlohy. */
+    internal fun downloadProgress(model: GemmaModel): Flow<ModelDownload> =
+        stateOf(model).filterIsInstance<DownloadState.Running>().map { it.progress }
+
+    /**
+     * Stáhne [model]; volá ho [ModelDownloadWorker]. Vyhodí, když se stáhnout nepodařilo —
+     * stav pro obrazovku je pak už zapsaný. Zrušení (zastavení úlohy) jde dál beze změny
+     * stavu; co znamená, ví až úloha podle důvodu zastavení ([onWorkerStopped]).
+     */
+    internal suspend fun runDownload(model: GemmaModel) {
+        val state = stateOf(model)
+        if (model.file().exists()) {
+            state.value = DownloadState.Done
+            return
+        }
+        // Vždycky načisto: úloha se spouští jen s připojením, takže čekání na síť ze zastavené
+        // úlohy už neplatí — a první hlášení průběhu přijde až po pár megabajtech.
+        state.value = DownloadState.Running(ModelDownload(model.partFile().length(), model.sizeBytes))
+        try {
+            fetch(model, state)
+            state.value = DownloadState.Done
+            logger.i { "Model stažený (${model.displayName})" }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            state.value = DownloadState.Failed(e)
+            throw e
+        }
+    }
+
+    /**
+     * Úloha stahování skončila dřív, než model stáhla. Zastavil ji uživatel ([byUser]) →
+     * stahování stojí; jinak ji zastavil systém (ztráta sítě, kvóta úloh, časový limit služby
+     * v popředí) a WorkManager ji spustí znovu — pro obrazovku je to pořád stahování, jen při
+     * [waitingForNetwork] s větou, že se čeká na připojení.
+     */
+    internal fun onWorkerStopped(model: GemmaModel, byUser: Boolean, waitingForNetwork: Boolean) {
+        val state = stateOf(model)
+        val current = state.value
+        when {
+            byUser -> state.value = DownloadState.Stopped
+            current is DownloadState.Running ->
+                state.value = DownloadState.Running(current.progress.copy(waitingForNetwork = waitingForNetwork))
+        }
     }
 
     override suspend fun countTokens(variant: ModelVariant, prompt: String): Int? = null
@@ -159,7 +236,7 @@ class LiteRtOnDeviceAi(
 
     override suspend fun delete(variant: ModelVariant) {
         val model = variant.gemma
-        downloadJobs.remove(model)?.cancel()
+        ModelDownloadWorker.cancel(context, model)
         downloads.remove(model)
         engineLock.withLock {
             if (loaded?.first == model) unloadLocked()
@@ -245,35 +322,26 @@ class LiteRtOnDeviceAi(
      * dostane i od Gemini Nano. Ve dvou místech by v logu bylo dvakrát.
      */
     private suspend fun fetch(model: GemmaModel, state: MutableStateFlow<DownloadState>) {
-        try {
-            var failures = 0
-            while (true) {
-                val before = model.partFile().length()
-                try {
-                    fetchFile(model) { progress -> state.value = DownloadState.Running(progress) }
-                    break
-                } catch (e: HttpStatusException) {
-                    throw e
-                } catch (e: IOException) {
-                    failures = if (model.partFile().length() > before) 1 else failures + 1
-                    if (failures > MAX_RETRIES_WITHOUT_PROGRESS) throw e
-                    logger.i { "Stahování přerušené (${e.message}), čekám na síť (${model.displayName})" }
-                    state.value = DownloadState.Running(
-                        ModelDownload(model.partFile().length(), model.sizeBytes, waitingForNetwork = true),
-                    )
-                    // Nejdřív síť, pak prodleva: po návratu sítě chvíli trvá, než opravdu vede
-                    // ven, a výpadek, o kterém systém ještě neví, se tím nepřepálí na pokusy.
-                    networkMonitor.status.first { it.kind != NetworkKind.None }
-                    delay(RETRY_DELAY_MS * failures)
-                }
+        var failures = 0
+        while (true) {
+            val before = model.partFile().length()
+            try {
+                fetchFile(model) { progress -> state.value = DownloadState.Running(progress) }
+                break
+            } catch (e: HttpStatusException) {
+                throw e
+            } catch (e: IOException) {
+                failures = if (model.partFile().length() > before) 1 else failures + 1
+                if (failures > MAX_RETRIES_WITHOUT_PROGRESS) throw e
+                logger.i { "Stahování přerušené (${e.message}), čekám na síť (${model.displayName})" }
+                state.value = DownloadState.Running(
+                    ModelDownload(model.partFile().length(), model.sizeBytes, waitingForNetwork = true),
+                )
+                // Nejdřív síť, pak prodleva: po návratu sítě chvíli trvá, než opravdu vede
+                // ven, a výpadek, o kterém systém ještě neví, se tím nepřepálí na pokusy.
+                networkMonitor.status.first { it.kind != NetworkKind.None }
+                delay(RETRY_DELAY_MS * failures)
             }
-            state.value = DownloadState.Done
-            logger.i { "Model stažený (${model.displayName})" }
-        } catch (e: CancellationException) {
-            state.value = DownloadState.Failed(e)
-            throw e
-        } catch (e: Exception) {
-            state.value = DownloadState.Failed(e)
         }
     }
 
@@ -369,6 +437,9 @@ class LiteRtOnDeviceAi(
         data class Running(val progress: ModelDownload) : DownloadState
         data object Done : DownloadState
         data class Failed(val error: Throwable) : DownloadState
+
+        /** Zastavil uživatel; stažená část zůstává. */
+        data object Stopped : DownloadState
     }
 
     /** Server odpověděl jinak než daty. Čekáním na síť se to nespraví, takže se neopakuje. */
@@ -406,6 +477,9 @@ class LiteRtOnDeviceAi(
         const val RETRY_DELAY_MS = 2_000L
 
         const val HTTP_RANGE_NOT_SATISFIABLE = 416
+
+        /** Jak dlouho se při plánování čeká na první hlášení sítě; monitor odpovídá hned. */
+        const val NETWORK_CHECK_MS = 1_000L
 
         const val TIMEOUT_MS = 30_000
         const val BUFFER_BYTES = 256 * 1024

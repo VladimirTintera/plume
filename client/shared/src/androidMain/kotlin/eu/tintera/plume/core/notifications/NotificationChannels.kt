@@ -15,6 +15,8 @@ import eu.tintera.plume.resources.notification_channel_groups
 import eu.tintera.plume.resources.notification_channel_groups_description
 import eu.tintera.plume.resources.notification_channel_mentions
 import eu.tintera.plume.resources.notification_channel_mentions_description
+import eu.tintera.plume.resources.notification_channel_model_download
+import eu.tintera.plume.resources.notification_channel_model_download_description
 import eu.tintera.plume.resources.notification_channel_private
 import eu.tintera.plume.resources.notification_channel_private_description
 import org.jetbrains.compose.resources.getString
@@ -67,6 +69,7 @@ suspend fun createNotificationChannels(context: Context) {
         NotificationChannel(CALLS_CHANNEL_ID, getString(Res.string.notification_channel_calls), NotificationManager.IMPORTANCE_HIGH)
             .apply { description = getString(Res.string.notification_channel_calls_description) },
     )
+    createModelDownloadChannel(context)
     // Jediný kanál z dřívějška — jinak by v systémovém nastavení visel jako prázdná položka.
     manager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
 }
@@ -121,3 +124,22 @@ private const val LEGACY_CHANNEL_ID = "messages"
 
 /** Kanál příchozích hovorů. **Nesmí se měnit**, ze stejného důvodu jako [channelId]. */
 const val CALLS_CHANNEL_ID = "calls"
+
+/** Průběh stahování modelu AI (`ModelDownloadWorker`). Stejně jako ostatní id se nesmí měnit. */
+const val MODEL_DOWNLOAD_CHANNEL_ID = "ai-model-download"
+
+/**
+ * Kanál stahování modelu. Tichý (`IMPORTANCE_LOW`): průběh i výsledek jsou jen informace, ne
+ * výzva k akci, a zvuk u něčeho, co si uživatel sám spustil, by obtěžoval. Volá ho i úloha
+ * stahování sama — po zabití procesu ji WorkManager spustí dřív, než by kanál založil start
+ * notifikací.
+ */
+suspend fun createModelDownloadChannel(context: Context) {
+    context.getSystemService(NotificationManager::class.java).createNotificationChannel(
+        NotificationChannel(
+            MODEL_DOWNLOAD_CHANNEL_ID,
+            getString(Res.string.notification_channel_model_download),
+            NotificationManager.IMPORTANCE_LOW,
+        ).apply { description = getString(Res.string.notification_channel_model_download_description) },
+    )
+}
