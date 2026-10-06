@@ -132,6 +132,8 @@ internal fun MessageAttachment(
     diceCelebrate: Boolean = false,
     /** Přepis hlasovky (tlačítko a text pod ní); `null` = bez přepisu (kopie v nabídce, náhledy). */
     transcript: TranscriptState? = null,
+    /** Akce z karty s vlastními prvky (soutěž: kanály, výherci, podrobnosti). */
+    onAction: (MessageAction) -> Unit = {},
 ) {
     val shape = RoundedCornerShape(12.dp)
     // Náhled souboru zůstává malý čtvereček bez ohledu na tvar bubliny — velké zaoblení bubliny
@@ -254,6 +256,7 @@ internal fun MessageAttachment(
         }
 
         is MessageMedia.Product -> ProductCard(media, accent)
+        is MessageMedia.Giveaway -> GiveawayCard(media, accent, onAction)
 
         is MessageMedia.Sticker -> StickerImage(
             sticker = media,

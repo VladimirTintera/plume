@@ -8216,6 +8216,37 @@ Seznam chatů, citace a notifikace dál píšou „Platba: …" / „Hra: …".
   založenou v BotFatheru) a iOS (jen přeložené). Obrázek z `photo_url` vyšel měkký — jakou
   velikost server vydá, zjištěné není.
 
+### Soutěž
+
+Vyhlášení soutěže (`MessageGiveaway`) a její výsledky (`MessageGiveawayWinners`) jsou příloha
+`MessageMedia.Giveaway` a v bublině karta (`GiveawayCard`): samolepka dárku (u výsledků ikona
+oslavy), výhra („3 × Telegram Premium na 6 měsíců", „1 500 hvězd rozdělí se mezi 2 výherce"),
+popis navíc od pořadatele, čipy kanálů, podmínky (jen noví odběratelé, země s vlajkou, kdy se
+losuje) a u výsledků čipy výherců a nevyzvednuté výhry. „Podrobnosti" otevře sheet se stavem
+účasti tohoto účtu (`GiveawayStatusSheet`), u výsledků „Zobrazit soutěž" skočí na vyhlášení.
+Doména a převod v `core/telegram/Giveaway.kt`, testy `GiveawayTest`.
+
+- **Stav účasti NENÍ ve zprávě** — je to dotaz na server (`getGiveawayInfo`), a proto se ptá až
+  sheet, ne každá karta. Hotová soutěž má přednost před stavem účastníka: zrušená (`wasRefunded`)
+  před výhrou, výhra = neprázdný `giftCode` nebo `wonStarCount > 0`.
+- **Výhru Premium nese dárkový kód** a ten jde zkopírovat (potvrzení fajfkou v tlačítku — snackbar
+  by zůstal pod modálním sheetem). Uplatnit ho Plume neumí, věta posílá do oficiální aplikace.
+- **Jména kanálů a výherců dohledává `resolveSender`** při převodu zprávy (záporné id = chat).
+  Kanál, který TDLib nezná, z karty vypadne — čip bez jména by nikam nevedl; výherce bez jména
+  zůstane v datech, ale nekreslí se. Výsledky nesou jen pořádající kanál, ostatní počtem
+  („a 2 další kanály").
+- **Čip vede do chatu nad konverzací** (`MessageAction.OpenChat`, cesta zmínky). U výsledků
+  `giveawayMessageId` míří do pořádajícího chatu; skok funguje, jen když výsledky v tomtéž chatu
+  jsou — jinak by vedl na id z cizího chatu.
+- **Tlačítka jsou pod sebou přes celou šířku karty.** Vedle sebe se „Zobrazit soutěž" do půlky
+  karty nevešlo a zkrátilo se.
+- **Bot soutěž nevyrobí** (pořádá ji jen kanál s boosty a Premium), takže se ověřuje sondou:
+  v `toChatMessage` text `#soutez` / `#vysledky` od testovacího bota převést na podstrčené
+  `MessageGiveaway` / `MessageGiveawayWinners` a v `giveawayStatus` vrátit stav podle textu.
+  Necommituje se. Ověřeno na emulátoru česky i anglicky, světle i tmavě: obě karty, sheet
+  „Soutěžíš" i výhra s kódem a kopírováním, skok se zvýrazněním, čip otevře chat. **Skutečná
+  soutěž a skutečné `getGiveawayInfo` ověřené NEJSOU**, iOS jen přeložené.
+
 ### Kontakt
 
 `MessageContact` je příloha `MessageMedia.Contact` a v bublině karta jako řádek souboru

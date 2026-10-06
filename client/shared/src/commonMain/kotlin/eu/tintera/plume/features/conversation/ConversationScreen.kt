@@ -2138,6 +2138,14 @@ fun ConversationScreen(
             )
         }
 
+        state.giveaway?.let { sheet ->
+            GiveawayStatusSheet(
+                sheet = sheet,
+                onCopyCode = viewModel::copyGiftCode,
+                onDismiss = viewModel::dismissGiveaway,
+            )
+        }
+
         state.pollVoters?.let { messageId ->
             state.messages.firstOrNull { it.id == messageId }?.poll?.let { poll ->
                 PollVotersSheet(

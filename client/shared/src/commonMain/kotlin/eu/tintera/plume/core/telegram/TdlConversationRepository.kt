@@ -2100,6 +2100,8 @@ class TdlConversationRepository(
                 // zná zprávu, která ho sdílí.
                 contactPhotoFileId = (content as? MessageContact)?.contact?.userId?.takeIf { it != 0L }
                     ?.let { client.getUser(userId = it).toResult().getOrNull()?.profilePhoto?.small?.id },
+                // Kanály soutěže a výherci z keše odesílatelů — ostatní zprávy na ni nesáhnou.
+                senderName = { id -> resolveSender(id)?.title },
             ),
             linkPreview = linkPreview(hideSensitive),
             article = body.article,
@@ -2699,6 +2701,9 @@ class TdlConversationRepository(
     override suspend fun sender(senderId: Long): Result<SenderInfo> =
         resolveSender(senderId)?.let { Result.success(it) }
             ?: Result.failure(IllegalStateException("Odesílatel $senderId není známý"))
+
+    override suspend fun giveawayStatus(chatId: Long, messageId: Long): Result<GiveawayStatus> =
+        client.getGiveawayInfo(chatId = chatId, messageId = messageId).toResult().map { it.toStatus() }
 
     override suspend fun summarizeMessage(chatId: Long, messageId: Long, languageCode: String?): Result<MessageBody> =
         client.summarizeMessage(

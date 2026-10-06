@@ -52,6 +52,7 @@ import eu.tintera.plume.resources.bot_unsupported_game
 import eu.tintera.plume.resources.bot_unsupported_password
 import eu.tintera.plume.core.telegram.SenderInfo
 import eu.tintera.plume.core.telegram.ForwardOrigin
+import eu.tintera.plume.core.telegram.GiveawayStatus
 import eu.tintera.plume.resources.invite_request_sent
 import eu.tintera.plume.resources.conversation_link_failed
 import eu.tintera.plume.resources.conversation_link_user_not_found
@@ -2484,6 +2485,32 @@ class ConversationViewModel(
     }
 
     /**
+     * Stav účasti v soutěži. Sheet se otevře hned a stav dorazí ze serveru (`getGiveawayInfo`);
+     * kdyby se čekalo s otevřením, ťuknutí by na chvíli vypadalo, že nic neudělalo.
+     */
+    private fun showGiveaway(messageId: Long) {
+        _state.update { it.copy(giveaway = GiveawaySheet(messageId), messageMenu = null) }
+        viewModelScope.launch {
+            val result = repository.giveawayStatus(chatId, messageId)
+                .onFailure { logger.w(it) { "Stav soutěže $messageId se nepodařilo zjistit" } }
+            _state.update { state ->
+                val sheet = state.giveaway?.takeIf { it.messageId == messageId } ?: return@update state
+                state.copy(giveaway = sheet.copy(status = result.getOrNull(), failed = result.isFailure))
+            }
+        }
+    }
+
+    fun dismissGiveaway() {
+        _state.update { it.copy(giveaway = null) }
+    }
+
+    /** Dárkový kód Premium do schránky; potvrzení ukáže sheet sám — snackbar by byl pod ním. */
+    fun copyGiftCode(code: String) {
+        viewModelScope.launch { clipboard.copy(code) }
+        _state.update { state -> state.copy(giveaway = state.giveaway?.copy(codeCopied = true)) }
+    }
+
+    /**
      * Ťuknutí na hlasujícího: uživatel otevře soukromý chat, chat (anonymní správce, kanál)
      * sám sebe. Id drží konvenci odesílatele — kladné uživatel, záporné chat.
      */
@@ -3425,6 +3452,8 @@ class ConversationViewModel(
             is MessageAction.OpenLink -> openLink(action.url)
             is MessageAction.OpenMention -> openMentioned { chatRepository.chatByUsername(action.username) }
             is MessageAction.OpenUser -> openMentioned { chatRepository.privateChat(action.userId) }
+            is MessageAction.OpenChat -> openMentioned { Result.success(action.chatId) }
+            MessageAction.ShowGiveaway -> showGiveaway(messageId)
             is MessageAction.SendBotCommand -> sendBotCommand(action.command)
             is MessageAction.UseInlineBot -> useInlineBot(action.username)
             is MessageAction.OpenSenderProfile -> openSenderProfile(action.userId)
@@ -5130,6 +5159,8 @@ data class ConversationState(
     val scheduledMessages: List<ChatMessage>? = null,
     /** Zpráva s anketou, jejíž hlasující ukazuje sheet; `null` = zavřený. */
     val pollVoters: Long? = null,
+    /** Sheet se stavem účasti v soutěži; `null` = zavřený. */
+    val giveaway: GiveawaySheet? = null,
     /** Zpráva s anketou, do které se přidává odpověď (dialog); `null` = zavřený. */
     val addingPollOption: Long? = null,
     /** Anketa, kterou uživatel chce ukončit a čeká se na potvrzení; `null` = žádná. */
@@ -5403,3 +5434,11 @@ data class SwitchInlinePick(val bot: String, val query: String, val target: Swit
  * jen první volání po startu načítá model; nabídka na něj čekat nemá.
  */
 private const val LANGUAGE_DETECTION_TIMEOUT_MS = 300L
+
+/** Sheet se stavem účasti v soutěži ze zprávy [messageId]; [status] je `null`, dokud nedorazí. */
+data class GiveawaySheet(
+    val messageId: Long,
+    val status: GiveawayStatus? = null,
+    val failed: Boolean = false,
+    val codeCopied: Boolean = false,
+)

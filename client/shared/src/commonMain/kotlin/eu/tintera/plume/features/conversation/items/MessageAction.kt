@@ -122,6 +122,12 @@ sealed interface MessageAction {
     /** Zmínka uživatele bez veřejného jména: soukromý chat s ním. */
     data class OpenUser(val userId: Long) : MessageAction
 
+    /** Kanál ze soutěže: otevřít ho nad konverzací. */
+    data class OpenChat(val chatId: Long) : MessageAction
+
+    /** Soutěž: sheet se stavem účasti tohoto účtu (`getGiveawayInfo`). */
+    data object ShowGiveaway : MessageAction
+
     /**
      * „Přeposláno od …": zdroj přeposlání. Příspěvek kanálu skočí na původní zprávu, uživatel
      * otevře soukromý chat s ním; původ z téhož chatu skočí na místě, jako citace.

@@ -2036,4 +2036,64 @@
     <string name="chats_sponsor_announcement_explanation">Veřejné oznámení od Telegramu.</string>
     <string name="chats_sponsor_open_proxy">Nastavení proxy</string>
     <string name="chats_sponsor_hide">Skrýt oznámení</string>
+    <string name="giveaway_title">Soutěž</string>
+    <string name="giveaway_results_title">Výsledky soutěže</string>
+    <string name="giveaway_prize_premium">%1$s × Telegram Premium na %2$s</string>
+    <string name="giveaway_prize_premium_plain">%1$s × Telegram Premium</string>
+    <plurals name="giveaway_premium_months">
+        <item quantity="one">%1$d měsíc</item>
+        <item quantity="few">%1$d měsíce</item>
+        <item quantity="other">%1$d měsíců</item>
+    </plurals>
+    <plurals name="giveaway_prize_stars">
+        <item quantity="one">%1$s hvězda</item>
+        <item quantity="few">%1$s hvězdy</item>
+        <item quantity="other">%1$s hvězd</item>
+    </plurals>
+    <plurals name="giveaway_stars_split">
+        <item quantity="one">pro %1$d výherce</item>
+        <item quantity="few">rozdělí se mezi %1$d výherce</item>
+        <item quantity="other">rozdělí se mezi %1$d výherců</item>
+    </plurals>
+    <string name="giveaway_extra">Navíc: %1$s</string>
+    <string name="giveaway_participants">Soutěží odběratelé</string>
+    <plurals name="giveaway_more_channels">
+        <item quantity="one">a %1$d dalšího kanálu</item>
+        <item quantity="few">a %1$d další kanály</item>
+        <item quantity="other">a %1$d dalších kanálů</item>
+    </plurals>
+    <string name="giveaway_only_new">Jen ti, kdo začnou odebírat po vyhlášení</string>
+    <string name="giveaway_countries">Ze zemí: %1$s</string>
+    <string name="giveaway_draws_at">Losuje se %1$s</string>
+    <string name="giveaway_drawn_at">Vylosováno %1$s</string>
+    <string name="giveaway_winners">Výherci</string>
+    <plurals name="giveaway_winners_drawn">
+        <item quantity="one">Vylosován %1$d výherce</item>
+        <item quantity="few">Vylosováni %1$d výherci</item>
+        <item quantity="other">Vylosováno %1$d výherců</item>
+    </plurals>
+    <plurals name="giveaway_unclaimed">
+        <item quantity="one">%1$d výhra zůstala nevyzvednutá</item>
+        <item quantity="few">%1$d výhry zůstaly nevyzvednuté</item>
+        <item quantity="other">%1$d výher zůstalo nevyzvednutých</item>
+    </plurals>
+    <string name="giveaway_refunded">Telegram soutěž zrušil a výhry vrátil pořadateli.</string>
+    <string name="giveaway_details">Podrobnosti</string>
+    <string name="giveaway_show_announcement">Zobrazit soutěž</string>
+    <string name="giveaway_status_title">Tvoje účast</string>
+    <string name="giveaway_status_participating">Soutěžíš — odebíráš některý z kanálů.</string>
+    <string name="giveaway_status_eligible">Stačí do losování odebírat některý z kanálů.</string>
+    <string name="giveaway_status_already_member">Soutěží jen noví odběratelé a ty kanál odebíráš od %1$s.</string>
+    <string name="giveaway_status_administrator">Správci kanálu ve vlastní soutěži nesoutěží.</string>
+    <string name="giveaway_status_country">Soutěž není pro zemi %1$s.</string>
+    <string name="giveaway_status_not_won">Tentokrát výhra nepadla na tebe.</string>
+    <plurals name="giveaway_status_won_stars">
+        <item quantity="one">Vyhráváš %1$s hvězdu!</item>
+        <item quantity="few">Vyhráváš %1$s hvězdy!</item>
+        <item quantity="other">Vyhráváš %1$s hvězd!</item>
+    </plurals>
+    <string name="giveaway_status_won_premium">Vyhráváš Telegram Premium! Aktivuj ho tímhle dárkovým kódem v oficiální aplikaci Telegramu.</string>
+    <string name="giveaway_status_failed">Stav účasti v soutěži se nepodařilo zjistit.</string>
+    <string name="giveaway_copy_code">Kopírovat kód</string>
+    <string name="giveaway_code_copied">Kód zkopírován</string>
 </resources>

@@ -363,6 +363,13 @@ interface ConversationRepository {
     suspend fun fullArticle(chatId: Long, messageId: Long): Result<ChatMessage> = message(chatId, messageId)
 
     /**
+     * Jak je na tom tenhle účet se soutěží ze zprávy [messageId]: účastní se, může se zapojit,
+     * vyhrál… (`getGiveawayInfo`). Dotaz na server — volá ho až sheet podrobností.
+     */
+    suspend fun giveawayStatus(chatId: Long, messageId: Long): Result<GiveawayStatus> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
      * Skladby v chatu hned před [messageId] a hned za ní — playlist hudby, který musí jít dál
      * i bez otevřené konverzace (přehrávání na pozadí, další skladba z notifikace).
      */
@@ -2199,6 +2206,32 @@ sealed interface MessageMedia {
          * se u něj nenabízí.
          */
         val isThisChat: Boolean = false,
+    ) : MessageMedia
+
+    /**
+     * Soutěž v kanálu (`MessageGiveaway`) a její výsledky (`MessageGiveawayWinners`, pak
+     * [results] není `null`): karta s výhrou, kanály, podmínkami a datem losování. Dřív to byl
+     * jen řádek „Soutěž", ze kterého nebylo poznat, co a kdy se losuje.
+     */
+    data class Giveaway(
+        val prize: GiveawayPrize,
+        val winnerCount: Int,
+        /** Výhra navíc od pořadatele („a tričko"); prázdné, když ji nepřidal. */
+        val prizeDescription: String,
+        /**
+         * Kanály, jejichž odběratelé soutěží: pořadatel první. U výsledků jen pořadatel —
+         * ostatní kanály oznámení nese jen počtem ([GiveawayResults.additionalChatCount]).
+         */
+        val chats: List<GiveawayChat>,
+        /** Kdy se losuje, u výsledků kdy se vylosovalo. */
+        val selectionDate: Long,
+        /** Soutěží jen ti, kdo kanál začnou odebírat po vyhlášení. */
+        val onlyNewMembers: Boolean,
+        /** Kódy zemí ISO 3166-1, odkud se smí soutěžit; prázdné = odkudkoli. */
+        val countryCodes: List<String>,
+        /** Samolepka, kterou Telegram k vyhlášení přikládá (dárek s počtem měsíců). */
+        val sticker: Sticker? = null,
+        val results: GiveawayResults? = null,
     ) : MessageMedia
 }
 

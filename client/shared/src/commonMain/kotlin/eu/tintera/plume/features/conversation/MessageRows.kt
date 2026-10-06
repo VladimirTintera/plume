@@ -272,6 +272,8 @@ private val MessageMedia.carriesCaption: Boolean
         is MessageMedia.PaidMedia,
         // Faktura ani hra popisek nemají; jejich text je popis zboží od bota.
         is MessageMedia.Product,
+        // Soutěž popisek nemá; výhru navíc píše pořadatel při vyhlášení.
+        is MessageMedia.Giveaway,
         -> false
     }
 
