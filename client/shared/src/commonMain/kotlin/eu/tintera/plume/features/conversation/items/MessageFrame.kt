@@ -1475,8 +1475,7 @@ internal fun MessageBodyScope.Attachment(
         videoNote = VideoNoteHandlers(
             sounding = { items.videoNoteSounding(id) },
             onToggleSound = { act(MessageAction.ToggleVideoNoteSound) },
-            onSoundEnded = { act(MessageAction.VideoNoteSoundEnded) },
-            soundFromMs = { items.videoNoteSoundFromMs() },
+            shared = { items.soundingVideoNote(id) },
         ),
         voice = VoiceHandlers(
             playback = { items.voicePlayback(id) },

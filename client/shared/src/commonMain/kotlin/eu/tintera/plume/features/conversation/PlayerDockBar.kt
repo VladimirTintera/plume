@@ -62,6 +62,8 @@ internal data class DockedPlayer(
     val coverFileId: Int? = null,
     /** Další skladba v chatu ([eu.tintera.plume.core.audio.MusicQueue]); u hlasovky nikdy. */
     val hasNext: Boolean = false,
+    /** Video kolečko se zvukem: v tlačítku hraje jeho obraz, [coverFileId] je jeho náhled. */
+    val video: Boolean = false,
 )
 
 /**
@@ -78,7 +80,8 @@ internal fun VoicePlayback.docksIn(chatId: Long): Boolean = when {
 }
 
 /**
- * Mini přehrávač: řádek docku pro hrající hudbu a hlasovku, jejichž zpráva odjela z obrazovky.
+ * Mini přehrávač: řádek docku pro hrající hudbu, hlasovku a kolečko se zvukem, jejichž zpráva
+ * odjela z obrazovky.
  * Dokud hraje, zůstává po ruce pauza, „další" a zastavení — dřív se odscrollovaná hlasovka
  * zastavit nedala vůbec a hudba jen z notifikace.
  *
@@ -89,6 +92,8 @@ internal fun VoicePlayback.docksIn(chatId: Long): Boolean = when {
  * - **Barva říká, čeho se týká**: hlas je v aplikaci terciární (jako odesílací tlačítko při
  *   nahrávání), hudba primární.
  * - **Ťuknutí na text vede ke zprávě**, u skladby z jiného chatu do toho chatu.
+ * - **Kolečko hraje přímo v tlačítku** ([video]): obraz kreslí dock, až je kolečko víc v docku
+ *   než v seznamu — do té doby je v tlačítku jeho náhled.
  */
 @Composable
 internal fun PlayerDockBar(
@@ -101,6 +106,8 @@ internal fun PlayerDockBar(
     onStop: () -> Unit,
     onShow: () -> Unit,
     glass: Modifier = Modifier,
+    /** Obraz hrajícího kolečka; kreslí se přes náhled ([DockedPlayer.coverFileId]). */
+    video: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val scheme = MaterialTheme.colorScheme
@@ -127,7 +134,7 @@ internal fun PlayerDockBar(
                     .padding(start = DOCK_BADGE_INSET, end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                PlayButton(player, playback, accent, container, onContainer, onToggle)
+                PlayButton(player, playback, accent, container, onContainer, onToggle, video)
                 Column(
                     Modifier
                         .weight(1f)
@@ -167,6 +174,7 @@ private fun PlayButton(
     container: Color,
     onContainer: Color,
     onToggle: () -> Unit,
+    video: (@Composable () -> Unit)?,
 ) {
     // Ikona se mění jen při spuštění a pauze, ne s každým posunem pozice.
     val playing by remember(playback) { derivedStateOf { playback()?.playing == true } }
@@ -181,18 +189,18 @@ private fun PlayButton(
             .clickable(role = Role.Button, onClick = onToggle)
             .semantics { contentDescription = label },
     ) {
-        player.coverFileId?.let { cover ->
-            RemoteImage(fileId = cover, modifier = Modifier.fillMaxSize())
-            // Ikona i průběh musí být vidět i na světlém obalu.
-            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = COVER_SCRIM_ALPHA)))
-        }
-        val tint = if (player.coverFileId != null) Color.White else onContainer
+        val covered = player.coverFileId != null || video != null
+        player.coverFileId?.let { cover -> RemoteImage(fileId = cover, modifier = Modifier.fillMaxSize()) }
+        video?.invoke()
+        // Ikona i průběh musí být vidět i na světlém obalu.
+        if (covered) Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = COVER_SCRIM_ALPHA)))
+        val tint = if (covered) Color.White else onContainer
         if (loading) {
             CircularProgressIndicator(color = tint, strokeWidth = RING_WIDTH, modifier = Modifier.fillMaxSize().padding(RING_WIDTH / 2))
         } else {
             CircularProgressIndicator(
                 progress = { playback()?.progress ?: 0f },
-                color = if (player.coverFileId != null) Color.White else accent,
+                color = if (covered) Color.White else accent,
                 trackColor = Color.Transparent,
                 strokeWidth = RING_WIDTH,
                 gapSize = 0.dp,

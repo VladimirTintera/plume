@@ -109,6 +109,7 @@ import eu.tintera.plume.features.conversation.items.MenuAnchor
 import eu.tintera.plume.features.conversation.items.MenuCopy
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageItem
+import eu.tintera.plume.features.conversation.items.SoundingVideoNote
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_reaction_24dp
 import eu.tintera.plume.resources.common_cancel
@@ -652,6 +653,11 @@ private class InertItemScope(scope: ConversationItemScope) : ConversationItemSco
 
     // Hod v kopii neproběhne znovu, ukáže výsledek — házelo se v seznamu.
     override fun claimDiceThrow(key: Long, timestamp: Int): Boolean = false
+
+    // Kolečko se zvukem kreslí jen jedna plocha (bublina, nebo dock); kopie hraje potichu.
+    override fun videoNoteSounding(messageId: Long): Boolean = false
+
+    override fun soundingVideoNote(messageId: Long): SoundingVideoNote? = null
 }
 
 /**

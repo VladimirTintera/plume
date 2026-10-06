@@ -70,8 +70,8 @@ internal interface ConversationItemScope {
     /** Hraje video kolečko téhle zprávy se zvukem? Nejvýš jedno v konverzaci. */
     fun videoNoteSounding(messageId: Long): Boolean = false
 
-    /** Odkud hraje kolečko se zvukem (čas v médiu); nula = od začátku. */
-    fun videoNoteSoundFromMs(): Long = 0L
+    /** Přehrávač kolečka téhle zprávy, když hraje se zvukem; drží ho obrazovka, ne položka. */
+    fun soundingVideoNote(messageId: Long): SoundingVideoNote? = null
 
     /** Zvolená rychlost přehrávání hlasovek; jedna pro celou aplikaci. */
     fun voiceSpeed(): VoiceSpeed

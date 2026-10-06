@@ -7420,8 +7420,23 @@ skočí na zprávu. Kdo do docku patří, je `VoicePlayback.docksIn` (testy `Pla
   z jiného chatu v ní není.
 - **✕ u hudby jde přes `MusicQueue.stop`**, u hlasovky přes `VoicePlayer.stop` — fronta jinak
   po zastavení navázala další skladbou.
-- **Kolečko se zvukem v docku NENÍ.** Jeho přehrávač žije v kompozici položky a odscrollováním
-  zmlkne (`VideoNoteSoundEnded`), takže by řádek jen problikl.
+- **Kolečko se zvukem hraje v docku dál, i obrazem** (`SoundingVideoNote`,
+  `rememberSoundingVideoNote` v `items/SoundingVideoNote.kt`): v kolečku na místě tlačítka běží
+  živé video s průběhem po obvodu, „Notifikator · Video zpráva · 0:23 / 0:39".
+  - **Přehrávač kolečka se zvukem patří OBRAZOVCE, ne položce.** Dokud ho držela položka,
+    kolečko s odscrollováním zmlklo (přehrávač odešel s kompozicí) a dock neměl co ukázat.
+    Bublina si ho bere přes `ConversationItemScope.soundingVideoNote`, tichou smyčku dál hraje
+    vlastním přehrávačem. Kopie v nabídce nad zprávou dostává `null` — hraje potichu.
+  - **Obraz kreslí VŽDYCKY JEN JEDNA plocha** (`SoundingVideoNote.docked`): video jde na Androidu
+    do `TextureView` a přehrávač má jediný výstup — plocha, která by o něj přišla, zůstala viset
+    na posledním snímku. Předává se v polovině vysunutí docku (`VIDEO_NOTE_HANDOFF`), takže
+    v bublině odjíždějící z obrazovky i v kolečku docku je obraz vždycky jen tam, kde je víc vidět.
+  - **Zvuk vrací jen odchod z obrazovky, dohrání a ✕** (`VideoNoteSoundEnded`), ne odscrollování.
+    Pozastavené kolečko se v bublině i v docku pustí dál ťuknutím, nezačíná znovu.
+  - **Ověřeno na emulátoru** čtyřicetivteřinovým kolečkem od testovacího bota: dock s živým
+    obrazem a časem, pauza a pokračování z docku, ✕ (bublina se vrátí do tiché smyčky), dohrání
+    (dock zmizí), návrat scrollem (bublina hraje dál, čas běží), skok na zprávu ťuknutím. iOS jen
+    přeložené.
 - **Ověřeno na emulátoru** (anglicky) dvěma skladbami a hlasovkou od testovacího bota: vysunutí
   při scrollu, pauza, „další" (u poslední skladby není), skok na zprávu ťuknutím (dock zmizí,
   zpráva zvýrazněná), ✕, skladba z Notifikátora v docku Uložených zpráv. iOS jen přeložené.
@@ -7488,9 +7503,10 @@ týmž přehrávačem jako video (`MessageMedia.Animation`, `AnimationBubble`).
 - **Se zvukem hraje jedno kolečko na konverzaci a rozhoduje ViewModel**
   (`ConversationState.soundingVideoNote`), ne kolečko samo: ví i o hlasovkách. Kolečko se
   zvukem zastaví hlasovku, hlasovka a nahrávání umlčí kolečko.
-- **Kolečko, které odjede z obrazovky, zvuk vrátí** (`onDispose` → `VideoNoteSoundEnded`).
-  Přehrávač odchází s kompozicí položky, takže by zmlklo tak jako tak — jen by ViewModel dál
-  věřil, že hraje, a po návratu by se kolečko samo rozeznělo.
+- **Kolečko se zvukem hraje dál i odscrollované** — přehrávač má obrazovka a kolečko přejde do
+  docku (viz „Mini přehrávač v docku"). Zvuk vrací (`VideoNoteSoundEnded`) až odchod
+  z obrazovky, dohrání nebo ✕; jinak by ViewModel dál věřil, že hraje, a po návratu by se
+  kolečko samo rozeznělo.
 - **Audio focus drží jen kolečko se zvukem** — ztlumený přehrávač o něj nežádá (viz „GIFy"),
   takže tichá smyčka nezastaví hudbu. Ověřeno `dumpsys audio`: focus stack je prázdný při
   smyčce, `GAIN` od Plume jen se zvukem a po dohrání zase prázdný.
@@ -10313,6 +10329,15 @@ vkus toho, kdo zrovna píše obrazovku.
   pozná jedině rukou na telefonu.**
 
 ## Gotchas
+
+- **`ConversationScreen` je v dexu na hraně a nová logika patří do VLASTNÍ funkce.** Po přidání
+  docku přehrávače přímo do ní měla funkce 275 registrů a otevření každého chatu padalo na
+  `NullPointerException … Composer.sourceInformationMarkerStart` na `null` v
+  `rememberComposableLambda` u `bottomBar = {`. Dřívější verze měla 253 registrů a fungovala, po
+  vytažení do `rememberPlayerDock` / `ConversationPlayerDock` má 268 a funguje. **Mechanismus
+  (D8 nebo ART) ověřený NENÍ** — jisté je jen, že vytažení pomohlo. Kdo přidává do
+  `ConversationScreen`, ať aplikaci po změně otevře v chatu, ne jen přeloží; počet registrů
+  ukáže `dexdump -d` nad APK (`registers` u `ConversationScreen(`).
 
 - **`adb shell input text` do pole BEZ fokusu jde jako klávesnice do obrazovky a mezera
   (`keyevent 62`) „ťukne" na zaostřené tlačítko.** Formulář ankety se tak zavřel přes Zavřít,
