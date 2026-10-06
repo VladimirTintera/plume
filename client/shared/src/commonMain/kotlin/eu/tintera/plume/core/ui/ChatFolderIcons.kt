@@ -1,5 +1,17 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.painterResource
+
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.campaign_24dp
 import eu.tintera.plume.resources.celebration_24dp
@@ -110,3 +122,18 @@ internal val CHAT_FOLDER_ICONS: List<FolderIconChoice> = listOf(
 /** Ikona ke jménu od TDLib; bez jména nebo s neznámým obecná složka. */
 internal fun folderIcon(name: String?): DrawableResource =
     CHAT_FOLDER_ICONS.firstOrNull { it.name == name }?.icon ?: Res.drawable.folder_24dp
+
+/** Ikona v tónovaném kolečku, jako u pozvánek; akce v akcentu, složka tlumeně. */
+@Composable
+internal fun FolderIcon(icon: DrawableResource, accent: Boolean) {
+    Surface(
+        shape = CircleShape,
+        color = if (accent) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+        contentColor = if (accent) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.size(40.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(20.dp))
+        }
+    }
+}

@@ -17,6 +17,7 @@ import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.MessageEntity
+import eu.tintera.plume.core.telegram.RecommendedChatFolder
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.ConnectionState
 import eu.tintera.plume.core.telegram.SpamActions
@@ -43,6 +44,7 @@ import kotlinx.coroutines.launch
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_action_failed
+import eu.tintera.plume.resources.chat_folders_failed
 
 /**
  * Seznam jedné složky — hlavních chatů, nebo archivu. Obrazovky se liší jen hlavičkou (archiv
@@ -58,7 +60,7 @@ class ChatsViewModel(
     val appUpdates: AppUpdates,
     private val devices: DeviceRepository,
     private val accounts: AccountRepository,
-    /** Filtr přežije zabití procesu v pozadí; nové spuštění aplikace začne na všech chatech. */
+    /** Vybraná složka přežije zabití procesu v pozadí; nové spuštění začne na všech chatech. */
     private val savedState: SavedStateHandle = SavedStateHandle(),
     /** „Přidat do složky" v nabídce nad chatem; bez něj se položka nenabízí. */
     private val folderRepository: ChatFolderRepository? = null,
@@ -192,25 +194,53 @@ class ChatsViewModel(
      */
     val reportFlow = ReportFlow(viewModelScope, repository::report)
 
-    private val _filter = MutableStateFlow(
-        savedState.get<String>(FILTER_KEY)?.let { name -> ChatFilter.entries.find { it.name == name } }
-            ?: ChatFilter.All,
-    )
+    private val _folderSuggestions = MutableStateFlow<FolderSuggestions?>(null)
 
     /**
-     * Filtr z plovoucího toolbaru (jen hlavní seznam). Žije s položkou navigace: návrat
-     * z konverzace ho zachová a přes [SavedStateHandle] přežije i zabití procesu v pozadí — kdo se
-     * vrátí do obnovené konverzace, nemá najít přepnutý filtr. Nové spuštění aplikace ale začne na
-     * všech chatech: filtr je chvilkové zúžení, ne nastavení, a uložené Nepřečtené by při startu
-     * vypadaly jako seznam, ze kterého zmizely chaty.
-     *
-     * Ukládá se názvem, ne pořadím — stejně jako výčty v `AppSettings`.
+     * Sheet za „+" na konci řádku složek: doporučené složky od Telegramu a cesta do správy složek.
+     * `null` = zavřený. Doporučené se čtou při každém otevření — server je počítá podle toho, jaké
+     * složky už uživatel má, a přidaná z nabídky zmizí.
      */
-    val filter: StateFlow<ChatFilter> = _filter.asStateFlow()
+    val folderSuggestions: StateFlow<FolderSuggestions?> = _folderSuggestions.asStateFlow()
 
-    fun setFilter(filter: ChatFilter) {
-        _filter.value = filter
-        savedState[FILTER_KEY] = filter.name
+    fun openFolderSuggestions() {
+        val repo = folderRepository ?: return
+        _folderSuggestions.value = FolderSuggestions()
+        viewModelScope.launch {
+            val recommended = repo.recommended().getOrElse { failure ->
+                // Bez doporučených zůstane v sheetu nová složka a správa — slepá ulička to není.
+                logger.w(failure) { "Doporučené složky se nepodařilo načíst." }
+                emptyList()
+            }
+            _folderSuggestions.update { it?.copy(loading = false, recommended = recommended) }
+        }
+    }
+
+    fun closeFolderSuggestions() {
+        _folderSuggestions.value = null
+    }
+
+    /**
+     * Založí doporučenou složku a rovnou ji vybere — kdo si „Nepřečtené" přidá, chce je vidět,
+     * ne hledat v řádku. Server ji do řádku pošle sám (`UpdateChatFolders`); výběr se uloží hned,
+     * a dokud složka v řádku není, platí celý seznam ([selectedFolderId]).
+     */
+    fun addRecommendedFolder(recommended: RecommendedChatFolder) {
+        val repo = folderRepository ?: return
+        val state = _folderSuggestions.value?.takeIf { it.adding == null } ?: return
+        _folderSuggestions.value = state.copy(adding = recommended.draft.title)
+        viewModelScope.launch {
+            repo.create(recommended.draft)
+                .onSuccess { id ->
+                    _folderSuggestions.value = null
+                    selectFolder(id)
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Doporučenou složku se nepodařilo založit." }
+                    _folderSuggestions.update { it?.copy(adding = null) }
+                    _actions.update { it.copy(error = failure.userMessage(Res.string.chat_folders_failed)) }
+                }
+        }
     }
 
     private val _account = MutableStateFlow<AccountInfo?>(null)
@@ -579,7 +609,6 @@ data class BlockChange(val chatId: Long, val blocked: Boolean)
 val ChatSummary.hasUnread: Boolean get() = unreadCount > 0 || isMarkedAsUnread
 
 /** Klíč filtru v [SavedStateHandle] seznamu chatů. */
-private const val FILTER_KEY = "filter"
 
 /** Klíč vybrané složky Telegramu v [SavedStateHandle]. */
 private const val FOLDER_KEY = "folder"
