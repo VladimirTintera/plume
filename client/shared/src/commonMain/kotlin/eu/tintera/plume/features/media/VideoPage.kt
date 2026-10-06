@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.media
 
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.mandatorySystemGestures
@@ -647,6 +648,21 @@ internal fun VideoPage(
                             activeTrackColor = Color.White,
                             inactiveTrackColor = Color.White.copy(alpha = 0.35f),
                         ),
+                        /*
+                         * Dráha se vlní, dokud video hraje, a po pozastavení i během tahu se
+                         * narovná — tentýž význam jako vlnka hrající hlasovky („teď zní", viz
+                         * `CLAUDE.md`, „Video"). Přechod amplitudy animuje indikátor sám.
+                         */
+                        track = { sliderState ->
+                            val wavy = playing && seekingFraction == null
+                            LinearWavyProgressIndicator(
+                                progress = { sliderState.value },
+                                color = Color.White,
+                                trackColor = Color.White.copy(alpha = 0.35f),
+                                amplitude = { if (wavy) 1f else 0f },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        },
                         modifier = Modifier.weight(1f),
                     )
                     Text(

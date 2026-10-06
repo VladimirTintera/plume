@@ -7827,6 +7827,12 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
 - **Tah na zavření posouvá video `offset`em, ne `graphicsLayer`** — nativní view (UIKit) dostane
   jen pozici z layoutu, transformaci vrstvy ne.
 - **Náhled MPEG-4 se zahazuje** (`ThumbnailFormatMpeg4`) — není to obrázek a Coil ho neotevře.
+- **Dráha posuvníku se vlní, dokud video hraje** (`LinearWavyProgressIndicator` ve slotu
+  `track` u `Slider`), po pozastavení, dohrání i během tahu je rovná. Tentýž význam jako vlnka
+  hrající hlasovky („teď zní") a jako systémový přehrávač médií. Přechod amplitudy animuje
+  indikátor sám, stačí mu podat 0 nebo 1. Vlnky se posouvají jen s viditelným ovládáním —
+  schované ovládání odchází z kompozice i s animací. Ověřeno na emulátoru (hraje / pozastaveno),
+  iOS jen přeložené.
 - **Rychlost a ztlumení jsou v liště pod videem**, za časem: čip rychlosti (tentýž `SpeedChip`
   a stupně 1× / 1,5× / 2× jako u hlasovky) a reproduktor. Na přehrávači `setSpeed` a `setMuted`.
   - **Rychlost si aplikace pamatuje zvlášť od hlasovek** (`AppSettings.videoSpeed`): kdo poslouchá
