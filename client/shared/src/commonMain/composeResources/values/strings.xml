@@ -189,6 +189,7 @@
     <string name="media_profile_photo_set">Profile photo changed</string>
     <string name="media_profile_photo_failed">Couldn't change the profile photos</string>
     <string name="media_video_download_failed">Couldn't download the video.</string>
+    <string name="media_video_playback_failed">Couldn't play the video. Try again.</string>
     <string name="media_download_progress">Download progress</string>
     <string name="media_play">Play</string>
     <string name="media_pause">Pause</string>
