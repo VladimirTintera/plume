@@ -302,6 +302,42 @@ tedy o poskytovatelích nemusí vědět nic.
   v chatu, takže je v GiB — katalog Gallery uvádí 2,6 GB v desítkových. Po selhání tlačítko
   slibuje „Pokračovat ve stahování": stažený kus se nezahazuje.
 - **Stahovaný model jde smazat, systémový ne** (`ModelVariant.appManaged`, `OnDeviceAi.delete`).
+- **Gemmu stahuje úloha WorkManageru, ne korutina v procesu** (`ModelDownloadWorker` v `core/ai`,
+  vedle `LiteRtOnDeviceAi`). Dokud stahovala korutina, skončilo stahování se zabitým procesem
+  a navázalo až dalším ťuknutím v Nastavení. Stahuje pořád `LiteRtOnDeviceAi` (i s čekáním na
+  síť), úloha jen drží proces a ukazuje notifikaci průběhu se „Zastavit"; stav pro obrazovku je
+  v téže instanci (proto je `LiteRtOnDeviceAi` v Koinu samostatný `single`). WorkManager je kvůli
+  tomu i v `:client:shared` — v aplikaci byl už dřív, APK se nezměnilo.
+  - **Služba v popředí `dataSync`, jen když ji systém pustí.** Po zabití procesu spustí
+    WorkManager úlohu z pozadí a Android 12+ tam službu v popředí odmítne
+    (`ForegroundServiceStartNotAllowedException`). Úloha pak stahuje jako běžná a notifikaci
+    ukazuje sama; po limitu běžné úlohy ji systém zastaví, WorkManager spustí znovu a `.part`
+    naváže. Ověřeno: po `kill -9` do 5 s nový proces bez služby v popředí, stahování pokračovalo
+    od 751 MB. Když se aplikace mezitím otevře, rozběhne se úloha i se službou.
+  - **`JobCancellationException` JE `IllegalStateException`.** `catch (IllegalStateException)`
+    kolem `setForeground` chytal i zrušení úlohy a dokončené stahování vypadalo jako odepřená
+    služba v popředí. Zrušení se proto chytá a posílá dál dřív.
+  - **Podmínka sítě (`NetworkType.CONNECTED`), ne jen smyčka v `fetch`.** Bez sítě by úloha
+    držela službu v popředí hodiny naprázdno. Při ztrátě sítě ji WorkManager zastaví
+    (`STOP_REASON_CONSTRAINT_CONNECTIVITY` → obrazovka „Čekám na připojení") a s návratem
+    spustí znovu. Krátký výpadek, o kterém systém ještě neví, přečká smyčka jako dřív.
+  - **Důvod zastavení rozhoduje, co ukázat** (`getStopReason`): `CANCELLED_BY_APP` = uživatel
+    zastavil („Zastavit" v notifikaci je `createCancelPendingIntent`), cokoli jiného = systém
+    a úloha se vrátí, takže pro obrazovku se pořád stahuje.
+  - **Spuštěná úloha zapíše stav NAČISTO**, i když už nějaký byl: jinak by po návratu sítě visel
+    starý příznak čekání, než přijdou první 4 MB.
+  - **Zastavit jde z notifikace i z Nastavení** a zčásti stažený model má vlastní stav
+    (`OnDeviceAiStatus.Paused`: `.part` je, úloha není) s „Pokračovat ve stahování" a „Zahodit
+    staženou část". Stahování, které přežije zabití aplikace, by jinak nešlo zastavit vůbec,
+    a gigabajt rozstahovaného modelu by nešel smazat.
+  - **Play chce typ `dataSync` vysvětlit** v deklaraci služeb v popředí (Play Console → Obsah
+    aplikace), stejně jako `mediaPlayback` u hudby. Bez ní neprojde další release.
+  - **Ověřeno na emulátoru sondou** (Pixel_9 se 4 GB, kontrola paměti v `deviceCanRun` dočasně
+    vypnutá; necommituje se — stahování na paměti nezávisí): stažení celého E2B (velikost sedí
+    na bajt) s notifikací „Model … je stažený", zabití procesu za běhu, „Zastavit" z notifikace
+    i z Nastavení, letový režim (čekání, zastavení úlohy, navázání), zahození části a smazání.
+    **Release build (R8) s úlohou ověřený není** — workery drží keep pravidla WorkManageru,
+    na kterých stojí i notifikační úlohy.
 - **Engine je v paměti nejvýš jeden a po dvou minutách nečinnosti se uvolní** — drží gigabajty
   RAM. Načtení trvá až deset sekund, proto ne hned po odpovědi (návrhy chodí po sobě).
   **Generování je jedno po druhém** (zámek): dvě konverzace nad jedním enginem LiteRT-LM neslibuje.
@@ -351,8 +387,9 @@ tedy o poskytovatelích nemusí vědět nic.
   podle limitu (`transcriptCharsFor`, tři znaky na token), pak nejvýš třikrát zkrátit úměrně
   přesahu (`shrunkTranscriptChars`). Pod shrnutím je model, tokeny a kolik zpráv se vešlo.
 - **Inferenci AICore pustí jen aplikaci v popředí** — z notifikace nebo úlohy to nepůjde.
-- **Stahování modelu běží v `appScope`**, odchod z Nastavení ho neruší; nová obrazovka se ve
-  stavu `Downloading` k němu připojí voláním `download()`.
+- **Sledování stahování běží v `appScope`**, odchod z Nastavení ho neruší; nová obrazovka se ve
+  stavu `Downloading` k němu připojí voláním `download()`. Samotné stahování Nano řídí AICore,
+  Gemmu úloha WorkManageru (viz výš).
 - **Zprávy ke shrnutí dává obrazovka** (`summarySource` nad `state.messages`, testy
   `ChatSummaryTest`), ale historie se kvůli němu nejdřív DOTÁHNE
   (`ConversationViewModel.loadForSummary`). Hned po otevření chatu je načtená jediná stránka,

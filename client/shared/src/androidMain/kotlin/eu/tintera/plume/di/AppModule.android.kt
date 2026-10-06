@@ -40,9 +40,10 @@ import org.koin.core.qualifier.named
 actual fun Module.platformModule() {
     // Model v zařízení: Gemini Nano v AICore, nebo Gemma přes LiteRT-LM, podle volby uživatele
     // (RoutingOnDeviceAi). Obojí jednou na proces — klienti ML Kitu i engine LiteRT-LM jsou drahé.
-    single<OnDeviceAi> {
-        RoutingOnDeviceAi(geminiNano = MlKitOnDeviceAi(), gemma = LiteRtOnDeviceAi(androidContext(), get()))
-    }
+    single<OnDeviceAi> { RoutingOnDeviceAi(geminiNano = MlKitOnDeviceAi(), gemma = get<LiteRtOnDeviceAi>()) }
+    // Zvlášť, protože ji potřebuje i úloha stahování (ModelDownloadWorker) — stav stahování,
+    // který ukazuje Nastavení, musí být TÝŽ, do kterého úloha zapisuje.
+    single { LiteRtOnDeviceAi(androidContext(), get()) }
     single { TelegramPaths(androidContext()) }
     single<DatabaseKeyStore> { KeystoreDatabaseKeyStore(androidContext()) }
     single { NotificationPermission(androidContext()) }

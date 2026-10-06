@@ -25,6 +25,9 @@ class RoutingOnDeviceAiTest {
         override suspend fun delete(variant: ModelVariant) {
             seen += variant
         }
+        override suspend fun stopDownload(variant: ModelVariant) {
+            seen += variant
+        }
     }
 
     @Test
@@ -63,6 +66,15 @@ class RoutingOnDeviceAiTest {
         val gemma = Recorder(OnDeviceAiStatus.Ready)
         RoutingOnDeviceAi(nano, gemma).delete(ModelVariant(provider = AiProvider.Gemma))
         assertEquals(1, gemma.seen.size)
+        assertEquals(emptyList(), nano.seen)
+    }
+
+    @Test
+    fun zastaveniStahovaniJdeZvolenemuPoskytovateli() = runTest {
+        val nano = Recorder(OnDeviceAiStatus.Downloading)
+        val gemma = Recorder(OnDeviceAiStatus.Downloading)
+        RoutingOnDeviceAi(nano, gemma).stopDownload(ModelVariant(provider = AiProvider.Gemma, fast = true, gemma = GemmaModel.E4B))
+        assertEquals(listOf(ModelVariant(provider = AiProvider.Gemma, gemma = GemmaModel.E4B)), gemma.seen)
         assertEquals(emptyList(), nano.seen)
     }
 

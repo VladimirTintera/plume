@@ -310,8 +310,9 @@ Z toho plyne pořadí, ve kterém se vyplatí featury stavět:
     tomu to celé je; E2B na emulátoru vyšla kvalitou zhruba jako Nano,
   - **velikost APK**: nativní knihovny přidají ~25 MB na ABI každému, i kde se Gemma nenabídne
     → Play Feature Delivery,
-  - **stahování na pozadí** — dnes běží v procesu aplikace a při jeho zabití navazuje až při
-    dalším ťuknutí; na gigabajty by patřil WorkManager s notifikací průběhu.
+  - ~~**stahování na pozadí**~~ — hotovo (úloha WorkManageru s notifikací průběhu a „Zastavit";
+    `CLAUDE.md`, „AI v zařízení"). Zbývá ověřit v release buildu a na telefonu a **vyplnit
+    v Play Console deklaraci služby v popředí `dataSync`**.
 - **Beta ML Kitu sledovat.** `1.0.0-beta4` je zatím nejnovější; novější verze může `Feature -1`
   opravit a preview zpřístupnit bez vlastního runtime. Stojí za to to při bumpu zkusit znovu.
 - **Kešování kontextu a `warmup()` nejsou využité.** Prompt API je nabízí (`Caches`,

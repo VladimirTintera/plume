@@ -35,6 +35,11 @@ class RoutingOnDeviceAi(
 
     override fun download(variant: ModelVariant): Flow<ModelDownload> = route(variant) { download(it) }
 
+    override suspend fun stopDownload(variant: ModelVariant) = when (variant.provider) {
+        AiProvider.GeminiNano -> geminiNano.stopDownload(variant.forGeminiNano())
+        AiProvider.Gemma -> gemma.stopDownload(variant.forGemma())
+    }
+
     override suspend fun countTokens(variant: ModelVariant, prompt: String): Int? = when (variant.provider) {
         AiProvider.GeminiNano -> geminiNano.countTokens(variant.forGeminiNano(), prompt)
         AiProvider.Gemma -> gemma.countTokens(variant.forGemma(), prompt)
