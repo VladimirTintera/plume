@@ -27,7 +27,9 @@ import dev.g000sha256.tdl.dto.PollMediaVideo
 import dev.g000sha256.tdl.dto.Video
 import dev.g000sha256.tdl.dto.MessageAnimatedEmoji
 import dev.g000sha256.tdl.dto.MessageAnimation
+import dev.g000sha256.tdl.dto.Audio
 import dev.g000sha256.tdl.dto.MessageAudio
+import dev.g000sha256.tdl.dto.VoiceNote
 import dev.g000sha256.tdl.dto.MessageCall
 import dev.g000sha256.tdl.dto.CallDiscardReason
 import dev.g000sha256.tdl.dto.CallDiscardReasonDeclined
@@ -778,26 +780,8 @@ internal suspend fun Message.messageMedia(
         fileName = content.document.fileName.ifBlank { getString(Res.string.content_file) },
     ).copy(isSensitive = hideSensitive)
 
-    is MessageAudio -> content.audio.let { audio ->
-        MessageMedia.Audio(
-            fileId = audio.audio.id,
-            title = audio.title.ifBlank { audio.fileName }.ifBlank { getString(Res.string.content_audio) },
-            performer = audio.performer.ifBlank { null },
-            fileName = audio.fileName.ifBlank { audio.title }.ifBlank { getString(Res.string.content_audio) },
-            mimeType = audio.mimeType,
-            durationSeconds = audio.duration,
-            sizeBytes = audio.audio.expectedSize,
-            coverFileId = audio.albumCoverThumbnail.picture()?.file?.id,
-            coverMinithumbnail = audio.albumCoverMinithumbnail?.toDomain(),
-        )
-    }
-    is MessageVoiceNote -> MessageMedia.VoiceNote(
-        fileId = content.voiceNote.voice.id,
-        durationSeconds = content.voiceNote.duration,
-        waveform = decodeWaveform(content.voiceNote.waveform),
-        isListened = content.isListened,
-        transcript = content.voiceNote.speechRecognitionResult?.toTranscript(),
-    )
+    is MessageAudio -> content.audio.toMedia(fallbackName = getString(Res.string.content_audio))
+    is MessageVoiceNote -> content.voiceNote.toMedia(isListened = content.isListened)
     is MessageSticker -> content.sticker.toMedia().copy(isSensitive = hideSensitive)
 
     // O textu a příloze rozhoduje jedna funkce, `animationFileId` — obě větve se nesmí rozejít.
@@ -903,6 +887,28 @@ internal fun Video.toMedia(
     selfDestructType = selfDestructType,
     supportsStreaming = supportsStreaming,
     minithumbnail = minithumbnail?.toDomain(),
+)
+
+/** Skladba; [fallbackName] je název, když soubor nemá ani titul, ani jméno. Zpráva i článek. */
+internal fun Audio.toMedia(fallbackName: String) = MessageMedia.Audio(
+    fileId = audio.id,
+    title = title.ifBlank { fileName }.ifBlank { fallbackName },
+    performer = performer.ifBlank { null },
+    fileName = fileName.ifBlank { title }.ifBlank { fallbackName },
+    mimeType = mimeType,
+    durationSeconds = duration,
+    sizeBytes = audio.expectedSize,
+    coverFileId = albumCoverThumbnail.picture()?.file?.id,
+    coverMinithumbnail = albumCoverMinithumbnail?.toDomain(),
+)
+
+/** Hlasovka. V článku se poslech nehlásí, takže je tam vždycky „poslechnutá". */
+internal fun VoiceNote.toMedia(isListened: Boolean = true) = MessageMedia.VoiceNote(
+    fileId = voice.id,
+    durationSeconds = duration,
+    waveform = decodeWaveform(waveform),
+    isListened = isListened,
+    transcript = speechRecognitionResult?.toTranscript(),
 )
 
 /** Soubor; [fileName] podává volající, prázdný název se nahrazuje jinde podle místa. */

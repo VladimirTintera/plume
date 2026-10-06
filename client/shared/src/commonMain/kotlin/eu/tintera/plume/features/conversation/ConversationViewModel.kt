@@ -566,7 +566,10 @@ class ConversationViewModel(
         // Dohraná hlasovka pustí další neposlechnutou; která to je, ví jedině konverzace.
         viewModelScope.launch {
             voicePlayer.completions.collect { finished ->
-                if (finished.chatId == chatId && !finished.isVoicePreview) playNextUnlistened(after = finished.messageId)
+                // Zvuk z článku (`part`) se neřetězí — „další neposlechnutá" po článku nedává smysl.
+                if (finished.chatId == chatId && !finished.isVoicePreview && finished.part == VoiceKey.NO_PART) {
+                    playNextUnlistened(after = finished.messageId)
+                }
             }
         }
 
@@ -3418,6 +3421,10 @@ class ConversationViewModel(
             is MessageAction.OpenForwardOrigin -> openForwardOrigin(action.origin)
             MessageAction.OpenComments -> openComments(messageId)
             MessageAction.ReadFullArticle -> readFullArticle(messageId)
+            is MessageAction.ToggleArticleAudio -> toggleArticleAudio(messageId, action.index)
+            is MessageAction.SeekArticleAudio ->
+                voicePlayer.seek(VoiceKey(chatId, messageId, part = action.index), action.fraction)
+            is MessageAction.OpenArticleDocument -> openArticleDocument(messageId, action.index)
             MessageAction.OpenDocument -> openDocument(messageId)
             MessageAction.CancelUpload -> cancelUpload(messageId)
             MessageAction.ExplainPaidMedia -> _state.update { it.copy(notice = UiText(Res.string.paid_media_unsupported)) }
@@ -3904,6 +3911,35 @@ class ConversationViewModel(
         }
     }
 
+    /** Médium článku podle pořadí; jen z načtené zprávy — co je vidět, je načtené. */
+    private fun articleMedia(messageId: Long, index: Int): MessageMedia? =
+        _state.value.messages.firstOrNull { it.id == messageId }?.article?.media?.firstOrNull { it.index == index }?.media
+
+    /** Soubor v článku: stejně jako soubor ve zprávě, jen se hledá v médiích článku. */
+    private fun openArticleDocument(messageId: Long, index: Int) {
+        val document = articleMedia(messageId, index) as? MessageMedia.Document ?: return
+        withDocument(document) { path, _ ->
+            if (!fileOpener.open(path, document.mimeType)) {
+                _state.update { it.copy(notice = UiText(Res.string.document_open_failed)) }
+            }
+        }
+    }
+
+    /**
+     * Zvuk nebo hlasovka v článku. Hraje TENTÝŽ přehrávač jako hlasovky (zvuk je v aplikaci
+     * jeden); klíč nese pořadí v článku. Skladba z článku nejde do fronty hudby na pozadí —
+     * sousedy fronta hledá mezi zprávami, a médium článku zpráva sama není.
+     */
+    private fun toggleArticleAudio(messageId: Long, index: Int) {
+        val fileId = when (val media = articleMedia(messageId, index)) {
+            is MessageMedia.VoiceNote -> media.fileId
+            is MessageMedia.Audio -> media.fileId
+            else -> return
+        }
+        _state.update { it.copy(soundingVideoNote = null) }
+        voicePlayer.toggle(VoiceKey(chatId, messageId, part = index)) { filePath(fileId) }
+    }
+
     /**
      * Stáhne soubor a otevře systémový dialog sdílení.
      *
@@ -3959,6 +3995,13 @@ class ConversationViewModel(
             is MessageMedia.Audio -> media.asDocument()
             else -> return
         }
+        withDocument(document, use)
+    }
+
+    private fun withDocument(
+        document: MessageMedia.Document,
+        use: suspend (path: String, document: MessageMedia.Document) -> Unit,
+    ) {
 
         // Druhé ťuknutí během čekání ho zruší. Bez toho by se z rozbitého stahování (mrtvé spojení,
         // odpověď, která nedorazí) nedalo dostat ven — kolečko by se točilo napořád.

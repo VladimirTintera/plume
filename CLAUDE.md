@@ -7814,8 +7814,16 @@ zmínky, hashtagy, příkazy, spoiler, vlastní emoji, datum.
   s `SearchMessagesFilterPhotoAndVideo` vrací (ověřeno sondou), Plume ho dřív zahodil, protože
   článek nemá `media`. Klíč dlaždice nese id i pořadí média, dlaždice otevře prohlížeč
   s `MediaRoute(fromSharedMedia = true, articleMedia = …)`.
-  Zvuk, hlasovka a soubor zůstávají slovem s popiskem; dřív z článku potichu vypadly
-  (`else -> Unit`).
+- **Zvuk, hlasovka a soubor v článku jsou řádek jako ve zprávě** (přehrát, posunout,
+  otevřít). Přehrávač i stahování souborů dřív počítaly s jedním médiem na zprávu: klíč
+  přehrávače proto nese pořadí zvuku ve zprávě (`VoiceKey.part`), akce článku nesou pořadí média
+  (`ToggleArticleAudio`, `SeekArticleAudio`, `OpenArticleDocument`) a stahování souboru jede
+  přes `withDocument(document)` — průběh je podle `fileId`, takže na zprávě nezáleží.
+  - **Skladba z článku hraje jako hlasovka, ne jako hudba na pozadí**: fronta hudby
+    (`MusicQueue`) hledá sousední skladby mezi zprávami a médium článku zprávou není. Po dohrání
+    zvuku z článku se nic neřetězí (`part != NO_PART`).
+  - **Název souboru není popisek.** Řádek souboru ho ukazuje sám; dřív, když byl soubor jen
+    slovem, se název psal jako popisek.
 - **Médium článku se otevírá v prohlížeči jako příloha ankety** (`MediaRoute.articleMedia`,
   `LocalArticleMediaFlight` v klíči letu): jediná stránka bez akcí. Pod jedním id zprávy je médií
   víc, takže bez indexu v klíči by se spárovala špatná fotka.
@@ -7840,6 +7848,9 @@ zmínky, hashtagy, příkazy, spoiler, vlastní emoji, datum.
     z Wikimedie selhalo (`failed to get HTTP URL content`); obrázky se proto vyrábějí lokálně.
   - **Useknutý článek vyrobí dlouhý text**: 39 odstavců po ~320 znacích (~12 700) TDLib poslal
     s `isFull = false` a 8 224 znaky.
+  - **Hlasovka má v `rich_message.media` typ `voice_note`** (jako `InputMediaVoiceNote`);
+    s `voice` server odpoví „type "voice" is unsupported". Hlasovka i skladba se odkazují
+    `tg://audio?id=…`. M4A od `say` / `afconvert` jako hlasovka nemá délku ani waveform (0:00).
   - Ověřeno na emulátoru česky: fotka s popiskem a koláž dvou fotek na svém místě, otevření
     fotky z článku v prohlížeči (svislá fotka celá), „Číst celý článek" s kolečkem (pak 12 665
     znaků a konec článku) a dočtený článek i po odchodu z chatu, zvýraznění hledaného slova

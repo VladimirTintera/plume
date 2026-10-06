@@ -223,6 +223,18 @@ internal data class BubbleMessageItem(
                     messageId = message.id,
                     onOpen = { act(MessageAction.OpenArticleMedia(media.index)) },
                     onRequestMenu = ::requestMenu,
+                    documentProgress = items::documentProgress,
+                    onOpenDocument = { act(MessageAction.OpenArticleDocument(media.index)) },
+                    // Zvuk a hlasovka v článku: tentýž přehrávač, klíč s pořadím v článku.
+                    voice = VoiceHandlers(
+                        playback = { items.voicePlayback(message.id, part = media.index) },
+                        speed = { items.voiceSpeed() },
+                        onToggle = { act(MessageAction.ToggleArticleAudio(media.index)) },
+                        onSeek = { fraction -> act(MessageAction.SeekArticleAudio(media.index, fraction)) },
+                        onCycleSpeed = { act(MessageAction.CycleVoiceSpeed) },
+                        accent = accent,
+                        onAccent = if (message.isOutgoing) bubbleColor else MaterialTheme.colorScheme.onPrimary,
+                    ),
                     accent = accent,
                     // Článek je široký jako bublina; obrázek ji vyplní, jinak by vedle zúžené
                     // fotky zůstalo prázdné místo — tatáž úvaha jako u přílohy ankety.

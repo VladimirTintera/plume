@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.audio.VoiceKey
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.telegram.TranscribeOffer
@@ -62,7 +63,8 @@ internal interface ConversationItemScope {
     /** Posun odkrývání časů tahem doleva; čte se až při kreslení vrstvy. */
     val timeReveal: () -> Float
 
-    fun voicePlayback(messageId: Long): VoicePlayback?
+    /** Co hraje ze zprávy; [part] je pořadí zvuku v článku (`VoiceKey.NO_PART` = příloha zprávy). */
+    fun voicePlayback(messageId: Long, part: Int = VoiceKey.NO_PART): VoicePlayback?
 
     /** Hraje video kolečko téhle zprávy se zvukem? Nejvýš jedno v konverzaci. */
     fun videoNoteSounding(messageId: Long): Boolean = false

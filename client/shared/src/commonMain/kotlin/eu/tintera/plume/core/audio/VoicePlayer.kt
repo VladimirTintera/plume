@@ -87,8 +87,17 @@ enum class VoiceSpeed(val rate: Float) {
     fun next(): VoiceSpeed = entries[(ordinal + 1) % entries.size]
 }
 
-/** Která hlasovka hraje. Id zprávy je jedinečné jen v rámci chatu. */
-data class VoiceKey(val chatId: Long, val messageId: Long)
+/**
+ * Která hlasovka hraje. Id zprávy je jedinečné jen v rámci chatu.
+ *
+ * [part] je pořadí zvuku UVNITŘ zprávy — článek nese zvuků a hlasovek víc pod jedním id;
+ * [NO_PART] = příloha zprávy.
+ */
+data class VoiceKey(val chatId: Long, val messageId: Long, val part: Int = NO_PART) {
+    companion object {
+        const val NO_PART = -1
+    }
+}
 
 data class VoicePlayback(
     val key: VoiceKey,

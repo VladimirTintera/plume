@@ -242,14 +242,16 @@ private class RichWriter(private val labels: RichMediaLabels, private val hideSe
                 indent,
                 block.animation?.toMedia()?.copy(hasSpoiler = block.hasSpoiler || hideSensitive, isSensitive = hideSensitive),
             )
-            // Zvuk a soubor se v článku nekreslí, ale nesmí z něj zmizet: slovo a popisek.
-            is PageBlockAudio -> media(labels.audio, block.caption, indent, shown = null)
-            is PageBlockVoiceNote -> media(labels.voice, block.caption, indent, shown = null)
+            // Zvuk a soubor kreslí bublina jako řádek s přehráváním / otevřením; název souboru
+            // a skladby nese ten řádek, takže popiskem je jen to, co přidal autor článku.
+            is PageBlockAudio -> media(labels.audio, block.caption, indent, block.audio.toMedia(labels.audio))
+            is PageBlockVoiceNote -> media(labels.voice, block.caption, indent, block.voiceNote.toMedia())
             is PageBlockDocument -> media(
                 labels.file,
-                block.caption ?: PageBlockCaption(RichTextPlain(block.document.fileName), null),
+                block.caption,
                 indent,
-                shown = null,
+                block.document.toMedia(fileName = block.document.fileName.ifBlank { labels.file })
+                    .copy(isSensitive = hideSensitive),
             )
             // Prezentace (listování) se v bublině kreslí stejně jako koláž: mřížka.
             is PageBlockCollage -> collage(block.blocks, block.caption, indent)
