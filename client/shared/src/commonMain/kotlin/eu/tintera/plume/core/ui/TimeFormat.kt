@@ -52,6 +52,7 @@ import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Month
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.StringResource
@@ -163,6 +164,15 @@ private fun DayOfWeek.shortName(): StringResource = when (this) {
     DayOfWeek.SATURDAY -> Res.string.day_short_6
     else -> Res.string.day_short_7
 }
+
+/**
+ * Začátek místního dne, do kterého čas (sekundy od epochy) patří — v sekundách od epochy.
+ *
+ * Pro `derivedStateOf`: všechny zprávy téhož dne dají stejnou hodnotu, takže se odvozený stav
+ * změní jen s přechodem na jiný den. [asDayLabel] je composable a do odvozeného stavu nesmí.
+ */
+fun Int.startOfLocalDay(zone: TimeZone = TimeZone.currentSystemDefault()): Int =
+    Instant.fromEpochSeconds(toLong()).toLocalDateTime(zone).date.atStartOfDayIn(zone).epochSeconds.toInt()
 
 /**
  * Datum pro předěl dne v konverzaci.

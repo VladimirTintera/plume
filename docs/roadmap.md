@@ -370,10 +370,14 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
 Nástroje a postup jsou v `CLAUDE.md` („Výkon a paměť"). První analýza (reporty Compose
 kompilátoru, LeakCanary, heap dumpy) únik nenašla. Zbylo:
 
-- **Recompozice za běhu** (zbývající bod analýzy): composition tracing (`runtime-tracing`)
-  a Perfetto trace při scrollu konverzace, příchozí zprávě, „píše…" a přehrávání hlasovky.
-  Ověřit, že se neskládá celá obrazovka konverzace kvůli změnám, které se jí netýkají
-  (průběh stahování, pozice přehrávače).
+- **Další kandidáti na stabilitu** (`compose-stability.conf`, viz `CLAUDE.md`): `ForumTopic`
+  (řádky seznamu témat se při každé změně tématu mohou přeskládat všechny, jako dřív seznam
+  chatů — neměřeno, testovací skupina témata nemá), `MemberDetail`, `InviteLink`. Napřed změřit
+  (`client/tools/perf/`), pak teprve přidávat.
+- **Příchozí zpráva přeskládá v každém snímku starší bublinu** po dobu animace nároží (~0,6 s,
+  `animateDpAsState` v `MessageFrame` se čte v kompozici). Na emulátoru ~1 ms za snímek.
+  Šlo by číst až při kreslení (tvar čtoucí stav v `createOutline`), ale je to zásah do
+  vzhledu bubliny; nízká priorita.
 - **Plynulost a start** (zbývající bod): release build podepsaný debug klíčem na Foldu,
   `dumpsys gfxinfo framestats` (jen seznam chatů, Uložené zprávy a Notifikátor, ať se nečtou
   cizí zprávy) a `am start -W`. Pak zvážit Macrobenchmark a baseline profile.

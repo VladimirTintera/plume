@@ -80,9 +80,16 @@ tdl = "15.0.0"
 # Hledání memory leaků v debug buildu (jen `debugImplementation` ve vstupním bodu). 3.0 je zatím
 # alpha; 2.14 je poslední stabilní.
 leakcanary = "2.14"
+# Composition tracing (jen debug): každá composable je v trace Perfetto vlastní řez. Verze musí
+# sedět s androidx Compose runtime, na který se JetBrains Compose mapuje (1.12.0), jinak ho povýší.
+compose-runtime-tracing = "1.12.0"
+# Nativní knihovna Perfetto SDK přibalená do APK, ať se nemusí do zařízení nahrávat zvlášť.
+tracing-perfetto = "1.0.1"
 
 [libraries]
 leakcanary = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakcanary" }
+compose-runtime-tracing = { module = "androidx.compose.runtime:runtime-tracing", version.ref = "compose-runtime-tracing" }
+tracing-perfetto-binary = { module = "androidx.tracing:tracing-perfetto-binary", version.ref = "tracing-perfetto" }
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "haze" }
 # --- Compose ---
