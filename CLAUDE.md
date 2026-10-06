@@ -7400,6 +7400,55 @@ blízkost". Když se zpráva scrollem vrátí do pohledu, řádek plynule zmizí
   není** — tlačítka jsou tatáž cesta jako pod zprávou (`StopLiveLocation`,
   `SetProximityAlert`). iOS jen přeložené.
 
+#### Mini přehrávač v docku
+
+Hrající hudba nebo hlasovka, jejíž zpráva odjede z obrazovky, je ve sloupci pruhů pod dockem
+polohy jako řádek se stejným sklem (`PlayerDockBar`): tlačítko s průběhem po obvodu (u skladby
+přes obal), název a „interpret · 0:04 / 0:16", u skladby „další" a vždycky ✕. Ťuknutí na text
+skočí na zprávu. Kdo do docku patří, je `VoicePlayback.docksIn` (testy `PlayerDockTest`).
+
+- **Vysouvání a odsazení jsou společné s dockem polohy** (`Modifier.dockReveal`, rozměry
+  `DOCK_*` v `DockRow.kt`). Průběh je `dockProgress` nad položkou s klíčem BLOKU
+  (`blockKeyOf`) — skladba z alba je položka nejstarší zprávy alba.
+- **Skladba z jiného chatu je v docku celá** (průběh 1), protože hudba hraje dál i po odchodu
+  z konverzace a jinde než tady (a v notifikaci) by nešla zastavit. Ťuknutí na ni otevře její
+  chat se skokem na zprávu. Hlasovka z jiného chatu ne — odchodem z chatu dohraje.
+- **Náhled nahrávky (zpráva −1) do docku nepatří**, má vlastní pruh nad polem.
+- **Kompozice čte jen KLÍČ hrajícího zvuku** (`derivedStateOf` se `structuralEqualityPolicy`),
+  průběh a čas čte až řádek přes lambdu — pozice se mění dvacetkrát za vteřinu.
+- **Název skladby z jiného chatu bere `MusicQueue.nowPlaying`**, ne načtenou historii: zpráva
+  z jiného chatu v ní není.
+- **✕ u hudby jde přes `MusicQueue.stop`**, u hlasovky přes `VoicePlayer.stop` — fronta jinak
+  po zastavení navázala další skladbou.
+- **Kolečko se zvukem v docku NENÍ.** Jeho přehrávač žije v kompozici položky a odscrollováním
+  zmlkne (`VideoNoteSoundEnded`), takže by řádek jen problikl.
+- **Ověřeno na emulátoru** (anglicky) dvěma skladbami a hlasovkou od testovacího bota: vysunutí
+  při scrollu, pauza, „další" (u poslední skladby není), skok na zprávu ťuknutím (dock zmizí,
+  zpráva zvýrazněná), ✕, skladba z Notifikátora v docku Uložených zpráv. iOS jen přeložené.
+
+#### Přehrávač nad seznamem chatů
+
+Hudba, která hraje dál po odchodu z konverzace, má nad seznamem chatů tentýž řádek
+(`PlayerDockBar`, `NowPlayingViewModel`): dole pod FAB „Nová zpráva", sklo nad seznamem.
+Ťuknutí na text otevře chat se skokem na skladbu.
+
+- **Jen hudba.** Hlasovka odchodem z chatu dohraje (`stop(chatId, keepMusic = true)`), takže
+  nad seznamem by nebylo co ukázat. Zdrojem je `MusicQueue.nowPlaying`, ne `VoicePlayer`.
+- **Dole, ne v hlavičce.** Pilulka hledání při scrollu odjíždí a řádek by s ní zmizel; dole je
+  navíc pod palcem. FAB se nad něj posune (je ve stejném sloupci), seznam má dole místo navíc
+  o změřenou výšku řádku, aby poslední chat nezůstal schovaný.
+- **S otevřenou konverzací vedle (dvoupanel) se neukazuje** (`conversationOpen` z `AppShell`):
+  konverzace má vlastní dock a dva přehrávače vedle sebe by říkaly totéž dvakrát.
+- **Sklo rozostřuje jen seznam chatů** (vlastní `HazeState`), stejně jako v konverzaci.
+- **Obal skladby se předává jako soubor** (`TrackInfo.coverFileId`). Fronta měla jen bitmapu pro
+  systémové ovládání; řádek si obal stáhne sám přes `RemoteImage`.
+- **Řádek mizí i se svým místem**, takže FAB po dohrání sjede dolů na jeho místo. Ťuknutí na ✕
+  ve chvíli, kdy skladba právě dohrála, proto trefí FAB a otevře „Novou zprávu" — neškodné,
+  jen se na to při ověřování přes `adb` nesmí zapomenout.
+- **Ověřeno na emulátoru** (anglicky) skladbami od testovacího bota: řádek po odchodu z chatu,
+  pauza, „další" (u poslední není), ✕ za hraní, zmizení po dohrání, ťuknutí na text otevře
+  chat se skladbou. Dvoupanel a iOS ověřené nejsou (iOS jen přeložené).
+
 ### GIFy
 
 GIF je v Telegramu **MP4 bez zvuku** (`MessageAnimation`), ne skutečný GIF — přehrává se proto

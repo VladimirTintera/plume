@@ -448,12 +448,12 @@ snadno na to uživatel narazí.
   ~~Dock živé polohy~~ — hotovo: zpráva s živou polohou, která odjede z obrazovky, se přestěhuje
   do řádku pod pruhy nad konverzací a jde rozbalit na mapu s ovládáním (`CLAUDE.md`, „Dock živé
   polohy").
-- **Mini přehrávač v docku** (navazuje na dock živé polohy): hrající hudba, hlasovka a kolečko se
-  zvukem, které odjedou z obrazovky, se přestěhují do téhož sloupce pruhů jako řádek s průběhem,
-  pauzou a „další" — stejný princip vysouvání podle scrollu (`dockProgress`) a stejné sklo.
-  Dnes hrající zvuk po odscrollování nejde zastavit jinak než z notifikace (hudba) nebo vůbec
-  (hlasovka, kolečko). Rozmyslet: jeden řádek pro „to, co zrovna zní" vedle polohy, a jestli se
-  ukazuje i nad seznamem chatů, když hudba hraje dál po odchodu z konverzace.
+- ~~**Mini přehrávač v docku**~~ — hotovo pro hudbu a hlasovky: hrající zvuk, jehož zpráva
+  odjede z obrazovky, je řádek pod pruhy s průběhem, pauzou, „další" a ✕; skladba z jiného chatu
+  je v něm pořád (`CLAUDE.md`, „Mini přehrávač v docku"). Zbývá **kolečko se zvukem** (jeho
+  přehrávač žije v kompozici položky a odscrollováním zmlkne — chtělo by to přehrávač mimo
+  položku). ~~**Přehrávač nad seznamem chatů**~~ — hotovo (`CLAUDE.md`, „Přehrávač nad
+  seznamem chatů").
 - ~~**Kontakt** (`MessageContact`)~~ — hotovo: karta s tváří, jménem a číslem, „Napsat
   zprávu" (`CLAUDE.md`, „Kontakt"). ~~**Přidat do kontaktů**~~ — hotovo (z karty se „Vrátit"
   a v ⋮ profilu přidat i odebrat; s člověkem ověřené jen sondou na testovacím botovi)

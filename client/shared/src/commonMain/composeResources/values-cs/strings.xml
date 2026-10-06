@@ -2200,4 +2200,6 @@
     <string name="location_dock_expand">Zobrazit živou polohu</string>
     <string name="location_dock_collapse">Skrýt živou polohu</string>
     <string name="location_dock_show_message">Přejít na zprávu</string>
+    <string name="player_dock_next">Další skladba</string>
+    <string name="player_dock_stop">Zastavit přehrávání</string>
 </resources>
