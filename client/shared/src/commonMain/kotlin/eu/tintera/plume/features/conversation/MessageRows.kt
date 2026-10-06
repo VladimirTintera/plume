@@ -141,7 +141,7 @@ internal fun showsBareMedia(message: ChatMessage, album: List<ChatMessage>?): Bo
     val media = album?.map { it.media } ?: listOf(message.media)
     return media.isNotEmpty() && media.all {
         it is MessageMedia.Photo || it is MessageMedia.Video || it is MessageMedia.Animation ||
-            it is MessageMedia.Location || it is MessageMedia.PaidMedia
+            it is MessageMedia.Location || it is MessageMedia.PaidMedia || it is MessageMedia.Story
     }
 }
 
@@ -276,6 +276,8 @@ private val MessageMedia.carriesCaption: Boolean
         is MessageMedia.Giveaway,
         // Dárek je servisní oznámení; vzkaz od dárce upravit nejde.
         is MessageMedia.Gift,
+        // Sdílený příběh popisek nemá; jeho text napsal autor příběhu.
+        is MessageMedia.Story,
         -> false
     }
 

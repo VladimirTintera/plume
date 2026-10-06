@@ -2247,6 +2247,26 @@ sealed interface MessageMedia {
         val senderName: String?,
         val receiverName: String?,
     ) : MessageMedia
+
+    /**
+     * Sdílený příběh (`MessageStory`). Příběhy aplikace jinak nemá — žádný kroužek nad seznamem
+     * chatů, žádné přehrávání po sobě —, ale příběh poslaný do chatu je obyčejná fotka nebo
+     * video, a ten jde ukázat jako snímek a otevřít v prohlížeči médií.
+     */
+    data class Story(
+        val posterChatId: Long,
+        val storyId: Int,
+        /** Kdo příběh zveřejnil (člověk nebo kanál); `null`, když ho TDLib nezná. */
+        val posterName: String?,
+        /** Fotka nebo video příběhu; `null` u živého vysílání a u příběhu, který už není. */
+        val content: MessageMedia?,
+        val caption: String,
+        val isLive: Boolean,
+        /** Příběh šel načíst; `false` = vypršel, autor ho smazal, nebo ho nesmíme vidět. */
+        val isAvailable: Boolean,
+        /** Zpráva přišla proto, že autor uživatele v příběhu zmínil. */
+        val viaMention: Boolean,
+    ) : MessageMedia
 }
 
 /** Přístup k chatu, jak se mění za běhu — viz [ConversationRepository.accessUpdates]. */

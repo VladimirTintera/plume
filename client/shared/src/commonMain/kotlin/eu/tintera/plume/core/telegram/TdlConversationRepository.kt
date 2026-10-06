@@ -174,12 +174,15 @@ import dev.g000sha256.tdl.dto.SearchMessagesFilterPinned
 import dev.g000sha256.tdl.dto.SearchMessagesFilterUnreadMention
 import dev.g000sha256.tdl.dto.SearchMessagesFilterUnreadPollVote
 import dev.g000sha256.tdl.dto.SearchMessagesFilterUnreadReaction
+import dev.g000sha256.tdl.dto.Story
 import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.TdlThrowable
 import dev.g000sha256.tdl.toResult
 import dev.g000sha256.tdl.dto.ChatMembersFilterMention
 import dev.g000sha256.tdl.dto.TextEntityTypeMentionName
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.awaitAll
@@ -2102,6 +2105,7 @@ class TdlConversationRepository(
                     ?.let { client.getUser(userId = it).toResult().getOrNull()?.profilePhoto?.small?.id },
                 // Kanály soutěže a výherci z keše odesílatelů — ostatní zprávy na ni nesáhnou.
                 senderName = { id -> resolveSender(id)?.title },
+                story = ::sharedStory,
             ),
             linkPreview = linkPreview(hideSensitive),
             article = body.article,
@@ -2533,6 +2537,44 @@ class TdlConversationRepository(
 
     private var effects: Pair<TdlClient, MutableMap<Long, MessageEffect?>>? = null
     private val effectsMutex = Mutex()
+
+    /**
+     * Sdílený příběh pro kartu ve zprávě. Napřed lokálně (TDLib příběh ze zprávy obvykle zná),
+     * pak ze serveru. Pamatuje se pro instanci klienta jako efekt — zpráva se převádí znovu při
+     * každém přečtení a reakci, a dotaz na server kvůli tomu by byl zbytečný. **Pamatuje se
+     * i „není"**, ale jen když to řekl server (chyba 4xx — vypršelý příběh je 404, autor, který
+     * příběhy nikdy neměl, 400 `STORIES_NEVER_CREATED`): výpadek spojení příběh nezruší a příště
+     * se zkusí znovu.
+     *
+     * **Dotaz na server má strop** ([STORY_FETCH_TIMEOUT]). Převod zprávy je součást načítání
+     * historie a TDLib bez spojení na síť čeká — bez stropu by jeden sdílený příběh zdržel celou
+     * konverzaci. Nedočkaný příběh se ukáže jako nedostupný a s další úpravou zprávy se zkusí znovu.
+     */
+    private suspend fun sharedStory(posterChatId: Long, storyId: Int): Story? = storiesMutex.withLock {
+        val current = client
+        val cache = stories?.takeIf { it.first === current }?.second
+            ?: mutableMapOf<Pair<Long, Int>, Story?>().also { stories = current to it }
+        val key = posterChatId to storyId
+        if (key in cache) return@withLock cache[key]
+        current.getStory(storyPosterChatId = posterChatId, storyId = storyId, onlyLocal = true).toResult().getOrNull()
+            ?.let { return@withLock it.also { story -> cache[key] = story } }
+        val remote = withTimeoutOrNull(STORY_FETCH_TIMEOUT) {
+            current.getStory(storyPosterChatId = posterChatId, storyId = storyId, onlyLocal = false).toResult()
+        } ?: return@withLock null
+        remote
+            .onSuccess { cache[key] = it }
+            .onFailure { failure ->
+                if (failure is TdlThrowable && failure.code in CLIENT_ERRORS) {
+                    cache[key] = null
+                } else {
+                    logger.w(failure) { "Příběh $posterChatId/$storyId se nepodařilo načíst" }
+                }
+            }
+            .getOrNull()
+    }
+
+    private var stories: Pair<TdlClient, MutableMap<Pair<Long, Int>, Story?>>? = null
+    private val storiesMutex = Mutex()
 
     private suspend fun MessageOrigin.toForwardOrigin(): ForwardOrigin = when (this) {
         is MessageOriginUser -> ForwardOrigin.User(senderUserId, resolveSender(senderUserId)?.title)
@@ -3014,6 +3056,12 @@ private val ChatMessage.isLastingVisualMedia: Boolean
 
 /** `getLinkPreview` na text, ke kterému server náhled nemá. */
 private const val NOT_FOUND = 404
+
+/** Odpovědi serveru, které říkají „takový příběh není" — na rozdíl od výpadku spojení. */
+private val CLIENT_ERRORS = 400..499
+
+/** Jak dlouho smí převod zprávy čekat na sdílený příběh ze serveru. */
+private val STORY_FETCH_TIMEOUT = 3.seconds
 
 /**
  * Volba náhledu odkazu v podobě pro TDLib; výchozí volba je `null` (rozhoduje server).

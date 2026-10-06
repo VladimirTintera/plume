@@ -465,8 +465,9 @@ snadno na to uživatel narazí.
   sběratelský s pozadím, Premium, dárkový kód s kopírováním, hvězdy a TON. Ověřené jen sondou.
   Zbývá proměnit, vylepšit a předat dárek (hvězdy nemáme) a **pád wrapperu u dárku bez
   `background`** (viz tamtéž).
-- **Sdílený příběh** (`MessageStory`) — dnes text. Stojí na stories, které aplikace nemá;
-  zvážit aspoň kartu s náhledem.
+- ~~**Sdílený příběh** (`MessageStory`)~~ — hotovo jako snímek se značkou a kartou autora,
+  otevření v prohlížeči (`CLAUDE.md`, „Sdílený příběh"). Ověřené jen sondou. Zbývá živé
+  vysílání a vše kolem příběhů samotných (kroužky, odpovědi, reakce).
 - ~~**Článek** (`MessageRichMessage`)~~ — hotovo jako text s formátováním (`CLAUDE.md`, „Článek"). ~~Média článku~~ — hotovo (fotka, video a GIF na svém místě, prohlížeč) a ~~useknutý článek~~ (`isFull`, „Číst celý článek"). ~~Koláž a prezentace jako mřížka~~ a ~~fotky a videa článku v záložce Média~~ — hotovo. ~~Zvuk, hlasovka a soubor k přehrání a otevření~~ — hotovo (skladba z článku hraje jako hlasovka, ne na pozadí). Zvuk a soubory článků v záložkách Soubory a Hudba nejsou, protože je tam TDLib nevrací (ověřeno). Zbývá: sbalitelné bloky a posílání článků (jen s Premium).
 
 **Údaje o zprávě, které TDLib posílá a my zahazujeme**

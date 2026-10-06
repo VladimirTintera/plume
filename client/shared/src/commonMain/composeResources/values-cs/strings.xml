@@ -610,7 +610,7 @@
     </plurals>
     <string name="product_paid">Zaplaceno</string>
     <string name="product_test">Testovací platba</string>
-    <string name="content_story">Story</string>
+    <string name="content_story">Příběh</string>
     <string name="content_paid">Placený obsah</string>
     <string name="call_outgoing">Odchozí hovor</string>
     <string name="call_incoming">Příchozí hovor</string>
@@ -2135,4 +2135,9 @@
     <string name="giveaway_status_failed">Stav účasti v soutěži se nepodařilo zjistit.</string>
     <string name="giveaway_copy_code">Kopírovat kód</string>
     <string name="giveaway_code_copied">Kód zkopírován</string>
+    <string name="story_from">Příběh od %1$s</string>
+    <string name="story_mention">V příběhu tě zmínili</string>
+    <string name="story_unavailable">Příběh už není k&#160;dispozici</string>
+    <string name="story_live">Živé vysílání</string>
+    <string name="story_live_unsupported">Živé vysílání jde zatím sledovat jen v oficiální aplikaci Telegramu.</string>
 </resources>

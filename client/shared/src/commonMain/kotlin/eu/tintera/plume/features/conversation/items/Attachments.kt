@@ -259,6 +259,23 @@ internal fun MessageAttachment(
         is MessageMedia.Giveaway -> GiveawayCard(media, accent, onAction)
         // Dárek kreslí servisní položka (ServiceMessageItem); sem se dostane jen kdyby přestal být oznámením.
         is MessageMedia.Gift -> GiftCard(media, onAction)
+        // Příběh je fotka nebo video — kreslí se toutéž cestou, jen se značkou v rohu.
+        is MessageMedia.Story -> StoryPreview(
+            story = media,
+            shape = pictureShape,
+            onOpen = onOpen,
+            onRequestMenu = onRequestMenu,
+        ) { inner ->
+            MessageAttachment(
+                media = inner,
+                messageId = messageId,
+                onOpen = onOpen,
+                onRequestMenu = onRequestMenu,
+                accent = accent,
+                mediaShape = mediaShape,
+                fillWidth = fillWidth,
+            )
+        }
 
         is MessageMedia.Sticker -> StickerImage(
             sticker = media,

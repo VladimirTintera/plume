@@ -8286,6 +8286,34 @@ a komu, vzkaz a stav. Dřív z nich zbylo jen „Byl poslán dárek".
 - **Ověřeno na emulátoru sondou** (česky, světlý i tmavý motiv): všech osm druhů, kopírování kódu
   (fajfka a náhled schránky). **Skutečný dárek ověřený NENÍ**; iOS jen přeložené.
 
+### Sdílený příběh
+
+Příběh poslaný do chatu (`MessageStory`) je snímek se značkou „Příběh" v rohu a pod ním karta
+„Příběh od …", případně „V příběhu tě zmínili" a popisek příběhu (`MessageMedia.Story`,
+`StoryPreview` a `StoryDetails` v `items/StoryCard.kt`, převod `core/telegram/Story.kt`, testy
+`StoryTest`). Ťuknutí otevře fotku nebo video v prohlížeči médií. Příběhy jako takové (kroužky,
+přehrávání po sobě, odpovědi) aplikace nemá.
+
+- **Zpráva nese jen odkaz** (autor a id), obsah se dočítá `getStory` při převodu zprávy:
+  napřed lokálně, pak ze serveru (`TdlConversationRepository.sharedStory`). Pamatuje se pro
+  instanci klienta jako efekt zprávy, i „není" — ale jen když to řekl server chybou 4xx:
+  vypršelý příběh je 404, autor, který příběhy nikdy neměl, **400 `STORIES_NEVER_CREATED`**
+  (ověřeno na kanálu @telegram). Výpadek spojení se nepamatuje.
+- **Dotaz na server má strop 3 s.** Převod zprávy je součást načítání historie a TDLib bez
+  spojení na síť čeká; jeden sdílený příběh by jinak zdržel celou konverzaci.
+- **Obsah kreslí táž cesta jako příloha zprávy** (`MessageAttachment` nad vnitřní fotkou nebo
+  videem): rámeček, stahování, let do prohlížeče pod klíčem zprávy. Šířka je stálá
+  (`fillWidth = false`) — příběh je na výšku a přes celou šířku by z něj zbyl ořezaný pruh.
+- **Prohlížeč příběh rozbalí** (`toViewerItem`): jediná stránka bez „N z M" (mezi fotkami chatu
+  příběh není), popiskem je text příběhu, akce jsou akce zprávy.
+- **Živé vysílání a příběh, který už není, jsou plocha na výšku s ikonou a větou**; ťuknutí na
+  živé vysílání vysvětlí, že ho jde sledovat jen v oficiální aplikaci.
+- **Bot příběh poslat neumí** (Bot API příběhy jen pro firemní účty), takže se ověřuje sondou:
+  zprávy od testovacího bota s `#pribeh…` převod dočasně vydává za `MessageStory` — fotka
+  z téže zprávy jako obsah, skutečný dotaz na kanál @telegram (bez příběhů, tedy „není")
+  a podstrčené živé vysílání. Necommituje se. **Skutečný sdílený příběh ověřený NENÍ**, iOS
+  jen přeložené.
+
 ### Kontakt
 
 `MessageContact` je příloha `MessageMedia.Contact` a v bublině karta jako řádek souboru

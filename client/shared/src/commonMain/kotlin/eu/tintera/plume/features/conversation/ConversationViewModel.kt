@@ -150,6 +150,7 @@ import eu.tintera.plume.resources.folder_invite_failed
 import eu.tintera.plume.resources.folder_invite_joined
 import eu.tintera.plume.resources.chat_bar_phone_shared
 import eu.tintera.plume.resources.paid_media_unsupported
+import eu.tintera.plume.resources.story_live_unsupported
 import eu.tintera.plume.resources.transcribe_failed
 import eu.tintera.plume.resources.conversation_selection_limit
 import eu.tintera.plume.resources.conversation_attachments_limit
@@ -3467,6 +3468,7 @@ class ConversationViewModel(
             MessageAction.OpenDocument -> openDocument(messageId)
             MessageAction.CancelUpload -> cancelUpload(messageId)
             MessageAction.ExplainPaidMedia -> _state.update { it.copy(notice = UiText(Res.string.paid_media_unsupported)) }
+            MessageAction.ExplainLiveStory -> _state.update { it.copy(notice = UiText(Res.string.story_live_unsupported)) }
             MessageAction.ToggleVoice -> toggleVoice(messageId)
             MessageAction.ToggleVideoNoteSound -> toggleVideoNoteSound(messageId)
             is MessageAction.PlayMediaAt -> playMediaAt(messageId, action.seconds)

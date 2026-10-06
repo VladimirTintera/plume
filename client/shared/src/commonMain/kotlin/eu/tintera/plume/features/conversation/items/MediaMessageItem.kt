@@ -46,12 +46,14 @@ internal data class MediaMessageItem(
     @Composable
     override fun MessageBodyScope.Body() {
         val location = (message.media as? MessageMedia.Location)?.takeIf { it.hasDetails }
+        // Příběh má pod snímkem vždycky, čí je — bez toho by vypadal jako fotka od odesílatele.
+        val story = message.media as? MessageMedia.Story
         // Soubor s velkým náhledem má pod snímkem vždycky název a velikost — bez nich by vypadal
         // jako fotka a nebylo by poznat, že ťuknutí otevře soubor.
         val document = if (album == null) message.media as? MessageMedia.Document else null
         // Živou polohu posouvá úprava zprávy; „upraveno" by u ní svítilo pořád.
         val edited = message.isEdited && !message.isLiveLocation
-        val hasCaption = message.text.isNotBlank() || edited || location != null || document != null
+        val hasCaption = message.text.isNotBlank() || edited || location != null || document != null || story != null
         // Přeposlaná fotka nese značku v hlavičce téže karty — patří k obsahu, ne vedle něj.
         val forwarded = message.hasOriginLabel
         val isCard = hasCaption || forwarded
@@ -86,6 +88,8 @@ internal data class MediaMessageItem(
                                 // němu by se roztahoval každý náhled.
                                 fillWidth = when (it) {
                                     is MessageMedia.Location -> false
+                                    // Příběh je na výšku; přes celou šířku by z něj zbyl ořezaný pruh.
+                                    is MessageMedia.Story -> false
                                     is MessageMedia.Document -> message.text.isNotBlank()
                                     else -> hasCaption
                                 },
@@ -98,6 +102,7 @@ internal data class MediaMessageItem(
                         BubbleSurface {
                             PaddedColumn {
                                 location?.let { LocationDetails(it, color = onBubbleColor) }
+                                story?.let { StoryDetails(it, color = onBubbleColor) }
                                 document?.let { DocumentCaption(it, color = onBubbleColor) }
                                 if (message.text.isNotBlank()) MessageText(linkColor = accent)
                                 if (edited) EditedLabel(color = onBubbleColor, modifier = Modifier.align(Alignment.End))
