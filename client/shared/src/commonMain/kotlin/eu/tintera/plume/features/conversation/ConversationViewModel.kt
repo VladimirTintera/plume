@@ -141,6 +141,7 @@ import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.article_load_failed
 import eu.tintera.plume.resources.folder_invite_added
 import eu.tintera.plume.resources.folder_invite_failed
 import eu.tintera.plume.resources.folder_invite_joined
@@ -2590,6 +2591,27 @@ class ConversationViewModel(
      * Komentáře k příspěvku kanálu: vlákno v připojené diskusní skupině. Kde to je, ví jen
      * server (`getMessageThread`), navigace je věc obrazovky — jako u zmínky.
      */
+    /**
+     * Dočte useknutý článek („Číst dál"). Celý přijde jako nová podoba téže zprávy a nahradí ji
+     * v seznamu; repository si ho pamatuje, takže další převody zprávy (reakce, přečtení)
+     * nevrátí zase začátek.
+     */
+    private fun readFullArticle(messageId: Long) {
+        if (messageId in _state.value.loadingArticles) return
+        _state.update { it.copy(loadingArticles = it.loadingArticles + messageId) }
+        viewModelScope.launch {
+            repository.fullArticle(chatId, messageId)
+                .onSuccess { message ->
+                    _state.update { it.copy(messages = merge(it.messages, listOf(message))) }
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Článek $messageId se nepodařilo dočíst." }
+                    _state.update { it.copy(notice = failure.userMessage(Res.string.article_load_failed)) }
+                }
+            _state.update { it.copy(loadingArticles = it.loadingArticles - messageId) }
+        }
+    }
+
     private fun openComments(messageId: Long) {
         viewModelScope.launch {
             repository.commentThread(chatId, messageId)
@@ -3395,6 +3417,7 @@ class ConversationViewModel(
             is MessageAction.OpenSenderProfile -> openSenderProfile(action.userId)
             is MessageAction.OpenForwardOrigin -> openForwardOrigin(action.origin)
             MessageAction.OpenComments -> openComments(messageId)
+            MessageAction.ReadFullArticle -> readFullArticle(messageId)
             MessageAction.OpenDocument -> openDocument(messageId)
             MessageAction.CancelUpload -> cancelUpload(messageId)
             MessageAction.ExplainPaidMedia -> _state.update { it.copy(notice = UiText(Res.string.paid_media_unsupported)) }
@@ -3424,7 +3447,8 @@ class ConversationViewModel(
             MessageMenuAction.Report -> reportMessage(messageId)
             MessageAction.ToggleSelection -> toggleSelection(messageId)
             MessageMenuAction.ShareFile -> shareDocument(messageId)
-            MessageAction.OpenMedia, is MessageAction.OpenPollMedia, is MessageAction.OpenStickerSet,
+            MessageAction.OpenMedia, is MessageAction.OpenPollMedia, is MessageAction.OpenArticleMedia,
+            is MessageAction.OpenStickerSet,
             is MessageAction.SearchHashtag,
             MessageMenuAction.SaveFileAs ->
                 logger.w { "Akce $action patří obrazovce, do ViewModelu nemá chodit." }
@@ -5053,6 +5077,8 @@ data class ConversationState(
     val addingPollOption: Long? = null,
     /** Anketa, kterou uživatel chce ukončit a čeká se na potvrzení; `null` = žádná. */
     val pendingStopPoll: Long? = null,
+    /** Useknuté články, které se právě dočítají („Číst dál"). */
+    val loadingArticles: Set<Long> = emptySet(),
     /** Sheet výběru kontaktu ze sponky; `null` = zavřený. */
     val contactPicker: ContactPicker? = null,
     /** Kontakt, který čeká na potvrzení odeslání (jméno a číslo); `null` = žádný. */

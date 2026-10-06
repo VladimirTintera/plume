@@ -15,6 +15,7 @@ import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import eu.tintera.plume.core.telegram.POLL_EXPLANATION_MEDIA
 import eu.tintera.plume.core.telegram.POLL_QUESTION_MEDIA
@@ -77,6 +78,8 @@ class MediaViewerViewModel(
     private val pollMedia: Int = NO_POLL_MEDIA,
     /** Profilové fotky chatu místo médií ze zpráv — viz [loadProfilePhotos]; [messageId] je pak 0. */
     private val profilePhotos: Boolean = false,
+    /** Médium článku (`ArticleMedia.index`) místo přílohy zprávy — viz [loadArticleMedia]. */
+    private val articleMedia: Int = NO_ARTICLE_MEDIA,
     private val repository: ConversationRepository,
     private val profileRepository: ProfileRepository,
     private val files: FileRepository,
@@ -117,17 +120,20 @@ class MediaViewerViewModel(
 
     private val isPollMedia: Boolean get() = pollMedia != NO_POLL_MEDIA
 
+    private val isArticleMedia: Boolean get() = articleMedia != NO_ARTICLE_MEDIA
+
     /**
      * Stránky nejsou zprávy chatu (příloha ankety, profilovky): žádné pořadí fotek chatu,
      * reakce, úpravy ani mazání se jich netýkají.
      */
-    private val notMessages: Boolean get() = isPollMedia || profilePhotos
+    private val notMessages: Boolean get() = isPollMedia || isArticleMedia || profilePhotos
 
     init {
         viewModelScope.launch {
             when {
                 profilePhotos -> loadProfilePhotos()
                 isPollMedia -> loadPollMedia()
+                isArticleMedia -> loadArticleMedia()
                 else -> loadInitial()
             }
         }
@@ -155,9 +161,9 @@ class MediaViewerViewModel(
                 if (message.id == messageId && message.media == null && _state.value.isSelfDestruct) {
                     // Vypršela platnost v TDLib (MessageExpiredPhoto)
                     _state.update { it.copy(closed = true) }
-                } else if (!isPollMedia) {
+                } else if (!isPollMedia && !isArticleMedia) {
                     // U ankety je text zprávy „Anketa: otázka"; popiskem přílohy je otázka
-                    // nebo odpověď.
+                    // nebo odpověď. U článku je text celý článek, popiskem popisek média.
                     updateItem(message.id) { it.copy(caption = message.text) }
                 }
             }
@@ -322,6 +328,53 @@ class MediaViewerViewModel(
             }
             .onFailure { failure ->
                 logger.w(failure) { "Příloha ankety $messageId/$pollMedia se nepodařila načíst." }
+                _state.update {
+                    it.copy(loading = false, error = failure.userMessage(Res.string.media_photo_load_failed))
+                }
+            }
+    }
+
+    /**
+     * Médium článku: jediná stránka bez listování a bez akcí, ze stejného důvodu jako příloha
+     * ankety. Napřed z uložené zprávy (lokálně, hned — let z bubliny má kam dosednout); celý
+     * článek (`fullArticle`, dotaz na server) jen tehdy, když médium leží až v části, kterou TDLib
+     * u dlouhého článku neposlal.
+     */
+    private suspend fun loadArticleMedia() {
+        single = true
+        val local = repository.message(chatId, messageId).getOrNull()
+            ?.takeIf { message -> message.article?.media.orEmpty().any { it.index == articleMedia } }
+        (local?.let { Result.success(it) } ?: repository.fullArticle(chatId, messageId))
+            .onSuccess { message ->
+                val anchor = message.article?.media?.firstOrNull { it.index == articleMedia }
+                val shown = when (val media = anchor?.media) {
+                    is MessageMedia.Photo, is MessageMedia.Video -> media
+                    else -> null
+                }
+                val item = shown?.let {
+                    ViewerItem(
+                        messageId = message.id,
+                        media = it,
+                        caption = anchor?.caption.orEmpty(),
+                        isOutgoing = message.isOutgoing,
+                        senderName = message.senderName,
+                        timestamp = message.timestamp,
+                        fileName = null,
+                    )
+                }
+                _state.update {
+                    it.copy(
+                        items = listOfNotNull(item),
+                        initialPosition = null,
+                        reachedOldest = true,
+                        reachedNewest = true,
+                        loading = false,
+                        error = if (item == null) UiText(Res.string.media_unsupported) else null,
+                    )
+                }
+            }
+            .onFailure { failure ->
+                logger.w(failure) { "Médium článku $messageId/$articleMedia se nepodařilo načíst." }
                 _state.update {
                     it.copy(loading = false, error = failure.userMessage(Res.string.media_photo_load_failed))
                 }

@@ -38,6 +38,7 @@ import eu.tintera.plume.features.profile.EditChatScreen
 import eu.tintera.plume.features.profile.MemberRightsScreen
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.ui.LocalSavedMessagesChatId
+import eu.tintera.plume.core.ui.LocalArticleMediaFlight
 import eu.tintera.plume.core.ui.LocalPollMediaFlight
 import eu.tintera.plume.core.ui.LocalSharedMediaFlight
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -515,6 +516,9 @@ private fun shellEntryProvider(
             onOpenPollMedia = { messageId, index ->
                 chatsStack.add(MediaRoute(route.chatId, messageId, pollMedia = index))
             },
+            onOpenArticleMedia = { messageId, index ->
+                chatsStack.add(MediaRoute(route.chatId, messageId, articleMedia = index))
+            },
             onForward = { messageIds ->
                 chatsStack.add(ForwardRoute(route.chatId, messageIds))
             },
@@ -717,6 +721,9 @@ private fun shellEntryProvider(
             onOpenPollMedia = { messageId, index ->
                 chatsStack.add(MediaRoute(route.chatId, messageId, pollMedia = index))
             },
+            onOpenArticleMedia = { messageId, index ->
+                chatsStack.add(MediaRoute(route.chatId, messageId, articleMedia = index))
+            },
             onForward = { messageIds ->
                 chatsStack.add(ForwardRoute(route.chatId, messageIds))
             },
@@ -790,14 +797,17 @@ private fun shellEntryProvider(
         CompositionLocalProvider(
             LocalSharedMediaFlight provides route.fromSharedMedia,
             LocalPollMediaFlight provides route.pollMedia,
+            LocalArticleMediaFlight provides route.articleMedia,
         ) {
             MediaViewerScreen(
                 // Klíč musí rozlišovat zprávu ze stejného důvodu jako u konverzace:
                 // ViewModel se cachuje podle klíče a Koin u cachované instance
                 // ignoruje nové parametry. U ankety i přílohu — obrázků je pod jedním id víc.
                 viewModel = koinViewModel(
-                    key = "media-${route.chatId}-${route.messageId}-${route.pollMedia}-${route.profilePhotos}",
-                    parameters = { parametersOf(route.chatId, route.messageId, route.pollMedia, route.profilePhotos) },
+                    key = "media-${route.chatId}-${route.messageId}-${route.pollMedia}-${route.profilePhotos}-${route.articleMedia}",
+                    parameters = {
+                        parametersOf(route.chatId, route.messageId, route.pollMedia, route.profilePhotos, route.articleMedia)
+                    },
                 ),
                 // Profilovky vlastního účtu se otevírají z Nastavení, všechno ostatní z Chatů.
                 onBack = { chatsStack.pop(route) || settingsStack.pop(route) },

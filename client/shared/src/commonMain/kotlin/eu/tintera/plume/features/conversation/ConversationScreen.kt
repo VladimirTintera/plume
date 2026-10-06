@@ -416,6 +416,8 @@ fun ConversationScreen(
     onForward: (messageIds: List<Long>) -> Unit,
     /** Příloha ankety v prohlížeči; `index` viz [MessageAction.OpenPollMedia]. */
     onOpenPollMedia: (messageId: Long, index: Int) -> Unit = { _, _ -> },
+    /** Médium článku v prohlížeči; `index` viz [MessageAction.OpenArticleMedia]. */
+    onOpenArticleMedia: (messageId: Long, index: Int) -> Unit = { _, _ -> },
     /**
      * Otevřít chat nad konverzací (zmínka, odkaz, komentáře); kam přesně — zpráva, vlákno,
      * téma, seznam témat —, říká [ChatTarget].
@@ -777,6 +779,7 @@ fun ConversationScreen(
 
     val currentOnOpenMedia by rememberUpdatedState(onOpenMedia)
     val currentOnOpenPollMedia by rememberUpdatedState(onOpenPollMedia)
+    val currentOnOpenArticleMedia by rememberUpdatedState(onOpenArticleMedia)
     val currentOnSearch by rememberUpdatedState(onSearch)
     val currentOnOpenChat by rememberUpdatedState(onOpenChat)
 
@@ -835,6 +838,7 @@ fun ConversationScreen(
             timeReveal = { timeReveal.value },
             onOpenMedia = { currentOnOpenMedia(it) },
             onOpenPollMedia = { messageId, index -> currentOnOpenPollMedia(messageId, index) },
+            onOpenArticleMedia = { messageId, index -> currentOnOpenArticleMedia(messageId, index) },
             onOpenStickerSet = { openStickerSetId = it },
             onSearch = { currentOnSearch(it) },
             // Výběr umístění je aktivita systému, takže ho má obrazovka; ViewModel jen stáhne.
@@ -4191,6 +4195,7 @@ private class ScreenItemScope(
     override val timeReveal: () -> Float,
     private val onOpenMedia: (messageId: Long) -> Unit,
     private val onOpenPollMedia: (messageId: Long, index: Int) -> Unit,
+    private val onOpenArticleMedia: (messageId: Long, index: Int) -> Unit,
     private val onOpenStickerSet: (setId: Long) -> Unit,
     private val onSearch: (query: String) -> Unit,
     private val onSaveFileAs: (messageId: Long) -> Unit,
@@ -4225,6 +4230,8 @@ private class ScreenItemScope(
     override fun videoNoteSoundFromMs(): Long = state.value.soundingVideoNoteFromMs
 
     override fun documentProgress(fileId: Int): Float? = state.value.documentDownloads[fileId]
+
+    override fun articleLoading(messageId: Long): Boolean = messageId in state.value.loadingArticles
 
     override fun contentTop(): Float? = contentTop.value
 
@@ -4261,6 +4268,7 @@ private class ScreenItemScope(
     override fun onAction(messageId: Long, action: MessageAction) = when (action) {
         MessageAction.OpenMedia -> onOpenMedia(messageId)
         is MessageAction.OpenPollMedia -> onOpenPollMedia(messageId, action.index)
+        is MessageAction.OpenArticleMedia -> onOpenArticleMedia(messageId, action.index)
         is MessageAction.OpenStickerSet -> onOpenStickerSet(action.setId)
         is MessageAction.SearchHashtag -> onSearch(action.tag)
         MessageMenuAction.SaveFileAs -> onSaveFileAs(messageId)

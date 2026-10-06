@@ -804,6 +804,8 @@
     <string name="conversation_scroll_to_end">Na konec konverzace</string>
     <string name="conversation_edited">upraveno</string>
     <string name="conversation_quote_expand">Zobrazit víc</string>
+    <string name="article_read_more">Číst celý článek</string>
+    <string name="article_load_failed">Celý článek se nepodařilo načíst.</string>
     <string name="conversation_quote_collapse">Zobrazit méně</string>
     <string name="conversation_forwarded_from">Přeposláno od %1$s</string>
     <string name="conversation_forwarded">Přeposlaná zpráva</string>

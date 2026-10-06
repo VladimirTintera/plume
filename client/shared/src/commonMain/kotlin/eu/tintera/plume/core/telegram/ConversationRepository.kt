@@ -356,6 +356,13 @@ interface ConversationRepository {
     suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage>
 
     /**
+     * Zpráva s CELÝM článkem. Dlouhý článek (`MessageRichMessage`) posílá TDLib useknutý
+     * ([Article.isPartial]); tohle ho dočte ze serveru a další převody téže zprávy už ho dávají
+     * celý. U jiné zprávy je to totéž co [message].
+     */
+    suspend fun fullArticle(chatId: Long, messageId: Long): Result<ChatMessage> = message(chatId, messageId)
+
+    /**
      * Skladby v chatu hned před [messageId] a hned za ní — playlist hudby, který musí jít dál
      * i bez otevřené konverzace (přehrávání na pozadí, další skladba z notifikace).
      */
@@ -1081,6 +1088,11 @@ data class ChatMessage(
     /** Náhled prvního odkazu v textu, jak ho server připravil. `null` u zpráv bez něj. */
     val linkPreview: LinkPreview?,
     /**
+     * Článek (`MessageRichMessage`): kde v textu stojí jeho média a jestli je celý. Text článku
+     * je v [text] jako u každé zprávy; `null` u jiných zpráv.
+     */
+    val article: Article? = null,
+    /**
      * S jakou volbou náhledu zpráva odešla (vypnutý, velikost, poloha, odkaz); `null` = výchozí.
      * Úprava ji přebírá — s výchozí volbou by se zprávě poslané bez náhledu náhled vrátil.
      */
@@ -1800,6 +1812,39 @@ sealed interface SelfDestructType {
     /** Odpočet po zadaný počet sekund od otevření. */
     data class Timer(val seconds: Int) : SelfDestructType
 }
+
+/**
+ * Co článek nese mimo text.
+ *
+ * Text článku je JEDEN řetězec s entitami (kvůli hledání, výběru, citaci a kopírování), a média
+ * v něm stojí jako slovo („[Fotka] popisek"). Bublina místo toho slova nakreslí médium —
+ * [ArticleMedia] říká, kde přesně.
+ *
+ * @property isPartial TDLib poslal jen začátek článku; zbytek vydá `getFullRichMessage`.
+ */
+data class Article(
+    val media: List<ArticleMedia> = emptyList(),
+    val isPartial: Boolean = false,
+)
+
+/** `MediaRoute.articleMedia` bez média článku — prohlížeč ukazuje přílohu zprávy. */
+const val NO_ARTICLE_MEDIA = -1
+
+/**
+ * Médium článku na jeho místě v textu.
+ *
+ * [start] až [end] je úsek textu se slovem „[Fotka]" (i s mezerou před popiskem), který bublina
+ * nahradí médiem; popisek za ním zůstává textem. [index] je pořadí mezi médii článku — pod ním
+ * ho najde prohlížeč. Začátek useknutého článku je začátek celého, takže index sedí v obou.
+ */
+data class ArticleMedia(
+    val start: Int,
+    val end: Int,
+    val index: Int,
+    val media: MessageMedia,
+    /** Popisek pro prohlížeč; prázdný, když článek žádný nemá. */
+    val caption: String,
+)
 
 /** Příloha zprávy. */
 sealed interface MessageMedia {

@@ -162,6 +162,12 @@ sealed interface MessageAction {
      */
     data class OpenPollMedia(val index: Int) : MessageAction
 
+    /** Médium článku v prohlížeči; [index] je `ArticleMedia.index`. Navigace — vyřizuje ji obrazovka. */
+    data class OpenArticleMedia(val index: Int) : MessageAction
+
+    /** Dočíst useknutý článek ([eu.tintera.plume.core.telegram.Article.isPartial]). */
+    data object ReadFullArticle : MessageAction
+
     /** Sada samolepky. Sheet nad obrazovkou — vyřizuje ji obrazovka, ne ViewModel. */
     data class OpenStickerSet(val setId: Long) : MessageAction
 

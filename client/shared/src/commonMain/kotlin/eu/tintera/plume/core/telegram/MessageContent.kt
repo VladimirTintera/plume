@@ -82,6 +82,7 @@ import dev.g000sha256.tdl.dto.MessageGiveaway
 import dev.g000sha256.tdl.dto.MessageGiveawayWinners
 import dev.g000sha256.tdl.dto.MessageGroupCall
 import dev.g000sha256.tdl.dto.MessageRichMessage
+import dev.g000sha256.tdl.dto.RichMessage
 import dev.g000sha256.tdl.dto.MessageSuggestBirthdate
 import dev.g000sha256.tdl.dto.MessageSuggestProfilePhoto
 import dev.g000sha256.tdl.dto.MessageUsersShared
@@ -464,7 +465,11 @@ private fun RichText.plainText(): String = when (this) {
  * by ukazovaly do jiného textu, než který se vykreslí. Stejný důvod, proč o servisních zprávách
  * rozhoduje jediná `serviceText()`.
  */
-internal suspend fun Message.captionBody(): MessageBody = when (val content = this.content) {
+internal suspend fun Message.captionBody(
+    /** Celý článek, když ho repository dočetla (`getFullRichMessage`); jinak se bere, co přišlo. */
+    fullArticle: RichMessage? = null,
+    hideSensitive: Boolean = false,
+): MessageBody = when (val content = this.content) {
     is MessageText -> content.text.toBody()
     is MessagePhoto -> content.caption.toBody()
     is MessageVideo -> content.caption.toBody()
@@ -502,14 +507,20 @@ internal suspend fun Message.captionBody(): MessageBody = when (val content = th
     is MessageLocation, is MessageLiveLocation, is MessageVenue -> MessageBody.Empty
     is MessagePaidMedia -> content.caption.toBody()
     // Článek jako text s formátováním; ze samých obrázků je prázdný, pak zůstane náš popis.
-    is MessageRichMessage -> content.message.blocks
-        .toRichBody(
+    is MessageRichMessage -> (fullArticle ?: content.message).let { article ->
+        article.blocks.toRichBody(
             RichMediaLabels(
                 photo = getString(Res.string.media_photo),
                 video = getString(Res.string.media_video),
                 gif = getString(Res.string.content_gif),
+                audio = getString(Res.string.content_audio),
+                voice = getString(Res.string.conversation_voice_message),
+                file = getString(Res.string.content_file),
             ),
+            isFull = article.isFull,
+            hideSensitive = hideSensitive,
         )
+    }
         .takeIf { it.text.isNotBlank() }
         ?: MessageBody(text = "", description = previewText())
 
@@ -537,6 +548,8 @@ data class MessageBody(
      * kreslí, jinak by po změně jazyka zůstal v tom starém.
      */
     val description: UiText? = null,
+    /** U článku: kde v [text] stojí média a jestli je článek celý. Offsety platí jen pro [text]. */
+    val article: Article? = null,
 ) {
     companion object {
         val Empty = MessageBody(text = "")
@@ -872,7 +885,7 @@ private fun CallDiscardReason.toCallEnd(): CallEnd = when (this) {
 }
 
 /** Video, jak ho kreslí bublina — sdílí to zpráva s videem i video v anketě. */
-private fun Video.toMedia(
+internal fun Video.toMedia(
     hasSpoiler: Boolean = false,
     isSensitive: Boolean = false,
     isSecret: Boolean = false,
@@ -893,7 +906,7 @@ private fun Video.toMedia(
 )
 
 /** Soubor; [fileName] podává volající, prázdný název se nahrazuje jinde podle místa. */
-private fun Document.toMedia(fileName: String = this.fileName) = MessageMedia.Document(
+internal fun Document.toMedia(fileName: String = this.fileName) = MessageMedia.Document(
     fileId = document.id,
     fileName = fileName,
     mimeType = mimeType,
@@ -1108,7 +1121,7 @@ internal fun previewText(raw: String): String? =
 /** Obrázek do karty bota; bere se stejně jako fotka ve zprávě. */
 internal fun Photo.toIntroPicture(): MessageMedia.Photo? = toMedia()
 
-private fun Photo.toMedia(
+internal fun Photo.toMedia(
     hasSpoiler: Boolean = false,
     isSensitive: Boolean = false,
     isSecret: Boolean = false,

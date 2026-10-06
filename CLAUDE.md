@@ -7797,8 +7797,23 @@ zmínky, hashtagy, příkazy, spoiler, vlastní emoji, datum.
   až po napsání obsahu. Proto se nic nesmí z textu MAZAT zpětně: blok za odrážkou seznamu první
   verze přitahovala smazáním `\n` a posunula tím všechny entity za ním. Teď `continueLine`
   zakáže nový řádek předem.
-- **Média se nekreslí, ale nezmizí**: „[Fotka]" kurzívou a popisek. Potichu vypadlá fotka by
-  z článku udělala něco jiného, než co autor poslal.
+- **Média stojí v textu jako slovo, a bublina místo něj nakreslí médium.** Text zůstává
+  „[Fotka] popisek" (kopírování, náhled, hledání, přepis pro AI), a TENTÝŽ průchod stromem zapíše
+  kotvu (`ArticleMedia`: úsek slova, pořadí, `MessageMedia`). Bublina článek s médii kreslí po
+  úsecích (`articleSegments`, testy `ArticleSegmentsTest`): text, fotka / video / GIF, text…
+  Entity se do úseků ořežou a posunou, zvýraznění hledání se počítá nad úsekem. Popisek média je
+  kurzívou — pod fotkou by jinak splynul s textem. Koláž a prezentace jsou zatím fotky pod sebou.
+  Zvuk, hlasovka a soubor zůstávají slovem s popiskem; dřív z článku potichu vypadly
+  (`else -> Unit`).
+- **Médium článku se otevírá v prohlížeči jako příloha ankety** (`MediaRoute.articleMedia`,
+  `LocalArticleMediaFlight` v klíči letu): jediná stránka bez akcí. Pod jedním id zprávy je médií
+  víc, takže bez indexu v klíči by se spárovala špatná fotka.
+- **Dlouhý článek posílá TDLib USEKNUTÝ** (`RichMessage.isFull = false`) a zbytek vydá až
+  `getFullRichMessage`. Dokud se to neřešilo, článek o 12 700 znacích končil po 8 200 a nebylo
+  poznat proč. Pod useknutým článkem je „Číst celý článek" (`MessageAction.ReadFullArticle`,
+  `ConversationRepository.fullArticle`); dočtený se v repository pamatuje podle zprávy
+  a `editDate`, takže další převody téže zprávy (přečtení, reakce, návrat do chatu) nevrátí
+  začátek. Prohlížeč bere médium z uložené zprávy a celý článek čte, jen když v ní není.
 - **Stav zaškrtávátka nese `isChecked`** — Kotlin getter booleanu, takže `javap | grep get` ho
   mine a vypadá to, že wrapper stav nemá.
 - **Náhled v seznamu chatů zůstává holý text** (`plainText`, spoiler vynechá).
@@ -7806,8 +7821,22 @@ zmínky, hashtagy, příkazy, spoiler, vlastní emoji, datum.
   a server `editMessageText` odmítne; poslat článek jde jen s Premium, takže se to zatím netýká.
 - **Ověřuje se botem**: `sendRichMessage` s `rich_message.markdown` (Bot API 10). Ověřeno na
   emulátoru anglicky: nadpisy, formátování, spoiler, seznamy i zaškrtávátka, citace s podpisem,
-  kód, oddělovač, tabulka a klikatelné `/help`, `@BotFather`, `#vylet`. **Neověřeno**: médium
-  v článku, sbalitelná citace, iOS (jen přeložené).
+  kód, oddělovač, tabulka a klikatelné `/help`, `@BotFather`, `#vylet`. **Neověřeno**: sbalitelná
+  citace, iOS (jen přeložené).
+  - **Média v markdownu jsou odkaz `tg://photo?id=p1`** a soubor jde v poli `rich_message.media`
+    (`{"id":"p1","media":{"type":"photo","media":"attach://f1"}}`, multipart s `f1=@…`). Obrázek
+    adresou (`![](https://…)`) server odmítne (`RICH_MESSAGE_PHOTO_NO_MEDIA_FOUND`) a stažení
+    z Wikimedie selhalo (`failed to get HTTP URL content`); obrázky se proto vyrábějí lokálně.
+  - **Useknutý článek vyrobí dlouhý text**: 39 odstavců po ~320 znacích (~12 700) TDLib poslal
+    s `isFull = false` a 8 224 znaky.
+  - Ověřeno na emulátoru česky: fotka s popiskem a koláž dvou fotek na svém místě, otevření
+    fotky z článku v prohlížeči (svislá fotka celá), „Číst celý článek" s kolečkem (pak 12 665
+    znaků a konec článku) a dočtený článek i po odchodu z chatu, zvýraznění hledaného slova
+    v úseku za fotkami. **Video a GIF v článku ověřené nejsou** (jdou toutéž cestou jako fotka).
+- **`getUpdates` testovacího bota nic nevrací, když `allowed_updates` zúžilo dřívější volání**
+  (`getWebhookInfo` pak ukáže `"allowed_updates":["my_chat_member"]`). Volba platí, dokud ji
+  další `getUpdates` nezmění, a zprávy mezitím server zahodí — volat s
+  `allowed_updates=["message","my_chat_member","callback_query"]`.
 
 ### Počty pod příspěvkem
 
