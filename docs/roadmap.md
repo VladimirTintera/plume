@@ -428,7 +428,7 @@ Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku a p
 
 - ~~**Tlačítka v hlavičkách měknou při stisku**~~ — hotovo pro všechna tlačítka s ikonou
   (`IconButtonDefaults.shapes()`, VladimirTintera/telegram#498).
-- ~~**Počet nepřečtených se přetočí**~~ — hotovo (`RollingNumber`, VladimirTintera/telegram#499):
+- ~~**Počet nepřečtených se přetočí**~~ — hotovo (`RollingNumber`, VladimirTintera/telegram#500):
   odznaky, počty u složek a archivu, „N nových zpráv".
 - **Přepínače s ikonou** (`Switch(thumbContent = …)`, fajfka / křížek v jezdci). Stav je vidět
   i bez barvy, tedy i pro barvoslepé.
