@@ -163,6 +163,7 @@ class TdlProfileRepository(
             phone = user.phoneNumber.takeIf { it.isNotBlank() }?.let { "+$it" },
             userId = userId,
             isBlocked = full?.blockList != null,
+            isContact = user.isContact,
             verification = user.verificationStatus.toVerification(),
             botVerification = botVerificationNote(full?.botVerification),
             hasMainWebApp = (user.type as? UserTypeBot)?.hasMainWebApp == true,

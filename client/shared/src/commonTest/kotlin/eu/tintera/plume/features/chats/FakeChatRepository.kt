@@ -123,6 +123,7 @@ open class FakeChatRepository(
     override suspend fun sharePhoneNumber(chatId: Long): Result<Unit> = Result.success(Unit)
     override suspend fun unarchiveFromSpamBar(chatId: Long): Result<Unit> = Result.success(Unit)
     override suspend fun addToContacts(chatId: Long): Result<Unit> = Result.success(Unit)
+    override suspend fun removeContact(userId: Long): Result<Unit> = Result.success(Unit)
     open override suspend fun blockedSenders(offset: Int, limit: Int): Result<BlockedSendersPage> =
         Result.success(BlockedSendersPage(emptyList(), 0))
     open override suspend fun setSenderBlocked(senderId: Long, blocked: Boolean): Result<Unit> = Result.success(Unit)

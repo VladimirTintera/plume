@@ -24,6 +24,8 @@ import dev.g000sha256.tdl.dto.MessagePoll
 import dev.g000sha256.tdl.dto.MessageContact
 import dev.g000sha256.tdl.dto.ChatTypeSecret
 import dev.g000sha256.tdl.dto.UserTypeBot
+import dev.g000sha256.tdl.dto.UserTypeRegular
+import dev.g000sha256.tdl.dto.ImportedContact
 import dev.g000sha256.tdl.dto.Usernames
 import dev.g000sha256.tdl.dto.OptionValueInteger
 import dev.g000sha256.tdl.dto.InputPollTypeRegular
@@ -1325,6 +1327,34 @@ class TdlConversationRepository(
             .toResult()
             .map { it.toChatMessage(isGroup(chatId)) }
 
+    /** Uživatel za sdíleným kontaktem: profilovka a jestli ho nabídnout k přidání do kontaktů. */
+    private suspend fun sharedContactUser(content: MessageContent): SharedContactUser? {
+        val userId = (content as? MessageContact)?.contact?.userId?.takeIf { it != 0L } ?: return null
+        val user = client.getUser(userId = userId).toResult().getOrNull() ?: return null
+        return SharedContactUser(
+            photoFileId = user.profilePhoto?.small?.id,
+            canBeAdded = !user.isContact && user.type is UserTypeRegular && userId != myId(),
+        )
+    }
+
+    override suspend fun addSharedContact(chatId: Long, messageId: Long): Result<Long> = runCatching {
+        val message = client.getMessage(chatId = chatId, messageId = messageId).toResult().getOrThrow()
+        val contact = (message.content as? MessageContact)?.contact ?: error("Zpráva $messageId nenese kontakt.")
+        check(contact.userId != 0L) { "Kontakt ve zprávě $messageId není na Telegramu." }
+        client.addContact(
+            userId = contact.userId,
+            contact = ImportedContact(
+                phoneNumber = contact.phoneNumber,
+                // TDLib chce aspoň jeden znak křestního jména; bez něj vezmeme příjmení.
+                firstName = contact.firstName.ifBlank { contact.lastName },
+                lastName = if (contact.firstName.isBlank()) "" else contact.lastName,
+                note = null,
+            ),
+            sharePhoneNumber = false,
+        ).toResult().getOrThrow()
+        contact.userId
+    }
+
     override suspend fun contactCard(userId: Long): Result<MessageMedia.Contact> = runCatching {
         val user = client.getUser(userId = userId).toResult().getOrThrow()
         MessageMedia.Contact(
@@ -2102,10 +2132,9 @@ class TdlConversationRepository(
             description = body.description,
             media = messageMedia(
                 hideSensitive = hideSensitive,
-                // Profilovka sdíleného kontaktu: `getUser` je lokální, TDLib uživatele zná, když
-                // zná zprávu, která ho sdílí.
-                contactPhotoFileId = (content as? MessageContact)?.contact?.userId?.takeIf { it != 0L }
-                    ?.let { client.getUser(userId = it).toResult().getOrNull()?.profilePhoto?.small?.id },
+                // Uživatel sdíleného kontaktu: `getUser` je lokální, TDLib uživatele zná, když zná
+                // zprávu, která ho sdílí. Samostatná funkce, ne výraz tady — viz [externalReply].
+                contactUser = sharedContactUser(content),
                 // Kanály soutěže a výherci z keše odesílatelů — ostatní zprávy na ni nesáhnou.
                 senderName = { id -> resolveSender(id)?.title },
                 story = ::sharedStory,

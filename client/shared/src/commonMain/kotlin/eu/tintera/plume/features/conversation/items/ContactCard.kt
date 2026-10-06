@@ -2,6 +2,7 @@ package eu.tintera.plume.features.conversation.items
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ButtonDefaults
@@ -18,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.contact_add
 import eu.tintera.plume.resources.contact_write
 import org.jetbrains.compose.resources.stringResource
 
@@ -25,14 +27,15 @@ import org.jetbrains.compose.resources.stringResource
  * Sdílený kontakt: tvář, jméno a číslo, pod tím „Napsat zprávu", když je kontakt na Telegramu.
  *
  * Stejná stavba jako řádek souboru a hovoru (kolečko vlevo, text vedle), aby se v konverzaci
- * nevymýšlel další tvar. **„Přidat do kontaktů" tu zatím není** — mění adresář účtu (a u čísla
- * bez Telegramu nemá co přidat); číslo jde zkopírovat z nabídky nad zprávou.
+ * nevymýšlel další tvar. **„Přidat do kontaktů"** jen u člověka na Telegramu, který v adresáři
+ * ještě není ([MessageMedia.Contact.canAddToContacts]); číslo bez Telegramu přidat nejde,
+ * zkopírovat ho jde z nabídky nad zprávou.
  *
  * Tlačítko je v barvě popředí bubliny ([accent]): v odchozí `primary` bublině by `primary`
  * splynulo s pozadím.
  */
 @Composable
-internal fun ContactCard(contact: MessageMedia.Contact, accent: Color, onWrite: () -> Unit) {
+internal fun ContactCard(contact: MessageMedia.Contact, accent: Color, onWrite: () -> Unit, onAddContact: () -> Unit) {
     val contentAccent = accent.takeIf { it != Color.Unspecified } ?: LocalContentColor.current
     Column(Modifier.padding(vertical = 4.dp)) {
         Row(
@@ -59,14 +62,20 @@ internal fun ContactCard(contact: MessageMedia.Contact, accent: Color, onWrite: 
             }
         }
         // Do chatu, ve kterém karta leží, „Napsat zprávu" nevede nikam (viz `isThisChat`).
-        if (contact.userId != null && !contact.isThisChat) {
-            TextButton(
-                onClick = onWrite,
-                colors = ButtonDefaults.textButtonColors(contentColor = contentAccent),
-                // Popisek lícuje se jménem nad sebou (kolečko + mezera), ne s kolečkem.
+        val canWrite = contact.userId != null && !contact.isThisChat
+        if (canWrite || contact.canAddToContacts) {
+            val colors = ButtonDefaults.textButtonColors(contentColor = contentAccent)
+            // Dvě tlačítka se do úzké bubliny vedle sebe nemusí vejít — pak druhé spadne pod první.
+            FlowRow(
+                // Popisky lícují se jménem nad sebou (kolečko + mezera), ne s kolečkem.
                 modifier = Modifier.padding(start = CONTACT_AVATAR_SIZE - 2.dp),
             ) {
-                Text(stringResource(Res.string.contact_write))
+                if (canWrite) {
+                    TextButton(onClick = onWrite, colors = colors) { Text(stringResource(Res.string.contact_write)) }
+                }
+                if (contact.canAddToContacts) {
+                    TextButton(onClick = onAddContact, colors = colors) { Text(stringResource(Res.string.contact_add)) }
+                }
             }
         }
     }

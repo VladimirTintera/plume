@@ -310,6 +310,9 @@ interface ChatRepository {
 
     /** Přidá protějšek soukromého chatu do kontaktů pod jménem, které má v Telegramu. */
     suspend fun addToContacts(chatId: Long): Result<Unit>
+
+    /** Odebere uživatele [userId] z adresáře účtu (`removeContacts`); chat s ním zůstane. */
+    suspend fun removeContact(userId: Long): Result<Unit>
 }
 
 /**

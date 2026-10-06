@@ -3,6 +3,11 @@ package eu.tintera.plume.features.profile
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.files.opensInViewer
 import eu.tintera.plume.resources.share_24dp
+import eu.tintera.plume.resources.contact_add
+import eu.tintera.plume.resources.person_remove_24dp
+import eu.tintera.plume.resources.profile_remove_contact
+import eu.tintera.plume.resources.profile_remove_contact_body
+import eu.tintera.plume.resources.profile_remove_contact_title
 import eu.tintera.plume.resources.profile_share_contact
 import eu.tintera.plume.resources.profile_tab_music
 import eu.tintera.plume.resources.profile_search_files
@@ -358,6 +363,7 @@ fun ChatProfileScreen(
                             onAddMembers = onAddMembers,
                             spam = state.spam?.copy(isBlocked = profile.isBlocked),
                             onSetBlocked = viewModel::setBlocked,
+                            onSetContact = viewModel::setContact,
                             onReport = viewModel::report,
                             onDeleteOrLeave = viewModel::deleteOrLeave,
                         )
@@ -1158,11 +1164,13 @@ private fun ProfileMenu(
     /** Co jde nahlásit a zablokovat; `null`, dokud to nedorazí. */
     spam: SpamActions?,
     onSetBlocked: (Boolean) -> Unit,
+    onSetContact: (Boolean) -> Unit,
     onReport: () -> Unit,
     onDeleteOrLeave: (SpamCleanup) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var confirmBlock by rememberSaveable { mutableStateOf(false) }
+    var confirmRemoveContact by rememberSaveable { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val canBlock = profile.userId != null
     val canDeleteOrLeave = profile.isPrivate || profile.isMember
@@ -1171,9 +1179,11 @@ private fun ProfileMenu(
     val canReport = spam?.canReport == true
     // Kontakt se posílá s číslem; kdo ho skrývá (nebo bot, ten žádné nemá), poslat nejde.
     val canShareContact = profile.kind == ProfileKind.User && profile.userId != null && !profile.phone.isNullOrBlank()
+    // Do kontaktů jde člověk, ne bot a ne vlastní účet (ten je `SavedMessages`).
+    val canManageContact = profile.kind == ProfileKind.User && profile.userId != null
     if (
         profile.link == null && !canBlock && !canDeleteOrLeave && !canEdit && !canReport && !canShareContact &&
-        !profile.canAddMembers
+        !profile.canAddMembers && !canManageContact
     ) {
         return
     }
@@ -1206,6 +1216,20 @@ private fun ProfileMenu(
                     profile.link?.let { MenuAction(stringResource(Res.string.profile_copy_link), Res.drawable.link_24dp, onClick = onCopyLink) },
                     if (canShareContact) {
                         MenuAction(stringResource(Res.string.profile_share_contact), Res.drawable.share_24dp, onClick = onShareContact)
+                    } else {
+                        null
+                    },
+                    if (canManageContact) {
+                        if (profile.isContact) {
+                            // Odebrání smaže jméno uložené v kontaktech na všech zařízeních — s potvrzením.
+                            MenuAction(
+                                stringResource(Res.string.profile_remove_contact),
+                                Res.drawable.person_remove_24dp,
+                                onClick = { confirmRemoveContact = true },
+                            )
+                        } else {
+                            MenuAction(stringResource(Res.string.contact_add), Res.drawable.person_add_24dp, onClick = { onSetContact(true) })
+                        }
                     } else {
                         null
                     },
@@ -1270,6 +1294,20 @@ private fun ProfileMenu(
                 }) { Text(stringResource(Res.string.profile_block), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { confirmBlock = false }) { Text(stringResource(Res.string.common_cancel)) } },
+        )
+    }
+    if (confirmRemoveContact) {
+        AlertDialog(
+            onDismissRequest = { confirmRemoveContact = false },
+            title = { Text(stringResource(Res.string.profile_remove_contact_title, profile.title)) },
+            text = { Text(stringResource(Res.string.profile_remove_contact_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmRemoveContact = false
+                    onSetContact(false)
+                }) { Text(stringResource(Res.string.profile_remove_contact), color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { confirmRemoveContact = false }) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
     /*

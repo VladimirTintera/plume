@@ -182,6 +182,8 @@ import eu.tintera.plume.resources.conversation_recording_too_short
 import eu.tintera.plume.resources.conversation_repin_failed
 import eu.tintera.plume.resources.conversation_send_failed
 import eu.tintera.plume.resources.conversation_sticker_send_failed
+import eu.tintera.plume.resources.contact_add_failed
+import eu.tintera.plume.resources.contact_remove_failed
 import eu.tintera.plume.resources.conversation_unpin_failed
 import eu.tintera.plume.resources.conversation_unread_mark_failed
 import eu.tintera.plume.resources.conversation_voice_send_failed
@@ -3475,6 +3477,7 @@ class ConversationViewModel(
             is MessageAction.OpenLink -> openLink(action.url)
             is MessageAction.OpenMention -> openMentioned { chatRepository.chatByUsername(action.username) }
             is MessageAction.OpenUser -> openMentioned { chatRepository.privateChat(action.userId) }
+            MessageAction.AddContact -> addSharedContact(messageId)
             is MessageAction.OpenChat -> openMentioned { Result.success(action.chatId) }
             MessageAction.ShowGiveaway -> showGiveaway(messageId)
             is MessageAction.SendBotCommand -> sendBotCommand(action.command)
@@ -3732,6 +3735,41 @@ class ConversationViewModel(
         val ids = _state.value.albumMemberIds(messageId)
         closeMenus()
         reportFlow.start(chatId, messageIds = ids)
+    }
+
+    /**
+     * „Přidat do kontaktů" na kartě sdíleného kontaktu. Karta tlačítko schová hned po úspěchu —
+     * zpráva se kvůli tomu znovu nepřevádí — a snackbar nabídne „Vrátit": přidání jde vzít
+     * zpátky a dialog před vratnou akcí jen zdržuje.
+     */
+    private fun addSharedContact(messageId: Long) {
+        viewModelScope.launch {
+            repository.addSharedContact(chatId, messageId)
+                .onSuccess { userId ->
+                    _state.update { it.withContactAddable(userId, addable = false).copy(addedContact = userId) }
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Přidání kontaktu ze zprávy $messageId selhalo." }
+                    _state.update { it.copy(error = failure.userMessage(Res.string.contact_add_failed)) }
+                }
+        }
+    }
+
+    /** „Vrátit" ze snackbaru po přidání kontaktu. */
+    fun undoAddContact(userId: Long) {
+        viewModelScope.launch {
+            chatRepository.removeContact(userId)
+                .onSuccess { _state.update { it.withContactAddable(userId, addable = true) } }
+                .onFailure { failure ->
+                    logger.w(failure) { "Odebrání kontaktu $userId selhalo." }
+                    _state.update { it.copy(error = failure.userMessage(Res.string.contact_remove_failed)) }
+                }
+        }
+    }
+
+    /** Obrazovka snackbar k přidanému kontaktu ukázala. */
+    fun consumeAddedContact() {
+        _state.update { it.copy(addedContact = null) }
     }
 
     /** Pruh proti spamu: přidat protějšek do kontaktů. Pruh pak zmizí sám (update od serveru). */
@@ -5108,6 +5146,8 @@ data class ConversationState(
     val notice: UiText? = null,
     /** Právě odepnutá zpráva — obrazovka k ní ukáže snackbar s „Vrátit". */
     val unpinned: ChatMessage? = null,
+    /** Uživatel, kterého karta kontaktu právě přidala — obrazovka ukáže snackbar s „Vrátit". */
+    val addedContact: Long? = null,
     /** Zpráva, jejíž text se právě upravuje ve vstupním poli; `null` při běžném psaní. */
     val editing: ChatMessage? = null,
     /** Náhled odkazu v rozepsaném textu, jak ho vrátil server; `null`, když text odkaz nemá. */
@@ -5403,6 +5443,18 @@ private const val FORCE_REPLY_WAIT = 3_000L
  *
  * Odpověď se nezahazuje hned při otevření formuláře — kdo ho zavře, má ji mít dál.
  */
+/**
+ * Karty sdíleného kontaktu [userId] nabízejí (ne)přidání do kontaktů podle [addable] — po přidání
+ * a po jeho vrácení. Týká se všech karet téhož člověka v konverzaci, ne jen té ťuknuté.
+ */
+internal fun ConversationState.withContactAddable(userId: Long, addable: Boolean): ConversationState =
+    copy(
+        messages = messages.map { message ->
+            val contact = message.media as? MessageMedia.Contact
+            if (contact?.userId == userId) message.copy(media = contact.copy(canAddToContacts = addable)) else message
+        },
+    )
+
 internal fun ConversationState.replyConsumedBy(sent: ReplyRequest): Boolean =
     replyingTo?.id == sent.messageId
 

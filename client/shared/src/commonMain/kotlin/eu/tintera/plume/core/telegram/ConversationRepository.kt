@@ -494,6 +494,13 @@ interface ConversationRepository {
     suspend fun contactCard(userId: Long): Result<MessageMedia.Contact>
 
     /**
+     * Přidá kontakt sdílený zprávou [messageId] do adresáře účtu — se jménem a číslem z karty,
+     * ne z účtu (odesílatel ho mohl pojmenovat po svém). Vrací id přidaného uživatele.
+     * Svoje číslo protějšku nesdílí; to je samostatné rozhodnutí o soukromí.
+     */
+    suspend fun addSharedContact(chatId: Long, messageId: Long): Result<Long>
+
+    /**
      * Pošle kontakt [userId] (`InputMessageContact`): jméno a číslo z účtu, s id uživatele, takže
      * u příjemce jde rovnou „Napsat zprávu". Vrací rozepsanou zprávu hned jako [send].
      */
@@ -2213,6 +2220,11 @@ sealed interface MessageMedia {
          * se u něj nenabízí.
          */
         val isThisChat: Boolean = false,
+        /**
+         * Kontakt je na Telegramu a v adresáři účtu ještě není: karta nabídne „Přidat do kontaktů".
+         * Vlastní účet ani bota přidat nejde, a co už v kontaktech je, se nenabízí.
+         */
+        val canAddToContacts: Boolean = false,
     ) : MessageMedia
 
     /**
