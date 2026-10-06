@@ -1369,6 +1369,15 @@
     <string name="summary_disclaimer">Vytvořeno v zařízení. Může být nepřesné.</string>
     <string name="summary_truncated">Modelu došlo místo a přestal psát dřív, takže konec konverzace ve shrnutí chybí.</string>
     <string name="summary_retry">Zkusit znovu</string>
+    <string name="ai_failure_busy">Model je teď vytížený. Zkus to za chvíli.</string>
+    <string name="ai_failure_too_large">Konverzace je na model moc dlouhá.</string>
+    <string name="ai_failure_no_space">V telefonu není pro model dost místa.</string>
+    <string name="ai_failure_needs_update">Model potřebuje novější verzi systému nebo aplikace AICore.</string>
+    <string name="ai_failure_unavailable">Model v telefonu teď není k dispozici.</string>
+    <string name="ai_failure_nano">Gemini Nano v telefonu selhal. Pomůže vymazat úložiště aplikace AICore v Nastavení systému, nebo přepnout na Gemmu v Nastavení → Obecné → AI v zařízení.</string>
+    <string name="ai_failure_nano_code">Gemini Nano v telefonu selhal (AICore, kód %1$s). Pomůže vymazat úložiště aplikace AICore v Nastavení systému, nebo přepnout na Gemmu v Nastavení → Obecné → AI v zařízení.</string>
+    <string name="ai_failure_gemma">Model Gemma selhal. Když to nepomůže znovu, smaž model v Nastavení → Obecné → AI v zařízení a stáhni ho znovu.</string>
+    <string name="ai_failure_empty">Model nenapsal žádný text.</string>
     <string name="settings_on_device_ai_preview">Preview verze modelu</string>
     <string name="settings_on_device_ai_preview_summary">Nejnovější verze před stabilním vydáním. Pro tohle zařízení nemusí být a stahuje se zvlášť.</string>
     <string name="settings_on_device_ai_preview_same">Preview verze se tu nepoužije — tak jako tak běží stabilní model.</string>

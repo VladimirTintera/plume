@@ -516,6 +516,23 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
 - **Zjišťování dostupnosti má `catch`, i když „nemůže" selhat.** `available` je `flow { … }`
   v `stateIn(viewModelScope)`; cokoli, co by z něj vyletělo, shodí scope, tedy ViewModel celé
   obrazovky. Nepodařilo se zjistit = nenabízet.
+- **AICore umí model rozbít a `checkStatus` pořád hlásí `AVAILABLE`.** Na Pixelu 11 Pro Foldu
+  se po aktualizaci AICore (a restartu) Gemini Nano přestal nacházet ve vlastních souborech
+  (`NOT_FOUND: …/aicore-models/symlinks/…/main/config.binarypb`) a každé generování skončilo
+  `GenAiException` s kódem 5 (`COMPUTE_ERROR`, ML Kit ho mezi `ErrorCode` nemá). Featura byla
+  v AICore `ACTIVE`, Plume model nabízela — a uživatel viděl jen „Shrnutí se nepovedlo", den
+  a půl. **Spravilo to vymazání úložiště AICore** (`adb shell pm clear com.google.android.aicore`
+  nebo Nastavení → Aplikace → AICore), pak si model stáhl znovu.
+- **Kde to hledat:** `adb shell dumpsys activity service com.google.android.aicore` má historii
+  posledních inferencí (`caller_package_names=eu.tintera.plume … status=N`; 1 = úspěch) a stav
+  každé featury (`feature_647: ACTIVE` / `PENDING (DOWNLOADING)`). Plume volá featuru 647
+  (`nano-v4-full`). Chyba samotná je v logu procesu AICore (`AiCoreInferenceHelper`).
+- **Selhání generování nese důvod** (`OnDeviceAiException` s `AiFailureReason`, převod z kódu
+  ML Kitu v `MlKitOnDeviceAi.toAiFailure`). Sheet shrnutí ho říká větou, u rozbitého Nano
+  i s kódem a radou vymazat úložiště AICore nebo přepnout na Gemmu. Do Crashlytics jako
+  problém (`e` s výjimkou) jde jen rozbitý / nedostupný model (`isReportable`), vytížený,
+  dlouhý vstup a plný disk zůstávají `w`. Návrhy odpovědí se pouštějí samy u každé zprávy,
+  takže hlásí jen první selhání za běh procesu.
 - **Sloh je pořád slabina.** Tykání i věcnost sedí, ale mezi třemi návrhy bývá jeden nesmysl
   („Ne, zítra mi je zajímavé."). To je limit modelu, ne promptu.
 

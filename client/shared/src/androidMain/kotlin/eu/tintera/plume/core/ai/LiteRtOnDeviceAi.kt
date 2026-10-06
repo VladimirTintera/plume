@@ -26,6 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -233,6 +234,14 @@ class LiteRtOnDeviceAi(
             }
         }
     }.flowOn(Dispatchers.Default) // Zakládání konverzace a úklid jsou nativní volání; ne na hlavním vlákně.
+        .catch { e ->
+            // LiteRT-LM chybové kódy nemá; cokoli z ní je selhání modelu. Zrušení `catch` nechytá.
+            throw if (e is Exception && e !is OnDeviceAiException) {
+                OnDeviceAiException(AiFailureReason.ModelError, AiProvider.Gemma, cause = e)
+            } else {
+                e
+            }
+        }
 
     override suspend fun delete(variant: ModelVariant) {
         val model = variant.gemma

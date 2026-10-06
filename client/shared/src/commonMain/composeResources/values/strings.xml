@@ -1341,6 +1341,15 @@
     <string name="summary_disclaimer">Generated on this device. It may be inaccurate.</string>
     <string name="summary_truncated">The model ran out of room and stopped early, so the end of the conversation is missing.</string>
     <string name="summary_retry">Try again</string>
+    <string name="ai_failure_busy">The model is busy right now. Try again in a moment.</string>
+    <string name="ai_failure_too_large">The conversation is too long for the model.</string>
+    <string name="ai_failure_no_space">There is not enough space on the phone for the model.</string>
+    <string name="ai_failure_needs_update">The model needs a newer version of the system or of the AICore app.</string>
+    <string name="ai_failure_unavailable">The model on this phone is not available right now.</string>
+    <string name="ai_failure_nano">Gemini Nano on this phone failed. Clearing the storage of the AICore app in system Settings helps, or switch to Gemma in Settings → General → On-device AI.</string>
+    <string name="ai_failure_nano_code">Gemini Nano on this phone failed (AICore, code %1$s). Clearing the storage of the AICore app in system Settings helps, or switch to Gemma in Settings → General → On-device AI.</string>
+    <string name="ai_failure_gemma">The Gemma model failed. If trying again does not help, delete the model in Settings → General → On-device AI and download it again.</string>
+    <string name="ai_failure_empty">The model did not write any text.</string>
     <string name="settings_on_device_ai_preview">Preview model version</string>
     <string name="settings_on_device_ai_preview_summary">The newest version before its stable release. It may not exist for this device and downloads separately.</string>
     <string name="settings_on_device_ai_preview_same">The preview version is not used here — the stable model runs either way.</string>
