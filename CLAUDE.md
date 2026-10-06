@@ -10330,6 +10330,22 @@ vkus toho, kdo zrovna píše obrazovku.
 
 ## Gotchas
 
+- **Modifikátor insetů s hodnotou, která se mění se změnou scény, shodí aplikaci při
+  rozložení nebo složení Foldu.** `consumeWindowInsets(PaddingValues)` i `windowInsetsPadding`
+  při změně hodnoty volají `insetsInvalidated()` → `traverseDescendants` a NEKONTROLUJÍ, jestli
+  je uzel připojený (Compose 1.12, `WindowInsetsPadding.kt`). Když NavDisplay přesouvá obsah
+  položky do jiné scény (jeden panel ↔ list-detail), aplikuje se změněný modifikátor uzlu,
+  který je zrovna odpojený: `visitSubtreeIf called on an unattached node`. Compose chybu
+  zachytí („Error was captured in composition") a pád pak přijde až při měření jako
+  `NullPointerException` v `LookaheadPassDelegate.forEachChildAlignmentLinesOwner`, v release
+  buildu `NPE … Object.getClass()`. **Hledá se tedy podle PRVNÍ chyby v logu, ne podle té,
+  která aplikaci shodila.** Tak padal seznam chatů: `consumeWindowInsets(PaddingValues(bottom =
+  scaffoldPadding…))`, jehož hodnota se při rozložení mění. Pravidlo: do modifikátorů insetů
+  dávat POPIS insetů (`WindowInsets.navigationBars.union(WindowInsets.ime)`,
+  `ScaffoldDefaults.contentWindowInsets.only(…)`), který je mezi rekompozicemi pořád stejný,
+  ne čísla odvozená z paddingu. Reprodukce na emulátoru Fold: seznam chatů na složeném
+  displeji, `adb emu unfold` / `fold` v cyklu (bez opravy pád do šesti cyklů).
+
 - **`ConversationScreen` je v dexu na hraně a nová logika patří do VLASTNÍ funkce.** Po přidání
   docku přehrávače přímo do ní měla funkce 275 registrů a otevření každého chatu padalo na
   `NullPointerException … Composer.sourceInformationMarkerStart` na `null` v
