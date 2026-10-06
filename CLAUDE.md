@@ -9865,6 +9865,15 @@ vkus toho, kdo zrovna píše obrazovku.
   API 28 nezaznamená ani dlouhý stisk launcheru (`dumpsys vibrator` má „Previous vibrations"
   prázdné) — náhradu typů, které na starých verzích neexistují, tedy na něm ověřit nejde. Zbývá
   na to skutečné staré zařízení; co se ověřit dá, je, že nic nespadne.
+- **Posuvník videa tiká po dvacetinách délky, prohlížeč při dosednutí na jinou fotku** — jen
+  po tahu prstem (`collectIsDraggedAsState` nad `interactionSource` pageru); programový posun
+  (smazaná fotka, skok na fotku) netiká. První dílek tahu po posuvníku netiká, tik znamená
+  „přešel jsi hranici dílku".
+- **Ovládání videa na celé obrazovce leželo v povinné zóně systémových gest** (emulátor Pixel 9:
+  `mandatorySystemGestures` posledních 84 px, střed posuvníku na y 2350 z 2424). Vodorovný tah
+  po posuvníku tam vzal systém a prohlížeč se zavřel; na telefonu s navigací gesty by přepnul
+  aplikace. Lišta proto bere spodní inset `navigationBars ∪ mandatorySystemGestures`. Zónu
+  ukáže `adb shell dumpsys window | grep -A2 SystemGestures`.
 - **Emulátor nevibruje, ale volání zaznamenává**: `adb shell dumpsys vibrator_manager` má sekci
   „Recent vibrations" a v ní `reason: performHapticFeedback(constant=N)`. Čísla jsou
   `HapticFeedbackConstants`: **0 = LONG_PRESS, 16 = CONFIRM, 17 = REJECT, 21 = TOGGLE_ON,

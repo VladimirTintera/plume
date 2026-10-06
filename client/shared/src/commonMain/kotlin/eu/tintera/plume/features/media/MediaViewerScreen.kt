@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.media
 
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import eu.tintera.plume.core.ui.tick
 import eu.tintera.plume.core.navigation.NO_START
 import eu.tintera.plume.core.telegram.customEmojiIdOf
 import eu.tintera.plume.core.ui.resolveNow
@@ -353,6 +356,26 @@ private fun ViewerContent(
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect(onPageChanged)
+    }
+
+    /*
+     * Dosednutí na jinou fotku po tahu prstem tikne (procházení po dílcích). Jen po TAHU:
+     * programový posun (smazaná fotka, skok na konkrétní fotku) gestem uživatele není.
+     */
+    val haptics = LocalHapticFeedback.current
+    val pagerDragged by pagerState.interactionSource.collectIsDraggedAsState()
+    LaunchedEffect(pagerState) {
+        var swiped = false
+        var settled = pagerState.settledPage
+        snapshotFlow { Triple(pagerDragged, pagerState.isScrollInProgress, pagerState.settledPage) }
+            .collect { (dragged, scrolling, page) ->
+                if (dragged) swiped = true
+                if (scrolling || dragged) return@collect
+                // Dosedlo: na jinou stránku po tahu tikne; tah zpátky na tutéž se zapomene.
+                if (page != settled && swiped) haptics.tick()
+                settled = page
+                swiped = false
+            }
     }
 
     // Vynuluje se až po posunu: vynulování mění klíč efektu a zrušilo by rozjetý posun.

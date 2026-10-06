@@ -1,5 +1,15 @@
 package eu.tintera.plume.features.media
 
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.mandatorySystemGestures
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.runtime.mutableIntStateOf
+import eu.tintera.plume.core.ui.tick
 import eu.tintera.plume.resources.media_unmute
 import eu.tintera.plume.resources.media_mute
 import eu.tintera.plume.resources.volume_up_24dp
@@ -590,6 +600,17 @@ internal fun VideoPage(
                                 listOf(Color.Transparent, MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f)),
                             ),
                         )
+                        /*
+                         * Ovládání se ukazuje jen na celé obrazovce, kde karta sahá až ke spodní
+                         * hraně displeje. Bez odsazení ležel posuvník v POVINNÉ zóně systémových
+                         * gest (na emulátoru Pixel 9 posledních 84 px) a vodorovný tah po něm
+                         * přepnul aplikace, místo aby posunul video. Přechod do tmava jde dál
+                         * až ke hraně, odsadí se jen obsah.
+                         */
+                        .windowInsetsPadding(
+                            WindowInsets.navigationBars.union(WindowInsets.mandatorySystemGestures)
+                                .only(WindowInsetsSides.Bottom),
+                        )
                         .padding(horizontal = 12.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -601,16 +622,25 @@ internal fun VideoPage(
                         style = MaterialTheme.typography.labelMedium.tabularNumbers(),
                         color = Color.White,
                     )
+                    val haptics = LocalHapticFeedback.current
+                    // Tahem se tiká po dílcích, ne po pixelech — jako po sloupcích waveformu hlasovky.
+                    var tickedStep by remember { mutableIntStateOf(-1) }
                     Slider(
                         value = fraction,
                         onValueChange = {
                             seekingFraction = it
                             controlsVisible = true
+                            val step = (it * VIDEO_SEEK_STEPS).toInt().coerceIn(0, VIDEO_SEEK_STEPS - 1)
+                            if (step != tickedStep) {
+                                if (tickedStep >= 0) haptics.tick()
+                                tickedStep = step
+                            }
                         },
                         onValueChangeFinished = {
                             seekingFraction?.let { player.seekTo((it * durationMs).toLong()) }
                             seekingFraction = null
                             ended = false
+                            tickedStep = -1
                         },
                         colors = SliderDefaults.colors(
                             thumbColor = Color.White,
@@ -678,3 +708,6 @@ private val CircleCornerShape = androidx.compose.foundation.shape.CircleShape
 
 private const val POSITION_TICK_MS = 200L
 private const val CONTROLS_HIDE_MS = 3000L
+
+/** Na kolik dílků se posuvník videa dělí, když tiká haptika (po pětinách procenta by bzučel). */
+private const val VIDEO_SEEK_STEPS = 20

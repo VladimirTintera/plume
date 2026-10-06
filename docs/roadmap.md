@@ -378,8 +378,8 @@ Vede se to tady, ne v [roadmap-konverzace.md](roadmap-konverzace.md): je to jede
 celou aplikaci a rozdělený na dvě místa by se rozešel. Zbývá:
 
 - **Procházení po dílcích** (`tick`): ~~tažení po waveformu hlasovky~~ — hotovo (tiká po
-  sloupcích, ne po pixelech) —, zbývá posuvník videa, přeskočení stránky v prohlížeči médií
-  a pruh rychlých reakcí. Je to jediná skupina, kde hrozí, že odezva bude otravná — chce to
+  sloupcích, ne po pixelech) —, ~~posuvník videa~~ (po dvacetinách délky) a ~~přeskočení
+  stránky v prohlížeči médií~~ (jen po tahu prstem) — hotovo; zbývá pruh rychlých reakcí. Je to jediná skupina, kde hrozí, že odezva bude otravná — chce to
   ladit rukou na telefonu, ne od stolu. **Tažení po waveformu ověřené rukou NENÍ**, jen
   z `dumpsys vibrator_manager`.
 - **Ověřit rukou na telefonu.** Emulátor nevibruje; z `dumpsys vibrator_manager` se pozná jen,

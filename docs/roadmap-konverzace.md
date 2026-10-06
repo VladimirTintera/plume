@@ -124,8 +124,11 @@ Co z toho zůstalo:
 - **Barva z obrázku se nedělá** a dělat nebude — kontejnery berou barvu bubliny. Důvody zůstávají
   platné: TDLib barvu neposílá, kvantizace by chtěla keš a vlákno navíc, a předloze by se stejně
   netrefila.
-- **`displayUrl` doménový `LinkPreview` pořád nenese.** Do doplňkového textu se dnes bere
-  `siteName`; bez něj (a bez titulku i popisu) se kontejner nekreslí vůbec.
+- ~~**`displayUrl` doménový `LinkPreview` pořád nenese.**~~ — **nemá cenu**: server náhled bez
+  metadat stránky vůbec nevydá (`linkPreview = null` u `example.com`, `info.cern.ch`,
+  `neverssl.com` aj.), a u stránky bez `og:site_name` doplní jako název webu doménu sám
+  (`www.rfc-editor.org`). Náhled s titulkem a bez názvu webu se na jedenácti zkušebních
+  odkazech nevyskytl; ověřeno sondou nad tím, co TDLib posílá.
 - ~~**Náhled nad textem** (`showAboveText`)~~ — hotovo, náhled se kreslí nad textem, když
   si to odesílatel přál.
 
