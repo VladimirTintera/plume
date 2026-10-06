@@ -7,6 +7,7 @@ import eu.tintera.plume.resources.saved_topic_open_chat
 import eu.tintera.plume.core.ui.savedTopicTitle
 import eu.tintera.plume.core.ui.SavedTopicAvatar
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.video.VideoSurface
 import eu.tintera.plume.core.telegram.SavedTopicKind
 import androidx.compose.runtime.DisposableEffect
 import eu.tintera.plume.core.ui.resolveNow
@@ -108,6 +109,8 @@ import eu.tintera.plume.resources.profile_open
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.ui.unit.Dp
 import eu.tintera.plume.resources.conversation_search
 import eu.tintera.plume.resources.comments_title
 import eu.tintera.plume.resources.search_24dp
@@ -160,6 +163,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import eu.tintera.plume.features.conversation.items.ARRIVAL_TOLERANCE_SECONDS
 import eu.tintera.plume.features.conversation.items.effectAutoplays
 import eu.tintera.plume.features.conversation.items.WavyShape
+import eu.tintera.plume.features.conversation.items.SoundingVideoNote
+import eu.tintera.plume.features.conversation.items.rememberSoundingVideoNote
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
@@ -310,6 +315,7 @@ import eu.tintera.plume.resources.tune_24dp
 import eu.tintera.plume.resources.link_24dp
 import eu.tintera.plume.resources.location_dock_you
 import eu.tintera.plume.resources.conversation_voice_message
+import eu.tintera.plume.resources.content_video_note
 import eu.tintera.plume.core.telegram.LinkPreviewOptions
 import eu.tintera.plume.core.ui.describe
 import eu.tintera.plume.core.telegram.OutgoingAttachment
@@ -876,6 +882,23 @@ fun ConversationScreen(
     val currentSaveAs by rememberUpdatedState(saveAs)
     // Příkaz z textu se pošle jen tam, kam se smí psát; jinak zůstane obyčejným textem.
     val canSendCommands = remember(stateHolder) { derivedStateOf { stateHolder.value.canWrite } }
+    /*
+     * Kolečko se zvukem hraje přehrávač obrazovky, ne položky (viz [SoundingVideoNote]):
+     * odscrollované hraje dál v docku. Zpráva se drží i chvíli, kdy v seznamu není (výměna okna).
+     */
+    val soundingNoteId = state.soundingVideoNote
+    val soundingNoteMedia = remember(soundingNoteId) { arrayOfNulls<MessageMedia.VideoNote>(1) }
+    (state.messages.firstOrNull { it.id == soundingNoteId }?.media as? MessageMedia.VideoNote)
+        ?.let { soundingNoteMedia[0] = it }
+    val soundingVideoNote = rememberUpdatedState(
+        rememberSoundingVideoNote(
+            chatId = viewModel.chatId,
+            messageId = soundingNoteId,
+            note = soundingNoteMedia[0],
+            startMs = { stateHolder.value.soundingVideoNoteFromMs },
+            onEnded = { viewModel.onAction(it, MessageAction.VideoNoteSoundEnded) },
+        ),
+    )
     val itemScope = remember(viewModel) {
         ScreenItemScope(
             viewModel = viewModel,
@@ -899,6 +922,7 @@ fun ConversationScreen(
             searchHighlight = searchHighlight,
             profileFlight = profileFlight,
             canSendCommands = canSendCommands,
+            soundingVideoNote = soundingVideoNote,
         )
     }
 
@@ -1003,62 +1027,20 @@ fun ConversationScreen(
     }
 
     /*
-     * Mini přehrávač v docku (`PlayerDockBar`): hrající hlasovka nebo skladba, jejíž zpráva odjela
-     * z obrazovky. Měří se stejně jako dock polohy; skladba z jiného chatu svou zprávu v seznamu
-     * nemá, a je proto v docku celá. Kompozice čte jen KLÍČ hrajícího zvuku, průběh až řádek.
+     * Mini přehrávač v docku (`PlayerDockBar`): hrající hlasovka, skladba nebo kolečko se zvukem,
+     * jejichž zpráva odjela z obrazovky. Je ve vlastních funkcích ([rememberPlayerDock],
+     * [ConversationPlayerDock]), ne tady: s ním uvnitř měla tahle funkce v dexu 275 registrů
+     * a otevření každého chatu padalo na `$composer` = null (viz CLAUDE.md, „Gotchas").
      */
-    val nowPlaying by viewModel.nowPlaying.collectAsStateWithLifecycle()
-    val dockedPlayback by remember(viewModel.chatId) {
-        derivedStateOf(structuralEqualityPolicy()) {
-            voicePlayback.value?.takeIf { it.docksIn(viewModel.chatId) }?.let { it.key to it.music }
-        }
-    }
-    val playerTarget by remember(listState) {
-        derivedStateOf {
-            val key = dockedPlayback?.first ?: return@derivedStateOf 0f
-            if (key.chatId != viewModel.chatId) return@derivedStateOf 1f
-            val info = listState.layoutInfo
-            if (info.visibleItemsInfo.isEmpty()) return@derivedStateOf 0f
-            val top = info.viewportEndOffset - with(dockDensity) { (8.dp + barsHeight).toPx() }
-            // Blok, ne zpráva: skladba z alba je položka s klíčem nejstarší zprávy alba.
-            val block = dockSource.blockKeyOf(key.messageId)
-            val item = block?.let { b -> info.visibleItemsInfo.firstOrNull { it.key == b } }
-            item?.let { dockProgress(it.offset, it.size, top, 0f) } ?: 1f
-        }
-    }
-    val playerReveal = remember { Animatable(0f) }
-    LaunchedEffect(playerReveal) {
-        snapshotFlow { playerTarget }.collectLatest { target ->
-            if (abs(target - playerReveal.value) > DOCK_JUMP) playerReveal.animateTo(target, dockSpec) else playerReveal.snapTo(target)
-        }
-    }
-    val playerShown by remember { derivedStateOf { playerTarget > DOCK_EPSILON || playerReveal.value > DOCK_EPSILON } }
-    val dockYou = stringResource(Res.string.location_dock_you)
-    val voiceLabel = stringResource(Res.string.conversation_voice_message)
-    // Při zasouvání (zvuk dohrál, zpráva zpátky v pohledu) se kreslí poslední řádek, ne nic.
-    val lastPlayer = remember { arrayOf<DockedPlayer?>(null) }
-    dockedPlayback?.let { (key, music) ->
-        val message = state.messages.firstOrNull { it.id == key.messageId }?.takeIf { key.chatId == viewModel.chatId }
-        lastPlayer[0] = if (music) {
-            val audio = (message?.media as? MessageMedia.Audio)?.takeIf { key.part == VoiceKey.NO_PART }
-            val track = nowPlaying?.takeIf { it.key == key }?.track
-            DockedPlayer(
-                key = key,
-                music = true,
-                title = (track?.title ?: audio?.title)?.ifBlank { null } ?: audio?.fileName.orEmpty(),
-                label = track?.performer ?: audio?.performer?.ifBlank { null },
-                coverFileId = track?.coverFileId ?: audio?.coverFileId,
-                hasNext = nowPlaying?.takeIf { it.key == key }?.next != null,
-            )
-        } else {
-            DockedPlayer(
-                key = key,
-                music = false,
-                title = message?.let { if (it.isOutgoing) dockYou else it.senderName ?: state.info?.title } ?: voiceLabel,
-                label = voiceLabel.takeIf { message?.media is MessageMedia.VoiceNote },
-            )
-        }
-    }
+    val playerDock = rememberPlayerDock(
+        viewModel = viewModel,
+        state = state,
+        voicePlayback = voicePlayback,
+        soundingVideoNote = soundingVideoNote,
+        listState = listState,
+        barsHeight = { barsHeight },
+        spec = dockSpec,
+    )
 
     // Štítek se drží i po zmizení data, aby při odeznívání nezůstala prázdná pilulka.
     var floatingDay by remember { mutableStateOf("") }
@@ -2708,36 +2690,23 @@ fun ConversationScreen(
                     )
                 }
 
-                /*
-                 * Mini přehrávač pod docku polohy. Skladbu z jiného chatu ukazuje i omezený chat —
-                 * neprozradí z něj nic a zastavit ji jinde nejde.
-                 */
-                val player = lastPlayer[0]
-                if (player != null && playerShown && (!chatHidden || player.key.chatId != viewModel.chatId)) {
-                    PlayerDockBar(
-                        player = player,
-                        playback = { voicePlayback.value?.takeIf { it.key == player.key } },
-                        reveal = { playerReveal.value },
-                        onToggle = viewModel::togglePlaying,
-                        onNext = viewModel::skipToNextTrack,
-                        onStop = viewModel::stopPlaying,
-                        onShow = {
-                            if (player.key.chatId == viewModel.chatId) {
-                                viewModel.jumpToMessage(player.key.messageId)
-                            } else {
-                                onOpenChat(ChatTarget(player.key.chatId, player.key.messageId))
-                            }
-                        },
-                        glass = Modifier.hazeBlur(
-                            input = HazeInput.Sources(listHaze),
-                            style = glassStyle(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                alpha = GLASS_TEXT_TINT_ALPHA,
-                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                            ),
+                // Skladbu z jiného chatu ukazuje i omezený chat — neprozradí z něj nic a zastavit ji jinde nejde.
+                ConversationPlayerDock(
+                    dock = playerDock,
+                    chatHidden = chatHidden,
+                    viewModel = viewModel,
+                    voicePlayback = voicePlayback,
+                    soundingVideoNote = soundingVideoNote,
+                    onOpenChat = onOpenChat,
+                    glass = Modifier.hazeBlur(
+                        input = HazeInput.Sources(listHaze),
+                        style = glassStyle(
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            alpha = GLASS_TEXT_TINT_ALPHA,
+                            fallbackAlpha = GLASS_FALLBACK_ALPHA,
                         ),
-                    )
-                }
+                    ),
+                )
             }
 
             state.scheduledMessages?.let { scheduled ->
@@ -4466,6 +4435,7 @@ private class ScreenItemScope(
     private val searchHighlight: State<String?>,
     private val profileFlight: MutableState<Long?>,
     private val canSendCommands: State<Boolean>,
+    private val soundingVideoNote: State<SoundingVideoNote?>,
 ) : ConversationItemScope {
     override fun isProfileFlight(messageId: Long): Boolean = profileFlight.value == messageId
 
@@ -4490,7 +4460,8 @@ private class ScreenItemScope(
 
     override fun videoNoteSounding(messageId: Long): Boolean = state.value.soundingVideoNote == messageId
 
-    override fun videoNoteSoundFromMs(): Long = state.value.soundingVideoNoteFromMs
+    override fun soundingVideoNote(messageId: Long): SoundingVideoNote? =
+        soundingVideoNote.value?.takeIf { it.key.messageId == messageId }
 
     override fun documentProgress(fileId: Int): Float? = state.value.documentDownloads[fileId]
 
@@ -4674,3 +4645,148 @@ private const val DOCK_EPSILON = 0.001f
 
 /** Rozdíl průběhu, nad kterým se dock dojíždí animací místo vedení prstem (skok v seznamu). */
 private const val DOCK_JUMP = 0.35f
+
+/**
+ * Od jakého vysunutí docku kreslí obraz kolečka se zvukem dock, a ne bublina. Polovina: dokud je
+ * víc kolečka vidět v seznamu, patří obraz jemu.
+ */
+private const val VIDEO_NOTE_HANDOFF = 0.5f
+
+/** Mini přehrávač v docku: co se v něm kreslí a jak daleko je vysunutý ([rememberPlayerDock]). */
+private class PlayerDock(val player: DockedPlayer?, val shown: Boolean, val reveal: () -> Float)
+
+/**
+ * Hrající hlasovka, skladba nebo kolečko se zvukem, jejichž zpráva odjela z obrazovky. Měří se
+ * stejně jako dock polohy; skladba z jiného chatu svou zprávu v seznamu nemá, a je proto v docku
+ * celá. Kompozice čte jen KLÍČ hrajícího zvuku, průběh až řádek. Zvuk je v konverzaci nejvýš
+ * jeden, takže kolečko a hlasovka se nepotkají.
+ */
+@Composable
+private fun rememberPlayerDock(
+    viewModel: ConversationViewModel,
+    state: ConversationState,
+    voicePlayback: State<VoicePlayback?>,
+    soundingVideoNote: State<SoundingVideoNote?>,
+    listState: LazyListState,
+    barsHeight: () -> Dp,
+    spec: FiniteAnimationSpec<Float>,
+): PlayerDock {
+    val density = LocalDensity.current
+    val source by rememberUpdatedState(state)
+    val nowPlaying by viewModel.nowPlaying.collectAsStateWithLifecycle()
+    val docked by remember(viewModel.chatId) {
+        derivedStateOf(structuralEqualityPolicy()) {
+            soundingVideoNote.value?.let { it.key to false }
+                ?: voicePlayback.value?.takeIf { it.docksIn(viewModel.chatId) }?.let { it.key to it.music }
+        }
+    }
+    val target by remember(listState) {
+        derivedStateOf {
+            val key = docked?.first ?: return@derivedStateOf 0f
+            if (key.chatId != viewModel.chatId) return@derivedStateOf 1f
+            val info = listState.layoutInfo
+            if (info.visibleItemsInfo.isEmpty()) return@derivedStateOf 0f
+            // 8 dp je horní odsazení seznamu nad pruhy, jako u docku polohy.
+            val top = info.viewportEndOffset - with(density) { (8.dp + barsHeight()).toPx() }
+            // Blok, ne zpráva: skladba z alba je položka s klíčem nejstarší zprávy alba.
+            val block = source.blockKeyOf(key.messageId)
+            val item = block?.let { b -> info.visibleItemsInfo.firstOrNull { it.key == b } }
+            item?.let { dockProgress(it.offset, it.size, top, 0f) } ?: 1f
+        }
+    }
+    val reveal = remember { Animatable(0f) }
+    LaunchedEffect(reveal) {
+        snapshotFlow { target }.collectLatest { to ->
+            if (abs(to - reveal.value) > DOCK_JUMP) reveal.animateTo(to, spec) else reveal.snapTo(to)
+        }
+    }
+    val shown by remember { derivedStateOf { target > DOCK_EPSILON || reveal.value > DOCK_EPSILON } }
+    // Obraz kolečka si dock bere, až je víc v docku než v seznamu; kreslí ho vždycky jen jedna plocha.
+    LaunchedEffect(soundingVideoNote.value) {
+        val note = soundingVideoNote.value ?: return@LaunchedEffect
+        snapshotFlow { shown && reveal.value >= VIDEO_NOTE_HANDOFF }.collect { note.docked = it }
+    }
+    val you = stringResource(Res.string.location_dock_you)
+    val voiceLabel = stringResource(Res.string.conversation_voice_message)
+    val videoNoteLabel = stringResource(Res.string.content_video_note)
+    // Při zasouvání (zvuk dohrál, zpráva zpátky v pohledu) se kreslí poslední řádek, ne nic.
+    val last = remember { arrayOf<DockedPlayer?>(null) }
+    docked?.let { (key, music) ->
+        val message = state.messages.firstOrNull { it.id == key.messageId }?.takeIf { key.chatId == viewModel.chatId }
+        val videoNote = (message?.media as? MessageMedia.VideoNote)?.takeIf { soundingVideoNote.value?.key == key }
+        last[0] = if (videoNote != null) {
+            DockedPlayer(
+                key = key,
+                music = false,
+                title = message.let { if (it.isOutgoing) you else it.senderName ?: state.info?.title } ?: videoNoteLabel,
+                label = videoNoteLabel,
+                coverFileId = videoNote.thumbnailFileId,
+                video = true,
+            )
+        } else if (music) {
+            val audio = (message?.media as? MessageMedia.Audio)?.takeIf { key.part == VoiceKey.NO_PART }
+            val track = nowPlaying?.takeIf { it.key == key }?.track
+            DockedPlayer(
+                key = key,
+                music = true,
+                title = (track?.title ?: audio?.title)?.ifBlank { null } ?: audio?.fileName.orEmpty(),
+                label = track?.performer ?: audio?.performer?.ifBlank { null },
+                coverFileId = track?.coverFileId ?: audio?.coverFileId,
+                hasNext = nowPlaying?.takeIf { it.key == key }?.next != null,
+            )
+        } else {
+            DockedPlayer(
+                key = key,
+                music = false,
+                title = message?.let { if (it.isOutgoing) you else it.senderName ?: state.info?.title } ?: voiceLabel,
+                label = voiceLabel.takeIf { message?.media is MessageMedia.VoiceNote },
+            )
+        }
+    }
+    return PlayerDock(player = last[0], shown = shown, reveal = { reveal.value })
+}
+
+/** Řádek mini přehrávače pod dockem polohy ([PlayerDockBar] nad stavem z [rememberPlayerDock]). */
+@Composable
+private fun ConversationPlayerDock(
+    dock: PlayerDock,
+    chatHidden: Boolean,
+    viewModel: ConversationViewModel,
+    voicePlayback: State<VoicePlayback?>,
+    soundingVideoNote: State<SoundingVideoNote?>,
+    onOpenChat: (ChatTarget) -> Unit,
+    glass: Modifier,
+) {
+    val player = dock.player ?: return
+    if (!dock.shown || (chatHidden && player.key.chatId == viewModel.chatId)) return
+    val note = { soundingVideoNote.value?.takeIf { player.video && it.key == player.key } }
+    PlayerDockBar(
+        player = player,
+        playback = {
+            if (player.video) note()?.playback else voicePlayback.value?.takeIf { it.key == player.key }
+        },
+        reveal = dock.reveal,
+        onToggle = { if (player.video) note()?.toggle() else viewModel.togglePlaying() },
+        onNext = viewModel::skipToNextTrack,
+        onStop = {
+            if (player.video) {
+                viewModel.onAction(player.key.messageId, MessageAction.VideoNoteSoundEnded)
+            } else {
+                viewModel.stopPlaying()
+            }
+        },
+        video = if (player.video) {
+            { note()?.takeIf { it.docked }?.let { VideoSurface(it.player, Modifier.fillMaxSize()) } }
+        } else {
+            null
+        },
+        onShow = {
+            if (player.key.chatId == viewModel.chatId) {
+                viewModel.jumpToMessage(player.key.messageId)
+            } else {
+                onOpenChat(ChatTarget(player.key.chatId, player.key.messageId))
+            }
+        },
+        glass = glass,
+    )
+}
