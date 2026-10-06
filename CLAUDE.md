@@ -10407,8 +10407,9 @@ koly se nemění, přehrávače (`ExoPlayerImpl`) po odchodu z chatu mizí a Lea
 nezadržel. Native heap během session rostl z ~80 na ~130 MB (TDLib, kodeky, WebView);
 jestli se ustálí, ověřené není.
 
-**Při rozložení displeje se seznamem chatů aplikace padá** (Compose uvnitř přesunu obsahu
-do list-detail scény), viz `docs/roadmap.md`. Na skutečném Foldu v historii pádů zatím není.
+**Při rozložení a složení displeje aplikace padala.** Příčina byla `consumeWindowInsets(PaddingValues)`
+s hodnotou, která se mění se změnou scény, viz „Gotchas". Na Foldu to byl pád
+`NPE … Object.getClass()` ve verzích 0.3.47 i 0.3.50.
 
 ## Gotchas
 
