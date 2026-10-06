@@ -2233,6 +2233,20 @@ sealed interface MessageMedia {
         val sticker: Sticker? = null,
         val results: GiveawayResults? = null,
     ) : MessageMedia
+    /**
+     * Dárek: běžný za hvězdy, sběratelský, Premium, dárkový kód, hvězdy nebo TON (druh nese
+     * [kind]). Je to servisní oznámení, ne zpráva od někoho, takže se kreslí jako karta uprostřed
+     * konverzace — dřív z něj zbylo jen „Byl poslán dárek". Jména jsou prázdná, když je TDLib
+     * nezná; u dárkového kódu a výhry nemá příjemce smysl uvádět (je to ten, kdo čte).
+     */
+    data class Gift(
+        val kind: GiftKind,
+        val sticker: Sticker?,
+        /** Vzkaz od dárce; prázdný, když žádný nenapsal. */
+        val text: String,
+        val senderName: String?,
+        val receiverName: String?,
+    ) : MessageMedia
 }
 
 /** Přístup k chatu, jak se mění za běhu — viz [ConversationRepository.accessUpdates]. */

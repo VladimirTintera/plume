@@ -82,6 +82,14 @@ import dev.g000sha256.tdl.dto.PhotoSize
 import dev.g000sha256.tdl.dto.MessageChatShared
 import dev.g000sha256.tdl.dto.MessageGiveaway
 import dev.g000sha256.tdl.dto.MessageGiveawayWinners
+import dev.g000sha256.tdl.dto.MessageGift
+import dev.g000sha256.tdl.dto.MessageUpgradedGift
+import dev.g000sha256.tdl.dto.MessageRefundedUpgradedGift
+import dev.g000sha256.tdl.dto.MessageGiftedPremium
+import dev.g000sha256.tdl.dto.MessagePremiumGiftCode
+import dev.g000sha256.tdl.dto.MessageGiftedStars
+import dev.g000sha256.tdl.dto.MessageGiveawayPrizeStars
+import dev.g000sha256.tdl.dto.MessageGiftedGrams
 import dev.g000sha256.tdl.dto.MessageGroupCall
 import dev.g000sha256.tdl.dto.MessageRichMessage
 import dev.g000sha256.tdl.dto.RichMessage
@@ -847,6 +855,14 @@ internal suspend fun Message.messageMedia(
 
     is MessageGiveaway -> content.toMedia(senderName)
     is MessageGiveawayWinners -> content.toMedia(senderName)
+    is MessageGift -> content.toMedia(senderName)
+    is MessageUpgradedGift -> content.toMedia(senderName)
+    is MessageRefundedUpgradedGift -> content.toMedia(senderName)
+    is MessageGiftedPremium -> content.toMedia(senderName)
+    is MessagePremiumGiftCode -> content.toMedia(senderName)
+    is MessageGiftedStars -> content.toMedia(senderName)
+    is MessageGiveawayPrizeStars -> content.toMedia(senderName)
+    is MessageGiftedGrams -> content.toMedia(senderName)
 
     is MessageInvoice -> MessageMedia.Product(
         kind = ProductKind.Invoice,

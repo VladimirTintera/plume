@@ -37,6 +37,7 @@ import eu.tintera.plume.core.ui.appendWithCustomEmoji
 import eu.tintera.plume.core.ui.customEmojiInlineContent
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.content_gift
 import eu.tintera.plume.resources.content_giveaway
 import eu.tintera.plume.resources.content_giveaway_winners
 import eu.tintera.plume.resources.content_game
@@ -226,6 +227,8 @@ internal fun MessageMedia?.quoteThumbnail(): QuoteThumbnail? = when (this) {
     is MessageMedia.Location, is MessageMedia.Call, is MessageMedia.Contact, null -> null
     is MessageMedia.Giveaway -> sticker?.let { it.thumbnailFileId ?: it.fileId }
         ?.let { QuoteThumbnail(it, null, transparent = true) }
+    is MessageMedia.Gift -> sticker?.let { it.thumbnailFileId ?: it.fileId }
+        ?.let { QuoteThumbnail(it, null, transparent = true) }
 }
 
 /**
@@ -305,6 +308,7 @@ internal fun MessageMedia?.describe(): String = when (this) {
     is MessageMedia.Giveaway -> stringResource(
         if (results == null) Res.string.content_giveaway else Res.string.content_giveaway_winners,
     )
+    is MessageMedia.Gift -> stringResource(Res.string.content_gift)
     is MessageMedia.Product -> stringResource(
         when (kind) {
             ProductKind.Invoice -> Res.string.content_invoice

@@ -700,6 +700,45 @@
     <string name="service_suggested_post_paid">Za navržený příspěvek dorazila platba</string>
     <string name="service_suggested_post_refunded">Platba za navržený příspěvek byla vrácena</string>
     <string name="service_suggested_post_failed">Navržený příspěvek nešlo schválit, nestačily prostředky</string>
+    <string name="service_gift_named">Dárek: %1$s</string>
+    <string name="service_gift_premium">Dárek: Telegram Premium na %1$s</string>
+    <string name="service_gift_code">Dárkový kód Telegram Premium</string>
+    <plurals name="service_gift_stars">
+        <item quantity="one">Dárek: %1$s hvězda</item>
+        <item quantity="few">Dárek: %1$s hvězdy</item>
+        <item quantity="other">Dárek: %1$s hvězd</item>
+    </plurals>
+    <plurals name="service_giveaway_prize_stars">
+        <item quantity="one">Výhra v soutěži: %1$s hvězda</item>
+        <item quantity="few">Výhra v soutěži: %1$s hvězdy</item>
+        <item quantity="other">Výhra v soutěži: %1$s hvězd</item>
+    </plurals>
+    <string name="service_gift_ton">Dárek: %1$s TON</string>
+    <string name="gift_from">Od: %1$s</string>
+    <string name="gift_to">Pro: %1$s</string>
+    <string name="gift_premium_title">Telegram Premium na %1$s</string>
+    <string name="gift_code_title">Dárkový kód Telegram Premium</string>
+    <string name="gift_code_unclaimed">Kód zatím nikdo neuplatnil</string>
+    <string name="gift_code_hint">Kód jde uplatnit v oficiální aplikaci Telegramu.</string>
+    <string name="gift_ton_title">%1$s TON</string>
+    <string name="gift_stars_giveaway">Výhra v soutěži</string>
+    <plurals name="gift_value_stars">
+        <item quantity="one">Hodnota: %1$s hvězda</item>
+        <item quantity="few">Hodnota: %1$s hvězdy</item>
+        <item quantity="other">Hodnota: %1$s hvězd</item>
+    </plurals>
+    <plurals name="gift_converted">
+        <item quantity="one">Proměněno na %1$s hvězdu</item>
+        <item quantity="few">Proměněno na %1$s hvězdy</item>
+        <item quantity="other">Proměněno na %1$s hvězd</item>
+    </plurals>
+    <string name="gift_upgraded">Vylepšeno na sběratelský dárek</string>
+    <string name="gift_refunded">Dárek byl vrácen</string>
+    <string name="gift_upgrade_refunded">Vylepšení se nepovedlo, hvězdy se vrátily</string>
+    <string name="gift_transferred">Předáno dál</string>
+    <string name="gift_model">Model: %1$s</string>
+    <string name="gift_symbol">Symbol: %1$s</string>
+    <string name="gift_backdrop">Pozadí: %1$s</string>
     <string name="service_gift_offer">Nabídka na koupi dárku</string>
     <string name="service_gift_offer_rejected">Nabídka na koupi dárku byla odmítnuta</string>
     <string name="service_gift_offer_expired">Nabídka na koupi dárku vypršela</string>
