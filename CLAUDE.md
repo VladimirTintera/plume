@@ -10121,6 +10121,15 @@ cesta je známá až po stažení a průběh chodí updaty. Překlad do jednoho 
 - **Rozmazává `Modifier.blur`, ne Haze.** Obojí umí vlastní obsah na Androidu 12+ i na iOS, ale
   na starším Androidu Haze kreslí místo rozostření tónovanou plochu, kdežto `blur` se jen vypne
   a zbude bilineárně zvětšený 40px náhled, který rozmazaně vypadá sám.
+- **Poslední `updateFile` stahovaného souboru může lhát.** TDLib po stažení pozná, že tentýž
+  soubor má už pod jinými id (bot poslal skladbu, která v chatu byla), a soubory SLOUČÍ: „hotovo"
+  pošle jen pro ta starší id a stahované id dostane jako poslední update „stahuje, 73531 ze
+  73531" — a dál nic. `getFile` o chvíli později hlásí hotovo. Přehrávač skladby na to čekal
+  navždy (`loading`, MediaSession `BUFFERING`). Proto `confirmFinished`: soubor stažený celý,
+  a přesto „stahující" (`looksFinished`, testy `LooksFinishedTest`), se ověří dotazem po 250 ms,
+  1, 3 a 10 s. Ověřeno na emulátoru: `sendAudio` botem se souborem, který v chatu už byl,
+  a ťuknutí do pár vteřin; v logu `Files` pak „Soubor N po stažení: hotovo=true" a skladba hraje.
+  **Obecně: na stav souboru z updatů se nespoléhat, když na něm něco čeká bez časového limitu.**
 - **`FileRepository` je eager** (`createdAtStart`) ze stejného důvodu jako seznam chatů — v
   konstruktoru se přihlašuje k `fileUpdates`.
 
