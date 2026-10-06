@@ -54,6 +54,7 @@ import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -91,6 +92,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
@@ -125,6 +127,10 @@ import eu.tintera.plume.resources.common_close
 import eu.tintera.plume.resources.conversation_send
 import eu.tintera.plume.resources.media_position
 import eu.tintera.plume.resources.send_24dp
+import eu.tintera.plume.resources.share_access_denied_gallery
+import eu.tintera.plume.resources.share_access_denied_pick
+import eu.tintera.plume.resources.share_access_denied_picker
+import eu.tintera.plume.resources.share_access_denied_title
 import eu.tintera.plume.resources.share_preparing
 import eu.tintera.plume.resources.perm_media_24dp
 import eu.tintera.plume.resources.share_to_add_media
@@ -406,6 +412,14 @@ private fun ShareToChatContent(
                         // Soubory se ještě kopírují (velké video chvíli trvá) — obrazovka je
                         // vidět hned, ať je jasné, kam obsah míří.
                         Preparing()
+                    } else if (attachments.isEmpty() && state.accessDenied) {
+                        // Sdílený snímek nedorazil (Android k němu Plume nepustil) — radu, kde
+                        // ho najít, místo prázdné plochy. Zmizí s prvním vybraným snímkem.
+                        AccessDenied(
+                            inGallery = galleryShown,
+                            onPick = systemPicker::pickMedia,
+                            modifier = Modifier.padding(horizontal = 32.dp),
+                        )
                     }
 
                     // Nad polem, ne u spodku obrazovky: galerii kreslí cizí okno (`SurfaceView`),
@@ -741,6 +755,39 @@ private fun Preparing() {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         LoadingIndicator(color = LocalContentColor.current)
         Text(stringResource(Res.string.share_preparing), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/**
+ * Sdílený snímek nejde přečíst: aplikace, ze které se sdílelo, k němu Plume nepustila.
+ *
+ * Tak dopadne screenshot sdílený z náhledu po vyfocení obrazovky rovnou na kontakt — intent
+ * posílá Android System Intelligence bez oprávnění ke snímku (viz `ShareRequests.prepared`).
+ * Snímek je ale v galerii nejnovější, takže stačí ťuknout na první fotku dole; kde vestavěná
+ * galerie není, otevře se systémový výběr.
+ */
+@Composable
+private fun AccessDenied(inGallery: Boolean, onPick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            stringResource(Res.string.share_access_denied_title),
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            stringResource(
+                if (inGallery) Res.string.share_access_denied_gallery else Res.string.share_access_denied_picker,
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+        )
+        if (!inGallery) {
+            FilledTonalButton(onClick = onPick) { Text(stringResource(Res.string.share_access_denied_pick)) }
+        }
     }
 }
 

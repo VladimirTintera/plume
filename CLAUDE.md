@@ -9727,6 +9727,20 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   (`ShareTargets.reportUsed`, v rozsahu aplikace, název a profilovku si dohledá samo).
   Zkratky z dřívějška kategorii nemají a do nabídky se dostanou až při příští notifikaci nebo
   odeslání — ověřuje se `dumpsys shortcut` (`categories={…SHARE_TARGET}`).
+- **Kontakt v náhledu screenshotu NENÍ systémový výběr, ale Android System Intelligence**
+  (`com.google.android.as`, chytré akce screenshotu). Intent spouští on, s typem `*`/`*`,
+  `image/png` jen v popisu `ClipData` a **bez `FLAG_GRANT_READ_URI_PERMISSION`** — ke snímku
+  sám přístup nemá, takže nemá co předat. Plume pak dostane `SecurityException: … has no access
+  to content://media/…` a obejít to nejde (oprávnění ke knihovně fotek kvůli tomu nechceme).
+  Proto: typ se bere i z typu intentu a popisu `ClipData`, když ho `MediaProvider` bez přístupu
+  nevydá (`declaredTypes`) — jinak by screenshot otevřel konverzaci místo „Komu: …" —, selhání
+  na oprávnění se počítá zvlášť (`SharedContent.denied`) a obrazovka „Komu: …" místo obecné
+  chyby radí vybrat snímek v galerii pod polem, kde je nejnovější (`AccessDenied`). Zjištěno
+  z logu Foldu (`START … from uid … (com.google.android.as)`, `flg=0x10000000`). Na emulátoru
+  se to navodí `am start -a SEND -t image/png --eu android.intent.extra.STREAM
+  content://media/external/images/media/<id>` se zkratkou chatu — `adb` přístup taky nepředá.
+- **`EXTRA_SUBJECT` je náhrada textu jen bez souborů.** Screenshot ho nese jako „Screenshot
+  (datum)" a končil v popisku každého sdíleného snímku.
 - **Sdílení přes zkratku nese `EXTRA_SHORTCUT_ID`** a výběr chatu přeskočí: fotka a video jdou
   na potvrzovací obrazovku (viz „Direct Share" níž), zbytek rovnou do konverzace
   (`ShareIntake`: `choose(chatId)` + `ChatOpenRequests`).

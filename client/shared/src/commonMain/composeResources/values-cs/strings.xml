@@ -483,6 +483,10 @@
     <string name="share_title">Sdílet do</string>
     <string name="share_preparing">Připravuji soubory…</string>
     <string name="share_failed_files">Některé sdílené soubory se nepodařilo připravit</string>
+    <string name="share_access_denied_title">Android snímek nepředal</string>
+    <string name="share_access_denied_gallery">Vyber ho v galerii dole — bývá to první fotka.</string>
+    <string name="share_access_denied_picker">Vyber ho prosím ve fotkách.</string>
+    <string name="share_access_denied_pick">Vybrat fotku</string>
     <string name="share_to_recipient">Komu: %1$s</string>
     <string name="share_to_caption">Přidejte popisek</string>
     <string name="share_to_add_media">Přidat fotky nebo videa</string>

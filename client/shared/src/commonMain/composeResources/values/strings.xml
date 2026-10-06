@@ -478,6 +478,10 @@
     <string name="share_title">Share to</string>
     <string name="share_preparing">Preparing files…</string>
     <string name="share_failed_files">Some shared files couldn't be prepared</string>
+    <string name="share_access_denied_title">Android didn't hand the screenshot over</string>
+    <string name="share_access_denied_gallery">Pick it in the gallery below — it's usually the first photo.</string>
+    <string name="share_access_denied_picker">Pick it from your photos instead.</string>
+    <string name="share_access_denied_pick">Pick photo</string>
     <string name="share_to_recipient">To: %1$s</string>
     <string name="share_to_caption">Add a caption</string>
     <string name="share_to_add_media">Add photos or videos</string>

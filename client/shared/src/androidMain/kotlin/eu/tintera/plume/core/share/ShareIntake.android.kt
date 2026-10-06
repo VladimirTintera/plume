@@ -41,12 +41,19 @@ class ShareIntake(
     fun handle(intent: Intent): Boolean {
         if (intent.action != Intent.ACTION_SEND && intent.action != Intent.ACTION_SEND_MULTIPLE) return false
 
-        val text = intent.getStringExtra(Intent.EXTRA_TEXT) ?: intent.getStringExtra(Intent.EXTRA_SUBJECT)
         val uris = streams(intent).distinct()
+        /*
+         * Předmět (`EXTRA_SUBJECT`) je náhrada textu jen bez souborů. U souboru je to jméno pro
+         * e-mail, ne zpráva: snímek obrazovky ho nese jako „Screenshot (6. 10. 2026 18:18:38)"
+         * a ten skončil v popisku každého sdíleného screenshotu.
+         */
+        val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+            ?: intent.getStringExtra(Intent.EXTRA_SUBJECT)?.takeIf { uris.isEmpty() }
         if (text.isNullOrBlank() && uris.isEmpty()) return true
 
         val limited = uris.take(PICK_LIMIT)
-        val visual = limited.isNotEmpty() && limited.all { isVisual(context.contentResolver.getType(it)) }
+        val declared = declaredTypes(intent)
+        val visual = limited.isNotEmpty() && limited.all { isVisual(typeOf(it) ?: declared) }
         val shortcutChat = chatIdFromShortcut(intent.getStringExtra(ShortcutManagerCompat.EXTRA_SHORTCUT_ID))
         // Chat se zakládá rovnou s obsahem, ne dalším voláním — viz `ShareRequests.start`.
         val id = requests.start(
@@ -82,6 +89,7 @@ class ShareIntake(
             }
             requests.prepared(
                 id = id,
+                denied = results.count { it.exceptionOrNull() is SecurityException },
                 attachments = results.mapNotNull { it.getOrNull() },
                 sources = results.withIndex()
                     .mapNotNull { (index, result) -> result.getOrNull()?.let { it.path to limited[index].toString() } }
@@ -113,6 +121,26 @@ class ShareIntake(
         if (intent.type?.startsWith("text/") == true) return emptyList()
         val clip = intent.clipData ?: return emptyList()
         return (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri }
+    }
+
+    /**
+     * Typ souboru od jeho poskytovatele; `null`, když ho bez přístupu nevydá.
+     *
+     * **Bez oprávnění `MediaProvider` typ neprozradí**, a právě tak chodí snímek obrazovky
+     * sdílený z náhledu screenshotu přes Android System Intelligence (viz `ShareRequests.prepared`).
+     */
+    private fun typeOf(uri: Uri): String? = runCatching { context.contentResolver.getType(uri) }.getOrNull()
+
+    /**
+     * Typ, který tvrdí sdílející aplikace: typ intentu, a když je obecný (`*` / `*`), jediný typ
+     * z popisu `ClipData`. Náhrada za [typeOf], když poskytovatel mlčí — screenshot přichází
+     * s typem intentu `*` / `*` a `image/png` jen v popisu `ClipData`.
+     */
+    private fun declaredTypes(intent: Intent): String? {
+        intent.type?.takeIf { !it.startsWith("*") }?.let { return it }
+        val description = intent.clipData?.description ?: return null
+        val types = (0 until description.mimeTypeCount).map(description::getMimeType).distinct()
+        return types.singleOrNull()
     }
 
     /** Obrázek, který jde zmenšit a poslat jako fotku, nebo video. SVG je obrázek jen podle jména. */
