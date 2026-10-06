@@ -417,6 +417,50 @@ celou aplikaci a rozdělený na dvě místa by se rozešel. Zbývá:
 - **Vlastní přepínač v Nastavení** zatím ne — vypnout odezvu jde v systému. Přidat, až o něj
   někdo řekne.
 
+## Vzhled (Material 3 Expressive)
+
+Nápady na doladění vzhledu; nic z toho zatím nikdo nezačal. Navazují na slovník, který
+aplikace už má (`CLAUDE.md`, „Material 3 / vzhled" a `ShapeMorphs`): tvar nese stav, vlnka
+znamená „teď zní", terciární role „živé". Seřazené od nejlepšího poměru přínosu a práce.
+Na začátek se hodí **FAB menu**, **vlnitý posuvník videa** a **tvary tlačítek při stisku**.
+
+**Malé**
+
+- **Tlačítka v hlavičkách měknou při stisku** (`IconButtonDefaults.shapes()`: kruh → zaoblený
+  čtverec). Dnes to umí jen odesílací tlačítko; zpět, lupa i ⋮ se chovají postaru.
+- **Počet nepřečtených se přetočí** — odznak v seznamu chatů i počet na tlačítku dolů
+  (`AnimatedContent` se svislým posunem, tabulkové číslice). Teď se číslo jen vymění a změnu
+  skoro nejde postřehnout.
+- **Přepínače s ikonou** (`Switch(thumbContent = …)`, fajfka / křížek v jezdci). Stav je vidět
+  i bez barvy, tedy i pro barvoslepé.
+
+**Střední**
+
+- **FAB „Nová zpráva" jako `FloatingActionButtonMenu`**: rozbalí se na Novou zprávu, Novou
+  skupinu, Nový kanál a Kontakty a sám se promění v ✕. Skupina a kanál jsou dnes jen řádky na
+  obrazovce Nové zprávy.
+- **Vlnitý posuvník videa, dokud hraje** (jako systémový přehrávač médií), po pozastavení
+  rovný. Tentýž význam jako vlnka hrající hlasovky.
+- **Tvarová odezva na prahu tahu.** U archivace podklad ikony naroste z kolečka do sušenky ve
+  chvíli, kdy se ozve haptika `threshold`; u odpovědi tahem se šipka v kolečku vyplní. Dnes
+  práh ohlašuje jen vibrace.
+- **Reakce s výbuchem**: za emoji se na okamžik otevře `SoftBurst` (živý signál) a čip pružně
+  povyskočí. Ne konfety — ty patří výhře v kostce.
+- **Expressive `LoadingIndicator` místo kolečka** tam, kde kolečko zbylo (dotahování historie,
+  první načtení seznamu).
+
+**Větší (spíš funkce než detail)**
+
+- **Výběr víc chatů v seznamu** s plovoucí lištou jako výběr zpráv v konverzaci
+  (`HorizontalFloatingToolbar`): archivovat, ztlumit, přečíst několik chatů naráz.
+- **Vlastní barva motivu** v Nastavení → Vzhled: řada vzorků ve tvarech `MaterialShapes`, jako
+  „Tapeta a styl" na Pixelu. Na iOS a Androidu bez Material You je barva dnes napevno; paletu
+  ze zvolené barvy už umí materialkolor (`nonDynamicThemeMain`).
+- **Nápovědy u gest napoprvé** (`RichTooltip` se šipkou): odkrývání časů tahem, podržení pro
+  efekt, podržení pro hlasovku. Gesta dnes nikdo neobjeví, dokud o nich neví.
+
+---
+
 ## Nastavení
 
 Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení), vpravo jejich obsah. Obecné drží kartu
