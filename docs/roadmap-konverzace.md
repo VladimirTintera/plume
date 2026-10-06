@@ -441,9 +441,10 @@ snadno na to uživatel narazí.
   iOS a zamykací obrazovku na telefonu. Hlasovky se na pozadí nepřehrávají, s odchodem
   z konverzace dál končí.
 - ~~**Poloha, živá poloha a místo**~~ — hotovo: statická mapa od Telegramu, ťuknutí do map
-  platformy, u živé polohy do kdy se sdílí, odeslání polohy nebo místa ze sponky. Zbývá
-  sdílení živé polohy (běh na pozadí) a upozornění na blízkost (`proximityAlertRadius` — má
-  smysl až s vlastním sdílením). ~~Směr pohybu (`heading`)~~ — hotovo (šipka místo špendlíku).
+  platformy, u živé polohy do kdy se sdílí, odeslání polohy nebo místa ze sponky.
+  ~~Sdílení živé polohy~~ — hotovo na Androidu (služba v popředí, zastavení z notifikace
+  i z bubliny; `CLAUDE.md`, „Sdílení živé polohy"). Zbývá sdílení na iOS (běh na pozadí
+  s `allowsBackgroundLocationUpdates`) a upozornění na blízkost (`proximityAlertRadius`). ~~Směr pohybu (`heading`)~~ — hotovo (šipka místo špendlíku).
 - ~~**Kontakt** (`MessageContact`)~~ — hotovo: karta s tváří, jménem a číslem, „Napsat
   zprávu" (`CLAUDE.md`, „Kontakt"). ~~**Přidat do kontaktů**~~ — hotovo (z karty se „Vrátit"
   a v ⋮ profilu přidat i odebrat; s člověkem ověřené jen sondou na testovacím botovi)

@@ -2147,4 +2147,25 @@
     <string name="story_unavailable">Příběh už není k&#160;dispozici</string>
     <string name="story_live">Živé vysílání</string>
     <string name="story_live_unsupported">Živé vysílání jde zatím sledovat jen v oficiální aplikaci Telegramu.</string>
+    <string name="location_live_share">Sdílet živou polohu</string>
+    <string name="location_live_share_hint">Posouvá se, dokud sdílení nezastavíš</string>
+    <string name="location_live_period_title">Sdílet živou polohu na…</string>
+    <string name="location_live_period_body">Poloha se bude posouvat, i když aplikaci zavřeš. Zastavit jde z notifikace nebo ze zprávy.</string>
+    <string name="location_live_period_15m">15 minut</string>
+    <string name="location_live_period_1h">1 hodinu</string>
+    <string name="location_live_period_8h">8 hodin</string>
+    <string name="location_live_period_forever">Dokud ji nevypnu</string>
+    <string name="location_live_unavailable">Polohu nejde zjistit. Povol přístup k poloze a zkus to znovu.</string>
+    <string name="location_live_stop">Zastavit sdílení</string>
+    <string name="location_live_stop_failed">Sdílení polohy nejde zastavit.</string>
+    <string name="live_location_notification_title">Sdílíš živou polohu</string>
+    <plurals name="live_location_notification_chats">
+        <item quantity="one">Do %1$d chatu</item>
+        <item quantity="few">Do %1$d chatů</item>
+        <item quantity="other">Do %1$d chatů</item>
+    </plurals>
+    <string name="live_location_notification_stop">Zastavit</string>
+    <string name="notification_channel_live_location">Živá poloha</string>
+    <string name="notification_channel_live_location_description">Ukazuje se, dokud se sdílí tvoje poloha</string>
+    <string name="location_live_forever">Sdílí se bez časového omezení</string>
 </resources>

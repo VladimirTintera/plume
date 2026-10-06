@@ -115,3 +115,5 @@ private const val RECENT_LOCATION_MS = 10 * 60 * 1000L
 
 /** Poloha posílaná botovi má být, kde uživatel je teď, ne kde byl před čtvrthodinou. */
 private const val RECENT_PRECISE_LOCATION_MS = 60 * 1000L
+
+actual val liveLocationSharingSupported: Boolean = true

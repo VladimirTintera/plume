@@ -60,6 +60,8 @@ import eu.tintera.plume.core.telegram.TdlCustomEmojiRepository
 import eu.tintera.plume.core.telegram.GifRepository
 import eu.tintera.plume.core.telegram.PlaceRepository
 import eu.tintera.plume.core.telegram.TdlPlaceRepository
+import eu.tintera.plume.core.telegram.LiveLocationRepository
+import eu.tintera.plume.core.telegram.TdlLiveLocationRepository
 import eu.tintera.plume.core.telegram.TdlGifRepository
 import eu.tintera.plume.core.telegram.TdlEmojiRepository
 import eu.tintera.plume.core.telegram.TdlStickerRepository
@@ -216,6 +218,10 @@ fun appModule() = module {
     single<CustomEmojiRepository> { TdlCustomEmojiRepository(holder = get(), scope = get(named(APP_SCOPE))) }
     single<GifRepository> { TdlGifRepository(holder = get()) }
     single<PlaceRepository> { TdlPlaceRepository(holder = get()) }
+    // Eagerně: seznam živých poloh ke sdílení posílá TDLib jednou po startu (a pak na změnu).
+    single<LiveLocationRepository>(createdAtStart = true) {
+        TdlLiveLocationRepository(holder = get(), scope = get(named(APP_SCOPE)))
+    }
     single<EmojiRepository> { TdlEmojiRepository(holder = get()) }
 
     // Eagerně: nastavení se načte při startu, aby ho první obrazovka měla hned (viz AppSettings).
@@ -377,6 +383,7 @@ fun appModule() = module {
             inlineQueryRequests = get(),
             inviteLinks = get(),
             proxies = get(),
+            liveLocations = get(),
         )
     }
 

@@ -7270,9 +7270,47 @@ kus kreslí místo v anketě i jeho náhled ve formuláři. Ťuknutí otevře ma
   samolepka: citaci spotřebuje, rozepsaný text nechá. **V konverzaci si pole hledání fokus
   nebere** (`autoFocusSearch = false`) — hlavní akce je „Moje poloha" a klávesnice by schovala
   místa v okolí; v anketě se místo hledá podle názvu, tam ano.
-- **Sdílení ŽIVÉ polohy tu není**: chtělo by běh na pozadí s polohou (foreground služba na
-  Androidu, `allowsBackgroundLocationUpdates` na iOS) a oprávnění k přesné poloze na pozadí —
-  jiná kategorie než jednorázová přibližná poloha.
+- **Sdílení ŽIVÉ polohy** je „Sdílet živou polohu" pod „Moje poloha" ve výběru polohy
+  (jen Android a ne v kanálu), pak doba (`LiveLocationPeriodDialog`: 15 min, 1 h, 8 h, „dokud ji
+  nevypnu" = `LIVE_FOREVER`) a přesná poloha zařízení. Odchází `InputMessageLiveLocation`
+  (`sendLiveLocation`), viz „Sdílení živé polohy" níž.
+
+#### Sdílení živé polohy
+
+Polohu do zpráv posílá služba v popředí `LiveLocationService` (`core/location`, typ `location`),
+seznam zpráv drží `LiveLocationRepository` (`core/telegram/LiveLocation.kt`, testy
+`LiveLocationSharingTest`). Zastavit jde z notifikace služby (všechno) a tlačítkem „Zastavit
+sdílení" pod vlastní živou polohou (`MessageAction.StopLiveLocation`).
+
+- **Které zprávy se mají posouvat, drží TDLib** (`UpdateActiveLiveLocationMessages`, s databází
+  zpráv přežije restart). Dotaz na ten seznam v TDLib 15 NENÍ — jen update, proto je repository
+  eager. Služba ho odebírá a s prázdným seznamem skončí sama (vypršelo, zastaveno v bublině nebo
+  na jiném zařízení). Zastavení je `editMessageLiveLocation(location = null)`.
+- **Při posunu se `livePeriod` posílá zpátky beze změny** — jinak by úprava dobu sdílení měnila.
+- **Oprávnění k poloze na pozadí potřeba NENÍ.** Služba typu `location` spuštěná z popředí si
+  nese přístup „při používání"; proto ji `LiveLocationControls` spouští, jen když je aplikace
+  v popředí a je co sdílet (i po restartu aplikace — služba po `force-stop` naskočí s prvním
+  otevřením). Z pozadí by ji Android 14 nepustil. Když spuštění selže (oprávnění vzaté zpátky),
+  sdílení se zastaví — stojící „živá" poloha by klamala.
+- **Posílá se jen to, co je znát** (`shouldSendLiveFix`): poloha se čte po 5 s, ale úprava zprávy
+  odchází až při pohybu o 30 m (nejdřív po 10 s), bez pohybu jednou za 2 min, a hned po
+  `UpdateMessageLiveLocationViewed` (TDLib to tak chce). Směr (`headingOf`) jen při pohybu nad
+  0,5 m/s; sever je 360, nula je „neznámý".
+- **Notifikace služby má kanál `live-location` s `IMPORTANCE_DEFAULT`** a je `setSilent`. S LOW
+  skončila ve sbalené skupině „Tiché", a o sdílené poloze má uživatel vědět.
+- **Úprava zprávy trvá i přes deset vteřin** (log: posláno 14:25:07, potvrzeno 14:25:21), takže
+  se ověřuje se zpožděním — Bot API `getUpdates` hned po posunu nic neukáže.
+- **iOS sdílení nenabízí** (`liveLocationSharingSupported = false`): bez
+  `allowsBackgroundLocationUpdates` a režimu `location` v `UIBackgroundModes` by se poloha
+  zastavila s odchodem z aplikace. Cizí živou polohu iOS kreslí dál.
+- **Ověřeno na emulátoru** (Android 17) testovacím poskytovatelem polohy (viz „Vlastní klávesnice
+  bota") v chatu s testovacím botem: 15 min i „dokud ji nevypnu", posuny s aplikací v popředí
+  i na ploše (proces nezamrzl, bot dostal `edited_message` s novou polohou), obnova služby po
+  `force-stop`, „Zastavit" z notifikace (konečná poloha bez `live_period`) a z bubliny. **Upozornění
+  na blízkost** (`proximityAlertRadius`) zatím není. **Ťukat po spuštění aplikace podle
+  souřadnic se nevyplatí:** notifikace služby otevřená z lišty vrátila seznam chatů a ťuknutí
+  mířené na sponku otevřelo chat se skutečným člověkem. Nabídka sponky je popup, který
+  `uiautomator dump` nevidí — ověřit snímkem, že je otevřený správný chat, a teprve pak ťukat.
 - **Na přetíženém emulátoru se první dlouhý stisk ztratí** („spent 2442ms processing
   MotionEvent" v logu) a vypadá to jako chybějící nabídka. Zopakovat, než se hledá chyba.
 

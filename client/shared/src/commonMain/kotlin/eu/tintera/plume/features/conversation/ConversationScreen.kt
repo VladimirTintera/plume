@@ -231,6 +231,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.core.telegram.commandSuggestions
+import eu.tintera.plume.core.location.liveLocationSharingSupported
 import eu.tintera.plume.core.location.rememberDeviceLocation
 import eu.tintera.plume.core.telegram.inlineQueryOf
 import eu.tintera.plume.core.telegram.mentionInsertion
@@ -607,6 +608,7 @@ fun ConversationScreen(
     var stickerPickerOpen by rememberSaveable { mutableStateOf(false) }
     var previewAttachmentIndex by rememberSaveable { mutableStateOf<Int?>(null) }
     var locationPickerOpen by rememberSaveable { mutableStateOf(false) }
+    var livePeriodOpen by rememberSaveable { mutableStateOf(false) }
 
     // Snackbar o odepnutí se skládá v efektu, kde `stringResource` volat nejde — text se proto
     // přečte tady v kompozici.
@@ -1984,6 +1986,25 @@ fun ConversationScreen(
                 },
                 onDismiss = { locationPickerOpen = false },
                 autoFocusSearch = false,
+                // Živou polohu jen tam, kde ji platforma umí posouvat, a ne v kanálu — příspěvek
+                // kanálu s polohou, která se hýbe, oficiální klienti nenabízejí.
+                onShareLive = {
+                    locationPickerOpen = false
+                    livePeriodOpen = true
+                }.takeIf { liveLocationSharingSupported && state.info?.isChannel != true },
+            )
+        }
+
+        // Přesná: živá poloha se sleduje na mapě, kilometrová přesnost by z ní udělala šum.
+        val liveLocation = rememberDeviceLocation(precise = true)
+        if (livePeriodOpen) {
+            LiveLocationPeriodDialog(
+                onPick = { period ->
+                    livePeriodOpen = false
+                    haptics.confirm()
+                    liveLocation.request { point -> viewModel.shareLiveLocation(point, period) }
+                },
+                onDismiss = { livePeriodOpen = false },
             )
         }
 

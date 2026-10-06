@@ -122,6 +122,9 @@ sealed interface MessageAction {
     /** Zmínka uživatele bez veřejného jména: soukromý chat s ním. */
     data class OpenUser(val userId: Long) : MessageAction
 
+    /** „Zastavit sdílení" pod vlastní živou polohou. */
+    data object StopLiveLocation : MessageAction
+
     /** „Přidat do kontaktů" na kartě sdíleného kontaktu. */
     data object AddContact : MessageAction
 

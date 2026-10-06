@@ -36,6 +36,7 @@ import dev.g000sha256.tdl.dto.InputPollMediaLink
 import dev.g000sha256.tdl.dto.InputPollMediaLocation
 import dev.g000sha256.tdl.dto.InputPollMediaSticker
 import dev.g000sha256.tdl.dto.InputPollMediaVenue
+import dev.g000sha256.tdl.dto.LiveLocation
 import dev.g000sha256.tdl.dto.Location
 import dev.g000sha256.tdl.dto.Venue
 import dev.g000sha256.tdl.dto.InputPollMediaPhoto
@@ -110,6 +111,7 @@ import dev.g000sha256.tdl.dto.InputAnimation
 import dev.g000sha256.tdl.dto.InputDocument
 import dev.g000sha256.tdl.dto.InputFileId
 import dev.g000sha256.tdl.dto.InputMessageVenue
+import dev.g000sha256.tdl.dto.InputMessageLiveLocation
 import dev.g000sha256.tdl.dto.InputMessageLocation
 import dev.g000sha256.tdl.dto.InputFileLocal
 import dev.g000sha256.tdl.dto.InputMessageAnimation
@@ -1424,6 +1426,35 @@ class TdlConversationRepository(
             .toResult()
             .map { it.toChatMessage(isGroup(chatId)) }
     }
+
+    override suspend fun sendLiveLocation(
+        chatId: Long,
+        fix: LiveFix,
+        livePeriod: Int,
+        replyToMessageId: Long?,
+        quote: ReplyQuote?,
+    ): Result<ChatMessage> =
+        client.sendMessage(
+            chatId = chatId,
+            topicId = topic,
+            replyTo = replyInput(chatId, replyToMessageId, quote),
+            options = null,
+            replyMarkup = null,
+            inputMessageContent = InputMessageLiveLocation(
+                location = LiveLocation(
+                    location = Location(
+                        latitude = fix.latitude,
+                        longitude = fix.longitude,
+                        horizontalAccuracy = fix.accuracyMeters.coerceIn(0.0, 1500.0),
+                    ),
+                    livePeriod = livePeriod,
+                    heading = fix.heading,
+                    proximityAlertRadius = 0,
+                ),
+            ),
+        )
+            .toResult()
+            .map { it.toChatMessage(isGroup(chatId)) }
 
     override suspend fun sendGif(
         chatId: Long,

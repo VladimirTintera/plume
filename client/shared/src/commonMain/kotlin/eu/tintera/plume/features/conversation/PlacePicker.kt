@@ -52,7 +52,10 @@ import eu.tintera.plume.core.ui.SearchPill
 import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.common_close
+import eu.tintera.plume.resources.location_live_share
+import eu.tintera.plume.resources.location_live_share_hint
 import eu.tintera.plume.resources.location_on_24dp
+import eu.tintera.plume.resources.share_location_24dp
 import eu.tintera.plume.resources.poll_place_empty
 import eu.tintera.plume.resources.poll_place_failed
 import eu.tintera.plume.resources.poll_place_locating
@@ -61,6 +64,7 @@ import eu.tintera.plume.resources.poll_place_mine_hint
 import eu.tintera.plume.resources.poll_place_no_location
 import eu.tintera.plume.resources.my_location_24dp
 import eu.tintera.plume.resources.poll_place_search
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -144,6 +148,8 @@ internal fun PlacePickerHost(
      * ne: hlavní akce je „Moje poloha" nahoře a klávesnice by schovala místa v okolí.
      */
     autoFocusSearch: Boolean = true,
+    /** „Sdílet živou polohu" pod vlastní polohou; `null` = nenabízí se (anketa, kanál, iOS). */
+    onShareLive: (() -> Unit)? = null,
 ) {
     val search by searcher.state.collectAsStateWithLifecycle()
     val location = rememberDeviceLocation()
@@ -158,6 +164,7 @@ internal fun PlacePickerHost(
         onPick = onPick,
         onDismiss = onDismiss,
         autoFocusSearch = autoFocusSearch,
+        onShareLive = onShareLive,
     )
 }
 
@@ -175,6 +182,7 @@ internal fun PlacePickerSheet(
     onPick: (Place) -> Unit,
     onDismiss: () -> Unit,
     autoFocusSearch: Boolean = true,
+    onShareLive: (() -> Unit)? = null,
 ) {
     // Rovnou celý: výsledky i pole se do napůl rozbaleného sheetu nevejdou (viz výběr země).
     val sheetState = rememberBottomSheetState(
@@ -204,20 +212,44 @@ internal fun PlacePickerSheet(
                     }
                     PlaceLocation.Unavailable -> Note(stringResource(Res.string.poll_place_no_location))
                     is PlaceLocation.Found -> {
-                        // Vlastní poloha je vždycky první — i když hledání nic nenajde.
+                        // Vlastní poloha je vždycky první — i když hledání nic nenajde. Živá
+                        // poloha hned pod ní: je to tatáž poloha, jen se bude posouvat.
                         val mine = Place(title = "", address = "", latitude = location.point.latitude, longitude = location.point.longitude)
-                        val rows = listOf(mine) + search.results
+                        val leading = if (onShareLive != null) 2 else 1
+                        val total = leading + search.results.size
                         LazyColumn(
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                             verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
                             modifier = Modifier.fillMaxWidth().height(LIST_HEIGHT),
                         ) {
-                            itemsIndexed(rows, key = { index, place -> if (index == 0) "mine" else place.id.ifEmpty { "$index" } }) { index, place ->
+                            item(key = "mine") {
                                 PlaceRow(
-                                    title = if (index == 0) stringResource(Res.string.poll_place_mine) else place.title,
-                                    subtitle = if (index == 0) stringResource(Res.string.poll_place_mine_hint) else place.address,
-                                    mine = index == 0,
-                                    shape = groupItemShape(index, rows.size),
+                                    title = stringResource(Res.string.poll_place_mine),
+                                    subtitle = stringResource(Res.string.poll_place_mine_hint),
+                                    icon = Res.drawable.my_location_24dp,
+                                    highlighted = true,
+                                    shape = groupItemShape(0, total),
+                                ) { onPick(mine) }
+                            }
+                            if (onShareLive != null) {
+                                item(key = "live") {
+                                    PlaceRow(
+                                        title = stringResource(Res.string.location_live_share),
+                                        subtitle = stringResource(Res.string.location_live_share_hint),
+                                        icon = Res.drawable.share_location_24dp,
+                                        highlighted = true,
+                                        shape = groupItemShape(1, total),
+                                        onClick = onShareLive,
+                                    )
+                                }
+                            }
+                            itemsIndexed(search.results, key = { index, place -> place.id.ifEmpty { "$index" } }) { index, place ->
+                                PlaceRow(
+                                    title = place.title,
+                                    subtitle = place.address,
+                                    icon = Res.drawable.location_on_24dp,
+                                    highlighted = false,
+                                    shape = groupItemShape(leading + index, total),
                                 ) { onPick(place) }
                             }
                             item(key = "status") {
@@ -248,9 +280,16 @@ private fun Note(text: String) {
     )
 }
 
-/** Řádek místa. Vlastní poloha má ikonu v primární roli, aby se od nalezených míst odlišila. */
+/** Řádek místa. Vlastní poloha má ikonu v primární roli ([highlighted]), aby se od nalezených míst odlišila. */
 @Composable
-private fun PlaceRow(title: String, subtitle: String, mine: Boolean, shape: Shape, onClick: () -> Unit) {
+private fun PlaceRow(
+    title: String,
+    subtitle: String,
+    icon: DrawableResource,
+    highlighted: Boolean,
+    shape: Shape,
+    onClick: () -> Unit,
+) {
     val colors = MaterialTheme.colorScheme
     Surface(shape = shape, color = colors.surfaceContainerLowest, modifier = Modifier.fillMaxWidth()) {
         ListItem(
@@ -262,12 +301,12 @@ private fun PlaceRow(title: String, subtitle: String, mine: Boolean, shape: Shap
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(if (mine) colors.primaryContainer else colors.secondaryContainer),
+                        .background(if (highlighted) colors.primaryContainer else colors.secondaryContainer),
                 ) {
                     Icon(
-                        painterResource(if (mine) Res.drawable.my_location_24dp else Res.drawable.location_on_24dp),
+                        painterResource(icon),
                         contentDescription = null,
-                        tint = if (mine) colors.onPrimaryContainer else colors.onSecondaryContainer,
+                        tint = if (highlighted) colors.onPrimaryContainer else colors.onSecondaryContainer,
                     )
                 }
             },

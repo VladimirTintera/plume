@@ -4,8 +4,13 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,11 +32,15 @@ import eu.tintera.plume.core.ui.asUpcomingTime
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.content_live_location
 import eu.tintera.plume.resources.location_live_ended
+import eu.tintera.plume.resources.location_live_forever
+import eu.tintera.plume.resources.location_live_stop
+import eu.tintera.plume.resources.location_off_24dp
 import eu.tintera.plume.resources.location_live_until
 import eu.tintera.plume.resources.media_map
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -73,6 +82,10 @@ internal fun LocationMap(
     }
 }
 
+/** „Zastavit sdílení" jen u vlastní živé polohy — cizí zastavit nejde. */
+internal fun MessageBodyScope.stopLiveLocation(): (() -> Unit)? =
+    if (message.isOutgoing && message.isLiveLocation) { { act(MessageAction.StopLiveLocation) } } else null
+
 /** Ťuknutí na mapu otevře polohu v mapách platformy. */
 internal val MessageMedia.Location.mapUrl: String get() = mapsUrl(latitude, longitude)
 
@@ -108,15 +121,24 @@ internal fun rememberLiveSharing(location: MessageMedia.Location): Boolean {
     return sharing
 }
 
-/** Název a adresa místa pod mapou; u živé polohy do kdy se sdílí. */
+/**
+ * Název a adresa místa pod mapou; u živé polohy do kdy se sdílí. U VLASTNÍ živé polohy, která
+ * ještě běží, i „Zastavit sdílení" ([onStop]) — jinak by šlo sdílení ukončit jen z notifikace,
+ * a ta zastaví všechno naráz.
+ */
 @Composable
-internal fun LocationDetails(location: MessageMedia.Location, color: Color, modifier: Modifier = Modifier) {
+internal fun LocationDetails(
+    location: MessageMedia.Location,
+    color: Color,
+    modifier: Modifier = Modifier,
+    onStop: (() -> Unit)? = null,
+) {
     val title = location.title ?: if (location.isLive) stringResource(Res.string.content_live_location) else null
     val sharing = rememberLiveSharing(location)
     val subtitle = when {
         !location.isLive -> location.address
-        location.liveUntil == Long.MAX_VALUE -> null
         !sharing -> stringResource(Res.string.location_live_ended)
+        location.liveUntil == Long.MAX_VALUE -> stringResource(Res.string.location_live_forever)
         else -> stringResource(Res.string.location_live_until, location.liveUntil.asUpcomingTime())
     }
     Column(modifier) {
@@ -138,6 +160,16 @@ internal fun LocationDetails(location: MessageMedia.Location, color: Color, modi
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+        }
+        if (onStop != null && sharing) {
+            TextButton(
+                onClick = onStop,
+                colors = ButtonDefaults.textButtonColors(contentColor = color),
+                contentPadding = PaddingValues(horizontal = 0.dp),
+            ) {
+                Icon(painterResource(Res.drawable.location_off_24dp), contentDescription = null, modifier = Modifier.size(18.dp))
+                Text(stringResource(Res.string.location_live_stop), modifier = Modifier.padding(start = 8.dp))
+            }
         }
     }
 }
