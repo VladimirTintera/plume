@@ -363,6 +363,13 @@ interface ConversationRepository {
     suspend fun fullArticle(chatId: Long, messageId: Long): Result<ChatMessage> = message(chatId, messageId)
 
     /**
+     * Příběh podle autora a id — pro odpověď na příběh a odkaz `t.me/jméno/s/N`, kde zpráva
+     * se sdíleným příběhem není. Příběh, který už není, má [MessageMedia.Story.isAvailable]
+     * `false`; selhání se nevrací, výsledek se jen řekne jinak.
+     */
+    suspend fun story(posterChatId: Long, storyId: Int): MessageMedia.Story
+
+    /**
      * Jak je na tom tenhle účet se soutěží ze zprávy [messageId]: účastní se, může se zapojit,
      * vyhrál… (`getGiveawayInfo`). Dotaz na server — volá ho až sheet podrobností.
      */
@@ -2266,6 +2273,8 @@ sealed interface MessageMedia {
         val isAvailable: Boolean,
         /** Zpráva přišla proto, že autor uživatele v příběhu zmínil. */
         val viaMention: Boolean,
+        /** Kdy autor příběh zveřejnil (unixové sekundy); 0 = neznámo. */
+        val postedAt: Int = 0,
     ) : MessageMedia
 }
 

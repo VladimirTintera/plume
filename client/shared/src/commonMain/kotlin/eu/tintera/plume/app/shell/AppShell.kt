@@ -521,6 +521,9 @@ private fun shellEntryProvider(
             onOpenArticleMedia = { messageId, index ->
                 chatsStack.add(MediaRoute(route.chatId, messageId, articleMedia = index))
             },
+            onOpenStory = { story ->
+                chatsStack.add(MediaRoute(story.posterChatId, messageId = 0, storyId = story.storyId))
+            },
             onForward = { messageIds ->
                 chatsStack.add(ForwardRoute(route.chatId, messageIds))
             },
@@ -727,6 +730,9 @@ private fun shellEntryProvider(
             onOpenArticleMedia = { messageId, index ->
                 chatsStack.add(MediaRoute(route.chatId, messageId, articleMedia = index))
             },
+            onOpenStory = { story ->
+                chatsStack.add(MediaRoute(story.posterChatId, messageId = 0, storyId = story.storyId))
+            },
             onForward = { messageIds ->
                 chatsStack.add(ForwardRoute(route.chatId, messageIds))
             },
@@ -808,9 +814,9 @@ private fun shellEntryProvider(
                 // ViewModel se cachuje podle klíče a Koin u cachované instance
                 // ignoruje nové parametry. U ankety i přílohu — obrázků je pod jedním id víc.
                 viewModel = koinViewModel(
-                    key = "media-${route.chatId}-${route.messageId}-${route.pollMedia}-${route.profilePhotos}-${route.articleMedia}",
+                    key = "media-${route.chatId}-${route.messageId}-${route.pollMedia}-${route.profilePhotos}-${route.articleMedia}-${route.storyId}",
                     parameters = {
-                        parametersOf(route.chatId, route.messageId, route.pollMedia, route.profilePhotos, route.articleMedia)
+                        parametersOf(route.chatId, route.messageId, route.pollMedia, route.profilePhotos, route.articleMedia, route.storyId)
                     },
                 ),
                 // Profilovky vlastního účtu se otevírají z Nastavení, všechno ostatní z Chatů.

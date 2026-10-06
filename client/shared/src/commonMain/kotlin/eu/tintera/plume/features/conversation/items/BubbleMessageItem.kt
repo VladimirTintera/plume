@@ -370,7 +370,10 @@ internal fun MessageBodyScope.ReplyQuote(quote: ChatMessage, partnerName: String
         partnerName = partnerName,
         // Citace z jiného chatu vede do toho chatu, stejně jako značka „Přeposláno od".
         onClick = message.replyToMessageId?.let { id -> { act(MessageAction.JumpTo(id)) } }
-            ?: message.externalReply?.target?.let { target -> { act(MessageAction.OpenForwardOrigin(target)) } },
+            ?: message.externalReply?.target?.let { target -> { act(MessageAction.OpenForwardOrigin(target)) } }
+            // Odpověď na příběh otevře příběh sám, ne chat jeho autora.
+            ?: (message.externalReply?.quote?.media as? MessageMedia.Story)
+                ?.let { story -> { act(MessageAction.OpenStory(story.posterChatId, story.storyId)) } },
         onLongClick = ::requestMenu,
         quoteText = message.replyQuote,
         // Citace někoho ze skupiny nese jeho barvu, jako jméno nad jeho zprávou; jinak akcent

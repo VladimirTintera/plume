@@ -8352,6 +8352,37 @@ přehrávání po sobě, odpovědi) aplikace nemá.
   a podstrčené živé vysílání. Necommituje se. **Skutečný sdílený příběh ověřený NENÍ**, iOS
   jen přeložené.
 
+#### Odpověď na příběh a odkaz na příběh
+
+Zpráva, která odpovídá na příběh (`MessageReplyToStory`), má nad sebou citaci jako odpověď
+z jiného chatu: náhled příběhu, jméno autora a „Příběh" (`ExternalReply` s `quote.media =
+MessageMedia.Story`, `toExternalReply` v `TdlConversationRepository`). Ťuknutí na ni a odkaz
+`t.me/jméno/s/N` (`InternalLink.Story`) otevřou příběh v prohlížeči médií.
+
+- **Kreslí ji TÁŽ citace jako odpověď z jiného chatu** — `QuotedMessage` příběh uměl už kvůli
+  sdílenému příběhu (náhled, „Příběh"). Nový je jen převod a cíl ťuknutí.
+- **Prohlížeč otevírá příběh podle autora a id, ne podle zprávy** (`MediaRoute.storyId`,
+  `MediaViewerViewModel.loadStory`, `ConversationRepository.story`): odpověď na příběh ani odkaz
+  zprávu s příběhem nemají. Jediná stránka bez akcí, jako příloha ankety; popiskem je text
+  příběhu, v liště autor a čas zveřejnění (`MessageMedia.Story.postedAt`).
+- **Příběh, který už není, a živé vysílání prohlížeč neotevírají** — hláška
+  „Příběh už není k dispozici" / vysvětlení živého vysílání. Rozhoduje se ve ViewModelu
+  konverzace dřív, než se naviguje (`openStory`), prázdný prohlížeč by nic neřekl.
+- **Odkaz na příběh dřív šel do prohlížeče** (TDLib ho rozpozná jako `InternalLinkTypeStory`,
+  Plume ho neuměl). Autor se z odkazu najde `searchPublicChat`.
+- **Past: další `when` se suspend voláním přímo v `toChatMessage` shodil aplikaci při startu.**
+  Ta funkce je obří suspend funkce a ART ji po přidání větve odmítl při ověření třídy
+  (`VerifyError … copy-reference … type=Conflict`) — pád hned po spuštění, ne při té zprávě.
+  Výběr citace je proto samostatná funkce (`externalReply`). **Kdo do `toChatMessage` přidává
+  suspend volání, ať ho vytáhne do vlastní funkce** a aplikaci po změně spustí.
+- **Ověřeno sondou** (zpráva od testovacího bota s `#pribeh` převod vydával za odpověď na
+  příběh kanálu nalezený `searchPublicStoriesByTag`, `#pribehpryc` za odpověď na neexistující
+  příběh; necommituje se): citace s náhledem a jménem kanálu, ťuknutí otevře prohlížeč
+  s fotkou příběhu, u neexistujícího hláška. **`searchPublicStoriesByTag` vrací hlavně příběhy
+  LIDÍ** — sonda proto brala jen kanály (`posterChatId < 0`). Odkaz `t.me/telegram/s/1` od bota
+  zůstal v aplikaci a ohlásil nedostupný příběh. **Skutečná odpověď na příběh ověřená NENÍ**
+  (příběhy aplikace neumí, takže na ně z Plume odpovědět nejde), iOS jen přeložené.
+
 ### Kontakt
 
 `MessageContact` je příloha `MessageMedia.Contact` a v bublině karta jako řádek souboru

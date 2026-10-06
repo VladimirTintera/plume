@@ -193,6 +193,12 @@ sealed interface MessageAction {
 
     /** Ťuknutí na živé vysílání v příběhu: sledovat ho Plume neumí, tak aspoň proč. */
     data object ExplainLiveStory : MessageAction
+
+    /**
+     * Příběh podle autora a id — citace odpovědi na příběh. Na rozdíl od sdíleného příběhu ve
+     * zprávě se obsah zjistí až po ťuknutí: příběh mezitím mohl vypršet.
+     */
+    data class OpenStory(val posterChatId: Long, val storyId: Int) : MessageAction
     data object CancelUpload : MessageAction
     data object ToggleVoice : MessageAction
 
