@@ -1638,6 +1638,9 @@ data class LinkPreview(
  * **Není to data class kvůli `equals`.** `ByteArray` se v data class porovnává podle
  * reference, takže by každé nové namapování téže zprávy vypadalo jako změna a seznam by
  * přestal přeskakovat nezměněné položky.
+ *
+ * **Pro Compose je stabilní z `client/shared/compose-stability.conf`**, ne z `@Immutable`:
+ * `core/telegram` Compose neimportuje. `jpeg` se proto nikde nesmí měnit.
  */
 class Minithumbnail(val jpeg: ByteArray, val width: Int, val height: Int) {
     override fun equals(other: Any?) = other is Minithumbnail &&

@@ -370,11 +370,6 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
 Nástroje a postup jsou v `CLAUDE.md` („Výkon a paměť"). První analýza (reporty Compose
 kompilátoru, LeakCanary, heap dumpy) únik nenašla. Zbylo:
 
-- **`Minithumbnail` stabilní pro Compose.** Jediné pole s `ByteArray` dělá nestabilní
-  `ChatMessage`, všechny `MessageMedia` s náhledem a `LinkPreview`. Pole se po vzniku nemění,
-  takže stačí soubor konfigurace stability v `:client:shared` (`stabilityConfigurationFiles`)
-  s touhle jednou třídou: `core/telegram` nemá importovat Compose kvůli `@Immutable`. Pak
-  reporty pustit znovu a porovnat.
 - **Recompozice za běhu** (zbývající bod analýzy): composition tracing (`runtime-tracing`)
   a Perfetto trace při scrollu konverzace, příchozí zprávě, „píše…" a přehrávání hlasovky.
   Ověřit, že se neskládá celá obrazovka konverzace kvůli změnám, které se jí netýkají

@@ -10349,10 +10349,27 @@ přepínače se reporty nevyrábějí, běžný build je nepotřebuje.
   porovnávají přes `equals` i s nestabilními poli uvnitř. Na tom stojí to, že builder
   bloků vyrábí nové instance a nezměněné položky se přesto přeskočí. Report je u nich vede
   jako `stable`, zatímco jejich pole jako `runtime`. To je v pořádku.
-- **`Minithumbnail` (`ByteArray`) dělá nestabilní celý řetěz**: `MessageMedia.Photo`,
-  `Video`, `Animation`, `VideoNote`, `Audio`, `Product`, `PaidPreview`, `LinkPreview`,
-  `ExternalReply` a tím i `ChatMessage`. Composables, které berou `ChatMessage` nebo
-  `MessageMedia` přímo, je proto porovnávají identitou.
+- **Neměnné třídy, které kompilátor sám za stabilní nepozná, vyjmenovává
+  `client/shared/compose-stability.conf`**, ne `@Immutable`: doménové typy v `core/telegram`
+  nemají importovat Compose. Patří tam jen třídy, které se po vzniku opravdu nemění. Kdo do
+  nich přidá měnitelné pole, musí je ze souboru vyjmout.
+  - **`Minithumbnail` (`ByteArray`) dělal nestabilní celý řetěz**: `MessageMedia.Photo`,
+    `Video`, `Animation`, `VideoNote`, `Audio`, `PaidPreview`, `LinkPreview` a tím
+    i `ChatMessage`. Composables, které je brala přímo, je porovnávala identitou.
+  - **Sealed interface vychází jako „Uncertain"**, i když jsou všechny implementace stabilní
+    (`SelfDestructType`, `SpeechTranscript`). Kompilátor rozhoduje jen podle typu, ne podle
+    implementací.
+  - **Rekurzivní typ nejde odvodit**: `ChatMessage` → `ExternalReply` → `ChatMessage`
+    vycházel nestabilní, dokud nebyl `ExternalReply` v konfiguraci.
+  - Po úpravě je v `core/telegram` stabilní celý řetěz médií a `ChatMessage` vychází
+    `runtime` (rozhodne `ChatPoll`, který je stabilní). Další sealed interface (`UiText`,
+    `MessageMedia`, `Verification`) zůstávají „Uncertain": nejsou všechny implementace
+    stabilní, a dát je do konfigurace naslepo by znamenalo slibovat neměnnost i za ně.
+- **Změnu `compose-stability.conf` inkrementální překlad NEZAREGISTRUJE.** Přeloží se jen
+  změněné zdrojové soubory, takže report ukáže novou stabilitu jen u nich a zbytek zůstane
+  podle staré konfigurace. Po změně konfigurace se překládá s `--rerun`
+  (`./gradlew :client:shared:compileAndroidMain --rerun -PcomposeReports`). Na CI to nevadí,
+  tam se překládá načisto.
 - **`List` a `Map` v datech jsou `runtime`**, ne `stable`. Do konfigurace stability je
   nepřidávat naslepo: s nimi by se porovnávaly přes `equals`, tedy u seznamu zpráv
   prvek po prvku při každé recompozici.
