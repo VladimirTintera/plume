@@ -7802,7 +7802,18 @@ zmínky, hashtagy, příkazy, spoiler, vlastní emoji, datum.
   kotvu (`ArticleMedia`: úsek slova, pořadí, `MessageMedia`). Bublina článek s médii kreslí po
   úsecích (`articleSegments`, testy `ArticleSegmentsTest`): text, fotka / video / GIF, text…
   Entity se do úseků ořežou a posunou, zvýraznění hledání se počítá nad úsekem. Popisek média je
-  kurzívou — pod fotkou by jinak splynul s textem. Koláž a prezentace jsou zatím fotky pod sebou.
+  kurzívou — pod fotkou by jinak splynul s textem.
+- **Koláž a prezentace jsou mřížka alba** (`ArticleMedia.group`, `AlbumGrid` s `AlbumCell`).
+  Mřížka alba dřív brala jen zprávy (`ChatMessage` na dlaždici); teď bere dlaždice s id zprávy,
+  médiem a pořadím v článku, které jde do klíče letu (`LocalArticleMediaFlight` u každé
+  dlaždice). Média koláže jdou do jedné mřížky, jen když mezi nimi v textu není nic než konec
+  řádku — médium koláže s vlastním popiskem mřížku přeruší, popisek by v ní neměl kde být.
+  Prezentace (listování) se kreslí stejně, jako mřížka.
+- **Fotky a videa článku jsou i v záložce Média v profilu** (`sharedMediaTiles`, testy
+  `SharedMediaTilesTest`): článek dá dlaždici za každé médium. TDLib článek v hledání
+  s `SearchMessagesFilterPhotoAndVideo` vrací (ověřeno sondou), Plume ho dřív zahodil, protože
+  článek nemá `media`. Klíč dlaždice nese id i pořadí média, dlaždice otevře prohlížeč
+  s `MediaRoute(fromSharedMedia = true, articleMedia = …)`.
   Zvuk, hlasovka a soubor zůstávají slovem s popiskem; dřív z článku potichu vypadly
   (`else -> Unit`).
 - **Médium článku se otevírá v prohlížeči jako příloha ankety** (`MediaRoute.articleMedia`,

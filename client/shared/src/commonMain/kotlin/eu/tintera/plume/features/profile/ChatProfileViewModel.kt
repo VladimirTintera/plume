@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.core.audio.MusicQueue
@@ -236,8 +237,8 @@ class ChatProfileViewModel(
     }
 
     /** Fotka nebo video: otevře se prohlížeč médií, stejně jako z konverzace. */
-    fun openMedia(messageId: Long) {
-        _state.update { it.copy(openMedia = messageId) }
+    fun openMedia(messageId: Long, articleMedia: Int = NO_ARTICLE_MEDIA) {
+        _state.update { it.copy(openMedia = MediaTarget(messageId, articleMedia)) }
     }
 
     fun consumeOpenMedia() {
@@ -749,8 +750,8 @@ data class ChatProfileState(
     val spam: SpamActions? = null,
     /** Jednorázová událost: otevřít chat (člen skupiny). */
     val openChat: Long? = null,
-    /** Jednorázová událost: otevřít prohlížeč médií na této zprávě. */
-    val openMedia: Long? = null,
+    /** Jednorázová událost: otevřít prohlížeč médií na této zprávě (u článku na jeho médiu). */
+    val openMedia: MediaTarget? = null,
     /** Člen s otevřenou nabídkou akcí; `null` = nabídka není. */
     val memberSheet: MemberDetail? = null,
     /** Člen, u kterého se potvrzuje vyhození. */
@@ -814,3 +815,6 @@ private const val SHARED_SEARCH_DELAY = 300L
 
 /** Na rozběh stahování se čeká jen chvíli; bez toho by mrtvé spojení nechalo kolečko točit se napořád. */
 private const val DOWNLOAD_START_TIMEOUT = 10_000L
+
+/** Co otevřít v prohlížeči: zpráva, u článku i pořadí média (`NO_ARTICLE_MEDIA` = příloha zprávy). */
+data class MediaTarget(val messageId: Long, val articleMedia: Int = NO_ARTICLE_MEDIA)

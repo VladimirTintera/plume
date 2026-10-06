@@ -5,6 +5,7 @@ import dev.g000sha256.tdl.dto.LocalFile
 import dev.g000sha256.tdl.dto.PageBlock
 import dev.g000sha256.tdl.dto.PageBlockBlockQuote
 import dev.g000sha256.tdl.dto.PageBlockCaption
+import dev.g000sha256.tdl.dto.PageBlockCollage
 import dev.g000sha256.tdl.dto.PageBlockDivider
 import dev.g000sha256.tdl.dto.PageBlockHeader
 import dev.g000sha256.tdl.dto.PageBlockList
@@ -179,5 +180,22 @@ class RichMessageBodyTest {
         val photo = result.article!!.media.single().media as MessageMedia.Photo
         assertEquals(true, photo.hasSpoiler)
         assertEquals(true, photo.isSensitive)
+    }
+
+    @Test
+    fun mediaKolazeNesouSpolecnouSkupinu() {
+        val result = body(
+            PageBlockPhoto(photo(1), null, "", false),
+            PageBlockCollage(
+                arrayOf<PageBlock>(
+                    PageBlockPhoto(photo(2), null, "", false),
+                    PageBlockPhoto(photo(3), null, "", false),
+                ),
+                PageBlockCaption(plain("Koláž"), plain("")),
+            ),
+            PageBlockCollage(arrayOf<PageBlock>(PageBlockPhoto(photo(4), null, "", false)), null),
+        )
+        assertEquals(listOf(null, 0, 0, 1), result.article!!.media.map { it.group })
+        assertEquals("[Fotka]\n[Fotka]\n[Fotka]\nKoláž\n[Fotka]", result.text)
     }
 }

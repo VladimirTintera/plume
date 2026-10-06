@@ -183,13 +183,29 @@ internal data class BubbleMessageItem(
                     bleedBottom = if (i == segments.lastIndex && atBottom) contentBottom else QUOTE_EDGE_TIGHT,
                     segment = segment,
                 )
-                is ArticleSegment.Media -> ArticleMediaView(
-                    media = segment.media,
-                    modifier = Modifier.padding(
+                is ArticleSegment.Media -> {
+                    val gap = Modifier.padding(
                         top = if (i == 0) 0.dp else ARTICLE_MEDIA_GAP,
                         bottom = if (i == segments.lastIndex) 0.dp else ARTICLE_MEDIA_GAP,
-                    ),
-                )
+                    )
+                    val cells = segment.media.map { AlbumCell(message.id, it.media, articleIndex = it.index) }
+                    when {
+                        segment.media.size == 1 -> ArticleMediaView(segment.media.single(), gap)
+                        // Koláž jako mřížka alba. GIF ani nic jiného mimo fotky a videa do mřížky
+                        // nepatří — pak zůstanou pod sebou.
+                        cells.allTiles() -> Box(gap) {
+                            AlbumGrid(
+                                cells = cells,
+                                onOpen = { act(MessageAction.OpenArticleMedia(it.articleIndex)) },
+                                onRequestMenu = { requestMenu() },
+                                onCancelUpload = {},
+                            )
+                        }
+                        else -> Column(gap, verticalArrangement = Arrangement.spacedBy(ARTICLE_MEDIA_GAP)) {
+                            segment.media.forEach { ArticleMediaView(it, Modifier) }
+                        }
+                    }
+                }
             }
         }
     }

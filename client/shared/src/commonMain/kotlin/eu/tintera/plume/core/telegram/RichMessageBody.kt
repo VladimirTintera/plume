@@ -100,6 +100,10 @@ private class RichWriter(private val labels: RichMediaLabels, private val hideSe
     private val entities = mutableListOf<MessageEntity>()
     private val media = mutableListOf<ArticleMedia>()
 
+    /** Koláž, uvnitř které se právě píše; `null` mimo ni. */
+    private var group: Int? = null
+    private var groups = 0
+
     fun build(isPartial: Boolean): MessageBody {
         // Konec řádků za posledním blokem by v bublině nechal prázdný řádek.
         val trimmed = text.trimEnd().length
@@ -247,14 +251,9 @@ private class RichWriter(private val labels: RichMediaLabels, private val hideSe
                 indent,
                 shown = null,
             )
-            is PageBlockCollage -> {
-                block.blocks.forEach { block(it, indent) }
-                caption(block.caption, indent)
-            }
-            is PageBlockSlideshow -> {
-                block.blocks.forEach { block(it, indent) }
-                caption(block.caption, indent)
-            }
+            // Prezentace (listování) se v bublině kreslí stejně jako koláž: mřížka.
+            is PageBlockCollage -> collage(block.blocks, block.caption, indent)
+            is PageBlockSlideshow -> collage(block.blocks, block.caption, indent)
             // Kotvy, tlačítka, mapy, vložené stránky a zvuk: v bublině nemají co ukázat.
             else -> Unit
         }
@@ -313,10 +312,19 @@ private class RichWriter(private val labels: RichMediaLabels, private val hideSe
                     index = media.size,
                     media = shown,
                     caption = text.substring(minOf(captionStart, text.length)),
+                    group = group,
                 )
             }
         }
         credit(caption?.credit)
+    }
+
+    private fun collage(blocks: Array<PageBlock>, caption: PageBlockCaption?, indent: String) {
+        val outer = group
+        group = groups++
+        blocks.forEach { block(it, indent) }
+        group = outer
+        caption(caption, indent)
     }
 
     private fun caption(caption: PageBlockCaption?, indent: String) {

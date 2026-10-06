@@ -231,7 +231,7 @@ fun ChatProfileScreen(
     onSearch: () -> Unit,
     onOpenChat: (chatId: Long) -> Unit,
     /** Fotka nebo video ze záložky Média: otevře se prohlížeč, stejně jako z konverzace. */
-    onOpenMedia: (messageId: Long) -> Unit,
+    onOpenMedia: (messageId: Long, articleMedia: Int) -> Unit,
     /** Ťuknutí na velkou fotku: historie profilových fotek v prohlížeči. */
     onOpenPhotos: () -> Unit,
     /** Chat je smazaný nebo opuštěný — zavřít profil i konverzaci. */
@@ -265,7 +265,7 @@ fun ChatProfileScreen(
     LaunchedEffect(state.openMedia) {
         val target = state.openMedia ?: return@LaunchedEffect
         viewModel.consumeOpenMedia()
-        currentOnOpenMedia(target)
+        currentOnOpenMedia(target.messageId, target.articleMedia)
     }
     val currentOnChatGone by rememberUpdatedState(onChatGone)
     LaunchedEffect(state.chatGone) {
