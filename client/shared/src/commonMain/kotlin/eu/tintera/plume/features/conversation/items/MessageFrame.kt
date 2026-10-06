@@ -1375,12 +1375,17 @@ internal fun MessageBodyScope.MessageText(
     onOverflow: ((Boolean) -> Unit)? = null,
     /** Citace je celý text zprávy — odsadí se `padding`em, viz `RichText`. */
     wholeTextQuote: Boolean = false,
+    /**
+     * Úsek textu místo celého textu zprávy (článek mezi médii, viz `articleSegments`), s entitami
+     * posunutými na jeho začátek. `null` = celý text zprávy.
+     */
+    segment: ArticleSegment.Text? = null,
 ) {
     val query = items.searchHighlight()
     // Zpráva bez vlastního textu (anketa, neznámý typ) nese náš popis; ten se překládá TADY,
     // ne při převodu zprávy — převedená zpráva přežije změnu jazyka. Entity patří jen vlastnímu textu.
-    val description = message.description?.takeIf { message.text.isBlank() }?.resolve()
-    val text = description ?: message.text
+    val description = message.description?.takeIf { message.text.isBlank() && segment == null }?.resolve()
+    val text = segment?.text ?: description ?: message.text
     val highlights = remember(text, query) { query?.let { highlightRanges(text, it) }.orEmpty() }
     RichText(
         highlights = highlights,
@@ -1398,7 +1403,11 @@ internal fun MessageBodyScope.MessageText(
         onOverflow = onOverflow,
         quoteIndentAsPadding = wholeTextQuote,
         text = text,
-        entities = if (description != null) emptyList() else message.entities,
+        entities = when {
+            segment != null -> segment.entities
+            description != null -> emptyList()
+            else -> message.entities
+        },
         style = style,
         linkColor = linkColor,
         onLinkClick = { act(MessageAction.OpenLink(it)) },

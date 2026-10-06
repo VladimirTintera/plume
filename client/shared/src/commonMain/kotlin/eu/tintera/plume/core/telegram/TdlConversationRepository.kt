@@ -17,6 +17,8 @@ import dev.g000sha256.tdl.dto.TextEntityTypePre
 import dev.g000sha256.tdl.dto.TextEntityTypeBlockQuote
 import dev.g000sha256.tdl.dto.TextEntityTypeExpandableBlockQuote
 import dev.g000sha256.tdl.dto.TextEntityTypePreCode
+import dev.g000sha256.tdl.dto.MessageRichMessage
+import dev.g000sha256.tdl.dto.RichMessage
 import dev.g000sha256.tdl.dto.MessageContent
 import dev.g000sha256.tdl.dto.MessagePoll
 import dev.g000sha256.tdl.dto.MessageContact
@@ -2060,9 +2062,10 @@ class TdlConversationRepository(
 
     private suspend fun Message.toChatMessage(isGroup: Boolean): ChatMessage {
         val senderId = senderId.plainId()
+        val hideSensitive = client.hidesSensitive(this)
         // Text a jeho entity musí pocházet z jednoho rozhodnutí — rozsahy platí jen pro ten
         // řetězec, ze kterého vznikly.
-        val body = captionBody()
+        val body = captionBody(fullArticle = cachedFullArticle(), hideSensitive = hideSensitive)
 
         /*
          * V Uložených zprávách je odchozí VŠECHNO — je to chat sám se sebou, nikdo jiný do něj
@@ -2078,7 +2081,6 @@ class TdlConversationRepository(
         // Jméno a tvář mají smysl jen ve skupině a jen u cizích zpráv — jinde je to šum. Obojí
         // z jednoho dotazu (a z cache), ne ze dvou.
         val sender = if (isGroup && !outgoing) resolveSender(senderId) else null
-        val hideSensitive = client.hidesSensitive(this)
 
         return ChatMessage(
             id = id,
@@ -2098,6 +2100,7 @@ class TdlConversationRepository(
                     ?.let { client.getUser(userId = it).toResult().getOrNull()?.profilePhoto?.small?.id },
             ),
             linkPreview = linkPreview(hideSensitive),
+            article = body.article,
             linkPreviewOptions = (content as? MessageText)?.linkPreviewOptions?.toDomain(),
             reactions = interactionInfo.toReactions(),
             postStats = interactionInfo.toPostStats(),
@@ -2453,6 +2456,47 @@ class TdlConversationRepository(
     /** Jméno, pod kterým bot vystupuje: upravitelné, jinak první aktivní (sběratelské). */
     private fun Usernames.publicName(): String? =
         editableUsername.ifBlank { null } ?: activeUsernames.firstOrNull { !it.isNullOrBlank() }
+
+    override suspend fun fullArticle(chatId: Long, messageId: Long): Result<ChatMessage> {
+        val message = client.getMessage(chatId = chatId, messageId = messageId).toResult()
+            .getOrElse { return Result.failure(it) }
+        val content = message.content
+        if (content is MessageRichMessage && !content.message.isFull && message.cachedFullArticle() == null) {
+            val full = client.getFullRichMessage(chatId = chatId, messageId = messageId).toResult()
+                .getOrElse { return Result.failure(it) }
+            fullArticlesMutex.withLock { fullArticleCache()[message.articleKey()] = full }
+        }
+        return Result.success(message.toChatMessage(isGroup(chatId)))
+    }
+
+    /**
+     * Dočtený celý článek k téhle zprávě, nebo `null`. Klíčem je i čas úpravy — upravený článek
+     * je jiný a starý celý text by ho přebil.
+     */
+    private suspend fun Message.cachedFullArticle(): RichMessage? {
+        val content = content as? MessageRichMessage ?: return null
+        if (content.message.isFull) return null
+        return fullArticlesMutex.withLock { fullArticleCache()[articleKey()] }
+    }
+
+    private fun Message.articleKey() = ArticleKey(chatId, id, editDate)
+
+    /** Volá se pod [fullArticlesMutex]. Pro jednu instanci klienta, jako ostatní keše. */
+    private fun fullArticleCache(): MutableMap<ArticleKey, RichMessage> {
+        val current = client
+        return fullArticles?.takeIf { it.first === current }?.second
+            ?: mutableMapOf<ArticleKey, RichMessage>().also { fullArticles = current to it }
+    }
+
+    private data class ArticleKey(val chatId: Long, val messageId: Long, val editDate: Int)
+
+    /**
+     * Celé články dočtené přes `getFullRichMessage`. Dlouhý článek posílá TDLib useknutý
+     * (`RichMessage.isFull`); dočtený se pamatuje, aby se při každém novém převodu zprávy
+     * (přečtení, reakce, návrat do chatu) nevrátil začátek.
+     */
+    private var fullArticles: Pair<TdlClient, MutableMap<ArticleKey, RichMessage>>? = null
+    private val fullArticlesMutex = Mutex()
 
     private var botUsernames: Pair<TdlClient, MutableMap<Long, String?>>? = null
     private val botUsernamesMutex = Mutex()

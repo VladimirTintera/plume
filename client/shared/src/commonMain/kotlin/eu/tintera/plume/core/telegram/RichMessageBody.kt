@@ -2,12 +2,14 @@ package eu.tintera.plume.core.telegram
 
 import dev.g000sha256.tdl.dto.PageBlock
 import dev.g000sha256.tdl.dto.PageBlockAnimation
+import dev.g000sha256.tdl.dto.PageBlockAudio
 import dev.g000sha256.tdl.dto.PageBlockAuthorDate
 import dev.g000sha256.tdl.dto.PageBlockBlockQuote
 import dev.g000sha256.tdl.dto.PageBlockCaption
 import dev.g000sha256.tdl.dto.PageBlockCollage
 import dev.g000sha256.tdl.dto.PageBlockDetails
 import dev.g000sha256.tdl.dto.PageBlockDivider
+import dev.g000sha256.tdl.dto.PageBlockDocument
 import dev.g000sha256.tdl.dto.PageBlockExpandableBlockQuote
 import dev.g000sha256.tdl.dto.PageBlockFooter
 import dev.g000sha256.tdl.dto.PageBlockHeader
@@ -26,6 +28,7 @@ import dev.g000sha256.tdl.dto.PageBlockTable
 import dev.g000sha256.tdl.dto.PageBlockThinking
 import dev.g000sha256.tdl.dto.PageBlockTitle
 import dev.g000sha256.tdl.dto.PageBlockVideo
+import dev.g000sha256.tdl.dto.PageBlockVoiceNote
 import dev.g000sha256.tdl.dto.RichText
 import dev.g000sha256.tdl.dto.RichTextAnchorLink
 import dev.g000sha256.tdl.dto.RichTextBankCardNumber
@@ -55,8 +58,15 @@ import dev.g000sha256.tdl.dto.RichTexts
 import dev.g000sha256.tdl.dto.RichTextUnderline
 import dev.g000sha256.tdl.dto.RichTextUrl
 
-/** Slova za přílohy, které článek nese a bublina je nekreslí. */
-internal data class RichMediaLabels(val photo: String, val video: String, val gif: String)
+/** Slova za přílohy článku. U fotky, videa a GIFu je bublina nahradí médiem, u zbytku zůstávají. */
+internal data class RichMediaLabels(
+    val photo: String,
+    val video: String,
+    val gif: String,
+    val audio: String,
+    val voice: String,
+    val file: String,
+)
 
 /**
  * Článek (`MessageRichMessage`, TDLib 15) jako text s formátováním.
@@ -67,20 +77,30 @@ internal data class RichMediaLabels(val photo: String, val video: String, val gi
  * Tím funguje i hledání se zvýrazněním, kopírování, výběr textu a citace z nabídky.
  *
  * Offsety jsou v UTF-16 jednotkách jako všude — počítají se z délky `StringBuilder`u.
- * **Média se nekreslí**: místo nich stojí slovo („Fotka") a popisek, jinak by z článku potichu
- * zmizela.
+ * **Média stojí v textu jako slovo** („[Fotka] popisek") a k tomu se zapíše, kde přesně
+ * ([ArticleMedia]): bublina místo slova nakreslí fotku, video nebo GIF, a v kopírovaném
+ * textu, náhledu, hledání a přepisu pro AI zůstane slovo. Kotvy vyrábí TENTÝŽ průchod jako
+ * text — offsety ze dvou průchodů by se rozešly při první změně jednoho z nich.
+ *
+ * @param isFull článek je celý; jinak TDLib poslal jen začátek ([Article.isPartial]).
+ * @param hideSensitive médium se rozostří jako citlivé (viz `hidesSensitive`).
  */
-internal fun Array<PageBlock>.toRichBody(labels: RichMediaLabels): MessageBody {
-    val writer = RichWriter(labels)
+internal fun Array<PageBlock>.toRichBody(
+    labels: RichMediaLabels,
+    isFull: Boolean = true,
+    hideSensitive: Boolean = false,
+): MessageBody {
+    val writer = RichWriter(labels, hideSensitive)
     forEach { writer.block(it, indent = "") }
-    return writer.build()
+    return writer.build(isPartial = !isFull)
 }
 
-private class RichWriter(private val labels: RichMediaLabels) {
+private class RichWriter(private val labels: RichMediaLabels, private val hideSensitive: Boolean) {
     private val text = StringBuilder()
     private val entities = mutableListOf<MessageEntity>()
+    private val media = mutableListOf<ArticleMedia>()
 
-    fun build(): MessageBody {
+    fun build(isPartial: Boolean): MessageBody {
         // Konec řádků za posledním blokem by v bublině nechal prázdný řádek.
         val trimmed = text.trimEnd().length
         return MessageBody(
@@ -89,6 +109,10 @@ private class RichWriter(private val labels: RichMediaLabels) {
                 val end = minOf(entity.offset + entity.length, trimmed)
                 entity.copy(length = end - entity.offset).takeIf { it.length > 0 }
             },
+            article = Article(
+                media = media.filter { it.end <= trimmed },
+                isPartial = isPartial,
+            ).takeIf { it.media.isNotEmpty() || it.isPartial },
         )
     }
 
@@ -196,9 +220,33 @@ private class RichWriter(private val labels: RichMediaLabels) {
                 }
                 line(indent) { styled(MessageEntityType.Italic) { rich(block.caption) } }
             }
-            is PageBlockPhoto -> media(labels.photo, block.caption, indent)
-            is PageBlockVideo -> media(labels.video, block.caption, indent)
-            is PageBlockAnimation -> media(labels.gif, block.caption, indent)
+            is PageBlockPhoto -> media(
+                labels.photo,
+                block.caption,
+                indent,
+                block.photo?.toMedia(hasSpoiler = block.hasSpoiler || hideSensitive, isSensitive = hideSensitive),
+            )
+            is PageBlockVideo -> media(
+                labels.video,
+                block.caption,
+                indent,
+                block.video?.toMedia(hasSpoiler = block.hasSpoiler || hideSensitive, isSensitive = hideSensitive),
+            )
+            is PageBlockAnimation -> media(
+                labels.gif,
+                block.caption,
+                indent,
+                block.animation?.toMedia()?.copy(hasSpoiler = block.hasSpoiler || hideSensitive, isSensitive = hideSensitive),
+            )
+            // Zvuk a soubor se v článku nekreslí, ale nesmí z něj zmizet: slovo a popisek.
+            is PageBlockAudio -> media(labels.audio, block.caption, indent, shown = null)
+            is PageBlockVoiceNote -> media(labels.voice, block.caption, indent, shown = null)
+            is PageBlockDocument -> media(
+                labels.file,
+                block.caption ?: PageBlockCaption(RichTextPlain(block.document.fileName), null),
+                indent,
+                shown = null,
+            )
             is PageBlockCollage -> {
                 block.blocks.forEach { block(it, indent) }
                 caption(block.caption, indent)
@@ -244,13 +292,29 @@ private class RichWriter(private val labels: RichMediaLabels) {
         if (text.length == before) text.setLength(start)
     }
 
-    private fun media(label: String, caption: PageBlockCaption?, indent: String) {
+    /**
+     * Médium jako „[Fotka] popisek". U média, které bublina umí nakreslit ([shown]), se zapíše
+     * kotva přes slovo i mezeru za ním — popisek zůstane textem pod médiem.
+     */
+    private fun media(label: String, caption: PageBlockCaption?, indent: String, shown: MessageMedia?) {
         line(indent) {
+            val start = text.length
             styled(MessageEntityType.Italic) { text.append('[').append(label).append(']') }
             val before = text.length
             text.append(' ')
-            rich(caption?.text)
+            val captionStart = text.length
+            // Popisek média kurzívou: pod fotkou by jinak splynul s textem článku.
+            styled(MessageEntityType.Italic) { rich(caption?.text) }
             if (text.length == before + 1) text.setLength(before)
+            if (shown != null) {
+                media += ArticleMedia(
+                    start = start,
+                    end = minOf(before + 1, text.length),
+                    index = media.size,
+                    media = shown,
+                    caption = text.substring(minOf(captionStart, text.length)),
+                )
+            }
         }
         credit(caption?.credit)
     }

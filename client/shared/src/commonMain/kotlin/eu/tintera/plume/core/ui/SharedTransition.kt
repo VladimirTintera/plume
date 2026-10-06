@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.ui
 
+import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import eu.tintera.plume.core.telegram.POLL_QUESTION_MEDIA
 import androidx.compose.animation.EnterExitState
@@ -434,8 +435,19 @@ val LocalSharedMediaFlight = compositionLocalOf { false }
 fun photoKey(messageId: Long): String {
     val base = if (LocalSharedMediaFlight.current) "shared-media-photo-$messageId" else "photo-$messageId"
     val poll = LocalPollMediaFlight.current
-    return if (poll == NO_POLL_MEDIA) base else "$base-poll-$poll"
+    val article = LocalArticleMediaFlight.current
+    return when {
+        poll != NO_POLL_MEDIA -> "$base-poll-$poll"
+        article != NO_ARTICLE_MEDIA -> "$base-article-$article"
+        else -> base
+    }
 }
+
+/**
+ * Které médium článku letí do prohlížeče (`ArticleMedia.index`); [NO_ARTICLE_MEDIA] příloha
+ * zprávy. Článek nese víc obrázků pod JEDNÍM id zprávy — tatáž úvaha jako [LocalPollMediaFlight].
+ */
+val LocalArticleMediaFlight = compositionLocalOf { NO_ARTICLE_MEDIA }
 
 /**
  * Která příloha ankety letí do prohlížeče: [POLL_QUESTION_MEDIA] otázka, jinak PŮVODNÍ index

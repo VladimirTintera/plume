@@ -78,6 +78,9 @@ internal interface ConversationItemScope {
 
     fun documentProgress(fileId: Int): Float?
 
+    /** Dočítá se useknutý článek téhle zprávy („Číst dál")? */
+    fun articleLoading(messageId: Long): Boolean = false
+
     /**
      * Horní hrana seznamu v souřadnicích okna — spodek hlavičky chatu. Nabídka nad zprávou nad ni
      * nesmí, aby hlavička zůstala vidět. `null`, dokud není změřená.

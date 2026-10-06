@@ -19,6 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.ArticleMedia
+import eu.tintera.plume.core.ui.LocalArticleMediaFlight
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.CircularProgressIndicator
+import eu.tintera.plume.resources.article_read_more
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -117,8 +123,10 @@ internal data class BubbleMessageItem(
             if (preview?.showAboveText == true) previewCard?.invoke(Modifier.padding(bottom = 6.dp))
             when {
                 message.isRestricted -> RestrictedNote()
+                message.article?.media.orEmpty().isNotEmpty() -> ArticleText()
                 message.text.isNotBlank() || message.description != null -> QuotableText()
             }
+            if (message.article?.isPartial == true && !message.isRestricted) ArticleReadMore()
             if (preview?.showAboveText != true) previewCard?.invoke(Modifier.padding(top = 6.dp))
 
             // Živou polohu posouvá úprava zprávy; „upraveno" by u ní svítilo pořád.
@@ -147,6 +155,108 @@ internal data class BubbleMessageItem(
                 style = MaterialTheme.typography.bodyMedium,
                 color = onBubbleColor.copy(alpha = RESTRICTED_ALPHA),
             )
+        }
+    }
+
+    /**
+     * Článek s médii: text po úsecích a mezi nimi fotka, video nebo GIF na místě, kde v článku
+     * stojí (viz `articleSegments`). Text zprávy zůstává jeden, takže kopírování, hledání i citace
+     * pracují nad celým článkem; rozdělí se jen to, co se kreslí.
+     *
+     * Pás citace dosedne na okraj bubliny jen u prvního úseku nahoře a posledního dole — mezi
+     * úseky stojí médium.
+     */
+    @Composable
+    private fun MessageBodyScope.ArticleText() {
+        val article = message.article ?: return
+        val segments = remember(message.text, message.entities, article.media) {
+            articleSegments(message.text, message.entities, article.media)
+        }
+        val atTop = quoted == null && album == null && message.media == null &&
+            !message.hasOriginLabel && (continuesAbove || message.senderName == null)
+        val atBottom = message.linkPreview == null && !message.isEdited && !article.isPartial
+        segments.forEachIndexed { i, segment ->
+            when (segment) {
+                is ArticleSegment.Text -> MessageText(
+                    linkColor = accent,
+                    bleedTop = if (i == 0 && atTop) MESSAGE_PADDING_V else QUOTE_EDGE_TIGHT,
+                    bleedBottom = if (i == segments.lastIndex && atBottom) contentBottom else QUOTE_EDGE_TIGHT,
+                    segment = segment,
+                )
+                is ArticleSegment.Media -> ArticleMediaView(
+                    media = segment.media,
+                    modifier = Modifier.padding(
+                        top = if (i == 0) 0.dp else ARTICLE_MEDIA_GAP,
+                        bottom = if (i == segments.lastIndex) 0.dp else ARTICLE_MEDIA_GAP,
+                    ),
+                )
+            }
+        }
+    }
+
+    /**
+     * Médium článku. Klíč letu do prohlížeče nese pořadí média ([LocalArticleMediaFlight]): pod
+     * jedním id zprávy je jich v článku víc, stejně jako v anketě.
+     */
+    @Composable
+    private fun MessageBodyScope.ArticleMediaView(media: ArticleMedia, modifier: Modifier) {
+        Box(modifier.fillMaxWidth()) {
+            CompositionLocalProvider(LocalArticleMediaFlight provides media.index) {
+                MessageAttachment(
+                    media = media.media,
+                    messageId = message.id,
+                    onOpen = { act(MessageAction.OpenArticleMedia(media.index)) },
+                    onRequestMenu = ::requestMenu,
+                    accent = accent,
+                    // Článek je široký jako bublina; obrázek ji vyplní, jinak by vedle zúžené
+                    // fotky zůstalo prázdné místo — tatáž úvaha jako u přílohy ankety.
+                    fillWidth = true,
+                )
+            }
+        }
+    }
+
+    /**
+     * „Číst dál" pod useknutým článkem. Dlouhý článek posílá TDLib jen zčásti a zbytek vydá až
+     * na požádání (`getFullRichMessage`); bez tlačítka by článek končil uprostřed a nebylo by
+     * poznat proč. Ve stejném jazyce tvaru jako rozbalovač sbalitelné citace.
+     */
+    @Composable
+    private fun MessageBodyScope.ArticleReadMore() {
+        val loading = items.articleLoading(message.id)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier
+                .padding(top = MESSAGE_PADDING_V)
+                .offset(x = -EXPANDER_TOUCH_H)
+                .clip(RoundedCornerShape(QUOTE_EXPANDER_CORNER))
+                .combinedClickable(
+                    enabled = !loading,
+                    onLongClick = ::requestMenu,
+                    onClick = { act(MessageAction.ReadFullArticle) },
+                )
+                .padding(horizontal = EXPANDER_TOUCH_H, vertical = EXPANDER_TOUCH_V),
+        ) {
+            Text(
+                text = stringResource(Res.string.article_read_more),
+                style = MaterialTheme.typography.labelLargeEmphasized,
+                color = accent,
+            )
+            if (loading) {
+                CircularProgressIndicator(
+                    color = accent,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(QUOTE_EXPANDER_ICON - 6.dp),
+                )
+            } else {
+                Icon(
+                    painter = painterResource(Res.drawable.keyboard_arrow_down_24dp),
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(QUOTE_EXPANDER_ICON),
+                )
+            }
         }
     }
 
@@ -317,6 +427,9 @@ private val EXPANDER_TOUCH_V = 4.dp
 private val EXPANDER_TOUCH_H = 6.dp
 
 private val QUOTE_EXPANDER_ICON = 18.dp
+
+/** Mezera mezi médiem článku a textem nad ním a pod ním. */
+private val ARTICLE_MEDIA_GAP = 8.dp
 
 /**
  * Karta odpovědi: [quote] nahoře v tónované ploše ([MessageBodyScope.insetColor]), [content] pod ní

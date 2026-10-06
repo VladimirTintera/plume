@@ -92,6 +92,7 @@ import eu.tintera.plume.features.conversation.GifPickerViewModel
 import eu.tintera.plume.features.conversation.StickerSetViewModel
 import eu.tintera.plume.features.conversation.PollVotersViewModel
 import eu.tintera.plume.features.conversation.PollComposerViewModel
+import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.ReplyQuote
@@ -508,6 +509,7 @@ fun appModule() = module {
             messageId = parameters.get(),
             pollMedia = parameters.values.getOrNull(2) as? Int ?: NO_POLL_MEDIA,
             profilePhotos = parameters.values.getOrNull(3) as? Boolean ?: false,
+            articleMedia = parameters.values.getOrNull(4) as? Int ?: NO_ARTICLE_MEDIA,
             repository = get(),
             profileRepository = get(),
             files = get(),

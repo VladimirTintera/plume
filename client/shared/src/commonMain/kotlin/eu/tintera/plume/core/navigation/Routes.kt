@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.navigation
 
+import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import androidx.navigation3.runtime.NavKey
 import androidx.savedstate.serialization.SavedStateConfiguration
@@ -221,6 +222,11 @@ data class MediaRoute(
      * [messageId] je pak 0 — stránky nejsou zprávy.
      */
     val profilePhotos: Boolean = false,
+    /**
+     * Médium článku (`ArticleMedia.index`) místo přílohy zprávy; `NO_ARTICLE_MEDIA` = běžná
+     * zpráva. Článek nese víc médií pod jedním id zprávy, stejně jako anketa.
+     */
+    val articleMedia: Int = NO_ARTICLE_MEDIA,
 ) : Route
 
 /** [MediaRoute.startSeconds] bez času v médiu. */
