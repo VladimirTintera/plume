@@ -190,6 +190,7 @@
     <string name="media_profile_photo_set">Profilová fotka změněna</string>
     <string name="media_profile_photo_failed">Profilové fotky se nepodařilo změnit</string>
     <string name="media_video_download_failed">Video se nepodařilo stáhnout.</string>
+    <string name="media_video_playback_failed">Video se nepodařilo přehrát. Zkus to znovu.</string>
     <string name="media_download_progress">Průběh stahování</string>
     <string name="media_play">Přehrát</string>
     <string name="media_pause">Pozastavit</string>

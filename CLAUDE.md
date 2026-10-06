@@ -7764,6 +7764,22 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
 - **Čekání na data blokuje vlákno ExoPlayeru, a tak to má být** — je to jeho vlastní vlákno pro
   načítání. Po 30 s bez nových dat se čtení vzdá: stahování mohlo spadnout a věčné čekání by
   vypadalo jako zamrzlý přehrávač.
+- **Dostažený soubor TDLib PŘESUNE** z `files/tdlib-files/temp/<n>` na konečnou cestu
+  (`videos/…`) a `FileState.Downloading` vystřídá `Ready` — bez `downloaded`. Zdroj streamu proto
+  bere cestu jako FUNKCI (`StreamingSource.path`) a `VideoPage` mu po dokončení podá konečnou
+  cestu a celý soubor jako stažený; přehrávač se nepřenačítá. Dokud si zdroj držel dočasnou
+  cestu, šlo video přehrát jen jednou: přehrání od začátku (i skok) soubor OTEVÍRÁ ZNOVU
+  a skončilo `ExoPlaybackException: Source error` / `FileNotFoundException … temp/70: ENOENT`.
+  Hrající video přesun nepozná — už otevřený soubor přejmenování přežije. Ověřeno dočasným
+  logem v `PartialFileDataSource.open`: první přehrání čte `temp/175`, opakované
+  `videos/out2.mp4`.
+- **Chyba přehrávače se čte jako stav** (`VideoPlayer.isFailed`: `playerError`, na iOS
+  `AVPlayerItemStatusFailed`). Bez ní zůstalo optimistické `playing = true` z tlačítka a UI
+  tvrdilo, že hraje. Po chybě je vidět tlačítko přehrát s hláškou a `play()` přehrávač
+  připraví znovu (`prepare()` pokračuje z místa chyby). Ověřeno sondou s neexistující cestou.
+- **Streamovací cestu ověří jen video, které TDLib ještě NEMÁ**: stažené jde přes `load(path)`
+  a chyba se neukáže. Každý pokus proto chce nový soubor — k MP4 stačí připojit box `free`
+  s náhodnými bajty (jinak TDLib soubory se stejným obsahem sloučí).
 - **iOS zatím streamovat neumí** (`videoStreamingSupported = false`). `AVPlayer` by potřeboval
   `AVAssetResourceLoaderDelegate` — vlastní zdroj odpovídající na požadavky na rozsahy bajtů;
   do té doby se tam čeká na celý soubor.
