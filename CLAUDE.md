@@ -10437,7 +10437,8 @@ aplikace a nejčastěji skládané composables (Python balíček `perfetto`, nej
 
 Nálezy a opravy (emulátor Plume_Galerie_Fold, debug build, říjen 2026):
 
-- **Otevřený chat si říkal o 60 snímků za vteřinu, i když se nic nehýbalo.** Smyčka polohy
+- **Otevřený chat si říkal o snímek 60× za vteřinu, i když se nic nehýbalo** (průchody
+  `Choreographer#doFrame` bez kreslení, viz „Start a plynulost"). Smyčka polohy
   zprávy pro nabídku (`MessageMenuLayer`, `withFrameNanos` dokola) běžela i se zavřenou
   nabídkou. Nečinné Uložené zprávy: 478 snímků za 8 s → 0. Seznam chatů měl nulu už předtím.
 - **Scroll konverzace přeskládával celou obrazovku**, protože `visibleDay` (plovoucí datum)
@@ -10454,6 +10455,38 @@ Nálezy a opravy (emulátor Plume_Galerie_Fold, debug build, říjen 2026):
 - **Obecně: argument composable v seznamu, jehož třída nese pole typu sealed interface, se
   porovnává identitou**, i když je data class z `val`. Report kompilátoru ho ukáže bez
   `stable` u parametru (`chat: ChatSummary` místo `stable chat: ChatSummary`).
+
+### Start a plynulost
+
+Měřeno v říjnu 2026: emulátor Plume_Galerie_Fold s release buildem (R8) podepsaným debug klíčem
+a Pixel 11 Pro Fold (složený) s verzí 0.3.51 z Play. Postupy:
+
+- **Studený start**: `am force-stop`, pak `am start -W -n eu.tintera.plume/.MainActivity`.
+  Pět opakování a medián; první běh po kompilaci se zahazuje.
+- **Kdy je start hotový**, hlásí seznam chatů přes `ReportDrawnWhen` (`core/ui/ReportDrawn.kt`)
+  ve chvíli, kdy opustí načítání. V logu je to `Fully drawn eu.tintera.plume/.MainActivity:
+  +N ms`; z téhož hlášení počítají Play vitals i Macrobenchmark. Samotné `TotalTime` z `am start
+  -W` je první snímek, ten ještě chaty nemá.
+- **Plynulost**: `dumpsys gfxinfo eu.tintera.plume reset`, tahy přes `input swipe`, pak
+  `dumpsys gfxinfo eu.tintera.plume`. Rozhoduje „Janky frames" a percentily; „legacy"
+  a „High input latency" jsou u vstupů z adb nesmyslné. Na emulátoru se plynulost neměří.
+
+Výsledky:
+
+- **Studený start je rychlý.** Emulátor: první snímek ~130 ms, seznam chatů ~170 ms. Fold:
+  první snímek 151–175 ms, TDLib připravená 110–140 ms po startu procesu.
+- **Vlastní baseline profile se zatím nevyplatí.** APK nese profil knihoven (`baseline.prof`,
+  15 kB) a Play instaluje s profilem z cloudu (`speed-profile`, `install-dm`). Na emulátoru
+  vyšel seznam chatů v režimech `verify` / `speed-profile` / `speed` (strop toho, co dokáže
+  dokonalý profil) za 207 / 171 / 157 ms. Zbývá ~15 ms, a to modul Macrobenchmark s AGP 9
+  a KMP nestojí. Režim se přepíná `adb shell cmd package compile -f -m <režim> eu.tintera.plume`.
+- **Scroll na Foldu (120 Hz)**: seznam chatů 0,07 % zadrhnutých snímků, 99. percentil 9 ms;
+  Uložené zprávy 0,31 %, 15 ms; chat s Notifikátorem (kolečka, samolepky) 0,34 %, 15 ms.
+- **`gfxinfo` počítá jen VYKRESLENÉ snímky.** Nečinný chat ve verzi 0.3.51 měl v `gfxinfo`
+  nulu, a přitom Perfetto na Foldu ukázalo 361 průchodů `Choreographer#doFrame` za 6 s. Smyčka
+  s `withFrameNanos` budí hlavní vlákno každý snímek, i když nic nekreslí. Takové plýtvání se
+  proto hledá Perfettem (`trace.cfg` funguje i s release buildem, `Choreographer#doFrame`
+  zaznamená atrace kategorie `view`), ne přes `gfxinfo`.
 
 ### Výsledky první analýzy
 

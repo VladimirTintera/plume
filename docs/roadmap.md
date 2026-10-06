@@ -378,9 +378,8 @@ kompilátoru, LeakCanary, heap dumpy) únik nenašla. Zbylo:
   `animateDpAsState` v `MessageFrame` se čte v kompozici). Na emulátoru ~1 ms za snímek.
   Šlo by číst až při kreslení (tvar čtoucí stav v `createOutline`), ale je to zásah do
   vzhledu bubliny; nízká priorita.
-- **Plynulost a start** (zbývající bod): release build podepsaný debug klíčem na Foldu,
-  `dumpsys gfxinfo framestats` (jen seznam chatů, Uložené zprávy a Notifikátor, ať se nečtou
-  cizí zprávy) a `am start -W`. Pak zvážit Macrobenchmark a baseline profile.
+- **Fully drawn na Foldu** ověřit s první verzí, která `ReportDrawnWhen` nese: měřené
+  hodnoty na telefonu jsou zatím jen první snímek.
 - **Native heap** rostl během testu z ~80 na ~130 MB. Ověřit delším během, jestli se ustálí
   (TDLib, kodeky, Chromium z mini aplikace), nebo roste dál.
 
