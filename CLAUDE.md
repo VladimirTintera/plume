@@ -1678,7 +1678,7 @@ u okraje obrazovky. S insetem vpravo prosvítal; proto `clipToBounds` na ploše 
 mají podle M3 smysl až od tří. Lišta zabírala ~80 dp jen kvůli skoku do Nastavení a seznam chatů
 pod ní působil přeplácaně; rail na širší ploše přežil o něco déle, ale jen zdvojoval menu účtu
 a ukusoval šířku panelům. Do Nastavení vede menu účtu v pilulce na každé šířce, spodek obrazovky
-patří FAB „Nová zpráva" (viz „Složky místo filtrů a FAB"). Důsledek pro insety:
+patří FAB menu „Vytvořit" (viz „Složky místo filtrů a FAB"). Důsledek pro insety:
 shell žádný nekonzumuje, každá obrazovka si je bere sama (Scaffold je má ve výchozích
 `contentWindowInsets`). **Kdyby sekcí přibylo na tři**, přijde rail zpátky — past s místem:
 skrytí musí animovat i SLOT (`shrinkHorizontally`), ne jen posun, jinak obsah doskočí až na konci.
@@ -1876,8 +1876,8 @@ když si o to uživatel řekne v Nastavení (`separateUnreadChats`, **výchozí 
 ### Složky místo filtrů a FAB
 
 Seznam chatů zužují JEN složky Telegramu v řádku pod pilulkou (viz „Složky chatů"). Dole je
-rozšířený FAB „Nová zpráva" (`NewChatFab`), který se při scrollu dolů sbalí na ikonu, jako
-v Google Zprávách.
+FAB menu „Vytvořit" (`NewChatFabMenu`): přepínací FAB s tužkou a nad ním Nový kanál, Nová
+skupina a Nová zpráva.
 
 - **Dřív tu byl plovoucí toolbar s vlastními filtry** (Vše, Nepřečtené, Lidé, Skupiny, Kanály;
   `ChatFilter`), lokálními a kombinovatelnými se složkou. Dělaly ale totéž co doporučené složky
@@ -1902,13 +1902,25 @@ v Google Zprávách.
 - **FAB a snackbar nejsou ve slotech Scaffoldu** a stojí nad klávesnicí (`imePadding` za
   `consumeWindowInsets` spodního paddingu Scaffoldu): Scaffold dává do paddingu jen systémové
   lišty, takže by je vysunutá klávesnice zakryla. Seznam má dole `FAB_CLEARANCE`.
-- **Popisek FAB nese i ikona** (`contentDescription`): `ExtendedFloatingActionButton(text = …)`
-  popisek před čtečkou schovává (viz „Gotchas").
+- **FAB menu M3 Expressive, ne rozšířený FAB** (`FloatingActionButtonMenu`
+  + `ToggleFloatingActionButton`). Dřív byl FAB „Nová zpráva", který se při scrollu sbalil na
+  ikonu; Nová skupina a Nový kanál byly jen řádky na obrazovce Nové zprávy (zůstaly tam). Popisky
+  nesou položky, přepínač je jen ikona (tužka → ✕, zaoblený čtverec → kruh) — tak to M3 u FAB
+  menu chce, takže sbalování při scrollu odpadlo. Nová zpráva je poslední, u palce.
+- **Pod otevřeným menu je závoj** (`FabMenuScrim`, `surface` s průhledností): ťuknutí vedle
+  menu zavře a nepropadne do seznamu (otevřelo by chat). Kreslí se DVAKRÁT — přes seznam a přes
+  hlavičku, protože Scaffold kreslí `topBar` nad obsahem a ťuknutí na pilulku by jinak otevřelo
+  hledání s menu otevřeným pod ním. Zpět menu zavře (`NavigationBackHandler`), teprve další zpět
+  odchází z aplikace. Položka napřed menu zavře, pak naviguje — po návratu má být zavřené.
+- **Popisek přepínače se mění se stavem** („Vytvořit" / „Zavřít") a čtečka ho čte PŘED
+  položkami (`traversalIndex = -1`), jako v ukázce M3; z poslední položky menu zavře vlastní akce.
 - **Vybraná složka se v řádku vždycky ukáže** (`bringIntoViewRequester` u vybraného tlačítka):
   přidaná doporučená složka stojí na konci řádku a vybrala by se za okrajem obrazovky.
 - **Server doporučené složky vracet nemusí** — účtu, který už má „Unread" i „Personal", nevrátil
   žádnou. Sheet se pak ověřuje sondou (podstrčená doporučená složka v `openFolderSuggestions`;
   necommituje se), založení jde skutečným `createChatFolder`.
+- **Ověřeno na emulátoru** (anglicky): FAB menu — otevření, zavření ťuknutím do seznamu i na
+  hlavičku a zpět, všechny tři položky vedou na svou obrazovku a zpět se vrací se zavřeným menu.
 - **Ověřeno na emulátoru** (česky, světlý i tmavý motiv): FAB se sbalením, řádek s „+", sheet
   bez doporučených i se sondou, přidání složky (vybraná a dojetá v řádku), prázdná složka
   s ikonou, „Nová složka" do editoru a „Spravovat složky" do seznamu složek, zpět po krocích.
@@ -2415,8 +2427,8 @@ v ⋮ vrátí jednu konverzaci. Hranice je `SavedTopicsRepository` (`TdlSavedTop
   na každé obrazovce znovu.
 - **ViewModely zůstávají dva.** `NewChatViewModel` načítá kontakty, `ForwardViewModel` řeší
   volby a odesílání — sdílí se vzhled, ne obsah.
-- **Vstup je rozšířený FAB** (viz „Složky místo filtrů a FAB"). Při scrollu dolů se sbalí na
-  ikonu, po zastavení zůstává sbalený až do dalšího scrollu nahoru.
+- **Vstup je FAB menu** v seznamu chatů (viz „Složky místo filtrů a FAB"): Nová zpráva, Nová
+  skupina a Nový kanál. Skupina a kanál jsou i řádky nahoře na téhle obrazovce.
 - **Kontakty jdou z `getContacts`** a pro každý se lokálně zavolá `createPrivateChat(userId, force = false)`
   — TDLib tak pro kontakt založí chat objekt (lokálně v paměti/databázi, bez odesílání zpráv)
   a do seznamu se dostane kompletní `ChatSummary` s avatarem i dostupností (`withPresence()`).
@@ -7444,7 +7456,7 @@ skočí na zprávu. Kdo do docku patří, je `VoicePlayback.docksIn` (testy `Pla
 #### Přehrávač nad seznamem chatů
 
 Hudba, která hraje dál po odchodu z konverzace, má nad seznamem chatů tentýž řádek
-(`PlayerDockBar`, `NowPlayingViewModel`): dole pod FAB „Nová zpráva", sklo nad seznamem.
+(`PlayerDockBar`, `NowPlayingViewModel`): dole pod FAB menu, sklo nad seznamem.
 Ťuknutí na text otevře chat se skokem na skladbu.
 
 - **Jen hudba.** Hlasovka odchodem z chatu dohraje (`stop(chatId, keepMusic = true)`), takže
@@ -7458,7 +7470,7 @@ Hudba, která hraje dál po odchodu z konverzace, má nad seznamem chatů tentý
 - **Obal skladby se předává jako soubor** (`TrackInfo.coverFileId`). Fronta měla jen bitmapu pro
   systémové ovládání; řádek si obal stáhne sám přes `RemoteImage`.
 - **Řádek mizí i se svým místem**, takže FAB po dohrání sjede dolů na jeho místo. Ťuknutí na ✕
-  ve chvíli, kdy skladba právě dohrála, proto trefí FAB a otevře „Novou zprávu" — neškodné,
+  ve chvíli, kdy skladba právě dohrála, proto trefí FAB a otevře menu „Vytvořit" — neškodné,
   jen se na to při ověřování přes `adb` nesmí zapomenout.
 - **Ověřeno na emulátoru** (anglicky) skladbami od testovacího bota: řádek po odchodu z chatu,
   pauza, „další" (u poslední není), ✕ za hraní, zmizení po dohrání, ťuknutí na text otevře
