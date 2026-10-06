@@ -21,8 +21,12 @@ import dev.chrisbanes.haze.blur.HazeColorEffect
 @Composable
 fun ambientBlurStyle(): HazeBlurStyle {
     val scrim = MaterialTheme.colorScheme.scrim
-    return remember(scrim) {
+    val blur = LocalBackgroundBlurAllowed.current
+    return remember(scrim, blur) {
         HazeBlurStyle {
+            // Systém rozostření nechce („Omezit efekty rozmazání") — kreslí se náhradní závoj.
+            // Jen vypnout: zapnuté rozostření rozhoduje Haze sám (pod Androidem 12 ho nemá).
+            if (!blur) blurEnabled(false)
             colorEffects(listOf(HazeColorEffect.tint(scrim.copy(alpha = AMBIENT_TINT_ALPHA))))
             blurRadius(AMBIENT_BLUR_RADIUS)
             noiseFactor(0f)
