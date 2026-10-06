@@ -365,6 +365,23 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
 
 ---
 
+## Výkon a paměť
+
+Nástroje a postup jsou v `CLAUDE.md` („Výkon a paměť"). První analýza (reporty Compose
+kompilátoru, LeakCanary, heap dumpy) únik nenašla. Zbylo:
+
+- **Recompozice za běhu** (zbývající bod analýzy): composition tracing (`runtime-tracing`)
+  a Perfetto trace při scrollu konverzace, příchozí zprávě, „píše…" a přehrávání hlasovky.
+  Ověřit, že se neskládá celá obrazovka konverzace kvůli změnám, které se jí netýkají
+  (průběh stahování, pozice přehrávače).
+- **Plynulost a start** (zbývající bod): release build podepsaný debug klíčem na Foldu,
+  `dumpsys gfxinfo framestats` (jen seznam chatů, Uložené zprávy a Notifikátor, ať se nečtou
+  cizí zprávy) a `am start -W`. Pak zvážit Macrobenchmark a baseline profile.
+- **Native heap** rostl během testu z ~80 na ~130 MB. Ověřit delším během, jestli se ustálí
+  (TDLib, kodeky, Chromium z mini aplikace), nebo roste dál.
+
+---
+
 ## Haptika
 
 Slovník je hotový (`core/ui/Haptics.kt`: `threshold`, `confirm`, `reject`, `toggle`, `tick`)

@@ -10328,6 +10328,106 @@ vkus toho, kdo zrovna píše obrazovku.
   odezva odešla a která — **jak to sedí pod prstem (hlavně jestli dvě nejdou hned po sobě) se
   pozná jedině rukou na telefonu.**
 
+## Výkon a paměť
+
+Nástroje pro analýzu výkonu a paměti: reporty Compose kompilátoru, LeakCanary v debug buildu
+a skripty nad heap dumpy (`client/tools/heap/`). Co z první analýzy zbylo k řešení, je
+v `docs/roadmap.md` („Výkon a paměť").
+
+### Reporty Compose kompilátoru
+
+`./gradlew :client:shared:compileAndroidMain -PcomposeReports` zapíše do
+`client/shared/build/compose-reports` stabilitu tříd (`*-classes.txt`), skippability
+composables (`*-composables.txt`, `.csv`) a souhrn (`android/main/*-module.json`). Bez
+přepínače se reporty nevyrábějí, běžný build je nepotřebuje.
+
+- **Strong skipping je zapnutý (Kotlin 2.x), takže „neskippable" composable v projektu
+  není.** Stabilita rozhoduje o tom, JAK se parametry porovnávají: stabilní přes `equals`,
+  nestabilní přes identitu (`===`). Nestabilní parametr tedy recompozici nevynutí, jen při
+  každé nové instanci se stejným obsahem nepřeskočí.
+- **Bloky konverzace jsou `@Immutable`** (`ConversationItem`, `MessageFrameData`…), takže se
+  porovnávají přes `equals` i s nestabilními poli uvnitř. Na tom stojí to, že builder
+  bloků vyrábí nové instance a nezměněné položky se přesto přeskočí. Report je u nich vede
+  jako `stable`, zatímco jejich pole jako `runtime`. To je v pořádku.
+- **Neměnné třídy, které kompilátor sám za stabilní nepozná, vyjmenovává
+  `client/shared/compose-stability.conf`**, ne `@Immutable`: doménové typy v `core/telegram`
+  nemají importovat Compose. Patří tam jen třídy, které se po vzniku opravdu nemění. Kdo do
+  nich přidá měnitelné pole, musí je ze souboru vyjmout.
+  - **`Minithumbnail` (`ByteArray`) dělal nestabilní celý řetěz**: `MessageMedia.Photo`,
+    `Video`, `Animation`, `VideoNote`, `Audio`, `PaidPreview`, `LinkPreview` a tím
+    i `ChatMessage`. Composables, které je brala přímo, je porovnávala identitou.
+  - **Sealed interface vychází jako „Uncertain"**, i když jsou všechny implementace stabilní
+    (`SelfDestructType`, `SpeechTranscript`). Kompilátor rozhoduje jen podle typu, ne podle
+    implementací.
+  - **Rekurzivní typ nejde odvodit**: `ChatMessage` → `ExternalReply` → `ChatMessage`
+    vycházel nestabilní, dokud nebyl `ExternalReply` v konfiguraci.
+  - Po úpravě je v `core/telegram` stabilní celý řetěz médií a `ChatMessage` vychází
+    `runtime` (rozhodne `ChatPoll`, který je stabilní). Další sealed interface (`UiText`,
+    `MessageMedia`, `Verification`) zůstávají „Uncertain": nejsou všechny implementace
+    stabilní, a dát je do konfigurace naslepo by znamenalo slibovat neměnnost i za ně.
+- **Změnu `compose-stability.conf` inkrementální překlad NEZAREGISTRUJE.** Přeloží se jen
+  změněné zdrojové soubory, takže report ukáže novou stabilitu jen u nich a zbytek zůstane
+  podle staré konfigurace. Po změně konfigurace se překládá s `--rerun`
+  (`./gradlew :client:shared:compileAndroidMain --rerun -PcomposeReports`). Na CI to nevadí,
+  tam se překládá načisto.
+- **`List` a `Map` v datech jsou `runtime`**, ne `stable`. Do konfigurace stability je
+  nepřidávat naslepo: s nimi by se porovnávaly přes `equals`, tedy u seznamu zpráv
+  prvek po prvku při každé recompozici.
+
+### LeakCanary
+
+Je jen v debug buildu (`debugImplementation`); v launcheru přidá ikonu „Leaks". Nález
+hlásí v logcatu (`adb logcat -s LeakCanary`) a v notifikaci.
+
+- **Sám toho v Plume moc neuvidí.** Aktivita je jedna a `configChanges` pokrývá otočení,
+  rozložení i změnu motivu, takže se nikdy nevytváří znovu. Hlídá proto jen okna, která
+  zmizí (popupy, dialogy, sheety: `PopupLayout`), a služby (`PlumeMessagingService`).
+- **ViewModely Navigation3 nehlídá.** Napojuje se jen na `ViewModelStore` aktivity, kdežto
+  dekorátor ViewModelů Nav3 drží úložiště pro každou položku zásobníku. Únik ViewModelu se
+  proto hledá počítáním instancí v heap dumpu (níž).
+- **Analýzu pouští sám, až když jsou zadržené objekty**: v popředí od pěti, na pozadí od
+  jednoho. Ticho po odeslání aplikace na pozadí (`input keyevent 3`, pak čtvrt minuty) znamená
+  „nic nezadrženo".
+
+### Heap dumpy a počítání instancí
+
+`client/tools/heap/heap_dump.sh <adresář> <jméno>` vynutí GC, uloží `meminfo` a dump
+a spočítá instance tříd. Postup: dump, N cyklů scénáře (otevřít a zavřít obrazovku), dump,
+`heap_diff.py před.counts po.counts`. Co v paměti zůstalo, ukáže `heap_path.py dump.hprof
+<třída>`: nejkratší SILNOU cestu od GC kořene (slabé reference se nepočítají).
+
+- **GC se vynucuje `run-as eu.tintera.plume kill -10 <pid>`** (SIGUSR1 = explicitní GC
+  v ART). Bez `run-as` to shell neprovede („Operation not permitted"), a jde to jen
+  u debuggable buildu.
+- **Únik se pozná podle RŮSTU s počtem cyklů, ne podle nenulového počtu.** Proto dvě kola
+  (2 cykly na zahřátí, pak 8, pak dalších 8). `StateFlowSlot` po prvních cyklech přibyly
+  o 45 a pak už ne: pool slotů se jednou zvětší, únik odběrů to není.
+- **`uiautomator dump` drží v paměti poslední obrazovku.** Zapne v procesu přístupnost
+  a Compose si v `AndroidComposeViewAccessibilityDelegateCompat.currentSemanticsNodes`
+  nechá sémantiku posledního stavu, i s lambdami a ViewModelem v nich. Po zavření profilu
+  tak v dumpu zůstal `ChatProfileViewModel`, po mini aplikaci `WebAppViewModel` i `WebView`
+  (zničená, `destroy()` proběhl). Cache přetrvala i navigaci jinam. Jde o artefakt
+  ověřování, ne únik; `heap_path.py` ho prozradí cestou přes `AccessibilityManager`.
+- **Jedna instance ViewModelu posledního zavřeného chatu může viset v interní cache
+  Compose** (`NodeChain$Differ.before` živého `LayoutNode`). Je jedna a s cykly neroste;
+  kód aplikace s tím nic nezmůže.
+- **Jednorázové keše nejsou únik**: `MediaCodecInfo` (seznam kodeků po prvním videu nebo
+  kolečku) a stovky `BaseLocale` (ExoPlayer si poprvé staví mapu jazyků ISO).
+
+### Výsledky první analýzy
+
+Říjen 2026, emulátor Plume_Galerie_Fold (Android 17), debug build, cykly v testovacích
+chatech: Uložené zprávy (prohlížeč, sheet výběru, nabídka sponky, nabídka nad zprávou),
+Notifikátor (kolečka, profil se všemi záložkami), Nastavení (všech pět sekcí), mini aplikace
+(ukázka `cafe`). **Únik nenalezen** v žádném scénáři. Java heap se drží na 23–30 MB a mezi
+koly se nemění, přehrávače (`ExoPlayerImpl`) po odchodu z chatu mizí a LeakCanary nic
+nezadržel. Native heap během session rostl z ~80 na ~130 MB (TDLib, kodeky, WebView);
+jestli se ustálí, ověřené není.
+
+**Při rozložení a složení displeje aplikace padala.** Příčina byla `consumeWindowInsets(PaddingValues)`
+s hodnotou, která se mění se změnou scény, viz „Gotchas". Na Foldu to byl pád
+`NPE … Object.getClass()` ve verzích 0.3.47 i 0.3.50.
+
 ## Gotchas
 
 - **Modifikátor insetů s hodnotou, která se mění se změnou scény, shodí aplikaci při
