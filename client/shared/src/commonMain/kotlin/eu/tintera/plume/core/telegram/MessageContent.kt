@@ -769,6 +769,11 @@ internal suspend fun Message.messageMedia(
      * kanály soutěže a její výherci. Dohledává se na klientovi, ne tady.
      */
     senderName: suspend (Long) -> String? = { null },
+    /**
+     * Sdílený příběh podle autora a id (`getStory`); `null` = už není. Dotaz na server, proto
+     * na klientovi a s keší — ostatní zprávy na něj nesáhnou.
+     */
+    story: suspend (posterChatId: Long, storyId: Int) -> dev.g000sha256.tdl.dto.Story? = { _, _ -> null },
 ): MessageMedia? = when (val content = this.content) {
     is MessagePhoto -> content.photo.toMedia(
         hasSpoiler = content.hasSpoiler || hideSensitive,
@@ -863,6 +868,7 @@ internal suspend fun Message.messageMedia(
     is MessageGiftedStars -> content.toMedia(senderName)
     is MessageGiveawayPrizeStars -> content.toMedia(senderName)
     is MessageGiftedGrams -> content.toMedia(senderName)
+    is MessageStory -> content.toMedia(story(content.storyPosterChatId, content.storyId), senderName)
 
     is MessageInvoice -> MessageMedia.Product(
         kind = ProductKind.Invoice,

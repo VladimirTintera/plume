@@ -190,6 +190,9 @@ sealed interface MessageAction {
 
     /** Ťuknutí na nezaplacené placené médium: vysvětlit, že odemknout ho Plume neumí. */
     data object ExplainPaidMedia : MessageAction
+
+    /** Ťuknutí na živé vysílání v příběhu: sledovat ho Plume neumí, tak aspoň proč. */
+    data object ExplainLiveStory : MessageAction
     data object CancelUpload : MessageAction
     data object ToggleVoice : MessageAction
 

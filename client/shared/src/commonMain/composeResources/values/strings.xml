@@ -2065,4 +2065,9 @@
     <string name="giveaway_status_failed">Couldn’t find out how you stand in this giveaway.</string>
     <string name="giveaway_copy_code">Copy code</string>
     <string name="giveaway_code_copied">Code copied</string>
+    <string name="story_from">Story from %1$s</string>
+    <string name="story_mention">You were mentioned in this story</string>
+    <string name="story_unavailable">This story is no longer available</string>
+    <string name="story_live">Live stream</string>
+    <string name="story_live_unsupported">Live streams can only be watched in the official Telegram app for now.</string>
 </resources>

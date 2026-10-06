@@ -164,7 +164,9 @@ class MediaViewerViewModel(
                 } else if (!isPollMedia && !isArticleMedia) {
                     // U ankety je text zprávy „Anketa: otázka"; popiskem přílohy je otázka
                     // nebo odpověď. U článku je text celý článek, popiskem popisek média.
-                    updateItem(message.id) { it.copy(caption = message.text) }
+                    // Příběh text zprávy nemá, popiskem je text příběhu.
+                    val caption = (message.media as? MessageMedia.Story)?.caption ?: message.text
+                    updateItem(message.id) { it.copy(caption = caption) }
                 }
             }
         }
@@ -258,6 +260,25 @@ class MediaViewerViewModel(
          * dotahovat od jediné fotky souběžně s výřezem.
          */
         val initialItem = initialMessage?.toViewerItem()
+        /*
+         * Sdílený příběh mezi fotkami chatu není (`SearchMessagesFilterPhotoAndVideo` ho nenajde)
+         * a „N z M" by se počítalo mezi nimi — ukáže se sám, jako soubor nebo příloha ankety.
+         */
+        if (initialMessage?.media is MessageMedia.Story) {
+            single = true
+            _state.update {
+                it.copy(
+                    items = listOfNotNull(initialItem),
+                    initialPosition = null,
+                    reachedOldest = true,
+                    reachedNewest = true,
+                    loading = false,
+                    error = if (initialItem == null) UiText(Res.string.media_unsupported) else null,
+                )
+            }
+            if (initialItem != null) loadDetails(messageId)
+            return
+        }
         if (initialItem != null) {
             _state.update {
                 it.copy(items = listOf(initialItem), reachedOldest = true, reachedNewest = true, loading = false)
@@ -686,15 +707,19 @@ class MediaViewerViewModel(
     }
 
     private fun ChatMessage.toViewerItem(): ViewerItem? {
+        val story = this.media as? MessageMedia.Story
         val media = when (val media = media) {
             is MessageMedia.Photo, is MessageMedia.Video -> media
             is MessageMedia.Document -> media.asViewerMedia() ?: return null
+            // Sdílený příběh je fotka nebo video; prohlížeč ukáže to, popiskem je text příběhu.
+            is MessageMedia.Story -> media.content?.takeIf { it is MessageMedia.Photo || it is MessageMedia.Video }
+                ?: return null
             else -> return null
         }
         return ViewerItem(
             messageId = id,
             media = media,
-            caption = text,
+            caption = story?.caption ?: text,
             isOutgoing = isOutgoing,
             senderName = senderName,
             timestamp = timestamp,

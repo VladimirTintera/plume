@@ -1529,6 +1529,12 @@ private fun MessageBodyScope.openMedia(media: MessageMedia) {
         is MessageMedia.PaidMedia -> act(MessageAction.ExplainPaidMedia)
         // Soutěž do prohlížeče nemůže; ťuknutí ukáže, jak je na tom tenhle účet.
         is MessageMedia.Giveaway -> act(MessageAction.ShowGiveaway)
+        // Příběh s fotkou nebo videem jde do prohlížeče; živé vysílání jen vysvětlí, proč ne.
+        is MessageMedia.Story -> when {
+            media.content != null -> act(MessageAction.OpenMedia)
+            media.isLive -> act(MessageAction.ExplainLiveStory)
+            else -> Unit
+        }
         else -> act(MessageAction.OpenMedia)
     }
 }
