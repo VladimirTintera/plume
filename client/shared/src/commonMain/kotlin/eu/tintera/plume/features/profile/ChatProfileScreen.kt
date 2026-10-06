@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.files.opensInViewer
 import eu.tintera.plume.resources.share_24dp
@@ -349,7 +350,7 @@ fun ChatProfileScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                     }
                 },
@@ -1189,7 +1190,7 @@ private fun ProfileMenu(
     }
 
     Box {
-        IconButton(onClick = { expanded = true }) {
+        IconButton(onClick = { expanded = true }, shapes = IconButtonDefaults.shapes()) {
             Icon(painterResource(Res.drawable.more_vert_24dp), contentDescription = stringResource(Res.string.profile_more))
         }
         ExpressiveMenu(

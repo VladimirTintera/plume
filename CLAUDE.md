@@ -10229,6 +10229,14 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
 - **Ikony = Material Symbols** jako vector drawables v `composeResources`, s vyplněnou i nevyplněnou
   variantou (vybraná položka má vyplněnou).
 
+- **Icon buttony mění tvar při stisku** (`shapes = IconButtonDefaults.shapes()`: kruh → zaoblený
+  čtverec, u přepínacích `toggleableShapes()`), všechny — i `Filled…`, `FilledTonal…`
+  a `Outlined…`. Kdo přidává nový, předá `shapes` taky; tlačítko bez nich se chová postaru
+  a vedle ostatních to vypadá jako nedodělek. U standardního tlačítka bez plochy se mění tvar
+  vlnky (ořez), u plného i plocha. Výjimky: tlačítka s vlastním tvarem, který nese stav
+  (odesílací tlačítko, přehrát u videa a hlasovky, náhled přílohy), a fotka účtu v pilulce —
+  obsahem je kulatá fotka a hranatá vlnka by kolem ní trčela. Doplnilo se skriptem do všech
+  ~100 volání naráz; ověřeno na emulátoru (šipka zpět podržená přes `input motionevent DOWN`).
 - **Nabídky jsou Expressive** (`ExpressiveMenu` v `core/ui`: `DropdownMenuPopup`
   + `DropdownMenuGroup`), ne holé `DropdownMenu`. Položky jsou ve skupinách se společným
   zaoblením krajních položek; **nevratná akce má skupinu vlastní a chybovou barvu**

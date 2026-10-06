@@ -3,6 +3,7 @@ package eu.tintera.plume.features.chats
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
 import androidx.compose.runtime.derivedStateOf
@@ -736,6 +737,7 @@ private fun AccountMenu(
         IconButton(
             onClick = { open = true },
             modifier = Modifier.semantics { contentDescription = label },
+            // Bez tvaru při stisku: obsahem je kulatá fotka, hranatá vlnka by kolem ní trčela.
         ) {
             if (account != null) {
                 Avatar(

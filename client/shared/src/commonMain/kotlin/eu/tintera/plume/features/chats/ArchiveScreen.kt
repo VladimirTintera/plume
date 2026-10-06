@@ -2,6 +2,7 @@ package eu.tintera.plume.features.chats
 
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -75,7 +76,7 @@ fun ArchiveScreen(
             TopAppBar(
                 title = { Text(stringResource(Res.string.chats_archive)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                     }
                 },
@@ -86,7 +87,7 @@ fun ArchiveScreen(
                      * TDLib nevydá — prázdný sheet by slíbil volby, které nejsou.
                      */
                     if (archiveSettings != null) {
-                        IconButton(onClick = viewModel::openArchiveSettings) {
+                        IconButton(onClick = viewModel::openArchiveSettings, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 painterResource(Res.drawable.tune_24dp),
                                 contentDescription = stringResource(Res.string.chats_archive_settings),

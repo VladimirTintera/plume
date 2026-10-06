@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -227,7 +228,7 @@ internal fun StagedAttachmentPreview(
                     .padding(horizontal = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onDismiss) {
+                IconButton(onClick = onDismiss, shapes = IconButtonDefaults.shapes()) {
                     Icon(
                         painter = painterResource(Res.drawable.arrow_back_24dp),
                         contentDescription = null,
@@ -244,7 +245,7 @@ internal fun StagedAttachmentPreview(
 
                 Spacer(Modifier.weight(1f))
 
-                IconButton(onClick = onDelete) {
+                IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
                     Icon(
                         painter = painterResource(Res.drawable.delete_24dp),
                         contentDescription = null,

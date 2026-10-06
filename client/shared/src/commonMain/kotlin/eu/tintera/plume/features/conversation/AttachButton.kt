@@ -106,6 +106,7 @@ internal fun AttachButton(
                 expanded = !expanded && !justDismissed
             },
             colors = IconButtonDefaults.iconButtonColors(contentColor = contentColor),
+            shapes = IconButtonDefaults.shapes(),
         ) {
             Icon(painterResource(Res.drawable.attach_file_24dp), contentDescription = stringResource(Res.string.conversation_attach))
         }

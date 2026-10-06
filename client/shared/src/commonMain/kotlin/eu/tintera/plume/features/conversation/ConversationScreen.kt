@@ -1564,7 +1564,7 @@ fun ConversationScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                     }
                 },
@@ -1573,7 +1573,7 @@ fun ConversationScreen(
                     // Omezený chat nemá co ukázat, tedy ani co shrnout nebo hledat.
                     val botIntro = showsBotIntro(state) || chatHidden
                     if (summaryAvailable && state.threadRootId == null && !botIntro) {
-                        IconButton(onClick = startSummary) {
+                        IconButton(onClick = startSummary, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 painterResource(Res.drawable.summarize_24dp),
                                 contentDescription = stringResource(Res.string.summary_action),
@@ -1582,7 +1582,7 @@ fun ConversationScreen(
                     }
                     // Uložené zprávy podle zdrojového chatu: jen u celých Uložených zpráv, ne v tématu.
                     if (onViewAsChats != null && state.info?.isSavedMessages == true && !state.narrowed) {
-                        IconButton(onClick = onViewAsChats) {
+                        IconButton(onClick = onViewAsChats, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 painterResource(Res.drawable.forum_24dp),
                                 contentDescription = stringResource(Res.string.saved_view_as_chats),
@@ -1590,7 +1590,7 @@ fun ConversationScreen(
                         }
                     }
                     if (!botIntro) {
-                        IconButton(onClick = viewModel::openSearch) {
+                        IconButton(onClick = viewModel::openSearch, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 painterResource(Res.drawable.search_24dp),
                                 contentDescription = stringResource(Res.string.conversation_search),
@@ -3351,7 +3351,7 @@ private fun MessageInput(
                             quoteText = replyQuote,
                             modifier = Modifier.weight(1f),
                         )
-                        IconButton(onClick = onCancelReply) {
+                        IconButton(onClick = onCancelReply, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 painterResource(Res.drawable.close_24dp),
                                 contentDescription = stringResource(Res.string.conversation_cancel_reply),
@@ -3469,6 +3469,7 @@ private fun MessageInput(
                     onClick = onToggleCommands,
                     colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                    shapes = IconButtonDefaults.shapes(),
                 ) {
                     Icon(
                         painterResource(Res.drawable.smart_toy_24dp),
@@ -3610,6 +3611,7 @@ private fun MessageInput(
                     onClick = onOpenScheduled,
                     colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
                     modifier = Modifier.padding(bottom = 4.dp),
+                    shapes = IconButtonDefaults.shapes(),
                 ) {
                     Icon(
                         painterResource(Res.drawable.schedule_24dp),
@@ -3636,6 +3638,7 @@ private fun MessageInput(
                         checkedContentColor = MaterialTheme.colorScheme.onPrimary,
                         checkedContainerColor = MaterialTheme.colorScheme.primary,
                     ),
+                    shapes = IconButtonDefaults.toggleableShapes(),
                 ) {
                     Icon(painterResource(Res.drawable.text_format_24dp), contentDescription = stringResource(Res.string.format_open))
                 }
@@ -3648,6 +3651,7 @@ private fun MessageInput(
                 },
                 colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
                 modifier = Modifier.padding(end = 4.dp, bottom = 4.dp),
+                shapes = IconButtonDefaults.shapes(),
             ) {
                 // Ikona slibuje, co se otevře: poslední použitou část výběru. Při úpravě
                 // zprávy jde otevřít jen emoji — samolepka do textu upravované zprávy nepatří.
@@ -4255,13 +4259,13 @@ private fun LinkPreviewHeader(
             )
         }
     }
-    IconButton(onClick = onOpenOptions) {
+    IconButton(onClick = onOpenOptions, shapes = IconButtonDefaults.shapes()) {
         Icon(
             painterResource(Res.drawable.tune_24dp),
             contentDescription = stringResource(Res.string.link_preview_options),
         )
     }
-    IconButton(onClick = onDismiss) {
+    IconButton(onClick = onDismiss, shapes = IconButtonDefaults.shapes()) {
         Icon(
             painterResource(Res.drawable.close_24dp),
             contentDescription = stringResource(Res.string.link_preview_remove),
@@ -4311,7 +4315,7 @@ private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit) = Composer
             )
         }
     }
-    IconButton(onClick = onCancel) {
+    IconButton(onClick = onCancel, shapes = IconButtonDefaults.shapes()) {
         Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.conversation_cancel_edit))
     }
 }

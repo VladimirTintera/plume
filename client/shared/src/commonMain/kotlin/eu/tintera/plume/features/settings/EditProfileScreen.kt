@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import eu.tintera.plume.resources.profile_photos_open
@@ -142,7 +143,7 @@ fun EditProfileScreen(
                 TopAppBar(
                     title = { Text(stringResource(Res.string.edit_profile_title)) },
                     navigationIcon = {
-                        IconButton(onClick = onBack) {
+                        IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
                             Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                         }
                     },

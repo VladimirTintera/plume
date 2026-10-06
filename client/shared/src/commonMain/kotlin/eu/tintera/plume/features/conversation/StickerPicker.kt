@@ -43,6 +43,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -950,7 +951,7 @@ internal fun StickerSearchField(
             leadingIcon = { Icon(painterResource(Res.drawable.search_24dp), contentDescription = null) },
             trailingIcon = if (text.isNotEmpty()) {
                 {
-                    IconButton(onClick = { onTextChange("") }) {
+                    IconButton(onClick = { onTextChange("") }, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.stickers_clear_search))
                     }
                 }

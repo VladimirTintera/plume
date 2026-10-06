@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.media
 
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import eu.tintera.plume.core.ui.tick
@@ -923,14 +924,14 @@ private fun ReactionBar(
 
 @Composable
 private fun ChromeIcon(icon: org.jetbrains.compose.resources.DrawableResource, description: String, onClick: () -> Unit) {
-    IconButton(onClick = onClick) {
+    IconButton(onClick = onClick, shapes = IconButtonDefaults.shapes()) {
         Icon(painterResource(icon), contentDescription = description, tint = ON_SCRIM)
     }
 }
 
 @Composable
 private fun CloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    IconButton(onClick = onClick, modifier = modifier.padding(4.dp)) {
+    IconButton(onClick = onClick, modifier = modifier.padding(4.dp), shapes = IconButtonDefaults.shapes()) {
         Icon(
             painterResource(Res.drawable.close_24dp),
             contentDescription = stringResource(Res.string.common_close),

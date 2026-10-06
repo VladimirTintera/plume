@@ -16,6 +16,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -145,7 +146,11 @@ internal fun PasswordField(
         onNext = onNext,
         visualTransformation = if (revealed) VisualTransformation.None else PasswordVisualTransformation(),
     ) {
-        IconButton(onClick = { revealed = !revealed }, modifier = Modifier.padding(end = 4.dp)) {
+        IconButton(
+            onClick = { revealed = !revealed },
+            modifier = Modifier.padding(end = 4.dp),
+            shapes = IconButtonDefaults.shapes(),
+        ) {
             Icon(
                 painterResource(
                     if (revealed) Res.drawable.visibility_off_24dp else Res.drawable.visibility_24dp,

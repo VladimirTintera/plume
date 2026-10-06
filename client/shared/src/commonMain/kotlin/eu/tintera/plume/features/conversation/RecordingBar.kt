@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -101,7 +102,7 @@ fun RecordingBar(
         if (holding) {
             Spacer(Modifier.width(20.dp))
         } else {
-            IconButton(onClick = onCancel) {
+            IconButton(onClick = onCancel, shapes = IconButtonDefaults.shapes()) {
                 Icon(painterResource(Res.drawable.delete_24dp), contentDescription = stringResource(Res.string.conversation_discard_recording))
             }
         }
@@ -161,7 +162,7 @@ fun RecordingBar(
             }
         }
         stop?.let {
-            IconButton(onClick = it) {
+            IconButton(onClick = it, shapes = IconButtonDefaults.shapes()) {
                 Icon(
                     painterResource(Res.drawable.stop_24dp),
                     contentDescription = stringResource(if (video) Res.string.conversation_stop_video_note else Res.string.conversation_stop_recording),
@@ -210,14 +211,14 @@ fun VoicePreviewBar(
         modifier.fillMaxWidth().heightIn(min = 56.dp).padding(end = if (continuable) 4.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onDiscard) {
+        IconButton(onClick = onDiscard, shapes = IconButtonDefaults.shapes()) {
             Icon(painterResource(Res.drawable.delete_24dp), contentDescription = stringResource(Res.string.conversation_discard_recording))
         }
         Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
             when {
                 voice == null || current?.loading == true ->
                     CircularProgressIndicator(color = accent, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
-                else -> IconButton(onClick = onToggle) {
+                else -> IconButton(onClick = onToggle, shapes = IconButtonDefaults.shapes()) {
                     Icon(
                         painterResource(if (current?.playing == true) Res.drawable.pause_24dp else Res.drawable.play_arrow_24dp),
                         contentDescription = stringResource(
@@ -261,7 +262,7 @@ fun VoicePreviewBar(
          * není na co navázat.
          */
         if (continuable) {
-            IconButton(onClick = onContinue) {
+            IconButton(onClick = onContinue, shapes = IconButtonDefaults.shapes()) {
                 Icon(
                     painterResource(Res.drawable.mic_24dp),
                     contentDescription = stringResource(Res.string.conversation_continue_recording),
@@ -299,14 +300,14 @@ internal fun VideoNotePreviewBar(
         modifier.fillMaxWidth().heightIn(min = 56.dp).padding(end = if (continuable) 4.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = onDiscard) {
+        IconButton(onClick = onDiscard, shapes = IconButtonDefaults.shapes()) {
             Icon(painterResource(Res.drawable.delete_24dp), contentDescription = stringResource(Res.string.conversation_discard_recording))
         }
         Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
             if (note == null) {
                 CircularProgressIndicator(color = accent, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
             } else {
-                IconButton(onClick = playback::toggle) {
+                IconButton(onClick = playback::toggle, shapes = IconButtonDefaults.shapes()) {
                     Icon(
                         painterResource(if (playback.sounding) Res.drawable.pause_24dp else Res.drawable.play_arrow_24dp),
                         contentDescription = stringResource(
@@ -332,7 +333,7 @@ internal fun VideoNotePreviewBar(
             style = MaterialTheme.typography.bodyLarge.tabularNumbers(),
         )
         if (continuable) {
-            IconButton(onClick = onContinue) {
+            IconButton(onClick = onContinue, shapes = IconButtonDefaults.shapes()) {
                 Icon(
                     painterResource(Res.drawable.videocam_24dp),
                     contentDescription = stringResource(Res.string.conversation_continue_recording),

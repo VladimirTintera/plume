@@ -521,14 +521,14 @@ private fun Recipient(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         if (onCollapseGallery != null) {
-            IconButton(onClick = onCollapseGallery) {
+            IconButton(onClick = onCollapseGallery, shapes = IconButtonDefaults.shapes()) {
                 Icon(
                     painterResource(Res.drawable.keyboard_arrow_down_24dp),
                     contentDescription = stringResource(Res.string.share_to_collapse_gallery),
                 )
             }
         } else {
-            IconButton(onClick = onClose) {
+            IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
                 Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
             }
         }
@@ -643,6 +643,7 @@ private fun SharedPhoto(
                 FilledTonalIconButton(
                     onClick = onRemove,
                     modifier = Modifier.align(Alignment.TopEnd).padding(BADGE_INSET).size(BADGE_BUTTON),
+                    shapes = IconButtonDefaults.shapes(),
                 ) {
                     Icon(
                         painterResource(Res.drawable.close_24dp),
@@ -665,6 +666,7 @@ private fun SharedPhoto(
                     } else {
                         IconButtonDefaults.filledTonalIconButtonColors()
                     },
+                    shapes = IconButtonDefaults.shapes(),
                 ) {
                     Icon(
                         painterResource(getAttachmentModeIcon(attachment.mode, isVideo)),
@@ -826,7 +828,11 @@ private fun CaptionBar(
                 if (onAddMedia != null) {
                     // 4 dp = (56 − 48) / 2: ikona sedí na středu jednořádkového pole a u víc řádků
                     // zůstane u posledního, jako sponka ve vstupním poli konverzace.
-                    IconButton(onClick = onAddMedia, modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)) {
+                    IconButton(
+                        onClick = onAddMedia,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                        shapes = IconButtonDefaults.shapes(),
+                    ) {
                         Icon(
                             painterResource(Res.drawable.perm_media_24dp),
                             contentDescription = stringResource(Res.string.share_to_add_media),

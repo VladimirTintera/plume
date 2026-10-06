@@ -684,6 +684,7 @@ internal fun VideoPage(
                         IconButton(
                             onClick = pip::enter,
                             colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                            shapes = IconButtonDefaults.shapes(),
                         ) {
                             Icon(
                                 painterResource(Res.drawable.picture_in_picture_alt_24dp),
@@ -698,6 +699,7 @@ internal fun VideoPage(
                                 controlsVisible = true
                             },
                             colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                            shapes = IconButtonDefaults.shapes(),
                         ) {
                             Icon(
                                 painterResource(if (muted) Res.drawable.volume_off_24dp else Res.drawable.volume_up_24dp),
