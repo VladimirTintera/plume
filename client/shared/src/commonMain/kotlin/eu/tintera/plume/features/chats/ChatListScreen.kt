@@ -15,6 +15,7 @@ import androidx.compose.ui.semantics.traversalIndex
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
+import eu.tintera.plume.core.ui.RollingNumber
 import eu.tintera.plume.resources.campaign_24dp
 import eu.tintera.plume.resources.chats_create
 import eu.tintera.plume.resources.close_24dp
@@ -719,8 +720,8 @@ private fun AccountMenu(
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
             ) {
-                Text(
-                    text = archiveUnread.chats.toString(),
+                RollingNumber(
+                    value = archiveUnread.chats,
                     style = LocalTextStyle.current.tabularNumbers(),
                     modifier = Modifier.semantics { contentDescription = unreadLabel },
                 )
@@ -1470,7 +1471,7 @@ private fun UnreadBadges(chat: ChatSummary) {
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
             ) {
-                Text(chat.unreadCount.toString(), style = LocalTextStyle.current.tabularNumbers())
+                RollingNumber(chat.unreadCount, style = LocalTextStyle.current.tabularNumbers())
             }
         }
     }

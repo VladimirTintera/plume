@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.ui.RollingNumber
 import eu.tintera.plume.core.ui.appendWithCustomEmoji
 import eu.tintera.plume.core.ui.customEmojiInlineContent
 import eu.tintera.plume.core.ui.grouped
@@ -101,10 +102,10 @@ internal fun ChatFolderRow(
                 }
                 FolderTitle(tab)
                 if (tab.unread > 0) {
-                    Text(
-                        text = tab.unread.grouped(),
+                    RollingNumber(
+                        value = tab.unread,
+                        format = { it.grouped() },
                         style = MaterialTheme.typography.labelMedium.tabularNumbers(),
-                        maxLines = 1,
                         modifier = Modifier.padding(start = 6.dp),
                     )
                 }

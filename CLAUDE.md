@@ -10237,6 +10237,17 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   (odesílací tlačítko, přehrát u videa a hlasovky, náhled přílohy), a fotka účtu v pilulce —
   obsahem je kulatá fotka a hranatá vlnka by kolem ní trčela. Doplnilo se skriptem do všech
   ~100 volání naráz; ověřeno na emulátoru (šipka zpět podržená přes `input motionevent DOWN`).
+- **Počty se přetáčejí** (`RollingNumber` v `core/ui`): odznak nepřečtených v seznamu chatů,
+  počet u složky a u archivu v menu účtu, odznaky zmínek a reakcí v konverzaci i „N nových
+  zpráv" na tlačítku dolů. Přetočí se jen změněné číslice, párované ODZADU (9 → 10 přetočí
+  jednotky, desítky naskočí); roste-li číslo, přijíždějí zdola. Směr se bere z celého čísla,
+  ne z číslice. Čtečce obrazovky jde celé číslo (`clearAndSetSemantics`).
+  - **Číslo uvnitř věty z `plurals`** se nesestavuje v kódu: do plurálu se místo čísla dosadí
+    značka (`NUMBER_MARK`, znak ze soukromé oblasti Unicode) a věta se kolem ní rozdělí. Jde to
+    proto, že Compose Resources dosazuje argumenty jako text (`replaceWithArgs` nahradí
+    `%1$d` čímkoli). Kdyby se to změnilo, ukáže se značka místo čísla.
+  - Ověřeno na emulátoru zpomalenými animacemi (`animator_duration_scale 10`) a sérií surových
+    snímků odznaku: 1 odjede nahoru, 2 přijede zdola.
 - **Nabídky jsou Expressive** (`ExpressiveMenu` v `core/ui`: `DropdownMenuPopup`
   + `DropdownMenuGroup`), ne holé `DropdownMenu`. Položky jsou ve skupinách se společným
   zaoblením krajních položek; **nevratná akce má skupinu vlastní a chybovou barvu**

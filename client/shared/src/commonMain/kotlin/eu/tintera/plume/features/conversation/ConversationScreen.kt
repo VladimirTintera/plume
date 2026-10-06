@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import eu.tintera.plume.core.ui.RollingNumber
 import eu.tintera.plume.resources.forum_24dp
 import eu.tintera.plume.resources.saved_view_as_chats
 import eu.tintera.plume.resources.saved_topic_read_only
@@ -2936,11 +2938,7 @@ private fun ScrollToBottomButton(
                     val shown = remember { intArrayOf(count) }
                     if (count > 0) shown[0] = count
 
-                    Text(
-                        text = newMessagesLabel(shown[0]),
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
+                    NewMessagesLabel(shown[0], Modifier.padding(start = 8.dp))
                 }
             }
         }
@@ -2994,7 +2992,7 @@ private fun UnreadMarkButton(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary,
                     ) {
-                        Text(shown[0].toString(), style = LocalTextStyle.current.tabularNumbers())
+                        RollingNumber(shown[0], style = LocalTextStyle.current.tabularNumbers())
                     }
                 },
             ) {
@@ -3043,10 +3041,28 @@ private fun UnreadMarkButton(
     }
 }
 
-/** Skloňování řeší `plurals` v prostředcích — čeština má tři tvary, angličtina dva. */
+/**
+ * „N nových zpráv" s přetáčeným číslem ([RollingNumber]). Skloňování řeší `plurals`
+ * v prostředcích (čeština má tři tvary, angličtina dva), takže se věta nesestavuje v kódu:
+ * číslo se do ní dosadí jako značka a věta se kolem ní rozdělí. Compose Resources dosazuje
+ * argumenty jako text (`replaceWithArgs`), takže značka projde beze změny.
+ */
 @Composable
-private fun newMessagesLabel(count: Int): String =
-    pluralStringResource(Res.plurals.conversation_new_messages, count, count)
+private fun NewMessagesLabel(count: Int, modifier: Modifier = Modifier) {
+    val template = pluralStringResource(Res.plurals.conversation_new_messages, count, NUMBER_MARK)
+    val before = template.substringBefore(NUMBER_MARK)
+    val after = template.substringAfter(NUMBER_MARK, missingDelimiterValue = "")
+    val style = MaterialTheme.typography.labelLarge
+    val label = pluralStringResource(Res.plurals.conversation_new_messages, count, count)
+    Row(modifier.clearAndSetSemantics { contentDescription = label }) {
+        if (before.isNotEmpty()) Text(before, style = style)
+        RollingNumber(count, style = style.tabularNumbers())
+        if (after.isNotEmpty()) Text(after, style = style)
+    }
+}
+
+/** Značka místa čísla ve větě z prostředků; znak ze soukromé oblasti Unicode se v textu nevyskytne. */
+private const val NUMBER_MARK = "\uE000"
 
 @Composable
 private fun MessageInput(
