@@ -412,6 +412,8 @@ private fun shellEntryProvider(
             onChatArchived = chatsStack::closeConversationOf,
             onOpenSettings = navigation::openSettings,
             onOpenProxySettings = navigation::openProxySettings,
+            onCreateFolder = { navigation.openChatFolders(create = true) },
+            onManageFolders = { navigation.openChatFolders() },
             modifier = Modifier.listPaneInsets(twoPane),
         )
     }

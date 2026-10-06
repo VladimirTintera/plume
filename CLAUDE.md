@@ -500,7 +500,7 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
   služeb na tom nic nemění.
 - **Na nepodporovaném zařízení se sekce v Nastavení VŮBEC NENABÍZÍ.** Dřív se vykreslila vždycky
   a uživatel zapnul přepínač, aby se teprve pak dozvěděl „tohle zařízení model nemá" — nabídka
-  funkce, kterou nelze mít. Stejné pravidlo jako u filtrů seznamu chatů. Ptá se na VÝCHOZÍ
+  funkce, kterou nelze mít. Stejné pravidlo jako u archivace od neznámých (viz „Archiv“). Ptá se na VÝCHOZÍ
   variantu, ne na zvolenou: preview nebo rychlá může chybět zvlášť a kvůli tomu by sekce zmizela
   i tomu, kdo model má. Dokud stav nedorazí, taky se nekreslí — objevení ruší míň než zmizení.
 - **Ověřuje se to sondou, ne proklikáním.** Do Nastavení se bez přihlášení nedostaneš, takže se
@@ -1580,7 +1580,7 @@ u okraje obrazovky. S insetem vpravo prosvítal; proto `clipToBounds` na ploše 
 mají podle M3 smysl až od tří. Lišta zabírala ~80 dp jen kvůli skoku do Nastavení a seznam chatů
 pod ní působil přeplácaně; rail na širší ploše přežil o něco déle, ale jen zdvojoval menu účtu
 a ukusoval šířku panelům. Do Nastavení vede menu účtu v pilulce na každé šířce, spodek obrazovky
-patří plovoucímu toolbaru seznamu chatů (viz „Filtry a plovoucí toolbar"). Důsledek pro insety:
+patří FAB „Nová zpráva" (viz „Složky místo filtrů a FAB"). Důsledek pro insety:
 shell žádný nekonzumuje, každá obrazovka si je bere sama (Scaffold je má ve výchozích
 `contentWindowInsets`). **Kdyby sekcí přibylo na tři**, přijde rail zpátky — past s místem:
 skrytí musí animovat i SLOT (`shrinkHorizontally`), ne jen posun, jinak obsah doskočí až na konci.
@@ -1775,61 +1775,53 @@ když si o to uživatel řekne v Nastavení (`separateUnreadChats`, **výchozí 
   u vršku zůstane. **Nulovou výšku mít nesmí**, to by ji seznam za viditelnou nepovažoval; její
   výška i rozestup za ní se odečítají z horního odsazení, aby první chat neposkočil.
 
-### Filtry a plovoucí toolbar
+### Složky místo filtrů a FAB
 
-Dole je `HorizontalFloatingToolbar` s FAB „Nová zpráva" (M3 Expressive) a v něm filtry seznamu:
-Vše, Nepřečtené, Lidé, Skupiny, Kanály (`ChatFilter`, čistá funkce `filteredBy` v `ChatGroups.kt`,
-testy v `ChatGroupsTest`). Nahradil spodní navigační lištu.
+Seznam chatů zužují JEN složky Telegramu v řádku pod pilulkou (viz „Složky chatů"). Dole je
+rozšířený FAB „Nová zpráva" (`NewChatFab`), který se při scrollu dolů sbalí na ikonu, jako
+v Google Zprávách.
 
-- **Filtr je lokální, nad načteným seznamem**, a platí i UVNITŘ vybrané složky Telegramu (viz
-  „Složky chatů"). Skupiny (`chatGroups`) se dělají až nad výsledkem.
-  Druh chatu nese `ChatSummary.kind` (`ChatKind`: tajný chat i bot jsou `Private`, základní
-  skupina i supergroup `Group`, kanál `Channel`); `isPrivate` je z něj odvozené.
-- **Nepřečtené = `hasUnread`**, tedy i ručně označené — přesně ty, u kterých svítí odznak.
-  Přečtený chat z filtru zmizí, jako ve složce Nepřečtené u oficiálních klientů.
-- **Ikony bez popisků**, pět popisků by se na telefon nevešlo. Název nese tooltip po podržení
-  a `contentDescription`. Vybraný filtr: `secondaryContainer` (výběr je navigační stav, stejná
-  role jako vybraná položka navigace v M3) a tvar kruh → čtverec (`toggleableShapes`), takže se pozná i bez barvy.
-- **Nepřečtené mají zavřenou obálku (`mail`), ne `mark_chat_unread`.** Ta má v rohu tečku,
-  tedy přesně tvar notifikačního odznaku M3 (`Badge`), a na liště vypadala, že něco nepřečteného
-  čeká, i když nečekalo nic. Zavřená obálka = neotevřená zpráva, stejně jako v Gmailu. Ikona
-  s tečkou zůstává u AKCE „Označit jako nepřečtené" v nabídce nad chatem — ta tečku opravdu přidá.
-- **Přepnutí filtru skočí na vršek seznamu** — v obsluze ťuknutí, NE v `LaunchedEffect(filter)`:
-  efekt by se spustil znovu při každém návratu seznamu do kompozice (z konverzace na telefonu)
-  a seznam by pokaždé odjel nahoru.
-- **Filtr se neukládá do nastavení, jen do `SavedStateHandle`.** Návrat z konverzace i zabití
-  procesu v pozadí ho zachová (obnovená konverzace s přepnutým filtrem pod ní by působila jako
-  chyba), nové spuštění aplikace začne na Vše. Filtr je chvilkové zúžení, ne volba: uložené
-  Nepřečtené by při startu vypadaly jako seznam, ze kterého zmizely chaty. `SavedStateHandle`
-  dodá Koin (`get()`) z `CreationExtras`, které nese dekorátor ViewModelů Nav3.
-- **Snackbar je nad toolbarem**, ne ve slotu Scaffoldu — ten by ho dal pod toolbar. Seznam má
-  dole navíc `TOOLBAR_CLEARANCE`, aby šel poslední chat odscrollovat nad toolbar.
-- **Toolbar stojí i nad klávesnicí** (`imePadding` za `consumeWindowInsets` spodního paddingu
-  Scaffoldu). Scaffold dává do paddingu jen systémové lišty, takže vysunutá klávesnice toolbar
-  i snackbar zakryla. Bez zkonzumování by se lišta a klávesnice sečetly a toolbar by visel
-  o výšku lišty výš.
-- **Nabízí se jen filtr, který má smysl** (`availableFilters`, testy `ChatGroupsTest`). Filtr
-  podle druhu jen tehdy, když něco odfiltruje a něco nechá: bez kanálů by Kanály ukázaly prázdno
-  a se samými lidmi by Lidé byli totéž co Vše. Nepotřebná ikona se schová i s místem
-  (`shrinkHorizontally`), toolbar se zúží.
-- **Nepřečtené jsou vždycky.** Je to stav, který se mění s každou zprávou — ikona, která by se
-  objevovala a mizela, by toolbar pod palcem přeskládávala. Zašedlá by zase vypadala rozbitě.
-  Prázdný výsledek je dobrá zpráva a tak ho i kreslíme: „Všechno přečteno".
-- **Vybraný filtr nemizí nikdy**, ani když už nemá co ukázat (poslední kanál opuštěn) — výběr by
-  zmizel pod prstem.
-- **Druh se počítá nad tím, co seznam UKAZUJE**, tedy bez nepřipnutých Uložených zpráv. Ty jsou
-  soukromý chat, a jinak by kvůli nim existovali Lidé s prázdným výsledkem.
-- **Dokud se seznam načítá, jsou jen Vše a Nepřečtené**, filtry podle druhu naběhnou potom.
-  Objevení ikony ruší míň než její zmizení.
-- Prázdný výsledek filtru je `IntroEmptyState` (u Nepřečtených „Všechno přečteno", jinak ikona
-  filtru a „Tomuhle filtru žádný chat neodpovídá"), ne „Zatím tu nic není" — chaty jsou, jen ne
-  tyhle. Stejný prázdný stav jako archiv a placeholder detailu.
+- **Dřív tu byl plovoucí toolbar s vlastními filtry** (Vše, Nepřečtené, Lidé, Skupiny, Kanály;
+  `ChatFilter`), lokálními a kombinovatelnými se složkou. Dělaly ale totéž co doporučené složky
+  Telegramu („Nepřečtené", „Osobní"…) — a s nimi přidanými stály v aplikaci dvě řady téhož nad
+  sebou. Uživatel to vyhodnotil jako duplicitu a zrušily se. Co se tím ztratilo: kombinace
+  „složka × filtr" (nepřečtené uvnitř Práce) a filtry pro toho, kdo složky nemá. Náhrada je
+  „+" na konci řádku složek, který doporučené složky nabídne na jedno ťuknutí.
+- **„+" otevře sheet** (`FolderSuggestionsSheet`, stav `ChatsViewModel.folderSuggestions`):
+  doporučené složky (`getRecommendedChatFolders`, čtou se při každém otevření), pod nimi „Nová
+  složka" a „Spravovat složky" do Nastavení → Obecné → Složky chatů
+  (`AppNavigation.openChatFolders`, zpět po krocích jako u proxy). Přidaná doporučená složka
+  se rovnou VYBERE — kdo si přidá „Nepřečtené", chce je vidět.
+- **Sheet říká, že se složka synchronizuje** s ostatními klienty. U filtru, který dřív žil jen
+  v Plume, by to nikdo nečekal.
+- **Řádek složek se kreslí i bez složek** („Všechny chaty" a „+"), jinak by k doporučeným
+  nevedla z hlavního seznamu žádná cesta. Samotné „Všechny chaty" má plný tvar, ne půlku
+  spojené skupiny (`ToggleButtonDefaults.shapes()`).
+- **„+" je mimo spojenou skupinu** (`OutlinedIconButton` s odstupem): je to akce, ne volba;
+  ve skupině by se tvářil jako další složka.
+- **Prázdná složka má `IntroEmptyState` s ikonou složky** („Nic tu není") — chaty jsou, jen
+  ne tyhle (typicky „Nepřečtené" se vším přečteným). Prázdný účet má dál holý text.
+- **FAB a snackbar nejsou ve slotech Scaffoldu** a stojí nad klávesnicí (`imePadding` za
+  `consumeWindowInsets` spodního paddingu Scaffoldu): Scaffold dává do paddingu jen systémové
+  lišty, takže by je vysunutá klávesnice zakryla. Seznam má dole `FAB_CLEARANCE`.
+- **Popisek FAB nese i ikona** (`contentDescription`): `ExtendedFloatingActionButton(text = …)`
+  popisek před čtečkou schovává (viz „Gotchas").
+- **Vybraná složka se v řádku vždycky ukáže** (`bringIntoViewRequester` u vybraného tlačítka):
+  přidaná doporučená složka stojí na konci řádku a vybrala by se za okrajem obrazovky.
+- **Server doporučené složky vracet nemusí** — účtu, který už má „Unread" i „Personal", nevrátil
+  žádnou. Sheet se pak ověřuje sondou (podstrčená doporučená složka v `openFolderSuggestions`;
+  necommituje se), založení jde skutečným `createChatFolder`.
+- **Ověřeno na emulátoru** (česky, světlý i tmavý motiv): FAB se sbalením, řádek s „+", sheet
+  bez doporučených i se sondou, přidání složky (vybraná a dojetá v řádku), prázdná složka
+  s ikonou, „Nová složka" do editoru a „Spravovat složky" do seznamu složek, zpět po krocích.
+  Testovací složka se pak smazala. **iOS jen přeložené.**
 
 ### Složky chatů
 
 Složky Telegramu (`ChatListFolder`) jsou řádek přepínacích tlačítek pod pilulkou hledání:
 „Všechny chaty · Práce 3 · Rodina…" (`ChatFolderRow`, pravidla `folderTabs` a `selectedFolderId`
-v `ChatFolderTabs.kt`, testy `ChatFolderTabsTest`). Bez složek se řádek nekreslí.
+v `ChatFolderTabs.kt`, testy `ChatFolderTabsTest`). Bez složek je v řádku jen „Všechny chaty"
+a „+" (viz „Složky místo filtrů a FAB").
 
 - **Složka je další `ChatFolder` (`Custom(id)`), ne nový druh seznamu.** Repository drží pozice
   chatu ve VŠECH seznamech, které TDLib hlásí (`positions`), takže seznam složky se skládá
@@ -1859,8 +1851,8 @@ v `ChatFolderTabs.kt`, testy `ChatFolderTabsTest`). Bez složek se řádek nekre
 - **Název složky může nést vlastní emoji** (`ChatFolderName.text` je `FormattedText`) — kreslí
   se jako v náhledu seznamu chatů (`appendWithCustomEmoji`).
 - **Ověřeno na emulátoru** dvěma složkami založenými sondou (`createChatFolder`; jedna s vybranými
-  chaty včetně Uložených zpráv, druhá „všichni boti"): řádek, přepnutí, číslo u složky, filtry
-  toolbaru uvnitř složky, obnova po `am kill`, odjetí s pilulkou. **iOS jen přeložené.**
+  chaty včetně Uložených zpráv, druhá „všichni boti"): řádek, přepnutí, číslo u složky, obnova
+  po `am kill`, odjetí s pilulkou. **iOS jen přeložené.**
 
 #### Správa složek
 
@@ -2325,8 +2317,8 @@ v ⋮ vrátí jednu konverzaci. Hranice je `SavedTopicsRepository` (`TdlSavedTop
   na každé obrazovce znovu.
 - **ViewModely zůstávají dva.** `NewChatViewModel` načítá kontakty, `ForwardViewModel` řeší
   volby a odesílání — sdílí se vzhled, ne obsah.
-- **FAB je součástí plovoucího toolbaru** (viz „Filtry a plovoucí toolbar"). Při scrollu dolů se
-  toolbar sbalí a zbude jen FAB, po zastavení zůstává sbalený až do dalšího scrollu nahoru.
+- **Vstup je rozšířený FAB** (viz „Složky místo filtrů a FAB"). Při scrollu dolů se sbalí na
+  ikonu, po zastavení zůstává sbalený až do dalšího scrollu nahoru.
 - **Kontakty jdou z `getContacts`** a pro každý se lokálně zavolá `createPrivateChat(userId, force = false)`
   — TDLib tak pro kontakt založí chat objekt (lokálně v paměti/databázi, bez odesílání zpráv)
   a do seznamu se dostane kompletní `ChatSummary` s avatarem i dostupností (`withPresence()`).
@@ -2590,8 +2582,8 @@ snackbar s „Vrátit".
   které jsou ve složce vybrané nebo připnuté, a TDLib ho ignoruje, když platí volba nad ním —
   ta drží v archivu všechny neztlumené. Přepínač bez následku by sliboval něco, co se nestane.
 - **„Archivovat chaty od neznámých" povoluje server** (`can_archive_and_mute_new_chats_from_unknown_users`);
-  kde ho nepovolí, TDLib zapnutí odmítne. Přepínač se tam proto nenabízí vůbec — stejné pravidlo
-  jako u filtrů seznamu, které nemají co odfiltrovat.
+  kde ho nepovolí, TDLib zapnutí odmítne. Přepínač se tam proto nenabízí vůbec — přepínač,
+  který skončí chybou, je horší než žádný.
 
 ### Akce nad chatem
 
@@ -3862,7 +3854,7 @@ funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
   poznat, co už na výběru je.
 - **Lišta je POD textem, ne nad ním.** Systémová lišta výběru (Vyjmout, Kopírovat…) se kreslí
   nad výběrem a lištu nad polem přikryla — ověřeno na emulátoru, vidět zbyla jen ikona citace.
-- **Zapnuté tlačítko je `primary`**, ne `secondaryContainer` jako u filtrů seznamu chatů: karta
+- **Zapnuté tlačítko je `primary`**, ne `secondaryContainer` jako u vybraného chatu v seznamu: karta
   pole je přitónovaná do `primaryContainer` a světlý kontejner na ní skoro nebyl vidět.
 - **Na úzkém displeji se řada posouvá do strany.** Minimální dotyková plocha 48 dp zůstává
   i u menšího kontejneru (`minimumInteractiveComponentSize`), takže zmenšení tlačítek nepomůže;
@@ -9779,7 +9771,7 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
 - **`SharedTransitionLayout` je v kořenovém tématu**, ne uvnitř obrazovek — sdílený prvek musí přežít
   výměnu obrazovky. Scope se bere z `LocalSharedTransitionScope`.
 - **Ikony = Material Symbols** jako vector drawables v `composeResources`, s vyplněnou i nevyplněnou
-  variantou (vybraná položka — filtr v toolbaru — má vyplněnou).
+  variantou (vybraná položka má vyplněnou).
 
 - **Nabídky jsou Expressive** (`ExpressiveMenu` v `core/ui`: `DropdownMenuPopup`
   + `DropdownMenuGroup`), ne holé `DropdownMenu`. Položky jsou ve skupinách se společným

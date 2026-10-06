@@ -65,6 +65,7 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.tintera.plume.core.telegram.CHAT_FOLDER_TITLE_MAX
 import eu.tintera.plume.core.telegram.ChatFolderProblem
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.ui.FolderIcon
 import eu.tintera.plume.core.ui.folderIcon
 import eu.tintera.plume.core.ui.CHAT_FOLDER_ICONS
 import eu.tintera.plume.core.ui.Avatar

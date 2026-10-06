@@ -988,7 +988,6 @@
         <item quantity="few">%1$d dny</item>
         <item quantity="other">%1$d dní</item>
     </plurals>
-    <string name="chats_filter_all">Všechny chaty</string>
     <string name="chat_folders_all">Všechny chaty</string>
     <string name="settings_chat_folders_group">Chaty</string>
     <string name="chat_folders_title">Složky chatů</string>
@@ -1000,6 +999,11 @@
     <string name="chat_folders_reorder">Přesunout složku</string>
     <string name="chat_folders_recommended">Doporučené</string>
     <string name="chat_folders_add">Přidat</string>
+    <string name="chat_folders_add_folder">Přidat složku</string>
+    <string name="chat_folders_manage">Spravovat složky</string>
+    <string name="chat_folders_suggestions_help">Složky se synchronizují s Telegramem na všech tvých zařízeních.</string>
+    <string name="chats_folder_empty_title">Nic tu není</string>
+    <string name="chats_folder_empty">Chaty, které do složky patří, se objeví tady.</string>
     <string name="chat_folders_failed">Složky se nepodařilo změnit</string>
     <string name="chat_folder_new_title">Nová složka</string>
     <string name="chat_folder_edit_title">Upravit složku</string>
@@ -1065,14 +1069,6 @@
     <string name="chat_folder_save_failed">Složku se nepodařilo uložit</string>
     <string name="chat_folder_delete_failed">Složku se nepodařilo smazat</string>
     <string name="chat_action_folders">Přidat do složky</string>
-    <string name="chats_filter_unread">Nepřečtené</string>
-    <string name="chats_filter_private">Lidé</string>
-    <string name="chats_filter_groups">Skupiny</string>
-    <string name="chats_filter_channels">Kanály</string>
-    <string name="chats_filter_empty">Tomuhle filtru žádný chat neodpovídá.</string>
-    <string name="chats_filter_empty_title">Nic tu není</string>
-    <string name="chats_filter_unread_empty_title">Všechno přečteno</string>
-    <string name="chats_filter_unread_empty">Nové zprávy se objeví tady.</string>
     <string name="chats_account">Účet a další</string>
     <string name="chats_new">Nová zpráva</string>
     <string name="new_chat_title">Nová zpráva</string>

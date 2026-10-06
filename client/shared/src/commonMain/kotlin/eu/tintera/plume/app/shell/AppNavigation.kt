@@ -13,6 +13,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
+import eu.tintera.plume.core.navigation.ChatFolderEditRoute
 import eu.tintera.plume.core.navigation.ChatFoldersRoute
 import eu.tintera.plume.core.navigation.CreateChatRoute
 import eu.tintera.plume.core.navigation.EditProfileRoute
@@ -93,7 +94,7 @@ class AppNavigation internal constructor(
             AppScreen.Appearance -> openSettingsAt(SettingsSection.Appearance)
             AppScreen.Devices -> openSettingsAt(SettingsSection.Devices)
             AppScreen.EditProfile -> openSettingsAt(SettingsSection.General, EditProfileRoute)
-            AppScreen.ChatFolders -> openSettingsAt(SettingsSection.General, ChatFoldersRoute)
+            AppScreen.ChatFolders -> openChatFolders()
             AppScreen.NewChat -> openInChats(NewChatRoute)
             AppScreen.NewGroup -> openInChats(NewGroupMembersRoute)
             AppScreen.NewChannel -> openInChats(CreateChatRoute(channel = true))
@@ -111,6 +112,15 @@ class AppNavigation internal constructor(
     private fun openInChats(route: NavKey) {
         selected.value = ChatsRoute
         stack(ChatsRoute).addOnce(route)
+    }
+
+    /**
+     * Složky chatů zvenčí („+" v řádku složek nad seznamem chatů): Nastavení → Obecné → Složky
+     * chatů, s [create] rovnou i editor nové složky. Zpět vede po krocích, jako u proxy.
+     */
+    fun openChatFolders(create: Boolean = false) {
+        openSettingsAt(SettingsSection.General, ChatFoldersRoute)
+        if (create) stack(SettingsRoute).add(ChatFolderEditRoute(0))
     }
 
     /**

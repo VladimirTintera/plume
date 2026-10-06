@@ -2,6 +2,8 @@ package eu.tintera.plume.features.chats
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -14,9 +16,12 @@ import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +34,8 @@ import eu.tintera.plume.core.ui.customEmojiInlineContent
 import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.add_24dp
+import eu.tintera.plume.resources.chat_folders_add_folder
 import eu.tintera.plume.resources.chat_folders_all
 import eu.tintera.plume.resources.check_24dp
 import org.jetbrains.compose.resources.painterResource
@@ -39,14 +46,23 @@ import org.jetbrains.compose.resources.stringResource
  * druh chatu ve filtrech hledání — connected button group, vybrané je vždycky právě jedno.
  *
  * - **Jen ťuknutím, ne tahem do strany.** Vodorovný tah po seznamu patří archivaci.
- * - **Filtry v plovoucím toolbaru platí UVNITŘ vybrané složky.** Složka je výběr chatů, filtr
- *   jejich chvilkové zúžení — dvě různé věci, které se kombinují.
+ * - **Je to JEDINÉ zúžení seznamu chatů.** Dřív byly navíc filtry v plovoucím toolbaru dole
+ *   (Nepřečtené, Lidé, Skupiny, Kanály) a dělaly totéž co doporučené složky, jen lokálně —
+ *   dvě úrovně nad sebou mátly. Teď je na konci řádku „+" ([onAdd]) s doporučenými složkami.
+ * - **„+" stojí mimo skupinu tlačítek.** Není to volba, ale akce; ve spojené skupině by se tvářil
+ *   jako další složka, kterou jde vybrat.
  * - **Číslo je počet nepřečtených neztlumených chatů**, ne zpráv (viz [FolderTab]).
  * - **Název složky může nést vlastní emoji** — kreslí se jako v náhledu seznamu chatů.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun ChatFolderRow(tabs: List<FolderTab>, onSelect: (Int?) -> Unit, modifier: Modifier = Modifier) {
+internal fun ChatFolderRow(
+    tabs: List<FolderTab>,
+    onSelect: (Int?) -> Unit,
+    /** „+" na konci řádku; bez něj (`null`) se nekreslí. */
+    onAdd: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
         verticalAlignment = Alignment.CenterVertically,
@@ -56,16 +72,24 @@ internal fun ChatFolderRow(tabs: List<FolderTab>, onSelect: (Int?) -> Unit, modi
             .padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
         tabs.forEachIndexed { index, tab ->
+            /*
+             * Vybraná složka musí být vidět: po přidání doporučené složky z „+" se vybere ta
+             * nová, a ta stojí na konci řádku — za okrajem, kde by výběr nebyl poznat.
+             */
+            val bringIntoView = remember { BringIntoViewRequester() }
+            LaunchedEffect(tab.selected) { if (tab.selected) bringIntoView.bringIntoView() }
             ToggleButton(
                 checked = tab.selected,
                 onCheckedChange = { if (!tab.selected) onSelect(tab.id) },
-                shapes = when (index) {
-                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                    tabs.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                shapes = when {
+                    // Bez složek je v řádku jen celý seznam: sám, ne půlka spojené skupiny.
+                    tabs.size == 1 -> ToggleButtonDefaults.shapes()
+                    index == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    index == tabs.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
                     else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
                 },
                 contentPadding = PaddingValues(horizontal = BUTTON_PADDING),
-                modifier = Modifier.semantics { selected = tab.selected },
+                modifier = Modifier.bringIntoViewRequester(bringIntoView).semantics { selected = tab.selected },
             ) {
                 AnimatedVisibility(visible = tab.selected) {
                     Icon(
@@ -83,6 +107,14 @@ internal fun ChatFolderRow(tabs: List<FolderTab>, onSelect: (Int?) -> Unit, modi
                         modifier = Modifier.padding(start = 6.dp),
                     )
                 }
+            }
+        }
+        if (onAdd != null) {
+            OutlinedIconButton(
+                onClick = onAdd,
+                modifier = Modifier.padding(start = ADD_SPACING),
+            ) {
+                Icon(painterResource(Res.drawable.add_24dp), contentDescription = stringResource(Res.string.chat_folders_add_folder))
             }
         }
     }
@@ -104,3 +136,6 @@ private fun FolderTitle(tab: FolderTab) {
 
 /** Užší odsazení, jako u filtrů hledání: s výchozím by se na telefon vešly dvě složky. */
 private val BUTTON_PADDING = 12.dp
+
+/** „+" je akce, ne další složka — odsazený víc než spára spojené skupiny. */
+private val ADD_SPACING = 6.dp

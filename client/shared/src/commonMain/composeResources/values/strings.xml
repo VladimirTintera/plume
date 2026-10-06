@@ -967,7 +967,6 @@
         <item quantity="one">%1$d day</item>
         <item quantity="other">%1$d days</item>
     </plurals>
-    <string name="chats_filter_all">All chats</string>
     <string name="chat_folders_all">All chats</string>
     <string name="settings_chat_folders_group">Chats</string>
     <string name="chat_folders_title">Chat folders</string>
@@ -979,6 +978,11 @@
     <string name="chat_folders_reorder">Move folder</string>
     <string name="chat_folders_recommended">Recommended</string>
     <string name="chat_folders_add">Add</string>
+    <string name="chat_folders_add_folder">Add folder</string>
+    <string name="chat_folders_manage">Manage folders</string>
+    <string name="chat_folders_suggestions_help">Folders sync with Telegram on all your devices.</string>
+    <string name="chats_folder_empty_title">Nothing here</string>
+    <string name="chats_folder_empty">Chats that belong to this folder will show up here.</string>
     <string name="chat_folders_failed">Folders could not be changed</string>
     <string name="chat_folder_new_title">New folder</string>
     <string name="chat_folder_edit_title">Edit folder</string>
@@ -1044,14 +1048,6 @@
     <string name="chat_folder_save_failed">The folder could not be saved</string>
     <string name="chat_folder_delete_failed">The folder could not be deleted</string>
     <string name="chat_action_folders">Add to folder</string>
-    <string name="chats_filter_unread">Unread</string>
-    <string name="chats_filter_private">People</string>
-    <string name="chats_filter_groups">Groups</string>
-    <string name="chats_filter_channels">Channels</string>
-    <string name="chats_filter_empty">No chats match this filter.</string>
-    <string name="chats_filter_empty_title">Nothing here</string>
-    <string name="chats_filter_unread_empty_title">All caught up</string>
-    <string name="chats_filter_unread_empty">New messages will show up here.</string>
     <string name="chats_account">Account and more</string>
     <string name="chats_new">New message</string>
     <string name="new_chat_title">New message</string>

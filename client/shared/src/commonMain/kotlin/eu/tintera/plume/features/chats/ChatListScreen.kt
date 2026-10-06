@@ -28,12 +28,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -145,51 +143,26 @@ import eu.tintera.plume.resources.chats_unblocked
 import eu.tintera.plume.resources.chats_unarchived
 import eu.tintera.plume.resources.chats_draft_prefix
 import eu.tintera.plume.resources.chats_empty
+import eu.tintera.plume.resources.chats_folder_empty
+import eu.tintera.plume.resources.chats_folder_empty_title
 import eu.tintera.plume.resources.chats_muted
 import eu.tintera.plume.resources.chats_section_pinned
 import eu.tintera.plume.resources.common_try_again
 import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.push_pin_filled_24dp
-import androidx.compose.material3.FloatingToolbarDefaults
-import androidx.compose.material3.HorizontalFloatingToolbar
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.IconToggleButton
-import androidx.compose.material3.PlainTooltip
-import androidx.compose.material3.TooltipAnchorPosition
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.rememberTooltipState
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import eu.tintera.plume.core.telegram.AccountInfo
 import eu.tintera.plume.core.ui.IntroEmptyState
+import eu.tintera.plume.core.ui.folderIcon
+import androidx.compose.material3.ExtendedFloatingActionButton
 import eu.tintera.plume.core.ui.avatarShape
-import eu.tintera.plume.resources.campaign_24dp
-import eu.tintera.plume.resources.campaign_filled_24dp
 import eu.tintera.plume.resources.chats_account
-import eu.tintera.plume.resources.chats_filter_all
-import eu.tintera.plume.resources.chats_filter_channels
-import eu.tintera.plume.resources.chats_filter_empty
-import eu.tintera.plume.resources.chats_filter_empty_title
-import eu.tintera.plume.resources.chats_filter_unread_empty
-import eu.tintera.plume.resources.chats_filter_unread_empty_title
-import eu.tintera.plume.resources.done_all_24dp
-import eu.tintera.plume.resources.chats_filter_groups
-import eu.tintera.plume.resources.chats_filter_private
-import eu.tintera.plume.resources.chats_filter_unread
-import eu.tintera.plume.resources.forum_24dp
-import eu.tintera.plume.resources.forum_filled_24dp
-import eu.tintera.plume.resources.group_24dp
-import eu.tintera.plume.resources.group_filled_24dp
-import eu.tintera.plume.resources.mail_24dp
-import eu.tintera.plume.resources.mail_filled_24dp
 import eu.tintera.plume.resources.nav_settings
 import eu.tintera.plume.resources.person_24dp
-import eu.tintera.plume.resources.person_filled_24dp
 import eu.tintera.plume.resources.settings_24dp
 import org.jetbrains.compose.resources.DrawableResource
-import org.jetbrains.compose.resources.StringResource
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
@@ -214,6 +187,10 @@ fun ChatListScreen(
     /** Menu účtu → Nastavení. Na telefonu jediný vstup, spodní lišta není. */
     onOpenSettings: () -> Unit = {},
     onOpenProxySettings: () -> Unit = {},
+    /** „+" v řádku složek → Nová složka; otevře editor složky v Nastavení. */
+    onCreateFolder: () -> Unit = {},
+    /** „+" v řádku složek → Spravovat složky. */
+    onManageFolders: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val search by viewModel.search.state.collectAsStateWithLifecycle()
@@ -224,15 +201,12 @@ fun ChatListScreen(
     val updateCard by viewModel.updateCard.collectAsStateWithLifecycle()
     val unconfirmedLogin by viewModel.unconfirmedLogin.collectAsStateWithLifecycle()
     val newFolderChats by viewModel.newFolderChats.collectAsStateWithLifecycle()
-    val filter by viewModel.filter.collectAsStateWithLifecycle()
-    val chatList by viewModel.state.collectAsStateWithLifecycle()
-    val readyChats = (chatList as? ChatListState.Ready)?.chats
-    val filters = remember(readyChats, filter, hiddenSavedMessagesChatId) {
-        availableFilters(readyChats, filter, hiddenSavedMessagesChatId)
-    }
     val account by viewModel.account.collectAsStateWithLifecycle()
     val archiveUnread by viewModel.archiveUnread.collectAsStateWithLifecycle()
     val folderTabs by viewModel.folderTabs.collectAsStateWithLifecycle()
+    val folderSuggestions by viewModel.folderSuggestions.collectAsStateWithLifecycle()
+    // Vybraná složka Telegramu (ne celý seznam) — kvůli prázdnému stavu.
+    val selectedFolder = folderTabs.firstOrNull { it.selected && it.id != null }
     val startUpdate = rememberStartUpdate(viewModel.appUpdates)
     // Hledání při scrollu dolů odjede a při scrollu nahoru se vrátí.
     val scrollBehavior = SearchBarDefaults.enterAlwaysSearchBarScrollBehavior()
@@ -240,8 +214,8 @@ fun ChatListScreen(
     val scope = rememberCoroutineScope()
 
     val listState = rememberLazyListState()
-    // Toolbar s filtry: rozbalený nahoře a při scrollu nahoru, při scrollu dolů z něj zbude FAB.
-    var toolbarExpanded by remember { mutableStateOf(true) }
+    // FAB s popiskem: rozbalený nahoře a při scrollu nahoru, při scrollu dolů z něj zbude ikona.
+    var fabExpanded by remember { mutableStateOf(true) }
     var previousIndex by remember { mutableIntStateOf(0) }
     var previousOffset by remember { mutableIntStateOf(0) }
 
@@ -250,13 +224,13 @@ fun ChatListScreen(
             listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
         }.collect { (index, offset) ->
             if (index == 0 && offset == 0) {
-                toolbarExpanded = true
+                fabExpanded = true
             } else if (index < previousIndex || (index == previousIndex && offset < previousOffset)) {
                 // Scroll nahoru -> rozbalit
-                toolbarExpanded = true
+                fabExpanded = true
             } else if (index > previousIndex || (index == previousIndex && offset > previousOffset)) {
                 // Scroll dolů -> sbalit
-                toolbarExpanded = false
+                fabExpanded = false
             }
             previousIndex = index
             previousOffset = offset
@@ -275,6 +249,25 @@ fun ChatListScreen(
             onToggle = viewModel::toggleNewFolderChat,
             onJoin = { viewModel.processNewFolderChats(join = true) },
             onDismiss = viewModel::closeNewFolderChats,
+        )
+    }
+    folderSuggestions?.let { suggestions ->
+        FolderSuggestionsSheet(
+            state = suggestions,
+            onAdd = { folder ->
+                viewModel.addRecommendedFolder(folder)
+                // Přidaná složka se rovnou vybere — začít od vršku jejího seznamu.
+                scope.launch { listState.scrollToItem(0) }
+            },
+            onCreate = {
+                viewModel.closeFolderSuggestions()
+                onCreateFolder()
+            },
+            onManage = {
+                viewModel.closeFolderSuggestions()
+                onManageFolders()
+            },
+            onDismiss = viewModel::closeFolderSuggestions,
         )
     }
 
@@ -341,19 +334,24 @@ fun ChatListScreen(
                             tabs = folderTabs,
                             onSelect = { id ->
                                 viewModel.selectFolder(id)
-                                // V obsluze, ne v efektu nad složkou — jako u filtru.
+                                /*
+                                 * Jiná složka = jiný seznam; začít od jeho vršku. V obsluze ťuknutí,
+                                 * NE v efektu nad složkou: ten by se spustil i při každém návratu
+                                 * seznamu do kompozice (z konverzace na telefonu) a odjel nahoru.
+                                 */
                                 scope.launch { listState.scrollToItem(0) }
                             },
+                            onAdd = viewModel::openFolderSuggestions,
                         )
                     }
                 },
             )
         },
     ) { scaffoldPadding ->
-        // Poslední chat se musí dát odscrollovat nad toolbar, jinak by pod ním zůstal schovaný.
+        // Poslední chat se musí dát odscrollovat nad FAB, jinak by pod ním zůstal schovaný.
         val padding = PaddingValues(
             top = scaffoldPadding.calculateTopPadding(),
-            bottom = scaffoldPadding.calculateBottomPadding() + TOOLBAR_CLEARANCE,
+            bottom = scaffoldPadding.calculateBottomPadding() + FAB_CLEARANCE,
         )
         Box(Modifier.fillMaxSize()) {
             ChatListContent(
@@ -365,17 +363,31 @@ fun ChatListScreen(
                 scrollToChat = scrollToChat,
                 onScrolledToChat = { scrollToChat = null },
                 listState = listState,
-                filter = filter,
                 // Položky hlavičky: nové přihlášení a karta s aktualizací.
                 headerItemCount = listOfNotNull(unconfirmedLogin, updateCard, newFolderChats).size,
                 empty = {
-                    Text(
-                        stringResource(Res.string.chats_empty),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.align(Alignment.Center).padding(24.dp),
-                    )
+                    /*
+                     * Prázdná SLOŽKA je jiný stav než prázdný účet: chaty jsou, jen ne tyhle (třeba
+                     * „Nepřečtené" se vším přečteným). Tentýž animovaný stav jako archiv, s ikonou
+                     * složky; klíč podle složky, aby se úvodní animace pustila u každé zvlášť.
+                     */
+                    if (selectedFolder != null) {
+                        key(selectedFolder.id) {
+                            IntroEmptyState(
+                                icon = folderIcon(selectedFolder.iconName),
+                                title = stringResource(Res.string.chats_folder_empty_title),
+                                text = stringResource(Res.string.chats_folder_empty),
+                            )
+                        }
+                    } else {
+                        Text(
+                            stringResource(Res.string.chats_empty),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                        )
+                    }
                 },
             ) {
                 // Nad chaty, jako vlastní bloky se stejnou mezerou jako mezi skupinami. Přihlášení
@@ -439,31 +451,27 @@ fun ChatListScreen(
 
             /*
              * Nad navigační lištou A nad klávesnicí. Scaffold dává do paddingu jen systémové
-             * lišty, takže vysunutá klávesnice (hledání, dvoupanel s psaním vpravo) toolbar
+             * lišty, takže vysunutá klávesnice (hledání, dvoupanel s psaním vpravo) FAB
              * i snackbar překryla. Padding ze Scaffoldu se zkonzumuje a `imePadding` pak přidá
              * jen to, o co je klávesnice vyšší než lišta — jinak by se obojí sečetlo.
+             *
+             * FAB a snackbar nejsou ve slotech Scaffoldu: Scaffold by je postavil jen nad
+             * systémové lišty, ne nad klávesnici.
              */
             val bottomPadding = PaddingValues(bottom = scaffoldPadding.calculateBottomPadding())
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
+                horizontalAlignment = Alignment.End,
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
+                    .align(Alignment.BottomEnd)
                     .padding(bottomPadding)
                     .consumeWindowInsets(bottomPadding)
                     .imePadding(),
             ) {
-                SnackbarHost(snackbarHostState)
-                ChatListToolbar(
-                    expanded = toolbarExpanded,
-                    filters = filters,
-                    filter = filter,
-                    onFilterChange = { selected ->
-                        viewModel.setFilter(selected)
-                        // Nový filtr = jiný seznam; začít od jeho vršku, ne uprostřed.
-                        scope.launch { listState.scrollToItem(0) }
-                    },
-                    onNewChat = onNewChat,
-                    modifier = Modifier.padding(bottom = FloatingToolbarDefaults.ScreenOffset),
+                SnackbarHost(snackbarHostState, Modifier.fillMaxWidth())
+                NewChatFab(
+                    expanded = fabExpanded,
+                    onClick = onNewChat,
+                    modifier = Modifier.padding(FAB_MARGIN),
                 )
             }
         }
@@ -471,107 +479,24 @@ fun ChatListScreen(
 }
 
 /**
- * Plovoucí toolbar dole: filtry seznamu a FAB „Nová zpráva" (M3 Expressive
- * `HorizontalFloatingToolbar` s FAB). Nahradil spodní navigační lištu — ta u dvou sekcí jen
- * zabírala místo, kdežto tady má spodek obrazovky na dosah palce skutečnou práci.
+ * „Nová zpráva" — rozšířený FAB, který se při scrollu dolů sbalí na ikonu ([expanded]), jako
+ * v Google Zprávách. Dřív byl součástí plovoucího toolbaru s filtry; ty nahradily složky
+ * (viz [ChatFolderRow]) a toolbar s jediným FAB by byl prázdný rám.
  *
- * Při scrollu dolů se toolbar sbalí a zbude jen FAB ([expanded]), takže nezakrývá chaty; nahoře
- * a při scrollu nahoru je zase celý.
- *
- * Filtry jsou ikony bez popisků (pět popisků by se na telefon nevešlo); název nese tooltip po
- * podržení a `contentDescription`. Vybraný filtr je `secondaryContainer` — výběr je navigační
- * stav, stejná role jako vybraná položka navigace v M3 — a tvarem se mění z kruhu na čtverec
- * (`toggleableShapes`), takže je poznat i bez barvy.
+ * Popisek nese i ikona (`contentDescription`): rozšířený FAB s parametrem `text` ho před
+ * čtečkou obrazovky schovává, takže by sbalený i rozbalený FAB byl beze jména.
  */
 @Composable
-private fun ChatListToolbar(
-    expanded: Boolean,
-    /** Nabízené filtry ([availableFilters]); ostatní se schovají i s místem. */
-    filters: List<ChatFilter>,
-    filter: ChatFilter,
-    onFilterChange: (ChatFilter) -> Unit,
-    onNewChat: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    HorizontalFloatingToolbar(
+private fun NewChatFab(expanded: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val label = stringResource(Res.string.chats_new)
+    ExtendedFloatingActionButton(
+        text = { Text(label) },
+        icon = { Icon(painterResource(Res.drawable.edit_24dp), contentDescription = label) },
+        onClick = onClick,
         expanded = expanded,
-        floatingActionButton = {
-            FloatingToolbarDefaults.VibrantFloatingActionButton(onClick = onNewChat) {
-                Icon(
-                    painterResource(Res.drawable.edit_24dp),
-                    contentDescription = stringResource(Res.string.chats_new),
-                )
-            }
-        },
-        colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
         modifier = modifier,
-    ) {
-        ChatFilter.entries.forEach { entry ->
-            /*
-             * Filtr, který nemá co ukázat, se schová i se svým místem (`shrinkHorizontally`),
-             * takže se toolbar plynule zúží. Pořadí ostatních zůstává, ikony se jen dosunou.
-             */
-            AnimatedVisibility(
-                visible = entry in filters,
-                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
-                    expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()),
-                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) +
-                    shrinkHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()),
-            ) {
-                val label = stringResource(entry.label)
-                TooltipBox(
-                    positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                    tooltip = { PlainTooltip { Text(label) } },
-                    state = rememberTooltipState(),
-                ) {
-                    val selected = entry == filter
-                    IconToggleButton(
-                        checked = selected,
-                        onCheckedChange = { onFilterChange(entry) },
-                        shapes = IconButtonDefaults.toggleableShapes(),
-                        colors = IconButtonDefaults.iconToggleButtonColors(
-                            checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                        ),
-                    ) {
-                        Icon(
-                            painterResource(if (selected) entry.selectedIcon else entry.icon),
-                            contentDescription = label,
-                        )
-                    }
-                }
-            }
-        }
-    }
+    )
 }
-
-private val ChatFilter.label: StringResource
-    get() = when (this) {
-        ChatFilter.All -> Res.string.chats_filter_all
-        ChatFilter.Unread -> Res.string.chats_filter_unread
-        ChatFilter.Private -> Res.string.chats_filter_private
-        ChatFilter.Groups -> Res.string.chats_filter_groups
-        ChatFilter.Channels -> Res.string.chats_filter_channels
-    }
-
-/** Nevyplněná varianta; vybraný filtr má vyplněnou ([selectedIcon]) — M3 konvence jako v navigaci. */
-private val ChatFilter.icon: DrawableResource
-    get() = when (this) {
-        ChatFilter.All -> Res.drawable.forum_24dp
-        ChatFilter.Unread -> Res.drawable.mail_24dp
-        ChatFilter.Private -> Res.drawable.person_24dp
-        ChatFilter.Groups -> Res.drawable.group_24dp
-        ChatFilter.Channels -> Res.drawable.campaign_24dp
-    }
-
-private val ChatFilter.selectedIcon: DrawableResource
-    get() = when (this) {
-        ChatFilter.All -> Res.drawable.forum_filled_24dp
-        ChatFilter.Unread -> Res.drawable.mail_filled_24dp
-        ChatFilter.Private -> Res.drawable.person_filled_24dp
-        ChatFilter.Groups -> Res.drawable.group_filled_24dp
-        ChatFilter.Channels -> Res.drawable.campaign_filled_24dp
-    }
 
 /**
  * Fotka účtu na konci vyhledávací pilulky a pod ní menu: Uložené zprávy, Archiv, Nastavení.
@@ -801,8 +726,6 @@ internal fun ChatListContent(
     onScrolledToChat: () -> Unit = {},
     headerItemCount: Int = 0,
     listState: LazyListState = rememberLazyListState(),
-    /** Filtr z toolbaru; archiv žádný nemá. */
-    filter: ChatFilter = ChatFilter.All,
     header: LazyListScope.() -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -826,8 +749,8 @@ internal fun ChatListContent(
 
 
     val groups = (state as? ChatListState.Ready)?.chats?.let { chats ->
-        remember(chats, filter, separateUnread, hiddenSavedMessagesChatId) {
-            chatGroups(chats.filteredBy(filter), separateUnread, hiddenSavedMessagesChatId)
+        remember(chats, separateUnread, hiddenSavedMessagesChatId) {
+            chatGroups(chats, separateUnread, hiddenSavedMessagesChatId)
         }
     }.orEmpty()
 
@@ -872,29 +795,6 @@ internal fun ChatListContent(
 
         is ChatListState.Ready -> if (current.chats.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding), content = empty)
-        } else if (groups.isEmpty() && filter != ChatFilter.All) {
-            /*
-             * Filtru nic neodpovídá. Jiný stav než prázdný seznam: chaty jsou, jen ne tyhle.
-             * Tentýž animovaný prázdný stav jako archiv a placeholder detailu; u Nepřečtených
-             * je to dobrá zpráva, ne slepá ulička, a tak to taky říká.
-             */
-            Box(Modifier.fillMaxSize().padding(padding)) {
-                key(filter) {
-                    if (filter == ChatFilter.Unread) {
-                        IntroEmptyState(
-                            icon = Res.drawable.done_all_24dp,
-                            title = stringResource(Res.string.chats_filter_unread_empty_title),
-                            text = stringResource(Res.string.chats_filter_unread_empty),
-                        )
-                    } else {
-                        IntroEmptyState(
-                            icon = filter.icon,
-                            title = stringResource(Res.string.chats_filter_empty_title),
-                            text = stringResource(Res.string.chats_filter_empty),
-                        )
-                    }
-                }
-            }
         } else {
             LazyColumn(
                 state = listState,
@@ -1456,9 +1356,12 @@ private val ACCOUNT_AVATAR_GROWN = 38.dp
 /** Tečka „v archivu něco je" na fotce účtu, i s obroučkou. Menší než tečka dostupnosti — je jen signál, ne stav. */
 private val ACCOUNT_DOT = 10.dp
 
+/** Odsazení FAB od okraje obrazovky — výchozí M3. */
+private val FAB_MARGIN = 16.dp
+
 /**
- * O kolik se prodlužuje spodek seznamu kvůli plovoucímu toolbaru: jeho výška, odsazení od
- * okraje a trochu vzduchu, aby poslední chat nekončil těsně pod ním.
+ * O kolik se prodlužuje spodek seznamu kvůli FAB: jeho výška (56 dp), odsazení od okraje
+ * a trochu vzduchu, aby poslední chat nekončil těsně pod ním.
  */
-private val TOOLBAR_CLEARANCE = FloatingToolbarDefaults.ContainerSize + FloatingToolbarDefaults.ScreenOffset + 8.dp
+private val FAB_CLEARANCE = 56.dp + FAB_MARGIN + 8.dp
 

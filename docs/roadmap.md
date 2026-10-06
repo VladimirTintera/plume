@@ -137,7 +137,7 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   ~~Na rozloženém Foldu by místo celoobrazovkového hledání sedělo `ExpandedDockedSearchBar`~~ —
   hotovo (panel pod pilulkou, `CLAUDE.md`, „Hledání chatů“); ~~zpět s otevřenou klávesnicí
   zavřel celé hledání~~ — opraveno (napřed schová klávesnici).
-- ~~**Nová konverzace a kontakty.**~~ — hotovo (FAB v plovoucím toolbaru seznamu chatů,
+- ~~**Nová konverzace a kontakty.**~~ — hotovo (FAB „Nová zpráva“ v seznamu chatů,
   `NewChatRoute`, Uložené zprávy, kontakty z TDLib s dostupností, globální vyhledávání lidí podle
   @username; poučení v `CLAUDE.md`, „Nová konverzace").
   ~~**Založení skupiny a kanálu**~~ — hotovo („Nová skupina" / „Nový kanál" nad kontakty, výběr
