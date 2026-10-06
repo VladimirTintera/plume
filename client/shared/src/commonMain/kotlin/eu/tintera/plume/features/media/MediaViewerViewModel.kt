@@ -15,6 +15,7 @@ import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.navigation.NO_STORY
 import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import eu.tintera.plume.core.telegram.POLL_EXPLANATION_MEDIA
@@ -43,6 +44,7 @@ import eu.tintera.plume.resources.media_saved_as
 import eu.tintera.plume.resources.media_share_failed
 import eu.tintera.plume.resources.media_saved
 import eu.tintera.plume.resources.media_unsupported
+import eu.tintera.plume.resources.story_unavailable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -80,6 +82,8 @@ class MediaViewerViewModel(
     private val profilePhotos: Boolean = false,
     /** Médium článku (`ArticleMedia.index`) místo přílohy zprávy — viz [loadArticleMedia]. */
     private val articleMedia: Int = NO_ARTICLE_MEDIA,
+    /** Příběh podle autora ([chatId]) a id místo přílohy zprávy — viz [loadStory]. */
+    private val storyId: Int = NO_STORY,
     private val repository: ConversationRepository,
     private val profileRepository: ProfileRepository,
     private val files: FileRepository,
@@ -126,7 +130,9 @@ class MediaViewerViewModel(
      * Stránky nejsou zprávy chatu (příloha ankety, profilovky): žádné pořadí fotek chatu,
      * reakce, úpravy ani mazání se jich netýkají.
      */
-    private val notMessages: Boolean get() = isPollMedia || isArticleMedia || profilePhotos
+    private val isStory: Boolean get() = storyId != NO_STORY
+
+    private val notMessages: Boolean get() = isPollMedia || isArticleMedia || profilePhotos || isStory
 
     init {
         viewModelScope.launch {
@@ -134,6 +140,7 @@ class MediaViewerViewModel(
                 profilePhotos -> loadProfilePhotos()
                 isPollMedia -> loadPollMedia()
                 isArticleMedia -> loadArticleMedia()
+                isStory -> loadStory()
                 else -> loadInitial()
             }
         }
@@ -146,7 +153,8 @@ class MediaViewerViewModel(
             // odesílatele nevyplňuje.
             repository.chatInfo(chatId).onSuccess { info -> _state.update { it.copy(chatTitle = info.title) } }
         }
-        if (!profilePhotos) observeMessages()
+        // Příběh není zpráva chatu — úpravy ani mazání zpráv autora se ho netýkají.
+        if (!profilePhotos && !isStory) observeMessages()
     }
 
     /** Změny zpráv, na kterých prohlížeč stojí: reakce, úprava, vypršení a smazání. */
@@ -400,6 +408,40 @@ class MediaViewerViewModel(
                     it.copy(loading = false, error = failure.userMessage(Res.string.media_photo_load_failed))
                 }
             }
+    }
+
+    /**
+     * Příběh podle autora a id (odpověď na příběh, odkaz na příběh): jediná stránka bez
+     * listování a bez akcí, jako příloha ankety. Zpráva, ke které by patřil, není — reagovat,
+     * přeposlat ani smazat se odsud nedá. Konverzace sem posílá jen příběh s obsahem; kdyby
+     * mezitím vypršel, prohlížeč to řekne místo prázdné stránky.
+     */
+    private suspend fun loadStory() {
+        single = true
+        val story = repository.story(chatId, storyId)
+        val item = story.content
+            ?.takeIf { it is MessageMedia.Photo || it is MessageMedia.Video }
+            ?.let {
+                ViewerItem(
+                    // Stránka není zpráva; klíč je id z routy (0), na kterém pager startuje.
+                    messageId = messageId,
+                    media = it,
+                    caption = story.caption,
+                    isOutgoing = false,
+                    senderName = story.posterName,
+                    timestamp = story.postedAt,
+                )
+            }
+        _state.update {
+            it.copy(
+                items = listOfNotNull(item),
+                initialPosition = null,
+                reachedOldest = true,
+                reachedNewest = true,
+                loading = false,
+                error = if (item == null) UiText(Res.string.story_unavailable) else null,
+            )
+        }
     }
 
     /**

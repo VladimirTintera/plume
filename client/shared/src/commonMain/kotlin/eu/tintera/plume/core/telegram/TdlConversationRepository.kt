@@ -143,7 +143,10 @@ import dev.g000sha256.tdl.dto.MessageReadDateRead
 import dev.g000sha256.tdl.dto.MessageReadDateTooOld
 import dev.g000sha256.tdl.dto.MessageReadDateUnread
 import dev.g000sha256.tdl.dto.MessageReadDateUserPrivacyRestricted
+import dev.g000sha256.tdl.dto.MessageReplyTo
 import dev.g000sha256.tdl.dto.MessageReplyToMessage
+import dev.g000sha256.tdl.dto.MessageReplyToStory
+import dev.g000sha256.tdl.dto.MessageStory
 import dev.g000sha256.tdl.dto.MessageTopicThread
 import dev.g000sha256.tdl.dto.MessageTopic
 import dev.g000sha256.tdl.dto.MessageTopicForum
@@ -2171,9 +2174,7 @@ class TdlConversationRepository(
                         .mapNotNull { resolveSender(it.plainId()) },
                 )
             },
-            externalReply = (replyTo as? MessageReplyToMessage)
-                ?.takeIf { it.chatId != chatId }
-                ?.toExternalReply(),
+            externalReply = externalReply(replyTo, chatId),
         ).let { message -> restrictionText?.let(message::restricted) ?: message }
     }
 
@@ -2223,6 +2224,49 @@ class TdlConversationRepository(
             ForwardOrigin.Chat(chatId = it, messageId = messageId.takeIf { id -> id != 0L }, name = name)
         }
         return ExternalReply(quote = quote, target = target)
+    }
+
+    /**
+     * Citace z jiného místa: zpráva z jiného chatu, nebo příběh. Odpověď na zprávu v tomtéž
+     * chatu se kreslí z načtené historie (`replyToMessageId`), sem nepatří.
+     *
+     * Samostatná funkce, ne `when` přímo v [toChatMessage]: ta je obří suspend funkce a další
+     * větev se suspend voláním v ní rozhodila typy registrů — ART ji odmítl při ověření
+     * (`VerifyError … copy-reference … type=Conflict`) a aplikace spadla hned při startu.
+     */
+    private suspend fun externalReply(replyTo: MessageReplyTo?, chatId: Long): ExternalReply? =
+        when (replyTo) {
+            is MessageReplyToMessage -> replyTo.takeIf { it.chatId != chatId }?.toExternalReply()
+            is MessageReplyToStory -> replyTo.toExternalReply()
+            null -> null
+        }
+
+    /**
+     * Odpověď na příběh (`MessageReplyToStory`) jako citace: „Příběh" s náhledem a jménem
+     * autora. Obsah dočte [sharedStory] (s keší), takže se v chatu plném odpovědí na tentýž
+     * příběh ptá jednou. Kam ťuknutí vede, rozhoduje konverzace podle [MessageMedia.Story] —
+     * ven do chatu autora ne: otevře se příběh sám.
+     */
+    private suspend fun MessageReplyToStory.toExternalReply(): ExternalReply {
+        val story = story(storyPosterChatId, storyId)
+        val quote = ChatMessage(
+            id = 0,
+            isOutgoing = false,
+            senderName = story.posterName,
+            senderAvatarFileId = null,
+            senderId = storyPosterChatId,
+            text = "",
+            entities = emptyList(),
+            media = story,
+            linkPreview = null,
+            reactions = emptyList(),
+            sendState = null,
+            replyToMessageId = null,
+            isService = false,
+            timestamp = story.postedAt,
+            isEdited = false,
+        )
+        return ExternalReply(quote = quote, target = null)
     }
 
     override fun replyMarkup(chatId: Long): Flow<ChatReplyMarkup?> = flow {
@@ -2464,6 +2508,10 @@ class TdlConversationRepository(
     /** Jméno, pod kterým bot vystupuje: upravitelné, jinak první aktivní (sběratelské). */
     private fun Usernames.publicName(): String? =
         editableUsername.ifBlank { null } ?: activeUsernames.firstOrNull { !it.isNullOrBlank() }
+
+    override suspend fun story(posterChatId: Long, storyId: Int): MessageMedia.Story =
+        MessageStory(storyPosterChatId = posterChatId, storyId = storyId, viaMention = false)
+            .toMedia(sharedStory(posterChatId, storyId)) { id -> resolveSender(id)?.title }
 
     override suspend fun fullArticle(chatId: Long, messageId: Long): Result<ChatMessage> {
         val message = client.getMessage(chatId = chatId, messageId = messageId).toResult()

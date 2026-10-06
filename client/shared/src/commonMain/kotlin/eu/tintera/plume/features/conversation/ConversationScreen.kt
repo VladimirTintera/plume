@@ -419,6 +419,8 @@ fun ConversationScreen(
     onOpenPollMedia: (messageId: Long, index: Int) -> Unit = { _, _ -> },
     /** Médium článku v prohlížeči; `index` viz [MessageAction.OpenArticleMedia]. */
     onOpenArticleMedia: (messageId: Long, index: Int) -> Unit = { _, _ -> },
+    /** Příběh v prohlížeči — citace odpovědi na příběh, odkaz `t.me/jméno/s/N`. */
+    onOpenStory: (StoryTarget) -> Unit = {},
     /**
      * Otevřít chat nad konverzací (zmínka, odkaz, komentáře); kam přesně — zpráva, vlákno,
      * téma, seznam témat —, říká [ChatTarget].
@@ -804,6 +806,12 @@ fun ConversationScreen(
         val screen = state.openScreen ?: return@LaunchedEffect
         viewModel.consumeOpenScreen()
         currentOnOpenScreen(screen)
+    }
+    val currentOnOpenStory by rememberUpdatedState(onOpenStory)
+    LaunchedEffect(state.openStory) {
+        val story = state.openStory ?: return@LaunchedEffect
+        viewModel.consumeOpenStory()
+        currentOnOpenStory(story)
     }
     val currentOnAddBotToGroup by rememberUpdatedState(onAddBotToGroup)
     LaunchedEffect(state.addBotToGroup) {

@@ -151,6 +151,7 @@ import eu.tintera.plume.resources.folder_invite_joined
 import eu.tintera.plume.resources.chat_bar_phone_shared
 import eu.tintera.plume.resources.paid_media_unsupported
 import eu.tintera.plume.resources.story_live_unsupported
+import eu.tintera.plume.resources.story_unavailable
 import eu.tintera.plume.resources.transcribe_failed
 import eu.tintera.plume.resources.conversation_selection_limit
 import eu.tintera.plume.resources.conversation_attachments_limit
@@ -2238,6 +2239,7 @@ class ConversationViewModel(
                         )
                         is InternalLink.Screen -> _state.update { it.copy(openScreen = link.screen) }
                         is InternalLink.LoginWarning -> _state.update { it.copy(loginWarning = link.kind) }
+                        is InternalLink.Story -> openStory(StoryTarget(link.posterChatId, link.storyId))
                         is InternalLink.WebApp -> requestWebApp(
                             WebAppRequest(
                                 link.botUserId,
@@ -2735,6 +2737,26 @@ class ConversationViewModel(
 
     fun consumeOpenScreen() {
         _state.update { it.copy(openScreen = null) }
+    }
+
+    fun consumeOpenStory() {
+        _state.update { it.copy(openStory = null) }
+    }
+
+    /**
+     * Příběh z citace odpovědi nebo z odkazu: s fotkou či videem do prohlížeče, jinak jen věta.
+     * Ptá se až teď — příběh mezitím mohl vypršet, a prohlížeč, který se otevře a nemá co
+     * ukázat, je horší než hláška nad polem.
+     */
+    private fun openStory(target: StoryTarget) {
+        viewModelScope.launch {
+            val story = repository.story(target.posterChatId, target.storyId)
+            when {
+                story.content != null -> _state.update { it.copy(openStory = target) }
+                story.isLive -> _state.update { it.copy(notice = UiText(Res.string.story_live_unsupported)) }
+                else -> _state.update { it.copy(notice = UiText(Res.string.story_unavailable)) }
+            }
+        }
     }
 
     fun dismissLoginWarning() = _state.update { it.copy(loginWarning = null) }
@@ -3469,6 +3491,7 @@ class ConversationViewModel(
             MessageAction.CancelUpload -> cancelUpload(messageId)
             MessageAction.ExplainPaidMedia -> _state.update { it.copy(notice = UiText(Res.string.paid_media_unsupported)) }
             MessageAction.ExplainLiveStory -> _state.update { it.copy(notice = UiText(Res.string.story_live_unsupported)) }
+            is MessageAction.OpenStory -> openStory(StoryTarget(action.posterChatId, action.storyId))
             MessageAction.ToggleVoice -> toggleVoice(messageId)
             MessageAction.ToggleVideoNoteSound -> toggleVideoNoteSound(messageId)
             is MessageAction.PlayMediaAt -> playMediaAt(messageId, action.seconds)
@@ -5103,6 +5126,8 @@ data class ConversationState(
     val openChat: ChatTarget? = null,
     /** Jednorázová událost: odkaz na obrazovku aplikace (`tg://settings/…`, `tg://newgroup`). */
     val openScreen: AppScreen? = null,
+    /** Jednorázová událost: otevřít příběh v prohlížeči (citace odpovědi, odkaz na příběh). */
+    val openStory: StoryTarget? = null,
     /** Přihlašovací odkaz, který se z ťuknutí neotevírá — jen upozornění; `null` = žádný. */
     val loginWarning: LoginLinkKind? = null,
     /** Jednorázová událost: odkaz `t.me/bot?startgroup=…` — otevřít výběr skupiny. */
@@ -5444,3 +5469,6 @@ data class GiveawaySheet(
     val failed: Boolean = false,
     val codeCopied: Boolean = false,
 )
+
+/** Příběh, který se má otevřít v prohlížeči: kdo ho zveřejnil a jeho id. */
+data class StoryTarget(val posterChatId: Long, val storyId: Int)

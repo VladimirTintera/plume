@@ -227,10 +227,18 @@ data class MediaRoute(
      * zpráva. Článek nese víc médií pod jedním id zprávy, stejně jako anketa.
      */
     val articleMedia: Int = NO_ARTICLE_MEDIA,
+    /**
+     * Příběh podle autora a id (odpověď na příběh, odkaz `t.me/jméno/s/N`): [chatId] je autor,
+     * [messageId] 0 — stránka není zpráva. `NO_STORY` = běžná zpráva.
+     */
+    val storyId: Int = NO_STORY,
 ) : Route
 
 /** [MediaRoute.startSeconds] bez času v médiu. */
 const val NO_START = -1
+
+/** [MediaRoute.storyId] bez příběhu. Id příběhu jsou kladná. */
+const val NO_STORY = 0
 
 /**
  * Výběr chatu, do kterého se přeposílá.

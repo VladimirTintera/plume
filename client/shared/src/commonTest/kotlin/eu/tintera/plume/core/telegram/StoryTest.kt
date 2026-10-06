@@ -35,11 +35,11 @@ class StoryTest {
         remote = RemoteFile("", "", false, false, 0),
     )
 
-    private fun story(content: StoryContent, caption: String = "") = Story(
+    private fun story(content: StoryContent, caption: String = "", date: Int = 0) = Story(
         id = 5,
         posterChatId = -100,
         posterId = null,
-        date = 0,
+        date = date,
         isBeingPosted = false,
         isBeingEdited = false,
         isEdited = false,
@@ -74,11 +74,13 @@ class StoryTest {
             minithumbnail = null,
             sizes = arrayOf(PhotoSize("x", file(31), 720, 1280, intArrayOf())),
         )
-        val media = message.toMedia(story(StoryContentPhoto(photo), caption = "Výhled"), senderName)
+        val media = message.toMedia(story(StoryContentPhoto(photo), caption = "Výhled", date = 1_700_000_000), senderName)
 
         assertEquals(31, assertIs<MessageMedia.Photo>(media.content).fileId)
         assertEquals("Kanál", media.posterName)
         assertEquals("Výhled", media.caption)
+        // Citace odpovědi na příběh a prohlížeč ukazují, kdy příběh vyšel.
+        assertEquals(1_700_000_000, media.postedAt)
         assertTrue(media.isAvailable)
         assertTrue(media.viaMention)
         assertFalse(media.isLive)
@@ -118,5 +120,6 @@ class StoryTest {
         assertFalse(gone.isAvailable)
         assertFalse(gone.isLive)
         assertEquals("Kanál", gone.posterName)
+        assertEquals(0, gone.postedAt)
     }
 }

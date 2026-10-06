@@ -96,6 +96,12 @@ sealed interface InternalLink {
      * by mu pomohlo. TDLib u druhého výslovně chce upozornění, že se kód jen skenuje.
      */
     data class LoginWarning(val kind: LoginLinkKind) : InternalLink
+
+    /**
+     * Příběh (`t.me/jméno/s/N`). Otevře se v prohlížeči médií jako sdílený příběh; obsah se
+     * zjišťuje až tam, kde se rozhoduje, co ukázat (příběh už nemusí být).
+     */
+    data class Story(val posterChatId: Long, val storyId: Int) : InternalLink
 }
 
 /** Obrazovka aplikace, na kterou vede odkaz [InternalLink.Screen]. */

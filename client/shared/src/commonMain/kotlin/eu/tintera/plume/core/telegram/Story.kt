@@ -32,6 +32,7 @@ internal suspend fun MessageStory.toMedia(
         isLive = content is StoryContentLive,
         isAvailable = story != null,
         viaMention = viaMention,
+        postedAt = story?.date ?: 0,
     )
 }
 

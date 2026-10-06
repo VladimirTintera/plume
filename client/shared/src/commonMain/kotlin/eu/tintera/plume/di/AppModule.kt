@@ -41,6 +41,7 @@ import eu.tintera.plume.features.conversation.InlineQueryRequests
 import eu.tintera.plume.features.conversation.SwitchInlinePickerViewModel
 import eu.tintera.plume.features.conversation.ConversationSearchRequests
 import eu.tintera.plume.core.navigation.ChatOpenRequests
+import eu.tintera.plume.core.navigation.NO_STORY
 import eu.tintera.plume.core.navigation.BotStartRequests
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.ShareTargets
@@ -513,6 +514,7 @@ fun appModule() = module {
             pollMedia = parameters.values.getOrNull(2) as? Int ?: NO_POLL_MEDIA,
             profilePhotos = parameters.values.getOrNull(3) as? Boolean ?: false,
             articleMedia = parameters.values.getOrNull(4) as? Int ?: NO_ARTICLE_MEDIA,
+            storyId = parameters.values.getOrNull(5) as? Int ?: NO_STORY,
             repository = get(),
             profileRepository = get(),
             files = get(),

@@ -45,6 +45,7 @@ import dev.g000sha256.tdl.dto.ChatJoinResultRequestSent
 import dev.g000sha256.tdl.dto.ChatJoinResultSuccess
 import dev.g000sha256.tdl.dto.InviteLinkChatTypeChannel
 import dev.g000sha256.tdl.dto.InternalLinkTypeStickerSet
+import dev.g000sha256.tdl.dto.InternalLinkTypeStory
 import dev.g000sha256.tdl.dto.InternalLinkTypeBotStart
 import dev.g000sha256.tdl.dto.InternalLinkTypeMainWebApp
 import dev.g000sha256.tdl.dto.InternalLinkTypeWebApp
@@ -777,10 +778,15 @@ class TdlChatRepository(
             is InternalLinkTypeVideoChat ->
                 client.searchPublicChat(username = type.chatUsername).toResult().map { InternalLink.Chat(it.id) }
 
+            is InternalLinkTypeStory ->
+                client.searchPublicChat(username = type.storyPosterUsername).toResult().map {
+                    InternalLink.Story(posterChatId = it.id, storyId = type.storyId)
+                }
+
             is InternalLinkTypeAuthenticationCode -> Result.success(InternalLink.LoginWarning(LoginLinkKind.Code))
             is InternalLinkTypeQrCodeAuthentication -> Result.success(InternalLink.LoginWarning(LoginLinkKind.QrCode))
 
-            // Ostatní druhy (platby, stories, dárky, témata vzhledu…) zatím neumíme; prohlížeč
+            // Ostatní druhy (platby, alba příběhů, dárky, témata vzhledu…) zatím neumíme; prohlížeč
             // je aspoň otevře v oficiálním klientovi, když ho uživatel má.
             else -> Result.success(null)
         }
