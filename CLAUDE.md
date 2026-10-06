@@ -7306,13 +7306,45 @@ sdílení" pod vlastní živou polohou (`MessageAction.StopLiveLocation`).
 - **Ověřeno na emulátoru** (Android 17) testovacím poskytovatelem polohy (viz „Vlastní klávesnice
   bota") v chatu s testovacím botem: 15 min i „dokud ji nevypnu", posuny s aplikací v popředí
   i na ploše (proces nezamrzl, bot dostal `edited_message` s novou polohou), obnova služby po
-  `force-stop`, „Zastavit" z notifikace (konečná poloha bez `live_period`) a z bubliny. **Upozornění
-  na blízkost** (`proximityAlertRadius`) zatím není. **Ťukat po spuštění aplikace podle
+  `force-stop`, „Zastavit" z notifikace (konečná poloha bez `live_period`) a z bubliny.
+  **Ťukat po spuštění aplikace podle
   souřadnic se nevyplatí:** notifikace služby otevřená z lišty vrátila seznam chatů a ťuknutí
   mířené na sponku otevřelo chat se skutečným člověkem. Nabídka sponky je popup, který
   `uiautomator dump` nevidí — ověřit snímkem, že je otevřený správný chat, a teprve pak ťukat.
 - **Na přetíženém emulátoru se první dlouhý stisk ztratí** („spent 2442ms processing
   MotionEvent" v logu) a vypadá to jako chybějící nabídka. Zopakovat, než se hledá chyba.
+
+#### Upozornění na blízkost
+
+Pod vlastní živou polohou je vedle „Zastavit sdílení" „Upozornit na blízkost" (se zapnutým
+„Upozorním do 500 m") a dialog se vzdálenostmi 100 m – 5 km a „Vypnout upozornění"
+(`ProximityAlertDialog`, `MessageAction.SetProximityAlert`, `LiveLocationRepository
+.setProximityAlert`). Servisní zpráva o spuštění říká vzdálenost („Upozornění na blízkost: 48 m",
+`distanceUiText` v `core/ui/Distances.kt`, testy `DistanceTest`), jména dál ne.
+
+- **Poloměr je součást živé polohy** (`LiveLocation.proximityAlertRadius`, 0 = vypnuto,
+  nejvýš 100 km) a nastavuje se úpravou zprávy se STEJNOU polohou, dobou a směrem (bere se ze
+  zprávy, ne ze zařízení). **Každý posun polohy ho musí poslat zpátky**, jinak ho vypne.
+- **Server upozornění po spuštění SÁM VYPNE** (zpráva přijde s poloměrem 0)
+  a `UpdateActiveLiveLocationMessages` kvůli tomu NEPŘIJDE. Dokud posun bral poloměr ze seznamu
+  aktivních poloh, zapnul ho dalším posunem znovu — na emulátoru po prvním upozornění svítilo
+  „Upozorním do 500 m" dál. Posun proto čte poloměr i dobu z aktuální zprávy (`getMessage`,
+  lokální), seznam je jen záloha.
+- **Kdy upozornění jde, ví zpráva** (`MessageMedia.Location.proximityAlertRadius`, `null` = nejde,
+  `canSetProximityAlert`): jen vlastní poloha, ne v kanálu a ne v Uložených zprávách. „Direct
+  messages chats" z dokumentace TDLib jsou přímé zprávy KANÁLU, ne soukromé chaty — chat
+  s botem i s člověkem upozornění bere.
+- **Spouští ho druhý účastník, který se PŘIBLÍŽÍ** (jeho posun do poloměru). Zapnutí poloměru
+  ve chvíli, kdy je druhý už blízko, nespustí nic, a tatáž dvojice zpráv po vypnutí a novém
+  zapnutí podruhé nespustila — zkouší se čerstvou dvojicí zpráv.
+- **Ověřeno na emulátoru** testovacím poskytovatelem polohy a botem (`sendLocation`
+  s `live_period` daleko, pak `editMessageLiveLocation` k nám): servisní zpráva „31 m",
+  poloměr přežije posun vlastní polohy, po spuštění zůstane vypnutý, „Vypnout upozornění".
+  Notifikace o spuštění jde cestou běžných zpráv (TDLib), zvlášť ověřená není. **iOS jen
+  přeložené.** Bot v chatu s ním smaže i NAŠE zprávy (`deleteMessage` vrátil `true`),
+  servisní zprávy o blízkosti ne — v chatu s testovacím botem zůstaly.
+- **Ťuknutí na vzdálenost v dialogu podle souřadnic se může trefit do mapy pod ním**, když se
+  dialog ještě neotevřel — otevřely se Google Mapy. Před ťuknutím ověřit dumpem text dialogu.
 
 ### GIFy
 

@@ -444,7 +444,7 @@ snadno na to uživatel narazí.
   platformy, u živé polohy do kdy se sdílí, odeslání polohy nebo místa ze sponky.
   ~~Sdílení živé polohy~~ — hotovo na Androidu (služba v popředí, zastavení z notifikace
   i z bubliny; `CLAUDE.md`, „Sdílení živé polohy"). Zbývá sdílení na iOS (běh na pozadí
-  s `allowsBackgroundLocationUpdates`) a upozornění na blízkost (`proximityAlertRadius`). ~~Směr pohybu (`heading`)~~ — hotovo (šipka místo špendlíku).
+  s `allowsBackgroundLocationUpdates`). ~~Upozornění na blízkost~~ — hotovo (`CLAUDE.md`, „Upozornění na blízkost"). ~~Směr pohybu (`heading`)~~ — hotovo (šipka místo špendlíku).
 - ~~**Kontakt** (`MessageContact`)~~ — hotovo: karta s tváří, jménem a číslem, „Napsat
   zprávu" (`CLAUDE.md`, „Kontakt"). ~~**Přidat do kontaktů**~~ — hotovo (z karty se „Vrátit"
   a v ⋮ profilu přidat i odebrat; s člověkem ověřené jen sondou na testovacím botovi)

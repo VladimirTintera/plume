@@ -127,6 +127,7 @@ import eu.tintera.plume.core.telegram.GifItem
 import eu.tintera.plume.core.telegram.OutgoingAnimation
 import eu.tintera.plume.core.telegram.Place
 import eu.tintera.plume.resources.location_live_stop_failed
+import eu.tintera.plume.resources.location_proximity_failed
 import eu.tintera.plume.resources.location_live_unavailable
 import eu.tintera.plume.core.telegram.LiveLocationRepository
 import eu.tintera.plume.core.telegram.LiveFix
@@ -1435,6 +1436,30 @@ class ConversationViewModel(
         viewModelScope.launch {
             liveLocations.stop(chatId, messageId).onFailure { failure ->
                 _state.update { it.copy(error = failure.reported(Res.string.location_live_stop_failed)) }
+            }
+        }
+    }
+
+    /** „Upozornit na blízkost" pod vlastní živou polohou: dialog se vzdálenostmi. */
+    private fun openProximityAlert(messageId: Long) {
+        val radius = (_state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Location)?.proximityAlertRadius ?: return
+        _state.update { it.copy(proximityAlert = ProximityAlertPrompt(messageId, radius)) }
+    }
+
+    fun dismissProximityAlert() {
+        _state.update { it.copy(proximityAlert = null) }
+    }
+
+    /**
+     * Nastaví upozornění na blízkost ([radiusMeters] 0 ho vypne). Výsledek přijde úpravou zprávy
+     * jako každý posun polohy, takže se tady nic lokálně nepřepisuje.
+     */
+    fun setProximityAlert(radiusMeters: Int) {
+        val prompt = _state.value.proximityAlert ?: return
+        _state.update { it.copy(proximityAlert = null) }
+        viewModelScope.launch {
+            liveLocations.setProximityAlert(chatId, prompt.messageId, radiusMeters).onFailure { failure ->
+                _state.update { it.copy(error = failure.reported(Res.string.location_proximity_failed)) }
             }
         }
     }
@@ -3511,6 +3536,7 @@ class ConversationViewModel(
             is MessageAction.OpenUser -> openMentioned { chatRepository.privateChat(action.userId) }
             MessageAction.AddContact -> addSharedContact(messageId)
             MessageAction.StopLiveLocation -> stopLiveLocation(messageId)
+            MessageAction.SetProximityAlert -> openProximityAlert(messageId)
             is MessageAction.OpenChat -> openMentioned { Result.success(action.chatId) }
             MessageAction.ShowGiveaway -> showGiveaway(messageId)
             is MessageAction.SendBotCommand -> sendBotCommand(action.command)
@@ -5096,6 +5122,9 @@ internal fun ConversationState.messagesToView(visibleKeys: Set<Long>): List<Long
         .map { it.id }
 }
 
+/** Otevřený dialog upozornění na blízkost: u které zprávy a jaký poloměr je nastavený teď. */
+data class ProximityAlertPrompt(val messageId: Long, val currentRadius: Int)
+
 data class ConversationState(
     val info: ChatInfo? = null,
     /** Vlákno komentářů (kořenová zpráva); `null` u běžné konverzace. */
@@ -5269,6 +5298,8 @@ data class ConversationState(
     val loadingArticles: Set<Long> = emptySet(),
     /** Sheet výběru kontaktu ze sponky; `null` = zavřený. */
     val contactPicker: ContactPicker? = null,
+    /** Dialog upozornění na blízkost u vlastní živé polohy; `null` = zavřený. */
+    val proximityAlert: ProximityAlertPrompt? = null,
     /** Kontakt, který čeká na potvrzení odeslání (jméno a číslo); `null` = žádný. */
     val pendingContact: MessageMedia.Contact? = null,
     /** Jednorázová událost: tlačítko bota chce formulář nové ankety (v tomhle režimu). */

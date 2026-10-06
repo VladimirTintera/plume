@@ -574,7 +574,7 @@
     <string name="service_message_pinned">A message was pinned</string>
     <string name="service_screenshot">A screenshot was taken</string>
     <string name="service_contact_joined">A contact joined Telegram</string>
-    <string name="service_nearby">Someone is nearby</string>
+    <string name="service_nearby">Proximity alert: %1$s</string>
     <string name="service_video_chat_started">The video chat started</string>
     <string name="service_video_chat_ended">The video chat ended</string>
     <string name="service_video_chat_scheduled">A video chat was scheduled</string>
@@ -2097,4 +2097,12 @@
     <string name="notification_channel_live_location">Live location</string>
     <string name="notification_channel_live_location_description">Shown while your location is being shared</string>
     <string name="location_live_forever">Shared with no time limit</string>
+    <string name="distance_meters">%1$s&#160;m</string>
+    <string name="distance_kilometers">%1$s&#160;km</string>
+    <string name="location_proximity_set">Notify when nearby</string>
+    <string name="location_proximity_on">Alert within %1$s</string>
+    <string name="location_proximity_title">Notify me when someone is within…</string>
+    <string name="location_proximity_body">You'll get a notification when someone in this chat who shares their live location comes this close.</string>
+    <string name="location_proximity_off">Turn off the alert</string>
+    <string name="location_proximity_failed">Couldn't set the proximity alert.</string>
 </resources>

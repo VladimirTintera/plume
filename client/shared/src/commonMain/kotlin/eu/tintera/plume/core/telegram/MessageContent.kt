@@ -65,6 +65,7 @@ import dev.g000sha256.tdl.dto.PollVoteRestrictionReasonMembershipRequired
 import dev.g000sha256.tdl.dto.PollVoteRestrictionReasonOther
 import dev.g000sha256.tdl.dto.PollVoteRestrictionReasonScheduled
 import dev.g000sha256.tdl.dto.PollVoteRestrictionReasonYetUnsent
+import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.MessageSelfDestructType
 import dev.g000sha256.tdl.dto.MessageSelfDestructTypeImmediately
 import dev.g000sha256.tdl.dto.MessageSelfDestructTypeTimer
@@ -847,6 +848,7 @@ internal suspend fun Message.messageMedia(
         longitude = content.location.location.longitude,
         liveUntil = liveLocationUntil(sentAt = date, livePeriod = content.location.livePeriod),
         heading = content.location.heading.takeIf { it in 1..360 } ?: 0,
+        proximityAlertRadius = content.location.proximityAlertRadius.takeIf { canSetProximityAlert() },
     )
 
     is MessageCall -> MessageMedia.Call(
@@ -1069,6 +1071,15 @@ private fun PollVoteRestrictionReason.toRestriction(): PollRestriction = when (t
  * Náhled se bere jen v rastrovém formátu: `ThumbnailFormatTgs` a `Mpeg4` mají tentýž problém
  * jako samotná samolepka, takže by se jen přeneslo o úroveň níž.
  */
+/**
+ * Smí si odesílatel u téhle živé polohy nastavit upozornění na blízkost? Jen u vlastní zprávy
+ * (poloměr cizí polohy TDLib neposílá) a ne v kanálu ani v Uložených zprávách — tam ho TDLib
+ * nepovolí („Can't be enabled in direct messages chats, channels and Saved Messages").
+ * Uložené zprávy se poznají tak, že chat je vlastní účet odesílatele.
+ */
+internal fun Message.canSetProximityAlert(): Boolean =
+    isOutgoing && !isChannelPost && (senderId as? MessageSenderUser)?.userId != chatId
+
 /**
  * Animace emoji, pokud je v přehratelném formátu.
  *

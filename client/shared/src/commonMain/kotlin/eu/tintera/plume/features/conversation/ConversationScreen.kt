@@ -1997,6 +1997,13 @@ fun ConversationScreen(
 
         // Přesná: živá poloha se sleduje na mapě, kilometrová přesnost by z ní udělala šum.
         val liveLocation = rememberDeviceLocation(precise = true)
+        state.proximityAlert?.let { prompt ->
+            ProximityAlertDialog(
+                currentRadius = prompt.currentRadius,
+                onPick = viewModel::setProximityAlert,
+                onDismiss = viewModel::dismissProximityAlert,
+            )
+        }
         if (livePeriodOpen) {
             LiveLocationPeriodDialog(
                 onPick = { period ->
