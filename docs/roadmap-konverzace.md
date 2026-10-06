@@ -458,7 +458,7 @@ snadno na to uživatel narazí.
   a hra"). Zbývá animace hry a placení (hvězdy ani platby nemáme).
 - **Sdílený příběh** (`MessageStory`), **dárky, soutěže** — dnes text. Stojí na stories
   a hvězdách, které aplikace nemá; zvážit aspoň kartu s náhledem.
-- ~~**Článek** (`MessageRichMessage`)~~ — hotovo jako text s formátováním (`CLAUDE.md`, „Článek"). ~~Média článku~~ — hotovo (fotka, video a GIF na svém místě, prohlížeč) a ~~useknutý článek~~ (`isFull`, „Číst celý článek"). Zbývá: **koláž a prezentace jako mřížka** (dnes fotky pod sebou), **zvuk, hlasovka a soubor** k přehrání a otevření (dnes slovo s popiskem), **média článku v záložkách profilu** (TDLib: „all of which must be shown in the corresponding profile tab"), sbalitelné bloky a posílání článků (jen s Premium).
+- ~~**Článek** (`MessageRichMessage`)~~ — hotovo jako text s formátováním (`CLAUDE.md`, „Článek"). ~~Média článku~~ — hotovo (fotka, video a GIF na svém místě, prohlížeč) a ~~useknutý článek~~ (`isFull`, „Číst celý článek"). ~~Koláž a prezentace jako mřížka~~ a ~~fotky a videa článku v záložce Média~~ — hotovo. Zbývá: **zvuk, hlasovka a soubor** k přehrání a otevření (dnes slovo s popiskem; přehrávač i stahování souboru jsou dnes po jednom na zprávu) a s tím i jejich záložky v profilu, sbalitelné bloky a posílání článků (jen s Premium).
 
 **Údaje o zprávě, které TDLib posílá a my zahazujeme**
 

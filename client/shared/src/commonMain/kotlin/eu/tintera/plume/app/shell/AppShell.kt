@@ -614,8 +614,8 @@ private fun shellEntryProvider(
                 if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(chatId))
             },
             // Z profilu letí fotka z mřížky sdílených médií, ne z bubliny — jiný klíč sdíleného prvku.
-            onOpenMedia = { messageId ->
-                chatsStack.add(MediaRoute(route.chatId, messageId, fromSharedMedia = true))
+            onOpenMedia = { messageId, articleMedia ->
+                chatsStack.add(MediaRoute(route.chatId, messageId, fromSharedMedia = true, articleMedia = articleMedia))
             },
             onOpenPhotos = { chatsStack.add(MediaRoute(route.chatId, messageId = 0L, profilePhotos = true)) },
             onChatGone = { chatsStack.closeChat(route.chatId) },
@@ -760,8 +760,8 @@ private fun shellEntryProvider(
                 }
             },
             // Z profilu letí fotka z mřížky sdílených médií, ne z bubliny — jiný klíč sdíleného prvku.
-            onOpenMedia = { messageId ->
-                chatsStack.add(MediaRoute(route.chatId, messageId, fromSharedMedia = true))
+            onOpenMedia = { messageId, articleMedia ->
+                chatsStack.add(MediaRoute(route.chatId, messageId, fromSharedMedia = true, articleMedia = articleMedia))
             },
             onOpenPhotos = { chatsStack.add(MediaRoute(route.chatId, messageId = 0L, profilePhotos = true)) },
             onChatGone = { chatsStack.closeChat(route.chatId) },

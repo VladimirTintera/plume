@@ -12,15 +12,15 @@ class ArticleSegmentsTest {
     private fun photo(id: Int) = MessageMedia.Photo(fileId = id, thumbnailFileId = null, fullFileId = id, width = 4, height = 3)
 
     /** Kotva přes první výskyt [label] v [text]. */
-    private fun anchor(text: String, label: String, index: Int, from: Int = 0): ArticleMedia {
+    private fun anchor(text: String, label: String, index: Int, from: Int = 0, group: Int? = null): ArticleMedia {
         val start = text.indexOf(label, from)
-        return ArticleMedia(start, start + label.length, index, photo(index), caption = "")
+        return ArticleMedia(start, start + label.length, index, photo(index), caption = "", group = group)
     }
 
     private fun List<ArticleSegment>.shape() = map {
         when (it) {
             is ArticleSegment.Text -> it.text
-            is ArticleSegment.Media -> "<${it.media.index}>"
+            is ArticleSegment.Media -> it.media.joinToString("+", "<", ">") { media -> "${media.index}" }
         }
     }
 
@@ -69,5 +69,43 @@ class ArticleSegmentsTest {
         val text = "Jen text"
         val result = articleSegments(text, emptyList(), listOf(ArticleMedia(5, 50, 0, photo(0), "")))
         assertEquals(listOf("Jen text"), result.shape())
+    }
+
+    @Test
+    fun mediaJedneKolazeJsouJedenUsek() {
+        val text = "Úvod\n[Fotka]\n[Fotka]\n[Fotka]\nKonec"
+        val result = articleSegments(
+            text,
+            emptyList(),
+            listOf(
+                anchor(text, "[Fotka]", 0, group = 0),
+                anchor(text, "[Fotka]", 1, from = 6, group = 0),
+                // Třetí je samostatná fotka hned za koláží — do mřížky nepatří.
+                anchor(text, "[Fotka]", 2, from = 14),
+            ),
+        )
+        assertEquals(listOf("Úvod", "<0+1>", "<2>", "Konec"), result.shape())
+    }
+
+    @Test
+    fun dveKolazeZaSebouSeNeslouci() {
+        val text = "[Fotka]\n[Fotka]"
+        val result = articleSegments(
+            text,
+            emptyList(),
+            listOf(anchor(text, "[Fotka]", 0, group = 0), anchor(text, "[Fotka]", 1, from = 1, group = 1)),
+        )
+        assertEquals(listOf("<0>", "<1>"), result.shape())
+    }
+
+    @Test
+    fun popisekVKolaziMrizkuPrerusi() {
+        val text = "[Fotka] Most\n[Fotka]"
+        val result = articleSegments(
+            text,
+            emptyList(),
+            listOf(anchor(text, "[Fotka] ", 0, group = 0), anchor(text, "[Fotka]", 1, from = 1, group = 0)),
+        )
+        assertEquals(listOf("<0>", "Most", "<1>"), result.shape())
     }
 }

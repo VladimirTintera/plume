@@ -836,7 +836,9 @@ class TdlConversationRepository(
                 val messages = found.messages
                     .filterNotNull()
                     .map { it.toChatMessage(isGroup) }
-                    .filter { kind != SharedMediaKind.Media || it.isLastingVisualMedia }
+                    // Článek s fotkami a videi patří do Médií taky — TDLib ho hledáním vrací
+                    // a mřížka ho rozbalí na dlaždice (`sharedMediaTiles`).
+                    .filter { kind != SharedMediaKind.Media || it.isLastingVisualMedia || it.hasArticleVisualMedia }
                 // Konec se pozná JEN podle toho, že server nevrátil nic. Počet po filtrování
                 // na to nestačí: stránka samých mizejících fotek vyjde prázdná uprostřed chatu.
                 SharedMediaPage(
@@ -2992,6 +2994,9 @@ private fun SharedMediaKind.toFilter(): SearchMessagesFilter = when (this) {
  * Mizející a tajná se vyřazují: přehled sdílených médií je trvalý seznam a obsah, který má po
  * zhlédnutí zmizet, do něj nepatří — stejně jako se nedostane do listování v prohlížeči.
  */
+private val ChatMessage.hasArticleVisualMedia: Boolean
+    get() = article?.media.orEmpty().any { it.media is MessageMedia.Photo || it.media is MessageMedia.Video }
+
 private val ChatMessage.isLastingVisualMedia: Boolean
     get() {
         val photo = media as? MessageMedia.Photo

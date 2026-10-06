@@ -77,6 +77,8 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MemberRole
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
+import eu.tintera.plume.core.ui.LocalArticleMediaFlight
 import eu.tintera.plume.core.telegram.ProfileMember
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.GROUP_CORNER
@@ -137,7 +139,8 @@ internal fun SharedMediaGrid(
     messages: List<ChatMessage>,
     loading: Boolean,
     contentPadding: PaddingValues,
-    onOpen: (messageId: Long) -> Unit,
+    /** Otevřít dlaždici; [articleMedia] je pořadí média v článku, jinak `NO_ARTICLE_MEDIA`. */
+    onOpen: (messageId: Long, articleMedia: Int) -> Unit,
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -159,9 +162,18 @@ internal fun SharedMediaGrid(
             verticalArrangement = Arrangement.spacedBy(2.dp),
             modifier = modifier.fillMaxSize().sharedElementClipArea(clip),
         ) {
-            itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
-                LoadMoreAtEnd(index, messages.size, onLoadMore)
-                MediaTile(message, shape = mediaTileShape(index, messages.size), onOpen = { onOpen(message.id) })
+            val tiles = sharedMediaTiles(messages)
+            itemsIndexed(tiles, key = { _, tile -> tile.key }) { index, tile ->
+                LoadMoreAtEnd(index, tiles.size, onLoadMore)
+                // Článek nese víc médií pod jedním id zprávy; klíč letu je odliší (viz `photoKey`).
+                CompositionLocalProvider(LocalArticleMediaFlight provides tile.articleIndex) {
+                    MediaTile(
+                        message = tile.message,
+                        media = tile.media,
+                        shape = mediaTileShape(index, tiles.size),
+                        onOpen = { onOpen(tile.message.id, tile.articleIndex) },
+                    )
+                }
             }
             if (loading) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
@@ -169,6 +181,28 @@ internal fun SharedMediaGrid(
                 }
             }
         }
+    }
+}
+
+/** Dlaždice mřížky Médií: zpráva, médium a u článku jeho pořadí. */
+internal data class SharedMediaTile(val message: ChatMessage, val media: MessageMedia, val articleIndex: Int) {
+    /** Klíč položky mřížky; u článku je pod jedním id zpráv víc dlaždic. */
+    val key: String get() = "${message.id}-$articleIndex"
+}
+
+/**
+ * Zprávy záložky Média jako dlaždice. Zpráva s fotkou nebo videem je jedna dlaždice; článek
+ * (`MessageRichMessage`) tolik dlaždic, kolik nese fotek a videí — TDLib: „all of which must
+ * be shown in the corresponding profile tab". GIF a ostatní média článku do Médií nepatří,
+ * stejně jako samostatný GIF.
+ */
+internal fun sharedMediaTiles(messages: List<ChatMessage>): List<SharedMediaTile> = messages.flatMap { message ->
+    val article = message.article?.media.orEmpty()
+        .filter { it.media is MessageMedia.Photo || it.media is MessageMedia.Video }
+    when {
+        article.isNotEmpty() -> article.map { SharedMediaTile(message, it.media, it.index) }
+        message.media != null -> listOf(SharedMediaTile(message, message.media, NO_ARTICLE_MEDIA))
+        else -> emptyList()
     }
 }
 
@@ -182,9 +216,9 @@ internal fun SharedMediaGrid(
  * nevejde, skrytí nese přeškrtnuté oko.
  */
 @Composable
-private fun MediaTile(message: ChatMessage, shape: Shape, onOpen: () -> Unit) {
-    val photo = message.media as? MessageMedia.Photo
-    val video = message.media as? MessageMedia.Video
+private fun MediaTile(message: ChatMessage, media: MessageMedia, shape: Shape, onOpen: () -> Unit) {
+    val photo = media as? MessageMedia.Photo
+    val video = media as? MessageMedia.Video
     val fileId = photo?.fileId ?: video?.thumbnailFileId
     val thumbnailFileId = photo?.thumbnailFileId ?: video?.thumbnailFileId
     val hasSpoiler = photo?.hasSpoiler == true || video?.hasSpoiler == true

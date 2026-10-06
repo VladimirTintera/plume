@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation.items
 
+import androidx.compose.runtime.CompositionLocalProvider
+import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
+import eu.tintera.plume.core.ui.LocalArticleMediaFlight
 import eu.tintera.plume.core.ui.resolve
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -88,22 +91,58 @@ internal fun AlbumContent(
         return
     }
 
+    AlbumGrid(
+        cells = members.map { AlbumCell(it.id, it.media, uploading = it.sendState == SendState.Sending) },
+        onOpen = { onOpen(it.messageId) },
+        onRequestMenu = { onRequestMenu(it.messageId) },
+        onCancelUpload = { onCancelUpload(it.messageId) },
+        shape = shape,
+    )
+}
+
+/**
+ * Dlaždice mřížky. Obvykle jedna zpráva alba; u koláže v článku je to médium téže zprávy
+ * a [articleIndex] ho odliší v klíči letu do prohlížeče (viz `photoKey`).
+ */
+internal data class AlbumCell(
+    val messageId: Long,
+    val media: MessageMedia?,
+    val uploading: Boolean = false,
+    val articleIndex: Int = NO_ARTICLE_MEDIA,
+)
+
+/** Patří všechny dlaždice do mřížky? Jinak se kreslí pod sebou (soubory, audio). */
+internal fun List<AlbumCell>.allTiles(): Boolean = all { it.media.isAlbumTile() }
+
+/**
+ * Mřížka fotek a videí: řádky po 1–3 ([albumRowSizes]), zaoblení nese celá mřížka. Sdílí ji album
+ * (víc zpráv) i koláž v článku (víc médií jedné zprávy).
+ */
+@Composable
+internal fun AlbumGrid(
+    cells: List<AlbumCell>,
+    onOpen: (AlbumCell) -> Unit,
+    onRequestMenu: (AlbumCell) -> Unit,
+    onCancelUpload: (AlbumCell) -> Unit,
+    /** Tvar mřížky, když se kreslí bez bubliny; `null` znamená mřížku uvnitř bubliny. */
+    shape: Shape? = null,
+) {
     // Zaoblení nese celá mřížka, ne jednotlivé dlaždice: uvnitř jsou jen tenké spáry.
     val gridShape = shape ?: RoundedCornerShape(12.dp)
-    val rowSizes = albumRowSizes(members.size)
+    val rowSizes = albumRowSizes(cells.size)
     Column(
         Modifier.clip(gridShape),
         verticalArrangement = Arrangement.spacedBy(ALBUM_GAP),
     ) {
         var start = 0
         rowSizes.forEachIndexed { rowIndex, size ->
-            val rowMembers = members.subList(start, start + size)
+            val rowCells = cells.subList(start, start + size)
             start += size
 
             BoxWithConstraints {
                 // Jedna fotka na řádek podle svého poměru stran (se stropem), víc fotek čtverce —
                 // řádek se tak nikdy nerozjede do nekonečné výšky u svislých snímků.
-                val single = rowMembers.singleOrNull()
+                val single = rowCells.singleOrNull()
                 val height = if (single != null) {
                     (maxWidth / single.media.albumRatio()).coerceAtMost(MAX_PHOTO_HEIGHT)
                 } else {
@@ -111,23 +150,25 @@ internal fun AlbumContent(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(ALBUM_GAP)) {
-                    rowMembers.forEachIndexed { index, member ->
-                        AlbumTile(
-                            member = member,
-                            // Tvar dlaždice letí s fotkou do prohlížeče a zpátky; ořez mřížky
-                            // se v překryvu neuplatní (viz `sharedNavElement`).
-                            shape = albumTileShape(
-                                grid = gridShape,
-                                top = rowIndex == 0,
-                                bottom = rowIndex == rowSizes.lastIndex,
-                                start = index == 0,
-                                end = index == rowMembers.lastIndex,
-                            ),
-                            onOpen = { onOpen(member.id) },
-                            onRequestMenu = { onRequestMenu(member.id) },
-                            onCancelUpload = { onCancelUpload(member.id) },
-                            modifier = Modifier.weight(1f).height(height),
-                        )
+                    rowCells.forEachIndexed { index, cell ->
+                        CompositionLocalProvider(LocalArticleMediaFlight provides cell.articleIndex) {
+                            AlbumTile(
+                                cell = cell,
+                                // Tvar dlaždice letí s fotkou do prohlížeče a zpátky; ořez mřížky
+                                // se v překryvu neuplatní (viz `sharedNavElement`).
+                                shape = albumTileShape(
+                                    grid = gridShape,
+                                    top = rowIndex == 0,
+                                    bottom = rowIndex == rowSizes.lastIndex,
+                                    start = index == 0,
+                                    end = index == rowCells.lastIndex,
+                                ),
+                                onOpen = { onOpen(cell) },
+                                onRequestMenu = { onRequestMenu(cell) },
+                                onCancelUpload = { onCancelUpload(cell) },
+                                modifier = Modifier.weight(1f).height(height),
+                            )
+                        }
                     }
                 }
             }
@@ -142,26 +183,27 @@ internal fun AlbumContent(
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
 private fun AlbumTile(
-    member: ChatMessage,
+    cell: AlbumCell,
     shape: Shape,
     onOpen: () -> Unit,
     onRequestMenu: () -> Unit,
     onCancelUpload: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val uploading = member.sendState == SendState.Sending
+    val uploading = cell.uploading
+    val messageId = cell.messageId
 
-    when (val media = member.media) {
+    when (val media = cell.media) {
         is MessageMedia.Photo -> {
             val revealedSpoilers = koinInject<RevealedSpoilers>()
             val revealedIds by revealedSpoilers.revealed.collectAsState()
-            val revealed = !media.hasSpoiler || member.id in revealedIds
+            val revealed = !media.hasSpoiler || messageId in revealedIds
             val spoilerStyle = rememberSpoilerBlurStyle()
             Box(
                 modifier = modifier.combinedClickable(
                     onClick = {
                         if (media.hasSpoiler && !revealed) {
-                            revealedSpoilers.reveal(member.id)
+                            revealedSpoilers.reveal(messageId)
                         } else {
                             onOpen()
                         }
@@ -177,7 +219,7 @@ private fun AlbumTile(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxSize()
-                        .sharedNavElement(photoKey(member.id), shape = shape, inTwoPane = true)
+                        .sharedNavElement(photoKey(messageId), shape = shape, inTwoPane = true)
                         .spoilerBlur(media.hasSpoiler, revealed, spoilerStyle),
                 )
                 if (media.hasSpoiler) {
@@ -197,10 +239,10 @@ private fun AlbumTile(
         is MessageMedia.Video -> {
             val revealedSpoilers = koinInject<RevealedSpoilers>()
             val revealedIds by revealedSpoilers.revealed.collectAsState()
-            val revealed = !media.hasSpoiler || member.id in revealedIds
+            val revealed = !media.hasSpoiler || messageId in revealedIds
             VideoThumbnail(
                 video = media,
-                messageId = member.id,
+                messageId = messageId,
                 uploading = uploading,
                 onCancelUpload = onCancelUpload,
                 revealed = revealed,
@@ -208,7 +250,7 @@ private fun AlbumTile(
                 modifier = modifier.combinedClickable(
                     onClick = {
                         if (media.hasSpoiler && !revealed) {
-                            revealedSpoilers.reveal(member.id)
+                            revealedSpoilers.reveal(messageId)
                         } else {
                             onOpen()
                         }

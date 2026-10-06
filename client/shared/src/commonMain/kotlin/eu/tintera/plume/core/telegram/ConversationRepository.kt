@@ -1844,6 +1844,11 @@ data class ArticleMedia(
     val media: MessageMedia,
     /** Popisek pro prohlížeč; prázdný, když článek žádný nemá. */
     val caption: String,
+    /**
+     * Koláž nebo prezentace, do které médium patří (pořadí v článku); `null` = samostatné.
+     * Média jedné koláže kreslí bublina jako mřížku.
+     */
+    val group: Int? = null,
 )
 
 /** Příloha zprávy. */
