@@ -8400,7 +8400,27 @@ a hovoru: tvář, jméno, číslo a u kontaktu na Telegramu „Napsat zprávu" (
 - **Číslo dostane „+", jen když je ze samých číslic** (`contactPhone`, testy
   `ContactPhoneTest`). Místní číslo s mezerami zůstane, jak přišlo — plus by z něj udělal cizí.
 - **„Kopírovat" v nabídce kopíruje jméno a číslo** (`copyableText`); text zprávy je prázdný.
-- **„Přidat do kontaktů" zatím není** — mění adresář účtu. Až přibude, jen se souhlasem ověřit.
+- **„Přidat do kontaktů" je na kartě i v ⋮ profilu** (`MessageMedia.Contact.canAddToContacts`,
+  `addSharedContact`; profil `ChatProfile.isContact`, `ChatProfileViewModel.setContact`).
+  Karta ho nabízí jen u člověka na Telegramu, který v adresáři ještě není — `getUser` při převodu
+  zprávy (`sharedContactUser`, vedle tváře): `isContact`, `UserTypeRegular`, ne vlastní účet.
+  - **Z karty se ukládá JMÉNO A ČÍSLO Z KARTY**, ne z účtu: odesílatel ho tak pojmenoval a číslo
+    může být jediné, co uživatel o tom člověku ví. Profil (stejně jako pruh proti spamu) bere
+    jméno z účtu (`addToContacts`). Vlastní číslo se nesdílí (`sharePhoneNumber = false`).
+  - **Přidání z karty má snackbar s „Vrátit"**, ne potvrzení — je vratné (`removeContacts`).
+    Po přidání zhasnou VŠECHNY karty téhož člověka v načtené historii (`withContactAddable`,
+    testy `AddContactTest`), po „Vrátit" se rozsvítí.
+  - **Odebrání z kontaktů je jen v profilu a s potvrzením**: smaže jméno uložené v adresáři na
+    všech zařízeních a vrátit ho jde jen ručně. Ikona `person_remove` je odvozená z
+    `person_add` (plus nahrazený minusem).
+  - **Server do kontaktů vezme i BOTA** (`addContact` na testovacího bota prošlo). Karta
+    a profil ho přesto nenabízejí — oficiální klienti taky ne. Tudy se ale dá ověřovat bez
+    zásahu do adresáře se skutečnými lidmi: sonda vydá kartu od testovacího bota za kontakt
+    s id bota a profil bota za člověka; necommituje se, bota pak „Vrátit" / „Odebrat" smaže.
+  - **Ověřeno na emulátoru sondou** (česky): tlačítko na kartě, chyba u kontaktu bez Telegramu,
+    přidání se snackbarem a „Vrátit" (tlačítko se vrátí), v profilu přidání a odebrání
+    s potvrzovacím dialogem. **S člověkem ověřené NENÍ** — mění skutečný adresář. iOS jen
+    přeložené. **Snackbar je krátký** a snímek po 1,5 s ho minul; „Vrátit" se hledá dumpem.
 - **Poslat kontakt jde ze sponky** („Kontakt" → `ContactPickerSheet` → `ContactConfirmDialog`
   → `sendContact`). Seznam je `ChatRepository.contacts()`, filtruje se lokálně podle jména
   (`ContactPicker.shown`, testy `ContactPickerTest`). **Odeslání se potvrzuje dialogem se jménem

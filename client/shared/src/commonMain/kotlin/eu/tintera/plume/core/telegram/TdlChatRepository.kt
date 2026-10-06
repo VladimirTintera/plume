@@ -1158,6 +1158,9 @@ class TdlChatRepository(
         ).toResult().getOrThrow()
     }
 
+    override suspend fun removeContact(userId: Long): Result<Unit> =
+        client.removeContacts(userIds = longArrayOf(userId)).toResult().map { }
+
     override suspend fun searchChats(query: String, onServer: Boolean): Result<List<ChatSummary>> {
         val result = if (onServer) {
             client.searchChatsOnServer(query = query, limit = SEARCH_LIMIT)

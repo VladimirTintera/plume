@@ -385,6 +385,7 @@ import eu.tintera.plume.resources.conversation_send
 import eu.tintera.plume.resources.conversation_send_voice
 import eu.tintera.plume.resources.conversation_undo
 import eu.tintera.plume.resources.conversation_unpinned
+import eu.tintera.plume.resources.spam_bar_contact_added
 import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.mic_24dp
@@ -610,6 +611,7 @@ fun ConversationScreen(
     // Snackbar o odepnutí se skládá v efektu, kde `stringResource` volat nejde — text se proto
     // přečte tady v kompozici.
     val unpinnedMessage = stringResource(Res.string.conversation_unpinned)
+    val contactAddedMessage = stringResource(Res.string.spam_bar_contact_added)
     val undoLabel = stringResource(Res.string.conversation_undo)
 
     // Vybrané soubory jsou už zkopírované v cache aplikace; čekají nad polem na popisek a odeslání.
@@ -720,6 +722,20 @@ fun ConversationScreen(
                 duration = SnackbarDuration.Short,
             )
             if (result == SnackbarResult.ActionPerformed) viewModel.undoUnpin(unpinned)
+        }
+    }
+
+    // Přidaný kontakt z karty ve zprávě: stejný vzor jako odepnutí — vynulovat hned, snackbar mimo efekt.
+    LaunchedEffect(state.addedContact) {
+        val userId = state.addedContact ?: return@LaunchedEffect
+        viewModel.consumeAddedContact()
+        snackbarScope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = contactAddedMessage,
+                actionLabel = undoLabel,
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) viewModel.undoAddContact(userId)
         }
     }
 

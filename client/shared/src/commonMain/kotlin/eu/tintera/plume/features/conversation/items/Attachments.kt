@@ -397,7 +397,12 @@ internal fun MessageAttachment(
 
         is MessageMedia.VideoNote -> VideoNoteBubble(note = media, handlers = videoNote, onRequestMenu = onRequestMenu)
 
-        is MessageMedia.Contact -> ContactCard(contact = media, accent = accent, onWrite = onOpen)
+        is MessageMedia.Contact -> ContactCard(
+            contact = media,
+            accent = accent,
+            onWrite = onOpen,
+            onAddContact = { onAction(MessageAction.AddContact) },
+        )
 
         is MessageMedia.Audio -> AudioContent(
             audio = media,

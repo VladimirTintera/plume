@@ -755,6 +755,12 @@ internal fun MessageContent.replyMedia(): MessageMedia? = when (this) {
 }
 
 /**
+ * Uživatel za sdíleným kontaktem, jak ho zná TDLib: profilovka a jestli jde přidat do kontaktů
+ * (je na Telegramu, není to bot ani vlastní účet a v adresáři ještě není).
+ */
+internal class SharedContactUser(val photoFileId: Int?, val canBeAdded: Boolean)
+
+/**
  * Příloha zprávy, nebo `null` u čistě textové.
  *
  * [hideSensitive] skryje fotku, video i GIF za rozostření jako spoiler (viz [SensitiveContent]);
@@ -762,8 +768,8 @@ internal fun MessageContent.replyMedia(): MessageMedia? = when (this) {
  */
 internal suspend fun Message.messageMedia(
     hideSensitive: Boolean = false,
-    /** Profilovka sdíleného kontaktu (`MessageContact.userId`); `getUser` je na klientovi, ne tady. */
-    contactPhotoFileId: Int? = null,
+    /** Uživatel sdíleného kontaktu (`MessageContact.userId`); `getUser` je na klientovi, ne tady. */
+    contactUser: SharedContactUser? = null,
     /**
      * Jméno odesílatele podle id ve tvaru odesílatele zprávy (kladné uživatel, záporné chat) —
      * kanály soutěže a její výherci. Dohledává se na klientovi, ne tady.
@@ -853,9 +859,10 @@ internal suspend fun Message.messageMedia(
         name = "${content.contact.firstName} ${content.contact.lastName}".trim(),
         phone = contactPhone(content.contact.phoneNumber),
         userId = content.contact.userId.takeIf { it != 0L },
-        photoFileId = contactPhotoFileId,
+        photoFileId = contactUser?.photoFileId,
         // Soukromý chat má id uživatele (Uložené zprávy id vlastního účtu).
         isThisChat = content.contact.userId != 0L && content.contact.userId == chatId,
+        canAddToContacts = contactUser?.canBeAdded == true,
     )
 
     is MessageGiveaway -> content.toMedia(senderName)

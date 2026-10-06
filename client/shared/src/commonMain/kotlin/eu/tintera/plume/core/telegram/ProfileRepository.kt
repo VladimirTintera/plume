@@ -279,6 +279,8 @@ data class ChatProfile(
     val userId: Long? = null,
     /** Uživatel nebo bot je zablokovaný. */
     val isBlocked: Boolean = false,
+    /** Uživatel je v adresáři účtu (`User.isContact`); u bota a skupiny `false`. */
+    val isContact: Boolean = false,
     /** Hlavní pozvánka do skupiny / kanálu — server ji vydá jen správci s právem zvát. */
     val inviteLink: String? = null,
     /** Uživatel ve skupině / kanálu je (smí odejít); u soukromého chatu `false`. */

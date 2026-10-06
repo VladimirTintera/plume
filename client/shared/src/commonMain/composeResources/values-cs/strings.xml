@@ -915,6 +915,13 @@
     <string name="conversation_read_all_mentions">Označit všechny zmínky jako přečtené</string>
     <string name="conversation_read_all_reactions">Označit všechny reakce jako přečtené</string>
     <string name="contact_write">Napsat zprávu</string>
+    <string name="contact_add">Přidat do kontaktů</string>
+    <string name="contact_add_failed">Do kontaktů se přidat nepodařilo.</string>
+    <string name="contact_remove_failed">Z kontaktů se odebrat nepodařilo.</string>
+    <string name="contact_removed">Odebráno z kontaktů</string>
+    <string name="profile_remove_contact">Odebrat z kontaktů</string>
+    <string name="profile_remove_contact_title">Odebrat %1$s z kontaktů?</string>
+    <string name="profile_remove_contact_body">Jméno uložené v kontaktech se smaže na všech tvých zařízeních. Chat zůstane.</string>
     <string name="conversation_bot_commands">Příkazy bota</string>
     <string name="conversation_read_all_poll_votes">Označit všechny hlasy jako přečtené</string>
     <plurals name="conversation_unread_mentions">

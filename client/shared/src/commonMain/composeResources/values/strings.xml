@@ -897,6 +897,13 @@
     <string name="conversation_read_all_mentions">Mark all mentions as read</string>
     <string name="conversation_read_all_reactions">Mark all reactions as read</string>
     <string name="contact_write">Send message</string>
+    <string name="contact_add">Add to contacts</string>
+    <string name="contact_add_failed">Couldn't add to contacts.</string>
+    <string name="contact_remove_failed">Couldn't remove from contacts.</string>
+    <string name="contact_removed">Removed from contacts</string>
+    <string name="profile_remove_contact">Remove from contacts</string>
+    <string name="profile_remove_contact_title">Remove %1$s from contacts?</string>
+    <string name="profile_remove_contact_body">The saved contact name is removed on all your devices. The chat stays.</string>
     <string name="conversation_bot_commands">Bot commands</string>
     <string name="conversation_read_all_poll_votes">Mark all poll votes as read</string>
     <plurals name="conversation_unread_mentions">

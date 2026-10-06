@@ -4,6 +4,10 @@ import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.core.audio.MusicQueue
+import eu.tintera.plume.resources.contact_add_failed
+import eu.tintera.plume.resources.contact_remove_failed
+import eu.tintera.plume.resources.contact_removed
+import eu.tintera.plume.resources.spam_bar_contact_added
 import eu.tintera.plume.resources.profile_action_failed
 import eu.tintera.plume.resources.profile_link_copied
 import eu.tintera.plume.core.ui.TextClipboard
@@ -477,6 +481,32 @@ class ChatProfileViewModel(
             chats.setBlocked(chatId, blocked)
                 .onSuccess { _state.update { it.copy(profile = it.profile?.copy(isBlocked = blocked)) } }
                 .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.profile_action_failed)) } }
+        }
+    }
+
+    /**
+     * Přidá uživatele do kontaktů, nebo ho z nich odebere. Stav se po úspěchu přepíše lokálně
+     * jako u blokování. Přidání bere jméno z účtu (tatáž cesta jako pruh nad konverzací),
+     * odebrání jde přes [ChatRepository.removeContact].
+     */
+    fun setContact(contact: Boolean) {
+        val profile = _state.value.profile ?: return
+        val userId = profile.userId ?: return
+        viewModelScope.launch {
+            val result = if (contact) chats.addToContacts(chatId) else chats.removeContact(userId)
+            result
+                .onSuccess {
+                    _state.update {
+                        it.copy(
+                            profile = it.profile?.copy(isContact = contact),
+                            error = UiText(if (contact) Res.string.spam_bar_contact_added else Res.string.contact_removed),
+                        )
+                    }
+                }
+                .onFailure { failure ->
+                    val fallback = if (contact) Res.string.contact_add_failed else Res.string.contact_remove_failed
+                    _state.update { it.copy(error = failure.reported(fallback)) }
+                }
         }
     }
 

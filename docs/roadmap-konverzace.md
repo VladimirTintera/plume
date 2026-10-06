@@ -445,8 +445,9 @@ snadno na to uživatel narazí.
   sdílení živé polohy (běh na pozadí) a upozornění na blízkost (`proximityAlertRadius` — má
   smysl až s vlastním sdílením). ~~Směr pohybu (`heading`)~~ — hotovo (šipka místo špendlíku).
 - ~~**Kontakt** (`MessageContact`)~~ — hotovo: karta s tváří, jménem a číslem, „Napsat
-  zprávu" (`CLAUDE.md`, „Kontakt"). Zbývá **přidat do kontaktů** (mění adresář, ověřit jen se
-  souhlasem) a ~~**sdílet kontakt** ze sponky~~ (hotovo, s potvrzením čísla). ~~Sdílet vlastní
+  zprávu" (`CLAUDE.md`, „Kontakt"). ~~**Přidat do kontaktů**~~ — hotovo (z karty se „Vrátit"
+  a v ⋮ profilu přidat i odebrat; s člověkem ověřené jen sondou na testovacím botovi)
+  a ~~**sdílet kontakt** ze sponky~~ (hotovo, s potvrzením čísla). ~~Sdílet vlastní
   kontakt~~ — hotovo (karta „Můj kontakt" nad kontakty).
 - ~~**Hovory** (`MessageCall`)~~ — hotovo: řádek se směrem, zmeškáním a délkou
   (`CLAUDE.md`, „Zpráva o hovoru").

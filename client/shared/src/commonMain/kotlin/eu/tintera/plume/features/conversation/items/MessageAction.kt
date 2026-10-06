@@ -122,6 +122,9 @@ sealed interface MessageAction {
     /** Zmínka uživatele bez veřejného jména: soukromý chat s ním. */
     data class OpenUser(val userId: Long) : MessageAction
 
+    /** „Přidat do kontaktů" na kartě sdíleného kontaktu. */
+    data object AddContact : MessageAction
+
     /** Kanál ze soutěže: otevřít ho nad konverzací. */
     data class OpenChat(val chatId: Long) : MessageAction
 
