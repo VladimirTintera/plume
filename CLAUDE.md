@@ -8247,6 +8247,45 @@ Doména a převod v `core/telegram/Giveaway.kt`, testy `GiveawayTest`.
   „Soutěžíš" i výhra s kódem a kopírováním, skok se zvýrazněním, čip otevře chat. **Skutečná
   soutěž a skutečné `getGiveawayInfo` ověřené NEJSOU**, iOS jen přeložené.
 
+### Dárek
+
+Dárky (`MessageGift`, `MessageUpgradedGift`, `MessageRefundedUpgradedGift`, `MessageGiftedPremium`,
+`MessagePremiumGiftCode`, `MessageGiftedStars`, `MessageGiveawayPrizeStars`, `MessageGiftedGrams`)
+jsou příloha `MessageMedia.Gift` (doména `GiftKind` v `core/telegram/Gift.kt`, testy `GiftTest`)
+a kreslí se jako karta uprostřed konverzace (`GiftCard`): samolepka dárku, co se darovalo, od koho
+a komu, vzkaz a stav. Dřív z nich zbylo jen „Byl poslán dárek".
+
+- **Zůstávají servisním oznámením**, jako u oficiálních klientů — karta je uvnitř
+  `ServiceMessageItem`, ne bublina. Nemají stranu ani odesílatele, a proto nemají ani nabídku.
+- **Věta oznámení říká, CO se darovalo** („Dárek: 1 500 hvězd", „Dárek: Plush Pepe #42",
+  „Dárek: Telegram Premium na 3 měsíce"). Jde do seznamu chatů, citace a notifikace, kde karta
+  není. Běžný dárek zůstává „Byl poslán dárek" — hvězdy jsou jeho cena, ne obsah.
+- **„Od: / Pro:" s dvojtečkou**, ne „od Jany": jméno je pak v 1. pádu a nemusí se skloňovat.
+  Jména dohledává tentýž `senderName` jako u soutěže; neznámé jméno řádek vynechá.
+- **Sběratelský dárek má pod samolepkou kruhový přechod** z barev pozadí (`centerColor` →
+  `edgeColor`, RGB bez alfy, takže `OPAQUE or`). Samolepka je MODEL (jak dárek vypadá), ne
+  symbol — ten je jen vzor na pozadí. Pořadové číslo bez oddělovače tisíců („#1042").
+- **Proměnit, vylepšit ani předat dárek Plume neumí** (hvězdy nemáme), karta to nenabízí. Jediná
+  akce je zkopírovat dárkový kód Premium; potvrzuje se fajfkou v tlačítku a věta pod ním říká,
+  že se uplatňuje v oficiální aplikaci.
+- **TON chodí v nanoTON** (10⁹ na TON); `tonParts` dá celou část a nejvýš čtyři desetinná místa
+  bez koncových nul, oddělovač dodá jazyk (`decimal_number`).
+- **Karty mají stejnou šířku** (do 280 dp přes celou plochu), ne podle obsahu: karta „Dárek" vedle
+  „Telegram Premium na 3 měsíce" vypadala jako jiný prvek.
+- **POZOR — `tdl-coroutines` 15.0.0 spadne na dárku bez `background`.** TDLib dokumentuje
+  `gift.background` jako povinné, ale u části dárků ho neposílá; wrapper pak na vlákně
+  `TDL-Receiver-Thread` vyhodí `NoSuchElementException: Key background is missing in the map`
+  a **shodí celou aplikaci** — v našem kódu se to chytit nedá. Narazilo se na to sondou přes
+  `getAvailableGifts` (dva pády po sobě); týká se to i skutečné zprávy `MessageGift` s takovým
+  dárkem. Pomůže jen oprava ve wrapperu (`background` jako nullable), nebo vlastní obcházka
+  parseru. Do té doby `getAvailableGifts` nevolat.
+- **Bot dárek poslat neumí**, takže se ověřuje sondou: text `#darek1–8` od testovacího bota
+  `toChatMessage` dočasně nahradí obsahem dárku (objekty skládané ručně, samolepky
+  z `getAnimatedEmoji` / `getStickers`). Necommituje se. Animované samolepky drží Compose
+  v pohybu a `uiautomator dump` pak selhává („null root node") — ověřuje se snímky.
+- **Ověřeno na emulátoru sondou** (česky, světlý i tmavý motiv): všech osm druhů, kopírování kódu
+  (fajfka a náhled schránky). **Skutečný dárek ověřený NENÍ**; iOS jen přeložené.
+
 ### Kontakt
 
 `MessageContact` je příloha `MessageMedia.Contact` a v bublině karta jako řádek souboru

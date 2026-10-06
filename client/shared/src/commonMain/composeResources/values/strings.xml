@@ -693,6 +693,41 @@
     <string name="service_suggested_post_paid">Payment for a suggested post arrived</string>
     <string name="service_suggested_post_refunded">Payment for a suggested post was refunded</string>
     <string name="service_suggested_post_failed">A suggested post could not be approved, not enough funds</string>
+    <string name="service_gift_named">Gift: %1$s</string>
+    <string name="service_gift_premium">Gift: Telegram Premium for %1$s</string>
+    <string name="service_gift_code">Telegram Premium gift code</string>
+    <plurals name="service_gift_stars">
+        <item quantity="one">Gift: %1$s star</item>
+        <item quantity="other">Gift: %1$s stars</item>
+    </plurals>
+    <plurals name="service_giveaway_prize_stars">
+        <item quantity="one">Giveaway prize: %1$s star</item>
+        <item quantity="other">Giveaway prize: %1$s stars</item>
+    </plurals>
+    <string name="service_gift_ton">Gift: %1$s TON</string>
+    <string name="gift_from">From: %1$s</string>
+    <string name="gift_to">To: %1$s</string>
+    <string name="gift_premium_title">Telegram Premium for %1$s</string>
+    <string name="gift_code_title">Telegram Premium gift code</string>
+    <string name="gift_code_unclaimed">Nobody has redeemed the code yet</string>
+    <string name="gift_code_hint">The code can be redeemed in the official Telegram app.</string>
+    <string name="gift_ton_title">%1$s TON</string>
+    <string name="gift_stars_giveaway">Giveaway prize</string>
+    <plurals name="gift_value_stars">
+        <item quantity="one">Worth %1$s star</item>
+        <item quantity="other">Worth %1$s stars</item>
+    </plurals>
+    <plurals name="gift_converted">
+        <item quantity="one">Converted to %1$s star</item>
+        <item quantity="other">Converted to %1$s stars</item>
+    </plurals>
+    <string name="gift_upgraded">Upgraded to a collectible</string>
+    <string name="gift_refunded">The gift was refunded</string>
+    <string name="gift_upgrade_refunded">The upgrade failed and the stars were refunded</string>
+    <string name="gift_transferred">Transferred</string>
+    <string name="gift_model">Model: %1$s</string>
+    <string name="gift_symbol">Symbol: %1$s</string>
+    <string name="gift_backdrop">Backdrop: %1$s</string>
     <string name="service_gift_offer">An offer to buy a gift</string>
     <string name="service_gift_offer_rejected">An offer to buy a gift was rejected</string>
     <string name="service_gift_offer_expired">An offer to buy a gift expired</string>

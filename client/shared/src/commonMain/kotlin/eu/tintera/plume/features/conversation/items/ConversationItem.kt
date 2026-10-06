@@ -19,6 +19,7 @@ import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.telegram.TranscribeOffer
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SponsoredMessage
 import eu.tintera.plume.core.ui.localDate
 import eu.tintera.plume.features.conversation.SponsoredCard
@@ -231,7 +232,15 @@ internal data class ServiceMessageItem(
     @Composable
     override fun LazyItemScope.Content(scope: ConversationItemScope) {
         RevealingTime(message.timestamp, scope.timeReveal, Modifier.animateItem().gathered(key, scope)) {
-            ServiceMessage(message)
+            // Dárek je karta, ne věta: řekne, co se darovalo a od koho.
+            val gift = message.media as? MessageMedia.Gift
+            if (gift != null) {
+                Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp), contentAlignment = Alignment.Center) {
+                    GiftCard(gift, onAction = { scope.onAction(message.id, it) })
+                }
+            } else {
+                ServiceMessage(message)
+            }
         }
     }
 }

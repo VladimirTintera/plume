@@ -257,6 +257,8 @@ internal fun MessageAttachment(
 
         is MessageMedia.Product -> ProductCard(media, accent)
         is MessageMedia.Giveaway -> GiveawayCard(media, accent, onAction)
+        // Dárek kreslí servisní položka (ServiceMessageItem); sem se dostane jen kdyby přestal být oznámením.
+        is MessageMedia.Gift -> GiftCard(media, onAction)
 
         is MessageMedia.Sticker -> StickerImage(
             sticker = media,

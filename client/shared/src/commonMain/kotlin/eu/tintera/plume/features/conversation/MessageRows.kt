@@ -274,6 +274,8 @@ private val MessageMedia.carriesCaption: Boolean
         is MessageMedia.Product,
         // Soutěž popisek nemá; výhru navíc píše pořadatel při vyhlášení.
         is MessageMedia.Giveaway,
+        // Dárek je servisní oznámení; vzkaz od dárce upravit nejde.
+        is MessageMedia.Gift,
         -> false
     }
 

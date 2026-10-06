@@ -104,6 +104,16 @@ import eu.tintera.plume.resources.service_boost
 import eu.tintera.plume.resources.service_checklist_tasks_added
 import eu.tintera.plume.resources.service_checklist_tasks_done
 import eu.tintera.plume.resources.service_gift
+import eu.tintera.plume.resources.service_gift_code
+import eu.tintera.plume.resources.service_gift_named
+import eu.tintera.plume.resources.service_gift_premium
+import eu.tintera.plume.resources.service_gift_stars
+import eu.tintera.plume.resources.service_gift_ton
+import eu.tintera.plume.resources.service_giveaway_prize_stars
+import eu.tintera.plume.resources.giveaway_premium_months
+import eu.tintera.plume.resources.duration_days
+import eu.tintera.plume.resources.decimal_number
+import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.resources.service_giveaway_completed
 import eu.tintera.plume.resources.service_giveaway_created
 import eu.tintera.plume.resources.service_owner_changed
@@ -220,11 +230,16 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
     is MessageChecklistTasksDone -> UiText(Res.string.service_checklist_tasks_done)
     is MessagePaymentSuccessful -> UiText(Res.string.service_payment)
 
-    // Dárky kreslí oficiální klient jako oznámení, ne jako zprávu od někoho.
-    is MessageGift, is MessageUpgradedGift, is MessageRefundedUpgradedGift,
-    is MessageGiftedPremium, is MessageGiftedStars, is MessageGiftedGrams,
-    is MessagePremiumGiftCode, is MessageGiveawayPrizeStars,
-    -> UiText(Res.string.service_gift)
+    // Dárky kreslí oficiální klient jako oznámení, ne jako zprávu od někoho. V konverzaci je
+    // z nich karta (`MessageMedia.Gift`); tahle věta jde do seznamu chatů, citace a notifikace,
+    // a proto říká, CO se darovalo — „Byl poslán dárek" u hvězd i Premium nic neřekl.
+    is MessageGift, is MessageRefundedUpgradedGift -> UiText(Res.string.service_gift)
+    is MessageUpgradedGift -> UiText(Res.string.service_gift_named, "${gift.title} #${gift.number}")
+    is MessageGiftedPremium -> UiText(Res.string.service_gift_premium, premiumPeriod(monthCount, dayCount))
+    is MessagePremiumGiftCode -> UiText(Res.string.service_gift_code)
+    is MessageGiftedStars -> starAmount(Res.plurals.service_gift_stars, starCount)
+    is MessageGiveawayPrizeStars -> starAmount(Res.plurals.service_giveaway_prize_stars, starCount)
+    is MessageGiftedGrams -> UiText(Res.string.service_gift_ton, tonAmount(gramAmount))
     is MessageUpgradedGiftPurchaseOffer -> UiText(Res.string.service_gift_offer)
     is MessageUpgradedGiftPurchaseOfferRejected -> UiText(
         if (wasExpired) Res.string.service_gift_offer_expired else Res.string.service_gift_offer_rejected,
@@ -303,6 +318,23 @@ internal fun supergroupCreatedText(isChannelPost: Boolean): StringResource =
  * neexistuje, ale přetečení by z ní udělalo záporné číslo — a to by byla nesmyslná věta místo
  * velkého čísla, takže se ořezává.
  */
+/** Jako [starSentence], jen s číslem oddělovaným po tisících („1 500 hvězd"). */
+private fun starAmount(resource: PluralStringResource, count: Long): UiText {
+    val quantity = count.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
+    return UiText(resource, quantity, count.grouped())
+}
+
+/** Délka předplatného Premium: měsíce, a jen když nejsou, dny. */
+internal fun premiumPeriod(months: Int, days: Int): UiText =
+    if (months > 0 || days <= 0) UiText(Res.plurals.giveaway_premium_months, months, months)
+    else UiText(Res.plurals.duration_days, days, days)
+
+/** Částka TON s desetinnou čárkou jazyka (`decimal_number`). */
+internal fun tonAmount(nanoAmount: Long): UiText {
+    val (whole, fraction) = tonParts(nanoAmount)
+    return if (fraction.isEmpty()) UiText.Raw(whole.grouped()) else UiText(Res.string.decimal_number, whole.grouped(), fraction)
+}
+
 private fun starSentence(resource: PluralStringResource, count: Long): UiText {
     val quantity = count.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
     return UiText(resource, quantity, quantity)
