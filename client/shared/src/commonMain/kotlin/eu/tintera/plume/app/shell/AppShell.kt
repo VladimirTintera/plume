@@ -411,6 +411,8 @@ private fun shellEntryProvider(
             onNewChat = {
                 if (chatsStack.lastOrNull() != NewChatRoute) chatsStack.add(NewChatRoute)
             },
+            onNewGroup = { if (chatsStack.lastOrNull() != NewGroupMembersRoute) chatsStack.add(NewGroupMembersRoute) },
+            onNewChannel = { chatsStack.add(CreateChatRoute(channel = true)) },
             onChatArchived = chatsStack::closeConversationOf,
             onOpenSettings = navigation::openSettings,
             onOpenProxySettings = navigation::openProxySettings,

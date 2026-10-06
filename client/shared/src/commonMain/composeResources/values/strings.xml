@@ -1096,6 +1096,7 @@
     <string name="chat_action_folders">Add to folder</string>
     <string name="chats_account">Account and more</string>
     <string name="chats_new">New message</string>
+    <string name="chats_create">Create</string>
     <string name="new_chat_title">New message</string>
     <string name="new_chat_search">Search contacts or @username</string>
     <string name="new_chat_contacts">Contacts</string>
