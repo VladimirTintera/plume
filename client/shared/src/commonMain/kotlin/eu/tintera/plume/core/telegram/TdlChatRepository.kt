@@ -1,6 +1,38 @@
 package eu.tintera.plume.core.telegram
 
 import kotlin.time.Clock
+import dev.g000sha256.tdl.dto.InternalLinkTypeSettings
+import dev.g000sha256.tdl.dto.InternalLinkTypeMyProfilePage
+import dev.g000sha256.tdl.dto.InternalLinkTypeNewGroupChat
+import dev.g000sha256.tdl.dto.InternalLinkTypeNewChannelChat
+import dev.g000sha256.tdl.dto.InternalLinkTypeNewPrivateChat
+import dev.g000sha256.tdl.dto.InternalLinkTypeContactsPage
+import dev.g000sha256.tdl.dto.InternalLinkTypeSearch
+import dev.g000sha256.tdl.dto.InternalLinkTypeVideoChat
+import dev.g000sha256.tdl.dto.InternalLinkTypeAuthenticationCode
+import dev.g000sha256.tdl.dto.InternalLinkTypeQrCodeAuthentication
+import dev.g000sha256.tdl.dto.SettingsSection
+import dev.g000sha256.tdl.dto.SettingsSectionEditProfile
+import dev.g000sha256.tdl.dto.SettingsSectionPrivacyAndSecurity
+import dev.g000sha256.tdl.dto.SettingsSectionNotifications
+import dev.g000sha256.tdl.dto.SettingsSectionAppearance
+import dev.g000sha256.tdl.dto.SettingsSectionDevices
+import dev.g000sha256.tdl.dto.SettingsSectionQrCode
+import dev.g000sha256.tdl.dto.SettingsSectionChatFolders
+import dev.g000sha256.tdl.dto.SettingsSectionAskQuestion
+import dev.g000sha256.tdl.dto.SettingsSectionBusiness
+import dev.g000sha256.tdl.dto.SettingsSectionDataAndStorage
+import dev.g000sha256.tdl.dto.SettingsSectionFaq
+import dev.g000sha256.tdl.dto.SettingsSectionFeatures
+import dev.g000sha256.tdl.dto.SettingsSectionInAppBrowser
+import dev.g000sha256.tdl.dto.SettingsSectionLanguage
+import dev.g000sha256.tdl.dto.SettingsSectionMyGrams
+import dev.g000sha256.tdl.dto.SettingsSectionMyStars
+import dev.g000sha256.tdl.dto.SettingsSectionPowerSaving
+import dev.g000sha256.tdl.dto.SettingsSectionPremium
+import dev.g000sha256.tdl.dto.SettingsSectionPrivacyPolicy
+import dev.g000sha256.tdl.dto.SettingsSectionSearch
+import dev.g000sha256.tdl.dto.SettingsSectionSendGift
 import dev.g000sha256.tdl.dto.FoundMessages
 import dev.g000sha256.tdl.dto.ChatMemberStatusAdministrator
 import dev.g000sha256.tdl.dto.InternalLinkTypeBotStartInGroup
@@ -732,8 +764,24 @@ class TdlChatRepository(
                 client.searchStickerSet(name = type.stickerSetName, ignoreCache = false).toResult()
                     .map { InternalLink.StickerSet(it.id) }
 
-            // Ostatní druhy (boti, platby, nastavení, přihlášení…) zatím neumíme; prohlížeč je
-            // aspoň otevře v oficiálním klientovi, když ho uživatel má.
+            is InternalLinkTypeSettings -> Result.success(InternalLink.Screen(type.section.toAppScreen()))
+            is InternalLinkTypeMyProfilePage -> Result.success(InternalLink.Screen(AppScreen.EditProfile))
+            is InternalLinkTypeNewGroupChat -> Result.success(InternalLink.Screen(AppScreen.NewGroup))
+            is InternalLinkTypeNewChannelChat -> Result.success(InternalLink.Screen(AppScreen.NewChannel))
+            is InternalLinkTypeNewPrivateChat -> Result.success(InternalLink.Screen(AppScreen.NewChat))
+            is InternalLinkTypeContactsPage -> Result.success(InternalLink.Screen(AppScreen.NewChat))
+            is InternalLinkTypeSearch -> Result.success(InternalLink.Screen(AppScreen.Search))
+
+            // Připojit se k videochatu Plume neumí; chat ukáže pruh s videochatem a ťuknutí na
+            // něj vysvětlí proč. Je to víc, než kdyby odkaz skončil v prohlížeči.
+            is InternalLinkTypeVideoChat ->
+                client.searchPublicChat(username = type.chatUsername).toResult().map { InternalLink.Chat(it.id) }
+
+            is InternalLinkTypeAuthenticationCode -> Result.success(InternalLink.LoginWarning(LoginLinkKind.Code))
+            is InternalLinkTypeQrCodeAuthentication -> Result.success(InternalLink.LoginWarning(LoginLinkKind.QrCode))
+
+            // Ostatní druhy (platby, stories, dárky, témata vzhledu…) zatím neumíme; prohlížeč
+            // je aspoň otevře v oficiálním klientovi, když ho uživatel má.
             else -> Result.success(null)
         }
     }
@@ -1683,3 +1731,23 @@ internal fun ChatType.chatKind(): ChatKind = when (this) {
 
 /** Kdo v chatu naposledy něco dělal, a v jakém tématu (skupina s tématy). */
 private data class ActivitySource(val senderId: Long, val topicId: Int?)
+
+/**
+ * Sekce Nastavení z odkazu `tg://settings/…`. Co Plume nemá (jazyk, úložiště, Premium, hvězdy…),
+ * otevře Nastavení na kořeni — lepší než prohlížeč, který s `tg://` nic neudělá. `when` je bez
+ * `else`: nová sekce v novější TDLib rozbije překlad, místo aby tiše skončila na kořeni.
+ */
+private fun SettingsSection?.toAppScreen(): AppScreen = when (this) {
+    null -> AppScreen.Settings
+    is SettingsSectionEditProfile -> AppScreen.EditProfile
+    is SettingsSectionPrivacyAndSecurity -> AppScreen.General
+    is SettingsSectionNotifications -> AppScreen.Notifications
+    is SettingsSectionAppearance -> AppScreen.Appearance
+    is SettingsSectionDevices, is SettingsSectionQrCode -> AppScreen.Devices
+    is SettingsSectionChatFolders -> AppScreen.ChatFolders
+    is SettingsSectionAskQuestion, is SettingsSectionBusiness, is SettingsSectionDataAndStorage,
+    is SettingsSectionFaq, is SettingsSectionFeatures, is SettingsSectionInAppBrowser,
+    is SettingsSectionLanguage, is SettingsSectionMyGrams, is SettingsSectionMyStars,
+    is SettingsSectionPowerSaving, is SettingsSectionPremium, is SettingsSectionPrivacyPolicy,
+    is SettingsSectionSearch, is SettingsSectionSendGift -> AppScreen.Settings
+}

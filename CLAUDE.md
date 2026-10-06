@@ -4504,6 +4504,23 @@ všechny podoby (`t.me`, `telegram.me`, `tg://`) a my jen vybíráme, co umíme 
   se pak zahodí — patří chatu, ne profilu.
 - **`t.me/share/url?url=…&text=…` je sdílení bez vybraného chatu** (`shareRequests.start`): shell
   otevře výběr chatu sám, jako u sdílení ze systému. Adresu i text TDLib složí do jednoho textu.
+- **Odkazy na obrazovky aplikace** (`InternalLink.Screen`, `AppScreen`, `AppNavigation.openScreen`):
+  `tg://settings[/sekce]` do Nastavení po krocích (zařízení, soukromí → Obecné, složky, úprava
+  profilu, notifikace, vzhled; sekce, které Plume nemá — jazyk, úložiště, Premium — na kořen),
+  `tg://new` a `tg://contacts` do Nové zprávy, `tg://new/group` a `tg://new/channel` do
+  založení, `tg://chats/search` do hledání. Nastavení se otevře jako z menu účtu, nová konverzace
+  nad otevřeným chatem — zpět vede do něj. Odkaz na videochat otevře chat (pruh vysvětlí, že
+  připojit se jde jen v oficiální aplikaci). **Podoby odkazů určuje TDLib** a hádat se nevyplatí:
+  `tg://newgroup` ani `tg://settings/edit_profile` nepozná (správně `tg://new/group`,
+  `tg://settings/edit`) — seznam je v `td/telegram/LinkManager.cpp` (`get_internal_link_impl`).
+- **Přihlašovací odkazy se z ťuknutí neotevírají** (`InternalLink.LoginWarning`,
+  `LoginLinkWarningDialog`): kód (`t.me/login/…`, `tg://login?code=…`) i přihlášení jiného
+  zařízení (`tg://login?token=…`). Dřív šly do prohlížeče, a ten je mohl předat oficiálnímu
+  klientovi — přesně to, co podvodník chce. Dialog řekne proč a u QR kódu, že se jen skenuje
+  v Nastavení → Zařízení (TDLib takové upozornění předepisuje). Ani mini aplikace je neotevře.
+- **Ověřování přes `adb`: poslední zpráva v chatu s botem leží pod panelem jeho klávesnice.**
+  Ťuknutí na ni trefilo panel a výsledek vypadal jako chyba odkazu; panel se napřed schová
+  („Schovat klávesnici bota").
 - **Ověřeno na emulátoru** odkazy od testovacího bota: `?text=` v témže chatu, `?profile`,
   `t.me/share` do Uložených zpráv, neexistující číslo (hláška) a vlastní číslo (Uložené zprávy
   s textem). **Kontaktní odkaz ověřený NENÍ** (chce token jiného účtu), Uložené zprávy z odkazu

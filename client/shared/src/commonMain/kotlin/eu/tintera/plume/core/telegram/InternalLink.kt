@@ -81,6 +81,48 @@ sealed interface InternalLink {
      * přidává se až na potvrzení — do chatů složky se uživatel přidá.
      */
     data class FolderInvite(val link: String, val preview: FolderInvitePreview) : InternalLink
+
+    /**
+     * Obrazovka aplikace (`tg://settings/devices`, `tg://newgroup`, `tg://contacts`…). Jen se
+     * otevře, nic se nemění — oficiální klienti s takovými odkazy posílají uživatele do Nastavení
+     * nebo do nové konverzace.
+     */
+    data class Screen(val screen: AppScreen) : InternalLink
+
+    /**
+     * Odkaz, který se z ťuknutí NEOTEVÍRÁ, jen se vysvětlí: přihlašovací kód (`t.me/login/…`)
+     * a přihlášení jiného zařízení (`tg://login?token=…`). Obojí je typický podvod („klikni,
+     * ať si ověříš účet") a ťuknutí, které by ho v prohlížeči poslalo do oficiálního klienta,
+     * by mu pomohlo. TDLib u druhého výslovně chce upozornění, že se kód jen skenuje.
+     */
+    data class LoginWarning(val kind: LoginLinkKind) : InternalLink
+}
+
+/** Obrazovka aplikace, na kterou vede odkaz [InternalLink.Screen]. */
+enum class AppScreen {
+    /** Nastavení na kořeni — i pro sekce, které Plume nemá (jazyk, úložiště, Premium…). */
+    Settings,
+    EditProfile,
+    /** Soukromí je v Obecných, samostatná sekce není. */
+    General,
+    Notifications,
+    Appearance,
+    Devices,
+    ChatFolders,
+    /** Nová zpráva: kontakty a hledání lidí. */
+    NewChat,
+    NewGroup,
+    NewChannel,
+    /** Hledání v seznamu chatů. */
+    Search,
+}
+
+/** Druh přihlašovacího odkazu, který se z ťuknutí neotevírá ([InternalLink.LoginWarning]). */
+enum class LoginLinkKind {
+    /** Kód pro přihlášení (`InternalLinkTypeAuthenticationCode`). */
+    Code,
+    /** QR kód pro přihlášení jiného zařízení (`InternalLinkTypeQrCodeAuthentication`). */
+    QrCode,
 }
 
 /** Odkaz na proxy druhu, který TDLib nezná (`InternalLinkTypeProxy.proxy == null`). */

@@ -54,6 +54,7 @@ import eu.tintera.plume.core.ui.longPress
 import eu.tintera.plume.core.telegram.BotMenuApp
 import eu.tintera.plume.core.telegram.VideoChatInfo
 import eu.tintera.plume.core.telegram.PendingJoinRequests
+import eu.tintera.plume.core.telegram.AppScreen
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.MessageSchedule
@@ -442,6 +443,8 @@ fun ConversationScreen(
     onOpenBotShare: (BotShareRequest) -> Unit = {},
     /** Odkaz `t.me/bot?startgroup=…`: výběr skupiny, do které bota přidat. */
     onAddBotToGroup: (InternalLink.BotStartInGroup) -> Unit = {},
+    /** Odkaz na obrazovku aplikace (`tg://settings/…`, `tg://newgroup`) — navigaci řeší shell. */
+    onOpenScreen: (AppScreen) -> Unit = {},
     /** Tlačítko bota s inline dotazem do jiného chatu: výběr chatu. */
     onSwitchInline: (SwitchInlinePick) -> Unit = {},
     /** Pruh „Pozvat členy" nad čerstvou skupinou: výběr lidí. */
@@ -795,6 +798,12 @@ fun ConversationScreen(
         val target = state.openChat ?: return@LaunchedEffect
         viewModel.consumeOpenChat()
         currentOnOpenChat(target)
+    }
+    val currentOnOpenScreen by rememberUpdatedState(onOpenScreen)
+    LaunchedEffect(state.openScreen) {
+        val screen = state.openScreen ?: return@LaunchedEffect
+        viewModel.consumeOpenScreen()
+        currentOnOpenScreen(screen)
     }
     val currentOnAddBotToGroup by rememberUpdatedState(onAddBotToGroup)
     LaunchedEffect(state.addBotToGroup) {
@@ -2044,6 +2053,10 @@ fun ConversationScreen(
         }
         state.confirmLink?.let { url ->
             OpenLinkDialog(url = url, onOpen = viewModel::openConfirmedLink, onDismiss = viewModel::dismissLink)
+        }
+
+        state.loginWarning?.let { kind ->
+            LoginLinkWarningDialog(kind = kind, onDismiss = viewModel::dismissLoginWarning)
         }
 
         state.botAlert?.let { text ->

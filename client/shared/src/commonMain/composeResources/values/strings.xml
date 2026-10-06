@@ -1357,6 +1357,10 @@
     </plurals>
     <string name="bot_answer">%1$s</string>
     <string name="bot_button_failed">The bot didn't respond.</string>
+    <string name="login_link_code_title">Sign-in code</string>
+    <string name="login_link_code_text">This link carries a code for signing in to a Telegram account. Plume won't use it from a tap. Never share the code with anyone — Telegram never asks for it in a message.</string>
+    <string name="login_link_qr_title">Signing in another device</string>
+    <string name="login_link_qr_text">This link could let someone sign in to your account. Another device can only be signed in by scanning its code in Settings → Devices.</string>
     <string name="bot_alert_ok">OK</string>
     <string name="bot_link_title">Open link?</string>
     <string name="webapp_title">Mini app</string>

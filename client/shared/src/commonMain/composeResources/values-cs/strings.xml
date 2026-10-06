@@ -1382,6 +1382,10 @@
     </plurals>
     <string name="bot_answer">%1$s</string>
     <string name="bot_button_failed">Bot neodpověděl.</string>
+    <string name="login_link_code_title">Přihlašovací kód</string>
+    <string name="login_link_code_text">Tenhle odkaz nese kód pro přihlášení k účtu Telegramu. Plume ho z ťuknutí nepoužije. Kód nikomu nesdělujte — Telegram si o něj nikdy neříká zprávou.</string>
+    <string name="login_link_qr_title">Přihlášení jiného zařízení</string>
+    <string name="login_link_qr_text">Tímhle odkazem by se někdo mohl přihlásit k vašemu účtu. Jiné zařízení jde přihlásit jen naskenováním jeho kódu v Nastavení → Zařízení.</string>
     <string name="bot_alert_ok">OK</string>
     <string name="bot_link_title">Otevřít odkaz?</string>
     <string name="webapp_title">Mini aplikace</string>

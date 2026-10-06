@@ -58,7 +58,9 @@ import eu.tintera.plume.resources.conversation_link_user_not_found
 import eu.tintera.plume.core.telegram.FolderInvitePreview
 import eu.tintera.plume.core.telegram.InvitePreview
 import eu.tintera.plume.core.telegram.InviteJoinResult
+import eu.tintera.plume.core.telegram.AppScreen
 import eu.tintera.plume.core.telegram.InternalLink
+import eu.tintera.plume.core.telegram.LoginLinkKind
 import eu.tintera.plume.core.telegram.platformLanguageCode
 import eu.tintera.plume.core.language.LanguageDetector
 import eu.tintera.plume.core.telegram.MessageBody
@@ -2232,6 +2234,8 @@ class ConversationViewModel(
                         is InternalLink.MainWebApp -> requestWebApp(
                             WebAppRequest(link.botUserId, url = "", launch = false, main = true, startParameter = link.startParameter),
                         )
+                        is InternalLink.Screen -> _state.update { it.copy(openScreen = link.screen) }
+                        is InternalLink.LoginWarning -> _state.update { it.copy(loginWarning = link.kind) }
                         is InternalLink.WebApp -> requestWebApp(
                             WebAppRequest(
                                 link.botUserId,
@@ -2700,6 +2704,12 @@ class ConversationViewModel(
     fun consumeOpenChat() {
         _state.update { it.copy(openChat = null) }
     }
+
+    fun consumeOpenScreen() {
+        _state.update { it.copy(openScreen = null) }
+    }
+
+    fun dismissLoginWarning() = _state.update { it.copy(loginWarning = null) }
 
     fun consumeAddBotToGroup() {
         _state.update { it.copy(addBotToGroup = null) }
@@ -5060,6 +5070,10 @@ data class ConversationState(
     val search: InChatSearch? = null,
     /** Jednorázová událost: otevřít chat ze zmínky nebo odkazu, případně se skokem na zprávu. */
     val openChat: ChatTarget? = null,
+    /** Jednorázová událost: odkaz na obrazovku aplikace (`tg://settings/…`, `tg://newgroup`). */
+    val openScreen: AppScreen? = null,
+    /** Přihlašovací odkaz, který se z ťuknutí neotevírá — jen upozornění; `null` = žádný. */
+    val loginWarning: LoginLinkKind? = null,
     /** Jednorázová událost: odkaz `t.me/bot?startgroup=…` — otevřít výběr skupiny. */
     val addBotToGroup: InternalLink.BotStartInGroup? = null,
     /** Tlačítko bota s inline dotazem do jiného chatu: obrazovka otevře výběr chatu. */
