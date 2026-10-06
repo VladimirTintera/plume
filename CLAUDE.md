@@ -10414,6 +10414,47 @@ a spočítá instance tříd. Postup: dump, N cyklů scénáře (otevřít a zav
 - **Jednorázové keše nejsou únik**: `MediaCodecInfo` (seznam kodeků po prvním videu nebo
   kolečku) a stovky `BaseLocale` (ExoPlayer si poprvé staví mapu jazyků ISO).
 
+### Recompozice za běhu (composition tracing)
+
+Debug build má `runtime-tracing` a přibalenou knihovnu Perfetto SDK (`tracing-perfetto-binary`),
+takže každá composable je v systémovém trace vlastní řez se jménem a řádkem.
+`client/tools/perf/trace_record.sh <adresář> <jméno> <ms> '<scénář>'` tracing v aplikaci zapne
+broadcastem, nahraje trace a mezitím pustí scénář. `trace_analyze.py` pak vypíše snímky
+aplikace a nejčastěji skládané composables (Python balíček `perfetto`, nejlépe ve venv).
+
+- **Broadcast se posílá do BĚŽÍCÍHO procesu** a platí do jeho konce. Po přeinstalaci nebo
+  zabití se musí poslat znovu, jinak trace nese jen systémové řezy a vypadá to, že se nic
+  neskládá. `exitCode 1` = zapnuto, `2` = už bylo.
+- **Nula řezů aplikace v nečinnosti je cíl, ne chyba záznamu.** Že záznam funguje, se ověří
+  scénářem, ve kterém aplikace pracovat musí (scroll).
+- **`Recomposer:animation` bez skládání = někdo si říká o snímky** (`withFrameNanos`,
+  nekonečná animace) a jeho hodnota se čte až při kreslení. Ze jména řezu se nepozná kdo;
+  hledá se v kódu (`withFrameNanos`, `rememberInfiniteTransition`, `while (true)`) a měří
+  znovu.
+- **Kdo se skládá v každém snímku, se pozná rozdělením řezů do časových oken**
+  (`cast((ts - min) / 1e8 as int)`): šest složení za 100 ms = každý snímek, tedy animace
+  čtená v kompozici; jedno za úhoz nebo za zprávu = v pořádku.
+
+Nálezy a opravy (emulátor Plume_Galerie_Fold, debug build, říjen 2026):
+
+- **Otevřený chat si říkal o 60 snímků za vteřinu, i když se nic nehýbalo.** Smyčka polohy
+  zprávy pro nabídku (`MessageMenuLayer`, `withFrameNanos` dokola) běžela i se zavřenou
+  nabídkou. Nečinné Uložené zprávy: 478 snímků za 8 s → 0. Seznam chatů měl nulu už předtím.
+- **Scroll konverzace přeskládával celou obrazovku**, protože `visibleDay` (plovoucí datum)
+  četl `topVisibleKey` přímo v těle `ConversationScreen`. Teď se odvozuje jen začátek dne
+  (`startOfLocalDay`). Stejný scroll: našich složení 4 915 → 2 166, hlavička a pole 48× → 1×.
+- **Při nahrávání se celá karta vstupního pole skládala v každém snímku** kvůli „dýchání"
+  tlačítka; při psaní totéž po dobu morfu mikrofon → odeslat. Morf, dýchání a barvy tlačítka se
+  čtou až v obsahu `TooltipBox` (vlastní rozsah). Šest vteřin nahrávání: karta 408× (553 ms) →
+  61× (94 ms). Tlačítko se v každém snímku skládá dál (~0,8 ms), nový `MorphShape` za snímek
+  jinak nejde.
+- **Každá aktualizace seznamu chatů přeskládala všechny viditelné řádky.** `ChatSummary` měl
+  „runtime" stabilitu, která za běhu vyšla nestabilní, takže se řádky porovnávaly identitou.
+  Je v `compose-stability.conf`. Dvě příchozí zprávy: `ChatRow` 40× → 4×.
+- **Obecně: argument composable v seznamu, jehož třída nese pole typu sealed interface, se
+  porovnává identitou**, i když je data class z `val`. Report kompilátoru ho ukáže bez
+  `stable` u parametru (`chat: ChatSummary` místo `stable chat: ChatSummary`).
+
 ### Výsledky první analýzy
 
 Říjen 2026, emulátor Plume_Galerie_Fold (Android 17), debug build, cykly v testovacích

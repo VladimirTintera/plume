@@ -328,6 +328,7 @@ import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.strongestAccentOn
 import eu.tintera.plume.core.ui.tintedSurface
 import eu.tintera.plume.core.ui.asDayLabel
+import eu.tintera.plume.core.ui.startOfLocalDay
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.chatTitleKey
 import eu.tintera.plume.core.ui.label
@@ -980,7 +981,16 @@ fun ConversationScreen(
         }
     }
 
-    val visibleDay = topVisibleKey?.let { byKey[it]?.timestamp?.asDayLabel() }
+    /*
+     * Den horní viditelné zprávy pro plovoucí datum. Odvozuje se jen ZAČÁTEK DNE, ne klíč
+     * zprávy: `topVisibleKey` se mění s každou zprávou, která nahoře přejede, a čtený přímo
+     * tady přeskládal celou obrazovku (hlavičku, pole, pruhy) zhruba každý osmý snímek scrollu
+     * (změřeno Perfettem). Začátek dne se změní jen při přechodu na jiný den.
+     */
+    val visibleDayStart by remember(listState, byKey) {
+        derivedStateOf { topVisibleKey?.let { byKey[it]?.timestamp?.startOfLocalDay() } }
+    }
+    val visibleDay = visibleDayStart?.asDayLabel()
 
     /*
      * Dock živé polohy (`LiveLocationDockBar`): kolik ze zprávy s každou živou polohou zajelo pod
@@ -3708,72 +3718,6 @@ private fun MessageInput(
                 else -> SendButtonKind.Send
             }
 
-            /*
-             * Tvar nese stav: mikrofon (klidový stav prázdného pole) je „sušenka" z M3 Expressive,
-             * odeslání a uložení úpravy kruh. Změna se animuje morfem mezi nimi a ikona se vymění
-             * zvětšením. Tlačítko se mění samo od sebe (začne se psát, pole se vyprázdní) a skoková
-             * výměna ikony se dala přehlédnout — a ťuknout pak na mikrofon místo odeslání.
-             * Stav se tak pozná i bez ikony a barvy, třeba koutkem oka nebo na slunci.
-             */
-            // Pružina přestřelí za oba konce; mimo 0..1 by se tvar zdeformoval.
-            val morphProgress = animateMorph(
-                kind == SendButtonKind.Mic || kind == SendButtonKind.Camera,
-                "send-button-shape",
-            ).coerceIn(0f, 1f)
-
-            /*
-             * Při nahrávání tlačítko DÝCHÁ: pomalý morf kruh ↔ SoftBurst. Tečka v pruhu nahrávání
-             * už nebliká — dva blikající prvky vedle sebe by byly šum — a živost nese tlačítko,
-             * kterým se nahrávání i odesílá.
-             */
-            val breathing = if (isRecording) {
-                rememberInfiniteTransition(label = "recording-breath").animateFloat(
-                    initialValue = 0f,
-                    targetValue = 1f,
-                    animationSpec = infiniteRepeatable(tween(RECORDING_BREATH_MS), RepeatMode.Reverse),
-                    label = "recording-breath-progress",
-                ).value
-            } else {
-                0f
-            }
-
-            /*
-             * Barva říká, ČEHO se akce týká: text jde `primary` (jako odchozí bublina), hlas
-             * `tertiary`. Hlasovka je doplňková cesta vedle psaní, a terciární role je v M3
-             * přesně na to — tlačítko je pak stejně výrazné jako odeslání textu (obojí je plná
-             * role, ne tonální), jen se pozná, že udělá něco jiného.
-             *
-             * Dřív byl mikrofon tonální `secondaryContainer`, tedy „klidový stav prázdného pole".
-             * Jenže tím bylo tlačítko v prázdném poli to nejméně nápadné na obrazovce, přestože
-             * je to jediná akce, která se z prázdného pole dá udělat.
-             *
-             * Nahrávání a mikrofon mají barvu STEJNOU: mezi „můžu nahrát" a „nahrávám" rozhoduje
-             * tvar (sušenka ↔ dýchající SoftBurst), vlnka karty a pruh s časem. Přebarvit k tomu
-             * ještě tlačítko by byl čtvrtý signál pro jednu změnu.
-             */
-            // Kolečko je taky nahrávka, takže nese tutéž terciární roli jako hlas.
-            val voiceButton = kind == SendButtonKind.Mic || kind == SendButtonKind.Camera ||
-                kind == SendButtonKind.SendVoice
-            val colorSpec = MaterialTheme.motionScheme.slowEffectsSpec<Color>()
-            val containerColor by animateColorAsState(
-                targetValue = if (voiceButton) {
-                    MaterialTheme.colorScheme.tertiary
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-                animationSpec = colorSpec,
-                label = "send-button-container",
-            )
-            val contentColor by animateColorAsState(
-                targetValue = if (voiceButton) {
-                    MaterialTheme.colorScheme.onTertiary
-                } else {
-                    MaterialTheme.colorScheme.onPrimary
-                },
-                animationSpec = colorSpec,
-                label = "send-button-content",
-            )
-
             var sendMenuOpen by remember { mutableStateOf(false) }
             // Nabídka otevřená nad hlasovkou: volby jdou na nahrávku, ne na text pole.
             var voiceMenu by remember { mutableStateOf(false) }
@@ -3789,21 +3733,6 @@ private fun MessageInput(
             }
             // Efekt jde vybrat jen k textu — výběr efektu posílá obsah pole.
             val voiceSendMenu = sendMenu.copy(effects = false)
-            // Kruh (odeslání) se při stisku mění podle M3 Expressive na zaoblený čtverec.
-            // Sušenka a tvary během přechodu stisk nemění: mezi obecnými tvary IconButton
-            // neanimuje a skok by vypadal jako chyba.
-            val buttonShapes = if (breathing > 0f) {
-                val shape = MorphShape(ShapeMorphs.Live, breathing, rotation = RECORDING_BREATH_ROTATION)
-                IconButtonShapes(shape = shape, pressedShape = shape)
-            } else if (morphProgress > 0f) {
-                val shape = MorphShape(ShapeMorphs.Rest, morphProgress, rotation = ShapeMorphs.REST_ROTATION)
-                IconButtonShapes(shape = shape, pressedShape = shape)
-            } else {
-                IconButtonDefaults.shapes(
-                    shape = IconButtonDefaults.mediumRoundShape,
-                    pressedShape = IconButtonDefaults.mediumPressedShape,
-                )
-            }
             val recordActionLabel = stringResource(
                 if (recordMode == RecordMode.VideoNote) Res.string.conversation_record_video_note else Res.string.conversation_record_voice,
             )
@@ -3830,6 +3759,92 @@ private fun MessageInput(
                     // Podržení tu nahrává; nápověda na dlouhý stisk by se s ním prala.
                     enableUserInput = false,
                 ) {
+                /*
+                 * Morf, dýchání a barvy se čtou AŽ TADY, v obsahu `TooltipBox` (vlastní rozsah
+                 * rekompozice). Čtené v kartě pole by s každým snímkem animace přeskládaly celou
+                 * kartu i s polem — při nahrávání po celou dobu nahrávky (změřeno Perfettem).
+                 */
+                /*
+                 * Tvar nese stav: mikrofon (klidový stav prázdného pole) je „sušenka" z M3 Expressive,
+                 * odeslání a uložení úpravy kruh. Změna se animuje morfem mezi nimi a ikona se vymění
+                 * zvětšením. Tlačítko se mění samo od sebe (začne se psát, pole se vyprázdní) a skoková
+                 * výměna ikony se dala přehlédnout — a ťuknout pak na mikrofon místo odeslání.
+                 * Stav se tak pozná i bez ikony a barvy, třeba koutkem oka nebo na slunci.
+                 */
+                // Pružina přestřelí za oba konce; mimo 0..1 by se tvar zdeformoval.
+                val morphProgress = animateMorph(
+                    kind == SendButtonKind.Mic || kind == SendButtonKind.Camera,
+                    "send-button-shape",
+                ).coerceIn(0f, 1f)
+
+                /*
+                 * Při nahrávání tlačítko DÝCHÁ: pomalý morf kruh ↔ SoftBurst. Tečka v pruhu nahrávání
+                 * už nebliká — dva blikající prvky vedle sebe by byly šum — a živost nese tlačítko,
+                 * kterým se nahrávání i odesílá.
+                 */
+                val breathing = if (isRecording) {
+                    rememberInfiniteTransition(label = "recording-breath").animateFloat(
+                        initialValue = 0f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(tween(RECORDING_BREATH_MS), RepeatMode.Reverse),
+                        label = "recording-breath-progress",
+                    ).value
+                } else {
+                    0f
+                }
+
+                /*
+                 * Barva říká, ČEHO se akce týká: text jde `primary` (jako odchozí bublina), hlas
+                 * `tertiary`. Hlasovka je doplňková cesta vedle psaní, a terciární role je v M3
+                 * přesně na to — tlačítko je pak stejně výrazné jako odeslání textu (obojí je plná
+                 * role, ne tonální), jen se pozná, že udělá něco jiného.
+                 *
+                 * Dřív byl mikrofon tonální `secondaryContainer`, tedy „klidový stav prázdného pole".
+                 * Jenže tím bylo tlačítko v prázdném poli to nejméně nápadné na obrazovce, přestože
+                 * je to jediná akce, která se z prázdného pole dá udělat.
+                 *
+                 * Nahrávání a mikrofon mají barvu STEJNOU: mezi „můžu nahrát" a „nahrávám" rozhoduje
+                 * tvar (sušenka ↔ dýchající SoftBurst), vlnka karty a pruh s časem. Přebarvit k tomu
+                 * ještě tlačítko by byl čtvrtý signál pro jednu změnu.
+                 */
+                // Kolečko je taky nahrávka, takže nese tutéž terciární roli jako hlas.
+                val voiceButton = kind == SendButtonKind.Mic || kind == SendButtonKind.Camera ||
+                    kind == SendButtonKind.SendVoice
+                val colorSpec = MaterialTheme.motionScheme.slowEffectsSpec<Color>()
+                val containerColor by animateColorAsState(
+                    targetValue = if (voiceButton) {
+                        MaterialTheme.colorScheme.tertiary
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                    animationSpec = colorSpec,
+                    label = "send-button-container",
+                )
+                val contentColor by animateColorAsState(
+                    targetValue = if (voiceButton) {
+                        MaterialTheme.colorScheme.onTertiary
+                    } else {
+                        MaterialTheme.colorScheme.onPrimary
+                    },
+                    animationSpec = colorSpec,
+                    label = "send-button-content",
+                )
+
+                // Kruh (odeslání) se při stisku mění podle M3 Expressive na zaoblený čtverec.
+                // Sušenka a tvary během přechodu stisk nemění: mezi obecnými tvary IconButton
+                // neanimuje a skok by vypadal jako chyba.
+                val buttonShapes = if (breathing > 0f) {
+                    val shape = MorphShape(ShapeMorphs.Live, breathing, rotation = RECORDING_BREATH_ROTATION)
+                    IconButtonShapes(shape = shape, pressedShape = shape)
+                } else if (morphProgress > 0f) {
+                    val shape = MorphShape(ShapeMorphs.Rest, morphProgress, rotation = ShapeMorphs.REST_ROTATION)
+                    IconButtonShapes(shape = shape, pressedShape = shape)
+                } else {
+                    IconButtonDefaults.shapes(
+                        shape = IconButtonDefaults.mediumRoundShape,
+                        pressedShape = IconButtonDefaults.mediumPressedShape,
+                    )
+                }
                 FilledIconButton(
                     onClick = {
                         when {
