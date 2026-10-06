@@ -666,7 +666,7 @@ internal fun liveLocationUntil(sentAt: Int, livePeriod: Int): Long =
     if (livePeriod == LIVE_FOREVER) Long.MAX_VALUE else sentAt.toLong() + livePeriod
 
 /** `livePeriod` živé polohy sdílené bez konce. */
-private const val LIVE_FOREVER = 0x7FFFFFFF
+const val LIVE_FOREVER: Int = 0x7FFFFFFF
 
 private fun MessageDice.diceText(): String = if (value > 0) "$emoji $value" else emoji
 

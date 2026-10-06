@@ -25,3 +25,10 @@ expect fun rememberDeviceLocation(precise: Boolean = false): DeviceLocation
 
 /** Déle se na polohu nečeká — hledání míst pak zůstane bez ní. */
 internal const val LOCATION_TIMEOUT_MS = 10_000L
+
+/**
+ * Umí platforma posouvat živou polohu, i když je aplikace na pozadí? Android ano (služba
+ * v popředí), iOS zatím ne — bez `allowsBackgroundLocationUpdates` by se poloha zastavila hned,
+ * jak uživatel aplikaci opustí, a sdílení by klamalo.
+ */
+expect val liveLocationSharingSupported: Boolean

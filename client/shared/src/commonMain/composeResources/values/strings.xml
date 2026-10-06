@@ -2077,4 +2077,24 @@
     <string name="story_unavailable">This story is no longer available</string>
     <string name="story_live">Live stream</string>
     <string name="story_live_unsupported">Live streams can only be watched in the official Telegram app for now.</string>
+    <string name="location_live_share">Share live location</string>
+    <string name="location_live_share_hint">Keeps updating until you stop it</string>
+    <string name="location_live_period_title">Share live location for…</string>
+    <string name="location_live_period_body">Your location will keep updating even when the app is closed. Stop it from the notification or from the message.</string>
+    <string name="location_live_period_15m">15 minutes</string>
+    <string name="location_live_period_1h">1 hour</string>
+    <string name="location_live_period_8h">8 hours</string>
+    <string name="location_live_period_forever">Until I turn it off</string>
+    <string name="location_live_unavailable">Couldn't get your location. Allow location access and try again.</string>
+    <string name="location_live_stop">Stop sharing</string>
+    <string name="location_live_stop_failed">Couldn't stop sharing the location.</string>
+    <string name="live_location_notification_title">Sharing your live location</string>
+    <plurals name="live_location_notification_chats">
+        <item quantity="one">With %1$d chat</item>
+        <item quantity="other">With %1$d chats</item>
+    </plurals>
+    <string name="live_location_notification_stop">Stop</string>
+    <string name="notification_channel_live_location">Live location</string>
+    <string name="notification_channel_live_location_description">Shown while your location is being shared</string>
+    <string name="location_live_forever">Shared with no time limit</string>
 </resources>

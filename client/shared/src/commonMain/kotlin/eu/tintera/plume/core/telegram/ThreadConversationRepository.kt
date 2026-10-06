@@ -171,6 +171,14 @@ class ThreadConversationRepository(
         quote: ReplyQuote?,
     ): Result<ChatMessage> = delegate.sendLocation(chatId, place, reply(replyToMessageId), quote)
 
+    override suspend fun sendLiveLocation(
+        chatId: Long,
+        fix: LiveFix,
+        livePeriod: Int,
+        replyToMessageId: Long?,
+        quote: ReplyQuote?,
+    ): Result<ChatMessage> = delegate.sendLiveLocation(chatId, fix, livePeriod, reply(replyToMessageId), quote)
+
     override suspend fun sendContact(
         chatId: Long,
         userId: Long,

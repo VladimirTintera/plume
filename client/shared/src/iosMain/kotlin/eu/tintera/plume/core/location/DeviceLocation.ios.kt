@@ -83,3 +83,5 @@ private class IosDeviceLocation(precise: Boolean) : DeviceLocation {
         callback(point)
     }
 }
+
+actual val liveLocationSharingSupported: Boolean = false

@@ -126,6 +126,10 @@ import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.GifItem
 import eu.tintera.plume.core.telegram.OutgoingAnimation
 import eu.tintera.plume.core.telegram.Place
+import eu.tintera.plume.resources.location_live_stop_failed
+import eu.tintera.plume.resources.location_live_unavailable
+import eu.tintera.plume.core.telegram.LiveLocationRepository
+import eu.tintera.plume.core.telegram.LiveFix
 import eu.tintera.plume.core.telegram.PlaceRepository
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.Presence
@@ -322,6 +326,8 @@ class ConversationViewModel(
     /** Jen kvůli pruhu s čekajícími žádostmi o vstup (vidí ho správce, který je smí vyřizovat). */
     private val inviteLinks: InviteLinkRepository,
     proxies: ProxyRepository,
+    /** Sdílení živé polohy: zastavení z bubliny. Posouvá ji platforma (služba), ne konverzace. */
+    private val liveLocations: LiveLocationRepository,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -1404,6 +1410,32 @@ class ConversationViewModel(
         if (!_state.value.canWrite || _state.value.editing != null) return
         sendMedia(Res.string.conversation_location_send_failed) { replyTo, quote ->
             repository.sendLocation(chatId, place, replyTo, quote)
+        }
+    }
+
+    /**
+     * Začne sdílet živou polohu na [livePeriod] sekund (nebo „dokud nevypnu"), z polohy [point],
+     * kterou už zjistila obrazovka. Další polohy posílá platforma ([LiveLocationRepository]
+     * zprávu uvidí v seznamu aktivních a služba se spustí). `null` = poloha nedovolená nebo
+     * nezjištěná — musí to být vidět, jinak by volba vypadala, že nic neudělala.
+     */
+    fun shareLiveLocation(point: GeoPoint?, livePeriod: Int) {
+        if (!_state.value.canWrite || _state.value.editing != null) return
+        if (point == null) {
+            _state.update { it.copy(notice = UiText(Res.string.location_live_unavailable)) }
+            return
+        }
+        sendMedia(Res.string.conversation_location_send_failed) { replyTo, quote ->
+            repository.sendLiveLocation(chatId, LiveFix(point.latitude, point.longitude), livePeriod, replyTo, quote)
+        }
+    }
+
+    /** „Zastavit sdílení" pod vlastní živou polohou. Potvrzení přijde úpravou zprávy. */
+    private fun stopLiveLocation(messageId: Long) {
+        viewModelScope.launch {
+            liveLocations.stop(chatId, messageId).onFailure { failure ->
+                _state.update { it.copy(error = failure.reported(Res.string.location_live_stop_failed)) }
+            }
         }
     }
 
@@ -3478,6 +3510,7 @@ class ConversationViewModel(
             is MessageAction.OpenMention -> openMentioned { chatRepository.chatByUsername(action.username) }
             is MessageAction.OpenUser -> openMentioned { chatRepository.privateChat(action.userId) }
             MessageAction.AddContact -> addSharedContact(messageId)
+            MessageAction.StopLiveLocation -> stopLiveLocation(messageId)
             is MessageAction.OpenChat -> openMentioned { Result.success(action.chatId) }
             MessageAction.ShowGiveaway -> showGiveaway(messageId)
             is MessageAction.SendBotCommand -> sendBotCommand(action.command)

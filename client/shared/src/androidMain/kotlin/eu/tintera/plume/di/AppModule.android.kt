@@ -10,6 +10,7 @@ import eu.tintera.plume.core.ui.AndroidSquarePhoto
 import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.audio.AudioEngine
 import eu.tintera.plume.core.audio.MusicControls
+import eu.tintera.plume.core.location.LiveLocationControls
 import eu.tintera.plume.core.audio.EarSensor
 import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.files.FileOpener
@@ -73,6 +74,10 @@ actual fun Module.platformModule() {
     // Hudba na pozadí: spustí službu s MediaSession, když začne hrát skladba.
     single(createdAtStart = true) {
         MusicControls(androidContext(), queue = get(), scope = get(named(APP_SCOPE))).also { it.start() }
+    }
+    // Sdílení živé polohy: spustí službu, když je co posouvat a aplikace je v popředí.
+    single(createdAtStart = true) {
+        LiveLocationControls(androidContext(), repository = get(), foreground = get(), scope = get(named(APP_SCOPE))).also { it.start() }
     }
 
     // `filesDir`, ne cache: nastavení se nesmí ztratit, když systém uklízí místo.

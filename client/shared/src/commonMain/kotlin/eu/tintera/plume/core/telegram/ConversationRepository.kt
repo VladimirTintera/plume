@@ -524,6 +524,19 @@ interface ConversationRepository {
     ): Result<ChatMessage>
 
     /**
+     * Začne sdílet živou polohu: zpráva s [fix] na [livePeriod] sekund (nebo [LIVE_FOREVER]).
+     * Další polohy do ní posílá [LiveLocationRepository] — zpráva se tím objeví v jeho seznamu
+     * aktivních. Vrací rozepsanou zprávu hned jako [send].
+     */
+    suspend fun sendLiveLocation(
+        chatId: Long,
+        fix: LiveFix,
+        livePeriod: Int,
+        replyToMessageId: Long?,
+        quote: ReplyQuote? = null,
+    ): Result<ChatMessage>
+
+    /**
      * Odešle GIF z výběru — soubor, který na serveru už je, takže se nic nenahrává. GIF se
      * zároveň zařadí na začátek uložených, jako samolepka mezi nedávné. [options] jako
      * u [sendSticker].

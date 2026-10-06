@@ -22,6 +22,10 @@
     <!-- Stahování modelu Gemma (gigabajty) jako úloha WorkManageru se službou v popředí
          (ModelDownloadWorker). Typ dataSync Play taky chce vysvětlit v deklaraci služeb v popředí. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- Sdílení živé polohy: služba v popředí typu location (LiveLocationService). Spouští se jen
+         z popředí, takže oprávnění k poloze NA POZADÍ potřeba není. Play typ chce vysvětlit
+         v deklaraci služeb v popředí, jako mediaPlayback a dataSync. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <!-- Uložení fotky a videa do galerie. Od Androidu 10 zapisuje MediaStore bez oprávnění. -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
@@ -172,6 +176,12 @@
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
+
+        <!-- Sdílení živé polohy (LiveLocationService v :client:shared). -->
+        <service
+            android:name="eu.tintera.plume.core.location.LiveLocationService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
         <!-- Služba v popředí, kterou WorkManager spouští pro dlouhé úlohy. Od Androidu 14 musí
              mít typ v manifestu; jediná taková úloha je stahování modelu (dataSync). -->
