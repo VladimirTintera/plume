@@ -7846,6 +7846,9 @@ zmínky, hashtagy, příkazy, spoiler, vlastní emoji, datum.
     (`{"id":"p1","media":{"type":"photo","media":"attach://f1"}}`, multipart s `f1=@…`). Obrázek
     adresou (`![](https://…)`) server odmítne (`RICH_MESSAGE_PHOTO_NO_MEDIA_FOUND`) a stažení
     z Wikimedie selhalo (`failed to get HTTP URL content`); obrázky se proto vyrábějí lokálně.
+  - **Zvuk a soubory článků v záložkách Soubory a Hudba profilu nejsou — TDLib je tam nevrací**
+    (ověřeno sondou: hledání s `SearchMessagesFilterDocument` / `Audio` vrátilo jen starší
+    zprávy, žádný článek). U Médií je vrací, proto tam dlaždice z článků jsou.
   - **Useknutý článek vyrobí dlouhý text**: 39 odstavců po ~320 znacích (~12 700) TDLib poslal
     s `isFull = false` a 8 224 znaky.
   - **Hlasovka má v `rich_message.media` typ `voice_note`** (jako `InputMediaVoiceNote`);
@@ -9766,6 +9769,27 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   zaoblením krajních položek; **nevratná akce má skupinu vlastní a chybovou barvu**
   (`MenuAction.destructive`), co k sobě patří, je v jedné. Nabídka s výběrem (období v hledání)
   bere položky s `checked` — vybraná je zaškrtnutá.
+
+### Omezené rozostření
+
+Mléčné sklo v konverzaci, závoj pod nabídkou nad zprávou a pozadí prohlížeče se nerozostřují,
+když to systém nechce (`LocalBackgroundBlurAllowed`, `rememberBackgroundBlurAllowed` v `core/ui`);
+Haze pak kreslí náhradní tónování, jako na Androidu 11.
+
+- **Android: volba Přístupnost → Barvy a pohyb → „Omezit efekty rozmazání"** (Android 16 QPR2)
+  zapisuje `Settings.Global.disable_window_blurs = 1` a aplikace se to dozví veřejným API
+  `WindowManager.isCrossWindowBlurEnabled` / `addCrossWindowBlurEnabledListener` (od Androidu 12).
+  Totéž hlásí úspora baterie a vývojářská volba rozostření oken. Zjištěno porovnáním
+  `settings list` před přepnutím a po něm; `dumpsys window | grep mBlurEnabled` stav ukáže.
+- **iOS: „Omezit průhlednost"** (`UIAccessibilityIsReduceTransparencyEnabled` a oznámení o změně).
+  Jen přeložené.
+- **Styl rozostření jen VYPÍNÁ** (`if (!blur) blurEnabled(false)`). `blurEnabled(true)` by přebil
+  výchozí hodnotu Haze, která rozostření pod Androidem 12 sama vypíná.
+- **Spoiler a citlivý obsah se rozostřují dál** — rozostření tam obsah skrývá, není to ozdoba
+  pozadí, na kterou volba míří.
+- **Ověřeno na emulátoru (Android 17)**: s volbou závoj nabídky jen ztmavuje (hrany za ním
+  ostré), po `settings put global disable_window_blurs 0` za běhu se rozostření vrátí bez
+  restartu. Původní stav emulátoru je klíč BEZ hodnoty (`settings delete`), ne nula.
 
 ### Typografie
 

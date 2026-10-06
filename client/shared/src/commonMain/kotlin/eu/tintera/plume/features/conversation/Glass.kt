@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.HazeColorEffect
+import eu.tintera.plume.core.ui.LocalBackgroundBlurAllowed
 
 /**
  * Mléčné sklo nad seznamem zpráv: pás pod vstupním polem, pruh připnutých zpráv a plovoucí datum.
@@ -24,13 +25,18 @@ import dev.chrisbanes.haze.blur.HazeColorEffect
  */
 @Composable
 internal fun glassStyle(color: Color, alpha: Float, fallbackAlpha: Float): HazeBlurStyle =
-    remember(color, alpha, fallbackAlpha) {
-        HazeBlurStyle {
-            colorEffects(listOf(HazeColorEffect.tint(color.copy(alpha = alpha))))
-            blurRadius(GLASS_BLUR_RADIUS)
-            noiseFactor(0f)
-            // Kde rozostření není (Android 11 a starší), zůstane dřívější krycí plocha.
-            fallbackColorEffect(HazeColorEffect.tint(color.copy(alpha = fallbackAlpha)))
+    LocalBackgroundBlurAllowed.current.let { blur ->
+        remember(color, alpha, fallbackAlpha, blur) {
+            HazeBlurStyle {
+                // Systém rozostření nechce („Omezit efekty rozmazání") — kreslí se náhradní plocha.
+                // Jen vypnout: zapnuté rozostření rozhoduje Haze sám (pod Androidem 12 ho nemá).
+                if (!blur) blurEnabled(false)
+                colorEffects(listOf(HazeColorEffect.tint(color.copy(alpha = alpha))))
+                blurRadius(GLASS_BLUR_RADIUS)
+                noiseFactor(0f)
+                // Kde rozostření není (Android 11 a starší), zůstane dřívější krycí plocha.
+                fallbackColorEffect(HazeColorEffect.tint(color.copy(alpha = fallbackAlpha)))
+            }
         }
     }
 

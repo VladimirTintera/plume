@@ -217,8 +217,8 @@ konverzace"). Zbývá:
 - **Změřit plynulost na zařízení**, hlavně na slabším s Androidem 12. Na emulátoru to nejde:
   `dumpsys gfxinfo` hlásí 98 % zadrhnutých snímků i v seznamu chatů BEZ skla, takže se tím měří
   hostitel, ne naše změna.
-- **Respektovat systémové „omezit rozostření"** (Android 16 QPR) — jak se to aplikaci hlásí,
-  zatím nevíme.
+- ~~**Respektovat systémové „omezit rozostření"**~~ — hotovo (`WindowManager.isCrossWindowBlurEnabled`,
+  na iOS „Omezit průhlednost"; `CLAUDE.md`, „Omezené rozostření").
 - **Sklo i jinde**: hlavička konverzace a hlavička seznamu chatů jsou taky plochy, pod které
   obsah zajíždí. Nejdřív ale ověřit cenu toho, co je hotové.
 
@@ -458,7 +458,7 @@ snadno na to uživatel narazí.
   a hra"). Zbývá animace hry a placení (hvězdy ani platby nemáme).
 - **Sdílený příběh** (`MessageStory`), **dárky, soutěže** — dnes text. Stojí na stories
   a hvězdách, které aplikace nemá; zvážit aspoň kartu s náhledem.
-- ~~**Článek** (`MessageRichMessage`)~~ — hotovo jako text s formátováním (`CLAUDE.md`, „Článek"). ~~Média článku~~ — hotovo (fotka, video a GIF na svém místě, prohlížeč) a ~~useknutý článek~~ (`isFull`, „Číst celý článek"). ~~Koláž a prezentace jako mřížka~~ a ~~fotky a videa článku v záložce Média~~ — hotovo. ~~Zvuk, hlasovka a soubor k přehrání a otevření~~ — hotovo (skladba z článku hraje jako hlasovka, ne na pozadí). Zbývá: zvuk a soubory článků v záložkách Soubory a Hudba v profilu, sbalitelné bloky a posílání článků (jen s Premium).
+- ~~**Článek** (`MessageRichMessage`)~~ — hotovo jako text s formátováním (`CLAUDE.md`, „Článek"). ~~Média článku~~ — hotovo (fotka, video a GIF na svém místě, prohlížeč) a ~~useknutý článek~~ (`isFull`, „Číst celý článek"). ~~Koláž a prezentace jako mřížka~~ a ~~fotky a videa článku v záložce Média~~ — hotovo. ~~Zvuk, hlasovka a soubor k přehrání a otevření~~ — hotovo (skladba z článku hraje jako hlasovka, ne na pozadí). Zvuk a soubory článků v záložkách Soubory a Hudba nejsou, protože je tam TDLib nevrací (ověřeno). Zbývá: sbalitelné bloky a posílání článků (jen s Premium).
 
 **Údaje o zprávě, které TDLib posílá a my zahazujeme**
 

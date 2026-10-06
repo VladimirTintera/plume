@@ -94,6 +94,7 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.HazeBlurStyle
+import eu.tintera.plume.core.ui.LocalBackgroundBlurAllowed
 import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.hazeBlur
 import eu.tintera.plume.core.ui.strayTapGuard
@@ -1155,8 +1156,12 @@ private fun menuX(anchorLeft: Dp, anchorRight: Dp, isOutgoing: Boolean, screenWi
 @Composable
 private fun scrimStyle(): HazeBlurStyle {
     val scrim = MaterialTheme.colorScheme.scrim
-    return remember(scrim) {
+    val blur = LocalBackgroundBlurAllowed.current
+    return remember(scrim, blur) {
         HazeBlurStyle {
+            // Systém rozostření nechce („Omezit efekty rozmazání") — kreslí se náhradní závoj.
+            // Jen vypnout: zapnuté rozostření rozhoduje Haze sám (pod Androidem 12 ho nemá).
+            if (!blur) blurEnabled(false)
             colorEffects(listOf(HazeColorEffect.tint(scrim.copy(alpha = SCRIM_TINT_ALPHA))))
             blurRadius(SCRIM_BLUR_RADIUS)
             noiseFactor(0f)

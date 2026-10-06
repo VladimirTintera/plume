@@ -1,5 +1,7 @@
 package eu.tintera.plume.app.root.presentation
 
+import eu.tintera.plume.core.ui.LocalBackgroundBlurAllowed
+import eu.tintera.plume.core.ui.rememberBackgroundBlurAllowed
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
@@ -64,6 +66,7 @@ fun AppTheme(
         SharedTransitionLayout {
             CompositionLocalProvider(
                 LocalSharedTransitionScope provides this,
+                LocalBackgroundBlurAllowed provides rememberBackgroundBlurAllowed(),
             ) {
                 content()
             }
