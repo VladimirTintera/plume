@@ -4217,8 +4217,8 @@ private class ScreenItemScope(
 
     override fun gatherAlpha(key: Any): Float = jumpTransition.alphaOf(key)
 
-    override fun voicePlayback(messageId: Long): VoicePlayback? =
-        voicePlayback.value?.takeIf { it.key.messageId == messageId }
+    override fun voicePlayback(messageId: Long, part: Int): VoicePlayback? =
+        voicePlayback.value?.takeIf { it.key.messageId == messageId && it.key.part == part }
 
     override fun voiceSpeed(): VoiceSpeed = voiceSpeed.value
 

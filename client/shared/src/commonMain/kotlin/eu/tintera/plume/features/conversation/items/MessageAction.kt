@@ -168,6 +168,15 @@ sealed interface MessageAction {
     /** Dočíst useknutý článek ([eu.tintera.plume.core.telegram.Article.isPartial]). */
     data object ReadFullArticle : MessageAction
 
+    /** Zvuk nebo hlasovka v článku: pustit / pozastavit; [index] je `ArticleMedia.index`. */
+    data class ToggleArticleAudio(val index: Int) : MessageAction
+
+    /** Posun zvuku v článku. */
+    data class SeekArticleAudio(val index: Int, val fraction: Float) : MessageAction
+
+    /** Soubor v článku: stáhnout a otevřít (druhé ťuknutí stahování zruší). */
+    data class OpenArticleDocument(val index: Int) : MessageAction
+
     /** Sada samolepky. Sheet nad obrazovkou — vyřizuje ji obrazovka, ne ViewModel. */
     data class OpenStickerSet(val setId: Long) : MessageAction
 

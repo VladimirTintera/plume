@@ -6,7 +6,11 @@ import dev.g000sha256.tdl.dto.PageBlock
 import dev.g000sha256.tdl.dto.PageBlockBlockQuote
 import dev.g000sha256.tdl.dto.PageBlockCaption
 import dev.g000sha256.tdl.dto.PageBlockCollage
+import dev.g000sha256.tdl.dto.Document
 import dev.g000sha256.tdl.dto.PageBlockDivider
+import dev.g000sha256.tdl.dto.PageBlockDocument
+import dev.g000sha256.tdl.dto.PageBlockVoiceNote
+import dev.g000sha256.tdl.dto.VoiceNote
 import dev.g000sha256.tdl.dto.PageBlockHeader
 import dev.g000sha256.tdl.dto.PageBlockList
 import dev.g000sha256.tdl.dto.PageBlockListItem
@@ -33,6 +37,14 @@ class RichMessageBodyTest {
         audio = "Audio",
         voice = "Hlasovka",
         file = "Soubor",
+    )
+
+    private fun file(fileId: Int) = File(
+        id = fileId,
+        size = 1,
+        expectedSize = 1,
+        local = LocalFile("", true, false, false, false, 0, 0, 0),
+        remote = RemoteFile("r$fileId", "u$fileId", false, true, 1),
     )
 
     /** Fotka, jak ji TDLib posílá: jedna velikost se souborem [fileId]. */
@@ -197,5 +209,19 @@ class RichMessageBodyTest {
         )
         assertEquals(listOf(null, 0, 0, 1), result.article!!.media.map { it.group })
         assertEquals("[Fotka]\n[Fotka]\n[Fotka]\nKoláž\n[Fotka]", result.text)
+    }
+
+    @Test
+    fun souborAHlasovkaMajiKotvuANazevSouboruNeniPopisek() {
+        val result = body(
+            PageBlockDocument(Document("zprava.pdf", "application/pdf", null, null, file(5)), null),
+            PageBlockVoiceNote(VoiceNote(3, ByteArray(0), "audio/ogg", null, file(6)), PageBlockCaption(plain("Vzkaz"), plain(""))),
+        )
+        // Název souboru nese řádek souboru v bublině; jako popisek by tam byl dvakrát.
+        assertEquals("[Soubor]\n[Hlasovka] Vzkaz", result.text)
+        val media = result.article!!.media
+        assertEquals("zprava.pdf", (media[0].media as MessageMedia.Document).fileName)
+        assertEquals(6, (media[1].media as MessageMedia.VoiceNote).fileId)
+        assertEquals(listOf(0, 1), media.map { it.index })
     }
 }
