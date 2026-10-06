@@ -422,12 +422,12 @@ celou aplikaci a rozdělený na dvě místa by se rozešel. Zbývá:
 Nápady na doladění vzhledu; nic z toho zatím nikdo nezačal. Navazují na slovník, který
 aplikace už má (`CLAUDE.md`, „Material 3 / vzhled" a `ShapeMorphs`): tvar nese stav, vlnka
 znamená „teď zní", terciární role „živé". Seřazené od nejlepšího poměru přínosu a práce.
-Na začátek se hodí **FAB menu**, **vlnitý posuvník videa** a **tvary tlačítek při stisku**.
+Hotové jsou FAB menu, vlnitý posuvník videa a tvary tlačítek při stisku (poučení v `CLAUDE.md`).
 
 **Malé**
 
-- **Tlačítka v hlavičkách měknou při stisku** (`IconButtonDefaults.shapes()`: kruh → zaoblený
-  čtverec). Dnes to umí jen odesílací tlačítko; zpět, lupa i ⋮ se chovají postaru.
+- ~~**Tlačítka v hlavičkách měknou při stisku**~~ — hotovo pro všechna tlačítka s ikonou
+  (`IconButtonDefaults.shapes()`, VladimirTintera/telegram#498).
 - **Počet nepřečtených se přetočí** — odznak v seznamu chatů i počet na tlačítku dolů
   (`AnimatedContent` se svislým posunem, tabulkové číslice). Teď se číslo jen vymění a změnu
   skoro nejde postřehnout.
@@ -436,11 +436,9 @@ Na začátek se hodí **FAB menu**, **vlnitý posuvník videa** a **tvary tlač�
 
 **Střední**
 
-- **FAB „Nová zpráva" jako `FloatingActionButtonMenu`**: rozbalí se na Novou zprávu, Novou
-  skupinu, Nový kanál a Kontakty a sám se promění v ✕. Skupina a kanál jsou dnes jen řádky na
-  obrazovce Nové zprávy.
-- **Vlnitý posuvník videa, dokud hraje** (jako systémový přehrávač médií), po pozastavení
-  rovný. Tentýž význam jako vlnka hrající hlasovky.
+- ~~**FAB „Nová zpráva" jako `FloatingActionButtonMenu`**~~ — hotovo: Nová zpráva, Nová
+  skupina a Nový kanál (Kontakty ne — Nová zpráva je seznam kontaktů), VladimirTintera/telegram#496.
+- ~~**Vlnitý posuvník videa, dokud hraje**~~ — hotovo (VladimirTintera/telegram#497).
 - **Tvarová odezva na prahu tahu.** U archivace podklad ikony naroste z kolečka do sušenky ve
   chvíli, kdy se ozve haptika `threshold`; u odpovědi tahem se šipka v kolečku vyplní. Dnes
   práh ohlašuje jen vibrace.
