@@ -54,6 +54,8 @@ import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.SpamActions
 import eu.tintera.plume.core.telegram.isPrivate
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.chats_reorder_pinned
+import eu.tintera.plume.resources.drag_indicator_24dp
 import eu.tintera.plume.resources.chats_sponsor_announcement_explanation
 import eu.tintera.plume.resources.chats_sponsor_hide
 import eu.tintera.plume.resources.chats_sponsor_open_proxy
@@ -97,6 +99,11 @@ fun ChatActionsSheet(
     /** Co nabídnout proti spamu; `null`, dokud to nedorazí ze serveru — pak se nenabízí nic. */
     spam: SpamActions?,
     onTogglePinned: () -> Unit,
+    /**
+     * Režim uspořádání připnutých; `null` = nenabízet (chat není připnutý, nebo není s čím ho
+     * přeskládat).
+     */
+    onReorderPinned: (() -> Unit)?,
     /** Ztlumení na dobu; `null` = navždy. */
     onMute: (Duration?) -> Unit,
     onUnmute: () -> Unit,
@@ -175,6 +182,16 @@ fun ChatActionsSheet(
                     shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
                     onClick = onTogglePinned,
                 )
+
+                // Pod „Odepnout": pořadí připnutých je vlastnost téže věci.
+                if (chat.isPinned && onReorderPinned != null) {
+                    SheetActionRow(
+                        icon = Res.drawable.drag_indicator_24dp,
+                        label = stringResource(Res.string.chats_reorder_pinned),
+                        shape = RoundedCornerShape(4.dp),
+                        onClick = onReorderPinned,
+                    )
+                }
 
                 if (chat.isMuted) {
                     SheetActionRow(

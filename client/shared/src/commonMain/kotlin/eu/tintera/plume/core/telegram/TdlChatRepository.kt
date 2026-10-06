@@ -567,6 +567,9 @@ class TdlChatRepository(
             .toResult()
             .map { }
 
+    override suspend fun setPinnedOrder(folder: ChatFolder, chatIds: List<Long>): Result<Unit> =
+        client.setPinnedChats(chatList = folder.toChatList(), chatIds = chatIds.toLongArray()).toResult().map { }
+
     /**
      * `addChatToList` chat do cílové složky PŘESUNE: hlavní seznam a archiv se vylučují, takže
      * TDLib z té druhé pošle odebrání samo (`UpdateChatPosition` s nulovým `order`).

@@ -216,6 +216,15 @@ interface ChatRepository {
     suspend fun setPinned(chatId: Long, folder: ChatFolder, pinned: Boolean): Result<Unit>
 
     /**
+     * Nové pořadí připnutých chatů ve složce, jedním voláním (`setPinnedChats`).
+     *
+     * **[chatIds] musí být VŠECHNY připnuté chaty složky**: TDLib bere seznam jako nový stav
+     * připnutých, ne jako přeskládání — chat, který v něm chybí, by odepnul. Nové pořadí přijde
+     * zpátky updaty pozic, seznam chatů se přeskládá sám.
+     */
+    suspend fun setPinnedOrder(folder: ChatFolder, chatIds: List<Long>): Result<Unit>
+
+    /**
      * Přesune chat do archivu nebo z něj zpátky do hlavního seznamu. Vratné, takže bez potvrzení.
      * Uložené zprávy archivovat nejdou (TDLib to odmítne), nabídka je proto u nich nemá.
      */
