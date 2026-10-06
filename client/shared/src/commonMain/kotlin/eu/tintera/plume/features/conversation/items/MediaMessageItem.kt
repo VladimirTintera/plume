@@ -101,7 +101,7 @@ internal data class MediaMessageItem(
                     if (hasCaption) {
                         BubbleSurface {
                             PaddedColumn {
-                                location?.let { LocationDetails(it, color = onBubbleColor, onStop = stopLiveLocation()) }
+                                location?.let { LocationDetails(it, color = onBubbleColor, onStop = stopLiveLocation(), onProximityAlert = setProximityAlert()) }
                                 story?.let { StoryDetails(it, color = onBubbleColor) }
                                 document?.let { DocumentCaption(it, color = onBubbleColor) }
                                 if (message.text.isNotBlank()) MessageText(linkColor = accent)

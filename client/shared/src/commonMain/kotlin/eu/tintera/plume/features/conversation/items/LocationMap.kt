@@ -2,8 +2,10 @@ package eu.tintera.plume.features.conversation.items
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -29,6 +31,8 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.StaticMap
 import eu.tintera.plume.core.ui.asUpcomingTime
+import eu.tintera.plume.core.ui.distanceUiText
+import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.content_live_location
 import eu.tintera.plume.resources.location_live_ended
@@ -37,6 +41,10 @@ import eu.tintera.plume.resources.location_live_stop
 import eu.tintera.plume.resources.location_off_24dp
 import eu.tintera.plume.resources.location_live_until
 import eu.tintera.plume.resources.media_map
+import eu.tintera.plume.resources.location_proximity_on
+import eu.tintera.plume.resources.location_proximity_set
+import eu.tintera.plume.resources.notifications_24dp
+import org.jetbrains.compose.resources.DrawableResource
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.delay
@@ -86,6 +94,17 @@ internal fun LocationMap(
 internal fun MessageBodyScope.stopLiveLocation(): (() -> Unit)? =
     if (message.isOutgoing && message.isLiveLocation) { { act(MessageAction.StopLiveLocation) } } else null
 
+/**
+ * „Upozornit na blízkost" jen u vlastní živé polohy tam, kde ji TDLib dovolí
+ * ([MessageMedia.Location.proximityAlertRadius] není `null`).
+ */
+internal fun MessageBodyScope.setProximityAlert(): (() -> Unit)? =
+    if (message.isLiveLocation && (message.media as? MessageMedia.Location)?.proximityAlertRadius != null) {
+        { act(MessageAction.SetProximityAlert) }
+    } else {
+        null
+    }
+
 /** Ťuknutí na mapu otevře polohu v mapách platformy. */
 internal val MessageMedia.Location.mapUrl: String get() = mapsUrl(latitude, longitude)
 
@@ -124,7 +143,9 @@ internal fun rememberLiveSharing(location: MessageMedia.Location): Boolean {
 /**
  * Název a adresa místa pod mapou; u živé polohy do kdy se sdílí. U VLASTNÍ živé polohy, která
  * ještě běží, i „Zastavit sdílení" ([onStop]) — jinak by šlo sdílení ukončit jen z notifikace,
- * a ta zastaví všechno naráz.
+ * a ta zastaví všechno naráz — a upozornění na blízkost ([onProximityAlert]). To nese
+ * nastavenou vzdálenost přímo v popisku („Upozorním do 500 m"): jinak by nebylo poznat, že je
+ * zapnuté, a vypnout ho by chtělo otevřít dialog jen kvůli tomu.
  */
 @Composable
 internal fun LocationDetails(
@@ -132,6 +153,7 @@ internal fun LocationDetails(
     color: Color,
     modifier: Modifier = Modifier,
     onStop: (() -> Unit)? = null,
+    onProximityAlert: (() -> Unit)? = null,
 ) {
     val title = location.title ?: if (location.isLive) stringResource(Res.string.content_live_location) else null
     val sharing = rememberLiveSharing(location)
@@ -161,16 +183,39 @@ internal fun LocationDetails(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        if (onStop != null && sharing) {
-            TextButton(
-                onClick = onStop,
-                colors = ButtonDefaults.textButtonColors(contentColor = color),
-                contentPadding = PaddingValues(horizontal = 0.dp),
-            ) {
-                Icon(painterResource(Res.drawable.location_off_24dp), contentDescription = null, modifier = Modifier.size(18.dp))
-                Text(stringResource(Res.string.location_live_stop), modifier = Modifier.padding(start = 8.dp))
+        if (sharing && (onStop != null || onProximityAlert != null)) {
+            // Dvě tlačítka se na šířku mapy vedle sebe česky nevejdou, druhé pak přejde pod první.
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                onProximityAlert?.let { open ->
+                    val radius = location.proximityAlertRadius ?: 0
+                    DetailsAction(
+                        icon = Res.drawable.notifications_24dp,
+                        label = if (radius > 0) {
+                            stringResource(Res.string.location_proximity_on, distanceUiText(radius).resolve())
+                        } else {
+                            stringResource(Res.string.location_proximity_set)
+                        },
+                        color = color,
+                        onClick = open,
+                    )
+                }
+                onStop?.let {
+                    DetailsAction(Res.drawable.location_off_24dp, stringResource(Res.string.location_live_stop), color, it)
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun DetailsAction(icon: DrawableResource, label: String, color: Color, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        colors = ButtonDefaults.textButtonColors(contentColor = color),
+        contentPadding = PaddingValues(horizontal = 0.dp),
+    ) {
+        Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(18.dp))
+        Text(label, modifier = Modifier.padding(start = 8.dp))
     }
 }
 

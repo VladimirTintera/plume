@@ -4,6 +4,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.material3.RadioButton
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -13,6 +18,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.LIVE_FOREVER
 import eu.tintera.plume.core.telegram.LIVE_LOCATION_PERIODS
+import eu.tintera.plume.core.telegram.PROXIMITY_ALERT_RADII
+import eu.tintera.plume.core.ui.distanceUiText
+import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.location_live_period_15m
@@ -21,6 +29,9 @@ import eu.tintera.plume.resources.location_live_period_8h
 import eu.tintera.plume.resources.location_live_period_body
 import eu.tintera.plume.resources.location_live_period_forever
 import eu.tintera.plume.resources.location_live_period_title
+import eu.tintera.plume.resources.location_proximity_body
+import eu.tintera.plume.resources.location_proximity_off
+import eu.tintera.plume.resources.location_proximity_title
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -59,6 +70,48 @@ internal fun LiveLocationPeriodDialog(onPick: (Int) -> Unit, onDismiss: () -> Un
             }
         },
         confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+    )
+}
+
+/**
+ * Do jaké vzdálenosti upozornit, až se někdo z chatu přiblíží ([PROXIMITY_ALERT_RADII]).
+ * Nastavená vzdálenost je označená a „Vypnout upozornění" je jen u zapnutého — u vypnutého
+ * by nic nedělalo. Vlastní poloměr z jiného klienta (třeba 300 m) se do voleb zařadí, ať je
+ * vidět, co platí.
+ */
+@Composable
+internal fun ProximityAlertDialog(currentRadius: Int, onPick: (Int) -> Unit, onDismiss: () -> Unit) {
+    val radii = (PROXIMITY_ALERT_RADII + listOfNotNull(currentRadius.takeIf { it > 0 })).distinct().sorted()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.location_proximity_title)) },
+        text = {
+            Column {
+                Text(stringResource(Res.string.location_proximity_body), modifier = Modifier.padding(bottom = 8.dp))
+                radii.forEach { radius ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(selected = radius == currentRadius, role = Role.RadioButton) { onPick(radius) }
+                            .padding(vertical = 4.dp),
+                    ) {
+                        RadioButton(selected = radius == currentRadius, onClick = null)
+                        Text(
+                            text = distanceUiText(radius).resolve(),
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(start = 16.dp),
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (currentRadius > 0) {
+                TextButton(onClick = { onPick(0) }) { Text(stringResource(Res.string.location_proximity_off)) }
+            }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }

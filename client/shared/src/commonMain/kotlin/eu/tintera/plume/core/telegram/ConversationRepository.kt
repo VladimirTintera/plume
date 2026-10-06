@@ -2199,6 +2199,12 @@ sealed interface MessageMedia {
         val liveUntil: Long = 0,
         /** Směr pohybu živé polohy ve stupních od severu po směru hodin (1–360), 0 = neznámý. */
         val heading: Int = 0,
+        /**
+         * Upozornění na blízkost u VLASTNÍ živé polohy: do kolika metrů se ozvat, když se někdo
+         * z chatu přiblíží (0 = vypnuté). `null` = nastavit nejde — cizí poloha (poloměr vidí
+         * jen odesílatel), kanál a Uložené zprávy (TDLib ho tam nepovolí).
+         */
+        val proximityAlertRadius: Int? = null,
     ) : MessageMedia {
         val isLive: Boolean get() = liveUntil != 0L
     }

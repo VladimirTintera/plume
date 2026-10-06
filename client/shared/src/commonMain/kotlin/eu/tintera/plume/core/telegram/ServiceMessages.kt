@@ -70,6 +70,7 @@ import dev.g000sha256.tdl.dto.MessageVideoChatStarted
 import dev.g000sha256.tdl.dto.MessageWebAppDataSent
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.durationUiText
+import eu.tintera.plume.core.ui.distanceUiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.service_bot_created
 import eu.tintera.plume.resources.service_bot_write_access
@@ -195,7 +196,7 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
     is MessagePinMessage -> UiText(Res.string.service_message_pinned)
     is MessageScreenshotTaken -> UiText(Res.string.service_screenshot)
     is MessageContactRegistered -> UiText(Res.string.service_contact_joined)
-    is MessageProximityAlertTriggered -> UiText(Res.string.service_nearby)
+    is MessageProximityAlertTriggered -> UiText(Res.string.service_nearby, distanceUiText(distance))
 
     is MessageVideoChatStarted -> UiText(Res.string.service_video_chat_started)
     is MessageVideoChatEnded -> UiText(Res.string.service_video_chat_ended)

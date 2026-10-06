@@ -34,6 +34,11 @@ data class ActiveLiveLocation(
     val livePeriod: Int,
     /** Konec sdílení v sekundách od epochy, [Long.MAX_VALUE] u sdílení „dokud nevypnu". */
     val until: Long,
+    /**
+     * Upozornění na blízkost v metrech, 0 = vypnuté. Posun polohy ho musí poslat ZPÁTKY, jinak
+     * by každý posun upozornění vypnul — bere se ale ze zprávy, tohle je jen záloha (viz `update`).
+     */
+    val proximityAlertRadius: Int = 0,
 )
 
 /** Poloha zařízení, jak ji hlásí platforma: s přesností v metrech a směrem pohybu (0 = neznámý). */
@@ -68,6 +73,12 @@ interface LiveLocationRepository {
     /** Posune všechny [active] zprávy na [fix]. Selhání jedné ostatní nezastaví. */
     suspend fun update(fix: LiveFix)
 
+    /**
+     * Nastaví upozornění na blízkost u vlastní živé polohy: [radiusMeters] 0 ho vypne. Poloha
+     * zůstane, kde je — bere se ze zprávy, ne ze zařízení.
+     */
+    suspend fun setProximityAlert(chatId: Long, messageId: Long, radiusMeters: Int): Result<Unit>
+
     /** Zastaví sdílení v jedné zprávě. */
     suspend fun stop(chatId: Long, messageId: Long): Result<Unit>
 
@@ -100,8 +111,14 @@ class TdlLiveLocationRepository(
 
     override suspend fun update(fix: LiveFix) {
         val now = Clock.System.now().epochSeconds
+        val client = holder.client
         list.value.filter { it.until > now }.forEach { live ->
-            holder.client.editMessageLiveLocation(
+            // Poloměr a dobu se bere ze ZPRÁVY (lokální dotaz), ne ze seznamu: server upozornění
+            // po spuštění sám vypne a `UpdateActiveLiveLocationMessages` kvůli tomu nepřijde —
+            // poloměr ze seznamu by ho dalším posunem zapnul znovu.
+            val current = (client.getMessage(chatId = live.chatId, messageId = live.messageId).toResult()
+                .getOrNull()?.content as? MessageLiveLocation)?.location
+            client.editMessageLiveLocation(
                 chatId = live.chatId,
                 messageId = live.messageId,
                 location = LiveLocation(
@@ -110,12 +127,36 @@ class TdlLiveLocationRepository(
                         longitude = fix.longitude,
                         horizontalAccuracy = fix.accuracyMeters.coerceIn(0.0, MAX_ACCURACY_METERS),
                     ),
-                    livePeriod = live.livePeriod,
+                    livePeriod = current?.livePeriod ?: live.livePeriod,
                     heading = fix.heading,
-                    proximityAlertRadius = 0,
+                    proximityAlertRadius = current?.proximityAlertRadius ?: live.proximityAlertRadius,
                 ),
             ).toResult().onFailure { failure ->
                 logger.w(failure) { "Živou polohu ${live.chatId}/${live.messageId} nejde posunout." }
+            }
+        }
+    }
+
+    override suspend fun setProximityAlert(chatId: Long, messageId: Long, radiusMeters: Int): Result<Unit> {
+        val client = holder.client
+        val content = client.getMessage(chatId = chatId, messageId = messageId).toResult()
+            .getOrElse { return Result.failure(it) }
+            .content as? MessageLiveLocation
+            ?: return Result.failure(IllegalStateException("Zpráva není živá poloha."))
+        val current = content.location
+        return client.editMessageLiveLocation(
+            chatId = chatId,
+            messageId = messageId,
+            location = LiveLocation(
+                location = current.location,
+                livePeriod = current.livePeriod,
+                heading = current.heading,
+                proximityAlertRadius = radiusMeters.coerceIn(0, MAX_PROXIMITY_ALERT_METERS),
+            ),
+        ).toResult().map { edited ->
+            val radius = (edited.content as? MessageLiveLocation)?.location?.proximityAlertRadius ?: radiusMeters
+            list.value = list.value.map {
+                if (it.chatId == chatId && it.messageId == messageId) it.copy(proximityAlertRadius = radius) else it
             }
         }
     }
@@ -146,6 +187,7 @@ internal fun activeLiveLocations(messages: List<Message>, now: Long): List<Activ
             messageId = message.id,
             livePeriod = period,
             until = liveLocationUntil(sentAt = message.date, livePeriod = period),
+            proximityAlertRadius = content.location.proximityAlertRadius,
         )
     }.filter { it.until > now }
 
@@ -154,6 +196,15 @@ internal fun activeLiveLocations(messages: List<Message>, now: Long): List<Activ
  * [LIVE_FOREVER] („dokud nevypnu").
  */
 val LIVE_LOCATION_PERIODS: List<Int> = listOf(15 * 60, 60 * 60, 8 * 60 * 60, LIVE_FOREVER)
+
+/**
+ * Vzdálenosti, na které jde upozornění na blízkost nastavit. Oficiální klienti mají kolečko
+ * po desítkách metrů; tady stačí pár voleb — rozdíl mezi 450 a 500 m nikdo neřeší.
+ */
+val PROXIMITY_ALERT_RADII: List<Int> = listOf(100, 500, 1_000, 5_000)
+
+/** TDLib bere poloměr 0–100 000 m. */
+const val MAX_PROXIMITY_ALERT_METERS: Int = 100_000
 
 /**
  * Pošle se tahle poloha? Platforma hlásí polohu po pár vteřinách, a každý posun je úprava zprávy

@@ -125,6 +125,9 @@ sealed interface MessageAction {
     /** „Zastavit sdílení" pod vlastní živou polohou. */
     data object StopLiveLocation : MessageAction
 
+    /** „Upozornit na blízkost" pod vlastní živou polohou — otevře volbu vzdálenosti. */
+    data object SetProximityAlert : MessageAction
+
     /** „Přidat do kontaktů" na kartě sdíleného kontaktu. */
     data object AddContact : MessageAction
 

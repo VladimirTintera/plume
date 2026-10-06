@@ -100,7 +100,7 @@ internal data class BubbleMessageItem(
                 message.media?.let { Attachment(media = it, accent = accent) }
             }
             (message.media as? MessageMedia.Location)?.takeIf { it.hasDetails }?.let {
-                LocationDetails(it, color = onBubbleColor, modifier = Modifier.padding(top = 6.dp), onStop = stopLiveLocation())
+                LocationDetails(it, color = onBubbleColor, modifier = Modifier.padding(top = 6.dp), onStop = stopLiveLocation(), onProximityAlert = setProximityAlert())
             }
 
             // Náhled patří nad text, když si to přál odesílatel (`showAboveText`) — mezera

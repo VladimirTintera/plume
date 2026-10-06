@@ -580,7 +580,7 @@
     <string name="service_message_pinned">Připnuta zpráva</string>
     <string name="service_screenshot">Pořízen snímek obrazovky</string>
     <string name="service_contact_joined">Kontakt se připojil k Telegramu</string>
-    <string name="service_nearby">Někdo je poblíž</string>
+    <string name="service_nearby">Upozornění na blízkost: %1$s</string>
     <string name="service_video_chat_started">Videohovor začal</string>
     <string name="service_video_chat_ended">Videohovor skončil</string>
     <string name="service_video_chat_scheduled">Videohovor naplánován</string>
@@ -2168,4 +2168,12 @@
     <string name="notification_channel_live_location">Živá poloha</string>
     <string name="notification_channel_live_location_description">Ukazuje se, dokud se sdílí tvoje poloha</string>
     <string name="location_live_forever">Sdílí se bez časového omezení</string>
+    <string name="distance_meters">%1$s&#160;m</string>
+    <string name="distance_kilometers">%1$s&#160;km</string>
+    <string name="location_proximity_set">Upozornit na blízkost</string>
+    <string name="location_proximity_on">Upozorním do %1$s</string>
+    <string name="location_proximity_title">Upozornit, až bude někdo blíž než…</string>
+    <string name="location_proximity_body">Ozvu se, až se k tobě přiblíží někdo z chatu, kdo sdílí živou polohu.</string>
+    <string name="location_proximity_off">Vypnout upozornění</string>
+    <string name="location_proximity_failed">Upozornění na blízkost nejde nastavit.</string>
 </resources>
