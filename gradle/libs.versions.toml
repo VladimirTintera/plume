@@ -77,8 +77,12 @@ litertlm = "0.11.0"
 # TDLib wrapper. Upstream TDLib dělá breaking changes i v patch verzích — proto je celý wrapper
 # schovaný za :client:shared/core/telegram a nikde jinde se jeho typy neobjevují.
 tdl = "15.0.0"
+# Hledání memory leaků v debug buildu (jen `debugImplementation` ve vstupním bodu). 3.0 je zatím
+# alpha; 2.14 je poslední stabilní.
+leakcanary = "2.14"
 
 [libraries]
+leakcanary = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakcanary" }
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "haze" }
 # --- Compose ---

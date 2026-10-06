@@ -365,6 +365,45 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
 
 ---
 
+## Výkon a paměť
+
+Nástroje a postup jsou v `CLAUDE.md` („Výkon a paměť"). První analýza (reporty Compose
+kompilátoru, LeakCanary, heap dumpy) únik nenašla. Zbylo:
+
+- **Pád při rozložení displeje se seznamem chatů.** Na emulátoru (Plume_Galerie_Fold,
+  debug, `adb emu unfold` se seznamem chatů na složeném displeji) padá aplikace při většině
+  pokusů, a to dvěma výjimkami uvnitř Compose:
+  - `IllegalStateException: visitSubtreeIf called on an unattached node`
+    (`PaddingValuesConsumingModifierNode.update` ← `LayoutNode.attach` ←
+    `CopyNodesToNewAnchorLocation`). Jde o přesun movable content, při kterém se zároveň mění
+    `consumeWindowInsets(PaddingValues)`.
+  - `NullPointerException` v `LookaheadPassDelegate.forEachChildAlignmentLinesOwner` (měření
+    `Scaffold` v lookahead průchodu, pod `AnimatedVisibility`).
+
+  Obojí ukazuje na přechod scény z jednoho panelu na list-detail, kdy NavDisplay přesouvá
+  obsah položky a zároveň běží lookahead sdílených přechodů. V historii pádů skutečného Foldu
+  to není; otestovat na něm, ověřit v release buildu, zkusit minimální reprodukci a podle
+  ní obejít v aplikaci (kde se `consumeWindowInsets(padding)` mění při změně scény) nebo
+  nahlásit do Compose.
+- **Pád na Foldu z 4. 10. (0.3.47)**: `NullPointerException … Object.getClass()` v obfuskovaném
+  kódu. Dohledat v Crashlytics (mapping je nahraný) a rozhodnout, jestli je ještě aktuální.
+- **`Minithumbnail` stabilní pro Compose.** Jediné pole s `ByteArray` dělá nestabilní
+  `ChatMessage`, všechny `MessageMedia` s náhledem a `LinkPreview`. Pole se po vzniku nemění,
+  takže stačí soubor konfigurace stability v `:client:shared` (`stabilityConfigurationFiles`)
+  s touhle jednou třídou: `core/telegram` nemá importovat Compose kvůli `@Immutable`. Pak
+  reporty pustit znovu a porovnat.
+- **Recompozice za běhu** (zbývající bod analýzy): composition tracing (`runtime-tracing`)
+  a Perfetto trace při scrollu konverzace, příchozí zprávě, „píše…" a přehrávání hlasovky.
+  Ověřit, že se neskládá celá obrazovka konverzace kvůli změnám, které se jí netýkají
+  (průběh stahování, pozice přehrávače).
+- **Plynulost a start** (zbývající bod): release build podepsaný debug klíčem na Foldu,
+  `dumpsys gfxinfo framestats` (jen seznam chatů, Uložené zprávy a Notifikátor, ať se nečtou
+  cizí zprávy) a `am start -W`. Pak zvážit Macrobenchmark a baseline profile.
+- **Native heap** rostl během testu z ~80 na ~130 MB. Ověřit delším během, jestli se ustálí
+  (TDLib, kodeky, Chromium z mini aplikace), nebo roste dál.
+
+---
+
 ## Haptika
 
 Slovník je hotový (`core/ui/Haptics.kt`: `threshold`, `confirm`, `reject`, `toggle`, `tick`)

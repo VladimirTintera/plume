@@ -30,6 +30,8 @@ dependencies {
 
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
+    // Hlídá uniklé activity, ViewModely a view roots; v release buildu není.
+    debugImplementation(libs.leakcanary)
 
     // `implementation` závislosti ze :client:shared nejsou tranzitivní — co používá vstupní bod,
     // musí být deklarované i tady.

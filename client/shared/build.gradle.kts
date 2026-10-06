@@ -221,6 +221,18 @@ kotlin {
     }
 }
 
+/**
+ * Reporty Compose kompilátoru: které composables nejdou přeskočit a které třídy jsou pro Compose
+ * nestabilní. Jen na vyžádání (`-PcomposeReports`), běžný build je nepotřebuje:
+ * `./gradlew :client:shared:compileAndroidMain -PcomposeReports`, výstup v `build/compose-reports`.
+ */
+composeCompiler {
+    if (providers.gradleProperty("composeReports").isPresent) {
+        reportsDestination.set(layout.buildDirectory.dir("compose-reports"))
+        metricsDestination.set(layout.buildDirectory.dir("compose-reports"))
+    }
+}
+
 compose.resources {
     packageOfResClass = "eu.tintera.plume.resources"
     generateResClass = always
