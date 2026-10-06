@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -103,7 +104,7 @@ internal fun ChatNoticeBarCard(
                     else -> Unit
                 }
             }
-            IconButton(onClick = onDismiss) {
+            IconButton(onClick = onDismiss, shapes = IconButtonDefaults.shapes()) {
                 Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
             }
         }

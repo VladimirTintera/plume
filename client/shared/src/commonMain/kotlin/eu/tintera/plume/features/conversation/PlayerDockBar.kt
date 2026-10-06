@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -153,11 +154,11 @@ internal fun PlayerDockBar(
                     PlaybackLine(player.label, playback)
                 }
                 if (player.hasNext) {
-                    IconButton(onClick = onNext) {
+                    IconButton(onClick = onNext, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.skip_next_24dp), contentDescription = stringResource(Res.string.player_dock_next))
                     }
                 }
-                IconButton(onClick = onStop) {
+                IconButton(onClick = onStop, shapes = IconButtonDefaults.shapes()) {
                     Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.player_dock_stop))
                 }
             }

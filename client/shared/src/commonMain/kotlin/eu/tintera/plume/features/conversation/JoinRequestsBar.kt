@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -113,7 +114,7 @@ internal fun JoinRequestsBar(
                     Text(it, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-            IconButton(onClick = onHide) {
+            IconButton(onClick = onHide, shapes = IconButtonDefaults.shapes()) {
                 Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.join_requests_bar_hide))
             }
         }

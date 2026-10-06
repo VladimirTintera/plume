@@ -15,6 +15,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Text
@@ -113,6 +114,7 @@ internal fun ChatFolderRow(
             OutlinedIconButton(
                 onClick = onAdd,
                 modifier = Modifier.padding(start = ADD_SPACING),
+                shapes = IconButtonDefaults.shapes(),
             ) {
                 Icon(painterResource(Res.drawable.add_24dp), contentDescription = stringResource(Res.string.chat_folders_add_folder))
             }

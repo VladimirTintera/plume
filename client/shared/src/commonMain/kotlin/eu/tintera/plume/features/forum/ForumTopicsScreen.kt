@@ -2,6 +2,7 @@ package eu.tintera.plume.features.forum
 
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.IconButtonDefaults
 import kotlinx.coroutines.launch
 import eu.tintera.plume.resources.visibility_24dp
 import eu.tintera.plume.resources.chats_search_clear
@@ -255,14 +256,14 @@ fun ForumTopicsScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                     }
                 },
                 actions = {
                     var expanded by remember { mutableStateOf(false) }
                     Box {
-                        IconButton(onClick = { expanded = true }) {
+                        IconButton(onClick = { expanded = true }, shapes = IconButtonDefaults.shapes()) {
                             Icon(painterResource(Res.drawable.more_vert_24dp), contentDescription = stringResource(Res.string.profile_more))
                         }
                         ExpressiveMenu(
@@ -463,7 +464,7 @@ private fun ReorderTopBar(busy: Boolean, onCancel: () -> Unit, onDone: () -> Uni
     TopAppBar(
         title = { Text(stringResource(Res.string.forum_topics_reorder_title)) },
         navigationIcon = {
-            IconButton(onClick = onCancel) {
+            IconButton(onClick = onCancel, shapes = IconButtonDefaults.shapes()) {
                 Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_cancel))
             }
         },

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.resources.add_members_refused_invite
 import eu.tintera.plume.resources.add_members_refused_text
 import eu.tintera.plume.resources.add_members_refused_text_no_link
@@ -136,7 +137,11 @@ fun CreateChatScreen(
                 TopAppBar(
                     title = { Text(stringResource(if (channel) Res.string.new_chat_new_channel else Res.string.new_chat_new_group)) },
                     navigationIcon = {
-                        IconButton(onClick = onBack, enabled = !viewModel.creating) {
+                        IconButton(
+                            onClick = onBack,
+                            enabled = !viewModel.creating,
+                            shapes = IconButtonDefaults.shapes(),
+                        ) {
                             Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                         }
                     },

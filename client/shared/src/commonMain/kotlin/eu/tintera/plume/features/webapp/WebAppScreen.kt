@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.webapp
 
 import androidx.compose.foundation.background
+import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.resources.bot_login_write_access
 import androidx.compose.ui.semantics.Role
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -154,11 +155,11 @@ fun WebAppScreen(
                 },
                 navigationIcon = {
                     if (state.backVisible) {
-                        IconButton(onClick = viewModel::back) {
+                        IconButton(onClick = viewModel::back, shapes = IconButtonDefaults.shapes()) {
                             Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                         }
                     } else {
-                        IconButton(onClick = viewModel::requestClose) {
+                        IconButton(onClick = viewModel::requestClose, shapes = IconButtonDefaults.shapes()) {
                             Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
                         }
                     }

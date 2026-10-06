@@ -118,7 +118,7 @@ fun StagedAttachmentsStrip(
                         overflow = TextOverflow.MiddleEllipsis,
                         modifier = Modifier.weight(1f).padding(start = 12.dp),
                     )
-                    IconButton(onClick = { onRemove(index) }) {
+                    IconButton(onClick = { onRemove(index) }, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.attachment_remove_file))
                     }
                 }
@@ -229,6 +229,7 @@ private fun SinglePhotoPreview(
             FilledTonalIconButton(
                 onClick = onRemove,
                 modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(32.dp),
+                shapes = IconButtonDefaults.shapes(),
             ) {
                 Icon(
                     painterResource(Res.drawable.close_24dp),
@@ -392,6 +393,7 @@ private fun PhotoCarousel(
             FilledTonalIconButton(
                 onClick = { onRemove(index) },
                 modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(32.dp),
+                shapes = IconButtonDefaults.shapes(),
             ) {
                 Icon(
                     painterResource(Res.drawable.close_24dp),
@@ -415,6 +417,7 @@ private fun PhotoCarousel(
                         contentColor = Color.White,
                     )
                 },
+                shapes = IconButtonDefaults.shapes(),
             ) {
                 Icon(
                     painter = painterResource(getAttachmentModeIcon(mode, isVideo)),

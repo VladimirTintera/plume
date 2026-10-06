@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialShapes
@@ -151,13 +152,13 @@ internal fun PinnedMessagesBar(
             when {
                 // U víc zpráv je odepínání v seznamu — křížek vedle jedné z nich by sváděl
                 // k domněnce, že zavře celý pruh.
-                multiple -> IconButton(onClick = onShowAll) {
+                multiple -> IconButton(onClick = onShowAll, shapes = IconButtonDefaults.shapes()) {
                     Icon(
                         painterResource(Res.drawable.format_list_bulleted_24dp),
                         contentDescription = stringResource(Res.string.conversation_all_pinned),
                     )
                 }
-                canUnpin -> IconButton(onClick = { onUnpin(current) }) {
+                canUnpin -> IconButton(onClick = { onUnpin(current) }, shapes = IconButtonDefaults.shapes()) {
                     Icon(
                         painterResource(Res.drawable.close_24dp),
                         contentDescription = stringResource(Res.string.menu_unpin),
@@ -316,7 +317,7 @@ private fun PinnedSheetRow(
         },
         trailingContent = if (canUnpin) {
             {
-                IconButton(onClick = onUnpin) {
+                IconButton(onClick = onUnpin, shapes = IconButtonDefaults.shapes()) {
                     Icon(
                         painterResource(Res.drawable.close_24dp),
                         contentDescription = stringResource(Res.string.menu_unpin),

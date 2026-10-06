@@ -3,6 +3,7 @@ package eu.tintera.plume.features.conversation
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -44,7 +45,7 @@ internal fun SelectionTopBar(selection: MessageSelection, onClose: () -> Unit) {
             )
         },
         navigationIcon = {
-            IconButton(onClick = onClose) {
+            IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
                 Icon(
                     painterResource(Res.drawable.close_24dp),
                     contentDescription = stringResource(Res.string.conversation_selection_close),
@@ -111,7 +112,7 @@ private fun ToolbarAction(
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "selection-action-alpha",
     )
-    IconButton(onClick = onClick, enabled = enabled) {
+    IconButton(onClick = onClick, enabled = enabled, shapes = IconButtonDefaults.shapes()) {
         Icon(
             painterResource(icon),
             contentDescription = stringResource(label),

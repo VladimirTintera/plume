@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
@@ -148,7 +149,7 @@ internal fun SpamBarCard(
                 }
             }
             // Zavření je napořád (`removeChatActionBar`) — pruh se nevrátí ani po restartu.
-            IconButton(onClick = onDismiss) {
+            IconButton(onClick = onDismiss, shapes = IconButtonDefaults.shapes()) {
                 Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
             }
         }

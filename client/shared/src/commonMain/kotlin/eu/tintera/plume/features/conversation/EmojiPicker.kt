@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PrimaryScrollableTabRow
@@ -252,7 +253,11 @@ private fun DraftPreview(
                 overflow = TextOverflow.StartEllipsis,
                 modifier = Modifier.weight(1f).padding(start = 16.dp),
             )
-            IconButton(onClick = onBackspace, enabled = draft.text.isNotEmpty()) {
+            IconButton(
+                onClick = onBackspace,
+                enabled = draft.text.isNotEmpty(),
+                shapes = IconButtonDefaults.shapes(),
+            ) {
                 Icon(painterResource(Res.drawable.backspace_24dp), contentDescription = stringResource(Res.string.emoji_delete))
             }
         }
