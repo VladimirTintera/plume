@@ -732,6 +732,45 @@ hlášení pádů.
 - **Text od TDLib je i prosakování hranice.** Kdyby šel na obrazovku, měnila by novější verze
   TDLib text v UI — tedy přesně to, čemu má balíček `core/telegram` bránit.
 
+### Odpovědi TDLib, které wrapper nerozebere
+
+**`tdl-coroutines` si nullabilitu pole odvozuje JEN z textu dokumentace** (`td_api.tl`: „be null",
+„pass null"; generátor `TdlGenerator.isNullable`). Povinné objektové pole čte `getValue`, takže
+když ho TDLib vynechá, vyletí `NoSuchElementException: Key … is missing in the map` na vlákně
+`TDL-Receiver-Thread` — a **shodí celý proces**. Přijímací smyčka (`TdlEngine`) je `launch` bez
+ošetření chyb a engine je `lazy` na celý proces: i kdyby se výjimka spolkla, smyčka už skončila
+a nepřijde jediná další odpověď ani update. Spolknout ji proto nejde, musí se jí předejít.
+
+- **Známý případ: `gift.background`.** Dokumentace ho vede jako povinné, ale
+  `StarGift::get_gift_object` (TDLib `StarGift.cpp`) nechá pozadí `nullptr`, když ho server
+  k dárku nepošle. Týká se `getAvailableGifts` i zpráv `MessageGift` /
+  `MessageRefundedUpgradedGift` — chat s takovým dárkem (i jako poslední zprávou v seznamu chatů)
+  by aplikaci shazoval pokaždé znovu. Ve wrapperu 15.0.0 (nejnovější) opravené není.
+- **Obcházka: odpověď se opraví dřív, než ji wrapper dostane** (`TdlibJsonRepair`, testy
+  `TdlibJsonRepairTest`). Tabulka „typ → chybějící pole → výchozí objekt" doplní pole, které
+  TDLib vynechal; aplikace `Gift.background` nečte, takže na hodnotě nezáleží. Odpověď bez
+  známého typu se neparsuje (hledá se podřetězec `"@type":"gift"`), oprava nikdy nevyhodí.
+  **Do tabulky patří jen pole ověřená pádem nebo zdrojem TDLib**, ne preventivně.
+- **Na Androidu ji zapojuje instrumentace bajtkódu** (`TdlibReceiveHookFactory`
+  v `client/androidApp/build.gradle.kts`, `AsmClassVisitorFactory`, `InstrumentationScope.ALL`):
+  za jediné volání `org.drinkless.tdlib.JsonClient.receive` uvnitř wrapperu vloží
+  `TdlibReceiveHook.afterReceive`. Jiná cesta dovnitř není — smyčka i parser jsou interní
+  a knihovna je obfuskovaná (`dev.g000sha256.tdl.a.mt0.D6` = `deserializeGift`); `JsonClient`
+  si ale jméno nést musí kvůli JNI. Ověří se `dexdump -d` nad APK (`invoke-static …
+  TdlibReceiveHook;.afterReceive` hned za `JsonClient;.receive`).
+- **Že vložení zabralo, hlídá `TdlTelegramSession` po přihlášení**: do `Ready` musí odpovědi
+  hookem projít, jinak `logger.e` s výjimkou (v Crashlytics jako problém). Bump wrapperu nebo
+  přejmenování `TdlibReceiveHook` by obcházku tiše rozpojily.
+- **iOS obcházku NEMÁ** (`tdlibJsonRepairWired = false`): Kotlin/Native klib přepsat nejde.
+  Dárek bez pozadí tam aplikaci dál shodí, dokud to neopraví wrapper.
+- **Kandidáti téhož druhu** (sken zdroje TDLib 1.8.67: `nullptr` do konstruktoru, dokumentace
+  o null mlčí; za běhu neověřené, aplikace je nevolá): `product_info` u
+  `starTransactionTypeBotInvoicePurchase/Sale` a `…BotSubscriptionPurchase/Sale`.
+- **Při bumpu wrapperu**: podívat se, jestli `deserializeGift` čte `background` přes
+  `getObjectNullable` (zdrojový jar `tdl-coroutines-android-<ver>-sources.jar`, soubor
+  `TdlDeserializer.kt`); když ano, řádek z tabulky pryč. Instrumentace i kontrola po přihlášení
+  můžou zůstat — bez známých případů nestojí nic.
+
 ### Bump TDLib wrapperu
 
 Verze Kotlinu v projektu **musí být ≥ verze, ze které je wrapper publikovaný** — jinak se jeho iOS klib
@@ -8272,13 +8311,9 @@ a komu, vzkaz a stav. Dřív z nich zbylo jen „Byl poslán dárek".
   bez koncových nul, oddělovač dodá jazyk (`decimal_number`).
 - **Karty mají stejnou šířku** (do 280 dp přes celou plochu), ne podle obsahu: karta „Dárek" vedle
   „Telegram Premium na 3 měsíce" vypadala jako jiný prvek.
-- **POZOR — `tdl-coroutines` 15.0.0 spadne na dárku bez `background`.** TDLib dokumentuje
-  `gift.background` jako povinné, ale u části dárků ho neposílá; wrapper pak na vlákně
-  `TDL-Receiver-Thread` vyhodí `NoSuchElementException: Key background is missing in the map`
-  a **shodí celou aplikaci** — v našem kódu se to chytit nedá. Narazilo se na to sondou přes
-  `getAvailableGifts` (dva pády po sobě); týká se to i skutečné zprávy `MessageGift` s takovým
-  dárkem. Pomůže jen oprava ve wrapperu (`background` jako nullable), nebo vlastní obcházka
-  parseru. Do té doby `getAvailableGifts` nevolat.
+- **`tdl-coroutines` 15.0.0 padá na dárku bez `background` — na Androidu to obchází
+  instrumentace, na iOS NE.** Viz „Odpovědi TDLib, které wrapper nerozebere" (Hranice kolem
+  TDLib). Ověřeno sondou přes `getAvailableGifts`: bez obcházky pád, s ní 151 dárků.
 - **Bot dárek poslat neumí**, takže se ověřuje sondou: text `#darek1–8` od testovacího bota
   `toChatMessage` dočasně nahradí obsahem dárku (objekty skládané ručně, samolepky
   z `getAnimatedEmoji` / `getStickers`). Necommituje se. Animované samolepky drží Compose
