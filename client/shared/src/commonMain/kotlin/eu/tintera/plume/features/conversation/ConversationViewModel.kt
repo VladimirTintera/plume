@@ -76,6 +76,7 @@ import eu.tintera.plume.core.audio.VoiceKey
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.core.audio.MusicQueue
+import eu.tintera.plume.core.audio.NowPlaying
 import eu.tintera.plume.core.audio.VoiceRecorder
 import eu.tintera.plume.core.camera.CaptureSlot
 import eu.tintera.plume.core.camera.VIDEO_NOTE_MAX_DURATION_MS
@@ -383,6 +384,27 @@ class ConversationViewModel(
 
     /** Zvolená rychlost přehrávání; jedna pro celou aplikaci, proto rovnou z přehrávače. */
     val voiceSpeed: StateFlow<VoiceSpeed> = voicePlayer.speed
+
+    /** Hrající skladba (i z jiného chatu) pro mini přehrávač v docku: název, interpret, další. */
+    val nowPlaying: StateFlow<NowPlaying?> = musicQueue.nowPlaying
+
+    /** Pauza / přehrát z mini přehrávače v docku — týká se toho, co právě hraje, ať je to cokoli. */
+    fun togglePlaying() {
+        val playback = voicePlayer.state.value ?: return
+        when {
+            playback.loading -> Unit
+            playback.playing -> voicePlayer.pause()
+            else -> voicePlayer.resume()
+        }
+    }
+
+    /** Další skladba z mini přehrávače; hraje dál fronta hudby, ne tahle konverzace. */
+    fun skipToNextTrack() = musicQueue.skipToNext()
+
+    /** Zastavení z mini přehrávače. Hudbu přes frontu, aby po ní nezůstalo systémové ovládání. */
+    fun stopPlaying() {
+        if (voicePlayer.state.value?.music == true) musicQueue.stop() else voicePlayer.stop()
+    }
 
     /** Premium a zkušební přepisy řeči — rozhodují, jestli se u hlasovky nabídne přepis. */
     val isPremium: StateFlow<Boolean> = chatRepository.isPremium

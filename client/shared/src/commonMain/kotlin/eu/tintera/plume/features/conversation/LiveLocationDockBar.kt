@@ -31,10 +31,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -65,7 +63,6 @@ import eu.tintera.plume.resources.chat_bubble_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
-import kotlin.math.roundToInt
 
 /**
  * Dock živé polohy: řádek ve sloupci pruhů nad konverzací, do kterého se zpráva se živou polohou
@@ -115,27 +112,14 @@ internal fun LiveLocationDockBar(
     val chevron by animateFloatAsState(if (expanded) 180f else 0f, label = "dock-chevron")
     val toggleLabel = stringResource(if (expanded) Res.string.location_dock_collapse else Res.string.location_dock_expand)
 
-    Box(
-        modifier
-            .clipToBounds()
-            // Řádek vyjíždí zpod pruhů nad ním: hlásí jen vysunutou část výšky a obsah sedí
-            // spodkem na ní, takže se odkrývá odspodu jako něco, co zpod pruhů vyklouzlo.
-            .layout { measurable, constraints ->
-                val placeable = measurable.measure(constraints)
-                val shown = reveal().coerceIn(0f, 1f)
-                val height = (placeable.height * shown).roundToInt()
-                layout(placeable.width, height) {
-                    placeable.placeRelativeWithLayer(0, height - placeable.height) { alpha = shown }
-                }
-            },
-    ) {
+    Box(modifier.dockReveal(reveal)) {
         Surface(
             color = Color.Transparent,
             contentColor = MaterialTheme.colorScheme.onSurface,
             shape = DOCK_SHAPE,
             // Stín jen u sbaleného řádku: pod průsvitným sklem prosvítá DOVNITŘ plochy a u vysoké
             // rozbalené karty z něj byl ztmavlý pruh vpravo a dole (ověřeno vypnutím stínu).
-            shadowElevation = if (expanded) 0.dp else 3.dp,
+            shadowElevation = if (expanded) 0.dp else DOCK_ELEVATION,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 6.dp),
@@ -279,11 +263,6 @@ private fun DockedLocation(
     }
 }
 
-/** Zaoblení docku: u sbaleného řádku ([DOCK_ROW_HEIGHT]) přesně pilulka. */
-private val DOCK_SHAPE = RoundedCornerShape(28.dp)
-private val DOCK_ROW_HEIGHT = 56.dp
-private val DOCK_BADGE_SIZE = 40.dp
-private val DOCK_BADGE_INSET = (DOCK_ROW_HEIGHT - DOCK_BADGE_SIZE) / 2
 private val DOCK_MAP_HEIGHT = 160.dp
 private val DOCK_MAP_CORNER = 20.dp
 private val DOCK_EXPANDED_MAX = 440.dp

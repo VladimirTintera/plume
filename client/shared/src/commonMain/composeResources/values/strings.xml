@@ -2128,4 +2128,6 @@
     <string name="location_dock_expand">Show live location</string>
     <string name="location_dock_collapse">Hide live location</string>
     <string name="location_dock_show_message">Go to message</string>
+    <string name="player_dock_next">Next track</string>
+    <string name="player_dock_stop">Stop playback</string>
 </resources>

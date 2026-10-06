@@ -7400,6 +7400,32 @@ blízkost". Když se zpráva scrollem vrátí do pohledu, řádek plynule zmizí
   není** — tlačítka jsou tatáž cesta jako pod zprávou (`StopLiveLocation`,
   `SetProximityAlert`). iOS jen přeložené.
 
+#### Mini přehrávač v docku
+
+Hrající hudba nebo hlasovka, jejíž zpráva odjede z obrazovky, je ve sloupci pruhů pod dockem
+polohy jako řádek se stejným sklem (`PlayerDockBar`): tlačítko s průběhem po obvodu (u skladby
+přes obal), název a „interpret · 0:04 / 0:16", u skladby „další" a vždycky ✕. Ťuknutí na text
+skočí na zprávu. Kdo do docku patří, je `VoicePlayback.docksIn` (testy `PlayerDockTest`).
+
+- **Vysouvání a odsazení jsou společné s dockem polohy** (`Modifier.dockReveal`, rozměry
+  `DOCK_*` v `DockRow.kt`). Průběh je `dockProgress` nad položkou s klíčem BLOKU
+  (`blockKeyOf`) — skladba z alba je položka nejstarší zprávy alba.
+- **Skladba z jiného chatu je v docku celá** (průběh 1), protože hudba hraje dál i po odchodu
+  z konverzace a jinde než tady (a v notifikaci) by nešla zastavit. Ťuknutí na ni otevře její
+  chat se skokem na zprávu. Hlasovka z jiného chatu ne — odchodem z chatu dohraje.
+- **Náhled nahrávky (zpráva −1) do docku nepatří**, má vlastní pruh nad polem.
+- **Kompozice čte jen KLÍČ hrajícího zvuku** (`derivedStateOf` se `structuralEqualityPolicy`),
+  průběh a čas čte až řádek přes lambdu — pozice se mění dvacetkrát za vteřinu.
+- **Název skladby z jiného chatu bere `MusicQueue.nowPlaying`**, ne načtenou historii: zpráva
+  z jiného chatu v ní není.
+- **✕ u hudby jde přes `MusicQueue.stop`**, u hlasovky přes `VoicePlayer.stop` — fronta jinak
+  po zastavení navázala další skladbou.
+- **Kolečko se zvukem v docku NENÍ.** Jeho přehrávač žije v kompozici položky a odscrollováním
+  zmlkne (`VideoNoteSoundEnded`), takže by řádek jen problikl.
+- **Ověřeno na emulátoru** (anglicky) dvěma skladbami a hlasovkou od testovacího bota: vysunutí
+  při scrollu, pauza, „další" (u poslední skladby není), skok na zprávu ťuknutím (dock zmizí,
+  zpráva zvýrazněná), ✕, skladba z Notifikátora v docku Uložených zpráv. iOS jen přeložené.
+
 ### GIFy
 
 GIF je v Telegramu **MP4 bez zvuku** (`MessageAnimation`), ne skutečný GIF — přehrává se proto
