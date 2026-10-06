@@ -116,6 +116,19 @@ class TdlTelegramSession(
             .onFailure { logger.e(it) { "Nepodařilo se přečíst authorization state." } }
     }
 
+    /**
+     * Do přihlášení prošly přijímací smyčkou desítky odpovědí, takže oprava JSON od TDLib musí
+     * být zapojená. Když není, zůstala aplikace bez ochrany před pádem na dárku bez pozadí —
+     * `e` s výjimkou, ať je to v Crashlytics vidět jako problém.
+     */
+    private fun checkJsonRepairWired() {
+        if (tdlibJsonRepairWired && !TdlibJsonRepair.isHooked) {
+            logger.e(IllegalStateException("TdlibReceiveHook not called")) {
+                "Oprava odpovědí TDLib není zapojená, instrumentace wrapperu se rozpojila."
+            }
+        }
+    }
+
     private suspend fun handleAuthorizationState(state: AuthorizationState) {
         logger.d { "AuthorizationState -> ${state.stateName()}" }
 
@@ -134,7 +147,10 @@ class TdlTelegramSession(
                 _authStage.value = AuthStage.WaitQrConfirmation(state.link)
 
             is AuthorizationStateWaitRegistration -> _authStage.value = AuthStage.WaitRegistration
-            is AuthorizationStateReady -> _authStage.value = AuthStage.Ready
+            is AuthorizationStateReady -> {
+                _authStage.value = AuthStage.Ready
+                checkJsonRepairWired()
+            }
 
             // Při návratu z QR na číslo se klient taky zavírá, jenže odhlášení to není —
             // uživatel přihlášený nikdy nebyl. „Odhlašuji" by na ten okamžik lhalo.
