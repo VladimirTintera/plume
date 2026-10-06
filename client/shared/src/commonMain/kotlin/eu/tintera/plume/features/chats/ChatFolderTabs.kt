@@ -16,6 +16,8 @@ data class FolderTab(
     val titleEntities: List<MessageEntity> = emptyList(),
     val unread: Int = 0,
     val selected: Boolean = false,
+    /** Ikona složky od TDLib — jen pro prázdný stav vybrané složky, řádek ikony nekreslí. */
+    val iconName: String? = null,
 )
 
 /**
@@ -25,12 +27,12 @@ internal fun selectedFolderId(selected: Int?, folders: ChatFolders): Int? =
     selected?.takeIf { id -> folders.folders.any { it.id == id } }
 
 /**
- * Řádek složek. Bez složek je prázdný a nekreslí se — „Všechny chaty" samo o sobě nic nevybírá.
- * Celý seznam stojí tam, kam ho uživatel v Telegramu přesunul ([ChatFolders.mainPosition]; bez
- * Premium vždycky první).
+ * Řádek složek. Celý seznam stojí tam, kam ho uživatel v Telegramu přesunul
+ * ([ChatFolders.mainPosition]; bez Premium vždycky první). Bez složek je v řádku jen on — řádek
+ * se kreslí i tak, protože za ním je „+" s doporučenými složkami: jiné zúžení seznamu chatů
+ * aplikace nemá.
  */
 internal fun folderTabs(folders: ChatFolders, unread: Map<Int, ArchiveUnread>, selected: Int?): List<FolderTab> {
-    if (folders.folders.isEmpty()) return emptyList()
     val tabs = folders.folders.map { folder ->
         FolderTab(
             id = folder.id,
@@ -38,6 +40,7 @@ internal fun folderTabs(folders: ChatFolders, unread: Map<Int, ArchiveUnread>, s
             titleEntities = folder.titleEntities,
             unread = unread[folder.id]?.unmutedChats ?: 0,
             selected = folder.id == selected,
+            iconName = folder.iconName,
         )
     }
     val all = FolderTab(id = null, selected = selected == null)

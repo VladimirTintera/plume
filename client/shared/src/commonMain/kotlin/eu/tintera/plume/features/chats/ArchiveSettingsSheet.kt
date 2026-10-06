@@ -69,7 +69,7 @@ fun ArchiveSettingsSheet(
             /*
              * Automatická archivace od neznámých je za volbou serveru: zapnout ji smí jen účet,
              * kterému to server dovolí, a jinde by ťuknutí skončilo chybou. Nenabízí se tedy
-             * vůbec — stejné pravidlo jako u filtrů seznamu, které nemají co odfiltrovat.
+             * vůbec: přepínač, který skončí chybou, je horší než žádný.
              */
             if (settings.canArchiveUnknownSenders) {
                 SwitchRow(

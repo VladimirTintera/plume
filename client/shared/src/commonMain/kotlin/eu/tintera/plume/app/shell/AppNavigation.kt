@@ -13,6 +13,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
+import eu.tintera.plume.core.navigation.ChatFolderEditRoute
+import eu.tintera.plume.core.navigation.ChatFoldersRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForumTopicsRoute
@@ -76,6 +78,18 @@ class AppNavigation internal constructor(
         val settings = stack(SettingsRoute)
         settings.add(SettingsSectionRoute(SettingsSection.General))
         settings.add(ProxySettingsRoute)
+    }
+
+    /**
+     * Složky chatů zvenčí („+" v řádku složek nad seznamem chatů): Nastavení → Obecné → Složky
+     * chatů, s [create] rovnou i editor nové složky. Zpět vede po krocích, jako u proxy.
+     */
+    fun openChatFolders(create: Boolean = false) {
+        openSettings()
+        val settings = stack(SettingsRoute)
+        settings.add(SettingsSectionRoute(SettingsSection.General))
+        settings.add(ChatFoldersRoute)
+        if (create) settings.add(ChatFolderEditRoute(0))
     }
 
     /**

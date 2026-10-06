@@ -16,8 +16,10 @@ class ChatFolderTabsTest {
     )
 
     @Test
-    fun bezSlozekSeRadekNekresli() {
-        assertTrue(folderTabs(ChatFolders(), emptyMap(), selected = null).isEmpty())
+    fun bezSlozekJeVRadkuJenCelySeznam() {
+        val tabs = folderTabs(ChatFolders(), emptyMap(), selected = null)
+        assertEquals(listOf<Int?>(null), tabs.map { it.id })
+        assertTrue(tabs.single().selected)
     }
 
     @Test
