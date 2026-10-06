@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.LoginLinkKind
+import eu.tintera.plume.resources.login_link_code_text
+import eu.tintera.plume.resources.login_link_code_title
+import eu.tintera.plume.resources.login_link_qr_text
+import eu.tintera.plume.resources.login_link_qr_title
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -127,5 +132,23 @@ internal fun LoginUrlDialog(prompt: LoginUrlPrompt.Confirm, onConfirm: (allowWri
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+    )
+}
+
+/**
+ * Přihlašovací odkaz, který se z ťuknutí neotevírá (`InternalLink.LoginWarning`). Říká proč
+ * a kudy vede bezpečná cesta — u QR kódu to TDLib výslovně předepisuje.
+ */
+@Composable
+internal fun LoginLinkWarningDialog(kind: LoginLinkKind, onDismiss: () -> Unit) {
+    val (title, text) = when (kind) {
+        LoginLinkKind.Code -> Res.string.login_link_code_title to Res.string.login_link_code_text
+        LoginLinkKind.QrCode -> Res.string.login_link_qr_title to Res.string.login_link_qr_text
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(title)) },
+        text = { Text(stringResource(text)) },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.bot_alert_ok)) } },
     )
 }

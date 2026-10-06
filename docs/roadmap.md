@@ -123,9 +123,10 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
      hledání zpráv). Odkazy na Telegram (chat, zpráva, pozvánka, sada samolepek) se otevírají
      v aplikaci (`CLAUDE.md`, „Odkazy na Telegram"); ~~boti se `start`, mini aplikace, sdílené
      složky, člověk podle čísla a kontaktního odkazu, `?text=` a `?profile`, `t.me/share`,
-     Uložené zprávy, proxy (`t.me/proxy`, `t.me/socks`)~~ hotové. Zbývá: odkazy do Nastavení
-     (`tg://settings/…`), nová skupina a kanál, videochat a přihlašovací kódy — jdou dál do
-     prohlížeče. ~~**Veřejné příspěvky
+     Uložené zprávy, proxy (`t.me/proxy`, `t.me/socks`)~~ hotové. ~~Odkazy do Nastavení
+     (`tg://settings/…`), nová konverzace, skupina a kanál, kontakty, hledání, videochat
+     a přihlašovací kódy~~ — hotovo (přihlašovací odkazy se jen vysvětlí, neotevřou). Do
+     prohlížeče dál jdou platby, stories, dárky, témata vzhledu a jazykové balíčky. ~~**Veřejné příspěvky
      s tagem**~~ — hotovo (přepínač „Vaše chaty / Veřejné příspěvky" u hashtagu).
   3. ~~**Hledání v konverzaci**~~ — hotovo (lupa v hlavičce, šipky mezi výsledky, viz
      `CLAUDE.md`, „Hledání v konverzaci"). Hledané slovo je v bublinách zvýrazněné.

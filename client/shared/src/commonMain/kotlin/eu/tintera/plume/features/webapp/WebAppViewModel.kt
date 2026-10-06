@@ -265,6 +265,9 @@ class WebAppViewModel(
                 // profil s „Otevřít aplikaci"). Vrstvit mini aplikace přes sebe by zpět mátlo.
                 is InternalLink.MainWebApp -> effect(WebAppEffect.OpenChat(ChatTarget(link.botUserId)))
                 is InternalLink.WebApp -> effect(WebAppEffect.OpenChat(ChatTarget(link.botUserId)))
+                // Přihlašovací odkaz se z ťuknutí neotevírá nikde — ani z mini aplikace přes
+                // prohlížeč do oficiálního klienta (viz InternalLink.LoginWarning).
+                is InternalLink.LoginWarning -> Unit
                 // Pozvánky, samolepky, spuštění bota… obsluhuje konverzace; mini aplikace je
                 // otevírá zřídka, a prohlížeč s odkazem na Telegram je pořád lepší než nic.
                 else -> urlOpener.open(url)

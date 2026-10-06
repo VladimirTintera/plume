@@ -15,6 +15,11 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import eu.tintera.plume.core.navigation.ChatFolderEditRoute
 import eu.tintera.plume.core.navigation.ChatFoldersRoute
+import eu.tintera.plume.core.navigation.CreateChatRoute
+import eu.tintera.plume.core.navigation.EditProfileRoute
+import eu.tintera.plume.core.navigation.NewChatRoute
+import eu.tintera.plume.core.navigation.NewGroupMembersRoute
+import eu.tintera.plume.core.telegram.AppScreen
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForumTopicsRoute
@@ -73,11 +78,40 @@ class AppNavigation internal constructor(
      * Nastavení proxy zvenčí (nabídka nad chatem od provozovatele proxy): Nastavení → Obecné →
      * Proxy, takže zpět vede po krocích, kudy by se tam uživatel proklikal sám.
      */
-    fun openProxySettings() {
+    fun openProxySettings() = openSettingsAt(SettingsSection.General, ProxySettingsRoute)
+
+    /**
+     * Odkaz na obrazovku aplikace (`tg://settings/devices`, `tg://newgroup`…). Do Nastavení se
+     * jde po krocích (kořen → sekce → obrazovka), takže zpět vede, kudy by se tam uživatel
+     * proklikal sám. Nová konverzace, skupina a kanál se otevřou nad otevřeným chatem, jako
+     * zmínka — zpět vede do něj. Hledání v dvoupanelu ([twoPane]) konverzaci nechá.
+     */
+    fun openScreen(screen: AppScreen, twoPane: Boolean) {
+        when (screen) {
+            AppScreen.Settings -> openSettings()
+            AppScreen.General -> openSettingsAt(SettingsSection.General)
+            AppScreen.Notifications -> openSettingsAt(SettingsSection.Notifications)
+            AppScreen.Appearance -> openSettingsAt(SettingsSection.Appearance)
+            AppScreen.Devices -> openSettingsAt(SettingsSection.Devices)
+            AppScreen.EditProfile -> openSettingsAt(SettingsSection.General, EditProfileRoute)
+            AppScreen.ChatFolders -> openChatFolders()
+            AppScreen.NewChat -> openInChats(NewChatRoute)
+            AppScreen.NewGroup -> openInChats(NewGroupMembersRoute)
+            AppScreen.NewChannel -> openInChats(CreateChatRoute(channel = true))
+            AppScreen.Search -> openSearch("", keepConversation = twoPane)
+        }
+    }
+
+    private fun openSettingsAt(section: SettingsSection, screen: NavKey? = null) {
         openSettings()
         val settings = stack(SettingsRoute)
-        settings.add(SettingsSectionRoute(SettingsSection.General))
-        settings.add(ProxySettingsRoute)
+        settings.add(SettingsSectionRoute(section))
+        if (screen != null) settings.add(screen)
+    }
+
+    private fun openInChats(route: NavKey) {
+        selected.value = ChatsRoute
+        stack(ChatsRoute).addOnce(route)
     }
 
     /**
@@ -85,11 +119,8 @@ class AppNavigation internal constructor(
      * chatů, s [create] rovnou i editor nové složky. Zpět vede po krocích, jako u proxy.
      */
     fun openChatFolders(create: Boolean = false) {
-        openSettings()
-        val settings = stack(SettingsRoute)
-        settings.add(SettingsSectionRoute(SettingsSection.General))
-        settings.add(ChatFoldersRoute)
-        if (create) settings.add(ChatFolderEditRoute(0))
+        openSettingsAt(SettingsSection.General, ChatFoldersRoute)
+        if (create) stack(SettingsRoute).add(ChatFolderEditRoute(0))
     }
 
     /**
