@@ -157,12 +157,7 @@ internal fun LocationDetails(
 ) {
     val title = location.title ?: if (location.isLive) stringResource(Res.string.content_live_location) else null
     val sharing = rememberLiveSharing(location)
-    val subtitle = when {
-        !location.isLive -> location.address
-        !sharing -> stringResource(Res.string.location_live_ended)
-        location.liveUntil == Long.MAX_VALUE -> stringResource(Res.string.location_live_forever)
-        else -> stringResource(Res.string.location_live_until, location.liveUntil.asUpcomingTime())
-    }
+    val subtitle = if (location.isLive) liveSharingText(location, sharing) else location.address
     Column(modifier) {
         title?.let {
             Text(
@@ -190,11 +185,7 @@ internal fun LocationDetails(
                     val radius = location.proximityAlertRadius ?: 0
                     DetailsAction(
                         icon = Res.drawable.notifications_24dp,
-                        label = if (radius > 0) {
-                            stringResource(Res.string.location_proximity_on, distanceUiText(radius).resolve())
-                        } else {
-                            stringResource(Res.string.location_proximity_set)
-                        },
+                        label = proximityAlertLabel(radius),
                         color = color,
                         onClick = open,
                     )
@@ -207,8 +198,24 @@ internal fun LocationDetails(
     }
 }
 
+/** Do kdy se živá poloha sdílí („Sdílí se do 14:21"), nebo že už skončila. */
 @Composable
-private fun DetailsAction(icon: DrawableResource, label: String, color: Color, onClick: () -> Unit) {
+internal fun liveSharingText(location: MessageMedia.Location, sharing: Boolean): String = when {
+    !sharing -> stringResource(Res.string.location_live_ended)
+    location.liveUntil == Long.MAX_VALUE -> stringResource(Res.string.location_live_forever)
+    else -> stringResource(Res.string.location_live_until, location.liveUntil.asUpcomingTime())
+}
+
+/** Popisek upozornění na blízkost: s nastavenou vzdáleností („Upozorním do 500 m"), jinak výzva. */
+@Composable
+internal fun proximityAlertLabel(radius: Int): String = if (radius > 0) {
+    stringResource(Res.string.location_proximity_on, distanceUiText(radius).resolve())
+} else {
+    stringResource(Res.string.location_proximity_set)
+}
+
+@Composable
+internal fun DetailsAction(icon: DrawableResource, label: String, color: Color, onClick: () -> Unit) {
     TextButton(
         onClick = onClick,
         colors = ButtonDefaults.textButtonColors(contentColor = color),

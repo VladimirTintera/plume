@@ -6,6 +6,7 @@ import eu.tintera.plume.resources.saved_topic_read_only
 import eu.tintera.plume.resources.saved_topic_open_chat
 import eu.tintera.plume.core.ui.savedTopicTitle
 import eu.tintera.plume.core.ui.SavedTopicAvatar
+import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SavedTopicKind
 import androidx.compose.runtime.DisposableEffect
 import eu.tintera.plume.core.ui.resolveNow
@@ -268,6 +269,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -334,6 +336,8 @@ import eu.tintera.plume.features.conversation.items.DayDividerItem
 import eu.tintera.plume.features.conversation.items.MESSAGE_SPACING
 import eu.tintera.plume.features.conversation.items.MenuAnchor
 import eu.tintera.plume.features.conversation.items.MessageAction
+import eu.tintera.plume.features.conversation.items.mapUrl
+import kotlin.math.abs
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.features.conversation.items.MessageItem
 import eu.tintera.plume.features.conversation.items.QuotedMessage
@@ -395,6 +399,7 @@ import eu.tintera.plume.resources.perm_media_24dp
 import eu.tintera.plume.resources.send_24dp
 import eu.tintera.plume.resources.sticky_note_2_24dp
 import kotlin.time.Clock
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import eu.tintera.plume.core.telegram.SpamBar
 import eu.tintera.plume.core.telegram.ChatBar
@@ -786,6 +791,15 @@ fun ConversationScreen(
      */
     var pinnedHeight by remember { mutableStateOf(0.dp) }
 
+    /** Výška pruhů BEZ řádku docku živé polohy — od jejich spodku se měří, kolik ze zprávy zajelo. */
+    var barsHeight by remember { mutableStateOf(0.dp) }
+
+    /**
+     * Rozbalený dock živé polohy: mapa s ovládáním nad konverzací. Závoj pod ní NENÍ — psát
+     * a scrollovat jde dál, kouzlo je právě v tom, že mapa zůstane na očích při psaní.
+     */
+    var dockExpanded by rememberSaveable { mutableStateOf(false) }
+
     /** Kde byla zpráva, nad kterou se otevírá nabídka — hlásí ji zpráva při dlouhém stisku. */
     var menuAnchor by remember { mutableStateOf(MenuAnchor(bounds = { null }, maxWidth = { null })) }
 
@@ -940,6 +954,50 @@ fun ConversationScreen(
     }
 
     val visibleDay = topVisibleKey?.let { byKey[it]?.timestamp?.asDayLabel() }
+
+    /*
+     * Dock živé polohy (`LiveLocationDockBar`): kolik ze zprávy s každou živou polohou zajelo pod
+     * pruhy nebo pod vstupní pole (`dockProgress`). Měří se od spodku pruhů BEZ řádku docku —
+     * s ním by si řádek sám ukusoval zprávu a z plynulého přechodu by byl skok.
+     *
+     * Zpráva, která v rozvržení není (odscrollovaná, mimo načtené okno), je v docku celá. Bez
+     * rozvržení (první snímek) se nedokuje nic, jinak by řádek při otevření chatu problikl.
+     */
+    val dockDensity = LocalDensity.current
+    val dockSource by rememberUpdatedState(state)
+    val dockTargets by remember(listState) {
+        derivedStateOf {
+            val s = dockSource
+            val info = listState.layoutInfo
+            if (s.liveLocations.isEmpty() || info.visibleItemsInfo.isEmpty()) return@derivedStateOf emptyMap<Long, Float>()
+            // 8 dp je horní odsazení seznamu nad pruhy (`contentPadding` níž).
+            val top = info.viewportEndOffset - with(dockDensity) { (8.dp + barsHeight).toPx() }
+            s.liveLocations.associate { message ->
+                val key = s.keyOf(message)
+                val item = info.visibleItemsInfo.firstOrNull { it.key == key }
+                message.id to (item?.let { dockProgress(it.offset, it.size, top, 0f) } ?: 1f)
+            }
+        }
+    }
+    // Kompozice čte jen to, KTERÉ polohy jsou v docku; průběh se čte až při rozmístění řádku.
+    val dockedIds by remember(listState) {
+        derivedStateOf(structuralEqualityPolicy()) { dockTargets.filterValues { it > DOCK_EPSILON }.keys }
+    }
+    // Při zasouvání řádku (průběh míří k nule) se dál kreslí poslední polohy, ne nic.
+    var lastDockedIds by remember { mutableStateOf(emptySet<Long>()) }
+    LaunchedEffect(dockedIds) { if (dockedIds.isNotEmpty()) lastDockedIds = dockedIds }
+    val shownDocked = (dockedIds.ifEmpty { lastDockedIds }).let { ids -> state.liveLocations.filter { it.id in ids } }
+    // Zpráva s polohou zpátky na obrazovce (nebo sdílení skončilo): dock se sbalí i zmizí.
+    LaunchedEffect(dockedIds.isEmpty()) { if (dockedIds.isEmpty()) dockExpanded = false }
+
+    val dockReveal = remember { Animatable(0f) }
+    val dockSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    LaunchedEffect(dockReveal) {
+        snapshotFlow { dockTargets.values.maxOrNull() ?: 0f }.collectLatest { target ->
+            // Tah prstem vede řádek přímo; skok (okno v historii, nová zpráva, rozbalení) se dojede.
+            if (abs(target - dockReveal.value) > DOCK_JUMP) dockReveal.animateTo(target, dockSpec) else dockReveal.snapTo(target)
+        }
+    }
 
     // Štítek se drží i po zmizení data, aby při odeznívání nezůstala prázdná pilulka.
     var floatingDay by remember { mutableStateOf("") }
@@ -1181,6 +1239,12 @@ fun ConversationScreen(
         state = rememberNavigationEventState(NavigationEventInfo.None),
         isBackEnabled = state.search != null,
         onBackCompleted = viewModel::closeSearch,
+    )
+    // Rozbalený dock živé polohy zavře zpět dřív, než se odejde z chatu.
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = dockExpanded,
+        onBackCompleted = { dockExpanded = false },
     )
     // Zpět ukončí výběr, teprve další odejde z chatu — jako u hledání.
     NavigationBackHandler(
@@ -2440,103 +2504,138 @@ fun ConversationScreen(
                     .align(Alignment.TopCenter)
                     .onSizeChanged { pinnedHeight = with(density) { it.height.toDp() } },
             ) {
-                // Při odjezdu se musí dál kreslit poslední pruh, ne nic (stejně jako u připnutých).
-                // Při odjezdu se kreslí poslední pruh — stav je v tu chvíli už prázdný.
-                val lastChatBar = remember { arrayOf<ChatBar?>(null) }
-                if (chatBar != null) lastChatBar[0] = chatBar
-                AnimatedVisibility(
-                    visible = chatBar != null,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut(),
-                ) {
-                    when (val bar = lastChatBar[0]) {
-                        is SpamBar -> SpamBarCard(
-                            bar = bar,
-                            onBlock = { spamBarAction = SpamBarAction.Block },
-                            onReport = { spamBarAction = SpamBarAction.Report },
-                            onAddContact = viewModel::addSpamBarContact,
-                            onUnarchive = viewModel::unarchiveFromSpamBar,
-                            onDismiss = viewModel::dismissChatBar,
-                        )
-                        SharePhoneBar, InviteMembersBar, is JoinRequestBar -> ChatNoticeBarCard(
-                            bar = bar,
-                            onSharePhone = { confirmSharePhone = true },
-                            onInviteMembers = onAddMembers,
-                            onDismiss = viewModel::dismissChatBar,
-                        )
-                        null -> Unit
+                Column(Modifier.onSizeChanged { barsHeight = with(density) { it.height.toDp() } }) {
+                    // Při odjezdu se musí dál kreslit poslední pruh, ne nic (stejně jako u připnutých).
+                    // Při odjezdu se kreslí poslední pruh — stav je v tu chvíli už prázdný.
+                    val lastChatBar = remember { arrayOf<ChatBar?>(null) }
+                    if (chatBar != null) lastChatBar[0] = chatBar
+                    AnimatedVisibility(
+                        visible = chatBar != null,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut(),
+                    ) {
+                        when (val bar = lastChatBar[0]) {
+                            is SpamBar -> SpamBarCard(
+                                bar = bar,
+                                onBlock = { spamBarAction = SpamBarAction.Block },
+                                onReport = { spamBarAction = SpamBarAction.Report },
+                                onAddContact = viewModel::addSpamBarContact,
+                                onUnarchive = viewModel::unarchiveFromSpamBar,
+                                onDismiss = viewModel::dismissChatBar,
+                            )
+                            SharePhoneBar, InviteMembersBar, is JoinRequestBar -> ChatNoticeBarCard(
+                                bar = bar,
+                                onSharePhone = { confirmSharePhone = true },
+                                onInviteMembers = onAddMembers,
+                                onDismiss = viewModel::dismissChatBar,
+                            )
+                            null -> Unit
+                        }
                     }
-                }
-                // Žádosti o vstup hned pod spamem: čekají na rozhodnutí, jako on.
-                val shownJoinRequests = joinRequests?.takeIf { it.count > joinRequestsHiddenAt }
-                val lastJoinRequests = remember { arrayOf<PendingJoinRequests?>(null) }
-                if (shownJoinRequests != null) lastJoinRequests[0] = shownJoinRequests
-                AnimatedVisibility(
-                    visible = shownJoinRequests != null && !chatHidden,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut(),
-                ) {
-                    lastJoinRequests[0]?.let { requests ->
-                        JoinRequestsBar(
-                            requests = requests,
-                            onClick = onOpenJoinRequests,
-                            onHide = { joinRequestsHiddenAt = requests.count },
-                            glass = Modifier.hazeBlur(
-                                input = HazeInput.Sources(listHaze),
-                                style = glassStyle(
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    alpha = GLASS_TEXT_TINT_ALPHA,
-                                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                    // Žádosti o vstup hned pod spamem: čekají na rozhodnutí, jako on.
+                    val shownJoinRequests = joinRequests?.takeIf { it.count > joinRequestsHiddenAt }
+                    val lastJoinRequests = remember { arrayOf<PendingJoinRequests?>(null) }
+                    if (shownJoinRequests != null) lastJoinRequests[0] = shownJoinRequests
+                    AnimatedVisibility(
+                        visible = shownJoinRequests != null && !chatHidden,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut(),
+                    ) {
+                        lastJoinRequests[0]?.let { requests ->
+                            JoinRequestsBar(
+                                requests = requests,
+                                onClick = onOpenJoinRequests,
+                                onHide = { joinRequestsHiddenAt = requests.count },
+                                glass = Modifier.hazeBlur(
+                                    input = HazeInput.Sources(listHaze),
+                                    style = glassStyle(
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        alpha = GLASS_TEXT_TINT_ALPHA,
+                                        fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                                    ),
                                 ),
-                            ),
-                        )
+                            )
+                        }
                     }
-                }
-                // Videochat mezi spamem a připnutými: o dění v chatu, ne o obsahu.
-                val lastVideoChat = remember { arrayOf<VideoChatInfo?>(null) }
-                if (videoChat != null) lastVideoChat[0] = videoChat
-                AnimatedVisibility(
-                    visible = videoChat != null && !chatHidden,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut(),
-                ) {
-                    lastVideoChat[0]?.let { info ->
-                        VideoChatBar(
-                            info = info,
-                            onClick = viewModel::explainVideoChat,
-                            glass = Modifier.hazeBlur(
-                                input = HazeInput.Sources(listHaze),
-                                style = glassStyle(
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    alpha = GLASS_TEXT_TINT_ALPHA,
-                                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                    // Videochat mezi spamem a připnutými: o dění v chatu, ne o obsahu.
+                    val lastVideoChat = remember { arrayOf<VideoChatInfo?>(null) }
+                    if (videoChat != null) lastVideoChat[0] = videoChat
+                    AnimatedVisibility(
+                        visible = videoChat != null && !chatHidden,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut(),
+                    ) {
+                        lastVideoChat[0]?.let { info ->
+                            VideoChatBar(
+                                info = info,
+                                onClick = viewModel::explainVideoChat,
+                                glass = Modifier.hazeBlur(
+                                    input = HazeInput.Sources(listHaze),
+                                    style = glassStyle(
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        alpha = GLASS_TEXT_TINT_ALPHA,
+                                        fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                                    ),
                                 ),
-                            ),
-                        )
+                            )
+                        }
                     }
-                }
-                AnimatedVisibility(
-                    // Omezený chat: připnutá zpráva by ukázala obsah, který se ukázat nesmí.
-                    visible = state.pinned.isNotEmpty() && !chatHidden,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut(),
-                ) {
-                    // Při odjezdu se musí dál kreslit poslední zpráva, ne prázdný pruh.
-                    val last = remember { arrayOf(emptyList<ChatMessage>()) }
-                    if (state.pinned.isNotEmpty()) last[0] = state.pinned
-                    val pinned = last[0]
+                    AnimatedVisibility(
+                        // Omezený chat: připnutá zpráva by ukázala obsah, který se ukázat nesmí.
+                        visible = state.pinned.isNotEmpty() && !chatHidden,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut(),
+                    ) {
+                        // Při odjezdu se musí dál kreslit poslední zpráva, ne prázdný pruh.
+                        val last = remember { arrayOf(emptyList<ChatMessage>()) }
+                        if (state.pinned.isNotEmpty()) last[0] = state.pinned
+                        val pinned = last[0]
 
-                    PinnedMessagesBar(
-                        messages = pinned,
-                        index = pinnedIndex(pinned, pinnedForScroll(pinned, topVisibleKey)),
-                        canUnpin = state.canUnpin,
-                        // Ťuknutí skočí na ukázanou zprávu, a to KOTVOU NAHORU: zpráva pak stojí nad
-                        // viditelnou částí, takže pruh přejde na předchozí připnutou a další ťuknutí
-                        // vede o krok zpět. Se středem se nad cílem odkryje kus historie a pruh
-                        // přeskočí rovnou k nejstarší.
-                        onOpen = { message -> viewModel.jumpToMessage(message.id, anchor = ScrollAnchor.Top) },
-                        onUnpin = viewModel::unpin,
-                        onShowAll = { allPinnedOpen = true },
+                        PinnedMessagesBar(
+                            messages = pinned,
+                            index = pinnedIndex(pinned, pinnedForScroll(pinned, topVisibleKey)),
+                            canUnpin = state.canUnpin,
+                            // Ťuknutí skočí na ukázanou zprávu, a to KOTVOU NAHORU: zpráva pak stojí nad
+                            // viditelnou částí, takže pruh přejde na předchozí připnutou a další ťuknutí
+                            // vede o krok zpět. Se středem se nad cílem odkryje kus historie a pruh
+                            // přeskočí rovnou k nejstarší.
+                            onOpen = { message -> viewModel.jumpToMessage(message.id, anchor = ScrollAnchor.Top) },
+                            onUnpin = viewModel::unpin,
+                            onShowAll = { allPinnedOpen = true },
+                            glass = Modifier.hazeBlur(
+                                input = HazeInput.Sources(listHaze),
+                                style = glassStyle(
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    alpha = GLASS_TEXT_TINT_ALPHA,
+                                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                                ),
+                            ),
+                        )
+                    }
+                }
+
+                /*
+                 * Dock živé polohy: poslední řádek pod pruhy, vysouvá se tím, jak zpráva s polohou
+                 * odjíždí z obrazovky. Ve vlákně komentářů polohy nejsou (`liveLocations` prázdné).
+                 */
+                if (!chatHidden && shownDocked.isNotEmpty()) {
+                    LiveLocationDockBar(
+                        locations = shownDocked,
+                        reveal = { dockReveal.value },
+                        expanded = dockExpanded,
+                        onToggle = { dockExpanded = !dockExpanded },
+                        chatTitle = state.info?.title.orEmpty(),
+                        onOpenMap = { message ->
+                            (message.media as? MessageMedia.Location)?.let {
+                                viewModel.onAction(message.id, MessageAction.OpenLink(it.mapUrl))
+                            }
+                        },
+                        onShowMessage = { message ->
+                            dockExpanded = false
+                            viewModel.jumpToMessage(message.id)
+                        },
+                        onStop = { message -> viewModel.onAction(message.id, MessageAction.StopLiveLocation) },
+                        onProximityAlert = { message -> viewModel.onAction(message.id, MessageAction.SetProximityAlert) },
                         glass = Modifier.hazeBlur(
                             input = HazeInput.Sources(listHaze),
                             style = glassStyle(
@@ -2547,7 +2646,6 @@ fun ConversationScreen(
                         ),
                     )
                 }
-
             }
 
             state.scheduledMessages?.let { scheduled ->
@@ -4478,3 +4576,9 @@ private fun ReadOnlyNote(text: StringResource, modifier: Modifier = Modifier) {
             .padding(horizontal = 24.dp, vertical = 20.dp),
     )
 }
+
+/** Pod tímhle podílem schované zprávy se poloha do docku nepočítá — řádek by se kreslil naprázdno. */
+private const val DOCK_EPSILON = 0.001f
+
+/** Rozdíl průběhu, nad kterým se dock dojíždí animací místo vedení prstem (skok v seznamu). */
+private const val DOCK_JUMP = 0.35f

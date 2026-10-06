@@ -7363,6 +7363,43 @@ Pod vlastní živou polohou je vedle „Zastavit sdílení" „Upozornit na blí
 - **Ťuknutí na vzdálenost v dialogu podle souřadnic se může trefit do mapy pod ním**, když se
   dialog ještě neotevřel — otevřely se Google Mapy. Před ťuknutím ověřit dumpem text dialogu.
 
+#### Dock živé polohy
+
+Zpráva se živou polohou, která odjede z viditelné části konverzace, se plynule přemění v řádek
+pod pruhy nad konverzací (pod připnutými): špendlík, kdo polohu sdílí a do kdy
+(`LiveLocationDockBar`, pravidla v `LiveLocationDock.kt`, testy `LiveLocationDockTest`). Řádek
+se rozbalí na mapu s „Přejít na zprávu" a u vlastní polohy „Zastavit sdílení" a „Upozornit na
+blízkost". Když se zpráva scrollem vrátí do pohledu, řádek plynule zmizí.
+
+- **Které polohy, drží ViewModel, ne načtená historie** (`ConversationState.liveLocations`).
+  Zpráva s polohou bývá dávno odscrollovaná nebo mimo okno. Při otevření je dá
+  `searchChatRecentLocationMessages` (`recentLiveLocations`, vrací i SKONČENÉ — filtruje
+  `withLiveLocation` podle `liveUntil`), pak nové a upravené zprávy a vlastní sdílení
+  z `LiveLocationRepository.active`. Zastavená poloha přijde úpravou se zkrácenou dobou a odejde
+  sama, prošlou odebere odpočet na nejbližší konec (`nextLiveEnd`). Ve vlákně komentářů dock
+  není, v tématu jen polohy tématu.
+- **Kolik ze zprávy je schované, je průběh docku** (`dockProgress`): podíl zprávy za horní
+  hranou (spodek pruhů) nebo za spodní (pole). Seznam je obrácený, offset roste odspodu.
+- **Horní hrana se měří BEZ řádku docku** (`barsHeight` je vnitřní sloupec pruhů). Řádek se
+  vysouvá s průběhem a s ním i odsazení seznamu; kdyby hrana šla s ním, zakryl by další kus
+  zprávy, ta by se schovala víc… a z plynulého přechodu by byl skok.
+- **Kompozice čte jen MNOŽINU id v docku** (`derivedStateOf` se `structuralEqualityPolicy`),
+  průběh čte až layout (`reveal` jako lambda, `placeRelativeWithLayer`). Jinak by každý snímek
+  scrollu rekomponoval sloupec pruhů. Velký skok průběhu (otevření chatu, skok na zprávu,
+  `DOCK_JUMP`) se dojede pružinou, scroll jde s prstem.
+- **Žádný závoj přes konverzaci.** První verze rozbalený dock podložila scrimem jako sheet;
+  uživatel ho odmítl — kouzlo je v tom, že mapa je vidět a chatuje se dál. Rozbalený dock
+  zavře šipka, zpět, „Přejít na zprávu" a návrat zprávy do pohledu (`dockedIds` prázdné).
+- **Stín pod průsvitným sklem prosvítá DOVNITŘ plochy.** Rozbalená vysoká karta se 3dp stínem
+  měla vpravo a dole ztmavlý pruh, posunutý vůči kartě — vypadalo to jako špatně umístěná
+  vrstva (`placeRelativeWithLayer`), a nebyla to ona. Stín má proto jen sbalený řádek.
+- **Ověřeno na emulátoru** (anglicky) živou polohou od testovacího bota (`sendLocation`
+  s `live_period`) a šestnácti zprávami za ní: vysunutí při scrollu i po znovuotevření chatu,
+  rozbalení s mapou, scroll pod rozbaleným dockem, sbalení a zmizení při návratu zprávy,
+  „Přejít na zprávu" se zvýrazněním. **Vlastní poloha v docku (zastavit, upozornit) ověřená
+  není** — tlačítka jsou tatáž cesta jako pod zprávou (`StopLiveLocation`,
+  `SetProximityAlert`). iOS jen přeložené.
+
 ### GIFy
 
 GIF je v Telegramu **MP4 bez zvuku** (`MessageAnimation`), ne skutečný GIF — přehrává se proto

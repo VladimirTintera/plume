@@ -2,6 +2,7 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
+import dev.g000sha256.tdl.dto.MessageLiveLocation
 import dev.g000sha256.tdl.dto.UnreadReaction
 import dev.g000sha256.tdl.dto.InputTextQuote
 import dev.g000sha256.tdl.dto.InputMessageReplyTo
@@ -922,6 +923,17 @@ class TdlConversationRepository(
         return client.getMessage(chatId = chatId, messageId = messageId)
             .toResult()
             .map { it.toChatMessage(isGroup) }
+    }
+
+    override suspend fun recentLiveLocations(chatId: Long): Result<List<ChatMessage>> {
+        val isGroup = isGroup(chatId)
+        return client.searchChatRecentLocationMessages(chatId = chatId, limit = RECENT_LOCATIONS_LIMIT)
+            .toResult()
+            .map { messages ->
+                messages.messages.filterNotNull()
+                    .filter { it.content is MessageLiveLocation && inScope(it) }
+                    .map { it.toChatMessage(isGroup) }
+            }
     }
 
     override fun sentMessageUpdates(chatId: Long): Flow<SentMessageUpdate> = merge(
@@ -3059,6 +3071,9 @@ private fun SelfDestructType.toTdl(): MessageSelfDestructType = when (this) {
 
 /** Připnutých zpráv na jeden dotaz. Víc TDLib nedovolí. */
 private const val PINNED_PAGE_SIZE = 100
+
+/** Živých poloh v chatu na jeden dotaz — jedna na člověka, takže sto stačí i velké skupině. */
+private const val RECENT_LOCATIONS_LIMIT = 100
 
 /** Výsledků hledání v chatu na stránku; další se dotahují, až k nim uživatel došipkuje. */
 private const val IN_CHAT_SEARCH_PAGE = 50

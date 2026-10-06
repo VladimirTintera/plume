@@ -228,6 +228,8 @@ import eu.tintera.plume.resources.spam_bar_failed
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.collectLatest
+import kotlin.time.Clock
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -691,7 +693,55 @@ class ConversationViewModel(
         loadOlder()
         observeUpdates()
         observePinned()
+        observeLiveLocations()
     }
+
+    /**
+     * Živé polohy pro dock nad konverzací ([ConversationState.liveLocations]).
+     *
+     * Odkud: při otevření [ConversationRepository.recentLiveLocations] (vlastní i cizí), pak nové
+     * a upravené zprávy (`observeUpdates`) a vlastní sdílení, které hlídá [LiveLocationRepository]
+     * — to dorazí i u zprávy, kterou žádný update konverzace nepřinesl. Zastavená poloha přijde
+     * úpravou s dobou zkrácenou na okamžik zastavení a odejde tím sama; prošlou odebere odpočet
+     * na nejbližší konec.
+     *
+     * Ve vlákně komentářů dock není: poloha patří diskusní skupině.
+     */
+    private fun observeLiveLocations() {
+        if (threadRootId != null) return
+        viewModelScope.launch {
+            repository.recentLiveLocations(chatId).onSuccess { found ->
+                _state.update { state ->
+                    state.copy(
+                        liveLocations = found.fold(state.liveLocations) { list, message -> list.withLiveLocation(message, now()) },
+                    )
+                }
+            }
+        }
+        // V tématu jen zprávy tématu — ty přinese hledání a nové zprávy (repository je zužuje),
+        // seznam vlastních sdílení o tématech neví.
+        if (forumTopicId == null && savedTopicId == null) viewModelScope.launch {
+            liveLocations.active.collect { active ->
+                active.filter { it.chatId == chatId && _state.value.liveLocations.none { m -> m.id == it.messageId } }
+                    .forEach { live ->
+                        repository.message(chatId, live.messageId).onSuccess { message ->
+                            _state.update { it.copy(liveLocations = it.liveLocations.withLiveLocation(message, now())) }
+                        }
+                    }
+            }
+        }
+        viewModelScope.launch {
+            _state.map { it.liveLocations.nextLiveEnd() }
+                .distinctUntilChanged()
+                .collectLatest { end ->
+                    if (end == null) return@collectLatest
+                    delay((end - now()).coerceAtLeast(0).seconds)
+                    _state.update { it.copy(liveLocations = it.liveLocations.withoutEnded(now())) }
+                }
+        }
+    }
+
+    private fun now(): Long = Clock.System.now().epochSeconds
 
     /**
      * Připnuté zprávy.
@@ -1191,7 +1241,10 @@ class ConversationViewModel(
                     // jinak se na snímek vykreslí na místě, zmizí a teprve pak přiletí. Let se
                     // váže i na zprávu, kterou `withMessage` zahodí: klíč položky je pořád její
                     // dočasné id.
-                    it.withMessage(message).copy(flight = it.flight.landingOn(message))
+                    it.withMessage(message).copy(
+                        flight = it.flight.landingOn(message),
+                        liveLocations = it.liveLocations.withLiveLocation(message, now()),
+                    )
                 }
                 resolveMissingQuotes()
             }
@@ -1211,6 +1264,9 @@ class ConversationViewModel(
                         messages = merge(it.messages, listOf(message)),
                         // Upravená připnutá zpráva se musí přepsat i v pruhu, jinak by ukazoval starý text.
                         pinned = it.pinned.map { pinned -> if (pinned.id == message.id) message else pinned },
+                        // Každý posun živé polohy je úprava zprávy — i v docku, i když zpráva
+                        // v načtené historii není.
+                        liveLocations = it.liveLocations.withLiveLocation(message, now()),
                     )
                 }
             }
@@ -1265,7 +1321,12 @@ class ConversationViewModel(
                     is SentMessageUpdate.Failed -> update.oldMessageId to update.message
                 }
 
-                _state.update { state -> state.withSentMessage(oldId, message) }
+                _state.update { state ->
+                    state.withSentMessage(oldId, message).copy(
+                        // Potvrzená zpráva dostane nové id; v docku nesmí zůstat ta dočasná.
+                        liveLocations = state.liveLocations.filterNot { it.id == oldId }.withLiveLocation(message, now()),
+                    )
+                }
             }
         }
 
@@ -1351,6 +1412,7 @@ class ConversationViewModel(
                     state.copy(
                         messages = state.messages.filterNot { it.id in removed },
                         itemKeys = state.itemKeys - removed,
+                        liveLocations = state.liveLocations.filterNot { it.id in removed },
                     )
                 }
                 // Smazaná připnutá zpráva: nejnovější připnutá je teď jiná (nebo žádná).
@@ -1442,7 +1504,10 @@ class ConversationViewModel(
 
     /** „Upozornit na blízkost" pod vlastní živou polohou: dialog se vzdálenostmi. */
     private fun openProximityAlert(messageId: Long) {
-        val radius = (_state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Location)?.proximityAlertRadius ?: return
+        // Z docku jde i u zprávy, která v načtené historii není.
+        val message = _state.value.messages.firstOrNull { it.id == messageId }
+            ?: _state.value.liveLocations.firstOrNull { it.id == messageId }
+        val radius = (message?.media as? MessageMedia.Location)?.proximityAlertRadius ?: return
         _state.update { it.copy(proximityAlert = ProximityAlertPrompt(messageId, radius)) }
     }
 
@@ -5300,6 +5365,11 @@ data class ConversationState(
     val contactPicker: ContactPicker? = null,
     /** Dialog upozornění na blízkost u vlastní živé polohy; `null` = zavřený. */
     val proximityAlert: ProximityAlertPrompt? = null,
+    /**
+     * Živé polohy, které se v chatu právě sdílí (vlastní napřed) — pro dock nad konverzací.
+     * Nezávisí na načtené historii: zpráva s polohou může být dávno odscrollovaná nebo mimo okno.
+     */
+    val liveLocations: List<ChatMessage> = emptyList(),
     /** Kontakt, který čeká na potvrzení odeslání (jméno a číslo); `null` = žádný. */
     val pendingContact: MessageMedia.Contact? = null,
     /** Jednorázová událost: tlačítko bota chce formulář nové ankety (v tomhle režimu). */
