@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.ReportDrawnWhen
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.core.ui.SwipeDirection
 import eu.tintera.plume.core.ui.detectHorizontalSwipe
@@ -808,6 +809,8 @@ internal fun ChatListContent(
     header: LazyListScope.() -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // Start je hotový, až seznam ukazuje chaty (nebo že žádné nejsou), ne s prvním snímkem.
+    ReportDrawnWhen { state !is ChatListState.Loading }
     val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
     val hiddenSavedMessagesChatId by viewModel.hiddenSavedMessagesChatId.collectAsStateWithLifecycle()
