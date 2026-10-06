@@ -163,7 +163,7 @@ fun CreateChatScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 PhotoSlot(
-                    path = viewModel.photoPath,
+                    path = viewModel.photo?.preview,
                     channel = channel,
                     busy = viewModel.photoBusy,
                     enabled = !viewModel.creating,
@@ -174,11 +174,11 @@ fun CreateChatScreen(
                         Icon(painterResource(Res.drawable.photo_camera_24dp), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                         Text(
                             stringResource(
-                                if (viewModel.photoPath == null) Res.string.create_chat_add_photo else Res.string.edit_profile_change_photo,
+                                if (viewModel.photo == null) Res.string.create_chat_add_photo else Res.string.edit_profile_change_photo,
                             ),
                         )
                     }
-                    if (viewModel.photoPath != null) {
+                    if (viewModel.photo != null) {
                         TextButton(onClick = viewModel::removePhoto, enabled = !viewModel.creating) {
                             Text(stringResource(Res.string.edit_chat_delete_photo))
                         }
@@ -232,6 +232,7 @@ fun CreateChatScreen(
             path = viewModel.cropping,
             onCancel = viewModel::cancelCrop,
             onConfirm = viewModel::cropPhoto,
+            isVideo = viewModel.croppingVideo,
         )
     }
 }

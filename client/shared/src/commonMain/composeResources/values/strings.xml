@@ -1154,7 +1154,7 @@
     <string name="edit_profile_load_failed">Couldn't load your profile.</string>
     <string name="edit_profile_save_failed">Couldn't save your profile.</string>
     <string name="edit_profile_photo_failed">Couldn't change the photo.</string>
-    <string name="edit_profile_not_photo">Pick a photo — a video can't be a profile photo.</string>
+    <string name="edit_profile_not_photo">Pick a photo or a video.</string>
     <string name="settings_edit_profile">Edit profile</string>
     <string name="error_username_occupied">This username is already taken.</string>
     <string name="error_username_invalid">This username can't be used.</string>
@@ -1903,6 +1903,8 @@
     <string name="photo_crop_hint">Drag and pinch to fit the photo in the circle</string>
     <string name="photo_crop_done">Done</string>
     <string name="photo_crop_failed">The photo can't be loaded</string>
+    <string name="photo_crop_video_title">Crop video</string>
+    <string name="photo_crop_video_note">Drag and pinch to fit the video in the circle. Only the first 10 seconds are used, without sound</string>
     <string name="saved_topic_my_notes">My Notes</string>
     <string name="saved_topic_author_hidden">Hidden author</string>
     <string name="saved_topic_unknown_chat">Unknown chat</string>

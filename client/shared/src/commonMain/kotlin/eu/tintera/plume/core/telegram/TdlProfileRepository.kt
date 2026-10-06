@@ -31,8 +31,6 @@ import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.InputMessageText
 import dev.g000sha256.tdl.dto.InputChatPhotoPrevious
-import dev.g000sha256.tdl.dto.InputChatPhotoStatic
-import dev.g000sha256.tdl.dto.InputFileLocal
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.SupergroupMembersFilterAdministrators
 import dev.g000sha256.tdl.dto.SupergroupMembersFilterRecent
@@ -246,16 +244,9 @@ class TdlProfileRepository(
     override suspend fun setDescription(chatId: Long, description: String): Result<Unit> =
         client.setChatDescription(chatId = chatId, description = description).toResult().map { }
 
-    /**
-     * Fotka jde přes CESTU (`InputFileLocal`), ne přes systémové URI — TDLib jiné nepřijme,
-     * stejně jako u příloh. `InputChatPhotoStatic` je obyčejný snímek; animovaná fotka
-     * a fotka ze samolepky jsou jiné druhy a aplikace je nenabízí.
-     */
-    override suspend fun setPhoto(chatId: Long, path: String): Result<Unit> =
-        client.setChatPhoto(
-            chatId = chatId,
-            photo = InputChatPhotoStatic(photo = InputFileLocal(path = path)),
-        ).toResult().map { }
+    /** Fotka ze samolepky (`InputChatPhotoSticker`) je další druh a aplikace ji nenabízí. */
+    override suspend fun setPhoto(chatId: Long, photo: ProfilePhotoFile): Result<Unit> =
+        client.setChatPhoto(chatId = chatId, photo = photo.toInputChatPhoto()).toResult().map { }
 
     /** `photo = null` fotku odebere — jiné volání na to TDLib nemá. */
     override suspend fun deletePhoto(chatId: Long): Result<Unit> =

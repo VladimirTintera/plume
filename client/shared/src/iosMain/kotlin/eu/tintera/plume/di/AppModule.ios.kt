@@ -2,6 +2,8 @@ package eu.tintera.plume.di
 
 import eu.tintera.plume.core.ai.NoopOnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAi
+import eu.tintera.plume.core.ui.IosProfileVideo
+import eu.tintera.plume.core.ui.ProfileVideo
 import eu.tintera.plume.core.ui.IosSquarePhoto
 import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.audio.AudioEngine
@@ -62,6 +64,7 @@ actual fun Module.platformModule() {
     single { TextClipboard() }
     single<LanguageDetector> { IosLanguageDetector() }
     single<SquarePhoto> { IosSquarePhoto() }
+    single<ProfileVideo> { IosProfileVideo() }
     // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.
     factory { AudioRecorder() }
     // Nový na každou přehrávanou hlasovku.

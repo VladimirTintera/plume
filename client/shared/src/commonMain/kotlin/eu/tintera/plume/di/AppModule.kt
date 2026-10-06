@@ -8,6 +8,7 @@ import eu.tintera.plume.core.telegram.BotUsersRequest
 import eu.tintera.plume.features.profile.JoinRequestsViewModel
 import eu.tintera.plume.features.profile.InviteLinksViewModel
 import eu.tintera.plume.features.settings.EditProfileViewModel
+import eu.tintera.plume.core.ui.ProfilePhotoCrop
 import eu.tintera.plume.core.telegram.TdlAccountRepository
 import eu.tintera.plume.core.telegram.TdlProxyRepository
 import eu.tintera.plume.core.telegram.ProxyRepository
@@ -143,6 +144,8 @@ fun appModule() = module {
 
     // Jeden TDLib klient na proces; sdílí ho session i chat repository.
     single { TelegramClientHolder() }
+    // Ořez nové profilovky drží stav pro jednu obrazovku, proto factory.
+    factory { ProfilePhotoCrop(squarePhoto = get(), profileVideo = get()) }
 
     single<TelegramSession> {
         TdlTelegramSession(
@@ -430,7 +433,7 @@ fun appModule() = module {
         EditChatViewModel(
             chatId = parameters.get(),
             repository = get(),
-            squarePhoto = get(),
+            photoCrop = get(),
             inviteLinks = get(),
             forums = get(),
             chats = get(),
@@ -530,7 +533,7 @@ fun appModule() = module {
             memberChatIds = parameters.values[1] as List<Long>,
             creation = get(),
             profiles = get(),
-            squarePhoto = get(),
+            photoCrop = get(),
             conversations = get(),
         )
     }

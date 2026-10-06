@@ -1176,7 +1176,7 @@
     <string name="edit_profile_load_failed">Profil se nepodařilo načíst.</string>
     <string name="edit_profile_save_failed">Profil se nepodařilo uložit.</string>
     <string name="edit_profile_photo_failed">Fotku se nepodařilo změnit.</string>
-    <string name="edit_profile_not_photo">Vyber fotku — video profilovou fotkou být nemůže.</string>
+    <string name="edit_profile_not_photo">Vyber fotku nebo video.</string>
     <string name="settings_edit_profile">Upravit profil</string>
     <string name="error_username_occupied">Tohle uživatelské jméno už někdo má.</string>
     <string name="error_username_invalid">Tohle uživatelské jméno použít nejde.</string>
@@ -1962,6 +1962,8 @@
     <string name="photo_crop_hint">Posuň a přibliž fotku, ať sedí v kruhu</string>
     <string name="photo_crop_done">Hotovo</string>
     <string name="photo_crop_failed">Fotku se nepodařilo načíst</string>
+    <string name="photo_crop_video_title">Upravit video</string>
+    <string name="photo_crop_video_note">Posuň a přibliž video, ať sedí v kruhu. Použije se jen prvních 10 sekund, bez zvuku</string>
     <string name="saved_topic_my_notes">Moje poznámky</string>
     <string name="saved_topic_author_hidden">Skrytý autor</string>
     <string name="saved_topic_unknown_chat">Neznámý chat</string>

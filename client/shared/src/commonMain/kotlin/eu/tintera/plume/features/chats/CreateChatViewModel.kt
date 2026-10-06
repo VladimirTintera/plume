@@ -18,7 +18,8 @@ import eu.tintera.plume.core.ui.USERNAME_CHECK_DELAY_MS
 import eu.tintera.plume.core.ui.UsernameStatus
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.CropRegion
-import eu.tintera.plume.core.ui.SquarePhoto
+import eu.tintera.plume.core.ui.PreparedProfilePhoto
+import eu.tintera.plume.core.ui.ProfilePhotoCrop
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.create_channel_failed
@@ -60,7 +61,7 @@ class CreateChatViewModel(
     private val memberChatIds: List<Long>,
     private val creation: ChatCreation,
     private val profiles: ProfileRepository,
-    private val squarePhoto: SquarePhoto,
+    private val photoCrop: ProfilePhotoCrop,
     conversations: ConversationRepository,
 ) : ViewModel() {
 
@@ -78,8 +79,8 @@ class CreateChatViewModel(
     var usernameStatus by mutableStateOf<UsernameStatus>(UsernameStatus.Idle)
         private set
 
-    /** Oříznutá fotka na disku; `null` = bez fotky. */
-    var photoPath by mutableStateOf<String?>(null)
+    /** Oříznutá fotka (nebo video) na disku; `null` = bez fotky. */
+    var photo by mutableStateOf<PreparedProfilePhoto?>(null)
         private set
     var photoBusy by mutableStateOf(false)
         private set
@@ -148,31 +149,35 @@ class CreateChatViewModel(
             return title.isNotBlank() && !creating && !photoBusy && usernameOk
         }
 
-    /** Fotka čekající na ořez ([PhotoCropOverlay]); `null` = ořez zavřený. */
-    var cropping by mutableStateOf<String?>(null)
-        private set
+    /** Obrázek čekající na ořez ([PhotoCropOverlay]); `null` = ořez zavřený. */
+    val cropping: String? get() = photoCrop.image
 
-    /** Z výběru příloh; bere se první fotka, video fotkou chatu být nemůže. */
+    /** V ořezu je snímek videa — ořez řekne, že se zkrátí a přijde o zvuk. */
+    val croppingVideo: Boolean get() = photoCrop.isVideo
+
+    /** Z výběru příloh; bere se první fotka nebo video (animovaná fotka chatu). */
     fun setPhoto(attachments: List<OutgoingAttachment>) {
-        val photo = attachments.firstOrNull() as? OutgoingAttachment.Photo
-        if (photo == null) {
-            notice = UiText(Res.string.edit_profile_not_photo)
-            return
+        photoBusy = true
+        viewModelScope.launch {
+            runCatching { photoCrop.open(attachments) }
+                .onSuccess { opened -> if (!opened) notice = UiText(Res.string.edit_profile_not_photo) }
+                .onFailure { failure ->
+                    logger.w(failure) { "Fotku pro nový chat se nepodařilo připravit." }
+                    notice = UiText(Res.string.edit_chat_photo_failed)
+                }
+            photoBusy = false
         }
-        cropping = photo.path
     }
 
     fun cancelCrop() {
-        cropping = null
+        photoCrop.cancel()
     }
 
     fun cropPhoto(region: CropRegion) {
-        val path = cropping ?: return
-        cropping = null
         photoBusy = true
         viewModelScope.launch {
-            runCatching { squarePhoto.crop(path, region) }
-                .onSuccess { photoPath = it }
+            runCatching { photoCrop.crop(region) }
+                .onSuccess { prepared -> if (prepared != null) photo = prepared }
                 .onFailure { failure ->
                     logger.w(failure) { "Fotku pro nový chat se nepodařilo připravit." }
                     notice = UiText(Res.string.edit_chat_photo_failed)
@@ -182,7 +187,7 @@ class CreateChatViewModel(
     }
 
     fun removePhoto() {
-        photoPath = null
+        photo = null
     }
 
     fun reportError(message: UiText) {
@@ -213,8 +218,8 @@ class CreateChatViewModel(
     }
 
     private suspend fun finish(chat: CreatedChat) {
-        val photoFailed = photoPath?.let { path ->
-            profiles.setPhoto(chat.chatId, path)
+        val photoFailed = photo?.let { prepared ->
+            profiles.setPhoto(chat.chatId, prepared.file)
                 .onFailure { logger.w(it) { "Fotku nového chatu ${chat.chatId} se nepodařilo nastavit." } }
                 .isFailure
         } ?: false

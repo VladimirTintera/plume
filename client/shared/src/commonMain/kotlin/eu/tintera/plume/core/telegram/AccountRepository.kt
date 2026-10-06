@@ -27,8 +27,8 @@ interface AccountRepository {
 
     suspend fun setBio(bio: String): Result<Unit>
 
-    /** Nová profilová fotka z připraveného souboru (čtverec, JPEG). */
-    suspend fun setPhoto(path: String): Result<Unit>
+    /** Nová profilová fotka z připraveného souboru (čtvercový JPEG, nebo krátké čtvercové video). */
+    suspend fun setPhoto(photo: ProfilePhotoFile): Result<Unit>
 
     /** Odebere současnou fotku; ukáže se ta předchozí, pokud nějaká je. */
     suspend fun deletePhoto(): Result<Unit>

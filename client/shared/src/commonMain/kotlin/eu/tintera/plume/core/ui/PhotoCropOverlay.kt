@@ -34,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -60,6 +61,8 @@ import eu.tintera.plume.resources.photo_crop_done
 import eu.tintera.plume.resources.photo_crop_failed
 import eu.tintera.plume.resources.photo_crop_hint
 import eu.tintera.plume.resources.photo_crop_title
+import eu.tintera.plume.resources.photo_crop_video_note
+import eu.tintera.plume.resources.photo_crop_video_title
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.min
@@ -74,10 +77,16 @@ import kotlin.math.min
  * překryv dává za svůj obsah.
  *
  * [path] `null` = zavřeno; při zavírání se dál kreslí poslední fotka, ať prolnutí nedobíhá
- * s prázdnem.
+ * s prázdnem. [isVideo]: v ořezu je první snímek videa ([ProfileVideo.frame]) — výřez platí pro
+ * celé video, jen nadpis a věta pod ním řeknou, že se zkrátí a přijde o zvuk.
  */
 @Composable
-fun PhotoCropOverlay(path: String?, onCancel: () -> Unit, onConfirm: (CropRegion) -> Unit) {
+fun PhotoCropOverlay(
+    path: String?,
+    onCancel: () -> Unit,
+    onConfirm: (CropRegion) -> Unit,
+    isVideo: Boolean = false,
+) {
     var last by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(path) { if (path != null) last = path }
     // `NavigationBackHandler`, ne `BackHandler` — ten by zabil predictive back.
@@ -88,12 +97,20 @@ fun PhotoCropOverlay(path: String?, onCancel: () -> Unit, onConfirm: (CropRegion
     )
     AnimatedVisibility(visible = path != null, enter = fadeIn(), exit = fadeOut()) {
         val shown = path ?: last
-        if (shown != null) PhotoCrop(shown, isOpen = path != null, onCancel = onCancel, onConfirm = onConfirm)
+        if (shown != null) {
+            PhotoCrop(shown, isVideo, isOpen = path != null, onCancel = onCancel, onConfirm = onConfirm)
+        }
     }
 }
 
 @Composable
-private fun PhotoCrop(path: String, isOpen: Boolean, onCancel: () -> Unit, onConfirm: (CropRegion) -> Unit) {
+private fun PhotoCrop(
+    path: String,
+    isVideo: Boolean,
+    isOpen: Boolean,
+    onCancel: () -> Unit,
+    onConfirm: (CropRegion) -> Unit,
+) {
     // Podklad je černý v obou motivech, takže i ikony systémových lišt musí být světlé.
     if (isOpen) DarkSystemBars()
     val context = LocalPlatformContext.current
@@ -125,13 +142,15 @@ private fun PhotoCrop(path: String, isOpen: Boolean, onCancel: () -> Unit, onCon
                 )
             }
             Text(
-                text = stringResource(Res.string.photo_crop_title),
+                text = stringResource(if (isVideo) Res.string.photo_crop_video_title else Res.string.photo_crop_title),
                 style = MaterialTheme.typography.titleLarge,
                 color = Color.White,
             )
         }
 
-        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+        // Ořez na plochu: posunutá nebo přiblížená fotka by jinak přetekla přes nadpis
+        // i stavovou lištu (`graphicsLayer` na obrázku hranice rodiče neřeší).
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().clipToBounds(), contentAlignment = Alignment.Center) {
             val density = LocalDensity.current
             val circle = with(density) { min(maxWidth.toPx(), maxHeight.toPx()) - 2 * CIRCLE_MARGIN.toPx() }
             when {
@@ -184,7 +203,8 @@ private fun PhotoCrop(path: String, isOpen: Boolean, onCancel: () -> Unit, onCon
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = stringResource(Res.string.photo_crop_hint),
+                // U videa i to, že se zkrátí a přijde o zvuk — v ořezu je jen jeho první snímek.
+                text = stringResource(if (isVideo) Res.string.photo_crop_video_note else Res.string.photo_crop_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.7f),
             )
