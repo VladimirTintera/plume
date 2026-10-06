@@ -459,8 +459,10 @@ snadno na to uživatel narazí.
   zprávu; bez možnosti zaplatit to nejde ověřit).
 - ~~**Faktury a hry**~~ — hotovo jako karta s obrázkem, popisem a cenou (`CLAUDE.md`, „Faktura
   a hra"). Zbývá animace hry a placení (hvězdy ani platby nemáme).
-- **Sdílený příběh** (`MessageStory`), **dárky, soutěže** — dnes text. Stojí na stories
-  a hvězdách, které aplikace nemá; zvážit aspoň kartu s náhledem.
+- ~~**Soutěže**~~ — hotovo jako karta s výhrou, kanály, podmínkami a výsledky a sheet se stavem
+  účasti (`CLAUDE.md`, „Soutěž"). Ověřené jen sondou.
+- **Sdílený příběh** (`MessageStory`), **dárky** — dnes text. Stojí na stories a hvězdách,
+  které aplikace nemá; zvážit aspoň kartu s náhledem.
 - ~~**Článek** (`MessageRichMessage`)~~ — hotovo jako text s formátováním (`CLAUDE.md`, „Článek"). ~~Média článku~~ — hotovo (fotka, video a GIF na svém místě, prohlížeč) a ~~useknutý článek~~ (`isFull`, „Číst celý článek"). ~~Koláž a prezentace jako mřížka~~ a ~~fotky a videa článku v záložce Média~~ — hotovo. ~~Zvuk, hlasovka a soubor k přehrání a otevření~~ — hotovo (skladba z článku hraje jako hlasovka, ne na pozadí). Zvuk a soubory článků v záložkách Soubory a Hudba nejsou, protože je tam TDLib nevrací (ověřeno). Zbývá: sbalitelné bloky a posílání článků (jen s Premium).
 
 **Údaje o zprávě, které TDLib posílá a my zahazujeme**

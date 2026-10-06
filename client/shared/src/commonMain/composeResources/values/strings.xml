@@ -1977,4 +1977,57 @@
     <string name="chats_sponsor_announcement_explanation">A public service announcement from Telegram.</string>
     <string name="chats_sponsor_open_proxy">Proxy settings</string>
     <string name="chats_sponsor_hide">Hide announcement</string>
+    <string name="giveaway_title">Giveaway</string>
+    <string name="giveaway_results_title">Giveaway results</string>
+    <string name="giveaway_prize_premium">%1$s × Telegram Premium for %2$s</string>
+    <string name="giveaway_prize_premium_plain">%1$s × Telegram Premium</string>
+    <plurals name="giveaway_premium_months">
+        <item quantity="one">%1$d month</item>
+        <item quantity="other">%1$d months</item>
+    </plurals>
+    <plurals name="giveaway_prize_stars">
+        <item quantity="one">%1$s star</item>
+        <item quantity="other">%1$s stars</item>
+    </plurals>
+    <plurals name="giveaway_stars_split">
+        <item quantity="one">for %1$d winner</item>
+        <item quantity="other">shared among %1$d winners</item>
+    </plurals>
+    <string name="giveaway_extra">Also: %1$s</string>
+    <string name="giveaway_participants">Open to subscribers of</string>
+    <plurals name="giveaway_more_channels">
+        <item quantity="one">and %1$d more channel</item>
+        <item quantity="other">and %1$d more channels</item>
+    </plurals>
+    <string name="giveaway_only_new">Only for those who subscribe after it started</string>
+    <string name="giveaway_countries">From: %1$s</string>
+    <string name="giveaway_draws_at">Winners drawn %1$s</string>
+    <string name="giveaway_drawn_at">Drawn on %1$s</string>
+    <string name="giveaway_winners">Winners</string>
+    <plurals name="giveaway_winners_drawn">
+        <item quantity="one">%1$d winner was drawn</item>
+        <item quantity="other">%1$d winners were drawn</item>
+    </plurals>
+    <plurals name="giveaway_unclaimed">
+        <item quantity="one">%1$d prize wasn't claimed</item>
+        <item quantity="other">%1$d prizes weren't claimed</item>
+    </plurals>
+    <string name="giveaway_refunded">Telegram cancelled the giveaway and refunded the prizes to the organizer.</string>
+    <string name="giveaway_details">Details</string>
+    <string name="giveaway_show_announcement">Show giveaway</string>
+    <string name="giveaway_status_title">Your participation</string>
+    <string name="giveaway_status_participating">You’re taking part — you follow one of the channels.</string>
+    <string name="giveaway_status_eligible">To take part, follow one of the channels before the draw.</string>
+    <string name="giveaway_status_already_member">Only new subscribers take part, and you’ve followed the channel since %1$s.</string>
+    <string name="giveaway_status_administrator">Channel admins don’t take part in their own giveaway.</string>
+    <string name="giveaway_status_country">This giveaway isn’t open to %1$s.</string>
+    <string name="giveaway_status_not_won">You didn’t win this time.</string>
+    <plurals name="giveaway_status_won_stars">
+        <item quantity="one">You won %1$s star!</item>
+        <item quantity="other">You won %1$s stars!</item>
+    </plurals>
+    <string name="giveaway_status_won_premium">You won Telegram Premium! Activate it with this gift code in the official Telegram app.</string>
+    <string name="giveaway_status_failed">Couldn’t find out how you stand in this giveaway.</string>
+    <string name="giveaway_copy_code">Copy code</string>
+    <string name="giveaway_code_copied">Code copied</string>
 </resources>

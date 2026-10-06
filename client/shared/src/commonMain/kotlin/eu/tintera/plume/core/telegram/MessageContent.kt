@@ -501,6 +501,8 @@ internal suspend fun Message.captionBody(
 
     // Typy, které mají v bublině vlastní přílohu s popiskem — text by ho zdvojil.
     is MessageVideoNote, is MessageGame, is MessageInvoice -> MessageBody.Empty
+    // Soutěž je karta s výhrou a podmínkami; „Soutěž" jako text by ji jen pojmenovala podruhé.
+    is MessageGiveaway, is MessageGiveawayWinners -> MessageBody.Empty
     // Hovor je řádek s ikonou a názvem; text by ho zdvojil.
     is MessageCall -> MessageBody.Empty
     // Kontakt je karta se jménem a číslem; „Kontakt: Jana" by ho zdvojil.
@@ -754,6 +756,11 @@ internal suspend fun Message.messageMedia(
     hideSensitive: Boolean = false,
     /** Profilovka sdíleného kontaktu (`MessageContact.userId`); `getUser` je na klientovi, ne tady. */
     contactPhotoFileId: Int? = null,
+    /**
+     * Jméno odesílatele podle id ve tvaru odesílatele zprávy (kladné uživatel, záporné chat) —
+     * kanály soutěže a její výherci. Dohledává se na klientovi, ne tady.
+     */
+    senderName: suspend (Long) -> String? = { null },
 ): MessageMedia? = when (val content = this.content) {
     is MessagePhoto -> content.photo.toMedia(
         hasSpoiler = content.hasSpoiler || hideSensitive,
@@ -837,6 +844,9 @@ internal suspend fun Message.messageMedia(
         // Soukromý chat má id uživatele (Uložené zprávy id vlastního účtu).
         isThisChat = content.contact.userId != 0L && content.contact.userId == chatId,
     )
+
+    is MessageGiveaway -> content.toMedia(senderName)
+    is MessageGiveawayWinners -> content.toMedia(senderName)
 
     is MessageInvoice -> MessageMedia.Product(
         kind = ProductKind.Invoice,

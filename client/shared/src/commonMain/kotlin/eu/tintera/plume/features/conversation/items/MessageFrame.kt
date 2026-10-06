@@ -1488,6 +1488,7 @@ internal fun MessageBodyScope.Attachment(
             onAccent = if (message.isOutgoing) bubbleColor else MaterialTheme.colorScheme.onPrimary,
         ),
         transcript = (media as? MessageMedia.VoiceNote)?.let { rememberTranscript(it.transcript, it.durationSeconds) },
+        onAction = { action -> act(action) },
     )
 }
 
@@ -1526,6 +1527,8 @@ private fun MessageBodyScope.openMedia(media: MessageMedia) {
         is MessageMedia.Contact -> media.userId?.let { act(MessageAction.OpenUser(it)) }
         // Nezaplacené médium do prohlížeče nemůže — soubor server nevydá. Aspoň vysvětlení.
         is MessageMedia.PaidMedia -> act(MessageAction.ExplainPaidMedia)
+        // Soutěž do prohlížeče nemůže; ťuknutí ukáže, jak je na tom tenhle účet.
+        is MessageMedia.Giveaway -> act(MessageAction.ShowGiveaway)
         else -> act(MessageAction.OpenMedia)
     }
 }
