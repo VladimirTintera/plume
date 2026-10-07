@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.material3.IconButtonDefaults
 import kotlin.math.roundToInt
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.boundsInWindow
@@ -362,7 +363,7 @@ internal fun VideoNoteRecordingOverlay(
                         }
                     }
                     if (shownPreview == null && shown != null && shown.canSwitch) {
-                        FilledTonalIconButton(onClick = shown::switchCamera) {
+                        FilledTonalIconButton(onClick = shown::switchCamera, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 painterResource(Res.drawable.cameraswitch_24dp),
                                 contentDescription = stringResource(Res.string.conversation_switch_camera),

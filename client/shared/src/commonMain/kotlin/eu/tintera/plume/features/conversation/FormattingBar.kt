@@ -174,6 +174,7 @@ internal fun FormattingBar(
                     onChanged()
                 },
                 enabled = composer.selectionFormatted,
+                shapes = IconButtonDefaults.shapes(),
             ) {
                 Icon(painterResource(Res.drawable.format_clear_24dp), contentDescription = text)
             }

@@ -516,6 +516,23 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
 - **Zjišťování dostupnosti má `catch`, i když „nemůže" selhat.** `available` je `flow { … }`
   v `stateIn(viewModelScope)`; cokoli, co by z něj vyletělo, shodí scope, tedy ViewModel celé
   obrazovky. Nepodařilo se zjistit = nenabízet.
+- **AICore umí model rozbít a `checkStatus` pořád hlásí `AVAILABLE`.** Na Pixelu 11 Pro Foldu
+  se po aktualizaci AICore (a restartu) Gemini Nano přestal nacházet ve vlastních souborech
+  (`NOT_FOUND: …/aicore-models/symlinks/…/main/config.binarypb`) a každé generování skončilo
+  `GenAiException` s kódem 5 (`COMPUTE_ERROR`, ML Kit ho mezi `ErrorCode` nemá). Featura byla
+  v AICore `ACTIVE`, Plume model nabízela — a uživatel viděl jen „Shrnutí se nepovedlo", den
+  a půl. **Spravilo to vymazání úložiště AICore** (`adb shell pm clear com.google.android.aicore`
+  nebo Nastavení → Aplikace → AICore), pak si model stáhl znovu.
+- **Kde to hledat:** `adb shell dumpsys activity service com.google.android.aicore` má historii
+  posledních inferencí (`caller_package_names=eu.tintera.plume … status=N`; 1 = úspěch) a stav
+  každé featury (`feature_647: ACTIVE` / `PENDING (DOWNLOADING)`). Plume volá featuru 647
+  (`nano-v4-full`). Chyba samotná je v logu procesu AICore (`AiCoreInferenceHelper`).
+- **Selhání generování nese důvod** (`OnDeviceAiException` s `AiFailureReason`, převod z kódu
+  ML Kitu v `MlKitOnDeviceAi.toAiFailure`). Sheet shrnutí ho říká větou, u rozbitého Nano
+  i s kódem a radou vymazat úložiště AICore nebo přepnout na Gemmu. Do Crashlytics jako
+  problém (`e` s výjimkou) jde jen rozbitý / nedostupný model (`isReportable`), vytížený,
+  dlouhý vstup a plný disk zůstávají `w`. Návrhy odpovědí se pouštějí samy u každé zprávy,
+  takže hlásí jen první selhání za běh procesu.
 - **Sloh je pořád slabina.** Tykání i věcnost sedí, ale mezi třemi návrhy bývá jeden nesmysl
   („Ne, zítra mi je zajímavé."). To je limit modelu, ne promptu.
 
@@ -1661,7 +1678,7 @@ u okraje obrazovky. S insetem vpravo prosvítal; proto `clipToBounds` na ploše 
 mají podle M3 smysl až od tří. Lišta zabírala ~80 dp jen kvůli skoku do Nastavení a seznam chatů
 pod ní působil přeplácaně; rail na širší ploše přežil o něco déle, ale jen zdvojoval menu účtu
 a ukusoval šířku panelům. Do Nastavení vede menu účtu v pilulce na každé šířce, spodek obrazovky
-patří FAB „Nová zpráva" (viz „Složky místo filtrů a FAB"). Důsledek pro insety:
+patří FAB menu „Vytvořit" (viz „Složky místo filtrů a FAB"). Důsledek pro insety:
 shell žádný nekonzumuje, každá obrazovka si je bere sama (Scaffold je má ve výchozích
 `contentWindowInsets`). **Kdyby sekcí přibylo na tři**, přijde rail zpátky — past s místem:
 skrytí musí animovat i SLOT (`shrinkHorizontally`), ne jen posun, jinak obsah doskočí až na konci.
@@ -1859,8 +1876,8 @@ když si o to uživatel řekne v Nastavení (`separateUnreadChats`, **výchozí 
 ### Složky místo filtrů a FAB
 
 Seznam chatů zužují JEN složky Telegramu v řádku pod pilulkou (viz „Složky chatů"). Dole je
-rozšířený FAB „Nová zpráva" (`NewChatFab`), který se při scrollu dolů sbalí na ikonu, jako
-v Google Zprávách.
+FAB menu „Vytvořit" (`NewChatFabMenu`): přepínací FAB s tužkou a nad ním Nový kanál, Nová
+skupina a Nová zpráva.
 
 - **Dřív tu byl plovoucí toolbar s vlastními filtry** (Vše, Nepřečtené, Lidé, Skupiny, Kanály;
   `ChatFilter`), lokálními a kombinovatelnými se složkou. Dělaly ale totéž co doporučené složky
@@ -1885,13 +1902,25 @@ v Google Zprávách.
 - **FAB a snackbar nejsou ve slotech Scaffoldu** a stojí nad klávesnicí (`imePadding` za
   `consumeWindowInsets` spodního paddingu Scaffoldu): Scaffold dává do paddingu jen systémové
   lišty, takže by je vysunutá klávesnice zakryla. Seznam má dole `FAB_CLEARANCE`.
-- **Popisek FAB nese i ikona** (`contentDescription`): `ExtendedFloatingActionButton(text = …)`
-  popisek před čtečkou schovává (viz „Gotchas").
+- **FAB menu M3 Expressive, ne rozšířený FAB** (`FloatingActionButtonMenu`
+  + `ToggleFloatingActionButton`). Dřív byl FAB „Nová zpráva", který se při scrollu sbalil na
+  ikonu; Nová skupina a Nový kanál byly jen řádky na obrazovce Nové zprávy (zůstaly tam). Popisky
+  nesou položky, přepínač je jen ikona (tužka → ✕, zaoblený čtverec → kruh) — tak to M3 u FAB
+  menu chce, takže sbalování při scrollu odpadlo. Nová zpráva je poslední, u palce.
+- **Pod otevřeným menu je závoj** (`FabMenuScrim`, `surface` s průhledností): ťuknutí vedle
+  menu zavře a nepropadne do seznamu (otevřelo by chat). Kreslí se DVAKRÁT — přes seznam a přes
+  hlavičku, protože Scaffold kreslí `topBar` nad obsahem a ťuknutí na pilulku by jinak otevřelo
+  hledání s menu otevřeným pod ním. Zpět menu zavře (`NavigationBackHandler`), teprve další zpět
+  odchází z aplikace. Položka napřed menu zavře, pak naviguje — po návratu má být zavřené.
+- **Popisek přepínače se mění se stavem** („Vytvořit" / „Zavřít") a čtečka ho čte PŘED
+  položkami (`traversalIndex = -1`), jako v ukázce M3; z poslední položky menu zavře vlastní akce.
 - **Vybraná složka se v řádku vždycky ukáže** (`bringIntoViewRequester` u vybraného tlačítka):
   přidaná doporučená složka stojí na konci řádku a vybrala by se za okrajem obrazovky.
 - **Server doporučené složky vracet nemusí** — účtu, který už má „Unread" i „Personal", nevrátil
   žádnou. Sheet se pak ověřuje sondou (podstrčená doporučená složka v `openFolderSuggestions`;
   necommituje se), založení jde skutečným `createChatFolder`.
+- **Ověřeno na emulátoru** (anglicky): FAB menu — otevření, zavření ťuknutím do seznamu i na
+  hlavičku a zpět, všechny tři položky vedou na svou obrazovku a zpět se vrací se zavřeným menu.
 - **Ověřeno na emulátoru** (česky, světlý i tmavý motiv): FAB se sbalením, řádek s „+", sheet
   bez doporučených i se sondou, přidání složky (vybraná a dojetá v řádku), prázdná složka
   s ikonou, „Nová složka" do editoru a „Spravovat složky" do seznamu složek, zpět po krocích.
@@ -2398,8 +2427,8 @@ v ⋮ vrátí jednu konverzaci. Hranice je `SavedTopicsRepository` (`TdlSavedTop
   na každé obrazovce znovu.
 - **ViewModely zůstávají dva.** `NewChatViewModel` načítá kontakty, `ForwardViewModel` řeší
   volby a odesílání — sdílí se vzhled, ne obsah.
-- **Vstup je rozšířený FAB** (viz „Složky místo filtrů a FAB"). Při scrollu dolů se sbalí na
-  ikonu, po zastavení zůstává sbalený až do dalšího scrollu nahoru.
+- **Vstup je FAB menu** v seznamu chatů (viz „Složky místo filtrů a FAB"): Nová zpráva, Nová
+  skupina a Nový kanál. Skupina a kanál jsou i řádky nahoře na téhle obrazovce.
 - **Kontakty jdou z `getContacts`** a pro každý se lokálně zavolá `createPrivateChat(userId, force = false)`
   — TDLib tak pro kontakt založí chat objekt (lokálně v paměti/databázi, bez odesílání zpráv)
   a do seznamu se dostane kompletní `ChatSummary` s avatarem i dostupností (`withPresence()`).
@@ -7362,6 +7391,107 @@ Pod vlastní živou polohou je vedle „Zastavit sdílení" „Upozornit na blí
 - **Ťuknutí na vzdálenost v dialogu podle souřadnic se může trefit do mapy pod ním**, když se
   dialog ještě neotevřel — otevřely se Google Mapy. Před ťuknutím ověřit dumpem text dialogu.
 
+#### Dock živé polohy
+
+Zpráva se živou polohou, která odjede z viditelné části konverzace, se plynule přemění v řádek
+pod pruhy nad konverzací (pod připnutými): špendlík, kdo polohu sdílí a do kdy
+(`LiveLocationDockBar`, pravidla v `LiveLocationDock.kt`, testy `LiveLocationDockTest`). Řádek
+se rozbalí na mapu s „Přejít na zprávu" a u vlastní polohy „Zastavit sdílení" a „Upozornit na
+blízkost". Když se zpráva scrollem vrátí do pohledu, řádek plynule zmizí.
+
+- **Které polohy, drží ViewModel, ne načtená historie** (`ConversationState.liveLocations`).
+  Zpráva s polohou bývá dávno odscrollovaná nebo mimo okno. Při otevření je dá
+  `searchChatRecentLocationMessages` (`recentLiveLocations`, vrací i SKONČENÉ — filtruje
+  `withLiveLocation` podle `liveUntil`), pak nové a upravené zprávy a vlastní sdílení
+  z `LiveLocationRepository.active`. Zastavená poloha přijde úpravou se zkrácenou dobou a odejde
+  sama, prošlou odebere odpočet na nejbližší konec (`nextLiveEnd`). Ve vlákně komentářů dock
+  není, v tématu jen polohy tématu.
+- **Kolik ze zprávy je schované, je průběh docku** (`dockProgress`): podíl zprávy za horní
+  hranou (spodek pruhů) nebo za spodní (pole). Seznam je obrácený, offset roste odspodu.
+- **Horní hrana se měří BEZ řádku docku** (`barsHeight` je vnitřní sloupec pruhů). Řádek se
+  vysouvá s průběhem a s ním i odsazení seznamu; kdyby hrana šla s ním, zakryl by další kus
+  zprávy, ta by se schovala víc… a z plynulého přechodu by byl skok.
+- **Kompozice čte jen MNOŽINU id v docku** (`derivedStateOf` se `structuralEqualityPolicy`),
+  průběh čte až layout (`reveal` jako lambda, `placeRelativeWithLayer`). Jinak by každý snímek
+  scrollu rekomponoval sloupec pruhů. Velký skok průběhu (otevření chatu, skok na zprávu,
+  `DOCK_JUMP`) se dojede pružinou, scroll jde s prstem.
+- **Žádný závoj přes konverzaci.** První verze rozbalený dock podložila scrimem jako sheet;
+  uživatel ho odmítl — kouzlo je v tom, že mapa je vidět a chatuje se dál. Rozbalený dock
+  zavře šipka, zpět, „Přejít na zprávu" a návrat zprávy do pohledu (`dockedIds` prázdné).
+- **Stín pod průsvitným sklem prosvítá DOVNITŘ plochy.** Rozbalená vysoká karta se 3dp stínem
+  měla vpravo a dole ztmavlý pruh, posunutý vůči kartě — vypadalo to jako špatně umístěná
+  vrstva (`placeRelativeWithLayer`), a nebyla to ona. Stín má proto jen sbalený řádek.
+- **Ověřeno na emulátoru** (anglicky) živou polohou od testovacího bota (`sendLocation`
+  s `live_period`) a šestnácti zprávami za ní: vysunutí při scrollu i po znovuotevření chatu,
+  rozbalení s mapou, scroll pod rozbaleným dockem, sbalení a zmizení při návratu zprávy,
+  „Přejít na zprávu" se zvýrazněním. **Vlastní poloha v docku (zastavit, upozornit) ověřená
+  není** — tlačítka jsou tatáž cesta jako pod zprávou (`StopLiveLocation`,
+  `SetProximityAlert`). iOS jen přeložené.
+
+#### Mini přehrávač v docku
+
+Hrající hudba nebo hlasovka, jejíž zpráva odjede z obrazovky, je ve sloupci pruhů pod dockem
+polohy jako řádek se stejným sklem (`PlayerDockBar`): tlačítko s průběhem po obvodu (u skladby
+přes obal), název a „interpret · 0:04 / 0:16", u skladby „další" a vždycky ✕. Ťuknutí na text
+skočí na zprávu. Kdo do docku patří, je `VoicePlayback.docksIn` (testy `PlayerDockTest`).
+
+- **Vysouvání a odsazení jsou společné s dockem polohy** (`Modifier.dockReveal`, rozměry
+  `DOCK_*` v `DockRow.kt`). Průběh je `dockProgress` nad položkou s klíčem BLOKU
+  (`blockKeyOf`) — skladba z alba je položka nejstarší zprávy alba.
+- **Skladba z jiného chatu je v docku celá** (průběh 1), protože hudba hraje dál i po odchodu
+  z konverzace a jinde než tady (a v notifikaci) by nešla zastavit. Ťuknutí na ni otevře její
+  chat se skokem na zprávu. Hlasovka z jiného chatu ne — odchodem z chatu dohraje.
+- **Náhled nahrávky (zpráva −1) do docku nepatří**, má vlastní pruh nad polem.
+- **Kompozice čte jen KLÍČ hrajícího zvuku** (`derivedStateOf` se `structuralEqualityPolicy`),
+  průběh a čas čte až řádek přes lambdu — pozice se mění dvacetkrát za vteřinu.
+- **Název skladby z jiného chatu bere `MusicQueue.nowPlaying`**, ne načtenou historii: zpráva
+  z jiného chatu v ní není.
+- **✕ u hudby jde přes `MusicQueue.stop`**, u hlasovky přes `VoicePlayer.stop` — fronta jinak
+  po zastavení navázala další skladbou.
+- **Kolečko se zvukem hraje v docku dál, i obrazem** (`SoundingVideoNote`,
+  `rememberSoundingVideoNote` v `items/SoundingVideoNote.kt`): v kolečku na místě tlačítka běží
+  živé video s průběhem po obvodu, „Notifikator · Video zpráva · 0:23 / 0:39".
+  - **Přehrávač kolečka se zvukem patří OBRAZOVCE, ne položce.** Dokud ho držela položka,
+    kolečko s odscrollováním zmlklo (přehrávač odešel s kompozicí) a dock neměl co ukázat.
+    Bublina si ho bere přes `ConversationItemScope.soundingVideoNote`, tichou smyčku dál hraje
+    vlastním přehrávačem. Kopie v nabídce nad zprávou dostává `null` — hraje potichu.
+  - **Obraz kreslí VŽDYCKY JEN JEDNA plocha** (`SoundingVideoNote.docked`): video jde na Androidu
+    do `TextureView` a přehrávač má jediný výstup — plocha, která by o něj přišla, zůstala viset
+    na posledním snímku. Předává se v polovině vysunutí docku (`VIDEO_NOTE_HANDOFF`), takže
+    v bublině odjíždějící z obrazovky i v kolečku docku je obraz vždycky jen tam, kde je víc vidět.
+  - **Zvuk vrací jen odchod z obrazovky, dohrání a ✕** (`VideoNoteSoundEnded`), ne odscrollování.
+    Pozastavené kolečko se v bublině i v docku pustí dál ťuknutím, nezačíná znovu.
+  - **Ověřeno na emulátoru** čtyřicetivteřinovým kolečkem od testovacího bota: dock s živým
+    obrazem a časem, pauza a pokračování z docku, ✕ (bublina se vrátí do tiché smyčky), dohrání
+    (dock zmizí), návrat scrollem (bublina hraje dál, čas běží), skok na zprávu ťuknutím. iOS jen
+    přeložené.
+- **Ověřeno na emulátoru** (anglicky) dvěma skladbami a hlasovkou od testovacího bota: vysunutí
+  při scrollu, pauza, „další" (u poslední skladby není), skok na zprávu ťuknutím (dock zmizí,
+  zpráva zvýrazněná), ✕, skladba z Notifikátora v docku Uložených zpráv. iOS jen přeložené.
+
+#### Přehrávač nad seznamem chatů
+
+Hudba, která hraje dál po odchodu z konverzace, má nad seznamem chatů tentýž řádek
+(`PlayerDockBar`, `NowPlayingViewModel`): dole pod FAB menu, sklo nad seznamem.
+Ťuknutí na text otevře chat se skokem na skladbu.
+
+- **Jen hudba.** Hlasovka odchodem z chatu dohraje (`stop(chatId, keepMusic = true)`), takže
+  nad seznamem by nebylo co ukázat. Zdrojem je `MusicQueue.nowPlaying`, ne `VoicePlayer`.
+- **Dole, ne v hlavičce.** Pilulka hledání při scrollu odjíždí a řádek by s ní zmizel; dole je
+  navíc pod palcem. FAB se nad něj posune (je ve stejném sloupci), seznam má dole místo navíc
+  o změřenou výšku řádku, aby poslední chat nezůstal schovaný.
+- **S otevřenou konverzací vedle (dvoupanel) se neukazuje** (`conversationOpen` z `AppShell`):
+  konverzace má vlastní dock a dva přehrávače vedle sebe by říkaly totéž dvakrát.
+- **Sklo rozostřuje jen seznam chatů** (vlastní `HazeState`), stejně jako v konverzaci.
+- **Obal skladby se předává jako soubor** (`TrackInfo.coverFileId`). Fronta měla jen bitmapu pro
+  systémové ovládání; řádek si obal stáhne sám přes `RemoteImage`.
+- **Řádek mizí i se svým místem**, takže FAB po dohrání sjede dolů na jeho místo. Ťuknutí na ✕
+  ve chvíli, kdy skladba právě dohrála, proto trefí FAB a otevře menu „Vytvořit" — neškodné,
+  jen se na to při ověřování přes `adb` nesmí zapomenout.
+- **Ověřeno na emulátoru** (anglicky) skladbami od testovacího bota: řádek po odchodu z chatu,
+  pauza, „další" (u poslední není), ✕ za hraní, zmizení po dohrání, ťuknutí na text otevře
+  chat se skladbou. Dvoupanel a iOS ověřené nejsou (iOS jen přeložené).
+
 ### GIFy
 
 GIF je v Telegramu **MP4 bez zvuku** (`MessageAnimation`), ne skutečný GIF — přehrává se proto
@@ -7401,9 +7531,10 @@ týmž přehrávačem jako video (`MessageMedia.Animation`, `AnimationBubble`).
 - **Se zvukem hraje jedno kolečko na konverzaci a rozhoduje ViewModel**
   (`ConversationState.soundingVideoNote`), ne kolečko samo: ví i o hlasovkách. Kolečko se
   zvukem zastaví hlasovku, hlasovka a nahrávání umlčí kolečko.
-- **Kolečko, které odjede z obrazovky, zvuk vrátí** (`onDispose` → `VideoNoteSoundEnded`).
-  Přehrávač odchází s kompozicí položky, takže by zmlklo tak jako tak — jen by ViewModel dál
-  věřil, že hraje, a po návratu by se kolečko samo rozeznělo.
+- **Kolečko se zvukem hraje dál i odscrollované** — přehrávač má obrazovka a kolečko přejde do
+  docku (viz „Mini přehrávač v docku"). Zvuk vrací (`VideoNoteSoundEnded`) až odchod
+  z obrazovky, dohrání nebo ✕; jinak by ViewModel dál věřil, že hraje, a po návratu by se
+  kolečko samo rozeznělo.
 - **Audio focus drží jen kolečko se zvukem** — ztlumený přehrávač o něj nežádá (viz „GIFy"),
   takže tichá smyčka nezastaví hudbu. Ověřeno `dumpsys audio`: focus stack je prázdný při
   smyčce, `GAIN` od Plume jen se zvukem a po dohrání zase prázdný.
@@ -7649,6 +7780,22 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
 - **Čekání na data blokuje vlákno ExoPlayeru, a tak to má být** — je to jeho vlastní vlákno pro
   načítání. Po 30 s bez nových dat se čtení vzdá: stahování mohlo spadnout a věčné čekání by
   vypadalo jako zamrzlý přehrávač.
+- **Dostažený soubor TDLib PŘESUNE** z `files/tdlib-files/temp/<n>` na konečnou cestu
+  (`videos/…`) a `FileState.Downloading` vystřídá `Ready` — bez `downloaded`. Zdroj streamu proto
+  bere cestu jako FUNKCI (`StreamingSource.path`) a `VideoPage` mu po dokončení podá konečnou
+  cestu a celý soubor jako stažený; přehrávač se nepřenačítá. Dokud si zdroj držel dočasnou
+  cestu, šlo video přehrát jen jednou: přehrání od začátku (i skok) soubor OTEVÍRÁ ZNOVU
+  a skončilo `ExoPlaybackException: Source error` / `FileNotFoundException … temp/70: ENOENT`.
+  Hrající video přesun nepozná — už otevřený soubor přejmenování přežije. Ověřeno dočasným
+  logem v `PartialFileDataSource.open`: první přehrání čte `temp/175`, opakované
+  `videos/out2.mp4`.
+- **Chyba přehrávače se čte jako stav** (`VideoPlayer.isFailed`: `playerError`, na iOS
+  `AVPlayerItemStatusFailed`). Bez ní zůstalo optimistické `playing = true` z tlačítka a UI
+  tvrdilo, že hraje. Po chybě je vidět tlačítko přehrát s hláškou a `play()` přehrávač
+  připraví znovu (`prepare()` pokračuje z místa chyby). Ověřeno sondou s neexistující cestou.
+- **Streamovací cestu ověří jen video, které TDLib ještě NEMÁ**: stažené jde přes `load(path)`
+  a chyba se neukáže. Každý pokus proto chce nový soubor — k MP4 stačí připojit box `free`
+  s náhodnými bajty (jinak TDLib soubory se stejným obsahem sloučí).
 - **iOS zatím streamovat neumí** (`videoStreamingSupported = false`). `AVPlayer` by potřeboval
   `AVAssetResourceLoaderDelegate` — vlastní zdroj odpovídající na požadavky na rozsahy bajtů;
   do té doby se tam čeká na celý soubor.
@@ -7712,6 +7859,12 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
 - **Tah na zavření posouvá video `offset`em, ne `graphicsLayer`** — nativní view (UIKit) dostane
   jen pozici z layoutu, transformaci vrstvy ne.
 - **Náhled MPEG-4 se zahazuje** (`ThumbnailFormatMpeg4`) — není to obrázek a Coil ho neotevře.
+- **Dráha posuvníku se vlní, dokud video hraje** (`LinearWavyProgressIndicator` ve slotu
+  `track` u `Slider`), po pozastavení, dohrání i během tahu je rovná. Tentýž význam jako vlnka
+  hrající hlasovky („teď zní") a jako systémový přehrávač médií. Přechod amplitudy animuje
+  indikátor sám, stačí mu podat 0 nebo 1. Vlnky se posouvají jen s viditelným ovládáním —
+  schované ovládání odchází z kompozice i s animací. Ověřeno na emulátoru (hraje / pozastaveno),
+  iOS jen přeložené.
 - **Rychlost a ztlumení jsou v liště pod videem**, za časem: čip rychlosti (tentýž `SpeedChip`
   a stupně 1× / 1,5× / 2× jako u hlasovky) a reproduktor. Na přehrávači `setSpeed` a `setMuted`.
   - **Rychlost si aplikace pamatuje zvlášť od hlasovek** (`AppSettings.videoSpeed`): kdo poslouchá
@@ -9728,6 +9881,20 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   (`ShareTargets.reportUsed`, v rozsahu aplikace, název a profilovku si dohledá samo).
   Zkratky z dřívějška kategorii nemají a do nabídky se dostanou až při příští notifikaci nebo
   odeslání — ověřuje se `dumpsys shortcut` (`categories={…SHARE_TARGET}`).
+- **Kontakt v náhledu screenshotu NENÍ systémový výběr, ale Android System Intelligence**
+  (`com.google.android.as`, chytré akce screenshotu). Intent spouští on, s typem `*`/`*`,
+  `image/png` jen v popisu `ClipData` a **bez `FLAG_GRANT_READ_URI_PERMISSION`** — ke snímku
+  sám přístup nemá, takže nemá co předat. Plume pak dostane `SecurityException: … has no access
+  to content://media/…` a obejít to nejde (oprávnění ke knihovně fotek kvůli tomu nechceme).
+  Proto: typ se bere i z typu intentu a popisu `ClipData`, když ho `MediaProvider` bez přístupu
+  nevydá (`declaredTypes`) — jinak by screenshot otevřel konverzaci místo „Komu: …" —, selhání
+  na oprávnění se počítá zvlášť (`SharedContent.denied`) a obrazovka „Komu: …" místo obecné
+  chyby radí vybrat snímek v galerii pod polem, kde je nejnovější (`AccessDenied`). Zjištěno
+  z logu Foldu (`START … from uid … (com.google.android.as)`, `flg=0x10000000`). Na emulátoru
+  se to navodí `am start -a SEND -t image/png --eu android.intent.extra.STREAM
+  content://media/external/images/media/<id>` se zkratkou chatu — `adb` přístup taky nepředá.
+- **`EXTRA_SUBJECT` je náhrada textu jen bez souborů.** Screenshot ho nese jako „Screenshot
+  (datum)" a končil v popisku každého sdíleného snímku.
 - **Sdílení přes zkratku nese `EXTRA_SHORTCUT_ID`** a výběr chatu přeskočí: fotka a video jdou
   na potvrzovací obrazovku (viz „Direct Share" níž), zbytek rovnou do konverzace
   (`ShareIntake`: `choose(chatId)` + `ChatOpenRequests`).
@@ -10022,6 +10189,15 @@ cesta je známá až po stažení a průběh chodí updaty. Překlad do jednoho 
 - **Rozmazává `Modifier.blur`, ne Haze.** Obojí umí vlastní obsah na Androidu 12+ i na iOS, ale
   na starším Androidu Haze kreslí místo rozostření tónovanou plochu, kdežto `blur` se jen vypne
   a zbude bilineárně zvětšený 40px náhled, který rozmazaně vypadá sám.
+- **Poslední `updateFile` stahovaného souboru může lhát.** TDLib po stažení pozná, že tentýž
+  soubor má už pod jinými id (bot poslal skladbu, která v chatu byla), a soubory SLOUČÍ: „hotovo"
+  pošle jen pro ta starší id a stahované id dostane jako poslední update „stahuje, 73531 ze
+  73531" — a dál nic. `getFile` o chvíli později hlásí hotovo. Přehrávač skladby na to čekal
+  navždy (`loading`, MediaSession `BUFFERING`). Proto `confirmFinished`: soubor stažený celý,
+  a přesto „stahující" (`looksFinished`, testy `LooksFinishedTest`), se ověří dotazem po 250 ms,
+  1, 3 a 10 s. Ověřeno na emulátoru: `sendAudio` botem se souborem, který v chatu už byl,
+  a ťuknutí do pár vteřin; v logu `Files` pak „Soubor N po stažení: hotovo=true" a skladba hraje.
+  **Obecně: na stav souboru z updatů se nespoléhat, když na něm něco čeká bez časového limitu.**
 - **`FileRepository` je eager** (`createdAtStart`) ze stejného důvodu jako seznam chatů — v
   konstruktoru se přihlašuje k `fileUpdates`.
 
@@ -10087,6 +10263,25 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
 - **Ikony = Material Symbols** jako vector drawables v `composeResources`, s vyplněnou i nevyplněnou
   variantou (vybraná položka má vyplněnou).
 
+- **Icon buttony mění tvar při stisku** (`shapes = IconButtonDefaults.shapes()`: kruh → zaoblený
+  čtverec, u přepínacích `toggleableShapes()`), všechny — i `Filled…`, `FilledTonal…`
+  a `Outlined…`. Kdo přidává nový, předá `shapes` taky; tlačítko bez nich se chová postaru
+  a vedle ostatních to vypadá jako nedodělek. U standardního tlačítka bez plochy se mění tvar
+  vlnky (ořez), u plného i plocha. Výjimky: tlačítka s vlastním tvarem, který nese stav
+  (odesílací tlačítko, přehrát u videa a hlasovky, náhled přílohy), a fotka účtu v pilulce —
+  obsahem je kulatá fotka a hranatá vlnka by kolem ní trčela. Doplnilo se skriptem do všech
+  ~100 volání naráz; ověřeno na emulátoru (šipka zpět podržená přes `input motionevent DOWN`).
+- **Počty se přetáčejí** (`RollingNumber` v `core/ui`): odznak nepřečtených v seznamu chatů,
+  počet u složky a u archivu v menu účtu, odznaky zmínek a reakcí v konverzaci i „N nových
+  zpráv" na tlačítku dolů. Přetočí se jen změněné číslice, párované ODZADU (9 → 10 přetočí
+  jednotky, desítky naskočí); roste-li číslo, přijíždějí zdola. Směr se bere z celého čísla,
+  ne z číslice. Čtečce obrazovky jde celé číslo (`clearAndSetSemantics`).
+  - **Číslo uvnitř věty z `plurals`** se nesestavuje v kódu: do plurálu se místo čísla dosadí
+    značka (`NUMBER_MARK`, znak ze soukromé oblasti Unicode) a věta se kolem ní rozdělí. Jde to
+    proto, že Compose Resources dosazuje argumenty jako text (`replaceWithArgs` nahradí
+    `%1$d` čímkoli). Kdyby se to změnilo, ukáže se značka místo čísla.
+  - Ověřeno na emulátoru zpomalenými animacemi (`animator_duration_scale 10`) a sérií surových
+    snímků odznaku: 1 odjede nahoru, 2 přijede zdola.
 - **Nabídky jsou Expressive** (`ExpressiveMenu` v `core/ui`: `DropdownMenuPopup`
   + `DropdownMenuGroup`), ne holé `DropdownMenu`. Položky jsou ve skupinách se společným
   zaoblením krajních položek; **nevratná akce má skupinu vlastní a chybovou barvu**
@@ -10204,7 +10399,206 @@ vkus toho, kdo zrovna píše obrazovku.
   odezva odešla a která — **jak to sedí pod prstem (hlavně jestli dvě nejdou hned po sobě) se
   pozná jedině rukou na telefonu.**
 
+## Výkon a paměť
+
+Nástroje pro analýzu výkonu a paměti: reporty Compose kompilátoru, LeakCanary v debug buildu
+a skripty nad heap dumpy (`client/tools/heap/`). Co z první analýzy zbylo k řešení, je
+v `docs/roadmap.md` („Výkon a paměť").
+
+### Reporty Compose kompilátoru
+
+`./gradlew :client:shared:compileAndroidMain -PcomposeReports` zapíše do
+`client/shared/build/compose-reports` stabilitu tříd (`*-classes.txt`), skippability
+composables (`*-composables.txt`, `.csv`) a souhrn (`android/main/*-module.json`). Bez
+přepínače se reporty nevyrábějí, běžný build je nepotřebuje.
+
+- **Strong skipping je zapnutý (Kotlin 2.x), takže „neskippable" composable v projektu
+  není.** Stabilita rozhoduje o tom, JAK se parametry porovnávají: stabilní přes `equals`,
+  nestabilní přes identitu (`===`). Nestabilní parametr tedy recompozici nevynutí, jen při
+  každé nové instanci se stejným obsahem nepřeskočí.
+- **Bloky konverzace jsou `@Immutable`** (`ConversationItem`, `MessageFrameData`…), takže se
+  porovnávají přes `equals` i s nestabilními poli uvnitř. Na tom stojí to, že builder
+  bloků vyrábí nové instance a nezměněné položky se přesto přeskočí. Report je u nich vede
+  jako `stable`, zatímco jejich pole jako `runtime`. To je v pořádku.
+- **Neměnné třídy, které kompilátor sám za stabilní nepozná, vyjmenovává
+  `client/shared/compose-stability.conf`**, ne `@Immutable`: doménové typy v `core/telegram`
+  nemají importovat Compose. Patří tam jen třídy, které se po vzniku opravdu nemění. Kdo do
+  nich přidá měnitelné pole, musí je ze souboru vyjmout.
+  - **`Minithumbnail` (`ByteArray`) dělal nestabilní celý řetěz**: `MessageMedia.Photo`,
+    `Video`, `Animation`, `VideoNote`, `Audio`, `PaidPreview`, `LinkPreview` a tím
+    i `ChatMessage`. Composables, které je brala přímo, je porovnávala identitou.
+  - **Sealed interface vychází jako „Uncertain"**, i když jsou všechny implementace stabilní
+    (`SelfDestructType`, `SpeechTranscript`). Kompilátor rozhoduje jen podle typu, ne podle
+    implementací.
+  - **Rekurzivní typ nejde odvodit**: `ChatMessage` → `ExternalReply` → `ChatMessage`
+    vycházel nestabilní, dokud nebyl `ExternalReply` v konfiguraci.
+  - Po úpravě je v `core/telegram` stabilní celý řetěz médií a `ChatMessage` vychází
+    `runtime` (rozhodne `ChatPoll`, který je stabilní). Další sealed interface (`UiText`,
+    `MessageMedia`, `Verification`) zůstávají „Uncertain": nejsou všechny implementace
+    stabilní, a dát je do konfigurace naslepo by znamenalo slibovat neměnnost i za ně.
+- **Změnu `compose-stability.conf` inkrementální překlad NEZAREGISTRUJE.** Přeloží se jen
+  změněné zdrojové soubory, takže report ukáže novou stabilitu jen u nich a zbytek zůstane
+  podle staré konfigurace. Po změně konfigurace se překládá s `--rerun`
+  (`./gradlew :client:shared:compileAndroidMain --rerun -PcomposeReports`). Na CI to nevadí,
+  tam se překládá načisto.
+- **`List` a `Map` v datech jsou `runtime`**, ne `stable`. Do konfigurace stability je
+  nepřidávat naslepo: s nimi by se porovnávaly přes `equals`, tedy u seznamu zpráv
+  prvek po prvku při každé recompozici.
+
+### LeakCanary
+
+Je jen v debug buildu (`debugImplementation`); v launcheru přidá ikonu „Leaks". Nález
+hlásí v logcatu (`adb logcat -s LeakCanary`) a v notifikaci.
+
+- **Sám toho v Plume moc neuvidí.** Aktivita je jedna a `configChanges` pokrývá otočení,
+  rozložení i změnu motivu, takže se nikdy nevytváří znovu. Hlídá proto jen okna, která
+  zmizí (popupy, dialogy, sheety: `PopupLayout`), a služby (`PlumeMessagingService`).
+- **ViewModely Navigation3 nehlídá.** Napojuje se jen na `ViewModelStore` aktivity, kdežto
+  dekorátor ViewModelů Nav3 drží úložiště pro každou položku zásobníku. Únik ViewModelu se
+  proto hledá počítáním instancí v heap dumpu (níž).
+- **Analýzu pouští sám, až když jsou zadržené objekty**: v popředí od pěti, na pozadí od
+  jednoho. Ticho po odeslání aplikace na pozadí (`input keyevent 3`, pak čtvrt minuty) znamená
+  „nic nezadrženo".
+
+### Heap dumpy a počítání instancí
+
+`client/tools/heap/heap_dump.sh <adresář> <jméno>` vynutí GC, uloží `meminfo` a dump
+a spočítá instance tříd. Postup: dump, N cyklů scénáře (otevřít a zavřít obrazovku), dump,
+`heap_diff.py před.counts po.counts`. Co v paměti zůstalo, ukáže `heap_path.py dump.hprof
+<třída>`: nejkratší SILNOU cestu od GC kořene (slabé reference se nepočítají).
+
+- **GC se vynucuje `run-as eu.tintera.plume kill -10 <pid>`** (SIGUSR1 = explicitní GC
+  v ART). Bez `run-as` to shell neprovede („Operation not permitted"), a jde to jen
+  u debuggable buildu.
+- **Únik se pozná podle RŮSTU s počtem cyklů, ne podle nenulového počtu.** Proto dvě kola
+  (2 cykly na zahřátí, pak 8, pak dalších 8). `StateFlowSlot` po prvních cyklech přibyly
+  o 45 a pak už ne: pool slotů se jednou zvětší, únik odběrů to není.
+- **`uiautomator dump` drží v paměti poslední obrazovku.** Zapne v procesu přístupnost
+  a Compose si v `AndroidComposeViewAccessibilityDelegateCompat.currentSemanticsNodes`
+  nechá sémantiku posledního stavu, i s lambdami a ViewModelem v nich. Po zavření profilu
+  tak v dumpu zůstal `ChatProfileViewModel`, po mini aplikaci `WebAppViewModel` i `WebView`
+  (zničená, `destroy()` proběhl). Cache přetrvala i navigaci jinam. Jde o artefakt
+  ověřování, ne únik; `heap_path.py` ho prozradí cestou přes `AccessibilityManager`.
+- **Jedna instance ViewModelu posledního zavřeného chatu může viset v interní cache
+  Compose** (`NodeChain$Differ.before` živého `LayoutNode`). Je jedna a s cykly neroste;
+  kód aplikace s tím nic nezmůže.
+- **Jednorázové keše nejsou únik**: `MediaCodecInfo` (seznam kodeků po prvním videu nebo
+  kolečku) a stovky `BaseLocale` (ExoPlayer si poprvé staví mapu jazyků ISO).
+
+### Recompozice za běhu (composition tracing)
+
+Debug build má `runtime-tracing` a přibalenou knihovnu Perfetto SDK (`tracing-perfetto-binary`),
+takže každá composable je v systémovém trace vlastní řez se jménem a řádkem.
+`client/tools/perf/trace_record.sh <adresář> <jméno> <ms> '<scénář>'` tracing v aplikaci zapne
+broadcastem, nahraje trace a mezitím pustí scénář. `trace_analyze.py` pak vypíše snímky
+aplikace a nejčastěji skládané composables (Python balíček `perfetto`, nejlépe ve venv).
+
+- **Broadcast se posílá do BĚŽÍCÍHO procesu** a platí do jeho konce. Po přeinstalaci nebo
+  zabití se musí poslat znovu, jinak trace nese jen systémové řezy a vypadá to, že se nic
+  neskládá. `exitCode 1` = zapnuto, `2` = už bylo.
+- **Nula řezů aplikace v nečinnosti je cíl, ne chyba záznamu.** Že záznam funguje, se ověří
+  scénářem, ve kterém aplikace pracovat musí (scroll).
+- **`Recomposer:animation` bez skládání = někdo si říká o snímky** (`withFrameNanos`,
+  nekonečná animace) a jeho hodnota se čte až při kreslení. Ze jména řezu se nepozná kdo;
+  hledá se v kódu (`withFrameNanos`, `rememberInfiniteTransition`, `while (true)`) a měří
+  znovu.
+- **Kdo se skládá v každém snímku, se pozná rozdělením řezů do časových oken**
+  (`cast((ts - min) / 1e8 as int)`): šest složení za 100 ms = každý snímek, tedy animace
+  čtená v kompozici; jedno za úhoz nebo za zprávu = v pořádku.
+
+Nálezy a opravy (emulátor Plume_Galerie_Fold, debug build, říjen 2026):
+
+- **Otevřený chat si říkal o snímek 60× za vteřinu, i když se nic nehýbalo** (průchody
+  `Choreographer#doFrame` bez kreslení, viz „Start a plynulost"). Smyčka polohy
+  zprávy pro nabídku (`MessageMenuLayer`, `withFrameNanos` dokola) běžela i se zavřenou
+  nabídkou. Nečinné Uložené zprávy: 478 snímků za 8 s → 0. Seznam chatů měl nulu už předtím.
+- **Scroll konverzace přeskládával celou obrazovku**, protože `visibleDay` (plovoucí datum)
+  četl `topVisibleKey` přímo v těle `ConversationScreen`. Teď se odvozuje jen začátek dne
+  (`startOfLocalDay`). Stejný scroll: našich složení 4 915 → 2 166, hlavička a pole 48× → 1×.
+- **Při nahrávání se celá karta vstupního pole skládala v každém snímku** kvůli „dýchání"
+  tlačítka; při psaní totéž po dobu morfu mikrofon → odeslat. Morf, dýchání a barvy tlačítka se
+  čtou až v obsahu `TooltipBox` (vlastní rozsah). Šest vteřin nahrávání: karta 408× (553 ms) →
+  61× (94 ms). Tlačítko se v každém snímku skládá dál (~0,8 ms), nový `MorphShape` za snímek
+  jinak nejde.
+- **Každá aktualizace seznamu chatů přeskládala všechny viditelné řádky.** `ChatSummary` měl
+  „runtime" stabilitu, která za běhu vyšla nestabilní, takže se řádky porovnávaly identitou.
+  Je v `compose-stability.conf`. Dvě příchozí zprávy: `ChatRow` 40× → 4×.
+- **Obecně: argument composable v seznamu, jehož třída nese pole typu sealed interface, se
+  porovnává identitou**, i když je data class z `val`. Report kompilátoru ho ukáže bez
+  `stable` u parametru (`chat: ChatSummary` místo `stable chat: ChatSummary`).
+
+### Start a plynulost
+
+Měřeno v říjnu 2026: emulátor Plume_Galerie_Fold s release buildem (R8) podepsaným debug klíčem
+a Pixel 11 Pro Fold (složený) s verzí 0.3.51 z Play. Postupy:
+
+- **Studený start**: `am force-stop`, pak `am start -W -n eu.tintera.plume/.MainActivity`.
+  Pět opakování a medián; první běh po kompilaci se zahazuje.
+- **Kdy je start hotový**, hlásí seznam chatů přes `ReportDrawnWhen` (`core/ui/ReportDrawn.kt`)
+  ve chvíli, kdy opustí načítání. V logu je to `Fully drawn eu.tintera.plume/.MainActivity:
+  +N ms`; z téhož hlášení počítají Play vitals i Macrobenchmark. Samotné `TotalTime` z `am start
+  -W` je první snímek, ten ještě chaty nemá.
+- **Plynulost**: `dumpsys gfxinfo eu.tintera.plume reset`, tahy přes `input swipe`, pak
+  `dumpsys gfxinfo eu.tintera.plume`. Rozhoduje „Janky frames" a percentily; „legacy"
+  a „High input latency" jsou u vstupů z adb nesmyslné. Na emulátoru se plynulost neměří.
+
+Výsledky:
+
+- **Studený start je rychlý.** Emulátor: první snímek ~130 ms, seznam chatů ~170 ms. Fold:
+  první snímek 151–175 ms, TDLib připravená 110–140 ms po startu procesu.
+- **Vlastní baseline profile se zatím nevyplatí.** APK nese profil knihoven (`baseline.prof`,
+  15 kB) a Play instaluje s profilem z cloudu (`speed-profile`, `install-dm`). Na emulátoru
+  vyšel seznam chatů v režimech `verify` / `speed-profile` / `speed` (strop toho, co dokáže
+  dokonalý profil) za 207 / 171 / 157 ms. Zbývá ~15 ms, a to modul Macrobenchmark s AGP 9
+  a KMP nestojí. Režim se přepíná `adb shell cmd package compile -f -m <režim> eu.tintera.plume`.
+- **Scroll na Foldu (120 Hz)**: seznam chatů 0,07 % zadrhnutých snímků, 99. percentil 9 ms;
+  Uložené zprávy 0,31 %, 15 ms; chat s Notifikátorem (kolečka, samolepky) 0,34 %, 15 ms.
+- **`gfxinfo` počítá jen VYKRESLENÉ snímky.** Nečinný chat ve verzi 0.3.51 měl v `gfxinfo`
+  nulu, a přitom Perfetto na Foldu ukázalo 361 průchodů `Choreographer#doFrame` za 6 s. Smyčka
+  s `withFrameNanos` budí hlavní vlákno každý snímek, i když nic nekreslí. Takové plýtvání se
+  proto hledá Perfettem (`trace.cfg` funguje i s release buildem, `Choreographer#doFrame`
+  zaznamená atrace kategorie `view`), ne přes `gfxinfo`.
+
+### Výsledky první analýzy
+
+Říjen 2026, emulátor Plume_Galerie_Fold (Android 17), debug build, cykly v testovacích
+chatech: Uložené zprávy (prohlížeč, sheet výběru, nabídka sponky, nabídka nad zprávou),
+Notifikátor (kolečka, profil se všemi záložkami), Nastavení (všech pět sekcí), mini aplikace
+(ukázka `cafe`). **Únik nenalezen** v žádném scénáři. Java heap se drží na 23–30 MB a mezi
+koly se nemění, přehrávače (`ExoPlayerImpl`) po odchodu z chatu mizí a LeakCanary nic
+nezadržel. Native heap během session rostl z ~80 na ~130 MB (TDLib, kodeky, WebView);
+jestli se ustálí, ověřené není.
+
+**Při rozložení a složení displeje aplikace padala.** Příčina byla `consumeWindowInsets(PaddingValues)`
+s hodnotou, která se mění se změnou scény, viz „Gotchas". Na Foldu to byl pád
+`NPE … Object.getClass()` ve verzích 0.3.47 i 0.3.50.
+
 ## Gotchas
+
+- **Modifikátor insetů s hodnotou, která se mění se změnou scény, shodí aplikaci při
+  rozložení nebo složení Foldu.** `consumeWindowInsets(PaddingValues)` i `windowInsetsPadding`
+  při změně hodnoty volají `insetsInvalidated()` → `traverseDescendants` a NEKONTROLUJÍ, jestli
+  je uzel připojený (Compose 1.12, `WindowInsetsPadding.kt`). Když NavDisplay přesouvá obsah
+  položky do jiné scény (jeden panel ↔ list-detail), aplikuje se změněný modifikátor uzlu,
+  který je zrovna odpojený: `visitSubtreeIf called on an unattached node`. Compose chybu
+  zachytí („Error was captured in composition") a pád pak přijde až při měření jako
+  `NullPointerException` v `LookaheadPassDelegate.forEachChildAlignmentLinesOwner`, v release
+  buildu `NPE … Object.getClass()`. **Hledá se tedy podle PRVNÍ chyby v logu, ne podle té,
+  která aplikaci shodila.** Tak padal seznam chatů: `consumeWindowInsets(PaddingValues(bottom =
+  scaffoldPadding…))`, jehož hodnota se při rozložení mění. Pravidlo: do modifikátorů insetů
+  dávat POPIS insetů (`WindowInsets.navigationBars.union(WindowInsets.ime)`,
+  `ScaffoldDefaults.contentWindowInsets.only(…)`), který je mezi rekompozicemi pořád stejný,
+  ne čísla odvozená z paddingu. Reprodukce na emulátoru Fold: seznam chatů na složeném
+  displeji, `adb emu unfold` / `fold` v cyklu (bez opravy pád do šesti cyklů).
+
+- **`ConversationScreen` je v dexu na hraně a nová logika patří do VLASTNÍ funkce.** Po přidání
+  docku přehrávače přímo do ní měla funkce 275 registrů a otevření každého chatu padalo na
+  `NullPointerException … Composer.sourceInformationMarkerStart` na `null` v
+  `rememberComposableLambda` u `bottomBar = {`. Dřívější verze měla 253 registrů a fungovala, po
+  vytažení do `rememberPlayerDock` / `ConversationPlayerDock` má 268 a funguje. **Mechanismus
+  (D8 nebo ART) ověřený NENÍ** — jisté je jen, že vytažení pomohlo. Kdo přidává do
+  `ConversationScreen`, ať aplikaci po změně otevře v chatu, ne jen přeloží; počet registrů
+  ukáže `dexdump -d` nad APK (`registers` u `ConversationScreen(`).
 
 - **`adb shell input text` do pole BEZ fokusu jde jako klávesnice do obrazovky a mezera
   (`keyevent 62`) „ťukne" na zaostřené tlačítko.** Formulář ankety se tak zavřel přes Zavřít,

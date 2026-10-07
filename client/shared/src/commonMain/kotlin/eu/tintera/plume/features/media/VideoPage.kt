@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.media
 
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.mandatorySystemGestures
@@ -101,6 +102,8 @@ import eu.tintera.plume.resources.media_pause
 import eu.tintera.plume.resources.media_play
 import eu.tintera.plume.resources.media_replay
 import eu.tintera.plume.resources.media_video_download_failed
+import eu.tintera.plume.resources.media_video_playback_failed
+import androidx.compose.ui.text.style.TextAlign
 import eu.tintera.plume.resources.pause_24dp
 import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.replay_24dp
@@ -305,9 +308,28 @@ internal fun VideoPage(
     val path = (file as? FileState.Ready)?.path
 
     val downloading = file as? FileState.Downloading
-    // Souvisle stažený úsek se čte z vlákna přehrávače, proto `MutableStateFlow`, ne Compose stav.
+    // Souvisle stažený úsek a cesta se čtou z vlákna přehrávače, proto `MutableStateFlow`, ne Compose stav.
     val downloadedRange = remember { MutableStateFlow(LongRange.EMPTY) }
-    downloadedRange.value = downloading?.downloaded ?: LongRange.EMPTY
+    val currentPath = remember { MutableStateFlow("") }
+    /*
+     * Stream musí přežít DOKONČENÍ stahování. TDLib hotový soubor přesune z `temp/` na konečnou
+     * cestu a `FileState.Downloading` vystřídá `Ready` — bez `downloaded` i bez dočasné cesty.
+     * Přehrávač se kvůli tomu nepřenačítá (hrající video by zaškobrtlo), jen zdroj dostane
+     * novou cestu a celý soubor jako stažený: další otevření (skok, přehrání od začátku) čte
+     * odtud. Dřív zůstala dočasná cesta a opakované přehrání skončilo na ENOENT.
+     */
+    when (file) {
+        is FileState.Downloading -> {
+            downloadedRange.value = file.downloaded
+            file.path?.let { currentPath.value = it }
+        }
+        // Hotový soubor je celý; kolik ho je, hlídá zdroj sám podle `totalSize`.
+        is FileState.Ready -> {
+            downloadedRange.value = 0L until Long.MAX_VALUE
+            currentPath.value = file.path
+        }
+        else -> downloadedRange.value = LongRange.EMPTY
+    }
     val streamPath = downloading?.path?.takeIf { streamable }
     val streamTotal = downloading?.totalSize ?: 0L
 
@@ -318,6 +340,8 @@ internal fun VideoPage(
     var durationMs by remember { mutableLongStateOf(durationSeconds * 1000L) }
     var playing by remember { mutableStateOf(false) }
     var ended by remember { mutableStateOf(false) }
+    // Přehrávač skončil chybou (zmizelý soubor, nečitelná data): nehraje, ať tvrdí UI cokoli.
+    var failed by remember { mutableStateOf(false) }
     // Video se opravdu rozběhlo (ne jen načetlo): do té doby točí velký průběh uprostřed.
     var hasPlayed by remember { mutableStateOf(false) }
     // Stav stahování rozvinutý do čáry přes spodní hranu (jinak kroužek v rohu).
@@ -342,7 +366,7 @@ internal fun VideoPage(
             streamPath != null && streamTotal > 0 -> {
                 player.loadStreaming(
                     StreamingSource(
-                        path = streamPath,
+                        path = { currentPath.value },
                         totalSize = streamTotal,
                         downloaded = { downloadedRange.value },
                         requestFrom = requestFrom,
@@ -373,6 +397,9 @@ internal fun VideoPage(
             player.durationMs.takeIf { it > 0 }?.let { durationMs = it }
             playing = player.isPlaying
             ended = player.isEnded
+            failed = player.isFailed
+            // Optimistické `playing = true` z tlačítka by jinak po chybě viselo do dalšího tiknutí.
+            if (failed) playing = false
             if (playing) hasPlayed = true
             delay(POSITION_TICK_MS)
         }
@@ -387,6 +414,8 @@ internal fun VideoPage(
 
     // Po dohrání se ovládání vrátí, ať je vidět tlačítko na opakování.
     LaunchedEffect(ended) { if (ended) controlsVisible = true }
+    // Po chybě taky: tlačítko přehrání přehrávač připraví znovu.
+    LaunchedEffect(failed) { if (failed) controlsVisible = true }
     // Na celou obrazovku se přichází s ovládáním na očích; během přehrávání se samo schová.
     LaunchedEffect(immersive) { if (immersive) controlsVisible = true }
 
@@ -489,7 +518,7 @@ internal fun VideoPage(
              * (hraje se dávno před 100 %), proto se po načtení točí neurčitě. Jakmile video hraje,
              * stav stahování převezme nerušivý [VideoDownloadIndicator] a uprostřed je ovládání.
              */
-            if (immersive && started && !hasPlayed && file !is FileState.Failed) {
+            if (immersive && started && !hasPlayed && !failed && file !is FileState.Failed) {
                 val progress = (file as? FileState.Downloading)?.progress?.takeIf { !loaded && it > 0f }
                 Box(
                     Modifier
@@ -510,6 +539,18 @@ internal fun VideoPage(
                     text = stringResource(Res.string.media_video_download_failed),
                     color = Color.White,
                     modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                )
+            }
+            // Chyba přehrávače (ne stahování): pod tlačítkem, které to zkusí znovu.
+            if (immersive && failed && file !is FileState.Failed && !inPip) {
+                Text(
+                    text = stringResource(Res.string.media_video_playback_failed),
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(top = IconButtonDefaults.largeContainerSize().height + 48.dp)
+                        .padding(horizontal = 24.dp),
                 )
             }
 
@@ -547,7 +588,7 @@ internal fun VideoPage(
             }
 
             AnimatedVisibility(
-                visible = immersive && loaded && hasPlayed && controlsVisible && !inPip,
+                visible = immersive && loaded && (hasPlayed || failed) && controlsVisible && !inPip,
                 enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 modifier = Modifier.align(Alignment.Center),
@@ -647,6 +688,21 @@ internal fun VideoPage(
                             activeTrackColor = Color.White,
                             inactiveTrackColor = Color.White.copy(alpha = 0.35f),
                         ),
+                        /*
+                         * Dráha se vlní, dokud video hraje, a po pozastavení i během tahu se
+                         * narovná — tentýž význam jako vlnka hrající hlasovky („teď zní", viz
+                         * `CLAUDE.md`, „Video"). Přechod amplitudy animuje indikátor sám.
+                         */
+                        track = { sliderState ->
+                            val wavy = playing && seekingFraction == null
+                            LinearWavyProgressIndicator(
+                                progress = { sliderState.value },
+                                color = Color.White,
+                                trackColor = Color.White.copy(alpha = 0.35f),
+                                amplitude = { if (wavy) 1f else 0f },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        },
                         modifier = Modifier.weight(1f),
                     )
                     Text(
@@ -668,6 +724,7 @@ internal fun VideoPage(
                         IconButton(
                             onClick = pip::enter,
                             colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                            shapes = IconButtonDefaults.shapes(),
                         ) {
                             Icon(
                                 painterResource(Res.drawable.picture_in_picture_alt_24dp),
@@ -682,6 +739,7 @@ internal fun VideoPage(
                                 controlsVisible = true
                             },
                             colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                            shapes = IconButtonDefaults.shapes(),
                         ) {
                             Icon(
                                 painterResource(if (muted) Res.drawable.volume_off_24dp else Res.drawable.volume_up_24dp),

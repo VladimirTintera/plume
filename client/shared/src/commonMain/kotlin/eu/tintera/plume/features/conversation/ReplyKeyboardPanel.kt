@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -74,7 +75,11 @@ fun ReplyKeyboardPanel(
             .fillMaxWidth()
             .padding(horizontal = PANEL_PADDING_H, vertical = PANEL_PADDING_V),
     ) {
-        FilledTonalIconButton(onClick = onToggle, modifier = Modifier.size(TOGGLE_SIZE)) {
+        FilledTonalIconButton(
+            onClick = onToggle,
+            modifier = Modifier.size(TOGGLE_SIZE),
+            shapes = IconButtonDefaults.shapes(),
+        ) {
             Icon(
                 painterResource(if (collapsed) Res.drawable.keyboard_arrow_up_24dp else Res.drawable.keyboard_arrow_down_24dp),
                 contentDescription = stringResource(if (collapsed) Res.string.bot_keyboard_show else Res.string.bot_keyboard_hide),

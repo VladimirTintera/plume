@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.resources.edit_chat_forum_help
 import eu.tintera.plume.resources.edit_chat_forum
 import eu.tintera.plume.resources.how_to_reg_24dp
@@ -192,7 +193,7 @@ fun EditChatScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = onBack) {
+                        IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
                             Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                         }
                     },

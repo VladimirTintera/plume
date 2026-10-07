@@ -134,8 +134,14 @@ class ShareToChatViewModel(
                         it.copy(
                             attachments = prepared,
                             sources = content.sources,
+                            accessDenied = prepared.isEmpty() && content.denied > 0,
                             // Co se nepodařilo připravit, se taky neposlalo — uživatel to má vědět.
-                            notice = if (content.failed > 0) UiText(Res.string.share_failed_files) else it.notice,
+                            // Když nezbylo nic kvůli oprávnění, říká to obrazovka sama a líp.
+                            notice = when {
+                                prepared.isEmpty() && content.denied > 0 -> it.notice
+                                content.failed > 0 -> UiText(Res.string.share_failed_files)
+                                else -> it.notice
+                            },
                         )
                     }
                 }
@@ -294,6 +300,12 @@ data class ShareToChatState(
     val removals: Int = 0,
     /** Odkud přišly sdílené přílohy (cesta → URI); galerie podle toho sdílenou fotku nepřidá podruhé. */
     val sources: Map<String, String> = emptyMap(),
+    /**
+     * Sdílený snímek nedorazil, protože ho sdílející aplikace nedovolila přečíst — typicky
+     * screenshot sdílený z jeho náhledu na kontakt (viz `ShareRequests.prepared`). Obrazovka
+     * místo prázdna radí vybrat ho v galerii.
+     */
+    val accessDenied: Boolean = false,
 ) {
     /** Mizení jen u jediné fotky v soukromém chatu — tytéž meze jako nad vstupním polem. */
     val canSelfDestruct: Boolean

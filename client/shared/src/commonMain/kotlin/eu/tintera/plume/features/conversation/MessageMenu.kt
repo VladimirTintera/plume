@@ -109,6 +109,7 @@ import eu.tintera.plume.features.conversation.items.MenuAnchor
 import eu.tintera.plume.features.conversation.items.MenuCopy
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageItem
+import eu.tintera.plume.features.conversation.items.SoundingVideoNote
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_reaction_24dp
 import eu.tintera.plume.resources.common_cancel
@@ -202,7 +203,15 @@ internal fun MessageMenuLayer(
     var anchorRect by remember(menu?.messageId) { mutableStateOf(anchor.bounds()) }
     // Šířka, se kterou se zpráva skládala v seznamu; kopie se složí stejně (viz `MenuAnchor`).
     val copyMaxWidth = remember(menu?.messageId) { anchor.maxWidth() }
+    /*
+     * Jen s otevřenou nabídkou. Vrstva je v konverzaci složená pořád, takže bez podmínky si
+     * smyčka říkala o snímek 60× za vteřinu po celou dobu, co byl chat otevřený, i když nic
+     * nehýbalo (změřeno Perfettem: nečinné Uložené zprávy 478 snímků za 8 s, po opravě nula).
+     * Návrat kopie po zavření novou polohu nepotřebuje: `lingering` letí na poslední polohu
+     * z doby, kdy byla nabídka otevřená.
+     */
     LaunchedEffect(menu?.messageId, anchor) {
+        if (menu == null) return@LaunchedEffect
         while (true) {
             anchor.bounds()?.let { if (it != anchorRect) anchorRect = it }
             withFrameNanos { }
@@ -652,6 +661,11 @@ private class InertItemScope(scope: ConversationItemScope) : ConversationItemSco
 
     // Hod v kopii neproběhne znovu, ukáže výsledek — házelo se v seznamu.
     override fun claimDiceThrow(key: Long, timestamp: Int): Boolean = false
+
+    // Kolečko se zvukem kreslí jen jedna plocha (bublina, nebo dock); kopie hraje potichu.
+    override fun videoNoteSounding(messageId: Long): Boolean = false
+
+    override fun soundingVideoNote(messageId: Long): SoundingVideoNote? = null
 }
 
 /**

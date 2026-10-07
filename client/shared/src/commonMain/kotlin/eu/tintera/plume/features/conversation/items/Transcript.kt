@@ -101,6 +101,7 @@ internal fun TranscribeButton(
         onClick = state::toggle,
         colors = IconButtonDefaults.filledTonalIconButtonColors(containerColor = container, contentColor = content),
         modifier = modifier.size(TRANSCRIBE_BUTTON_SIZE),
+        shapes = IconButtonDefaults.shapes(),
     ) {
         when {
             state.shown && state.pending -> CircularWavyProgressIndicator(color = content, modifier = Modifier.size(20.dp))

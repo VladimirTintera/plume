@@ -62,12 +62,15 @@ actual class VideoPlayer(internal val exo: ExoPlayer) {
         val factory = DataSource.Factory { PartialFileDataSource(source) }
         exo.setMediaSource(
             ProgressiveMediaSource.Factory(factory)
-                .createMediaSource(MediaItem.fromUri(android.net.Uri.parse("tdlib://${source.path}"))),
+                .createMediaSource(MediaItem.fromUri(android.net.Uri.parse("tdlib://${source.path()}"))),
         )
         exo.prepare()
     }
 
     actual fun play() {
+        // Po chybě přehrávač stojí v `STATE_IDLE` a `play()` sám nic nezmění; `prepare()` zdroj
+        // otevře znovu (u streamu z aktuální cesty) a pokračuje z místa, kde chyba nastala.
+        if (isFailed) exo.prepare()
         if (exo.playbackState == Player.STATE_ENDED) exo.seekTo(0)
         exo.play()
     }
@@ -89,6 +92,8 @@ actual class VideoPlayer(internal val exo: ExoPlayer) {
     actual val isPlaying: Boolean get() = exo.isPlaying
 
     actual val isEnded: Boolean get() = exo.playbackState == Player.STATE_ENDED
+
+    actual val isFailed: Boolean get() = exo.playerError != null
 }
 
 /** Zvuk videa: běžné médium, takže ztlumí hudbu a ustoupí hovoru. */
@@ -172,7 +177,8 @@ private class PartialFileDataSource(private val source: StreamingSource) : BaseD
     override fun open(dataSpec: DataSpec): Long {
         uri = dataSpec.uri
         transferInitializing(dataSpec)
-        val opened = RandomAccessFile(source.path, "r")
+        // Cesta se čte při KAŽDÉM otevření: dostažený soubor TDLib přesune z `temp/` jinam.
+        val opened = RandomAccessFile(source.path(), "r")
         opened.seek(dataSpec.position)
         file = opened
         position = dataSpec.position

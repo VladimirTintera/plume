@@ -30,6 +30,11 @@ dependencies {
 
     implementation(libs.compose.ui.tooling.preview)
     debugImplementation(libs.compose.ui.tooling)
+    // Hlídá uniklé activity, ViewModely a view roots; v release buildu není.
+    debugImplementation(libs.leakcanary)
+    // Composition tracing pro Perfetto (CLAUDE.md, „Výkon a paměť"); zapíná se broadcastem.
+    debugImplementation(libs.compose.runtime.tracing)
+    debugImplementation(libs.tracing.perfetto.binary)
 
     // `implementation` závislosti ze :client:shared nejsou tranzitivní — co používá vstupní bod,
     // musí být deklarované i tady.

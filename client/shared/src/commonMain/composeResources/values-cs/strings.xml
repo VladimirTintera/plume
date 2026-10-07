@@ -190,6 +190,7 @@
     <string name="media_profile_photo_set">Profilová fotka změněna</string>
     <string name="media_profile_photo_failed">Profilové fotky se nepodařilo změnit</string>
     <string name="media_video_download_failed">Video se nepodařilo stáhnout.</string>
+    <string name="media_video_playback_failed">Video se nepodařilo přehrát. Zkus to znovu.</string>
     <string name="media_download_progress">Průběh stahování</string>
     <string name="media_play">Přehrát</string>
     <string name="media_pause">Pozastavit</string>
@@ -483,6 +484,10 @@
     <string name="share_title">Sdílet do</string>
     <string name="share_preparing">Připravuji soubory…</string>
     <string name="share_failed_files">Některé sdílené soubory se nepodařilo připravit</string>
+    <string name="share_access_denied_title">Android snímek nepředal</string>
+    <string name="share_access_denied_gallery">Vyber ho v galerii dole — bývá to první fotka.</string>
+    <string name="share_access_denied_picker">Vyber ho prosím ve fotkách.</string>
+    <string name="share_access_denied_pick">Vybrat fotku</string>
     <string name="share_to_recipient">Komu: %1$s</string>
     <string name="share_to_caption">Přidejte popisek</string>
     <string name="share_to_add_media">Přidat fotky nebo videa</string>
@@ -1117,6 +1122,7 @@
     <string name="chat_action_folders">Přidat do složky</string>
     <string name="chats_account">Účet a další</string>
     <string name="chats_new">Nová zpráva</string>
+    <string name="chats_create">Vytvořit</string>
     <string name="new_chat_title">Nová zpráva</string>
     <string name="new_chat_search">Hledat kontakty nebo @uživatele</string>
     <string name="new_chat_contacts">Kontakty</string>
@@ -1369,6 +1375,15 @@
     <string name="summary_disclaimer">Vytvořeno v zařízení. Může být nepřesné.</string>
     <string name="summary_truncated">Modelu došlo místo a přestal psát dřív, takže konec konverzace ve shrnutí chybí.</string>
     <string name="summary_retry">Zkusit znovu</string>
+    <string name="ai_failure_busy">Model je teď vytížený. Zkus to za chvíli.</string>
+    <string name="ai_failure_too_large">Konverzace je na model moc dlouhá.</string>
+    <string name="ai_failure_no_space">V telefonu není pro model dost místa.</string>
+    <string name="ai_failure_needs_update">Model potřebuje novější verzi systému nebo aplikace AICore.</string>
+    <string name="ai_failure_unavailable">Model v telefonu teď není k dispozici.</string>
+    <string name="ai_failure_nano">Gemini Nano v telefonu selhal. Pomůže vymazat úložiště aplikace AICore v Nastavení systému, nebo přepnout na Gemmu v Nastavení → Obecné → AI v zařízení.</string>
+    <string name="ai_failure_nano_code">Gemini Nano v telefonu selhal (AICore, kód %1$s). Pomůže vymazat úložiště aplikace AICore v Nastavení systému, nebo přepnout na Gemmu v Nastavení → Obecné → AI v zařízení.</string>
+    <string name="ai_failure_gemma">Model Gemma selhal. Když to nepomůže znovu, smaž model v Nastavení → Obecné → AI v zařízení a stáhni ho znovu.</string>
+    <string name="ai_failure_empty">Model nenapsal žádný text.</string>
     <string name="settings_on_device_ai_preview">Preview verze modelu</string>
     <string name="settings_on_device_ai_preview_summary">Nejnovější verze před stabilním vydáním. Pro tohle zařízení nemusí být a stahuje se zvlášť.</string>
     <string name="settings_on_device_ai_preview_same">Preview verze se tu nepoužije — tak jako tak běží stabilní model.</string>
@@ -2179,4 +2194,17 @@
     <string name="location_proximity_body">Ozvu se, až se k tobě přiblíží někdo z chatu, kdo sdílí živou polohu.</string>
     <string name="location_proximity_off">Vypnout upozornění</string>
     <string name="location_proximity_failed">Upozornění na blízkost nejde nastavit.</string>
+    <string name="location_dock_you_sharing">Sdílíš živou polohu</string>
+    <string name="location_dock_other_sharing">%1$s sdílí polohu</string>
+    <plurals name="location_dock_many_sharing">
+        <item quantity="one">Živou polohu sdílí %1$d člověk</item>
+        <item quantity="few">Živou polohu sdílejí %1$d lidé</item>
+        <item quantity="other">Živou polohu sdílí %1$d lidí</item>
+    </plurals>
+    <string name="location_dock_you">Ty</string>
+    <string name="location_dock_expand">Zobrazit živou polohu</string>
+    <string name="location_dock_collapse">Skrýt živou polohu</string>
+    <string name="location_dock_show_message">Přejít na zprávu</string>
+    <string name="player_dock_next">Další skladba</string>
+    <string name="player_dock_stop">Zastavit přehrávání</string>
 </resources>

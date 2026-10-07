@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -45,7 +46,7 @@ fun ReorderTopBar(title: String, busy: Boolean, onCancel: () -> Unit, onDone: ()
     TopAppBar(
         title = { Text(title) },
         navigationIcon = {
-            IconButton(onClick = onCancel) {
+            IconButton(onClick = onCancel, shapes = IconButtonDefaults.shapes()) {
                 Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_cancel))
             }
         },

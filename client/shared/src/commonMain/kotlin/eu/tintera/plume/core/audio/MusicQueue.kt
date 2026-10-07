@@ -25,6 +25,8 @@ data class TrackInfo(
     val performer: String?,
     /** Obal alba jako soubor na disku; dorazí až po stažení, do té doby `null`. */
     val artworkPath: String? = null,
+    /** Obal jako soubor TDLib — pro přehrávač v aplikaci, který si ho stáhne sám. */
+    val coverFileId: Int? = null,
 )
 
 /**
@@ -185,7 +187,11 @@ class MusicQueue(
     }
 
     private fun play(key: VoiceKey, audio: MessageMedia.Audio, startMs: Long = 0L) {
-        val track = TrackInfo(title = audio.title, performer = audio.performer?.ifBlank { null })
+        val track = TrackInfo(
+            title = audio.title.ifBlank { audio.fileName },
+            performer = audio.performer?.ifBlank { null },
+            coverFileId = audio.coverFileId,
+        )
         // `advancing` přes `player.play`: to napřed zastaví předchozí zvuk a stav je na chvíli
         // prázdný — bez příznaku by ho sběr stavu vzal jako konec hudby.
         current.value = Current(key, track, advancing = true)

@@ -6,15 +6,22 @@ import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.Generated
 import eu.tintera.plume.core.ai.OnDeviceAi
+import eu.tintera.plume.core.ai.OnDeviceAiException
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.TranscriptLine
+import eu.tintera.plume.core.ai.emptyOutputMessage
+import eu.tintera.plume.core.ai.isReportable
 import eu.tintera.plume.core.ai.keptLineCount
 import eu.tintera.plume.core.ai.shrunkTranscriptChars
 import eu.tintera.plume.core.ai.summaryPrompt
 import eu.tintera.plume.core.ai.transcriptCharsFor
+import eu.tintera.plume.core.ai.userMessage
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.platformLanguageCode
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.summary_failed
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -125,7 +132,8 @@ sealed interface ChatSummaryState {
 
     data object NothingToSummarize : ChatSummaryState
 
-    data object Failed : ChatSummaryState
+    /** [reason] říká uživateli, proč — a kde to spravit, když je chyba mimo aplikaci. */
+    data class Failed(val reason: UiText) : ChatSummaryState
 }
 
 /**
@@ -227,7 +235,8 @@ class ChatSummaryViewModel(
                     )
                 }
                 _state.value = if (last.text.isBlank()) {
-                    ChatSummaryState.Failed
+                    logger.w { "Model shrnutí nenapsal žádný text" }
+                    ChatSummaryState.Failed(emptyOutputMessage)
                 } else {
                     if (last.truncated) logger.i { "Model shrnutí nedopsal, došel mu strop výstupu" }
                     ChatSummaryState.Text(
@@ -239,9 +248,13 @@ class ChatSummaryViewModel(
                 }
             } catch (e: CancellationException) {
                 throw e
+            } catch (e: OnDeviceAiException) {
+                // Rozbitý model je problém pro Crashlytics (`e` s výjimkou), vytížený ne.
+                if (e.isReportable) logger.e(e) { "Shrnutí se nepovedlo" } else logger.w(e) { "Shrnutí se nepovedlo" }
+                _state.value = ChatSummaryState.Failed(e.userMessage())
             } catch (e: Exception) {
-                logger.w(e) { "Shrnutí se nepovedlo" }
-                _state.value = ChatSummaryState.Failed
+                logger.e(e) { "Shrnutí se nepovedlo" }
+                _state.value = ChatSummaryState.Failed(UiText(Res.string.summary_failed))
             }
         }
     }

@@ -3,6 +3,7 @@ package eu.tintera.plume.core.ai
 import co.touchlab.kermit.Logger
 import com.google.mlkit.genai.common.DownloadStatus
 import com.google.mlkit.genai.common.FeatureStatus
+import com.google.mlkit.genai.common.GenAiException
 import com.google.mlkit.genai.prompt.Candidate
 import com.google.mlkit.genai.prompt.Generation
 import com.google.mlkit.genai.prompt.GenerativeModel
@@ -15,6 +16,7 @@ import com.google.mlkit.genai.prompt.modelConfig
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 
 /**
@@ -113,6 +115,9 @@ class MlKitOnDeviceAi : OnDeviceAi {
             candidate.text?.let { text.append(it) }
             emit(Generated(text.toString(), truncated))
         }
+    }.catch { e ->
+        // CancellationException `catch` na toku nechytá — zrušení projde, jak má.
+        throw if (e is Exception) e.toAiFailure() else e
     }
 
     private fun request(prompt: String) = generateContentRequest(TextPart(prompt)) {
@@ -133,6 +138,31 @@ class MlKitOnDeviceAi : OnDeviceAi {
         // Viz [status] — na zařízení bez systémové části chodí Error, ne výjimka.
         logger.i(e) { "Model neřekl údaj: $what" }
         null
+    }
+
+    /**
+     * Chyba ML Kitu → důvod pro uživatele a Crashlytics. Kód z AICore, který ML Kit nezná
+     * (na Foldu `5` = COMPUTE_ERROR, když modelu chyběl soubor), je [AiFailureReason.ModelError]
+     * — i s číslem, ať je v hlášení vidět.
+     */
+    private fun Exception.toAiFailure(): OnDeviceAiException {
+        val code = (this as? GenAiException)?.errorCode
+        val reason = when (code) {
+            GenAiException.ErrorCode.BUSY,
+            GenAiException.ErrorCode.PER_APP_BATTERY_USE_QUOTA_EXCEEDED,
+            GenAiException.ErrorCode.BACKGROUND_USE_BLOCKED,
+            -> AiFailureReason.Busy
+            GenAiException.ErrorCode.REQUEST_TOO_LARGE -> AiFailureReason.TooLarge
+            GenAiException.ErrorCode.NOT_ENOUGH_DISK_SPACE -> AiFailureReason.NotEnoughSpace
+            GenAiException.ErrorCode.NEEDS_SYSTEM_UPDATE,
+            GenAiException.ErrorCode.AICORE_INCOMPATIBLE,
+            -> AiFailureReason.NeedsUpdate
+            GenAiException.ErrorCode.NOT_AVAILABLE,
+            GenAiException.ErrorCode.NOT_SUPPORTED,
+            -> AiFailureReason.Unavailable
+            else -> AiFailureReason.ModelError
+        }
+        return OnDeviceAiException(reason, AiProvider.GeminiNano, code, this)
     }
 
     private companion object {

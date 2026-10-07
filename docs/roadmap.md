@@ -367,6 +367,26 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
 
 ---
 
+## Výkon a paměť
+
+Nástroje a postup jsou v `CLAUDE.md` („Výkon a paměť"). První analýza (reporty Compose
+kompilátoru, LeakCanary, heap dumpy) únik nenašla. Zbylo:
+
+- **Další kandidáti na stabilitu** (`compose-stability.conf`, viz `CLAUDE.md`): `ForumTopic`
+  (řádky seznamu témat se při každé změně tématu mohou přeskládat všechny, jako dřív seznam
+  chatů — neměřeno, testovací skupina témata nemá), `MemberDetail`, `InviteLink`. Napřed změřit
+  (`client/tools/perf/`), pak teprve přidávat.
+- **Příchozí zpráva přeskládá v každém snímku starší bublinu** po dobu animace nároží (~0,6 s,
+  `animateDpAsState` v `MessageFrame` se čte v kompozici). Na emulátoru ~1 ms za snímek.
+  Šlo by číst až při kreslení (tvar čtoucí stav v `createOutline`), ale je to zásah do
+  vzhledu bubliny; nízká priorita.
+- **Fully drawn na Foldu** ověřit s první verzí, která `ReportDrawnWhen` nese: měřené
+  hodnoty na telefonu jsou zatím jen první snímek.
+- **Native heap** rostl během testu z ~80 na ~130 MB. Ověřit delším během, jestli se ustálí
+  (TDLib, kodeky, Chromium z mini aplikace), nebo roste dál.
+
+---
+
 ## Haptika
 
 Slovník je hotový (`core/ui/Haptics.kt`: `threshold`, `confirm`, `reject`, `toggle`, `tick`)
@@ -398,6 +418,47 @@ celou aplikaci a rozdělený na dvě místa by se rozešel. Zbývá:
   přepínače od sebe uživatel nerozezná; jestli to vadí, se pozná až rukou.
 - **Vlastní přepínač v Nastavení** zatím ne — vypnout odezvu jde v systému. Přidat, až o něj
   někdo řekne.
+
+## Vzhled (Material 3 Expressive)
+
+Nápady na doladění vzhledu; nic z toho zatím nikdo nezačal. Navazují na slovník, který
+aplikace už má (`CLAUDE.md`, „Material 3 / vzhled" a `ShapeMorphs`): tvar nese stav, vlnka
+znamená „teď zní", terciární role „živé". Seřazené od nejlepšího poměru přínosu a práce.
+Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku a přetáčení počtů (poučení v `CLAUDE.md`).
+
+**Malé**
+
+- ~~**Tlačítka v hlavičkách měknou při stisku**~~ — hotovo pro všechna tlačítka s ikonou
+  (`IconButtonDefaults.shapes()`, VladimirTintera/telegram#498).
+- ~~**Počet nepřečtených se přetočí**~~ — hotovo (`RollingNumber`, VladimirTintera/telegram#500):
+  odznaky, počty u složek a archivu, „N nových zpráv".
+- **Přepínače s ikonou** (`Switch(thumbContent = …)`, fajfka / křížek v jezdci). Stav je vidět
+  i bez barvy, tedy i pro barvoslepé.
+
+**Střední**
+
+- ~~**FAB „Nová zpráva" jako `FloatingActionButtonMenu`**~~ — hotovo: Nová zpráva, Nová
+  skupina a Nový kanál (Kontakty ne — Nová zpráva je seznam kontaktů), VladimirTintera/telegram#496.
+- ~~**Vlnitý posuvník videa, dokud hraje**~~ — hotovo (VladimirTintera/telegram#497).
+- **Tvarová odezva na prahu tahu.** U archivace podklad ikony naroste z kolečka do sušenky ve
+  chvíli, kdy se ozve haptika `threshold`; u odpovědi tahem se šipka v kolečku vyplní. Dnes
+  práh ohlašuje jen vibrace.
+- **Reakce s výbuchem**: za emoji se na okamžik otevře `SoftBurst` (živý signál) a čip pružně
+  povyskočí. Ne konfety — ty patří výhře v kostce.
+- **Expressive `LoadingIndicator` místo kolečka** tam, kde kolečko zbylo (dotahování historie,
+  první načtení seznamu).
+
+**Větší (spíš funkce než detail)**
+
+- **Výběr víc chatů v seznamu** s plovoucí lištou jako výběr zpráv v konverzaci
+  (`HorizontalFloatingToolbar`): archivovat, ztlumit, přečíst několik chatů naráz.
+- **Vlastní barva motivu** v Nastavení → Vzhled: řada vzorků ve tvarech `MaterialShapes`, jako
+  „Tapeta a styl" na Pixelu. Na iOS a Androidu bez Material You je barva dnes napevno; paletu
+  ze zvolené barvy už umí materialkolor (`nonDynamicThemeMain`).
+- **Nápovědy u gest napoprvé** (`RichTooltip` se šipkou): odkrývání časů tahem, podržení pro
+  efekt, podržení pro hlasovku. Gesta dnes nikdo neobjeví, dokud o nich neví.
+
+---
 
 ## Nastavení
 

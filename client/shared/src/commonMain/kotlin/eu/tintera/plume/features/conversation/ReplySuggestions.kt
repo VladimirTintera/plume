@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.OnDeviceAi
+import eu.tintera.plume.core.ai.OnDeviceAiException
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
+import eu.tintera.plume.core.ai.isReportable
 import eu.tintera.plume.core.ai.REPLY_CONTEXT_MESSAGES
 import eu.tintera.plume.core.ai.parseReplySuggestions
 import eu.tintera.plume.core.ai.replyPrompt
@@ -113,8 +115,15 @@ class ReplySuggestionsViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // Návrh je doplněk; když se nepovede, prostě žádný není.
-                logger.i(e) { "Návrhy odpovědi se nepovedly" }
+                // Návrh je doplněk; když se nepovede, prostě žádný není. Rozbitý model se ale
+                // nahlásí do Crashlytics — jednou za běh procesu, protože návrh se pouští sám
+                // u každé příchozí zprávy a hlášení by se jinak sypala desítkami.
+                if (e is OnDeviceAiException && e.isReportable && !reportedBrokenModel) {
+                    reportedBrokenModel = true
+                    logger.e(e) { "Návrhy odpovědi se nepovedly" }
+                } else {
+                    logger.i(e) { "Návrhy odpovědi se nepovedly" }
+                }
                 _suggestions.value = emptyList()
             }
         }
@@ -133,5 +142,10 @@ class ReplySuggestionsViewModel(
         job?.cancel()
         job = null
         _suggestions.value = emptyList()
+    }
+
+    private companion object {
+        /** Hlášení rozbitého modelu už odešlo (za celý proces, ne za obrazovku). */
+        var reportedBrokenModel = false
     }
 }

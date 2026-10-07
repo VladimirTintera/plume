@@ -221,6 +221,21 @@ kotlin {
     }
 }
 
+/**
+ * Reporty Compose kompilátoru: které composables nejdou přeskočit a které třídy jsou pro Compose
+ * nestabilní. Jen na vyžádání (`-PcomposeReports`), běžný build je nepotřebuje:
+ * `./gradlew :client:shared:compileAndroidMain -PcomposeReports`, výstup v `build/compose-reports`.
+ *
+ * `compose-stability.conf` vyjmenovává neměnné třídy, které kompilátor sám za stabilní nepozná.
+ */
+composeCompiler {
+    stabilityConfigurationFiles.add(layout.projectDirectory.file("compose-stability.conf"))
+    if (providers.gradleProperty("composeReports").isPresent) {
+        reportsDestination.set(layout.buildDirectory.dir("compose-reports"))
+        metricsDestination.set(layout.buildDirectory.dir("compose-reports"))
+    }
+}
+
 compose.resources {
     packageOfResClass = "eu.tintera.plume.resources"
     generateResClass = always

@@ -389,6 +389,8 @@ private fun shellEntryProvider(
         val savedMessagesChatId = LocalSavedMessagesChatId.current
         ChatListScreen(
             viewModel = koinViewModel(),
+            // Konverzace vedle seznamu má vlastní přehrávač (dock), druhý by ho zdvojil.
+            conversationOpen = chatsStack.lastOrNull() is ConversationRoute,
             selectedChatId = chatsStack.lastOrNull { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute }
                 ?.let { (it as? ConversationRoute)?.chatId ?: (it as? ForumTopicsRoute)?.chatId ?: (it as SavedTopicsRoute).chatId },
             onChatClick = { chatId ->
@@ -409,6 +411,8 @@ private fun shellEntryProvider(
             onNewChat = {
                 if (chatsStack.lastOrNull() != NewChatRoute) chatsStack.add(NewChatRoute)
             },
+            onNewGroup = { if (chatsStack.lastOrNull() != NewGroupMembersRoute) chatsStack.add(NewGroupMembersRoute) },
+            onNewChannel = { chatsStack.add(CreateChatRoute(channel = true)) },
             onChatArchived = chatsStack::closeConversationOf,
             onOpenSettings = navigation::openSettings,
             onOpenProxySettings = navigation::openProxySettings,

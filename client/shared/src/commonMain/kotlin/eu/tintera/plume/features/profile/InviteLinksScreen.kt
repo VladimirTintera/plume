@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.resources.invite_links_share
 import eu.tintera.plume.resources.share_24dp
 import androidx.compose.foundation.clickable
@@ -185,7 +186,7 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
             TopAppBar(
                 title = { Text(stringResource(Res.string.invite_links_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                     }
                 },
@@ -464,7 +465,7 @@ private fun PrimaryLinkCard(
                 FilledTonalButton(onClick = onReplace, enabled = !busy, modifier = Modifier.weight(1f)) {
                     Text(stringResource(Res.string.invite_links_replace_primary), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                FilledTonalIconButton(onClick = onCopy) {
+                FilledTonalIconButton(onClick = onCopy, shapes = IconButtonDefaults.shapes()) {
                     Icon(painterResource(Res.drawable.content_copy_24dp), contentDescription = stringResource(Res.string.invite_links_copy))
                 }
             }

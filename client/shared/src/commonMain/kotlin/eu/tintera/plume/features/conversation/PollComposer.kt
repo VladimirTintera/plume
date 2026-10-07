@@ -28,6 +28,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -780,7 +781,7 @@ fun PollComposerScreen(
                     Text(stringResource(if (viewModel.quiz) Res.string.poll_compose_title_quiz else Res.string.poll_compose_title))
                 },
                 navigationIcon = {
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
                     }
                 },
@@ -1262,7 +1263,11 @@ private fun AnswerField(
         singleLine = true,
         leading = if (quiz) {
             {
-                IconButton(onClick = onToggleCorrect, enabled = value.isNotBlank()) {
+                IconButton(
+                    onClick = onToggleCorrect,
+                    enabled = value.isNotBlank(),
+                    shapes = IconButtonDefaults.shapes(),
+                ) {
                     Icon(
                         painter = painterResource(
                             when {
@@ -1288,7 +1293,7 @@ private fun AnswerField(
                         MediaSlot(media = media, kinds = PollMediaKind.entries, onChoose = onChooseMedia, onRemove = onRemoveMedia)
                     }
                     if (removable) {
-                        IconButton(onClick = onRemove) {
+                        IconButton(onClick = onRemove, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 painterResource(Res.drawable.close_24dp),
                                 contentDescription = stringResource(Res.string.poll_compose_remove_answer),
@@ -1371,7 +1376,7 @@ internal fun MediaSlot(
     if (media == null) {
         var open by remember { mutableStateOf(false) }
         Box {
-            IconButton(onClick = { open = true }) {
+            IconButton(onClick = { open = true }, shapes = IconButtonDefaults.shapes()) {
                 Icon(
                     painterResource(Res.drawable.add_photo_alternate_24dp),
                     contentDescription = stringResource(Res.string.poll_compose_add_media),
@@ -1550,7 +1555,7 @@ private fun ReplyHeader(message: ChatMessage, partnerName: String?, quoteText: S
                 quoteText = quoteText,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(onClick = onDrop) {
+            IconButton(onClick = onDrop, shapes = IconButtonDefaults.shapes()) {
                 Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.poll_compose_drop_reply))
             }
         }

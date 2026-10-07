@@ -16,6 +16,9 @@ import platform.AVFAudio.setActive
 import platform.AVFoundation.AVLayerVideoGravityResizeAspect
 import platform.AVFoundation.AVPlayer
 import platform.AVFoundation.AVPlayerItem
+import platform.AVFoundation.AVPlayerItemStatusFailed
+import platform.AVFoundation.asset
+import platform.AVFoundation.status
 import platform.AVFoundation.AVPlayerLayer
 import platform.AVFoundation.currentItem
 import platform.AVFoundation.currentTime
@@ -99,7 +102,7 @@ actual class VideoPlayer {
      * pád, ale u rozestavěného souboru to skončí dřív.
      */
     actual fun loadStreaming(source: StreamingSource, loop: Boolean, muted: Boolean) {
-        load(source.path, loop = loop, muted = muted)
+        load(source.path(), loop = loop, muted = muted)
     }
 
     actual fun play() {
@@ -109,6 +112,8 @@ actual class VideoPlayer {
             AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayback, error = null)
             AVAudioSession.sharedInstance().setActive(true, error = null)
         }
+        // Selhaná položka se sama nevzpamatuje; připraví se znovu ze stejného souboru.
+        if (isFailed) player.currentItem?.asset?.let { player.replaceCurrentItemWithPlayerItem(AVPlayerItem(asset = it)) }
         if (isEnded) seekTo(0)
         player.play()
         if (speed != 1f) player.rate = speed
@@ -140,6 +145,9 @@ actual class VideoPlayer {
     /** AVPlayer „dohráno" nehlásí stavem; pozná se podle pozice u konce při zastaveném přehrávání. */
     actual val isEnded: Boolean
         get() = !isPlaying && durationMs > 0 && positionMs >= durationMs - END_TOLERANCE_MS
+
+    actual val isFailed: Boolean
+        get() = player.currentItem?.status == AVPlayerItemStatusFailed
 
     private fun seconds(value: Double): Long = if (value.isNaN() || value.isInfinite()) 0 else (value * 1000).toLong()
 }

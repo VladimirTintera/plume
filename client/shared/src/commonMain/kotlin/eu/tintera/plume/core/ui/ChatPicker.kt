@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.material3.IconButtonDefaults
 import org.jetbrains.compose.resources.StringResource
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -188,7 +189,7 @@ fun ChatPicker(
             TopAppBar(
                 title = { Text(title) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
                         if (closeIcon) {
                             Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
                         } else {

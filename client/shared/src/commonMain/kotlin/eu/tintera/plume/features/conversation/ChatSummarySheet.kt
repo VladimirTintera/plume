@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.resources.summary_details_model
@@ -116,8 +117,14 @@ fun ChatSummarySheet(
                 }
                 ChatSummaryState.ModelMissing -> SummaryNote(Res.string.summary_model_missing)
                 ChatSummaryState.NothingToSummarize -> SummaryNote(Res.string.summary_nothing)
-                ChatSummaryState.Failed -> {
+                is ChatSummaryState.Failed -> {
                     SummaryNote(Res.string.summary_failed)
+                    // Proč — a kde to spravit, když je chyba v systému a opakování nepomůže.
+                    Text(
+                        state.reason.resolve(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     FilledTonalButton(onClick = onRetry) { Text(stringResource(Res.string.summary_retry)) }
                 }
             }

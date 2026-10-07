@@ -26,6 +26,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
@@ -147,13 +148,13 @@ fun ProxySettingsScreen(
             TopAppBar(
                 title = { Text(stringResource(Res.string.proxy_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                     }
                 },
                 actions = {
                     if (!state.proxies.isNullOrEmpty()) {
-                        IconButton(onClick = viewModel::measure) {
+                        IconButton(onClick = viewModel::measure, shapes = IconButtonDefaults.shapes()) {
                             Icon(painterResource(Res.drawable.refresh_24dp), contentDescription = stringResource(Res.string.proxy_measure))
                         }
                     }
@@ -312,7 +313,7 @@ private fun ProxyRow(
 private fun ProxyMenu(proxy: SavedProxy, viewModel: ProxySettingsViewModel) {
     var open by remember { mutableStateOf(false) }
     Box {
-        IconButton(onClick = { open = true }) {
+        IconButton(onClick = { open = true }, shapes = IconButtonDefaults.shapes()) {
             Icon(painterResource(Res.drawable.more_vert_24dp), contentDescription = stringResource(Res.string.proxy_menu))
         }
         val edit = stringResource(Res.string.proxy_edit)

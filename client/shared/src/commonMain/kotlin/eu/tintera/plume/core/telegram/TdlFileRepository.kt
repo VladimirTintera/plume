@@ -6,6 +6,7 @@ import dev.g000sha256.tdl.dto.File
 import dev.g000sha256.tdl.dto.Location
 import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,6 +49,9 @@ class TdlFileRepository(
     /** Soubory, na které už request odešel — aby se stahování nespouštělo znovu při každém odběru. */
     private val requested = mutableSetOf<Int>()
 
+    /** Soubory, jejichž dokončení se právě ověřuje dotazem ([confirmFinished]) — nejvýš jedna kontrola na soubor. */
+    private val confirming = mutableSetOf<Int>()
+
     init {
         // Průběh chodí updaty pro VŠECHNY soubory, ne jen ty, o které jsme požádali.
         scope.launch {
@@ -62,6 +66,7 @@ class TdlFileRepository(
                     states.clear()
                     uploads.clear()
                     requested.clear()
+                    confirming.clear()
                     maps.clear()
                 }
             }
@@ -215,6 +220,11 @@ class TdlFileRepository(
 
         stateOf(file.id).value = state
 
+        val fullSize = file.size.takeIf { it > 0 } ?: file.expectedSize
+        if (looksFinished(local.isDownloadingActive, local.isDownloadingCompleted, local.downloadedSize, fullSize)) {
+            confirmFinished(file.id)
+        }
+
         // Nahrávání se hlásí stejným updatem. Mapa se plní jen u souborů, které se nahrávají nebo
         // o které si někdo řekl — ne u každého staženého obrázku.
         val remote = file.remote
@@ -232,11 +242,61 @@ class TdlFileRepository(
         }
     }
 
+    /**
+     * Ověří dotazem, že stažený soubor je opravdu hotový — update, který by to řekl, nemusí přijít.
+     *
+     * TDLib po stažení pozná, že tentýž soubor už má pod jinými id (bot poslal skladbu, která
+     * v chatu už byla), a soubory SLOUČÍ. Updaty „hotovo" pak pošle jen pro ta starší id;
+     * stahované id dostane jako poslední update ještě „stahuje, 73531 ze 73531" a dál nic.
+     * `getFile` o chvíli později přitom hlásí hotovo. Bez téhle kontroly čekal přehrávač
+     * skladby na stav, který nikdy nepřišel, a točil se navždy.
+     *
+     * Ptá se několikrát s rostoucí prodlevou, dokud soubor tak vypadá; dokončení, které dorazí
+     * updatem, kontrolu ukončí samo (další dotaz už „vypadá hotově" nesplní).
+     */
+    private fun confirmFinished(fileId: Int) {
+        scope.launch {
+            if (!mutex.withLock { confirming.add(fileId) }) return@launch
+            val askedClient = client
+            try {
+                for (wait in FINISHED_RECHECK_DELAYS_MS) {
+                    delay(wait)
+                    // Po odhlášení patří id jiné databázi.
+                    if (client !== askedClient) return@launch
+                    val current = askedClient.getFile(fileId).toResult()
+                        .onFailure { failure -> logger.w { "getFile($fileId) po stažení selhalo: ${failure.message}" } }
+                        .getOrNull() ?: return@launch
+                    val local = current.local
+                    val total = current.size.takeIf { it > 0 } ?: current.expectedSize
+                    val stillPending = looksFinished(local.isDownloadingActive, local.isDownloadingCompleted, local.downloadedSize, total)
+                    if (!stillPending) {
+                        logger.d { "Soubor $fileId po stažení: hotovo=${local.isDownloadingCompleted}" }
+                        publish(current)
+                        return@launch
+                    }
+                }
+                logger.w { "Soubor $fileId je stažený celý, ale TDLib ho pořád nehlásí jako hotový." }
+            } finally {
+                mutex.withLock { confirming.remove(fileId) }
+            }
+        }
+    }
+
     /** Jeden stav na soubor. Vždy pod zámkem — mapa je sdílená mezi odběry a update vláknem. */
     private suspend fun stateOf(fileId: Int): MutableStateFlow<FileState> =
         mutex.withLock { states.getOrPut(fileId) { MutableStateFlow(FileState.Pending) } }
 
     private companion object {
         const val DEFAULT_PRIORITY = 1
+
+        /** Prodlevy před dotazy na soubor, který je stažený celý, a přesto se ještě „stahuje". */
+        val FINISHED_RECHECK_DELAYS_MS = listOf(250L, 1_000L, 3_000L, 10_000L)
     }
 }
+
+/**
+ * Soubor je stažený celý, a přesto ho TDLib hlásí jako rozestavěný — viz `confirmFinished`.
+ * Neznámá velikost (`total` 0) se za hotovou nepovažuje.
+ */
+internal fun looksFinished(active: Boolean, completed: Boolean, downloadedSize: Long, total: Long): Boolean =
+    active && !completed && total > 0 && downloadedSize >= total

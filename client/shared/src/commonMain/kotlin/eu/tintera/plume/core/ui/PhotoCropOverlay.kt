@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -134,7 +135,7 @@ private fun PhotoCrop(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            IconButton(onClick = onCancel) {
+            IconButton(onClick = onCancel, shapes = IconButtonDefaults.shapes()) {
                 Icon(
                     painterResource(Res.drawable.close_24dp),
                     contentDescription = stringResource(Res.string.common_cancel),

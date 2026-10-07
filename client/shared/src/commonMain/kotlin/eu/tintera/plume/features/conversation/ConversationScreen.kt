@@ -1,11 +1,15 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import eu.tintera.plume.core.ui.RollingNumber
 import eu.tintera.plume.resources.forum_24dp
 import eu.tintera.plume.resources.saved_view_as_chats
 import eu.tintera.plume.resources.saved_topic_read_only
 import eu.tintera.plume.resources.saved_topic_open_chat
 import eu.tintera.plume.core.ui.savedTopicTitle
 import eu.tintera.plume.core.ui.SavedTopicAvatar
+import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.video.VideoSurface
 import eu.tintera.plume.core.telegram.SavedTopicKind
 import androidx.compose.runtime.DisposableEffect
 import eu.tintera.plume.core.ui.resolveNow
@@ -107,6 +111,8 @@ import eu.tintera.plume.resources.profile_open
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.ui.unit.Dp
 import eu.tintera.plume.resources.conversation_search
 import eu.tintera.plume.resources.comments_title
 import eu.tintera.plume.resources.search_24dp
@@ -159,6 +165,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import eu.tintera.plume.features.conversation.items.ARRIVAL_TOLERANCE_SECONDS
 import eu.tintera.plume.features.conversation.items.effectAutoplays
 import eu.tintera.plume.features.conversation.items.WavyShape
+import eu.tintera.plume.features.conversation.items.SoundingVideoNote
+import eu.tintera.plume.features.conversation.items.rememberSoundingVideoNote
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
@@ -268,6 +276,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -292,6 +301,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import eu.tintera.plume.core.audio.VoicePlayback
+import eu.tintera.plume.core.audio.VoiceKey
 import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.audio.rememberRecordPermission
@@ -305,6 +315,9 @@ import eu.tintera.plume.resources.link_preview_remove
 import eu.tintera.plume.resources.link_preview_options
 import eu.tintera.plume.resources.tune_24dp
 import eu.tintera.plume.resources.link_24dp
+import eu.tintera.plume.resources.location_dock_you
+import eu.tintera.plume.resources.conversation_voice_message
+import eu.tintera.plume.resources.content_video_note
 import eu.tintera.plume.core.telegram.LinkPreviewOptions
 import eu.tintera.plume.core.ui.describe
 import eu.tintera.plume.core.telegram.OutgoingAttachment
@@ -317,6 +330,7 @@ import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.strongestAccentOn
 import eu.tintera.plume.core.ui.tintedSurface
 import eu.tintera.plume.core.ui.asDayLabel
+import eu.tintera.plume.core.ui.startOfLocalDay
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.chatTitleKey
 import eu.tintera.plume.core.ui.label
@@ -334,6 +348,8 @@ import eu.tintera.plume.features.conversation.items.DayDividerItem
 import eu.tintera.plume.features.conversation.items.MESSAGE_SPACING
 import eu.tintera.plume.features.conversation.items.MenuAnchor
 import eu.tintera.plume.features.conversation.items.MessageAction
+import eu.tintera.plume.features.conversation.items.mapUrl
+import kotlin.math.abs
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.features.conversation.items.MessageItem
 import eu.tintera.plume.features.conversation.items.QuotedMessage
@@ -395,6 +411,7 @@ import eu.tintera.plume.resources.perm_media_24dp
 import eu.tintera.plume.resources.send_24dp
 import eu.tintera.plume.resources.sticky_note_2_24dp
 import kotlin.time.Clock
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import eu.tintera.plume.core.telegram.SpamBar
 import eu.tintera.plume.core.telegram.ChatBar
@@ -786,6 +803,15 @@ fun ConversationScreen(
      */
     var pinnedHeight by remember { mutableStateOf(0.dp) }
 
+    /** Výška pruhů BEZ řádku docku živé polohy — od jejich spodku se měří, kolik ze zprávy zajelo. */
+    var barsHeight by remember { mutableStateOf(0.dp) }
+
+    /**
+     * Rozbalený dock živé polohy: mapa s ovládáním nad konverzací. Závoj pod ní NENÍ — psát
+     * a scrollovat jde dál, kouzlo je právě v tom, že mapa zůstane na očích při psaní.
+     */
+    var dockExpanded by rememberSaveable { mutableStateOf(false) }
+
     /** Kde byla zpráva, nad kterou se otevírá nabídka — hlásí ji zpráva při dlouhém stisku. */
     var menuAnchor by remember { mutableStateOf(MenuAnchor(bounds = { null }, maxWidth = { null })) }
 
@@ -859,6 +885,23 @@ fun ConversationScreen(
     val currentSaveAs by rememberUpdatedState(saveAs)
     // Příkaz z textu se pošle jen tam, kam se smí psát; jinak zůstane obyčejným textem.
     val canSendCommands = remember(stateHolder) { derivedStateOf { stateHolder.value.canWrite } }
+    /*
+     * Kolečko se zvukem hraje přehrávač obrazovky, ne položky (viz [SoundingVideoNote]):
+     * odscrollované hraje dál v docku. Zpráva se drží i chvíli, kdy v seznamu není (výměna okna).
+     */
+    val soundingNoteId = state.soundingVideoNote
+    val soundingNoteMedia = remember(soundingNoteId) { arrayOfNulls<MessageMedia.VideoNote>(1) }
+    (state.messages.firstOrNull { it.id == soundingNoteId }?.media as? MessageMedia.VideoNote)
+        ?.let { soundingNoteMedia[0] = it }
+    val soundingVideoNote = rememberUpdatedState(
+        rememberSoundingVideoNote(
+            chatId = viewModel.chatId,
+            messageId = soundingNoteId,
+            note = soundingNoteMedia[0],
+            startMs = { stateHolder.value.soundingVideoNoteFromMs },
+            onEnded = { viewModel.onAction(it, MessageAction.VideoNoteSoundEnded) },
+        ),
+    )
     val itemScope = remember(viewModel) {
         ScreenItemScope(
             viewModel = viewModel,
@@ -882,6 +925,7 @@ fun ConversationScreen(
             searchHighlight = searchHighlight,
             profileFlight = profileFlight,
             canSendCommands = canSendCommands,
+            soundingVideoNote = soundingVideoNote,
         )
     }
 
@@ -939,7 +983,76 @@ fun ConversationScreen(
         }
     }
 
-    val visibleDay = topVisibleKey?.let { byKey[it]?.timestamp?.asDayLabel() }
+    /*
+     * Den horní viditelné zprávy pro plovoucí datum. Odvozuje se jen ZAČÁTEK DNE, ne klíč
+     * zprávy: `topVisibleKey` se mění s každou zprávou, která nahoře přejede, a čtený přímo
+     * tady přeskládal celou obrazovku (hlavičku, pole, pruhy) zhruba každý osmý snímek scrollu
+     * (změřeno Perfettem). Začátek dne se změní jen při přechodu na jiný den.
+     */
+    val visibleDayStart by remember(listState, byKey) {
+        derivedStateOf { topVisibleKey?.let { byKey[it]?.timestamp?.startOfLocalDay() } }
+    }
+    val visibleDay = visibleDayStart?.asDayLabel()
+
+    /*
+     * Dock živé polohy (`LiveLocationDockBar`): kolik ze zprávy s každou živou polohou zajelo pod
+     * pruhy nebo pod vstupní pole (`dockProgress`). Měří se od spodku pruhů BEZ řádku docku —
+     * s ním by si řádek sám ukusoval zprávu a z plynulého přechodu by byl skok.
+     *
+     * Zpráva, která v rozvržení není (odscrollovaná, mimo načtené okno), je v docku celá. Bez
+     * rozvržení (první snímek) se nedokuje nic, jinak by řádek při otevření chatu problikl.
+     */
+    val dockDensity = LocalDensity.current
+    val dockSource by rememberUpdatedState(state)
+    val dockTargets by remember(listState) {
+        derivedStateOf {
+            val s = dockSource
+            val info = listState.layoutInfo
+            if (s.liveLocations.isEmpty() || info.visibleItemsInfo.isEmpty()) return@derivedStateOf emptyMap<Long, Float>()
+            // 8 dp je horní odsazení seznamu nad pruhy (`contentPadding` níž).
+            val top = info.viewportEndOffset - with(dockDensity) { (8.dp + barsHeight).toPx() }
+            s.liveLocations.associate { message ->
+                val key = s.keyOf(message)
+                val item = info.visibleItemsInfo.firstOrNull { it.key == key }
+                message.id to (item?.let { dockProgress(it.offset, it.size, top, 0f) } ?: 1f)
+            }
+        }
+    }
+    // Kompozice čte jen to, KTERÉ polohy jsou v docku; průběh se čte až při rozmístění řádku.
+    val dockedIds by remember(listState) {
+        derivedStateOf(structuralEqualityPolicy()) { dockTargets.filterValues { it > DOCK_EPSILON }.keys }
+    }
+    // Při zasouvání řádku (průběh míří k nule) se dál kreslí poslední polohy, ne nic.
+    var lastDockedIds by remember { mutableStateOf(emptySet<Long>()) }
+    LaunchedEffect(dockedIds) { if (dockedIds.isNotEmpty()) lastDockedIds = dockedIds }
+    val shownDocked = (dockedIds.ifEmpty { lastDockedIds }).let { ids -> state.liveLocations.filter { it.id in ids } }
+    // Zpráva s polohou zpátky na obrazovce (nebo sdílení skončilo): dock se sbalí i zmizí.
+    LaunchedEffect(dockedIds.isEmpty()) { if (dockedIds.isEmpty()) dockExpanded = false }
+
+    val dockReveal = remember { Animatable(0f) }
+    val dockSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    LaunchedEffect(dockReveal) {
+        snapshotFlow { dockTargets.values.maxOrNull() ?: 0f }.collectLatest { target ->
+            // Tah prstem vede řádek přímo; skok (okno v historii, nová zpráva, rozbalení) se dojede.
+            if (abs(target - dockReveal.value) > DOCK_JUMP) dockReveal.animateTo(target, dockSpec) else dockReveal.snapTo(target)
+        }
+    }
+
+    /*
+     * Mini přehrávač v docku (`PlayerDockBar`): hrající hlasovka, skladba nebo kolečko se zvukem,
+     * jejichž zpráva odjela z obrazovky. Je ve vlastních funkcích ([rememberPlayerDock],
+     * [ConversationPlayerDock]), ne tady: s ním uvnitř měla tahle funkce v dexu 275 registrů
+     * a otevření každého chatu padalo na `$composer` = null (viz CLAUDE.md, „Gotchas").
+     */
+    val playerDock = rememberPlayerDock(
+        viewModel = viewModel,
+        state = state,
+        voicePlayback = voicePlayback,
+        soundingVideoNote = soundingVideoNote,
+        listState = listState,
+        barsHeight = { barsHeight },
+        spec = dockSpec,
+    )
 
     // Štítek se drží i po zmizení data, aby při odeznívání nezůstala prázdná pilulka.
     var floatingDay by remember { mutableStateOf("") }
@@ -1181,6 +1294,12 @@ fun ConversationScreen(
         state = rememberNavigationEventState(NavigationEventInfo.None),
         isBackEnabled = state.search != null,
         onBackCompleted = viewModel::closeSearch,
+    )
+    // Rozbalený dock živé polohy zavře zpět dřív, než se odejde z chatu.
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = dockExpanded,
+        onBackCompleted = { dockExpanded = false },
     )
     // Zpět ukončí výběr, teprve další odejde z chatu — jako u hledání.
     NavigationBackHandler(
@@ -1447,7 +1566,7 @@ fun ConversationScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                     }
                 },
@@ -1456,7 +1575,7 @@ fun ConversationScreen(
                     // Omezený chat nemá co ukázat, tedy ani co shrnout nebo hledat.
                     val botIntro = showsBotIntro(state) || chatHidden
                     if (summaryAvailable && state.threadRootId == null && !botIntro) {
-                        IconButton(onClick = startSummary) {
+                        IconButton(onClick = startSummary, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 painterResource(Res.drawable.summarize_24dp),
                                 contentDescription = stringResource(Res.string.summary_action),
@@ -1465,7 +1584,7 @@ fun ConversationScreen(
                     }
                     // Uložené zprávy podle zdrojového chatu: jen u celých Uložených zpráv, ne v tématu.
                     if (onViewAsChats != null && state.info?.isSavedMessages == true && !state.narrowed) {
-                        IconButton(onClick = onViewAsChats) {
+                        IconButton(onClick = onViewAsChats, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 painterResource(Res.drawable.forum_24dp),
                                 contentDescription = stringResource(Res.string.saved_view_as_chats),
@@ -1473,7 +1592,7 @@ fun ConversationScreen(
                         }
                     }
                     if (!botIntro) {
-                        IconButton(onClick = viewModel::openSearch) {
+                        IconButton(onClick = viewModel::openSearch, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 painterResource(Res.drawable.search_24dp),
                                 contentDescription = stringResource(Res.string.conversation_search),
@@ -2440,103 +2559,138 @@ fun ConversationScreen(
                     .align(Alignment.TopCenter)
                     .onSizeChanged { pinnedHeight = with(density) { it.height.toDp() } },
             ) {
-                // Při odjezdu se musí dál kreslit poslední pruh, ne nic (stejně jako u připnutých).
-                // Při odjezdu se kreslí poslední pruh — stav je v tu chvíli už prázdný.
-                val lastChatBar = remember { arrayOf<ChatBar?>(null) }
-                if (chatBar != null) lastChatBar[0] = chatBar
-                AnimatedVisibility(
-                    visible = chatBar != null,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut(),
-                ) {
-                    when (val bar = lastChatBar[0]) {
-                        is SpamBar -> SpamBarCard(
-                            bar = bar,
-                            onBlock = { spamBarAction = SpamBarAction.Block },
-                            onReport = { spamBarAction = SpamBarAction.Report },
-                            onAddContact = viewModel::addSpamBarContact,
-                            onUnarchive = viewModel::unarchiveFromSpamBar,
-                            onDismiss = viewModel::dismissChatBar,
-                        )
-                        SharePhoneBar, InviteMembersBar, is JoinRequestBar -> ChatNoticeBarCard(
-                            bar = bar,
-                            onSharePhone = { confirmSharePhone = true },
-                            onInviteMembers = onAddMembers,
-                            onDismiss = viewModel::dismissChatBar,
-                        )
-                        null -> Unit
+                Column(Modifier.onSizeChanged { barsHeight = with(density) { it.height.toDp() } }) {
+                    // Při odjezdu se musí dál kreslit poslední pruh, ne nic (stejně jako u připnutých).
+                    // Při odjezdu se kreslí poslední pruh — stav je v tu chvíli už prázdný.
+                    val lastChatBar = remember { arrayOf<ChatBar?>(null) }
+                    if (chatBar != null) lastChatBar[0] = chatBar
+                    AnimatedVisibility(
+                        visible = chatBar != null,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut(),
+                    ) {
+                        when (val bar = lastChatBar[0]) {
+                            is SpamBar -> SpamBarCard(
+                                bar = bar,
+                                onBlock = { spamBarAction = SpamBarAction.Block },
+                                onReport = { spamBarAction = SpamBarAction.Report },
+                                onAddContact = viewModel::addSpamBarContact,
+                                onUnarchive = viewModel::unarchiveFromSpamBar,
+                                onDismiss = viewModel::dismissChatBar,
+                            )
+                            SharePhoneBar, InviteMembersBar, is JoinRequestBar -> ChatNoticeBarCard(
+                                bar = bar,
+                                onSharePhone = { confirmSharePhone = true },
+                                onInviteMembers = onAddMembers,
+                                onDismiss = viewModel::dismissChatBar,
+                            )
+                            null -> Unit
+                        }
                     }
-                }
-                // Žádosti o vstup hned pod spamem: čekají na rozhodnutí, jako on.
-                val shownJoinRequests = joinRequests?.takeIf { it.count > joinRequestsHiddenAt }
-                val lastJoinRequests = remember { arrayOf<PendingJoinRequests?>(null) }
-                if (shownJoinRequests != null) lastJoinRequests[0] = shownJoinRequests
-                AnimatedVisibility(
-                    visible = shownJoinRequests != null && !chatHidden,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut(),
-                ) {
-                    lastJoinRequests[0]?.let { requests ->
-                        JoinRequestsBar(
-                            requests = requests,
-                            onClick = onOpenJoinRequests,
-                            onHide = { joinRequestsHiddenAt = requests.count },
-                            glass = Modifier.hazeBlur(
-                                input = HazeInput.Sources(listHaze),
-                                style = glassStyle(
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    alpha = GLASS_TEXT_TINT_ALPHA,
-                                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                    // Žádosti o vstup hned pod spamem: čekají na rozhodnutí, jako on.
+                    val shownJoinRequests = joinRequests?.takeIf { it.count > joinRequestsHiddenAt }
+                    val lastJoinRequests = remember { arrayOf<PendingJoinRequests?>(null) }
+                    if (shownJoinRequests != null) lastJoinRequests[0] = shownJoinRequests
+                    AnimatedVisibility(
+                        visible = shownJoinRequests != null && !chatHidden,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut(),
+                    ) {
+                        lastJoinRequests[0]?.let { requests ->
+                            JoinRequestsBar(
+                                requests = requests,
+                                onClick = onOpenJoinRequests,
+                                onHide = { joinRequestsHiddenAt = requests.count },
+                                glass = Modifier.hazeBlur(
+                                    input = HazeInput.Sources(listHaze),
+                                    style = glassStyle(
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        alpha = GLASS_TEXT_TINT_ALPHA,
+                                        fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                                    ),
                                 ),
-                            ),
-                        )
+                            )
+                        }
                     }
-                }
-                // Videochat mezi spamem a připnutými: o dění v chatu, ne o obsahu.
-                val lastVideoChat = remember { arrayOf<VideoChatInfo?>(null) }
-                if (videoChat != null) lastVideoChat[0] = videoChat
-                AnimatedVisibility(
-                    visible = videoChat != null && !chatHidden,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut(),
-                ) {
-                    lastVideoChat[0]?.let { info ->
-                        VideoChatBar(
-                            info = info,
-                            onClick = viewModel::explainVideoChat,
-                            glass = Modifier.hazeBlur(
-                                input = HazeInput.Sources(listHaze),
-                                style = glassStyle(
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    alpha = GLASS_TEXT_TINT_ALPHA,
-                                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                    // Videochat mezi spamem a připnutými: o dění v chatu, ne o obsahu.
+                    val lastVideoChat = remember { arrayOf<VideoChatInfo?>(null) }
+                    if (videoChat != null) lastVideoChat[0] = videoChat
+                    AnimatedVisibility(
+                        visible = videoChat != null && !chatHidden,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut(),
+                    ) {
+                        lastVideoChat[0]?.let { info ->
+                            VideoChatBar(
+                                info = info,
+                                onClick = viewModel::explainVideoChat,
+                                glass = Modifier.hazeBlur(
+                                    input = HazeInput.Sources(listHaze),
+                                    style = glassStyle(
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        alpha = GLASS_TEXT_TINT_ALPHA,
+                                        fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                                    ),
                                 ),
-                            ),
-                        )
+                            )
+                        }
                     }
-                }
-                AnimatedVisibility(
-                    // Omezený chat: připnutá zpráva by ukázala obsah, který se ukázat nesmí.
-                    visible = state.pinned.isNotEmpty() && !chatHidden,
-                    enter = expandVertically() + fadeIn(),
-                    exit = shrinkVertically() + fadeOut(),
-                ) {
-                    // Při odjezdu se musí dál kreslit poslední zpráva, ne prázdný pruh.
-                    val last = remember { arrayOf(emptyList<ChatMessage>()) }
-                    if (state.pinned.isNotEmpty()) last[0] = state.pinned
-                    val pinned = last[0]
+                    AnimatedVisibility(
+                        // Omezený chat: připnutá zpráva by ukázala obsah, který se ukázat nesmí.
+                        visible = state.pinned.isNotEmpty() && !chatHidden,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut(),
+                    ) {
+                        // Při odjezdu se musí dál kreslit poslední zpráva, ne prázdný pruh.
+                        val last = remember { arrayOf(emptyList<ChatMessage>()) }
+                        if (state.pinned.isNotEmpty()) last[0] = state.pinned
+                        val pinned = last[0]
 
-                    PinnedMessagesBar(
-                        messages = pinned,
-                        index = pinnedIndex(pinned, pinnedForScroll(pinned, topVisibleKey)),
-                        canUnpin = state.canUnpin,
-                        // Ťuknutí skočí na ukázanou zprávu, a to KOTVOU NAHORU: zpráva pak stojí nad
-                        // viditelnou částí, takže pruh přejde na předchozí připnutou a další ťuknutí
-                        // vede o krok zpět. Se středem se nad cílem odkryje kus historie a pruh
-                        // přeskočí rovnou k nejstarší.
-                        onOpen = { message -> viewModel.jumpToMessage(message.id, anchor = ScrollAnchor.Top) },
-                        onUnpin = viewModel::unpin,
-                        onShowAll = { allPinnedOpen = true },
+                        PinnedMessagesBar(
+                            messages = pinned,
+                            index = pinnedIndex(pinned, pinnedForScroll(pinned, topVisibleKey)),
+                            canUnpin = state.canUnpin,
+                            // Ťuknutí skočí na ukázanou zprávu, a to KOTVOU NAHORU: zpráva pak stojí nad
+                            // viditelnou částí, takže pruh přejde na předchozí připnutou a další ťuknutí
+                            // vede o krok zpět. Se středem se nad cílem odkryje kus historie a pruh
+                            // přeskočí rovnou k nejstarší.
+                            onOpen = { message -> viewModel.jumpToMessage(message.id, anchor = ScrollAnchor.Top) },
+                            onUnpin = viewModel::unpin,
+                            onShowAll = { allPinnedOpen = true },
+                            glass = Modifier.hazeBlur(
+                                input = HazeInput.Sources(listHaze),
+                                style = glassStyle(
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    alpha = GLASS_TEXT_TINT_ALPHA,
+                                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                                ),
+                            ),
+                        )
+                    }
+                }
+
+                /*
+                 * Dock živé polohy: poslední řádek pod pruhy, vysouvá se tím, jak zpráva s polohou
+                 * odjíždí z obrazovky. Ve vlákně komentářů polohy nejsou (`liveLocations` prázdné).
+                 */
+                if (!chatHidden && shownDocked.isNotEmpty()) {
+                    LiveLocationDockBar(
+                        locations = shownDocked,
+                        reveal = { dockReveal.value },
+                        expanded = dockExpanded,
+                        onToggle = { dockExpanded = !dockExpanded },
+                        chatTitle = state.info?.title.orEmpty(),
+                        onOpenMap = { message ->
+                            (message.media as? MessageMedia.Location)?.let {
+                                viewModel.onAction(message.id, MessageAction.OpenLink(it.mapUrl))
+                            }
+                        },
+                        onShowMessage = { message ->
+                            dockExpanded = false
+                            viewModel.jumpToMessage(message.id)
+                        },
+                        onStop = { message -> viewModel.onAction(message.id, MessageAction.StopLiveLocation) },
+                        onProximityAlert = { message -> viewModel.onAction(message.id, MessageAction.SetProximityAlert) },
                         glass = Modifier.hazeBlur(
                             input = HazeInput.Sources(listHaze),
                             style = glassStyle(
@@ -2548,6 +2702,23 @@ fun ConversationScreen(
                     )
                 }
 
+                // Skladbu z jiného chatu ukazuje i omezený chat — neprozradí z něj nic a zastavit ji jinde nejde.
+                ConversationPlayerDock(
+                    dock = playerDock,
+                    chatHidden = chatHidden,
+                    viewModel = viewModel,
+                    voicePlayback = voicePlayback,
+                    soundingVideoNote = soundingVideoNote,
+                    onOpenChat = onOpenChat,
+                    glass = Modifier.hazeBlur(
+                        input = HazeInput.Sources(listHaze),
+                        style = glassStyle(
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            alpha = GLASS_TEXT_TINT_ALPHA,
+                            fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                        ),
+                    ),
+                )
             }
 
             state.scheduledMessages?.let { scheduled ->
@@ -2767,11 +2938,7 @@ private fun ScrollToBottomButton(
                     val shown = remember { intArrayOf(count) }
                     if (count > 0) shown[0] = count
 
-                    Text(
-                        text = newMessagesLabel(shown[0]),
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
+                    NewMessagesLabel(shown[0], Modifier.padding(start = 8.dp))
                 }
             }
         }
@@ -2825,7 +2992,7 @@ private fun UnreadMarkButton(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary,
                     ) {
-                        Text(shown[0].toString(), style = LocalTextStyle.current.tabularNumbers())
+                        RollingNumber(shown[0], style = LocalTextStyle.current.tabularNumbers())
                     }
                 },
             ) {
@@ -2874,10 +3041,28 @@ private fun UnreadMarkButton(
     }
 }
 
-/** Skloňování řeší `plurals` v prostředcích — čeština má tři tvary, angličtina dva. */
+/**
+ * „N nových zpráv" s přetáčeným číslem ([RollingNumber]). Skloňování řeší `plurals`
+ * v prostředcích (čeština má tři tvary, angličtina dva), takže se věta nesestavuje v kódu:
+ * číslo se do ní dosadí jako značka a věta se kolem ní rozdělí. Compose Resources dosazuje
+ * argumenty jako text (`replaceWithArgs`), takže značka projde beze změny.
+ */
 @Composable
-private fun newMessagesLabel(count: Int): String =
-    pluralStringResource(Res.plurals.conversation_new_messages, count, count)
+private fun NewMessagesLabel(count: Int, modifier: Modifier = Modifier) {
+    val template = pluralStringResource(Res.plurals.conversation_new_messages, count, NUMBER_MARK)
+    val before = template.substringBefore(NUMBER_MARK)
+    val after = template.substringAfter(NUMBER_MARK, missingDelimiterValue = "")
+    val style = MaterialTheme.typography.labelLarge
+    val label = pluralStringResource(Res.plurals.conversation_new_messages, count, count)
+    Row(modifier.clearAndSetSemantics { contentDescription = label }) {
+        if (before.isNotEmpty()) Text(before, style = style)
+        RollingNumber(count, style = style.tabularNumbers())
+        if (after.isNotEmpty()) Text(after, style = style)
+    }
+}
+
+/** Značka místa čísla ve větě z prostředků; znak ze soukromé oblasti Unicode se v textu nevyskytne. */
+private const val NUMBER_MARK = "\uE000"
 
 @Composable
 private fun MessageInput(
@@ -3182,7 +3367,7 @@ private fun MessageInput(
                             quoteText = replyQuote,
                             modifier = Modifier.weight(1f),
                         )
-                        IconButton(onClick = onCancelReply) {
+                        IconButton(onClick = onCancelReply, shapes = IconButtonDefaults.shapes()) {
                             Icon(
                                 painterResource(Res.drawable.close_24dp),
                                 contentDescription = stringResource(Res.string.conversation_cancel_reply),
@@ -3300,6 +3485,7 @@ private fun MessageInput(
                     onClick = onToggleCommands,
                     colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
                     modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                    shapes = IconButtonDefaults.shapes(),
                 ) {
                     Icon(
                         painterResource(Res.drawable.smart_toy_24dp),
@@ -3441,6 +3627,7 @@ private fun MessageInput(
                     onClick = onOpenScheduled,
                     colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
                     modifier = Modifier.padding(bottom = 4.dp),
+                    shapes = IconButtonDefaults.shapes(),
                 ) {
                     Icon(
                         painterResource(Res.drawable.schedule_24dp),
@@ -3467,6 +3654,7 @@ private fun MessageInput(
                         checkedContentColor = MaterialTheme.colorScheme.onPrimary,
                         checkedContainerColor = MaterialTheme.colorScheme.primary,
                     ),
+                    shapes = IconButtonDefaults.toggleableShapes(),
                 ) {
                     Icon(painterResource(Res.drawable.text_format_24dp), contentDescription = stringResource(Res.string.format_open))
                 }
@@ -3479,6 +3667,7 @@ private fun MessageInput(
                 },
                 colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
                 modifier = Modifier.padding(end = 4.dp, bottom = 4.dp),
+                shapes = IconButtonDefaults.shapes(),
             ) {
                 // Ikona slibuje, co se otevře: poslední použitou část výběru. Při úpravě
                 // zprávy jde otevřít jen emoji — samolepka do textu upravované zprávy nepatří.
@@ -3549,72 +3738,6 @@ private fun MessageInput(
                 else -> SendButtonKind.Send
             }
 
-            /*
-             * Tvar nese stav: mikrofon (klidový stav prázdného pole) je „sušenka" z M3 Expressive,
-             * odeslání a uložení úpravy kruh. Změna se animuje morfem mezi nimi a ikona se vymění
-             * zvětšením. Tlačítko se mění samo od sebe (začne se psát, pole se vyprázdní) a skoková
-             * výměna ikony se dala přehlédnout — a ťuknout pak na mikrofon místo odeslání.
-             * Stav se tak pozná i bez ikony a barvy, třeba koutkem oka nebo na slunci.
-             */
-            // Pružina přestřelí za oba konce; mimo 0..1 by se tvar zdeformoval.
-            val morphProgress = animateMorph(
-                kind == SendButtonKind.Mic || kind == SendButtonKind.Camera,
-                "send-button-shape",
-            ).coerceIn(0f, 1f)
-
-            /*
-             * Při nahrávání tlačítko DÝCHÁ: pomalý morf kruh ↔ SoftBurst. Tečka v pruhu nahrávání
-             * už nebliká — dva blikající prvky vedle sebe by byly šum — a živost nese tlačítko,
-             * kterým se nahrávání i odesílá.
-             */
-            val breathing = if (isRecording) {
-                rememberInfiniteTransition(label = "recording-breath").animateFloat(
-                    initialValue = 0f,
-                    targetValue = 1f,
-                    animationSpec = infiniteRepeatable(tween(RECORDING_BREATH_MS), RepeatMode.Reverse),
-                    label = "recording-breath-progress",
-                ).value
-            } else {
-                0f
-            }
-
-            /*
-             * Barva říká, ČEHO se akce týká: text jde `primary` (jako odchozí bublina), hlas
-             * `tertiary`. Hlasovka je doplňková cesta vedle psaní, a terciární role je v M3
-             * přesně na to — tlačítko je pak stejně výrazné jako odeslání textu (obojí je plná
-             * role, ne tonální), jen se pozná, že udělá něco jiného.
-             *
-             * Dřív byl mikrofon tonální `secondaryContainer`, tedy „klidový stav prázdného pole".
-             * Jenže tím bylo tlačítko v prázdném poli to nejméně nápadné na obrazovce, přestože
-             * je to jediná akce, která se z prázdného pole dá udělat.
-             *
-             * Nahrávání a mikrofon mají barvu STEJNOU: mezi „můžu nahrát" a „nahrávám" rozhoduje
-             * tvar (sušenka ↔ dýchající SoftBurst), vlnka karty a pruh s časem. Přebarvit k tomu
-             * ještě tlačítko by byl čtvrtý signál pro jednu změnu.
-             */
-            // Kolečko je taky nahrávka, takže nese tutéž terciární roli jako hlas.
-            val voiceButton = kind == SendButtonKind.Mic || kind == SendButtonKind.Camera ||
-                kind == SendButtonKind.SendVoice
-            val colorSpec = MaterialTheme.motionScheme.slowEffectsSpec<Color>()
-            val containerColor by animateColorAsState(
-                targetValue = if (voiceButton) {
-                    MaterialTheme.colorScheme.tertiary
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-                animationSpec = colorSpec,
-                label = "send-button-container",
-            )
-            val contentColor by animateColorAsState(
-                targetValue = if (voiceButton) {
-                    MaterialTheme.colorScheme.onTertiary
-                } else {
-                    MaterialTheme.colorScheme.onPrimary
-                },
-                animationSpec = colorSpec,
-                label = "send-button-content",
-            )
-
             var sendMenuOpen by remember { mutableStateOf(false) }
             // Nabídka otevřená nad hlasovkou: volby jdou na nahrávku, ne na text pole.
             var voiceMenu by remember { mutableStateOf(false) }
@@ -3630,21 +3753,6 @@ private fun MessageInput(
             }
             // Efekt jde vybrat jen k textu — výběr efektu posílá obsah pole.
             val voiceSendMenu = sendMenu.copy(effects = false)
-            // Kruh (odeslání) se při stisku mění podle M3 Expressive na zaoblený čtverec.
-            // Sušenka a tvary během přechodu stisk nemění: mezi obecnými tvary IconButton
-            // neanimuje a skok by vypadal jako chyba.
-            val buttonShapes = if (breathing > 0f) {
-                val shape = MorphShape(ShapeMorphs.Live, breathing, rotation = RECORDING_BREATH_ROTATION)
-                IconButtonShapes(shape = shape, pressedShape = shape)
-            } else if (morphProgress > 0f) {
-                val shape = MorphShape(ShapeMorphs.Rest, morphProgress, rotation = ShapeMorphs.REST_ROTATION)
-                IconButtonShapes(shape = shape, pressedShape = shape)
-            } else {
-                IconButtonDefaults.shapes(
-                    shape = IconButtonDefaults.mediumRoundShape,
-                    pressedShape = IconButtonDefaults.mediumPressedShape,
-                )
-            }
             val recordActionLabel = stringResource(
                 if (recordMode == RecordMode.VideoNote) Res.string.conversation_record_video_note else Res.string.conversation_record_voice,
             )
@@ -3671,6 +3779,92 @@ private fun MessageInput(
                     // Podržení tu nahrává; nápověda na dlouhý stisk by se s ním prala.
                     enableUserInput = false,
                 ) {
+                /*
+                 * Morf, dýchání a barvy se čtou AŽ TADY, v obsahu `TooltipBox` (vlastní rozsah
+                 * rekompozice). Čtené v kartě pole by s každým snímkem animace přeskládaly celou
+                 * kartu i s polem — při nahrávání po celou dobu nahrávky (změřeno Perfettem).
+                 */
+                /*
+                 * Tvar nese stav: mikrofon (klidový stav prázdného pole) je „sušenka" z M3 Expressive,
+                 * odeslání a uložení úpravy kruh. Změna se animuje morfem mezi nimi a ikona se vymění
+                 * zvětšením. Tlačítko se mění samo od sebe (začne se psát, pole se vyprázdní) a skoková
+                 * výměna ikony se dala přehlédnout — a ťuknout pak na mikrofon místo odeslání.
+                 * Stav se tak pozná i bez ikony a barvy, třeba koutkem oka nebo na slunci.
+                 */
+                // Pružina přestřelí za oba konce; mimo 0..1 by se tvar zdeformoval.
+                val morphProgress = animateMorph(
+                    kind == SendButtonKind.Mic || kind == SendButtonKind.Camera,
+                    "send-button-shape",
+                ).coerceIn(0f, 1f)
+
+                /*
+                 * Při nahrávání tlačítko DÝCHÁ: pomalý morf kruh ↔ SoftBurst. Tečka v pruhu nahrávání
+                 * už nebliká — dva blikající prvky vedle sebe by byly šum — a živost nese tlačítko,
+                 * kterým se nahrávání i odesílá.
+                 */
+                val breathing = if (isRecording) {
+                    rememberInfiniteTransition(label = "recording-breath").animateFloat(
+                        initialValue = 0f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(tween(RECORDING_BREATH_MS), RepeatMode.Reverse),
+                        label = "recording-breath-progress",
+                    ).value
+                } else {
+                    0f
+                }
+
+                /*
+                 * Barva říká, ČEHO se akce týká: text jde `primary` (jako odchozí bublina), hlas
+                 * `tertiary`. Hlasovka je doplňková cesta vedle psaní, a terciární role je v M3
+                 * přesně na to — tlačítko je pak stejně výrazné jako odeslání textu (obojí je plná
+                 * role, ne tonální), jen se pozná, že udělá něco jiného.
+                 *
+                 * Dřív byl mikrofon tonální `secondaryContainer`, tedy „klidový stav prázdného pole".
+                 * Jenže tím bylo tlačítko v prázdném poli to nejméně nápadné na obrazovce, přestože
+                 * je to jediná akce, která se z prázdného pole dá udělat.
+                 *
+                 * Nahrávání a mikrofon mají barvu STEJNOU: mezi „můžu nahrát" a „nahrávám" rozhoduje
+                 * tvar (sušenka ↔ dýchající SoftBurst), vlnka karty a pruh s časem. Přebarvit k tomu
+                 * ještě tlačítko by byl čtvrtý signál pro jednu změnu.
+                 */
+                // Kolečko je taky nahrávka, takže nese tutéž terciární roli jako hlas.
+                val voiceButton = kind == SendButtonKind.Mic || kind == SendButtonKind.Camera ||
+                    kind == SendButtonKind.SendVoice
+                val colorSpec = MaterialTheme.motionScheme.slowEffectsSpec<Color>()
+                val containerColor by animateColorAsState(
+                    targetValue = if (voiceButton) {
+                        MaterialTheme.colorScheme.tertiary
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
+                    animationSpec = colorSpec,
+                    label = "send-button-container",
+                )
+                val contentColor by animateColorAsState(
+                    targetValue = if (voiceButton) {
+                        MaterialTheme.colorScheme.onTertiary
+                    } else {
+                        MaterialTheme.colorScheme.onPrimary
+                    },
+                    animationSpec = colorSpec,
+                    label = "send-button-content",
+                )
+
+                // Kruh (odeslání) se při stisku mění podle M3 Expressive na zaoblený čtverec.
+                // Sušenka a tvary během přechodu stisk nemění: mezi obecnými tvary IconButton
+                // neanimuje a skok by vypadal jako chyba.
+                val buttonShapes = if (breathing > 0f) {
+                    val shape = MorphShape(ShapeMorphs.Live, breathing, rotation = RECORDING_BREATH_ROTATION)
+                    IconButtonShapes(shape = shape, pressedShape = shape)
+                } else if (morphProgress > 0f) {
+                    val shape = MorphShape(ShapeMorphs.Rest, morphProgress, rotation = ShapeMorphs.REST_ROTATION)
+                    IconButtonShapes(shape = shape, pressedShape = shape)
+                } else {
+                    IconButtonDefaults.shapes(
+                        shape = IconButtonDefaults.mediumRoundShape,
+                        pressedShape = IconButtonDefaults.mediumPressedShape,
+                    )
+                }
                 FilledIconButton(
                     onClick = {
                         when {
@@ -4081,13 +4275,13 @@ private fun LinkPreviewHeader(
             )
         }
     }
-    IconButton(onClick = onOpenOptions) {
+    IconButton(onClick = onOpenOptions, shapes = IconButtonDefaults.shapes()) {
         Icon(
             painterResource(Res.drawable.tune_24dp),
             contentDescription = stringResource(Res.string.link_preview_options),
         )
     }
-    IconButton(onClick = onDismiss) {
+    IconButton(onClick = onDismiss, shapes = IconButtonDefaults.shapes()) {
         Icon(
             painterResource(Res.drawable.close_24dp),
             contentDescription = stringResource(Res.string.link_preview_remove),
@@ -4137,7 +4331,7 @@ private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit) = Composer
             )
         }
     }
-    IconButton(onClick = onCancel) {
+    IconButton(onClick = onCancel, shapes = IconButtonDefaults.shapes()) {
         Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.conversation_cancel_edit))
     }
 }
@@ -4276,6 +4470,7 @@ private class ScreenItemScope(
     private val searchHighlight: State<String?>,
     private val profileFlight: MutableState<Long?>,
     private val canSendCommands: State<Boolean>,
+    private val soundingVideoNote: State<SoundingVideoNote?>,
 ) : ConversationItemScope {
     override fun isProfileFlight(messageId: Long): Boolean = profileFlight.value == messageId
 
@@ -4300,7 +4495,8 @@ private class ScreenItemScope(
 
     override fun videoNoteSounding(messageId: Long): Boolean = state.value.soundingVideoNote == messageId
 
-    override fun videoNoteSoundFromMs(): Long = state.value.soundingVideoNoteFromMs
+    override fun soundingVideoNote(messageId: Long): SoundingVideoNote? =
+        soundingVideoNote.value?.takeIf { it.key.messageId == messageId }
 
     override fun documentProgress(fileId: Int): Float? = state.value.documentDownloads[fileId]
 
@@ -4476,5 +4672,156 @@ private fun ReadOnlyNote(text: StringResource, modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(horizontal = 24.dp, vertical = 20.dp),
+    )
+}
+
+/** Pod tímhle podílem schované zprávy se poloha do docku nepočítá — řádek by se kreslil naprázdno. */
+private const val DOCK_EPSILON = 0.001f
+
+/** Rozdíl průběhu, nad kterým se dock dojíždí animací místo vedení prstem (skok v seznamu). */
+private const val DOCK_JUMP = 0.35f
+
+/**
+ * Od jakého vysunutí docku kreslí obraz kolečka se zvukem dock, a ne bublina. Polovina: dokud je
+ * víc kolečka vidět v seznamu, patří obraz jemu.
+ */
+private const val VIDEO_NOTE_HANDOFF = 0.5f
+
+/** Mini přehrávač v docku: co se v něm kreslí a jak daleko je vysunutý ([rememberPlayerDock]). */
+private class PlayerDock(val player: DockedPlayer?, val shown: Boolean, val reveal: () -> Float)
+
+/**
+ * Hrající hlasovka, skladba nebo kolečko se zvukem, jejichž zpráva odjela z obrazovky. Měří se
+ * stejně jako dock polohy; skladba z jiného chatu svou zprávu v seznamu nemá, a je proto v docku
+ * celá. Kompozice čte jen KLÍČ hrajícího zvuku, průběh až řádek. Zvuk je v konverzaci nejvýš
+ * jeden, takže kolečko a hlasovka se nepotkají.
+ */
+@Composable
+private fun rememberPlayerDock(
+    viewModel: ConversationViewModel,
+    state: ConversationState,
+    voicePlayback: State<VoicePlayback?>,
+    soundingVideoNote: State<SoundingVideoNote?>,
+    listState: LazyListState,
+    barsHeight: () -> Dp,
+    spec: FiniteAnimationSpec<Float>,
+): PlayerDock {
+    val density = LocalDensity.current
+    val source by rememberUpdatedState(state)
+    val nowPlaying by viewModel.nowPlaying.collectAsStateWithLifecycle()
+    val docked by remember(viewModel.chatId) {
+        derivedStateOf(structuralEqualityPolicy()) {
+            soundingVideoNote.value?.let { it.key to false }
+                ?: voicePlayback.value?.takeIf { it.docksIn(viewModel.chatId) }?.let { it.key to it.music }
+        }
+    }
+    val target by remember(listState) {
+        derivedStateOf {
+            val key = docked?.first ?: return@derivedStateOf 0f
+            if (key.chatId != viewModel.chatId) return@derivedStateOf 1f
+            val info = listState.layoutInfo
+            if (info.visibleItemsInfo.isEmpty()) return@derivedStateOf 0f
+            // 8 dp je horní odsazení seznamu nad pruhy, jako u docku polohy.
+            val top = info.viewportEndOffset - with(density) { (8.dp + barsHeight()).toPx() }
+            // Blok, ne zpráva: skladba z alba je položka s klíčem nejstarší zprávy alba.
+            val block = source.blockKeyOf(key.messageId)
+            val item = block?.let { b -> info.visibleItemsInfo.firstOrNull { it.key == b } }
+            item?.let { dockProgress(it.offset, it.size, top, 0f) } ?: 1f
+        }
+    }
+    val reveal = remember { Animatable(0f) }
+    LaunchedEffect(reveal) {
+        snapshotFlow { target }.collectLatest { to ->
+            if (abs(to - reveal.value) > DOCK_JUMP) reveal.animateTo(to, spec) else reveal.snapTo(to)
+        }
+    }
+    val shown by remember { derivedStateOf { target > DOCK_EPSILON || reveal.value > DOCK_EPSILON } }
+    // Obraz kolečka si dock bere, až je víc v docku než v seznamu; kreslí ho vždycky jen jedna plocha.
+    LaunchedEffect(soundingVideoNote.value) {
+        val note = soundingVideoNote.value ?: return@LaunchedEffect
+        snapshotFlow { shown && reveal.value >= VIDEO_NOTE_HANDOFF }.collect { note.docked = it }
+    }
+    val you = stringResource(Res.string.location_dock_you)
+    val voiceLabel = stringResource(Res.string.conversation_voice_message)
+    val videoNoteLabel = stringResource(Res.string.content_video_note)
+    // Při zasouvání (zvuk dohrál, zpráva zpátky v pohledu) se kreslí poslední řádek, ne nic.
+    val last = remember { arrayOf<DockedPlayer?>(null) }
+    docked?.let { (key, music) ->
+        val message = state.messages.firstOrNull { it.id == key.messageId }?.takeIf { key.chatId == viewModel.chatId }
+        val videoNote = (message?.media as? MessageMedia.VideoNote)?.takeIf { soundingVideoNote.value?.key == key }
+        last[0] = if (videoNote != null) {
+            DockedPlayer(
+                key = key,
+                music = false,
+                title = message.let { if (it.isOutgoing) you else it.senderName ?: state.info?.title } ?: videoNoteLabel,
+                label = videoNoteLabel,
+                coverFileId = videoNote.thumbnailFileId,
+                video = true,
+            )
+        } else if (music) {
+            val audio = (message?.media as? MessageMedia.Audio)?.takeIf { key.part == VoiceKey.NO_PART }
+            val track = nowPlaying?.takeIf { it.key == key }?.track
+            DockedPlayer(
+                key = key,
+                music = true,
+                title = (track?.title ?: audio?.title)?.ifBlank { null } ?: audio?.fileName.orEmpty(),
+                label = track?.performer ?: audio?.performer?.ifBlank { null },
+                coverFileId = track?.coverFileId ?: audio?.coverFileId,
+                hasNext = nowPlaying?.takeIf { it.key == key }?.next != null,
+            )
+        } else {
+            DockedPlayer(
+                key = key,
+                music = false,
+                title = message?.let { if (it.isOutgoing) you else it.senderName ?: state.info?.title } ?: voiceLabel,
+                label = voiceLabel.takeIf { message?.media is MessageMedia.VoiceNote },
+            )
+        }
+    }
+    return PlayerDock(player = last[0], shown = shown, reveal = { reveal.value })
+}
+
+/** Řádek mini přehrávače pod dockem polohy ([PlayerDockBar] nad stavem z [rememberPlayerDock]). */
+@Composable
+private fun ConversationPlayerDock(
+    dock: PlayerDock,
+    chatHidden: Boolean,
+    viewModel: ConversationViewModel,
+    voicePlayback: State<VoicePlayback?>,
+    soundingVideoNote: State<SoundingVideoNote?>,
+    onOpenChat: (ChatTarget) -> Unit,
+    glass: Modifier,
+) {
+    val player = dock.player ?: return
+    if (!dock.shown || (chatHidden && player.key.chatId == viewModel.chatId)) return
+    val note = { soundingVideoNote.value?.takeIf { player.video && it.key == player.key } }
+    PlayerDockBar(
+        player = player,
+        playback = {
+            if (player.video) note()?.playback else voicePlayback.value?.takeIf { it.key == player.key }
+        },
+        reveal = dock.reveal,
+        onToggle = { if (player.video) note()?.toggle() else viewModel.togglePlaying() },
+        onNext = viewModel::skipToNextTrack,
+        onStop = {
+            if (player.video) {
+                viewModel.onAction(player.key.messageId, MessageAction.VideoNoteSoundEnded)
+            } else {
+                viewModel.stopPlaying()
+            }
+        },
+        video = if (player.video) {
+            { note()?.takeIf { it.docked }?.let { VideoSurface(it.player, Modifier.fillMaxSize()) } }
+        } else {
+            null
+        },
+        onShow = {
+            if (player.key.chatId == viewModel.chatId) {
+                viewModel.jumpToMessage(player.key.messageId)
+            } else {
+                onOpenChat(ChatTarget(player.key.chatId, player.key.messageId))
+            }
+        },
+        glass = glass,
     )
 }

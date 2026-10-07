@@ -445,6 +445,14 @@ snadno na to uživatel narazí.
   ~~Sdílení živé polohy~~ — hotovo na Androidu (služba v popředí, zastavení z notifikace
   i z bubliny; `CLAUDE.md`, „Sdílení živé polohy"). Zbývá sdílení na iOS (běh na pozadí
   s `allowsBackgroundLocationUpdates`). ~~Upozornění na blízkost~~ — hotovo (`CLAUDE.md`, „Upozornění na blízkost"). ~~Směr pohybu (`heading`)~~ — hotovo (šipka místo špendlíku).
+  ~~Dock živé polohy~~ — hotovo: zpráva s živou polohou, která odjede z obrazovky, se přestěhuje
+  do řádku pod pruhy nad konverzací a jde rozbalit na mapu s ovládáním (`CLAUDE.md`, „Dock živé
+  polohy").
+- ~~**Mini přehrávač v docku**~~ — hotovo pro hudbu, hlasovky i kolečko se zvukem: hrající
+  zvuk, jehož zpráva odjede z obrazovky, je řádek pod pruhy s průběhem, pauzou, „další" a ✕;
+  skladba z jiného chatu je v něm pořád, kolečko v něm hraje i obrazem (`CLAUDE.md`, „Mini
+  přehrávač v docku"). ~~**Přehrávač nad seznamem chatů**~~ — hotovo (`CLAUDE.md`, „Přehrávač nad
+  seznamem chatů").
 - ~~**Kontakt** (`MessageContact`)~~ — hotovo: karta s tváří, jménem a číslem, „Napsat
   zprávu" (`CLAUDE.md`, „Kontakt"). ~~**Přidat do kontaktů**~~ — hotovo (z karty se „Vrátit"
   a v ⋮ profilu přidat i odebrat; s člověkem ověřené jen sondou na testovacím botovi)

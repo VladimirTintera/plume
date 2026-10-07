@@ -16,6 +16,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.InputChipDefaults
 import androidx.compose.material3.ListItem
@@ -109,7 +110,7 @@ internal fun InChatSearchTopBar(
                 leading = {
                     // Zpět je UVNITŘ pilulky, jako v rozbaleném hledání seznamu chatů: zavírá
                     // hledání, ne obrazovku, takže patří k němu.
-                    IconButton(onClick = onClose) {
+                    IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
                         Icon(
                             painterResource(Res.drawable.arrow_back_24dp),
                             contentDescription = stringResource(Res.string.conversation_search_close),
@@ -148,7 +149,7 @@ internal fun InChatSearchTopBar(
             // Výběr člena stojí VEDLE pilulky: je to akce nad hledáním, ne součást dotazu —
             // a tři ikony uvnitř pilulky by na úzkém telefonu nenechaly místo na text.
             if (onPickSender != null && sender == null) {
-                IconButton(onClick = onPickSender) {
+                IconButton(onClick = onPickSender, shapes = IconButtonDefaults.shapes()) {
                     Icon(
                         painterResource(Res.drawable.person_search_24dp),
                         contentDescription = stringResource(Res.string.conversation_search_by_member),
@@ -180,7 +181,11 @@ internal fun InChatSearchNavigator(
     onNewer: () -> Unit,
 ) {
     ConversationFloatingBar(visible = search.hasCriteria) {
-        IconButton(onClick = onOlder, enabled = search.hasOlder && !search.loading) {
+        IconButton(
+            onClick = onOlder,
+            enabled = search.hasOlder && !search.loading,
+            shapes = IconButtonDefaults.shapes(),
+        ) {
             Icon(
                 painterResource(Res.drawable.keyboard_arrow_up_24dp),
                 contentDescription = stringResource(Res.string.conversation_search_older),
@@ -225,7 +230,7 @@ internal fun InChatSearchNavigator(
                 )
             }
         }
-        IconButton(onClick = onNewer, enabled = search.hasNewer) {
+        IconButton(onClick = onNewer, enabled = search.hasNewer, shapes = IconButtonDefaults.shapes()) {
             Icon(
                 painterResource(Res.drawable.keyboard_arrow_down_24dp),
                 contentDescription = stringResource(Res.string.conversation_search_newer),

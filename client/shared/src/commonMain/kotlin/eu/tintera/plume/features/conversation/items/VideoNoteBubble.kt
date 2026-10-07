@@ -14,14 +14,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,8 +37,8 @@ import eu.tintera.plume.core.video.rememberVideoPlayer
 import eu.tintera.plume.features.conversation.formatDuration
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.content_video_note
+import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.volume_off_24dp
-import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -50,13 +47,11 @@ internal class VideoNoteHandlers(
     /** Hraje TOHLE kolečko se zvukem? Čte se v kompozici kolečka. */
     val sounding: () -> Boolean,
     val onToggleSound: () -> Unit,
-    /** Přehrávání se zvukem skončilo (dohrálo, nebo kolečko odjelo z obrazovky). */
-    val onSoundEnded: () -> Unit,
-    /** Odkud hrát se zvukem — čas v médiu („1:23"); jinak od začátku. */
-    val soundFromMs: () -> Long = { 0L },
+    /** Přehrávač kolečka se zvukem; drží ho obrazovka ([rememberSoundingVideoNote]). */
+    val shared: () -> SoundingVideoNote? = { null },
 ) {
     companion object {
-        val None = VideoNoteHandlers({ false }, {}, {})
+        val None = VideoNoteHandlers({ false }, {})
     }
 }
 
@@ -69,9 +64,9 @@ internal class VideoNoteHandlers(
  * nebo dohrání ho vrátí do tiché smyčky. Se zvukem hraje v konverzaci nejvýš jedno kolečko —
  * o tom, které, rozhoduje ViewModel ([VideoNoteHandlers.sounding]), protože ví i o hlasovkách.
  *
- * **Kolečko, které odjede z obrazovky, zvuk vrátí** (`onDispose`). Přehrávač žije s kompozicí
- * položky, takže by zmlkl tak jako tak — jen by ViewModel dál věřil, že hraje, a po návratu
- * by se kolečko rozeznělo samo.
+ * **Se zvukem hraje přehrávač obrazovky, ne položky** ([SoundingVideoNote]): odscrollované
+ * kolečko hraje dál v docku a bublina si obraz bere zpátky, až je zase vidět. Pozastavené
+ * (z docku) se ťuknutím pustí dál, hrající ťuknutí vrátí do tiché smyčky.
  */
 @Composable
 internal fun VideoNoteBubble(
@@ -81,18 +76,18 @@ internal fun VideoNoteBubble(
     modifier: Modifier = Modifier,
 ) {
     val sounding = handlers.sounding()
+    val shared = if (sounding) handlers.shared() else null
     var requested by remember(note.fileId) { mutableStateOf(note.autoPlays) }
-    val fileState = rememberFileState(note.fileId.takeIf { requested || sounding })
+    // Se zvukem stahuje a přehrává obrazovka; vlastní tichá smyčka jen bez něj.
+    val fileState = rememberFileState(note.fileId.takeIf { requested && !sounding })
     val path = (fileState as? FileState.Ready)?.path
     val description = stringResource(Res.string.content_video_note)
-
-    val soundEnded by rememberUpdatedState(handlers.onSoundEnded)
-    DisposableEffect(sounding) {
-        onDispose { if (sounding) soundEnded() }
+    val elapsedSeconds by remember(shared) {
+        derivedStateOf { ((shared?.playback?.positionMs ?: 0L) / 1000).toInt() }
     }
-
-    var progress by remember { mutableFloatStateOf(0f) }
-    var elapsedSeconds by remember { mutableIntStateOf(0) }
+    val paused by remember(shared) {
+        derivedStateOf { shared?.playback?.let { !it.loading && !it.playing } == true }
+    }
 
     Box(
         modifier = modifier
@@ -103,7 +98,7 @@ internal fun VideoNoteBubble(
             .combinedClickable(
                 onClick = {
                     requested = true
-                    handlers.onToggleSound()
+                    if (paused) shared?.toggle() else handlers.onToggleSound()
                 },
                 onLongClick = onRequestMenu,
             ),
@@ -119,40 +114,42 @@ internal fun VideoNoteBubble(
             )
         }
 
-        if (path != null) {
-            val player = rememberVideoPlayer()
-            LaunchedEffect(player, path, sounding) {
-                // Přepnutí zvuku načte soubor znovu: se zvukem od začátku a bez smyčky.
-                player.load(path, loop = !sounding, muted = !sounding)
-                val from = if (sounding) handlers.soundFromMs() else 0L
-                if (from > 0) player.seekTo(from)
-                player.play()
-                progress = 0f
-                elapsedSeconds = 0
-                if (!sounding) return@LaunchedEffect
-                while (true) {
-                    delay(PROGRESS_TICK_MS)
-                    val duration = player.durationMs
-                    if (duration > 0) progress = (player.positionMs.toFloat() / duration).coerceIn(0f, 1f)
-                    elapsedSeconds = (player.positionMs / 1000).toInt()
-                    if (player.isEnded) {
-                        soundEnded()
-                        break
-                    }
+        when {
+            // Obraz kreslí jen jedna plocha: dokud je kolečko v docku, bublina ukazuje náhled.
+            shared != null -> if (!shared.docked) VideoSurface(shared.player, Modifier.fillMaxSize())
+            !sounding && path != null -> {
+                val player = rememberVideoPlayer()
+                LaunchedEffect(player, path) {
+                    player.load(path, loop = true, muted = true)
+                    player.play()
                 }
+                VideoSurface(player, Modifier.fillMaxSize())
             }
-            VideoSurface(player, Modifier.fillMaxSize())
         }
 
         if (sounding) {
             CircularProgressIndicator(
-                progress = { progress },
+                progress = { shared?.playback?.progress ?: 0f },
                 modifier = Modifier.fillMaxSize(),
                 color = Color.White,
                 trackColor = Color.White.copy(alpha = RING_TRACK_ALPHA),
                 strokeWidth = RING_WIDTH,
                 gapSize = 0.dp,
             )
+        }
+
+        if (paused) {
+            Surface(
+                shape = CircleShape,
+                color = Color.Black.copy(alpha = BADGE_ALPHA),
+                contentColor = Color.White,
+            ) {
+                Icon(
+                    painterResource(Res.drawable.play_arrow_24dp),
+                    contentDescription = null,
+                    modifier = Modifier.padding(12.dp).size(32.dp),
+                )
+            }
         }
 
         // Délka (se zvukem uplynulý čas) a přeškrtnutý reproduktor, dokud hraje potichu —
@@ -186,7 +183,6 @@ internal fun VideoNoteBubble(
 /** Velikost kolečka; stejně velké jako u oficiálních klientů. */
 internal val VIDEO_NOTE_SIZE = 200.dp
 
-private const val PROGRESS_TICK_MS = 50L
 private const val BADGE_ALPHA = 0.55f
 private const val RING_TRACK_ALPHA = 0.25f
 private val RING_WIDTH = 3.dp

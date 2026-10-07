@@ -15,6 +15,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Text
@@ -29,6 +30,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.ui.RollingNumber
 import eu.tintera.plume.core.ui.appendWithCustomEmoji
 import eu.tintera.plume.core.ui.customEmojiInlineContent
 import eu.tintera.plume.core.ui.grouped
@@ -100,10 +102,10 @@ internal fun ChatFolderRow(
                 }
                 FolderTitle(tab)
                 if (tab.unread > 0) {
-                    Text(
-                        text = tab.unread.grouped(),
+                    RollingNumber(
+                        value = tab.unread,
+                        format = { it.grouped() },
                         style = MaterialTheme.typography.labelMedium.tabularNumbers(),
-                        maxLines = 1,
                         modifier = Modifier.padding(start = 6.dp),
                     )
                 }
@@ -113,6 +115,7 @@ internal fun ChatFolderRow(
             OutlinedIconButton(
                 onClick = onAdd,
                 modifier = Modifier.padding(start = ADD_SPACING),
+                shapes = IconButtonDefaults.shapes(),
             ) {
                 Icon(painterResource(Res.drawable.add_24dp), contentDescription = stringResource(Res.string.chat_folders_add_folder))
             }

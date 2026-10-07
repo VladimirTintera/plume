@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.sender_you
 import androidx.compose.ui.text.withStyle
@@ -230,7 +231,7 @@ internal fun ChatSearchBar(
             },
             leadingIcon = {
                 if (expanded) {
-                    IconButton(onClick = ::collapse) {
+                    IconButton(onClick = ::collapse, shapes = IconButtonDefaults.shapes()) {
                         Icon(
                             painterResource(Res.drawable.arrow_back_24dp),
                             contentDescription = stringResource(Res.string.common_back),
@@ -242,7 +243,10 @@ internal fun ChatSearchBar(
             },
             trailingIcon = {
                 when {
-                    expanded && textFieldState.text.isNotEmpty() -> IconButton(onClick = { textFieldState.clearText() }) {
+                    expanded && textFieldState.text.isNotEmpty() -> IconButton(
+                        onClick = { textFieldState.clearText() },
+                        shapes = IconButtonDefaults.shapes(),
+                    ) {
                         Icon(
                             painterResource(Res.drawable.close_24dp),
                             contentDescription = stringResource(Res.string.chats_search_clear),

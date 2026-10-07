@@ -15,6 +15,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
@@ -102,14 +103,18 @@ fun JoinRequestsScreen(viewModel: JoinRequestsViewModel, onBack: () -> Unit, mod
             TopAppBar(
                 title = { Text(stringResource(Res.string.join_requests_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                     }
                 },
                 actions = {
                     if (!shown.isNullOrEmpty()) {
                         Box {
-                            IconButton(onClick = { menuOpen = true }, enabled = !viewModel.busy) {
+                            IconButton(
+                                onClick = { menuOpen = true },
+                                enabled = !viewModel.busy,
+                                shapes = IconButtonDefaults.shapes(),
+                            ) {
                                 Icon(painterResource(Res.drawable.more_vert_24dp), contentDescription = stringResource(Res.string.profile_more))
                             }
                             ExpressiveMenu(

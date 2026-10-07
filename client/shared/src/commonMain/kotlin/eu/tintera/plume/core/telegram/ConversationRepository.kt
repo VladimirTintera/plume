@@ -356,6 +356,14 @@ interface ConversationRepository {
     suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage>
 
     /**
+     * Živé polohy, které v chatu někdo sdílí — vlastní i cizí, nejvýš jedna zpráva na člověka
+     * (`searchChatRecentLocationMessages`). Čte se jednou při otevření chatu kvůli docku nad
+     * konverzací; další přijdou jako nové zprávy. Jestli se ještě sdílí, rozhoduje volající
+     * podle [MessageMedia.Location.liveUntil] — TDLib vrací i polohy, které už skončily.
+     */
+    suspend fun recentLiveLocations(chatId: Long): Result<List<ChatMessage>> = Result.success(emptyList())
+
+    /**
      * Zpráva s CELÝM článkem. Dlouhý článek (`MessageRichMessage`) posílá TDLib useknutý
      * ([Article.isPartial]); tohle ho dočte ze serveru a další převody téže zprávy už ho dávají
      * celý. U jiné zprávy je to totéž co [message].
@@ -1630,6 +1638,9 @@ data class LinkPreview(
  * **Není to data class kvůli `equals`.** `ByteArray` se v data class porovnává podle
  * reference, takže by každé nové namapování téže zprávy vypadalo jako změna a seznam by
  * přestal přeskakovat nezměněné položky.
+ *
+ * **Pro Compose je stabilní z `client/shared/compose-stability.conf`**, ne z `@Immutable`:
+ * `core/telegram` Compose neimportuje. `jpeg` se proto nikde nesmí měnit.
  */
 class Minithumbnail(val jpeg: ByteArray, val width: Int, val height: Int) {
     override fun equals(other: Any?) = other is Minithumbnail &&

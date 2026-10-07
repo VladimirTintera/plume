@@ -59,6 +59,12 @@ expect class VideoPlayer {
     val isPlaying: Boolean
 
     val isEnded: Boolean
+
+    /**
+     * Přehrávání skončilo chybou (soubor zmizel, nejde dekódovat). Přehrávač pak stojí a sám se
+     * nehne; [play] ho zkusí připravit znovu.
+     */
+    val isFailed: Boolean
 }
 
 @Composable
@@ -75,6 +81,11 @@ expect fun VideoSurface(player: VideoPlayer, modifier: Modifier = Modifier)
  * mimo ten úsek jsou díry: TDLib stahuje od `downloadOffset` a souvisle má jen
  * `downloadedPrefixSize` bajtů.
  *
+ * **[path] je funkce, ne hodnota: hotový soubor TDLib PŘESUNE** z `files/tdlib-files/temp/`
+ * na konečnou cestu. Přehrávač soubor otevírá znovu při každém skoku i při přehrání od začátku,
+ * a se zapamatovanou dočasnou cestou by skončil na `FileNotFoundException` (ENOENT). Už otevřený
+ * soubor přesun přežije, takže hrající video nic nepozná.
+ *
  * [requestFrom] přesune stahování jinam. **Bez toho streamování nestačí:** přehrávač si hned na
  * začátku řekne o `moov` atom, a ten u většiny videí leží na KONCI souboru — příznak
  * `supportsStreaming` od serveru říká jen to, co tvrdí odesílatel, ne kde index doopravdy je.
@@ -82,7 +93,7 @@ expect fun VideoSurface(player: VideoPlayer, modifier: Modifier = Modifier)
  * Obě funkce se volají z vlákna přehrávače, ne z kompozice.
  */
 class StreamingSource(
-    val path: String,
+    val path: () -> String,
     val totalSize: Long,
     val downloaded: () -> LongRange,
     val requestFrom: (Long) -> Unit,

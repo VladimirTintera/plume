@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
@@ -211,13 +212,17 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
             TopAppBar(
                 title = { Text(stringResource(if (state.isNew) Res.string.chat_folder_new_title else Res.string.chat_folder_edit_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                     }
                 },
                 actions = {
                     if (!state.isNew) {
-                        IconButton(onClick = viewModel::requestDelete, enabled = !state.saving) {
+                        IconButton(
+                            onClick = viewModel::requestDelete,
+                            enabled = !state.saving,
+                            shapes = IconButtonDefaults.shapes(),
+                        ) {
                             Icon(painterResource(Res.drawable.delete_24dp), contentDescription = stringResource(Res.string.chat_folder_delete))
                         }
                     }
@@ -252,7 +257,7 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
                 // Ikona stojí u názvu, jako v oficiálních klientech: je to druhá půlka toho,
                 // jak se složka jmenuje, ne další blok formuláře.
                 leadingIcon = {
-                    IconButton(onClick = viewModel::openIconPicker) {
+                    IconButton(onClick = viewModel::openIconPicker, shapes = IconButtonDefaults.shapes()) {
                         Icon(
                             painterResource(folderIcon(state.shownIconName)),
                             contentDescription = stringResource(Res.string.chat_folder_icon),
@@ -460,7 +465,7 @@ private fun FolderBlock(
                     )
                 },
                 trailingContent = {
-                    IconButton(onClick = { onRemove(chatId) }) {
+                    IconButton(onClick = { onRemove(chatId) }, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.chat_folder_remove_chat, title))
                     }
                 },
@@ -512,7 +517,7 @@ private fun FolderLinks(
                 },
                 leadingContent = { FolderIcon(Res.drawable.link_24dp, accent = false) },
                 trailingContent = {
-                    IconButton(onClick = { onShare(link) }) {
+                    IconButton(onClick = { onShare(link) }, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.share_24dp), contentDescription = stringResource(Res.string.chat_folder_share_share))
                     }
                 },
@@ -726,13 +731,13 @@ private fun FolderLinkSheet(
                     leadingContent = { FolderIcon(Res.drawable.link_24dp, accent = false) },
                     trailingContent = {
                         Row {
-                            IconButton(onClick = onCopy) {
+                            IconButton(onClick = onCopy, shapes = IconButtonDefaults.shapes()) {
                                 Icon(
                                     painterResource(if (editor.copied) Res.drawable.check_24dp else Res.drawable.content_copy_24dp),
                                     contentDescription = stringResource(Res.string.chat_folder_share_copy),
                                 )
                             }
-                            IconButton(onClick = onShare) {
+                            IconButton(onClick = onShare, shapes = IconButtonDefaults.shapes()) {
                                 Icon(painterResource(Res.drawable.share_24dp), contentDescription = stringResource(Res.string.chat_folder_share_share))
                             }
                         }

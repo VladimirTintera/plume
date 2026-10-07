@@ -50,10 +50,26 @@ class ShareRequests {
         return id
     }
 
-    /** Soubory jsou v cache; [failed] se nepodařilo připravit a konverzace to ohlásí. */
-    fun prepared(id: Long, attachments: List<OutgoingAttachment>, failed: Int, sources: Map<String, String> = emptyMap()) {
+    /**
+     * Soubory jsou v cache; [failed] se nepodařilo připravit a konverzace to ohlásí.
+     *
+     * [denied] z nich selhalo na chybějícím OPRÁVNĚNÍ — sdílející aplikace Plume ke souboru
+     * nepustila. Tak chodí snímek obrazovky sdílený z jeho náhledu přímo na kontakt: intent
+     * spouští Android System Intelligence, a protože sám ke snímku přístup nemá, nemá co předat
+     * (`flg` bez `FLAG_GRANT_READ_URI_PERMISSION`). Obejít to nejde; obrazovka „Komu: …" proto
+     * místo obecné chyby řekne, ať snímek uživatel vybere v galerii.
+     */
+    fun prepared(
+        id: Long,
+        attachments: List<OutgoingAttachment>,
+        failed: Int,
+        sources: Map<String, String> = emptyMap(),
+        denied: Int = 0,
+    ) {
         current.update { content ->
-            content?.takeIf { it.id == id }?.copy(attachments = attachments, failed = failed, sources = sources) ?: content
+            content?.takeIf { it.id == id }
+                ?.copy(attachments = attachments, failed = failed, denied = denied, sources = sources)
+                ?: content
         }
     }
 
@@ -124,6 +140,8 @@ data class SharedContent(
     val attachments: List<OutgoingAttachment>?,
     /** Kolik souborů se nepodařilo připravit. */
     val failed: Int = 0,
+    /** Kolik z [failed] sdílející aplikace nedovolila přečíst (viz [ShareRequests.prepared]). */
+    val denied: Int = 0,
     /**
      * Odkud která příloha přišla: cesta v cache → URI od sdílející aplikace. Galerie podle něj
      * pozná sdílenou fotku mezi svými, takže ji po ťuknutí nepřidá podruhé (`EmbeddedMediaPicker`).
