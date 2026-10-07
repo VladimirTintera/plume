@@ -2158,4 +2158,13 @@
     <string name="location_dock_show_message">Go to message</string>
     <string name="player_dock_next">Next track</string>
     <string name="player_dock_stop">Stop playback</string>
+    <string name="gesture_hint_got_it">Got it</string>
+    <string name="gesture_hint_reveal_times_title">When did it arrive?</string>
+    <string name="gesture_hint_reveal_times">Swipe the conversation left to see the time of every message.</string>
+    <string name="gesture_hint_record_title">Hold to record</string>
+    <string name="gesture_hint_record_voice">Hold the microphone and talk. Release to send, slide left to cancel, slide up to keep recording hands-free.</string>
+    <string name="gesture_hint_record_video_note">Hold the camera to record a video message. Release to send, slide left to cancel, slide up to keep recording hands-free.</string>
+    <string name="gesture_hint_send_options_title">More ways to send</string>
+    <string name="gesture_hint_send_options_effects">Hold the send button to add an effect, send without sound or schedule the message.</string>
+    <string name="gesture_hint_send_options">Hold the send button to send without sound or schedule the message.</string>
 </resources>

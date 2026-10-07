@@ -453,8 +453,8 @@ Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku, p�
   s archivací, ztlumením a přečtením (`ChatSelection`), v hlavním seznamu i archivu.
 - ~~**Vlastní barva motivu**~~ — hotovo: Nastavení → Vzhled → Barva, osm vzorků kreslených
   z palety, kterou aplikace dostane (`ThemeColorPicker`, `AppSettings.themeColor`).
-- **Nápovědy u gest napoprvé** (`RichTooltip` se šipkou): odkrývání časů tahem, podržení pro
-  efekt, podržení pro hlasovku. Gesta dnes nikdo neobjeví, dokud o nich neví.
+- ~~**Nápovědy u gest napoprvé**~~ — hotovo: `RichTooltip` se šipkou u odkrývání časů,
+  podržení pro volby odeslání a podržení pro nahrávání, každá jednou (`GestureHints`).
 
 ---
 

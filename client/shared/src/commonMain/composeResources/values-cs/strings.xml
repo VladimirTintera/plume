@@ -2233,4 +2233,13 @@
     <string name="location_dock_show_message">Přejít na zprávu</string>
     <string name="player_dock_next">Další skladba</string>
     <string name="player_dock_stop">Zastavit přehrávání</string>
+    <string name="gesture_hint_got_it">Rozumím</string>
+    <string name="gesture_hint_reveal_times_title">Kdy to přišlo?</string>
+    <string name="gesture_hint_reveal_times">Táhni konverzaci doleva a u každé zprávy uvidíš čas.</string>
+    <string name="gesture_hint_record_title">Podrž a nahrávej</string>
+    <string name="gesture_hint_record_voice">Podrž mikrofon a mluv. Puštěním hlasovku odešleš, tahem doleva zrušíš, tahem nahoru nahráváš bez držení.</string>
+    <string name="gesture_hint_record_video_note">Podrž kameru a natoč video zprávu. Puštěním ji odešleš, tahem doleva zrušíš, tahem nahoru nahráváš bez držení.</string>
+    <string name="gesture_hint_send_options_title">Další možnosti odeslání</string>
+    <string name="gesture_hint_send_options_effects">Podrž odesílací tlačítko a pošleš zprávu s efektem, bez zvuku nebo ji naplánuješ.</string>
+    <string name="gesture_hint_send_options">Podrž odesílací tlačítko a pošleš zprávu bez zvuku nebo ji naplánuješ.</string>
 </resources>

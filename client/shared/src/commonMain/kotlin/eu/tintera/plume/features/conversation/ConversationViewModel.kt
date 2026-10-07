@@ -94,6 +94,7 @@ import eu.tintera.plume.core.share.SharedContent
 import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ExpressionMode
+import eu.tintera.plume.core.settings.GestureHint
 import eu.tintera.plume.core.settings.RecordMode
 import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatInfo
@@ -367,6 +368,11 @@ class ConversationViewModel(
 
     /** Co nahraje podržení tlačítka v prázdném poli (volba přežije i odchod z chatu). */
     val recordMode: StateFlow<RecordMode> = settings.recordMode
+
+    /** Nápovědy gest, které uživatel už viděl (napříč chaty i spuštěními). */
+    val seenGestureHints: StateFlow<Set<GestureHint>> = settings.seenGestureHints
+
+    fun markGestureHintSeen(hint: GestureHint) = settings.markGestureHintSeen(hint)
 
     /**
      * Zpráva s jednorázovou klávesnicí bota, kterou uživatel v tomhle chatu už použil — panel
