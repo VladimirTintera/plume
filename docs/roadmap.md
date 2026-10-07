@@ -182,8 +182,9 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
 - **Sdílení ze systému do aplikace.** ~~Android~~ — hotovo (text, odkaz, jeden i víc
   souborů; výběr chatu, obsah čeká nad vstupním polem). Poučení v `CLAUDE.md`, „Sdílení do
   aplikace". Zbývá:
-  - ~~**Direct Share**~~ — hotovo. Na iOS jsou naposledy použité chaty nahoře v listu rozšíření;
-    řádek kontaktů v systémové nabídce (darování `INSendMessageIntent`) zatím není.
+  - ~~**Direct Share**~~ — hotovo, i na iOS (darování `INSendMessageIntent`, řádek návrhů
+    v systémové nabídce). **Na skutečném iPhonu řádek návrhů ověřený není** — simulátor ho
+    neukazuje.
   - ~~**Opakované sdílení do otevřené obrazovky „Komu: …" ji zavře**~~ — opraveno (obsah
     vzniká rovnou s chatem, obrazovka zahazuje jen své sdílení; `CLAUDE.md`, „Opakované sdílení").
   - ~~**iOS: Share Extension**~~ — hotovo (výběr chatu v rozšíření, App Group). Zbývá

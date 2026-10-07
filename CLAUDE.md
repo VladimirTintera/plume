@@ -10210,6 +10210,35 @@ a obsah čeká nad vstupním polem, stejně jako na Androidu.
   `adb install` sdílení někdy spolkne systémové znovuspuštění aplikace (`PackageUpdateActivity`)
   — zkoušet až s běžící aplikací.
 
+#### Návrhy chatů v systémové nabídce (obdoba Direct Share)
+
+Každé odeslání a přeposlání (`ShareTargets.reportUsed` → `IosShareTargetPublisher`) daruje
+systému `INInteraction` s `INSendMessageIntent`; z toho iOS skládá řádek návrhů nahoře
+v nabídce sdílení. Ťuknutí na návrh otevře rozšíření s `extensionContext.intent` a rozšíření
+výběr chatu přeskočí — rovnou zapíše inbox a otevře aplikaci.
+
+- **Podmínky jsou tři a chybějící se neprojeví chybou**, jen se nic neukáže (jako u Androidu):
+  `NSUserActivityTypes` s `INSendMessageIntent` v Info.plist APLIKACE, `IntentsSupported`
+  s týmž v `NSExtensionAttributes` rozšíření a `conversationIdentifier` u darovaného intentu
+  (= id chatu, rozšíření ho čte zpátky).
+- **Konverzace se daruje jako „skupina" (`speakableGroupName` + obrázek pro ten parametr)
+  i u soukromého chatu.** Recipient `INPerson` chce handle nebo kontakt, které o protějšku
+  nemáme. Obrázek jde jako data (`imageWithImageData`), ne URL souboru TDLib — ten leží
+  v kontejneru aplikace, kam systém nedosáhne. Uložené zprávy obrázek nemají.
+- **Po odhlášení se darované konverzace mažou** (`deleteAllInteractionsWithCompletion`, vedle
+  smazání snímku chatů) — nesou jména a fotky chatů předchozího účtu.
+- **Chat z návrhu, který snímek nezná, se pošle podle id** — aplikace ho zná, i když vypadl
+  z padesáti chatů snímku.
+- **Řádek návrhů se na simulátoru NEUKÁŽE.** Darování projde bez chyby, ale `sharingd`
+  hlásí „People suggestions are not expected" a coreduetd v simulátoru neodpovídá. Ověřuje se
+  proto po částech: darování dočasným `NSLog` v completion (`error=null`, v
+  `log show --predicate 'eventMessage CONTAINS "…"'`), cesta rozšíření dočasně podstrčeným
+  intentem (`context?.intent ?? INSendMessageIntent(…)`) a hlídáním inboxu App Group smyčkou
+  v shellu (aplikace manifest při návratu do popředí hned vyzvedne). Sondy se necommitují.
+- **Na simulátoru se po spuštění nejdřív ukáže zadání čísla** — to je krok `Connecting`
+  (patří k zadání čísla, viz „Přihlašovací obrazovka"), ne odhlášení. Rozhoduje, co je vidět
+  o pár vteřin později.
+
 ## Odesílání a scrollování
 
 - **Odeslaná zpráva se do seznamu přidává OKAMŽITĚ.** `sendMessage` vrací zprávu hned, s dočasným
