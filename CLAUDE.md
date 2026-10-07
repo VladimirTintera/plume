@@ -3989,8 +3989,9 @@ funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
   `TextFieldState.textStyles`), ale jen nad `TextFieldState`, experimentálně a s významem
   schovaným ve `SpanStyle`. Přechod pole na `TextFieldState` by znamenal přepsat desítky míst
   kolem konceptu; vlastní model je menší a testovatelný bez Compose.
-- **Bez výběru lištu otevře ikona „Aa" v kartě pole** (jen když má pole fokus; s odchodem
-  z pole se lišta zavře) a formát platí pro další psaní od kurzoru — „zapnout tučné a psát dál".
+- **Bez výběru lištu otevře ikona „Aa" v kartě pole** (jen když je otevřená klávesnice; se
+  schováním klávesnice se lišta zavře) a formát platí pro další psaní od kurzoru — „zapnout
+  tučné a psát dál".
   Stav je `PendingFormats` v `ComposerDraft` (pravidla `toggledPending`, `typingAt`, `typed`,
   testy `TextFormattingTest`).
   - **Čekající formát je jednorázový** a použije se jen na text napsaný přesně na kurzor. Dál
@@ -4007,8 +4008,22 @@ funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
   - **Citace bez výběru jde na řádek s kurzorem**, ne na další psaní — je to blok přes řádky.
     Jen na prázdném řádku čeká na psaní jako ostatní. **Odkaz bez výběru zašedne**: potřebuje
     popisek.
-  - **Ikona je „Aa", ne čtvrté trvalé tlačítko v kartě** — objeví se jen při psaní, jinak by
-    ukusovala místo i tomu, kdo formátování nepoužívá.
+  - **„Aa" a výběr samolepek sdílejí JEDNO místo v kartě**: s otevřenou klávesnicí „Aa", se
+    zavřenou samolepka (emoji / GIF), výměna zvětšením jako u odesílacího tlačítka. Při psaní
+    emoji nabízí klávesnice sama a náš výběr by ji stejně zavřel; bez klávesnice zase není co
+    formátovat. Dokud stály vedle sebe, ukusovaly textu 96 dp a „Aa" se s fokusem objevovalo
+    DO ŠÍŘKY — rozepsaný víceřádkový text se přeskládal při každém ťuknutí do pole. Teď se šířka
+    pole nemění nikdy (ověřeno po snímcích se zpomalenými animacemi: zalomení stejné).
+    - **Rozhoduje viditelná klávesnice, ne fokus** (`typing` = fokus a nenulová výška
+      `WindowInsets.ime`, přes `derivedStateOf`). Po schování klávesnice gestem zpět drží pole
+      fokus dál a samolepka by se podle fokusu neukázala vůbec. Výška klávesnice funguje i na iOS
+      (`isImeVisible` je jen na Androidu).
+    - **S hardwarovou klávesnicí „Aa" není** (softwarová se neukáže). Formátovat jde dál
+      označením textu, jen „zapnout tučné a psát dál" tam chybí.
+    - **Svislé skládání ikon u víceřádkového textu (zvažováno) ne**: dvě ikony pod sebou chtějí
+      ~100 dp výšky, tedy až od tří řádků, a při přepnutí se odstavec přeskládá do širší plochy
+      — slova i kurzor uprostřed psaní poskočí o řádek. Rozvržení se má měnit ve chvíli, kdy
+      není co přeskládat (otevření klávesnice), ne při zalomení.
 - **Lišta, ne položky v kontextové nabídce výběru** (tak to bylo napřed). Ikony u vlastních
   položek nabídka výběru na telefonu NEZOBRAZÍ: na Androidu ji kreslí `ActionMode`
   (`AndroidTextContextMenuToolbarProvider`) a `leadingIcon` z `TextContextMenuItem` zahodí —
