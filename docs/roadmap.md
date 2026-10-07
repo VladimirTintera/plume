@@ -466,8 +466,8 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
 - ~~**Úprava vlastního profilu**~~ — hotovo (fotka, jméno, uživatelské jméno s kontrolou
   dostupnosti, bio; `CLAUDE.md`, „Úprava profilu"). ~~Historie profilových fotek~~ — hotovo v profilu chatu i u vlastního účtu (`CLAUDE.md`, „Historie profilových fotek"), u vlastního i s nastavením starší fotky jako hlavní a smazáním jednotlivé fotky. ~~Ruční ořez
   fotky~~ — hotovo (`CLAUDE.md`, „Ořez profilové fotky"). ~~Video jako profilovka~~ — hotovo
-  (prvních 10 s bez zvuku, výřez nad prvním snímkem; `CLAUDE.md`, „Video jako profilovka"). Zbývá
-  volba úseku videa a snímku pro statickou podobu (dnes vždy začátek) a ověření na iOS.
+  (prvních 10 s bez zvuku, výřez nad prvním snímkem; `CLAUDE.md`, „Video jako profilovka"). ~~Volba
+  úseku videa a snímku pro statickou podobu~~ — hotovo (pás snímků pod ořezem). Zbývá ověření na iOS.
 - ~~**Sekce Notifikace**~~ — hotovo, viz [Notifikace](#notifikace) níž.
 - ~~**Sekce Zařízení**~~ — hotovo (seznam, odhlášení, weby, automatické odhlášení, „Byli jste
   to vy?" v seznamu chatů, přihlášení jiného zařízení QR kódem). Poučení v `CLAUDE.md`,

@@ -335,7 +335,7 @@ fun EditChatScreen(
             path = viewModel.cropping,
             onCancel = viewModel::cancelCrop,
             onConfirm = viewModel::cropPhoto,
-            isVideo = viewModel.croppingVideo,
+            video = viewModel.croppingVideo,
         )
     }
 }

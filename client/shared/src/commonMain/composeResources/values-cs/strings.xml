@@ -2053,7 +2053,13 @@
     <string name="photo_crop_done">Hotovo</string>
     <string name="photo_crop_failed">Fotku se nepodařilo načíst</string>
     <string name="photo_crop_video_title">Upravit video</string>
-    <string name="photo_crop_video_note">Posuň a přibliž video, ať sedí v kruhu. Použije se jen prvních 10 sekund, bez zvuku</string>
+    <string name="photo_crop_video_note">Posuň a přibliž video, ať sedí v kruhu. Na pásu posuň úsek (nejvýš 10 s, bez zvuku) a ťukni na snímek, který bude fotkou</string>
+    <string name="video_trim_strip">Úsek videa</string>
+    <string name="video_trim_summary">Úsek %1$s–%2$s · fotka %3$s</string>
+    <string name="video_trim_move_later">Posunout úsek o sekundu dál</string>
+    <string name="video_trim_move_earlier">Posunout úsek o sekundu zpět</string>
+    <string name="video_trim_cover_later">Fotka o sekundu dál</string>
+    <string name="video_trim_cover_earlier">Fotka o sekundu dřív</string>
     <string name="saved_topic_my_notes">Moje poznámky</string>
     <string name="saved_topic_author_hidden">Skrytý autor</string>
     <string name="saved_topic_unknown_chat">Neznámý chat</string>

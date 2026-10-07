@@ -52,6 +52,7 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import coil3.compose.AsyncImagePainter
+import coil3.memory.MemoryCache
 import coil3.compose.LocalPlatformContext
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
@@ -64,6 +65,7 @@ import eu.tintera.plume.resources.photo_crop_hint
 import eu.tintera.plume.resources.photo_crop_title
 import eu.tintera.plume.resources.photo_crop_video_note
 import eu.tintera.plume.resources.photo_crop_video_title
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.min
@@ -78,18 +80,25 @@ import kotlin.math.min
  * překryv dává za svůj obsah.
  *
  * [path] `null` = zavřeno; při zavírání se dál kreslí poslední fotka, ať prolnutí nedobíhá
- * s prázdnem. [isVideo]: v ořezu je první snímek videa ([ProfileVideo.frame]) — výřez platí pro
- * celé video, jen nadpis a věta pod ním řeknou, že se zkrátí a přijde o zvuk.
+ * s prázdnem. [video]: v ořezu je snímek videa ([ProfileVideo.frame]) — výřez platí pro celé
+ * video, pod ořezem je pás s úsekem a snímkem pro statickou fotku ([VideoTrimBar]) a ořez
+ * ukazuje právě ten snímek, takže se výřez vybírá nad tím, co bude fotkou.
  */
 @Composable
 fun PhotoCropOverlay(
     path: String?,
     onCancel: () -> Unit,
     onConfirm: (CropRegion) -> Unit,
-    isVideo: Boolean = false,
+    video: VideoCropControl? = null,
 ) {
     var last by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(path) { if (path != null) last = path }
+    var lastVideo by remember { mutableStateOf<VideoCropControl?>(null) }
+    LaunchedEffect(path, video) {
+        if (path != null) {
+            last = path
+            lastVideo = video
+        }
+    }
     // `NavigationBackHandler`, ne `BackHandler` — ten by zabil predictive back.
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
@@ -99,7 +108,13 @@ fun PhotoCropOverlay(
     AnimatedVisibility(visible = path != null, enter = fadeIn(), exit = fadeOut()) {
         val shown = path ?: last
         if (shown != null) {
-            PhotoCrop(shown, isVideo, isOpen = path != null, onCancel = onCancel, onConfirm = onConfirm)
+            PhotoCrop(
+                shown,
+                video = if (path != null) video else lastVideo,
+                isOpen = path != null,
+                onCancel = onCancel,
+                onConfirm = onConfirm,
+            )
         }
     }
 }
@@ -107,21 +122,49 @@ fun PhotoCropOverlay(
 @Composable
 private fun PhotoCrop(
     path: String,
-    isVideo: Boolean,
+    video: VideoCropControl?,
     isOpen: Boolean,
     onCancel: () -> Unit,
     onConfirm: (CropRegion) -> Unit,
 ) {
+    val isVideo = video != null
     // Podklad je černý v obou motivech, takže i ikony systémových lišt musí být světlé.
     if (isOpen) DarkSystemBars()
     val context = LocalPlatformContext.current
+
+    // U videa se ukazuje snímek, který bude statickou fotkou. Nový se vytáhne až po krátké
+    // pauze v tahu — na každý pohyb prstu by se dekódovalo zbytečně.
+    var shown by remember(path) { mutableStateOf(path) }
+    val coverMs = video?.trim?.coverMs
+    LaunchedEffect(video, coverMs) {
+        if (video == null || coverMs == null) return@LaunchedEffect
+        delay(COVER_FRAME_DELAY)
+        runCatching { video.frame(coverMs, PROFILE_VIDEO_FRAME_EDGE) }.onSuccess { shown = it }
+    }
+    // Do načtení nového snímku zůstává vidět ten předchozí (z paměťové keše Coilu), jinak by
+    // ořez při každé změně snímku problikl načítáním.
+    var lastKey by remember(path) { mutableStateOf<MemoryCache.Key?>(null) }
     // Nejvýš 1600 px: na výběr výřezu stačí a fotka z foťáku by jinak zabrala desítky MB.
     // Na poměru stran se zmenšením nic nemění, a výřez je v podílech.
-    val request = remember(path) { ImageRequest.Builder(context).data("file://$path").size(PREVIEW_EDGE).build() }
+    val request = remember(shown) {
+        ImageRequest.Builder(context)
+            .data("file://$shown")
+            .size(PREVIEW_EDGE)
+            .placeholderMemoryCacheKey(lastKey)
+            .build()
+    }
     val painter = rememberAsyncImagePainter(request)
     val state by painter.state.collectAsState()
+    // Rozměry drží i přes výměnu snímku: snímky téhož videa jsou stejně velké a výřez se nemá
+    // na okamžik zavřít do načítání.
+    var knownSize by remember(path) { mutableStateOf<Size?>(null) }
+    LaunchedEffect(state) {
+        val success = state as? AsyncImagePainter.State.Success ?: return@LaunchedEffect
+        success.painter.intrinsicSize.takeIf { it.width > 0f && it.height > 0f }?.let { knownSize = it }
+        lastKey = success.result.memoryCacheKey
+    }
     val imageSize = (state as? AsyncImagePainter.State.Success)?.painter?.intrinsicSize
-        ?.takeIf { it.width > 0f && it.height > 0f }
+        ?.takeIf { it.width > 0f && it.height > 0f } ?: knownSize
     var geometry by remember(path) { mutableStateOf<PhotoCropGeometry?>(null) }
     var placement by remember(path) { mutableStateOf(CropPlacement()) }
 
@@ -203,8 +246,9 @@ private fun PhotoCrop(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (video != null) VideoTrimBar(video, Modifier.fillMaxWidth())
             Text(
-                // U videa i to, že se zkrátí a přijde o zvuk — v ořezu je jen jeho první snímek.
+                // U videa i to, že se zkrátí a přijde o zvuk, a jak se vybírá úsek a fotka.
                 text = stringResource(if (isVideo) Res.string.photo_crop_video_note else Res.string.photo_crop_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.7f),
@@ -236,5 +280,6 @@ private fun CropMask(circle: Float) {
 }
 
 private const val PREVIEW_EDGE = 1600
+private const val COVER_FRAME_DELAY = 150L
 private const val VEIL_ALPHA = 0.6f
 private val CIRCLE_MARGIN = 24.dp

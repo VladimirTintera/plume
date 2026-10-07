@@ -17,16 +17,16 @@ sealed interface ProfilePhotoFile {
 
     /**
      * Animovaná profilovka: čtvercové MP4 bez zvuku, nejvýš 10 s, strana 160–1280 px a do 2 MB
-     * (podmínky `InputChatPhotoAnimation`). Statickou fotku z něj vyrobí server z prvního snímku.
+     * (podmínky `InputChatPhotoAnimation`). Statickou fotku z něj vyrobí server ze snímku
+     * v čase [mainFrameSeconds] od začátku animace — toho, který si uživatel vybral v ořezu.
      */
-    data class Animated(override val path: String) : ProfilePhotoFile
+    data class Animated(override val path: String, val mainFrameSeconds: Double = 0.0) : ProfilePhotoFile
 }
 
 internal fun ProfilePhotoFile.toInputChatPhoto(): InputChatPhoto = when (this) {
     is ProfilePhotoFile.Still -> InputChatPhotoStatic(photo = InputFileLocal(path = path))
-    // První snímek: ten uživatel viděl v ořezu, takže statická podoba sedí s tím, co vybral.
     is ProfilePhotoFile.Animated -> InputChatPhotoAnimation(
         animation = InputFileLocal(path = path),
-        mainFrameTimestamp = 0.0,
+        mainFrameTimestamp = mainFrameSeconds,
     )
 }

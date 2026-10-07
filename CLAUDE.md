@@ -1546,18 +1546,36 @@ vrátí výřez a teprve pak se fotka ořízne a nahraje. Dřív se ořezávala 
 
 #### Video jako profilovka
 
-Z výběru jde vybrat i video: stejný ořez, nadpis „Upravit video" a věta, že se použije jen
-prvních 10 s bez zvuku. Nahraje se jako animovaná fotka (`InputChatPhotoAnimation`,
+Z výběru jde vybrat i video: stejný ořez, nadpis „Upravit video" a pod ořezem pás snímků,
+na kterém se volí úsek (nejvýš 10 s, bez zvuku) a snímek pro statickou fotku. Nahraje se jako animovaná fotka (`InputChatPhotoAnimation`,
 `ProfilePhotoFile.Animated`) — u vlastního profilu, úpravy skupiny i založení chatu. Postup
 sdílí všechny tři obrazovky (`ProfilePhotoCrop` v `core/ui`, testy `ProfilePhotoCropTest`),
 převádí platforma (`ProfileVideo`).
 
 - **Podmínky Telegramu jsou přísné**: čtvercové MP4, nejvýš 10 s, strana 160–1280 px, do 2 MB.
   Video z galerie nesplní skoro nikdy, takže se vždycky převádí: výřez, zmenšení na 800 px,
-  prvních 10 s, bez zvuku. Statickou podobu vyrobí server z prvního snímku (`mainFrameTimestamp = 0`).
-- **Výřez se vybírá nad prvním SNÍMKEM** (`ProfileVideo.frame`, 1600 px) a v podílech platí pro
+  10 s od zvoleného začátku, bez zvuku.
+- **Výřez se vybírá nad SNÍMKEM** (`ProfileVideo.frame`, 1600 px) a v podílech platí pro
   celé video. Náhled z výběru příloh má jen 320 px — výřez by se vybíral z rozmazaného obrázku.
   Náhled u zakládaného chatu je týž výřez ze snímku, ne video.
+- **Úsek a snímek pro statickou fotku** (`VideoTrim`, testy `VideoTrimTest`; pás `VideoTrimBar`):
+  úsek má pevnou délku a posouvá se tahem jako celek, snímek je čárka v něm (tahem za ni nebo
+  ťuknutím do pásu). Tah se rozhoduje podle toho, kde začal — u čárky snímek, jinde úsek; u videa
+  do 10 s jde každý tah na snímek. Snímek jede s úsekem a leží vždycky UVNITŘ, nejpozději
+  100 ms před koncem (poslední snímek animace začíná dřív, než skončí). Do TDLib jde jako
+  `mainFrameTimestamp` = čas od začátku ÚSEKU, ne videa (`ProfilePhotoFile.Animated.mainFrameSeconds`).
+- **Ořez ukazuje vybraný snímek**, takže se výřez vybírá nad tím, co bude fotkou, a náhled
+  u zakládaného chatu je výřez z něj. Nový snímek se tahá až po 150 ms klidu. Výměna obrázku
+  nesmí probliknout: rozměry se drží z posledního načtení (snímky téhož videa jsou stejně
+  velké) a Coil dostane `placeholderMemoryCacheKey` z posledního úspěchu — bez toho by ořez při
+  každé změně snímku spadl do načítání a zavřel se. Geometrie a posun výřezu zůstávají klíčované
+  cestou PRVNÍHO snímku (sezení ořezu), ne aktuálního.
+- **Snímky mají soubor na čas a velikost** (`profile-frame-<edge>-<ms>.jpg` vedle zdroje)
+  a podruhé se jen vrátí. Snímek pro fotku je PŘESNÝ (`OPTION_CLOSEST`, na iOS nulové
+  tolerance), dlaždice pásu nejbližší klíčový (rychlé). Zápis přes dočasný soubor
+  a přejmenování: pás a ořez čtou souběžně.
+- **Čtečka obrazovky tahat neumí**: pás má popis stavu („Úsek 0:07–0:17 · fotka 0:15")
+  a akce po sekundě pro úsek i snímek.
 - **Android: Media3 Transformer** (`Crop`, `Presentation`, ořez `MediaItem`, `setRemoveAudio`).
   `Crop` bere souřadnice −1…1, svisle zdola nahoru. Výřez platí pro OTOČENÝ obraz — dekodér
   snímky otočí dřív, než na ně jdou efekty; ověřeno videem z kamery s `orientation=270`. Export
@@ -1575,6 +1593,14 @@ převádí platforma (`ProfileVideo`).
   android.media.action.VIDEO_CAMERA`, ťuknutí na spoušť): virtuální scéna, žádní lidé, a video
   na výšku s otočením v metadatech. Dotaz na polohu odmítnout. Po ověření videa i fotky smazat
   z MediaStore.
+- **Úsek a snímek ověřené na emulátoru** ve formuláři „Nová skupina" (nic se nenahrálo):
+  19s video, úsek posunutý na 0:07–0:17 a snímek 0:15 (haptika `constant=26` v `dumpsys
+  vibrator_manager`), export 718 × 718 a 9,2 s, jeho první snímek je výřez z 0:07 a snímek
+  v 7,65 s odpovídá vybrané fotce; náhled ve formuláři je výřez ze snímku 0:15. Snímky exportu
+  vytáhne na Macu `AVAssetImageGenerator` v krátkém Swift skriptu (ffmpeg v systému není);
+  zdrojové video z emulátorové kamery macOS NEotevře, srovnává se se snímky, které vyrobila
+  aplikace. **Že server vezme `mainFrameTimestamp` z vybraného snímku, ověřené NENÍ** —
+  chtělo by to nahrát profilovku (skutečný účet nebo další testovací chat).
 - **Ověřeno na emulátoru** v testovací skupině „Plume test zalozeni": 21s video na výšku →
   čtverec 718 × 718, 9,7 s, 604 kB, natočený správně a přesně podle výřezu; prohlížeč
   profilovek ukazuje u fotky „Přehrát" (server ji vzal jako animovanou). Fotka jde dál starou

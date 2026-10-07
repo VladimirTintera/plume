@@ -35,16 +35,19 @@ import platform.CoreGraphics.CGImageRelease
 import platform.CoreGraphics.CGRectApplyAffineTransform
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
+import platform.CoreMedia.CMTimeGetSeconds
 import platform.CoreMedia.CMTimeMake
 import platform.CoreMedia.CMTimeMinimum
 import platform.CoreMedia.CMTimeRangeMake
+import platform.CoreMedia.CMTimeSubtract
+import platform.Foundation.NSFileManager
 import platform.Foundation.NSURL
 import platform.Foundation.writeToFile
 import platform.UIKit.UIImage
 import platform.UIKit.UIImageJPEGRepresentation
 
 /**
- * AVFoundation: kompozice jen se stopou obrazu (tím zmizí zvuk) zkrácená na prvních 10 s,
+ * AVFoundation: kompozice jen se stopou obrazu (tím zmizí zvuk) zkrácená na 10 s od začátku úseku,
  * nad ní `AVMutableVideoComposition` s výřezem a export do MP4.
  *
  * **Datový tok export nastavit neumí**, jen předvolbou. Proto `MediumQuality` a navíc
@@ -54,18 +57,31 @@ import platform.UIKit.UIImageJPEGRepresentation
 @OptIn(ExperimentalForeignApi::class)
 class IosProfileVideo : ProfileVideo {
 
-    override suspend fun frame(path: String): String = withContext(Dispatchers.Default) {
+    override suspend fun durationMs(path: String): Long = withContext(Dispatchers.Default) {
+        val asset = AVURLAsset(uRL = NSURL.fileURLWithPath(path), options = null)
+        (CMTimeGetSeconds(asset.duration) * 1000).toLong().coerceAtLeast(0)
+    }
+
+    override suspend fun frame(path: String, atMs: Long, edge: Int): String = withContext(Dispatchers.Default) {
+        val output = path.substringBeforeLast('/') + "/" + profileFrameName(atMs, edge)
+        if (NSFileManager.defaultManager.fileExistsAtPath(output)) return@withContext output
         val asset = AVURLAsset(uRL = NSURL.fileURLWithPath(path), options = null)
         val generator = AVAssetImageGenerator(asset = asset).apply {
             appliesPreferredTrackTransform = true
-            maximumSize = CGSizeMake(PROFILE_VIDEO_FRAME_EDGE.toDouble(), PROFILE_VIDEO_FRAME_EDGE.toDouble())
+            maximumSize = CGSizeMake(edge.toDouble(), edge.toDouble())
+            // Snímek pro statickou fotku PŘESNĚ v čase (server ho vezme odtud); dlaždicím pásu
+            // stačí nejbližší klíčový, ten je rychlý.
+            if (edge > PROFILE_VIDEO_STRIP_EDGE) {
+                requestedTimeToleranceBefore = CMTimeMake(value = 0, timescale = 1)
+                requestedTimeToleranceAfter = CMTimeMake(value = 0, timescale = 1)
+            }
         }
-        val cgImage = generator.copyCGImageAtTime(CMTimeMake(value = 0, timescale = 1), actualTime = null, error = null)
+        val cgImage = generator.copyCGImageAtTime(CMTimeMake(value = atMs, timescale = 1000), actualTime = null, error = null)
             ?: error("Video nemá snímek.")
         try {
             val jpeg = UIImageJPEGRepresentation(UIImage.imageWithCGImage(cgImage), PHOTO_JPEG_QUALITY / 100.0)
                 ?: error("JPEG nejde vytvořit.")
-            val output = path.substringBeforeLast('/') + "/profile-frame.jpg"
+            // `atomically`: souběžné čtení (pás i ořez) nesmí dostat napůl zapsaný JPEG.
             check(jpeg.writeToFile(output, atomically = true)) { "Snímek nejde uložit." }
             output
         } finally {
@@ -73,7 +89,7 @@ class IosProfileVideo : ProfileVideo {
         }
     }
 
-    override suspend fun crop(path: String, region: CropRegion?): String {
+    override suspend fun crop(path: String, region: CropRegion?, startMs: Long): String {
         val asset = AVURLAsset(uRL = NSURL.fileURLWithPath(path), options = null)
         val track = asset.tracksWithMediaType(AVMediaTypeVideo).firstOrNull() as? AVAssetTrack
             ?: error("Video nemá obraz.")
@@ -82,8 +98,12 @@ class IosProfileVideo : ProfileVideo {
         val video = composition.addMutableTrackWithMediaType(AVMediaTypeVideo, preferredTrackID = 0)
             ?: error("Kompozice nejde založit.")
         val start = CMTimeMake(value = 0, timescale = 1)
-        val length = CMTimeMinimum(asset.duration, CMTimeMake(value = PROFILE_VIDEO_MAX_SECONDS.toLong(), timescale = 1))
-        check(video.insertTimeRange(CMTimeRangeMake(start, length), ofTrack = track, atTime = start, error = null)) {
+        val from = CMTimeMake(value = startMs, timescale = 1000)
+        val length = CMTimeMinimum(
+            CMTimeSubtract(asset.duration, from),
+            CMTimeMake(value = PROFILE_VIDEO_MAX_SECONDS.toLong(), timescale = 1),
+        )
+        check(video.insertTimeRange(CMTimeRangeMake(from, length), ofTrack = track, atTime = start, error = null)) {
             "Video nejde zkrátit."
         }
         video.setPreferredTransform(track.preferredTransform)
