@@ -60,7 +60,7 @@ import eu.tintera.plume.resources.keyboard_arrow_up_24dp
 import eu.tintera.plume.resources.lock_24dp
 import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.foundation.clickable
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.LaunchedEffect
 import eu.tintera.plume.core.video.VideoSurface
 import eu.tintera.plume.core.video.rememberVideoPlayer
@@ -396,7 +396,7 @@ private fun VideoNotePreviewCircle(
         contentAlignment = Alignment.Center,
     ) {
         if (note == null) {
-            CircularProgressIndicator()
+            LoadingIndicator()
             return@Box
         }
         val player = rememberVideoPlayer()

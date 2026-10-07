@@ -10316,6 +10316,15 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
     `%1$d` čímkoli). Kdyby se to změnilo, ukáže se značka místo čísla.
   - Ověřeno na emulátoru zpomalenými animacemi (`animator_duration_scale 10`) a sérií surových
     snímků odznaku: 1 odjede nahoru, 2 přijede zdola.
+- **Neurčité čekání je `LoadingIndicator` (měnící se tvar), kolečko jen jako PRŮBĚH.**
+  Kolečko (`CircularProgressIndicator`) zůstává tam, kde ukazuje, kolik je hotovo (přehrávání
+  kolečka, průběh v docku přehrávače), nebo kde se z čekání v průběh PŘEMĚNÍ: kruh kolem tlačítka
+  v docku čeká na stažení skladby a pak plynule nese průběh — tvar by tam po načtení přeskočil
+  na kruh. Totéž vlnitý kruh nahrávání, který se točí neurčitě, dokud TDLib průběh neohlásí.
+  V tlačítkách se `LoadingIndicator` vejde: 24 dp v textovém tlačítku mini aplikace, 32 dp místo
+  přehrát v pruhu náhledu nahrávky, 36 dp v odesílacím tlačítku sdílení. „Číst celý článek" ho
+  má jen 18 dp (pod minimem M3) — větší by o pár bodů zvedl řádek s popiskem a ten by poskočil.
+  Ověřeno na emulátoru v náhledu zastaveného kolečka (v kruhu i v pruhu karty, sérií snímků).
 - **Nabídky jsou Expressive** (`ExpressiveMenu` v `core/ui`: `DropdownMenuPopup`
   + `DropdownMenuGroup`), ne holé `DropdownMenu`. Položky jsou ve skupinách se společným
   zaoblením krajních položek; **nevratná akce má skupinu vlastní a chybovou barvu**
