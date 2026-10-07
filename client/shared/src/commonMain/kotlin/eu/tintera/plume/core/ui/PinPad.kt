@@ -8,33 +8,29 @@ import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.Morph
@@ -42,7 +38,6 @@ import eu.tintera.plume.core.lock.APP_LOCK_PIN_LENGTH
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.backspace_24dp
 import eu.tintera.plume.resources.fingerprint_24dp
-import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.painterResource
 import kotlin.math.roundToInt
 
@@ -149,8 +144,8 @@ fun PinDots(
 /**
  * Numerická klávesnice 3 × 4 pro zadávání PINu v Material 3 Expressive stylu.
  *
- * Tlačítka při stisku dynamicky mění tvar z kruhu na zaoblenou sušenku
- * se snížením měřítka a barevným zvýrazněním.
+ * Tlačítka používají standardní `IconButtonDefaults.shapes()`, které při stisku
+ * plynule morphují z kruhu do squircle tvaru dle M3 Expressive standardu.
  */
 @Composable
 fun PinKeypad(
@@ -198,12 +193,12 @@ fun PinKeypad(
                         haptics.tick()
                         onBiometrics()
                     },
-                ) { tint ->
+                ) {
                     Icon(
                         painter = painterResource(Res.drawable.fingerprint_24dp),
                         contentDescription = null,
                         modifier = Modifier.size(28.dp),
-                        tint = tint,
+                        tint = MaterialTheme.colorScheme.primary,
                     )
                 }
             } else {
@@ -227,12 +222,12 @@ fun PinKeypad(
                     haptics.tick()
                     onDelete()
                 },
-            ) { tint ->
+            ) {
                 Icon(
                     painter = painterResource(Res.drawable.backspace_24dp),
                     contentDescription = null,
                     modifier = Modifier.size(26.dp),
-                    tint = tint,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -245,82 +240,19 @@ private fun PinDigitButton(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    var isPulsing by remember { mutableStateOf(false) }
-
-    LaunchedEffect(isPressed) {
-        if (isPressed) {
-            isPulsing = true
-        } else if (isPulsing) {
-            delay(120)
-            isPulsing = false
-        }
-    }
-
-    val active = (isPressed || isPulsing) && enabled
-    val morphProgress by animateFloatAsState(
-        targetValue = if (active) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = 0.55f,
-            stiffness = Spring.StiffnessMedium,
+    FilledTonalIconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.size(76.dp),
+        shapes = IconButtonDefaults.shapes(),
+        colors = IconButtonDefaults.filledTonalIconButtonColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            contentColor = MaterialTheme.colorScheme.onSurface,
         ),
-        label = "digitMorph",
-    )
-    val scale by animateFloatAsState(
-        targetValue = if (active) 0.92f else 1f,
-        animationSpec = spring(
-            dampingRatio = 0.55f,
-            stiffness = Spring.StiffnessMedium,
-        ),
-        label = "digitScale",
-    )
-    val containerColor by animateColorAsState(
-        targetValue = when {
-            !enabled -> MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.38f)
-            active -> MaterialTheme.colorScheme.primaryContainer
-            else -> MaterialTheme.colorScheme.surfaceContainerHigh
-        },
-        animationSpec = spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium),
-        label = "digitContainer",
-    )
-    val contentColor by animateColorAsState(
-        targetValue = when {
-            !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-            active -> MaterialTheme.colorScheme.onPrimaryContainer
-            else -> MaterialTheme.colorScheme.onSurface
-        },
-        animationSpec = spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium),
-        label = "digitContent",
-    )
-
-    val morph = remember { Morph(MaterialShapes.Circle, MaterialShapes.Cookie4Sided) }
-    val shape = remember(morphProgress) {
-        MorphShape(morph, progress = morphProgress, rotation = morphProgress * 15f)
-    }
-
-    Box(
-        modifier = Modifier
-            .size(76.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clip(shape)
-            .background(containerColor)
-            .clickable(
-                enabled = enabled,
-                role = Role.Button,
-                interactionSource = interactionSource,
-                indication = ripple(bounded = true, radius = 38.dp),
-                onClick = onClick,
-            ),
-        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = text,
             style = MaterialTheme.typography.headlineMedium,
-            color = contentColor,
         )
     }
 }
@@ -329,81 +261,15 @@ private fun PinDigitButton(
 private fun PinIconButton(
     enabled: Boolean,
     onClick: () -> Unit,
-    content: @Composable (tint: Color) -> Unit,
+    content: @Composable () -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    var isPulsing by remember { mutableStateOf(false) }
-
-    LaunchedEffect(isPressed) {
-        if (isPressed) {
-            isPulsing = true
-        } else if (isPulsing) {
-            delay(120)
-            isPulsing = false
-        }
-    }
-
-    val active = (isPressed || isPulsing) && enabled
-    val morphProgress by animateFloatAsState(
-        targetValue = if (active) 1f else 0f,
-        animationSpec = spring(
-            dampingRatio = 0.55f,
-            stiffness = Spring.StiffnessMedium,
-        ),
-        label = "iconMorph",
-    )
-    val scale by animateFloatAsState(
-        targetValue = if (active) 0.90f else 1f,
-        animationSpec = spring(
-            dampingRatio = 0.55f,
-            stiffness = Spring.StiffnessMedium,
-        ),
-        label = "iconScale",
-    )
-    val containerColor by animateColorAsState(
-        targetValue = when {
-            !enabled -> Color.Transparent
-            active -> MaterialTheme.colorScheme.secondaryContainer
-            else -> Color.Transparent
-        },
-        animationSpec = spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium),
-        label = "iconContainer",
-    )
-    val contentColor by animateColorAsState(
-        targetValue = when {
-            !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
-            active -> MaterialTheme.colorScheme.onSecondaryContainer
-            else -> MaterialTheme.colorScheme.onSurfaceVariant
-        },
-        animationSpec = spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium),
-        label = "iconContent",
-    )
-
-    val morph = remember { Morph(MaterialShapes.Circle, MaterialShapes.Cookie4Sided) }
-    val shape = remember(morphProgress) {
-        MorphShape(morph, progress = morphProgress, rotation = morphProgress * 15f)
-    }
-
-    Box(
-        modifier = Modifier
-            .size(76.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clip(shape)
-            .background(containerColor)
-            .clickable(
-                enabled = enabled,
-                role = Role.Button,
-                interactionSource = interactionSource,
-                indication = ripple(bounded = true, radius = 38.dp),
-                onClick = onClick,
-            ),
-        contentAlignment = Alignment.Center,
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.size(76.dp),
+        shapes = IconButtonDefaults.shapes(),
     ) {
-        content(contentColor)
+        content()
     }
 }
 

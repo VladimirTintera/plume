@@ -63,10 +63,9 @@ Všechno, co zámek ví, je **jeden záznam v `AppLockStore`** (Keystore / Keych
   aplikaci na domovskou obrazovku; je použit `NavigationBackHandler`, aby fungoval v predictive back.
 - **Klávesnice PINu (`PinPad`):** číselník 3x4 s haptickou odezvou (`HapticFeedbackType.TextHandleMove`),
   tlačítkem smazat a biometrickou ikonou (pokud je zapnutá).
-  - **Material 3 Expressive tvar a morphing:** Tlačítka (`PinDigitButton`, `PinIconButton`) při stisku
-    dynamicky mění tvar z kruhu (`MaterialShapes.Circle`) na zaoblenou sušenku (`MaterialShapes.Cookie4Sided`)
-    s pružným zmenšením (`scale 0.92f`), rotací 15° a přebarvením na `primaryContainer` / `secondaryContainer`.
-    Pro spolehlivé zobrazení i při rychlém tapnutí je přidán krátký pulzní hold (120 ms).
+  - **Material 3 Expressive tvar a morphing:** Tlačítka (`PinDigitButton` s `FilledTonalIconButton`, `PinIconButton` s `IconButton`)
+    používají standardní `IconButtonDefaults.shapes()`, které při stisku přirozeně animují změnu tvaru
+    z kruhu na squircle (zaoblený čtverec) a zpět, v plném souladu se zbytkem projektu i M3 Expressive specifikací.
   - **Animované puntíky (`PinDots`):** Při zadání číslice se prázdný kruhový kroužek plynule morphne
     do vyplněného čtyřlístku (`MaterialShapes.Clover4Leaf`) se zvětšením (scale pop 1.25f s pružinou)
     a rotací o 45°. Při chybě se tečky zatřesou (`Animatable` offset).
