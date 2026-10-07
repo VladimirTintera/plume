@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.SwipeThresholdBadge
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
@@ -1189,6 +1190,13 @@ private fun SwipeToArchive(
      * Strana, ze které se podklad odkrývá. Čte se hrubě přes `derivedStateOf`: `drag.value` se
      * mění každý snímek tahu a podklad se má překreslit jen při změně strany.
      */
+    // Šířka řádku pro práh mimo `pointerInput` — podklad ji potřebuje ke zvýraznění ikony.
+    var width by remember { mutableIntStateOf(0) }
+    // Ikona ukazuje, jestli by se chat archivoval PRÁVĚ TEĎ: vrácený prst ji vrátí do kolečka.
+    val overThreshold by remember {
+        derivedStateOf { width > 0 && abs(drag.value) >= archiveSwipeThreshold(width.toFloat(), thresholdCap) }
+    }
+
     val side by remember {
         derivedStateOf {
             when {
@@ -1200,7 +1208,7 @@ private fun SwipeToArchive(
     }
 
     Box(
-        modifier.then(
+        modifier.onSizeChanged { width = it.width }.then(
             if (!enabled) {
                 Modifier
             } else {
@@ -1254,12 +1262,17 @@ private fun SwipeToArchive(
                 contentAlignment = if (side == SwipeSide.End) Alignment.CenterEnd else Alignment.CenterStart,
             ) {
                 val icon = @Composable {
-                    Icon(
-                        painterResource(
+                    // Za prahem kolečko naroste do sušenky a vyplní se — spolu s haptikou.
+                    SwipeThresholdBadge(
+                        armed = overThreshold,
+                        painter = painterResource(
                             if (archived) Res.drawable.unarchive_24dp else Res.drawable.archive_24dp,
                         ),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        surface = MaterialTheme.colorScheme.primaryContainer,
+                        idleFill = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = ARCHIVE_BADGE_IDLE_ALPHA),
+                        idleIcon = MaterialTheme.colorScheme.onPrimaryContainer,
+                        size = 40.dp,
+                        iconSize = 24.dp,
                     )
                 }
                 val label = @Composable {
@@ -1272,7 +1285,8 @@ private fun SwipeToArchive(
                     )
                 }
                 Row(
-                    Modifier.padding(horizontal = 24.dp),
+                    // 16 + (40 − 24) / 2 = 24 dp: ikona stojí tam, kde stávala bez kolečka.
+                    Modifier.padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
@@ -1295,6 +1309,9 @@ private fun SwipeToArchive(
         }
     }
 }
+
+/** Podklad ikony archivace do prahu: jemný tón barvy popředí na `primaryContainer`. */
+private const val ARCHIVE_BADGE_IDLE_ALPHA = 0.12f
 
 /** Ze které hrany se odkrývá podklad pod taženým chatem. */
 private enum class SwipeSide { None, Start, End }

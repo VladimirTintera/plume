@@ -2,6 +2,7 @@ package eu.tintera.plume.features.conversation.items
 
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.SwipeDirection
+import eu.tintera.plume.core.ui.SwipeThresholdBadge
 import eu.tintera.plume.core.ui.detectHorizontalSwipe
 import eu.tintera.plume.core.ui.VerificationBadge
 import eu.tintera.plume.core.ui.tabularNumbers
@@ -515,6 +516,9 @@ private fun MessageFrame(
 
     /** Prah už byl v tomhle tahu překročen; hlídá, aby haptika i odpověď odešly jen jednou. */
     var armed by remember { mutableStateOf(false) }
+    // Šipka ukazuje, jestli by odpověď odešla PRÁVĚ TEĎ (vrácený prst ji vrátí do kolečka).
+    // Přes `derivedStateOf`, aby se rámeček nerekomponoval každý snímek tahu.
+    val replyArmed by remember(threshold) { derivedStateOf { drag.value >= threshold } }
 
     // Detektor gesta vzniká jednou za život položky, ale id zprávy se po potvrzení odeslání
     // mění (klíč položky ne) — odpověď musí mířit na aktuální id, ne na dočasné.
@@ -758,6 +762,7 @@ private fun MessageFrame(
                  */
                 ReplyHint(
                     progress = { (drag.value / threshold).coerceIn(0f, 1f) },
+                    armed = replyArmed,
                     modifier = Modifier
                         .align(Alignment.CenterStart)
                         .offset(x = -REPLY_ICON_SLOT),
@@ -1543,33 +1548,27 @@ private fun MessageBodyScope.openMedia(media: MessageMedia) {
  *
  * [progress] je **funkce, ne hodnota**. Čte se až ve vykreslovací fázi (`graphicsLayer`), takže
  * se při tahu nic nerekomponuje — jinak by každý snímek gesta znamenal přeskládání bubliny.
+ * Za prahem ([armed]) se kolečko vyplní a morfne do sušenky ([SwipeThresholdBadge]).
  */
 @Composable
-private fun ReplyHint(progress: () -> Float, modifier: Modifier = Modifier) {
-    Box(
-        modifier
-            .size(REPLY_ICON_SIZE)
-            .graphicsLayer {
-                val current = progress()
-                alpha = current
-                // Roste s tahem, takže je poznat, jak daleko k prahu zbývá.
-                val scale = REPLY_ICON_MIN_SCALE + (1f - REPLY_ICON_MIN_SCALE) * current
-                scaleX = scale
-                scaleY = scale
-            }
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            painterResource(Res.drawable.reply_24dp),
-            // Popis by se předčítal u každé zprávy v seznamu; gesto samo o sobě není prvek,
-            // se kterým by čtečka obrazovky pracovala.
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(18.dp),
-        )
-    }
+private fun ReplyHint(progress: () -> Float, armed: Boolean, modifier: Modifier = Modifier) {
+    SwipeThresholdBadge(
+        armed = armed,
+        painter = painterResource(Res.drawable.reply_24dp),
+        surface = MaterialTheme.colorScheme.surface,
+        idleFill = MaterialTheme.colorScheme.surfaceContainerHighest,
+        idleIcon = MaterialTheme.colorScheme.onSurfaceVariant,
+        size = REPLY_ICON_SIZE,
+        iconSize = 18.dp,
+        modifier = modifier.graphicsLayer {
+            val current = progress()
+            alpha = current
+            // Roste s tahem, takže je poznat, jak daleko k prahu zbývá.
+            val scale = REPLY_ICON_MIN_SCALE + (1f - REPLY_ICON_MIN_SCALE) * current
+            scaleX = scale
+            scaleY = scale
+        },
+    )
 }
 
 /** Profilovka odesílatele ve skupině. Menší než v seznamu chatů — doprovází bublinu, nevede ji. */

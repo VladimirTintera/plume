@@ -440,9 +440,8 @@ Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku, p�
 - ~~**FAB „Nová zpráva" jako `FloatingActionButtonMenu`**~~ — hotovo: Nová zpráva, Nová
   skupina a Nový kanál (Kontakty ne — Nová zpráva je seznam kontaktů), VladimirTintera/telegram#496.
 - ~~**Vlnitý posuvník videa, dokud hraje**~~ — hotovo (VladimirTintera/telegram#497).
-- **Tvarová odezva na prahu tahu.** U archivace podklad ikony naroste z kolečka do sušenky ve
-  chvíli, kdy se ozve haptika `threshold`; u odpovědi tahem se šipka v kolečku vyplní. Dnes
-  práh ohlašuje jen vibrace.
+- ~~**Tvarová odezva na prahu tahu**~~ — hotovo: archivace i odpověď tahem, kolečko za prahem
+  naroste do sušenky a vyplní se (`SwipeThresholdBadge`).
 - **Reakce s výbuchem**: za emoji se na okamžik otevře `SoftBurst` (živý signál) a čip pružně
   povyskočí. Ne konfety — ty patří výhře v kostce.
 - **Expressive `LoadingIndicator` místo kolečka** tam, kde kolečko zbylo (dotahování historie,
