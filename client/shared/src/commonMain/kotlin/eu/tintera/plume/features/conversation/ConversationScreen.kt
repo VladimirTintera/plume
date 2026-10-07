@@ -126,6 +126,7 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.Button
 import eu.tintera.plume.resources.conversation_join
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import eu.tintera.plume.core.ui.chatTitle
 import androidx.compose.animation.AnimatedContent
@@ -3250,9 +3251,15 @@ private fun MessageInput(
     // Nahoře, ne u pole: podle fokusu se ukazuje i návrh vložení ze schránky nad polem.
     val fieldInteraction = remember { MutableInteractionSource() }
     val fieldFocused by fieldInteraction.collectIsFocusedAsState()
-    // Lišta formátování bez výběru (ikona „Aa"). S odchodem z pole se zavře.
+    // Píše se: pole má fokus a klávesnice je vidět. Fokus sám nestačí — po schování klávesnice
+    // ho pole drží dál. Výška klávesnice funguje i na iOS (`isImeVisible` je jen na Androidu).
+    val ime = WindowInsets.ime
+    val keyboardShown by remember(ime, density) { derivedStateOf { ime.getBottom(density) > 0 } }
+    val typing = fieldFocused && keyboardShown && !voiceActive
+    // Lišta formátování bez výběru (ikona „Aa"). Se schováním klávesnice se zavře — ikona,
+    // která by ji zavřela, je pak pryč (na jejím místě je samolepka).
     var formattingOpen by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(fieldFocused) { if (!fieldFocused) formattingOpen = false }
+    LaunchedEffect(typing) { if (!typing) formattingOpen = false }
 
     var linkOptionsOpen by rememberSaveable { mutableStateOf(false) }
     // Náhled, který zmizel (smazaný odkaz, odeslaná zpráva), si sheet nenechá otevřený.
@@ -3636,48 +3643,61 @@ private fun MessageInput(
                 }
             }
             /*
-             * „Aa": lišta formátování i bez označeného textu — zapnout tučné a psát dál. Jen při
-             * psaní (pole má fokus); jinak by v kartě pole byla ikona navíc pro všechny, i pro
-             * toho, kdo formátování nepoužívá. S výběrem vyjede lišta sama, ikona je pak zapnutá.
+             * Jedno místo pro „Aa" a výběr samolepek. Klávesnice je otevřená → „Aa" (lišta
+             * formátování i bez označeného textu: zapnout tučné a psát dál); zavřená → samolepka.
+             * Emoji při psaní nabízí klávesnice sama a náš výběr by ji stejně zavřel, formátovat
+             * bez klávesnice zase není co. Dokud stály vedle sebe, ukusovaly textu 96 dp a „Aa"
+             * se s fokusem objevovalo DO ŠÍŘKY — rozepsaný víceřádkový text se přeskládal pokaždé,
+             * když se do pole ťuklo. Takhle se šířka pole nemění nikdy.
+             *
+             * Rozhoduje klávesnice, ne fokus: pole po schování klávesnice (zpět) fokus drží
+             * a samolepka by se pak neukázala vůbec.
              */
-            AnimatedVisibility(
-                visible = fieldFocused && !voiceActive,
-                enter = fadeIn() + expandHorizontally(),
-                exit = fadeOut() + shrinkHorizontally(),
-                modifier = Modifier.padding(bottom = 4.dp),
-            ) {
-                IconToggleButton(
-                    checked = formattingOpen || !draft.selection.collapsed,
-                    onCheckedChange = { formattingOpen = !formattingOpen },
-                    colors = IconButtonDefaults.iconToggleButtonColors(
-                        contentColor = inputIconColor(),
-                        checkedContentColor = MaterialTheme.colorScheme.onPrimary,
-                        checkedContainerColor = MaterialTheme.colorScheme.primary,
-                    ),
-                    shapes = IconButtonDefaults.toggleableShapes(),
-                ) {
-                    Icon(painterResource(Res.drawable.text_format_24dp), contentDescription = stringResource(Res.string.format_open))
-                }
-            }
-            IconButton(
-                onClick = {
-                    // Sheet a klávesnice by se jinak přetahovaly o spodek obrazovky; sheet je
-                    // další okno, takže otevřený hned by klávesnici utrhl skokem.
-                    afterKeyboardHidden(onOpenStickers)
+            val slotIconScale = morphSpring<Float>()
+            val slotIconFade = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+            AnimatedContent(
+                targetState = typing,
+                transitionSpec = {
+                    (scaleIn(slotIconScale, initialScale = 0.4f) + fadeIn(slotIconFade))
+                        .togetherWith(scaleOut(slotIconScale, targetScale = 0.4f) + fadeOut(slotIconFade))
                 },
-                colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
                 modifier = Modifier.padding(end = 4.dp, bottom = 4.dp),
-                shapes = IconButtonDefaults.shapes(),
-            ) {
-                // Ikona slibuje, co se otevře: poslední použitou část výběru. Při úpravě
-                // zprávy jde otevřít jen emoji — samolepka do textu upravované zprávy nepatří.
-                when {
-                    editing != null || !content.stickers || expressionMode == ExpressionMode.Emoji ->
-                        Icon(painterResource(Res.drawable.mood_24dp), contentDescription = stringResource(Res.string.conversation_open_emoji))
-                    expressionMode == ExpressionMode.Gifs ->
-                        Icon(painterResource(Res.drawable.gif_box_24dp), contentDescription = stringResource(Res.string.conversation_open_gifs))
-                    else ->
-                        Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = stringResource(Res.string.conversation_open_stickers))
+                label = "field-end-slot",
+            ) { showFormat ->
+                if (showFormat) {
+                    IconToggleButton(
+                        checked = formattingOpen || !draft.selection.collapsed,
+                        onCheckedChange = { formattingOpen = !formattingOpen },
+                        colors = IconButtonDefaults.iconToggleButtonColors(
+                            contentColor = inputIconColor(),
+                            checkedContentColor = MaterialTheme.colorScheme.onPrimary,
+                            checkedContainerColor = MaterialTheme.colorScheme.primary,
+                        ),
+                        shapes = IconButtonDefaults.toggleableShapes(),
+                    ) {
+                        Icon(painterResource(Res.drawable.text_format_24dp), contentDescription = stringResource(Res.string.format_open))
+                    }
+                } else {
+                    IconButton(
+                        onClick = {
+                            // Sheet a klávesnice by se jinak přetahovaly o spodek obrazovky; sheet je
+                            // další okno, takže otevřený hned by klávesnici utrhl skokem.
+                            afterKeyboardHidden(onOpenStickers)
+                        },
+                        colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
+                        shapes = IconButtonDefaults.shapes(),
+                    ) {
+                        // Ikona slibuje, co se otevře: poslední použitou část výběru. Při úpravě
+                        // zprávy jde otevřít jen emoji — samolepka do textu upravované zprávy nepatří.
+                        when {
+                            editing != null || !content.stickers || expressionMode == ExpressionMode.Emoji ->
+                                Icon(painterResource(Res.drawable.mood_24dp), contentDescription = stringResource(Res.string.conversation_open_emoji))
+                            expressionMode == ExpressionMode.Gifs ->
+                                Icon(painterResource(Res.drawable.gif_box_24dp), contentDescription = stringResource(Res.string.conversation_open_gifs))
+                            else ->
+                                Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = stringResource(Res.string.conversation_open_stickers))
+                        }
+                    }
                 }
             }
                 }
@@ -3688,7 +3708,7 @@ private fun MessageInput(
                  * svým místem, jako náhled odkazu.
                  */
                 AnimatedVisibility(
-                    visible = fieldFocused && !voiceActive && (formattingOpen || !draft.selection.collapsed),
+                    visible = (typing && formattingOpen) || (fieldFocused && !voiceActive && !draft.selection.collapsed),
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                 ) {
