@@ -439,7 +439,9 @@ snadno na to uživatel narazí.
   v profilu (záložka Hudba)~~ — hotovo. ~~Ovládání z notifikace / zamykací obrazovky, přehrávání
   na pozadí~~ — hotovo (`MusicQueue`, Media3 MediaSession, na iOS Now Playing). Zbývá ověřit
   iOS a zamykací obrazovku na telefonu. Hlasovky se na pozadí nepřehrávají, s odchodem
-  z konverzace dál končí.
+  z konverzace dál končí. Dále zbývá: **přeskakování ticha** (`skipSilenceEnabled` v Media3 pro
+  hlasovky i audio zkrátí pauzy o 20–30 % bez deformace hlasu) a **paměť pozice pro dlouhé nahrávky
+  a podcasty** (nad 10 minut lokálně uložit pozici a nabídnout pokračování).
 - ~~**Poloha, živá poloha a místo**~~ — hotovo: statická mapa od Telegramu, ťuknutí do map
   platformy, u živé polohy do kdy se sdílí, odeslání polohy nebo místa ze sponky.
   ~~Sdílení živé polohy~~ — hotovo na Androidu (služba v popředí, zastavení z notifikace
@@ -582,6 +584,16 @@ snadno na to uživatel narazí.
   překladu~~ — hotovo (rozpoznání jazyka v zařízení; na iOS jen přeložené). ~~**Shrnutí od serveru**~~ (`summarizeMessage`)
   — hotovo, „Shrnout" v nabídce nad zprávou (`CLAUDE.md`, „Shrnutí od serveru"). Samotné shrnutí
   ověřené NENÍ: testovací účet bez Premium dostane hned `SUMMARY_FLOOD_PREMIUM`.
+- **Lokální záložky v konverzaci (Personal Bookmarks / Starred Messages).** V nabídce zprávy
+  „Přidat do záložek" — označení zprávy jen lokálně pro uživatele (na rozdíl od globálního připnutí
+  v chatu, které vidí všichni a vyžaduje práva). V profilu chatu a v hledání možnost zobrazit
+  seznam záložek s rychlým skokem na zprávu.
+- **Kopírování výběru zpráv do Markdownu / čistého textu.** V plovoucí liště výběru více zpráv
+  (`ChatSelection`) přidat akci pro export označených zpráv do strukturovaného textu
+  (`[čas] Jméno: zpráva`), ideální pro uložení do poznámek nebo předání do LLM.
+- **Rychlá anotace a začernění fotek před odesláním (Expressive Markup).** Rozšíření existujícího
+  ořezu (`PhotoCropOverlay`) o nástroj na zamáznutí / anonymizaci citlivých údajů (čísla, adresy,
+  obličeje tahem prstu) a zvýraznění před odesláním média ze sponky.
 - **Vědomě NE**: tapeta a téma chatu (`Chat.background`, `theme`) a barvy jmen podle profilu
   (`accentColorId`) — aplikace má vlastní Material vzhled a `senderColor`; kdyby se přidávaly,
   je to rozhodnutí o vzhledu, ne chybějící funkce.
