@@ -5,7 +5,7 @@
 #
 # Zapne v aplikaci tracing (broadcast pro androidx.tracing.perfetto, jen debug build s
 # runtime-tracing), spustí záznam na <ms>, mezitím pustí scénář (adb input, Bot API…) a stáhne
-# <adresář>/<jméno>.pftrace. Rozbor: trace_analyze.py. Postup viz CLAUDE.md, „Výkon a paměť".
+# <adresář>/<jméno>.pftrace. Rozbor: trace_analyze.py. Postup viz docs/poznatky/vykon.md, „Výkon a paměť".
 T=${0:A:h}; OUT=${1:?adresář}; N=${2:?jméno}; D=${3:?ms}; shift 3
 mkdir -p $OUT
 adb shell am broadcast -a androidx.tracing.perfetto.action.ENABLE_TRACING \

@@ -103,7 +103,7 @@ private fun ThemeColorSwatch(
         Modifier
             .size(SWATCH_SIZE)
             // Ořez (a s ním tvar vlnky) čte tvar při kreslení; dotyk zůstává v obdélníku
-            // vzorku — vlnitý obrys do ořezu vrstvy nepatří (viz CLAUDE.md, „Vzhled konverzace").
+            // vzorku — vlnitý obrys do ořezu vrstvy nepatří (viz docs/poznatky/konverzace-zobrazeni.md, „Vzhled konverzace").
             .clip(CircleShape)
             .semantics { contentDescription = label }
             .selectable(

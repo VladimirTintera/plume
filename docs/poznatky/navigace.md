@@ -1,0 +1,190 @@
+# Navigace
+
+Poznatky k jedné oblasti aplikace. Obecná pravidla projektu a rejstřík ostatních souborů jsou
+v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
+
+## Navigace
+
+Navigation3 (`rememberNavBackStack` + `NavDisplay` + `entryProvider`). Klíče jsou v
+`core/navigation/Routes.kt` a jsou `@Serializable` — bez toho by se zásobník nepřežil zabití procesu.
+
+Seznam chatů a konverzace tvoří **list-detail** dvojici přes `rememberListDetailSceneStrategy`:
+`ChatsRoute` nese metadata `listPane(detailPlaceholder = …)`, `ConversationRoute` má `detailPane()`.
+`directive` se počítá ze šířky **content-oblasti** (`BoxWithConstraints`), ne z okna — scaffold
+má rozhodovat podle místa, které opravdu dostane.
+
+**Boční insety NEVĚDÍ, kde prvek leží.** Compose dá `safeDrawing`/`displayCutout` každému, kdo si
+o ně řekne, i když stojí daleko od kamery. Telefon naležato proto měl v konverzaci (panel VPRAVO)
+mezeru o šířku výřezu vlevo — v hlavičce a seznamu zpráv, ne ve vstupním poli, které si boky
+nebralo vůbec. Pravidlo: kdo inset vyřešil, ten ho **zkonzumuje** (`consumeWindowInsets`).
+Seznam v dvoupanelu konzumuje pravý inset (`listPaneInsets`) — ten patří panelu vpravo. Vstupní pole bere `safeDrawing` bokem i spodkem, jinak by odeslání zajelo pod
+výřez nebo boční třítlačítkovou lištu. Ověřuje se v OBOU rotacích naležato
+(`adb shell cmd window user-rotation lock 1` / `3`, pak `free`) — výřez je pokaždé na jiné straně.
+
+**`LazyColumn` ořezává jen ve směru scrollu.** Vodorovně kreslí i mimo své hranice, takže sloupec
+časů schovaný „za pravým okrajem" (odkrývání tahem) byl schovaný jen dokud seznam končil
+u okraje obrazovky. S insetem vpravo prosvítal; proto `clipToBounds` na ploše seznamu.
+
+**Sekční navigace není — ani spodní lišta, ani rail.** Sekce jsou dvě a navigační lišta i rail
+mají podle M3 smysl až od tří. Lišta zabírala ~80 dp jen kvůli skoku do Nastavení a seznam chatů
+pod ní působil přeplácaně; rail na širší ploše přežil o něco déle, ale jen zdvojoval menu účtu
+a ukusoval šířku panelům. Do Nastavení vede menu účtu v pilulce na každé šířce, spodek obrazovky
+patří FAB menu „Vytvořit" (viz „Složky místo filtrů a FAB"). Důsledek pro insety:
+shell žádný nekonzumuje, každá obrazovka si je bere sama (Scaffold je má ve výchozích
+`contentWindowInsets`). **Kdyby sekcí přibylo na tři**, přijde rail zpátky — past s místem:
+skrytí musí animovat i SLOT (`shrinkHorizontally`), ne jen posun, jinak obsah doskočí až na konci.
+
+**Avatar a název letí ze seznamu do konverzace.** Klíče `chatAvatarKey` / `chatTitleKey`
+obsahují id chatu, jinak by se při rychlém přepnutí spároval avatar jednoho chatu s druhým.
+Na rozdíl od letu odeslané zprávy se tu viditelnost neřídí ručně — obě strany jsou
+v `AnimatedContent` NavDisplaye, takže stačí `LocalNavAnimatedContentScope`.
+
+- **Tečka „online" letí VLASTNÍM sdíleným prvkem** (`chatOnlineDotKey`, `OnlineDot(chatId)`).
+  Sdílený byl jen avatar, tečka vedle něj zůstala v obsahu obrazovky: avatar odletěl do hlavičky
+  bez ní a tečka se k němu přilepila, až dosedl — problikla. Obalit sdíleným prvkem avatar
+  i s tečkou nejde, stejný klíč `chatAvatarKey` nese i profil a tvář odesílatele, které tečku
+  nemají, a obal by se do nich zmenšoval s avatarem pevné velikosti uvnitř. Obě strany mají
+  tutéž pružinu, takže tečka po celou dráhu drží roh avataru.
+- **Tečka musí mít v překryvu vyšší `zIndexInOverlay`** (`sharedNavElement(zIndexInOverlay)`).
+  Sdílené prvky se během letu kreslí v překryvu mimo pořadí rodičů; se stejným indexem by ji
+  letící avatar mohl přikrýt.
+- **Ověřeno na emulátoru sondou** (Notifikátor podstrčený jako online v seznamu i hlavičce,
+  necommituje se) a sérií surových snímků se zpomalenými animacemi, tam i zpět. Online
+  kontakt se neotevírá — přečetly by se mu zprávy.
+
+**Na široké ploše jsou dva panely vždycky** (kromě prázdného seznamu, viz „Archiv"), i bez otevřeného chatu — vpravo je pak
+`ConversationPlaceholder`. Dřív dostal seznam bez konverzace celou šířku (`singlePane`), takže
+placeholder, i když byl v metadatech `listPane`, se nikdy nekreslil, řádky chatů se natáhly přes
+celý rozložený Fold a hlavička s pevnou maximální šířkou v tom visela.
+
+- **Zpět v Chatech musí být `PopUntilContentChange`.** Výchozí `PopUntilScaffoldValueChange`
+  přeskakuje položky, které nemění rozložení panelů; „seznam + placeholder" a „seznam + chat"
+  jsou oba dvoupanel, takže zpět z konverzace odešel rovnou z aplikace. V Nastavení zůstává
+  výchozí — sekce je v dvoupanelu otevřená vždycky (`ensureSettingsSection`), a kdyby zpět
+  odebral jen ji, efekt by ji hned vrátil a z Nastavení by nešlo odejít.
+- **Placeholder má úvodní animaci** (`IntroShape` nad `ShapeMorphs.Intro`): tvar naroste, protočí
+  se a projde kruh → čtyřlístek → sedmiúhelník → zaoblená hvězda, pak naskočí ikona a text. Běží
+  při každém zobrazení, i po zavření chatu, a pak stojí. Průběh tvaru jde po úsecích jednou dráhou
+  (`tween` s emphasized decelerate), otočení a zvětšení jsou pružiny — hvězda dokmitne, i když
+  tvar už stojí. Tvar se čte až v `drawBehind`, animace nic nerekomponuje. **Tentýž tvar má
+  i přihlášení** — viz „Přihlašovací obrazovka".
+- **Hvězda má cípy zaoblené víc než žlábky** (`rounding` 0,24, `innerRounding` 0,1). Se stejným
+  zaoblením obou vyšla kytička.
+- **Cípů je SEDM, ne pět.** Pěticípá hvězda má jeden cíp nahoře a dva dole, takže její optický
+  střed nesedí se středem obrysu, do kterého se vepisuje ikona — tvar působil nevystředěně
+  (`MorphShape` centruje podle obalového obdélníku, a ten u nesymetrické hvězdy leží jinde než
+  těžiště). S vyšším lichým počtem je rozdíl neznatelný a hvězda zůstane hvězdou. Patří k tomu
+  mělčí žlábky (vnitřní poloměr 0,68 místo 0,58); se sedmi hlubokými cípy je z toho ježek.
+- **Mnohoúhelník před hvězdou má stejný počet vrcholů jako ona**, jinak se při morfu přeskupují.
+  Proto se nebere `MaterialShapes.Pentagon` — ten sedl jen k pěti cípům.
+- **Tvar se dá proanimovat znovu** (`IntroShape(replayKey = …)`): opakování je kratší než úvod,
+  otáčí se opačně a NEodhaluje obsah — ikona uvnitř se mění sama a dvojí naskakování by se pralo.
+
+**Scaffold list-detail si sám bere fokus — vypnuto** (`shouldAutoFocusCurrentDestination = false`
+v `PaneDirective.kt`). `ThreePaneScaffold` při každé změně aktuálního panelu zavolá na panel
+`requestFocus()`; fokus propadl na první fokusovatelný prvek konverzace, tedy vstupní pole,
+a na rozloženém Foldu vyjela klávesnice při každém otevření chatu i po návratu do něj.
+Na compactu (a na zaklapnutém Foldu) se to nedělo, protože jeden panel scaffold nekreslí —
+proto to dlouho vypadalo jako chyba konverzace. Výchozí hodnota je `true` a nastavuje ji
+i konstruktor `PaneScaffoldDirective` BEZ toho parametru, takže se musí předat výslovně.
+
+**V dvoupanelu se nesdílí nic — kromě fotky do prohlížeče** (`LocalTwoPane`, poskytuje ho
+shell). Seznam vedle konverzace zůstává vidět, takže by avatar odletěl z položky, která je pořád
+na obrazovce, a o jeden klíč by se přetahovaly dva prvky naráz. Prohlížeč médií ale nahradí celý
+dvoupanel, takže fotka z bubliny nemá s kým se přetahovat — `sharedNavElement(inTwoPane = true)`
+proto dostávají všechny klíče `photoKey` a nic jiného. **Kdo přidá `inTwoPane` jinam, musí vědět,
+že druhá strana letu dvoupanel nahrazuje**, jinak se vrátí přesně ten souboj o klíč.
+
+**Text se sdílí přes `sharedBounds` + `scaleToBounds`, ne přes `sharedElement`.** Název chatu má
+v hlavičce jinou velikost písma; se `sharedElement` by se text na konci letu přeskládal skokem.
+
+**Predictive back dělá `NavDisplay` sám** (přes `androidx.navigationevent`): při tažení zpět se
+konverzace zmenší a odsune a pod ní se odkryje živý seznam. Nic se pro to nezapíná —
+`android:enableOnBackInvokedCallback` systém při targetSdk 35+ ignoruje a je v manifestu jen
+jako výslovné prohlášení.
+
+**Přechody mezi obrazovkami jsou vlastní, ne výchozí z Nav3** (`NavTransitions.kt`, předané
+do `NavDisplay`). Výchozí přechod na Androidu je 700ms prolnutí obou obrazovek NARÁZ: obě jsou
+neprůhledné, takže v půlce jsou obě napůl průhledné přes sebe (nadpis „Nastavení" přes pilulku
+hledání) a vypadá to jako chyba vykreslení. Výchozí zpět gestem zmenšuje obrazovku na 70 %.
+
+- **Tlačítkem je to sdílená osa X (fade through):** odcházející zmizí za 90 ms, přicházející se
+  objeví až potom, obě se posunou o 30 dp ve směru navigace. Dvojí expozice nenastane nikdy.
+- **Gestem je to fade through podle specifikace Googlu** (návrhové zásady Androidu, „Predictive
+  back" → „Full screen surfaces"): odcházející 100 → 90 % a zmizí do 35 % tahu, přicházející
+  110 → 100 % a objevuje se od 35 %, křivka (0,1; 0,1; 0; 1). **Specifikace platí pro návrat
+  UVNITŘ aplikace**; systémový návrat mezi aktivitami (pod zmenšenou obrazovkou se odkrývá ta
+  předchozí) je jiný vzor a Google k němu čísla nezveřejňuje. Tím jsme začali a po švihnutí
+  obrazovka stála a pak pomalu vybledla — s fade through je odchod hotový v první třetině tahu.
+- **Průběh gesta je lineární a Google říká, že se tak přímo použít nemá.** Křivka proto jde na
+  zmenšení; s lineárním zmenšením nebylo v půlce tahu vidět nic, protože průběh k jedničce
+  skoro nedojde.
+- **Délka přechodu gestem neřídí tah, jen dojezd po puštění prstu.** Tah jde po zlomcích
+  (`seekTo`), zbytek `NavDisplay` dojede sám v čase přechodu a rychlost prstu nebere v úvahu
+  (Nav3 1.1.1 i 1.2.0-alpha04, nastavit to nejde). Rychlé švihnutí se pouští u malého zlomku,
+  takže se přehraje skoro celý přechod — proto krátkých 240 ms.
+- **Při dojezdu se volá jen přechod pro gesto, ne pro tlačítko** (ověřeno dočasným logem ve
+  specifikacích). Hádat ze snímků, KTERÁ vrstva se prolíná, nejde: napůl průhledná horní vrstva
+  se stejně barevným pozadím vypadá jako „šednoucí" spodní.
+- **Zaoblené rohy nese dekorátor scény, ne přechod** (`PredictiveBackCorners`,
+  `sceneDecoratorStrategies`). `ContentTransform` tvar neumí; dekorátor obalí obsah scény
+  a poloměr animuje nad TÝMŽ přechodem (`transition.animateDp` podle `EnterExitState`), takže
+  ho gesto posouvá se zmenšením. Obal musí nést v klíči i třídu obalené scény: `NavDisplay`
+  rozlišuje scény podle třídy a klíče a třída obalu je u všech stejná. **U fade through jsou
+  rohy jen jemný detail** — zaoblená obrazovka je vidět do 35 % tahu, pod ní plocha stejné barvy.
+- **Seznam chatů se při návratu skládá celý znovu, data ale ne.** `NavDisplay` kreslí jen horní
+  scénu, takže kompozice seznamu pod Nastavením neexistuje; `ChatsViewModel` s načteným
+  seznamem i pozice scrollu (`SaveableStateHolder`) přitom zůstávají. Kompozici ve ViewModelu
+  držet nejde — kdyby vadila, cesta je nechat scénu pod Nastavením složenou (Nastavení jako
+  překryvná scéna), ne cachovat data.
+- **Plynulost se na emulátoru neměří.** Změřeno `gfxinfo framestats` v RELEASE buildu: návrat
+  z Nastavení měl snímky kolem 60 ms, jenže obyčejný scroll seznamu chatů 200–500 ms a GPU hlásilo
+  95. percentil 4950 ms. Pomalost skládání se od pomalosti emulátoru oddělit nedá; posuzuje se
+  na telefonu.
+- **Ověřuje se zpomalenými animacemi a sérií surových snímků** (`animator_duration_scale 20`,
+  `screencap /sdcard/N.raw` ve smyčce v jednom `adb shell`): PNG snímek trvá přes 400 ms a přechod
+  mine. Gesto zastavené v půlce jde přes `input motionevent DOWN/MOVE`, snímek, pak `UP`.
+  Emulátor gesto seekuje stejně jako telefon, plynulost se ale posuzuje na zařízení.
+
+**Past: obyčejný `BackHandler` predictive back zabije.** Kdo odchytí zpět bez
+`PredictiveBackHandler`/`NavigationBackHandler`, dostane jen hotové gesto bez průběhu, takže
+animace zmizí a nikde se neohlásí chybou. V aplikaci teď žádný `BackHandler` není a nemá
+přibýt — ven z obrazovky se chodí přes `onBack` NavDisplaye. Kde je potřeba zpět zachytit uvnitř
+obrazovky (nabídka nad zprávou), je to `NavigationBackHandler` z `androidx.navigationevent`.
+
+### Zásobník pro každou sekci
+
+Každá sekce aplikace (Chaty, Nastavení) má **vlastní zásobník** a všechny drží jeden stav,
+`AppNavigation`, vytvořený nahoře v `AppShell` a podávaný dolů. Přepnutí sekce nic nemaže, jen
+vybere jiný zásobník — návrat do Chatů vrátí otevřenou konverzaci, do Nastavení otevřenou sekci.
+Dřív byl zásobník jeden pro celou aplikaci a přepnutí ho srovnalo na kořen.
+
+- **`NavDisplay` je jeden a kreslí zásobník Chatů a nad ním zásobník vybrané sekce**
+  („concatenated back stack" z Nav3). Zpět z kořene Nastavení je tím obyčejný pop do Chatů
+  i s predictive back, bez vlastního handleru. Ťuknutí na už vybranou sekci ji vrátí na kořen.
+- **Položky se dekorují pro KAŽDOU sekci, i tu, která není vidět** (`rememberDecoratedNavEntries`
+  pro oba zásobníky pokaždé). Zásobník, který by se zrovna nedekoroval, by pro Nav3 vypadal jako
+  odebraný a jeho ViewModely by se zrušily.
+- **Dekorátor ViewModelů je nutný** (`rememberViewModelStoreNavEntryDecorator`, v `AppShell` nad
+  `NavDisplay`). Bez něj `NavDisplay` dává jen `SaveableStateHolder` a `koinViewModel()` v obrazovce
+  bral úložiště Activity — **ViewModel každé otevřené konverzace žil až do konce Activity
+  a `onCleared` se při odchodu z chatu nevolal**, přestože na něm visí dopsání konceptu,
+  zastavení hlasovky a zahození nahrávky. Teď se ViewModel zruší s odebráním položky ze zásobníku,
+  při přepnutí sekce ne (ověřeno logem v `onCleared`). Rodičem je owner Activity: Nav3 pod ním
+  drží úložiště pro každou položku, rotaci přežije a s odchodem shellu (odhlášení) je vyčistí.
+  Vlastní `ViewModelStoreOwner` jako v mlogu proto není potřeba.
+- **Past: `NavDisplay` volá `onBack` jednou ZA KAŽDOU odebíranou položku**
+  (`repeat(entries.size - scene.previousEntries.size) { onBack() }`). U dvoupanelové scény
+  (seznam + detail) tedy dvakrát. Každé volání musí odpovídat právě jedné položce toho, co se
+  kreslí — cokoli jen dopočítaného pro kreslení tu počty rozhodí.
+- **Obrazovka píše do zásobníku SVÉ sekce** (`chatsStack`, `settingsStack` v `shellEntryProvider`),
+  ne do toho vybraného.
+- **Šipka zpět obrazovky odebírá SVOU položku, ne poslední** (`pop(route)` v `AppNavigation.kt`),
+  a kořen nikdy. Dřív to byl `removeLastOrNull()` a aplikace padala na „NavDisplay entries cannot
+  be empty": obrazovka po odebrání ještě dobíhá odchodovou animací a její tlačítka reagují dál,
+  takže druhé ťuknutí na šipku odebralo seznam chatů pod ní. Spolehlivě se to vyvolá
+  klávesnicí — Tab dá fokus šipce v hlavičce a mezera ji „ťukne" (`adb shell "input keyevent 61;
+  input keyevent 62 62"`); stejně tak `adb shell input text` s mezerou, když pole nemá fokus.
+  Pojistka patří tam, kde se odebírá: obrazovka, která v zásobníku už není, nesmí odebrat nic.
+- Vybraná sekce přežije zabití procesu (`rememberSaveable` podle názvu `TopLevelDestination`),
+  zásobníky taky (`rememberNavBackStack`).

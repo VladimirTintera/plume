@@ -2356,7 +2356,7 @@ fun ConversationScreen(
         }
 
         // Jednorázová událost od tlačítka bota. Navigace je synchronní, takže vynulování potom
-        // efekt nezruší uprostřed (past „Vrátit" v CLAUDE.md se týká práce, která teprve běží).
+        // efekt nezruší uprostřed (past „Vrátit" v docs/poznatky/konverzace-pohyb.md se týká práce, která teprve běží).
         state.openPollComposer?.let { mode ->
             LaunchedEffect(mode) {
                 onCreatePoll(PollComposerRequest(mode, state.replyingTo?.id, state.replyQuote))

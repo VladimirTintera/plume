@@ -25,7 +25,7 @@ import org.koin.core.component.inject
  * a běh v popředí (`foregroundServiceType="mediaPlayback"`).
  *
  * **Bez služby by hudba na pozadí přestala hrát.** Aplikace odsunutá do pozadí je v keši
- * a systém ji do pár vteřin zmrazí (viz „Notifikace" v CLAUDE.md) — i s přehrávačem. Služba
+ * a systém ji do pár vteřin zmrazí (viz „Notifikace" v docs/poznatky/notifikace.md) — i s přehrávačem. Služba
  * v popředí ji drží v provozu, dokud hudba hraje; Media3 ji do popředí přepíná a zase z něj
  * pouští sám, podle stavu přehrávače.
  *

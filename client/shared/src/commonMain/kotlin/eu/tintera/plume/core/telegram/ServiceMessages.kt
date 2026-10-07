@@ -344,7 +344,7 @@ private fun starSentence(resource: PluralStringResource, count: Long): UiText {
 /**
  * Kam vede oznámení o převodu skupiny. Id chatu se skládá konvencí TDLib: základní skupina
  * má záporné id skupiny, supergroupa [supergroupChatId]. Čistá funkce — `toChatMessage` je obří
- * suspend funkce a další suspend volání v ní umí shodit ověření třídy (viz CLAUDE.md, „Sdílený
+ * suspend funkce a další suspend volání v ní umí shodit ověření třídy (viz docs/poznatky/typy-zprav.md, „Sdílený
  * příběh").
  */
 internal fun MessageContent.upgradeLink(): GroupUpgradeLink? = when (this) {

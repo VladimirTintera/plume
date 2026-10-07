@@ -1,6 +1,6 @@
 # Konverzace — co dodělat
 
-Živý dokument. Nové nápady sem, hotové věci ven (a poučení do `CLAUDE.md`).
+Živý dokument. Nové nápady sem, hotové věci ven (a poučení do `docs/poznatky/`, obecná do `CLAUDE.md`).
 Pořadí je doporučení, ne závazek.
 
 ## Stav dnes (září 2026)
@@ -26,7 +26,7 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    (`MessageAction`)~~ a ~~krok 4: náhled odkazu jako souvislá karta~~ — hotovo. Nové druhy
    zpráv a rozvržení stavět na tom: nový blok + větev v `messageItem()`.
 1. **Přílohy.** Telegram víc příloh v jedné zprávě nenese — album je skupina samostatných zpráv
-   se stejným `mediaAlbumId` (viz `CLAUDE.md`, „Alba"). Po krocích:
+   se stejným `mediaAlbumId` (viz `docs/poznatky/konverzace-zobrazeni.md`, „Alba"). Po krocích:
    1. ~~**Zobrazení přijatých alb**~~ — hotovo, mřížka v jedné bublině.
    2. ~~**Posílání jedné fotky nebo souboru**~~ — hotovo (výběr, zmenšení fotky, průběh nahrávání).
    3. ~~**Posílání více příloh jako album s popiskem**~~ — hotovo (`sendMessageAlbum`, přílohy
@@ -36,19 +36,19 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    6. ~~**Skryté a časované fotky (spoilery a sebedestrukce)**~~ — hotovo (viz sekce E níže).
 2. **Přehrávání videa a hlasovek.** ~~Hlasovky~~ — hotovo (přehrávání v bublině, waveform
    s posunem, poslechnuto, ~~rychlost 1×/1,5×/2×~~, ~~pokračování další neposlechnutou~~
-   i ~~audio focus a přerušení hovorem~~ a ~~sluchátko u ucha~~; `CLAUDE.md`, „Hlasovky"
+   i ~~audio focus a přerušení hovorem~~ a ~~sluchátko u ucha~~; `docs/poznatky/zvuk.md`, „Hlasovky"
    a „Hlasovka u ucha"; sluchátko u ucha ověřeno na Pixelu 11 Pro Foldu). **Hlasovky jsou tím
    hotové celé.** ~~Nahrávání~~ — hotovo, ~~podržením se zamčením~~ i ~~s náhledem před
-   odesláním~~ (`CLAUDE.md`, „Nahrávání"). ~~Náhled u kolečka~~ — hotovo. ~~Navázání v nahrávání po
+   odesláním~~ (`docs/poznatky/zvuk.md`, „Nahrávání"). ~~Náhled u kolečka~~ — hotovo. ~~Navázání v nahrávání po
    poslechu náhledu~~ — hotovo u hlasovky i kolečka (kolečko na iOS jen přeložené).
    ~~Video~~ — hotovo v prohlížeči (Media3 / AVPlayer). ~~GIFy~~ — hotovo (hrají v bublině ve
-   smyčce bez zvuku; `CLAUDE.md`, „GIFy"). ~~GIFy z klávesnice~~ — hotovo na Androidu (Gboard;
-   `CLAUDE.md`, „GIFy a samolepky z klávesnice"); ~~výběr GIFů v aplikaci~~ — hotovo
-   (uložené, populární, hledání přes `@gif`; `CLAUDE.md`, „Výběr GIFů"). ~~Vložení ze schránky~~ — hotovo
+   smyčce bez zvuku; `docs/poznatky/prohlizec-medii.md`, „GIFy"). ~~GIFy z klávesnice~~ — hotovo na Androidu (Gboard;
+   `docs/poznatky/prohlizec-medii.md`, „GIFy a samolepky z klávesnice"); ~~výběr GIFů v aplikaci~~ — hotovo
+   (uložené, populární, hledání přes `@gif`; `docs/poznatky/emoji-samolepky-reakce.md`, „Výběr GIFů"). ~~Vložení ze schránky~~ — hotovo
    na Androidu i iOS (položka kontextové nabídky pole). Na iOS chybí GIFy ověřené na zařízení
-   (~~vložení bez dotazu „Povolit vložení?"~~ — hotovo, `UIPasteControl` nad polem). ~~Streamování~~ — hotovo na Androidu (`CLAUDE.md`,
+   (~~vložení bez dotazu „Povolit vložení?"~~ — hotovo, `UIPasteControl` nad polem). ~~Streamování~~ — hotovo na Androidu (`docs/poznatky/prohlizec-medii.md`,
    „Video"); iOS čeká na `AVAssetResourceLoaderDelegate`. ~~Rychlost a ztlumení~~ — hotovo
-   (`CLAUDE.md`, „Video"; přehrávání samo na emulátoru neověřené). ~~Obraz v obraze~~ — hotovo
+   (`docs/poznatky/prohlizec-medii.md`, „Video"; přehrávání samo na emulátoru neověřené). ~~Obraz v obraze~~ — hotovo
    (Android ověřený, iOS jen přeložený; akce v okénku neověřená).
 3. ~~**Přeposílání zpráv**~~ — hotovo (položka v nabídce, výběr chatu, album celé,
    ~~víc cílů najednou~~ i ~~výběr víc zpráv~~). ~~Kopie bez odesílatele~~ (i bez popisků) — hotovo.
@@ -57,7 +57,7 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    v bublině) jsou hotové dřív.
 5. **Odlehčení vzhledu.** Hotové: ~~zaoblení na konci bloku bublin~~, ~~čas se stavem doručení
    z bubliny ven~~, ~~výška fotek~~, ~~fotky a videa na plochu~~, ~~náhled odkazu na plochu~~
-   a ~~odkrývání časů tahem~~. Poučení v `CLAUDE.md` („Tvar bubliny a seskupení", „Čas a stav
+   a ~~odkrývání časů tahem~~. Poučení v `docs/poznatky/konverzace-zobrazeni.md` („Tvar bubliny a seskupení", „Čas a stav
    doručení", „Médium bez bubliny", „Rámeček fotky v bublině", „Náhled odkazu jako karta",
    „Odkrývání časů tahem", „Reakce"), ~~reakce z bubliny ven~~ i ~~odznak přečtení na ťuknutí~~.
    Sekce je tím hotová celá.
@@ -74,13 +74,13 @@ přes celou aplikaci a na dvou seznamech by se rozešel.
 Inspirace je Google Messages. Samostatné kusy, dají se dělat nezávisle.
 
 Hotové je z tohohle seznamu **všechno**; zbytky jednotlivých bodů jsou u nich a poučení
-v `CLAUDE.md`.
+v `docs/poznatky/`.
 
 ### 1. ~~Fotky a videa na plochu, mimo bublinu~~ — HOTOVO
 
 Fotka, video i album se kreslí přímo na plochu konverzace (`showsBareMedia` v `MessageRows.kt`,
 testy v `MessageRowsTest`); popisek pod nimi dostal vlastní kontejner v barvě bubliny a se snímkem
-tvoří skupinu se staženým nárožím. Poučení v `CLAUDE.md`, „Médium bez bubliny".
+tvoří skupinu se staženým nárožím. Poučení v `docs/poznatky/konverzace-zobrazeni.md`, „Médium bez bubliny".
 
 Co z toho zůstalo:
 
@@ -89,7 +89,7 @@ Co z toho zůstalo:
 - **Fotka s citací si bublinu drží** a nejspíš to tak zůstane: citace bez pozadí se ztratí.
   Kdyby se to mělo změnit, potřebuje citace vlastní kontejner nad snímkem, ne průhledné pozadí.
 - ~~**Přeposlaná zpráva se zatím nepozná.**~~ — hotovo: „Přeposláno od …" nad obsahem, i nad
-  holým snímkem, ťuknutí vede ke zdroji (`CLAUDE.md`, „Přeposlaná zpráva"). Zbývá: přeposlání
+  holým snímkem, ťuknutí vede ke zdroji (`docs/poznatky/konverzace-zobrazeni.md`, „Přeposlaná zpráva"). Zbývá: přeposlání
   z importu (`importInfo`), oznámení veřejné služby (`publicServiceAnnouncementType`) a značka
   v náhledu seznamu chatů a v citaci.
 
@@ -97,7 +97,7 @@ Co z toho zůstalo:
 
 Fotka i video v bublině se **zužují, neořezávají**: výška se spočítá z poměru stran, zastropuje
 se, a když se strop uplatní, dopočítá se šířka zpátky (`photoFrame` v `MediaFrame.kt`, testy
-v `MediaFrameTest`). Svislý snímek obrazovky je tím vidět celý. Poučení v `CLAUDE.md`,
+v `MediaFrameTest`). Svislý snímek obrazovky je tím vidět celý. Poučení v `docs/poznatky/konverzace-zobrazeni.md`,
 „Rámeček fotky v bublině".
 
 Co z toho zůstalo:
@@ -105,7 +105,7 @@ Co z toho zůstalo:
 - ~~**Popisek táhne bublinu širší, než je fotka.**~~ Vyřešil to bod 1: popisek má vlastní
   kontejner, takže kolem zúžené fotky žádná prázdná plocha nezbývá. A od té doby, co je snímek
   s popiskem jedna karta, se popisek zalamuje na šířku snímku.
-- **Album zůstává ve čtvercích.** Je to vědomé rozhodnutí (`CLAUDE.md`, „Alba" — mřížka, ne
+- **Album zůstává ve čtvercích.** Je to vědomé rozhodnutí (`docs/poznatky/konverzace-zobrazeni.md`, „Alba" — mřížka, ne
   mozaika podle poměrů stran), takže jeho změna je změna toho rozhodnutí, ne pokračování tohohle
   bodu. Řádek alba s jednou fotkou se ale ořezává pořád.
 - **Náhled odkazu se ořezává dál.** Řeší ho bod 3, který ten obrázek stejně přestěhuje na plochu.
@@ -114,7 +114,7 @@ Co z toho zůstalo:
 
 Náhled s velkým obrázkem je skupina na ploše: text zprávy, snímek a pod ním web s titulkem
 a popisem ve vlastním kontejneru. Šířku určuje obrázek, takže blok nemá roztřepený okraj.
-Poučení v `CLAUDE.md`, „Náhled odkazu jako karta".
+Poučení v `docs/poznatky/konverzace-zobrazeni.md`, „Náhled odkazu jako karta".
 
 Co z toho zůstalo:
 
@@ -137,7 +137,7 @@ Co z toho zůstalo:
 Tah doleva posune celou plochu a vpravo odkryje čas u každé zprávy; po puštění se vrátí. Odpověď
 swipem kvůli tomu jede na vlastním detektoru, který rozhodne jednou za gesto: doprava spotřebuje,
 doleva pustí gesto seznamu. Čas je i v nabídce nad zprávou, prvním řádkem — čtečka obrazovky se
-tahem nikam nedostane. Poučení v `CLAUDE.md`, „Odkrývání časů tahem".
+tahem nikam nedostane. Poučení v `docs/poznatky/konverzace-pohyb.md`, „Odkrývání časů tahem".
 
 Co z toho zůstalo:
 
@@ -150,7 +150,7 @@ Co z toho zůstalo:
 bubliny na straně odesílatele — dolní půlka visí ven, jako v Google Messages. Jeden řádek,
 který se posouvá do strany. Ťuknutí otevře
 **detail „kdo reagoval"** (`ReactionDetailsSheet` nad `getMessageAddedReactions`); přidat a odebrat
-jde jen z nabídky nad zprávou. Poučení v `CLAUDE.md`, „Reakce".
+jde jen z nabídky nad zprávou. Poučení v `docs/poznatky/emoji-samolepky-reakce.md`, „Reakce".
 
 Co z toho zůstalo:
 
@@ -164,7 +164,7 @@ Co z toho zůstalo:
 ### 6. ~~Ťuknutí na vlastní zprávu ukáže odznak přečtení~~ — HOTOVO
 
 Ťuknutí na vlastní zprávu ukáže odznak přečtení i u starší zprávy, druhé ho schová. Automatický
-odznak u nejnovější zprávy zůstává — `readBadgeRows` vrací obojí. Poučení v `CLAUDE.md`,
+odznak u nejnovější zprávy zůstává — `readBadgeRows` vrací obojí. Poučení v `docs/poznatky/konverzace-zobrazeni.md`,
 „Čas a stav doručení".
 
 Co z toho zůstalo:
@@ -178,7 +178,7 @@ Co z toho zůstalo:
 ## A) Odpověď swipem — HOTOVO
 
 Tažení zprávy doprava otevře odpověď; vlevo od bubliny se přitom odkrývá šipka. Poučení je
-v `CLAUDE.md`, sekce „Odpověď swipem". Kód je v `MessageFrame` (`items/MessageFrame.kt`).
+v `docs/poznatky/konverzace-pohyb.md`, sekce „Odpověď swipem". Kód je v `MessageFrame` (`items/MessageFrame.kt`).
 
 Co zůstalo otevřené:
 
@@ -192,7 +192,7 @@ Co zůstalo otevřené:
 Dlouhý stisk otevře pruh rychlých reakcí nad bublinou a nabídku akcí pod ní, zbytek obrazovky
 je pod závojem s dírou na vybrané zprávě. „+" v pruhu rozbalí mřížku se všemi nabídnutými emoji —
 **v témže popupu**, ne v bottom sheetu, aby vybraná zpráva zůstala vidět. Poučení je
-v `CLAUDE.md`, sekce „Nabídka nad zprávou".
+v `docs/poznatky/konverzace-akce.md`, sekce „Nabídka nad zprávou".
 Kód: `MessageMenu.kt`, `MessageMenu`/`PendingDelete` v `ConversationViewModel.kt`,
 `messageActions`/`deleteMessages` v repository, `core/ui/TextClipboard.kt`.
 
@@ -202,17 +202,17 @@ takže zbytek přibude s tím, co bude umět:
 
 - ~~**Přeposlat**~~ — hotovo (výběr cílového chatu `ForwardRoute`, viz bod 3 nahoře).
 - ~~**Upravit popisek média**~~ — hotovo (`editMessageCaption`; popisek jde přidat, změnit
-  i odebrat, viz `CLAUDE.md`, „Úprava zprávy"). ~~Zprávu s ručním formátováním~~ — hotovo
+  i odebrat, viz `docs/poznatky/konverzace-psani.md`, „Úprava zprávy"). ~~Zprávu s ručním formátováním~~ — hotovo
   (pole formátování i odkaz s popiskem nese); dál ne zprávu se zmínkou jménem nebo vlastním emoji.
   Zbývá ověřit popisek ALBA (nabídka míří na zprávu s popiskem) a u hlasovky.
 - ~~**Vybrat víc zpráv**~~ — hotovo: „Vybrat" v nabídce přepne konverzaci do režimu výběru,
-  vybrané jde zkopírovat, přeposlat i smazat naráz (`CLAUDE.md`, „Výběr víc zpráv").
+  vybrané jde zkopírovat, přeposlat i smazat naráz (`docs/poznatky/konverzace-akce.md`, „Výběr víc zpráv").
 - ~~**Informace / odkaz na zprávu**~~ — hotovo: sheet s časem odeslání a úpravy, časem přečtení,
-  seznamem zhlédnutí a odkazem ke zkopírování. Poučení v `CLAUDE.md`, „Informace o zprávě".
+  seznamem zhlédnutí a odkazem ke zkopírování. Poučení v `docs/poznatky/konverzace-akce.md`, „Informace o zprávě".
   Zbývá jen `getMessageStatistics` u příspěvků v kanálech — jiná data a vlastní obrazovka.
 
 ~~**Rozostřený závoj** i pod dalšími plochami~~ — hotovo: pruh pod vstupním polem, pruh
-připnutých zpráv i plovoucí datum jsou mléčné sklo (`Glass.kt`, poučení v `CLAUDE.md`, „Vzhled
+připnutých zpráv i plovoucí datum jsou mléčné sklo (`Glass.kt`, poučení v `docs/poznatky/konverzace-zobrazeni.md`, „Vzhled
 konverzace"). Zbývá:
 
 - ~~**Ověřit vzhled bez rozostření**~~ — ověřeno na emulátoru s Androidem 9 (API 28): pás pod
@@ -228,28 +228,28 @@ konverzace"). Zbývá:
 ## C) Entity v textu (odkazy) — HOTOVO
 
 Odkazy, tučné, kurzíva, podtržení, přeškrtnutí, kód a spoiler se vykreslují a odkaz se dá
-otevřít. Poučení je v `CLAUDE.md`, sekce „Formátování textu (entity)". Kód: `MessageEntity.kt`,
+otevřít. Poučení je v `docs/poznatky/konverzace-zobrazeni.md`, „Vzhled konverzace". Kód: `MessageEntity.kt`,
 `captionBody()` v `MessageContent.kt`, `core/ui/RichText.kt`.
 
 Co z toho zůstalo nedodělané:
 
-- ~~**Zmínky a hashtagy**~~ — hotovo (poučení v `CLAUDE.md`, „Formátování textu"). Příkazy
+- ~~**Zmínky a hashtagy**~~ — hotovo (poučení v `docs/poznatky/konverzace-zobrazeni.md`, „Vzhled konverzace"). Příkazy
   botů taky (viz „Příkaz bota" níž); nemapují se jen cashtagy.
 - ~~**Citace v textu**~~ (`BlockQuote`, `ExpandableBlockQuote`) — hotovo: tónovaný blok kreslený
   za textem z `TextLayoutResult` (`drawQuoteBlocks`), takže rozpad textu na víc `Text`ů nebyl
   potřeba. ~~Sbalení dlouhé `ExpandableBlockQuote`~~ — hotovo, jen u citace přes celý text
   zprávy (`collapsesQuote`); citace uprostřed delší zprávy se nesbaluje, na to by rozpad textu
   potřeba byl.
-- ~~**Náhled odkazu nad textem** (`showAboveText`)~~ — hotovo (`CLAUDE.md`, „Náhled odkazu
+- ~~**Náhled odkazu nad textem** (`showAboveText`)~~ — hotovo (`docs/poznatky/konverzace-zobrazeni.md`, „Náhled odkazu
   jako karta"); značka přeposlání zůstává nahoře i tak.
-- ~~**Vlastní emoji** (`TextEntityTypeCustomEmoji`)~~ — hotovo v textu zprávy (`CLAUDE.md`,
+- ~~**Vlastní emoji** (`TextEntityTypeCustomEmoji`)~~ — hotovo v textu zprávy (`docs/poznatky/emoji-samolepky-reakce.md`,
   „Vlastní emoji v textu“).
 
 ## D) Otevření média — HOTOVO pro fotky, video a dokumenty
 
 Ťuknutí na fotku nebo video je otevře přes celou obrazovku; štípnutí a dvojité ťuknutí přibližují,
 tah dolů zavírá, do stran se listuje fotkami a videi chatu. Dokumenty se stáhnou a předají systému
-(`CLAUDE.md`, „Soubory v chatu"). Poučení je v `CLAUDE.md`, sekce „Prohlížeč médií". Kód: `features/media/`,
+(`docs/poznatky/konverzace-zobrazeni.md`, „Soubory v chatu"). Poučení je v `docs/poznatky/prohlizec-medii.md`, sekce „Prohlížeč médií". Kód: `features/media/`,
 `MediaRoute` v `Routes.kt`, `fullFileId` v `MessageMedia.Photo`.
 
 Co zbývá:
@@ -260,7 +260,7 @@ Co zbývá:
   - **Ověřit na iOS**, že HEIC, WebM a MKV opravdu jdou systému a ostatní do prohlížeče.
     Seznam nepodporovaných formátů (`viewerUnsupportedFormats`) je zatím z dokumentace, ne
     z pokusu.
-  - ~~**Velký náhled v bublině**~~ — hotovo (`CLAUDE.md`, „Velký náhled souboru"). Zbývá:
+  - ~~**Velký náhled v bublině**~~ — hotovo (`docs/poznatky/konverzace-zobrazeni.md`, „Soubory v chatu"). Zbývá:
     obrázek nad 5 MB zůstává u rozmazaného náhledu (originál až na ťuknutí), a **velký obrázek
     bez náhledu od serveru** (u 13 i 22 MB ho server nevyrobil) je dál řádek.
   - **HEIC náhled nemá**, takže je v řádku jen ikona obrázku. Vlastní náhled by znamenal
@@ -280,21 +280,21 @@ Co zbývá:
 - **Samolepky `.webm`** (VP9 s průhledností) jsou pořád jen statický náhled — potřebují
   softwarový dekodér (libvpx), iOS WebM neumí vůbec.
 - ~~**Průběh stahování originálu.**~~ — hotovo (lesk přes zmenšeninu, dokud se ostrá verze
-  stahuje; `CLAUDE.md`, „Soubory a média").
+  stahuje; `docs/poznatky/prohlizec-medii.md`, „Soubory a média").
 
 ## E) Skryté fotky a časovaná média — HOTOVO
 
 Spoiler (`hasSpoiler`) i mizející média (jednorázové zhlédnutí a časovač) se zobrazují
 i odesílají. Mizení se nabízí jen jedné příloze v soukromém chatu, zbývající čas se bere
 od TDLib (`selfDestructIn`) a prohlížeč s mizejícím médiem má na Androidu `FLAG_SECURE`.
-Poučení v `CLAUDE.md`, „Spoilery a mizející média".
+Poučení v `docs/poznatky/prohlizec-medii.md`, „Spoilery a mizející média".
 
 Co zbývá:
 
 - **Odesílací strana je ověřená na emulátoru**, příjmová ne. Ověřeno: nabídka režimů
   v soukromém chatu (a její nepřítomnost v Uložených zprávách i ve skupině), viditelné vypnutí
   mizení u alba se snackbarem, odeslání obou režimů a `FLAG_SECURE` (příznak `SECURE`
-  v `dumpsys window`, ne jen černý snímek). Postup je v `CLAUDE.md`, „Jak to ověřit".
+  v `dumpsys window`, ne jen černý snímek). Postup je v `docs/poznatky/prohlizec-medii.md`, „Jak to ověřit".
 - **Příjem zatím nikdo neviděl a potřebuje druhý uživatelský účet.** Do bota se mizející
   médium poslat DÁ (chat s botem je soukromý chat a server ho přijme), ale bot ho neodešle —
   Bot API mizení nezná, `sendPhoto` nemá `ttl_seconds`. U vlastní odeslané zprávy se odpočet
@@ -310,7 +310,7 @@ Co zbývá:
 
 Seřazeno podle toho, jak moc to bolí.
 
-**Chyby** — opraveno, poučení v `CLAUDE.md` („Hlášení přečtení a indexy" a „Odesílání
+**Chyby** — opraveno, poučení v `docs/poznatky/konverzace-pohyb.md` („Hlášení přečtení a indexy" a „Odesílání
 a scrollování" u duplicitního klíče po potvrzení odeslání).
 
 - ~~**Po přepnutí jazyka aplikace zůstanou servisní zprávy (a další „náš" text) ve starém
@@ -320,21 +320,21 @@ a scrollování" u duplicitního klíče po potvrzení odeslání).
 **Chybějící základ**
 
 - ~~**Práva po druzích obsahu.**~~ — hotovo (`ContentAccess` ve `WriteAccess.kt`: sponka,
-  výběr samolepek, mikrofon i vložení z klávesnice se řídí právy chatu; `CLAUDE.md`, „Práva psát").
-- ~~**Pruh připnutých podle scrollu.**~~ — hotovo (`pinnedForScroll`; `CLAUDE.md`, „Připnuté
+  výběr samolepek, mikrofon i vložení z klávesnice se řídí právy chatu; `docs/poznatky/konverzace-psani.md`, „Práva psát").
+- ~~**Pruh připnutých podle scrollu.**~~ — hotovo (`pinnedForScroll`; `docs/poznatky/konverzace-pohyb.md`, „Připnuté
   zprávy"). Skok z pruhu kotví nahoru, takže procházení jde krok za krokem.
 - ~~**Označení části textu.**~~ — hotovo („Vybrat text" v nabídce otevře sheet s textem;
-  `CLAUDE.md`, „Nabídka nad zprávou").
+  `docs/poznatky/konverzace-akce.md`, „Nabídka nad zprávou").
 
 ---
 
 ## ~~Volby náhledu odkazu při psaní~~ — HOTOVO
 
 Náhled nad polem, volby velikosti a polohy, vypnutí; volba se ukládá s konceptem. Poučení
-v `CLAUDE.md`, „Náhled odkazu při psaní". Co zbývá:
+v `docs/poznatky/konverzace-psani.md`, „Náhled odkazu při psaní". Co zbývá:
 
 - ~~**Který odkaz**, když je jich v textu víc.~~ — hotovo: sekce „Odkaz" v sheetu voleb
-  (`CLAUDE.md`, „Náhled odkazu při psaní").
+  (`docs/poznatky/konverzace-psani.md`, „Náhled odkazu při psaní").
 - ~~**Volba při úpravě zprávy**~~ — hotovo: úprava volbu z původní zprávy přebírá a jde ji
   i měnit (hlavička náhledu a sheet jako při psaní). Zapnout náhled zpět u zprávy poslané
   bez něj při úpravě nejde — stejně jako při psaní ho ✕ vypne do vyprázdnění pole.
@@ -346,12 +346,12 @@ v `CLAUDE.md`, „Náhled odkazu při psaní". Co zbývá:
 
 Tučné, kurzíva, podtržení, přeškrtnutí, odkaz s popiskem, spoiler, kód a citace z lišty s ikonami, která
 vyjede pod polem s označeným textem; formátování jde se zprávou, s konceptem i s úpravou (formátované zprávy se tím dají
-upravovat). Poučení v `CLAUDE.md`, „Formátování při psaní". Zbývá:
+upravovat). Poučení v `docs/poznatky/konverzace-psani.md`, „Formátování při psaní". Zbývá:
 
 - **Ověřit iOS** (jen přeložené) — hlavně jestli lištu pod polem nepřekryje systémová nabídka
   výběru nebo návrhy klávesnice.
-- ~~**Psaní s formátem bez výběru**~~ — hotovo: ikona „Aa" v poli otevře lištu, formát platí pro další psaní (`CLAUDE.md`, „Formátování při psaní").
-- ~~**Sbalitelná citace** z lišty a **jazyk bloku kódu**~~ — hotovo (`CLAUDE.md`, „Formátování při psaní").
+- ~~**Psaní s formátem bez výběru**~~ — hotovo: ikona „Aa" v poli otevře lištu, formát platí pro další psaní (`docs/poznatky/konverzace-psani.md`, „Formátování při psaní").
+- ~~**Sbalitelná citace** z lišty a **jazyk bloku kódu**~~ — hotovo (`docs/poznatky/konverzace-psani.md`, „Formátování při psaní").
 - **`Modifier.contentReceiver`** místo obchvatu přes `InterceptPlatformTextInput` u GIFů
   z klávesnice by chtěl pole nad `TextFieldState`; formátování na to nepotřebovalo čekat
   (vlastní rozsahy nad `TextFieldValue`), takže přechod zůstává samostatný úkol.
@@ -361,7 +361,7 @@ upravovat). Poučení v `CLAUDE.md`, „Formátování při psaní". Zbývá:
 ## ~~Odpověď s citací části zprávy~~ — HOTOVO
 
 Text kopie zprávy v nabídce jde označit a „Odpovědět" se změní na „Citovat"; přijaté citace se
-kreslí s úryvkem (`CLAUDE.md`, „Citace z nabídky"). Zbývá:
+kreslí s úryvkem (`docs/poznatky/konverzace-akce.md`, „Citace z nabídky"). Zbývá:
 
 - **Označení v kopii vysoké zprávy** zmenšené a oříznuté v nabídce (`placeMenuMessage`) ověřené
   není — jde vybírat jen z viditelné části a úchyty na zmenšené vrstvě nikdo neviděl.
@@ -374,10 +374,10 @@ kreslí s úryvkem (`CLAUDE.md`, „Citace z nabídky"). Zbývá:
 ## Tlačítka botů
 
 ~~**Tlačítka pod zprávou**~~ — hotovo: zpětné volání s odpovědí bota, odkaz s potvrzením,
-kopírování textu, uživatel, zašedlé tlačítko a barvy od bota (`CLAUDE.md`, „Tlačítka botů pod
+kopírování textu, uživatel, zašedlé tlačítko a barvy od bota (`docs/poznatky/boti.md`, „Tlačítka botů pod
 zprávou"). Zbývá:
 
-- **Druhy, které Plume zatím jen vysvětlí**: ~~mini aplikace~~ (hotovo, `CLAUDE.md`, „Mini
+- **Druhy, které Plume zatím jen vysvětlí**: ~~mini aplikace~~ (hotovo, `docs/poznatky/boti.md`, „Mini
   aplikace botů"; ~~tlačítko nabídky bota `BotMenuButton`~~ hotovo; ~~hlavní mini aplikace bota
   `getMainWebApp`~~ hotovo (profil bota, `t.me/bot?startapp`); ~~odkazy `t.me/bot/app`~~ hotovo; ~~druhé tlačítko `web_app_setup_secondary_button`~~ hotovo),
   ~~přihlášení na web~~ (hotovo; se skutečnou doménou bota ověřit — chce `/setdomain`
@@ -385,8 +385,8 @@ zprávou"). Zbývá:
   výsledky pod polem, cíl daný odkazem `TargetChatInternalLink` se jen vysvětlí), platba, hra
   a zpětné volání s heslem dvoufázového ověření.
 - ~~**Vlastní klávesnice** a **vynucená odpověď**~~ — hotovo, klávesnice nad polem
-  (`CLAUDE.md`, „Vlastní klávesnice bota"). ~~Tlačítka polohy, ankety, výběru lidí
-  a chatů~~ a ~~mini aplikace~~ — hotovo (`CLAUDE.md`, „Vlastní klávesnice bota"). Zbývá zakládání botů (`RequestManagedBot`); ověřit
+  (`docs/poznatky/boti.md`, „Vlastní klávesnice bota"). ~~Tlačítka polohy, ankety, výběru lidí
+  a chatů~~ a ~~mini aplikace~~ — hotovo (`docs/poznatky/boti.md`, „Vlastní klávesnice bota"). Zbývá zakládání botů (`RequestManagedBot`); ověřit
   odeslání čísla. ~~Jednorázová klávesnice se po znovuotevření chatu ukáže rozbalená~~ —
   hotovo, použití si pamatuje aplikace.
 - ~~**Vlastní emoji v popisku tlačítka** (`iconCustomEmojiId`)~~ — hotovo.
@@ -398,7 +398,7 @@ Hotové: záložky Nedávné, Oblíbené, Trendy a sady se swipem; hledání sam
 sada ze samolepky v chatu; emoji vkládané do textu včetně nedávných. Zbývá:
 
 - ~~**Dvě různé pleti u emoji s více osobami**~~ — hotovo (mřížka 5 × 5 u 13 emoji se dvěma
-  osobami; `CLAUDE.md`, „Výběr emoji"). Rodiny se třemi a víc osobami odstíny v Unicode nemají.
+  osobami; `docs/poznatky/emoji-samolepky-reakce.md`, „Výběr emoji"). Rodiny se třemi a víc osobami odstíny v Unicode nemají.
 - **Emoji novější než Unicode 15.0** — až je budou znát systémová písma podporovaných verzí.
 
 ## Co TDLib umí a Plume zatím ne (audit září 2026)
@@ -412,7 +412,7 @@ snadno na to uživatel narazí.
 **Obsah, který se dnes ukazuje jen jako řádek textu nebo nehybný náhled**
 
 - ~~**Ankety a kvízy**~~ — hotovo (hlasování, výsledky, kvíz s vysvětlením, zrušení hlasu,
-  ukončení, kdo hlasoval; `CLAUDE.md`, „Ankety a kvízy"). Zbývá:
+  ukončení, kdo hlasoval; `docs/poznatky/ankety.md`, „Ankety a kvízy"). Zbývá:
   - ~~**Zakládání anket**~~ — hotovo (sponka → Anketa, i tlačítko bota, jako odpověď, s dobou
     trvání nebo přesným časem konce, popisem, „výsledky až po skončení" a v kanálu omezením na
     členy a země). Ověřené ve skupině i v kanálu (s „jen členové"; že omezení platí, ověřit nejde).
@@ -425,17 +425,17 @@ snadno na to uživatel narazí.
   - ~~**Tváře posledních hlasujících**~~ — hotovo (`recentVoterIds`, až tři přes sebe v zápatí).
     Zbývá ověřit se skutečnými hlasy víc lidí (testovací účet hlasuje jen sám za sebe).
 - ~~**Video kolečka** (`MessageVideoNote`)~~ — hotovo: kulatě bez bubliny, samy potichu ve
-  smyčce, zvuk s průběhem po ťuknutí, zhlédnutí (`CLAUDE.md`, „Video kolečka"). ~~**Nahrávání
+  smyčce, zvuk s průběhem po ťuknutí, zhlédnutí (`docs/poznatky/prohlizec-medii.md`, „Video kolečka"). ~~**Nahrávání
   kolečka**~~ — hotovo (přepnutí ťuknutím, nahrávání podržením s tahem na zrušení a zámek;
-  `CLAUDE.md`, „Nahrávání koleček"). ~~Přepis řeči~~ — hotovo u hlasovky i kolečka
-  (`CLAUDE.md`, „Přepis řeči"); zbývá ho ověřit s účtem, který přepisovat smí (Premium nebo
+  `docs/poznatky/prohlizec-medii.md`, „Nahrávání koleček"). ~~Přepis řeči~~ — hotovo u hlasovky i kolečka
+  (`docs/poznatky/prohlizec-medii.md`, „Přepis řeči"); zbývá ho ověřit s účtem, který přepisovat smí (Premium nebo
   zkušební přepisy), přepis ve skupině s boosty (`group_transcribe_level_min`) a hodnocení
   přepisu (`rateSpeechRecognition`). Dál zbývá ověřit
   zhlédnutí u odesílatele, **nahrávání na iOS ověřit na telefonu** (simulátor kameru nemá),
   **přepnutí kamery během nahrávání na iOS** (chce `AVAssetWriter` místo
-  `AVCaptureMovieFileOutput`) a na Androidu ověřit přepnutí na zadní kameru. ~~Náhled před odesláním~~ — hotovo (■ u zamčeného kolečka; `CLAUDE.md`, „Nahrávání koleček").
+  `AVCaptureMovieFileOutput`) a na Androidu ověřit přepnutí na zadní kameru. ~~Náhled před odesláním~~ — hotovo (■ u zamčeného kolečka; `docs/poznatky/prohlizec-medii.md`, „Nahrávání koleček").
 - ~~**Hudba** (`MessageAudio`)~~ — hotovo: přehrávání v bublině s obalem, interpretem, posunem
-  a rychlostí, navazování další skladby, sdílení a uložení (`CLAUDE.md`, „Hudba"). ~~Hudba
+  a rychlostí, navazování další skladby, sdílení a uložení (`docs/poznatky/zvuk.md`, „Hudba"). ~~Hudba
   v profilu (záložka Hudba)~~ — hotovo. ~~Ovládání z notifikace / zamykací obrazovky, přehrávání
   na pozadí~~ — hotovo (`MusicQueue`, Media3 MediaSession, na iOS Now Playing). Zbývá ověřit
   iOS a zamykací obrazovku na telefonu. Hlasovky se na pozadí nepřehrávají, s odchodem
@@ -445,144 +445,144 @@ snadno na to uživatel narazí.
 - ~~**Poloha, živá poloha a místo**~~ — hotovo: statická mapa od Telegramu, ťuknutí do map
   platformy, u živé polohy do kdy se sdílí, odeslání polohy nebo místa ze sponky.
   ~~Sdílení živé polohy~~ — hotovo na Androidu (služba v popředí, zastavení z notifikace
-  i z bubliny; `CLAUDE.md`, „Sdílení živé polohy"). Zbývá sdílení na iOS (běh na pozadí
-  s `allowsBackgroundLocationUpdates`). ~~Upozornění na blízkost~~ — hotovo (`CLAUDE.md`, „Upozornění na blízkost"). ~~Směr pohybu (`heading`)~~ — hotovo (šipka místo špendlíku).
+  i z bubliny; `docs/poznatky/prohlizec-medii.md`, „Sdílení živé polohy"). Zbývá sdílení na iOS (běh na pozadí
+  s `allowsBackgroundLocationUpdates`). ~~Upozornění na blízkost~~ — hotovo (`docs/poznatky/prohlizec-medii.md`, „Upozornění na blízkost"). ~~Směr pohybu (`heading`)~~ — hotovo (šipka místo špendlíku).
   ~~Dock živé polohy~~ — hotovo: zpráva s živou polohou, která odjede z obrazovky, se přestěhuje
-  do řádku pod pruhy nad konverzací a jde rozbalit na mapu s ovládáním (`CLAUDE.md`, „Dock živé
+  do řádku pod pruhy nad konverzací a jde rozbalit na mapu s ovládáním (`docs/poznatky/prohlizec-medii.md`, „Dock živé
   polohy").
 - ~~**Mini přehrávač v docku**~~ — hotovo pro hudbu, hlasovky i kolečko se zvukem: hrající
   zvuk, jehož zpráva odjede z obrazovky, je řádek pod pruhy s průběhem, pauzou, „další" a ✕;
-  skladba z jiného chatu je v něm pořád, kolečko v něm hraje i obrazem (`CLAUDE.md`, „Mini
-  přehrávač v docku"). ~~**Přehrávač nad seznamem chatů**~~ — hotovo (`CLAUDE.md`, „Přehrávač nad
+  skladba z jiného chatu je v něm pořád, kolečko v něm hraje i obrazem (`docs/poznatky/prohlizec-medii.md`, „Mini
+  přehrávač v docku"). ~~**Přehrávač nad seznamem chatů**~~ — hotovo (`docs/poznatky/prohlizec-medii.md`, „Přehrávač nad
   seznamem chatů").
 - ~~**Kontakt** (`MessageContact`)~~ — hotovo: karta s tváří, jménem a číslem, „Napsat
-  zprávu" (`CLAUDE.md`, „Kontakt"). ~~**Přidat do kontaktů**~~ — hotovo (z karty se „Vrátit"
+  zprávu" (`docs/poznatky/typy-zprav.md`, „Kontakt"). ~~**Přidat do kontaktů**~~ — hotovo (z karty se „Vrátit"
   a v ⋮ profilu přidat i odebrat; s člověkem ověřené jen sondou na testovacím botovi)
   a ~~**sdílet kontakt** ze sponky~~ (hotovo, s potvrzením čísla). ~~Sdílet vlastní
   kontakt~~ — hotovo (karta „Můj kontakt" nad kontakty).
 - ~~**Hovory** (`MessageCall`)~~ — hotovo: řádek se směrem, zmeškáním a délkou
-  (`CLAUDE.md`, „Zpráva o hovoru").
+  (`docs/poznatky/typy-zprav.md`, „Zpráva o hovoru").
 - ~~**Kostka** (`MessageDice`)~~ — hotovo: animace hodu od serveru, automat po vrstvách
-  (`CLAUDE.md`, „Hod kostkou"). Samotné 🎲 (a ostatní emoji
+  (`docs/poznatky/emoji-samolepky-reakce.md`, „Hod kostkou"). Samotné 🎲 (a ostatní emoji
   hodu) z pole odejde jako hod. ~~Efekt výhry~~ — hotovo (konfety na snímku výhry, jen u vlastního hodu).
-- ~~**Placená média** (`MessagePaidMedia`) — rozmazaný náhled s cenou~~ — hotovo (`CLAUDE.md`,
+- ~~**Placená média** (`MessagePaidMedia`) — rozmazaný náhled s cenou~~ — hotovo (`docs/poznatky/typy-zprav.md`,
   „Placená média"), i mřížka víc nezaplacených položek. Zbývá odemknutí za hvězdy (placení
   nemáme) a mřížka víc ZAPLACENÝCH položek (prohlížeč i reakce počítají s jednou fotkou na
   zprávu; bez možnosti zaplatit to nejde ověřit).
-- ~~**Faktury a hry**~~ — hotovo jako karta s obrázkem, popisem a cenou (`CLAUDE.md`, „Faktura
+- ~~**Faktury a hry**~~ — hotovo jako karta s obrázkem, popisem a cenou (`docs/poznatky/typy-zprav.md`, „Faktura
   a hra"). Zbývá animace hry a placení (hvězdy ani platby nemáme).
 - ~~**Soutěže**~~ — hotovo jako karta s výhrou, kanály, podmínkami a výsledky a sheet se stavem
-  účasti (`CLAUDE.md`, „Soutěž"). Ověřené jen sondou.
-- ~~**Dárky**~~ — hotovo jako karta uprostřed konverzace (`CLAUDE.md`, „Dárek"): běžný,
+  účasti (`docs/poznatky/typy-zprav.md`, „Soutěž"). Ověřené jen sondou.
+- ~~**Dárky**~~ — hotovo jako karta uprostřed konverzace (`docs/poznatky/typy-zprav.md`, „Dárek"): běžný,
   sběratelský s pozadím, Premium, dárkový kód s kopírováním, hvězdy a TON. Ověřené jen sondou.
   Zbývá proměnit, vylepšit a předat dárek (hvězdy nemáme) a **pád wrapperu u dárku bez
   `background`** (viz tamtéž).
 - ~~**Sdílený příběh** (`MessageStory`)~~ — hotovo jako snímek se značkou a kartou autora,
-  otevření v prohlížeči (`CLAUDE.md`, „Sdílený příběh"). Ověřené jen sondou. Zbývá živé
+  otevření v prohlížeči (`docs/poznatky/typy-zprav.md`, „Sdílený příběh"). Ověřené jen sondou. Zbývá živé
   vysílání a vše kolem příběhů samotných (kroužky, odpovědi, reakce).
-- ~~**Článek** (`MessageRichMessage`)~~ — hotovo jako text s formátováním (`CLAUDE.md`, „Článek"). ~~Média článku~~ — hotovo (fotka, video a GIF na svém místě, prohlížeč) a ~~useknutý článek~~ (`isFull`, „Číst celý článek"). ~~Koláž a prezentace jako mřížka~~ a ~~fotky a videa článku v záložce Média~~ — hotovo. ~~Zvuk, hlasovka a soubor k přehrání a otevření~~ — hotovo (skladba z článku hraje jako hlasovka, ne na pozadí). Zvuk a soubory článků v záložkách Soubory a Hudba nejsou, protože je tam TDLib nevrací (ověřeno). Zbývá: sbalitelné bloky a posílání článků (jen s Premium).
+- ~~**Článek** (`MessageRichMessage`)~~ — hotovo jako text s formátováním (`docs/poznatky/typy-zprav.md`, „Článek"). ~~Média článku~~ — hotovo (fotka, video a GIF na svém místě, prohlížeč) a ~~useknutý článek~~ (`isFull`, „Číst celý článek"). ~~Koláž a prezentace jako mřížka~~ a ~~fotky a videa článku v záložce Média~~ — hotovo. ~~Zvuk, hlasovka a soubor k přehrání a otevření~~ — hotovo (skladba z článku hraje jako hlasovka, ne na pozadí). Zvuk a soubory článků v záložkách Soubory a Hudba nejsou, protože je tam TDLib nevrací (ověřeno). Zbývá: sbalitelné bloky a posílání článků (jen s Premium).
 
 **Údaje o zprávě, které TDLib posílá a my zahazujeme**
 
 - ~~**Zhlédnutí u příspěvků kanálu**~~ — hotovo: zhlédnutí, přeposlání a počet komentářů pod
-  příspěvkem (`CLAUDE.md`, „Počty pod příspěvkem"). Počet komentářů ověřený v testovacím kanálu
+  příspěvkem (`docs/poznatky/typy-zprav.md`, „Počty pod příspěvkem"). Počet komentářů ověřený v testovacím kanálu
   s diskusí.
 - ~~**Komentáře u příspěvků kanálu**~~ — hotovo: čip „N komentářů" pod příspěvkem otevře
-  vlákno v diskusní skupině (`CLAUDE.md`, „Komentáře"). ~~Odeslání komentáře ověřit~~ —
-  ověřeno v testovacím kanálu (diskusi jde nově připojit v úpravě kanálu, `CLAUDE.md`, „Diskuse ke
+  vlákno v diskusní skupině (`docs/poznatky/typy-zprav.md`, „Komentáře"). ~~Odeslání komentáře ověřit~~ —
+  ověřeno v testovacím kanálu (diskusi jde nově připojit v úpravě kanálu, `docs/poznatky/profil-chatu.md`, „Diskuse ke
   kanálu"; propojený chat je v Informacích profilu na obou stranách), ~~komentovat bez vstupu do skupiny (`joinToSendMessages`)~~ —
   hotovo (pole se ukáže, odeslání ověřené není), ~~tváře
   posledních komentujících (`recentReplierIds`)~~ — hotovo, ~~hledání a koncept ve vlákně
   (`topicId`)~~ — hotovo,
-  ~~skok na první nepřečtený komentář~~ — hotovo (`CLAUDE.md`, „Komentáře").
+  ~~skok na první nepřečtený komentář~~ — hotovo (`docs/poznatky/typy-zprav.md`, „Komentáře").
 - ~~**Odpověď na zprávu z jiného chatu**~~ — hotovo (citace z `origin` a `content`, ťuknutí
-  otevře ten chat; `CLAUDE.md`, „Odpovědi"). **Ověřené jen sondou**, skutečnou odpověď
+  otevře ten chat; `docs/poznatky/konverzace-psani.md`, „Odpovědi (reply)"). **Ověřené jen sondou**, skutečnou odpověď
   z jiného chatu zatím nikdo neviděl. ~~**Odpověď na příběh** (`MessageReplyToStory`)~~ —
-  hotovo, i s odkazem `t.me/…/s/N` (`CLAUDE.md`, „Odpověď na příběh a odkaz na příběh");
+  hotovo, i s odkazem `t.me/…/s/N` (`docs/poznatky/typy-zprav.md`, „Odpověď na příběh a odkaz na příběh");
   ověřené jen sondou. ~~Náhled obrázku v citaci~~ — hotovo (i u odpovědi z jiného chatu).
 - ~~**Citlivý obsah**~~ — hotovo: fotka, video i GIF rozostřené se štítkem „Citlivý obsah",
-  odkrytí ťuknutím (`CLAUDE.md`, „Citlivý obsah"). Zbývá:
+  odkrytí ťuknutím (`docs/poznatky/prohlizec-medii.md`, „Citlivý obsah"). Zbývá:
   - ~~**přepínač „Zobrazovat citlivý obsah"** v Nastavení~~ — hotovo (Obecné → Soukromí);
     samotné přepnutí na účtu ověřené není, jen čtení volby,
   - ~~citlivý **chat** (`Supergroup.restrictionInfo`, `User.restrictionInfo`) — oficiální klient
     varuje už při otevření kanálu~~ — hotovo (varování s „Přesto zobrazit"),
   - ~~náhled odkazu, náhled souboru a samolepka v citlivé zprávě zůstávají ostré~~ — hotovo,
   - ~~**omezený obsah** (`restrictionReason` bez citlivosti): věta od serveru místo obsahu~~ — hotovo
-    (`CLAUDE.md`, „Omezený obsah"). ~~Omezený CHAT~~ (`User` / `Supergroup.restrictionInfo`) — hotovo.
-- ~~**„přes @bot"**~~ (`viaBotUserId`) — hotovo (`CLAUDE.md`, „Inline boti"). ~~**Podpis autora**
-  v kanálu (`authorSignature`) a **štítek člena** (`senderTag`)~~ — hotovo (`CLAUDE.md`, „Podpis
+    (`docs/poznatky/prohlizec-medii.md`, „Omezený obsah"). ~~Omezený CHAT~~ (`User` / `Supergroup.restrictionInfo`) — hotovo.
+- ~~**„přes @bot"**~~ (`viaBotUserId`) — hotovo (`docs/poznatky/boti.md`, „Inline boti"). ~~**Podpis autora**
+  v kanálu (`authorSignature`) a **štítek člena** (`senderTag`)~~ — hotovo (`docs/poznatky/konverzace-zobrazeni.md`, „Podpis
   autora a štítek člena", ověřené jen sondou). ~~**Boosty odesílatele**~~ (`senderBoostCount`)
   — hotovo, blesk s počtem u jména (ověřené jen sondou).
 - ~~**Efekty zprávy**~~ (`effectId` → `getMessageEffect`) — hotovo: značka vedle zprávy,
-  animace po příchodu a ťuknutím (`CLAUDE.md`, „Efekty zprávy"). Zbývá:
+  animace po příchodu a ťuknutím (`docs/poznatky/emoji-samolepky-reakce.md`, „Efekty zprávy"). Zbývá:
   - ~~**poslat zprávu s efektem**~~ — hotovo (podržení odesílacího tlačítka → „Odeslat
     s efektem…"). ~~Náhled animace ve výběru~~ — hotovo (podržením). Zbývá prémiové efekty s Premium,
   - ~~přehrát efekt i u NEPŘEČTENÉ zprávy~~ — hotovo,
   - ověřit u efektu prémiové samolepky (odchozí zpráva ověřená).
-- ~~**Kontrola faktů** (`factCheck`)~~ — hotovo: karta pod příspěvkem (`CLAUDE.md`, „Kontrola faktů"), ověřená jen sondou.
+- ~~**Kontrola faktů** (`factCheck`)~~ — hotovo: karta pod příspěvkem (`docs/poznatky/konverzace-zobrazeni.md`, „Kontrola faktů"), ověřená jen sondou.
 - ~~**Automatické mazání** (`autoDeleteIn`)~~ — hotovo: čas smazání v „Informace", odznak chatu v hlavičce.
 
 **Entity v textu**
 
 - ~~**Vlastní emoji v textu zprávy**~~ a ~~**mimo text**~~ (reakce, emoji status u jména, náhled
-  v seznamu chatů, citace, ikona tlačítka bota) — hotovo (`CLAUDE.md`, „Vlastní emoji v textu“
+  v seznamu chatů, citace, ikona tlačítka bota) — hotovo (`docs/poznatky/emoji-samolepky-reakce.md`, „Vlastní emoji v textu“
   a „Vlastní emoji mimo text“). Zbývá **posílání** (jen s Premium, výběr vlastních emoji a reakcí
   mimo nabídnuté). ~~Vlastní emoji ve výsledcích hledání zpráv~~ — hotovo (`snippetOf`). V notifikaci zůstává náhradní znak záměrně. **Skutečná data od člověka
-  ověřená nejsou** — bot nic z toho poslat nesmí (viz CLAUDE.md).
-- ~~**Příkaz bota** (`BotCommand`)~~ — hotovo: ťuknutí příkaz pošle (`CLAUDE.md`, „Příkazy bota“).
+  ověřená nejsou** — bot nic z toho poslat nesmí (viz docs/poznatky/emoji-samolepky-reakce.md).
+- ~~**Příkaz bota** (`BotCommand`)~~ — hotovo: ťuknutí příkaz pošle (`docs/poznatky/boti.md`, „Příkazy bota“).
 - ~~**Čas v médiu**~~ — hotovo: „1:23" pustí video, hlasovku, skladbu i kolečko od toho místa,
   v téže zprávě i v odpovědi, video v náhledu odkazu otevře web od toho místa
-  (`CLAUDE.md`, „Čas v médiu").
+  (`docs/poznatky/konverzace-zobrazeni.md`, „Čas v médiu").
 - ~~**Datum a čas** (`DateTime`)~~ — hotovo: v místním pásmu a jazyce aplikace, jako inline
-  obsah místo textu pisatele, takže se offsety neposouvají (`CLAUDE.md`, „Datum a čas v textu").
+  obsah místo textu pisatele, takže se offsety neposouvají (`docs/poznatky/konverzace-zobrazeni.md`, „Datum a čas v textu").
   Karta a cashtag jsou okrajové.
 
 **Konverzace jako celek**
 
 - ~~**Témata ve skupinách (fóra)**~~ — hotovo: seznam témat místo konverzace, konverzace tématu,
-  psaní do tématu, „Zobrazit jako zprávy", cesty do tématu z notifikace, odkazu, hledání a zmínky, „píše…" jen z tématu (`CLAUDE.md`, „Témata ve skupinách"). ~~Zakládání,
+  psaní do tématu, „Zobrazit jako zprávy", cesty do tématu z notifikace, odkazu, hledání a zmínky, „píše…" jen z tématu (`docs/poznatky/typy-zprav.md`, „Témata ve skupinách"). ~~Zakládání,
   přejmenování, uzavření, připnutí, ztlumení a smazání tématu, skrytí obecného tématu, hledání
-  témat podle názvu a zapnutí témat ve skupině~~ — hotovo (`CLAUDE.md`, „Správa témat"). Zbývá:
+  témat podle názvu a zapnutí témat ve skupině~~ — hotovo (`docs/poznatky/typy-zprav.md`, „Správa témat"). Zbývá:
   **ikona tématu vlastním emoji** (výběr emoji; jen s Premium), ~~podrobná upozornění tématu~~
-  (hotovo, `CLAUDE.md`, „Správa témat"), ~~pořadí připnutých~~ (hotovo), **téma
+  (hotovo, `docs/poznatky/typy-zprav.md`, „Správa témat"), ~~pořadí připnutých~~ (hotovo), **téma
   v notifikaci na iOS**, ~~psaní do tématu ověřit~~ a ~~dvoupanel na širokém displeji~~ (ověřeno,
-  při tom opravené zaseknuté nepřečtené v tématu; `CLAUDE.md`, „Témata ve skupinách").
+  při tom opravené zaseknuté nepřečtené v tématu; `docs/poznatky/typy-zprav.md`, „Témata ve skupinách").
 - ~~**Nepřečtené zmínky a reakce**~~ — hotovo: tlačítka „@" a „❤" nad tlačítkem dolů, odznaky
-  v seznamu chatů, „Označit vše" podržením (`CLAUDE.md`, „Nepřečtené zmínky, reakce a hlasy v anketě"). Zbývá:
+  v seznamu chatů, „Označit vše" podržením (`docs/poznatky/konverzace-pohyb.md`, „Nepřečtené zmínky, reakce a hlasy v anketě"). Zbývá:
   ~~ověřit skutečnou zmínku ve skupině~~ (ověřeno, při tom opravené přečtení reakce na viditelné
   zprávě) a **skutečný nový hlas v anketě** (tlačítko s anketou je
-  hotové, ověřené jen podstrčeným počtem). ~~Zvýraznění, KDO reagoval~~ — hotovo (`CLAUDE.md`,
+  hotové, ověřené jen podstrčeným počtem). ~~Zvýraznění, KDO reagoval~~ — hotovo (`docs/poznatky/emoji-samolepky-reakce.md`,
   „Reakce"); jména ve skupině ověřená v testovací skupině s botem.
 - ~~**Prázdný chat s botem**~~ — hotovo: profil bota (tvář, jméno, popis), tlačítko Start
-  i parametr ze startovacího odkazu (`CLAUDE.md`, „Spuštění bota"). ~~Klikatelné odkazy
+  i parametr ze startovacího odkazu (`docs/poznatky/boti.md`, „Spuštění bota"). ~~Klikatelné odkazy
   v popisu~~ — hotovo. ~~Startovací odkaz do skupiny (`t.me/bot?startgroup=…`)~~ — hotovo (výběr skupiny, potvrzení i samotné přidání ověřené v testovací skupině). Zbývá ověřit obrázek a GIF od bota.
 - **Napovídání při psaní**: ~~`/` příkazy bota~~ — hotovo i s tlačítkem seznamu příkazů
-  (`CLAUDE.md`, „Příkazy bota“; příponu `@bot` ve skupině ověřená). ~~`@` členové skupiny~~ —
-  hotovo i se zmínkou jménem (`CLAUDE.md`, „Napovídání zmínek"; ve skupině ověřené).
+  (`docs/poznatky/boti.md`, „Příkazy bota“; příponu `@bot` ve skupině ověřená). ~~`@` členové skupiny~~ —
+  hotovo i se zmínkou jménem (`docs/poznatky/konverzace-psani.md`, „Napovídání zmínek"; ve skupině ověřené).
   ~~Tlačítko nabídky bota s mini aplikací (`BotMenuButton`)~~ — hotovo. ~~Emoji podle slov~~ — hotovo
-  (`CLAUDE.md`, „Emoji podle slov"). ~~Inline boti
-  (`@gif kočka` v poli)~~ — hotovo i s „přes @bot" u zprávy (`CLAUDE.md`, „Inline boti");
+  (`docs/poznatky/emoji-samolepky-reakce.md`, „Emoji podle slov"). ~~Inline boti
+  (`@gif kočka` v poli)~~ — hotovo i s „přes @bot" u zprávy (`docs/poznatky/boti.md`, „Inline boti");
   ~~tlačítko „nastavit u bota" a bot s polohou~~ ověřené testovacím botem (ve skupině taky).
 - ~~**Naplánované zprávy a odeslání bez zvuku**~~ — hotovo: podržení odesílacího tlačítka,
-  seznam naplánovaných za hodinami u pole (`CLAUDE.md`, „Naplánované zprávy"). ~~Plánování
+  seznam naplánovaných za hodinami u pole (`docs/poznatky/konverzace-psani.md`, „Naplánované zprávy"). ~~Plánování
   hlasovky a ankety~~ — hotovo. ~~Plánování samolepky~~ — hotovo (tlačítko u podržené
   samolepky i GIFu ve výběru), ~~anketa naplánovaná jako odpověď~~ (hotovo — formulář
   odpověď ohlásí jako spotřebovanou), opakované připomínky
   (`repeatPeriod`, jen s Premium) a ověřit „až bude online" s člověkem.
 - ~~**Ověření, podvod, falešný účet**~~ — hotovo: štítek u jména v seznamu chatů, v hlavičce
-  konverzace a v profilu, u podvodu a falešného s vysvětlením (`CLAUDE.md`, „Ověření a štítek
+  konverzace a v profilu, u podvodu a falešného s vysvětlením (`docs/poznatky/seznam-chatu.md`, „Ověření a štítek
   podvodu"). ~~Značka ověření od bota (`botVerificationIconCustomEmojiId`, vlastní emoji)~~
   — hotovo i s důvodem v profilu (ověřené jen sondou) a ~~štítek u jména odesílatele ve skupině~~
   (hotovo, ověřené jen sondou).
 - ~~**Emoji status** u jména~~ — hotovo. ~~**Časovač automatického mazání chatu**~~ — hotovo
-  (odznak v hlavičce, nastavení v profilu, „Smaže se" v Informace; `CLAUDE.md`, „Automatické
+  (odznak v hlavičce, nastavení v profilu, „Smaže se" v Informace; `docs/poznatky/konverzace-akce.md`, „Automatické
   mazání zpráv"). ~~Výchozí doba pro nové chaty~~ — hotovo (Nastavení → Obecné → Soukromí;
   samotný zápis ověřený není, mění účet). Ve skupině ověřené (vlastník).
 - ~~**Překlad zprávy**~~ (`translateMessageText`) — hotovo, sheet z nabídky nad zprávou
-  (`CLAUDE.md`, „Překlad zprávy"). ~~Volba cílového jazyka~~ — hotovo. Zbývá překlad celého chatu
+  (`docs/poznatky/konverzace-akce.md`, „Překlad zprávy"). ~~Volba cílového jazyka~~ — hotovo. Zbývá překlad celého chatu
   (`UpdateChatIsTranslatable`, Premium). ~~Skrýt „Přeložit" u zprávy, která už je v jazyce
   překladu~~ — hotovo (rozpoznání jazyka v zařízení; na iOS jen přeložené). ~~**Shrnutí od serveru**~~ (`summarizeMessage`)
-  — hotovo, „Shrnout" v nabídce nad zprávou (`CLAUDE.md`, „Shrnutí od serveru"). Samotné shrnutí
+  — hotovo, „Shrnout" v nabídce nad zprávou (`docs/poznatky/konverzace-akce.md`, „Shrnutí od serveru"). Samotné shrnutí
   ověřené NENÍ: testovací účet bez Premium dostane hned `SUMMARY_FLOOD_PREMIUM`.
 - **Lokální záložky v konverzaci (Personal Bookmarks / Starred Messages).** V nabídce zprávy
   „Přidat do záložek" — označení zprávy jen lokálně pro uživatele (na rozdíl od globálního připnutí

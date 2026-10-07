@@ -691,7 +691,7 @@ internal fun VideoPage(
                         /*
                          * Dráha se vlní, dokud video hraje, a po pozastavení i během tahu se
                          * narovná — tentýž význam jako vlnka hrající hlasovky („teď zní", viz
-                         * `CLAUDE.md`, „Video"). Přechod amplitudy animuje indikátor sám.
+                         * `docs/poznatky/prohlizec-medii.md`, „Video"). Přechod amplitudy animuje indikátor sám.
                          */
                         track = { sliderState ->
                             val wavy = playing && seekingFraction == null
