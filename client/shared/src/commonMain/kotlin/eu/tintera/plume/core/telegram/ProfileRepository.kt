@@ -121,7 +121,8 @@ interface ProfileRepository {
     suspend fun member(chatId: Long, userId: Long): Result<MemberDetail>
 
     /**
-     * Ozve se, kdykoli se v chatu změní postavení některého člena.
+     * Ozve se, kdykoli se v chatu změní postavení některého člena, nebo plné údaje skupiny
+     * (počet členů).
      *
      * Seznam se na to ČTE ZNOVU, neodvozuje se z updatu — stejně jako připnuté zprávy: jeden
      * update nese jednoho člena, a co změna doopravdy udělala (a jestli server vůbec poslechl),
@@ -142,12 +143,16 @@ interface ProfileRepository {
     /**
      * Omezit, co člen smí posílat; [duration] `null` = navždy. Jen v supergroupě — jinde TDLib
      * odpoví „Can't restrict users in basic group chats".
+     *
+     * [keepUntil]: běžící omezení si nechává svůj konec (unixový čas), [duration] se pak nebere.
+     * Přepočítat ho jako „teď + zbytek" by konec posunulo o čas strávený na obrazovce.
      */
     suspend fun restrictMember(
         chatId: Long,
         userId: Long,
         permissions: GroupPermissions,
         duration: Duration?,
+        keepUntil: Int? = null,
     ): Result<Unit>
 
     /** Zrušit omezení: člen se vrátí k výchozím právům skupiny. */

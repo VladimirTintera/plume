@@ -92,10 +92,9 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
     „Pozvánky a žádosti o vstup"; sdílení odkazu, odkazy ostatních správců, kdo se přidal
     a pruh s čekajícími žádostmi v konverzaci jsou hotové). U pozvánek zbývá **ověřit
     skutečnou žádost o vstup a „kdo se přidal" se skutečnými lidmi** (chce druhý účet).
-    Uložení úpravy skupiny **není ověřené na zařízení**: mění skutečnou skupinu. Totéž platí
-    pro uložení práv člena, omezení, vyhození, štítek a dokončený převod vlastnictví — ověřené
-    je jen to, co skutečnou skupinu nemění (viz „Správa členů" v `CLAUDE.md`). Převod navíc
-    vyžaduje zapnuté dvoufázové ověření, které testovací účet nemá.
+    ~~Uložení úpravy skupiny, práv člena, omezení, vyhození a štítku~~ — ověřené v testovací
+    skupině s botem. Zbývá **dokončený převod vlastnictví**: bot vlastníkem být nemůže
+    a převod vyžaduje dvoufázové ověření, které testovací účet nemá.
   - ~~**Seznam členů velké skupiny**~~ — hotovo (stránky po 50, hledání, věta u skupiny se
     skrytými členy; `CLAUDE.md`, „Členové velké skupiny"). **Zbývá ověřit ve skupině, kde členy
     vidět jsou** — testovací účet v takové velké není; ověřené je to sondou s malou stránkou.

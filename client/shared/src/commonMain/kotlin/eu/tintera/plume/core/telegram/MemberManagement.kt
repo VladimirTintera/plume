@@ -204,5 +204,17 @@ internal fun untilDate(duration: Duration?, nowEpochSeconds: Long): Int {
     return if (until > Int.MAX_VALUE) FOREVER else until.toInt()
 }
 
+/**
+ * Konec běžícího omezení, které si člověk při úpravě práv NECHÁVÁ. Posílá se přesně původní
+ * konec — jenže když z něj zbývá míň než [MIN_RESTRICTION_SECONDS], vzal by ho TDLib jako
+ * navždy, a z omezení, které za chvíli skončí, by bylo trvalé. Takové se proto posune těsně za
+ * tu mez: skončí skoro hned, jak mělo.
+ */
+internal fun keptUntilDate(end: Int, nowEpochSeconds: Long): Int =
+    maxOf(end.toLong(), nowEpochSeconds + MIN_RESTRICTION_SECONDS + 1).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+
+/** Kratší omezení (nebo vyhození) bere TDLib jako navždy. */
+internal const val MIN_RESTRICTION_SECONDS = 30L
+
 /** Nula znamená „bez konce" v `restrictedUntilDate` i `bannedUntilDate`. */
 internal const val FOREVER = 0

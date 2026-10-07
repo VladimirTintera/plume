@@ -165,4 +165,20 @@ class MemberManagementTest {
         assertTrue(AdminRights(pinMessages = true).any)
         assertTrue(AdminRights.Default.any)
     }
+
+    @Test
+    fun ponechanyKonecOmezeniSePosilaPresne() {
+        val now = 1_800_000_000L
+        // Přesně původní konec, ne „teď + zbytek" — to by konec posunulo o čas na obrazovce.
+        assertEquals((now + 86_000).toInt(), keptUntilDate((now + 86_000).toInt(), now))
+    }
+
+    @Test
+    fun ponechanyKonecTesneDoKonceNeniNavzdy() {
+        val now = 1_800_000_000L
+        // Do konce zbývá 10 s: TDLib by to vzal jako navždy, posune se těsně za mez.
+        val kept = keptUntilDate((now + 10).toInt(), now)
+        assertEquals((now + MIN_RESTRICTION_SECONDS + 1).toInt(), kept)
+        assertTrue(kept != FOREVER)
+    }
 }

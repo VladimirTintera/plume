@@ -153,6 +153,7 @@ class MemberRightsViewModel(
                     userId = userId,
                     permissions = permissions ?: detail.permissions,
                     duration = duration,
+                    keepUntil = detail.restrictedUntil.takeIf { keepsCurrentEnd },
                 )
             }
             saving = false
