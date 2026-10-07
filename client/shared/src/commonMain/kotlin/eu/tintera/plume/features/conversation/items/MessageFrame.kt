@@ -43,6 +43,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
@@ -58,6 +59,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -73,6 +75,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
@@ -90,6 +93,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
@@ -422,33 +426,31 @@ internal fun rememberMessageBodyScope(
      * dělaly špičku.
      */
     val detached = frame.emphasized || rememberVoicePlaying(message, scope)
-    val topInnerAnimated by animateDpAsState(
+    val topInner = animateDpAsState(
         targetValue = if (frame.continuesAbove && !detached) BUBBLE_TIGHT else BUBBLE_CORNER,
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "bubble-corner-top",
     )
-    val bottomInnerAnimated by animateDpAsState(
+    val bottomInner = animateDpAsState(
         targetValue = if (frame.continuesBelow && !detached) BUBBLE_TIGHT else BUBBLE_CORNER,
         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
         label = "bubble-corner-bottom",
     )
-    // Pružina přestřelí; zaoblení pod nulou by `RoundedCornerShape` odmítlo.
-    val topInner = topInnerAnimated.coerceAtLeast(0.dp)
-    val bottomInner = bottomInnerAnimated.coerceAtLeast(0.dp)
-    val shape = if (message.isOutgoing) {
-        RoundedCornerShape(
-            topStart = BUBBLE_CORNER,
-            topEnd = topInner,
-            bottomEnd = bottomInner,
-            bottomStart = BUBBLE_CORNER,
-        )
-    } else {
-        RoundedCornerShape(
-            topStart = topInner,
-            topEnd = BUBBLE_CORNER,
-            bottomEnd = BUBBLE_CORNER,
-            bottomStart = bottomInner,
-        )
+    /*
+     * Průběh animace se čte až při KRESLENÍ (`AnimatedCorner.toPx` běží v `createOutline`), ne
+     * tady. Dokud se hodnota četla v kompozici, přeskládala příchozí zpráva starší bublinu
+     * v každém snímku animace nároží — i s textem, reakcemi a vším pod ní. Tvar je proto jedna
+     * stálá instance a ořez vrstvy, pozadí `Surface` i vlnka zvýraznění si změnu přečtou samy:
+     * Compose hlídá čtení stavu při počítání obrysu ve všech třech.
+     */
+    val shape = remember(message.isOutgoing, topInner, bottomInner) {
+        val top = AnimatedCorner(topInner)
+        val bottom = AnimatedCorner(bottomInner)
+        if (message.isOutgoing) {
+            RoundedCornerShape(topStart = CornerSize(BUBBLE_CORNER), topEnd = top, bottomEnd = bottom, bottomStart = CornerSize(BUBBLE_CORNER))
+        } else {
+            RoundedCornerShape(topStart = top, topEnd = CornerSize(BUBBLE_CORNER), bottomEnd = CornerSize(BUBBLE_CORNER), bottomStart = bottom)
+        }
     }
 
     // Obsah si pro čip reakce místo NEDĚLÁ: bublina má s reakcí i bez ní stejnou velikost
@@ -1671,3 +1673,12 @@ private val SELECTION_MARK_SIZE = 20.dp
 
 /** Odstup kolečka od zprávy i od kraje. */
 private val SELECTION_MARK_PADDING = 6.dp
+
+/**
+ * Nároží bubliny, které čte animovanou hodnotu až při výpočtu obrysu. Pružina přestřelí;
+ * zaoblení pod nulou by `RoundedCornerShape` odmítl.
+ */
+private class AnimatedCorner(private val dp: State<Dp>) : CornerSize {
+    override fun toPx(shapeSize: Size, density: Density): Float =
+        with(density) { dp.value.coerceAtLeast(0.dp).toPx() }
+}

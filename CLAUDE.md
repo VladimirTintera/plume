@@ -4380,8 +4380,10 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   a uložení úpravy kruh; změna se animuje morfem mezi nimi a ikona se vymění zvětšením. Stejně
   M3 Expressive používá tvar u přepínacích tlačítek. Tlačítko se mění samo od sebe (začne se psát,
   pole se vyprázdní) a skoková výměna ikony se dala přehlédnout; tvar se pozná i koutkem oka.
-  Stisk mění jen kruh (na zaoblený čtverec) — mezi obecnými tvary `IconButton` neanimuje. Tvar (`MorphShape`) je nový objekt pro každou hodnotu průběhu — Compose
-  si obrys drží podle instance, takže tvar čtoucí průběh sám by se nepřekreslil.
+  Stisk mění jen kruh (na zaoblený čtverec) — mezi obecnými tvary `IconButton` neanimuje. Tvar (`MorphShape`) je nový objekt pro každou hodnotu průběhu. (Že by
+  se tvar čtoucí průběh sám nepřekreslil, obecně NEPLATÍ — ořez vrstvy, `background` i kreslení
+  čtení stavu v `createOutline` hlídají, viz nároží bubliny v „Recompozice za běhu". U tlačítka
+  to vyzkoušené není.)
 - **Morf má vlastní, pomalejší pružinu** (`morphSpring`, tuhost 70 místo ~380 u
   `defaultSpatialSpec`). S výchozí doběhl na skutečném telefonu za zlomek vteřiny a nebyl vidět —
   na emulátoru v debugu ano, ten je pomalejší, takže **rychlost animací se posuzuje na zařízení**.
@@ -10740,6 +10742,21 @@ Nálezy a opravy (emulátor Plume_Galerie_Fold, debug build, říjen 2026):
 - **Každá aktualizace seznamu chatů přeskládala všechny viditelné řádky.** `ChatSummary` měl
   „runtime" stabilitu, která za běhu vyšla nestabilní, takže se řádky porovnávaly identitou.
   Je v `compose-stability.conf`. Dvě příchozí zprávy: `ChatRow` 40× → 4×.
+- **Příchozí zpráva přeskládala starší bublinu v každém snímku animace nároží** (`animateDpAsState`
+  se četl v kompozici a z hodnoty se stavěl nový `RoundedCornerShape`). Teď je tvar jedna stálá
+  instance s vlastním `CornerSize` (`AnimatedCorner` v `MessageFrame.kt`), který stav čte až
+  v `toPx`, tedy při výpočtu obrysu. Tři zprávy od bota: `MessageFrame` 14× (490 ms) → 6× (72 ms).
+  - **Překreslí se to bez rekompozice, protože Compose čtení stavu při počítání obrysu hlídá**
+    (přečteno ve zdrojích ui 1.12): ořez a `graphicsLayer(shape)` počítají obrys uvnitř
+    pozorovaného `updateLayerParameters`, `background(color, shape)` (a tím `Surface`) ho
+    pozoruje v `getOutline` a překreslí se, a `drawWithContent` čte v kreslení tak jako tak.
+    Vrstva obrysy porovnává hodnotou, takže stálá instance tvaru nevadí.
+  - **Kdo z tvaru bere rohy, musí brát OBJEKT `CornerSize`, ne jeho hodnotu v kompozici**:
+    `albumTileShape` rohy kopíruje, `flightShape` volá `toPx` ve `graphicsLayer` — obojí
+    zůstává líné. Rohy z bubliny přečtené v kompozici by animaci zmrazily.
+  - **Ověřeno 40× zpomalenými animacemi a sérií surových snímků**: profil spodního nároží
+    předchozí bubliny prochází mezi kulatým a staženým plynule (měřením první barevné
+    souřadnice v řádcích nad spodní hranou), ne skokem.
 - **Obecně: argument composable v seznamu, jehož třída nese pole typu sealed interface, se
   porovnává identitou**, i když je data class z `val`. Report kompilátoru ho ukáže bez
   `stable` u parametru (`chat: ChatSummary` místo `stable chat: ChatSummary`).
