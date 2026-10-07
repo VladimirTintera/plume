@@ -10705,6 +10705,33 @@ a spočítá instance tříd. Postup: dump, N cyklů scénáře (otevřít a zav
 - **Jednorázové keše nejsou únik**: `MediaCodecInfo` (seznam kodeků po prvním videu nebo
   kolečku) a stovky `BaseLocale` (ExoPlayer si poprvé staví mapu jazyků ISO).
 
+### Delší běh (native heap)
+
+Heap dump ukáže jen Java haldu; nativní (TDLib, kodeky, Chromium) se sleduje číslem.
+`client/tools/heap/mem_sample.sh <štítek>` vynutí GC a vypíše jeden řádek: `alloc` (Heap
+Alloc nativní haldy), `rss`, Java heap a PSS procesu. Scénář se pouští dokola a vzorek se bere
+po každých pěti průchodech; rozhoduje trend `alloc`, ne jedno číslo.
+
+- **Dívá se na `alloc`, ne na PSS ani RSS.** Ty kolísají podle toho, co systém zrovna odložil
+  do zramu: proces s týmž `alloc` měl jednou PSS 27 MB a 26 MB `SwapPss`, jindy naopak.
+- **Náběh trvá pár průchodů**, pak čísla kolísají o ±5 MB bez trendu. Porovnává se proto až
+  stav po zahřátí, jako u počítání instancí.
+- **`input swipe` přes otevřenou klávesnici PÍŠE.** Gboard bere tah po klávesnici jako psaní
+  tahem, takže se v chatu s botem za čtyřicet průchodů napsalo „Balbau j h qk h heiqj h…"
+  a uložilo jako koncept. Před tahy se kontroluje `dumpsys input_method | grep mInputShown`
+  a klávesnice se schová; tahy se vedou nad ní.
+- **Mini aplikace se ve smyčce zavírá gestem zpět, ne ťuknutím na ✕.** Za půl hodiny přijde
+  heads-up notifikace od skutečného kontaktu a leží přesně přes hlavičku; ťuknutí podle
+  souřadnic (i z dumpu těsně před ním) by otevřelo cizí chat. Ze stejného důvodu tahy
+  nezačínají v horní třetině obrazovky — tah dolů po heads-upu rozbalí lištu notifikací.
+- **ANR během dlouhého scrollu na emulátoru nebyl náš.** Po ~25 minutách souvislého scrollu
+  přišel jeden „Input dispatching timed out" a dialog se pak vracel i po „Wait", zatímco hlavní
+  vlákno Plume spalo. Zadrhával i `system_server` a SystemUI a `IComposerClient.executeCommands`
+  trval 2 s, tedy grafika emulátoru. Stack hlavního vlákna mířil do
+  `GlobalSnapshot … globalWriteObservers`, a únik observerů to NENÍ: heap dump jich ukázal
+  jeden (`GlobalSnapshotManager`) a 24 apply observerů (20 `snapshotFlow`), jak má být.
+  Kontrola se dělá rozborem statických polí `SnapshotKt` v dumpu, ne odhadem ze stacku.
+
 ### Recompozice za běhu (composition tracing)
 
 Debug build má `runtime-tracing` a přibalenou knihovnu Perfetto SDK (`tracing-perfetto-binary`),
@@ -10827,8 +10854,13 @@ chatech: Uložené zprávy (prohlížeč, sheet výběru, nabídka sponky, nabí
 Notifikátor (kolečka, profil se všemi záložkami), Nastavení (všech pět sekcí), mini aplikace
 (ukázka `cafe`). **Únik nenalezen** v žádném scénáři. Java heap se drží na 23–30 MB a mezi
 koly se nemění, přehrávače (`ExoPlayerImpl`) po odchodu z chatu mizí a LeakCanary nic
-nezadržel. Native heap během session rostl z ~80 na ~130 MB (TDLib, kodeky, WebView);
-jestli se ustálí, ověřené není.
+nezadržel.
+
+**Native heap se ustálí, neroste** (delší běh, `mem_sample.sh` níž). Čerstvý proces má
+alokováno ~45 MB; po prvních pěti průchodech chatem s botem (kolečka, GIFy, samolepky, scroll
+do historie a zpět) ~80 MB a pak 79–90 MB až do čtyřicátého průchodu, bez trendu. Třicet
+otevření a zavření mini aplikace (`cafe`) přidalo 0,3 MB (69,6 → 69,9) a po zavření je
+`WebViews: 0`. Dřívější „80 → 130 MB" byl tedy náběh kešů (TDLib, kodeky, Chromium), ne únik.
 
 **Při rozložení a složení displeje aplikace padala.** Příčina byla `consumeWindowInsets(PaddingValues)`
 s hodnotou, která se mění se změnou scény, viz „Gotchas". Na Foldu to byl pád
