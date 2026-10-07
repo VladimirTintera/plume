@@ -388,6 +388,15 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
 - **Offline překlad přes ML Kit Translation** jako volba vedle serverového: obsah zprávy
   neodchází z telefonu. Modely jazyků se stahují (desítky MB na jazyk), takže stejná otázka
   správy stažených souborů jako u Gemmy.
+- **Lokální přepis řeči v zařízení (Speech-to-Text bez Premium).** TDLib přepis (`transcribeSpeech`)
+  vyžaduje Telegram Premium. Jako bezplatná alternativa přímo v zařízení: na Androidu offline
+  rozpoznávání přes `SpeechRecognizer` (balíčky češtiny a angličtiny) nebo kompaktní Whisper
+  (TFLite / Sherpa-ONNX), na iOS `SFSpeechRecognizer` s `requiresOnDeviceRecognition = true`.
+  Zpracování proběhne v zařízení a výsledek se uloží do lokální cache zprávy.
+- **Extrakce textu z fotek (OCR / Live Text).** V celoobrazovkovém prohlížeči médií (`MediaScreen`)
+  tlačítko pro rozpoznání textu z obrázku (snímky obrazovky, účtenky, hesla, kód z tabule).
+  Android: Google ML Kit Text Recognition; iOS: Apple Vision (`VNRecognizeTextRequest`). Umožní
+  označit bloky textu přímo na snímku nebo jedním ťuknutím zkopírovat veškerý text do schránky.
 
 ---
 
@@ -470,6 +479,10 @@ Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku, p�
   z palety, kterou aplikace dostane (`ThemeColorPicker`, `AppSettings.themeColor`).
 - ~~**Nápovědy u gest napoprvé**~~ — hotovo: `RichTooltip` se šipkou u odkrývání časů,
   podržení pro volby odeslání a podržení pro nahrávání, každá jednou (`GestureHints`).
+- **Jemné ambientní podbarvení konverzace (Color Harmony).** Místo serverových obrázkových
+  tapet Telegramu (`Chat.background`), které aplikace vědomě odmítá, decentní ambientní nádech
+  pozadí (`surfaceContainerLow`) nebo záhlaví odvozený z barvy profilové fotky protějšku či skupiny.
+  Zvýší podvědomé odlišení konverzací při zachování čistých Material 3 pravidel.
 
 ## Vychytávky
 
@@ -486,6 +499,16 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
   rovnou nad vstupní pole (`dragAndDropTarget`), stejnou cestou jako příloha ze schránky.
 - **Přehled rozepsaných konceptů** napříč chaty (chaty s `draftMessage`), třeba jako položka
   menu účtu nebo složka.
+- **Lokální odložení chatu (Snooze).** Možnost odložit chat (z nabídky nad chatem nebo volbou
+  tahu) na 1 hodinu, dnes večer nebo zítra ráno. Chat se dočasně vizuálně ztiší a v nastavený
+  čas se znovu vynoří na vrcholu seznamu chatů jako připomínka.
+- **Čistič odkazů od sledování (Privacy URL Stripper).** Automatické nebo volitelné odstraňování
+  sledovacích parametrů (`utm_*`, `fbclid`, `igshid`, `si=` u YouTube apod.) při vkládání do pole,
+  sdílení a otevírání odkazů. V náhledu odkazu indikátor, že byl odkaz očištěn.
+- **Rychlý přepínač mezi aktivními chaty (Quick Switcher v konverzaci).** Při rozepsané
+  konverzaci gesto tažení (swipe) po spodním panelu/vstupním poli doleva/doprava, případně krátké
+  stažení (pull-down) horní lišty s avatary posledních aktivních chatů pro bleskový skok bez
+  nutnosti vracet se do hlavního seznamu.
 
 ---
 
@@ -541,6 +564,10 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
   (per-app locale; dnes jen přes systém).
 - **Tiché hodiny** (Android): v nastaveném čase jen zmínky a odpovědi. Notifikace kreslí
   aplikace sama, takže to jde bez serveru — ale jen lokálně, ostatní zařízení o tom nevědí.
+- **Diskrétní čtení a psaní (Ghost Mode).** V Nastavení → Soukromí volba pro potlačení
+  automatického odesílání potvrzení o přečtení (`viewMessages`) a indikátoru „Píše..."
+  (`sendChatAction`). Zprávy se označí jako přečtené až při odeslání vlastní odpovědi v chatu
+  nebo po ručním ťuknutí na plovoucí čip „Označit jako přečtené".
 
 ## Aktualizace z obchodu
 
