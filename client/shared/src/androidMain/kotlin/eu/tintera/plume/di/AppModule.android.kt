@@ -23,7 +23,9 @@ import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.connectivity.NetworkMonitor
 import eu.tintera.plume.core.notifications.NotificationPermission
 import eu.tintera.plume.core.secrets.DatabaseKeyStore
-import eu.tintera.plume.core.secrets.KeystoreDatabaseKeyStore
+import eu.tintera.plume.core.secrets.AppLockStore
+import eu.tintera.plume.core.secrets.KeystoreSecretStore
+import eu.tintera.plume.core.secrets.SecretStore
 import eu.tintera.plume.core.settings.SETTINGS_FILE_NAME
 import eu.tintera.plume.core.settings.createSettingsDataStore
 import eu.tintera.plume.core.telegram.NotificationPresenter
@@ -48,7 +50,16 @@ actual fun Module.platformModule() {
     // který ukazuje Nastavení, musí být TÝŽ, do kterého úloha zapisuje.
     single { LiteRtOnDeviceAi(androidContext(), get()) }
     single { TelegramPaths(androidContext()) }
-    single<DatabaseKeyStore> { KeystoreDatabaseKeyStore(androidContext()) }
+    single<DatabaseKeyStore> {
+        object : DatabaseKeyStore, SecretStore by KeystoreSecretStore(
+            androidContext(), fileName = "tdlib-key", keyAlias = "plume_tdlib_database", logTag = "DatabaseKey",
+        ) {}
+    }
+    single<AppLockStore> {
+        object : AppLockStore, SecretStore by KeystoreSecretStore(
+            androidContext(), fileName = "app-lock", keyAlias = "plume_app_lock", logTag = "AppLock",
+        ) {}
+    }
     single { NotificationPermission(androidContext()) }
     single { UrlOpener(androidContext()) }
     single { FileOpener(androidContext()) }

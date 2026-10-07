@@ -58,17 +58,21 @@ import platform.posix.memcpy
  * `kSecAttrAccessGroup` by jen rozšířil plochu bez užitku.
  */
 @OptIn(ExperimentalForeignApi::class)
-class KeychainDatabaseKeyStore : DatabaseKeyStore {
+class KeychainSecretStore(service: String, account: String, logTag: String) : SecretStore {
 
-    private val logger = Logger.withTag("DatabaseKey")
+    private val logger = Logger.withTag(logTag)
+
+    /** Bridgované jednou na život úložiště (singleton v Koinu), takže se neuvolňují. */
+    private val serviceRef: CFTypeRef? = CFBridgingRetain(service)
+    private val accountRef: CFTypeRef? = CFBridgingRetain(account)
 
     /** Bajty z generátoru systému, ne z `kotlin.random.Random` — ten kryptograficky bezpečný není. */
     override fun generate(): ByteArray {
-        val bytes = ByteArray(DATABASE_KEY_SIZE)
+        val bytes = ByteArray(SECRET_SIZE)
         val status = bytes.usePinned { pinned ->
-            SecRandomCopyBytes(kSecRandomDefault, DATABASE_KEY_SIZE.convert(), pinned.addressOf(0))
+            SecRandomCopyBytes(kSecRandomDefault, SECRET_SIZE.convert(), pinned.addressOf(0))
         }
-        check(status == errSecSuccess.toInt()) { "Náhodná data pro klíč k databázi se nepodařilo získat ($status)." }
+        check(status == errSecSuccess.toInt()) { "Náhodná data pro klíč se nepodařilo získat ($status)." }
         return bytes
     }
 
@@ -83,7 +87,7 @@ class KeychainDatabaseKeyStore : DatabaseKeyStore {
 
         if (status == errSecItemNotFound.toInt()) return@memScoped null
         if (status != errSecSuccess.toInt()) {
-            logger.e { "Klíč k databázi se nepodařilo přečíst z Keychainu ($status)." }
+            logger.e { "Klíč se nepodařilo přečíst z Keychainu ($status)." }
             return@memScoped null
         }
         (CFBridgingRelease(found.value) as? NSData)?.toByteArray()
@@ -102,7 +106,7 @@ class KeychainDatabaseKeyStore : DatabaseKeyStore {
         CFRelease(query)
         data?.let { CFRelease(it) }
 
-        check(status == errSecSuccess.toInt()) { "Klíč k databázi se nepodařilo uložit do Keychainu ($status)." }
+        check(status == errSecSuccess.toInt()) { "Klíč se nepodařilo uložit do Keychainu ($status)." }
     }
 
     override suspend fun clear() {
@@ -110,7 +114,7 @@ class KeychainDatabaseKeyStore : DatabaseKeyStore {
         val status = SecItemDelete(query)
         CFRelease(query)
         if (status != errSecSuccess.toInt() && status != errSecItemNotFound.toInt()) {
-            logger.w { "Klíč k databázi se nepodařilo z Keychainu smazat ($status)." }
+            logger.w { "Klíč se nepodařilo z Keychainu smazat ($status)." }
         }
     }
 
@@ -128,14 +132,6 @@ class KeychainDatabaseKeyStore : DatabaseKeyStore {
         return query!!
     }
 
-    private companion object {
-        const val SERVICE = "eu.tintera.plume.tdlib"
-        const val ACCOUNT = "database-key"
-
-        /** Bridgované jednou na život procesu — konstanty, které se neuvolňují. */
-        val serviceRef: CFTypeRef? = CFBridgingRetain(SERVICE)
-        val accountRef: CFTypeRef? = CFBridgingRetain(ACCOUNT)
-    }
 }
 
 @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)

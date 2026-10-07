@@ -548,7 +548,10 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
 - **Zámek aplikace** PINem nebo biometrií, zamčení po N minutách v pozadí a skrytý obsah
   v přehledu úloh (`FLAG_SECURE` jen se zapnutým zámkem). **Zamyká se jen UI** — klíč k databázi
   ověření vyžadovat nesmí, jinak nechodí push (`docs/poznatky/databaze-spojeni-proxy.md`, „Šifrovaná databáze TDLib").
-  Rozmyslet obsah notifikací při zamčené aplikaci (skrýt text?) a sdílení do zamčené aplikace.
+  Rozhodnuto: notifikace se nemění (obsah řídí volba náhledu), sdílení do zamčené aplikace
+  počká na odemčení. **Rozpracované ve větvi `feat/zamek-aplikace`:** jádro hotové
+  (`docs/poznatky/zamek-aplikace.md`), chybí obrazovka zámku s klávesnicí PINu, biometrie
+  (Android `BiometricPrompt`, iOS `LAContext`), skrytí v přehledu úloh a obrazovka v Nastavení.
 - **Automatické stahování médií** podle sítě (Wi-Fi / mobilní / roaming), druhu (fotky, videa,
   soubory) a velikosti, s ohledem na systémovou úsporu dat. Dnes je jediný strop 5 MB u GIFů
   a koleček (`autoPlays`). TDLib má vlastní přednastavení (`getAutoDownloadSettingsPresets`).

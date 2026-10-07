@@ -19,25 +19,10 @@ package eu.tintera.plume.core.secrets
  * Chrání to proti vytažení disku, záloze, `adb backup` a forenznímu čtení souborů — ne proti
  * rootnutému zařízení s běžící aplikací. Stejný kompromis dělá i oficiální klient.
  */
-interface DatabaseKeyStore {
-
-    /**
-     * Nový náhodný klíč z kryptografického generátoru platformy. **Neukládá ho** — o tom, kdy je
-     * na uložení správná chvíle, rozhoduje volající (viz `unlockDatabase`).
-     */
-    fun generate(): ByteArray
-
-    /** Uložený klíč, nebo `null`, když žádný není (první spuštění, instalace z verze bez šifrování). */
-    suspend fun load(): ByteArray?
-
-    suspend fun store(key: ByteArray)
-
-    /** Zahodí uložený klíč. Po tomhle je databáze zašifrovaná jím nenávratně nečitelná. */
-    suspend fun clear()
-}
+interface DatabaseKeyStore : SecretStore
 
 /**
  * Délka klíče v bajtech. TDLib bere libovolně dlouhý, 256 bitů je obvyklá volba a odpovídá
  * velikosti klíče, kterým se na Androidu obaluje.
  */
-const val DATABASE_KEY_SIZE: Int = 32
+const val DATABASE_KEY_SIZE: Int = SECRET_SIZE
