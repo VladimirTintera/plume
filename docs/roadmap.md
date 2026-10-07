@@ -442,8 +442,8 @@ Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku, p�
 - ~~**Vlnitý posuvník videa, dokud hraje**~~ — hotovo (VladimirTintera/telegram#497).
 - ~~**Tvarová odezva na prahu tahu**~~ — hotovo: archivace i odpověď tahem, kolečko za prahem
   naroste do sušenky a vyplní se (`SwipeThresholdBadge`).
-- **Reakce s výbuchem**: za emoji se na okamžik otevře `SoftBurst` (živý signál) a čip pružně
-  povyskočí. Ne konfety — ty patří výhře v kostce.
+- ~~**Reakce s výbuchem**~~ — hotovo: za emoji přidané reakce se otevře `SoftBurst` a čip
+  povyskočí (`ReactionChip`).
 - **Expressive `LoadingIndicator` místo kolečka** tam, kde kolečko zbylo (dotahování historie,
   první načtení seznamu).
 

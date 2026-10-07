@@ -1,6 +1,16 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.animation.AnimatedVisibility
+import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.material3.toShape
+import androidx.compose.material3.MaterialShapes
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -100,6 +110,12 @@ fun ReactionRow(
 ) {
     val highlight = rememberReactionHighlight(newReactions)
     /*
+     * Které reakce tu byly při složení ZPRÁVY — podle toho čip pozná, že vlastní reakce přibyla
+     * před očima (výbuch). Musí to být tady, ne v `ReactionChips`: ty se skládají až s první
+     * reakcí, takže by ji měly za „byla tu odjakživa".
+     */
+    val composedWith = remember { reactions.map { it.emoji }.toSet() }
+    /*
      * Čipy NABĚHNOU a odejdou zvětšením. Při odebrání poslední reakce se musí dál kreslit ta
      * poslední, jinak by `AnimatedVisibility` dobíhala s prázdným řádkem (stejná past jako
      * u odznaku doručení).
@@ -119,7 +135,12 @@ fun ReactionRow(
             exit = scaleOut(spatial, targetScale = 0.4f) + fadeOut(effects),
             label = "reaction-row",
         ) {
-            ReactionChips(shown, onOpenDetails, highlighted = highlight.map { it.key }.toSet())
+            ReactionChips(
+                shown,
+                onOpenDetails,
+                highlighted = highlight.map { it.key }.toSet(),
+                composedWith = composedWith,
+            )
         }
         ReactorsLabel(
             senders = if (namesReactors) highlight.mapNotNull { it.sender }.distinctBy { it.id } else emptyList(),
@@ -215,6 +236,8 @@ private fun ReactionChips(
     reactions: List<MessageReaction>,
     onOpenDetails: (() -> Unit)?,
     highlighted: Set<String> = emptySet(),
+    /** Reakce, které zpráva měla při složení (viz [ReactionRow]). */
+    composedWith: Set<String> = emptySet(),
 ) {
     /*
      * Nový čip v už viditelném řádku naskočí sám; čipy, které tu byly při prvním složení
@@ -240,7 +263,12 @@ private fun ReactionChips(
                 val spec = spring<Float>(dampingRatio = CHIP_POP_DAMPING, stiffness = Spring.StiffnessMedium)
                 LaunchedEffect(Unit) { appear.animateTo(1f, spec) }
                 Box(Modifier.graphicsLayer { scaleX = appear.value; scaleY = appear.value }) {
-                    ReactionChip(reaction = reaction, onClick = onOpenDetails, highlighted = reaction.emoji in highlighted)
+                    ReactionChip(
+                        reaction = reaction,
+                        onClick = onOpenDetails,
+                        highlighted = reaction.emoji in highlighted,
+                        fresh = reaction.emoji !in composedWith,
+                    )
                 }
             }
         }
@@ -269,6 +297,8 @@ private fun ReactionChip(
     onClick: (() -> Unit)?,
     /** Nepřečtená reakce: čip dvakrát výrazněji povyskočí, jakmile ji uživatel uvidí. */
     highlighted: Boolean = false,
+    /** Reakce u zprávy při jejím složení nebyla — přibyla před očima. */
+    fresh: Boolean = false,
 ) {
     val chosen = reaction.isChosen
 
@@ -327,6 +357,31 @@ private fun ReactionChip(
         }
     }
 
+    /*
+     * Vlastní reakce přidaná PŘED OČIMA: za emoji se na okamžik otevře SoftBurst (živý signál,
+     * `ShapeMorphs`) a čip povyskočí. Ne konfety — ty patří výhře v kostce.
+     *
+     * Jen přechod do „moje": čip, který byl vlastní už při prvním složení (zpráva najela při
+     * scrollu, návrat do chatu), nevybuchuje — jinak by se to dělo při každém průletu historií.
+     * Nový čip s vlastní reakcí (přidaná nová emoji) vybuchne taky, proto `fresh`.
+     */
+    val burst = remember { Animatable(0f) }
+    var wasChosen by remember { mutableStateOf(chosen && !fresh) }
+    LaunchedEffect(chosen) {
+        val now = chosen
+        if (now && !wasChosen) {
+            wasChosen = true
+            burst.snapTo(0f)
+            launch { burst.animateTo(1f, tween(BURST_MS, easing = FastOutSlowInEasing)) }
+            pulse.animateTo(NEW_REACTION_PULSE_SCALE, pulseSpec)
+            pulse.animateTo(1f, pulseSpec)
+        } else {
+            wasChosen = now
+        }
+    }
+    val burstColor = MaterialTheme.colorScheme.primary
+    val burstShape = MaterialShapes.SoftBurst.toShape()
+
     Box(Modifier.graphicsLayer { scaleX = scale * pulse.value; scaleY = scale * pulse.value }) {
         Surface(
             shape = CircleShape,
@@ -351,7 +406,22 @@ private fun ReactionChip(
                     // Kroužek vlastní reakce UVNITŘ lemu v barvě pozadí: na odchozí `primary`
                     // bublině by jinak splynul s ní, takhle ho od ní lem odděluje.
                     .padding(REACTION_RING)
-                    .border(REACTION_SELECTED_RING, selection, CircleShape),
+                    .border(REACTION_SELECTED_RING, selection, CircleShape)
+                    // Za kroužkem i za emoji; průběh se čte až při kreslení, nic se nerekomponuje.
+                    // Uvnitř kolečka, ne přes něj: řádek reakcí se posouvá a ořezává na svoje
+                    // hranice, takže výbuch přesahující čip by se uřízl.
+                    .drawBehind {
+                        val p = burst.value
+                        if (p <= 0f || p >= 1f) return@drawBehind
+                        val grown = BURST_START_SCALE + (1f - BURST_START_SCALE) * (p / BURST_GROW_PART).coerceAtMost(1f)
+                        val alpha = BURST_ALPHA * (1f - ((p - BURST_GROW_PART) / (1f - BURST_GROW_PART)).coerceIn(0f, 1f))
+                        withTransform({
+                            rotate(BURST_TURN_DEGREES * p)
+                            scale(grown, grown)
+                        }) {
+                            drawOutline(burstShape.createOutline(size, layoutDirection, this), burstColor.copy(alpha = alpha))
+                        }
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 // Emoji záměrně mimo typografickou škálu: role jako `labelLarge` míří na výšku
@@ -398,6 +468,16 @@ private const val REACTOR_HIGHLIGHT_MS = 4_000L
 
 /** Povyskočení čipu nepřečtené reakce — výraznější než při změně počtu. */
 private const val NEW_REACTION_PULSE_SCALE = 1.3f
+
+/**
+ * Výbuch za vlastní reakcí: SoftBurst se z třetiny rozevře do celého kolečka (první třetina
+ * průběhu), pootočí se a vybledne. Krátký — je to odezva na ťuknutí, ne oslava.
+ */
+private const val BURST_MS = 600
+private const val BURST_START_SCALE = 0.3f
+private const val BURST_GROW_PART = 0.35f
+private const val BURST_ALPHA = 0.5f
+private const val BURST_TURN_DEGREES = 45f
 
 private const val REACTOR_NAMES_SHOWN = 2
 private const val REACTOR_FACES_SHOWN = 3
