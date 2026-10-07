@@ -52,6 +52,9 @@ import eu.tintera.plume.core.ui.durationText
 import eu.tintera.plume.features.profile.AutoDeleteSheet
 import eu.tintera.plume.resources.add_24dp
 import eu.tintera.plume.resources.block_24dp
+import eu.tintera.plume.resources.settings_account_privacy
+import eu.tintera.plume.resources.settings_account_privacy_summary
+import eu.tintera.plume.resources.shield_person_24dp
 import eu.tintera.plume.resources.chats_search_section_chats
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.new_chat_contacts
@@ -93,8 +96,10 @@ internal fun PrivacySettings(
     sensitive: SensitiveContentViewModel,
     autoDelete: DefaultAutoDeleteViewModel,
     onOpenBlocked: () -> Unit,
+    onOpenAccountPrivacy: () -> Unit,
 ) {
     SettingsGroup(Res.string.settings_privacy) {
+        AccountPrivacyRow(onOpenAccountPrivacy)
         BlockedRow(blocked, onOpenBlocked)
         DefaultAutoDeleteRow(autoDelete)
         SensitiveContentRow(sensitive)
@@ -143,6 +148,18 @@ private fun DefaultAutoDeleteRow(viewModel: DefaultAutoDeleteViewModel) {
  * Počet se čte znovu při každém návratu na obrazovku — po odblokování v seznamu by jinak
  * zůstal starý.
  */
+/** „Soukromí účtu": kdo vidí číslo, fotku a kdy byl uživatel naposledy online, kdo smí volat. */
+@Composable
+private fun AccountPrivacyRow(onOpen: () -> Unit) {
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        leadingContent = { Icon(painterResource(Res.drawable.shield_person_24dp), contentDescription = null) },
+        headlineContent = { Text(stringResource(Res.string.settings_account_privacy)) },
+        supportingContent = { Text(stringResource(Res.string.settings_account_privacy_summary)) },
+        modifier = Modifier.clickable(onClick = onOpen),
+    )
+}
+
 @Composable
 private fun BlockedRow(viewModel: BlockedSendersViewModel, onOpen: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()

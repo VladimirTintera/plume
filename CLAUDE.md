@@ -1486,6 +1486,48 @@ se z telefonu nedalo chodit zpět bez `BackHandler`, který v téhle aplikaci za
   název stojí hned vedle. „Co je nového" má megafon, ne raketu: raketou se uvnitř sekce značí
   novinka u jedné poznámky.
 
+### Soukromí účtu
+
+Obecné → Soukromí → Soukromí účtu (`AccountPrivacyRoute`, `AccountPrivacyScreen`): seznam
+nastavení se stavem („Moje kontakty · 2 výjimky") a detail jednoho z nich (`PrivacySettingRoute`,
+`PrivacySettingScreen`): Všichni / Moje kontakty / Nikdo a výjimky „Vždy povolit" a „Nikdy
+nepovolit" (lidé i skupiny, přidávají se přes `ChatPicker`). Hranice je `PrivacyRepository`
+(`TdlPrivacyRepository`), pravidla jsou čisté funkce v `core/telegram/AccountPrivacy.kt` (testy
+`AccountPrivacyTest`, `PrivacySettingTest`).
+
+- **Je to nastavení ÚČTU**: TDLib ho drží na serveru a platí na všech zařízeních. Pravidla jsou
+  živá (`UpdateUserPrivacySettingRules`, odběr PŘED prvním čtením), takže změnu z jiného klienta
+  obrazovka ukáže sama. **Čas přečtení (`ReadDatePrivacySettings`) update NEMÁ** — čte se při
+  otevření a přepínač se pohne hned, po selhání se vrátí.
+- **Pravidla jsou seznam, kde vyhrává PRVNÍ shoda** a bez shody je zákaz. Výjimky proto jdou
+  před základ (`AllowAll` / `AllowContacts` / `RestrictAll`), který je poslední. Tentýž člověk
+  nemůže být „vždy" i „nikdy" (`withAdded` ho z druhé strany vyřadí) — TDLib by vzal pravidlo,
+  které stojí dřív, a uživatel by nepoznal proč.
+- **Zapisuje se CELÝ seznam** (`setUserPrivacySettingRules`, jiný zápis TDLib nemá), takže co
+  obrazovka neumí (`AllowBots`, `AllowPremiumUsers`, `RestrictBots`, `RestrictContacts`), se
+  přenese z naposledy přečtených pravidel (`privacyRulesOf`) — ale jen to, co stálo PŘED
+  základem. Za základem se k ničemu nedostane a s novým základem by změnilo význam.
+- **Výjimky, které se základem neplatí, se nezahazují** (`mergeHiddenExceptions`): u „Všichni"
+  nemá „Vždy povolit" smysl a do zápisu nejde, ale přepnutí tam a zpátky ho musí vrátit. Server
+  je po zápisu nevrátí, takže je drží stav obrazovky a čtení je s ním slučuje.
+- **Past: zapsaná pravidla se berou za platná HNED, ne až s updatem** (`apply` ve
+  `PrivacySettingViewModel`). První verze porovnávala nový zápis s naposledy PŘEČTENÝMI
+  pravidly: rychlé A → B → A pak návrat porovnala se starým A, nic neposlala — a na serveru
+  zůstalo B. Hlídá to test v `PrivacySettingTest` s podstrčeným repository.
+- **Hledání podle čísla jen tam, kde číslo vidět není** (`privacyRowShown`): když telefon vidí
+  všichni, najde ho podle čísla každý tak jako tak. TDLib tam bere jen Všichni / Moje kontakty
+  bez výjimek (`PrivacySetting.FindByPhone`).
+- **Hlasové zprávy omezit jde jen s Premium** — bez něj detail stav jen ukáže
+  (`PrivacySettingState.editable`), server by zápis odmítl.
+- **Kanál výjimkou být nemůže** (TDLib bere jen lidi a členy skupin), výběr ho nenabízí; tajný
+  chat je člověk s id uživatele (`memberOf`).
+- **Řádek „Soukromí účtu" je v bloku Soukromí první**, nad blokovanými.
+- **Ověřeno na emulátoru JEN ČTENÍM** (anglicky): seznam se skutečnými stavy účtu a detail
+  „Naposledy viděn" s výjimkami, nic se nepřepnulo. **Zápis na skutečný účet ověřený NENÍ**
+  (mění soukromí všude) — zápis, rychlé přepínání a selhání pokrývají jen testy s podstrčeným
+  repository. Zaškrtnutí vybrané volby `uiautomator` u řádků nehlásil (`checked="false"` u všech
+  tří), vizuálně snímkem to ověřené není. iOS jen přeložené a slinkované.
+
 ### Úprava profilu
 
 Karta účtu v Obecných otevře `EditProfileRoute` (`EditProfileScreen`, `AccountRepository`): fotka,

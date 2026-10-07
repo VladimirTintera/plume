@@ -40,6 +40,7 @@ fun SettingsSectionScreen(
     onOpenBlocked: () -> Unit,
     onOpenFolders: () -> Unit,
     onOpenProxy: () -> Unit,
+    onOpenAccountPrivacy: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // Hlášky sekcí (odhlášené zařízení, výsledek QR přihlášení, neuložené nastavení notifikací).
@@ -63,7 +64,7 @@ fun SettingsSectionScreen(
             // Jen jedna větev se skládá, takže vznikne právě jeden ViewModel — ten druhý
             // by si jinak vyžádal účet ze serveru zbytečně.
             when (section) {
-                SettingsSection.General -> GeneralSettings(viewModel = koinViewModel(), onEditProfile = onEditProfile, onOpenBlocked = onOpenBlocked, onOpenFolders = onOpenFolders, onOpenProxy = onOpenProxy)
+                SettingsSection.General -> GeneralSettings(viewModel = koinViewModel(), onEditProfile = onEditProfile, onOpenBlocked = onOpenBlocked, onOpenFolders = onOpenFolders, onOpenProxy = onOpenProxy, onOpenAccountPrivacy = onOpenAccountPrivacy)
                 SettingsSection.Notifications -> NotificationSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
                 SettingsSection.Appearance -> AppearanceSettings(viewModel = koinViewModel())
                 SettingsSection.Devices -> DevicesSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)

@@ -29,7 +29,11 @@ import eu.tintera.plume.core.telegram.TdlInviteLinkRepository
 import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.DeviceRepository
 import eu.tintera.plume.core.telegram.NotificationSettingsRepository
+import eu.tintera.plume.core.telegram.PrivacyRepository
 import eu.tintera.plume.core.telegram.SensitiveContentSettings
+import eu.tintera.plume.core.telegram.TdlPrivacyRepository
+import eu.tintera.plume.features.settings.AccountPrivacyViewModel
+import eu.tintera.plume.features.settings.PrivacySettingViewModel
 import eu.tintera.plume.core.telegram.DefaultAutoDeleteSettings
 import eu.tintera.plume.core.telegram.TdlDefaultAutoDeleteSettings
 import eu.tintera.plume.core.telegram.TdlSensitiveContentSettings
@@ -266,6 +270,7 @@ fun appModule() = module {
     single<ChatFolderRepository> { TdlChatFolderRepository(holder = get()) }
     single<NotificationSettingsRepository> { TdlNotificationSettingsRepository(holder = get()) }
     single<SensitiveContentSettings> { TdlSensitiveContentSettings(holder = get()) }
+    single<PrivacyRepository> { TdlPrivacyRepository(holder = get()) }
     single<DefaultAutoDeleteSettings> { TdlDefaultAutoDeleteSettings(holder = get()) }
     single<ChatCreation> { TdlChatCreation(holder = get()) }
     single<AccountRepository> { TdlAccountRepository(holder = get()) }
@@ -330,6 +335,10 @@ fun appModule() = module {
     viewModel { parameters -> ChatFolderEditViewModel(folderId = parameters.get(), chats = get(), folders = get(), clipboard = get(), sharer = get()) }
     viewModelOf(::BlockSenderViewModel)
     viewModelOf(::SensitiveContentViewModel)
+    viewModelOf(::AccountPrivacyViewModel)
+    viewModel { parameters ->
+        PrivacySettingViewModel(setting = parameters.get(), privacy = get(), chats = get())
+    }
     viewModelOf(::DefaultAutoDeleteViewModel)
     viewModelOf(::AppearanceViewModel)
     viewModelOf(::DevicesViewModel)

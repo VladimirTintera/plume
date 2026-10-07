@@ -2,6 +2,7 @@ package eu.tintera.plume.core.navigation
 
 import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
+import eu.tintera.plume.core.telegram.PrivacySetting
 import androidx.navigation3.runtime.NavKey
 import androidx.savedstate.serialization.SavedStateConfiguration
 import kotlinx.serialization.Serializable
@@ -60,6 +61,14 @@ data object BlockedSendersRoute : Route
 /** Výběr, koho zablokovat. Vrší se nad seznam blokovaných a po zablokování se vrací do něj. */
 @Serializable
 data object BlockSenderRoute : Route
+
+/** Soukromí účtu (kdo vidí co). Vrší se nad sekci Obecné stejně jako seznam blokovaných. */
+@Serializable
+data object AccountPrivacyRoute : Route
+
+/** Jedno nastavení soukromí s výjimkami. Vrší se nad [AccountPrivacyRoute]. */
+@Serializable
+data class PrivacySettingRoute(val setting: PrivacySetting) : Route
 
 /** Proxy — vrší se nad sekci Obecné stejně jako složky chatů. */
 @Serializable
@@ -401,6 +410,8 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(EditProfileRoute::class, EditProfileRoute.serializer())
             subclass(BlockedSendersRoute::class, BlockedSendersRoute.serializer())
             subclass(BlockSenderRoute::class, BlockSenderRoute.serializer())
+            subclass(AccountPrivacyRoute::class, AccountPrivacyRoute.serializer())
+            subclass(PrivacySettingRoute::class, PrivacySettingRoute.serializer())
             subclass(ChatFoldersRoute::class, ChatFoldersRoute.serializer())
             subclass(ProxySettingsRoute::class, ProxySettingsRoute.serializer())
             subclass(ChatFolderEditRoute::class, ChatFolderEditRoute.serializer())

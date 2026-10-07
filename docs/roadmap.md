@@ -513,11 +513,11 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
 
 **Nastavení, která chybí** (říjen 2026; v kódu ověřeno, že nic z toho není):
 
-- **Soukromí účtu.** Kdo vidí „naposledy viděn", telefon, profilovku a bio, kdo smí přeposílat
-  (odkaz na účet), volat a zvát do skupin, a čas přečtení (`setUserPrivacySettingRules`,
-  `getReadDatePrivacySettings`). U skutečného klienta největší chybějící kus; patří do Obecné →
-  Soukromí vedle blokovaných a citlivého obsahu. Mění skutečný účet, takže ověřovat čtení
-  a zápis jen se souhlasem.
+- ~~**Soukromí účtu.**~~ — hotovo (Obecné → Soukromí → Soukromí účtu: naposledy viděn, telefon
+  a hledání podle čísla, profilovka, bio, narozeniny, odkaz v přeposlaných, hovory, P2P,
+  pozvánky do skupin, hlasové zprávy a čas přečtení, s výjimkami; `CLAUDE.md`, „Soukromí účtu").
+  Zbývá **kdo smí psát** (`NewChatPrivacySettings`: jen kontakty / za hvězdy) — jiné API
+  a placené zprávy Plume neumí.
 - **Dvoufázové ověření** (`setPassword`, nápověda, obnovovací e-mail, změna a vypnutí).
   Testovací účet ho nemá — zapnutím by se zároveň dal ověřit převod vlastnictví a obnova hesla
   při přihlášení.

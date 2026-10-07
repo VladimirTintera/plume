@@ -37,7 +37,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * [SettingsSectionScreen].
  */
 @Composable
-fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onOpenBlocked: () -> Unit, onOpenFolders: () -> Unit, onOpenProxy: () -> Unit) {
+fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onOpenBlocked: () -> Unit, onOpenFolders: () -> Unit, onOpenProxy: () -> Unit, onOpenAccountPrivacy: () -> Unit) {
     val account by viewModel.account.collectAsStateWithLifecycle()
     var confirmLogOut by rememberSaveable { mutableStateOf(false) }
 
@@ -93,6 +93,7 @@ fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onO
         sensitive = koinViewModel(),
         autoDelete = koinViewModel(),
         onOpenBlocked = onOpenBlocked,
+        onOpenAccountPrivacy = onOpenAccountPrivacy,
     )
 
     ConnectionSettings(viewModel = koinViewModel(), onOpenProxy = onOpenProxy)

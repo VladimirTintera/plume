@@ -18,8 +18,12 @@ import eu.tintera.plume.core.navigation.ArchiveMemberRightsRoute
 import eu.tintera.plume.core.navigation.MemberRightsRoute
 import eu.tintera.plume.core.navigation.EditChatRoute
 import eu.tintera.plume.core.navigation.EditProfileRoute
+import eu.tintera.plume.core.navigation.AccountPrivacyRoute
 import eu.tintera.plume.core.navigation.BlockSenderRoute
 import eu.tintera.plume.core.navigation.BlockedSendersRoute
+import eu.tintera.plume.core.navigation.PrivacySettingRoute
+import eu.tintera.plume.features.settings.AccountPrivacyScreen
+import eu.tintera.plume.features.settings.PrivacySettingScreen
 import eu.tintera.plume.core.navigation.ChatFolderEditRoute
 import eu.tintera.plume.core.navigation.ChatFoldersRoute
 import eu.tintera.plume.core.navigation.ProxySettingsRoute
@@ -1057,6 +1061,27 @@ private fun shellEntryProvider(
             onOpenBlocked = { if (settingsStack.lastOrNull() != BlockedSendersRoute) settingsStack.add(BlockedSendersRoute) },
             onOpenFolders = { if (settingsStack.lastOrNull() != ChatFoldersRoute) settingsStack.add(ChatFoldersRoute) },
             onOpenProxy = { if (settingsStack.lastOrNull() != ProxySettingsRoute) settingsStack.add(ProxySettingsRoute) },
+            onOpenAccountPrivacy = { if (settingsStack.lastOrNull() != AccountPrivacyRoute) settingsStack.add(AccountPrivacyRoute) },
+        )
+    }
+
+    // Soukromí účtu nad sekcí Obecné, jedno nastavení s výjimkami nad ním.
+    entry<AccountPrivacyRoute>(
+        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+    ) { route ->
+        AccountPrivacyScreen(
+            viewModel = koinViewModel(),
+            onBack = { settingsStack.pop(route) },
+            onOpen = { setting -> if (settingsStack.lastOrNull() !is PrivacySettingRoute) settingsStack.add(PrivacySettingRoute(setting)) },
+        )
+    }
+
+    entry<PrivacySettingRoute>(
+        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+    ) { route ->
+        PrivacySettingScreen(
+            viewModel = koinViewModel(key = "privacy-${route.setting}", parameters = { parametersOf(route.setting) }),
+            onBack = { settingsStack.pop(route) },
         )
     }
 
@@ -1261,4 +1286,5 @@ private fun conversationBelow(stack: List<NavKey>, route: MediaRoute): Long? {
 /** Obrazovky, které se vrší nad sekci Nastavení: úprava profilu, blokovaní, složky chatů. */
 private fun NavKey?.isOverSettingsSection(): Boolean =
     this == EditProfileRoute || this == BlockedSendersRoute || this == BlockSenderRoute ||
-        this == ChatFoldersRoute || this is ChatFolderEditRoute || this == ProxySettingsRoute
+        this == ChatFoldersRoute || this is ChatFolderEditRoute || this == ProxySettingsRoute ||
+        this == AccountPrivacyRoute || this is PrivacySettingRoute
