@@ -381,6 +381,23 @@ u spodní hrany (`loadNewer`, `offset = -PAGE_SIZE`), dokud stránka nepřinese 
   skrytý `AnimatedVisibility` je pořád potomek a rozestup by kruh nafoukl.
 - **Ukáže se až o pár položek výš** (`SCROLL_DOWN_THRESHOLD_ITEMS`), ne při prvním pixelu —
   u spodní hrany by blikalo pod prstem.
+- **Dolů se jede `animateScrollBy` o spočítanou vzdálenost, ne `animateScrollToItem(0)`**
+  (`animateScrollToBottom`). Ten o pár zpráv nad spodkem skončil poskočením: seznam dojel dolů,
+  zastavil, a pak všechny bubliny kromě nejnovější v jednom snímku vyskočily o ~330 px nahoru
+  a sjely zpátky (`animateItem`). Přichází to z jeho závěrečného `snapToItem` — na pozici, kde
+  seznam už stojí, Compose animátor položek záměrně neresetuje a seznam je v lookahead scope
+  `SharedTransitionLayout`; poslední krok mechanismu ověřený není. Z dálky se to neukazovalo.
+  - **Výšky položek pod obrazovkou** si seznam nepamatuje, i když přes ně uživatel právě
+    vyroloval. Pamatuje si je `rememberMeasuredSizes` (klíč → výška z `visibleItemsInfo`);
+    vzdálenost = jejich součet + `mainAxisItemSpacing` + `firstVisibleItemScrollOffset`.
+    Neznámá výška nebo víc než `MAX_ANIMATED_JUMP_ITEMS` položek → původní `animateScrollToItem`.
+  - **Pružina BEZ odskoku.** Za spodní hranou seznam nepokračuje: překmit by se o ni zarazil
+    a pružina by se pak vracela nahoru.
+  - **Ověřeno záznamem obrazovky rozloženým po snímcích** (`screenrecord`, posun mezi snímky
+    korelací svislého profilu, Swift + AVFoundation — ffmpeg na Macu není). Stará verze: +331 px
+    ve dvou jízdách ze dvou, nová: nic. **Log polohy z `withFrameNanos` tu klame**: čte
+    `layoutInfo` z PŘEDCHOZÍHO rozvržení a emulátor má snímky po 14 i 46 ms, takže plynulá
+    pružina vypadá trhaně — a skok, který dělá `animateItem` (ne rolování), v něm není vůbec.
 
 ## Hlášení přečtení a indexy
 
