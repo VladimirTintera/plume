@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import androidx.compose.material3.IconButtonDefaults
+import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.resources.edit_chat_forum_help
 import eu.tintera.plume.resources.edit_chat_forum
 import eu.tintera.plume.resources.how_to_reg_24dp
@@ -41,7 +42,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -482,7 +482,7 @@ internal fun SwitchRow(title: StringResource, checked: Boolean, onChange: (Boole
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         headlineContent = { Text(stringResource(title)) },
-        trailingContent = { Switch(checked = checked, onCheckedChange = null) },
+        trailingContent = { IconSwitch(checked = checked, onCheckedChange = null) },
         modifier = Modifier.toggleable(value = checked, role = Role.Switch, onValueChange = { on ->
             haptics.toggle(on)
             onChange(on)

@@ -10271,6 +10271,13 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   (odesílací tlačítko, přehrát u videa a hlasovky, náhled přílohy), a fotka účtu v pilulce —
   obsahem je kulatá fotka a hranatá vlnka by kolem ní trčela. Doplnilo se skriptem do všech
   ~100 volání naráz; ověřeno na emulátoru (šipka zpět podržená přes `input motionevent DOWN`).
+- **Přepínače mají v jezdci ikonu** (`IconSwitch` v `core/ui`): fajfka zapnutý, křížek
+  vypnutý. Stav tak nese i tvar, ne jen barva — pozná ho barvoslepý i v paletě se zvýšeným
+  kontrastem. **Holý `Switch` se nepoužívá**; kdo přidává přepínač, sáhne po `IconSwitch`,
+  jinak bude vedle ostatních vypadat jako nedodělek. Barvu ikony podává přepínač sám
+  (`checkedIconColor` / `uncheckedIconColor`), ikona je dekorace bez popisu — stav čte čtečka
+  z řádku (`toggleable(role = Switch)`). Vypnutý jezdec s ikonou je větší než prázdný; M3 to
+  tak má. Ověřeno na emulátoru ve světlém i tmavém motivu (Vzhled, Notifikace).
 - **Počty se přetáčejí** (`RollingNumber` v `core/ui`): odznak nepřečtených v seznamu chatů,
   počet u složky a u archivu v menu účtu, odznaky zmínek a reakcí v konverzaci i „N nových
   zpráv" na tlačítku dolů. Přetočí se jen změněné číslice, párované ODZADU (9 → 10 přetočí

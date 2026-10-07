@@ -15,7 +15,6 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,6 +36,7 @@ import eu.tintera.plume.core.ai.NotEnoughSpaceException
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.fileSizeText
 import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.core.ui.tabularNumbers
@@ -345,7 +345,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             headlineContent = { Text(stringResource(Res.string.settings_on_device_ai_enable)) },
             supportingContent = { Text(stringResource(Res.string.settings_on_device_ai_enable_summary)) },
-            trailingContent = { Switch(checked = enabled, onCheckedChange = null) },
+            trailingContent = { IconSwitch(checked = enabled, onCheckedChange = null) },
             modifier = Modifier.toggleable(
                 value = enabled,
                 role = Role.Switch,
@@ -570,7 +570,7 @@ private fun VariantSwitch(
                 note?.let { Text(stringResource(it), style = MaterialTheme.typography.labelLarge) }
             }
         },
-        trailingContent = { Switch(checked = checked, onCheckedChange = null) },
+        trailingContent = { IconSwitch(checked = checked, onCheckedChange = null) },
         modifier = Modifier.toggleable(value = checked, role = Role.Switch, onValueChange = onChange),
     )
 }

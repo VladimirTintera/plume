@@ -17,7 +17,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
@@ -39,6 +38,7 @@ import eu.tintera.plume.core.telegram.NotificationException
 import eu.tintera.plume.core.telegram.NotificationScope
 import eu.tintera.plume.core.telegram.ScopeSettings
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.toggle
@@ -263,7 +263,7 @@ internal fun SwitchRow(
                 )
             }
         },
-        trailingContent = { Switch(checked = checked, onCheckedChange = null, enabled = enabled) },
+        trailingContent = { IconSwitch(checked = checked, onCheckedChange = null, enabled = enabled) },
         modifier = Modifier.toggleable(
             value = checked,
             enabled = enabled,

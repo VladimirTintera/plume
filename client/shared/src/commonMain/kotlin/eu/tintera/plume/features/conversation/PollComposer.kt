@@ -33,7 +33,6 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -71,6 +70,7 @@ import eu.tintera.plume.core.telegram.POLL_QUESTION_MAX
 import eu.tintera.plume.core.telegram.PollDraft
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.userMessage
+import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.durationText
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.GROUP_SPACING
@@ -1511,7 +1511,7 @@ private fun SwitchRow(label: String, checked: Boolean, shape: Shape, onChange: (
         ) {
             Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
             Spacer(Modifier.width(12.dp))
-            Switch(checked = checked, onCheckedChange = null)
+            IconSwitch(checked = checked, onCheckedChange = null)
         }
     }
 }
