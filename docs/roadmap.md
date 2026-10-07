@@ -518,9 +518,10 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
   `getReadDatePrivacySettings`). U skutečného klienta největší chybějící kus; patří do Obecné →
   Soukromí vedle blokovaných a citlivého obsahu. Mění skutečný účet, takže ověřovat čtení
   a zápis jen se souhlasem.
-- **Dvoufázové ověření** (`setPassword`, nápověda, obnovovací e-mail, změna a vypnutí).
-  Testovací účet ho nemá — zapnutím by se zároveň dal ověřit převod vlastnictví a obnova hesla
-  při přihlášení.
+- ~~**Dvoufázové ověření**~~ — hotovo (Obecné → Soukromí; `CLAUDE.md`, „Dvoufázové ověření").
+  **Skutečné nastavení hesla a kód z e-mailu ověřené NEJSOU** (průvodci jen podstrčeným
+  repository) — ověří je uživatel zapnutím na zařízení, a tím se zároveň dá ověřit převod
+  vlastnictví a obnova hesla při přihlášení.
 - **Zámek aplikace** PINem nebo biometrií, zamčení po N minutách v pozadí a skrytý obsah
   v přehledu úloh (`FLAG_SECURE` jen se zapnutým zámkem). **Zamyká se jen UI** — klíč k databázi
   ověření vyžadovat nesmí, jinak nechodí push (`CLAUDE.md`, „Šifrovaná databáze TDLib").

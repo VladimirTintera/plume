@@ -57,6 +57,14 @@ data object EditProfileRoute : Route
 @Serializable
 data object BlockedSendersRoute : Route
 
+/**
+ * Dvoufázové ověření (cloud heslo). Vrší se nad sekci Obecné stejně jako [BlockedSendersRoute].
+ * Průvodce (zapnutí, změna, obnova) je stav obrazovky, ne další routy: hesla do zásobníku
+ * (a tím do uloženého stavu) nepatří.
+ */
+@Serializable
+data object TwoStepRoute : Route
+
 /** Výběr, koho zablokovat. Vrší se nad seznam blokovaných a po zablokování se vrací do něj. */
 @Serializable
 data object BlockSenderRoute : Route
@@ -401,6 +409,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(EditProfileRoute::class, EditProfileRoute.serializer())
             subclass(BlockedSendersRoute::class, BlockedSendersRoute.serializer())
             subclass(BlockSenderRoute::class, BlockSenderRoute.serializer())
+            subclass(TwoStepRoute::class, TwoStepRoute.serializer())
             subclass(ChatFoldersRoute::class, ChatFoldersRoute.serializer())
             subclass(ProxySettingsRoute::class, ProxySettingsRoute.serializer())
             subclass(ChatFolderEditRoute::class, ChatFolderEditRoute.serializer())

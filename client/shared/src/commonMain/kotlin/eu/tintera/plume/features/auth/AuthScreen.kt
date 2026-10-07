@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.auth
 
+import eu.tintera.plume.core.ui.BlockTextField
+import eu.tintera.plume.core.ui.PasswordField
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -612,7 +614,7 @@ private fun RecoveryCodeForm(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        AuthBlockField(
+        BlockTextField(
             value = value,
             onValueChange = onValueChange,
             placeholder = Res.string.auth_input_recovery_code,
@@ -665,7 +667,7 @@ private fun NewPasswordForm(
             imeAction = ImeAction.Next,
             onNext = { hintFocus.requestFocus() },
         )
-        AuthBlockField(
+        BlockTextField(
             value = hint,
             onValueChange = onHintChange,
             placeholder = Res.string.auth_input_password_hint,
