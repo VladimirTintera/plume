@@ -2740,6 +2740,43 @@ Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečte
 - **`Card(onClick = …)` umí jen krátké ťuknutí.** Dlouhý stisk potřebuje `combinedClickable`,
   takže se z karty stal `Surface` s vlastním klikáním.
 
+### Výběr víc chatů
+
+„Vybrat" v nabídce nad chatem přepne seznam (hlavní, složku i archiv) do výběru: hlavička s ✕
+a počtem místo pilulky hledání, ťuknutí i dlouhý stisk chat přepíná a místo FAB menu je plovoucí
+lišta s archivací, ztlumením a přečtením (`ChatSelectionTopBar`, `ChatSelectionToolbar`).
+Pravidla jsou čisté funkce v `ChatSelection.kt` (testy `ChatSelectionTest`).
+
+- **Vstup je položka nabídky, ne dlouhý stisk** — ten patří nabídce nad chatem, stejně jako
+  u výběru zpráv. Uvnitř výběru dlouhý stisk jen přepíná: nabídka nad jedním chatem by z výběru
+  vytrhla.
+- **Každá akce je přepínač podle VŠECH vybraných** (jako v Gmailu): archivovat, dokud nejsou
+  všechny v archivu, ztlumit, dokud nejsou všechny ztlumené, přečíst, když je aspoň jeden
+  nepřečtený. Posílá se jen chatům, kterým se něco změní (`archiveTargets`…) — jinak by „Vrátit"
+  po archivaci vracel i to, co se nehnulo.
+- **Po akci výběr končí** a archivace má tentýž snackbar s „Vrátit" jako u jednoho chatu
+  (`ArchiveChange` nese seznam chatů, plurál „2 chaty jsou v archivu") a zavře jejich otevřené
+  konverzace. Chaty jdou postupně a selhání jednoho ostatní nezastaví.
+- **Uložené zprávy ve výběru archivaci zšednou, nezmizí** (archivovat je nejde); sponzorovaný
+  chat vybrat nejde vůbec — není uživatelův a má vlastní nabídku.
+- **Značka výběru je u KAŽDÉHO chatu** (prázdné kolečko / fajfka v rohu avataru, místo tečky
+  „online"), ne jen barva vybraného řádku: u jediného vybraného by barva neřekla, že jdou
+  vybírat i další. Ve výběru barvu řádku nese výběr, ne chat otevřený v detailu vedle.
+- **Tah do archivu je ve výběru vypnutý**, zpět výběr ukončí (`NavigationBackHandler`),
+  přepnutí složky taky. Chat, který ze seznamu odejde, z výběru vypadne (`within`).
+- **„Označit jako přečtené" shazovalo jen ruční příznak** (`toggleChatIsMarkedAsUnread(false)`)
+  a chat s nepřečtenými zprávami zůstal nepřečtený — i z nabídky nad jedním chatem. Teď jde přes
+  `ChatRepository.readChat`: nejnovější zpráva `viewMessages` se zdrojem `MessageSourceChatList`
+  a `forceRead` (přečte i všechno před ní), zmínky, reakce a příznak zvlášť.
+- **Odstup lišty patří DOVNITŘ `AnimatedVisibility`**, ne na její modifikátor: skrytá lišta by
+  jinak nechala nad FAB (a v archivu nad spodkem seznamu) 24 dp prázdna.
+- **Ověřeno na emulátoru** ve složce „Plume test" a v archivu (česky): výběr dvou chatů, zšedlá
+  archivace s Uloženými zprávami, ztlumení a zrušení ztlumení, archivace se snackbarem
+  „2 chaty jsou v archivu", vrácení výběrem z hlavního seznamu i z archivu, označení jako
+  nepřečtené a přečtení dvou skutečných zpráv od bota (odznak zmizel, notifikace taky), zpět
+  ukončí výběr. **Nejisté je čtení skupiny s tématy** (nepřečtené se tam vedou po tématech
+  a nejnovější zpráva patří jen jednomu) **— neověřené, stejně jako iOS.**
+
 ### Blokování a nahlášení spamu
 
 Spam se řeší třemi věcmi naráz — nahlásit, zablokovat, smazat — a jde to ze tří míst:

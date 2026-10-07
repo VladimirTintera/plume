@@ -115,6 +115,19 @@
     <string name="chats_action_unarchive">Move to chats</string>
     <string name="chats_archived">Chat archived</string>
     <string name="chats_unarchived">Chat moved back to chats</string>
+    <plurals name="chats_archived_many">
+        <item quantity="one">%1$d chat archived</item>
+        <item quantity="other">%1$d chats archived</item>
+    </plurals>
+    <plurals name="chats_unarchived_many">
+        <item quantity="one">%1$d chat moved back to chats</item>
+        <item quantity="other">%1$d chats moved back to chats</item>
+    </plurals>
+    <plurals name="chats_selection_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
+    <string name="chats_selection_close">Leave selection</string>
     <string name="chats_undo">Undo</string>
     <string name="chats_blocked">Blocked</string>
     <string name="chats_unblocked">Unblocked</string>

@@ -92,6 +92,16 @@ class ChatsStackTest {
         assertEquals(listOf<NavKey>(ChatsRoute), stack)
     }
 
+    /** Výběr víc chatů archivuje naráz — zavře se konverzace kteréhokoli z nich. */
+    @Test
+    fun archivaceVyberuZavreKonverzaciKterehokoliChatu() {
+        val stack = mutableListOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 3))
+
+        stack.closeConversationOf(ArchiveChange(chatIds = listOf(1, 3), archived = true))
+
+        assertEquals(listOf<NavKey>(ChatsRoute), stack)
+    }
+
     @Test
     fun vraceniZArchivuZavreKonverzaciVArchivu() {
         val stack = mutableListOf<NavKey>(ChatsRoute, ArchiveRoute, ArchiveConversationRoute(chatId = 2))
