@@ -113,6 +113,8 @@ open class FakeChatRepository(
     override suspend fun setMarkedAsUnread(chatId: Long, unread: Boolean): Result<Unit> =
         Result.success(Unit)
 
+    override suspend fun readChat(chatId: Long): Result<Unit> = Result.success(Unit)
+
     override suspend fun deleteOrLeave(chatId: Long): Result<Unit> = Result.success(Unit)
 
     override suspend fun spamActions(chatId: Long): Result<SpamActions> = Result.success(SpamActions())

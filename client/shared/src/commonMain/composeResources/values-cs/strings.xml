@@ -115,6 +115,22 @@
     <string name="chats_action_unarchive">Vrátit mezi chaty</string>
     <string name="chats_archived">Chat je v archivu</string>
     <string name="chats_unarchived">Chat je zpátky mezi chaty</string>
+    <plurals name="chats_archived_many">
+        <item quantity="one">%1$d chat je v archivu</item>
+        <item quantity="few">%1$d chaty jsou v archivu</item>
+        <item quantity="other">%1$d chatů je v archivu</item>
+    </plurals>
+    <plurals name="chats_unarchived_many">
+        <item quantity="one">%1$d chat je zpátky mezi chaty</item>
+        <item quantity="few">%1$d chaty jsou zpátky mezi chaty</item>
+        <item quantity="other">%1$d chatů je zpátky mezi chaty</item>
+    </plurals>
+    <plurals name="chats_selection_count">
+        <item quantity="one">%1$d vybraný</item>
+        <item quantity="few">%1$d vybrané</item>
+        <item quantity="other">%1$d vybraných</item>
+    </plurals>
+    <string name="chats_selection_close">Ukončit výběr</string>
     <string name="chats_undo">Vrátit</string>
     <string name="chats_blocked">Zablokováno</string>
     <string name="chats_unblocked">Blokování zrušeno</string>

@@ -182,6 +182,8 @@ class ChatsViewModel(
      * z konverzace i zabití procesu, nové spuštění začne na všech chatech.
      */
     fun selectFolder(id: Int?) {
+        // Výběr patří složce, ve které vznikl; v jiné by ukazoval na chaty, které nejsou vidět.
+        _selection.value = null
         _selectedFolderId.value = id
         savedState[FOLDER_KEY] = id
         // Složka se načítá až při prvním otevření, jako archiv.
@@ -533,8 +535,17 @@ class ChatsViewModel(
     }
 
     /** „Vrátit" ve snackbaru. Oprava omylu, takže se na ni už další „Vrátit" nenabízí. */
-    fun undoArchive(change: ArchiveChange) = run(change.chatId) {
-        repository.setArchived(change.chatId, !change.archived)
+    fun undoArchive(change: ArchiveChange) {
+        _actions.value = ChatActionsState()
+        viewModelScope.launch {
+            val failure = change.chatIds.firstNotNullOfOrNull { id ->
+                repository.setArchived(id, !change.archived).exceptionOrNull()
+            }
+            failure?.let {
+                logger.w(it) { "Vrácení archivace chatů ${change.chatIds} selhalo." }
+                reportFailure(it)
+            }
+        }
     }
 
     /** Ztlumení na dobu; `null` = navždy. */
@@ -546,8 +557,113 @@ class ChatsViewModel(
         repository.setMuted(chat.id, false)
     }
 
+    /**
+     * Přečtené přes [ChatRepository.readChat], ne shozením ručního příznaku: ten nechá
+     * nepřečtené zprávy, jak jsou, a u chatu s nimi se po „Označit jako přečtené" nic nezměnilo.
+     */
     fun toggleUnread(chat: ChatSummary) = run(chat.id) {
-        repository.setMarkedAsUnread(chat.id, !chat.hasUnread)
+        if (chat.hasUnread) repository.readChat(chat.id) else repository.setMarkedAsUnread(chat.id, true)
+    }
+
+    private val _selection = MutableStateFlow<ChatSelection?>(null)
+
+    /** Výběr víc chatů; `null` = seznam jako obvykle. */
+    val selection: StateFlow<ChatSelection?> = _selection.asStateFlow()
+
+    /** Co lišta výběru nabídne; `null` mimo výběr. */
+    val selectionActions: StateFlow<ChatSelectionActions?> =
+        combine(_selection, state, repository.savedMessagesChatId) { selection, state, savedId ->
+            selection ?: return@combine null
+            chatSelectionActions(selectedChats(selection, state), savedId)
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    init {
+        // Chat, který ze seznamu odešel (archivace jinde, opuštěná skupina), z výběru vypadne;
+        // poslední odchozí výběr ukončí.
+        viewModelScope.launch {
+            state.collect { current ->
+                val chats = (current as? ChatListState.Ready)?.chats ?: return@collect
+                _selection.update { it?.within(chats) }
+            }
+        }
+    }
+
+    /** „Vybrat" z nabídky nad chatem: zavře nabídku a začne výběr tímhle chatem. */
+    fun startSelection(chat: ChatSummary) {
+        _actions.value = ChatActionsState()
+        if (chat.isSelectable()) _selection.value = ChatSelection(setOf(chat.id))
+    }
+
+    fun toggleSelected(chat: ChatSummary) {
+        if (!chat.isSelectable()) return
+        _selection.update { it?.toggled(chat.id) }
+    }
+
+    fun closeSelection() {
+        _selection.value = null
+    }
+
+    fun archiveSelected() {
+        val (actions, selected) = selectionNow() ?: return
+        if (!actions.canArchive) return
+        runOnSelection(actions.archiveTargets(selected), onDone = { done ->
+            _actions.update { it.copy(archived = ArchiveChange(done, actions.archive)) }
+        }) { repository.setArchived(it.id, actions.archive) }
+    }
+
+    /** Ztlumení z výběru je natrvalo, jako „Ztlumit" bez doby; zrušit jde stejnou lištou. */
+    fun muteSelected() {
+        val (actions, selected) = selectionNow() ?: return
+        runOnSelection(actions.muteTargets(selected)) { repository.setMuted(it.id, actions.mute) }
+    }
+
+    fun readSelected() {
+        val (actions, selected) = selectionNow() ?: return
+        runOnSelection(actions.readTargets(selected)) {
+            if (actions.read) repository.readChat(it.id) else repository.setMarkedAsUnread(it.id, true)
+        }
+    }
+
+    private fun selectionNow(): Pair<ChatSelectionActions, List<ChatSummary>>? {
+        val selection = _selection.value ?: return null
+        val selected = selectedChats(selection, state.value)
+        return chatSelectionActions(selected, repository.savedMessagesChatId.value) to selected
+    }
+
+    private fun selectedChats(selection: ChatSelection, state: ChatListState): List<ChatSummary> =
+        (state as? ChatListState.Ready)?.chats?.filter { it.id in selection.ids }.orEmpty()
+
+    /**
+     * Akce nad celým výběrem: výběr se ukončí hned (jako po akci v Gmailu), chaty jdou postupně
+     * a selhání jednoho ostatní nezastaví — co prošlo, prošlo, a chyba se ohlásí na konci.
+     * Stav se lokálně nepřepisuje, stejně jako u [run].
+     */
+    private fun runOnSelection(
+        targets: List<ChatSummary>,
+        onDone: (List<Long>) -> Unit = {},
+        action: suspend (ChatSummary) -> Result<Unit>,
+    ) {
+        _selection.value = null
+        _actions.value = ChatActionsState()
+        if (targets.isEmpty()) return
+        viewModelScope.launch {
+            var failure: Throwable? = null
+            val done = targets.mapNotNull { chat ->
+                action(chat).fold(
+                    onSuccess = { chat.id },
+                    onFailure = { failure = failure ?: it; null },
+                )
+            }
+            if (done.isNotEmpty()) onDone(done)
+            failure?.let {
+                logger.w(it) { "Akce nad vybranými chaty selhala." }
+                reportFailure(it)
+            }
+        }
+    }
+
+    private fun reportFailure(failure: Throwable) {
+        _actions.update { it.copy(error = failure.userMessage(Res.string.chats_action_failed)) }
     }
 
     /**
@@ -649,8 +765,10 @@ data class ChatActionsState(
     val folders: ChatFolderMembership? = null,
 )
 
-/** Chat se přesunul do archivu ([archived]), nebo z něj. */
-data class ArchiveChange(val chatId: Long, val archived: Boolean)
+/** Chaty se přesunuly do archivu ([archived]), nebo z něj — jeden z nabídky, víc z výběru. */
+data class ArchiveChange(val chatIds: List<Long>, val archived: Boolean) {
+    constructor(chatId: Long, archived: Boolean) : this(listOf(chatId), archived)
+}
 
 /** Protějšek chatu se zablokoval ([blocked]), nebo odblokoval. */
 data class BlockChange(val chatId: Long, val blocked: Boolean)

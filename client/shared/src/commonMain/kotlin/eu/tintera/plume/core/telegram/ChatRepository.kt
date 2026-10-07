@@ -243,6 +243,13 @@ interface ChatRepository {
     suspend fun setMarkedAsUnread(chatId: Long, unread: Boolean): Result<Unit>
 
     /**
+     * Přečte chat celý: nejnovější zprávu (a tím všechny před ní), zmínky, reakce a ruční
+     * příznak nepřečtení. [setMarkedAsUnread] s `false` NESTAČÍ — shodí jen ruční příznak
+     * a nepřečtené zprávy nechá, jak jsou.
+     */
+    suspend fun readChat(chatId: Long): Result<Unit>
+
+    /**
      * Odstraní chat ze seznamu. **Nevratné.**
      *
      * U soukromého chatu smaže historii jen u nás (`revoke = false`), u skupiny a kanálu z něj

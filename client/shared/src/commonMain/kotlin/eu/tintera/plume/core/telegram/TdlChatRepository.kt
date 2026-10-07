@@ -105,6 +105,7 @@ import dev.g000sha256.tdl.dto.ChatActionBarReportSpam
 import dev.g000sha256.tdl.dto.ReportChatResultOk
 import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
+import dev.g000sha256.tdl.dto.MessageSourceChatList
 import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.User
 import dev.g000sha256.tdl.dto.UserTypeBot
@@ -649,6 +650,31 @@ class TdlChatRepository(
         client.toggleChatIsMarkedAsUnread(chatId = chatId, isMarkedAsUnread = unread)
             .toResult()
             .map { }
+
+    /**
+     * Totéž co „označit jako přečtené" v oficiálních klientech: nejnovější zpráva se nahlásí jako
+     * zhlédnutá (`forceRead`, zdroj seznam chatů) — server tím přečte i všechno před ní —
+     * a zmínky, reakce a ruční příznak se vynulují zvlášť, protože na přečtení zpráv nevisí.
+     * Volá se jen to, co je potřeba; `getChat` je lokální.
+     */
+    override suspend fun readChat(chatId: Long): Result<Unit> = runCatching {
+        val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+        chat.lastMessage?.let { last ->
+            if (chat.unreadCount > 0) {
+                client.viewMessages(
+                    chatId = chatId,
+                    messageIds = longArrayOf(last.id),
+                    source = MessageSourceChatList(),
+                    forceRead = true,
+                ).toResult().getOrThrow()
+            }
+        }
+        if (chat.unreadMentionCount > 0) client.readAllChatMentions(chatId = chatId).toResult().getOrThrow()
+        if (chat.unreadReactionCount > 0) client.readAllChatReactions(chatId = chatId).toResult().getOrThrow()
+        if (chat.isMarkedAsUnread) {
+            client.toggleChatIsMarkedAsUnread(chatId = chatId, isMarkedAsUnread = false).toResult().getOrThrow()
+        }
+    }
 
     override suspend fun resolveLink(url: String): Result<InternalLink?> {
         // Neinterní odkaz TDLib hlásí chybou — to není selhání, jen adresa pro prohlížeč.

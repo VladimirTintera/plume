@@ -78,15 +78,11 @@ internal fun MutableList<NavKey>.closeArchive() {
  * hlavní seznam i archiv.
  */
 internal fun MutableList<NavKey>.closeConversationOf(change: ArchiveChange) {
+    val ids: Set<Long?> = change.chatIds.toSet()
     if (change.archived) {
-        removeAll {
-            (it as? ConversationRoute)?.chatId == change.chatId || (it as? ForumTopicsRoute)?.chatId == change.chatId
-        }
+        removeAll { ((it as? ConversationRoute)?.chatId ?: (it as? ForumTopicsRoute)?.chatId) in ids }
     } else {
-        removeAll {
-            (it as? ArchiveConversationRoute)?.chatId == change.chatId ||
-                (it as? ArchiveForumTopicsRoute)?.chatId == change.chatId
-        }
+        removeAll { ((it as? ArchiveConversationRoute)?.chatId ?: (it as? ArchiveForumTopicsRoute)?.chatId) in ids }
     }
 }
 

@@ -12,6 +12,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.core.ui.ReorderTopBar
@@ -53,6 +57,8 @@ fun ArchiveScreen(
     val settingsOpen by viewModel.archiveSettingsOpen.collectAsStateWithLifecycle()
     val chatFolders by viewModel.chatFolders.collectAsStateWithLifecycle()
     val reorder by viewModel.reorder.collectAsStateWithLifecycle()
+    val selection by viewModel.selection.collectAsStateWithLifecycle()
+    val selectionActions by viewModel.selectionActions.collectAsStateWithLifecycle()
 
     ChatActionsHost(viewModel, snackbarHostState, onArchived = onChatArchived)
 
@@ -73,6 +79,18 @@ fun ArchiveScreen(
     Scaffold(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        // Lišta výběru víc chatů, stejná jako v hlavním seznamu. Ve slotu `bottomBar`, takže
+        // snackbar stojí nad ní a seznam se o ni odsadí.
+        bottomBar = {
+            Box(Modifier.fillMaxWidth().navigationBarsPadding(), contentAlignment = Alignment.Center) {
+                ChatSelectionToolbar(
+                    actions = selectionActions,
+                    onArchive = viewModel::archiveSelected,
+                    onMute = viewModel::muteSelected,
+                    onRead = viewModel::readSelected,
+                )
+            }
+        },
         topBar = {
             reorder?.let { current ->
                 ReorderTopBar(
@@ -81,6 +99,10 @@ fun ArchiveScreen(
                     onCancel = viewModel::cancelReorder,
                     onDone = viewModel::saveReorder,
                 )
+                return@Scaffold
+            }
+            selection?.let { current ->
+                ChatSelectionTopBar(count = current.count, onClose = viewModel::closeSelection)
                 return@Scaffold
             }
             // Obyčejný bar bez scroll behavior: nemění barvu, takže nevznikne tónovaný pruh

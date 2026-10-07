@@ -55,6 +55,8 @@ import eu.tintera.plume.core.telegram.SpamActions
 import eu.tintera.plume.core.telegram.isPrivate
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_reorder_pinned
+import eu.tintera.plume.resources.menu_select
+import eu.tintera.plume.resources.select_check_box_24dp
 import eu.tintera.plume.resources.drag_indicator_24dp
 import eu.tintera.plume.resources.chats_sponsor_announcement_explanation
 import eu.tintera.plume.resources.chats_sponsor_hide
@@ -104,6 +106,8 @@ fun ChatActionsSheet(
      * přeskládat).
      */
     onReorderPinned: (() -> Unit)?,
+    /** Výběr víc chatů, začne tímhle chatem. */
+    onSelect: () -> Unit,
     /** Ztlumení na dobu; `null` = navždy. */
     onMute: (Duration?) -> Unit,
     onUnmute: () -> Unit,
@@ -192,6 +196,15 @@ fun ChatActionsSheet(
                         onClick = onReorderPinned,
                     )
                 }
+
+                // Vstup do výběru víc chatů: dlouhý stisk patří téhle nabídce, takže výběr začíná
+                // odsud — stejně jako výběr zpráv z nabídky nad zprávou.
+                SheetActionRow(
+                    icon = Res.drawable.select_check_box_24dp,
+                    label = stringResource(Res.string.menu_select),
+                    shape = RoundedCornerShape(4.dp),
+                    onClick = onSelect,
+                )
 
                 if (chat.isMuted) {
                     SheetActionRow(

@@ -182,6 +182,8 @@ import eu.tintera.plume.resources.chats_archive_unread
 import eu.tintera.plume.resources.unarchive_24dp
 import eu.tintera.plume.resources.chats_archive
 import eu.tintera.plume.resources.chats_archived
+import eu.tintera.plume.resources.chats_archived_many
+import eu.tintera.plume.resources.chats_unarchived_many
 import eu.tintera.plume.resources.chats_new
 import eu.tintera.plume.resources.chats_undo
 import eu.tintera.plume.resources.chats_blocked
@@ -199,6 +201,7 @@ import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.push_pin_filled_24dp
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import eu.tintera.plume.core.telegram.AccountInfo
 import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.core.ui.folderIcon
@@ -209,6 +212,7 @@ import eu.tintera.plume.resources.person_24dp
 import eu.tintera.plume.resources.settings_24dp
 import org.jetbrains.compose.resources.DrawableResource
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getPluralString
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
@@ -256,6 +260,8 @@ fun ChatListScreen(
     val folderTabs by viewModel.folderTabs.collectAsStateWithLifecycle()
     val folderSuggestions by viewModel.folderSuggestions.collectAsStateWithLifecycle()
     val reorder by viewModel.reorder.collectAsStateWithLifecycle()
+    val selection by viewModel.selection.collectAsStateWithLifecycle()
+    val selectionActions by viewModel.selectionActions.collectAsStateWithLifecycle()
     // Vybraná složka Telegramu (ne celý seznam) — kvůli prázdnému stavu.
     val selectedFolder = folderTabs.firstOrNull { it.selected && it.id != null }
     val startUpdate = rememberStartUpdate(viewModel.appUpdates)
@@ -358,6 +364,10 @@ fun ChatListScreen(
                     onCancel = viewModel::cancelReorder,
                     onDone = viewModel::saveReorder,
                 )
+                return@Scaffold
+            }
+            selection?.let { current ->
+                ChatSelectionTopBar(count = current.count, onClose = viewModel::closeSelection)
                 return@Scaffold
             }
             // Hlavička pod otevřeným FAB menu ztlumená a neťukací, stejně jako seznam.
@@ -558,7 +568,16 @@ fun ChatListScreen(
                     ),
             ) {
                 SnackbarHost(snackbarHostState, Modifier.fillMaxWidth())
-                if (reorder == null) NewChatFabMenu(
+                // Lišta výběru stojí MÍSTO FAB menu, uprostřed: zakládat nový chat uprostřed
+                // vybírání nedává smysl a obojí by se o spodek obrazovky přetahovalo.
+                ChatSelectionToolbar(
+                    actions = selectionActions,
+                    onArchive = viewModel::archiveSelected,
+                    onMute = viewModel::muteSelected,
+                    onRead = viewModel::readSelected,
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                )
+                if (reorder == null && selection == null) NewChatFabMenu(
                     expanded = fabMenuExpanded,
                     onExpandedChange = { fabMenuExpanded = it },
                     onNewChat = onNewChat,
@@ -838,7 +857,15 @@ internal fun ChatActionsHost(
         onArchived?.invoke(change)
         snackbarScope.launch {
             val result = snackbarHostState.showSnackbar(
-                message = getString(if (change.archived) Res.string.chats_archived else Res.string.chats_unarchived),
+                message = when {
+                    change.chatIds.size > 1 -> getPluralString(
+                        if (change.archived) Res.plurals.chats_archived_many else Res.plurals.chats_unarchived_many,
+                        change.chatIds.size,
+                        change.chatIds.size,
+                    )
+                    change.archived -> getString(Res.string.chats_archived)
+                    else -> getString(Res.string.chats_unarchived)
+                },
                 actionLabel = getString(Res.string.chats_undo),
                 duration = SnackbarDuration.Short,
             )
@@ -877,6 +904,7 @@ internal fun ChatActionsHost(
             onOpenProxySettings = onOpenProxySettings,
             onTogglePinned = { viewModel.togglePinned(chat) },
             onReorderPinned = viewModel::startReorder.takeIf { canReorderPinned(chats) },
+            onSelect = { viewModel.startSelection(chat) },
             onMute = { duration -> viewModel.mute(chat, duration) },
             onUnmute = { viewModel.unmute(chat) },
             onToggleUnread = { viewModel.toggleUnread(chat) },
@@ -931,6 +959,13 @@ internal fun ChatListContent(
         state = rememberNavigationEventState(NavigationEventInfo.None),
         isBackEnabled = reorder != null,
         onBackCompleted = viewModel::cancelReorder,
+    )
+    // Výběr víc chatů: zpět ho ukončí, teprve další zpět odejde (jako výběr zpráv).
+    val selection by viewModel.selection.collectAsStateWithLifecycle()
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = selection != null,
+        onBackCompleted = viewModel::closeSelection,
     )
     val reorderIds = reorder?.chats?.map { it.id }.orEmpty()
     val dragState = rememberDragReorderState(
@@ -1076,17 +1111,23 @@ internal fun ChatListContent(
 
                 groups.forEachIndexed { groupIndex, group ->
                     itemsIndexed(group, key = { _, chat -> chat.id }) { index, chat ->
+                        // Ve výběru zvýrazňuje řádek výběr, ne chat otevřený v detailu vedle —
+                        // dvě různé barvy pro „vybraný" by se v jednom seznamu pletly.
+                        val selecting = selection != null
+                        val picked = selection?.ids?.contains(chat.id) == true
+                        val highlighted = if (selecting) picked else chat.id == selectedChatId
                         // Krajní položky skupiny nesou její zaoblení, prostřední se drží u sebe.
                         val shape = groupItemShape(
                             firstInGroup = index == 0,
                             lastInGroup = index == group.lastIndex,
-                            selected = chat.id == selectedChatId,
+                            selected = highlighted,
                         )
                         SwipeToArchive(
                             archived = chat.isArchived,
                             // Uložené zprávy archivovat nejdou, stejně jako v nabídce po dlouhém stisku.
                             // Sponzorovaný chat taky ne — není uživatelův a TDLib ho v seznamu drží sám.
-                            enabled = chat.id != savedMessagesChatId && chat.sponsor == null,
+                            // Ve výběru tah nejde: archivuje se lištou a tah by mířil jen na jeden chat.
+                            enabled = !selecting && chat.id != savedMessagesChatId && chat.sponsor == null,
                             shape = shape,
                             onSwipe = { viewModel.toggleArchived(chat) },
                             // Animace přeskládání při změně pořadí — bez toho by chaty
@@ -1101,10 +1142,21 @@ internal fun ChatListContent(
                         ) {
                             ChatRow(
                                 chat = chat,
-                                selected = chat.id == selectedChatId,
+                                selected = highlighted,
+                                selectionMark = picked.takeIf { selecting && chat.isSelectable() },
                                 shape = shape,
-                                onClick = { if (chat.isForum) onForumClick(chat.id) else onChatClick(chat.id) },
-                                onLongClick = { viewModel.showActions(chat) },
+                                onClick = {
+                                    when {
+                                        selecting -> viewModel.toggleSelected(chat)
+                                        chat.isForum -> onForumClick(chat.id)
+                                        else -> onChatClick(chat.id)
+                                    }
+                                },
+                                // Ve výběru i dlouhý stisk jen přepíná — nabídka nad jedním chatem
+                                // by z výběru vytrhla.
+                                onLongClick = {
+                                    if (selecting) viewModel.toggleSelected(chat) else viewModel.showActions(chat)
+                                },
                             )
                         }
                     }
@@ -1327,6 +1379,8 @@ private val SWIPE_THRESHOLD_MAX = 160.dp
 private fun ChatRow(
     chat: ChatSummary,
     selected: Boolean,
+    /** Značka výběru víc chatů; `null` = výběr neběží (nebo chat vybrat nejde). */
+    selectionMark: Boolean?,
     /** Tvar bloku — počítá ho [groupItemShape] vedle, protože ho potřebuje i podklad pod tahem. */
     shape: RoundedCornerShape,
     onClick: () -> Unit,
@@ -1371,7 +1425,8 @@ private fun ChatRow(
         modifier = modifier
             .fillMaxWidth()
             .clip(shape)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .then(if (selectionMark != null) Modifier.semantics { this.selected = selectionMark } else Modifier),
     ) {
         Row(
             Modifier.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),
@@ -1392,7 +1447,15 @@ private fun ChatRow(
 
                 // Tečka sedí NA avataru, ne vedle jména: v seznamu se očima jede po levém
                 // sloupci, takže se dostupnost přečte spolu s tím, kdo to je.
-                if (chat.presence is Presence.Online) {
+                // Ve výběru má roh avataru značka výběru; tečka dostupnosti by se s ní prala.
+                if (selectionMark != null) {
+                    SelectionMark(
+                        selected = selectionMark,
+                        rim = containerColor,
+                        contentColor = contentColor,
+                        modifier = Modifier.align(Alignment.BottomEnd).offset(x = 4.dp, y = 4.dp),
+                    )
+                } else if (chat.presence is Presence.Online) {
                     OnlineDot(rim = containerColor, modifier = Modifier.align(Alignment.BottomEnd), chatId = chat.id)
                 }
             }

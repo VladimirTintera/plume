@@ -449,8 +449,8 @@ Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku, p�
 
 **Větší (spíš funkce než detail)**
 
-- **Výběr víc chatů v seznamu** s plovoucí lištou jako výběr zpráv v konverzaci
-  (`HorizontalFloatingToolbar`): archivovat, ztlumit, přečíst několik chatů naráz.
+- ~~**Výběr víc chatů v seznamu**~~ — hotovo: „Vybrat" v nabídce nad chatem, plovoucí lišta
+  s archivací, ztlumením a přečtením (`ChatSelection`), v hlavním seznamu i archivu.
 - **Vlastní barva motivu** v Nastavení → Vzhled: řada vzorků ve tvarech `MaterialShapes`, jako
   „Tapeta a styl" na Pixelu. Na iOS a Androidu bez Material You je barva dnes napevno; paletu
   ze zvolené barvy už umí materialkolor (`nonDynamicThemeMain`).
