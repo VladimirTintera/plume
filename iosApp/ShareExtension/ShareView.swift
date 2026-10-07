@@ -1,3 +1,4 @@
+import Intents
 import SwiftUI
 
 /// Stav listu sdílení: snímek chatů od aplikace, hledání a odesílání do vybraného chatu.
@@ -8,13 +9,34 @@ final class ShareModel: ObservableObject {
     @Published private(set) var busy = false
     @Published private(set) var failed = false
 
+    /// Chat z návrhu v systémové nabídce sdílení (darovaný `INSendMessageIntent`): výběr se
+    /// přeskočí a obsah jde rovnou do něj.
+    let suggested: ShareSnapshotChat?
+
     private let context: NSExtensionContext?
     private let openApp: (URL) -> Void
 
     init(context: NSExtensionContext?, openApp: @escaping (URL) -> Void) {
         self.context = context
         self.openApp = openApp
-        self.chats = ShareStore.loadSnapshot()?.chats ?? []
+        let chats = ShareStore.loadSnapshot()?.chats ?? []
+        self.chats = chats
+        self.suggested = Self.suggestedChat(context, in: chats)
+    }
+
+    /// Spustí se s listem: z návrhu rovnou odešle, jinak čeká na výběr.
+    func start() {
+        if let suggested { send(to: suggested) }
+    }
+
+    /// Id chatu z návrhu. Chat, který snímek nezná (třeba už vypadl z padesáti nejnovějších),
+    /// se pošle podle id — aplikace ho zná.
+    private static func suggestedChat(_ context: NSExtensionContext?, in chats: [ShareSnapshotChat]) -> ShareSnapshotChat? {
+        guard let intent = context?.intent as? INSendMessageIntent,
+              let raw = intent.conversationIdentifier,
+              let id = Int64(raw) else { return nil }
+        return chats.first { $0.id == id }
+            ?? ShareSnapshotChat(id: id, title: intent.speakableGroupName?.spokenPhrase ?? "", avatar: nil, saved: nil)
     }
 
     var filtered: [ShareSnapshotChat] {
@@ -74,11 +96,15 @@ struct ShareView: View {
         .alert("share.failed", isPresented: .constant(model.failed)) {
             Button("share.cancel") { model.cancel() }
         }
+        .task { model.start() }
     }
 
     @ViewBuilder
     private var content: some View {
-        if model.chats.isEmpty {
+        if model.suggested != nil {
+            // Chat je vybraný návrhem; seznam by jen problikl, než se list zavře.
+            Color.clear
+        } else if model.chats.isEmpty {
             // Snímek chatů zapisuje aplikace — bez přihlášení a prvního spuštění žádný není.
             ContentUnavailableView("share.empty.title", systemImage: "bubble.left.and.bubble.right", description: Text("share.empty.message"))
         } else {

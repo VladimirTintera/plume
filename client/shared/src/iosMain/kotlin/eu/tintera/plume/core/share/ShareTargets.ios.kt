@@ -48,6 +48,12 @@ import platform.Foundation.create
 import platform.Foundation.dataWithContentsOfFile
 import platform.Foundation.stringWithContentsOfFile
 import platform.Foundation.writeToFile
+import platform.Intents.INImage
+import platform.Intents.INInteraction
+import platform.Intents.INInteractionDirectionOutgoing
+import platform.Intents.INOutgoingMessageTypeOutgoingMessageText
+import platform.Intents.INSendMessageIntent
+import platform.Intents.INSpeakableString
 
 /*
  * Sdílení do aplikace na iOS jde přes rozšíření (Share Extension, `iosApp/ShareExtension`), které
@@ -125,6 +131,8 @@ class IosShareSnapshot(
             holder.replaced.collect {
                 recent.value = emptyList()
                 writing.withLock { shareDirectory()?.let { wipe(it) } }
+                // Návrhy v systémové nabídce sdílení nesou jména a fotky chatů odhlášeného účtu.
+                INInteraction.deleteAllInteractionsWithCompletion(null)
             }
         }
     }
@@ -196,10 +204,43 @@ class IosShareSnapshot(
     }
 }
 
-/** iOS: použitý chat jde ve snímku pro rozšíření nahoru (obdoba Direct Share). */
+/**
+ * iOS obdoba Direct Share: použitý chat jde ve snímku pro rozšíření nahoru a systém dostane
+ * darovanou konverzaci (`INSendMessageIntent`), ze které skládá řádek návrhů nahoře v nabídce
+ * sdílení. Pořadí si řídí systém sám podle toho, jak často a nedávno se chat daruje — proto
+ * se daruje KAŽDÉ odeslání, stejně jako na Androidu.
+ *
+ * Ťuknutí na návrh otevře rozšíření s `extensionContext.intent`, jehož
+ * `conversationIdentifier` je id chatu; rozšíření pak výběr chatu přeskočí.
+ */
+@OptIn(ExperimentalForeignApi::class)
 class IosShareTargetPublisher(private val snapshot: IosShareSnapshot) : ShareTargetPublisher {
-    override fun publish(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean) =
+    private val logger = Logger.withTag("Share")
+
+    override fun publish(chatId: Long, title: String, avatarPath: String?, isSavedMessages: Boolean) {
         snapshot.markUsed(chatId)
+        // Konverzace jako „skupina" s názvem a obrázkem i u soukromého chatu: INPerson by chtěl
+        // kontakt nebo handle, které o protějšku nemáme, a název s fotkou systém ukáže stejně.
+        val intent = INSendMessageIntent(
+            recipients = null,
+            outgoingMessageType = INOutgoingMessageTypeOutgoingMessageText,
+            content = null,
+            speakableGroupName = INSpeakableString(spokenPhrase = title),
+            conversationIdentifier = chatId.toString(),
+            serviceName = null,
+            sender = null,
+            attachments = null,
+        )
+        // Data, ne URL souboru: soubor TDLib leží v kontejneru aplikace, kam systém nedosáhne.
+        avatarPath?.let { NSData.dataWithContentsOfFile(it) }?.let { data ->
+            intent.setImage(INImage.imageWithImageData(data), forParameterNamed = "speakableGroupName")
+        }
+        val interaction = INInteraction(intent = intent, response = null)
+        interaction.direction = INInteractionDirectionOutgoing
+        interaction.donateInteractionWithCompletion { error ->
+            if (error != null) logger.w { "Konverzaci $chatId se nepodařilo darovat do návrhů sdílení: ${error.localizedDescription}" }
+        }
+    }
 }
 
 /**

@@ -10,6 +10,10 @@
 	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>INSendMessageIntent</string>
+	</array>
 	<key>PlumeAppGroup</key>
 	<string>group.eu.tintera.plume$(TEAM_ID)</string>
 	<key>CFBundleURLTypes</key>
