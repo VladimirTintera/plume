@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.auth
 
+import eu.tintera.plume.core.ui.BLOCK_OUTLINE
+import eu.tintera.plume.core.ui.blockOutlineColor
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -92,157 +94,12 @@ internal fun AuthTextField(
     )
 }
 
-/**
- * Barva rámečku vstupu při přihlášení. Jedno místo pro políčka kódu i pro heslo — dvě kopie
- * téhož pravidla by se rozešly a z jedné obrazovky by byly dva jazyky.
- *
- * Průhledná, dokud se nic neděje: rámeček kolem každého pole pořád je kresba navíc, která nic
- * neříká.
- */
-@Composable
-internal fun authOutlineColor(isError: Boolean, active: Boolean): Color = animateColorAsState(
-    targetValue = when {
-        isError -> MaterialTheme.colorScheme.error
-        active -> MaterialTheme.colorScheme.primary
-        else -> Color.Transparent
-    },
-    animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
-    label = "auth-outline",
-).value
-
-/**
- * Heslo dvoufázového ověření — to stávající i nové při obnově.
- *
- * **Tónovaný blok jako číslo, ne obrysové pole s plovoucím labelem.** Na jedné obrazovce nemají
- * být dvě různá pojetí vstupu; label navíc jen opakoval nadpis kroku, stejně jako u země.
- *
- * **Odkrytí okem je to hlavní.** Cloud heslo se píše jednou za dlouho a naslepo, takže překlep
- * se pozná až z hlášky „Heslo nesedí" — a uživatel ani potom neví, co vlastně napsal. Ikona
- * pojmenovává AKCI, ne stav: se skrytým heslem je to oko („zobrazit"), s odkrytým přeškrtnuté.
- * U NOVÉHO hesla je to ještě důležitější: potvrzovací druhé pole nemáme, kontrolou je právě oko.
- */
-@Composable
-internal fun PasswordField(
-    value: String,
-    isError: Boolean,
-    onValueChange: (String) -> Unit,
-    onSubmit: () -> Unit,
-    placeholder: StringResource = Res.string.auth_input_password,
-    // Nové heslo správce hesel nabídne vygenerovat a uložit; stávající doplnit.
-    contentType: ContentType = ContentType.Password,
-    imeAction: ImeAction = ImeAction.Go,
-    onNext: (() -> Unit)? = null,
-) {
-    var revealed by rememberSaveable { mutableStateOf(false) }
-    AuthBlockField(
-        value = value,
-        onValueChange = onValueChange,
-        placeholder = placeholder,
-        isError = isError,
-        keyboardType = KeyboardType.Password,
-        contentType = contentType,
-        imeAction = imeAction,
-        onSubmit = onSubmit,
-        onNext = onNext,
-        visualTransformation = if (revealed) VisualTransformation.None else PasswordVisualTransformation(),
-    ) {
-        IconButton(
-            onClick = { revealed = !revealed },
-            modifier = Modifier.padding(end = 4.dp),
-            shapes = IconButtonDefaults.shapes(),
-        ) {
-            Icon(
-                painterResource(
-                    if (revealed) Res.drawable.visibility_off_24dp else Res.drawable.visibility_24dp,
-                ),
-                contentDescription = stringResource(
-                    if (revealed) Res.string.auth_password_hide else Res.string.auth_password_show,
-                ),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-/**
- * Tónovaný blok s jedním polem — tentýž jazyk jako číslo a heslo, pro kód z e-mailu a nápovědu
- * k novému heslu. Obrysové [AuthTextField] by na obrazovce, kde se oba vstupy střídají s heslem,
- * byl druhý vzhled pro totéž.
- *
- * **Fokus a chybu nese rámeček kolem celého bloku**, ne podtržení `TextField`u: to je široké jen
- * jako pole, takže vedle ikony končilo v půlce karty a vypadalo jako chyba vykreslení.
- */
-@Composable
-internal fun AuthBlockField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: StringResource,
-    isError: Boolean,
-    keyboardType: KeyboardType,
-    onSubmit: () -> Unit,
-    contentType: ContentType? = null,
-    imeAction: ImeAction = ImeAction.Go,
-    /**
-     * „Další" na klávesnici. **Výchozí přesun fokusu nestačí, když má blok ikonu**: fokus skočí
-     * na ni (oko u hesla), ne do dalšího pole — ověřeno na emulátoru, nápověda pod novým heslem
-     * se tak psala naprázdno.
-     */
-    onNext: (() -> Unit)? = null,
-    visualTransformation: VisualTransformation = VisualTransformation.None,
-    fieldModifier: Modifier = Modifier,
-    trailing: @Composable () -> Unit = {},
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val focused by interaction.collectIsFocusedAsState()
-
-    Surface(
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(AUTH_OUTLINE, authOutlineColor(isError = isError, active = focused)),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            TextField(
-                value = value,
-                onValueChange = onValueChange,
-                placeholder = { Text(stringResource(placeholder)) },
-                singleLine = true,
-                isError = isError,
-                visualTransformation = visualTransformation,
-                // Heslo ani kód se neopravují a nedoplňují; klávesnice by z nich udělala jiné slovo.
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = keyboardType,
-                    imeAction = imeAction,
-                    autoCorrectEnabled = false,
-                ),
-                keyboardActions = KeyboardActions(
-                    onGo = { onSubmit() },
-                    onNext = onNext?.let { next -> { next() } },
-                ),
-                textStyle = MaterialTheme.typography.headlineSmall,
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    errorContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    errorIndicatorColor = Color.Transparent,
-                ),
-                interactionSource = interaction,
-                modifier = fieldModifier
-                    .weight(1f)
-                    .semantics { contentType?.let { this.contentType = it } },
-            )
-            trailing()
-        }
-    }
-}
 
 /**
  * Země a číslo jako **jeden blok**, ne dvě nesouvisející pole: předvolba bez země nic neznamená
  * a naopak. Stejný jazyk jako skupiny v Nastavení — nadpis a obsah drží pohromadě.
  *
- * **Fokus a chybu nese rámeček kolem celého bloku** ([authOutlineColor]), stejně jako u hesla
+ * **Fokus a chybu nese rámeček kolem celého bloku** ([blockOutlineColor]), stejně jako u hesla
  * a u políček kódu. Dřív to bylo podtržení `TextField`u, tedy čára široká jen jako pole
  * a přilepená přesně na spodní hranu karty — vypadala jako lem, který tam něco zapomnělo,
  * a přihlašovací obrazovka měla pro tutéž věc tři různé projevy.
@@ -261,7 +118,7 @@ internal fun PhoneField(
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(AUTH_OUTLINE, authOutlineColor(isError = isError, active = focused)),
+        border = BorderStroke(BLOCK_OUTLINE, blockOutlineColor(isError = isError, active = focused)),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.fillMaxWidth()) {
@@ -384,5 +241,3 @@ internal class PhoneOffsetMapping(
         formatted.take(offset.coerceIn(0, formatted.length)).count { it.isDigit() }
 }
 
-/** Tloušťka rámečku vstupu při přihlášení — políčka kódu i heslo. */
-internal val AUTH_OUTLINE = 2.dp

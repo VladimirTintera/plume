@@ -27,6 +27,7 @@ import eu.tintera.plume.resources.error_pin_limit
 import eu.tintera.plume.resources.error_recovery_code_expired
 import eu.tintera.plume.resources.error_recovery_code_invalid
 import eu.tintera.plume.resources.error_recovery_unavailable
+import eu.tintera.plume.resources.settings_two_step_error_email_invalid
 import eu.tintera.plume.resources.error_summary_premium_limit
 import eu.tintera.plume.resources.error_transfer_needs_password
 import eu.tintera.plume.resources.error_transfer_too_fresh
@@ -101,6 +102,8 @@ fun Throwable.userMessage(fallback: StringResource): UiText {
         "CODE_INVALID" -> Res.string.error_recovery_code_invalid
         "PASSWORD_RECOVERY_EXPIRED" -> Res.string.error_recovery_code_expired
         "PASSWORD_RECOVERY_NA" -> Res.string.error_recovery_unavailable
+        // Dvoufázové ověření v Nastavení: adresu, kterou server nevezme, hrubé síto propustilo.
+        "EMAIL_INVALID" -> Res.string.settings_two_step_error_email_invalid
         // Pozvánka do chatu (`checkChatInviteLink`): neplatný odkaz hlásí server jako vypršelý.
         "INVITE_HASH_EXPIRED", "INVITE_HASH_INVALID" -> Res.string.error_invite_invalid
         // Zařízení přihlášené teprve nedávno (asi 24 h) nesmí odhlašovat ostatní — ochrana
