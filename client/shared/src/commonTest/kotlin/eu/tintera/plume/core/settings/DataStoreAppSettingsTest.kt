@@ -219,6 +219,43 @@ class DataStoreAppSettingsTest {
         }
     }
 
+    /** `null` znamená modrou — výchozí barva se neukládá, aby šla změnit bez migrace. */
+    @Test
+    fun barvaMotivuJeVychoziNevybrana() = settingsTest { settings, _ ->
+        assertEquals(null, settings.themeColor.value)
+    }
+
+    @Test
+    fun barvaMotivuSeUlozi() = settingsTest { settings, _ ->
+        settings.setThemeColor(ThemeColor.GREEN)
+        assertEquals(
+            ThemeColor.GREEN,
+            settings.themeColor.awaitValue("uložená zelená") { it == ThemeColor.GREEN },
+        )
+    }
+
+    /** Barva, kterou tahle verze nezná (z novější), spadne na výchozí — přechodem, viz výš. */
+    @Test
+    fun neznamaBarvaMotivuSpadneNaVychozi() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val dataStore = createSettingsDataStore(tempPath())
+            val settings = DataStoreAppSettings(dataStore, scope)
+
+            settings.setThemeColor(ThemeColor.RED)
+            settings.themeColor.awaitValue("uložená červená") { it == ThemeColor.RED }
+
+            withTimeout(WAIT_MS) { dataStore.edit { it[stringPreferencesKey("theme_color")] = "MAGENTA" } }
+
+            assertEquals(
+                null,
+                settings.themeColor.awaitValue("pád na výchozí barvu") { it == null },
+            )
+        } finally {
+            scope.cancel()
+        }
+    }
+
     @Test
     fun neznamaHodnotaSpadneNaVychozi() = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

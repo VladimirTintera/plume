@@ -8,6 +8,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.view.WindowCompat
 import eu.tintera.plume.app.root.presentation.theme.expressiveColorScheme
@@ -15,7 +16,7 @@ import eu.tintera.plume.app.root.presentation.theme.expressiveColorScheme
 actual val supportsDynamicColor: Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
 @Composable
-actual fun colorScheme(isDark: Boolean, dynamic: Boolean): ColorScheme {
+actual fun colorScheme(isDark: Boolean, dynamic: Boolean, seed: Color): ColorScheme {
     val context = LocalContext.current
     return when {
         // DYNAMIC = Material You ze systému (tapeta). Statické módy = naše vibrant expressive schéma.
@@ -30,7 +31,7 @@ actual fun colorScheme(isDark: Boolean, dynamic: Boolean): ColorScheme {
                 if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
             }
 
-        else -> expressiveColorScheme(isDark)
+        else -> expressiveColorScheme(isDark, seed)
     }
 }
 

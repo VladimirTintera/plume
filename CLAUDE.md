@@ -4352,7 +4352,7 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   pod taženým chatem či zprávou za prahem tahu), kruh = probíhající akce
   (odeslat, hraje), SoftBurst = živý signál (tlačítko při nahrávání dýchá, tečka v pruhu už
   nebliká — dva blikající prvky vedle sebe byly šum; na okamžik i za emoji čerstvě přidané reakce), dvanáctistranná sušenka = podbarvení
-  podržené samolepky — i vlnka stisku je ořezaná do téže sušenky (klikání má vlastní vrstvu,
+  podržené samolepky a vybraný vzorek barvy motivu — i vlnka stisku je ořezaná do téže sušenky (klikání má vlastní vrstvu,
   samolepka sama ořezaná není, přišla by o rohy), sled tvarů končící zaoblenou hvězdou =
   uvítání prázdného stavu (placeholder detailu, jednou a pak stojí). Kde se stav nemění (avatary, položky seznamu, reakce), se tvary
   nepoužívají: kdyby se hýbalo všechno, přestalo by to cokoli znamenat.
@@ -10424,9 +10424,37 @@ OFL z Google Fonts, licence v `docs/licenses/`.
 
 ### Material You a jeho náhrada
 
-`colorScheme(isDark, dynamic)` je `expect`. Android 12+ vrací systémové dynamic color; `nonDynamicThemeMain`
-generuje expressive paletu ze seed barvy přes materialkolor (`theme/ColorScheme.kt`). iOS build tedy
-není „Android bez barev", ale má vlastní konzistentní paletu.
+`colorScheme(isDark, dynamic, seed)` je `expect`. Android 12+ s barvami z tapety vrací systémové
+dynamic color; jinak (iOS, Android do 11, vypnutá tapeta) se paleta generuje ze seed barvy přes
+materialkolor (`expressiveColorScheme` v `theme/ColorScheme.kt`). iOS build tedy není „Android bez
+barev", ale má vlastní konzistentní paletu.
+
+**Seed si volí uživatel** — Nastavení → Vzhled → Barva (`ThemeColor`, `AppSettings.themeColor`,
+`ThemeColorPicker`), osm vzorků jako „Tapeta a styl" na Pixelu.
+
+- **Styl palety je `Vibrant`, ne `Expressive`.** Expressive (výchozí v materialkoloru, spec 2021)
+  posouvá odstín primární barvy o 240° od seedu (`ColorSpec2021`) — vzorek „Červená" by nebyl
+  červený a z modrého seedu vyšla jiná barva, než jaká se dala čekat. Vibrant drží odstín seedu
+  a sytost dává nejvyšší, jakou odstín unese.
+- **Vzorek se kreslí z TÉHOŽ schématu, jaké by aplikace dostala** (horní půlka `primary`, dole
+  `secondaryContainer` a `tertiaryContainer`), v aktuálním motivu. Seed sám nic neříká — v tmavém
+  motivu je primární barva světlý tón, a právě ten uživatel uvidí.
+- **S barvami z tapety žádný vzorek vybraný není**, i když nějaký uložený je: vybraný vzorek by
+  tvrdil, že se aplikace kreslí z něj. Řada je vidět i tak a ťuknutí tapetu vypne
+  (`chooseThemeColor`), věta pod řadou to říká předem. Vypnutí přepínače tapety vrátí uloženou
+  barvu.
+- **`null` = modrá a výchozí se neukládá** (stejné pravidlo jako u motivu): výchozí barvu tak jde
+  změnit bez migrace. Neznámý název z novější verze spadne na výchozí.
+- **Vybraný vzorek se morfne do dvanáctistranné sušenky** (`ShapeMorphs.Highlight`, „to vybrané /
+  podržené"); fajfka na ploše `surface` téže palety nese výběr i bez tvaru. Sušenka jde jen do
+  ořezu při KRESLENÍ, vrstva a dotyk zůstávají v kruhu (viz „Vzhled konverzace").
+- **Vybraný vzorek se ve výpisu `uiautomator` rozpadne do tří uzlů** (zaškrtnutelný bez popisu,
+  popis, `RadioButton`), nevybraný je jeden uzel s popisem. Dělá to Compose u `selectable`
+  s rolí RadioButton (vybraný přestane být „klikatelný") a stejně vypadají vybrané řádky motivu;
+  přeřazení `semantics` před `selectable` na tom nic nemění. Čtečka uzly slučuje.
+- **Ověřeno na emulátoru** (česky): vzorky ve světlém i tmavém motivu, výběr zelené vypne tapetu
+  a přebarví aplikaci, červená v tmavém motivu, modrá, opětovné zapnutí tapety výběr zruší.
+  **iOS jen přeložené.**
 
 ## Haptika
 

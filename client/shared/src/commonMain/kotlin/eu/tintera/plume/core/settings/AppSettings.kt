@@ -86,6 +86,16 @@ interface AppSettings {
     fun setDynamicColor(enabled: Boolean)
 
     /**
+     * Barva, ze které se dopočítá paleta, když neplatí barvy z tapety; `null` = výchozí
+     * ([ThemeColor.BLUE]). Výchozí se neukládá, jako u motivu — kdyby se značková barva někdy
+     * změnila, má ji dostat i ten, kdo si nikdy nic nevybral.
+     */
+    val themeColor: StateFlow<ThemeColor?>
+
+    /** Uloží barvu palety. Neblokuje, jako [recordRecentEmoji]. */
+    fun setThemeColor(color: ThemeColor)
+
+    /**
      * Mají nepřečtené chaty v seznamu vlastní blok?
      *
      * Výchozí je `false` — nepřečtený chat zůstane tam, kde ho uživatel zná z pořadí od TDLib.
@@ -311,6 +321,16 @@ class DataStoreAppSettings(
         }
     }
 
+    override val themeColor: StateFlow<ThemeColor?> = value(null) { preferences ->
+        ThemeColor.entries.firstOrNull { it.name == preferences[THEME_COLOR] }
+    }
+
+    override fun setThemeColor(color: ThemeColor) {
+        scope.launch {
+            edit { preferences -> preferences[THEME_COLOR] = color.name }
+        }
+    }
+
     override val separateUnreadChats: StateFlow<Boolean> = value(false) { preferences ->
         preferences[SEPARATE_UNREAD_CHATS] ?: false
     }
@@ -481,6 +501,7 @@ class DataStoreAppSettings(
         val EMOJI_SKIN_TONES = stringPreferencesKey("emoji_skin_tones")
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
+        val THEME_COLOR = stringPreferencesKey("theme_color")
         val SEPARATE_UNREAD_CHATS = booleanPreferencesKey("separate_unread_chats")
         val SAVED_MESSAGES_AS_CHATS = booleanPreferencesKey("saved_messages_as_chats")
         val ON_DEVICE_AI_ENABLED = booleanPreferencesKey("on_device_ai_enabled")

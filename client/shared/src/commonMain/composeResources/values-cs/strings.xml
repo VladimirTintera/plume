@@ -182,6 +182,16 @@
     <string name="settings_theme_dark">Tmavý</string>
     <string name="settings_theme_dynamic">Dynamické barvy</string>
     <string name="settings_theme_dynamic_summary">Použít barvy z tapety systému</string>
+    <string name="settings_theme_color">Barva</string>
+    <string name="settings_theme_color_dynamic_note">Výběrem barvy se vypnou dynamické barvy.</string>
+    <string name="theme_color_blue">Modrá</string>
+    <string name="theme_color_teal">Tyrkysová</string>
+    <string name="theme_color_green">Zelená</string>
+    <string name="theme_color_yellow">Žlutá</string>
+    <string name="theme_color_orange">Oranžová</string>
+    <string name="theme_color_red">Červená</string>
+    <string name="theme_color_pink">Růžová</string>
+    <string name="theme_color_purple">Fialová</string>
     <string name="settings_chats">Seznam chatů</string>
     <string name="settings_separate_unread">Nepřečtené ve vlastním bloku</string>
     <string name="settings_separate_unread_summary">Nepřečtené chaty se přesunou nad ostatní. Vypnuté drží pořadí, jak ho posílá Telegram.</string>

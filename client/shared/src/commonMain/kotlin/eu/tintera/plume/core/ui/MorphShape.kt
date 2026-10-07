@@ -27,7 +27,8 @@ import androidx.graphics.shapes.star
  * - [ShapeMorphs.Rest] kruh ↔ šestistranná „sušenka": sušenka je klid / připraveno (mikrofon, pozastavené
  *   přehrávání), kruh probíhající akce (odeslat, hraje).
  * - [ShapeMorphs.Live] kruh ↔ SoftBurst: živý signál, tlačítko při nahrávání dýchá.
- * - [ShapeMorphs.Highlight] kruh ↔ dvanáctistranná sušenka: podbarvení podržené samolepky.
+ * - [ShapeMorphs.Highlight] kruh ↔ dvanáctistranná sušenka: podbarvení podržené samolepky,
+ *   vybraný vzorek barvy motivu.
  * - [ShapeMorphs.Intro] kruh → čtyřlístek → pětiúhelník → zaoblená hvězda: uvítání prázdného
  *   stavu (detail bez otevřeného chatu). Jednou při zobrazení, pak tvar stojí.
  * - `Cookie7Sided` (bez morfu): odznak připnutých zpráv; při přechodu na jinou připnutou se

@@ -1,13 +1,13 @@
 package eu.tintera.plume.features.settings
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -19,7 +19,9 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.app.root.presentation.resolveIsDark
 import eu.tintera.plume.app.root.presentation.supportsDynamicColor
+import eu.tintera.plume.core.settings.ThemeColor
 import eu.tintera.plume.core.settings.ThemeMode
 import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.toggle
@@ -32,6 +34,8 @@ import eu.tintera.plume.resources.settings_chats
 import eu.tintera.plume.resources.settings_separate_unread
 import eu.tintera.plume.resources.settings_separate_unread_summary
 import eu.tintera.plume.resources.settings_theme
+import eu.tintera.plume.resources.settings_theme_color
+import eu.tintera.plume.resources.settings_theme_color_dynamic_note
 import eu.tintera.plume.resources.settings_theme_dark
 import eu.tintera.plume.resources.settings_theme_dynamic
 import eu.tintera.plume.resources.settings_theme_dynamic_summary
@@ -43,7 +47,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Sekce „Vzhled": motiv a podoba seznamu chatů.
+ * Sekce „Vzhled": motiv, barva aplikace a podoba seznamu chatů.
  *
  * Obsah do sloupce sekce, ne celá obrazovka — hlavičku a scrollování drží [SettingsSectionScreen].
  */
@@ -52,6 +56,7 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
     val haptics = LocalHapticFeedback.current
     val storedTheme by viewModel.themeMode.collectAsStateWithLifecycle()
     val storedDynamic by viewModel.dynamicColor.collectAsStateWithLifecycle()
+    val storedColor by viewModel.themeColor.collectAsStateWithLifecycle()
     val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
 
     // Dokud si uživatel nevybral, je vybraná ta možnost, podle které se aplikace opravdu kreslí —
@@ -94,6 +99,25 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
                         viewModel.setDynamicColor(on)
                     },
                 ),
+            )
+        }
+    }
+
+    // Barva platí, jen když neplatí tapeta — s tapetou žádný vzorek vybraný není, jinak by
+    // tvrdil, že se aplikace kreslí z něj. Řada je vidět i tak: ťuknutí tapetu vypne.
+    val dynamicActive = dynamicColor && supportsDynamicColor
+    SettingsGroup(Res.string.settings_theme_color) {
+        ThemeColorPicker(
+            selected = if (dynamicActive) null else storedColor ?: ThemeColor.BLUE,
+            isDark = selectedTheme.resolveIsDark(),
+            onSelect = { color -> viewModel.chooseThemeColor(color, dynamicActive) },
+        )
+        AnimatedVisibility(visible = dynamicActive) {
+            Text(
+                stringResource(Res.string.settings_theme_color_dynamic_note),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
             )
         }
     }

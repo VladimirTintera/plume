@@ -13,6 +13,7 @@ import eu.tintera.plume.app.root.presentation.supportsDynamicColor
 import eu.tintera.plume.app.shell.AppShell
 import eu.tintera.plume.core.notifications.NotificationPermissionPrompt
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.settings.ThemeColor
 import eu.tintera.plume.core.settings.ThemeMode
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.ui.forgetKnownImagePaths
@@ -39,10 +40,12 @@ fun App() {
     val settings = koinInject<AppSettings>()
     val themeMode by settings.themeMode.collectAsStateWithLifecycle()
     val dynamicColor by settings.dynamicColor.collectAsStateWithLifecycle()
+    val themeColor by settings.themeColor.collectAsStateWithLifecycle()
 
     AppTheme(
         themeMode = themeMode ?: ThemeMode.SYSTEM,
         dynamicColor = dynamicColor ?: supportsDynamicColor,
+        themeColor = themeColor ?: ThemeColor.BLUE,
     ) {
         Surface(Modifier.fillMaxSize()) {
             val authViewModel: AuthViewModel = koinViewModel()
