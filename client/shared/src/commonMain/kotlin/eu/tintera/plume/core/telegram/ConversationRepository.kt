@@ -1008,6 +1008,11 @@ data class ChatInfo(
      */
     val canJoin: Boolean = false,
     /**
+     * Základní skupina převedená na supergroupu: id NOVÉHO chatu. Do staré se nepíše a nikoho
+     * se do ní nezve — místo pole a pruhů vede konverzace do nové skupiny.
+     */
+    val upgradedToChatId: Long? = null,
+    /**
      * Smí se do chatu psát ([writeAccess]). Kde ne, konverzace místo vstupního pole ukáže, co se
      * dělat dá — pole, ze kterého zpráva skončí chybou, je horší než žádné.
      */
@@ -1162,6 +1167,11 @@ data class ChatMessage(
      * u něj nedávají smysl.
      */
     val isService: Boolean,
+    /**
+     * Oznámení o převodu základní skupiny na supergroupu vede do té druhé: dosavadní zprávy
+     * zůstaly ve staré skupině a nová je neukazuje. `null` u všech ostatních zpráv.
+     */
+    val upgradeLink: GroupUpgradeLink? = null,
     /** Unixový čas v sekundách, jak ho dává TDLib. */
     val timestamp: Int,
     val isEdited: Boolean,
@@ -2414,3 +2424,6 @@ data class FactCheck(
 
 /** Sousední skladby v chatu; `null`, kde už žádná není. */
 data class MusicNeighbors(val previous: ChatMessage?, val next: ChatMessage?)
+
+/** Druhá strana převodu skupiny: [chatId] je stará základní skupina, nebo ([toNewGroup]) ta nová. */
+data class GroupUpgradeLink(val chatId: Long, val toNewGroup: Boolean)

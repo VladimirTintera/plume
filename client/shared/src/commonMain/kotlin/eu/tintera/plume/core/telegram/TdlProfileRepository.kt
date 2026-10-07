@@ -201,6 +201,11 @@ class TdlProfileRepository(
             client.getChat(chatId = linkedId).toResult().getOrNull()
                 ?.let { LinkedChat(chatId = it.id, title = it.title, photoFileId = it.photo?.small?.id) }
         }
+        val isBasicGroup = chat.type is ChatTypeBasicGroup
+        // Převedená základní skupina (`isActive == false`) se hlásí jako opuštěná, takže `owner`
+        // u ní vyjde `false` — upravuje se už ta nová.
+        val owner = (supergroup != null || isBasicGroup) &&
+            (client.ownMemberStatus(chat) as? OwnMemberStatus.Creator)?.isMember == true
         val rights = chatEditRights(
             isChannel = isChannel,
             status = client.ownMemberStatus(chat),
@@ -216,11 +221,10 @@ class TdlProfileRepository(
             rights = rights,
             permissions = chat.permissions.toGroupPermissions(),
             isForum = supergroup?.isForum == true,
-            canToggleForum = supergroup != null && !isChannel && !supergroup.hasLinkedChat &&
-                (client.ownMemberStatus(chat) as? OwnMemberStatus.Creator)?.isMember == true,
+            canToggleForum = owner && !isChannel && supergroup?.hasLinkedChat != true,
+            isBasicGroup = isBasicGroup,
             username = supergroup?.usernames?.editableUsername.orEmpty(),
-            canChangeUsername = supergroup != null &&
-                (client.ownMemberStatus(chat) as? OwnMemberStatus.Creator)?.isMember == true,
+            canChangeUsername = owner,
             linkedChat = linkedChat,
             canSetDiscussion = isChannel && rights.canChangeInfo,
         )
@@ -236,8 +240,16 @@ class TdlProfileRepository(
         Unit
     }
 
-    override suspend fun checkUsername(chatId: Long, username: String): Result<UsernameCheck> =
-        client.checkChatUsername(chatId = chatId, username = username).toResult().map { it.toUsernameCheck() }
+    override suspend fun checkUsername(chatId: Long, username: String): Result<UsernameCheck> {
+        // Základní skupinu TDLib nebere — ta veřejné jméno dostane až jako supergroupa, a pro
+        // chat, který ještě není, se ptá nulou (stejně jako při zakládání).
+        val basic = chatId != 0L && client.getChat(chatId = chatId).toResult().getOrNull()?.type is ChatTypeBasicGroup
+        return client.checkChatUsername(chatId = if (basic) 0 else chatId, username = username)
+            .toResult().map { it.toUsernameCheck() }
+    }
+
+    override suspend fun upgradeToSupergroup(chatId: Long): Result<Long> =
+        client.upgradeBasicGroupChatToSupergroupChat(chatId = chatId).toResult().map { it.id }
 
     override suspend fun setTitle(chatId: Long, title: String): Result<Unit> =
         client.setChatTitle(chatId = chatId, title = title).toResult().map { }

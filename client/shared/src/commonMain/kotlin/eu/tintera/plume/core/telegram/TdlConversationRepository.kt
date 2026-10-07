@@ -1859,6 +1859,7 @@ class TdlConversationRepository(
                     draftText = draft?.text,
                     draftFormats = draft?.formats.orEmpty(),
                     canJoin = access.canJoin,
+                    upgradedToChatId = upgradedTo(chat),
                     // Do tématu uloženého z jiného chatu TDLib odeslat nedovolí; Moje poznámky
                     // jsou Uložené zprávy bez tématu, tam se píše jako dřív.
                     writeAccess = if (savedTopicId != null && savedTopic?.kind != SavedTopicKind.MyNotes) {
@@ -2041,6 +2042,13 @@ class TdlConversationRepository(
         )
     }
 
+    /** Nová skupina převedené základní skupiny ([ChatInfo.upgradedToChatId]); lokální dotaz. */
+    private suspend fun upgradedTo(chat: Chat): Long? {
+        val basic = chat.type as? ChatTypeBasicGroup ?: return null
+        return client.getBasicGroup(basicGroupId = basic.basicGroupId).toResult().getOrNull()
+            ?.upgradedToSupergroupId?.takeIf { it != 0L }?.let(::supergroupChatId)
+    }
+
     /** Druh chatu pro [pollsAllowedIn]. Bot a Uložené zprávy se zjišťují lokálně. */
     private suspend fun pollChatKind(chat: Chat): PollChatKind = when (val type = chat.type) {
         is ChatTypeBasicGroup -> PollChatKind.Group
@@ -2208,6 +2216,7 @@ class TdlConversationRepository(
                 ?.text?.text
                 ?.takeIf { it.isNotEmpty() },
             isService = content.serviceText(isChannelPost) != null,
+            upgradeLink = content.upgradeLink(),
             timestamp = date,
             isEdited = editDate > 0,
             mediaAlbumId = mediaAlbumId,

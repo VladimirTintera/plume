@@ -1922,6 +1922,13 @@
     <string name="edit_chat_discussion_unlinked">Comments are off</string>
     <string name="edit_chat_discussion_failed">Couldn't change the discussion group</string>
     <string name="edit_chat_forum_help">The group is split into topics, each with its own conversation.</string>
+    <string name="edit_chat_upgrade_title">Upgrade the group?</string>
+    <string name="edit_chat_upgrade_link">A public link needs a larger kind of group (a supergroup). Members, admins and settings stay. Earlier messages stay in the original group, and the note at the start of the new one opens them. This can't be undone.</string>
+    <string name="edit_chat_upgrade_topics">Topics need a larger kind of group (a supergroup). Members, admins and settings stay. Earlier messages stay in the original group, and the note at the start of the new one opens them. This can't be undone.</string>
+    <string name="edit_chat_upgrade_confirm">Upgrade</string>
+    <string name="edit_chat_upgrade_failed">Couldn't upgrade the group.</string>
+    <string name="service_upgraded_open_old">Show earlier messages</string>
+    <string name="service_upgraded_open_new">Open the new group</string>
     <string name="edit_chat_forum_failed">Couldn't change topics.</string>
     <string name="topic_color_blue">Blue</string>
     <string name="topic_color_yellow">Yellow</string>

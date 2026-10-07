@@ -92,6 +92,13 @@ interface ProfileRepository {
     /** Dá se [username] použít pro chat [chatId]? Až nad jménem, které projde [usernameFormatError]. */
     suspend fun checkUsername(chatId: Long, username: String): Result<UsernameCheck>
 
+    /**
+     * Převede základní skupinu na supergroupu (`upgradeBasicGroupChatToSupergroupChat`) a vrátí
+     * id NOVÉHO chatu. Veřejný odkaz ani témata základní skupina nemá; převod je nevratný a stará
+     * skupina zůstane jako neaktivní chat s dosavadními zprávami. Smí jen vlastník.
+     */
+    suspend fun upgradeToSupergroup(chatId: Long): Result<Long>
+
     /** Nová fotka chatu z lokálního souboru (fotka, nebo krátké čtvercové video). */
     suspend fun setPhoto(chatId: Long, photo: ProfilePhotoFile): Result<Unit>
 
@@ -208,10 +215,16 @@ data class EditableChat(
     /** Skupina má témata. */
     val isForum: Boolean = false,
     /**
-     * Témata jde zapnout a vypnout: smí jen vlastník supergroupy, a diskusní skupina kanálu je
-     * mít nemůže (`toggleSupergroupIsForum`). Základní skupina by se musela napřed převést.
+     * Témata jde zapnout a vypnout: smí jen vlastník skupiny, a diskusní skupina kanálu je
+     * mít nemůže (`toggleSupergroupIsForum`). U základní skupiny ([isBasicGroup]) jen zapnout,
+     * a to po převodu na supergroupu.
      */
     val canToggleForum: Boolean = false,
+    /**
+     * Základní skupina: veřejný odkaz i témata chtějí napřed převod na supergroupu
+     * ([ProfileRepository.upgradeToSupergroup]) — s jiným id chatu.
+     */
+    val isBasicGroup: Boolean = false,
     /** Diskusní skupina kanálu (u skupiny propojený kanál); `null` = žádná. */
     val linkedChat: LinkedChat? = null,
     /** Kanálu jde vybrat nebo odpojit diskusní skupinu (správce s právem měnit údaje). */
@@ -219,9 +232,8 @@ data class EditableChat(
     /** Současné veřejné jméno (`t.me/…`); prázdné = soukromý chat. */
     val username: String = "",
     /**
-     * Veřejné jméno jde měnit: jen vlastník supergroupy nebo kanálu (`setSupergroupUsername`).
-     * Základní skupina by se musela napřed převést na supergroupu — jiné id chatu, viz
-     * „Založení skupiny a kanálu" v CLAUDE.md —, takže se jí volba nenabízí.
+     * Veřejné jméno jde měnit: jen vlastník (`setSupergroupUsername`). Základní skupině se
+     * nabízí taky, uložení ji ale napřed převede na supergroupu ([isBasicGroup]).
      */
     val canChangeUsername: Boolean = false,
 )

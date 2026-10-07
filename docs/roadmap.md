@@ -146,8 +146,8 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   členů, název a fotka, u kanálu popis, ~~soukromý / veřejný s odkazem~~ a ~~pozvánka lidem,
   které server nepustil~~ a ~~veřejný odkaz v úpravě chatu~~; `CLAUDE.md`, „Založení skupiny
   a kanálu" a „Veřejný odkaz v úpravě chatu"). Zbývá ověřit pozvánku se skutečným člověkem,
-  který přidávání zakazuje (dialog jen sondou), a veřejnou základní skupinu (chce převod na
-  supergroupu, `upgradeBasicGroupChatToSupergroupChat`).
+  který přidávání zakazuje (dialog jen sondou). ~~Veřejná základní skupina~~ — hotovo
+  (převod na supergroupu, `CLAUDE.md`, „Převod základní skupiny").
 - **Ochrana před spamem.** ~~Zablokovat z nabídky nad chatem a při mazání rovnou zablokovat
   i nahlásit~~, ~~průvodce nahlášením s volbou důvodu~~ (i zprávy z nabídky nad zprávou),
   ~~pruh nad konverzací u chatu od neznámého~~ — hotovo (`CLAUDE.md`, „Blokování a nahlášení

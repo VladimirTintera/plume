@@ -1986,6 +1986,13 @@
     <string name="edit_chat_discussion_unlinked">Komentáře jsou vypnuté</string>
     <string name="edit_chat_discussion_failed">Diskusní skupinu se nepodařilo změnit</string>
     <string name="edit_chat_forum_help">Skupina se rozdělí na témata, každé má vlastní konverzaci.</string>
+    <string name="edit_chat_upgrade_title">Převést skupinu?</string>
+    <string name="edit_chat_upgrade_link">Veřejný odkaz má jen větší druh skupiny (supergroupa). Členové, správci i nastavení zůstanou. Dosavadní zprávy zůstanou v původní skupině a otevře je oznámení na začátku nové. Vrátit to nejde.</string>
+    <string name="edit_chat_upgrade_topics">Témata má jen větší druh skupiny (supergroupa). Členové, správci i nastavení zůstanou. Dosavadní zprávy zůstanou v původní skupině a otevře je oznámení na začátku nové. Vrátit to nejde.</string>
+    <string name="edit_chat_upgrade_confirm">Převést</string>
+    <string name="edit_chat_upgrade_failed">Skupinu se nepodařilo převést.</string>
+    <string name="service_upgraded_open_old">Zobrazit starší zprávy</string>
+    <string name="service_upgraded_open_new">Otevřít novou skupinu</string>
     <string name="edit_chat_forum_failed">Témata se nepodařilo přepnout.</string>
     <string name="topic_color_blue">Modrá</string>
     <string name="topic_color_yellow">Žlutá</string>

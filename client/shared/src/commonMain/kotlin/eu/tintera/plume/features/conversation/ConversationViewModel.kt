@@ -228,6 +228,7 @@ import eu.tintera.plume.resources.chats_unarchived
 import eu.tintera.plume.resources.spam_bar_contact_added
 import eu.tintera.plume.resources.spam_bar_failed
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.collectLatest
@@ -424,6 +425,11 @@ class ConversationViewModel(
      * ze stejného důvodu jako [connection]: mění se zřídka a nezávisle na zprávách.
      */
     val chatBar: StateFlow<ChatBar?> = chatRepository.chatBar(chatId)
+        // Převedená základní skupina: TDLib u ní dál drží pruh „Pozvat členy", jenže zvát
+        // a psát se dá jen do té nové. Pruh tam nic nenabízí.
+        .combine(_state.map { it.info?.upgradedToChatId != null }.distinctUntilChanged()) { bar, upgraded ->
+            bar.takeIf { !upgraded }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /**
