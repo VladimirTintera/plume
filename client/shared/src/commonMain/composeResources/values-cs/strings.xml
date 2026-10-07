@@ -1927,10 +1927,13 @@
     <string name="forum_topic_reorder">Změnit pořadí připnutých</string>
     <string name="forum_topics_reorder_title">Připnutá témata</string>
     <string name="forum_topics_reorder_hint">Pořadí změníš přetažením tématu za úchyt.</string>
-    <string name="forum_topics_reorder_done">Hotovo</string>
-    <string name="forum_topic_drag">Přetáhnout</string>
-    <string name="forum_topic_move_up">Posunout nahoru</string>
-    <string name="forum_topic_move_down">Posunout dolů</string>
+    <string name="chats_reorder_pinned">Změnit pořadí připnutých</string>
+    <string name="chats_reorder_title">Připnuté chaty</string>
+    <string name="chats_reorder_hint">Pořadí změníš přetažením chatu za úchyt.</string>
+    <string name="reorder_done">Hotovo</string>
+    <string name="reorder_drag">Přetáhnout</string>
+    <string name="reorder_move_up">Posunout nahoru</string>
+    <string name="reorder_move_down">Posunout dolů</string>
     <string name="forum_topic_rename">Přejmenovat</string>
     <string name="forum_topic_close">Uzavřít</string>
     <string name="forum_topic_reopen">Znovu otevřít</string>

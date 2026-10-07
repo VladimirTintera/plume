@@ -108,7 +108,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -155,6 +154,13 @@ import eu.tintera.plume.core.telegram.ChatSponsor
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.ReorderRow
+import eu.tintera.plume.core.ui.ReorderTopBar
+import eu.tintera.plume.resources.chats_reorder_title
+import eu.tintera.plume.core.ui.draggedItem
+import eu.tintera.plume.core.ui.groupItemShape
+import eu.tintera.plume.core.ui.rememberDragReorderState
+import eu.tintera.plume.resources.chats_reorder_hint
 import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.chatAvatarKey
@@ -248,6 +254,7 @@ fun ChatListScreen(
     val archiveUnread by viewModel.archiveUnread.collectAsStateWithLifecycle()
     val folderTabs by viewModel.folderTabs.collectAsStateWithLifecycle()
     val folderSuggestions by viewModel.folderSuggestions.collectAsStateWithLifecycle()
+    val reorder by viewModel.reorder.collectAsStateWithLifecycle()
     // Vybraná složka Telegramu (ne celý seznam) — kvůli prázdnému stavu.
     val selectedFolder = folderTabs.firstOrNull { it.selected && it.id != null }
     val startUpdate = rememberStartUpdate(viewModel.appUpdates)
@@ -343,6 +350,15 @@ fun ChatListScreen(
     Scaffold(
         modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
+            reorder?.let { current ->
+                ReorderTopBar(
+                    title = stringResource(Res.string.chats_reorder_title),
+                    busy = current.busy,
+                    onCancel = viewModel::cancelReorder,
+                    onDone = viewModel::saveReorder,
+                )
+                return@Scaffold
+            }
             // Hlavička pod otevřeným FAB menu ztlumená a neťukací, stejně jako seznam.
             Box {
                 ChatSearchBar(
@@ -541,7 +557,7 @@ fun ChatListScreen(
                     ),
             ) {
                 SnackbarHost(snackbarHostState, Modifier.fillMaxWidth())
-                NewChatFabMenu(
+                if (reorder == null) NewChatFabMenu(
                     expanded = fabMenuExpanded,
                     onExpandedChange = { fabMenuExpanded = it },
                     onNewChat = onNewChat,
@@ -847,6 +863,9 @@ internal fun ChatActionsHost(
         }
     }
 
+    val listState by viewModel.state.collectAsStateWithLifecycle()
+    val chats = (listState as? ChatListState.Ready)?.chats.orEmpty()
+
     actions.target?.let { chat ->
         val folderChoices = remember(actions.folders, chatFolders) {
             folderChoices(chatFolders, actions.folders)
@@ -856,6 +875,7 @@ internal fun ChatActionsHost(
             spam = actions.spam,
             onOpenProxySettings = onOpenProxySettings,
             onTogglePinned = { viewModel.togglePinned(chat) },
+            onReorderPinned = viewModel::startReorder.takeIf { canReorderPinned(chats) },
             onMute = { duration -> viewModel.mute(chat, duration) },
             onUnmute = { viewModel.unmute(chat) },
             onToggleUnread = { viewModel.toggleUnread(chat) },
@@ -903,6 +923,20 @@ internal fun ChatListContent(
     val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
     val hiddenSavedMessagesChatId by viewModel.hiddenSavedMessagesChatId.collectAsStateWithLifecycle()
+
+    // Režim uspořádání připnutých: zpět ho zruší bez uložení, teprve další zpět odejde.
+    val reorder by viewModel.reorder.collectAsStateWithLifecycle()
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = reorder != null,
+        onBackCompleted = viewModel::cancelReorder,
+    )
+    val reorderIds = reorder?.chats?.map { it.id }.orEmpty()
+    val dragState = rememberDragReorderState(
+        listState = listState,
+        canMove = { key -> key in reorderIds },
+        onMove = { from, to -> viewModel.moveInReorder(from as Long, to as Long) },
+    )
 
     // Dotažení dalších chatů, jakmile se uživatel blíží ke konci. TDLib pak pošle updaty a seznam
     // se doplní sám — proto se tu nečeká na návratovou hodnotu.
@@ -993,6 +1027,48 @@ internal fun ChatListContent(
                  */
                 item(key = TOP_ANCHOR_KEY, contentType = TOP_ANCHOR_KEY) {
                     Spacer(Modifier.fillMaxWidth().height(TOP_ANCHOR_HEIGHT))
+                }
+
+                /*
+                 * Uspořádání ukazuje jen připnuté: ostatní chaty se přeskládat nedají a karty
+                 * nad seznamem by jen odsouvaly to, s čím se pracuje. Stejně jako u témat.
+                 */
+                reorder?.let { current ->
+                    item(key = REORDER_HINT_KEY, contentType = REORDER_HINT_KEY) {
+                        Text(
+                            stringResource(Res.string.chats_reorder_hint),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
+                        )
+                    }
+                    val pinned = current.chats
+                    itemsIndexed(pinned, key = { _, chat -> chat.id }) { index, chat ->
+                        val dragged = dragState.draggedKey == chat.id
+                        ReorderRow(
+                            key = chat.id,
+                            title = chatTitle(chat.id, chat.title),
+                            shape = groupItemShape(index, pinned.size),
+                            dragState = dragState,
+                            onMoveUp = pinned.getOrNull(index - 1)?.let { above -> { viewModel.moveInReorder(chat.id, above.id) } },
+                            onMoveDown = pinned.getOrNull(index + 1)?.let { below -> { viewModel.moveInReorder(chat.id, below.id) } },
+                            // Tažená položka jede pod prstem; animace umístění by se s tím prala.
+                            modifier = Modifier
+                                .then(if (dragged) Modifier else Modifier.animateItem())
+                                .draggedItem(dragState, chat.id),
+                        ) {
+                            Avatar(
+                                chatId = chat.id,
+                                title = chat.title,
+                                avatarFileId = chat.avatarFileId,
+                                size = REORDER_AVATAR_SIZE,
+                                isSavedMessages = isSavedMessages(chat.id),
+                                shape = chat.kind.avatarShape(),
+                                backdrop = MaterialTheme.colorScheme.surfaceContainerLowest,
+                            )
+                        }
+                    }
+                    return@LazyColumn
                 }
 
                 header()
@@ -1506,6 +1582,8 @@ internal val GROUP_SPACING = 14.dp
 
 /** Klíč neviditelné kotvy nad prvním chatem. */
 private const val TOP_ANCHOR_KEY = "top-anchor"
+private const val REORDER_HINT_KEY = "reorder-hint"
+private val REORDER_AVATAR_SIZE = 40.dp
 
 /** Klíč karty s aktualizací. */
 private const val UPDATE_CARD_KEY = "update-card"

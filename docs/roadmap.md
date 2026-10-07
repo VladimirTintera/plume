@@ -99,6 +99,8 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   - ~~**Seznam členů velké skupiny**~~ — hotovo (stránky po 50, hledání, věta u skupiny se
     skrytými členy; `CLAUDE.md`, „Členové velké skupiny"). **Zbývá ověřit ve skupině, kde členy
     vidět jsou** — testovací účet v takové velké není; ověřené je to sondou s malou stránkou.
+- ~~**Pořadí připnutých chatů**~~ — hotovo: „Změnit pořadí připnutých" v nabídce nad připnutým
+  chatem, tažení za úchyt, v hlavním seznamu, archivu i složce (`CLAUDE.md`, „Akce nad chatem").
 - ~~**Složky chatů**~~ — zobrazení i správa hotové (řádek pod pilulkou, přepínání, nepřečtené;
   Nastavení → Obecné → Složky chatů: založit, upravit, smazat, přeřadit, doporučené; „Přidat do
   složky" nad chatem; `CLAUDE.md`, „Složky chatů"). Zbývá:

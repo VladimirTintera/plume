@@ -464,6 +464,56 @@ class ChatsViewModel(
         repository.setPinned(chat.id, chat.folder, !chat.isPinned)
     }
 
+    private val _reorder = MutableStateFlow<PinnedReorder?>(null)
+
+    /** Režim uspořádání připnutých chatů; `null` = seznam jako obvykle. */
+    val reorder: StateFlow<PinnedReorder?> = _reorder.asStateFlow()
+
+    /**
+     * „Změnit pořadí připnutých" z nabídky nad připnutým chatem. Začíná pořadím, které seznam
+     * ukazuje; nabídku zavře.
+     */
+    fun startReorder() {
+        _actions.value = ChatActionsState()
+        val chats = (state.value as? ChatListState.Ready)?.chats ?: return
+        val pinned = pinnedChats(chats)
+        if (pinned.size < 2) return
+        _reorder.value = PinnedReorder(shownFolder.value, pinned)
+    }
+
+    fun moveInReorder(fromId: Long, toId: Long) =
+        _reorder.update { it?.copy(chats = it.chats.movedChat(fromId, toId)) }
+
+    fun cancelReorder() {
+        _reorder.value = null
+    }
+
+    /**
+     * Odešle nové pořadí jedním voláním (`setPinnedChats`). Beze změny se nic neposílá. Seznam
+     * se pak přeskládá sám — nové pořadí přijde updaty pozic, na rozdíl od témat (tam `order`
+     * pořadí připnutých nenese). Když uložení selže, režim zůstane otevřený, ať se dá zkusit znovu.
+     */
+    fun saveReorder() {
+        val reorder = _reorder.value?.takeUnless { it.busy } ?: return
+        val chats = (state.value as? ChatListState.Ready)?.chats ?: return
+        val current = pinnedChats(chats).map { it.id }
+        val ids = pinnedOrderToSave(reorder.chats.map { it.id }, current)
+        if (ids == current) {
+            cancelReorder()
+            return
+        }
+        _reorder.update { it?.copy(busy = true) }
+        viewModelScope.launch {
+            repository.setPinnedOrder(reorder.folder, ids)
+                .onSuccess { _reorder.value = null }
+                .onFailure { failure ->
+                    logger.w(failure) { "Pořadí připnutých chatů se nepodařilo uložit." }
+                    _reorder.update { it?.copy(busy = false) }
+                    _actions.update { it.copy(error = failure.userMessage(Res.string.chats_action_failed)) }
+                }
+        }
+    }
+
     /**
      * Do archivu a zpátky. Vratné, takže bez potvrzení — místo něj snackbar s „Vrátit"
      * ([ChatActionsState.archived]), jako u odepnutí zprávy.

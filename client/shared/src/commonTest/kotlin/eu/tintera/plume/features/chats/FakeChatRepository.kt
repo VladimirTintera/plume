@@ -99,6 +99,9 @@ open class FakeChatRepository(
     override suspend fun setPinned(chatId: Long, folder: ChatFolder, pinned: Boolean): Result<Unit> =
         Result.success(Unit)
 
+    override suspend fun setPinnedOrder(folder: ChatFolder, chatIds: List<Long>): Result<Unit> =
+        Result.success(Unit)
+
     override suspend fun setArchived(chatId: Long, archived: Boolean): Result<Unit> =
         Result.success(Unit)
 

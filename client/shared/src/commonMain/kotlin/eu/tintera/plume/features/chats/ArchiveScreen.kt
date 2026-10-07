@@ -14,6 +14,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.ui.IntroEmptyState
+import eu.tintera.plume.core.ui.ReorderTopBar
+import eu.tintera.plume.resources.chats_reorder_title
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.archive_filled_24dp
 import eu.tintera.plume.resources.arrow_back_24dp
@@ -50,6 +52,7 @@ fun ArchiveScreen(
     val archiveSettings by viewModel.archiveSettings.collectAsStateWithLifecycle()
     val settingsOpen by viewModel.archiveSettingsOpen.collectAsStateWithLifecycle()
     val chatFolders by viewModel.chatFolders.collectAsStateWithLifecycle()
+    val reorder by viewModel.reorder.collectAsStateWithLifecycle()
 
     ChatActionsHost(viewModel, snackbarHostState, onArchived = onChatArchived)
 
@@ -71,6 +74,15 @@ fun ArchiveScreen(
         modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
+            reorder?.let { current ->
+                ReorderTopBar(
+                    title = stringResource(Res.string.chats_reorder_title),
+                    busy = current.busy,
+                    onCancel = viewModel::cancelReorder,
+                    onDone = viewModel::saveReorder,
+                )
+                return@Scaffold
+            }
             // Obyčejný bar bez scroll behavior: nemění barvu, takže nevznikne tónovaný pruh
             // přes celou šířku, kvůli kterému hlavní seznam opustil `LargeFlexibleTopAppBar`.
             TopAppBar(

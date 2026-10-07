@@ -2721,6 +2721,22 @@ Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečte
 - **Limit připnutých chatů je serverový** (`pinned_chat_count_max`, Premium ho zvedá). Při
   překročení vrátí TDLib chybu, která MUSÍ jít vidět — jinak to vypadá, že se nic nestalo.
   Proto má seznam chatů `SnackbarHost`.
+- **Pořadí připnutých chatů se mění režimem uspořádání** („Změnit pořadí připnutých" pod
+  „Odepnout" v nabídce nad připnutým chatem, od dvou připnutých; `PinnedReorder`, pravidla
+  v `PinnedReorder.kt`, testy `PinnedReorderTest`). Tentýž režim jako u témat: hlavička
+  s ✕ a „Hotovo", jen připnuté chaty s úchytem, zpět ho zruší bez uložení. Platí pro složku,
+  ve které se skládá — hlavní seznam, archiv i složku Telegramu (`setPinnedChats` s jejím
+  `ChatList`).
+  - **`setPinnedChats` bere seznam jako NOVÝ STAV připnutých, ne jako přeskládání** — chat,
+    který v něm chybí, odepne, chat navíc připne. Odesílá se proto vždycky CELÝ seznam
+    připnutých a srovnaný s tím, co je připnuté teď (`pinnedOrderToSave`): mezitím odepnutý
+    chat (jiné zařízení) se znovu nepřipne a nově připnutý zůstane nahoře.
+  - **Na rozdíl od témat nese pořadí `order`**: nové pořadí přijde zpátky updaty pozic a seznam
+    se přeskládá sám, nic se nedrží lokálně. Ověřeno i po `force-stop`.
+  - **Ověřeno na emulátoru** ve složce „Plume test" (hlavní seznam testovacího účtu připnuté
+    nemá): připnutí bota a testovací skupiny, přetažení, „Hotovo", pořadí po restartu, zpět
+    bez uložení, položka se u jediného připnutého nenabízí; obojí se pak odepnulo. Archiv
+    a hlavní seznam jdou toutéž cestou, ověřené zvlášť nejsou. **iOS jen přeložené.**
 - **`Card(onClick = …)` umí jen krátké ťuknutí.** Dlouhý stisk potřebuje `combinedClickable`,
   takže se z karty stal `Surface` s vlastním klikáním.
 
@@ -8382,10 +8398,12 @@ a `topicActions` (`ForumTopics.kt`, testy `TopicManagementTest`).
     a po uložení převezme nové pořadí sám. Nově připnuté téma (v pořadí ještě není) jde nahoru,
     kam ho dává i server. **Změnu pořadí z jiného zařízení** seznam uvidí až při dalším otevření.
   - **Tažení v `LazyColumn` je obecné** (`core/ui/DragReorder.kt`: `rememberDragReorderState`,
-    `Modifier.dragHandle`, `Modifier.draggedItem`) — připravené i pro připnuté chaty. Tažená
+    `Modifier.dragHandle`, `Modifier.draggedItem`), používají ho i připnuté chaty. Tažená
     položka jede jen kreslením (`graphicsLayer`) a NEMÁ `animateItem`: animace umístění by se
     s posunem pod prstem prala. Výměnu ohlásí `tick`. Úchyt táhne hned, bez podržení — podržení
-    řádku patří nabídce.
+    řádku patří nabídce. Hlavička režimu a řádek s úchytem jsou taky sdílené
+    (`core/ui/ReorderRow.kt`: `ReorderTopBar`, `ReorderRow`), aby témata a chaty vypadaly
+    i ovládaly se stejně.
 - **Hledání hledá server** (`getForumTopics` s dotazem, první stránka), takže najde i téma, které
   ještě není načtené. Rozepsaný dotaz další znak zahodí (`transformLatest`), jako hledání chatů.
 - **Zapnout témata smí jen vlastník supergroupy** (`EditableChat.canToggleForum`), diskusní
