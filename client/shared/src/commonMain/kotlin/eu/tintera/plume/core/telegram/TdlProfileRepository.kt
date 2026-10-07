@@ -13,6 +13,7 @@ import dev.g000sha256.tdl.dto.ChatMemberStatusRestricted
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlin.time.Clock
 import kotlin.time.Duration
 import dev.g000sha256.tdl.TdlClient
@@ -518,8 +519,16 @@ class TdlProfileRepository(
         )
     }
 
-    override fun memberUpdates(chatId: Long): Flow<Unit> =
-        holder.updates { chatMemberUpdates }.filter { it.chatId == chatId }.map { }
+    /**
+     * Změna člena a změna plných údajů skupiny. Počet členů nese `SupergroupFullInfo`, a ten má
+     * TDLib v keši až minutu — přečíst ho hned po vyhození vrátí starý počet. Když se změní,
+     * TDLib pošle `UpdateSupergroupFullInfo`, a teprve na ten profil počet opraví.
+     */
+    override fun memberUpdates(chatId: Long): Flow<Unit> = merge(
+        holder.updates { chatMemberUpdates }.filter { it.chatId == chatId }.map { },
+        holder.updates { supergroupFullInfoUpdates }.filter { supergroupChatId(it.supergroupId) == chatId }.map { },
+        holder.updates { basicGroupFullInfoUpdates }.filter { -it.basicGroupId == chatId }.map { },
+    )
 
     override suspend fun setAdminRights(chatId: Long, userId: Long, rights: AdminRights): Result<Unit> = runCatching {
         val memberId = MessageSenderUser(userId = userId)
@@ -544,8 +553,10 @@ class TdlProfileRepository(
         userId: Long,
         permissions: GroupPermissions,
         duration: Duration?,
+        keepUntil: Int?,
     ): Result<Unit> = runCatching {
         val memberId = MessageSenderUser(userId = userId)
+        val now = Clock.System.now().epochSeconds
         // Základ jsou jeho současná práva (u neomezeného výchozí práva skupiny), aby se
         // nepřepsalo to, co aplikace nenabízí — stejně jako u `setPermissions`.
         val current = (client.getChatMember(chatId = chatId, memberId = memberId).toResult()
@@ -557,7 +568,7 @@ class TdlProfileRepository(
             status = ChatMemberStatusRestricted(
                 // Omezený člen ve skupině zůstává; vyhození je `banMember`.
                 isMember = true,
-                restrictedUntilDate = untilDate(duration, Clock.System.now().epochSeconds),
+                restrictedUntilDate = keepUntil?.let { keptUntilDate(it, now) } ?: untilDate(duration, now),
                 permissions = current.merged(permissions),
             ),
         ).toResult().getOrThrow()

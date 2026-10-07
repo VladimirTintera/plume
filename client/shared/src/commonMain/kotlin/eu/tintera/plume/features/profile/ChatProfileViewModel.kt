@@ -141,10 +141,11 @@ class ChatProfileViewModel(
         viewModelScope.launch {
             /*
              * Změna postavení člena (i naše vlastní, i z jiného klienta) znamená přečíst seznam
-             * znovu. `conflate`, protože „odebrat všem práva" pošle updatů dávku a čtení jich
-             * snese jedno.
+             * znovu — a s ním i profil: počet členů v hlavičce by po vyhození jinak dál hlásil
+             * toho, kdo už ve skupině není. `conflate`, protože „odebrat všem práva" pošle updatů
+             * dávku a čtení jich snese jedno.
              */
-            profiles.memberUpdates(chatId).conflate().collect { reloadMembers() }
+            profiles.memberUpdates(chatId).conflate().collect { reloadProfile() }
         }
         viewModelScope.launch {
             notificationSettings.chatSettings(chatId).collect { prefs -> _state.update { it.copy(notifications = prefs) } }

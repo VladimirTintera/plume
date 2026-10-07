@@ -6343,8 +6343,11 @@ název, popis a výchozí práva členů.
   rovnou z profilu i z konverzace.
 - **Ověřeno bez zásahu do skupiny**: položka v menu u vlastníka, její nepřítomnost v soukromém
   chatu, načtení názvu, popisu, fotky a všech práv a neaktivní Uložit, dokud se nic nezmění.
-  **Uložení mění skutečnou skupinu, takže se zkouší jen se souhlasem** — stejně jako u úpravy
-  vlastního profilu.
+- **Uložení ověřené v testovací skupině** („Plume test zakladni", Bot API `getChat`): popis
+  i výchozí práva členů (fotky vypnout a zapnout). **Bot API práva skupiny vrací se zpožděním
+  několika vteřin** — hned po přepnutí ukazuje starou hodnotu a vypadá to, že se nic neuložilo.
+  Stejně tak `adb input text` s `%s` na pomalém emulátoru useklo konec popisu („Testovaci
+  skupina p"): obsah pole se proto čte dumpem PŘED uložením, ne až ze serveru.
 
 ### Správa členů
 
@@ -6382,6 +6385,10 @@ testy `MemberManagementTest`).
   z čeho to poznat. Je to **vlastní příznak `keepsCurrentEnd`, ne porovnání `duration` s tím, co
   zbývá**: zbytek může vyjít přesně na některou z nabízených dob a obě volby by se pak tvářily
   jako vybrané.
+- **„Ponechat" posílá PŘESNĚ původní konec** (`restrictMember(keepUntil)`, `keptUntilDate`,
+  testy `MemberManagementTest`), ne „teď + zbytek". Přepočet posunul konec o čas strávený na
+  obrazovce (ověřeno Bot API: +19 s) a omezení, kterému zbývalo pod 30 s, by udělal trvalým —
+  tak krátkou dobu bere TDLib jako navždy. Takové se posune těsně za tu mez.
 - **Doby se drží pod 366 dny.** Všechno delší (a kratší než 30 sekund) bere TDLib jako navždy,
   takže by delší volba slibovala konec, který nenastane. Navždy je `untilDate = 0`.
 - **Práva správce jsou zúžená sada a zapisují se celým objektem** (jako `GroupPermissions`): co
@@ -6394,6 +6401,12 @@ testy `MemberManagementTest`).
   nad `UpdateChatMember`, `conflate`). Jeden update nese jednoho člena a co změna doopravdy
   udělala, ví jen server — tentýž vzor jako připnuté zprávy a relace v Nastavení. **`UpdateChatMember`
   chodí jen správcům**, tedy právě těm, kdo členy mění; komu by k ničemu nebyl, ten ho nedostane.
+- **Na změnu člena se čte znovu celý profil, ne jen seznam** — jinak hlavička po vyhození dál
+  hlásila „2 členové". Samotné čtení ale nestačí: počet nese `SupergroupFullInfo`, který má
+  TDLib v keši až minutu, takže hned po vyhození vrátí starý. Opraví ho až
+  `UpdateSupergroupFullInfo` (u základní skupiny `UpdateBasicGroupFullInfo`), a proto ho
+  `memberUpdates` odebírá taky. Ověřeno: „1 člen" do osmi vteřin po vyhození, bez odchodu
+  z profilu.
 - **Jestli jde předat vlastnictví, se ptáme PŘED otevřením dialogu** (`canTransferOwnership`).
   Bez zapnutého dvoufázového ověření (`PasswordNeeded`) nebo s čerstvým heslem či relací
   (`PasswordTooFresh` / `SessionTooFresh`) to Telegram nedovolí a uživatel by psal heslo zbytečně.
@@ -6420,8 +6433,13 @@ testy `MemberManagementTest`).
   má; práva správce se načtou se skutečnými hodnotami a „Uložit" je zašedlé, dokud se něco
   nezmění; zpět bez uložení nic neposílá; dialog vyhození má předvybrané „Navždy" a text podle
   druhu skupiny; „Předat vlastnictví" na účtu bez dvoufázového ověření skončí vysvětlením,
-  ještě než se zeptá na heslo. **Vlastní uložení práv, omezení, vyhození, štítek a dokončený
-  převod ověřené NEJSOU** — mění skutečnou skupinu a skutečné lidi.
+  ještě než se zeptá na heslo.
+- **Zápisy ověřené v testovací supergroupě s testovacím botem** („Plume test zakladni",
+  kontrola přes Bot API `getChatMember`): omezení na den (zakázané fotky, `until_date` +24 h),
+  úprava omezení s „ponechat" (konec beze změny), zrušení omezení, štítek i jeho smazání
+  (`tag`), povýšení s výchozími právy a sesazení, vyhození na hodinu i navždy a návrat bota
+  přes „Přidat členy". **Dokončený převod vlastnictví ověřený NENÍ** — bot vlastníkem být nemůže
+  a účet nemá dvoufázové ověření.
 - **Dlouhý stisk přes `adb` chce 1,5 s.** Se `swipe … 900` se gesto vyhodnotilo jako ťuknutí
   a místo nabídky se otevřela konverzace s tím členem — vypadalo to jako chyba `combinedClickable`.
   A `uiautomator dump` při běžící animaci selže („null root node returned"), **jenže nechá na
