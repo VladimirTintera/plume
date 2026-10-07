@@ -15,6 +15,7 @@ import eu.tintera.plume.core.telegram.usernameFormatError
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.CropRegion
 import eu.tintera.plume.core.ui.ProfilePhotoCrop
+import eu.tintera.plume.core.ui.VideoCropControl
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.edit_profile_load_failed
@@ -164,7 +165,7 @@ class EditProfileViewModel(
     val cropping: String? get() = photoCrop.image
 
     /** V ořezu je snímek videa — ořez řekne, že se zkrátí a přijde o zvuk. */
-    val croppingVideo: Boolean get() = photoCrop.isVideo
+    val croppingVideo: VideoCropControl? get() = photoCrop.video
 
     /**
      * Z výběru příloh; bere se první fotka nebo video (animovaná profilovka). Napřed jde do

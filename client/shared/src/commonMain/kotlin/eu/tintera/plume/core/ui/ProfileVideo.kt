@@ -6,19 +6,26 @@ package eu.tintera.plume.core.ui
  * [PROFILE_VIDEO_MAX_BYTES] — video z galerie tomu skoro nikdy nevyhoví, takže se převádí.
  */
 interface ProfileVideo {
+    /** Délka videa v milisekundách; z ní se počítá, kam jde úsek posunout ([VideoTrim]). */
+    suspend fun durationMs(path: String): Long
+
     /**
-     * První snímek jako JPEG pro ořez ([PhotoCropOverlay]), nejvýš [PROFILE_VIDEO_FRAME_EDGE]
-     * px. Náhled z výběru příloh má jen 320 px a výřez by se vybíral z rozmazaného obrázku.
+     * Snímek v čase [atMs] jako JPEG, nejvýš [edge] px. Pro ořez ([PhotoCropOverlay]) celých
+     * [PROFILE_VIDEO_FRAME_EDGE] — náhled z výběru příloh má jen 320 px a výřez by se vybíral
+     * z rozmazaného obrázku —, pro pás snímků pod ním [PROFILE_VIDEO_STRIP_EDGE].
      * Snímek je už otočený jako video, takže výřez v podílech platí pro obojí.
+     *
+     * Soubor je pro čas a velikost vlastní a podruhé se jen vrátí: snímek se vybírá tahem
+     * a pás se skládá při každém otevření ořezu.
      */
-    suspend fun frame(path: String): String
+    suspend fun frame(path: String, atMs: Long = 0, edge: Int = PROFILE_VIDEO_FRAME_EDGE): String
 
     /**
      * Ořízne video na čtverec podle [region] (`null` = ze středu), zmenší na
-     * [PROFILE_VIDEO_EDGE], vezme prvních [PROFILE_VIDEO_MAX_SECONDS] s a zahodí zvuk.
+     * [PROFILE_VIDEO_EDGE], vezme [PROFILE_VIDEO_MAX_SECONDS] s od [startMs] a zahodí zvuk.
      * Vrací cestu k MP4 vedle zdroje.
      */
-    suspend fun crop(path: String, region: CropRegion?): String
+    suspend fun crop(path: String, region: CropRegion?, startMs: Long = 0): String
 }
 
 /** Strana animované profilovky; tolik používají oficiální klienti. */
@@ -39,3 +46,9 @@ const val PROFILE_VIDEO_BITRATE = 1_200_000
 
 /** Snímek pro ořez — stejně jako u fotky v ořezu stačí 1600 px. */
 const val PROFILE_VIDEO_FRAME_EDGE = 1600
+
+/** Snímek do pásu pod ořezem: dlaždice jsou vysoké 56 dp. */
+const val PROFILE_VIDEO_STRIP_EDGE = 200
+
+/** Jméno souboru se snímkem — jedno pro obě platformy, ať se pozná v cache. */
+internal fun profileFrameName(atMs: Long, edge: Int) = "profile-frame-$edge-$atMs.jpg"

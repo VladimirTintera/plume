@@ -19,8 +19,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Media3 Transformer: výřez (`Crop`), zmenšení (`Presentation`), prvních 10 s (ořez
- * `MediaItem`) a bez zvuku (`setRemoveAudio`).
+ * Media3 Transformer: výřez (`Crop`), zmenšení (`Presentation`), 10 s od zvoleného začátku
+ * (ořez `MediaItem`) a bez zvuku (`setRemoveAudio`).
  *
  * **Výřez platí pro OTOČENÝ obraz.** Transformer nechá dekodér snímky otočit podle metadat
  * dřív, než na ně pustí efekty, takže výřez vybraný nad otočeným snímkem
@@ -28,28 +28,50 @@ import kotlinx.coroutines.withContext
  */
 class AndroidProfileVideo(private val context: Context) : ProfileVideo {
 
-    override suspend fun frame(path: String): String = withContext(Dispatchers.IO) {
+    override suspend fun durationMs(path: String): Long = withContext(Dispatchers.IO) {
         val retriever = MediaMetadataRetriever()
         try {
             retriever.setDataSource(path)
-            val frame = retriever.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+        } finally {
+            retriever.release()
+        }
+    }
+
+    override suspend fun frame(path: String, atMs: Long, edge: Int): String = withContext(Dispatchers.IO) {
+        val file = File(File(path).parentFile, profileFrameName(atMs, edge))
+        if (file.length() > 0) return@withContext file.absolutePath
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(path)
+            // Snímek pro statickou fotku musí být PŘESNĚ ten (server ho vezme z času, ne ze
+            // snímku, který jsme ukázali); dlaždice pásu stačí nejbližší klíčový — je rychlý.
+            val option = if (edge > PROFILE_VIDEO_STRIP_EDGE) {
+                MediaMetadataRetriever.OPTION_CLOSEST
+            } else {
+                MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+            }
+            val frame = retriever.getFrameAtTime(atMs * 1000, option)
+                ?: retriever.getFrameAtTime(atMs * 1000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
                 ?: error("Video nemá snímek.")
-            val scale = minOf(1f, PROFILE_VIDEO_FRAME_EDGE.toFloat() / max(frame.width, frame.height))
+            val scale = minOf(1f, edge.toFloat() / max(frame.width, frame.height))
             val scaled = if (scale == 1f) frame else Bitmap.createScaledBitmap(
                 frame,
                 (frame.width * scale).roundToInt().coerceAtLeast(1),
                 (frame.height * scale).roundToInt().coerceAtLeast(1),
                 true,
             )
-            val file = File(File(path).parentFile, "profile-frame.jpg")
-            file.outputStream().use { scaled.compress(Bitmap.CompressFormat.JPEG, PHOTO_JPEG_QUALITY, it) }
+            val temp = File(file.parentFile, file.name + ".part")
+            temp.outputStream().use { scaled.compress(Bitmap.CompressFormat.JPEG, PHOTO_JPEG_QUALITY, it) }
+            // Přes přejmenování: souběžné čtení (pás i ořez) nesmí dostat napůl zapsaný JPEG.
+            check(temp.renameTo(file)) { "Snímek nejde uložit." }
             file.absolutePath
         } finally {
             retriever.release()
         }
     }
 
-    override suspend fun crop(path: String, region: CropRegion?): String {
+    override suspend fun crop(path: String, region: CropRegion?, startMs: Long): String {
         val source = File(path)
         val (width, height) = withContext(Dispatchers.IO) { orientedSize(path) }
         val (left, top, side) = squarePixels(region, width, height)
@@ -67,7 +89,8 @@ class AndroidProfileVideo(private val context: Context) : ProfileVideo {
             .setUri(Uri.fromFile(source))
             .setClippingConfiguration(
                 MediaItem.ClippingConfiguration.Builder()
-                    .setEndPositionMs(PROFILE_VIDEO_MAX_SECONDS * 1000L)
+                    .setStartPositionMs(startMs)
+                    .setEndPositionMs(startMs + PROFILE_VIDEO_MAX_SECONDS * 1000L)
                     .build(),
             )
             .build()

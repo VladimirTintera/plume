@@ -1987,7 +1987,13 @@
     <string name="photo_crop_done">Done</string>
     <string name="photo_crop_failed">The photo can't be loaded</string>
     <string name="photo_crop_video_title">Crop video</string>
-    <string name="photo_crop_video_note">Drag and pinch to fit the video in the circle. Only the first 10 seconds are used, without sound</string>
+    <string name="photo_crop_video_note">Drag and pinch to fit the video in the circle. On the strip, slide the clip (up to 10 s, no sound) and tap the frame to use as the photo</string>
+    <string name="video_trim_strip">Video clip</string>
+    <string name="video_trim_summary">Clip %1$s–%2$s · photo %3$s</string>
+    <string name="video_trim_move_later">Move clip a second later</string>
+    <string name="video_trim_move_earlier">Move clip a second earlier</string>
+    <string name="video_trim_cover_later">Photo a second later</string>
+    <string name="video_trim_cover_earlier">Photo a second earlier</string>
     <string name="saved_topic_my_notes">My Notes</string>
     <string name="saved_topic_author_hidden">Hidden author</string>
     <string name="saved_topic_unknown_chat">Unknown chat</string>
