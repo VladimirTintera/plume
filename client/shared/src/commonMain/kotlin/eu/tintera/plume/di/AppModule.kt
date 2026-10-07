@@ -57,6 +57,8 @@ import eu.tintera.plume.core.telegram.ConnectionController
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.TdlConnectionRepository
 import eu.tintera.plume.core.secrets.DatabaseKeyStore
+import eu.tintera.plume.core.lock.AppLock
+import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.DataStoreAppSettings
 import eu.tintera.plume.core.telegram.EmojiRepository
@@ -165,6 +167,14 @@ fun appModule() = module {
             keys = get(),
             scope = get(named(APP_SCOPE)),
         )
+    }
+
+    // Zámek aplikace musí znát stav dřív, než se složí první obrazovka, a sledovat popředí
+    // i bez UI — proto eager. Klíč k databázi s ním nesouvisí, push jde dál bez ověření.
+    single(createdAtStart = true) {
+        AppLock(store = get(), scope = get(named(APP_SCOPE))).also {
+            it.start(foreground = get<AppForeground>().isForeground, authStage = get<TelegramSession>().authStage)
+        }
     }
 
     // `createdAtStart` je tu nutnost, ne optimalizace. Repository se v konstruktoru přihlašuje

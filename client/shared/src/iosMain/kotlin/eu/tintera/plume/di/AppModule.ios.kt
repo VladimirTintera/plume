@@ -21,7 +21,9 @@ import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.connectivity.NetworkMonitor
 import eu.tintera.plume.core.notifications.NotificationPermission
 import eu.tintera.plume.core.secrets.DatabaseKeyStore
-import eu.tintera.plume.core.secrets.KeychainDatabaseKeyStore
+import eu.tintera.plume.core.secrets.AppLockStore
+import eu.tintera.plume.core.secrets.KeychainSecretStore
+import eu.tintera.plume.core.secrets.SecretStore
 import eu.tintera.plume.core.settings.SETTINGS_FILE_NAME
 import eu.tintera.plume.core.settings.createSettingsDataStore
 import eu.tintera.plume.core.telegram.applicationSupportDirectory
@@ -42,7 +44,16 @@ actual fun Module.platformModule() {
     // Model v zařízení zatím jen na Androidu; Apple Foundation Models by musely přijít ze Swiftu.
     single<OnDeviceAi> { NoopOnDeviceAi }
     single { TelegramPaths() }
-    single<DatabaseKeyStore> { KeychainDatabaseKeyStore() }
+    single<DatabaseKeyStore> {
+        object : DatabaseKeyStore, SecretStore by KeychainSecretStore(
+            service = "eu.tintera.plume.tdlib", account = "database-key", logTag = "DatabaseKey",
+        ) {}
+    }
+    single<AppLockStore> {
+        object : AppLockStore, SecretStore by KeychainSecretStore(
+            service = "eu.tintera.plume.applock", account = "pin", logTag = "AppLock",
+        ) {}
+    }
     single { NotificationPermission() }
     single { NotificationPresenter(chats = get()) }
     single { UrlOpener() }
