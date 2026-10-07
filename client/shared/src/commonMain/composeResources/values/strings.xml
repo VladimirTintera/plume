@@ -178,6 +178,16 @@
     <string name="settings_theme_dark">Dark</string>
     <string name="settings_theme_dynamic">Dynamic color</string>
     <string name="settings_theme_dynamic_summary">Apply system wallpaper colors</string>
+    <string name="settings_theme_color">Color</string>
+    <string name="settings_theme_color_dynamic_note">Picking a color turns off dynamic color.</string>
+    <string name="theme_color_blue">Blue</string>
+    <string name="theme_color_teal">Teal</string>
+    <string name="theme_color_green">Green</string>
+    <string name="theme_color_yellow">Yellow</string>
+    <string name="theme_color_orange">Orange</string>
+    <string name="theme_color_red">Red</string>
+    <string name="theme_color_pink">Pink</string>
+    <string name="theme_color_purple">Purple</string>
     <string name="settings_chats">Chat list</string>
     <string name="settings_separate_unread">Unread in their own block</string>
     <string name="settings_separate_unread_summary">Unread chats move above the rest. Off, the list keeps the order Telegram sends.</string>

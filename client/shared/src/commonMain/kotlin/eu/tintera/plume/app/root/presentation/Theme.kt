@@ -12,6 +12,8 @@ import androidx.compose.ui.graphics.Color
 import com.materialkolor.ktx.animateColorScheme
 import eu.tintera.plume.app.root.presentation.theme.AppMotion
 import eu.tintera.plume.app.root.presentation.theme.appTypography
+import eu.tintera.plume.app.root.presentation.theme.seed
+import eu.tintera.plume.core.settings.ThemeColor
 import eu.tintera.plume.core.settings.ThemeMode
 import eu.tintera.plume.core.ui.LocalSharedTransitionScope
 
@@ -22,8 +24,9 @@ expect val supportsDynamicColor: Boolean
 @Composable
 expect fun SystemBarsAppearance(isDark: Boolean)
 
+/** Schéma aplikace: barvy z tapety ([dynamic]), jinak paleta dopočítaná ze [seed]. */
 @Composable
-expect fun colorScheme(isDark: Boolean, dynamic: Boolean): ColorScheme
+expect fun colorScheme(isDark: Boolean, dynamic: Boolean, seed: Color): ColorScheme
 
 /** Efektivní „je tmavé téma" pro daný [ThemeMode] (SYSTEM → sleduje systémový dark mód). */
 @Composable
@@ -50,10 +53,11 @@ fun ThemeMode.resolveIsDark(): Boolean = when (this) {
 fun AppTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     dynamicColor: Boolean = supportsDynamicColor,
+    themeColor: ThemeColor = ThemeColor.BLUE,
     content: @Composable () -> Unit,
 ) {
     val isDark = themeMode.resolveIsDark()
-    val target = colorScheme(isDark, dynamicColor && supportsDynamicColor)
+    val target = colorScheme(isDark, dynamicColor && supportsDynamicColor, themeColor.seed)
     val colorScheme = animateColorScheme(target, animationSpec = { AppMotion.defaultEffectsSpec<Color>() })
 
     SystemBarsAppearance(isDark)

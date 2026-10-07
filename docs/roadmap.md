@@ -451,9 +451,8 @@ Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku, p�
 
 - ~~**Výběr víc chatů v seznamu**~~ — hotovo: „Vybrat" v nabídce nad chatem, plovoucí lišta
   s archivací, ztlumením a přečtením (`ChatSelection`), v hlavním seznamu i archivu.
-- **Vlastní barva motivu** v Nastavení → Vzhled: řada vzorků ve tvarech `MaterialShapes`, jako
-  „Tapeta a styl" na Pixelu. Na iOS a Androidu bez Material You je barva dnes napevno; paletu
-  ze zvolené barvy už umí materialkolor (`nonDynamicThemeMain`).
+- ~~**Vlastní barva motivu**~~ — hotovo: Nastavení → Vzhled → Barva, osm vzorků kreslených
+  z palety, kterou aplikace dostane (`ThemeColorPicker`, `AppSettings.themeColor`).
 - **Nápovědy u gest napoprvé** (`RichTooltip` se šipkou): odkrývání časů tahem, podržení pro
   efekt, podržení pro hlasovku. Gesta dnes nikdo neobjeví, dokud o nich neví.
 
