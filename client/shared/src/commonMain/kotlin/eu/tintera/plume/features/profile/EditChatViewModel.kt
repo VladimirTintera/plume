@@ -34,6 +34,7 @@ import eu.tintera.plume.resources.edit_chat_load_failed
 import eu.tintera.plume.resources.edit_chat_permissions_failed
 import eu.tintera.plume.resources.edit_chat_photo_failed
 import eu.tintera.plume.resources.edit_chat_save_failed
+import eu.tintera.plume.resources.edit_chat_upgrade_failed
 import eu.tintera.plume.resources.edit_profile_not_photo
 import androidx.compose.runtime.snapshotFlow
 import eu.tintera.plume.core.telegram.UsernameCheck
@@ -56,13 +57,34 @@ import kotlinx.coroutines.launch
  * a přepínač práv se musí pohnout na ťuknutí; texty naopak nemá smysl posílat po písmenech.
  */
 class EditChatViewModel(
-    private val chatId: Long,
+    chatId: Long,
     private val repository: ProfileRepository,
     private val photoCrop: ProfilePhotoCrop,
     inviteLinks: InviteLinkRepository,
     private val forums: ForumRepository,
     private val chats: ChatRepository,
 ) : ViewModel() {
+
+    /**
+     * Upravovaný chat. Po převodu základní skupiny na supergroupu se změní na id nové skupiny —
+     * obrazovka zůstává otevřená a všechno další (uložení, fotka, práva) jde už do ní.
+     */
+    private var chatId: Long = chatId
+
+    /** Čeká na potvrzení převodu základní skupiny: kvůli čemu se převádí. `null` = nic. */
+    var upgradeAsked by mutableStateOf<GroupUpgradeReason?>(null)
+        private set
+
+    /** Převod právě běží. */
+    var upgrading by mutableStateOf(false)
+        private set
+
+    /**
+     * Jednorázová událost: skupina se převedla, (staré id, nové id). Navigace přepíše otevřené
+     * obrazovky staré skupiny na novou; obrazovka událost po předání vynuluje.
+     */
+    var upgraded by mutableStateOf<Pair<Long, Long>?>(null)
+        private set
 
     /** Diskusní skupina kanálu, jak ji ukazuje řádek „Diskuse"; mění se po potvrzení serverem. */
     var linkedChat by mutableStateOf<LinkedChat?>(null)
@@ -184,7 +206,7 @@ class EditChatViewModel(
                 name.isNotEmpty() && usernameFormatError(name) == null &&
                     usernameStatus !is UsernameStatus.Unavailable && usernameStatus != UsernameStatus.Checking
                 )
-            return changed && !saving && title.isNotBlank() && usernameOk
+            return changed && !saving && !upgrading && title.isNotBlank() && usernameOk
         }
 
     /**
@@ -195,6 +217,15 @@ class EditChatViewModel(
     fun save() {
         val chat = original ?: return
         if (!canSave) return
+        // Veřejný odkaz má jen supergroupa: základní skupina se napřed převede, a to se potvrzuje.
+        if (chat.isBasicGroup && effectiveUsername.isNotEmpty()) {
+            upgradeAsked = GroupUpgradeReason.PublicLink
+            return
+        }
+        saveChanges(chat)
+    }
+
+    private fun saveChanges(chat: EditableChat) {
         saving = true
         viewModelScope.launch {
             var current = chat
@@ -285,6 +316,10 @@ class EditChatViewModel(
 
     fun toggleForum(forum: Boolean) {
         if (forum == isForum) return
+        if (forum && original?.isBasicGroup == true) {
+            upgradeAsked = GroupUpgradeReason.Topics
+            return
+        }
         isForum = forum
         viewModelScope.launch {
             forums.setForum(chatId, forum).onFailure { failure ->
@@ -292,6 +327,46 @@ class EditChatViewModel(
                 notice = failure.reported(Res.string.edit_chat_forum_failed)
             }
         }
+    }
+
+    fun cancelUpgrade() {
+        upgradeAsked = null
+    }
+
+    /**
+     * Potvrzený převod: skupina se převede, ViewModel se přepne na nové id a pak udělá, kvůli
+     * čemu se převádělo — uloží (i s odkazem), nebo zapne témata. Rozepsané texty zůstávají.
+     * Když převod projde a to další ne, skupina už převedená JE; hláška to řekne a obrazovka
+     * ukazuje novou skupinu, takže další pokus jde rovnou do ní.
+     */
+    fun confirmUpgrade() {
+        val reason = upgradeAsked ?: return
+        upgradeAsked = null
+        if (upgrading) return
+        upgrading = true
+        viewModelScope.launch {
+            val old = chatId
+            val fresh = repository.upgradeToSupergroup(old)
+                .mapCatching { new ->
+                    chatId = new
+                    upgraded = old to new
+                    repository.editableChat(new).getOrThrow()
+                }
+            upgrading = false
+            fresh
+                .onSuccess { chat ->
+                    original = chat
+                    when (reason) {
+                        GroupUpgradeReason.PublicLink -> saveChanges(chat)
+                        GroupUpgradeReason.Topics -> toggleForum(true)
+                    }
+                }
+                .onFailure { notice = it.reported(Res.string.edit_chat_upgrade_failed) }
+        }
+    }
+
+    fun upgradeHandled() {
+        upgraded = null
     }
 
     /** Načte skupiny, které jde připojit; volá se při otevření sheetu, ne dopředu. */
@@ -342,3 +417,6 @@ class EditChatViewModel(
         return userMessage(fallback)
     }
 }
+
+/** Proč se základní skupina převádí na supergroupu — podle toho mluví potvrzení. */
+enum class GroupUpgradeReason { PublicLink, Topics }

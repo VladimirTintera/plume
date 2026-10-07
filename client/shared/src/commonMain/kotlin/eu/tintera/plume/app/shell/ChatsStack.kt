@@ -134,6 +134,42 @@ internal fun MutableList<NavKey>.closeChat(chatId: Long) {
 }
 
 /**
+ * Základní skupina [old] se převedla na supergroupu [new] — jiné id chatu. Konverzace a profil
+ * staré skupiny se přepíšou na novou (bez skoku na zprávu: id zpráv v nové skupině jsou jiná),
+ * prohlížeč médií a obrazovky nad úpravou zmizí.
+ *
+ * **Úprava ([EditChatRoute]) zůstává se starým id**: obrazovka je zrovna otevřená a její
+ * ViewModel se na nové id přepnul sám (`EditChatViewModel.confirmUpgrade`) — nahradit ji by
+ * zahodilo rozepsané texty i hlášku o výsledku.
+ */
+internal fun MutableList<NavKey>.replaceUpgradedChat(old: Long, new: Long) {
+    removeAll {
+        when (it) {
+            is MediaRoute -> it.chatId == old
+            is MemberRightsRoute -> it.chatId == old
+            is ArchiveMemberRightsRoute -> it.chatId == old
+            is InviteLinksRoute -> it.chatId == old
+            is ArchiveInviteLinksRoute -> it.chatId == old
+            is JoinRequestsRoute -> it.chatId == old
+            is ArchiveJoinRequestsRoute -> it.chatId == old
+            else -> false
+        }
+    }
+    // Po indexech: `MutableList.replaceAll` je na Kotlin/Native experimentální.
+    for (index in indices) {
+        val route = this[index]
+        val replaced = when (route) {
+            is ConversationRoute -> if (route.chatId == old) ConversationRoute(new) else route
+            is ArchiveConversationRoute -> if (route.chatId == old) ArchiveConversationRoute(new) else route
+            is ChatProfileRoute -> if (route.chatId == old) ChatProfileRoute(new) else route
+            is ArchiveChatProfileRoute -> if (route.chatId == old) ArchiveChatProfileRoute(new) else route
+            else -> route
+        }
+        if (replaced != route) this[index] = replaced
+    }
+}
+
+/**
  * Chat otevřený NAD konverzací (zmínka, odkaz, zdroj přeposlání), takže zpět vede do ní. Kam
  * přesně, říká [ChatTarget]: vlákno komentářů, téma, seznam témat skupiny s tématy, nebo chat —
  * ten jen tehdy, když už na vrcholu zásobníku není (zmínka téhož chatu by ho otevřela podruhé).

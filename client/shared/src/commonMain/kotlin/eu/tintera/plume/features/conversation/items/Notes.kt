@@ -10,6 +10,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import eu.tintera.plume.resources.service_upgraded_open_old
+import eu.tintera.plume.resources.service_upgraded_open_new
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,10 +85,34 @@ internal fun UnreadDivider(modifier: Modifier = Modifier) {
  * Čas se u něj nevypisuje: u „někdo se připojil" je minuta k ničemu a řádek by jen zdvojnásobil.
  */
 @Composable
-internal fun ServiceMessage(message: ChatMessage, modifier: Modifier = Modifier) {
+internal fun ServiceMessage(message: ChatMessage, modifier: Modifier = Modifier, onOpenChat: (Long) -> Unit = {}) {
     // Text oznámení je [ChatMessage.description] a překládá se až tady — převedená zpráva
     // žije v paměti déle než jazyk aplikace.
-    CenteredNote(text = message.description?.resolve() ?: message.text, modifier = modifier)
+    val text = message.description?.resolve() ?: message.text
+    val link = message.upgradeLink
+    if (link == null) {
+        CenteredNote(text = text, modifier = modifier)
+        return
+    }
+    // Převod skupiny: dosavadní zprávy zůstaly ve staré skupině, a tohle je jediná cesta k nim
+    // (a ze staré skupiny k nové). Ťuká se na celé oznámení, akce je pod ním jako odkaz.
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(role = Role.Button) { onOpenChat(link.chatId) }
+            .padding(vertical = 4.dp),
+    ) {
+        CenteredNote(text = text)
+        Text(
+            text = stringResource(if (link.toNewGroup) Res.string.service_upgraded_open_new else Res.string.service_upgraded_open_old),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center,
+        )
+    }
 }
 
 /**

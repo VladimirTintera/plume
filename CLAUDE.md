@@ -6525,8 +6525,8 @@ přidává se tlačítkem s počtem. Kdo smí, je čistá funkce `canInviteMembe
 v `core/ui`, sdílený s `CreateChatScreen`). Odkaz se ukládá tlačítkem Uložit spolu s názvem
 a popisem (`ProfileRepository.setUsername` → `setSupergroupUsername`, prázdné = soukromý).
 
-- **Jen vlastník supergroupy nebo kanálu** (`EditableChat.canChangeUsername`). Základní skupina
-  by se musela převést na supergroupu (jiné id chatu), takže se jí blok nenabízí.
+- **Jen vlastník** (`EditableChat.canChangeUsername`). Základní skupině se blok nabízí taky,
+  uložení s odkazem ji ale napřed převede na supergroupu — viz „Převod základní skupiny".
 - **Bere se `usernames.editableUsername`**, ne první aktivní jméno: sběratelská jména z Fragmentu
   (`collectibleUsernames`) se tudy měnit nedají a do pole nepatří.
 - **Přepnutí na soukromý řekne předem, že se odkaz uvolní** (`chat_type_link_released`) — vrátit
@@ -6541,6 +6541,34 @@ a popisem (`ProfileRepository.setUsername` → `setSupergroupUsername`, prázdn�
   o uvolnění, přejmenování (Bot API `getChat` najde nové jméno, staré ne) a přepnutí na soukromý
   (Bot API hlásí `CHANNEL_PRIVATE`), profil po návratu pokaždé aktuální. **Neověřeno**:
   veřejná skupina (kód je společný), iOS.
+
+### Převod základní skupiny
+
+Veřejný odkaz ani témata základní skupina nemá. V úpravě skupiny se vlastníkovi nabízejí obojí
+a uložení odkazu (nebo zapnutí témat) se napřed zeptá a skupinu převede na supergroupu
+(`upgradeBasicGroupChatToSupergroupChat`, `ProfileRepository.upgradeToSupergroup`). Plume samo
+základní skupiny nezakládá (viz „Založení skupiny a kanálu"), týká se to skupin odjinud.
+
+- **Převod dá NOVÝ chat s jiným id** a je nevratný. Stará skupina zůstane jako neaktivní chat
+  (`BasicGroup.isActive == false`, `upgradedToSupergroupId`) s dosavadními zprávami a ze seznamu
+  chatů zmizí; nová začíná oznámením „Skupina byla převedena". Oficiální klienti obě historie
+  slévají, Plume ne — proto **oznámení vede do té druhé skupiny** (`ChatMessage.upgradeLink`:
+  „Zobrazit starší zprávy" / „Otevřít novou skupinu") a stará skupina má místo pole tlačítko do
+  nové (`ChatInfo.upgradedToChatId`). Potvrzovací dialog to říká předem.
+- **Pruh „Pozvat členy" drží TDLib i u převedené skupiny** — konverzace ho tam schová, zvát se
+  dá jen do nové.
+- **Úprava zůstává otevřená a její ViewModel se přepne na nové id** (`EditChatViewModel.chatId`
+  je `var`); ostatní obrazovky staré skupiny přepíše navigace (`replaceUpgradedChat`, testy
+  `ChatsStackTest`). Nahradit i úpravu by zahodilo rozepsané texty a hlášku o výsledku.
+- **Dostupnost jména se u základní skupiny ptá s `chatId = 0`**, jako při zakládání —
+  `checkChatUsername` základní skupinu nebere.
+- **Id druhé strany se skládá konvencí TDLib** (základní skupina −id, supergroupa
+  `supergroupChatId`) v čisté funkci `upgradeLink`, ne dotazem v `toChatMessage`.
+- **Ověřeno na emulátoru** na čtyřech testovacích skupinách (sondou `createNewBasicGroupChat`
+  s testovacím botem): odkaz (Bot API `getChat @…` → `supergroup`) i témata, oznámení oběma
+  směry, tlačítko ve staré skupině, nová skupina v seznamu hned po převodu. iOS jen přeložené.
+- **Nová skupina po převodu v seznamu chatů chyběla až do restartu** — souběh updatů, viz
+  „Seznam chatů": `UpdateChatPosition` doběhl dřív než `UpdateNewChat` a `upsert` ho přepsal.
 
 ### Diskuse ke kanálu
 
@@ -8541,9 +8569,10 @@ a `topicActions` (`ForumTopics.kt`, testy `TopicManagementTest`).
     i ovládaly se stejně.
 - **Hledání hledá server** (`getForumTopics` s dotazem, první stránka), takže najde i téma, které
   ještě není načtené. Rozepsaný dotaz další znak zahodí (`transformLatest`), jako hledání chatů.
-- **Zapnout témata smí jen vlastník supergroupy** (`EditableChat.canToggleForum`), diskusní
-  skupina kanálu je mít nemůže a základní skupina by se musela napřed převést — tam se přepínač
-  nenabízí. `hasForumTabs` (záložky místo seznamu) posíláme `false`.
+- **Zapnout témata smí jen vlastník** (`EditableChat.canToggleForum`) a diskusní skupina kanálu
+  je mít nemůže. Základní skupině se přepínač nabízí, zapnutí ji ale napřed převede na
+  supergroupu (viz „Převod základní skupiny"). `hasForumTabs` (záložky místo seznamu) posíláme
+  `false`.
 - **Ověřeno na emulátoru** v testovací skupině „Plume test pozvánek" (zapnutím témat): zapnutí,
   založení tématu se zelenou ikonou a jeho otevření, připnutí, uzavření, ztlumení, přejmenování,
   hledání, skrytí a vrácení obecného tématu, smazání s potvrzením, anglicky i česky.
@@ -10722,7 +10751,11 @@ po každých pěti průchodech; rozhoduje trend `alloc`, ne jedno číslo.
   a klávesnice se schová; tahy se vedou nad ní.
 - **Mini aplikace se ve smyčce zavírá gestem zpět, ne ťuknutím na ✕.** Za půl hodiny přijde
   heads-up notifikace od skutečného kontaktu a leží přesně přes hlavičku; ťuknutí podle
-  souřadnic (i z dumpu těsně před ním) by otevřelo cizí chat. Ze stejného důvodu tahy
+  souřadnic (i z dumpu těsně před ním) by otevřelo cizí chat. **Stalo se to** při ťuknutí na
+  název skupiny v hlavičce konverzace: `uiautomator dump` heads-up nevidí (dumpuje okno
+  aplikace), takže prvek „našel" a ťuknutí trefilo notifikaci. Před ťuknutím do horní části
+  obrazovky se proto čte `dumpsys activity service com.android.systemui` a při
+  `headsUpPinned=true` se čeká. Ze stejného důvodu tahy
   nezačínají v horní třetině obrazovky — tah dolů po heads-upu rozbalí lištu notifikací.
 - **ANR během dlouhého scrollu na emulátoru nebyl náš.** Po ~25 minutách souvislého scrollu
   přišel jeden „Input dispatching timed out" a dialog se pak vracel i po „Wait", zatímco hlavní
@@ -10950,6 +10983,13 @@ s hodnotou, která se mění se změnou scény, viz „Gotchas". Na Foldu to byl
   TDLib do té doby rozešle do prázdna. Seznam pak zůstane navždy prázdný.
 - **Updaty samy nestačí — po `loadChats` se musí přečíst stav z lokální DB** (`getChats` +
   `getChat`). Updaty chodí jen na ZMĚNY; bez tohohle seedu je seznam závislý na načasování odběru.
+- **Updaty k jednomu chatu chodí v RŮZNÝCH korutinách a pořadí mezi nimi neplatí.** Každý
+  odběr (`newChatUpdates`, `chatPositionUpdates`, `chatLastMessageUpdates`…) je vlastní `launch`,
+  a `upsert` si před zápisem ještě dočítá ověření a fórum. `UpdateChatPosition` poslaný TDLib až
+  po `UpdateNewChat` tak doběhl dřív, `upsert` ho přepsal prázdnými pozicemi z objektu chatu
+  a skupina čerstvě převedená na supergroupu v seznamu chyběla až do restartu; poslední zpráva
+  k ještě neznámému chatu se zahodila (`edit`). Proto u NOVÉHO chatu `upsert` pozice z updatů
+  slévá a nová poslední zpráva si neznámý chat dočte (`edit(fetchUnknown = true)`).
 - **Každá nová routa se musí zaregistrovat v `NavSavedStateConfiguration`.** `NavKey` je otevřená
   polymorfní hierarchie, kotlinx.serialization si podtypy neodvodí. Chybějící registrace projde
   kompilací a **spadne až za běhu** při první kompozici shellu.

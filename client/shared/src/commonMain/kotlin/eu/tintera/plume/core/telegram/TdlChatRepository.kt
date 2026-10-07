@@ -351,7 +351,7 @@ class TdlChatRepository(
                 // ten bere obyčejnou funkci, protože běží pod zámkem nad stavem seznamu.
                 val preview = update.lastMessage?.previewText()
                 setPositions(update.chatId, update.positions)
-                edit(update.chatId) { current ->
+                edit(update.chatId, fetchUnknown = true) { current ->
                     current.copy(
                         lastMessagePreview = preview,
                         lastMessagePreviewEntities = update.lastMessage?.previewEntities().orEmpty(),
@@ -1400,8 +1400,14 @@ class TdlChatRepository(
     private suspend fun upsert(chat: Chat) {
         val summary = chat.fullSummary()
         mutex.withLock {
+            val fresh = chat.positions.toFolderPositions()
+            // Pozice NOVÉHO chatu, které už přišly vlastním updatem, mají přednost: updaty chodí
+            // v různých korutinách a `fullSummary` se dočítá, takže `UpdateChatPosition`
+            // poslaný až po `UpdateNewChat` bývá zpracovaný dřív — a přepsat ho pozicemi
+            // z objektu chatu by chat ze seznamu vymazalo (tak mizela skupina hned po převodu).
+            // U známého chatu je objekt čerstvě přečtený a platí celý.
+            positions[chat.id] = if (summary.id in known) fresh else fresh + positions[chat.id].orEmpty()
             known[summary.id] = summary.keepingLiveState(known[summary.id])
-            positions[chat.id] = chat.positions.toFolderPositions()
         }
         publish()
     }
@@ -1461,16 +1467,26 @@ class TdlChatRepository(
 
     /**
      * Upraví existující záznam. Když chat ještě neznáme, update se **zahodí** — bez `UpdateNewChat`
-     * nemáme titulek ani zbytek, a vyrábět poloprázdný řádek by v seznamu problikávalo. TDLib
-     * `UpdateNewChat` vždycky pošle dřív, než začne posílat změny k tomu chatu.
+     * nemáme titulek ani zbytek, a vyrábět poloprázdný řádek by v seznamu problikávalo.
+     *
+     * [fetchUnknown]: neznámý chat se místo toho **dočte celý** (`getChat`, lokální). TDLib sice
+     * `UpdateNewChat` pošle dřív než změny k chatu, jenže updaty se tu zpracovávají v různých
+     * korutinách a [upsert] se před zápisem dočítá — poslední zpráva skupiny čerstvě převedené
+     * na supergroupu tak doběhla dřív, zahodila se a řádek neměl náhled až do restartu. Jen pro
+     * poslední zprávu: dostupnost chodí i k uživatelům bez chatu, a tam by se dotaz opakoval
+     * naprázdno s každou změnou.
      */
-    private suspend fun edit(chatId: Long, transform: (ChatSummary) -> ChatSummary) {
-        val changed = mutex.withLock {
+    private suspend fun edit(chatId: Long, fetchUnknown: Boolean = false, transform: (ChatSummary) -> ChatSummary) {
+        val found = mutex.withLock {
             val current = known[chatId] ?: return@withLock false
             known[chatId] = transform(current)
             true
         }
-        if (changed) publish()
+        if (found) {
+            publish()
+        } else if (fetchUnknown) {
+            client.getChat(chatId = chatId).toResult().getOrNull()?.let { upsert(it) }
+        }
     }
 
     private suspend fun clear() {

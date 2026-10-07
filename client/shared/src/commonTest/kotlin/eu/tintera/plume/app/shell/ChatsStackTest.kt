@@ -8,6 +8,8 @@ import eu.tintera.plume.core.navigation.ArchiveRoute
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
+import eu.tintera.plume.core.navigation.EditChatRoute
+import eu.tintera.plume.core.navigation.InviteLinksRoute
 import eu.tintera.plume.core.navigation.ArchiveForumTopicsRoute
 import eu.tintera.plume.core.navigation.ForumTopicsRoute
 import eu.tintera.plume.core.navigation.MediaRoute
@@ -336,5 +338,42 @@ class ChatsStackTest {
         stack.openFoundMessage(chatId = 2, messageId = 50, topicId = null)
 
         assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(chatId = 2, messageId = 50)), stack)
+    }
+
+    @Test
+    fun prevedenaSkupinaPrepiseKonverzaciAProfilUpravaZustava() {
+        val stack = mutableListOf<NavKey>(
+            ChatsRoute,
+            ConversationRoute(chatId = 5, messageId = 7),
+            MediaRoute(chatId = 5, messageId = 7),
+            ChatProfileRoute(5),
+            EditChatRoute(5),
+            InviteLinksRoute(5),
+        )
+
+        stack.replaceUpgradedChat(old = 5, new = 9)
+
+        // Bez skoku na zprávu: id zpráv v nové skupině jsou jiná. Úprava zůstává se starým id,
+        // její ViewModel se přepnul sám.
+        assertEquals(listOf<NavKey>(ChatsRoute, ConversationRoute(9), ChatProfileRoute(9), EditChatRoute(5)), stack)
+    }
+
+    @Test
+    fun prevodSkupinyVArchivuNesahaNaJineChaty() {
+        val stack = mutableListOf<NavKey>(
+            ChatsRoute,
+            ConversationRoute(chatId = 1),
+            ArchiveRoute,
+            ArchiveConversationRoute(chatId = 5),
+            ArchiveChatProfileRoute(5),
+            ArchiveEditChatRoute(5),
+        )
+
+        stack.replaceUpgradedChat(old = 5, new = 9)
+
+        assertEquals(
+            listOf<NavKey>(ChatsRoute, ConversationRoute(1), ArchiveRoute, ArchiveConversationRoute(9), ArchiveChatProfileRoute(9), ArchiveEditChatRoute(5)),
+            stack,
+        )
     }
 }

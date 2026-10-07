@@ -340,3 +340,15 @@ private fun starSentence(resource: PluralStringResource, count: Long): UiText {
     val quantity = count.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
     return UiText(resource, quantity, quantity)
 }
+
+/**
+ * Kam vede oznámení o převodu skupiny. Id chatu se skládá konvencí TDLib: základní skupina
+ * má záporné id skupiny, supergroupa [supergroupChatId]. Čistá funkce — `toChatMessage` je obří
+ * suspend funkce a další suspend volání v ní umí shodit ověření třídy (viz CLAUDE.md, „Sdílený
+ * příběh").
+ */
+internal fun MessageContent.upgradeLink(): GroupUpgradeLink? = when (this) {
+    is MessageChatUpgradeFrom -> GroupUpgradeLink(chatId = -basicGroupId, toNewGroup = false)
+    is MessageChatUpgradeTo -> GroupUpgradeLink(chatId = supergroupChatId(supergroupId), toNewGroup = true)
+    else -> null
+}

@@ -254,7 +254,7 @@ internal data class ServiceMessageItem(
                     GiftCard(gift, onAction = { scope.onAction(message.id, it) })
                 }
             } else {
-                ServiceMessage(message)
+                ServiceMessage(message, onOpenChat = { scope.onAction(message.id, MessageAction.OpenChat(it)) })
             }
         }
     }

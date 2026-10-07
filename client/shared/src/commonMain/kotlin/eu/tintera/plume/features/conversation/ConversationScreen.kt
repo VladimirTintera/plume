@@ -6,6 +6,7 @@ import eu.tintera.plume.resources.forum_24dp
 import eu.tintera.plume.resources.saved_view_as_chats
 import eu.tintera.plume.resources.saved_topic_read_only
 import eu.tintera.plume.resources.saved_topic_open_chat
+import eu.tintera.plume.resources.service_upgraded_open_new
 import eu.tintera.plume.core.ui.savedTopicTitle
 import eu.tintera.plume.core.ui.SavedTopicAvatar
 import eu.tintera.plume.core.telegram.MessageMedia
@@ -1668,6 +1669,16 @@ fun ConversationScreen(
             if (chatHidden) return@Box
             if (state.info?.canJoin == true) {
                 JoinBar(joining = state.joining, onJoin = viewModel::join, modifier = barGlass)
+                return@Box
+            }
+            // Převedená základní skupina: psát se dá jen do té nové, tak tam vede.
+            state.info?.upgradedToChatId?.let { upgraded ->
+                JoinBar(
+                    joining = false,
+                    onJoin = { onOpenChat(ChatTarget(upgraded)) },
+                    label = Res.string.service_upgraded_open_new,
+                    modifier = barGlass,
+                )
                 return@Box
             }
             // Nespuštěný bot (nebo čekající parametr z odkazu): Start místo pole.

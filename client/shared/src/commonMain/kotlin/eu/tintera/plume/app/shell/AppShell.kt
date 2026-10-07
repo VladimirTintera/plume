@@ -649,6 +649,7 @@ private fun shellEntryProvider(
             onBack = { chatsStack.pop(route) },
             onOpenInviteLinks = { chatsStack.addOnce(InviteLinksRoute(route.chatId)) },
             onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
+            onUpgraded = { old, new -> chatsStack.replaceUpgradedChat(old, new) },
         )
     }
 
@@ -658,6 +659,7 @@ private fun shellEntryProvider(
             onBack = { chatsStack.pop(route) },
             onOpenInviteLinks = { chatsStack.addOnce(ArchiveInviteLinksRoute(route.chatId)) },
             onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
+            onUpgraded = { old, new -> chatsStack.replaceUpgradedChat(old, new) },
         )
     }
 

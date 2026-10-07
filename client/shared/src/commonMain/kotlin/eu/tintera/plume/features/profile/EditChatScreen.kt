@@ -78,6 +78,10 @@ import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.edit_chat_upgrade_confirm
+import eu.tintera.plume.resources.edit_chat_upgrade_topics
+import eu.tintera.plume.resources.edit_chat_upgrade_link
+import eu.tintera.plume.resources.edit_chat_upgrade_title
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.common_cancel
@@ -122,6 +126,8 @@ fun EditChatScreen(
     onBack: () -> Unit,
     onOpenInviteLinks: () -> Unit,
     onOpenJoinRequests: () -> Unit,
+    /** Základní skupina se převedla na supergroupu: (staré id, nové id). */
+    onUpgraded: (Long, Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -141,6 +147,36 @@ fun EditChatScreen(
     }
     LaunchedEffect(viewModel.saved) {
         if (viewModel.saved) currentOnBack()
+    }
+    val currentOnUpgraded by rememberUpdatedState(onUpgraded)
+    LaunchedEffect(viewModel.upgraded) {
+        viewModel.upgraded?.let { (old, new) ->
+            viewModel.upgradeHandled()
+            currentOnUpgraded(old, new)
+        }
+    }
+
+    viewModel.upgradeAsked?.let { reason ->
+        AlertDialog(
+            onDismissRequest = viewModel::cancelUpgrade,
+            title = { Text(stringResource(Res.string.edit_chat_upgrade_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        when (reason) {
+                            GroupUpgradeReason.PublicLink -> Res.string.edit_chat_upgrade_link
+                            GroupUpgradeReason.Topics -> Res.string.edit_chat_upgrade_topics
+                        },
+                    ),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::confirmUpgrade) { Text(stringResource(Res.string.edit_chat_upgrade_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::cancelUpgrade) { Text(stringResource(Res.string.common_cancel)) }
+            },
+        )
     }
 
     val picker = rememberAttachmentPicker(onPicked = viewModel::setPhoto, onError = viewModel::reportError)
