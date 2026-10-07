@@ -4314,7 +4314,7 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   šestistranná sušenka = klid / připraveno (mikrofon, pozastavená hlasovka i video, ikona
   pod taženým chatem či zprávou za prahem tahu), kruh = probíhající akce
   (odeslat, hraje), SoftBurst = živý signál (tlačítko při nahrávání dýchá, tečka v pruhu už
-  nebliká — dva blikající prvky vedle sebe byly šum), dvanáctistranná sušenka = podbarvení
+  nebliká — dva blikající prvky vedle sebe byly šum; na okamžik i za emoji čerstvě přidané reakce), dvanáctistranná sušenka = podbarvení
   podržené samolepky — i vlnka stisku je ořezaná do téže sušenky (klikání má vlastní vrstvu,
   samolepka sama ořezaná není, přišla by o rohy), sled tvarů končící zaoblenou hvězdou =
   uvítání prázdného stavu (placeholder detailu, jednou a pak stojí). Kde se stav nemění (avatary, položky seznamu, reakce), se tvary
@@ -9245,6 +9245,17 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
 - **Jedou s bublinou i při tahu na odpověď**, protože posun sedí na sloupci kolem toho `Box`u.
 - **Jeden řádek, který se posouvá do strany**, ne lámání do víc řádků: čipy leží na bublině
   a druhý řádek by ji přerostl. U příspěvku s deseti různými emoji je to jediné, co se vejde.
+- **Přidaná reakce se ohlásí výbuchem**: za emoji se na 600 ms otevře `SoftBurst` v `primary`
+  (naroste, pootočí se a vybledne) a čip pružně povyskočí (`ReactionChip`, `burst`). Ne konfety,
+  ty patří výhře v kostce. **Jen při přechodu na vybranou reakci před očima**: čip, který byl
+  vybraný už při složení, nebo cizí reakce nic nedělají — jinak by bouchal každý scroll.
+  - **Co tu bylo při složení, si pamatuje `ReactionRow`, ne `ReactionChips`.** Čipy se skládají
+    až s první reakcí (`AnimatedVisibility`), takže jejich „počáteční" množina už novou reakci
+    obsahovala a výbuch se u první reakce zprávy nekonal (ověřeno na emulátoru, první pokus).
+  - **Výbuch se kreslí UVNITŘ kolečka čipu** (`drawBehind` pod emoji), ne přes jeho okraj:
+    řádek reakcí je `horizontalScroll` a ořezává na svoje hranice, přetékající tvar by se uřízl.
+  - Průběh se čte až při kreslení, animace nic nerekomponuje. Ověřuje se zpomalenými animacemi
+    a sérií surových snímků — v normální rychlosti ho snímek mine.
 - **Ťuknutí na čip otevírá DETAIL, nepřepíná reakci.** Přidat i odebrat jde z nabídky nad zprávou,
   kde je vybraná reakce zvýrazněná a ťuknutí na ni ji sundá. Dvě věci na jedno ťuknutí nejdou
   a detail je to, co se jinde nedozvíme.
