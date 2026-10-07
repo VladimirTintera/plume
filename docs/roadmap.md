@@ -365,6 +365,30 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
 **Na překlad se Nano nehodí a nemá se používat.** ML Kit má vlastní offline Translation API,
 stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v kvalitě i v čase.
 
+**Další nápady (říjen 2026)**, vybrané podle téhož pravidla:
+
+- **Hledání přirozeným jazykem.** „Fotky od Jany z loňského léta" → filtry, které hledání už
+  umí (chat, druh obsahu, období, odesílatel — `MessageSearchFilter`, hledání podle člena).
+  Model nic negeneruje, jen vyplní typ přes `GenerateTypedContentRequest`, takže je to přirozený
+  první krok ke **strukturovanému výstupu** výš. Chybu uživatel vidí hned (čipy filtrů nad
+  výsledky) a opraví ji ťuknutím. Dotaz bez rozpoznaných filtrů jde dál jako text.
+- **„Připomenout mi" nad zprávou.** Model vytáhne z textu termín („v pátek v 15:00") a nabídne
+  ho předvyplněný; připomínka odejde jako **naplánovaná zpráva do Uložených zpráv** s odkazem
+  na původní zprávu. Nepotřebuje oprávnění ke kalendáři ani vlastní notifikace — naplánované
+  zprávy i notifikace už fungují. Jde to i bez AI (čas se zadá ručně), AI jen ušetří výběr.
+  Rozmyslet: citace zprávy z jiného chatu (odkaz `getMessageLink`, nebo přeposlání).
+- **Kontrola tónu před odesláním** („nezní to podrážděně?"). Klasifikace vlastního konceptu,
+  nic se nepřepisuje a varování jde přejít. Stejná opatrnost jako u podvodných zpráv: radši
+  mlčet než varovat zbytečně. Spouštět jen na vyžádání nebo u delších zpráv, ne na každý úhoz.
+- **„Co jsem zmeškal".** Po otevření aplikace přehled nepřečtených chatů seřazený podle toho,
+  co čeká na odpověď (rozšíření triáže chatů výš o souhrnnou obrazovku). Běží v popředí, takže
+  omezení AICore nevadí; výsledek kešovat podle id poslední zprávy.
+- **Popis obrázků** pro čtečku obrazovky a hledání fotek podle obsahu. **Ověřit napřed**, jestli
+  Gemma přes LiteRT-LM 0.11.0 přijímá obrázky — Gemini Nano přes Prompt API zatím jen text.
+- **Offline překlad přes ML Kit Translation** jako volba vedle serverového: obsah zprávy
+  neodchází z telefonu. Modely jazyků se stahují (desítky MB na jazyk), takže stejná otázka
+  správy stažených souborů jako u Gemmy.
+
 ---
 
 ## Výkon a paměť
@@ -447,6 +471,22 @@ Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku, p�
 - ~~**Nápovědy u gest napoprvé**~~ — hotovo: `RichTooltip` se šipkou u odkrývání časů,
   podržení pro volby odeslání a podržení pro nahrávání, každá jednou (`GestureHints`).
 
+## Vychytávky
+
+Nápady z října 2026, nic z toho zatím nikdo nezačal.
+
+- **Bubliny konverzací (Android 11+).** Notifikace už jsou konverzace se zkratkami
+  (`conversationShortcut`), takže zbývá `setBubbleMetadata` a aktivita, která v bublině ukáže
+  jednu konverzaci. Pozor na `singleTask` u `MainActivity` — bublina chce vlastní aktivitu
+  s `resizeableActivity` a `allowEmbedded`, jinak by se otevřela celá aplikace.
+- **Widget na plochu** s nepřečtenými nebo připnutými chaty (Glance). Data z TDLib v procesu
+  aplikace; widget musí umět ukázat poslední známý stav, když proces neběží.
+- **Fold a klávesnice.** Klávesové zkratky (Ctrl+K hledání, Alt+↑/↓ mezi chaty, Esc zavře
+  konverzaci nebo hledání) a přetažení obrázku či souboru z jiné aplikace v rozdělené obrazovce
+  rovnou nad vstupní pole (`dragAndDropTarget`), stejnou cestou jako příloha ze schránky.
+- **Přehled rozepsaných konceptů** napříč chaty (chaty s `draftMessage`), třeba jako položka
+  menu účtu nebo složka.
+
 ---
 
 ## Nastavení
@@ -470,6 +510,36 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
 - ~~**Proxy**~~ — hotovo (Obecné → Připojení → Proxy, odkazy `t.me/proxy`, přihlašovací
   obrazovka, stav v řádku a sponzorovaný chat; `CLAUDE.md`, „Proxy").
 - ~~**Řádky sekcí nemají ikony.**~~ — hotovo (`SettingsSection.icon`).
+
+**Nastavení, která chybí** (říjen 2026; v kódu ověřeno, že nic z toho není):
+
+- **Soukromí účtu.** Kdo vidí „naposledy viděn", telefon, profilovku a bio, kdo smí přeposílat
+  (odkaz na účet), volat a zvát do skupin, a čas přečtení (`setUserPrivacySettingRules`,
+  `getReadDatePrivacySettings`). U skutečného klienta největší chybějící kus; patří do Obecné →
+  Soukromí vedle blokovaných a citlivého obsahu. Mění skutečný účet, takže ověřovat čtení
+  a zápis jen se souhlasem.
+- **Dvoufázové ověření** (`setPassword`, nápověda, obnovovací e-mail, změna a vypnutí).
+  Testovací účet ho nemá — zapnutím by se zároveň dal ověřit převod vlastnictví a obnova hesla
+  při přihlášení.
+- **Zámek aplikace** PINem nebo biometrií, zamčení po N minutách v pozadí a skrytý obsah
+  v přehledu úloh (`FLAG_SECURE` jen se zapnutým zámkem). **Zamyká se jen UI** — klíč k databázi
+  ověření vyžadovat nesmí, jinak nechodí push (`CLAUDE.md`, „Šifrovaná databáze TDLib").
+  Rozmyslet obsah notifikací při zamčené aplikaci (skrýt text?) a sdílení do zamčené aplikace.
+- **Automatické stahování médií** podle sítě (Wi-Fi / mobilní / roaming), druhu (fotky, videa,
+  soubory) a velikosti, s ohledem na systémovou úsporu dat. Dnes je jediný strop 5 MB u GIFů
+  a koleček (`autoPlays`). TDLib má vlastní přednastavení (`getAutoDownloadSettingsPresets`).
+- **Úložiště.** Kolik zabírá cache TDLib podle chatů a druhů (`getStorageStatistics`),
+  vyčištění a automatické mazání médií starších než N dní (`optimizeStorage`). Patří sem
+  i stažený model Gemmy, aby bylo vidět všechno na jednom místě.
+- **Akce tahem v seznamu chatů pro každou stranu zvlášť** (archivovat, přečíst, ztlumit,
+  připnout, nic). Dnes obě strany archivují, protože jiná akce nebyla (`CLAUDE.md`, „Archiv");
+  s volbou ten důvod padá. Výchozí zůstává archivace na obou stranách.
+- **Menší přepínače:** dvojité ťuknutí na zprávu jako rychlá reakce (výchozí reakce
+  `setDefaultReactionType`), Enter odesílá / nový řádek (Fold s klávesnicí), velikost písma ve
+  zprávách, odkazy v aplikaci (Custom Tabs) / v prohlížeči, jazyk aplikace přímo v Nastavení
+  (per-app locale; dnes jen přes systém).
+- **Tiché hodiny** (Android): v nastaveném čase jen zmínky a odpovědi. Notifikace kreslí
+  aplikace sama, takže to jde bez serveru — ale jen lokálně, ostatní zařízení o tom nevědí.
 
 ## Aktualizace z obchodu
 
