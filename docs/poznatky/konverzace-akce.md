@@ -1,0 +1,469 @@
+# Konverzace: akce nad zprávami
+
+Poznatky k jedné oblasti aplikace. Obecná pravidla projektu a rejstřík ostatních souborů jsou
+v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
+
+## Nabídka nad zprávou
+
+Dlouhý stisk otevře **nabídku u zprávy**, ne bottom sheet: rychlé reakce v pruhu nad bublinou
+a nabídka akcí pod ní, zbytek obrazovky pod závojem. Sheet dole utrhl pozornost od zprávy,
+které se týkal, a unesl jen pár položek — akcí bude postupně deset.
+
+- **Vrstva v okně obrazovky, ne `Popup`** (`MessageMenuLayer`, nad Scaffoldem konverzace).
+  `Popup` je na Androidu vlastní okno: kopii zprávy do něj šlo dostat jen jako snímek (samolepka
+  stála, zpátky se skákalo), závoj potřeboval díru přes `BlendMode.Clear`, počátek okna se musel
+  měřit a plný výběr reakcí byl vlastní napodobenina sheetu. Ve stejném okně nic z toho není třeba.
+- **Zpět obsluhuje `NavigationBackHandler`** (`androidx.navigationevent`), ne `BackHandler` —
+  ten by zabil predictive back. Při rozbaleném výběru reakcí je vypnutý, zpět si vezme sheet.
+- **Zpráva se v nabídce složí znovu, živá** (`MenuCopy`: tentýž `MessageBox` a `MessageBodyScope`
+  jako v seznamu, stejná šířka, bez gest).
+- **Kopie dostává stejné OMEZENÍ šířky jako zpráva v seznamu, ne šířku zprávy napevno**
+  (`MenuAnchor.maxWidth`, zapisuje ho rám v `layout`, a stejný `maxWidthFraction`). S šířkou
+  zprávy jako stropem vyšlo jinak všechno, co se řídí dostupnou šířkou: fotka s popiskem využívá
+  plnou dostupnou šířku, v kopii by se při pevném oříznutí chovala jinak. V seznamu se zprůhlední (`isInMenu`) a drží místo —
+  po ní zůstane prázdno, jako v Google Zprávách.
+- **Let tam i zpátky je ruční posun kopie (`Animatable`), NE sdílený prvek.** Sdílený prvek se během
+  přechodu kreslí v překryvu nad celou aplikací, mimo ořezy rodičů, takže zpráva začínající pod
+  hlavičkou chatu přeletěla PŘES hlavičku. `clipInOverlayDuringTransition` se volal, ale na
+  výsledku nebylo nic vidět, a `renderInOverlayDuringTransition = false` kreslil stejně. Kopie je
+  ve stejném okně jako seznam, takže sdílený prvek by tu dělal jen tentýž posun — ručně ho jde
+  oříznout pod hlavičkou (`clipRect` na ploše kopie).
+- **Vrstva po zavření ještě chvíli žije** (`lingering`): kopie letí zpátky na místo zprávy a teprve
+  po doběhnutí vrstva zmizí a zpráva v seznamu se znovu ukáže. Zmizet hned, neměla by kopie
+  odkud letět.
+- **Odkud zpráva vyjíždí, hlásí zpráva sama při dlouhém stisku** (`onMenuAnchor`, souřadnice v okně).
+  Rám drží `LayoutCoordinates` v obyčejném poli, ne ve stavu — zápis stavu při každém layoutu
+  by položku rekomponoval.
+- **Zpráva se do pohledu VYSUNE, nabídka je VŽDY POD NÍ** (`placeMenuMessage`, testy
+  `MenuMessagePlacementTest`). Zpráva zasahující pod hlavičku nebo pod pole vyjede tak, aby nad
+  ní byl pruh reakcí a pod ní nabídka. **Vysoká zpráva se zmenší** (nejvýš na `MIN_MESSAGE_SCALE`
+  0,6, menší text nejde číst), a **když se nevejde ani tak, ořízne se** a dole vybledne — vidět je
+  začátek, podle kterého se pozná; celý obsah je v seznamu. Dokud se vysoká zpráva jen vysunula,
+  nabídka se nevešla pod ni ani nad ni a skončila PŘES její začátek i přes pruh reakcí.
+- **Let, zmenšení i ořez jdou z jednoho průběhu 0 → 1** (`progress`), takže se zpráva zmenšuje
+  a ořezává plynule a zpátky zase dorůstá. Zmenšuje se k té straně, u které stojí, a nahoře
+  zarovnaná; ořez je rámeček s výškou viditelné části, uvnitř zpráva v plné výšce.
+- **Plný výběr reakcí je STANDARDNÍ `ModalBottomSheet`** (`ReactionPickerSheet`) bez vlastního
+  závoje (`scrimColor = Transparent`) — ztmavení už dělá nabídka pod ním a pruh reakcí i zpráva
+  nad sheetem musí zůstat vidět. Bez napůl rozbaleného stavu a s mřížkou pevné výšky, jako výběr
+  samolepek. Ve starém sheetu nešlo ťuknout na emoji (podezřelý byl `FlowRow` bez scrollování
+  a napůl rozbalený stav); tady ťuknutí funguje, ověřeno na zařízení.
+- **Závoj rozostřuje, neztmavuje** (Haze, `hazeSource` na Scaffoldu konverzace, `hazeEffect`
+  na závoji). Compose sám umí rozostřit jen VLASTNÍ obsah (`Modifier.blur`, i s přechodem od
+  1.13); rozostřit to, co leží POD vrstvou, umí Android až od 17 QPR2
+  (`RenderNode.setBackdropRenderEffect`). Haze obsah pod vrstvou zaznamená do vlastní grafické
+  vrstvy a vykreslí rozostřený, na Androidu 12+ i na iOS. **Jde to jen proto, že je nabídka
+  ve stejném okně** — z `Popup` (vlastní okno) by Haze na Scaffold nedosáhl.
+- **Poloměr 12 dp, ne výchozích 20–24.** Při 24 dp je z konverzace kaše a nepozná se ani
+  hlavička, a ta má zůstat rozpoznatelná (viz horní mez nabídky). Rozostření odsouvá do pozadí
+  samo, takže ztmavení kleslo ze 45 % na 20 %. **Kde rozostření není (Android 11 a starší),
+  kreslí Haze `fallbackTint`**, a ten je nastavený na dřívější závoj — o nic se nepřijde.
+- **Závoj se objevuje průhledností, poloměr se neanimuje.** Změna poloměru znamená nový
+  `RenderEffect` v každém snímku; prolnutí ostrého a rozostřeného obrazu vypadá skoro stejně
+  a nic nestojí. **Průhlednost jde přes `graphicsLayer`, ne přes `alpha(…)` ve stylu:** styl je
+  v Haze 2 neměnný, takže by se v každém snímku animace musel skládat znovu — a čtení animované
+  hodnoty v kompozici by rekomponovalo celou vrstvu nabídky.
+- **Haze 2 (`haze` + `haze-blur`, vždy stejná verze), vstup `HazeInput.Sources`.** Dokumentace
+  doporučuje `Backdrop`, ale ten bez experimentálního příznaku stejně spadne na `Sources`
+  a s ním by se na Androidu 17 QPR2 tiše přepnul na nativní cestu, podle autora zatím dražší.
+  Dvojka nezaznamenává zdroj, dokud ho žádný efekt nečte — `hazeSource` na Scaffoldu tedy se
+  zavřenou nabídkou nic nestojí (v 1.x se konverzace kreslila do vrstvy pořád).
+  **Kotlin projektu musí být ≥ tomu, ze kterého je Haze publikovaná** (2.0 → 2.4.20) — stejná
+  podmínka jako u TDLib wrapperu. Neimportuje se `haze-blur-materials`: styl je pár řádků
+  (`scrimStyle`) a modul by táhl material3 v jiné verzi.
+- **Nabídka akcí před sheetem NEMIZÍ.** Sheet ji jen překryje a klikat se na ni nedá, protože je
+  modální; je to pořád táž otevřená nabídka. Dřív se schovávala (`if (!expanded)`), zmizela
+  natvrdo a po zasunutí sheetu bleskově naskočila.
+- **Spodní mez je horní hrana vstupního pole, ne navigační lišta** (`contentBottom`, obrazovka ho
+  měří na `bottomBar`). Pole leží přes seznam, takže zpráva vysunutá jen nad navigační lištu
+  skončila pod polem. Kopie zprávy se ořezává mezi hlavičkou a polem, aby přes ně nepřeletěla.
+- **Otevření nabídky schová klávesnici** (`LocalSoftwareKeyboardController.hide()`, fokus pole zůstává).
+  S klávesnicí se na menším telefonu mezi hlavičku a pole nevešla ani samotná nabídka — a zpráva
+  vyšla se zápornou výškou: `Size(804 x -2) is out of range`, pád aplikace. Tak to dělají i Telegram
+  a Google Zprávy. **Na velkém emulátoru se to nereprodukuje**, místa je dost; ověřuje se na
+  zmenšeném displeji (`adb shell wm size 1080x1700`, pak `wm size reset`).
+- **Poloha zprávy je FUNKCE čtená každý snímek** (`onMenuAnchor(() -> Rect?)`), ne hodnota
+  z okamžiku stisku. Když zmizí klávesnice, seznam se posune — nabídka musí vyjet i dosednout
+  tam, kde zpráva je teď.
+- **V těsném okně zůstane zpráva vidět** aspoň `MIN_MESSAGE_VISIBLE` (72 dp) a nabídka dostane
+  strop výšky a posouvá se. Nabídka smí sahat až k navigační liště (vstupní pole je pod
+  závojem), zpráva jen nad pole. Výšky se ve vrstvě navíc ořezávají na nulu — pružina přestřelí.
+- **Horní mez je spodek hlavičky chatu, ne stavová lišta** (`contentTop` ze
+  `ConversationItemScope`, obrazovka ho měří na seznamu). Vysunutá zpráva ani pruh reakcí nesmí
+  hlavičku překrýt — ztratilo by se povědomí, s kým je chat otevřený. Google Zprávy to dělají stejně.
+- **Rozvržení nabídky se počítá z CÍLOVÉ polohy zprávy, ne z té, kde právě je.** Dokud se
+  počítalo z aktuální polohy, pruh reakcí se v prvních snímcích (než je snímek zprávy hotový)
+  nevešel nad zprávu, šel pod ni a pak přeskočil nahoru. Teď se o umístění rozhodne jednou
+  a pruh i nabídka dojedou se zprávou (`travel`).
+- **Past: `Modifier.clip(shape)` musí být PŘED `combinedClickable`.** `Surface` si tvarem ořezává
+  jen svoje pozadí, a to až za modifikátory, které dostane zvenku — vlnka dlouhého stisku se tedy
+  kreslila do obdélníku a přetékala přes zaoblená nároží bubliny.
+- **Bez pruhu reakcí se pruh nepřesouvá** (`placeMenu`). Podmínka „pruh se nevejde nad zprávu“
+  platila i s nulovou výškou pruhu, když zpráva stála u horní meze — tedy u každé vysoké zprávy
+  zmenšené k horní mezi v chatu bez reakcí. Nabídka se tím posunula o mezeru níž, pod zprávu se
+  nevešla, odskočila nad ni a ořízla se k horní mezi: přes zprávu. Test
+  `bezPruhuReakciJeNabidkaPodZmensenouZpravou` prochází zprávy výšku po výšce.
+- **Výšky obou kusů jsou konstanty, ne měření.** Kreslíme si je sami, takže je známe předem —
+  ušetří se tím snímek, ve kterém by nabídka poskočila na správné místo.
+- **Výška nabídky se počítá z UKÁZANÝCH položek, ne z kandidátů.** Blok nabízí kandidáty a server
+  z nich část zakáže; s počtem kandidátů visela nabídka nad zprávou o 48 dp výš za každého
+  zakázaného. Položky se proto sestaví jednou a z nich se počítá výška i kreslí nabídka.
+- **Nabídka se zarovnává k hraně BUBLINY, pruh reakcí ke kraji obrazovky.** Nabídka má pevnou
+  šířku, takže může vyrůstat od zprávy; pruh se šesti emoji je tak široký, že by se k bublině
+  stejně nevešel.
+- **Příznaky „co se smí" se načítají až při otevření nabídky.** TDLib je ve zprávě neposílá,
+  jsou za samostatným `getMessageProperties` — načítat je dopředu by znamenalo dotaz na každou
+  zprávu v historii kvůli nabídce, kterou uživatel skoro nikdy neotevře. Načítají se **současně**
+  s nabídkou emoji, ne sériově.
+- **Co server nedovolí, se nenabízí.** Položka, která skončí chybou, je horší než položka, která
+  tam není. Když se příznaky nepodaří zjistit, nabídne se odpověď a kopírování (neškodné),
+  mazání ne.
+- **Kopírování se řídí `canBeSaved`.** Kanál si může obsah chránit; pak se z něj nesmí vynášet
+  ani text do schránky.
+- **Výběr části textu je SHEET z nabídky, ne výběr v bublině** (`SelectTextSheet`).
+  `SelectionContainer` zahajuje výběr dlouhým stiskem, a ten v konverzaci už patří nabídce nad
+  zprávou; kdyby se o gesto dělily, jedna by přestala fungovat — a nabídka je ta častější.
+  Text v sheetu je holý (`copyableText`), ne `RichText`: odkazy mají vlastní klikání a se
+  `SelectionContainer` by se o gesta praly. Kopírování obstará systémová nabídka nad výběrem,
+  vlastní tlačítko by jen zdvojovalo, co platforma umí sama.
+- **„Vybrat text" stojí na stejném právu jako „Kopírovat"** (`canCopy`). Chráněný obsah nesmí
+  ven ani po kouskách a bez textu není co vybírat; obojí hlídá test.
+
+### Citace z nabídky
+
+Text **kopie zprávy v nabídce jde označit** (dlouhým stiskem na slovo, pak úchyty). S označeným
+úryvkem se „Odpovědět" přejmenuje na **„Citovat"** a odpověď pak míří jen na úryvek
+(`InputMessageReplyToMessage.quote`); „Kopírovat" zkopíruje jen úryvek. Tak to dělá i Telegram
+na iOS. Dlouhý stisk v SEZNAMU dál otevírá nabídku — o gesto se nedělí, výběr začíná až v kopii.
+
+- **Sledovat výběr jde veřejným API**: Compose 1.12 má `SelectionContainer(state = SelectionState)`
+  a `SelectionState.selectedTexts` je snapshot stav, takže nabídka se přejmenuje hned při tažení
+  úchytu (`derivedStateOf`). Ověřeno `javap` nad `foundation-desktop-1.12.0`, bez opt-inu.
+- **Položka se PŘEJMENUJE, nepřibývá** (`MessageMenuAction.presentation(menu, selection)`,
+  `withSelection`). Výška nabídky se počítá z ukázaných položek, takže položka navíc by nabídku
+  pod prstem natáhla; zašedlé položky jinde v nabídce nejsou.
+- **Citovat jde jen text TÉHLE zprávy** (`quoteSelection`, testy `QuoteSelectionTest`). Kopie
+  nese i jméno odesílatele, značku přeposlání a hlavičku citace nad odpovědí, a výběr přes ně
+  vrací víc kusů; bere se nejdelší kus, který v textu zprávy je. Označený úryvek z hlavičky
+  citace (text JINÉ zprávy) nechá „Odpovědět" být.
+- **Kopie dostává scope, který akce zahazuje** (`InertItemScope`). S označitelným textem na ni
+  jdou dotyky, a ťuknutí na fotku, odkaz nebo citaci by z nabídky otevřelo prohlížeč, web nebo skok.
+- **Zavírání ťuknutím se NESMÍ ptát na spotřebování.** `SelectionContainer` si ťuknutí bere i bez
+  výběru, takže s `waitForUpOrCancellation` nešla nabídka zavřít ťuknutím na zprávu (ověřeno na
+  emulátoru). Rozhoduje jen: byl výběr při dotyku, jak dlouho prst ležel, jestli ujel.
+- **Během označování pruh reakcí zmizí.** Systémová lišta výběru (Kopírovat, Vybrat vše, Přeložit)
+  se kreslí nad označeným textem, tedy přesně přes pruh reakcí.
+- **Označovat jde jen s `canCopy`** — chráněný obsah nesmí ven ani citací přes úryvek.
+- **Barvy výběru podává plocha bubliny, ne `SelectionContainer`** (`BubbleSurface`,
+  `MessageBodyScope.selectionColors`). Výchozí podklad výběru je `primary` s alfou 0,4 — na
+  odchozí `primary` bublině tedy barva na barvě a označený úsek nebyl vidět vůbec. Podklad si
+  `BasicText` čte z `LocalTextSelectionColors` SÁM, v místě textu, takže ho jde podat až na
+  ploše, kde text leží. Pravidlo je tatáž `accentOn` jako u akcentu: `primary`, dokud je na
+  bublině vidět, jinak barva popředí bubliny.
+- **Úchyty výběru nastavuje nabídka, kolem `SelectionContainer`** — čte je kontejner, ne text.
+  Visí přes spodní okraj bubliny, takže se musí odlišit od bubliny I od plochy konverzace
+  (`distinctOnBoth`, testy `AccentColorTest`): `primary`, dokud má proti oběma aspoň 3 : 1
+  (WCAG pro netextové prvky), jinak z `inversePrimary` / `onSurface` ta s lepším horším
+  kontrastem. Pevná náhrada nevyjde v obou režimech: u odchozí zprávy vyhraje v tmavém
+  `inversePrimary` (bublina světlá, plocha tmavá), ve světlém `onSurface`. Barvu bubliny
+  sdílí nabídka s rámem přes `bubbleColorFor`. **Každá nová plocha v barvě bubliny jde přes
+  `BubbleSurface`**, ne přes holý `Surface(color = bubbleColor)` — jinak na ní výběr zmizí znovu.
+- **Formátování úryvku se MUSÍ přenést** (`quoteInput`, testy `ReplyQuoteTest`). TDLib: tučné,
+  kurzíva, podtržení, přeškrtnutí, spoiler a vlastní emoji „must be kept in the quote". Repository
+  si proto přečte původní zprávu (`getMessage`, lokální), entity ořízne na úryvek a posune.
+  Odkazy, zmínky a kód do citace nepatří a odpadnou.
+- **`position` je jen odhad** („approximate" v dokumentaci TDLib); repository si místo dohledá
+  kolem něj, pak kdekoli. Úryvek, který v textu není, znamená odpověď na celou zprávu, ne chybu.
+- **Strop 1024 znaků** (`MAX_QUOTE_LENGTH`, server `message_reply_quote_length_max`): delší výběr
+  se zkrátí na začátek, i ten je platný úryvek.
+- **Ověřeno na emulátoru (Fold, složený) i na serveru**: Bot API u odeslané zprávy vrátilo
+  `quote: {text, position: 24, is_manual: true}`; odpověď bota s `reply_parameters.quote` se
+  nakreslila s úryvkem; koncept s citací přežil odchod z chatu.
+- **Schránka je vlastní `expect`/`actual`, ne Compose API.** `LocalClipboardManager` je zastaralý
+  a jeho náhrada pracuje s `ClipEntry`, což je `expect class` bez společné továrny na text —
+  v commonMain se prostě nedá vyrobit.
+- **Prázdná nabídka emoji není chyba.** V Uložených zprávách Telegram místo reakcí používá tagy;
+  dřív se kvůli tomu nabídka neotevřela vůbec a nešlo ani odpovědět. Teď se jen nevykreslí pruh.
+- **Rozhoduje HIERARCHIE, ne to, kolik se toho má vejít.** Položka nabídky je jednorázová akce:
+  nabídku ukončí a co si otevře, je samostatná věc — „Informace" je modální sheet a funguje
+  správně, včetně zkopírování odkazu. Plný výběr reakcí je proti tomu **podnabídka tlačítka „+"**
+  v pruhu rychlých reakcí, takže patří DOVNITŘ plovoucí nabídky. Sheet nad ní z podnabídky dělal
+  něco, co ukončí nabídku, ke které pořád patří.
+- **Nad sheetem zůstává pruh rychlých reakcí i vybraná zpráva** (nabídka akcí pod sheetem viz výš).
+  Z pruhu je pořád vidět, čeho se výběr týká a co je už použité. Pruh zůstane
+  u zprávy, dokud se nad sheet vejde, jinak se posadí těsně nad něj — a posun se animuje, aby to
+  nevypadalo jako přeskládání. Rozvržení počítá `reactionSheetLayout` (testy `ReactionSheetTest`),
+  čistá funkce mimo composable jako `photoFrame`: samý hraniční případ (zpráva dole, nahoře,
+  nízké i vysoké okno). Počítá se i se sbaleným sheetem — při odjezdu `expanded` už neplatí
+  a výška by mu pod rukama skočila na podlahu.
+- **Smazaná zpráva se ze seznamu neodstraňuje ručně.** TDLib pošle `UpdateDeleteMessages` a ten se
+  už zpracovává; předběhnout server by znamenalo riskovat, že zpráva zmizí z obrazovky a na
+  serveru zůstane.
+
+## Překlad zprávy
+
+„Přeložit" v nabídce nad zprávou otevře sheet s překladem do jazyka aplikace
+(`translateMessageText`, `TranslationSheet`, `MessageMenuAction.Translate`).
+
+- **Sheet, ne náhrada textu v bublině**, jako u oficiálního Android klienta. Překlad je
+  jednorázové nahlédnutí; v bublině by se musel pamatovat u každé zprávy a přežít úpravu.
+- **Stojí na témže právu jako kopírování** (`canCopy`): bez textu není co překládat a chráněný
+  obsah ven nesmí ani jinou řečí. Anketa ho nemá (její text je náš popis).
+- **Výchozí cílový jazyk je `platformLanguageCode`** — tentýž zdroj jako jazyk pro TDLib, tedy
+  i jazyk nastavený jen pro aplikaci. Název jazyka dává systém (`localizedLanguageName`, jako
+  `localizedCountryName`).
+- **Jiný jazyk jde vybrat ťuknutím na „Do jazyka: …"** (`TranslationLanguageSheet`, seznam
+  a řazení `translationLanguageOptions`, testy `TranslationLanguagesTest`) a platí pro celou
+  aplikaci (`AppSettings.translationLanguage`). **Jazyk aplikace se neukládá kódem, ale jako
+  `null`**: po přepnutí jazyka aplikace se pak překládá do nového, ne do toho, který v ní byl
+  kdysi. Nahoře seznamu je jazyk aplikace, pak ostatní abecedně; hledá se bez diakritiky.
+- **Výběr je sheet NAD sheetem překladu**, jako detail sady nad výběrem samolepek: gesto zpět
+  zavře jen výběr. Obsah vyměněný uvnitř jednoho sheetu by zpět zavřelo celé.
+- **Seznam jazyků drží aplikace, TDLib ho lokálně nekontroluje** (v knihovně žádný není) —
+  je z dokumentace `translateText`, bez aliasů (`iw`, `in`, `ji`); Java u hebrejštiny
+  a indonéštiny vrací právě ty zastaralé kódy, proto `normalizedLanguageCode`.
+- **Čínština podle regionu (`zh-CN`, `zh-TW`), ne podle písma.** `getDisplayName` pojmenuje
+  `zh-Hant` „Čínština (han (tradiční))"; `zh-TW` je „Čínština (Tchaj-wan)" a server ho bere
+  (ověřeno: přišla tradiční znaková sada). `localizedLanguageName` proto bere celý kód i s regionem
+  (`getDisplayName`, na iOS `NSLocaleIdentifier`), ne jen jazyk.
+- **`translateMessageText` má v TDLib 15 čtvrtý parametr `tone`**; prázdný = výchozí.
+  Bez Premium přijde prostý text, s ním i formátování.
+- **Odkazy, zmínky a hashtagy se v překladu nekreslí jako klikací** — sheet nemá konverzaci,
+  kam by vedly. Zůstane jen formátování.
+- **Kopírování sheet zavře a potvrdí snackbarem** — pod modálním sheetem by vidět nebyl.
+- **Server překládá doslova i značky**: literální `**tučně**` v anglické zprávě vrátil jako
+  `<b>tučně</b>`. Je to vlastnost překladu, ne chyba vykreslení.
+- **Ověřeno na emulátoru** (aplikace přepnutá do češtiny, anglická zpráva od testovacího bota):
+  položka v nabídce, načítání, překlad, kopírování se snackbarem; výběr jazyka s hledáním
+  („cin"), překlad do čínštiny (Tchaj-wan), zapamatování po znovuotevření, zpět zavře jen výběr,
+  a po volbě češtiny a přepnutí aplikace do angličtiny „To English". **iOS jen přeložené.**
+- **Zpráva, která už JE v jazyce překladu, „Přeložit" nemá** (`MessageMenu.inTranslationLanguage`,
+  pravidla `alreadyInLanguage` a `languageDetectionText`, testy `AlreadyInLanguageTest`). Jazyk
+  rozpoznává zařízení (`LanguageDetector` v `core/language`: Android `TextClassifier.detectLanguage`
+  od Androidu 10, iOS `NLLanguageRecognizer`); nic se neposílá a nic se nestahuje. Starší Android
+  rozpoznávat neumí a položku nabízí vždycky.
+  - **Rozpoznává se při otevření nabídky, souběžně s právy**, se stropem 300 ms — nabídka čeká na
+    všechny úlohy a pomalý první start modelu ji nesmí zdržet. Nestihnuté = nabídnout.
+  - **Chyba směrem „schovat" je horší než „nabídnout"**, proto: krátký text (pod deset písmen —
+    „ok", „Zítra?") se nerozpoznává vůbec, a čínština se neschovává nikdy (cíl je písmo
+    `zh-CN` / `zh-TW`, rozpoznání ho nerozliší).
+  - **Práh jistoty je 0,7, ne 0,8** (`MIN_LANGUAGE_CONFIDENCE`). Změřeno na emulátoru: „Dneska je
+    krásné počasí, pojďme se projít do parku." dostala češtinu jen 0,76 (zbytek slovenština),
+    přitom slovenskou a polskou větu model pozná na 0,99 a češtinu u jiných vět na 0,998.
+    Hypotézy se dají vypsat dočasným logem v `AndroidLanguageDetector` (`getLocale(i)`,
+    `getConfidenceScore`); necommituje se.
+  - **Ověřeno na emulátoru** (aplikace česky): dvě české věty bez „Přeložit", slovenská, polská,
+    anglická a krátké „Zítra?" s ním. **iOS jen přeložené.**
+  - **Pozor při ověřování přes `adb`**: zpět po zavřené nabídce odejde z konverzace a další dlouhé
+    stisky trefí řádky seznamu chatů (se skutečnými lidmi). Před zpět ověřit dumpem, že je nabídka
+    otevřená (text „Odpovědět").
+- **Dlouhý stisk přes `adb` podle polohy z dumpu se může trefit do odkazu**, když se seznam mezi
+  dumpem a stiskem posune — pak se místo nabídky otevře prohlížeč. Poloha se bere těsně před
+  stiskem a mimo řádek s odkazem.
+
+## Shrnutí od serveru
+
+„Shrnout" v nabídce nad dlouhou zprávou otevře tentýž sheet jako překlad, jen s jinými texty
+(`TranslationSheet.summary`, `MessageMenuAction.Summarize`, `summarizeMessage`). Je to jiná věc
+než „Shrnout" v hlavičce konverzace (model v zařízení, viz „AI v zařízení") — tohle shrnuje
+JEDNU zprávu a počítá to Telegram.
+
+- **Kdy se nabídne, rozhoduje server** (`Message.summaryLanguageCode` → `ChatMessage.summaryLanguage`,
+  prázdný = shrnout nejde). Aplikace délku zprávy neposuzuje; v kanálu s krátkými hlášeními ho
+  měl jediný dlouhý příspěvek.
+- **Nabízí se i u chráněného obsahu**, na rozdíl od překladu — dostupnost řídí server. Jen se
+  tam výsledek nedá zkopírovat (`TranslationSheet.canCopy`): chráněný obsah ven nesmí ani
+  převyprávěný. Testovací kanál GFN Catalog chráněný je, a „Shrnout" se tam napřed neukázalo,
+  protože stálo na `canCopy` jako překlad.
+- **Jazyk je tentýž jako u překladu** (`AppSettings.translationLanguage`, výběr ve sheetu ho
+  mění pro obojí). Když se shoduje s jazykem zprávy, posílá se prázdný — server by jinak
+  „překládal" sám do sebe.
+- **Bez Premium je shrnutí omezené**: `SUMMARY_FLOOD_PREMIUM` má vlastní větu v `userMessage`.
+  Sheet proto nese důvod (`TranslationSheet.error: UiText?`), ne jen příznak selhání — platí to
+  i pro překlad. **Testovací účet Premium nemá a chybu dostal hned u prvního pokusu**, takže
+  samotné shrnutí (text, změna jazyka, kopírování) ověřené NENÍ.
+- **Pod shrnutím je věta, že ho psal Telegram a může něco vynechat** — text nepíše odesílatel.
+
+## Automatické mazání zpráv
+
+Chat může mít nastavené, že nové zprávy po době samy zmizí (`Chat.messageAutoDeleteTime`).
+Hlavička konverzace to ukazuje odznakem s hodinami za názvem (`AutoDeleteBadge`, „⏱ 1 d"),
+„Informace" u zprávy říkají, kdy se smaže (`ChatMessage.autoDeleteAt`), a v profilu chatu je
+řádek s výběrem doby (`AutoDeleteSheet`, `setChatMessageAutoDeleteTime`).
+
+- **Doba je živá** (`autoDeleteTime` nad `UpdateChatMessageAutoDeleteTime`, odběr před prvním
+  čtením) — mění ji i protějšek nebo jiné zařízení.
+- **`autoDeleteIn` je zbývající čas, převádí se na okamžik** při převodu zprávy. Zbývající
+  sekundy by se počítaly od doby načtení a v „Informace" by lhaly.
+- **Budoucí čas jde přes `asUpcomingTime`**, ne `asDayLabel` (ten je na minulost).
+- **Kdo smí měnit**: soukromý chat (i s botem) ano, Uložené zprávy a tajný chat ne (tajný má
+  vlastní časovač zpráv), skupina a kanál jen s právem měnit údaje chatu (`canChangeInfo`),
+  jak to vyžaduje TDLib. Kdo měnit nesmí, vidí řádek jen při zapnutém mazání, bez klikání.
+- **Nabízí se vypnuto, den, týden a měsíc** — jako oficiální klienti. **Měsíc je 31 dní**
+  (2 678 400 s), tak ho Telegram posílá; jiná doba nastavená jinde se do výběru zařadí
+  (`autoDeleteOptions`, testy `AutoDeleteOptionsTest`).
+- **Délka se píše jedním formátovačem** (`durationText` / `durationString` / `durationShortText`
+  v `core/ui/Durations.kt`, testy `DurationUnitTest`), sdíleným s dobou ankety. Servisní zpráva
+  proto říká i dobu („Automatické mazání zpráv: 1 den"), dřív jen „Zprávy se budou samy mazat".
+- **Věta s „po" by v češtině chtěla 6. pád** („po 1 dni"), plurály jsou ale v 1. pádu — texty
+  jsou proto s dvojtečkou („…: 1 den").
+- **Výchozí doba pro NOVÉ chaty je v Nastavení → Obecné → Soukromí** (`DefaultAutoDeleteSettings`
+  nad `get`/`setDefaultMessageAutoDeleteTime`, `DefaultAutoDeleteViewModel`, testy
+  `DefaultAutoDeleteViewModelTest`). Tentýž `AutoDeleteSheet` jako v profilu, jen s větou, že se
+  týká chatů založených odteď — existující chaty nemění, a bez té věty by se to dalo čekat. Je
+  to nastavení ÚČTU jako citlivý obsah: volba se pohne hned, po selhání se vrátí s větou pod
+  řádkem, a dokud doba nedorazí, řádek se nekreslí. Stejná volba se nezapisuje. **Zápis mění
+  skutečný účet, takže se ověřuje jen čtení a otevření výběru** (zavřít gestem zpět).
+- **Ověřeno na emulátoru** v chatu s testovacím botem (česky): řádek v profilu, sheet, nastavení
+  1 dne (odznak v hlavičce, servisní zpráva s dobou), „Smaže se: zítra 20:54" u nové zprávy
+  a vypnutí (odznak zmizel, servisní zpráva „vypnuto"). **Ve skupině ověřené** (testovací
+  skupina, vlastník): nastavení i vypnutí s odznakem a servisními zprávami. Kanál a správce bez
+  vlastnictví ověřené nejsou, **iOS jen přeložené**.
+
+## Výběr víc zpráv
+
+Položka „Vybrat" v nabídce nad zprávou přepne konverzaci do režimu výběru: hlavička ukazuje ✕
+a počet, místo vstupního pole je plovoucí toolbar s akcemi (kopírovat, přeposlat, smazat) a každá
+zpráva má na volné straně kolečko. Stav je `ConversationState.selection` (`MessageSelection`,
+čistá data a odvozená práva, testy `MessageSelectionTest`); `null` = režim neběží.
+
+- **Vybírají se BLOKY seznamu, ne zprávy** (`MessageSelection.keys` jsou klíče položek). Album je
+  v konverzaci jedna věc a přeposlat nebo smazat půlku alba nedává smysl; na id zpráv se klíče
+  rozbalí až při akci (`selectedMessageIds`), stejně jako u nabídky nad jednou zprávou.
+- **Klíč bloku je klíč jeho NEJSTARŠÍ zprávy** (`blockKeyOf`), takže ťuknutí na kteroukoli fotku
+  alba vybere celé album. Ťuknutá fotka sama klíč bloku nenese.
+- **Vstupem je položka nabídky, ne rovnou dlouhý stisk.** Dlouhý stisk už patří nabídce a ta je
+  ta častější; zároveň by z něj nešlo poznat, že se vybírá. „Vybrat" se přitom nabízí VŽDY,
+  jako „Informace" — na právu od serveru nestojí a co výběr dovolí, se ukáže až na jeho liště.
+- **Práva se načítají pro každý vybraný blok zvlášť** (`getMessageProperties` při přidání do
+  výběru) a skládají se přes `all`, ne `any`: akce platí pro CELÝ výběr, takže přeposlat půlku
+  vybraného a o druhé mlčet by znamenalo, že uživatel neví, co odešlo. Dokud nedorazí všechna,
+  jsou akce zašedlé.
+- **Tlačítka v toolbaru NEMIZÍ, jen zšednou.** Práva chodí po jednom, takže by se toolbar při
+  každém ťuknutí přeskládal pod prstem — a zmizelá akce neřekne, že ji zrovna tenhle výběr
+  nedovoluje. Výjimka z pravidla „co server nedovolí, se nenabízí": tam jde o nabídku, která se
+  otevře hotová, tady o lištu, která žije s měnícím se výběrem.
+- **Ťuknutí bere PŘEKRYV nad celým řádkem**, ne `onTap` bubliny. Potomci s vlastním klikáním
+  (fotka, GIF, odkaz, citace, náhled odkazu, samolepka) si ťuknutí berou sami a k rámu ho
+  nepustí — bez překryvu by ťuknutí na fotku v režimu výběru otevřelo prohlížeč. Překryv bere
+  i dlouhý stisk (taky přepíná výběr) a **tah na odpověď se v režimu výběru vypíná úplně**:
+  překryvu by propadl a založil odpověď uprostřed vybírání.
+- **Vybraná zpráva má pruh přes celou šířku, ne obarvenou bublinu.** Odchozí bublina je sytá
+  `primary` a barvu by nenesla, a zpráva bez bubliny (fotka, samolepka) nemá co obarvit.
+  `secondaryContainer` je tatáž role jako vybraná položka v seznamu chatů — výběr je v M3
+  selekční stav, ne zvýraznění obsahu. Průsvitný (`SELECTION_TINT_ALPHA`), aby text zůstal
+  čitelný, a zahrnuje i mezeru nad zprávou, takže z vybraných sousedů vznikne souvislý blok.
+- **Kolečko stojí na VOLNÉ straně zprávy** — u odchozí vlevo, u příchozí vpravo. Volný pruh tam
+  je vždycky (zpráva zabere nejvýš `MESSAGE_MAX_WIDTH_FRACTION` řádku), takže se kvůli němu nic
+  neposouvá; Telegram místo toho obsah odsouvá a kolečko vsouvá zleva. Samotné podbarvení
+  nestačí: u jediné vybrané zprávy by z něj nebylo poznat, že jdou vybírat i další.
+- **`state.selection` MUSÍ být v klíčích `remember` nad builderem bloků**, jinak se seznam
+  nepřestaví a zaškrtnutí se neobjeví. Chytlo se to až na zařízení: první zpráva se označila
+  (vstup do výběru zároveň zavřel nabídku, a `messageMenu` v klíčích je), další už ne. V klíčích
+  jsou jen KLÍČE výběru — práva k němu chodí po jednom a seznam bloků se jimi nemění.
+- **Odebrání poslední vybrané režim ukončí.** Zůstat v něm s nulou vybraných je stav, ve kterém
+  nejde nic dělat a není jasné proč.
+- **Zpět ukončí výběr**, teprve další odejde z chatu — `NavigationBackHandler`, jako u hledání.
+- **Strop je sto zpráv** (`MAX_SELECTED_MESSAGES`). `deleteMessages` i `forwardMessages` berou
+  v TDLib nejvýš sto naráz, takže vyšší výběr by skončil chybou až u akce.
+- **Kopíruje se chronologicky, s prázdným řádkem mezi zprávami.** Zprávy bez textu se vynechají;
+  popisek alba nemusí být na ťuknuté fotce, takže se text hledá v celém bloku.
+- **Tělo potvrzení mazání má vlastní věty pro víc zpráv** (`delete_messages_*`), ne plurál nad
+  jednou větou: čeština i angličtina v nich mění víc než jedno slovo. Titulek plurál má
+  (`conversation_delete_selected_title`), protože nese počet.
+- **`PendingDelete.count` NENÍ `messageIds.size`.** Album je v bublině jedna věc, i když je to
+  pět zpráv — titulek „Smazat 5 zpráv?" nad jedním albem by lhal.
+
+## Informace o zprávě
+
+Položka „Informace" v nabídce nad zprávou otevře bottom sheet: kdy zpráva odešla, kdy byla
+upravená, kdy ji protějšek přečetl, kdo ji zhlédl a odkaz na ni (`MessageInfoSheet`,
+`messageInfo` v `core/telegram`).
+
+- **Sheet, ne popup ani řádky v nabídce.** Údajů je proměnlivý počet a zhlédnutí je celý seznam
+  lidí, takže se v tom musí dát listovat. **Je to jednorázová akce, ne podnabídka** — proto
+  nabídku ukončí a otevře samostatný sheet, na rozdíl od výběru reakcí, který zůstává uvnitř
+  popupu (viz „Nabídka nad zprávou").
+- **Jako jediná položka nabídky se nabízí VŽDY.** Nestojí na právu od serveru: čas odeslání má
+  konverzace sama, takže sheet má co ukázat i u zprávy, u které server odkaz, zhlédnutí ani čas
+  přečtení nevydá.
+- **Tři doplňky, tři práva, jeden dotaz naráz.** `canGetReadDate`, `canGetViewers` a `canGetLink`
+  se čtou z `getMessageProperties` a příslušná volání jdou **současně** se zprávou samotnou.
+  Selhání jednoho ostatní nezahodí — server řekne ne u kdečeho a prázdný řádek je lepší než
+  prázdný sheet.
+- **Načítá se až při otevření.** Skoro žádná zpráva nemá všechna tři práva; ptát se dopředu by
+  znamenalo tři dotazy na každou zprávu v historii kvůli sheetu, který se otevře jednou za čas.
+- **Čas přečtení má PĚT podob, ne „čas nebo nic"** (`MessageReadState`): přečteno, nepřečteno,
+  server už čas nedrží, protějšek má časy skryté, a „skrýváš je sám, takže je nevidíš ani ty".
+  Každá je vlastní věta — „—" by uživateli neřeklo, jestli zprávu nikdo nepřečetl, nebo jestli je
+  čas jen skrytý. Poslední dvě se od sebe liší tím, kdo to může změnit.
+- **Ťuknutí na odkaz ho zkopíruje a sheet zavře.** Snackbar s potvrzením by pod modálním sheetem
+  zůstal schovaný a nebylo by poznat, že se něco stalo; Android 13+ sice ukazuje vlastní náhled
+  schránky, iOS a starší Androidy ne. Otevírat odkaz na zprávu, u které uživatel právě stojí,
+  nedává smysl.
+- **`getMessageLink` má sedm parametrů** (`mediaTimestamp`, `checklistTaskId`, `pollOptionId`,
+  `forAlbum`, `inMessageThread`) — pojmenované argumenty, jako u všeho generovaného.
+- **Typ odesílatele se jmenuje `SenderInfo`, ne `ReactionSender`.** Používají ho i zhlédnutí
+  a název podle reakcí by u nich lhal.
+
+## Přeposílání
+
+„Přeposlat" v nabídce nad zprávou otevře výběr cílového chatu (`ForwardRoute`, vlastní obrazovka);
+po odeslání se otevře cílový chat, takže je vidět, že zpráva dorazila.
+
+- **Nabízí se podle `canBeForwarded`** z `getMessageProperties`, jako ostatní položky nabídky.
+  Kanál s chráněným obsahem přeposílání zakazuje a nabídnout akci, která skončí chybou, je horší
+  než ji nenabídnout.
+- **Album se přeposílá celé** (`albumMemberIds`, stejně jako mazání) — v bublině je to jedna věc
+  a v cíli má albem zůstat. **Id musí být vzestupně**, jinak TDLib volání odmítne.
+- **Výběr je obrazovka, ne sheet.** Seznam chatů je dlouhý a listuje se v něm; sheet by navíc
+  při hledání zápasil s klávesnicí. Kreslí ho `ChatPicker` z `core/ui`, společný se sdílením
+  i novou konverzací (viz „Jeden výběr chatu").
+- **Bez dotazu je ve výběru živý hlavní seznam, s dotazem výsledky `ChatSearch`** — ze všech
+  chatů, i archivovaných (`pickerChats`, viz „Hledání chatů").
+- **Výběr vypadá jako seznam chatů, ne jako systémový dialog**: hledá se v `SearchPill`
+  a chaty jsou blok zaoblených řádků (`groupItemShape`, `surfaceContainerLowest`, spára 2 dp)
+  s tváří podle druhu chatu. Vybraný cíl nese `secondaryContainer` a je zaoblený celý — výběr
+  je v M3 selekční stav, tatáž role jako u vybraného chatu v dvoupanelu; samotné zaškrtávátko
+  na konci řádku se v dlouhém seznamu hledá hůř než barva. Dřív to byl `TextField` s podtržením
+  a holé `ListItem`y na pozadí, tedy dva vzhledy pro „seznam věcí" v jedné aplikaci.
+- **Prázdný výsledek je `IntroEmptyState`**, jako u hledání v chatech a prázdného archivu.
+- **Během odesílání se seznam nedá ťuknout podruhé** — dvě ťuknutí by poslala zprávu dvakrát.
+- **Výchozí je přeposlání, kopie je volba** — přepínací tlačítka pod hledáním: „Skrýt
+  odesílatele" (`sendCopy`, v cíli není „Přeposláno od …") a s ním „Skrýt popisky"
+  (`removeCaption`). Pravidlo je čistá funkce `ForwardOptions.allowedBy` (testy
+  `ForwardOptionsTest`).
+- **Popisky jdou skrýt JEN u kopie.** TDLib `removeCaption` bez `sendCopy` ignoruje, takže se
+  druhé tlačítko ukáže až se zapnutým prvním — a jen když přeposílané zprávy nějaký popisek
+  nesou (médium s textem; u typů bez přílohy je text naše věta, ne popisek).
+- **Kopii nabízí jen `canBeCopied`** u VŠECH zpráv (`forwardCapabilities`, zjišťuje se jednou
+  při otevření, zpráva a příznaky souběžně). Volba se ukáže až po odpovědi — zmizelá by
+  vypadala jako chyba; když se zjistit nepodaří, nenabídne se.
+- **Volby se nepamatují.** Přeposlání bez odesílatele je rozhodnutí o konkrétní zprávě; zapnuté
+  napořád by příště tiše vydávalo cizí zprávu za vlastní.
+- **`animateContentSize` na FAB mu UŘÍZNE stín a spodní nároží.** Modifikátor ořezává na svoje
+  hranice, takže plovoucí tlačítko vyšlo dole hranaté, jako by bylo useknuté. Počet cílů se
+  proto animuje na POPISKU, ne na tlačítku — tatáž past jako u plovoucí lišty konverzace.
+- **Seznam má dole místo na tlačítko** (`FAB_CLEARANCE`), jinak zůstane zaškrtávátko posledního
+  chatu schované pod ním. Přidává se, jen když se vybírá (u sdílení tlačítko není).
+- **Spodní inset patří do `contentPadding` seznamu, ne na kontejner.** S paddingem ze Scaffoldu
+  na sloupci skončil seznam nad navigační lištou ostrou hranou a poslední chat byl useknutý —
+  tentýž vzor jako seznam chatů a výsledky hledání: chaty jedou pod lištu a poslední se nad ni
+  doroluje. Ze Scaffoldu se na sloupec bere jen horní a boční padding.
+- **Scaffold výběru má `contentWindowInsets = safeDrawing`, tedy i klávesnici.** Podle spodního
+  insetu staví Scaffold tlačítko a snackbar, takže s výchozími systémovými lištami odesílací
+  tlačítko při hledání zmizelo pod klávesnicí. Seznam bere týž inset (`safeDrawing`), aby se
+  poslední chat dal doscrollovat i nad ni.
+- **Cílový chat se do zásobníku přidá jen, když na něm zásobník už nestojí** — přeposlání do
+  téhož chatu by jinak otevřelo druhou kopii konverzace.
+- **Přeposílá se do VÍC cílů naráz**, takže ťuknutí na chat ho VYBERE (zaškrtávátko) a odesílá
+  se až tlačítkem s počtem. Je to o ťuknutí víc než dřív, ale poslat totéž do víc chatů je běžný
+  případ a výběr se dá opravit; stejně to dělá i oficiální klient.
+- **Sdílení ze systému zůstává na jednom cíli** (`ChatPicker(selected = null)`). Obsah tam čeká
+  nad vstupním polem, takže „vyber a potvrď" by byl krok navíc před dalším krokem.
+- **Po odeslání se otevře PRVNÍ vybraný cíl.** Otevřít poslední nebo neotevřít nic by bylo
+  svévolné; první vybraný je ten, na který uživatel myslel nejdřív. Množina cílů si proto drží
+  pořadí výběru (`Set.plus` vrací `LinkedHashSet`).
+- **Do cílů se posílá POSTUPNĚ, ne souběžně.** Pořadí zpráv v cílech tím zůstane dané a server
+  nedostane deset přeposlání naráz. Selhání jednoho cíle ostatní nezastaví — co odešlo, odešlo,
+  a chyba se ohlásí na konci.

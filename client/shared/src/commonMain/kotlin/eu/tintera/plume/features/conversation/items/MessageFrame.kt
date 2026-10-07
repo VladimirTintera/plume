@@ -233,7 +233,7 @@ internal interface MessageItem : ConversationItem {
         // Efekt hraje sám jen jednou: u zprávy, která přišla po otevření, nebo u nepřečtené.
         // Hranice nepřečtených dorazí až po prvních zprávách, proto se na ni čeká — a čte ji
         // efekt, ne kompozice: čtená tady invalidovala obal KAŽDÉ viditelné zprávy s každou
-        // změnou stavu konverzace (viz `CLAUDE.md`, „Výkon a paměť").
+        // změnou stavu konverzace (viz `docs/poznatky/vykon.md`, „Výkon a paměť").
         LaunchedEffect(frame.key, effect?.id) {
             if (effect?.animationFileId == null) return@LaunchedEffect
             snapshotFlow { scope.unreadBoundary() }

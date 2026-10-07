@@ -6,7 +6,7 @@
 # Vynutí GC (SIGUSR1 přes run-as, jde jen u debuggable buildu), uloží `dumpsys meminfo`,
 # heap dump převede hprof-conv do standardního HPROF a spočítá instance tříd
 # (<jméno>.counts: počet<TAB>třída). Dva dumpy se porovnají heap_diff.py, cestu k instanci
-# ukáže heap_path.py. Postup viz CLAUDE.md, „Výkon a paměť".
+# ukáže heap_path.py. Postup viz docs/poznatky/vykon.md, „Výkon a paměť".
 set -e
 T=${0:A:h}; OUT=${1:?adresář}; NAME=${2:?jméno}; PKG=eu.tintera.plume
 HPROF_CONV=${HPROF_CONV:-$HOME/Library/Android/sdk/platform-tools/hprof-conv}

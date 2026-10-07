@@ -163,7 +163,7 @@ import org.jetbrains.compose.resources.stringResource
  * musí zůstat vidět, s kým je chat otevřený.
  *
  * **Zpět obsluhuje [NavigationBackHandler]**, ne `BackHandler` — ten by v téhle aplikaci zabil
- * predictive back (viz CLAUDE.md).
+ * predictive back (viz docs/poznatky/navigace.md).
  */
 @Composable
 internal fun MessageMenuLayer(

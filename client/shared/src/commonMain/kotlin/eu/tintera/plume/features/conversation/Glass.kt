@@ -13,7 +13,7 @@ import eu.tintera.plume.core.ui.LocalBackgroundBlurAllowed
  *
  * Všechny tři plochy leží NAD projíždějícím obsahem a dosud ho jen zakrývaly barvou. Rozostření
  * dělá totéž čitelněji: je vidět, že pod nimi obsah pokračuje, a přitom nepřebíjí to, co na nich
- * stojí. Tentýž Haze jako závoj pod nabídkou nad zprávou (`CLAUDE.md`, „Nabídka nad zprávou“).
+ * stojí. Tentýž Haze jako závoj pod nabídkou nad zprávou (`docs/poznatky/konverzace-akce.md`, „Nabídka nad zprávou“).
  *
  * **Zdrojem je jen seznam zpráv, ne celý Scaffold.** Závoj nabídky rozostřuje Scaffold celý —
  * je nad ním. Tyhle plochy jsou ale jeho součástí, takže by se s ním rozostřovaly samy: pruh

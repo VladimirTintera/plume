@@ -1,7 +1,7 @@
 # Plume — co dodělat
 
 Živý dokument přes celou aplikaci. Nové nápady sem, hotové věci ven (a poučení z nich do
-`CLAUDE.md`). Pořadí uvnitř sekcí je doporučení, ne závazek.
+`docs/poznatky/`, obecná do `CLAUDE.md`). Pořadí uvnitř sekcí je doporučení, ne závazek.
 
 Detail chatu má vlastní, podrobnější seznam: [roadmap-konverzace.md](roadmap-konverzace.md).
 Sem patří jen to, co je mimo něj.
@@ -26,7 +26,7 @@ Teď je prázdné.
 - **Seznam chatů na snímcích obrazovky chybí.** Na účtu jsou skutečné osoby; snímek seznamu
   chce demo účet se smyšlenými chaty.
 - ~~**`isShrinkResources` není zapnuté.**~~ — hotovo (release proklikaný na emulátoru;
-  `CLAUDE.md`, „R8").
+  `docs/poznatky/release.md`, „R8").
 
 ## iOS
 
@@ -36,7 +36,7 @@ Android je napřed; tohle je, čím se to dorovnává.
   iOS nejsou. Apple Foundation Models jsou k mání od iOS 26 a dají se zapojit za stávající
   rozhraní `OnDeviceAi` — implementace musí přijít ze Swiftu, jako u hlásiče pádů.
 - **Notifikace** — napojené (APNs, rozšíření notifikací, texty, oprávnění, úklid přečtených
-  a odznak; `CLAUDE.md`, „Notifikace na iOS (APNs)"). Zbývá:
+  a odznak; `docs/poznatky/notifikace.md`, „Notifikace na iOS (APNs)"). Zbývá:
   - **Certifikát APNs u Telegramu** (my.telegram.org) a Push Notifications v Apple Developer účtu.
   - **Ověřit skutečným pushem na telefonu**: jestli Telegram posílá `mutable-content` (běží
     rozšíření → akce a seskupení), tvar `custom` (`push/last.json` v App Group) a češtinu šablon.
@@ -60,7 +60,7 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
 (`core/navigation/Routes.kt`).
 
 - ~~**Přihlášení: zapomenuté heslo je slepá ulička.**~~ — hotovo (kód na obnovovací e-mail,
-  nové heslo s nápovědou, dialog u účtu bez e-mailu; `CLAUDE.md`, „Obnova hesla a cesta zpátky
+  nové heslo s nápovědou, dialog u účtu bez e-mailu; `docs/poznatky/prihlaseni.md`, „Obnova hesla a cesta zpátky
   k číslu"). Zbývá:
   - **Ověřit se skutečným účtem** s heslem a obnovovacím e-mailem — zatím jen podstrčenou session.
   - **Reset účtu bez obnovovacího e-mailu** (`deleteAccount` s prázdným heslem, provede se po
@@ -71,24 +71,24 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
     to říct předem, ověřené není.
 
 - ~~**Archiv**~~ — hotovo (seznam v menu účtu, archivace a vrácení z nabídky chatu i tahem do
-  strany s „Vrátit", počet nepřečtených u vstupu, nastavení archivu). Poučení v `CLAUDE.md`,
+  strany s „Vrátit", počet nepřečtených u vstupu, nastavení archivu). Poučení v `docs/poznatky/seznam-chatu.md`,
   „Archiv". Zbývá:
   - **Ověřit nastavení archivu proti druhému účtu.** Že se „archivovat od neznámých" a
     „nechávat chaty v archivu" opravdu projeví, se s jedním účtem nedá vidět — zapsání
     i přečtení hodnot ověřené je, jejich následek ne.
 - ~~**Detail chatu / profil.**~~ — hotovo (ťuknutí na hlavičku: fotka, jméno, ztlumení, hledání,
-  údaje, členové skupiny; `CLAUDE.md`, „Profil chatu"). Zbývá:
+  údaje, členové skupiny; `docs/poznatky/profil-chatu.md`, „Profil chatu"). Zbývá:
   - ~~**Sdílená média**~~ — hotovo (záložky Členové / Média / Soubory / Odkazy s dotahováním
-    stránek; `CLAUDE.md`, „Sdílená média v profilu"). ~~Hledání uvnitř záložky~~ — hotovo
+    stránek; `docs/poznatky/profil-chatu.md`, „Sdílená média v profilu"). ~~Hledání uvnitř záložky~~ — hotovo
     (soubory, odkazy, hudba). ~~Velký náhled u souborů~~ — hotovo (obrázek a video
     poslané jako soubor se ze záložky Soubory otevřou v prohlížeči).
   - ~~**Akce navíc**~~ — hotovo: kopírovat odkaz (i pozvánku pro správce), zablokovat, smazat
     chat / opustit skupinu či kanál (⋮ v liště) a ~~**upravit skupinu**~~ (název, popis, fotka,
-    práva členů; `CLAUDE.md`, „Úprava skupiny") a ~~**správa jednotlivých členů**~~ (dlouhý
+    práva členů; `docs/poznatky/profil-chatu.md`, „Úprava skupiny") a ~~**správa jednotlivých členů**~~ (dlouhý
     stisk na členovi: povýšit na správce a upravit jeho práva, sesadit, omezit s dobou, zrušit
-    omezení, štítek, vyhodit s dobou, předat vlastnictví; `CLAUDE.md`, „Správa členů").
+    omezení, štítek, vyhodit s dobou, předat vlastnictví; `docs/poznatky/profil-chatu.md`, „Správa členů").
     ~~Sdílet kontakt~~ — hotovo (⋮ → Sdílet kontakt). ~~Správa pozvánek~~ — hotovo (odkazy
-    s limitem, platností a schvalováním, zrušení a mazání, žádosti o vstup; `CLAUDE.md`,
+    s limitem, platností a schvalováním, zrušení a mazání, žádosti o vstup; `docs/poznatky/profil-chatu.md`,
     „Pozvánky a žádosti o vstup"; sdílení odkazu, odkazy ostatních správců, kdo se přidal
     a pruh s čekajícími žádostmi v konverzaci jsou hotové). U pozvánek zbývá **ověřit
     skutečnou žádost o vstup a „kdo se přidal" se skutečnými lidmi** (chce druhý účet).
@@ -96,13 +96,13 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
     skupině s botem. Zbývá **dokončený převod vlastnictví**: bot vlastníkem být nemůže
     a převod vyžaduje dvoufázové ověření, které testovací účet nemá.
   - ~~**Seznam členů velké skupiny**~~ — hotovo (stránky po 50, hledání, věta u skupiny se
-    skrytými členy; `CLAUDE.md`, „Členové velké skupiny"). **Zbývá ověřit ve skupině, kde členy
+    skrytými členy; `docs/poznatky/profil-chatu.md`, „Členové velké skupiny"). **Zbývá ověřit ve skupině, kde členy
     vidět jsou** — testovací účet v takové velké není; ověřené je to sondou s malou stránkou.
 - ~~**Pořadí připnutých chatů**~~ — hotovo: „Změnit pořadí připnutých" v nabídce nad připnutým
-  chatem, tažení za úchyt, v hlavním seznamu, archivu i složce (`CLAUDE.md`, „Akce nad chatem").
+  chatem, tažení za úchyt, v hlavním seznamu, archivu i složce (`docs/poznatky/seznam-chatu.md`, „Akce nad chatem").
 - ~~**Složky chatů**~~ — zobrazení i správa hotové (řádek pod pilulkou, přepínání, nepřečtené;
   Nastavení → Obecné → Složky chatů: založit, upravit, smazat, přeřadit, doporučené; „Přidat do
-  složky" nad chatem; `CLAUDE.md`, „Složky chatů"). Zbývá:
+  složky" nad chatem; `docs/poznatky/seznam-chatu.md`, „Složky chatů"). Zbývá:
   - **„Všechny chaty" jinde než první** (`mainChatListPosition`, jen Premium) — správa ho drží
     na místě, kde je.
   - ~~**Sdílené složky**~~ — hotovo: náhled a přidání z odkazu, odkazy na vlastní složku i jejich
@@ -113,16 +113,16 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
     archivu ověřený není (mění nastavení účtu).
 - **Hledání.** ~~Chaty ve všech složkách (lokálně i na serveru), historie hledání a nejčastější
   lidé, totéž ve výběru pro přeposílání a sdílení~~ — hotovo (`ChatSearch`, poučení
-  v `CLAUDE.md`, „Hledání chatů"). Zbývá, po krocích:
+  v `docs/poznatky/hledani-a-zakladani-chatu.md`, „Hledání chatů"). Zbývá, po krocích:
   1. ~~**Globální hledání a zprávy**~~ — hotovo (sekce Globálně a Zprávy, skok na nalezenou
      zprávu, „Přidat se" u veřejného chatu). Zbývá:
      - ~~**Filtry hledání zpráv**~~ — hotovo (čipy druhu chatu a období nad výsledky).
      - ~~**Jméno odesílatele u nalezené zprávy ve skupině**~~ — hotovo („Jana: …", „Vy: …").
      - ~~**Kanál po „Přidat se" pořád nabízí vstupní pole**~~ — hotovo: kanál bez práva
-       publikovat má místo pole Ztlumit (`CLAUDE.md`, „Práva psát").
+       publikovat má místo pole Ztlumit (`docs/poznatky/konverzace-psani.md`, „Práva psát").
   2. ~~**Klikatelné zmínky a hashtagy v textu**~~ — hotovo (`@jméno` otevře chat, `#tag`
      hledání zpráv). Odkazy na Telegram (chat, zpráva, pozvánka, sada samolepek) se otevírají
-     v aplikaci (`CLAUDE.md`, „Odkazy na Telegram"); ~~boti se `start`, mini aplikace, sdílené
+     v aplikaci (`docs/poznatky/konverzace-zobrazeni.md`, „Odkazy na Telegram"); ~~boti se `start`, mini aplikace, sdílené
      složky, člověk podle čísla a kontaktního odkazu, `?text=` a `?profile`, `t.me/share`,
      Uložené zprávy, proxy (`t.me/proxy`, `t.me/socks`)~~ hotové. ~~Odkazy do Nastavení
      (`tg://settings/…`), nová konverzace, skupina a kanál, kontakty, hledání, videochat
@@ -130,28 +130,28 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
      prohlížeče dál jdou platby, stories, dárky, témata vzhledu a jazykové balíčky. ~~**Veřejné příspěvky
      s tagem**~~ — hotovo (přepínač „Vaše chaty / Veřejné příspěvky" u hashtagu).
   3. ~~**Hledání v konverzaci**~~ — hotovo (lupa v hlavičce, šipky mezi výsledky, viz
-     `CLAUDE.md`, „Hledání v konverzaci"). Hledané slovo je v bublinách zvýrazněné.
+     `docs/poznatky/konverzace-pohyb.md`, „Hledání v konverzaci"). Hledané slovo je v bublinách zvýrazněné.
      Ve skupině jde hledat i podle člena (čip v hlavičce hledání).
   4. ~~**Filtry obsahu** (média, soubory, odkazy), hlavně pro profil chatu~~ — hotovo (záložky
      profilu s hledáním). Zbývá hledání médií podle popisku, kdyby o něj byl zájem.
 
   ~~Na rozloženém Foldu by místo celoobrazovkového hledání sedělo `ExpandedDockedSearchBar`~~ —
-  hotovo (panel pod pilulkou, `CLAUDE.md`, „Hledání chatů“); ~~zpět s otevřenou klávesnicí
+  hotovo (panel pod pilulkou, `docs/poznatky/hledani-a-zakladani-chatu.md`, „Hledání chatů“); ~~zpět s otevřenou klávesnicí
   zavřel celé hledání~~ — opraveno (napřed schová klávesnici).
 - ~~**Nová konverzace a kontakty.**~~ — hotovo (FAB „Nová zpráva“ v seznamu chatů,
   `NewChatRoute`, Uložené zprávy, kontakty z TDLib s dostupností, globální vyhledávání lidí podle
-  @username; poučení v `CLAUDE.md`, „Nová konverzace").
+  @username; poučení v `docs/poznatky/hledani-a-zakladani-chatu.md`, „Nová konverzace").
   ~~**Založení skupiny a kanálu**~~ — hotovo („Nová skupina" / „Nový kanál" nad kontakty, výběr
   členů, název a fotka, u kanálu popis, ~~soukromý / veřejný s odkazem~~ a ~~pozvánka lidem,
-  které server nepustil~~ a ~~veřejný odkaz v úpravě chatu~~; `CLAUDE.md`, „Založení skupiny
+  které server nepustil~~ a ~~veřejný odkaz v úpravě chatu~~; `docs/poznatky/hledani-a-zakladani-chatu.md`, „Založení skupiny
   a kanálu" a „Veřejný odkaz v úpravě chatu"). Zbývá ověřit pozvánku se skutečným člověkem,
   který přidávání zakazuje (dialog jen sondou). ~~Veřejná základní skupina~~ — hotovo
-  (převod na supergroupu, `CLAUDE.md`, „Převod základní skupiny").
+  (převod na supergroupu, `docs/poznatky/profil-chatu.md`, „Převod základní skupiny").
 - **Ochrana před spamem.** ~~Zablokovat z nabídky nad chatem a při mazání rovnou zablokovat
   i nahlásit~~, ~~průvodce nahlášením s volbou důvodu~~ (i zprávy z nabídky nad zprávou),
-  ~~pruh nad konverzací u chatu od neznámého~~ — hotovo (`CLAUDE.md`, „Blokování a nahlášení
+  ~~pruh nad konverzací u chatu od neznámého~~ — hotovo (`docs/poznatky/spam-a-blokovani.md`, „Blokování a nahlášení
   spamu"). Zbývá:
-  - ~~**„Vrátit mezi chaty" v pruhu**~~ — hotovo (`CLAUDE.md`, „Pruh nad konverzací").
+  - ~~**„Vrátit mezi chaty" v pruhu**~~ — hotovo (`docs/poznatky/spam-a-blokovani.md`, „Pruh nad konverzací").
     **Zbývá ověřit na zařízení**, že se konverzace otevřená z archivu přestěhuje do hlavního
     seznamu a chat se odtlumí; emulátor při zkoušce spadl a odhlásil se.
   - **Zbylé druhy pruhu nad chatem.** `ChatActionBar` má v TDLib 15 šest druhů a „akce, které
@@ -173,19 +173,19 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   - ~~**Seznam blokovaných v Nastavení**~~ — hotovo (Obecné → Soukromí → Blokovaní), ~~i se
     „Zablokovat uživatele"~~ (kontakty a známé soukromé chaty, s potvrzením).
 - **Přihlašovací obrazovka** — hotová (výběr země, formátování čísla, návrat z QR na číslo,
-  expressive přestavba, ~~zpět z kódu a hesla k číslu~~; `CLAUDE.md`, „Přihlašovací obrazovka").
+  expressive přestavba, ~~zpět z kódu a hesla k číslu~~; `docs/poznatky/prihlaseni.md`, „Přihlašovací obrazovka").
   Zbývá:
   - **Pole přihlášení jedou přes `StateFlow`**, a rychlý `adb input text` v nich na pomalém
     emulátoru přeháže znaky. Na zařízení nepozorované; kdyby se ukázalo, patří text do Compose
     stavu ve ViewModelu jako u úpravy profilu.
 - **Sdílení ze systému do aplikace.** ~~Android~~ — hotovo (text, odkaz, jeden i víc
-  souborů; výběr chatu, obsah čeká nad vstupním polem). Poučení v `CLAUDE.md`, „Sdílení do
+  souborů; výběr chatu, obsah čeká nad vstupním polem). Poučení v `docs/poznatky/sdileni.md`, „Sdílení do
   aplikace". Zbývá:
   - ~~**Direct Share**~~ — hotovo, i na iOS (darování `INSendMessageIntent`, řádek návrhů
     v systémové nabídce). **Na skutečném iPhonu řádek návrhů ověřený není** — simulátor ho
     neukazuje.
   - ~~**Opakované sdílení do otevřené obrazovky „Komu: …" ji zavře**~~ — opraveno (obsah
-    vzniká rovnou s chatem, obrazovka zahazuje jen své sdílení; `CLAUDE.md`, „Opakované sdílení").
+    vzniká rovnou s chatem, obrazovka zahazuje jen své sdílení; `docs/poznatky/sdileni.md`, „Opakované sdílení").
   - ~~**iOS: Share Extension**~~ — hotovo (výběr chatu v rozšíření, App Group). Zbývá
     ověřit na zařízení (App Group v Developer účtu).
   - **Sdílení jako kontext místo samostatného výběru** (nápad k rozmyšlení, nahradil by
@@ -225,14 +225,14 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
 
 1. **Hovory v historii a příchozí hovor bez přenosu** (malé, jen nad TDLib):
    - ~~**Zpráva o hovoru jako řádek, ne bublina s jedním slovem**~~ — hotovo (směr, zmeškaný /
-     odmítnutý / zrušený, délka, video; `CLAUDE.md`, „Zpráva o hovoru"). Ťuknutí nevede nikam.
+     odmítnutý / zrušený, délka, video; `docs/poznatky/typy-zprav.md`, „Zpráva o hovoru"). Ťuknutí nevede nikam.
      **Skutečný hovor v historii ověřený není** — jen sondou v chatu s botem.
    - ~~**Příchozí hovor ohlásit**~~ — hotovo na Androidu: notifikace v kanálu Hovory
-     s „Odmítnout" (`CLAUDE.md`, „Ohlášení příchozího hovoru"). **Skutečný hovor ověřený NENÍ**
+     s „Odmítnout" (`docs/poznatky/notifikace.md`, „Ohlášení příchozího hovoru"). **Skutečný hovor ověřený NENÍ**
      (chce druhý účet), jen sondou. Na iOS ohlásí hovor push od Telegramu sám (`PHONE_CALL_REQUEST`
      v textech pushe); v popředí aplikace se zatím neohlašuje nic.
    - ~~**Hovory ve skupině**~~ — hotovo: pruh „Probíhá videochat" / „Živé vysílání" / naplánovaný
-     nad konverzací s počtem účastníků (`CLAUDE.md`, „Pruh videochatu"). Připojit se nejde;
+     nad konverzací s počtem účastníků (`docs/poznatky/notifikace.md`, „Pruh videochatu"). Připojit se nejde;
      ťuknutí řekne, kde to jde.
 2. **Skutečné hovory** (největší samostatný kus práce v projektu). Přenos jde dvěma cestami:
    - **A) Přeložit tgcalls s WebRTC** pro Android (ABI) i iOS a napojit přes JNI / cinterop
@@ -282,7 +282,7 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
 ## AI v zařízení
 
 Shrnutí chatu a návrhy odpovědí běží na Gemini Nano přes ML Kit Prompt API (Android). Poučení
-z prototypu je v `CLAUDE.md`, sekce „AI v zařízení"; sem patří, co zbývá.
+z prototypu je v `docs/poznatky/ai-v-zarizeni.md`, sekce „AI v zařízení"; sem patří, co zbývá.
 
 **Model se NEUČÍ a učit ho nejde.** Žádný fine-tuning ani doladění na uživatelových datech:
 balík spravuje systém a aplikace ho jen volá. Co API nabízí místo toho, je kešovaný kontext
@@ -305,7 +305,7 @@ Z toho plyne pořadí, ve kterém se vyplatí featury stavět:
 ### Co zbývá u toho, co běží
 
 - **Větší model: Gemma přes LiteRT-LM běží, ověřená na emulátoru (E2B na CPU).** Preview
-  varianta Gemini Nano (Gemma 4 **E4B**) přes ML Kit nejde (`Feature -1`, viz `CLAUDE.md`),
+  varianta Gemini Nano (Gemma 4 **E4B**) přes ML Kit nejde (`Feature -1`, viz `docs/poznatky/ai-v-zarizeni.md`),
   takže přibyl druhý poskytovatel — Gemma 4 E2B / E4B, kterou si stáhne aplikace
   (`LiteRtOnDeviceAi`). Stažení, navázání po výpadku sítě, smazání, shrnutí, návrhy i release
   build (s keep pravidlem) prošly. Zbývá:
@@ -314,7 +314,7 @@ Z toho plyne pořadí, ve kterém se vyplatí featury stavět:
   - **velikost APK**: nativní knihovny přidají ~25 MB na ABI každému, i kde se Gemma nenabídne
     → Play Feature Delivery,
   - ~~**stahování na pozadí**~~ — hotovo (úloha WorkManageru s notifikací průběhu a „Zastavit";
-    `CLAUDE.md`, „AI v zařízení"). Zbývá ověřit v release buildu a na telefonu a **vyplnit
+    `docs/poznatky/ai-v-zarizeni.md`, „AI v zařízení"). Zbývá ověřit v release buildu a na telefonu a **vyplnit
     v Play Console deklaraci služby v popředí `dataSync`**.
 - **Beta ML Kitu sledovat.** `1.0.0-beta4` je zatím nejnovější; novější verze může `Feature -1`
   opravit a preview zpřístupnit bez vlastního runtime. Stojí za to to při bumpu zkusit znovu.
@@ -344,7 +344,7 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
 - **Detekce podvodných zpráv.** „Naskenuj tenhle QR a ověř si účet", falešná výhra, odkaz na
   přihlášení. Nenápadné varování u zprávy. Je to klasifikace, tedy silná stránka, a **děje se to
   celé v telefonu** — obsah zprávy nikam neodchází, což je u téhle featury podstatné. Navazuje
-  na pravidlo, které projekt už má (odkaz `tg://login` se z ťuknutí neotevírá, viz `CLAUDE.md`,
+  na pravidlo, které projekt už má (odkaz `tg://login` se z ťuknutí neotevírá, viz `docs/poznatky/prihlaseni.md`,
   „Přihlášení QR kódem"). Pozor na to, že varování u legitimní zprávy je horší než žádné:
   práh se musí nastavit tak, aby se raději mlčelo.
 - **Termín a úkol ze zprávy.** „Sraz v 15:00 na Černém Mostě" → nabídka přidat do kalendáře
@@ -402,7 +402,7 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
 
 ## Výkon a paměť
 
-Nástroje a postup jsou v `CLAUDE.md` („Výkon a paměť"). První analýza (reporty Compose
+Nástroje a postup jsou v `docs/poznatky/vykon.md` („Výkon a paměť"). První analýza (reporty Compose
 kompilátoru, LeakCanary, heap dumpy) únik nenašla a delší
 běh ukázal, že se ustálí i native heap. Zbylo:
 
@@ -518,36 +518,36 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
 účtu (jméno, telefon, uživatelské jméno) a odhlášení; Notifikace oprávnění a volby po rozsazích; Vzhled motiv aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
 
 - ~~**Úprava vlastního profilu**~~ — hotovo (fotka, jméno, uživatelské jméno s kontrolou
-  dostupnosti, bio; `CLAUDE.md`, „Úprava profilu"). ~~Historie profilových fotek~~ — hotovo v profilu chatu i u vlastního účtu (`CLAUDE.md`, „Historie profilových fotek"), u vlastního i s nastavením starší fotky jako hlavní a smazáním jednotlivé fotky. ~~Ruční ořez
-  fotky~~ — hotovo (`CLAUDE.md`, „Ořez profilové fotky"). ~~Video jako profilovka~~ — hotovo
-  (prvních 10 s bez zvuku, výřez nad prvním snímkem; `CLAUDE.md`, „Video jako profilovka"). ~~Volba
+  dostupnosti, bio; `docs/poznatky/nastaveni.md`, „Úprava profilu"). ~~Historie profilových fotek~~ — hotovo v profilu chatu i u vlastního účtu (`docs/poznatky/profil-chatu.md`, „Historie profilových fotek"), u vlastního i s nastavením starší fotky jako hlavní a smazáním jednotlivé fotky. ~~Ruční ořez
+  fotky~~ — hotovo (`docs/poznatky/nastaveni.md`, „Ořez profilové fotky"). ~~Video jako profilovka~~ — hotovo
+  (prvních 10 s bez zvuku, výřez nad prvním snímkem; `docs/poznatky/nastaveni.md`, „Video jako profilovka"). ~~Volba
   úseku videa a snímku pro statickou podobu~~ — hotovo (pás snímků pod ořezem). Zbývá ověření na iOS.
 - ~~**Sekce Notifikace**~~ — hotovo, viz [Notifikace](#notifikace) níž.
 - ~~**Sekce Zařízení**~~ — hotovo (seznam, odhlášení, weby, automatické odhlášení, „Byli jste
-  to vy?" v seznamu chatů, přihlášení jiného zařízení QR kódem). Poučení v `CLAUDE.md`,
+  to vy?" v seznamu chatů, přihlášení jiného zařízení QR kódem). Poučení v `docs/poznatky/nastaveni.md`,
   „Zařízení". Zbývá:
   - **Ověřit přihlášení QR kódem na zařízení** — na emulátoru se spustí jen čtečka; potvrzení
     (`confirmQrCodeAuthentication`) proti skutečnému kódu z Telegram Desktop / webu zatím nikdo
     neviděl. Na iOS se čtečka dá vyzkoušet jen na telefonu, simulátor kameru nemá.
   - **Připojení boti (Telegram Business)** v seznamu relací ani v kartě „Byli jste to vy?" nejsou.
 - ~~**Proxy**~~ — hotovo (Obecné → Připojení → Proxy, odkazy `t.me/proxy`, přihlašovací
-  obrazovka, stav v řádku a sponzorovaný chat; `CLAUDE.md`, „Proxy").
+  obrazovka, stav v řádku a sponzorovaný chat; `docs/poznatky/databaze-spojeni-proxy.md`, „Proxy").
 - ~~**Řádky sekcí nemají ikony.**~~ — hotovo (`SettingsSection.icon`).
 
 **Nastavení, která chybí** (říjen 2026; v kódu ověřeno, že nic z toho není):
 
 - ~~**Soukromí účtu.**~~ — hotovo (Obecné → Soukromí → Soukromí účtu: naposledy viděn, telefon
   a hledání podle čísla, profilovka, bio, narozeniny, odkaz v přeposlaných, hovory, P2P,
-  pozvánky do skupin, hlasové zprávy a čas přečtení, s výjimkami; `CLAUDE.md`, „Soukromí účtu").
+  pozvánky do skupin, hlasové zprávy a čas přečtení, s výjimkami; `docs/poznatky/nastaveni.md`, „Soukromí účtu").
   Zbývá **kdo smí psát** (`NewChatPrivacySettings`: jen kontakty / za hvězdy) — jiné API
   a placené zprávy Plume neumí.
-- ~~**Dvoufázové ověření**~~ — hotovo (Obecné → Soukromí; `CLAUDE.md`, „Dvoufázové ověření").
+- ~~**Dvoufázové ověření**~~ — hotovo (Obecné → Soukromí; `docs/poznatky/nastaveni.md`, „Dvoufázové ověření").
   **Skutečné nastavení hesla a kód z e-mailu ověřené NEJSOU** (průvodci jen podstrčeným
   repository) — ověří je uživatel zapnutím na zařízení, a tím se zároveň dá ověřit převod
   vlastnictví a obnova hesla při přihlášení.
 - **Zámek aplikace** PINem nebo biometrií, zamčení po N minutách v pozadí a skrytý obsah
   v přehledu úloh (`FLAG_SECURE` jen se zapnutým zámkem). **Zamyká se jen UI** — klíč k databázi
-  ověření vyžadovat nesmí, jinak nechodí push (`CLAUDE.md`, „Šifrovaná databáze TDLib").
+  ověření vyžadovat nesmí, jinak nechodí push (`docs/poznatky/databaze-spojeni-proxy.md`, „Šifrovaná databáze TDLib").
   Rozmyslet obsah notifikací při zamčené aplikaci (skrýt text?) a sdílení do zamčené aplikace.
 - **Automatické stahování médií** podle sítě (Wi-Fi / mobilní / roaming), druhu (fotky, videa,
   soubory) a velikosti, s ohledem na systémovou úsporu dat. Dnes je jediný strop 5 MB u GIFů
@@ -556,7 +556,7 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
   vyčištění a automatické mazání médií starších než N dní (`optimizeStorage`). Patří sem
   i stažený model Gemmy, aby bylo vidět všechno na jednom místě.
 - **Akce tahem v seznamu chatů pro každou stranu zvlášť** (archivovat, přečíst, ztlumit,
-  připnout, nic). Dnes obě strany archivují, protože jiná akce nebyla (`CLAUDE.md`, „Archiv");
+  připnout, nic). Dnes obě strany archivují, protože jiná akce nebyla (`docs/poznatky/seznam-chatu.md`, „Archiv");
   s volbou ten důvod padá. Výchozí zůstává archivace na obou stranách.
 - **Menší přepínače:** dvojité ťuknutí na zprávu jako rychlá reakce (výchozí reakce
   `setDefaultReactionType`), Enter odesílá / nový řádek (Fold s klávesnicí), velikost písma ve
@@ -571,7 +571,7 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
 
 ## Aktualizace z obchodu
 
-Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení v `CLAUDE.md`,
+Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení v `docs/poznatky/release.md`,
 „Aktualizace z obchodu"). Zbývá:
 
 - **Ověřit celou cestu přes Play.** Debug build aktualizaci nenajde, takže stahování, průběh
@@ -586,7 +586,7 @@ Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení
 
 - ~~**Kanály podle druhu chatu a sekce Notifikace v Nastavení**~~ — hotovo (kanály Soukromé
   chaty / Skupiny / Kanály / Zmínky, u každého rozsahu zapnutí, náhled, připnuté, zmínky, výjimky
-  a odkaz do systémového kanálu; poučení v `CLAUDE.md`, „Kanály a nastavení notifikací"). Zbývá:
+  a odkaz do systémového kanálu; poučení v `docs/poznatky/notifikace.md`, „Kanály a nastavení notifikací"). Zbývá:
   - ~~**Ověřit kanály Skupiny, Kanály a Zmínky skutečnou zprávou**~~ — ověřeno testovacím botem
     v testovací skupině a kanálu (při tom opravené přidání bota do kanálu jako správce).
   - ~~**Upozornění jednoho chatu v profilu**~~ — hotovo (doba ztlumení, náhled, připnuté,
@@ -598,5 +598,5 @@ Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení
   - **iOS** kanály nemá; obdobou je `threadIdentifier` a `interruptionLevel` (zmínky jako
     `timeSensitive`). Přijde na řadu s notifikacemi na iOS vůbec.
 - **Rychlé akce z notifikace.** Odpověď, označení za přečtené a ztlumení na hodinu jsou na
-  Androidu hotové (viz CLAUDE.md, „Akce z notifikace"). Chybí:
+  Androidu hotové (viz docs/poznatky/notifikace.md, „Akce z notifikace"). Chybí:
   - **iOS** — akce vyplní rozšíření notifikací; ověřit skutečným pushem (viz iOS výš).

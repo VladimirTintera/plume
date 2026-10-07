@@ -39,7 +39,7 @@ internal suspend fun MessageStory.toMedia(
 /**
  * Video příběhu jako video zprávy. Délka chodí v desetinách sekundy, zaokrouhlí se nahoru jako
  * u videa ve zprávě (TDLib tam dělá totéž). Streamovat se nezkouší: příběhy jsou krátké a kde
- * má soubor index, nikde napsané není (viz „Video" v CLAUDE.md, `supportsStreaming`).
+ * má soubor index, nikde napsané není (viz „Video" v docs/poznatky/prohlizec-medii.md, `supportsStreaming`).
  */
 internal fun StoryVideo.toMedia() = MessageMedia.Video(
     fileId = video.id,

@@ -110,7 +110,7 @@ internal fun ChatSelectionToolbar(
     ) {
         val shown = last[0] ?: return@AnimatedVisibility
         // Ikony se musí vystředit samy: obsah dostane toolbar ve vnořeném `Row` bez
-        // `verticalAlignment` (viz CLAUDE.md, „Hledání v konverzaci").
+        // `verticalAlignment` (viz docs/poznatky/konverzace-pohyb.md, „Hledání v konverzaci").
         // Odstup uvnitř animace: skrytá lišta nesmí nechat 24 dp prázdna nad FAB.
         HorizontalFloatingToolbar(
             modifier = Modifier.padding(bottom = TOOLBAR_CLEARANCE),

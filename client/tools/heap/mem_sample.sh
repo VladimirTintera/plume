@@ -6,7 +6,7 @@
 #
 # alloc = „Heap Alloc" nativní haldy (co malloc opravdu drží), rss = její RSS, java = Java
 # heap (PSS), pss = celý proces. Na růst native heapu se dívá `alloc`: PSS i RSS kolísají
-# podle toho, co zrovna systém odložil do zramu. Postup delšího běhu viz CLAUDE.md,
+# podle toho, co zrovna systém odložil do zramu. Postup delšího běhu viz docs/poznatky/vykon.md,
 # „Výkon a paměť".
 PKG=eu.tintera.plume; PID=$(adb shell pidof $PKG)
 [ -z "$PID" ] && { echo "$PKG neběží"; exit 1; }

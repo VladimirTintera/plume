@@ -7,7 +7,7 @@ import co.touchlab.kermit.platformLogWriter
  * Nastaví, kam Kermit píše: do systémového logu (logcat / NSLog) a zároveň do hlásiče pádů.
  *
  * - **Systémový log zůstává i v release buildu.** Release APK se v tomhle projektu ověřuje na
- *   zařízení (přepodepsané debug klíčem, viz CLAUDE.md) a `adb logcat` je při tom jediné, co
+ *   zařízení (přepodepsané debug klíčem, viz docs/poznatky/release.md) a `adb logcat` je při tom jediné, co
  *   je vidět hned. Do logů se nepíše obsah zpráv, jen průběh volání.
  * - **Sběr hlášení se nepřepíná tady, ale v manifestu** (`firebase_crashlytics_collection_enabled`
  *   podle build typu). Crashlytics ten příznak čte při inicializaci procesu, tedy dřív, než se

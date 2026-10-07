@@ -271,7 +271,7 @@ fun ChatListScreen(
     val scope = rememberCoroutineScope()
 
     /*
-     * Hudba, která hraje dál po odchodu z konverzace (viz `CLAUDE.md`, „Přehrávač nad seznamem
+     * Hudba, která hraje dál po odchodu z konverzace (viz `docs/poznatky/prohlizec-medii.md`, „Přehrávač nad seznamem
      * chatů"). Tentýž řádek jako dock v konverzaci; při zasouvání kreslí poslední skladbu.
      */
     val nowPlaying by nowPlayingViewModel.nowPlaying.collectAsStateWithLifecycle()
@@ -292,7 +292,7 @@ fun ChatListScreen(
 
     val listState = rememberLazyListState()
     /*
-     * FAB menu „Vytvořit" (viz `CLAUDE.md`, „Složky místo filtrů a FAB"). Zpět ho napřed zavře,
+     * FAB menu „Vytvořit" (viz `docs/poznatky/seznam-chatu.md`, „Složky místo filtrů a FAB"). Zpět ho napřed zavře,
      * teprve další zpět odejde z aplikace; `NavigationBackHandler`, ne `BackHandler` (zabil by
      * predictive back).
      */

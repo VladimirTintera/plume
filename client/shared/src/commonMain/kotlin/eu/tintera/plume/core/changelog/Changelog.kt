@@ -17,7 +17,7 @@ data class ChangelogRelease(
 
 /**
  * Poznámky k vydání **zapečené při buildu** (gradle task `generateChangelog`, viz „Co je nového"
- * v CLAUDE.md), od nejnovějšího vydání.
+ * v docs/poznatky/nastaveni.md), od nejnovějšího vydání.
  *
  * Z buildu, ne ze serveru ani z Google Play: poznámky patří k verzi, kterou uživatel právě má,
  * a jdou číst i offline. Seznam končí vydáním, ze kterého je build — novější verze by lhaly.

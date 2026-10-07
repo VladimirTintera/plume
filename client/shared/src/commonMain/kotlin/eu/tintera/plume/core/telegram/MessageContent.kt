@@ -405,7 +405,7 @@ private var reportedUnknownContent = emptySet<String>()
  * překreslení seznamu logovalo znovu. Obsah zprávy do logu nejde, jen typ.
  *
  * **Název se bere z `toString()`, ne z `::class.simpleName`.** R8 třídy přejmenovává (viz „R8"
- * v CLAUDE.md), `toString()` z TDLib ale název nese jako řetězcový literál — ten přejmenování
+ * v docs/poznatky/release.md), `toString()` z TDLib ale název nese jako řetězcový literál — ten přejmenování
  * přežije. `w`, ne `i`: log jde do kontextu hlášení v Crashlytics a podle něj přibude popis.
  */
 private fun reportUnknownContent(content: MessageContent) {

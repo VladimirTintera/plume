@@ -18,7 +18,7 @@ import kotlinx.serialization.json.put
  * Wrapper si nullabilitu pole odvozuje jen z textu dokumentace v `td_api.tl` („may be null",
  * „pass null"). Povinné objektové pole čte `getValue`, takže chybějící klíč vyhodí
  * `NoSuchElementException` na vlákně `TDL-Receiver-Thread`. Tam ji nikdo nechytá: přijímací
- * smyčka skončí a výjimka shodí celý proces. Viz „Dárek" v CLAUDE.md.
+ * smyčka skončí a výjimka shodí celý proces. Viz „Dárek" v docs/poznatky/typy-zprav.md.
  *
  * Na Androidu se volá z bajtkódu wrapperu (`TdlibReceiveHook`, instrumentace v
  * `client/androidApp/build.gradle.kts`), na iOS zatím nijak — Kotlin/Native knihovnu přepsat
