@@ -13,6 +13,12 @@ smí být importované jen tam.
 - **`DatabaseKeyStore` je rozhraní, ne `expect class`** (jako `ShareTargetPublisher`
   a `CrashReporter`). Na jeho hodnotách visí rozhodnutí, jestli se smažou lokální data, a to chce
   test s podstrčeným úložištěm — `expect class` se v `commonTest` nahradit nedá.
+- **Úložiště je obecné `SecretStore`** (`KeystoreSecretStore` / `KeychainSecretStore`), protože
+  stejně se ukládá i záznam zámku aplikace (`AppLockStore`, viz [zamek-aplikace.md](zamek-aplikace.md)).
+  `DatabaseKeyStore` a `AppLockStore` jsou prázdná rozhraní nad ním a v Koinu se skládají
+  delegací (`object : DatabaseKeyStore, SecretStore by KeystoreSecretStore(…)`) — jen aby
+  se nedalo podstrčit jedno místo druhého. `typealias` by to nezajistil: Koin by oba viděl
+  jako týž typ. Každé tajemství má vlastní soubor i vlastní klíč v Keystore / záznam v Keychainu.
 - **Klíč NESMÍ vyžadovat ověření uživatele.** Push budí mrtvý proces, když telefon leží zamčený
   v kapse, a TDLib potřebuje klíč dřív, než se složí jakékoli UI. Klíč za otiskem prstu znamená,
   že z pozadí nechodí notifikace vůbec. Z téhož důvodu je iOS `kSecAttrAccessibleAfterFirstUnlock…`,
@@ -94,7 +100,7 @@ existující data (`adb install -r`, data zůstanou) a v logu musí být:
 2. **při druhém spuštění** už ta hláška NENÍ — databáze se otevřela rovnou uloženým klíčem,
    jedním voláním,
 3. **po poškození klíče** (`run-as eu.tintera.plume sh -c 'head -c 61 /dev/urandom > files/tdlib-key'`)
-   „Klíč k databázi nejde rozšifrovat" → „Databázi TDLib nejde odemknout" s `TdlThrowable: Wrong
+   „Uložený klíč nejde rozšifrovat" (`KeystoreSecretStore`) → „Databázi TDLib nejde odemknout" s `TdlThrowable: Wrong
    database encryption key` → `AuthorizationState -> WaitPhoneNumber`, bez pádu, a `db.sqlite`
    spadne z megabajtů na jednotky kilobajtů.
 
