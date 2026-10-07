@@ -1158,6 +1158,7 @@ fun ConversationScreen(
     val farFromBottom by remember(listState) {
         derivedStateOf { listState.firstVisibleItemIndex >= SCROLL_DOWN_THRESHOLD_ITEMS }
     }
+    val measuredSizes = rememberMeasuredSizes(listState)
 
     val newest = state.messages.firstOrNull()
 
@@ -2070,7 +2071,11 @@ fun ConversationScreen(
                 count = pendingNewMessages,
                 onClick = {
                     if (state.reachedEnd) {
-                        scope.launch { listState.animateScrollToItem(0) }
+                        scope.launch {
+                            listState.animateScrollToBottom { index ->
+                                items.getOrNull(index)?.let { measuredSizes[it.key] }
+                            }
+                        }
                     } else {
                         viewModel.jumpToLatest()
                     }
@@ -4499,6 +4504,55 @@ private suspend fun LazyListState.animateToAnchor(
 
 /** Nejvýš o tolik položek se na citaci / výsledek hledání dojíždí; dál se skočí. */
 private const val MAX_ANIMATED_JUMP_ITEMS = 40
+
+/**
+ * Výšky položek, které seznam už někdy rozvrhl, podle klíče.
+ *
+ * Položka pod spodní hranou z `layoutInfo` vypadne, i když přes ni uživatel před chvílí
+ * vyroloval nahoru. Návrat dolů ([animateScrollToBottom]) z nich spočítá přesnou vzdálenost.
+ */
+@Composable
+private fun rememberMeasuredSizes(listState: LazyListState): Map<Any, Int> {
+    val sizes = remember(listState) { HashMap<Any, Int>() }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo }
+            .collect { visible -> visible.forEach { sizes[it.key] = it.size } }
+    }
+    return sizes
+}
+
+/**
+ * Tlačítko „dolů": dojede k nejnovější zprávě obyčejným rolováním o spočítanou vzdálenost,
+ * NE přes `animateScrollToItem`.
+ *
+ * `animateScrollToItem` o pár zpráv nad spodkem skončil poskočením: seznam dojel dolů, chvíli
+ * stál, pak všechny bubliny kromě nejnovější vyskočily o ~330 px nahoru a sjely zpátky
+ * (`animateItem`). Spouští to jeho závěrečné `snapToItem` — na pozici, kde už seznam stojí,
+ * podle zdroje Compose animátor položek záměrně NEresetuje, a seznam je v lookahead scope
+ * `SharedTransitionLayout`. Že přichází až po doběhnutí rolování, ukázal záznam obrazovky
+ * rozložený po snímcích; poslední krok mechanismu ověřený není. Rolování o vzdálenost
+ * (`animateScrollBy`) je pro seznam totéž co tah prstem a nic takového nespouští.
+ *
+ * Vzdálenost se skládá z výšek položek pod obrazovkou ([sizeAt], viz [rememberMeasuredSizes]).
+ * Zdaleka ([MAX_ANIMATED_JUMP_ITEMS]) a tam, kde některou výšku neznáme (seznam se po otočení
+ * obrazovky obnovil uprostřed historie), zůstává `animateScrollToItem` — rolovat přes desítky
+ * zpráv by je všechny skládalo, a zdaleka se poskočení neukazovalo.
+ */
+private suspend fun LazyListState.animateScrollToBottom(sizeAt: (index: Int) -> Int?) {
+    if (firstVisibleItemIndex > MAX_ANIMATED_JUMP_ITEMS) return animateScrollToItem(0)
+    val spacing = layoutInfo.mainAxisItemSpacing
+    var distance = firstVisibleItemScrollOffset
+    for (index in 0 until firstVisibleItemIndex) {
+        distance += (sizeAt(index) ?: return animateScrollToItem(0)) + spacing
+    }
+    // Bez odskoku: za spodní hranou seznam nepokračuje, překmit by se o ni zarazil a pružina
+    // by se pak vracela nahoru.
+    val spec = spring<Float>(stiffness = Spring.StiffnessMediumLow)
+    animateScrollBy(-distance.toFloat(), spec)
+    // Výška se mohla mezitím změnit (dotažený náhled, obrázek), nebo dole přibyla zpráva.
+    val rest = layoutInfo.visibleItemsInfo.firstOrNull { it.index == 0 }?.offset
+    if (rest == null) scrollToItem(0) else if (rest != 0) animateScrollBy(rest.toFloat(), spec)
+}
 
 /**
  * [ConversationItemScope] nad ViewModelem obrazovky.
