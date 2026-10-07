@@ -2319,4 +2319,6 @@
     <string name="app_lock_timeout_5m">In 5 minutes</string>
     <string name="app_lock_timeout_1h">In 1 hour</string>
     <string name="app_lock_timeout_5h">In 5 hours</string>
+    <string name="settings_strip_tracking_params">Strip tracking parameters</string>
+    <string name="settings_strip_tracking_params_summary">Remove tracking tags (UTM, fbclid, YouTube si, etc.) from links</string>
 </resources>

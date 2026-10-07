@@ -442,3 +442,23 @@ lokální záložky/hvězdičky, snooze stav), TDLib nemá obecné KV úložišt
   nebo z `chatId` / barvy jména z Telegramu (`senderColor`). Protože obě zařízení stahují stejnou
   fotku / data, spočítají identickou barvu lokálně bez nutnosti přenášet jakákoliv data.
 
+## Čistič odkazů od sledování (`core/url/UrlCleaner`)
+
+Automatické pročištění webových odkazů od sledovacích a analytických parametrů (UTM parametry, reklamní
+click ID a trackery sociálních sítí / sdílení).
+
+- **Kde se čistí:**
+  - Při odeslání zprávy (`ConversationViewModel.send`) a úpravě zprávy (`ConversationViewModel.sendEdit`).
+  - Při otevírání odkazů v prohlížeči (`UrlOpener.android.kt` a `UrlOpener.ios.kt`).
+- **Formátování a text:** `UrlCleaner.cleanComposedText` čistí výskyt odkazů přímo v textu,
+  aktualizuje a posouvá rozsah formátovacích značek (`List<FormatSpan>.afterEdit`) a čistí i cílové
+  URL v explicitních hypertextových odkazech (`FormatSpan.url`).
+- **Co se čistí:**
+  - Univerzální parametry: `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `utm_id` atd.
+  - Reklamní / click trackery: `fbclid`, `gclid`, `gclsrc`, `dclid`, `msclkid`, `twclid`, `ttclid`, `yclid`, `mc_eid` apod.
+  - Služby a sociální sítě: YouTube `si` a `feature` (při zachování funkčního videa `v` a času `t`),
+    Spotify `si`, TikTok, Twitter/X `s` a `t`, Instagram `igshid` a `igsh`, Amazon `ref_`.
+- **Nastavení uživatele:** Uloženo v `AppSettings.stripTrackingParameters` (DataStore Preferences,
+  výchozí hodnota `true`). Přepínač je v Nastavení → Soukromí a bezpečnost pod zprávami (`StripTrackingParametersRow`).
+
+

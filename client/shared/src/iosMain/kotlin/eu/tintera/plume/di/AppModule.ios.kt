@@ -56,7 +56,7 @@ actual fun Module.platformModule() {
     }
     single { NotificationPermission() }
     single { NotificationPresenter(chats = get()) }
-    single { UrlOpener() }
+    single { UrlOpener(settings = get()) }
     single { FileOpener() }
     single { MediaSaver() }
     single { MediaSharer() }

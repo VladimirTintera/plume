@@ -208,6 +208,15 @@ interface AppSettings {
 
     /** Uloží jazyk překladu, `null` ho vrátí na jazyk aplikace. Neblokuje. */
     fun setTranslationLanguage(code: String?)
+
+    /**
+     * Automaticky odstraňovat sledovací parametry (UTM, click ID, YouTube si atd.) z odkazů
+     * při odesílání, otevírání a kopírování. Výchozí `true`.
+     */
+    val stripTrackingParameters: StateFlow<Boolean>
+
+    /** Zapne nebo vypne odstraňování sledovacích parametrů. Neblokuje. */
+    fun setStripTrackingParameters(enabled: Boolean)
 }
 
 /** Kolik nedávných emoji se drží. Zhruba pět řádků mřížky na telefonu. */
@@ -506,6 +515,16 @@ class DataStoreAppSettings(
         }
     }
 
+    override val stripTrackingParameters: StateFlow<Boolean> = value(true) { preferences ->
+        preferences[STRIP_TRACKING_PARAMETERS] ?: true
+    }
+
+    override fun setStripTrackingParameters(enabled: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[STRIP_TRACKING_PARAMETERS] = enabled }
+        }
+    }
+
     /** `základ:varianta` oddělené středníkem. Ani dvojtečka, ani středník v žádném emoji nejsou. */
     private fun String.decodeTones(): Map<String, String> =
         split(TONE_ENTRY_SEPARATOR)
@@ -544,6 +563,7 @@ class DataStoreAppSettings(
         val TRANSLATION_LANGUAGE = stringPreferencesKey("translation_language")
         val USED_ONE_TIME_KEYBOARDS = stringPreferencesKey("used_one_time_keyboards")
         val SEEN_GESTURE_HINTS = stringPreferencesKey("seen_gesture_hints")
+        val STRIP_TRACKING_PARAMETERS = booleanPreferencesKey("strip_tracking_parameters")
         const val KEYBOARD_ENTRY_SEPARATOR = " "
         const val MAX_USED_KEYBOARDS = 200
         const val EMOJI_SEPARATOR = " "

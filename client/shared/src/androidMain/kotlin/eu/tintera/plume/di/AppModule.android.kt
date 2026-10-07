@@ -61,7 +61,7 @@ actual fun Module.platformModule() {
         ) {}
     }
     single { NotificationPermission(androidContext()) }
-    single { UrlOpener(androidContext()) }
+    single { UrlOpener(androidContext(), settings = get()) }
     single { FileOpener(androidContext()) }
     single { MediaSaver(androidContext()) }
     single { MediaSharer(androidContext()) }
