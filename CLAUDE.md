@@ -10776,6 +10776,14 @@ Nálezy a opravy (emulátor Plume_Galerie_Fold, debug build, říjen 2026):
     našich složení 638 → 384. Příčina se našla sondou, která v `ConversationItemContent`
     logovala, jestli je blok `equals` s předchozím: byl, a obal se přesto skládal — tedy
     invalidace zevnitř, ne nové parametry.
+- **Nestabilní argument nevadí, když nezměněné položky drží TUTÉŽ instanci.** `ForumTopic`
+  je pro kompilátor „runtime" (`TopicMessagePreview` nese `UiText`, `ChatDraft`) a `TopicRow` ho
+  porovnává identitou — a přesto se při změně jednoho tématu skládá jen jeho řádek: seznam témat
+  mění jedno téma z updatu a ostatní instance nechává. Změřeno v testovací skupině s pěti tématy:
+  tři zprávy od bota do jednoho tématu, `TopicRow` 4×. Do `compose-stability.conf` proto
+  nepatří. Seznam chatů byl jiný případ: `publish` skládá při každém updatu nové `ChatSummary`
+  pro všechny chaty. `InviteLink` a členové se čtou znovu jen po akci uživatele (jednou, ne
+  s každým updatem) a `MemberDetail` je jediný sheet, ne seznam — měřit je nemá smysl.
 - **Obecně: argument composable v seznamu, jehož třída nese pole typu sealed interface, se
   porovnává identitou**, i když je data class z `val`. Report kompilátoru ho ukáže bez
   `stable` u parametru (`chat: ChatSummary` místo `stable chat: ChatSummary`).
