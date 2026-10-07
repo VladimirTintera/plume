@@ -27,7 +27,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
@@ -51,6 +50,7 @@ import eu.tintera.plume.core.telegram.ConnectedWebsite
 import eu.tintera.plume.core.telegram.Device
 import eu.tintera.plume.core.telegram.DeviceKind
 import eu.tintera.plume.core.telegram.INACTIVE_TTL_OPTIONS
+import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.QrScanFailure
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asRelativeTime
@@ -527,7 +527,7 @@ private fun SwitchRow(
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         headlineContent = { Text(stringResource(label)) },
-        trailingContent = { Switch(checked = checked, onCheckedChange = null, enabled = enabled) },
+        trailingContent = { IconSwitch(checked = checked, onCheckedChange = null, enabled = enabled) },
         modifier = Modifier.toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = { on ->
             haptics.toggle(on)
             onChange(on)

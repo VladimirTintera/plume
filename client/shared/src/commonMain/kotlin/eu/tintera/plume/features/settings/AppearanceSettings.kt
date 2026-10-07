@@ -10,7 +10,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.app.root.presentation.supportsDynamicColor
 import eu.tintera.plume.core.settings.ThemeMode
+import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.brightness_medium_24dp
@@ -85,7 +85,7 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
                 leadingContent = { Icon(painterResource(Res.drawable.palette_24dp), contentDescription = null) },
                 headlineContent = { Text(stringResource(Res.string.settings_theme_dynamic)) },
                 supportingContent = { Text(stringResource(Res.string.settings_theme_dynamic_summary)) },
-                trailingContent = { Switch(checked = dynamicColor, onCheckedChange = null) },
+                trailingContent = { IconSwitch(checked = dynamicColor, onCheckedChange = null) },
                 modifier = Modifier.toggleable(
                     value = dynamicColor,
                     role = Role.Switch,
@@ -103,7 +103,7 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             headlineContent = { Text(stringResource(Res.string.settings_separate_unread)) },
             supportingContent = { Text(stringResource(Res.string.settings_separate_unread_summary)) },
-            trailingContent = { Switch(checked = separateUnread, onCheckedChange = null) },
+            trailingContent = { IconSwitch(checked = separateUnread, onCheckedChange = null) },
             modifier = Modifier.toggleable(
                 value = separateUnread,
                 role = Role.Switch,

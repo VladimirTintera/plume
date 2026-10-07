@@ -13,6 +13,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberBottomSheetState
+import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.resources.chat_folder_icon
 import eu.tintera.plume.resources.chat_folder_icon_auto
 import eu.tintera.plume.resources.chat_folder_icon_auto_help
@@ -40,7 +41,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -442,7 +442,7 @@ private fun FolderBlock(
                 headlineContent = { Text(stringResource(toggle.label)) },
                 leadingContent = { FolderIcon(toggle.icon, accent = false) },
                 // Klikání nese celý řádek, přepínač ne (viz „Obrazovka nastavení").
-                trailingContent = { Switch(checked = toggle.checked, onCheckedChange = null) },
+                trailingContent = { IconSwitch(checked = toggle.checked, onCheckedChange = null) },
                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
                 modifier = Modifier
                     .clip(groupItemShape(index + 1, count))

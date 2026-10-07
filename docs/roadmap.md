@@ -424,7 +424,7 @@ celou aplikaci a rozdělený na dvě místa by se rozešel. Zbývá:
 Nápady na doladění vzhledu; nic z toho zatím nikdo nezačal. Navazují na slovník, který
 aplikace už má (`CLAUDE.md`, „Material 3 / vzhled" a `ShapeMorphs`): tvar nese stav, vlnka
 znamená „teď zní", terciární role „živé". Seřazené od nejlepšího poměru přínosu a práce.
-Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku a přetáčení počtů (poučení v `CLAUDE.md`).
+Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku, přetáčení počtů a přepínače s ikonou (poučení v `CLAUDE.md`).
 
 **Malé**
 
@@ -432,8 +432,8 @@ Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku a p
   (`IconButtonDefaults.shapes()`, VladimirTintera/telegram#498).
 - ~~**Počet nepřečtených se přetočí**~~ — hotovo (`RollingNumber`, VladimirTintera/telegram#500):
   odznaky, počty u složek a archivu, „N nových zpráv".
-- **Přepínače s ikonou** (`Switch(thumbContent = …)`, fajfka / křížek v jezdci). Stav je vidět
-  i bez barvy, tedy i pro barvoslepé.
+- ~~**Přepínače s ikonou**~~ — hotovo (`IconSwitch`: fajfka / křížek v jezdci, všechny
+  přepínače v aplikaci).
 
 **Střední**
 
