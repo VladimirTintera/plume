@@ -6085,6 +6085,45 @@ vedly dva kroky.
 - **U kraje obrazovky vyhrává systémové gesto zpět.** Bublina má odsazení 12 dp, takže se
   s ním u příchozích zpráv kousek překrývá. Nedá se s tím nic dělat a stejné to je i v Telegramu.
 
+### Nápovědy gest napoprvé
+
+Tři gesta, která jinak nikdo neobjeví, mají jednou za instalaci `RichTooltip` se šipkou
+(`GestureHints.kt`, pravidlo `nextGestureHint`, testy `GestureHintTest`): odkrývání časů tahem
+(bublina u pravého okraje seznamu), podržení odesílacího tlačítka pro volby (efekt, bez zvuku,
+naplánovat) a podržení mikrofonu / kamery pro nahrávání. Co už uživatel viděl, si pamatuje
+`AppSettings.seenGestureHints` (názvy výčtu `GestureHint`, neznámý se zahodí).
+
+- **Jedna za návštěvu chatu a až po 1,5 s klidu** (`HINT_DELAY_MS`). Kandidát se počítá
+  pořád znovu a každá změna podmínek čekání začne od nuly; vyskočit hned po otevření by
+  přerušilo první pohled do chatu. Návštěva se pamatuje `rememberSaveable` podle chatu, takže
+  otočení displeje neukáže hned další.
+- **Viděná je od chvíle, kdy se UKÁZALA**, ne až po „Rozumím". Kdo ji zavře ťuknutím vedle,
+  znovu ji vidět nechce. A **použité gesto ji zavře a označí taky** (`GestureHints.used`):
+  tah odkrývání, podržení pro volby, začátek nahrávání.
+- **Jen nad obrazovkou, na které nic nečeká** (`conversationHintContext`): načtený chat, žádná
+  nabídka nad zprávou, výběr, hledání, úprava, sheet ani nahrávání. Když podmínka přestane
+  platit (začne psát, otevře nabídku), bublina zmizí, i když ji uživatel ještě nedočetl —
+  visela by nad něčím jiným. První verze podmínku na načtený chat neměla a nápověda vyskočila
+  nad prázdnou hlavičkou „Konverzace".
+- **Pořadí: volby odeslání, nahrávání, časy.** Volby jdou vidět jen při psaní, tedy vzácně;
+  časy se týkají čtení a počkají.
+- **Obrazovka podmínky NEČTE v kompozici.** `ConversationScreen` je na hraně (viz „Gotchas")
+  a skládat ji kvůli nápovědě by bylo plýtvání: podmínky jdou přes `snapshotFlow` nad lambdami
+  (`rememberGestureHints`) a bublinu čtou jen kotvy ve vlastních funkcích
+  (`RevealTimesHintAnchor`, `ButtonGestureHint`). Co dělá tlačítko odeslání, ví jen vstupní pole,
+  a tak ho do `GestureHints` zapisuje samo (`SideEffect`) a při odchodu pole vynuluje — jinak
+  by hlášení viselo, když pole nahradí lišta výběru.
+- **`TooltipBox` NEPŘEDÁ rodiči zarovnání.** `Modifier.align(Alignment.CenterEnd)` předaný jako
+  `modifier` neudělal nic a kotva skončila v levém horním rohu seznamu (změřeno sondou:
+  bounds 0,310). Bublina se pak „vešla" vpravo od ní a šipka ukazovala ven z obrazovky.
+  Zarovnání proto nese vlastní `Box` kolem `TooltipBox`. Kotva je 16 dp od kraje, jinak leží
+  šipka za okrajem.
+- **Nápověda propouští dotyky** (nefokusovatelný popup): tah doleva přes ni rovnou odkryje
+  časy a ťuknutí vedle ji zavře (`onDismissRequest`).
+- **Ověřeno na emulátoru** (česky, chat s testovacím botem): nahrávání s kamerou, volby
+  odeslání s efekty nad tlačítkem, časy u pravého okraje (sondou, která časy brala jako
+  neviděné) a jejich zavření tahem. iOS jen přeložené.
+
 ### Jeden detektor tahu do strany
 
 Odkrývání časů, odpověď tahem i archivace v seznamu chatů jsou tah do strany nad svislým

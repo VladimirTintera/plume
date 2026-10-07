@@ -307,6 +307,7 @@ import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.audio.rememberRecordPermission
 import eu.tintera.plume.core.settings.ExpressionMode
+import eu.tintera.plume.core.settings.GestureHint
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.UnreadMarkKind
 import eu.tintera.plume.core.telegram.LinkPreview
@@ -666,6 +667,13 @@ fun ConversationScreen(
     var scheduleTarget by remember { mutableStateOf<ScheduleTarget?>(null) }
     var effectPickerOpen by remember { mutableStateOf(false) }
     var scheduleDay by remember { mutableStateOf<Long?>(null) }
+    // Nápovědy gest napoprvé. Podmínky se čtou až v `snapshotFlow`, obrazovka se kvůli nim neskládá.
+    val gestureHints = rememberConversationGestureHints(viewModel, stateHolder) {
+        stickerPickerOpen || mediaPickerOpen || locationPickerOpen || livePeriodOpen || effectPickerOpen ||
+            scheduleTarget != null || previewAttachmentIndex != null || isRecording ||
+            voicePreview != null || videoNotePreview != null ||
+            (stateHolder.value.info?.sensitive == true && !sensitiveAccepted)
+    }
 
     // Komu se má odpovědět, rozhoduje čisté pravidlo nad stavem (testy `ReplySuggestionsTest`).
     val replyTarget = replySuggestionTarget(
@@ -1857,6 +1865,7 @@ fun ConversationScreen(
             // Fotka letící z prohlížeče zajede pod kartu pole a tlačítko, ne jen za čáru nad nimi.
             CompositionLocalProvider(LocalSharedElementOcclusion provides listClip) {
             MessageInput(
+                gestureHints = gestureHints,
                 glass = Modifier.sharedElementOcclusionBand().hazeBlur(
                     input = HazeInput.Sources(listHaze),
                     style = glassStyle(
@@ -2469,7 +2478,10 @@ fun ConversationScreen(
                         .pointerInput(revealMax) {
                             detectHorizontalSwipe(
                                 direction = SwipeDirection.Left,
-                                onEnd = { scope.launch { timeReveal.animateTo(0f, revealSpec) } },
+                                onEnd = {
+                                    gestureHints.used(GestureHint.RevealTimes)
+                                    scope.launch { timeReveal.animateTo(0f, revealSpec) }
+                                },
                             ) { delta ->
                                 scope.launch {
                                     // Jen doleva a jen po šířku sloupce s časy; dál už není co
@@ -2505,6 +2517,8 @@ fun ConversationScreen(
                     }
                 }
                   }
+                  // Nápověda k odkrývání časů ukazuje k pravému okraji, odkud časy přijedou.
+                  RevealTimesHintAnchor(gestureHints, Modifier.align(Alignment.CenterEnd))
                 }
             }
 
@@ -3185,6 +3199,8 @@ private fun MessageInput(
     /** GIF nebo obrázek vložený z klávesnice (Gboard), už zkopírovaný do cache. */
     onKeyboardContent: (KeyboardContent) -> Unit = {},
     onKeyboardContentFailed: (UiText) -> Unit = {},
+    /** Nápovědy gest napoprvé; pole do nich hlásí, co právě dělá tlačítko odeslání. */
+    gestureHints: GestureHints? = null,
     modifier: Modifier = Modifier,
 ) {
     var draft by composer
@@ -3779,6 +3795,15 @@ private fun MessageInput(
             // Ťuknutí na mikrofon či kameru nahrávání nespouští, jen přepíná — a řekne jak dál.
             val recordHint = rememberTooltipState(isPersistent = false)
             val hintScope = rememberCoroutineScope()
+            val sendOptionsOffered = (kind == SendButtonKind.Send && sendMenu.any && !attachmentsPreparing) ||
+                (kind == SendButtonKind.SendVoice && voiceSendMenu.any)
+            ButtonGestureHint(
+                hints = gestureHints,
+                sendOptions = kind == SendButtonKind.Send && sendOptionsOffered,
+                recording = showMic,
+                recordMode = recordMode ?: RecordMode.Voice,
+                effects = sendMenu.effects,
+            ) {
             Box(Modifier.onGloballyPositioned { recordGesture.buttonCenterX = it.boundsInWindow().center.x }) {
                 TooltipBox(
                     positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
@@ -3919,6 +3944,7 @@ private fun MessageInput(
                             cancelDistance = RECORD_CANCEL_DISTANCE,
                             lockDistance = RECORD_LOCK_DISTANCE,
                             onHoldStart = {
+                                gestureHints?.used(GestureHint.HoldToRecord)
                                 recordHeld = true
                                 // Zamčení z minula (akce čtečky, která nakonec nenahrávala) neplatí.
                                 recordLocked = false
@@ -3958,10 +3984,8 @@ private fun MessageInput(
                         .occludesSharedElements(buttonShapes.shape)
                         // Podržení nabídne odeslat bez zvuku a naplánovat — u hotové zprávy
                         // i u nahrávané hlasovky.
-                        .longPressInstead(
-                            enabled = (kind == SendButtonKind.Send && sendMenu.any && !attachmentsPreparing) ||
-                                (kind == SendButtonKind.SendVoice && voiceSendMenu.any),
-                        ) {
+                        .longPressInstead(enabled = sendOptionsOffered) {
+                            gestureHints?.used(GestureHint.SendOptions)
                             keyboard?.hide()
                             voiceMenu = kind == SendButtonKind.SendVoice
                             if (voiceMenu) onVoiceMenu(true)
@@ -4054,6 +4078,7 @@ private fun MessageInput(
                         ),
                     ),
                 )
+            }
             }
         }
     }

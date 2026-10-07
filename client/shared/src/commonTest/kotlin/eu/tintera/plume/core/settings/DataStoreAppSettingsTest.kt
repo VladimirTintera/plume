@@ -221,6 +221,43 @@ class DataStoreAppSettingsTest {
 
     /** `null` znamená modrou — výchozí barva se neukládá, aby šla změnit bez migrace. */
     @Test
+    fun napovedyGestSeSkladajiANezapomenou() = settingsTest { settings, _ ->
+        assertEquals(emptySet(), settings.seenGestureHints.value)
+        settings.markGestureHintSeen(GestureHint.HoldToRecord)
+        settings.seenGestureHints.awaitValue("viděné nahrávání") { GestureHint.HoldToRecord in it }
+        // Další nápověda tu první nepřepíše — zápis čte uložený stav uvnitř `edit`.
+        settings.markGestureHintSeen(GestureHint.RevealTimes)
+        assertEquals(
+            setOf(GestureHint.HoldToRecord, GestureHint.RevealTimes),
+            settings.seenGestureHints.awaitValue("obě nápovědy") { it.size == 2 },
+        )
+    }
+
+    /** Nápověda, kterou tahle verze nezná (z novější), se zahodí — ostatní zůstanou. */
+    @Test
+    fun neznamaNapovedaSeZahodi() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val dataStore = createSettingsDataStore(tempPath())
+            val settings = DataStoreAppSettings(dataStore, scope)
+
+            settings.markGestureHintSeen(GestureHint.SendOptions)
+            settings.seenGestureHints.awaitValue("viděné volby odeslání") { it.isNotEmpty() }
+
+            withTimeout(WAIT_MS) {
+                dataStore.edit { it[stringPreferencesKey("seen_gesture_hints")] = "SendOptions SwipeToFly RevealTimes" }
+            }
+
+            assertEquals(
+                setOf(GestureHint.SendOptions, GestureHint.RevealTimes),
+                settings.seenGestureHints.awaitValue("bez neznámé") { it.size == 2 },
+            )
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
     fun barvaMotivuJeVychoziNevybrana() = settingsTest { settings, _ ->
         assertEquals(null, settings.themeColor.value)
     }

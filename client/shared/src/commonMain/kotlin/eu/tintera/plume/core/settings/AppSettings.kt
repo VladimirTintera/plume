@@ -182,6 +182,15 @@ interface AppSettings {
     fun confirmWebAppBot(botUserId: Long)
 
     /**
+     * Nápovědy gest, které uživatel už viděl (nebo gesto použil sám). Každá se ukáže jednou
+     * za instalaci — kdo gesto zná, nemá ho mít vysvětlované dokola.
+     */
+    val seenGestureHints: StateFlow<Set<GestureHint>>
+
+    /** Zapamatuje nápovědu jako viděnou. Neblokuje. */
+    fun markGestureHintSeen(hint: GestureHint)
+
+    /**
      * Použité jednorázové klávesnice botů: chat → zpráva, ze které klávesnice pochází. Klávesnice
      * po použití v chatu ZŮSTÁVÁ (Bot API ji jen schová) a TDLib si nepamatuje, že byla použitá —
      * bez tohohle by se při každém otevření chatu ukázala zase rozbalená. Tak to drží i oficiální
@@ -435,6 +444,24 @@ class DataStoreAppSettings(
         }
     }
 
+    override val seenGestureHints: StateFlow<Set<GestureHint>> = value(emptySet()) { preferences ->
+        preferences[SEEN_GESTURE_HINTS].decodeHints()
+    }
+
+    override fun markGestureHintSeen(hint: GestureHint) {
+        if (hint in seenGestureHints.value) return
+        scope.launch {
+            edit { preferences ->
+                preferences[SEEN_GESTURE_HINTS] = (preferences[SEEN_GESTURE_HINTS].decodeHints() + hint)
+                    .joinToString(" ") { it.name }
+            }
+        }
+    }
+
+    /** Názvy oddělené mezerou; neznámý název (novější verze aplikace) se zahodí. */
+    private fun String?.decodeHints(): Set<GestureHint> =
+        orEmpty().split(' ').mapNotNullTo(LinkedHashSet()) { name -> GestureHint.entries.firstOrNull { it.name == name } }
+
     override val usedOneTimeKeyboards: StateFlow<Map<Long, Long>> = value(emptyMap()) { preferences ->
         preferences[USED_ONE_TIME_KEYBOARDS]?.decodeKeyboards().orEmpty()
     }
@@ -516,6 +543,7 @@ class DataStoreAppSettings(
         val CONFIRMED_WEB_APP_BOTS = stringPreferencesKey("confirmed_web_app_bots")
         val TRANSLATION_LANGUAGE = stringPreferencesKey("translation_language")
         val USED_ONE_TIME_KEYBOARDS = stringPreferencesKey("used_one_time_keyboards")
+        val SEEN_GESTURE_HINTS = stringPreferencesKey("seen_gesture_hints")
         const val KEYBOARD_ENTRY_SEPARATOR = " "
         const val MAX_USED_KEYBOARDS = 200
         const val EMOJI_SEPARATOR = " "
