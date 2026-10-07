@@ -502,9 +502,10 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
 - **Lokální odložení chatu (Snooze).** Možnost odložit chat (z nabídky nad chatem nebo volbou
   tahu) na 1 hodinu, dnes večer nebo zítra ráno. Chat se dočasně vizuálně ztiší a v nastavený
   čas se znovu vynoří na vrcholu seznamu chatů jako připomínka.
-- **Čistič odkazů od sledování (Privacy URL Stripper).** Automatické nebo volitelné odstraňování
-  sledovacích parametrů (`utm_*`, `fbclid`, `igshid`, `si=` u YouTube apod.) při vkládání do pole,
-  sdílení a otevírání odkazů. V náhledu odkazu indikátor, že byl odkaz očištěn.
+- ~~**Čistič odkazů od sledování (Privacy URL Stripper).**~~ — hotovo (automatické odstraňování
+  sledovacích a analytických parametrů `utm_*`, `fbclid`, `gclid`, YouTube/Spotify `si`, TikTok, Twitter/X
+  při odesílání, úpravě zprávy i otevírání odkazů, volitelný přepínač v Nastavení → Soukromí a bezpečnost;
+  `docs/poznatky/nastaveni.md`, „Čistič odkazů od sledování").
 - **Rychlý přepínač mezi aktivními chaty (Quick Switcher v konverzaci).** Při rozepsané
   konverzaci gesto tažení (swipe) po spodním panelu/vstupním poli doleva/doprava, případně krátké
   stažení (pull-down) horní lišty s avatary posledních aktivních chatů pro bleskový skok bez

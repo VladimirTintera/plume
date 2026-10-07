@@ -2395,4 +2395,6 @@
     <string name="app_lock_timeout_5m">Po 5 minutách</string>
     <string name="app_lock_timeout_1h">Po 1 hodině</string>
     <string name="app_lock_timeout_5h">Po 5 hodinách</string>
+    <string name="settings_strip_tracking_params">Odstraňovat sledovací parametry</string>
+    <string name="settings_strip_tracking_params_summary">Z odkazů odstraňuje sledovací značky (UTM, fbclid, YouTube si a další)</string>
 </resources>

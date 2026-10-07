@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.flowOf
 import eu.tintera.plume.resources.video_chat_join_elsewhere
 import eu.tintera.plume.core.telegram.VideoChatInfo
 import eu.tintera.plume.core.telegram.InviteLinkRepository
+import eu.tintera.plume.core.url.UrlCleaner
 import eu.tintera.plume.core.telegram.PendingJoinRequests
 import eu.tintera.plume.core.telegram.BotChatRequest
 import eu.tintera.plume.core.telegram.BotMenuApp
@@ -1950,7 +1951,8 @@ class ConversationViewModel(
      * naplánovat, s efektem); obyčejné ťuknutí posílá výchozí.
      */
     fun send(text: ComposedText, options: SendOptions = SendOptions()) {
-        val composed = text.trimmed()
+        val sanitized = if (settings.stripTrackingParameters.value) UrlCleaner.cleanComposedText(text) else text
+        val composed = sanitized.trimmed()
         val trimmed = composed.text
 
         // S přílohami je text popisek a smí být prázdný. Úprava zprávy přílohy nemá.
@@ -2290,22 +2292,23 @@ class ConversationViewModel(
      */
     private fun sendEdit(target: ChatMessage, text: ComposedText) {
         val kind = target.composerEdit() ?: return
-        if (kind == ComposerEdit.Text && text.text.isEmpty()) return
+        val sanitized = if (settings.stripTrackingParameters.value) UrlCleaner.cleanComposedText(text) else text
+        if (kind == ComposerEdit.Text && sanitized.text.isEmpty()) return
 
         val linkOptions = _state.value.linkPreviewOptions
-        val linkPreview = linkOptions.forEdit(text.text, shown = _state.value.linkPreview)
+        val linkPreview = linkOptions.forEdit(sanitized.text, shown = _state.value.linkPreview)
         leaveEdit()
         // Beze změny není co posílat; server by vrátil chybu „zpráva se nezměnila". Změna jen
         // formátování (tučné slovo) je ale změna.
         val optionsChanged = kind == ComposerEdit.Text &&
             linkOptions != (target.linkPreviewOptions ?: LinkPreviewOptions())
         val original = ComposedText(target.text, composedFormatsOf(target.text, target.entities).orEmpty()).trimmed()
-        if (text == original && !optionsChanged) return
+        if (sanitized == original && !optionsChanged) return
 
         viewModelScope.launch {
             val edited = when (kind) {
-                ComposerEdit.Text -> repository.editText(chatId, target.id, text.text, linkPreview, text.formats)
-                ComposerEdit.Caption -> repository.editCaption(chatId, target.id, text.text, text.formats)
+                ComposerEdit.Text -> repository.editText(chatId, target.id, sanitized.text, linkPreview, sanitized.formats)
+                ComposerEdit.Caption -> repository.editCaption(chatId, target.id, sanitized.text, sanitized.formats)
             }
             edited.onFailure { failure ->
                 _state.update { it.copy(error = failure.reported(Res.string.conversation_edit_failed)) }

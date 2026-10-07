@@ -56,9 +56,12 @@ import eu.tintera.plume.resources.settings_account_privacy
 import eu.tintera.plume.resources.settings_account_privacy_summary
 import eu.tintera.plume.resources.shield_person_24dp
 import eu.tintera.plume.resources.lock_24dp
+import eu.tintera.plume.resources.link_off_24dp
 import eu.tintera.plume.resources.settings_app_lock
 import eu.tintera.plume.resources.settings_app_lock_off
 import eu.tintera.plume.resources.settings_app_lock_on
+import eu.tintera.plume.resources.settings_strip_tracking_params
+import eu.tintera.plume.resources.settings_strip_tracking_params_summary
 import eu.tintera.plume.resources.chats_search_section_chats
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.new_chat_contacts
@@ -113,7 +116,27 @@ internal fun PrivacySettings(
         SensitiveContentRow(sensitive)
         TwoStepRow(twoStep, onOpenTwoStep)
         AppLockRow(onOpenAppLock)
+        StripTrackingParametersRow()
     }
+}
+
+@Composable
+private fun StripTrackingParametersRow() {
+    val settings = org.koin.compose.koinInject<eu.tintera.plume.core.settings.AppSettings>()
+    val enabled by settings.stripTrackingParameters.collectAsStateWithLifecycle()
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        leadingContent = { Icon(painterResource(Res.drawable.link_off_24dp), contentDescription = null) },
+        headlineContent = { Text(stringResource(Res.string.settings_strip_tracking_params)) },
+        supportingContent = { Text(stringResource(Res.string.settings_strip_tracking_params_summary)) },
+        trailingContent = {
+            eu.tintera.plume.core.ui.IconSwitch(
+                checked = enabled,
+                onCheckedChange = settings::setStripTrackingParameters,
+            )
+        },
+        modifier = Modifier.clickable { settings.setStripTrackingParameters(!enabled) },
+    )
 }
 
 @Composable
