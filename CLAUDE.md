@@ -1607,6 +1607,53 @@ převádí platforma (`ProfileVideo`).
   cestou. **Vlastní profil a založení chatu s videem ověřené nejsou** (mění skutečný účet /
   zakládají další chat), jdou ale stejnou cestou.
 
+## Dvoufázové ověření
+
+Nastavení → Obecné → Soukromí → Dvoufázové ověření (poslední řádek bloku, „Zapnuto" /
+„Vypnuto"; dokud stav nedorazí, podtitul není). Obrazovka stavu (`TwoStepRoute`,
+`TwoStepScreen`) a průvodci: zapnutí (heslo dvakrát, nápověda, nepovinný obnovovací e-mail
+a kód z něj), změna hesla, změna e-mailu, vypnutí a zapomenuté heslo — e-mailem, nebo bez něj
+reset po sedmi dnech čekání. Hranice je `PasswordRepository` (`TdlPasswordRepository`,
+doména `TwoStepVerification.kt`), kroky průvodce čisté funkce v `TwoStepFlow.kt` (testy
+`TwoStepFlowTest`, ViewModel `TwoStepViewModelTest`).
+
+- **Heslo s novým e-mailem začne platit až po kódu z e-mailu.** `setPassword` s e-mailem vrátí
+  stav s `pendingEmail` (maska a délka kódu) a heslo zapne teprve `checkRecoveryEmailAddressCode`.
+  Průvodce proto odesílá na kroku E-mail (`commitsAt`), ne na nápovědě, a z kroku Kód se zpět
+  NEvrací (`previous` = `null`): změna už je na serveru, a zopakovat ji by poslalo další kód.
+  Rozdělané potvrzení e-mailu (zavřený průvodce, jiné zařízení) ukazuje obrazovka stavu jako
+  kartu se „Zadat kód", s posláním kódu znovu a se zrušením
+  (`cancelRecoveryEmailAddressVerification`).
+- **Bez e-mailu se nejdřív zeptá** (dialog „Pokračovat bez e-mailu?"): zapomenuté heslo pak
+  půjde zrušit jen po týdnu. Na server do potvrzení nejde nic.
+- **Kroky jsou stav ViewModelu, ne routy.** V zásobníku navigace by hesla putovala do
+  serializovaného stavu, který přežije i zabití procesu. Ze stejného důvodu **hesla nejsou
+  `rememberSaveable`**, drží je Compose stav ve ViewModelu a po konci průvodce (i po zpět
+  z prvního kroku) je `clearSecrets()` vynuluje. Zpět uvnitř průvodce jde o krok zpátky
+  (`NavigationBackHandler`).
+- **Hesla se nelogují ani v chybách.** Chyba z TDLib jde do logu (`logger.w` s výjimkou), vstup
+  ne. Heslo se neořezává (mezera na konci je jeho součást), kód a e-mail ano. Nápověda shodná
+  s heslem se odmítne hned, stejně jako při přihlášení.
+- **Vypnutí napřed ověří současné heslo** (`getRecoveryEmailAddress` — čtení, které heslo
+  vyžaduje, ale nic nemění) a teprve pak se ptá dialogem. Tlačítko kroku proto říká
+  „Pokračovat", ne „Uložit" — uložení je až v dialogu.
+- **Zapomenuté heslo bez e-mailu je reset** (`resetPassword`): `Pending` = heslo se zruší
+  k datu (karta se „Zrušit reset" a `cancelPasswordReset`), `Declined` = zkusit znovu až
+  k `retryAt`, `Done` = zrušené hned. Stav čekání se čte z `PasswordState.pendingResetDate`
+  (`resetProgress`).
+- **`EMAIL_INVALID` má vlastní větu** v `userMessage`; zbytek chyb (`PASSWORD_HASH_INVALID`,
+  `CODE_INVALID`, `PASSWORD_RECOVERY_EXPIRED`…) jde tabulkou jako jinde.
+- **Past: vlastní pomocník na log s českým textem neprojde `verifyNoHardcodedText`.** Kontrola
+  pouští diakritiku jen na řádcích s `logger.`; `logFailure("Nepodařilo se…")` se proto
+  vrátil zpátky na `onFailure { logger.w(it) { "…" } }`.
+- **Ověřeno**: na skutečném účtu jen ČTENÍ stavu (řádek „Vypnuto", obrazovka „vypnuté"
+  s „Nastavit heslo"). Průvodci na emulátoru PODSTRČENÝM repository (sonda v Koinu, necommituje
+  se): zapnutí s e-mailem a kódem i bez e-mailu, chyby (neshoda hesel, nápověda = heslo,
+  neplatný e-mail, špatný kód), obnova e-mailem (špatný i dobrý kód, nové heslo), reset bez
+  e-mailu a jeho zrušení, vypnutí se špatným i dobrým heslem. **Skutečné nastavení hesla,
+  skutečný kód z e-mailu a reset ověřené NEJSOU** — mění skutečný účet; ověří je uživatel
+  zapnutím na zařízení. iOS jen přeložené a slinkované.
+
 ## Jazyky
 
 **Výchozí jazyk je angličtina** (`composeResources/values/strings.xml`), čeština je mutace

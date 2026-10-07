@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.auth
 
+import eu.tintera.plume.core.ui.BLOCK_OUTLINE
+import eu.tintera.plume.core.ui.blockOutlineColor
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -122,7 +124,7 @@ private fun RowScope.CodeCell(digit: Char?, active: Boolean, isError: Boolean, h
     Surface(
         shape = CODE_CELL_SHAPE,
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        border = BorderStroke(AUTH_OUTLINE, authOutlineColor(isError = isError, active = active)),
+        border = BorderStroke(BLOCK_OUTLINE, blockOutlineColor(isError = isError, active = active)),
         modifier = Modifier.weight(1f).height(height),
     ) {
         Box(contentAlignment = Alignment.Center) {

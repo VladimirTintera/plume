@@ -20,6 +20,7 @@ import eu.tintera.plume.core.navigation.EditChatRoute
 import eu.tintera.plume.core.navigation.EditProfileRoute
 import eu.tintera.plume.core.navigation.BlockSenderRoute
 import eu.tintera.plume.core.navigation.BlockedSendersRoute
+import eu.tintera.plume.core.navigation.TwoStepRoute
 import eu.tintera.plume.core.navigation.ChatFolderEditRoute
 import eu.tintera.plume.core.navigation.ChatFoldersRoute
 import eu.tintera.plume.core.navigation.ProxySettingsRoute
@@ -28,6 +29,7 @@ import eu.tintera.plume.features.settings.ChatFolderEditScreen
 import eu.tintera.plume.features.settings.ChatFoldersScreen
 import eu.tintera.plume.features.settings.BlockSenderScreen
 import eu.tintera.plume.features.settings.BlockedSendersScreen
+import eu.tintera.plume.features.settings.TwoStepScreen
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
 import eu.tintera.plume.features.conversation.InlineQueryRequests
 import eu.tintera.plume.features.conversation.SwitchInlinePick
@@ -1057,6 +1059,7 @@ private fun shellEntryProvider(
             onOpenBlocked = { if (settingsStack.lastOrNull() != BlockedSendersRoute) settingsStack.add(BlockedSendersRoute) },
             onOpenFolders = { if (settingsStack.lastOrNull() != ChatFoldersRoute) settingsStack.add(ChatFoldersRoute) },
             onOpenProxy = { if (settingsStack.lastOrNull() != ProxySettingsRoute) settingsStack.add(ProxySettingsRoute) },
+            onOpenTwoStep = { if (settingsStack.lastOrNull() != TwoStepRoute) settingsStack.add(TwoStepRoute) },
         )
     }
 
@@ -1095,6 +1098,13 @@ private fun shellEntryProvider(
             onBack = { settingsStack.pop(route) },
             onBlockUser = { if (settingsStack.lastOrNull() != BlockSenderRoute) settingsStack.add(BlockSenderRoute) },
         )
+    }
+
+    // Dvoufázové ověření nad sekcí Obecné, jako seznam blokovaných.
+    entry<TwoStepRoute>(
+        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+    ) { route ->
+        TwoStepScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Výběr k zablokování nad seznamem blokovaných; po zablokování se vrací do něj.
@@ -1258,7 +1268,7 @@ private fun conversationBelow(stack: List<NavKey>, route: MediaRoute): Long? {
     return chatId?.takeIf { it == route.chatId && !route.fromSharedMedia && route.pollMedia == NO_POLL_MEDIA }
 }
 
-/** Obrazovky, které se vrší nad sekci Nastavení: úprava profilu, blokovaní, složky chatů. */
+/** Obrazovky, které se vrší nad sekci Nastavení: úprava profilu, blokovaní, dvoufázové ověření, složky chatů. */
 private fun NavKey?.isOverSettingsSection(): Boolean =
-    this == EditProfileRoute || this == BlockedSendersRoute || this == BlockSenderRoute ||
+    this == EditProfileRoute || this == BlockedSendersRoute || this == BlockSenderRoute || this == TwoStepRoute ||
         this == ChatFoldersRoute || this is ChatFolderEditRoute || this == ProxySettingsRoute

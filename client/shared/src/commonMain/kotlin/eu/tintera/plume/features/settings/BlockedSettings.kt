@@ -84,7 +84,8 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Skupina „Soukromí" v Obecných: blokovaní a citlivý obsah. Samostatná sekce Soukromí by měla
+ * Skupina „Soukromí" v Obecných: blokovaní, mazání v nových chatech, citlivý obsah a dvoufázové
+ * ověření. Samostatná sekce Soukromí by měla
  * dvě položky, proto tady.
  */
 @Composable
@@ -92,12 +93,16 @@ internal fun PrivacySettings(
     blocked: BlockedSendersViewModel,
     sensitive: SensitiveContentViewModel,
     autoDelete: DefaultAutoDeleteViewModel,
+    twoStep: TwoStepViewModel,
     onOpenBlocked: () -> Unit,
+    onOpenTwoStep: () -> Unit,
 ) {
     SettingsGroup(Res.string.settings_privacy) {
         BlockedRow(blocked, onOpenBlocked)
         DefaultAutoDeleteRow(autoDelete)
         SensitiveContentRow(sensitive)
+        // Poslední: jiné řádky přibývají nahoru (viz roadmapa), tenhle zůstává u konce skupiny.
+        TwoStepRow(twoStep, onOpenTwoStep)
     }
 }
 
