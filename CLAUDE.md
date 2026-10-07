@@ -4311,7 +4311,8 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
 - **Klidová sušenka je vlastní, ne `Cookie9Sided`**: šest vlnek s vnitřním poloměrem 0,7 místo
   devíti s 0,8. S mělkými vlnkami se tvar od kruhu skoro nelišil.
 - **Tvary M3 Expressive mají v aplikaci pevné významy** (`ShapeMorphs` v `core/ui/MorphShape.kt`):
-  šestistranná sušenka = klid / připraveno (mikrofon, pozastavená hlasovka i video), kruh = probíhající akce
+  šestistranná sušenka = klid / připraveno (mikrofon, pozastavená hlasovka i video, ikona
+  pod taženým chatem či zprávou za prahem tahu), kruh = probíhající akce
   (odeslat, hraje), SoftBurst = živý signál (tlačítko při nahrávání dýchá, tečka v pruhu už
   nebliká — dva blikající prvky vedle sebe byly šum), dvanáctistranná sušenka = podbarvení
   podržené samolepky — i vlnka stisku je ořezaná do téže sušenky (klikání má vlastní vrstvu,
@@ -6046,6 +6047,21 @@ bránit.
 - **Spotřebování se hlídá i ve fázi `Final`.** Položka seznamu (bublina, řádek chatu) dostává
   události ve fázi `Main` DŘÍV než seznam, takže rozjetý scroll ve `Main` nevidí; ve `Final`
   už ano. Stejně to dělá `awaitTouchSlopOrCancellation` z Compose.
+- **Práh ohlašuje i TVAR, ne jen haptika** (`SwipeThresholdBadge` v `core/ui`, archivace
+  i odpověď tahem): ikona pod taženou položkou je do prahu kolečko, za prahem naroste,
+  morfne do sušenky (`ShapeMorphs.Rest` — „připraveno, pusť a stane se") a vyplní se akcentem.
+  Haptiku nemá každý zapnutou a v ruce se dá přehlédnout.
+  - **Tvar sleduje AKTUÁLNÍ polohu prstu** (`derivedStateOf { |drag| >= práh }`), haptika jen
+    první překročení v tahu (`armed`). Kdo prst vrátí před práh, vidí kolečko a ví, že po
+    puštění se nic nestane. `derivedStateOf`, aby se nic nerekomponovalo každý snímek tahu.
+  - **Pružina je rychlá (`StiffnessMediumLow`, tlumení 0,5)**, ne `morphSpring`: odezva patří
+    k tahu a musí přijít s vibrací, ne o půl vteřiny později.
+  - **Výplň se měří proti ploše pod ikonou** (`accentOn`). Na `primaryContainer` podkladu
+    archivace `primary` neprojde AA a výplň je `onPrimaryContainer` s ikonou v barvě podkladu
+    — ve světlém i tmavém motivu čitelné. U odpovědi (plocha konverzace) je `primary`.
+  - **Archivace potřebuje šířku řádku i mimo `pointerInput`** (práh je podíl šířky), proto
+    `onSizeChanged`. Ověřeno na emulátoru tahem přes `input motionevent` zastaveným před
+    prahem a za ním a vráceným zpátky (nic se nearchivovalo ani nezaložila odpověď).
 - **Plynulost a to, jestli to pod palcem sedí, se posuzuje na telefonu** — emulátor s `input
   swipe` ověří jen směr a pořadí rozhodnutí.
 
