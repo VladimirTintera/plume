@@ -3,6 +3,7 @@ package eu.tintera.plume.core.lock
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.secrets.AppLockStore
 import eu.tintera.plume.core.telegram.AuthStage
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -115,6 +116,7 @@ class AppLock(
     private val scope: CoroutineScope,
     private val clock: LockClock = SystemLockClock,
     private val iterations: Int = PIN_ITERATIONS,
+    private val hashDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     private val logger = Logger.withTag("AppLock")
     private val mutex = Mutex()
@@ -272,7 +274,7 @@ class AppLock(
             .isSuccess
 
     private suspend fun hash(pin: String, salt: ByteArray, iterations: Int): ByteArray =
-        withContext(Dispatchers.Default) { pbkdf2Sha256(pin.encodeToByteArray(), salt, iterations) }
+        withContext(hashDispatcher) { pbkdf2Sha256(pin.encodeToByteArray(), salt, iterations) }
 
     private fun LockConfig.settings() = AppLockSettings(timeoutSeconds, biometrics)
 

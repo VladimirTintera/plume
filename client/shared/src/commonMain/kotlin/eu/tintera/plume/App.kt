@@ -1,7 +1,9 @@
 package eu.tintera.plume
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -11,15 +13,19 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.app.root.presentation.AppTheme
 import eu.tintera.plume.app.root.presentation.supportsDynamicColor
 import eu.tintera.plume.app.shell.AppShell
+import eu.tintera.plume.core.lock.AppLock
+import eu.tintera.plume.core.lock.AppLockState
 import eu.tintera.plume.core.notifications.NotificationPermissionPrompt
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ThemeColor
 import eu.tintera.plume.core.settings.ThemeMode
 import eu.tintera.plume.core.telegram.AuthStage
+import eu.tintera.plume.core.ui.SecureScreen
 import eu.tintera.plume.core.ui.forgetKnownImagePaths
 import eu.tintera.plume.core.ui.forgetStickerAnimations
 import eu.tintera.plume.features.auth.AuthScreen
 import eu.tintera.plume.features.auth.AuthViewModel
+import eu.tintera.plume.features.lock.LockScreen
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -41,6 +47,13 @@ fun App() {
     val themeMode by settings.themeMode.collectAsStateWithLifecycle()
     val dynamicColor by settings.dynamicColor.collectAsStateWithLifecycle()
     val themeColor by settings.themeColor.collectAsStateWithLifecycle()
+
+    val appLock = koinInject<AppLock>()
+    val lockSettings by appLock.settings.collectAsStateWithLifecycle()
+    val lockState by appLock.state.collectAsStateWithLifecycle()
+
+    // Skrytí obsahu v přehledu úloh: FLAG_SECURE se zapne, pokud je zámek aplikace zapnutý
+    SecureScreen(enabled = lockSettings != null)
 
     AppTheme(
         themeMode = themeMode ?: ThemeMode.SYSTEM,
@@ -64,9 +77,25 @@ fun App() {
                 label = "root",
             ) { signedIn ->
                 if (signedIn) {
-                    AppShell()
-                    // Až tady, ne nad přihlášením — tam uživatel ještě netuší, co aplikace dělá.
-                    NotificationPermissionPrompt()
+                    Box(Modifier.fillMaxSize()) {
+                        AppShell()
+                        // Až tady, ne nad přihlášením — tam uživatel ještě netuší, co aplikace dělá.
+                        NotificationPermissionPrompt()
+
+                        when (lockState) {
+                            is AppLockState.Locked -> {
+                                LockScreen(appLock = appLock)
+                            }
+                            is AppLockState.Unknown -> {
+                                // Během prvního čtení Keystore nezobrazujeme obsah chatu
+                                Surface(
+                                    modifier = Modifier.fillMaxSize(),
+                                    color = MaterialTheme.colorScheme.background,
+                                ) {}
+                            }
+                            AppLockState.Disabled, AppLockState.Unlocked -> Unit
+                        }
+                    }
                 } else {
                     AuthScreen(viewModel = authViewModel)
                 }
@@ -74,3 +103,4 @@ fun App() {
         }
     }
 }
+

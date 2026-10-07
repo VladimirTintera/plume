@@ -25,6 +25,7 @@ import eu.tintera.plume.core.navigation.PrivacySettingRoute
 import eu.tintera.plume.features.settings.AccountPrivacyScreen
 import eu.tintera.plume.features.settings.PrivacySettingScreen
 import eu.tintera.plume.core.navigation.TwoStepRoute
+import eu.tintera.plume.core.navigation.AppLockRoute
 import eu.tintera.plume.core.navigation.ChatFolderEditRoute
 import eu.tintera.plume.core.navigation.ChatFoldersRoute
 import eu.tintera.plume.core.navigation.ProxySettingsRoute
@@ -34,6 +35,7 @@ import eu.tintera.plume.features.settings.ChatFoldersScreen
 import eu.tintera.plume.features.settings.BlockSenderScreen
 import eu.tintera.plume.features.settings.BlockedSendersScreen
 import eu.tintera.plume.features.settings.TwoStepScreen
+import eu.tintera.plume.features.settings.AppLockScreen
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
 import eu.tintera.plume.features.conversation.InlineQueryRequests
 import eu.tintera.plume.features.conversation.SwitchInlinePick
@@ -1065,6 +1067,7 @@ private fun shellEntryProvider(
             onOpenProxy = { if (settingsStack.lastOrNull() != ProxySettingsRoute) settingsStack.add(ProxySettingsRoute) },
             onOpenAccountPrivacy = { if (settingsStack.lastOrNull() != AccountPrivacyRoute) settingsStack.add(AccountPrivacyRoute) },
             onOpenTwoStep = { if (settingsStack.lastOrNull() != TwoStepRoute) settingsStack.add(TwoStepRoute) },
+            onOpenAppLock = { if (settingsStack.lastOrNull() != AppLockRoute) settingsStack.add(AppLockRoute) },
         )
     }
 
@@ -1130,6 +1133,13 @@ private fun shellEntryProvider(
         metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
     ) { route ->
         TwoStepScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
+    }
+
+    // Zámek aplikace nad sekcí Obecné, jako dvoufázové ověření.
+    entry<AppLockRoute>(
+        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+    ) { route ->
+        AppLockScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Výběr k zablokování nad seznamem blokovaných; po zablokování se vrací do něj.
@@ -1296,5 +1306,5 @@ private fun conversationBelow(stack: List<NavKey>, route: MediaRoute): Long? {
 /** Obrazovky, které se vrší nad sekci Nastavení: úprava profilu, blokovaní, dvoufázové ověření, složky chatů. */
 private fun NavKey?.isOverSettingsSection(): Boolean =
     this == EditProfileRoute || this == BlockedSendersRoute || this == BlockSenderRoute || this == TwoStepRoute ||
-        this == ChatFoldersRoute || this is ChatFolderEditRoute || this == ProxySettingsRoute ||
+        this == AppLockRoute || this == ChatFoldersRoute || this is ChatFolderEditRoute || this == ProxySettingsRoute ||
         this == AccountPrivacyRoute || this is PrivacySettingRoute
