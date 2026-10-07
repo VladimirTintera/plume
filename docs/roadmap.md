@@ -371,12 +371,11 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
 ## Výkon a paměť
 
 Nástroje a postup jsou v `CLAUDE.md` („Výkon a paměť"). První analýza (reporty Compose
-kompilátoru, LeakCanary, heap dumpy) únik nenašla. Zbylo:
+kompilátoru, LeakCanary, heap dumpy) únik nenašla a delší
+běh ukázal, že se ustálí i native heap. Zbylo:
 
 - **Fully drawn na Foldu** ověřit s první verzí, která `ReportDrawnWhen` nese: měřené
   hodnoty na telefonu jsou zatím jen první snímek.
-- **Native heap** rostl během testu z ~80 na ~130 MB. Ověřit delším během, jestli se ustálí
-  (TDLib, kodeky, Chromium z mini aplikace), nebo roste dál.
 
 ---
 
