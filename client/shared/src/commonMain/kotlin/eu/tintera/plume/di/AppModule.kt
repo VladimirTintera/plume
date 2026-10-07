@@ -123,6 +123,7 @@ import eu.tintera.plume.features.proxy.ProxyStatusViewModel
 import eu.tintera.plume.features.settings.SensitiveContentViewModel
 import eu.tintera.plume.features.settings.DefaultAutoDeleteViewModel
 import eu.tintera.plume.features.settings.TwoStepViewModel
+import eu.tintera.plume.features.settings.AppLockViewModel
 import eu.tintera.plume.features.settings.NotificationSettingsViewModel
 import eu.tintera.plume.features.settings.OnDeviceAiSettingsViewModel
 import eu.tintera.plume.features.conversation.ChatSummaryViewModel
@@ -355,6 +356,7 @@ fun appModule() = module {
     }
     viewModelOf(::DefaultAutoDeleteViewModel)
     viewModelOf(::TwoStepViewModel)
+    viewModelOf(::AppLockViewModel)
     viewModelOf(::AppearanceViewModel)
     viewModelOf(::DevicesViewModel)
     viewModelOf(::NotificationSettingsViewModel)

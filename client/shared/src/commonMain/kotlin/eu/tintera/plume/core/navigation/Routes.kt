@@ -66,6 +66,12 @@ data object BlockedSendersRoute : Route
 @Serializable
 data object TwoStepRoute : Route
 
+/**
+ * Zámek aplikace (PIN a biometrie). Vrší se nad sekci Obecné stejně jako [TwoStepRoute].
+ */
+@Serializable
+data object AppLockRoute : Route
+
 /** Výběr, koho zablokovat. Vrší se nad seznam blokovaných a po zablokování se vrací do něj. */
 @Serializable
 data object BlockSenderRoute : Route
@@ -421,6 +427,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(AccountPrivacyRoute::class, AccountPrivacyRoute.serializer())
             subclass(PrivacySettingRoute::class, PrivacySettingRoute.serializer())
             subclass(TwoStepRoute::class, TwoStepRoute.serializer())
+            subclass(AppLockRoute::class, AppLockRoute.serializer())
             subclass(ChatFoldersRoute::class, ChatFoldersRoute.serializer())
             subclass(ProxySettingsRoute::class, ProxySettingsRoute.serializer())
             subclass(ChatFolderEditRoute::class, ChatFolderEditRoute.serializer())

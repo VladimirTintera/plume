@@ -55,6 +55,10 @@ import eu.tintera.plume.resources.block_24dp
 import eu.tintera.plume.resources.settings_account_privacy
 import eu.tintera.plume.resources.settings_account_privacy_summary
 import eu.tintera.plume.resources.shield_person_24dp
+import eu.tintera.plume.resources.lock_24dp
+import eu.tintera.plume.resources.settings_app_lock
+import eu.tintera.plume.resources.settings_app_lock_off
+import eu.tintera.plume.resources.settings_app_lock_on
 import eu.tintera.plume.resources.chats_search_section_chats
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.new_chat_contacts
@@ -100,15 +104,35 @@ internal fun PrivacySettings(
     onOpenBlocked: () -> Unit,
     onOpenAccountPrivacy: () -> Unit,
     onOpenTwoStep: () -> Unit,
+    onOpenAppLock: () -> Unit,
 ) {
     SettingsGroup(Res.string.settings_privacy) {
         AccountPrivacyRow(onOpenAccountPrivacy)
         BlockedRow(blocked, onOpenBlocked)
         DefaultAutoDeleteRow(autoDelete)
         SensitiveContentRow(sensitive)
-        // Poslední: jiné řádky přibývají nahoru (viz roadmapa), tenhle zůstává u konce skupiny.
         TwoStepRow(twoStep, onOpenTwoStep)
+        AppLockRow(onOpenAppLock)
     }
+}
+
+@Composable
+private fun AppLockRow(onOpen: () -> Unit) {
+    val appLock = org.koin.compose.koinInject<eu.tintera.plume.core.lock.AppLock>()
+    val settings by appLock.settings.collectAsStateWithLifecycle()
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        leadingContent = { Icon(painterResource(Res.drawable.lock_24dp), contentDescription = null) },
+        headlineContent = { Text(stringResource(Res.string.settings_app_lock)) },
+        supportingContent = {
+            if (settings != null) {
+                Text(stringResource(Res.string.settings_app_lock_on))
+            } else {
+                Text(stringResource(Res.string.settings_app_lock_off))
+            }
+        },
+        modifier = Modifier.clickable(onClick = onOpen),
+    )
 }
 
 /**

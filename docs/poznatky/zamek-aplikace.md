@@ -53,8 +53,57 @@ Všechno, co zámek ví, je **jeden záznam v `AppLockStore`** (Keystore / Keych
 - **Biometrie odemkne i během brzdy a brzdu zruší.** Otisk hádáním nikdo neobejde a kdo PIN
   zapomněl, dostal by se jinak dovnitř jen odhlášením.
 
+## Obrazovka zámku a UI
+
+- **Celoplošný zámek (`LockScreen`) překrývá celou aplikaci** v `App.kt`, jakmile je stav
+  `AppLockState.Locked`. Pokud je stav `Unknown` (načítání ze store při studeném startu),
+  vykreslí se prázdný povrch v barvě pozadí — aplikace tak neproblikne před uzamčením.
+- **Gesto zpět minimalizuje aplikaci (`rememberReturnToCaller`).** Na obrazovce zámku nesmí
+  fungovat běžný návrat do předchozí obrazovky (jinak by se dal zámek obejít). Zpět minimalizuje
+  aplikaci na domovskou obrazovku; je použit `NavigationBackHandler`, aby fungoval v predictive back.
+- **Klávesnice PINu (`PinPad`):** číselník 3x4 s haptickou odezvou (`HapticFeedbackType.TextHandleMove`),
+  tlačítkem smazat a biometrickou ikonou (pokud je zapnutá). Tečky PINu (`PinDots`) se při chybě
+  zatřesou (`Animatable` offset).
+- **Odpočet brzdy:** při zablokování po opakovaných chybách se číselník skryje a zobrazí se
+  odpočet do vypršení brzdy v reálném čase.
+
+## Biometrie (`BiometricAuth`)
+
+- **Platformní rozhraní `BiometricAuth`:**
+  - Android: `BiometricManager` ověřuje dostupnost (`BIOMETRIC_STRONG` | `DEVICE_CREDENTIAL`),
+    `BiometricPrompt` zobrazuje systémový dialog navázaný na `ComponentActivity`.
+  - iOS: `LocalAuthentication` (`LAContext.evaluatePolicy(LAPolicyDeviceOwnerAuthenticationWithBiometrics)`).
+- **Automatické vyvolání při zamčení:** jakmile se objeví `LockScreen` a biometrie je zapnutá,
+  systémový dialog se nabídne automaticky, aniž by uživatel musel ťukat na ikonu otisku.
+
+## Ochrana v přehledu úloh (`FLAG_SECURE`)
+
+- Obsah aplikace v systémovém přepínači úloh (recent apps) i na snímcích obrazovky je chráněn
+  přes `SecureScreen(enabled = lockSettings != null)` v `App.kt`.
+- **Chráněno pouze tehdy, když je zámek zapnutý.** Pokud uživatel zámek nepoužívá, `FLAG_SECURE`
+  je vypnutý, takže snímky obrazovky a náhled v multitaskingu zůstávají povolené.
+
+## Nastavení zámku (`AppLockScreen`)
+
+- Umístění: **Nastavení → Soukromí → Zámek aplikace**.
+- Pokud je zámek již zapnutý, vstup do obrazovky vyžaduje ověření stávajícího PINu nebo biometrií.
+- Umožňuje:
+  - Zapnutí zámku se zadáním a potvrzením PINu (kontrola shody, chyba při neshodě).
+  - Změnu PINu (kroky zadat nový → potvrdit nový).
+  - Volbu doby neaktivity (1 min, 5 min, 1 h, 5 h).
+  - Zapnutí / vypnutí odemykání biometrií (pokud je na zařízení dostupná).
+  - Vypnutí zámku s potvrzovacím dialogem.
+
+## Poučení z testování
+
+- `AppLock` provádí PBKDF2 hash přes `withContext(hashDispatcher)`. V produkci je to `Dispatchers.Default`,
+  ale v deterministických unit testech s `StandardTestDispatcher` je nutné umožnit předání testovacího
+  dispečeru, jinak na pozadí vznikají race conditions.
+- Testovací coroutine ve `scope.backgroundScope` (např. sledování popředí) se neodbavují přes
+  `advanceUntilIdle()` samovolně, pokud jsou v nekonečném `collect`; pro jednorázové odbavení
+  naplánovaných úloh na testovacím scheduleru je nutné použít `runCurrent()`.
+
 ## Stav
 
-Hotové je jádro (`AppLock`, záznam, brzda, napojení na popředí a odhlášení v Koinu) s testy
-`AppLockTest` a `PinHashTest`. **Obrazovka zámku, biometrie, skrytí v přehledu úloh a Nastavení
-ještě nejsou** — co zbývá, je v [docs/roadmap.md](../roadmap.md), „Zámek aplikace".
+**Kompletně hotovo** včetně UI, biometrie na Androidu i iOS, `FLAG_SECURE`, obrazovky v Nastavení
+a unit testů (`AppLockTest`, `PinHashTest`, `AppLockViewModelTest`).

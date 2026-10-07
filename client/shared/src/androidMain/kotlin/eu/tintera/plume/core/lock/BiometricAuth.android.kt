@@ -1,0 +1,72 @@
+package eu.tintera.plume.core.lock
+
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.hardware.biometrics.BiometricManager
+import android.hardware.biometrics.BiometricPrompt
+import android.os.Build
+import android.os.CancellationSignal
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+
+@Composable
+actual fun rememberBiometricAuth(): BiometricAuth {
+    val context = LocalContext.current
+    return remember(context) { AndroidBiometricAuth(context) }
+}
+
+private class AndroidBiometricAuth(private val context: Context) : BiometricAuth {
+
+    override val isSupported: Boolean
+        get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val manager = context.getSystemService(BiometricManager::class.java)
+            val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                BiometricManager.Authenticators.BIOMETRIC_WEAK
+            manager?.canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
+        } else false
+
+    override suspend fun authenticate(title: String, subtitle: String?): Boolean {
+        if (!isSupported || Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false
+        val activity = context.findActivity() ?: return false
+
+        return suspendCancellableCoroutine { continuation ->
+            val cancellationSignal = CancellationSignal()
+            continuation.invokeOnCancellation { cancellationSignal.cancel() }
+
+            val prompt = BiometricPrompt.Builder(activity)
+                .setTitle(title)
+                .apply { if (subtitle != null) setSubtitle(subtitle) }
+                .setNegativeButton(
+                    activity.getString(android.R.string.cancel),
+                    activity.mainExecutor,
+                ) { _, _ ->
+                    if (continuation.isActive) continuation.resume(false)
+                }
+                .build()
+
+            prompt.authenticate(
+                cancellationSignal,
+                activity.mainExecutor,
+                object : BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult?) {
+                        if (continuation.isActive) continuation.resume(true)
+                    }
+
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) {
+                        if (continuation.isActive) continuation.resume(false)
+                    }
+                },
+            )
+        }
+    }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
