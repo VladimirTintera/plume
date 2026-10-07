@@ -47,7 +47,7 @@ import eu.tintera.plume.resources.media_pause
 import eu.tintera.plume.resources.pause_24dp
 import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.stop_24dp
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -217,7 +217,7 @@ fun VoicePreviewBar(
         Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
             when {
                 voice == null || current?.loading == true ->
-                    CircularProgressIndicator(color = accent, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                    LoadingIndicator(color = accent, modifier = Modifier.size(32.dp))
                 else -> IconButton(onClick = onToggle, shapes = IconButtonDefaults.shapes()) {
                     Icon(
                         painterResource(if (current?.playing == true) Res.drawable.pause_24dp else Res.drawable.play_arrow_24dp),
@@ -305,7 +305,7 @@ internal fun VideoNotePreviewBar(
         }
         Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
             if (note == null) {
-                CircularProgressIndicator(color = accent, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                LoadingIndicator(color = accent, modifier = Modifier.size(32.dp))
             } else {
                 IconButton(onClick = playback::toggle, shapes = IconButtonDefaults.shapes()) {
                     Icon(

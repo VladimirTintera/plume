@@ -444,8 +444,8 @@ Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku, p�
   naroste do sušenky a vyplní se (`SwipeThresholdBadge`).
 - ~~**Reakce s výbuchem**~~ — hotovo: za emoji přidané reakce se otevře `SoftBurst` a čip
   povyskočí (`ReactionChip`).
-- **Expressive `LoadingIndicator` místo kolečka** tam, kde kolečko zbylo (dotahování historie,
-  první načtení seznamu).
+- ~~**Expressive `LoadingIndicator` místo kolečka**~~ — hotovo: dotahování historie a první
+  načtení seznamu ho už měly, zbylá neurčitá kolečka (tlačítka, náhled nahrávky) taky.
 
 **Větší (spíš funkce než detail)**
 

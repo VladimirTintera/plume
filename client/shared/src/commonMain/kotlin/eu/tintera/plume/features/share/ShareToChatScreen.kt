@@ -40,7 +40,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -887,9 +886,9 @@ private fun CaptionBar(
             shape = CircleShape,
         ) {
             if (sending) {
-                CircularProgressIndicator(
+                LoadingIndicator(
                     color = LocalContentColor.current,
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(36.dp),
                 )
             } else {
                 Icon(

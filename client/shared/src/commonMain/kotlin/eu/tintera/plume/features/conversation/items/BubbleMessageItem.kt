@@ -23,7 +23,7 @@ import eu.tintera.plume.core.telegram.ArticleMedia
 import eu.tintera.plume.core.ui.LocalArticleMediaFlight
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LoadingIndicator
 import eu.tintera.plume.resources.article_read_more
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -272,11 +272,7 @@ internal data class BubbleMessageItem(
                 color = accent,
             )
             if (loading) {
-                CircularProgressIndicator(
-                    color = accent,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.size(QUOTE_EXPANDER_ICON - 6.dp),
-                )
+                LoadingIndicator(color = accent, modifier = Modifier.size(QUOTE_EXPANDER_ICON))
             } else {
                 Icon(
                     painter = painterResource(Res.drawable.keyboard_arrow_down_24dp),
