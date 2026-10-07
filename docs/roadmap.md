@@ -377,10 +377,6 @@ kompilátoru, LeakCanary, heap dumpy) únik nenašla. Zbylo:
   (řádky seznamu témat se při každé změně tématu mohou přeskládat všechny, jako dřív seznam
   chatů — neměřeno, testovací skupina témata nemá), `MemberDetail`, `InviteLink`. Napřed změřit
   (`client/tools/perf/`), pak teprve přidávat.
-- **Každá nová zpráva přeskládá vnější obal VŠECH viditelných položek konverzace**
-  (`MessageItem.Content`, `RevealingTime`, `arrival`: 42 složení na tři zprávy při ~14 viditelných).
-  Rám zprávy pod nimi se přeskočí, takže je to levné (~3 ms za zprávu na emulátoru), ale
-  nemusí to být vůbec: nejspíš se mění lambda nebo stav, který obal čte. Napřed zjistit co.
 - **Fully drawn na Foldu** ověřit s první verzí, která `ReportDrawnWhen` nese: měřené
   hodnoty na telefonu jsou zatím jen první snímek.
 - **Native heap** rostl během testu z ~80 na ~130 MB. Ověřit delším během, jestli se ustálí

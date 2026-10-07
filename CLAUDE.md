@@ -8965,9 +8965,10 @@ tolerance jako hod kostkou) nebo je NEPŘEČTENÁ, a znovu po ťuknutí na znač
 - **Nepřečtená příchozí zpráva efekt přehraje taky** (`effectAutoplays`, testy
   `EffectAutoplayTest`): kdo ji ještě neviděl, má vidět i efekt, se kterým přišla — tak to dělají
   oficiální klienti. Rozhoduje hranice nepřečtených zachycená při otevření (`unreadBoundaryId`),
-  vlastní zpráva se nepočítá. **Hranice dorazí až po prvních zprávách**, proto je v klíči
-  `LaunchedEffect` položky; do položky jde přes `derivedStateOf` (`unreadBoundary()`), jinak by
-  čtení stavu překreslovalo všechny zprávy s každou změnou konverzace. Ověřeno sondou hranice
+  vlastní zpráva se nepočítá. **Hranice dorazí až po prvních zprávách**, proto na ni efekt
+  položky čeká (`snapshotFlow { scope.unreadBoundary() }`). **V kompozici se nečte** — viz
+  „Recompozice za běhu" (Výkon a paměť): i přes `derivedStateOf` tím obal každé viditelné
+  zprávy přeskládala každá změna stavu konverzace. Ověřeno sondou hranice
   (viz „Skok na první nepřečtenou"): obě nepřečtené zprávy s 🔥 zahořely po otevření chatu.
   Ověření bez sondy v #325 nic nedokazovalo — chat otevřený do pěti vteřin po zprávě spadl pod
   toleranci příchodu, ne pod nepřečtené. Efekt u nejnovější zprávy
@@ -10757,6 +10758,24 @@ Nálezy a opravy (emulátor Plume_Galerie_Fold, debug build, říjen 2026):
   - **Ověřeno 40× zpomalenými animacemi a sérií surových snímků**: profil spodního nároží
     předchozí bubliny prochází mezi kulatým a staženým plynule (měřením první barevné
     souřadnice v řádcích nad spodní hranou), ne skokem.
+- **Každá nová zpráva přeskládala obal VŠECH viditelných zpráv konverzace** (`MessageItem.Content`,
+  `RevealingTime`, `arrival`). Dvě příčiny a každá stačila sama — bez kterékoli z oprav zůstalo
+  56 složení na tři zprávy:
+  - **`Content` je člen rozhraní (`open`), a otevřené composables kompilátor přeskakovat
+    NEUMÍ** (v reportu bez `restartable skippable`, jen `open`). Nová zpráva posune indexy všech
+    položek a `LazyColumn` znovu spustí obsah každé viditelné — a s ním `Content`. Seznam proto
+    volá top-level `ConversationItemContent(item, scope)`, který přeskočitelný je: blok se
+    porovná přes `equals` a nezměněná položka se nesloží. Data class, která `Content` sama
+    přepisuje (předěl dne), přeskočitelná je; bloky zpráv ho ale dědí z `MessageItem`.
+  - **Obal četl v kompozici hranici nepřečtených** (`scope.unreadBoundary()`, kvůli efektu
+    zprávy), a ta ho invalidovala s každou změnou stavu konverzace, přestože se hranice nemění
+    a čte se přes `derivedStateOf` — i s `structuralEqualityPolicy()` (ověřeno pokusem, proč,
+    zjištěné není). Teď ji čte až efekt (`snapshotFlow`). **Obecně: odvozený stav čtený
+    v položce seznamu měřit, ne věřit, že `derivedStateOf` invalidaci zastaví.**
+  - Tři zprávy od bota: obal zprávy 53× → 6× (nová zpráva a soused, kterému se změnilo nároží),
+    našich složení 638 → 384. Příčina se našla sondou, která v `ConversationItemContent`
+    logovala, jestli je blok `equals` s předchozím: byl, a obal se přesto skládal — tedy
+    invalidace zevnitř, ne nové parametry.
 - **Obecně: argument composable v seznamu, jehož třída nese pole typu sealed interface, se
   porovnává identitou**, i když je data class z `val`. Report kompilátoru ho ukáže bez
   `stable` u parametru (`chat: ChatSummary` místo `stable chat: ChatSummary`).

@@ -346,6 +346,7 @@ import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.features.conversation.items.BUBBLE_CORNER
 import eu.tintera.plume.features.conversation.items.FloatingDayBadge
 import eu.tintera.plume.features.conversation.items.ConversationItemScope
+import eu.tintera.plume.features.conversation.items.ConversationItemContent
 import eu.tintera.plume.features.conversation.items.DayDividerItem
 import eu.tintera.plume.features.conversation.items.MESSAGE_SPACING
 import eu.tintera.plume.features.conversation.items.MenuAnchor
@@ -2513,7 +2514,7 @@ fun ConversationScreen(
                     verticalArrangement = Arrangement.spacedBy(MESSAGE_SPACING),
                 ) {
                     items(items, key = { it.key }, contentType = { it.contentType }) { item ->
-                        with(item) { Content(itemScope) }
+                        ConversationItemContent(item, itemScope)
                     }
                 }
                   }

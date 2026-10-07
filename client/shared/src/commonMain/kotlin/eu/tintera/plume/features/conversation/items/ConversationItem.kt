@@ -53,6 +53,20 @@ internal interface ConversationItem {
 }
 
 /**
+ * Položka seznamu konverzace. Seznam volá tohle, ne [ConversationItem.Content] přímo.
+ *
+ * Nová zpráva posune indexy všech položek a `LazyColumn` kvůli tomu znovu spustí obsah každé
+ * viditelné. [ConversationItem.Content] je člen rozhraní, tedy otevřená funkce, a ty Compose
+ * přeskakovat neumí — skládal se proto obal každé zprávy (`animateItem`, odkrývání časů, nový
+ * `graphicsLayer`), i když se nezměnila. Tahle funkce přeskočitelná je: blok se porovná přes
+ * `equals` ([ConversationItem] je `@Immutable`) a nezměněná položka se nesloží vůbec.
+ */
+@Composable
+internal fun LazyItemScope.ConversationItemContent(item: ConversationItem, scope: ConversationItemScope) {
+    with(item) { Content(scope) }
+}
+
+/**
  * Co blok potřebuje od obrazovky: cestu pro akce a hodnoty, které se mění rychleji, než by se
  * vyplatilo přestavovat seznam bloků.
  *
@@ -124,8 +138,9 @@ internal interface ConversationItemScope {
 
     /**
      * Hranice nepřečtených zachycená při otevření chatu (`unreadBoundaryId`); dorazí až po
-     * prvních zprávách. Čte se v kompozici, takže obrazovka ji podává přes `derivedStateOf` —
-     * položka se překreslí jen tehdy, když se hranice objeví, ne s každou změnou konverzace.
+     * prvních zprávách. **Nečíst v kompozici**, jen v efektu (`snapshotFlow`): čtená
+     * v kompozici invalidovala položku s každou změnou stavu konverzace, i když se hranice
+     * nezměnila a obrazovka ji podává přes `derivedStateOf`.
      */
     fun unreadBoundary(): Long? = null
 

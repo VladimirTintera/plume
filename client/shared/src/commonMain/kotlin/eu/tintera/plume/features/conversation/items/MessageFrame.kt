@@ -68,6 +68,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
@@ -137,6 +138,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import eu.tintera.plume.resources.reply_24dp
 import kotlin.math.roundToInt
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -229,12 +231,14 @@ internal interface MessageItem : ConversationItem {
         val effect = frame.message.effect
         val effectPlayback = remember { EffectPlayback() }
         // Efekt hraje sám jen jednou: u zprávy, která přišla po otevření, nebo u nepřečtené.
-        // Hranice nepřečtených dorazí až po prvních zprávách, proto je v klíči.
-        val unreadBoundary = scope.unreadBoundary()
-        LaunchedEffect(frame.key, effect?.id, unreadBoundary) {
-            if (effect?.animationFileId != null && scope.claimEffect(frame.key, frame.message, unreadBoundary)) {
-                effectPlayback.play()
-            }
+        // Hranice nepřečtených dorazí až po prvních zprávách, proto se na ni čeká — a čte ji
+        // efekt, ne kompozice: čtená tady invalidovala obal KAŽDÉ viditelné zprávy s každou
+        // změnou stavu konverzace (viz `CLAUDE.md`, „Výkon a paměť").
+        LaunchedEffect(frame.key, effect?.id) {
+            if (effect?.animationFileId == null) return@LaunchedEffect
+            snapshotFlow { scope.unreadBoundary() }
+                .first { boundary -> scope.claimEffect(frame.key, frame.message, boundary) }
+            effectPlayback.play()
         }
         // Konfety výhry u kostky přesahují zprávu stejně jako efekt; položka se kvůli nim zvedne.
         var raised by remember { mutableStateOf(false) }
