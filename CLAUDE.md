@@ -5261,6 +5261,11 @@ testy `InlineQueryTest`).
   Plume neumí (`@pic` má „Create image with Alice AI").
 - **Bot s `needLocation` dostane přibližnou polohu** (`rememberDeviceLocation`); o oprávnění se
   žádá až u takového bota.
+- **Dotaz na takového bota se pošle až s polohou** (`inlineLocationResolved`), nebo když je jasné,
+  že nebude (nedovolená, nezjištěná do limitu — `request` pak vrátí `null`). Dřív odešel první
+  dotaz hned bez polohy a s její příchodem druhý: bot odpověděl dvakrát a výsledky se pod prstem
+  vyměnily (ověřeno v logu bota: `location None`, pak souřadnice). Že je bot „polohový", se
+  pozná až z `getUser` (`InlineBotInfo.needLocation`), proto se čeká až po něm.
 - **„přes @bot" je údaj o původu, stejně jako přeposlání** (`OriginLabel`, `OriginHeader`,
   `hasOriginLabel` v `MessageFrame.kt`): holý obsah s ním je karta, GIF od `@gif` má značku
   v hlavičce téže karty. Jméno bota se dohledává `getUser` (lokální, pamatuje se). Ťuknutí na
@@ -5271,9 +5276,14 @@ testy `InlineQueryTest`).
 - **Ověřeno na emulátoru** (Uložené zprávy): `@gif kočka` (mřížka hrajících GIFů, odeslání,
   „via @gif"), ťuknutí na „via @gif" (`@gif ` v poli, nápověda a populární), `@wiki Prague`
   (řádky, odeslání jako karta odkazu s „via @wiki"), `@pic cat` (fotky a tlačítko mini
-  aplikace), `@BotFather x` (bez panelu). **Neověřeno**: tlačítko „nastavit u bota" (žádný
-  z vyzkoušených botů ho neposlal), bot s polohou, video a samolepky ve výsledcích a iOS (jen
-  přeložené). **Ve skupině ověřené** (`@gif cat` v testovací skupině, GIF odešel). Obraz GIFů
+  aplikace), `@BotFather x` (bez panelu). **Neověřeno**: video a samolepky ve výsledcích a iOS
+  (jen přeložené).
+- **Tlačítko „nastavit u bota" a bot s polohou ověřené testovacím botem.** BotFather mu zapnul
+  inline režim (`/setinline`) a polohu (`/setinlinegeo`), na dotazy odpovídal skript přes Bot API
+  (`getUpdates` s `allowed_updates: ["inline_query"]`, `answerInlineQuery` s `button.start_parameter`).
+  Ťuknutí na tlačítko poslalo botovi `/start nastaveni`; dotaz s polohou odešel jednou, rovnou se
+  souřadnicemi; po odmítnutí oprávnění odešel bez nich. Poloha emulátoru z testovacího
+  poskytovatele (viz „Vlastní klávesnice bota"). Inline režim zůstal botovi zapnutý. **Ve skupině ověřené** (`@gif cat` v testovací skupině, GIF odešel). Obraz GIFů
   ve výsledcích i ve zprávě zůstal na emulátoru prázdný — selhává dekodér
   (`queueInputBuffer() failed`), viz „GIFy".
 - **`chat_<id>` v `EXTRA_SHORTCUT_ID` se sdíleným textem je nejrychlejší cesta, jak dostat dotaz

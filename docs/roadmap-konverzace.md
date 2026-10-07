@@ -559,8 +559,8 @@ snadno na to uživatel narazí.
   hotovo i se zmínkou jménem (`CLAUDE.md`, „Napovídání zmínek"; ve skupině ověřené).
   ~~Tlačítko nabídky bota s mini aplikací (`BotMenuButton`)~~ — hotovo. ~~Emoji podle slov~~ — hotovo
   (`CLAUDE.md`, „Emoji podle slov"). ~~Inline boti
-  (`@gif kočka` v poli)~~ — hotovo i s „přes @bot" u zprávy (`CLAUDE.md`, „Inline boti"); zbývá
-  ověřit tlačítko „nastavit u bota" a bota s polohou (ve skupině ověřené).
+  (`@gif kočka` v poli)~~ — hotovo i s „přes @bot" u zprávy (`CLAUDE.md`, „Inline boti");
+  ~~tlačítko „nastavit u bota" a bot s polohou~~ ověřené testovacím botem (ve skupině taky).
 - ~~**Naplánované zprávy a odeslání bez zvuku**~~ — hotovo: podržení odesílacího tlačítka,
   seznam naplánovaných za hodinami u pole (`CLAUDE.md`, „Naplánované zprávy"). ~~Plánování
   hlasovky a ankety~~ — hotovo. ~~Plánování samolepky~~ — hotovo (tlačítko u podržené

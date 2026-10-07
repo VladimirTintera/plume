@@ -546,6 +546,13 @@ class ConversationViewModel(
     private var inlineLocation: GeoPoint? = null
 
     /**
+     * Na polohu se u bota, který o ni stojí, už jednou počkalo (zjistila se, nebo ji uživatel
+     * nedovolil či nepřišla do limitu). Do té doby se dotaz NEPOSÍLÁ: bez polohy by bot odpověděl
+     * něčím jiným a výsledky by se po jejím příchodu vyměnily pod prstem.
+     */
+    private var inlineLocationResolved = false
+
+    /**
      * Boti, kteří na inline dotaz odpověděli „neumím" — dál se jich s každým písmenem neptáme.
      * Jen po dobu konverzace: bot si inline režim může zapnout.
      */
@@ -3082,6 +3089,9 @@ class ConversationViewModel(
                 val current = state.inline?.takeIf { it.bot.userId == bot.userId }
                 state.copy(inline = current?.withQuery(draft.query) ?: InlineQueryState(bot, draft.query))
             }
+            // Polohu zjišťuje obrazovka (podle `inline.bot.needLocation`) a dotaz pošle
+            // [setInlineLocation], až ji má — nebo ví, že nebude.
+            if (bot.needLocation && !inlineLocationResolved) return@launch
             loadInlinePage(bot, draft.query, offset = "")
         }
     }
@@ -3133,10 +3143,16 @@ class ConversationViewModel(
             }
     }
 
-    /** Poloha pro bota, který o ni stojí. Dotaz se s ní zopakuje. */
+    /**
+     * Poloha pro bota, který o ni stojí; `null` = nedovolená nebo nezjištěná. Čekající dotaz
+     * odejde (s polohou, nebo bez ní), a se změněnou polohou se zopakuje.
+     */
     fun setInlineLocation(location: GeoPoint?) {
-        if (location == null || location == inlineLocation) return
-        inlineLocation = location
+        val waiting = !inlineLocationResolved
+        inlineLocationResolved = true
+        val changed = location != null && location != inlineLocation
+        if (location != null) inlineLocation = location
+        if (!waiting && !changed) return
         val draft = inlineDraft ?: return
         inlineDraft = null
         inlineQuery(draft)
