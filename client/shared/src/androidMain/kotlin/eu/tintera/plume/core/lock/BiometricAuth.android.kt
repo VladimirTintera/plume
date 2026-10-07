@@ -23,10 +23,12 @@ private class AndroidBiometricAuth(private val context: Context) : BiometricAuth
 
     override val isSupported: Boolean
         get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val manager = context.getSystemService(BiometricManager::class.java)
-            val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                BiometricManager.Authenticators.BIOMETRIC_WEAK
-            manager?.canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
+            runCatching {
+                val manager = context.getSystemService(BiometricManager::class.java)
+                val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                    BiometricManager.Authenticators.BIOMETRIC_WEAK
+                manager?.canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
+            }.getOrDefault(false)
         } else false
 
     override suspend fun authenticate(title: String, subtitle: String?): Boolean {
