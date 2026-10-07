@@ -1,0 +1,579 @@
+# Emoji, samolepky a reakce
+
+Poznatky k jedné oblasti aplikace. Obecná pravidla projektu a rejstřík ostatních souborů jsou
+v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
+
+## Emoji a samolepky
+
+- **Zpráva složená jen z emoji se kreslí velká a bez bubliny**, stejně jako samolepka. Bublina
+  kolem nich nemá co ohraničovat: samolepka má vlastní tvar s průhledností a velká emoji jsou
+  obrázek samy o sobě. Barva popředí pak musí patřit PLOŠE, ne bublině, která tam není —
+  `onPrimaryContainer` na průhledném pozadí je nečitelný.
+- **Samotné emoji NENÍ textová zpráva.** Telegram ho posílá jako `MessageAnimatedEmoji`
+  s animovanou podobou navíc, takže padalo do větve `else` a v bublině z něj bylo slovo „Zpráva".
+- **Animované emoji s `.tgs` je příloha** (`MessageMedia.AnimatedEmoji`), kreslí se stejnou
+  komponentou jako samolepka (`AnimatedSticker`) a bez bubliny. Text je u něj prázdný, jinak by pod
+  animací stál ještě jednou jako znak. O textu i příloze rozhoduje jedna funkce
+  (`MessageAnimatedEmoji.animationFileId`) — dvě nezávislá rozhodnutí by mohla nechat zprávu bez
+  obojího, nebo s obojím.
+- **Bez animace, nebo v jiném formátu, zůstává emoji textem** (`emoji`, obyčejný unicode znak):
+  vykreslí se sám a chytí se na něj vykreslení velkých emoji. Prémiová emoji můžou mít animaci
+  v libovolném formátu.
+- **Než se animace načte, drží místo tentýž znak velkým písmem** v pevném čtverci 112 dp. Přechod
+  je výměna obrázku za obrázek a bublina se při ní nepřeskládá.
+- **Kopírování animovaného emoji kopíruje jeho znak** (`copyableText`) — text je prázdný, ale
+  dřív, jako textová zpráva, to šlo.
+- **Kostka (`MessageDice`) padala do téhož `else`.** Dnes je to animace (viz „Hod kostkou");
+  text „🎲 6" zůstává v náhledu, citaci, schránce a tam, kde animace není `.tgs`.
+
+### Hod kostkou
+
+Kostka, šipky, míč, koš, kuželky i automat (`MessageDice`) jsou příloha `MessageMedia.Dice`
+a kreslí se bez bubliny jako samolepka (`DiceImage` v `Attachments.kt`, převod `toDiceMedia`,
+testy `DiceMediaTest`).
+
+- **Animaci posílá Telegram, výsledek je v ní NAKRESLENÝ.** `finalState` končí snímkem s tím,
+  co padlo; `value` je jen číslo pro text. Proto se nekreslí žádné vlastní číslo navrch.
+- **Hraje jednou, ne ve smyčce** (`StickerPlayback.Once`). Ve smyčce by se házelo pořád dokola
+  a výsledek by byl vidět jen na okamžik. Hod z historie se ukáže rovnou posledním snímkem
+  (`LastFrame`); přehraje se jen ten, který přišel po otevření konverzace
+  (`claimDiceThrow`, stejná tolerance jako pružný příchod zprávy), a jen jednou — po
+  odscrollování a návratu je vidět výsledek. Kopie v nabídce nad zprávou nehází.
+- **Konec hodu se hlídá mimo kompozici** (`snapshotFlow { state.isAtEnd }`): průběh se mění
+  každý snímek a čtený v kompozici by ji skládal znovu.
+- **Automat je pět vrstev přes sebe** (pozadí, páka, tři válce) a hod skončil, až doběhnou
+  VŠECHNY — válce nekončí naráz. Když kterákoli vrstva není `.tgs`, zůstane text: chybějící
+  válec by ukázal jiný výsledek, než jaký padl.
+- **Bez výsledku (`value == 0`) se točí úvodní animace** (`initialState`) ve smyčce; na druhý
+  stav se nepadá. Nastane u vlastního hodu, dokud server výsledek nepošle (ověřeno: odeslaná
+  kostka se chvíli točí, pak dopadne).
+- **Ověřuje se botem**: `sendDice` s `emoji=🎲` a `🎰` do otevřeného chatu (hod proběhne), pak
+  odejít a vrátit se (výsledek hned). Ověřeno na emulátoru.
+
+- **Výhru oslaví konfety** (`DiceConfetti`, `MessageMedia.Dice.successFrame` ze
+  `successAnimationFrameNumber`). Vyletí na snímku, který poslal server — když míč propadne
+  sítí, šipka zasáhne střed — ne až po dohrání: `AnimatedSticker` umí ohlásit snímek
+  (`markerFrame`, snímek = `lerp(startFrame, endFrame, progress)`), u automatu poslední
+  vrstva (pravý válec dotočí poslední). **Jen u VLASTNÍHO hodu, který proběhl před očima** —
+  server snímek výhry posílá kvůli odeslanému hodu (TDLib: „on updateMessageSendSucceeded"),
+  oficiální klienti cizí výhru neslaví. Konfety se kreslí v Compose (barvy z tématu, náhoda
+  se semínkem id zprávy), bez velikosti v layoutu; položka se po dobu oslavy zvedne
+  (`LocalRaiseItem`, `zIndex` jako u efektu zprávy).
+- **Ověřuje se hodem ⚽ v chatu s botem** (gól je hodnota 3–5, tedy asi tři hody z pěti; text
+  do pole přes sdílení, `SEND` s `EXTRA_SHORTCUT_ID chat_<id bota>`) a sérií surových snímků
+  (`screencap` do `/data/local/tmp` ve smyčce v jednom `adb shell`, aspoň 70 — hod trvá přes
+  tři vteřiny). Hodnotu hodu řekne `getUpdates`.
+
+#### Poslat hod
+
+- **Samotné emoji ze seznamu serveru odejde jako hod**, ne jako text (`diceEmojiFor`, testy
+  `DiceEmojiTest`; `InputMessageDice`). Tak to dělají oficiální klienti — žádné tlačítko navíc,
+  kdo pošle 🎲, hází. Seznam (🎲 🎯 🏀 ⚽ 🎳 🎰) posílá server v `UpdateDiceEmojis`.
+- **`UpdateDiceEmojis` chodí JEDNOU po startu klienta**, takže ho drží eager `ChatRepository`
+  (`diceEmojis`), ne konverzace — ta vzniká až s obrazovkou a update by minula. Prázdný seznam
+  (nic nedorazilo) = emoji odejde jako text, nic se nerozbije.
+- **Porovnává se bez U+FE0F a posílá se podoba od serveru.** Klávesnice dává „🎰️" i „🎰"
+  podle toho, odkud emoji vzala; ověřeno, že „🎰️" z pole dorazilo botovi jako hod.
+- **Hod je v právech „ostatní zprávy"** (`ContentAccess.stickers`). Kde se smí jen text, emoji
+  odejde jako text — hláška by tu byla horší, uživatel chtěl poslat zprávu.
+- **Neletí z pole** (`sendMedia`, jako samolepka): bublina by přiletěla jako text a na konci
+  se proměnila v kostku. Pole i koncept se vyprázdní jako u textu (`clearDraft = true`),
+  citace se spotřebuje.
+- **Ověřeno na emulátoru** v chatu s botem: 🎲 z pole (točí se, pak výsledek; bot dostal
+  `dice.value`), 🎰️ s výběrem varianty jako odpověď na hod (bot dostal `reply_to_message`).
+  Text do pole jde přes sdílení (`SEND` s `EXTRA_SHORTCUT_ID chat_<id bota>`) — emoji
+  `adb input text` nenapíše.
+- **Strop jsou 3 emoji** (`MAX_LARGE_EMOJI`). Nad ním už nejde o gesto, ale o odstavec, a ve
+  velké sazbě by zabral půl obrazovky. Míň emoji = větší: `displayLarge` / `Medium` / `Small`.
+- **Odpověď si bublinu drží**, i když je jen z emoji — citace bez pozadí se ztratí.
+- **Detekce emoji je pragmatický výběr rozsahů, ne unicode tabulka.** Kotlin v commonMain nemá
+  ani `codePointAt`, ani `\p{...}` v regulárních výrazech, takže úplná data by znamenala vlastní
+  tabulku a její údržbu při každé revizi Unicode. Chyba je na obě strany levná: nepoznané emoji
+  se vykreslí normálně velké, symbol omylem považovaný za emoji se ukáže velký.
+- **Počítají se shluky, ne kódové body.** Rodina (👨‍👩‍👧) je pět kódových bodů spojených ZWJ
+  a vlajka dva regionální indikátory — pro uživatele je to jedno emoji. ASCII se za emoji nepovažuje,
+  takže „:-P" zůstává normální zpráva (a klávesnicová emoji `1️⃣` se tím minou).
+- **Samolepky: Coil umí jen `.webp`.** `.tgs` je gzipovaná Lottie animace, `.webm` video — ani
+  jedno není obrázek. U nich se bere statický náhled, který TDLib k samolepce dává, a teprve když
+  není ani ten, emoji. Náhled jen v rastrovém formátu: `ThumbnailFormatTgs` a `Mpeg4` mají tentýž
+  problém, jen o úroveň níž.
+- **`.tgs` přehrává Compottie** (`AnimatedSticker`). Gzip Compottie neumí, takže se soubor
+  rozbalí přes Okio (`gzip()` funguje v commonMain, protože Okio má zlib pro JVM i native) a do
+  Compottie jde až JSON. Do té doby i při chybě se kreslí statický náhled — odpovídá prvnímu
+  snímku, takže přechod na animaci není skok z prázdna.
+- **Compottie je `lite`.** Lite nemá JavaScriptový engine pro výrazy; samolepky Telegramu výrazy
+  nepoužívají (oficiální rlottie je ani neumí). Compottie táhne Compose `foundation` tranzitivně,
+  takže novější verze než náš Compose by ho tiše povýšila — před bumpem zkontrolovat její metadata.
+- **Rozparsované animace mají vlastní cache (50), ne `LocalLottieCache` (10 na celou aplikaci).**
+  V konverzaci se jedna samolepka opakuje a při scrollu by se jinak rozbalovala a parsovala
+  znovu. Klíčem je cesta, ne MD5 obsahu jako u `JsonString` — hash rozbaleného JSONu by stál víc,
+  než cache ušetří. Kvůli cestě jako klíči se cache po odhlášení zahazuje (`forgetStickerAnimations`).
+- **Mimo obrazovku se animace zastavovat nemusí.** Položka `LazyColumn` mimo viewport vypadne
+  z kompozice i s hodinami animace.
+- **`.webm` samolepky zůstávají statické.** Je to VP9 s průhledností: hardwarový dekodér na
+  Androidu alfu zahodí a iOS WebM neumí vůbec, takže by to znamenalo přibalit libvpx.
+- **`RemoteImage` má parametr `background`.** Výchozí podložka `surfaceContainerHighest` je správně
+  u fotky, ale u samolepky by z průhledného tvaru udělala obrázek v rámečku.
+- **`captionText()` vrací u samolepky prázdno.** Její emoji se dřív vypisovalo jako text zprávy;
+  vedle vykreslené samolepky je to zdvojení. V náhledu seznamu chatů a v citaci ale zůstává —
+  tam není kam kreslit obrázek.
+- **Emoji v čipu reakce je záměrně mimo typografickou škálu** (18 sp natvrdo). Role jako
+  `labelLarge` míří na výšku písmen, ale u emoji je nosná celá kresba, takže ve stejné velikosti
+  působí menší než číslo vedle ní.
+
+### Efekty zprávy
+
+Zpráva poslaná s efektem (`Message.effectId`: oheň, konfety, srdce…) má na volné straně vedle
+spodku bubliny kolečko s emoji efektu (`EffectMark` v `items/MessageEffect.kt`) a animace se nad
+ní přehraje: sama jednou u zprávy, která přišla po otevření chatu (`claimEffect`, stejná
+tolerance jako hod kostkou) nebo je NEPŘEČTENÁ, a znovu po ťuknutí na značku. Převod
+`toMessageEffect`, doména
+`MessageEffect` v `ChatMessage.effect`.
+
+- **Nepřečtená příchozí zpráva efekt přehraje taky** (`effectAutoplays`, testy
+  `EffectAutoplayTest`): kdo ji ještě neviděl, má vidět i efekt, se kterým přišla — tak to dělají
+  oficiální klienti. Rozhoduje hranice nepřečtených zachycená při otevření (`unreadBoundaryId`),
+  vlastní zpráva se nepočítá. **Hranice dorazí až po prvních zprávách**, proto na ni efekt
+  položky čeká (`snapshotFlow { scope.unreadBoundary() }`). **V kompozici se nečte** — viz
+  „Recompozice za běhu" (Výkon a paměť): i přes `derivedStateOf` tím obal každé viditelné
+  zprávy přeskládala každá změna stavu konverzace. Ověřeno sondou hranice
+  (viz „Skok na první nepřečtenou"): obě nepřečtené zprávy s 🔥 zahořely po otevření chatu.
+  Ověření bez sondy v #325 nic nedokazovalo — chat otevřený do pěti vteřin po zprávě spadl pod
+  toleranci příchodu, ne pod nepřečtené. Efekt u nejnovější zprávy
+  zčásti zajede pod vstupní pole — to leží nad seznamem.
+- **Efekt se dočítá při převodu zprávy** (`getMessageEffect`, pamatuje se pro instanci klienta),
+  jako jméno inline bota. Efektů je pár desítek a opakují se; `fileId` animace platí jen v jedné
+  databázi.
+- **Druhy jsou dva a animaci nese každý jinde**: efekt reakce `effectAnimation`, prémiová
+  samolepka `premiumAnimation` své samolepky. `when` bez `else`.
+- **Značka vedle zprávy, ne pod ní**: zpráva s efektem není vyšší a animace vybuchne z volného
+  pruhu. Animace je dítě značky, které hlásí nulovou velikost, takže nic nepřeskládá.
+- **Plátno animace je navržené pro ODCHOZÍ zprávu**: zdroj výbuchu leží asi ve ¾ šířky
+  (`EFFECT_SOURCE_X`) a výbuch letí doleva. Na značku se kotví ten bod, ne střed plátna —
+  vystředěný oheň stál o ~50 dp vedle značky. U příchozí zprávy se animace zrcadlí; bez zrcadlení
+  letěla srdce doleva přes bubliny (ověřeno obojí na emulátoru).
+- **Dokud efekt hraje, má položka `zIndex(1f)`.** Animace přesahuje zprávu a starší zprávy se
+  v `LazyColumn` kreslí po ní — přikryly by ji. `zIndex` na kořeni položky pořadí kreslení mezi
+  položkami mění.
+- **Animace je krátká (kolem vteřiny)**: snímek o půl vteřiny po ťuknutí už nic nezachytí
+  a vypadá to, že ťuknutí nefunguje. Ověřuje se sérií `screencap` v jednom `adb shell`.
+- **Poslat s efektem jde z podržení odesílacího tlačítka** („Odeslat s efektem…" →
+  `EffectPickerSheet`, `SendOptions.effectId` → `MessageSendOptions.effectId`). Ťuknutí na efekt
+  zprávu rovnou pošle; v mřížce je jen emoji efektu, animace se ukáže nad odeslanou zprávou.
+- **Podržení efektu ve výběru ho přehraje** (náhled), ťuknutí dál rovnou posílá. Animace je
+  tatáž `EffectAnimation` jako u značky zprávy (kotvená zdrojem výbuchu, jako u ODCHOZÍ zprávy)
+  a leží nad CELÝM sheetem, ne v políčku: mřížka ořezává ve směru scrollu a výbuch nad políčkem
+  by uřízla. Kotví se ve středu podrženého políčka (`localPositionOf` vůči sheetu). Sheet sám
+  ořezává svou plochu, takže co vyletí nad jeho horní hranu, vidět není — konfety u krátkého
+  sheetu dosáhnou jen k nadpisu, a to na náhled stačí.
+- **Jen v soukromém chatu, i s botem** (`SendMenuOffer.effects`, testy `SendMenuTest`) — jinde
+  TDLib efekt nepřijme; v Uložených zprávách a ve vlákně komentářů se nenabízí.
+- **Seznam posílá server JEDNOU po startu** (`UpdateAvailableMessageEffects`: efekty reakcí,
+  pak prémiových samolepek), takže ho drží eager `ChatRepository.availableEffectIds`, jako
+  emoji kostek. Efekty se dočítají až při otevření výběru (`sendableEffects`, tentýž keš jako
+  u zpráv) — většina odeslání efekt nechce.
+- **Prémiové efekty se bez Premium nenabízejí** (`MessageEffect.needsPremium`), stejně jako
+  prémiové samolepky. Testovací účet jich dostane šest (👍 👎 ❤️ 🔥 🎉 💩).
+- **Ověřuje se botem**: `sendMessage` s `message_effect_id` (🔥 5104841245755180586,
+  🎉 5046509860389126442, ❤️ 5159385139981059251) do chatu s testovacím botem. Ověřeno na
+  emulátoru: značky, samočinné přehrání po příchodu, přehrání ťuknutím, kresba nad staršími
+  zprávami. Odeslání s efektem: bot přes `getUpdates` dostal `effect_id`, u odchozí zprávy
+  vylétají konfety doleva do volného pruhu (zrcadlení sedí). **Neověřeno**: efekt prémiové
+  samolepky (testovací účet Premium nemá) a iOS (jen přeložené).
+
+### Vlastní emoji v textu
+
+Vlastní emoji (`TextEntityTypeCustomEmoji`) je samolepka, která v textu stojí místo náhradního
+emoji. Kreslí se jako inline obsah `RichText` (`CustomEmojiImage`, `customEmojiRanges`, testy
+`CustomEmojiRangesTest`), data dává `CustomEmojiRepository` nad `getCustomEmojiStickers`.
+
+- **Náhradní znak v řetězci ZŮSTÁVÁ**, jen se místo něj vykreslí obrázek. Inline obsah se
+  připojuje anotací nad UŽ PŘIPOJENÝM úsekem (`addStringAnnotation` se značkou
+  `INLINE_CONTENT_TAG`), ne `appendInlineContent` — ten by text přestavěl a posunul offsety
+  všech entit, zvýraznění hledání i spoilerů. Značka je v Compose `internal`, a proto opsaná;
+  `appendInlineContent` ji přidává přesně takhle.
+- **Placeholder je čtverec 1,2 em** na střed řádku; než obrázek dorazí (a když ho server
+  nevydá), kreslí se v něm náhradní emoji, takže se výměnou nic nepřeskládá.
+- **V zakrytém spoileru se nenahrazuje** — obrázek by prozradil, co je skryté.
+- **Dotazy se slučují do dávky** (16 ms, nejvýš 200 id na volání) a výsledek se pamatuje po
+  dobu života klienta; `fileId` platí v jedné databázi, takže se po odhlášení zahazuje.
+  Nevydané emoji se zapomene, ať se o něj příště řekne znovu.
+- **`needsRepainting` = obarvit barvou textu** (`tinted`, `SrcIn` nad vlastní vrstvou) — na
+  odchozí bublině by jednobarevné emoji jinak splynulo.
+- **Formáty jako u samolepky**: `.tgs` hraje (Compottie), `.webp` a rastrový náhled jsou obrázek,
+  `.webm` zůstane náhledem, bez náhledu náhradním znakem.
+- **Zpráva s vlastním emoji nejde upravit** — vlastní emoji pole nenese (`composedFormatsOf`),
+  takže by ho úprava smazala.
+- **Bot vlastní emoji poslat nesmí** (Bot API je bez placeného uživatelského jména na Fragmentu
+  potichu zahodí, v odpovědi pak `entities` chybí). Ověřuje se proto sondou: skutečná id vydá
+  Bot API `getStickerSet` (sady `RestrictedEmoji`, `StatusEmoji`) a dočasně se přidají jako
+  entity textu od testovacího bota v `FormattedText.toBody`. Necommituje se.
+- **Ověřeno na emulátoru sondou**: animovaný `.tgs` uprostřed textu, emoji na konci řádku,
+  zpráva jen z vlastních emoji ve velké sazbě, obarvení v tmavém motivu (podstrčené `tinted`).
+  **Skutečná zpráva od člověka ověřená není.**
+
+### Vlastní emoji mimo text
+
+Reakce, emoji status za jménem, náhled v seznamu chatů, citace a ikona tlačítka bota. Všechno
+jde přes tentýž `CustomEmojiImage`; samostatně stojící emoji je `CustomEmojiIcon`, emoji
+v obyčejném `Text` (náhled, citace) `appendWithCustomEmoji` + `customEmojiInlineContent`.
+
+- **Reakce vlastním emoji jsou řetězcový KLÍČ, ne nový typ** (`customEmojiReaction`,
+  `customEmojiIdOf`, testy `ReactionKeyTest`). Reakce jdou jako `String` přes celou cestu —
+  nabídka, optimistické přepnutí, prohlížeč médií, klíče v mřížce výběru — a všude jsou jen
+  porovnávaným klíčem. Vědět o nich musí jen hranice TDLib (`toReactionKey` / `toReactionType`,
+  `when` bez `else`) a kreslení; typ by měnil celou cestu kvůli dvěma koncům.
+- **Nabídka reakcí vynechá `needsPremium`**, když účet Premium nemá — ťuknutí by skončilo chybou.
+  `getMe` se volá, jen když taková reakce v nabídce je.
+- **Náhradní znak reakce ani ikona tlačítka nenesou** (jen id), takže než obrázek dorazí, je
+  místo prázdné. V textu drží místo náhradní znak.
+- **Emoji status nese `Chat.emojiStatus`** a mění ho `UpdateChatEmojiStatus` — na rozdíl od
+  ověření se na uživatele ani supergroupu ptát nemusí (`statusEmojiId`, testy
+  `EmojiStatusTest`). Prošlý status se nekreslí i bez updatu: chat z databáze ho nese dávno
+  prošlý. Vylepšený dárek se kreslí svým modelem (`modelCustomEmojiId`). Jednobarevný status má
+  barvu akcentu, ne textu (`EmojiStatusBadge`), na vybraném chatu přes `accentOn`.
+- **Kdo kreslí emoji statusy, musí v pruhu spamu upozornit, že status nic neověřuje**
+  (`SpamBar.warnsEmojiStatus`). Dokumentace `chatActionBarReportSpam` / `ReportAddBlock`:
+  „a notice about emoji status usage must be shown" — status jde koupit s Premium a u jména
+  vypadá jako odznak. Proto přišlo upozornění v TÉMŽE PR jako statusy, ne později.
+- **Jméno v profilu je v řádku se statusem, a kde hlavička končí, hlásí ŘÁDEK.** `onPlaced`
+  na textu uvnitř řádku by dal pozici vůči řádku, ne vůči hlavičce — a lišta by ukázala název
+  v nesprávnou chvíli.
+- **Náhled v seznamu nese jen vlastní emoji a spoilery** (`previewEntities`,
+  `ChatSummary.lastMessagePreviewEntities`, `ChatDraft.entities`). Rozsahy sedí, protože náhled
+  bere text zprávy nebo popisek doslova; prázdný popisek („Fotka") entity nemá. Offsety se za
+  prefixem „Koncept: " posunou samy (`appendWithCustomEmoji`, testy `AppendWithCustomEmojiTest`).
+- **Citace kreslí vlastní emoji jen u celé zprávy.** Ruční úryvek entity nenese a offsety
+  zprávy by do něj ukazovaly jinam.
+- **V notifikaci zůstává náhradní znak** — notifikaci kreslí systém a vlastní obrázek do textu
+  nevloží. Není to chyba, náhradní emoji je přesně to, co odesílatel k obrázku zvolil.
+- **Bot nic z toho nevyrobí**: vlastní emoji v textu zahodí (viz výš), reakci vlastním emoji
+  odmítne (`REACTION_INVALID`) a `icon_custom_emoji_id` Bot API sice vrátí v odpovědi, ale do
+  zprávy se nedostane (TDLib hlásí `iconCustomEmojiId = 0`) — smí ho jen bot s Fragment jménem
+  nebo majitelem s Premium. Ověřuje se proto sondou: vlastní emoji v `FormattedText.toBody`,
+  reakce v `toReactions` a `availableReactions`, status v `toSummary` / `chatInfo` / `profile`
+  a ikona v `toBotKeyboard`, vše pro chat s testovacím botem. Necommituje se.
+- **Ověřeno na emulátoru sondou**: status v seznamu, hlavičce a profilu; vlastní emoji
+  v náhledu, v citaci nad polem, v čipu reakce (i vybrané s počtem), v pruhu rychlých reakcí
+  a ve výběru; ikona na tlačítku bota; upozornění na status v pruhu spamu (česky, podstrčeným
+  pruhem). **Skutečná data od člověka ověřená nejsou**, stejně jako
+  přidání reakce vlastním emoji (bez Premium ji server nabídne jen tam, kde ji chat povolil)
+  a detail reakcí s vlastním emoji (kreslí ho tentýž `CustomEmojiIcon` jako čip).
+
+### Emoji podle slov
+
+Napsané slovo, ke kterému má TDLib klíčové slovo („srdce", „heart"), nabídne nad polem pilulku
+s emoji (`EmojiSuggestionsPanel`, `EmojiSuggestionsViewModel`, pravidla `emojiWordAt`
+a `emojiReplacement`, testy `EmojiSuggestionsTest`). Ťuknutí dosadí emoji MÍSTO slova a zařadí
+ho mezi nedávná.
+
+- **Přesná shoda, ne začátek** (`getKeywordEmojis`, `EmojiRepository.keywordEmojis`).
+  `searchEmojis` hledá podle začátků a panel by vyskakoval u každého druhého slova.
+- **Slovo u KURZORU, jen písmena, aspoň dva znaky, a celé** — kurzor uprostřed slova nic
+  nenabídne. Za `@`, `#`, `/` a v adrese (`.`, `:`) to slovo není. S dotazem na inline bota,
+  zmínkou nebo příkazem se nenabízí: to napovídání má nad polem přednost.
+- **Jazyk zařízení a angličtina**, jako hledání ve výběru emoji; výsledky se zúží na katalog
+  a dostanou zvolený odstín pleti.
+- **Panel nad polem drží poslední sadu ve STAVU, ne v obyčejném poli.** Napovídání zmínek mělo
+  `remember { arrayOf(…) }` a zápis do pole kompozici nevyvolá: obsah uvnitř
+  `AnimatedVisibility` zůstal u první sady — po „hear" → „heart" dál 👂 🙉, přestože
+  ViewModel už vracel srdce (ověřeno sondou v logu). Opraveno v obou panelech.
+- **Pilulka PLAVE nad polem a místo v rozvržení nezabírá** — viz „Plovoucí napovídání nad
+  polem" (Konverzace).
+- **Ověřeno na emulátoru** v Uložených zprávách jen psaním: „heart" anglicky i „srdce" česky,
+  přechod „hear" → „heart", ťuknutí dosadí emoji. Nic se neodeslalo.
+
+## Výběr samolepek
+
+Tlačítko se samolepkou ve vstupním poli otevře bottom sheet: záložky Nedávné, Oblíbené
+a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako odpověď).
+
+- **Bottom sheet, ne panel místo klávesnice.** Výměna klávesnice za panel tak, aby vstupní pole
+  neposkočilo, je v Compose nejkřehčí část — sheet ji nepotřebuje. Klávesnice se před otevřením
+  zavře, jinak by se se sheetem přetahovaly o spodek obrazovky.
+- **Hranice je `StickerRepository`** (vlastní, ne kus konverzace): seznamy jsou živé toky, které
+  se na update **čtou znovu** — updaty nesou jen id sad a souborů. Odběr stojí před prvním čtením.
+- **Záložky jsou stránky `HorizontalPager`u** — mezi sadami se swipuje do stran. Řádek záložek
+  a pager sdílejí `PagerState`: swipe přepne záložku (`currentPage` už v půlce tahu), ťuknutí
+  na záložku posune pager. Počet stránek je lambda, protože sady dorazí až po nedávných
+  a oblíbených; klíč stránky je záložka, ne index, aby se stránkám nerozsypal scroll.
+- **ViewModel drží obsah VŠECH záložek**, ne jen vybrané — při swipu je vidět i sousední stránka.
+- **Obsah sady se načítá až když se její stránka poprvé ukáže** (`load` v `LaunchedEffect` stránky;
+  pager skládá jen viditelné). Sad bývá desítky.
+- **V mřížce samolepky NEHRAJÍ** (`AnimatedSticker(isPlaying = false)`). Desítky animací v jedné
+  mřížce by stály víc, než přinesou. Bere se nejlevnější podoba: rastrový náhled, statická `.webp`,
+  a teprve bez nich první snímek `.tgs`.
+- **Podržením se samolepka rozhýbe — vždy nejvýš jedna** (`activeStickerId`). Hraje, dokud se
+  nepodrží jiná, a přežije přepnutí záložky. Do načtení animace drží místo statický náhled, takže
+  se rozběhne bez probliknutí. Podržení nic neposílá; `combinedClickable` po dlouhém stisku klik
+  nevyvolá. Aktivní buňka je podbarvená — statická `.webp` se rozhýbat nemá jak a bez podbarvení
+  by nebylo poznat, že podržení zabralo.
+- **Sheety výběru a sady nemají napůl rozbalený stav** (`enabledValues = Hidden, Expanded`).
+  Jejich obsah je vyšší než polovina obrazovky a napůl rozbalený sheet schoval spodek pod okraj —
+  tlačítko „Odebrat sadu" skončilo pod navigační lištou. V sheetu SADY řeší spodní inset
+  výchozí `BottomSheetDefaults.modalWindowInsets` — je tam tlačítko a to nad lištou stát musí.
+- **Sheet výběru (emoji, samolepky, GIFy) si z insetů bere jen stavovou lištu a klávesnici**
+  (`expressionSheetInsets`), navigační lištu dostanou seznamy do `contentPadding`
+  (`sheetListPadding`). S výchozími insety byla lišta odsazením celého obsahu: mřížka končila
+  ostrou hranou nad ní a pod ní zůstal prázdný pruh sheetu. Plochy s pevnou výškou jsou o lištu
+  vyšší (`sheetBottomInset`), aby viditelná část zůstala stejná. **Klávesnici seznamům nechat
+  nejde** — mřížka má pevnou výšku a skoro celá by zmizela pod ní; proto `navigationBars
+  .exclude(ime)`: s otevřenou klávesnicí lištu kryje ona a její místo drží sheet.
+- **Mřížka má pevnou výšku**, jinak by se sheet při přepnutí záložky natahoval a smršťoval.
+- **Hledání má dva zdroje.** `getStickers` prochází nainstalované sady podle emoji i podle
+  klíčových slov samolepek; `searchStickers` veřejné sady, ale jen podle emoji. Slovo se proto
+  převádí na emoji přes `getKeywordEmojis` (potřebuje `useFileDatabase = true`) v jazyce zařízení
+  a angličtině — klíčová slova samolepek bývají anglicky. Bez převedených emoji se veřejné hledání
+  vynechá, vrátilo by nahodilé samolepky. Jestli je dotaz emoji, nebo slovo, rozhoduje ViewModel
+  (`emojiClusterCount`), repository to dostane jako `StickerQuery`.
+- **Hledá se po 300 ms pauze v psaní, přes `transformLatest`**: rozepsané hledání se při dalším
+  znaku zahodí, takže pomalá odpověď na „ko" nepřepíše výsledky pro „kočka".
+- **Zdroj, který selže, výsledek nezahodí** — bez sítě se aspoň najde, co je ve vlastních sadách.
+- **Výsledky hledání nahradí záložky ve stejně vysoké ploše** (řádek záložek má proto pevnou
+  výšku), jinak by sheet při prvním písmenu poskočil. Co se ukazuje, rozhoduje text v poli, ne
+  stav hledání — po smazání textu se záložky vrátí hned, bez čekání na debounce.
+- **Oblíbené se přepínají hvězdičkou u PODRŽENÉ samolepky**, ne u každé buňky. Hvězdička všude
+  by zaplevelila mřížku a ťuknutí vedle ní by samolepku omylem poslalo; podržení je zároveň
+  „prohlížím si tuhle". Stav se lokálně nepřepisuje, potvrzení přijde `favoriteStickersUpdates`.
+- **Buňky mřížky mají `animateItem`** — odebraná samolepka plynule zmizí a ostatní se dosunou.
+  Průhlednost přes effects spec, posun přes spatial. **Mřížka zůstává i prázdná** a prázdný text
+  se nad ní jen objeví: kdyby ji prázdný stav nahradil, zmizela by i s poslední samolepkou dřív,
+  než ta stihne odejít animací.
+- **V konverzaci jsou oblíbené v nabídce nad zprávou se samolepkou.** Jestli je samolepka
+  oblíbená, se zjistí při otevření nabídky (souběžně s ostatními příznaky). Výsledek hlásí
+  snackbar (`notice`) — v konverzaci se jinak nic viditelného nezmění.
+- **Samolepka se do oblíbených dává podle souboru** (`stickerFileId`), ne podle id samolepky —
+  tak to TDLib chce (`addFavoriteSticker(InputFileId)`). `MessageMedia.Sticker` ho proto nese
+  vždycky, bez ohledu na formát. Oblíbených je omezený počet; přidání nad limit vytlačí nejstarší.
+- **Ťuknutí na samolepku v konverzaci otevře její sadu** (`StickerSetSheet`): celá sada, přidat /
+  odebrat (`changeStickerSet`), mřížka se chová jako ve výběru. Klikání na samolepce je **bez vlnky**
+  (průhledný tvar bez bubliny) a opakuje dlouhý stisk kvůli nabídce. Sada se nainstalovanost
+  dozví z `installedStickerSetsUpdates` — jiný update o sadě TDLib nepošle; tlačítko je mezitím
+  neaktivní, aby nešlo zmáčknout dvakrát. Oficiální sady odebrat nejdou. ViewModel sady má klíč
+  s id sady, stejně jako konverzace.
+- **Trendy jsou záložka hned za Oblíbenými** — na konci za desítkami sad by je nikdo nenašel.
+  Místo mřížky mají seznam sad s ukázkou a tlačítkem Přidat; ťuknutí na sadu otevře její detail
+  jako **sheet nad výběrem** (samolepka poslaná z detailu zavře oba). Trendy jdou na server, proto
+  mají vlastní tok s `WhileSubscribed` mimo stav výběru a načtou se až při zobrazení stránky.
+  Přepočítávají se i na `installedStickerSetsUpdates` — přidání sady trendy samy nehlásí. Po
+  zobrazení se označí za zhlédnuté (`viewTrendingStickerSets`).
+- **Prémiové samolepky se bez Premium nenabízejí** (`StickerFullTypeRegular.premiumAnimation`).
+  Odeslat je nejde a samolepka, po které přijde chyba, je horší než žádná. Na Premium se ptá
+  `getMe` při každém čtení — předplatné se mění.
+- **Posílá se soubor samolepky** (`InputFileId`), ne náhled; náhled se nenahrává, samolepka už
+  na serveru je. Po odeslání se výslovně přidá mezi nedávné, aby byla hned nahoře.
+- **Sheet se nejdřív schová, teprve pak se pošle.** Zmizení bez animace vypadá jako pád.
+- **Samolepka nezakládá let ze vstupního pole** a nemaže rozepsaný text — z pole nevyletěla.
+- **Ikony Material Symbols ze SVG mají souřadnice y v -960..0.** Ve vector drawable se to řeší
+  `group` s `translateY="960"`, cesta zůstává, jak je.
+
+## Výběr GIFů
+
+Třetí část sheetu výběru (Emoji / Samolepky / GIFy, `ExpressionMode.Gifs`): pole hledání, pod
+ním mřížka. Bez dotazu nahoře uložené GIFy, pod nimi populární. Ťuknutí GIF hned pošle
+(`GifPanel`, `GifPickerViewModel`, hranice `GifRepository` v `core/telegram`).
+
+- **Hledání GIFů API nemá — hledá inline bot.** Jméno posílá server (`animation_search_bot_username`,
+  dnes `gif`), `searchPublicChat` z něj udělá id a `getInlineQueryResults` vrací
+  `InlineQueryResultAnimation`. Prázdný dotaz = populární. Stránkuje `nextOffset` (prázdný =
+  konec). Id bota se pamatuje pro INSTANCI klienta — po odhlášení je jiný.
+- **Posílá se `InputFileId`, ne `sendInlineQueryResultMessage`.** GIF z výsledku je soubor, který
+  na serveru už je; přes bota by u zprávy stálo „přes @gif" a byly by to dvě různé cesty pro
+  uložený a nalezený GIF. Po odeslání `addSavedAnimation`, ať je nahoře (jako `addRecentSticker`).
+- **Uložené jsou živý tok** (`UpdateSavedAnimations` → znovu `getSavedAnimations`). GIF poslaný
+  z klávesnice se mezi ně dostane sám. Podržení uloženého nabídne křížek na odebrání.
+- **Stránka patří dotazu** (`GifResults.withPage`, testy `GifResultsTest`) — pomalá odpověď na
+  „ko" nesmí přepsat „kočka". Bot vrací tentýž GIF na dvou stránkách; duplicitní klíč by mřížku
+  shodil, proto `distinctBy`.
+- **GIFy v mřížce hrají**, jako v konverzaci: GIF se vybírá podle toho, co dělá. Hrají jen
+  složené buňky a velký se sám nestahuje (`autoPlays`).
+- **Obraz přehrávače se do buňky ROZTAHUJE, ne vepisuje** (`coverAspect`). `VideoSurface` obraz
+  vepisuje, takže v buňkách pevné výšky zůstávaly pruhy a každý GIF měl jinou velikost.
+- **Právo je totéž jako u samolepek** (`canSendOtherMessages`): bez něj ani při úpravě se část
+  GIFy nenabízí. `ViewModel` klíčovaný chatem (`gifs-$chatId`) — inline bot chce vědět, kam se hledá.
+- **Zdrojový soubor nesmí obsahovat znak NUL.** Konstanta `"\u0000"` zapsaná nástrojem jako
+  skutečný bajt udělala z `.kt` pro `grep` binární soubor a hledání v něm tiše nic nenašlo.
+
+## Výběr emoji
+
+Týž sheet jako samolepky, přepínaný segmentovými tlačítky Emoji / Samolepky (a tlačítko ve vstupním
+poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na pozici kurzoru.
+
+- **Katalog je vygenerovaný z Unicode `emoji-test.txt`** (`EmojiCatalog.kt`, neupravovat ručně).
+  TDLib žádný katalog nemá, jen slovník klíčových slov. Jen fully-qualified emoji **do verze 15.0**
+  — novější by na starších systémech, jejichž písmo je nezná, byly prázdné čtverečky — a bez
+  variant odstínu pleti. Emoji skupiny jsou jeden řetězec oddělený mezerou, ne `listOf` s tisíci
+  literály: inicializace by na JVM narážela na limit velikosti metody.
+- **Rozepsaný text drží obrazovka, ne vstupní pole** (`draft: TextFieldValue`). Pole je pod sheetem
+  a výběr do textu vkládá i z něj maže. Úprava z výběru volá `onDraftChanged` jako psaní —
+  ukládá koncept i hlásí „píše…".
+- **Sheet se po vložení nezavírá** — emoji se píšou po několika. Nahoře je proto náhled textu
+  (`StartEllipsis`, protože vkládá se na konec) s vlastním mazáním.
+- **Mazání bere celý znak, jak ho vidí uživatel** (`previousClusterStart`): surrogate páry,
+  modifikátory (odstín, výběr varianty, rámeček klávesy, tagy vlajek regionů), ZWJ složeniny
+  a vlajky jako dvojice indikátorů. Smazat jednu jednotku UTF-16 by nechalo v textu půlku emoji.
+  Pokryté testy v `commonTest`.
+- **Hledání přes `searchEmojis`** v jazyce zařízení a angličtině, výsledky zúžené na katalog.
+  TDLib vrací emoji občas bez U+FE0F; porovnává se bez něj a vkládá se podoba z katalogu, jinak
+  by se na části systémů nakreslila jako černobílý textový symbol.
+- **Nedávná emoji jsou první záložka** (ukládá se ťuknutí ve výběru, i ve výsledcích hledání;
+  emoji ze systémové klávesnice zachytit nejde). **Ve sheetu jsou zmražená** na stav při otevření —
+  živý seznam by se po každém ťuknutí přeskládal pod prstem. Bez nedávných se výběr otevře
+  rovnou na první skupině. Při čtení se zúží na katalog.
+- **Odstíny pleti se volí podržením** emoji, které je má (trojúhelník v rohu buňky): nabídka nad
+  buňkou s výchozí podobou a pěti odstíny. Volba se **pamatuje po emoji** a mřížka pak kreslí
+  i obyčejným ťuknutím vkládá zvolenou variantu — v kategoriích, hledání i nedávných. Varianty
+  jsou vygenerované z téhož `emoji-test.txt` (`EmojiSkinTones.kt`), jen se stejným odstínem pro
+  všechny osoby: kombinace dvou odstínů by znamenaly 25 variant. Nabídka je `Popup` s vlastním
+  `PopupPositionProvider` (nad buňku, vodorovně uvnitř okna), zpět obsluhuje sám.
+- **Emoji se dvěma osobami (👫, 🤝, 💑, 💏 a jejich varianty, 13 emoji) mají místo řady mřížku
+  5 × 5** (`mixedSkinToneGrid`, `EMOJI_MIXED_SKIN_TONES_PACKED`): řádek je odstín první osoby,
+  sloupec druhé, na úhlopříčce stejný. Zvolený pár se pamatuje jako každá varianta (podle
+  základu), takže se pak kreslí i vkládá obyčejným ťuknutím. Smíšené varianty jsou v Unicode do
+  15.0 (handshake 14.0, páry 12.0–13.1), takže mez katalogu platí i tu.
+- **Odstíny generuje `client/tools/emoji_skin_tones.py`** z `emoji-test.txt` (návod v hlavičce
+  skriptu). Původní generátor v repu nebyl; nový vyrobil stejnorodé varianty znak po znaku
+  shodně se starým souborem, než se přidaly smíšené. **Základ se hledá podle JMÉNA, ne kódových
+  bodů**: smíšené varianty páru se píšou rozloženě (👩🏻‍🤝‍👨🏼), kdežto základ je jeden znak (👫);
+  „kiss: person, person" jako emoji neexistuje, jeho základ je 💏 (jméno před dvojtečkou).
+- **`catalogEmoji` pozná i varianty** — nedávná je ukládají, a bez toho by při čtení vypadla.
+- **Výšky obou částí sedí**: náhled textu si ukousne z výšky mřížky, takže přepnutí Emoji /
+  Samolepky sheet nenatáhne.
+
+## Reakce
+
+- **TDLib nezná „přepnutí".** Má `addMessageReaction` a `removeMessageReaction`; jestli reakce
+  už je, si musí pamatovat klient (`MessageReaction.isChosen`).
+- **Stav se mění lokálně hned**, ještě před odpovědí serveru — jinak by mezi ťuknutím a potvrzením
+  byla viditelná prodleva. Při selhání se změna vrátí; autoritativní stav stejně dorazí přes
+  `reactionUpdates` (`UpdateMessageInteractionInfo`).
+- **Reakce, která klesne na nulu, ze seznamu zmizí.** Čip s nulou vypadá jako chyba.
+- **Obyčejná i vlastní emoji, placená (hvězdičky) ne.** Vlastní emoji se kreslí jako obrázek
+  (`CustomEmojiIcon`), viz „Vlastní emoji mimo text". Placená reakce se přeskočí, aby u zprávy
+  nezmizely ty ostatní.
+- **Prázdná nabídka není chyba.** V Uložených zprávách Telegram místo reakcí používá tagy a
+  `getMessageAvailableReactions` vrátí prázdný seznam. Testovat reakce tam tedy nejde.
+- **Pořadí rychlých reakcí podle zvyku uživatele dodává Telegram, vlastní počítadlo NEPSAT.**
+  `getMessageAvailableReactions` vrací `topReactions` (nejčastěji používané, řadí server a drží
+  je napříč zařízeními), `recentReactions` a `popularReactions`; skládají se v tomhle pořadí bez
+  duplicit a pruh bere prvních šest (`MAX_QUICK_REACTIONS`). Přidání reakce posílá
+  `updateRecentReactions = true`, takže se i reakce z Plume propíše do „nedávných" všude.
+  Počítadlo v aplikaci by vidělo jen reakce z tohohle zařízení a s pořadím serveru by se přelo.
+- **Pruh reakcí bere jen ÚMYSLNÉ ťuknutí** (`strayTapGuard` v `core/ui`, testy
+  `StrayTapGuardTest`) — v prohlížeči médií i nad zprávou. Srdíčko se dvakrát samo přidalo
+  fotce, aniž by uživatel o nabídce věděl. **`clickable` tah nezruší, dokud prst neopustí
+  tlačítko** (`waitForUpOrCancellation` ruší jen spotřebovanou událost nebo pohyb MIMO hranice,
+  rozšířené na 48 dp); nad seznamem pohyb spotřebuje scroll, jenže pruh reakcí nad sebou nic
+  scrollovatelného nemá — nedbalý švih začínající na srdíčku byl ťuknutí. Pojistka v
+  `PointerEventPass.Initial` spotřebuje dotyk, který ujel přes touch slop, šel víc prsty, nebo
+  začal do 500 ms od objevení pruhu (pruh vyskočil pod prstem: druhé ťuknutí na fotku, scroll po
+  omylem otevřené nabídce). **Který z případů to u uživatele byl, ověřené není** — pojistka
+  kryje všechny tři; ověřuje se na telefonu švihem přes pruh v prohlížeči.
+- **Blok `pointerInput` se NESPOUŠTÍ při složení, ale až s PRVNÍM dotykem**
+  (`SuspendingPointerInputModifierNodeImpl`: „Coroutine lazily launches when first event comes
+  in"). První verze pojistky si v něm zapisovala čas objevení pruhu — ve skutečnosti tedy čas
+  prvního dotyku, takže lhůta 500 ms spolkla KAŽDÉ první ťuknutí, i to po deseti vteřinách:
+  reakce z nabídky nad zprávou zabírala až na druhé ťuknutí. Test čisté funkce `isStrayTap` to
+  nechytil, modifier sám nezkoušel. Čas proto zapisuje `Modifier.Node` v `onAttach` a při změně
+  klíče (`update`). **Obecně: co se má měřit od objevení prvku, nepatří do `pointerInput`.**
+- **V prohlížeči pruh reakcí vyjede zdola, až prohlížeč dosedne** (přechod navigace i let fotky
+  hotové, `LocalNavAnimatedContentScope.transition` ve stavu `Visible`) a reakce jsou načtené.
+  Během letu by vyskočil tam, kam fotka teprve míří — a tam dopadá druhé ťuknutí dvojitého
+  ťuknutí. Vyjíždí jen poprvé; po celé obrazovce a mezi stránkami se jen prolne jako horní lišta.
+  Změřeno na emulátoru: fotka dosedne ~0,86 s po ťuknutí, přechod se ohlásí hotový až ~1,24 s
+  (dozní pružina), pruh vyjede s tím odstupem.
+- **`isBig = false`** — `true` je ta celoobrazovková animace; patří k vědomému gestu, ne ke
+  každému ťuknutí na čip.
+- **Avatary v čipech NEJSOU.** Byly, a byla to slepá ulička: čip s profilovkami je široký, takže
+  se jich vedle sebe vešlo pár, a stejně ukazoval jen několik posledních (`recentSenderIds` není
+  úplný seznam — celkový počet je v `totalCount`). Čip proto nese jen emoji a počet, a KDO
+  reagoval, říká detail. Odpadly s tím i stropy `MAX_AVATARS_PER_REACTION`,
+  `MAX_REACTIONS_WITH_AVATARS` a `MAX_SENDERS_SHOWN` a dotazy na odesílatele u každé zprávy
+  s reakcemi.
+- **Čip je kolečko, počet je odznak přes jeho roh** — ne kapsle s číslem vedle emoji. Čip leží
+  PŘES nároží bubliny, takže musí být co nejmenší; kulatý tvar na to sedí líp a číslo vedle emoji
+  by ho roztáhlo. **Počet se vypisuje až od dvou**: „1" je šum, že tam někdo je, říká samotný čip.
+- **Místo pro odznak si vyhradí obálka čipu, odznak z kolečka NEČOUHÁ.** Řádek reakcí se posouvá
+  do strany a posouvatelný kontejner si obsah ořezává na svoje hranice — zavěšený odznak by se
+  uřízl.
+- **Bublina má s reakcí i bez ní STEJNOU velikost.** Čip je její odznak: leží přes spodní nároží
+  a na bublinu zasahuje kolečkem o 8 dp (`REACTION_CHIP_ON_BUBBLE`) — přesně o spodní odsazení
+  obsahu, takže nezakryje poslední řádek. Středem na okraji (zkoušeno) zakrýval začátek
+  posledního řádku; úplně pod zprávou (zkoušeno) přestal působit jako její odznak. Obsah si pro
+  něj místo NEDĚLÁ — dřív si ho dělal uvnitř (`REACTION_STRIP_SPACE`) a zpráva se při první
+  reakci skokem zvětšila.
+- **Kolečko lícuje s hranou bubliny**, jako v Google Zprávách — ne 10 dp uvnitř. Řádek se vysune
+  o místo na odznak počtu (vpravo od kolečka) a o místo na stín, takže samotné kolečko končí
+  přesně na okraji.
+- **Čip má lem v barvě pozadí A drobný stín** (`REACTION_RING` v `surface`, `REACTION_ELEVATION`
+  1 dp). Lem odděluje čip od bubliny, jako by z ní byl vykrojený (Google Zprávy). Jenže pozadí
+  konverzace je `background`, v M3 totéž co `surface`, takže mimo bublinu lem zmizí a bílý čip
+  na skoro bílé ploše splýval — hlavně ve sloupci pod dlouhými příspěvky v kanálu. Stín s
+  elevací 1 dp se vejde do rezervy řádku (`REACTION_SHADOW_ROOM`, 3 dp), kterou jinak ořezává
+  `horizontalScroll`; vyšší elevace by se tam uřízla, a právě proto dřív stín nebyl vůbec.
+- **Emoji v čipu má výšku řádku rovnou písmu, na střed a oříznutou** (`LineHeightStyle` s `Trim.Both`).
+  Holý `Text` nese nad kresbou rezervu řádku a emoji sedělo v kolečku viditelně níž.
+- **Výplň čipu je neutrální i u vlastní reakce** (`surfaceContainerLowest`). Dřív měla vlastní
+  `primaryContainer` a emoji od Telegramu — kreslená se stíny a přechody, žádné ploché symboly —
+  na tónované ploše splývala: žlutý palec na světle modré nebyl skoro k poznání. Vlastní reakci
+  nese **kroužek v `primary` UVNITŘ lemu v barvě pozadí** (na odchozí `primary` bublině ho od
+  ní lem odděluje) a plný `primary` odznak počtu.
+- **Místo pod zprávou se otevře animovaně** (`REACTION_OVERHANG` přes spatial spec), takže zpráva
+  plynule popojede. Místo je uvnitř `MessageBox`, který kreslí i nabídka nad zprávou — čip patří
+  ke zprávě a do nabídky jede s ní.
+- **Čipy naběhnou z nuly s pružným přeskokem** (tlumení 0,45 — víc než běžný spatial spec; náběh
+  reakce je drobná radostná událost, ne přesun obsahu). Při odebrání poslední reakce se dál
+  kreslí ta poslední, jinak by odchod dobíhal s prázdným řádkem. Čipy, které tu byly při prvním
+  složení, se nezvětšují — jinak by pulzoval scroll.
+- **Dokud zprávu kreslí nabídka, drží se její reakce z doby před otevřením** (`heldReactions`,
+  v seznamu i v kopii). Reakce se přidává v nabídce a ta se tím zavře; bez podržení by náběh čipu
+  doběhl na skryté zprávě a uživatel by viděl čip už hotový. Takhle naskočí, až zpráva dosedne
+  zpátky na místo — jako v Google Zprávách. Ověřeno sérií surových snímků: prvních sedm snímků
+  (návrat zprávy) bez čipu, pak přeskok a ustálení.
+- **Jedou s bublinou i při tahu na odpověď**, protože posun sedí na sloupci kolem toho `Box`u.
+- **Jeden řádek, který se posouvá do strany**, ne lámání do víc řádků: čipy leží na bublině
+  a druhý řádek by ji přerostl. U příspěvku s deseti různými emoji je to jediné, co se vejde.
+- **Přidaná reakce se ohlásí výbuchem**: za emoji se na 600 ms otevře `SoftBurst` v `primary`
+  (naroste, pootočí se a vybledne) a čip pružně povyskočí (`ReactionChip`, `burst`). Ne konfety,
+  ty patří výhře v kostce. **Jen při přechodu na vybranou reakci před očima**: čip, který byl
+  vybraný už při složení, nebo cizí reakce nic nedělají — jinak by bouchal každý scroll.
+  - **Co tu bylo při složení, si pamatuje `ReactionRow`, ne `ReactionChips`.** Čipy se skládají
+    až s první reakcí (`AnimatedVisibility`), takže jejich „počáteční" množina už novou reakci
+    obsahovala a výbuch se u první reakce zprávy nekonal (ověřeno na emulátoru, první pokus).
+  - **Výbuch se kreslí UVNITŘ kolečka čipu** (`drawBehind` pod emoji), ne přes jeho okraj:
+    řádek reakcí je `horizontalScroll` a ořezává na svoje hranice, přetékající tvar by se uřízl.
+  - Průběh se čte až při kreslení, animace nic nerekomponuje. Ověřuje se zpomalenými animacemi
+    a sérií surových snímků — v normální rychlosti ho snímek mine.
+- **Ťuknutí na čip otevírá DETAIL, nepřepíná reakci.** Přidat i odebrat jde z nabídky nad zprávou,
+  kde je vybraná reakce zvýrazněná a ťuknutí na ni ji sundá. Dvě věci na jedno ťuknutí nejdou
+  a detail je to, co se jinde nedozvíme.
+- **V kanálu detail není** — `getMessageAddedReactions` tam vrátí `BROADCAST_FORBIDDEN`. Čip se
+  proto v kanálu nedá ťuknout a nemá ani vlnku: čip, po kterém přijde chyba, je horší než čip,
+  který nic nedělá. Rozhoduje o tom `ChatInfo.isChannel`, ne odpověď serveru — ta by přišla až po
+  ťuknutí.
+- **Detail jde filtrovat podle reakce** — nad seznamem spojená skupina přepínacích tlačítek
+  „Vše N" a každá reakce s počtem (`ReactionFilter`, tentýž prvek jako druh chatu ve filtrech
+  hledání). Jen s víc druhy reakcí; vybrané je vždycky právě jedno. **Filtruje server**
+  (`reactionType` v `getMessageAddedReactions`): filtr nad jedinou stránkou by u příspěvku
+  s tisíci reakcemi ukázal zlomek. Počty jsou ze zprávy v okamžiku otevření. Při přepnutí
+  zůstává starý seznam, dokud nedorazí nový — indikátor by sheet smrštil a zase natáhl.
+- **Detail je jedna stránka** (`REACTION_DETAIL_LIMIT`, 50 řádků). U příspěvku s tisíci reakcemi
+  ho nikdo neprojde a stránkování by znamenalo držet offset ve stavu sheetu.
+- **Nepřečtená reakce na vlastní zprávu se zvýrazní, jakmile je zpráva vidět** (`NewReaction`,
+  `ChatMessage.newReactions` z `Message.unreadReactions`, živě přes `unreadMarkChanges`): čip
+  dvakrát povyskočí (`NEW_REACTION_PULSE_SCALE`) a ve skupině vedle čipů na pár vteřin vyjede
+  pilulka s tvářemi a jmény těch, kdo reagovali (`ReactorsLabel`, „Jana, Petr a 2 další").
+  V soukromém chatu jméno nic nepřidá — reagovat mohl jen protějšek.
+- **Zvýraznění se musí PODRŽET** (`rememberReactionHighlight`, 4 s). Zobrazená zpráva se hlásí
+  jako zhlédnutá po 400 ms, TDLib reakce přečte a `newReactions` zmizí — bez podržení by
+  zvýraznění zhaslo dřív, než si ho kdo všimne. Stav patří složené položce, takže po
+  odscrollování a návratu je reakce přečtená a nic nepulzuje.
+- **Pilulka místo v rozvržení nezabírá** (`layout` s nulovou velikostí): sloupec zprávy se
+  roztahuje podle řádku reakcí, a popisek v něm by bublinu na pár vteřin rozšířil a posunul.
+  Leží přes spodní okraj zprávy vedle čipů, stejně jako čip.
+- **Ověřuje se botem**: vlastní zpráva do chatu s botem, `setMessageReaction` botem (změna emoji
+  je nová nepřečtená), pak chat otevřít. Pulz jde vidět jen zpomaleně
+  (`animator_duration_scale 5`) a změřením plochy emoji ve snímcích. Jména se kreslí jen ve
+  skupině, takže se v chatu s botem ukážou jen sondou (`namesReactors = true`, necommituje se).
+  **Ve skupině ověřená** (testovací skupina s botem, `setMessageReaction` na vlastní zprávu,
+  id zprávy v supergroupě = id u serveru): pilulka „Notifikator" vedle čipu.

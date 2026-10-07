@@ -1,7 +1,7 @@
 # Konverzace — architektura seznamu zpráv
 
 Cílový stav a postup přestavby. Rozpracované kroky jsou v [roadmap-konverzace.md](roadmap-konverzace.md);
-hotová poučení patří do `CLAUDE.md`.
+hotová poučení patří do `docs/poznatky/konverzace-*.md`.
 
 ## Proč
 
@@ -63,7 +63,7 @@ interface ConversationItem {
 ### Proč se builder volá v kompozici, ne ve ViewModelu
 
 Nová zpráva dole se ukotvuje přes `requestScrollToItem(0)` **v téže kompozici**, ve které se
-objeví (viz `CLAUDE.md`, „Odesílání a scrollování"). Tok položek odvozený ve ViewModelu by šel
+objeví (viz `docs/poznatky/konverzace-psani.md`, „Odesílání a scrollování"). Tok položek odvozený ve ViewModelu by šel
 o dispatch za `state` a ukotvení by mířilo na starý seznam. Builder je proto čistá funkce volaná
 přes `remember(vstupy)` — testovatelná stejně, jen synchronní se stavem.
 

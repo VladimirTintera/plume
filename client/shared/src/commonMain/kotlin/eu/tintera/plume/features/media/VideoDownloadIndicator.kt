@@ -59,7 +59,7 @@ import org.jetbrains.compose.resources.stringResource
  * - **Ukazuje se celkový podíl staženého** (`FileState.Downloading.progress`), ne souvislý úsek:
  *   oba indikátory kreslí průběh od nuly.
  * - **Horní roh ustupuje stavové liště**, jen když pod ni karta opravdu sahá. Insety samy nevědí,
- *   kde prvek leží (viz CLAUDE.md, „Navigace"), takže se porovnávají s polohou karty v okně.
+ *   kde prvek leží (viz docs/poznatky/navigace.md, „Navigace"), takže se porovnávají s polohou karty v okně.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable

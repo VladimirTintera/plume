@@ -259,7 +259,8 @@ Z [Telegram API ToS](https://core.telegram.org/api/terms) — tohle shodí revie
 
 ## Dokumentace
 
-Architektura, konvence a pasti jsou v [CLAUDE.md](CLAUDE.md).
+Architektura, konvence a pasti jsou v [CLAUDE.md](CLAUDE.md), poznatky ke konkrétním oblastem
+aplikace v [docs/poznatky/](docs/poznatky/).
 
 Co zbývá udělat, se vede ve dvou živých dokumentech — v README ani v CLAUDE.md ten seznam
 není, aby se nerozešly: [docs/roadmap.md](docs/roadmap.md) přes celou aplikaci,

@@ -227,7 +227,7 @@ private val InlineRowKind.icon: DrawableResource
 
 /**
  * Dotáhne další stránku, až se složí jedna z posledních položek — ne podle `layoutInfo`, to se
- * u mřížky minulo (viz „Sdílená média v profilu" v CLAUDE.md).
+ * u mřížky minulo (viz „Sdílená média v profilu" v docs/poznatky/profil-chatu.md).
  */
 @Composable
 private fun LoadMoreAtEnd(index: Int, count: Int, onLoadMore: () -> Unit) {

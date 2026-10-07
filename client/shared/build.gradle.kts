@@ -312,7 +312,7 @@ val verifyNoHardcodedText = tasks.register("verifyNoHardcodedText") {
         val internal = Regex("""logger\.[dewiv]\b|Logger\.withTag|\brequire|\bcheck|\berror\(|Exception\(""")
         // Prompt pro jazykový model taky text pro uživatele není — nejde na obrazovku, ale do
         // modelu v telefonu. Česká slova v něm bývají POTŘEBA: bez výslovného „tykání/vykání"
-        // model kamarádovi vykal (viz „Návrhy odpovědí" v CLAUDE.md). Je to tedy stejná kategorie
+        // model kamarádovi vykal (viz „Návrhy odpovědí" v docs/poznatky/ai-v-zarizeni.md). Je to tedy stejná kategorie
         // jako logy a vnitřní kontroly výš, a řeší se stejně — výjimkou, ne escape sekvencemi:
         // ty jsou správně u DAT (tabulka diakritiky v `SearchHighlight.kt`), ale prompt je próza,
         // která se ladí čtením, a „tyk\u00e1n\u00ed" uprostřed anglické věty se číst nedá.

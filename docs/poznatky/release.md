@@ -1,0 +1,226 @@
+# Release, R8 a hlášení pádů
+
+Poznatky k jedné oblasti aplikace. Obecná pravidla projektu a rejstřík ostatních souborů jsou
+v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
+
+## Release do Play
+
+Vydává se pushnutím tagu `android-<versionName>-<versionCode>`; postup a seznam secrets je
+v [README](../../README.md#release-do-google-play). Sem patří jen to, co se z workflow nepozná.
+
+- **Verze NENÍ v commitu, je v tagu.** `versionCode`/`versionName` se do buildu dostanou přes
+  `-PandroidVersionCode` / `-PandroidVersionName`; hodnoty v `build.gradle.kts` jsou jen záloha
+  pro lokální build. Verzovací commit by znamenal, že tag a kód mohou tvrdit každý něco jiného.
+- **`versionCode` je jednosměrný.** Play si pamatuje každé nahrané číslo, i z internal tracku,
+  a stejné podruhé nevezme. Bump workflow ho proto zvedá při KAŽDÉM releasu, i když se
+  `versionName` nemění.
+- **Konfigurace mimo git se čte `configValue`: property → ENV → `local.properties`.** Na CI
+  žádné `local.properties` není a vyrábět ho tam by znamenalo psát secrets do souboru v pracovním
+  adresáři. ENV se čte přes `providers`, ne `System.getenv` — jinak by hodnota nevstoupila do
+  otisku konfigurační keše (`org.gradle.configuration-cache=true`) a build by po výměně secretu
+  použil starý.
+- **`releaseKeystoreFile` musí být deklarovaný PŘED blokem `android { }`.** Top-level `val`
+  se v `.kts` inicializují v pořadí deklarace — stejná past jako u `NavSavedStateConfiguration`.
+- **Keystore na CI je absolutní cesta, lokálně relativní.** `ANDROID_KEYSTORE_PATH` míří do
+  `RUNNER_TEMP`, `releaseStoreFile` do kořene projektu; proto se `isAbsolute` rozlišuje.
+- **`verifyReleaseConfiguration` visí na `bundleRelease`/`assembleRelease`.** Chybějící podpis
+  nebo prázdné `api_id` se jinak poznají až u testera: nepodepsaný AAB Play odmítne a build
+  s `TELEGRAM_API_ID = 0` se přeloží, jen se v něm nejde přihlásit.
+- **AAB se nikam nepřikládá.** Ani jako artefakt běhu, ani jako příloha releasu. Bundl má přes
+  50 MB a artefakty se počítají do kvóty Actions (free účet 500 MB = deset releasů); přílohy
+  releasu se do ní sice nepočítají, ale kopie navíc stejně k ničemu není. Play si bundl drží
+  a **build je z tagu reprodukovatelný**, protože verze je v tagu, ne v commitu.
+- **První AAB musí do Play nahrát člověk.** Dokud aplikace nemá žádný release, androidpublisher
+  API upload odmítne — krok `upload-google-play` je až pro další verze.
+- **Ručně vydaná verze se značí tagem se suffixem `-manual`.** Release workflow ho ignoruje
+  (`'!android-*-manual'`), ale bump logika z něj počítá další verzi.
+- **Tag pushnutý přes `GITHUB_TOKEN` push trigger nespustí.** Ochrana proti rekurzivním workflow,
+  proto bump workflow release volá ještě výslovně přes `gh workflow run --ref <tag>`.
+- **Monitor paměti běží uvnitř build kroku, ne vedle něj.** Když runner umře na paměť, nespustí
+  se ani krok s `if: always()`; poslední řádek `[mon]` v logu je pak jediná stopa.
+- **Java na CI musí odpovídat `jvmToolchain(17)`.** S jinou verzí by ji foojay resolver stahoval
+  při každém běhu znovu.
+- **Záznam v obchodě je v `play/`, nahrává ho ruční workflow Play Listing**
+  (`.github/scripts/play_listing.py`), ne release. Záznam je jeden pro všechny tracky a mění se
+  jinak často než verze. Výchozí je `dry_run`: edit se jen ověří a zahodí.
+- **Nahrání obrázků do editu projde i bez práva ke správě obchodu, 403 přijde až
+  na `edits:validate`.** Service account umí vydávat buildy, a přesto záznam měnit nesmí —
+  potřebuje navíc oprávnění ke správě prezentace v obchodě. Chyba se tedy neukáže v prvním
+  kroku, ale až na konci.
+- **Snímky obrazovky: nejvýš 2:1.** Emulátor dělá 1344 × 2992 (2,23:1) a Play ho odmítne;
+  snímky se rozšiřují na 1496 px protažením krajního sloupce (pozadí je po stranách
+  jednobarevné), ne ořezem, který by ukrojil hlavičku nebo pole.
+- **Na snímcích nesmí být skuteční lidé.** Seznam chatů testovacího účtu ukazuje jména, fotky
+  a zprávy kontaktů (i přihlašovací kód); snímky se proto dělají v chatu s testovacím botem,
+  kterému zprávy posílá Bot API. Česky se z `adb input text` psát nedá — odchozí text jde do
+  pole přes sdílení (`SEND` s `EXTRA_SHORTCUT_ID chat_<id bota>`). Pozor: `chat_id` v Bot API
+  u soukromého chatu je id UŽIVATELE, takže `chat_<chat_id>` otevře Uložené zprávy, ne bota.
+- **Ikona aplikace (pírko) se generuje, nekreslí se ručně** (`play/tools/icon.py`). Jedna
+  geometrie v shapely → PNG pro Play, 1024px PNG pro iOS a vektor popředí adaptivní ikony
+  Androidu (`ic_launcher_foreground.xml`, i jako `monochrome` pro tématické ikony). Tři ručně
+  udržované kopie by se rozešly. Pozadí je gradient v `ic_launcher_background.xml` — jeho barvy
+  musí sedět s `TOP`/`BOTTOM` ve skriptu. Pírko sahá do 31 dp od středu, bezpečná zóna
+  adaptivní ikony je 33 dp; víc a launcher s kulatou maskou ho ořízne.
+- **Pírko je baculaté, ne dlouhé a úzké.** První verze byla štíhlá šikmá čárka: do kruhu se
+  vepisuje podle NEJDELŠÍHO rozměru, takže úzký tvar zabral zlomek plochy a v notifikaci ve
+  stavové liště nebyl skoro vidět. Širší vlajka a kratší stopka zabírají zhruba dvojnásobek.
+- **Ikona notifikace se vepisuje podle obdélníku kolem tvaru, ne do kruhu** (`fitted(box =
+  True)`, 22 dp z 24). Nic ji neořezává, takže kruh kolem těžiště jen plýtval rohy — šikmé
+  pírko je vůči těžišti posunuté a vlevo nahoře zbývalo prázdno. Velikost se porovnává
+  s ostatními ikonami ve stavové liště, ne od oka v náhledu.
+- **Balíček SDK platformy se jmenuje `platforms;android-37.0`** — u minor verzí je nula součástí
+  id. Musí odpovídat `android-compileSdk` v `libs.versions.toml`.
+
+## R8
+
+Release build je minifikovaný. Dex spadl ze **43,8 MB na 7,2 MB** — TDLib generuje tisíce tříd
+API, které aplikace z drtivé většiny nevolá.
+
+- **Wrapper si keep pravidla nese sám.** `tdl-coroutines` má v AAR `proguard.txt`, který drží
+  JNI hranici (`org.drinkless.tdlib.JsonClient`, jeho `native <methods>` a callback na logy);
+  AGP ho aplikuje automaticky. **Nekopírovat je do `proguard-rules.pro`** — při bumpu wrapperu
+  by se opsaná kopie tiše rozešla s tím, co knihovna opravdu potřebuje.
+- **Do `proguard-rules.pro` patří jen to, co se ověřeně rozbilo na zařízení.** Preventivní
+  `-keep` vypne zkracování tam, kde nemusí, a zakonzervuje chybu, která se mezitím opravila
+  jinde. Zatím tam kromě atributů pro čitelné stack trace je jediné pravidlo: LiteRT-LM.
+- **LiteRT-LM (Gemma) si keep pravidla NEPŘIBALUJE** — AAR `litertlm-android 0.11.0` nemá
+  `proguard.txt`, na rozdíl od TDLib wrapperu. Nativní strana přitom sahá do Kotlinu podle
+  jména: release build při prvním použití Gemmy spadl na `NoSuchMethodError …
+  SamplerConfig.getTopK()` a **SIGABRT** — nativní pád, tedy bez výjimky, kterou by šlo
+  chytit. Projevilo se to hned při OTEVŘENÍ CHATU: s příchozí poslední zprávou se sám rozběhne
+  návrh odpovědi. Proto `-keep class com.google.ai.edge.litertlm.** { *; }` na celý balíček,
+  ne výčet tříd — JNI hranici určuje knihovna a výčet by se při bumpu tiše rozešel. **Při
+  bumpu knihovny zkontrolovat, jestli už `proguard.txt` nese** (`unzip -l` na AAR); pak
+  pravidlo pryč. Ověřeno na emulátoru: bez pravidla pád, s ním shrnutí i návrhy.
+- **`isShrinkResources` je zapnuté, ale až zvlášť po minifikaci** — zapínat obojí naráz by
+  znamenalo nevědět, co z toho případný pád způsobilo.
+  - **composeResources se ho NETÝKAJÍ.** Leží v `assets/` (v APK je jich před i po 180 souborů),
+    shrinker uklízí jen `res/`. Starší poznámka, že „umí uklidit composeResources", neplatí.
+  - **Ušetří málo: arm64 APK 54,6 → 53,5 MB** (z `res/` zmizelo 390 souborů nepoužitých
+    prostředků knihoven). Většinu APK tvoří nativní knihovny (TDLib, LiteRT-LM).
+  - **Prostředky hledané podle jména zůstávají.** Náš kód `getIdentifier` nevolá; Firebase
+    a Crashlytics ano (`google_app_id`, `gcm_defaultSenderId`, id mapping souboru), ale ty drží
+    keep XML z jejich pluginů — v `build/outputs/mapping/release/resources.txt` je u nich
+    „reachable from keep xml file". Tam se kontroluje, proč prostředek zůstal nebo zmizel.
+  - **S ABI splity rozbíjí `bundleRelease`** („Multiple shrunk-resources files found",
+    issuetracker 402800800): AGP zmenší prostředky pro každou ABI variantu zvlášť a bundle
+    čeká jeden soubor. Splity se proto u úloh `bundle*` vypínají (`buildsBundle`
+    v `build.gradle.kts`). **Ověřovalo se přes APK, a tak to prošlo** — release staví AAB,
+    takže po zásahu do release konfigurace se musí sestavit i `bundleRelease`.
+  - **Soubory v `META-INF/services` mezi buildy mění jména** (R8 přejmenuje rozhraní služby),
+    počet zůstává. Při porovnávání APK to vypadá jako ztráta, a není.
+  - **Ověřeno na emulátoru** release APK podepsaným debug klíčem přes debug build: konverzace,
+    výběr emoji, nabídka příloh, prohlížeč fotky, notifikace s ikonou a třemi akcemi a obnova
+    do konverzace po zabití procesu. **`am kill` release proces nezabije, dokud není v keši**
+    a `run-as` na release nejde — odsunout ho otevřením systémového Nastavení, pak `am kill`.
+- **Chybějící keep pravidlo se při buildu nepozná, projeví se AŽ ZA BĚHU.** Release build se
+  proto musí proklikat, ne jen přeložit.
+- **`::class.simpleName` v release buildu nic neříká.** R8 třídy přejmenovává, takže z
+  `AuthorizationStateReady` zbylo „du" — jednou v logu a podruhé rovnou v textu, který na
+  přihlašovací obrazovce četl uživatel. Kde má název typu skončit v logu nebo před uživatelem,
+  musí to být ručně psaný řetězec (`stateName()` v `TdlTelegramSession`); `when` nad sealed
+  hierarchií bez `else` navíc zařídí, že nový stav v novější TDLib rozbije překlad, místo aby
+  se tiše vypsalo „neznámý". `-keepnames` na balíček TDLib by fungoval taky, ale propašoval by
+  jméno wrapper balíčku do `proguard-rules.pro` — přesně to, co se při bumpu tiše rozejde.
+- **Název třídy stejně nepatří do textu pro uživatele**, ani bez R8. „Tahle fáze přihlášení není
+  podporovaná: AuthorizationStateWaitEmailAddress" mu neřekne, co má dělat; pojmenovat fázi
+  vlastní větou je práce navíc jen zdánlivě — je to jediná verze, která má pro čtenáře smysl.
+- **Test se dá udělat bez ztráty přihlášení: release APK se přepodepíše DEBUG klíčem**
+  (`apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --ks-key-alias
+  androiddebugkey`) a nainstaluje přes `adb install -r`. Minifikace je vlastnost buildu,
+  s podpisem nesouvisí; jinak by odinstalace smazala TDLib databázi a testovat by se muselo
+  od přihlašování.
+- **Nejcennější kontrola je obnova po zabití procesu** (`adb shell am kill` z pozadí, pak
+  spustit znovu). Klíče navigace jsou `@Serializable` a polymorfní serializace přes
+  kotlinx.serialization je to, co R8 láme nejčastěji — pokud se aplikace vrátí do konverzace
+  a ne na seznam chatů, je tahle část v pořádku.
+
+## Hlášení pádů (Crashlytics)
+
+Android release build posílá pády, zachycené chyby a kontext do Firebase Crashlytics. Aplikace
+ho ale **nikde nevolá přímo**: píše se do Kermitu (`Logger.withTag(…)`) a přemostění dělá
+`CrashlyticsLogWriter` v `core/logging`. Dvě paralelní cesty k hlášení by se dřív nebo později
+rozešly — část chyb by v konzoli chyběla a nebylo by poznat které.
+
+- **`core/logging` je hranice**, stejně jako `core/telegram` kolem TDLib: `com.google.firebase.*`
+  smí být importované jen tam, zbytek vidí rozhraní `CrashReporter`.
+- **Hranice závažnosti jsou dvě, ne jedna.** Od `Info` výš se log přikládá k pádu jako kontext
+  (`d`/`v` ne — Crashlytics si ke hlášení drží nejvýš 64 kB logu a starší řádky zahazuje). Samostatný problém
+  v konzoli zakládá až `e` **s výjimkou**. Důvod: `logger.w` je v projektu hlášení OČEKÁVANÉHO
+  selhání (nenačtená sada samolepek, neuložený koncept) a je jich přes dvacet — problémy z nich
+  by seznam zaplevelily tak, že by v něm skutečné chyby zanikly.
+- **Chybová hláška bez výjimky zůstane jen kontextem.** `recordException` staví problém kolem
+  stack trace; bez výjimky by v konzoli byl záznam, u kterého není poznat, odkud je.
+- **Řádek zalogovaný v téže milisekundě jako zachycená chyba se k ní ještě nemusí připojit.**
+  Crashlytics zapisuje kontextové řádky na jiném vlákně, než sestavuje událost (v logu je pak
+  „No log data to include with this event"). U pádu a u čehokoli staršího než pár milisekund je
+  to bez významu — jen se na tom nedá stavět ověřovací test.
+- **Writery se nastavují PŘED sestavením grafu** (`configureLogging()` na prvním řádku
+  `startKoin`). Eager singletony — seznam chatů, `FileRepository`, nastavení, start TDLib —
+  vznikají ještě uvnitř `startKoin` a právě jejich logy jsou u pádů při startu to nejzajímavější.
+- **Systémový log zůstává i v release.** Release APK se ověřuje na zařízení (viz níž) a `adb
+  logcat` je při tom jediné, co je vidět hned.
+- **Sběr se zapíná manifestem, ne za běhu.** `firebase_crashlytics_collection_enabled` je
+  placeholder podle build typu (release `true`, jinak `false`); Crashlytics si ho čte při
+  inicializaci procesu, tedy dřív, než se dá spustit jakýkoli náš kód. Pády z vývoje do konzole
+  nepatří — zanikla by v nich hlášení od testerů.
+- **Bez `google-services.json` se nesmí nic rozbít.** Plugin se neaplikuje (stejná podmínka jako
+  u pushe) a `createCrashReporter()` vrátí `NoopCrashReporter`. Ptá se přes
+  `FirebaseApp.getInstance()`, protože `FirebaseCrashlytics.getInstance()` by bez inicializované
+  Firebase vyhodilo `IllegalStateException` — a `getApps(context)` by kvůli `Context` znamenalo
+  vyrábět hlásiče až z grafu závislostí, tedy pozdě.
+- **Gradle plugin `crashlytics` musí být aplikovaný ZA `google-services`** — čte si jeho
+  konfiguraci. Sám nic neodesílá; do buildu přidá build id a nahrání R8 mapping souboru.
+  **S minifikovaným buildem je mapping soubor to jediné, co dělá stack trace čitelným**, a
+  `-keepattributes SourceFile,LineNumberTable` v `proguard-rules.pro` je jeho druhá půlka:
+  bez nich se čísla řádků do APK vůbec nedostanou a nemá je co doplnit zpátky.
+- **Hlášení odchází až PŘI PŘÍŠTÍM STARTU aplikace**, ne v okamžiku pádu. Kdo po pádu aplikaci
+  znovu nespustí, v konzoli nic nenajde a vypadá to jako nefunkční integrace.
+- **Ověřit to jde jen skutečným pádem release buildu.** V debug buildu je sběr vypnutý, takže
+  „projde to bez chyby" nic neznamená. Postup je stejný jako u R8: release APK se přepodepíše
+  debug klíčem a nainstaluje přes `adb install -r`, takže se nepřijde o přihlášení.
+- **iOS hlásič pádů zatím nemá** (`NoopCrashReporter`). Firebase v Xcode projektu není — stejně
+  jako u notifikací. Až přibude, implementace musí přijít ze Swiftu: `FirebaseCrashlytics` je
+  ObjC knihovna, kterou Kotlin/Native nevidí, a Kotlin výjimka nese jen adresy stack trace
+  (`getStackTraceAddresses()`), ne symboly. Vzor je `IosCrashlyticsLogger` v projektu
+  com.profilog.telemetry.android.
+
+## Aktualizace z obchodu
+
+Android nabízí novou verzi z Play kartou nahoře v seznamu chatů (`UpdateCard`) přes Play
+In-App Updates v režimu **flexible**: stahuje se na pozadí, pak „Restartovat" (`completeUpdate`).
+
+- **`core/update` je hranice**, stejně jako `core/telegram` a `core/logging`:
+  `com.google.android.play.*` smí být jen v `AppUpdates.android.kt`. Zbytek vidí `AppUpdateState`.
+- **`AppUpdates` je `expect class`, ne rozhraní** — jako `AppForeground`. Spuštění aktualizace
+  potřebuje activity (dialog obchodu), a singleton v grafu závislostí ji nemá; proto je start
+  composable `rememberStartUpdate` a platformní člen `start(launcher)`, na který se ze společného
+  kódu nedosáhne.
+- **Dialog se spouští přes `ActivityResultLauncher`** (`startUpdateFlowForResult` s launcherem),
+  ne přes activity. Výsledek se nečte: průběh hlásí `InstallStateUpdatedListener`, zrušený
+  dialog nechá stav na „k dispozici".
+- **Ptá se při každém resume seznamu chatů** (`LifecycleResumeEffect`). Dotaz jde do aplikace
+  obchodu v telefonu, ne na server, a právě tak se po restartu připomene stažená, ale
+  nenainstalovaná aktualizace (`installStatus == DOWNLOADED`) — jinak by visela napořád.
+- **Immediate režim ne.** Celoobrazovková aktualizace by přerušila rozepsanou zprávu.
+- **Zavřít jde jen nabídku, a pamatuje se podle `versionCode`** (`AppSettings.dismissedUpdateVersionCode`).
+  Stahování a staženou aktualizaci si uživatel vyžádal sám, ty se ukazují vždycky. Pravidlo je
+  čistá funkce `updateCard` (testy `UpdateCardTest`).
+- **Mimo Play to nefunguje a není to chyba.** Debug build i `adb install` dostanou od obchodu
+  chybu (na emulátoru `-6 ERROR_INSTALL_NOT_ALLOWED`) nebo „není k dispozici"; loguje se jako
+  `i`, ne `w`, a karta se neukáže. Celá cesta se ověřuje přes internal app sharing.
+- **Vzhled karty se ověřuje podstrčeným stavem**: v `addOnFailureListener` dočasně nastavit
+  `AppUpdateState.Available(999)`, nainstalovat debug a vrátit. Jiná cesta, jak kartu v debugu
+  vidět, není.
+- **Artefakt je `app-update`, ne `app-update-ktx`.** Task API stačí a ktx by táhl
+  `kotlinx-coroutines-play-services` kvůli dvěma voláním.
+- **Karta je další blok seznamu**: zaoblení `GROUP_CORNER`, mezera pod ní jako mezi skupinami,
+  `primaryContainer` (od světlých řádků ji odliší, sytou barvu nese jen tlačítko). Jedna karta
+  pro všechny tři stavy s `animateContentSize` — výměna celé položky by vypadala jako nová.
+- **Syté prvky karty jdou přes `accentOn`, ne `primary` natvrdo.** V paletě se zvýšeným
+  kontrastem je `primaryContainer` v tmavém režimu světlý jako `primary`, takže „Teď ne" bylo
+  bílé na světle modré a kolečko ikony s tlačítkem splývaly s kartou. Kde `primary` na kartě
+  vidět není, převezme jeho roli `onPrimaryContainer` (viz „Material 3 / vzhled").
+- **Ikona je `system_update` (telefon se šipkou dovnitř), ne `upgrade`.** Šipka nahoru k čáře se
+  čte jako NAHRÁVÁNÍ — a to je přesně opačný směr, než co karta nabízí. Ikona má říct, co se
+  stane, ne jakým gestem se to spustí.

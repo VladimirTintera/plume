@@ -410,7 +410,7 @@ private fun Modifier.coverAspect(width: Int, height: Int): Modifier = layout { m
 
 /**
  * Dotáhne další stránku, až se složí jedna z posledních buněk. Ne podle `layoutInfo` — to se
- * u mřížky minulo (viz „Sdílená média v profilu" v CLAUDE.md).
+ * u mřížky minulo (viz „Sdílená média v profilu" v docs/poznatky/profil-chatu.md).
  */
 @Composable
 private fun LoadMoreAtEnd(index: Int, count: Int, onLoadMore: () -> Unit) {

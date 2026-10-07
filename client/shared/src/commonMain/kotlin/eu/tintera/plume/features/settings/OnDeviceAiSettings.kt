@@ -566,7 +566,7 @@ private fun VariantSwitch(
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(stringResource(summary))
                 // Barva popředí ListItemu, ne onSurfaceVariant: ten je počítaný na surface
-                // role a řádek si barvy určuje sám (viz CLAUDE.md, „ListItem na tónované kartě").
+                // role a řádek si barvy určuje sám (viz docs/poznatky/nastaveni.md, „Obrazovka nastavení").
                 note?.let { Text(stringResource(it), style = MaterialTheme.typography.labelLarge) }
             }
         },

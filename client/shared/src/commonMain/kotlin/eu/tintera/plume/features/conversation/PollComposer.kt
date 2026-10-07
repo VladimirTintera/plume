@@ -439,7 +439,7 @@ data class PollComposerStatus(
  * Formulář nové ankety.
  *
  * **Text polí je Compose stav, ne `StateFlow`** — hodnota vrácená o dispatch později by
- * poskakovala kurzorem (viz „Úprava profilu" v `CLAUDE.md`). Ve ViewModelu, ne v obrazovce,
+ * poskakovala kurzorem (viz „Úprava profilu" v `docs/poznatky/nastaveni.md`). Ve ViewModelu, ne v obrazovce,
  * aby rozepsaná anketa přežila otočení.
  */
 class PollComposerViewModel(

@@ -32,7 +32,7 @@ dependencies {
     debugImplementation(libs.compose.ui.tooling)
     // Hlídá uniklé activity, ViewModely a view roots; v release buildu není.
     debugImplementation(libs.leakcanary)
-    // Composition tracing pro Perfetto (CLAUDE.md, „Výkon a paměť"); zapíná se broadcastem.
+    // Composition tracing pro Perfetto (docs/poznatky/vykon.md, „Výkon a paměť"); zapíná se broadcastem.
     debugImplementation(libs.compose.runtime.tracing)
     debugImplementation(libs.tracing.perfetto.binary)
 
@@ -121,7 +121,7 @@ android {
             // neukazuje. Zapínal se zvlášť od minifikace, aby bylo poznat, co případný pád
             // způsobilo. **composeResources se ho netýkají** — leží v `assets/`, ne v `res/`.
             // Podle jména (`getIdentifier`) náš kód na prostředky nesahá; Firebase a Crashlytics
-            // ano, ale shrinker v bezpečném režimu takové prostředky drží. Viz CLAUDE.md, „R8".
+            // ano, ale shrinker v bezpečném režimu takové prostředky drží. Viz docs/poznatky/release.md, „R8".
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -246,7 +246,7 @@ tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.co
 }
 
 // Obcházka pádu `tdl-coroutines` 15.0.0 na odpovědi TDLib, ve které chybí pole dokumentované
-// jako povinné (dárek bez `background`). Viz „Dárek" v CLAUDE.md.
+// jako povinné (dárek bez `background`). Viz „Dárek" v docs/poznatky/typy-zprav.md.
 //
 // Za každé `JsonClient.receive` uvnitř wrapperu se vloží `TdlibReceiveHook.afterReceive`, takže
 // odpověď projde `TdlibJsonRepair` dřív, než ji wrapper rozebere. Jinou cestu dovnitř wrapper

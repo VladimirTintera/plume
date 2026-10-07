@@ -71,7 +71,7 @@ data class BlockedSendersState(
  * Seznam blokovaných v Nastavení → Obecné. Jediné místo, kde jde zrušit blokování někoho, s kým
  * uživatel chat smazal — nabídka nad chatem i profil stojí na chatu.
  *
- * Blokování jde přes [ChatRepository], jako všude jinde v aplikaci (viz `CLAUDE.md`, „Blokování
+ * Blokování jde přes [ChatRepository], jako všude jinde v aplikaci (viz `docs/poznatky/spam-a-blokovani.md`, „Blokování
  * a nahlášení spamu").
  */
 class BlockedSendersViewModel(private val chats: ChatRepository) : ViewModel() {

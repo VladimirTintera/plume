@@ -50,7 +50,7 @@ import org.koin.core.component.inject
 /**
  * Služba v popředí (`foregroundServiceType="location"`), která posílá polohu do všech zpráv
  * se živou polohou ([LiveLocationRepository.active]). Bez ní by aplikace na pozadí do pár
- * vteřin zamrzla (viz „Notifikace" v CLAUDE.md) a poloha by se přestala posouvat.
+ * vteřin zamrzla (viz „Notifikace" v docs/poznatky/notifikace.md) a poloha by se přestala posouvat.
  *
  * **Oprávnění k poloze NA POZADÍ není potřeba** a o ně se nežádá: služba typu `location`
  * spuštěná, když je aplikace v popředí, si přístup „při používání" ponese dál. Proto ji

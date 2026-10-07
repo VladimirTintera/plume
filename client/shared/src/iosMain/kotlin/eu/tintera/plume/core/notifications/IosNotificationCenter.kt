@@ -48,7 +48,7 @@ import kotlin.time.TimeSource
  * Notifikace přicházejí z APNs (viz [IosPush]); kategorii a klíče z [NotificationCategories]
  * doplní rozšíření notifikací (`NotificationService.swift`). Když neběží, akce nejsou, ale
  * ťuknutí chat otevře i tak — [pushInfo] čte i holý push od Telegramu. Ověřit to jde bez APNs:
- * `xcrun simctl push` doručí na simulátor notifikaci (postup v CLAUDE.md, „Akce z notifikace").
+ * `xcrun simctl push` doručí na simulátor notifikaci (postup v docs/poznatky/notifikace.md, „Akce z notifikace").
  *
  * **Delegát se nastavuje při startu, v `initKoin`**, ne až se složí UI. Ťuknutí na akci umí
  * spustit ukončenou aplikaci na pozadí a iOS odpověď doručí jen delegátovi, který existuje
