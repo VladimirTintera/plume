@@ -415,3 +415,30 @@ Po aktualizaci nic nevyskakuje — novinky jsou tam, kdo je hledá (převzato z 
 - **Novinku od opravy odliší tvar ikony** (raketa, brouk), čtečce obrazovky slovo v popisu ikony.
 - **Ověřeno na emulátoru** (anglicky i česky přes `set-app-locales`, stránkování, přežití změny
   jazyka). Na iOS jen přeložené a slinkované.
+
+## Synchronizace nastavení mezi zařízeními bez vlastního backendu
+
+Když aplikace potřebuje synchronizovat vlastní data specifická pro klienta (ručně zvolená barva chatu,
+lokální záložky/hvězdičky, snooze stav), TDLib nemá obecné KV úložiště pro aplikace třetích stran.
+
+- **Proč ne tichý push (FCM / APNs):** vyžaduje běžící server (držení serverových klíčů FCM/APNs,
+  párování push tokenů mezi zařízeními uživatele) a na iOS systém tiché pushe (`content-available: 1`) škrtí.
+- **Proč ne zpráva v Uložených zprávách (Saved Messages):** Telegram neumí zprávu pro ostatní
+  klienty skrýt. Uživatel by v oficiální aplikaci viděl technickou zprávu s JSONem na vrchu
+  Uložených zpráv a mohl by ji omylem smazat.
+- **Proč ne privátní kanál:** v Plume by šel ze seznamu vyfiltrovat, ale v oficiálním Telegramu
+  by svítil v seznamu chatů.
+- **Doporučená cesta: TDLib WebApp CloudStorage (`setWebAppCloudStorageValue` / `getWebAppCloudStorageValue`):**
+  - Telegram má nativní cloudové KV úložiště pro Mini Apps / WebApps na svých serverech (až 1 024 klíčů
+    po 4 kB per uživatel).
+  - **Uživatelé si žádného bota nezakládají:** vývojář aplikace jednou přes `@BotFather` bezplatně
+    založí bota (např. `@plume_sync_bot`) a jeho `bot_user_id` zapeče do kódu aplikace jako konstantu.
+  - Na botovi nemusí běžet žádný kód, server ani webhook — Telegram úložiště spravuje kompletně sám.
+  - **100% neviditelné v oficiálním Telegramu:** uživatel bota nevidí v chatech, nemusí mu psát
+    `/start` ani ho mít v kontaktech. Data jsou na serverech Telegramu izolovaná per uživatelský
+    účet a synchronizují se automaticky na všechna zařízení s Plume.
+- **Deterministické podbarvení chatů bez synchronizace:** pokud jde o ambientní podbarvení,
+  nejčistší je barvu odvodit deterministicky z profilové fotky protějšku (`ColorScheme.fromSeed`)
+  nebo z `chatId` / barvy jména z Telegramu (`senderColor`). Protože obě zařízení stahují stejnou
+  fotku / data, spočítají identickou barvu lokálně bez nutnosti přenášet jakákoliv data.
+
