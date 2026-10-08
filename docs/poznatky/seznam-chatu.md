@@ -62,6 +62,8 @@ skupina a Nová zpráva.
   jenže jediné tlačítko, které nejde odvybrat, není volba, jen řádek místa navíc nad chaty
   u každého, kdo složky nepoužívá. Uživatel ho chtěl pryč. Doporučené složky dál nabízí
   Nastavení → Obecné → Složky chatů; po přidání první složky se řádek objeví i s „+".
+  Ověřeno na emulátoru (česky): účet bez složek bez řádku, přidaná doporučená „Unread" v Nastavení
+  řádek ukáže, a když se smaže, zatímco je vybraná, řádek zmizí a seznam je zase celý.
 - **„+" je mimo spojenou skupinu** (`OutlinedIconButton` s odstupem): je to akce, ne volba;
   ve skupině by se tvářil jako další složka.
 - **Prázdná složka má `IntroEmptyState` s ikonou složky** („Nic tu není") — chaty jsou, jen
