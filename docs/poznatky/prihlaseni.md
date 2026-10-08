@@ -234,6 +234,9 @@ before authorization":
   musí ležet v `/data/local/tmp` a mít práva 666, do `cache/` aplikace ho `am` neotevře):
   `AuthViewModel` i `AuthScreen` (fáze `Connecting`) v něm jsou, `countries` ani `foldDiacritics`
   ne. Jména metod jsou v hlavičce trace čitelná, stačí `grep -a`.
+  Přihlášení ověřené odhlášením na emulátoru: ViewModel vzniklý ve stavu `Ready` po odhlášení
+  země dotáhl a předvybral Česko podle IP; seznam abecedně podle českých názvů, „cad" najde
+  Čad, „germ" Německo; totéž po studeném startu v odhlášeném stavu.
 - **Převod a řazení zemí běží na `Dispatchers.Default`** (`TdlTelegramSession.countries`).
   Odpověď TDLib se vrací na vlákno volajícího, tedy z `viewModelScope` na HLAVNÍ. Dvě stě zemí,
   u každé překlad názvu od systému (na Androidu první sáhnutí do dat CLDR) a řazení, které
