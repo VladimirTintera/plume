@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
@@ -217,6 +218,24 @@ interface AppSettings {
 
     /** Zapne nebo vypne odstraňování sledovacích parametrů. Neblokuje. */
     fun setStripTrackingParameters(enabled: Boolean)
+
+    /**
+     * Jak dlouho držet stažená média, na která se nesáhlo (Nastavení → Úložiště). Výchozí
+     * [KeepMedia.Forever] — aplikace bez výslovného přání nic nemaže.
+     */
+    val keepMedia: StateFlow<KeepMedia>
+
+    /** Uloží dobu uchování médií. Neblokuje. */
+    fun setKeepMedia(keep: KeepMedia)
+
+    /**
+     * Kdy naposledy proběhl automatický úklid médií (sekundy od epochy), `null` = nikdy.
+     * Úklid podle [keepMedia] stačí jednou denně, ne při každém startu.
+     */
+    val lastStorageCleanup: StateFlow<Long?>
+
+    /** Zapíše čas posledního úklidu. Neblokuje. */
+    fun setLastStorageCleanup(epochSeconds: Long)
 }
 
 /** Kolik nedávných emoji se drží. Zhruba pět řádků mřížky na telefonu. */
@@ -525,6 +544,26 @@ class DataStoreAppSettings(
         }
     }
 
+    override val keepMedia: StateFlow<KeepMedia> = value(KeepMedia.Forever) { preferences ->
+        KeepMedia.entries.firstOrNull { it.name == preferences[KEEP_MEDIA] } ?: KeepMedia.Forever
+    }
+
+    override fun setKeepMedia(keep: KeepMedia) {
+        scope.launch {
+            edit { preferences -> preferences[KEEP_MEDIA] = keep.name }
+        }
+    }
+
+    override val lastStorageCleanup: StateFlow<Long?> = value(null) { preferences ->
+        preferences[LAST_STORAGE_CLEANUP]
+    }
+
+    override fun setLastStorageCleanup(epochSeconds: Long) {
+        scope.launch {
+            edit { preferences -> preferences[LAST_STORAGE_CLEANUP] = epochSeconds }
+        }
+    }
+
     /** `základ:varianta` oddělené středníkem. Ani dvojtečka, ani středník v žádném emoji nejsou. */
     private fun String.decodeTones(): Map<String, String> =
         split(TONE_ENTRY_SEPARATOR)
@@ -564,6 +603,8 @@ class DataStoreAppSettings(
         val USED_ONE_TIME_KEYBOARDS = stringPreferencesKey("used_one_time_keyboards")
         val SEEN_GESTURE_HINTS = stringPreferencesKey("seen_gesture_hints")
         val STRIP_TRACKING_PARAMETERS = booleanPreferencesKey("strip_tracking_parameters")
+        val KEEP_MEDIA = stringPreferencesKey("keep_media")
+        val LAST_STORAGE_CLEANUP = longPreferencesKey("last_storage_cleanup")
         const val KEYBOARD_ENTRY_SEPARATOR = " "
         const val MAX_USED_KEYBOARDS = 200
         const val EMOJI_SEPARATOR = " "

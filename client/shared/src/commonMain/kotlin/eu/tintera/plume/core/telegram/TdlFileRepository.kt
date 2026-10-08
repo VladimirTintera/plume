@@ -218,7 +218,18 @@ class TdlFileRepository(
             else -> FileState.Pending
         }
 
-        stateOf(file.id).value = state
+        val flow = stateOf(file.id)
+        /*
+         * Hotový soubor, který přestal být hotový, někdo SMAZAL (úklid úložiště, `optimizeStorage`).
+         * Zapomene se, že se o něj žádalo — jinak by `request` u dalšího odběru skončil hned na
+         * začátku a obrázek by se už nikdy znovu nestáhl. Kdo ho zrovna kreslí, dostane `Pending`;
+         * nový odběr (otevřený chat) ho stáhne.
+         */
+        if (flow.value is FileState.Ready && state is FileState.Pending) {
+            mutex.withLock { requested.remove(file.id) }
+            logger.d { "Soubor ${file.id} zmizel z disku, příští odběr ho stáhne znovu" }
+        }
+        flow.value = state
 
         val fullSize = file.size.takeIf { it > 0 } ?: file.expectedSize
         if (looksFinished(local.isDownloadingActive, local.isDownloadingCompleted, local.downloadedSize, fullSize)) {

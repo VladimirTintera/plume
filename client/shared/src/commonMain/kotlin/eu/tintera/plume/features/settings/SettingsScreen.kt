@@ -25,6 +25,7 @@ import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.campaign_24dp
 import eu.tintera.plume.resources.devices_24dp
+import eu.tintera.plume.resources.hard_drive_24dp
 import eu.tintera.plume.resources.notifications_24dp
 import eu.tintera.plume.resources.palette_24dp
 import eu.tintera.plume.resources.settings_24dp
@@ -36,6 +37,8 @@ import eu.tintera.plume.resources.settings_section_general
 import eu.tintera.plume.resources.settings_section_general_summary
 import eu.tintera.plume.resources.settings_section_notifications
 import eu.tintera.plume.resources.settings_section_notifications_summary
+import eu.tintera.plume.resources.settings_section_storage
+import eu.tintera.plume.resources.settings_section_storage_summary
 import eu.tintera.plume.resources.settings_section_whats_new
 import eu.tintera.plume.resources.settings_section_whats_new_summary
 import eu.tintera.plume.resources.settings_title
@@ -164,6 +167,7 @@ internal val SettingsSection.title: StringResource
         SettingsSection.Notifications -> Res.string.settings_section_notifications
         SettingsSection.Appearance -> Res.string.settings_section_appearance
         SettingsSection.Devices -> Res.string.settings_section_devices
+        SettingsSection.Storage -> Res.string.settings_section_storage
         SettingsSection.WhatsNew -> Res.string.settings_section_whats_new
     }
 
@@ -177,6 +181,7 @@ private val SettingsSection.icon: DrawableResource
         SettingsSection.Notifications -> Res.drawable.notifications_24dp
         SettingsSection.Appearance -> Res.drawable.palette_24dp
         SettingsSection.Devices -> Res.drawable.devices_24dp
+        SettingsSection.Storage -> Res.drawable.hard_drive_24dp
         SettingsSection.WhatsNew -> Res.drawable.campaign_24dp
     }
 
@@ -187,6 +192,7 @@ private val SettingsSection.summary: StringResource
         SettingsSection.Notifications -> Res.string.settings_section_notifications_summary
         SettingsSection.Appearance -> Res.string.settings_section_appearance_summary
         SettingsSection.Devices -> Res.string.settings_section_devices_summary
+        SettingsSection.Storage -> Res.string.settings_section_storage_summary
         SettingsSection.WhatsNew -> Res.string.settings_section_whats_new_summary
     }
 

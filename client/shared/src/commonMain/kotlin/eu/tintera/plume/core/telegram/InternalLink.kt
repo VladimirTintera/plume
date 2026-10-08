@@ -106,7 +106,7 @@ sealed interface InternalLink {
 
 /** Obrazovka aplikace, na kterou vede odkaz [InternalLink.Screen]. */
 enum class AppScreen {
-    /** Nastavení na kořeni — i pro sekce, které Plume nemá (jazyk, úložiště, Premium…). */
+    /** Nastavení na kořeni — i pro sekce, které Plume nemá (jazyk, Premium…). */
     Settings,
     EditProfile,
     /** Soukromí je v Obecných, samostatná sekce není. */
@@ -114,6 +114,8 @@ enum class AppScreen {
     Notifications,
     Appearance,
     Devices,
+    /** Úložiště (`tg://settings/data_and_storage`). */
+    Storage,
     ChatFolders,
     /** Nová zpráva: kontakty a hledání lidí. */
     NewChat,

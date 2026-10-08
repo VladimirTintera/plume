@@ -13,7 +13,7 @@ přeposílání, připnuté zprávy, ankety a kvízy, témata ve skupinách), pr
 a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zprávy, stav spojení a jeho obnova po návratu z pozadí.
 
 Není: hlášení pádů z iOS. Notifikace na iOS (APNs) jsou napojené, ale čekají na certifikát APNs u Telegramu a ověření skutečným pushem.
-Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné, Notifikace, Vzhled, Zařízení a Co je nového; vědomě
+Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné, Notifikace, Vzhled, Zařízení, Úložiště a Co je nového; vědomě
 nastavitelné je téma aplikace (motiv a barvy z tapety), vyčlenění nepřečtených chatů do vlastního
 bloku a upozornění po rozsazích (soukromé chaty / skupiny / kanály) s výjimkami.
 Rozpracovaný detail chatu má vlastní seznam:
@@ -62,7 +62,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Sdílení do aplikace](docs/poznatky/sdileni.md) — ShareRequests, Direct Share a obrazovka „Komu: …“, iOS rozšíření a návrhy chatů
 - [Přihlášení a odhlášení](docs/poznatky/prihlaseni.md) — QR kód, přihlašovací obrazovka (kód, heslo, obnova, země), odhlášení a nový klient
 - [Šifrovaná databáze, spojení a proxy](docs/poznatky/databaze-spojeni-proxy.md) — klíč databáze a jeho migrace, stav spojení a obnova po pozadí, proxy a sponzorovaný chat
-- [Nastavení](docs/poznatky/nastaveni.md) — AppSettings (DataStore), obrazovka nastavení, soukromí, úprava profilu a ořez fotky, dvoufázové ověření, zařízení, „Co je nového“, synchronizace bez backendu (WebApp CloudStorage)
+- [Nastavení](docs/poznatky/nastaveni.md) — AppSettings (DataStore), obrazovka nastavení, soukromí, úprava profilu a ořez fotky, dvoufázové ověření, zařízení, úložiště, „Co je nového“, synchronizace bez backendu (WebApp CloudStorage)
 - [Zámek aplikace](docs/poznatky/zamek-aplikace.md) — PIN a biometrie, záznam v Keystore / Keychainu, kdy se zamyká, brzda pokusů, co zámek nechrání
 - [AI v zařízení](docs/poznatky/ai-v-zarizeni.md) — Gemini Nano a Gemma, stahování modelu, shrnutí a návrhy odpovědí
 - [Release, R8 a hlášení pádů](docs/poznatky/release.md) — vydání do Play, R8 a keep pravidla, Crashlytics, aktualizace z obchodu

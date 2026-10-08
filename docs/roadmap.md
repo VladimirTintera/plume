@@ -552,9 +552,10 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
 - **Automatické stahování médií** podle sítě (Wi-Fi / mobilní / roaming), druhu (fotky, videa,
   soubory) a velikosti, s ohledem na systémovou úsporu dat. Dnes je jediný strop 5 MB u GIFů
   a koleček (`autoPlays`). TDLib má vlastní přednastavení (`getAutoDownloadSettingsPresets`).
-- **Úložiště.** Kolik zabírá cache TDLib podle chatů a druhů (`getStorageStatistics`),
-  vyčištění a automatické mazání médií starších než N dní (`optimizeStorage`). Patří sem
-  i stažený model Gemmy, aby bylo vidět všechno na jednom místě.
+- ~~**Úložiště.**~~ — hotovo (Nastavení → Úložiště: zabrané místo po druzích a chatech, mazání
+  všude i v chatu, „Uchovávat média", model Gemmy; `docs/poznatky/nastaveni.md`, „Úložiště").
+  Zbývá **strop velikosti mezipaměti** (mazat nejstarší nad N GB) a ověřit automatický úklid
+  po dni na zařízení.
 - **Akce tahem v seznamu chatů pro každou stranu zvlášť** (archivovat, přečíst, ztlumit,
   připnout, nic). Dnes obě strany archivují, protože jiná akce nebyla (`docs/poznatky/seznam-chatu.md`, „Archiv");
   s volbou ten důvod padá. Výchozí zůstává archivace na obou stranách.
