@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -50,7 +51,7 @@ class AppLockViewModelTest {
         val clock = FakeClock()
         val foreground = MutableStateFlow(true)
         val auth = MutableStateFlow<AuthStage>(AuthStage.Ready)
-        val lock = AppLock(store, scope.backgroundScope, clock, iterations = 1, hashDispatcher = dispatcher)
+        val lock = AppLock(store, scope.backgroundScope, clock, iterations = 1, hashDispatcher = dispatcher, foregroundContext = EmptyCoroutineContext)
             .also { it.start(foreground, auth) }
         val vm = AppLockViewModel(lock)
     }

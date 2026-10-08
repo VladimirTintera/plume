@@ -14,8 +14,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.Clock
-import kotlin.time.TimeSource
 
 /** Co zámek právě ukazuje. */
 sealed interface AppLockState {
@@ -28,8 +28,8 @@ sealed interface AppLockState {
     data object Unlocked : AppLockState
 
     /**
-     * Zamčeno. [blockedUntil] je okamžik (ms od epochy), do kdy se nesmí zkoušet PIN, 0 = smí se
-     * hned; [biometrics] říká, jestli si uživatel zapnul odemykání otiskem nebo obličejem.
+     * Zamčeno. [blockedUntil] je okamžik v [LockClock.elapsedMillis], do kdy se nesmí zkoušet PIN,
+     * 0 = smí se hned; [biometrics] říká, jestli si uživatel zapnul odemykání otiskem nebo obličejem.
      */
     data class Locked(val blockedUntil: Long, val biometrics: Boolean) : AppLockState
 }
@@ -40,7 +40,10 @@ data class AppLockSettings(val timeoutSeconds: Int, val biometrics: Boolean)
 sealed interface PinResult {
     data object Success : PinResult
 
-    /** Špatný PIN; [blockedUntil] je konec brzdy, kterou tenhle pokus spustil (0 = žádná). */
+    /**
+     * Špatný PIN; [blockedUntil] je konec brzdy, kterou tenhle pokus spustil, v
+     * [LockClock.elapsedMillis] (0 = žádná).
+     */
     data class Wrong(val blockedUntil: Long) : PinResult
 
     /** Pokus se vůbec nezkoušel, brzda ještě běží. */
@@ -52,15 +55,21 @@ interface LockClock {
     /** Čas na zdi (ms od epochy) — běží i v hlubokém spánku, ale dá se přestavit. */
     fun wallMillis(): Long
 
-    /** Monotónní čas procesu (ms) — přestavit nejde, ale v hlubokém spánku stojí. */
+    /**
+     * Čas od startu systému (ms) včetně hlubokého spánku — přestavit nejde, ale restart ho vynuluje.
+     * Proto ne `TimeSource.Monotonic`: ten na Androidu stojí ve spánku (`nanoTime`) a telefon,
+     * který ležel přes noc, by hlásil „uběhlo pár vteřin".
+     */
     fun elapsedMillis(): Long
 }
 
 object SystemLockClock : LockClock {
-    private val start = TimeSource.Monotonic.markNow()
     override fun wallMillis(): Long = Clock.System.now().toEpochMilliseconds()
-    override fun elapsedMillis(): Long = start.elapsedNow().inWholeMilliseconds
+    override fun elapsedMillis(): Long = bootElapsedMillis()
 }
+
+/** Android `SystemClock.elapsedRealtime`, iOS `CLOCK_MONOTONIC` (na Darwinu běží i ve spánku). */
+internal expect fun bootElapsedMillis(): Long
 
 /** Doby, po kterých se aplikace v pozadí zamkne. „Hned" není: zamkl by ji každý výběr fotky. */
 val APP_LOCK_TIMEOUTS: List<Int> = listOf(60, 5 * 60, 60 * 60, 5 * 60 * 60)
@@ -88,18 +97,29 @@ internal fun blockFor(failures: Int): Long {
 }
 
 /**
- * Do kdy platí brzda. Hodiny na zdi jdou přestavit dozadu a brzda by se tím protáhla na dny —
- * víc, než kolik za daný počet pokusů smí trvat, proto se zkrátí.
+ * Kolik ms brzdy ještě zbývá v čase [now] ([LockClock.elapsedMillis]).
+ *
+ * Měří se čas od startu systému, ne čas na zdi: ten jde přestavit DOPŘEDU a každé posunutí
+ * hodin by dalo další pokus. Čas od startu přestavit nejde, jen ho vynuluje restart — a to se
+ * pozná podle toho, že je menší než při poslední chybě. Kolik času uběhlo před restartem, pak
+ * nevíme, jistě ale aspoň [now]; počítá se tedy, jako by chyba přišla těsně před ním. Restart tak
+ * brzdu nezruší a nikdy ji neprotáhne přes to, kolik za daný počet chyb smí trvat.
  */
-internal fun effectiveBlockedUntil(config: LockConfig, now: Long): Long {
-    if (config.blockedUntil <= now) return 0
-    return config.blockedUntil.coerceAtMost(now + blockFor(config.failures))
+internal fun blockRemaining(config: LockConfig, now: Long): Long {
+    val block = blockFor(config.failures)
+    if (block == 0L) return 0
+    val since = if (now >= config.failedAt) now - config.failedAt else now
+    return (block - since).coerceAtLeast(0)
 }
 
+/** Konec brzdy v [LockClock.elapsedMillis], 0 = žádná. */
+internal fun blockedUntil(config: LockConfig, now: Long): Long =
+    blockRemaining(config, now).let { if (it > 0) now + it else 0 }
+
 /**
- * Má se aplikace po návratu do popředí zamknout? Bere se DELŠÍ ze dvou měření: monotónní čas
- * v hlubokém spánku stojí (Android `nanoTime`), čas na zdi jde přestavit dozadu. Každé samo by
- * šlo obejít, obě naráz ne.
+ * Má se aplikace po návratu do popředí zamknout? Rozhoduje čas od startu systému, který přestavit
+ * nejde; čas na zdi se bere, když je delší — kdyby hodiny někdo posunul dopředu, zamkne se jen
+ * dřív.
  */
 internal fun shouldLockAfter(awayWallMs: Long, awayElapsedMs: Long, timeoutSeconds: Int): Boolean =
     maxOf(awayWallMs, awayElapsedMs) >= timeoutSeconds * 1000L
@@ -117,6 +137,12 @@ class AppLock(
     private val clock: LockClock = SystemLockClock,
     private val iterations: Int = PIN_ITERATIONS,
     private val hashDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    /**
+     * Na hlavním vlákně a `immediate`: návrat do popředí ohlásí `onStart` activity (iOS
+     * `didBecomeActive`) a zámek se tak nastaví ještě v tomtéž volání — dřív, než se vykreslí
+     * první snímek. Na jiném vlákně by se mohl stihnout vykreslit starý obsah.
+     */
+    private val foregroundContext: CoroutineContext = Dispatchers.Main.immediate,
 ) {
     private val logger = Logger.withTag("AppLock")
     private val mutex = Mutex()
@@ -142,7 +168,9 @@ class AppLock(
                     if (it is AuthStage.LoggingOut || it is AuthStage.WaitPhoneNumber) reset()
                 }
             }
-            foreground.collect { if (it) onForeground() else onBackground() }
+            withContext(foregroundContext) {
+                foreground.collect { if (it) onForeground() else onBackground() }
+            }
         }
     }
 
@@ -189,21 +217,19 @@ class AppLock(
 
     private suspend fun attempt(pin: String, unlock: Boolean): PinResult = mutex.withLock {
         val current = config ?: return@withLock PinResult.Success
-        val now = clock.wallMillis()
-        val blocked = effectiveBlockedUntil(current, now)
-        if (blocked > now) return@withLock PinResult.Blocked(blocked)
+        val now = clock.elapsedMillis()
+        val blocked = blockedUntil(current, now)
+        if (blocked > 0) return@withLock PinResult.Blocked(blocked)
         val hash = hash(pin, current.salt, current.iterations)
         if (constantTimeEquals(hash, current.hash)) {
-            save(current.copy(failures = 0, blockedUntil = 0))
+            save(current.copy(failures = 0, failedAt = 0))
             if (unlock) _state.value = AppLockState.Unlocked
             PinResult.Success
         } else {
-            val failures = current.failures + 1
-            val block = blockFor(failures)
-            val until = if (block > 0) now + block else 0
-            save(current.copy(failures = failures, blockedUntil = until))
+            val next = current.copy(failures = current.failures + 1, failedAt = now)
+            save(next)
             if (_state.value is AppLockState.Locked) _state.value = config!!.lockedState()
-            PinResult.Wrong(until)
+            PinResult.Wrong(blockedUntil(next, now))
         }
     }
 
@@ -214,7 +240,7 @@ class AppLock(
     suspend fun unlockWithBiometrics() = mutex.withLock {
         val current = config ?: return@withLock
         if (!current.biometrics) return@withLock
-        save(current.copy(failures = 0, blockedUntil = 0))
+        save(current.copy(failures = 0, failedAt = 0))
         _state.value = AppLockState.Unlocked
     }
 
@@ -234,7 +260,7 @@ class AppLock(
     suspend fun changePin(pin: String): Boolean = mutex.withLock {
         val current = config ?: return@withLock false
         val salt = store.generate()
-        save(current.copy(iterations = iterations, salt = salt, hash = hash(pin, salt, iterations), failures = 0, blockedUntil = 0))
+        save(current.copy(iterations = iterations, salt = salt, hash = hash(pin, salt, iterations), failures = 0, failedAt = 0))
     }
 
     suspend fun setTimeout(seconds: Int): Boolean = mutex.withLock {
@@ -279,5 +305,5 @@ class AppLock(
     private fun LockConfig.settings() = AppLockSettings(timeoutSeconds, biometrics)
 
     private fun LockConfig.lockedState() =
-        AppLockState.Locked(effectiveBlockedUntil(this, clock.wallMillis()), biometrics)
+        AppLockState.Locked(blockedUntil(this, clock.elapsedMillis()), biometrics)
 }

@@ -233,18 +233,18 @@ private fun VerifyCurrentPinContent(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
 
-    var now by remember { mutableLongStateOf(SystemLockClock.wallMillis()) }
+    var now by remember { mutableLongStateOf(SystemLockClock.elapsedMillis()) }
     val isBlocked = uiState.blockedUntil > now
     val remainingSeconds = if (isBlocked) {
         ((uiState.blockedUntil - now + 999) / 1000).coerceAtLeast(1)
     } else 0
 
     LaunchedEffect(uiState.blockedUntil) {
-        while (uiState.blockedUntil > SystemLockClock.wallMillis()) {
-            now = SystemLockClock.wallMillis()
+        while (uiState.blockedUntil > SystemLockClock.elapsedMillis()) {
+            now = SystemLockClock.elapsedMillis()
             delay(500L)
         }
-        now = SystemLockClock.wallMillis()
+        now = SystemLockClock.elapsedMillis()
     }
 
     Column(
