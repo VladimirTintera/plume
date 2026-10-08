@@ -57,9 +57,11 @@ skupina a Nová zpráva.
   se rovnou VYBERE — kdo si přidá „Nepřečtené", chce je vidět.
 - **Sheet říká, že se složka synchronizuje** s ostatními klienty. U filtru, který dřív žil jen
   v Plume, by to nikdo nečekal.
-- **Řádek složek se kreslí i bez složek** („Všechny chaty" a „+"), jinak by k doporučeným
-  nevedla z hlavního seznamu žádná cesta. Samotné „Všechny chaty" má plný tvar, ne půlku
-  spojené skupiny (`ToggleButtonDefaults.shapes()`).
+- **Bez složek se řádek NEKRESLÍ** (`folderTabs` vrátí prázdný seznam). Dřív v něm stálo
+  samotné „Všechny chaty" a „+", aby k doporučeným složkám vedla cesta z hlavního seznamu —
+  jenže jediné tlačítko, které nejde odvybrat, není volba, jen řádek místa navíc nad chaty
+  u každého, kdo složky nepoužívá. Uživatel ho chtěl pryč. Doporučené složky dál nabízí
+  Nastavení → Obecné → Složky chatů; po přidání první složky se řádek objeví i s „+".
 - **„+" je mimo spojenou skupinu** (`OutlinedIconButton` s odstupem): je to akce, ne volba;
   ve skupině by se tvářil jako další složka.
 - **Prázdná složka má `IntroEmptyState` s ikonou složky** („Nic tu není") — chaty jsou, jen
@@ -95,8 +97,8 @@ skupina a Nová zpráva.
 
 Složky Telegramu (`ChatListFolder`) jsou řádek přepínacích tlačítek pod pilulkou hledání:
 „Všechny chaty · Práce 3 · Rodina…" (`ChatFolderRow`, pravidla `folderTabs` a `selectedFolderId`
-v `ChatFolderTabs.kt`, testy `ChatFolderTabsTest`). Bez složek je v řádku jen „Všechny chaty"
-a „+" (viz „Složky místo filtrů a FAB").
+v `ChatFolderTabs.kt`, testy `ChatFolderTabsTest`). Bez složek se řádek nekreslí vůbec
+(viz „Složky místo filtrů a FAB").
 
 - **Složka je další `ChatFolder` (`Custom(id)`), ne nový druh seznamu.** Repository drží pozice
   chatu ve VŠECH seznamech, které TDLib hlásí (`positions`), takže seznam složky se skládá

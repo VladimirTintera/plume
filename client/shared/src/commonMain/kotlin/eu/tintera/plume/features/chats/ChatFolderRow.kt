@@ -20,7 +20,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -51,6 +50,7 @@ import org.jetbrains.compose.resources.stringResource
  * - **Je to JEDINÉ zúžení seznamu chatů.** Dřív byly navíc filtry v plovoucím toolbaru dole
  *   (Nepřečtené, Lidé, Skupiny, Kanály) a dělaly totéž co doporučené složky, jen lokálně —
  *   dvě úrovně nad sebou mátly. Teď je na konci řádku „+" ([onAdd]) s doporučenými složkami.
+ * - **Bez složek se řádek nekreslí** (viz [folderTabs]); cesta k doporučeným vede přes Nastavení.
  * - **„+" stojí mimo skupinu tlačítek.** Není to volba, ale akce; ve spojené skupině by se tvářil
  *   jako další složka, kterou jde vybrat.
  * - **Číslo je počet nepřečtených neztlumených chatů**, ne zpráv (viz [FolderTab]).
@@ -84,8 +84,6 @@ internal fun ChatFolderRow(
                 checked = tab.selected,
                 onCheckedChange = { if (!tab.selected) onSelect(tab.id) },
                 shapes = when {
-                    // Bez složek je v řádku jen celý seznam: sám, ne půlka spojené skupiny.
-                    tabs.size == 1 -> ToggleButtonDefaults.shapes()
                     index == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
                     index == tabs.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
                     else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
