@@ -1,6 +1,7 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.core.logging.configureLogging
+import eu.tintera.plume.core.storage.StorageCleaner
 import eu.tintera.plume.core.telegram.ConnectionController
 import eu.tintera.plume.core.telegram.NotificationPresenter
 import eu.tintera.plume.core.telegram.NotificationRepository
@@ -41,5 +42,9 @@ fun startKoin(configure: KoinApplication.() -> Unit = {}): KoinApplication {
         // síť se mění i tehdy, když se žádné UI neskládá, a návrat do popředí je jediná chvíle,
         // kdy se dá poznat spojení, které systém mezitím zabil.
         koin.get<ConnectionController>().start()
+
+        // Úklid starých médií podle „Uchovávat média". Od startu procesu ze stejného důvodu:
+        // aplikace může běžet dny, aniž by se otevřelo Nastavení.
+        koin.get<StorageCleaner>().start()
     }
 }

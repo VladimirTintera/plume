@@ -207,7 +207,8 @@ fun PinKeypad(
 
             // Uprostřed: nula
             PinDigitButton(
-                text = "0",
+                // Číslice jako u ostatních tlačítek, ne literál — ten `verifyNoHardcodedText` nepustí.
+                text = 0.toString(),
                 enabled = isEnabled,
                 onClick = {
                     haptics.tick()

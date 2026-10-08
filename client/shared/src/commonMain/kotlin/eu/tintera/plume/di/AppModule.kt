@@ -42,6 +42,10 @@ import eu.tintera.plume.core.telegram.TdlSensitiveContentSettings
 import eu.tintera.plume.core.telegram.TdlNotificationSettingsRepository
 import eu.tintera.plume.core.telegram.TdlDeviceRepository
 import eu.tintera.plume.features.devices.DevicesViewModel
+import eu.tintera.plume.features.settings.StorageViewModel
+import eu.tintera.plume.core.storage.StorageCleaner
+import eu.tintera.plume.core.telegram.StorageRepository
+import eu.tintera.plume.core.telegram.TdlStorageRepository
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
 import eu.tintera.plume.features.conversation.InlineQueryRequests
 import eu.tintera.plume.features.conversation.SwitchInlinePickerViewModel
@@ -290,6 +294,16 @@ fun appModule() = module {
     single<ChatCreation> { TdlChatCreation(holder = get()) }
     single<AccountRepository> { TdlAccountRepository(holder = get()) }
     single<ProxyRepository> { TdlProxyRepository(holder = get()) }
+    single<StorageRepository> { TdlStorageRepository(holder = get()) }
+    single {
+        StorageCleaner(
+            repository = get(),
+            settings = get(),
+            session = get(),
+            foreground = get(),
+            scope = get(named(APP_SCOPE)),
+        )
+    }
     // Eager: nepotvrzené přihlášení TDLib ohlásí hned po startu (viz TdlDeviceRepository).
     single<DeviceRepository>(createdAtStart = true) {
         TdlDeviceRepository(holder = get(), scope = get(named(APP_SCOPE)))
@@ -359,6 +373,7 @@ fun appModule() = module {
     viewModelOf(::AppLockViewModel)
     viewModelOf(::AppearanceViewModel)
     viewModelOf(::DevicesViewModel)
+    viewModelOf(::StorageViewModel)
     viewModelOf(::NotificationSettingsViewModel)
     viewModelOf(::EditProfileViewModel)
     // Model v zařízení (core/ai). Stahování modelu běží v aplikačním rozsahu — trvá minuty.

@@ -462,3 +462,43 @@ click ID a trackery sociálních sítí / sdílení).
   výchozí hodnota `true`). Přepínač je v Nastavení → Soukromí a bezpečnost pod zprávami (`StripTrackingParametersRow`).
 
 
+
+## Úložiště (`features/settings/StorageSettings`)
+
+Šestá sekce Nastavení: kolik zabírají stažené soubory po druzích a po chatech, databáze zpráv,
+mazání mezipaměti (všude i v jednom chatu), „Uchovávat média" (3 dny / týden / měsíc / navždy)
+a stažený model Gemmy. Hranice je `StorageRepository` (`TdlStorageRepository`: `getStorageStatistics*`
+a `optimizeStorage`), pravidla jsou čisté funkce v `core/telegram/Storage.kt` a `cleanupDue`
+(testy `StorageTest`, `StorageCleanerTest`). Odkaz `tg://settings/data_and_storage` vede sem.
+
+- **Rychlý přehled (`getStorageStatisticsFast`) velikost SOUBORŮ neříká pravdu.** Na emulátoru
+  hlásil 12 MB, podrobný přehled pak 65 MB — velké číslo skákalo o pětinásobek. Z rychlého
+  přehledu se proto bere jen databáze (ta sedí), součet souborů až z podrobného, který prochází
+  celý adresář (na emulátoru ~5 s). Mezitím je v kartě „Počítám soubory…".
+- **Úklid podle stáří volá `optimizeStorage` aplikace sama** (`StorageCleaner`, ze `startKoin`,
+  nejvýš jednou denně při návratu do popředí a hned po změně volby). TDLib by uměl uklízet sám
+  (`use_storage_optimizer`), ale meze bere z voleb `storage_max_files_size` / `storage_max_file_count`
+  s nepopsanými výchozími hodnotami — úklid podle stáří by pak mohl mazat i podle velikosti. Proto
+  `size = Long.MAX_VALUE`, `count = Int.MAX_VALUE` výslovně; s `-1` by platily ty volby.
+- **Ruční mazání posílá druhy souborů VŽDY výslovně.** Prázdný `fileTypes` znamená pro TDLib
+  „výchozí výběr" (všechno kromě náhledů, avatarů, samolepek a tapet) — mazalo by i to, co uživatel
+  odškrtl. Nuly u `size`, `ttl`, `count` a `immunityDelay` = smazat všechno z výběru bez ohledu
+  na stáří; `returnDeletedFileStatistics` dá „uvolněno N MB".
+- **Smazaný soubor se musí dát stáhnout znovu.** `TdlFileRepository` si pamatuje, o které soubory
+  už žádal, a `request` u dalšího odběru skončil hned na začátku — smazaný obrázek by se už nikdy
+  nestáhl. Hotový soubor, který TDLib updatem ohlásí jako nehotový, se proto z té paměti vyřadí.
+  Po mazání se zahodí i `knownPaths` v `RemoteImage` (cesty ke smazaným souborům).
+- **Chaty bez přiřazení jsou jeden řádek „Ostatní chaty a soubory"** (TDLib je vrací s id 0,
+  i víckrát) a smazat ho nejde: `optimizeStorage` s chatem 0 maže soubory MIMO chaty, ne „ostatní
+  chaty". Na emulátoru TDLib přiřadil chatům jen část souborů (7 chatů z limitu 30, zbytek 58 MB
+  v ostatních) — soubory bez známého chatu nemá k čemu přiřadit.
+- **Předvybrané mazání jsou média**, ne samolepky a „Ostatní" (avatary, náhledy): malé a pořád
+  potřebné, po smazání by se seznam chatů kreslil bez fotek, než se znovu stáhnou.
+- **Databáze se nemaže**: TDLib na to volání nemá, zmizí jen s odhlášením. Řádek to říká.
+- **Neznámá doba uchování spadne na „navždy"** (`KeepMedia`, ukládá se názvem) — volba z novější
+  verze nesmí znamenat mazání.
+- **Ověřeno na emulátoru** (česky): přehled po druzích a chatech, Uložené zprávy se záložkou,
+  mazání souborů chatu s testovacím botem (3,2 MB, přehled se přepočítal na avatary). Emulátor
+  (Pixel_9, 4 GB) byl při tom přetížený (swap 1 GB, `Console.app` na hostiteli ~270 % CPU) a hlásil
+  ANR celého systému — hlavní vlákno aplikace přitom čekalo v `epoll_wait`, ověřeno
+  `run-as … cat /proc/<pid>/task/<pid>/wchan`. iOS jen přeložené.

@@ -93,6 +93,7 @@ class AppNavigation internal constructor(
             AppScreen.Notifications -> openSettingsAt(SettingsSection.Notifications)
             AppScreen.Appearance -> openSettingsAt(SettingsSection.Appearance)
             AppScreen.Devices -> openSettingsAt(SettingsSection.Devices)
+            AppScreen.Storage -> openSettingsAt(SettingsSection.Storage)
             AppScreen.EditProfile -> openSettingsAt(SettingsSection.General, EditProfileRoute)
             AppScreen.ChatFolders -> openChatFolders()
             AppScreen.NewChat -> openInChats(NewChatRoute)

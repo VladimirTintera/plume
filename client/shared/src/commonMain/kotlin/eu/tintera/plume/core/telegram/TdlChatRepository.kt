@@ -1787,7 +1787,7 @@ internal fun ChatType.chatKind(): ChatKind = when (this) {
 private data class ActivitySource(val senderId: Long, val topicId: Int?)
 
 /**
- * Sekce Nastavení z odkazu `tg://settings/…`. Co Plume nemá (jazyk, úložiště, Premium, hvězdy…),
+ * Sekce Nastavení z odkazu `tg://settings/…`. Co Plume nemá (jazyk, Premium, hvězdy…),
  * otevře Nastavení na kořeni — lepší než prohlížeč, který s `tg://` nic neudělá. `when` je bez
  * `else`: nová sekce v novější TDLib rozbije překlad, místo aby tiše skončila na kořeni.
  */
@@ -1799,7 +1799,8 @@ private fun SettingsSection?.toAppScreen(): AppScreen = when (this) {
     is SettingsSectionAppearance -> AppScreen.Appearance
     is SettingsSectionDevices, is SettingsSectionQrCode -> AppScreen.Devices
     is SettingsSectionChatFolders -> AppScreen.ChatFolders
-    is SettingsSectionAskQuestion, is SettingsSectionBusiness, is SettingsSectionDataAndStorage,
+    is SettingsSectionDataAndStorage -> AppScreen.Storage
+    is SettingsSectionAskQuestion, is SettingsSectionBusiness,
     is SettingsSectionFaq, is SettingsSectionFeatures, is SettingsSectionInAppBrowser,
     is SettingsSectionLanguage, is SettingsSectionMyGrams, is SettingsSectionMyStars,
     is SettingsSectionPowerSaving, is SettingsSectionPremium, is SettingsSectionPrivacyPolicy,

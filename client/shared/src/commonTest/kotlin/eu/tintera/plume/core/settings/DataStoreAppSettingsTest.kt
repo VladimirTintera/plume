@@ -271,6 +271,45 @@ class DataStoreAppSettingsTest {
         )
     }
 
+    @Test
+    fun uchovaniMediiJeVychoziNavzdy() = settingsTest { settings, _ ->
+        assertEquals(KeepMedia.Forever, settings.keepMedia.value)
+        assertEquals(null, settings.lastStorageCleanup.value)
+    }
+
+    @Test
+    fun uchovaniMediiACasUklidSeUlozi() = settingsTest { settings, _ ->
+        settings.setKeepMedia(KeepMedia.Week)
+        settings.setLastStorageCleanup(1_700_000_000)
+        assertEquals(KeepMedia.Week, settings.keepMedia.awaitValue("uložený týden") { it == KeepMedia.Week })
+        assertEquals(
+            1_700_000_000L,
+            settings.lastStorageCleanup.awaitValue("čas úklidu") { it == 1_700_000_000L },
+        )
+    }
+
+    /** Doba, kterou tahle verze nezná, nesmí znamenat mazání — spadne na „navždy". */
+    @Test
+    fun neznameUchovaniSpadneNaNavzdy() = runBlocking {
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            val dataStore = createSettingsDataStore(tempPath())
+            val settings = DataStoreAppSettings(dataStore, scope)
+
+            settings.setKeepMedia(KeepMedia.ThreeDays)
+            settings.keepMedia.awaitValue("uložené tři dny") { it == KeepMedia.ThreeDays }
+
+            withTimeout(WAIT_MS) { dataStore.edit { it[stringPreferencesKey("keep_media")] = "Hour" } }
+
+            assertEquals(
+                KeepMedia.Forever,
+                settings.keepMedia.awaitValue("pád na navždy") { it == KeepMedia.Forever },
+            )
+        } finally {
+            scope.cancel()
+        }
+    }
+
     /** Barva, kterou tahle verze nezná (z novější), spadne na výchozí — přechodem, viz výš. */
     @Test
     fun neznamaBarvaMotivuSpadneNaVychozi() = runBlocking {

@@ -70,6 +70,7 @@ fun SettingsSectionScreen(
                 SettingsSection.Notifications -> NotificationSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
                 SettingsSection.Appearance -> AppearanceSettings(viewModel = koinViewModel())
                 SettingsSection.Devices -> DevicesSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
+                SettingsSection.Storage -> StorageSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
                 SettingsSection.WhatsNew -> WhatsNewSettings()
             }
         }
