@@ -20,6 +20,7 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.NotificationIntents
 import eu.tintera.plume.core.notifications.channelId
+import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.notification_call_decline
 import eu.tintera.plume.resources.notification_call_answer_elsewhere
 import eu.tintera.plume.resources.notification_call_voice
@@ -42,7 +43,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.jetbrains.compose.resources.getString
 
 /**
  * Zobrazuje notifikace v Androidu.
@@ -274,7 +274,7 @@ actual class NotificationPresenter(
         // co bychom dopočítávali z id chatu.
         val isGroup = conversation.lines.any { !it.isOwn && it.sender != null }
 
-        val style = NotificationCompat.MessagingStyle(Person.Builder().setName(getString(Res.string.notification_self_name)).build())
+        val style = NotificationCompat.MessagingStyle(Person.Builder().setName(readString(Res.string.notification_self_name)).build())
             .setGroupConversation(isGroup)
             // V soukromém chatu je název chatu totéž co jméno odesílatele u každého řádku —
             // vypsat ho i do hlavičky by ho zdvojilo.
@@ -369,16 +369,16 @@ actual class NotificationPresenter(
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
         if (!granted) return
-        val name = call.callerName.ifBlank { getString(Res.string.notification_call_unknown) }
+        val name = call.callerName.ifBlank { readString(Res.string.notification_call_unknown) }
         val built = NotificationCompat.Builder(context, CALLS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setLargeIcon(avatarBitmap(call.avatarPath))
             .setContentTitle(name)
-            .setContentText(getString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice))
+            .setContentText(readString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice))
             .setStyle(
                 NotificationCompat.BigTextStyle().bigText(
-                    getString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice) +
-                        "\n" + getString(Res.string.notification_call_answer_elsewhere),
+                    readString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice) +
+                        "\n" + readString(Res.string.notification_call_answer_elsewhere),
                 ),
             )
             .setCategory(NotificationCompat.CATEGORY_CALL)
@@ -389,7 +389,7 @@ actual class NotificationPresenter(
             .addAction(
                 NotificationCompat.Action.Builder(
                     IconCompat.createWithResource(context, R.drawable.ic_notification_mute),
-                    getString(Res.string.notification_call_decline),
+                    readString(Res.string.notification_call_decline),
                     NotificationIntents.declineCall(context, call.groupId, call.chatId, call.callId, call.isVideo),
                 )
                     .setShowsUserInterface(false)
@@ -417,7 +417,7 @@ actual class NotificationPresenter(
      * a notifikace upozorní znovu: selhání je jediné, co uživatel zaregistrovat musí.
      */
     suspend fun showReplyFailed(groupId: Int, text: String) = withContext(dispatcher) {
-        appendOwnLine(groupId, getString(Res.string.notification_reply_failed, text), silent = false, replacing = text)
+        appendOwnLine(groupId, readString(Res.string.notification_reply_failed, text), silent = false, replacing = text)
     }
 
     private suspend fun appendOwnLine(groupId: Int, text: String, silent: Boolean, replacing: String? = null) {
@@ -462,7 +462,7 @@ actual class NotificationPresenter(
             replyToMessageId = replyToMessageId,
             topicId = topicId,
         )
-        val label = getString(Res.string.notification_reply)
+        val label = readString(Res.string.notification_reply)
         val input = RemoteInput.Builder(NotificationIntents.KEY_REPLY_TEXT)
             .setLabel(label)
             .build()
@@ -488,7 +488,7 @@ actual class NotificationPresenter(
     private suspend fun markReadAction(groupId: Int, chatId: Long, messageId: Long?): NotificationCompat.Action =
         NotificationCompat.Action.Builder(
             IconCompat.createWithResource(context, R.drawable.ic_notification_mark_read),
-            getString(Res.string.notification_mark_read),
+            readString(Res.string.notification_mark_read),
             NotificationIntents.markRead(context, groupId = groupId, chatId = chatId, messageId = messageId),
         )
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ)
@@ -501,7 +501,7 @@ actual class NotificationPresenter(
     private suspend fun muteAction(groupId: Int, chatId: Long): NotificationCompat.Action =
         NotificationCompat.Action.Builder(
             IconCompat.createWithResource(context, R.drawable.ic_notification_mute),
-            getString(Res.string.notification_mute_hour),
+            readString(Res.string.notification_mute_hour),
             NotificationIntents.mute(context, groupId = groupId, chatId = chatId),
         )
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MUTE)

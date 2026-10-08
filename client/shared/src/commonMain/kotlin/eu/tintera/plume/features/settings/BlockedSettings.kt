@@ -42,6 +42,7 @@ import eu.tintera.plume.core.ui.GROUP_SPACING
 import eu.tintera.plume.core.ui.PickerSection
 import eu.tintera.plume.core.ui.SheetActionRow
 import eu.tintera.plume.core.ui.avatarShape
+import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.settings_default_auto_delete_explanation
 import eu.tintera.plume.resources.settings_default_auto_delete_failed
@@ -88,7 +89,6 @@ import eu.tintera.plume.resources.settings_sensitive_content_failed
 import eu.tintera.plume.resources.settings_sensitive_content_summary
 import eu.tintera.plume.resources.visibility_24dp
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -291,8 +291,8 @@ fun BlockedSendersScreen(
         viewModel.consumeUnblocked()
         snackbarScope.launch {
             val result = snackbarHostState.showSnackbar(
-                message = getString(Res.string.chats_unblocked),
-                actionLabel = getString(Res.string.chats_undo),
+                message = readString(Res.string.chats_unblocked),
+                actionLabel = readString(Res.string.chats_undo),
                 duration = SnackbarDuration.Short,
             )
             if (result == SnackbarResult.ActionPerformed) viewModel.undoUnblock(sender)

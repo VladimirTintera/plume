@@ -46,6 +46,7 @@ import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.ui.PinDots
 import eu.tintera.plume.core.ui.PinKeypad
 import eu.tintera.plume.core.ui.confirm
+import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.core.ui.reject
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.app_lock_biometrics_prompt
@@ -55,7 +56,6 @@ import eu.tintera.plume.resources.app_lock_wrong_pin
 import eu.tintera.plume.resources.lock_24dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -94,7 +94,7 @@ fun LockScreen(
         if (!autoPrompted && lockedState.biometrics && biometricAuth.isSupported) {
             autoPrompted = true
             val success = biometricAuth.authenticate(
-                title = getString(Res.string.app_lock_biometrics_prompt),
+                title = readString(Res.string.app_lock_biometrics_prompt),
             )
             if (success) {
                 haptics.confirm()
@@ -204,7 +204,7 @@ fun LockScreen(
                                 is PinResult.Wrong -> {
                                     haptics.reject()
                                     errorTrigger++
-                                    errorMessage = getString(Res.string.app_lock_wrong_pin)
+                                    errorMessage = readString(Res.string.app_lock_wrong_pin)
                                     enteredPin = ""
                                     isChecking = false
                                 }
@@ -228,7 +228,7 @@ fun LockScreen(
                 onBiometrics = {
                     scope.launch {
                         val success = biometricAuth.authenticate(
-                            title = getString(Res.string.app_lock_biometrics_prompt),
+                            title = readString(Res.string.app_lock_biometrics_prompt),
                         )
                         if (success) {
                             haptics.confirm()

@@ -6,6 +6,7 @@ import android.content.Context
 import android.os.Build
 import eu.tintera.plume.core.share.shortcutId
 import eu.tintera.plume.core.telegram.NotificationChannelKind
+import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notification_channel_calls
 import eu.tintera.plume.resources.notification_channel_calls_description
@@ -19,7 +20,6 @@ import eu.tintera.plume.resources.notification_channel_model_download
 import eu.tintera.plume.resources.notification_channel_model_download_description
 import eu.tintera.plume.resources.notification_channel_private
 import eu.tintera.plume.resources.notification_channel_private_description
-import org.jetbrains.compose.resources.getString
 
 /**
  * Id systémového kanálu. **Nesmí se měnit**: kanál s novým id je pro systém jiný kanál a co si
@@ -55,19 +55,19 @@ suspend fun createNotificationChannels(context: Context) {
         }
         val channel = NotificationChannel(
             kind.channelId,
-            getString(name),
+            readString(name),
             // Kanály telegramových kanálů jen tiše do lišty: příspěvků chodí hodně a málokdy
             // na ně člověk musí hned reagovat. Kdo chce víc, přepne si to v systému.
             if (kind == NotificationChannelKind.Channels) NotificationManager.IMPORTANCE_DEFAULT
             else NotificationManager.IMPORTANCE_HIGH,
-        ).apply { this.description = getString(description) }
+        ).apply { this.description = readString(description) }
         manager.createNotificationChannel(channel)
     }
     // Hovory mají kanál zvlášť: zvoní jinak než zprávy a kdo hovory v Plume nechce (přijmout
     // je stejně nejde), vypne si jen tenhle.
     manager.createNotificationChannel(
-        NotificationChannel(CALLS_CHANNEL_ID, getString(Res.string.notification_channel_calls), NotificationManager.IMPORTANCE_HIGH)
-            .apply { description = getString(Res.string.notification_channel_calls_description) },
+        NotificationChannel(CALLS_CHANNEL_ID, readString(Res.string.notification_channel_calls), NotificationManager.IMPORTANCE_HIGH)
+            .apply { description = readString(Res.string.notification_channel_calls_description) },
     )
     createModelDownloadChannel(context)
     // Jediný kanál z dřívějška — jinak by v systémovém nastavení visel jako prázdná položka.
@@ -138,8 +138,8 @@ suspend fun createModelDownloadChannel(context: Context) {
     context.getSystemService(NotificationManager::class.java).createNotificationChannel(
         NotificationChannel(
             MODEL_DOWNLOAD_CHANNEL_ID,
-            getString(Res.string.notification_channel_model_download),
+            readString(Res.string.notification_channel_model_download),
             NotificationManager.IMPORTANCE_LOW,
-        ).apply { description = getString(Res.string.notification_channel_model_download_description) },
+        ).apply { description = readString(Res.string.notification_channel_model_download_description) },
     )
 }

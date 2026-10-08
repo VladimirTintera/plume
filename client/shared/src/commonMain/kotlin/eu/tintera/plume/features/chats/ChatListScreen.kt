@@ -17,6 +17,8 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.tintera.plume.core.ui.RollingNumber
+import eu.tintera.plume.core.ui.readPluralString
+import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.campaign_24dp
 import eu.tintera.plume.resources.chats_create
 import eu.tintera.plume.resources.close_24dp
@@ -212,8 +214,6 @@ import eu.tintera.plume.resources.person_24dp
 import eu.tintera.plume.resources.settings_24dp
 import org.jetbrains.compose.resources.DrawableResource
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.getPluralString
-import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -858,15 +858,15 @@ internal fun ChatActionsHost(
         snackbarScope.launch {
             val result = snackbarHostState.showSnackbar(
                 message = when {
-                    change.chatIds.size > 1 -> getPluralString(
+                    change.chatIds.size > 1 -> readPluralString(
                         if (change.archived) Res.plurals.chats_archived_many else Res.plurals.chats_unarchived_many,
                         change.chatIds.size,
                         change.chatIds.size,
                     )
-                    change.archived -> getString(Res.string.chats_archived)
-                    else -> getString(Res.string.chats_unarchived)
+                    change.archived -> readString(Res.string.chats_archived)
+                    else -> readString(Res.string.chats_unarchived)
                 },
-                actionLabel = getString(Res.string.chats_undo),
+                actionLabel = readString(Res.string.chats_undo),
                 duration = SnackbarDuration.Short,
             )
             if (result == SnackbarResult.ActionPerformed) viewModel.undoArchive(change)
@@ -883,8 +883,8 @@ internal fun ChatActionsHost(
         viewModel.consumeBlocked()
         snackbarScope.launch {
             val result = snackbarHostState.showSnackbar(
-                message = getString(if (change.blocked) Res.string.chats_blocked else Res.string.chats_unblocked),
-                actionLabel = getString(Res.string.chats_undo),
+                message = readString(if (change.blocked) Res.string.chats_blocked else Res.string.chats_unblocked),
+                actionLabel = readString(Res.string.chats_undo),
                 duration = SnackbarDuration.Short,
             )
             if (result == SnackbarResult.ActionPerformed) viewModel.undoBlock(change)

@@ -191,6 +191,7 @@ import dev.g000sha256.tdl.dto.ThumbnailFormatMpeg4
 import dev.g000sha256.tdl.dto.ThumbnailFormatPng
 import dev.g000sha256.tdl.dto.ThumbnailFormatWebp
 import eu.tintera.plume.core.audio.decodeWaveform
+import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.content_album
 import eu.tintera.plume.resources.content_audio
@@ -227,7 +228,6 @@ import eu.tintera.plume.resources.media_photo
 import eu.tintera.plume.resources.media_sticker
 import eu.tintera.plume.resources.media_video
 import eu.tintera.plume.resources.notification_new_message
-import org.jetbrains.compose.resources.getString
 import co.touchlab.kermit.Logger
 import kotlin.concurrent.Volatile
 
@@ -523,12 +523,12 @@ internal suspend fun Message.captionBody(
     is MessageRichMessage -> (fullArticle ?: content.message).let { article ->
         article.blocks.toRichBody(
             RichMediaLabels(
-                photo = getString(Res.string.media_photo),
-                video = getString(Res.string.media_video),
-                gif = getString(Res.string.content_gif),
-                audio = getString(Res.string.content_audio),
-                voice = getString(Res.string.conversation_voice_message),
-                file = getString(Res.string.content_file),
+                photo = readString(Res.string.media_photo),
+                video = readString(Res.string.media_video),
+                gif = readString(Res.string.content_gif),
+                audio = readString(Res.string.content_audio),
+                voice = readString(Res.string.conversation_voice_message),
+                file = readString(Res.string.content_file),
             ),
             isFull = article.isFull,
             hideSensitive = hideSensitive,
@@ -804,10 +804,10 @@ internal suspend fun Message.messageMedia(
     is MessagePaidMedia -> content.toPaidMedia(hideSensitive)
 
     is MessageDocument -> content.document.toMedia(
-        fileName = content.document.fileName.ifBlank { getString(Res.string.content_file) },
+        fileName = content.document.fileName.ifBlank { readString(Res.string.content_file) },
     ).copy(isSensitive = hideSensitive)
 
-    is MessageAudio -> content.audio.toMedia(fallbackName = getString(Res.string.content_audio))
+    is MessageAudio -> content.audio.toMedia(fallbackName = readString(Res.string.content_audio))
     is MessageVoiceNote -> content.voiceNote.toMedia(isListened = content.isListened)
     is MessageSticker -> content.sticker.toMedia().copy(isSensitive = hideSensitive)
 

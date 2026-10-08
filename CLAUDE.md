@@ -288,6 +288,20 @@ který uvidí uživatel.
     popis z nich ven nepatří (u ankety to platilo odjakživa).
   - **Mimo kompozici se překládá `resolveNow()`** (`suspend`, jazyk platný TEĎ): notifikace,
     snackbar, přepis pro AI shrnutí a návrhy odpovědí. Výsledek se nikam neukládá.
+  - **Suspend text z prostředků se čte JEN přes `readString` / `readPluralString`**
+    (`core/ui/ResourceStrings.kt`), nikdy přímým `getString` — hlídá to
+    `verifyResourceReadsOffMain` na `check`. Přímé `getString` z korutiny na `Dispatchers.Main`
+    (snackbar z `LaunchedEffect`, ViewModel) zamklo aplikaci natrvalo: ANR, hlavní vlákno
+    v `stringResource` → `runBlocking`. Compose Resources 1.12 čte `stringResource` blokujícím
+    `runBlocking` a mezipaměť (`AsyncCache`) hlídá `Mutex` z kotlinx, který při odemčení zámek
+    PŘEDÁ první čekající korutině a probudí ji přes JEJÍ dispatcher. Čekala-li na Main, zámek
+    je její, jenže hlavní vlákno blokuje `runBlocking`, který čeká právě na něj. Stačí k tomu
+    třetí čtení na pozadí (notifikace), které zámek zrovna drží. `readString` čte na
+    `Dispatchers.Default`, takže se zámek předává vláknu, které běží. Mechanismus modeluje
+    `ResourceReadDeadlockTest` (s čtenářem na Main blokující čtení nedoběhne, přesunutým ano);
+    upstream [CMP-6615](https://youtrack.jetbrains.com/issue/CMP-6615), opravené až
+    v 1.13.0-alpha01 (zámek bez předávání, JetBrains/compose-multiplatform#5691) — **1.12.1
+    opravu nemá**. Až projekt dojde na 1.13, obcházka i test můžou pryč.
   - **Vědomé výjimky, které zůstávají řetězcem:** náhradní název souboru a skladby bez jména
     („Soubor", „Audio" — je to jméno, pod kterým se soubor ukládá a které dostává systémový
     přehrávač) a štítky médií uvnitř článku („[Fotka]" — leží uprostřed textu s entitami

@@ -3,6 +3,7 @@ package eu.tintera.plume.features.media
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.core.ui.tick
 import eu.tintera.plume.core.navigation.NO_START
 import eu.tintera.plume.core.telegram.customEmojiIdOf
@@ -139,7 +140,6 @@ import eu.tintera.plume.resources.menu_more_reactions
 import eu.tintera.plume.resources.sender_you
 import kotlin.math.abs
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
