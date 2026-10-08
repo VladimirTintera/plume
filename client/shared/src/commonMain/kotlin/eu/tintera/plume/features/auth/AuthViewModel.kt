@@ -66,7 +66,13 @@ class AuthViewModel(
     private var recoveryCode: String? = null
 
     init {
-        loadCountries()
+        // Země jen pro zadání čísla, ne při každém startu: ViewModel vzniká v `App` vždy, i když
+        // je uživatel přihlášený a přihlašovací obrazovku nikdy neuvidí. Collector se po dobu
+        // načítání nevolá znovu (StateFlow mezitím drží jen poslední stav), takže se nenačítá
+        // dvakrát; po neúspěchu to zkusí příští návrat k číslu.
+        viewModelScope.launch {
+            stage.collect { if (it == AuthStage.WaitPhoneNumber && _countries.value.isEmpty()) loadCountries() }
+        }
         // Obnova je náš postup nad JEDNÍM stavem TDLib. Jakmile automat odejde jinam (přihlášeno,
         // restart), nesmí se do příštího hesla přenést rozdělaný krok.
         viewModelScope.launch {
@@ -84,19 +90,17 @@ class AuthViewModel(
      * Seznam zemí a odhad té naší. **Odhad se použije, jen dokud si uživatel nevybral sám**
      * — dorazí po síti a přepsat jím ruční volbu by vypadalo jako chyba.
      */
-    private fun loadCountries() {
-        viewModelScope.launch {
-            val all = session.countries().getOrElse { failure ->
-                logger.w(failure) { "Seznam zemí se nepodařilo načíst." }
-                return@launch
-            }
-            _countries.value = all
-
-            val suggested = session.suggestedCountryCode().getOrNull() ?: return@launch
-            if (_phone.value.country != null) return@launch
-            all.firstOrNull { it.code.equals(suggested, ignoreCase = true) }
-                ?.let { selectCountry(it) }
+    private suspend fun loadCountries() {
+        val all = session.countries().getOrElse { failure ->
+            logger.w(failure) { "Seznam zemí se nepodařilo načíst." }
+            return
         }
+        _countries.value = all
+
+        val suggested = session.suggestedCountryCode().getOrNull() ?: return
+        if (_phone.value.country != null) return
+        all.firstOrNull { it.code.equals(suggested, ignoreCase = true) }
+            ?.let { selectCountry(it) }
     }
 
     fun selectCountry(country: Country) {
