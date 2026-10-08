@@ -47,6 +47,17 @@ Jedna obrazovka pro všechny fáze (`AuthScreen`), fáze se střídají v `Anima
   k zadání čísla, protože k němu automat míří — jinak by se tvar hned po náběhu proanimoval
   podruhé a vypadalo by to jako zadrhnutí. Kód a heslo jsou taky jeden krok: mezi nimi se
   nepřechází tam a zpět.
+- **Text polí je Compose stav ve ViewModelu** (`AuthViewModel.input`, `hint`, `phone`), ne
+  `StateFlow` — stejně jako u úpravy profilu. Hodnota ze `StateFlow` se do pole dostane až
+  dalším průchodem collectoru a znak napsaný mezitím by pole překreslilo se starou hodnotou.
+  **Na zařízení se tím ztráta znaků nepozorovala; je to prevence známé pasti, ne oprava.**
+- **Ztracené znaky po `adb shell input text` na emulátoru zahodil SYSTÉM, ne aplikace.**
+  Roadmapa vedla „rychlý `input text` přeháže znaky"; měřením (8. 10. 2026, starý i nový build)
+  chyběl vždy jen KONEC textu, nikdy prostředek, a v logu bylo `InputDispatcher: Dropped event
+  because it is stale` — přesně dvakrát tolik, kolik chybělo znaků (stisk a puštění). `input
+  text` dá všem znakům časové razítko na začátku a dispečer zahazuje vložené události starší
+  než 10 s; přetížený emulátor (1 s na znak) konec fronty nestihne. Poznáš to podle té hlášky;
+  pomůže psát po třech čtyřech znacích (`for c in 777 123 456; do input text $c; done`).
 
 ### Zadání kódu
 

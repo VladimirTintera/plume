@@ -173,11 +173,8 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   - ~~**Seznam blokovaných v Nastavení**~~ — hotovo (Obecné → Soukromí → Blokovaní), ~~i se
     „Zablokovat uživatele"~~ (kontakty a známé soukromé chaty, s potvrzením).
 - **Přihlašovací obrazovka** — hotová (výběr země, formátování čísla, návrat z QR na číslo,
-  expressive přestavba, ~~zpět z kódu a hesla k číslu~~; `docs/poznatky/prihlaseni.md`, „Přihlašovací obrazovka").
-  Zbývá:
-  - **Pole přihlášení jedou přes `StateFlow`**, a rychlý `adb input text` v nich na pomalém
-    emulátoru přeháže znaky. Na zařízení nepozorované; kdyby se ukázalo, patří text do Compose
-    stavu ve ViewModelu jako u úpravy profilu.
+  expressive přestavba, ~~zpět z kódu a hesla k číslu~~, ~~text polí v Compose stavu místo
+  `StateFlow`~~; `docs/poznatky/prihlaseni.md`, „Přihlašovací obrazovka").
 - **Sdílení ze systému do aplikace.** ~~Android~~ — hotovo (text, odkaz, jeden i víc
   souborů; výběr chatu, obsah čeká nad vstupním polem). Poučení v `docs/poznatky/sdileni.md`, „Sdílení do
   aplikace". Zbývá:

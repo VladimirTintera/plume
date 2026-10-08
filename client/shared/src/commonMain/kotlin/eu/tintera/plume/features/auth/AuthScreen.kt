@@ -138,13 +138,14 @@ fun AuthScreen(
     modifier: Modifier = Modifier,
 ) {
     val stage by viewModel.stage.collectAsStateWithLifecycle()
-    val input by viewModel.input.collectAsStateWithLifecycle()
+    // Text polí je Compose stav ve ViewModelu, ne StateFlow — viz `AuthViewModel.input`.
+    val input = viewModel.input
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
-    val phone by viewModel.phone.collectAsStateWithLifecycle()
+    val phone = viewModel.phone
     val countries by viewModel.countries.collectAsStateWithLifecycle()
     val passwordStep by viewModel.passwordStep.collectAsStateWithLifecycle()
-    val hint by viewModel.hint.collectAsStateWithLifecycle()
+    val hint = viewModel.hint
     val recoveryUnavailable by viewModel.recoveryUnavailable.collectAsStateWithLifecycle()
 
     var pickingCountry by rememberSaveable { mutableStateOf(false) }
