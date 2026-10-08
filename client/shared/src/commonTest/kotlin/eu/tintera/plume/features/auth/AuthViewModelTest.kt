@@ -74,7 +74,7 @@ class AuthViewModelTest {
         viewModel.submitInput(" 123456 ")
         assertEquals(listOf("123456"), session.checkedCodes)
         assertEquals(PasswordStep.NewPassword, viewModel.passwordStep.value)
-        assertEquals("", viewModel.input.value)
+        assertEquals("", viewModel.input)
 
         viewModel.onHintChange("kočka")
         viewModel.submitInput("nove heslo ")
@@ -94,7 +94,7 @@ class AuthViewModelTest {
         assertEquals(PasswordStep.RecoveryCode, viewModel.passwordStep.value)
         assertNotNull(viewModel.error.value)
         // Pole se po chybě nemaže — překlep se opravuje, ne přepisuje celý.
-        assertEquals("000000", viewModel.input.value)
+        assertEquals("000000", viewModel.input)
     }
 
     @Test
@@ -115,7 +115,7 @@ class AuthViewModelTest {
         viewModel.back()
         assertEquals(PasswordStep.RecoveryCode, viewModel.passwordStep.value)
         // Kód byl platný — návrat kvůli e-mailu nemá nutit psát ho znovu.
-        assertEquals("123456", viewModel.input.value)
+        assertEquals("123456", viewModel.input)
 
         viewModel.back()
         assertEquals(PasswordStep.Password, viewModel.passwordStep.value)
@@ -179,7 +179,7 @@ class AuthViewModelTest {
         advanceUntilIdle()
 
         assertEquals(PasswordStep.Password, viewModel.passwordStep.value)
-        assertEquals("", viewModel.hint.value)
+        assertEquals("", viewModel.hint)
     }
 
     @Test
@@ -206,7 +206,7 @@ class AuthViewModelTest {
 
         assertEquals(1, session.countryRequests)
         assertEquals(listOf(CZECHIA, GERMANY), viewModel.countries.value)
-        assertEquals(CZECHIA, viewModel.phone.value.country)
+        assertEquals(CZECHIA, viewModel.phone.country)
     }
 
     @Test
@@ -234,7 +234,7 @@ class AuthViewModelTest {
         viewModel.selectCountry(GERMANY)
         advanceUntilIdle()
 
-        assertEquals(GERMANY, viewModel.phone.value.country)
+        assertEquals(GERMANY, viewModel.phone.country)
     }
 
     private lateinit var session: FakeSession

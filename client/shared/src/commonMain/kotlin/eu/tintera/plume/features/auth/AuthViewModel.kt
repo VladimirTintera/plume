@@ -7,6 +7,9 @@ import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.Country
 import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.core.telegram.userMessage
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,8 +30,13 @@ class AuthViewModel(
 
     val stage: StateFlow<AuthStage> = session.authStage
 
-    private val _input = MutableStateFlow("")
-    val input: StateFlow<String> = _input.asStateFlow()
+    /**
+     * Text polí je Compose stav, ne `StateFlow`. Hodnota ze `StateFlow` se do pole dostane až
+     * dalším průchodem collectoru; znak napsaný mezitím pole překreslí se starou hodnotou
+     * a zahodí. Snapshot stav se zapíše i přečte hned, ve stejném snímku.
+     */
+    var input by mutableStateOf("")
+        private set
 
     /** Probíhá request — blokuje tlačítko a přepne ho na expressive LoadingIndicator. */
     private val _busy = MutableStateFlow(false)
@@ -37,8 +45,9 @@ class AuthViewModel(
     private val _error = MutableStateFlow<UiText?>(null)
     val error: StateFlow<UiText?> = _error.asStateFlow()
 
-    private val _phone = MutableStateFlow(PhoneEntry())
-    val phone: StateFlow<PhoneEntry> = _phone.asStateFlow()
+    /** Rozepsané číslo. Compose stav ze stejného důvodu jako [input]. */
+    var phone by mutableStateOf(PhoneEntry())
+        private set
 
     /** Seznam zemí pro výběr. Prázdný, dokud nedorazí z TDLib — řádek zatím ukazuje jen předvolbu. */
     private val _countries = MutableStateFlow<List<Country>>(emptyList())
@@ -49,10 +58,9 @@ class AuthViewModel(
     /** Kde v zadávání hesla uživatel je; mimo [AuthStage.WaitPassword] vždy [PasswordStep.Password]. */
     val passwordStep: StateFlow<PasswordStep> = _passwordStep.asStateFlow()
 
-    private val _hint = MutableStateFlow("")
-
     /** Nápověda k novému heslu. Jediné pole navíc — ostatní kroky mají jedno pole ([input]). */
-    val hint: StateFlow<String> = _hint.asStateFlow()
+    var hint by mutableStateOf("")
+        private set
 
     private val _recoveryUnavailable = MutableStateFlow(false)
 
@@ -82,7 +90,7 @@ class AuthViewModel(
 
     private fun resetPasswordStep() {
         _passwordStep.value = PasswordStep.Password
-        _hint.value = ""
+        hint = ""
         recoveryCode = null
     }
 
@@ -98,13 +106,13 @@ class AuthViewModel(
         _countries.value = all
 
         val suggested = session.suggestedCountryCode().getOrNull() ?: return
-        if (_phone.value.country != null) return
+        if (phone.country != null) return
         all.firstOrNull { it.code.equals(suggested, ignoreCase = true) }
             ?.let { selectCountry(it) }
     }
 
     fun selectCountry(country: Country) {
-        _phone.value = _phone.value.copy(country = country)
+        phone = phone.copy(country = country)
         _error.value = null
         reformatPhone()
     }
@@ -122,7 +130,7 @@ class AuthViewModel(
             adoptInternational(value)
             return
         }
-        _phone.value = _phone.value.copy(digits = value.filter { it.isDigit() })
+        phone = phone.copy(digits = value.filter { it.isDigit() })
         reformatPhone()
     }
 
@@ -132,9 +140,9 @@ class AuthViewModel(
             val info = session.phoneNumberInfo(normalized).getOrNull()
             val country = info?.country?.let { found -> _countries.value.firstOrNull { it.code == found.code } ?: found }
             if (country == null) {
-                _phone.value = _phone.value.copy(digits = normalized.drop(1))
+                phone = phone.copy(digits = normalized.drop(1))
             } else {
-                _phone.value = PhoneEntry(
+                phone = PhoneEntry(
                     country = country,
                     digits = normalized.removePrefix(country.callingCode),
                 )
@@ -149,13 +157,13 @@ class AuthViewModel(
      * pořád použitelné pole.
      */
     private fun reformatPhone() {
-        val entry = _phone.value
+        val entry = phone
         viewModelScope.launch {
             val mask = session.phoneNumberInfo(entry.international).getOrNull()?.mask
             val formatted = mask?.let(::formatNationalNumber) ?: entry.digits
             // Mezitím mohl uživatel psát dál; přepsat by znamenalo skákat kurzorem.
-            if (_phone.value.digits != entry.digits || _phone.value.country != entry.country) return@launch
-            _phone.value = _phone.value.copy(formatted = formatted)
+            if (phone.digits != entry.digits || phone.country != entry.country) return@launch
+            phone = phone.copy(formatted = formatted)
         }
     }
 
@@ -163,12 +171,12 @@ class AuthViewModel(
     // i když se žádné UI neskládá (probuzení procesu pushem).
 
     fun onInputChange(value: String) {
-        _input.value = value
+        input = value
         _error.value = null
     }
 
     fun onHintChange(value: String) {
-        _hint.value = value
+        hint = value
         _error.value = null
     }
 
@@ -184,12 +192,12 @@ class AuthViewModel(
         val stageNow = stage.value
         val step = _passwordStep.value
         val secret = stageNow is AuthStage.WaitPassword && step != PasswordStep.RecoveryCode
-        val value = if (secret) _input.value else _input.value.trim()
-        val ready = if (stageNow == AuthStage.WaitPhoneNumber) _phone.value.isComplete else value.isNotEmpty()
+        val value = if (secret) input else input.trim()
+        val ready = if (stageNow == AuthStage.WaitPhoneNumber) phone.isComplete else value.isNotEmpty()
         if (!ready || _busy.value) return
 
         // Server nápovědu shodnou s heslem odmítne taky, ale až po odeslání a obecnou chybou.
-        val newHint = _hint.value.trim()
+        val newHint = hint.trim()
         if (stageNow is AuthStage.WaitPassword && step == PasswordStep.NewPassword && newHint == value) {
             _error.value = UiText(Res.string.auth_error_hint_equals_password)
             return
@@ -198,7 +206,7 @@ class AuthViewModel(
         viewModelScope.launch {
             _busy.value = true
             val result = when (stageNow) {
-                AuthStage.WaitPhoneNumber -> session.submitPhoneNumber(_phone.value.international)
+                AuthStage.WaitPhoneNumber -> session.submitPhoneNumber(phone.international)
                 is AuthStage.WaitCode -> session.submitCode(value)
                 is AuthStage.WaitPassword -> when (step) {
                     PasswordStep.Password -> session.submitPassword(value)
@@ -222,7 +230,7 @@ class AuthViewModel(
             _busy.value = false
 
             result
-                .onSuccess { _input.value = "" }
+                .onSuccess { input = "" }
                 .onFailure { failure ->
                     logger.w(failure) { "Přihlašovací krok selhal." }
                     _error.value = failure.userMessage(Res.string.auth_error_generic)
@@ -247,7 +255,7 @@ class AuthViewModel(
             session.requestPasswordRecovery()
                 .onSuccess {
                     _passwordStep.value = PasswordStep.RecoveryCode
-                    _input.value = ""
+                    input = ""
                     _error.value = null
                 }
                 .onFailure { failure ->
@@ -274,13 +282,13 @@ class AuthViewModel(
                 PasswordStep.NewPassword -> {
                     _passwordStep.value = PasswordStep.RecoveryCode
                     // Kód byl platný; uživatel se vrací nejspíš kvůli e-mailu, ne kvůli překlepu.
-                    _input.value = recoveryCode.orEmpty()
-                    _hint.value = ""
+                    input = recoveryCode.orEmpty()
+                    hint = ""
                     return
                 }
                 PasswordStep.RecoveryCode -> {
                     _passwordStep.value = PasswordStep.Password
-                    _input.value = ""
+                    input = ""
                     return
                 }
                 PasswordStep.Password -> Unit
@@ -299,7 +307,7 @@ class AuthViewModel(
      */
     fun restartLogin() {
         if (_busy.value) return
-        _input.value = ""
+        input = ""
         _error.value = null
         viewModelScope.launch {
             _busy.value = true

@@ -605,6 +605,9 @@ vkus toho, kdo zrovna píše obrazovku.
   pak šipkou zpět odešla i konverzace a zbytek textu skončil v hledání seznamu chatů — bez
   jediného cizího příkazu (ověřeno v logu `adbd service requested`). Před psaním ověřit
   `focused="true"` ve výpisu a mezery psát jako `input text "%s"`, ne `keyevent 62`.
+  **Na přetíženém emulátoru `input text` ztrácí KONEC textu**: systém zahodí vložené události
+  starší než 10 s (`Dropped event because it is stale` v logu) a `input text` je razítkuje
+  všechny předem. Chyba aplikace to není; psát po pár znacích.
 
 - **`ExtendedFloatingActionButton(text = …, icon = …)` popisek skrývá před čtečkou obrazovky**
   (`clearAndSetSemantics` uvnitř animace rozbalení) — tlačítko pak ve stromu přístupnosti nemá
