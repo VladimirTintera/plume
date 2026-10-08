@@ -225,6 +225,22 @@ before authorization":
   celého systému.
 - **Hledá se i podle anglického názvu** (`Country.englishName` od TDLib, nekreslí se). Kdo zná
   zemi jen anglicky, by ji v českém seznamu jinak nenašel — „Germany" vs. „Německo".
+- **Seznam zemí se načítá až ve fázi zadání čísla** (`AuthStage.WaitPhoneNumber`), ne v `init`
+  ViewModelu. `AuthViewModel` vzniká v `App` při KAŽDÉM startu, i u přihlášeného uživatele,
+  který přihlašovací obrazovku nikdy neuvidí — a načtení zemí se tak dělalo při každém startu
+  zbytečně. Načte se jednou; po neúspěchu to zkusí příští návrat k číslu. Hlídá to
+  `AuthViewModelTest` (`prihlasenyUzivatelZemeNenacita`) a na emulátoru vzorkovací trace
+  studeného startu (`am start -S --start-profiler /data/local/tmp/… --sampling 500`; soubor
+  musí ležet v `/data/local/tmp` a mít práva 666, do `cache/` aplikace ho `am` neotevře):
+  `AuthViewModel` i `AuthScreen` (fáze `Connecting`) v něm jsou, `countries` ani `foldDiacritics`
+  ne. Jména metod jsou v hlavičce trace čitelná, stačí `grep -a`.
+- **Převod a řazení zemí běží na `Dispatchers.Default`** (`TdlTelegramSession.countries`).
+  Odpověď TDLib se vrací na vlákno volajícího, tedy z `viewModelScope` na HLAVNÍ. Dvě stě zemí,
+  u každé překlad názvu od systému (na Androidu první sáhnutí do dat CLDR) a řazení, které
+  klíč `foldDiacritics(name).lowercase()` počítalo v komparátoru — při každém porovnání, zhruba
+  tři tisíce krát. ANR trace z emulátoru (8. 10. 2026, „Input dispatching timed out … FocusEvent")
+  ukázaly hlavní vlákno při studeném startu v `TimSort` nad `foldDiacritics`. Klíč se teď
+  počítá jednou na zemi (`sortedByName`, testy `CountryOrderTest`).
 
 ## Odhlášení
 

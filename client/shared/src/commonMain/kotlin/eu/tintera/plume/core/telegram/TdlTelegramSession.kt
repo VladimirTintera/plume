@@ -34,10 +34,12 @@ import dev.g000sha256.tdl.TdlThrowable
 import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okio.FileSystem
 import okio.Path.Companion.toPath
 import eu.tintera.plume.core.secrets.DatabaseKeyStore
@@ -428,17 +430,22 @@ class TdlTelegramSession(
             .onFailure { restartingLogin = false }
     }
 
+    /**
+     * Převod a řazení běží na `Dispatchers.Default`, ne na vlákně volajícího. Je to dvě stě
+     * zemí, každá s překladem názvu od systému (na Androidu první sáhnutí do dat CLDR) —
+     * na hlavním vlákně to při studeném startu přetíženého emulátoru trvalo sekundy a skončilo
+     * v ANR.
+     */
     override suspend fun countries(): Result<List<Country>> =
         client.getCountries()
             .toResult()
             .map { countries ->
-                countries.countries
-                    .filterNot { it.isHidden }
-                    .mapNotNull { info -> info.toCountry() }
-                    // TDLib řadí podle KÓDU země (AD, AE, AF…), což pro čtenáře není pořadí.
-                    // Výjimka z pravidla „pořadí necháváme od TDLib": u chatů je to pořadí,
-                    // na které je uživatel zvyklý z jiných klientů, tady je to náhodná řada.
-                    .sortedBy { foldDiacritics(it.name).lowercase() }
+                withContext(Dispatchers.Default) {
+                    countries.countries
+                        .filterNot { it.isHidden }
+                        .mapNotNull { info -> info.toCountry() }
+                        .sortedByName()
+                }
             }
 
     /**
@@ -509,3 +516,16 @@ class TdlTelegramSession(
         const val WRONG_KEY_MESSAGE = "Wrong database encryption key"
     }
 }
+
+/**
+ * Země podle názvu, bez ohledu na diakritiku a velikost písmen. TDLib řadí podle KÓDU země
+ * (AD, AE, AF…), což pro čtenáře není pořadí. Výjimka z pravidla „pořadí necháváme od TDLib":
+ * u chatů je to pořadí, na které je uživatel zvyklý z jiných klientů, tady je to náhodná řada.
+ *
+ * **Klíč se počítá jednou na zemi, ne při každém porovnání.** `sortedBy` ho volá
+ * v komparátoru, tedy pro dvě stě zemí zhruba tři tisíce krát.
+ */
+internal fun List<Country>.sortedByName(): List<Country> =
+    map { foldDiacritics(it.name).lowercase() to it }
+        .sortedBy { it.first }
+        .map { it.second }

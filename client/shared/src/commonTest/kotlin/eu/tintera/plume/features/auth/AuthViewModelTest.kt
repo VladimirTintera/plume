@@ -182,6 +182,61 @@ class AuthViewModelTest {
         assertEquals("", viewModel.hint.value)
     }
 
+    @Test
+    fun prihlasenyUzivatelZemeNenacita() = runTest {
+        val session = FakeSession(AuthStage.Ready)
+        val viewModel = AuthViewModel(session)
+        advanceUntilIdle()
+
+        assertEquals(0, session.countryRequests)
+        assertTrue(viewModel.countries.value.isEmpty())
+    }
+
+    @Test
+    fun zemeSeNactouAzPriZadaniCisla() = runTest {
+        val session = FakeSession(AuthStage.Connecting)
+        session.countryList = listOf(CZECHIA, GERMANY)
+        session.suggestedCode = "cz"
+        val viewModel = AuthViewModel(session)
+        advanceUntilIdle()
+        assertEquals(0, session.countryRequests)
+
+        session.stage.value = AuthStage.WaitPhoneNumber
+        advanceUntilIdle()
+
+        assertEquals(1, session.countryRequests)
+        assertEquals(listOf(CZECHIA, GERMANY), viewModel.countries.value)
+        assertEquals(CZECHIA, viewModel.phone.value.country)
+    }
+
+    @Test
+    fun navratKCisluZemeNenacitaZnovu() = runTest {
+        val session = FakeSession(AuthStage.WaitPhoneNumber)
+        session.countryList = listOf(CZECHIA)
+        AuthViewModel(session)
+        advanceUntilIdle()
+
+        session.stage.value = AuthStage.WaitCode(AuthCode(5, CodeDelivery.Sms))
+        advanceUntilIdle()
+        session.stage.value = AuthStage.WaitPhoneNumber
+        advanceUntilIdle()
+
+        assertEquals(1, session.countryRequests)
+    }
+
+    @Test
+    fun rucniVolbuOdhadZemeNeprepise() = runTest {
+        val session = FakeSession(AuthStage.WaitPhoneNumber)
+        session.countryList = listOf(CZECHIA, GERMANY)
+        session.suggestedCode = "CZ"
+        val viewModel = AuthViewModel(session)
+
+        viewModel.selectCountry(GERMANY)
+        advanceUntilIdle()
+
+        assertEquals(GERMANY, viewModel.phone.value.country)
+    }
+
     private lateinit var session: FakeSession
 
     /** ViewModel v daném kroku obnovy, s uznaným kódem „123456". */
@@ -242,11 +297,23 @@ private class FakeSession(initial: AuthStage) : TelegramSession {
         return Result.success(Unit)
     }
 
-    override suspend fun countries(): Result<List<Country>> = Result.success(emptyList())
-    override suspend fun suggestedCountryCode(): Result<String> = Result.failure(UnsupportedOperationException())
+    var countryRequests = 0
+    var countryList: List<Country> = emptyList()
+    var suggestedCode: String? = null
+
+    override suspend fun countries(): Result<List<Country>> {
+        countryRequests++
+        return Result.success(countryList)
+    }
+
+    override suspend fun suggestedCountryCode(): Result<String> =
+        suggestedCode?.let { Result.success(it) } ?: Result.failure(UnsupportedOperationException())
     override suspend fun phoneNumberInfo(prefix: String): Result<PhoneNumberDetails> =
         Result.failure(UnsupportedOperationException())
 
     override suspend fun logOut() = Result.success(Unit)
     override suspend fun me(): Result<AccountInfo> = Result.failure(UnsupportedOperationException())
 }
+
+private val CZECHIA = Country(code = "CZ", name = "Czechia", englishName = "Czechia", flagEmoji = "", callingCode = "+420")
+private val GERMANY = Country(code = "DE", name = "Germany", englishName = "Germany", flagEmoji = "", callingCode = "+49")
