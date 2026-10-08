@@ -28,11 +28,13 @@ internal fun selectedFolderId(selected: Int?, folders: ChatFolders): Int? =
 
 /**
  * Řádek složek. Celý seznam stojí tam, kam ho uživatel v Telegramu přesunul
- * ([ChatFolders.mainPosition]; bez Premium vždycky první). Bez složek je v řádku jen on — řádek
- * se kreslí i tak, protože za ním je „+" s doporučenými složkami: jiné zúžení seznamu chatů
- * aplikace nemá.
+ * ([ChatFolders.mainPosition]; bez Premium vždycky první). **Bez složek je řádek prázdný a nekreslí
+ * se**: samotné „Všechny chaty" není volba, jen místo navíc nad seznamem. Doporučené složky
+ * zůstávají v Nastavení → Obecné → Složky chatů, a jakmile tam uživatel nějakou přidá, řádek
+ * se objeví i s „+".
  */
 internal fun folderTabs(folders: ChatFolders, unread: Map<Int, ArchiveUnread>, selected: Int?): List<FolderTab> {
+    if (folders.folders.isEmpty()) return emptyList()
     val tabs = folders.folders.map { folder ->
         FolderTab(
             id = folder.id,
