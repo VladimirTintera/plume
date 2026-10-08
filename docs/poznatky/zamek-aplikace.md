@@ -163,6 +163,18 @@ Všechno, co zámek ví, je **jeden záznam v `AppLockStore`** (Keystore / Keych
   emulátoru ho obchází: `adb emu screenrecord screenshot <adresář>`. Pořadí oken (je zámek nad
   sheetem?) ukáže `adb shell dumpsys window windows | grep "^  Window #"`, nahoře je první;
   okno zámku je dialog a vypisuje se pod jménem activity.
+- **Ťukat podle `bounds` KLIKATELNÉHO uzlu, ne textu.** Tlačítko 0 je `[440,2035][640,2235]`,
+  jeho text o kus níž; ťuknutí na y 2030 padalo do mezery mezi řadami a vypadalo to jako
+  nefunkční číselník.
+- **Posun hodin bez rootu jde:** `settings put global auto_time 0` a `cmd alarm set-time <ms>`;
+  zpět `settings put global auto_time 1`. Ověřeno: hodinu dopředu během brzdy číselník zůstal
+  vypnutý.
+- **ANR dialog nad oknem zámku polyká všechny dotyky** (dotyková oblast přes celou obrazovku).
+  Na přetíženém emulátoru se po ANR při startu vracel pořád dokola a zámek nešel ovládat — ale
+  řízená simulace (`run-as eu.tintera.plume kill -STOP <pid>`, plocha, `am start`, ťuknutí,
+  po hlášce „is unresponsive" `kill -CONT`) dopadla s oknem zámku stejně jako s vrstvou
+  v hlavním okně: aplikace se vzpamatovala a PIN odemkl. Smyčku dělalo prostředí, ne okno
+  zámku. Než se něco takového svede na kód, porovnat to proti `main` stejnou simulací.
 - **Zámek po návratu z pozadí se ověřuje skutečnou minutou čekání** (`input keyevent 3`,
   `sleep 65`, `am start`). Kratší doba není a přestavit hodiny bez rootu nejde.
 
