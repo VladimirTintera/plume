@@ -549,6 +549,12 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
 - ~~**Zámek aplikace**~~ — hotovo (PIN, biometrie na Androidu i iOS, zamykání po době neaktivity,
   brzda pokusů, celoplošný `LockScreen`, skrytí v přehledu úloh přes `FLAG_SECURE` při aktivním zámku,
   nastavení v Nastavení → Soukromí; `docs/poznatky/zamek-aplikace.md`).
+- **Zámek aplikace: biometrie svázaná se seznamem otisků.** Kdo zná PIN telefonu, přidá si
+  v systému vlastní otisk nebo obličej a aplikaci odemkne. Android: klíč v Keystore
+  s `setUserAuthenticationRequired` + `setInvalidatedByBiometricEnrollment(true)` použitý přes
+  `CryptoObject` (`KeyPermanentlyInvalidatedException` → vypnout biometrii, chtít PIN); iOS:
+  uložit `evaluatedPolicyDomainState` při zapnutí a po ověření porovnat. Ke zvážení i volitelný
+  šestimístný PIN.
 - **Automatické stahování médií** podle sítě (Wi-Fi / mobilní / roaming), druhu (fotky, videa,
   soubory) a velikosti, s ohledem na systémovou úsporu dat. Dnes je jediný strop 5 MB u GIFů
   a koleček (`autoPlays`). TDLib má vlastní přednastavení (`getAutoDownloadSettingsPresets`).

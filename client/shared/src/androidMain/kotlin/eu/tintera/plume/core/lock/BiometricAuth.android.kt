@@ -19,20 +19,32 @@ actual fun rememberBiometricAuth(): BiometricAuth {
     return remember(context) { AndroidBiometricAuth(context) }
 }
 
+/**
+ * Jen SILNÁ biometrie (třída 3). Slabá (třída 2) je typicky odemykání obličejem z přední kamery,
+ * které na některých telefonech oklame fotka — a zámek je právě proti někomu, kdo má telefon
+ * v ruce a majitele zná. Systémový zámek obrazovky (`DEVICE_CREDENTIAL`) se nenabízí: zámek
+ * aplikace má být DRUHÁ bariéra, ne kopie té první.
+ *
+ * Android 10 `canAuthenticate(Int)` ani `setAllowedAuthenticators` nemá; tam `BiometricPrompt`
+ * podle CDD bere jen silnou biometrii sám. Pod Androidem 10 `BiometricManager` není vůbec.
+ */
 private class AndroidBiometricAuth(private val context: Context) : BiometricAuth {
 
     override val isSupported: Boolean
-        get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            runCatching {
-                val manager = context.getSystemService(BiometricManager::class.java)
-                val authenticators = BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                    BiometricManager.Authenticators.BIOMETRIC_WEAK
-                manager?.canAuthenticate(authenticators) == BiometricManager.BIOMETRIC_SUCCESS
-            }.getOrDefault(false)
-        } else false
+        get() = runCatching {
+            val manager = context.getSystemService(BiometricManager::class.java)
+            val result = when {
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.R ->
+                    manager?.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                Build.VERSION.SDK_INT == Build.VERSION_CODES.Q ->
+                    @Suppress("DEPRECATION") manager?.canAuthenticate()
+                else -> null
+            }
+            result == BiometricManager.BIOMETRIC_SUCCESS
+        }.getOrDefault(false)
 
     override suspend fun authenticate(title: String, subtitle: String?): Boolean {
-        if (!isSupported || Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false
+        if (!isSupported) return false
         val activity = context.findActivity() ?: return false
 
         return suspendCancellableCoroutine { continuation ->
@@ -42,6 +54,11 @@ private class AndroidBiometricAuth(private val context: Context) : BiometricAuth
             val prompt = BiometricPrompt.Builder(activity)
                 .setTitle(title)
                 .apply { if (subtitle != null) setSubtitle(subtitle) }
+                .apply {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                    }
+                }
                 .setNegativeButton(
                     activity.getString(android.R.string.cancel),
                     activity.mainExecutor,

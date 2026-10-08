@@ -36,15 +36,23 @@ class PinHashTest {
             timeoutSeconds = 300,
             biometrics = true,
             failures = 6,
-            blockedUntil = 1_800_000_000_000,
+            failedAt = 123_456_789,
         )
         assertEquals(config, decodeLockConfig(config.encode()))
     }
 
     @Test
+    fun zaznamV1SePrecteAZamekZustaneZapnuty() {
+        // Konec brzdy v čase na zdi se zahodí; chyby zůstanou, aby restart aplikace brzdu nezrušil.
+        val config = decodeLockConfig("v1;10000;010203;ff007f;300;1;6;1800000000000".encodeToByteArray())
+        assertEquals(6, config?.failures)
+        assertEquals(0, config?.failedAt)
+    }
+
+    @Test
     fun poskozenyZaznamJeNull() {
         assertNull(decodeLockConfig("nesmysl".encodeToByteArray()))
-        assertNull(decodeLockConfig("v2;1;aa;bb;60;0;0;0".encodeToByteArray()))
+        assertNull(decodeLockConfig("v9;1;aa;bb;60;0;0;0".encodeToByteArray()))
         assertNull(decodeLockConfig("v1;x;aa;bb;60;0;0;0".encodeToByteArray()))
         assertNull(decodeLockConfig("v1;0;aa;bb;60;0;0;0".encodeToByteArray()))
     }

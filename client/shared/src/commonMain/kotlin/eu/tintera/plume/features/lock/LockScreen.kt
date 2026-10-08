@@ -33,16 +33,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigationevent.NavigationEventInfo
-import androidx.navigationevent.compose.NavigationBackHandler
-import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.tintera.plume.core.lock.APP_LOCK_PIN_LENGTH
 import eu.tintera.plume.core.lock.AppLock
 import eu.tintera.plume.core.lock.AppLockState
 import eu.tintera.plume.core.lock.PinResult
 import eu.tintera.plume.core.lock.SystemLockClock
 import eu.tintera.plume.core.lock.rememberBiometricAuth
-import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.ui.PinDots
 import eu.tintera.plume.core.ui.PinKeypad
 import eu.tintera.plume.core.ui.confirm
@@ -62,7 +58,7 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * Celoobrazovkový zámek aplikace zobrazený při [AppLockState.Locked].
  *
- * Tlačítko Zpět minimalizuje aplikaci do pozadí ([rememberReturnToCaller]).
+ * Skládá se do vlastního okna ([LockWindow]), které obsluhuje i Zpět.
  */
 @Composable
 fun LockScreen(
@@ -71,13 +67,6 @@ fun LockScreen(
 ) {
     val state by appLock.state.collectAsStateWithLifecycle()
     val lockedState = state as? AppLockState.Locked ?: return
-
-    val returnToCaller = rememberReturnToCaller()
-    NavigationBackHandler(
-        state = rememberNavigationEventState(NavigationEventInfo.None),
-        isBackEnabled = true,
-        onBackCompleted = returnToCaller,
-    )
 
     val biometricAuth = rememberBiometricAuth()
     val haptics = LocalHapticFeedback.current
@@ -104,18 +93,18 @@ fun LockScreen(
     }
 
     // Odpočet brzdy pokusů
-    var now by remember { mutableLongStateOf(SystemLockClock.wallMillis()) }
+    var now by remember { mutableLongStateOf(SystemLockClock.elapsedMillis()) }
     val isBlocked = lockedState.blockedUntil > now
     val remainingSeconds = if (isBlocked) {
         ((lockedState.blockedUntil - now + 999) / 1000).coerceAtLeast(1)
     } else 0
 
     LaunchedEffect(lockedState.blockedUntil) {
-        while (lockedState.blockedUntil > SystemLockClock.wallMillis()) {
-            now = SystemLockClock.wallMillis()
+        while (lockedState.blockedUntil > SystemLockClock.elapsedMillis()) {
+            now = SystemLockClock.elapsedMillis()
             delay(500L)
         }
-        now = SystemLockClock.wallMillis()
+        now = SystemLockClock.elapsedMillis()
     }
 
     Surface(
