@@ -7,13 +7,19 @@ import eu.tintera.plume.core.telegram.CodeDelivery
 import eu.tintera.plume.core.telegram.Country
 import eu.tintera.plume.core.telegram.PhoneNumberDetails
 import eu.tintera.plume.core.telegram.TelegramSession
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.auth_error_resend
+import eu.tintera.plume.resources.error_code_resend_unavailable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
@@ -135,6 +141,84 @@ class AuthViewModelTest {
         advanceUntilIdle()
 
         assertEquals(1, session.restarts)
+    }
+
+    @Test
+    fun kodJinakAzPoUplynutiLhuty() = runTest {
+        val session = FakeSession(
+            AuthStage.WaitCode(AuthCode(5, CodeDelivery.TelegramApp), next = CodeDelivery.Sms, resendTimeout = 3),
+        )
+        val viewModel = AuthViewModel(session)
+        runCurrent()
+        assertEquals(3, viewModel.resendIn.value)
+
+        // Před koncem lhůty by TDLib odmítl; místo chyby se nic nepošle.
+        viewModel.resendCode()
+        runCurrent()
+        assertEquals(0, session.resends)
+
+        advanceTimeBy(2_000)
+        runCurrent()
+        assertEquals(1, viewModel.resendIn.value)
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(0, viewModel.resendIn.value)
+
+        viewModel.onInputChange("12")
+        viewModel.resendCode()
+        runCurrent()
+        assertEquals(1, session.resends)
+        // Nový kód bude jiný, rozepsaný se zahodí.
+        assertEquals("", viewModel.input)
+
+        // Kód odešel SMS a server nabízí ještě hovor — lhůta se odpočítává znovu.
+        session.stage.value = AuthStage.WaitCode(AuthCode(6, CodeDelivery.Sms), next = CodeDelivery.Call, resendTimeout = 60)
+        runCurrent()
+        assertEquals(60, viewModel.resendIn.value)
+    }
+
+    @Test
+    fun bezDalsiCestySeKodJinakNeposila() = runTest {
+        val session = FakeSession(AuthStage.WaitCode(AuthCode(5, CodeDelivery.Sms)))
+        val viewModel = AuthViewModel(session)
+        advanceUntilIdle()
+
+        viewModel.resendCode()
+        advanceUntilIdle()
+
+        assertEquals(0, session.resends)
+    }
+
+    @Test
+    fun chybaPriPoslaniJinakJeVetaNeHlaskaZTdlib() = runTest {
+        val session = FakeSession(AuthStage.WaitCode(AuthCode(5, CodeDelivery.TelegramApp), next = CodeDelivery.Sms))
+        val viewModel = AuthViewModel(session)
+        advanceUntilIdle()
+
+        session.resendResult = Result.failure(IllegalStateException("SEND_CODE_UNAVAILABLE"))
+        viewModel.resendCode()
+        advanceUntilIdle()
+        assertEquals(UiText(Res.string.error_code_resend_unavailable), viewModel.error.value)
+
+        // Neznámá hláška spadne na naši větu, ne na text od TDLib.
+        session.resendResult = Result.failure(IllegalStateException("Something unexpected"))
+        viewModel.resendCode()
+        advanceUntilIdle()
+        assertEquals(UiText(Res.string.auth_error_resend), viewModel.error.value)
+    }
+
+    @Test
+    fun odchodZKoduOdpocetZrusi() = runTest {
+        val session = FakeSession(
+            AuthStage.WaitCode(AuthCode(5, CodeDelivery.TelegramApp), next = CodeDelivery.Sms, resendTimeout = 30),
+        )
+        val viewModel = AuthViewModel(session)
+        runCurrent()
+
+        session.stage.value = AuthStage.WaitPassword(hint = null)
+        runCurrent()
+
+        assertEquals(0, viewModel.resendIn.value)
     }
 
     @Test
@@ -271,6 +355,14 @@ private class FakeSession(initial: AuthStage) : TelegramSession {
     override suspend fun start() = Unit
     override suspend fun submitPhoneNumber(phoneNumber: String) = Result.success(Unit)
     override suspend fun submitCode(code: String) = Result.success(Unit)
+
+    var resends = 0
+    var resendResult: Result<Unit> = Result.success(Unit)
+    override suspend fun resendCode(): Result<Unit> {
+        resends++
+        return resendResult
+    }
+
     override suspend fun submitPassword(password: String): Result<Unit> {
         passwords += password
         return Result.success(Unit)

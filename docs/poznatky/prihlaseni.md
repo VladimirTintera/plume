@@ -108,6 +108,40 @@ Jedna obrazovka pro všechny fáze (`AuthScreen`), fáze se střídají v `Anima
   z SMS ověřený NENÍ** — je to jen deklarace `ContentType.SmsOtpCode`, doručit skutečnou SMS na
   emulátor nešlo.
 
+### Kód jinou cestou (SMS, hovor)
+
+Když TDLib pošle kód do aplikace Telegram (`AuthenticationCodeTypeTelegramMessage`), dostane ho
+jen ten, kdo má po ruce jiné přihlášené zařízení. Ztracený telefon nebo recyklované číslo
+znamenaly slepou uličku — kód nikdy nepřišel a jiná cesta nebyla.
+
+- **Kudy jinak, říká server, ne my.** `AuthenticationCodeInfo.nextType` je cesta, kterou kód
+  půjde po `resendAuthenticationCode`, a `null` znamená, že jiná není. Tlačítko se kreslí jen
+  s nenulovým `nextType` (`AuthStage.WaitCode.next`); jinak by slibovalo cestu, která skončí
+  chybou. Popisek podle cesty: SMS (i slovo a fráze, to je pořád SMS), hovor (i prozvonění),
+  Telegram, jinak obecně.
+- **`timeout` je ZBÝVAJÍCÍ čas, ne původní lhůta** — TDLib ho při sestavení stavu přepočítá
+  od uloženého okamžiku. Odpočítává se proto od příchodu stavu (`AuthViewModel.resendIn`,
+  `collectLatest`, takže nový stav rozjetý odpočet zruší). Během lhůty tlačítko zůstává vidět
+  s odpočtem („Poslat kód SMS za 0:42"), aby uživatel věděl, že jiná možnost přijde, a nezkoušel
+  zpět a znovu. Před koncem lhůty se nic neposílá — TDLib by to odmítl a místo odpočtu by byla
+  chyba.
+- **Signatura se v TDLib mění**: novější verze přidala `resendAuthenticationCode(reason)`
+  (`ResendCodeReasonUserRequest`, nebo `…VerificationFailed` po selhání Firebase). Wrapper 15.0.0
+  ho má nullable s výchozím `null`; posíláme `UserRequest`, protože to víme.
+- **Kudy kód odešel doopravdy, přijde novým stavem** `AuthorizationStateWaitCode` (jiný `type`,
+  nový `nextType` a `timeout`). Typický řetěz je Telegram → SMS → hovor; po hovoru už `nextType`
+  bývá `null`. Nový stav je jiný klíč `AnimatedContent`, takže formulář přijede znovu — kód
+  je opravdu nový a může mít i jinou délku. Rozepsaný kód se po úspěchu maže.
+- **Chyby**: TDLib sama odmítne `"Authentication code can't be resend"` (ověřeno `strings
+  libtdjsonjava.so`), server `SEND_CODE_UNAVAILABLE` (dokumentace `auth.resendCode`); obojí má
+  vlastní větu, zbytek spadne na „Kód se nepodařilo poslat jinak". `PHONE_CODE_EXPIRED` už
+  větou „nech si poslat nový" neslibuje nemožné.
+- **Registrace (`registerUser`) s tím nesouvisí.** Plume nové účty vědomě nezakládá
+  (`AuthStage.WaitRegistration` odkazuje na oficiální klient); poslat kód jinak je jen
+  doručení kódu k EXISTUJÍCÍMU přihlášení.
+- **Na zařízení ověřené NENÍ** — ani tlačítko s odpočtem (podstrčeným stavem), ani skutečné
+  doručení SMS či hovoru; pokryté jen testy `AuthViewModelTest` (lhůta, poslání, chyby).
+
 ### Heslo dvoufázového ověření
 
 Tónovaný blok jako číslo, s okem na odkrytí (`PasswordField`).

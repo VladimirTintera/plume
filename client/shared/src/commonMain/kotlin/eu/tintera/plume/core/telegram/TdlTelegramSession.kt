@@ -30,6 +30,7 @@ import dev.g000sha256.tdl.dto.AuthorizationStateWaitPremiumPurchase
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitRegistration
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitTdlibParameters
 import dev.g000sha256.tdl.dto.OptionValueInteger
+import dev.g000sha256.tdl.dto.ResendCodeReasonUserRequest
 import dev.g000sha256.tdl.TdlThrowable
 import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.CoroutineScope
@@ -138,7 +139,11 @@ class TdlTelegramSession(
             is AuthorizationStateWaitTdlibParameters -> sendTdlibParameters()
 
             is AuthorizationStateWaitPhoneNumber -> _authStage.value = AuthStage.WaitPhoneNumber
-            is AuthorizationStateWaitCode -> _authStage.value = AuthStage.WaitCode(state.codeInfo.type.toAuthCode())
+            is AuthorizationStateWaitCode -> _authStage.value = AuthStage.WaitCode(
+                code = state.codeInfo.type.toAuthCode(),
+                next = state.codeInfo.nextType?.toAuthCode()?.delivery,
+                resendTimeout = state.codeInfo.timeout.coerceAtLeast(0),
+            )
             is AuthorizationStateWaitPassword -> _authStage.value = AuthStage.WaitPassword(
                 hint = state.passwordHint.takeIf { it.isNotBlank() },
                 canRecover = state.hasRecoveryEmailAddress,
@@ -379,6 +384,15 @@ class TdlTelegramSession(
 
     override suspend fun submitCode(code: String): Result<Unit> =
         client.checkAuthenticationCode(code = code)
+            .toResult()
+            .map { }
+
+    /**
+     * Důvod je „uživatel o to požádal" — TDLib jinak zná jen selhané ověření Firebase, které
+     * tady nenastává. `null` („nevíme") by šlo taky, ale server pak nedostane, co víme.
+     */
+    override suspend fun resendCode(): Result<Unit> =
+        client.resendAuthenticationCode(reason = ResendCodeReasonUserRequest())
             .toResult()
             .map { }
 
