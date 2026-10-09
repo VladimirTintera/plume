@@ -65,6 +65,12 @@
     <string name="auth_recovery_unavailable_ok">Rozumím</string>
     <string name="auth_error_recovery_request">Kód na obnovu se nepodařilo poslat.</string>
     <string name="auth_error_hint_equals_password">Nápověda nesmí být stejná jako heslo.</string>
+    <string name="auth_resend_sms">Poslat kód SMS</string>
+    <string name="auth_resend_call">Zavolat</string>
+    <string name="auth_resend_app">Poslat kód do Telegramu</string>
+    <string name="auth_resend_other">Poslat kód jinak</string>
+    <string name="auth_resend_wait">%1$s za %2$s</string>
+    <string name="auth_error_resend">Kód se nepodařilo poslat jinak.</string>
     <string name="chats_empty">Zatím tu nic není.</string>
     <string name="saved_messages">Uložené zprávy</string>
     <string name="chats_menu">Další možnosti</string>
@@ -238,6 +244,7 @@
     <string name="error_phone_number_invalid">Tohle číslo Telegram nezná. Zkontroluj předvolbu.</string>
     <string name="error_phone_code_invalid">Kód nesedí.</string>
     <string name="error_phone_code_expired">Kódu vypršela platnost. Nech si poslat nový.</string>
+    <string name="error_code_resend_unavailable">Jinou cestou teď kód poslat nejde.</string>
     <string name="error_password_invalid">Heslo nesedí.</string>
     <string name="error_recovery_code_invalid">Kód z e-mailu nesedí.</string>
     <string name="error_recovery_code_expired">Kód z e-mailu vypršel. Nech si poslat nový.</string>

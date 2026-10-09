@@ -4,6 +4,7 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.error_about_too_long
 import eu.tintera.plume.resources.error_admin_required
+import eu.tintera.plume.resources.error_code_resend_unavailable
 import eu.tintera.plume.resources.error_first_name_invalid
 import eu.tintera.plume.resources.error_username_invalid
 import eu.tintera.plume.resources.error_username_occupied
@@ -89,6 +90,8 @@ fun Throwable.userMessage(fallback: StringResource): UiText {
         // Správu členů smí správce jen v rozsahu vlastních práv; cizího správce vůbec.
         "Can't edit chat administrators" -> Res.string.error_member_admin_forbidden
         "Invalid recovery code" -> Res.string.error_recovery_code_invalid
+        // `resendAuthenticationCode` bez další cesty (`nextType` je null) — TDLib to odmítne sama.
+        "Authentication code can't be resend" -> Res.string.error_code_resend_unavailable
 
         // Konstanty od serveru. TDLib je nepřekládá, posílá je dál, jak přišly.
         "PINNED_DIALOGS_TOO_MUCH" -> Res.string.error_pin_limit
@@ -96,6 +99,8 @@ fun Throwable.userMessage(fallback: StringResource): UiText {
         "PHONE_NUMBER_INVALID" -> Res.string.error_phone_number_invalid
         "PHONE_CODE_INVALID" -> Res.string.error_phone_code_invalid
         "PHONE_CODE_EXPIRED" -> Res.string.error_phone_code_expired
+        // `auth.resendCode`, když server další cestu doručení nemá (dokumentace metody v API).
+        "SEND_CODE_UNAVAILABLE" -> Res.string.error_code_resend_unavailable
         "PASSWORD_HASH_INVALID" -> Res.string.error_password_invalid
         // Obnova hesla e-mailem. `CODE_INVALID` je obecná konstanta, ale jiný kód než ten
         // z e-mailu se v přihlášení touhle cestou neposílá (SMS kód má `PHONE_CODE_INVALID`).

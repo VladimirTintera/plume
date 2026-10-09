@@ -12,14 +12,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.seconds
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auth_error_generic
 import eu.tintera.plume.resources.auth_error_hint_equals_password
 import eu.tintera.plume.resources.auth_error_qr
 import eu.tintera.plume.resources.auth_error_recovery_request
+import eu.tintera.plume.resources.auth_error_resend
 import eu.tintera.plume.resources.auth_error_restart
 
 class AuthViewModel(
@@ -67,6 +71,14 @@ class AuthViewModel(
     /** Uživatel chtěl obnovit heslo, ale účet nemá obnovovací e-mail — vysvětlí to dialog. */
     val recoveryUnavailable: StateFlow<Boolean> = _recoveryUnavailable.asStateFlow()
 
+    private val _resendIn = MutableStateFlow(0)
+
+    /**
+     * Za kolik sekund jde kód poslat jinak ([AuthStage.WaitCode.next]); 0 = hned. Mimo zadání
+     * kódu vždy 0.
+     */
+    val resendIn: StateFlow<Int> = _resendIn.asStateFlow()
+
     /**
      * Kód z e-mailu, který server už uznal. Drží se mimo [input], protože v kroku nového hesla
      * pole patří heslu, a kód se posílá až s ním (`recoverAuthenticationPassword`).
@@ -85,6 +97,19 @@ class AuthViewModel(
         // restart), nesmí se do příštího hesla přenést rozdělaný krok.
         viewModelScope.launch {
             stage.collect { if (it !is AuthStage.WaitPassword) resetPasswordStep() }
+        }
+        // Lhůta platí od příchodu stavu (TDLib posílá zbývající čas). `collectLatest`: nový
+        // stav — kód poslaný jinak, nebo odchod z kódu — rozjetý odpočet zruší.
+        viewModelScope.launch {
+            stage.collectLatest { current ->
+                var left = (current as? AuthStage.WaitCode)?.resendTimeout ?: 0
+                _resendIn.value = left
+                while (left > 0) {
+                    delay(1.seconds)
+                    left--
+                    _resendIn.value = left
+                }
+            }
         }
     }
 
@@ -235,6 +260,32 @@ class AuthViewModel(
                     logger.w(failure) { "Přihlašovací krok selhal." }
                     _error.value = failure.userMessage(Res.string.auth_error_generic)
                 }
+        }
+    }
+
+    /**
+     * Kód jinou cestou — SMS nebo hovor místo zprávy do Telegramu. Bez toho se nepřihlásil nikdo,
+     * kdo k přihlášenému zařízení nemá přístup (ztracený telefon, recyklované číslo).
+     *
+     * Před uplynutím lhůty se nic neposílá: TDLib by to odmítl a uživatel by místo odpočtu
+     * viděl chybu. Kudy kód odešel doopravdy, ohlásí TDLib novým stavem; rozepsaný kód se
+     * zahodí, protože ten nový bude jiný (a může mít i jinou délku).
+     */
+    fun resendCode() {
+        val current = stage.value as? AuthStage.WaitCode ?: return
+        if (current.next == null || _resendIn.value > 0 || _busy.value) return
+        viewModelScope.launch {
+            _busy.value = true
+            session.resendCode()
+                .onSuccess {
+                    input = ""
+                    _error.value = null
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Kód se nepodařilo poslat jinou cestou." }
+                    _error.value = failure.userMessage(Res.string.auth_error_resend)
+                }
+            _busy.value = false
         }
     }
 

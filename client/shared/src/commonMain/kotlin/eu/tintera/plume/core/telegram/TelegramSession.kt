@@ -36,6 +36,13 @@ interface TelegramSession {
 
     suspend fun submitCode(code: String): Result<Unit>
 
+    /**
+     * Pošle kód znovu, jinou cestou — tou, kterou hlásí [AuthStage.WaitCode.next]. Jde jen
+     * v [AuthStage.WaitCode] s nenulovým `next` a po uplynutí [AuthStage.WaitCode.resendTimeout];
+     * kudy kód odešel doopravdy, ohlásí TDLib novým stavem.
+     */
+    suspend fun resendCode(): Result<Unit>
+
     /** Heslo dvoufázového ověření (cloud password), ne kód z SMS. */
     suspend fun submitPassword(password: String): Result<Unit>
 
@@ -194,7 +201,20 @@ sealed interface AuthStage {
     data object WaitPhoneNumber : AuthStage
 
     /** Server čeká kód; jeho podobu nese [code], podle ní se kreslí políčka. */
-    data class WaitCode(val code: AuthCode) : AuthStage
+    data class WaitCode(
+        val code: AuthCode,
+        /**
+         * Kudy půjde kód, když si ho uživatel nechá poslat znovu, nebo `null`, když jinou
+         * cestu server nenabízí. Typicky SMS nebo hovor po kódu poslaném do Telegramu —
+         * bez toho by se nepřihlásil nikdo, kdo k přihlášenému zařízení nemá přístup.
+         */
+        val next: CodeDelivery? = null,
+        /**
+         * Za kolik sekund od příchodu stavu smí kód odejít znovu. TDLib posílá ZBÝVAJÍCÍ čas,
+         * ne původní lhůtu, takže se odpočítává od chvíle, kdy stav dorazil.
+         */
+        val resendTimeout: Int = 0,
+    ) : AuthStage
 
     data class WaitPassword(
         val hint: String?,

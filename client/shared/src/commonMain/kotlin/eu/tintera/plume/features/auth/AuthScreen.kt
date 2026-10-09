@@ -63,6 +63,9 @@ import eu.tintera.plume.core.ui.IntroShape
 import eu.tintera.plume.core.ui.QrCode
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.resolve
+import eu.tintera.plume.core.ui.tabularNumbers
+import eu.tintera.plume.features.conversation.formatDuration
+import androidx.compose.material3.LocalTextStyle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auth_proxy
 import eu.tintera.plume.resources.vpn_lock_24dp
@@ -78,6 +81,11 @@ import eu.tintera.plume.resources.auth_input_new_password
 import eu.tintera.plume.resources.auth_input_password_hint
 import eu.tintera.plume.resources.auth_input_recovery_code
 import eu.tintera.plume.resources.auth_recovery_resend
+import eu.tintera.plume.resources.auth_resend_app
+import eu.tintera.plume.resources.auth_resend_call
+import eu.tintera.plume.resources.auth_resend_other
+import eu.tintera.plume.resources.auth_resend_sms
+import eu.tintera.plume.resources.auth_resend_wait
 import eu.tintera.plume.resources.auth_recovery_unavailable_ok
 import eu.tintera.plume.resources.auth_recovery_unavailable_text
 import eu.tintera.plume.resources.auth_recovery_unavailable_title
@@ -147,6 +155,7 @@ fun AuthScreen(
     val passwordStep by viewModel.passwordStep.collectAsStateWithLifecycle()
     val hint = viewModel.hint
     val recoveryUnavailable by viewModel.recoveryUnavailable.collectAsStateWithLifecycle()
+    val resendIn by viewModel.resendIn.collectAsStateWithLifecycle()
 
     var pickingCountry by rememberSaveable { mutableStateOf(false) }
     var showingProxy by rememberSaveable { mutableStateOf(false) }
@@ -244,11 +253,14 @@ fun AuthScreen(
 
                             is AuthStage.WaitCode -> CodeForm(
                                 code = current.code,
+                                next = current.next,
+                                resendIn = resendIn,
                                 value = input,
                                 error = error,
                                 busy = busy,
                                 onValueChange = viewModel::onInputChange,
                                 onSubmit = viewModel::submit,
+                                onResend = viewModel::resendCode,
                                 onChangeNumber = viewModel::restartLogin,
                             )
 
@@ -440,6 +452,17 @@ private fun CodeDelivery.supportingText(): StringResource = when (this) {
     CodeDelivery.Fragment -> Res.string.auth_support_code_fragment
 }
 
+/**
+ * Popisek tlačítka „poslat kód jinak" podle cesty, kterou nabízí server. Slovo a fráze jsou
+ * pořád SMS, prozvonění pořád hovor — rozdíl vysvětlí věta nad polem, až kód odejde.
+ */
+private fun CodeDelivery.resendLabel(): StringResource = when (this) {
+    CodeDelivery.Sms, CodeDelivery.Word, CodeDelivery.Phrase -> Res.string.auth_resend_sms
+    CodeDelivery.Call, CodeDelivery.CallerNumber -> Res.string.auth_resend_call
+    CodeDelivery.TelegramApp -> Res.string.auth_resend_app
+    CodeDelivery.Fragment -> Res.string.auth_resend_other
+}
+
 /** Tlačítko „dál" je ve všech fázích stejné, takže jen jedno místo, kde se mění stav. */
 @Composable
 internal fun ContinueButton(enabled: Boolean, busy: Boolean, onClick: () -> Unit) {
@@ -510,11 +533,14 @@ private fun QrForm(
 @Composable
 private fun CodeForm(
     code: AuthCode,
+    next: CodeDelivery?,
+    resendIn: Int,
     value: String,
     error: UiText?,
     busy: Boolean,
     onValueChange: (String) -> Unit,
     onSubmit: () -> Unit,
+    onResend: () -> Unit,
     onChangeNumber: () -> Unit,
 ) {
     val complete = code.digits == null || value.length == code.digits
@@ -550,6 +576,26 @@ private fun CodeForm(
         ContinueButton(enabled = value.isNotBlank() && complete, busy = busy, onClick = onSubmit)
         // Kód poslaný na překlep v čísle nikdy nedorazí; bez tohohle se z kroku nedalo odejít.
         SecondaryActions {
+            /*
+             * Jiná cesta jen tehdy, když ji server nabízí — tlačítko, které by skončilo chybou
+             * „kód nejde poslat znovu", by slibovalo cestu, která není. Během lhůty zůstává
+             * vidět s odpočtem: uživatel bez přístupu k Telegramu se dozví, že za chvíli
+             * přijde jiná možnost, a nemusí zkoušet zpět a znovu.
+             */
+            if (next != null) {
+                val label = stringResource(next.resendLabel())
+                TextButton(onClick = onResend, enabled = !busy && resendIn == 0) {
+                    Text(
+                        text = if (resendIn > 0) {
+                            stringResource(Res.string.auth_resend_wait, label, formatDuration(resendIn))
+                        } else {
+                            label
+                        },
+                        // Odpočet se mění na místě; s proporcionálními číslicemi by tlačítko cukalo.
+                        style = LocalTextStyle.current.tabularNumbers(),
+                    )
+                }
+            }
             TextButton(onClick = onChangeNumber, enabled = !busy) {
                 Text(stringResource(Res.string.auth_change_number))
             }
