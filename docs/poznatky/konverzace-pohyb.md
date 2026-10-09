@@ -481,7 +481,8 @@ vedly dva kroky.
   že uživatel musí před každým gestem přemýšlet, čí zpráva to je. Odchozí bublina se přitom kusem
   vysune za pravý okraj — tak to dělá Telegram i WhatsApp.
 - **Odpověď odchází při PUŠTĚNÍ, ne při překročení prahu.** Kdo si to rozmyslí, vrátí prst zpátky
-  a nic se nestane. Příznak `armed` hlídá, aby haptika i odpověď odešly jen jednou za tah.
+  a nic se nestane. Příznak `armed` hlídá, aby se haptika ozvala jednou za každé překročení
+  prahu a odpověď odešla nejvýš jednou.
 - **Za prahem klade tah odpor** (30 %). Bez toho by šla bublina odtáhnout přes půl obrazovky
   a nebylo by poznat, že se dál už nic nestane.
 - **Posun i průhlednost šipky se čtou až v layoutu a při kreslení** (`offset { }`,
@@ -551,9 +552,15 @@ bránit.
   i odpověď tahem): ikona pod taženou položkou je do prahu kolečko, za prahem naroste,
   morfne do sušenky (`ShapeMorphs.Rest` — „připraveno, pusť a stane se") a vyplní se akcentem.
   Haptiku nemá každý zapnutou a v ruce se dá přehlédnout.
-  - **Tvar sleduje AKTUÁLNÍ polohu prstu** (`derivedStateOf { |drag| >= práh }`), haptika jen
-    první překročení v tahu (`armed`). Kdo prst vrátí před práh, vidí kolečko a ví, že po
-    puštění se nic nestane. `derivedStateOf`, aby se nic nerekomponovalo každý snímek tahu.
+  - **Tvar sleduje AKTUÁLNÍ polohu prstu** (`derivedStateOf { |drag| >= práh }`). Kdo prst
+    vrátí před práh, vidí kolečko a ví, že po puštění se nic nestane. `derivedStateOf`, aby se
+    nic nerekomponovalo každý snímek tahu.
+  - **Haptika se ozve při KAŽDÉM překročení prahu, ne jen při prvním v tahu.** Příznak `armed`
+    se dřív shazoval až při puštění, takže po vrácení prstu před práh a novém překročení se
+    ikona změnila, ale vibrace nepřišla. Teď `armed` sleduje polohu stejně jako ikona
+    (`armed = past`) a haptika odchází jen při přechodu z „před prahem" za práh. Zavírání
+    prohlížeče tahem (`dismissArmed`) to tak dělalo odjakživa. Hystereze tu není schválně:
+    haptika má sedět s ikonou, a ta se překlápí přesně na prahu.
   - **Pružina je rychlá (`StiffnessMediumLow`, tlumení 0,5)**, ne `morphSpring`: odezva patří
     k tahu a musí přijít s vibrací, ne o půl vteřiny později.
   - **Výplň se měří proti ploše pod ikonou** (`accentOn`). Na `primaryContainer` podkladu

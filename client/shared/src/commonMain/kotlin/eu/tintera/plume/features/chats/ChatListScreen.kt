@@ -1308,7 +1308,7 @@ private fun SwipeableChat(
      * „Vrátit" by se tedy vrátil rovnou odtažený, tedy neviditelný.
      */
     val drag = remember { Animatable(0f) }
-    /** Prah už byl v tomhle tahu překročen; hlídá, aby haptika odešla jen jednou za tah. */
+    /** Tah je právě za prahem; hlídá, aby se haptika ozvala jednou za každé překročení. */
     var armed by remember { mutableStateOf(false) }
     // Spec se musí vzít v kompozici — konec gesta je obyčejná suspend funkce, ne composable.
     val returnSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
@@ -1367,10 +1367,11 @@ private fun SwipeableChat(
                                 val max = if (currentRight != null) maxDrag() else 0f
                                 val next = (drag.value + delta).coerceIn(min, max)
                                 drag.snapTo(next)
-                                if (!armed && abs(next) >= threshold()) {
-                                    armed = true
-                                    haptics.threshold()
-                                }
+                                // Vrácený prst práh zase odjistí: další překročení v témže tahu
+                                // se musí ozvat znovu, stejně jako se znovu mění ikona.
+                                val past = abs(next) >= threshold()
+                                if (past && !armed) haptics.threshold()
+                                armed = past
                             }
                         },
                         onEnd = { released ->
