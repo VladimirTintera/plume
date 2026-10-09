@@ -445,23 +445,26 @@ Telegram sám.
     `bots.invokeWebViewCustomMethod`) s metodami `saveStorageValue` `{"key","value"}`,
     `getStorageValues` `{"keys":[…]}`, `deleteStorageValues` `{"keys":[…]}` a `getStorageKeys`
     `{}`. V Plume to už běží jako `WebAppRepository.customRequest` v mostu mini aplikací.
-  - **Že to jde BEZ otevřené mini aplikace, ověřené není.** Dokumentace metody říká, že ji
-    volá otevřená mini aplikace a že bot musí mini aplikace podporovat. Volání žádné id relace
-    WebView nenese, takže se neví, jestli to server kontroluje. Na tom stojí celý nápad.
-  - **Že je to neviditelné, ověřené taky není.** Chat s botem nevzniká, ale bot se může dostat
-    mezi naposledy použité aplikace. Ověří se `getTopChats(TopChatCategoryWebAppBots)` před
-    voláním a po něm a pohledem do oficiálního klienta.
-  - **Jak to ověřit:** dočasná sonda po `AuthorizationStateReady` v debug buildu zavolá
-    `getStorageKeys` a pak zápis, čtení a smazání jednoho klíče. Jednou u bota bez mini aplikace
-    (testovací Notifikátor `@NoTiBoBoBot`: `has_main_web_app = false`, tlačítko menu
-    `commands`) a jednou u bota s mini aplikací, kterou uživatel otevřenou nemá. Zápis jde na
-    skutečný účet, takže **chce souhlas uživatele předem**.
-  - **Kdyby to prošlo:** bota založí uživatel přes BotFather a jeho id bude v kódu jako konstanta.
-    Kdyby server chtěl mini aplikaci, stačí botovi Main Mini App se statickou stránkou. Jeden klíč
-    na nastavení, hodnota `{v, ts}` a při konfliktu vyhraje novější zápis. Server změny
-    neohlašuje, takže se čte po návratu do popředí. Zápisy se sdružují, protože limit rychlosti
-    neznáme. Synchronizuje se jen to, co není vázané na zařízení: zámek aplikace, velikost písma,
-    stažený model ani úložiště ne.
+  - **Jde to BEZ otevřené mini aplikace a i u bota, který mini aplikaci nemá.** Ověřila to sonda
+    na emulátoru 2026-10-09 se souhlasem uživatele. Testovací Notifikátor `@NoTiBoBoBot` má
+    `has_main_web_app = false` a tlačítko menu `commands`, a přesto `saveStorageValue`,
+    `getStorageValues`, `getStorageKeys` i `deleteStorageValues` prošly. Totéž u
+    `@DurgerKingBot`, jehož mini aplikace otevřená nebyla, a čtení u `@gif`. Podmínky z dokumentace
+    metody server tedy NEKONTROLUJE. Je to ale chování serveru, ne slib v dokumentaci, a může se
+    změnit. Neznámá metoda vrací `METHOD_INVALID`.
+  - **Bota musí TDLib znát, jinak `User not found`.** Hned po `AuthorizationStateReady` sonda
+    u Notifikátoru dvakrát narazila. Uspěla, až když TDLib bota znal, protože se mezitím načetl
+    seznam chatů. Synchronizace si proto bota napřed přeloží přes `searchPublicChat(username)`.
+  - **Bot se nikde neukázal.** `getTopChats(TopChatCategoryWebAppBots)` byl před zápisem i po něm
+    stejný (`@BotFather` a `@DurgerKingBot`, kterého účet dřív otevřel). Chat s Notifikátorem ani
+    s DurgerKingem nevznikl (`positions` 0 u DurgerKinga). **Pohled do oficiálního klienta zbývá.**
+  - **Strop 4096 znaků na hodnotu sonda nepotvrdila**: logcat dlouhý řádek uřízl i s výsledkem.
+  - **Postup, až se to bude stavět:** bota založí uživatel přes BotFather, jeho uživatelské jméno
+    bude v kódu jako konstanta. Jeden klíč na nastavení, hodnota `{v, ts}`, a při konfliktu
+    vyhraje novější zápis. Server změny neohlašuje, takže se čte při přihlášení (viz automatické
+    stahování výš: ze serveru při přihlášení, změna hned na server). Zápisy se sdružují, protože
+    limit rychlosti neznáme. Synchronizuje se jen to, co není vázané na zařízení: zámek aplikace,
+    velikost písma, stažený model ani úložiště ne.
 - **Proč ne tichý push (FCM / APNs):** potřebuje běžící server (klíče FCM/APNs, párování push
   tokenů mezi zařízeními uživatele) a iOS tiché pushe (`content-available: 1`) škrtí.
 - **Proč ne zpráva v Uložených zprávách, koncept zprávy, složka nebo soukromý kanál:** oficiální
