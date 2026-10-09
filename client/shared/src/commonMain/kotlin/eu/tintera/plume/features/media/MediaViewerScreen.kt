@@ -55,9 +55,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.navigationevent.NavigationEventInfo
-import androidx.navigationevent.compose.NavigationBackHandler
-import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -205,15 +202,12 @@ fun MediaViewerScreen(
         }
     }
 
-    NavigationBackHandler(
-        state = rememberNavigationEventState(NavigationEventInfo.None),
-        isBackEnabled = true,
-        onBackCompleted = {
-            viewModel.onDismiss()
-            onBack()
-        },
-    )
-
+    /*
+     * Zpět (gesto i tlačítko) obsluhuje `NavDisplay`, ne vlastní handler: jen tak dostane průběh
+     * gesta a prohlížeč se při tahu zpět zmenšuje a fotka letí do bubliny (predictive back).
+     * Handler s `onBackCompleted` si gesto bral sám a animace se nespustila vůbec. Spotřebování
+     * mizejícího média při odchodu hlídá `onDispose` níž, ať se odchází jakkoli.
+     */
     DisposableEffect(Unit) {
         onDispose {
             viewModel.onDismiss()
