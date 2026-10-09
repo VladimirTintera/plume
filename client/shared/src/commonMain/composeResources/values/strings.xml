@@ -885,6 +885,8 @@
     <string name="clipboard_has_image">Image in clipboard</string>
     <!-- Formátování výběru v kontextové nabídce vstupního pole. -->
     <string name="format_open">Formatting</string>
+    <string name="composer_show_formatting">Show formatting</string>
+    <string name="composer_show_attachments">Show attachments</string>
     <string name="format_code_language">Code language</string>
     <string name="format_code_language_hint">e.g. kotlin</string>
     <string name="format_quote_expandable">Collapsible quote</string>
