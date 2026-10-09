@@ -427,6 +427,14 @@ Telegram sám.
   rozsazích, archiv a složky už jdou přes server a platí i v oficiálních aplikacích. Kdo přidává
   volbu, kterou Telegram zná, má ji napojit na jeho API a ne na `AppSettings`. Vlastní úschova
   je jen pro to, co Telegram nemá.
+- **Automatické stahování ZŮSTÁVÁ v zařízení**, i když ho Telegram ukládá na server.
+  Server (`account.saveAutoDownloadSettings`) drží pro účet tři předvolby, „nízká, střední
+  a vysoká spotřeba dat“. TDLib je přes `setAutoDownloadSettings(settings, type)` mapuje na
+  roaming, mobilní data a Wi-Fi. Synchronizují se tedy pravidla pro druh sítě a podle sítě se
+  rozhoduje až v zařízení. Proč to Telegram drží na serveru, dokumentace neříká. Nejspíš kvůli
+  výchozím hodnotám, které server ladí podle země (`getAutoDownloadSettingsPresets`: předvolby
+  „for the current user“). Telefon s malým úložištěm a tablet ale chtějí jiná pravidla i na stejné
+  Wi-Fi, a sdílené předvolby by změnu z jednoho zařízení vnutily všem. Proto `AppSettings`.
 - **Kandidát: CloudStorage mini aplikací.** Je to úložiště klíč–hodnota pro dvojici „bot,
   uživatel“ na serverech Telegramu: nejvýš **1024 klíčů**, klíč 1–128 znaků `A-Za-z0-9_-`,
   hodnota 0–4096 znaků. Bot API pro něj žádnou metodu nemá, takže ho ani majitel bota nepřečte.
