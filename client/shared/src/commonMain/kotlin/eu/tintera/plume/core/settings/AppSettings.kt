@@ -255,7 +255,41 @@ interface AppSettings {
 
     /** Zapíše čas posledního úklidu. Neblokuje. */
     fun setLastStorageCleanup(epochSeconds: Long)
+
+    /**
+     * Velikost písma textu zpráv v sp (Nastavení → Vzhled), v rozsahu [MESSAGE_TEXT_SIZES].
+     * Výchozí [DEFAULT_MESSAGE_TEXT_SIZE] — tatáž velikost jako `bodyLarge`.
+     */
+    val messageTextSize: StateFlow<Int>
+
+    /** Uloží velikost písma zpráv; výchozí se neukládá. Neblokuje. */
+    fun setMessageTextSize(size: Int)
+
+    /**
+     * Webové odkazy otevírat uvnitř aplikace (Custom Tabs / `SFSafariViewController`), ne
+     * v prohlížeči. Výchozí `true`, jako v oficiálním klientovi; odkaz, který si vezme jiná
+     * aplikace (YouTube), jde do ní v obou režimech — viz `UrlOpener`.
+     */
+    val openLinksInApp: StateFlow<Boolean>
+
+    /** Zapne nebo vypne otevírání odkazů v aplikaci. Neblokuje. */
+    fun setOpenLinksInApp(enabled: Boolean)
+
+    /**
+     * Dvojité ťuknutí na zprávu přidá (a znovu odebere) rychlou reakci. Výchozí `true`, jako
+     * v oficiálním klientovi. Kterou reakci, je nastavení účtu na serveru (`QuickReaction`).
+     */
+    val doubleTapReaction: StateFlow<Boolean>
+
+    /** Zapne nebo vypne rychlou reakci dvojitým ťuknutím. Neblokuje. */
+    fun setDoubleTapReaction(enabled: Boolean)
 }
+
+/** Výchozí velikost písma zpráv (sp) — `bodyLarge`, jak ho zprávy měly odjakživa. */
+const val DEFAULT_MESSAGE_TEXT_SIZE = 16
+
+/** Nabízené velikosti písma zpráv (sp); výchozí stojí uprostřed. */
+val MESSAGE_TEXT_SIZES = 12..20
 
 /** Kolik nedávných emoji se drží. Zhruba pět řádků mřížky na telefonu. */
 const val MAX_RECENT_EMOJIS = 40
@@ -626,6 +660,45 @@ class DataStoreAppSettings(
         }
     }
 
+    override val messageTextSize: StateFlow<Int> = value(DEFAULT_MESSAGE_TEXT_SIZE) { preferences ->
+        // Hodnota mimo rozsah (z novější verze s jiným rozsahem) se přitáhne k nejbližší nabízené.
+        preferences[MESSAGE_TEXT_SIZE]?.coerceIn(MESSAGE_TEXT_SIZES) ?: DEFAULT_MESSAGE_TEXT_SIZE
+    }
+
+    override fun setMessageTextSize(size: Int) {
+        val clamped = size.coerceIn(MESSAGE_TEXT_SIZES)
+        scope.launch {
+            edit { preferences ->
+                // Výchozí se neukládá, jako u motivu: výchozí velikost tak jde změnit bez migrace.
+                if (clamped == DEFAULT_MESSAGE_TEXT_SIZE) {
+                    preferences.remove(MESSAGE_TEXT_SIZE)
+                } else {
+                    preferences[MESSAGE_TEXT_SIZE] = clamped
+                }
+            }
+        }
+    }
+
+    override val openLinksInApp: StateFlow<Boolean> = value(true) { preferences ->
+        preferences[OPEN_LINKS_IN_APP] ?: true
+    }
+
+    override fun setOpenLinksInApp(enabled: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[OPEN_LINKS_IN_APP] = enabled }
+        }
+    }
+
+    override val doubleTapReaction: StateFlow<Boolean> = value(true) { preferences ->
+        preferences[DOUBLE_TAP_REACTION] ?: true
+    }
+
+    override fun setDoubleTapReaction(enabled: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[DOUBLE_TAP_REACTION] = enabled }
+        }
+    }
+
     /** `základ:varianta` oddělené středníkem. Ani dvojtečka, ani středník v žádném emoji nejsou. */
     private fun String.decodeTones(): Map<String, String> =
         split(TONE_ENTRY_SEPARATOR)
@@ -672,6 +745,9 @@ class DataStoreAppSettings(
         val STRIP_TRACKING_PARAMETERS = booleanPreferencesKey("strip_tracking_parameters")
         val KEEP_MEDIA = stringPreferencesKey("keep_media")
         val LAST_STORAGE_CLEANUP = longPreferencesKey("last_storage_cleanup")
+        val MESSAGE_TEXT_SIZE = intPreferencesKey("message_text_size")
+        val OPEN_LINKS_IN_APP = booleanPreferencesKey("open_links_in_app")
+        val DOUBLE_TAP_REACTION = booleanPreferencesKey("double_tap_reaction")
         const val KEYBOARD_ENTRY_SEPARATOR = " "
         const val MAX_USED_KEYBOARDS = 200
         const val EMOJI_SEPARATOR = " "

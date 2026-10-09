@@ -5,6 +5,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.platform.LocalHapticFeedback
+import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.ui.IconSwitch
+import eu.tintera.plume.core.ui.toggle
+import eu.tintera.plume.resources.open_in_new_24dp
+import eu.tintera.plume.resources.settings_open_links_in_app
+import eu.tintera.plume.resources.settings_open_links_in_app_summary
+import org.koin.compose.koinInject
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.TextButton
@@ -57,11 +66,15 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Skupina „Chaty" v Obecných: složky a akce tahem v seznamu chatů. Samostatná sekce by měla
- * dvě položky.
+ * Skupina „Chaty" v Obecných: složky, akce tahem v seznamu chatů, rychlá reakce a otevírání odkazů.
+ * Samostatná sekce by měla pár položek.
  */
 @Composable
-internal fun ChatsSettings(swipe: ChatSwipeSettingsViewModel, onOpenFolders: () -> Unit) {
+internal fun ChatsSettings(
+    swipe: ChatSwipeSettingsViewModel,
+    quickReaction: QuickReactionSettingsViewModel,
+    onOpenFolders: () -> Unit,
+) {
     val actions by swipe.actions.collectAsStateWithLifecycle()
     // Která strana má otevřený výběr; `null` = žádná.
     var picking by rememberSaveable { mutableStateOf<SwipeSide?>(null) }
@@ -83,6 +96,8 @@ internal fun ChatsSettings(swipe: ChatSwipeSettingsViewModel, onOpenFolders: () 
                 modifier = Modifier.clickable { picking = side },
             )
         }
+        QuickReactionSettings(quickReaction)
+        OpenLinksInAppRow()
     }
 
     picking?.let { side ->
@@ -99,6 +114,33 @@ internal fun ChatsSettings(swipe: ChatSwipeSettingsViewModel, onOpenFolders: () 
             onDismiss = { picking = null },
         )
     }
+}
+
+/**
+ * Webové odkazy v aplikaci (Custom Tabs / Safari uvnitř Plume), nebo v prohlížeči. Odkaz, který
+ * si vezme jiná aplikace, jde do ní v obou režimech — věta pod názvem to říká, aby vypnutí
+ * nevypadalo jako jediná cesta do YouTube.
+ */
+@Composable
+private fun OpenLinksInAppRow() {
+    val settings = koinInject<AppSettings>()
+    val haptics = LocalHapticFeedback.current
+    val enabled by settings.openLinksInApp.collectAsStateWithLifecycle()
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        leadingContent = { Icon(painterResource(Res.drawable.open_in_new_24dp), contentDescription = null) },
+        headlineContent = { Text(stringResource(Res.string.settings_open_links_in_app)) },
+        supportingContent = { Text(stringResource(Res.string.settings_open_links_in_app_summary)) },
+        trailingContent = { IconSwitch(checked = enabled, onCheckedChange = null) },
+        modifier = Modifier.toggleable(
+            value = enabled,
+            role = Role.Switch,
+            onValueChange = { on ->
+                haptics.toggle(on)
+                settings.setOpenLinksInApp(on)
+            },
+        ),
+    )
 }
 
 /**

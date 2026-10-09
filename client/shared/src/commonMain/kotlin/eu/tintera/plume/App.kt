@@ -37,6 +37,7 @@ import eu.tintera.plume.features.lock.LockWindow
 import org.koin.compose.koinInject
 import eu.tintera.plume.core.connectivity.AutoDownloadPolicy
 import eu.tintera.plume.core.ui.LocalAutoDownload
+import eu.tintera.plume.core.ui.LocalMessageTextSize
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -66,6 +67,7 @@ fun App() {
     val themeMode by settings.themeMode.collectAsStateWithLifecycle()
     val dynamicColor by settings.dynamicColor.collectAsStateWithLifecycle()
     val themeColor by settings.themeColor.collectAsStateWithLifecycle()
+    val messageTextSize by settings.messageTextSize.collectAsStateWithLifecycle()
 
     val appLock = koinInject<AppLock>()
     val lockSettings by appLock.settings.collectAsStateWithLifecycle()
@@ -105,7 +107,10 @@ fun App() {
                         LaunchedEffect(covered) { if (covered) focusManager.clearFocus(force = true) }
                         val autoDownload by koinInject<AutoDownloadPolicy>().limits.collectAsStateWithLifecycle()
                         Box(Modifier.fillMaxSize().then(if (covered) Inert else Modifier)) {
-                            CompositionLocalProvider(LocalAutoDownload provides autoDownload) {
+                            CompositionLocalProvider(
+                                LocalAutoDownload provides autoDownload,
+                                LocalMessageTextSize provides messageTextSize,
+                            ) {
                                 AppShell()
                             }
                             // Až tady, ne nad přihlášením — tam uživatel ještě netuší, co aplikace dělá.

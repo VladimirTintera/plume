@@ -77,6 +77,9 @@ sealed interface MessageAction {
     /** Ťuknutí na čip reakce — detail, kdo reagoval. */
     data object ShowReactions : MessageAction
 
+    /** Dvojité ťuknutí na zprávu: přepne rychlou reakci účtu (viz `QuickReaction`). */
+    data object QuickReact : MessageAction
+
     /** Ťuknutí na vlastní zprávu: vyžádá si odznak přečtení, druhé ho schová. */
     data object ToggleReadReceipt : MessageAction
 

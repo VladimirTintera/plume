@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.messageTextStyle
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.SwipeDirection
 import eu.tintera.plume.core.ui.SwipeThresholdBadge
@@ -750,8 +751,21 @@ private fun MessageFrame(
                  * ťuknout. Přidávat jim ho by znamenalo brát ťuknutí těm akcím — u fotky
                  * otevření prohlížeče —, a to je horší než chybějící zkratka.
                  */
+                /*
+                 * Dvojité ťuknutí přepne rychlou reakci. Jen tam, kam se ťuknutí dostane — fotka
+                 * nebo odkaz si ho vezmou samy, jako u odznaku přečtení výš. Cena: jednoduché
+                 * ťuknutí na vlastní zprávu (odznak přečtení) čeká, jestli nepřijde druhé.
+                 * Haptika tu není: jestli reakce v chatu vůbec jde, se ví až po dotazu,
+                 * a potvrzení u ťuknutí, po kterém se nic nestane, by lhalo. Odezvu nese
+                 * výbuch za přidanou reakcí.
+                 */
                 afterClip = Modifier.combinedClickable(
                     onLongClick = bodyScope::requestMenu,
+                    onDoubleClick = if (scope.doubleTapReaction()) {
+                        { bodyScope.act(MessageAction.QuickReact) }
+                    } else {
+                        null
+                    },
                     onClick = { frame.onTap?.let(bodyScope::act) },
                 ),
                 onReactionClick = if (frame.reactionsOpenable) {
@@ -1374,7 +1388,8 @@ private const val FORWARD_NAME_SLOT = "\u0001"
 @Composable
 internal fun MessageBodyScope.MessageText(
     linkColor: Color,
-    style: TextStyle = MaterialTheme.typography.bodyLarge,
+    /** Výchozí je písmo zpráv z nastavení ([messageTextStyle]); velká emoji si nesou vlastní. */
+    style: TextStyle = messageTextStyle(),
     /** Sbalená citace: kolik řádků je vidět, než se rozbalí. */
     maxLines: Int = Int.MAX_VALUE,
     /**

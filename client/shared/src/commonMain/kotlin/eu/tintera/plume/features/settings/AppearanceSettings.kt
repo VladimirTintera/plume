@@ -31,6 +31,7 @@ import eu.tintera.plume.resources.dark_mode_24dp
 import eu.tintera.plume.resources.light_mode_24dp
 import eu.tintera.plume.resources.palette_24dp
 import eu.tintera.plume.resources.settings_chats
+import eu.tintera.plume.resources.settings_messages
 import eu.tintera.plume.resources.settings_separate_unread
 import eu.tintera.plume.resources.settings_separate_unread_summary
 import eu.tintera.plume.resources.settings_theme
@@ -47,7 +48,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Sekce „Vzhled": motiv, barva aplikace a podoba seznamu chatů.
+ * Sekce „Vzhled": motiv, barva aplikace, písmo zpráv a podoba seznamu chatů.
  *
  * Obsah do sloupce sekce, ne celá obrazovka — hlavičku a scrollování drží [SettingsSectionScreen].
  */
@@ -58,6 +59,7 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
     val storedDynamic by viewModel.dynamicColor.collectAsStateWithLifecycle()
     val storedColor by viewModel.themeColor.collectAsStateWithLifecycle()
     val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
+    val messageTextSize by viewModel.messageTextSize.collectAsStateWithLifecycle()
 
     // Dokud si uživatel nevybral, je vybraná ta možnost, podle které se aplikace opravdu kreslí —
     // prázdný výběr by vypadal jako chyba a nikdo by z něj nepoznal, co teď platí.
@@ -120,6 +122,10 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
             )
         }
+    }
+
+    SettingsGroup(Res.string.settings_messages) {
+        MessageTextSizeSetting(stored = messageTextSize, onChange = viewModel::setMessageTextSize)
     }
 
     SettingsGroup(Res.string.settings_chats) {

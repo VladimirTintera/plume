@@ -561,10 +561,13 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
   po dni na zařízení.
 - ~~**Akce tahem v seznamu chatů pro každou stranu zvlášť**~~ — hotovo (Obecné → Chaty:
   archivovat, přečteno, ztlumit, připnout, nic; `docs/poznatky/seznam-chatu.md`, „Akce tahem").
-- **Menší přepínače:** dvojité ťuknutí na zprávu jako rychlá reakce (výchozí reakce
-  `setDefaultReactionType`), ~~Enter odesílá~~ (hotovo pro fyzickou klávesnici), velikost písma ve
-  zprávách, odkazy v aplikaci (Custom Tabs) / v prohlížeči, jazyk aplikace přímo v Nastavení
-  (per-app locale; dnes jen přes systém).
+- ~~**Menší přepínače**~~ — hotovo: rychlá reakce dvojitým ťuknutím, Enter odesílá (fyzická
+  klávesnice), velikost písma zpráv, odkazy v aplikaci (Custom Tabs / Safari) a jazyk aplikace
+  (`docs/poznatky/nastaveni.md`, „Menší přepínače"). Zbývá:
+  - **Jazyk aplikace na Androidu do 12** — systém jazyk pro jednu aplikaci nezná a řádek se tam
+    neukazuje. Šlo by to jen přes AppCompat a vlastní uložení.
+  - **iOS ověřit na simulátoru** — Safari v aplikaci, otevření systémového Nastavení z řádku
+    jazyka, dvojité ťuknutí.
 - **Tiché hodiny** (Android): v nastaveném čase jen zmínky a odpovědi. Notifikace kreslí
   aplikace sama, takže to jde bez serveru — ale jen lokálně, ostatní zařízení o tom nevědí.
 - **Diskrétní čtení a psaní (Ghost Mode).** V Nastavení → Soukromí volba pro potlačení

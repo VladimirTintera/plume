@@ -332,6 +332,27 @@ class DataStoreAppSettingsTest {
         )
     }
 
+    @Test
+    fun velikostPismaZpravJeVychozi16() = settingsTest { settings, _ ->
+        assertEquals(DEFAULT_MESSAGE_TEXT_SIZE, settings.messageTextSize.value)
+    }
+
+    @Test
+    fun velikostPismaZpravSeUloziAOrizneDoRozsahu() = settingsTest { settings, _ ->
+        settings.setMessageTextSize(18)
+        assertEquals(18, settings.messageTextSize.awaitValue("uložených 18") { it == 18 })
+        settings.setMessageTextSize(99)
+        assertEquals(
+            MESSAGE_TEXT_SIZES.last,
+            settings.messageTextSize.awaitValue("oříznutá horní mez") { it == MESSAGE_TEXT_SIZES.last },
+        )
+        settings.setMessageTextSize(DEFAULT_MESSAGE_TEXT_SIZE)
+        assertEquals(
+            DEFAULT_MESSAGE_TEXT_SIZE,
+            settings.messageTextSize.awaitValue("návrat na výchozí") { it == DEFAULT_MESSAGE_TEXT_SIZE },
+        )
+    }
+
     /** Doba, kterou tahle verze nezná, nesmí znamenat mazání — spadne na „navždy". */
     @Test
     fun neznameUchovaniSpadneNaNavzdy() = runBlocking {
