@@ -415,6 +415,12 @@ funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
     - **Bez sponky (úprava zprávy, chat bez příloh) je „Aa" vlevo trvale** — naskakovat
       s klávesnicí by znamenalo ubrat poli šířku. Ťuknutí na „Aa" bez klávesnice ji otevře
       i s lištou (`focusRequester` pole + `keyboard.show()`).
+    - **Ověřeno na emulátoru (Pixel 9, česky)** v Uložených zprávách: s klávesnicí a prázdným
+      polem sponka, po prvním písmenu „Aa" (text v poli se nepohne), smajlík s otevřenou
+      klávesnicí ji zavře a otevře výběr i s rozepsaným textem, tah nahoru přepne s `tick()`
+      (`constant=26` v `dumpsys vibrator_manager`), tahem přepnuté „Aa" bez klávesnice ji otevře
+      i s lištou, úprava popisku má „Aa" vlevo trvale. Na telefonu (jak se tah cítí pod prstem)
+      ověřené není.
     - **Rozhoduje viditelná klávesnice, ne fokus** (`typing` = fokus a nenulová výška
       `WindowInsets.ime`, přes `derivedStateOf`). Po schování klávesnice gestem zpět drží pole
       fokus dál. Výška klávesnice funguje i na iOS (`isImeVisible` je jen na Androidu).
