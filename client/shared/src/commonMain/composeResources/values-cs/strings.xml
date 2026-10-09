@@ -2397,6 +2397,7 @@
     <string name="app_lock_wrong_pin">Nesprávný PIN</string>
     <string name="app_lock_blocked">Příliš mnoho pokusů. Zkuste to znovu za %1$d s</string>
     <string name="app_lock_biometrics_prompt">Odemkněte Plume</string>
+    <string name="app_lock_biometrics_revoked">Otisky nebo tváře v telefonu se změnily, a tak je odemykání biometrií vypnuté. Odemkněte PINem a v Nastavení ho zapnete znovu.</string>
     <string name="settings_app_lock">Zámek aplikace</string>
     <string name="settings_app_lock_on">Zapnuto</string>
     <string name="settings_app_lock_off">Vypnuto</string>

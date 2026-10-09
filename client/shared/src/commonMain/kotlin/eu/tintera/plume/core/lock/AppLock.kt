@@ -273,6 +273,19 @@ class AppLock(
         save(current.copy(biometrics = enabled))
     }
 
+    /**
+     * Vypne biometrii, protože se v telefonu změnily otisky nebo tváře ([BiometricResult.Invalidated]).
+     * Na rozdíl od [setBiometrics] mění i stav zamčené aplikace — zámek pak ikonu otisku nenabízí
+     * a zbývá PIN.
+     */
+    suspend fun revokeBiometrics() = mutex.withLock {
+        val current = config ?: return@withLock
+        if (!current.biometrics) return@withLock
+        logger.i { "Seznam otisků v telefonu se změnil, vypínám odemykání biometrií." }
+        val next = current.copy(biometrics = false)
+        if (save(next) && _state.value is AppLockState.Locked) _state.value = next.lockedState()
+    }
+
     /** Vypne zámek (z Nastavení, po ověření PINu). */
     suspend fun disable() = mutex.withLock { clear() }
 

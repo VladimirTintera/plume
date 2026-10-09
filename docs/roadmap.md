@@ -546,11 +546,9 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
 - ~~**Zámek aplikace**~~ — hotovo (PIN, biometrie na Androidu i iOS, zamykání po době neaktivity,
   brzda pokusů, celoplošný `LockScreen`, skrytí v přehledu úloh přes `FLAG_SECURE` při aktivním zámku,
   nastavení v Nastavení → Soukromí; `docs/poznatky/zamek-aplikace.md`).
-- **Zámek aplikace: biometrie svázaná se seznamem otisků.** Kdo zná PIN telefonu, přidá si
-  v systému vlastní otisk nebo obličej a aplikaci odemkne. Android: klíč v Keystore
-  s `setUserAuthenticationRequired` + `setInvalidatedByBiometricEnrollment(true)` použitý přes
-  `CryptoObject` (`KeyPermanentlyInvalidatedException` → vypnout biometrii, chtít PIN); iOS:
-  uložit `evaluatedPolicyDomainState` při zapnutí a po ověření porovnat. Ke zvážení i volitelný
+- ~~**Zámek aplikace: biometrie svázaná se seznamem otisků.**~~ — hotovo (klíč v Keystore se
+  `setInvalidatedByBiometricEnrollment`, na iOS `evaluatedPolicyDomainState`;
+  `docs/poznatky/zamek-aplikace.md`, „Biometrie"). Zbývá ověřit iOS na zařízení a volitelný
   šestimístný PIN.
 - ~~**Automatické stahování médií**~~ — hotovo (Úložiště: úroveň pro Wi-Fi, mobilní data
   a roaming, spořič dat; `docs/poznatky/prohlizec-medii.md`, „Automatické stahování"). Zbývá

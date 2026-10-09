@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.lock
 
+import androidx.compose.ui.text.style.TextAlign
+import eu.tintera.plume.resources.app_lock_biometrics_revoked
+import eu.tintera.plume.core.lock.BiometricResult
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -77,18 +80,30 @@ fun LockScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isChecking by remember { mutableStateOf(false) }
 
+    // Otisky v telefonu se změnily a biometrie se vypnula: zámek musí říct proč, jinak by
+    // ikona otisku prostě zmizela a vypadalo by to jako chyba.
+    var biometricsRevoked by rememberSaveable { mutableStateOf(false) }
+    val tryBiometrics: suspend () -> Unit = {
+        when (biometricAuth.authenticate(title = getString(Res.string.app_lock_biometrics_prompt))) {
+            BiometricResult.Success -> {
+                haptics.confirm()
+                appLock.unlockWithBiometrics()
+            }
+            BiometricResult.Invalidated -> {
+                haptics.reject()
+                biometricsRevoked = true
+                appLock.revokeBiometrics()
+            }
+            BiometricResult.Failed -> Unit
+        }
+    }
+
     // Automatické spuštění biometrie jednou po zobrazení
     var autoPrompted by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(lockedState.biometrics, biometricAuth.isSupported) {
         if (!autoPrompted && lockedState.biometrics && biometricAuth.isSupported) {
             autoPrompted = true
-            val success = biometricAuth.authenticate(
-                title = getString(Res.string.app_lock_biometrics_prompt),
-            )
-            if (success) {
-                haptics.confirm()
-                appLock.unlockWithBiometrics()
-            }
+            tryBiometrics()
         }
     }
 
@@ -162,6 +177,14 @@ fun LockScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
+                } else if (biometricsRevoked) {
+                    // Není to chyba uživatele, takže ne v chybové barvě.
+                    Text(
+                        text = stringResource(Res.string.app_lock_biometrics_revoked),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
                 } else {
                     Spacer(Modifier.height(20.dp))
                 }
@@ -214,17 +237,7 @@ fun LockScreen(
                         errorMessage = null
                     }
                 },
-                onBiometrics = {
-                    scope.launch {
-                        val success = biometricAuth.authenticate(
-                            title = getString(Res.string.app_lock_biometrics_prompt),
-                        )
-                        if (success) {
-                            haptics.confirm()
-                            appLock.unlockWithBiometrics()
-                        }
-                    }
-                },
+                onBiometrics = { scope.launch { tryBiometrics() } },
                 isBiometricsEnabled = lockedState.biometrics && biometricAuth.isSupported,
                 isEnabled = !isBlocked && !isChecking,
                 modifier = Modifier.padding(bottom = 16.dp),

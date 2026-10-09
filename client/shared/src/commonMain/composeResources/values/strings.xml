@@ -2321,6 +2321,7 @@
     <string name="app_lock_wrong_pin">Wrong PIN</string>
     <string name="app_lock_blocked">Too many attempts. Try again in %1$d s</string>
     <string name="app_lock_biometrics_prompt">Unlock Plume</string>
+    <string name="app_lock_biometrics_revoked">Fingerprints or faces on this phone have changed, so biometric unlock is off. Unlock with your PIN and turn it back on in Settings.</string>
     <string name="settings_app_lock">App Lock</string>
     <string name="settings_app_lock_on">On</string>
     <string name="settings_app_lock_off">Off</string>

@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.lock.BiometricResult
+import eu.tintera.plume.core.lock.BiometricAuth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.lock.APP_LOCK_PIN_LENGTH
@@ -116,10 +118,15 @@ class AppLockViewModel(
         }
     }
 
-    fun onBiometricsVerify(biometricAuth: eu.tintera.plume.core.lock.BiometricAuth, promptTitle: String) {
+    fun onBiometricsVerify(biometricAuth: BiometricAuth, promptTitle: String) {
         viewModelScope.launch {
-            val success = biometricAuth.authenticate(promptTitle)
-            if (success) {
+            val result = biometricAuth.authenticate(promptTitle)
+            // Změněné otisky biometrii vypnou i tady; zbývá PIN, a ten tahle obrazovka chce stejně.
+            if (result == BiometricResult.Invalidated) {
+                appLock.revokeBiometrics()
+                _uiState.value = _uiState.value.copy(errorMessage = BIOMETRICS_REVOKED)
+            }
+            if (result == BiometricResult.Success) {
                 appLock.unlockWithBiometrics()
                 _uiState.value = _uiState.value.copy(
                     isVerified = true,
@@ -195,8 +202,13 @@ class AppLockViewModel(
         }
     }
 
-    fun setBiometrics(enabled: Boolean) {
+    /**
+     * Zapnutí si nejdřív zapamatuje současný seznam otisků ([BiometricAuth.enroll]) — jinak by
+     * biometrii vypnulo hned první odemčení. Když to platforma neumí, biometrie zůstane vypnutá.
+     */
+    fun setBiometrics(enabled: Boolean, biometricAuth: BiometricAuth) {
         viewModelScope.launch {
+            if (enabled && !biometricAuth.enroll()) return@launch
             appLock.setBiometrics(enabled)
         }
     }
@@ -208,3 +220,6 @@ class AppLockViewModel(
         }
     }
 }
+
+/** Kód hlášky: otisky v telefonu se změnily a biometrie se vypnula (viz [BiometricResult.Invalidated]). */
+internal const val BIOMETRICS_REVOKED = "biometrics_revoked"
