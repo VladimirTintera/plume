@@ -483,6 +483,29 @@ v ⋮ vrátí jednu konverzaci. Hranice je `SavedTopicsRepository` (`TdlSavedTop
   „naposledy nedávno" a přesný čas nedostaneme. Proto je `Presence` několik pojmenovaných stupňů,
   ne čas — dopočítávat minutu, kterou neznáme, by bylo horší než neurčitost.
 
+### Přehled konceptů
+
+Menu účtu → Koncepty (`DraftsSheet`): chaty s rozepsanou zprávou napříč složkami, nejčerstvější
+první, ťuknutí otevře chat s konceptem ve vstupním poli. Zdroj je `ChatRepository.drafts` nad
+všemi známými chaty (`all` v `TdlChatRepository`), ne nad jednou složkou.
+
+- **Sheet, ne obrazovka jako archiv.** Archiv je seznam, ve kterém se žije (vlastní rodina rout,
+  konverzace vedle v dvoupanelu). Koncepty jsou rozcestník; konverzace se otevře v hlavním seznamu
+  přes `onChatClick` / `onForumClick`, sheet napřed odjede a teprve pak se chat otevře.
+- **Položka v menu je jen s koncepty** a nese jejich počet v NEUTRÁLNÍ barvě — koncept je náš
+  rozdělaný text, nic, co by volalo o pozornost jako nepřečtené v archivu.
+- **Text konceptu na tři řádky**, ne jeden jako v řádku seznamu: tady je to jediné, co řádek říká.
+  Uložené zprávy se jmenují `chatTitle` (v TDLib nesou jméno účtu).
+- **`drafts` ve ViewModelu je `null`, dokud se nenačte.** S počáteční prázdnou hodnotou se sheet
+  obnovený po zániku procesu (`rememberSaveable`) hned zavřel — prázdný seznam pro něj znamená
+  „všechno odesláno" a zavírá se, aby nezůstal slepou uličkou. Ověřeno přeinstalací s otevřeným
+  sheetem.
+- **Jen chaty, které TDLib zná.** Koncept v chatu, který se v relaci ještě nenačetl (hluboko
+  v archivu), v přehledu není, dokud ho seznam nedotáhne. Koncepty v tématech fóra a vlákna
+  komentářů tu nejsou — `Chat.draftMessage` nese jen koncept celého chatu.
+- **Ověřeno na emulátoru**: koncept v Uložených se objevil nahoře, ťuknutí otevřelo konverzaci
+  s textem v poli, po smazání textu počet v menu živě klesl.
+
 ### Archiv
 
 Archivované chaty jsou vlastní seznam (`ArchiveRoute`, `ArchiveScreen`), vstup je menu účtu

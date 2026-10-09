@@ -210,6 +210,9 @@ import eu.tintera.plume.resources.chats_blocked
 import eu.tintera.plume.resources.chats_unblocked
 import eu.tintera.plume.resources.chats_unarchived
 import eu.tintera.plume.resources.chats_draft_prefix
+import eu.tintera.plume.resources.chats_drafts
+import eu.tintera.plume.resources.chats_drafts_count
+import eu.tintera.plume.resources.edit_note_24dp
 import eu.tintera.plume.resources.chats_empty
 import eu.tintera.plume.resources.chats_folder_empty
 import eu.tintera.plume.resources.chats_folder_empty_title
@@ -277,6 +280,8 @@ fun ChatListScreen(
     val newFolderChats by viewModel.newFolderChats.collectAsStateWithLifecycle()
     val account by viewModel.account.collectAsStateWithLifecycle()
     val archiveUnread by viewModel.archiveUnread.collectAsStateWithLifecycle()
+    val drafts by viewModel.drafts.collectAsStateWithLifecycle()
+    var showDrafts by rememberSaveable { mutableStateOf(false) }
     val folderTabs by viewModel.folderTabs.collectAsStateWithLifecycle()
     val folderSuggestions by viewModel.folderSuggestions.collectAsStateWithLifecycle()
     val reorder by viewModel.reorder.collectAsStateWithLifecycle()
@@ -329,6 +334,19 @@ fun ChatListScreen(
         onArchived = onChatArchived,
         onOpenProxySettings = onOpenProxySettings,
     )
+    // Až s načtenými koncepty: obnovený sheet (po zániku procesu) by se jinak nad prázdným
+    // seznamem hned zavřel.
+    val loadedDrafts = drafts
+    if (showDrafts && loadedDrafts != null) {
+        DraftsSheet(
+            drafts = loadedDrafts,
+            onOpen = { chat ->
+                showDrafts = false
+                if (chat.isForum) onForumClick(chat.id) else onChatClick(chat.id)
+            },
+            onDismiss = { showDrafts = false },
+        )
+    }
     newFolderChats?.takeIf { it.sheetOpen }?.let { folderChats ->
         NewFolderChatsSheet(
             state = folderChats,
@@ -422,6 +440,8 @@ fun ChatListScreen(
                             connection = shownConnection,
                             onSavedMessages = { viewModel.openSavedMessages(onChatClick) },
                             onArchive = onOpenArchive,
+                            draftCount = drafts?.size ?: 0,
+                            onDrafts = { showDrafts = true },
                             onSettings = onOpenSettings,
                         )
                     },
@@ -748,6 +768,9 @@ private fun AccountMenu(
     connection: ConnectionState?,
     onSavedMessages: () -> Unit,
     onArchive: () -> Unit,
+    /** Kolik chatů má rozepsanou zprávu; bez konceptů položka v menu není. */
+    draftCount: Int,
+    onDrafts: () -> Unit,
     onSettings: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
@@ -823,12 +846,14 @@ private fun AccountMenu(
                 )
             }
         }
-        // Kam se odtud jde: dvě místa v chatech, pak Nastavení — jiný druh cíle, vlastní skupina.
+        // Kam se odtud jde: místa v chatech, pak Nastavení — jiný druh cíle, vlastní skupina.
+        // Koncepty jen když nějaké jsou: prázdný přehled by byl položka, která nikam nevede.
+        val draftsLabel = pluralStringResource(Res.plurals.chats_drafts_count, draftCount, draftCount)
         ExpressiveMenu(
             expanded = open,
             onDismiss = { open = false },
             groups = listOf(
-                listOf(
+                listOfNotNull(
                     MenuAction(stringResource(Res.string.saved_messages), Res.drawable.bookmark_24dp, onClick = onSavedMessages),
                     MenuAction(
                         label = stringResource(Res.string.chats_archive),
@@ -836,6 +861,29 @@ private fun AccountMenu(
                         trailing = archiveBadge,
                         onClick = onArchive,
                     ),
+                    // Počet v neutrální barvě: koncept je náš rozdělaný text, ne nic, co by
+                    // si žádalo pozornost jako nepřečtené.
+                    if (draftCount > 0) {
+                        MenuAction(
+                            label = stringResource(Res.string.chats_drafts),
+                            icon = Res.drawable.edit_note_24dp,
+                            trailing = {
+                                Badge(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                ) {
+                                    RollingNumber(
+                                        value = draftCount,
+                                        style = LocalTextStyle.current.tabularNumbers(),
+                                        modifier = Modifier.semantics { contentDescription = draftsLabel },
+                                    )
+                                }
+                            },
+                            onClick = onDrafts,
+                        )
+                    } else {
+                        null
+                    },
                 ),
                 listOf(MenuAction(stringResource(Res.string.nav_settings), Res.drawable.settings_24dp, onClick = onSettings)),
             ),

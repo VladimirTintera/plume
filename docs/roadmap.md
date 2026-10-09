@@ -496,8 +496,9 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
   zkratky"; na iOS jen Enter). Zbývá přetažení obrázku či souboru z jiné aplikace v rozdělené
   obrazovce rovnou nad vstupní pole (`dragAndDropTarget`), stejnou cestou jako příloha ze
   schránky, a seznam zkratek v systémovém přehledu (`onProvideKeyboardShortcuts`, Meta+/).
-- **Přehled rozepsaných konceptů** napříč chaty (chaty s `draftMessage`), třeba jako položka
-  menu účtu nebo složka.
+- ~~**Přehled rozepsaných konceptů**~~ — hotovo (menu účtu → Koncepty;
+  `docs/poznatky/seznam-chatu.md`, „Přehled konceptů"). Zbývá: koncepty v tématech fóra a ve
+  vláknech komentářů (`ForumTopic.draftMessage`) a smazání konceptu přímo z přehledu.
 - **Lokální odložení chatu (Snooze).** Možnost odložit chat (z nabídky nad chatem nebo volbou
   tahu) na 1 hodinu, dnes večer nebo zítra ráno. Chat se dočasně vizuálně ztiší a v nastavený
   čas se znovu vynoří na vrcholu seznamu chatů jako připomínka.

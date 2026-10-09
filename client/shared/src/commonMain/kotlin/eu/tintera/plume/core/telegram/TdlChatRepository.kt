@@ -213,8 +213,16 @@ class TdlChatRepository(
 
     override val folderUnread: StateFlow<Map<Int, ArchiveUnread>> = _folderUnread.asStateFlow()
 
-    /** Všechny známé chaty — pro [typing], které na složce nezáleží. */
+    /** Všechny známé chaty — pro [typing] a [drafts], kterým na složce nezáleží. */
     private val all = MutableStateFlow<Map<Long, ChatSummary>>(emptyMap())
+
+    override val drafts: Flow<List<ChatSummary>> = all
+        .map { chats ->
+            chats.values
+                .filter { it.draft != null }
+                .sortedByDescending { it.draft?.timestamp ?: 0 }
+        }
+        .distinctUntilChanged()
 
     /**
      * Kdo v chatu naposledy ohlásil činnost. `ChatSummary` nese jen DRUH činnosti (seznamu
