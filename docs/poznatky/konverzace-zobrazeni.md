@@ -976,7 +976,8 @@ stáhne a předá systému.
   TDLib u dokumentu nedává) a pod snímkem je vždycky název a velikost (`DocumentCaption`) — bez
   nich by soubor vypadal jako fotka. Ťuknutí otevře prohlížeč (s letem snímku), co ten neumí,
   systém s průběhem přes snímek; nabídka nad zprávou zůstává (Sdílet, Uložit jako…).
-  - **Originál se stáhne sám jen u obrázku do 5 MB** (strop GIFů), který umí prohlížeč — jinak
+  - **Originál se stáhne sám jen u obrázku do stropu souborů podle sítě** (Běžně 5 MB, viz
+    `prohlizec-medii.md`, „Automatické stahování"), který umí prohlížeč — jinak
     zůstane náhled od serveru (do 320 px), video vždycky. Ověřeno: 223 kB ostrý originál, 6,2 MB
     náhled, video se symbolem přehrání.
   - **Server náhled nevyrobí vždycky**: HEIC nikdy, a botem poslaný JPEG o 13 a 22 MB taky ne

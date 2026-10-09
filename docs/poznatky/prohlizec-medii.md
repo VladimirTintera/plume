@@ -481,9 +481,10 @@ týmž přehrávačem jako video (`MessageMedia.Animation`, `AnimationBubble`).
 - **Smyčku `AVPlayer` neumí sám.** Řeší ji pozorovatel `AVPlayerItemDidPlayToEndTimeNotification`,
   který se drží silnou referencí a odhlašuje při uvolnění přehrávače — `NSNotificationCenter` si
   pozorovatele nedrží. `AVPlayerLooper` by znamenal `AVQueuePlayer`.
-- **Velký GIF se sám nestahuje** (`MAX_AUTOPLAY_ANIMATION_BYTES`, 5 MB; testy `MessageRowsTest`).
-  Autoplay by bez ptaní snědl data, takže nad stropem — a u neznámé velikosti — zůstane náhled
-  a čeká na ťuknutí. Ťuknutí na hrající GIF ho pozastaví, jinak by nešel zastavit vůbec.
+- **Velký GIF se sám nestahuje** (`autoPlaysWithin` se stropem podle sítě, viz „Automatické
+  stahování"; testy `MessageRowsTest`). Autoplay by bez ptaní snědl data, takže nad stropem —
+  a u neznámé velikosti — zůstane náhled a čeká na ťuknutí. GIF, který už na disku je, hraje
+  i nad stropem. Výběr GIFů má pevný strop 5 MB (`autoPlays`), tam jde o náhled před odesláním. Ťuknutí na hrající GIF ho pozastaví, jinak by nešel zastavit vůbec.
 - **GIF jde na plochu bez bubliny** jako fotka a video (`showsBareMedia`): je to obrázek sám
   o sobě. Od videa ho odliší značka „GIF" v rohu a to, že nemá délku.
 - **Přehrávání se na emulátoru ověřit NEDÁ**, když je stroj zatížený: `c2.goldfish.h264.decoder`
@@ -497,7 +498,7 @@ týmž přehrávačem jako video (`MessageMedia.Animation`, `AnimationBubble`).
 (`VideoNoteBubble`, cesta přes `StickerMessageItem` — s citací nebo přeposláním v bublině).
 
 - **Samo hraje ve smyčce a potichu, jako GIF** — stejný přehrávač, stejný strop velikosti
-  (`autoPlays`), nad ním se nestahuje. Dole je délka s přeškrtnutým reproduktorem, jinak by
+  (`autoPlaysWithin` podle sítě), nad ním se nestahuje. Dole je délka s přeškrtnutým reproduktorem, jinak by
   nebylo poznat, že ťuknutí pustí zvuk.
 - **Ťuknutí = zvuk od začátku, bez smyčky, s průběhem po obvodu**; další ťuknutí nebo dohrání
   vrátí tichou smyčku. Přepnutí je nové `load` nad týmž přehrávačem (Media3 i AVPlayer to
@@ -1086,3 +1087,39 @@ cesta je známá až po stažení a průběh chodí updaty. Překlad do jednoho 
   **Obecně: na stav souboru z updatů se nespoléhat, když na něm něco čeká bez časového limitu.**
 - **`FileRepository` je eager** (`createdAtStart`) ze stejného důvodu jako seznam chatů — v
   konstruktoru se přihlašuje k `fileUpdates`.
+
+### Automatické stahování
+
+Nastavení → Úložiště → Automatické stahování: pro Wi-Fi, mobilní data a roaming jedna úroveň
+(`AutoDownloadLevel`: Vypnuto, Úsporně, Běžně, Naplno; `AppSettings.autoDownload`). Úroveň
+říká, jestli se samy stahují fotky ve zprávách a do jaké velikosti GIFy, kolečka a obrázky
+poslané jako soubor (`AutoDownloadLimits`, testy `AutoDownloadTest`). „Běžně" je to, co aplikace
+dělala na všech sítích dřív (5 MB); výchozí je Wi-Fi Naplno, mobilní data Běžně, roaming Úsporně.
+
+- **Úrovně, ne přepínače po druzích.** Plume samo stahuje jen tři věci, takže šest voleb na síť
+  by nastavovalo rozdíly, které uživatel nepozná. Video samo se nepřednačítá vůbec (proud až
+  v prohlížeči), hlasovky se stahují až přehráním — proto v nabídce nejsou.
+- **Co platí teď, počítá `AutoDownloadPolicy`** (nastavení + `NetworkMonitor.status` +
+  `saveData`) a dává to UI přes `LocalAutoDownload` z kořene přihlášené části. Bubliny
+  nesahají do Koinu ani nesledují síť samy.
+- **Spořič dat srazí mobilní síť nejvýš na Úsporně** (Android `restrictBackgroundStatus`,
+  iOS `NWPath.isConstrained`). Spořič se síťovým callbackem neohlásí, chodí jen vysílání
+  `ACTION_RESTRICT_BACKGROUND_CHANGED`, a proto je to vlastní proud vedle `status` — v něm by
+  změna znamenala nové hlášení sítě TDLib a znovuotevření všech spojení.
+- **Co se samo stahovat nemá, se jen SLEDUJE** (`FileRepository.observe`, `rememberFileState(…,
+  download = false)`): už stažená fotka i GIF se ukážou, stahuje-li soubor někdo jiný
+  (prohlížeč), běží lesk. Dřív se stav souboru nedal zjistit bez spuštění stahování —
+  `file()` ho spouští odběrem.
+- **Fotka bez stažení = rozmazaný náhled ze zprávy a tlačítko stažení** (`RemoteImage(autoDownload
+  = false)`). Ťuknutí stáhne fotku i zmenšeninu a otevře se až dalším ťuknutím; tlačítko je tmavý
+  kruh jako „přehrát" u videa, protože leží přes fotku. Zmenšeniny videí a souborů se stahují
+  dál — jsou malé a bez nich by nebylo poznat, co ve zprávě je.
+- **Roaming nastavení nabízí jen tam, kde ho platforma pozná** (`detectsRoaming`): iOS ho
+  nehlásí a volba, která se nikdy neuplatní, by lhala.
+- **Emulátor jede pro aplikaci přes Wi-Fi, i když `dumpsys connectivity` hlásí jako výchozí
+  síť mobilní data** (výchozí síť aplikace měla transport Wi-Fi). Která úroveň platí, říká log
+  `AutoDownload` („Automatické stahování: High (síť WiFi…)"), píše se jen při změně úrovně.
+- **Ověřeno na emulátoru (česky):** nastavení všech tří sítí, Wi-Fi na Vypnuto → fotka v kanálu
+  rozmazaná s tlačítkem a v logu `Files` ani jedna žádost o soubor, ťuknutí stáhne fotku
+  i zmenšeninu. **Neověřeno:** spořič dat a režim nízkých dat (logika jen testy), skutečný
+  roaming a iOS (jen přeložené).

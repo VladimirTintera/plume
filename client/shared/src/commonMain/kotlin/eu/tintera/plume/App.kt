@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -34,6 +35,8 @@ import eu.tintera.plume.features.auth.AuthViewModel
 import eu.tintera.plume.features.lock.LockScreen
 import eu.tintera.plume.features.lock.LockWindow
 import org.koin.compose.koinInject
+import eu.tintera.plume.core.connectivity.AutoDownloadPolicy
+import eu.tintera.plume.core.ui.LocalAutoDownload
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -100,8 +103,11 @@ fun App() {
                         // Fokus, který už v obsahu je (rozepsaná zpráva), `Inert` nevyžene.
                         val focusManager = LocalFocusManager.current
                         LaunchedEffect(covered) { if (covered) focusManager.clearFocus(force = true) }
+                        val autoDownload by koinInject<AutoDownloadPolicy>().limits.collectAsStateWithLifecycle()
                         Box(Modifier.fillMaxSize().then(if (covered) Inert else Modifier)) {
-                            AppShell()
+                            CompositionLocalProvider(LocalAutoDownload provides autoDownload) {
+                                AppShell()
+                            }
                             // Až tady, ne nad přihlášením — tam uživatel ještě netuší, co aplikace dělá.
                             NotificationPermissionPrompt()
                         }

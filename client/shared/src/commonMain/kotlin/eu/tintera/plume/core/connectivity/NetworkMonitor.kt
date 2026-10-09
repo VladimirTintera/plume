@@ -24,7 +24,20 @@ expect class NetworkMonitor {
      * ten je jediné místo, které ví, co se s nimi dělá.
      */
     val status: Flow<NetworkStatus>
+
+    /**
+     * Šetří uživatel data? Android: spořič dat (a aplikace nemá výjimku), iOS: režim nízkých dat.
+     * Zvlášť od [status], protože se s ním neobnovují spojení — změna by jinak TDLib zbytečně
+     * hlásila novou síť. Řídí se jím automatické stahování médií.
+     */
+    val saveData: Flow<Boolean>
 }
+
+/**
+ * Pozná platforma roaming? Na iOS ne (`NWPath` ho nehlásí), takže nastavení roaming nenabízí —
+ * volba, která se nikdy neuplatní, by lhala.
+ */
+expect val detectsRoaming: Boolean
 
 /**
  * Stav sítě.

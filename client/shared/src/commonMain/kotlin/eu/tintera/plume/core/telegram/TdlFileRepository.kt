@@ -85,6 +85,23 @@ class TdlFileRepository(
         emitAll(stateOf(fileId).asStateFlow())
     }
 
+    override fun observe(fileId: Int): Flow<FileState> = flow {
+        scope.launch { peek(fileId) }
+        emitAll(stateOf(fileId).asStateFlow())
+    }
+
+    /**
+     * Načte stav souboru z TDLib, nic nestahuje. Jen dokud o souboru nic nevíme — známý stav
+     * drží updaty, a o soubor, o který už se žádalo, se stará [request].
+     */
+    private suspend fun peek(fileId: Int) {
+        if (stateOf(fileId).value != FileState.Pending) return
+        client.getFile(fileId)
+            .toResult()
+            .onSuccess { publish(it) }
+            .onFailure { failure -> logger.w { "getFile($fileId) bez stahování selhalo: ${failure.message}" } }
+    }
+
     override fun uploadProgress(fileId: Int): Flow<Float?> = flow {
         emitAll(uploadStateOf(fileId).asStateFlow())
     }
