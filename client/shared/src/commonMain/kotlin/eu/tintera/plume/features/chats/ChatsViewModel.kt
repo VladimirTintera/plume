@@ -7,6 +7,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.settings.ChatSwipeActions
 import eu.tintera.plume.core.telegram.ArchiveSettings
 import eu.tintera.plume.core.telegram.ArchiveUnread
 import eu.tintera.plume.core.telegram.ChatFolder
@@ -337,6 +338,9 @@ class ChatsViewModel(
      */
     val separateUnreadChats: StateFlow<Boolean> = settings.separateUnreadChats
 
+    /** Co dělá tah chatem doprava a doleva (Nastavení → Obecné → Chaty). */
+    val swipeActions: StateFlow<ChatSwipeActions> = settings.chatSwipeActions
+
     /** Hledání v hlavičce seznamu (chaty, veřejné chaty i zprávy). Archiv hledání nemá, u něj zůstane bez dotazu a nic nehledá. */
     val search = ChatSearch(repository, viewModelScope, everywhere = true)
 
@@ -520,12 +524,31 @@ class ChatsViewModel(
      * Do archivu a zpátky. Vratné, takže bez potvrzení — místo něj snackbar s „Vrátit"
      * ([ChatActionsState.archived]), jako u odepnutí zprávy.
      */
-    fun toggleArchived(chat: ChatSummary) {
-        val archived = !chat.isArchived
+    fun toggleArchived(chat: ChatSummary) = setArchived(chat, !chat.isArchived)
+
+    private fun setArchived(chat: ChatSummary, archived: Boolean) {
         run(chat.id, onSuccess = {
             _actions.update { it.copy(archived = ArchiveChange(chat.id, archived)) }
         }) {
             repository.setArchived(chat.id, archived)
+        }
+    }
+
+    /**
+     * Tah chatem do strany. Provede se přesně [effect], ne přepnutí podle [chat]: efekt se
+     * počítá z čerstvého stavu při tahu, kdežto chat může být z dřívějšího snímku. Ztlumení
+     * tahem je natrvalo, jako z lišty výběru — doba se tahem zvolit nedá a zrušit jde týmž tahem.
+     */
+    internal fun swipe(chat: ChatSummary, effect: ChatSwipeEffect) {
+        when (effect) {
+            ChatSwipeEffect.Archive -> setArchived(chat, archived = true)
+            ChatSwipeEffect.Unarchive -> setArchived(chat, archived = false)
+            ChatSwipeEffect.MarkRead -> run(chat.id) { repository.readChat(chat.id) }
+            ChatSwipeEffect.MarkUnread -> run(chat.id) { repository.setMarkedAsUnread(chat.id, true) }
+            ChatSwipeEffect.Mute -> mute(chat, duration = null)
+            ChatSwipeEffect.Unmute -> unmute(chat)
+            ChatSwipeEffect.Pin -> run(chat.id) { repository.setPinned(chat.id, chat.folder, true) }
+            ChatSwipeEffect.Unpin -> run(chat.id) { repository.setPinned(chat.id, chat.folder, false) }
         }
     }
 

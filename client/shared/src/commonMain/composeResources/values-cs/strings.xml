@@ -1076,6 +1076,18 @@
     </plurals>
     <string name="chat_folders_all">Všechny chaty</string>
     <string name="settings_chat_folders_group">Chaty</string>
+    <string name="settings_swipe_right">Tah doprava</string>
+    <string name="settings_swipe_left">Tah doleva</string>
+    <string name="settings_swipe_none">Nic</string>
+    <string name="settings_swipe_body">Co udělá tah chatem v seznamu. U chatu, kde akce už platí, ji tah vrátí: ztlumený chat odtlumí, připnutý odepne.</string>
+    <string name="chats_swipe_archive">Archivovat</string>
+    <string name="chats_swipe_unarchive">Vrátit</string>
+    <string name="chats_swipe_read">Přečteno</string>
+    <string name="chats_swipe_unread">Nepřečteno</string>
+    <string name="chats_swipe_mute">Ztlumit</string>
+    <string name="chats_swipe_unmute">Odtlumit</string>
+    <string name="chats_swipe_pin">Připnout</string>
+    <string name="chats_swipe_unpin">Odepnout</string>
     <string name="chat_folders_title">Složky chatů</string>
     <string name="chat_folders_row_help">Roztřiď chaty do složek nad seznamem chatů</string>
     <string name="chat_folders_help">Složky jsou nad seznamem chatů. Pořadí změníš tažením složky za úchyt.</string>
