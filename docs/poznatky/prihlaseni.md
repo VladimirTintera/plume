@@ -139,8 +139,31 @@ znamenaly slepou uličku — kód nikdy nepřišel a jiná cesta nebyla.
 - **Registrace (`registerUser`) s tím nesouvisí.** Plume nové účty vědomě nezakládá
   (`AuthStage.WaitRegistration` odkazuje na oficiální klient); poslat kód jinak je jen
   doručení kódu k EXISTUJÍCÍMU přihlášení.
-- **Na zařízení ověřené NENÍ** — ani tlačítko s odpočtem (podstrčeným stavem), ani skutečné
-  doručení SMS či hovoru; pokryté jen testy `AuthViewModelTest` (lhůta, poslání, chyby).
+- **Našemu `api_id` server jinou cestu NENABÍZÍ** (zkoušeno 9. 10. 2026 na emulátoru, české
+  číslo s přihlášeným Telegramem): `type=TelegramMessage, next=null, timeout=0`, takže se
+  tlačítko správně nekreslí. Stejně to dopadlo se všemi kombinacemi
+  `PhoneNumberAuthenticationSettings`, které jdou bez oficiální aplikace — výchozí (`null`),
+  `allowMissedCall` + `allowSmsRetrieverApi`, k tomu `allowFlashCall` + `hasUnknownPhoneNumber`,
+  i s `FirebaseAuthenticationSettingsAndroid()`. Firebase SMS je podle dokumentace TDLib jen
+  „to the official Android application" (token z Play Integrity ověřuje Telegram pro svůj
+  projekt), tudy cesta nevede. Nastavení proto zůstává výchozí; přidávat příznaky, které nic
+  nezměnily, by jen slibovalo něco, co nefunguje. Jestli server SMS nedává konkrétnímu
+  `api_id`, nebo tomu číslu vůbec, se pozná přihlášením téhož čísla v oficiálním klientovi.
+- **Tlačítko tedy čeká na server, který jinou cestu dá** (jiné `api_id`, jiná země, účet bez
+  aktivní relace). Ověřené je jen testy `AuthViewModelTest` (lhůta, poslání, chyby), skutečné
+  doručení SMS či hovoru ne.
+- **Co server nabídl, vypisuje debug build do logu**: `adb logcat | grep "Kód:"`. Jen v debugu
+  (`TelegramPaths.isDebugBuild`, z `FLAG_DEBUGGABLE` aplikace — knihovna `:client:shared` se
+  staví stejně pro oba typy), protože release logcat zůstává zapnutý.
+- **`length` u kódu do Telegramu přišla 45**, přestože kód v chatu Telegram měl pět číslic
+  (u jiného pokusu na telefonu přišla délka 5 a kreslilo se pět políček). Mimo `CODE_DIGITS`
+  se spadne na obyčejné pole, takže se dál přihlásit dá; proč server poslal 45, se nezjistilo.
+- **Zkoušet přihlášení bez odhlášení emulátoru jde v DRUHÉM UŽIVATELI Androidu**: `pm
+  create-user`, `pm install-existing --user N eu.tintera.plume`, `am switch-user N`, mezi pokusy
+  `pm clear --user N`. Dvě pasti: snímek obrazovky je v druhém uživateli celý černý (ovládá se
+  přes `uiautomator dump`) a `input text` do pole nedojde — klávesy si bere visící klávesnice
+  hlavního uživatele (`VRI[InputMethod]: Cancelling event (no window focus)`). Pomůže v tom
+  uživateli klávesnici vypnout: `pm disable-user --user N com.google.android.inputmethod.latin`.
 
 ### Heslo dvoufázového ověření
 

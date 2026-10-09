@@ -134,6 +134,12 @@ class TdlTelegramSession(
 
     private suspend fun handleAuthorizationState(state: AuthorizationState) {
         logger.d { "AuthorizationState -> ${state.stateName()}" }
+        // Co server nabídl k doručení kódu. Bez toho se nedá poznat, jestli chybějící „Poslat
+        // kód SMS" je chyba aplikace, nebo server jinou cestu prostě nedal (`nextType` null).
+        if (state is AuthorizationStateWaitCode && paths.isDebugBuild) {
+            val info = state.codeInfo
+            logger.d { "Kód: type=${info.type}, next=${info.nextType}, timeout=${info.timeout}" }
+        }
 
         when (state) {
             is AuthorizationStateWaitTdlibParameters -> sendTdlibParameters()
