@@ -147,8 +147,15 @@ znamenaly slepou uličku — kód nikdy nepřišel a jiná cesta nebyla.
   i s `FirebaseAuthenticationSettingsAndroid()`. Firebase SMS je podle dokumentace TDLib jen
   „to the official Android application" (token z Play Integrity ověřuje Telegram pro svůj
   projekt), tudy cesta nevede. Nastavení proto zůstává výchozí; přidávat příznaky, které nic
-  nezměnily, by jen slibovalo něco, co nefunguje. Jestli server SMS nedává konkrétnímu
-  `api_id`, nebo tomu číslu vůbec, se pozná přihlášením téhož čísla v oficiálním klientovi.
+  nezměnily, by jen slibovalo něco, co nefunguje.
+- **Omezení je na `api_id`, ne na čísle.** Totéž číslo v oficiální aplikaci pro Android (týž
+  den) dostalo ověření hovorem („Don't accept the call…", tedy prozvonění, které aplikace
+  pozná z protokolu hovorů) a jako další cestu SMS s lhůtou hodina („You can request an SMS
+  in 59:50"). Plume s povoleným `allowFlashCall` i `allowMissedCall` dostal jen kód do
+  Telegramu bez další cesty — server tedy jiné cesty dává podle toho, čí je `api_id`.
+  Hovor nakonec nepřišel (ani zmeškaný); po zrušení a NOVÉM přihlášení byla lhůta na SMS jen
+  dvě minuty a přihlášení přes SMS prošlo. Lhůtu (`timeout`) tedy určuje server pokaždé zvlášť
+  a hodina u prvního pokusu nebyla pravidlo.
 - **Tlačítko tedy čeká na server, který jinou cestu dá** (jiné `api_id`, jiná země, účet bez
   aktivní relace). Ověřené je jen testy `AuthViewModelTest` (lhůta, poslání, chyby), skutečné
   doručení SMS či hovoru ne.
