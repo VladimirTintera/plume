@@ -48,9 +48,15 @@ jazyků). Vlastní backend ani GitHub Pages potřeba nejsou. Záloha: Crowdin fo
   komunitní jazyky hlásit chybějící klíče jen jako varování: rozpracovaný jazyk spadne na
   angličtinu po jednotlivých větách a build kvůli tomu padat nesmí. Kontrola, že se
   nerozešly formátovací argumenty (`%1$s`, `%1$d`), zůstává chybou — tu hlídá i Weblate.
-- **Výběr jazyka v aplikaci**: Android 13+ potřebuje `localeConfig` (AGP
-  `generateLocaleConfig = true`), jinak nový jazyk v systémovém nastavení aplikace nebude.
-  Jazyk s nízkým pokrytím do buildu nepouštět (práh třeba 80 %).
+- **Nový jazyk se dnes zapisuje ručně na čtyři místa** (viz „Jazyk aplikace" v
+  `docs/poznatky/nastaveni.md`): `locales_config.xml` v `:client:androidApp`, `APP_LANGUAGES`
+  v `core/locale`, `language_name_<kód>` v každém `strings.xml` a `<kód>.lproj` v `iosApp/iosApp`
+  i `iosApp/ShareExtension` (iOS nabídne jazyk v Nastavení jen podle složek `.lproj`). Weblate
+  přidá jen složku `values-<kód>/`, takže by jazyk v aplikaci byl, ale vybrat by nešel.
+  Seznam proto odvozovat ze složek `values-*` při buildu (vygenerovat `locales_config.xml`
+  a `APP_LANGUAGES`, nebo aspoň kontrola, že sedí), s prahem pokrytí: jazyk pod ~80 % do výběru
+  nepouštět. `Localizable.strings` z obou `.lproj` jde na Weblate jako další komponenta
+  (formát iOS strings).
 - **Texty v Play** (`play/listing/`, poznámky k vydání) se komunitně nepřekládají — tam rozhoduje
   `PLAY_LANGS` a jazyk musí mít záznam v obchodě.
 
