@@ -28,6 +28,32 @@ Teď je prázdné.
 - ~~**`isShrinkResources` není zapnuté.**~~ — hotovo (release proklikaný na emulátoru;
   `docs/poznatky/release.md`, „R8").
 
+## Komunitní překlad
+
+Až bude repo veřejné. Volba: **Hosted Weblate, plán Libre** (zdarma pro veřejné projekty
+s licencí schválenou OSI — MIT stačí; limit 160k řetězců, při ~2 200 klíčích tedy desítky
+jazyků). Vlastní backend ani GitHub Pages potřeba nejsou. Záloha: Crowdin for Open Source.
+
+- **Formát „Compose Multiplatform resources"**, ne „Android string resources" (Weblate ≥ 5.12).
+  Liší se escapováním: Android formát by psal `\'` a to Compose Multiplatform nerozbalí
+  (viz „Jazyky" v CLAUDE.md). Maska `client/shared/src/commonMain/composeResources/values-*/strings.xml`,
+  základ `values/strings.xml`.
+- **Schvalování**: hlasování o návrzích s prahem pro automatické přijetí, nebo vyhrazení
+  schvalování recenzentům (u nových jazyků si vybrat rodilého mluvčího). Čeština zůstává
+  v repu a na Weblate jen pro čtení, dokud ji píšeme sami.
+- **Weblate posílá změny jako PR** (doplněk „Squash Git commits" + push do větve `weblate`).
+  Check „Release notes" by ho zamítl — výjimka pro tu větev (`type: internal`), nebo ji
+  Weblate drží sám.
+- **`verifyTranslations` umí jen `values-cs`.** Rozšířit na všechny `values-*`, ale pro
+  komunitní jazyky hlásit chybějící klíče jen jako varování: rozpracovaný jazyk spadne na
+  angličtinu po jednotlivých větách a build kvůli tomu padat nesmí. Kontrola, že se
+  nerozešly formátovací argumenty (`%1$s`, `%1$d`), zůstává chybou — tu hlídá i Weblate.
+- **Výběr jazyka v aplikaci**: Android 13+ potřebuje `localeConfig` (AGP
+  `generateLocaleConfig = true`), jinak nový jazyk v systémovém nastavení aplikace nebude.
+  Jazyk s nízkým pokrytím do buildu nepouštět (práh třeba 80 %).
+- **Texty v Play** (`play/listing/`, poznámky k vydání) se komunitně nepřekládají — tam rozhoduje
+  `PLAY_LANGS` a jazyk musí mít záznam v obchodě.
+
 ## iOS
 
 Android je napřed; tohle je, čím se to dorovnává.
