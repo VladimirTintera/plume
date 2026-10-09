@@ -188,6 +188,11 @@ hledání) a vypadá to jako chyba vykreslení. Výchozí zpět gestem zmenšuje
 animace zmizí a nikde se neohlásí chybou. V aplikaci teď žádný `BackHandler` není a nemá
 přibýt — ven z obrazovky se chodí přes `onBack` NavDisplaye. Kde je potřeba zpět zachytit uvnitř
 obrazovky (nabídka nad zprávou), je to `NavigationBackHandler` z `androidx.navigationevent`.
+**A ten musí mít `isBackEnabled` jen po dobu, kdy je co zachytit** (otevřená nabídka, výběr,
+hledání). Zapnutý natrvalo s jediným `onBackCompleted` predictive back obrazovky zabije úplně
+stejně jako `BackHandler`: gesto dostane on, ne `NavDisplay`. Tak to měl prohlížeč médií. Natrvalo
+zapnutý ho smí mít jen obrazovka, kde zpět opravdu NENÍ odchod: mini aplikace (`WebAppScreen`),
+kde zpět řídí stránka.
 
 ### Zásobník pro každou sekci
 

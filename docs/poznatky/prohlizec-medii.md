@@ -12,6 +12,14 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   back, přežije to otočení i zabití procesu a nepotřebuje to `BackHandler`, který by predictive
   back zabil. **Nezapomenout ji zaregistrovat v `NavSavedStateConfiguration`** — bez toho to spadne
   až za běhu.
+- **Zpět v prohlížeči nemá vlastní handler, obsluhuje ho `NavDisplay`.** Dřív tu byl
+  `NavigationBackHandler(isBackEnabled = true, onBackCompleted = …)`. Zavíral správně, ale gesto
+  si bral dřív než `NavDisplay` a průběh tahu zahodil, takže predictive back v prohlížeči nebyl
+  vůbec: nic se nezmenšovalo a fotka neletěla zpátky do bubliny, dokud prst nepustil. Bez
+  handleru jde gestem tentýž přechod jako jinde (fade through se zmenšením). Let fotky
+  (`sharedNavElement`) visí na přechodu `NavDisplay`, takže by ho měl posouvat tah. **Na zařízení
+  to zatím ověřené není.** Spotřebování mizejícího média (`viewModel.onDismiss()`) hlídá
+  `onDispose`, ať se z prohlížeče odchází jakkoli.
 - **Routa nese jen id**, ne obsah. Zprávu si prohlížeč načte znovu (`ConversationRepository.message`);
   celá zpráva i s reakcemi a citací do serializovaného zásobníku nepatří a dotaz navíc je vedle
   stahování fotky zanedbatelný.
