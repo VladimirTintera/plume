@@ -125,9 +125,17 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   (`clip` + `shape`), takže se s přiblížením zvětšuje spolu s fotkou.
 - **Podklad je tmavý v obou motivech**, i s rozostřením. Barva ovládání je proto natvrdo bílá —
   role z `colorScheme` by ve světlém tématu dala tmavý text na tmavé ploše — a **ikony
-  systémových lišt musí být světlé** (`DarkSystemBars`, při odchodu vrátí předchozí stav).
+  systémových lišt musí být světlé** (`DarkSystemBars`).
   Kde rozostření není (Android 11 a starší), kreslí Haze skoro neprůhledný závoj
   (`AMBIENT_FALLBACK_ALPHA`) — ostrá fotka za kartou by rušila.
+- **`DarkSystemBars` jen přihlašuje požadavek, o liště rozhoduje `AppTheme`** (počítadlo
+  `DarkSystemBarsRequests`, ikony světlé = tmavý motiv NEBO aspoň jeden požadavek). Dřív si
+  obrazovka při vstupu zapamatovala stav lišt a při odchodu ho vrátila, a ikony pak občas zůstaly
+  světlé nad světlým seznamem chatů. Stačilo zavřít fotku a hned ťuknout na další: nový prohlížeč
+  vznikl, než starý dojel zavírací animací, zapamatoval si „světlé“ od něj a po zavření je vrátil.
+  Totéž se stalo při změně motivu během prohlížení (aktivita má `configChanges="uiMode"`, takže se
+  znovu nezakládá), protože se vrátil stav ze starého motivu. **Uložit a vrátit funguje jen
+  tehdy, když se obrazovky překrývají v pořadí LIFO, a přechody v Navigation3 to nezaručují.**
 - **Uložení do galerie je v horní liště prohlížeče** (`MediaSaver`, `expect`/`actual`). Ukládá
   se KOPIE ostré verze (`fullFileId`, u souboru soubor sám) — soubor TDLib je v soukromém
   adresáři a s odhlášením zmizí. Android od verze 10 přes `MediaStore` do `Pictures/Plume`
