@@ -553,11 +553,12 @@ snackbar s „Vrátit".
 - **Ikona na podkladu patří k hraně, ze které se tah odkrývá** (doleva tedy vpravo od popisku,
   doprava vlevo). S pevným pořadím se při tahu doleva odkryl jako první konec věty, ze kterého
   není poznat, co se stane.
-- **Archivace tahem jde na OBĚ strany a obě dělají totéž.** Druhá akce v seznamu není, takže by
-  si uživatel musel pamatovat směr pro nic. Nepotvrzuje se — snackbar „Vrátit" je tentýž jako
-  u archivace z nabídky. Uložené zprávy tah nemají, stejně jako nemají položku v nabídce.
-- **`SwipeToDismissBox` se na tohle NEHODÍ a je pryč** (prah v `ArchiveSwipeGesture.kt`,
-  testy `ArchiveSwipeGestureTest`). Byl „hodně moc citlivý": při scrollování seznamu odlétaly
+- **Co tah udělá, volí uživatel zvlášť pro každou stranu** — viz „Akce tahem" níž. Výchozí je
+  archivace na obou stranách: dokud jiná akce nebyla, musel by si uživatel pamatovat směr pro
+  nic. Archivace se nepotvrzuje — snackbar „Vrátit" je tentýž jako u archivace z nabídky.
+  Uložené zprávy archivovat tahem nejdou, stejně jako nemají položku v nabídce.
+- **`SwipeToDismissBox` se na tohle NEHODÍ a je pryč** (prah v `ChatSwipeGesture.kt`,
+  testy `ChatSwipeGestureTest`). Byl „hodně moc citlivý": při scrollování seznamu odlétaly
   chaty do archivu. Dvě příčiny, ani jedna se zvenku vypnout nedá:
   - **Stojí na `draggable`, které si tah vezme po obyčejném touch slopu a je směrově
     agnostické.** Položka je potomek seznamu, takže gesto dostane dřív — a palec jde na začátku
@@ -569,7 +570,7 @@ snackbar s „Vrátit".
 - **Vlastní detektor rozhodne jednou za gesto** (`detectHorizontalSwipe`, sdílený s odkrýváním
   časů a odpovědí tahem v konverzaci, viz „Jeden detektor tahu do strany"): rozhoduje se až po DVOJNÁSOBKU touch slopu a jen když je
   vodorovná složka aspoň dvakrát větší než svislá; do té doby nic nespotřebovává, takže si
-  šikmý tah vezme seznam. Archivuje se při PUŠTĚNÍ po `archiveSwipeThreshold` (40 % šířky
+  šikmý tah vezme seznam. Akce se provede při PUŠTĚNÍ po `chatSwipeThreshold` (40 % šířky
   řádku, nejvýš 160 dp), rychlost se nepočítá vůbec. Prah ohlásí haptika, jako u odpovědi
   tahem v konverzaci.
 - **S vlastním detektorem odpadl hlídač dvojího odeslání.** `SwipeToDismissBox` hlásil dokončený
@@ -602,6 +603,39 @@ snackbar s „Vrátit".
 - **„Archivovat chaty od neznámých" povoluje server** (`can_archive_and_mute_new_chats_from_unknown_users`);
   kde ho nepovolí, TDLib zapnutí odmítne. Přepínač se tam proto nenabízí vůbec — přepínač,
   který skončí chybou, je horší než žádný.
+
+### Akce tahem
+
+Nastavení → Obecné → Chaty → „Tah doprava" / „Tah doleva": archivovat, přečteno, ztlumit,
+připnout, nebo nic (`ChatSwipeAction`, `AppSettings.chatSwipeActions`). Platí v hlavním seznamu,
+v archivu i ve složkách — všechny jsou `ChatListContent`.
+
+- **Akce se u chatu, kde už platí, otočí** (`chatSwipeEffect`, testy `ChatSwipeGestureTest`):
+  archivovaný se vrátí, ztlumený odtlumí, připnutý odepne, přečtený označí jako nepřečtený.
+  Tah tak jde vždycky vrátit týmž tahem a volba v Nastavení je sloveso, ne dvojice; že se
+  otáčí, říká věta nad výběrem. Ztlumení tahem je natrvalo, jako z lišty výběru.
+- **Směr je FYZICKÝ, ne začátek a konec řádku.** Tak o něm uživatel mluví; aplikace jazyk
+  psaný zprava doleva nemá.
+- **`pointerInput(Unit)` drží lambdy z PRVNÍHO snímku — i s chatem, který zachytily.** Druhý
+  tah po připnutí poslal `togglePinned` se starým `chat.isPinned = false`, takže chat
+  „připnul" znovu a podklad přitom správně hlásil „Odepnout" (ten se kreslí z čerstvého stavu).
+  Stejná past ležela i v původní archivaci tahem; nevadila jen proto, že archivovaný chat ze
+  seznamu zmizí. Proto `rememberUpdatedState` pro akce i pro `onSwipe` a ViewModel provádí
+  přesně efekt spočítaný při tahu (`swipe(chat, effect)`), ne přepnutí podle předaného chatu.
+  Klíčem `pointerInput` je jen SMĚR (kam táhnout jde), ne akce — ta se mění se stavem chatu.
+- **Ze seznamu odjíždí jen archivace** (`ChatSwipeEffect.leavesList`); ostatní akce chat
+  nechají na místě a řádek se po puštění vrátí. I odjetý řádek se po vteřině vrátí, pokud
+  ještě existuje (složka s archivovanými chaty, chyba od TDLib) — jinak v seznamu visel
+  neviditelný řádek, na který šlo ťuknout.
+- **Popisky na podkladu jsou krátké** („Přečteno", „Odtlumit", „Vrátit"), ne věty z nabídky.
+  Podklad je u prahu odkrytý jen ze 40 %, a „Označit jako nepřečtené" tam zůstalo z půlky pod
+  řádkem (ověřeno na emulátoru).
+- **Strana s „Nic" tah nebere** (`SwipeDirection.Left` / `Right`), takže si šikmý tah vezme
+  seznam a dlouhý stisk zůstane nabídce.
+- **Ověřeno na emulátoru (česky):** nastavení obou stran, připnutí a odepnutí tahem, „Nic"
+  doleva, nepřečteno a přečteno tahem, archivace doleva i „Vrátit" z archivu. Ztlumení tahem
+  ověřené není (zapisuje nastavení upozornění chatu účtu), jde ale stejnou cestou jako
+  „Ztlumit" z lišty výběru. **iOS jen přeložené.**
 
 ### Akce nad chatem
 
