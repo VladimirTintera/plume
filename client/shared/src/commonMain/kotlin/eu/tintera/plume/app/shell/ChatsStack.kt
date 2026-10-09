@@ -229,3 +229,16 @@ private fun conversation(archive: Boolean, chatId: Long, messageId: Long? = null
 internal fun MutableList<NavKey>.addOnce(route: NavKey) {
     if (lastOrNull() != route) add(route)
 }
+
+/**
+ * Leží [route] v zásobníku přímo na seznamu chatů (nebo archivu)? Jen pak obrazovka chatu
+ * vyrůstá z řádku (`ChatContainer`). Téma nad seznamem témat má tentýž chat, ale otevírá se
+ * z jiné obrazovky.
+ *
+ * Volající si výsledek pamatuje: při návratu je [route] ze zásobníku pryč dřív, než doběhne
+ * přechod, a kontejner musí vydržet až do konce.
+ */
+internal fun List<NavKey>.liesOnChatList(route: NavKey): Boolean {
+    val index = lastIndexOf(route)
+    return index > 0 && this[index - 1].let { it == ChatsRoute || it == ArchiveRoute }
+}

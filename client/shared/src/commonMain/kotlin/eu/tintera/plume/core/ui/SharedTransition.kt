@@ -72,7 +72,7 @@ fun Modifier.sharedFlight(key: String, visible: Boolean): Modifier {
  * Průlet textu z pole do bubliny. Jemný bounce jako zbytek aplikace, ale kratší — je to dlouhá
  * dráha přes celou obrazovku a delší doba by působila líně.
  */
-private val flightSpec = spring<Rect>(
+internal val flightSpec = spring<Rect>(
     dampingRatio = 0.8f,
     stiffness = Spring.StiffnessMediumLow,
 )
@@ -292,7 +292,7 @@ internal fun flightShape(target: Shape, fromCornerPx: Float, progress: Float, si
     )
 }
 
-private val clipSpec = spring<Float>(
+internal val clipSpec = spring<Float>(
     dampingRatio = 0.8f,
     stiffness = Spring.StiffnessMediumLow,
 )

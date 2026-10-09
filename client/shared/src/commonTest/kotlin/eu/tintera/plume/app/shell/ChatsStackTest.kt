@@ -376,4 +376,28 @@ class ChatsStackTest {
             stack,
         )
     }
+
+    @Test
+    fun konverzacePrimoNaSeznamuVyrustaZRadku() {
+        val conversation = ConversationRoute(chatId = 1)
+        val archived = ArchiveConversationRoute(chatId = 9)
+
+        assertTrue(listOf<NavKey>(ChatsRoute, conversation).liesOnChatList(conversation))
+        assertTrue(listOf<NavKey>(ChatsRoute, ArchiveRoute, archived).liesOnChatList(archived))
+    }
+
+    @Test
+    fun tematoNadSeznamemTematNevyrustaZRadku() {
+        val topic = ConversationRoute(chatId = 1, topicId = 5)
+        val stack = listOf<NavKey>(ChatsRoute, ForumTopicsRoute(chatId = 1), topic)
+
+        assertTrue(stack.liesOnChatList(ForumTopicsRoute(chatId = 1)))
+        assertFalse(stack.liesOnChatList(topic))
+    }
+
+    @Test
+    fun odebranaPolozkaNeleziNaSeznamu() {
+        assertFalse(listOf<NavKey>(ChatsRoute).liesOnChatList(ConversationRoute(chatId = 1)))
+        assertFalse(listOf<NavKey>(ConversationRoute(chatId = 1)).liesOnChatList(ConversationRoute(chatId = 1)))
+    }
 }

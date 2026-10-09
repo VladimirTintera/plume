@@ -165,6 +165,8 @@ import eu.tintera.plume.resources.chats_reorder_hint
 import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.chatAvatarKey
+import eu.tintera.plume.core.ui.chatContainerSource
+import eu.tintera.plume.core.ui.chatContainerSourceContent
 import eu.tintera.plume.core.ui.chatTitleKey
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.core.ui.resolve
@@ -1422,14 +1424,16 @@ private fun ChatRow(
         shape = shape,
         color = containerColor,
         contentColor = contentColor,
+        // Řádek se při otevření chatu rozroste v jeho obrazovku (container transform).
         modifier = modifier
+            .chatContainerSource(chat.id)
             .fillMaxWidth()
             .clip(shape)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .then(if (selectionMark != null) Modifier.semantics { this.selected = selectionMark } else Modifier),
     ) {
         Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),
+            Modifier.chatContainerSourceContent().padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {

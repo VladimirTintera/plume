@@ -98,6 +98,30 @@ proto dostávají všechny klíče `photoKey` a nic jiného. **Kdo přidá `inTw
 **Text se sdílí přes `sharedBounds` + `scaleToBounds`, ne přes `sharedElement`.** Název chatu má
 v hlavičce jinou velikost písma; se `sharedElement` by se text na konci letu přeskládal skokem.
 
+**Chat se ze seznamu otevírá container transformem** (`ChatContainer`, `chatContainerSource`
+v `core/ui/ChatContainerTransform.kt`): řádek se rozroste v obrazovku chatu a zpět (tlačítkem
+i gestem) se do něj smrští. Dřív letěl jen avatar a název přes prolnutí obrazovek a malá ikona
+s holým textem působily vytrženě; teď letí uvnitř plochy, která roste s nimi.
+
+- **Přechod scén se pro tuhle dvojici vypíná** (`EnterTransition.None togetherWith
+  ExitTransition.None`), pozná ji `NavTransitions` podle metadat položek (`ChatListMetadata`
+  na seznamu a archivu, `ChatScreenMetadata` na konverzaci a seznamech témat). Seznam stojí
+  pod rostoucí plochou; `ExitTransition.None` ho drží složený, protože let sdílené plochy je
+  animace TÉHOŽ přechodu. `KeepUntilTransitionsFinished` je v Compose interní.
+- **Obrazovka chatu se škáluje (`ScaleToBounds`), řádek přeměřuje (`RemeasureToBounds`).**
+  Konverzaci přeměřovat v každém snímku by bylo drahé; řádek naopak musí plochou vyplnit celý
+  kontejner, jinak by pod prolínající se konverzací prosvítal seznam. Obsah řádku drží svou
+  velikost přes `skipToLookaheadSize`.
+- **Řádek se neprolíná, leží POD konverzací** (`zIndexInOverlay` −2 a −1, avatar a název 0):
+  kdyby mizel současně s objevováním konverzace, byl by kontejner v půlce průhledný.
+- **Kontejner jen nad seznamem** (`liesOnChatList`, pamatuje se `remember(route)`, protože při
+  návratu zmizí route ze zásobníku dřív, než přechod doběhne). Téma nad seznamem témat má tentýž
+  chat a obě obrazovky by se spárovaly navzájem.
+- **Vybraný řádek se na telefonu nezvýrazňuje** (`selectedChatId` jen ve dvoupanelu): otevíraný
+  řádek by se uprostřed růstu přebarvil na `secondaryContainer`.
+- **Bez páru (řádek odscrollovaný, chat se mezitím přesunul) se konverzace jen prolne** přes
+  seznam: sdílená plocha bez protějšku se chová jako obyčejné objevení.
+
 **Predictive back dělá `NavDisplay` sám** (přes `androidx.navigationevent`): při tažení zpět se
 konverzace zmenší a odsune a pod ní se odkryje živý seznam. Nic se pro to nezapíná —
 `android:enableOnBackInvokedCallback` systém při targetSdk 35+ ignoruje a je v manifestu jen
