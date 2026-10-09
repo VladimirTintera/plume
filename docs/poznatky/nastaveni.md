@@ -418,25 +418,53 @@ Po aktualizaci nic nevyskakuje — novinky jsou tam, kdo je hledá (převzato z 
 
 ## Synchronizace nastavení mezi zařízeními bez vlastního backendu
 
-Když aplikace potřebuje synchronizovat vlastní data specifická pro klienta (ručně zvolená barva chatu,
-lokální záložky/hvězdičky, snooze stav), TDLib nemá obecné KV úložiště pro aplikace třetích stran.
+Stav: **průzkum, nic z toho v kódu není.** Jde o data, která má jen Plume (barva motivu,
+vyčlenění nepřečtených, rychlost hlasovek, viděné nápovědy gest…), ne o nastavení, které zná
+Telegram sám.
 
-- **Proč ne tichý push (FCM / APNs):** vyžaduje běžící server (držení serverových klíčů FCM/APNs,
-  párování push tokenů mezi zařízeními uživatele) a na iOS systém tiché pushe (`content-available: 1`) škrtí.
-- **Proč ne zpráva v Uložených zprávách (Saved Messages):** Telegram neumí zprávu pro ostatní
-  klienty skrýt. Uživatel by v oficiální aplikaci viděl technickou zprávu s JSONem na vrchu
-  Uložených zpráv a mohl by ji omylem smazat.
-- **Proč ne privátní kanál:** v Plume by šel ze seznamu vyfiltrovat, ale v oficiálním Telegramu
-  by svítil v seznamu chatů.
-- **Doporučená cesta: TDLib WebApp CloudStorage (`setWebAppCloudStorageValue` / `getWebAppCloudStorageValue`):**
-  - Telegram má nativní cloudové KV úložiště pro Mini Apps / WebApps na svých serverech (až 1 024 klíčů
-    po 4 kB per uživatel).
-  - **Uživatelé si žádného bota nezakládají:** vývojář aplikace jednou přes `@BotFather` bezplatně
-    založí bota (např. `@plume_sync_bot`) a jeho `bot_user_id` zapeče do kódu aplikace jako konstantu.
-  - Na botovi nemusí běžet žádný kód, server ani webhook — Telegram úložiště spravuje kompletně sám.
-  - **100% neviditelné v oficiálním Telegramu:** uživatel bota nevidí v chatech, nemusí mu psát
-    `/start` ani ho mít v kontaktech. Data jsou na serverech Telegramu izolovaná per uživatelský
-    účet a synchronizují se automaticky na všechna zařízení s Plume.
+- **Napřed to, co Telegram synchronizuje sám.** Rychlá reakce (`setDefaultReactionType`,
+  `QuickReaction`), výchozí automatické mazání (`DefaultAutoDeleteSettings`), upozornění po
+  rozsazích, archiv a složky už jdou přes server a platí i v oficiálních aplikacích. Kdo přidává
+  volbu, kterou Telegram zná, má ji napojit na jeho API a ne na `AppSettings`. Vlastní úschova
+  je jen pro to, co Telegram nemá.
+- **Kandidát: CloudStorage mini aplikací.** Je to úložiště klíč–hodnota pro dvojici „bot,
+  uživatel“ na serverech Telegramu: nejvýš **1024 klíčů**, klíč 1–128 znaků `A-Za-z0-9_-`,
+  hodnota 0–4096 znaků. Bot API pro něj žádnou metodu nemá, takže ho ani majitel bota nepřečte.
+  Šifrované mezi zařízeními ale není a server ho přečte.
+  - **TDLib na to nemá vlastní metody.** Dřív tu stálo `setWebAppCloudStorageValue` /
+    `getWebAppCloudStorageValue`, jenže ty neexistují. Klient mini aplikace volá
+    `sendWebAppCustomRequest(botUserId, method, parameters)` (MTProto
+    `bots.invokeWebViewCustomMethod`) s metodami `saveStorageValue` `{"key","value"}`,
+    `getStorageValues` `{"keys":[…]}`, `deleteStorageValues` `{"keys":[…]}` a `getStorageKeys`
+    `{}`. V Plume to už běží jako `WebAppRepository.customRequest` v mostu mini aplikací.
+  - **Že to jde BEZ otevřené mini aplikace, ověřené není.** Dokumentace metody říká, že ji
+    volá otevřená mini aplikace a že bot musí mini aplikace podporovat. Volání žádné id relace
+    WebView nenese, takže se neví, jestli to server kontroluje. Na tom stojí celý nápad.
+  - **Že je to neviditelné, ověřené taky není.** Chat s botem nevzniká, ale bot se může dostat
+    mezi naposledy použité aplikace. Ověří se `getTopChats(TopChatCategoryWebAppBots)` před
+    voláním a po něm a pohledem do oficiálního klienta.
+  - **Jak to ověřit:** dočasná sonda po `AuthorizationStateReady` v debug buildu zavolá
+    `getStorageKeys` a pak zápis, čtení a smazání jednoho klíče. Jednou u bota bez mini aplikace
+    (testovací Notifikátor `@NoTiBoBoBot`: `has_main_web_app = false`, tlačítko menu
+    `commands`) a jednou u bota s mini aplikací, kterou uživatel otevřenou nemá. Zápis jde na
+    skutečný účet, takže **chce souhlas uživatele předem**.
+  - **Kdyby to prošlo:** bota založí uživatel přes BotFather a jeho id bude v kódu jako konstanta.
+    Kdyby server chtěl mini aplikaci, stačí botovi Main Mini App se statickou stránkou. Jeden klíč
+    na nastavení, hodnota `{v, ts}` a při konfliktu vyhraje novější zápis. Server změny
+    neohlašuje, takže se čte po návratu do popředí. Zápisy se sdružují, protože limit rychlosti
+    neznáme. Synchronizuje se jen to, co není vázané na zařízení: zámek aplikace, velikost písma,
+    stažený model ani úložiště ne.
+- **Proč ne tichý push (FCM / APNs):** potřebuje běžící server (klíče FCM/APNs, párování push
+  tokenů mezi zařízeními uživatele) a iOS tiché pushe (`content-available: 1`) škrtí.
+- **Proč ne zpráva v Uložených zprávách, koncept zprávy, složka nebo soukromý kanál:** oficiální
+  Telegram je ukáže. Technická zpráva s JSONem na vrchu Uložených se dá omylem smazat. Koncept
+  vytáhne chat do seznamu a kanál v něm svítí. Telegram Passport chce heslo a je vidět
+  v Soukromí. **Výjimka je ruční záloha:** soubor s nastavením poslaný do Uložených na pokyn
+  uživatele, který ho pak obnoví na druhém zařízení. Je vidět, ale uživatel o něm ví.
+- **DeviceStorage a SecureStorage mini aplikací nesynchronizují**, zůstávají v zařízení.
+- **Mimo Telegram:** iOS má `NSUbiquitousKeyValueStore` (iCloud, živá synchronizace mezi
+  zařízeními téhož Apple ID, 1 MB), ale jen mezi zařízeními Apple. Auto Backup na Androidu data
+  jen obnoví při nové instalaci, živá synchronizace to není.
 - **Deterministické podbarvení chatů bez synchronizace:** pokud jde o ambientní podbarvení,
   nejčistší je barvu odvodit deterministicky z profilové fotky protějšku (`ColorScheme.fromSeed`)
   nebo z `chatId` / barvy jména z Telegramu (`senderColor`). Protože obě zařízení stahují stejnou

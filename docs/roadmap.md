@@ -600,6 +600,11 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
     neukazuje. Šlo by to jen přes AppCompat a vlastní uložení.
   - **iOS ověřit na simulátoru** — Safari v aplikaci, otevření systémového Nastavení z řádku
     jazyka, dvojité ťuknutí.
+- **Synchronizace nastavení mezi zařízeními** (barva motivu, vyčlenění nepřečtených, rychlost
+  hlasovek…). Kandidát je CloudStorage mini aplikací přes `sendWebAppCustomRequest`. Napřed
+  sondou ověřit, že jde volat bez otevřené mini aplikace a že bota nikde neukáže. Sonda zapisuje
+  na skutečný účet, takže **chce souhlas uživatele**. Podrobnosti v `docs/poznatky/nastaveni.md`,
+  „Synchronizace nastavení mezi zařízeními".
 - **Tiché hodiny** (Android): v nastaveném čase jen zmínky a odpovědi. Notifikace kreslí
   aplikace sama, takže to jde bez serveru — ale jen lokálně, ostatní zařízení o tom nevědí.
 - **Diskrétní čtení a psaní (Ghost Mode).** V Nastavení → Soukromí volba pro potlačení
