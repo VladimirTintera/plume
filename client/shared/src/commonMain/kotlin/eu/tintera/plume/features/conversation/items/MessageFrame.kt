@@ -521,7 +521,7 @@ private fun MessageFrame(
     // Spec se musí vzít v kompozici — konec gesta je obyčejná suspend funkce, ne composable.
     val returnSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
 
-    /** Prah už byl v tomhle tahu překročen; hlídá, aby haptika i odpověď odešly jen jednou. */
+    /** Tah je právě za prahem; hlídá, aby se haptika ozvala jednou za každé překročení. */
     var armed by remember { mutableStateOf(false) }
     // Šipka ukazuje, jestli by odpověď odešla PRÁVĚ TEĎ (vrácený prst ji vrátí do kolečka).
     // Přes `derivedStateOf`, aby se rámeček nerekomponoval každý snímek tahu.
@@ -612,10 +612,11 @@ private fun MessageFrame(
                             val next = (drag.value + delta * resistance).coerceIn(0f, maxDrag)
                             drag.snapTo(next)
 
-                            if (!armed && next >= threshold) {
-                                armed = true
-                                haptics.threshold()
-                            }
+                            // Vrácený prst práh zase odjistí: další překročení v témže tahu
+                            // se musí ozvat znovu, stejně jako se znovu vyplní šipka.
+                            val past = next >= threshold
+                            if (past && !armed) haptics.threshold()
+                            armed = past
                         }
                     },
                     onEnd = { released ->
