@@ -552,9 +552,9 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
   `CryptoObject` (`KeyPermanentlyInvalidatedException` → vypnout biometrii, chtít PIN); iOS:
   uložit `evaluatedPolicyDomainState` při zapnutí a po ověření porovnat. Ke zvážení i volitelný
   šestimístný PIN.
-- **Automatické stahování médií** podle sítě (Wi-Fi / mobilní / roaming), druhu (fotky, videa,
-  soubory) a velikosti, s ohledem na systémovou úsporu dat. Dnes je jediný strop 5 MB u GIFů
-  a koleček (`autoPlays`). TDLib má vlastní přednastavení (`getAutoDownloadSettingsPresets`).
+- ~~**Automatické stahování médií**~~ — hotovo (Úložiště: úroveň pro Wi-Fi, mobilní data
+  a roaming, spořič dat; `docs/poznatky/prohlizec-medii.md`, „Automatické stahování"). Zbývá
+  ověřit spořič dat a roaming na telefonu a případně přednačítání videí (dnes se nepřednačítá nic).
 - ~~**Úložiště.**~~ — hotovo (Nastavení → Úložiště: zabrané místo po druzích a chatech, mazání
   všude i v chatu, „Uchovávat média", model Gemmy; `docs/poznatky/nastaveni.md`, „Úložiště").
   Zbývá **strop velikosti mezipaměti** (mazat nejstarší nad N GB) a ověřit automatický úklid

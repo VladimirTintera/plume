@@ -165,6 +165,29 @@ class DataStoreAppSettingsTest {
     }
 
     @Test
+    fun automatickeStahovaniMaVychoziUrovne() = settingsTest { settings, _ ->
+        assertEquals(AutoDownloadSettings(), settings.autoDownload.value)
+    }
+
+    @Test
+    fun automatickeStahovaniSeUloziProKazdouSit() = settingsTest { settings, _ ->
+        val chosen = AutoDownloadSettings(
+            wifi = AutoDownloadLevel.Medium,
+            mobile = AutoDownloadLevel.Off,
+            roaming = AutoDownloadLevel.Off,
+        )
+        settings.setAutoDownload(chosen)
+        assertEquals(chosen, settings.autoDownload.awaitValue("zvolené úrovně") { it.mobile == AutoDownloadLevel.Off })
+
+        // Návrat k výchozí na jedné síti nesmí shodit volbu ostatních.
+        settings.setAutoDownload(chosen.copy(mobile = AutoDownloadSettings().mobile))
+        assertEquals(
+            chosen.copy(mobile = AutoDownloadSettings().mobile),
+            settings.autoDownload.awaitValue("vrácená mobilní data") { it.mobile != AutoDownloadLevel.Off },
+        )
+    }
+
+    @Test
     fun zavrenaAktualizaceSePamatujePodleVerze() = settingsTest { settings, _ ->
         assertEquals(null, settings.dismissedUpdateVersionCode.value)
 

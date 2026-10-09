@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -117,8 +118,8 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Sekce „Úložiště": kolik zabírají stažené soubory a databáze, mazání médií (všude i v jednom
- * chatu), automatické mazání starých médií a stažený model AI.
+ * Sekce „Úložiště": automatické stahování podle sítě, kolik zabírají stažené soubory a databáze,
+ * mazání médií (všude i v jednom chatu), automatické mazání starých médií a stažený model AI.
  *
  * Obsah do sloupce sekce, ne celá obrazovka — hlavičku a scrollování drží `SettingsSectionScreen`.
  */
@@ -149,6 +150,9 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
         viewModel.refresh()
         onPauseOrDispose { }
     }
+
+    // Nahoře a mimo načítání přehledu: s místem na disku nesouvisí, jen bydlí ve stejné sekci.
+    AutoDownloadGroup(viewModel = koinViewModel())
 
     val usage = state.usage
     when {

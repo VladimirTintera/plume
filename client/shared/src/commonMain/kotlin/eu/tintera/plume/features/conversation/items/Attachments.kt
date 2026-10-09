@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.LocalAutoDownload
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.features.conversation.loadsOriginalPreview
 import eu.tintera.plume.features.conversation.showsLargePreview
@@ -195,6 +196,7 @@ internal fun MessageAttachment(
                             fileId = media.fileId,
                             thumbnailFileId = media.thumbnailFileId,
                             placeholder = media.minithumbnail,
+                            autoDownload = LocalAutoDownload.current.photos,
                             contentDescription = stringResource(Res.string.media_photo),
                             // `Crop` dořeší podlahu šířky (extrémně vysoká fotka, fotka s popiskem):
                             // poměr stran zůstává a vidět je prostředek. Jinak není co ořezávat.
@@ -839,9 +841,10 @@ private fun LargeDocumentPreview(
                 ),
             contentAlignment = Alignment.Center,
         ) {
+            val original = document.loadsOriginalPreview(LocalAutoDownload.current.maxFileBytes)
             RemoteImage(
-                fileId = if (document.loadsOriginalPreview) document.fileId else thumbnail,
-                thumbnailFileId = thumbnail.takeIf { document.loadsOriginalPreview },
+                fileId = if (original) document.fileId else thumbnail,
+                thumbnailFileId = thumbnail.takeIf { original },
                 contentDescription = document.fileName,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),

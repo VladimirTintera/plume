@@ -1989,14 +1989,20 @@ sealed interface MessageMedia {
         /** Skrytý kvůli citlivému obsahu, ne volbou odesílatele — viz [SensitiveContent]. */
         val isSensitive: Boolean = false,
     ) : MessageMedia {
-        /** Pustí se samo, nebo až na ťuknutí. */
-        val autoPlays: Boolean get() = sizeBytes in 1..MAX_AUTOPLAY_ANIMATION_BYTES
+        /** Pustí se samo, nebo až na ťuknutí — strop pro výběr GIFů, kde jde o náhled. */
+        val autoPlays: Boolean get() = autoPlaysWithin(MAX_AUTOPLAY_ANIMATION_BYTES)
+
+        /**
+         * Pustí se samo při stropu [limit] (automatické stahování podle sítě)? Neznámá velikost
+         * se nestahuje nikdy — nevíme, kolik by to stálo.
+         */
+        fun autoPlaysWithin(limit: Long): Boolean = sizeBytes in 1..limit
     }
 
     /**
      * Video kolečko (`MessageVideoNote`): čtvercové video bez okolí, kreslené v kruhu.
      *
-     * Hraje samo ve smyčce a ztlumeně, jako GIF ([autoPlays] — stejný strop velikosti); zvuk až
+     * Hraje samo ve smyčce a ztlumeně, jako GIF ([autoPlaysWithin] — stejný strop velikosti); zvuk až
      * na ťuknutí, jako hlasovka. [isViewed] je obdoba „poslechnuto" u hlasovky: příchozí kolečko
      * se po přehrání se zvukem hlásí jako zhlédnuté (`openMessageContent`).
      */
@@ -2010,7 +2016,8 @@ sealed interface MessageMedia {
         /** Přepis řeči, když si o něj někdo řekl (`recognizeSpeech`); jinak `null`. */
         val transcript: SpeechTranscript? = null,
     ) : MessageMedia {
-        val autoPlays: Boolean get() = sizeBytes in 1..MAX_AUTOPLAY_ANIMATION_BYTES
+        /** Pustí se samo při stropu [limit] — jako GIF ([Animation.autoPlaysWithin]). */
+        fun autoPlaysWithin(limit: Long): Boolean = sizeBytes in 1..limit
     }
 
     /**

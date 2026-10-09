@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.ui.LocalAutoDownload
 import eu.tintera.plume.core.ui.rememberFileState
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.core.video.VideoSurface
@@ -59,7 +60,7 @@ internal class VideoNoteHandlers(
  * Video kolečko v konverzaci.
  *
  * **Hraje samo, ve smyčce a bez zvuku, jako GIF** — stejný přehrávač, stejný strop velikosti
- * ([MessageMedia.VideoNote.autoPlays]), stejně se nestahuje nad ním. **Zvuk až na ťuknutí**:
+ * ([MessageMedia.VideoNote.autoPlaysWithin] se stropem podle sítě), stejně se nestahuje nad ním. **Zvuk až na ťuknutí**:
  * kolečko se pustí od začátku, se zvukem a bez smyčky, a po obvodu běží průběh. Další ťuknutí
  * nebo dohrání ho vrátí do tiché smyčky. Se zvukem hraje v konverzaci nejvýš jedno kolečko —
  * o tom, které, rozhoduje ViewModel ([VideoNoteHandlers.sounding]), protože ví i o hlasovkách.
@@ -77,9 +78,11 @@ internal fun VideoNoteBubble(
 ) {
     val sounding = handlers.sounding()
     val shared = if (sounding) handlers.shared() else null
-    var requested by remember(note.fileId) { mutableStateOf(note.autoPlays) }
+    // Strop je automatické stahování podle sítě; kolečko, které už na disku je, hraje i nad ním.
+    var requested by remember(note.fileId) { mutableStateOf(false) }
+    val download = requested || note.autoPlaysWithin(LocalAutoDownload.current.maxVideoBytes)
     // Se zvukem stahuje a přehrává obrazovka; vlastní tichá smyčka jen bez něj.
-    val fileState = rememberFileState(note.fileId.takeIf { requested && !sounding })
+    val fileState = rememberFileState(note.fileId.takeIf { !sounding }, download)
     val path = (fileState as? FileState.Ready)?.path
     val description = stringResource(Res.string.content_video_note)
     val elapsedSeconds by remember(shared) {

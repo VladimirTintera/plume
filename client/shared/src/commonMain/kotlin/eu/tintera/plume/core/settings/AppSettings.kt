@@ -126,6 +126,16 @@ interface AppSettings {
     fun setChatSwipeActions(actions: ChatSwipeActions)
 
     /**
+     * Co se smí stáhnout samo na Wi-Fi, mobilních datech a v roamingu (Nastavení → Úložiště).
+     * Výchozí hodnota sítě se neukládá, jako u motivu — kdyby se výchozí změnila, má ji dostat
+     * i ten, kdo si nic nevybral.
+     */
+    val autoDownload: StateFlow<AutoDownloadSettings>
+
+    /** Uloží úrovně automatického stahování. Neblokuje. */
+    fun setAutoDownload(settings: AutoDownloadSettings)
+
+    /**
      * Experimentální funkce s jazykovým modelem v zařízení (shrnutí konverzace, viz `core/ai`).
      *
      * Výchozí je `false`: model má gigabajty a funkce je jen pro toho, kdo o ni stojí.
@@ -415,6 +425,31 @@ class DataStoreAppSettings(
         }
     }
 
+    override val autoDownload: StateFlow<AutoDownloadSettings> = value(AutoDownloadSettings()) { preferences ->
+        val default = AutoDownloadSettings()
+        fun level(key: Preferences.Key<String>, fallback: AutoDownloadLevel) =
+            AutoDownloadLevel.entries.firstOrNull { it.name == preferences[key] } ?: fallback
+        AutoDownloadSettings(
+            wifi = level(AUTO_DOWNLOAD_WIFI, default.wifi),
+            mobile = level(AUTO_DOWNLOAD_MOBILE, default.mobile),
+            roaming = level(AUTO_DOWNLOAD_ROAMING, default.roaming),
+        )
+    }
+
+    override fun setAutoDownload(settings: AutoDownloadSettings) {
+        val default = AutoDownloadSettings()
+        scope.launch {
+            edit { preferences ->
+                fun put(key: Preferences.Key<String>, level: AutoDownloadLevel, fallback: AutoDownloadLevel) {
+                    if (level == fallback) preferences.remove(key) else preferences[key] = level.name
+                }
+                put(AUTO_DOWNLOAD_WIFI, settings.wifi, default.wifi)
+                put(AUTO_DOWNLOAD_MOBILE, settings.mobile, default.mobile)
+                put(AUTO_DOWNLOAD_ROAMING, settings.roaming, default.roaming)
+            }
+        }
+    }
+
     override val onDeviceAiEnabled: StateFlow<Boolean> = value(false) { preferences ->
         preferences[ON_DEVICE_AI_ENABLED] ?: false
     }
@@ -618,6 +653,9 @@ class DataStoreAppSettings(
         val SAVED_MESSAGES_AS_CHATS = booleanPreferencesKey("saved_messages_as_chats")
         val CHAT_SWIPE_RIGHT = stringPreferencesKey("chat_swipe_right")
         val CHAT_SWIPE_LEFT = stringPreferencesKey("chat_swipe_left")
+        val AUTO_DOWNLOAD_WIFI = stringPreferencesKey("auto_download_wifi")
+        val AUTO_DOWNLOAD_MOBILE = stringPreferencesKey("auto_download_mobile")
+        val AUTO_DOWNLOAD_ROAMING = stringPreferencesKey("auto_download_roaming")
         val ON_DEVICE_AI_ENABLED = booleanPreferencesKey("on_device_ai_enabled")
         val REPLY_SUGGESTIONS_ENABLED = booleanPreferencesKey("reply_suggestions_enabled")
         val ON_DEVICE_AI_PREVIEW = booleanPreferencesKey("on_device_ai_preview")
