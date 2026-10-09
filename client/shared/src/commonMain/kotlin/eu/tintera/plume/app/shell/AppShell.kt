@@ -292,6 +292,8 @@ private fun ShellContent(
         val twoPane = wide && !nothingToPick
         val directive = if (twoPane) base.twoPane() else base.singlePane()
 
+        ShellShortcuts(navigation = navigation, chatsStack = chatsStack, twoPane = twoPane)
+
         // Dvoupanelový stav se hlásí dolů: obrazovky podle něj poznají, že se nevyměňují,
         // a sdílený prvek nezaloží — viz LocalTwoPane.
         // Id Uložených zpráv pro všechno, co kreslí chat (název, záložka místo fotky).

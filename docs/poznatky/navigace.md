@@ -225,3 +225,45 @@ Dřív byl zásobník jeden pro celou aplikaci a přepnutí ho srovnalo na koře
   Pojistka patří tam, kde se odebírá: obrazovka, která v zásobníku už není, nesmí odebrat nic.
 - Vybraná sekce přežije zabití procesu (`rememberSaveable` podle názvu `TopLevelDestination`),
   zásobníky taky (`rememberNavBackStack`).
+
+### Klávesové zkratky
+
+Fold, tablet nebo Chromebook s fyzickou klávesnicí: **Ctrl+K** hledání chatů, **Ctrl+F** hledání
+v otevřené konverzaci, **Alt+↓ / Alt+↑** a **Ctrl+Tab / Ctrl+Shift+Tab** další a předchozí chat,
+**Esc** zpět (zavře hledání, konverzaci). Pravidla jsou čisté funkce (`keyboardShortcut`,
+`neighbourChat`, testy `KeyboardShortcutsTest`). Enter ve vstupním poli viz
+`konverzace-psani.md`, „Enter z fyzické klávesnice".
+
+- **Zkratky se chytají v `MainActivity.dispatchKeyEvent`, DŘÍV než klávesu dostane Compose.**
+  V Compose dorazí klávesa jen k zaostřenému prvku — a bez fokusu (seznam chatů po spuštění)
+  nikam. Zaostřené vstupní pole by navíc Alt+šipku spolklo jako pohyb kurzoru. Zkratky jsou proto
+  jen takové, které psaní nepotřebuje; s Meta (⌘, Windows) žádná, tu si bere systém.
+- **Zkratka je událost** (`KeyboardShortcuts`, Koin `single`), stejně jako `ChatOpenRequests`.
+  Kdo ji neposlouchá (přihlašovací obrazovka), tomu klávesa propadne dál (`trigger` vrací `false`).
+- **Hledání obsluhuje shell** (`ShellShortcuts`): zná zásobník Chatů a otevřenou konverzaci.
+  Ctrl+K jde cestou hashtagu z konverzace (`AppNavigation.openSearch`): v dvoupanelu zůstane
+  konverzace vpravo, na telefonu se zásobník srovná. Ctrl+F jde cestou „Hledat" z profilu
+  (`ConversationSearchRequests`) do konverzace navrchu, i v archivu.
+- **Přepínání chatů obsluhuje seznam** (`ChatSwitchShortcuts` v `ChatListContent`): jen on zná
+  pořadí, jak ho uživatel vidí, i s blokem nepřečtených. Funguje tedy, kde je seznam složený —
+  na rozloženém Foldu se prochází chat za chatem a vpravo se mění konverzace; na telefonu
+  s otevřenou konverzací seznam složený není a zkratka nedělá nic. Na krajích se nezacyklí,
+  sponzorovaný chat přeskočí, ve výběru a v uspořádání připnutých nic.
+- **Esc = Zpět je výslovně v `MainActivity`** (`handleEscape`), ne systémová záložní akce. Mapa
+  kláves systému sice Esc převede na Zpět, ale jen když klávesu nikdo nezpracuje — a zaostřené
+  vstupní pole ji spolkne: z konverzace s kurzorem v poli Esc nedělal nic. Zpět se volá až při
+  uvolnění klávesy, stisk se jen spolkne.
+- **iOS zkratky nemá** — chybí obdoba `dispatchKeyEvent` (`UIKeyCommand`); Enter ve vstupním
+  poli tam funguje, protože ho řeší pole samo.
+- **Fyzická klávesnice na emulátoru:** `input keyevent` / `keycombination` posílá z virtuálního
+  zařízení (`VIRTUAL_KEYBOARD`) — na zkratky stačí, na Enter ne (ten rozlišuje fyzickou
+  klávesnici). `adb emu event send` na emulátoru 37 klávesy nedoručí vůbec. Funguje systémový
+  `uinput`: JSON s `register` (USB klávesnice, `UI_SET_EVBIT` 1, `UI_SET_KEYBIT` kódy kláves),
+  `delay` 2000 ms a `inject` s trojicemi typ–kód–hodnota (`[1,28,1, 0,0,0, 1,28,0, 0,0,0]` =
+  Enter), nahrát do `/data/local/tmp` a `adb shell uinput <soubor>`. Že události dorazily,
+  ukáže `adb shell getevent -l`. Pozor: `adb emu event text` s `\n` taky pošle Enter z klávesnice
+  emulátoru — a zprávu tím odešle.
+- **Ověřeno na emulátoru (Android 17):** Ctrl+K v jednom i dvou panelech, Ctrl+F, Alt+↓ / Alt+↑
+  a Ctrl+Tab v dvoupanelu na šířku, Esc zavře hledání i konverzaci se zaostřeným polem a na
+  seznamu aplikaci opustí jako Zpět. Na skutečném Foldu s klávesnicí neověřeno.
+

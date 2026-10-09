@@ -3,6 +3,24 @@
 Poznatky k jedné oblasti aplikace. Obecná pravidla projektu a rejstřík ostatních souborů jsou
 v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 
+## Enter z fyzické klávesnice
+
+Enter z fyzické klávesnice (Fold, tablet) zprávu odešle, **Shift+Enter** zalomí řádek — jako na
+počítači (`onPreviewKeyEvent` na poli v `MessageInput`). Enter ze softwarové klávesnice dál
+zalomí řádek; odeslání je tam tlačítko a klávesa Odeslat (`ImeAction.Send`).
+
+- **Fyzickou klávesnici pozná `isFromHardwareKeyboard`**, ne kód klávesy: Gboard ve víceřádkovém
+  poli posílá Enter taky jako klávesu. Android: bez `FLAG_SOFT_KEYBOARD` a ne z
+  `VIRTUAL_KEYBOARD` (odtud posílá i `adb shell input`); iOS posílá jako klávesy jen fyzickou
+  klávesnici.
+- **Podmínky odeslání jsou tytéž jako u tlačítka** (text, přílohy, odebíraný popisek; ne během
+  nahrávání a přípravy přílohy). **Prázdné pole Enter nepošle, ale ani nezalomí** — prázdný
+  řádek navíc nikdo nechce.
+- **Volba „Enter odesílá" v Nastavení zatím není**: pro fyzickou klávesnici je to obvyklé chování
+  a softwarové se netýká. Kdyby o ni někdo stál, patří sem.
+- **Ověřeno na emulátoru** přes `uinput` (viz `navigace.md`, „Klávesové zkratky"): Enter odeslal,
+  Shift+Enter zalomil, prázdné pole nic, Enter z `input keyevent` zalomil.
+
 ## Vestavěná galerie (Android)
 
 Sponka → „Fotka nebo video" otevře na Androidu 14 se SDK Extensions 15 **galerii v sheetu nad

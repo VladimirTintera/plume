@@ -1,5 +1,12 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.isFromHardwareKeyboard
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import eu.tintera.plume.core.ui.RollingNumber
 import eu.tintera.plume.resources.forum_24dp
@@ -3607,7 +3614,26 @@ private fun MessageInput(
                     modifier = Modifier
                         .fillMaxWidth()
                         .defaultMinSize(minHeight = TextFieldDefaults.MinHeight)
-                        .focusRequester(fieldFocus),
+                        .focusRequester(fieldFocus)
+                        /*
+                         * Enter z fyzické klávesnice (Fold, tablet) odešle, Shift+Enter udělá nový
+                         * řádek — jako na počítači. Enter ze softwarové klávesnice dál zalomí řádek,
+                         * odeslání je tam tlačítko. Prázdnou zprávu Enter nepošle, ale ani nezalomí:
+                         * prázdný řádek navíc by nikdo nechtěl. Podmínky jsou tytéž jako u tlačítka.
+                         */
+                        .onPreviewKeyEvent { event ->
+                            val enter = event.key == Key.Enter || event.key == Key.NumPadEnter
+                            if (!enter || event.isShiftPressed || !event.isFromHardwareKeyboard) {
+                                return@onPreviewKeyEvent false
+                            }
+                            val sendable = !voiceActive && !attachmentsPreparing &&
+                                (draft.text.isNotBlank() || withAttachments || editing?.composerEdit() == ComposerEdit.Caption)
+                            if (event.type == KeyEventType.KeyDown && sendable) {
+                                onSend(composer.composed, SendOptions())
+                                draft = TextFieldValue()
+                            }
+                            true
+                        },
                     visualTransformation = formatting,
                     textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
