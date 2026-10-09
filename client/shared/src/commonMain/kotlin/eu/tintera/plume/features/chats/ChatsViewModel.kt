@@ -257,6 +257,13 @@ class ChatsViewModel(
      */
     val archiveUnread: StateFlow<ArchiveUnread> = repository.archiveUnread
 
+    /**
+     * Chaty s rozepsanou zprávou — přehled konceptů z menu účtu. `null`, dokud se nenačtou:
+     * prázdný seznam znamená „žádné koncepty" a přehled se při něm zavře.
+     */
+    val drafts: StateFlow<List<ChatSummary>?> = repository.drafts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     private val _archiveSettings = MutableStateFlow<ArchiveSettings?>(null)
 
     /**
