@@ -84,8 +84,8 @@ fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onO
         }
     }
 
-    // Chaty: složky. Vlastní sekce by měla jednu položku.
-    ChatsSettings(onOpenFolders = onOpenFolders)
+    // Chaty: složky a akce tahem. Vlastní sekce by měla dvě položky.
+    ChatsSettings(swipe = koinViewModel(), onOpenFolders = onOpenFolders)
 
     // Soukromí: blokovaní, citlivý obsah a dvoufázové ověření. V Obecných, samostatná sekce by měla dvě položky.
     PrivacySettings(

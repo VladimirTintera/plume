@@ -117,6 +117,15 @@ interface AppSettings {
     fun setSavedMessagesAsChats(asChats: Boolean)
 
     /**
+     * Co dělá tah chatem doprava a doleva v seznamu chatů (Nastavení → Obecné → Chaty).
+     * Výchozí je archivace na obou stranách; výchozí hodnota strany se neukládá, jako u motivu.
+     */
+    val chatSwipeActions: StateFlow<ChatSwipeActions>
+
+    /** Uloží akce tahu. Neblokuje, jako [recordRecentEmoji]. */
+    fun setChatSwipeActions(actions: ChatSwipeActions)
+
+    /**
      * Experimentální funkce s jazykovým modelem v zařízení (shrnutí konverzace, viz `core/ai`).
      *
      * Výchozí je `false`: model má gigabajty a funkce je jen pro toho, kdo o ni stojí.
@@ -388,6 +397,24 @@ class DataStoreAppSettings(
         }
     }
 
+    override val chatSwipeActions: StateFlow<ChatSwipeActions> = value(ChatSwipeActions()) { preferences ->
+        val default = ChatSwipeActions()
+        ChatSwipeActions(
+            right = ChatSwipeAction.entries.firstOrNull { it.name == preferences[CHAT_SWIPE_RIGHT] } ?: default.right,
+            left = ChatSwipeAction.entries.firstOrNull { it.name == preferences[CHAT_SWIPE_LEFT] } ?: default.left,
+        )
+    }
+
+    override fun setChatSwipeActions(actions: ChatSwipeActions) {
+        val default = ChatSwipeActions()
+        scope.launch {
+            edit { preferences ->
+                if (actions.right == default.right) preferences.remove(CHAT_SWIPE_RIGHT) else preferences[CHAT_SWIPE_RIGHT] = actions.right.name
+                if (actions.left == default.left) preferences.remove(CHAT_SWIPE_LEFT) else preferences[CHAT_SWIPE_LEFT] = actions.left.name
+            }
+        }
+    }
+
     override val onDeviceAiEnabled: StateFlow<Boolean> = value(false) { preferences ->
         preferences[ON_DEVICE_AI_ENABLED] ?: false
     }
@@ -589,6 +616,8 @@ class DataStoreAppSettings(
         val THEME_COLOR = stringPreferencesKey("theme_color")
         val SEPARATE_UNREAD_CHATS = booleanPreferencesKey("separate_unread_chats")
         val SAVED_MESSAGES_AS_CHATS = booleanPreferencesKey("saved_messages_as_chats")
+        val CHAT_SWIPE_RIGHT = stringPreferencesKey("chat_swipe_right")
+        val CHAT_SWIPE_LEFT = stringPreferencesKey("chat_swipe_left")
         val ON_DEVICE_AI_ENABLED = booleanPreferencesKey("on_device_ai_enabled")
         val REPLY_SUGGESTIONS_ENABLED = booleanPreferencesKey("reply_suggestions_enabled")
         val ON_DEVICE_AI_PREVIEW = booleanPreferencesKey("on_device_ai_preview")

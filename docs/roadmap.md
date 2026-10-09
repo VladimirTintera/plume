@@ -559,9 +559,8 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
   všude i v chatu, „Uchovávat média", model Gemmy; `docs/poznatky/nastaveni.md`, „Úložiště").
   Zbývá **strop velikosti mezipaměti** (mazat nejstarší nad N GB) a ověřit automatický úklid
   po dni na zařízení.
-- **Akce tahem v seznamu chatů pro každou stranu zvlášť** (archivovat, přečíst, ztlumit,
-  připnout, nic). Dnes obě strany archivují, protože jiná akce nebyla (`docs/poznatky/seznam-chatu.md`, „Archiv");
-  s volbou ten důvod padá. Výchozí zůstává archivace na obou stranách.
+- ~~**Akce tahem v seznamu chatů pro každou stranu zvlášť**~~ — hotovo (Obecné → Chaty:
+  archivovat, přečteno, ztlumit, připnout, nic; `docs/poznatky/seznam-chatu.md`, „Akce tahem").
 - **Menší přepínače:** dvojité ťuknutí na zprávu jako rychlá reakce (výchozí reakce
   `setDefaultReactionType`), Enter odesílá / nový řádek (Fold s klávesnicí), velikost písma ve
   zprávách, odkazy v aplikaci (Custom Tabs) / v prohlížeči, jazyk aplikace přímo v Nastavení

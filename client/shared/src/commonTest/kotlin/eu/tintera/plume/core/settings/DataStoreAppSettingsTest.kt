@@ -144,6 +144,27 @@ class DataStoreAppSettingsTest {
     }
 
     @Test
+    fun akceTahuJsouVychoziArchivace() = settingsTest { settings, _ ->
+        assertEquals(ChatSwipeActions(ChatSwipeAction.Archive, ChatSwipeAction.Archive), settings.chatSwipeActions.value)
+    }
+
+    @Test
+    fun akceTahuSeUloziProKazdouStranuZvlast() = settingsTest { settings, _ ->
+        settings.setChatSwipeActions(ChatSwipeActions(right = ChatSwipeAction.Read, left = ChatSwipeAction.None))
+        assertEquals(
+            ChatSwipeActions(right = ChatSwipeAction.Read, left = ChatSwipeAction.None),
+            settings.chatSwipeActions.awaitValue("zvolené akce") { it.right == ChatSwipeAction.Read },
+        )
+
+        // Návrat k výchozí na jedné straně nesmí shodit volbu té druhé.
+        settings.setChatSwipeActions(ChatSwipeActions(right = ChatSwipeAction.Archive, left = ChatSwipeAction.None))
+        assertEquals(
+            ChatSwipeActions(right = ChatSwipeAction.Archive, left = ChatSwipeAction.None),
+            settings.chatSwipeActions.awaitValue("vrácená pravá strana") { it.right == ChatSwipeAction.Archive },
+        )
+    }
+
+    @Test
     fun zavrenaAktualizaceSePamatujePodleVerze() = settingsTest { settings, _ ->
         assertEquals(null, settings.dismissedUpdateVersionCode.value)
 
