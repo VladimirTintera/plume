@@ -9,6 +9,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -162,6 +163,26 @@ class AppLockTest {
         s.lock.unlockWithBiometrics()
         assertEquals(AppLockState.Unlocked, s.lock.state.value)
         assertEquals(PinResult.Success, s.lock.verify("1234"))
+    }
+
+    /** Změněné otisky vypnou biometrii i na zamčené aplikaci; dál odemyká jen PIN. */
+    @Test
+    fun zmeneneOtiskyVypnouBiometriiZamceneAplikace() = runTest {
+        val s = Setup(this)
+        runCurrent()
+        s.lock.enable("1234")
+        s.lock.setBiometrics(true)
+        s.foreground.value = false; runCurrent()
+        s.clock.advance(60_000)
+        s.foreground.value = true; runCurrent()
+        assertTrue(assertIs<AppLockState.Locked>(s.lock.state.value).biometrics)
+
+        s.lock.revokeBiometrics()
+        assertFalse(assertIs<AppLockState.Locked>(s.lock.state.value).biometrics)
+        assertEquals(false, s.lock.settings.value?.biometrics)
+        s.lock.unlockWithBiometrics()
+        assertIs<AppLockState.Locked>(s.lock.state.value)
+        assertEquals(PinResult.Success, s.lock.unlock("1234"))
     }
 
     @Test

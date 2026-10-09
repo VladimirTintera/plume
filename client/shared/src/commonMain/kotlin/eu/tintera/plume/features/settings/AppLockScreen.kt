@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.resources.app_lock_biometrics_revoked
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -152,7 +153,7 @@ fun AppLockScreen(
                         biometricSupported = biometricAuth.isSupported,
                         onChangePin = viewModel::startChangePin,
                         onSetTimeout = viewModel::setTimeout,
-                        onSetBiometrics = viewModel::setBiometrics,
+                        onSetBiometrics = { viewModel.setBiometrics(it, biometricAuth) },
                         onDisable = viewModel::disableLock,
                     )
                 }
@@ -268,6 +269,7 @@ private fun VerifyCurrentPinContent(
             val errorText = when {
                 isBlocked -> stringResource(Res.string.app_lock_blocked, remainingSeconds)
                 uiState.errorMessage == "wrong" -> stringResource(Res.string.app_lock_wrong_pin)
+                uiState.errorMessage == BIOMETRICS_REVOKED -> stringResource(Res.string.app_lock_biometrics_revoked)
                 else -> null
             }
 

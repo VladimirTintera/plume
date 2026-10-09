@@ -112,9 +112,32 @@ Všechno, co zámek ví, je **jeden záznam v `AppLockStore`** (Keystore / Keych
     **Face ID potřebuje `NSFaceIDUsageDescription`** — je v build settings projektu
     (`INFOPLIST_KEY_NSFaceIDUsageDescription`, jako ostatní usage texty), ne v `Info.plist`.
     Bez něj ověření na iPhonu s Face ID selže.
-- **Biometrie NENÍ svázaná se seznamem otisků v telefonu.** Kdo zná PIN telefonu, přidá si
-  vlastní otisk a aplikaci odemkne. Oprava (klíč s `setInvalidatedByBiometricEnrollment`
-  přes `CryptoObject`, na iOS `evaluatedPolicyDomainState`) je otevřená — viz roadmapa.
+- **Biometrie je svázaná se seznamem otisků a tváří v telefonu.** Kdo zná PIN telefonu, přidal
+  si dřív v systému vlastní otisk a Plume jím odemkl. Teď se seznam zapamatuje při zapnutí
+  biometrie (`BiometricAuth.enroll`) a po jeho změně vrátí ověření `BiometricResult.Invalidated`:
+  `AppLock.revokeBiometrics` biometrii vypne (i u zamčené aplikace, ikona otisku zmizí) a zámek
+  napíše proč. Odemknout jde PINem, znovu zapnout v Nastavení — tam se útočník bez PINu
+  aplikace nedostane.
+  - **Android: klíč v Keystore** (`plume_app_lock_biometrics`, AES-GCM) s
+    `setUserAuthenticationRequired` + `setInvalidatedByBiometricEnrollment(true)`, od API 30
+    `setUserAuthenticationParameters(0, AUTH_BIOMETRIC_STRONG)` — každé použití chce nové
+    ověření silnou biometrií, ne PINem telefonu. Prompt dostane šifru s klíčem (`CryptoObject`)
+    a úspěch se počítá, až šifra po ověření opravdu zašifruje: samotné „ověřeno" z promptu by
+    šlo dostat i novým otiskem. Zneplatněný klíč se pozná už při `cipher.init`
+    (`KeyPermanentlyInvalidatedException`), takže prompt se vůbec neukáže.
+  - **iOS: `evaluatedPolicyDomainState`** se při zapnutí uloží (`NSUserDefaults`) a před
+    ověřením porovná (`==` na `NSData` volá `isEqual:`; `isEqualToData` Kotlin/Native nevidí).
+    Jen přeložené, na zařízení neověřené.
+  - **Chybějící svázání = zneplatněné.** Kdo měl biometrii zapnutou ve verzi před svázáním,
+    musí ji jednou zapnout znovu. O seznamu otisků z té doby nic nevíme a přijmout ho naslepo by
+    znamenalo přijmout i otisk přidaný mezitím.
+  - **Zapnutí bez svázání neprojde** (`AppLockViewModel.setBiometrics`): když `enroll` selže,
+    přepínač zůstane vypnutý — jinak by biometrii vypnulo hned první odemčení.
+  - **Ověřeno na emulátoru** (Android 17): otisk 1 odemkne; po přidání otisku 2 v systému se
+    po studeném startu prompt neukáže, zámek hlásí změnu, otisk 2 nic neudělá, PIN odemkne
+    a v Nastavení je biometrie vypnutá; po opětovném zapnutí odemkne i otisk 2. Otisky na
+    emulátoru: `locksettings set-pin`, `am start -a android.settings.FINGERPRINT_ENROLL`
+    (`BIOMETRIC_ENROLL` se na Androidu 17 neotevřel) a opakované `adb emu finger touch <id>`.
 - **Automatické vyvolání při zamčení:** jakmile se objeví `LockScreen` a biometrie je zapnutá,
   systémový dialog se nabídne automaticky, aniž by uživatel musel ťukat na ikonu otisku.
 
@@ -189,4 +212,4 @@ Všechno, co zámek ví, je **jeden záznam v `AppLockStore`** (Keystore / Keych
 
 Hotovo včetně UI, biometrie na Androidu i iOS, `FLAG_SECURE`, krytu v přepínači na iOS,
 obrazovky v Nastavení a unit testů (`AppLockTest`, `PinHashTest`, `AppLockViewModelTest`).
-Otevřené: svázání biometrie se seznamem otisků (viz výš), volitelný šestimístný PIN.
+Otevřené: volitelný šestimístný PIN; svázání biometrie se seznamem otisků na iOS ověřit na zařízení.
