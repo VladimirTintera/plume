@@ -16,6 +16,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -134,6 +135,21 @@ interface AppSettings {
 
     /** Uloží úrovně automatického stahování. Neblokuje. */
     fun setAutoDownload(settings: AutoDownloadSettings)
+
+    /**
+     * [autoDownload] až po načtení souboru. StateFlow do té doby drží výchozí hodnotu, a podle
+     * ní by synchronizace ([AutoDownloadSync]) usoudila, že si uživatel nic nevybral.
+     */
+    suspend fun loadedAutoDownload(): AutoDownloadSettings
+
+    /**
+     * Kde stojí automatické stahování vůči serveru Telegramu. `null` = ještě nikdy: čerstvá
+     * instalace, nebo aktualizace z verze, která nesynchronizovala. Čeká na načtení souboru.
+     */
+    suspend fun autoDownloadSync(): SettingsSync?
+
+    /** Zapíše [autoDownloadSync]. Na rozdíl od ostatních zápisů čeká, až je zapsáno. */
+    suspend fun setAutoDownloadSync(state: SettingsSync)
 
     /**
      * Experimentální funkce s jazykovým modelem v zařízení (shrnutí konverzace, viz `core/ai`).
@@ -459,15 +475,30 @@ class DataStoreAppSettings(
         }
     }
 
-    override val autoDownload: StateFlow<AutoDownloadSettings> = value(AutoDownloadSettings()) { preferences ->
+    override val autoDownload: StateFlow<AutoDownloadSettings> = value(AutoDownloadSettings(), ::readAutoDownload)
+
+    private fun readAutoDownload(preferences: Preferences): AutoDownloadSettings {
         val default = AutoDownloadSettings()
         fun level(key: Preferences.Key<String>, fallback: AutoDownloadLevel) =
             AutoDownloadLevel.entries.firstOrNull { it.name == preferences[key] } ?: fallback
-        AutoDownloadSettings(
+        return AutoDownloadSettings(
             wifi = level(AUTO_DOWNLOAD_WIFI, default.wifi),
             mobile = level(AUTO_DOWNLOAD_MOBILE, default.mobile),
             roaming = level(AUTO_DOWNLOAD_ROAMING, default.roaming),
         )
+    }
+
+    override suspend fun loadedAutoDownload(): AutoDownloadSettings =
+        readAutoDownload(preferences.filterNotNull().first())
+
+    override suspend fun autoDownloadSync(): SettingsSync? {
+        val stored = preferences.filterNotNull().first()[AUTO_DOWNLOAD_SYNC] ?: return null
+        // Neznámý název z novější verze: stáhnout ze serveru je bezpečné, nic se neztratí.
+        return SettingsSync.entries.firstOrNull { it.name == stored } ?: SettingsSync.Pull
+    }
+
+    override suspend fun setAutoDownloadSync(state: SettingsSync) {
+        edit { preferences -> preferences[AUTO_DOWNLOAD_SYNC] = state.name }
     }
 
     override fun setAutoDownload(settings: AutoDownloadSettings) {
@@ -729,6 +760,7 @@ class DataStoreAppSettings(
         val AUTO_DOWNLOAD_WIFI = stringPreferencesKey("auto_download_wifi")
         val AUTO_DOWNLOAD_MOBILE = stringPreferencesKey("auto_download_mobile")
         val AUTO_DOWNLOAD_ROAMING = stringPreferencesKey("auto_download_roaming")
+        val AUTO_DOWNLOAD_SYNC = stringPreferencesKey("auto_download_sync")
         val ON_DEVICE_AI_ENABLED = booleanPreferencesKey("on_device_ai_enabled")
         val REPLY_SUGGESTIONS_ENABLED = booleanPreferencesKey("reply_suggestions_enabled")
         val ON_DEVICE_AI_PREVIEW = booleanPreferencesKey("on_device_ai_preview")

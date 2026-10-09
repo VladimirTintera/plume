@@ -30,6 +30,7 @@ import eu.tintera.plume.core.connectivity.detectsRoaming
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.AutoDownloadLevel
 import eu.tintera.plume.core.settings.AutoDownloadSettings
+import eu.tintera.plume.core.settings.AutoDownloadSync
 import eu.tintera.plume.core.settings.HIGH_BYTES
 import eu.tintera.plume.core.settings.LOW_VIDEO_BYTES
 import eu.tintera.plume.core.settings.MEDIUM_BYTES
@@ -59,16 +60,20 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Automatické stahování (Úložiště). Zápis běží v rozsahu [AppSettings], ne ve `viewModelScope`
- * — volba těsně před odchodem z obrazovky se tak neztratí (viz [AppearanceViewModel]).
+ * Automatické stahování (Úložiště). Zápis běží v rozsahu aplikace, ne ve `viewModelScope` —
+ * volba těsně před odchodem z obrazovky se tak neztratí (viz [AppearanceViewModel]). Jde přes
+ * [AutoDownloadSync], aby se dostala i na server pro další přihlášené zařízení.
  */
-class AutoDownloadViewModel(private val settings: AppSettings) : ViewModel() {
+class AutoDownloadViewModel(
+    settings: AppSettings,
+    private val sync: AutoDownloadSync,
+) : ViewModel() {
 
     val levels: StateFlow<AutoDownloadSettings> = settings.autoDownload
 
     fun set(network: AutoDownloadNetwork, level: AutoDownloadLevel) {
         val current = levels.value
-        settings.setAutoDownload(
+        sync.change(
             when (network) {
                 AutoDownloadNetwork.WiFi -> current.copy(wifi = level)
                 AutoDownloadNetwork.Mobile -> current.copy(mobile = level)
