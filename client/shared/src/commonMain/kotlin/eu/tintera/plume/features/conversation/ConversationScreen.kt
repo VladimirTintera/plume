@@ -281,6 +281,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -3289,9 +3291,10 @@ private fun MessageInput(
     val ime = WindowInsets.ime
     val keyboardShown by remember(ime, density) { derivedStateOf { ime.getBottom(density) > 0 } }
     val typing = fieldFocused && keyboardShown && !voiceActive
-    // Lišta formátování bez výběru (ikona „Aa"). Se schováním klávesnice se zavře — ikona,
-    // která by ji zavřela, je pak pryč (na jejím místě je samolepka).
+    // Lišta formátování bez výběru (ikona „Aa"). Se schováním klávesnice se zavře — bez ní
+    // není co formátovat a ikona může být mezitím zpátky sponkou.
     var formattingOpen by rememberSaveable { mutableStateOf(false) }
+    val fieldFocus = remember { FocusRequester() }
     LaunchedEffect(typing) { if (!typing) formattingOpen = false }
 
     var linkOptionsOpen by rememberSaveable { mutableStateOf(false) }
@@ -3533,27 +3536,46 @@ private fun MessageInput(
                     )
                 }
             }
-            if (editing == null && (content.anyAttachment || onSendLocation != null)) {
-                AttachButton(
-                    onPickMedia = onPickMedia,
-                    onPickDocument = onPickDocument,
-                    // Skupina může povolit fotky a zakázat soubory; nabídne se jen dovolené.
-                    canPickMedia = content.photos || content.videos,
-                    canPickDocument = content.documents,
-                    onCreatePoll = onCreatePoll,
-                    onSendLocation = onSendLocation,
-                    onShareContact = onShareContact,
-                    contentColor = inputIconColor(),
-                    // Za tlačítkem příkazů bez odsazení: glyfy mají kolem sebe vzduch samy.
-                    modifier = Modifier.padding(start = if (botButton) 0.dp else 4.dp, bottom = 4.dp),
-                )
-            }
+            // Sponka, nebo „Aa" — viz ComposerStartSlot. Smajlík má místo vpravo vždycky.
+            val attachColor = inputIconColor()
+            ComposerStartSlot(
+                attach = if (editing == null && (content.anyAttachment || onSendLocation != null)) {
+                    {
+                        AttachButton(
+                            onPickMedia = onPickMedia,
+                            onPickDocument = onPickDocument,
+                            // Skupina může povolit fotky a zakázat soubory; nabídne se jen dovolené.
+                            canPickMedia = content.photos || content.videos,
+                            canPickDocument = content.documents,
+                            onCreatePoll = onCreatePoll,
+                            onSendLocation = onSendLocation,
+                            onShareContact = onShareContact,
+                            contentColor = attachColor,
+                        )
+                    }
+                } else {
+                    null
+                },
+                formatAuto = typing && draft.text.isNotEmpty(),
+                typing = typing,
+                formattingShown = (typing && formattingOpen) || !draft.selection.collapsed,
+                onToggleFormatting = { formattingOpen = !formattingOpen },
+                onFormatWithoutKeyboard = {
+                    // Lišta se ukáže, až klávesnice vyjede (kreslí se jen při psaní).
+                    formattingOpen = true
+                    fieldFocus.requestFocus()
+                    keyboard?.show()
+                },
+                contentColor = attachColor,
+                // Za tlačítkem příkazů bez odsazení: glyfy mají kolem sebe vzduch samy.
+                modifier = Modifier.padding(start = if (botButton) 0.dp else 4.dp, bottom = 4.dp),
+            )
             Box(Modifier.weight(1f)) {
             /*
              * `BasicTextField` s dekorací, ne `TextField`: ten má vnitřní odsazení 16 dp napevno
              * a vedle sponky (48dp tlačítko, glyf má kolem sebe dalších 12 dp) z toho byla
              * mezera skoro 30 dp, než začal text. U ikony stačí 4 dp — glyf má svůj vzduch.
-             * Bez sponky (úprava zprávy) zůstává výchozích 16 dp od hrany karty.
+             * Vlevo je ikona vždycky — sponka, nebo „Aa" (i při úpravě zprávy).
              */
             val fieldColors = TextFieldDefaults.colors(
                 // Kontejner i podtržení nese karta kolem; pole samo nekreslí nic.
@@ -3581,7 +3603,8 @@ private fun MessageInput(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .defaultMinSize(minHeight = TextFieldDefaults.MinHeight),
+                        .defaultMinSize(minHeight = TextFieldDefaults.MinHeight)
+                        .focusRequester(fieldFocus),
                     visualTransformation = formatting,
                     textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
@@ -3622,7 +3645,8 @@ private fun MessageInput(
                             },
                             colors = fieldColors,
                             contentPadding = TextFieldDefaults.contentPaddingWithoutLabel(
-                                start = if (editing == null) FIELD_ICON_GAP else FIELD_EDGE_PADDING,
+                                // Vlevo je vždycky ikona (sponka, nebo „Aa").
+                                start = FIELD_ICON_GAP,
                                 end = FIELD_ICON_GAP,
                             ),
                             container = {},
@@ -3675,62 +3699,27 @@ private fun MessageInput(
                     )
                 }
             }
-            /*
-             * Jedno místo pro „Aa" a výběr samolepek. Klávesnice je otevřená → „Aa" (lišta
-             * formátování i bez označeného textu: zapnout tučné a psát dál); zavřená → samolepka.
-             * Emoji při psaní nabízí klávesnice sama a náš výběr by ji stejně zavřel, formátovat
-             * bez klávesnice zase není co. Dokud stály vedle sebe, ukusovaly textu 96 dp a „Aa"
-             * se s fokusem objevovalo DO ŠÍŘKY — rozepsaný víceřádkový text se přeskládal pokaždé,
-             * když se do pole ťuklo. Takhle se šířka pole nemění nikdy.
-             *
-             * Rozhoduje klávesnice, ne fokus: pole po schování klávesnice (zpět) fokus drží
-             * a samolepka by se pak neukázala vůbec.
-             */
-            val slotIconScale = morphSpring<Float>()
-            val slotIconFade = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-            AnimatedContent(
-                targetState = typing,
-                transitionSpec = {
-                    (scaleIn(slotIconScale, initialScale = 0.4f) + fadeIn(slotIconFade))
-                        .togetherWith(scaleOut(slotIconScale, targetScale = 0.4f) + fadeOut(slotIconFade))
+            // Výběr samolepek, emoji a GIFů je tu VŽDYCKY, i s otevřenou klávesnicí — potřebuje
+            // se hlavně uprostřed psaní. „Aa" si místo vyměňuje se sponkou (ComposerStartSlot).
+            IconButton(
+                onClick = {
+                    // Sheet a klávesnice by se jinak přetahovaly o spodek obrazovky; sheet je
+                    // další okno, takže otevřený hned by klávesnici utrhl skokem.
+                    afterKeyboardHidden(onOpenStickers)
                 },
+                colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
                 modifier = Modifier.padding(end = 4.dp, bottom = 4.dp),
-                label = "field-end-slot",
-            ) { showFormat ->
-                if (showFormat) {
-                    IconToggleButton(
-                        checked = formattingOpen || !draft.selection.collapsed,
-                        onCheckedChange = { formattingOpen = !formattingOpen },
-                        colors = IconButtonDefaults.iconToggleButtonColors(
-                            contentColor = inputIconColor(),
-                            checkedContentColor = MaterialTheme.colorScheme.onPrimary,
-                            checkedContainerColor = MaterialTheme.colorScheme.primary,
-                        ),
-                        shapes = IconButtonDefaults.toggleableShapes(),
-                    ) {
-                        Icon(painterResource(Res.drawable.text_format_24dp), contentDescription = stringResource(Res.string.format_open))
-                    }
-                } else {
-                    IconButton(
-                        onClick = {
-                            // Sheet a klávesnice by se jinak přetahovaly o spodek obrazovky; sheet je
-                            // další okno, takže otevřený hned by klávesnici utrhl skokem.
-                            afterKeyboardHidden(onOpenStickers)
-                        },
-                        colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
-                        shapes = IconButtonDefaults.shapes(),
-                    ) {
-                        // Ikona slibuje, co se otevře: poslední použitou část výběru. Při úpravě
-                        // zprávy jde otevřít jen emoji — samolepka do textu upravované zprávy nepatří.
-                        when {
-                            editing != null || !content.stickers || expressionMode == ExpressionMode.Emoji ->
-                                Icon(painterResource(Res.drawable.mood_24dp), contentDescription = stringResource(Res.string.conversation_open_emoji))
-                            expressionMode == ExpressionMode.Gifs ->
-                                Icon(painterResource(Res.drawable.gif_box_24dp), contentDescription = stringResource(Res.string.conversation_open_gifs))
-                            else ->
-                                Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = stringResource(Res.string.conversation_open_stickers))
-                        }
-                    }
+                shapes = IconButtonDefaults.shapes(),
+            ) {
+                // Ikona slibuje, co se otevře: poslední použitou část výběru. Při úpravě
+                // zprávy jde otevřít jen emoji — samolepka do textu upravované zprávy nepatří.
+                when {
+                    editing != null || !content.stickers || expressionMode == ExpressionMode.Emoji ->
+                        Icon(painterResource(Res.drawable.mood_24dp), contentDescription = stringResource(Res.string.conversation_open_emoji))
+                    expressionMode == ExpressionMode.Gifs ->
+                        Icon(painterResource(Res.drawable.gif_box_24dp), contentDescription = stringResource(Res.string.conversation_open_gifs))
+                    else ->
+                        Icon(painterResource(Res.drawable.sticky_note_2_24dp), contentDescription = stringResource(Res.string.conversation_open_stickers))
                 }
             }
                 }
@@ -4118,9 +4107,6 @@ private val ComposerShape = RoundedCornerShape(24.dp)
 
 /** Odsazení textu od ikony vedle pole — glyf má v 48dp tlačítku kolem sebe svých 12 dp. */
 private val FIELD_ICON_GAP = 4.dp
-
-/** Odsazení textu od hrany karty, kde ikona není (úprava zprávy); výchozí u `TextField`. */
-private val FIELD_EDGE_PADDING = 16.dp
 
 /** Půlperioda dýchání tlačítka při nahrávání. */
 private const val RECORDING_BREATH_MS = 900

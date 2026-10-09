@@ -910,6 +910,8 @@
     <string name="clipboard_has_image">Obrázek ve schránce</string>
     <!-- Formátování výběru v kontextové nabídce vstupního pole. -->
     <string name="format_open">Formátování</string>
+    <string name="composer_show_formatting">Ukázat formátování</string>
+    <string name="composer_show_attachments">Ukázat přílohy</string>
     <string name="format_code_language">Jazyk kódu</string>
     <string name="format_code_language_hint">třeba kotlin</string>
     <string name="format_quote_expandable">Sbalitelná citace</string>

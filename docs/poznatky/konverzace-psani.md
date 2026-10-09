@@ -398,17 +398,33 @@ funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
   - **Citace bez výběru jde na řádek s kurzorem**, ne na další psaní — je to blok přes řádky.
     Jen na prázdném řádku čeká na psaní jako ostatní. **Odkaz bez výběru zašedne**: potřebuje
     popisek.
-  - **„Aa" a výběr samolepek sdílejí JEDNO místo v kartě**: s otevřenou klávesnicí „Aa", se
-    zavřenou samolepka (emoji / GIF), výměna zvětšením jako u odesílacího tlačítka. Při psaní
-    emoji nabízí klávesnice sama a náš výběr by ji stejně zavřel; bez klávesnice zase není co
-    formátovat. Dokud stály vedle sebe, ukusovaly textu 96 dp a „Aa" se s fokusem objevovalo
-    DO ŠÍŘKY — rozepsaný víceřádkový text se přeskládal při každém ťuknutí do pole. Teď se šířka
-    pole nemění nikdy (ověřeno po snímcích se zpomalenými animacemi: zalomení stejné).
+  - **Smajlík (výběr emoji, samolepek a GIFů) je vpravo v kartě VŽDYCKY, „Aa" si místo
+    vyměňuje se sponkou vlevo** (`ComposerStartSlot`). Dřív sdílelo „Aa" místo se smajlíkem
+    (s klávesnicí „Aa", bez ní smajlík) a uprostřed psaní, kdy se emoji hledají nejvíc, nešel
+    výběr otevřít vůbec — nejdřív se musela schovat klávesnice. Přílohu naopak člověk přidává
+    skoro vždycky na začátku, se zavřenou klávesnicí. Dokud stály „Aa" a smajlík vedle sebe,
+    ukusovaly textu 96 dp a „Aa" se s fokusem objevovalo DO ŠÍŘKY — rozepsaný víceřádkový text
+    se přeskládal při každém ťuknutí do pole. Výměna ikon v místě stejné velikosti šířku pole
+    nemění nikdy.
+    - **„Aa" naskočí až s otevřenou klávesnicí A textem v poli.** Samotná klávesnice nestačí:
+      kdo otevře pole, aby přiložil fotku s popiskem, chce sponku. Zapnout tučné ještě před
+      prvním písmenem jde tahem (níž).
+    - **Svislý tah po levé ikoně je přepíná** jako buben: nahoru přijede další zdola, dolů
+      shora, s `tick()`. Ruční volba platí, dokud se automatické pravidlo samo nezmění. Čtečce
+      jde přepnutí jako vlastní akce („Ukázat formátování" / „Ukázat přílohy").
+    - **Bez sponky (úprava zprávy, chat bez příloh) je „Aa" vlevo trvale** — naskakovat
+      s klávesnicí by znamenalo ubrat poli šířku. Ťuknutí na „Aa" bez klávesnice ji otevře
+      i s lištou (`focusRequester` pole + `keyboard.show()`).
+    - **Ověřeno na emulátoru (Pixel 9, česky)** v Uložených zprávách: s klávesnicí a prázdným
+      polem sponka, po prvním písmenu „Aa" (text v poli se nepohne), smajlík s otevřenou
+      klávesnicí ji zavře a otevře výběr i s rozepsaným textem, tah nahoru přepne s `tick()`
+      (`constant=26` v `dumpsys vibrator_manager`), tahem přepnuté „Aa" bez klávesnice ji otevře
+      i s lištou, úprava popisku má „Aa" vlevo trvale. Na telefonu (jak se tah cítí pod prstem)
+      ověřené není.
     - **Rozhoduje viditelná klávesnice, ne fokus** (`typing` = fokus a nenulová výška
       `WindowInsets.ime`, přes `derivedStateOf`). Po schování klávesnice gestem zpět drží pole
-      fokus dál a samolepka by se podle fokusu neukázala vůbec. Výška klávesnice funguje i na iOS
-      (`isImeVisible` je jen na Androidu).
-    - **S hardwarovou klávesnicí „Aa" není** (softwarová se neukáže). Formátovat jde dál
+      fokus dál. Výška klávesnice funguje i na iOS (`isImeVisible` je jen na Androidu).
+    - **S hardwarovou klávesnicí „Aa" samo nenaskočí** (softwarová se neukáže). Formátovat jde dál
       označením textu, jen „zapnout tučné a psát dál" tam chybí.
     - **Svislé skládání ikon u víceřádkového textu (zvažováno) ne**: dvě ikony pod sebou chtějí
       ~100 dp výšky, tedy až od tří řádků, a při přepnutí se odstavec přeskládá do širší plochy
