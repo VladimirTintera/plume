@@ -7,11 +7,10 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -20,6 +19,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
@@ -31,7 +31,7 @@ import androidx.navigation3.ui.LocalNavAnimatedContentScope
  * obou obrazovek — malá ikona a holý text bez ničeho kolem působily vytrženě. Teď letí UVNITŘ
  * plochy, která roste s nimi.
  *
- * Pár tvoří [chatContainerSource] na řádku a [ChatContainer] kolem obrazovky chatu. Přechod
+ * Pár tvoří [rememberChatContainerSource] na řádku a [ChatContainer] kolem obrazovky chatu. Přechod
  * scén se pro tuhle dvojici vypíná (`NavTransitions`): seznam zůstává stát pod rostoucí plochou
  * a obrazovka chatu je celá v ní.
  */
@@ -40,42 +40,65 @@ import androidx.navigation3.ui.LocalNavAnimatedContentScope
 fun chatContainerKey(chatId: Long): String = "chat-container-$chatId"
 
 /**
- * Řádek seznamu chatů, ze kterého se chat otevírá.
+ * Řádek seznamu chatů, ze kterého se chat otevírá: [container] patří na plochu řádku,
+ * [content] na jeho obsah.
+ */
+@Stable
+class ChatContainerSource internal constructor(val container: Modifier, val content: Modifier)
+
+private val NoChatContainerSource = ChatContainerSource(Modifier, Modifier)
+
+/**
+ * **Plocha řádku roste PŘEMĚŘOVÁNÍM** (`RemeasureToBounds`), aby vyplnila celý kontejner.
+ * Neprolíná se (`None`): leží POD obrazovkou chatu, která se na ní objeví, takže kontejner
+ * není v žádné chvíli průhledný a seznam jím neprosvítá.
  *
- * **Řádek se roste PŘEMĚŘOVÁNÍM** (`RemeasureToBounds`), aby jeho plocha vyplnila celý kontejner
- * — obsah řádku si volající drží v jeho velikosti přes `skipToLookaheadSize`, jinak by se
- * do celé obrazovky roztáhl i on. Neprolíná se (`None`): leží POD obrazovkou chatu, která se
- * na něm objeví, takže kontejner není v žádné chvíli průhledný a seznam jím neprosvítá.
+ * **Obsah řádku drží svou velikost** (`skipToLookaheadSize`, jinak by se roztáhl do celé
+ * obrazovky) **a na začátku letu rychle zmizí** — fade through jako v Material container
+ * transform. Dokud zůstával, prosvítal náhled zprávy přes objevující se hlavičku konverzace.
+ * Zpátky se objeví brzy, ještě pod konverzací, která ho kryje, dokud sama nezmizí.
+ *
+ * Mizení platí jen při spárovaném letu. Délky se drží v mezích přechodů scén
+ * (`NavTransitions`): animace řádku je animací TÉHOŽ přechodu a delší by u návratu gestem
+ * z jiné obrazovky (Nastavení) natáhla celý přechod a posunula tah.
  */
 @Composable
-fun Modifier.chatContainerSource(chatId: Long): Modifier {
-    val shared = LocalSharedTransitionScope.current ?: return this
-    if (LocalTwoPane.current) return this
+fun rememberChatContainerSource(chatId: Long): ChatContainerSource {
+    val shared = LocalSharedTransitionScope.current ?: return NoChatContainerSource
+    if (LocalTwoPane.current) return NoChatContainerSource
+    val scope = LocalNavAnimatedContentScope.current
+    val state = with(shared) { rememberSharedContentState(key = chatContainerKey(chatId)) }
+    val contentAlpha = scope.transition.animateFloat(
+        transitionSpec = {
+            if (targetState == EnterExitState.Visible) {
+                tween(CONTENT_FADE_MS, delayMillis = SOURCE_FADE_IN_DELAY_MS, easing = LinearEasing)
+            } else {
+                tween(SOURCE_FADE_OUT_MS, easing = LinearEasing)
+            }
+        },
+        label = "chat-row-content",
+    ) { if (it == EnterExitState.Visible) 1f else 0f }
     return with(shared) {
-        this@chatContainerSource.sharedBounds(
-            sharedContentState = rememberSharedContentState(key = chatContainerKey(chatId)),
-            animatedVisibilityScope = LocalNavAnimatedContentScope.current,
-            enter = EnterTransition.None,
-            exit = ExitTransition.None,
-            boundsTransform = { _, _ -> flightSpec },
-            resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
-            zIndexInOverlay = SOURCE_Z,
+        ChatContainerSource(
+            container = Modifier.sharedBounds(
+                sharedContentState = state,
+                animatedVisibilityScope = scope,
+                enter = EnterTransition.None,
+                exit = ExitTransition.None,
+                boundsTransform = { _, _ -> flightSpec },
+                resizeMode = SharedTransitionScope.ResizeMode.RemeasureToBounds,
+                zIndexInOverlay = SOURCE_Z,
+            ),
+            content = Modifier.skipToLookaheadSize().graphicsLayer {
+                // Čte se až ve vrstvě: průběh se mění každý snímek a řádek se kvůli tomu nerekomponuje.
+                alpha = if (isTransitionActive && state.isMatchFound) contentAlpha.value else 1f
+            },
         )
     }
 }
 
 /**
- * Obsah řádku zůstane během růstu ve své velikosti (viz [chatContainerSource]) a drží se nahoře.
- */
-@Composable
-fun Modifier.chatContainerSourceContent(): Modifier {
-    val shared = LocalSharedTransitionScope.current ?: return this
-    if (LocalTwoPane.current) return this
-    return with(shared) { this@chatContainerSourceContent.skipToLookaheadSize() }
-}
-
-/**
- * Obrazovka chatu, která vyrůstá z řádku seznamu ([chatContainerSource]).
+ * Obrazovka chatu, která vyrůstá z řádku seznamu ([rememberChatContainerSource]).
  *
  * [fromList] = obrazovka leží v zásobníku přímo na seznamu chatů. Jinak se kontejner nezakládá:
  * téma skupiny nad seznamem témat má tentýž chat a kontejnery by se spárovaly navzájem.
@@ -98,14 +121,42 @@ fun ChatContainer(chatId: Long, fromList: Boolean, content: @Composable () -> Un
         label = "chat-container-open",
     ) { if (it == EnterExitState.Visible) 1f else 0f }
     val clip = remember(open) { ContainerClip(open) }
+    /*
+     * Průhlednost obrazovky řídí ona sama, ne `enter`/`exit` sdílené plochy. Plocha bez páru
+     * (řádek odscrollovaný, chat se mezitím přesunul, nebo chat v seznamu vůbec není) svoje
+     * mizení nepoužila: konverzace při návratu stála a pak zmizela skokem. Bez páru proto mizí
+     * a objevuje se jako fade through ostatních přechodů, s párem zpožděně podle letu.
+     */
+    val flightAlpha = scope.transition.animateFloat(
+        transitionSpec = {
+            if (targetState == EnterExitState.Visible) {
+                // Objeví se brzy, ať je kontejner co nejdřív neprůhledný.
+                tween(CONTENT_FADE_MS, delayMillis = ENTER_FADE_DELAY_MS, easing = LinearEasing)
+            } else {
+                // Zpět mizí až na konci, když už je zase skoro řádkem (zrcadlově k otevření).
+                tween(CONTENT_FADE_MS, delayMillis = EXIT_FADE_DELAY_MS, easing = LinearEasing)
+            }
+        },
+        label = "chat-container-alpha",
+    ) { if (it == EnterExitState.Visible) 1f else 0f }
+    val plainAlpha = scope.transition.animateFloat(
+        transitionSpec = {
+            if (targetState == EnterExitState.Visible) {
+                tween(PLAIN_FADE_IN_MS, delayMillis = PLAIN_FADE_OUT_MS, easing = LinearEasing)
+            } else {
+                tween(PLAIN_FADE_OUT_MS, easing = LinearEasing)
+            }
+        },
+        label = "chat-container-plain-alpha",
+    ) { if (it == EnterExitState.Visible) 1f else 0f }
+    val transition = scope.transition
+    val state = with(shared) { rememberSharedContentState(key = chatContainerKey(chatId)) }
     val modifier = with(shared) {
         Modifier.fillMaxSize().sharedBounds(
-            sharedContentState = rememberSharedContentState(key = chatContainerKey(chatId)),
+            sharedContentState = state,
             animatedVisibilityScope = scope,
-            // Objeví se brzy, ať je kontejner co nejdřív neprůhledný; zpět mizí až na konci,
-            // když už je zase skoro řádkem (zrcadlově k otevření).
-            enter = fadeIn(tween(CONTENT_FADE_MS, delayMillis = ENTER_FADE_DELAY_MS, easing = LinearEasing)),
-            exit = fadeOut(tween(CONTENT_FADE_MS, delayMillis = EXIT_FADE_DELAY_MS, easing = LinearEasing)),
+            enter = EnterTransition.None,
+            exit = ExitTransition.None,
             boundsTransform = { _, _ -> flightSpec },
             resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(
                 contentScale = ContentScale.FillWidth,
@@ -113,7 +164,14 @@ fun ChatContainer(chatId: Long, fromList: Boolean, content: @Composable () -> Un
             ),
             clipInOverlayDuringTransition = clip,
             zIndexInOverlay = TARGET_Z,
-        )
+        ).graphicsLayer {
+            // Čte se až ve vrstvě, let nic nerekomponuje.
+            alpha = when {
+                transition.currentState == transition.targetState -> 1f
+                state.isMatchFound -> flightAlpha.value
+                else -> plainAlpha.value
+            }
+        }
     }
     Box(modifier) { content() }
 }
@@ -150,5 +208,13 @@ private const val SOURCE_Z = -2f
 private const val TARGET_Z = -1f
 
 private const val CONTENT_FADE_MS = 150
-private const val ENTER_FADE_DELAY_MS = 50
 private const val EXIT_FADE_DELAY_MS = 200
+
+/** Bez páru jako fade through ostatních přechodů (`NavTransitions`). */
+private const val PLAIN_FADE_OUT_MS = 90
+private const val PLAIN_FADE_IN_MS = 210
+
+/** Obsah řádku zmizí rychleji, než se konverzace začne objevovat — dvojí expozice nenastane. */
+private const val SOURCE_FADE_OUT_MS = 60
+private const val SOURCE_FADE_IN_DELAY_MS = 90
+private const val ENTER_FADE_DELAY_MS = SOURCE_FADE_OUT_MS

@@ -98,7 +98,7 @@ proto dostávají všechny klíče `photoKey` a nic jiného. **Kdo přidá `inTw
 **Text se sdílí přes `sharedBounds` + `scaleToBounds`, ne přes `sharedElement`.** Název chatu má
 v hlavičce jinou velikost písma; se `sharedElement` by se text na konci letu přeskládal skokem.
 
-**Chat se ze seznamu otevírá container transformem** (`ChatContainer`, `chatContainerSource`
+**Chat se ze seznamu otevírá container transformem** (`ChatContainer`, `rememberChatContainerSource`
 v `core/ui/ChatContainerTransform.kt`): řádek se rozroste v obrazovku chatu a zpět (tlačítkem
 i gestem) se do něj smrští. Dřív letěl jen avatar a název přes prolnutí obrazovek a malá ikona
 s holým textem působily vytrženě; teď letí uvnitř plochy, která roste s nimi.
@@ -112,15 +112,28 @@ s holým textem působily vytrženě; teď letí uvnitř plochy, která roste s 
   Konverzaci přeměřovat v každém snímku by bylo drahé; řádek naopak musí plochou vyplnit celý
   kontejner, jinak by pod prolínající se konverzací prosvítal seznam. Obsah řádku drží svou
   velikost přes `skipToLookaheadSize`.
-- **Řádek se neprolíná, leží POD konverzací** (`zIndexInOverlay` −2 a −1, avatar a název 0):
-  kdyby mizel současně s objevováním konverzace, byl by kontejner v půlce průhledný.
+- **Plocha řádku se neprolíná, leží POD konverzací** (`zIndexInOverlay` −2 a −1, avatar
+  a název 0): kdyby mizela současně s objevováním konverzace, byl by kontejner v půlce
+  průhledný. **Obsah řádku ale zmizí hned na začátku** (60 ms, konverzace se začne objevovat
+  až po něm) — dokud zůstával, prosvítal náhled zprávy a čas přes objevující se hlavičku
+  konverzace (zjištěno sérií snímků). Mizí jen při spárovaném letu a délky drží v mezích
+  přechodů scén: animace řádku patří k TÉMUŽ přechodu, takže delší by natáhla i návrat
+  gestem z Nastavení.
 - **Kontejner jen nad seznamem** (`liesOnChatList`, pamatuje se `remember(route)`, protože při
   návratu zmizí route ze zásobníku dřív, než přechod doběhne). Téma nad seznamem témat má tentýž
   chat a obě obrazovky by se spárovaly navzájem.
 - **Vybraný řádek se na telefonu nezvýrazňuje** (`selectedChatId` jen ve dvoupanelu): otevíraný
   řádek by se uprostřed růstu přebarvil na `secondaryContainer`.
-- **Bez páru (řádek odscrollovaný, chat se mezitím přesunul) se konverzace jen prolne** přes
-  seznam: sdílená plocha bez protějšku se chová jako obyčejné objevení.
+- **Bez páru (řádek odscrollovaný, chat se mezitím přesunul, chat v seznamu vůbec není) se
+  konverzace jen prolne** přes seznam. Průhlednost si proto řídí `ChatContainer` sám a podle
+  `isMatchFound` volí zpožděné mizení letu, nebo rychlý fade through. Spoléhat na
+  `enter`/`exit` sdílené plochy nešlo: bez páru se při návratu nepoužilo, konverzace stála
+  a pak zmizela skokem. Ověřeno na veřejném kanálu otevřeném z globálního hledání.
+- **Z hledání v seznamu chatů to funguje taky**: hledání se zavře a konverzace vyroste z řádku
+  v seznamu pod ním, ne z výsledku hledání.
+- **Ověřeno na emulátoru (Pixel 9)** zpomalenými animacemi a sérií surových snímků: otevření,
+  zpět tlačítkem, gesto zpět zastavené v půlce (tah smršťování posouvá) i zrušené (konverzace
+  se znovu rozroste), otevření z hledání a chat bez řádku. Plynulost na telefonu ověřená není.
 
 **Predictive back dělá `NavDisplay` sám** (přes `androidx.navigationevent`): při tažení zpět se
 konverzace zmenší a odsune a pod ní se odkryje živý seznam. Nic se pro to nezapíná —
