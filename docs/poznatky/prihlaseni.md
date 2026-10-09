@@ -153,6 +153,9 @@ znamenaly slepou uličku — kód nikdy nepřišel a jiná cesta nebyla.
   pozná z protokolu hovorů) a jako další cestu SMS s lhůtou hodina („You can request an SMS
   in 59:50"). Plume s povoleným `allowFlashCall` i `allowMissedCall` dostal jen kód do
   Telegramu bez další cesty — server tedy jiné cesty dává podle toho, čí je `api_id`.
+  Hovor nakonec nepřišel (ani zmeškaný); po zrušení a NOVÉM přihlášení byla lhůta na SMS jen
+  dvě minuty a přihlášení přes SMS prošlo. Lhůtu (`timeout`) tedy určuje server pokaždé zvlášť
+  a hodina u prvního pokusu nebyla pravidlo.
 - **Tlačítko tedy čeká na server, který jinou cestu dá** (jiné `api_id`, jiná země, účet bez
   aktivní relace). Ověřené je jen testy `AuthViewModelTest` (lhůta, poslání, chyby), skutečné
   doručení SMS či hovoru ne.
