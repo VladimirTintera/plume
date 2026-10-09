@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.telegram
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.os.Build
 import java.io.File
 import java.util.Locale
@@ -13,6 +14,9 @@ import java.util.Locale
 actual class TelegramPaths(context: Context) {
     actual val databaseDirectory: String = context.filesDir.resolve("tdlib").absolutePath
     actual val filesDirectory: String = context.filesDir.resolve("tdlib-files").absolutePath
+
+    /** Z manifestu aplikace, ne z knihovny: `:client:shared` se staví stejně pro debug i release. */
+    actual val isDebugBuild: Boolean = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
 
     /**
      * Na Androidu stačí adresáře založit: zálohu vypíná manifest (`allowBackup="false"`) pro celou
