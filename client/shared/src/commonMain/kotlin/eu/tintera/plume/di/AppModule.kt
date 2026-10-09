@@ -117,6 +117,7 @@ import eu.tintera.plume.features.media.MediaViewerViewModel
 import eu.tintera.plume.features.share.ShareToChatViewModel
 import eu.tintera.plume.features.share.ShareViewModel
 import eu.tintera.plume.features.settings.AppearanceViewModel
+import eu.tintera.plume.features.settings.ChatSwipeSettingsViewModel
 import eu.tintera.plume.features.settings.SettingsViewModel
 import eu.tintera.plume.features.settings.BlockSenderViewModel
 import eu.tintera.plume.features.settings.BlockedSendersViewModel
@@ -372,6 +373,7 @@ fun appModule() = module {
     viewModelOf(::TwoStepViewModel)
     viewModelOf(::AppLockViewModel)
     viewModelOf(::AppearanceViewModel)
+    viewModelOf(::ChatSwipeSettingsViewModel)
     viewModelOf(::DevicesViewModel)
     viewModelOf(::StorageViewModel)
     viewModelOf(::NotificationSettingsViewModel)

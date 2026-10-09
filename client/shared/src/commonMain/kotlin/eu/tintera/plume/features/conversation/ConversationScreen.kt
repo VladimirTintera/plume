@@ -3295,6 +3295,7 @@ private fun MessageInput(
     // není co formátovat a ikona může být mezitím zpátky sponkou.
     var formattingOpen by rememberSaveable { mutableStateOf(false) }
     val fieldFocus = remember { FocusRequester() }
+    var fieldHeight by remember { mutableStateOf(0.dp) }
     LaunchedEffect(typing) { if (!typing) formattingOpen = false }
 
     var linkOptionsOpen by rememberSaveable { mutableStateOf(false) }
@@ -3566,11 +3567,13 @@ private fun MessageInput(
                     fieldFocus.requestFocus()
                     keyboard?.show()
                 },
+                fieldHeight = fieldHeight,
                 contentColor = attachColor,
                 // Za tlačítkem příkazů bez odsazení: glyfy mají kolem sebe vzduch samy.
                 modifier = Modifier.padding(start = if (botButton) 0.dp else 4.dp, bottom = 4.dp),
             )
-            Box(Modifier.weight(1f)) {
+            // Výška pole říká levému místu, jestli se ikony vejdou pod sebe.
+            Box(Modifier.weight(1f).onSizeChanged { fieldHeight = with(density) { it.height.toDp() } }) {
             /*
              * `BasicTextField` s dekorací, ne `TextField`: ten má vnitřní odsazení 16 dp napevno
              * a vedle sponky (48dp tlačítko, glyf má kolem sebe dalších 12 dp) z toho byla

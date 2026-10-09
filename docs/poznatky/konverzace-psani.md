@@ -426,10 +426,22 @@ funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
       fokus dál. Výška klávesnice funguje i na iOS (`isImeVisible` je jen na Androidu).
     - **S hardwarovou klávesnicí „Aa" samo nenaskočí** (softwarová se neukáže). Formátovat jde dál
       označením textu, jen „zapnout tučné a psát dál" tam chybí.
-    - **Svislé skládání ikon u víceřádkového textu (zvažováno) ne**: dvě ikony pod sebou chtějí
-      ~100 dp výšky, tedy až od tří řádků, a při přepnutí se odstavec přeskládá do širší plochy
-      — slova i kurzor uprostřed psaní poskočí o řádek. Rozvržení se má měnit ve chvíli, kdy
-      není co přeskládat (otevření klávesnice), ne při zalomení.
+    - **Od tří řádků stojí sponka a „Aa" pod sebou** (`fieldHeight` ≥ 96 dp: dvě tlačítka 48 dp
+      s překryvem 4 dp a 4 dp pod nimi; tři řádky 16/22 mají s odsazením pole 98 dp, dva 76).
+      Napřed to bylo zamítnuté, jenže tehdy stály „Aa" a smajlík VEDLE sebe a složením by se
+      pole rozšířilo a text přeskládal. Teď sdílejí jeden sloupec, takže šířka zůstává.
+      - **Ikona, která byla vidět, zůstane dole u posledního řádku a druhá zpoza ní VYJEDE
+        nahoru** (při zkrácení zajede zpátky). Ořízne se na hraně mezi nimi, takže je poznat,
+        že ikony leží na sobě a u kratšího textu se dají přepínat tahem (nápad uživatele).
+        Ve složeném stavu tah nic nepřepíná.
+      - **Místo nesmí nahlásit víc výšky, než má pole** (`layout` s limitem `fieldHeight − 4 dp`).
+        Mizející horní ikona si jinak drží místo, dokud nedoběhne: po smazání na dva řádky
+        zůstala karta o 20 dp vyšší a na konci skočila (série snímků). Co se nevejde, kreslí
+        se přes horní okraj — jen ta mizející ikona.
+      - Ověřeno na emulátoru zpomalenými animacemi (20×, přechod vyvolaný jedním znakem — delší
+        `input text` zalomí řádek dřív, než se stihne první snímek): vysunutí, zasunutí, karta
+        bez skoku, horní sponka otevře nabídku příloh. Jak pohyb působí uprostřed psaní, se
+        posoudí na telefonu.
 - **Lišta, ne položky v kontextové nabídce výběru** (tak to bylo napřed). Ikony u vlastních
   položek nabídka výběru na telefonu NEZOBRAZÍ: na Androidu ji kreslí `ActionMode`
   (`AndroidTextContextMenuToolbarProvider`) a `leadingIcon` z `TextContextMenuItem` zahodí —
