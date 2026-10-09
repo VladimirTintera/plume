@@ -121,6 +121,7 @@ import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.navigation.SettingsSectionRoute
 import eu.tintera.plume.core.navigation.TopLevelRoute
 import eu.tintera.plume.core.ui.LocalTwoPane
+import eu.tintera.plume.core.ui.ChatContainer
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.features.chats.ArchiveScreen
@@ -328,7 +329,7 @@ private fun ShellContent(
                 SettingsRoute to rememberDecoratedNavEntries(settingsDisplayed, entryDecorators, entryProvider),
             )
 
-            val transitions = rememberNavTransitions()
+            val transitions = rememberNavTransitions(chatContainer = !wide)
             NavDisplay(
                 entries = navigation.visibleSections.flatMap { entriesBySection.getValue(it) },
                 transitionSpec = transitions.forward(),
@@ -391,7 +392,7 @@ private fun shellEntryProvider(
     entry<ChatsRoute>(
         metadata = ListDetailSceneStrategy.listPane(
             detailPlaceholder = { ConversationPlaceholder() },
-        ),
+        ) + ChatListMetadata,
     ) {
         val settings = koinInject<AppSettings>()
         val savedMessagesChatId = LocalSavedMessagesChatId.current
@@ -399,8 +400,11 @@ private fun shellEntryProvider(
             viewModel = koinViewModel(),
             // Konverzace vedle seznamu má vlastní přehrávač (dock), druhý by ho zdvojil.
             conversationOpen = chatsStack.lastOrNull() is ConversationRoute,
+            // Vybraný řádek jen vedle detailu. Na telefonu by se otevíraný řádek přebarvil
+            // uprostřed růstu v konverzaci (viz ChatContainer) a nic by tím neoznačil.
             selectedChatId = chatsStack.lastOrNull { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute }
-                ?.let { (it as? ConversationRoute)?.chatId ?: (it as? ForumTopicsRoute)?.chatId ?: (it as SavedTopicsRoute).chatId },
+                ?.let { (it as? ConversationRoute)?.chatId ?: (it as? ForumTopicsRoute)?.chatId ?: (it as SavedTopicsRoute).chatId }
+                ?.takeIf { twoPane },
             onChatClick = { chatId ->
                 // Uložené zprávy po chatech, když si to uživatel zvolil („Zobrazit jako chaty").
                 if (chatId == savedMessagesChatId && settings.savedMessagesAsChats.value) {
@@ -439,7 +443,7 @@ private fun shellEntryProvider(
         metadata = ListDetailSceneStrategy.listPane(
             ARCHIVE_SCENE,
             detailPlaceholder = { ConversationPlaceholder() },
-        ),
+        ) + ChatListMetadata,
     ) {
         ArchiveScreen(
             // Klíč se složkou: ViewModel se cachuje podle klíče a Koin by u cachované instance
@@ -449,7 +453,8 @@ private fun shellEntryProvider(
                 parameters = { parametersOf(ChatFolder.Archive) },
             ),
             selectedChatId = chatsStack.lastOrNull { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute }
-                ?.let { (it as? ArchiveConversationRoute)?.chatId ?: (it as ArchiveForumTopicsRoute).chatId },
+                ?.let { (it as? ArchiveConversationRoute)?.chatId ?: (it as ArchiveForumTopicsRoute).chatId }
+                ?.takeIf { twoPane },
             onChatClick = { chatId -> chatsStack.openArchiveConversation(chatId) },
             onForumClick = { chatId -> chatsStack.openArchiveForum(chatId) },
             onBack = chatsStack::closeArchive,
@@ -508,110 +513,118 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ConversationRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
-        val settings = koinInject<AppSettings>()
-        ConversationScreen(
-            // Klíč MUSÍ obsahovat chatId. ViewModel se cachuje podle klíče, takže
-            // konstantní klíč znamená, že druhá otevřená konverzace dostane ViewModel
-            // té první — i se zprávami. Koin navíc u cachované instance ignoruje
-            // nové `parameters`, takže se to neprojeví ani chybou, jen špatným obsahem.
-            viewModel = koinViewModel(
-                key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}-${route.savedTopicId}",
-                parameters = { parametersOf(route.chatId, route.messageId, route.threadId, route.topicId, route.savedTopicId) },
-            ),
-            // Odebírá SVOU položku, ne poslední — viz `pop`.
-            onBack = { chatsStack.pop(route) },
-            onOpenMedia = { messageId ->
-                chatsStack.add(MediaRoute(route.chatId, messageId))
-            },
-            onOpenMediaAt = { messageId, seconds ->
-                chatsStack.add(MediaRoute(route.chatId, messageId, startSeconds = seconds))
-            },
-            onOpenPollMedia = { messageId, index ->
-                chatsStack.add(MediaRoute(route.chatId, messageId, pollMedia = index))
-            },
-            onOpenArticleMedia = { messageId, index ->
-                chatsStack.add(MediaRoute(route.chatId, messageId, articleMedia = index))
-            },
-            onOpenStory = { story ->
-                chatsStack.add(MediaRoute(story.posterChatId, messageId = 0, storyId = story.storyId))
-            },
-            onForward = { messageIds ->
-                chatsStack.add(ForwardRoute(route.chatId, messageIds))
-            },
-            // Zmínka i odkaz otevře chat NAD touhle konverzací (ne místo ní), takže zpět vede sem.
-            // Odkaz na zprávu nese její id a konverzace na ni po otevření skočí.
-            // Komentáře jsou vlákno diskusní skupiny nad kanálem, téma jde rovnou do tématu
-            // a skupina s tématy do seznamu témat (`openTarget`).
-            onOpenChat = { target -> chatsStack.openTarget(target, archive = false) },
-            onSearch = { query -> navigation.openSearch(query, keepConversation = twoPane) },
-            onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
-            onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(chatId)) },
-            onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
-            onOpenWebApp = { request -> chatsStack.add(webAppRoute(route.chatId, request, archive = false)) },
-            onOpenBotShare = { request -> chatsStack.add(botShareRoute(route.chatId, request)) },
-            onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
-            onOpenScreen = { screen -> navigation.openScreen(screen, twoPane) },
-            onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
-            onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
-            onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
-            // Uložené zprávy po chatech: volba se pamatuje a seznam témat nahradí konverzaci.
-            onViewAsChats = {
-                settings.setSavedMessagesAsChats(true)
-                chatsStack.openSavedTopics(route.chatId)
-            },
-        )
+    entry<ConversationRoute>(metadata = ListDetailSceneStrategy.detailPane() + ChatScreenMetadata) { route ->
+        ChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+            val settings = koinInject<AppSettings>()
+            ConversationScreen(
+                // Klíč MUSÍ obsahovat chatId. ViewModel se cachuje podle klíče, takže
+                // konstantní klíč znamená, že druhá otevřená konverzace dostane ViewModel
+                // té první — i se zprávami. Koin navíc u cachované instance ignoruje
+                // nové `parameters`, takže se to neprojeví ani chybou, jen špatným obsahem.
+                viewModel = koinViewModel(
+                    key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}-${route.savedTopicId}",
+                    parameters = { parametersOf(route.chatId, route.messageId, route.threadId, route.topicId, route.savedTopicId) },
+                ),
+                // Odebírá SVOU položku, ne poslední — viz `pop`.
+                onBack = { chatsStack.pop(route) },
+                onOpenMedia = { messageId ->
+                    chatsStack.add(MediaRoute(route.chatId, messageId))
+                },
+                onOpenMediaAt = { messageId, seconds ->
+                    chatsStack.add(MediaRoute(route.chatId, messageId, startSeconds = seconds))
+                },
+                onOpenPollMedia = { messageId, index ->
+                    chatsStack.add(MediaRoute(route.chatId, messageId, pollMedia = index))
+                },
+                onOpenArticleMedia = { messageId, index ->
+                    chatsStack.add(MediaRoute(route.chatId, messageId, articleMedia = index))
+                },
+                onOpenStory = { story ->
+                    chatsStack.add(MediaRoute(story.posterChatId, messageId = 0, storyId = story.storyId))
+                },
+                onForward = { messageIds ->
+                    chatsStack.add(ForwardRoute(route.chatId, messageIds))
+                },
+                // Zmínka i odkaz otevře chat NAD touhle konverzací (ne místo ní), takže zpět vede sem.
+                // Odkaz na zprávu nese její id a konverzace na ni po otevření skočí.
+                // Komentáře jsou vlákno diskusní skupiny nad kanálem, téma jde rovnou do tématu
+                // a skupina s tématy do seznamu témat (`openTarget`).
+                onOpenChat = { target -> chatsStack.openTarget(target, archive = false) },
+                onSearch = { query -> navigation.openSearch(query, keepConversation = twoPane) },
+                onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
+                onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(chatId)) },
+                onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
+                onOpenWebApp = { request -> chatsStack.add(webAppRoute(route.chatId, request, archive = false)) },
+                onOpenBotShare = { request -> chatsStack.add(botShareRoute(route.chatId, request)) },
+                onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
+                onOpenScreen = { screen -> navigation.openScreen(screen, twoPane) },
+                onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
+                onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
+                onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
+                // Uložené zprávy po chatech: volba se pamatuje a seznam témat nahradí konverzaci.
+                onViewAsChats = {
+                    settings.setSavedMessagesAsChats(true)
+                    chatsStack.openSavedTopics(route.chatId)
+                },
+            )
+        }
     }
 
     /*
      * Témata Uložených zpráv stojí na místě konverzace (detail panel), jako témata skupiny;
      * téma se otevře jako konverzace nad nimi.
      */
-    entry<SavedTopicsRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
-        SavedTopicsScreen(
-            viewModel = koinViewModel(key = "saved-topics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
-            onBack = { chatsStack.pop(route) },
-            onOpenTopic = { topicId ->
-                if ((chatsStack.lastOrNull() as? ConversationRoute)?.savedTopicId != topicId) {
-                    chatsStack.add(ConversationRoute(route.chatId, savedTopicId = topicId))
-                }
-            },
-            onViewAsMessages = { chatsStack.openConversation(route.chatId) },
-        )
+    entry<SavedTopicsRoute>(metadata = ListDetailSceneStrategy.detailPane() + ChatScreenMetadata) { route ->
+        ChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+            SavedTopicsScreen(
+                viewModel = koinViewModel(key = "saved-topics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+                onBack = { chatsStack.pop(route) },
+                onOpenTopic = { topicId ->
+                    if ((chatsStack.lastOrNull() as? ConversationRoute)?.savedTopicId != topicId) {
+                        chatsStack.add(ConversationRoute(route.chatId, savedTopicId = topicId))
+                    }
+                },
+                onViewAsMessages = { chatsStack.openConversation(route.chatId) },
+            )
+        }
     }
 
     /*
      * Témata skupiny s tématy stojí na místě konverzace (detail panel); téma se otevře jako
      * konverzace NAD nimi, takže zpět vede do seznamu témat.
      */
-    entry<ForumTopicsRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
-        ForumTopicsScreen(
-            viewModel = koinViewModel(key = "forum-${route.chatId}", parameters = { parametersOf(route.chatId) }),
-            onBack = { chatsStack.pop(route) },
-            onOpenTopic = { topicId ->
-                if ((chatsStack.lastOrNull() as? ConversationRoute)?.topicId != topicId) {
-                    chatsStack.add(ConversationRoute(route.chatId, topicId = topicId))
-                }
-            },
-            onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
-            onViewAsMessages = { chatsStack.add(ConversationRoute(route.chatId)) },
-            onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
-        )
+    entry<ForumTopicsRoute>(metadata = ListDetailSceneStrategy.detailPane() + ChatScreenMetadata) { route ->
+        ChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+            ForumTopicsScreen(
+                viewModel = koinViewModel(key = "forum-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+                onBack = { chatsStack.pop(route) },
+                onOpenTopic = { topicId ->
+                    if ((chatsStack.lastOrNull() as? ConversationRoute)?.topicId != topicId) {
+                        chatsStack.add(ConversationRoute(route.chatId, topicId = topicId))
+                    }
+                },
+                onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
+                onViewAsMessages = { chatsStack.add(ConversationRoute(route.chatId)) },
+                onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
+            )
+        }
     }
 
-    entry<ArchiveForumTopicsRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
-        ForumTopicsScreen(
-            viewModel = koinViewModel(key = "forum-${route.chatId}", parameters = { parametersOf(route.chatId) }),
-            onBack = { chatsStack.pop(route) },
-            onOpenTopic = { topicId ->
-                if ((chatsStack.lastOrNull() as? ArchiveConversationRoute)?.topicId != topicId) {
-                    chatsStack.add(ArchiveConversationRoute(route.chatId, topicId = topicId))
-                }
-            },
-            onOpenProfile = { chatsStack.add(ArchiveChatProfileRoute(route.chatId)) },
-            onViewAsMessages = { chatsStack.add(ArchiveConversationRoute(route.chatId)) },
-            onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
-        )
+    entry<ArchiveForumTopicsRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE) + ChatScreenMetadata) { route ->
+        ChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+            ForumTopicsScreen(
+                viewModel = koinViewModel(key = "forum-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+                onBack = { chatsStack.pop(route) },
+                onOpenTopic = { topicId ->
+                    if ((chatsStack.lastOrNull() as? ArchiveConversationRoute)?.topicId != topicId) {
+                        chatsStack.add(ArchiveConversationRoute(route.chatId, topicId = topicId))
+                    }
+                },
+                onOpenProfile = { chatsStack.add(ArchiveChatProfileRoute(route.chatId)) },
+                onViewAsMessages = { chatsStack.add(ArchiveConversationRoute(route.chatId)) },
+                onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
+            )
+        }
     }
 
     // Profil je detail jako konverzace: na širokém rozvržení ji v pravém panelu nahradí.
@@ -725,45 +738,47 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ArchiveConversationRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
-        ConversationScreen(
-            viewModel = koinViewModel(
-                key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}",
-                parameters = { parametersOf(route.chatId, route.messageId, route.threadId, route.topicId) },
-            ),
-            onBack = { chatsStack.pop(route) },
-            onOpenMedia = { messageId ->
-                chatsStack.add(MediaRoute(route.chatId, messageId))
-            },
-            onOpenMediaAt = { messageId, seconds ->
-                chatsStack.add(MediaRoute(route.chatId, messageId, startSeconds = seconds))
-            },
-            onOpenPollMedia = { messageId, index ->
-                chatsStack.add(MediaRoute(route.chatId, messageId, pollMedia = index))
-            },
-            onOpenArticleMedia = { messageId, index ->
-                chatsStack.add(MediaRoute(route.chatId, messageId, articleMedia = index))
-            },
-            onOpenStory = { story ->
-                chatsStack.add(MediaRoute(story.posterChatId, messageId = 0, storyId = story.storyId))
-            },
-            onForward = { messageIds ->
-                chatsStack.add(ForwardRoute(route.chatId, messageIds))
-            },
-            onOpenChat = { target -> chatsStack.openTarget(target, archive = true) },
-            onSearch = { query -> navigation.openSearch(query, keepConversation = false) },
-            onOpenProfile = { chatsStack.add(ArchiveChatProfileRoute(route.chatId)) },
-            onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(chatId)) },
-            onUnarchived = { chatsStack.moveConversationToMain(route.chatId) },
-            onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
-            onOpenWebApp = { request -> chatsStack.add(webAppRoute(route.chatId, request, archive = true)) },
-            onOpenBotShare = { request -> chatsStack.add(botShareRoute(route.chatId, request)) },
-            onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
-            onOpenScreen = { screen -> navigation.openScreen(screen, twoPane = false) },
-            onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
-            onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
-            onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
-        )
+    entry<ArchiveConversationRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE) + ChatScreenMetadata) { route ->
+        ChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+            ConversationScreen(
+                viewModel = koinViewModel(
+                    key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}",
+                    parameters = { parametersOf(route.chatId, route.messageId, route.threadId, route.topicId) },
+                ),
+                onBack = { chatsStack.pop(route) },
+                onOpenMedia = { messageId ->
+                    chatsStack.add(MediaRoute(route.chatId, messageId))
+                },
+                onOpenMediaAt = { messageId, seconds ->
+                    chatsStack.add(MediaRoute(route.chatId, messageId, startSeconds = seconds))
+                },
+                onOpenPollMedia = { messageId, index ->
+                    chatsStack.add(MediaRoute(route.chatId, messageId, pollMedia = index))
+                },
+                onOpenArticleMedia = { messageId, index ->
+                    chatsStack.add(MediaRoute(route.chatId, messageId, articleMedia = index))
+                },
+                onOpenStory = { story ->
+                    chatsStack.add(MediaRoute(story.posterChatId, messageId = 0, storyId = story.storyId))
+                },
+                onForward = { messageIds ->
+                    chatsStack.add(ForwardRoute(route.chatId, messageIds))
+                },
+                onOpenChat = { target -> chatsStack.openTarget(target, archive = true) },
+                onSearch = { query -> navigation.openSearch(query, keepConversation = false) },
+                onOpenProfile = { chatsStack.add(ArchiveChatProfileRoute(route.chatId)) },
+                onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(chatId)) },
+                onUnarchived = { chatsStack.moveConversationToMain(route.chatId) },
+                onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
+                onOpenWebApp = { request -> chatsStack.add(webAppRoute(route.chatId, request, archive = true)) },
+                onOpenBotShare = { request -> chatsStack.add(botShareRoute(route.chatId, request)) },
+                onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
+                onOpenScreen = { screen -> navigation.openScreen(screen, twoPane = false) },
+                onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
+                onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
+                onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
+            )
+        }
     }
 
     entry<ArchiveChatProfileRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->

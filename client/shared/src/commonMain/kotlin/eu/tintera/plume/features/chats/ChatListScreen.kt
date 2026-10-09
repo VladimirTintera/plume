@@ -165,6 +165,7 @@ import eu.tintera.plume.resources.chats_reorder_hint
 import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.chatAvatarKey
+import eu.tintera.plume.core.ui.rememberChatContainerSource
 import eu.tintera.plume.core.ui.chatTitleKey
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.core.ui.resolve
@@ -1416,6 +1417,9 @@ private fun ChatRow(
         MaterialTheme.colorScheme.onSurfaceVariant
     }
 
+    // Řádek se při otevření chatu rozroste v jeho obrazovku (container transform).
+    val containerSource = rememberChatContainerSource(chat.id)
+
     // `Card(onClick = …)` umí jen krátké ťuknutí. Dlouhý stisk potřebuje `combinedClickable`,
     // takže se klikání přesouvá na Surface — Card zůstává jen tvarem a barvou.
     Surface(
@@ -1423,13 +1427,14 @@ private fun ChatRow(
         color = containerColor,
         contentColor = contentColor,
         modifier = modifier
+            .then(containerSource.container)
             .fillMaxWidth()
             .clip(shape)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .then(if (selectionMark != null) Modifier.semantics { this.selected = selectionMark } else Modifier),
     ) {
         Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),
+            containerSource.content.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
