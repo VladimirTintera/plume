@@ -44,6 +44,7 @@ import eu.tintera.plume.core.telegram.TdlDeviceRepository
 import eu.tintera.plume.features.devices.DevicesViewModel
 import eu.tintera.plume.features.settings.StorageViewModel
 import eu.tintera.plume.core.storage.StorageCleaner
+import eu.tintera.plume.core.settings.AutoDownloadSync
 import eu.tintera.plume.core.telegram.StorageRepository
 import eu.tintera.plume.core.telegram.TdlStorageRepository
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
@@ -78,6 +79,8 @@ import eu.tintera.plume.core.telegram.TdlGifRepository
 import eu.tintera.plume.core.telegram.TdlEmojiRepository
 import eu.tintera.plume.core.telegram.QuickReaction
 import eu.tintera.plume.core.telegram.TdlQuickReaction
+import eu.tintera.plume.core.telegram.AutoDownloadPresets
+import eu.tintera.plume.core.telegram.TdlAutoDownloadPresets
 import eu.tintera.plume.core.telegram.TdlStickerRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.RevealedSpoilers
@@ -308,6 +311,15 @@ fun appModule() = module {
     single<AccountRepository> { TdlAccountRepository(holder = get()) }
     single<ProxyRepository> { TdlProxyRepository(holder = get()) }
     single<StorageRepository> { TdlStorageRepository(holder = get()) }
+    single<AutoDownloadPresets> { TdlAutoDownloadPresets(holder = get()) }
+    single {
+        AutoDownloadSync(
+            settings = get(),
+            presets = get(),
+            authStage = get<TelegramSession>().authStage,
+            scope = get(named(APP_SCOPE)),
+        )
+    }
     single {
         StorageCleaner(
             repository = get(),

@@ -427,14 +427,37 @@ Telegram sám.
   rozsazích, archiv a složky už jdou přes server a platí i v oficiálních aplikacích. Kdo přidává
   volbu, kterou Telegram zná, má ji napojit na jeho API a ne na `AppSettings`. Vlastní úschova
   je jen pro to, co Telegram nemá.
-- **Automatické stahování ZŮSTÁVÁ v zařízení**, i když ho Telegram ukládá na server.
-  Server (`account.saveAutoDownloadSettings`) drží pro účet tři předvolby, „nízká, střední
-  a vysoká spotřeba dat“. TDLib je přes `setAutoDownloadSettings(settings, type)` mapuje na
-  roaming, mobilní data a Wi-Fi. Synchronizují se tedy pravidla pro druh sítě a podle sítě se
-  rozhoduje až v zařízení. Proč to Telegram drží na serveru, dokumentace neříká. Nejspíš kvůli
-  výchozím hodnotám, které server ladí podle země (`getAutoDownloadSettingsPresets`: předvolby
-  „for the current user“). Telefon s malým úložištěm a tablet ale chtějí jiná pravidla i na stejné
-  Wi-Fi, a sdílené předvolby by změnu z jednoho zařízení vnutily všem. Proto `AppSettings`.
+- **Automatické stahování se bere ze serveru JEN PŘI PŘIHLÁŠENÍ, změna jde na server hned**
+  (`AutoDownloadSync`, `TdlAutoDownloadPresets`, testy `AutoDownloadSyncTest`
+  a `AutoDownloadPresetsTest`). Nové zařízení tak začne z posledního nastavení účtu, ale po
+  přihlášení se každé chová samostatně: telefon s malým úložištěm a tablet chtějí jiná pravidla
+  i na stejné Wi-Fi, a čtení při každém startu by změnu z jednoho zařízení vnutilo všem.
+  - **Server drží tři předvolby účtu**, „nízká, střední a vysoká spotřeba dat“
+    (`account.saveAutoDownloadSettings`). TDLib je přes `setAutoDownloadSettings(settings, type)`
+    mapuje na roaming, Wi-Fi a ostatní sítě (`SaveAutoDownloadSettingsQuery`
+    v `AutoDownloadSettings.cpp`). Proč to Telegram drží na serveru, dokumentace neříká. Nejspíš
+    kvůli výchozím hodnotám, které server ladí podle země (`getAutoDownloadSettingsPresets`
+    vrací předvolby „for the current user“).
+  - **„Přihlášení“ = `Ready` po přihlašovací obrazovce.** Každý přihlašovací stav (číslo, kód,
+    heslo, QR, odhlašování) přepne stav na `SettingsSync.Pull` a další `Ready` stáhne. Přihlášený
+    účet jde při startu rovnou do `Ready` (`WaitTdlibParameters → Ready`), takže se server znovu
+    nečte. Stav je v DataStore jako `auto_download_sync`.
+  - **Aktualizace z verze bez synchronizace** (`auto_download_sync` chybí): kdo si úrovně
+    změnil, tomu se nepřepíšou a jdou na server. Kdo ne, dostane nastavení účtu.
+  - **Nepovedený zápis** (bez sítě) nechá `SettingsSync.Push` a zkusí se při dalším `Ready`, tedy
+    při dalším startu aplikace. `authStage` je `StateFlow` a `Ready` se během běhu neopakuje.
+  - **Úroveň ze serveru = nejbližší podle stropu videa** (GIFy a kolečka). Hranice leží
+    v geometrickém středu mezi stropy Plume (1 · 5 · 20 MB), převod Plume → server → Plume vrací
+    tutéž úroveň. Horní hranice (10 MB) je ostrá: výchozí předvolby Telegramu jsou nízká 0,
+    střední 10 MB a vysoká 15 MB videa (naměřeno na emulátoru) a s `>=` by se střední, tedy
+    mobilní data, převedla na vysokou. Takhle dají přesně výchozí úrovně Plume. Zapisují se jen sítě, jejichž úroveň se liší, a zbylá pole předvolby (přednačítání,
+    datový tarif hovorů, strop fotek) zůstanou, jak je nastavil oficiální klient. Před zápisem se
+    proto předvolby čtou znovu.
+  - **Přepisuje to i nastavení oficiálních klientů.** Předvolby jsou účtu, ne Plume. Jestli
+    si je oficiální aplikace po změně stáhnou hned, nebo až při přihlášení, ověřené není.
+  - Vlastní volba je hlavní stav, ne cache: `AppSettings.loadedAutoDownload()` a
+    `autoDownloadSync()` čekají na načtení souboru. Výchozí hodnota `StateFlow` před načtením by
+    synchronizaci řekla, že si uživatel nic nevybral.
 - **Kandidát: CloudStorage mini aplikací.** Je to úložiště klíč–hodnota pro dvojici „bot,
   uživatel“ na serverech Telegramu: nejvýš **1024 klíčů**, klíč 1–128 znaků `A-Za-z0-9_-`,
   hodnota 0–4096 znaků. Bot API pro něj žádnou metodu nemá, takže ho ani majitel bota nepřečte.
