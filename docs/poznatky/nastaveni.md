@@ -502,3 +502,64 @@ a `optimizeStorage`), pravidla jsou čisté funkce v `core/telegram/Storage.kt` 
   (Pixel_9, 4 GB) byl při tom přetížený (swap 1 GB, `Console.app` na hostiteli ~270 % CPU) a hlásil
   ANR celého systému — hlavní vlákno aplikace přitom čekalo v `epoll_wait`, ověřeno
   `run-as … cat /proc/<pid>/task/<pid>/wchan`. iOS jen přeložené.
+
+## Menší přepínače
+
+Rychlá reakce a odkazy v aplikaci jsou ve skupině Chaty v Obecných, jazyk aplikace v Obecných
+nad ní, velikost písma zpráv ve Vzhledu. Enter odesílá z fyzické klávesnice (viz „Klávesové
+zkratky" v `navigace.md`).
+
+### Velikost písma zpráv (`LocalMessageTextSize`, `messageTextStyle`)
+
+- **Rozsah 12–20 sp po jednom bodu, výchozí 16 uprostřed**; výchozí se neukládá (jako motiv).
+  Hodnota mimo rozsah se při čtení přitáhne k mezi — novější verze s jiným rozsahem nic nerozbije.
+- **Jde přes CompositionLocal z kořene aplikace, ne přes ViewModel konverzace.** `MessageText` je
+  v bloku seznamu bez přístupu k DI a `ConversationScreen` je v dexu na hraně (viz CLAUDE.md);
+  vzor je `LocalAutoDownload`. Statický local: mění se jen v Nastavení a pak má překreslit všechno.
+- **Mění se jen výchozí styl `MessageText`.** Velká emoji si nesou vlastní `display*` styl a zůstávají;
+  citace, náhledy odkazů a ankety taky — zvětšuje se to, co se ve zprávě čte.
+- **Výška řádku jde ve stejném poměru (16/22)**, ne pevná. Systémové zvětšení písma se uplatní
+  navíc (sp), nastavení ho nenahrazuje.
+- **Během tahu posuvníkem se mění jen náhled**, uloží se po puštění: každý zápis by přes statický
+  local překreslil celou aplikaci na každý dílek. Dílek tahu tiká (`tick`).
+- **Náhled bublin leží na `surface`**, ne přímo na kartě nastavení: příchozí `surfaceContainerHigh`
+  by s kartou (`surfaceContainerHighest`) splývala.
+
+### Odkazy v aplikaci (`UrlOpener`, `AppSettings.openLinksInApp`)
+
+- **Výchozí je v aplikaci**, jako v oficiálním klientovi. Jen `http`/`https`; `mailto:`, `tel:`
+  a ostatní jdou dál přes `ACTION_VIEW`.
+- **Aplikace pro odkaz má přednost i v režimu „v aplikaci"**: od Androidu 11
+  `FLAG_ACTIVITY_REQUIRE_NON_BROWSER` (spadne na `ActivityNotFoundException`, když by odkaz vzal
+  jen prohlížeč), na iOS `openURL` s `UniversalLinksOnly`. Do Androidu 10 jde rovnou karta.
+- **Karta se spouští z activity v popředí** (slabý odkaz z `ActivityLifecycleCallbacks`). Z
+  aplikačního kontextu by potřebovala `NEW_TASK` a visela by v přehledu úloh vedle Plume.
+- **Ověřeno na emulátoru (Android 16)**: developer.android.com otevřel `CustomTabActivity`
+  v úloze Plume (`dumpsys activity activities`, tentýž `t9`), křížek vrátil do konverzace. Odkaz
+  na YouTube převzala aplikace YouTube (`UrlActivity` v logu `START u0`) — na čerstvém emulátoru
+  ho pak sama přeposlala do Chromu, to už není náš krok. **Na čerstvém emulátoru Chrome napřed
+  ukáže úvodní obrazovku s podmínkami**; zpět ji přeskočí a karta se otevře.
+
+### Rychlá reakce (`QuickReaction`, `AppSettings.doubleTapReaction`)
+
+- **Dvě úrovně**: jestli dvojité ťuknutí reaguje, si pamatuje aplikace; KTERÁ reakce, je nastavení
+  účtu na serveru (`setDefaultReactionType`) a platí i v oficiálních klientech. Výběr to říká.
+- **Getter TDLib nemá** — výchozí reakci (`updateDefaultReactionType`) i seznam emoji
+  (`updateActiveEmojiReactions`) ohlásí jen updatem po přihlášení. `TdlQuickReaction` proto vzniká
+  eagerně, stejně jako ostatní repository nad jednorázovými updaty.
+- Chování v konverzaci viz „Reakce" v `emoji-samolepky-reakce.md`.
+
+### Jazyk aplikace (`AppLanguage`)
+
+- **Volbu drží systém, ne `AppSettings`**: Android 13+ `LocaleManager.applicationLocales`, iOS
+  Nastavení u aplikace. Kopie v aplikaci by se se systémovým výběrem rozešla.
+- **Android potřebuje `localeConfig`** (`res/xml/locales_config.xml` v `:client:androidApp`) —
+  bez něj Plume v systémovém výběru jazyka aplikací vůbec nebyl, protože přeložené texty jsou
+  v composeResources, ne v Android `values-*`. Nový jazyk = řádek tam i v `APP_LANGUAGES`.
+- **Do Androidu 12 se skupina nezobrazuje**: systém jazyk pro jednu aplikaci nezná a obchvat by
+  chtěl AppCompat. Na iOS řádek jen otevře Nastavení — z aplikace to změnit nejde.
+- **Názvy jazyků jsou ve vlastním jazyce** („Čeština" i v anglické aplikaci), aby se dalo vrátit
+  z jazyka, kterému člověk nerozumí. Leží v obou `strings.xml` stejně.
+- **Ověřeno na emulátoru (Android 16)**: přepnutí na češtinu přeložilo obrazovku hned, proces
+  zůstal týž (pid), `cmd locale get-app-locales` hlásí `[cs]`; systémové Nastavení → Jazyk
+  aplikace nabízí češtinu i angličtinu. iOS jen přeložené.

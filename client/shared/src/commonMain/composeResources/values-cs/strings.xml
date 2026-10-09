@@ -198,6 +198,12 @@
     <string name="theme_color_red">Červená</string>
     <string name="theme_color_pink">Růžová</string>
     <string name="theme_color_purple">Fialová</string>
+    <string name="settings_messages">Zprávy</string>
+    <string name="settings_message_text_size">Velikost písma</string>
+    <string name="settings_message_text_size_value">%1$d</string>
+    <string name="settings_message_text_size_default">%1$d (výchozí)</string>
+    <string name="settings_message_text_size_preview_in">Ahoj! Čte se ti to takhle dobře?</string>
+    <string name="settings_message_text_size_preview_out">Jo, přesně tak. Přečtu to na první pohled.</string>
     <string name="settings_chats">Seznam chatů</string>
     <string name="settings_separate_unread">Nepřečtené ve vlastním bloku</string>
     <string name="settings_separate_unread_summary">Nepřečtené chaty se přesunou nad ostatní. Vypnuté drží pořadí, jak ho posílá Telegram.</string>
@@ -1077,6 +1083,18 @@
     </plurals>
     <string name="chat_folders_all">Všechny chaty</string>
     <string name="settings_chat_folders_group">Chaty</string>
+    <string name="settings_open_links_in_app">Otevírat odkazy v aplikaci</string>
+    <string name="settings_open_links_in_app_summary">Webové stránky se otevřou uvnitř Plume, ne v prohlížeči. Odkaz, který umí jiná aplikace, jde dál do ní.</string>
+    <string name="settings_quick_reaction">Rychlá reakce</string>
+    <string name="settings_quick_reaction_summary">Dvojitým ťuknutím na zprávu na ni zareaguješ</string>
+    <string name="settings_quick_reaction_choose">Reakce</string>
+    <string name="settings_quick_reaction_choose_body">Platí pro celý účet, i v ostatních aplikacích Telegramu.</string>
+    <string name="settings_language_group">Jazyk</string>
+    <string name="settings_app_language">Jazyk aplikace</string>
+    <string name="settings_language_system">Podle systému</string>
+    <string name="settings_language_in_system">Mění se v Nastavení systému</string>
+    <string name="language_name_en">English</string>
+    <string name="language_name_cs">Čeština</string>
     <string name="settings_swipe_right">Tah doprava</string>
     <string name="settings_swipe_left">Tah doleva</string>
     <string name="settings_swipe_none">Nic</string>

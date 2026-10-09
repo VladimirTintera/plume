@@ -76,6 +76,8 @@ import eu.tintera.plume.core.telegram.LiveLocationRepository
 import eu.tintera.plume.core.telegram.TdlLiveLocationRepository
 import eu.tintera.plume.core.telegram.TdlGifRepository
 import eu.tintera.plume.core.telegram.TdlEmojiRepository
+import eu.tintera.plume.core.telegram.QuickReaction
+import eu.tintera.plume.core.telegram.TdlQuickReaction
 import eu.tintera.plume.core.telegram.TdlStickerRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.RevealedSpoilers
@@ -121,6 +123,7 @@ import eu.tintera.plume.features.settings.AutoDownloadViewModel
 import eu.tintera.plume.core.connectivity.AutoDownloadPolicy
 import eu.tintera.plume.core.ui.KeyboardShortcuts
 import eu.tintera.plume.features.settings.ChatSwipeSettingsViewModel
+import eu.tintera.plume.features.settings.QuickReactionSettingsViewModel
 import eu.tintera.plume.features.settings.SettingsViewModel
 import eu.tintera.plume.features.settings.BlockSenderViewModel
 import eu.tintera.plume.features.settings.BlockedSendersViewModel
@@ -252,6 +255,10 @@ fun appModule() = module {
         TdlLiveLocationRepository(holder = get(), scope = get(named(APP_SCOPE)))
     }
     single<EmojiRepository> { TdlEmojiRepository(holder = get()) }
+    // Eagerně: výchozí reakci i seznam emoji TDLib ohlásí jen updatem po přihlášení.
+    single<QuickReaction>(createdAtStart = true) {
+        TdlQuickReaction(holder = get(), scope = get(named(APP_SCOPE)))
+    }
 
     // Eagerně: nastavení se načte při startu, aby ho první obrazovka měla hned (viz AppSettings).
     single<AppSettings>(createdAtStart = true) {
@@ -379,6 +386,7 @@ fun appModule() = module {
     viewModelOf(::AppLockViewModel)
     viewModelOf(::AppearanceViewModel)
     viewModelOf(::ChatSwipeSettingsViewModel)
+    viewModel { QuickReactionSettingsViewModel(settings = get(), quickReaction = get(), appScope = get(named(APP_SCOPE))) }
     viewModelOf(::DevicesViewModel)
     viewModelOf(::StorageViewModel)
     viewModelOf(::AutoDownloadViewModel)
@@ -435,6 +443,7 @@ fun appModule() = module {
             inviteLinks = get(),
             proxies = get(),
             liveLocations = get(),
+            quickReaction = get(),
         )
     }
 

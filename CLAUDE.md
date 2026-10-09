@@ -15,7 +15,8 @@ a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zpr�
 Není: hlášení pádů z iOS. Notifikace na iOS (APNs) jsou napojené, ale čekají na certifikát APNs u Telegramu a ověření skutečným pushem.
 Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné, Notifikace, Vzhled, Zařízení, Úložiště a Co je nového; vědomě
 nastavitelné je téma aplikace (motiv a barvy z tapety), vyčlenění nepřečtených chatů do vlastního
-bloku a upozornění po rozsazích (soukromé chaty / skupiny / kanály) s výjimkami.
+bloku, upozornění po rozsazích (soukromé chaty / skupiny / kanály) s výjimkami, velikost písma
+zpráv, rychlá reakce dvojitým ťuknutím, odkazy v aplikaci a jazyk aplikace.
 Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
 

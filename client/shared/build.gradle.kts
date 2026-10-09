@@ -172,6 +172,8 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.core.ktx)
+            // Odkazy v aplikaci (Custom Tabs, viz core/ui/UrlOpener).
+            implementation(libs.androidx.browser)
             // Hlásič pádů. Jediné místo v projektu, kde smí být Crashlytics na classpath —
             // viz core/logging. Bez `google-services.json` se knihovna jen neinicializuje.
             implementation(project.dependencies.platform(libs.firebase.bom))

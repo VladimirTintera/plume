@@ -3351,13 +3351,13 @@ private fun ButtonStyle?.toBotButtonStyle(): BotButtonStyle = when (this) {
  * ukázat ani dát, a `when` bez `else` zařídí, že nový druh reakce v novější TDLib rozbije
  * překlad, místo aby tiše zmizel.
  */
-private fun ReactionType.toReactionKey(): String? = when (this) {
+internal fun ReactionType.toReactionKey(): String? = when (this) {
     is ReactionTypeEmoji -> emoji
     is ReactionTypeCustomEmoji -> customEmojiReaction(customEmojiId)
     is ReactionTypePaid -> null
 }
 
-private fun String.toReactionType(): ReactionType =
+internal fun String.toReactionType(): ReactionType =
     customEmojiIdOf(this)?.let { ReactionTypeCustomEmoji(customEmojiId = it) } ?: ReactionTypeEmoji(emoji = this)
 
 /** Stojí popisek téhle přílohy nad médiem? Jen fotka, video, GIF a placené médium to umí. */

@@ -194,6 +194,12 @@
     <string name="theme_color_red">Red</string>
     <string name="theme_color_pink">Pink</string>
     <string name="theme_color_purple">Purple</string>
+    <string name="settings_messages">Messages</string>
+    <string name="settings_message_text_size">Text size</string>
+    <string name="settings_message_text_size_value">%1$d</string>
+    <string name="settings_message_text_size_default">%1$d (default)</string>
+    <string name="settings_message_text_size_preview_in">Hi! Is the text easy to read like this?</string>
+    <string name="settings_message_text_size_preview_out">Yes, just right. I can read it at a glance.</string>
     <string name="settings_chats">Chat list</string>
     <string name="settings_separate_unread">Unread in their own block</string>
     <string name="settings_separate_unread_summary">Unread chats move above the rest. Off, the list keeps the order Telegram sends.</string>
@@ -1049,6 +1055,18 @@
     </plurals>
     <string name="chat_folders_all">All chats</string>
     <string name="settings_chat_folders_group">Chats</string>
+    <string name="settings_open_links_in_app">Open links in the app</string>
+    <string name="settings_open_links_in_app_summary">Web pages open inside Plume, not in the browser. Links an app can handle still go to that app.</string>
+    <string name="settings_quick_reaction">Quick reaction</string>
+    <string name="settings_quick_reaction_summary">Double-tap a message to react</string>
+    <string name="settings_quick_reaction_choose">Reaction</string>
+    <string name="settings_quick_reaction_choose_body">Applies to your whole account, in other Telegram apps too.</string>
+    <string name="settings_language_group">Language</string>
+    <string name="settings_app_language">App language</string>
+    <string name="settings_language_system">System default</string>
+    <string name="settings_language_in_system">Change it in the system Settings</string>
+    <string name="language_name_en">English</string>
+    <string name="language_name_cs">Čeština</string>
     <string name="settings_swipe_right">Swipe right</string>
     <string name="settings_swipe_left">Swipe left</string>
     <string name="settings_swipe_none">Nothing</string>

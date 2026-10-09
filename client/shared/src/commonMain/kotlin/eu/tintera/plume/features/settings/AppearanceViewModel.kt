@@ -46,4 +46,8 @@ class AppearanceViewModel(
     }
 
     fun setSeparateUnreadChats(separate: Boolean) = settings.setSeparateUnreadChats(separate)
+
+    val messageTextSize: StateFlow<Int> = settings.messageTextSize
+
+    fun setMessageTextSize(size: Int) = settings.setMessageTextSize(size)
 }

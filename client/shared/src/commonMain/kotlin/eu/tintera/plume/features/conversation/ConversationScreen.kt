@@ -4607,6 +4607,8 @@ private class ScreenItemScope(
 
     override fun canSendCommands(): Boolean = canSendCommands.value
 
+    override fun doubleTapReaction(): Boolean = state.value.doubleTapReaction
+
     override fun gatherShift(key: Any): Float = jumpTransition.shiftOf(key)
 
     override fun gatherAlpha(key: Any): Float = jumpTransition.alphaOf(key)
