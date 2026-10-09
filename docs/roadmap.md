@@ -491,9 +491,11 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
   s `resizeableActivity` a `allowEmbedded`, jinak by se otevřela celá aplikace.
 - **Widget na plochu** s nepřečtenými nebo připnutými chaty (Glance). Data z TDLib v procesu
   aplikace; widget musí umět ukázat poslední známý stav, když proces neběží.
-- **Fold a klávesnice.** Klávesové zkratky (Ctrl+K hledání, Alt+↑/↓ mezi chaty, Esc zavře
-  konverzaci nebo hledání) a přetažení obrázku či souboru z jiné aplikace v rozdělené obrazovce
-  rovnou nad vstupní pole (`dragAndDropTarget`), stejnou cestou jako příloha ze schránky.
+- **Fold a klávesnice.** ~~Klávesové zkratky (Ctrl+K hledání, Alt+↑/↓ mezi chaty, Esc zavře
+  konverzaci nebo hledání)~~ a ~~Enter odesílá~~ — hotovo (`docs/poznatky/navigace.md`, „Klávesové
+  zkratky"; na iOS jen Enter). Zbývá přetažení obrázku či souboru z jiné aplikace v rozdělené
+  obrazovce rovnou nad vstupní pole (`dragAndDropTarget`), stejnou cestou jako příloha ze
+  schránky, a seznam zkratek v systémovém přehledu (`onProvideKeyboardShortcuts`, Meta+/).
 - **Přehled rozepsaných konceptů** napříč chaty (chaty s `draftMessage`), třeba jako položka
   menu účtu nebo složka.
 - **Lokální odložení chatu (Snooze).** Možnost odložit chat (z nabídky nad chatem nebo volbou
@@ -560,7 +562,7 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
 - ~~**Akce tahem v seznamu chatů pro každou stranu zvlášť**~~ — hotovo (Obecné → Chaty:
   archivovat, přečteno, ztlumit, připnout, nic; `docs/poznatky/seznam-chatu.md`, „Akce tahem").
 - **Menší přepínače:** dvojité ťuknutí na zprávu jako rychlá reakce (výchozí reakce
-  `setDefaultReactionType`), Enter odesílá / nový řádek (Fold s klávesnicí), velikost písma ve
+  `setDefaultReactionType`), ~~Enter odesílá~~ (hotovo pro fyzickou klávesnici), velikost písma ve
   zprávách, odkazy v aplikaci (Custom Tabs) / v prohlížeči, jazyk aplikace přímo v Nastavení
   (per-app locale; dnes jen přes systém).
 - **Tiché hodiny** (Android): v nastaveném čase jen zmínky a odpovědi. Notifikace kreslí

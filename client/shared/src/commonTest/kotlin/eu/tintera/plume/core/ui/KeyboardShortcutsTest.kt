@@ -1,0 +1,68 @@
+package eu.tintera.plume.core.ui
+
+import androidx.compose.ui.input.key.Key
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+
+class KeyboardShortcutsTest {
+
+    private fun shortcut(key: Key, ctrl: Boolean = false, alt: Boolean = false, shift: Boolean = false, meta: Boolean = false) =
+        keyboardShortcut(key, ctrl, alt, shift, meta)
+
+    @Test
+    fun zkratkyHledani() {
+        assertEquals(KeyboardShortcut.SearchChats, shortcut(Key.K, ctrl = true))
+        assertEquals(KeyboardShortcut.SearchInChat, shortcut(Key.F, ctrl = true))
+    }
+
+    @Test
+    fun prepinaniChatu() {
+        assertEquals(KeyboardShortcut.NextChat, shortcut(Key.DirectionDown, alt = true))
+        assertEquals(KeyboardShortcut.PreviousChat, shortcut(Key.DirectionUp, alt = true))
+        assertEquals(KeyboardShortcut.NextChat, shortcut(Key.Tab, ctrl = true))
+        assertEquals(KeyboardShortcut.PreviousChat, shortcut(Key.Tab, ctrl = true, shift = true))
+    }
+
+    /** Psaní nesmí spustit nic: holé klávesy, Shift+šipka (výběr textu) ani Ctrl+Shift+K. */
+    @Test
+    fun obycejneKlavesyNejsouZkratky() {
+        assertNull(shortcut(Key.K))
+        assertNull(shortcut(Key.DirectionDown))
+        assertNull(shortcut(Key.DirectionDown, shift = true))
+        assertNull(shortcut(Key.K, ctrl = true, shift = true))
+        assertNull(shortcut(Key.DirectionDown, ctrl = true, alt = true))
+    }
+
+    /** Meta (⌘, Windows) si bere systém. */
+    @Test
+    fun metaPatriSystemu() {
+        assertNull(shortcut(Key.K, ctrl = true, meta = true))
+        assertNull(shortcut(Key.Tab, meta = true))
+    }
+
+    @Test
+    fun sousedniChat() {
+        val ids = listOf(1L, 2L, 3L)
+        assertEquals(3L, neighbourChat(ids, current = 2L, next = true))
+        assertEquals(1L, neighbourChat(ids, current = 2L, next = false))
+        // Na krajích se nezacyklí.
+        assertNull(neighbourChat(ids, current = 3L, next = true))
+        assertNull(neighbourChat(ids, current = 1L, next = false))
+    }
+
+    /** Bez otevřeného chatu (nebo s chatem mimo seznam) se začíná od kraje. */
+    @Test
+    fun bezOtevrenehoChatuOdKraje() {
+        val ids = listOf(1L, 2L, 3L)
+        assertEquals(1L, neighbourChat(ids, current = null, next = true))
+        assertEquals(3L, neighbourChat(ids, current = 99L, next = false))
+        assertNull(neighbourChat(emptyList(), current = null, next = true))
+    }
+
+    @Test
+    fun bezPosluchaceZkratkaPropadne() {
+        assertFalse(KeyboardShortcuts().trigger(KeyboardShortcut.SearchChats))
+    }
+}

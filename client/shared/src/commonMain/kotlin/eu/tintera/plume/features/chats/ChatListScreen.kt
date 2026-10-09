@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.chats
 
+import org.koin.compose.koinInject
+import eu.tintera.plume.core.ui.neighbourChat
+import eu.tintera.plume.core.ui.KeyboardShortcuts
+import eu.tintera.plume.core.ui.KeyboardShortcut
 import eu.tintera.plume.resources.chats_swipe_archive
 import eu.tintera.plume.resources.chats_swipe_unarchive
 import eu.tintera.plume.resources.chats_swipe_read
@@ -1018,8 +1022,20 @@ internal fun ChatListContent(
      * Chat, který je celý vidět, se nehýbe — skok by jen zbytečně odsunul to, na co uživatel
      * kouká. Chat v seznamu není (archiv, mimo složky): požadavek se jen zahodí.
      */
-    LaunchedEffect(scrollToChat, groups) {
-        val chatId = scrollToChat ?: return@LaunchedEffect
+    // Chat otevřený zkratkou z klávesnice: seznam za ním dojede stejně jako za chatem z hledání.
+    var shortcutTarget by remember { mutableStateOf<Long?>(null) }
+    ChatSwitchShortcuts(
+        enabled = reorder == null && selection == null,
+        chats = groups,
+        selectedChatId = selectedChatId,
+        onOpen = { chat ->
+            shortcutTarget = chat.id
+            if (chat.isForum) onForumClick(chat.id) else onChatClick(chat.id)
+        },
+    )
+
+    LaunchedEffect(scrollToChat ?: shortcutTarget, groups) {
+        val chatId = scrollToChat ?: shortcutTarget ?: return@LaunchedEffect
         if (groups.isEmpty()) return@LaunchedEffect
         val position = groups.flatten().indexOfFirst { it.id == chatId }
         if (position >= 0) {
@@ -1030,7 +1046,7 @@ internal fun ChatListContent(
             }
             if (!fullyVisible) listState.animateScrollToItem(1 + headerItemCount + position)
         }
-        onScrolledToChat()
+        if (scrollToChat != null) onScrolledToChat() else shortcutTarget = null
     }
 
     when (val current = state) {
@@ -1779,3 +1795,36 @@ private const val FAB_MENU_SCRIM_ALPHA = 0.8f
  */
 private val FAB_CLEARANCE = 56.dp + FAB_MARGIN + 8.dp
 
+/**
+ * Alt+↓ / Alt+↑ (a Ctrl+Tab) z klávesnice: další a předchozí chat v pořadí, jak je vidět —
+ * i s blokem nepřečtených ([neighbourChat] nad skupinami). Jen když je seznam složený: na
+ * telefonu s otevřenou konverzací ho konverzace překrývá a zkratka nedělá nic; na rozloženém
+ * Foldu se tak prochází chat za chatem a vpravo se mění konverzace. Ve výběru a v uspořádání
+ * připnutých ne — tam by otevření chatu z režimu vytrhlo.
+ */
+@Composable
+private fun ChatSwitchShortcuts(
+    enabled: Boolean,
+    chats: List<List<ChatSummary>>,
+    selectedChatId: Long?,
+    onOpen: (ChatSummary) -> Unit,
+) {
+    val shortcuts = koinInject<KeyboardShortcuts>()
+    val currentEnabled by rememberUpdatedState(enabled)
+    val currentChats by rememberUpdatedState(chats)
+    val currentSelected by rememberUpdatedState(selectedChatId)
+    val currentOnOpen by rememberUpdatedState(onOpen)
+    LaunchedEffect(shortcuts) {
+        shortcuts.shortcuts.collect { shortcut ->
+            val next = when (shortcut) {
+                KeyboardShortcut.NextChat -> true
+                KeyboardShortcut.PreviousChat -> false
+                else -> return@collect
+            }
+            if (!currentEnabled) return@collect
+            val flat = currentChats.flatten().filter { it.sponsor == null }
+            val id = neighbourChat(flat.map { it.id }, currentSelected, next) ?: return@collect
+            flat.firstOrNull { it.id == id }?.let(currentOnOpen)
+        }
+    }
+}

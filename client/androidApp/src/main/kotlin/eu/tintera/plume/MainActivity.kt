@@ -2,18 +2,23 @@ package eu.tintera.plume
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.notifications.NotificationIntents
 import eu.tintera.plume.core.share.ShareIntake
+import eu.tintera.plume.core.ui.KeyboardShortcuts
+import eu.tintera.plume.core.ui.handle
+import eu.tintera.plume.core.ui.handleEscape
 import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
 
     private val chatOpenRequests: ChatOpenRequests by inject()
     private val shareIntake: ShareIntake by inject()
+    private val keyboardShortcuts: KeyboardShortcuts by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Edge-to-edge je M3 default; insety si nanáší ten, kdo kreslí chrome (viz konvence v mlogu).
@@ -44,6 +49,15 @@ class MainActivity : ComponentActivity() {
         openChatFrom(intent)
         receiveShare(intent)
     }
+
+    /**
+     * Klávesové zkratky (Ctrl+K, Alt+šipky…) a Esc jako Zpět dřív, než klávesu dostane Compose —
+     * viz [KeyboardShortcuts] a [handleEscape]. Ostatní klávesy jdou dál beze změny.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean =
+        keyboardShortcuts.handle(event) ||
+            handleEscape(event) { onBackPressedDispatcher.onBackPressed() } ||
+            super.dispatchKeyEvent(event)
 
     /**
      * Sdílení z jiné aplikace. Soubory se musí zkopírovat hned, dokud platí oprávnění k jejich

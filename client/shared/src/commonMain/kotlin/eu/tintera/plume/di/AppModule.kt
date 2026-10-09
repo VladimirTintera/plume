@@ -119,6 +119,7 @@ import eu.tintera.plume.features.share.ShareViewModel
 import eu.tintera.plume.features.settings.AppearanceViewModel
 import eu.tintera.plume.features.settings.AutoDownloadViewModel
 import eu.tintera.plume.core.connectivity.AutoDownloadPolicy
+import eu.tintera.plume.core.ui.KeyboardShortcuts
 import eu.tintera.plume.features.settings.ChatSwipeSettingsViewModel
 import eu.tintera.plume.features.settings.SettingsViewModel
 import eu.tintera.plume.features.settings.BlockSenderViewModel
@@ -162,6 +163,7 @@ fun appModule() = module {
     platformModule()
 
     single(named(APP_SCOPE)) { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
+    single { KeyboardShortcuts() }
     single(createdAtStart = true) { AutoDownloadPolicy(settings = get(), network = get(), scope = get(named(APP_SCOPE))) }
 
     // Jeden TDLib klient na proces; sdílí ho session i chat repository.
