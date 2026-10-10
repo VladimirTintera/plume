@@ -2472,6 +2472,13 @@
     <string name="selection_copy_markdown">Markdown</string>
     <string name="menu_bookmark_add">Add to bookmarks</string>
     <string name="menu_bookmark_remove">Remove from bookmarks</string>
+    <string name="menu_remind">Remind me…</string>
+    <string name="remind_title">Remind me about this message</string>
+    <string name="remind_text">At the chosen time, the message arrives in Saved Messages with a notification.</string>
+    <string name="remind_pick">Pick date and time</string>
+    <string name="remind_time">Remind me at</string>
+    <string name="conversation_remind_set">Reminder set</string>
+    <string name="conversation_remind_failed">Couldn't set the reminder</string>
     <string name="conversation_bookmark_added">Added to bookmarks</string>
     <string name="conversation_bookmark_removed">Removed from bookmarks</string>
     <string name="profile_bookmarks">Bookmarks</string>

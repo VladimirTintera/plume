@@ -7,6 +7,8 @@ import eu.tintera.plume.features.conversation.MessageMenu
 import eu.tintera.plume.core.files.saveAsSupported
 import eu.tintera.plume.resources.menu_bookmark_remove
 import eu.tintera.plume.resources.menu_bookmark_add
+import eu.tintera.plume.resources.menu_remind
+import eu.tintera.plume.resources.notifications_24dp
 import eu.tintera.plume.resources.bookmark_filled_24dp
 import eu.tintera.plume.resources.bookmark_24dp
 import eu.tintera.plume.resources.Res
@@ -382,6 +384,15 @@ sealed interface MessageMenuAction : MessageAction {
             false -> MenuPresentation(Res.drawable.bookmark_24dp, Res.string.menu_bookmark_add)
             null -> null
         }
+    }
+
+    /**
+     * Připomenout zprávu: ve zvolený čas ji naplánované přeposlání doručí do Uložených zpráv,
+     * kde Telegram na doručení upozorní. Přeposlání proto musí server dovolit.
+     */
+    data object Remind : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.notifications_24dp, Res.string.menu_remind).takeIf { menu.actions.canForward }
     }
 
     data object Forward : MessageMenuAction {

@@ -714,7 +714,7 @@ class TdlConversationRepository(
             topicId = null,
             fromChatId = fromChatId,
             messageIds = messageIds.sorted().toLongArray(),
-            options = null,
+            options = SendOptions(schedule = options.schedule).toTdl(),
             // Kopie = bez „Přeposláno od …". Popisky jde vynechat jen u kopie, jinak je TDLib
             // ignoruje — posílat `true` bez kopie by jen předstíralo, že se něco stane.
             sendCopy = options.hideSender,

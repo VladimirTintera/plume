@@ -1,0 +1,74 @@
+package eu.tintera.plume.features.conversation
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.snooze.snoozeUntil
+import eu.tintera.plume.core.ui.SheetActionRow
+import eu.tintera.plume.features.chats.SnoozeOptionRows
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.remind_pick
+import eu.tintera.plume.resources.remind_text
+import eu.tintera.plume.resources.remind_title
+import eu.tintera.plume.resources.schedule_24dp
+import kotlin.time.Clock
+import kotlinx.datetime.TimeZone
+import org.jetbrains.compose.resources.stringResource
+
+/**
+ * Kdy zprávu připomenout. Rychlé volby jsou tytéž jako u odložení chatu (za hodinu, dnes večer,
+ * zítra ráno — `SnoozeOptionRows`), protože jde o totéž rozhodnutí „vrať se mi k tomu později";
+ * přesný čas vybere [onPickTime] dialogy z plánování zpráv.
+ *
+ * [onRemind] dostane okamžik v sekundách od epochy.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun RemindSheet(onRemind: (at: Long) -> Unit, onPickTime: () -> Unit, onDismiss: () -> Unit) {
+    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    val zone = remember { TimeZone.currentSystemDefault() }
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            Text(
+                text = stringResource(Res.string.remind_title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            )
+            Text(
+                text = stringResource(Res.string.remind_text),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
+            )
+            Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                SnoozeOptionRows(
+                    onSnooze = { option -> onRemind(snoozeUntil(option, Clock.System.now(), zone).epochSeconds) },
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    reserveIconSpace = false,
+                )
+                Spacer(Modifier.height(12.dp))
+                SheetActionRow(
+                    icon = Res.drawable.schedule_24dp,
+                    label = stringResource(Res.string.remind_pick),
+                    shape = RoundedCornerShape(20.dp),
+                    onClick = onPickTime,
+                )
+            }
+        }
+    }
+}

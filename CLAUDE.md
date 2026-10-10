@@ -47,7 +47,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Konverzace: zobrazení zpráv](docs/poznatky/konverzace-zobrazeni.md) — bloky seznamu, bublina a její tvar, média bez bubliny, alba, předěly, doručení, vzhled a sklo, text s entitami a odkazy, přeposlání, soubory, reklamy
 - [Konverzace: pohyb v historii](docs/poznatky/konverzace-pohyb.md) — otevřený chat, skok na nepřečtené / citaci / zmínky, připnuté, hledání, okno v historii, hlášení přečtení, gesta tahem do strany, rychlý přepínač chatů
 - [Konverzace: psaní a odesílání](docs/poznatky/konverzace-psani.md) — vstupní pole, přílohy a galerie, úprava fotky, práva psát, „píše…“, plánování, úprava, formátování, náhled odkazu, koncept, napovídání, odpovědi, let odeslané zprávy
-- [Konverzace: akce nad zprávami](docs/poznatky/konverzace-akce.md) — nabídka nad zprávou a citace z ní, překlad, shrnutí od serveru, automatické mazání, výběr víc zpráv, informace o zprávě, přeposílání
+- [Konverzace: akce nad zprávami](docs/poznatky/konverzace-akce.md) — nabídka nad zprávou a citace z ní, překlad, shrnutí od serveru, automatické mazání, výběr víc zpráv, informace o zprávě, připomenutí, přeposílání
 - [Boti a mini aplikace](docs/poznatky/boti.md) — tlačítka pod zprávou, vlastní klávesnice, příkazy, Start, inline boti, mini aplikace (WebView most)
 - [Ankety a kvízy](docs/poznatky/ankety.md) — hlasování, výsledky, zakládání, média v anketě, místa a poloha
 - [Hledání a zakládání chatů](docs/poznatky/hledani-a-zakladani-chatu.md) — hledání chatů a zpráv s filtry, nová konverzace, kontakty, založení skupiny a kanálu, ChatPicker
