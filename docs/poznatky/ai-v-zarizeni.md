@@ -232,6 +232,31 @@ Pro tuhle oblast podstatné: **engine se zvukem je jiný engine** (`EngineConfig
 `withEngine(audio = true)` ho načte a pak slouží všemu; bez zvuku se kvůli přepisu přenačte.
 Na emulátoru (CPU) 7,5 s řeči za 11 s i s načtením.
 
+### Vysvětlení dlouhé zprávy
+
+„Vysvětlit" v nabídce nad DLOUHOU PŘÍCHOZÍ zprávou (od `EXPLAIN_MIN_CHARS` = 280 znaků,
+`MessageMenuAction.Explain`, prompt `ExplainPrompt.kt`) pustí model nad jednou zprávou a výsledek
+ukáže v sheetu shrnutí konverzace (`ChatSummaryViewModel.explain`, zdroj s `explain = true`
+mění nadpis, „Čtu zprávu…" a hlášku o chybě). Vedle serverového „Shrnout" (jen s Premium,
+viz `konverzace-akce.md`, „Shrnutí od serveru") je to cesta bez Premium a bez serveru.
+
+- **Odpověď v jazyce aplikace, i u cizojazyčné zprávy** — vysvětlení anglického oznámení česky
+  je půlka užitku.
+- **Nabízí se se zapnutou AI a modelem, který telefon UMÍ** (`explainAvailable`, stav jiný než
+  `Unsupported`); nestažený model ohlásí sheet, jako u shrnutí. Na chráněném obsahu taky: nic
+  neodchází z telefonu.
+- **Obsluhuje ho obrazovka, ne ViewModel konverzace** (`ScreenItemScope.onAction` dostal ViewModel
+  shrnutí), ViewModel jen zavře nabídku. Sheet i ViewModel shrnutí už v `ConversationScreen`
+  byly, takže funkce ho nezvětšila (271 registrů, stejně jako `main`).
+- **„Zkusit znovu" po vysvětlení zopakuje vysvětlení** (`ChatSummaryViewModel.retry`), ne
+  shrnutí celé konverzace.
+- **Gemma 4 E2B na češtině chybuje i ve faktech** (emulátor, CPU, ~40 s na dlouhou zprávu):
+  „by Wednesday evening" přepsala na „do čtvrtka večer"; se zněním „opiš přesně" zase nechala
+  anglické úseky v uvozovkách; s „přelož, ale neměň" sedělo datum údržby, ale termín kontaktu
+  si vymyslela („sobotu 13. října"). Každý ze tří běhů měl jinou chybu, takže se prompt dál
+  neladil — pod výsledkem stojí „Může být nepřesné". **Gemini Nano na skutečném telefonu
+  neověřené.**
+
 ### Přepis před odesláním
 
 Podržení odesílacího tlačítka → „Přepsat…" otevře sheet (`DraftRewriteSheet`, prompt

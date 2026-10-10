@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.ScamKind
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -3986,6 +3987,8 @@ class ConversationViewModel(
             MessageMenuAction.Info -> showMessageInfo(messageId)
             MessageMenuAction.Translate -> showTranslation(messageId)
             MessageMenuAction.Summarize -> showSummary(messageId)
+            // Vysvětlení pouští obrazovka (sheet shrnutí); tady se jen zavře nabídka.
+            MessageMenuAction.Explain -> _state.update { it.copy(messageMenu = null) }
             MessageMenuAction.SelectText -> selectText(messageId)
             MessageMenuAction.Pin -> requestPin(messageId)
             MessageMenuAction.Unpin -> unpinFromMenu(messageId)
@@ -4000,6 +4003,16 @@ class ConversationViewModel(
             MessageMenuAction.SaveFileAs ->
                 logger.w { "Akce $action patří obrazovce, do ViewModelu nemá chodit." }
         }
+    }
+
+    /**
+     * Nabídnout „Vysvětlit"? Se zapnutou AI v zařízení a modelem, který telefon umí (stažený být
+     * nemusí — sheet pak řekne, kde ho stáhnout, stejně jako u shrnutí konverzace).
+     */
+    private suspend fun explainAvailable(): Boolean {
+        val ai = onDeviceAi ?: return false
+        if (!settings.onDeviceAiEnabled.value) return false
+        return runCatching { ai.status(settings.onDeviceAiVariant.value) != OnDeviceAiStatus.Unsupported }.getOrDefault(false)
     }
 
     /** Nabídka s kandidáty, které nabídl blok; co z nich server dovolí, se zjistí tady. */
@@ -4037,6 +4050,7 @@ class ConversationViewModel(
                 )
             }
 
+            val explainAvailable = MessageMenuAction.Explain in items && explainAvailable()
             _state.update {
                 it.copy(
                     messageMenu = MessageMenu(
@@ -4051,6 +4065,7 @@ class ConversationViewModel(
                         bookmarked = bookmarks?.isBookmarked(chatId, messageId),
                         pressedMessageId = pressed?.takeIf { it != messageId },
                         inTranslationLanguage = inTranslationLanguage,
+                        explainAvailable = explainAvailable,
                     ),
                 )
             }
@@ -5589,6 +5604,8 @@ data class MessageMenu(
      * „Přeložit" se nenabízí. Nerozpoznaný jazyk je `false`: položka navíc nevadí, chybějící ano.
      */
     val inTranslationLanguage: Boolean = false,
+    /** Umí telefon vysvětlit zprávu modelem (zapnutá AI, model zařízení podporuje)? */
+    val explainAvailable: Boolean = false,
 ) {
     /** Do rychlého řádku se vejde jen pár; zbytek je za „+". */
     val quickEmoji: List<String> get() = emoji.take(MAX_QUICK_REACTIONS)

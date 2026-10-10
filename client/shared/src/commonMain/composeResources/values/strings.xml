@@ -1484,6 +1484,9 @@
     <string name="summary_nothing">There is nothing to summarize here.</string>
     <string name="summary_failed">The summary could not be created.</string>
     <string name="summary_disclaimer">Generated on this device. It may be inaccurate.</string>
+    <string name="explain_title">What the message is about</string>
+    <string name="explain_preparing">Reading the message…</string>
+    <string name="explain_failed">The message could not be explained.</string>
     <string name="summary_truncated">The model ran out of room and stopped early, so the end of the conversation is missing.</string>
     <string name="summary_retry">Try again</string>
     <string name="ai_failure_busy">The model is busy right now. Try again in a moment.</string>
@@ -2213,6 +2216,7 @@
     <string name="transcribe_failed">Couldn’t start the transcription.</string>
     <string name="transcript_premium_required">Transcription needs Telegram Premium.</string>
     <string name="menu_summarize">Summarize</string>
+    <string name="menu_explain">Explain</string>
     <string name="server_summary_title">Summary</string>
     <string name="server_summary_failed">The message could not be summarized</string>
     <string name="server_summary_copy">Copy summary</string>

@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.resources.menu_explain
+import eu.tintera.plume.core.ai.EXPLAIN_MIN_CHARS
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageEntity
@@ -24,9 +26,10 @@ class MessageActionTest {
         text: String = "ahoj",
         media: MessageMedia? = null,
         entities: List<MessageEntity> = emptyList(),
+        outgoing: Boolean = true,
     ) = ChatMessage(
         id = 1L,
-        isOutgoing = true,
+        isOutgoing = outgoing,
         senderName = null,
         senderAvatarFileId = null,
         senderId = 1L,
@@ -108,6 +111,22 @@ class MessageActionTest {
                 MessageMenuAction.Delete,
             ),
             menuActions(message(), isPinned = false),
+        )
+    }
+
+    /** Vysvětlit jen dlouhou CIZÍ zprávu, a ukáže se jen s AI v telefonu. */
+    @Test
+    fun vysvetlitJenDlouhouPrichoziZpravu() {
+        val long = "a".repeat(EXPLAIN_MIN_CHARS)
+        assertTrue(MessageMenuAction.Explain in menuActions(message(text = long, outgoing = false), isPinned = false))
+        assertFalse(MessageMenuAction.Explain in menuActions(message(text = long), isPinned = false))
+        assertFalse(MessageMenuAction.Explain in menuActions(message(text = long.drop(1), outgoing = false), isPinned = false))
+
+        val items = listOf(MessageMenuAction.Explain)
+        assertNull(MessageMenuAction.Explain.presentation(menu(items)))
+        assertEquals(
+            Res.string.menu_explain,
+            MessageMenuAction.Explain.presentation(menu(items).copy(explainAvailable = true))?.label,
         )
     }
 
