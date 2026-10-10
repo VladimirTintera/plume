@@ -386,7 +386,9 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
   („kratší", „zdvořileji", „bez překlepů"). Sloh drhne, ale uživatel
   výsledek VIDÍ a rozhodne — chyba je levná, na rozdíl od našeptávání, kde se text podepisuje
   naslepo. Patří do nabídky nad vstupním polem, ne do automatiky.
-- **Vysvětlit dlouhou cizí zprávu** („o co jde") — totéž co shrnutí, jen nad jednou zprávou,
+- ~~**Vysvětlit dlouhou cizí zprávu**~~ — hotovo („Vysvětlit" v nabídce nad zprávou;
+  `docs/poznatky/ai-v-zarizeni.md`, „Vysvětlení dlouhé zprávy"). Původní zadání:
+  („o co jde") — totéž co shrnutí, jen nad jednou zprávou,
   takže se vejde do vstupu a sloh vadí míň, protože to čte jen uživatel.
 
 **Na překlad se Nano nehodí a nemá se používat.** ML Kit má vlastní offline Translation API,

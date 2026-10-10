@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.ModelVariant
+import eu.tintera.plume.core.ai.explainPrompt
 import eu.tintera.plume.core.ui.resolveNow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -54,7 +56,12 @@ fun summaryHasEnough(messages: List<ChatMessage>, unreadBoundaryId: Long?, count
 }
 
 /** Co se bude shrnovat: zprávy (chronologicky) a jestli jsou to nepřečtené. */
-data class SummarySource(val messages: List<ChatMessage>, val unread: Boolean)
+data class SummarySource(
+    val messages: List<ChatMessage>,
+    val unread: Boolean,
+    /** Vysvětluje se jedna zpráva (`ChatSummaryViewModel.explain`), ne shrnuje konverzace. */
+    val explain: Boolean = false,
+)
 
 /**
  * Vybere zprávy ke shrnutí.
@@ -174,6 +181,9 @@ class ChatSummaryViewModel(
 
     private var job: Job? = null
 
+    /** Zpráva posledního vysvětlení — kvůli „Zkusit znovu" ([retry]). */
+    private var explaining: ChatMessage? = null
+
     /**
      * [source] je `suspend`, protože se kvůli shrnutí dotahuje historie (viz
      * `ConversationViewModel.loadForSummary`). Sheet se proto ukáže HNED jako „Připravuji" —
@@ -181,6 +191,7 @@ class ChatSummaryViewModel(
      */
     fun summarize(chatTitle: String, me: String, source: suspend () -> SummarySource) {
         job?.cancel()
+        explaining = null
         _source.value = null
         _state.value = ChatSummaryState.Preparing
         job = viewModelScope.launch {
@@ -223,39 +234,79 @@ class ChatSummaryViewModel(
                 totalLines = lines.size,
             )
 
-            var last = Generated("")
-            try {
-                ai.generate(variant, prompt).collect { chunk ->
-                    last = chunk
-                    _state.value = ChatSummaryState.Text(
-                        text = chunk.text,
-                        done = false,
-                        details = details,
-                        truncated = chunk.truncated,
-                    )
-                }
-                _state.value = if (last.text.isBlank()) {
-                    logger.w { "Model shrnutí nenapsal žádný text" }
-                    ChatSummaryState.Failed(emptyOutputMessage)
-                } else {
-                    if (last.truncated) logger.i { "Model shrnutí nedopsal, došel mu strop výstupu" }
-                    ChatSummaryState.Text(
-                        text = last.text,
-                        done = true,
-                        details = details,
-                        truncated = last.truncated,
-                    )
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: OnDeviceAiException) {
-                // Rozbitý model je problém pro Crashlytics (`e` s výjimkou), vytížený ne.
-                if (e.isReportable) logger.e(e) { "Shrnutí se nepovedlo" } else logger.w(e) { "Shrnutí se nepovedlo" }
-                _state.value = ChatSummaryState.Failed(e.userMessage())
-            } catch (e: Exception) {
-                logger.e(e) { "Shrnutí se nepovedlo" }
-                _state.value = ChatSummaryState.Failed(UiText(Res.string.summary_failed))
+            generateInto(variant, prompt, details)
+        }
+    }
+
+    /**
+     * Vysvětlení JEDNÉ dlouhé zprávy („o co jde", `MessageMenuAction.Explain`). Tentýž sheet
+     * a tentýž průběh jako shrnutí konverzace, jen jiný prompt ([explainPrompt]) a zdroj
+     * s příznakem [SummarySource.explain] — podle něj sheet ukáže jiný nadpis.
+     */
+    fun explain(message: ChatMessage) {
+        job?.cancel()
+        explaining = message
+        _source.value = SummarySource(listOf(message), unread = false, explain = true)
+        _state.value = ChatSummaryState.Preparing
+        job = viewModelScope.launch {
+            val variant = settings.onDeviceAiVariant.value
+            if (ai.status(variant) != OnDeviceAiStatus.Ready) {
+                _state.value = ChatSummaryState.ModelMissing
+                return@launch
             }
+            val info = ai.info(variant)
+            val prompt = explainPrompt(message.text, platformLanguageCode)
+            val details = SummaryDetails(
+                modelName = info?.name,
+                promptTokens = ai.countTokens(variant, prompt),
+                tokenLimit = info?.tokenLimit,
+                keptLines = 1,
+                totalLines = 1,
+            )
+            generateInto(variant, prompt, details)
+        }
+    }
+
+    /** „Zkusit znovu": vysvětlení zopakuje vysvětlení, jinak [summarize] obrazovky. */
+    fun retry(summarize: () -> Unit) {
+        val message = explaining
+        if (message != null && _source.value?.explain == true) explain(message) else summarize()
+    }
+
+    /** Pustí model a průběžně zapisuje text do [state]; chyba skončí jako [ChatSummaryState.Failed]. */
+    private suspend fun generateInto(variant: ModelVariant, prompt: String, details: SummaryDetails) {
+        var last = Generated("")
+        try {
+            ai.generate(variant, prompt).collect { chunk ->
+                last = chunk
+                _state.value = ChatSummaryState.Text(
+                    text = chunk.text,
+                    done = false,
+                    details = details,
+                    truncated = chunk.truncated,
+                )
+            }
+            _state.value = if (last.text.isBlank()) {
+                logger.w { "Model shrnutí nenapsal žádný text" }
+                ChatSummaryState.Failed(emptyOutputMessage)
+            } else {
+                if (last.truncated) logger.i { "Model shrnutí nedopsal, došel mu strop výstupu" }
+                ChatSummaryState.Text(
+                    text = last.text,
+                    done = true,
+                    details = details,
+                    truncated = last.truncated,
+                )
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: OnDeviceAiException) {
+            // Rozbitý model je problém pro Crashlytics (`e` s výjimkou), vytížený ne.
+            if (e.isReportable) logger.e(e) { "Shrnutí se nepovedlo" } else logger.w(e) { "Shrnutí se nepovedlo" }
+            _state.value = ChatSummaryState.Failed(e.userMessage())
+        } catch (e: Exception) {
+            logger.e(e) { "Shrnutí se nepovedlo" }
+            _state.value = ChatSummaryState.Failed(UiText(Res.string.summary_failed))
         }
     }
 

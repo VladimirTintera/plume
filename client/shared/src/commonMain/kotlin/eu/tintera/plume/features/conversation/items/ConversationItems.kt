@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ai.EXPLAIN_MIN_CHARS
 import eu.tintera.plume.features.conversation.firstUnreadId
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
@@ -273,6 +274,9 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageM
             add(MessageMenuAction.Translate)
         }
         if (message.summaryLanguage != null) add(MessageMenuAction.Summarize)
+        // Vysvětlit jen DLOUHOU CIZÍ zprávu: vlastní zprávu člověk zná a krátkou přečte
+        // rychleji, než model odpoví.
+        if (!message.isOutgoing && message.text.length >= EXPLAIN_MIN_CHARS) add(MessageMenuAction.Explain)
     }
     if (message.media is MessageMedia.Sticker) add(MessageMenuAction.ToggleFavoriteSticker)
     add(MessageMenuAction.Forward)

@@ -957,6 +957,7 @@ fun ConversationScreen(
             profileFlight = profileFlight,
             canSendCommands = canSendCommands,
             soundingVideoNote = soundingVideoNote,
+            summary = summary,
         )
     }
 
@@ -2297,7 +2298,7 @@ fun ConversationScreen(
             ChatSummarySheet(
                 state = summaryState,
                 source = summarySourceState,
-                onRetry = startSummary,
+                onRetry = { summary.retry(startSummary) },
                 onDismiss = summary::dismiss,
             )
         }
@@ -4614,6 +4615,8 @@ private class ScreenItemScope(
     private val profileFlight: MutableState<Long?>,
     private val canSendCommands: State<Boolean>,
     private val soundingVideoNote: State<SoundingVideoNote?>,
+    /** Vysvětlení zprávy jde do sheetu shrnutí ([ChatSummaryViewModel.explain]). */
+    private val summary: ChatSummaryViewModel,
 ) : ConversationItemScope {
     override fun isProfileFlight(messageId: Long): Boolean = profileFlight.value == messageId
 
@@ -4697,6 +4700,10 @@ private class ScreenItemScope(
         is MessageAction.OpenStickerSet -> onOpenStickerSet(action.setId)
         is MessageAction.SearchHashtag -> onSearch(action.tag)
         MessageMenuAction.SaveFileAs -> onSaveFileAs(messageId)
+        MessageMenuAction.Explain -> {
+            state.value.messages.firstOrNull { it.id == messageId }?.let(summary::explain)
+            viewModel.onAction(messageId, action)
+        }
         is MessageAction.OpenSenderProfile -> {
             // Klíč letu musí stát dřív, než se profil otevře; chat se hledá asynchronně.
             profileFlight.value = messageId

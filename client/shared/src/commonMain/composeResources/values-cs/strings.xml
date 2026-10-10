@@ -1516,6 +1516,9 @@
     <string name="summary_nothing">Tady není co shrnout.</string>
     <string name="summary_failed">Shrnutí se nepovedlo.</string>
     <string name="summary_disclaimer">Vytvořeno v zařízení. Může být nepřesné.</string>
+    <string name="explain_title">O čem je zpráva</string>
+    <string name="explain_preparing">Čtu zprávu…</string>
+    <string name="explain_failed">Zprávu se nepodařilo vysvětlit.</string>
     <string name="summary_truncated">Modelu došlo místo a přestal psát dřív, takže konec konverzace ve shrnutí chybí.</string>
     <string name="summary_retry">Zkusit znovu</string>
     <string name="ai_failure_busy">Model je teď vytížený. Zkus to za chvíli.</string>
@@ -2281,6 +2284,7 @@
     <string name="transcribe_failed">Přepis se nepodařilo spustit.</string>
     <string name="transcript_premium_required">Přepis do textu je v Telegramu jen s Premium.</string>
     <string name="menu_summarize">Shrnout</string>
+    <string name="menu_explain">Vysvětlit</string>
     <string name="server_summary_title">Shrnutí</string>
     <string name="server_summary_failed">Zprávu se nepodařilo shrnout</string>
     <string name="server_summary_copy">Kopírovat shrnutí</string>

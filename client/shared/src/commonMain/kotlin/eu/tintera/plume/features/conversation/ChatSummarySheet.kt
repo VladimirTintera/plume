@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.explain_failed
+import eu.tintera.plume.resources.explain_preparing
+import eu.tintera.plume.resources.explain_title
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -62,6 +65,8 @@ fun ChatSummarySheet(
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    // Vysvětlení jedné zprávy (`ChatSummaryViewModel.explain`) jde stejným sheetem, jen s vlastními větami.
+    val explain = source?.explain == true
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -78,7 +83,9 @@ fun ChatSummarySheet(
             source?.let {
                 val count = it.messages.size
                 Text(
-                    text = if (it.unread) {
+                    text = if (it.explain) {
+                        stringResource(Res.string.explain_title)
+                    } else if (it.unread) {
                         pluralStringResource(Res.plurals.summary_title_unread, count, count)
                     } else {
                         pluralStringResource(Res.plurals.summary_title_recent, count, count)
@@ -96,7 +103,7 @@ fun ChatSummarySheet(
                 ) {
                     LoadingIndicator(Modifier.size(40.dp))
                     Text(
-                        stringResource(Res.string.summary_preparing),
+                        stringResource(if (explain) Res.string.explain_preparing else Res.string.summary_preparing),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -118,7 +125,7 @@ fun ChatSummarySheet(
                 ChatSummaryState.ModelMissing -> SummaryNote(Res.string.summary_model_missing)
                 ChatSummaryState.NothingToSummarize -> SummaryNote(Res.string.summary_nothing)
                 is ChatSummaryState.Failed -> {
-                    SummaryNote(Res.string.summary_failed)
+                    SummaryNote(if (explain) Res.string.explain_failed else Res.string.summary_failed)
                     // Proč — a kde to spravit, když je chyba v systému a opakování nepomůže.
                     Text(
                         state.reason.resolve(),

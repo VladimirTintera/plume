@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.resources.menu_explain
+import eu.tintera.plume.resources.auto_awesome_24dp
 import eu.tintera.plume.core.telegram.ForwardOrigin
 
 import eu.tintera.plume.core.ui.label
@@ -363,6 +365,17 @@ sealed interface MessageMenuAction : MessageAction {
     data object Summarize : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
             MenuPresentation(Res.drawable.summarize_24dp, Res.string.menu_summarize)
+    }
+
+    /**
+     * Vysvětlení dlouhé cizí zprávy modelem v zařízení („o co jde"). Kandidát jen u dlouhé
+     * příchozí zprávy ([menuActions]); nabízí se se zapnutou AI v zařízení
+     * ([MessageMenu.explainAvailable]). Obsah nikam neodchází, takže na rozdíl od překladu
+     * nevadí ani chráněný obsah. Obsluhuje ho obrazovka (sheet shrnutí), ne ViewModel.
+     */
+    data object Explain : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.auto_awesome_24dp, Res.string.menu_explain).takeIf { menu.explainAvailable }
     }
 
     /** Kandidát jen u samolepky. Jestli už v oblíbených je, se zjistí při otevření nabídky. */
