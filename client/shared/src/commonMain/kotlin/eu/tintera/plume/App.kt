@@ -58,6 +58,21 @@ private val Inert = Modifier
  */
 @Composable
 fun App() {
+    AppRoot {
+        AppShell()
+        // Až tady, ne nad přihlášením — tam uživatel ještě netuší, co aplikace dělá.
+        NotificationPermissionPrompt()
+    }
+}
+
+/**
+ * Společný kořen aplikace a bubliny konverzace (`BubbleShell`): motiv z nastavení, zámek
+ * aplikace, přihlášení a hodnoty, které přihlášená část čte (`LocalAutoDownload`, velikost
+ * písma). [content] je obsah přihlášené části — v aplikaci shell, v bublině jedna konverzace.
+ * Zámek tak platí i v bublině: jinak by obešla PIN.
+ */
+@Composable
+fun AppRoot(content: @Composable () -> Unit) {
     /*
      * Motiv se čte z nastavení, ne z výchozí hodnoty parametru. `null` znamená „uživatel si
      * nevybral" — teprve tehdy rozhoduje platforma (`supportsDynamicColor`), takže se do úložiště
@@ -111,10 +126,8 @@ fun App() {
                                 LocalAutoDownload provides autoDownload,
                                 LocalMessageTextSize provides messageTextSize,
                             ) {
-                                AppShell()
+                                content()
                             }
-                            // Až tady, ne nad přihlášením — tam uživatel ještě netuší, co aplikace dělá.
-                            NotificationPermissionPrompt()
                         }
 
                         if (covered) {

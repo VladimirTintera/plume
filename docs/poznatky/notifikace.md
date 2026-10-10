@@ -367,6 +367,41 @@ přijdou potichu (`setSilent`). Výchozí úsek je 22:00–7:00, vypnuto.
   zavřené (`TOPIC_CLOSED`) a bot nemá právo spravovat témata (`CHAT_ADMIN_REQUIRED`).
   Rozhodování o kanálu zmínek je ale staré a ověřené (viz „Kanály a nastavení notifikací").
 
+### Bubliny konverzací (Android 11+)
+
+Notifikace konverzace nese `BubbleMetadata`, takže ji jde poslat do bubliny (tlačítko v rozbalené
+notifikaci, nebo volba u aplikace / konverzace v systému). V bublině běží `BubbleActivity`
+(`:client:androidApp`) s `BubbleShell`: jedna konverzace a nad ní prohlížeč médií.
+
+- **Vlastní aktivita, ne `MainActivity`.** Ta je `singleTask` a otevřela by celou aplikaci.
+  Bublina chce vložitelnou aktivitu (`allowEmbedded`, `resizeableActivity`) a dokument pro
+  každý chat (`documentLaunchMode="always"`). Míří se na ni AKCÍ a balíčkem
+  (`NotificationIntents.bubble`), stejně jako na příjemce odpovědi: `:client:shared` třídy
+  vstupního bodu nezná.
+- **`PendingIntent` bubliny musí být `FLAG_MUTABLE`** (Android 12+) a data nesou chatId
+  (`plume-bubble://chat/<id>`): dva chaty musí mít různý intent podle `filterEquals`.
+- **Vlastní malý zásobník, ne `AppShell`.** Konverzace má přes dvacet napojení na shell
+  a navigační singletony (`ChatOpenRequests`, `KeyboardShortcuts`) jsou na proces — druhý shell
+  by si s hlavní aktivitou přebíral požadavky. V bublině jsou zprávy, psaní, přílohy a média;
+  profil, přeposlání, jiný chat, mini aplikace a další otevřou plnou aplikaci (`openInApp`).
+  `NavDisplay` tam je kvůli sdíleným přechodům (`LocalNavAnimatedContentScope` mimo něj není).
+- **Kořen aplikace je společný** (`AppRoot` v `App.kt`): motiv, přihlášení a **zámek aplikace
+  platí i v bublině** — jinak by bublina PIN obešla.
+- **Notifikaci, ze které je bublina, se NESMÍ zrušit** — se zrušenou notifikací systém zruší
+  i bublinu (`BubbleData.doRemove … reason=NOTIF_CANCEL`). A rušila se hned: otevřená bublina
+  zprávy přečte, TDLib notifikaci stáhne a prázdná skupina se ruší. Presenter proto u notifikace
+  s `FLAG_BUBBLE` místo zrušení přepíše notifikaci s `setSuppressNotification(true)`
+  (`keepBubble`, z aktivní notifikace přes `recoverBuilder`, takže i po restartu procesu):
+  z lišty zmizí, bublina zůstane.
+- **Šipka zpět bublinu SBALÍ** (`moveTaskToBack`), ne `finish()` — to ukončí úlohu a systém
+  bublinu odebere (`reason=TASK_FINISHED`).
+- **Výchozí stav aplikace je „bubliny nepovolené"** (`mAllowBubble=false` v `dumpsys
+  notification`); povolí je uživatel. Aplikace nic nevynucuje a nerozbaluje se sama.
+- **Ověřeno na emulátoru (Fold, Android 17)**: tlačítko bubliny v notifikaci od testovacího
+  bota, rozbalení s konverzací, přečtení bez zmizení bubliny, sbalení šipkou a nové rozbalení,
+  profil z hlavičky otevřel plnou aplikaci na téže konverzaci. Logy: `adb logcat | grep
+  'Bubbles '`. **Prohlížeč médií v bublině a zámek aplikace nad bublinou ověřené NEJSOU.**
+
 ### Akce z notifikace
 
 Notifikace chatu má akce „Odpovědět" s polem na text (`RemoteInput`), „Označit jako přečtené"

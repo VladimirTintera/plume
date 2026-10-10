@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.notifications
 
+import android.net.Uri
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -81,6 +82,31 @@ object NotificationIntents {
             // UPDATE_CURRENT: existující intent pro tentýž chat se přepíše, ne zduplikuje.
             // IMMUTABLE je od Androidu 12 povinné, když intent nemá měnit příjemce.
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    /** Akce aktivity bubliny (`BubbleActivity` ve vstupním bodu, intent-filter v manifestu). */
+    const val ACTION_BUBBLE = "eu.tintera.plume.action.BUBBLE"
+
+    /**
+     * Konverzace v bublině (Android 11+). Na aktivitu se míří AKCÍ a balíčkem, ne třídou —
+     * `:client:shared` ji nezná, stejně jako `MainActivity` (viz [reply]).
+     *
+     * - **Data nesou chatId** (`plume-bubble://chat/<id>`): bublina každého chatu musí být
+     *   jiný `Intent` podle `filterEquals`, jinak by systém dvě bubliny spojil.
+     * - **`FLAG_MUTABLE` je pro bublinu povinné** (Android 12+): systém do intentu doplňuje
+     *   údaje o okně bubliny. S `IMMUTABLE` notifikace bublinu nedostane vůbec.
+     */
+    fun bubble(context: Context, notificationId: Int, chatId: Long): PendingIntent {
+        val intent = Intent(ACTION_BUBBLE)
+            .setPackage(context.packageName)
+            .setData(Uri.parse("plume-bubble://chat/$chatId"))
+            .putExtra(EXTRA_CHAT_ID, chatId)
+        return PendingIntent.getActivity(
+            context,
+            notificationId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
         )
     }
 

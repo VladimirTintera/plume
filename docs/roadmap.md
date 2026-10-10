@@ -511,14 +511,9 @@ Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku, p�
 
 Nápady z října 2026, nic z toho zatím nikdo nezačal.
 
-- **Bubliny konverzací (Android 11+).** Notifikace už jsou konverzace se zkratkami
-  (`conversationShortcut`), takže zbývá `setBubbleMetadata` a aktivita, která v bublině ukáže
-  jednu konverzaci. Pozor na `singleTask` u `MainActivity` — bublina chce vlastní aktivitu
-  s `resizeableActivity` a `allowEmbedded`, jinak by se otevřela celá aplikace. **Pozor na
-  rozsah:** `ConversationScreen` má přes dvacet napojení na shell (média, profil, přeposílání,
-  mini aplikace, odkazy…) a navigační singletony (`ChatOpenRequests`, `KeyboardShortcuts`) jsou
-  na proces — bublina s vlastní kopií `App()` by si s hlavní aktivitou přebírala požadavky.
-  Napřed rozmyslet, co se z bubliny otevírá v ní a co v hlavní aktivitě.
+- ~~**Bubliny konverzací (Android 11+)**~~ — hotovo (`BubbleActivity`, `BubbleShell`;
+  `docs/poznatky/notifikace.md`, „Bubliny konverzací"). Zbývá ověřit prohlížeč médií a zámek
+  aplikace v bublině; profil, přeposlání a jiné chaty bublina zatím posílá do plné aplikace.
 - **Widget na plochu** s nepřečtenými nebo připnutými chaty (Glance). Data z TDLib v procesu
   aplikace; widget musí umět ukázat poslední známý stav, když proces neběží.
 - **Fold a klávesnice.** ~~Klávesové zkratky (Ctrl+K hledání, Alt+↑/↓ mezi chaty, Esc zavře

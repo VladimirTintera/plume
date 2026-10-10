@@ -1,5 +1,8 @@
 package eu.tintera.plume.core.telegram
 
+import android.app.NotificationManager
+import android.app.Notification
+import android.os.Build
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -183,6 +186,54 @@ actual class NotificationPresenter(
         }
     }
 
+    /**
+     * Notifikace, ze které je bublina, se NESMÍ zrušit: se zrušenou notifikací systém zruší
+     * i bublinu (`reason=NOTIF_CANCEL`). A rušila by se hned — otevřená bublina zprávy přečte
+     * a TDLib notifikaci stáhne. Místo zrušení se proto přepíše s potlačením v liště
+     * (`setSuppressNotification`): z lišty zmizí, bublina zůstane. Další zpráva ji pošle znovu
+     * normálně ([show]). Obnovuje se z AKTIVNÍ notifikace (`recoverBuilder`), takže to jde
+     * i po restartu procesu, kdy presenter konverzaci v paměti nemá. Vrací, jestli tak udělal.
+     */
+    private fun keepBubble(groupId: Int): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return false
+        val platform = context.getSystemService(NotificationManager::class.java) ?: return false
+        val active = platform.activeNotifications.firstOrNull {
+            it.id == groupId && it.notification.flags and Notification.FLAG_BUBBLE != 0
+        } ?: return false
+        val bubble = active.notification.bubbleMetadata ?: return false
+        if (bubble.isNotificationSuppressed) return true
+        val intent = bubble.intent ?: return false
+        val icon = bubble.icon ?: return false
+        val suppressed = Notification.Builder.recoverBuilder(context, active.notification)
+            .setBubbleMetadata(
+                Notification.BubbleMetadata.Builder(intent, icon)
+                    .setDesiredHeight(bubble.desiredHeight)
+                    .setSuppressNotification(true)
+                    .build(),
+            )
+            // Přepis existující notifikace nesmí znovu upozornit.
+            .setOnlyAlertOnce(true)
+            .build()
+        platform.notify(groupId, suppressed)
+        return true
+    }
+
+    /**
+     * Bublina konverzace; `null` pod Androidem 11 a bez ikony. Ikona je fotka chatu, jako velký
+     * kruh notifikace (`avatarBitmap`) — bez ní by všechny bubliny vypadaly stejně.
+     */
+    private fun bubbleMetadata(groupId: Int, conversation: Conversation): NotificationCompat.BubbleMetadata? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+        val icon = avatarBitmap(conversation.avatarPath)?.let(IconCompat::createWithAdaptiveBitmap)
+            ?: IconCompat.createWithResource(context, R.drawable.ic_notification)
+        return NotificationCompat.BubbleMetadata.Builder(
+            NotificationIntents.bubble(context, groupId, conversation.chatId),
+            icon,
+        )
+            .setDesiredHeight(BUBBLE_HEIGHT_DP)
+            .build()
+    }
+
     /** Minuta dne v místním čase zařízení — v něm si uživatel tiché hodiny nastavil. */
     private fun minuteOfDay(): Int {
         val time = now().toLocalDateTime(TimeZone.currentSystemDefault())
@@ -234,7 +285,7 @@ actual class NotificationPresenter(
         // spárovat, takže jde pryč celá; TDLib stejně ruší po přečtení celý chat naráz.
         if (conversation == null) {
             logger.d { "Skupina ${update.groupId} není v paměti, ruším celou notifikaci." }
-            manager.cancel(update.groupId)
+            if (!keepBubble(update.groupId)) manager.cancel(update.groupId)
             return
         }
 
@@ -262,8 +313,12 @@ actual class NotificationPresenter(
                 delay(EMPTY_CANCEL_DELAY_MS)
                 if (conversations[update.groupId] === conversation && conversation.lines.all { it.isOwn }) {
                     conversations.remove(update.groupId)
-                    manager.cancel(update.groupId)
-                    logger.d { "Skupina ${update.groupId} zůstala prázdná, ruším notifikaci." }
+                    if (keepBubble(update.groupId)) {
+                        logger.d { "Skupina ${update.groupId} zůstala prázdná, ale je z ní bublina — jen ji schovávám z lišty." }
+                    } else {
+                        manager.cancel(update.groupId)
+                        logger.d { "Skupina ${update.groupId} zůstala prázdná, ruším notifikaci." }
+                    }
                 }
             }
         } else {
@@ -328,6 +383,10 @@ actual class NotificationPresenter(
             // ikonu aplikace a notifikace skončí mimo sekci konverzací.
             .setShortcutId(publishShortcut(conversation))
             .setStyle(style)
+            // Bublina (Android 11+): konverzace v plovoucím okně (`BubbleShell`). Jestli se
+            // nabídne, rozhoduje uživatel v systému (u aplikace / konverzace); aplikace ji jen
+            // umožní. Sama se nerozbalí a notifikaci nepotlačí — bublina je volba, ne výchozí stav.
+            .setBubbleMetadata(bubbleMetadata(groupId, conversation))
             // Podle kategorie se řídí výjimka „zprávy" v režimu Nerušit; čtou ji i aplikace,
             // které notifikace třídí (hodinky, LED).
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
@@ -716,3 +775,6 @@ actual class NotificationPresenter(
         /** Prefix id zkratky konverzace. Musí být stabilní, aby se zkratka přepisovala, ne množila. */
     }
 }
+
+/** Výška bubliny konverzace; systém ji smí zmenšit, když se nevejde. */
+private const val BUBBLE_HEIGHT_DP = 600
