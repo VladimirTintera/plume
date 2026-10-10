@@ -44,10 +44,8 @@ jazyků). Vlastní backend ani GitHub Pages potřeba nejsou. Záloha: Crowdin fo
 - **Weblate posílá změny jako PR** (doplněk „Squash Git commits" + push do větve `weblate`).
   Check „Release notes" by ho zamítl — výjimka pro tu větev (`type: internal`), nebo ji
   Weblate drží sám.
-- **`verifyTranslations` umí jen `values-cs`.** Rozšířit na všechny `values-*`, ale pro
-  komunitní jazyky hlásit chybějící klíče jen jako varování: rozpracovaný jazyk spadne na
-  angličtinu po jednotlivých větách a build kvůli tomu padat nesmí. Kontrola, že se
-  nerozešly formátovací argumenty (`%1$s`, `%1$d`), zůstává chybou — tu hlídá i Weblate.
+- ~~**`verifyTranslations` umí jen `values-cs`.**~~ — hotovo: všechny `values-*`, komunitní
+  jazyky chybějící klíč jen varováním, formátovací argumenty chybou u všech (CLAUDE.md, „Jazyky").
 - **Nový jazyk se dnes zapisuje ručně na čtyři místa** (viz „Jazyk aplikace" v
   `docs/poznatky/nastaveni.md`): `locales_config.xml` v `:client:androidApp`, `APP_LANGUAGES`
   v `core/locale`, `language_name_<kód>` v každém `strings.xml` a `<kód>.lproj` v `iosApp/iosApp`
