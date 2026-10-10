@@ -211,6 +211,20 @@ tedy o poskytovatelích nemusí vědět nic.
   nespadne — viz „Návrhy odpovědí"), vzhled podstrčeným stavem a čisté funkce testy. Na zařízení
   zbývá kvalita výstupu, rychlost, limit tokenů a useknutí.
 
+### Termín připomínky
+
+Třetí funkce s modelem: termín pro „Připomenout…" nad zprávou, když ho nenajdou pravidla
+(podrobně v `konverzace-akce.md`, „Připomenutí zprávy"). Stejná hranice a varianta z nastavení
+jako návrhy odpovědí, vlastní vypínač nemá — běží jen s modelem `Ready` a jen na vyžádání
+(otevření sheetu), takže nic nevyskakuje samo.
+
+- **Krátký výstup = rychlé.** Na emulátoru s Gemmou E2B na CPU 8–9 s, s prvním načtením enginu
+  13 s (shrnutí 32 zpráv přes 40 s). Na telefonu s Nano se dá čekat zlomek vteřiny jako u návrhů.
+- **Datum a den odeslání musí být v promptu výslovně** — model kalendář nezná a „za týden"
+  počítá od nich.
+- **Emulátor na zkoušení modelu:** `Plume_Galerie_Fold` s 8 GB RAM a staženou E2B (stahování
+  2,4 GB trvalo ~13 min, ~3 MB/s).
+
 ### Návrhy odpovědí
 
 Přijde zpráva, pole je prázdné → nad polem se ukážou až tři čipy s krátkou odpovědí. Ťuknutí ji

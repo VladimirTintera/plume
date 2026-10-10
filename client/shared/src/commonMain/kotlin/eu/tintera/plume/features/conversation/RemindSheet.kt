@@ -23,6 +23,11 @@ import eu.tintera.plume.core.ui.SheetActionRow
 import eu.tintera.plume.features.chats.SnoozeOptionRows
 import eu.tintera.plume.features.chats.SnoozeTime
 import eu.tintera.plume.resources.edit_calendar_24dp
+import eu.tintera.plume.resources.auto_awesome_24dp
+import eu.tintera.plume.resources.remind_suggesting
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
 import eu.tintera.plume.resources.remind_from_message
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.remind_pick
@@ -40,11 +45,15 @@ import org.jetbrains.compose.resources.stringResource
  *
  * [onRemind] dostane okamžik v sekundách od epochy.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun RemindSheet(
     /** Termín ze zprávy (sekundy od epochy); `null` = ve zprávě žádný není. */
     suggested: Long?,
+    /** Termín hledá model v zařízení — místo řádku se zatím točí „Hledám termín ve zprávě…". */
+    suggesting: Boolean = false,
+    /** [suggested] je odhad modelu, ne pravidel: řádek má ikonu AI, ať je vidět, odkud je. */
+    fromModel: Boolean = false,
     onRemind: (at: Long) -> Unit,
     onPickTime: () -> Unit,
     onDismiss: () -> Unit,
@@ -67,9 +76,19 @@ internal fun RemindSheet(
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
                 // Termín ze zprávy („sraz v pátek v 15:00") jako první volba, ve vlastním bloku:
                 // je to návrh z textu, ne pevná doba, a může se splést.
-                if (suggested != null) {
+                if (suggesting) {
                     SheetActionRow(
-                        icon = Res.drawable.edit_calendar_24dp,
+                        icon = Res.drawable.auto_awesome_24dp,
+                        label = stringResource(Res.string.remind_suggesting),
+                        shape = RoundedCornerShape(20.dp),
+                        onClick = {},
+                        enabled = false,
+                        trailing = { LoadingIndicator(Modifier.size(24.dp)) },
+                    )
+                    Spacer(Modifier.height(12.dp))
+                } else if (suggested != null) {
+                    SheetActionRow(
+                        icon = if (fromModel) Res.drawable.auto_awesome_24dp else Res.drawable.edit_calendar_24dp,
                         label = stringResource(Res.string.remind_from_message),
                         shape = RoundedCornerShape(20.dp),
                         onClick = { onRemind(suggested) },

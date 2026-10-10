@@ -2494,6 +2494,7 @@
     <string name="remind_text">At the chosen time, the message arrives in Saved Messages with a notification.</string>
     <string name="remind_pick">Pick date and time</string>
     <string name="remind_from_message">From the message</string>
+    <string name="remind_suggesting">Looking for a time in the message…</string>
     <string name="remind_time">Remind me at</string>
     <string name="conversation_remind_set">Reminder set</string>
     <string name="conversation_remind_failed">Couldn't set the reminder</string>

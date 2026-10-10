@@ -370,6 +370,8 @@ class ConversationViewModel(
     private val photoMarkup: PhotoMarkupRenderer? = null,
     /** Překlad v telefonu; bez něj (iOS) přepínač v sheetu překladu není. */
     private val onDeviceTranslator: OnDeviceTranslator? = null,
+    /** Termín připomínky od modelu v zařízení, když ho nenajdou pravidla. */
+    private val reminderTimeModel: ReminderTimeModel? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -4320,12 +4322,28 @@ class ConversationViewModel(
     private fun requestRemind(messageId: Long) {
         val message = _state.value.messages.firstOrNull { it.id == messageId }
         val zone = TimeZone.currentSystemDefault()
-        val now = Clock.System.now().epochSeconds
-        val suggested = message?.let {
-            val sentAt = Instant.fromEpochSeconds(it.timestamp.toLong()).toLocalDateTime(zone)
-            reminderTimeFromText(it.text, sentAt)?.toInstant(zone)?.epochSeconds
-        }?.takeIf { scheduleValid(it, now) }
+        val sentAt = message?.let { Instant.fromEpochSeconds(it.timestamp.toLong()).toLocalDateTime(zone) }
+        val fromRules = sentAt?.let { reminderTimeFromText(message.text, it) }
+        val suggested = fromRules?.toInstant(zone)?.epochSeconds?.takeIf { scheduleValid(it, Clock.System.now().epochSeconds) }
         _state.update { it.copy(messageMenu = null, remindRequest = RemindRequest(messageId, suggested)) }
+
+        // Model jen tam, kde pravidla nenašla NIC. Termín, který pravidla našla a který už
+        // minul, model nespraví — a ptát se ho by jen zdrželo sheet.
+        val model = reminderTimeModel ?: return
+        if (fromRules != null || sentAt == null) return
+        viewModelScope.launch {
+            if (!model.available()) return@launch
+            updateRemind(messageId) { it.copy(suggesting = true) }
+            val at = model.suggest(message.text, sentAt)?.toInstant(zone)?.epochSeconds
+                ?.takeIf { scheduleValid(it, Clock.System.now().epochSeconds) }
+            updateRemind(messageId) { it.copy(suggesting = false, suggestedAt = at, fromModel = at != null) }
+        }
+    }
+
+    /** Změna otevřeného sheetu připomínky — jen když je pořád otevřený u téže zprávy. */
+    private fun updateRemind(messageId: Long, change: (RemindRequest) -> RemindRequest) = _state.update { state ->
+        val open = state.remindRequest?.takeIf { it.messageId == messageId } ?: return@update state
+        state.copy(remindRequest = change(open))
     }
 
     fun closeRemind() {
@@ -5353,7 +5371,14 @@ data class MessageInfoSheet(
 )
 
 /** Připomínka zprávy [messageId]; [suggestedAt] = termín ze zprávy (sekundy od epochy), `null` = žádný. */
-data class RemindRequest(val messageId: Long, val suggestedAt: Long?)
+data class RemindRequest(
+    val messageId: Long,
+    val suggestedAt: Long?,
+    /** Termín hledá model v zařízení (pravidla nic nenašla); sheet ukáže „Hledám termín…". */
+    val suggesting: Boolean = false,
+    /** [suggestedAt] je odhad modelu, ne pravidel — sheet to řekne ikonou. */
+    val fromModel: Boolean = false,
+)
 
 /**
  * Otevřený překlad zprávy do jazyka [languageCode]. [body] je `null`, dokud překlad nedorazí;
