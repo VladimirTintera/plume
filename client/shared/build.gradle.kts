@@ -250,30 +250,83 @@ compose.resources {
  * pozná až na obrazovce — Compose spadne zpátky na výchozí jazyk, takže uprostřed české
  * aplikace vyskočí anglická věta a nic to nenahlásí.
  */
+/**
+ * Hlídá jazykové mutace `composeResources/values-*`.
+ *
+ * - **Jazyky, které píšeme sami ([completeLocales]), musí mít všechny klíče** — chybějící klíč by
+ *   se poznal až na obrazovce: Compose spadne na výchozí jazyk a uprostřed české aplikace
+ *   vyskočí anglická věta.
+ * - **Komunitní jazyky (Weblate) chybějící klíč jen ohlásí.** Rozpracovaný jazyk padá na
+ *   angličtinu po jednotlivých větách, a build kvůli tomu padat nesmí — jinak by každý nový
+ *   klíč v angličtině rozbil překlad, dokud ho někdo nedoplní.
+ * - **Formátovací argumenty jsou chyba u všech jazyků.** Překlad s `%2${'$'}s`, který angličtina nemá,
+ *   nebo s `%1${'$'}d` místo `%1${'$'}s`, by se za běhu poskládal špatně. Řetězec musí mít tytéž argumenty
+ *   jako výchozí; plurál smí v některém tvaru argument vynechat („Před minutou"), ale nesmí
+ *   přidat cizí ani změnit typ.
+ */
+val completeLocales = setOf("cs")
+
 val verifyTranslations = tasks.register("verifyTranslations") {
     group = "verification"
-    description = "Ověří, že values/ a values-cs/ mají stejné klíče."
+    description = "Ověří jazykové mutace: klíče (cs úplně, komunitní jazyky varováním) a formátovací argumenty."
 
-    val defaults = layout.projectDirectory.file("src/commonMain/composeResources/values/strings.xml")
-    val czech = layout.projectDirectory.file("src/commonMain/composeResources/values-cs/strings.xml")
-    inputs.file(defaults)
-    inputs.file(czech)
+    val resources = layout.projectDirectory.dir("src/commonMain/composeResources")
+    inputs.files(fileTree(resources) { include("values*/strings.xml") })
+    // Konfigurační keš: do `doLast` jen obyčejné hodnoty, ne skriptové objekty.
+    val resourcesDir = resources.asFile
+    val complete = completeLocales
 
     doLast {
-        val pattern = Regex("<(?:string|plurals) name=\"([^\"]+)\"")
-        fun keysOf(file: File): Set<String> =
-            pattern.findAll(file.readText()).map { it.groupValues[1] }.toSet()
+        val stringPattern = Regex("""<string name="([^"]+)"[^>]*>(.*?)</string>""", RegexOption.DOT_MATCHES_ALL)
+        val pluralsPattern = Regex("""<plurals name="([^"]+)"[^>]*>(.*?)</plurals>""", RegexOption.DOT_MATCHES_ALL)
+        val itemPattern = Regex("""<item quantity="[^"]+"[^>]*>(.*?)</item>""", RegexOption.DOT_MATCHES_ALL)
+        val argPattern = Regex("""%(\d+)\$([a-z])""")
 
-        val inDefault = keysOf(defaults.asFile)
-        val inCzech = keysOf(czech.asFile)
-        val missingCzech = (inDefault - inCzech).sorted()
-        val missingDefault = (inCzech - inDefault).sorted()
+        // Klíč → (argumenty, je to plurál); u plurálu sjednocení argumentů přes všechny tvary.
+        // Dvojice, ne lokální třída: tu kompilátor build skriptu uvnitř `doLast` neunese.
+        fun argsOf(text: String): Set<String> = argPattern.findAll(text).map { it.groupValues[1] + "$" + it.groupValues[2] }.toSet()
 
-        check(missingCzech.isEmpty() && missingDefault.isEmpty()) {
+        fun entriesOf(file: File): Map<String, Pair<Set<String>, Boolean>> {
+            val text = file.readText()
+            return stringPattern.findAll(text).associate { it.groupValues[1] to (argsOf(it.groupValues[2]) to false) } +
+                pluralsPattern.findAll(text).associate { match ->
+                    match.groupValues[1] to (itemPattern.findAll(match.groupValues[2]).flatMap { argsOf(it.groupValues[1]) }.toSet() to true)
+                }
+        }
+
+        val defaults = entriesOf(File(resourcesDir, "values/strings.xml"))
+        val locales = resourcesDir.listFiles { file -> file.isDirectory && file.name.startsWith("values-") }
+            .orEmpty()
+            .mapNotNull { dir -> File(dir, "strings.xml").takeIf { it.isFile }?.let { dir.name.removePrefix("values-") to it } }
+            .sortedBy { it.first }
+
+        val errors = mutableListOf<String>()
+        locales.forEach { (locale, file) ->
+            val translated = entriesOf(file)
+            val missing = (defaults.keys - translated.keys).sorted()
+            val extra = (translated.keys - defaults.keys).sorted()
+            if (locale in complete) {
+                if (missing.isNotEmpty()) errors += "Chybí ve values-$locale: " + missing.joinToString()
+                if (extra.isNotEmpty()) errors += "Chybí ve values (výchozí), ale jsou ve values-$locale: " + extra.joinToString()
+            } else {
+                if (missing.isNotEmpty()) logger.warn("values-$locale: nepřeloženo ${missing.size} z ${defaults.size} (spadne na angličtinu).")
+                if (extra.isNotEmpty()) logger.warn("values-$locale: klíče, které výchozí jazyk už nemá: " + extra.joinToString())
+            }
+            translated.forEach { (key, entry) ->
+                val (args, plural) = entry
+                val baseArgs = defaults[key]?.first ?: return@forEach
+                val foreign = args - baseArgs
+                val lost = if (plural) emptySet() else baseArgs - args
+                if (foreign.isNotEmpty() || lost.isNotEmpty()) {
+                    errors += "values-$locale/$key: argumenty ${args.sorted()} místo ${baseArgs.sorted()}"
+                }
+            }
+        }
+
+        check(errors.isEmpty()) {
             buildString {
                 appendLine("Jazykové mutace se rozešly.")
-                if (missingCzech.isNotEmpty()) appendLine("Chybí ve values-cs: " + missingCzech.joinToString())
-                if (missingDefault.isNotEmpty()) appendLine("Chybí ve values (výchozí): " + missingDefault.joinToString())
+                errors.forEach { appendLine(it) }
             }
         }
     }

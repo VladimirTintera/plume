@@ -320,7 +320,11 @@ který uvidí uživatel.
   ne slepenec v kódu.
 - **`verifyTranslations` visí na `check`.** Chybějící klíč by se jinak poznal až na obrazovce:
   Compose spadne zpátky na výchozí jazyk, takže uprostřed české aplikace vyskočí anglická věta
-  a nic to nenahlásí.
+  a nic to nenahlásí. Kontroluje všechny `values-*`: jazyky, které píšeme sami
+  (`completeLocales`, dnes `cs`), musí mít všechny klíče, komunitní jazyky (Weblate) chybějící
+  klíč jen ohlásí varováním — rozpracovaný překlad nesmí build shodit. **Formátovací argumenty
+  jsou chyba u všech jazyků**: řetězec musí mít tytéž `%1$s` / `%1$d` jako výchozí, plurál smí
+  v některém tvaru argument vynechat („Před minutou"), ale ne přidat cizí ani změnit typ.
 - **`verifyNoHardcodedText` hlídá, že se text nevrátí do kódu.** Má dvě pravidla, protože
   s jedním to dvakrát propadlo: slot v UI (`Text(`, `text =`, `contentDescription = …`) nesmí
   dostat literál vůbec a český text nesmí být nikde mimo komentáře, logy a vnitřní kontroly.
