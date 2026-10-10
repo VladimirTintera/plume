@@ -368,9 +368,10 @@ zpráva má na volné straně kolečko. Stav je `ConversationState.selection` (`
   v TDLib nejvýš sto naráz, takže vyšší výběr by skončil chybou až u akce.
 - **Kopíruje se chronologicky, s prázdným řádkem mezi zprávami.** Zprávy bez textu se vynechají;
   popisek alba nemusí být na ťuknuté fotce, takže se text hledá v celém bloku.
-- **Kopírovat nabídne dvě podoby** (`ExpressiveMenu` nad tlačítkem): „Jen text" jako dřív a „S časem
+- **Kopírovat nabídne tři podoby** (`ExpressiveMenu` nad tlačítkem): „Jen text" jako dřív, „S časem
   a jménem" (`selectionTranscript`, testy `SelectionTranscriptTest`) — řádek na zprávu,
-  `[10. 10. 2026 14:22] Jana: text`, pro poznámky nebo jazykový model.
+  `[10. 10. 2026 14:22] Jana: text`, pro jazykový model — a „Markdown" pro poznámky
+  (`selectionMarkdown`, převod `markdownOf`, testy `MessageMarkdownTest`).
   - **U každé zprávy celé datum**, ne jen čas: kus přepisu vytržený z kontextu musí říct, kdy se
     to stalo. Datum v pořadí jazyka (`date_numeric`), čas 24hodinově.
   - **Jména jako přepis pro AI shrnutí**: odchozí „Já" (`summary_me`), příchozí jméno
@@ -379,8 +380,22 @@ zpráva má na volné straně kolečko. Stav je `ConversationState.selection` (`
     proto `MessageMedia.describeText()` jako `UiText` — dřív jen `@Composable describe()`, který
     ViewModel přeložit nemohl. U kostky, kontaktu a animovaného emoji popis závorky nemá, je
     zároveň textem.
+  - **Markdown má hlavičku na vlastním řádku** (`**Jana** · 10. 10. 2026 14:22`, pod ní text,
+    mezi zprávami prázdný řádek): blok kódu a citace musí v Markdownu začínat řádek, za
+    „Jana: " by se nepoznaly. Ze stejného důvodu `markdownOf` před blok kódu nebo citaci
+    uprostřed řádku vloží zalomení a citaci dá `> ` na každý řádek.
+  - **Převádí se jen to, co Markdown umí**: tučné `**`, kurzíva `_`, přeškrtnuté `~~`, kód
+    a blok kódu s jazykem, odkaz s popiskem, spoiler `||`, citace. Podtržení Markdown nemá,
+    zmínky a hashtagy jsou čitelné samy. Odkaz psaný přímo v textu se nebalí (`[x](x)`).
+  - **Značka v řádku obejde mezery na krajích úseku** — `** tučně**` Markdown za tučné nevezme,
+    a Telegram mezeru do entity klidně zahrne.
+  - **Značky se stejnými kraji se zavírají obráceně, než se otevřely** (pořadí otevření v klíči
+    řazení zavírání). Bez toho vyšlo z tučné kurzívy přes celé slovo `_**ab_**`.
+  - **Znaky Markdownu v textu se neescapují** — `\*` by poznámková aplikace ukázala doslova.
+    Za cenu, že výjimečně něco omylem zformátuje.
   - Ověřeno na emulátoru (Fold): tři zprávy (vlastní a dvě od bota), vložené do pole a přečtené
-    z `uiautomator`. Schránku `adb` na novém Androidu číst neumí, vložení do vstupního pole
+    z `uiautomator`. Markdown na zprávě od bota s HTML formátováním (`parse_mode=HTML`): tučné,
+    kurzíva, odkaz s popiskem a kód vyšly správně. Schránku `adb` na novém Androidu číst neumí, vložení do vstupního pole
     (Ctrl+V) ano — **pole po kontrole vyčistit**, jinak zůstane koncept, který se synchronizuje
     na ostatní zařízení. **Po kopírování pár vteřin počkat**: Android ukáže vlevo dole překryv
     schránky a ťuknutí do vstupního pole trefí jeho „Sdílet" (otevřelo nastavení Quick Share).

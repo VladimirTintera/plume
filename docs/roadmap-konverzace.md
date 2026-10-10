@@ -588,9 +588,8 @@ snadno na to uživatel narazí.
   „Přidat do záložek" — označení zprávy jen lokálně pro uživatele (na rozdíl od globálního připnutí
   v chatu, které vidí všichni a vyžaduje práva). V profilu chatu a v hledání možnost zobrazit
   seznam záložek s rychlým skokem na zprávu.
-- ~~**Kopírování výběru zpráv s časem a jménem**~~ — hotovo (Kopírovat → „S časem a jménem",
-  `docs/poznatky/konverzace-akce.md`, „Výběr víc zpráv"). Zbývá **Markdown** — formátování
-  (tučné, odkazy) jako `**…**` a `[text](url)`; dnes se kopíruje čistý text.
+- ~~**Kopírování výběru zpráv s časem a jménem a do Markdownu**~~ — hotovo (Kopírovat → „S časem
+  a jménem" / „Markdown", `docs/poznatky/konverzace-akce.md`, „Výběr víc zpráv").
 - **Rychlá anotace a začernění fotek před odesláním (Expressive Markup).** Rozšíření existujícího
   ořezu (`PhotoCropOverlay`) o nástroj na zamáznutí / anonymizaci citlivých údajů (čísla, adresy,
   obličeje tahem prstu) a zvýraznění před odesláním média ze sponky.

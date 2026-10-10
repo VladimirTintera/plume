@@ -2436,4 +2436,5 @@
     <string name="shortcut_new_line">New line</string>
     <string name="selection_copy_text">Text only</string>
     <string name="selection_copy_with_names">With time and names</string>
+    <string name="selection_copy_markdown">Markdown</string>
 </resources>
