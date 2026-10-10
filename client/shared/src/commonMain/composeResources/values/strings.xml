@@ -680,6 +680,15 @@
     <string name="attachment_timer_off">Timer off</string>
     <string name="attachment_preview_title">Preview</string>
     <string name="attachment_done">Done</string>
+    <string name="attachment_edit">Edit photo</string>
+    <string name="markup_title">Edit photo</string>
+    <string name="markup_pen">Pen</string>
+    <string name="markup_highlighter">Highlighter</string>
+    <string name="markup_redact">Black out</string>
+    <string name="markup_undo">Undo</string>
+    <string name="markup_color_white">White</string>
+    <string name="markup_color_black">Black</string>
+    <string name="markup_failed">Couldn't save the photo edit.</string>
     <string name="link_preview_title">Link preview</string>
     <string name="link_preview_options">Link preview options</string>
     <string name="link_preview_section_link">Link</string>

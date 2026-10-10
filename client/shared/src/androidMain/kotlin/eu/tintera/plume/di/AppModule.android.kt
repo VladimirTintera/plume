@@ -7,6 +7,8 @@ import eu.tintera.plume.core.ai.RoutingOnDeviceAi
 import eu.tintera.plume.core.ui.AndroidProfileVideo
 import eu.tintera.plume.core.ui.ProfileVideo
 import eu.tintera.plume.core.ui.AndroidSquarePhoto
+import eu.tintera.plume.core.ui.AndroidPhotoMarkupRenderer
+import eu.tintera.plume.core.ui.PhotoMarkupRenderer
 import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.audio.AudioEngine
 import eu.tintera.plume.core.audio.MusicControls
@@ -77,6 +79,7 @@ actual fun Module.platformModule() {
     single { TextClipboard(androidContext()) }
     single<LanguageDetector> { AndroidLanguageDetector(androidContext()) }
     single<SquarePhoto> { AndroidSquarePhoto(androidContext()) }
+    single<PhotoMarkupRenderer> { AndroidPhotoMarkupRenderer(androidContext()) }
     single<ProfileVideo> { AndroidProfileVideo(androidContext()) }
     // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.
     factory { AudioRecorder(androidContext()) }

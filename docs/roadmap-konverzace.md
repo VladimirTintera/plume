@@ -589,9 +589,9 @@ snadno na to uživatel narazí.
   zobrazit záložky v hledání a případně souhrnný seznam přes všechny chaty.
 - ~~**Kopírování výběru zpráv s časem a jménem a do Markdownu**~~ — hotovo (Kopírovat → „S časem
   a jménem" / „Markdown", `docs/poznatky/konverzace-akce.md`, „Výběr víc zpráv").
-- **Rychlá anotace a začernění fotek před odesláním (Expressive Markup).** Rozšíření existujícího
-  ořezu (`PhotoCropOverlay`) o nástroj na zamáznutí / anonymizaci citlivých údajů (čísla, adresy,
-  obličeje tahem prstu) a zvýraznění před odesláním média ze sponky.
+- ~~**Rychlá anotace a začernění fotek před odesláním**~~ — hotovo (pero, zvýrazňovač, začernění
+  v náhledu přílohy; `docs/poznatky/konverzace-psani.md`, „Úprava fotky před odesláním"). Zbývá:
+  úprava na obrazovce „Komu: …" (sdílení), ořez a otočení fotky, iOS ověřit.
 - **Vědomě NE**: tapeta a téma chatu (`Chat.background`, `theme`) a barvy jmen podle profilu
   (`accentColorId`) — aplikace má vlastní Material vzhled a `senderColor`; kdyby se přidávaly,
   je to rozhodnutí o vzhledu, ne chybějící funkce.
