@@ -417,7 +417,8 @@ fun appModule() = module {
     viewModelOf(::ChatSwipeSettingsViewModel)
     viewModel { QuickReactionSettingsViewModel(settings = get(), quickReaction = get(), appScope = get(named(APP_SCOPE))) }
     viewModelOf(::DevicesViewModel)
-    viewModelOf(::StorageViewModel)
+    // Překladač výslovně `getOrNull`: na iOS v DI není.
+    viewModel { StorageViewModel(repository = get(), cleaner = get(), settings = get(), ai = get(), translator = getOrNull()) }
     viewModelOf(::AutoDownloadViewModel)
     viewModelOf(::NotificationSettingsViewModel)
     viewModelOf(::EditProfileViewModel)

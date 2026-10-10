@@ -1,5 +1,11 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.resources.storage_delete_pack_title
+import eu.tintera.plume.resources.storage_pack_deleted
+import eu.tintera.plume.resources.storage_delete_pack_body
+import eu.tintera.plume.resources.storage_translation_packs
+import eu.tintera.plume.resources.translate_24dp
+import eu.tintera.plume.core.telegram.localizedLanguageName
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -133,6 +139,7 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
     var clearChatId by rememberSaveable { mutableStateOf<Long?>(null) }
     var pickKeep by rememberSaveable { mutableStateOf(false) }
     var deleteModel by rememberSaveable { mutableStateOf<GemmaModel?>(null) }
+    var deletePack by rememberSaveable { mutableStateOf<String?>(null) }
 
     val notice = state.notice
     val noticeText = notice?.text()
@@ -262,6 +269,28 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
                     }
                 }
             }
+
+            // Balíčky pro překlad v telefonu (`core/translation`). Angličtina je vestavěná a není tu.
+            if (state.translationPacks.isNotEmpty()) {
+                SettingsGroup(Res.string.storage_translation_packs) {
+                    state.translationPacks.forEach { pack ->
+                        ListItem(
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            leadingContent = { CategoryIcon(Res.drawable.translate_24dp) },
+                            headlineContent = { Text(localizedLanguageName(pack.language) ?: pack.language) },
+                            supportingContent = pack.bytes?.let { bytes -> { Text(fileSizeText(bytes)) } },
+                            trailingContent = {
+                                IconButton(
+                                    onClick = { deletePack = pack.language },
+                                    shapes = IconButtonDefaults.shapes(),
+                                ) {
+                                    Icon(painterResource(Res.drawable.delete_24dp), contentDescription = stringResource(Res.string.common_delete))
+                                }
+                            },
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -300,6 +329,24 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
         )
     }
 
+    deletePack?.let { language ->
+        val name = localizedLanguageName(language) ?: language
+        AlertDialog(
+            onDismissRequest = { deletePack = null },
+            title = { Text(stringResource(Res.string.storage_delete_pack_title, name)) },
+            text = { Text(stringResource(Res.string.storage_delete_pack_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    deletePack = null
+                    viewModel.deleteTranslationPack(language)
+                }) { Text(stringResource(Res.string.common_delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletePack = null }) { Text(stringResource(Res.string.common_cancel)) }
+            },
+        )
+    }
+
     deleteModel?.let { model ->
         AlertDialog(
             onDismissRequest = { deleteModel = null },
@@ -326,6 +373,7 @@ private fun StorageNotice.text(): String = when (this) {
         stringResource(Res.string.storage_nothing)
     }
     is StorageNotice.ModelDeleted -> stringResource(Res.string.storage_model_deleted, name)
+    is StorageNotice.PackDeleted -> stringResource(Res.string.storage_pack_deleted, localizedLanguageName(language) ?: language)
     is StorageNotice.Failed -> message.resolve()
 }
 
