@@ -41,7 +41,7 @@ class PhotoMarkupTest {
     /** Galerie zná upravenou fotku pod původní cestou, ostatní přílohy pod jejich vlastní. */
     @Test
     fun galerieZnaPuvodniCestu() {
-        val state = ConversationState(photoEdits = mapOf("/edited.jpg" to PhotoEdit("/original.jpg", emptyList())))
+        val state = ConversationState(photoEdits = mapOf("/edited.jpg" to PhotoEdit("/original.jpg", PhotoMarkup(), 100, 100)))
         assertEquals("/original.jpg", state.galleryPath("/edited.jpg"))
         assertEquals("/other.jpg", state.galleryPath("/other.jpg"))
     }

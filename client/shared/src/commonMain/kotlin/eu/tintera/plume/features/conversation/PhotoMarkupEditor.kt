@@ -38,34 +38,48 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import coil3.compose.AsyncImage
+import coil3.compose.rememberAsyncImagePainter
+import eu.tintera.plume.core.ui.CropBox
+import eu.tintera.plume.core.ui.CropHandle
 import eu.tintera.plume.core.ui.DarkSystemBars
 import eu.tintera.plume.core.ui.MARKUP_PEN_COLORS
 import eu.tintera.plume.core.ui.MarkupStroke
 import eu.tintera.plume.core.ui.MarkupTool
+import eu.tintera.plume.core.ui.PhotoMarkup
+import eu.tintera.plume.core.ui.dragged
+import eu.tintera.plume.core.ui.normalizedTurns
+import eu.tintera.plume.core.ui.resultSize
+import eu.tintera.plume.core.ui.resultToOriginal
+import eu.tintera.plume.core.ui.rotated
 import eu.tintera.plume.core.ui.strokeColor
 import eu.tintera.plume.core.ui.strokeWidth
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.attachment_done
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.common_cancel
+import eu.tintera.plume.resources.crop_24dp
 import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.edit_filled_24dp
 import eu.tintera.plume.resources.imagesearch_roller_24dp
@@ -74,11 +88,15 @@ import eu.tintera.plume.resources.ink_highlighter_24dp
 import eu.tintera.plume.resources.ink_highlighter_filled_24dp
 import eu.tintera.plume.resources.markup_color_black
 import eu.tintera.plume.resources.markup_color_white
+import eu.tintera.plume.resources.markup_crop
 import eu.tintera.plume.resources.markup_highlighter
 import eu.tintera.plume.resources.markup_pen
 import eu.tintera.plume.resources.markup_redact
+import eu.tintera.plume.resources.markup_reset
+import eu.tintera.plume.resources.markup_rotate
 import eu.tintera.plume.resources.markup_title
 import eu.tintera.plume.resources.markup_undo
+import eu.tintera.plume.resources.rotate_right_24dp
 import eu.tintera.plume.resources.theme_color_blue
 import eu.tintera.plume.resources.theme_color_green
 import eu.tintera.plume.resources.theme_color_red
@@ -90,11 +108,16 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Kreslení do fotky před odesláním: pero, zvýrazňovač a začernění (`MarkupTool`).
+ * Úprava fotky před odesláním: pero, zvýrazňovač, začernění (`MarkupTool`) a ořez s otočením.
  *
- * Kreslí se nad ORIGINÁLEM ([path]) a [initialStrokes] jsou tahy z minulé úpravy, takže jde
- * vzít zpátky i to, co už jednou bylo „hotové". Tahy se drží v podílech rozměrů fotky; do
- * souboru je v plném rozlišení vykreslí `PhotoMarkupRenderer` stejně, jak jsou vidět tady.
+ * Upravuje se ORIGINÁL ([path], [width] × [height]) a [initial] je úprava z minula, takže jde
+ * vzít zpátky i to, co už jednou bylo „hotové". Tahy se drží v podílech originálu, otočení
+ * a výřez se přes ně jen promítají (`PhotoMarkup`); do souboru je v plném rozlišení vykreslí
+ * `PhotoMarkupRenderer` stejně, jak jsou vidět tady.
+ *
+ * - **Při kreslení je vidět výsledek** (otočený a oříznutý) — kreslí se do toho, co odejde.
+ * - **Při ořezu je vidět celá otočená fotka** s rámečkem výřezu; rámeček se táhne za rohy nebo
+ *   celý. „Otočit" otočí fotku i rámeček o čtvrt otáčky po směru hodin.
  *
  * Fotka se nepřibližuje: přiblížení dvěma prsty by se pralo s kreslením jedním, a začernit
  * číslo nebo adresu jde i na fotce zmenšené na displej (šířka tahu se měří fotkou, ne prstem).
@@ -105,13 +128,18 @@ internal fun PhotoMarkupEditor(
     path: String,
     width: Int,
     height: Int,
-    initialStrokes: List<MarkupStroke>,
+    initial: PhotoMarkup,
     onCancel: () -> Unit,
-    onDone: (List<MarkupStroke>) -> Unit,
+    onDone: (PhotoMarkup) -> Unit,
 ) {
-    val strokes = remember(path) { mutableStateListOf<MarkupStroke>().apply { addAll(initialStrokes) } }
+    val strokes = remember(path) { mutableStateListOf<MarkupStroke>().apply { addAll(initial.strokes) } }
+    var quarterTurns by remember(path) { mutableStateOf(normalizedTurns(initial.quarterTurns)) }
+    var crop by remember(path) { mutableStateOf(initial.crop) }
     var tool by remember { mutableStateOf(MarkupTool.Redact) }
+    // Ořez je režim místo nástroje: kreslit se v něm nedá, tahy prstem posouvají rámeček.
+    var cropping by remember { mutableStateOf(false) }
     var penColor by remember { mutableStateOf(MARKUP_PEN_COLORS.first()) }
+    val markup = PhotoMarkup(strokes.toList(), quarterTurns, crop)
 
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
@@ -146,29 +174,50 @@ internal fun PhotoMarkupEditor(
                     tint = if (strokes.isNotEmpty()) Color.White else Color.White.copy(alpha = DISABLED_ALPHA),
                 )
             }
-            TextButton(onClick = { onDone(strokes.toList()) }) {
+            TextButton(onClick = { onDone(markup) }) {
                 Text(stringResource(Res.string.attachment_done), color = Color.White, style = MaterialTheme.typography.labelLarge)
             }
         }
 
         BoxWithConstraints(
-            modifier = Modifier.weight(1f).fillMaxWidth().padding(16.dp),
+            modifier = Modifier.weight(1f).fillMaxWidth(),
             contentAlignment = Alignment.Center,
         ) {
-            // Fotka vepsaná do plochy se zachovaným poměrem stran; tahy se měří touhle plochou.
-            val ratio = width.toFloat() / height.coerceAtLeast(1)
-            val fitsWidth = maxWidth / maxHeight < ratio
-            val boxWidth = if (fitsWidth) maxWidth else maxHeight * ratio
-            val boxHeight = if (fitsWidth) maxWidth / ratio else maxHeight
-            MarkupCanvas(
-                path = path,
-                strokes = strokes,
-                tool = tool,
-                penColor = penColor,
-                imageWidth = width,
-                imageHeight = height,
-                modifier = Modifier.size(boxWidth, boxHeight),
-            )
+            // Při ořezu celá otočená fotka, při kreslení výsledek; vepsáno se zachovaným poměrem.
+            val view = if (cropping) markup.copy(crop = CropBox.Full) else markup
+            val (viewWidth, viewHeight) = resultSize(width, height, view)
+            val ratio = viewWidth.toFloat() / viewHeight
+            val areaWidth = maxWidth - IMAGE_MARGIN * 2
+            val areaHeight = maxHeight - IMAGE_MARGIN * 2
+            val fitsWidth = areaWidth / areaHeight < ratio
+            val boxWidth = if (fitsWidth) areaWidth else areaHeight * ratio
+            val boxHeight = if (fitsWidth) areaWidth / ratio else areaHeight
+            Box(Modifier.size(boxWidth, boxHeight)) {
+                MarkupCanvas(
+                    path = path,
+                    view = view,
+                    drawing = !cropping,
+                    tool = tool,
+                    penColor = penColor,
+                    imageWidth = width,
+                    imageHeight = height,
+                    onStroke = { strokes += it },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            /*
+             * Rámeček má plochu přes CELÉ okolí fotky, ne jen přes ni: úchyty leží na okraji
+             * fotky a polovina dotykové plochy by byla venku — dotyk těsně vedle rohu by se do
+             * rámečku vůbec nedostal (stalo se na emulátoru).
+             */
+            if (cropping) {
+                CropFrame(
+                    crop = crop,
+                    onCrop = { crop = it },
+                    imageSize = DpSize(boxWidth, boxHeight),
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
         }
 
         Column(
@@ -177,99 +226,176 @@ internal fun PhotoMarkupEditor(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             /*
-             * Barvy jen u pera: zvýrazňovač je vždycky žlutý a začernění vždycky černé. Řada
-             * ale místo drží i u ostatních nástrojů, jen je neviditelná a neťukací: kdyby se
-             * vysunula, fotka nad ní by se při přepnutí nástroje zmenšila a poskočila.
+             * Řada nad nástroji drží místo vždycky — kdyby se vysouvala, fotka nad ní by se při
+             * přepnutí nástroje zmenšila a poskočila. U pera v ní jsou barvy, u ořezu otočení
+             * a návrat k celé fotce, jinak je neviditelná a neťukací.
              */
-            val penTool = tool == MarkupTool.Pen
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier
-                    .alpha(if (penTool) 1f else 0f)
-                    // Neviditelná řada nemá co říkat ani čtečce obrazovky.
-                    .then(if (penTool) Modifier else Modifier.clearAndSetSemantics {}),
-            ) {
-                MARKUP_PEN_COLORS.forEachIndexed { index, color ->
-                    ColorSwatch(
-                        color = Color(color.toInt()),
-                        label = stringResource(PEN_COLOR_NAMES[index]),
-                        selected = color == penColor,
-                        enabled = penTool,
-                        onClick = { penColor = color },
-                    )
+            Box(Modifier.height(SWATCH_ROW_HEIGHT), contentAlignment = Alignment.Center) {
+                val penTool = !cropping && tool == MarkupTool.Pen
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .alpha(if (penTool) 1f else 0f)
+                        // Neviditelná řada nemá co říkat ani čtečce obrazovky.
+                        .then(if (penTool) Modifier else Modifier.clearAndSetSemantics {}),
+                ) {
+                    MARKUP_PEN_COLORS.forEachIndexed { index, color ->
+                        ColorSwatch(
+                            color = Color(color.toInt()),
+                            label = stringResource(PEN_COLOR_NAMES[index]),
+                            selected = color == penColor,
+                            enabled = penTool,
+                            onClick = { penColor = color },
+                        )
+                    }
+                }
+                if (cropping) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(onClick = {
+                            quarterTurns = normalizedTurns(quarterTurns + 1)
+                            crop = crop.rotated(1)
+                        }) {
+                            Icon(painterResource(Res.drawable.rotate_right_24dp), contentDescription = null, tint = Color.White)
+                            Text(
+                                stringResource(Res.string.markup_rotate),
+                                color = Color.White,
+                                modifier = Modifier.padding(start = 8.dp),
+                            )
+                        }
+                        TextButton(
+                            onClick = {
+                                quarterTurns = 0
+                                crop = CropBox.Full
+                            },
+                            enabled = quarterTurns != 0 || crop != CropBox.Full,
+                        ) {
+                            Text(
+                                stringResource(Res.string.markup_reset),
+                                color = if (quarterTurns != 0 || crop != CropBox.Full) Color.White else Color.White.copy(alpha = DISABLED_ALPHA),
+                            )
+                        }
+                    }
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 TOOLS.forEach { (option, icons) ->
                     val (outline, filled, label) = icons
+                    val checked = !cropping && tool == option
                     FilledTonalIconToggleButton(
-                        checked = tool == option,
-                        onCheckedChange = { tool = option },
+                        checked = checked,
+                        onCheckedChange = {
+                            tool = option
+                            cropping = false
+                        },
                         shapes = IconButtonDefaults.toggleableShapes(),
                     ) {
-                        Icon(
-                            painterResource(if (tool == option) filled else outline),
-                            contentDescription = stringResource(label),
-                        )
+                        Icon(painterResource(if (checked) filled else outline), contentDescription = stringResource(label))
                     }
+                }
+                FilledTonalIconToggleButton(
+                    checked = cropping,
+                    onCheckedChange = { cropping = true },
+                    shapes = IconButtonDefaults.toggleableShapes(),
+                ) {
+                    Icon(painterResource(Res.drawable.crop_24dp), contentDescription = stringResource(Res.string.markup_crop))
                 }
             }
         }
     }
 }
 
-/** Fotka a tahy nad ní; tah prstem přidává nový tah aktuálním nástrojem. */
+/**
+ * Fotka a tahy nad ní, promítnuté přes otočení a výřez [view]. S [drawing] tah prstem přidá nový
+ * tah aktuálním nástrojem — dotyk se převede zpátky do souřadnic originálu.
+ */
 @Composable
 private fun MarkupCanvas(
     path: String,
-    strokes: MutableList<MarkupStroke>,
+    view: PhotoMarkup,
+    drawing: Boolean,
     tool: MarkupTool,
     penColor: Long,
     imageWidth: Int,
     imageHeight: Int,
+    onStroke: (MarkupStroke) -> Unit,
     modifier: Modifier,
 ) {
     val currentTool by rememberUpdatedState(tool)
     val currentColor by rememberUpdatedState(penColor)
-    // Rozkreslený tah, v podílech fotky; po zvednutí prstu se z něj stane hotový tah.
-    val drawing = remember { mutableStateListOf<Float>() }
+    val currentView by rememberUpdatedState(view)
+    val currentOnStroke by rememberUpdatedState(onStroke)
+    // Coil potřebuje schéma, holá cesta by se vyhodnotila jako relativní URI.
+    val painter = rememberAsyncImagePainter("file://$path")
+    // Rozkreslený tah, v podílech ORIGINÁLU; po zvednutí prstu se z něj stane hotový tah.
+    val current = remember { mutableStateListOf<Float>() }
 
-    Box(modifier) {
-        AsyncImage(
-            // Coil potřebuje schéma, holá cesta by se vyhodnotila jako relativní URI.
-            model = "file://$path",
-            contentDescription = null,
-            contentScale = ContentScale.FillBounds,
-            modifier = Modifier.fillMaxSize(),
-        )
-        Canvas(
-            Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
+    Canvas(
+        modifier
+            .clipToBounds()
+            .then(
+                if (!drawing) Modifier else Modifier.pointerInput(Unit) {
+                    fun original(position: Offset): Pair<Float, Float> = resultToOriginal(
+                        (position.x / size.width).coerceIn(0f, 1f),
+                        (position.y / size.height).coerceIn(0f, 1f),
+                        currentView,
+                    )
                     awaitEachGesture {
                         val down = awaitFirstDown()
                         down.consume()
-                        drawing.clear()
-                        drawing += down.position.x / size.width
-                        drawing += down.position.y / size.height
+                        current.clear()
+                        original(down.position).let { (x, y) -> current += x; current += y }
                         while (true) {
                             val event = awaitPointerEvent()
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
                             if (!change.pressed) break
                             change.consume()
-                            drawing += (change.position.x / size.width).coerceIn(0f, 1f)
-                            drawing += (change.position.y / size.height).coerceIn(0f, 1f)
+                            original(change.position).let { (x, y) -> current += x; current += y }
                         }
                         val tool = currentTool
-                        strokes += MarkupStroke(tool, tool.strokeColor(currentColor), drawing.toFloatArray())
-                        drawing.clear()
+                        currentOnStroke(MarkupStroke(tool, tool.strokeColor(currentColor), current.toFloatArray()))
+                        current.clear()
                     }
                 },
-        ) {
-            strokes.forEach { drawStroke(it.tool, it.color, it.points, imageWidth, imageHeight) }
-            if (drawing.isNotEmpty()) {
+            ),
+    ) {
+        inOriginalFrame(view, imageWidth, imageHeight) { original ->
+            with(painter) { draw(original) }
+            view.strokes.forEach { drawStroke(it.tool, it.color, it.points, original, imageWidth, imageHeight) }
+            if (current.isNotEmpty()) {
                 val tool = currentTool
-                drawStroke(tool, tool.strokeColor(currentColor), drawing.toFloatArray(), imageWidth, imageHeight)
+                drawStroke(tool, tool.strokeColor(currentColor), current.toFloatArray(), original, imageWidth, imageHeight)
+            }
+        }
+    }
+}
+
+/**
+ * Kreslení v rámci ORIGINÁLU promítnutého do plochy: posun o výřez, pak otočení o čtvrtotáčky
+ * kolem levého horního rohu s posunem, který otočenou fotku vrátí do plochy. [block] dostane
+ * velikost originálu v pixelech plochy — fotka i tahy se kreslí do obdélníku 0..size.
+ */
+private fun DrawScope.inOriginalFrame(
+    view: PhotoMarkup,
+    imageWidth: Int,
+    imageHeight: Int,
+    block: DrawScope.(original: Size) -> Unit,
+) {
+    val turns = normalizedTurns(view.quarterTurns)
+    // Otočená fotka celá, v pixelech plochy (plocha je jen výřez z ní).
+    val rotatedWidth = size.width / view.crop.width
+    val rotatedHeight = size.height / view.crop.height
+    val original = if (turns % 2 == 0) Size(rotatedWidth, rotatedHeight) else Size(rotatedHeight, rotatedWidth)
+    translate(-view.crop.left * rotatedWidth, -view.crop.top * rotatedHeight) {
+        val shift = when (turns) {
+            1 -> Offset(rotatedWidth, 0f)
+            2 -> Offset(rotatedWidth, rotatedHeight)
+            3 -> Offset(0f, rotatedHeight)
+            else -> Offset.Zero
+        }
+        translate(shift.x, shift.y) {
+            rotate(degrees = 90f * turns, pivot = Offset.Zero) {
+                block(original)
             }
         }
     }
@@ -277,21 +403,99 @@ private fun MarkupCanvas(
 
 /**
  * Tah stejně jako ve vykreslené fotce: jedna cesta s kulatými konci a spoji, šířka podílem kratší
- * strany. Plocha má poměr stran fotky, takže podíl jejích rozměrů sedí na podíl fotky.
+ * strany originálu, body v podílech originálu velkého [original] pixelů plochy.
  */
-private fun DrawScope.drawStroke(tool: MarkupTool, color: Long, points: FloatArray, imageWidth: Int, imageHeight: Int) {
-    val scale = size.width / imageWidth
-    val strokeWidth = tool.strokeWidth(imageWidth, imageHeight) * scale
+private fun DrawScope.drawStroke(
+    tool: MarkupTool,
+    color: Long,
+    points: FloatArray,
+    original: Size,
+    imageWidth: Int,
+    imageHeight: Int,
+) {
+    val strokeWidth = tool.strokeWidth(imageWidth, imageHeight) * (original.width / imageWidth)
     val paint = Color(color.toInt())
     if (points.size == 2) {
-        drawCircle(paint, radius = strokeWidth / 2, center = Offset(points[0] * size.width, points[1] * size.height))
+        drawCircle(paint, radius = strokeWidth / 2, center = Offset(points[0] * original.width, points[1] * original.height))
         return
     }
     val line = Path().apply {
-        moveTo(points[0] * size.width, points[1] * size.height)
-        for (i in 2 until points.size step 2) lineTo(points[i] * size.width, points[i + 1] * size.height)
+        moveTo(points[0] * original.width, points[1] * original.height)
+        for (i in 2 until points.size step 2) lineTo(points[i] * original.width, points[i + 1] * original.height)
     }
     drawPath(line, paint, style = Stroke(width = strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round))
+}
+
+/**
+ * Rámeček výřezu nad celou otočenou fotkou: mimo výřez ztmaveno, rohy jsou úchyty. Tah za roh
+ * mění velikost, tah uvnitř posouvá celý výřez; o okraj fotky se obojí zastaví.
+ */
+@Composable
+private fun CropFrame(crop: CropBox, onCrop: (CropBox) -> Unit, imageSize: DpSize, modifier: Modifier) {
+    val currentCrop by rememberUpdatedState(crop)
+    val currentOnCrop by rememberUpdatedState(onCrop)
+    val density = LocalDensity.current
+    val handleRadius = with(density) { HANDLE_TOUCH_RADIUS.toPx() }
+    val image = with(density) { Size(imageSize.width.toPx(), imageSize.height.toPx()) }
+    val currentImage by rememberUpdatedState(image)
+    Canvas(
+        modifier.pointerInput(Unit) {
+            awaitEachGesture {
+                val down = awaitFirstDown()
+                val box = currentCrop
+                val img = currentImage
+                // Fotka je v ploše vystředěná; rohy výřezu v pixelech plochy.
+                val origin = Offset((size.width - img.width) / 2, (size.height - img.height) / 2)
+                fun at(x: Float, y: Float) = origin + Offset(x * img.width, y * img.height)
+                val corners = listOf(
+                    CropHandle.TopLeft to at(box.left, box.top),
+                    CropHandle.TopRight to at(box.right, box.top),
+                    CropHandle.BottomLeft to at(box.left, box.bottom),
+                    CropHandle.BottomRight to at(box.right, box.bottom),
+                )
+                val inside = down.position.x in at(box.left, 0f).x..at(box.right, 0f).x &&
+                    down.position.y in at(0f, box.top).y..at(0f, box.bottom).y
+                val handle = corners.minByOrNull { (it.second - down.position).getDistance() }
+                    ?.takeIf { (it.second - down.position).getDistance() <= handleRadius }?.first
+                    ?: if (inside) CropHandle.Move else return@awaitEachGesture
+                down.consume()
+                var last = down.position
+                while (true) {
+                    val event = awaitPointerEvent()
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                    if (!change.pressed) break
+                    change.consume()
+                    val delta = change.position - last
+                    last = change.position
+                    currentOnCrop(currentCrop.dragged(handle, delta.x / img.width, delta.y / img.height))
+                }
+            }
+        },
+    ) {
+        val imageLeft = (size.width - image.width) / 2
+        val imageTop = (size.height - image.height) / 2
+        val imageRight = imageLeft + image.width
+        val imageBottom = imageTop + image.height
+        val left = imageLeft + crop.left * image.width
+        val top = imageTop + crop.top * image.height
+        val right = imageLeft + crop.right * image.width
+        val bottom = imageTop + crop.bottom * image.height
+        val shade = Color.Black.copy(alpha = CROP_SHADE_ALPHA)
+        // Čtyři pruhy fotky kolem výřezu, ne „všechno a pak díra" — bez vrstvy s průhlednou výplní.
+        drawRect(shade, Offset(imageLeft, imageTop), Size(image.width, top - imageTop))
+        drawRect(shade, Offset(imageLeft, bottom), Size(image.width, imageBottom - bottom))
+        drawRect(shade, Offset(imageLeft, top), Size(left - imageLeft, bottom - top))
+        drawRect(shade, Offset(right, top), Size(imageRight - right, bottom - top))
+        drawRect(Color.White, Offset(left, top), Size(right - left, bottom - top), style = Stroke(width = 2.dp.toPx()))
+        val handle = 4.dp.toPx()
+        val arm = 20.dp.toPx()
+        listOf(left to top, right to top, left to bottom, right to bottom).forEach { (x, y) ->
+            val dx = if (x == left) arm else -arm
+            val dy = if (y == top) arm else -arm
+            drawLine(Color.White, Offset(x, y), Offset(x + dx, y), strokeWidth = handle)
+            drawLine(Color.White, Offset(x, y), Offset(x, y + dy), strokeWidth = handle)
+        }
+    }
 }
 
 /** Kulatý vzorek barvy pera; vybraný má bílý prstenec. */
@@ -327,3 +531,15 @@ private val PEN_COLOR_NAMES: List<StringResource> = listOf(
 )
 
 private const val DISABLED_ALPHA = 0.38f
+
+/** Výška řady nad nástroji (barvy pera, otočení) — drží se, i když je řada prázdná. */
+private val SWATCH_ROW_HEIGHT = 48.dp
+
+/** Okraj kolem fotky v editoru — místo, kde se chytají úchyty výřezu ležící na jejím okraji. */
+private val IMAGE_MARGIN = 24.dp
+
+/** Jak daleko od rohu výřezu se ještě chytí úchyt. */
+private val HANDLE_TOUCH_RADIUS = 32.dp
+
+/** Ztmavení fotky mimo výřez. */
+private const val CROP_SHADE_ALPHA = 0.6f

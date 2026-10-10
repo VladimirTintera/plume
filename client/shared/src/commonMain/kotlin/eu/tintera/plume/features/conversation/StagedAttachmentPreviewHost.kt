@@ -12,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import eu.tintera.plume.core.telegram.OutgoingAttachment
+import eu.tintera.plume.core.ui.PhotoMarkup
 
 /**
  * Připravená příloha přes celou obrazovku ([StagedAttachmentPreview]) a nad ní úprava fotky
@@ -84,14 +85,14 @@ internal fun StagedAttachmentPreviewHost(
         shown[0]?.let { photo ->
             val edit = state.photoEdits[photo.path]
             PhotoMarkupEditor(
-                // Kreslí se vždycky nad originálem: tahy z minulé úpravy jdou vzít zpátky.
+                // Upravuje se vždycky originál: cokoli z minulé úpravy jde vzít zpátky.
                 path = edit?.originalPath ?: photo.path,
-                width = photo.width,
-                height = photo.height,
-                initialStrokes = edit?.strokes.orEmpty(),
+                width = edit?.originalWidth ?: photo.width,
+                height = edit?.originalHeight ?: photo.height,
+                initial = edit?.markup ?: PhotoMarkup(),
                 onCancel = { markupPath = null },
-                onDone = { strokes ->
-                    viewModel.applyPhotoMarkup(photo.path, strokes)
+                onDone = { markup ->
+                    viewModel.applyPhotoMarkup(photo.path, markup)
                     markupPath = null
                 },
             )

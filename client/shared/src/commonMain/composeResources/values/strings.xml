@@ -692,6 +692,9 @@
     <string name="markup_highlighter">Highlighter</string>
     <string name="markup_redact">Black out</string>
     <string name="markup_undo">Undo</string>
+    <string name="markup_crop">Crop and rotate</string>
+    <string name="markup_rotate">Rotate</string>
+    <string name="markup_reset">Whole photo</string>
     <string name="markup_color_white">White</string>
     <string name="markup_color_black">Black</string>
     <string name="markup_failed">Couldn't save the photo edit.</string>

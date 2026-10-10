@@ -9,6 +9,9 @@ import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
 import platform.CoreGraphics.CGLineCap
 import platform.CoreGraphics.CGLineJoin
+import platform.CoreGraphics.CGContextRotateCTM
+import platform.CoreGraphics.CGContextTranslateCTM
+import kotlin.math.PI
 import platform.Foundation.writeToFile
 import platform.UIKit.UIBezierPath
 import platform.UIKit.UIColor
@@ -20,19 +23,35 @@ import platform.UIKit.UIImageJPEGRepresentation
 class IosPhotoMarkupRenderer : PhotoMarkupRenderer {
 
     @OptIn(ExperimentalForeignApi::class)
-    override suspend fun render(path: String, strokes: List<MarkupStroke>): MarkedPhoto = withContext(Dispatchers.Default) {
+    override suspend fun render(path: String, markup: PhotoMarkup): MarkedPhoto = withContext(Dispatchers.Default) {
         val image = UIImage.imageWithContentsOfFile(path) ?: error("Obrázek nejde dekódovat.")
         val (width, height) = image.size.useContents { width * image.scale to height * image.scale }
         val format = UIGraphicsImageRendererFormat.defaultFormat().apply {
             scale = 1.0
             opaque = true
         }
-        val renderer = UIGraphicsImageRenderer(size = CGSizeMake(width, height), format = format)
         val pixelWidth = width.toInt()
         val pixelHeight = height.toInt()
-        val marked = renderer.imageWithActions { _ ->
+        val turns = normalizedTurns(markup.quarterTurns)
+        val (rotatedWidth, rotatedHeight) = rotatedSize(pixelWidth, pixelHeight, turns)
+        val (resultWidth, resultHeight) = resultSize(pixelWidth, pixelHeight, markup)
+        val renderer = UIGraphicsImageRenderer(size = CGSizeMake(resultWidth.toDouble(), resultHeight.toDouble()), format = format)
+        val marked = renderer.imageWithActions { context ->
+            val cg = context?.CGContext
+            /*
+             * Kreslí se v souřadnicích ORIGINÁLU, otočení a ořez nese transformace kontextu:
+             * posun o výřez, pak otočení (v UIKitu s osou y dolů je kladný úhel po směru hodin)
+             * s posunem, který otočenou fotku vrátí do kladných souřadnic.
+             */
+            CGContextTranslateCTM(cg, -markup.crop.left * rotatedWidth.toDouble(), -markup.crop.top * rotatedHeight.toDouble())
+            when (turns) {
+                1 -> CGContextTranslateCTM(cg, rotatedWidth.toDouble(), 0.0)
+                2 -> CGContextTranslateCTM(cg, rotatedWidth.toDouble(), rotatedHeight.toDouble())
+                3 -> CGContextTranslateCTM(cg, 0.0, rotatedHeight.toDouble())
+            }
+            CGContextRotateCTM(cg, turns * PI / 2)
             image.drawInRect(CGRectMake(0.0, 0.0, width, height))
-            strokes.forEach { stroke ->
+            markup.strokes.forEach { stroke ->
                 val points = stroke.points
                 val x0 = points[0] * width
                 val y0 = points[1] * height
@@ -53,7 +72,7 @@ class IosPhotoMarkupRenderer : PhotoMarkupRenderer {
         val jpeg = UIImageJPEGRepresentation(marked, PHOTO_JPEG_QUALITY / 100.0) ?: error("JPEG nejde vytvořit.")
         val output = outgoingPath("photo.jpg")
         check(jpeg.writeToFile(output, atomically = true)) { "Fotku nejde uložit." }
-        MarkedPhoto(output, pixelWidth, pixelHeight)
+        MarkedPhoto(output, resultWidth, resultHeight)
     }
 }
 

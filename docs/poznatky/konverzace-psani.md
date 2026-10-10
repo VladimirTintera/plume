@@ -176,9 +176,10 @@ album. Bublina ukazuje průběh nahrávání.
 ## Úprava fotky před odesláním
 
 V náhledu připravené fotky (`StagedAttachmentPreview`) je tužka „Upravit fotku": editor
-(`PhotoMarkupEditor`) s perem v šesti barvách, žlutým zvýrazňovačem a začerněním. Tahy se do
-fotky vykreslí v plném rozlišení na platformě (`PhotoMarkupRenderer`: Android `Canvas`, iOS
-`UIBezierPath`), stejně jako ořez profilové fotky (`SquarePhoto`).
+(`PhotoMarkupEditor`) s perem v šesti barvách, žlutým zvýrazňovačem, začerněním a ořezem
+s otočením. Úprava (`PhotoMarkup`) se do fotky vykreslí v plném rozlišení na platformě
+(`PhotoMarkupRenderer`: Android `Canvas` a `Matrix`, iOS `UIBezierPath` a transformace
+kontextu), stejně jako ořez profilové fotky (`SquarePhoto`).
 
 - **Začernění, ne rozmazání.** Rozmazané číslo nebo text jde při troše snahy přečíst, plná černá
   ne. Je to výchozí nástroj — kvůli němu se editor otevírá nejčastěji.
@@ -190,8 +191,20 @@ fotky vykreslí v plném rozlišení na platformě (`PhotoMarkupRenderer`: Andro
   překrýval a ztmavoval. Ťuknutí je tečka velká jako šířka čáry (Android `drawPoint`, iOS úsečka
   nulové délky s kulatým koncem).
 - **Upravená fotka je NOVÝ soubor, originál zůstává** (`ConversationState.photoEdits`: současná
-  cesta → originál a tahy). Další úprava začíná z originálu s dosavadními tahy, takže jde vzít
-  zpátky i tah z minula; z vykreslené kopie by nešel. Editor bez tahů vrátí originál.
+  cesta → originál, úprava a jeho rozměry). Další úprava začíná z originálu s dosavadními tahy,
+  otočením i výřezem, takže jde vzít zpátky cokoli z minula; z vykreslené kopie by nešlo.
+  Prázdná úprava vrátí originál. Rozměry originálu se drží zvlášť — upravená příloha je má po
+  ořezu a otočení jiné.
+- **Tahy jsou v souřadnicích ORIGINÁLU, otočení a výřez se přes ně jen promítají** (čisté
+  funkce v `PhotoMarkupGeometry.kt`, testy `PhotoMarkupGeometryTest`). Při vykreslení platí pevné
+  pořadí tahy → otočení → ořez; tahy tak drží na obsahu fotky, ať se otočí nebo ořízne jakkoli,
+  a výřez jde kdykoli zvětšit zpátky. Dotyk se do originálu převádí obráceně (`resultToOriginal`).
+- **Při kreslení je vidět VÝSLEDEK** (otočený a oříznutý), při ořezu celá otočená fotka s rámečkem.
+  Kreslí se do toho, co odejde. Výřez se měří v otočené fotce, protože ji tak uživatel při ořezu
+  vidí; „Otočit" otočí s fotkou i výřez (`CropBox.rotated`), ať ukazuje na týž obsah.
+- **Rámeček výřezu má plochu přes celé okolí fotky**, ne jen přes ni. Úchyty leží na okraji fotky
+  a polovina jejich dotykové plochy byla venku: tah těsně vedle rohu se do rámečku vůbec nedostal
+  a výřez se nehnul (zjištěno na emulátoru stopou dotyku). Fotka má proto v editoru okraj 24 dp.
 - **Galerie zná fotku pod PŮVODNÍ cestou** (`galleryPath`). Vestavěná galerie si pamatuje, co
   z ní vzešlo, podle cesty v cache (viz „Vestavěná galerie (Android)"); s novou cestou by upravenou
   fotku při dalším otevření nenašla mezi vybranými a odznačení by nic neodebralo.
@@ -209,8 +222,11 @@ fotky vykreslí v plném rozlišení na platformě (`PhotoMarkupRenderer`: Andro
   není — `settings put system pointer_location 1` ukáže stopu dotyku přesně ve středu tahu.
 - **Ověřeno na emulátoru** (Fold, česky): začernění, zvýrazňovač a pero, „Hotovo" (náhled
   ukáže vykreslenou fotku), opětovná úprava z originálu se „Vzít zpět" tahu z minula, odeslání
-  Notifikátorovi (odešla upravená fotka), zpět bez uložení. **iOS jen přeložené**; obrazovka
-  „Komu: …" (sdílení do aplikace) úpravu zatím nenabízí.
+  Notifikátorovi (odešla upravená fotka), zpět bez uložení. Ořez: otočení (tahy se otočily
+  s fotkou), zmenšení výřezu tahem za roh, kreslení do otočeného a oříznutého výsledku, vykreslená
+  fotka shodná s editorem, při dalším otevření obnovené otočení i výřez. **iOS jen přeložené**
+  (transformace kontextu tam nikdo neviděl); obrazovka „Komu: …" (sdílení do aplikace) úpravu
+  zatím nenabízí.
 
 ## Přetažení z jiné aplikace (Android)
 

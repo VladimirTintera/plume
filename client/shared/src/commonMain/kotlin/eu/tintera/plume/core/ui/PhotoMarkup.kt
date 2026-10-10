@@ -67,13 +67,14 @@ fun MarkupTool.strokeWidth(width: Int, height: Int): Float = widthFraction * min
 data class MarkedPhoto(val path: String, val width: Int, val height: Int)
 
 /**
- * Vykreslí tahy do fotky v plném rozlišení a uloží NOVÝ soubor v cache vedle ostatních příloh.
- * Původní soubor zůstává: další úprava začíná z něj i s dosavadními tahy, takže jde vzít zpátky
- * i tah z minulé úpravy — z vykreslené kopie by už nešel.
+ * Vykreslí úpravu do fotky v plném rozlišení a uloží NOVÝ soubor v cache vedle ostatních příloh:
+ * tahy, pak otočení, pak ořez ([PhotoMarkup]). Původní soubor zůstává: další úprava začíná
+ * z něj i s dosavadními tahy, otočením a výřezem, takže jde vzít zpátky cokoli z minulé úpravy
+ * — z vykreslené kopie by už nešlo.
  *
  * Vstupem je fotka připravená výběrem příloh (JPEG, otočená podle EXIF, nejvýš 2560 px),
- * výstupem JPEG téže velikosti.
+ * výstupem JPEG velký jako výřez ([resultSize]).
  */
 interface PhotoMarkupRenderer {
-    suspend fun render(path: String, strokes: List<MarkupStroke>): MarkedPhoto
+    suspend fun render(path: String, markup: PhotoMarkup): MarkedPhoto
 }

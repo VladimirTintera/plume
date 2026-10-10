@@ -703,6 +703,9 @@
     <string name="markup_highlighter">Zvýrazňovač</string>
     <string name="markup_redact">Začernit</string>
     <string name="markup_undo">Vzít zpět</string>
+    <string name="markup_crop">Oříznout a otočit</string>
+    <string name="markup_rotate">Otočit</string>
+    <string name="markup_reset">Celá fotka</string>
     <string name="markup_color_white">Bílá</string>
     <string name="markup_color_black">Černá</string>
     <string name="markup_failed">Úpravu fotky se nepodařilo uložit.</string>

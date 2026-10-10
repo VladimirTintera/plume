@@ -2,7 +2,7 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import eu.tintera.plume.core.snooze.ChatSnoozes
-import eu.tintera.plume.core.ui.MarkupStroke
+import eu.tintera.plume.core.ui.PhotoMarkup
 import eu.tintera.plume.core.ui.PhotoMarkupRenderer
 import eu.tintera.plume.resources.markup_failed
 import okio.Path.Companion.toPath
@@ -1775,25 +1775,29 @@ class ConversationViewModel(
     val canMarkupPhotos: Boolean get() = photoMarkup != null
 
     /**
-     * Uloží úpravu fotky nad polem: tahy se vykreslí do NOVÉ kopie originálu a příloha dostane
-     * její cestu. Prázdné tahy vrátí originál. Fotka se hledá podle cesty, ne pořadí — mezitím
-     * mohla ubýt jiná příloha.
+     * Uloží úpravu fotky nad polem: tahy, otočení a ořez se vykreslí do NOVÉ kopie originálu
+     * a příloha dostane její cestu i rozměry. Prázdná úprava vrátí originál. Fotka se hledá
+     * podle cesty, ne pořadí — mezitím mohla ubýt jiná příloha.
      */
-    fun applyPhotoMarkup(path: String, strokes: List<MarkupStroke>) {
+    fun applyPhotoMarkup(path: String, markup: PhotoMarkup) {
         val renderer = photoMarkup ?: return
         val state = _state.value
+        val photo = state.attachments.firstOrNull { it.path == path } as? OutgoingAttachment.Photo ?: return
         val edit = state.photoEdits[path]
         val original = edit?.originalPath ?: path
-        if (strokes == edit?.strokes.orEmpty()) return
-        if (strokes.isEmpty()) {
-            replacePhoto(path, original, width = null, height = null, edit = null)
+        // Rozměry originálu: upravená příloha má po ořezu a otočení jiné.
+        val originalWidth = edit?.originalWidth ?: photo.width
+        val originalHeight = edit?.originalHeight ?: photo.height
+        if (markup == (edit?.markup ?: PhotoMarkup())) return
+        if (markup.isEmpty) {
+            replacePhoto(path, original, originalWidth, originalHeight, edit = null)
             return
         }
         _state.update { it.copy(markupBusy = true) }
         viewModelScope.launch {
-            runCatching { renderer.render(original, strokes) }
+            runCatching { renderer.render(original, markup) }
                 .onSuccess { marked ->
-                    replacePhoto(path, marked.path, marked.width, marked.height, PhotoEdit(original, strokes))
+                    replacePhoto(path, marked.path, marked.width, marked.height, PhotoEdit(original, markup, originalWidth, originalHeight))
                 }
                 .onFailure { failure ->
                     logger.w(failure) { "Úpravu fotky $original se nepodařilo vykreslit." }
@@ -1803,15 +1807,15 @@ class ConversationViewModel(
         }
     }
 
-    private fun replacePhoto(path: String, newPath: String, width: Int?, height: Int?, edit: PhotoEdit?) {
+    private fun replacePhoto(path: String, newPath: String, width: Int, height: Int, edit: PhotoEdit?) {
         _state.update { state ->
             state.copy(
                 attachments = state.attachments.map { attachment ->
                     if (attachment is OutgoingAttachment.Photo && attachment.path == path) {
                         attachment.copy(
                             path = newPath,
-                            width = width ?: attachment.width,
-                            height = height ?: attachment.height,
+                            width = width,
+                            height = height,
                         )
                     } else {
                         attachment
@@ -5928,8 +5932,13 @@ data class GiveawaySheet(
 /** Příběh, který se má otevřít v prohlížeči: kdo ho zveřejnil a jeho id. */
 data class StoryTarget(val posterChatId: Long, val storyId: Int)
 
-/** Upravená fotka: z jakého souboru vznikla a jakými tahy. */
-data class PhotoEdit(val originalPath: String, val strokes: List<MarkupStroke>)
+/** Upravená fotka: z jakého souboru vznikla, jakou úpravou, a jak velký ten soubor je. */
+data class PhotoEdit(
+    val originalPath: String,
+    val markup: PhotoMarkup,
+    val originalWidth: Int,
+    val originalHeight: Int,
+)
 
 /**
  * Cesta, pod kterou přílohu zná vestavěná galerie: u upravené fotky ta původní. Galerie si
