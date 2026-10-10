@@ -3,6 +3,11 @@ package eu.tintera.plume.core.widget
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.graphics.BitmapFactory
+import androidx.glance.ColorFilter
+import androidx.glance.Image
+import androidx.glance.ImageProvider
+import eu.tintera.plume.client.R
 import android.text.format.DateFormat
 import androidx.compose.runtime.remember
 import androidx.datastore.preferences.core.Preferences
@@ -151,18 +156,7 @@ private fun ChatRow(context: Context, chat: WidgetChat, time: String?) {
             .cornerRadius(16.dp)
             .clickable(openChat(context, chat.id)),
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = GlanceModifier
-                .size(40.dp)
-                .cornerRadius(20.dp)
-                .background(GlanceTheme.colors.primaryContainer),
-        ) {
-            Text(
-                text = initial(chat.title),
-                style = TextStyle(color = GlanceTheme.colors.onPrimaryContainer, fontSize = 16.sp, fontWeight = FontWeight.Medium),
-            )
-        }
+        ChatAvatar(chat)
         Spacer(GlanceModifier.width(12.dp))
         Column(modifier = GlanceModifier.defaultWeight()) {
             // Řádek přes celou šířku, jinak se jméno nevyplní a čas se na něj nalepí.
@@ -197,6 +191,43 @@ private fun ChatRow(context: Context, chat: WidgetChat, time: String?) {
         if (unread) {
             Spacer(GlanceModifier.width(8.dp))
             UnreadBadge(chat.unread, quiet = chat.muted)
+        }
+    }
+}
+
+/**
+ * Fotka chatu (miniatura už oříznutá do kruhu, viz `WidgetAvatars`), u Uložených zpráv záložka,
+ * jinak iniciála. Miniatura je pár kB, dekódování v kompozici widgetu nic nestojí.
+ */
+@Composable
+private fun ChatAvatar(chat: WidgetChat) {
+    val bitmap = remember(chat.avatar) { chat.avatar?.let { runCatching { BitmapFactory.decodeFile(it) }.getOrNull() } }
+    val modifier = GlanceModifier.size(AVATAR_SIZE).cornerRadius(AVATAR_SIZE / 2)
+    when {
+        chat.savedMessages -> Box(
+            contentAlignment = Alignment.Center,
+            modifier = modifier.background(GlanceTheme.colors.primary),
+        ) {
+            Image(
+                provider = ImageProvider(R.drawable.ic_widget_saved_messages),
+                contentDescription = null,
+                colorFilter = ColorFilter.tint(GlanceTheme.colors.onPrimary),
+                modifier = GlanceModifier.size(20.dp),
+            )
+        }
+        bitmap != null -> Image(
+            provider = ImageProvider(bitmap),
+            contentDescription = null,
+            modifier = modifier,
+        )
+        else -> Box(
+            contentAlignment = Alignment.Center,
+            modifier = modifier.background(GlanceTheme.colors.primaryContainer),
+        ) {
+            Text(
+                text = initial(chat.title),
+                style = TextStyle(color = GlanceTheme.colors.onPrimaryContainer, fontSize = 16.sp, fontWeight = FontWeight.Medium),
+            )
         }
     }
 }
@@ -271,3 +302,5 @@ private fun openApp(context: Context): Action {
 }
 
 private const val MAX_BADGE = 999
+
+private val AVATAR_SIZE = 40.dp

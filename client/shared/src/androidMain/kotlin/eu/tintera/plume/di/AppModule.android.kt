@@ -114,6 +114,7 @@ actual fun Module.platformModule() {
         ChatsWidgetUpdater(
             context = androidContext(),
             chats = get(),
+            files = get(),
             authStage = get<TelegramSession>().authStage,
             lockSettings = get<AppLock>().settings,
             scope = get(named(APP_SCOPE)),

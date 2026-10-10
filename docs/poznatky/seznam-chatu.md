@@ -864,8 +864,20 @@ nabídky widgetů launcheru.
   formátuje systém (`DateFormat.getBestDateTimePattern`), počítá se v kompozici.
 - **Intent řádku nese chatId i v datech** (`plume-widget://chat/<id>`), jinak by se intenty řádků
   podle `filterEquals` slily a všechny by otevřely týž chat.
-- **Fotky chatů zatím ne** — dvanáct dekódování bitmapy při každém překreslení; místo nich
-  iniciála na `primaryContainer`. Barvy z `GlanceTheme` (na Androidu 12+ z tapety).
+- **Fotky chatů jsou kulaté miniatury připravené při zápisu podkladů** (`WidgetAvatars`,
+  `filesDir/widget/avatars/<fileId>.png`, 128 px). Launcher widget překresluje často a dvanáct
+  dekódování plné fotky by ho brzdilo; Glance navíc obrázek do kruhu oříznout neumí, takže je
+  ořez hotový v souboru. Fotku stáhne TDLib, pokud ještě není (je malá), čeká se na ni nejvýš
+  5 s — widget s iniciálou je lepší než widget, který se neobnoví. Jméno podle `fileId`: nová
+  fotka chatu má nové id, stará miniatura se nepoužije omylem; nepoužívané se po zápisu smažou.
+  Chat bez fotky má iniciálu na `primaryContainer`. Barvy z `GlanceTheme` (Android 12+ z tapety).
+- **Uložené zprávy se záložkou a svým jménem**, ne fotkou a jménem účtu — jako v seznamu chatů.
+  Objeví se jen připnuté (`widgetChats`); na zařízení to ověřené není (testovací účet je
+  nepřipíná a připnutí by se propsalo na všechna zařízení).
+- **Náhled ve výběru widgetů** (`previewLayout`, Android 12+): kostra se záhlavím a řádky bez
+  skutečných chatů, barvy ze systémové palety (světlá i tmavá varianta). Náhled vidí kdokoli
+  u telefonu, nic z účtu do něj nepatří. Jen prvky povolené v RemoteViews — holý `View` mezi
+  nimi není, bloky jsou `FrameLayout` s pozadím.
 - **Ověřeno na emulátoru** (Fold, česky): přidání z Nastavení přes dialog launcheru, widget
   s chaty a odznaky (ztlumený šedě), zpráva od testovacího bota posunula Notifikátor nahoru
   s počtem 2 během pár vteřin, ťuknutí otevřelo chat, se zapnutým zámkem zmizely náhledy a po
