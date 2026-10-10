@@ -1252,6 +1252,11 @@
     <string name="settings_notif_state_enabled">Upozornění zapnutá</string>
     <string name="settings_notif_state_custom">Vlastní nastavení</string>
     <string name="settings_notif_reset">Obnovit</string>
+    <string name="quiet_hours_title">Tiché hodiny</string>
+    <string name="quiet_hours_switch">Ztišit upozornění</string>
+    <string name="quiet_hours_summary">Zvoní jen zmínky a odpovědi, ostatní notifikace přijdou potichu</string>
+    <string name="quiet_hours_from">Od</string>
+    <string name="quiet_hours_until">Do</string>
     <string name="settings_notif_other">Ostatní</string>
     <string name="settings_notif_contact_joined">Kontakt se připojil k Telegramu</string>
     <string name="settings_notif_mentions_sound_summary">Zvuk zmínek a odpovědí v nastavení systému</string>

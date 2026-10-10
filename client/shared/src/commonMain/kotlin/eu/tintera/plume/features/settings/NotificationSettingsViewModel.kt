@@ -3,6 +3,8 @@ package eu.tintera.plume.features.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.notifications.NotificationPermission
+import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.settings.QuietHours
 import eu.tintera.plume.core.telegram.NotificationChannelKind
 import eu.tintera.plume.core.telegram.NotificationException
 import eu.tintera.plume.core.telegram.NotificationScope
@@ -37,11 +39,26 @@ data class NotificationSettingsState(
 class NotificationSettingsViewModel(
     private val repository: NotificationSettingsRepository,
     private val permission: NotificationPermission,
+    private val settings: AppSettings,
 ) : ViewModel() {
 
     private val local = MutableStateFlow(NotificationSettingsState(permissionGranted = permission.isGranted()))
 
     val supportsChannelSettings: Boolean = permission.supportsChannelSettings
+
+    val supportsQuietHours: Boolean = permission.supportsQuietHours
+
+    /**
+     * Tiché hodiny. Zápis běží v rozsahu [AppSettings], ne ve `viewModelScope` — volba těsně před
+     * odchodem z obrazovky se tak neztratí (viz [AppearanceViewModel]).
+     */
+    val quietHours: StateFlow<QuietHours> = settings.quietHours
+
+    fun setQuietHoursEnabled(enabled: Boolean) = settings.setQuietHours(quietHours.value.copy(enabled = enabled))
+
+    fun setQuietHoursStart(minuteOfDay: Int) = settings.setQuietHours(quietHours.value.copy(start = minuteOfDay))
+
+    fun setQuietHoursEnd(minuteOfDay: Int) = settings.setQuietHours(quietHours.value.copy(end = minuteOfDay))
 
     /** Rozsahy jsou živé (změna z jiného zařízení se tu ukáže), zbytek se čte při otevření. */
     val state: StateFlow<NotificationSettingsState> = combine(

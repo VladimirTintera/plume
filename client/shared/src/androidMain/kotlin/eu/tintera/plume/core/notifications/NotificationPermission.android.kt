@@ -32,6 +32,9 @@ actual class NotificationPermission(private val context: Context) {
 
     actual val supportsChannelSettings: Boolean = true
 
+    /** Notifikace kreslí aplikace sama (`NotificationPresenter`), takže je umí ztišit. */
+    actual val supportsQuietHours: Boolean = true
+
     actual fun openChannelSettings(channel: NotificationChannelKind) {
         val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
             .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)

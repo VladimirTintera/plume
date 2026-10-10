@@ -333,6 +333,16 @@ class DataStoreAppSettingsTest {
     }
 
     @Test
+    fun ticheHodinySeUlozi() = settingsTest { settings, _ ->
+        assertEquals(QuietHours(), settings.quietHours.value)
+        val mine = QuietHours(enabled = true, start = 23 * 60 + 30, end = 6 * 60)
+        settings.setQuietHours(mine)
+        assertEquals(mine, settings.quietHours.awaitValue("uložené tiché hodiny") { it == mine })
+        settings.setQuietHours(QuietHours())
+        assertEquals(QuietHours(), settings.quietHours.awaitValue("výchozí") { it == QuietHours() })
+    }
+
+    @Test
     fun velikostPismaZpravJeVychozi16() = settingsTest { settings, _ ->
         assertEquals(DEFAULT_MESSAGE_TEXT_SIZE, settings.messageTextSize.value)
     }

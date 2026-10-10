@@ -151,6 +151,12 @@ interface AppSettings {
     /** Zapíše [autoDownloadSync]. Na rozdíl od ostatních zápisů čeká, až je zapsáno. */
     suspend fun setAutoDownloadSync(state: SettingsSync)
 
+    /** Tiché hodiny notifikací (Nastavení → Notifikace). Jen v zařízení, nesynchronizují se. */
+    val quietHours: StateFlow<QuietHours>
+
+    /** Uloží tiché hodiny; výchozí hodnoty se neukládají. Neblokuje. */
+    fun setQuietHours(quietHours: QuietHours)
+
     /**
      * Experimentální funkce s jazykovým modelem v zařízení (shrnutí konverzace, viz `core/ai`).
      *
@@ -515,6 +521,29 @@ class DataStoreAppSettings(
         }
     }
 
+    override val quietHours: StateFlow<QuietHours> = value(QuietHours()) { preferences ->
+        val default = QuietHours()
+        // Čas mimo den (poškozený nebo cizí zápis) spadne na výchozí, jinak by úsek nedával smysl.
+        fun minute(key: Preferences.Key<Int>, fallback: Int) =
+            preferences[key]?.takeIf { it in 0 until MINUTES_PER_DAY } ?: fallback
+        QuietHours(
+            enabled = preferences[QUIET_HOURS_ENABLED] ?: default.enabled,
+            start = minute(QUIET_HOURS_START, default.start),
+            end = minute(QUIET_HOURS_END, default.end),
+        )
+    }
+
+    override fun setQuietHours(quietHours: QuietHours) {
+        val default = QuietHours()
+        scope.launch {
+            edit { preferences ->
+                if (quietHours.enabled == default.enabled) preferences.remove(QUIET_HOURS_ENABLED) else preferences[QUIET_HOURS_ENABLED] = quietHours.enabled
+                if (quietHours.start == default.start) preferences.remove(QUIET_HOURS_START) else preferences[QUIET_HOURS_START] = quietHours.start
+                if (quietHours.end == default.end) preferences.remove(QUIET_HOURS_END) else preferences[QUIET_HOURS_END] = quietHours.end
+            }
+        }
+    }
+
     override val onDeviceAiEnabled: StateFlow<Boolean> = value(false) { preferences ->
         preferences[ON_DEVICE_AI_ENABLED] ?: false
     }
@@ -761,6 +790,9 @@ class DataStoreAppSettings(
         val AUTO_DOWNLOAD_MOBILE = stringPreferencesKey("auto_download_mobile")
         val AUTO_DOWNLOAD_ROAMING = stringPreferencesKey("auto_download_roaming")
         val AUTO_DOWNLOAD_SYNC = stringPreferencesKey("auto_download_sync")
+        val QUIET_HOURS_ENABLED = booleanPreferencesKey("quiet_hours_enabled")
+        val QUIET_HOURS_START = intPreferencesKey("quiet_hours_start")
+        val QUIET_HOURS_END = intPreferencesKey("quiet_hours_end")
         val ON_DEVICE_AI_ENABLED = booleanPreferencesKey("on_device_ai_enabled")
         val REPLY_SUGGESTIONS_ENABLED = booleanPreferencesKey("reply_suggestions_enabled")
         val ON_DEVICE_AI_PREVIEW = booleanPreferencesKey("on_device_ai_preview")
