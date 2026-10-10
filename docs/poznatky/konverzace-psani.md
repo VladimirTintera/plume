@@ -173,6 +173,33 @@ album. Bublina ukazuje průběh nahrávání.
   soubor z foťáku, kde index bývá na konci, takže `supportsStreaming = false`. Soubor
   z `loadFileRepresentation` platí jen uvnitř callbacku — kopíruje se hned v něm.
 
+## Přetažení z jiné aplikace (Android)
+
+Na Foldu nebo tabletu v rozdělené obrazovce jde obrázek, GIF i soubor přetáhnout z jiné aplikace
+rovnou na vstupní pole (`KeyboardContentReceiver`, `Modifier.dragAndDropTarget`). Obrázek a GIF
+jdou stejnou přípravou jako vložení ze schránky (`prepare` → nad polem jako fotka z výběru, GIF
+odchází hned), jiný soubor jako příloha (`KeyboardContent.File` → `addAttachments`). Pole nad
+sebou drží přetahovaný obsah tónem `primary` (ne rámečkem, který by měnil rozměr).
+
+- **Oprávnění ke čtení cizích URI dá systém až na vyžádání** (`requestDragAndDropPermissions`)
+  a jen do `release()` — to proto čeká, až se zkopírují všechny přetažené položky.
+- **Přijímá se podle práv chatu**: obrázky `photos`, GIFy `stickers`, soubory `documents`, při
+  úpravě zprávy nic (jako vložení ze schránky).
+- **Přetažený TEXT si pole bere samo** — proto se nepřijímají typy, které nese text
+  (`text/plain`, `text/html`, `text/uri-list`, intent). Celou rodinu `text/…` vyřadit nejde:
+  soubory `.xml` a `.csv` jsou `text/xml` a `text/csv` a po prvním pokusu se kvůli tomu
+  nepřijaly.
+- **Typ položky se bere z `contentResolver.getType`**, ne jen z popisu klipu — víc položek může
+  mít různé typy. Víc položek naráz (víc fotek) přibude nad polem všechny.
+- **Jen Android.** Na iOS by to chtělo `UIDropInteraction` nad polem; zatím nic.
+- **Ověření na emulátoru (Fold rozložený):** rozdělená obrazovka jde přes přehled aplikací
+  (`input keyevent 187`, ikona dlaždice → Split screen → druhá aplikace); `am start
+  --windowingMode 6` ani příznak `FLAG_ACTIVITY_LAUNCH_ADJACENT` ji nevyrobily. V aplikaci
+  Soubory se táhne až VYBRANÁ položka (první podržení jen vybere), pak `adb shell input
+  draganddrop <x1> <y1> <x2> <y2> 3000`. Že drop dorazil, ukáže logcat `Reporting drop result:
+  true`. Ověřeno: PNG (nad polem jako fotka s popiskem) i `u.xml` (příloha souboru). Displej
+  rozloženého Foldu má id `4619827259835644672` (`screencap -d`).
+
 ## Práva psát
 
 Kde se do chatu psát nesmí, není vstupní pole (`WriteAccess`, pravidlo `writeAccess`

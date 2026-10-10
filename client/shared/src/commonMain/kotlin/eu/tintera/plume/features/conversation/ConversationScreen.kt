@@ -2021,6 +2021,7 @@ fun ConversationScreen(
                         // GIF odchází hned, jako samolepka; obrázek čeká nad polem jako z výběru.
                         is KeyboardContent.Animation -> viewModel.sendAnimation(received.animation)
                         is KeyboardContent.Image -> viewModel.addAttachments(listOf(received.photo))
+                        is KeyboardContent.File -> viewModel.addAttachments(listOf(received.document))
                     }
                 },
                 onKeyboardContentFailed = viewModel::reportError,
@@ -3588,6 +3589,7 @@ private fun MessageInput(
             KeyboardContentReceiver(
                 acceptAnimations = editing == null && content.stickers,
                 acceptImages = editing == null && content.photos,
+                acceptFiles = editing == null && content.documents,
                 onContent = onKeyboardContent,
                 onError = onKeyboardContentFailed,
             ) {

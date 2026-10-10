@@ -514,14 +514,18 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
 - **Bubliny konverzací (Android 11+).** Notifikace už jsou konverzace se zkratkami
   (`conversationShortcut`), takže zbývá `setBubbleMetadata` a aktivita, která v bublině ukáže
   jednu konverzaci. Pozor na `singleTask` u `MainActivity` — bublina chce vlastní aktivitu
-  s `resizeableActivity` a `allowEmbedded`, jinak by se otevřela celá aplikace.
+  s `resizeableActivity` a `allowEmbedded`, jinak by se otevřela celá aplikace. **Pozor na
+  rozsah:** `ConversationScreen` má přes dvacet napojení na shell (média, profil, přeposílání,
+  mini aplikace, odkazy…) a navigační singletony (`ChatOpenRequests`, `KeyboardShortcuts`) jsou
+  na proces — bublina s vlastní kopií `App()` by si s hlavní aktivitou přebírala požadavky.
+  Napřed rozmyslet, co se z bubliny otevírá v ní a co v hlavní aktivitě.
 - **Widget na plochu** s nepřečtenými nebo připnutými chaty (Glance). Data z TDLib v procesu
   aplikace; widget musí umět ukázat poslední známý stav, když proces neběží.
 - **Fold a klávesnice.** ~~Klávesové zkratky (Ctrl+K hledání, Alt+↑/↓ mezi chaty, Esc zavře
   konverzaci nebo hledání)~~ a ~~Enter odesílá~~ — hotovo (`docs/poznatky/navigace.md`, „Klávesové
-  zkratky"; na iOS jen Enter). Zbývá přetažení obrázku či souboru z jiné aplikace v rozdělené
-  obrazovce rovnou nad vstupní pole (`dragAndDropTarget`), stejnou cestou jako příloha ze
-  schránky. ~~Seznam zkratek v systémovém přehledu (Meta+/)~~ — hotovo.
+  zkratky"; na iOS jen Enter). ~~Přetažení obrázku či souboru z jiné aplikace na vstupní pole~~
+  — hotovo na Androidu (`docs/poznatky/konverzace-psani.md`, „Přetažení z jiné aplikace");
+  zbývá iOS (`UIDropInteraction`). ~~Seznam zkratek v systémovém přehledu (Meta+/)~~ — hotovo.
 - ~~**Přehled rozepsaných konceptů**~~ — hotovo (menu účtu → Koncepty;
   `docs/poznatky/seznam-chatu.md`, „Přehled konceptů"). ~~Smazání konceptu přímo z přehledu~~ —
   hotovo (koš a „Vrátit"). ~~Koncepty v tématech fóra~~ — hotovo. Zbývá: koncepty ve vláknech
