@@ -411,12 +411,16 @@
     <string name="conversation_send_schedule">Naplánovat zprávu…</string>
     <string name="conversation_send_when_online">Odeslat, až bude online</string>
     <string name="conversation_send_effect">Odeslat s efektem…</string>
-    <string name="conversation_send_rewrite">Přepsat…</string>
+    <string name="conversation_send_rewrite">Zkontrolovat a přepsat…</string>
     <string name="rewrite_title">Přepsat zprávu</string>
     <string name="rewrite_shorter">Kratší</string>
     <string name="rewrite_polite">Zdvořileji</string>
     <string name="rewrite_fix">Opravit překlepy</string>
     <string name="rewrite_pick">Vyber, jak zprávu přepsat.</string>
+    <string name="tone_checking">Zjišťuji, jak zpráva vyzní…</string>
+    <string name="tone_fine">Zpráva zní v pořádku.</string>
+    <string name="tone_irritated">Může vyznít podrážděně.</string>
+    <string name="tone_rude">Může vyznít příkře.</string>
     <string name="rewrite_unchanged">Model zprávu nechal beze změny.</string>
     <string name="rewrite_use">Použít</string>
     <string name="rewrite_failed">Zprávu se nepodařilo přepsat.</string>

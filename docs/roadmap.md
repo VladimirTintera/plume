@@ -407,7 +407,9 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
   česky a anglicky), ~~a když nenajdou nic, model v zařízení~~ (Gemma i Gemini Nano, ověřeno
   s Gemmou na emulátoru). A notifikace připomínky říká „Uložené zprávy: <já>",
   ne „Připomínka" — TDLib ji od jiné zprávy v Uložených neodliší (přeposlaná vlastní zpráva).
-- **Kontrola tónu před odesláním** („nezní to podrážděně?"). Klasifikace vlastního konceptu,
+- ~~**Kontrola tónu před odesláním**~~ — hotovo v sheetu „Zkontrolovat a přepsat…"
+  (`docs/poznatky/ai-v-zarizeni.md`, „Kontrola tónu"); pasivní agrese vědomě ne. Původní zadání:
+  („nezní to podrážděně?"). Klasifikace vlastního konceptu,
   nic se nepřepisuje a varování jde přejít. Stejná opatrnost jako u podvodných zpráv: radši
   mlčet než varovat zbytečně. Spouštět jen na vyžádání nebo u delších zpráv, ne na každý úhoz.
 - **„Co jsem zmeškal".** Po otevření aplikace přehled nepřečtených chatů seřazený podle toho,

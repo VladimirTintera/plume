@@ -232,6 +232,26 @@ Pro tuhle oblast podstatné: **engine se zvukem je jiný engine** (`EngineConfig
 `withEngine(audio = true)` ho načte a pak slouží všemu; bez zvuku se kvůli přepisu přenačte.
 Na emulátoru (CPU) 7,5 s řeči za 11 s i s načtením.
 
+### Kontrola tónu
+
+Sheet „Zkontrolovat a přepsat…" (viz „Přepis před odesláním") se po otevření sám zeptá, jak
+koncept vyzní (`DraftRewriteViewModel.checkTone`, prompt `TonePrompt.kt`): „Zpráva zní
+v pořádku", nebo chybovou barvou „Může vyznít podrážděně / příkře". Nic se nepřepisuje —
+přepis „Zdvořileji" je hned pod tím, na ťuknutí.
+
+- **Spouští se na vyžádání** (otevřením sheetu), ne na každý úhoz ani před odesláním: roadmapa
+  chtěla kontrolu, která neotravuje. Menu proto zní „Zkontrolovat a přepsat…", ne „Přepsat…".
+- **Pasivní agrese vědomě NENÍ.** Gemma 4 E2B jí označila věcné „Pošli mi to do pátku, jinak to
+  nestihnu" i s výčtem toho, co je v pořádku; bez té kategorie stejná zpráva vyšla `FINE`
+  a podrážděná („Už potřetí ti píšu, kde jsou ty peníze?!") dál `IRRITATED`. Nejjemnější tón
+  malý model nerozezná a zbytečné varování je horší než žádné.
+- **Nejistota = mlčet**: `UNSURE`, víc štítků naráz nebo chyba modelu řádek vůbec neukáže
+  (`ToneState.Unknown`).
+- **Přepis kontrolu ruší**, dokud běží — dva dotazy na model by se jen předbíhaly.
+- **Ověřeno na emulátoru** (Gemma E2B, CPU, ~10 s): podrážděný koncept → „Může vyznít
+  podrážděně", „V kolik se zítra sejdeme?" i věcná prosba s termínem → „v pořádku".
+  Koncepty psané bez diakritiky (adb neumí psát háčky). **Gemini Nano neověřené.**
+
 ### Vysvětlení dlouhé zprávy
 
 „Vysvětlit" v nabídce nad DLOUHOU PŘÍCHOZÍ zprávou (od `EXPLAIN_MIN_CHARS` = 280 znaků,
@@ -259,7 +279,7 @@ viz `konverzace-akce.md`, „Shrnutí od serveru") je to cesta bez Premium a bez
 
 ### Přepis před odesláním
 
-Podržení odesílacího tlačítka → „Přepsat…" otevře sheet (`DraftRewriteSheet`, prompt
+Podržení odesílacího tlačítka → „Zkontrolovat a přepsat…" (dřív „Přepsat…") otevře sheet (`DraftRewriteSheet`, prompt
 `RewritePrompt.kt`): původní text, volba Kratší / Zdvořileji / Opravit překlepy, výsledek
 a „Použít". Nic se neodesílá a pole se nemění, dokud uživatel neťukne „Použít" — tím se tahle
 funkce liší od návrhů odpovědí: sloh drhne, ale chybu uživatel VIDÍ dřív, než ji podepíše.
