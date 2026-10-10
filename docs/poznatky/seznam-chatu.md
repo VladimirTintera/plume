@@ -501,8 +501,26 @@ všemi známými chaty (`all` v `TdlChatRepository`), ne nad jednou složkou.
   „všechno odesláno" a zavírá se, aby nezůstal slepou uličkou. Ověřeno přeinstalací s otevřeným
   sheetem.
 - **Jen chaty, které TDLib zná.** Koncept v chatu, který se v relaci ještě nenačetl (hluboko
-  v archivu), v přehledu není, dokud ho seznam nedotáhne. Koncepty v tématech fóra a vlákna
-  komentářů tu nejsou — `Chat.draftMessage` nese jen koncept celého chatu.
+  v archivu), v přehledu není, dokud ho seznam nedotáhne. Koncepty ve vláknech komentářů tu
+  nejsou — TDLib je nehlásí žádným updatem, který by šel sbírat.
+- **Koncepty v tématech skupin jsou v přehledu taky** (`TopicDrafts`, `TdlTopicDrafts`), pod
+  názvem skupiny s řádkem „# Téma" a ťuknutí otevře přímo téma (pod ním seznam témat, jako
+  u nalezené zprávy). `Chat.draftMessage` nese jen koncept celého chatu; koncept tématu je
+  v `ForumTopic.draftMessage` a mění ho `UpdateForumTopic` — **jen u témat, která TDLib zná**.
+  - Proto se skupina s tématy jednou za přihlášení projde (`getForumTopics`, prvních 100 témat
+    podle aktivity) a pak už stav drží updaty. Koncept hlouběji než stovka témat chybí, dokud
+    se nezmění.
+  - **Název tématu pro téma, které přišlo jen updatem, se dočte `getForumTopic` — jen když ho
+    neznáme.** `getForumTopic` po odpovědi pošle `UpdateForumTopic` i beze změny a čtení
+    s updatem by se honily dokola (stejná past jako v `TdlForumRepository.topicChanges`).
+  - Třída je eager (`createdAtStart`): koncept psaný na jiném zařízení chodí updatem i bez
+    otevřeného přehledu. Po odhlášení se stav i seznam prošlých skupin zahodí.
+  - Klíč položky přehledu je chat i téma (`DraftItem.key`) — jeden chat může mít koncept
+    v celém chatu i ve víc tématech.
+  - Počet v menu účtu zahrnuje i témata.
+  - Ověřeno na emulátoru (Fold) v testovací skupině: koncept v tématu General v přehledu
+    („# General"), počet v menu, ťuknutí otevře téma s konceptem v poli a zpět vede na
+    seznam témat, smazání a „Vrátit".
 - **Ověřeno na emulátoru**: koncept v Uložených se objevil nahoře, ťuknutí otevřelo konverzaci
   s textem v poli, po smazání textu počet v menu živě klesl.
 - **Mazání z přehledu: koš u konceptu, bez potvrzení, se snackbarem „Vrátit"** — jako archivace.

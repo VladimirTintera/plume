@@ -54,6 +54,9 @@ interface ChatRepository {
      */
     suspend fun deleteDraft(chatId: Long): Result<DraftRestore?> = Result.failure(UnsupportedOperationException())
 
+    /** Známé skupiny s tématy — pro koncepty v tématech ([TopicDrafts]), které se hledají po skupinách. */
+    val forumChats: Flow<List<ChatSummary>> get() = flowOf(emptyList())
+
     /**
      * Id chatu Uložené zprávy; `null`, dokud není přihlášeno.
      *

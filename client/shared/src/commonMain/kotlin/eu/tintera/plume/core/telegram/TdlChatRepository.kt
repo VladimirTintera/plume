@@ -224,6 +224,10 @@ class TdlChatRepository(
         }
         .distinctUntilChanged()
 
+    override val forumChats: Flow<List<ChatSummary>> = all
+        .map { chats -> chats.values.filter { it.isForum } }
+        .distinctUntilChanged()
+
     override suspend fun deleteDraft(chatId: Long): Result<DraftRestore?> {
         // Koncept se čte z TDLib, ne z [all]: tam je jen text a entity, a vrácení má obnovit
         // i odpověď a náhled odkazu. Datum se při vrácení přepíše na teď (ověřeno na emulátoru),
