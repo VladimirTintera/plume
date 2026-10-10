@@ -71,6 +71,8 @@ import eu.tintera.plume.resources.settings_on_device_ai_preview
 import eu.tintera.plume.resources.settings_on_device_ai_preview_same
 import eu.tintera.plume.resources.settings_reply_suggestions
 import eu.tintera.plume.resources.settings_reply_suggestions_summary
+import eu.tintera.plume.resources.settings_scam_warnings
+import eu.tintera.plume.resources.settings_scam_warnings_summary
 import eu.tintera.plume.resources.settings_on_device_ai_preview_summary
 import eu.tintera.plume.resources.settings_on_device_ai_token_limit
 import eu.tintera.plume.resources.settings_on_device_ai_ready
@@ -178,6 +180,10 @@ class OnDeviceAiSettingsViewModel(
     val replySuggestions: StateFlow<Boolean> = settings.replySuggestionsEnabled
 
     fun setReplySuggestions(on: Boolean) = settings.setReplySuggestionsEnabled(on)
+
+    val scamWarnings: StateFlow<Boolean> = settings.scamWarningsEnabled
+
+    fun setScamWarnings(on: Boolean) = settings.setScamWarningsEnabled(on)
 
     fun setPreview(on: Boolean) = settings.setOnDeviceAiVariant(variant.value.copy(preview = on))
 
@@ -328,6 +334,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
     val variant by viewModel.variant.collectAsStateWithLifecycle()
     val previewIsStable by viewModel.previewIsStable.collectAsStateWithLifecycle()
     val replySuggestions by viewModel.replySuggestions.collectAsStateWithLifecycle()
+    val scamWarnings by viewModel.scamWarnings.collectAsStateWithLifecycle()
     val availability by viewModel.availability.collectAsStateWithLifecycle()
 
     /*
@@ -370,6 +377,17 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                 onChange = { on ->
                     haptics.toggle(on)
                     viewModel.setReplySuggestions(on)
+                },
+            )
+            // Varování před podvodem má vlastní vypínač ze stejného důvodu: model posuzuje
+            // příchozí zprávy sám, bez ťuknutí.
+            VariantSwitch(
+                title = Res.string.settings_scam_warnings,
+                summary = Res.string.settings_scam_warnings_summary,
+                checked = scamWarnings,
+                onChange = { on ->
+                    haptics.toggle(on)
+                    viewModel.setScamWarnings(on)
                 },
             )
             /*

@@ -364,7 +364,9 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
   parser právě proto, že model nedrží formát odrážek. **A každá featura z té silné kategorie
   na tom stojí** — datum, štítek i skóre chceme jako typ, ne jako větu. Zlepší tedy i to, co už
   máme, takže má smysl začít tady.
-- **Detekce podvodných zpráv.** „Naskenuj tenhle QR a ověř si účet", falešná výhra, odkaz na
+- ~~**Detekce podvodných zpráv.**~~ — hotovo: karta „Možný podvod" pod zprávou, předfiltr
+  pravidly a posouzení modelem (`docs/poznatky/ai-v-zarizeni.md`, „Varování před podvodem").
+  Původní zadání: „Naskenuj tenhle QR a ověř si účet", falešná výhra, odkaz na
   přihlášení. Nenápadné varování u zprávy. Je to klasifikace, tedy silná stránka, a **děje se to
   celé v telefonu** — obsah zprávy nikam neodchází, což je u téhle featury podstatné. Navazuje
   na pravidlo, které projekt už má (odkaz `tg://login` se z ťuknutí neotevírá, viz `docs/poznatky/prihlaseni.md`,

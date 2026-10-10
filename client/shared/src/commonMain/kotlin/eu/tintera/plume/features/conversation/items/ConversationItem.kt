@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ai.ScamKind
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import androidx.compose.foundation.combinedClickable
 import eu.tintera.plume.core.ui.ExpressiveMenu
@@ -106,6 +107,16 @@ internal interface ConversationItemScope {
 
     /** Přepis záznamu z modelu v telefonu (`LocalTranscripts`); server ho nese ve zprávě. */
     fun localTranscript(messageId: Long): SpeechTranscript? = null
+
+    /**
+     * Varování před podvodem u zprávy (`ScamWarnings`), nebo `null`. Skládací, protože tok čte
+     * až položka — `ConversationScreen` je v dexu na hraně a další `collectAsState` mu nepřidáme.
+     */
+    @Composable
+    fun scamWarning(messageId: Long): ScamKind? = null
+
+    /** Uživatel varování před podvodem skryl. */
+    fun dismissScamWarning(messageId: Long) {}
 
     fun documentProgress(fileId: Int): Float?
 

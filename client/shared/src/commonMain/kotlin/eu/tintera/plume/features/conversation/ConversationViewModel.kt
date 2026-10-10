@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.ScamKind
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.mapLatest
@@ -382,6 +383,8 @@ class ConversationViewModel(
     /** Přepis řeči v telefonu, když ho server nedá (bez Premium). */
     private val onDeviceAi: OnDeviceAi? = null,
     private val localTranscripts: LocalTranscripts? = null,
+    /** Varování u zpráv, které vypadají jako podvod (model v zařízení). */
+    private val scamWarnings: ScamWarnings? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -486,6 +489,17 @@ class ConversationViewModel(
 
     private val _state = MutableStateFlow(ConversationState(threadRootId = threadRootId, forumTopicId = forumTopicId, savedTopicId = savedTopicId))
     val state: StateFlow<ConversationState> = _state.asStateFlow()
+
+    /**
+     * Zprávy tohohle chatu, u kterých se varuje před podvodem, podle id. Samostatný tok, ne
+     * součást [ConversationState]: přibývá zřídka, nezávisle na zprávách, a čte se až v položce,
+     * ne v `ConversationScreen` (ten je v dexu na hraně).
+     */
+    val scamVerdicts: StateFlow<Map<Long, ScamKind>> = (
+        scamWarnings?.verdicts?.combine(settings.scamWarningsEnabled) { all, on ->
+            if (on) all.filterKeys { it.first == chatId }.mapKeys { it.key.second } else emptyMap()
+        } ?: flowOf(emptyMap())
+        ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     /**
      * Pruh nad konverzací (spam od neznámého, nasdílení čísla, žádost o vstup). Samostatný tok
@@ -661,6 +675,19 @@ class ConversationViewModel(
     }
 
     init {
+        // Posouzení podvodu: nejnovější příchozí zprávy, jak se načítají a přicházejí. Starší
+        // historie ne — model by se pustil do všeho, co uživatel proscrolluje, a varování u
+        // zprávy z loňska nikomu nepomůže.
+        scamWarnings?.let { warnings ->
+            viewModelScope.launch {
+                _state.map { it.info to it.messages.take(SCAM_RECENT_MESSAGES) }
+                    .distinctUntilChanged()
+                    .collect { (info, recent) ->
+                        if (info != null && scamCheckApplies(info)) recent.forEach { warnings.check(chatId, it) }
+                    }
+            }
+        }
+
         // Delší kolečko Telegram nepřijme: po minutě nahrávání skončí a kolečko odejde samo,
         // jako v oficiálních klientech. Pozastavené (nabídka, výběr času) se nepočítá.
         viewModelScope.launch {
@@ -3692,6 +3719,11 @@ class ConversationViewModel(
         }
     }
 
+    /** Uživatel skryl varování před podvodem u zprávy. */
+    fun dismissScamWarning(messageId: Long) {
+        scamWarnings?.dismiss(chatId, messageId)
+    }
+
     fun dismissTranslation() {
         _state.update { it.copy(translation = null) }
     }
@@ -5352,6 +5384,9 @@ private const val MAX_UNREAD_PAGES = 5
  * a stránku k novějším. Stejná jako výchozí `limit` v `ConversationRepository.history`.
  */
 private const val PAGE_SIZE = 30
+
+/** Kolik nejnovějších zpráv se posuzuje kvůli podvodu (viz [ScamWarnings]). */
+private const val SCAM_RECENT_MESSAGES = 20
 
 /** Kolik stránek nejvýš dotáhne [ConversationViewModel.loadForSummary]. */
 private const val MAX_SUMMARY_PAGES = 4
