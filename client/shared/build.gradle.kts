@@ -276,6 +276,8 @@ kotlin {
             implementation(libs.play.app.update)
             // Čtečka QR kódů pro přihlášení jiného zařízení — viz core/ui/QrScanner.
             implementation(libs.play.code.scanner)
+            // Text z fotky v prohlížeči médií — viz core/ocr.
+            implementation(libs.play.text.recognition)
             // Gemini Nano v zařízení. Jediné místo v projektu, kde smí být ML Kit GenAI — viz core/ai.
             implementation(libs.mlkit.genai.prompt)
             // Gemma v zařízení (LiteRT-LM). Taky jen v core/ai.

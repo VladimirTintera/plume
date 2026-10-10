@@ -232,6 +232,13 @@
     <string name="media_save">Save to gallery</string>
     <string name="media_saved">Saved to gallery</string>
     <string name="media_save_failed">Couldn't save to gallery</string>
+    <string name="media_text">Text in photo</string>
+    <string name="media_text_hide">Hide text</string>
+    <string name="media_text_title">Text from photo</string>
+    <string name="media_text_copy">Copy all</string>
+    <string name="media_text_copied">Text copied</string>
+    <string name="media_text_none">No text found in the photo</string>
+    <string name="media_text_failed">Couldn't recognize text. Try again in a moment.</string>
     <string name="media_save_denied">Plume isn't allowed to save to the gallery</string>
     <string name="media_share">Share</string>
     <string name="media_more">More options</string>

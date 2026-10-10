@@ -871,6 +871,42 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
     ztlumení ne. Přehrávání samo emulátor nepustil (`queueInputBuffer error: 14` u všech videí,
     viz „GIFy") — **že video opravdu hraje rychleji a potichu, ověřené NENÍ**.
 
+### Text z fotky
+
+⋮ → „Text z fotky" rozpozná text v otevřené fotce, celé v telefonu: ML Kit z Play služeb na
+Androidu, Vision na iOS (`core/ocr`, `TextRecognizer`). Bloky se zvýrazní přímo na snímku
+(`PhotoTextHighlights`) a na místě pruhu reakcí vyjede panel s textem (`PhotoTextPanel`) — úsek
+jde vybrat, „Kopírovat vše" zkopíruje celý.
+
+- **Knihovna jen v `core/ocr`**, zbytek aplikace vidí `RecognizedText` — jako u `core/ai`.
+- **ML Kit z Play služeb (`play-services-mlkit-text-recognition`), ne přibalený model.** Přibalený
+  (`com.google.mlkit:text-recognition`) by APK zvětšil o ~4 MB na ABI. Model si Play služby
+  stáhnou hned po instalaci, protože to manifest aplikace žádá (meta-data
+  `com.google.mlkit.vision.DEPENDENCIES` = `ocr`); dokud stahování neskončí, rozpoznání selže
+  a uživatel dostane „zkus to za chvíli" (`null` z `recognize`), ne „na fotce není text".
+- **Latinka stačí na češtinu** — ověřeno na emulátoru: „Káva s mlékem 89 Kč", „Děkujeme za
+  návštěvu!" i s háčky a čárkami.
+- **Rozpoznává se OSTRÁ verze** (`fullFileId`), stažená tímtéž `prepare` jako uložení; po dobu
+  stahování a rozpoznání točí ⋮ (`MediaTask.Text`). Ve zmenšenině z bubliny drobné písmo
+  nepřečte ani model. Obrázek se dekóduje zmenšený na 2048 bodů — víc rozpoznání nepomůže.
+- **Souřadnice bloků jsou podíly rozměrů obrázku** (0–1, počátek vlevo nahoře). Zvýraznění leží
+  UVNITŘ karty se snímkem, která má poměr stran fotky, takže se s ní přibližuje a posouvá bez
+  přepočtu. Vision má počátek VLEVO DOLE — převrací se při převodu.
+- **Výřezy do závoje kreslí `BlendMode.Clear` a ten potřebuje `CompositingStrategy.Offscreen`**,
+  jinak by vymazal i fotku pod závojem.
+- **Pořadí čtení si dělá aplikace** (`readingRows`, testy `RecognizedTextTest`): Vision vrací
+  řádky v pořadí, jak je najde. Bloky na jednom řádku spojí mezera, řádky zalomení — napoprvé
+  byl mezi každým blokem prázdný řádek a z účtenky „Káva s mlékem / 89 Kč" vyšly dva odstavce.
+- **Panel, ne modální sheet**: sheet by fotku zakryl závojem a zvýraznění, podle kterého
+  uživatel pozná, co se přečetlo, by nebylo vidět.
+- **Jen když jde fotku uložit** (`canSave`): v chatu se zakázaným ukládáním by text z fotky
+  obešel tutéž ochranu. Video ani mizející médium položku nemají.
+- **Odlistování text zahodí** (`onPageChanged`): zvýraznění patří fotce, a po návratu by
+  překvapilo.
+- **Ověřeno na emulátoru Fold** (Android 17, Play služby): fotka od testovacího bota, zvýraznění,
+  panel, kopírování (snackbar i systémový náhled schránky), zavření křížkem, odlistování.
+  **iOS jen přeložené; release s R8 neověřený** (ML Kit nese vlastní keep pravidla).
+
 ## Spoilery a mizející média
 
 Dva různé mechanismy TDLib. **Spoiler** (`hasSpoiler`) je jen rozmazání, fotka v historii zůstává

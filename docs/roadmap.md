@@ -416,10 +416,10 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
   rozpoznávání přes `SpeechRecognizer` (balíčky češtiny a angličtiny) nebo kompaktní Whisper
   (TFLite / Sherpa-ONNX), na iOS `SFSpeechRecognizer` s `requiresOnDeviceRecognition = true`.
   Zpracování proběhne v zařízení a výsledek se uloží do lokální cache zprávy.
-- **Extrakce textu z fotek (OCR / Live Text).** V celoobrazovkovém prohlížeči médií (`MediaScreen`)
-  tlačítko pro rozpoznání textu z obrázku (snímky obrazovky, účtenky, hesla, kód z tabule).
-  Android: Google ML Kit Text Recognition; iOS: Apple Vision (`VNRecognizeTextRequest`). Umožní
-  označit bloky textu přímo na snímku nebo jedním ťuknutím zkopírovat veškerý text do schránky.
+- ~~**Extrakce textu z fotek (OCR / Live Text).**~~ — hotovo (⋮ → „Text z fotky" v prohlížeči:
+  zvýraznění bloků na snímku, panel s výběrem a „Kopírovat vše"; `docs/poznatky/prohlizec-medii.md`,
+  „Text z fotky"). Zbývá: iOS (Vision) ověřit na simulátoru, release build s R8 a ťuknutí na
+  jednotlivý blok (zkopírovat jen ten).
 
 ---
 
