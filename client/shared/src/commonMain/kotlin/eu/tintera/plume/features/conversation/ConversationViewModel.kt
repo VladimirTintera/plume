@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
+import eu.tintera.plume.core.snooze.ChatSnoozes
 import okio.Path.Companion.toPath
 import okio.FileSystem
 import eu.tintera.plume.core.audio.RecordedVoice
@@ -347,6 +348,8 @@ class ConversationViewModel(
     private val bookmarks: MessageBookmarks? = null,
     /** Skok na zprávu ze záložky v profilu; bez něj se nečeká. */
     private val jumpRequests: ConversationJumpRequests? = null,
+    /** Odložené chaty: otevřený chat z bloku připomínek v seznamu zmizí. */
+    snoozes: ChatSnoozes? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -666,6 +669,10 @@ class ConversationViewModel(
                 }
             }
         }
+
+        // Vynořený odložený chat splnil účel, ať se otevřel odkudkoli (seznam, notifikace,
+        // hledání). Chat, který ještě spí, zůstává odložený.
+        snoozes?.opened(chatId)
 
         // Záložka z profilu: profil se zavře a konverzace skočí na zprávu.
         viewModelScope.launch {

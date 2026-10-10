@@ -525,9 +525,9 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
   `docs/poznatky/seznam-chatu.md`, „Přehled konceptů"). ~~Smazání konceptu přímo z přehledu~~ —
   hotovo (koš a „Vrátit"). ~~Koncepty v tématech fóra~~ — hotovo. Zbývá: koncepty ve vláknech
   komentářů (TDLib je nehlásí updatem, musely by se hledat jinak).
-- **Lokální odložení chatu (Snooze).** Možnost odložit chat (z nabídky nad chatem nebo volbou
-  tahu) na 1 hodinu, dnes večer nebo zítra ráno. Chat se dočasně vizuálně ztiší a v nastavený
-  čas se znovu vynoří na vrcholu seznamu chatů jako připomínka.
+- ~~**Lokální odložení chatu (Snooze)**~~ — hotovo z nabídky nad chatem (`docs/poznatky/seznam-chatu.md`,
+  „Odložení chatu"). Zbývá: odložení tahem (volba v Nastavení → Chaty), notifikace v čase
+  vynoření (dnes se chat vynoří jen v seznamu) a iOS ověřit.
 - ~~**Čistič odkazů od sledování (Privacy URL Stripper).**~~ — hotovo (automatické odstraňování
   sledovacích a analytických parametrů `utm_*`, `fbclid`, `gclid`, YouTube/Spotify `si`, TikTok, Twitter/X
   při odesílání, úpravě zprávy i otevírání odkazů, volitelný přepínač v Nastavení → Soukromí a bezpečnost;

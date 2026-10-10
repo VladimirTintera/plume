@@ -10,6 +10,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.snooze.ChatSnoozeState
+import eu.tintera.plume.core.snooze.ChatSnoozes
+import eu.tintera.plume.core.snooze.SnoozeOption
+import eu.tintera.plume.core.snooze.snoozeUntil
+import kotlin.time.Clock
+import kotlinx.datetime.TimeZone
 import eu.tintera.plume.core.settings.ChatSwipeActions
 import eu.tintera.plume.core.telegram.ArchiveSettings
 import eu.tintera.plume.core.telegram.ArchiveUnread
@@ -71,6 +77,8 @@ class ChatsViewModel(
     private val folderRepository: ChatFolderRepository? = null,
     /** Koncepty v tématech skupin do přehledu konceptů; bez nich jen koncepty chatů. */
     private val topicDrafts: TopicDrafts? = null,
+    /** Odložení chatů; bez něj se „Odložit" nenabízí. */
+    private val snoozes: ChatSnoozes? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -399,6 +407,32 @@ class ChatsViewModel(
      * seznam ho tedy má v prvním snímku a neproblikne z výchozí hodnoty na uloženou.
      */
     val separateUnreadChats: StateFlow<Boolean> = settings.separateUnreadChats
+
+    /** Odložené chaty: kdo spí a do kdy, kdo se už vynořil (viz [ChatSnoozes]). */
+    val snoozeState: StateFlow<ChatSnoozeState> =
+        snoozes?.state?.stateIn(viewModelScope, SharingStarted.Eagerly, ChatSnoozeState())
+            ?: MutableStateFlow(ChatSnoozeState())
+
+    /** Nabízí se „Odložit"? */
+    val canSnooze: Boolean get() = snoozes != null
+
+    /** Odloží chat na [option] a zavře nabídku. */
+    fun snooze(chat: ChatSummary, option: SnoozeOption) {
+        val snoozes = snoozes ?: return
+        snoozes.snooze(chat.id, snoozeUntil(option, Clock.System.now(), TimeZone.currentSystemDefault()))
+        hideActions()
+    }
+
+    /** Zruší odložení a zavře nabídku. */
+    fun unsnooze(chat: ChatSummary) {
+        snoozes?.clear(chat.id)
+        hideActions()
+    }
+
+    /** Chat otevřený ze seznamu: vynořená připomínka splnila účel. */
+    fun opened(chatId: Long) {
+        snoozes?.opened(chatId)
+    }
 
     /** Co dělá tah chatem doprava a doleva (Nastavení → Obecné → Chaty). */
     val swipeActions: StateFlow<ChatSwipeActions> = settings.chatSwipeActions

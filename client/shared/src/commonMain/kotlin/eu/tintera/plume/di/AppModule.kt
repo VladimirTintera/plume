@@ -2,6 +2,7 @@ package eu.tintera.plume.di
 
 import eu.tintera.plume.features.conversation.ConversationJumpRequests
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
+import eu.tintera.plume.core.snooze.ChatSnoozes
 import eu.tintera.plume.features.forward.ShareContactViewModel
 import eu.tintera.plume.features.profile.AddMembersViewModel
 import eu.tintera.plume.features.forward.BotShareViewModel
@@ -305,6 +306,7 @@ fun appModule() = module {
     single { ConversationSearchRequests() }
     single { ConversationJumpRequests() }
     single { MessageBookmarks(settings = get(), chats = get()) }
+    single { ChatSnoozes(settings = get(), chats = get()) }
     single { ConversationReplyRequests() }
     single { InlineQueryRequests() }
     single { RevealedSpoilers() }
@@ -364,6 +366,7 @@ fun appModule() = module {
             savedState = get(),
             folderRepository = get(),
             topicDrafts = get(),
+            snoozes = get(),
         )
     }
     viewModelOf(::StickerPickerViewModel)
@@ -469,6 +472,7 @@ fun appModule() = module {
             quickReaction = get(),
             bookmarks = get(),
             jumpRequests = get(),
+            snoozes = get(),
         )
     }
 

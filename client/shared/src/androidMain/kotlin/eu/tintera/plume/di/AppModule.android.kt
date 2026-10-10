@@ -103,6 +103,7 @@ actual fun Module.platformModule() {
             // života obrazovky.
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
             settings = get(),
+            snoozes = get(),
         )
     }
 }

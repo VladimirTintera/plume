@@ -99,6 +99,15 @@
     <string name="chats_action_unpin">Odepnout</string>
     <string name="chats_action_mute">Ztlumit</string>
     <string name="chats_action_unmute">Zrušit ztlumení</string>
+    <string name="chats_action_snooze">Odložit</string>
+    <string name="chats_action_unsnooze">Zrušit odložení</string>
+    <string name="chats_snooze_in_hour">Za hodinu</string>
+    <string name="chats_snooze_tonight">Dnes večer</string>
+    <string name="chats_snooze_morning">Ráno</string>
+    <string name="chats_snooze_tomorrow_morning">Zítra ráno</string>
+    <string name="chats_snoozed">Odloženo</string>
+    <string name="chats_snoozed_until">Odloženo do %1$s</string>
+    <string name="chats_snooze_reminder">Připomenutí odloženého chatu</string>
     <string name="chats_action_mark_read">Označit jako přečtené</string>
     <string name="chats_action_mark_unread">Označit jako nepřečtené</string>
     <string name="chats_action_delete">Smazat chat</string>

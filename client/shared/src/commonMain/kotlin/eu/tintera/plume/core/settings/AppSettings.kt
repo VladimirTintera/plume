@@ -2,6 +2,7 @@ package eu.tintera.plume.core.settings
 
 import kotlinx.serialization.json.Json
 import eu.tintera.plume.core.bookmarks.MessageBookmark
+import eu.tintera.plume.core.snooze.ChatSnooze
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.GemmaModel
 import eu.tintera.plume.core.ai.ModelVariant
@@ -158,6 +159,12 @@ interface AppSettings {
 
     /** Uloží záložky. Neblokuje. */
     fun setMessageBookmarks(bookmarks: List<MessageBookmark>)
+
+    /** Odložené chaty všech účtů; filtruje a spravuje je [eu.tintera.plume.core.snooze.ChatSnoozes]. */
+    val chatSnoozes: StateFlow<List<ChatSnooze>>
+
+    /** Uloží odložené chaty. Neblokuje. */
+    fun setChatSnoozes(snoozes: List<ChatSnooze>)
 
     /** Tiché hodiny notifikací (Nastavení → Notifikace). Jen v zařízení, nesynchronizují se. */
     val quietHours: StateFlow<QuietHours>
@@ -532,14 +539,28 @@ class DataStoreAppSettings(
     override val messageBookmarks: StateFlow<List<MessageBookmark>> = value(emptyList()) { preferences ->
         // Poškozený nebo cizí zápis nesmí shodit aplikaci; záložky se pak prostě nenačtou.
         preferences[MESSAGE_BOOKMARKS]?.let { stored ->
-            runCatching { bookmarksJson.decodeFromString<List<MessageBookmark>>(stored) }.getOrNull()
+            runCatching { storedListJson.decodeFromString<List<MessageBookmark>>(stored) }.getOrNull()
         }.orEmpty()
     }
 
     override fun setMessageBookmarks(bookmarks: List<MessageBookmark>) {
         scope.launch {
             edit { preferences ->
-                if (bookmarks.isEmpty()) preferences.remove(MESSAGE_BOOKMARKS) else preferences[MESSAGE_BOOKMARKS] = bookmarksJson.encodeToString(bookmarks)
+                if (bookmarks.isEmpty()) preferences.remove(MESSAGE_BOOKMARKS) else preferences[MESSAGE_BOOKMARKS] = storedListJson.encodeToString(bookmarks)
+            }
+        }
+    }
+
+    override val chatSnoozes: StateFlow<List<ChatSnooze>> = value(emptyList()) { preferences ->
+        preferences[CHAT_SNOOZES]?.let { stored ->
+            runCatching { storedListJson.decodeFromString<List<ChatSnooze>>(stored) }.getOrNull()
+        }.orEmpty()
+    }
+
+    override fun setChatSnoozes(snoozes: List<ChatSnooze>) {
+        scope.launch {
+            edit { preferences ->
+                if (snoozes.isEmpty()) preferences.remove(CHAT_SNOOZES) else preferences[CHAT_SNOOZES] = storedListJson.encodeToString(snoozes)
             }
         }
     }
@@ -815,6 +836,7 @@ class DataStoreAppSettings(
         val AUTO_DOWNLOAD_SYNC = stringPreferencesKey("auto_download_sync")
         val QUIET_HOURS_ENABLED = booleanPreferencesKey("quiet_hours_enabled")
         val MESSAGE_BOOKMARKS = stringPreferencesKey("message_bookmarks")
+        val CHAT_SNOOZES = stringPreferencesKey("chat_snoozes")
         val QUIET_HOURS_START = intPreferencesKey("quiet_hours_start")
         val QUIET_HOURS_END = intPreferencesKey("quiet_hours_end")
         val ON_DEVICE_AI_ENABLED = booleanPreferencesKey("on_device_ai_enabled")
@@ -856,5 +878,5 @@ fun createSettingsDataStore(path: String): DataStore<Preferences> =
 /** Název souboru nastavení; adresář dodává platforma (`settingsFilePath`). */
 const val SETTINGS_FILE_NAME = "app_settings.preferences_pb"
 
-/** Záložky jako JSON; neznámá pole z novější verze se přeskočí. */
-private val bookmarksJson = Json { ignoreUnknownKeys = true }
+/** Seznamy uložené jako JSON (záložky, odložené chaty); neznámá pole z novější verze se přeskočí. */
+private val storedListJson = Json { ignoreUnknownKeys = true }

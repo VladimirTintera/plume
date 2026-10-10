@@ -23,6 +23,7 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.NotificationIntents
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.snooze.ChatSnoozes
 import eu.tintera.plume.core.notifications.channelId
 import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.notification_call_decline
@@ -68,6 +69,8 @@ actual class NotificationPresenter(
     private val context: Context,
     private val scope: CoroutineScope,
     private val settings: AppSettings,
+    /** Odložené chaty: dokud spí, přijdou jejich notifikace potichu. */
+    private val snoozes: ChatSnoozes? = null,
     private val now: () -> Instant = { Clock.System.now() },
 ) {
 
@@ -181,7 +184,9 @@ actual class NotificationPresenter(
             // Potichu, když nic nového nepřibylo, nebo přibylo jen to, co TDLib právě nahradil.
             val onlyReplacements = added.all { line -> consumeRemoved(groupId, line.messageId) }
             // V tichých hodinách upozorní jen zmínky a odpovědi; zbytek přijde na lištu potichu.
-            val quiet = settings.quietHours.value.silences(conversation.channel, minuteOfDay())
+            // Odložený chat se do konce odložení neozývá — potichu, ne vůbec, z téhož důvodu.
+            val quiet = settings.quietHours.value.silences(conversation.channel, minuteOfDay()) ||
+                snoozes?.isSleeping(conversation.chatId) == true
             show(groupId, conversation, silent = newest.isSilent || onlyReplacements || quiet)
         }
     }

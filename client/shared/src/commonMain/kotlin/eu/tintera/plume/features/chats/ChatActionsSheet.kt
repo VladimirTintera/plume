@@ -87,6 +87,22 @@ import eu.tintera.plume.resources.mark_chat_unread_24dp
 import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.push_pin_filled_24dp
 import org.jetbrains.compose.resources.painterResource
+import androidx.compose.runtime.remember
+import eu.tintera.plume.core.snooze.SnoozeOption
+import eu.tintera.plume.core.snooze.snoozeOptions
+import eu.tintera.plume.core.snooze.snoozeUntil
+import eu.tintera.plume.core.ui.asUpcomingTime
+import eu.tintera.plume.core.ui.tabularNumbers
+import eu.tintera.plume.resources.chats_action_snooze
+import eu.tintera.plume.resources.chats_action_unsnooze
+import eu.tintera.plume.resources.chats_snooze_in_hour
+import eu.tintera.plume.resources.chats_snooze_morning
+import eu.tintera.plume.resources.chats_snooze_tomorrow_morning
+import eu.tintera.plume.resources.chats_snooze_tonight
+import eu.tintera.plume.resources.snooze_24dp
+import kotlin.time.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -111,6 +127,11 @@ fun ChatActionsSheet(
     /** Ztlumení na dobu; `null` = navždy. */
     onMute: (Duration?) -> Unit,
     onUnmute: () -> Unit,
+    /** Konec odložení (ms od epochy), když chat právě spí; jinak `null`. */
+    snoozedUntil: Long?,
+    /** Odložení na dobu; `null` = nenabízet. */
+    onSnooze: ((SnoozeOption) -> Unit)?,
+    onUnsnooze: () -> Unit,
     onToggleUnread: () -> Unit,
     /** `null` = chat archivovat nejde (Uložené zprávy), položka se nenabídne. */
     onToggleArchived: (() -> Unit)?,
@@ -260,6 +281,19 @@ fun ChatActionsSheet(
                     }
                 }
 
+                // Hned pod ztlumením: obojí chat ztiší, odložení navíc jen na čas a s připomínkou.
+                if (snoozedUntil != null) {
+                    SheetActionRow(
+                        icon = Res.drawable.snooze_24dp,
+                        label = stringResource(Res.string.chats_action_unsnooze),
+                        shape = RoundedCornerShape(4.dp),
+                        onClick = onUnsnooze,
+                        trailing = { SnoozeTime(snoozedUntil) },
+                    )
+                } else if (onSnooze != null) {
+                    SnoozeChoices(onSnooze)
+                }
+
                 SheetActionRow(
                     icon = Res.drawable.mark_chat_unread_24dp,
                     label = stringResource(if (chat.hasUnread) Res.string.chats_action_mark_read else Res.string.chats_action_mark_unread),
@@ -377,6 +411,74 @@ private val MUTE_OPTIONS: List<Pair<StringResource, Duration?>> = listOf(
     Res.string.profile_notif_mute_2d to 2.days,
     Res.string.profile_notif_mute_forever to null,
 )
+
+/**
+ * „Odložit" se rozbalí na místě na doby, jako ztlumení. U každé je vidět, KDY se chat vrátí:
+ * „Dnes večer" ve dvě odpoledne i v pět znamená totéž, ale „Za hodinu" záleží na tom, kolik je.
+ * Nabídka se počítá při rozbalení, v místním čase.
+ */
+@Composable
+private fun SnoozeChoices(onSnooze: (SnoozeOption) -> Unit) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "snooze-expand",
+    )
+    SheetActionRow(
+        icon = Res.drawable.snooze_24dp,
+        label = stringResource(Res.string.chats_action_snooze),
+        shape = RoundedCornerShape(4.dp),
+        onClick = { expanded = !expanded },
+        trailing = {
+            Icon(
+                painterResource(Res.drawable.expand_more_24dp),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = rotation },
+            )
+        },
+    )
+    AnimatedVisibility(
+        visible = expanded,
+        enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+            fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
+            fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+    ) {
+        val zone = TimeZone.currentSystemDefault()
+        val now = remember(expanded) { Clock.System.now() }
+        val options = remember(now) { snoozeOptions(now.toLocalDateTime(zone)) }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            options.forEach { option ->
+                SheetActionRow(
+                    icon = null,
+                    label = stringResource(option.label()),
+                    shape = RoundedCornerShape(4.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    onClick = { onSnooze(option) },
+                    trailing = { SnoozeTime(snoozeUntil(option, now, zone).toEpochMilliseconds()) },
+                )
+            }
+        }
+    }
+}
+
+/** Kdy se odložený chat vrátí: dnes jen hodina, zítra slovem. */
+@Composable
+private fun SnoozeTime(untilMs: Long) {
+    Text(
+        text = (untilMs / 1000).asUpcomingTime(),
+        style = MaterialTheme.typography.labelLarge.tabularNumbers(),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+private fun SnoozeOption.label(): StringResource = when (this) {
+    SnoozeOption.InHour -> Res.string.chats_snooze_in_hour
+    SnoozeOption.Tonight -> Res.string.chats_snooze_tonight
+    SnoozeOption.Morning -> Res.string.chats_snooze_morning
+    SnoozeOption.TomorrowMorning -> Res.string.chats_snooze_tomorrow_morning
+}
 
 /** Složka v nabídce nad chatem: název a jestli v ní chat je. */
 data class FolderChoice(val id: Int, val title: String, val member: Boolean)
