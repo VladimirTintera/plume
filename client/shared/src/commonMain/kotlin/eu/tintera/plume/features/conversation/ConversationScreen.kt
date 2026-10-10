@@ -2769,8 +2769,10 @@ fun ConversationScreen(
                 )
             }
 
-            state.remindRequest?.let { messageId ->
+            state.remindRequest?.let { request ->
+                val messageId = request.messageId
                 RemindSheet(
+                    suggested = request.suggestedAt,
                     onRemind = { at ->
                         haptics.confirm()
                         viewModel.remind(messageId, at)

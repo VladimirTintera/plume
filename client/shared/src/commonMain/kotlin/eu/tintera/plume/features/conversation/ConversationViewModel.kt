@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.conversation
 
+import kotlin.time.Instant
+import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.TimeZone
 import eu.tintera.plume.resources.translation_device_download_failed
 import eu.tintera.plume.resources.translation_device_same
 import eu.tintera.plume.resources.translation_device_unsupported
@@ -3915,7 +3919,7 @@ class ConversationViewModel(
             MessageMenuAction.ToggleFavoriteSticker -> toggleFavoriteSticker(messageId)
             MessageMenuAction.ToggleBookmark -> toggleBookmark(messageId)
             MessageMenuAction.Forward -> requestForward(messageId)
-            MessageMenuAction.Remind -> _state.update { it.copy(messageMenu = null, remindRequest = messageId) }
+            MessageMenuAction.Remind -> requestRemind(messageId)
             MessageMenuAction.Info -> showMessageInfo(messageId)
             MessageMenuAction.Translate -> showTranslation(messageId)
             MessageMenuAction.Summarize -> showSummary(messageId)
@@ -4306,6 +4310,22 @@ class ConversationViewModel(
      */
     private fun requestForward(messageId: Long) {
         _state.update { it.copy(messageMenu = null, forwardRequest = it.albumMemberIds(messageId)) }
+    }
+
+    /**
+     * Sheet připomínky; termín ze zprávy ([reminderTimeFromText]) jde nahoru jako první volba.
+     * Počítá se od odeslání zprávy a nabízí se, jen když ještě nebyl (a je aspoň za minutu,
+     * jako u plánování).
+     */
+    private fun requestRemind(messageId: Long) {
+        val message = _state.value.messages.firstOrNull { it.id == messageId }
+        val zone = TimeZone.currentSystemDefault()
+        val now = Clock.System.now().epochSeconds
+        val suggested = message?.let {
+            val sentAt = Instant.fromEpochSeconds(it.timestamp.toLong()).toLocalDateTime(zone)
+            reminderTimeFromText(it.text, sentAt)?.toInstant(zone)?.epochSeconds
+        }?.takeIf { scheduleValid(it, now) }
+        _state.update { it.copy(messageMenu = null, remindRequest = RemindRequest(messageId, suggested)) }
     }
 
     fun closeRemind() {
@@ -5332,6 +5352,9 @@ data class MessageInfoSheet(
     val info: MessageInfo? = null,
 )
 
+/** Připomínka zprávy [messageId]; [suggestedAt] = termín ze zprávy (sekundy od epochy), `null` = žádný. */
+data class RemindRequest(val messageId: Long, val suggestedAt: Long?)
+
 /**
  * Otevřený překlad zprávy do jazyka [languageCode]. [body] je `null`, dokud překlad nedorazí;
  * [failed] = server ho nevydal.
@@ -5657,7 +5680,7 @@ data class ConversationState(
     /** Zprávy, které uživatel chce přeposlat; obrazovka na to otevře výběr cílového chatu. */
     val forwardRequest: List<Long>? = null,
     /** Zpráva, ke které se vybírá čas připomínky (`RemindSheet`); `null` = nic. */
-    val remindRequest: Long? = null,
+    val remindRequest: RemindRequest? = null,
     /** Režim výběru víc zpráv; `null` = vypnutý (běžná konverzace). */
     val selection: MessageSelection? = null,
     /** Přílohy vybrané k odeslání, čekající nad vstupním polem na popisek a odeslání. */
