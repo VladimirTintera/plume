@@ -606,8 +606,6 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
   jde bez otevřené mini aplikace i u bota bez ní. Zbývá založit bota v BotFatheru (uživatel),
   podívat se do oficiálního klienta, jestli se bot nikde neukáže, a postavit to.
   Podrobnosti v `docs/poznatky/nastaveni.md`, „Synchronizace nastavení mezi zařízeními".
-- **Tiché hodiny** (Android): v nastaveném čase jen zmínky a odpovědi. Notifikace kreslí
-  aplikace sama, takže to jde bez serveru — ale jen lokálně, ostatní zařízení o tom nevědí.
 - **Diskrétní čtení a psaní (Ghost Mode).** V Nastavení → Soukromí volba pro potlačení
   automatického odesílání potvrzení o přečtení (`viewMessages`) a indikátoru „Píše..."
   (`sendChatAction`). Zprávy se označí jako přečtené až při odeslání vlastní odpovědi v chatu

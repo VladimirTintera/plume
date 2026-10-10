@@ -1222,6 +1222,10 @@
     <string name="settings_notif_state_enabled">Notifications on</string>
     <string name="settings_notif_state_custom">Custom settings</string>
     <string name="settings_notif_reset">Reset</string>
+    <string name="quiet_hours_title">Quiet hours</string>
+    <string name="quiet_hours_summary">Only mentions and replies make a sound, other notifications arrive silently</string>
+    <string name="quiet_hours_from">From</string>
+    <string name="quiet_hours_until">Until</string>
     <string name="settings_notif_other">Other</string>
     <string name="settings_notif_contact_joined">Contact joined Telegram</string>
     <string name="settings_notif_mentions_sound_summary">Sound for mentions and replies, in system settings</string>

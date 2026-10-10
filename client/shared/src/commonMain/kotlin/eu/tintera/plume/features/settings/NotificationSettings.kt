@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,9 @@ import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +36,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.core.settings.QuietHours
 import eu.tintera.plume.core.telegram.ExceptionState
 import eu.tintera.plume.core.telegram.NotificationChannelKind
 import eu.tintera.plume.core.telegram.NotificationException
@@ -41,11 +46,13 @@ import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.resolve
+import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notification_channel_channels
 import eu.tintera.plume.resources.notification_channel_groups
 import eu.tintera.plume.resources.notification_channel_private
+import eu.tintera.plume.resources.bedtime_24dp
 import eu.tintera.plume.resources.notifications_24dp
 import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.open_in_new_24dp
@@ -71,6 +78,11 @@ import eu.tintera.plume.resources.settings_notif_state_muted
 import eu.tintera.plume.resources.settings_notif_system
 import eu.tintera.plume.resources.settings_notifications_off
 import eu.tintera.plume.resources.settings_notifications_on
+import eu.tintera.plume.resources.quiet_hours_from
+import eu.tintera.plume.resources.quiet_hours_summary
+import eu.tintera.plume.resources.quiet_hours_title
+import eu.tintera.plume.resources.quiet_hours_until
+import eu.tintera.plume.features.conversation.TimeOfDayDialog
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.DrawableResource
@@ -138,6 +150,16 @@ fun NotificationSettings(viewModel: NotificationSettingsViewModel, snackbarHostS
             onUpdate = { transform -> viewModel.update(notificationScope, transform) },
             onOpenExceptions = { viewModel.openExceptions(notificationScope) },
             onOpenChannel = { viewModel.openChannelSettings(notificationScope.channel) },
+        )
+    }
+
+    if (viewModel.supportsQuietHours) {
+        val quietHours by viewModel.quietHours.collectAsStateWithLifecycle()
+        QuietHoursGroup(
+            quietHours = quietHours,
+            onEnabledChange = viewModel::setQuietHoursEnabled,
+            onStartChange = viewModel::setQuietHoursStart,
+            onEndChange = viewModel::setQuietHoursEnd,
         )
     }
 
@@ -275,6 +297,77 @@ internal fun SwitchRow(
         ),
     )
 }
+
+/**
+ * Tiché hodiny: přepínač a pod ním začátek a konec. Časy jsou vidět jen se zapnutým přepínačem —
+ * vypnuté hodiny nic nedělají a dva řádky navíc by jen odváděly pozornost.
+ */
+@Composable
+private fun QuietHoursGroup(
+    quietHours: QuietHours,
+    onEnabledChange: (Boolean) -> Unit,
+    onStartChange: (Int) -> Unit,
+    onEndChange: (Int) -> Unit,
+) {
+    var picking by rememberSaveable { mutableStateOf<QuietHoursEdge?>(null) }
+
+    SettingsGroup(Res.string.quiet_hours_title) {
+        SwitchRow(
+            title = Res.string.quiet_hours_title,
+            summary = Res.string.quiet_hours_summary,
+            checked = quietHours.enabled,
+            onChange = onEnabledChange,
+            icon = Res.drawable.bedtime_24dp,
+        )
+        AnimatedVisibility(visible = quietHours.enabled) {
+            Column {
+                QuietHoursEdge.entries.forEach { edge ->
+                    ListItem(
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        headlineContent = { Text(stringResource(edge.title)) },
+                        trailingContent = {
+                            Text(edge.of(quietHours).asClockText(), style = MaterialTheme.typography.bodyLarge.tabularNumbers())
+                        },
+                        modifier = Modifier.clickable { picking = edge },
+                    )
+                }
+            }
+        }
+    }
+
+    picking?.let { edge ->
+        val minute = edge.of(quietHours)
+        TimeOfDayDialog(
+            title = stringResource(edge.title),
+            hour = minute / 60,
+            minute = minute % 60,
+            onPick = { hour, min ->
+                val picked = hour * 60 + min
+                when (edge) {
+                    QuietHoursEdge.Start -> onStartChange(picked)
+                    QuietHoursEdge.End -> onEndChange(picked)
+                }
+                picking = null
+            },
+            onDismiss = { picking = null },
+        )
+    }
+}
+
+private enum class QuietHoursEdge(val title: StringResource) {
+    Start(Res.string.quiet_hours_from),
+    End(Res.string.quiet_hours_until),
+    ;
+
+    fun of(quietHours: QuietHours): Int = when (this) {
+        Start -> quietHours.start
+        End -> quietHours.end
+    }
+}
+
+/** Minuta dne jako „22:00" — 24hodinově, jako ostatní časy v aplikaci ([eu.tintera.plume.core.ui.asTimeOfDay]). */
+private fun Int.asClockText(): String =
+    "${(this / 60).toString().padStart(2, '0')}:${(this % 60).toString().padStart(2, '0')}"
 
 /** Odkaz ven z aplikace — ikona říká, že se otevře systémové nastavení. */
 @Composable

@@ -28,6 +28,9 @@ expect class NotificationPermission {
      */
     val supportsChannelSettings: Boolean
 
+    /** Umí aplikace tiché hodiny ([eu.tintera.plume.core.settings.QuietHours])? */
+    val supportsQuietHours: Boolean
+
     /** Otevře systémové nastavení kanálu — zvuk, vibrace, důležitost. */
     fun openChannelSettings(channel: NotificationChannelKind)
 

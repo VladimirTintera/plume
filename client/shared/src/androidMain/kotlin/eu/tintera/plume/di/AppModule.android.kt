@@ -102,6 +102,7 @@ actual fun Module.platformModule() {
             // Vlastní scope: notifikace musí sbírat po celou dobu běhu procesu, ne po dobu
             // života obrazovky.
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+            settings = get(),
         )
     }
 }
