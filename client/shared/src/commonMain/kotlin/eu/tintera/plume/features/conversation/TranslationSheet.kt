@@ -1,5 +1,15 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.translation_device_downloading
+import eu.tintera.plume.resources.translation_device_download_text
+import eu.tintera.plume.resources.translation_device_download
+import eu.tintera.plume.resources.translation_on_server
+import eu.tintera.plume.resources.translation_on_device_hint
+import eu.tintera.plume.resources.translation_on_device
+import eu.tintera.plume.core.ui.IconSwitch
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -84,6 +94,9 @@ fun TranslationSheet(
     onCopy: () -> Unit,
     onLanguageChange: (String) -> Unit,
     onDismiss: () -> Unit,
+    onOnDeviceChange: (Boolean) -> Unit = {},
+    onDownload: () -> Unit = {},
+    onServer: () -> Unit = {},
 ) {
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
     var picking by rememberSaveable { mutableStateOf(false) }
@@ -125,6 +138,8 @@ fun TranslationSheet(
                 )
             }
 
+            sheet.onDevice?.let { onDevice -> OnDeviceRow(onDevice, onOnDeviceChange) }
+
             Text(
                 text = sheet.message.text,
                 style = MaterialTheme.typography.bodyMedium,
@@ -155,14 +170,46 @@ fun TranslationSheet(
                             )
                         }
                     }
-                    sheet.error != null -> Text(
-                        text = sheet.error.resolve(),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(16.dp),
-                    )
-                    else -> Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
+                    sheet.error != null -> Column(Modifier.padding(16.dp)) {
+                        Text(
+                            text = sheet.error.resolve(),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        // V telefonu to nejde (neznámý jazyk, nepodporovaný pár) — server ano.
+                        if (sheet.onDevice == true) {
+                            TextButton(onClick = onServer, modifier = Modifier.padding(top = 4.dp)) {
+                                Text(stringResource(Res.string.translation_on_server))
+                            }
+                        }
+                    }
+                    sheet.needsDownload -> Column(Modifier.padding(16.dp)) {
+                        Text(
+                            text = stringResource(Res.string.translation_device_download_text),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Row(
+                            Modifier.fillMaxWidth().padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                        ) {
+                            TextButton(onClick = onServer) { Text(stringResource(Res.string.translation_on_server)) }
+                            FilledTonalButton(onClick = onDownload) { Text(stringResource(Res.string.translation_device_download)) }
+                        }
+                    }
+                    else -> Column(
+                        Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
                         LoadingIndicator()
+                        // Stažení balíčků trvá desítky vteřin; bez věty by to vypadalo jako zaseknutý překlad.
+                        if (sheet.downloading) {
+                            Text(
+                                text = stringResource(Res.string.translation_device_downloading),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -188,6 +235,32 @@ fun TranslationSheet(
                 }
             }
         }
+    }
+}
+
+/**
+ * „Překládat v telefonu": text zprávy pak neodchází na server. Platí pro další překlady
+ * (`AppSettings.translateOnDevice`) a otevřená zpráva se přeloží znovu. Celý řádek nese
+ * klikání, přepínač je jen ukazatel stavu (viz `IconSwitch`).
+ */
+@Composable
+private fun OnDeviceRow(onDevice: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp)
+            .toggleable(value = onDevice, role = Role.Switch, onValueChange = onChange),
+    ) {
+        Column(Modifier.weight(1f).padding(end = 16.dp)) {
+            Text(stringResource(Res.string.translation_on_device), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                stringResource(Res.string.translation_on_device_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        IconSwitch(checked = onDevice)
     }
 }
 

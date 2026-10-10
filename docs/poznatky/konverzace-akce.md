@@ -261,6 +261,38 @@ na iOS. Dlouhý stisk v SEZNAMU dál otevírá nabídku — o gesto se nedělí,
   dumpem a stiskem posune — pak se místo nabídky otevře prohlížeč. Poloha se bere těsně před
   stiskem a mimo řádek s odkazem.
 
+### Překlad v telefonu
+
+Přepínač „Překládat v telefonu" v sheetu překladu (`AppSettings.translateOnDevice`) přeloží zprávu
+ML Kit Translation přímo v telefonu (`core/translation`, `OnDeviceTranslator`, `MlKitTranslator`);
+text neodchází na server. Volba se pamatuje pro další překlady, výchozí je server.
+
+- **Jen Android.** iOS má Translation framework jen pro SwiftUI; v DI tam překladač není
+  a přepínač se nekreslí (`TranslationSheet.onDevice == null`). Shrnutí od serveru ho nemá
+  nikdy — shrnutí dělá jen server.
+- **Jazykové balíčky se stahují jen na výslovné „Stáhnout"** (~30 MB na jazyk, bez podmínky
+  Wi-Fi, protože o stažení uživatel ví). Než je potvrdí, sheet nabízí i „Přeložit na serveru".
+  Na emulátoru stažení čeština + angličtina trvalo pod 20 s.
+- **ML Kit překládá přes angličtinu** a anglický model má vestavěný, proto ho `hasModels`
+  nekontroluje. Pár „polština → čeština" chce dva stažené balíčky.
+- **Jazyk zprávy rozpozná `LanguageDetector`** (tentýž jako u „Přeložit" v nabídce). Krátký nebo
+  nejistý text nerozpozná — pak chyba s tlačítkem „Přeložit na serveru", ne tichý pád na server:
+  uživatel si překlad v telefonu zapnul právě proto, aby text na server nešel.
+- **Kódy jazyků jen bez regionu** (`deviceTranslationCode`, testy `DeviceTranslationCodeTest`):
+  „pt-BR" → „pt". Tradiční čínštinu (`zh-TW`) ML Kit nemá a jeho „zh" je zjednodušená, takže
+  `zh-TW` vrací `null` = „tyhle jazyky telefon neumí".
+- **Kvalita je znát**: „…let's go for a walk in the park and grab a coffee" → v telefonu „pojďme
+  na procházku v parku a chytit kávu", server „pojďme se projít parkem a dát si kávu". Proto
+  je výchozí server a přepínač říká, co za soukromí dostaneš (text neodejde na server).
+- **APK +10 MB** (`libtranslate_jni.so`, 16 MB nerozbalená na arm64) — ke stažení z Play ~6–7 MB
+  na ABI. Vědomé rozhodnutí, viz roadmapa.
+- **Odpověď serveru, která dorazí po přepnutí na telefon, se zahodí** (`onDevice != true`
+  v kontrole otevřeného sheetu), jinak by serverový překlad přepsal ten z telefonu.
+- **Ověřeno na emulátoru Fold** (Android 17, česky): anglická zpráva od testovacího bota,
+  přepínač, výzva ke stažení, stažení, překlad v telefonu, zapamatování po znovuotevření (bez
+  výzvy, hned), vypnutí zpět na server. **Neověřeno**: nerozpoznaný jazyk a nepodporovaný pár
+  v praxi (logika je jen přeložená), iOS (přepínač tam není).
+
 ## Shrnutí od serveru
 
 „Shrnout" v nabídce nad dlouhou zprávou otevře tentýž sheet jako překlad, jen s jinými texty
