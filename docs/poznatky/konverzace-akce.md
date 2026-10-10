@@ -382,7 +382,8 @@ zpráva má na volné straně kolečko. Stav je `ConversationState.selection` (`
   - Ověřeno na emulátoru (Fold): tři zprávy (vlastní a dvě od bota), vložené do pole a přečtené
     z `uiautomator`. Schránku `adb` na novém Androidu číst neumí, vložení do vstupního pole
     (Ctrl+V) ano — **pole po kontrole vyčistit**, jinak zůstane koncept, který se synchronizuje
-    na ostatní zařízení.
+    na ostatní zařízení. **Po kopírování pár vteřin počkat**: Android ukáže vlevo dole překryv
+    schránky a ťuknutí do vstupního pole trefí jeho „Sdílet" (otevřelo nastavení Quick Share).
 - **Tělo potvrzení mazání má vlastní věty pro víc zpráv** (`delete_messages_*`), ne plurál nad
   jednou větou: čeština i angličtina v nich mění víc než jedno slovo. Titulek plurál má
   (`conversation_delete_selected_title`), protože nese počet.
