@@ -402,6 +402,16 @@
     <string name="conversation_send_schedule">Schedule message…</string>
     <string name="conversation_send_when_online">Send when online</string>
     <string name="conversation_send_effect">Send with effect…</string>
+    <string name="conversation_send_rewrite">Rewrite…</string>
+    <string name="rewrite_title">Rewrite message</string>
+    <string name="rewrite_shorter">Shorter</string>
+    <string name="rewrite_polite">More polite</string>
+    <string name="rewrite_fix">Fix typos</string>
+    <string name="rewrite_pick">Choose how to rewrite the message.</string>
+    <string name="rewrite_unchanged">The model left the message unchanged.</string>
+    <string name="rewrite_use">Use</string>
+    <string name="rewrite_failed">The message could not be rewritten.</string>
+    <string name="rewrite_disclaimer">Rewritten by the model on your phone, the message is not sent anywhere. Read it before sending.</string>
     <string name="effect_picker_title">Message effect</string>
     <string name="effect_picker_hint">Plays over the message for everyone in the chat. Touch and hold to preview.</string>
     <string name="effect_picker_empty">No effects available.</string>

@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.edit_note_24dp
+import eu.tintera.plume.resources.conversation_send_rewrite
 import eu.tintera.plume.core.ai.ScamKind
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.resources.remind_time
@@ -3224,6 +3226,17 @@ private fun MessageInput(
     modifier: Modifier = Modifier,
 ) {
     var draft by composer
+    /*
+     * Přepis konceptu modelem v zařízení („Přepsat…" v nabídce odeslání). Žije tady, ne
+     * v `ConversationScreen`, který je v dexu na hraně (viz „Gotchas" v CLAUDE.md). Přepsaný
+     * text se jen VLOŽÍ do pole, jako návrh odpovědi; formátování konceptu se zahodí — model
+     * vrací holý text a rozsahy by na něm ujely.
+     */
+    val rewrite = rememberDraftRewrite()
+    DraftRewriteSheet(rewrite) { text ->
+        composer.fill(text, emptyList())
+        onDraftChanged(composer.composed)
+    }
     // Gesto nahrávání (viz `holdToRecord` a `RecordGestureState`).
     var recordHeld by recordGesture::held
     var recordLocked by recordGesture::locked
@@ -3825,7 +3838,10 @@ private fun MessageInput(
             // Ťuknutí na mikrofon či kameru nahrávání nespouští, jen přepíná — a řekne jak dál.
             val recordHint = rememberTooltipState(isPersistent = false)
             val hintScope = rememberCoroutineScope()
-            val sendOptionsOffered = (kind == SendButtonKind.Send && sendMenu.any && !attachmentsPreparing) ||
+            // „Přepsat…" nese nabídka odeslání, ale do `sendMenuOffer` nepatří: rozhoduje o něm
+            // text pole, a ten `ConversationScreen` číst nemá (skládal by se při každém úhozu).
+            val rewriteOffered = rewrite.offered && editing == null && rewritable(draft.text)
+            val sendOptionsOffered = (kind == SendButtonKind.Send && (sendMenu.any || rewriteOffered) && !attachmentsPreparing) ||
                 (kind == SendButtonKind.SendVoice && voiceSendMenu.any)
             ButtonGestureHint(
                 hints = gestureHints,
@@ -4105,6 +4121,10 @@ private fun MessageInput(
                                 sendMenuOpen = false
                                 onPickEffect()
                             }.takeIf { sendMenu.effects },
+                            MenuAction(stringResource(Res.string.conversation_send_rewrite), Res.drawable.edit_note_24dp) {
+                                sendMenuOpen = false
+                                rewrite.open(draft.text)
+                            }.takeIf { rewriteOffered },
                         ),
                     ),
                 )

@@ -232,6 +232,28 @@ Pro tuhle oblast podstatné: **engine se zvukem je jiný engine** (`EngineConfig
 `withEngine(audio = true)` ho načte a pak slouží všemu; bez zvuku se kvůli přepisu přenačte.
 Na emulátoru (CPU) 7,5 s řeči za 11 s i s načtením.
 
+### Přepis před odesláním
+
+Podržení odesílacího tlačítka → „Přepsat…" otevře sheet (`DraftRewriteSheet`, prompt
+`RewritePrompt.kt`): původní text, volba Kratší / Zdvořileji / Opravit překlepy, výsledek
+a „Použít". Nic se neodesílá a pole se nemění, dokud uživatel neťukne „Použít" — tím se tahle
+funkce liší od návrhů odpovědí: sloh drhne, ale chybu uživatel VIDÍ dřív, než ji podepíše.
+
+- **Přepisuje se vždy PŮVODNÍ text**, ne předchozí přepis; přepnutí stylu tak nekupí chyby.
+- **Jazyk zprávy, ne aplikace, a tykání zůstává tykáním** — obojí musí v promptu stát výslovně
+  (stejná past jako u návrhů odpovědí, viz `formalityInstruction`). Ověřeno: „Zdvořileji"
+  kamarádovi nevykalo.
+- **Použitý text nahradí koncept i s formátováním** (`composer.fill(text, emptyList())`): model
+  vrací holý text a rozsahy tučného by na něm ujely.
+- **Žije ve vstupním poli (`MessageInput`), ne v `ConversationScreen`** — ten je v dexu na hraně
+  (271 registrů už na `main`, pád byl při 275). `MessageInput` má kolem 180. Kdo do konverzace
+  přidává funkci s vlastním stavem, ať ji pověsí tam, kde data už jsou.
+- **Kvalita Gemmy E2B na češtině je slabá** (emulátor, CPU, ~10 s): „Opravit překlepy" doplní
+  většinu háčků, ale „pozdejc" přepsalo na „pozdejší" a „pockej" nechalo; „Kratší" je dobré.
+  Proto výsledek vždy jen nabízí. **Gemini Nano na skutečném telefonu neověřené.**
+- **Barva výsledku výslovně `onSurface`**: zděděná vyšla v sheetu šedá jako původní text nad
+  kartou a výsledek vypadal potlačeně.
+
 ### Varování před podvodem
 
 Karta „Možný podvod" pod příchozí zprávou (`ScamWarnings`, prompt `ScamPrompt.kt`, karta
