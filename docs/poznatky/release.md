@@ -70,6 +70,16 @@ v [README](../../README.md#release-do-google-play). Sem patří jen to, co se z 
   s ostatními ikonami ve stavové liště, ne od oka v náhledu.
 - **Balíček SDK platformy se jmenuje `platforms;android-37.0`** — u minor verzí je nula součástí
   id. Musí odpovídat `android-compileSdk` v `libs.versions.toml`.
+- **Generovaný zdrojový adresář nesmí ležet UVNITŘ výstupu, který úloha deklaruje celý.** AGP
+  (`prepareAndroidMainArtProfile`) hledá vedle každého zdrojového adresáře složku
+  `baselineProfiles` — u `generated/appLanguages/kotlin` tedy `generated/appLanguages/baselineProfiles`.
+  Když `generateAppLanguages` deklarovala jako výstup celou `generated/appLanguages`, padl
+  release (`bundleRelease`) na „uses this output of task … without declaring an explicit or
+  implicit dependency" — tagy 0.3.64 a 0.3.65 se nevydaly. Debug build ani CI na PR to
+  nechytí, úloha běží jen v release. Výstupy se proto jmenují zvlášť (`kotlin/`
+  a `languages.txt`), jako má `generateChangelog` rovnou `generated/changelog/kotlin`.
+  Ověření bez podpisového klíče: `./gradlew :client:androidApp:bundleRelease -x
+  :client:androidApp:verifyReleaseConfiguration`.
 
 ## R8
 
