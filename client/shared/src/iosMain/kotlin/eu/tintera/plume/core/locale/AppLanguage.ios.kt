@@ -24,3 +24,9 @@ actual class AppLanguage {
         UIApplication.sharedApplication.openURL(url, emptyMap<Any?, Any?>(), null)
     }
 }
+
+actual fun nativeLanguageName(code: String): String {
+    val locale = platform.Foundation.NSLocale(localeIdentifier = code)
+    val name = locale.displayNameForKey(platform.Foundation.NSLocaleIdentifier, value = code) ?: code
+    return name.replaceFirstChar { it.uppercase() }
+}

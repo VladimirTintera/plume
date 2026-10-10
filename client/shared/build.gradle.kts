@@ -68,6 +68,69 @@ val generateChangelog = tasks.register("generateChangelog") {
     }
 }
 
+/** Jazyky, které píšeme sami: musí mít všechny klíče ([verifyTranslations]) a do výběru jdou vždy. */
+val completeLocales = setOf("cs")
+
+/** Podíl přeložených klíčů, od kterého jde komunitní jazyk do výběru ([generateAppLanguages]). */
+val minLanguageCoverage = 0.8
+
+/**
+ * Jazyky aplikace odvozené ze složek `composeResources/values-*`, aby nový jazyk z Weblate
+ * nemusel nikdo zapisovat ručně na čtyři místa (viz „Jazyk aplikace" v docs/poznatky/nastaveni.md).
+ *
+ * - Výchozí `values` je angličtina, ta je v seznamu vždy první.
+ * - [completeLocales] jdou do výběru vždy; komunitní jazyk až od [minLanguageCoverage]
+ *   přeložených klíčů. Rozpracovaný jazyk by v aplikaci střídal věty s angličtinou a nabízet ho
+ *   by bylo horší než ho nenabízet.
+ * - Výstupem je Kotlin (`GENERATED_APP_LANGUAGES` pro `APP_LANGUAGES`) a `languages.txt`, ze
+ *   kterého si `:client:androidApp` vyrobí `locales_config.xml`. Jedno místo pravidel pro oba.
+ * - Složka `values-pt-rBR` (kvalifikátor regionu) je jazyk `pt-BR`.
+ *
+ * MUSÍ být deklarovaný před blokem `kotlin { }` (pořadí top-level `val`, viz [generateChangelog]).
+ */
+val generateAppLanguages = tasks.register("generateAppLanguages") {
+    description = "Seznam jazyků aplikace ze složek values-* (APP_LANGUAGES, locales_config)."
+    val resources = layout.projectDirectory.dir("src/commonMain/composeResources")
+    inputs.files(fileTree(resources) { include("values*/strings.xml") })
+    val resourcesDir = resources.asFile
+    val complete = completeLocales
+    val minCoverage = minLanguageCoverage
+    val outputDir = layout.buildDirectory.dir("generated/appLanguages")
+    outputs.dir(outputDir)
+
+    doLast {
+        val keyPattern = Regex("""<(?:string|plurals) name="([^"]+)"""")
+        fun keysOf(file: File) = keyPattern.findAll(file.readText()).map { it.groupValues[1] }.toSet()
+
+        val defaults = keysOf(File(resourcesDir, "values/strings.xml"))
+        val translated = resourcesDir.listFiles { file -> file.isDirectory && file.name.startsWith("values-") }
+            .orEmpty()
+            .mapNotNull { dir ->
+                val file = File(dir, "strings.xml").takeIf { it.isFile } ?: return@mapNotNull null
+                val code = dir.name.removePrefix("values-").replace("-r", "-")
+                val coverage = (keysOf(file) intersect defaults).size.toDouble() / defaults.size
+                if (code !in complete && coverage < minCoverage) {
+                    logger.lifecycle("generateAppLanguages: $code má ${(coverage * 100).toInt()} % — do výběru jazyků zatím nejde.")
+                    return@mapNotNull null
+                }
+                code
+            }
+            .sorted()
+        val languages = listOf("en") + translated
+
+        val root = outputDir.get().asFile
+        File(root, "languages.txt").apply { parentFile.mkdirs() }.writeText(languages.joinToString("\n") + "\n")
+        File(root, "kotlin/eu/tintera/plume/core/locale/GeneratedAppLanguages.kt").apply { parentFile.mkdirs() }.writeText(
+            """
+            |// Vygenerováno úlohou generateAppLanguages ze složek composeResources/values-*. Neupravovat.
+            |package eu.tintera.plume.core.locale
+            |
+            |internal val GENERATED_APP_LANGUAGES: List<String> = listOf(${languages.joinToString { "\"$it\"" }})
+            |""".trimMargin(),
+        )
+    }
+}
+
 kotlin {
     jvmToolchain(17)
 
@@ -122,6 +185,8 @@ kotlin {
         commonMain {
             // „Co je nového" v Nastavení — poznámky z release-notes/ zapečené při buildu.
             kotlin.srcDir(generateChangelog)
+            // Jazyky aplikace ze složek values-* (APP_LANGUAGES).
+            kotlin.srcDir(files(layout.buildDirectory.dir("generated/appLanguages/kotlin")).builtBy(generateAppLanguages))
         }
 
         commonMain.dependencies {
@@ -264,8 +329,6 @@ compose.resources {
  *   jako výchozí; plurál smí v některém tvaru argument vynechat („Před minutou"), ale nesmí
  *   přidat cizí ani změnit typ.
  */
-val completeLocales = setOf("cs")
-
 val verifyTranslations = tasks.register("verifyTranslations") {
     group = "verification"
     description = "Ověří jazykové mutace: klíče (cs úplně, komunitní jazyky varováním) a formátovací argumenty."
@@ -333,6 +396,31 @@ val verifyTranslations = tasks.register("verifyTranslations") {
 }
 
 tasks.named("check") { dependsOn(verifyTranslations) }
+
+/**
+ * iOS nabídne jazyk v Nastavení jen podle složek `<kód>.lproj` v balíčku — a ty Gradle vyrobit
+ * neumí, nesou vlastní texty iOS (`Localizable.strings`, překládají se zvlášť). Jazyk, který
+ * [generateAppLanguages] pustil do výběru a iOS složku nemá, se proto jen OHLÁSÍ: na Androidu
+ * jazyk funguje hned a build kvůli iOS padat nemá.
+ */
+val verifyIosLocalizations = tasks.register("verifyIosLocalizations") {
+    group = "verification"
+    description = "Ohlásí jazyk aplikace bez <kód>.lproj v iosApp a ShareExtension."
+    dependsOn(generateAppLanguages)
+    val languages = layout.buildDirectory.file("generated/appLanguages/languages.txt")
+    inputs.file(languages)
+    val targets = listOf("iosApp/iosApp", "iosApp/ShareExtension").map { rootProject.file(it) }
+
+    doLast {
+        languages.get().asFile.readLines().filter { it.isNotBlank() }.forEach { code ->
+            targets.filter { !File(it, "$code.lproj").isDirectory }.forEach { target ->
+                logger.warn("verifyIosLocalizations: $code chybí ${target.name}/$code.lproj — iOS ho v Nastavení nenabídne.")
+            }
+        }
+    }
+}
+
+tasks.named("check") { dependsOn(verifyIosLocalizations) }
 
 /**
  * Hlídá, že se do UI nevrátí natvrdo psaný text.

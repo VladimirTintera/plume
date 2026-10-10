@@ -25,5 +25,15 @@ expect class AppLanguage {
     fun openSystemSettings()
 }
 
-/** Jazyky, do kterých je aplikace přeložená (složky `values*` v composeResources). */
-val APP_LANGUAGES = listOf("en", "cs")
+/**
+ * Jazyky, do kterých je aplikace přeložená — **vygenerované ze složek `values-*`** v composeResources
+ * (úloha `generateAppLanguages`): angličtina, jazyky, které píšeme sami, a komunitní jazyky přeložené
+ * aspoň z 80 %. Ručně se sem nic nepíše; Android `locales_config.xml` vzniká ze stejného seznamu.
+ */
+val APP_LANGUAGES: List<String> = GENERATED_APP_LANGUAGES
+
+/**
+ * Název jazyka v něm samém („Čeština" i v anglické aplikaci), aby se dalo vrátit z jazyka, kterému
+ * člověk nerozumí. Bere ho systém — nový jazyk tak nepotřebuje vlastní řetězec v každém `strings.xml`.
+ */
+expect fun nativeLanguageName(code: String): String

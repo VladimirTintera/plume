@@ -25,17 +25,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.locale.APP_LANGUAGES
+import eu.tintera.plume.core.locale.nativeLanguageName
 import eu.tintera.plume.core.locale.AppLanguage
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.language_24dp
-import eu.tintera.plume.resources.language_name_cs
-import eu.tintera.plume.resources.language_name_en
 import eu.tintera.plume.resources.settings_app_language
 import eu.tintera.plume.resources.settings_language_group
 import eu.tintera.plume.resources.settings_language_in_system
 import eu.tintera.plume.resources.settings_language_system
-import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -62,7 +60,7 @@ internal fun LanguageSettings(language: AppLanguage = koinInject()) {
                 Text(
                     when {
                         !language.canChooseInApp -> stringResource(Res.string.settings_language_in_system)
-                        else -> stringResource(languageName(current))
+                        else -> languageLabel(current)
                     },
                 )
             },
@@ -109,7 +107,7 @@ private fun LanguageDialog(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         RadioButton(selected = option == selected, onClick = null)
-                        Text(stringResource(languageName(option)), modifier = Modifier.padding(start = 12.dp))
+                        Text(languageLabel(option), modifier = Modifier.padding(start = 12.dp))
                     }
                 }
             }
@@ -121,8 +119,7 @@ private fun LanguageDialog(
     )
 }
 
-private fun languageName(language: String?): StringResource = when (language) {
-    "cs" -> Res.string.language_name_cs
-    "en" -> Res.string.language_name_en
-    else -> Res.string.settings_language_system
-}
+/** Jazyk jeho vlastním názvem ([nativeLanguageName]); `null` = podle systému, v jazyce aplikace. */
+@Composable
+private fun languageLabel(language: String?): String =
+    language?.let(::nativeLanguageName) ?: stringResource(Res.string.settings_language_system)

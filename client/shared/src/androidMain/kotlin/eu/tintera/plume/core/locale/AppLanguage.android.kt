@@ -49,3 +49,8 @@ actual class AppLanguage(private val context: Context) {
         }
     }
 }
+
+actual fun nativeLanguageName(code: String): String {
+    val locale = java.util.Locale.forLanguageTag(code)
+    return locale.getDisplayName(locale).replaceFirstChar { it.titlecase(locale) }
+}
