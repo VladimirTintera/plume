@@ -912,6 +912,29 @@ za `MessageExpiredPhoto` / `MessageExpiredVideo`.
   video dohrálo — časovač má na délku videa rezervu jedné vteřiny. Mizející video se ze
   stejného důvodu nestreamuje (`VideoPage(streaming = false)`): přehrávání a odpočet začnou
   naráz a nic se neukáže dřív, než odpočet běží.
+- **Vypršelé médium je OZNÁMENÍ na střed, ne bublina** (`MessageExpired*` v `serviceText()`,
+  test `ServiceTextTest`). Dokud padalo do `describe()`, kreslila se „Fotka vypršela" jako
+  obyčejný text v bublině protistrany — četlo se to, jako by to odesílatel napsal. Tak to mají
+  i oficiální klienti.
+- **Spotřebované médium je oznámením HNED, ne až po TDLib** (`withExpiredNotices`
+  v `ConversationItems.kt`, obrazovka podává `SelfDestructTimers.consumedIds`, test
+  `spotrebovaneMiziciMediumJeHnedOznameni`). Update obsahu (`MessageExpiredPhoto`) přijde až
+  chvíli po zavření prohlížeče nebo po doběhnutí odpočtu a do té doby stála v seznamu bublina
+  „vypršelo" (`ExpiredMediaRow`), která pak skočila na oznámení. Převod napodobí, co TDLib
+  pošle: bez média a bez popisku. `ExpiredMediaRow` v `Attachments.kt` zůstává jen jako
+  pojistka pro bubliny kreslené mimo seznam konverzace.
+- **Oznámení má vlastní nabídku jen se smazáním** (`MessageAction.ShowNoticeMenu`,
+  `NoticeMenu`, `ServiceMessageItem`). Nabídka nad zprávou se nehodí — kreslí kopii BUBLINY
+  a nabízí reakce a odpověď. Práva se zjistí napřed (`messageActions`) a bez práva smazat se
+  nabídka neotevře vůbec. **Práva nese položka „Smazat" v akci** (`DeleteNotice`), ne stav:
+  `ExpressiveMenu` volá `onDismiss` DŘÍV než položku, takže stav nabídky už je pryč. Nabídka
+  je ukotvená k šířce textu (`IntrinsicSize.Max`), jinak vyjela u levého okraje seznamu.
+- **Ověřeno na emulátoru sondou** (zpráva `#vyprselo` od testovacího bota převod dočasně
+  vydával za vypršelou fotku; necommituje se): oznámení na střed, dlouhý stisk → „Smazat" →
+  dialog → smazáno. Převod spotřebované sondou v prohlížeči (`ownSelfDestruct = false`, takže
+  se spotřebovala i VLASTNÍ odeslaná fotka s 10s časovačem): první snímek chatu po zavření
+  prohlížeče už nesl oznámení, bublina neprobleskla. Skutečná vypršelá fotka od druhého účtu
+  ověřená není.
 - **Jednorázové zhlédnutí se hlásí až při ODCHODU z prohlížeče** (`onCleared`, `appScope`).
   U `MessageSelfDestructTypeImmediately` TDLib po `openMessageContent` obsah vyřídí okamžitě
   (`ttl_on_open` → `on_message_ttl_expired`): smaže soubory a pošle vypršelý obsah, na který

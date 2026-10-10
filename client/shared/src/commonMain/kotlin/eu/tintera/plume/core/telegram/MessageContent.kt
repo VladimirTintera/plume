@@ -43,10 +43,6 @@ import dev.g000sha256.tdl.dto.MessageContact
 import dev.g000sha256.tdl.dto.MessageContent
 import dev.g000sha256.tdl.dto.MessageDice
 import dev.g000sha256.tdl.dto.MessageDocument
-import dev.g000sha256.tdl.dto.MessageExpiredPhoto
-import dev.g000sha256.tdl.dto.MessageExpiredVideo
-import dev.g000sha256.tdl.dto.MessageExpiredVideoNote
-import dev.g000sha256.tdl.dto.MessageExpiredVoiceNote
 import dev.g000sha256.tdl.dto.MessageGame
 import dev.g000sha256.tdl.dto.MessageInvoice
 import dev.g000sha256.tdl.dto.MessageLiveLocation
@@ -206,10 +202,6 @@ import eu.tintera.plume.resources.content_suggested_birthdate
 import eu.tintera.plume.resources.content_suggested_photo
 import eu.tintera.plume.resources.content_checklist
 import eu.tintera.plume.resources.content_contact
-import eu.tintera.plume.resources.content_expired_photo
-import eu.tintera.plume.resources.content_expired_video
-import eu.tintera.plume.resources.content_expired_video_note
-import eu.tintera.plume.resources.content_expired_voice_note
 import eu.tintera.plume.resources.content_file
 import eu.tintera.plume.resources.content_game
 import eu.tintera.plume.resources.content_gif
@@ -371,12 +363,6 @@ private fun MessageContent.describe(isChannelPost: Boolean): UiText? = when (thi
     // Článek složený z bloků (TDLib 15). Kreslit ho neumíme, jeho text ano — prázdný je jen
     // článek ze samých obrázků.
     is MessageRichMessage -> message.blocks.plainText().orText(Res.string.content_rich_message)
-
-    // Zprávy s časovým omezením, které vypršely. Soubor už na serveru není, takže není co stáhnout.
-    is MessageExpiredPhoto -> UiText(Res.string.content_expired_photo)
-    is MessageExpiredVideo -> UiText(Res.string.content_expired_video)
-    is MessageExpiredVideoNote -> UiText(Res.string.content_expired_video_note)
-    is MessageExpiredVoiceNote -> UiText(Res.string.content_expired_voice_note)
 
     // Klient je starší než server. Doslovný název typu by uživateli neřekl nic; v aplikaci
     // dostane „neumíme zobrazit", v notifikaci „Nová zpráva" — stejně jako neznámý typ.

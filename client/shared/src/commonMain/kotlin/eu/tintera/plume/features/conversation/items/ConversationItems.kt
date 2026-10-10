@@ -9,7 +9,11 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.files.saveAsSupported
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SendState
+import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.emojiClusterCount
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.content_expired_photo
+import eu.tintera.plume.resources.content_expired_video
 import eu.tintera.plume.core.ui.isSameDayAs
 import eu.tintera.plume.features.conversation.ConversationState
 import eu.tintera.plume.features.conversation.copyableText
@@ -33,7 +37,39 @@ import eu.tintera.plume.features.conversation.showsBareMedia
  * Volá se v kompozici, ne ve ViewModelu — viz „Proč se builder volá v kompozici"
  * v `docs/architektura-konverzace.md`.
  */
-internal fun conversationItems(state: ConversationState): List<ConversationItem> {
+internal fun conversationItems(state: ConversationState, expired: Set<Long> = emptySet()): List<ConversationItem> {
+    val messages = state.messages.withExpiredNotices(expired)
+    return buildItems(if (messages === state.messages) state else state.copy(messages = messages))
+}
+
+/**
+ * Mizející fotka nebo video, které tenhle proces už spotřeboval ([expired] =
+ * `SelfDestructTimers.consumedIds`), se kreslí jako oznámení o vypršení HNED — ne až po updatu
+ * obsahu od TDLib (`MessageExpiredPhoto`, viz `serviceText`). Do té doby by v seznamu na chvíli
+ * stála bublina, která se pak skokem vymění za oznámení na střed.
+ *
+ * Vrací tentýž seznam, když se nic nemění: množina spotřebovaných roste po celý proces
+ * a většina z nich v tomhle chatu není.
+ */
+internal fun List<ChatMessage>.withExpiredNotices(expired: Set<Long>): List<ChatMessage> {
+    if (expired.isEmpty() || none { it.id in expired && it.expiredNotice() != null }) return this
+    return map { message -> message.takeIf { it.id in expired }?.expiredNotice() ?: message }
+}
+
+/** Zpráva v podobě, v jaké ji pošle TDLib po vypršení; `null`, když nejde o mizející médium. */
+internal fun ChatMessage.expiredNotice(): ChatMessage? {
+    val description = when (val media = media) {
+        is MessageMedia.Photo -> UiText(Res.string.content_expired_photo)
+            .takeIf { media.isSecret || media.selfDestructType != null }
+        is MessageMedia.Video -> UiText(Res.string.content_expired_video)
+            .takeIf { media.isSecret || media.selfDestructType != null }
+        else -> null
+    } ?: return null
+    // Popisek mizející fotky TDLib po vypršení zahodí taky (`MessageExpiredPhoto` žádný nemá).
+    return copy(isService = true, media = null, text = "", entities = emptyList(), description = description)
+}
+
+private fun buildItems(state: ConversationState): List<ConversationItem> {
     // Album jsou v Telegramu samostatné zprávy, v konverzaci jedna bublina — a na řádcích, ne na
     // zprávách, stojí sousedé.
     val rows = groupAlbums(state.messages)
@@ -85,7 +121,7 @@ internal fun conversationItems(state: ConversationState): List<ConversationItem>
         val startsUnread = firstUnread != null && row.messages.any { it.id == firstUnread }
 
         items += if (message.isService) {
-            ServiceMessageItem(key = key, message = message)
+            ServiceMessageItem(key = key, message = message, menu = state.noticeMenu?.takeIf { it.messageId == message.id })
         } else {
             // Za předělem dne i časovým předělem začíná nový blok, i když píše tentýž člověk.
             val olderInGroup = older.takeIf { !startsDay && !startsTimeGap }

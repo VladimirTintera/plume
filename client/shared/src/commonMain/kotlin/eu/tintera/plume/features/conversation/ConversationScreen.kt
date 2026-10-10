@@ -275,6 +275,9 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
+import org.koin.compose.koinInject
+import eu.tintera.plume.core.telegram.SelfDestructTimers
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.MutableState
@@ -369,6 +372,7 @@ import eu.tintera.plume.features.conversation.items.QuotedMessage
 import eu.tintera.plume.features.conversation.items.SPONSORED_KEY_PREFIX
 import eu.tintera.plume.features.conversation.items.TIME_COLUMN_WIDTH
 import eu.tintera.plume.features.conversation.items.UnreadDividerItem
+import eu.tintera.plume.features.conversation.items.ConversationItem
 import eu.tintera.plume.features.conversation.items.conversationItems
 import eu.tintera.plume.features.conversation.items.describe
 import eu.tintera.plume.resources.Res
@@ -957,25 +961,7 @@ fun ConversationScreen(
      * Klíče jsou jen ta pole stavu, ze kterých builder čte. Celý `state` by seznam přestavoval
      * i při každém kroku průběhu stahování.
      */
-    val items = remember(
-        state.messages,
-        state.itemKeys,
-        state.sponsored,
-        state.reachedEnd,
-        state.loading,
-        state.info,
-        state.unreadBoundaryId,
-        state.readReceiptFor,
-        state.lastReadOutboxMessageId,
-        state.quotes,
-        state.highlightedMessageId,
-        state.search?.current,
-        state.flight,
-        state.messageMenu,
-        state.typing,
-        // Jen KLÍČE výběru: práva k němu chodí po jednom a seznam bloků se jimi nemění.
-        state.selection?.keys,
-    ) { conversationItems(state) }
+    val items = rememberConversationItems(state)
 
     // Klíč položky není u odeslaných zpráv jejich id (viz `ConversationState.itemKeys`), takže
     // co se v seznamu hledá podle klíče, musí mít vlastní mapu.
@@ -4952,4 +4938,35 @@ private fun ConversationPlayerDock(
         },
         glass = glass,
     )
+}
+
+/**
+ * Bloky seznamu konverzace (viz [conversationItems]). Vlastní funkce, ne kus [ConversationScreen]:
+ * ta je v dexu na hraně registrů (viz CLAUDE.md, „ConversationScreen je v dexu na hraně").
+ */
+@Composable
+private fun rememberConversationItems(state: ConversationState): List<ConversationItem> {
+    // Spotřebovaná mizející média: v seznamu jsou oznámením o vypršení hned, ne až po TDLib.
+    val expiredMedia by koinInject<SelfDestructTimers>().consumedIds.collectAsState()
+    return remember(
+        state.messages,
+        state.itemKeys,
+        state.sponsored,
+        state.reachedEnd,
+        state.loading,
+        state.info,
+        state.unreadBoundaryId,
+        state.readReceiptFor,
+        state.lastReadOutboxMessageId,
+        state.quotes,
+        state.highlightedMessageId,
+        state.search?.current,
+        state.flight,
+        state.messageMenu,
+        state.noticeMenu,
+        state.typing,
+        // Jen KLÍČE výběru: práva k němu chodí po jednom a seznam bloků se jimi nemění.
+        state.selection?.keys,
+        expiredMedia,
+    ) { conversationItems(state, expiredMedia) }
 }

@@ -4,10 +4,14 @@ import dev.g000sha256.tdl.dto.MessageChatSetMessageAutoDeleteTime
 import dev.g000sha256.tdl.dto.MessageChatUpgradeFrom
 import dev.g000sha256.tdl.dto.MessageChatUpgradeTo
 import dev.g000sha256.tdl.dto.MessageCustomServiceAction
+import dev.g000sha256.tdl.dto.MessageExpiredPhoto
+import dev.g000sha256.tdl.dto.MessageExpiredVoiceNote
 import dev.g000sha256.tdl.dto.MessageSupergroupChatCreate
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auto_delete_summary
+import eu.tintera.plume.resources.content_expired_photo
+import eu.tintera.plume.resources.content_expired_voice_note
 import eu.tintera.plume.resources.duration_days
 import eu.tintera.plume.resources.service_auto_delete_off
 import eu.tintera.plume.resources.service_group_created
@@ -41,6 +45,13 @@ class ServiceTextTest {
             MessageChatSetMessageAutoDeleteTime(messageAutoDeleteTime = 0, fromUserId = 0L)
                 .serviceText(isChannelPost = false),
         )
+    }
+
+    @Test
+    fun vyprseleMediumJeOznameniNeBublina() {
+        // Ne-null = kreslí se na střed jako oznámení; v bublině se četlo jako text od protistrany.
+        assertEquals(UiText(Res.string.content_expired_photo), MessageExpiredPhoto().serviceText(isChannelPost = false))
+        assertEquals(UiText(Res.string.content_expired_voice_note), MessageExpiredVoiceNote().serviceText(isChannelPost = false))
     }
 
     @Test

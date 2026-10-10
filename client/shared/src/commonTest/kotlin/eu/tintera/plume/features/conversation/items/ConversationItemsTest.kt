@@ -2,6 +2,11 @@ package eu.tintera.plume.features.conversation.items
 
 import eu.tintera.plume.features.conversation.ConversationState
 import eu.tintera.plume.features.conversation.Typing
+import eu.tintera.plume.features.conversation.NoticeMenu
+import eu.tintera.plume.core.telegram.SelfDestructType
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.content_expired_photo
 import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.SenderInfo
 
@@ -260,6 +265,33 @@ class ConversationItemsTest {
         assertEquals(0f, dotLift(0.8f, 0))
         assertEquals(0f, dotLift(0.8f, 1))
         assertEquals(0f, dotLift(0.8f, 2))
+    }
+
+    @Test
+    fun spotrebovaneMiziciMediumJeHnedOznameni() {
+        // Spotřebovanou mizející fotku TDLib vymění za `MessageExpiredPhoto` až za chvíli;
+        // do té doby nesmí v seznamu stát bublina, která pak skočí na oznámení.
+        val secret = photo.copy(selfDestructType = SelfDestructType.Immediately)
+        val result = conversationItems(
+            ConversationState(messages = listOf(message(3, media = secret, text = "popisek"), message(2, media = photo), message(1))),
+            expired = setOf(3L, 2L),
+        )
+        assertEquals(listOf("s3", "m2", "m1", "day"), result.kinds())
+        val notice = assertIs<ServiceMessageItem>(result.first()).message
+        assertNull(notice.media)
+        assertEquals("", notice.text)
+        assertEquals(UiText(Res.string.content_expired_photo), notice.description)
+    }
+
+    @Test
+    fun nabidkaOznameniPatriJenJemu() {
+        val state = ConversationState(
+            messages = listOf(message(2, isService = true), message(1, isService = true)),
+            noticeMenu = NoticeMenu(messageId = 2L, canDeleteForSelf = true, canDeleteForAll = false),
+        )
+        val (newer, older) = conversationItems(state).filterIsInstance<ServiceMessageItem>()
+        assertEquals(2L, newer.menu?.messageId)
+        assertNull(older.menu)
     }
 
     @Test
