@@ -1,5 +1,11 @@
 package eu.tintera.plume.features.profile
 
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOf
+import eu.tintera.plume.core.bookmarks.MessageBookmarks
+import eu.tintera.plume.core.bookmarks.MessageBookmark
 import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoicePlayer
@@ -91,7 +97,19 @@ class ChatProfileViewModel(
     private val clipboard: TextClipboard,
     private val voicePlayer: VoicePlayer,
     private val musicQueue: MusicQueue,
+    /** Záložky zpráv tohoto chatu; bez nich se řádek „Záložky" neukazuje. */
+    private val bookmarks: MessageBookmarks? = null,
 ) : ViewModel() {
+
+    /** Záložky zpráv v tomhle chatu, nejnovější první. */
+    val chatBookmarks: StateFlow<List<MessageBookmark>> = (bookmarks?.all ?: flowOf(emptyList()))
+        .map { list -> list.filter { it.chatId == chatId } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun removeBookmark(messageId: Long) {
+        bookmarks?.remove(chatId, messageId)
+    }
+
 
     private val logger = Logger.withTag("Profile")
 

@@ -4,6 +4,8 @@ import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.files.opensInViewer
 import eu.tintera.plume.core.ui.readString
+import eu.tintera.plume.resources.profile_bookmarks_count
+import eu.tintera.plume.resources.profile_bookmarks
 import eu.tintera.plume.resources.share_24dp
 import eu.tintera.plume.resources.contact_add
 import eu.tintera.plume.resources.person_remove_24dp
@@ -252,9 +254,13 @@ fun ChatProfileScreen(
     onOpenMemberRights: (userId: Long, admin: Boolean) -> Unit,
     /** Hlavní mini aplikace bota; dlaždice „Otevřít" se nabízí jen botovi, který ji má. */
     onOpenMainWebApp: () -> Unit = {},
+    /** Záložka: zavřít profil a skočit v konverzaci na zprávu. */
+    onOpenMessage: (messageId: Long) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val bookmarks by viewModel.chatBookmarks.collectAsStateWithLifecycle()
+    var showBookmarks by rememberSaveable { mutableStateOf(false) }
     // Návrat z úpravy chatu (název, popis, veřejný odkaz): profil se tu skládá znovu, ale
     // ViewModel přežil a jinak by ukazoval, co přečetl při otevření.
     LaunchedEffect(Unit) { viewModel.refreshOnReturn() }
@@ -404,11 +410,13 @@ fun ChatProfileScreen(
                 val notifications = state.notifications
                 val showsAutoDelete = profile.canSetAutoDelete || profile.autoDeleteTime > 0
                 if (profile.usernames.isNotEmpty() || profile.phone != null || profile.about.isNotBlank() ||
-                    notifications != null || showsAutoDelete || profile.linkedChat != null
+                    notifications != null || showsAutoDelete || profile.linkedChat != null || bookmarks.isNotEmpty()
                 ) {
                     ProfileInfo(
                         profile,
                         notifications = notifications,
+                        bookmarkCount = bookmarks.size,
+                        onOpenBookmarks = { showBookmarks = true },
                         onLinkClick = viewModel::openLink,
                         onOpenLinkedChat = viewModel::openLinkedChat,
                         onOpenNotifications = viewModel::openNotificationSheet,
@@ -427,6 +435,17 @@ fun ChatProfileScreen(
         }
 
         val notifications = state.notifications
+        if (showBookmarks && bookmarks.isNotEmpty()) {
+            BookmarksSheet(
+                bookmarks = bookmarks,
+                onOpen = { messageId ->
+                    showBookmarks = false
+                    onOpenMessage(messageId)
+                },
+                onRemove = viewModel::removeBookmark,
+                onDismiss = { showBookmarks = false },
+            )
+        }
         if (state.notificationSheet && notifications != null) {
             ChatNotificationSheet(
                 prefs = notifications,
@@ -1036,6 +1055,8 @@ private val ACTION_CHECKED_CORNER = 48.dp
 private fun ProfileInfo(
     profile: ChatProfile,
     notifications: ChatNotificationPrefs?,
+    bookmarkCount: Int,
+    onOpenBookmarks: () -> Unit,
     onLinkClick: (String) -> Unit,
     onOpenLinkedChat: () -> Unit,
     onOpenNotifications: () -> Unit,
@@ -1102,6 +1123,18 @@ private fun ProfileInfo(
                     Text(
                         text = profile.autoDeleteTime.takeIf { it > 0 }?.let { durationText(it) }
                             ?: stringResource(Res.string.auto_delete_off),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
+        }
+        // Záložky jsou moje, ne údaj o chatu — za údaji, před nastaveními. Jen když nějaké jsou:
+        // přidávají se v nabídce nad zprávou a prázdný řádek by nic neřekl.
+        if (bookmarkCount > 0) {
+            add { shape ->
+                InfoRow(label = stringResource(Res.string.profile_bookmarks), shape = shape, onClick = onOpenBookmarks) {
+                    Text(
+                        pluralStringResource(Res.plurals.profile_bookmarks_count, bookmarkCount, bookmarkCount),
                         style = MaterialTheme.typography.bodyLarge,
                     )
                 }

@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.settings
 
+import kotlinx.serialization.json.Json
+import eu.tintera.plume.core.bookmarks.MessageBookmark
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.GemmaModel
 import eu.tintera.plume.core.ai.ModelVariant
@@ -150,6 +152,12 @@ interface AppSettings {
 
     /** Zapíše [autoDownloadSync]. Na rozdíl od ostatních zápisů čeká, až je zapsáno. */
     suspend fun setAutoDownloadSync(state: SettingsSync)
+
+    /** Záložky zpráv všech účtů; filtruje a spravuje je [eu.tintera.plume.core.bookmarks.MessageBookmarks]. */
+    val messageBookmarks: StateFlow<List<MessageBookmark>>
+
+    /** Uloží záložky. Neblokuje. */
+    fun setMessageBookmarks(bookmarks: List<MessageBookmark>)
 
     /** Tiché hodiny notifikací (Nastavení → Notifikace). Jen v zařízení, nesynchronizují se. */
     val quietHours: StateFlow<QuietHours>
@@ -521,6 +529,21 @@ class DataStoreAppSettings(
         }
     }
 
+    override val messageBookmarks: StateFlow<List<MessageBookmark>> = value(emptyList()) { preferences ->
+        // Poškozený nebo cizí zápis nesmí shodit aplikaci; záložky se pak prostě nenačtou.
+        preferences[MESSAGE_BOOKMARKS]?.let { stored ->
+            runCatching { bookmarksJson.decodeFromString<List<MessageBookmark>>(stored) }.getOrNull()
+        }.orEmpty()
+    }
+
+    override fun setMessageBookmarks(bookmarks: List<MessageBookmark>) {
+        scope.launch {
+            edit { preferences ->
+                if (bookmarks.isEmpty()) preferences.remove(MESSAGE_BOOKMARKS) else preferences[MESSAGE_BOOKMARKS] = bookmarksJson.encodeToString(bookmarks)
+            }
+        }
+    }
+
     override val quietHours: StateFlow<QuietHours> = value(QuietHours()) { preferences ->
         val default = QuietHours()
         // Čas mimo den (poškozený nebo cizí zápis) spadne na výchozí, jinak by úsek nedával smysl.
@@ -791,6 +814,7 @@ class DataStoreAppSettings(
         val AUTO_DOWNLOAD_ROAMING = stringPreferencesKey("auto_download_roaming")
         val AUTO_DOWNLOAD_SYNC = stringPreferencesKey("auto_download_sync")
         val QUIET_HOURS_ENABLED = booleanPreferencesKey("quiet_hours_enabled")
+        val MESSAGE_BOOKMARKS = stringPreferencesKey("message_bookmarks")
         val QUIET_HOURS_START = intPreferencesKey("quiet_hours_start")
         val QUIET_HOURS_END = intPreferencesKey("quiet_hours_end")
         val ON_DEVICE_AI_ENABLED = booleanPreferencesKey("on_device_ai_enabled")
@@ -831,3 +855,6 @@ fun createSettingsDataStore(path: String): DataStore<Preferences> =
 
 /** Název souboru nastavení; adresář dodává platforma (`settingsFilePath`). */
 const val SETTINGS_FILE_NAME = "app_settings.preferences_pb"
+
+/** Záložky jako JSON; neznámá pole z novější verze se přeskočí. */
+private val bookmarksJson = Json { ignoreUnknownKeys = true }

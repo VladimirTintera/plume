@@ -283,6 +283,7 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageM
         if (saveAsSupported) add(MessageMenuAction.SaveFileAs)
     }
     add(MessageMenuAction.Info)
+    add(MessageMenuAction.ToggleBookmark)
     add(if (isPinned) MessageMenuAction.Unpin else MessageMenuAction.Pin)
     if (poll != null && !poll.isClosed) add(MessageMenuAction.StopPoll)
     add(MessageMenuAction.Select)

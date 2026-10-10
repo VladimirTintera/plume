@@ -1,10 +1,13 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import okio.Path.Companion.toPath
 import okio.FileSystem
 import eu.tintera.plume.core.audio.RecordedVoice
 import eu.tintera.plume.core.telegram.QuickReaction
 import eu.tintera.plume.core.telegram.OutgoingVideoNote
+import eu.tintera.plume.resources.conversation_bookmark_removed
+import eu.tintera.plume.resources.conversation_bookmark_added
 import eu.tintera.plume.resources.summary_me
 import eu.tintera.plume.resources.conversation_video_note_send_failed
 import eu.tintera.plume.resources.conversation_video_note_start_failed
@@ -340,6 +343,10 @@ class ConversationViewModel(
     private val liveLocations: LiveLocationRepository,
     /** Reakce na dvojité ťuknutí; nastavení účtu, ne chatu. */
     private val quickReaction: QuickReaction,
+    /** Záložky zpráv; bez nich se „Přidat do záložek" nenabízí. */
+    private val bookmarks: MessageBookmarks? = null,
+    /** Skok na zprávu ze záložky v profilu; bez něj se nečeká. */
+    private val jumpRequests: ConversationJumpRequests? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -656,6 +663,16 @@ class ConversationViewModel(
                 if (sent?.chatId == chatId) {
                     replyRequests.consumeSent(chatId)
                     if (_state.value.replyConsumedBy(sent)) clearReply()
+                }
+            }
+        }
+
+        // Záložka z profilu: profil se zavře a konverzace skočí na zprávu.
+        viewModelScope.launch {
+            jumpRequests?.target?.collect { requested ->
+                if (requested?.first == chatId) {
+                    jumpRequests.consume(chatId)
+                    jumpToMessage(requested.second)
                 }
             }
         }
@@ -3729,6 +3746,7 @@ class ConversationViewModel(
             is MessageAction.QuoteReply -> quoteReply(messageId, action.text)
             is MessageAction.CopyText -> copyText(action.text)
             MessageMenuAction.ToggleFavoriteSticker -> toggleFavoriteSticker(messageId)
+            MessageMenuAction.ToggleBookmark -> toggleBookmark(messageId)
             MessageMenuAction.Forward -> requestForward(messageId)
             MessageMenuAction.Info -> showMessageInfo(messageId)
             MessageMenuAction.Translate -> showTranslation(messageId)
@@ -3795,10 +3813,37 @@ class ConversationViewModel(
                         actions = actions,
                         items = items,
                         favoriteSticker = favorite,
+                        bookmarked = bookmarks?.isBookmarked(chatId, messageId),
                         pressedMessageId = pressed?.takeIf { it != messageId },
                         inTranslationLanguage = inTranslationLanguage,
                     ),
                 )
+            }
+        }
+    }
+
+    /**
+     * Přidá zprávu do záložek, nebo ji z nich odebere. Otisk zprávy (text, odesílatel) se skládá
+     * teď, v jazyce aplikace — záložka pak v seznamu nepotřebuje zprávu načítat. Výsledek hlásí
+     * snackbar, v konverzaci se nic nezmění.
+     */
+    private fun toggleBookmark(messageId: Long) {
+        val bookmarks = bookmarks ?: return
+        val menu = _state.value.messageMenu?.takeIf { it.messageId == messageId } ?: return
+        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+        closeMenus()
+
+        if (menu.bookmarked == true) {
+            bookmarks.remove(chatId, messageId)
+            _state.update { it.copy(notice = UiText(Res.string.conversation_bookmark_removed)) }
+            return
+        }
+        viewModelScope.launch {
+            // Stejný otisk jako řádek přepisu výběru: „[Fotka] popisek", text, nebo popis.
+            val preview = transcriptBody(message, resolve = { it.resolveNow() }).orEmpty()
+            val sender = if (message.isOutgoing) null else message.senderName ?: _state.value.info?.title
+            if (bookmarks.add(chatId, messageId, preview, sender, message.timestamp)) {
+                _state.update { it.copy(notice = UiText(Res.string.conversation_bookmark_added)) }
             }
         }
     }
@@ -5167,6 +5212,8 @@ data class MessageMenu(
      * nenabízí vůbec.
      */
     val favoriteSticker: Boolean?,
+    /** Je zpráva v záložkách (`MessageBookmarks`)? `null` = záložky nejsou k dispozici, položka se nenabízí. */
+    val bookmarked: Boolean? = null,
     /**
      * Zpráva pod prstem, když se liší od [messageId]: fotka uprostřed alba. Blok alba patří zprávě
      * s popiskem (nebo nejstarší), takže bez tohohle odpověď citovala tu, ne fotku, na kterou

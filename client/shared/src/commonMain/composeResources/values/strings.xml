@@ -2435,4 +2435,13 @@
     <string name="selection_copy_text">Text only</string>
     <string name="selection_copy_with_names">With time and names</string>
     <string name="selection_copy_markdown">Markdown</string>
+    <string name="menu_bookmark_add">Add to bookmarks</string>
+    <string name="menu_bookmark_remove">Remove from bookmarks</string>
+    <string name="conversation_bookmark_added">Added to bookmarks</string>
+    <string name="conversation_bookmark_removed">Removed from bookmarks</string>
+    <string name="profile_bookmarks">Bookmarks</string>
+    <plurals name="profile_bookmarks_count">
+        <item quantity="one">%1$d message</item>
+        <item quantity="other">%1$d messages</item>
+    </plurals>
 </resources>
