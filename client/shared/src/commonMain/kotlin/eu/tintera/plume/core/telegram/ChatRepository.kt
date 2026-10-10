@@ -48,6 +48,13 @@ interface ChatRepository {
     val drafts: Flow<List<ChatSummary>> get() = flowOf(emptyList())
 
     /**
+     * Smaže koncept celého chatu (ne témat a vláken komentářů) — přehled konceptů. Vrací, čím ho
+     * vrátit CELÝ, i s odpovědí, formátováním a náhledem odkazu, které [ChatSummary.draft] nenese;
+     * `null`, když koncept mezitím zmizel (odeslaný jinde).
+     */
+    suspend fun deleteDraft(chatId: Long): Result<DraftRestore?> = Result.failure(UnsupportedOperationException())
+
+    /**
      * Id chatu Uložené zprávy; `null`, dokud není přihlášeno.
      *
      * Uložené zprávy jsou v Telegramu obyčejný soukromý chat s vlastním účtem, a id soukromého
@@ -670,4 +677,9 @@ enum class ChatActivity {
     SendingFile,
     ChoosingSticker,
     Other,
+}
+
+/** Vrácení smazaného konceptu ([ChatRepository.deleteDraft]). */
+fun interface DraftRestore {
+    suspend fun restore(): Result<Unit>
 }

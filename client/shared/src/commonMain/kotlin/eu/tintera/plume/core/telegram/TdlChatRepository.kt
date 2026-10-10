@@ -224,6 +224,21 @@ class TdlChatRepository(
         }
         .distinctUntilChanged()
 
+    override suspend fun deleteDraft(chatId: Long): Result<DraftRestore?> {
+        // Koncept se čte z TDLib, ne z [all]: tam je jen text a entity, a vrácení má obnovit
+        // i odpověď a náhled odkazu. Původní datum zůstane, takže se koncept v přehledu vrátí
+        // na své místo.
+        val draft = client.getChat(chatId = chatId).toResult().getOrElse { return Result.failure(it) }.draftMessage
+            ?: return Result.success(null)
+        return client.setChatDraftMessage(chatId = chatId, topicId = null, draftMessage = null)
+            .toResult()
+            .map {
+                DraftRestore {
+                    client.setChatDraftMessage(chatId = chatId, topicId = null, draftMessage = draft).toResult().map { }
+                }
+            }
+    }
+
     /**
      * Kdo v chatu naposledy ohlásil činnost. `ChatSummary` nese jen DRUH činnosti (seznamu
      * chatů stačí „píše…"); konverzace ve skupině potřebuje i tvář. Zhasíná se spolu s činností

@@ -338,12 +338,17 @@ fun ChatListScreen(
     // seznamem hned zavřel.
     val loadedDrafts = drafts
     if (showDrafts && loadedDrafts != null) {
+        val draftDeleted by viewModel.draftDeleted.collectAsStateWithLifecycle()
         DraftsSheet(
             drafts = loadedDrafts,
+            deleted = draftDeleted,
             onOpen = { chat ->
                 showDrafts = false
                 if (chat.isForum) onForumClick(chat.id) else onChatClick(chat.id)
             },
+            onDelete = viewModel::deleteDraft,
+            onDeletedShown = viewModel::consumeDraftDeleted,
+            onUndo = viewModel::undoDeleteDraft,
             onDismiss = { showDrafts = false },
         )
     }

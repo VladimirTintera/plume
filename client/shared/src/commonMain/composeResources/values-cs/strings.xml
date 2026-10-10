@@ -166,6 +166,8 @@
     <string name="spam_report_body">Chat se nahlásí moderátorům Telegramu.</string>
     <string name="spam_report_delete">Smazat i chat</string>
     <string name="spam_report_confirm">Nahlásit</string>
+    <string name="chats_draft_delete">Smazat koncept</string>
+    <string name="chats_draft_deleted">Koncept smazán</string>
     <string name="chats_drafts">Koncepty</string>
     <plurals name="chats_drafts_count">
         <item quantity="one">%1$d chat s rozepsanou zprávou</item>

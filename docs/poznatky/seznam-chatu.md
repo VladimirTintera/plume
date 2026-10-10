@@ -505,6 +505,22 @@ všemi známými chaty (`all` v `TdlChatRepository`), ne nad jednou složkou.
   komentářů tu nejsou — `Chat.draftMessage` nese jen koncept celého chatu.
 - **Ověřeno na emulátoru**: koncept v Uložených se objevil nahoře, ťuknutí otevřelo konverzaci
   s textem v poli, po smazání textu počet v menu živě klesl.
+- **Mazání z přehledu: koš u konceptu, bez potvrzení, se snackbarem „Vrátit"** — jako archivace.
+  `ChatRepository.deleteDraft` si koncept před smazáním přečte z TDLib (`getChat().draftMessage`)
+  a vrací `DraftRestore`, které ho vrátí CELÝ: `ChatSummary.draft` nese jen text a entity, ne
+  odpověď ani náhled odkazu. Původní datum zůstane, takže se vrácený koncept zařadí na své místo.
+- **Snackbar je uvnitř sheetu a POD seznamem, ne přes něj.** Snackbar seznamu chatů by ležel pod
+  sheetem. Překrytý (`Box`) zase zakryl zbylý koncept: sheet je vysoký jen na obsah, takže po
+  smazání jednoho ze dvou konceptů zbyl řádek přesně pod snackbarem.
+- **Prázdný přehled se zavře až po doběhnutém snackbaru**, jinak by „Vrátit" posledního
+  konceptu odjelo se sheetem. Rozpracovaná smazání se počítají OD ŤUKNUTÍ: update, že koncept
+  zmizel, může přijít dřív než výsledek smazání. ViewModel proto výsledek ohlásí vždycky
+  (`DraftDeleted.restore` `null` = selhalo nebo nebylo co vracet), aby počítadlo kleslo. Po
+  „Vrátit" se ještě čeká (nejvýš 2 s), než vrácený koncept přijde updatem.
+- **Ověřeno na emulátoru** (Fold, česky, koncepty v Uložených a u testovacího bota): smazání
+  a „Vrátit" (koncept zpět v přehledu), smazání posledního (přehled otevřený se snackbarem, po
+  něm se zavřel). **Pozor při ověřování:** snackbar zmizí po 4 s a koš dalšího konceptu leží
+  přesně pod „Vrátit" — ťuknutí se zpožděním smaže další koncept.
 
 ### Archiv
 

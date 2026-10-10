@@ -163,6 +163,8 @@
     <string name="spam_report_body">The chat will be reported to Telegram moderators.</string>
     <string name="spam_report_delete">Delete the chat too</string>
     <string name="spam_report_confirm">Report</string>
+    <string name="chats_draft_delete">Delete draft</string>
+    <string name="chats_draft_deleted">Draft deleted</string>
     <string name="chats_drafts">Drafts</string>
     <plurals name="chats_drafts_count">
         <item quantity="one">%1$d chat with an unsent draft</item>
