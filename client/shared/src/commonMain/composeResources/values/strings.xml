@@ -2425,4 +2425,13 @@
     <string name="storage_category_gifs">GIFs</string>
     <string name="storage_category_stickers">Stickers</string>
     <string name="storage_category_other">Other (profile photos, previews)</string>
+    <string name="shortcuts_group_chats">Chats</string>
+    <string name="shortcuts_group_writing">Writing a message</string>
+    <string name="shortcut_search_chats">Search chats</string>
+    <string name="shortcut_search_in_chat">Search in conversation</string>
+    <string name="shortcut_next_chat">Next chat</string>
+    <string name="shortcut_previous_chat">Previous chat</string>
+    <string name="shortcut_back">Back</string>
+    <string name="shortcut_send">Send message</string>
+    <string name="shortcut_new_line">New line</string>
 </resources>

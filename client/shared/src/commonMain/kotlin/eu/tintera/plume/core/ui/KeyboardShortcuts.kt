@@ -63,3 +63,26 @@ fun neighbourChat(ids: List<Long>, current: Long?, next: Boolean): Long? {
     if (index < 0) return if (next) ids.first() else ids.last()
     return ids.getOrNull(if (next) index + 1 else index - 1)
 }
+
+/**
+ * Klávesa a modifikátory jedné zkratky, jak je ukazuje systémový přehled (Android Meta+/).
+ * Zkratky z [keyboardShortcut] se tu vypisují znovu, protože přehled potřebuje klávesy, ne
+ * pravidlo — že se oba seznamy nerozešly, hlídá `KeyboardShortcutsTest`.
+ */
+data class ShortcutBinding(
+    val shortcut: KeyboardShortcut,
+    val key: Key,
+    val ctrl: Boolean = false,
+    val alt: Boolean = false,
+    val shift: Boolean = false,
+)
+
+/** Zkratky v pořadí, v jakém je přehled ukáže. */
+val SHORTCUT_BINDINGS: List<ShortcutBinding> = listOf(
+    ShortcutBinding(KeyboardShortcut.SearchChats, Key.K, ctrl = true),
+    ShortcutBinding(KeyboardShortcut.SearchInChat, Key.F, ctrl = true),
+    ShortcutBinding(KeyboardShortcut.NextChat, Key.DirectionDown, alt = true),
+    ShortcutBinding(KeyboardShortcut.PreviousChat, Key.DirectionUp, alt = true),
+    ShortcutBinding(KeyboardShortcut.NextChat, Key.Tab, ctrl = true),
+    ShortcutBinding(KeyboardShortcut.PreviousChat, Key.Tab, ctrl = true, shift = true),
+)

@@ -2502,4 +2502,13 @@
     <string name="storage_category_gifs">GIFy</string>
     <string name="storage_category_stickers">Samolepky</string>
     <string name="storage_category_other">Ostatní (profilové fotky, náhledy)</string>
+    <string name="shortcuts_group_chats">Chaty</string>
+    <string name="shortcuts_group_writing">Psaní zprávy</string>
+    <string name="shortcut_search_chats">Hledat v chatech</string>
+    <string name="shortcut_search_in_chat">Hledat v konverzaci</string>
+    <string name="shortcut_next_chat">Další chat</string>
+    <string name="shortcut_previous_chat">Předchozí chat</string>
+    <string name="shortcut_back">Zpět</string>
+    <string name="shortcut_send">Odeslat zprávu</string>
+    <string name="shortcut_new_line">Nový řádek</string>
 </resources>
