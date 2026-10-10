@@ -61,7 +61,7 @@ internal suspend fun selectionMarkdown(
     }
     .joinToString("\n\n")
 
-private suspend fun transcriptBody(
+internal suspend fun transcriptBody(
     message: ChatMessage,
     resolve: suspend (UiText) -> String,
     markdown: Boolean = false,

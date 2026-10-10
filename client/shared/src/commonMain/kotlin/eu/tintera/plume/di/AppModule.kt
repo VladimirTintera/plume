@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.features.conversation.ConversationJumpRequests
+import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import eu.tintera.plume.features.forward.ShareContactViewModel
 import eu.tintera.plume.features.profile.AddMembersViewModel
 import eu.tintera.plume.features.forward.BotShareViewModel
@@ -301,6 +303,8 @@ fun appModule() = module {
     single { ChatOpenRequests() }
     single { BotStartRequests() }
     single { ConversationSearchRequests() }
+    single { ConversationJumpRequests() }
+    single { MessageBookmarks(settings = get(), chats = get()) }
     single { ConversationReplyRequests() }
     single { InlineQueryRequests() }
     single { RevealedSpoilers() }
@@ -463,6 +467,8 @@ fun appModule() = module {
             proxies = get(),
             liveLocations = get(),
             quickReaction = get(),
+            bookmarks = get(),
+            jumpRequests = get(),
         )
     }
 
@@ -513,6 +519,7 @@ fun appModule() = module {
             clipboard = get(),
             voicePlayer = get(),
             musicQueue = get(),
+            bookmarks = get(),
         )
     }
 

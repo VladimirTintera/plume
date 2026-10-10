@@ -8,6 +8,9 @@ import eu.tintera.plume.core.files.saveAsSupported
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.features.conversation.MessageMenu
 import eu.tintera.plume.features.conversation.replyTarget
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.menu_bookmark_add
+import eu.tintera.plume.resources.menu_bookmark_remove
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -97,12 +100,28 @@ class MessageActionTest {
                 MessageMenuAction.Translate,
                 MessageMenuAction.Forward,
                 MessageMenuAction.Info,
+                MessageMenuAction.ToggleBookmark,
                 MessageMenuAction.Pin,
                 MessageMenuAction.Select,
                 MessageMenuAction.Report,
                 MessageMenuAction.Delete,
             ),
             menuActions(message(), isPinned = false),
+        )
+    }
+
+    @Test
+    fun zalozkaSePrepinaPodleStavuANeznamyStavSeNenabizi() {
+        val items = listOf(MessageMenuAction.ToggleBookmark)
+        // Bez záložek (bubliny, testy bez MessageBookmarks) se položka neukáže vůbec.
+        assertNull(MessageMenuAction.ToggleBookmark.presentation(menu(items)))
+        assertEquals(
+            Res.string.menu_bookmark_add,
+            MessageMenuAction.ToggleBookmark.presentation(menu(items).copy(bookmarked = false))?.label,
+        )
+        assertEquals(
+            Res.string.menu_bookmark_remove,
+            MessageMenuAction.ToggleBookmark.presentation(menu(items).copy(bookmarked = true))?.label,
         )
     }
 

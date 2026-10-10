@@ -437,6 +437,35 @@ upravená, kdy ji protějšek přečetl, kdo ji zhlédl a odkaz na ni (`MessageI
 - **Typ odesílatele se jmenuje `SenderInfo`, ne `ReactionSender`.** Používají ho i zhlédnutí
   a název podle reakcí by u nich lhal.
 
+## Záložky zpráv
+
+„Přidat do záložek" v nabídce nad zprávou označí zprávu jen pro uživatele, v tomhle zařízení
+(`MessageBookmarks` v `core/bookmarks`, uložené v `AppSettings`). Seznam je v profilu chatu
+(řádek „Záložky" s počtem, `BookmarksSheet`); ťuknutí profil zavře a konverzace skočí na zprávu.
+
+- **Lokálně, ne přes server.** Telegram nic jako soukromou záložku na zprávu nemá — připnutí
+  vidí všichni a chce práva, Uložené zprávy jsou kopie (přeposlání), ne odkaz na místo v chatu.
+  Synchronizace přes CloudStorage mini aplikace by šla (viz „Synchronizace nastavení mezi zařízeními bez vlastního backendu"
+  v `nastaveni.md`), ale za cenu bota navíc; záložky proto zůstávají v zařízení.
+- **Záložka nese otisk zprávy** (text, odesílatel, čas) z doby uložení. Seznam se ukáže hned,
+  bez načítání zpráv po jedné, a záložka smazané zprávy pořád říká, co to bylo. Úprava zprávy
+  se do otisku nepropíše. Text je `transcriptBody` jako u kopírování výběru — u fotky bez
+  popisku tedy „[Fotka]", ne prázdno.
+- **Účet je id Uložených zpráv** (`ChatRepository.savedMessagesChatId`): je to chat s vlastním
+  účtem a jeho id je id uživatele. Po odhlášení a přihlášení jiného účtu se záložky nepromíchají;
+  dokud účet známý není, přidat nejde (snackbar nic neohlásí, položka se jen nepřepne).
+- **Skok na zprávu jde přes `ConversationJumpRequests`, ne přes routu.** Konverzace z profilu
+  je obvykle už otevřená pod ním (profil se otevírá z ní) a nová `ConversationRoute` s `messageId`
+  by ji nezaložila znovu — ViewModel téhož chatu přežívá a parametr z routy by ignoroval (viz
+  „ViewModel na detailu MUSÍ mít klíč obsahující id" v CLAUDE.md). Profil proto požadavek
+  zapíše, sám se ze zásobníku odebere a otevřená konverzace si požadavek vezme (`consume`)
+  a skočí; když otevřená není, přidá se routa a požadavek si vezme nově založený ViewModel.
+- **Poslední odebraná záložka sheet zavře a řádek z profilu zmizí** — řádek se ukazuje jen při
+  nenulovém počtu, jako záložky sdílených médií („Nabízejí se jen neprázdné záložky").
+- **Ověřeno na emulátoru** (Fold rozložený, česky): přidání a odebrání z nabídky nad zprávou,
+  řádek „1 zpráva / Záložky" v profilu, sheet, skok na zprávu se zvýrazněním, odebrání ze sheetu.
+  Hledání záložek zatím není. **iOS jen přeložené.**
+
 ## Přeposílání
 
 „Přeposlat" v nabídce nad zprávou otevře výběr cílového chatu (`ForwardRoute`, vlastní obrazovka);

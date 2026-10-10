@@ -2512,4 +2512,14 @@
     <string name="selection_copy_text">Jen text</string>
     <string name="selection_copy_with_names">S časem a jménem</string>
     <string name="selection_copy_markdown">Markdown</string>
+    <string name="menu_bookmark_add">Přidat do záložek</string>
+    <string name="menu_bookmark_remove">Odebrat ze záložek</string>
+    <string name="conversation_bookmark_added">Přidáno do záložek</string>
+    <string name="conversation_bookmark_removed">Odebráno ze záložek</string>
+    <string name="profile_bookmarks">Záložky</string>
+    <plurals name="profile_bookmarks_count">
+        <item quantity="one">%1$d zpráva</item>
+        <item quantity="few">%1$d zprávy</item>
+        <item quantity="other">%1$d zpráv</item>
+    </plurals>
 </resources>

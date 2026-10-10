@@ -36,6 +36,7 @@ import eu.tintera.plume.features.settings.BlockSenderScreen
 import eu.tintera.plume.features.settings.BlockedSendersScreen
 import eu.tintera.plume.features.settings.TwoStepScreen
 import eu.tintera.plume.features.settings.AppLockScreen
+import eu.tintera.plume.features.conversation.ConversationJumpRequests
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
 import eu.tintera.plume.features.conversation.InlineQueryRequests
 import eu.tintera.plume.features.conversation.SwitchInlinePick
@@ -634,6 +635,7 @@ private fun shellEntryProvider(
     // Profil je detail jako konverzace: na širokém rozvržení ji v pravém panelu nahradí.
     entry<ChatProfileRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
         val searchRequests = koinInject<ConversationSearchRequests>()
+        val jumpRequests = koinInject<ConversationJumpRequests>()
         ChatProfileScreen(
             viewModel = koinViewModel(key = "profile-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
@@ -663,6 +665,13 @@ private fun shellEntryProvider(
             // Soukromý chat s botem má id bota, takže chat je zároveň bot.
             onOpenMainWebApp = {
                 chatsStack.add(WebAppRoute(route.chatId, route.chatId, url = "", launch = false, archive = false, main = true))
+            },
+            // Záložka: profil se zavře a konverzace pod ním skočí na zprávu (`ConversationJumpRequests`).
+            // Bez konverzace pod profilem se otevře rovnou na té zprávě.
+            onOpenMessage = { messageId ->
+                jumpRequests.request(route.chatId, messageId)
+                chatsStack.pop(route)
+                if (!chatsStack.isOpenConversation(route.chatId)) chatsStack.add(ConversationRoute(route.chatId, messageId))
             },
         )
     }
@@ -787,6 +796,7 @@ private fun shellEntryProvider(
 
     entry<ArchiveChatProfileRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
         val searchRequests = koinInject<ConversationSearchRequests>()
+        val jumpRequests = koinInject<ConversationJumpRequests>()
         ChatProfileScreen(
             viewModel = koinViewModel(key = "profile-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
@@ -821,6 +831,13 @@ private fun shellEntryProvider(
             // Soukromý chat s botem má id bota, takže chat je zároveň bot.
             onOpenMainWebApp = {
                 chatsStack.add(WebAppRoute(route.chatId, route.chatId, url = "", launch = false, archive = true, main = true))
+            },
+            onOpenMessage = { messageId ->
+                jumpRequests.request(route.chatId, messageId)
+                chatsStack.pop(route)
+                if (!chatsStack.isOpenArchiveConversation(route.chatId)) {
+                    chatsStack.add(ArchiveConversationRoute(route.chatId, messageId))
+                }
             },
         )
     }

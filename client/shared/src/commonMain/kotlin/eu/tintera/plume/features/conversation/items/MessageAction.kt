@@ -5,6 +5,10 @@ import eu.tintera.plume.core.telegram.ForwardOrigin
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.features.conversation.MessageMenu
 import eu.tintera.plume.core.files.saveAsSupported
+import eu.tintera.plume.resources.menu_bookmark_remove
+import eu.tintera.plume.resources.menu_bookmark_add
+import eu.tintera.plume.resources.bookmark_filled_24dp
+import eu.tintera.plume.resources.bookmark_24dp
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.content_copy_24dp
 import eu.tintera.plume.resources.delete_24dp
@@ -364,6 +368,18 @@ sealed interface MessageMenuAction : MessageAction {
         override fun presentation(menu: MessageMenu) = when (menu.favoriteSticker) {
             true -> MenuPresentation(Res.drawable.star_filled_24dp, Res.string.menu_favorite_remove)
             false -> MenuPresentation(Res.drawable.star_24dp, Res.string.menu_favorite_add)
+            null -> null
+        }
+    }
+
+    /**
+     * Záložka jen pro uživatele (`MessageBookmarks`), v zařízení. Nabízí se u každé zprávy;
+     * jestli už v záložkách je, se zjistí při otevření nabídky ([MessageMenu.bookmarked]).
+     */
+    data object ToggleBookmark : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) = when (menu.bookmarked) {
+            true -> MenuPresentation(Res.drawable.bookmark_filled_24dp, Res.string.menu_bookmark_remove)
+            false -> MenuPresentation(Res.drawable.bookmark_24dp, Res.string.menu_bookmark_add)
             null -> null
         }
     }
