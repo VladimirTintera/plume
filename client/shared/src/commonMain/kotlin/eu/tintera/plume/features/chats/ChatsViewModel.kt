@@ -10,6 +10,7 @@ import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ChatSwipeActions
 import eu.tintera.plume.core.telegram.ArchiveSettings
 import eu.tintera.plume.core.telegram.ArchiveUnread
+import eu.tintera.plume.core.telegram.DraftRestore
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatFolders
 import eu.tintera.plume.core.telegram.ChatFolderMembership
@@ -263,6 +264,42 @@ class ChatsViewModel(
      */
     val drafts: StateFlow<List<ChatSummary>?> = repository.drafts
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val _draftDeleted = MutableStateFlow<DraftDeleted?>(null)
+
+    /** Koncept smazaný z přehledu — přehled ukáže snackbar s „Vrátit" a událost vynuluje. */
+    val draftDeleted: StateFlow<DraftDeleted?> = _draftDeleted.asStateFlow()
+
+    /**
+     * Smaže koncept z přehledu. Ve `viewModelScope`: zavřený přehled nesmí smazání přerušit.
+     * Výsledek se ohlásí VŽDY, i bez čeho vracet — přehled podle něj pozná, že smazání doběhlo.
+     */
+    fun deleteDraft(chat: ChatSummary) {
+        viewModelScope.launch {
+            val restore = repository.deleteDraft(chat.id)
+                .onFailure {
+                    logger.w(it) { "Smazání konceptu v chatu ${chat.id} selhalo." }
+                    reportFailure(it)
+                }
+                .getOrNull()
+            _draftDeleted.value = DraftDeleted(chat.id, restore)
+        }
+    }
+
+    fun consumeDraftDeleted() {
+        _draftDeleted.value = null
+    }
+
+    /** „Vrátit" ve snackbaru přehledu konceptů. */
+    fun undoDeleteDraft(deleted: DraftDeleted) {
+        val restore = deleted.restore ?: return
+        viewModelScope.launch {
+            restore.restore().onFailure {
+                logger.w(it) { "Vrácení konceptu v chatu ${deleted.chatId} selhalo." }
+                reportFailure(it)
+            }
+        }
+    }
 
     private val _archiveSettings = MutableStateFlow<ArchiveSettings?>(null)
 
@@ -822,3 +859,9 @@ data class NewFolderChats(
     val sheetOpen: Boolean = false,
     val busy: Boolean = false,
 )
+
+/**
+ * Doběhlé smazání konceptu z přehledu a jak ho vrátit; [restore] `null` = smazání selhalo, nebo
+ * koncept mezitím zmizel sám. Instance je událost — dvě smazání se neslijí.
+ */
+class DraftDeleted(val chatId: Long, val restore: DraftRestore?)
