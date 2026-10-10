@@ -416,6 +416,8 @@ private fun shellEntryProvider(
                 }
             },
             onForumClick = { chatId -> chatsStack.openForum(chatId) },
+            // Koncept v tématu z přehledu konceptů: téma a pod ním seznam témat, jako u nalezené zprávy.
+            onTopicClick = { chatId, topicId -> chatsStack.openFoundMessage(chatId, messageId = null, topicId = topicId) },
             onMessageClick = { chatId, messageId, topicId -> chatsStack.openFoundMessage(chatId, messageId, topicId) },
             searchRequest = navigation.searchRequest,
             onSearchRequestHandled = navigation::consumeSearchRequest,

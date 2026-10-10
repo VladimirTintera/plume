@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.resources.tag_24dp
+import eu.tintera.plume.core.ui.accentOn
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.MutableTransitionState
@@ -44,7 +48,6 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.appendWithCustomEmoji
 import eu.tintera.plume.core.ui.asRelativeTime
@@ -87,10 +90,10 @@ import org.jetbrains.compose.resources.stringResource
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun DraftsSheet(
-    drafts: List<ChatSummary>,
+    drafts: List<DraftItem>,
     deleted: DraftDeleted?,
-    onOpen: (ChatSummary) -> Unit,
-    onDelete: (ChatSummary) -> Unit,
+    onOpen: (DraftItem) -> Unit,
+    onDelete: (DraftItem) -> Unit,
     onDeletedShown: () -> Unit,
     onUndo: (DraftDeleted) -> Unit,
     onDismiss: () -> Unit,
@@ -149,7 +152,7 @@ internal fun DraftsSheet(
         val leaving = remember { LeavingDrafts(drafts) }
         var leftCount by remember { mutableIntStateOf(0) }
         val rows = remember(drafts, leftCount) { leaving.rows(drafts) }
-        val present = remember(drafts) { drafts.mapTo(HashSet()) { it.id } }
+        val present = remember(drafts) { drafts.mapTo(HashSet()) { it.key } }
 
         // Snackbar POD seznamem, ne přes něj: sheet je vysoký jen na obsah, a po smazání by
         // „Koncept smazán" zakryl zbylý koncept (ověřeno na emulátoru se dvěma koncepty).
@@ -160,15 +163,15 @@ internal fun DraftsSheet(
                 .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()),
         ) {
             LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false)) {
-                items(rows, key = { it.id }) { chat ->
-                    val isPresent = chat.id in present
+                items(rows, key = { it.key }) { item ->
+                    val isPresent = item.key in present
                     // Koncepty, se kterými se přehled otevřel, jsou vidět hned; vrácený („Vrátit")
                     // se rozbalí.
-                    val visibility = remember { MutableTransitionState(leaving.initiallyShown(chat.id)) }
+                    val visibility = remember { MutableTransitionState(leaving.initiallyShown(item.key)) }
                     visibility.targetState = isPresent
                     if (!isPresent && visibility.isIdle && !visibility.currentState) {
                         LaunchedEffect(Unit) {
-                            leaving.gone(chat.id)
+                            leaving.gone(item.key)
                             leftCount++
                         }
                     }
@@ -180,16 +183,16 @@ internal fun DraftsSheet(
                             fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
                     ) {
                         DraftRow(
-                            chat = chat,
+                            item = item,
                             enabled = isPresent,
                             onClick = {
                                 // Napřed sheet dolů, pak teprve chat — jinak by konverzace naskočila pod
                                 // odjíždějícím sheetem a jeho zavření by vypadalo jako zásek.
-                                scope.launch { sheetState.hide() }.invokeOnCompletion { onOpen(chat) }
+                                scope.launch { sheetState.hide() }.invokeOnCompletion { onOpen(item) }
                             },
                             onDelete = {
                                 busy++
-                                onDelete(chat)
+                                onDelete(item)
                             },
                         )
                     }
@@ -207,16 +210,16 @@ internal fun DraftsSheet(
  * Odjíždějící řádek tak je vidět už v prvním snímku bez konceptu; s efektem by jeden snímek chyběl
  * a řádek by bliknul.
  */
-private class LeavingDrafts(initial: List<ChatSummary>) {
-    private val initialIds = initial.mapTo(HashSet()) { it.id }
-    private var last: List<ChatSummary> = initial
-    private val leaving = mutableMapOf<Long, Pair<Int, ChatSummary>>()
+private class LeavingDrafts(initial: List<DraftItem>) {
+    private val initialIds = initial.mapTo(HashSet()) { it.key }
+    private var last: List<DraftItem> = initial
+    private val leaving = mutableMapOf<String, Pair<Int, DraftItem>>()
 
-    fun initiallyShown(id: Long): Boolean = id in initialIds
+    fun initiallyShown(key: String): Boolean = key in initialIds
 
-    fun rows(drafts: List<ChatSummary>): List<ChatSummary> {
-        val ids = drafts.mapTo(HashSet()) { it.id }
-        last.forEachIndexed { index, chat -> if (chat.id !in ids) leaving.getOrPut(chat.id) { index to chat } }
+    fun rows(drafts: List<DraftItem>): List<DraftItem> {
+        val ids = drafts.mapTo(HashSet()) { it.key }
+        last.forEachIndexed { index, item -> if (item.key !in ids) leaving.getOrPut(item.key) { index to item } }
         ids.forEach { leaving.remove(it) }
         last = drafts
         val rows = drafts.toMutableList()
@@ -224,14 +227,15 @@ private class LeavingDrafts(initial: List<ChatSummary>) {
         return rows
     }
 
-    fun gone(id: Long) {
-        leaving.remove(id)
+    fun gone(key: String) {
+        leaving.remove(key)
     }
 }
 
 @Composable
-private fun DraftRow(chat: ChatSummary, enabled: Boolean, onClick: () -> Unit, onDelete: () -> Unit) {
-    val draft = chat.draft ?: return
+private fun DraftRow(item: DraftItem, enabled: Boolean, onClick: () -> Unit, onDelete: () -> Unit) {
+    val chat = item.chat
+    val draft = item.draft
     Row(
         Modifier
             .fillMaxWidth()
@@ -264,6 +268,22 @@ private fun DraftRow(chat: ChatSummary, enabled: Boolean, onClick: () -> Unit, o
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 8.dp),
                 )
+            }
+            // Koncept v tématu: pod názvem skupiny téma, akcentem jako v seznamu témat. Akcent
+            // se ověřuje proti ploše sheetu (`accentOn`), v paletě se zvýšeným kontrastem ustoupí.
+            item.topic?.let { topic ->
+                val surface = BottomSheetDefaults.ContainerColor
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    val color = accentOn(surface, MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onSurface)
+                    Icon(painterResource(Res.drawable.tag_24dp), contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
+                    Text(
+                        topic.name,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = color,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             // Vlastní emoji v konceptu jako obrázek, stejně jako v řádku seznamu chatů.
             val customEmoji = mutableSetOf<Long>()

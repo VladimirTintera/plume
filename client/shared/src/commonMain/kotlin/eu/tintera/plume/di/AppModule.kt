@@ -79,6 +79,8 @@ import eu.tintera.plume.core.telegram.TdlGifRepository
 import eu.tintera.plume.core.telegram.TdlEmojiRepository
 import eu.tintera.plume.core.telegram.QuickReaction
 import eu.tintera.plume.core.telegram.TdlQuickReaction
+import eu.tintera.plume.core.telegram.TdlTopicDrafts
+import eu.tintera.plume.core.telegram.TopicDrafts
 import eu.tintera.plume.core.telegram.AutoDownloadPresets
 import eu.tintera.plume.core.telegram.TdlAutoDownloadPresets
 import eu.tintera.plume.core.telegram.TdlStickerRepository
@@ -204,6 +206,10 @@ fun appModule() = module {
             session = get(),
             scope = get(named(APP_SCOPE)),
         )
+    }
+    // Eager ze stejného důvodu: `UpdateForumTopic` s konceptem chodí i bez otevřeného přehledu.
+    single<TopicDrafts>(createdAtStart = true) {
+        TdlTopicDrafts(holder = get(), chats = get(), scope = get(named(APP_SCOPE)))
     }
 
     // Bezstavová — na rozdíl od seznamu chatů nemusí vznikat dopředu, stránkovací stav
@@ -353,6 +359,7 @@ fun appModule() = module {
             accounts = get(),
             savedState = get(),
             folderRepository = get(),
+            topicDrafts = get(),
         )
     }
     viewModelOf(::StickerPickerViewModel)

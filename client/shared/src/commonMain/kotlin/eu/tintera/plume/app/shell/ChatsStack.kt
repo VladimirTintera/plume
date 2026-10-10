@@ -210,9 +210,10 @@ internal fun MutableList<NavKey>.openTarget(target: ChatTarget, archive: Boolean
 /**
  * Nalezená zpráva z hledání v seznamu chatů: nahradí otevřenou konverzaci jako výběr chatu.
  * Zpráva v tématu se otevře v TÉMATU a pod ním seznam témat, jako by k ní uživatel došel
- * ze seznamu chatů — zpět tak vede tam, kam by vedl z tématu otevřeného ručně.
+ * ze seznamu chatů — zpět tak vede tam, kam by vedl z tématu otevřeného ručně. Bez [messageId]
+ * se téma jen otevře (koncept v tématu z přehledu konceptů).
  */
-internal fun MutableList<NavKey>.openFoundMessage(chatId: Long, messageId: Long, topicId: Int?) {
+internal fun MutableList<NavKey>.openFoundMessage(chatId: Long, messageId: Long?, topicId: Int?) {
     removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute }
     if (topicId != null) add(ForumTopicsRoute(chatId))
     add(ConversationRoute(chatId, messageId, topicId = topicId))

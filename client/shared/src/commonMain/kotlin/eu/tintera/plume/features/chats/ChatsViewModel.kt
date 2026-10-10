@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.chats
 
+import kotlinx.coroutines.flow.flowOf
+import eu.tintera.plume.core.telegram.ChatDraft
+import eu.tintera.plume.core.telegram.TopicDrafts
 import eu.tintera.plume.core.telegram.AccountRepository
 import kotlin.time.Duration
 import co.touchlab.kermit.Logger
@@ -66,6 +69,8 @@ class ChatsViewModel(
     private val savedState: SavedStateHandle = SavedStateHandle(),
     /** „Přidat do složky" v nabídce nad chatem; bez něj se položka nenabízí. */
     private val folderRepository: ChatFolderRepository? = null,
+    /** Koncepty v tématech skupin do přehledu konceptů; bez nich jen koncepty chatů. */
+    private val topicDrafts: TopicDrafts? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -262,8 +267,14 @@ class ChatsViewModel(
      * Chaty s rozepsanou zprávou — přehled konceptů z menu účtu. `null`, dokud se nenačtou:
      * prázdný seznam znamená „žádné koncepty" a přehled se při něm zavře.
      */
-    val drafts: StateFlow<List<ChatSummary>?> = repository.drafts
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    val drafts: StateFlow<List<DraftItem>?> = combine(
+        repository.drafts,
+        topicDrafts?.drafts ?: flowOf(emptyList()),
+    ) { chats, topics ->
+        (chats.mapNotNull { chat -> chat.draft?.let { DraftItem(chat, topic = null, draft = it) } } +
+            topics.map { DraftItem(it.chat, DraftTopic(it.topicId, it.topicName), it.draft) })
+            .sortedByDescending { it.draft.timestamp }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val _draftDeleted = MutableStateFlow<DraftDeleted?>(null)
 
@@ -274,15 +285,22 @@ class ChatsViewModel(
      * Smaže koncept z přehledu. Ve `viewModelScope`: zavřený přehled nesmí smazání přerušit.
      * Výsledek se ohlásí VŽDY, i bez čeho vracet — přehled podle něj pozná, že smazání doběhlo.
      */
-    fun deleteDraft(chat: ChatSummary) {
+    fun deleteDraft(item: DraftItem) {
+        val chatId = item.chat.id
         viewModelScope.launch {
-            val restore = repository.deleteDraft(chat.id)
+            val topicId = item.topic?.id
+            val deleted = if (topicId == null) {
+                repository.deleteDraft(chatId)
+            } else {
+                topicDrafts?.delete(chatId, topicId) ?: Result.success(null)
+            }
+            val restore = deleted
                 .onFailure {
-                    logger.w(it) { "Smazání konceptu v chatu ${chat.id} selhalo." }
+                    logger.w(it) { "Smazání konceptu v chatu $chatId (téma $topicId) selhalo." }
                     reportFailure(it)
                 }
                 .getOrNull()
-            _draftDeleted.value = DraftDeleted(chat.id, restore)
+            _draftDeleted.value = DraftDeleted(chatId, restore)
         }
     }
 
@@ -865,3 +883,11 @@ data class NewFolderChats(
  * koncept mezitím zmizel sám. Instance je událost — dvě smazání se neslijí.
  */
 class DraftDeleted(val chatId: Long, val restore: DraftRestore?)
+
+/** Položka přehledu konceptů: koncept celého chatu ([topic] `null`), nebo tématu ve skupině. */
+data class DraftItem(val chat: ChatSummary, val topic: DraftTopic?, val draft: ChatDraft) {
+    /** Klíč do seznamu: chat i téma, jeden chat může mít koncepty ve víc tématech. */
+    val key: String get() = "${chat.id}:${topic?.id ?: ""}"
+}
+
+data class DraftTopic(val id: Int, val name: String)

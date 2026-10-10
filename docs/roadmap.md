@@ -530,8 +530,8 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
   schránky. ~~Seznam zkratek v systémovém přehledu (Meta+/)~~ — hotovo.
 - ~~**Přehled rozepsaných konceptů**~~ — hotovo (menu účtu → Koncepty;
   `docs/poznatky/seznam-chatu.md`, „Přehled konceptů"). ~~Smazání konceptu přímo z přehledu~~ —
-  hotovo (koš a „Vrátit"). Zbývá: koncepty v tématech fóra a ve vláknech komentářů
-  (`ForumTopic.draftMessage`).
+  hotovo (koš a „Vrátit"). ~~Koncepty v tématech fóra~~ — hotovo. Zbývá: koncepty ve vláknech
+  komentářů (TDLib je nehlásí updatem, musely by se hledat jinak).
 - **Lokální odložení chatu (Snooze).** Možnost odložit chat (z nabídky nad chatem nebo volbou
   tahu) na 1 hodinu, dnes večer nebo zítra ráno. Chat se dočasně vizuálně ztiší a v nastavený
   čas se znovu vynoří na vrcholu seznamu chatů jako připomínka.

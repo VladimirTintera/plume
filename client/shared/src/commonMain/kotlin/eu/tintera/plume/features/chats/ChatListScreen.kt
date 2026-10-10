@@ -248,6 +248,8 @@ fun ChatListScreen(
     onChatClick: (Long) -> Unit,
     /** Skupina s tématy: otevře se seznam témat, ne konverzace. */
     onForumClick: (Long) -> Unit,
+    /** Téma skupiny (koncept v něm z přehledu konceptů); bez něj se otevře seznam témat. */
+    onTopicClick: (chatId: Long, topicId: Int) -> Unit = { chatId, _ -> onForumClick(chatId) },
     /** Nalezená zpráva: otevřít její chat a skočit na ni. */
     onMessageClick: (chatId: Long, messageId: Long, topicId: Int?) -> Unit,
     /** Dotaz, se kterým otevřít hledání (hashtag z konverzace); po otevření [onSearchRequestHandled]. */
@@ -342,9 +344,14 @@ fun ChatListScreen(
         DraftsSheet(
             drafts = loadedDrafts,
             deleted = draftDeleted,
-            onOpen = { chat ->
+            onOpen = { item ->
                 showDrafts = false
-                if (chat.isForum) onForumClick(chat.id) else onChatClick(chat.id)
+                val topic = item.topic
+                when {
+                    topic != null -> onTopicClick(item.chat.id, topic.id)
+                    item.chat.isForum -> onForumClick(item.chat.id)
+                    else -> onChatClick(item.chat.id)
+                }
             },
             onDelete = viewModel::deleteDraft,
             onDeletedShown = viewModel::consumeDraftDeleted,
