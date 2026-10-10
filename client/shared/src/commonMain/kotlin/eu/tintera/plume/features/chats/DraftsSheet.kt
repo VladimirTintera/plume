@@ -1,5 +1,12 @@
 package eu.tintera.plume.features.chats
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -137,24 +144,55 @@ internal fun DraftsSheet(
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp),
         )
+        // Řádky včetně těch, které právě odjíždějí: smazaný koncept z `drafts` zmizí hned, ale
+        // v seznamu má dojet animací, jinak by řádek i výška sheetu skočily v jednom snímku.
+        val leaving = remember { LeavingDrafts(drafts) }
+        var leftCount by remember { mutableIntStateOf(0) }
+        val rows = remember(drafts, leftCount) { leaving.rows(drafts) }
+        val present = remember(drafts) { drafts.mapTo(HashSet()) { it.id } }
+
         // Snackbar POD seznamem, ne přes něj: sheet je vysoký jen na obsah, a po smazání by
         // „Koncept smazán" zakryl zbylý koncept (ověřeno na emulátoru se dvěma koncepty).
-        Column(Modifier.navigationBarsPadding()) {
+        // `animateContentSize`: výška sheetu dojede i tam, kde se mění skokem (snackbar).
+        Column(
+            Modifier
+                .navigationBarsPadding()
+                .animateContentSize(MaterialTheme.motionScheme.defaultSpatialSpec()),
+        ) {
             LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false)) {
-                items(drafts, key = { it.id }) { chat ->
-                    DraftRow(
-                        chat = chat,
-                        onClick = {
-                            // Napřed sheet dolů, pak teprve chat — jinak by konverzace naskočila pod
-                            // odjíždějícím sheetem a jeho zavření by vypadalo jako zásek.
-                            scope.launch { sheetState.hide() }.invokeOnCompletion { onOpen(chat) }
-                        },
-                        onDelete = {
-                            busy++
-                            onDelete(chat)
-                        },
-                        modifier = Modifier.animateItem(),
-                    )
+                items(rows, key = { it.id }) { chat ->
+                    val isPresent = chat.id in present
+                    // Koncepty, se kterými se přehled otevřel, jsou vidět hned; vrácený („Vrátit")
+                    // se rozbalí.
+                    val visibility = remember { MutableTransitionState(leaving.initiallyShown(chat.id)) }
+                    visibility.targetState = isPresent
+                    if (!isPresent && visibility.isIdle && !visibility.currentState) {
+                        LaunchedEffect(Unit) {
+                            leaving.gone(chat.id)
+                            leftCount++
+                        }
+                    }
+                    AnimatedVisibility(
+                        visibleState = visibility,
+                        enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+                            fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                        exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                            fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+                    ) {
+                        DraftRow(
+                            chat = chat,
+                            enabled = isPresent,
+                            onClick = {
+                                // Napřed sheet dolů, pak teprve chat — jinak by konverzace naskočila pod
+                                // odjíždějícím sheetem a jeho zavření by vypadalo jako zásek.
+                                scope.launch { sheetState.hide() }.invokeOnCompletion { onOpen(chat) }
+                            },
+                            onDelete = {
+                                busy++
+                                onDelete(chat)
+                            },
+                        )
+                    }
                 }
             }
             SnackbarHost(snackbarHostState)
@@ -162,13 +200,42 @@ internal fun DraftsSheet(
     }
 }
 
+/**
+ * Koncepty, které z přehledu zmizely, ale ještě dojíždějí animací — na svém původním místě.
+ *
+ * Obyčejná třída, ne stav: řádky se z ní počítají v `remember(drafts, …)` přímo při kompozici.
+ * Odjíždějící řádek tak je vidět už v prvním snímku bez konceptu; s efektem by jeden snímek chyběl
+ * a řádek by bliknul.
+ */
+private class LeavingDrafts(initial: List<ChatSummary>) {
+    private val initialIds = initial.mapTo(HashSet()) { it.id }
+    private var last: List<ChatSummary> = initial
+    private val leaving = mutableMapOf<Long, Pair<Int, ChatSummary>>()
+
+    fun initiallyShown(id: Long): Boolean = id in initialIds
+
+    fun rows(drafts: List<ChatSummary>): List<ChatSummary> {
+        val ids = drafts.mapTo(HashSet()) { it.id }
+        last.forEachIndexed { index, chat -> if (chat.id !in ids) leaving.getOrPut(chat.id) { index to chat } }
+        ids.forEach { leaving.remove(it) }
+        last = drafts
+        val rows = drafts.toMutableList()
+        leaving.values.sortedBy { it.first }.forEach { (index, chat) -> rows.add(index.coerceAtMost(rows.size), chat) }
+        return rows
+    }
+
+    fun gone(id: Long) {
+        leaving.remove(id)
+    }
+}
+
 @Composable
-private fun DraftRow(chat: ChatSummary, onClick: () -> Unit, onDelete: () -> Unit, modifier: Modifier = Modifier) {
+private fun DraftRow(chat: ChatSummary, enabled: Boolean, onClick: () -> Unit, onDelete: () -> Unit) {
     val draft = chat.draft ?: return
     Row(
-        modifier
+        Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(start = 24.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.Top,
@@ -210,7 +277,7 @@ private fun DraftRow(chat: ChatSummary, onClick: () -> Unit, onDelete: () -> Uni
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
+        IconButton(onClick = onDelete, enabled = enabled, shapes = IconButtonDefaults.shapes()) {
             Icon(painterResource(Res.drawable.delete_24dp), contentDescription = stringResource(Res.string.chats_draft_delete))
         }
     }

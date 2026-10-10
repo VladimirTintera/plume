@@ -226,8 +226,8 @@ class TdlChatRepository(
 
     override suspend fun deleteDraft(chatId: Long): Result<DraftRestore?> {
         // Koncept se čte z TDLib, ne z [all]: tam je jen text a entity, a vrácení má obnovit
-        // i odpověď a náhled odkazu. Původní datum zůstane, takže se koncept v přehledu vrátí
-        // na své místo.
+        // i odpověď a náhled odkazu. Datum se při vrácení přepíše na teď (ověřeno na emulátoru),
+        // takže se vrácený koncept zařadí v přehledu nahoru.
         val draft = client.getChat(chatId = chatId).toResult().getOrElse { return Result.failure(it) }.draftMessage
             ?: return Result.success(null)
         return client.setChatDraftMessage(chatId = chatId, topicId = null, draftMessage = null)

@@ -508,7 +508,16 @@ všemi známými chaty (`all` v `TdlChatRepository`), ne nad jednou složkou.
 - **Mazání z přehledu: koš u konceptu, bez potvrzení, se snackbarem „Vrátit"** — jako archivace.
   `ChatRepository.deleteDraft` si koncept před smazáním přečte z TDLib (`getChat().draftMessage`)
   a vrací `DraftRestore`, které ho vrátí CELÝ: `ChatSummary.draft` nese jen text a entity, ne
-  odpověď ani náhled odkazu. Původní datum zůstane, takže se vrácený koncept zařadí na své místo.
+  odpověď ani náhled odkazu. **Původní datum nezůstane**: i když se vrací původní `DraftMessage`
+  s jeho `date`, koncept má po vrácení čas vrácení (14:43 → 14:45 na emulátoru) a zařadí se
+  v přehledu nahoru.
+- **Smazaný řádek odjíždí animací a sheet mění výšku plynule.** `drafts` ho ztratí v jednom
+  snímku, takže si přehled odjíždějící řádky drží sám (`LeavingDrafts`) na jejich původním
+  místě a sbalí je `AnimatedVisibility`; vrácený koncept se rozbalí. Řádky se počítají
+  v `remember` přímo při kompozici, ne efektem — s efektem by první snímek bez konceptu řádek
+  ukázal bez něj a bliknul by. Zbytek skoků (snackbar) vyrovná `animateContentSize` kolem
+  seznamu. `animateItem` na to nestačí: seznam je vysoký jen na obsah, takže se zmenší hned
+  a mizící řádek ořízne. Ověřeno zpomalenými animacemi (`animator_duration_scale 8`).
 - **Snackbar je uvnitř sheetu a POD seznamem, ne přes něj.** Snackbar seznamu chatů by ležel pod
   sheetem. Překrytý (`Box`) zase zakryl zbylý koncept: sheet je vysoký jen na obsah, takže po
   smazání jednoho ze dvou konceptů zbyl řádek přesně pod snackbarem.
