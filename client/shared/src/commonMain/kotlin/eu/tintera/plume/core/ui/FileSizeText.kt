@@ -10,7 +10,6 @@ import eu.tintera.plume.resources.file_size_b
 import eu.tintera.plume.resources.file_size_gb
 import eu.tintera.plume.resources.file_size_kb
 import eu.tintera.plume.resources.file_size_mb
-import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 
 /**
@@ -34,8 +33,8 @@ fun fileSizeText(bytes: Long): String = fileSizeText(formatFileSize(bytes))
 /** Totéž mimo kompozici (notifikace), v jazyce platném TEĎ. Skládá se stejně jako [fileSizeText]. */
 suspend fun fileSizeString(bytes: Long): String {
     val size = formatFileSize(bytes)
-    val number = size.tenths?.let { getString(Res.string.decimal_number, size.whole, it.toString()) } ?: size.whole
-    return getString(size.unit.label(), number)
+    val number = size.tenths?.let { readString(Res.string.decimal_number, size.whole, it.toString()) } ?: size.whole
+    return readString(size.unit.label(), number)
 }
 
 private fun FileSizeUnit.label() = when (this) {

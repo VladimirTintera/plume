@@ -1,8 +1,8 @@
 package eu.tintera.plume.core.share
 
-import org.jetbrains.compose.resources.getString
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.distinctUntilChanged
+import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.saved_messages
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -49,7 +49,7 @@ class ShareTargets(
             // Uložené zprávy nesou v TDLib jméno a fotku vlastního účtu; ve sdílení mají mít
             // vlastní název a záložku, jako všude v aplikaci.
             if (chatId == chats.savedMessagesChatId.value) {
-                publisher.publish(chatId, getString(Res.string.saved_messages), avatarPath = null, isSavedMessages = true)
+                publisher.publish(chatId, readString(Res.string.saved_messages), avatarPath = null, isSavedMessages = true)
                 return@launch
             }
             val info = repository.chatInfo(chatId).getOrElse { failure ->

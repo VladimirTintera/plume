@@ -3,6 +3,7 @@ package eu.tintera.plume.features.profile
 import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.files.opensInViewer
+import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.share_24dp
 import eu.tintera.plume.resources.contact_add
 import eu.tintera.plume.resources.person_remove_24dp
@@ -212,7 +213,6 @@ import eu.tintera.plume.resources.search_24dp
 import eu.tintera.plume.resources.auto_delete_title
 import eu.tintera.plume.resources.auto_delete_off
 import org.jetbrains.compose.resources.DrawableResource
-import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource

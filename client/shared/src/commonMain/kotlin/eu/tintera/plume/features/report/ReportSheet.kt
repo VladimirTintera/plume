@@ -28,7 +28,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.getString
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -40,6 +39,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ReportOption
 import eu.tintera.plume.core.telegram.ReportStep
+import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.core.ui.SheetActionRow
 import eu.tintera.plume.core.ui.sheetActionShape

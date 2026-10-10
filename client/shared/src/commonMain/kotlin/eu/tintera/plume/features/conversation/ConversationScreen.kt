@@ -9,6 +9,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import eu.tintera.plume.core.ui.RollingNumber
+import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.forum_24dp
 import eu.tintera.plume.resources.saved_view_as_chats
 import eu.tintera.plume.resources.saved_topic_read_only
@@ -438,7 +439,6 @@ import eu.tintera.plume.core.telegram.SharePhoneBar
 import eu.tintera.plume.features.report.ReportHost
 import eu.tintera.plume.features.proxy.ProxyLinkHost
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource

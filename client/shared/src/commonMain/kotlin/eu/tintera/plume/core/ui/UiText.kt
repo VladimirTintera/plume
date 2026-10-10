@@ -3,8 +3,6 @@ package eu.tintera.plume.core.ui
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.resources.PluralStringResource
 import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.getPluralString
-import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -63,8 +61,8 @@ fun UiText.resolve(): String = when (this) {
  * Výsledek je v jazyce platném TEĎ, a proto se nesmí nikam ukládat na později.
  */
 suspend fun UiText.resolveNow(): String = when (this) {
-    is UiText.Resource -> getString(resource, *args.map { (it as? UiText)?.resolveNow() ?: it }.toTypedArray())
-    is UiText.Plural -> getPluralString(resource, quantity, *args.map { (it as? UiText)?.resolveNow() ?: it }.toTypedArray())
+    is UiText.Resource -> readString(resource, *args.map { (it as? UiText)?.resolveNow() ?: it }.toTypedArray())
+    is UiText.Plural -> readPluralString(resource, quantity, *args.map { (it as? UiText)?.resolveNow() ?: it }.toTypedArray())
     is UiText.Raw -> text
 }
 

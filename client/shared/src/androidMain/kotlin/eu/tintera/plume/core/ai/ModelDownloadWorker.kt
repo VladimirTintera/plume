@@ -26,6 +26,7 @@ import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.MODEL_DOWNLOAD_CHANNEL_ID
 import eu.tintera.plume.core.notifications.createModelDownloadChannel
 import eu.tintera.plume.core.ui.fileSizeString
+import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.model_download_notification_done
 import eu.tintera.plume.resources.model_download_notification_done_text
@@ -41,7 +42,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.getString
 import org.koin.core.context.GlobalContext
 
 /**
@@ -140,8 +140,8 @@ class ModelDownloadWorker(
     private suspend fun foregroundInfo(model: GemmaModel, progress: ModelDownload, percent: Int): ForegroundInfo {
         val total = progress.totalBytes
         val text = when {
-            progress.waitingForNetwork -> getString(Res.string.model_download_notification_waiting)
-            total != null -> getString(
+            progress.waitingForNetwork -> readString(Res.string.model_download_notification_waiting)
+            total != null -> readString(
                 Res.string.settings_on_device_ai_download_progress,
                 fileSizeString(progress.downloadedBytes),
                 fileSizeString(total),
@@ -150,7 +150,7 @@ class ModelDownloadWorker(
         }
         val notification = NotificationCompat.Builder(applicationContext, MODEL_DOWNLOAD_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(getString(Res.string.model_download_notification_title, model.displayName))
+            .setContentTitle(readString(Res.string.model_download_notification_title, model.displayName))
             .setContentText(text)
             .setProgress(100, percent.coerceAtLeast(0), percent < 0 || progress.waitingForNetwork)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
@@ -162,7 +162,7 @@ class ModelDownloadWorker(
             .setContentIntent(openApp())
             .addAction(
                 0,
-                getString(Res.string.model_download_notification_stop),
+                readString(Res.string.model_download_notification_stop),
                 WorkManager.getInstance(applicationContext).createCancelPendingIntent(id),
             )
             .build()
@@ -189,12 +189,12 @@ class ModelDownloadWorker(
     private suspend fun notifyResult(model: GemmaModel, error: Exception?) {
         hideProgress(model)
         val (title, text) = when (error) {
-            null -> getString(Res.string.model_download_notification_done, model.displayName) to
-                getString(Res.string.model_download_notification_done_text)
-            is NotEnoughSpaceException -> getString(Res.string.model_download_notification_failed, model.displayName) to
-                getString(Res.string.settings_on_device_ai_not_enough_space)
-            else -> getString(Res.string.model_download_notification_failed, model.displayName) to
-                getString(Res.string.model_download_notification_failed_text)
+            null -> readString(Res.string.model_download_notification_done, model.displayName) to
+                readString(Res.string.model_download_notification_done_text)
+            is NotEnoughSpaceException -> readString(Res.string.model_download_notification_failed, model.displayName) to
+                readString(Res.string.settings_on_device_ai_not_enough_space)
+            else -> readString(Res.string.model_download_notification_failed, model.displayName) to
+                readString(Res.string.model_download_notification_failed_text)
         }
         val notification = NotificationCompat.Builder(applicationContext, MODEL_DOWNLOAD_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)

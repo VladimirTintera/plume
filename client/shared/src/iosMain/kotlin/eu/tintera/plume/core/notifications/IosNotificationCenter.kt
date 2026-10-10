@@ -2,6 +2,7 @@ package eu.tintera.plume.core.notifications
 
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.navigation.ChatOpenRequests
+import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notification_mark_read
 import eu.tintera.plume.resources.notification_mute_hour
@@ -15,7 +16,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.getString
 import org.koin.core.Koin
 import platform.Foundation.NSUUID
 import platform.UIKit.UIApplication
@@ -79,10 +79,10 @@ object IosNotificationCenter {
          * aplikace při startu padala na `objc_retain` v `actionWithIdentifier` (ověřeno pádem
          * na simulátoru; test bez suspendu v argumentech prošel).
          */
-        val replyTitle = getString(Res.string.notification_reply)
-        val sendTitle = getString(Res.string.notification_reply_send)
-        val markReadTitle = getString(Res.string.notification_mark_read)
-        val muteTitle = getString(Res.string.notification_mute_hour)
+        val replyTitle = readString(Res.string.notification_reply)
+        val sendTitle = readString(Res.string.notification_reply_send)
+        val markReadTitle = readString(Res.string.notification_mark_read)
+        val muteTitle = readString(Res.string.notification_mute_hour)
 
         val reply = UNTextInputNotificationAction.actionWithIdentifier(
             identifier = NotificationCategories.ACTION_REPLY,
@@ -225,7 +225,7 @@ object IosNotificationCenter {
             val source = original.request.content
             val content = UNMutableNotificationContent().apply {
                 setTitle(source.title)
-                setBody(getString(Res.string.notification_reply_failed, text))
+                setBody(readString(Res.string.notification_reply_failed, text))
                 setThreadIdentifier(source.threadIdentifier)
                 setCategoryIdentifier(source.categoryIdentifier)
                 setUserInfo(source.userInfo)

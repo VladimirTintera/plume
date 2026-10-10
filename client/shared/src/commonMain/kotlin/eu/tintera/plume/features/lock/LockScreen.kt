@@ -45,6 +45,7 @@ import eu.tintera.plume.core.lock.rememberBiometricAuth
 import eu.tintera.plume.core.ui.PinDots
 import eu.tintera.plume.core.ui.PinKeypad
 import eu.tintera.plume.core.ui.confirm
+import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.core.ui.reject
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.app_lock_biometrics_prompt
@@ -54,7 +55,6 @@ import eu.tintera.plume.resources.app_lock_wrong_pin
 import eu.tintera.plume.resources.lock_24dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -84,7 +84,7 @@ fun LockScreen(
     // ikona otisku prostě zmizela a vypadalo by to jako chyba.
     var biometricsRevoked by rememberSaveable { mutableStateOf(false) }
     val tryBiometrics: suspend () -> Unit = {
-        when (biometricAuth.authenticate(title = getString(Res.string.app_lock_biometrics_prompt))) {
+        when (biometricAuth.authenticate(title = readString(Res.string.app_lock_biometrics_prompt))) {
             BiometricResult.Success -> {
                 haptics.confirm()
                 appLock.unlockWithBiometrics()
@@ -216,7 +216,7 @@ fun LockScreen(
                                 is PinResult.Wrong -> {
                                     haptics.reject()
                                     errorTrigger++
-                                    errorMessage = getString(Res.string.app_lock_wrong_pin)
+                                    errorMessage = readString(Res.string.app_lock_wrong_pin)
                                     enteredPin = ""
                                     isChecking = false
                                 }

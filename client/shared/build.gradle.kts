@@ -356,6 +356,46 @@ val verifyNoHardcodedText = tasks.register("verifyNoHardcodedText") {
 
 tasks.named("check") { dependsOn(verifyNoHardcodedText) }
 
+/**
+ * Hlídá, že suspend čtení textu z prostředků jde jen přes `readString` / `readPluralString`
+ * (`core/ui/ResourceStrings.kt`), které čtou mimo hlavní vlákno.
+ *
+ * Přímé `getString` z korutiny na `Dispatchers.Main` umí s `stringResource` v kompozici
+ * zamknout hlavní vlákno natrvalo — zdůvodnění je v KDoc `readString`. Volání bylo přes
+ * šedesát a každé nové by past otevřelo znovu, aniž by si toho kdo všiml: deadlock je souběh,
+ * v testech ani při zkoušení se neukáže.
+ */
+val verifyResourceReadsOffMain = tasks.register("verifyResourceReadsOffMain") {
+    group = "verification"
+    description = "Ověří, že se text z prostředků mimo kompozici čte přes readString."
+
+    val sources = listOf(
+        layout.projectDirectory.dir("src/commonMain/kotlin"),
+        layout.projectDirectory.dir("src/androidMain/kotlin"),
+        layout.projectDirectory.dir("src/iosMain/kotlin"),
+    )
+    sources.forEach { inputs.dir(it) }
+    val roots = sources.map { it.asFile }
+    val projectDir = layout.projectDirectory.asFile
+
+    doLast {
+        val directRead = Regex("""^import org\.jetbrains\.compose\.resources\.(?:getString|getPluralString|getStringArray|\*)\b""")
+        val offenders = roots
+            .flatMap { it.walkTopDown().filter { f -> f.extension == "kt" && f.name != "ResourceStrings.kt" } }
+            .flatMap { file ->
+                file.readLines().mapIndexedNotNull { index, line ->
+                    "${file.relativeTo(projectDir)}:${index + 1}: $line".takeIf { directRead.containsMatchIn(line.trim()) }
+                }
+            }
+        check(offenders.isEmpty()) {
+            "Text z prostředků se mimo kompozici čte přes readString / readPluralString (core/ui/ResourceStrings.kt):\n" +
+                offenders.joinToString("\n")
+        }
+    }
+}
+
+tasks.named("check") { dependsOn(verifyResourceReadsOffMain) }
+
 // api_id/api_hash z my.telegram.org. Čtou se z local.properties (gitignorovaný), aby se pár
 // nikdy nedostal do repozitáře. Bez nich se projekt přeloží, ale přihlášení skončí chybou
 // od serveru — hlásí se to srozumitelně místo pádu (viz sendTdlibParameters v TdlTelegramSession).

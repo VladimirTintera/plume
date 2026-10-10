@@ -51,6 +51,7 @@ import eu.tintera.plume.core.lock.rememberBiometricAuth
 import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.PinDots
 import eu.tintera.plume.core.ui.PinKeypad
+import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.core.ui.reject
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.app_lock_biometrics_prompt
@@ -81,7 +82,6 @@ import eu.tintera.plume.resources.settings_app_lock_timeout
 import eu.tintera.plume.resources.settings_app_lock_verify_current
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 

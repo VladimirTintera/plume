@@ -62,7 +62,7 @@ import eu.tintera.plume.resources.delete_24dp
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
-import org.jetbrains.compose.resources.getString
+import eu.tintera.plume.core.ui.readString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -121,8 +121,8 @@ internal fun DraftsSheet(
                 // Další smazání odsune předchozí „Vrátit", jinak by snackbary čekaly ve frontě.
                 snackbarHostState.currentSnackbarData?.dismiss()
                 val result = snackbarHostState.showSnackbar(
-                    message = getString(Res.string.chats_draft_deleted),
-                    actionLabel = getString(Res.string.chats_undo),
+                    message = readString(Res.string.chats_draft_deleted),
+                    actionLabel = readString(Res.string.chats_undo),
                     duration = SnackbarDuration.Short,
                 )
                 if (result == SnackbarResult.ActionPerformed) {

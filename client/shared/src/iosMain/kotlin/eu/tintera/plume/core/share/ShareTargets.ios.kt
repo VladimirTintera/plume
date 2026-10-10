@@ -1,6 +1,6 @@
 package eu.tintera.plume.core.share
 
-import org.jetbrains.compose.resources.getString
+import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.saved_messages
 import eu.tintera.plume.resources.Res
 import co.touchlab.kermit.Logger
@@ -154,7 +154,7 @@ class IosShareSnapshot(
 
         // Uložené zprávy vždy první a pod vlastním názvem, i když v seznamu chatů nejsou.
         val saved = savedMessagesChatId?.let {
-            ShareSnapshotChat(id = it, title = getString(Res.string.saved_messages), saved = true)
+            ShareSnapshotChat(id = it, title = readString(Res.string.saved_messages), saved = true)
         }
 
         val entries = listOfNotNull(saved) + ordered.map { chat ->

@@ -14,7 +14,6 @@ import eu.tintera.plume.resources.shortcut_send
 import eu.tintera.plume.resources.shortcuts_group_chats
 import eu.tintera.plume.resources.shortcuts_group_writing
 import org.jetbrains.compose.resources.StringResource
-import org.jetbrains.compose.resources.getString
 import android.view.KeyEvent
 import androidx.compose.ui.input.key.Key
 
@@ -86,7 +85,7 @@ class KeyboardShortcutOverview private constructor(private val texts: Map<String
                 Res.string.shortcuts_group_chats,
                 Res.string.shortcuts_group_writing,
             )
-            return KeyboardShortcutOverview(labels.associateWith { getString(it) })
+            return KeyboardShortcutOverview(labels.associateWith { readString(it) })
         }
     }
 }
