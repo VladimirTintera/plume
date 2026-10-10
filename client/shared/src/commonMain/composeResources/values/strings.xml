@@ -1223,6 +1223,7 @@
     <string name="settings_notif_state_custom">Custom settings</string>
     <string name="settings_notif_reset">Reset</string>
     <string name="quiet_hours_title">Quiet hours</string>
+    <string name="quiet_hours_switch">Silence notifications</string>
     <string name="quiet_hours_summary">Only mentions and replies make a sound, other notifications arrive silently</string>
     <string name="quiet_hours_from">From</string>
     <string name="quiet_hours_until">Until</string>

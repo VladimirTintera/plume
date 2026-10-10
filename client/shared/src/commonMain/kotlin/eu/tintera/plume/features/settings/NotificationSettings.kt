@@ -80,6 +80,7 @@ import eu.tintera.plume.resources.settings_notifications_off
 import eu.tintera.plume.resources.settings_notifications_on
 import eu.tintera.plume.resources.quiet_hours_from
 import eu.tintera.plume.resources.quiet_hours_summary
+import eu.tintera.plume.resources.quiet_hours_switch
 import eu.tintera.plume.resources.quiet_hours_title
 import eu.tintera.plume.resources.quiet_hours_until
 import eu.tintera.plume.features.conversation.TimeOfDayDialog
@@ -312,8 +313,9 @@ private fun QuietHoursGroup(
     var picking by rememberSaveable { mutableStateOf<QuietHoursEdge?>(null) }
 
     SettingsGroup(Res.string.quiet_hours_title) {
+        // Nadpis skupiny už „Tiché hodiny" říká; řádek říká, co přepínač dělá.
         SwitchRow(
-            title = Res.string.quiet_hours_title,
+            title = Res.string.quiet_hours_switch,
             summary = Res.string.quiet_hours_summary,
             checked = quietHours.enabled,
             onChange = onEnabledChange,

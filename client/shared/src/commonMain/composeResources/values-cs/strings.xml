@@ -1253,6 +1253,7 @@
     <string name="settings_notif_state_custom">Vlastní nastavení</string>
     <string name="settings_notif_reset">Obnovit</string>
     <string name="quiet_hours_title">Tiché hodiny</string>
+    <string name="quiet_hours_switch">Ztišit upozornění</string>
     <string name="quiet_hours_summary">Zvoní jen zmínky a odpovědi, ostatní notifikace přijdou potichu</string>
     <string name="quiet_hours_from">Od</string>
     <string name="quiet_hours_until">Do</string>
