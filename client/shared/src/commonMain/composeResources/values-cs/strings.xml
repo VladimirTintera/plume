@@ -108,6 +108,12 @@
     <string name="chats_snoozed">Odloženo</string>
     <string name="chats_snoozed_until">Odloženo do %1$s</string>
     <string name="chats_snooze_reminder">Připomenutí odloženého chatu</string>
+    <string name="chats_snooze_sheet_title">Odložit do…</string>
+    <string name="chats_swipe_snooze">Odložit</string>
+    <string name="chats_swipe_unsnooze">Probudit</string>
+    <string name="notification_channel_snooze">Odložené chaty</string>
+    <string name="notification_channel_snooze_description">Odložený chat se vrací</string>
+    <string name="snooze_reminder_text">Odložený chat se vrací</string>
     <string name="chats_action_mark_read">Označit jako přečtené</string>
     <string name="chats_action_mark_unread">Označit jako nepřečtené</string>
     <string name="chats_action_delete">Smazat chat</string>

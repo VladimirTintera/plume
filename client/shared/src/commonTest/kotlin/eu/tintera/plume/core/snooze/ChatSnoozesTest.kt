@@ -27,12 +27,26 @@ class ChatSnoozesTest {
 
     private var now = Instant.fromEpochSeconds(1_800_000_000)
 
+    /** Co by se naplánovalo a zrušilo v systému: chatId → čas, a zrušené chatId po sobě. */
+    private val scheduled = mutableMapOf<Long, Instant>()
+    private val cancelled = mutableListOf<Long>()
+    private val reminders = object : SnoozeReminders {
+        override fun schedule(chatId: Long, title: String, at: Instant) {
+            scheduled[chatId] = at
+        }
+
+        override fun cancel(chatId: Long) {
+            scheduled -= chatId
+            cancelled += chatId
+        }
+    }
+
     private fun snoozeTest(block: suspend (ChatSnoozes, DataStoreAppSettings) -> Unit) = runBlocking {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {
             val path = (FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "plume-snooze-${Random.nextLong()}.preferences_pb").toString()
             val settings = DataStoreAppSettings(createSettingsDataStore(path), scope)
-            block(ChatSnoozes(settings, FakeChatRepository(), now = { now }), settings)
+            block(ChatSnoozes(settings, FakeChatRepository(), reminders, now = { now }), settings)
         } finally {
             scope.cancel()
         }
@@ -43,18 +57,21 @@ class ChatSnoozesTest {
 
     @Test
     fun odlozenyChatSpiAPakSeVynori() = snoozeTest { snoozes, settings ->
-        snoozes.snooze(chatId = 5, until = now + 1.hours)
+        snoozes.snooze(chatId = 5, until = now + 1.hours, title = "Pět")
         snoozes.awaitState { 5L in it.sleeping }
         assertTrue(snoozes.isSleeping(5))
 
-        // Nahlédnutí do spícího chatu odložení neruší.
+        assertEquals(now + 1.hours, scheduled[5])
+
+        // Nahlédnutí do spícího chatu odložení neruší — ani upozornění.
         snoozes.opened(5)
         assertTrue(snoozes.isSleeping(5))
+        assertTrue(cancelled.isEmpty())
 
         now += 2.hours
         assertFalse(snoozes.isSleeping(5))
         // Stav se přepočítá s další změnou úložiště; tady ji vyvolá jiný chat.
-        snoozes.snooze(chatId = 6, until = now + 1.hours)
+        snoozes.snooze(chatId = 6, until = now + 1.hours, title = "Šest")
         snoozes.awaitState { 5L in it.due && 6L in it.sleeping }
 
         // Otevřením vynořená připomínka zmizí, spící chat zůstane.
@@ -63,6 +80,9 @@ class ChatSnoozesTest {
         val state = snoozes.awaitState { 5L !in it.due }
         assertEquals(setOf(6L), state.sleeping.keys)
         assertEquals(listOf(6L), settings.chatSnoozes.value.map { it.chatId })
+        // Upozornění vynořeného chatu se stáhne z lišty, spícímu zůstane naplánované.
+        assertEquals(listOf(5L), cancelled)
+        assertEquals(setOf(6L), scheduled.keys)
     }
 
     /** Odložení jiného účtu se v seznamu neukáže a notifikace neztiší. */
@@ -74,12 +94,13 @@ class ChatSnoozesTest {
         assertEquals(ChatSnoozeState(), snoozes.state.first())
 
         // Vlastní odložení cizí nepřepíše.
-        snoozes.snooze(chatId = 7, until = now + 1.hours)
+        snoozes.snooze(chatId = 7, until = now + 1.hours, title = "Sedm")
         snoozes.awaitState { 7L in it.sleeping }
         assertEquals(setOf(1L, 999L), settings.chatSnoozes.value.map { it.accountId }.toSet())
 
         snoozes.clear(7)
         snoozes.awaitState { it.sleeping.isEmpty() }
+        assertEquals(listOf(7L), cancelled)
         assertEquals(listOf(1L), settings.chatSnoozes.value.map { it.accountId })
     }
 

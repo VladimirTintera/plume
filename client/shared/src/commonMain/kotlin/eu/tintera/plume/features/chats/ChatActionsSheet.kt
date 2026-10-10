@@ -100,6 +100,9 @@ import eu.tintera.plume.resources.chats_snooze_morning
 import eu.tintera.plume.resources.chats_snooze_tomorrow_morning
 import eu.tintera.plume.resources.chats_snooze_tonight
 import eu.tintera.plume.resources.snooze_24dp
+import eu.tintera.plume.resources.chats_snooze_sheet_title
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.graphics.Color
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -445,18 +448,70 @@ private fun SnoozeChoices(onSnooze: (SnoozeOption) -> Unit) {
         exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) +
             fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
     ) {
-        val zone = TimeZone.currentSystemDefault()
-        val now = remember(expanded) { Clock.System.now() }
-        val options = remember(now) { snoozeOptions(now.toLocalDateTime(zone)) }
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            options.forEach { option ->
-                SheetActionRow(
-                    icon = null,
-                    label = stringResource(option.label()),
-                    shape = RoundedCornerShape(4.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    onClick = { onSnooze(option) },
-                    trailing = { SnoozeTime(snoozeUntil(option, now, zone).toEpochMilliseconds()) },
+        SnoozeOptionRows(
+            onSnooze = onSnooze,
+            // Tónovaná plocha o stupeň níž: varianty patří k položce nad nimi.
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            reserveIconSpace = true,
+        )
+    }
+}
+
+/**
+ * Doby odložení jako řádky nabídky, s časem, kdy se chat vrátí. Nabídka se počítá při
+ * zobrazení, v místním čase.
+ */
+@Composable
+private fun SnoozeOptionRows(onSnooze: (SnoozeOption) -> Unit, color: Color, reserveIconSpace: Boolean) {
+    val zone = TimeZone.currentSystemDefault()
+    val now = remember { Clock.System.now() }
+    val options = remember(now) { snoozeOptions(now.toLocalDateTime(zone)) }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        options.forEachIndexed { index, option ->
+            SheetActionRow(
+                icon = null,
+                label = stringResource(option.label()),
+                shape = if (reserveIconSpace) RoundedCornerShape(4.dp) else groupRowShape(index, options.size),
+                color = color,
+                onClick = { onSnooze(option) },
+                trailing = { SnoozeTime(snoozeUntil(option, now, zone).toEpochMilliseconds()) },
+                reserveIconSpace = reserveIconSpace,
+            )
+        }
+    }
+}
+
+/** Zaoblení řádku v samostatném bloku: velké na krajích, malé mezi. */
+private fun groupRowShape(index: Int, count: Int): RoundedCornerShape {
+    val top = if (index == 0) 20.dp else 4.dp
+    val bottom = if (index == count - 1) 20.dp else 4.dp
+    return RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)
+}
+
+/**
+ * Doby odložení po tahu chatem do strany. Samostatný sheet, ne celá nabídka nad chatem: tah
+ * řekl „odložit" a ptát se zbývá jen na kdy.
+ */
+@Composable
+fun SnoozeSheet(chat: ChatSummary, onSnooze: (SnoozeOption) -> Unit, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            Text(
+                text = chatTitle(chat.id, chat.title),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+            )
+            Text(
+                text = stringResource(Res.string.chats_snooze_sheet_title),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
+            )
+            Box(Modifier.fillMaxWidth().padding(16.dp)) {
+                SnoozeOptionRows(
+                    onSnooze = onSnooze,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    reserveIconSpace = false,
                 )
             }
         }

@@ -306,7 +306,7 @@ fun appModule() = module {
     single { ConversationSearchRequests() }
     single { ConversationJumpRequests() }
     single { MessageBookmarks(settings = get(), chats = get()) }
-    single { ChatSnoozes(settings = get(), chats = get()) }
+    single { ChatSnoozes(settings = get(), chats = get(), reminders = getOrNull()) }
     single { ConversationReplyRequests() }
     single { InlineQueryRequests() }
     single { RevealedSpoilers() }

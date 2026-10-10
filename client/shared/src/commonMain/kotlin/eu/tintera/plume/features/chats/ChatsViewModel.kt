@@ -413,14 +413,24 @@ class ChatsViewModel(
         snoozes?.state?.stateIn(viewModelScope, SharingStarted.Eagerly, ChatSnoozeState())
             ?: MutableStateFlow(ChatSnoozeState())
 
+    private val _snoozePicker = MutableStateFlow<ChatSummary?>(null)
+
+    /** Chat, kterému se po tahu vybírá doba odložení; `null` = nabídka zavřená. */
+    val snoozePicker: StateFlow<ChatSummary?> = _snoozePicker.asStateFlow()
+
+    fun closeSnoozePicker() {
+        _snoozePicker.value = null
+    }
+
     /** Nabízí se „Odložit"? */
     val canSnooze: Boolean get() = snoozes != null
 
     /** Odloží chat na [option] a zavře nabídku. */
     fun snooze(chat: ChatSummary, option: SnoozeOption) {
         val snoozes = snoozes ?: return
-        snoozes.snooze(chat.id, snoozeUntil(option, Clock.System.now(), TimeZone.currentSystemDefault()))
+        snoozes.snooze(chat.id, snoozeUntil(option, Clock.System.now(), TimeZone.currentSystemDefault()), chat.title)
         hideActions()
+        closeSnoozePicker()
     }
 
     /** Zruší odložení a zavře nabídku. */
@@ -645,6 +655,8 @@ class ChatsViewModel(
             ChatSwipeEffect.Unmute -> unmute(chat)
             ChatSwipeEffect.Pin -> run(chat.id) { repository.setPinned(chat.id, chat.folder, true) }
             ChatSwipeEffect.Unpin -> run(chat.id) { repository.setPinned(chat.id, chat.folder, false) }
+            ChatSwipeEffect.Snooze -> _snoozePicker.value = chat
+            ChatSwipeEffect.Unsnooze -> unsnooze(chat)
         }
     }
 
