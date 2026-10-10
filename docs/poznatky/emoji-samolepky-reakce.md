@@ -496,12 +496,25 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
 - **Místo pro odznak si vyhradí obálka čipu, odznak z kolečka NEČOUHÁ.** Řádek reakcí se posouvá
   do strany a posouvatelný kontejner si obsah ořezává na svoje hranice — zavěšený odznak by se
   uřízl.
-- **Bublina má s reakcí i bez ní STEJNOU velikost.** Čip je její odznak: leží přes spodní nároží
-  a na bublinu zasahuje kolečkem o 8 dp (`REACTION_CHIP_ON_BUBBLE`) — přesně o spodní odsazení
-  obsahu, takže nezakryje poslední řádek. Středem na okraji (zkoušeno) zakrýval začátek
-  posledního řádku; úplně pod zprávou (zkoušeno) přestal působit jako její odznak. Obsah si pro
-  něj místo NEDĚLÁ — dřív si ho dělal uvnitř (`REACTION_STRIP_SPACE`) a zpráva se při první
-  reakci skokem zvětšila.
+- **Čip je odznak bubliny a bublina se kvůli němu dole PLYNULE rozšíří.** Čip leží přes spodní
+  nároží a na bublinu zasahuje kolečkem o 8 dp (`REACTION_CHIP_ON_BUBBLE`), odznak počtu ještě
+  o 7 dp výš (`REACTION_BADGE_ROOM`). Středem na okraji (zkoušeno) zakrýval začátek posledního
+  řádku; úplně pod zprávou (zkoušeno) přestal působit jako její odznak.
+  - **Pevné odsazení 8 dp nestačilo**: kolečko se dotýkalo dotahů posledního řádku („you")
+    a odznak počtu do něj lezl (snímky od uživatele, kanál i příchozí zpráva). Zpráva s reakcemi
+    má proto dole `REACTION_CONTENT_BOTTOM` (čip na bublině + odznak + 4 dp mezera, celkem
+    19 dp) místo 8 dp. Počítá s odznakem i u reakcí bez počtu — jinak by se zpráva při druhé
+    reakci téhož emoji zvětšila podruhé.
+  - **Rozšíření se animuje** stejnou pružinou jako místo pod zprávou (`animateDpAsState`
+    v `rememberMessageBodyScope`). Úplně první řešení (`REACTION_STRIP_SPACE`) si dělalo místo
+    skokem a zpráva při první reakci poskočila — proto se pak místo nedělalo vůbec.
+  - **`MessageBodyScope` drží STAV odsazení, ne hodnotu** (`contentBottom` je getter nad
+    `State<Dp>`). S hodnotou v klíči `remember` by vznikal nový scope v každém snímku animace
+    a překreslovalo by se celé tělo zprávy; takhle rekomponuje jen to, co odsazení čte.
+  - **Řídí se reakcemi, které kreslí `MessageBox`** (`heldReactions`), ne `message.reactions`:
+    dokud zprávu kreslí nabídka, nesmí se bublina rozšířit dřív, než naskočí čip.
+  - Ověřeno na emulátoru (Pixel 7, API 36): čip i odznak „2" pod posledním řádkem s mezerou,
+    zpomalenými animacemi (`animator_duration_scale 10`) plynulé splasknutí po odebrání reakce.
 - **Kolečko lícuje s hranou bubliny**, jako v Google Zprávách — ne 10 dp uvnitř. Řádek se vysune
   o místo na odznak počtu (vpravo od kolečka) a o místo na stín, takže samotné kolečko končí
   přesně na okraji.
