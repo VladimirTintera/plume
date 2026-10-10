@@ -2314,6 +2314,9 @@ fun ConversationScreen(
                 onCopy = viewModel::copyTranslation,
                 onLanguageChange = viewModel::changeTranslationLanguage,
                 onDismiss = viewModel::dismissTranslation,
+                onOnDeviceChange = viewModel::setTranslateOnDevice,
+                onDownload = viewModel::downloadTranslationModels,
+                onServer = viewModel::translateOnServer,
             )
         }
 

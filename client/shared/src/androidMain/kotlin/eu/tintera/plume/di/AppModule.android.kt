@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.translation.MlKitTranslator
+import eu.tintera.plume.core.translation.OnDeviceTranslator
 import eu.tintera.plume.core.ocr.TextRecognizer
 import eu.tintera.plume.core.ocr.MlKitTextRecognizer
 import eu.tintera.plume.core.widget.ChatsWidgetUpdater
@@ -78,6 +80,7 @@ actual fun Module.platformModule() {
     single { FileOpener(androidContext()) }
     single { MediaSaver(androidContext()) }
     single<TextRecognizer> { MlKitTextRecognizer() }
+    single<OnDeviceTranslator> { MlKitTranslator() }
     single { MediaSharer(androidContext()) }
     single {
         ShareIntake(androidContext(), requests = get(), chatOpenRequests = get(), scope = get(named(APP_SCOPE)))

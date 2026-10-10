@@ -535,6 +535,16 @@
     <string name="translation_language_title">Translate to</string>
     <string name="translation_language_search">Search languages</string>
     <string name="translation_failed">The message could not be translated</string>
+    <string name="translation_on_device">Translate on this device</string>
+    <string name="translation_on_device_hint">The message text stays on your phone.</string>
+    <string name="translation_device_download_text">Translating on this device needs language packs, about 30 MB per language.</string>
+    <string name="translation_device_download">Download</string>
+    <string name="translation_device_downloading">Downloading language packs…</string>
+    <string name="translation_device_unknown">Couldn't detect the message language on this device.</string>
+    <string name="translation_device_unsupported">This device can't translate between these languages.</string>
+    <string name="translation_device_same">The message is already in this language.</string>
+    <string name="translation_device_download_failed">Couldn't download the language packs.</string>
+    <string name="translation_on_server">Translate on server</string>
     <string name="translation_copy">Copy translation</string>
     <string name="translation_copied">Translation copied</string>
     <string name="menu_select">Select</string>

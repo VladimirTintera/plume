@@ -267,6 +267,14 @@ interface AppSettings {
     fun setTranslationLanguage(code: String?)
 
     /**
+     * Překládat zprávy v telefonu (`core/translation`) místo na serveru — text neodchází
+     * z telefonu. Výchozí `false`: první překlad v telefonu chce stáhnout jazykové balíčky.
+     */
+    val translateOnDevice: StateFlow<Boolean>
+
+    fun setTranslateOnDevice(onDevice: Boolean)
+
+    /**
      * Automaticky odstraňovat sledovací parametry (UTM, click ID, YouTube si atd.) z odkazů
      * při odesílání, otevírání a kopírování. Výchozí `true`.
      */
@@ -734,6 +742,16 @@ class DataStoreAppSettings(
         }
     }
 
+    override val translateOnDevice: StateFlow<Boolean> = value(false) { preferences ->
+        preferences[TRANSLATE_ON_DEVICE] ?: false
+    }
+
+    override fun setTranslateOnDevice(onDevice: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[TRANSLATE_ON_DEVICE] = onDevice }
+        }
+    }
+
     override val stripTrackingParameters: StateFlow<Boolean> = value(true) { preferences ->
         preferences[STRIP_TRACKING_PARAMETERS] ?: true
     }
@@ -828,6 +846,7 @@ class DataStoreAppSettings(
         val THEME_COLOR = stringPreferencesKey("theme_color")
         val SEPARATE_UNREAD_CHATS = booleanPreferencesKey("separate_unread_chats")
         val SAVED_MESSAGES_AS_CHATS = booleanPreferencesKey("saved_messages_as_chats")
+        val TRANSLATE_ON_DEVICE = booleanPreferencesKey("translate_on_device")
         val CHAT_SWIPE_RIGHT = stringPreferencesKey("chat_swipe_right")
         val CHAT_SWIPE_LEFT = stringPreferencesKey("chat_swipe_left")
         val AUTO_DOWNLOAD_WIFI = stringPreferencesKey("auto_download_wifi")

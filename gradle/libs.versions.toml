@@ -71,6 +71,8 @@ playCodeScanner = "16.1.0"
 # Text z fotky v prohlížeči médií (core/ocr). Varianta z Play služeb, ne `com.google.mlkit:text-recognition`:
 # model latinky si stáhnou Play služby (meta-data `ocr` v manifestu), APK nenaroste o jeho ~4 MB na ABI.
 playTextRecognition = "19.0.1"
+# Překlad v telefonu (core/translation). Jen API; jazykové modely se stahují za běhu na pokyn uživatele.
+mlkitTranslate = "17.0.3"
 # Gemini Nano v zařízení (AICore) přes ML Kit Prompt API — viz core/ai. Beta, API se může měnit.
 # Verze je převzatá z oficiální ukázky googlesamples/mlkit (android/genai).
 mlkitGenaiPrompt = "1.0.0-beta4"
@@ -158,6 +160,7 @@ litertlm-android = { module = "com.google.ai.edge.litertlm:litertlm-android", ve
 mlkit-genai-prompt = { module = "com.google.mlkit:genai-prompt", version.ref = "mlkitGenaiPrompt" }
 play-code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version.ref = "playCodeScanner" }
 play-text-recognition = { module = "com.google.android.gms:play-services-mlkit-text-recognition", version.ref = "playTextRecognition" }
+mlkit-translate = { module = "com.google.mlkit:translate", version.ref = "mlkitTranslate" }
 androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "work" }
 androidx-glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
 

@@ -1,5 +1,11 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.translation_device_download_failed
+import eu.tintera.plume.resources.translation_device_same
+import eu.tintera.plume.resources.translation_device_unsupported
+import eu.tintera.plume.resources.translation_device_unknown
+import eu.tintera.plume.core.translation.deviceTranslationCode
+import eu.tintera.plume.core.translation.OnDeviceTranslator
 import eu.tintera.plume.resources.conversation_remind_failed
 import eu.tintera.plume.resources.conversation_remind_set
 import eu.tintera.plume.core.telegram.ForwardOptions
@@ -358,6 +364,8 @@ class ConversationViewModel(
     snoozes: ChatSnoozes? = null,
     /** Kreslení do fotky před odesláním; bez něj se „Upravit" nenabízí. */
     private val photoMarkup: PhotoMarkupRenderer? = null,
+    /** Překlad v telefonu; bez něj (iOS) přepínač v sheetu překladu není. */
+    private val onDeviceTranslator: OnDeviceTranslator? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -3593,8 +3601,31 @@ class ConversationViewModel(
         translate(open.message, code, open.summary, open.canCopy)
     }
 
-    private fun translate(message: ChatMessage, language: String, summary: Boolean = false, canCopy: Boolean = true) {
-        _state.update { it.copy(translation = TranslationSheet(message, language, summary = summary, canCopy = canCopy)) }
+    private fun translate(
+        message: ChatMessage,
+        language: String,
+        summary: Boolean = false,
+        canCopy: Boolean = true,
+        forceServer: Boolean = false,
+    ) {
+        // Shrnutí dělá jen server; překlad v telefonu, když si ho uživatel zapnul.
+        val translator = onDeviceTranslator?.takeUnless { summary }
+        val onDevice = translator != null && settings.translateOnDevice.value && !forceServer
+        _state.update {
+            it.copy(
+                translation = TranslationSheet(
+                    message,
+                    language,
+                    summary = summary,
+                    canCopy = canCopy,
+                    onDevice = if (translator != null) onDevice else null,
+                ),
+            )
+        }
+        if (onDevice) {
+            translateOnDevice(message, language, download = false)
+            return
+        }
 
         viewModelScope.launch {
             val result = if (summary) {
@@ -3607,7 +3638,7 @@ class ConversationViewModel(
             _state.update { state ->
                 // Mezitím mohl uživatel sheet zavřít, otevřít u jiné zprávy nebo vybrat jiný jazyk.
                 val open = state.translation
-                    ?.takeIf { it.message.id == message.id && it.languageCode == language && it.summary == summary }
+                    ?.takeIf { it.message.id == message.id && it.languageCode == language && it.summary == summary && it.onDevice != true }
                     ?: return@update state
                 state.copy(
                     translation = result.fold(
@@ -3628,6 +3659,83 @@ class ConversationViewModel(
 
     fun dismissTranslation() {
         _state.update { it.copy(translation = null) }
+    }
+
+    /**
+     * Přepínač „Překládat v telefonu" v sheetu: zapamatuje se pro další překlady a otevřená
+     * zpráva se přeloží znovu tou cestou, kterou si uživatel právě vybral.
+     */
+    fun setTranslateOnDevice(onDevice: Boolean) {
+        settings.setTranslateOnDevice(onDevice)
+        val open = _state.value.translation ?: return
+        if (onDevice) {
+            _state.update { it.copy(translation = open.copy(body = null, error = null, onDevice = true, needsDownload = false)) }
+            translateOnDevice(open.message, open.languageCode, download = false)
+        } else {
+            translate(open.message, open.languageCode, open.summary, open.canCopy, forceServer = true)
+        }
+    }
+
+    /** Uživatel potvrdil stažení jazykových balíčků. */
+    fun downloadTranslationModels() {
+        val open = _state.value.translation?.takeIf { it.needsDownload } ?: return
+        translateOnDevice(open.message, open.languageCode, download = true)
+    }
+
+    /** Překlad v telefonu nejde (neznámý jazyk, nepodporovaný pár) — jednou přes server. */
+    fun translateOnServer() {
+        val open = _state.value.translation ?: return
+        translate(open.message, open.languageCode, open.summary, open.canCopy, forceServer = true)
+    }
+
+    /**
+     * Překlad v telefonu. Jazyk zprávy rozpozná zařízení ([languageDetector]) — nic se kvůli
+     * tomu neposílá. Chybějící jazykové balíčky se nestahují samy: sheet se zeptá
+     * ([TranslationSheet.needsDownload]) a teprve [download] je stáhne.
+     */
+    private fun translateOnDevice(message: ChatMessage, language: String, download: Boolean) {
+        val translator = onDeviceTranslator ?: return
+        fun update(change: (TranslationSheet) -> TranslationSheet) = _state.update { state ->
+            val open = state.translation
+                ?.takeIf { it.message.id == message.id && it.languageCode == language && it.onDevice == true }
+                ?: return@update state
+            state.copy(translation = change(open))
+        }
+        update { it.copy(body = null, error = null, needsDownload = false, downloading = download) }
+
+        viewModelScope.launch {
+            val text = message.text
+            val source = languageDetector.detect(text)?.let(::deviceTranslationCode)
+            val target = deviceTranslationCode(language)
+            val problem = when {
+                source == null -> Res.string.translation_device_unknown
+                target == null || !translator.supports(source) || !translator.supports(target) ->
+                    Res.string.translation_device_unsupported
+                source == target -> Res.string.translation_device_same
+                else -> null
+            }
+            if (problem != null || source == null || target == null) {
+                update { it.copy(error = UiText(problem ?: Res.string.translation_failed), downloading = false) }
+                return@launch
+            }
+            if (!translator.hasModels(source, target)) {
+                if (!download) {
+                    update { it.copy(needsDownload = true) }
+                    return@launch
+                }
+                if (translator.download(source, target).isFailure) {
+                    update { it.copy(error = UiText(Res.string.translation_device_download_failed), downloading = false) }
+                    return@launch
+                }
+            }
+            val result = translator.translate(text, source, target)
+            update { open ->
+                result.fold(
+                    onSuccess = { open.copy(body = MessageBody(it), downloading = false) },
+                    onFailure = { open.copy(error = UiText(Res.string.translation_failed), downloading = false) },
+                )
+            }
+        }
     }
 
     /**
@@ -5241,6 +5349,12 @@ data class TranslationSheet(
      * ano (dostupnost řídí server) — jen bez kopírování, chráněný obsah ven nesmí ani převyprávěný.
      */
     val canCopy: Boolean = true,
+    /** Překlad v telefonu, ne na serveru; `null` = telefon to neumí (přepínač se nekreslí). */
+    val onDevice: Boolean? = null,
+    /** Pro překlad v telefonu chybí jazykové balíčky; čeká se, až stažení uživatel potvrdí. */
+    val needsDownload: Boolean = false,
+    /** Stahují se jazykové balíčky (trvá to déle než překlad, sheet to říká). */
+    val downloading: Boolean = false,
 )
 
 /**

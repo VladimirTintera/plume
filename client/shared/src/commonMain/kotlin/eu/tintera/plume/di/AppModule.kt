@@ -477,6 +477,7 @@ fun appModule() = module {
             jumpRequests = get(),
             snoozes = get(),
             photoMarkup = get(),
+            onDeviceTranslator = getOrNull(),
         )
     }
 

@@ -544,6 +544,16 @@
     <string name="translation_language_title">Přeložit do</string>
     <string name="translation_language_search">Hledat jazyk</string>
     <string name="translation_failed">Zprávu se nepodařilo přeložit</string>
+    <string name="translation_on_device">Překládat v telefonu</string>
+    <string name="translation_on_device_hint">Text zprávy neodejde na server.</string>
+    <string name="translation_device_download_text">Pro překlad v telefonu je potřeba stáhnout jazykové balíčky, asi 30 MB na jazyk.</string>
+    <string name="translation_device_download">Stáhnout</string>
+    <string name="translation_device_downloading">Stahují se jazykové balíčky…</string>
+    <string name="translation_device_unknown">Jazyk zprávy se v telefonu nepodařilo rozpoznat.</string>
+    <string name="translation_device_unsupported">Tyhle jazyky telefon přeložit neumí.</string>
+    <string name="translation_device_same">Zpráva už je v tomhle jazyce.</string>
+    <string name="translation_device_download_failed">Jazykové balíčky se nepodařilo stáhnout.</string>
+    <string name="translation_on_server">Přeložit na serveru</string>
     <string name="translation_copy">Kopírovat překlad</string>
     <string name="translation_copied">Překlad zkopírován</string>
     <string name="menu_select">Vybrat</string>
