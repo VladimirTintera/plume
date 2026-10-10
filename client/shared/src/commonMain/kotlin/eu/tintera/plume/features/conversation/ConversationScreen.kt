@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.remind_time
 import eu.tintera.plume.core.ui.isFromHardwareKeyboard
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.onPreviewKeyEvent
@@ -2765,6 +2766,21 @@ fun ConversationScreen(
                 )
             }
 
+            state.remindRequest?.let { messageId ->
+                RemindSheet(
+                    onRemind = { at ->
+                        haptics.confirm()
+                        viewModel.remind(messageId, at)
+                    },
+                    // Přesný čas jde týmiž dialogy jako plánování zprávy.
+                    onPickTime = {
+                        viewModel.closeRemind()
+                        scheduleTarget = ScheduleTarget.Reminder(messageId)
+                    },
+                    onDismiss = viewModel::closeRemind,
+                )
+            }
+
             if (scheduleTarget != null && scheduleDay == null) {
                 FutureDayDialog(
                     now = Clock.System.now().epochSeconds,
@@ -2781,7 +2797,9 @@ fun ConversationScreen(
             val day = scheduleDay
             if (target != null && day != null) {
                 TimeOfDayDialog(
-                    title = stringResource(Res.string.conversation_schedule_time),
+                    title = stringResource(
+                        if (target is ScheduleTarget.Reminder) Res.string.remind_time else Res.string.conversation_schedule_time,
+                    ),
                     // Nabídne se za hodinu od teď — nejčastěji se plánuje „na později dnes".
                     initial = Clock.System.now().epochSeconds + SCHEDULE_DEFAULT_AHEAD_SECONDS,
                     onPick = { hour, minute ->
@@ -2806,6 +2824,10 @@ fun ConversationScreen(
                                 viewModel.sendRecording(SendOptions(schedule = schedule))
                             }
                             is ScheduleTarget.Existing -> viewModel.reschedule(target.messageId, schedule)
+                            is ScheduleTarget.Reminder -> {
+                                haptics.confirm()
+                                viewModel.remind(target.messageId, at)
+                            }
                             is ScheduleTarget.Sticker -> {
                                 haptics.confirm()
                                 viewModel.sendSticker(target.sticker, SendOptions(schedule = schedule))
@@ -4162,6 +4184,9 @@ private sealed interface ScheduleTarget {
     /** Nahrávaná hlasovka, po dobu výběru času pozastavená. */
     data object Voice : ScheduleTarget
     data class Existing(val messageId: Long) : ScheduleTarget
+
+    /** Připomínka zprávy (`RemindSheet` → „Vybrat datum a čas"). */
+    data class Reminder(val messageId: Long) : ScheduleTarget
 
     /** Samolepka z výběru, naplánovaná z nabídky u podržené samolepky. */
     data class Sticker(val sticker: StickerItem) : ScheduleTarget

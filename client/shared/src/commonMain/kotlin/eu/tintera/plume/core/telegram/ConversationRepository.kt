@@ -1565,6 +1565,8 @@ data class BotAnswer(
 data class ForwardOptions(
     val hideSender: Boolean = false,
     val hideCaptions: Boolean = false,
+    /** Přeposlat až ve zvolený čas — připomínka do Uložených zpráv; `null` = hned. */
+    val schedule: MessageSchedule? = null,
 )
 
 /** Co jde u přeposlání nabídnout — viz [ConversationRepository.forwardCapabilities]. */

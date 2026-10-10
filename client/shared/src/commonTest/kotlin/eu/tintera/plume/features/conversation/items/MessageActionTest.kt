@@ -101,6 +101,7 @@ class MessageActionTest {
                 MessageMenuAction.Forward,
                 MessageMenuAction.Info,
                 MessageMenuAction.ToggleBookmark,
+                MessageMenuAction.Remind,
                 MessageMenuAction.Pin,
                 MessageMenuAction.Select,
                 MessageMenuAction.Report,

@@ -462,7 +462,7 @@ private fun SnoozeChoices(onSnooze: (SnoozeOption) -> Unit) {
  * zobrazení, v místním čase.
  */
 @Composable
-private fun SnoozeOptionRows(onSnooze: (SnoozeOption) -> Unit, color: Color, reserveIconSpace: Boolean) {
+internal fun SnoozeOptionRows(onSnooze: (SnoozeOption) -> Unit, color: Color, reserveIconSpace: Boolean) {
     val zone = TimeZone.currentSystemDefault()
     val now = remember { Clock.System.now() }
     val options = remember(now) { snoozeOptions(now.toLocalDateTime(zone)) }
@@ -520,7 +520,7 @@ fun SnoozeSheet(chat: ChatSummary, onSnooze: (SnoozeOption) -> Unit, onDismiss: 
 
 /** Kdy se odložený chat vrátí: dnes jen hodina, zítra slovem. */
 @Composable
-private fun SnoozeTime(untilMs: Long) {
+internal fun SnoozeTime(untilMs: Long) {
     Text(
         text = (untilMs / 1000).asUpcomingTime(),
         style = MaterialTheme.typography.labelLarge.tabularNumbers(),
@@ -528,7 +528,7 @@ private fun SnoozeTime(untilMs: Long) {
     )
 }
 
-private fun SnoozeOption.label(): StringResource = when (this) {
+internal fun SnoozeOption.label(): StringResource = when (this) {
     SnoozeOption.InHour -> Res.string.chats_snooze_in_hour
     SnoozeOption.Tonight -> Res.string.chats_snooze_tonight
     SnoozeOption.Morning -> Res.string.chats_snooze_morning

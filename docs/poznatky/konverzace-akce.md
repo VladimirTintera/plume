@@ -466,6 +466,36 @@ upravená, kdy ji protějšek přečetl, kdo ji zhlédl a odkaz na ni (`MessageI
   řádek „1 zpráva / Záložky" v profilu, sheet, skok na zprávu se zvýrazněním, odebrání ze sheetu.
   Hledání záložek zatím není. **iOS jen přeložené.**
 
+## Připomenutí zprávy
+
+„Připomenout…" v nabídce nad zprávou (`MessageMenuAction.Remind`, `RemindSheet`) nabídne
+časy jako odložení chatu (za hodinu, dnes večer, (zítra) ráno — `SnoozeOptionRows`) a „Vybrat
+datum a čas" (tytéž dialogy jako plánování zprávy, s titulkem „Připomenout v"). Zpráva se pak
+**naplánovaně přepošle do Uložených zpráv** (`ForwardOptions.schedule`, `forwardMessages`
+s `schedulingState`).
+
+- **Server, ne budík v telefonu.** Takhle dělají „Připomínky" oficiální klienti: naplánovaná
+  zpráva v Uložených zprávách přijde v čase s upozorněním. Žádné oprávnění k přesným budíkům,
+  žádná vlastní notifikace, připomínka přežije přeinstalaci a přijde i na jiném zařízení.
+  Naplánovaná je vidět v Uložených zprávách pod hodinami u pole a jde zrušit nebo přeplánovat
+  jako každá naplánovaná zpráva.
+- **Přeposlání, ne odkaz.** Odkaz na zprávu (`getMessageLink`) mají jen skupiny a kanály;
+  přeposlaná zpráva nese obsah i „Přeposláno od …", které vede zpátky do chatu. Proto se
+  položka nabízí jen tam, kde server přeposlání dovolí (`canForward`) — u chráněného obsahu
+  ne. Album jde celé (`albumMemberIds`).
+- **Nejdřív za minutu** (`scheduleValid`): čas vybraný ve dialogu na minuty, který je blíž,
+  se odmítne snackbarem „čas už minul" — při testu na emulátoru se na to snadno narazí.
+- **Výsledná notifikace má příznak `SILENT`, a přesto upozornila.** Připomínka přijde pushem:
+  TDLib napřed vydá dočasnou notifikaci z pushe (ta upozorní) a za pár vteřin ji odebere
+  a přidá skutečnou k téže zprávě, kterou presenter pozná jako náhradu a pustí potichu
+  (`recentlyRemoved`). `dumpsys notification` ukazuje jen poslední stav; jestli zvonilo, říká
+  `logcat -b events | grep notification_alert` (třetí pole 1 = zvuk). Kvůli tomu je
+  v presenteru ladicí řádek „Notifikace potichu: od TDLib=…, jen náhrady=…, ticho=…".
+- **Ověřeno na emulátoru Fold**: nabídka nad zprávou v chatu s Notifikátorem, sheet s časy,
+  vlastní čas za dvě minuty, snackbar, připomínka v čase v Uložených zprávách s upozorněním
+  (zvuk podle `notification_alert`) a s tlačítky Odpovědět / Označit jako přečtené / Ztlumit.
+  „Za hodinu" a „ráno" sdílí kód s odložením chatu, v čase neověřené. **iOS jen přeložené.**
+
 ## Přeposílání
 
 „Přeposlat" v nabídce nad zprávou otevře výběr cílového chatu (`ForwardRoute`, vlastní obrazovka);

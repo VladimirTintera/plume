@@ -187,6 +187,9 @@ actual class NotificationPresenter(
             // Odložený chat se do konce odložení neozývá — potichu, ne vůbec, z téhož důvodu.
             val quiet = settings.quietHours.value.silences(conversation.channel, minuteOfDay()) ||
                 snoozes?.isSleeping(conversation.chatId) == true
+            if (newest.isSilent || onlyReplacements || quiet) {
+                logger.d { "Notifikace potichu: od TDLib=${newest.isSilent}, jen náhrady=$onlyReplacements, ticho=$quiet" }
+            }
             show(groupId, conversation, silent = newest.isSilent || onlyReplacements || quiet)
         }
     }

@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.conversation_remind_failed
+import eu.tintera.plume.resources.conversation_remind_set
+import eu.tintera.plume.core.telegram.ForwardOptions
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import eu.tintera.plume.core.snooze.ChatSnoozes
 import eu.tintera.plume.core.ui.PhotoMarkup
@@ -3804,6 +3807,7 @@ class ConversationViewModel(
             MessageMenuAction.ToggleFavoriteSticker -> toggleFavoriteSticker(messageId)
             MessageMenuAction.ToggleBookmark -> toggleBookmark(messageId)
             MessageMenuAction.Forward -> requestForward(messageId)
+            MessageMenuAction.Remind -> _state.update { it.copy(messageMenu = null, remindRequest = messageId) }
             MessageMenuAction.Info -> showMessageInfo(messageId)
             MessageMenuAction.Translate -> showTranslation(messageId)
             MessageMenuAction.Summarize -> showSummary(messageId)
@@ -4194,6 +4198,29 @@ class ConversationViewModel(
      */
     private fun requestForward(messageId: Long) {
         _state.update { it.copy(messageMenu = null, forwardRequest = it.albumMemberIds(messageId)) }
+    }
+
+    fun closeRemind() {
+        _state.update { it.copy(remindRequest = null) }
+    }
+
+    /**
+     * Připomínka: zpráva (u alba celé album) se naplánovaně přepošle do Uložených zpráv na
+     * [at] (sekundy od epochy). Telegram na zprávu doručenou z naplánovaných v Uložených
+     * zprávách upozorní — tak „Připomínky" dělají oficiální klienti, a nepotřebuje to vlastní
+     * notifikaci ani oprávnění k budíku. Připomínka žije na serveru, takže přijde i na jiném
+     * zařízení a přežije přeinstalaci.
+     */
+    fun remind(messageId: Long, at: Long) {
+        val ids = _state.value.albumMemberIds(messageId)
+        _state.update { it.copy(remindRequest = null) }
+        val saved = chatRepository.savedMessagesChatId.value ?: return
+        viewModelScope.launch {
+            val result = repository.forward(chatId, ids, saved, ForwardOptions(schedule = MessageSchedule.At(at)))
+            result.onFailure { logger.w(it) { "Připomínku se nepodařilo naplánovat." } }
+            val notice = if (result.isSuccess) Res.string.conversation_remind_set else Res.string.conversation_remind_failed
+            _state.update { it.copy(notice = UiText(notice)) }
+        }
     }
 
     fun consumeForwardRequest() {
@@ -5515,6 +5542,8 @@ data class ConversationState(
     val documentDownloads: Map<Int, Float> = emptyMap(),
     /** Zprávy, které uživatel chce přeposlat; obrazovka na to otevře výběr cílového chatu. */
     val forwardRequest: List<Long>? = null,
+    /** Zpráva, ke které se vybírá čas připomínky (`RemindSheet`); `null` = nic. */
+    val remindRequest: Long? = null,
     /** Režim výběru víc zpráv; `null` = vypnutý (běžná konverzace). */
     val selection: MessageSelection? = null,
     /** Přílohy vybrané k odeslání, čekající nad vstupním polem na popisek a odeslání. */
