@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.ocr.TextRecognizer
+import eu.tintera.plume.core.ocr.VisionTextRecognizer
 import eu.tintera.plume.core.snooze.IosSnoozeReminders
 import eu.tintera.plume.core.snooze.SnoozeReminders
 import eu.tintera.plume.core.ai.NoopOnDeviceAi
@@ -65,6 +67,7 @@ actual fun Module.platformModule() {
     single { AppLanguage() }
     single { FileOpener() }
     single { MediaSaver() }
+    single<TextRecognizer> { VisionTextRecognizer() }
     single { MediaSharer() }
     // Sdílení přes rozšíření: snímek chatů pro výběr v něm a vyzvednutí toho, co v něm uživatel sdílel.
     single(createdAtStart = true) {

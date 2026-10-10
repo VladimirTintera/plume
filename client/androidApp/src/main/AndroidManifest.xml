@@ -147,6 +147,12 @@
             android:name="firebase_crashlytics_collection_enabled"
             android:value="${crashlyticsCollectionEnabled}" />
 
+        <!-- Text z fotky (core/ocr): Play služby stáhnou model rozpoznávání textu hned po instalaci,
+             ne až při prvním ťuknutí — jinak by první pokus skončil chybou „model se stahuje". -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr" />
+
         <!-- Fotky ze zpráv v notifikacích. Notifikaci kreslí System UI v jiném procesu a do
              souborů aplikace nesmí; oprávnění ke čtení mu přidělí NotificationManager. Autorita
              musí sedět s IMAGE_AUTHORITY_SUFFIX v NotificationPresenter. -->

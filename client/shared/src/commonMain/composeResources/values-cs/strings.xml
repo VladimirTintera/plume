@@ -237,6 +237,13 @@
     <string name="media_save">Uložit do galerie</string>
     <string name="media_saved">Uloženo do galerie</string>
     <string name="media_save_failed">Do galerie se to nepodařilo uložit</string>
+    <string name="media_text">Text z fotky</string>
+    <string name="media_text_hide">Skrýt text</string>
+    <string name="media_text_title">Text z fotky</string>
+    <string name="media_text_copy">Kopírovat vše</string>
+    <string name="media_text_copied">Text zkopírován</string>
+    <string name="media_text_none">Na fotce není žádný text</string>
+    <string name="media_text_failed">Text se nepodařilo rozpoznat. Zkus to za chvíli.</string>
     <string name="media_save_denied">Plume nemá oprávnění ukládat do galerie</string>
     <string name="media_share">Sdílet</string>
     <string name="media_more">Další možnosti</string>

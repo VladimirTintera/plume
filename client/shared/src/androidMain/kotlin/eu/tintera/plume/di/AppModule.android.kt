@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.ocr.TextRecognizer
+import eu.tintera.plume.core.ocr.MlKitTextRecognizer
 import eu.tintera.plume.core.widget.ChatsWidgetUpdater
 import eu.tintera.plume.core.widget.AndroidHomeWidgets
 import eu.tintera.plume.core.widget.HomeWidgets
@@ -75,6 +77,7 @@ actual fun Module.platformModule() {
     single { AppLanguage(androidContext()) }
     single { FileOpener(androidContext()) }
     single { MediaSaver(androidContext()) }
+    single<TextRecognizer> { MlKitTextRecognizer() }
     single { MediaSharer(androidContext()) }
     single {
         ShareIntake(androidContext(), requests = get(), chatOpenRequests = get(), scope = get(named(APP_SCOPE)))

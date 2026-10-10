@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.core.ocr.RecognizedText
+import eu.tintera.plume.core.ocr.TextRecognizer
+import eu.tintera.plume.core.ui.TextClipboard
 import co.touchlab.kermit.Logger
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -35,6 +38,9 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_delete_failed
 import eu.tintera.plume.resources.conversation_reaction_failed
 import eu.tintera.plume.resources.media_photo_load_failed
+import eu.tintera.plume.resources.media_text_copied
+import eu.tintera.plume.resources.media_text_failed
+import eu.tintera.plume.resources.media_text_none
 import eu.tintera.plume.resources.media_profile_photo_failed
 import eu.tintera.plume.resources.media_profile_photo_set
 import eu.tintera.plume.resources.media_profile_photos_none
@@ -92,6 +98,10 @@ class MediaViewerViewModel(
     private val timers: SelfDestructTimers,
     /** Nahlášení zhlédnutého jednorázového média musí doběhnout i po zrušení [viewModelScope]. */
     private val appScope: CoroutineScope,
+    /** Text z fotky; bez něj se tlačítko nenabízí. */
+    private val textRecognizer: TextRecognizer? = null,
+    /** Text z fotky do schránky. */
+    private val clipboard: TextClipboard? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("MediaViewer")
@@ -521,6 +531,8 @@ class MediaViewerViewModel(
         val items = _state.value.items
         if (items.isEmpty()) return
         items.getOrNull(index)?.let { loadDetails(it.messageId) }
+        // Zvýrazněný text patří fotce, ze které se odlistovalo; po návratu by překvapil.
+        if (_state.value.recognizedText?.messageId != items.getOrNull(index)?.messageId) closeRecognizedText()
         if (index <= PRELOAD_DISTANCE) loadOlder()
         if (index >= items.lastIndex - PRELOAD_DISTANCE) loadNewer()
     }
@@ -650,7 +662,11 @@ class MediaViewerViewModel(
      * druhé ťuknutí nic nespustí. `null`, když se soubor stáhnout nepodařilo (hláška už je ve
      * stavu) nebo když s tou zprávou už něco běží.
      */
-    private suspend fun prepare(messageId: Long, task: MediaTask): PreparedMedia? {
+    private suspend fun prepare(
+        messageId: Long,
+        task: MediaTask,
+        failure: StringResource = Res.string.media_save_failed,
+    ): PreparedMedia? {
         val item = _state.value.items.firstOrNull { it.messageId == messageId } ?: return null
         if (messageId in _state.value.busy) return null
         val (fileId, isVideo) = when (val media = item.media) {
@@ -663,7 +679,7 @@ class MediaViewerViewModel(
         val file = files.file(fileId).first { it is FileState.Ready || it is FileState.Failed }
         if (file !is FileState.Ready) {
             logger.w { "Soubor $fileId se nepodařilo stáhnout." }
-            finish(messageId, Res.string.media_save_failed)
+            finish(messageId, failure)
             return null
         }
         return PreparedMedia(
@@ -671,6 +687,48 @@ class MediaViewerViewModel(
             fileName = savedFileName(item.fileName, file.path, item.timestamp, TimeZone.currentSystemDefault()),
             isVideo = isVideo,
         )
+    }
+
+    /** Umí platforma text z fotky — jinak tlačítko v liště nebude. */
+    val canRecognizeText: Boolean get() = textRecognizer != null
+
+    /**
+     * Text z fotky [messageId]: rozpozná ho v ostré verzi a zvýrazní na fotce
+     * ([MediaViewerState.recognizedText]). Druhé ťuknutí zvýraznění schová.
+     *
+     * Ostrá verze proto, že ve zmenšenině z bubliny drobné písmo nepřečte ani model. Stahování
+     * točí na místě tlačítka jako u uložení ([MediaTask.Text]).
+     */
+    fun recognizeText(messageId: Long) {
+        val recognizer = textRecognizer ?: return
+        if (_state.value.recognizedText?.messageId == messageId) {
+            closeRecognizedText()
+            return
+        }
+        viewModelScope.launch {
+            val file = prepare(messageId, MediaTask.Text, failure = Res.string.media_text_failed) ?: return@launch
+            val text = recognizer.recognize(file.path)
+            when {
+                text == null -> finish(messageId, Res.string.media_text_failed)
+                text.isEmpty -> finish(messageId, Res.string.media_text_none)
+                else -> {
+                    finish(messageId, null)
+                    _state.update { it.copy(recognizedText = PhotoText(messageId, text)) }
+                }
+            }
+        }
+    }
+
+    fun closeRecognizedText() {
+        _state.update { it.copy(recognizedText = null) }
+    }
+
+    /** Celý rozpoznaný text do schránky; potvrzení snackbarem. */
+    fun copyRecognizedText() {
+        val text = _state.value.recognizedText?.text?.text ?: return
+        val clipboard = clipboard ?: return
+        viewModelScope.launch { clipboard.copy(text) }
+        _state.update { it.copy(notice = UiText(Res.string.media_text_copied)) }
     }
 
     private fun finish(messageId: Long, notice: StringResource?) {
@@ -921,7 +979,10 @@ internal fun MessageMedia.Document.asViewerMedia(): MessageMedia? {
 }
 
 /** Co s médiem právě běží; podle toho se točí to tlačítko, na které uživatel ťukl. */
-enum class MediaTask { Gallery, Share, SaveAs }
+enum class MediaTask { Gallery, Share, SaveAs, Text }
+
+/** Text rozpoznaný na fotce [messageId] — zvýrazní se jen na ní, jinde ne. */
+data class PhotoText(val messageId: Long, val text: RecognizedText)
 
 /** Stažený soubor připravený k uložení nebo sdílení, se jménem, pod kterým se má objevit. */
 data class PreparedMedia(val path: String, val fileName: String, val isVideo: Boolean)
@@ -974,6 +1035,8 @@ data class MediaViewerState(
     val busy: Map<Long, MediaTask> = emptyMap(),
     /** Jednorázová hláška do snackbaru (nepovedená reakce, mazání, uložení). */
     val notice: UiText? = null,
+    /** Text z fotky, zvýrazněný na ní; `null` = žádný. */
+    val recognizedText: PhotoText? = null,
     /** Zmizela poslední fotka (smazaná odsud nebo odjinud) — prohlížeč se zavře. */
     val closed: Boolean = false,
     val reachedOldest: Boolean = false,

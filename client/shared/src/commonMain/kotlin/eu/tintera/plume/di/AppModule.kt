@@ -624,6 +624,8 @@ fun appModule() = module {
             sharer = get(),
             timers = get(),
             appScope = get(named(APP_SCOPE)),
+            textRecognizer = getOrNull(),
+            clipboard = get(),
         )
     }
 

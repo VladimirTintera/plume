@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.resources.text_select_24dp
+import eu.tintera.plume.resources.media_text_hide
+import eu.tintera.plume.resources.media_text
+import eu.tintera.plume.core.ocr.RecognizedBlock
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
@@ -250,6 +255,9 @@ fun MediaViewerScreen(
                 },
                 onSetMainProfilePhoto = viewModel::setMainProfilePhoto,
                 onDeleteProfilePhoto = viewModel::requestDeleteProfilePhoto,
+                onRecognizeText = if (viewModel.canRecognizeText) viewModel::recognizeText else null,
+                onCopyText = viewModel::copyRecognizedText,
+                onCloseText = viewModel::closeRecognizedText,
                 onFocusShown = viewModel::focusShown,
                 onDismiss = {
                     viewModel.onDismiss()
@@ -333,6 +341,10 @@ private fun ViewerContent(
     onSaveAs: ((messageId: Long) -> Unit)?,
     onSetMainProfilePhoto: (photoId: Long) -> Unit,
     onDeleteProfilePhoto: (photoId: Long) -> Unit,
+    /** Text z fotky; `null` = platforma ho neumí. */
+    onRecognizeText: ((messageId: Long) -> Unit)?,
+    onCopyText: () -> Unit,
+    onCloseText: () -> Unit,
     onFocusShown: () -> Unit,
     onDismiss: () -> Unit,
     startSeconds: Int,
@@ -505,6 +517,7 @@ private fun ViewerContent(
                 is MessageMedia.Photo -> ZoomableImage(
                     photo = media,
                     messageId = item.messageId,
+                    textBlocks = state.recognizedText?.takeIf { it.messageId == item.messageId }?.text?.blocks,
                     caption = item.caption,
                     isCurrent = isCurrent,
                     immersive = immersive,
@@ -552,6 +565,11 @@ private fun ViewerContent(
                     onSaveAs = onSaveAs?.let { saveAs -> { saveAs(current.messageId) } },
                     onSetMainProfilePhoto = { onSetMainProfilePhoto(current.messageId) },
                     onDeleteProfilePhoto = { onDeleteProfilePhoto(current.messageId) },
+                    // Jen fotka, a jen když jde uložit: u chatu se zakázaným ukládáním by text
+                    // z fotky obešel tutéž ochranu jako snímek obrazovky.
+                    onRecognizeText = onRecognizeText
+                        ?.takeIf { current.media is MessageMedia.Photo }
+                        ?.let { recognize -> { recognize(current.messageId) } },
                 )
             }
         }
@@ -587,8 +605,9 @@ private fun ViewerContent(
         val emoji = current?.let { state.availableReactions[it.messageId] }.orEmpty()
         // Odpovědět jde, jen když je kam (konverzace pod prohlížečem) a server to u zprávy dovolí.
         val canReply = onReply != null && current != null && state.actions[current.messageId]?.canReply == true
+        val photoText = state.recognizedText?.takeIf { it.messageId == current?.messageId }
         val reactionsVisible = settled && !immersive && current != null && (emoji.isNotEmpty() || canReply) &&
-            !state.isSelfDestruct
+            !state.isSelfDestruct && photoText == null
         var reactionsArrived by remember { mutableStateOf(false) }
         LaunchedEffect(reactionsVisible) { if (reactionsVisible) reactionsArrived = true }
         val reactionsEnter = if (reactionsArrived) {
@@ -613,6 +632,20 @@ private fun ViewerContent(
                         null
                     },
                 )
+            }
+        }
+
+        // Text z fotky na místě pruhu reakcí; poslední text se drží i během odjezdu panelu.
+        var lastPhotoText by remember { mutableStateOf(photoText) }
+        if (photoText != null) lastPhotoText = photoText
+        AnimatedVisibility(
+            visible = photoText != null && !immersive,
+            enter = slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it } + chromeEnter,
+            exit = slideOutVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it } + chromeExit,
+            modifier = Modifier.align(Alignment.BottomCenter).then(fadeWithDismiss),
+        ) {
+            lastPhotoText?.let { shown ->
+                PhotoTextPanel(text = shown.text, onCopy = onCopyText, onClose = onCloseText)
             }
         }
     }
@@ -719,6 +752,7 @@ private fun TopBar(
     onSaveAs: (() -> Unit)?,
     onSetMainProfilePhoto: () -> Unit,
     onDeleteProfilePhoto: () -> Unit,
+    onRecognizeText: (() -> Unit)?,
 ) {
     val actions = state.actions[item.messageId]
 
@@ -786,13 +820,15 @@ private fun TopBar(
         val canForward = actions?.canForward == true
         val canDelete = actions != null && (actions.canDeleteForSelf || actions.canDeleteForAll)
         val saveAs = onSaveAs?.takeIf { canSave }
+        val recognizeText = onRecognizeText?.takeIf { canSave }
+        val textShown = state.recognizedText?.messageId == item.messageId
         // Vlastní profilovky: starší jde nastavit zase jako hlavní (ta nejnovější hlavní je)
         // a každou smazat. Cizí profilovky a fotky skupin tohle nemají — TDLib to neumí.
         val own = state.ownProfilePhotos
         val canSetMain = own && item.messageId != state.items.lastOrNull()?.messageId
-        if (canForward || canDelete || saveAs != null || own) {
+        if (canForward || canDelete || saveAs != null || own || recognizeText != null) {
             var menuOpen by remember { mutableStateOf(false) }
-            BusyOr(busy == MediaTask.SaveAs) {
+            BusyOr(busy == MediaTask.SaveAs || busy == MediaTask.Text) {
                 Box {
                     ChromeIcon(Res.drawable.more_vert_24dp, stringResource(Res.string.media_more)) { menuOpen = true }
                     ExpressiveMenu(
@@ -800,6 +836,13 @@ private fun TopBar(
                         onDismiss = { menuOpen = false },
                         groups = listOf(
                             listOfNotNull(
+                                recognizeText?.let {
+                                    MenuAction(
+                                        stringResource(if (textShown) Res.string.media_text_hide else Res.string.media_text),
+                                        Res.drawable.text_select_24dp,
+                                        onClick = it,
+                                    )
+                                },
                                 MenuAction(stringResource(Res.string.menu_forward), Res.drawable.forward_24dp, onClick = onForward).takeIf { canForward },
                                 saveAs?.let { MenuAction(stringResource(Res.string.media_save_as), Res.drawable.description_24dp, onClick = it) },
                                 MenuAction(
@@ -943,6 +986,8 @@ private fun CloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 private fun ZoomableImage(
     photo: MessageMedia.Photo,
     messageId: Long,
+    /** Rozpoznaný text na téhle fotce — zvýrazní se na ní; `null` = žádný. */
+    textBlocks: List<RecognizedBlock>?,
     caption: String,
     isCurrent: Boolean,
     immersive: Boolean,
@@ -1001,6 +1046,18 @@ private fun ZoomableImage(
                 modifier = Modifier.fillMaxSize(),
                 sensitive = photo.isSensitive,
             )
+        }
+
+        AnimatedVisibility(
+            visible = textBlocks != null,
+            enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+            exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            // Poslední bloky se drží i během mizení, ať zvýraznění nezmizí skokem dřív než závoj.
+            val shown = remember { mutableStateOf(emptyList<RecognizedBlock>()) }
+            if (textBlocks != null) shown.value = textBlocks
+            PhotoTextHighlights(shown.value)
         }
     }
 }
