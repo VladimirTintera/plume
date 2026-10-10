@@ -15,6 +15,17 @@ import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.features.conversation.MAX_ATTACHMENTS
+import eu.tintera.plume.features.conversation.EditedPhoto
+import eu.tintera.plume.features.conversation.PhotoEdit
+import eu.tintera.plume.features.conversation.galleryPath
+import eu.tintera.plume.features.conversation.markupOrEmpty
+import eu.tintera.plume.features.conversation.renderEdit
+import eu.tintera.plume.features.conversation.revertedPhoto
+import eu.tintera.plume.features.conversation.withEditedPhoto
+import eu.tintera.plume.core.ui.PhotoMarkup
+import eu.tintera.plume.core.ui.PhotoMarkupRenderer
+import eu.tintera.plume.resources.markup_failed
+import co.touchlab.kermit.Logger
 import eu.tintera.plume.features.conversation.dropForbiddenSelfDestruct
 import eu.tintera.plume.features.conversation.selfDestructAllowed
 import eu.tintera.plume.features.conversation.stageAttachments
@@ -49,7 +60,11 @@ class ShareToChatViewModel(
      * a gesto zpět těsně po ťuknutí na odeslat by zprávu zahodilo v půlce.
      */
     private val appScope: CoroutineScope,
+    /** Kreslení do fotky před odesláním; bez něj se úprava nenabízí. */
+    private val photoMarkup: PhotoMarkupRenderer? = null,
 ) : ViewModel() {
+
+    private val logger = Logger.withTag("ShareToChat")
 
     private val _state = MutableStateFlow(ShareToChatState(chatId = chatId))
     val state: StateFlow<ShareToChatState> = _state.asStateFlow()
@@ -201,7 +216,47 @@ class ShareToChatViewModel(
         if (paths.isEmpty()) return
         val removed = paths.toSet()
         _state.update { state ->
-            state.copy(attachments = state.attachments?.filterNot { it.path in removed })
+            // Upravenou fotku zná galerie pod původní cestou (viz `galleryPath`).
+            state.copy(attachments = state.attachments?.filterNot { state.photoEdits.galleryPath(it.path) in removed })
+        }
+    }
+
+    /** Nabízí se úprava fotky? */
+    val canMarkupPhotos: Boolean get() = photoMarkup != null
+
+    /**
+     * Uloží úpravu fotky — stejně jako nad vstupním polem konverzace (`PhotoEdits`): vykreslí se
+     * z originálu do nové kopie, prázdná úprava vrátí originál, fotka se hledá podle cesty.
+     */
+    fun applyPhotoMarkup(path: String, markup: PhotoMarkup) {
+        val renderer = photoMarkup ?: return
+        val state = _state.value
+        val photo = state.attachments?.firstOrNull { it.path == path } as? OutgoingAttachment.Photo ?: return
+        val edit = state.photoEdits[path]
+        if (markup == edit.markupOrEmpty) return
+        if (markup.isEmpty) {
+            replacePhoto(path, revertedPhoto(photo, edit))
+            return
+        }
+        _state.update { it.copy(markupBusy = true) }
+        viewModelScope.launch {
+            runCatching { renderer.renderEdit(photo, edit, markup) }
+                .onSuccess { edited -> replacePhoto(path, edited) }
+                .onFailure { failure ->
+                    logger.w(failure) { "Úpravu sdílené fotky $path se nepodařilo vykreslit." }
+                    _state.update { it.copy(notice = UiText(Res.string.markup_failed)) }
+                }
+            _state.update { it.copy(markupBusy = false) }
+        }
+    }
+
+    private fun replacePhoto(path: String, edited: EditedPhoto) {
+        _state.update { state ->
+            state.copy(
+                attachments = state.attachments?.withEditedPhoto(path, edited),
+                // `sources` zůstávají pod původní cestou: galerie dostává cesty přes `galleryPath`.
+                photoEdits = state.photoEdits.withEditedPhoto(path, edited),
+            )
         }
     }
 
@@ -235,7 +290,8 @@ class ShareToChatViewModel(
         // Jen sdílení, které obrazovka ukazuje — nové mohlo přijít těsně před ťuknutím.
         val content = requests.incoming.value?.takeIf { it.id == _state.value.contentId } ?: return
         val attachments = _state.value.attachments ?: return
-        if (_state.value.sending || attachments.isEmpty()) return
+        // Během vykreslování úpravy má fotka ještě cestu k NEUPRAVENÉ — odešla by i se začerněným.
+        if (_state.value.sending || _state.value.markupBusy || attachments.isEmpty()) return
         _state.update { it.copy(sending = true) }
 
         val text = caption.text.trim()
@@ -286,6 +342,10 @@ data class ShareToChatState(
     val isSavedMessages: Boolean = false,
     /** `null`, dokud se soubory připravují. */
     val attachments: List<OutgoingAttachment>? = null,
+    /** Upravené fotky podle současné cesty (viz `PhotoEdit`). */
+    val photoEdits: Map<String, PhotoEdit> = emptyMap(),
+    /** Úprava fotky se právě vykresluje do souboru. */
+    val markupBusy: Boolean = false,
     val sending: Boolean = false,
     /** Odesláno — obrazovka otevře konverzaci. */
     val sent: Boolean = false,

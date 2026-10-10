@@ -225,8 +225,21 @@ kontextu), stejně jako ořez profilové fotky (`SquarePhoto`).
   Notifikátorovi (odešla upravená fotka), zpět bez uložení. Ořez: otočení (tahy se otočily
   s fotkou), zmenšení výřezu tahem za roh, kreslení do otočeného a oříznutého výsledku, vykreslená
   fotka shodná s editorem, při dalším otevření obnovené otočení i výřez. **iOS jen přeložené**
-  (transformace kontextu tam nikdo neviděl); obrazovka „Komu: …" (sdílení do aplikace) úpravu
-  zatím nenabízí.
+  (transformace kontextu tam nikdo neviděl).
+- **Táž úprava je i na obrazovce „Komu: …"** (sdílení do aplikace): tužka vlevo nahoře na kartě
+  fotky otevře týž editor (`PhotoMarkupOverlay`), logika výměny fotky je společná
+  (`PhotoEdits.kt`, testy `PhotoEditsTest`) — dvě kopie by se rozešly při první opravě.
+  - **Vestavěnou galerii editor nepřekryje.** Je to cizí okno (`SurfaceView`) nad vším, takže
+    ležela přes spodek editoru; dokud je editor otevřený, galerie se nezobrazuje vůbec (jako na
+    celé obrazovce) a po zavření si výběr obnoví sama.
+  - **`sources` (cesta → URI sdílené fotky) zůstávají pod PŮVODNÍ cestou**: galerie dostává cesty
+    přes `galleryPath`, takže se sdílená fotka po úpravě nepřidá podruhé.
+  - **Sdílení z `adb` (`am start -a SEND --eu …STREAM content://media/…`) neprojde** — shell
+    nesmí propůjčit právo číst cizí fotku a obrazovka ohlásí „Některé sdílené soubory se
+    nepodařilo připravit". Ověřuje se sdílením z Google Fotek (`am start -a VIEW -d
+    content://media/… -p com.google.android.apps.photos`, pak „Share" → Plume).
+  - Ověřeno na emulátoru: sdílení z Fotek do Uložených zpráv, tah perem, karta ukázala upravenou
+    fotku, galerie se po zavření editoru vrátila, odeslala se upravená fotka.
 
 ## Přetažení z jiné aplikace (Android)
 

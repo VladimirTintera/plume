@@ -233,6 +233,10 @@ sdílející z Fotek.
   URI, ne pro extras: bez `-d <totéž URI>` aplikace soubor nepřečte, `getType` vrátí `null`
   a sdílení se zachová jako u dokumentu. Víc fotek se musí proklikat z Fotek.
 
+- **Fotku jde před odesláním upravit** (tužka vlevo nahoře na kartě) — týž editor a tatáž
+  pravidla jako u příloh v konverzaci, viz „Úprava fotky před odesláním" v `konverzace-psani.md`
+  (tam i proč se během úpravy schovává galerie a jak sdílení ověřit z Google Fotek).
+
 ### iOS: rozšíření sdílení
 
 Na iOS je sdílení **rozšíření** (`iosApp/ShareExtension`, SwiftUI): list „Sdílet do" s chaty

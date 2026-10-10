@@ -1784,44 +1784,28 @@ class ConversationViewModel(
         val state = _state.value
         val photo = state.attachments.firstOrNull { it.path == path } as? OutgoingAttachment.Photo ?: return
         val edit = state.photoEdits[path]
-        val original = edit?.originalPath ?: path
-        // Rozměry originálu: upravená příloha má po ořezu a otočení jiné.
-        val originalWidth = edit?.originalWidth ?: photo.width
-        val originalHeight = edit?.originalHeight ?: photo.height
-        if (markup == (edit?.markup ?: PhotoMarkup())) return
+        if (markup == edit.markupOrEmpty) return
         if (markup.isEmpty) {
-            replacePhoto(path, original, originalWidth, originalHeight, edit = null)
+            replacePhoto(path, revertedPhoto(photo, edit))
             return
         }
         _state.update { it.copy(markupBusy = true) }
         viewModelScope.launch {
-            runCatching { renderer.render(original, markup) }
-                .onSuccess { marked ->
-                    replacePhoto(path, marked.path, marked.width, marked.height, PhotoEdit(original, markup, originalWidth, originalHeight))
-                }
+            runCatching { renderer.renderEdit(photo, edit, markup) }
+                .onSuccess { edited -> replacePhoto(path, edited) }
                 .onFailure { failure ->
-                    logger.w(failure) { "Úpravu fotky $original se nepodařilo vykreslit." }
+                    logger.w(failure) { "Úpravu fotky $path se nepodařilo vykreslit." }
                     _state.update { it.copy(notice = UiText(Res.string.markup_failed)) }
                 }
             _state.update { it.copy(markupBusy = false) }
         }
     }
 
-    private fun replacePhoto(path: String, newPath: String, width: Int, height: Int, edit: PhotoEdit?) {
+    private fun replacePhoto(path: String, edited: EditedPhoto) {
         _state.update { state ->
             state.copy(
-                attachments = state.attachments.map { attachment ->
-                    if (attachment is OutgoingAttachment.Photo && attachment.path == path) {
-                        attachment.copy(
-                            path = newPath,
-                            width = width,
-                            height = height,
-                        )
-                    } else {
-                        attachment
-                    }
-                },
-                photoEdits = (state.photoEdits - path).let { if (edit != null) it + (newPath to edit) else it },
+                attachments = state.attachments.withEditedPhoto(path, edited),
+                photoEdits = state.photoEdits.withEditedPhoto(path, edited),
             )
         }
     }
@@ -5932,17 +5916,5 @@ data class GiveawaySheet(
 /** Příběh, který se má otevřít v prohlížeči: kdo ho zveřejnil a jeho id. */
 data class StoryTarget(val posterChatId: Long, val storyId: Int)
 
-/** Upravená fotka: z jakého souboru vznikla, jakou úpravou, a jak velký ten soubor je. */
-data class PhotoEdit(
-    val originalPath: String,
-    val markup: PhotoMarkup,
-    val originalWidth: Int,
-    val originalHeight: Int,
-)
-
-/**
- * Cesta, pod kterou přílohu zná vestavěná galerie: u upravené fotky ta původní. Galerie si
- * pamatuje, co z ní vzešlo, a bez toho by upravenou fotku při dalším otevření nenašla mezi
- * vybranými a její odznačení by nic neodebralo.
- */
-fun ConversationState.galleryPath(path: String): String = photoEdits[path]?.originalPath ?: path
+/** Cesta, pod kterou přílohu zná vestavěná galerie (viz [galleryPath] nad záznamy úprav). */
+fun ConversationState.galleryPath(path: String): String = photoEdits.galleryPath(path)
