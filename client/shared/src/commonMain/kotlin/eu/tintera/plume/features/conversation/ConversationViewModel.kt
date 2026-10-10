@@ -702,6 +702,12 @@ class ConversationViewModel(
         viewModelScope.launch {
             settings.doubleTapReaction.collect { on -> _state.update { it.copy(doubleTapReaction = on) } }
         }
+        // Čip „Označit jako přečtené" při diskrétním čtení: kolik nepřečtených v chatu čeká.
+        viewModelScope.launch {
+            combine(settings.discreetReading, chatRepository.unreadCount(chatId)) { on, unread -> if (on) unread else 0 }
+                .distinctUntilChanged()
+                .collect { unread -> _state.update { it.copy(discreetUnread = unread) } }
+        }
 
         // Příkazy botů se čtou jednou při otevření; bot je mění zřídka a `getUserFullInfo` je
         // po prvním dotazu lokální. Nezjištěné = žádné, napovídání se neukáže.
@@ -1238,7 +1244,9 @@ class ConversationViewModel(
                 onSuccess = { messageId ->
                     messageId ?: return@fold
                     jumpToMessage(messageId, fromSearch = true)
-                    repository.markRead(chatId, listOf(messageId))
+                    // Při diskrétním čtení ne: zhlédnutá zmínka by přečetla i historii po ni.
+                    // Tlačítko pak vede pořád na tutéž zmínku, dokud se chat nepřečte.
+                    if (!settings.discreetReading.value) repository.markRead(chatId, listOf(messageId))
                 },
                 onFailure = { failure ->
                     _state.update { it.copy(error = failure.reported(Res.string.conversation_unread_mark_failed)) }
@@ -2113,6 +2121,7 @@ class ConversationViewModel(
             // odeslala by se i s tím, co měl uživatel začerněné. Tlačítko je mezitím vypnuté;
             // tohle je pojistka pro Enter z klávesnice.
             if (_state.value.markupBusy) return
+            readAfterOwnMessage()
             sendAttachments(composed, attachments, options)
             return
         }
@@ -2125,6 +2134,7 @@ class ConversationViewModel(
         }
 
         if (trimmed.isEmpty()) return
+        readAfterOwnMessage()
 
         // Odeslaná zpráva psaní ukončí sama; další úhoz má „píšu" ohlásit hned, ne až za pět vteřin.
         typingSentAt = null
@@ -2506,6 +2516,12 @@ class ConversationViewModel(
     }
 
     private fun reportTyping(typing: Boolean) {
+        // Diskrétní čtení skrývá i psaní. Ukončení psaní projde — nic neprozradí a zhasne
+        // „píše…" ohlášené ještě před zapnutím volby.
+        if (typing && settings.discreetReading.value) {
+            logger.d { "Diskrétní čtení: psaní se nehlásí" }
+            return
+        }
         viewModelScope.launch {
             repository.sendTyping(chatId, typing).onFailure { failure ->
                 // Třeba kanál, kam uživatel psát nesmí. Chyba kvůli „píše…" by jen obtěžovala.
@@ -3509,6 +3525,12 @@ class ConversationViewModel(
      */
     fun markRead(messageIds: List<Long>) {
         if (messageIds.isEmpty()) return
+        // Diskrétní čtení: viditelné zprávy se nehlásí vůbec. Přečtení pošle až vlastní zpráva
+        // ([readAfterOwnMessage]) nebo „Označit jako přečtené" ([readNow]).
+        if (settings.discreetReading.value) {
+            logger.d { "Diskrétní čtení: ${messageIds.size} viditelných zpráv se nehlásí" }
+            return
+        }
         if (heldReads != null) {
             heldReads = messageIds
             return
@@ -3716,6 +3738,27 @@ class ConversationViewModel(
                         },
                     ),
                 )
+            }
+        }
+    }
+
+    /**
+     * Diskrétní čtení: vlastní zpráva v chatu prozradí, že uživatel chat četl, takže se přečte
+     * celý — protějšek by jinak viděl odpověď na zprávu, kterou „nečetl". Bez diskrétního čtení
+     * nic: přečtení hlásí seznam sám, jak se zprávy ukazují.
+     */
+    private fun readAfterOwnMessage() {
+        if (settings.discreetReading.value) readNow()
+    }
+
+    /**
+     * „Označit jako přečtené" při diskrétním čtení: přečte celý chat (nejnovější zprávu, zmínky
+     * a reakce), stejně jako tatáž volba v seznamu chatů.
+     */
+    fun readNow() {
+        viewModelScope.launch {
+            chatRepository.readChat(chatId).onFailure { failure ->
+                logger.w(failure) { "Chat se nepodařilo označit jako přečtený." }
             }
         }
     }
@@ -4949,6 +4992,7 @@ class ConversationViewModel(
      * s vysvětlením.
      */
     fun sendRecording(options: SendOptions = SendOptions()) {
+        readAfterOwnMessage()
         when {
             videoRecorder.state.value != null -> sendVideoRecording(options)
             voiceRecorder.state.value != null -> sendVoiceRecording(options)
@@ -5789,6 +5833,11 @@ data class ConversationState(
     val noticeMenu: NoticeMenu? = null,
     /** Reaguje dvojité ťuknutí na zprávu rychlou reakcí? Z nastavení aplikace. */
     val doubleTapReaction: Boolean = true,
+    /**
+     * Nepřečtené zprávy, které diskrétní čtení (`AppSettings.discreetReading`) drží
+     * nenahlášené; 0, když je volba vypnutá. Podle toho se ukáže „Označit jako přečtené".
+     */
+    val discreetUnread: Int = 0,
     /** Zpráva čekající na potvrzení smazání. */
     val pendingDelete: PendingDelete? = null,
     /** Zpráva čekající na potvrzení připnutí. */

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.conversation_mark_read
 import eu.tintera.plume.resources.edit_note_24dp
 import eu.tintera.plume.resources.conversation_send_rewrite
 import eu.tintera.plume.core.ai.ScamKind
@@ -2071,6 +2072,12 @@ fun ConversationScreen(
                 onClick = viewModel::jumpToUnreadMark,
                 onReadAll = viewModel::readAllMarks,
             )
+            // Diskrétní čtení: přečtení se samo nehlásí, tak jde poslat ručně. Jen v chatu samém —
+            // ve vlákně a v tématu by „přečíst chat" přečetlo i to, co uživatel neviděl.
+            MarkReadChip(
+                visible = state.discreetUnread > 0 && state.threadRootId == null && state.forumTopicId == null,
+                onClick = viewModel::readNow,
+            )
             ScrollToBottomButton(
                 // V okně v historii vede dolů i od spodní hrany — nejnovější zprávy nejsou načtené.
                 visible = farFromBottom || pendingNewMessages > 0 || !state.reachedEnd,
@@ -2977,6 +2984,44 @@ private fun ScrollToBottomButton(
                     if (count > 0) shown[0] = count
 
                     NewMessagesLabel(shown[0], Modifier.padding(start = 8.dp))
+                }
+            }
+        }
+    }
+}
+
+/**
+ * „Označit jako přečtené" při diskrétním čtení (`AppSettings.discreetReading`). Sourozenec
+ * tlačítek nad polem: stejná plocha a stín, jen s popiskem — ikona dvou fajfek sama neřekne,
+ * že ťuknutí PROZRADÍ přečtení protějšku.
+ */
+@Composable
+private fun MarkReadChip(visible: Boolean, onClick: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
+    AnimatedVisibility(
+        visible = visible,
+        enter = slideInVertically { it } + fadeIn(),
+        exit = slideOutVertically { it } + fadeOut(),
+    ) {
+        // Mezera pod čipem je v obsahu, ne ve `spacedBy` sloupce — viz `UnreadMarkButton`.
+        Box(Modifier.padding(bottom = 10.dp)) {
+            Surface(
+                onClick = {
+                    haptics.confirm()
+                    onClick()
+                },
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                shadowElevation = 4.dp,
+            ) {
+                Row(
+                    Modifier.heightIn(min = SCROLL_DOWN_BUTTON_SIZE).padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(painterResource(Res.drawable.done_all_24dp), contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text(stringResource(Res.string.conversation_mark_read), style = MaterialTheme.typography.labelLarge)
                 }
             }
         }

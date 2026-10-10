@@ -300,6 +300,16 @@ interface AppSettings {
      */
     val stripTrackingParameters: StateFlow<Boolean>
 
+    /**
+     * Diskrétní čtení: otevřená konverzace NEHLÁSÍ přečtení (`viewMessages`) ani „píše…"
+     * (`sendChatAction`). Přečtení odejde, až uživatel v chatu sám něco pošle, nebo ťukne na
+     * „Označit jako přečtené". Výchozí `false`.
+     */
+    val discreetReading: StateFlow<Boolean>
+
+    /** Zapne/vypne diskrétní čtení. Neblokuje, jako [recordRecentEmoji]. */
+    fun setDiscreetReading(enabled: Boolean)
+
     /** Zapne nebo vypne odstraňování sledovacích parametrů. Neblokuje. */
     fun setStripTrackingParameters(enabled: Boolean)
 
@@ -800,6 +810,16 @@ class DataStoreAppSettings(
         }
     }
 
+    override val discreetReading: StateFlow<Boolean> = value(false) { preferences ->
+        preferences[DISCREET_READING] ?: false
+    }
+
+    override fun setDiscreetReading(enabled: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[DISCREET_READING] = enabled }
+        }
+    }
+
     override val stripTrackingParameters: StateFlow<Boolean> = value(true) { preferences ->
         preferences[STRIP_TRACKING_PARAMETERS] ?: true
     }
@@ -922,6 +942,7 @@ class DataStoreAppSettings(
         val USED_ONE_TIME_KEYBOARDS = stringPreferencesKey("used_one_time_keyboards")
         val SEEN_GESTURE_HINTS = stringPreferencesKey("seen_gesture_hints")
         val STRIP_TRACKING_PARAMETERS = booleanPreferencesKey("strip_tracking_parameters")
+        val DISCREET_READING = booleanPreferencesKey("discreet_reading")
         val KEEP_MEDIA = stringPreferencesKey("keep_media")
         val LAST_STORAGE_CLEANUP = longPreferencesKey("last_storage_cleanup")
         val MESSAGE_TEXT_SIZE = intPreferencesKey("message_text_size")
