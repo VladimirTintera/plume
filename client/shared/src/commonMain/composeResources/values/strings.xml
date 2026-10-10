@@ -537,7 +537,7 @@
     <string name="translation_failed">The message could not be translated</string>
     <string name="translation_on_device">Translate on this device</string>
     <string name="translation_on_device_hint">The message text stays on your phone.</string>
-    <string name="translation_device_download_text">Translating on this device needs language packs, about 30 MB per language.</string>
+    <string name="translation_device_download_text">Translating on this device needs language packs, about 40 MB per language.</string>
     <string name="translation_device_download">Download</string>
     <string name="translation_device_downloading">Downloading language packs…</string>
     <string name="translation_device_unknown">Couldn't detect the message language on this device.</string>
@@ -2460,6 +2460,10 @@
     <string name="storage_delete_model_title">Delete %1$s?</string>
     <string name="storage_delete_model_body">Summaries and reply suggestions will need the model downloaded again.</string>
     <string name="storage_model_deleted">%1$s deleted</string>
+    <string name="storage_translation_packs">Translation language packs</string>
+    <string name="storage_delete_pack_title">Delete the %1$s language pack?</string>
+    <string name="storage_delete_pack_body">Translating on this device will need the pack downloaded again.</string>
+    <string name="storage_pack_deleted">%1$s language pack deleted</string>
     <string name="storage_category_photos">Photos</string>
     <string name="storage_category_videos">Videos</string>
     <string name="storage_category_voice">Voice and video messages</string>

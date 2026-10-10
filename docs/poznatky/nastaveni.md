@@ -565,6 +565,28 @@ a `optimizeStorage`), pravidla jsou čisté funkce v `core/telegram/Storage.kt` 
   ANR celého systému — hlavní vlákno aplikace přitom čekalo v `epoll_wait`, ověřeno
   `run-as … cat /proc/<pid>/task/<pid>/wchan`. iOS jen přeložené.
 
+### Balíčky pro překlad v telefonu
+
+Skupina „Balíčky pro překlad" v Úložišti ukazuje stažené jazyky překladu v telefonu (viz
+„Překlad v telefonu" v `konverzace-akce.md`) s velikostí a košem (`OnDeviceTranslator.downloadedPacks`
+/ `deletePack`). Vestavěná angličtina tam není — smazat nejde. Na iOS skupina chybí (překladač
+v DI není, `StorageViewModel` ho bere přes `getOrNull`).
+
+- **ML Kit velikost nehlásí**, počítá se ze složky `no_backup/com.google.mlkit.translate.models/<jazyk>_en`.
+  Je to vnitřní uspořádání knihovny: kde složka není, velikost se neukáže (`bytes = null`).
+  Čeština měla 40 MB (oba směry po 6 MB a společná data), ne 30 MB, jak se psalo v sheetu.
+- **`deleteDownloadedModel` uklidí jen část**: ze 40 MB nechal 12 MB (`translate_csen`
+  a `translate_encs`), přestože balíček už nevedl jako stažený a jeho evidence
+  (`shared_prefs/com.google.mlkit.translate.download_manager.xml`) byla prázdná. Zbytek by zůstal
+  navždy, takže `deletePack` po úspěchu smaže složku jazyka sám — ale jen když ji ML Kit opravdu
+  přestal vést. Ověřeno: `no_backup` ze 45 MB na 4,7 MB. Sirotky z dřívějška (před opravou)
+  to neuklidí; zmizí s dalším stažením a smazáním téhož jazyka.
+- **Titulek „Smazat balíček Čeština?"**, ne „Smazat Čeština?" — název jazyka v 1. pádě musí
+  stát jako přívlastek, jinak věta nedává smysl.
+- **Ověřeno na emulátoru Fold**: skupina s „Čeština · 40 MB", dialog, snackbar „Balíček Čeština
+  smazán", zmizení skupiny, nové stažení přes sheet překladu (výzva se po smazání znovu ukázala).
+  iOS jen přeložené.
+
 ## Menší přepínače
 
 Rychlá reakce a odkazy v aplikaci jsou ve skupině Chaty v Obecných, jazyk aplikace v Obecných

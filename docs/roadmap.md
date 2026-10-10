@@ -410,9 +410,9 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
   Gemma přes LiteRT-LM 0.11.0 přijímá obrázky — Gemini Nano přes Prompt API zatím jen text.
 - ~~**Offline překlad přes ML Kit Translation**~~ — hotovo na Androidu (přepínač „Překládat
   v telefonu" v sheetu překladu; `docs/poznatky/konverzace-akce.md`, „Překlad v telefonu").
-  Zbývá: **správa stažených balíčků** (seznam a smazání v Nastavení → Úložiště, každý ~30 MB;
-  ML Kit je umí smazat `deleteDownloadedModel`), **iOS** (Translation framework je jen pro
-  SwiftUI — šlo by přes most ze Swiftu) a rozhodnout, jestli **+6–7 MB nativní knihovny**
+  ~~Správa stažených balíčků~~ hotovo (Nastavení → Úložiště → Balíčky pro překlad).
+  Zbývá **iOS** (Translation framework je jen pro SwiftUI — šlo by přes most ze Swiftu)
+  a rozhodnout, jestli **+6–7 MB nativní knihovny**
   na stažení z Play za to stojí (jinak dynamický modul Play Feature Delivery).
 - **Lokální přepis řeči v zařízení (Speech-to-Text bez Premium).** TDLib přepis (`transcribeSpeech`)
   vyžaduje Telegram Premium. Jako bezplatná alternativa přímo v zařízení: na Androidu offline

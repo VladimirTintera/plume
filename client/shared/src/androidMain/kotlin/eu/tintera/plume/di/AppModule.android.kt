@@ -80,7 +80,7 @@ actual fun Module.platformModule() {
     single { FileOpener(androidContext()) }
     single { MediaSaver(androidContext()) }
     single<TextRecognizer> { MlKitTextRecognizer() }
-    single<OnDeviceTranslator> { MlKitTranslator() }
+    single<OnDeviceTranslator> { MlKitTranslator(androidContext()) }
     single { MediaSharer(androidContext()) }
     single {
         ShareIntake(androidContext(), requests = get(), chatOpenRequests = get(), scope = get(named(APP_SCOPE)))

@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.translation.OnDeviceTranslator
+import eu.tintera.plume.core.translation.TranslationPack
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
@@ -37,6 +39,8 @@ data class StorageState(
     val clearing: Boolean = false,
     /** Modely Gemmy, které leží v telefonu (celé nebo zčásti stažené). */
     val models: List<StoredModel> = emptyList(),
+    /** Stažené balíčky pro překlad v telefonu; prázdné i tam, kde překlad v telefonu není (iOS). */
+    val translationPacks: List<TranslationPack> = emptyList(),
     /** Jednorázová hláška pro snackbar; obrazovka ji po zobrazení vynuluje. */
     val notice: StorageNotice? = null,
 )
@@ -50,6 +54,9 @@ sealed interface StorageNotice {
 
     /** Smazaný model AI. Velikost se neříká: u zčásti staženého ji neznáme. */
     data class ModelDeleted(val name: String) : StorageNotice
+
+    /** Smazaný balíček pro překlad; jméno jazyka dodá obrazovka podle kódu. */
+    data class PackDeleted(val language: String) : StorageNotice
 
     data class Failed(val message: UiText) : StorageNotice
 }
@@ -65,6 +72,8 @@ class StorageViewModel(
     private val cleaner: StorageCleaner,
     private val settings: AppSettings,
     private val ai: OnDeviceAi,
+    /** Překlad v telefonu; bez něj (iOS) skupina balíčků není. */
+    private val translator: OnDeviceTranslator? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Storage")
@@ -86,6 +95,7 @@ class StorageViewModel(
                 .onSuccess { bytes -> _state.update { it.copy(databaseBytes = bytes) } }
                 .onFailure { failure -> logger.w(failure) { "Velikost databáze se nepodařilo zjistit" } }
             loadModels()
+            loadTranslationPacks()
             repository.usage()
                 .onSuccess { usage -> _state.update { it.copy(usage = usage, loadFailed = false) } }
                 .onFailure { failure ->
@@ -134,6 +144,21 @@ class StorageViewModel(
                 }
             loadModels()
         }
+    }
+
+    fun deleteTranslationPack(language: String) {
+        val translator = translator ?: return
+        viewModelScope.launch {
+            translator.deletePack(language)
+                .onSuccess { _state.update { it.copy(notice = StorageNotice.PackDeleted(language)) } }
+                .onFailure { _state.update { it.copy(notice = StorageNotice.Failed(UiText(Res.string.storage_error_clear))) } }
+            loadTranslationPacks()
+        }
+    }
+
+    private suspend fun loadTranslationPacks() {
+        val packs = translator?.downloadedPacks().orEmpty()
+        _state.update { it.copy(translationPacks = packs) }
     }
 
     fun noticeShown() {

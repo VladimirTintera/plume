@@ -546,7 +546,7 @@
     <string name="translation_failed">Zprávu se nepodařilo přeložit</string>
     <string name="translation_on_device">Překládat v telefonu</string>
     <string name="translation_on_device_hint">Text zprávy neodejde na server.</string>
-    <string name="translation_device_download_text">Pro překlad v telefonu je potřeba stáhnout jazykové balíčky, asi 30 MB na jazyk.</string>
+    <string name="translation_device_download_text">Pro překlad v telefonu je potřeba stáhnout jazykové balíčky, asi 40 MB na jazyk.</string>
     <string name="translation_device_download">Stáhnout</string>
     <string name="translation_device_downloading">Stahují se jazykové balíčky…</string>
     <string name="translation_device_unknown">Jazyk zprávy se v telefonu nepodařilo rozpoznat.</string>
@@ -2537,6 +2537,10 @@
     <string name="storage_delete_model_title">Smazat %1$s?</string>
     <string name="storage_delete_model_body">Shrnutí a návrhy odpovědí pak budou potřebovat model stáhnout znovu.</string>
     <string name="storage_model_deleted">%1$s smazán</string>
+    <string name="storage_translation_packs">Balíčky pro překlad</string>
+    <string name="storage_delete_pack_title">Smazat balíček %1$s?</string>
+    <string name="storage_delete_pack_body">Překlad v telefonu si pak balíček řekne stáhnout znovu.</string>
+    <string name="storage_pack_deleted">Balíček %1$s smazán</string>
     <string name="storage_category_photos">Fotky</string>
     <string name="storage_category_videos">Videa</string>
     <string name="storage_category_voice">Hlasové a video zprávy</string>

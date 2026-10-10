@@ -22,7 +22,16 @@ interface OnDeviceTranslator {
 
     /** Přeloží [text]; balíčky už musí být v telefonu ([hasModels]). */
     suspend fun translate(text: String, source: String, target: String): Result<String>
+
+    /** Stažené jazykové balíčky — Nastavení → Úložiště. Vestavěná angličtina tu není, smazat nejde. */
+    suspend fun downloadedPacks(): List<TranslationPack>
+
+    /** Smaže balíček jazyka [language]; další překlad z / do něj si ho řekne stáhnout znovu. */
+    suspend fun deletePack(language: String): Result<Unit>
 }
+
+/** Stažený jazykový balíček. [bytes] = místo na disku; `null`, když ho nejde zjistit. */
+data class TranslationPack(val language: String, val bytes: Long?)
 
 /**
  * Kód jazyka pro překlad v telefonu z kódu serverového překladu nebo rozpoznávání jazyka:
