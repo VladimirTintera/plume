@@ -539,6 +539,22 @@ s `schedulingState`).
     bylo 12:10), a am/pm dřív než dvojtečka („3:30pm" by jinak bylo 3:30 ráno).
   - Ověřeno na emulátoru: „Sraz zítra v 15:00 u kina" → „Podle zprávy · zítra 15:00",
     u zprávy bez termínu řádek není.
+- **Když pravidla nenajdou nic, zeptá se model v zařízení** (`ReminderTimeModel`, prompt
+  `reminderPrompt` a čtení `parseReminderTime` v `core/ai/ReminderPrompt.kt`, testy
+  `ReminderPromptTest`). Jen se zapnutou AI v zařízení a s modelem `Ready` — kvůli připomínce se
+  nic nestahuje. Termín, který pravidla našla a který už minul, se modelu nedává (nespraví ho).
+  - **Sheet se otevře hned** a nahoře se točí „Hledám termín ve zprávě…"; ostatní volby jdou
+    vybrat mezitím. Návrh od modelu má ikonu AI místo kalendáře — je to odhad, ne pravidlo.
+    Selhání nebo `NONE` = řádek zmizí, žádná chyba. Strop 60 s.
+  - **Výstup je `YYYY-MM-DD HH:MM` nebo `NONE`** a čte se tolerantně (věta kolem, „T"), ale
+    přísně k obsahu: termín musí být po odeslání zprávy a nejvýš rok po něm.
+  - **Části dne musí prompt vyjmenovat i s časy.** Bez toho Gemma „za týden po obědě" vrátila
+    týden dopředu v 08:00 (výchozí „jen den"); s výčtem 12:00 — „po obědě" bere jako oběd,
+    13:00 by sedělo líp. Na E2B únosné, víc se z promptu vymáčknout nepovedlo bez rizika.
+  - **Ověřeno na emulátoru s Gemmou 4 E2B** (Fold AVD s 8 GB RAM, CPU): „Sejdeme se za týden po
+    obědě u fontány" (odesláno v sobotu 10. 10.) → „Podle zprávy · 17. října 12:00" za 8–9 s
+    (první volání po startu 13 s i s načtením enginu); „Díky, to je super nápad" → `NONE`, řádek
+    zmizel. **Gemini Nano a iOS neověřené** (iOS model nemá, `NoopOnDeviceAi`).
 - **Ověřeno na emulátoru Fold**: nabídka nad zprávou v chatu s Notifikátorem, sheet s časy,
   vlastní čas za dvě minuty, snackbar, připomínka v čase v Uložených zprávách s upozorněním
   (zvuk podle `notification_alert`) a s tlačítky Odpovědět / Označit jako přečtené / Ztlumit.

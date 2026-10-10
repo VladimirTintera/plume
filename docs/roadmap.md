@@ -398,7 +398,8 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
 - **„Připomenout mi" nad zprávou.** ~~Bez AI~~ hotovo (nabídka nad zprávou → „Připomenout…",
   naplánované přeposlání do Uložených zpráv; `docs/poznatky/konverzace-akce.md`, „Připomenutí
   zprávy"). ~~Termín z textu jako první volba~~ hotovo pravidly bez modelu (`reminderTimeFromText`,
-  česky a anglicky). Model by pomohl jen u volnějších formulací („za týden po obědě"). A notifikace připomínky říká „Uložené zprávy: <já>",
+  česky a anglicky), ~~a když nenajdou nic, model v zařízení~~ (Gemma i Gemini Nano, ověřeno
+  s Gemmou na emulátoru). A notifikace připomínky říká „Uložené zprávy: <já>",
   ne „Připomínka" — TDLib ji od jiné zprávy v Uložených neodliší (přeposlaná vlastní zpráva).
 - **Kontrola tónu před odesláním** („nezní to podrážděně?"). Klasifikace vlastního konceptu,
   nic se nepřepisuje a varování jde přejít. Stejná opatrnost jako u podvodných zpráv: radši

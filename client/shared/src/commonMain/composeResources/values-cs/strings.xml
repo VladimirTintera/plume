@@ -2571,6 +2571,7 @@
     <string name="remind_text">Ve zvolený čas ti zpráva přijde do Uložených zpráv i s upozorněním.</string>
     <string name="remind_pick">Vybrat datum a čas</string>
     <string name="remind_from_message">Podle zprávy</string>
+    <string name="remind_suggesting">Hledám termín ve zprávě…</string>
     <string name="remind_time">Připomenout v</string>
     <string name="conversation_remind_set">Připomínka je nastavená</string>
     <string name="conversation_remind_failed">Připomínku se nepodařilo nastavit</string>
