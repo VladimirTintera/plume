@@ -1,5 +1,18 @@
 package eu.tintera.plume.features.conversation
 
+import org.jetbrains.compose.resources.painterResource
+import eu.tintera.plume.resources.tone_rude
+import eu.tintera.plume.resources.tone_irritated
+import eu.tintera.plume.resources.tone_fine
+import eu.tintera.plume.resources.tone_checking
+import eu.tintera.plume.resources.mood_24dp
+import eu.tintera.plume.resources.info_24dp
+import eu.tintera.plume.core.ai.tonePrompt
+import eu.tintera.plume.core.ai.parseTone
+import eu.tintera.plume.core.ai.ToneVerdict
+import eu.tintera.plume.core.ai.ToneIssue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.Icon
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -81,6 +94,16 @@ import org.koin.compose.viewmodel.koinViewModel
 /** Je v poli co přepsat? Prázdné ne, dlouhé taky ne — výstup modelu má strop. */
 internal fun rewritable(text: String): Boolean = text.isNotBlank() && text.length <= MAX_REWRITE_CHARS
 
+/** Kontrola tónu konceptu ([DraftRewriteViewModel.checkTone]). */
+sealed interface ToneState {
+    /** Neví se (ještě neběželo, model není, nebo si model nebyl jistý) — nic se neukazuje. */
+    data object Unknown : ToneState
+
+    data object Checking : ToneState
+
+    data class Known(val verdict: ToneVerdict) : ToneState
+}
+
 /** Stav přepisu rozepsané zprávy. */
 sealed interface RewriteState {
     /** Nic neběží; sheet čeká na výběr stylu. */
@@ -126,9 +149,49 @@ class DraftRewriteViewModel(
 
     private var job: Job? = null
 
+    private val _tone = MutableStateFlow<ToneState>(ToneState.Unknown)
+
+    /** Jak koncept vyzní ([checkTone]); běží sám po otevření sheetu. */
+    val tone: StateFlow<ToneState> = _tone.asStateFlow()
+
+    private var toneJob: Job? = null
+
+    /**
+     * Kontrola tónu konceptu („nezní to podrážděně?"). Jen klasifikace — nic nepřepisuje.
+     * Model, který není připravený, se neptá a chyba znamená mlčet: kontrola je doplněk sheetu,
+     * ne jeho účel. Přepis ji ruší ([rewrite]), aby se dva dotazy na model nepředbíhaly.
+     */
+    fun checkTone(text: String) {
+        toneJob?.cancel()
+        _tone.value = ToneState.Checking
+        toneJob = viewModelScope.launch {
+            val variant = settings.onDeviceAiVariant.value
+            if (ai.status(variant) != OnDeviceAiStatus.Ready) {
+                _tone.value = ToneState.Unknown
+                return@launch
+            }
+            val verdict = try {
+                var last = ""
+                ai.generate(variant, tonePrompt(text)).collect { last = it.text }
+                logger.d { "Tón: $last" }
+                parseTone(last)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                logger.i(e) { "Tón se nepodařilo posoudit" }
+                null
+            }
+            _tone.value = verdict?.let { ToneState.Known(it) } ?: ToneState.Unknown
+        }
+    }
+
     /** Přepíše [text] stylem [style]. Vždy z PŮVODNÍHO textu, ne z předchozího přepisu. */
     fun rewrite(text: String, style: RewriteStyle) {
         job?.cancel()
+        if (_tone.value == ToneState.Checking) {
+            toneJob?.cancel()
+            _tone.value = ToneState.Unknown
+        }
         _state.value = RewriteState.Working(style, "")
         job = viewModelScope.launch {
             val variant = settings.onDeviceAiVariant.value
@@ -165,7 +228,10 @@ class DraftRewriteViewModel(
     fun dismiss() {
         job?.cancel()
         job = null
+        toneJob?.cancel()
+        toneJob = null
         _state.value = RewriteState.Idle
+        _tone.value = ToneState.Unknown
     }
 }
 
@@ -217,6 +283,10 @@ internal fun rememberDraftRewrite(): DraftRewrite {
 internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
     val source = rewrite.source ?: return
     val state by rewrite.viewModel.state.collectAsStateWithLifecycle()
+    val tone by rewrite.viewModel.tone.collectAsStateWithLifecycle()
+    // Tón se zjišťuje sám po otevření: je to dotaz „jak to zní", který si uživatel otevřením
+    // sheetu položil. Jednou na text, ne při každém složení.
+    LaunchedEffect(source) { rewrite.viewModel.checkTone(source) }
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
     val style = when (val s = state) {
         is RewriteState.Working -> s.style
@@ -242,6 +312,7 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 6,
             )
+            ToneLine(tone)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 RewriteStyle.entries.forEach { option ->
                     FilterChip(
@@ -328,6 +399,42 @@ private fun RewriteResult(text: String, working: Boolean) {
             }
             if (working) LoadingIndicator(Modifier.size(32.dp))
         }
+    }
+}
+
+/**
+ * Jak koncept vyzní. U problému chybovou barvou (je to varování, které jde přejít), jinak
+ * klidně. Neznámý tón (model nejistý, chyba) se neukazuje vůbec — radši mlčet než hádat.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ToneLine(tone: ToneState) {
+    val verdict = (tone as? ToneState.Known)?.verdict
+    if (tone == ToneState.Unknown) return
+    val issue = (verdict as? ToneVerdict.Issue)?.issue
+    val color = if (issue != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (tone == ToneState.Checking) {
+            LoadingIndicator(Modifier.size(24.dp))
+        } else {
+            Icon(
+                painter = painterResource(if (issue != null) Res.drawable.info_24dp else Res.drawable.mood_24dp),
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        Text(
+            stringResource(
+                when (issue) {
+                    null -> if (tone == ToneState.Checking) Res.string.tone_checking else Res.string.tone_fine
+                    ToneIssue.Irritated -> Res.string.tone_irritated
+                    ToneIssue.Rude -> Res.string.tone_rude
+                },
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = color,
+        )
     }
 }
 

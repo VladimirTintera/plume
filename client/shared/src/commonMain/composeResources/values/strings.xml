@@ -402,12 +402,16 @@
     <string name="conversation_send_schedule">Schedule message…</string>
     <string name="conversation_send_when_online">Send when online</string>
     <string name="conversation_send_effect">Send with effect…</string>
-    <string name="conversation_send_rewrite">Rewrite…</string>
+    <string name="conversation_send_rewrite">Check and rewrite…</string>
     <string name="rewrite_title">Rewrite message</string>
     <string name="rewrite_shorter">Shorter</string>
     <string name="rewrite_polite">More polite</string>
     <string name="rewrite_fix">Fix typos</string>
     <string name="rewrite_pick">Choose how to rewrite the message.</string>
+    <string name="tone_checking">Checking how the message comes across…</string>
+    <string name="tone_fine">The message sounds fine.</string>
+    <string name="tone_irritated">It may come across as irritated.</string>
+    <string name="tone_rude">It may come across as rude.</string>
     <string name="rewrite_unchanged">The model left the message unchanged.</string>
     <string name="rewrite_use">Use</string>
     <string name="rewrite_failed">The message could not be rewritten.</string>
