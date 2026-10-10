@@ -526,8 +526,8 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
   hotovo (koš a „Vrátit"). ~~Koncepty v tématech fóra~~ — hotovo. Zbývá: koncepty ve vláknech
   komentářů (TDLib je nehlásí updatem, musely by se hledat jinak).
 - ~~**Lokální odložení chatu (Snooze)**~~ — hotovo z nabídky nad chatem (`docs/poznatky/seznam-chatu.md`,
-  „Odložení chatu"). Zbývá: odložení tahem (volba v Nastavení → Chaty), notifikace v čase
-  vynoření (dnes se chat vynoří jen v seznamu) a iOS ověřit.
+  „Odložení chatu"). ~~Odložení tahem~~ a ~~upozornění v čase vynoření~~ — hotovo. Zbývá iOS
+  ověřit (lokální notifikace i tah).
 - ~~**Čistič odkazů od sledování (Privacy URL Stripper).**~~ — hotovo (automatické odstraňování
   sledovacích a analytických parametrů `utm_*`, `fbclid`, `gclid`, YouTube/Spotify `si`, TikTok, Twitter/X
   při odesílání, úpravě zprávy i otevírání odkazů, volitelný přepínač v Nastavení → Soukromí a bezpečnost;

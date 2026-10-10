@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.snooze.IosSnoozeReminders
+import eu.tintera.plume.core.snooze.SnoozeReminders
 import eu.tintera.plume.core.ai.NoopOnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ui.IosProfileVideo
@@ -79,6 +81,7 @@ actual fun Module.platformModule() {
     single { TextClipboard() }
     single<LanguageDetector> { IosLanguageDetector() }
     single<SquarePhoto> { IosSquarePhoto() }
+    single<SnoozeReminders> { IosSnoozeReminders() }
     single<PhotoMarkupRenderer> { IosPhotoMarkupRenderer() }
     single<ProfileVideo> { IosProfileVideo() }
     // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.

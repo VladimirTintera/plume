@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.snooze.AndroidSnoozeReminders
+import eu.tintera.plume.core.snooze.SnoozeReminders
 import eu.tintera.plume.core.ai.LiteRtOnDeviceAi
 import eu.tintera.plume.core.ai.MlKitOnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAi
@@ -79,6 +81,7 @@ actual fun Module.platformModule() {
     single { TextClipboard(androidContext()) }
     single<LanguageDetector> { AndroidLanguageDetector(androidContext()) }
     single<SquarePhoto> { AndroidSquarePhoto(androidContext()) }
+    single<SnoozeReminders> { AndroidSnoozeReminders(androidContext()) }
     single<PhotoMarkupRenderer> { AndroidPhotoMarkupRenderer(androidContext()) }
     single<ProfileVideo> { AndroidProfileVideo(androidContext()) }
     // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.

@@ -108,6 +108,12 @@
     <string name="chats_snoozed">Snoozed</string>
     <string name="chats_snoozed_until">Snoozed until %1$s</string>
     <string name="chats_snooze_reminder">Snooze reminder</string>
+    <string name="chats_snooze_sheet_title">Snooze until…</string>
+    <string name="chats_swipe_snooze">Snooze</string>
+    <string name="chats_swipe_unsnooze">Unsnooze</string>
+    <string name="notification_channel_snooze">Snoozed chats</string>
+    <string name="notification_channel_snooze_description">A snoozed chat is back</string>
+    <string name="snooze_reminder_text">Snoozed chat is back</string>
     <string name="chats_action_mark_read">Mark as read</string>
     <string name="chats_action_mark_unread">Mark as unread</string>
     <string name="chats_action_delete">Delete chat</string>

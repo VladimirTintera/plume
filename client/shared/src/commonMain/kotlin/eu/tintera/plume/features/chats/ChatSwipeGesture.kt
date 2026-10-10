@@ -39,6 +39,10 @@ internal enum class ChatSwipeEffect(
     Unmute,
     Pin,
     Unpin,
+
+    /** Nabídne doby odložení — doba se tahem zvolit nedá, na rozdíl od ztlumení „navždy". */
+    Snooze,
+    Unsnooze,
 }
 
 /**
@@ -48,7 +52,13 @@ internal enum class ChatSwipeEffect(
  * kterém přijde chyba, je horší než tah, který se nechytne. Sponzorovaný chat není uživatelův
  * a TDLib ho v seznamu drží sám, takže s ním tah nedělá nic.
  */
-internal fun chatSwipeEffect(action: ChatSwipeAction, chat: ChatSummary, savedMessagesChatId: Long?): ChatSwipeEffect? {
+internal fun chatSwipeEffect(
+    action: ChatSwipeAction,
+    chat: ChatSummary,
+    savedMessagesChatId: Long?,
+    /** Chat právě spí (odložený, ještě se nevynořil). */
+    snoozed: Boolean = false,
+): ChatSwipeEffect? {
     if (chat.sponsor != null) return null
     return when (action) {
         ChatSwipeAction.None -> null
@@ -60,5 +70,6 @@ internal fun chatSwipeEffect(action: ChatSwipeAction, chat: ChatSummary, savedMe
         ChatSwipeAction.Read -> if (chat.hasUnread) ChatSwipeEffect.MarkRead else ChatSwipeEffect.MarkUnread
         ChatSwipeAction.Mute -> if (chat.isMuted) ChatSwipeEffect.Unmute else ChatSwipeEffect.Mute
         ChatSwipeAction.Pin -> if (chat.isPinned) ChatSwipeEffect.Unpin else ChatSwipeEffect.Pin
+        ChatSwipeAction.Snooze -> if (snoozed) ChatSwipeEffect.Unsnooze else ChatSwipeEffect.Snooze
     }
 }

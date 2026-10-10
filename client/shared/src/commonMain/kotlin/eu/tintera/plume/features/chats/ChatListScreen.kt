@@ -7,6 +7,8 @@ import eu.tintera.plume.resources.snooze_24dp
 import eu.tintera.plume.resources.chats_snooze_reminder
 import eu.tintera.plume.resources.chats_snoozed
 import eu.tintera.plume.resources.chats_snoozed_until
+import eu.tintera.plume.resources.chats_swipe_snooze
+import eu.tintera.plume.resources.chats_swipe_unsnooze
 import eu.tintera.plume.core.ui.neighbourChat
 import eu.tintera.plume.core.ui.KeyboardShortcuts
 import eu.tintera.plume.core.ui.KeyboardShortcut
@@ -981,6 +983,15 @@ internal fun ChatActionsHost(
     val chats = (listState as? ChatListState.Ready)?.chats.orEmpty()
 
     val snoozeState by viewModel.snoozeState.collectAsStateWithLifecycle()
+    // Doby odložení po tahu chatem.
+    val snoozePicker by viewModel.snoozePicker.collectAsStateWithLifecycle()
+    snoozePicker?.let { chat ->
+        SnoozeSheet(
+            chat = chat,
+            onSnooze = { option -> viewModel.snooze(chat, option) },
+            onDismiss = viewModel::closeSnoozePicker,
+        )
+    }
     actions.target?.let { chat ->
         val folderChoices = remember(actions.folders, chatFolders) {
             folderChoices(chatFolders, actions.folders)
@@ -1231,8 +1242,8 @@ internal fun ChatListContent(
                         SwipeableChat(
                             // Ve výběru tah nejde: akce jdou lištou a tah by mířil jen na jeden chat.
                             // Co tah s chatem udělá (a jestli vůbec), řeší `chatSwipeEffect`.
-                            right = chatSwipeEffect(swipeActions.right, chat, savedMessagesChatId).takeUnless { selecting },
-                            left = chatSwipeEffect(swipeActions.left, chat, savedMessagesChatId).takeUnless { selecting },
+                            right = chatSwipeEffect(swipeActions.right, chat, savedMessagesChatId, chat.id in snoozes.sleeping).takeUnless { selecting },
+                            left = chatSwipeEffect(swipeActions.left, chat, savedMessagesChatId, chat.id in snoozes.sleeping).takeUnless { selecting },
                             shape = shape,
                             onSwipe = { effect -> viewModel.swipe(chat, effect) },
                             // Animace přeskládání při změně pořadí — bez toho by chaty
@@ -1514,6 +1525,8 @@ private val ChatSwipeEffect.label: StringResource
         ChatSwipeEffect.Unmute -> Res.string.chats_swipe_unmute
         ChatSwipeEffect.Pin -> Res.string.chats_swipe_pin
         ChatSwipeEffect.Unpin -> Res.string.chats_swipe_unpin
+        ChatSwipeEffect.Snooze -> Res.string.chats_swipe_snooze
+        ChatSwipeEffect.Unsnooze -> Res.string.chats_swipe_unsnooze
     }
 
 /** Ikony z nabídky nad chatem, ať tah a nabídka mluví stejně. */
@@ -1526,6 +1539,7 @@ private val ChatSwipeEffect.icon: DrawableResource
         ChatSwipeEffect.Unmute -> Res.drawable.notifications_24dp
         ChatSwipeEffect.Pin -> Res.drawable.push_pin_filled_24dp
         ChatSwipeEffect.Unpin -> Res.drawable.keep_off_24dp
+        ChatSwipeEffect.Snooze, ChatSwipeEffect.Unsnooze -> Res.drawable.snooze_24dp
     }
 
 /** Podklad ikony akce do prahu: jemný tón barvy popředí na `primaryContainer`. */

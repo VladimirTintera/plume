@@ -3,11 +3,20 @@ package eu.tintera.plume.core.settings
 /**
  * Co udělá tah chatem do strany v seznamu chatů. Každá akce se u chatu, kde už platí, otočí:
  * archivovaný se vrátí mezi chaty, ztlumený odtlumí, připnutý odepne, přečtený označí jako
- * nepřečtený. Tah tak jde vždycky vrátit týmž tahem.
+ * nepřečtený, odložený probudí. Tah tak jde vždycky vrátit týmž tahem.
  *
  * Ukládá se názvem, jako ostatní výčty v [AppSettings].
  */
-enum class ChatSwipeAction { Archive, Read, Mute, Pin, None }
+enum class ChatSwipeAction {
+    Archive,
+    Read,
+    Mute,
+    Pin,
+
+    /** Odložit chat (nabídne doby, viz `ChatSnoozes`); spící chat tahem probudí. */
+    Snooze,
+    None,
+}
 
 /**
  * Akce tahu pro obě strany. Směr je FYZICKÝ (doprava / doleva), ne začátek a konec řádku —

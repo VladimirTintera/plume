@@ -41,6 +41,8 @@ class ChatSwipeGestureTest {
         assertEquals(ChatSwipeEffect.Unmute, chatSwipeEffect(ChatSwipeAction.Mute, chat(muted = true), SAVED))
         assertEquals(ChatSwipeEffect.Pin, chatSwipeEffect(ChatSwipeAction.Pin, chat(), SAVED))
         assertEquals(ChatSwipeEffect.Unpin, chatSwipeEffect(ChatSwipeAction.Pin, chat(pinned = true), SAVED))
+        assertEquals(ChatSwipeEffect.Snooze, chatSwipeEffect(ChatSwipeAction.Snooze, chat(), SAVED))
+        assertEquals(ChatSwipeEffect.Unsnooze, chatSwipeEffect(ChatSwipeAction.Snooze, chat(), SAVED, snoozed = true))
     }
 
     @Test

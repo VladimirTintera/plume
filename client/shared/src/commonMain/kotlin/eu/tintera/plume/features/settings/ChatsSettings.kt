@@ -31,6 +31,7 @@ import eu.tintera.plume.resources.chats_action_archive
 import eu.tintera.plume.resources.chats_action_mark_read
 import eu.tintera.plume.resources.chats_action_mute
 import eu.tintera.plume.resources.chats_action_pin
+import eu.tintera.plume.resources.chats_action_snooze
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.settings_swipe_body
 import eu.tintera.plume.resources.settings_swipe_left
@@ -208,6 +209,7 @@ private val ChatSwipeAction.label: StringResource
         ChatSwipeAction.Read -> Res.string.chats_action_mark_read
         ChatSwipeAction.Mute -> Res.string.chats_action_mute
         ChatSwipeAction.Pin -> Res.string.chats_action_pin
+        ChatSwipeAction.Snooze -> Res.string.chats_action_snooze
         ChatSwipeAction.None -> Res.string.settings_swipe_none
     }
 

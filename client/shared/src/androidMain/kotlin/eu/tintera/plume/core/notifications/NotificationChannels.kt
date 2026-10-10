@@ -20,6 +20,8 @@ import eu.tintera.plume.resources.notification_channel_model_download
 import eu.tintera.plume.resources.notification_channel_model_download_description
 import eu.tintera.plume.resources.notification_channel_private
 import eu.tintera.plume.resources.notification_channel_private_description
+import eu.tintera.plume.resources.notification_channel_snooze
+import eu.tintera.plume.resources.notification_channel_snooze_description
 
 /**
  * Id systémového kanálu. **Nesmí se měnit**: kanál s novým id je pro systém jiný kanál a co si
@@ -70,6 +72,7 @@ suspend fun createNotificationChannels(context: Context) {
             .apply { description = readString(Res.string.notification_channel_calls_description) },
     )
     createModelDownloadChannel(context)
+    createSnoozeChannel(context)
     // Jediný kanál z dřívějška — jinak by v systémovém nastavení visel jako prázdná položka.
     manager.deleteNotificationChannel(LEGACY_CHANNEL_ID)
 }
@@ -141,5 +144,22 @@ suspend fun createModelDownloadChannel(context: Context) {
             readString(Res.string.notification_channel_model_download),
             NotificationManager.IMPORTANCE_LOW,
         ).apply { description = readString(Res.string.notification_channel_model_download_description) },
+    )
+}
+
+/** Upozornění, že se odložený chat vrací (`SnoozeReminderWorker`). Id se nesmí měnit. */
+const val SNOOZE_CHANNEL_ID = "snooze-reminders"
+
+/**
+ * Kanál upozornění na odložené chaty. Vlastní, ne kanál zpráv: připomínku si uživatel naplánoval
+ * sám a může ji chtít jinak než zprávy (třeba zvonit, i když má soukromé chaty potichu).
+ */
+suspend fun createSnoozeChannel(context: Context) {
+    context.getSystemService(NotificationManager::class.java).createNotificationChannel(
+        NotificationChannel(
+            SNOOZE_CHANNEL_ID,
+            readString(Res.string.notification_channel_snooze),
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply { description = readString(Res.string.notification_channel_snooze_description) },
     )
 }

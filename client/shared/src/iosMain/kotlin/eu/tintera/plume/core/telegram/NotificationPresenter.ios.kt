@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.snooze.SNOOZE_REMINDER_PREFIX
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.notifications.pushChatId
 import kotlinx.coroutines.CoroutineScope
@@ -63,6 +64,8 @@ actual class NotificationPresenter(private val chats: ChatRepository) {
         center.getDeliveredNotificationsWithCompletionHandler { delivered ->
             val ids = delivered.orEmpty()
                 .filterIsInstance<UNNotification>()
+                // Připomínka odloženého chatu přichází k chatu, který bývá přečtený — ta zůstává.
+                .filter { !it.request.identifier.startsWith(SNOOZE_REMINDER_PREFIX) }
                 .filter { pushChatId(it.request.content.userInfo) in readChats }
                 .map { it.request.identifier }
             if (ids.isNotEmpty()) {

@@ -47,6 +47,8 @@ fun snoozeState(snoozes: List<ChatSnooze>, now: Long): ChatSnoozeState = ChatSno
 class ChatSnoozes(
     private val settings: AppSettings,
     private val chats: ChatRepository,
+    /** Upozornění v čase vynoření; bez něj se chat vynoří jen v seznamu. */
+    private val reminders: SnoozeReminders? = null,
     private val now: () -> Instant = { Clock.System.now() },
 ) {
 
@@ -78,15 +80,22 @@ class ChatSnoozes(
         return settings.chatSnoozes.value.any { it.accountId == account && it.chatId == chatId && it.until > nowMs }
     }
 
-    /** Odloží chat do [until]; dřívější odložení téhož chatu nahradí. */
-    fun snooze(chatId: Long, until: Instant) {
+    /**
+     * Odloží chat do [until]; dřívější odložení téhož chatu nahradí. [title] je název chatu do
+     * upozornění — v čase vynoření nemusí proces běžet a TDLib se ptát nedá.
+     */
+    fun snooze(chatId: Long, until: Instant, title: String) {
         val account = chats.savedMessagesChatId.value ?: return
         val others = settings.chatSnoozes.value.filterNot { it.accountId == account && it.chatId == chatId }
         settings.setChatSnoozes(others + ChatSnooze(account, chatId, until.toEpochMilliseconds()))
+        reminders?.schedule(chatId, title, until)
     }
 
-    /** Zruší odložení, ať chat ještě spí, nebo se už vynořil. */
-    fun clear(chatId: Long) = update(chatId) { true }
+    /** Zruší odložení, ať chat ještě spí, nebo se už vynořil, i s upozorněním. */
+    fun clear(chatId: Long) {
+        update(chatId) { true }
+        reminders?.cancel(chatId)
+    }
 
     /**
      * Chat se otevřel: vynořená připomínka splnila účel a z bloku nahoře zmizí. Chat, který ještě
@@ -94,14 +103,18 @@ class ChatSnoozes(
      */
     fun opened(chatId: Long) {
         val nowMs = now().toEpochMilliseconds()
-        update(chatId) { it.until <= nowMs }
+        // Upozornění v liště splnilo účel spolu s připomínkou; spícímu chatu zůstává.
+        if (update(chatId) { it.until <= nowMs }) reminders?.cancel(chatId)
     }
 
-    private fun update(chatId: Long, remove: (ChatSnooze) -> Boolean) {
-        val account = chats.savedMessagesChatId.value ?: return
+    /** Odebere odložení chatu, která vyhoví [remove]; vrací, jestli nějaké ubylo. */
+    private fun update(chatId: Long, remove: (ChatSnooze) -> Boolean): Boolean {
+        val account = chats.savedMessagesChatId.value ?: return false
         val current = settings.chatSnoozes.value
         val kept = current.filterNot { it.accountId == account && it.chatId == chatId && remove(it) }
-        if (kept.size != current.size) settings.setChatSnoozes(kept)
+        if (kept.size == current.size) return false
+        settings.setChatSnoozes(kept)
+        return true
     }
 
     private companion object {

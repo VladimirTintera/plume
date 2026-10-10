@@ -673,7 +673,7 @@ snackbar s „Vrátit".
 ### Akce tahem
 
 Nastavení → Obecné → Chaty → „Tah doprava" / „Tah doleva": archivovat, přečteno, ztlumit,
-připnout, nebo nic (`ChatSwipeAction`, `AppSettings.chatSwipeActions`). Platí v hlavním seznamu,
+připnout, odložit, nebo nic (`ChatSwipeAction`, `AppSettings.chatSwipeActions`). Platí v hlavním seznamu,
 v archivu i ve složkách — všechny jsou `ChatListContent`.
 
 - **Akce se u chatu, kde už platí, otočí** (`chatSwipeEffect`, testy `ChatSwipeGestureTest`):
@@ -777,8 +777,28 @@ v `AppSettings`; doby jsou čisté funkce v `SnoozeOption.kt`, testy `SnoozeTest
   ztišený řádek, tichá notifikace (`flags=…|SILENT`, `notification_alert` bez zvuku) a po zrušení
   odložení zase se zvukem, „Zrušit odložení" s časem. Vynoření se ověřilo přepsáním konce
   odložení v souboru nastavení na minulost (`run-as`, číslo stejné délky, aby protobuf zůstal
-  platný) — systémový čas emulátoru `shell` posunout nesmí. **iOS jen přeložené.** Připomínka
-  notifikací v čase vynoření zatím není: chat se vynoří jen v seznamu.
+  platný) — systémový čas emulátoru `shell` posunout nesmí. **iOS jen přeložené.**
+- **V čase vynoření přijde upozornění** (`SnoozeReminders`): bez něj by se připomínka ukázala, až
+  když uživatel aplikaci sám otevře. Android plánuje úlohu WorkManageru (`SnoozeReminderWorker`,
+  jedna na chat, `REPLACE`) s vlastním kanálem „Odložené chaty" — připomínku si uživatel
+  naplánoval sám a může ji chtít jinak než zprávy. iOS lokální notifikaci se stejným `userInfo`
+  jako push, takže ťuknutí otevře chat touž cestou. Zrušení odložení i otevření vynořeného chatu
+  upozornění zruší, i když už visí v liště; nahlédnutí do spícího chatu ne.
+  - **Název chatu se ukládá při odložení**: úloha může proces spustit sama a TDLib se v tu chvíli
+    ptát nedá.
+  - **WorkManager čas nedodrží na minutu** (Doze). Přesný alarm by chtěl oprávnění
+    `SCHEDULE_EXACT_ALARM`; chat se v seznamu vynoří přesně a upozornění pár minut po něm vadí míň.
+  - **Na iOS úklid notifikací přečtených chatů připomínku nesmí sebrat** — přichází k chatu,
+    který bývá přečtený. Pozná se podle identifikátoru (`SNOOZE_REMINDER_PREFIX`).
+  - **Intent upozornění nese chatId i v datech** (`plume-snooze://chat/<id>`): s pevným
+    request code by se intenty dvou chatů podle `filterEquals` slily a otevíral by se jen jeden.
+  - Ověřeno na emulátoru: úloha v `dumpsys jobscheduler`, předčasné spuštění `cmd jobscheduler
+    run -f -n androidx.work.systemjobscheduler eu.tintera.plume <id>` ukázalo upozornění
+    v kanálu `snooze-reminders`, ťuknutí otevřelo chat; zrušení odložení úlohu odebralo.
+- **Odložit jde i tahem** (Nastavení → Chaty → Tah doleva / doprava → Odložit). Doba se tahem
+  zvolit nedá, takže tah otevře malý sheet s dobami (`SnoozeSheet`), ne celou nabídku nad
+  chatem. Spící chat tah probudí, jako se ostatní akce tahem otáčejí. Ověřeno na emulátoru
+  (odložení i probuzení tahem); nastavení se pak vrátilo na archivaci.
 
 ### Výběr víc chatů
 
