@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.selection_copy_markdown
+import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.selection_copy_with_names
 import eu.tintera.plume.resources.selection_copy_text
 import eu.tintera.plume.resources.forum_24dp
@@ -76,13 +78,14 @@ internal fun SelectionToolbar(
     selection: MessageSelection,
     onCopy: () -> Unit,
     onCopyWithNames: () -> Unit,
+    onCopyMarkdown: () -> Unit,
     onForward: () -> Unit,
     onReport: () -> Unit,
     onDelete: () -> Unit,
 ) {
     ConversationFloatingBar(visible = selection.count > 0) {
-        // Kopírovat nabídne dvě podoby: holé texty (jako dřív) a přepis s časem a jménem
-        // („[10. 10. 2026 14:22] Jana: …") pro poznámky nebo jazykový model.
+        // Kopírovat nabídne tři podoby: holé texty (jako dřív), přepis s časem a jménem
+        // („[10. 10. 2026 14:22] Jana: …") pro jazykový model a Markdown s formátováním pro poznámky.
         var copyMenu by remember { mutableStateOf(false) }
         Box {
             ToolbarAction(
@@ -103,6 +106,10 @@ internal fun SelectionToolbar(
                         MenuAction(stringResource(Res.string.selection_copy_with_names), Res.drawable.forum_24dp) {
                             copyMenu = false
                             onCopyWithNames()
+                        },
+                        MenuAction(stringResource(Res.string.selection_copy_markdown), Res.drawable.description_24dp) {
+                            copyMenu = false
+                            onCopyMarkdown()
                         },
                     ),
                 ),

@@ -89,4 +89,21 @@ class SelectionTranscriptTest {
     fun viceradkovaZpravaZustane() = runTest {
         assertEquals("[10. 10. 2026 12:00] Jana: a\nb", transcript(message(1, "a\nb", at(12, 0))))
     }
+
+    @Test
+    fun markdownSHlavickouAFormatovanim() = runTest {
+        val bold = message(1, "Ahoj světe", at(9, 5)).copy(
+            entities = listOf(eu.tintera.plume.core.telegram.MessageEntity(5, 5, eu.tintera.plume.core.telegram.MessageEntityType.Bold)),
+        )
+        assertEquals(
+            "**Jana** · 10. 10. 2026 09:05\nAhoj **světe**\n\n**Já** · 10. 10. 2026 09:07\nČau",
+            selectionMarkdown(
+                listOf(message(2, "Čau", at(9, 7), outgoing = true), bold),
+                me = "Já",
+                chatTitle = "Petr",
+                zone = zone,
+                resolve = resolve,
+            ),
+        )
+    }
 }

@@ -40,8 +40,35 @@ internal suspend fun selectionTranscript(
     }
     .joinToString("\n")
 
-private suspend fun transcriptBody(message: ChatMessage, resolve: suspend (UiText) -> String): String? {
-    val text = message.copyableText().ifBlank { message.description?.let { resolve(it) }.orEmpty() }
+/**
+ * Totéž jako [selectionTranscript], ale pro poznámky v Markdownu: autor tučně s časem na vlastním
+ * řádku, pod ním text s formátováním ([markdownOf]) a mezi zprávami prázdný řádek. Hlavička na
+ * vlastním řádku proto, že blok kódu nebo citace musí v Markdownu začínat řádek — za
+ * „Jana: " by se nepoznaly.
+ */
+internal suspend fun selectionMarkdown(
+    messages: List<ChatMessage>,
+    me: String,
+    chatTitle: String,
+    zone: TimeZone = TimeZone.currentSystemDefault(),
+    resolve: suspend (UiText) -> String = { it.resolveNow() },
+): String = messages
+    .sortedWith(compareBy({ it.timestamp }, { it.id }))
+    .mapNotNull { message ->
+        val body = transcriptBody(message, resolve, markdown = true) ?: return@mapNotNull null
+        val author = if (message.isOutgoing) me else message.senderName ?: chatTitle
+        "**$author** · ${timestampText(message.timestamp, zone, resolve)}\n$body"
+    }
+    .joinToString("\n\n")
+
+private suspend fun transcriptBody(
+    message: ChatMessage,
+    resolve: suspend (UiText) -> String,
+    markdown: Boolean = false,
+): String? {
+    // Formátování nese jen vlastní text zprávy; náhradní text (kostka, přepis hlasovky) ho nemá.
+    val own = message.text.takeIf { markdown && it.isNotBlank() }?.let { markdownOf(it, message.entities) }
+    val text = own ?: message.copyableText().ifBlank { message.description?.let { resolve(it) }.orEmpty() }
     val label = message.media
         ?.takeUnless { it is MessageMedia.AnimatedEmoji || it is MessageMedia.Dice || it is MessageMedia.Contact }
         ?.let { resolve(it.describeText()) }

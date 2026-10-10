@@ -4184,7 +4184,12 @@ class ConversationViewModel(
      * Vybrané zprávy jako přepis s časem a jménem, od nejstarší — pro poznámky nebo jazykový
      * model (viz [selectionTranscript]). Překládá se teď (`resolveNow`), schránka jazyk neudrží.
      */
-    fun copySelectionWithNames() {
+    fun copySelectionWithNames() = copySelectionAs { messages, me, title -> selectionTranscript(messages, me, title) }
+
+    /** Vybrané zprávy jako Markdown pro poznámky, i s formátováním (viz [selectionMarkdown]). */
+    fun copySelectionAsMarkdown() = copySelectionAs { messages, me, title -> selectionMarkdown(messages, me, title) }
+
+    private fun copySelectionAs(format: suspend (List<ChatMessage>, me: String, chatTitle: String) -> String) {
         val state = _state.value
         val messages = state.selectedMessageIds().mapNotNull { id -> state.messages.firstOrNull { it.id == id } }
         if (messages.isEmpty()) return
@@ -4192,7 +4197,7 @@ class ConversationViewModel(
 
         closeSelection()
         viewModelScope.launch {
-            val text = selectionTranscript(messages, me = UiText(Res.string.summary_me).resolveNow(), chatTitle = chatTitle)
+            val text = format(messages, UiText(Res.string.summary_me).resolveNow(), chatTitle)
             if (text.isNotBlank()) clipboard.copy(text)
         }
     }
