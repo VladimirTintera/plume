@@ -308,7 +308,7 @@ fun appModule() = module {
     single { BotStartRequests() }
     single { ConversationSearchRequests() }
     single { ConversationJumpRequests() }
-    single { LocalTranscripts() }
+    single { LocalTranscripts(settings = get(), chats = get()) }
     factory { ReminderTimeModel(ai = get(), settings = get()) }
     single { ChatSwitcher(chats = get()) }
     single { MessageBookmarks(settings = get(), chats = get()) }

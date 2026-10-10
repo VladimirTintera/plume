@@ -690,7 +690,12 @@ Gemma 4 se zvukovým vstupem (`OnDeviceAi.transcribe`, `LiteRtOnDeviceAi`). Tla�
   Načítá se se zvukem až při prvním přepisu; pak poslouží i textovým funkcím, aby se engine
   nepřenačítal. Při načtení si LiteRT-LM zapíše vlastní keš zvukové části do `cacheDir`.
 - **Přepis nejde do zprávy** (na serveru ho měnit nejde), ale do `LocalTranscripts` — jeden na
-  proces, takže odchod z chatu přežije, restart aplikace ne. Pro obrazovku jde spolu s Premium
+  proces, takže odchod z chatu přežije. **Hotový se ukládá** (`AppSettings.storedTranscripts`,
+  po účtech jako záložky, nejvýš 300 nejnovějších, testy `LocalTranscriptsTest`) a přežije
+  i restart; rozpracovaný a nepovedený zůstávají jen v paměti. Hotový jde do paměti i do
+  úložiště zároveň — zápis do DataStore je asynchronní a jinak by přepis na okamžik zmizel.
+  Ověřeno na emulátoru: přepis, `am force-stop`, nový start → přepis u hlasovky hned vidět.
+  Pro obrazovku jde spolu s Premium
   a zkušebními přepisy v jednom toku (`transcribeContext`) — `ConversationScreen` je v dexu na
   hraně a dvě `collectAsState` se tak změnila v jedno.
 - **Běží v `appScope`**, ne ve `viewModelScope`: odchod z chatu přepis nezruší.
