@@ -723,9 +723,22 @@ class MediaViewerViewModel(
         _state.update { it.copy(recognizedText = null) }
     }
 
-    /** Celý rozpoznaný text do schránky; potvrzení snackbarem. */
+    /** Vybere řádek [index] rozpoznaného textu, nebo výběr zruší, když už vybraný byl. */
+    fun toggleTextLine(index: Int) {
+        _state.update { state ->
+            val photoText = state.recognizedText ?: return@update state
+            val selected = if (index in photoText.selected) photoText.selected - index else photoText.selected + index
+            state.copy(recognizedText = photoText.copy(selected = selected))
+        }
+    }
+
+    fun clearTextSelection() {
+        _state.update { state -> state.copy(recognizedText = state.recognizedText?.copy(selected = emptySet())) }
+    }
+
+    /** Vybrané řádky, nebo celý rozpoznaný text, do schránky; potvrzení snackbarem. */
     fun copyRecognizedText() {
-        val text = _state.value.recognizedText?.text?.text ?: return
+        val text = _state.value.recognizedText?.shownText ?: return
         val clipboard = clipboard ?: return
         viewModelScope.launch { clipboard.copy(text) }
         _state.update { it.copy(notice = UiText(Res.string.media_text_copied)) }
@@ -981,8 +994,14 @@ internal fun MessageMedia.Document.asViewerMedia(): MessageMedia? {
 /** Co s médiem právě běží; podle toho se točí to tlačítko, na které uživatel ťukl. */
 enum class MediaTask { Gallery, Share, SaveAs, Text }
 
-/** Text rozpoznaný na fotce [messageId] — zvýrazní se jen na ní, jinde ne. */
-data class PhotoText(val messageId: Long, val text: RecognizedText)
+/**
+ * Text rozpoznaný na fotce [messageId] — zvýrazní se jen na ní, jinde ne. [selected] jsou řádky
+ * vybrané ťuknutím na fotce (indexy do [RecognizedText.lines]); prázdný = platí celý text.
+ */
+data class PhotoText(val messageId: Long, val text: RecognizedText, val selected: Set<Int> = emptySet()) {
+    /** Co ukáže panel a co se zkopíruje: vybrané řádky, jinak všechno. */
+    val shownText: String get() = text.text(selected)
+}
 
 /** Stažený soubor připravený k uložení nebo sdílení, se jménem, pod kterým se má objevit. */
 data class PreparedMedia(val path: String, val fileName: String, val isVideo: Boolean)

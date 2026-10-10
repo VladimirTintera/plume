@@ -420,9 +420,9 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
   (TFLite / Sherpa-ONNX), na iOS `SFSpeechRecognizer` s `requiresOnDeviceRecognition = true`.
   Zpracování proběhne v zařízení a výsledek se uloží do lokální cache zprávy.
 - ~~**Extrakce textu z fotek (OCR / Live Text).**~~ — hotovo (⋮ → „Text z fotky" v prohlížeči:
-  zvýraznění bloků na snímku, panel s výběrem a „Kopírovat vše"; `docs/poznatky/prohlizec-medii.md`,
-  „Text z fotky"). Zbývá: iOS (Vision) ověřit na simulátoru, release build s R8 a ťuknutí na
-  jednotlivý blok (zkopírovat jen ten).
+  zvýraznění řádků na snímku, výběr řádků ťuknutím, panel s výběrem a „Kopírovat vše / výběr";
+  `docs/poznatky/prohlizec-medii.md`, „Text z fotky"). Zbývá: iOS (Vision) ověřit na simulátoru
+  a release build s R8.
 
 ---
 
