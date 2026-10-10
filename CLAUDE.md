@@ -126,6 +126,12 @@ na klon: `git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"
   která `.github/scripts/` mít nemusí; hook naopak leží v hlavním stromu, kam absolutní cesta
   míří. Když není ani jeden, kontrola formátu se přeskočí a zbyde na CI — hook nemá blokovat
   push kvůli tomu, že si na něco nedosáhl.
+- **PR jen s komunitními překlady poznámku nepotřebuje** (`release_notes.py exempt`, volá ho
+  workflow i hook): `values-<kód>/strings.xml` a iOS `<kód>.lproj/Localizable.strings` jazyků,
+  které nepíšeme sami (`OWN_LOCALES` ve skriptu zrcadlí `completeLocales` v Gradle). Tak chodí
+  PR od Weblate, který poznámku napsat neumí. Čeština, angličtina nebo cokoli jiného v témže
+  PR výjimku ruší. Nový jazyk, který tím přejde práh výběru, si poznámku zaslouží — přidá ji,
+  kdo vydává.
 - **Kontrolu dělá TENTÝŽ skript jako workflow.** Dvě kopie pravidel by se rozešly a lokální
   kontrola by začala pouštět dál, co CI zamítne. `release_notes.py` proto jen podle
   `GITHUB_ACTIONS` přepíná, jestli chybu vypsat jako anotaci GitHubu, nebo jako větu.

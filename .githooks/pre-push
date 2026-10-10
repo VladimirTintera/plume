@@ -37,7 +37,20 @@ while read -r local_ref local_sha remote_ref remote_sha; do
 
     base=$(git merge-base refs/remotes/origin/main "$local_sha" 2>/dev/null) || continue
 
+    # Skript se bere vedle hooku, a teprve když tam není, z pushovaného stromu: z worktree
+    # se pushuje větev, která `.github/scripts/` mít nemusí, zato hook leží v hlavním stromu.
+    script=""
+    for candidate in "$hook_dir/../.github/scripts/release_notes.py" \
+                     "$(git rev-parse --show-toplevel)/.github/scripts/release_notes.py"; do
+        [ -f "$candidate" ] && { script=$candidate; break; }
+    done
+
     added=$(git diff --diff-filter=A --name-only "$base" "$local_sha" -- 'release-notes/*.md')
+    # Jen komunitní překlady (Weblate) poznámku nepotřebují — stejné pravidlo jako v CI.
+    if [ -z "$added" ] && [ -n "$script" ] && command -v python3 >/dev/null 2>&1 \
+        && python3 "$script" exempt $(git diff --name-only "$base" "$local_sha") >/dev/null; then
+        continue
+    fi
     if [ -z "$added" ]; then
         branch=${local_ref#refs/heads/}
         echo "chyba: větev '$branch' nepřidává poznámku do release-notes/." >&2
@@ -58,13 +71,6 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     tmp=$(mktemp -d) || exit 1
     for file in $changed; do
         git show "$local_sha:$file" > "$tmp/$(basename "$file")" || status=1
-    done
-    # Skript se bere vedle hooku, a teprve když tam není, z pushovaného stromu: z worktree
-    # se pushuje větev, která `.github/scripts/` mít nemusí, zato hook leží v hlavním stromu.
-    script=""
-    for candidate in "$hook_dir/../.github/scripts/release_notes.py" \
-                     "$(git rev-parse --show-toplevel)/.github/scripts/release_notes.py"; do
-        [ -f "$candidate" ] && { script=$candidate; break; }
     done
     if [ -z "$script" ]; then
         echo "poznámka: release_notes.py tu není, formát poznámky ověří až CI." >&2
