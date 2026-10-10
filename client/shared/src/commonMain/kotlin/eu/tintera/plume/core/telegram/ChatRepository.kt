@@ -251,6 +251,9 @@ interface ChatRepository {
     /** Je chat ztlumený? Živě, pro profil chatu; `null`, dokud chat repository nezná. */
     fun muted(chatId: Long): Flow<Boolean?>
 
+    /** Kolik je v chatu nepřečtených zpráv, živě (`UpdateChatReadInbox`); neznámý chat = 0. */
+    fun unreadCount(chatId: Long): Flow<Int> = flowOf(0)
+
     /** Ztlumí chat natrvalo, nebo ztlumení zruší. */
     suspend fun setMuted(chatId: Long, muted: Boolean): Result<Unit>
 

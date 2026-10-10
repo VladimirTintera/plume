@@ -2446,6 +2446,9 @@
     <string name="app_lock_timeout_5h">In 5 hours</string>
     <string name="settings_strip_tracking_params">Strip tracking parameters</string>
     <string name="settings_strip_tracking_params_summary">Remove tracking tags (UTM, fbclid, YouTube si, etc.) from links</string>
+    <string name="settings_discreet_reading">Discreet reading</string>
+    <string name="settings_discreet_reading_summary">Open chats do not report that you read them or that you are typing. Messages are marked as read when you reply or tap Mark as read.</string>
+    <string name="conversation_mark_read">Mark as read</string>
     <string name="settings_section_storage">Storage</string>
     <string name="settings_section_storage_summary">Space used, clearing and auto-download</string>
     <string name="auto_download_title">Auto-download</string>

@@ -525,6 +525,32 @@ click ID a trackery sociálních sítí / sdílení).
 
 
 
+## Diskrétní čtení (`AppSettings.discreetReading`)
+
+Nastavení → Obecné → Soukromí → „Diskrétní čtení": otevřená konverzace nehlásí přečtení
+(`viewMessages`) ani „píše…" (`sendChatAction`). Výchozí vypnuto.
+
+- **Potlačuje se v `ConversationViewModel`, ne v repository**: `markRead` (viditelné zprávy)
+  a `reportTyping(true)` se vrátí dřív, než sáhnou na TDLib. Ukončení psaní projde — nic
+  neprozradí a zhasne „píše…" ohlášené před zapnutím volby. Ruční „Označit jako přečtené"
+  v seznamu chatů a v notifikaci dál přečte, je to vědomá akce.
+- **Přečtení odejde, až uživatel v chatu sám něco pošle** (text, přílohy, hlasovka/kolečko —
+  `readAfterOwnMessage`), nebo ťukne na čip „Označit jako přečtené" nad polem. Oboje volá
+  `ChatRepository.readChat` — totéž co seznam chatů (nejnovější zpráva, zmínky, reakce).
+  Odpověď na zprávu, kterou protějšek vidí jako nepřečtenou, by diskrétnost stejně prozradila.
+- **Čip vidí jen chat samotný**, ne vlákno a téma: `readChat` přečte celý chat, tedy i to,
+  co uživatel ve vláknu neviděl. Kolik je nepřečtených, nese živý `ChatRepository.unreadCount`
+  — `ChatInfo.unreadCount` je jen stav z otevření chatu.
+- **Skok na zmínku „@" zmínku nepřečte** — přečetla by i historii po ni. Tlačítko pak vede na
+  tutéž zmínku, dokud se chat nepřečte.
+- **Co volba nekryje**: poslech hlasovky (`openMessageContent` nastaví „poslechnuto"), otevření
+  mizející fotky a zobrazení příspěvku v kanálu (počet zhlédnutí jde přes `viewMessages`, který
+  se nevolá — v kanálu se tak zhlédnutí nepočítá vůbec).
+- **Ověřeno na emulátoru**: s volbou chat Telegram (2 nepřečtené) po otevření odznak 2
+  podržel a nad polem byl čip; log `Diskrétní čtení: N viditelných zpráv se nehlásí`
+  a `…psaní se nehlásí`. Ťuknutí na čip a přečtení po vlastní zprávě na zařízení ověřené
+  NENÍ (Notifikátor má otevřený jiná session a čte ho hned, takže se nedalo pozorovat).
+
 ## Úložiště (`features/settings/StorageSettings`)
 
 Šestá sekce Nastavení: kolik zabírají stažené soubory po druzích a po chatech, databáze zpráv,

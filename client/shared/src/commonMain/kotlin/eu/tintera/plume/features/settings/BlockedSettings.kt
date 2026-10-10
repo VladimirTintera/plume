@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.resources.settings_discreet_reading_summary
+import eu.tintera.plume.resources.settings_discreet_reading
+import eu.tintera.plume.resources.visibility_off_24dp
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -117,7 +120,28 @@ internal fun PrivacySettings(
         TwoStepRow(twoStep, onOpenTwoStep)
         AppLockRow(onOpenAppLock)
         StripTrackingParametersRow()
+        DiscreetReadingRow()
     }
+}
+
+/** Diskrétní čtení (`AppSettings.discreetReading`): bez hlášení přečtení a „píše…". */
+@Composable
+private fun DiscreetReadingRow() {
+    val settings = org.koin.compose.koinInject<eu.tintera.plume.core.settings.AppSettings>()
+    val enabled by settings.discreetReading.collectAsStateWithLifecycle()
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        leadingContent = { Icon(painterResource(Res.drawable.visibility_off_24dp), contentDescription = null) },
+        headlineContent = { Text(stringResource(Res.string.settings_discreet_reading)) },
+        supportingContent = { Text(stringResource(Res.string.settings_discreet_reading_summary)) },
+        trailingContent = {
+            eu.tintera.plume.core.ui.IconSwitch(
+                checked = enabled,
+                onCheckedChange = settings::setDiscreetReading,
+            )
+        },
+        modifier = Modifier.clickable { settings.setDiscreetReading(!enabled) },
+    )
 }
 
 @Composable

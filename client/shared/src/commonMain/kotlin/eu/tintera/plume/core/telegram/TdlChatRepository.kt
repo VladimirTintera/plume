@@ -645,6 +645,9 @@ class TdlChatRepository(
     override fun muted(chatId: Long): Flow<Boolean?> =
         all.map { it[chatId]?.isMuted }.distinctUntilChanged()
 
+    override fun unreadCount(chatId: Long): Flow<Int> =
+        all.map { it[chatId]?.unreadCount ?: 0 }.distinctUntilChanged()
+
     override suspend fun setMuted(chatId: Long, muted: Boolean): Result<Unit> =
         setMuteFor(chatId, if (muted) MUTE_FOREVER else 0)
 
