@@ -527,7 +527,7 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
   konverzaci nebo hledání)~~ a ~~Enter odesílá~~ — hotovo (`docs/poznatky/navigace.md`, „Klávesové
   zkratky"; na iOS jen Enter). Zbývá přetažení obrázku či souboru z jiné aplikace v rozdělené
   obrazovce rovnou nad vstupní pole (`dragAndDropTarget`), stejnou cestou jako příloha ze
-  schránky, a seznam zkratek v systémovém přehledu (`onProvideKeyboardShortcuts`, Meta+/).
+  schránky. ~~Seznam zkratek v systémovém přehledu (Meta+/)~~ — hotovo.
 - ~~**Přehled rozepsaných konceptů**~~ — hotovo (menu účtu → Koncepty;
   `docs/poznatky/seznam-chatu.md`, „Přehled konceptů"). ~~Smazání konceptu přímo z přehledu~~ —
   hotovo (koš a „Vrátit"). Zbývá: koncepty v tématech fóra a ve vláknech komentářů

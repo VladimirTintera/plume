@@ -8,6 +8,24 @@ import kotlin.test.assertNull
 
 class KeyboardShortcutsTest {
 
+    /** Systémový přehled nesmí slibovat klávesu, kterou aplikace nechytá — nebo jinou zkratku. */
+    @Test
+    fun prehledSediSeZkratkami() {
+        SHORTCUT_BINDINGS.forEach { binding ->
+            assertEquals(
+                binding.shortcut,
+                keyboardShortcut(binding.key, binding.ctrl, binding.alt, binding.shift, meta = false),
+                "Přehled ukazuje $binding",
+            )
+        }
+    }
+
+    /** Každá zkratka je v přehledu aspoň jednou. */
+    @Test
+    fun prehledMaVsechnyZkratky() {
+        assertEquals(KeyboardShortcut.entries.toSet(), SHORTCUT_BINDINGS.map { it.shortcut }.toSet())
+    }
+
     private fun shortcut(key: Key, ctrl: Boolean = false, alt: Boolean = false, shift: Boolean = false, meta: Boolean = false) =
         keyboardShortcut(key, ctrl, alt, shift, meta)
 

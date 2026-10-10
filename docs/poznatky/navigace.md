@@ -268,6 +268,19 @@ v otevřené konverzaci, **Alt+↓ / Alt+↑** a **Ctrl+Tab / Ctrl+Shift+Tab** d
   Enter), nahrát do `/data/local/tmp` a `adb shell uinput <soubor>`. Že události dorazily,
   ukáže `adb shell getevent -l`. Pozor: `adb emu event text` s `\n` taky pošle Enter z klávesnice
   emulátoru — a zprávu tím odešle.
+- **Systémový přehled zkratek (Meta+/) je ukazuje** (`MainActivity.onProvideKeyboardShortcuts`,
+  `KeyboardShortcutOverview`): skupina Chaty (hledání, další a předchozí chat, Esc) a Psaní zprávy
+  (Enter, Shift+Enter). Klávesy se berou ze společného seznamu `SHORTCUT_BINDINGS` vedle pravidla
+  `keyboardShortcut`. **Že se seznam s pravidlem nerozešel, hlídá test**, jinak by přehled
+  sliboval klávesu, která nic nedělá. Texty se čtou předem (`load` v `onCreate`): přehled se
+  skládá synchronně na hlavním vlákně, kdežto prostředky Compose jsou `suspend`.
+  - **Nový přehled (Android 15+) stejné popisky slučuje** („Další chat: Alt+↓ nebo Ctrl+Tab").
+    Na telefonu je skupina aplikace až pod systémovými kategoriemi, ne mezi nimi; najde ji
+    i vyhledávání v přehledu.
+  - **Esc („Zpět") nový přehled NEUKÁZAL**, ostatní položky ano (emulátor, Android 17). Proč,
+    ověřené není; položka zůstává, protože starší přehled (Android 12–14) ji ukázat může.
+  - Vyvolá se `adb shell input keycombination 117 76` (Meta+/); v přehledu `input text` hledá.
+    Esc přehled zavře, klávesnici v něm schová Zpět (`keyevent 4`).
 - **Ověřeno na emulátoru (Android 17):** Ctrl+K v jednom i dvou panelech, Ctrl+F, Alt+↓ / Alt+↑
   a Ctrl+Tab v dvoupanelu na šířku, Esc zavře hledání i konverzaci se zaostřeným polem a na
   seznamu aplikaci opustí jako Zpět. Na skutečném Foldu s klávesnicí neověřeno.
