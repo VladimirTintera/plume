@@ -931,8 +931,10 @@ za `MessageExpiredPhoto` / `MessageExpiredVideo`.
   je ukotvená k šířce textu (`IntrinsicSize.Max`), jinak vyjela u levého okraje seznamu.
 - **Ověřeno na emulátoru sondou** (zpráva `#vyprselo` od testovacího bota převod dočasně
   vydával za vypršelou fotku; necommituje se): oznámení na střed, dlouhý stisk → „Smazat" →
-  dialog → smazáno. Skutečná vypršelá fotka a převod spotřebované (chce to druhý účet, viz
-  „Jak to ověřit") ověřené nejsou.
+  dialog → smazáno. Převod spotřebované sondou v prohlížeči (`ownSelfDestruct = false`, takže
+  se spotřebovala i VLASTNÍ odeslaná fotka s 10s časovačem): první snímek chatu po zavření
+  prohlížeče už nesl oznámení, bublina neprobleskla. Skutečná vypršelá fotka od druhého účtu
+  ověřená není.
 - **Jednorázové zhlédnutí se hlásí až při ODCHODU z prohlížeče** (`onCleared`, `appScope`).
   U `MessageSelfDestructTypeImmediately` TDLib po `openMessageContent` obsah vyřídí okamžitě
   (`ttl_on_open` → `on_message_ttl_expired`): smaže soubory a pošle vypršelý obsah, na který
