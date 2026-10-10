@@ -515,8 +515,8 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
   `docs/poznatky/notifikace.md`, „Bubliny konverzací"). Profil, přeposlání a jiné chaty
   bublina zatím posílá do plné aplikace; ověřit na skutečném telefonu.
 - ~~**Widget na plochu**~~ s připnutými a nepřečtenými chaty — hotovo na Androidu (Glance;
-  `docs/poznatky/seznam-chatu.md`, „Widget na ploše"). Zbývá: fotky chatů místo iniciál, náhled
-  ve výběru widgetů launcheru (`previewLayout`), iOS (WidgetKit, vlastní rozšíření).
+  `docs/poznatky/seznam-chatu.md`, „Widget na ploše"). ~~Fotky chatů~~ a ~~náhled ve výběru
+  widgetů~~ — hotovo. Zbývá iOS (WidgetKit, vlastní rozšíření).
 - **Fold a klávesnice.** ~~Klávesové zkratky (Ctrl+K hledání, Alt+↑/↓ mezi chaty, Esc zavře
   konverzaci nebo hledání)~~ a ~~Enter odesílá~~ — hotovo (`docs/poznatky/navigace.md`, „Klávesové
   zkratky"; na iOS jen Enter). ~~Přetažení obrázku či souboru z jiné aplikace na vstupní pole~~

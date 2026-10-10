@@ -19,7 +19,19 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
+import eu.tintera.plume.core.telegram.FileRepository
+import eu.tintera.plume.core.telegram.FileState
+import eu.tintera.plume.core.ui.readString
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.saved_messages
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -43,6 +55,7 @@ import java.io.File
 class ChatsWidgetUpdater(
     private val context: Context,
     private val chats: ChatRepository,
+    private val files: FileRepository,
     private val authStage: StateFlow<AuthStage>,
     private val lockSettings: StateFlow<AppLockSettings?>,
     private val scope: CoroutineScope,
@@ -72,6 +85,7 @@ class ChatsWidgetUpdater(
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun snapshots(): Flow<WidgetSnapshot> =
         combine(authStage, chats.chats(ChatFolder.Main), chats.savedMessagesChatId, lockSettings) { stage, state, saved, lock ->
             when {
@@ -79,27 +93,52 @@ class ChatsWidgetUpdater(
                 stage is AuthStage.Ready && state is ChatListState.Ready -> Input.Chats(state, saved, showPreviews = lock == null)
                 else -> null
             }
-        }.mapNotNull { input ->
+        }.filterNotNull().mapLatest { input ->
+            // `mapLatest`: příprava fotek může chvíli trvat a novější seznam tu starší přebíjí.
             when (input) {
-                null -> null
-                Input.LoggedOut -> WidgetSnapshot(loggedIn = false)
-                is Input.Chats -> WidgetSnapshot(
-                    loggedIn = true,
-                    chats = widgetChats(input.state.chats, input.savedMessagesChatId).map { chat ->
-                        WidgetChat(
-                            id = chat.id,
-                            title = chat.title,
-                            // Text se překládá teď, v jazyce platném při zápisu; po změně jazyka ho
-                            // přepíše další změna seznamu.
-                            preview = if (input.showPreviews) chat.lastMessagePreview?.resolveNow() else null,
-                            unread = chat.unreadCount,
-                            muted = chat.isMuted,
-                            timestamp = chat.lastMessageTimestamp,
-                        )
-                    },
-                )
+                Input.LoggedOut -> {
+                    WidgetAvatars.prune(context, keep = emptySet())
+                    WidgetSnapshot(loggedIn = false)
+                }
+                is Input.Chats -> {
+                    val savedTitle = readString(Res.string.saved_messages)
+                    val widgetChats = coroutineScope {
+                        widgetChats(input.state.chats, input.savedMessagesChatId).map { chat ->
+                            async {
+                                val saved = chat.id == input.savedMessagesChatId
+                                WidgetChat(
+                                    id = chat.id,
+                                    // Uložené zprávy jménem, ne jménem účtu — jako v seznamu chatů.
+                                    title = if (saved) savedTitle else chat.title,
+                                    // Text se překládá teď, v jazyce platném při zápisu; po změně
+                                    // jazyka ho přepíše další změna seznamu.
+                                    preview = if (input.showPreviews) chat.lastMessagePreview?.resolveNow() else null,
+                                    unread = chat.unreadCount,
+                                    muted = chat.isMuted,
+                                    timestamp = chat.lastMessageTimestamp,
+                                    avatar = if (saved) null else chat.avatarFileId?.let { avatar(it) },
+                                    savedMessages = saved,
+                                )
+                            }
+                        }.awaitAll()
+                    }
+                    WidgetAvatars.prune(context, keep = widgetChats.mapNotNull { it.avatar }.toSet())
+                    WidgetSnapshot(loggedIn = true, chats = widgetChats)
+                }
             }
         }
+
+    /**
+     * Miniatura fotky chatu. Fotku stáhne TDLib, pokud ještě není na disku (je malá); na stažení
+     * se čeká jen chvíli — widget s iniciálou je lepší než widget, který se neobnoví.
+     */
+    private suspend fun avatar(fileId: Int): String? {
+        val state = withTimeoutOrNull(AVATAR_WAIT_MS) {
+            files.file(fileId).first { it is FileState.Ready || it is FileState.Failed }
+        }
+        val path = (state as? FileState.Ready)?.path ?: return null
+        return WidgetAvatars.thumbnail(context, fileId, path)
+    }
 
     private sealed interface Input {
         data object LoggedOut : Input
@@ -108,6 +147,7 @@ class ChatsWidgetUpdater(
 
     private companion object {
         const val SETTLE_MS = 1_000L
+        const val AVATAR_WAIT_MS = 5_000L
     }
 }
 

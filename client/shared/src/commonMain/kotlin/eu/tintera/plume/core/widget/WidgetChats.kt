@@ -20,6 +20,10 @@ data class WidgetChat(
     val muted: Boolean,
     /** Čas poslední zprávy (sekundy od epochy), `null` = chat bez zpráv. */
     val timestamp: Int?,
+    /** Kulatá miniatura fotky chatu (soubor widgetu); `null` = iniciála. */
+    val avatar: String? = null,
+    /** Uložené zprávy — kreslí se se záložkou místo fotky účtu, jako v seznamu chatů. */
+    val savedMessages: Boolean = false,
 )
 
 /** Co widget ukazuje: chaty a jestli je vůbec někdo přihlášený. */
