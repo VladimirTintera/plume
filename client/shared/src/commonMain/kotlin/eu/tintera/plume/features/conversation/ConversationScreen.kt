@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ai.ScamKind
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.resources.remind_time
 import eu.tintera.plume.core.ui.isFromHardwareKeyboard
@@ -4619,6 +4620,14 @@ private class ScreenItemScope(
     }
 
     override fun localTranscript(messageId: Long): SpeechTranscript? = transcribeContext.value.local[messageId]
+
+    @Composable
+    override fun scamWarning(messageId: Long): ScamKind? {
+        val verdicts by viewModel.scamVerdicts.collectAsStateWithLifecycle()
+        return verdicts[messageId]
+    }
+
+    override fun dismissScamWarning(messageId: Long) = viewModel.dismissScamWarning(messageId)
 
     override fun videoNoteSounding(messageId: Long): Boolean = state.value.soundingVideoNote == messageId
 

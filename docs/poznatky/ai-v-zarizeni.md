@@ -232,6 +232,34 @@ Pro tuhle oblast podstatné: **engine se zvukem je jiný engine** (`EngineConfig
 `withEngine(audio = true)` ho načte a pak slouží všemu; bez zvuku se kvůli přepisu přenačte.
 Na emulátoru (CPU) 7,5 s řeči za 11 s i s načtením.
 
+### Varování před podvodem
+
+Karta „Možný podvod" pod příchozí zprávou (`ScamWarnings`, prompt `ScamPrompt.kt`, karta
+`items/ScamWarning.kt`). Vlastní vypínač v Nastavení → Obecné → AI v zařízení, výchozí vypnuto —
+ze stejného důvodu jako návrhy odpovědí: model běží sám, bez ťuknutí.
+
+- **Model se ptá jen u kandidátů z předfiltru** (`isScamCandidate`): odkaz a jedno typické slovo,
+  nebo dvě typická slova (česky bez diakritiky a anglicky; krátká slova celá, jinak by „won"
+  chytilo „wonderful"). Běžná zpráva se k modelu nedostane, takže nestojí baterii a nemůže
+  se u ní zmýlit. Neposuzují se odchozí zprávy, Uložené, kanály, ověřené chaty ani ověření
+  odesílatelé — „Kód pro přihlášení" od služby Telegramu je přesně zpráva, u které by
+  varování bylo nejhorší.
+- **Jen nejnovějších 20 zpráv konverzace**, ne historie, kterou uživatel proscrolluje: model by
+  se pustil do všeho a varování u zprávy z loňska nikomu nepomůže.
+- **Odpověď je jedno slovo** (`PHISHING`, `PRIZE`, `MONEY`, `SAFE`, `UNSURE`) a uživatel dostane
+  NAŠI větu podle druhu, ne text od modelu. `UNSURE` je výslovná možnost a parser varuje jen
+  při jednoznačné odpovědi (dva druhy naráz nebo druh s pochybností = mlčet).
+- **Fronta po jedné zprávě v `appScope`** a výsledek v paměti procesu podle (chat, zpráva):
+  rozjeté posouzení doběhne i po zavření chatu, po restartu se kandidáti posoudí znovu. Model,
+  který ještě není `Ready`, zprávu nevyřadí — posoudí se při dalším otevření.
+- **Tok čte až položka** (`ConversationItemScope.scamWarning` je `@Composable` a sbírá
+  `scamVerdicts` sama), ne `ConversationScreen` — ten je v dexu na hraně (viz „Gotchas").
+- **Ověřeno na emulátoru** (Gemma E2B na CPU, ~3 s na zprávu po načtení enginu): falešné
+  zablokování účtu s odkazem → `PHISHING`, výhra s poštovným → `PRIZE`, kamarád posílá článek
+  o bankovních poplatcích s odkazem (kandidát z předfiltru) → `SAFE`, bez varování. „Skrýt"
+  kartu schová, tmavý motiv čitelný (akcent ustoupí `onErrorContainer`, viz `accentOn`).
+  **Gemini Nano na skutečném zařízení neověřené.**
+
 ### Návrhy odpovědí
 
 Přijde zpráva, pole je prázdné → nad polem se ukážou až tři čipy s krátkou odpovědí. Ťuknutí ji

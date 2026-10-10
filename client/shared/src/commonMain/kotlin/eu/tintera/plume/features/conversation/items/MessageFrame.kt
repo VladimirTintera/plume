@@ -703,16 +703,22 @@ private fun MessageFrame(
              * Odznak doručení do ní nepatří: stojí až za ní, ve sloupci.
              */
             /*
-             * Kontrola faktů a tlačítka bota visí pod zprávou a jedou s ní i při tahu na odpověď.
+             * Varování před podvodem, kontrola faktů a tlačítka bota visí pod zprávou a jedou s ní i při tahu na odpověď.
              * Do `MessageBox` nepatří: ten je ořezaný tvarem bubliny a kreslí ho i nabídka nad
              * zprávou — a pod holou fotkou žádná bublina, do které by se daly vložit, není.
              */
+            val scam = scope.scamWarning(message.id)
             WithBelowMessage(
-                hasBelow = message.keyboard != null || message.factCheck != null,
+                hasBelow = message.keyboard != null || message.factCheck != null || scam != null,
                 isOutgoing = message.isOutgoing,
                 maxWidthFraction = maxWidthFraction,
                 below = {
                     Column(verticalArrangement = Arrangement.spacedBy(FACT_CHECK_GAP)) {
+                        // Varování první: je nejdůležitější a tlačítka bota pod ním jsou to,
+                        // před čím varuje.
+                        scam?.let { kind ->
+                            ScamWarningCard(kind = kind, onDismiss = { scope.dismissScamWarning(message.id) })
+                        }
                         message.factCheck?.let { check ->
                             FactCheckCard(
                                 check = check,

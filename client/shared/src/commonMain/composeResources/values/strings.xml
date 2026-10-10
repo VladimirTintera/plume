@@ -580,6 +580,12 @@
     <string name="post_author">Author: %1$s</string>
     <string name="sender_boosts">Boosts the group: %1$d</string>
     <string name="fact_check_title">Fact check</string>
+    <string name="scam_warning_title">Possible scam</string>
+    <string name="scam_warning_phishing">The message asks you to sign in, verify an account or send a code. Never share a code or password with anyone.</string>
+    <string name="scam_warning_prize">It promises a prize or a gift you have to claim. Don't pay anything or enter your details.</string>
+    <string name="scam_warning_money">It asks for money, an investment or a fee. Before paying, check the sender some other way.</string>
+    <string name="scam_warning_note">Estimated by the model on your phone, it can be wrong.</string>
+    <string name="scam_warning_dismiss">Hide</string>
     <string name="fact_check_source">Added by independent fact-checkers.</string>
     <string name="fact_check_country">Added by independent fact-checkers for %1$s.</string>
     <string name="post_forwards">Forwards: %1$s</string>
@@ -1443,6 +1449,8 @@
     <string name="settings_on_device_ai_enable_summary">Chat summaries and reply suggestions are computed by a language model running on this phone. Messages never leave the device.</string>
     <string name="settings_reply_suggestions">Reply suggestions</string>
     <string name="settings_reply_suggestions_summary">Short replies are offered above the input field when a message arrives and you have not started typing.</string>
+    <string name="settings_scam_warnings">Scam warnings</string>
+    <string name="settings_scam_warnings_summary">Incoming messages with links or phrases typical of scams are checked by the model on your phone. They are not sent anywhere.</string>
     <string name="settings_on_device_ai_checking">Checking the model…</string>
     <string name="settings_on_device_ai_unsupported">This device does not have the selected model.</string>
     <string name="settings_on_device_ai_downloadable">The model needs to be downloaded first. It takes up gigabytes.</string>

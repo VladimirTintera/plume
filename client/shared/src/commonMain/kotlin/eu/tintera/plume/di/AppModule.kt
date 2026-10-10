@@ -1,6 +1,7 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.features.conversation.LocalTranscripts
+import eu.tintera.plume.features.conversation.ScamWarnings
 import eu.tintera.plume.features.conversation.ReminderTimeModel
 import eu.tintera.plume.features.conversation.ConversationJumpRequests
 import eu.tintera.plume.features.conversation.ChatSwitcher
@@ -310,6 +311,7 @@ fun appModule() = module {
     single { ConversationJumpRequests() }
     single { LocalTranscripts(settings = get(), chats = get()) }
     factory { ReminderTimeModel(ai = get(), settings = get()) }
+    single { ScamWarnings(ai = get(), settings = get(), appScope = get(named(APP_SCOPE))) }
     single { ChatSwitcher(chats = get()) }
     single { MessageBookmarks(settings = get(), chats = get()) }
     single { ChatSnoozes(settings = get(), chats = get(), reminders = getOrNull()) }
@@ -486,6 +488,7 @@ fun appModule() = module {
             reminderTimeModel = get(),
             onDeviceAi = getOrNull(),
             localTranscripts = get(),
+            scamWarnings = get(),
         )
     }
 

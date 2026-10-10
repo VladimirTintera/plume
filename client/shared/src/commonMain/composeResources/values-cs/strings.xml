@@ -589,6 +589,12 @@
     <string name="post_author">Autor: %1$s</string>
     <string name="sender_boosts">Boosty skupině: %1$d</string>
     <string name="fact_check_title">Kontrola faktů</string>
+    <string name="scam_warning_title">Možný podvod</string>
+    <string name="scam_warning_phishing">Zpráva chce přihlášení, ověření účtu nebo kód. Kód ani heslo nikomu neposílej.</string>
+    <string name="scam_warning_prize">Slibuje výhru nebo dárek, který si máš vyzvednout. Nic neplať a nezadávej své údaje.</string>
+    <string name="scam_warning_money">Chce peníze, investici nebo poplatek. Než zaplatíš, ověř si odesílatele jinou cestou.</string>
+    <string name="scam_warning_note">Odhad modelu v telefonu, může se mýlit.</string>
+    <string name="scam_warning_dismiss">Skrýt</string>
     <string name="fact_check_source">Doplnili nezávislí ověřovatelé faktů.</string>
     <string name="fact_check_country">Doplnili nezávislí ověřovatelé faktů pro zemi %1$s.</string>
     <string name="post_forwards">Přeposláno: %1$s</string>
@@ -1473,6 +1479,8 @@
     <string name="settings_on_device_ai_enable_summary">Shrnutí konverzace a návrhy odpovědí počítá jazykový model přímo v telefonu. Zprávy zařízení neopustí.</string>
     <string name="settings_reply_suggestions">Návrhy odpovědí</string>
     <string name="settings_reply_suggestions_summary">Nad vstupním polem se nabídnou krátké odpovědi, když přijde zpráva a nemáš nic rozepsaného.</string>
+    <string name="settings_scam_warnings">Varování před podvodem</string>
+    <string name="settings_scam_warnings_summary">Příchozí zprávy s odkazy nebo frázemi typickými pro podvody posoudí model v telefonu. Nikam se neposílají.</string>
     <string name="settings_on_device_ai_checking">Zjišťuji stav modelu…</string>
     <string name="settings_on_device_ai_unsupported">Tohle zařízení zvolený model nemá.</string>
     <string name="settings_on_device_ai_downloadable">Model je potřeba nejdřív stáhnout. Zabere gigabajty.</string>
