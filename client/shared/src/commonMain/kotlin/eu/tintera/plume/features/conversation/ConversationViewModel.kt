@@ -3662,6 +3662,17 @@ class ConversationViewModel(
         when (action) {
             is MessageAction.ShowMenu -> showMessageMenu(messageId, action.items, action.pressed)
             MessageAction.CloseMenu -> closeMenus()
+            MessageAction.ShowNoticeMenu -> showNoticeMenu(messageId)
+            is MessageAction.DeleteNotice -> _state.update {
+                it.copy(
+                    noticeMenu = null,
+                    pendingDelete = PendingDelete(
+                        messageId = messageId,
+                        canDeleteForAll = action.canDeleteForAll,
+                        canDeleteForSelf = action.canDeleteForSelf,
+                    ),
+                )
+            }
             is MessageAction.React -> toggleReaction(messageId, action.emoji)
             MessageAction.QuickReact -> quickReact(messageId)
             MessageAction.ShowReactions -> showReactionDetails(messageId)
@@ -3829,7 +3840,25 @@ class ConversationViewModel(
     }
 
     private fun closeMenus() {
-        _state.update { it.copy(messageMenu = null) }
+        _state.update { it.copy(messageMenu = null, noticeMenu = null) }
+    }
+
+    /**
+     * Nabídka nad systémovým oznámením. Nabízí jen smazání, takže když ho server nedovolí
+     * (oznámení v kanálu, kde účet není správce), neotevře se vůbec — prázdná nabídka nebo
+     * „Smazat", které skončí chybou, by byly horší než nic.
+     */
+    private fun showNoticeMenu(messageId: Long) {
+        viewModelScope.launch {
+            val actions = repository.messageActions(chatId, messageId).getOrElse { failure ->
+                logger.w(failure) { "Příznaky oznámení $messageId se nepodařilo zjistit." }
+                return@launch
+            }
+            if (!actions.canDeleteForSelf && !actions.canDeleteForAll) return@launch
+            _state.update {
+                it.copy(noticeMenu = NoticeMenu(messageId, actions.canDeleteForSelf, actions.canDeleteForAll))
+            }
+        }
     }
 
     /**
@@ -5139,6 +5168,13 @@ data class MessageMenu(
  * Drží se **zvlášť od [MessageMenu]**: mezi zavřením nabídky a potvrzením nesmí zůstat viset
  * obojí. Stejný důvod jako u `target`/`pendingDelete` v akcích nad chatem.
  */
+/** Nabídka nad systémovým oznámením; otevírá se jen s právem ho smazat. */
+data class NoticeMenu(
+    val messageId: Long,
+    val canDeleteForSelf: Boolean,
+    val canDeleteForAll: Boolean,
+)
+
 data class PendingDelete(
     val messageId: Long,
     /** Co se opravdu smaže: zpráva sama, u alba všechny jeho načtené zprávy. */
@@ -5297,6 +5333,8 @@ data class ConversationState(
     val typing: Typing? = null,
     /** Otevřená nabídka nad zprávou (rychlé reakce + akce). */
     val messageMenu: MessageMenu? = null,
+    /** Otevřená nabídka nad systémovým oznámením (jen smazání). */
+    val noticeMenu: NoticeMenu? = null,
     /** Reaguje dvojité ťuknutí na zprávu rychlou reakcí? Z nastavení aplikace. */
     val doubleTapReaction: Boolean = true,
     /** Zpráva čekající na potvrzení smazání. */

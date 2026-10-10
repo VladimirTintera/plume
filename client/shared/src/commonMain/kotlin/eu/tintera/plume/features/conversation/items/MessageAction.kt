@@ -71,6 +71,19 @@ sealed interface MessageAction {
     /** Zavřít nabídku (zpět, ťuknutí mimo). */
     data object CloseMenu : MessageAction
 
+    /**
+     * Dlouhý stisk na systémovém oznámení. Nabídka nad zprávou se pro něj nehodí (kreslí kopii
+     * BUBLINY a nabízí reakce a odpověď), takže oznámení má vlastní malou nabídku jen se
+     * smazáním — a ukáže se, jen když ho server dovolí (viz `NoticeMenu`).
+     */
+    data object ShowNoticeMenu : MessageAction
+
+    /**
+     * „Smazat" z nabídky nad oznámením. Práva nese akce sama: nabídka se před akcí zavře
+     * (`ExpressiveMenu` volá `onDismiss` dřív než položku), takže ve stavu už nejsou.
+     */
+    data class DeleteNotice(val canDeleteForSelf: Boolean, val canDeleteForAll: Boolean) : MessageAction
+
     /** Reakce z pruhu nebo z plného výběru v nabídce; přepíná (přidá / odebere). */
     data class React(val emoji: String) : MessageAction
 

@@ -1,3 +1,3 @@
 type: fix
-cs: Vypršelá fotka nebo video se ukazuje jako oznámení, ne jako zpráva od protistrany
-en: An expired photo or video shows as a notice, not as a message from the other person
+cs: Vypršelá fotka či video je oznámení uprostřed chatu, ne zpráva od protistrany; jde smazat
+en: An expired photo or video is a notice in the chat, not a message from the other side
