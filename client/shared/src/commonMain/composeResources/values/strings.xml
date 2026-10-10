@@ -2434,4 +2434,6 @@
     <string name="shortcut_back">Back</string>
     <string name="shortcut_send">Send message</string>
     <string name="shortcut_new_line">New line</string>
+    <string name="selection_copy_text">Text only</string>
+    <string name="selection_copy_with_names">With time and names</string>
 </resources>

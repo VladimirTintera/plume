@@ -1639,6 +1639,7 @@ fun ConversationScreen(
                 SelectionToolbar(
                     selection = selection,
                     onCopy = viewModel::copySelection,
+                    onCopyWithNames = viewModel::copySelectionWithNames,
                     onForward = viewModel::forwardSelection,
                     onReport = viewModel::reportSelection,
                     onDelete = viewModel::deleteSelection,

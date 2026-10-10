@@ -5,6 +5,7 @@ import okio.FileSystem
 import eu.tintera.plume.core.audio.RecordedVoice
 import eu.tintera.plume.core.telegram.QuickReaction
 import eu.tintera.plume.core.telegram.OutgoingVideoNote
+import eu.tintera.plume.resources.summary_me
 import eu.tintera.plume.resources.conversation_video_note_send_failed
 import eu.tintera.plume.resources.conversation_video_note_start_failed
 import eu.tintera.plume.resources.conversation_contact_send_failed
@@ -149,6 +150,7 @@ import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
@@ -4176,6 +4178,23 @@ class ConversationViewModel(
 
         closeSelection()
         viewModelScope.launch { clipboard.copy(text) }
+    }
+
+    /**
+     * Vybrané zprávy jako přepis s časem a jménem, od nejstarší — pro poznámky nebo jazykový
+     * model (viz [selectionTranscript]). Překládá se teď (`resolveNow`), schránka jazyk neudrží.
+     */
+    fun copySelectionWithNames() {
+        val state = _state.value
+        val messages = state.selectedMessageIds().mapNotNull { id -> state.messages.firstOrNull { it.id == id } }
+        if (messages.isEmpty()) return
+        val chatTitle = state.info?.title.orEmpty()
+
+        closeSelection()
+        viewModelScope.launch {
+            val text = selectionTranscript(messages, me = UiText(Res.string.summary_me).resolveNow(), chatTitle = chatTitle)
+            if (text.isNotBlank()) clipboard.copy(text)
+        }
     }
 
     /** Výběr do přeposlání; cíl si vyžádá obrazovka, stejně jako u jedné zprávy. */

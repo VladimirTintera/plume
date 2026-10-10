@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.orText
+import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.resolve
 import org.jetbrains.compose.resources.painterResource
 import eu.tintera.plume.resources.format_quote_24dp
@@ -290,36 +292,43 @@ internal fun ChatMessage.summaryLine(): String =
     text.ifBlank { description?.resolve() ?: media.describe() }.replace('\n', ' ')
 
 @Composable
-internal fun MessageMedia?.describe(): String = when (this) {
-    is MessageMedia.Photo -> stringResource(Res.string.media_photo)
-    is MessageMedia.Attachment -> label.resolve()
+internal fun MessageMedia?.describe(): String = describeText().resolve()
+
+/**
+ * Popis přílohy jako [UiText] — i mimo kompozici, kde se překládá `resolveNow` (kopírování výběru
+ * s časem a jménem).
+ */
+internal fun MessageMedia?.describeText(): UiText = when (this) {
+    is MessageMedia.Photo -> UiText(Res.string.media_photo)
+    is MessageMedia.Attachment -> label
     // Vedle náhledu samolepky stojí její emoji (bez náhledu je to jediné, co o ní víme).
-    is MessageMedia.Sticker -> emoji.ifBlank { stringResource(Res.string.media_sticker) }
-    is MessageMedia.AnimatedEmoji -> emoji
-    is MessageMedia.Dice -> label
-    is MessageMedia.VoiceNote -> stringResource(Res.string.conversation_voice_message)
-    is MessageMedia.Video -> stringResource(Res.string.media_video)
-    is MessageMedia.Animation -> stringResource(Res.string.content_gif)
-    is MessageMedia.VideoNote -> stringResource(Res.string.content_video_note)
-    is MessageMedia.Audio -> listOfNotNull(performer, title).joinToString(" – ")
-    is MessageMedia.Document -> fileName
-    is MessageMedia.Location -> title ?: stringResource(if (isLive) Res.string.content_live_location else Res.string.content_location)
-    is MessageMedia.Call -> stringResource(outcome.title(isVideo))
-    is MessageMedia.Contact -> stringResource(Res.string.content_contact, name.ifBlank { phone })
-    is MessageMedia.PaidMedia -> stringResource(Res.string.content_paid)
-    is MessageMedia.Giveaway -> stringResource(
+    is MessageMedia.Sticker -> emoji.orText(Res.string.media_sticker)
+    is MessageMedia.AnimatedEmoji -> UiText.Raw(emoji)
+    is MessageMedia.Dice -> UiText.Raw(label)
+    is MessageMedia.VoiceNote -> UiText(Res.string.conversation_voice_message)
+    is MessageMedia.Video -> UiText(Res.string.media_video)
+    is MessageMedia.Animation -> UiText(Res.string.content_gif)
+    is MessageMedia.VideoNote -> UiText(Res.string.content_video_note)
+    is MessageMedia.Audio -> UiText.Raw(listOfNotNull(performer, title).joinToString(" – "))
+    is MessageMedia.Document -> UiText.Raw(fileName)
+    is MessageMedia.Location -> title?.let(UiText::Raw)
+        ?: UiText(if (isLive) Res.string.content_live_location else Res.string.content_location)
+    is MessageMedia.Call -> UiText(outcome.title(isVideo))
+    is MessageMedia.Contact -> UiText(Res.string.content_contact, name.ifBlank { phone })
+    is MessageMedia.PaidMedia -> UiText(Res.string.content_paid)
+    is MessageMedia.Giveaway -> UiText(
         if (results == null) Res.string.content_giveaway else Res.string.content_giveaway_winners,
     )
-    is MessageMedia.Gift -> stringResource(Res.string.content_gift)
-    is MessageMedia.Story -> stringResource(Res.string.content_story)
-    is MessageMedia.Product -> stringResource(
+    is MessageMedia.Gift -> UiText(Res.string.content_gift)
+    is MessageMedia.Story -> UiText(Res.string.content_story)
+    is MessageMedia.Product -> UiText(
         when (kind) {
             ProductKind.Invoice -> Res.string.content_invoice
             ProductKind.Game -> Res.string.content_game
         },
         title,
     )
-    null -> ""
+    null -> UiText.Raw("")
 }
 
 /** Náhled přílohy v citaci — zhruba výška jména a řádku textu. */

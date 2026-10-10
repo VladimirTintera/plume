@@ -2511,4 +2511,6 @@
     <string name="shortcut_back">Zpět</string>
     <string name="shortcut_send">Odeslat zprávu</string>
     <string name="shortcut_new_line">Nový řádek</string>
+    <string name="selection_copy_text">Jen text</string>
+    <string name="selection_copy_with_names">S časem a jménem</string>
 </resources>
