@@ -71,29 +71,50 @@ internal fun StagedAttachmentPreviewHost(
         }
     }
 
-    val editing = markupPath?.let { path ->
-        state.attachments.firstOrNull { it.path == path } as? OutgoingAttachment.Photo
-    }
+    PhotoMarkupOverlay(
+        path = markupPath,
+        attachments = state.attachments,
+        edits = state.photoEdits,
+        onApply = viewModel::applyPhotoMarkup,
+        onClose = { markupPath = null },
+    )
+}
+
+/**
+ * Editor úpravy fotky přes celou obrazovku nad fotkou s cestou [path] (`null` = zavřený).
+ * Upravuje se vždycky originál ([edits]), takže jde vzít zpátky cokoli z minulé úpravy. Při
+ * zavírání se dokresluje poslední stav — příloha mezitím dostala novou cestu.
+ *
+ * Společný pro přílohy nad vstupním polem i pro sdílení „Komu: …".
+ */
+@Composable
+internal fun PhotoMarkupOverlay(
+    path: String?,
+    attachments: List<OutgoingAttachment>,
+    edits: Map<String, PhotoEdit>,
+    onApply: (path: String, markup: PhotoMarkup) -> Unit,
+    onClose: () -> Unit,
+) {
+    val editing = path?.let { current -> attachments.firstOrNull { it.path == current } as? OutgoingAttachment.Photo }
     AnimatedVisibility(
         visible = editing != null,
         enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)),
         exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)),
     ) {
-        // Při mizení se dokresluje poslední stav; příloha mezitím dostala novou cestu.
         val shown = remember { arrayOf<OutgoingAttachment.Photo?>(null) }
         editing?.let { shown[0] = it }
         shown[0]?.let { photo ->
-            val edit = state.photoEdits[photo.path]
+            val edit = edits[photo.path]
+            val original = revertedPhoto(photo, edit)
             PhotoMarkupEditor(
-                // Upravuje se vždycky originál: cokoli z minulé úpravy jde vzít zpátky.
-                path = edit?.originalPath ?: photo.path,
-                width = edit?.originalWidth ?: photo.width,
-                height = edit?.originalHeight ?: photo.height,
-                initial = edit?.markup ?: PhotoMarkup(),
-                onCancel = { markupPath = null },
+                path = original.path,
+                width = original.width,
+                height = original.height,
+                initial = edit.markupOrEmpty,
+                onCancel = onClose,
                 onDone = { markup ->
-                    viewModel.applyPhotoMarkup(photo.path, markup)
-                    markupPath = null
+                    onApply(photo.path, markup)
+                    onClose()
                 },
             )
         }

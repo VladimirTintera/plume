@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.share
 
+import eu.tintera.plume.features.conversation.PhotoMarkupOverlay
+import eu.tintera.plume.features.conversation.galleryPath
+import eu.tintera.plume.resources.attachment_edit
+import eu.tintera.plume.resources.edit_24dp
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -198,6 +202,8 @@ private fun ShareToChatContent(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val attachments = state.attachments
+    // Upravovaná fotka podle cesty (`PhotoMarkupOverlay`); `null` = editor zavřený.
+    var markupPath by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Pozadí je tmavé v obou motivech, takže ikony lišt musí být světlé — jako v prohlížeči.
     DarkSystemBars()
@@ -291,8 +297,10 @@ private fun ShareToChatContent(
     val galleryAvailable = embeddedMediaPickerAvailable()
     // `WindowInsets.isImeVisible` je jen na Androidu; výška klávesnice funguje i na iOS.
     val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-    // Na celé obrazovce galerie ustoupí: je to cizí okno nad vším a snímek by zakryla.
-    val galleryShown = galleryAvailable && !imeVisible && attachments != null && !immersive
+    // Na celé obrazovce galerie ustoupí: je to cizí okno nad vším a snímek by zakryla. Totéž
+    // u úpravy fotky — editor ji Compose vrstvou nepřekryje (ověřeno na emulátoru); výběr si
+    // galerie při dalším otevření obnoví sama, i s upravenou fotkou (`galleryPath`).
+    val galleryShown = galleryAvailable && !imeVisible && attachments != null && !immersive && markupPath == null
     /*
      * Bez vestavěné galerie (Android pod 14, nebo 14 bez SDK Extensions 15) jde dávku doplnit
      * systémovým výběrem z ikony v poli — jinak by šlo poslat jen to, co přišlo sdílením.
@@ -362,6 +370,12 @@ private fun ShareToChatContent(
                     onLeft = { onLeft(attachment.path) },
                     onRemove = { index().takeIf { it >= 0 }?.let(viewModel::removeAttachment) },
                     onSetMode = { mode -> index().takeIf { it >= 0 }?.let { viewModel.setMode(it, mode) } },
+                    // Kreslit jde jen do fotky, a ne během vykreslování předchozí úpravy.
+                    onEdit = if (attachment is OutgoingAttachment.Photo && viewModel.canMarkupPhotos && !state.markupBusy) {
+                        { markupPath = attachment.path }
+                    } else {
+                        null
+                    },
                     isCurrent = page.isCurrent,
                     immersive = immersive,
                     immersion = immersion,
@@ -446,7 +460,8 @@ private fun ShareToChatContent(
                     onCaptionChange = viewModel::onCaptionChange,
                     // Dokud se soubory připravují (i ty dobrané z galerie), není co poslat —
                     // odeslání by dávku poslalo bez nich.
-                    enabled = !attachments.isNullOrEmpty() && !state.sending && !mediaSelection.preparing,
+                    // Vykreslovaná úprava fotky blokuje odeslání stejně jako kopírování z galerie.
+                    enabled = !attachments.isNullOrEmpty() && !state.sending && !mediaSelection.preparing && !state.markupBusy,
                     sending = state.sending,
                     onSend = viewModel::send,
                     onAddMedia = if (!galleryAvailable && attachments != null) systemPicker::pickMedia else null,
@@ -479,7 +494,8 @@ private fun ShareToChatContent(
                     key(state.removals) {
                         EmbeddedMediaPicker(
                             selection = mediaSelection,
-                            pickedPaths = attachments.orEmpty().map { it.path },
+                            // Upravenou fotku zná galerie pod původní cestou.
+                            pickedPaths = attachments.orEmpty().map { state.photoEdits.galleryPath(it.path) },
                             // Sdílená fotka je v galerii taky — ťuknutí na ni ji nepřidá podruhé.
                             sources = state.sources,
                             allowPhotos = true,
@@ -497,6 +513,15 @@ private fun ShareToChatContent(
                 }
             }
         }
+
+        // Editor úpravy fotky přes celou obrazovku, nad galerií i polem na popisek.
+        PhotoMarkupOverlay(
+            path = markupPath,
+            attachments = attachments.orEmpty(),
+            edits = state.photoEdits,
+            onApply = viewModel::applyPhotoMarkup,
+            onClose = { markupPath = null },
+        )
     }
 }
 
@@ -584,6 +609,8 @@ private fun SharedPhoto(
     onLeft: () -> Unit,
     onRemove: () -> Unit,
     onSetMode: (AttachmentMode) -> Unit,
+    /** Úprava fotky; `null` = nenabízet (video, právě se ukládá předchozí úprava). */
+    onEdit: (() -> Unit)?,
     isCurrent: Boolean,
     immersive: Boolean,
     immersion: () -> Float,
@@ -649,6 +676,21 @@ private fun SharedPhoto(
                         contentDescription = stringResource(Res.string.attachment_remove_photo),
                         modifier = Modifier.size(20.dp),
                     )
+                }
+
+                // Úprava fotky vlevo nahoře, naproti ✕: obě jsou o snímku samotném.
+                onEdit?.let { edit ->
+                    FilledTonalIconButton(
+                        onClick = edit,
+                        modifier = Modifier.align(Alignment.TopStart).padding(BADGE_INSET).size(BADGE_BUTTON),
+                        shapes = IconButtonDefaults.shapes(),
+                    ) {
+                        Icon(
+                            painterResource(Res.drawable.edit_24dp),
+                            contentDescription = stringResource(Res.string.attachment_edit),
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                 }
 
                 // Spoiler, mizení i „jako soubor" nabízí tentýž sheet jako nad vstupním polem —

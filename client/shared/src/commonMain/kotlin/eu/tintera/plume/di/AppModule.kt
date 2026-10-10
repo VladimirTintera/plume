@@ -571,6 +571,7 @@ fun appModule() = module {
             repository = get(),
             shareTargets = get(),
             appScope = get(named(APP_SCOPE)),
+            photoMarkup = get(),
         )
     }
 
