@@ -11,6 +11,9 @@ sealed interface KeyboardContent {
 
     /** Statický obrázek (i samolepka z klávesnice) — čeká nad polem jako fotka z výběru. */
     data class Image(val photo: OutgoingAttachment.Photo) : KeyboardContent
+
+    /** Soubor přetažený z jiné aplikace — čeká nad polem jako soubor z výběru. */
+    data class File(val document: OutgoingAttachment.Document) : KeyboardContent
 }
 
 /**
@@ -28,11 +31,16 @@ sealed interface KeyboardContent {
  * [acceptAnimations] a [acceptImages] se nabízejí klávesnici — co chat nepřijme, klávesnice
  * nenabídne. Bez obojího se nic neobaluje. Obsah se kopíruje do cache hned (oprávnění k URI od
  * klávesnice je dočasné), mimo hlavní vlákno; [onError] dostane hlášku, když se to nepovede.
+ *
+ * **Totéž přijme přetažením** z jiné aplikace (rozdělená obrazovka na Foldu nebo tabletu):
+ * obrázek a GIF stejnou cestou jako ze schránky, s [acceptFiles] i jiný soubor jako přílohu.
+ * Jen Android; na iOS zatím nic.
  */
 @Composable
 expect fun KeyboardContentReceiver(
     acceptAnimations: Boolean,
     acceptImages: Boolean,
+    acceptFiles: Boolean,
     onContent: (KeyboardContent) -> Unit,
     onError: (UiText) -> Unit,
     content: @Composable () -> Unit,

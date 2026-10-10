@@ -1,5 +1,18 @@
 package eu.tintera.plume.core.ui
 
+import android.content.ClipDescription
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draganddrop.toAndroidDragEvent
+import androidx.compose.ui.draganddrop.mimeTypes
+import androidx.compose.ui.draganddrop.DragAndDropTarget
+import androidx.compose.ui.draganddrop.DragAndDropEvent
+import androidx.compose.foundation.draganddrop.dragAndDropTarget
+import androidx.activity.compose.LocalActivity
+import android.view.DragEvent
+import android.app.Activity
 import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
@@ -48,6 +61,7 @@ private val IMAGE_TYPES = listOf("image/png", "image/jpeg", "image/webp")
 actual fun KeyboardContentReceiver(
     acceptAnimations: Boolean,
     acceptImages: Boolean,
+    acceptFiles: Boolean,
     onContent: (KeyboardContent) -> Unit,
     onError: (UiText) -> Unit,
     content: @Composable () -> Unit,
@@ -85,8 +99,29 @@ actual fun KeyboardContentReceiver(
          * chat přijme. Builder běží při každém otevření nabídky, schránka se čte až tehdy — popis
          * (`primaryClipDescription`) systém nehlásí jako čtení schránky, obsah až po ťuknutí.
          */
+        val activity = LocalActivity.current
+        var dragOver by remember { mutableStateOf(false) }
+        val dropTarget = remember(mimeTypes, acceptFiles, activity) {
+            object : DragAndDropTarget {
+                override fun onEntered(event: DragAndDropEvent) { dragOver = true }
+                override fun onExited(event: DragAndDropEvent) { dragOver = false }
+                override fun onEnded(event: DragAndDropEvent) { dragOver = false }
+                override fun onDrop(event: DragAndDropEvent): Boolean {
+                    dragOver = false
+                    return drop(context, activity, scope, event.toAndroidDragEvent(), mimeTypes, acceptFiles, { received(it) }, { failed(it) })
+                }
+            }
+        }
+        val dropHighlight = MaterialTheme.colorScheme.primary.copy(alpha = DROP_HIGHLIGHT_ALPHA)
         Box(
-            Modifier.appendTextContextMenuComponents {
+            Modifier
+                .dragAndDropTarget(
+                    shouldStartDragAndDrop = { event -> event.mimeTypes().any { accepts(it, mimeTypes, acceptFiles) } },
+                    target = dropTarget,
+                )
+                // Pole nad sebou drží přetahovaný obsah — tónem, ne rámečkem, který by měnil rozměr.
+                .drawBehind { if (dragOver) drawRect(dropHighlight) }
+                .appendTextContextMenuComponents {
                 val type = clipboardType(context, mimeTypes) ?: return@appendTextContextMenuComponents
                 item(
                     key = PasteMediaKey,
@@ -113,6 +148,72 @@ actual fun ClipboardPasteSuggestion(
     onError: (UiText) -> Unit,
     container: @Composable (kind: ClipboardMediaKind, pasteButton: @Composable () -> Unit) -> Unit,
 ) = Unit
+
+/**
+ * Přijme přetahovaný typ? Obrázky a GIFy podle [accepted], s [acceptFiles] jakýkoli soubor — jen
+ * ne typy, které nese přetahovaný TEXT ([TEXT_DRAG_TYPES]): ten patří do pole jako text, a to umí
+ * pole samo. Celou rodinu `text/…` vyřadit nejde, vyřadilo by i soubory `.xml` nebo `.csv`.
+ */
+private fun accepts(type: String, accepted: List<String>, acceptFiles: Boolean): Boolean =
+    type in accepted || (acceptFiles && type !in TEXT_DRAG_TYPES)
+
+/** Typy přetahovaného textu: prostý text, HTML z prohlížeče, odkaz a intent (zástupce aplikace). */
+private val TEXT_DRAG_TYPES = setOf(
+    ClipDescription.MIMETYPE_TEXT_PLAIN,
+    ClipDescription.MIMETYPE_TEXT_HTML,
+    ClipDescription.MIMETYPE_TEXT_URILIST,
+    ClipDescription.MIMETYPE_TEXT_INTENT,
+)
+
+/**
+ * Obsah přetažený z jiné aplikace. Oprávnění ke čtení jejích URI dá systém až na vyžádání
+ * (`requestDragAndDropPermissions`), a jen do jejich uvolnění — to proto čeká, až se všechno
+ * zkopíruje. Každá položka podle SVÉHO typu: obrázek a GIF jako ze schránky, jiný soubor jako
+ * příloha. Víc položek naráz (víc fotek) přibude nad polem všechny, jako z výběru.
+ */
+private fun drop(
+    context: Context,
+    activity: Activity?,
+    scope: CoroutineScope,
+    event: DragEvent,
+    accepted: List<String>,
+    acceptFiles: Boolean,
+    onContent: (KeyboardContent) -> Unit,
+    onError: (UiText) -> Unit,
+): Boolean {
+    val clip = event.clipData ?: return false
+    val uris = (0 until clip.itemCount).mapNotNull { clip.getItemAt(it).uri }
+    if (uris.isEmpty()) return false
+    val permissions = activity?.requestDragAndDropPermissions(event)
+    scope.launch {
+        uris.forEach { uri ->
+            val type = context.contentResolver.getType(uri)
+                ?: accepted.firstOrNull { clip.description.hasMimeType(it) }
+                ?: "application/octet-stream"
+            if (!accepts(type, accepted, acceptFiles)) return@forEach
+            val prepared = withContext(Dispatchers.IO) {
+                runCatching {
+                    when (type) {
+                        GIF, MP4 -> KeyboardContent.Animation(prepareAnimation(context, uri, isVideo = type == MP4))
+                        in accepted -> KeyboardContent.Image(preparePhoto(context, uri))
+                        else -> KeyboardContent.File(prepareDocument(context, uri))
+                    }
+                }
+            }
+            prepared
+                .onSuccess(onContent)
+                .onFailure {
+                    logger.w(it) { "Přetažený obsah ($type) se nepodařilo připravit." }
+                    onError(UiText(Res.string.attachment_prepare_failed))
+                }
+        }
+        permissions?.release()
+    }
+    return true
+}
+
+/** Tón přes pole, nad kterým se drží přetahovaný obsah. */
+private const val DROP_HIGHLIGHT_ALPHA = 0.12f
 
 /** Klíč položky „Vložit GIF / obrázek" v kontextové nabídce pole. */
 private object PasteMediaKey

@@ -79,6 +79,7 @@ private val IMAGE_TYPES = listOf("public.png", "public.jpeg", "public.heic", "or
 actual fun KeyboardContentReceiver(
     acceptAnimations: Boolean,
     acceptImages: Boolean,
+    acceptFiles: Boolean,
     onContent: (KeyboardContent) -> Unit,
     onError: (UiText) -> Unit,
     content: @Composable () -> Unit,
