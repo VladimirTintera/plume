@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.settings
 
+import eu.tintera.plume.features.conversation.StoredTranscript
 import kotlinx.serialization.json.Json
 import eu.tintera.plume.core.bookmarks.MessageBookmark
 import eu.tintera.plume.core.snooze.ChatSnooze
@@ -165,6 +166,15 @@ interface AppSettings {
 
     /** Uloží odložené chaty. Neblokuje. */
     fun setChatSnoozes(snoozes: List<ChatSnooze>)
+
+    /**
+     * Hotové přepisy hlasovek a koleček z modelu v telefonu, všech účtů; filtruje a spravuje je
+     * [eu.tintera.plume.features.conversation.LocalTranscripts].
+     */
+    val storedTranscripts: StateFlow<List<StoredTranscript>>
+
+    /** Uloží přepisy. Neblokuje. */
+    fun setStoredTranscripts(transcripts: List<StoredTranscript>)
 
     /** Tiché hodiny notifikací (Nastavení → Notifikace). Jen v zařízení, nesynchronizují se. */
     val quietHours: StateFlow<QuietHours>
@@ -559,6 +569,24 @@ class DataStoreAppSettings(
         }
     }
 
+    override val storedTranscripts: StateFlow<List<StoredTranscript>> = value(emptyList()) { preferences ->
+        preferences[STORED_TRANSCRIPTS]?.let { stored ->
+            runCatching { storedListJson.decodeFromString<List<StoredTranscript>>(stored) }.getOrNull()
+        }.orEmpty()
+    }
+
+    override fun setStoredTranscripts(transcripts: List<StoredTranscript>) {
+        scope.launch {
+            edit { preferences ->
+                if (transcripts.isEmpty()) {
+                    preferences.remove(STORED_TRANSCRIPTS)
+                } else {
+                    preferences[STORED_TRANSCRIPTS] = storedListJson.encodeToString(transcripts)
+                }
+            }
+        }
+    }
+
     override val chatSnoozes: StateFlow<List<ChatSnooze>> = value(emptyList()) { preferences ->
         preferences[CHAT_SNOOZES]?.let { stored ->
             runCatching { storedListJson.decodeFromString<List<ChatSnooze>>(stored) }.getOrNull()
@@ -856,6 +884,7 @@ class DataStoreAppSettings(
         val QUIET_HOURS_ENABLED = booleanPreferencesKey("quiet_hours_enabled")
         val MESSAGE_BOOKMARKS = stringPreferencesKey("message_bookmarks")
         val CHAT_SNOOZES = stringPreferencesKey("chat_snoozes")
+        val STORED_TRANSCRIPTS = stringPreferencesKey("stored_transcripts")
         val QUIET_HOURS_START = intPreferencesKey("quiet_hours_start")
         val QUIET_HOURS_END = intPreferencesKey("quiet_hours_end")
         val ON_DEVICE_AI_ENABLED = booleanPreferencesKey("on_device_ai_enabled")
