@@ -912,6 +912,14 @@ za `MessageExpiredPhoto` / `MessageExpiredVideo`.
   video dohrálo — časovač má na délku videa rezervu jedné vteřiny. Mizející video se ze
   stejného důvodu nestreamuje (`VideoPage(streaming = false)`): přehrávání a odpočet začnou
   naráz a nic se neukáže dřív, než odpočet běží.
+- **Vypršelé médium je OZNÁMENÍ na střed, ne bublina** (`MessageExpired*` v `serviceText()`,
+  test `ServiceTextTest`). Dokud padalo do `describe()`, kreslila se „Fotka vypršela" jako
+  obyčejný text v bublině protistrany — četlo se to, jako by to odesílatel napsal. Tak to mají
+  i oficiální klienti. Oznámení nemá nabídku, takže vypršelou zprávu teď nejde smazat ani na ni
+  odpovědět, stejně jako na ostatní servisní zprávy. **Místní `ExpiredMediaRow` v bublině
+  zůstává** pro chvíli mezi spotřebováním v `SelfDestructTimers` a updatem obsahu od TDLib;
+  pak se položka vymění za oznámení (`editedMessages` zprávu převede znovu, `isService` se
+  přepočítá).
 - **Jednorázové zhlédnutí se hlásí až při ODCHODU z prohlížeče** (`onCleared`, `appScope`).
   U `MessageSelfDestructTypeImmediately` TDLib po `openMessageContent` obsah vyřídí okamžitě
   (`ttl_on_open` → `on_message_ttl_expired`): smaže soubory a pošle vypršelý obsah, na který
