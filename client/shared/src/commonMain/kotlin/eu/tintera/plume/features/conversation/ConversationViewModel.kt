@@ -2,6 +2,9 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import eu.tintera.plume.core.snooze.ChatSnoozes
+import eu.tintera.plume.core.ui.MarkupStroke
+import eu.tintera.plume.core.ui.PhotoMarkupRenderer
+import eu.tintera.plume.resources.markup_failed
 import okio.Path.Companion.toPath
 import okio.FileSystem
 import eu.tintera.plume.core.audio.RecordedVoice
@@ -350,6 +353,8 @@ class ConversationViewModel(
     private val jumpRequests: ConversationJumpRequests? = null,
     /** Odložené chaty: otevřený chat z bloku připomínek v seznamu zmizí. */
     snoozes: ChatSnoozes? = null,
+    /** Kreslení do fotky před odesláním; bez něj se „Upravit" nenabízí. */
+    private val photoMarkup: PhotoMarkupRenderer? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -1755,13 +1760,65 @@ class ConversationViewModel(
 
     /**
      * Odebere přílohy podle CESTY — to je jediné, co o nich ví vestavěná galerie: odznačenou
-     * fotku hlásí jako soubor, ne jako pořadí nad polem (viz `EmbeddedMediaPicker`).
+     * fotku hlásí jako soubor, ne jako pořadí nad polem (viz `EmbeddedMediaPicker`). Upravená
+     * fotka má cestu novou, galerie ale zná tu původní ([galleryPath]).
      */
     fun removeAttachments(paths: List<String>) {
         if (paths.isEmpty()) return
         val removed = paths.toSet()
         _state.update { state ->
-            state.copy(attachments = state.attachments.filterNot { it.path in removed })
+            state.copy(attachments = state.attachments.filterNot { state.galleryPath(it.path) in removed })
+        }
+    }
+
+    /** Nabízí se úprava fotky? */
+    val canMarkupPhotos: Boolean get() = photoMarkup != null
+
+    /**
+     * Uloží úpravu fotky nad polem: tahy se vykreslí do NOVÉ kopie originálu a příloha dostane
+     * její cestu. Prázdné tahy vrátí originál. Fotka se hledá podle cesty, ne pořadí — mezitím
+     * mohla ubýt jiná příloha.
+     */
+    fun applyPhotoMarkup(path: String, strokes: List<MarkupStroke>) {
+        val renderer = photoMarkup ?: return
+        val state = _state.value
+        val edit = state.photoEdits[path]
+        val original = edit?.originalPath ?: path
+        if (strokes == edit?.strokes.orEmpty()) return
+        if (strokes.isEmpty()) {
+            replacePhoto(path, original, width = null, height = null, edit = null)
+            return
+        }
+        _state.update { it.copy(markupBusy = true) }
+        viewModelScope.launch {
+            runCatching { renderer.render(original, strokes) }
+                .onSuccess { marked ->
+                    replacePhoto(path, marked.path, marked.width, marked.height, PhotoEdit(original, strokes))
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Úpravu fotky $original se nepodařilo vykreslit." }
+                    _state.update { it.copy(notice = UiText(Res.string.markup_failed)) }
+                }
+            _state.update { it.copy(markupBusy = false) }
+        }
+    }
+
+    private fun replacePhoto(path: String, newPath: String, width: Int?, height: Int?, edit: PhotoEdit?) {
+        _state.update { state ->
+            state.copy(
+                attachments = state.attachments.map { attachment ->
+                    if (attachment is OutgoingAttachment.Photo && attachment.path == path) {
+                        attachment.copy(
+                            path = newPath,
+                            width = width ?: attachment.width,
+                            height = height ?: attachment.height,
+                        )
+                    } else {
+                        attachment
+                    }
+                },
+                photoEdits = (state.photoEdits - path).let { if (edit != null) it + (newPath to edit) else it },
+            )
         }
     }
 
@@ -1990,6 +2047,10 @@ class ConversationViewModel(
         // S přílohami je text popisek a smí být prázdný. Úprava zprávy přílohy nemá.
         val attachments = _state.value.attachments
         if (attachments.isNotEmpty() && _state.value.editing == null) {
+            // Dokud se úprava fotky vykresluje, příloha má ještě cestu k NEUPRAVENÉ fotce —
+            // odeslala by se i s tím, co měl uživatel začerněné. Tlačítko je mezitím vypnuté;
+            // tohle je pojistka pro Enter z klávesnice.
+            if (_state.value.markupBusy) return
             sendAttachments(composed, attachments, options)
             return
         }
@@ -5470,6 +5531,13 @@ data class ConversationState(
     val selection: MessageSelection? = null,
     /** Přílohy vybrané k odeslání, čekající nad vstupním polem na popisek a odeslání. */
     val attachments: List<OutgoingAttachment> = emptyList(),
+    /**
+     * Upravené fotky nad polem podle SOUČASNÉ cesty: z čeho vznikly a jakými tahy. Další úprava
+     * začíná z originálu s těmito tahy (viz [ConversationViewModel.applyPhotoMarkup]).
+     */
+    val photoEdits: Map<String, PhotoEdit> = emptyMap(),
+    /** Úprava fotky se právě vykresluje do souboru. */
+    val markupBusy: Boolean = false,
     /** Krátké potvrzení akce, která v konverzaci nic viditelného nezmění (snackbar). */
     val notice: UiText? = null,
     /** Právě odepnutá zpráva — obrazovka k ní ukáže snackbar s „Vrátit". */
@@ -5859,3 +5927,13 @@ data class GiveawaySheet(
 
 /** Příběh, který se má otevřít v prohlížeči: kdo ho zveřejnil a jeho id. */
 data class StoryTarget(val posterChatId: Long, val storyId: Int)
+
+/** Upravená fotka: z jakého souboru vznikla a jakými tahy. */
+data class PhotoEdit(val originalPath: String, val strokes: List<MarkupStroke>)
+
+/**
+ * Cesta, pod kterou přílohu zná vestavěná galerie: u upravené fotky ta původní. Galerie si
+ * pamatuje, co z ní vzešlo, a bez toho by upravenou fotku při dalším otevření nenašla mezi
+ * vybranými a její odznačení by nic neodebralo.
+ */
+fun ConversationState.galleryPath(path: String): String = photoEdits[path]?.originalPath ?: path

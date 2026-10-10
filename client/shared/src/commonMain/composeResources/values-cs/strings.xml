@@ -691,6 +691,15 @@
     <string name="attachment_timer_off">Bez časovače</string>
     <string name="attachment_preview_title">Náhled</string>
     <string name="attachment_done">Hotovo</string>
+    <string name="attachment_edit">Upravit fotku</string>
+    <string name="markup_title">Upravit fotku</string>
+    <string name="markup_pen">Pero</string>
+    <string name="markup_highlighter">Zvýrazňovač</string>
+    <string name="markup_redact">Začernit</string>
+    <string name="markup_undo">Vzít zpět</string>
+    <string name="markup_color_white">Bílá</string>
+    <string name="markup_color_black">Černá</string>
+    <string name="markup_failed">Úpravu fotky se nepodařilo uložit.</string>
     <string name="link_preview_title">Náhled odkazu</string>
     <string name="link_preview_options">Volby náhledu odkazu</string>
     <string name="link_preview_section_link">Odkaz</string>

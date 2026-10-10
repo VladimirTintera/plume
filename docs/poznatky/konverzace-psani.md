@@ -173,6 +173,45 @@ album. Bublina ukazuje průběh nahrávání.
   soubor z foťáku, kde index bývá na konci, takže `supportsStreaming = false`. Soubor
   z `loadFileRepresentation` platí jen uvnitř callbacku — kopíruje se hned v něm.
 
+## Úprava fotky před odesláním
+
+V náhledu připravené fotky (`StagedAttachmentPreview`) je tužka „Upravit fotku": editor
+(`PhotoMarkupEditor`) s perem v šesti barvách, žlutým zvýrazňovačem a začerněním. Tahy se do
+fotky vykreslí v plném rozlišení na platformě (`PhotoMarkupRenderer`: Android `Canvas`, iOS
+`UIBezierPath`), stejně jako ořez profilové fotky (`SquarePhoto`).
+
+- **Začernění, ne rozmazání.** Rozmazané číslo nebo text jde při troše snahy přečíst, plná černá
+  ne. Je to výchozí nástroj — kvůli němu se editor otevírá nejčastěji.
+- **Tahy jsou v PODÍLECH rozměrů fotky, šířka podílem kratší strany** (`MarkupStroke`,
+  `MarkupTool.widthFraction`). Fotka je na displeji zmenšená a vykresluje se v plném rozlišení;
+  v pixelech displeje by tah v souboru vyšel jinde a jinak silný. Ověřeno porovnáním náhledu
+  v editoru a odeslané fotky.
+- **Jeden tah = jedna cesta**, ne úsečky po kouskách: průsvitný zvýrazňovač by se na spojích
+  překrýval a ztmavoval. Ťuknutí je tečka velká jako šířka čáry (Android `drawPoint`, iOS úsečka
+  nulové délky s kulatým koncem).
+- **Upravená fotka je NOVÝ soubor, originál zůstává** (`ConversationState.photoEdits`: současná
+  cesta → originál a tahy). Další úprava začíná z originálu s dosavadními tahy, takže jde vzít
+  zpátky i tah z minula; z vykreslené kopie by nešel. Editor bez tahů vrátí originál.
+- **Galerie zná fotku pod PŮVODNÍ cestou** (`galleryPath`). Vestavěná galerie si pamatuje, co
+  z ní vzešlo, podle cesty v cache (viz „Vestavěná galerie (Android)"); s novou cestou by upravenou
+  fotku při dalším otevření nenašla mezi vybranými a odznačení by nic neodebralo.
+- **Během vykreslování se neodesílá** (`markupBusy`): příloha má do té doby cestu k NEUPRAVENÉ
+  fotce a odešlo by i to, co měl uživatel začerněné. Tlačítko odeslání je vypnuté s „Připravuji
+  soubory…", `send` to hlídá i pro Enter z klávesnice, náhled ukazuje `LoadingIndicator`.
+- **Řada barev drží místo i u ostatních nástrojů** (průhledná, bez dotyku a bez sémantiky).
+  Vysouvaná řada zmenšovala plochu fotky a ta při přepnutí nástroje poskočila.
+- **Fotka se v editoru nepřibližuje** — dva prsty by se praly s kreslením jedním; zpět editor
+  zavře bez uložení. Náhled i editor jsou ve vlastní funkci (`StagedAttachmentPreviewHost`), ne
+  v `ConversationScreen` (viz „`ConversationScreen` je v dexu na hraně" v CLAUDE.md; po změně má
+  270 registrů a chat se otevírá).
+- **Na emulátoru Fold neodpovídají souřadnice `input motionevent` přesně snímku obrazovky**
+  (`screencap -d`): tah leží zhruba o 20 px výš, než kam se podle snímku mířilo. Chyba aplikace to
+  není — `settings put system pointer_location 1` ukáže stopu dotyku přesně ve středu tahu.
+- **Ověřeno na emulátoru** (Fold, česky): začernění, zvýrazňovač a pero, „Hotovo" (náhled
+  ukáže vykreslenou fotku), opětovná úprava z originálu se „Vzít zpět" tahu z minula, odeslání
+  Notifikátorovi (odešla upravená fotka), zpět bez uložení. **iOS jen přeložené**; obrazovka
+  „Komu: …" (sdílení do aplikace) úpravu zatím nenabízí.
+
 ## Přetažení z jiné aplikace (Android)
 
 Na Foldu nebo tabletu v rozdělené obrazovce jde obrázek, GIF i soubor přetáhnout z jiné aplikace

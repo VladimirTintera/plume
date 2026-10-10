@@ -473,6 +473,7 @@ fun appModule() = module {
             bookmarks = get(),
             jumpRequests = get(),
             snoozes = get(),
+            photoMarkup = get(),
         )
     }
 

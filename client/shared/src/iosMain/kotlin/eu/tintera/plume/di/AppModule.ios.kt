@@ -5,6 +5,8 @@ import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ui.IosProfileVideo
 import eu.tintera.plume.core.ui.ProfileVideo
 import eu.tintera.plume.core.ui.IosSquarePhoto
+import eu.tintera.plume.core.ui.IosPhotoMarkupRenderer
+import eu.tintera.plume.core.ui.PhotoMarkupRenderer
 import eu.tintera.plume.core.ui.SquarePhoto
 import eu.tintera.plume.core.audio.AudioEngine
 import eu.tintera.plume.core.audio.EarSensor
@@ -77,6 +79,7 @@ actual fun Module.platformModule() {
     single { TextClipboard() }
     single<LanguageDetector> { IosLanguageDetector() }
     single<SquarePhoto> { IosSquarePhoto() }
+    single<PhotoMarkupRenderer> { IosPhotoMarkupRenderer() }
     single<ProfileVideo> { IosProfileVideo() }
     // Nový na každou konverzaci — nahrávání patří obrazovce, ne aplikaci.
     factory { AudioRecorder() }

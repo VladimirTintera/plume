@@ -2007,7 +2007,8 @@ fun ConversationScreen(
                 menuApp = state.botMenuApp,
                 onOpenMenuApp = viewModel::openBotMenuApp,
                 attachments = state.attachments,
-                attachmentsPreparing = mediaSelection.preparing,
+                // Vykreslovaná úprava fotky blokuje odeslání stejně jako kopírování z galerie.
+                attachmentsPreparing = mediaSelection.preparing || state.markupBusy,
                 onRemoveAttachment = viewModel::removeAttachment,
                 onOpenAttachment = { index -> previewAttachmentIndex = index },
                 onSetAttachmentMode = viewModel::setAttachmentMode,
@@ -2089,7 +2090,7 @@ fun ConversationScreen(
         if (mediaPickerOpen) {
             MediaPickerSheet(
                 selection = mediaSelection,
-                pickedPaths = state.attachments.map { it.path },
+                pickedPaths = state.attachments.map { state.galleryPath(it.path) },
                 allowPhotos = state.content.photos,
                 allowVideos = state.content.videos,
                 onPicked = viewModel::addAttachments,
@@ -2876,40 +2877,12 @@ fun ConversationScreen(
         onShownChange = { menuKey.value = it },
     )
 
-    val lastPreviewed = remember { arrayOf<Pair<Int, OutgoingAttachment>?>(null) }
-    if (previewAttachmentIndex != null) {
-        val att = state.attachments.getOrNull(previewAttachmentIndex!!)
-        if (att != null) {
-            lastPreviewed[0] = previewAttachmentIndex!! to att
-        }
-    }
-    val currentTarget = if (previewAttachmentIndex != null) {
-        previewAttachmentIndex?.let { idx -> state.attachments.getOrNull(idx)?.let { idx to it } }
-    } else {
-        lastPreviewed[0]
-    }
-
-    AnimatedVisibility(
-        visible = previewAttachmentIndex != null && currentTarget != null,
-        enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)),
-        exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)),
-    ) {
-        currentTarget?.let { (index, attachment) ->
-            StagedAttachmentPreview(
-                attachment = attachment,
-                isOpen = previewAttachmentIndex != null,
-                onDismiss = { previewAttachmentIndex = null },
-                onDelete = {
-                    viewModel.removeAttachment(index)
-                    previewAttachmentIndex = null
-                },
-                onSetMode = { mode ->
-                    viewModel.setAttachmentMode(index, mode)
-                },
-                selfDestructAllowed = state.canSelfDestruct(),
-            )
-        }
-    }
+    StagedAttachmentPreviewHost(
+        state = state,
+        viewModel = viewModel,
+        index = previewAttachmentIndex,
+        onIndexChange = { previewAttachmentIndex = it },
+    )
     }
 }
 

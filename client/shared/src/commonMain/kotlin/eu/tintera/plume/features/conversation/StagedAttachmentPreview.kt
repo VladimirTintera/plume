@@ -62,6 +62,9 @@ import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.attachment_done
 import eu.tintera.plume.resources.attachment_preview_title
 import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.edit_24dp
+import eu.tintera.plume.resources.attachment_edit
+import androidx.compose.material3.LoadingIndicator
 import eu.tintera.plume.resources.keyboard_arrow_down_24dp
 import kotlin.math.abs
 import org.jetbrains.compose.resources.painterResource
@@ -90,6 +93,10 @@ internal fun StagedAttachmentPreview(
     onSetMode: (AttachmentMode) -> Unit,
     selfDestructAllowed: Boolean,
     isOpen: Boolean = true,
+    /** Kreslení do fotky; `null` = nenabízet (video, soubor). */
+    onEdit: (() -> Unit)? = null,
+    /** Úprava se vykresluje — fotka se za chvíli vymění za upravenou. */
+    busy: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val mode = attachment.mode
@@ -208,6 +215,9 @@ internal fun StagedAttachmentPreview(
             }
         }
 
+        // Upravená fotka se vykresluje do souboru; do té doby je vidět ta předchozí.
+        if (busy) LoadingIndicator(Modifier.align(Alignment.Center))
+
         // Na celé obrazovce ztmavené systémové lišty, jako v prohlížeči.
         SystemBarShades(immersion, fadeWithDismiss)
 
@@ -244,6 +254,16 @@ internal fun StagedAttachmentPreview(
                 )
 
                 Spacer(Modifier.weight(1f))
+
+                onEdit?.let { edit ->
+                    IconButton(onClick = edit, enabled = !busy, shapes = IconButtonDefaults.shapes()) {
+                        Icon(
+                            painter = painterResource(Res.drawable.edit_24dp),
+                            contentDescription = stringResource(Res.string.attachment_edit),
+                            tint = Color.White,
+                        )
+                    }
+                }
 
                 IconButton(onClick = onDelete, shapes = IconButtonDefaults.shapes()) {
                     Icon(
