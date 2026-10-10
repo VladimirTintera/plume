@@ -96,7 +96,12 @@ val generateAppLanguages = tasks.register("generateAppLanguages") {
     val complete = completeLocales
     val minCoverage = minLanguageCoverage
     val outputDir = layout.buildDirectory.dir("generated/appLanguages")
-    outputs.dir(outputDir)
+    // Výstupy jmenovitě, NE celá složka: AGP hledá vedle každého zdrojového adresáře složku
+    // baselineProfiles (`generated/appLanguages/baselineProfiles` vedle `…/kotlin`) a kdyby
+    // ležela uvnitř výstupu téhle úlohy, release build padne na nedeklarovanou závislost
+    // `prepareAndroidMainArtProfile` → `generateAppLanguages`.
+    outputs.dir(outputDir.map { it.dir("kotlin") })
+    outputs.file(outputDir.map { it.file("languages.txt") })
 
     doLast {
         val keyPattern = Regex("""<(?:string|plurals) name="([^"]+)"""")
