@@ -31,6 +31,7 @@ import eu.tintera.plume.core.telegram.NotificationPresenter
 import eu.tintera.plume.core.telegram.TelegramPaths
 import eu.tintera.plume.core.update.AppUpdates
 import eu.tintera.plume.core.ui.UrlOpener
+import eu.tintera.plume.core.locale.AppLanguage
 import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.language.LanguageDetector
 import eu.tintera.plume.core.language.IosLanguageDetector
@@ -57,6 +58,7 @@ actual fun Module.platformModule() {
     single { NotificationPermission() }
     single { NotificationPresenter(chats = get()) }
     single { UrlOpener(settings = get()) }
+    single { AppLanguage() }
     single { FileOpener() }
     single { MediaSaver() }
     single { MediaSharer() }

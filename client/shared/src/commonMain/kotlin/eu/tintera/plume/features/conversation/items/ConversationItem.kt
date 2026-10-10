@@ -1,6 +1,16 @@
 package eu.tintera.plume.features.conversation.items
 
+import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.ExpressiveMenu
+import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.features.conversation.NoticeMenu
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.menu_delete
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyItemScope
@@ -169,6 +179,9 @@ internal interface ConversationItemScope {
      */
     fun canSendCommands(): Boolean = false
 
+    /** Přidá dvojité ťuknutí na zprávu rychlou reakci (Nastavení → Obecné → Chaty)? */
+    fun doubleTapReaction(): Boolean = false
+
     /** Tlačítko bota u zprávy, na jehož odpověď se čeká (řádek, sloupec); `null` = žádné. */
     fun pressingBotButton(messageId: Long): Pair<Int, Int>? = null
 
@@ -237,10 +250,14 @@ internal data object UnreadDividerItem : ConversationItem {
 /**
  * Systémové oznámení o dění v chatu. Nemá odesílatele, takže ani stranu, bublinu, reakce
  * ani stav doručení.
+ *
+ * Dlouhý stisk nabídne smazání ([menu], jen když ho server dovolí). Plná nabídka nad zprávou
+ * se sem nehodí: kreslí kopii bubliny a nabízí reakce a odpověď, které oznámení nemá.
  */
 internal data class ServiceMessageItem(
     override val key: Long,
     val message: ChatMessage,
+    val menu: NoticeMenu? = null,
 ) : ConversationItem {
     override fun containsMessage(messageId: Long): Boolean = message.id == messageId
 
@@ -249,12 +266,47 @@ internal data class ServiceMessageItem(
         RevealingTime(message.timestamp, scope.timeReveal, Modifier.animateItem().gathered(key, scope)) {
             // Dárek je karta, ne věta: řekne, co se darovalo a od koho.
             val gift = message.media as? MessageMedia.Gift
-            if (gift != null) {
-                Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp), contentAlignment = Alignment.Center) {
-                    GiftCard(gift, onAction = { scope.onAction(message.id, it) })
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        // Jen na šířku textu: nabídka se ukotví k oznámení, ne k levému okraji
+                        // seznamu, a dlouhý stisk vedle textu nic nedělá. Dárek šířku má sám
+                        // (a intrinsické míry by v kartě nemusely projít).
+                        .then(if (gift == null) Modifier.width(IntrinsicSize.Max) else Modifier)
+                        .combinedClickable(
+                            interactionSource = null,
+                            indication = null,
+                            onClick = {},
+                            onLongClick = { scope.onAction(message.id, MessageAction.ShowNoticeMenu) },
+                        ),
+                ) {
+                    if (gift != null) {
+                        Box(Modifier.padding(horizontal = 24.dp, vertical = 4.dp)) {
+                            GiftCard(gift, onAction = { scope.onAction(message.id, it) })
+                        }
+                    } else {
+                        ServiceMessage(message, onOpenChat = { scope.onAction(message.id, MessageAction.OpenChat(it)) })
+                    }
+                    ExpressiveMenu(
+                        expanded = menu != null,
+                        onDismiss = { scope.onAction(message.id, MessageAction.CloseMenu) },
+                        groups = listOf(
+                            listOf(
+                                MenuAction(
+                                    label = stringResource(Res.string.menu_delete),
+                                    icon = Res.drawable.delete_24dp,
+                                    destructive = true,
+                                ) {
+                                    val rights = menu ?: return@MenuAction
+                                    scope.onAction(
+                                        message.id,
+                                        MessageAction.DeleteNotice(rights.canDeleteForSelf, rights.canDeleteForAll),
+                                    )
+                                },
+                            ),
+                        ),
+                    )
                 }
-            } else {
-                ServiceMessage(message, onOpenChat = { scope.onAction(message.id, MessageAction.OpenChat(it)) })
             }
         }
     }

@@ -22,7 +22,12 @@ kdo drží odemčený telefon — ne před rootnutým zařízením, které umí 
 ## Záznam
 
 Všechno, co zámek ví, je **jeden záznam v `AppLockStore`** (Keystore / Keychain, viz
-`SecretStore`), ne v `AppSettings`: `v1;iterace;sůl;otisk;doba;biometrie;chyby;brzdaDo`.
+`SecretStore`), ne v `AppSettings`: `v2;iterace;sůl;otisk;doba;biometrie;chyby;chybaV`.
+
+- **`chybaV` je čas poslední chyby v hodinách od startu systému**, ne konec brzdy v čase na zdi
+  (to byl formát `v1`). Záznam `v1` se dál čte — jinak by update aplikace zámek tiše vypnul
+  (neznámý záznam = vypnutý zámek) —, počet chyb z něj zůstane a čas chyby se vezme jako 0
+  (viz „Brzda pokusů" níž).
 
 - **Jeden záznam = jeden zápis.** Zapnutí, doba, biometrie a počítadlo chyb se mění spolu, takže
   nemůže vzniknout stav „zámek zapnutý, ale PIN chybí". Záznam neexistuje = zámek je vypnutý.
@@ -40,14 +45,23 @@ Všechno, co zámek ví, je **jeden záznam v `AppLockStore`** (Keystore / Keych
 - **Studený start se zapnutým zámkem začíná zamčený**, v pozadí se zamkne po zvolené době
   (1 min, 5 min, 1 h, 5 h). **„Hned" není**: zamkl by aplikaci každý výběr fotky nebo souboru,
   protože systémový výběr ji pošle do pozadí.
-- **Doba v pozadí se měří DVĚMA hodinami a bere se delší** (`shouldLockAfter`). Monotónní čas
-  procesu v hlubokém spánku stojí (telefon ležel přes noc → „uběhlo pár vteřin"), čas na zdi
-  jde přestavit dozadu. Každé samo jde obejít, obě naráz ne.
+- **Hodiny zámku jsou čas od startu systému VČETNĚ spánku** (`LockClock.elapsedMillis`:
+  Android `SystemClock.elapsedRealtime`, iOS `CLOCK_MONOTONIC`, který na Darwinu ve spánku
+  běží). Přestavit nejdou, jen je vynuluje restart. `TimeSource.Monotonic` to NENÍ: na Androidu
+  je to `nanoTime` a ve spánku stojí — telefon, který ležel přes noc, by hlásil „pár vteřin".
+- **Doba v pozadí** (`shouldLockAfter`) bere delší z času od startu a času na zdi. Posunutí
+  hodin dopředu tak zamkne jen dřív, posunutí dozadu nic nezmění.
 - **Brzda pokusů:** pět chyb projde, pak 30 s a každá další chyba dvojnásobek, nejvýš hodina
   (`blockFor`). **Počítadlo je v záznamu a přežije restart**, jinak by brzdu obešlo zabití
-  aplikace. Konec brzdy je čas na zdi, a ten jde přestavit dopředu i dozadu — proto se brzda
-  ořízne na nejvýš tolik, kolik za daný počet chyb smí trvat (`effectiveBlockedUntil`); hodiny
-  vrácené o den ji tak na den neprotáhnou.
+  aplikace.
+- **Brzda se měří JEN časem od startu systému** (`blockRemaining`). Dřív to byl konec brzdy
+  v čase na zdi a ošetřené bylo jen přestavení dozadu: kdo drží odemčený telefon, vypnul
+  automatický čas, posunul hodiny o hodinu dopředu a měl další pokus. 10 000 PINů se tak dalo
+  projít za desítky hodin klikání místo zhruba 200 dní.
+- **Restart se pozná podle toho, že je čas od startu menší než při poslední chybě.** Kolik času
+  uběhlo před restartem, nevíme, jistě ale aspoň čas od startu; počítá se tedy, jako by chyba
+  přišla těsně před ním. Restart brzdu nezruší a nikdy ji neprotáhne přes jmenovitou délku.
+  Stejně se čte záznam `v1` (čas chyby 0).
 - **Ověření PINu v Nastavení počítá do brzdy taky** (`verify`). Jinak by se PIN dal hádat přes
   Nastavení odemčené aplikace — a odemčenou ji může držet kdokoli, komu ji majitel půjčil.
 - **Biometrie odemkne i během brzdy a brzdu zruší.** Otisk hádáním nikdo neobejde a kdo PIN
@@ -55,14 +69,27 @@ Všechno, co zámek ví, je **jeden záznam v `AppLockStore`** (Keystore / Keych
 
 ## Obrazovka zámku a UI
 
-- **Celoplošný zámek (`LockScreen`) překrývá celou aplikaci** v `App.kt`, jakmile je stav
-  `AppLockState.Locked`. Pokud je stav `Unknown` (načítání ze store při studeném startu),
-  vykreslí se prázdný povrch v barvě pozadí — aplikace tak neproblikne před uzamčením.
-- **Gesto zpět minimalizuje aplikaci (`rememberReturnToCaller`).** Na obrazovce zámku nesmí
-  fungovat běžný návrat do předchozí obrazovky (jinak by se dal zámek obejít). Zpět minimalizuje
-  aplikaci na domovskou obrazovku; je použit `NavigationBackHandler`, aby fungoval v predictive back.
-- **Klávesnice PINu (`PinPad`):** číselník 3x4 s haptickou odezvou (`HapticFeedbackType.TextHandleMove`),
-  tlačítkem smazat a biometrickou ikonou (pokud je zapnutá).
+- **Zámek má VLASTNÍ OKNO** (`LockWindow`: Android `Dialog`, iOS vrstva dialogu). Vrstva
+  v hlavním okně nestačila: `Dialog`, `ModalBottomSheet` i `Popup` mají vlastní okno nad hlavním,
+  takže sheet otevřený před odchodem do pozadí ležel po návratu NAD zámkem a dal se ovládat
+  (výběr chatu pro přeposlání, přílohy). Okno zámku vzniká až při zamčení, je tedy nad nimi.
+  Na Androidu má `SecureFlagPolicy.SecureOn` (PIN nejde do snímku) a vlastní vzhled ikon
+  systémových lišt — `SystemBarsAppearance` řídí jen okno activity.
+- **Pod oknem zůstává kryt v hlavním okně** (`Locked` i `Unknown`): okno zámku se ukáže až
+  s animací a během prvního čtení záznamu žádné není. Obsah se tak nemihne.
+  **Cizí okna (sheet, popup) kryt nezakryje** — mezi zamčením a objevením okna zámku jsou nad
+  ním vidět. Na zařízení jde o pár snímků; na přetíženém emulátoru to byly až dvě vteřiny.
+- **Obsah pod zámkem je `Inert`** (`App.kt`): `clearAndSetSemantics {}` a skupina fokusu, do
+  které fokus nevstoupí, plus `clearFocus` při zamčení. Zůstává totiž složený (jinak by se
+  ztratil stav navigace a rozepsané zprávy) a bez toho ho četla čtečka obrazovky a Tab na
+  fyzické klávesnici do něj přesunul fokus.
+- **Zpět minimalizuje aplikaci** (`rememberReturnToCaller`, přes `onDismissRequest` okna
+  zámku). Obejít zámek se Zpět nesmí.
+- **Zámek se nastaví ještě v `onStart`**: `AppLock` sleduje popředí na
+  `Dispatchers.Main.immediate`, takže změna stavu proběhne v tomtéž volání, dřív než se
+  vykreslí první snímek. Na `Dispatchers.Default` se mohl stihnout vykreslit starý obsah.
+- **Klávesnice PINu (`PinPad`):** číselník 3x4, tlačítko smazat a biometrická ikona (pokud je
+  zapnutá). Haptiku dělá podle slovníku v `core/ui/Haptics.kt` (`confirm` / `reject`).
   - **Material 3 Expressive tvar a morphing:** Tlačítka (`PinDigitButton` s `FilledTonalIconButton`, `PinIconButton` s `IconButton`)
     používají standardní `IconButtonDefaults.shapes()`, které při stisku přirozeně animují změnu tvaru
     z kruhu na squircle (zaoblený čtverec) a zpět, v plném souladu se zbytkem projektu i M3 Expressive specifikací.
@@ -75,18 +102,72 @@ Všechno, co zámek ví, je **jeden záznam v `AppLockStore`** (Keystore / Keych
 ## Biometrie (`BiometricAuth`)
 
 - **Platformní rozhraní `BiometricAuth`:**
-  - Android: `BiometricManager` ověřuje dostupnost (`BIOMETRIC_STRONG` | `DEVICE_CREDENTIAL`),
-    `BiometricPrompt` zobrazuje systémový dialog navázaný na `ComponentActivity`.
+  - Android: **jen silná biometrie** (`BIOMETRIC_STRONG`, v promptu `setAllowedAuthenticators`).
+    Dřív se brala i slabá (třída 2) — typicky obličej z přední kamery, který na některých
+    telefonech oklame fotka. Systémový zámek obrazovky (`DEVICE_CREDENTIAL`) se nenabízí: zámek
+    aplikace má být druhá bariéra, ne kopie té první. Android 10 `canAuthenticate(Int)` nemá
+    (dřív na tom tiše padalo `runCatching` a biometrie tam nebyla nikdy); tam se volá
+    `canAuthenticate()` a prompt podle CDD bere silnou biometrii sám.
   - iOS: `LocalAuthentication` (`LAContext.evaluatePolicy(LAPolicyDeviceOwnerAuthenticationWithBiometrics)`).
+    **Face ID potřebuje `NSFaceIDUsageDescription`** — je v build settings projektu
+    (`INFOPLIST_KEY_NSFaceIDUsageDescription`, jako ostatní usage texty), ne v `Info.plist`.
+    Bez něj ověření na iPhonu s Face ID selže.
+- **Biometrie je svázaná se seznamem otisků a tváří v telefonu.** Kdo zná PIN telefonu, přidal
+  si dřív v systému vlastní otisk a Plume jím odemkl. Teď se seznam zapamatuje při zapnutí
+  biometrie (`BiometricAuth.enroll`) a po jeho změně vrátí ověření `BiometricResult.Invalidated`:
+  `AppLock.revokeBiometrics` biometrii vypne (i u zamčené aplikace, ikona otisku zmizí) a zámek
+  napíše proč. Odemknout jde PINem, znovu zapnout v Nastavení — tam se útočník bez PINu
+  aplikace nedostane.
+  - **Android: klíč v Keystore** (`plume_app_lock_biometrics`, AES-GCM) s
+    `setUserAuthenticationRequired` + `setInvalidatedByBiometricEnrollment(true)`, od API 30
+    `setUserAuthenticationParameters(0, AUTH_BIOMETRIC_STRONG)` — každé použití chce nové
+    ověření silnou biometrií, ne PINem telefonu. Prompt dostane šifru s klíčem (`CryptoObject`)
+    a úspěch se počítá, až šifra po ověření opravdu zašifruje: samotné „ověřeno" z promptu by
+    šlo dostat i novým otiskem. Zneplatněný klíč se pozná už při `cipher.init`
+    (`KeyPermanentlyInvalidatedException`), takže prompt se vůbec neukáže.
+  - **iOS: `evaluatedPolicyDomainState`** se při zapnutí uloží (`NSUserDefaults`) a před
+    ověřením porovná (`==` na `NSData` volá `isEqual:`; `isEqualToData` Kotlin/Native nevidí).
+    Jen přeložené, na zařízení neověřené.
+  - **Chybějící svázání = zneplatněné.** Kdo měl biometrii zapnutou ve verzi před svázáním,
+    musí ji jednou zapnout znovu. O seznamu otisků z té doby nic nevíme a přijmout ho naslepo by
+    znamenalo přijmout i otisk přidaný mezitím.
+  - **Zapnutí bez svázání neprojde** (`AppLockViewModel.setBiometrics`): když `enroll` selže,
+    přepínač zůstane vypnutý — jinak by biometrii vypnulo hned první odemčení.
+  - **Ověřeno na emulátoru** (Android 17): otisk 1 odemkne; po přidání otisku 2 v systému se
+    po studeném startu prompt neukáže, zámek hlásí změnu, otisk 2 nic neudělá, PIN odemkne
+    a v Nastavení je biometrie vypnutá; po opětovném zapnutí odemkne i otisk 2. Otisky na
+    emulátoru: `locksettings set-pin`, `am start -a android.settings.FINGERPRINT_ENROLL`
+    (`BIOMETRIC_ENROLL` se na Androidu 17 neotevřel) a opakované `adb emu finger touch <id>`.
 - **Automatické vyvolání při zamčení:** jakmile se objeví `LockScreen` a biometrie je zapnutá,
   systémový dialog se nabídne automaticky, aniž by uživatel musel ťukat na ikonu otisku.
 
-## Ochrana v přehledu úloh (`FLAG_SECURE`)
+## Ochrana v přehledu úloh (`FLAG_SECURE`, iOS kryt)
 
 - Obsah aplikace v systémovém přepínači úloh (recent apps) i na snímcích obrazovky je chráněn
   přes `SecureScreen(enabled = lockSettings != null)` v `App.kt`.
 - **Chráněno pouze tehdy, když je zámek zapnutý.** Pokud uživatel zámek nepoužívá, `FLAG_SECURE`
   je vypnutý, takže snímky obrazovky a náhled v multitaskingu zůstávají povolené.
+- **Žádosti o `FLAG_SECURE` se počítají** (`SecureScreen.android.kt`). Příznak je na okně
+  jeden, ale žádá o něj zámek i prohlížeč mizejících médií — a prohlížeč ho při zavření
+  shazoval natvrdo `clearFlags`, takže po zavření mizející fotky přehled úloh zase ukazoval
+  chaty, i když byl zámek zapnutý.
+- **iOS `FLAG_SECURE` nemá a systém si okno fotí po `didEnterBackground`**; zámek naskočí až po
+  `didBecomeActive`, takže na snímku v přepínači byla otevřená konverzace. `PrivacyCover` proto
+  při `willResignActive` přidá nad okno nativní `UIView` v barvě pozadí (Compose v té chvíli
+  kreslit nemusí) a při `didBecomeActive` ho sundá. Ukáže se i při Ovládacím centru a dialogu
+  Face ID; Telegram s kódem to má stejně.
+
+## Popředí na Androidu (`AppForeground`)
+
+- **Stav popředí se počítá od vzniku objektu, ne od odběru.** Callbacky activit se dřív
+  registrovaly až s odběrem a počítadlo začínalo na nule. Zámek se přihlásí až po přečtení
+  záznamu z Keystore, tedy často až po `onStart`: počítadlo pak při odchodu do pozadí spadlo
+  na −1, „v pozadí" se neohlásilo a **zámek se po návratu nezamkl nikdy**. Dokud zámek sledoval
+  popředí na `Dispatchers.Default`, většinou to vyšlo; po přesunu na hlavní vlákno (viz výš)
+  to prohrál pokaždé — tak se na to přišlo.
+- Teď je stav jeden pro celý proces (`MutableStateFlow`), výchozí hodnota se čte ze systému
+  (`getMyMemoryState`, jen `IMPORTANCE_FOREGROUND` — „visible" zahrnuje i službu v popředí bez
+  activity) a počítadlo pod nulu nejde.
 
 ## Nastavení zámku (`AppLockScreen`)
 
@@ -101,6 +182,25 @@ Všechno, co zámek ví, je **jeden záznam v `AppLockStore`** (Keystore / Keych
 
 ## Poučení z testování
 
+- **`adb exec-out screencap` je se zapnutým zámkem černý** (`FLAG_SECURE`). Snímek z displeje
+  emulátoru ho obchází: `adb emu screenrecord screenshot <adresář>`. Pořadí oken (je zámek nad
+  sheetem?) ukáže `adb shell dumpsys window windows | grep "^  Window #"`, nahoře je první;
+  okno zámku je dialog a vypisuje se pod jménem activity.
+- **Ťukat podle `bounds` KLIKATELNÉHO uzlu, ne textu.** Tlačítko 0 je `[440,2035][640,2235]`,
+  jeho text o kus níž; ťuknutí na y 2030 padalo do mezery mezi řadami a vypadalo to jako
+  nefunkční číselník.
+- **Posun hodin bez rootu jde:** `settings put global auto_time 0` a `cmd alarm set-time <ms>`;
+  zpět `settings put global auto_time 1`. Ověřeno: hodinu dopředu během brzdy číselník zůstal
+  vypnutý.
+- **ANR dialog nad oknem zámku polyká všechny dotyky** (dotyková oblast přes celou obrazovku).
+  Na přetíženém emulátoru se po ANR při startu vracel pořád dokola a zámek nešel ovládat — ale
+  řízená simulace (`run-as eu.tintera.plume kill -STOP <pid>`, plocha, `am start`, ťuknutí,
+  po hlášce „is unresponsive" `kill -CONT`) dopadla s oknem zámku stejně jako s vrstvou
+  v hlavním okně: aplikace se vzpamatovala a PIN odemkl. Smyčku dělalo prostředí, ne okno
+  zámku. Než se něco takového svede na kód, porovnat to proti `main` stejnou simulací.
+- **Zámek po návratu z pozadí se ověřuje skutečnou minutou čekání** (`input keyevent 3`,
+  `sleep 65`, `am start`). Kratší doba není a přestavit hodiny bez rootu nejde.
+
 - `AppLock` provádí PBKDF2 hash přes `withContext(hashDispatcher)`. V produkci je to `Dispatchers.Default`,
   ale v deterministických unit testech s `StandardTestDispatcher` je nutné umožnit předání testovacího
   dispečeru, jinak na pozadí vznikají race conditions.
@@ -110,5 +210,6 @@ Všechno, co zámek ví, je **jeden záznam v `AppLockStore`** (Keystore / Keych
 
 ## Stav
 
-**Kompletně hotovo** včetně UI, biometrie na Androidu i iOS, `FLAG_SECURE`, obrazovky v Nastavení
-a unit testů (`AppLockTest`, `PinHashTest`, `AppLockViewModelTest`).
+Hotovo včetně UI, biometrie na Androidu i iOS, `FLAG_SECURE`, krytu v přepínači na iOS,
+obrazovky v Nastavení a unit testů (`AppLockTest`, `PinHashTest`, `AppLockViewModelTest`).
+Otevřené: volitelný šestimístný PIN; svázání biometrie se seznamem otisků na iOS ověřit na zařízení.

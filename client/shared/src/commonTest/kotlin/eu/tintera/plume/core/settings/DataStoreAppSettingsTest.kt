@@ -144,6 +144,50 @@ class DataStoreAppSettingsTest {
     }
 
     @Test
+    fun akceTahuJsouVychoziArchivace() = settingsTest { settings, _ ->
+        assertEquals(ChatSwipeActions(ChatSwipeAction.Archive, ChatSwipeAction.Archive), settings.chatSwipeActions.value)
+    }
+
+    @Test
+    fun akceTahuSeUloziProKazdouStranuZvlast() = settingsTest { settings, _ ->
+        settings.setChatSwipeActions(ChatSwipeActions(right = ChatSwipeAction.Read, left = ChatSwipeAction.None))
+        assertEquals(
+            ChatSwipeActions(right = ChatSwipeAction.Read, left = ChatSwipeAction.None),
+            settings.chatSwipeActions.awaitValue("zvolené akce") { it.right == ChatSwipeAction.Read },
+        )
+
+        // Návrat k výchozí na jedné straně nesmí shodit volbu té druhé.
+        settings.setChatSwipeActions(ChatSwipeActions(right = ChatSwipeAction.Archive, left = ChatSwipeAction.None))
+        assertEquals(
+            ChatSwipeActions(right = ChatSwipeAction.Archive, left = ChatSwipeAction.None),
+            settings.chatSwipeActions.awaitValue("vrácená pravá strana") { it.right == ChatSwipeAction.Archive },
+        )
+    }
+
+    @Test
+    fun automatickeStahovaniMaVychoziUrovne() = settingsTest { settings, _ ->
+        assertEquals(AutoDownloadSettings(), settings.autoDownload.value)
+    }
+
+    @Test
+    fun automatickeStahovaniSeUloziProKazdouSit() = settingsTest { settings, _ ->
+        val chosen = AutoDownloadSettings(
+            wifi = AutoDownloadLevel.Medium,
+            mobile = AutoDownloadLevel.Off,
+            roaming = AutoDownloadLevel.Off,
+        )
+        settings.setAutoDownload(chosen)
+        assertEquals(chosen, settings.autoDownload.awaitValue("zvolené úrovně") { it.mobile == AutoDownloadLevel.Off })
+
+        // Návrat k výchozí na jedné síti nesmí shodit volbu ostatních.
+        settings.setAutoDownload(chosen.copy(mobile = AutoDownloadSettings().mobile))
+        assertEquals(
+            chosen.copy(mobile = AutoDownloadSettings().mobile),
+            settings.autoDownload.awaitValue("vrácená mobilní data") { it.mobile != AutoDownloadLevel.Off },
+        )
+    }
+
+    @Test
     fun zavrenaAktualizaceSePamatujePodleVerze() = settingsTest { settings, _ ->
         assertEquals(null, settings.dismissedUpdateVersionCode.value)
 
@@ -285,6 +329,37 @@ class DataStoreAppSettingsTest {
         assertEquals(
             1_700_000_000L,
             settings.lastStorageCleanup.awaitValue("čas úklidu") { it == 1_700_000_000L },
+        )
+    }
+
+    @Test
+    fun ticheHodinySeUlozi() = settingsTest { settings, _ ->
+        assertEquals(QuietHours(), settings.quietHours.value)
+        val mine = QuietHours(enabled = true, start = 23 * 60 + 30, end = 6 * 60)
+        settings.setQuietHours(mine)
+        assertEquals(mine, settings.quietHours.awaitValue("uložené tiché hodiny") { it == mine })
+        settings.setQuietHours(QuietHours())
+        assertEquals(QuietHours(), settings.quietHours.awaitValue("výchozí") { it == QuietHours() })
+    }
+
+    @Test
+    fun velikostPismaZpravJeVychozi16() = settingsTest { settings, _ ->
+        assertEquals(DEFAULT_MESSAGE_TEXT_SIZE, settings.messageTextSize.value)
+    }
+
+    @Test
+    fun velikostPismaZpravSeUloziAOrizneDoRozsahu() = settingsTest { settings, _ ->
+        settings.setMessageTextSize(18)
+        assertEquals(18, settings.messageTextSize.awaitValue("uložených 18") { it == 18 })
+        settings.setMessageTextSize(99)
+        assertEquals(
+            MESSAGE_TEXT_SIZES.last,
+            settings.messageTextSize.awaitValue("oříznutá horní mez") { it == MESSAGE_TEXT_SIZES.last },
+        )
+        settings.setMessageTextSize(DEFAULT_MESSAGE_TEXT_SIZE)
+        assertEquals(
+            DEFAULT_MESSAGE_TEXT_SIZE,
+            settings.messageTextSize.awaitValue("návrat na výchozí") { it == DEFAULT_MESSAGE_TEXT_SIZE },
         )
     }
 

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.LocalAutoDownload
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -167,6 +168,7 @@ internal fun LinkPreviewImage(
             fileId = photo.fileId,
             thumbnailFileId = photo.thumbnailFileId,
             placeholder = photo.minithumbnail,
+            autoDownload = LocalAutoDownload.current.photos,
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize().then(blur).then(imageModifier),

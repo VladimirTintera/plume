@@ -28,6 +28,38 @@ Teď je prázdné.
 - ~~**`isShrinkResources` není zapnuté.**~~ — hotovo (release proklikaný na emulátoru;
   `docs/poznatky/release.md`, „R8").
 
+## Komunitní překlad
+
+Až bude repo veřejné. Volba: **Hosted Weblate, plán Libre** (zdarma pro veřejné projekty
+s licencí schválenou OSI — MIT stačí; limit 160k řetězců, při ~2 200 klíčích tedy desítky
+jazyků). Vlastní backend ani GitHub Pages potřeba nejsou. Záloha: Crowdin for Open Source.
+
+- **Formát „Compose Multiplatform resources"**, ne „Android string resources" (Weblate ≥ 5.12).
+  Liší se escapováním: Android formát by psal `\'` a to Compose Multiplatform nerozbalí
+  (viz „Jazyky" v CLAUDE.md). Maska `client/shared/src/commonMain/composeResources/values-*/strings.xml`,
+  základ `values/strings.xml`.
+- **Schvalování**: hlasování o návrzích s prahem pro automatické přijetí, nebo vyhrazení
+  schvalování recenzentům (u nových jazyků si vybrat rodilého mluvčího). Čeština zůstává
+  v repu a na Weblate jen pro čtení, dokud ji píšeme sami.
+- **Weblate posílá změny jako PR** (doplněk „Squash Git commits" + push do větve `weblate`).
+  Check „Release notes" by ho zamítl — výjimka pro tu větev (`type: internal`), nebo ji
+  Weblate drží sám.
+- **`verifyTranslations` umí jen `values-cs`.** Rozšířit na všechny `values-*`, ale pro
+  komunitní jazyky hlásit chybějící klíče jen jako varování: rozpracovaný jazyk spadne na
+  angličtinu po jednotlivých větách a build kvůli tomu padat nesmí. Kontrola, že se
+  nerozešly formátovací argumenty (`%1$s`, `%1$d`), zůstává chybou — tu hlídá i Weblate.
+- **Nový jazyk se dnes zapisuje ručně na čtyři místa** (viz „Jazyk aplikace" v
+  `docs/poznatky/nastaveni.md`): `locales_config.xml` v `:client:androidApp`, `APP_LANGUAGES`
+  v `core/locale`, `language_name_<kód>` v každém `strings.xml` a `<kód>.lproj` v `iosApp/iosApp`
+  i `iosApp/ShareExtension` (iOS nabídne jazyk v Nastavení jen podle složek `.lproj`). Weblate
+  přidá jen složku `values-<kód>/`, takže by jazyk v aplikaci byl, ale vybrat by nešel.
+  Seznam proto odvozovat ze složek `values-*` při buildu (vygenerovat `locales_config.xml`
+  a `APP_LANGUAGES`, nebo aspoň kontrola, že sedí), s prahem pokrytí: jazyk pod ~80 % do výběru
+  nepouštět. `Localizable.strings` z obou `.lproj` jde na Weblate jako další komponenta
+  (formát iOS strings).
+- **Texty v Play** (`play/listing/`, poznámky k vydání) se komunitně nepřekládají — tam rozhoduje
+  `PLAY_LANGS` a jazyk musí mít záznam v obchodě.
+
 ## iOS
 
 Android je napřed; tohle je, čím se to dorovnává.
@@ -173,11 +205,8 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   - ~~**Seznam blokovaných v Nastavení**~~ — hotovo (Obecné → Soukromí → Blokovaní), ~~i se
     „Zablokovat uživatele"~~ (kontakty a známé soukromé chaty, s potvrzením).
 - **Přihlašovací obrazovka** — hotová (výběr země, formátování čísla, návrat z QR na číslo,
-  expressive přestavba, ~~zpět z kódu a hesla k číslu~~; `docs/poznatky/prihlaseni.md`, „Přihlašovací obrazovka").
-  Zbývá:
-  - **Pole přihlášení jedou přes `StateFlow`**, a rychlý `adb input text` v nich na pomalém
-    emulátoru přeháže znaky. Na zařízení nepozorované; kdyby se ukázalo, patří text do Compose
-    stavu ve ViewModelu jako u úpravy profilu.
+  expressive přestavba, ~~zpět z kódu a hesla k číslu~~, ~~text polí v Compose stavu místo
+  `StateFlow`~~; `docs/poznatky/prihlaseni.md`, „Přihlašovací obrazovka").
 - **Sdílení ze systému do aplikace.** ~~Android~~ — hotovo (text, odkaz, jeden i víc
   souborů; výběr chatu, obsah čeká nad vstupním polem). Poučení v `docs/poznatky/sdileni.md`, „Sdílení do
   aplikace". Zbývá:
@@ -494,11 +523,15 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
   s `resizeableActivity` a `allowEmbedded`, jinak by se otevřela celá aplikace.
 - **Widget na plochu** s nepřečtenými nebo připnutými chaty (Glance). Data z TDLib v procesu
   aplikace; widget musí umět ukázat poslední známý stav, když proces neběží.
-- **Fold a klávesnice.** Klávesové zkratky (Ctrl+K hledání, Alt+↑/↓ mezi chaty, Esc zavře
-  konverzaci nebo hledání) a přetažení obrázku či souboru z jiné aplikace v rozdělené obrazovce
-  rovnou nad vstupní pole (`dragAndDropTarget`), stejnou cestou jako příloha ze schránky.
-- **Přehled rozepsaných konceptů** napříč chaty (chaty s `draftMessage`), třeba jako položka
-  menu účtu nebo složka.
+- **Fold a klávesnice.** ~~Klávesové zkratky (Ctrl+K hledání, Alt+↑/↓ mezi chaty, Esc zavře
+  konverzaci nebo hledání)~~ a ~~Enter odesílá~~ — hotovo (`docs/poznatky/navigace.md`, „Klávesové
+  zkratky"; na iOS jen Enter). Zbývá přetažení obrázku či souboru z jiné aplikace v rozdělené
+  obrazovce rovnou nad vstupní pole (`dragAndDropTarget`), stejnou cestou jako příloha ze
+  schránky. ~~Seznam zkratek v systémovém přehledu (Meta+/)~~ — hotovo.
+- ~~**Přehled rozepsaných konceptů**~~ — hotovo (menu účtu → Koncepty;
+  `docs/poznatky/seznam-chatu.md`, „Přehled konceptů"). ~~Smazání konceptu přímo z přehledu~~ —
+  hotovo (koš a „Vrátit"). Zbývá: koncepty v tématech fóra a ve vláknech komentářů
+  (`ForumTopic.draftMessage`).
 - **Lokální odložení chatu (Snooze).** Možnost odložit chat (z nabídky nad chatem nebo volbou
   tahu) na 1 hodinu, dnes večer nebo zítra ráno. Chat se dočasně vizuálně ztiší a v nastavený
   čas se znovu vynoří na vrcholu seznamu chatů jako připomínka.
@@ -549,22 +582,31 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
 - ~~**Zámek aplikace**~~ — hotovo (PIN, biometrie na Androidu i iOS, zamykání po době neaktivity,
   brzda pokusů, celoplošný `LockScreen`, skrytí v přehledu úloh přes `FLAG_SECURE` při aktivním zámku,
   nastavení v Nastavení → Soukromí; `docs/poznatky/zamek-aplikace.md`).
-- **Automatické stahování médií** podle sítě (Wi-Fi / mobilní / roaming), druhu (fotky, videa,
-  soubory) a velikosti, s ohledem na systémovou úsporu dat. Dnes je jediný strop 5 MB u GIFů
-  a koleček (`autoPlays`). TDLib má vlastní přednastavení (`getAutoDownloadSettingsPresets`).
+- ~~**Zámek aplikace: biometrie svázaná se seznamem otisků.**~~ — hotovo (klíč v Keystore se
+  `setInvalidatedByBiometricEnrollment`, na iOS `evaluatedPolicyDomainState`;
+  `docs/poznatky/zamek-aplikace.md`, „Biometrie"). Zbývá ověřit iOS na zařízení a volitelný
+  šestimístný PIN.
+- ~~**Automatické stahování médií**~~ — hotovo (Úložiště: úroveň pro Wi-Fi, mobilní data
+  a roaming, spořič dat; `docs/poznatky/prohlizec-medii.md`, „Automatické stahování"). Zbývá
+  ověřit spořič dat a roaming na telefonu a případně přednačítání videí (dnes se nepřednačítá nic).
 - ~~**Úložiště.**~~ — hotovo (Nastavení → Úložiště: zabrané místo po druzích a chatech, mazání
   všude i v chatu, „Uchovávat média", model Gemmy; `docs/poznatky/nastaveni.md`, „Úložiště").
   Zbývá **strop velikosti mezipaměti** (mazat nejstarší nad N GB) a ověřit automatický úklid
   po dni na zařízení.
-- **Akce tahem v seznamu chatů pro každou stranu zvlášť** (archivovat, přečíst, ztlumit,
-  připnout, nic). Dnes obě strany archivují, protože jiná akce nebyla (`docs/poznatky/seznam-chatu.md`, „Archiv");
-  s volbou ten důvod padá. Výchozí zůstává archivace na obou stranách.
-- **Menší přepínače:** dvojité ťuknutí na zprávu jako rychlá reakce (výchozí reakce
-  `setDefaultReactionType`), Enter odesílá / nový řádek (Fold s klávesnicí), velikost písma ve
-  zprávách, odkazy v aplikaci (Custom Tabs) / v prohlížeči, jazyk aplikace přímo v Nastavení
-  (per-app locale; dnes jen přes systém).
-- **Tiché hodiny** (Android): v nastaveném čase jen zmínky a odpovědi. Notifikace kreslí
-  aplikace sama, takže to jde bez serveru — ale jen lokálně, ostatní zařízení o tom nevědí.
+- ~~**Akce tahem v seznamu chatů pro každou stranu zvlášť**~~ — hotovo (Obecné → Chaty:
+  archivovat, přečteno, ztlumit, připnout, nic; `docs/poznatky/seznam-chatu.md`, „Akce tahem").
+- ~~**Menší přepínače**~~ — hotovo: rychlá reakce dvojitým ťuknutím, Enter odesílá (fyzická
+  klávesnice), velikost písma zpráv, odkazy v aplikaci (Custom Tabs / Safari) a jazyk aplikace
+  (`docs/poznatky/nastaveni.md`, „Menší přepínače"). Zbývá:
+  - **Jazyk aplikace na Androidu do 12** — systém jazyk pro jednu aplikaci nezná a řádek se tam
+    neukazuje. Šlo by to jen přes AppCompat a vlastní uložení.
+  - **iOS ověřit na simulátoru** — Safari v aplikaci, otevření systémového Nastavení z řádku
+    jazyka, dvojité ťuknutí.
+- **Synchronizace nastavení mezi zařízeními** (barva motivu, vyčlenění nepřečtených, rychlost
+  hlasovek…) přes CloudStorage mini aplikací (`sendWebAppCustomRequest`). Sonda ověřila, že to
+  jde bez otevřené mini aplikace i u bota bez ní. Zbývá založit bota v BotFatheru (uživatel),
+  podívat se do oficiálního klienta, jestli se bot nikde neukáže, a postavit to.
+  Podrobnosti v `docs/poznatky/nastaveni.md`, „Synchronizace nastavení mezi zařízeními".
 - **Diskrétní čtení a psaní (Ghost Mode).** V Nastavení → Soukromí volba pro potlačení
   automatického odesílání potvrzení o přečtení (`viewMessages`) a indikátoru „Píše..."
   (`sendChatAction`). Zprávy se označí jako přečtené až při odeslání vlastní odpovědi v chatu

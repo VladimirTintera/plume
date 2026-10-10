@@ -6,8 +6,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -32,7 +34,7 @@ class AppLockTest {
         val clock = FakeClock()
         val foreground = MutableStateFlow(true)
         val auth = MutableStateFlow<AuthStage>(AuthStage.Ready)
-        val lock = AppLock(store, scope.backgroundScope, clock, iterations = 1)
+        val lock = AppLock(store, scope.backgroundScope, clock, iterations = 1, foregroundContext = EmptyCoroutineContext)
             .also { it.start(foreground, auth) }
     }
 
@@ -103,12 +105,12 @@ class AppLockTest {
         s.lock.enable("1234")
         repeat(FREE_ATTEMPTS - 1) { assertEquals(PinResult.Wrong(0), s.lock.verify("0000")) }
         val wrong = s.lock.verify("0000")
-        assertEquals(PinResult.Wrong(s.clock.wall + 30_000), wrong)
+        assertEquals(PinResult.Wrong(s.clock.elapsed + 30_000), wrong)
         assertIs<PinResult.Blocked>(s.lock.verify("1234"))
 
         // Nový proces: brzda platí dál.
         val again = Setup(this, store)
-        again.clock.wall = s.clock.wall
+        again.clock.elapsed = s.clock.elapsed
         runCurrent()
         assertIs<PinResult.Blocked>(again.lock.unlock("1234"))
         again.clock.advance(30_000)
@@ -125,11 +127,24 @@ class AppLockTest {
     }
 
     @Test
-    fun brzdaSeHodinamiNaZdiNeprotahne() {
-        val config = LockConfig(1, byteArrayOf(1), byteArrayOf(1), 60, false, FREE_ATTEMPTS, blockedUntil = 10_000_000)
-        // Hodiny se vrátily o den: brzda smí trvat nejvýš 30 s od teď.
-        assertEquals(1_030_000, effectiveBlockedUntil(config, now = 1_000_000))
-        assertEquals(0, effectiveBlockedUntil(config, now = 20_000_000))
+    fun hodinyPosunuteDopreduBrzduNezrusi() = runTest {
+        val s = Setup(this)
+        runCurrent()
+        s.lock.enable("1234")
+        repeat(FREE_ATTEMPTS) { s.lock.verify("0000") }
+        s.clock.wall += 24 * 3_600_000L
+        assertIs<PinResult.Blocked>(s.lock.verify("1234"))
+    }
+
+    @Test
+    fun restartBrzduNezrusiANeprotahne() {
+        val config = LockConfig(1, byteArrayOf(1), byteArrayOf(1), 60, false, FREE_ATTEMPTS, failedAt = 10_000_000)
+        // Týž start systému: od chyby uběhlo 10 s.
+        assertEquals(20_000, blockRemaining(config, now = 10_010_000))
+        // Restart (čas od startu je menší než při chybě): uběhlo aspoň `now`, víc nevíme.
+        assertEquals(25_000, blockRemaining(config, now = 5_000))
+        assertEquals(0, blockRemaining(config, now = 60_000))
+        assertEquals(10_030_000, blockedUntil(config, now = 10_010_000))
     }
 
     @Test
@@ -144,10 +159,30 @@ class AppLockTest {
         repeat(FREE_ATTEMPTS) { s.lock.unlock("0000") }
         val locked = assertIs<AppLockState.Locked>(s.lock.state.value)
         assertTrue(locked.biometrics)
-        assertTrue(locked.blockedUntil > s.clock.wall)
+        assertTrue(locked.blockedUntil > s.clock.elapsed)
         s.lock.unlockWithBiometrics()
         assertEquals(AppLockState.Unlocked, s.lock.state.value)
         assertEquals(PinResult.Success, s.lock.verify("1234"))
+    }
+
+    /** Změněné otisky vypnou biometrii i na zamčené aplikaci; dál odemyká jen PIN. */
+    @Test
+    fun zmeneneOtiskyVypnouBiometriiZamceneAplikace() = runTest {
+        val s = Setup(this)
+        runCurrent()
+        s.lock.enable("1234")
+        s.lock.setBiometrics(true)
+        s.foreground.value = false; runCurrent()
+        s.clock.advance(60_000)
+        s.foreground.value = true; runCurrent()
+        assertTrue(assertIs<AppLockState.Locked>(s.lock.state.value).biometrics)
+
+        s.lock.revokeBiometrics()
+        assertFalse(assertIs<AppLockState.Locked>(s.lock.state.value).biometrics)
+        assertEquals(false, s.lock.settings.value?.biometrics)
+        s.lock.unlockWithBiometrics()
+        assertIs<AppLockState.Locked>(s.lock.state.value)
+        assertEquals(PinResult.Success, s.lock.unlock("1234"))
     }
 
     @Test

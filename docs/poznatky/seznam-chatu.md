@@ -57,9 +57,13 @@ skupina a Nová zpráva.
   se rovnou VYBERE — kdo si přidá „Nepřečtené", chce je vidět.
 - **Sheet říká, že se složka synchronizuje** s ostatními klienty. U filtru, který dřív žil jen
   v Plume, by to nikdo nečekal.
-- **Řádek složek se kreslí i bez složek** („Všechny chaty" a „+"), jinak by k doporučeným
-  nevedla z hlavního seznamu žádná cesta. Samotné „Všechny chaty" má plný tvar, ne půlku
-  spojené skupiny (`ToggleButtonDefaults.shapes()`).
+- **Bez složek se řádek NEKRESLÍ** (`folderTabs` vrátí prázdný seznam). Dřív v něm stálo
+  samotné „Všechny chaty" a „+", aby k doporučeným složkám vedla cesta z hlavního seznamu —
+  jenže jediné tlačítko, které nejde odvybrat, není volba, jen řádek místa navíc nad chaty
+  u každého, kdo složky nepoužívá. Uživatel ho chtěl pryč. Doporučené složky dál nabízí
+  Nastavení → Obecné → Složky chatů; po přidání první složky se řádek objeví i s „+".
+  Ověřeno na emulátoru (česky): účet bez složek bez řádku, přidaná doporučená „Unread" v Nastavení
+  řádek ukáže, a když se smaže, zatímco je vybraná, řádek zmizí a seznam je zase celý.
 - **„+" je mimo spojenou skupinu** (`OutlinedIconButton` s odstupem): je to akce, ne volba;
   ve skupině by se tvářil jako další složka.
 - **Prázdná složka má `IntroEmptyState` s ikonou složky** („Nic tu není") — chaty jsou, jen
@@ -95,8 +99,8 @@ skupina a Nová zpráva.
 
 Složky Telegramu (`ChatListFolder`) jsou řádek přepínacích tlačítek pod pilulkou hledání:
 „Všechny chaty · Práce 3 · Rodina…" (`ChatFolderRow`, pravidla `folderTabs` a `selectedFolderId`
-v `ChatFolderTabs.kt`, testy `ChatFolderTabsTest`). Bez složek je v řádku jen „Všechny chaty"
-a „+" (viz „Složky místo filtrů a FAB").
+v `ChatFolderTabs.kt`, testy `ChatFolderTabsTest`). Bez složek se řádek nekreslí vůbec
+(viz „Složky místo filtrů a FAB").
 
 - **Složka je další `ChatFolder` (`Custom(id)`), ne nový druh seznamu.** Repository drží pozice
   chatu ve VŠECH seznamech, které TDLib hlásí (`positions`), takže seznam složky se skládá
@@ -479,6 +483,54 @@ v ⋮ vrátí jednu konverzaci. Hranice je `SavedTopicsRepository` (`TdlSavedTop
   „naposledy nedávno" a přesný čas nedostaneme. Proto je `Presence` několik pojmenovaných stupňů,
   ne čas — dopočítávat minutu, kterou neznáme, by bylo horší než neurčitost.
 
+### Přehled konceptů
+
+Menu účtu → Koncepty (`DraftsSheet`): chaty s rozepsanou zprávou napříč složkami, nejčerstvější
+první, ťuknutí otevře chat s konceptem ve vstupním poli. Zdroj je `ChatRepository.drafts` nad
+všemi známými chaty (`all` v `TdlChatRepository`), ne nad jednou složkou.
+
+- **Sheet, ne obrazovka jako archiv.** Archiv je seznam, ve kterém se žije (vlastní rodina rout,
+  konverzace vedle v dvoupanelu). Koncepty jsou rozcestník; konverzace se otevře v hlavním seznamu
+  přes `onChatClick` / `onForumClick`, sheet napřed odjede a teprve pak se chat otevře.
+- **Položka v menu je jen s koncepty** a nese jejich počet v NEUTRÁLNÍ barvě — koncept je náš
+  rozdělaný text, nic, co by volalo o pozornost jako nepřečtené v archivu.
+- **Text konceptu na tři řádky**, ne jeden jako v řádku seznamu: tady je to jediné, co řádek říká.
+  Uložené zprávy se jmenují `chatTitle` (v TDLib nesou jméno účtu).
+- **`drafts` ve ViewModelu je `null`, dokud se nenačte.** S počáteční prázdnou hodnotou se sheet
+  obnovený po zániku procesu (`rememberSaveable`) hned zavřel — prázdný seznam pro něj znamená
+  „všechno odesláno" a zavírá se, aby nezůstal slepou uličkou. Ověřeno přeinstalací s otevřeným
+  sheetem.
+- **Jen chaty, které TDLib zná.** Koncept v chatu, který se v relaci ještě nenačetl (hluboko
+  v archivu), v přehledu není, dokud ho seznam nedotáhne. Koncepty v tématech fóra a vlákna
+  komentářů tu nejsou — `Chat.draftMessage` nese jen koncept celého chatu.
+- **Ověřeno na emulátoru**: koncept v Uložených se objevil nahoře, ťuknutí otevřelo konverzaci
+  s textem v poli, po smazání textu počet v menu živě klesl.
+- **Mazání z přehledu: koš u konceptu, bez potvrzení, se snackbarem „Vrátit"** — jako archivace.
+  `ChatRepository.deleteDraft` si koncept před smazáním přečte z TDLib (`getChat().draftMessage`)
+  a vrací `DraftRestore`, které ho vrátí CELÝ: `ChatSummary.draft` nese jen text a entity, ne
+  odpověď ani náhled odkazu. **Původní datum nezůstane**: i když se vrací původní `DraftMessage`
+  s jeho `date`, koncept má po vrácení čas vrácení (14:43 → 14:45 na emulátoru) a zařadí se
+  v přehledu nahoru.
+- **Smazaný řádek odjíždí animací a sheet mění výšku plynule.** `drafts` ho ztratí v jednom
+  snímku, takže si přehled odjíždějící řádky drží sám (`LeavingDrafts`) na jejich původním
+  místě a sbalí je `AnimatedVisibility`; vrácený koncept se rozbalí. Řádky se počítají
+  v `remember` přímo při kompozici, ne efektem — s efektem by první snímek bez konceptu řádek
+  ukázal bez něj a bliknul by. Zbytek skoků (snackbar) vyrovná `animateContentSize` kolem
+  seznamu. `animateItem` na to nestačí: seznam je vysoký jen na obsah, takže se zmenší hned
+  a mizící řádek ořízne. Ověřeno zpomalenými animacemi (`animator_duration_scale 8`).
+- **Snackbar je uvnitř sheetu a POD seznamem, ne přes něj.** Snackbar seznamu chatů by ležel pod
+  sheetem. Překrytý (`Box`) zase zakryl zbylý koncept: sheet je vysoký jen na obsah, takže po
+  smazání jednoho ze dvou konceptů zbyl řádek přesně pod snackbarem.
+- **Prázdný přehled se zavře až po doběhnutém snackbaru**, jinak by „Vrátit" posledního
+  konceptu odjelo se sheetem. Rozpracovaná smazání se počítají OD ŤUKNUTÍ: update, že koncept
+  zmizel, může přijít dřív než výsledek smazání. ViewModel proto výsledek ohlásí vždycky
+  (`DraftDeleted.restore` `null` = selhalo nebo nebylo co vracet), aby počítadlo kleslo. Po
+  „Vrátit" se ještě čeká (nejvýš 2 s), než vrácený koncept přijde updatem.
+- **Ověřeno na emulátoru** (Fold, česky, koncepty v Uložených a u testovacího bota): smazání
+  a „Vrátit" (koncept zpět v přehledu), smazání posledního (přehled otevřený se snackbarem, po
+  něm se zavřel). **Pozor při ověřování:** snackbar zmizí po 4 s a koš dalšího konceptu leží
+  přesně pod „Vrátit" — ťuknutí se zpožděním smaže další koncept.
+
 ### Archiv
 
 Archivované chaty jsou vlastní seznam (`ArchiveRoute`, `ArchiveScreen`), vstup je menu účtu
@@ -549,11 +601,12 @@ snackbar s „Vrátit".
 - **Ikona na podkladu patří k hraně, ze které se tah odkrývá** (doleva tedy vpravo od popisku,
   doprava vlevo). S pevným pořadím se při tahu doleva odkryl jako první konec věty, ze kterého
   není poznat, co se stane.
-- **Archivace tahem jde na OBĚ strany a obě dělají totéž.** Druhá akce v seznamu není, takže by
-  si uživatel musel pamatovat směr pro nic. Nepotvrzuje se — snackbar „Vrátit" je tentýž jako
-  u archivace z nabídky. Uložené zprávy tah nemají, stejně jako nemají položku v nabídce.
-- **`SwipeToDismissBox` se na tohle NEHODÍ a je pryč** (prah v `ArchiveSwipeGesture.kt`,
-  testy `ArchiveSwipeGestureTest`). Byl „hodně moc citlivý": při scrollování seznamu odlétaly
+- **Co tah udělá, volí uživatel zvlášť pro každou stranu** — viz „Akce tahem" níž. Výchozí je
+  archivace na obou stranách: dokud jiná akce nebyla, musel by si uživatel pamatovat směr pro
+  nic. Archivace se nepotvrzuje — snackbar „Vrátit" je tentýž jako u archivace z nabídky.
+  Uložené zprávy archivovat tahem nejdou, stejně jako nemají položku v nabídce.
+- **`SwipeToDismissBox` se na tohle NEHODÍ a je pryč** (prah v `ChatSwipeGesture.kt`,
+  testy `ChatSwipeGestureTest`). Byl „hodně moc citlivý": při scrollování seznamu odlétaly
   chaty do archivu. Dvě příčiny, ani jedna se zvenku vypnout nedá:
   - **Stojí na `draggable`, které si tah vezme po obyčejném touch slopu a je směrově
     agnostické.** Položka je potomek seznamu, takže gesto dostane dřív — a palec jde na začátku
@@ -565,7 +618,7 @@ snackbar s „Vrátit".
 - **Vlastní detektor rozhodne jednou za gesto** (`detectHorizontalSwipe`, sdílený s odkrýváním
   časů a odpovědí tahem v konverzaci, viz „Jeden detektor tahu do strany"): rozhoduje se až po DVOJNÁSOBKU touch slopu a jen když je
   vodorovná složka aspoň dvakrát větší než svislá; do té doby nic nespotřebovává, takže si
-  šikmý tah vezme seznam. Archivuje se při PUŠTĚNÍ po `archiveSwipeThreshold` (40 % šířky
+  šikmý tah vezme seznam. Akce se provede při PUŠTĚNÍ po `chatSwipeThreshold` (40 % šířky
   řádku, nejvýš 160 dp), rychlost se nepočítá vůbec. Prah ohlásí haptika, jako u odpovědi
   tahem v konverzaci.
 - **S vlastním detektorem odpadl hlídač dvojího odeslání.** `SwipeToDismissBox` hlásil dokončený
@@ -598,6 +651,39 @@ snackbar s „Vrátit".
 - **„Archivovat chaty od neznámých" povoluje server** (`can_archive_and_mute_new_chats_from_unknown_users`);
   kde ho nepovolí, TDLib zapnutí odmítne. Přepínač se tam proto nenabízí vůbec — přepínač,
   který skončí chybou, je horší než žádný.
+
+### Akce tahem
+
+Nastavení → Obecné → Chaty → „Tah doprava" / „Tah doleva": archivovat, přečteno, ztlumit,
+připnout, nebo nic (`ChatSwipeAction`, `AppSettings.chatSwipeActions`). Platí v hlavním seznamu,
+v archivu i ve složkách — všechny jsou `ChatListContent`.
+
+- **Akce se u chatu, kde už platí, otočí** (`chatSwipeEffect`, testy `ChatSwipeGestureTest`):
+  archivovaný se vrátí, ztlumený odtlumí, připnutý odepne, přečtený označí jako nepřečtený.
+  Tah tak jde vždycky vrátit týmž tahem a volba v Nastavení je sloveso, ne dvojice; že se
+  otáčí, říká věta nad výběrem. Ztlumení tahem je natrvalo, jako z lišty výběru.
+- **Směr je FYZICKÝ, ne začátek a konec řádku.** Tak o něm uživatel mluví; aplikace jazyk
+  psaný zprava doleva nemá.
+- **`pointerInput(Unit)` drží lambdy z PRVNÍHO snímku — i s chatem, který zachytily.** Druhý
+  tah po připnutí poslal `togglePinned` se starým `chat.isPinned = false`, takže chat
+  „připnul" znovu a podklad přitom správně hlásil „Odepnout" (ten se kreslí z čerstvého stavu).
+  Stejná past ležela i v původní archivaci tahem; nevadila jen proto, že archivovaný chat ze
+  seznamu zmizí. Proto `rememberUpdatedState` pro akce i pro `onSwipe` a ViewModel provádí
+  přesně efekt spočítaný při tahu (`swipe(chat, effect)`), ne přepnutí podle předaného chatu.
+  Klíčem `pointerInput` je jen SMĚR (kam táhnout jde), ne akce — ta se mění se stavem chatu.
+- **Ze seznamu odjíždí jen archivace** (`ChatSwipeEffect.leavesList`); ostatní akce chat
+  nechají na místě a řádek se po puštění vrátí. I odjetý řádek se po vteřině vrátí, pokud
+  ještě existuje (složka s archivovanými chaty, chyba od TDLib) — jinak v seznamu visel
+  neviditelný řádek, na který šlo ťuknout.
+- **Popisky na podkladu jsou krátké** („Přečteno", „Odtlumit", „Vrátit"), ne věty z nabídky.
+  Podklad je u prahu odkrytý jen ze 40 %, a „Označit jako nepřečtené" tam zůstalo z půlky pod
+  řádkem (ověřeno na emulátoru).
+- **Strana s „Nic" tah nebere** (`SwipeDirection.Left` / `Right`), takže si šikmý tah vezme
+  seznam a dlouhý stisk zůstane nabídce.
+- **Ověřeno na emulátoru (česky):** nastavení obou stran, připnutí a odepnutí tahem, „Nic"
+  doleva, nepřečteno a přečteno tahem, archivace doleva i „Vrátit" z archivu. Ztlumení tahem
+  ověřené není (zapisuje nastavení upozornění chatu účtu), jde ale stejnou cestou jako
+  „Ztlumit" z lišty výběru. **iOS jen přeložené.**
 
 ### Akce nad chatem
 

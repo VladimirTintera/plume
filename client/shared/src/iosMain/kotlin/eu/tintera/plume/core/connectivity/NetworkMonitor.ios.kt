@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import platform.Network.nw_interface_type_cellular
 import platform.Network.nw_interface_type_wifi
 import platform.Network.nw_path_get_status
+import platform.Network.nw_path_is_constrained
 import platform.Network.nw_path_monitor_cancel
 import platform.Network.nw_path_monitor_create
 import platform.Network.nw_path_monitor_set_queue
@@ -47,7 +48,18 @@ actual class NetworkMonitor {
     }
         // Zajímá nás poslední stav, ne fronta minulých; handler přitom nesmí čekat na odběratele.
         .buffer(Channel.CONFLATED)
+
+    /** Režim nízkých dat (`NWPath.isConstrained`) — obdoba spořiče dat na Androidu. */
+    actual val saveData: Flow<Boolean> = callbackFlow {
+        val monitor = nw_path_monitor_create()
+        nw_path_monitor_set_queue(monitor, dispatch_get_main_queue())
+        nw_path_monitor_set_update_handler(monitor) { path -> trySend(nw_path_is_constrained(path)) }
+        nw_path_monitor_start(monitor)
+        awaitClose { nw_path_monitor_cancel(monitor) }
+    }.buffer(Channel.CONFLATED)
 }
+
+actual val detectsRoaming: Boolean = false
 
 /**
  * Roaming `NWPath` nehlásí, takže mobilní data jsou vždycky [NetworkKind.Mobile]. Je to údaj pro

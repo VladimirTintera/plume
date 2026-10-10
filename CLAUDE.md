@@ -15,7 +15,8 @@ a hlášení pádů na Androidu, nabídka aktualizace z Play, sponzorované zpr�
 Není: hlášení pádů z iOS. Notifikace na iOS (APNs) jsou napojené, ale čekají na certifikát APNs u Telegramu a ověření skutečným pushem.
 Hledání umí chaty, veřejné chaty, zprávy napříč chaty i uvnitř jedné konverzace. Nastavení je list-detail se sekcemi Obecné, Notifikace, Vzhled, Zařízení, Úložiště a Co je nového; vědomě
 nastavitelné je téma aplikace (motiv a barvy z tapety), vyčlenění nepřečtených chatů do vlastního
-bloku a upozornění po rozsazích (soukromé chaty / skupiny / kanály) s výjimkami.
+bloku, upozornění po rozsazích (soukromé chaty / skupiny / kanály) s výjimkami, velikost písma
+zpráv, rychlá reakce dvojitým ťuknutím, odkazy v aplikaci, jazyk aplikace a tiché hodiny notifikací.
 Rozpracovaný detail chatu má vlastní seznam:
 [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md).
 
@@ -51,7 +52,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Ankety a kvízy](docs/poznatky/ankety.md) — hlasování, výsledky, zakládání, média v anketě, místa a poloha
 - [Hledání a zakládání chatů](docs/poznatky/hledani-a-zakladani-chatu.md) — hledání chatů a zpráv s filtry, nová konverzace, kontakty, založení skupiny a kanálu, ChatPicker
 - [Spam, nahlášení a blokování](docs/poznatky/spam-a-blokovani.md) — průvodce nahlášením, úklid spamu, pruh nad konverzací (ChatActionBar), seznam blokovaných
-- [Seznam chatů](docs/poznatky/seznam-chatu.md) — skupiny řádků, složky a FAB menu, ověření, hlavička s pilulkou, Uložené zprávy, archiv a tah do archivu, akce a výběr víc chatů
+- [Seznam chatů](docs/poznatky/seznam-chatu.md) — skupiny řádků, složky a FAB menu, ověření, hlavička s pilulkou, Uložené zprávy, přehled konceptů, archiv a tah do archivu, akce a výběr víc chatů
 - [Navigace](docs/poznatky/navigace.md) — Navigation3, list-detail scény, insety, přechody a predictive back, zásobník pro každou sekci
 - [Profil chatu](docs/poznatky/profil-chatu.md) — profil, členové a jejich správa, úprava skupiny, pozvánky, témata, sdílená média, historie fotek
 - [Prohlížeč médií a média](docs/poznatky/prohlizec-medii.md) — prohlížeč, video a PiP, GIFy, kolečka a jejich nahrávání, poloha a mapy, spoilery, mizející a citlivý obsah, FileRepository
@@ -619,6 +620,9 @@ vkus toho, kdo zrovna píše obrazovku.
   pak šipkou zpět odešla i konverzace a zbytek textu skončil v hledání seznamu chatů — bez
   jediného cizího příkazu (ověřeno v logu `adbd service requested`). Před psaním ověřit
   `focused="true"` ve výpisu a mezery psát jako `input text "%s"`, ne `keyevent 62`.
+  **Na přetíženém emulátoru `input text` ztrácí KONEC textu**: systém zahodí vložené události
+  starší než 10 s (`Dropped event because it is stale` v logu) a `input text` je razítkuje
+  všechny předem. Chyba aplikace to není; psát po pár znacích.
 
 - **`ExtendedFloatingActionButton(text = …, icon = …)` popisek skrývá před čtečkou obrazovky**
   (`clearAndSetSemantics` uvnitř animace rozbalení) — tlačítko pak ve stromu přístupnosti nemá

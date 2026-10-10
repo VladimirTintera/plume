@@ -22,6 +22,13 @@ expect class TelegramPaths {
      * jen by do zálohy putovala celá historie zpráv.
      */
     fun prepare()
+
+    /**
+     * Ladicí build. Řídí výpisy, které do release nepatří — třeba co server nabídl k doručení
+     * přihlašovacího kódu: release logcat zůstává zapnutý (viz `configureLogging`) a s ním by
+     * šlo i to, ke kterému číslu a jakou cestou kód odešel.
+     */
+    val isDebugBuild: Boolean
 }
 
 /** Popis zařízení, který se posílá serveru a zobrazuje v „Aktivní relace" v oficiálním klientovi. */

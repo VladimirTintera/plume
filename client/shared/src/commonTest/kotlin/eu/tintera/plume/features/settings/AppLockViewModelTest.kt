@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.lock.BiometricResult
+import eu.tintera.plume.core.lock.BiometricAuth
 import eu.tintera.plume.core.lock.AppLock
 import eu.tintera.plume.core.lock.LockClock
 import eu.tintera.plume.core.secrets.AppLockStore
@@ -13,6 +15,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -50,7 +53,7 @@ class AppLockViewModelTest {
         val clock = FakeClock()
         val foreground = MutableStateFlow(true)
         val auth = MutableStateFlow<AuthStage>(AuthStage.Ready)
-        val lock = AppLock(store, scope.backgroundScope, clock, iterations = 1, hashDispatcher = dispatcher)
+        val lock = AppLock(store, scope.backgroundScope, clock, iterations = 1, hashDispatcher = dispatcher, foregroundContext = EmptyCoroutineContext)
             .also { it.start(foreground, auth) }
         val vm = AppLockViewModel(lock)
     }
@@ -157,7 +160,12 @@ class AppLockViewModelTest {
         advanceUntilIdle()
         assertEquals(300, s.vm.settings.value?.timeoutSeconds)
 
-        s.vm.setBiometrics(true)
+        // Kde si platforma seznam otisků zapamatovat neumí, biometrie se nezapne.
+        s.vm.setBiometrics(true, FakeBiometrics(enrolls = false))
+        advanceUntilIdle()
+        assertTrue(s.vm.settings.value?.biometrics == false)
+
+        s.vm.setBiometrics(true, FakeBiometrics())
         advanceUntilIdle()
         assertTrue(s.vm.settings.value?.biometrics == true)
 
@@ -165,4 +173,31 @@ class AppLockViewModelTest {
         advanceUntilIdle()
         assertNull(s.vm.settings.value)
     }
+
+    /** Změněné otisky při vstupu do Nastavení: biometrie se vypne a obrazovka řekne proč. */
+    @Test
+    fun zmeneneOtiskyBiometriiVypnou() = runTest {
+        val s = Setup(this)
+        advanceUntilIdle()
+        s.vm.startSetup()
+        s.vm.onDigit(1); s.vm.onDigit(2); s.vm.onDigit(3); s.vm.onDigit(4)
+        s.vm.onDigit(1); s.vm.onDigit(2); s.vm.onDigit(3); s.vm.onDigit(4)
+        advanceUntilIdle()
+        s.vm.setBiometrics(true, FakeBiometrics())
+        advanceUntilIdle()
+
+        s.vm.onBiometricsVerify(FakeBiometrics(result = BiometricResult.Invalidated), "Odemknout")
+        advanceUntilIdle()
+        assertTrue(s.vm.settings.value?.biometrics == false)
+        assertEquals(BIOMETRICS_REVOKED, s.vm.uiState.value.errorMessage)
+    }
+}
+
+private class FakeBiometrics(
+    private val enrolls: Boolean = true,
+    private val result: BiometricResult = BiometricResult.Success,
+) : BiometricAuth {
+    override val isSupported = true
+    override suspend fun enroll() = enrolls
+    override suspend fun authenticate(title: String, subtitle: String?) = result
 }

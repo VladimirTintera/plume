@@ -2,18 +2,31 @@ package eu.tintera.plume
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.KeyEvent
+import android.view.KeyboardShortcutGroup
+import android.view.Menu
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.lifecycleScope
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.notifications.NotificationIntents
 import eu.tintera.plume.core.share.ShareIntake
+import eu.tintera.plume.core.ui.KeyboardShortcutOverview
+import eu.tintera.plume.core.ui.KeyboardShortcuts
+import eu.tintera.plume.core.ui.handle
+import eu.tintera.plume.core.ui.handleEscape
+import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 
 class MainActivity : ComponentActivity() {
 
     private val chatOpenRequests: ChatOpenRequests by inject()
     private val shareIntake: ShareIntake by inject()
+    private val keyboardShortcuts: KeyboardShortcuts by inject()
+
+    /** Texty pro systémový přehled zkratek; do načtení přehled Plume neukáže nic. */
+    private var shortcutOverview: KeyboardShortcutOverview? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Edge-to-edge je M3 default; insety si nanáší ten, kdo kreslí chrome (viz konvence v mlogu).
@@ -30,6 +43,14 @@ class MainActivity : ComponentActivity() {
         // O oprávnění k notifikacím se žádá až v přihlášené části aplikace, viz
         // NotificationPermissionPrompt — ne odsud, kde by dialog vyskočil nad přihlášením.
         setContent { App() }
+
+        lifecycleScope.launch { shortcutOverview = KeyboardShortcutOverview.load() }
+    }
+
+    /** Systémový přehled zkratek (Meta+/ na fyzické klávesnici). */
+    override fun onProvideKeyboardShortcuts(data: MutableList<KeyboardShortcutGroup>, menu: Menu?, deviceId: Int) {
+        super.onProvideKeyboardShortcuts(data, menu, deviceId)
+        shortcutOverview?.let { data += it.groups() }
     }
 
     /**
@@ -44,6 +65,15 @@ class MainActivity : ComponentActivity() {
         openChatFrom(intent)
         receiveShare(intent)
     }
+
+    /**
+     * Klávesové zkratky (Ctrl+K, Alt+šipky…) a Esc jako Zpět dřív, než klávesu dostane Compose —
+     * viz [KeyboardShortcuts] a [handleEscape]. Ostatní klávesy jdou dál beze změny.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean =
+        keyboardShortcuts.handle(event) ||
+            handleEscape(event) { onBackPressedDispatcher.onBackPressed() } ||
+            super.dispatchKeyEvent(event)
 
     /**
      * Sdílení z jiné aplikace. Soubory se musí zkopírovat hned, dokud platí oprávnění k jejich

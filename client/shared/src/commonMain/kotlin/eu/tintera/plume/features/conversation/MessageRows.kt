@@ -3,7 +3,6 @@ package eu.tintera.plume.features.conversation
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.ChatMessage
-import eu.tintera.plume.core.telegram.MAX_AUTOPLAY_ANIMATION_BYTES
 import eu.tintera.plume.core.files.opensInViewer
 import eu.tintera.plume.core.files.documentKind
 import eu.tintera.plume.core.files.DocumentKind
@@ -163,15 +162,12 @@ internal val MessageMedia.Document.showsLargePreview: Boolean
  *
  * Náhled od serveru má do 320 px a ve snímku přes většinu bubliny je vidět, že je malý. Originál
  * se ale stahuje sám, bez ťuknutí — proto jen obrázek, který umí nakreslit prohlížeč
- * ([opensInViewer], tedy i Coil v bublině), a jen do stropu ([MAX_DOCUMENT_PREVIEW_BYTES],
- * stejný jako u GIFů). Video, velký obrázek a formát, který neumíme, zůstanou u náhledu.
+ * ([opensInViewer], tedy i Coil v bublině), a jen do stropu [limit] — automatické stahování
+ * souborů podle sítě (`AutoDownloadLimits.maxFileBytes`). Video, velký obrázek a formát, který neumíme, zůstanou u náhledu.
  */
-internal val MessageMedia.Document.loadsOriginalPreview: Boolean
-    get() = showsLargePreview && documentKind(fileName, mimeType) == DocumentKind.Image &&
-        sizeBytes in 1..MAX_DOCUMENT_PREVIEW_BYTES && opensInViewer(fileName, mimeType)
-
-/** Strop souboru, který se kvůli velkému náhledu stáhne sám — stejný jako u GIFů. */
-internal const val MAX_DOCUMENT_PREVIEW_BYTES = MAX_AUTOPLAY_ANIMATION_BYTES
+internal fun MessageMedia.Document.loadsOriginalPreview(limit: Long): Boolean =
+    showsLargePreview && documentKind(fileName, mimeType) == DocumentKind.Image &&
+        sizeBytes in 1..limit && opensInViewer(fileName, mimeType)
 
 /**
  * Kreslí se náhled odkazu jako **karta ze dvou částí** — nahoře text zprávy v barvě bubliny,

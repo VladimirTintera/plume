@@ -19,6 +19,13 @@ interface FileRepository {
     fun file(fileId: Int): Flow<FileState>
 
     /**
+     * Živý stav souboru BEZ spuštění stahování: hotový soubor z disku, nebo průběh, když ho
+     * stahuje někdo jiný. Pro médium, které se podle nastavení samo stahovat nemá — už stažená
+     * fotka se ukázat musí, jen se kvůli ní nesmí nic stáhnout.
+     */
+    fun observe(fileId: Int): Flow<FileState>
+
+    /**
      * Průběh nahrávání souboru 0f–1f, nebo `null`, když se nenahrává. Na rozdíl od [file] nic
      * nespouští — nahrávání začne samo odesláním zprávy.
      */

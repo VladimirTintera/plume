@@ -1,11 +1,11 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.settings.MEDIUM_BYTES
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.MessageEntity
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
-import eu.tintera.plume.core.telegram.MAX_AUTOPLAY_ANIMATION_BYTES
 import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.features.conversation.items.albumRowSizes
 import kotlin.test.Test
@@ -215,10 +215,12 @@ class MessageRowsTest {
     @Test
     fun velkyGifSeSamNestahuje() {
         // Autoplay by bez ptaní snědl data; nad stropem se čeká na ťuknutí.
-        assertTrue(animation().autoPlays)
-        assertFalse(animation(sizeBytes = MAX_AUTOPLAY_ANIMATION_BYTES + 1).autoPlays)
+        assertTrue(animation().autoPlaysWithin(MEDIUM_BYTES))
+        assertFalse(animation(sizeBytes = MEDIUM_BYTES + 1).autoPlaysWithin(MEDIUM_BYTES))
         // Neznámá velikost (nula od serveru) se taky nepouští sama — nevíme, co by se stáhlo.
-        assertFalse(animation(sizeBytes = 0).autoPlays)
+        assertFalse(animation(sizeBytes = 0).autoPlaysWithin(MEDIUM_BYTES))
+        // Vypnuté stahování (strop nula) nepustí nic.
+        assertFalse(animation().autoPlaysWithin(0))
     }
 
     @Test
@@ -271,12 +273,14 @@ class MessageRowsTest {
 
     @Test
     fun originalSeStahujeJenMalyObrazek() {
-        assertTrue(imageFile().loadsOriginalPreview)
-        assertFalse(imageFile(sizeBytes = MAX_DOCUMENT_PREVIEW_BYTES + 1).loadsOriginalPreview)
+        assertTrue(imageFile().loadsOriginalPreview(MEDIUM_BYTES))
+        assertFalse(imageFile(sizeBytes = MEDIUM_BYTES + 1).loadsOriginalPreview(MEDIUM_BYTES))
         // Neznámá velikost se nestahuje, stejně jako u GIFů.
-        assertFalse(imageFile(sizeBytes = 0).loadsOriginalPreview)
+        assertFalse(imageFile(sizeBytes = 0).loadsOriginalPreview(MEDIUM_BYTES))
         // Video zůstává u náhledu.
-        assertFalse(imageFile(fileName = "klip.mp4").loadsOriginalPreview)
+        assertFalse(imageFile(fileName = "klip.mp4").loadsOriginalPreview(MEDIUM_BYTES))
+        // Bez automatického stahování souborů zůstane u náhledu i malý obrázek.
+        assertFalse(imageFile().loadsOriginalPreview(0))
     }
 
     @Test

@@ -16,10 +16,10 @@ class ChatFolderTabsTest {
     )
 
     @Test
-    fun bezSlozekJeVRadkuJenCelySeznam() {
-        val tabs = folderTabs(ChatFolders(), emptyMap(), selected = null)
-        assertEquals(listOf<Int?>(null), tabs.map { it.id })
-        assertTrue(tabs.single().selected)
+    fun bezSlozekSeRadekNekresli() {
+        assertTrue(folderTabs(ChatFolders(), emptyMap(), selected = null).isEmpty())
+        // Uložená volba smazané složky na tom nic nemění.
+        assertTrue(folderTabs(ChatFolders(), emptyMap(), selected = 5).isEmpty())
     }
 
     @Test

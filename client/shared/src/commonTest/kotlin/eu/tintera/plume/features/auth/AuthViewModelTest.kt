@@ -7,13 +7,19 @@ import eu.tintera.plume.core.telegram.CodeDelivery
 import eu.tintera.plume.core.telegram.Country
 import eu.tintera.plume.core.telegram.PhoneNumberDetails
 import eu.tintera.plume.core.telegram.TelegramSession
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.auth_error_resend
+import eu.tintera.plume.resources.error_code_resend_unavailable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
@@ -74,7 +80,7 @@ class AuthViewModelTest {
         viewModel.submitInput(" 123456 ")
         assertEquals(listOf("123456"), session.checkedCodes)
         assertEquals(PasswordStep.NewPassword, viewModel.passwordStep.value)
-        assertEquals("", viewModel.input.value)
+        assertEquals("", viewModel.input)
 
         viewModel.onHintChange("kočka")
         viewModel.submitInput("nove heslo ")
@@ -94,7 +100,7 @@ class AuthViewModelTest {
         assertEquals(PasswordStep.RecoveryCode, viewModel.passwordStep.value)
         assertNotNull(viewModel.error.value)
         // Pole se po chybě nemaže — překlep se opravuje, ne přepisuje celý.
-        assertEquals("000000", viewModel.input.value)
+        assertEquals("000000", viewModel.input)
     }
 
     @Test
@@ -115,7 +121,7 @@ class AuthViewModelTest {
         viewModel.back()
         assertEquals(PasswordStep.RecoveryCode, viewModel.passwordStep.value)
         // Kód byl platný — návrat kvůli e-mailu nemá nutit psát ho znovu.
-        assertEquals("123456", viewModel.input.value)
+        assertEquals("123456", viewModel.input)
 
         viewModel.back()
         assertEquals(PasswordStep.Password, viewModel.passwordStep.value)
@@ -135,6 +141,84 @@ class AuthViewModelTest {
         advanceUntilIdle()
 
         assertEquals(1, session.restarts)
+    }
+
+    @Test
+    fun kodJinakAzPoUplynutiLhuty() = runTest {
+        val session = FakeSession(
+            AuthStage.WaitCode(AuthCode(5, CodeDelivery.TelegramApp), next = CodeDelivery.Sms, resendTimeout = 3),
+        )
+        val viewModel = AuthViewModel(session)
+        runCurrent()
+        assertEquals(3, viewModel.resendIn.value)
+
+        // Před koncem lhůty by TDLib odmítl; místo chyby se nic nepošle.
+        viewModel.resendCode()
+        runCurrent()
+        assertEquals(0, session.resends)
+
+        advanceTimeBy(2_000)
+        runCurrent()
+        assertEquals(1, viewModel.resendIn.value)
+        advanceTimeBy(1_000)
+        runCurrent()
+        assertEquals(0, viewModel.resendIn.value)
+
+        viewModel.onInputChange("12")
+        viewModel.resendCode()
+        runCurrent()
+        assertEquals(1, session.resends)
+        // Nový kód bude jiný, rozepsaný se zahodí.
+        assertEquals("", viewModel.input)
+
+        // Kód odešel SMS a server nabízí ještě hovor — lhůta se odpočítává znovu.
+        session.stage.value = AuthStage.WaitCode(AuthCode(6, CodeDelivery.Sms), next = CodeDelivery.Call, resendTimeout = 60)
+        runCurrent()
+        assertEquals(60, viewModel.resendIn.value)
+    }
+
+    @Test
+    fun bezDalsiCestySeKodJinakNeposila() = runTest {
+        val session = FakeSession(AuthStage.WaitCode(AuthCode(5, CodeDelivery.Sms)))
+        val viewModel = AuthViewModel(session)
+        advanceUntilIdle()
+
+        viewModel.resendCode()
+        advanceUntilIdle()
+
+        assertEquals(0, session.resends)
+    }
+
+    @Test
+    fun chybaPriPoslaniJinakJeVetaNeHlaskaZTdlib() = runTest {
+        val session = FakeSession(AuthStage.WaitCode(AuthCode(5, CodeDelivery.TelegramApp), next = CodeDelivery.Sms))
+        val viewModel = AuthViewModel(session)
+        advanceUntilIdle()
+
+        session.resendResult = Result.failure(IllegalStateException("SEND_CODE_UNAVAILABLE"))
+        viewModel.resendCode()
+        advanceUntilIdle()
+        assertEquals(UiText(Res.string.error_code_resend_unavailable), viewModel.error.value)
+
+        // Neznámá hláška spadne na naši větu, ne na text od TDLib.
+        session.resendResult = Result.failure(IllegalStateException("Something unexpected"))
+        viewModel.resendCode()
+        advanceUntilIdle()
+        assertEquals(UiText(Res.string.auth_error_resend), viewModel.error.value)
+    }
+
+    @Test
+    fun odchodZKoduOdpocetZrusi() = runTest {
+        val session = FakeSession(
+            AuthStage.WaitCode(AuthCode(5, CodeDelivery.TelegramApp), next = CodeDelivery.Sms, resendTimeout = 30),
+        )
+        val viewModel = AuthViewModel(session)
+        runCurrent()
+
+        session.stage.value = AuthStage.WaitPassword(hint = null)
+        runCurrent()
+
+        assertEquals(0, viewModel.resendIn.value)
     }
 
     @Test
@@ -179,7 +263,62 @@ class AuthViewModelTest {
         advanceUntilIdle()
 
         assertEquals(PasswordStep.Password, viewModel.passwordStep.value)
-        assertEquals("", viewModel.hint.value)
+        assertEquals("", viewModel.hint)
+    }
+
+    @Test
+    fun prihlasenyUzivatelZemeNenacita() = runTest {
+        val session = FakeSession(AuthStage.Ready)
+        val viewModel = AuthViewModel(session)
+        advanceUntilIdle()
+
+        assertEquals(0, session.countryRequests)
+        assertTrue(viewModel.countries.value.isEmpty())
+    }
+
+    @Test
+    fun zemeSeNactouAzPriZadaniCisla() = runTest {
+        val session = FakeSession(AuthStage.Connecting)
+        session.countryList = listOf(CZECHIA, GERMANY)
+        session.suggestedCode = "cz"
+        val viewModel = AuthViewModel(session)
+        advanceUntilIdle()
+        assertEquals(0, session.countryRequests)
+
+        session.stage.value = AuthStage.WaitPhoneNumber
+        advanceUntilIdle()
+
+        assertEquals(1, session.countryRequests)
+        assertEquals(listOf(CZECHIA, GERMANY), viewModel.countries.value)
+        assertEquals(CZECHIA, viewModel.phone.country)
+    }
+
+    @Test
+    fun navratKCisluZemeNenacitaZnovu() = runTest {
+        val session = FakeSession(AuthStage.WaitPhoneNumber)
+        session.countryList = listOf(CZECHIA)
+        AuthViewModel(session)
+        advanceUntilIdle()
+
+        session.stage.value = AuthStage.WaitCode(AuthCode(5, CodeDelivery.Sms))
+        advanceUntilIdle()
+        session.stage.value = AuthStage.WaitPhoneNumber
+        advanceUntilIdle()
+
+        assertEquals(1, session.countryRequests)
+    }
+
+    @Test
+    fun rucniVolbuOdhadZemeNeprepise() = runTest {
+        val session = FakeSession(AuthStage.WaitPhoneNumber)
+        session.countryList = listOf(CZECHIA, GERMANY)
+        session.suggestedCode = "CZ"
+        val viewModel = AuthViewModel(session)
+
+        viewModel.selectCountry(GERMANY)
+        advanceUntilIdle()
+
+        assertEquals(GERMANY, viewModel.phone.country)
     }
 
     private lateinit var session: FakeSession
@@ -216,6 +355,14 @@ private class FakeSession(initial: AuthStage) : TelegramSession {
     override suspend fun start() = Unit
     override suspend fun submitPhoneNumber(phoneNumber: String) = Result.success(Unit)
     override suspend fun submitCode(code: String) = Result.success(Unit)
+
+    var resends = 0
+    var resendResult: Result<Unit> = Result.success(Unit)
+    override suspend fun resendCode(): Result<Unit> {
+        resends++
+        return resendResult
+    }
+
     override suspend fun submitPassword(password: String): Result<Unit> {
         passwords += password
         return Result.success(Unit)
@@ -242,11 +389,23 @@ private class FakeSession(initial: AuthStage) : TelegramSession {
         return Result.success(Unit)
     }
 
-    override suspend fun countries(): Result<List<Country>> = Result.success(emptyList())
-    override suspend fun suggestedCountryCode(): Result<String> = Result.failure(UnsupportedOperationException())
+    var countryRequests = 0
+    var countryList: List<Country> = emptyList()
+    var suggestedCode: String? = null
+
+    override suspend fun countries(): Result<List<Country>> {
+        countryRequests++
+        return Result.success(countryList)
+    }
+
+    override suspend fun suggestedCountryCode(): Result<String> =
+        suggestedCode?.let { Result.success(it) } ?: Result.failure(UnsupportedOperationException())
     override suspend fun phoneNumberInfo(prefix: String): Result<PhoneNumberDetails> =
         Result.failure(UnsupportedOperationException())
 
     override suspend fun logOut() = Result.success(Unit)
     override suspend fun me(): Result<AccountInfo> = Result.failure(UnsupportedOperationException())
 }
+
+private val CZECHIA = Country(code = "CZ", name = "Czechia", englishName = "Czechia", flagEmoji = "", callingCode = "+420")
+private val GERMANY = Country(code = "DE", name = "Germany", englishName = "Germany", flagEmoji = "", callingCode = "+49")

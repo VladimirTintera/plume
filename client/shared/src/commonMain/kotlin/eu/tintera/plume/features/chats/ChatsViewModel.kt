@@ -7,8 +7,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.settings.ChatSwipeActions
 import eu.tintera.plume.core.telegram.ArchiveSettings
 import eu.tintera.plume.core.telegram.ArchiveUnread
+import eu.tintera.plume.core.telegram.DraftRestore
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatFolders
 import eu.tintera.plume.core.telegram.ChatFolderMembership
@@ -256,6 +258,49 @@ class ChatsViewModel(
      */
     val archiveUnread: StateFlow<ArchiveUnread> = repository.archiveUnread
 
+    /**
+     * Chaty s rozepsanou zprávou — přehled konceptů z menu účtu. `null`, dokud se nenačtou:
+     * prázdný seznam znamená „žádné koncepty" a přehled se při něm zavře.
+     */
+    val drafts: StateFlow<List<ChatSummary>?> = repository.drafts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val _draftDeleted = MutableStateFlow<DraftDeleted?>(null)
+
+    /** Koncept smazaný z přehledu — přehled ukáže snackbar s „Vrátit" a událost vynuluje. */
+    val draftDeleted: StateFlow<DraftDeleted?> = _draftDeleted.asStateFlow()
+
+    /**
+     * Smaže koncept z přehledu. Ve `viewModelScope`: zavřený přehled nesmí smazání přerušit.
+     * Výsledek se ohlásí VŽDY, i bez čeho vracet — přehled podle něj pozná, že smazání doběhlo.
+     */
+    fun deleteDraft(chat: ChatSummary) {
+        viewModelScope.launch {
+            val restore = repository.deleteDraft(chat.id)
+                .onFailure {
+                    logger.w(it) { "Smazání konceptu v chatu ${chat.id} selhalo." }
+                    reportFailure(it)
+                }
+                .getOrNull()
+            _draftDeleted.value = DraftDeleted(chat.id, restore)
+        }
+    }
+
+    fun consumeDraftDeleted() {
+        _draftDeleted.value = null
+    }
+
+    /** „Vrátit" ve snackbaru přehledu konceptů. */
+    fun undoDeleteDraft(deleted: DraftDeleted) {
+        val restore = deleted.restore ?: return
+        viewModelScope.launch {
+            restore.restore().onFailure {
+                logger.w(it) { "Vrácení konceptu v chatu ${deleted.chatId} selhalo." }
+                reportFailure(it)
+            }
+        }
+    }
+
     private val _archiveSettings = MutableStateFlow<ArchiveSettings?>(null)
 
     /**
@@ -336,6 +381,9 @@ class ChatsViewModel(
      * seznam ho tedy má v prvním snímku a neproblikne z výchozí hodnoty na uloženou.
      */
     val separateUnreadChats: StateFlow<Boolean> = settings.separateUnreadChats
+
+    /** Co dělá tah chatem doprava a doleva (Nastavení → Obecné → Chaty). */
+    val swipeActions: StateFlow<ChatSwipeActions> = settings.chatSwipeActions
 
     /** Hledání v hlavičce seznamu (chaty, veřejné chaty i zprávy). Archiv hledání nemá, u něj zůstane bez dotazu a nic nehledá. */
     val search = ChatSearch(repository, viewModelScope, everywhere = true)
@@ -520,12 +568,31 @@ class ChatsViewModel(
      * Do archivu a zpátky. Vratné, takže bez potvrzení — místo něj snackbar s „Vrátit"
      * ([ChatActionsState.archived]), jako u odepnutí zprávy.
      */
-    fun toggleArchived(chat: ChatSummary) {
-        val archived = !chat.isArchived
+    fun toggleArchived(chat: ChatSummary) = setArchived(chat, !chat.isArchived)
+
+    private fun setArchived(chat: ChatSummary, archived: Boolean) {
         run(chat.id, onSuccess = {
             _actions.update { it.copy(archived = ArchiveChange(chat.id, archived)) }
         }) {
             repository.setArchived(chat.id, archived)
+        }
+    }
+
+    /**
+     * Tah chatem do strany. Provede se přesně [effect], ne přepnutí podle [chat]: efekt se
+     * počítá z čerstvého stavu při tahu, kdežto chat může být z dřívějšího snímku. Ztlumení
+     * tahem je natrvalo, jako z lišty výběru — doba se tahem zvolit nedá a zrušit jde týmž tahem.
+     */
+    internal fun swipe(chat: ChatSummary, effect: ChatSwipeEffect) {
+        when (effect) {
+            ChatSwipeEffect.Archive -> setArchived(chat, archived = true)
+            ChatSwipeEffect.Unarchive -> setArchived(chat, archived = false)
+            ChatSwipeEffect.MarkRead -> run(chat.id) { repository.readChat(chat.id) }
+            ChatSwipeEffect.MarkUnread -> run(chat.id) { repository.setMarkedAsUnread(chat.id, true) }
+            ChatSwipeEffect.Mute -> mute(chat, duration = null)
+            ChatSwipeEffect.Unmute -> unmute(chat)
+            ChatSwipeEffect.Pin -> run(chat.id) { repository.setPinned(chat.id, chat.folder, true) }
+            ChatSwipeEffect.Unpin -> run(chat.id) { repository.setPinned(chat.id, chat.folder, false) }
         }
     }
 
@@ -792,3 +859,9 @@ data class NewFolderChats(
     val sheetOpen: Boolean = false,
     val busy: Boolean = false,
 )
+
+/**
+ * Doběhlé smazání konceptu z přehledu a jak ho vrátit; [restore] `null` = smazání selhalo, nebo
+ * koncept mezitím zmizel sám. Instance je událost — dvě smazání se neslijí.
+ */
+class DraftDeleted(val chatId: Long, val restore: DraftRestore?)

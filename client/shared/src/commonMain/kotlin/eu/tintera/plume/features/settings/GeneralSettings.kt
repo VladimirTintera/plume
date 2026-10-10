@@ -31,7 +31,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
- * Sekce „Obecné": kdo je přihlášený, blokovaní, AI v zařízení a odhlášení. Stav notifikací je v sekci Notifikace.
+ * Sekce „Obecné": kdo je přihlášený, jazyk, blokovaní, AI v zařízení a odhlášení. Stav notifikací je v sekci Notifikace.
  *
  * Je to obsah do sloupce sekce, ne celá obrazovka — hlavičku a scrollování drží
  * [SettingsSectionScreen].
@@ -84,8 +84,10 @@ fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onO
         }
     }
 
-    // Chaty: složky. Vlastní sekce by měla jednu položku.
-    ChatsSettings(onOpenFolders = onOpenFolders)
+    LanguageSettings()
+
+    // Chaty: složky a akce tahem. Vlastní sekce by měla dvě položky.
+    ChatsSettings(swipe = koinViewModel(), quickReaction = koinViewModel(), onOpenFolders = onOpenFolders)
 
     // Soukromí: blokovaní, citlivý obsah a dvoufázové ověření. V Obecných, samostatná sekce by měla dvě položky.
     PrivacySettings(

@@ -13,6 +13,10 @@ import dev.g000sha256.tdl.dto.MessageChatOwnerLeft
 import dev.g000sha256.tdl.dto.MessageChecklistTasksAdded
 import dev.g000sha256.tdl.dto.MessageChecklistTasksDone
 import dev.g000sha256.tdl.dto.MessageDirectMessagePriceChanged
+import dev.g000sha256.tdl.dto.MessageExpiredPhoto
+import dev.g000sha256.tdl.dto.MessageExpiredVideo
+import dev.g000sha256.tdl.dto.MessageExpiredVideoNote
+import dev.g000sha256.tdl.dto.MessageExpiredVoiceNote
 import dev.g000sha256.tdl.dto.MessageGift
 import dev.g000sha256.tdl.dto.MessageGiftedGrams
 import dev.g000sha256.tdl.dto.MessageGiftedPremium
@@ -72,6 +76,10 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.durationUiText
 import eu.tintera.plume.core.ui.distanceUiText
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.content_expired_photo
+import eu.tintera.plume.resources.content_expired_video
+import eu.tintera.plume.resources.content_expired_video_note
+import eu.tintera.plume.resources.content_expired_voice_note
 import eu.tintera.plume.resources.service_bot_created
 import eu.tintera.plume.resources.service_bot_write_access
 import eu.tintera.plume.resources.service_community_added
@@ -291,6 +299,16 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
 
     // Kontakt NENÍ servisní zpráva — jen vypadá podobně. Popisuje ho previewText.
     is MessageContact -> null
+
+    /*
+     * Mizející médium, které vypršelo. Je to oznámení o tom, co se se zprávou STALO, ne obsah od
+     * odesílatele: v bublině se „Fotka vypršela" četla, jako by to protistrana napsala. Soubor
+     * už na serveru není, takže není co ukázat ani stáhnout.
+     */
+    is MessageExpiredPhoto -> UiText(Res.string.content_expired_photo)
+    is MessageExpiredVideo -> UiText(Res.string.content_expired_video)
+    is MessageExpiredVideoNote -> UiText(Res.string.content_expired_video_note)
+    is MessageExpiredVoiceNote -> UiText(Res.string.content_expired_voice_note)
 
     /*
      * `MessagePassportDataReceived`, `MessageWebAppDataReceived` a `MessagePaymentSuccessfulBot`

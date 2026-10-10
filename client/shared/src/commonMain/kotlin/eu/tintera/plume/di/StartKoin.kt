@@ -1,6 +1,7 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.core.logging.configureLogging
+import eu.tintera.plume.core.settings.AutoDownloadSync
 import eu.tintera.plume.core.storage.StorageCleaner
 import eu.tintera.plume.core.telegram.ConnectionController
 import eu.tintera.plume.core.telegram.NotificationPresenter
@@ -46,5 +47,9 @@ fun startKoin(configure: KoinApplication.() -> Unit = {}): KoinApplication {
         // Úklid starých médií podle „Uchovávat média". Od startu procesu ze stejného důvodu:
         // aplikace může běžet dny, aniž by se otevřelo Nastavení.
         koin.get<StorageCleaner>().start()
+
+        // Automatické stahování ze serveru po přihlášení. Od startu, protože přihlášení
+        // (a odhlášení, po kterém se má příště stáhnout) se nesmí propásnout.
+        koin.get<AutoDownloadSync>().start()
     }
 }

@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.lock
 
+import androidx.compose.ui.text.style.TextAlign
+import eu.tintera.plume.resources.app_lock_biometrics_revoked
+import eu.tintera.plume.core.lock.BiometricResult
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,16 +36,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigationevent.NavigationEventInfo
-import androidx.navigationevent.compose.NavigationBackHandler
-import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.tintera.plume.core.lock.APP_LOCK_PIN_LENGTH
 import eu.tintera.plume.core.lock.AppLock
 import eu.tintera.plume.core.lock.AppLockState
 import eu.tintera.plume.core.lock.PinResult
 import eu.tintera.plume.core.lock.SystemLockClock
 import eu.tintera.plume.core.lock.rememberBiometricAuth
-import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.ui.PinDots
 import eu.tintera.plume.core.ui.PinKeypad
 import eu.tintera.plume.core.ui.confirm
@@ -62,7 +61,7 @@ import org.jetbrains.compose.resources.stringResource
 /**
  * Celoobrazovkový zámek aplikace zobrazený při [AppLockState.Locked].
  *
- * Tlačítko Zpět minimalizuje aplikaci do pozadí ([rememberReturnToCaller]).
+ * Skládá se do vlastního okna ([LockWindow]), které obsluhuje i Zpět.
  */
 @Composable
 fun LockScreen(
@@ -71,13 +70,6 @@ fun LockScreen(
 ) {
     val state by appLock.state.collectAsStateWithLifecycle()
     val lockedState = state as? AppLockState.Locked ?: return
-
-    val returnToCaller = rememberReturnToCaller()
-    NavigationBackHandler(
-        state = rememberNavigationEventState(NavigationEventInfo.None),
-        isBackEnabled = true,
-        onBackCompleted = returnToCaller,
-    )
 
     val biometricAuth = rememberBiometricAuth()
     val haptics = LocalHapticFeedback.current
@@ -88,34 +80,46 @@ fun LockScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isChecking by remember { mutableStateOf(false) }
 
+    // Otisky v telefonu se změnily a biometrie se vypnula: zámek musí říct proč, jinak by
+    // ikona otisku prostě zmizela a vypadalo by to jako chyba.
+    var biometricsRevoked by rememberSaveable { mutableStateOf(false) }
+    val tryBiometrics: suspend () -> Unit = {
+        when (biometricAuth.authenticate(title = readString(Res.string.app_lock_biometrics_prompt))) {
+            BiometricResult.Success -> {
+                haptics.confirm()
+                appLock.unlockWithBiometrics()
+            }
+            BiometricResult.Invalidated -> {
+                haptics.reject()
+                biometricsRevoked = true
+                appLock.revokeBiometrics()
+            }
+            BiometricResult.Failed -> Unit
+        }
+    }
+
     // Automatické spuštění biometrie jednou po zobrazení
     var autoPrompted by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(lockedState.biometrics, biometricAuth.isSupported) {
         if (!autoPrompted && lockedState.biometrics && biometricAuth.isSupported) {
             autoPrompted = true
-            val success = biometricAuth.authenticate(
-                title = readString(Res.string.app_lock_biometrics_prompt),
-            )
-            if (success) {
-                haptics.confirm()
-                appLock.unlockWithBiometrics()
-            }
+            tryBiometrics()
         }
     }
 
     // Odpočet brzdy pokusů
-    var now by remember { mutableLongStateOf(SystemLockClock.wallMillis()) }
+    var now by remember { mutableLongStateOf(SystemLockClock.elapsedMillis()) }
     val isBlocked = lockedState.blockedUntil > now
     val remainingSeconds = if (isBlocked) {
         ((lockedState.blockedUntil - now + 999) / 1000).coerceAtLeast(1)
     } else 0
 
     LaunchedEffect(lockedState.blockedUntil) {
-        while (lockedState.blockedUntil > SystemLockClock.wallMillis()) {
-            now = SystemLockClock.wallMillis()
+        while (lockedState.blockedUntil > SystemLockClock.elapsedMillis()) {
+            now = SystemLockClock.elapsedMillis()
             delay(500L)
         }
-        now = SystemLockClock.wallMillis()
+        now = SystemLockClock.elapsedMillis()
     }
 
     Surface(
@@ -173,6 +177,14 @@ fun LockScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
+                } else if (biometricsRevoked) {
+                    // Není to chyba uživatele, takže ne v chybové barvě.
+                    Text(
+                        text = stringResource(Res.string.app_lock_biometrics_revoked),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
                 } else {
                     Spacer(Modifier.height(20.dp))
                 }
@@ -225,17 +237,7 @@ fun LockScreen(
                         errorMessage = null
                     }
                 },
-                onBiometrics = {
-                    scope.launch {
-                        val success = biometricAuth.authenticate(
-                            title = readString(Res.string.app_lock_biometrics_prompt),
-                        )
-                        if (success) {
-                            haptics.confirm()
-                            appLock.unlockWithBiometrics()
-                        }
-                    }
-                },
+                onBiometrics = { scope.launch { tryBiometrics() } },
                 isBiometricsEnabled = lockedState.biometrics && biometricAuth.isSupported,
                 isEnabled = !isBlocked && !isChecking,
                 modifier = Modifier.padding(bottom = 16.dp),

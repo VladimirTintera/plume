@@ -1,10 +1,14 @@
 package eu.tintera.plume.core.connectivity
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.Build
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
@@ -15,7 +19,7 @@ import kotlinx.coroutines.channels.Channel
  * Stav sítě z `ConnectivityManager`. Potřebuje oprávnění `ACCESS_NETWORK_STATE` (normální,
  * nežádá se za běhu).
  */
-actual class NetworkMonitor(context: Context) {
+actual class NetworkMonitor(private val context: Context) {
 
     private val manager = context.getSystemService(ConnectivityManager::class.java)
 
@@ -62,7 +66,32 @@ actual class NetworkMonitor(context: Context) {
     }
         // Zajímá nás poslední stav, ne fronta minulých. Callback přitom nesmí čekat na odběratele.
         .buffer(Channel.CONFLATED)
+
+    /*
+     * Spořič dat se síťovým callbackem neohlásí — změnu posílá jen vysílání
+     * `ACTION_RESTRICT_BACKGROUND_CHANGED`, a to jen přijímačům registrovaným za běhu.
+     * Výjimka pro aplikaci (`…_WHITELISTED`) znamená, že uživatel Plume data povolil.
+     */
+    actual val saveData: Flow<Boolean> = callbackFlow {
+        fun current() = manager.restrictBackgroundStatus == ConnectivityManager.RESTRICT_BACKGROUND_STATUS_ENABLED
+
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                trySend(current())
+            }
+        }
+        trySend(current())
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            IntentFilter(ConnectivityManager.ACTION_RESTRICT_BACKGROUND_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        awaitClose { context.unregisterReceiver(receiver) }
+    }.buffer(Channel.CONFLATED)
 }
+
+actual val detectsRoaming: Boolean = true
 
 private fun kindOf(capabilities: NetworkCapabilities?): NetworkKind = when {
     capabilities == null -> NetworkKind.None

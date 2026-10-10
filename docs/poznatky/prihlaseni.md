@@ -47,6 +47,17 @@ Jedna obrazovka pro všechny fáze (`AuthScreen`), fáze se střídají v `Anima
   k zadání čísla, protože k němu automat míří — jinak by se tvar hned po náběhu proanimoval
   podruhé a vypadalo by to jako zadrhnutí. Kód a heslo jsou taky jeden krok: mezi nimi se
   nepřechází tam a zpět.
+- **Text polí je Compose stav ve ViewModelu** (`AuthViewModel.input`, `hint`, `phone`), ne
+  `StateFlow` — stejně jako u úpravy profilu. Hodnota ze `StateFlow` se do pole dostane až
+  dalším průchodem collectoru a znak napsaný mezitím by pole překreslilo se starou hodnotou.
+  **Na zařízení se tím ztráta znaků nepozorovala; je to prevence známé pasti, ne oprava.**
+- **Ztracené znaky po `adb shell input text` na emulátoru zahodil SYSTÉM, ne aplikace.**
+  Roadmapa vedla „rychlý `input text` přeháže znaky"; měřením (8. 10. 2026, starý i nový build)
+  chyběl vždy jen KONEC textu, nikdy prostředek, a v logu bylo `InputDispatcher: Dropped event
+  because it is stale` — přesně dvakrát tolik, kolik chybělo znaků (stisk a puštění). `input
+  text` dá všem znakům časové razítko na začátku a dispečer zahazuje vložené události starší
+  než 10 s; přetížený emulátor (1 s na znak) konec fronty nestihne. Poznáš to podle té hlášky;
+  pomůže psát po třech čtyřech znacích (`for c in 777 123 456; do input text $c; done`).
 
 ### Zadání kódu
 
@@ -96,6 +107,70 @@ Jedna obrazovka pro všechny fáze (`AuthScreen`), fáze se střídají v `Anima
   slovní kód dostane obyčejné pole s písmenkovou klávesnicí a neodesílá se sám. **Autofill kódu
   z SMS ověřený NENÍ** — je to jen deklarace `ContentType.SmsOtpCode`, doručit skutečnou SMS na
   emulátor nešlo.
+
+### Kód jinou cestou (SMS, hovor)
+
+Když TDLib pošle kód do aplikace Telegram (`AuthenticationCodeTypeTelegramMessage`), dostane ho
+jen ten, kdo má po ruce jiné přihlášené zařízení. Ztracený telefon nebo recyklované číslo
+znamenaly slepou uličku — kód nikdy nepřišel a jiná cesta nebyla.
+
+- **Kudy jinak, říká server, ne my.** `AuthenticationCodeInfo.nextType` je cesta, kterou kód
+  půjde po `resendAuthenticationCode`, a `null` znamená, že jiná není. Tlačítko se kreslí jen
+  s nenulovým `nextType` (`AuthStage.WaitCode.next`); jinak by slibovalo cestu, která skončí
+  chybou. Popisek podle cesty: SMS (i slovo a fráze, to je pořád SMS), hovor (i prozvonění),
+  Telegram, jinak obecně.
+- **`timeout` je ZBÝVAJÍCÍ čas, ne původní lhůta** — TDLib ho při sestavení stavu přepočítá
+  od uloženého okamžiku. Odpočítává se proto od příchodu stavu (`AuthViewModel.resendIn`,
+  `collectLatest`, takže nový stav rozjetý odpočet zruší). Během lhůty tlačítko zůstává vidět
+  s odpočtem („Poslat kód SMS za 0:42"), aby uživatel věděl, že jiná možnost přijde, a nezkoušel
+  zpět a znovu. Před koncem lhůty se nic neposílá — TDLib by to odmítl a místo odpočtu by byla
+  chyba.
+- **Signatura se v TDLib mění**: novější verze přidala `resendAuthenticationCode(reason)`
+  (`ResendCodeReasonUserRequest`, nebo `…VerificationFailed` po selhání Firebase). Wrapper 15.0.0
+  ho má nullable s výchozím `null`; posíláme `UserRequest`, protože to víme.
+- **Kudy kód odešel doopravdy, přijde novým stavem** `AuthorizationStateWaitCode` (jiný `type`,
+  nový `nextType` a `timeout`). Typický řetěz je Telegram → SMS → hovor; po hovoru už `nextType`
+  bývá `null`. Nový stav je jiný klíč `AnimatedContent`, takže formulář přijede znovu — kód
+  je opravdu nový a může mít i jinou délku. Rozepsaný kód se po úspěchu maže.
+- **Chyby**: TDLib sama odmítne `"Authentication code can't be resend"` (ověřeno `strings
+  libtdjsonjava.so`), server `SEND_CODE_UNAVAILABLE` (dokumentace `auth.resendCode`); obojí má
+  vlastní větu, zbytek spadne na „Kód se nepodařilo poslat jinak". `PHONE_CODE_EXPIRED` už
+  větou „nech si poslat nový" neslibuje nemožné.
+- **Registrace (`registerUser`) s tím nesouvisí.** Plume nové účty vědomě nezakládá
+  (`AuthStage.WaitRegistration` odkazuje na oficiální klient); poslat kód jinak je jen
+  doručení kódu k EXISTUJÍCÍMU přihlášení.
+- **Našemu `api_id` server jinou cestu NENABÍZÍ** (zkoušeno 9. 10. 2026 na emulátoru, české
+  číslo s přihlášeným Telegramem): `type=TelegramMessage, next=null, timeout=0`, takže se
+  tlačítko správně nekreslí. Stejně to dopadlo se všemi kombinacemi
+  `PhoneNumberAuthenticationSettings`, které jdou bez oficiální aplikace — výchozí (`null`),
+  `allowMissedCall` + `allowSmsRetrieverApi`, k tomu `allowFlashCall` + `hasUnknownPhoneNumber`,
+  i s `FirebaseAuthenticationSettingsAndroid()`. Firebase SMS je podle dokumentace TDLib jen
+  „to the official Android application" (token z Play Integrity ověřuje Telegram pro svůj
+  projekt), tudy cesta nevede. Nastavení proto zůstává výchozí; přidávat příznaky, které nic
+  nezměnily, by jen slibovalo něco, co nefunguje.
+- **Omezení je na `api_id`, ne na čísle.** Totéž číslo v oficiální aplikaci pro Android (týž
+  den) dostalo ověření hovorem („Don't accept the call…", tedy prozvonění, které aplikace
+  pozná z protokolu hovorů) a jako další cestu SMS s lhůtou hodina („You can request an SMS
+  in 59:50"). Plume s povoleným `allowFlashCall` i `allowMissedCall` dostal jen kód do
+  Telegramu bez další cesty — server tedy jiné cesty dává podle toho, čí je `api_id`.
+  Hovor nakonec nepřišel (ani zmeškaný); po zrušení a NOVÉM přihlášení byla lhůta na SMS jen
+  dvě minuty a přihlášení přes SMS prošlo. Lhůtu (`timeout`) tedy určuje server pokaždé zvlášť
+  a hodina u prvního pokusu nebyla pravidlo.
+- **Tlačítko tedy čeká na server, který jinou cestu dá** (jiné `api_id`, jiná země, účet bez
+  aktivní relace). Ověřené je jen testy `AuthViewModelTest` (lhůta, poslání, chyby), skutečné
+  doručení SMS či hovoru ne.
+- **Co server nabídl, vypisuje debug build do logu**: `adb logcat | grep "Kód:"`. Jen v debugu
+  (`TelegramPaths.isDebugBuild`, z `FLAG_DEBUGGABLE` aplikace — knihovna `:client:shared` se
+  staví stejně pro oba typy), protože release logcat zůstává zapnutý.
+- **`length` u kódu do Telegramu přišla 45**, přestože kód v chatu Telegram měl pět číslic
+  (u jiného pokusu na telefonu přišla délka 5 a kreslilo se pět políček). Mimo `CODE_DIGITS`
+  se spadne na obyčejné pole, takže se dál přihlásit dá; proč server poslal 45, se nezjistilo.
+- **Zkoušet přihlášení bez odhlášení emulátoru jde v DRUHÉM UŽIVATELI Androidu**: `pm
+  create-user`, `pm install-existing --user N eu.tintera.plume`, `am switch-user N`, mezi pokusy
+  `pm clear --user N`. Dvě pasti: snímek obrazovky je v druhém uživateli celý černý (ovládá se
+  přes `uiautomator dump`) a `input text` do pole nedojde — klávesy si bere visící klávesnice
+  hlavního uživatele (`VRI[InputMethod]: Cancelling event (no window focus)`). Pomůže v tom
+  uživateli klávesnici vypnout: `pm disable-user --user N com.google.android.inputmethod.latin`.
 
 ### Heslo dvoufázového ověření
 
@@ -225,6 +300,25 @@ before authorization":
   celého systému.
 - **Hledá se i podle anglického názvu** (`Country.englishName` od TDLib, nekreslí se). Kdo zná
   zemi jen anglicky, by ji v českém seznamu jinak nenašel — „Germany" vs. „Německo".
+- **Seznam zemí se načítá až ve fázi zadání čísla** (`AuthStage.WaitPhoneNumber`), ne v `init`
+  ViewModelu. `AuthViewModel` vzniká v `App` při KAŽDÉM startu, i u přihlášeného uživatele,
+  který přihlašovací obrazovku nikdy neuvidí — a načtení zemí se tak dělalo při každém startu
+  zbytečně. Načte se jednou; po neúspěchu to zkusí příští návrat k číslu. Hlídá to
+  `AuthViewModelTest` (`prihlasenyUzivatelZemeNenacita`) a na emulátoru vzorkovací trace
+  studeného startu (`am start -S --start-profiler /data/local/tmp/… --sampling 500`; soubor
+  musí ležet v `/data/local/tmp` a mít práva 666, do `cache/` aplikace ho `am` neotevře):
+  `AuthViewModel` i `AuthScreen` (fáze `Connecting`) v něm jsou, `countries` ani `foldDiacritics`
+  ne. Jména metod jsou v hlavičce trace čitelná, stačí `grep -a`.
+  Přihlášení ověřené odhlášením na emulátoru: ViewModel vzniklý ve stavu `Ready` po odhlášení
+  země dotáhl a předvybral Česko podle IP; seznam abecedně podle českých názvů, „cad" najde
+  Čad, „germ" Německo; totéž po studeném startu v odhlášeném stavu.
+- **Převod a řazení zemí běží na `Dispatchers.Default`** (`TdlTelegramSession.countries`).
+  Odpověď TDLib se vrací na vlákno volajícího, tedy z `viewModelScope` na HLAVNÍ. Dvě stě zemí,
+  u každé překlad názvu od systému (na Androidu první sáhnutí do dat CLDR) a řazení, které
+  klíč `foldDiacritics(name).lowercase()` počítalo v komparátoru — při každém porovnání, zhruba
+  tři tisíce krát. ANR trace z emulátoru (8. 10. 2026, „Input dispatching timed out … FocusEvent")
+  ukázaly hlavní vlákno při studeném startu v `TimSort` nad `foldDiacritics`. Klíč se teď
+  počítá jednou na zemi (`sortedByName`, testy `CountryOrderTest`).
 
 ## Odhlášení
 

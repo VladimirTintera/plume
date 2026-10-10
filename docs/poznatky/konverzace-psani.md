@@ -3,6 +3,24 @@
 Poznatky k jedné oblasti aplikace. Obecná pravidla projektu a rejstřík ostatních souborů jsou
 v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 
+## Enter z fyzické klávesnice
+
+Enter z fyzické klávesnice (Fold, tablet) zprávu odešle, **Shift+Enter** zalomí řádek — jako na
+počítači (`onPreviewKeyEvent` na poli v `MessageInput`). Enter ze softwarové klávesnice dál
+zalomí řádek; odeslání je tam tlačítko a klávesa Odeslat (`ImeAction.Send`).
+
+- **Fyzickou klávesnici pozná `isFromHardwareKeyboard`**, ne kód klávesy: Gboard ve víceřádkovém
+  poli posílá Enter taky jako klávesu. Android: bez `FLAG_SOFT_KEYBOARD` a ne z
+  `VIRTUAL_KEYBOARD` (odtud posílá i `adb shell input`); iOS posílá jako klávesy jen fyzickou
+  klávesnici.
+- **Podmínky odeslání jsou tytéž jako u tlačítka** (text, přílohy, odebíraný popisek; ne během
+  nahrávání a přípravy přílohy). **Prázdné pole Enter nepošle, ale ani nezalomí** — prázdný
+  řádek navíc nikdo nechce.
+- **Volba „Enter odesílá" v Nastavení zatím není**: pro fyzickou klávesnici je to obvyklé chování
+  a softwarové se netýká. Kdyby o ni někdo stál, patří sem.
+- **Ověřeno na emulátoru** přes `uinput` (viz `navigace.md`, „Klávesové zkratky"): Enter odeslal,
+  Shift+Enter zalomil, prázdné pole nic, Enter z `input keyevent` zalomil.
+
 ## Vestavěná galerie (Android)
 
 Sponka → „Fotka nebo video" otevře na Androidu 14 se SDK Extensions 15 **galerii v sheetu nad
@@ -398,22 +416,50 @@ funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
   - **Citace bez výběru jde na řádek s kurzorem**, ne na další psaní — je to blok přes řádky.
     Jen na prázdném řádku čeká na psaní jako ostatní. **Odkaz bez výběru zašedne**: potřebuje
     popisek.
-  - **„Aa" a výběr samolepek sdílejí JEDNO místo v kartě**: s otevřenou klávesnicí „Aa", se
-    zavřenou samolepka (emoji / GIF), výměna zvětšením jako u odesílacího tlačítka. Při psaní
-    emoji nabízí klávesnice sama a náš výběr by ji stejně zavřel; bez klávesnice zase není co
-    formátovat. Dokud stály vedle sebe, ukusovaly textu 96 dp a „Aa" se s fokusem objevovalo
-    DO ŠÍŘKY — rozepsaný víceřádkový text se přeskládal při každém ťuknutí do pole. Teď se šířka
-    pole nemění nikdy (ověřeno po snímcích se zpomalenými animacemi: zalomení stejné).
+  - **Smajlík (výběr emoji, samolepek a GIFů) je vpravo v kartě VŽDYCKY, „Aa" si místo
+    vyměňuje se sponkou vlevo** (`ComposerStartSlot`). Dřív sdílelo „Aa" místo se smajlíkem
+    (s klávesnicí „Aa", bez ní smajlík) a uprostřed psaní, kdy se emoji hledají nejvíc, nešel
+    výběr otevřít vůbec — nejdřív se musela schovat klávesnice. Přílohu naopak člověk přidává
+    skoro vždycky na začátku, se zavřenou klávesnicí. Dokud stály „Aa" a smajlík vedle sebe,
+    ukusovaly textu 96 dp a „Aa" se s fokusem objevovalo DO ŠÍŘKY — rozepsaný víceřádkový text
+    se přeskládal při každém ťuknutí do pole. Výměna ikon v místě stejné velikosti šířku pole
+    nemění nikdy.
+    - **„Aa" naskočí až s otevřenou klávesnicí A textem v poli.** Samotná klávesnice nestačí:
+      kdo otevře pole, aby přiložil fotku s popiskem, chce sponku. Zapnout tučné ještě před
+      prvním písmenem jde tahem (níž).
+    - **Svislý tah po levé ikoně je přepíná** jako buben: nahoru přijede další zdola, dolů
+      shora, s `tick()`. Ruční volba platí, dokud se automatické pravidlo samo nezmění. Čtečce
+      jde přepnutí jako vlastní akce („Ukázat formátování" / „Ukázat přílohy").
+    - **Bez sponky (úprava zprávy, chat bez příloh) je „Aa" vlevo trvale** — naskakovat
+      s klávesnicí by znamenalo ubrat poli šířku. Ťuknutí na „Aa" bez klávesnice ji otevře
+      i s lištou (`focusRequester` pole + `keyboard.show()`).
+    - **Ověřeno na emulátoru (Pixel 9, česky)** v Uložených zprávách: s klávesnicí a prázdným
+      polem sponka, po prvním písmenu „Aa" (text v poli se nepohne), smajlík s otevřenou
+      klávesnicí ji zavře a otevře výběr i s rozepsaným textem, tah nahoru přepne s `tick()`
+      (`constant=26` v `dumpsys vibrator_manager`), tahem přepnuté „Aa" bez klávesnice ji otevře
+      i s lištou, úprava popisku má „Aa" vlevo trvale. Na telefonu (jak se tah cítí pod prstem)
+      ověřené není.
     - **Rozhoduje viditelná klávesnice, ne fokus** (`typing` = fokus a nenulová výška
       `WindowInsets.ime`, přes `derivedStateOf`). Po schování klávesnice gestem zpět drží pole
-      fokus dál a samolepka by se podle fokusu neukázala vůbec. Výška klávesnice funguje i na iOS
-      (`isImeVisible` je jen na Androidu).
-    - **S hardwarovou klávesnicí „Aa" není** (softwarová se neukáže). Formátovat jde dál
+      fokus dál. Výška klávesnice funguje i na iOS (`isImeVisible` je jen na Androidu).
+    - **S hardwarovou klávesnicí „Aa" samo nenaskočí** (softwarová se neukáže). Formátovat jde dál
       označením textu, jen „zapnout tučné a psát dál" tam chybí.
-    - **Svislé skládání ikon u víceřádkového textu (zvažováno) ne**: dvě ikony pod sebou chtějí
-      ~100 dp výšky, tedy až od tří řádků, a při přepnutí se odstavec přeskládá do širší plochy
-      — slova i kurzor uprostřed psaní poskočí o řádek. Rozvržení se má měnit ve chvíli, kdy
-      není co přeskládat (otevření klávesnice), ne při zalomení.
+    - **Od tří řádků stojí sponka a „Aa" pod sebou** (`fieldHeight` ≥ 96 dp: dvě tlačítka 48 dp
+      s překryvem 4 dp a 4 dp pod nimi; tři řádky 16/22 mají s odsazením pole 98 dp, dva 76).
+      Napřed to bylo zamítnuté, jenže tehdy stály „Aa" a smajlík VEDLE sebe a složením by se
+      pole rozšířilo a text přeskládal. Teď sdílejí jeden sloupec, takže šířka zůstává.
+      - **Ikona, která byla vidět, zůstane dole u posledního řádku a druhá zpoza ní VYJEDE
+        nahoru** (při zkrácení zajede zpátky). Ořízne se na hraně mezi nimi, takže je poznat,
+        že ikony leží na sobě a u kratšího textu se dají přepínat tahem (nápad uživatele).
+        Ve složeném stavu tah nic nepřepíná.
+      - **Místo nesmí nahlásit víc výšky, než má pole** (`layout` s limitem `fieldHeight − 4 dp`).
+        Mizející horní ikona si jinak drží místo, dokud nedoběhne: po smazání na dva řádky
+        zůstala karta o 20 dp vyšší a na konci skočila (série snímků). Co se nevejde, kreslí
+        se přes horní okraj — jen ta mizející ikona.
+      - Ověřeno na emulátoru zpomalenými animacemi (20×, přechod vyvolaný jedním znakem — delší
+        `input text` zalomí řádek dřív, než se stihne první snímek): vysunutí, zasunutí, karta
+        bez skoku, horní sponka otevře nabídku příloh. Jak pohyb působí uprostřed psaní, se
+        posoudí na telefonu.
 - **Lišta, ne položky v kontextové nabídce výběru** (tak to bylo napřed). Ikony u vlastních
   položek nabídka výběru na telefonu NEZOBRAZÍ: na Androidu ji kreslí `ActionMode`
   (`AndroidTextContextMenuToolbarProvider`) a `leadingIcon` z `TextContextMenuItem` zahodí —

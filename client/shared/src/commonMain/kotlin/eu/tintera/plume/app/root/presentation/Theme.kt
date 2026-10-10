@@ -1,6 +1,8 @@
 package eu.tintera.plume.app.root.presentation
 
+import eu.tintera.plume.core.ui.DarkSystemBarsRequests
 import eu.tintera.plume.core.ui.LocalBackgroundBlurAllowed
+import eu.tintera.plume.core.ui.LocalDarkSystemBars
 import eu.tintera.plume.core.ui.rememberBackgroundBlurAllowed
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -8,6 +10,7 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import com.materialkolor.ktx.animateColorScheme
 import eu.tintera.plume.app.root.presentation.theme.AppMotion
@@ -20,7 +23,11 @@ import eu.tintera.plume.core.ui.LocalSharedTransitionScope
 /** Podpora Material You dynamic color (Android 12+). Řídí default motivu i nabídku volby v Nastavení. */
 expect val supportsDynamicColor: Boolean
 
-/** Sladí vzhled systémových lišt (barvu ikon status/nav baru) s vybraným motivem. Reálně jen Android; jinde no-op. */
+/**
+ * Sladí vzhled systémových lišt (barvu ikon status/nav baru) s tím, co pod nimi leží: [isDark] je
+ * tmavý motiv NEBO trvající `DarkSystemBars`. Jediné místo, které ikony lišt okna activity mění.
+ * Reálně jen Android; jinde no-op.
+ */
 @Composable
 expect fun SystemBarsAppearance(isDark: Boolean)
 
@@ -60,7 +67,8 @@ fun AppTheme(
     val target = colorScheme(isDark, dynamicColor && supportsDynamicColor, themeColor.seed)
     val colorScheme = animateColorScheme(target, animationSpec = { AppMotion.defaultEffectsSpec<Color>() })
 
-    SystemBarsAppearance(isDark)
+    val darkSystemBars = remember { DarkSystemBarsRequests() }
+    SystemBarsAppearance(isDark || darkSystemBars.active)
 
     MaterialExpressiveTheme(
         colorScheme = colorScheme,
@@ -71,6 +79,7 @@ fun AppTheme(
             CompositionLocalProvider(
                 LocalSharedTransitionScope provides this,
                 LocalBackgroundBlurAllowed provides rememberBackgroundBlurAllowed(),
+                LocalDarkSystemBars provides darkSystemBars,
             ) {
                 content()
             }

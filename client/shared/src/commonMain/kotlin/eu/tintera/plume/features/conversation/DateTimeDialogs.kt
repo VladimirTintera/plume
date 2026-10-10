@@ -72,7 +72,14 @@ internal fun FutureDayDialog(now: Long, maxAheadSeconds: Long, onPick: (Long) ->
 @Composable
 internal fun TimeOfDayDialog(title: String, initial: Long, onPick: (hour: Int, minute: Int) -> Unit, onDismiss: () -> Unit) {
     val start = remember(initial) { Instant.fromEpochSeconds(initial).toLocalDateTime(TimeZone.currentSystemDefault()) }
-    val state = rememberTimePickerState(initialHour = start.hour, initialMinute = start.minute)
+    TimeOfDayDialog(title = title, hour = start.hour, minute = start.minute, onPick = onPick, onDismiss = onDismiss)
+}
+
+/** Hodina a minuta bez data — výchozí [hour]:[minute]. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun TimeOfDayDialog(title: String, hour: Int, minute: Int, onPick: (hour: Int, minute: Int) -> Unit, onDismiss: () -> Unit) {
+    val state = rememberTimePickerState(initialHour = hour, initialMinute = minute)
     TimePickerDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },

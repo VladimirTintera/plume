@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.ui.LocalAutoDownload
 import eu.tintera.plume.core.ui.rememberFileState
 import eu.tintera.plume.core.video.VideoSurface
 import eu.tintera.plume.core.video.rememberVideoPlayer
@@ -63,13 +64,15 @@ internal fun AnimationBubble(
     revealed: Boolean = true,
     onReveal: () -> Unit = {},
 ) {
-    // Stahování se spustí odběrem souboru, takže se u velkého GIFu čeká na ťuknutí.
-    var requested by remember(animation.fileId) { mutableStateOf(animation.autoPlays) }
+    // Nad stropem automatického stahování (podle sítě) se čeká na ťuknutí. GIF, který už na
+    // disku je, hraje i tak — jen se kvůli němu nic nestahuje.
+    var requested by remember(animation.fileId) { mutableStateOf(false) }
+    val download = requested || animation.autoPlaysWithin(LocalAutoDownload.current.maxVideoBytes)
     var paused by remember(animation.fileId) { mutableStateOf(false) }
     val hidden = animation.hasSpoiler && !revealed
     val spoilerStyle = rememberSpoilerBlurStyle()
 
-    val fileState = rememberFileState(animation.fileId.takeIf { requested && !hidden })
+    val fileState = rememberFileState(animation.fileId.takeIf { !hidden }, download)
     val path = (fileState as? FileState.Ready)?.path
 
     Box(

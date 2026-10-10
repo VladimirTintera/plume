@@ -1,14 +1,19 @@
 package eu.tintera.plume
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.app.root.presentation.AppTheme
 import eu.tintera.plume.app.root.presentation.supportsDynamicColor
@@ -19,15 +24,30 @@ import eu.tintera.plume.core.notifications.NotificationPermissionPrompt
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ThemeColor
 import eu.tintera.plume.core.settings.ThemeMode
+import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.telegram.AuthStage
+import eu.tintera.plume.core.ui.PrivacyCover
 import eu.tintera.plume.core.ui.SecureScreen
 import eu.tintera.plume.core.ui.forgetKnownImagePaths
 import eu.tintera.plume.core.ui.forgetStickerAnimations
 import eu.tintera.plume.features.auth.AuthScreen
 import eu.tintera.plume.features.auth.AuthViewModel
 import eu.tintera.plume.features.lock.LockScreen
+import eu.tintera.plume.features.lock.LockWindow
 import org.koin.compose.koinInject
+import eu.tintera.plume.core.connectivity.AutoDownloadPolicy
+import eu.tintera.plume.core.ui.LocalAutoDownload
+import eu.tintera.plume.core.ui.LocalMessageTextSize
 import org.koin.compose.viewmodel.koinViewModel
+
+/**
+ * Obsah pod zámkem je zakrytý, ale pořád složený — bez tohohle by ho přečetla čtečka obrazovky
+ * a fyzická klávesnice by do něj přesunula fokus (Tab) a psala do pole pod zámkem.
+ */
+private val Inert = Modifier
+    .clearAndSetSemantics { }
+    .focusProperties { onEnter = { cancelFocusChange() } }
+    .focusGroup()
 
 /**
  * Kořen aplikace.
@@ -47,6 +67,7 @@ fun App() {
     val themeMode by settings.themeMode.collectAsStateWithLifecycle()
     val dynamicColor by settings.dynamicColor.collectAsStateWithLifecycle()
     val themeColor by settings.themeColor.collectAsStateWithLifecycle()
+    val messageTextSize by settings.messageTextSize.collectAsStateWithLifecycle()
 
     val appLock = koinInject<AppLock>()
     val lockSettings by appLock.settings.collectAsStateWithLifecycle()
@@ -61,6 +82,8 @@ fun App() {
         themeColor = themeColor ?: ThemeColor.BLUE,
     ) {
         Surface(Modifier.fillMaxSize()) {
+            // Na iOS přehled úloh skrývá kryt nad oknem, FLAG_SECURE tam není.
+            PrivacyCover(enabled = lockSettings != null, color = MaterialTheme.colorScheme.background)
             val authViewModel: AuthViewModel = koinViewModel()
             val stage by authViewModel.stage.collectAsStateWithLifecycle()
 
@@ -78,22 +101,36 @@ fun App() {
             ) { signedIn ->
                 if (signedIn) {
                     Box(Modifier.fillMaxSize()) {
-                        AppShell()
-                        // Až tady, ne nad přihlášením — tam uživatel ještě netuší, co aplikace dělá.
-                        NotificationPermissionPrompt()
+                        val covered = lockState is AppLockState.Locked || lockState == AppLockState.Unknown
+                        // Fokus, který už v obsahu je (rozepsaná zpráva), `Inert` nevyžene.
+                        val focusManager = LocalFocusManager.current
+                        LaunchedEffect(covered) { if (covered) focusManager.clearFocus(force = true) }
+                        val autoDownload by koinInject<AutoDownloadPolicy>().limits.collectAsStateWithLifecycle()
+                        Box(Modifier.fillMaxSize().then(if (covered) Inert else Modifier)) {
+                            CompositionLocalProvider(
+                                LocalAutoDownload provides autoDownload,
+                                LocalMessageTextSize provides messageTextSize,
+                            ) {
+                                AppShell()
+                            }
+                            // Až tady, ne nad přihlášením — tam uživatel ještě netuší, co aplikace dělá.
+                            NotificationPermissionPrompt()
+                        }
 
-                        when (lockState) {
-                            is AppLockState.Locked -> {
+                        if (covered) {
+                            // Kryt v hlavním okně: okno zámku se ukáže až s animací a během
+                            // prvního čtení záznamu (Unknown) žádné není. Obsah pod ním se
+                            // nesmí mihnout.
+                            Surface(
+                                modifier = Modifier.fillMaxSize(),
+                                color = MaterialTheme.colorScheme.background,
+                            ) {}
+                        }
+                        if (lockState is AppLockState.Locked) {
+                            val returnToCaller = rememberReturnToCaller()
+                            LockWindow(onBack = returnToCaller) {
                                 LockScreen(appLock = appLock)
                             }
-                            is AppLockState.Unknown -> {
-                                // Během prvního čtení Keystore nezobrazujeme obsah chatu
-                                Surface(
-                                    modifier = Modifier.fillMaxSize(),
-                                    color = MaterialTheme.colorScheme.background,
-                                ) {}
-                            }
-                            AppLockState.Disabled, AppLockState.Unlocked -> Unit
                         }
                     }
                 } else {

@@ -339,6 +339,34 @@ JEHO kanálu (`ACTION_CHANNEL_NOTIFICATION_SETTINGS`).
   samostatná notifikace téhož chatu, příspěvek kanálu kanálem `channels`. Do skutečných skupin
   se testovací zprávy neposílají — test jde jen tam, kde je bot.
 
+### Tiché hodiny
+
+Nastavení → Notifikace → Tiché hodiny (`QuietHours`, `AppSettings.quietHours`, testy
+`QuietHoursTest`): v nastaveném úseku zazvoní jen kanál **Zmínky a odpovědi**, ostatní notifikace
+přijdou potichu (`setSilent`). Výchozí úsek je 22:00–7:00, vypnuto.
+
+- **Potichu, ne vůbec.** Notifikace na liště zůstane, ráno je vidět, co přišlo. Zahodit ji by
+  znamenalo ztratit zprávu, kterou TDLib už za doručenou považuje — znovu ji nevydá.
+- **Rozhoduje KANÁL notifikace, ne druh chatu.** Zmínka ve skupině jde kanálem `mentions`
+  (`NotificationGroupTypeMentions`: zmínky, odpovědi na mě, připnutá zpráva) a ta má zvonit;
+  zpráva v soukromém chatu jde kanálem `private` a v tichých hodinách je tichá. Jestli TDLib
+  dává do skupiny zmínek i odpověď v soukromém chatu, ověřené NENÍ — podle dokumentace skupiny
+  spíš ne, takže v soukromém chatu je tichá i odpověď.
+- **Hovory se neztišují** — ohlášení hovoru (`showCall`) jde mimo `add` a vlastním kanálem.
+  Kdo volá v noci, nejspíš to myslí vážně, a přijmout hovor Plume stejně neumí.
+- **Čas je místní čas zařízení** v okamžiku zobrazení, minuty od půlnoci. Úsek přes půlnoc je
+  běžný; začátek == konec je prázdný úsek, ne celý den.
+- **Jen Android** (`NotificationPermission.supportsQuietHours`). Na iOS notifikace z APNs kreslí
+  systém; obdobou je režim Soustředění. Skupina se tam v Nastavení neukazuje.
+- **Jen v zařízení.** Ostatní zařízení o tichých hodinách nevědí — notifikace kreslí aplikace
+  sama. Kandidát na synchronizaci přes CloudStorage (viz `docs/poznatky/nastaveni.md`).
+- **Ověření:** `adb logcat -b events | grep notification_alert` — u tiché notifikace jsou vibrace
+  i zvuk 0 a `dumpsys notification` ukáže `flags=…|SILENT`. Ověřeno na emulátoru (Fold, česky):
+  úsek 14:00–7:00 ve 14:20, soukromá zpráva od testovacího bota přišla potichu, po vypnutí
+  zazvonila. **Zmínka v tichých hodinách ověřená NENÍ**: v testovací skupině je téma General
+  zavřené (`TOPIC_CLOSED`) a bot nemá právo spravovat témata (`CHAT_ADMIN_REQUIRED`).
+  Rozhodování o kanálu zmínek je ale staré a ověřené (viz „Kanály a nastavení notifikací").
+
 ### Akce z notifikace
 
 Notifikace chatu má akce „Odpovědět" s polem na text (`RemoteInput`), „Označit jako přečtené"

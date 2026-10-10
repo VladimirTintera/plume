@@ -23,19 +23,26 @@ internal data class LockConfig(
     val biometrics: Boolean,
     /** Chybné pokusy od posledního úspěšného odemčení. Přežívají restart, jinak by ho stačilo zabít. */
     val failures: Int = 0,
-    /** Do kdy se nesmí zkoušet další PIN (ms od epochy), 0 = smí se hned. */
-    val blockedUntil: Long = 0,
+    /**
+     * Kdy přišel poslední chybný pokus, v [LockClock.elapsedMillis] (čas od startu systému).
+     * Brzda [blockFor] se počítá od něj; čas na zdi se pro ni nepoužívá, protože jde přestavit
+     * dopředu a brzdu by tím zrušil.
+     */
+    val failedAt: Long = 0,
 ) {
     override fun equals(other: Any?): Boolean = other is LockConfig &&
         iterations == other.iterations && salt.contentEquals(other.salt) &&
         hash.contentEquals(other.hash) && timeoutSeconds == other.timeoutSeconds &&
         biometrics == other.biometrics && failures == other.failures &&
-        blockedUntil == other.blockedUntil
+        failedAt == other.failedAt
 
     override fun hashCode(): Int = hash.contentHashCode()
 }
 
-private const val FORMAT = "v1"
+private const val FORMAT = "v2"
+
+/** Starší záznam: poslední pole byl konec brzdy v čase na zdi. Čte se, aby update zámek nevypnul. */
+private const val FORMAT_V1 = "v1"
 
 /** Text, ne binární formát: čte se jednou za start a rozšířit ho o pole je otázka jedné položky. */
 internal fun LockConfig.encode(): ByteArray = listOf(
@@ -46,13 +53,13 @@ internal fun LockConfig.encode(): ByteArray = listOf(
     timeoutSeconds.toString(),
     if (biometrics) "1" else "0",
     failures.toString(),
-    blockedUntil.toString(),
+    failedAt.toString(),
 ).joinToString(";").encodeToByteArray()
 
 /** `null` u poškozeného nebo neznámého záznamu; `AppLock` ho zahodí jako vypnutý zámek. */
 internal fun decodeLockConfig(bytes: ByteArray): LockConfig? = runCatching {
     val parts = bytes.decodeToString().split(';')
-    if (parts.size < 8 || parts[0] != FORMAT) return null
+    if (parts.size < 8 || (parts[0] != FORMAT && parts[0] != FORMAT_V1)) return null
     LockConfig(
         iterations = parts[1].toInt(),
         salt = parts[2].decodeHex().toByteArray(),
@@ -60,6 +67,8 @@ internal fun decodeLockConfig(bytes: ByteArray): LockConfig? = runCatching {
         timeoutSeconds = parts[4].toInt(),
         biometrics = parts[5] == "1",
         failures = parts[6].toInt(),
-        blockedUntil = parts[7].toLong(),
+        // Konec brzdy z v1 je v jiném čase; 0 = „chyba přišla před startem systému", tedy
+        // nejopatrnější odhad (viz `blockRemaining`).
+        failedAt = if (parts[0] == FORMAT) parts[7].toLong() else 0,
     ).takeIf { it.iterations > 0 && it.hash.isNotEmpty() && it.salt.isNotEmpty() }
 }.getOrNull()

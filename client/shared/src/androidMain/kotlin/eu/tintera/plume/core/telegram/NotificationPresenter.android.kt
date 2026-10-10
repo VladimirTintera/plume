@@ -19,6 +19,7 @@ import androidx.core.graphics.drawable.IconCompat
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.notifications.NotificationIntents
+import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.notifications.channelId
 import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.notification_call_decline
@@ -43,6 +44,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 /**
  * Zobrazuje notifikace v Androidu.
@@ -59,6 +64,8 @@ import kotlinx.coroutines.withContext
 actual class NotificationPresenter(
     private val context: Context,
     private val scope: CoroutineScope,
+    private val settings: AppSettings,
+    private val now: () -> Instant = { Clock.System.now() },
 ) {
 
     private val logger = Logger.withTag("Notifications")
@@ -170,8 +177,16 @@ actual class NotificationPresenter(
 
             // Potichu, když nic nového nepřibylo, nebo přibylo jen to, co TDLib právě nahradil.
             val onlyReplacements = added.all { line -> consumeRemoved(groupId, line.messageId) }
-            show(groupId, conversation, silent = newest.isSilent || onlyReplacements)
+            // V tichých hodinách upozorní jen zmínky a odpovědi; zbytek přijde na lištu potichu.
+            val quiet = settings.quietHours.value.silences(conversation.channel, minuteOfDay())
+            show(groupId, conversation, silent = newest.isSilent || onlyReplacements || quiet)
         }
+    }
+
+    /** Minuta dne v místním čase zařízení — v něm si uživatel tiché hodiny nastavil. */
+    private fun minuteOfDay(): Int {
+        val time = now().toLocalDateTime(TimeZone.currentSystemDefault())
+        return time.hour * 60 + time.minute
     }
 
     /** Najde a spotřebuje nedávno odebraný řádek téže zprávy. */

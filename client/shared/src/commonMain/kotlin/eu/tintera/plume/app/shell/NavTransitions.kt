@@ -13,6 +13,8 @@ import androidx.navigation3.scene.SceneDecoratorStrategyScope
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
@@ -51,13 +53,15 @@ import androidx.navigation3.scene.Scene
 internal class NavTransitions(
     private val shiftPx: Int,
     private val spatial: FiniteAnimationSpec<IntOffset>,
+    /** Smí se chat otevírat růstem řádku? Ve dvoupanelu ne, tam seznam zůstává vidět. */
+    private val chatContainer: Boolean,
 ) {
     fun <T : Any> forward(): AnimatedContentTransitionScope<Scene<T>>.() -> ContentTransform = {
-        sharedAxis(this, SlideDirection.Start)
+        if (opensChat(from = initialState, to = targetState)) containerTransform() else sharedAxis(this, SlideDirection.Start)
     }
 
     fun <T : Any> pop(): AnimatedContentTransitionScope<Scene<T>>.() -> ContentTransform = {
-        sharedAxis(this, SlideDirection.End)
+        if (opensChat(from = targetState, to = initialState)) containerTransform() else sharedAxis(this, SlideDirection.End)
     }
 
     /**
@@ -84,6 +88,12 @@ internal class NavTransitions(
      * nevolá (ověřeno logem).
      */
     fun <T : Any> predictivePop(): AnimatedContentTransitionScope<Scene<T>>.(Int) -> ContentTransform = { _ ->
+        // Chat otevřený ze seznamu se gestem smršťuje zpátky do svého řádku — tah posouvá
+        // tentýž container transform jako tlačítko, jen pozpátku.
+        if (opensChat(from = targetState, to = initialState)) containerTransform() else fadeThroughScale()
+    }
+
+    private fun fadeThroughScale(): ContentTransform {
         val enter = scaleIn(tween(PREDICTIVE_MS, easing = PredictiveBackEasing), initialScale = PREDICTIVE_ENTER_SCALE) +
             fadeIn(
                 tween(
@@ -94,8 +104,26 @@ internal class NavTransitions(
             )
         val exit = scaleOut(tween(PREDICTIVE_MS, easing = PredictiveBackEasing), targetScale = PREDICTIVE_EXIT_SCALE) +
             fadeOut(tween(PREDICTIVE_FADE_MS, easing = LinearEasing))
-        enter togetherWith exit
+        return enter togetherWith exit
     }
+
+    /** Mezi [from] a [to] se chat otevírá ze seznamu (viz `ChatContainer`)? */
+    private fun opensChat(from: Scene<*>, to: Scene<*>): Boolean =
+        chatContainer && from.metadata[CHAT_LIST] == true && to.metadata[CHAT_SCREEN] == true
+
+    /**
+     * Container transform (`ChatContainer`): scény se samy neanimují. Seznam stojí pod rostoucí
+     * plochou, dokud let nedoběhne, a obrazovka chatu je celá uvnitř sdílené plochy, která se
+     * kreslí v překryvu — její průhlednost i rozměr řídí sdílený prvek. `ExitTransition.None`
+     * stačí: let sdílené plochy je animace TÉHOŽ přechodu, takže odcházející scéna zůstane
+     * složená, dokud nedoběhne (`KeepUntilTransitionsFinished` je v Compose interní).
+     *
+     * Najde-li se řádek až po vybrání přechodu ztracený (odscrollovaný, chat se přesunul jinam),
+     * obrazovka chatu se jen prolne přes seznam — sdílená plocha bez páru se chová jako obyčejné
+     * objevení.
+     */
+    private fun containerTransform(): ContentTransform =
+        EnterTransition.None togetherWith ExitTransition.None
 
     private fun <T : Any> sharedAxis(
         scope: AnimatedContentTransitionScope<Scene<T>>,
@@ -169,11 +197,21 @@ private fun Modifier.roundedWhileExiting(): Modifier {
 }
 
 @Composable
-internal fun rememberNavTransitions(): NavTransitions {
+internal fun rememberNavTransitions(chatContainer: Boolean): NavTransitions {
     val shiftPx = with(LocalDensity.current) { SHIFT.roundToPx() }
     val spatial = MaterialTheme.motionScheme.fastSpatialSpec<IntOffset>()
-    return remember(shiftPx, spatial) { NavTransitions(shiftPx, spatial) }
+    return remember(shiftPx, spatial, chatContainer) { NavTransitions(shiftPx, spatial, chatContainer) }
 }
+
+/**
+ * Metadata položek pro container transform: [CHAT_LIST] má seznam chatů (a archiv), ze kterého
+ * se chat otevírá, [CHAT_SCREEN] obrazovka chatu, která z řádku vyrůstá (konverzace, témata).
+ * Scéna na telefonu přebírá metadata své jediné položky.
+ */
+internal const val CHAT_LIST = "plume.chatList"
+internal const val CHAT_SCREEN = "plume.chatScreen"
+internal val ChatListMetadata: Map<String, Any> = mapOf(CHAT_LIST to true)
+internal val ChatScreenMetadata: Map<String, Any> = mapOf(CHAT_SCREEN to true)
 
 /** Posun obrazovky při sdílené ose — Material motion uvádí 30 dp. */
 private val SHIFT = 30.dp

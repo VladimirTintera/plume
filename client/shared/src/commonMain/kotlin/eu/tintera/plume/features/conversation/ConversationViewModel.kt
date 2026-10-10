@@ -3,6 +3,7 @@ package eu.tintera.plume.features.conversation
 import okio.Path.Companion.toPath
 import okio.FileSystem
 import eu.tintera.plume.core.audio.RecordedVoice
+import eu.tintera.plume.core.telegram.QuickReaction
 import eu.tintera.plume.core.telegram.OutgoingVideoNote
 import eu.tintera.plume.resources.conversation_video_note_send_failed
 import eu.tintera.plume.resources.conversation_video_note_start_failed
@@ -335,6 +336,8 @@ class ConversationViewModel(
     proxies: ProxyRepository,
     /** Sdílení živé polohy: zastavení z bubliny. Posouvá ji platforma (služba), ne konverzace. */
     private val liveLocations: LiveLocationRepository,
+    /** Reakce na dvojité ťuknutí; nastavení účtu, ne chatu. */
+    private val quickReaction: QuickReaction,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -604,6 +607,9 @@ class ConversationViewModel(
         }
         viewModelScope.launch {
             voicePlayer.errors.collect { message -> _state.update { it.copy(error = message) } }
+        }
+        viewModelScope.launch {
+            settings.doubleTapReaction.collect { on -> _state.update { it.copy(doubleTapReaction = on) } }
         }
 
         // Příkazy botů se čtou jednou při otevření; bot je mění zřídka a `getUserFullInfo` je
@@ -3390,6 +3396,29 @@ class ConversationViewModel(
     }
 
     /**
+     * Rychlá reakce dvojitým ťuknutím: přepne reakci účtu ([QuickReaction]) jako ťuknutí na ni
+     * v nabídce — už přidanou tedy odebere.
+     *
+     * **Dostupnost se ověřuje dřív, než se cokoli změní.** Kanál si sadu reakcí omezuje,
+     * v Uložených zprávách reakce nejsou vůbec, a vlastní emoji může chtít Premium. Optimisticky
+     * přidaná reakce, kterou server odmítne, by problikla a skončila chybovou hláškou — u gesta,
+     * o kterém uživatel nemusí ani vědět, že ho udělal. Nedostupná reakce proto neudělá nic.
+     * Odebrání vlastní reakce se neověřuje: ta zjevně dostupná byla.
+     */
+    private fun quickReact(messageId: Long) {
+        val reaction = quickReaction.reaction.value ?: return
+        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
+        if (message.reactions.any { it.emoji == reaction && it.isChosen }) {
+            toggleReaction(messageId, reaction)
+            return
+        }
+        viewModelScope.launch {
+            val available = repository.availableReactions(chatId, messageId).getOrNull() ?: return@launch
+            if (reaction in available) toggleReaction(messageId, reaction)
+        }
+    }
+
+    /**
      * Informace o zprávě z nabídky: kdy odešla, kdy ji kdo přečetl, kdo ji zhlédl a odkaz na ni.
      *
      * Načítá se až tady. Skoro žádná zpráva nemá všechna tři práva (`canGetReadDate`,
@@ -3633,7 +3662,19 @@ class ConversationViewModel(
         when (action) {
             is MessageAction.ShowMenu -> showMessageMenu(messageId, action.items, action.pressed)
             MessageAction.CloseMenu -> closeMenus()
+            MessageAction.ShowNoticeMenu -> showNoticeMenu(messageId)
+            is MessageAction.DeleteNotice -> _state.update {
+                it.copy(
+                    noticeMenu = null,
+                    pendingDelete = PendingDelete(
+                        messageId = messageId,
+                        canDeleteForAll = action.canDeleteForAll,
+                        canDeleteForSelf = action.canDeleteForSelf,
+                    ),
+                )
+            }
             is MessageAction.React -> toggleReaction(messageId, action.emoji)
+            MessageAction.QuickReact -> quickReact(messageId)
             MessageAction.ShowReactions -> showReactionDetails(messageId)
             MessageAction.ToggleReadReceipt -> toggleReadReceipt(messageId)
             MessageAction.SwipeReply -> replyTo(messageId)
@@ -3799,7 +3840,25 @@ class ConversationViewModel(
     }
 
     private fun closeMenus() {
-        _state.update { it.copy(messageMenu = null) }
+        _state.update { it.copy(messageMenu = null, noticeMenu = null) }
+    }
+
+    /**
+     * Nabídka nad systémovým oznámením. Nabízí jen smazání, takže když ho server nedovolí
+     * (oznámení v kanálu, kde účet není správce), neotevře se vůbec — prázdná nabídka nebo
+     * „Smazat", které skončí chybou, by byly horší než nic.
+     */
+    private fun showNoticeMenu(messageId: Long) {
+        viewModelScope.launch {
+            val actions = repository.messageActions(chatId, messageId).getOrElse { failure ->
+                logger.w(failure) { "Příznaky oznámení $messageId se nepodařilo zjistit." }
+                return@launch
+            }
+            if (!actions.canDeleteForSelf && !actions.canDeleteForAll) return@launch
+            _state.update {
+                it.copy(noticeMenu = NoticeMenu(messageId, actions.canDeleteForSelf, actions.canDeleteForAll))
+            }
+        }
     }
 
     /**
@@ -5109,6 +5168,13 @@ data class MessageMenu(
  * Drží se **zvlášť od [MessageMenu]**: mezi zavřením nabídky a potvrzením nesmí zůstat viset
  * obojí. Stejný důvod jako u `target`/`pendingDelete` v akcích nad chatem.
  */
+/** Nabídka nad systémovým oznámením; otevírá se jen s právem ho smazat. */
+data class NoticeMenu(
+    val messageId: Long,
+    val canDeleteForSelf: Boolean,
+    val canDeleteForAll: Boolean,
+)
+
 data class PendingDelete(
     val messageId: Long,
     /** Co se opravdu smaže: zpráva sama, u alba všechny jeho načtené zprávy. */
@@ -5267,6 +5333,10 @@ data class ConversationState(
     val typing: Typing? = null,
     /** Otevřená nabídka nad zprávou (rychlé reakce + akce). */
     val messageMenu: MessageMenu? = null,
+    /** Otevřená nabídka nad systémovým oznámením (jen smazání). */
+    val noticeMenu: NoticeMenu? = null,
+    /** Reaguje dvojité ťuknutí na zprávu rychlou reakcí? Z nastavení aplikace. */
+    val doubleTapReaction: Boolean = true,
     /** Zpráva čekající na potvrzení smazání. */
     val pendingDelete: PendingDelete? = null,
     /** Zpráva čekající na potvrzení připnutí. */

@@ -12,6 +12,14 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   back, přežije to otočení i zabití procesu a nepotřebuje to `BackHandler`, který by predictive
   back zabil. **Nezapomenout ji zaregistrovat v `NavSavedStateConfiguration`** — bez toho to spadne
   až za běhu.
+- **Zpět v prohlížeči nemá vlastní handler, obsluhuje ho `NavDisplay`.** Dřív tu byl
+  `NavigationBackHandler(isBackEnabled = true, onBackCompleted = …)`. Zavíral správně, ale gesto
+  si bral dřív než `NavDisplay` a průběh tahu zahodil, takže predictive back v prohlížeči nebyl
+  vůbec: nic se nezmenšovalo a fotka neletěla zpátky do bubliny, dokud prst nepustil. Bez
+  handleru jde gestem tentýž přechod jako jinde (fade through se zmenšením). Let fotky
+  (`sharedNavElement`) visí na přechodu `NavDisplay`, takže by ho měl posouvat tah. **Na zařízení
+  to zatím ověřené není.** Spotřebování mizejícího média (`viewModel.onDismiss()`) hlídá
+  `onDispose`, ať se z prohlížeče odchází jakkoli.
 - **Routa nese jen id**, ne obsah. Zprávu si prohlížeč načte znovu (`ConversationRepository.message`);
   celá zpráva i s reakcemi a citací do serializovaného zásobníku nepatří a dotaz navíc je vedle
   stahování fotky zanedbatelný.
@@ -125,9 +133,17 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   (`clip` + `shape`), takže se s přiblížením zvětšuje spolu s fotkou.
 - **Podklad je tmavý v obou motivech**, i s rozostřením. Barva ovládání je proto natvrdo bílá —
   role z `colorScheme` by ve světlém tématu dala tmavý text na tmavé ploše — a **ikony
-  systémových lišt musí být světlé** (`DarkSystemBars`, při odchodu vrátí předchozí stav).
+  systémových lišt musí být světlé** (`DarkSystemBars`).
   Kde rozostření není (Android 11 a starší), kreslí Haze skoro neprůhledný závoj
   (`AMBIENT_FALLBACK_ALPHA`) — ostrá fotka za kartou by rušila.
+- **`DarkSystemBars` jen přihlašuje požadavek, o liště rozhoduje `AppTheme`** (počítadlo
+  `DarkSystemBarsRequests`, ikony světlé = tmavý motiv NEBO aspoň jeden požadavek). Dřív si
+  obrazovka při vstupu zapamatovala stav lišt a při odchodu ho vrátila, a ikony pak občas zůstaly
+  světlé nad světlým seznamem chatů. Stačilo zavřít fotku a hned ťuknout na další: nový prohlížeč
+  vznikl, než starý dojel zavírací animací, zapamatoval si „světlé“ od něj a po zavření je vrátil.
+  Totéž se stalo při změně motivu během prohlížení (aktivita má `configChanges="uiMode"`, takže se
+  znovu nezakládá), protože se vrátil stav ze starého motivu. **Uložit a vrátit funguje jen
+  tehdy, když se obrazovky překrývají v pořadí LIFO, a přechody v Navigation3 to nezaručují.**
 - **Uložení do galerie je v horní liště prohlížeče** (`MediaSaver`, `expect`/`actual`). Ukládá
   se KOPIE ostré verze (`fullFileId`, u souboru soubor sám) — soubor TDLib je v soukromém
   adresáři a s odhlášením zmizí. Android od verze 10 přes `MediaStore` do `Pictures/Plume`
@@ -481,9 +497,10 @@ týmž přehrávačem jako video (`MessageMedia.Animation`, `AnimationBubble`).
 - **Smyčku `AVPlayer` neumí sám.** Řeší ji pozorovatel `AVPlayerItemDidPlayToEndTimeNotification`,
   který se drží silnou referencí a odhlašuje při uvolnění přehrávače — `NSNotificationCenter` si
   pozorovatele nedrží. `AVPlayerLooper` by znamenal `AVQueuePlayer`.
-- **Velký GIF se sám nestahuje** (`MAX_AUTOPLAY_ANIMATION_BYTES`, 5 MB; testy `MessageRowsTest`).
-  Autoplay by bez ptaní snědl data, takže nad stropem — a u neznámé velikosti — zůstane náhled
-  a čeká na ťuknutí. Ťuknutí na hrající GIF ho pozastaví, jinak by nešel zastavit vůbec.
+- **Velký GIF se sám nestahuje** (`autoPlaysWithin` se stropem podle sítě, viz „Automatické
+  stahování"; testy `MessageRowsTest`). Autoplay by bez ptaní snědl data, takže nad stropem —
+  a u neznámé velikosti — zůstane náhled a čeká na ťuknutí. GIF, který už na disku je, hraje
+  i nad stropem. Výběr GIFů má pevný strop 5 MB (`autoPlays`), tam jde o náhled před odesláním. Ťuknutí na hrající GIF ho pozastaví, jinak by nešel zastavit vůbec.
 - **GIF jde na plochu bez bubliny** jako fotka a video (`showsBareMedia`): je to obrázek sám
   o sobě. Od videa ho odliší značka „GIF" v rohu a to, že nemá délku.
 - **Přehrávání se na emulátoru ověřit NEDÁ**, když je stroj zatížený: `c2.goldfish.h264.decoder`
@@ -497,7 +514,7 @@ týmž přehrávačem jako video (`MessageMedia.Animation`, `AnimationBubble`).
 (`VideoNoteBubble`, cesta přes `StickerMessageItem` — s citací nebo přeposláním v bublině).
 
 - **Samo hraje ve smyčce a potichu, jako GIF** — stejný přehrávač, stejný strop velikosti
-  (`autoPlays`), nad ním se nestahuje. Dole je délka s přeškrtnutým reproduktorem, jinak by
+  (`autoPlaysWithin` podle sítě), nad ním se nestahuje. Dole je délka s přeškrtnutým reproduktorem, jinak by
   nebylo poznat, že ťuknutí pustí zvuk.
 - **Ťuknutí = zvuk od začátku, bez smyčky, s průběhem po obvodu**; další ťuknutí nebo dohrání
   vrátí tichou smyčku. Přepnutí je nové `load` nad týmž přehrávačem (Media3 i AVPlayer to
@@ -895,6 +912,29 @@ za `MessageExpiredPhoto` / `MessageExpiredVideo`.
   video dohrálo — časovač má na délku videa rezervu jedné vteřiny. Mizející video se ze
   stejného důvodu nestreamuje (`VideoPage(streaming = false)`): přehrávání a odpočet začnou
   naráz a nic se neukáže dřív, než odpočet běží.
+- **Vypršelé médium je OZNÁMENÍ na střed, ne bublina** (`MessageExpired*` v `serviceText()`,
+  test `ServiceTextTest`). Dokud padalo do `describe()`, kreslila se „Fotka vypršela" jako
+  obyčejný text v bublině protistrany — četlo se to, jako by to odesílatel napsal. Tak to mají
+  i oficiální klienti.
+- **Spotřebované médium je oznámením HNED, ne až po TDLib** (`withExpiredNotices`
+  v `ConversationItems.kt`, obrazovka podává `SelfDestructTimers.consumedIds`, test
+  `spotrebovaneMiziciMediumJeHnedOznameni`). Update obsahu (`MessageExpiredPhoto`) přijde až
+  chvíli po zavření prohlížeče nebo po doběhnutí odpočtu a do té doby stála v seznamu bublina
+  „vypršelo" (`ExpiredMediaRow`), která pak skočila na oznámení. Převod napodobí, co TDLib
+  pošle: bez média a bez popisku. `ExpiredMediaRow` v `Attachments.kt` zůstává jen jako
+  pojistka pro bubliny kreslené mimo seznam konverzace.
+- **Oznámení má vlastní nabídku jen se smazáním** (`MessageAction.ShowNoticeMenu`,
+  `NoticeMenu`, `ServiceMessageItem`). Nabídka nad zprávou se nehodí — kreslí kopii BUBLINY
+  a nabízí reakce a odpověď. Práva se zjistí napřed (`messageActions`) a bez práva smazat se
+  nabídka neotevře vůbec. **Práva nese položka „Smazat" v akci** (`DeleteNotice`), ne stav:
+  `ExpressiveMenu` volá `onDismiss` DŘÍV než položku, takže stav nabídky už je pryč. Nabídka
+  je ukotvená k šířce textu (`IntrinsicSize.Max`), jinak vyjela u levého okraje seznamu.
+- **Ověřeno na emulátoru sondou** (zpráva `#vyprselo` od testovacího bota převod dočasně
+  vydával za vypršelou fotku; necommituje se): oznámení na střed, dlouhý stisk → „Smazat" →
+  dialog → smazáno. Převod spotřebované sondou v prohlížeči (`ownSelfDestruct = false`, takže
+  se spotřebovala i VLASTNÍ odeslaná fotka s 10s časovačem): první snímek chatu po zavření
+  prohlížeče už nesl oznámení, bublina neprobleskla. Skutečná vypršelá fotka od druhého účtu
+  ověřená není.
 - **Jednorázové zhlédnutí se hlásí až při ODCHODU z prohlížeče** (`onCleared`, `appScope`).
   U `MessageSelfDestructTypeImmediately` TDLib po `openMessageContent` obsah vyřídí okamžitě
   (`ttl_on_open` → `on_message_ttl_expired`): smaže soubory a pošle vypršelý obsah, na který
@@ -1086,3 +1126,39 @@ cesta je známá až po stažení a průběh chodí updaty. Překlad do jednoho 
   **Obecně: na stav souboru z updatů se nespoléhat, když na něm něco čeká bez časového limitu.**
 - **`FileRepository` je eager** (`createdAtStart`) ze stejného důvodu jako seznam chatů — v
   konstruktoru se přihlašuje k `fileUpdates`.
+
+### Automatické stahování
+
+Nastavení → Úložiště → Automatické stahování: pro Wi-Fi, mobilní data a roaming jedna úroveň
+(`AutoDownloadLevel`: Vypnuto, Úsporně, Běžně, Naplno; `AppSettings.autoDownload`). Úroveň
+říká, jestli se samy stahují fotky ve zprávách a do jaké velikosti GIFy, kolečka a obrázky
+poslané jako soubor (`AutoDownloadLimits`, testy `AutoDownloadTest`). „Běžně" je to, co aplikace
+dělala na všech sítích dřív (5 MB); výchozí je Wi-Fi Naplno, mobilní data Běžně, roaming Úsporně.
+
+- **Úrovně, ne přepínače po druzích.** Plume samo stahuje jen tři věci, takže šest voleb na síť
+  by nastavovalo rozdíly, které uživatel nepozná. Video samo se nepřednačítá vůbec (proud až
+  v prohlížeči), hlasovky se stahují až přehráním — proto v nabídce nejsou.
+- **Co platí teď, počítá `AutoDownloadPolicy`** (nastavení + `NetworkMonitor.status` +
+  `saveData`) a dává to UI přes `LocalAutoDownload` z kořene přihlášené části. Bubliny
+  nesahají do Koinu ani nesledují síť samy.
+- **Spořič dat srazí mobilní síť nejvýš na Úsporně** (Android `restrictBackgroundStatus`,
+  iOS `NWPath.isConstrained`). Spořič se síťovým callbackem neohlásí, chodí jen vysílání
+  `ACTION_RESTRICT_BACKGROUND_CHANGED`, a proto je to vlastní proud vedle `status` — v něm by
+  změna znamenala nové hlášení sítě TDLib a znovuotevření všech spojení.
+- **Co se samo stahovat nemá, se jen SLEDUJE** (`FileRepository.observe`, `rememberFileState(…,
+  download = false)`): už stažená fotka i GIF se ukážou, stahuje-li soubor někdo jiný
+  (prohlížeč), běží lesk. Dřív se stav souboru nedal zjistit bez spuštění stahování —
+  `file()` ho spouští odběrem.
+- **Fotka bez stažení = rozmazaný náhled ze zprávy a tlačítko stažení** (`RemoteImage(autoDownload
+  = false)`). Ťuknutí stáhne fotku i zmenšeninu a otevře se až dalším ťuknutím; tlačítko je tmavý
+  kruh jako „přehrát" u videa, protože leží přes fotku. Zmenšeniny videí a souborů se stahují
+  dál — jsou malé a bez nich by nebylo poznat, co ve zprávě je.
+- **Roaming nastavení nabízí jen tam, kde ho platforma pozná** (`detectsRoaming`): iOS ho
+  nehlásí a volba, která se nikdy neuplatní, by lhala.
+- **Emulátor jede pro aplikaci přes Wi-Fi, i když `dumpsys connectivity` hlásí jako výchozí
+  síť mobilní data** (výchozí síť aplikace měla transport Wi-Fi). Která úroveň platí, říká log
+  `AutoDownload` („Automatické stahování: High (síť WiFi…)"), píše se jen při změně úrovně.
+- **Ověřeno na emulátoru (česky):** nastavení všech tří sítí, Wi-Fi na Vypnuto → fotka v kanálu
+  rozmazaná s tlačítkem a v logu `Files` ani jedna žádost o soubor, ťuknutí stáhne fotku
+  i zmenšeninu. **Neověřeno:** spořič dat a režim nízkých dat (logika jen testy), skutečný
+  roaming a iOS (jen přeložené).

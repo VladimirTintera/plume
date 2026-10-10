@@ -1,5 +1,20 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.download_24dp
+import eu.tintera.plume.resources.media_download
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloat
@@ -43,6 +58,11 @@ import org.koin.compose.koinInject
  *
  * [placeholder] je ještě o krok dřív: rozmazaný náhled přímo ze zprávy, bez stahování. Kreslí
  * se místo holé podložky, dokud není ani [thumbnailFileId].
+ *
+ * [autoDownload] `false` (automatické stahování podle sítě, [LocalAutoDownload]): obrázek ani
+ * zmenšenina se samy nestáhnou, jen se ukážou, když už na disku jsou. Jinak je vidět rozmazaný
+ * náhled s tlačítkem stažení; ťuknutí stáhne obojí. Stahuje-li soubor někdo jiný (prohlížeč),
+ * běží lesk jako obvykle.
  */
 @Composable
 fun RemoteImage(
@@ -55,9 +75,14 @@ fun RemoteImage(
     // v rámečku vypadá jako obrázek, ne jako samolepka.
     background: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
     placeholder: Minithumbnail? = null,
+    autoDownload: Boolean = true,
 ) {
-    val state = rememberFileState(fileId)
-    val thumbnailState = rememberFileState(thumbnailFileId)
+    // Ťuknutí na stažení platí pro tenhle soubor; jiný soubor na tomtéž místě (recyklovaná
+    // položka seznamu) začíná zase podle nastavení.
+    var requested by remember(fileId) { mutableStateOf(false) }
+    val download = autoDownload || requested
+    val state = rememberFileState(fileId, download)
+    val thumbnailState = rememberFileState(thumbnailFileId, download)
 
     val readyPath = (state as? FileState.Ready)?.path
     val thumbnailPath = (thumbnailState as? FileState.Ready)?.path
@@ -86,8 +111,12 @@ fun RemoteImage(
                     Modifier
                         .fillMaxSize()
                         .then(if (shimmer) Modifier.loadingShimmer(onPhoto = placeholder != null) else Modifier),
+                    contentAlignment = Alignment.Center,
                 ) {
                     if (placeholder != null) BlurredPlaceholder(placeholder, contentScale)
+                    if (!download && state !is FileState.Downloading) {
+                        DownloadButton(onClick = { requested = true })
+                    }
                 }
             } else {
                 // Zmenšenina místo ostré verze, která se teprve stahuje (prohlížeč médií nad
@@ -107,6 +136,34 @@ fun RemoteImage(
         }
     }
 }
+
+/**
+ * Tlačítko stažení přes rozmazaný náhled: tmavý kruh s bílou šipkou, jako „přehrát" u videa —
+ * leží přes fotku, takže barvy z motivu by na ní nebyly čitelné.
+ */
+@Composable
+private fun DownloadButton(onClick: () -> Unit) {
+    val label = stringResource(Res.string.media_download)
+    Box(
+        Modifier
+            .size(DOWNLOAD_BUTTON_SIZE)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = DOWNLOAD_BUTTON_SCRIM))
+            .clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painterResource(Res.drawable.download_24dp),
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(28.dp),
+        )
+    }
+}
+
+private val DOWNLOAD_BUTTON_SIZE = 48.dp
+private const val DOWNLOAD_BUTTON_SCRIM = 0.5f
 
 /**
  * Jen rozmazaný náhled ze zprávy, BEZ stahování — pro obsah, který má zůstat skrytý (spoiler
@@ -202,16 +259,21 @@ private const val SHIMMER_SLANT = 0.4f
 private val MIN_SHIMMER = 24.dp
 
 /**
- * Stav souboru, nebo [FileState.Pending] když id není.
+ * Stav souboru, nebo [FileState.Pending] když id není. S [download] `false` se jen sleduje,
+ * stahování se nespustí ([FileRepository.observe]).
  *
  * Struktura kompozice musí zůstat stejná i pro `null` — proto se `remember` a `collectAsState`
  * volají vždycky a nulovost se řeší až uvnitř zapamatovaného Flow.
  */
 @Composable
-fun rememberFileState(fileId: Int?): FileState {
+fun rememberFileState(fileId: Int?, download: Boolean = true): FileState {
     val repository = koinInject<FileRepository>()
-    val flow = remember(repository, fileId) {
-        if (fileId == null) flowOf(FileState.Pending) else repository.file(fileId)
+    val flow = remember(repository, fileId, download) {
+        when {
+            fileId == null -> flowOf(FileState.Pending)
+            download -> repository.file(fileId)
+            else -> repository.observe(fileId)
+        }
     }
     val state by flow.collectAsStateWithLifecycle(initialValue = FileState.Pending)
     return state

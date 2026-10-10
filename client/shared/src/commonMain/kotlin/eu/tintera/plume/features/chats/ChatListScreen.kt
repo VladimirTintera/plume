@@ -1,5 +1,24 @@
 package eu.tintera.plume.features.chats
 
+import org.koin.compose.koinInject
+import eu.tintera.plume.core.ui.neighbourChat
+import eu.tintera.plume.core.ui.KeyboardShortcuts
+import eu.tintera.plume.core.ui.KeyboardShortcut
+import eu.tintera.plume.resources.chats_swipe_archive
+import eu.tintera.plume.resources.chats_swipe_unarchive
+import eu.tintera.plume.resources.chats_swipe_read
+import eu.tintera.plume.resources.chats_swipe_unread
+import eu.tintera.plume.resources.chats_swipe_mute
+import eu.tintera.plume.resources.chats_swipe_unmute
+import eu.tintera.plume.resources.chats_swipe_pin
+import eu.tintera.plume.resources.chats_swipe_unpin
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.seconds
+import androidx.compose.runtime.rememberUpdatedState
+import org.jetbrains.compose.resources.StringResource
+import eu.tintera.plume.resources.keep_off_24dp
+import eu.tintera.plume.resources.notifications_24dp
+import eu.tintera.plume.resources.mark_chat_unread_24dp
 import eu.tintera.plume.core.ui.SwipeThresholdBadge
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.FloatingActionButtonMenu
@@ -167,6 +186,7 @@ import eu.tintera.plume.resources.chats_reorder_hint
 import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.asRelativeTime
 import eu.tintera.plume.core.ui.chatAvatarKey
+import eu.tintera.plume.core.ui.rememberChatContainerSource
 import eu.tintera.plume.core.ui.chatTitleKey
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.core.ui.resolve
@@ -192,6 +212,9 @@ import eu.tintera.plume.resources.chats_blocked
 import eu.tintera.plume.resources.chats_unblocked
 import eu.tintera.plume.resources.chats_unarchived
 import eu.tintera.plume.resources.chats_draft_prefix
+import eu.tintera.plume.resources.chats_drafts
+import eu.tintera.plume.resources.chats_drafts_count
+import eu.tintera.plume.resources.edit_note_24dp
 import eu.tintera.plume.resources.chats_empty
 import eu.tintera.plume.resources.chats_folder_empty
 import eu.tintera.plume.resources.chats_folder_empty_title
@@ -257,6 +280,8 @@ fun ChatListScreen(
     val newFolderChats by viewModel.newFolderChats.collectAsStateWithLifecycle()
     val account by viewModel.account.collectAsStateWithLifecycle()
     val archiveUnread by viewModel.archiveUnread.collectAsStateWithLifecycle()
+    val drafts by viewModel.drafts.collectAsStateWithLifecycle()
+    var showDrafts by rememberSaveable { mutableStateOf(false) }
     val folderTabs by viewModel.folderTabs.collectAsStateWithLifecycle()
     val folderSuggestions by viewModel.folderSuggestions.collectAsStateWithLifecycle()
     val reorder by viewModel.reorder.collectAsStateWithLifecycle()
@@ -309,6 +334,24 @@ fun ChatListScreen(
         onArchived = onChatArchived,
         onOpenProxySettings = onOpenProxySettings,
     )
+    // Až s načtenými koncepty: obnovený sheet (po zániku procesu) by se jinak nad prázdným
+    // seznamem hned zavřel.
+    val loadedDrafts = drafts
+    if (showDrafts && loadedDrafts != null) {
+        val draftDeleted by viewModel.draftDeleted.collectAsStateWithLifecycle()
+        DraftsSheet(
+            drafts = loadedDrafts,
+            deleted = draftDeleted,
+            onOpen = { chat ->
+                showDrafts = false
+                if (chat.isForum) onForumClick(chat.id) else onChatClick(chat.id)
+            },
+            onDelete = viewModel::deleteDraft,
+            onDeletedShown = viewModel::consumeDraftDeleted,
+            onUndo = viewModel::undoDeleteDraft,
+            onDismiss = { showDrafts = false },
+        )
+    }
     newFolderChats?.takeIf { it.sheetOpen }?.let { folderChats ->
         NewFolderChatsSheet(
             state = folderChats,
@@ -402,6 +445,8 @@ fun ChatListScreen(
                             connection = shownConnection,
                             onSavedMessages = { viewModel.openSavedMessages(onChatClick) },
                             onArchive = onOpenArchive,
+                            draftCount = drafts?.size ?: 0,
+                            onDrafts = { showDrafts = true },
                             onSettings = onOpenSettings,
                         )
                     },
@@ -728,6 +773,9 @@ private fun AccountMenu(
     connection: ConnectionState?,
     onSavedMessages: () -> Unit,
     onArchive: () -> Unit,
+    /** Kolik chatů má rozepsanou zprávu; bez konceptů položka v menu není. */
+    draftCount: Int,
+    onDrafts: () -> Unit,
     onSettings: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
@@ -803,12 +851,14 @@ private fun AccountMenu(
                 )
             }
         }
-        // Kam se odtud jde: dvě místa v chatech, pak Nastavení — jiný druh cíle, vlastní skupina.
+        // Kam se odtud jde: místa v chatech, pak Nastavení — jiný druh cíle, vlastní skupina.
+        // Koncepty jen když nějaké jsou: prázdný přehled by byl položka, která nikam nevede.
+        val draftsLabel = pluralStringResource(Res.plurals.chats_drafts_count, draftCount, draftCount)
         ExpressiveMenu(
             expanded = open,
             onDismiss = { open = false },
             groups = listOf(
-                listOf(
+                listOfNotNull(
                     MenuAction(stringResource(Res.string.saved_messages), Res.drawable.bookmark_24dp, onClick = onSavedMessages),
                     MenuAction(
                         label = stringResource(Res.string.chats_archive),
@@ -816,6 +866,29 @@ private fun AccountMenu(
                         trailing = archiveBadge,
                         onClick = onArchive,
                     ),
+                    // Počet v neutrální barvě: koncept je náš rozdělaný text, ne nic, co by
+                    // si žádalo pozornost jako nepřečtené.
+                    if (draftCount > 0) {
+                        MenuAction(
+                            label = stringResource(Res.string.chats_drafts),
+                            icon = Res.drawable.edit_note_24dp,
+                            trailing = {
+                                Badge(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                ) {
+                                    RollingNumber(
+                                        value = draftCount,
+                                        style = LocalTextStyle.current.tabularNumbers(),
+                                        modifier = Modifier.semantics { contentDescription = draftsLabel },
+                                    )
+                                }
+                            },
+                            onClick = onDrafts,
+                        )
+                    } else {
+                        null
+                    },
                 ),
                 listOf(MenuAction(stringResource(Res.string.nav_settings), Res.drawable.settings_24dp, onClick = onSettings)),
             ),
@@ -951,6 +1024,7 @@ internal fun ChatListContent(
     ReportDrawnWhen { state !is ChatListState.Loading }
     val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
+    val swipeActions by viewModel.swipeActions.collectAsStateWithLifecycle()
     val hiddenSavedMessagesChatId by viewModel.hiddenSavedMessagesChatId.collectAsStateWithLifecycle()
 
     // Režim uspořádání připnutých: zpět ho zruší bez uložení, teprve další zpět odejde.
@@ -1001,8 +1075,20 @@ internal fun ChatListContent(
      * Chat, který je celý vidět, se nehýbe — skok by jen zbytečně odsunul to, na co uživatel
      * kouká. Chat v seznamu není (archiv, mimo složky): požadavek se jen zahodí.
      */
-    LaunchedEffect(scrollToChat, groups) {
-        val chatId = scrollToChat ?: return@LaunchedEffect
+    // Chat otevřený zkratkou z klávesnice: seznam za ním dojede stejně jako za chatem z hledání.
+    var shortcutTarget by remember { mutableStateOf<Long?>(null) }
+    ChatSwitchShortcuts(
+        enabled = reorder == null && selection == null,
+        chats = groups,
+        selectedChatId = selectedChatId,
+        onOpen = { chat ->
+            shortcutTarget = chat.id
+            if (chat.isForum) onForumClick(chat.id) else onChatClick(chat.id)
+        },
+    )
+
+    LaunchedEffect(scrollToChat ?: shortcutTarget, groups) {
+        val chatId = scrollToChat ?: shortcutTarget ?: return@LaunchedEffect
         if (groups.isEmpty()) return@LaunchedEffect
         val position = groups.flatten().indexOfFirst { it.id == chatId }
         if (position >= 0) {
@@ -1013,7 +1099,7 @@ internal fun ChatListContent(
             }
             if (!fullyVisible) listState.animateScrollToItem(1 + headerItemCount + position)
         }
-        onScrolledToChat()
+        if (scrollToChat != null) onScrolledToChat() else shortcutTarget = null
     }
 
     when (val current = state) {
@@ -1122,14 +1208,13 @@ internal fun ChatListContent(
                             lastInGroup = index == group.lastIndex,
                             selected = highlighted,
                         )
-                        SwipeToArchive(
-                            archived = chat.isArchived,
-                            // Uložené zprávy archivovat nejdou, stejně jako v nabídce po dlouhém stisku.
-                            // Sponzorovaný chat taky ne — není uživatelův a TDLib ho v seznamu drží sám.
-                            // Ve výběru tah nejde: archivuje se lištou a tah by mířil jen na jeden chat.
-                            enabled = !selecting && chat.id != savedMessagesChatId && chat.sponsor == null,
+                        SwipeableChat(
+                            // Ve výběru tah nejde: akce jdou lištou a tah by mířil jen na jeden chat.
+                            // Co tah s chatem udělá (a jestli vůbec), řeší `chatSwipeEffect`.
+                            right = chatSwipeEffect(swipeActions.right, chat, savedMessagesChatId).takeUnless { selecting },
+                            left = chatSwipeEffect(swipeActions.left, chat, savedMessagesChatId).takeUnless { selecting },
                             shape = shape,
-                            onSwipe = { viewModel.toggleArchived(chat) },
+                            onSwipe = { effect -> viewModel.swipe(chat, effect) },
                             // Animace přeskládání při změně pořadí — bez toho by chaty
                             // při nové zprávě skákaly. `animateItem` musí být na kořeni
                             // položky, takže sedí na tahu, ne na řádku uvnitř.
@@ -1196,30 +1281,25 @@ private fun groupItemShape(firstInGroup: Boolean, lastInGroup: Boolean, selected
 }
 
 /**
- * Chat tahem do strany do archivu a zpátky.
- *
- * Táhnout jde na OBĚ strany a obě dělají totéž: druhá akce v seznamu není, takže by si uživatel
- * musel pamatovat směr pro nic. Nevratné to není — snackbar „Vrátit" je tentýž jako u archivace
- * z nabídky ([ChatActionsHost]), takže se tah nepotvrzuje.
+ * Chat tahem do strany: akce podle Nastavení, zvlášť pro tah doprava ([right]) a doleva
+ * ([left]); `null` = na tu stranu tah nejde. Nevratné nic z toho není — archivace má snackbar
+ * „Vrátit" jako z nabídky ([ChatActionsHost]) a ostatní akce se týmž tahem otočí, takže se tah
+ * nepotvrzuje.
  *
  * **Vlastní detektor, ne `SwipeToDismissBox`.** Ten stojí na `draggable`, které si tah vezme po
  * obyčejném touch slopu a je přitom směrově agnostické — palec jde na začátku scrollu obloukem do
  * strany, takže seznamu gesto sebral a chaty odlétaly do archivu při obyčejném scrollování.
  * A archivoval i ZKRATKOU PŘES RYCHLOST: tah rychlejší než 125 dp/s bral jako dokončený bez
  * ohledu na to, kam došel, a vypnout to zvenku nejde. Tady rozhoduje [detectHorizontalSwipe]
- * (výrazně vodorovný tah, dvojnásobek slopu) a [archiveSwipeThreshold] (kus šířky řádku);
+ * (výrazně vodorovný tah, dvojnásobek slopu) a [chatSwipeThreshold] (kus šířky řádku);
  * rychlost se nepočítá vůbec.
- *
- * [enabled] `false` u Uložených zpráv: ty archivovat nejdou a tah, po kterém přijde chyba, je
- * horší než tah, který se nechytne.
  */
 @Composable
-private fun SwipeToArchive(
-    /** Chat je v archivu — tah ho tedy vrací mezi chaty. */
-    archived: Boolean,
-    enabled: Boolean,
+private fun SwipeableChat(
+    right: ChatSwipeEffect?,
+    left: ChatSwipeEffect?,
     shape: RoundedCornerShape,
-    onSwipe: () -> Unit,
+    onSwipe: (ChatSwipeEffect) -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -1233,22 +1313,29 @@ private fun SwipeToArchive(
      * „Vrátit" by se tedy vrátil rovnou odtažený, tedy neviditelný.
      */
     val drag = remember { Animatable(0f) }
-    /** Prah už byl v tomhle tahu překročen; hlídá, aby haptika odešla jen jednou za tah. */
+    /** Tah je právě za prahem; hlídá, aby se haptika ozvala jednou za každé překročení. */
     var armed by remember { mutableStateOf(false) }
     // Spec se musí vzít v kompozici — konec gesta je obyčejná suspend funkce, ne composable.
     val returnSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    // Detektor běží v `pointerInput(Unit)` přes celý život položky; akce se mění se stavem
+    // chatu (ztlumený → odtlumit), takže se čtou čerstvé, ne ty z prvního snímku.
+    val currentRight by rememberUpdatedState(right)
+    val currentLeft by rememberUpdatedState(left)
+    // Totéž pro akci: lambda drží chat z kompozice, ve které vznikla, a ten ze prvního snímku
+    // by tvrdil, že nepřipnutý chat pořád není připnutý — druhý tah by ho připnul znovu.
+    val currentOnSwipe by rememberUpdatedState(onSwipe)
+
+    // Šířka řádku pro práh mimo `pointerInput` — podklad ji potřebuje ke zvýraznění ikony.
+    var width by remember { mutableIntStateOf(0) }
+    // Ikona ukazuje, jestli by se akce provedla PRÁVĚ TEĎ: vrácený prst ji vrátí do kolečka.
+    val overThreshold by remember {
+        derivedStateOf { width > 0 && abs(drag.value) >= chatSwipeThreshold(width.toFloat(), thresholdCap) }
+    }
 
     /*
      * Strana, ze které se podklad odkrývá. Čte se hrubě přes `derivedStateOf`: `drag.value` se
      * mění každý snímek tahu a podklad se má překreslit jen při změně strany.
      */
-    // Šířka řádku pro práh mimo `pointerInput` — podklad ji potřebuje ke zvýraznění ikony.
-    var width by remember { mutableIntStateOf(0) }
-    // Ikona ukazuje, jestli by se chat archivoval PRÁVĚ TEĎ: vrácený prst ji vrátí do kolečka.
-    val overThreshold by remember {
-        derivedStateOf { width > 0 && abs(drag.value) >= archiveSwipeThreshold(width.toFloat(), thresholdCap) }
-    }
-
     val side by remember {
         derivedStateOf {
             when {
@@ -1259,39 +1346,63 @@ private fun SwipeToArchive(
         }
     }
 
+    // Klíč je směr, ne akce: změna akce (ztlumený chat) detektor nerestartuje, změna toho, kam
+    // táhnout jde (Nastavení, vstup do výběru), ano — jinak by se chytal tah na zakázanou stranu.
+    val direction = when {
+        right != null && left != null -> SwipeDirection.Either
+        right != null -> SwipeDirection.Right
+        left != null -> SwipeDirection.Left
+        else -> null
+    }
+
     Box(
         modifier.onSizeChanged { width = it.width }.then(
-            if (!enabled) {
+            if (direction == null) {
                 Modifier
             } else {
-                Modifier.pointerInput(Unit) {
+                Modifier.pointerInput(direction) {
                     val maxDrag = { size.width.toFloat() }
-                    val threshold = { archiveSwipeThreshold(size.width.toFloat(), thresholdCap) }
+                    val threshold = { chatSwipeThreshold(size.width.toFloat(), thresholdCap) }
                     detectHorizontalSwipe(
-                        direction = SwipeDirection.Either,
+                        direction = direction,
                         onDrag = { delta ->
                             coroutineScope.launch {
-                                val next = (drag.value + delta).coerceIn(-maxDrag(), maxDrag())
+                                // Na stranu bez akce se řádek nepohne, ani když tah začal opačně.
+                                val min = if (currentLeft != null) -maxDrag() else 0f
+                                val max = if (currentRight != null) maxDrag() else 0f
+                                val next = (drag.value + delta).coerceIn(min, max)
                                 drag.snapTo(next)
-                                if (!armed && abs(next) >= threshold()) {
-                                    armed = true
-                                    haptics.threshold()
-                                }
+                                // Vrácený prst práh zase odjistí: další překročení v témže tahu
+                                // se musí ozvat znovu, stejně jako se znovu mění ikona.
+                                val past = abs(next) >= threshold()
+                                if (past && !armed) haptics.threshold()
+                                armed = past
                             }
                         },
                         onEnd = { released ->
-                            val committed = released && abs(drag.value) >= threshold()
+                            val committed = (if (drag.value > 0f) currentRight else currentLeft)
+                                ?.takeIf { released && abs(drag.value) >= threshold() }
                             val target = if (drag.value > 0f) maxDrag() else -maxDrag()
                             armed = false
                             coroutineScope.launch {
                                 /*
-                                 * Archivuje se při PUŠTĚNÍ, ne při překročení prahu — kdo si to
+                                 * Akce se provede při PUŠTĚNÍ, ne při překročení prahu — kdo si to
                                  * rozmyslí, vrátí prst zpátky a nic se nestane. Akce odchází
                                  * PŘED animací odjezdu: odscrollovaná položka se uklidí
                                  * z kompozice i s tímhle rozsahem a animace by ji vzala s sebou.
                                  */
-                                if (committed) onSwipe()
-                                drag.animateTo(if (committed) target else 0f, returnSpec)
+                                committed?.let(currentOnSwipe)
+                                if (committed?.leavesList == true) {
+                                    drag.animateTo(target, returnSpec)
+                                    /*
+                                     * Chat, který po archivaci ze seznamu odešel, se uklidí i s tímhle
+                                     * rozsahem a sem se nedojde. Zůstal-li (složka s archivovanými
+                                     * chaty, chyba od TDLib), vrátí se — jinak by v seznamu visel
+                                     * neviditelný řádek, na který jde ťuknout.
+                                     */
+                                    delay(LEFT_ROW_RETURN_DELAY)
+                                }
+                                drag.animateTo(0f, returnSpec)
                             }
                         },
                     )
@@ -1305,7 +1416,12 @@ private fun SwipeToArchive(
          * podklad jimi prosvítal: v tmavém tématu byl kolem každého chatu světlý lem
          * `primaryContainer` na skoro černém `surfaceContainerLowest`.
          */
-        if (side != SwipeSide.None) {
+        val effect = when (side) {
+            SwipeSide.Start -> right
+            SwipeSide.End -> left
+            SwipeSide.None -> null
+        }
+        if (effect != null) {
             Box(
                 Modifier
                     .matchParentSize()
@@ -1317,11 +1433,9 @@ private fun SwipeToArchive(
                     // Za prahem kolečko naroste do sušenky a vyplní se — spolu s haptikou.
                     SwipeThresholdBadge(
                         armed = overThreshold,
-                        painter = painterResource(
-                            if (archived) Res.drawable.unarchive_24dp else Res.drawable.archive_24dp,
-                        ),
+                        painter = painterResource(effect.icon),
                         surface = MaterialTheme.colorScheme.primaryContainer,
-                        idleFill = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = ARCHIVE_BADGE_IDLE_ALPHA),
+                        idleFill = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = SWIPE_BADGE_IDLE_ALPHA),
                         idleIcon = MaterialTheme.colorScheme.onPrimaryContainer,
                         size = 40.dp,
                         iconSize = 24.dp,
@@ -1329,9 +1443,7 @@ private fun SwipeToArchive(
                 }
                 val label = @Composable {
                     Text(
-                        text = stringResource(
-                            if (archived) Res.string.chats_action_unarchive else Res.string.chats_action_archive,
-                        ),
+                        text = stringResource(effect.label),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
@@ -1362,14 +1474,50 @@ private fun SwipeToArchive(
     }
 }
 
-/** Podklad ikony archivace do prahu: jemný tón barvy popředí na `primaryContainer`. */
-private const val ARCHIVE_BADGE_IDLE_ALPHA = 0.12f
+/**
+ * Popisek akce na podkladu pod taženým chatem: říká, co se STANE, ne jaký je stav. Kratší než
+ * věty z nabídky nad chatem — popisek leží v odkryté části a „Označit jako nepřečtené" by
+ * u prahu (40 % šířky) zůstalo z půlky pod řádkem.
+ */
+private val ChatSwipeEffect.label: StringResource
+    get() = when (this) {
+        ChatSwipeEffect.Archive -> Res.string.chats_swipe_archive
+        ChatSwipeEffect.Unarchive -> Res.string.chats_swipe_unarchive
+        ChatSwipeEffect.MarkRead -> Res.string.chats_swipe_read
+        ChatSwipeEffect.MarkUnread -> Res.string.chats_swipe_unread
+        ChatSwipeEffect.Mute -> Res.string.chats_swipe_mute
+        ChatSwipeEffect.Unmute -> Res.string.chats_swipe_unmute
+        ChatSwipeEffect.Pin -> Res.string.chats_swipe_pin
+        ChatSwipeEffect.Unpin -> Res.string.chats_swipe_unpin
+    }
+
+/** Ikony z nabídky nad chatem, ať tah a nabídka mluví stejně. */
+private val ChatSwipeEffect.icon: DrawableResource
+    get() = when (this) {
+        ChatSwipeEffect.Archive -> Res.drawable.archive_24dp
+        ChatSwipeEffect.Unarchive -> Res.drawable.unarchive_24dp
+        ChatSwipeEffect.MarkRead, ChatSwipeEffect.MarkUnread -> Res.drawable.mark_chat_unread_24dp
+        ChatSwipeEffect.Mute -> Res.drawable.notifications_off_24dp
+        ChatSwipeEffect.Unmute -> Res.drawable.notifications_24dp
+        ChatSwipeEffect.Pin -> Res.drawable.push_pin_filled_24dp
+        ChatSwipeEffect.Unpin -> Res.drawable.keep_off_24dp
+    }
+
+/** Podklad ikony akce do prahu: jemný tón barvy popředí na `primaryContainer`. */
+private const val SWIPE_BADGE_IDLE_ALPHA = 0.12f
+
+/**
+ * Za jak dlouho po odjezdu se řádek vrátí, když chat v seznamu zůstal. Delší než odpověď TDLib
+ * na archivaci a zmizení položky z obou seznamů, aby se odjetý chat nevracel do seznamu, ze
+ * kterého právě odchází.
+ */
+private val LEFT_ROW_RETURN_DELAY = 1.seconds
 
 /** Ze které hrany se odkrývá podklad pod taženým chatem. */
 private enum class SwipeSide { None, Start, End }
 
 /**
- * Strop prahu archivace. Na široké ploše (tablet, dvoupanel) by podíl šířky znamenal tah přes
+ * Strop prahu akce tahem. Na široké ploše (tablet, dvoupanel) by podíl šířky znamenal tah přes
  * půl obrazovky; na telefonu se neuplatní.
  */
 private val SWIPE_THRESHOLD_MAX = 160.dp
@@ -1416,6 +1564,9 @@ private fun ChatRow(
         MaterialTheme.colorScheme.onSurfaceVariant
     }
 
+    // Řádek se při otevření chatu rozroste v jeho obrazovku (container transform).
+    val containerSource = rememberChatContainerSource(chat.id)
+
     // `Card(onClick = …)` umí jen krátké ťuknutí. Dlouhý stisk potřebuje `combinedClickable`,
     // takže se klikání přesouvá na Surface — Card zůstává jen tvarem a barvou.
     Surface(
@@ -1423,13 +1574,14 @@ private fun ChatRow(
         color = containerColor,
         contentColor = contentColor,
         modifier = modifier
+            .then(containerSource.container)
             .fillMaxWidth()
             .clip(shape)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .then(if (selectionMark != null) Modifier.semantics { this.selected = selectionMark } else Modifier),
     ) {
         Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),
+            containerSource.content.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -1697,3 +1849,36 @@ private const val FAB_MENU_SCRIM_ALPHA = 0.8f
  */
 private val FAB_CLEARANCE = 56.dp + FAB_MARGIN + 8.dp
 
+/**
+ * Alt+↓ / Alt+↑ (a Ctrl+Tab) z klávesnice: další a předchozí chat v pořadí, jak je vidět —
+ * i s blokem nepřečtených ([neighbourChat] nad skupinami). Jen když je seznam složený: na
+ * telefonu s otevřenou konverzací ho konverzace překrývá a zkratka nedělá nic; na rozloženém
+ * Foldu se tak prochází chat za chatem a vpravo se mění konverzace. Ve výběru a v uspořádání
+ * připnutých ne — tam by otevření chatu z režimu vytrhlo.
+ */
+@Composable
+private fun ChatSwitchShortcuts(
+    enabled: Boolean,
+    chats: List<List<ChatSummary>>,
+    selectedChatId: Long?,
+    onOpen: (ChatSummary) -> Unit,
+) {
+    val shortcuts = koinInject<KeyboardShortcuts>()
+    val currentEnabled by rememberUpdatedState(enabled)
+    val currentChats by rememberUpdatedState(chats)
+    val currentSelected by rememberUpdatedState(selectedChatId)
+    val currentOnOpen by rememberUpdatedState(onOpen)
+    LaunchedEffect(shortcuts) {
+        shortcuts.shortcuts.collect { shortcut ->
+            val next = when (shortcut) {
+                KeyboardShortcut.NextChat -> true
+                KeyboardShortcut.PreviousChat -> false
+                else -> return@collect
+            }
+            if (!currentEnabled) return@collect
+            val flat = currentChats.flatten().filter { it.sponsor == null }
+            val id = neighbourChat(flat.map { it.id }, currentSelected, next) ?: return@collect
+            flat.firstOrNull { it.id == id }?.let(currentOnOpen)
+        }
+    }
+}

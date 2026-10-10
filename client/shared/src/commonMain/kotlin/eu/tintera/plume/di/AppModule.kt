@@ -44,6 +44,7 @@ import eu.tintera.plume.core.telegram.TdlDeviceRepository
 import eu.tintera.plume.features.devices.DevicesViewModel
 import eu.tintera.plume.features.settings.StorageViewModel
 import eu.tintera.plume.core.storage.StorageCleaner
+import eu.tintera.plume.core.settings.AutoDownloadSync
 import eu.tintera.plume.core.telegram.StorageRepository
 import eu.tintera.plume.core.telegram.TdlStorageRepository
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
@@ -76,6 +77,10 @@ import eu.tintera.plume.core.telegram.LiveLocationRepository
 import eu.tintera.plume.core.telegram.TdlLiveLocationRepository
 import eu.tintera.plume.core.telegram.TdlGifRepository
 import eu.tintera.plume.core.telegram.TdlEmojiRepository
+import eu.tintera.plume.core.telegram.QuickReaction
+import eu.tintera.plume.core.telegram.TdlQuickReaction
+import eu.tintera.plume.core.telegram.AutoDownloadPresets
+import eu.tintera.plume.core.telegram.TdlAutoDownloadPresets
 import eu.tintera.plume.core.telegram.TdlStickerRepository
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.RevealedSpoilers
@@ -117,6 +122,11 @@ import eu.tintera.plume.features.media.MediaViewerViewModel
 import eu.tintera.plume.features.share.ShareToChatViewModel
 import eu.tintera.plume.features.share.ShareViewModel
 import eu.tintera.plume.features.settings.AppearanceViewModel
+import eu.tintera.plume.features.settings.AutoDownloadViewModel
+import eu.tintera.plume.core.connectivity.AutoDownloadPolicy
+import eu.tintera.plume.core.ui.KeyboardShortcuts
+import eu.tintera.plume.features.settings.ChatSwipeSettingsViewModel
+import eu.tintera.plume.features.settings.QuickReactionSettingsViewModel
 import eu.tintera.plume.features.settings.SettingsViewModel
 import eu.tintera.plume.features.settings.BlockSenderViewModel
 import eu.tintera.plume.features.settings.BlockedSendersViewModel
@@ -159,6 +169,8 @@ fun appModule() = module {
     platformModule()
 
     single(named(APP_SCOPE)) { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
+    single { KeyboardShortcuts() }
+    single(createdAtStart = true) { AutoDownloadPolicy(settings = get(), network = get(), scope = get(named(APP_SCOPE))) }
 
     // Jeden TDLib klient na proces; sdílí ho session i chat repository.
     single { TelegramClientHolder() }
@@ -246,6 +258,10 @@ fun appModule() = module {
         TdlLiveLocationRepository(holder = get(), scope = get(named(APP_SCOPE)))
     }
     single<EmojiRepository> { TdlEmojiRepository(holder = get()) }
+    // Eagerně: výchozí reakci i seznam emoji TDLib ohlásí jen updatem po přihlášení.
+    single<QuickReaction>(createdAtStart = true) {
+        TdlQuickReaction(holder = get(), scope = get(named(APP_SCOPE)))
+    }
 
     // Eagerně: nastavení se načte při startu, aby ho první obrazovka měla hned (viz AppSettings).
     single<AppSettings>(createdAtStart = true) {
@@ -295,6 +311,15 @@ fun appModule() = module {
     single<AccountRepository> { TdlAccountRepository(holder = get()) }
     single<ProxyRepository> { TdlProxyRepository(holder = get()) }
     single<StorageRepository> { TdlStorageRepository(holder = get()) }
+    single<AutoDownloadPresets> { TdlAutoDownloadPresets(holder = get()) }
+    single {
+        AutoDownloadSync(
+            settings = get(),
+            presets = get(),
+            authStage = get<TelegramSession>().authStage,
+            scope = get(named(APP_SCOPE)),
+        )
+    }
     single {
         StorageCleaner(
             repository = get(),
@@ -372,8 +397,11 @@ fun appModule() = module {
     viewModelOf(::TwoStepViewModel)
     viewModelOf(::AppLockViewModel)
     viewModelOf(::AppearanceViewModel)
+    viewModelOf(::ChatSwipeSettingsViewModel)
+    viewModel { QuickReactionSettingsViewModel(settings = get(), quickReaction = get(), appScope = get(named(APP_SCOPE))) }
     viewModelOf(::DevicesViewModel)
     viewModelOf(::StorageViewModel)
+    viewModelOf(::AutoDownloadViewModel)
     viewModelOf(::NotificationSettingsViewModel)
     viewModelOf(::EditProfileViewModel)
     // Model v zařízení (core/ai). Stahování modelu běží v aplikačním rozsahu — trvá minuty.
@@ -427,6 +455,7 @@ fun appModule() = module {
             inviteLinks = get(),
             proxies = get(),
             liveLocations = get(),
+            quickReaction = get(),
         )
     }
 

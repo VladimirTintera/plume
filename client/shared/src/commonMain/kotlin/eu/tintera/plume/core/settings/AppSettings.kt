@@ -16,6 +16,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -115,6 +116,46 @@ interface AppSettings {
     val savedMessagesAsChats: StateFlow<Boolean>
 
     fun setSavedMessagesAsChats(asChats: Boolean)
+
+    /**
+     * Co dělá tah chatem doprava a doleva v seznamu chatů (Nastavení → Obecné → Chaty).
+     * Výchozí je archivace na obou stranách; výchozí hodnota strany se neukládá, jako u motivu.
+     */
+    val chatSwipeActions: StateFlow<ChatSwipeActions>
+
+    /** Uloží akce tahu. Neblokuje, jako [recordRecentEmoji]. */
+    fun setChatSwipeActions(actions: ChatSwipeActions)
+
+    /**
+     * Co se smí stáhnout samo na Wi-Fi, mobilních datech a v roamingu (Nastavení → Úložiště).
+     * Výchozí hodnota sítě se neukládá, jako u motivu — kdyby se výchozí změnila, má ji dostat
+     * i ten, kdo si nic nevybral.
+     */
+    val autoDownload: StateFlow<AutoDownloadSettings>
+
+    /** Uloží úrovně automatického stahování. Neblokuje. */
+    fun setAutoDownload(settings: AutoDownloadSettings)
+
+    /**
+     * [autoDownload] až po načtení souboru. StateFlow do té doby drží výchozí hodnotu, a podle
+     * ní by synchronizace ([AutoDownloadSync]) usoudila, že si uživatel nic nevybral.
+     */
+    suspend fun loadedAutoDownload(): AutoDownloadSettings
+
+    /**
+     * Kde stojí automatické stahování vůči serveru Telegramu. `null` = ještě nikdy: čerstvá
+     * instalace, nebo aktualizace z verze, která nesynchronizovala. Čeká na načtení souboru.
+     */
+    suspend fun autoDownloadSync(): SettingsSync?
+
+    /** Zapíše [autoDownloadSync]. Na rozdíl od ostatních zápisů čeká, až je zapsáno. */
+    suspend fun setAutoDownloadSync(state: SettingsSync)
+
+    /** Tiché hodiny notifikací (Nastavení → Notifikace). Jen v zařízení, nesynchronizují se. */
+    val quietHours: StateFlow<QuietHours>
+
+    /** Uloží tiché hodiny; výchozí hodnoty se neukládají. Neblokuje. */
+    fun setQuietHours(quietHours: QuietHours)
 
     /**
      * Experimentální funkce s jazykovým modelem v zařízení (shrnutí konverzace, viz `core/ai`).
@@ -236,7 +277,41 @@ interface AppSettings {
 
     /** Zapíše čas posledního úklidu. Neblokuje. */
     fun setLastStorageCleanup(epochSeconds: Long)
+
+    /**
+     * Velikost písma textu zpráv v sp (Nastavení → Vzhled), v rozsahu [MESSAGE_TEXT_SIZES].
+     * Výchozí [DEFAULT_MESSAGE_TEXT_SIZE] — tatáž velikost jako `bodyLarge`.
+     */
+    val messageTextSize: StateFlow<Int>
+
+    /** Uloží velikost písma zpráv; výchozí se neukládá. Neblokuje. */
+    fun setMessageTextSize(size: Int)
+
+    /**
+     * Webové odkazy otevírat uvnitř aplikace (Custom Tabs / `SFSafariViewController`), ne
+     * v prohlížeči. Výchozí `true`, jako v oficiálním klientovi; odkaz, který si vezme jiná
+     * aplikace (YouTube), jde do ní v obou režimech — viz `UrlOpener`.
+     */
+    val openLinksInApp: StateFlow<Boolean>
+
+    /** Zapne nebo vypne otevírání odkazů v aplikaci. Neblokuje. */
+    fun setOpenLinksInApp(enabled: Boolean)
+
+    /**
+     * Dvojité ťuknutí na zprávu přidá (a znovu odebere) rychlou reakci. Výchozí `true`, jako
+     * v oficiálním klientovi. Kterou reakci, je nastavení účtu na serveru (`QuickReaction`).
+     */
+    val doubleTapReaction: StateFlow<Boolean>
+
+    /** Zapne nebo vypne rychlou reakci dvojitým ťuknutím. Neblokuje. */
+    fun setDoubleTapReaction(enabled: Boolean)
 }
+
+/** Výchozí velikost písma zpráv (sp) — `bodyLarge`, jak ho zprávy měly odjakživa. */
+const val DEFAULT_MESSAGE_TEXT_SIZE = 16
+
+/** Nabízené velikosti písma zpráv (sp); výchozí stojí uprostřed. */
+val MESSAGE_TEXT_SIZES = 12..20
 
 /** Kolik nedávných emoji se drží. Zhruba pět řádků mřížky na telefonu. */
 const val MAX_RECENT_EMOJIS = 40
@@ -385,6 +460,87 @@ class DataStoreAppSettings(
     override fun setSavedMessagesAsChats(asChats: Boolean) {
         scope.launch {
             edit { preferences -> preferences[SAVED_MESSAGES_AS_CHATS] = asChats }
+        }
+    }
+
+    override val chatSwipeActions: StateFlow<ChatSwipeActions> = value(ChatSwipeActions()) { preferences ->
+        val default = ChatSwipeActions()
+        ChatSwipeActions(
+            right = ChatSwipeAction.entries.firstOrNull { it.name == preferences[CHAT_SWIPE_RIGHT] } ?: default.right,
+            left = ChatSwipeAction.entries.firstOrNull { it.name == preferences[CHAT_SWIPE_LEFT] } ?: default.left,
+        )
+    }
+
+    override fun setChatSwipeActions(actions: ChatSwipeActions) {
+        val default = ChatSwipeActions()
+        scope.launch {
+            edit { preferences ->
+                if (actions.right == default.right) preferences.remove(CHAT_SWIPE_RIGHT) else preferences[CHAT_SWIPE_RIGHT] = actions.right.name
+                if (actions.left == default.left) preferences.remove(CHAT_SWIPE_LEFT) else preferences[CHAT_SWIPE_LEFT] = actions.left.name
+            }
+        }
+    }
+
+    override val autoDownload: StateFlow<AutoDownloadSettings> = value(AutoDownloadSettings(), ::readAutoDownload)
+
+    private fun readAutoDownload(preferences: Preferences): AutoDownloadSettings {
+        val default = AutoDownloadSettings()
+        fun level(key: Preferences.Key<String>, fallback: AutoDownloadLevel) =
+            AutoDownloadLevel.entries.firstOrNull { it.name == preferences[key] } ?: fallback
+        return AutoDownloadSettings(
+            wifi = level(AUTO_DOWNLOAD_WIFI, default.wifi),
+            mobile = level(AUTO_DOWNLOAD_MOBILE, default.mobile),
+            roaming = level(AUTO_DOWNLOAD_ROAMING, default.roaming),
+        )
+    }
+
+    override suspend fun loadedAutoDownload(): AutoDownloadSettings =
+        readAutoDownload(preferences.filterNotNull().first())
+
+    override suspend fun autoDownloadSync(): SettingsSync? {
+        val stored = preferences.filterNotNull().first()[AUTO_DOWNLOAD_SYNC] ?: return null
+        // Neznámý název z novější verze: stáhnout ze serveru je bezpečné, nic se neztratí.
+        return SettingsSync.entries.firstOrNull { it.name == stored } ?: SettingsSync.Pull
+    }
+
+    override suspend fun setAutoDownloadSync(state: SettingsSync) {
+        edit { preferences -> preferences[AUTO_DOWNLOAD_SYNC] = state.name }
+    }
+
+    override fun setAutoDownload(settings: AutoDownloadSettings) {
+        val default = AutoDownloadSettings()
+        scope.launch {
+            edit { preferences ->
+                fun put(key: Preferences.Key<String>, level: AutoDownloadLevel, fallback: AutoDownloadLevel) {
+                    if (level == fallback) preferences.remove(key) else preferences[key] = level.name
+                }
+                put(AUTO_DOWNLOAD_WIFI, settings.wifi, default.wifi)
+                put(AUTO_DOWNLOAD_MOBILE, settings.mobile, default.mobile)
+                put(AUTO_DOWNLOAD_ROAMING, settings.roaming, default.roaming)
+            }
+        }
+    }
+
+    override val quietHours: StateFlow<QuietHours> = value(QuietHours()) { preferences ->
+        val default = QuietHours()
+        // Čas mimo den (poškozený nebo cizí zápis) spadne na výchozí, jinak by úsek nedával smysl.
+        fun minute(key: Preferences.Key<Int>, fallback: Int) =
+            preferences[key]?.takeIf { it in 0 until MINUTES_PER_DAY } ?: fallback
+        QuietHours(
+            enabled = preferences[QUIET_HOURS_ENABLED] ?: default.enabled,
+            start = minute(QUIET_HOURS_START, default.start),
+            end = minute(QUIET_HOURS_END, default.end),
+        )
+    }
+
+    override fun setQuietHours(quietHours: QuietHours) {
+        val default = QuietHours()
+        scope.launch {
+            edit { preferences ->
+                if (quietHours.enabled == default.enabled) preferences.remove(QUIET_HOURS_ENABLED) else preferences[QUIET_HOURS_ENABLED] = quietHours.enabled
+                if (quietHours.start == default.start) preferences.remove(QUIET_HOURS_START) else preferences[QUIET_HOURS_START] = quietHours.start
+                if (quietHours.end == default.end) preferences.remove(QUIET_HOURS_END) else preferences[QUIET_HOURS_END] = quietHours.end
+            }
         }
     }
 
@@ -564,6 +720,45 @@ class DataStoreAppSettings(
         }
     }
 
+    override val messageTextSize: StateFlow<Int> = value(DEFAULT_MESSAGE_TEXT_SIZE) { preferences ->
+        // Hodnota mimo rozsah (z novější verze s jiným rozsahem) se přitáhne k nejbližší nabízené.
+        preferences[MESSAGE_TEXT_SIZE]?.coerceIn(MESSAGE_TEXT_SIZES) ?: DEFAULT_MESSAGE_TEXT_SIZE
+    }
+
+    override fun setMessageTextSize(size: Int) {
+        val clamped = size.coerceIn(MESSAGE_TEXT_SIZES)
+        scope.launch {
+            edit { preferences ->
+                // Výchozí se neukládá, jako u motivu: výchozí velikost tak jde změnit bez migrace.
+                if (clamped == DEFAULT_MESSAGE_TEXT_SIZE) {
+                    preferences.remove(MESSAGE_TEXT_SIZE)
+                } else {
+                    preferences[MESSAGE_TEXT_SIZE] = clamped
+                }
+            }
+        }
+    }
+
+    override val openLinksInApp: StateFlow<Boolean> = value(true) { preferences ->
+        preferences[OPEN_LINKS_IN_APP] ?: true
+    }
+
+    override fun setOpenLinksInApp(enabled: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[OPEN_LINKS_IN_APP] = enabled }
+        }
+    }
+
+    override val doubleTapReaction: StateFlow<Boolean> = value(true) { preferences ->
+        preferences[DOUBLE_TAP_REACTION] ?: true
+    }
+
+    override fun setDoubleTapReaction(enabled: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[DOUBLE_TAP_REACTION] = enabled }
+        }
+    }
+
     /** `základ:varianta` oddělené středníkem. Ani dvojtečka, ani středník v žádném emoji nejsou. */
     private fun String.decodeTones(): Map<String, String> =
         split(TONE_ENTRY_SEPARATOR)
@@ -589,6 +784,15 @@ class DataStoreAppSettings(
         val THEME_COLOR = stringPreferencesKey("theme_color")
         val SEPARATE_UNREAD_CHATS = booleanPreferencesKey("separate_unread_chats")
         val SAVED_MESSAGES_AS_CHATS = booleanPreferencesKey("saved_messages_as_chats")
+        val CHAT_SWIPE_RIGHT = stringPreferencesKey("chat_swipe_right")
+        val CHAT_SWIPE_LEFT = stringPreferencesKey("chat_swipe_left")
+        val AUTO_DOWNLOAD_WIFI = stringPreferencesKey("auto_download_wifi")
+        val AUTO_DOWNLOAD_MOBILE = stringPreferencesKey("auto_download_mobile")
+        val AUTO_DOWNLOAD_ROAMING = stringPreferencesKey("auto_download_roaming")
+        val AUTO_DOWNLOAD_SYNC = stringPreferencesKey("auto_download_sync")
+        val QUIET_HOURS_ENABLED = booleanPreferencesKey("quiet_hours_enabled")
+        val QUIET_HOURS_START = intPreferencesKey("quiet_hours_start")
+        val QUIET_HOURS_END = intPreferencesKey("quiet_hours_end")
         val ON_DEVICE_AI_ENABLED = booleanPreferencesKey("on_device_ai_enabled")
         val REPLY_SUGGESTIONS_ENABLED = booleanPreferencesKey("reply_suggestions_enabled")
         val ON_DEVICE_AI_PREVIEW = booleanPreferencesKey("on_device_ai_preview")
@@ -605,6 +809,9 @@ class DataStoreAppSettings(
         val STRIP_TRACKING_PARAMETERS = booleanPreferencesKey("strip_tracking_parameters")
         val KEEP_MEDIA = stringPreferencesKey("keep_media")
         val LAST_STORAGE_CLEANUP = longPreferencesKey("last_storage_cleanup")
+        val MESSAGE_TEXT_SIZE = intPreferencesKey("message_text_size")
+        val OPEN_LINKS_IN_APP = booleanPreferencesKey("open_links_in_app")
+        val DOUBLE_TAP_REACTION = booleanPreferencesKey("double_tap_reaction")
         const val KEYBOARD_ENTRY_SEPARATOR = " "
         const val MAX_USED_KEYBOARDS = 200
         const val EMOJI_SEPARATOR = " "

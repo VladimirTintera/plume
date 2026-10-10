@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.telegram
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlin.time.Duration
 import kotlinx.coroutines.flow.StateFlow
 import eu.tintera.plume.core.ui.UiText
@@ -38,6 +39,20 @@ interface ChatRepository {
      * je — i v chatu, který není v žádné (otevřený z notifikace, z odkazu). `null`, když nic.
      */
     fun typing(chatId: Long): Flow<ChatTyping?>
+
+    /**
+     * Chaty s rozepsanou zprávou ([ChatSummary.draft]), nejčerstvější koncept první — přehled
+     * v menu účtu. Jen chaty, které TDLib zná; koncept v chatu, který se v téhle relaci ještě
+     * nenačetl (hluboko v archivu), tu není, dokud ho seznam nedotáhne.
+     */
+    val drafts: Flow<List<ChatSummary>> get() = flowOf(emptyList())
+
+    /**
+     * Smaže koncept celého chatu (ne témat a vláken komentářů) — přehled konceptů. Vrací, čím ho
+     * vrátit CELÝ, i s odpovědí, formátováním a náhledem odkazu, které [ChatSummary.draft] nenese;
+     * `null`, když koncept mezitím zmizel (odeslaný jinde).
+     */
+    suspend fun deleteDraft(chatId: Long): Result<DraftRestore?> = Result.failure(UnsupportedOperationException())
 
     /**
      * Id chatu Uložené zprávy; `null`, dokud není přihlášeno.
@@ -662,4 +677,9 @@ enum class ChatActivity {
     SendingFile,
     ChoosingSticker,
     Other,
+}
+
+/** Vrácení smazaného konceptu ([ChatRepository.deleteDraft]). */
+fun interface DraftRestore {
+    suspend fun restore(): Result<Unit>
 }

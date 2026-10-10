@@ -418,25 +418,87 @@ Po aktualizaci nic nevyskakuje — novinky jsou tam, kdo je hledá (převzato z 
 
 ## Synchronizace nastavení mezi zařízeními bez vlastního backendu
 
-Když aplikace potřebuje synchronizovat vlastní data specifická pro klienta (ručně zvolená barva chatu,
-lokální záložky/hvězdičky, snooze stav), TDLib nemá obecné KV úložiště pro aplikace třetích stran.
+Stav: **průzkum, nic z toho v kódu není.** Jde o data, která má jen Plume (barva motivu,
+vyčlenění nepřečtených, rychlost hlasovek, viděné nápovědy gest…), ne o nastavení, které zná
+Telegram sám.
 
-- **Proč ne tichý push (FCM / APNs):** vyžaduje běžící server (držení serverových klíčů FCM/APNs,
-  párování push tokenů mezi zařízeními uživatele) a na iOS systém tiché pushe (`content-available: 1`) škrtí.
-- **Proč ne zpráva v Uložených zprávách (Saved Messages):** Telegram neumí zprávu pro ostatní
-  klienty skrýt. Uživatel by v oficiální aplikaci viděl technickou zprávu s JSONem na vrchu
-  Uložených zpráv a mohl by ji omylem smazat.
-- **Proč ne privátní kanál:** v Plume by šel ze seznamu vyfiltrovat, ale v oficiálním Telegramu
-  by svítil v seznamu chatů.
-- **Doporučená cesta: TDLib WebApp CloudStorage (`setWebAppCloudStorageValue` / `getWebAppCloudStorageValue`):**
-  - Telegram má nativní cloudové KV úložiště pro Mini Apps / WebApps na svých serverech (až 1 024 klíčů
-    po 4 kB per uživatel).
-  - **Uživatelé si žádného bota nezakládají:** vývojář aplikace jednou přes `@BotFather` bezplatně
-    založí bota (např. `@plume_sync_bot`) a jeho `bot_user_id` zapeče do kódu aplikace jako konstantu.
-  - Na botovi nemusí běžet žádný kód, server ani webhook — Telegram úložiště spravuje kompletně sám.
-  - **100% neviditelné v oficiálním Telegramu:** uživatel bota nevidí v chatech, nemusí mu psát
-    `/start` ani ho mít v kontaktech. Data jsou na serverech Telegramu izolovaná per uživatelský
-    účet a synchronizují se automaticky na všechna zařízení s Plume.
+- **Napřed to, co Telegram synchronizuje sám.** Rychlá reakce (`setDefaultReactionType`,
+  `QuickReaction`), výchozí automatické mazání (`DefaultAutoDeleteSettings`), upozornění po
+  rozsazích, archiv a složky už jdou přes server a platí i v oficiálních aplikacích. Kdo přidává
+  volbu, kterou Telegram zná, má ji napojit na jeho API a ne na `AppSettings`. Vlastní úschova
+  je jen pro to, co Telegram nemá.
+- **Automatické stahování se bere ze serveru JEN PŘI PŘIHLÁŠENÍ, změna jde na server hned**
+  (`AutoDownloadSync`, `TdlAutoDownloadPresets`, testy `AutoDownloadSyncTest`
+  a `AutoDownloadPresetsTest`). Nové zařízení tak začne z posledního nastavení účtu, ale po
+  přihlášení se každé chová samostatně: telefon s malým úložištěm a tablet chtějí jiná pravidla
+  i na stejné Wi-Fi, a čtení při každém startu by změnu z jednoho zařízení vnutilo všem.
+  - **Server drží tři předvolby účtu**, „nízká, střední a vysoká spotřeba dat“
+    (`account.saveAutoDownloadSettings`). TDLib je přes `setAutoDownloadSettings(settings, type)`
+    mapuje na roaming, Wi-Fi a ostatní sítě (`SaveAutoDownloadSettingsQuery`
+    v `AutoDownloadSettings.cpp`). Proč to Telegram drží na serveru, dokumentace neříká. Nejspíš
+    kvůli výchozím hodnotám, které server ladí podle země (`getAutoDownloadSettingsPresets`
+    vrací předvolby „for the current user“).
+  - **„Přihlášení“ = `Ready` po přihlašovací obrazovce.** Každý přihlašovací stav (číslo, kód,
+    heslo, QR, odhlašování) přepne stav na `SettingsSync.Pull` a další `Ready` stáhne. Přihlášený
+    účet jde při startu rovnou do `Ready` (`WaitTdlibParameters → Ready`), takže se server znovu
+    nečte. Stav je v DataStore jako `auto_download_sync`.
+  - **Aktualizace z verze bez synchronizace** (`auto_download_sync` chybí): kdo si úrovně
+    změnil, tomu se nepřepíšou a jdou na server. Kdo ne, dostane nastavení účtu.
+  - **Nepovedený zápis** (bez sítě) nechá `SettingsSync.Push` a zkusí se při dalším `Ready`, tedy
+    při dalším startu aplikace. `authStage` je `StateFlow` a `Ready` se během běhu neopakuje.
+  - **Úroveň ze serveru = nejbližší podle stropu videa** (GIFy a kolečka). Hranice leží
+    v geometrickém středu mezi stropy Plume (1 · 5 · 20 MB), převod Plume → server → Plume vrací
+    tutéž úroveň. Horní hranice (10 MB) je ostrá: výchozí předvolby Telegramu jsou nízká 0,
+    střední 10 MB a vysoká 15 MB videa (naměřeno na emulátoru) a s `>=` by se střední, tedy
+    mobilní data, převedla na vysokou. Takhle dají přesně výchozí úrovně Plume. Zapisují se jen sítě, jejichž úroveň se liší, a zbylá pole předvolby (přednačítání,
+    datový tarif hovorů, strop fotek) zůstanou, jak je nastavil oficiální klient. Před zápisem se
+    proto předvolby čtou znovu.
+  - **Přepisuje to i nastavení oficiálních klientů.** Předvolby jsou účtu, ne Plume. Jestli
+    si je oficiální aplikace po změně stáhnou hned, nebo až při přihlášení, ověřené není.
+  - Vlastní volba je hlavní stav, ne cache: `AppSettings.loadedAutoDownload()` a
+    `autoDownloadSync()` čekají na načtení souboru. Výchozí hodnota `StateFlow` před načtením by
+    synchronizaci řekla, že si uživatel nic nevybral.
+- **Kandidát: CloudStorage mini aplikací.** Je to úložiště klíč–hodnota pro dvojici „bot,
+  uživatel“ na serverech Telegramu: nejvýš **1024 klíčů**, klíč 1–128 znaků `A-Za-z0-9_-`,
+  hodnota 0–4096 znaků. Bot API pro něj žádnou metodu nemá, takže ho ani majitel bota nepřečte.
+  Šifrované mezi zařízeními ale není a server ho přečte.
+  - **TDLib na to nemá vlastní metody.** Dřív tu stálo `setWebAppCloudStorageValue` /
+    `getWebAppCloudStorageValue`, jenže ty neexistují. Klient mini aplikace volá
+    `sendWebAppCustomRequest(botUserId, method, parameters)` (MTProto
+    `bots.invokeWebViewCustomMethod`) s metodami `saveStorageValue` `{"key","value"}`,
+    `getStorageValues` `{"keys":[…]}`, `deleteStorageValues` `{"keys":[…]}` a `getStorageKeys`
+    `{}`. V Plume to už běží jako `WebAppRepository.customRequest` v mostu mini aplikací.
+  - **Jde to BEZ otevřené mini aplikace a i u bota, který mini aplikaci nemá.** Ověřila to sonda
+    na emulátoru 2026-10-09 se souhlasem uživatele. Testovací Notifikátor `@NoTiBoBoBot` má
+    `has_main_web_app = false` a tlačítko menu `commands`, a přesto `saveStorageValue`,
+    `getStorageValues`, `getStorageKeys` i `deleteStorageValues` prošly. Totéž u
+    `@DurgerKingBot`, jehož mini aplikace otevřená nebyla, a čtení u `@gif`. Podmínky z dokumentace
+    metody server tedy NEKONTROLUJE. Je to ale chování serveru, ne slib v dokumentaci, a může se
+    změnit. Neznámá metoda vrací `METHOD_INVALID`.
+  - **Bota musí TDLib znát, jinak `User not found`.** Hned po `AuthorizationStateReady` sonda
+    u Notifikátoru dvakrát narazila. Uspěla, až když TDLib bota znal, protože se mezitím načetl
+    seznam chatů. Synchronizace si proto bota napřed přeloží přes `searchPublicChat(username)`.
+  - **Bot se nikde neukázal.** `getTopChats(TopChatCategoryWebAppBots)` byl před zápisem i po něm
+    stejný (`@BotFather` a `@DurgerKingBot`, kterého účet dřív otevřel). Chat s Notifikátorem ani
+    s DurgerKingem nevznikl (`positions` 0 u DurgerKinga). **Pohled do oficiálního klienta zbývá.**
+  - **Strop 4096 znaků na hodnotu sonda nepotvrdila**: logcat dlouhý řádek uřízl i s výsledkem.
+  - **Postup, až se to bude stavět:** bota založí uživatel přes BotFather, jeho uživatelské jméno
+    bude v kódu jako konstanta. Jeden klíč na nastavení, hodnota `{v, ts}`, a při konfliktu
+    vyhraje novější zápis. Server změny neohlašuje, takže se čte při přihlášení (viz automatické
+    stahování výš: ze serveru při přihlášení, změna hned na server). Zápisy se sdružují, protože
+    limit rychlosti neznáme. Synchronizuje se jen to, co není vázané na zařízení: zámek aplikace,
+    velikost písma, stažený model ani úložiště ne.
+- **Proč ne tichý push (FCM / APNs):** potřebuje běžící server (klíče FCM/APNs, párování push
+  tokenů mezi zařízeními uživatele) a iOS tiché pushe (`content-available: 1`) škrtí.
+- **Proč ne zpráva v Uložených zprávách, koncept zprávy, složka nebo soukromý kanál:** oficiální
+  Telegram je ukáže. Technická zpráva s JSONem na vrchu Uložených se dá omylem smazat. Koncept
+  vytáhne chat do seznamu a kanál v něm svítí. Telegram Passport chce heslo a je vidět
+  v Soukromí. **Výjimka je ruční záloha:** soubor s nastavením poslaný do Uložených na pokyn
+  uživatele, který ho pak obnoví na druhém zařízení. Je vidět, ale uživatel o něm ví.
+- **DeviceStorage a SecureStorage mini aplikací nesynchronizují**, zůstávají v zařízení.
+- **Mimo Telegram:** iOS má `NSUbiquitousKeyValueStore` (iCloud, živá synchronizace mezi
+  zařízeními téhož Apple ID, 1 MB), ale jen mezi zařízeními Apple. Auto Backup na Androidu data
+  jen obnoví při nové instalaci, živá synchronizace to není.
 - **Deterministické podbarvení chatů bez synchronizace:** pokud jde o ambientní podbarvení,
   nejčistší je barvu odvodit deterministicky z profilové fotky protějšku (`ColorScheme.fromSeed`)
   nebo z `chatId` / barvy jména z Telegramu (`senderColor`). Protože obě zařízení stahují stejnou
@@ -502,3 +564,64 @@ a `optimizeStorage`), pravidla jsou čisté funkce v `core/telegram/Storage.kt` 
   (Pixel_9, 4 GB) byl při tom přetížený (swap 1 GB, `Console.app` na hostiteli ~270 % CPU) a hlásil
   ANR celého systému — hlavní vlákno aplikace přitom čekalo v `epoll_wait`, ověřeno
   `run-as … cat /proc/<pid>/task/<pid>/wchan`. iOS jen přeložené.
+
+## Menší přepínače
+
+Rychlá reakce a odkazy v aplikaci jsou ve skupině Chaty v Obecných, jazyk aplikace v Obecných
+nad ní, velikost písma zpráv ve Vzhledu. Enter odesílá z fyzické klávesnice (viz „Klávesové
+zkratky" v `navigace.md`).
+
+### Velikost písma zpráv (`LocalMessageTextSize`, `messageTextStyle`)
+
+- **Rozsah 12–20 sp po jednom bodu, výchozí 16 uprostřed**; výchozí se neukládá (jako motiv).
+  Hodnota mimo rozsah se při čtení přitáhne k mezi — novější verze s jiným rozsahem nic nerozbije.
+- **Jde přes CompositionLocal z kořene aplikace, ne přes ViewModel konverzace.** `MessageText` je
+  v bloku seznamu bez přístupu k DI a `ConversationScreen` je v dexu na hraně (viz CLAUDE.md);
+  vzor je `LocalAutoDownload`. Statický local: mění se jen v Nastavení a pak má překreslit všechno.
+- **Mění se jen výchozí styl `MessageText`.** Velká emoji si nesou vlastní `display*` styl a zůstávají;
+  citace, náhledy odkazů a ankety taky — zvětšuje se to, co se ve zprávě čte.
+- **Výška řádku jde ve stejném poměru (16/22)**, ne pevná. Systémové zvětšení písma se uplatní
+  navíc (sp), nastavení ho nenahrazuje.
+- **Během tahu posuvníkem se mění jen náhled**, uloží se po puštění: každý zápis by přes statický
+  local překreslil celou aplikaci na každý dílek. Dílek tahu tiká (`tick`).
+- **Náhled bublin leží na `surface`**, ne přímo na kartě nastavení: příchozí `surfaceContainerHigh`
+  by s kartou (`surfaceContainerHighest`) splývala.
+
+### Odkazy v aplikaci (`UrlOpener`, `AppSettings.openLinksInApp`)
+
+- **Výchozí je v aplikaci**, jako v oficiálním klientovi. Jen `http`/`https`; `mailto:`, `tel:`
+  a ostatní jdou dál přes `ACTION_VIEW`.
+- **Aplikace pro odkaz má přednost i v režimu „v aplikaci"**: od Androidu 11
+  `FLAG_ACTIVITY_REQUIRE_NON_BROWSER` (spadne na `ActivityNotFoundException`, když by odkaz vzal
+  jen prohlížeč), na iOS `openURL` s `UniversalLinksOnly`. Do Androidu 10 jde rovnou karta.
+- **Karta se spouští z activity v popředí** (slabý odkaz z `ActivityLifecycleCallbacks`). Z
+  aplikačního kontextu by potřebovala `NEW_TASK` a visela by v přehledu úloh vedle Plume.
+- **Ověřeno na emulátoru (Android 16)**: developer.android.com otevřel `CustomTabActivity`
+  v úloze Plume (`dumpsys activity activities`, tentýž `t9`), křížek vrátil do konverzace. Odkaz
+  na YouTube převzala aplikace YouTube (`UrlActivity` v logu `START u0`) — na čerstvém emulátoru
+  ho pak sama přeposlala do Chromu, to už není náš krok. **Na čerstvém emulátoru Chrome napřed
+  ukáže úvodní obrazovku s podmínkami**; zpět ji přeskočí a karta se otevře.
+
+### Rychlá reakce (`QuickReaction`, `AppSettings.doubleTapReaction`)
+
+- **Dvě úrovně**: jestli dvojité ťuknutí reaguje, si pamatuje aplikace; KTERÁ reakce, je nastavení
+  účtu na serveru (`setDefaultReactionType`) a platí i v oficiálních klientech. Výběr to říká.
+- **Getter TDLib nemá** — výchozí reakci (`updateDefaultReactionType`) i seznam emoji
+  (`updateActiveEmojiReactions`) ohlásí jen updatem po přihlášení. `TdlQuickReaction` proto vzniká
+  eagerně, stejně jako ostatní repository nad jednorázovými updaty.
+- Chování v konverzaci viz „Reakce" v `emoji-samolepky-reakce.md`.
+
+### Jazyk aplikace (`AppLanguage`)
+
+- **Volbu drží systém, ne `AppSettings`**: Android 13+ `LocaleManager.applicationLocales`, iOS
+  Nastavení u aplikace. Kopie v aplikaci by se se systémovým výběrem rozešla.
+- **Android potřebuje `localeConfig`** (`res/xml/locales_config.xml` v `:client:androidApp`) —
+  bez něj Plume v systémovém výběru jazyka aplikací vůbec nebyl, protože přeložené texty jsou
+  v composeResources, ne v Android `values-*`. Nový jazyk = řádek tam i v `APP_LANGUAGES`.
+- **Do Androidu 12 se skupina nezobrazuje**: systém jazyk pro jednu aplikaci nezná a obchvat by
+  chtěl AppCompat. Na iOS řádek jen otevře Nastavení — z aplikace to změnit nejde.
+- **Názvy jazyků jsou ve vlastním jazyce** („Čeština" i v anglické aplikaci), aby se dalo vrátit
+  z jazyka, kterému člověk nerozumí. Leží v obou `strings.xml` stejně.
+- **Ověřeno na emulátoru (Android 16)**: přepnutí na češtinu přeložilo obrazovku hned, proces
+  zůstal týž (pid), `cmd locale get-app-locales` hlásí `[cs]`; systémové Nastavení → Jazyk
+  aplikace nabízí češtinu i angličtinu. iOS jen přeložené.

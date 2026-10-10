@@ -544,6 +544,19 @@ poli má proto ikonu smajlíka). Emoji se **vkládá do rozepsaného textu** na 
     řádek reakcí je `horizontalScroll` a ořezává na svoje hranice, přetékající tvar by se uřízl.
   - Průběh se čte až při kreslení, animace nic nerekomponuje. Ověřuje se zpomalenými animacemi
     a sérií surových snímků — v normální rychlosti ho snímek mine.
+- **Dvojité ťuknutí na zprávu přepne rychlou reakci účtu** (`MessageAction.QuickReact`,
+  `QuickReaction`; vypnout jde v Nastavení → Obecné → Chaty). Bere ho jen rám bubliny — fotka,
+  odkaz nebo citace si ťuknutí berou samy, jako u odznaku přečtení. Cenou je, že jednoduché
+  ťuknutí na vlastní zprávu (odznak přečtení) čeká na případné druhé.
+  - **Dostupnost se ověří dřív, než se cokoli změní** (`availableReactions`): kanál si sadu
+    omezuje, v Uložených reakce nejsou. Optimisticky přidaná reakce, kterou server odmítne, by
+    problikla a skončila chybou u gesta, o kterém uživatel nemusí vědět. Nedostupná reakce
+    neudělá nic; odebrání vlastní se neověřuje.
+  - **Haptika u dvojitého ťuknutí není**: jestli reakce jde, se ví až po dotazu, a potvrzení
+    u ťuknutí, po kterém se nic nestane, by lhalo. Odezvu nese výbuch za přidanou reakcí.
+  - **Ověřeno na emulátoru** v testovací skupině: dvojité ťuknutí přidalo ❤️, druhé ji odebralo
+    (`adb shell "input tap X Y & sleep 0.12; input tap X Y"` — dvě samostatná volání `input`
+    jsou na dvojité ťuknutí moc pomalá).
 - **Ťuknutí na čip otevírá DETAIL, nepřepíná reakci.** Přidat i odebrat jde z nabídky nad zprávou,
   kde je vybraná reakce zvýrazněná a ťuknutí na ni ji sundá. Dvě věci na jedno ťuknutí nejdou
   a detail je to, co se jinde nedozvíme.

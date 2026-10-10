@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.ui.LocalAutoDownload
 import androidx.compose.runtime.CompositionLocalProvider
 import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.ui.LocalArticleMediaFlight
@@ -215,6 +216,7 @@ private fun AlbumTile(
                     fileId = media.fileId,
                     thumbnailFileId = media.thumbnailFileId,
                     placeholder = media.minithumbnail,
+                    autoDownload = LocalAutoDownload.current.photos,
                     contentDescription = stringResource(Res.string.media_photo),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
