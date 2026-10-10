@@ -29,6 +29,25 @@ class ChatGroupsTest {
         )
     }
 
+    /**
+     * Vynořený odložený chat má vlastní blok nad připnutými — i připnutý, i nepřečtený;
+     * ve dvou skupinách naráz být nesmí.
+     */
+    @Test
+    fun vynoreneOdlozeneJsouNadPripnutymi() {
+        val chats = listOf(chat(1, pinned = true), chat(2, unread = 3), chat(3), chat(4, pinned = true))
+
+        assertEquals(
+            listOf(listOf(2L, 4L), listOf(1L), listOf(3L)),
+            chatGroups(chats, separateUnread = true, due = setOf(2L, 4L)).ids(),
+        )
+        // Odložený chat, který v seznamu není (jiná složka), blok nezaloží.
+        assertEquals(
+            listOf(listOf(1L, 4L), listOf(2L, 3L)),
+            chatGroups(chats, separateUnread = false, due = setOf(99L)).ids(),
+        )
+    }
+
     @Test
     fun bezVycleneniJsouPripnuteAOstatni() {
         val chats = listOf(chat(1, pinned = true), chat(2, unread = 3), chat(3))

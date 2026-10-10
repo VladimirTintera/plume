@@ -748,6 +748,38 @@ Dlouhý stisk otevře bottom sheet: připnout, ztlumit, označit jako nepřečte
 - **`Card(onClick = …)` umí jen krátké ťuknutí.** Dlouhý stisk potřebuje `combinedClickable`,
   takže se z karty stal `Surface` s vlastním klikáním.
 
+### Odložení chatu
+
+„Odložit" v nabídce nad chatem (za hodinu, dnes večer, ráno / zítra ráno) chat do zvolené doby
+ztiší a pak ho vynoří nahoře v seznamu jako připomínku (`ChatSnoozes` v `core/snooze`, uložené
+v `AppSettings`; doby jsou čisté funkce v `SnoozeOption.kt`, testy `SnoozeTest`, `ChatSnoozesTest`).
+
+- **Jen v zařízení.** Telegram nic jako odložení chatu nemá; ztlumení je něco jiného (vidí ho
+  všechna zařízení a nevynoří chat zpátky). Účet je id Uložených zpráv, jako u záložek zpráv
+  (viz „Záložky zpráv" v `konverzace-akce.md`), takže se odložení mezi účty nepromíchají.
+- **Spící chat v seznamu ZŮSTÁVÁ, jen ztichne**: jméno bez tučnosti, čas bez akcentu, odznaky
+  v neutrální barvě (`surfaceContainerHighest`) a místo náhledu „Odloženo do 20:00". Kdyby
+  zmizel, uživatel by ho nenašel ani pohledem, a to je víc, než si řekl.
+- **Notifikace spícího chatu přijdou potichu**, ne vůbec — stejné pravidlo jako u tichých hodin
+  (viz „Tiché hodiny" v `notifikace.md`): zprávu, kterou TDLib považuje za doručenou, znovu nevydá.
+  Jen Android; na iOS notifikace kreslí systém.
+- **Vynořený chat má vlastní blok nad připnutými** (`chatGroups(…, due)`), s ikonou odložení
+  v akcentu na místě připínáčku. Připomínka, která by zůstala tam, kde chat stál, by se ztratila.
+  Blok zmizí **otevřením chatu** — ze seznamu i odjinud (notifikace, hledání), proto to hlídá
+  i `ConversationViewModel`. Nahlédnutí do chatu, který ještě spí, odložení neruší.
+- **Doby jsou v místním čase a nabídka se mění s denní dobou**: „Dnes večer" (20:00) jen do 18:00,
+  po půlnoci do 6:00 je „Ráno" dnešní (8:00), jinak „Zítra ráno". U každé volby je vidět, kdy se
+  chat vrátí — „Za hodinu" záleží na tom, kolik je.
+- **Vynoření se přepočítává po nejvýš minutě**, ne jedním `delay` do konce odložení: monotónní
+  hodiny korutin na Androidu během hlubokého spánku zařízení stojí a odložení do rána by se
+  vynořilo o noc později.
+- **Ověřeno na emulátoru** (Fold, česky) v chatu Notifikátor: odložení na hodinu a do večera,
+  ztišený řádek, tichá notifikace (`flags=…|SILENT`, `notification_alert` bez zvuku) a po zrušení
+  odložení zase se zvukem, „Zrušit odložení" s časem. Vynoření se ověřilo přepsáním konce
+  odložení v souboru nastavení na minulost (`run-as`, číslo stejné délky, aby protobuf zůstal
+  platný) — systémový čas emulátoru `shell` posunout nesmí. **iOS jen přeložené.** Připomínka
+  notifikací v čase vynoření zatím není: chat se vynoří jen v seznamu.
+
 ### Výběr víc chatů
 
 „Vybrat" v nabídce nad chatem přepne seznam (hlavní, složku i archiv) do výběru: hlavička s ✕

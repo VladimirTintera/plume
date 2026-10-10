@@ -99,6 +99,15 @@
     <string name="chats_action_unpin">Unpin</string>
     <string name="chats_action_mute">Mute</string>
     <string name="chats_action_unmute">Unmute</string>
+    <string name="chats_action_snooze">Snooze</string>
+    <string name="chats_action_unsnooze">Unsnooze</string>
+    <string name="chats_snooze_in_hour">In an hour</string>
+    <string name="chats_snooze_tonight">This evening</string>
+    <string name="chats_snooze_morning">This morning</string>
+    <string name="chats_snooze_tomorrow_morning">Tomorrow morning</string>
+    <string name="chats_snoozed">Snoozed</string>
+    <string name="chats_snoozed_until">Snoozed until %1$s</string>
+    <string name="chats_snooze_reminder">Snooze reminder</string>
     <string name="chats_action_mark_read">Mark as read</string>
     <string name="chats_action_mark_unread">Mark as unread</string>
     <string name="chats_action_delete">Delete chat</string>

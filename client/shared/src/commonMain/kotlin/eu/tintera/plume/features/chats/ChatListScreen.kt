@@ -1,6 +1,12 @@
 package eu.tintera.plume.features.chats
 
 import org.koin.compose.koinInject
+import androidx.compose.ui.graphics.Color
+import eu.tintera.plume.core.ui.asUpcomingTime
+import eu.tintera.plume.resources.snooze_24dp
+import eu.tintera.plume.resources.chats_snooze_reminder
+import eu.tintera.plume.resources.chats_snoozed
+import eu.tintera.plume.resources.chats_snoozed_until
 import eu.tintera.plume.core.ui.neighbourChat
 import eu.tintera.plume.core.ui.KeyboardShortcuts
 import eu.tintera.plume.core.ui.KeyboardShortcut
@@ -974,6 +980,7 @@ internal fun ChatActionsHost(
     val listState by viewModel.state.collectAsStateWithLifecycle()
     val chats = (listState as? ChatListState.Ready)?.chats.orEmpty()
 
+    val snoozeState by viewModel.snoozeState.collectAsStateWithLifecycle()
     actions.target?.let { chat ->
         val folderChoices = remember(actions.folders, chatFolders) {
             folderChoices(chatFolders, actions.folders)
@@ -987,6 +994,11 @@ internal fun ChatActionsHost(
             onSelect = { viewModel.startSelection(chat) },
             onMute = { duration -> viewModel.mute(chat, duration) },
             onUnmute = { viewModel.unmute(chat) },
+            snoozedUntil = snoozeState.sleeping[chat.id],
+            onSnooze = if (viewModel.canSnooze) {
+                { option -> viewModel.snooze(chat, option) }
+            } else null,
+            onUnsnooze = { viewModel.unsnooze(chat) },
             onToggleUnread = { viewModel.toggleUnread(chat) },
             // Uložené zprávy archivovat nejdou — TDLib by to odmítl.
             onToggleArchived = if (chat.id == savedMessagesChatId) null else {
@@ -1070,9 +1082,10 @@ internal fun ChatListContent(
     }
 
 
+    val snoozes by viewModel.snoozeState.collectAsStateWithLifecycle()
     val groups = (state as? ChatListState.Ready)?.chats?.let { chats ->
-        remember(chats, separateUnread, hiddenSavedMessagesChatId) {
-            chatGroups(chats, separateUnread, hiddenSavedMessagesChatId)
+        remember(chats, separateUnread, hiddenSavedMessagesChatId, snoozes.due) {
+            chatGroups(chats, separateUnread, hiddenSavedMessagesChatId, snoozes.due)
         }
     }.orEmpty()
 
@@ -1236,8 +1249,13 @@ internal fun ChatListContent(
                                 chat = chat,
                                 selected = highlighted,
                                 selectionMark = picked.takeIf { selecting && chat.isSelectable() },
+                                snooze = when {
+                                    chat.id in snoozes.due -> RowSnooze.Due
+                                    else -> snoozes.sleeping[chat.id]?.let(RowSnooze::Sleeping)
+                                },
                                 shape = shape,
                                 onClick = {
+                                    if (!selecting) viewModel.opened(chat.id)
                                     when {
                                         selecting -> viewModel.toggleSelected(chat)
                                         chat.isForum -> onForumClick(chat.id)
@@ -1536,12 +1554,21 @@ private fun ChatRow(
     selected: Boolean,
     /** Značka výběru víc chatů; `null` = výběr neběží (nebo chat vybrat nejde). */
     selectionMark: Boolean?,
+    /** Odložení chatu; `null` = neodložený. */
+    snooze: RowSnooze?,
     /** Tvar bloku — počítá ho [groupItemShape] vedle, protože ho potřebuje i podklad pod tahem. */
     shape: RoundedCornerShape,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    /*
+     * Spící odložený chat se tváří jako přečtený: jméno bez tučnosti, čas bez akcentu, odznaky
+     * v neutrální barvě a místo náhledu věta, do kdy spí. Ze seznamu nezmizí — ztratit chat
+     * z očí i z hledání pohledem by bylo víc, než si uživatel řekl.
+     */
+    val sleeping = snooze is RowSnooze.Sleeping
+    val showUnread = chat.hasUnread && !sleeping
     /*
      * Blok je SVĚTLEJŠÍ než pozadí, ne tmavší.
      *
@@ -1624,7 +1651,16 @@ private fun ChatRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    if (chat.isPinned) {
+                    // Vynořená připomínka: ikona na místě připínáčku a v akcentu, ať je poznat,
+                    // proč chat stojí nahoře.
+                    if (snooze == RowSnooze.Due) {
+                        Icon(
+                            painterResource(Res.drawable.snooze_24dp),
+                            contentDescription = stringResource(Res.string.chats_snooze_reminder),
+                            modifier = Modifier.size(14.dp),
+                            tint = accentOn(containerColor, MaterialTheme.colorScheme.primary, secondaryColor),
+                        )
+                    } else if (chat.isPinned) {
                         Icon(
                             painterResource(Res.drawable.push_pin_filled_24dp),
                             contentDescription = stringResource(Res.string.chats_section_pinned),
@@ -1646,7 +1682,7 @@ private fun ChatRow(
                             // Polotučné jméno u KAŽDÉHO chatu znamená, že nevyčnívá žádný —
                             // tučností se proto odlišuje jen nepřečtený, jako v Google Messages.
                             style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = if (chat.hasUnread) FontWeight.SemiBold else null,
+                            fontWeight = if (showUnread) FontWeight.SemiBold else null,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false).sharedNavText(chatTitleKey(chat.id)),
@@ -1664,6 +1700,14 @@ private fun ChatRow(
                         Icon(
                             painterResource(Res.drawable.notifications_off_24dp),
                             contentDescription = stringResource(Res.string.chats_muted),
+                            modifier = Modifier.size(14.dp),
+                            tint = secondaryColor,
+                        )
+                    }
+                    if (sleeping) {
+                        Icon(
+                            painterResource(Res.drawable.snooze_24dp),
+                            contentDescription = stringResource(Res.string.chats_snoozed),
                             modifier = Modifier.size(14.dp),
                             tint = secondaryColor,
                         )
@@ -1695,7 +1739,7 @@ private fun ChatRow(
                             style = MaterialTheme.typography.labelMedium.tabularNumbers(),
                             // U nepřečteného chatu je čas akcentem, stejně jako odznak pod ním —
                             // oči jdou po pravém sloupci a hledají, kde se něco stalo.
-                            color = if (chat.hasUnread && !selected) {
+                            color = if (showUnread && !selected) {
                                 MaterialTheme.colorScheme.primary
                             } else {
                                 secondaryColor
@@ -1714,7 +1758,9 @@ private fun ChatRow(
                 val draftLabelColor = accentOn(containerColor, MaterialTheme.colorScheme.tertiary, contentColor)
                 // Vlastní emoji v náhledu (a konceptu) jako obrázek, ne náhradní znak.
                 val customEmoji = mutableSetOf<Long>()
-                val subtitle: AnnotatedString? = chat.activity?.label()?.let { AnnotatedString(stringResource(it)) }
+                val sleepingUntil = (snooze as? RowSnooze.Sleeping)?.let { (it.until / 1000).asUpcomingTime() }
+                val subtitle: AnnotatedString? = sleepingUntil?.let { AnnotatedString(stringResource(Res.string.chats_snoozed_until, it)) }
+                    ?: chat.activity?.label()?.let { AnnotatedString(stringResource(it)) }
                     ?: chat.draft?.let { draft ->
                         buildAnnotatedString {
                             // Štítek jinou barvou než „píše…" (primary) — jde o náš text, ne o dění.
@@ -1738,9 +1784,10 @@ private fun ChatRow(
                         // Nepřečtený náhled se odliší barvou, ne řezem: s polotučným názvem nad
                         // ním by byly na jednom řádku dvě úrovně tučnosti a blok by ztěžkl.
                         color = when {
+                            selected -> MaterialTheme.colorScheme.onSecondaryContainer
+                            sleeping -> secondaryColor
                             // Činnost se odliší barvou, aby bylo poznat, že to není text zprávy.
                             chat.activity != null -> accentOn(containerColor, MaterialTheme.colorScheme.primary, contentColor)
-                            selected -> MaterialTheme.colorScheme.onSecondaryContainer
                             chat.hasUnread -> MaterialTheme.colorScheme.onSurface
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                         },
@@ -1750,9 +1797,15 @@ private fun ChatRow(
                 }
             }
 
-            UnreadBadges(chat)
+            UnreadBadges(chat, quiet = sleeping)
         }
     }
+}
+
+/** Odložení chatu z pohledu řádku: ještě spí (do [Sleeping.until], ms od epochy), nebo se vynořil. */
+private sealed interface RowSnooze {
+    data class Sleeping(val until: Long) : RowSnooze
+    data object Due : RowSnooze
 }
 
 /**
@@ -1763,29 +1816,32 @@ private fun ChatRow(
  * tlačítko v konverzaci) — jde o to, ŽE nějaké jsou.
  */
 @Composable
-private fun UnreadBadges(chat: ChatSummary) {
+private fun UnreadBadges(
+    chat: ChatSummary,
+    /** Odznaky v neutrální barvě — u odloženého chatu, který se má do té doby neozývat. */
+    quiet: Boolean = false,
+) {
+    val container = if (quiet) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.primary
+    val content = if (quiet) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary
     if (chat.unreadPollVoteCount == 0 && chat.unreadReactionCount == 0 && chat.unreadMentionCount == 0 && chat.unreadCount == 0) return
     Row(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (chat.unreadPollVoteCount > 0) {
-            IconBadge(Res.drawable.ballot_24dp, stringResource(Res.string.chats_unread_poll_vote))
+            IconBadge(Res.drawable.ballot_24dp, stringResource(Res.string.chats_unread_poll_vote), container, content)
         }
         if (chat.unreadReactionCount > 0) {
-            IconBadge(Res.drawable.favorite_filled_24dp, stringResource(Res.string.chats_unread_reaction))
+            IconBadge(Res.drawable.favorite_filled_24dp, stringResource(Res.string.chats_unread_reaction), container, content)
         }
         if (chat.unreadMentionCount > 0) {
-            IconBadge(Res.drawable.alternate_email_24dp, stringResource(Res.string.chats_unread_mention))
+            IconBadge(Res.drawable.alternate_email_24dp, stringResource(Res.string.chats_unread_mention), container, content)
         }
         if (chat.unreadCount > 0) {
             // `Badge` je ve výchozím stavu chybově červený. Nepřečtená zpráva ale není
             // chyba — v odlehčeném seznamu byla ta červená jediná sytá barva na obrazovce
             // a přebíjela všechno ostatní.
-            Badge(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
+            Badge(containerColor = container, contentColor = content) {
                 RollingNumber(chat.unreadCount, style = LocalTextStyle.current.tabularNumbers())
             }
         }
@@ -1794,10 +1850,10 @@ private fun UnreadBadges(chat: ChatSummary) {
 
 /** Kulatý odznak s ikonou, velký jako odznak s jednou číslicí. */
 @Composable
-private fun IconBadge(icon: DrawableResource, description: String) {
+private fun IconBadge(icon: DrawableResource, description: String, container: Color, content: Color) {
     Badge(
-        containerColor = MaterialTheme.colorScheme.primary,
-        contentColor = MaterialTheme.colorScheme.onPrimary,
+        containerColor = container,
+        contentColor = content,
         modifier = Modifier.semantics { contentDescription = description },
     ) {
         Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(12.dp))

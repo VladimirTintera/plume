@@ -360,6 +360,7 @@ přijdou potichu (`setSilent`). Výchozí úsek je 22:00–7:00, vypnuto.
   systém; obdobou je režim Soustředění. Skupina se tam v Nastavení neukazuje.
 - **Jen v zařízení.** Ostatní zařízení o tichých hodinách nevědí — notifikace kreslí aplikace
   sama. Kandidát na synchronizaci přes CloudStorage (viz `docs/poznatky/nastaveni.md`).
+- **Totéž ztišení platí pro odložený chat**, dokud spí (viz „Odložení chatu" v `seznam-chatu.md`).
 - **Ověření:** `adb logcat -b events | grep notification_alert` — u tiché notifikace jsou vibrace
   i zvuk 0 a `dumpsys notification` ukáže `flags=…|SILENT`. Ověřeno na emulátoru (Fold, česky):
   úsek 14:00–7:00 ve 14:20, soukromá zpráva od testovacího bota přišla potichu, po vypnutí
