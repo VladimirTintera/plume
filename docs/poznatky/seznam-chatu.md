@@ -836,3 +836,38 @@ Pravidla jsou čisté funkce v `ChatSelection.kt` (testy `ChatSelectionTest`).
   nepřečtené a přečtení dvou skutečných zpráv od bota (odznak zmizel, notifikace taky), zpět
   ukončí výběr. **Nejisté je čtení skupiny s tématy** (nepřečtené se tam vedou po tématech
   a nejnovější zpráva patří jen jednomu) **— neověřené, stejně jako iOS.**
+
+### Widget na ploše (Android)
+
+Widget s chaty (`ChatsWidget`, Glance, `core/widget` v `androidMain`): připnuté a nepřečtené
+chaty napřed, pak zbytek seznamu do dvanácti (`widgetChats`, testy `WidgetChatsTest`), počet
+nepřečtených bez ztlumených v záhlaví. Ťuknutí na řádek otevře chat, záhlaví aplikaci. Přidat jde
+z Nastavení → Vzhled → „Přidat widget na plochu" (`requestPinAppWidget`, dialog launcheru) i z
+nabídky widgetů launcheru.
+
+- **Podklady jsou v souboru a ve stavu widgetu, ne v dotazu při kreslení.** Launcher widget
+  kreslí i bez běžícího procesu a TDLib se ptát nedá. Zapisuje je `ChatsWidgetUpdater` (eager
+  v Koinu, od startu procesu) po vteřině klidu ze živého seznamu chatů.
+- **Obnova přes `currentState`, ne čtením souboru v `provideGlance`.** Glance drží kompozici
+  widgetu po obnově ještě ~45 s otevřenou a další `update` v tu dobu jen překreslí tutéž
+  kompozici; podklady přečtené jednou před `provideContent` zůstaly staré (zjištěno na emulátoru:
+  zpráva od bota byla v souboru, widget ji neukázal). Updater proto zapisuje do
+  `PreferencesGlanceStateDefinition` každého widgetu a kompozice si stav přečte znovu; soubor
+  slouží jen prvnímu kreslení nového widgetu.
+- **Se zámkem aplikace bez náhledů zpráv** — jen jména a počty. Widget vidí každý, kdo drží
+  telefon, a zámek, který chrání obsah chatů, by měl díru hned vedle ikony aplikace.
+- **Odhlášení widget vyprázdní** („Přihlas se v aplikaci Plume"). Zapisuje se jen v jasných
+  stavech (přihlášeno a seznam načtený, nebo odhlášeno) — při startu, než se TDLib rozběhne,
+  zůstává poslední známý stav, jinak by widget při každém studeném startu problikl prázdnem.
+- **Texty se překládají před `provideContent`** (`readString`): Glance skládá vlastní kompozici
+  bez prostředí Compose Resources a `stringResource` v ní nefunguje. Čas poslední zprávy proto
+  formátuje systém (`DateFormat.getBestDateTimePattern`), počítá se v kompozici.
+- **Intent řádku nese chatId i v datech** (`plume-widget://chat/<id>`), jinak by se intenty řádků
+  podle `filterEquals` slily a všechny by otevřely týž chat.
+- **Fotky chatů zatím ne** — dvanáct dekódování bitmapy při každém překreslení; místo nich
+  iniciála na `primaryContainer`. Barvy z `GlanceTheme` (na Androidu 12+ z tapety).
+- **Ověřeno na emulátoru** (Fold, česky): přidání z Nastavení přes dialog launcheru, widget
+  s chaty a odznaky (ztlumený šedě), zpráva od testovacího bota posunula Notifikátor nahoru
+  s počtem 2 během pár vteřin, ťuknutí otevřelo chat, se zapnutým zámkem zmizely náhledy a po
+  vypnutí se vrátily; widget pak odebrán. **iOS widget nemá.**
+

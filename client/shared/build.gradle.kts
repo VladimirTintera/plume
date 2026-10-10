@@ -236,6 +236,8 @@ kotlin {
 
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
+            // Widget s chaty na ploše (core/widget).
+            implementation(libs.androidx.glance.appwidget)
             implementation(libs.androidx.core.ktx)
             // Odkazy v aplikaci (Custom Tabs, viz core/ui/UrlOpener).
             implementation(libs.androidx.browser)

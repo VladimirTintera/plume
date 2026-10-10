@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.resources.widgets_24dp
+import eu.tintera.plume.resources.settings_chats_widget
+import eu.tintera.plume.resources.settings_chats_widget_summary
+import androidx.compose.foundation.clickable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
@@ -143,6 +147,17 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
                 },
             ),
         )
+        // Widget s chaty na ploše: umístí ho launcher po potvrzení v jeho dialogu.
+        if (viewModel.canPinWidget) {
+            HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                leadingContent = { Icon(painterResource(Res.drawable.widgets_24dp), contentDescription = null) },
+                headlineContent = { Text(stringResource(Res.string.settings_chats_widget)) },
+                supportingContent = { Text(stringResource(Res.string.settings_chats_widget_summary)) },
+                modifier = Modifier.clickable(onClick = viewModel::pinChatsWidget),
+            )
+        }
     }
 }
 

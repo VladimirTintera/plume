@@ -177,6 +177,19 @@
         <!-- Akce z notifikace (odpověď, přečtení, ztlumení). Neexportovaný: broadcast posílá PendingIntent naší aplikace,
              nikdo cizí ho vyvolat nemá. Míří se na něj akcí a balíčkem (NotificationIntents.reply),
              protože :client:shared tuhle třídu nezná. -->
+        <!-- Widget s chaty na ploše; widget i přijímač jsou v :client:shared (core/widget). -->
+        <receiver
+            android:name="eu.tintera.plume.core.widget.ChatsWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_chats_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/chats_widget_info" />
+        </receiver>
+
         <receiver
             android:name=".NotificationActionReceiver"
             android:exported="false">

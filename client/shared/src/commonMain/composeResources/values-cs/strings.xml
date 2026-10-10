@@ -2549,4 +2549,9 @@
         <item quantity="few">%1$d zprávy</item>
         <item quantity="other">%1$d zpráv</item>
     </plurals>
+    <string name="widget_chats_title">Chaty</string>
+    <string name="widget_chats_logged_out">Přihlas se v aplikaci Plume</string>
+    <string name="widget_chats_empty">Zatím žádné chaty</string>
+    <string name="settings_chats_widget">Přidat widget na plochu</string>
+    <string name="settings_chats_widget_summary">Připnuté a nepřečtené chaty na ploše telefonu</string>
 </resources>

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.widget.HomeWidgets
 import androidx.lifecycle.ViewModel
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ThemeColor
@@ -18,7 +19,16 @@ import kotlinx.coroutines.flow.StateFlow
  */
 class AppearanceViewModel(
     private val settings: AppSettings,
+    /** Widget s chaty na ploše; `null` = platforma ho nemá (iOS). */
+    private val homeWidgets: HomeWidgets? = null,
 ) : ViewModel() {
+
+    /** Nabízí se „Přidat widget na plochu"? */
+    val canPinWidget: Boolean get() = homeWidgets?.canPin == true
+
+    fun pinChatsWidget() {
+        homeWidgets?.pinChats()
+    }
 
     /** `null` znamená „uživatel si nevybral" — výchozí motiv dopočítá až obrazovka podle platformy. */
     val themeMode: StateFlow<ThemeMode?> = settings.themeMode

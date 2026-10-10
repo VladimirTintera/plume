@@ -2471,4 +2471,9 @@
         <item quantity="one">%1$d message</item>
         <item quantity="other">%1$d messages</item>
     </plurals>
+    <string name="widget_chats_title">Chats</string>
+    <string name="widget_chats_logged_out">Sign in to Plume</string>
+    <string name="widget_chats_empty">No chats yet</string>
+    <string name="settings_chats_widget">Add widget to home screen</string>
+    <string name="settings_chats_widget_summary">Pinned and unread chats on your home screen</string>
 </resources>
