@@ -387,12 +387,10 @@ import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.resources.auto_awesome_24dp
 import eu.tintera.plume.resources.conversation_send_effect
 import eu.tintera.plume.resources.share_preparing
-import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.arrow_downward_24dp
 import eu.tintera.plume.resources.attach_file_24dp
 import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.close_24dp
-import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.conversation_attach
 import eu.tintera.plume.resources.conversation_location_title
 import eu.tintera.plume.resources.conversation_attach_file
@@ -432,6 +430,7 @@ import kotlin.time.Clock
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import eu.tintera.plume.core.telegram.SpamBar
+import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ChatBar
 import eu.tintera.plume.core.telegram.InviteMembersBar
 import eu.tintera.plume.core.telegram.JoinRequestBar
@@ -494,6 +493,11 @@ fun ConversationScreen(
      * konverzace i téma samo).
      */
     onViewAsChats: (() -> Unit)? = null,
+    /**
+     * Rychlý přepínač (podržení šipky zpět): vybraný chat místo téhle konverzace. `null` =
+     * nenabízet (bublina konverzace).
+     */
+    onSwitchChat: ((ChatSummary) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
@@ -1573,9 +1577,8 @@ fun ConversationScreen(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
-                    }
+                    // Podržení nabídne rychlý přepínač chatů; ťuknutí je dál „zpět".
+                    ChatSwitcherBackButton(chatId = viewModel.chatId, onBack = onBack, onSwitch = onSwitchChat)
                 },
                 actions = {
                     // Prázdný chat s botem je jeho profil — není co shrnout ani hledat.

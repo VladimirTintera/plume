@@ -533,10 +533,10 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
   sledovacích a analytických parametrů `utm_*`, `fbclid`, `gclid`, YouTube/Spotify `si`, TikTok, Twitter/X
   při odesílání, úpravě zprávy i otevírání odkazů, volitelný přepínač v Nastavení → Soukromí a bezpečnost;
   `docs/poznatky/nastaveni.md`, „Čistič odkazů od sledování").
-- **Rychlý přepínač mezi aktivními chaty (Quick Switcher v konverzaci).** Při rozepsané
-  konverzaci gesto tažení (swipe) po spodním panelu/vstupním poli doleva/doprava, případně krátké
-  stažení (pull-down) horní lišty s avatary posledních aktivních chatů pro bleskový skok bez
-  nutnosti vracet se do hlavního seznamu.
+- ~~**Rychlý přepínač mezi aktivními chaty (Quick Switcher v konverzaci).**~~ — hotovo jako
+  podržení šipky zpět: nabídka naposledy otevřených chatů a vršku seznamu, ťuknutí chat nahradí
+  (`docs/poznatky/konverzace-pohyb.md`, „Rychlý přepínač chatů"). Tah po vstupním poli vědomě ne
+  (pere se s posunem kurzoru a výběrem textu). Zbývá ověřit na iOS.
 
 ---
 
