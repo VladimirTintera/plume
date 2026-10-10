@@ -15,6 +15,7 @@ Release bere soubory PŘIDANÉ mezi předchozím a aktuálním tagem a čte je z
 poznámky z tagu reprodukovatelné stejně jako verze.
 
     release_notes.py check <soubor>...                   – ověří formát a délku (PR check)
+    release_notes.py exempt <změněný soubor>...          – 0, když PR mění jen komunitní překlady (bez poznámky)
     release_notes.py play <prev-tag|""> <tag> <adresář>  – whatsnew-<locale> pro Google Play (PLAY_LANGS)
     release_notes.py markdown <prev-tag|""> <tag>        – sekce do popisu GitHub Release
     release_notes.py bundle <soubor.kt>                  – historie vydání do aplikace (Co je nového)
@@ -40,6 +41,26 @@ LOCALES = {
 # Jazyky, které jdou do Play. Poznámka pro jazyk, který nemá aplikace v záznamu v obchodě,
 # by mohla shodit celý upload — nový jazyk sem patří až po nahrání záznamu v něm (`play/listing/`).
 PLAY_LANGS = ("cs", "en")
+
+# Jazyky, které píšeme sami: změna v nich je změna aplikace a poznámku potřebuje. Zrcadlí
+# výchozí angličtinu a `completeLocales` v client/shared/build.gradle.kts — nový jazyk psaný
+# námi patří do obou míst.
+OWN_LOCALES = ("en", "cs")
+
+# Překlady, které posílá Weblate: texty aplikace (Compose resources) a iOS (Localizable.strings).
+TRANSLATION_FILES = (
+    re.compile(r"^client/shared/src/commonMain/composeResources/values-(?P<locale>[A-Za-z]+)(?:-r?[A-Za-z]+)?/strings\.xml$"),
+    re.compile(r"^iosApp/(?:iosApp|ShareExtension)/(?P<locale>[A-Za-z]+)(?:-[A-Za-z]+)?\.lproj/Localizable\.strings$"),
+)
+
+
+def community_translation(path):
+    """Je soubor překlad jazyka, který nepíšeme sami (Weblate)?"""
+    for pattern in TRANSLATION_FILES:
+        match = pattern.match(path)
+        if match:
+            return match.group("locale") not in OWN_LOCALES
+    return False
 
 
 def parse(text, name):
@@ -200,6 +221,16 @@ def main(argv):
                     print(f"chyba: {error}", file=sys.stderr)
                 failed = True
         return 1 if failed else 0
+
+    if command == "exempt":
+        # PR jen s komunitními překlady (Weblate) poznámku nepotřebuje: uživatel pozná nanejvýš
+        # přeloženou větu navíc a Weblate poznámku napsat neumí. Nový jazyk, který tím přejde
+        # práh pro výběr jazyků, si poznámku zaslouží — tu přidá ten, kdo vydává.
+        files = [f for f in argv[2:] if f]
+        if files and all(community_translation(f) for f in files):
+            print("PR mění jen komunitní překlady — poznámka k vydání není potřeba.")
+            return 0
+        return 1
 
     if command == "play" and len(argv) == 5:
         notes = notes_between(argv[2], argv[3])

@@ -42,8 +42,8 @@ jazyků). Vlastní backend ani GitHub Pages potřeba nejsou. Záloha: Crowdin fo
   schvalování recenzentům (u nových jazyků si vybrat rodilého mluvčího). Čeština zůstává
   v repu a na Weblate jen pro čtení, dokud ji píšeme sami.
 - **Weblate posílá změny jako PR** (doplněk „Squash Git commits" + push do větve `weblate`).
-  Check „Release notes" by ho zamítl — výjimka pro tu větev (`type: internal`), nebo ji
-  Weblate drží sám.
+  ~~Check „Release notes" by ho zamítl~~ — hotovo: PR jen s komunitními překlady poznámku
+  nepotřebuje (`release_notes.py exempt`, CLAUDE.md „Poznámky k vydání").
 - ~~**`verifyTranslations` umí jen `values-cs`.**~~ — hotovo: všechny `values-*`, komunitní
   jazyky chybějící klíč jen varováním, formátovací argumenty chybou u všech (CLAUDE.md, „Jazyky").
 - ~~**Nový jazyk se dnes zapisuje ručně na čtyři místa**~~ — hotovo: seznam ze složek `values-*`

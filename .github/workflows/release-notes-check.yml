@@ -30,6 +30,10 @@ jobs:
           HEAD="${{ github.event.pull_request.head.sha }}"
           ADDED=$(git diff --diff-filter=A --name-only "$BASE...$HEAD" -- 'release-notes/*.md')
           CHANGED=$(git diff --diff-filter=AM --name-only "$BASE...$HEAD" -- 'release-notes/*.md')
+          # Jen komunitní překlady (PR od Weblate) poznámku nepotřebují — pravidlo je ve skriptu.
+          if [ -z "$ADDED" ] && python3 .github/scripts/release_notes.py exempt $(git diff --name-only "$BASE...$HEAD"); then
+            exit 0
+          fi
           if [ -z "$ADDED" ]; then
             echo "::error::PR nepřidává poznámku do release-notes/. Přidej release-notes/<větev>.md s řádky type:/cs:/en: (nebo jen 'type: internal')."
             exit 1
