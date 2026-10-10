@@ -523,6 +523,22 @@ s `schedulingState`).
   (`recentlyRemoved`). `dumpsys notification` ukazuje jen poslední stav; jestli zvonilo, říká
   `logcat -b events | grep notification_alert` (třetí pole 1 = zvuk). Kvůli tomu je
   v presenteru ladicí řádek „Notifikace potichu: od TDLib=…, jen náhrady=…, ticho=…".
+- **Termín ze zprávy je první volba** („Podle zprávy · zítra 15:00", `RemindRequest.suggestedAt`).
+  Vytahují ho pravidla (`reminderTimeFromText`, testy `ReminderTimeTest`), ne model: je to
+  okamžité, testovatelné a nic se kvůli tomu nestahuje. Česky i anglicky, bez diakritiky
+  (`foldDiacritics`, takže v kódu nejsou české literály a „zitra" platí jako „zítra").
+  - **Vztažná slova se počítají od ODESLÁNÍ zprávy**, ne od teď: „zítra v 10" napsané včera
+    je dnes v 10. Termín, který už minul (nebo je blíž než minuta), se nenabídne.
+  - **Čas bez dne** je den odeslání, a když tehdy už minul, další den („v 8" večer = ráno).
+    **Den bez času** dostane ráno 8:00 nebo část dne ze zprávy („v pátek večer" → 19:00).
+    **Týž den v týdnu** jen s časem, který ještě nebyl; bez času příští týden.
+  - **Radši nic než nesmysl**: čas chce dvojtečku, am/pm, nebo předložku („v 9.30", „v 15") —
+    „Verze 5.10", „Skóre 3:1" ani „přijde 5 lidí" termín nejsou. Datum chce tečku i za měsícem
+    („12. 10."), takže „5.10" je číslo. Samotná část dne („ráno super") termín není.
+  - **Pořadí rozhoduje**: datum se z textu vyřízne dřív, než se hledá čas („12.10." by jinak
+    bylo 12:10), a am/pm dřív než dvojtečka („3:30pm" by jinak bylo 3:30 ráno).
+  - Ověřeno na emulátoru: „Sraz zítra v 15:00 u kina" → „Podle zprávy · zítra 15:00",
+    u zprávy bez termínu řádek není.
 - **Ověřeno na emulátoru Fold**: nabídka nad zprávou v chatu s Notifikátorem, sheet s časy,
   vlastní čas za dvě minuty, snackbar, připomínka v čase v Uložených zprávách s upozorněním
   (zvuk podle `notification_alert`) a s tlačítky Odpovědět / Označit jako přečtené / Ztlumit.

@@ -21,6 +21,9 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.snooze.snoozeUntil
 import eu.tintera.plume.core.ui.SheetActionRow
 import eu.tintera.plume.features.chats.SnoozeOptionRows
+import eu.tintera.plume.features.chats.SnoozeTime
+import eu.tintera.plume.resources.edit_calendar_24dp
+import eu.tintera.plume.resources.remind_from_message
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.remind_pick
 import eu.tintera.plume.resources.remind_text
@@ -39,7 +42,13 @@ import org.jetbrains.compose.resources.stringResource
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun RemindSheet(onRemind: (at: Long) -> Unit, onPickTime: () -> Unit, onDismiss: () -> Unit) {
+internal fun RemindSheet(
+    /** Termín ze zprávy (sekundy od epochy); `null` = ve zprávě žádný není. */
+    suggested: Long?,
+    onRemind: (at: Long) -> Unit,
+    onPickTime: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
     val zone = remember { TimeZone.currentSystemDefault() }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
@@ -56,6 +65,18 @@ internal fun RemindSheet(onRemind: (at: Long) -> Unit, onPickTime: () -> Unit, o
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 4.dp),
             )
             Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                // Termín ze zprávy („sraz v pátek v 15:00") jako první volba, ve vlastním bloku:
+                // je to návrh z textu, ne pevná doba, a může se splést.
+                if (suggested != null) {
+                    SheetActionRow(
+                        icon = Res.drawable.edit_calendar_24dp,
+                        label = stringResource(Res.string.remind_from_message),
+                        shape = RoundedCornerShape(20.dp),
+                        onClick = { onRemind(suggested) },
+                        trailing = { SnoozeTime(suggested * 1000) },
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
                 SnoozeOptionRows(
                     onSnooze = { option -> onRemind(snoozeUntil(option, Clock.System.now(), zone).epochSeconds) },
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,

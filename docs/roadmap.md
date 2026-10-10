@@ -397,8 +397,8 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
   výsledky) a opraví ji ťuknutím. Dotaz bez rozpoznaných filtrů jde dál jako text.
 - **„Připomenout mi" nad zprávou.** ~~Bez AI~~ hotovo (nabídka nad zprávou → „Připomenout…",
   naplánované přeposlání do Uložených zpráv; `docs/poznatky/konverzace-akce.md`, „Připomenutí
-  zprávy"). Zbývá AI část: model vytáhne z textu termín („v pátek v 15:00") a nabídne ho
-  v sheetu předvyplněný jako první volbu. A notifikace připomínky říká „Uložené zprávy: <já>",
+  zprávy"). ~~Termín z textu jako první volba~~ hotovo pravidly bez modelu (`reminderTimeFromText`,
+  česky a anglicky). Model by pomohl jen u volnějších formulací („za týden po obědě"). A notifikace připomínky říká „Uložené zprávy: <já>",
   ne „Připomínka" — TDLib ji od jiné zprávy v Uložených neodliší (přeposlaná vlastní zpráva).
 - **Kontrola tónu před odesláním** („nezní to podrážděně?"). Klasifikace vlastního konceptu,
   nic se nepřepisuje a varování jde přejít. Stejná opatrnost jako u podvodných zpráv: radši
