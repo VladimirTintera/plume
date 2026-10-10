@@ -286,15 +286,19 @@ internal class MessageBodyScope(
      * `primary` s průhledností, a ten na odchozí `primary` bublině nebyl vidět vůbec.
      */
     val selectionColors: TextSelectionColors,
-    /**
-     * Kolik místa si obsah nechá dole. Čip reakce leží PŘES dolní nároží — dolní půlka mu visí
-     * ven, horní na zprávě —, takže se rezervuje jen ta horní půlka. Platí pro to, co je ve
-     * zprávě poslední: bublinu, popisek pod holou fotkou i popis náhledu odkazu.
-     */
-    val contentBottom: Dp,
+    /** Animované [contentBottom]; scope drží stav, aby se při animaci neměnil celý. */
+    private val contentBottomState: State<Dp>,
     /** Kde zpráva v okně právě je; nabídka z toho místa vyjede. U kopie v nabídce prázdná. */
     private val anchor: MenuAnchor,
 ) {
+    /**
+     * Kolik místa si obsah nechá dole. Čip reakce leží PŘES dolní nároží a odznak počtu ještě
+     * nad ním, takže se zpráva s reakcemi dole rozšíří, aby poslední řádek skončil nad nimi.
+     * Platí pro to, co je ve zprávě poslední: bublinu, popisek pod holou fotkou i popis náhledu
+     * odkazu. Čte se ze stavu, takže při animaci rekomponuje jen to, co ho čte.
+     */
+    val contentBottom: Dp get() = contentBottomState.value.coerceAtLeast(0.dp)
+
     val message: ChatMessage get() = frame.message
     val continuesAbove: Boolean get() = frame.continuesAbove
 
@@ -326,6 +330,8 @@ internal fun rememberMessageBodyScope(
     frame: MessageFrameData,
     scope: ConversationItemScope,
     anchor: MenuAnchor,
+    /** Kreslí se u zprávy čipy reakcí — podle reakcí, které kreslí [MessageBox], ne podle zprávy. */
+    hasReactions: Boolean,
 ): MessageBodyScope {
     val message = frame.message
 
@@ -458,9 +464,16 @@ internal fun rememberMessageBodyScope(
         }
     }
 
-    // Obsah si pro čip reakce místo NEDĚLÁ: bublina má s reakcí i bez ní stejnou velikost
-    // (viz `MessageBox`).
-    val contentBottom = 8.dp
+    /*
+     * S reakcemi se zpráva dole rozšíří, aby čip ani odznak počtu nepřekryl poslední řádek.
+     * Plynule a stejnou pružinou, jakou se otevírá místo pod zprávou (`MessageBox`): dřív si
+     * obsah dělal místo skokem, a pak vůbec ne a čip lezl do textu.
+     */
+    val contentBottom = animateDpAsState(
+        targetValue = if (hasReactions) REACTION_CONTENT_BOTTOM else MESSAGE_PADDING_V,
+        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        label = "reaction-content-bottom",
+    )
 
     return remember(scope, frame, shape, bubbleColor, onBubbleColor, accent, insetColor, selectionColors, contentBottom) {
         MessageBodyScope(
@@ -472,7 +485,7 @@ internal fun rememberMessageBodyScope(
             accent = accent,
             insetColor = insetColor,
             selectionColors = selectionColors,
-            contentBottom = contentBottom,
+            contentBottomState = contentBottom,
             anchor = anchor,
         )
     }
@@ -509,7 +522,10 @@ private fun MessageFrame(
             maxWidth = { boxMaxWidth[0].takeIf { it >= 0 } },
         )
     }
-    val bodyScope = rememberMessageBodyScope(frame, scope, anchor)
+    // Dokud zprávu kreslí nabídka, drží se reakce z doby před jejím otevřením — nová reakce pak
+    // naskočí, až se zpráva vrátí na místo, a je ji vidět.
+    val reactions = heldReactions(frame.message.reactions, hold = scope.isInMenu(frame.key))
+    val bodyScope = rememberMessageBodyScope(frame, scope, anchor, hasReactions = reactions.isNotEmpty())
 
     val coroutineScope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
@@ -718,9 +734,7 @@ private fun MessageFrame(
                 frame = frame,
                 bodyScope = bodyScope,
                 maxWidthFraction = maxWidthFraction,
-                // Dokud zprávu kreslí nabídka, drží se reakce z doby před jejím otevřením —
-                // nová reakce pak naskočí, až se zpráva vrátí na místo, a je ji vidět.
-                reactions = heldReactions(frame.message.reactions, hold = scope.isInMenu(frame.key)),
+                reactions = reactions,
                 body = body,
                 modifier = Modifier
                     .layout { measurable, constraints ->
@@ -919,10 +933,10 @@ internal fun MessageBox(
     /*
      * Místo na čip reakce POD zprávou, a animované.
      *
-     * Bublina má s reakcí i bez ní STEJNOU velikost — čip leží jako odznak přes její spodní
-     * nároží ([REACTION_ON_BUBBLE]), dolní půlkou visí pod ní. Místo pod zprávou se otevře pružinou, takže
-     * zpráva při první reakci plynule popojede, místo aby poskočila. Dřív si obsah bubliny dělal
-     * místo uvnitř a zpráva se o čip skokem zvětšila.
+     * Čip leží jako odznak přes spodní nároží bubliny ([REACTION_ON_BUBBLE]), dolní půlkou visí
+     * pod ní. Místo pod zprávou se otevře pružinou, takže zpráva při první reakci plynule
+     * popojede, místo aby poskočila. Bublina se dole rozšíří tou samou pružinou
+     * ([REACTION_CONTENT_BOTTOM]), aby čip nepřekryl poslední řádek.
      *
      * Čip patří ke zprávě, takže místo je uvnitř toho, co kreslí i nabídka nad zprávou.
      */
@@ -1034,7 +1048,10 @@ private fun rememberVoicePlaying(message: ChatMessage, scope: ConversationItemSc
  */
 @Composable
 internal fun MessageItem.MenuCopy(scope: ConversationItemScope, modifier: Modifier = Modifier) {
-    val bodyScope = rememberMessageBodyScope(frame, scope, NoMenuAnchor)
+    // Kopie ukazuje reakce z okamžiku otevření: výběr reakce nabídku hned zavře a kopie letí
+    // zpátky — nová reakce patří až zprávě v seznamu, kde ji je vidět naskočit.
+    val reactions = heldReactions(frame.message.reactions, hold = true)
+    val bodyScope = rememberMessageBodyScope(frame, scope, NoMenuAnchor, hasReactions = reactions.isNotEmpty())
     MessageBox(
         frame = frame,
         bodyScope = bodyScope,
@@ -1044,9 +1061,7 @@ internal fun MessageItem.MenuCopy(scope: ConversationItemScope, modifier: Modifi
         // takže i podíl šířky musí být stejný — jinak by se text zalomil jinak.
         maxWidthFraction = maxWidthFraction,
         onReactionClick = null,
-        // Kopie ukazuje reakce z okamžiku otevření: výběr reakce nabídku hned zavře a kopie letí
-        // zpátky — nová reakce patří až zprávě v seznamu, kde ji je vidět naskočit.
-        reactions = heldReactions(frame.message.reactions, hold = true),
+        reactions = reactions,
         // Zvýraznění patří zprávě v seznamu; kopie by ho přehrála podruhé.
         newReactions = emptyList(),
     )
@@ -1612,6 +1627,17 @@ private val REACTION_ON_BUBBLE = REACTION_SHADOW_ROOM + REACTION_BADGE_ROOM + RE
 
 /** Místo pod bublinou: celý čip i s místem na odznak počtu, bez části, která leží na bublině. */
 private val REACTION_OVERHANG = REACTION_ROW_HEIGHT - REACTION_ON_BUBBLE
+
+/** Mezera mezi spodkem posledního řádku a horní hranou odznaku počtu. */
+private val REACTION_CONTENT_GAP = 4.dp
+
+/**
+ * Odsazení pod obsahem zprávy s reakcemi: část čipu na bublině, nad ní odznak počtu a mezera.
+ * S pevnými 8 dp lezl odznak do posledního řádku a kolečko se dotýkalo jeho dolních dotahů.
+ * Počítá s odznakem vždycky, i u reakcí bez počtu — jinak by se zpráva při druhé reakci
+ * téhož emoji zvětšila podruhé.
+ */
+private val REACTION_CONTENT_BOTTOM = REACTION_CHIP_ON_BUBBLE + REACTION_BADGE_ROOM + REACTION_CONTENT_GAP
 
 
 /**
