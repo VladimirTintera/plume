@@ -512,8 +512,8 @@ Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku, p�
 Nápady z října 2026, nic z toho zatím nikdo nezačal.
 
 - ~~**Bubliny konverzací (Android 11+)**~~ — hotovo (`BubbleActivity`, `BubbleShell`;
-  `docs/poznatky/notifikace.md`, „Bubliny konverzací"). Zbývá ověřit prohlížeč médií a zámek
-  aplikace v bublině; profil, přeposlání a jiné chaty bublina zatím posílá do plné aplikace.
+  `docs/poznatky/notifikace.md`, „Bubliny konverzací"). Profil, přeposlání a jiné chaty
+  bublina zatím posílá do plné aplikace; ověřit na skutečném telefonu.
 - **Widget na plochu** s nepřečtenými nebo připnutými chaty (Glance). Data z TDLib v procesu
   aplikace; widget musí umět ukázat poslední známý stav, když proces neběží.
 - **Fold a klávesnice.** ~~Klávesové zkratky (Ctrl+K hledání, Alt+↑/↓ mezi chaty, Esc zavře

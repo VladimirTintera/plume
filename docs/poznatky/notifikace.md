@@ -400,7 +400,14 @@ notifikaci, nebo volba u aplikace / konverzace v systému). V bublině běží `
 - **Ověřeno na emulátoru (Fold, Android 17)**: tlačítko bubliny v notifikaci od testovacího
   bota, rozbalení s konverzací, přečtení bez zmizení bubliny, sbalení šipkou a nové rozbalení,
   profil z hlavičky otevřel plnou aplikaci na téže konverzaci. Logy: `adb logcat | grep
-  'Bubbles '`. **Prohlížeč médií v bublině a zámek aplikace nad bublinou ověřené NEJSOU.**
+  'Bubbles '`. Dál ověřeno: fotka od bota se v bublině otevřela v prohlížeči, „Odpovědět"
+  z prohlížeče vrátil konverzaci s citací a odpověď odešla (bot ji dostal jako odpověď na
+  fotku); se zapnutým zámkem aplikace (po minutě nečinnosti) se bublina otevřela na zadání PINu
+  a obsah konverzace pod ním nebyl ani ve výpisu přístupnosti, po PINu se ukázal.
+- **Se zapnutým zámkem jsou snímky obrazovky ČERNÉ** — `SecureScreen` zapne `FLAG_SECURE`
+  i v bublině. Co je na obrazovce, se pak ověřuje výpisem `uiautomator dump`, ne snímkem.
+  Testovací zámek po ověření vypnout (Nastavení → Obecné → Zámek aplikace → Vypnout zámek),
+  jinak zůstane emulátor zamčený na PIN, který nikdo nezná.
 
 ### Akce z notifikace
 
