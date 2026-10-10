@@ -2,6 +2,7 @@ package eu.tintera.plume.core.ai
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
 
 /**
  * Jazykový model běžící v zařízení.
@@ -50,6 +51,20 @@ interface OnDeviceAi {
      * nic skládat.
      */
     fun generate(variant: ModelVariant, prompt: String): Flow<Generated>
+
+    /**
+     * Umí model přepsat řeč ze zvuku ([transcribe])? Jen PŘIPRAVENÝ model se zvukovým vstupem
+     * (dnes Gemma 4; Gemini Nano přes ML Kit zvuk nebere). Levný dotaz, nic nenačítá.
+     */
+    suspend fun canTranscribe(variant: ModelVariant): Boolean = false
+
+    /**
+     * Přepíše řeč ze zvukového souboru [audioPath] (hlasovka OGG/Opus, kolečko MP4) do textu;
+     * [languageCode] je jen nápověda, mluví-li se jinak, přepíše se, jak se mluví. Vydává celý
+     * dosavadní text jako [generate]. Kde přepis není ([canTranscribe] `false`), selže.
+     */
+    fun transcribe(variant: ModelVariant, audioPath: String, languageCode: String): Flow<Generated> =
+        flow { throw OnDeviceAiException(AiFailureReason.Unavailable, variant.provider) }
 
     /**
      * Smaže stažený model a uvolní místo. Jen tam, kde model stahuje aplikace sama

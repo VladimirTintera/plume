@@ -1538,7 +1538,8 @@ internal fun MessageBodyScope.Attachment(
 internal fun MessageBodyScope.rememberTranscript(transcript: SpeechTranscript?, durationSeconds: Int): TranscriptState =
     rememberTranscriptState(
         key = message.id,
-        transcript = transcript,
+        // Přepis od serveru nese zpráva; z telefonu leží zvlášť (`LocalTranscripts`).
+        transcript = transcript ?: items.localTranscript(message.id),
         offer = items.transcribeOffer(durationSeconds),
         onTranscribe = { act(MessageAction.Transcribe) },
     )

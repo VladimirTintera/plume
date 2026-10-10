@@ -225,6 +225,13 @@ jako návrhy odpovědí, vlastní vypínač nemá — běží jen s modelem `Rea
 - **Emulátor na zkoušení modelu:** `Plume_Galerie_Fold` s 8 GB RAM a staženou E2B (stahování
   2,4 GB trvalo ~13 min, ~3 MB/s).
 
+### Přepis řeči (zvukový vstup Gemmy)
+
+Gemma 4 umí zvuk (`OnDeviceAi.transcribe`); podrobně v `prohlizec-medii.md`, „Přepis v telefonu".
+Pro tuhle oblast podstatné: **engine se zvukem je jiný engine** (`EngineConfig.audioBackend`),
+`withEngine(audio = true)` ho načte a pak slouží všemu; bez zvuku se kvůli přepisu přenačte.
+Na emulátoru (CPU) 7,5 s řeči za 11 s i s načtením.
+
 ### Návrhy odpovědí
 
 Přijde zpráva, pole je prázdné → nad polem se ukážou až tři čipy s krátkou odpovědí. Ťuknutí ji

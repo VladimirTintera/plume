@@ -670,6 +670,38 @@ a `TranscribeOffer` (`core/telegram/SpeechRecognition.kt`, testy `TranscribeOffe
   **Skutečný přepis ověřený NENÍ** — chce účet s Premium. Hlasovku i kolečko posílá testovací
   bot (`sendVoice` s m4a z `say -v Zuzana`, `sendVideoNote` se záznamem obrazovky emulátoru).
 
+### Přepis v telefonu
+
+Bez Premium (a bez zkušebních přepisů) přepíše hlasovku nebo kolečko **model v telefonu** —
+Gemma 4 se zvukovým vstupem (`OnDeviceAi.transcribe`, `LiteRtOnDeviceAi`). Tlačítko je totéž
+„Přepsat do textu", nabídka `TranscribeOffer.OnDevice` (testy `TranscribeOfferTest`).
+
+- **Server má přednost**: přepisuje líp a rychleji. Telefon jen tam, kde server odmítne
+  (Premium chybí, zkušební přepisy došly nebo žádné nejsou), se zapnutou AI v zařízení
+  a připraveným modelem, a jen do 5 minut záznamu (`MAX_ON_DEVICE_SECONDS`).
+- **Proč Gemma, ne `SpeechRecognizer`**: Gemma 4 E2B/E4B zvuk umí (katalog Gallery
+  `llmSupportAudio`, úloha `llm_ask_audio`), je už v aplikaci a dá se ověřit na emulátoru.
+  Systémové rozpoznávání v zařízení čte ze souboru až od Androidu 13 a na emulátoru není.
+  Gemini Nano přes ML Kit zvuk nebere (`canTranscribe` = `false`).
+- **Zvuk modelu jako v Gallery**: WAV 16 kHz mono 16 bit, kusy po 30 s (`AudioClips`), každý kus
+  vlastní konverzací, text se skládá za sebe. Dekóduje systém (`MediaExtractor` + `MediaCodec`):
+  hlasovka OGG/Opus, kolečko MP4/AAC; převzorkování lineárně, kanály průměrem.
+- **Engine musí mít zvukový backend** (`audioBackend = Backend.CPU()`, „must be CPU" i v Gallery).
+  Načítá se se zvukem až při prvním přepisu; pak poslouží i textovým funkcím, aby se engine
+  nepřenačítal. Při načtení si LiteRT-LM zapíše vlastní keš zvukové části do `cacheDir`.
+- **Přepis nejde do zprávy** (na serveru ho měnit nejde), ale do `LocalTranscripts` — jeden na
+  proces, takže odchod z chatu přežije, restart aplikace ne. Pro obrazovku jde spolu s Premium
+  a zkušebními přepisy v jednom toku (`transcribeContext`) — `ConversationScreen` je v dexu na
+  hraně a dvě `collectAsState` se tak změnila v jedno.
+- **Běží v `appScope`**, ne ve `viewModelScope`: odchod z chatu přepis nezruší.
+- **Ověřeno na emulátoru s Gemmou 4 E2B na CPU** (Fold s 8 GB RAM): hlasovka od testovacího bota
+  (`say -v Zuzana`, m4a, 7,5 s) přepsaná za 11 s včetně načtení zvukové části —
+  „Ahoj, posílám ti hlasovku na zkoušku. Seideme se zítra v 10. hlavního nádraží a pak pujdeme
+  na Obchod." (originál „…Sejdeme se zítra v deset u hlavního nádraží a pak půjdeme na oběd.").
+  Smysl sedí, drobnosti ne — syntetický hlas a nejmenší model. Přepis zůstal po odchodu
+  z chatu a návratu. **Neověřeno**: kolečko, skutečný lidský hlas, OGG/Opus z Telegramu (bot
+  poslal m4a), Gemma na GPU telefonu.
+
 ### GIFy a samolepky z klávesnice
 
 GIF vybraný v Gboardu **odchází hned** jako animace (`InputMessageAnimation`), jako samolepka

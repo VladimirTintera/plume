@@ -1,5 +1,12 @@
 package eu.tintera.plume.features.conversation
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.mapLatest
+import eu.tintera.plume.core.telegram.SpeechTranscript
+import eu.tintera.plume.core.telegram.transcribeOffer
+import eu.tintera.plume.core.telegram.TranscribeOffer
+import eu.tintera.plume.core.ai.OnDeviceAi
 import kotlin.time.Instant
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.toInstant
@@ -372,6 +379,9 @@ class ConversationViewModel(
     private val onDeviceTranslator: OnDeviceTranslator? = null,
     /** Termín připomínky od modelu v zařízení, když ho nenajdou pravidla. */
     private val reminderTimeModel: ReminderTimeModel? = null,
+    /** Přepis řeči v telefonu, když ho server nedá (bez Premium). */
+    private val onDeviceAi: OnDeviceAi? = null,
+    private val localTranscripts: LocalTranscripts? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -454,6 +464,25 @@ class ConversationViewModel(
     /** Premium a zkušební přepisy řeči — rozhodují, jestli se u hlasovky nabídne přepis. */
     val isPremium: StateFlow<Boolean> = chatRepository.isPremium
     val speechTrial: StateFlow<SpeechTrial?> = chatRepository.speechTrial
+
+    /**
+     * Všechno, co rozhoduje o přepisu záznamu, v jednom toku: Premium, zkušební přepisy, jestli
+     * přepíše telefon, a přepisy z telefonu v tomhle chatu. Jeden tok kvůli `ConversationScreen`,
+     * který je v dexu na hraně a každé další `collectAsState` mu přidá registr.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val transcribeContext: StateFlow<TranscribeContext> = combine(
+        chatRepository.isPremium,
+        chatRepository.speechTrial,
+        combine(settings.onDeviceAiEnabled, settings.onDeviceAiVariant) { enabled, variant -> enabled to variant }
+            .mapLatest { (enabled, variant) ->
+                val ai = onDeviceAi
+                enabled && ai != null && runCatching { ai.canTranscribe(variant) }.getOrDefault(false)
+            },
+        localTranscripts?.state?.map { all -> all.filterKeys { it.first == chatId }.mapKeys { it.key.second } }
+            ?: flowOf(emptyMap()),
+    ) { premium, trial, onDevice, local -> TranscribeContext(premium, trial, onDevice, local) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, TranscribeContext(chatRepository.isPremium.value, chatRepository.speechTrial.value))
 
     private val _state = MutableStateFlow(ConversationState(threadRootId = threadRootId, forumTopicId = forumTopicId, savedTopicId = savedTopicId))
     val state: StateFlow<ConversationState> = _state.asStateFlow()
@@ -4714,10 +4743,55 @@ class ConversationViewModel(
      * ([ConversationRepository.editedMessages]) — napřed rozpracovaný, pak hotový.
      */
     private fun transcribe(messageId: Long) {
+        val media = _state.value.messages.firstOrNull { it.id == messageId }?.media
+        val (fileId, duration) = when (media) {
+            is MessageMedia.VoiceNote -> media.fileId to media.durationSeconds
+            is MessageMedia.VideoNote -> media.fileId to media.durationSeconds
+            else -> return
+        }
+        val context = transcribeContext.value
+        if (transcribeOffer(context.isPremium, context.trial, duration, context.onDevice) == TranscribeOffer.OnDevice) {
+            transcribeOnDevice(messageId, fileId)
+            return
+        }
         viewModelScope.launch {
             repository.recognizeSpeech(chatId, messageId).onFailure { failure ->
                 logger.w(failure) { "Přepis zprávy $messageId se nepodařilo spustit." }
                 _state.update { it.copy(notice = failure.userMessage(Res.string.transcribe_failed)) }
+            }
+        }
+    }
+
+    /**
+     * Přepis v telefonu (`OnDeviceAi.transcribe`): soubor se stáhne, model ho přepíše a výsledek
+     * jde do [LocalTranscripts] — zprávu na serveru měnit nejde. Běží v [appScope]: přepis trvá
+     * vteřiny až desítky vteřin a odchod z chatu ho nemá zahodit.
+     */
+    private fun transcribeOnDevice(messageId: Long, fileId: Int) {
+        val ai = onDeviceAi ?: return
+        val local = localTranscripts ?: return
+        if (local.get(chatId, messageId) is SpeechTranscript.Pending) return
+        local.set(chatId, messageId, SpeechTranscript.Pending(""))
+        appScope.launch {
+            try {
+                val file = fileRepository.file(fileId).first { it is FileState.Ready || it is FileState.Failed }
+                val path = (file as? FileState.Ready)?.path ?: throw IllegalStateException("Soubor $fileId se nestáhl")
+                var text = ""
+                ai.transcribe(settings.onDeviceAiVariant.value, path, platformLanguageCode).collect { generated ->
+                    text = generated.text
+                    local.set(chatId, messageId, SpeechTranscript.Pending(text))
+                }
+                local.set(
+                    chatId,
+                    messageId,
+                    if (text.isBlank()) SpeechTranscript.Failed(SpeechTranscript.Failed.Reason.Other) else SpeechTranscript.Done(text.trim()),
+                )
+            } catch (e: CancellationException) {
+                local.set(chatId, messageId, SpeechTranscript.Failed(SpeechTranscript.Failed.Reason.Other))
+                throw e
+            } catch (e: Exception) {
+                logger.w(e) { "Přepis zprávy $messageId v telefonu se nepovedl." }
+                local.set(chatId, messageId, SpeechTranscript.Failed(SpeechTranscript.Failed.Reason.Other))
             }
         }
     }
@@ -5371,6 +5445,16 @@ data class MessageInfoSheet(
 )
 
 /** Připomínka zprávy [messageId]; [suggestedAt] = termín ze zprávy (sekundy od epochy), `null` = žádný. */
+/** Co rozhoduje o přepisu záznamu — viz [ConversationViewModel.transcribeContext]. */
+data class TranscribeContext(
+    val isPremium: Boolean = false,
+    val trial: SpeechTrial? = null,
+    /** Umí přepis model v telefonu (zapnutá AI a připravený model se zvukem). */
+    val onDevice: Boolean = false,
+    /** Přepisy z telefonu v tomhle chatu podle id zprávy. */
+    val local: Map<Long, SpeechTranscript> = emptyMap(),
+)
+
 data class RemindRequest(
     val messageId: Long,
     val suggestedAt: Long?,
