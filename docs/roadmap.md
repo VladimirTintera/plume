@@ -381,7 +381,9 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
 - **Štítky Uložených zpráv.** Témata Uložených zpráv (dělení podle chatu) už jsou, štítky od
   Telegramu (`SavedMessagesTag`, jen s Premium) ne; automatické zatřídění by je nahradilo bez
   serverové podpory a je to zase klasifikace.
-- **Přepsat před odesláním** („kratší", „zdvořileji", „bez překlepů"). Sloh drhne, ale uživatel
+- ~~**Přepsat před odesláním**~~ — hotovo (podržení odeslání → „Přepsat…";
+  `docs/poznatky/ai-v-zarizeni.md`, „Přepis před odesláním"). Původní zadání:
+  („kratší", „zdvořileji", „bez překlepů"). Sloh drhne, ale uživatel
   výsledek VIDÍ a rozhodne — chyba je levná, na rozdíl od našeptávání, kde se text podepisuje
   naslepo. Patří do nabídky nad vstupním polem, ne do automatiky.
 - **Vysvětlit dlouhou cizí zprávu** („o co jde") — totéž co shrnutí, jen nad jednou zprávou,
