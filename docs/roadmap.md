@@ -415,11 +415,11 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
   Zbývá **iOS** (Translation framework je jen pro SwiftUI — šlo by přes most ze Swiftu)
   a rozhodnout, jestli **+6–7 MB nativní knihovny**
   na stažení z Play za to stojí (jinak dynamický modul Play Feature Delivery).
-- **Lokální přepis řeči v zařízení (Speech-to-Text bez Premium).** TDLib přepis (`transcribeSpeech`)
-  vyžaduje Telegram Premium. Jako bezplatná alternativa přímo v zařízení: na Androidu offline
-  rozpoznávání přes `SpeechRecognizer` (balíčky češtiny a angličtiny) nebo kompaktní Whisper
-  (TFLite / Sherpa-ONNX), na iOS `SFSpeechRecognizer` s `requiresOnDeviceRecognition = true`.
-  Zpracování proběhne v zařízení a výsledek se uloží do lokální cache zprávy.
+- ~~**Lokální přepis řeči v zařízení (Speech-to-Text bez Premium).**~~ — hotovo přes Gemmu 4
+  se zvukovým vstupem (`OnDeviceAi.transcribe`; `docs/poznatky/prohlizec-medii.md`, „Přepis
+  v telefonu"). Zbývá: telefony bez Gemmy (systémový `SpeechRecognizer` v zařízení, od
+  Androidu 13 umí číst ze souboru), iOS (`SFSpeechRecognizer` s `requiresOnDeviceRecognition`),
+  přepis přes restart aplikace (dnes jen v paměti procesu) a ověření kolečka.
 - ~~**Extrakce textu z fotek (OCR / Live Text).**~~ — hotovo (⋮ → „Text z fotky" v prohlížeči:
   zvýraznění řádků na snímku, výběr řádků ťuknutím, panel s výběrem a „Kopírovat vše / výběr";
   `docs/poznatky/prohlizec-medii.md`, „Text z fotky"). Zbývá: iOS (Vision) ověřit na simulátoru

@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.features.conversation.LocalTranscripts
 import eu.tintera.plume.features.conversation.ReminderTimeModel
 import eu.tintera.plume.features.conversation.ConversationJumpRequests
 import eu.tintera.plume.features.conversation.ChatSwitcher
@@ -307,6 +308,7 @@ fun appModule() = module {
     single { BotStartRequests() }
     single { ConversationSearchRequests() }
     single { ConversationJumpRequests() }
+    single { LocalTranscripts() }
     factory { ReminderTimeModel(ai = get(), settings = get()) }
     single { ChatSwitcher(chats = get()) }
     single { MessageBookmarks(settings = get(), chats = get()) }
@@ -482,6 +484,8 @@ fun appModule() = module {
             photoMarkup = get(),
             onDeviceTranslator = getOrNull(),
             reminderTimeModel = get(),
+            onDeviceAi = getOrNull(),
+            localTranscripts = get(),
         )
     }
 

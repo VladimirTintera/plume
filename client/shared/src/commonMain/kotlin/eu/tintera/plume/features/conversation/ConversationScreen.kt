@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.resources.remind_time
 import eu.tintera.plume.core.ui.isFromHardwareKeyboard
 import androidx.compose.ui.input.key.type
@@ -549,8 +550,7 @@ fun ConversationScreen(
     // Čte se až v bublině hlasovky, takže změna pozice nepřekresluje celou obrazovku.
     val voicePlayback = viewModel.voicePlayback.collectAsStateWithLifecycle()
     val voiceSpeed = viewModel.voiceSpeed.collectAsStateWithLifecycle()
-    val isPremium = viewModel.isPremium.collectAsStateWithLifecycle()
-    val speechTrial = viewModel.speechTrial.collectAsStateWithLifecycle()
+    val transcribeContext = viewModel.transcribeContext.collectAsStateWithLifecycle()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     // Nahrávání se mění po 50 ms; obrazovka čte jen jestli běží, čas a úrovně až pruh nahrávání.
     val voiceRecordingState = viewModel.voiceRecording.collectAsStateWithLifecycle()
@@ -937,8 +937,7 @@ fun ConversationScreen(
             state = stateHolder,
             voicePlayback = voicePlayback,
             voiceSpeed = voiceSpeed,
-            isPremium = isPremium,
-            speechTrial = speechTrial,
+            transcribeContext = transcribeContext,
             contentTop = contentTop,
             onMenuAnchor = { menuAnchor = it },
             menuKey = menuKey,
@@ -4578,8 +4577,7 @@ private class ScreenItemScope(
     private val state: State<ConversationState>,
     private val voicePlayback: State<VoicePlayback?>,
     private val voiceSpeed: State<VoiceSpeed>,
-    private val isPremium: State<Boolean>,
-    private val speechTrial: State<SpeechTrial?>,
+    private val transcribeContext: State<TranscribeContext>,
     private val contentTop: State<Float?>,
     private val onMenuAnchor: (MenuAnchor) -> Unit,
     private val menuKey: State<Long?>,
@@ -4616,8 +4614,11 @@ private class ScreenItemScope(
 
     override fun voiceSpeed(): VoiceSpeed = voiceSpeed.value
 
-    override fun transcribeOffer(durationSeconds: Int): TranscribeOffer =
-        eu.tintera.plume.core.telegram.transcribeOffer(isPremium.value, speechTrial.value, durationSeconds)
+    override fun transcribeOffer(durationSeconds: Int): TranscribeOffer = transcribeContext.value.let {
+        eu.tintera.plume.core.telegram.transcribeOffer(it.isPremium, it.trial, durationSeconds, it.onDevice)
+    }
+
+    override fun localTranscript(messageId: Long): SpeechTranscript? = transcribeContext.value.local[messageId]
 
     override fun videoNoteSounding(messageId: Long): Boolean = state.value.soundingVideoNote == messageId
 

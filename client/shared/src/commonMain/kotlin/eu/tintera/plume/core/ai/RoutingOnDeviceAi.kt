@@ -48,6 +48,14 @@ class RoutingOnDeviceAi(
     override fun generate(variant: ModelVariant, prompt: String): Flow<Generated> =
         route(variant) { generate(it, prompt) }
 
+    override suspend fun canTranscribe(variant: ModelVariant): Boolean = when (variant.provider) {
+        AiProvider.GeminiNano -> geminiNano.canTranscribe(variant.forGeminiNano())
+        AiProvider.Gemma -> gemma.canTranscribe(variant.forGemma())
+    }
+
+    override fun transcribe(variant: ModelVariant, audioPath: String, languageCode: String): Flow<Generated> =
+        route(variant) { transcribe(it, audioPath, languageCode) }
+
     override suspend fun delete(variant: ModelVariant) = when (variant.provider) {
         AiProvider.GeminiNano -> geminiNano.delete(variant.forGeminiNano())
         AiProvider.Gemma -> gemma.delete(variant.forGemma())

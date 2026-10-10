@@ -76,6 +76,12 @@ sealed interface TranscribeOffer {
 
     data object Available : TranscribeOffer
 
+    /**
+     * Server přepis nedá (bez Premium a zkušebních přepisů), ale umí ho model v telefonu
+     * (`OnDeviceAi.transcribe`). Ťuknutí přepíše v zařízení; nic se neposílá.
+     */
+    data object OnDevice : TranscribeOffer
+
     /** Zkušební přepisy na tento týden došly; [resetsAt] je unixový čas obnovení, nebo 0. */
     data class UsedUp(val resetsAt: Long) : TranscribeOffer
 
@@ -90,10 +96,28 @@ sealed interface TranscribeOffer {
  * ([trial] `null`), nabídne se — rozhodne server. Došlé přepisy a příliš dlouhý záznam tlačítko
  * nechají, ale ťuknutí vysvětlí proč ne: zmizelé tlačítko by neřeklo nic.
  */
-fun transcribeOffer(isPremium: Boolean, trial: SpeechTrial?, durationSeconds: Int): TranscribeOffer = when {
-    isPremium || trial == null -> TranscribeOffer.Available
-    trial.weeklyCount <= 0 -> TranscribeOffer.Hidden
-    trial.maxMediaDurationSeconds in 1..<durationSeconds -> TranscribeOffer.TooLong(trial.maxMediaDurationSeconds)
-    trial.leftCount <= 0 -> TranscribeOffer.UsedUp(trial.nextResetDate)
-    else -> TranscribeOffer.Available
+fun transcribeOffer(
+    isPremium: Boolean,
+    trial: SpeechTrial?,
+    durationSeconds: Int,
+    /** Umí přepis model v telefonu ([TranscribeOffer.OnDevice])? */
+    onDevice: Boolean = false,
+): TranscribeOffer {
+    val server = when {
+        isPremium || trial == null -> TranscribeOffer.Available
+        trial.weeklyCount <= 0 -> TranscribeOffer.Hidden
+        trial.maxMediaDurationSeconds in 1..<durationSeconds -> TranscribeOffer.TooLong(trial.maxMediaDurationSeconds)
+        trial.leftCount <= 0 -> TranscribeOffer.UsedUp(trial.nextResetDate)
+        else -> TranscribeOffer.Available
+    }
+    // Server má přednost (přepisuje líp a rychleji); telefon jen tam, kde server odmítne.
+    // Delší záznam by se v telefonu přepisoval minuty — nad [MAX_ON_DEVICE_SECONDS] se nenabízí.
+    return if (server != TranscribeOffer.Available && onDevice && durationSeconds <= MAX_ON_DEVICE_SECONDS) {
+        TranscribeOffer.OnDevice
+    } else {
+        server
+    }
 }
+
+/** Nejdelší záznam, který se přepisuje v telefonu (po 30s kusech; na CPU zhruba stejně dlouho, co trvá). */
+const val MAX_ON_DEVICE_SECONDS = 300

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.telegram.SpeechTranscript
 import androidx.compose.foundation.combinedClickable
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.MenuAction
@@ -102,6 +103,9 @@ internal interface ConversationItemScope {
 
     /** Jestli a jak nabídnout přepis záznamu té délky (Premium a zkušební přepisy účtu). */
     fun transcribeOffer(durationSeconds: Int): TranscribeOffer = TranscribeOffer.Hidden
+
+    /** Přepis záznamu z modelu v telefonu (`LocalTranscripts`); server ho nese ve zprávě. */
+    fun localTranscript(messageId: Long): SpeechTranscript? = null
 
     fun documentProgress(fileId: Int): Float?
 

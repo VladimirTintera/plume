@@ -6,6 +6,8 @@ import android.os.Build
 import android.os.StatFs
 import co.touchlab.kermit.Logger
 import com.google.ai.edge.litertlm.Backend
+import com.google.ai.edge.litertlm.Content
+import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
@@ -86,7 +88,7 @@ class LiteRtOnDeviceAi(
     private fun stateOf(model: GemmaModel) = downloads.getOrPut(model) { MutableStateFlow(DownloadState.Idle) }
 
     private val engineLock = Mutex()
-    private var loaded: Pair<GemmaModel, Engine>? = null
+    private var loaded: LoadedEngine? = null
     private var idleUnload: Job? = null
 
     override suspend fun status(variant: ModelVariant): OnDeviceAiStatus {
@@ -243,12 +245,62 @@ class LiteRtOnDeviceAi(
             }
         }
 
+    /** Gemma 4 (E2B i E4B) zvuk umí; stačí, aby byla stažená a zařízení ji uneslo. */
+    override suspend fun canTranscribe(variant: ModelVariant): Boolean = status(variant) == OnDeviceAiStatus.Ready
+
+    /**
+     * Přepis řeči: zvuk po kusech ([AudioClips], WAV 16 kHz mono, nejvýš 30 s — tak ho modelu dává
+     * Gallery), každý kus vlastní konverzací, text se skládá za sebe. Engine musí mít zvukový
+     * backend (`audioBackend`, CPU — pro Gemmu 3n „must be CPU" i v Gallery), proto se načte
+     * se zvukem; pak poslouží i textovým funkcím, aby se nepřenačítal.
+     */
+    override fun transcribe(variant: ModelVariant, audioPath: String, languageCode: String): Flow<Generated> = flow {
+        val clips = withContext(Dispatchers.IO) { AudioClips.wavClips(audioPath) }
+        if (clips.isEmpty()) throw IOException("No audio in $audioPath")
+        withEngine(variant.gemma, audio = true) { engine ->
+            val done = StringBuilder()
+            for (clip in clips) {
+                val conversation = engine.createConversation(
+                    ConversationConfig(samplerConfig = SamplerConfig(topK = 40, topP = 0.95, temperature = 0.2)),
+                )
+                var finished = false
+                try {
+                    val part = StringBuilder()
+                    conversation.sendMessageAsync(
+                        Contents.of(Content.AudioBytes(clip), Content.Text(transcriptionPrompt(languageCode))),
+                        extraContext = mapOf("enable_thinking" to false),
+                    ).collect { message ->
+                        part.append(message.toString())
+                        emit(Generated(joinTranscript(done, part)))
+                    }
+                    finished = true
+                    if (done.isNotEmpty() && part.isNotBlank()) done.append(' ')
+                    done.append(part.trim())
+                } finally {
+                    if (!finished) quietly { conversation.cancelProcess() }
+                    quietly { conversation.close() }
+                }
+            }
+            emit(Generated(done.toString()))
+        }
+    }.flowOn(Dispatchers.Default)
+        .catch { e ->
+            throw if (e is Exception && e !is OnDeviceAiException) {
+                OnDeviceAiException(AiFailureReason.ModelError, AiProvider.Gemma, cause = e)
+            } else {
+                e
+            }
+        }
+
+    private fun joinTranscript(done: StringBuilder, part: StringBuilder): String =
+        if (done.isEmpty()) part.toString().trimStart() else "$done ${part.toString().trimStart()}"
+
     override suspend fun delete(variant: ModelVariant) {
         val model = variant.gemma
         ModelDownloadWorker.cancel(context, model)
         downloads.remove(model)
         engineLock.withLock {
-            if (loaded?.first == model) unloadLocked()
+            if (loaded?.model == model) unloadLocked()
         }
         withContext(Dispatchers.IO) {
             model.file().delete()
@@ -261,12 +313,13 @@ class LiteRtOnDeviceAi(
      * Engine pro [model]: načtený se použije, jiný se nejdřív zavře (dva by se do paměti
      * nevešly). Po doběhnutí se naplánuje uvolnění — příští použití ho zase zruší.
      */
-    private suspend fun <T> withEngine(model: GemmaModel, block: suspend (Engine) -> T): T = engineLock.withLock {
+    private suspend fun <T> withEngine(model: GemmaModel, audio: Boolean = false, block: suspend (Engine) -> T): T = engineLock.withLock {
         idleUnload?.cancel()
-        val engine = loaded?.takeIf { it.first == model }?.second ?: run {
+        // Engine se zvukem poslouží i textu; bez zvuku se pro přepis musí načíst znovu.
+        val engine = loaded?.takeIf { it.model == model && (it.audio || !audio) }?.engine ?: run {
             unloadLocked()
             if (!model.file().exists()) throw IOException("Model ${model.displayName} is not downloaded")
-            createEngine(model).also { loaded = model to it }
+            createEngine(model, audio).also { loaded = LoadedEngine(model, audio, it) }
         }
         try {
             block(engine)
@@ -279,7 +332,7 @@ class LiteRtOnDeviceAi(
     }
 
     private fun unloadLocked() {
-        loaded?.second?.let { engine -> quietly { engine.close() } }
+        loaded?.engine?.let { engine -> quietly { engine.close() } }
         loaded = null
     }
 
@@ -289,11 +342,12 @@ class LiteRtOnDeviceAi(
      * funguje. `LinkageError` se chytá kvůli nativní knihovně, stejně jako u ML Kitu: na zařízení,
      * kde se nenačte, nesmí aplikace spadnout jen proto, že si někdo zapnul volitelnou funkci.
      */
-    private suspend fun createEngine(model: GemmaModel): Engine = withContext(Dispatchers.Default) {
+    private suspend fun createEngine(model: GemmaModel, audio: Boolean): Engine = withContext(Dispatchers.Default) {
         fun start(backend: Backend) = Engine(
             EngineConfig(
                 modelPath = model.file().absolutePath,
                 backend = backend,
+                audioBackend = if (audio) Backend.CPU() else null,
                 maxNumTokens = MAX_NUM_TOKENS,
                 // Keš zkompilovaného modelu zrychlí druhé načtení; do `cacheDir`, ať ji systém
                 // smí uklidit — soubor modelu vedle ní je drahý, keš ne.
@@ -498,3 +552,6 @@ class LiteRtOnDeviceAi(
         const val MEMORY_TOLERANCE = 0.85
     }
 }
+
+/** Načtený engine: který model a jestli má zvukový backend (jen ten umí přepis). */
+private class LoadedEngine(val model: GemmaModel, val audio: Boolean, val engine: Engine)

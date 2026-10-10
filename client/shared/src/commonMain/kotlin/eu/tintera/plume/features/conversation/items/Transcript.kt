@@ -69,7 +69,7 @@ internal class TranscriptState(
         shownState.value = true
         // Přepis se pouští jen tam, kde ještě není; nepovedený jde zkusit znovu, moc dlouhý ne.
         val retry = transcript == null || (transcript is SpeechTranscript.Failed && transcript.canRetry)
-        if (retry && offer == TranscribeOffer.Available) onTranscribe()
+        if (retry && (offer == TranscribeOffer.Available || offer == TranscribeOffer.OnDevice)) onTranscribe()
     }
 }
 
@@ -159,7 +159,7 @@ internal fun TranscriptBody(state: TranscriptState, color: Color, modifier: Modi
                 stringResource(Res.string.transcript_used_up)
             }
             // Přepis odešel a čeká se na první úpravu zprávy.
-            TranscribeOffer.Available, TranscribeOffer.Hidden -> stringResource(Res.string.transcript_pending)
+            TranscribeOffer.Available, TranscribeOffer.OnDevice, TranscribeOffer.Hidden -> stringResource(Res.string.transcript_pending)
         } to muted
     }
     Text(text = text, color = textColor, style = MaterialTheme.typography.bodyMedium, modifier = modifier)
