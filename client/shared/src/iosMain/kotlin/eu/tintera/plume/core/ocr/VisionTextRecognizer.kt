@@ -15,8 +15,8 @@ import platform.Vision.VNRequestTextRecognitionLevelAccurate
 /**
  * Apple Vision (`VNRecognizeTextRequest`), přesný režim s automatickým jazykem.
  *
- * - **Vision vrací ŘÁDKY, ne bloky**, a počátek souřadnic má VLEVO DOLE. Řádky se proto převrátí
- *   na počátek nahoře a seřadí do pořadí čtení ([inReadingOrder]).
+ * - **Vision vrací rovnou ŘÁDKY** (přesně to, co jde vybrat), ale počátek souřadnic má VLEVO DOLE.
+ *   Řádky se proto převrátí na počátek nahoře a seřadí do pořadí čtení ([inReadingOrder]).
  * - Běží na `Dispatchers.Default`: `performRequests` je synchronní a trvá stovky milisekund.
  */
 @OptIn(ExperimentalForeignApi::class)
@@ -34,11 +34,11 @@ class VisionTextRecognizer : TextRecognizer {
             logger.w { "Rozpoznání textu v $path selhalo." }
             return@withContext null
         }
-        val blocks = request.results.orEmpty().mapNotNull { result ->
+        val lines = request.results.orEmpty().mapNotNull { result ->
             val observation = result as? VNRecognizedTextObservation ?: return@mapNotNull null
             val text = (observation.topCandidates(1u).firstOrNull() as? VNRecognizedText)?.string ?: return@mapNotNull null
             observation.boundingBox.useContents {
-                RecognizedBlock(
+                RecognizedLine(
                     text = text,
                     left = origin.x.toFloat(),
                     top = (1 - origin.y - size.height).toFloat(),
@@ -47,6 +47,6 @@ class VisionTextRecognizer : TextRecognizer {
                 )
             }
         }
-        RecognizedText(inReadingOrder(blocks))
+        RecognizedText(inReadingOrder(lines))
     }
 }

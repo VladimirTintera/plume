@@ -16,7 +16,7 @@ import kotlin.coroutines.resume
  *
  * - **Obrázek se dekóduje sám, zmenšený** (nejdelší strana do [MAX_SIDE]), ne `fromFilePath`.
  *   Originál fotky z Telegramu má až 2560 bodů a víc rozpoznání nepomůže, jen ho zpomalí; a souřadnice
- *   bloků jsou pak v rozměrech téže bitmapy, kterými se dělí na podíly.
+ *   řádků jsou pak v rozměrech téže bitmapy, kterými se dělí na podíly.
  * - **Model si stahují Play služby** (meta-data `ocr` v manifestu aplikace, hned po instalaci).
  *   Než doběhne, rozpoznání selže — to je `null` a hláška „zkus to za chvíli", ne „žádný text".
  */
@@ -36,17 +36,18 @@ class MlKitTextRecognizer : TextRecognizer {
             .getOrNull()
         bitmap.recycle()
         result ?: return null
-        val blocks = result.textBlocks.mapNotNull { block ->
-            val box = block.boundingBox ?: return@mapNotNull null
-            RecognizedBlock(
-                text = block.text,
+        // Řádky, ne bloky: vybírá se po řádcích (viz [RecognizedLine]).
+        val lines = result.textBlocks.flatMap { it.lines }.mapNotNull { line ->
+            val box = line.boundingBox ?: return@mapNotNull null
+            RecognizedLine(
+                text = line.text,
                 left = box.left / width,
                 top = box.top / height,
                 right = box.right / width,
                 bottom = box.bottom / height,
             )
         }
-        return RecognizedText(inReadingOrder(blocks))
+        return RecognizedText(inReadingOrder(lines))
     }
 
     private fun decode(path: String): android.graphics.Bitmap? {

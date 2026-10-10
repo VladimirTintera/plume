@@ -876,7 +876,8 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
 ⋮ → „Text z fotky" rozpozná text v otevřené fotce, celé v telefonu: ML Kit z Play služeb na
 Androidu, Vision na iOS (`core/ocr`, `TextRecognizer`). Bloky se zvýrazní přímo na snímku
 (`PhotoTextHighlights`) a na místě pruhu reakcí vyjede panel s textem (`PhotoTextPanel`) — úsek
-jde vybrat, „Kopírovat vše" zkopíruje celý.
+jde vybrat, „Kopírovat vše" zkopíruje celý. Ťuknutím na řádky ve fotce jde vybrat jen některé:
+panel pak ukazuje a „Kopírovat výběr" kopíruje jen je (`PhotoText.selected`).
 
 - **Knihovna jen v `core/ocr`**, zbytek aplikace vidí `RecognizedText` — jako u `core/ai`.
 - **ML Kit z Play služeb (`play-services-mlkit-text-recognition`), ne přibalený model.** Přibalený
@@ -889,6 +890,22 @@ jde vybrat, „Kopírovat vše" zkopíruje celý.
 - **Rozpoznává se OSTRÁ verze** (`fullFileId`), stažená tímtéž `prepare` jako uložení; po dobu
   stahování a rozpoznání točí ⋮ (`MediaTask.Text`). Ve zmenšenině z bubliny drobné písmo
   nepřečte ani model. Obrázek se dekóduje zmenšený na 2048 bodů — víc rozpoznání nepomůže.
+- **Rozpoznává se po ŘÁDCÍCH, ne po blocích** (`RecognizedLine`). Blok z ML Kitu je odstavec —
+  na účtence by jedno ťuknutí vybralo pět položek i s cenami; Vision vrací řádky sám, takže
+  `block.lines` z ML Kitu dává obě platformy na stejnou úroveň. Daň: text ve dvou sloupcích
+  se v celém textu prokládá řádek po řádku (řádky na stejné výšce spojí `readingRows`). Na
+  účtence je to naopak správně („Káva 89 Kč"), a sloupec si uživatel teď vybere ťukáním.
+- **Výběr řádku se pozná až při zvednutí prstu a spotřebuje se jen to zvednutí**, dotyk sám
+  zůstává volný. Gesta stránky (`ZoomableMediaPage`, rodič) dostávají pohyb dál: štípnutí,
+  posun přiblížené fotky, zavírací tah i listování začaté na řádku fungují a ťuknutí na řádek
+  se tím zruší (pohyb spotřebují ony). Spotřebované zvednutí zruší ťuknutí stránky, takže
+  výběr nepřepne celou obrazovku. Daň: dvojité ťuknutí NA ŘÁDKU nepřibližuje, jen řádek dvakrát
+  přepne — vedle řádků přibližuje dál. Ťuknutí na řádek se trefuje s přesahem 12 dp a vyhrává
+  nejbližší řádek, drobné písmo by jinak přesně trefit nešlo.
+- **Barva vybraného řádku je barva výběru textu** (`LocalTextSelectionColors`), stejná jako při
+  výběru úseku v panelu — oboje je „vybraný text".
+- **Čtečka obrazovky** dostane každý řádek jako zaškrtávací prvek s jeho textem (neviditelné
+  boxy na místě řádků nad `Canvas`). `uiautomator` je ukáže jako `checkable` s `checked`.
 - **Souřadnice bloků jsou podíly rozměrů obrázku** (0–1, počátek vlevo nahoře). Zvýraznění leží
   UVNITŘ karty se snímkem, která má poměr stran fotky, takže se s ní přibližuje a posouvá bez
   přepočtu. Vision má počátek VLEVO DOLE — převrací se při převodu.
@@ -906,6 +923,13 @@ jde vybrat, „Kopírovat vše" zkopíruje celý.
 - **Ověřeno na emulátoru Fold** (Android 17, Play služby): fotka od testovacího bota, zvýraznění,
   panel, kopírování (snackbar i systémový náhled schránky), zavření křížkem, odlistování.
   **iOS jen přeložené; release s R8 neověřený** (ML Kit nese vlastní keep pravidla).
+- **Výběr řádků ověřený na emulátoru Pixel 7** (Android 16, Play služby) na účtence od
+  Notifikátoru: řádky položek a cen zvlášť, výběr a zrušení ťuknutím (haptika 21 / 22),
+  „Kopírovat výběr" (systémový náhled schránky „89 Kč"), Zrušit výběr, ťuknutí vedle řádku
+  přepne celou obrazovku a výběr jde i v ní, vodorovný tah začatý na řádku odlistuje bez
+  výběru, uzly pro čtečku. **Štípnutí začaté na řádku se přes adb ověřit nedá; iOS jen
+  přeložené.** Rámeček řádku od ML Kitu občas ukrojí první znak („K", „4") — přepočet
+  souřadnic to podle všeho není (obrázek se nezmenšoval), ale ověřené to není.
 
 ## Spoilery a mizející média
 

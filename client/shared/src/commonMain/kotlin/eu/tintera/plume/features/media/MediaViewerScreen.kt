@@ -3,7 +3,6 @@ package eu.tintera.plume.features.media
 import eu.tintera.plume.resources.text_select_24dp
 import eu.tintera.plume.resources.media_text_hide
 import eu.tintera.plume.resources.media_text
-import eu.tintera.plume.core.ocr.RecognizedBlock
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -256,6 +255,8 @@ fun MediaViewerScreen(
                 onSetMainProfilePhoto = viewModel::setMainProfilePhoto,
                 onDeleteProfilePhoto = viewModel::requestDeleteProfilePhoto,
                 onRecognizeText = if (viewModel.canRecognizeText) viewModel::recognizeText else null,
+                onToggleTextLine = viewModel::toggleTextLine,
+                onClearTextSelection = viewModel::clearTextSelection,
                 onCopyText = viewModel::copyRecognizedText,
                 onCloseText = viewModel::closeRecognizedText,
                 onFocusShown = viewModel::focusShown,
@@ -343,6 +344,8 @@ private fun ViewerContent(
     onDeleteProfilePhoto: (photoId: Long) -> Unit,
     /** Text z fotky; `null` = platforma ho neumí. */
     onRecognizeText: ((messageId: Long) -> Unit)?,
+    onToggleTextLine: (index: Int) -> Unit,
+    onClearTextSelection: () -> Unit,
     onCopyText: () -> Unit,
     onCloseText: () -> Unit,
     onFocusShown: () -> Unit,
@@ -517,7 +520,8 @@ private fun ViewerContent(
                 is MessageMedia.Photo -> ZoomableImage(
                     photo = media,
                     messageId = item.messageId,
-                    textBlocks = state.recognizedText?.takeIf { it.messageId == item.messageId }?.text?.blocks,
+                    photoText = state.recognizedText?.takeIf { it.messageId == item.messageId },
+                    onToggleTextLine = onToggleTextLine,
                     caption = item.caption,
                     isCurrent = isCurrent,
                     immersive = immersive,
@@ -645,7 +649,7 @@ private fun ViewerContent(
             modifier = Modifier.align(Alignment.BottomCenter).then(fadeWithDismiss),
         ) {
             lastPhotoText?.let { shown ->
-                PhotoTextPanel(text = shown.text, onCopy = onCopyText, onClose = onCloseText)
+                PhotoTextPanel(text = shown, onCopy = onCopyText, onClearSelection = onClearTextSelection, onClose = onCloseText)
             }
         }
     }
@@ -986,8 +990,9 @@ private fun CloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 private fun ZoomableImage(
     photo: MessageMedia.Photo,
     messageId: Long,
-    /** Rozpoznaný text na téhle fotce — zvýrazní se na ní; `null` = žádný. */
-    textBlocks: List<RecognizedBlock>?,
+    /** Rozpoznaný text na téhle fotce — zvýrazní se na ní a jde na ní vybírat; `null` = žádný. */
+    photoText: PhotoText?,
+    onToggleTextLine: (index: Int) -> Unit,
     caption: String,
     isCurrent: Boolean,
     immersive: Boolean,
@@ -1049,15 +1054,15 @@ private fun ZoomableImage(
         }
 
         AnimatedVisibility(
-            visible = textBlocks != null,
+            visible = photoText != null,
             enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
             exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
             modifier = Modifier.fillMaxSize(),
         ) {
-            // Poslední bloky se drží i během mizení, ať zvýraznění nezmizí skokem dřív než závoj.
-            val shown = remember { mutableStateOf(emptyList<RecognizedBlock>()) }
-            if (textBlocks != null) shown.value = textBlocks
-            PhotoTextHighlights(shown.value)
+            // Poslední text se drží i během mizení, ať zvýraznění nezmizí skokem dřív než závoj.
+            val shown = remember { mutableStateOf(photoText) }
+            if (photoText != null) shown.value = photoText
+            shown.value?.let { PhotoTextHighlights(it.text.lines, it.selected, onToggleTextLine) }
         }
     }
 }

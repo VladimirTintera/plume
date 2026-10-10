@@ -241,6 +241,9 @@
     <string name="media_text_hide">Skrýt text</string>
     <string name="media_text_title">Text z fotky</string>
     <string name="media_text_copy">Kopírovat vše</string>
+    <string name="media_text_copy_selection">Kopírovat výběr</string>
+    <string name="media_text_clear_selection">Zrušit výběr</string>
+    <string name="media_text_hint">Ťuknutím na řádky ve fotce zkopíruješ jen část</string>
     <string name="media_text_copied">Text zkopírován</string>
     <string name="media_text_none">Na fotce není žádný text</string>
     <string name="media_text_failed">Text se nepodařilo rozpoznat. Zkus to za chvíli.</string>
