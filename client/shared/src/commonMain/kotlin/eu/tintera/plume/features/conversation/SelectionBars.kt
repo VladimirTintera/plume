@@ -1,5 +1,14 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.selection_copy_with_names
+import eu.tintera.plume.resources.selection_copy_text
+import eu.tintera.plume.resources.forum_24dp
+import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.ExpressiveMenu
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.layout.Box
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -66,17 +75,39 @@ internal fun SelectionTopBar(selection: MessageSelection, onClose: () -> Unit) {
 internal fun SelectionToolbar(
     selection: MessageSelection,
     onCopy: () -> Unit,
+    onCopyWithNames: () -> Unit,
     onForward: () -> Unit,
     onReport: () -> Unit,
     onDelete: () -> Unit,
 ) {
     ConversationFloatingBar(visible = selection.count > 0) {
-        ToolbarAction(
-            icon = Res.drawable.content_copy_24dp,
-            label = Res.string.menu_copy,
-            enabled = selection.canCopy,
-            onClick = onCopy,
-        )
+        // Kopírovat nabídne dvě podoby: holé texty (jako dřív) a přepis s časem a jménem
+        // („[10. 10. 2026 14:22] Jana: …") pro poznámky nebo jazykový model.
+        var copyMenu by remember { mutableStateOf(false) }
+        Box {
+            ToolbarAction(
+                icon = Res.drawable.content_copy_24dp,
+                label = Res.string.menu_copy,
+                enabled = selection.canCopy,
+                onClick = { copyMenu = true },
+            )
+            ExpressiveMenu(
+                expanded = copyMenu,
+                onDismiss = { copyMenu = false },
+                groups = listOf(
+                    listOf(
+                        MenuAction(stringResource(Res.string.selection_copy_text), Res.drawable.content_copy_24dp) {
+                            copyMenu = false
+                            onCopy()
+                        },
+                        MenuAction(stringResource(Res.string.selection_copy_with_names), Res.drawable.forum_24dp) {
+                            copyMenu = false
+                            onCopyWithNames()
+                        },
+                    ),
+                ),
+            )
+        }
         ToolbarAction(
             icon = Res.drawable.forward_24dp,
             label = Res.string.menu_forward,

@@ -368,6 +368,21 @@ zpráva má na volné straně kolečko. Stav je `ConversationState.selection` (`
   v TDLib nejvýš sto naráz, takže vyšší výběr by skončil chybou až u akce.
 - **Kopíruje se chronologicky, s prázdným řádkem mezi zprávami.** Zprávy bez textu se vynechají;
   popisek alba nemusí být na ťuknuté fotce, takže se text hledá v celém bloku.
+- **Kopírovat nabídne dvě podoby** (`ExpressiveMenu` nad tlačítkem): „Jen text" jako dřív a „S časem
+  a jménem" (`selectionTranscript`, testy `SelectionTranscriptTest`) — řádek na zprávu,
+  `[10. 10. 2026 14:22] Jana: text`, pro poznámky nebo jazykový model.
+  - **U každé zprávy celé datum**, ne jen čas: kus přepisu vytržený z kontextu musí říct, kdy se
+    to stalo. Datum v pořadí jazyka (`date_numeric`), čas 24hodinově.
+  - **Jména jako přepis pro AI shrnutí**: odchozí „Já" (`summary_me`), příchozí jméno
+    odesílatele, a kde ho TDLib nevyplňuje (soukromý chat, bot), název chatu.
+  - **Příloha v hranatých závorkách** („[Fotka] popisek", samotné „[Fotka]"). Popis přílohy je
+    proto `MessageMedia.describeText()` jako `UiText` — dřív jen `@Composable describe()`, který
+    ViewModel přeložit nemohl. U kostky, kontaktu a animovaného emoji popis závorky nemá, je
+    zároveň textem.
+  - Ověřeno na emulátoru (Fold): tři zprávy (vlastní a dvě od bota), vložené do pole a přečtené
+    z `uiautomator`. Schránku `adb` na novém Androidu číst neumí, vložení do vstupního pole
+    (Ctrl+V) ano — **pole po kontrole vyčistit**, jinak zůstane koncept, který se synchronizuje
+    na ostatní zařízení.
 - **Tělo potvrzení mazání má vlastní věty pro víc zpráv** (`delete_messages_*`), ne plurál nad
   jednou větou: čeština i angličtina v nich mění víc než jedno slovo. Titulek plurál má
   (`conversation_delete_selected_title`), protože nese počet.
