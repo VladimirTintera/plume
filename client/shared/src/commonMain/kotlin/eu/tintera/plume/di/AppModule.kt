@@ -1,6 +1,7 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.features.conversation.ConversationJumpRequests
+import eu.tintera.plume.features.conversation.ChatSwitcher
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import eu.tintera.plume.core.snooze.ChatSnoozes
 import eu.tintera.plume.features.forward.ShareContactViewModel
@@ -305,6 +306,7 @@ fun appModule() = module {
     single { BotStartRequests() }
     single { ConversationSearchRequests() }
     single { ConversationJumpRequests() }
+    single { ChatSwitcher(chats = get()) }
     single { MessageBookmarks(settings = get(), chats = get()) }
     single { ChatSnoozes(settings = get(), chats = get(), reminders = getOrNull()) }
     single { ConversationReplyRequests() }

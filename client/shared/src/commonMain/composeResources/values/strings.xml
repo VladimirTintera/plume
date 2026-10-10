@@ -288,6 +288,7 @@
     <string name="conversation_quote_deleted">The quoted message is no longer available.</string>
     <string name="conversation_message_deleted">That message is no longer available.</string>
     <string name="conversation_search">Search in chat</string>
+    <string name="conversation_switch_chat">Switch chat</string>
     <string name="conversation_search_position">%1$d of %2$d</string>
     <string name="conversation_search_none">No results</string>
     <string name="conversation_selection_select">Select message</string>

@@ -571,3 +571,42 @@ bránit.
     prahem a za ním a vráceným zpátky (nic se nearchivovalo ani nezaložila odpověď).
 - **Plynulost a to, jestli to pod palcem sedí, se posuzuje na telefonu** — emulátor s `input
   swipe` ověří jen směr a pořadí rozhodnutí.
+
+## Rychlý přepínač chatů
+
+Podržení šipky zpět v hlavičce konverzace nabídne chaty, mezi kterými uživatel přechází
+(`ChatSwitcher`, `ChatSwitcherBackButton`); ťuknutí na chat ho otevře místo současné konverzace.
+
+- **Šipka zpět, ne tah po vstupním poli.** Roadmapa navrhovala tah doleva/doprava po poli nebo
+  stažení hlavičky. Tah po poli se pere s posunem kurzoru, výběrem textu a odpovědí tahem;
+  stažení hlavičky s posouváním historie. Podržení „zpět" zná uživatel z prohlížečů (historie
+  stránek) a na šipce jinou funkci nemá.
+- **Podržení se pozná z interakcí tlačítka.** `IconButton` dlouhý stisk neumí a obalit ho
+  detektorem gest by mu vzalo stisk, a s ním změnu tvaru (viz „Icon buttony mění tvar při
+  stisku"). `LaunchedEffect` proto poslouchá `PressInteraction.Press` a po
+  `longPressTimeoutMillis` otevře nabídku (`collectLatest` čekání přeruší puštěním). Puštění po
+  podržení pak dorazí jako `onClick` a musí se přejít (`heldDown`), jinak by se konverzace
+  zavřela pod otevřenou nabídkou. Haptiku volá aplikace sama (`longPress()`), protože gesto
+  detekuje sama. Čtečce nese akci `semantics { onLongClick(label = "Přepnout chat") }`;
+  v `uiautomator` je pak uzel tlačítka `long-clickable="true"`.
+- **Co nabídnout: naposledy otevřené, pak vršek hlavního seznamu** (`switcherChats`, testy
+  `ChatSwitcherTest`), nejvýš šest položek bez otevřeného chatu. Historie je jen v paměti:
+  nese „s kým si teď píšu" a po restartu ji nahradí pořadí v seznamu, které říká skoro totéž.
+  Archivovaný chat jen z historie, sponzorovaný nikdy, Uložené zprávy ze seznamu jen připnuté
+  (stejně jako v seznamu chatů). Id, které v seznamech není (chat z odkazu, jiný účet), se
+  přeskočí: bez souhrnu nemá jméno ani fotku.
+- **„Otevřený" se zapisuje z obrazovky (`LaunchedEffect(chatId)`), ne z ViewModelu.**
+  ViewModel konverzace přežívá pod jinou obrazovkou; po návratu zpět by se znovu nezapsal
+  a chat, na který se uživatel právě vrátil, by v nabídce chyběl na prvním místě. Téma nebo
+  vlákno se zapíše jako svůj chat.
+- **Přepnutí srovná zásobník Chatů na seznam** (`AppNavigation.switchChat`), jako by se na chat
+  ťuklo v seznamu: zpět pak vede na seznam, ne do chatu, odkud se přepnulo. Přepínání sem a tam
+  by jinak vršilo zásobník donekonečna. Funguje stejně z archivu (konverzace se otevře
+  v hlavní větvi). Skupina s tématy otevře seznam témat, Uložené zprávy po chatech seznam svých
+  témat — podle téže volby jako ťuknutí v seznamu.
+- **V bublině konverzace se přepínač nenabízí** (`onSwitchChat = null`): bublina je jeden chat
+  a jiný do ní nepatří.
+- **Ověřeno na emulátoru Fold** (rozložený i složený): nabídka s fotkami a odznakem (ztlumený chat
+  neutrálně), jedna vibrace `constant=0`, puštění po podržení konverzaci nezavřelo, přepnutí
+  z tématu do chatu a z chatu do skupiny s tématy (otevřel se seznam témat), zpět z přepnutého
+  chatu vede na seznam. **iOS jen přeložené.**

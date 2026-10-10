@@ -91,6 +91,7 @@ import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForumTopicsRoute
 import eu.tintera.plume.core.navigation.SavedTopicsRoute
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.features.saved.SavedTopicsScreen
 import eu.tintera.plume.core.navigation.ArchiveForumTopicsRoute
 import eu.tintera.plume.features.forum.ForumTopicsScreen
@@ -571,6 +572,7 @@ private fun shellEntryProvider(
                     settings.setSavedMessagesAsChats(true)
                     chatsStack.openSavedTopics(route.chatId)
                 },
+                onSwitchChat = rememberSwitchChat(navigation),
             )
         }
     }
@@ -790,6 +792,7 @@ private fun shellEntryProvider(
                 onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
                 onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
                 onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
+                onSwitchChat = rememberSwitchChat(navigation),
             )
         }
     }
@@ -1207,6 +1210,25 @@ private fun shellEntryProvider(
  */
 private fun List<NavKey>.isOpenConversation(chatId: Long): Boolean =
     (lastOrNull() as? ConversationRoute)?.chatId == chatId
+
+/**
+ * Rychlý přepínač v konverzaci: chat jako po ťuknutí v seznamu — i s Uloženými zprávami po
+ * chatech, když si je tak uživatel zvolil.
+ */
+@Composable
+private fun rememberSwitchChat(navigation: AppNavigation): (ChatSummary) -> Unit {
+    val settings = koinInject<AppSettings>()
+    val savedMessagesChatId = LocalSavedMessagesChatId.current
+    return remember(navigation, settings, savedMessagesChatId) {
+        { chat ->
+            navigation.switchChat(
+                chatId = chat.id,
+                forum = chat.isForum,
+                savedTopics = chat.id == savedMessagesChatId && settings.savedMessagesAsChats.value,
+            )
+        }
+    }
+}
 
 /**
  * Otevření chatu z hlavního seznamu NAHRADÍ otevřenou konverzaci, nevrší se zásobník — stejně

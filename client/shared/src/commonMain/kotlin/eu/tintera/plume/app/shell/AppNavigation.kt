@@ -25,6 +25,7 @@ import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForumTopicsRoute
 import eu.tintera.plume.core.navigation.NavSavedStateConfiguration
 import eu.tintera.plume.core.navigation.ProxySettingsRoute
+import eu.tintera.plume.core.navigation.SavedTopicsRoute
 import eu.tintera.plume.core.navigation.SettingsRoute
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.navigation.SettingsSectionRoute
@@ -160,6 +161,26 @@ class AppNavigation internal constructor(
         val chats = stack(ChatsRoute)
         if (topicId != null) chats.add(ForumTopicsRoute(chatId))
         chats.add(ConversationRoute(chatId, topicId = topicId))
+    }
+
+    /**
+     * Rychlý přepínač v konverzaci (podržení šipky zpět): vybraný chat nahradí všechno nad
+     * seznamem chatů, jako by se na něj ťuklo v seznamu. Zpět z něj vede na seznam, ne do chatu,
+     * ze kterého se přepnulo — přepínání sem a tam by jinak vršilo zásobník bez konce.
+     *
+     * Skupina s tématy otevře seznam témat a Uložené zprávy po chatech ([savedTopics]) seznam
+     * svých témat, stejně jako ze seznamu chatů.
+     */
+    fun switchChat(chatId: Long, forum: Boolean, savedTopics: Boolean) {
+        selected.value = ChatsRoute
+        popToRoot(ChatsRoute)
+        stack(ChatsRoute).add(
+            when {
+                forum -> ForumTopicsRoute(chatId)
+                savedTopics -> SavedTopicsRoute(chatId)
+                else -> ConversationRoute(chatId)
+            },
+        )
     }
 
     /**
