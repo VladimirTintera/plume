@@ -296,8 +296,44 @@ abstract class TdlibReceiveHookFactory : AsmClassVisitorFactory<InstrumentationP
         }
 }
 
+/**
+ * `res/xml/locales_config.xml` (systémový výběr jazyka aplikace, `LocaleManager`) ze seznamu, který
+ * vyrobí `:client:shared:generateAppLanguages` ze složek `composeResources/values-*`. Ručně psaný
+ * soubor se s nimi rozcházel: nový jazyk z Weblate by v aplikaci byl, ale vybrat by nešel.
+ */
+abstract class GenerateLocaleConfig : DefaultTask() {
+    @get:InputFile
+    abstract val languages: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
+
+    @TaskAction
+    fun generate() {
+        val locales = languages.get().asFile.readLines().filter { it.isNotBlank() }
+        val file = outputDirectory.get().file("xml/locales_config.xml").asFile
+        file.parentFile.mkdirs()
+        file.writeText(
+            buildString {
+                appendLine("""<?xml version="1.0" encoding="utf-8"?>""")
+                appendLine("<!-- Vygenerováno úlohou generateLocaleConfig ze složek composeResources/values-*. Neupravovat. -->")
+                appendLine("""<locale-config xmlns:android="http://schemas.android.com/apk/res/android">""")
+                locales.forEach { appendLine("""    <locale android:name="$it" />""") }
+                appendLine("</locale-config>")
+            },
+        )
+    }
+}
+
+val generateLocaleConfig = tasks.register<GenerateLocaleConfig>("generateLocaleConfig") {
+    dependsOn(":client:shared:generateAppLanguages")
+    languages.set(rootProject.layout.projectDirectory.file("client/shared/build/generated/appLanguages/languages.txt"))
+    outputDirectory.set(layout.buildDirectory.dir("generated/localeConfig/res"))
+}
+
 androidComponents {
     onVariants { variant ->
+        variant.sources.res?.addGeneratedSourceDirectory(generateLocaleConfig, GenerateLocaleConfig::outputDirectory)
         variant.instrumentation.transformClassesWith(
             TdlibReceiveHookFactory::class.java,
             InstrumentationScope.ALL,

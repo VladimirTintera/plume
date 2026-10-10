@@ -46,15 +46,11 @@ jazyků). Vlastní backend ani GitHub Pages potřeba nejsou. Záloha: Crowdin fo
   Weblate drží sám.
 - ~~**`verifyTranslations` umí jen `values-cs`.**~~ — hotovo: všechny `values-*`, komunitní
   jazyky chybějící klíč jen varováním, formátovací argumenty chybou u všech (CLAUDE.md, „Jazyky").
-- **Nový jazyk se dnes zapisuje ručně na čtyři místa** (viz „Jazyk aplikace" v
-  `docs/poznatky/nastaveni.md`): `locales_config.xml` v `:client:androidApp`, `APP_LANGUAGES`
-  v `core/locale`, `language_name_<kód>` v každém `strings.xml` a `<kód>.lproj` v `iosApp/iosApp`
-  i `iosApp/ShareExtension` (iOS nabídne jazyk v Nastavení jen podle složek `.lproj`). Weblate
-  přidá jen složku `values-<kód>/`, takže by jazyk v aplikaci byl, ale vybrat by nešel.
-  Seznam proto odvozovat ze složek `values-*` při buildu (vygenerovat `locales_config.xml`
-  a `APP_LANGUAGES`, nebo aspoň kontrola, že sedí), s prahem pokrytí: jazyk pod ~80 % do výběru
-  nepouštět. `Localizable.strings` z obou `.lproj` jde na Weblate jako další komponenta
-  (formát iOS strings).
+- ~~**Nový jazyk se dnes zapisuje ručně na čtyři místa**~~ — hotovo: seznam ze složek `values-*`
+  s prahem 80 %, `locales_config.xml` i `APP_LANGUAGES` se generují, názvy jazyků dává systém
+  (`docs/poznatky/nastaveni.md`, „Jazyk aplikace"). Zbývá iOS: `<kód>.lproj` se přidává ručně
+  (build jen varuje) a `Localizable.strings` z obou `.lproj` jde na Weblate jako další
+  komponenta (formát iOS strings).
 - **Texty v Play** (`play/listing/`, poznámky k vydání) se komunitně nepřekládají — tam rozhoduje
   `PLAY_LANGS` a jazyk musí mít záznam v obchodě.
 

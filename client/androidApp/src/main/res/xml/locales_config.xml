@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Jazyky aplikace pro systémový výběr (Nastavení → Aplikace → Plume → Jazyk) a pro
-     LocaleManager. Musí odpovídat složkám values* v composeResources: výchozí angličtina
-     a čeština. Nový jazyk = nová složka tam, řádek tady a v APP_LANGUAGES (core/locale). -->
-<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
-    <locale android:name="en" />
-    <locale android:name="cs" />
-</locale-config>

@@ -617,11 +617,28 @@ zkratky" v `navigace.md`).
   Nastavení u aplikace. Kopie v aplikaci by se se systémovým výběrem rozešla.
 - **Android potřebuje `localeConfig`** (`res/xml/locales_config.xml` v `:client:androidApp`) —
   bez něj Plume v systémovém výběru jazyka aplikací vůbec nebyl, protože přeložené texty jsou
-  v composeResources, ne v Android `values-*`. Nový jazyk = řádek tam i v `APP_LANGUAGES`.
+  v composeResources, ne v Android `values-*`.
+- **Seznam jazyků se generuje ze složek `values-*`** (`:client:shared:generateAppLanguages`):
+  angličtina, jazyky, které píšeme sami (`completeLocales`), a komunitní jazyky přeložené aspoň
+  z 80 % (`minLanguageCoverage`). Z něj vzniká `APP_LANGUAGES` (`GENERATED_APP_LANGUAGES`)
+  i `locales_config.xml` (`generateLocaleConfig` v `:client:androidApp`, přidané jako
+  generovaný zdroj prostředků přes `androidComponents`). Dřív se nový jazyk zapisoval ručně
+  na čtyři místa a jazyk z Weblate (jen složka `values-<kód>`) by v aplikaci byl, ale vybrat
+  by nešel. Složka `values-pt-rBR` je jazyk `pt-BR`.
+  - **Rozpracovaný jazyk se nenabízí** — v aplikaci by střídal věty s angličtinou. Build to
+    ohlásí („de má 40 % — do výběru jazyků zatím nejde").
+  - **Názvy jazyků dává systém** (`nativeLanguageName`: Android `Locale.getDisplayName`, iOS
+    `NSLocale.displayNameForKey`), ne `language_name_<kód>` v každém `strings.xml`.
+  - **iOS složky `<kód>.lproj` nevyrobí build** — nesou vlastní texty iOS a v balíčku podle
+    nich iOS nabízí jazyky. `verifyIosLocalizations` (na `check`) jazyk bez nich jen ohlásí,
+    Android ho mezitím nabízí. Nový jazyk na iOS = `Localizable.strings` v `iosApp/iosApp`
+    i `iosApp/ShareExtension` (a region v Xcode).
+  - Ověřeno sondou s dočasným `values-de` (úplná kopie: v seznamu, v `locales_config.xml`
+    a varování iOS; jeden klíč: venku) a v APK `aapt2 dump xmltree` nad `locales_config.xml`.
 - **Do Androidu 12 se skupina nezobrazuje**: systém jazyk pro jednu aplikaci nezná a obchvat by
   chtěl AppCompat. Na iOS řádek jen otevře Nastavení — z aplikace to změnit nejde.
 - **Názvy jazyků jsou ve vlastním jazyce** („Čeština" i v anglické aplikaci), aby se dalo vrátit
-  z jazyka, kterému člověk nerozumí. Leží v obou `strings.xml` stejně.
+  z jazyka, kterému člověk nerozumí.
 - **Ověřeno na emulátoru (Android 16)**: přepnutí na češtinu přeložilo obrazovku hned, proces
   zůstal týž (pid), `cmd locale get-app-locales` hlásí `[cs]`; systémové Nastavení → Jazyk
   aplikace nabízí češtinu i angličtinu. iOS jen přeložené.

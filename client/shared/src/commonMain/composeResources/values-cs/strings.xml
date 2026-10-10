@@ -1101,8 +1101,6 @@
     <string name="settings_app_language">Jazyk aplikace</string>
     <string name="settings_language_system">Podle systému</string>
     <string name="settings_language_in_system">Mění se v Nastavení systému</string>
-    <string name="language_name_en">English</string>
-    <string name="language_name_cs">Čeština</string>
     <string name="settings_swipe_right">Tah doprava</string>
     <string name="settings_swipe_left">Tah doleva</string>
     <string name="settings_swipe_none">Nic</string>
