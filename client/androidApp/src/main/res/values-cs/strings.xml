@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Widget na plochu (výběr widgetů v launcheru). Texty aplikace jsou v composeResources;
+         tady jen to, co čte systém z manifestu. -->
+    <string name="widget_chats_label">Chaty</string>
+    <string name="widget_chats_description">Připnuté a nepřečtené chaty na první pohled</string>
+</resources>

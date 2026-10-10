@@ -1,5 +1,10 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.widget.ChatsWidgetUpdater
+import eu.tintera.plume.core.widget.AndroidHomeWidgets
+import eu.tintera.plume.core.widget.HomeWidgets
+import eu.tintera.plume.core.lock.AppLock
+import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.core.snooze.AndroidSnoozeReminders
 import eu.tintera.plume.core.snooze.SnoozeReminders
 import eu.tintera.plume.core.ai.LiteRtOnDeviceAi
@@ -81,6 +86,7 @@ actual fun Module.platformModule() {
     single { TextClipboard(androidContext()) }
     single<LanguageDetector> { AndroidLanguageDetector(androidContext()) }
     single<SquarePhoto> { AndroidSquarePhoto(androidContext()) }
+    single<HomeWidgets> { AndroidHomeWidgets(androidContext()) }
     single<SnoozeReminders> { AndroidSnoozeReminders(androidContext()) }
     single<PhotoMarkupRenderer> { AndroidPhotoMarkupRenderer(androidContext()) }
     single<ProfileVideo> { AndroidProfileVideo(androidContext()) }
@@ -101,6 +107,18 @@ actual fun Module.platformModule() {
 
     // `filesDir`, ne cache: nastavení se nesmí ztratit, když systém uklízí místo.
     single { createSettingsDataStore(androidContext().filesDir.resolve(SETTINGS_FILE_NAME).absolutePath) }
+
+    // Widget s chaty na ploše: podklady se musí psát od startu procesu, ne až se složí UI —
+    // aplikaci často budí jen push a widget má i pak ukázat čerstvý stav.
+    single(createdAtStart = true) {
+        ChatsWidgetUpdater(
+            context = androidContext(),
+            chats = get(),
+            authStage = get<TelegramSession>().authStage,
+            lockSettings = get<AppLock>().settings,
+            scope = get(named(APP_SCOPE)),
+        ).also { it.start() }
+    }
 
     single {
         NotificationPresenter(

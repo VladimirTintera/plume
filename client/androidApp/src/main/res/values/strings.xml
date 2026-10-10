@@ -3,4 +3,7 @@
     <!-- Podle Telegram API ToS nesmí název obsahovat „Telegram“ bez předřazeného „Unofficial“
          a nesmí se použít oficiální logo. „Plume“ je pracovní název, klidně ho přejmenuj. -->
     <string name="app_name">Plume</string>
+    <!-- Widget na plochu (výběr widgetů v launcheru). -->
+    <string name="widget_chats_label">Chats</string>
+    <string name="widget_chats_description">Pinned and unread chats at a glance</string>
 </resources>

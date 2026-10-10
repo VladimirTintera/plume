@@ -58,6 +58,7 @@ googleServices = "4.4.4"
 firebaseBom = "34.4.0"
 # Dočekání na odloženou notifikaci po pushi (expedited úloha); proces v ní systém nezmrazí.
 work = "2.11.2"
+glance = "1.2.0"
 # Gradle plugin Crashlytics — nahrává R8 mapping soubor a vkládá do APK build id, podle kterého
 # konzole hlášení spáruje. Verze pluginu je na firebaseBom NEZÁVISLÁ (jiný release cyklus).
 crashlytics = "3.0.8"
@@ -154,6 +155,7 @@ litertlm-android = { module = "com.google.ai.edge.litertlm:litertlm-android", ve
 mlkit-genai-prompt = { module = "com.google.mlkit:genai-prompt", version.ref = "mlkitGenaiPrompt" }
 play-code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version.ref = "playCodeScanner" }
 androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "work" }
+androidx-glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
 
 tdl-coroutines = { module = "dev.g000sha256:tdl-coroutines", version.ref = "tdl" }
 

@@ -410,7 +410,8 @@ fun appModule() = module {
     viewModelOf(::DefaultAutoDeleteViewModel)
     viewModelOf(::TwoStepViewModel)
     viewModelOf(::AppLockViewModel)
-    viewModelOf(::AppearanceViewModel)
+    // Widget na plochu jen tam, kde ho platforma má (Android).
+    viewModel { AppearanceViewModel(settings = get(), homeWidgets = getOrNull()) }
     viewModelOf(::ChatSwipeSettingsViewModel)
     viewModel { QuickReactionSettingsViewModel(settings = get(), quickReaction = get(), appScope = get(named(APP_SCOPE))) }
     viewModelOf(::DevicesViewModel)
