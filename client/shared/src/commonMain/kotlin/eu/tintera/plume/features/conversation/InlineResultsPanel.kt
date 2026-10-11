@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
@@ -40,8 +42,11 @@ import eu.tintera.plume.core.telegram.GifItem
 import eu.tintera.plume.core.telegram.InlineQueryState
 import eu.tintera.plume.core.telegram.InlineResult
 import eu.tintera.plume.core.telegram.InlineRowKind
+import eu.tintera.plume.core.telegram.StickerItem
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_send
+import eu.tintera.plume.resources.stickers_preview
 import eu.tintera.plume.resources.attach_file_24dp
 import eu.tintera.plume.resources.description_24dp
 import eu.tintera.plume.resources.location_on_24dp
@@ -69,6 +74,10 @@ import org.jetbrains.compose.resources.stringResource
  *
  * Ťuknutí výsledek rovnou pošle — jako oficiální klienti; výsledek je hotová zpráva připravená
  * botem, do pole se nic nevkládá.
+ *
+ * Podržení GIFu nebo samolepky otevře velký náhled jako ve výběru (buňka je na rozeznání malá),
+ * ale **jen s Poslat**: posílá se výsledek bota (`sendInlineResultMessage`), ne soubor, takže
+ * uložení GIFu ani hvězdička oblíbených by se k tomu, co odejde, nevztahovaly.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -85,6 +94,19 @@ internal fun InlineResultsPanel(
     // obyčejné pole — zápis do pole by obsah uvnitř `AnimatedVisibility` nepřekreslil.
     val last = remember { mutableStateOf(inline) }
     if (inline != null) last.value = inline
+
+    // Podržený výsledek ve velkém náhledu; rotaci nepřežije, je to chvilkové prohlédnutí.
+    var preview by remember { mutableStateOf<InlineResult?>(null) }
+    preview?.let { result ->
+        InlineResultPreview(
+            result = result,
+            onPick = {
+                preview = null
+                onPick(result)
+            },
+            onClose = { preview = null },
+        )
+    }
 
     val hasContent = inline != null && (inline.results.isNotEmpty() || inline.button != null || inline.loading)
     FloatingSuggestion(
@@ -125,7 +147,7 @@ internal fun InlineResultsPanel(
                     key = { _, result -> "r-${result.id}" },
                     span = { _, result -> if (result is InlineResult.Row) GridItemSpan(maxLineSpan) else GridItemSpan(1) },
                 ) { index, result ->
-                    InlineResultItem(result, onPick)
+                    InlineResultItem(result, onPick, onPreview = { preview = result })
                     LoadMoreAtEnd(index, shown.results.size, onLoadMore)
                 }
                 if (shown.loading) {
@@ -140,10 +162,10 @@ internal fun InlineResultsPanel(
 }
 
 @Composable
-private fun InlineResultItem(result: InlineResult, onPick: (InlineResult) -> Unit) {
+private fun InlineResultItem(result: InlineResult, onPick: (InlineResult) -> Unit, onPreview: () -> Unit) {
     when (result) {
         // Tentýž GIF jako ve výběru GIFů: hraje, dokud je vidět, velký se sám nestahuje.
-        is InlineResult.Gif -> GifCell(gif = GifItem(result.animation), onPick = { onPick(result) })
+        is InlineResult.Gif -> GifCell(gif = GifItem(result.animation), onPick = { onPick(result) }, onPreview = onPreview)
 
         is InlineResult.Picture -> Box(
             Modifier
@@ -178,7 +200,12 @@ private fun InlineResultItem(result: InlineResult, onPick: (InlineResult) -> Uni
                 .fillMaxWidth()
                 .height(CELL_HEIGHT)
                 .clip(RoundedCornerShape(CELL_CORNER))
-                .clickable { onPick(result) },
+                // Podržení si haptiku dělá `combinedClickable` samo — viz `Haptics`.
+                .combinedClickable(
+                    onClick = { onPick(result) },
+                    onLongClickLabel = stringResource(Res.string.stickers_preview),
+                    onLongClick = onPreview,
+                ),
         ) {
             StickerPreview(result.sticker, playing = false, modifier = Modifier.fillMaxSize().padding(6.dp))
         }
@@ -211,6 +238,45 @@ private fun InlineResultItem(result: InlineResult, onPick: (InlineResult) -> Uni
             },
             modifier = Modifier.clip(RoundedCornerShape(CELL_CORNER)).clickable { onPick(result) },
         )
+    }
+}
+
+/** Náhled podrženého GIFu nebo samolepky z výsledků; ostatní výsledky náhled nemají. */
+@Composable
+private fun InlineResultPreview(result: InlineResult, onPick: () -> Unit, onClose: () -> Unit) {
+    val send = stringResource(Res.string.conversation_send)
+    when (result) {
+        is InlineResult.Gif -> GifPreviewDialog(
+            gif = GifItem(result.animation),
+            saved = false,
+            pickLabel = send,
+            sendMenu = null,
+            onPick = onPick,
+            onPickWith = {},
+            onToggleSaved = null,
+            onDismiss = onClose,
+        )
+
+        is InlineResult.Sticker -> StickerPreviewDialog(
+            sticker = StickerItem(
+                // Klíč náhledu, ne mřížky — na id samolepky tu nic nezáleží.
+                id = result.sticker.stickerFileId.toLong(),
+                sendFileId = result.sticker.stickerFileId,
+                preview = result.sticker,
+            ),
+            favorite = false,
+            pickLabel = send,
+            sendMenu = null,
+            onPick = onPick,
+            onPickWith = {},
+            onToggleFavorite = null,
+            recent = false,
+            onRemoveRecent = {},
+            onDismiss = onClose,
+        )
+
+        // Fotky a řádky náhled nemají, podržení se u nich nenastavuje.
+        is InlineResult.Picture, is InlineResult.Row -> Unit
     }
 }
 

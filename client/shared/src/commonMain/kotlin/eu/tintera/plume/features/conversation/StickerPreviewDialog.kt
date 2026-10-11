@@ -70,7 +70,8 @@ internal fun StickerPreviewDialog(
     sendMenu: SendMenuOffer?,
     onPick: () -> Unit,
     onPickWith: (SendMenuChoice) -> Unit,
-    onToggleFavorite: () -> Unit,
+    /** `null` = hvězdička není (výsledek inline bota: posílá se výsledek, ne samolepka). */
+    onToggleFavorite: (() -> Unit)?,
     /** Samolepka je mezi nedávnými — náhled nabídne odebrání. */
     recent: Boolean,
     onRemoveRecent: () -> Unit,
@@ -115,7 +116,7 @@ internal fun StickerPreviewDialog(
                     ) {
                         // Poslat zavírá i sheet, náhled se proto neanimuje — odjede s ním.
                         pickLabel?.let { Button(onClick = onPick) { Text(it) } }
-                        FilledTonalIconToggleButton(
+                        if (onToggleFavorite != null) FilledTonalIconToggleButton(
                             checked = favorite,
                             onCheckedChange = { onToggleFavorite() },
                             shapes = IconButtonDefaults.toggleableShapes(),
