@@ -13,6 +13,9 @@ import kotlin.time.Instant
 import eu.tintera.plume.core.calendar.CalendarEvent
 import eu.tintera.plume.core.calendar.CalendarEvents
 import eu.tintera.plume.core.contacts.ContactSaver
+import eu.tintera.plume.core.currency.ExchangeRates
+import eu.tintera.plume.core.currency.RateTable
+import eu.tintera.plume.core.currency.HomeCurrency
 import eu.tintera.plume.core.wifi.WifiJoin
 import eu.tintera.plume.core.wifi.WifiJoiner
 import eu.tintera.plume.resources.message_context_wifi_failed
@@ -405,6 +408,10 @@ class ConversationViewModel(
     private val contactSaver: ContactSaver? = null,
     /** Připojení k Wi-Fi z akcí u zprávy; bez něj (iOS) jen heslo a QR kód. */
     private val wifiJoiner: WifiJoiner? = null,
+    /** Kurzy ČNB pro převod cizí měny v akcích u zprávy. */
+    private val exchangeRates: ExchangeRates? = null,
+    /** Měna uživatele podle regionu telefonu. */
+    currency: HomeCurrency? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -539,6 +546,9 @@ class ConversationViewModel(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val _contextSheet = MutableStateFlow<ContextSheet?>(null)
+
+    /** Měna uživatele podle regionu telefonu; částky v ní se v akcích u zprávy nepřevádějí. */
+    val homeCurrency: String? = currency?.code
 
     /** Otevřený sheet akcí u zprávy (`MessageContextSheet`); `null` = zavřený. */
     val contextSheet: StateFlow<ContextSheet?> = _contextSheet.asStateFlow()
@@ -743,7 +753,7 @@ class ConversationViewModel(
                         recent.forEach { message ->
                             if (!message.offersContext()) return@forEach
                             val sentAt = Instant.fromEpochSeconds(message.timestamp.toLong()).toLocalDateTime(zone)
-                            val event = findMessageContext(message.text, message.entities, sentAt, zone).event ?: return@forEach
+                            val event = findMessageContext(message.text, message.entities, sentAt, zone, homeCurrency).event ?: return@forEach
                             contexts.check(chatId, message.id, message.text, sentAt, event.start)
                         }
                     }
@@ -3836,7 +3846,16 @@ class ConversationViewModel(
     /** Ťuknutí na ikonku akcí u zprávy: sheet s tím, co se ve zprávě našlo. */
     fun openMessageContext(messageId: Long, findings: List<ContextFinding>) {
         if (findings.isEmpty()) return
-        _contextSheet.value = ContextSheet(messageId, findings)
+        val rates = exchangeRates?.takeIf { findings.any { it is ContextFinding.Money } }
+        _contextSheet.value = ContextSheet(messageId, findings, homeCurrency, if (rates != null) RatesState.Loading else null)
+        rates ?: return
+        viewModelScope.launch {
+            val table = rates.table()
+            _contextSheet.update { open ->
+                // Sheet mezitím mohl zavřít nebo otevřít jiný; kurz patří jen tomu, kdo o něj žádal.
+                if (open?.messageId != messageId) open else open.copy(rates = table?.let(RatesState::Loaded) ?: RatesState.Failed)
+            }
+        }
     }
 
     /** „Akce ze zprávy…" v nabídce nad zprávou: tentýž sheet jako ikonka. */
@@ -3857,7 +3876,7 @@ class ConversationViewModel(
         if (scamVerdicts.value.containsKey(message.id)) return emptyList()
         val zone = TimeZone.currentSystemDefault()
         val sentAt = Instant.fromEpochSeconds(message.timestamp.toLong()).toLocalDateTime(zone)
-        val found = findMessageContext(message.text, message.entities, sentAt, zone)
+        val found = findMessageContext(message.text, message.entities, sentAt, zone, homeCurrency)
         if (found.isEmpty) return emptyList()
         val verdict = messageContexts?.verdicts?.value?.get(MessageContexts.Key(chatId, message.id, message.text.hashCode()))
         return found.contextFindings(message.text, verdict, Clock.System.now().toLocalDateTime(zone))
@@ -5753,8 +5772,25 @@ data class TranscribeContext(
     val local: Map<Long, SpeechTranscript> = emptyMap(),
 )
 
-/** Otevřený sheet akcí u zprávy [messageId]; [findings] jsou spočítané v okamžiku ťuknutí. */
-data class ContextSheet(val messageId: Long, val findings: List<ContextFinding>)
+/**
+ * Otevřený sheet akcí u zprávy [messageId]; [findings] jsou spočítané v okamžiku ťuknutí.
+ * [rates] jen když je mezi nimi cizí měna — kurz se stahuje až s otevřením sheetu.
+ */
+data class ContextSheet(
+    val messageId: Long,
+    val findings: List<ContextFinding>,
+    val homeCurrency: String? = null,
+    val rates: RatesState? = null,
+)
+
+/** Kurzovní lístek pro převod měny v sheetu akcí. */
+sealed interface RatesState {
+    data object Loading : RatesState
+
+    data class Loaded(val table: RateTable) : RatesState
+
+    data object Failed : RatesState
+}
 
 /**
  * Nabízí zpráva akce ze svého textu? Ne systémová oznámení, mizející zprávy (ty nesmí ven, stejně

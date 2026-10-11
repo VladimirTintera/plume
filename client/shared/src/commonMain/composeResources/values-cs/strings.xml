@@ -2670,4 +2670,11 @@
     <string name="message_context_code">Kód</string>
     <string name="message_context_code_copy">Kopírovat kód</string>
     <string name="menu_context_code">Kopírovat kód…</string>
+    <string name="message_context_money">Převést měnu</string>
+    <string name="menu_context_money">Převést měnu…</string>
+    <string name="message_context_money_loading">Načítám kurz ČNB…</string>
+    <string name="message_context_money_failed">Kurz se nepodařilo načíst</string>
+    <string name="message_context_money_unsupported">Pro tuhle měnu kurz není</string>
+    <string name="message_context_money_result">≈ %1$s %2$s</string>
+    <string name="message_context_money_rate_date">Kurz ČNB z %1$s</string>
 </resources>

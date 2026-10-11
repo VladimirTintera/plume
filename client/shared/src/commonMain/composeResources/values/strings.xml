@@ -2592,4 +2592,11 @@
     <string name="message_context_code">Code</string>
     <string name="message_context_code_copy">Copy code</string>
     <string name="menu_context_code">Copy code…</string>
+    <string name="message_context_money">Convert currency</string>
+    <string name="menu_context_money">Convert currency…</string>
+    <string name="message_context_money_loading">Loading the Czech National Bank rate…</string>
+    <string name="message_context_money_failed">The exchange rate could not be loaded</string>
+    <string name="message_context_money_unsupported">There is no exchange rate for this currency</string>
+    <string name="message_context_money_result">≈ %1$s %2$s</string>
+    <string name="message_context_money_rate_date">Czech National Bank rate of %1$s</string>
 </resources>

@@ -45,6 +45,16 @@ import eu.tintera.plume.resources.message_context_contact
 import eu.tintera.plume.resources.message_context_flight
 import eu.tintera.plume.resources.message_context_wifi
 import eu.tintera.plume.resources.message_context_code
+import eu.tintera.plume.resources.message_context_money_failed
+import eu.tintera.plume.resources.message_context_money_loading
+import eu.tintera.plume.resources.message_context_money_rate_date
+import eu.tintera.plume.resources.message_context_money_result
+import eu.tintera.plume.resources.message_context_money_unsupported
+import eu.tintera.plume.resources.currency_exchange_24dp
+import eu.tintera.plume.resources.decimal_number
+import eu.tintera.plume.resources.date_day_month_year
+import eu.tintera.plume.core.currency.CZK
+import eu.tintera.plume.core.ui.name
 import eu.tintera.plume.resources.redeem_24dp
 import eu.tintera.plume.resources.message_context_wifi_network
 import eu.tintera.plume.resources.message_context_wifi_password
@@ -94,6 +104,8 @@ internal fun MessageContextHost(viewModel: ConversationViewModel) {
     val open = sheet ?: return
     MessageContextSheet(
         findings = open.findings,
+        homeCurrency = open.homeCurrency,
+        rates = open.rates,
         onAddToCalendar = viewModel::addToCalendar,
         onRemind = { viewModel.remindFromContext(open.messageId) },
         onCopy = viewModel::copyFromContext,
@@ -108,7 +120,8 @@ internal fun MessageContextHost(viewModel: ConversationViewModel) {
 /**
  * Co se ve zprávě našlo a co s tím jde udělat: termín → kalendář nebo připomínka (a mapy, když
  * model našel místo), účet → QR platba a kopírování údajů, adresa → mapy, kontakt → uložit do
- * kontaktů, let → stav letu, Wi-Fi → připojit a QR kód sítě, kód → zkopírovat, zásilka → sledování.
+ * kontaktů, let → stav letu, Wi-Fi → připojit a QR kód sítě, kód → zkopírovat, cizí měna →
+ * převod kurzem ČNB, zásilka → sledování.
  *
  * - **Nic se nestane samo.** Kalendář otevře editor události, kde ji uloží uživatel; platbu
  *   provede banka. Sheet jen předvyplní, co ve zprávě stálo.
@@ -119,6 +132,8 @@ internal fun MessageContextHost(viewModel: ConversationViewModel) {
 @Composable
 internal fun MessageContextSheet(
     findings: List<ContextFinding>,
+    homeCurrency: String?,
+    rates: RatesState?,
     onAddToCalendar: (ContextFinding.Event) -> Unit,
     onRemind: () -> Unit,
     onCopy: (String) -> Unit,
@@ -155,6 +170,7 @@ internal fun MessageContextSheet(
                         is ContextFinding.Address -> AddressSection(finding, onCopy = onCopy, onOpenMaps = onOpenMaps)
                         is ContextFinding.Contact -> ContactSection(finding, onCopy = onCopy, onSave = { onSaveContact(finding) })
                         is ContextFinding.Flight -> FlightSection(finding, onCopy = onCopy, onTrack = onTrack)
+                        is ContextFinding.Money -> MoneySection(finding, homeCurrency, rates)
                         is ContextFinding.Code -> CopyRow(
                             label = null,
                             title = stringResource(Res.string.message_context_code),
@@ -281,6 +297,64 @@ private fun ColumnScope.WifiSection(wifi: ContextFinding.Wifi, onCopy: (String) 
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.align(Alignment.CenterHorizontally),
     )
+}
+
+/**
+ * Převod cizí měny na měnu uživatele kurzem ČNB. Kurz se stahuje až s otevřením sheetu, takže
+ * napřed „Načítám kurz…"; pod výsledkem stojí, z kterého dne kurz je.
+ */
+@Composable
+private fun MoneySection(money: ContextFinding.Money, homeCurrency: String?, rates: RatesState?) {
+    val target = homeCurrency ?: CZK
+    DetailCard(icon = Res.drawable.currency_exchange_24dp) {
+        Text(money.shown, style = MaterialTheme.typography.titleMedium.tabularNumbers())
+        when (rates) {
+            null, RatesState.Loading -> Text(
+                stringResource(Res.string.message_context_money_loading),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            RatesState.Failed -> Text(
+                stringResource(Res.string.message_context_money_failed),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            is RatesState.Loaded -> {
+                val converted = rates.table.convert(money.amount, money.currency, target)
+                if (converted == null) {
+                    Text(
+                        stringResource(Res.string.message_context_money_unsupported),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    val (whole, fraction) = moneyParts(converted)
+                    Text(
+                        stringResource(Res.string.message_context_money_result, stringResource(Res.string.decimal_number, whole, fraction), target),
+                        style = MaterialTheme.typography.bodyLarge.tabularNumbers(),
+                    )
+                    rates.table.date?.let { date ->
+                        Text(
+                            stringResource(
+                                Res.string.message_context_money_rate_date,
+                                stringResource(Res.string.date_day_month_year, date.day, stringResource(date.month.name()), date.year),
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Částka na dvě desetinná místa: celá část po tisících (úzká mezera), haléře zvlášť. */
+internal fun moneyParts(value: Double): Pair<String, String> {
+    val cents = kotlin.math.round(value * 100).toLong()
+    val whole = (cents / 100).toString().reversed().chunked(3).joinToString("\u202F").reversed()
+    val fraction = (cents % 100).toString().padStart(2, '0')
+    return whole to fraction
 }
 
 @Composable

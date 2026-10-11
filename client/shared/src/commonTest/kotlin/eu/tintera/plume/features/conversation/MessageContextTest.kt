@@ -291,6 +291,44 @@ class MessageContextTest {
         assertTrue(codes("Sleva LETO20").isEmpty())
     }
 
+    private fun money(text: String, home: String? = "CZK") =
+        findMessageContext(text, emptyList(), wednesday, zone, home).money.map { it.currency to it.amount }
+
+    @Test
+    fun ciziMena() {
+        assertEquals(listOf("EUR" to 120.0), money("Hotel stojí 120 € na noc"))
+        assertEquals(listOf("USD" to 45.5), money("It's \$45.50 per person"))
+        assertEquals(listOf("PLN" to 300.0), money("Vstupné 300 PLN"))
+        assertEquals(listOf("HUF" to 2500.0), money("Parkování 2 500 Ft"))
+        assertEquals(listOf("EUR" to 1250.5), money("Celkem 1.250,50 EUR"))
+        assertEquals(listOf("GBP" to 1250.0), money("Rent is £1,250 a month"))
+        assertEquals(listOf("EUR" to 15.0), money("Dej mi 15 eur"))
+    }
+
+    @Test
+    fun coSeNeprevadi() {
+        // Vlastní měna, neznámý kód, stopy místo forintů.
+        assertTrue(money("Stojí to 250 Kč").isEmpty())
+        assertTrue(money("Zbývá 10 SMS a 5 GB").isEmpty())
+        assertTrue(money("Strop je 8 ft vysoký").isEmpty())
+        // Bez známé vlastní měny se převádí i koruna.
+        assertEquals(listOf("CZK" to 250.0), money("Stojí to 250 Kč", home = null))
+    }
+
+    @Test
+    fun cisloVRuznychZapisech() {
+        assertEquals(1250.5, parseAmount("1 250,50"))
+        assertEquals(1250.5, parseAmount("1,250.50"))
+        assertEquals(1250.0, parseAmount("1,250"))
+        assertEquals(12.5, parseAmount("12,5"))
+    }
+
+    @Test
+    fun castkaNaDveMista() {
+        assertEquals("2\u202F923" to "80", moneyParts(2923.8))
+        assertEquals("0" to "05", moneyParts(0.049))
+    }
+
     @Test
     fun obycejnaZpravaNicNema() {
         assertTrue(context("Ahoj, jak se máš?").isEmpty)

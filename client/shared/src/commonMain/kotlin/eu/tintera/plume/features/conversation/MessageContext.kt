@@ -61,6 +61,12 @@ sealed interface ContextFinding {
     /** Kód ke zkopírování (slevový, ke dveřím, ověřovací) — jedním ťuknutím do schránky. */
     data class Code(val value: String) : ContextFinding
 
+    /**
+     * Částka v cizí měně → převod na měnu uživatele. [shown] je, jak ve zprávě stála („120 €"),
+     * [amount] totéž jako číslo, [currency] kód ISO 4217.
+     */
+    data class Money(val shown: String, val amount: Double, val currency: String) : ContextFinding
+
     /** Číslo zásilky → sledování u dopravce. */
     data class Parcel(val carrier: ParcelCarrier, val number: String) : ContextFinding
 }
@@ -97,11 +103,12 @@ data class MessageContext(
     val flights: List<ContextFinding.Flight> = emptyList(),
     val wifi: ContextFinding.Wifi? = null,
     val codes: List<ContextFinding.Code> = emptyList(),
+    val money: List<ContextFinding.Money> = emptyList(),
     val parcels: List<ContextFinding.Parcel> = emptyList(),
 ) {
     val isEmpty: Boolean
         get() = event == null && payments.isEmpty() && addresses.isEmpty() && contacts.isEmpty() &&
-            flights.isEmpty() && wifi == null && codes.isEmpty() && parcels.isEmpty()
+            flights.isEmpty() && wifi == null && codes.isEmpty() && money.isEmpty() && parcels.isEmpty()
 }
 
 /**
@@ -126,6 +133,8 @@ data class MessageContext(
  *   z velkých písmen a číslic: číselný 3–8 číslic, smíšený 4–16 znaků. **Ve zprávě, která
  *   zmiňuje Telegram, žádný** — přihlašovací kód Telegramu se nikam nekopíruje (ověřovací
  *   kód je přesně to, co podvodník chce, a zprávy od služby Telegramu akce nemají vůbec).
+ * - **Cizí měna** jen se značkou nebo kódem u čísla („120 €", „$45", „300 PLN", „2 500 Ft")
+ *   a jen jiná než [homeCurrency] — korunu Čechovi převádět nemá smysl.
  * - **Zásilka** jen ve formátu, který dopravce jednoznačně určí: S10 s kontrolní číslicí
  *   a Zásilkovna. Holá čísla PPL nebo DPD od telefonu nerozeznáš.
  */
@@ -134,6 +143,8 @@ fun findMessageContext(
     entities: List<MessageEntity>,
     sentAt: LocalDateTime,
     zone: TimeZone,
+    /** Měna uživatele (`homeCurrency`); částky v ní se nepřevádějí. `null` = převádí se všechno. */
+    homeCurrency: String? = null,
 ): MessageContext {
     if (text.isBlank()) return MessageContext()
     val payments = payments(text)
@@ -145,6 +156,7 @@ fun findMessageContext(
         flights = flights(text),
         wifi = wifi(text),
         codes = codes(text, payments),
+        money = money(text, homeCurrency),
         parcels = parcels(text),
     )
 }
@@ -189,6 +201,7 @@ fun MessageContext.contextFindings(
     addAll(flights)
     wifi?.let(::add)
     addAll(codes)
+    addAll(money)
     addAll(parcels)
 }
 
@@ -498,6 +511,44 @@ private fun codes(text: String, payments: List<ContextFinding.Payment>): List<Co
         .toList()
 }
 
+// --- Cizí měna -------------------------------------------------------------------------------
+
+private fun money(text: String, homeCurrency: String?): List<ContextFinding.Money> {
+    val prefixed = MONEY_BEFORE.findAll(text).mapNotNull { match ->
+        val currency = CURRENCY_SYMBOLS[match.groupValues[1]] ?: return@mapNotNull null
+        parseAmount(match.groupValues[2])?.let { ContextFinding.Money(match.value.trim(), it, currency) }
+    }
+    val suffixed = MONEY_AFTER.findAll(text).mapNotNull { match ->
+        val unit = match.groupValues[2]
+        val currency = CURRENCY_SYMBOLS[unit] ?: CURRENCY_WORDS[unit.lowercase()] ?: unit.takeIf { it in CURRENCY_CODES }
+            ?: return@mapNotNull null
+        parseAmount(match.groupValues[1])?.let { ContextFinding.Money(match.value.trim(), it, currency) }
+    }
+    return (prefixed + suffixed)
+        .filter { it.currency != homeCurrency && it.amount > 0 }
+        .distinctBy { it.currency to it.amount }
+        .take(MAX_MONEY)
+        .toList()
+}
+
+/**
+ * Číslo, jak ho píšou různé jazyky: „1 250,50", „1.250,50", „1,250.50", „12,5". Poslední
+ * oddělovač s jednou nebo dvěma číslicemi za sebou je desetinný, ostatní oddělují tisíce
+ * („1,250" je tisíc dvě stě padesát, ne jedna celá dvě).
+ */
+internal fun parseAmount(raw: String): Double? {
+    val compact = raw.filterNot { it == ' ' || it == '\u00A0' || it == '\u202F' }
+    val separator = maxOf(compact.lastIndexOf('.'), compact.lastIndexOf(','))
+    val decimals = if (separator >= 0) compact.length - separator - 1 else 0
+    val (whole, fraction) = if (separator >= 0 && decimals in 1..2) {
+        compact.substring(0, separator).filter(Char::isDigit) to compact.substring(separator + 1)
+    } else {
+        compact.filter(Char::isDigit) to ""
+    }
+    if (whole.isEmpty()) return null
+    return "$whole.${fraction.ifEmpty { "0" }}".toDoubleOrNull()
+}
+
 // --- Zásilka ---------------------------------------------------------------------------------
 
 private fun parcels(text: String): List<ContextFinding.Parcel> = buildList {
@@ -532,6 +583,7 @@ private const val MAX_ADDRESSES = 2
 private const val MAX_CONTACTS = 2
 private const val MAX_FLIGHTS = 2
 private const val MAX_CODES = 2
+private const val MAX_MONEY = 2
 private const val MIN_PHONE_DIGITS = 9
 private const val MAX_PHONE_DIGITS = 15
 private const val MIN_IBAN = 15
@@ -692,6 +744,35 @@ private val WIFI_NOT_A_NAME = setOf("heslo", "hesla", "password", "pass", "pw", 
 private val CODE = Regex(
     "(?<![\\p{L}])(?:[Kk]od\\p{L}*|KOD\\p{L}*|[Cc]ode|CODE|[Vv]oucher\\p{L}*|[Pp]romo\\p{L}*|[Kk]upon\\p{L}*|[Cc]oupon|PIN|OTP)" +
         "(?![\\p{L}])(?:\\s+[\\p{L}]+){0,3}?\\s*[:=\\-\u2013]?\\s*[\"\u201e]?([A-Z0-9][A-Z0-9\\-]{2,15})(?![\\p{L}\\d\\-])",
+)
+
+/** Číslo s tisíci (mezerou, tečkou, čárkou) a nejvýš dvěma desetinnými místy. */
+private const val MONEY_NUMBER = "(\\d{1,3}(?:[ \\u00A0\\u202F,.]\\d{3})+(?:[.,]\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?)"
+
+/** Značka před číslem: „€120", „$ 45", „£9.99". */
+private val MONEY_BEFORE = Regex("(?<![\\p{L}\\d])(€|\\$|£)\\s?$MONEY_NUMBER(?![\\d])")
+
+/**
+ * Značka nebo kód za číslem: „120 €", „300 PLN", „2 500 Ft", „15 eur". Bez `IGNORE_CASE`:
+ * „5 ft" jsou stopy, ne forinty, a kódy ISO se píšou velkými.
+ */
+private val MONEY_AFTER = Regex(
+    "(?<![\\p{L}\\d.,])$MONEY_NUMBER\\s?(?:,-\\s?)?" +
+        "(€|\\$|£|K\u010d|z\u0142|Ft|[Ee]ur[oa]?|EUR|[A-Z]{3})(?![\\p{L}])",
+)
+
+private val CURRENCY_SYMBOLS = mapOf("€" to "EUR", "$" to "USD", "£" to "GBP", "K\u010d" to "CZK", "z\u0142" to "PLN", "Ft" to "HUF")
+
+private val CURRENCY_WORDS = mapOf("eur" to "EUR", "euro" to "EUR", "eura" to "EUR")
+
+/**
+ * Kódy, které se převádějí: měny z lístku ČNB. Kód mimo seznam („ABC") měnou není — tři velká
+ * písmena za číslem bývají i zkratky („5 GB" ne, ale „10 SMS" ano).
+ */
+private val CURRENCY_CODES = setOf(
+    "EUR", "USD", "GBP", "CHF", "PLN", "HUF", "CZK", "JPY", "CAD", "AUD", "SEK", "NOK", "DKK",
+    "CNY", "TRY", "RON", "BGN", "ISK", "ILS", "INR", "KRW", "MXN", "NZD", "SGD", "ZAR", "THB",
+    "BRL", "HKD", "IDR", "MYR", "PHP",
 )
 
 private val S10 = Regex("(?<![A-Za-z0-9])([A-Z]{2})(\\d{9})([A-Z]{2})(?![A-Za-z0-9])")

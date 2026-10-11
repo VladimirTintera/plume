@@ -4710,7 +4710,7 @@ private class ScreenItemScope(
         val found = remember(message.text, message.entities, message.timestamp) {
             val zone = TimeZone.currentSystemDefault()
             val sentAt = Instant.fromEpochSeconds(message.timestamp.toLong()).toLocalDateTime(zone)
-            findMessageContext(message.text, message.entities, sentAt, zone)
+            findMessageContext(message.text, message.entities, sentAt, zone, viewModel.homeCurrency)
         }
         if (found.isEmpty) return emptyList()
         val verdict = current[message.id to message.text.hashCode()]
