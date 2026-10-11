@@ -543,9 +543,16 @@ Nastavení → Obecné → Soukromí → „Diskrétní čtení": otevřená kon
   — `ChatInfo.unreadCount` je jen stav z otevření chatu.
 - **Skok na zmínku „@" zmínku nepřečte** — přečetla by i historii po ni. Tlačítko pak vede na
   tutéž zmínku, dokud se chat nepřečte.
-- **Co volba nekryje**: poslech hlasovky (`openMessageContent` nastaví „poslechnuto"), otevření
-  mizející fotky a zobrazení příspěvku v kanálu (počet zhlédnutí jde přes `viewMessages`, který
-  se nevolá — v kanálu se tak zhlédnutí nepočítá vůbec).
+- **Poslech hlasovky a kolečka se taky drží** (`discreetListened` v `ConversationViewModel`):
+  ukáže se jako poslechnutý jen lokálně a `openMessageContent` odejde až s přečtením chatu
+  (`readNow` — čip i vlastní zpráva). Odchod z chatu ho zahodí, protějšek se o poslechu
+  nedozví a po návratu je hlasovka zase neposlechnutá, jak ji vede server. Ověřeno na
+  emulátoru: přehraná hlasovka po restartu znovu s tečkou „neposlechnuto"; po vlastní
+  zprávě v chatu a restartu bez ní.
+- **Co volba nekryje**: otevření mizející fotky (`openMessageContent` tam spouští odpočet,
+  a kdyby se nehlásilo, obcházelo by to záměr odesílatele) a zobrazení příspěvku v kanálu
+  (počet zhlédnutí jde přes `viewMessages`, který se nevolá — v kanálu se tak zhlédnutí
+  nepočítá vůbec).
 - **Ověřeno na emulátoru**: s volbou chat Telegram (2 nepřečtené) po otevření odznak 2
   podržel a nad polem byl čip; log `Diskrétní čtení: N viditelných zpráv se nehlásí`
   a `…psaní se nehlásí`. Ťuknutí na čip a přečtení po vlastní zprávě na zařízení ověřené

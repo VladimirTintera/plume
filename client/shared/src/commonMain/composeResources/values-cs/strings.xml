@@ -2532,7 +2532,7 @@
     <string name="settings_strip_tracking_params">Odstraňovat sledovací parametry</string>
     <string name="settings_strip_tracking_params_summary">Z odkazů odstraňuje sledovací značky (UTM, fbclid, YouTube si a další)</string>
     <string name="settings_discreet_reading">Diskrétní čtení</string>
-    <string name="settings_discreet_reading_summary">Otevřený chat nehlásí, že ho čteš ani že píšeš. Přečtení odejde, až odpovíš nebo ťukneš na Označit jako přečtené.</string>
+    <string name="settings_discreet_reading_summary">Otevřený chat nehlásí, že ho čteš, posloucháš hlasovky ani píšeš. Přečtení odejde, až odpovíš nebo ťukneš na Označit jako přečtené.</string>
     <string name="conversation_mark_read">Označit jako přečtené</string>
     <string name="settings_section_storage">Úložiště</string>
     <string name="settings_section_storage_summary">Zabrané místo, mazání a automatické stahování</string>
