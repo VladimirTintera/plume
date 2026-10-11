@@ -445,6 +445,34 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
 - **Ikony Material Symbols ze SVG mají souřadnice y v -960..0.** Ve vector drawable se to řeší
   `group` s `translateY="960"`, cesta zůstává, jak je.
 
+## Správa sad v Nastavení
+
+Nastavení → Obecné → Chaty → Sady samolepek (`StickerSetsRoute`, `StickerSetsScreen`,
+`StickerSetsViewModel`, testy `StickerSetsViewModelTest`). Vrší se nad sekci Obecné jako složky
+chatů a stejně se v ní přeřazuje.
+
+- **Pořadí sad je pořadí záložek ve výběru** a platí na všech zařízeních účtu
+  (`reorderInstalledStickerSets`). Přeřazuje se jen úchytem (`rememberDragReorderState`, jako
+  složky), ťuknutí na řádek otevře detail sady. Pořadí odchází až po puštění, jedním voláním.
+- **Lokální pořadí vydrží do potvrzení serverem**, ne jen do návratu volání: po
+  `reorderInstalledStickerSets` přijde `updateInstalledStickerSets` o chvilku později a seznam by
+  mezitím skočil do starého pořadí. Zahodí se, až server pošle totéž pořadí (pojistka 3 s).
+- **Archivovat a Odebrat jsou v nabídce řádku** (Odebrat ve vlastní skupině chybovou barvou,
+  u oficiálních sad chybí) a neptají se — nic se nesmaže, snackbar nabídne „Vrátit".
+- **Vrácená sada se zařadí NA ZAČÁTEK** (ověřeno na emulátoru: „Přidat" u archivované sady ji
+  dal první). „Vrátit" proto po vrácení pošle i pořadí z doby před změnou
+  (`StickerSetNotice.orderBefore`); bez toho by „Vrátit" rozbilo pořadí. „Přidat" v sekci
+  Archivované pořadí neobnovuje — sada tam nemá „své" místo.
+- **Archiv = `changeStickerSet(isInstalled = false, isArchived = true)`**, nainstalovaná
+  a archivovaná zároveň sada být nemůže. Archivované se čtou po stránkách po 100
+  (`getArchivedStickerSets`, víc TDLib nevrátí) a první stránka znovu po každé změně
+  nainstalovaných. Počet od serveru je přibližný, prázdná stránka znamená konec.
+- **Detail sady z Nastavení je jen na prohlížení** (`StickerSetSheet(onPick = null)`): ťuknutí
+  otevře velký náhled a ten nemá Poslat (`pickLabel = null`) — v Nastavení není kam.
+- **Ověřeno na emulátoru**: přetažení sady o řádek (pořadí drželo i po odchodu a návratu)
+  a zpět, Archivovat + „Vrátit" (sada zpět na třetím místě), detail sady bez Poslat,
+  „Přidat" v Archivovaných. Odebrat jen přes testy ViewModelu.
+
 ## Samolepky k emoji v poli
 
 Když je v poli jediné emoji a nic jiného, nad polem vyjede řádek samolepek k němu

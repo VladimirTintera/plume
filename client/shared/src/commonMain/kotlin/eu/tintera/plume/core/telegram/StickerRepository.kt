@@ -58,6 +58,22 @@ interface StickerRepository {
     suspend fun setInstalled(setId: Long, installed: Boolean): Result<Unit>
 
     /**
+     * Odloží nainstalovanou sadu do archivu (`false` ji z archivu vrátí mezi nainstalované).
+     * Archivovaná sada ve výběru není, ale zůstává k dispozici — Telegram tam sady odkládá sám,
+     * když jich je víc, než unese limit. Potvrzení dorazí přes [installedSets].
+     */
+    suspend fun setArchived(setId: Long, archived: Boolean): Result<Unit>
+
+    /**
+     * Nové pořadí nainstalovaných sad — to je i pořadí záložek ve výběru a platí na všech
+     * zařízeních účtu. Potvrzení dorazí přes [installedSets].
+     */
+    suspend fun reorderSets(setIds: List<Long>): Result<Unit>
+
+    /** Stránka archivovaných sad od sady za [afterSetId] (`0` = od začátku). */
+    suspend fun archivedSets(afterSetId: Long): Result<ArchivedStickerSets>
+
+    /**
      * Sada, kterou správci supergroupy [chatId] nastavili skupině (`SupergroupFullInfo
      * .stickerSetId`). Posílat z ní jde v té skupině, i když ji uživatel nainstalovanou nemá.
      * `null`, když chat supergroupa není (soukromý chat, kanál, malá skupina), sadu nemá, nebo
@@ -163,6 +179,17 @@ data class StickerSetSummary(
     val title: String,
     /** Samolepka, která sadu zastupuje v záložce. `null`, když sada žádnou nemá. */
     val cover: MessageMedia.Sticker?,
+    /** Počet samolepek v sadě. */
+    val size: Int = 0,
+    /** Oficiální sady (od Telegramu) odebrat nejdou. */
+    val isOfficial: Boolean = false,
+)
+
+/** Stránka archivovaných sad. */
+data class ArchivedStickerSets(
+    /** Kolik archivovaných sad je celkem (přibližně, jak hlásí server). */
+    val total: Int,
+    val sets: List<StickerSetSummary>,
 )
 
 /**

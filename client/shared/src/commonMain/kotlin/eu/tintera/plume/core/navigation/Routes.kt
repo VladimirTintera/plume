@@ -92,6 +92,10 @@ data object ProxySettingsRoute : Route
 @Serializable
 data object ChatFoldersRoute : Route
 
+/** Sady samolepek (pořadí, archiv) — vrší se nad sekci Obecné stejně jako složky chatů. */
+@Serializable
+data object StickerSetsRoute : Route
+
 /** Editor složky nad seznamem složek; [folderId] `0` = nová složka. */
 @Serializable
 data class ChatFolderEditRoute(val folderId: Int) : Route
@@ -429,6 +433,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(TwoStepRoute::class, TwoStepRoute.serializer())
             subclass(AppLockRoute::class, AppLockRoute.serializer())
             subclass(ChatFoldersRoute::class, ChatFoldersRoute.serializer())
+            subclass(StickerSetsRoute::class, StickerSetsRoute.serializer())
             subclass(ProxySettingsRoute::class, ProxySettingsRoute.serializer())
             subclass(ChatFolderEditRoute::class, ChatFolderEditRoute.serializer())
             subclass(ArchiveRoute::class, ArchiveRoute.serializer())
