@@ -11,6 +11,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.material3.Icon
@@ -80,6 +81,8 @@ internal fun ThemeColorPicker(
      * nabízí, je vybraný právě tehdy, když je [selected] `null`.
      */
     onSelectDefault: (() -> Unit)? = null,
+    /** Schéma, ze kterého se vzorek kreslí — totéž, jaké výběr opravdu dá. */
+    schemeOf: @Composable (ThemeColor) -> ColorScheme = { expressiveColorScheme(isDark, it.seed) },
 ) {
     FlowRow(
         modifier = modifier
@@ -93,7 +96,7 @@ internal fun ThemeColorPicker(
             DefaultColorSwatch(selected = selected == null, onClick = onSelectDefault)
         }
         ThemeColor.entries.forEach { color ->
-            val scheme = expressiveColorScheme(isDark, color.seed)
+            val scheme = schemeOf(color)
             ColorSwatch(
                 selected = color == selected,
                 label = stringResource(color.label),

@@ -2,7 +2,7 @@ package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.settings.ThemeColor
 import eu.tintera.plume.app.root.presentation.LocalIsDarkTheme
-import eu.tintera.plume.app.root.presentation.theme.expressiveColorScheme
+import eu.tintera.plume.app.root.presentation.theme.chatColorScheme
 import eu.tintera.plume.app.root.presentation.theme.seed
 import androidx.compose.material3.ColorScheme
 import org.koin.compose.koinInject
@@ -1901,7 +1901,7 @@ private fun rememberChatAccents(used: Set<ThemeColor>): Map<ThemeColor, ColorSch
     val accents = HashMap<ThemeColor, ColorScheme>()
     ThemeColor.entries.forEach { color ->
         key(color) {
-            if (color in used) accents[color] = expressiveColorScheme(isDark, color.seed)
+            if (color in used) accents[color] = chatColorScheme(isDark, color.seed)
         }
     }
     return accents

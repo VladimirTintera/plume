@@ -11,6 +11,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.app.root.presentation.LocalIsDarkTheme
+import eu.tintera.plume.app.root.presentation.theme.chatColorScheme
+import eu.tintera.plume.app.root.presentation.theme.seed
 import eu.tintera.plume.core.settings.ThemeColor
 import eu.tintera.plume.features.settings.ThemeColorPicker
 import eu.tintera.plume.resources.Res
@@ -33,6 +35,7 @@ internal fun ChatColorSheet(
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    val isDark = LocalIsDarkTheme.current
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Text(
             text = stringResource(Res.string.chat_color_title),
@@ -47,9 +50,10 @@ internal fun ChatColorSheet(
         )
         ThemeColorPicker(
             selected = current,
-            isDark = LocalIsDarkTheme.current,
+            isDark = isDark,
             onSelect = onSelect,
             onSelectDefault = { onSelect(null) },
+            schemeOf = { chatColorScheme(isDark, it.seed) },
             modifier = Modifier.padding(bottom = 16.dp),
         )
     }

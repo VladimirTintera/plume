@@ -717,14 +717,20 @@ Profil chatu → Barva konverzace: „Podle aplikace" a tytéž vzorky jako barv
 (`ChatColors`, `AppSettings.chatColors`, jako odložené chaty).
 
 - **Mění se CELÉ schéma, ne vybrané plochy** (`ChatColorTheme` kolem konverzace, seznamu témat,
-  profilu a bubliny konverzace). Z barvy se dopočítá táž paleta, jakou by dostala aplikace
-  (`expressiveColorScheme`, Vibrant), takže bubliny, pole, hlavička, sklo i plocha spolu ladí
+  profilu a bubliny konverzace). Z barvy se dopočítá celá M3 paleta (`chatColorScheme`),
+  takže bubliny, pole, hlavička, sklo i plocha spolu ladí
   a kontrast `on*` rolí hlídá M3 — nic se neladí ručně, `accentOn` i `senderColor` se přizpůsobí
   samy. Neutrální plochy palety nesou nádech odstínu, takže chat pozná i podle pozadí.
 - **Proč ne tapeta Telegramu ani automatika z profilovky.** Obrázková pozadí (`Chat.background`)
   aplikace odmítá vědomě (roadmapa konverzace, „Vědomě NE"). Barva odvozená automaticky by dostal
   KAŽDÝ chat a přestala by cokoli znamenat — stejná úvaha jako u haptiky. Barvu, kterou dal
   uživatel pár chatům, si spojí s významem („práce", „rodina").
+- **Paleta chatu je TonalSpot, ne Vibrant jako aplikace.** Vibrant v tmavém motivu dával zelené
+  a tyrkysové primární tón skoro neonový: odchozí bublina svítila víc než cokoli jiného
+  v aplikaci (ověřeno na emulátoru, snímky v PR). TonalSpot (výchozí styl Material You) drží
+  odstín s umírněnou sytostí — chat vypadá jako aplikace s jinou tapetou. Vzorky ve výběru se
+  kreslí z téhož stylu (`ThemeColorPicker(schemeOf = …)`), takže se liší od vzorků barvy
+  aplikace v Nastavení, a tak to má být: vzorek ukazuje, co výběr opravdu dá.
 - **Výběr je jen z osmi vzorků**, žádné kolo barev: ošklivá kombinace nejde vyrobit.
   „Podle aplikace" je neutrální vzorek s přeškrtnutou kapkou — kreslit ho barvami aplikace nejde,
   protože kolem je už paleta chatu a vzorek by se od modré nelišil.
@@ -739,7 +745,10 @@ Profil chatu → Barva konverzace: „Podle aplikace" a tytéž vzorky jako barv
   instance, takže by se cíl vnořené animace měnil pořád. Režim (světlý/tmavý) dává
   `LocalIsDarkTheme` — ze světlosti plochy se během prolínání poznat spolehlivě nedá.
 - **Výběr sheet nezavírá**: profil i sheet leží v barvě chatu a přebarví se hned za prstem — to je
-  náhled. Ověřeno na emulátoru (viz popis PR).
+  náhled.
+- **Ověřeno na emulátoru** (Pixel 7, Android 16): výběr, okamžité přebarvení profilu i sheetu,
+  konverzace ve světlém i tmavém motivu, návrat na „Podle aplikace". Odznak v seznamu chatů
+  ověřený NENÍ — testovací chat s botem měla otevřený jiná session a zprávy se hned četly.
 - **Kontrast se zvýšeným kontrastem systému NEsleduje**, stejně jako barva aplikace ze seedu —
   materialkolor dostává výchozí úroveň kontrastu. Barvy z tapety ho mají; když se to bude řešit,
   pak pro obě palety naráz.

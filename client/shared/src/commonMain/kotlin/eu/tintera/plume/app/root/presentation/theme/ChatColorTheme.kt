@@ -20,7 +20,7 @@ import org.koin.compose.koinInject
  * aplikace.
  *
  * **Mění se celé schéma, ne jednotlivé plochy.** Z barvy chatu se dopočítá táž paleta, jakou by
- * dostala celá aplikace ([expressiveColorScheme], Vibrant), takže bubliny, vstupní pole, hlavička
+ * dostala celá aplikace, jen umírněnějším stylem ([chatColorScheme]), takže bubliny, vstupní pole, hlavička
  * i plocha konverzace spolu ladí a kontrast mezi plochou a její `on*` rolí garantuje M3 — žádná
  * barva navíc, kterou by bylo potřeba ladit ručně. Neutrální plochy palety nesou nádech odstínu,
  * takže se chat pozná i podle pozadí, a pořád to není tapeta.
@@ -45,7 +45,7 @@ fun ChatColorTheme(color: ThemeColor?, content: @Composable () -> Unit) {
         content()
         return
     }
-    val target = if (color == null) app else expressiveColorScheme(LocalIsDarkTheme.current, color.seed)
+    val target = if (color == null) app else chatColorScheme(LocalIsDarkTheme.current, color.seed)
     val scheme = animateColorScheme(target, animationSpec = { AppMotion.defaultEffectsSpec<Color>() })
     // Písmo, tvary i pohyb zůstávají z nadřazeného tématu; `MaterialExpressiveTheme` bere jen,
     // co se mu předá.
