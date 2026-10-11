@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.features.chats.NaturalSearchModel
 import eu.tintera.plume.features.conversation.LocalTranscripts
 import eu.tintera.plume.features.conversation.ScamWarnings
 import eu.tintera.plume.features.conversation.ReminderTimeModel
@@ -313,6 +314,7 @@ fun appModule() = module {
     single { ConversationJumpRequests() }
     single { LocalTranscripts(settings = get(), chats = get()) }
     factory { ReminderTimeModel(ai = get(), settings = get()) }
+    factory { NaturalSearchModel(ai = get(), settings = get()) }
     single { ScamWarnings(ai = get(), settings = get(), appScope = get(named(APP_SCOPE))) }
     single { ChatSwitcher(chats = get()) }
     single { MessageBookmarks(settings = get(), chats = get()) }
@@ -379,6 +381,7 @@ fun appModule() = module {
             topicDrafts = get(),
             snoozes = get(),
             chatColorStore = get(),
+            naturalSearch = get(),
         )
     }
     viewModelOf(::StickerPickerViewModel)

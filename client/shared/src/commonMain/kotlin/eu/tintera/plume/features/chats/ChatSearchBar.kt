@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.resources.chats_search_ai
+import eu.tintera.plume.resources.auto_awesome_24dp
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import eu.tintera.plume.core.ui.reject
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.sender_you
@@ -170,12 +175,20 @@ internal fun ChatSearchBar(
      * kolem obou, ne bar sám — jinak by řádek po odjetí pilulky visel nahoře sám.
      */
     below: @Composable () -> Unit = {},
+    /**
+     * Hledání přirozeným jazykem (`NaturalSearchModel`): věta → slova a filtry. `null` = model
+     * není (vypnutá AI, nestažený model) a ikona se nenabízí.
+     */
+    aiSearch: (suspend (String) -> NaturalSearch?)? = null,
 ) {
     val searchBarState = rememberSearchBarState()
     val textFieldState = rememberTextFieldState()
     val scope = rememberCoroutineScope()
     val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
     val expanded = searchBarState.currentValue == SearchBarValue.Expanded
+    val haptics = LocalHapticFeedback.current
+    // Model zrovna čte dotaz; ikona se zatím točí a druhé ťuknutí nic nedělá.
+    var aiBusy by remember { mutableStateOf(false) }
 
     fun collapse() {
         scope.launch {
@@ -243,14 +256,44 @@ internal fun ChatSearchBar(
             },
             trailingIcon = {
                 when {
-                    expanded && textFieldState.text.isNotEmpty() -> IconButton(
-                        onClick = { textFieldState.clearText() },
-                        shapes = IconButtonDefaults.shapes(),
-                    ) {
-                        Icon(
-                            painterResource(Res.drawable.close_24dp),
-                            contentDescription = stringResource(Res.string.chats_search_clear),
-                        )
+                    expanded && textFieldState.text.isNotEmpty() -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        // „Hledat s AI" jen u věty, ne u jména chatu: jedno dvě slova se hledají
+                        // tak, jak jsou, a ikona by u nich jen překážela.
+                        if (aiSearch != null && (aiBusy || naturalSentence(textFieldState.text.toString()))) {
+                            AiSearchButton(
+                                busy = aiBusy,
+                                onClick = {
+                                    val query = textFieldState.text.toString()
+                                    aiBusy = true
+                                    scope.launch {
+                                        val found = try {
+                                            aiSearch(query)
+                                        } finally {
+                                            aiBusy = false
+                                        }
+                                        // Dotaz se mezitím změnil — výsledek patří k jinému.
+                                        if (textFieldState.text.toString() != query) return@launch
+                                        if (found == null) {
+                                            haptics.reject()
+                                        } else {
+                                            // Napřed filtr, pak text: hledání se pustí jednou,
+                                            // s obojím (`ChatSearch` sbírá nejnovější).
+                                            onFilterChange(found.filter)
+                                            textFieldState.setTextAndPlaceCursorAtEnd(found.text)
+                                        }
+                                    }
+                                },
+                            )
+                        }
+                        IconButton(
+                            onClick = { textFieldState.clearText() },
+                            shapes = IconButtonDefaults.shapes(),
+                        ) {
+                            Icon(
+                                painterResource(Res.drawable.close_24dp),
+                                contentDescription = stringResource(Res.string.chats_search_clear),
+                            )
+                        }
                     }
                     // V rozbaleném hledání stav ani účet nepatří — uživatel se dívá na výsledky.
                     !expanded -> trailing()
@@ -399,20 +442,23 @@ private fun SearchResults(
     val onMessageClickLatest by rememberUpdatedState(onMessageClick)
     val onLoadMoreLatest by rememberUpdatedState(onLoadMoreMessages)
 
-    if (trimmed.isEmpty()) {
+    // Prázdný dotaz s druhem obsahu (z hledání přirozeným jazykem) hledá zprávy, ne návrhy.
+    if (trimmed.isEmpty() && search.filter.content == null) {
         Suggestions(search, onPick = { onPickLatest(it) }, onClearRecent = onClearRecent)
         return
     }
 
     val savedTitle = stringResource(Res.string.saved_messages)
-    val showSaved = savedMessagesChatId != null && savedTitle.contains(trimmed, ignoreCase = true) &&
-        search.filter.period == null && (search.filter.chatKind == null || search.filter.chatKind == ChatKind.Private)
+    val showSaved = savedMessagesChatId != null && trimmed.isNotEmpty() && savedTitle.contains(trimmed, ignoreCase = true) &&
+        search.filter.period == null && search.filter.content == null &&
+        (search.filter.chatKind == null || search.filter.chatKind == ChatKind.Private)
     // Výsledky patří k dotazu, na který TDLib odpovídal. Dokud nedorazí nové, ukazují se
     // staré jen pro tentýž dotaz — jinak by pod „jana" chvíli visely výsledky pro „ja".
     val current = search.query == trimmed
     val filter = search.filter
-    // Druh chatu zúží i chaty; období se týká jen zpráv, takže s ním chaty nemají co ukázat.
-    val chatsShown = filter.period == null
+    // Druh chatu zúží i chaty; období a druh obsahu se týkají jen zpráv, takže s nimi chaty
+    // nemají co ukázat.
+    val chatsShown = filter.period == null && filter.content == null
     val chats = if (current && chatsShown) {
         search.results.filter { it.id != savedMessagesChatId && (filter.chatKind == null || it.kind == filter.chatKind) }
     } else {
@@ -828,3 +874,25 @@ private const val SNIPPET_CONTEXT = 24
 /** Výměna nápovědy pilulky: stará zmizí, nová se objeví až potom (stejná čísla jako fade through obrazovek). */
 private const val HINT_FADE_OUT_MS = 90
 private const val HINT_FADE_IN_MS = 210
+
+/** Věta, ne jméno: aspoň tři slova. Podle toho se nabídne „Hledat s AI". */
+internal fun naturalSentence(text: String): Boolean =
+    text.trim().split(Regex("\\s+")).count { it.isNotEmpty() } >= NATURAL_SEARCH_MIN_WORDS
+
+private const val NATURAL_SEARCH_MIN_WORDS = 3
+
+/** Ikona „Hledat s AI"; během čtení modelem se místo ní točí indikátor. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun AiSearchButton(busy: Boolean, onClick: () -> Unit) {
+    IconButton(onClick = onClick, enabled = !busy, shapes = IconButtonDefaults.shapes()) {
+        if (busy) {
+            LoadingIndicator(Modifier.size(24.dp))
+        } else {
+            Icon(
+                painterResource(Res.drawable.auto_awesome_24dp),
+                contentDescription = stringResource(Res.string.chats_search_ai),
+            )
+        }
+    }
+}

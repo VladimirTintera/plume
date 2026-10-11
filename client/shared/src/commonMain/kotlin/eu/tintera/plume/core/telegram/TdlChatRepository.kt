@@ -1,5 +1,11 @@
 package eu.tintera.plume.core.telegram
 
+import dev.g000sha256.tdl.dto.SearchMessagesFilterAudio
+import dev.g000sha256.tdl.dto.SearchMessagesFilterVoiceNote
+import dev.g000sha256.tdl.dto.SearchMessagesFilterUrl
+import dev.g000sha256.tdl.dto.SearchMessagesFilterDocument
+import dev.g000sha256.tdl.dto.SearchMessagesFilterVideo
+import dev.g000sha256.tdl.dto.SearchMessagesFilterPhoto
 import kotlin.time.Clock
 import dev.g000sha256.tdl.dto.InternalLinkTypeSettings
 import dev.g000sha256.tdl.dto.InternalLinkTypeMyProfilePage
@@ -1240,6 +1246,15 @@ class TdlChatRepository(
             query = query,
             offset = offset,
             limit = MESSAGE_SEARCH_PAGE,
+            filter = when (filter.content) {
+                null -> null
+                SearchContent.Photos -> SearchMessagesFilterPhoto()
+                SearchContent.Videos -> SearchMessagesFilterVideo()
+                SearchContent.Files -> SearchMessagesFilterDocument()
+                SearchContent.Links -> SearchMessagesFilterUrl()
+                SearchContent.Voice -> SearchMessagesFilterVoiceNote()
+                SearchContent.Music -> SearchMessagesFilterAudio()
+            },
             chatTypeFilter = when (filter.chatKind) {
                 null -> null
                 ChatKind.Private -> SearchMessagesChatTypeFilterPrivate()

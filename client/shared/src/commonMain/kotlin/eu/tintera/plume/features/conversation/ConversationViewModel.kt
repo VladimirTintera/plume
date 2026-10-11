@@ -3756,9 +3756,17 @@ class ConversationViewModel(
      * a reakce), stejně jako tatáž volba v seznamu chatů.
      */
     fun readNow() {
+        // Poslech nahlášený s přečtením: kdo chat přečetl, ten hlasovku taky poslechl.
+        val listened = discreetListened.toList()
+        discreetListened.clear()
         viewModelScope.launch {
             chatRepository.readChat(chatId).onFailure { failure ->
                 logger.w(failure) { "Chat se nepodařilo označit jako přečtený." }
+            }
+            listened.forEach { messageId ->
+                repository.openContent(chatId, messageId).onFailure { failure ->
+                    logger.w(failure) { "Poslechnutí hlasovky nebo kolečka se nepodařilo nahlásit." }
+                }
             }
         }
     }
@@ -4904,9 +4912,24 @@ class ConversationViewModel(
         if (!message.isOutgoing && !note.isViewed) reportListened(messageId)
     }
 
-    /** Označí hlasovku za poslechnutou lokálně i na serveru. */
+    /**
+     * Poslechnuté hlasovky a zhlédnutá kolečka, která diskrétní čtení zatím NENAHLÁSILO —
+     * odejdou s přečtením chatu ([readNow]). Odchod z chatu je zahodí: protějšek se o poslechu
+     * nedozví a po návratu je hlasovka zase neposlechnutá, jak ji vede server.
+     */
+    private val discreetListened = LinkedHashSet<Long>()
+
+    /**
+     * Označí hlasovku za poslechnutou lokálně i na serveru. Při diskrétním čtení jen lokálně
+     * ([discreetListened]): poslech je stejné prozrazení jako přečtení.
+     */
     private fun reportListened(messageId: Long) {
         markListened(messageId)
+        if (settings.discreetReading.value) {
+            discreetListened += messageId
+            logger.d { "Diskrétní čtení: poslech zprávy $messageId se nehlásí" }
+            return
+        }
         viewModelScope.launch {
             repository.openContent(chatId, messageId).onFailure { failure ->
                 logger.w(failure) { "Poslechnutí hlasovky nebo kolečka se nepodařilo nahlásit." }

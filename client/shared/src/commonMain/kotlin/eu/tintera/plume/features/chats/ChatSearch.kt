@@ -67,7 +67,13 @@ class ChatSearch(
                 // serveru na „ja" nepřepíše výsledky pro „jana".
                 .collectLatest { input ->
                     moreMessages?.cancel()
-                    if (input.text.isEmpty()) suggest(input.suggestionsWanted) else search(input.text, input.filter)
+                    // Prázdný dotaz s druhem obsahu („fotky z léta" z hledání přirozeným jazykem)
+                    // je hledání zpráv, ne návrhy.
+                    if (input.text.isEmpty() && input.filter.content == null) {
+                        suggest(input.suggestionsWanted)
+                    } else {
+                        search(input.text, input.filter)
+                    }
                 }
         }
     }
@@ -102,9 +108,10 @@ class ChatSearch(
         /*
          * `#tag` je hledání zpráv s tagem (ťuknutí na hashtag v konverzaci). Hledání chatů
          * mřížku zahodí a vrátí chaty se slovem v názvu — „#plume" našlo kanály „Plumex"
-         * a „plume", tedy šum nad tím, co uživatel hledal.
+         * a „plume", tedy šum nad tím, co uživatel hledal. Prázdný dotaz s druhem obsahu
+         * hledá taky jen zprávy: chaty bez slova najít nejde.
          */
-        if (everywhere && isHashtagQuery(text)) {
+        if (everywhere && (isHashtagQuery(text) || text.isEmpty())) {
             _state.value = ChatSearchState(query = text, filter = filter, messagesLoading = true)
             val page = messagePage(text, "", filter)
             _state.update {

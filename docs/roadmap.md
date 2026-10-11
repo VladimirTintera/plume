@@ -396,7 +396,10 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
 
 **Další nápady (říjen 2026)**, vybrané podle téhož pravidla:
 
-- **Hledání přirozeným jazykem.** „Fotky od Jany z loňského léta" → filtry, které hledání už
+- ~~**Hledání přirozeným jazykem.**~~ — hotovo („Hledat s AI" v hledání; `docs/poznatky/hledani-a-zakladani-chatu.md`,
+  „Hledání přirozeným jazykem"). Odesílatel („od Jany") zatím ne — globální hledání zpráv ho
+  neumí filtrovat; strukturovaný výstup Prompt API taky ne (řádky + pravidla). Původní zadání:
+  „Fotky od Jany z loňského léta" → filtry, které hledání už
   umí (chat, druh obsahu, období, odesílatel — `MessageSearchFilter`, hledání podle člena).
   Model nic negeneruje, jen vyplní typ přes `GenerateTypedContentRequest`, takže je to přirozený
   první krok ke **strukturovanému výstupu** výš. Chybu uživatel vidí hned (čipy filtrů nad
@@ -616,8 +619,8 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
   podívat se do oficiálního klienta, jestli se bot nikde neukáže, a postavit to.
   Podrobnosti v `docs/poznatky/nastaveni.md`, „Synchronizace nastavení mezi zařízeními".
 - ~~**Diskrétní čtení a psaní (Ghost Mode).**~~ — hotovo (Nastavení → Obecné → Soukromí;
-  `docs/poznatky/nastaveni.md`, „Diskrétní čtení"). Poslech hlasovek a zhlédnutí v kanálech
-  zatím nekryje. Původní zadání: V Nastavení → Soukromí volba pro potlačení
+  `docs/poznatky/nastaveni.md`, „Diskrétní čtení"), ~~i poslech hlasovek~~. Mizející média
+  vědomě ne. Původní zadání: V Nastavení → Soukromí volba pro potlačení
   automatického odesílání potvrzení o přečtení (`viewMessages`) a indikátoru „Píše..."
   (`sendChatAction`). Zprávy se označí jako přečtené až při odeslání vlastní odpovědi v chatu
   nebo po ručním ťuknutí na plovoucí čip „Označit jako přečtené".

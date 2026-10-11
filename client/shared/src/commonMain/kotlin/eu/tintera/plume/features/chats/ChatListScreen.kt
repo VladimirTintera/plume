@@ -286,6 +286,7 @@ fun ChatListScreen(
     modifier: Modifier = Modifier,
 ) {
     val search by viewModel.search.state.collectAsStateWithLifecycle()
+    val naturalSearchAvailable by viewModel.naturalSearchAvailable.collectAsStateWithLifecycle()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
     val shownConnection = rememberShownConnection(connection)
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
@@ -456,6 +457,7 @@ fun ChatListScreen(
                     onLoadMoreMessages = viewModel.search::loadMoreMessages,
                     onClearRecent = viewModel.search::clearRecent,
                     onFilterChange = viewModel.search::setFilter,
+                    aiSearch = viewModel::parseSearch.takeIf { naturalSearchAvailable },
                     request = searchRequest,
                     onRequestHandled = onSearchRequestHandled,
                     trailing = {
