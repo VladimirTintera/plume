@@ -395,7 +395,32 @@ zprávou"). Zbývá:
 ## Výběr samolepek a emoji
 
 Hotové: záložky Nedávné, Oblíbené, Trendy a sady se swipem; hledání samolepek i emoji; oblíbené;
-sada ze samolepky v chatu; emoji vkládané do textu včetně nedávných. Zbývá:
+sada ze samolepky v chatu; emoji vkládané do textu včetně nedávných; mřížka jedné sady hraje;
+samolepky k emoji v poli; velký náhled po podržení. Zbývá:
+
+- **Hledání sad podle názvu** — hledání vrací jen jednotlivé samolepky podle emoji a klíčových
+  slov, sadu „Duck" nenajde. TDLib: `searchInstalledStickerSets` a `searchStickerSets`; výsledky
+  jako sekce „Sady" s ukázkou a tlačítkem Přidat, jako v Trendech.
+- **Kategorie pod polem hledání** — čipy 😍 Láska, 👋 Pozdrav… (`getEmojiCategories`), ťuknutí
+  spustí hledání bez psaní a klávesnice nepřekryje mřížku. Hodí se udělat spolu s hledáním sad.
+- **Výběr si nepamatuje poslední záložku** (vyčteno z kódu, neověřeno): `PagerState` vzniká
+  se sheetem, takže se otevře na Nedávných. Kdo posílá z jedné sady, musí k ní pokaždé dojet.
+- **Odebrat z Nedávných a smazat Nedávné** — omylem poslaná samolepka tam zůstane. Křížek
+  v náhledu podržené samolepky (`removeRecentSticker`), „Vymazat" v záložce (`clearRecentStickers`).
+- **Sada skupiny** — supergroupa může mít vlastní sadu (`SupergroupFullInfo.stickerSetId`);
+  ve výběru záložka za Oblíbenými, jen v té skupině.
+- **Správa sad v Nastavení** („Samolepky a emoji") — přeřazení tahem
+  (`reorderInstalledStickerSets`), archivace a odebrání, archivované sady
+  (`getArchivedStickerSets`). Při desítkách sad je pořadí záložek jediná cesta k oblíbeným.
+- **Sdílet sadu** — v detailu sady zkopírovat nebo nasdílet `t.me/addstickers/…` (otevírat
+  takové odkazy aplikace umí).
+- **Vlastní emoji ve výběru emoji (emoji packy)** — zobrazovat v textu je umíme, vkládat ne.
+  Posílat je smí jen Premium.
+- **Náhled bez puštění prstu** — v Telegramu se prstem po mřížce přejíždí mezi náhledy
+  a puštěním náhled zmizí. U nás náhled zůstává otevřený, protože nese tlačítka.
+- **Náhled i jinde** — podržený GIF (dnes jen tlačítko v rohu buňky), samolepky z výsledků
+  inline bota a z návrhů k emoji nad polem.
+- **Samolepky `.webm`** — viz „D) Otevření média" výš (pořád jen statický náhled).
 
 - ~~**Dvě různé pleti u emoji s více osobami**~~ — hotovo (mřížka 5 × 5 u 13 emoji se dvěma
   osobami; `docs/poznatky/emoji-samolepky-reakce.md`, „Výběr emoji"). Rodiny se třemi a víc osobami odstíny v Unicode nemají.
