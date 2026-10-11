@@ -151,6 +151,7 @@ import dev.g000sha256.tdl.dto.PushMessageContentVideoNote
 import dev.g000sha256.tdl.dto.PushMessageContentVoiceNote
 import dev.g000sha256.tdl.dto.Sticker
 import dev.g000sha256.tdl.dto.StickerFormatTgs
+import dev.g000sha256.tdl.dto.StickerFormatWebm
 import dev.g000sha256.tdl.dto.StickerFormatWebp
 import dev.g000sha256.tdl.dto.TextEntity
 import dev.g000sha256.tdl.dto.TextEntityTypeBlockQuote
@@ -1088,6 +1089,7 @@ internal fun Sticker.toMedia(): MessageMedia.Sticker {
         fileId = sticker.id.takeIf { format is StickerFormatWebp },
         animationFileId = sticker.id.takeIf { format is StickerFormatTgs },
         thumbnailFileId = rasterThumbnail?.file?.id,
+        videoFileId = sticker.id.takeIf { format is StickerFormatWebm },
         width = width,
         height = height,
         emoji = emoji,
