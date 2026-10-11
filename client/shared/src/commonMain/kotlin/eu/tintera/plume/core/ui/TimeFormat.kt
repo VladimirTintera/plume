@@ -245,6 +245,21 @@ fun Long.asUpcomingTime(): String {
 }
 
 /**
+ * Budoucí den bez času („dnes", „zítra", „pátek", „20. října") — celodenní událost. Stejná
+ * stupnice jako [asUpcomingTime].
+ */
+@Composable
+fun LocalDate.asUpcomingDay(): String {
+    val today = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+    return when ((toEpochDays() - today.toEpochDays()).toInt()) {
+        in Int.MIN_VALUE..0 -> stringResource(Res.string.date_today)
+        1 -> stringResource(Res.string.date_tomorrow)
+        in 2..6 -> stringResource(dayOfWeek.longName())
+        else -> stringResource(Res.string.date_day_month, day, stringResource(month.name()))
+    }
+}
+
+/**
  * Jsou oba časy ve stejném dni?
  *
  * Porovnává se **místní datum**, ne rozdíl sekund: den má 24 hodin jen někdy — na přechodu

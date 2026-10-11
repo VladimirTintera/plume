@@ -1043,6 +1043,11 @@ data class ChatInfo(
      */
     val sensitive: Boolean = false,
     /**
+     * Chat chrání obsah (`has_protected_content`): nesmí se z něj kopírovat, přeposílat ani
+     * ukládat. Akce u zprávy (kalendář, QR platba) by ho vynesly taky, proto se nenabízejí.
+     */
+    val protectsContent: Boolean = false,
+    /**
      * Téma, do kterého je konverzace zúžená (skupina s tématy), nebo `null`. Hlavička pak ukazuje
      * téma, ne skupinu; nepřečtené, koncept a právo psát jsou tématu, ne celé skupiny.
      */

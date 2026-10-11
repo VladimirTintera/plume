@@ -62,6 +62,8 @@ import eu.tintera.plume.resources.conversation_bot_start
 import eu.tintera.plume.resources.conversation_schedule_time
 import eu.tintera.plume.resources.conversation_schedule_past
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Instant
 import androidx.compose.ui.composed
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -2779,6 +2781,9 @@ fun ConversationScreen(
                 )
             }
 
+            // Akce u zprávy (ikonka u termínu, účtu, zásilky); stav si čte sám.
+            MessageContextHost(viewModel)
+
             state.remindRequest?.let { request ->
                 val messageId = request.messageId
                 RemindSheet(
@@ -4696,6 +4701,27 @@ private class ScreenItemScope(
     }
 
     override fun dismissScamWarning(messageId: Long) = viewModel.dismissScamWarning(messageId)
+
+    @Composable
+    override fun messageContext(message: ChatMessage): List<ContextFinding> {
+        val verdicts by viewModel.contextVerdicts.collectAsStateWithLifecycle()
+        val current = verdicts ?: return emptyList()
+        if (!message.offersContext()) return emptyList()
+        val found = remember(message.text, message.entities, message.timestamp) {
+            val zone = TimeZone.currentSystemDefault()
+            val sentAt = Instant.fromEpochSeconds(message.timestamp.toLong()).toLocalDateTime(zone)
+            findMessageContext(message.text, message.entities, sentAt, zone)
+        }
+        if (found.isEmpty) return emptyList()
+        val verdict = current[message.id to message.text.hashCode()]
+        return remember(found, verdict) {
+            val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+            found.contextFindings(message.text, verdict, now)
+        }
+    }
+
+    override fun openMessageContext(messageId: Long, findings: List<ContextFinding>) =
+        viewModel.openMessageContext(messageId, findings)
 
     override fun videoNoteSounding(messageId: Long): Boolean = state.value.soundingVideoNote == messageId
 

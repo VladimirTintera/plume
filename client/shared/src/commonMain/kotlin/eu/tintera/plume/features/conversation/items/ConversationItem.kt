@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
 import eu.tintera.plume.core.ai.ScamKind
+import eu.tintera.plume.features.conversation.ContextFinding
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import androidx.compose.foundation.combinedClickable
 import eu.tintera.plume.core.ui.ExpressiveMenu
@@ -117,6 +118,16 @@ internal interface ConversationItemScope {
 
     /** Uživatel varování před podvodem skryl. */
     fun dismissScamWarning(messageId: Long) {}
+
+    /**
+     * Co se dá s textem zprávy udělat (termín, účet, zásilka — `findMessageContext`), nebo prázdný
+     * seznam. Skládací ze stejného důvodu jako [scamWarning]: posudky modelu čte až položka.
+     */
+    @Composable
+    fun messageContext(message: ChatMessage): List<ContextFinding> = emptyList()
+
+    /** Ťuknutí na ikonku akcí u zprávy. */
+    fun openMessageContext(messageId: Long, findings: List<ContextFinding>) {}
 
     fun documentProgress(fileId: Int): Float?
 

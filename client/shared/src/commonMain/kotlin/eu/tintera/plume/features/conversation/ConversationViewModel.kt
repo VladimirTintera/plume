@@ -10,6 +10,9 @@ import eu.tintera.plume.core.telegram.transcribeOffer
 import eu.tintera.plume.core.telegram.TranscribeOffer
 import eu.tintera.plume.core.ai.OnDeviceAi
 import kotlin.time.Instant
+import eu.tintera.plume.core.calendar.CalendarEvent
+import eu.tintera.plume.core.calendar.CalendarEvents
+import eu.tintera.plume.resources.message_context_no_calendar
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.TimeZone
@@ -386,6 +389,10 @@ class ConversationViewModel(
     private val localTranscripts: LocalTranscripts? = null,
     /** Varování u zpráv, které vypadají jako podvod (model v zařízení). */
     private val scamWarnings: ScamWarnings? = null,
+    /** Posudky termínů ze zpráv modelem v zařízení (ikonka akcí u zprávy). */
+    private val messageContexts: MessageContexts? = null,
+    /** Přidání události do kalendáře z akcí u zprávy; bez něj se termín nenabízí. */
+    private val calendarEvents: CalendarEvents? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -501,6 +508,28 @@ class ConversationViewModel(
             if (on) all.filterKeys { it.first == chatId }.mapKeys { it.key.second } else emptyMap()
         } ?: flowOf(emptyMap())
         ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    /**
+     * Posudky termínů modelem pro zprávy tohohle chatu podle (zpráva, otisk textu), nebo `null`,
+     * když se akce u zpráv nenabízejí (vypnuté v nastavení, chat s chráněným obsahem — z něj
+     * nesmí nic ven, ani do kalendáře). Samostatný tok ze stejného důvodu jako [scamVerdicts].
+     */
+    val contextVerdicts: StateFlow<Map<Pair<Long, Int>, EventVerdict>?> = combine(
+        messageContexts?.verdicts ?: flowOf(emptyMap()),
+        settings.messageContextEnabled,
+        _state.map { it.info?.protectsContent == true }.distinctUntilChanged(),
+    ) { all, on, protected ->
+        if (!on || protected) {
+            null
+        } else {
+            all.filterKeys { it.chatId == chatId }.mapKeys { (key, _) -> key.messageId to key.textHash }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val _contextSheet = MutableStateFlow<ContextSheet?>(null)
+
+    /** Otevřený sheet akcí u zprávy (`MessageContextSheet`); `null` = zavřený. */
+    val contextSheet: StateFlow<ContextSheet?> = _contextSheet.asStateFlow()
 
     /**
      * Pruh nad konverzací (spam od neznámého, nasdílení čísla, žádost o vstup). Samostatný tok
@@ -685,6 +714,26 @@ class ConversationViewModel(
                     .distinctUntilChanged()
                     .collect { (info, recent) ->
                         if (info != null && scamCheckApplies(info)) recent.forEach { warnings.check(chatId, it) }
+                    }
+            }
+        }
+
+        // Termíny z nejnovějších zpráv posoudí model (když je zapnutý a připravený); bez něj
+        // nabízejí akce pravidla sama a tady se nic neděje.
+        messageContexts?.let { contexts ->
+            contexts.reopen(chatId)
+            viewModelScope.launch {
+                _state.map { it.info to it.messages.take(CONTEXT_RECENT_MESSAGES) }
+                    .distinctUntilChanged()
+                    .collect { (info, recent) ->
+                        if (info == null || info.protectsContent || !settings.messageContextEnabled.value) return@collect
+                        val zone = TimeZone.currentSystemDefault()
+                        recent.forEach { message ->
+                            if (!message.offersContext()) return@forEach
+                            val sentAt = Instant.fromEpochSeconds(message.timestamp.toLong()).toLocalDateTime(zone)
+                            val event = findMessageContext(message.text, message.entities, sentAt, zone).event ?: return@forEach
+                            contexts.check(chatId, message.id, message.text, sentAt, event.start)
+                        }
                     }
             }
         }
@@ -3772,6 +3821,55 @@ class ConversationViewModel(
     }
 
     /** Uživatel skryl varování před podvodem u zprávy. */
+    /** Ťuknutí na ikonku akcí u zprávy: sheet s tím, co se ve zprávě našlo. */
+    fun openMessageContext(messageId: Long, findings: List<ContextFinding>) {
+        if (findings.isEmpty()) return
+        _contextSheet.value = ContextSheet(messageId, findings)
+    }
+
+    fun closeMessageContext() {
+        _contextSheet.value = null
+    }
+
+    /** Událost do kalendáře; editor kalendáře ji ukáže a uloží až uživatel. */
+    fun addToCalendar(event: ContextFinding.Event) {
+        val calendar = calendarEvents ?: return
+        val added = calendar.add(
+            CalendarEvent(
+                title = event.title,
+                description = event.description,
+                place = event.place,
+                start = event.start,
+                allDay = event.allDay,
+            ),
+        )
+        if (added) {
+            closeMessageContext()
+        } else {
+            _state.update { it.copy(notice = UiText(Res.string.message_context_no_calendar)) }
+        }
+    }
+
+    /** Údaj z akcí u zprávy (číslo účtu, částka, číslo zásilky) do schránky. */
+    fun copyFromContext(text: String) {
+        viewModelScope.launch {
+            clipboard.copy(text)
+            _state.update { it.copy(notice = UiText(Res.string.bot_text_copied)) }
+        }
+    }
+
+    /** Sledování zásilky u dopravce. Adresu skládáme sami, takže se na odkaz neptá. */
+    fun trackParcel(url: String) {
+        closeMessageContext()
+        openLink(url, confirmExternal = false)
+    }
+
+    /** „Připomenout…" z akcí u termínu — tentýž sheet jako z nabídky nad zprávou. */
+    fun remindFromContext(messageId: Long) {
+        closeMessageContext()
+        requestRemind(messageId)
+    }
+
     fun dismissScamWarning(messageId: Long) {
         scamWarnings?.dismiss(chatId, messageId)
     }
@@ -5470,6 +5568,12 @@ private const val PAGE_SIZE = 30
 /** Kolik nejnovějších zpráv se posuzuje kvůli podvodu (viz [ScamWarnings]). */
 private const val SCAM_RECENT_MESSAGES = 20
 
+/**
+ * Kolik nejnovějších zpráv dostane k termínu posudek modelu (viz [MessageContexts]). Starší
+ * termín skoro vždycky minul a nenabízí se tak jako tak.
+ */
+private const val CONTEXT_RECENT_MESSAGES = 20
+
 /** Kolik stránek nejvýš dotáhne [ConversationViewModel.loadForSummary]. */
 private const val MAX_SUMMARY_PAGES = 4
 
@@ -5571,6 +5675,16 @@ data class TranscribeContext(
     /** Přepisy z telefonu v tomhle chatu podle id zprávy. */
     val local: Map<Long, SpeechTranscript> = emptyMap(),
 )
+
+/** Otevřený sheet akcí u zprávy [messageId]; [findings] jsou spočítané v okamžiku ťuknutí. */
+data class ContextSheet(val messageId: Long, val findings: List<ContextFinding>)
+
+/**
+ * Nabízí zpráva akce ze svého textu? Ne systémová oznámení, mizející zprávy (ty nesmí ven, stejně
+ * jako chráněný obsah) a zprávy omezené serverem.
+ */
+internal fun ChatMessage.offersContext(): Boolean =
+    !isService && !isRestricted && selfDestructType == null && text.isNotBlank()
 
 data class RemindRequest(
     val messageId: Long,

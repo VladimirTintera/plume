@@ -1875,6 +1875,7 @@ class TdlConversationRepository(
                     emojiStatus = chat.emojiStatus.statusEmojiId(),
                     restriction = restriction?.reasonText,
                     sensitive = client.hidesSensitive(restriction),
+                    protectsContent = chat.hasProtectedContent,
                     topic = forumTopic?.info?.let {
                         TopicHeader(
                             id = it.forumTopicId,

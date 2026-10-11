@@ -27,7 +27,27 @@ import kotlinx.datetime.plus
  *
  * Text se porovnává bez diakritiky ([foldDiacritics]), takže „zitra" i „zítra" platí stejně.
  */
-fun reminderTimeFromText(text: String, sentAt: LocalDateTime): LocalDateTime? {
+fun reminderTimeFromText(text: String, sentAt: LocalDateTime): LocalDateTime? = textTime(text, sentAt)?.at
+
+/**
+ * Termín ze zprávy i s tím, z čeho se poskládal. Připomínce stačí [at]; událost do kalendáře
+ * (`findMessageContext`) podle příznaků rozhoduje, jak moc si může být jistá — „v 8" samo o sobě
+ * na připomínku stačí, na schůzku ne.
+ */
+internal class TextTime(
+    val at: LocalDateTime,
+    /** Den ze zprávy: datum, vztažné slovo („zítra") nebo den v týdnu. */
+    val hasDay: Boolean,
+    /** Datum psané číslem („12. 10."), ne jen slovem. */
+    val hasDate: Boolean,
+    /** Přesný čas („15:00", „v 9.30", „3pm", „v 15"). */
+    val hasClock: Boolean,
+    /** Část dne bez přesného času („večer", „odpoledne"). */
+    val hasPart: Boolean,
+)
+
+/** Viz [reminderTimeFromText]; tytéž pravidla, jen s příznaky ([TextTime]). */
+internal fun textTime(text: String, sentAt: LocalDateTime): TextTime? {
     var rest = " " + foldDiacritics(text).lowercase() + " "
 
     // Datum „12. 10." / „12.10.2026" — dřív než čas, ať se „12.10" nepřečte jako 12:10.
@@ -58,9 +78,16 @@ fun reminderTimeFromText(text: String, sentAt: LocalDateTime): LocalDateTime? {
         // Bez dne jen s časem; samotná část dne („ráno") je moc vágní na připomínku.
         val at = hour ?: return null
         val sameDay = sentAt.date.atTime(at)
-        return if (sameDay > sentAt) sameDay else sentAt.date.plus(DatePeriod(days = 1)).atTime(at)
+        val next = if (sameDay > sentAt) sameDay else sentAt.date.plus(DatePeriod(days = 1)).atTime(at)
+        return TextTime(next, hasDay = false, hasDate = false, hasClock = true, hasPart = part != null)
     }
-    return day.atTime(hour ?: part ?: MORNING)
+    return TextTime(
+        at = day.atTime(hour ?: part ?: MORNING),
+        hasDay = true,
+        hasDate = date != null,
+        hasClock = hour != null,
+        hasPart = part != null,
+    )
 }
 
 /**

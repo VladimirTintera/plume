@@ -708,6 +708,9 @@ private fun MessageFrame(
              * zprávou — a pod holou fotkou žádná bublina, do které by se daly vložit, není.
              */
             val scam = scope.scamWarning(message.id)
+            // Akce u zprávy, před kterou se varuje, nejsou: QR platba k podvodu je přesně to, co
+            // podvodník chce. V režimu výběru ťuknutí patří výběru.
+            val context = if (scam == null && frame.selected == null) scope.messageContext(message) else emptyList()
             WithBelowMessage(
                 hasBelow = message.keyboard != null || message.factCheck != null || scam != null,
                 isOutgoing = message.isOutgoing,
@@ -808,6 +811,20 @@ private fun MessageFrame(
                         .align(Alignment.CenterStart)
                         .offset(x = -REPLY_ICON_SLOT),
                 )
+
+                // Akce ze zprávy na volné straně, za značkou efektu, když nějaká je.
+                if (context.isNotEmpty()) {
+                    val beyondEffect = if (message.effect != null) EFFECT_MARK_SIZE + EFFECT_MARK_GAP else 0.dp
+                    MessageContextMark(
+                        findings = context,
+                        onClick = { scope.openMessageContext(message.id, context) },
+                        modifier = Modifier
+                            .align(if (message.isOutgoing) Alignment.BottomStart else Alignment.BottomEnd)
+                            .offset(
+                                x = (CONTEXT_MARK_SIZE + EFFECT_MARK_GAP + beyondEffect) * (if (message.isOutgoing) -1 else 1),
+                            ),
+                    )
+                }
 
                 // Značka efektu na volné straně zprávy, u spodku (viz [EffectMark]).
                 message.effect?.let { effect ->

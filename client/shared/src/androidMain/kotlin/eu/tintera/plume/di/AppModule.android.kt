@@ -47,6 +47,7 @@ import eu.tintera.plume.core.update.AppUpdates
 import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.core.locale.AppLanguage
 import eu.tintera.plume.core.ui.TextClipboard
+import eu.tintera.plume.core.calendar.CalendarEvents
 import eu.tintera.plume.core.language.LanguageDetector
 import eu.tintera.plume.core.language.AndroidLanguageDetector
 import kotlinx.coroutines.CoroutineScope
@@ -90,6 +91,7 @@ actual fun Module.platformModule() {
     single { AppForeground(androidContext()) }
     single { AppUpdates(androidContext()) }
     single { TextClipboard(androidContext()) }
+    single { CalendarEvents(androidContext()) }
     single<LanguageDetector> { AndroidLanguageDetector(androidContext()) }
     single<SquarePhoto> { AndroidSquarePhoto(androidContext()) }
     single<HomeWidgets> { AndroidHomeWidgets(androidContext()) }

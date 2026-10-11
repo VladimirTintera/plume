@@ -39,6 +39,7 @@ import eu.tintera.plume.core.update.AppUpdates
 import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.core.locale.AppLanguage
 import eu.tintera.plume.core.ui.TextClipboard
+import eu.tintera.plume.core.calendar.CalendarEvents
 import eu.tintera.plume.core.language.LanguageDetector
 import eu.tintera.plume.core.language.IosLanguageDetector
 import kotlinx.coroutines.CoroutineScope
@@ -82,6 +83,7 @@ actual fun Module.platformModule() {
     single { AppForeground() }
     single { AppUpdates() }
     single { TextClipboard() }
+    single { CalendarEvents() }
     single<LanguageDetector> { IosLanguageDetector() }
     single<SquarePhoto> { IosSquarePhoto() }
     single<SnoozeReminders> { IosSnoozeReminders() }

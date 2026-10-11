@@ -2628,4 +2628,21 @@
     <string name="widget_chats_empty">Zatím žádné chaty</string>
     <string name="settings_chats_widget">Přidat widget na plochu</string>
     <string name="settings_chats_widget_summary">Připnuté a nepřečtené chaty na ploše telefonu</string>
+    <string name="message_context_open">Akce ze zprávy: %1$s</string>
+    <string name="message_context_title">Ze zprávy</string>
+    <string name="message_context_event">Přidat do kalendáře</string>
+    <string name="message_context_payment">QR platba</string>
+    <string name="message_context_parcel">Sledovat zásilku</string>
+    <string name="message_context_all_day">%1$s, celý den</string>
+    <string name="message_context_from_model">Název a místo navrhl model v telefonu</string>
+    <string name="message_context_payment_scan">Kód načte bankovní aplikace, nebo si údaje zkopírujte.</string>
+    <string name="message_context_account">Účet</string>
+    <string name="message_context_amount">Částka</string>
+    <string name="message_context_variable_symbol">Variabilní symbol</string>
+    <string name="message_context_carrier_czech_post">Česká pošta</string>
+    <string name="message_context_carrier_packeta">Zásilkovna</string>
+    <string name="message_context_carrier_international">Zásilka ze zahraničí</string>
+    <string name="message_context_no_calendar">Událost není kam přidat, v telefonu chybí kalendář</string>
+    <string name="settings_message_context">Akce ze zpráv</string>
+    <string name="settings_message_context_summary">Ikonka u zprávy s termínem, číslem účtu nebo zásilky nabídne kalendář, QR platbu nebo sledování. Rozpoznává se v telefonu.</string>
 </resources>

@@ -327,6 +327,61 @@ ze stejného důvodu jako návrhy odpovědí: model běží sám, bez ťuknutí.
   kartu schová, tmavý motiv čitelný (akcent ustoupí `onErrorContainer`, viz `accentOn`).
   **Gemini Nano na skutečném zařízení neověřené.**
 
+### Akce ze zpráv
+
+Ikonka se sparkle (`auto_awesome`) na volné straně zprávy, ve které je termín, číslo účtu nebo
+zásilky; ťuknutí otevře sheet s akcemi (`MessageContextSheet`): kalendář a „Připomenout…", QR
+platba s kopírováním účtu, částky a VS, sledování zásilky. Rozpoznávají PRAVIDLA
+(`findMessageContext`, testy `MessageContextTest`), model jen posuzuje termín (`MessageContexts`,
+prompt `EventPrompt.kt`). Vypínač v Nastavení → Obecné → Chaty, **výchozí zapnuto** — na rozdíl
+od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v zařízení uživatel zapnul.
+
+- **Pravidla napřed, protože jdou ověřit kontrolním součtem.** Český účet mod 11 a kód banky
+  ze seznamu ČNB (bez seznamu by „č. j. 1234/2025" prošlo jednou z jedenácti), IBAN mod 97,
+  zásilka S10 kontrolní číslicí. Model by tu jen hádal, co už víme jistě. Holá čísla PPL a DPD
+  od telefonu nerozeznáš, proto zatím nejsou.
+- **Termín je jistý, nebo nejistý** (`EventCandidate.certain`). Jistý = den a čas, datum číslem,
+  nebo termín vyznačený Telegramem (`MessageEntityType.DateTime`); ten se nabídne i bez modelu.
+  Jen čas („v 15:00") je nejistý a nabídne se, jen když ho model potvrdí. Jen den („v pátek")
+  není termín vůbec.
+- **Minulost odfiltrují pravidla, model na ni nestačí.** Gemma 4 E2B odpověděla „schůzka" na
+  „Včera v 15:00 jsem byl u doktora" i na „Volal jsem ti v 9:30, ale nebral jsi to" — u té
+  druhé i s téměř stejným příkladem v promptu. Pravidla proto zahodí zprávu se „včera",
+  „minulý", „yesterday", „last week" a u termínu bez dne i český minulý čas (příčestí na -l
+  s „jsem/jsi/jsme/jste"). U termínu se dnem se minulý čas nekontroluje: „domluvili jsme se na
+  zítra v 15" je schůzka.
+- **Model se ptá napřed na čas (`WHEN: PAST/FUTURE`), pak na schůzku.** Samotné „je to
+  schůzka?" bralo Gemmu k souhlasu; s klasifikací minulosti na prvním řádku odpověděla u staré
+  zprávy o odstávce `PAST` a u schůzek `FUTURE`. Potvrzení chce obojí výslovně.
+- **Prompt termín NEtvrdí, jen nabízí výklad** („If it plans something, the time would be…").
+  S větou „It mentions <datum>" model termín přebíral jako fakt — pravidla „v 15:00" u minulé
+  zprávy posunou na příští den a model pak „věděl", že je v budoucnu.
+- **Místo jen takové, které ve zprávě stojí** (`placeInText`, začátek slova bez dvou posledních
+  písmen kvůli skloňování: „kino" ↔ „u kina"). Název od modelu se bere, jak je — uživatel ho
+  vidí a opraví v editoru kalendáře. Sheet říká, že název a místo navrhl model.
+- **Během posuzování se jistý termín ukazuje** (ikonka nečeká vteřiny na model), nejistý ne —
+  ten by naskočil a po odmítnutí zmizel. Posudky jsou v paměti procesu podle (chat, zpráva,
+  otisk textu), takže upravená zpráva se posoudí znovu; nepovedené (`Unavailable`) dostanou
+  novou šanci s dalším otevřením chatu (`reopen`).
+- **Nic nevynáší chráněný obsah**: chat s `has_protected_content` (`ChatInfo.protectsContent`),
+  mizející zprávy a zprávy s varováním před podvodem ikonku nemají — QR platba k podvodu je
+  přesně to, co podvodník chce.
+- **Kalendář nic neukládá sám**: Android `ACTION_INSERT` do `CalendarContract.Events` (bez
+  oprávnění), bez kalendáře soubor `.ics` (`toIcs`, testy `CalendarEventIcsTest`: čas v UTC,
+  zalamování po 75 BAJTECH, ne znacích). iOS `EKEventEditViewController` — od iOS 17 bez
+  přístupu ke kalendáři; projekt cílí na 18.2.
+- **Ikonka i sheet jsou mimo `ConversationScreen`** (v dexu na hraně): posudky sbírá položka
+  (`ConversationItemScope.messageContext`), sheet si stav čte sám (`MessageContextHost`, jediné
+  volání). `ConversationScreen` zůstal na 271 registrech.
+- **„Kč" v regulárním výrazu je escapované** (`\u010d`): `verifyNoHardcodedText` diakritiku
+  v kódu mimo komentáře nepustí a tohle jsou data, ne text pro uživatele.
+- **Ověřeno na emulátoru** (`Plume_Galerie_Fold`, Gemma 4 E2B na CPU, ~30–40 s na posudek,
+  zprávy od bota Notifikátor): ikonky u schůzky, platby a zásilek, žádná u „včera…" a „volal
+  jsem…"; sheet s názvem a místem od modelu; „Přidat do kalendáře" předá `ACTION_INSERT`
+  Kalendáři Google (editor se bez účtu Google neukázal); kopírování účtu; sledování otevře
+  `tracking.packeta.com/cs/Z1234567890`. **Neověřené**: načtení QR bankovní aplikací, editor
+  události, Gemini Nano, iOS.
+
 ### Návrhy odpovědí
 
 Přijde zpráva, pole je prázdné → nad polem se ukážou až tři čipy s krátkou odpovědí. Ťuknutí ji
