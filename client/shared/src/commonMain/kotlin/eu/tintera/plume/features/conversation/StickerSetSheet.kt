@@ -124,12 +124,15 @@ class StickerSetViewModel(
  *
  * Ukazuje celou sadu a dá se z ní **přidat** mezi své (nebo odebrat). Mřížka se chová jako ve výběru:
  * ťuknutí samolepku pošle do tohoto chatu, podržení nabídne hvězdičku oblíbených. Sada hraje celá.
+ *
+ * Bez [onPick] (otevřená z Nastavení) se jen prohlíží: ťuknutí otevře velký náhled a v něm
+ * tlačítko Poslat není — není kam.
  * Výška mřížky je stejná jako ve výběru, aby oba sheety působily jako jedna věc.
  */
 @Composable
 fun StickerSetSheet(
     setId: Long,
-    onPick: (StickerItem) -> Unit,
+    onPick: ((StickerItem) -> Unit)?,
     onDismiss: () -> Unit,
 ) {
     val viewModel: StickerSetViewModel = koinViewModel(
@@ -175,7 +178,11 @@ fun StickerSetSheet(
                     activeStickerId = previewSticker?.id,
                     favoriteFileIds = current.favoriteFileIds,
                     onPick = { sticker ->
-                        scope.launch { sheetState.hide() }.invokeOnCompletion { onPick(sticker) }
+                        if (onPick == null) {
+                            previewSticker = sticker
+                        } else {
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { onPick(sticker) }
+                        }
                     },
                     // Podržení si haptiku dělá `combinedClickable` samo — viz `Haptics`.
                     onPreview = { sticker -> previewSticker = sticker },
@@ -189,7 +196,7 @@ fun StickerSetSheet(
                 StickerPreviewHost(
                     sticker = previewSticker,
                     cells = cells,
-                    pickLabel = stringResource(Res.string.conversation_send),
+                    pickLabel = onPick?.let { stringResource(Res.string.conversation_send) },
                     onClose = { previewSticker = null },
                 )
 

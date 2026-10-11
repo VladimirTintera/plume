@@ -59,6 +59,9 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chat_folders_row_help
 import eu.tintera.plume.resources.chat_folders_title
 import eu.tintera.plume.resources.folder_24dp
+import eu.tintera.plume.resources.sticker_24dp
+import eu.tintera.plume.resources.sticker_sets_row_help
+import eu.tintera.plume.resources.sticker_sets_title
 import eu.tintera.plume.resources.proxy_row_direct
 import eu.tintera.plume.resources.proxy_row_help
 import eu.tintera.plume.resources.proxy_row_via
@@ -70,7 +73,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Skupina „Chaty" v Obecných: složky, akce tahem v seznamu chatů, rychlá reakce, otevírání odkazů
+ * Skupina „Chaty" v Obecných: složky, sady samolepek, akce tahem v seznamu chatů, rychlá reakce, otevírání odkazů
  * a akce ze zpráv.
  * Samostatná sekce by měla pár položek.
  */
@@ -79,6 +82,7 @@ internal fun ChatsSettings(
     swipe: ChatSwipeSettingsViewModel,
     quickReaction: QuickReactionSettingsViewModel,
     onOpenFolders: () -> Unit,
+    onOpenStickerSets: () -> Unit,
 ) {
     val actions by swipe.actions.collectAsStateWithLifecycle()
     // Která strana má otevřený výběr; `null` = žádná.
@@ -91,6 +95,13 @@ internal fun ChatsSettings(
             headlineContent = { Text(stringResource(Res.string.chat_folders_title)) },
             supportingContent = { Text(stringResource(Res.string.chat_folders_row_help)) },
             modifier = Modifier.clickable(onClick = onOpenFolders),
+        )
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            leadingContent = { Icon(painterResource(Res.drawable.sticker_24dp), contentDescription = null) },
+            headlineContent = { Text(stringResource(Res.string.sticker_sets_title)) },
+            supportingContent = { Text(stringResource(Res.string.sticker_sets_row_help)) },
+            modifier = Modifier.clickable(onClick = onOpenStickerSets),
         )
         SwipeSide.entries.forEach { side ->
             ListItem(

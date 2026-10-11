@@ -36,6 +36,9 @@ private const val TRENDING_LIMIT = 50
 /** Nejvíc samolepek z jednoho hledání. TDLib víc než 100 nevrátí. */
 private const val SEARCH_LIMIT = 100
 
+/** Stránka archivovaných sad. TDLib víc než 100 najednou nevrátí. */
+private const val ARCHIVED_PAGE = 100
+
 /** Kolik nainstalovaných sad se najde podle názvu. Veřejné hledání limit nemá, TDLib vrací pár desítek. */
 private const val SET_SEARCH_LIMIT = 20
 
@@ -60,13 +63,7 @@ class TdlStickerRepository(
                 client.getInstalledStickerSets(stickerType = StickerTypeRegular())
                     .toResult()
                     .map { sets ->
-                        sets.sets.filterNotNull().map { set ->
-                            StickerSetSummary(
-                                id = set.id,
-                                title = set.title,
-                                cover = set.covers.filterNotNull().firstOrNull()?.toMedia(),
-                            )
-                        }
+                        sets.sets.toSummaries()
                     }
                     .getOrElse { failure ->
                         logger.w(failure) { "Nainstalované sady se nepodařilo načíst." }
@@ -173,6 +170,29 @@ class TdlStickerRepository(
             .toResult()
             .map { }
             .onFailure { logger.w(it) { "Nedávné samolepky se nepodařilo vymazat." } }
+
+    override suspend fun setArchived(setId: Long, archived: Boolean): Result<Unit> =
+        // Nainstalovaná a archivovaná zároveň sada být nemůže; archiv ji z nainstalovaných vyjme.
+        client.changeStickerSet(setId = setId, isInstalled = !archived, isArchived = archived)
+            .toResult()
+            .map { }
+            .onFailure { logger.w(it) { "Sadu $setId se nepodařilo ${if (archived) "archivovat" else "vrátit z archivu"}." } }
+
+    override suspend fun reorderSets(setIds: List<Long>): Result<Unit> =
+        client.reorderInstalledStickerSets(stickerType = StickerTypeRegular(), stickerSetIds = setIds.toLongArray())
+            .toResult()
+            .map { }
+            .onFailure { logger.w(it) { "Pořadí sad se nepodařilo uložit." } }
+
+    override suspend fun archivedSets(afterSetId: Long): Result<ArchivedStickerSets> =
+        client.getArchivedStickerSets(
+            stickerType = StickerTypeRegular(),
+            offsetStickerSetId = afterSetId,
+            limit = ARCHIVED_PAGE,
+        )
+            .toResult()
+            .map { ArchivedStickerSets(total = it.totalCount, sets = it.sets.toSummaries()) }
+            .onFailure { logger.w(it) { "Archivované sady se nepodařilo načíst." } }
 
     override suspend fun setFavorite(stickerFileId: Int, favorite: Boolean): Result<Unit> {
         val file = InputFileId(id = stickerFileId)
@@ -370,6 +390,17 @@ class TdlStickerRepository(
                 logger.w(failure) { "Samolepky k emoji se nepodařilo načíst." }
                 emptyList()
             }
+
+    private fun Array<StickerSetInfo>.toSummaries(): List<StickerSetSummary> =
+        filterNotNull().map { set ->
+            StickerSetSummary(
+                id = set.id,
+                title = set.title,
+                cover = set.covers.filterNotNull().firstOrNull()?.toMedia(),
+                size = set.size,
+                isOfficial = set.isOfficial,
+            )
+        }
 
     private fun Array<StickerSetInfo>.toSamples(): List<StickerSetSample> =
         filterNotNull().map { set ->

@@ -61,8 +61,11 @@ import org.jetbrains.compose.resources.stringResource
 internal fun StickerPreviewDialog(
     sticker: StickerItem,
     favorite: Boolean,
-    /** Popisek hlavního tlačítka: „Poslat", ve formuláři ankety „Vybrat". */
-    pickLabel: String,
+    /**
+     * Popisek hlavního tlačítka: „Poslat", ve formuláři ankety „Vybrat". `null` = tlačítko není
+     * (sada otevřená z Nastavení, kde se nikam neposílá).
+     */
+    pickLabel: String?,
     /** Volby odeslání (bez zvuku, naplánovat…); `null` = tlačítko není (sada, anketa). */
     sendMenu: SendMenuOffer?,
     onPick: () -> Unit,
@@ -111,7 +114,7 @@ internal fun StickerPreviewDialog(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         // Poslat zavírá i sheet, náhled se proto neanimuje — odjede s ním.
-                        Button(onClick = onPick) { Text(pickLabel) }
+                        pickLabel?.let { Button(onClick = onPick) { Text(it) } }
                         FilledTonalIconToggleButton(
                             checked = favorite,
                             onCheckedChange = { onToggleFavorite() },
@@ -182,7 +185,7 @@ private fun SendOptionsIconButton(offer: SendMenuOffer, onChoice: (SendMenuChoic
 internal fun StickerPreviewHost(
     sticker: StickerItem?,
     cells: StickerCells,
-    pickLabel: String,
+    pickLabel: String?,
     onClose: () -> Unit,
 ) {
     sticker ?: return

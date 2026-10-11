@@ -398,13 +398,10 @@ Hotové: záložky Nedávné, Oblíbené, Trendy a sady se swipem; hledání sam
 sada ze samolepky v chatu; emoji vkládané do textu včetně nedávných; mřížka jedné sady hraje;
 samolepky k emoji v poli; velký náhled po podržení; hledání sad podle názvu; kategorie pod polem
 hledání; výběr se otevře na naposledy otevřené záložce; odebrání z Nedávných a jejich vymazání;
-sada skupiny jako záložka. Zbývá:
+sada skupiny jako záložka; správa sad v Nastavení (pořadí, archiv). Zbývá:
 
 - **Nastavit sadu skupiny** — správce supergroupy s `SupergroupFullInfo.canSetStickerSet`
   (`setSupergroupStickerSet`), třeba v úpravě skupiny. Zobrazovat ji výběr umí.
-- **Správa sad v Nastavení** („Samolepky a emoji") — přeřazení tahem
-  (`reorderInstalledStickerSets`), archivace a odebrání, archivované sady
-  (`getArchivedStickerSets`). Při desítkách sad je pořadí záložek jediná cesta k oblíbeným.
 - **Sdílet sadu** — v detailu sady zkopírovat nebo nasdílet `t.me/addstickers/…` (otevírat
   takové odkazy aplikace umí).
 - **Vlastní emoji ve výběru emoji (emoji packy)** — zobrazovat v textu je umíme, vkládat ne.

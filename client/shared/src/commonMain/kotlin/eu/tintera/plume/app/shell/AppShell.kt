@@ -28,10 +28,12 @@ import eu.tintera.plume.core.navigation.TwoStepRoute
 import eu.tintera.plume.core.navigation.AppLockRoute
 import eu.tintera.plume.core.navigation.ChatFolderEditRoute
 import eu.tintera.plume.core.navigation.ChatFoldersRoute
+import eu.tintera.plume.core.navigation.StickerSetsRoute
 import eu.tintera.plume.core.navigation.ProxySettingsRoute
 import eu.tintera.plume.features.proxy.ProxySettingsScreen
 import eu.tintera.plume.features.settings.ChatFolderEditScreen
 import eu.tintera.plume.features.settings.ChatFoldersScreen
+import eu.tintera.plume.features.settings.StickerSetsScreen
 import eu.tintera.plume.features.settings.BlockSenderScreen
 import eu.tintera.plume.features.settings.BlockedSendersScreen
 import eu.tintera.plume.features.settings.TwoStepScreen
@@ -1108,6 +1110,7 @@ private fun shellEntryProvider(
             onEditProfile = { if (settingsStack.lastOrNull() != EditProfileRoute) settingsStack.add(EditProfileRoute) },
             onOpenBlocked = { if (settingsStack.lastOrNull() != BlockedSendersRoute) settingsStack.add(BlockedSendersRoute) },
             onOpenFolders = { if (settingsStack.lastOrNull() != ChatFoldersRoute) settingsStack.add(ChatFoldersRoute) },
+            onOpenStickerSets = { if (settingsStack.lastOrNull() != StickerSetsRoute) settingsStack.add(StickerSetsRoute) },
             onOpenProxy = { if (settingsStack.lastOrNull() != ProxySettingsRoute) settingsStack.add(ProxySettingsRoute) },
             onOpenAccountPrivacy = { if (settingsStack.lastOrNull() != AccountPrivacyRoute) settingsStack.add(AccountPrivacyRoute) },
             onOpenTwoStep = { if (settingsStack.lastOrNull() != TwoStepRoute) settingsStack.add(TwoStepRoute) },
@@ -1150,6 +1153,13 @@ private fun shellEntryProvider(
             onBack = { settingsStack.pop(route) },
             onEdit = { id -> if (settingsStack.lastOrNull() !is ChatFolderEditRoute) settingsStack.add(ChatFolderEditRoute(id)) },
         )
+    }
+
+    // Sady samolepek nad sekcí Obecné, jako složky chatů.
+    entry<StickerSetsRoute>(
+        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+    ) { route ->
+        StickerSetsScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     entry<ChatFolderEditRoute>(
@@ -1370,6 +1380,7 @@ private fun conversationBelow(stack: List<NavKey>, route: MediaRoute): Long? {
 private fun NavKey?.isOverSettingsSection(): Boolean =
     this == EditProfileRoute || this == BlockedSendersRoute || this == BlockSenderRoute || this == TwoStepRoute ||
         this == AppLockRoute || this == ChatFoldersRoute || this is ChatFolderEditRoute || this == ProxySettingsRoute ||
+        this == StickerSetsRoute ||
         this == AccountPrivacyRoute || this is PrivacySettingRoute
 
 /** Kontejner obrazovky chatu (konverzace, seznam témat) v barvě chatu (`ChatColorTheme`). */

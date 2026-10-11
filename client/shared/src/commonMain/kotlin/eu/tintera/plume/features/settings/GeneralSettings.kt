@@ -37,7 +37,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * [SettingsSectionScreen].
  */
 @Composable
-fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onOpenBlocked: () -> Unit, onOpenFolders: () -> Unit, onOpenProxy: () -> Unit, onOpenAccountPrivacy: () -> Unit, onOpenTwoStep: () -> Unit, onOpenAppLock: () -> Unit) {
+fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onOpenBlocked: () -> Unit, onOpenFolders: () -> Unit, onOpenStickerSets: () -> Unit, onOpenProxy: () -> Unit, onOpenAccountPrivacy: () -> Unit, onOpenTwoStep: () -> Unit, onOpenAppLock: () -> Unit) {
     val account by viewModel.account.collectAsStateWithLifecycle()
     var confirmLogOut by rememberSaveable { mutableStateOf(false) }
 
@@ -87,7 +87,7 @@ fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onO
     LanguageSettings()
 
     // Chaty: složky a akce tahem. Vlastní sekce by měla dvě položky.
-    ChatsSettings(swipe = koinViewModel(), quickReaction = koinViewModel(), onOpenFolders = onOpenFolders)
+    ChatsSettings(swipe = koinViewModel(), quickReaction = koinViewModel(), onOpenFolders = onOpenFolders, onOpenStickerSets = onOpenStickerSets)
 
     // Soukromí: blokovaní, citlivý obsah a dvoufázové ověření. V Obecných, samostatná sekce by měla dvě položky.
     PrivacySettings(
