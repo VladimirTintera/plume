@@ -407,9 +407,10 @@ u pole (`ScheduledMessagesSheet`): odeslat hned, změnit čas, smazat.
   během nabídky, naplánování a „Odeslat hned" (bot dostal hlasovku dlouhou jen o nahraný čas),
   zavření nabídky a nahrávání dál, bez zvuku; anketa naplánovaná z formuláře v seznamu
   naplánovaných. iOS jen přeložené.
-- **Samolepka a GIF mají volby odeslání u PODRŽENÉ buňky**, ne na podržení (`StickerCell`,
-  `GifCell`, společné `SendOptionsButton`, `SendMenuChoice`): podržení samolepku vybere a druhé gesto nad ní by se s tím pralo. Tlačítko
-  je v protějším rohu než hvězdička oblíbených a nabídne totéž co odesílací tlačítko bez efektu
+- **Samolepka a GIF mají volby odeslání u PODRŽENÉ položky**, ne na podržení: samolepka
+  v náhledu (`StickerPreviewDialog`), GIF v rohu buňky (`GifCell`, `SendOptionsButton`); nabídka
+  je společná (`SendOptionsMenu`, `SendMenuChoice`). Podržení samolepce otevře náhled a druhé gesto
+  nad ní by se s tím pralo. Tlačítko nabídne totéž co odesílací tlačítko bez efektu
   (bez zvuku, naplánovat, až bude online). Nabízí ho jen výběr v konverzaci — sada otevřená
   z historie a formulář ankety `sendMenu` nepředávají. Ověřeno na emulátoru v chatu s botem:
   naplánovaná samolepka v seznamu naplánovaných, „Odeslat hned" (bot ji dostal) a bez zvuku;
@@ -709,7 +710,7 @@ v seznamu chatů („Koncept: …") a na ostatních zařízeních.
 
 ## Plovoucí napovídání nad polem
 
-Emoji ke slovu, příkazy bota, zmínky a výsledky inline bota PLAVOU nad vstupním polem
+Emoji ke slovu, samolepky k emoji, příkazy bota, zmínky a výsledky inline bota PLAVOU nad vstupním polem
 (`FloatingSuggestion`, `floatAbove`) na skle v inverzní roli jako snackbar, a místo v rozvržení
 nezabírají.
 

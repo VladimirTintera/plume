@@ -24,7 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +40,7 @@ import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.telegram.StickerSetDetail
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_send
 import eu.tintera.plume.resources.stickers_add_set
 import eu.tintera.plume.resources.stickers_count
 import eu.tintera.plume.resources.stickers_remove_set
@@ -146,7 +147,8 @@ fun StickerSetSheet(
     )
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
-    var activeStickerId by rememberSaveable { mutableStateOf<Long?>(null) }
+    // Samolepka ve velkém náhledu (podržením), jako ve výběru.
+    var previewSticker by remember { mutableStateOf<StickerItem?>(null) }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         when (val current = state) {
@@ -170,19 +172,25 @@ fun StickerSetSheet(
             is StickerSetState.Loaded -> {
                 val detail = current.detail
                 val cells = StickerCells(
-                    activeStickerId = activeStickerId,
+                    activeStickerId = previewSticker?.id,
                     favoriteFileIds = current.favoriteFileIds,
                     onPick = { sticker ->
                         scope.launch { sheetState.hide() }.invokeOnCompletion { onPick(sticker) }
                     },
                     // Podržení si haptiku dělá `combinedClickable` samo — viz `Haptics`.
-                    onActivate = { sticker -> activeStickerId = sticker.id },
+                    onPreview = { sticker -> previewSticker = sticker },
                     onToggleFavorite = { sticker ->
                         haptics.toggle(on = sticker.sendFileId !in current.favoriteFileIds)
                         viewModel.toggleFavorite(sticker)
                     },
                     // Jedna sada na celý sheet — hraje celá, jako mřížka ve výběru.
                     playing = true,
+                )
+                StickerPreviewHost(
+                    sticker = previewSticker,
+                    cells = cells,
+                    pickLabel = stringResource(Res.string.conversation_send),
+                    onClose = { previewSticker = null },
                 )
 
                 Column(Modifier.padding(horizontal = 24.dp)) {

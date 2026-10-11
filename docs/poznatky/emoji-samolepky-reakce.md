@@ -316,11 +316,21 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
   (`LottieAnimatable.roundToCompositionFrameRate`) zaokrouhluje PRŮBĚH 0..1 na krok `1/fps` —
   tedy na šedesátiny celé animace, ne snímky za vteřinu. Třívteřinová samolepka by jela
   dvaceti snímky za vteřinu.
-- **Podržením se samolepka vybere — vždy nejvýš jedna** (`activeStickerId`): podbarvení,
-  hvězdička oblíbených a volby odeslání. Vybraná hraje i mimo usazenou stránku a přežije
-  přepnutí záložky. Podržení nic neposílá; `combinedClickable` po dlouhém stisku klik
-  nevyvolá. Aktivní buňka je podbarvená — statická `.webp` se rozhýbat nemá jak a bez podbarvení
-  by nebylo poznat, že podržení zabralo.
+- **Podržení otevře velký náhled** (`StickerPreviewDialog`, `StickerPreviewHost`): samolepka
+  240 dp a pod ní Poslat, hvězdička oblíbených a volby odeslání. Buňka má 76 dp a samolepka se
+  v ní dá jen tušit; dřív podržení samolepku jen podbarvilo a v rozích buňky vyskočila 28dp
+  tlačítka, na která se špatně trefovalo a která samolepku zakrývala. Podržení nic neposílá
+  (`combinedClickable` po dlouhém stisku klik nevyvolá). Buňka pod náhledem zůstává
+  podbarvená (`activeStickerId`), ať je vidět, odkud samolepka přišla.
+  - **`Dialog`, ne vrstva v sheetu** — náhled má být větší než mřížka a sheet je vysoký jen
+    kolem 370 dp. Dialog leží nad sheetem a ztmavení mu dává okno.
+  - **Odchod se dohraje, než dialog zmizí** (`MutableTransitionState`, `onDismiss` až po
+    `isIdle`). Poslat ho zavře bez animace — zavírá se i sheet a náhled odjede s ním.
+  - **Hvězdička náhled nezavírá**; stav se přepíše, až ho potvrdí `favoriteStickersUpdates`.
+  - **Hlavní tlačítko má popisek od volajícího** (`pickLabel`): ve formuláři ankety se
+    samolepka nevysílá, ale vybírá („Vybrat").
+  - **Prstem po mřížce se mezi náhledy nepřejíždí** (jako v Telegramu). Náhled zůstává otevřený
+    i po puštění, protože se v něm ťuká na tlačítka.
 - **Sheety výběru a sady nemají napůl rozbalený stav** (`enabledValues = Hidden, Expanded`).
   Jejich obsah je vyšší než polovina obrazovky a napůl rozbalený sheet schoval spodek pod okraj —
   tlačítko „Odebrat sadu" skončilo pod navigační lištou. V sheetu SADY řeší spodní inset
@@ -345,8 +355,8 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
 - **Výsledky hledání nahradí záložky ve stejně vysoké ploše** (řádek záložek má proto pevnou
   výšku), jinak by sheet při prvním písmenu poskočil. Co se ukazuje, rozhoduje text v poli, ne
   stav hledání — po smazání textu se záložky vrátí hned, bez čekání na debounce.
-- **Oblíbené se přepínají hvězdičkou u PODRŽENÉ samolepky**, ne u každé buňky. Hvězdička všude
-  by zaplevelila mřížku a ťuknutí vedle ní by samolepku omylem poslalo; podržení je zároveň
+- **Oblíbené se přepínají hvězdičkou v NÁHLEDU podržené samolepky**, ne u každé buňky. Hvězdička
+  všude by zaplevelila mřížku a ťuknutí vedle ní by samolepku omylem poslalo; podržení je zároveň
   „prohlížím si tuhle". Stav se lokálně nepřepisuje, potvrzení přijde `favoriteStickersUpdates`.
 - **Buňky mřížky mají `animateItem`** — odebraná samolepka plynule zmizí a ostatní se dosunou.
   Průhlednost přes effects spec, posun přes spatial. **Mřížka zůstává i prázdná** a prázdný text
@@ -379,6 +389,26 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
 - **Samolepka nezakládá let ze vstupního pole** a nemaže rozepsaný text — z pole nevyletěla.
 - **Ikony Material Symbols ze SVG mají souřadnice y v -960..0.** Ve vector drawable se to řeší
   `group` s `translateY="960"`, cesta zůstává, jak je.
+
+## Samolepky k emoji v poli
+
+Když je v poli jediné emoji a nic jiného, nad polem vyjede řádek samolepek k němu
+(`StickerSuggestionsPanel`, `StickerSuggestionsViewModel`, pravidlo `stickerSuggestionEmoji`,
+testy `StickerSuggestionsTest`). Ťuknutí pošle samolepku MÍSTO emoji a pole vyprázdní.
+
+- **Jen samotné emoji** (`emojiClusterCount(max = 1) == 1`, mezery kolem nevadí). Emoji
+  uprostřed věty je součást textu; složené emoji (rodina, vlajka, odstín pleti) je jedno.
+- **Jen z toho, co uživatel zná** (`StickerRepository.stickersForEmoji` = `getStickers`
+  s emoji jako dotazem): vlastní sady, nedávné a oblíbené, ne veřejné sady. Nabízet cizí
+  samolepky ke každému napsanému emoji by bylo dotěrné a stálo by to dotaz na server.
+- **Ne při úpravě, s přílohou ani bez práva posílat samolepky** — emoji je tam text nebo popisek
+  a samolepka by nešla poslat. Dotaz na inline bota má přednost; se zmínkou ani emoji ke slovu
+  se nepotká, ty chtějí písmena.
+- **Samolepky v řádku hrají** — je jich vidět pár a řádek je jediný, jako mřížka jedné sady.
+- **Plave nad polem** jako ostatní napovídání (`FloatingSuggestion`), tlačítko dolů mezitím
+  ustoupí. Kdo chtěl poslat emoji, odešle ho jako vždycky.
+- **Logika je ve vlastních funkcích** (`rememberStickerSuggestions`), ne v `ConversationScreen`:
+  ta je v dexu na hraně (viz „ConversationScreen je v dexu na hraně" v CLAUDE.md).
 
 ## Výběr GIFů
 
