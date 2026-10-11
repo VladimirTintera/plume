@@ -107,8 +107,8 @@ import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.media_sticker
-import eu.tintera.plume.resources.menu_favorite_add
-import eu.tintera.plume.resources.menu_favorite_remove
+import eu.tintera.plume.resources.conversation_send
+import eu.tintera.plume.resources.stickers_preview
 import eu.tintera.plume.resources.schedule_24dp
 import eu.tintera.plume.resources.search_24dp
 import eu.tintera.plume.resources.star_24dp
@@ -121,7 +121,6 @@ import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.schedule_send_24dp
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
-import eu.tintera.plume.resources.star_filled_24dp
 import eu.tintera.plume.resources.stickers_add
 import eu.tintera.plume.resources.stickers_added
 import eu.tintera.plume.resources.stickers_clear_search
@@ -151,6 +150,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -403,6 +403,8 @@ internal fun StickerPickerSheet(
     sendMenu: SendMenuOffer? = null,
     onPickWith: (StickerItem, SendMenuChoice) -> Unit = { _, _ -> },
     onPickGifWith: (GifItem, SendMenuChoice) -> Unit = { _, _ -> },
+    /** Hlavní tlačítko náhledu podržené samolepky. Formulář ankety samolepku nevysílá, vybírá. */
+    pickLabel: StringResource = Res.string.conversation_send,
 ) {
     val viewModel: StickerPickerViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -422,12 +424,11 @@ internal fun StickerPickerSheet(
     val haptics = LocalHapticFeedback.current
 
     /*
-     * Samolepka vybraná podržením: podbarvení, hvězdička oblíbených a volby odeslání. Vždy nejvýš
-     * JEDNA — kdo si prohlíží sadu, porovnává samolepky po jedné. Přežívá přepnutí záložky.
-     *
-     * Hraje i mimo usazenou stránku (při swipu na sousední sadu), ostatní samolepky jen na ní.
+     * Samolepka otevřená podržením ve velkém náhledu (s hvězdičkou oblíbených a volbami odeslání).
+     * Její buňka je pod náhledem podbarvená, ať je vidět, odkud přišla. Rotaci nepřežije — je to
+     * chvilkové prohlédnutí, ne stav výběru.
      */
-    var activeStickerId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var previewSticker by remember { mutableStateOf<StickerItem?>(null) }
 
     /** Sada otevřená z trendů. Sheet nad sheetem: výběr pod ní zůstává, zpátky se vrací zavřením. */
     var openSetId by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -450,9 +451,23 @@ internal fun StickerPickerSheet(
     }
     // Podržení haptiku NEPOTŘEBUJE: `combinedClickable` ji u dlouhého stisku dělá samo
     // a ruční volání navíc ji zdvojí (změřeno: dvě vibrace 9 ms po sobě).
-    val activate: (StickerItem) -> Unit = { sticker -> activeStickerId = sticker.id }
+    val cells = StickerCells(
+        activeStickerId = previewSticker?.id,
+        favoriteFileIds = favoriteIds,
+        onPick = pick,
+        onPreview = { sticker -> previewSticker = sticker },
+        onToggleFavorite = toggleFavorite,
+        sendMenu = sendMenu,
+        onPickWith = pickWith,
+    )
 
     TrendingSetSheetHost(setId = openSetId, onClose = { openSetId = null }, pick = pick)
+    StickerPreviewHost(
+        sticker = previewSticker,
+        cells = cells,
+        pickLabel = stringResource(pickLabel),
+        onClose = { previewSticker = null },
+    )
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -527,10 +542,7 @@ internal fun StickerPickerSheet(
                 StickerSearchResults(
                     search = search,
                     // Výsledky jsou jediná mřížka na obrazovce, hrají celé.
-                    cells = StickerCells(
-                        activeStickerId, favoriteIds, pick, activate, toggleFavorite, sendMenu, pickWith,
-                        playing = true,
-                    ),
+                    cells = cells.copy(playing = true),
                 )
             }
             return@ModalBottomSheet
@@ -573,8 +585,7 @@ internal fun StickerPickerSheet(
             StickerPage(
                 tab = tab,
                 stickers = state.stickersOf(tab),
-                cells = StickerCells(
-                    activeStickerId, favoriteIds, pick, activate, toggleFavorite, sendMenu, pickWith,
+                cells = cells.copy(
                     /*
                      * Hraje jen USAZENÁ stránka. Během swipu jsou vidět dvě; přijíždějící sada by
                      * se uprostřed tahu rozbalovala a parsovala desítky animací a tah by zadrhával.
@@ -757,16 +768,18 @@ private fun TrendingSetRow(
 }
 
 /**
- * Co buňky mřížky potřebují od sheetu. Balík místo pěti parametrů, které by se jinak táhly přes
- * stránku záložky i výsledky hledání.
+ * Co buňky mřížky (a náhled podržené samolepky) potřebují od sheetu. Balík místo pěti parametrů,
+ * které by se jinak táhly přes stránku záložky i výsledky hledání.
  */
-internal class StickerCells(
+internal data class StickerCells(
+    /** Samolepka otevřená v náhledu; její buňka je podbarvená. */
     val activeStickerId: Long?,
     val favoriteFileIds: Set<Int>,
     val onPick: (StickerItem) -> Unit,
-    val onActivate: (StickerItem) -> Unit,
+    /** Podržení: otevře náhled ([StickerPreviewHost]). */
+    val onPreview: (StickerItem) -> Unit,
     val onToggleFavorite: (StickerItem) -> Unit,
-    /** Co nabídne tlačítko odeslání u podržené samolepky; `null` = tlačítko není (sada, anketa). */
+    /** Volby odeslání v náhledu podržené samolepky; `null` = tlačítko není (sada, anketa). */
     val sendMenu: SendMenuOffer? = null,
     val onPickWith: (StickerItem, SendMenuChoice) -> Unit = { _, _ -> },
     /**
@@ -778,15 +791,12 @@ internal class StickerCells(
 )
 
 /**
- * Jedna samolepka v mřížce: ťuknutí pošle, podržení vybere (a rozhýbe, pokud mřížka nehraje celá).
+ * Jedna samolepka v mřížce: ťuknutí pošle, podržení otevře velký náhled ([StickerPreviewDialog]).
  *
- * U podržené samolepky se v rohu objeví **hvězdička oblíbených**. Jen u ní: hvězdička u každé
- * buňky by zaplevelila mřížku a ťuknutí vedle ní by samolepku omylem poslalo. Podržení je
- * zároveň „prohlížím si tuhle", takže nabídnout k ní akci dává smysl.
- *
- * V protějším rohu je z téhož důvodu **tlačítko odeslání s volbami** (bez zvuku, naplánovat,
- * až bude online) — u textu je to podržení odesílacího tlačítka, jenže podržení samolepky ji
- * vybere. Druhé gesto nad samolepkou by se s tím pralo; tlačítko u podržené ne.
+ * **Hvězdička oblíbených a volby odeslání** (bez zvuku, naplánovat, až bude online) jsou v náhledu,
+ * ne v buňce: hvězdička u každé buňky by zaplevelila mřížku a ťuknutí vedle ní by samolepku
+ * omylem poslalo. U textu jsou volby na podržení odesílacího tlačítka, jenže podržení samolepky
+ * patří náhledu — druhé gesto nad ní by se s ním pralo.
  */
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
@@ -828,48 +838,23 @@ internal fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Mo
                 .clip(STICKER_TOUCH_SHAPE)
                 .combinedClickable(
                     onClick = { cells.onPick(sticker) },
-                    // Podržení samolepku neposílá — jen ji vybere. Po puštění `combinedClickable`
-                    // klik nevyvolá, takže nic neodejde omylem.
-                    onLongClick = { cells.onActivate(sticker) },
+                    // Podržení samolepku neposílá — jen otevře náhled. Po puštění
+                    // `combinedClickable` klik nevyvolá, takže nic neodejde omylem.
+                    onLongClickLabel = stringResource(Res.string.stickers_preview),
+                    onLongClick = { cells.onPreview(sticker) },
                 ),
         )
 
         StickerPreview(sticker.preview, playing = active || cells.playing, modifier = Modifier.fillMaxSize().padding(6.dp))
-
-        if (active) {
-            cells.sendMenu?.let { offer ->
-                SendOptionsButton(
-                    offer = offer,
-                    onChoice = { choice -> cells.onPickWith(sticker, choice) },
-                    modifier = Modifier.align(Alignment.TopStart).padding(2.dp),
-                )
-            }
-        }
-
-        if (active) {
-            val favorite = sticker.sendFileId in cells.favoriteFileIds
-            Surface(
-                onClick = { cells.onToggleFavorite(sticker) },
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.align(Alignment.TopEnd).padding(2.dp).size(FAVORITE_BUTTON_SIZE),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        painterResource(if (favorite) Res.drawable.star_filled_24dp else Res.drawable.star_24dp),
-                        contentDescription = stringResource(if (favorite) Res.string.menu_favorite_remove else Res.string.menu_favorite_add),
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-            }
-        }
     }
 }
 
+/** Nabízí aspoň jednu volbu odeslání (bez efektu, ten u samolepky a GIFu není). */
+internal fun SendMenuOffer.hasSendOptions(): Boolean = silent || schedule || whenOnline
+
 /**
- * Kulaté tlačítko s nabídkou voleb odeslání (bez zvuku, naplánovat, až bude online) u podržené
- * samolepky nebo GIFu. Nic, když [offer] žádnou z nich nedovolí.
+ * Kulaté tlačítko s nabídkou voleb odeslání (bez zvuku, naplánovat, až bude online) u podrženého
+ * GIFu. Nic, když [offer] žádnou z nich nedovolí. Samolepka má volby v náhledu.
  */
 @Composable
 internal fun SendOptionsButton(
@@ -877,7 +862,7 @@ internal fun SendOptionsButton(
     onChoice: (SendMenuChoice) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (!(offer.silent || offer.schedule || offer.whenOnline)) return
+    if (!offer.hasSendOptions()) return
     Box(modifier) {
         var menuOpen by remember { mutableStateOf(false) }
         Surface(
@@ -885,7 +870,7 @@ internal fun SendOptionsButton(
             shape = CircleShape,
             color = MaterialTheme.colorScheme.secondaryContainer,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            modifier = Modifier.size(FAVORITE_BUTTON_SIZE),
+            modifier = Modifier.size(SEND_OPTIONS_BUTTON_SIZE),
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
@@ -895,27 +880,43 @@ internal fun SendOptionsButton(
                 )
             }
         }
-        ExpressiveMenu(
+        SendOptionsMenu(
+            offer = offer,
             expanded = menuOpen,
             onDismiss = { menuOpen = false },
-            groups = listOf(
-                listOfNotNull(
-                    MenuAction(stringResource(Res.string.conversation_send_silent), Res.drawable.notifications_off_24dp) {
-                        menuOpen = false
-                        onChoice(SendMenuChoice.Silent)
-                    }.takeIf { offer.silent },
-                    MenuAction(stringResource(Res.string.conversation_send_schedule), Res.drawable.schedule_send_24dp) {
-                        menuOpen = false
-                        onChoice(SendMenuChoice.Schedule)
-                    }.takeIf { offer.schedule },
-                    MenuAction(stringResource(Res.string.conversation_send_when_online), Res.drawable.online_prediction_24dp) {
-                        menuOpen = false
-                        onChoice(SendMenuChoice.WhenOnline)
-                    }.takeIf { offer.whenOnline },
-                ),
-            ),
+            onChoice = onChoice,
         )
     }
+}
+
+/** Nabídka voleb odeslání pod tlačítkem, které ji otevřelo. Volba nabídku zavře. */
+@Composable
+internal fun SendOptionsMenu(
+    offer: SendMenuOffer,
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    onChoice: (SendMenuChoice) -> Unit,
+) {
+    ExpressiveMenu(
+        expanded = expanded,
+        onDismiss = onDismiss,
+        groups = listOf(
+            listOfNotNull(
+                MenuAction(stringResource(Res.string.conversation_send_silent), Res.drawable.notifications_off_24dp) {
+                    onDismiss()
+                    onChoice(SendMenuChoice.Silent)
+                }.takeIf { offer.silent },
+                MenuAction(stringResource(Res.string.conversation_send_schedule), Res.drawable.schedule_send_24dp) {
+                    onDismiss()
+                    onChoice(SendMenuChoice.Schedule)
+                }.takeIf { offer.schedule },
+                MenuAction(stringResource(Res.string.conversation_send_when_online), Res.drawable.online_prediction_24dp) {
+                    onDismiss()
+                    onChoice(SendMenuChoice.WhenOnline)
+                }.takeIf { offer.whenOnline },
+            ),
+        ),
+    )
 }
 
 /** Tvar vlnky stisku: sušenka, do které se podbarvení rozvine (plný průběh i s pootočením). */
@@ -1135,10 +1136,10 @@ private fun EmojiFallback(emoji: String) {
 }
 
 /**
- * Hvězdička oblíbených v rohu podržené samolepky. Malá, aby nezakrývala samolepku; ťuká se na ni
+ * Tlačítko voleb odeslání v rohu podrženého GIFu. Malé, aby nezakrývalo GIF; ťuká se na něj
  * vědomě, ne omylem, protože se objeví až po podržení.
  */
-private val FAVORITE_BUTTON_SIZE = 28.dp
+private val SEND_OPTIONS_BUTTON_SIZE = 28.dp
 
 /**
  * Insety sheetu výběru: nahoře stavová lišta, dole JEN klávesnice (hledání).

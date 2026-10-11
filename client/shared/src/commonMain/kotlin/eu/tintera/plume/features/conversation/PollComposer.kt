@@ -89,6 +89,7 @@ import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.menu_select
 import eu.tintera.plume.resources.check_box_filled_24dp
 import eu.tintera.plume.resources.check_box_outline_blank_24dp
 import eu.tintera.plume.resources.check_circle_filled_24dp
@@ -1337,6 +1338,8 @@ internal fun PollMediaChooser(
                 onPickGif = { gif -> onChosen(PollDraftMedia.Gif(gif.animation)) },
                 onDismiss = onDismiss,
                 modes = listOf(mode),
+                // Samolepka se do ankety vybírá, ne posílá.
+                pickLabel = Res.string.menu_select,
             )
         }
         PollMediaKind.Link -> PollLinkDialog(onConfirm = { url -> onChosen(PollDraftMedia.Link(url)) }, onDismiss = onDismiss)

@@ -1796,6 +1796,14 @@ fun ConversationScreen(
             }
             LaunchedEffect(emojiWord?.word) { emojiWords.lookup(emojiWord?.word, emojiLanguages) }
             val shownEmojis = emojiSuggestions?.takeIf { it.word == emojiWord?.word }?.emojis.orEmpty()
+            // Samolepky k emoji, které je v poli samo. Jen kde se samolepka smí poslat a pole
+            // je obyčejná zpráva — ne při úpravě ani s přílohou, kde by emoji byl popisek.
+            val stickerEmoji = remember(draft.text, inlineDraft, state.editing, state.attachments.isEmpty(), state.content.stickers) {
+                stickerSuggestionEmoji(draft.text).takeIf {
+                    inlineDraft == null && state.editing == null && state.attachments.isEmpty() && state.content.stickers
+                }
+            }
+            val shownStickers = rememberStickerSuggestions(stickerEmoji, viewModel.chatId)
             LaunchedEffect(inlineDraft) { viewModel.inlineQuery(inlineDraft) }
             // Bot, který chce polohu, ji dostane přibližnou — dotaz na oprávnění přijde až u něj.
             val inlineLocation = rememberDeviceLocation()
@@ -1824,6 +1832,7 @@ fun ConversationScreen(
             val floatingShown = (commandsShown && state.botCommands.isNotEmpty()) ||
                 (mentionQuery != null && state.mentionSuggestions?.candidates.orEmpty().isNotEmpty()) ||
                 (emojiWord != null && shownEmojis.isNotEmpty()) ||
+                (stickerEmoji != null && shownStickers.isNotEmpty()) ||
                 inlineDraft != null
             SideEffect { suggestionsFloating = floatingShown }
             Column(Modifier.floatAbove()) {
@@ -1863,6 +1872,18 @@ fun ConversationScreen(
                         val (text, cursor) = emojiReplacement(draft.text, word, emoji)
                         draft = TextFieldValue(text, selection = TextRange(cursor))
                         emojiWords.picked(emoji)
+                        viewModel.onDraftChanged(composer.composed)
+                    },
+                    glass = suggestionGlass,
+                )
+                StickerSuggestionsPanel(
+                    stickers = shownStickers,
+                    visible = stickerEmoji != null,
+                    onPick = { sticker ->
+                        haptics.confirm()
+                        viewModel.sendSticker(sticker)
+                        // Emoji v poli byla ta samolepka — pole se vyprázdní a koncept s ním.
+                        draft = TextFieldValue()
                         viewModel.onDraftChanged(composer.composed)
                     },
                     glass = suggestionGlass,

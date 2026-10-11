@@ -126,6 +126,7 @@ import eu.tintera.plume.core.telegram.ThreadConversationRepository
 import eu.tintera.plume.features.conversation.StickerPickerViewModel
 import eu.tintera.plume.features.conversation.GifPickerViewModel
 import eu.tintera.plume.features.conversation.StickerSetViewModel
+import eu.tintera.plume.features.conversation.StickerSuggestionsViewModel
 import eu.tintera.plume.features.conversation.PollVotersViewModel
 import eu.tintera.plume.features.conversation.PollComposerViewModel
 import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
@@ -446,6 +447,7 @@ fun appModule() = module {
     viewModelOf(::ReplySuggestionsViewModel)
     viewModelOf(::DraftRewriteViewModel)
     viewModelOf(::EmojiSuggestionsViewModel)
+    viewModelOf(::StickerSuggestionsViewModel)
 
     // chatId přichází z navigační routy, ne z grafu → runtime parametr. Druhý parametr je zpráva,
     // na kterou se po otevření skočí; bývá `null`, a podle typu by se spletl s chatId — proto index.

@@ -58,6 +58,13 @@ interface StickerRepository {
      * aspoň ten druhý. Prázdný výsledek znamená „nic nenalezeno".
      */
     suspend fun search(query: StickerQuery): StickerSearchResult
+
+    /**
+     * Samolepky k jednomu [emoji] pro návrh nad vstupním polem: jen z toho, co uživatel zná
+     * (vlastní sady, nedávné, oblíbené), ne z veřejných sad — nabízet cizí samolepky ke každému
+     * napsanému emoji by bylo dotěrné. Při chybě prázdný seznam.
+     */
+    suspend fun stickersForEmoji(emoji: String): List<StickerItem>
 }
 
 /** Co se hledá. Jestli jde o emoji, nebo o slovo, rozhoduje volající. */
