@@ -1030,6 +1030,7 @@
     <string name="gifs_section_trending">Populární</string>
     <string name="gifs_none_found">Žádné GIFy nenalezeny.</string>
     <string name="gifs_remove_saved">Odebrat z uložených</string>
+    <string name="gifs_save">Uložit GIF</string>
     <string name="gifs_failed">GIFy se nepodařilo načíst.</string>
     <string name="conversation_open_gifs">GIFy</string>
     <plurals name="invite_members">

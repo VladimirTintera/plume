@@ -23,6 +23,12 @@ interface GifRepository {
 
     /** Odebere GIF z uložených. Potvrzení dorazí přes [savedGifs]. */
     suspend fun removeSaved(gif: GifItem): Result<Unit>
+
+    /**
+     * Uloží GIF (třeba nalezený mezi populárními) mezi uložené, na začátek. Uložených je omezený
+     * počet a nejstarší přebytečný server vyřadí. Potvrzení dorazí přes [savedGifs].
+     */
+    suspend fun addSaved(gif: GifItem): Result<Unit>
 }
 
 /** GIF ve výběru. Posílá se soubor ([MessageMedia.Animation.fileId]), který na serveru už je. */

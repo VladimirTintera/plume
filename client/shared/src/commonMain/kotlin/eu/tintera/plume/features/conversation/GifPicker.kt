@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -14,17 +15,15 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -32,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -44,18 +44,19 @@ import eu.tintera.plume.core.telegram.GifItem
 import eu.tintera.plume.core.telegram.GifPage
 import eu.tintera.plume.core.telegram.GifRepository
 import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.core.ui.rememberFileState
 import eu.tintera.plume.core.video.VideoSurface
 import eu.tintera.plume.core.video.rememberVideoPlayer
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.content_gif
+import eu.tintera.plume.resources.conversation_send
 import eu.tintera.plume.resources.gifs_failed
 import eu.tintera.plume.resources.gifs_none_found
-import eu.tintera.plume.resources.gifs_remove_saved
 import eu.tintera.plume.resources.gifs_search
 import eu.tintera.plume.resources.gifs_section_saved
 import eu.tintera.plume.resources.gifs_section_trending
+import eu.tintera.plume.resources.stickers_preview
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -66,7 +67,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -157,9 +158,14 @@ class GifPickerViewModel(
         searchJob = viewModelScope.launch { load(current.query, current.nextOffset) }
     }
 
-    fun removeSaved(gif: GifItem) {
+    /** Uloží GIF, nebo ho z uložených odebere. Stav potvrdí update uložených, lokálně se nemění. */
+    fun toggleSaved(gif: GifItem, saved: Boolean) {
         viewModelScope.launch {
-            repository.removeSaved(gif).onFailure { logger.w(it) { "GIF se nepodařilo odebrat z uložených." } }
+            if (saved) {
+                repository.removeSaved(gif).onFailure { logger.w(it) { "GIF se nepodařilo odebrat z uložených." } }
+            } else {
+                repository.addSaved(gif).onFailure { logger.w(it) { "GIF se nepodařilo uložit." } }
+            }
         }
     }
 
@@ -195,17 +201,45 @@ internal fun GifPanel(
     /** Volby odeslání u podrženého GIFu; `null` = jde jen poslat ťuknutím. */
     sendMenu: SendMenuOffer? = null,
     onPickWith: (GifItem, SendMenuChoice) -> Unit = { _, _ -> },
+    /** Hlavní tlačítko náhledu podrženého GIFu. Formulář ankety GIF nevysílá, vybírá. */
+    pickLabel: StringResource = Res.string.conversation_send,
 ) {
     val viewModel: GifPickerViewModel = koinViewModel(key = "gifs-$chatId") { parametersOf(chatId) }
     val saved by viewModel.saved.collectAsStateWithLifecycle()
     val results by viewModel.results.collectAsStateWithLifecycle()
     var searchText by rememberSaveable { mutableStateOf("") }
+    val haptics = LocalHapticFeedback.current
 
     /**
-     * Podržený GIF (klíč položky, uložený GIF bývá i mezi populárními). Jen jeden, jako
-     * u samolepek: ukáže se u něj tlačítko voleb odeslání a u uloženého i křížek na odebrání.
+     * GIF otevřený podržením ve velkém náhledu ([GifPreviewDialog]) a klíč jeho buňky (uložený
+     * GIF bývá i mezi populárními a podbarvit se má jen ta, odkud přišel). Rotaci nepřežije —
+     * je to chvilkové prohlédnutí, jako u samolepek.
      */
-    var activeKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var preview by remember { mutableStateOf<Pair<String, GifItem>?>(null) }
+    val savedIds = saved.orEmpty().mapTo(HashSet()) { it.id }
+
+    preview?.let { (_, gif) ->
+        val isSaved = gif.id in savedIds
+        GifPreviewDialog(
+            gif = gif,
+            saved = isSaved,
+            pickLabel = stringResource(pickLabel),
+            sendMenu = sendMenu?.takeIf { it.hasSendOptions() },
+            onPick = {
+                preview = null
+                onPick(gif)
+            },
+            onPickWith = { choice ->
+                preview = null
+                onPickWith(gif, choice)
+            },
+            onToggleSaved = {
+                haptics.toggle(on = !isSaved)
+                viewModel.toggleSaved(gif, isSaved)
+            },
+            onDismiss = { preview = null },
+        )
+    }
 
     LaunchedEffect(Unit) { viewModel.search(searchText) }
 
@@ -240,15 +274,9 @@ internal fun GifPanel(
                     GifCell(
                         gif = gif,
                         onPick = onPick,
-                        active = key == activeKey,
+                        active = key == preview?.first,
                         // Podržení si haptiku dělá `combinedClickable` samo — viz `Haptics`.
-                        onActivate = { activeKey = key },
-                        onRemove = {
-                            activeKey = null
-                            viewModel.removeSaved(gif)
-                        },
-                        sendMenu = sendMenu,
-                        onPickWith = onPickWith,
+                        onPreview = { preview = key to gif },
                     )
                 }
                 if (results.gifs.isNotEmpty()) gifHeader(trendingTitle)
@@ -259,11 +287,8 @@ internal fun GifPanel(
                 GifCell(
                     gif = gif,
                     onPick = onPick,
-                    active = key == activeKey,
-                    // Nalezený GIF odebrat nejde; podržení je tu jen kvůli volbám odeslání.
-                    onActivate = { activeKey = key }.takeIf { sendMenu != null },
-                    sendMenu = sendMenu,
-                    onPickWith = onPickWith,
+                    active = key == preview?.first,
+                    onPreview = { preview = key to gif },
                 )
                 LoadMoreAtEnd(index, results.gifs.size, viewModel::loadMore)
             }
@@ -308,8 +333,9 @@ private fun GifMessage(text: String) {
 }
 
 /**
- * Jeden GIF v mřížce: ťuknutí ho pošle. Podržení ukáže tlačítko voleb odeslání ([sendMenu],
- * jako u samolepky) a u uloženého i odebrání ([onRemove]).
+ * Jeden GIF v mřížce: ťuknutí ho pošle, podržení otevře velký náhled ([onPreview],
+ * [GifPreviewDialog]) s volbami odeslání a uložením. Buňka pod náhledem má obrys ([active]),
+ * ať je vidět, odkud GIF přišel — jako podbarvená samolepka.
  *
  * Buňka má pevnou výšku a GIF se do ní ořízne — v řádku by se jinak buňky rozjely podle poměru
  * stran. Velký GIF se sám nestahuje (stejné pravidlo jako v konverzaci), zůstane náhled.
@@ -320,10 +346,8 @@ internal fun GifCell(
     gif: GifItem,
     onPick: (GifItem) -> Unit,
     active: Boolean = false,
-    onActivate: (() -> Unit)? = null,
-    onRemove: (() -> Unit)? = null,
-    sendMenu: SendMenuOffer? = null,
-    onPickWith: (GifItem, SendMenuChoice) -> Unit = { _, _ -> },
+    /** Podržení; `null` = podržení nic nedělá (výsledky inline bota). */
+    onPreview: (() -> Unit)? = null,
 ) {
     val animation = gif.animation
     val fileState = rememberFileState(animation.fileId.takeIf { animation.autoPlays })
@@ -337,7 +361,8 @@ internal fun GifCell(
             .clip(RoundedCornerShape(GIF_CELL_CORNER))
             .combinedClickable(
                 onClick = { onPick(gif) },
-                onLongClick = onActivate,
+                onLongClickLabel = onPreview?.let { stringResource(Res.string.stickers_preview) },
+                onLongClick = onPreview,
             ),
     ) {
         // Náhled drží místo, dokud GIF nedorazí; server ho ale nemusí dát vůbec.
@@ -357,29 +382,12 @@ internal fun GifCell(
             VideoSurface(player, Modifier.coverAspect(animation.width, animation.height))
         }
 
-        if (active && sendMenu != null) {
-            SendOptionsButton(
-                offer = sendMenu,
-                onChoice = { choice -> onPickWith(gif, choice) },
-                modifier = Modifier.align(Alignment.TopStart).padding(4.dp),
+        if (active) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .border(ACTIVE_BORDER, MaterialTheme.colorScheme.primary, RoundedCornerShape(GIF_CELL_CORNER)),
             )
-        }
-        if (active && onRemove != null) {
-            Surface(
-                onClick = onRemove,
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.align(Alignment.TopEnd).padding(4.dp).size(REMOVE_BUTTON_SIZE),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        painterResource(Res.drawable.close_24dp),
-                        contentDescription = stringResource(Res.string.gifs_remove_saved),
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-            }
         }
     }
 }
@@ -389,7 +397,7 @@ internal fun GifCell(
  * `VideoSurface` obraz vepisuje, takže by v buňce pevné výšky zůstaly pruhy a sousední GIFy by
  * měly každý jinou velikost. Obrázek náhledu se ořezává stejně (`Crop`).
  */
-private fun Modifier.coverAspect(width: Int, height: Int): Modifier = layout { measurable, constraints ->
+internal fun Modifier.coverAspect(width: Int, height: Int): Modifier = layout { measurable, constraints ->
     val boxWidth = constraints.maxWidth
     val boxHeight = constraints.maxHeight
     val ratio = if (width > 0 && height > 0) width.toFloat() / height else boxWidth.toFloat() / boxHeight
@@ -425,4 +433,5 @@ private const val LOAD_MORE_THRESHOLD = 6
 private val GIF_CELL = 110.dp
 private val GIF_CELL_HEIGHT = 96.dp
 private val GIF_CELL_CORNER = 12.dp
-private val REMOVE_BUTTON_SIZE = 28.dp
+/** Obrys buňky, jejíž GIF je otevřený v náhledu. */
+private val ACTIVE_BORDER = 3.dp

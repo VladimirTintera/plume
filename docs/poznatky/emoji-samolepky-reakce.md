@@ -525,7 +525,21 @@ ním mřížka. Bez dotazu nahoře uložené GIFy, pod nimi populární. Ťuknut
   na serveru už je; přes bota by u zprávy stálo „přes @gif" a byly by to dvě různé cesty pro
   uložený a nalezený GIF. Po odeslání `addSavedAnimation`, ať je nahoře (jako `addRecentSticker`).
 - **Uložené jsou živý tok** (`UpdateSavedAnimations` → znovu `getSavedAnimations`). GIF poslaný
-  z klávesnice se mezi ně dostane sám. Podržení uloženého nabídne křížek na odebrání.
+  z klávesnice se mezi ně dostane sám.
+- **Podržení otevře velký náhled** (`GifPreviewDialog`), jako u samolepek: GIF v plném poměru
+  stran (extrémní poměry oříznuté na 0,75–2,5, jinak by náhled přerostl obrazovku) a pod ním
+  Poslat, záložka uložení a volby odeslání. Dřív podržení ukázalo v rozích buňky 28dp tlačítka
+  (volby odeslání, u uloženého křížek), na která se špatně trefovalo a která GIF zakrývala.
+  - **Uložit jde i GIF z populárních a hledání** (`addSavedAnimation`), dřív šlo jen odebrat
+    uložený. Záložka náhled nezavírá, stav potvrdí update uložených (jako hvězdička samolepky);
+    uložený GIF přibude nahoře, takže se mřížka pod náhledem posune.
+  - **V náhledu se GIF stahuje vždycky**, i velký, který mřížka sama nestahuje (`autoPlays`) —
+    podržením si ho uživatel výslovně otevřel.
+  - **Buňka pod náhledem má obrys** v `primary` — GIF je obdélník, sušenka jako u samolepky by
+    k němu neseděla. Klíč nese sekci: uložený GIF bývá i mezi populárními a obrys má mít jen
+    buňka, odkud přišel.
+  - **Hlavní tlačítko má popisek od volajícího** (`pickLabel`), ve formuláři ankety „Vybrat".
+  - Výsledky inline bota (`InlineResultsPanel`) náhled nemají — `GifCell(onPreview = null)`.
 - **Stránka patří dotazu** (`GifResults.withPage`, testy `GifResultsTest`) — pomalá odpověď na
   „ko" nesmí přepsat „kočka". Bot vrací tentýž GIF na dvou stránkách; duplicitní klíč by mřížku
   shodil, proto `distinctBy`.

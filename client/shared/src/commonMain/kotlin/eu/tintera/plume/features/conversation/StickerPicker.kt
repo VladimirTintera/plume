@@ -39,7 +39,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -134,7 +133,6 @@ import eu.tintera.plume.resources.star_24dp
 import eu.tintera.plume.resources.conversation_send_when_online
 import eu.tintera.plume.resources.conversation_send_schedule
 import eu.tintera.plume.resources.conversation_send_silent
-import eu.tintera.plume.resources.conversation_send_options
 import eu.tintera.plume.resources.online_prediction_24dp
 import eu.tintera.plume.resources.notifications_off_24dp
 import eu.tintera.plume.resources.schedule_send_24dp
@@ -666,6 +664,7 @@ internal fun StickerPickerSheet(
                 onPickWith = { gif, choice ->
                     scope.launch { sheetState.hide() }.invokeOnCompletion { onPickGifWith(gif, choice) }
                 },
+                pickLabel = pickLabel,
             )
             return@ModalBottomSheet
         }
@@ -1134,43 +1133,6 @@ internal fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Mo
 /** Nabízí aspoň jednu volbu odeslání (bez efektu, ten u samolepky a GIFu není). */
 internal fun SendMenuOffer.hasSendOptions(): Boolean = silent || schedule || whenOnline
 
-/**
- * Kulaté tlačítko s nabídkou voleb odeslání (bez zvuku, naplánovat, až bude online) u podrženého
- * GIFu. Nic, když [offer] žádnou z nich nedovolí. Samolepka má volby v náhledu.
- */
-@Composable
-internal fun SendOptionsButton(
-    offer: SendMenuOffer,
-    onChoice: (SendMenuChoice) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    if (!offer.hasSendOptions()) return
-    Box(modifier) {
-        var menuOpen by remember { mutableStateOf(false) }
-        Surface(
-            onClick = { menuOpen = true },
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            modifier = Modifier.size(SEND_OPTIONS_BUTTON_SIZE),
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    painterResource(Res.drawable.schedule_send_24dp),
-                    contentDescription = stringResource(Res.string.conversation_send_options),
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        }
-        SendOptionsMenu(
-            offer = offer,
-            expanded = menuOpen,
-            onDismiss = { menuOpen = false },
-            onChoice = onChoice,
-        )
-    }
-}
-
 /** Nabídka voleb odeslání pod tlačítkem, které ji otevřelo. Volba nabídku zavře. */
 @Composable
 internal fun SendOptionsMenu(
@@ -1571,12 +1533,6 @@ internal fun StickerPreview(
 private fun EmojiFallback(emoji: String) {
     Text(emoji, style = MaterialTheme.typography.headlineMedium)
 }
-
-/**
- * Tlačítko voleb odeslání v rohu podrženého GIFu. Malé, aby nezakrývalo GIF; ťuká se na něj
- * vědomě, ne omylem, protože se objeví až po podržení.
- */
-private val SEND_OPTIONS_BUTTON_SIZE = 28.dp
 
 /**
  * Insety sheetu výběru: nahoře stavová lišta, dole JEN klávesnice (hledání).

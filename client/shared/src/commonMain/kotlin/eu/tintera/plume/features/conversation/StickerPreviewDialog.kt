@@ -157,7 +157,7 @@ internal fun StickerPreviewDialog(
 
 /** Tlačítko voleb odeslání v náhledu; nic, když [offer] žádnou volbu nedovolí. */
 @Composable
-private fun SendOptionsIconButton(offer: SendMenuOffer, onChoice: (SendMenuChoice) -> Unit) {
+internal fun SendOptionsIconButton(offer: SendMenuOffer, onChoice: (SendMenuChoice) -> Unit) {
     if (!offer.hasSendOptions()) return
     Box {
         var menuOpen by remember { mutableStateOf(false) }
