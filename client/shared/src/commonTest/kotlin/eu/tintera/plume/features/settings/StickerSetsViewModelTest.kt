@@ -11,6 +11,7 @@ import eu.tintera.plume.core.telegram.StickerQuery
 import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.telegram.StickerSearchResult
 import eu.tintera.plume.core.telegram.StickerSetDetail
+import eu.tintera.plume.core.telegram.StickerSetKind
 import eu.tintera.plume.core.telegram.StickerSetSample
 import eu.tintera.plume.core.telegram.StickerSetSummary
 import kotlinx.coroutines.Dispatchers
@@ -53,8 +54,8 @@ class StickerSetsViewModelTest {
         val reorders = mutableListOf<List<Long>>()
         val changes = mutableListOf<String>()
 
-        override fun installedSets(): Flow<List<StickerSetSummary>> = installed
-        override suspend fun reorderSets(setIds: List<Long>): Result<Unit> {
+        override fun installedSets(kind: StickerSetKind): Flow<List<StickerSetSummary>> = installed
+        override suspend fun reorderSets(setIds: List<Long>, kind: StickerSetKind): Result<Unit> {
             reorders += setIds
             return Result.success(Unit)
         }
@@ -66,7 +67,7 @@ class StickerSetsViewModelTest {
             changes += "installed $setId $installed"
             return Result.success(Unit)
         }
-        override suspend fun archivedSets(afterSetId: Long) = Result.success(ArchivedStickerSets(0, emptyList()))
+        override suspend fun archivedSets(afterSetId: Long, kind: StickerSetKind) = Result.success(ArchivedStickerSets(0, emptyList()))
 
         override fun recentStickers(): Flow<List<StickerItem>> = flowOf(emptyList())
         override fun favoriteStickers(): Flow<List<StickerItem>> = flowOf(emptyList())
@@ -90,7 +91,7 @@ class StickerSetsViewModelTest {
     @Test
     fun tahPosleNovePoradiAzPoPusteni() = runTest {
         val server = FakeServer(listOf(set(1), set(2), set(3)))
-        val viewModel = StickerSetsViewModel(server)
+        val viewModel = StickerSetsViewModel(StickerSetKind.Stickers, server)
         backgroundScope.launch { viewModel.state.collect {} }
         advanceUntilIdle()
 
@@ -107,7 +108,7 @@ class StickerSetsViewModelTest {
     @Test
     fun lokalniPoradiVydrziDoPotvrzeniServerem() = runTest {
         val server = FakeServer(listOf(set(1), set(2), set(3)))
-        val viewModel = StickerSetsViewModel(server)
+        val viewModel = StickerSetsViewModel(StickerSetKind.Stickers, server)
         backgroundScope.launch { viewModel.state.collect {} }
         advanceUntilIdle()
 
@@ -125,7 +126,7 @@ class StickerSetsViewModelTest {
     @Test
     fun pustenyTahBezZmenyNicNeposle() = runTest {
         val server = FakeServer(listOf(set(1), set(2)))
-        val viewModel = StickerSetsViewModel(server)
+        val viewModel = StickerSetsViewModel(StickerSetKind.Stickers, server)
         backgroundScope.launch { viewModel.state.collect {} }
         advanceUntilIdle()
 
@@ -140,7 +141,7 @@ class StickerSetsViewModelTest {
     @Test
     fun archivaceSeDaVratit() = runTest {
         val server = FakeServer(listOf(set(1), set(2)))
-        val viewModel = StickerSetsViewModel(server)
+        val viewModel = StickerSetsViewModel(StickerSetKind.Stickers, server)
         backgroundScope.launch { viewModel.state.collect {} }
         advanceUntilIdle()
 
@@ -161,7 +162,7 @@ class StickerSetsViewModelTest {
     @Test
     fun odebraniSeDaVratit() = runTest {
         val server = FakeServer(listOf(set(1)))
-        val viewModel = StickerSetsViewModel(server)
+        val viewModel = StickerSetsViewModel(StickerSetKind.Stickers, server)
         backgroundScope.launch { viewModel.state.collect {} }
         advanceUntilIdle()
 

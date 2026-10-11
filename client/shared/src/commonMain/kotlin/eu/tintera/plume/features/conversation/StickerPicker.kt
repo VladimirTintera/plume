@@ -119,6 +119,7 @@ import eu.tintera.plume.core.telegram.StickerSearchResult
 import eu.tintera.plume.core.telegram.StickerSetSummary
 import eu.tintera.plume.core.telegram.StickerSetSample
 import eu.tintera.plume.core.ui.AnimatedSticker
+import eu.tintera.plume.core.ui.CustomEmojiImage
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.StickerPlayback
@@ -1183,7 +1184,14 @@ internal fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Mo
                 ),
         )
 
-        StickerPreview(sticker.preview, playing = active || cells.playing, modifier = Modifier.fillMaxSize().padding(6.dp))
+        // Vlastní emoji (sada emoji otevřená z Nastavení) přes `CustomEmojiImage` — jednobarevné
+        // obarví barvou textu; jako samolepka by bylo bílé na světlém pozadí.
+        val customEmoji = sticker.customEmojiId
+        if (customEmoji != null) {
+            CustomEmojiImage(id = customEmoji, fallback = sticker.preview.emoji, modifier = Modifier.fillMaxSize().padding(14.dp))
+        } else {
+            StickerPreview(sticker.preview, playing = active || cells.playing, modifier = Modifier.fillMaxSize().padding(6.dp))
+        }
     }
 }
 

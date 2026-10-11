@@ -59,6 +59,9 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chat_folders_row_help
 import eu.tintera.plume.resources.chat_folders_title
 import eu.tintera.plume.resources.folder_24dp
+import eu.tintera.plume.resources.emoji_sets_row_help
+import eu.tintera.plume.resources.emoji_sets_title
+import eu.tintera.plume.resources.mood_24dp
 import eu.tintera.plume.resources.sticker_24dp
 import eu.tintera.plume.resources.sticker_sets_row_help
 import eu.tintera.plume.resources.sticker_sets_title
@@ -83,6 +86,7 @@ internal fun ChatsSettings(
     quickReaction: QuickReactionSettingsViewModel,
     onOpenFolders: () -> Unit,
     onOpenStickerSets: () -> Unit,
+    onOpenEmojiSets: () -> Unit,
 ) {
     val actions by swipe.actions.collectAsStateWithLifecycle()
     // Která strana má otevřený výběr; `null` = žádná.
@@ -102,6 +106,13 @@ internal fun ChatsSettings(
             headlineContent = { Text(stringResource(Res.string.sticker_sets_title)) },
             supportingContent = { Text(stringResource(Res.string.sticker_sets_row_help)) },
             modifier = Modifier.clickable(onClick = onOpenStickerSets),
+        )
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            leadingContent = { Icon(painterResource(Res.drawable.mood_24dp), contentDescription = null) },
+            headlineContent = { Text(stringResource(Res.string.emoji_sets_title)) },
+            supportingContent = { Text(stringResource(Res.string.emoji_sets_row_help)) },
+            modifier = Modifier.clickable(onClick = onOpenEmojiSets),
         )
         SwipeSide.entries.forEach { side ->
             ListItem(

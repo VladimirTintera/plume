@@ -3,6 +3,7 @@ package eu.tintera.plume.features.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.telegram.StickerRepository
+import eu.tintera.plume.core.telegram.StickerSetKind
 import eu.tintera.plume.core.telegram.StickerSetSummary
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
@@ -59,10 +60,12 @@ sealed interface StickerSetNotice {
  *   znovu po každé změně nainstalovaných: archivace sadu přesune sem a vrácení odsud.
  */
 class StickerSetsViewModel(
+    /** Samolepky, nebo sady vlastních emoji — Telegram drží pořadí i archiv každého zvlášť. */
+    private val kind: StickerSetKind,
     private val repository: StickerRepository,
 ) : ViewModel() {
 
-    private val server: StateFlow<List<StickerSetSummary>?> = repository.installedSets()
+    private val server: StateFlow<List<StickerSetSummary>?> = repository.installedSets(kind)
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val dragOrder = MutableStateFlow<List<StickerSetSummary>?>(null)
@@ -107,7 +110,7 @@ class StickerSetsViewModel(
             return
         }
         viewModelScope.launch {
-            repository.reorderSets(order.map { it.id })
+            repository.reorderSets(order.map { it.id }, kind)
                 .onSuccess {
                     dragTimeout?.cancel()
                     dragTimeout = launch {
@@ -145,7 +148,7 @@ class StickerSetsViewModel(
         when (notice) {
             is StickerSetNotice.Archived -> repository.setArchived(notice.set.id, archived = false)
             is StickerSetNotice.Removed -> repository.setInstalled(notice.set.id, installed = true)
-        }.mapCatching { if (notice.orderBefore.isNotEmpty()) repository.reorderSets(notice.orderBefore).getOrThrow() }
+        }.mapCatching { if (notice.orderBefore.isNotEmpty()) repository.reorderSets(notice.orderBefore, kind).getOrThrow() }
     }
 
     private fun change(notice: StickerSetNotice?, action: suspend () -> Result<Unit>) {
@@ -164,7 +167,7 @@ class StickerSetsViewModel(
         val after = current.archived.lastOrNull()?.id ?: return
         local.update { it.copy(loadingMoreArchived = true) }
         viewModelScope.launch {
-            repository.archivedSets(afterSetId = after)
+            repository.archivedSets(afterSetId = after, kind = kind)
                 .onSuccess { page ->
                     local.update { state ->
                         val known = state.archived.map { it.id }.toSet()
@@ -180,7 +183,7 @@ class StickerSetsViewModel(
     }
 
     private suspend fun reloadArchived() {
-        repository.archivedSets(afterSetId = 0)
+        repository.archivedSets(afterSetId = 0, kind = kind)
             .onSuccess { page -> local.update { it.copy(archived = page.sets, archivedTotal = page.total) } }
     }
 

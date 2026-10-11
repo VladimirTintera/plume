@@ -28,6 +28,7 @@ import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.resources.content_copy_24dp
+import eu.tintera.plume.resources.emoji_count
 import eu.tintera.plume.resources.forward_24dp
 import eu.tintera.plume.resources.invite_links_share_failed
 import eu.tintera.plume.resources.share_24dp
@@ -252,13 +253,14 @@ fun StickerSetSheet(
                             favoriteFileIds = current.favoriteFileIds,
                             onPick = { sticker ->
                                 if (onPick == null) {
-                                    previewSticker = sticker
+                                    // Vlastní emoji náhled nemá: hvězdička oblíbených patří samolepkám.
+                                    if (!detail.isCustomEmoji) previewSticker = sticker
                                 } else {
                                     scope.launch { sheetState.hide() }.invokeOnCompletion { onPick(sticker) }
                                 }
                             },
                             // Podržení si haptiku dělá `combinedClickable` samo — viz `Haptics`.
-                            onPreview = { sticker -> previewSticker = sticker },
+                            onPreview = { sticker -> if (!detail.isCustomEmoji) previewSticker = sticker },
                             onToggleFavorite = { sticker ->
                                 haptics.toggle(on = sticker.sendFileId !in current.favoriteFileIds)
                                 viewModel.toggleFavorite(sticker)
@@ -285,7 +287,11 @@ fun StickerSetSheet(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
-                                    text = stickerCount(detail.stickers.size),
+                                    text = if (detail.isCustomEmoji) {
+                                pluralStringResource(Res.plurals.emoji_count, detail.stickers.size, detail.stickers.size)
+                            } else {
+                                stickerCount(detail.stickers.size)
+                            },
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )

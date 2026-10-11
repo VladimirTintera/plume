@@ -10,6 +10,7 @@ import dev.g000sha256.tdl.dto.Sticker
 import dev.g000sha256.tdl.dto.StickerSetInfo
 import dev.g000sha256.tdl.dto.StickerFullTypeCustomEmoji
 import dev.g000sha256.tdl.dto.StickerFullTypeRegular
+import dev.g000sha256.tdl.dto.StickerType
 import dev.g000sha256.tdl.dto.StickerTypeCustomEmoji
 import dev.g000sha256.tdl.dto.StickerTypeRegular
 import dev.g000sha256.tdl.toResult
@@ -54,14 +55,14 @@ class TdlStickerRepository(
 
     private val client: TdlClient get() = holder.client
 
-    override fun installedSets(): Flow<List<StickerSetSummary>> =
+    override fun installedSets(kind: StickerSetKind): Flow<List<StickerSetSummary>> =
         holder.updates { installedStickerSetsUpdates }
-            // Masky a vlastní emoji mají vlastní seznamy; výběr samolepek se jich netýká.
-            .filter { it.stickerType is StickerTypeRegular }
+            // Každý druh má vlastní seznam (masky, samolepky, emoji); bere se jen ten jeden.
+            .filter { it.stickerType.kind() == kind }
             .map { }
             .onStart { emit(Unit) }
             .map {
-                client.getInstalledStickerSets(stickerType = StickerTypeRegular())
+                client.getInstalledStickerSets(stickerType = kind.toTdl())
                     .toResult()
                     .map { sets ->
                         sets.sets.toSummaries()
@@ -105,7 +106,7 @@ class TdlStickerRepository(
     override fun stickerSetDetail(setId: Long): Flow<StickerSetDetail?> =
         holder.updates { installedStickerSetsUpdates }
             // Přidání i odebrání sady mění seznam nainstalovaných; jiný update o sadě TDLib nepošle.
-            .filter { it.stickerType is StickerTypeRegular }
+            // Bez filtru druhu: detail ukazuje i sady vlastních emoji.
             .map { }
             .onStart { emit(Unit) }
             .map {
@@ -119,6 +120,7 @@ class TdlStickerRepository(
                             isInstalled = set.isInstalled && !set.isArchived,
                             isOfficial = set.isOfficial,
                             stickers = set.stickers.toItems(),
+                            isCustomEmoji = set.stickerType is StickerTypeCustomEmoji,
                         )
                     }
                     .getOrElse { failure ->
@@ -180,15 +182,15 @@ class TdlStickerRepository(
             .map { }
             .onFailure { logger.w(it) { "Sadu $setId se nepodařilo ${if (archived) "archivovat" else "vrátit z archivu"}." } }
 
-    override suspend fun reorderSets(setIds: List<Long>): Result<Unit> =
-        client.reorderInstalledStickerSets(stickerType = StickerTypeRegular(), stickerSetIds = setIds.toLongArray())
+    override suspend fun reorderSets(setIds: List<Long>, kind: StickerSetKind): Result<Unit> =
+        client.reorderInstalledStickerSets(stickerType = kind.toTdl(), stickerSetIds = setIds.toLongArray())
             .toResult()
             .map { }
             .onFailure { logger.w(it) { "Pořadí sad se nepodařilo uložit." } }
 
-    override suspend fun archivedSets(afterSetId: Long): Result<ArchivedStickerSets> =
+    override suspend fun archivedSets(afterSetId: Long, kind: StickerSetKind): Result<ArchivedStickerSets> =
         client.getArchivedStickerSets(
-            stickerType = StickerTypeRegular(),
+            stickerType = kind.toTdl(),
             offsetStickerSetId = afterSetId,
             limit = ARCHIVED_PAGE,
         )
@@ -463,6 +465,7 @@ class TdlStickerRepository(
                 cover = set.covers.filterNotNull().firstOrNull()?.toMedia(),
                 size = set.size,
                 isOfficial = set.isOfficial,
+                coverCustomEmojiId = (set.covers.filterNotNull().firstOrNull()?.fullType as? StickerFullTypeCustomEmoji)?.customEmojiId,
             )
         }
 
@@ -494,7 +497,20 @@ class TdlStickerRepository(
                     id = sticker.id,
                     sendFileId = sticker.sticker.id,
                     preview = sticker.toMedia(),
+                    customEmojiId = (sticker.fullType as? StickerFullTypeCustomEmoji)?.customEmojiId,
                 )
             }
     }
+}
+
+private fun StickerSetKind.toTdl(): StickerType = when (this) {
+    StickerSetKind.Stickers -> StickerTypeRegular()
+    StickerSetKind.Emoji -> StickerTypeCustomEmoji()
+}
+
+/** Druh sady z TDLib; masky se nespravují (`null`). */
+private fun StickerType.kind(): StickerSetKind? = when (this) {
+    is StickerTypeRegular -> StickerSetKind.Stickers
+    is StickerTypeCustomEmoji -> StickerSetKind.Emoji
+    else -> null
 }

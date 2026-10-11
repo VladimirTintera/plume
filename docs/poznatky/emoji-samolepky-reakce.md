@@ -522,6 +522,25 @@ chatů a stejně se v ní přeřazuje.
   a zpět, Archivovat + „Vrátit" (sada zpět na třetím místě), detail sady bez Poslat,
   „Přidat" v Archivovaných. Odebrat jen přes testy ViewModelu.
 
+### Sady emoji v Nastavení
+
+Nastavení → Obecné → Chaty → Sady emoji (`EmojiSetsRoute`) je TÁŽ obrazovka jako sady samolepek
+(`StickerSetsScreen(kind = StickerSetKind.Emoji)`), jen nad jiným seznamem: Telegram drží pořadí
+i archiv každého druhu zvlášť, takže repository bere druh (`installedSets(kind)`,
+`reorderSets(…, kind)`, `archivedSets(…, kind)`) a ViewModel ho dostává parametrem (klíč
+`emoji-sets` / `sticker-sets`, ať se dva ViewModely nepletou).
+
+- **Vlastní emoji se kreslí přes `CustomEmojiImage`, ne jako samolepka** (obálka řádku
+  `StickerSetSummary.coverCustomEmojiId`, buňka detailu `StickerItem.customEmojiId`):
+  jednobarevná emoji jsou bílá a obarvit je umí jen ono — jako samolepka by na světlém pozadí
+  zmizela.
+- **Detail sady emoji nemá náhled podržením**: jeho hvězdička patří oblíbeným SAMOLEPKÁM.
+  Počet je „N emoji" (`StickerSetDetail.isCustomEmoji`, plurál `emoji_count`).
+- **`stickerSetDetail` se přepočítá po změně nainstalovaných sad JAKÉHOKOLI druhu** — filtr na
+  běžné samolepky by u sady emoji tlačítko Přidat/Odebrat nikdy neodemkl.
+- **Ověřeno na emulátoru**: dvě sady (Duck a dočasně přidaná Crayons), přeřazení drželo po
+  odchodu z obrazovky, detail sady s obarvenými emoji a „104 emoji", odebrání Crayons.
+
 ## Samolepky k emoji v poli
 
 Když je v poli jediné emoji a nic jiného, nad polem vyjede řádek samolepek k němu

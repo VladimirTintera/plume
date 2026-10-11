@@ -428,7 +428,7 @@ fun appModule() = module {
     viewModelOf(::SettingsViewModel)
     viewModelOf(::BlockedSendersViewModel)
     viewModelOf(::ChatFoldersViewModel)
-    viewModelOf(::StickerSetsViewModel)
+    viewModel { parameters -> StickerSetsViewModel(kind = parameters.get(), repository = get()) }
     viewModelOf(::ProxySettingsViewModel)
     viewModelOf(::ProxyStatusViewModel)
     // Id složky je Int a nic jiného téhož typu parametry nemají, `get()` ho nezamění.

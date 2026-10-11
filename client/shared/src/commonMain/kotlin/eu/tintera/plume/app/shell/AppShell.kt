@@ -29,6 +29,8 @@ import eu.tintera.plume.core.navigation.AppLockRoute
 import eu.tintera.plume.core.navigation.ChatFolderEditRoute
 import eu.tintera.plume.core.navigation.ChatFoldersRoute
 import eu.tintera.plume.core.navigation.StickerSetsRoute
+import eu.tintera.plume.core.navigation.EmojiSetsRoute
+import eu.tintera.plume.core.telegram.StickerSetKind
 import eu.tintera.plume.core.navigation.ProxySettingsRoute
 import eu.tintera.plume.features.proxy.ProxySettingsScreen
 import eu.tintera.plume.features.settings.ChatFolderEditScreen
@@ -1129,6 +1131,7 @@ private fun shellEntryProvider(
             onOpenBlocked = { if (settingsStack.lastOrNull() != BlockedSendersRoute) settingsStack.add(BlockedSendersRoute) },
             onOpenFolders = { if (settingsStack.lastOrNull() != ChatFoldersRoute) settingsStack.add(ChatFoldersRoute) },
             onOpenStickerSets = { if (settingsStack.lastOrNull() != StickerSetsRoute) settingsStack.add(StickerSetsRoute) },
+            onOpenEmojiSets = { if (settingsStack.lastOrNull() != EmojiSetsRoute) settingsStack.add(EmojiSetsRoute) },
             onOpenProxy = { if (settingsStack.lastOrNull() != ProxySettingsRoute) settingsStack.add(ProxySettingsRoute) },
             onOpenAccountPrivacy = { if (settingsStack.lastOrNull() != AccountPrivacyRoute) settingsStack.add(AccountPrivacyRoute) },
             onOpenTwoStep = { if (settingsStack.lastOrNull() != TwoStepRoute) settingsStack.add(TwoStepRoute) },
@@ -1177,7 +1180,22 @@ private fun shellEntryProvider(
     entry<StickerSetsRoute>(
         metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
     ) { route ->
-        StickerSetsScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
+        StickerSetsScreen(
+            kind = StickerSetKind.Stickers,
+            viewModel = koinViewModel(key = "sticker-sets") { parametersOf(StickerSetKind.Stickers) },
+            onBack = { settingsStack.pop(route) },
+        )
+    }
+
+    // Sady vlastních emoji: táž obrazovka, jiný seznam.
+    entry<EmojiSetsRoute>(
+        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+    ) { route ->
+        StickerSetsScreen(
+            kind = StickerSetKind.Emoji,
+            viewModel = koinViewModel(key = "emoji-sets") { parametersOf(StickerSetKind.Emoji) },
+            onBack = { settingsStack.pop(route) },
+        )
     }
 
     entry<ChatFolderEditRoute>(
@@ -1398,7 +1416,7 @@ private fun conversationBelow(stack: List<NavKey>, route: MediaRoute): Long? {
 private fun NavKey?.isOverSettingsSection(): Boolean =
     this == EditProfileRoute || this == BlockedSendersRoute || this == BlockSenderRoute || this == TwoStepRoute ||
         this == AppLockRoute || this == ChatFoldersRoute || this is ChatFolderEditRoute || this == ProxySettingsRoute ||
-        this == StickerSetsRoute ||
+        this == StickerSetsRoute || this == EmojiSetsRoute ||
         this == AccountPrivacyRoute || this is PrivacySettingRoute
 
 /** Kontejner obrazovky chatu (konverzace, seznam témat) v barvě chatu (`ChatColorTheme`). */

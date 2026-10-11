@@ -96,6 +96,10 @@ data object ChatFoldersRoute : Route
 @Serializable
 data object StickerSetsRoute : Route
 
+/** Sady vlastních emoji — táž obrazovka jako [StickerSetsRoute], vlastní pořadí a archiv. */
+@Serializable
+data object EmojiSetsRoute : Route
+
 /** Editor složky nad seznamem složek; [folderId] `0` = nová složka. */
 @Serializable
 data class ChatFolderEditRoute(val folderId: Int) : Route
@@ -438,6 +442,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(AppLockRoute::class, AppLockRoute.serializer())
             subclass(ChatFoldersRoute::class, ChatFoldersRoute.serializer())
             subclass(StickerSetsRoute::class, StickerSetsRoute.serializer())
+            subclass(EmojiSetsRoute::class, EmojiSetsRoute.serializer())
             subclass(ProxySettingsRoute::class, ProxySettingsRoute.serializer())
             subclass(ChatFolderEditRoute::class, ChatFolderEditRoute.serializer())
             subclass(ArchiveRoute::class, ArchiveRoute.serializer())
