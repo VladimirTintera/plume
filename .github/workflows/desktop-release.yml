@@ -32,8 +32,6 @@ permissions:
 
 on:
   push:
-    # DOČASNĚ: ověření Windows buildu před sloučením (workflow_dispatch jde až z main).
-    branches: [feat/desktop-release]
     tags:
       - 'desktop-*'
   # spouští create-release-tag.yml přes `gh workflow run --ref <tag>`
@@ -56,8 +54,7 @@ jobs:
         id: tag
         run: |
           TAG="${GITHUB_REF_NAME}"
-          [[ "$GITHUB_REF_TYPE" == "branch" ]] && TAG="desktop-0.1.0"   # DOČASNĚ
-          if [[ "$TAG" != desktop-* || ! "$TAG" =~ ^desktop-(([0-9]+)\.([0-9]+)\.([0-9]+))$ ]] \
+          if [[ "$GITHUB_REF_TYPE" != "tag" || ! "$TAG" =~ ^desktop-(([0-9]+)\.([0-9]+)\.([0-9]+))$ ]] \
             || (( BASH_REMATCH[2] > 255 || BASH_REMATCH[3] > 255 || BASH_REMATCH[4] > 65535 )); then
             echo "::error::Workflow musí běžet nad tagem desktop-X.Y.Z (X a Y do 255, Z do 65535), např. desktop-0.3.0; běží nad '$TAG'."
             exit 1
@@ -126,7 +123,6 @@ jobs:
 
   release:
     needs: windows
-    if: github.ref_type == 'tag'   # DOČASNĚ
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
