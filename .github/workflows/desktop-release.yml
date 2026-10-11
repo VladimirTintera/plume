@@ -1,0 +1,167 @@
+# Desktop release — spouští se ručně: Actions → „Desktop Release" → Run workflow → verze.
+#
+# Co workflow udělá:
+#   1. na Windows postaví instalátor MSI (`packageMsi`, verze z inputu přes -PdesktopVersion),
+#   2. založí tag `desktop-<verze>` na commitu, ze kterého se stavělo,
+#   3. založí GitHub Release s MSI v příloze a changelogem od předchozího desktop tagu.
+#
+# Zatím jen Windows. macOS a Linux se staví stejně (`packageDmg`, `packageDeb`), jen na svém
+# systému — jpackage cizí systém zabalit neumí — a macOS navíc chce verzi s MAJOR ≥ 1 a kvůli
+# TDLib Homebrew `openssl@3` (docs/poznatky/desktop.md).
+#
+# MSI jde do PŘÍLOHY RELEASU, ne jen do artefaktu běhu: přílohy releasů se do kvóty Actions
+# nepočítají, artefakty ano (proto tu žije jen den, než ho převezme release).
+#
+# Instalátor NENÍ PODEPSANÝ. Windows SmartScreen ho při prvním spuštění zastaví („Systém Windows
+# ochránil váš počítač") — projde se přes „Další informace" → „Přesto spustit". Podpis chce
+# certifikát pro podepisování kódu (roadmapa).
+#
+# Potřebné secrets (stejné jako u Androidu):
+#   TELEGRAM_API_ID             – api_id z my.telegram.org; bez něj se zapeče 0 a přihlášení selže
+#   TELEGRAM_API_HASH           – api_hash z my.telegram.org
+name: Desktop Release
+
+permissions:
+  contents: write   # tag a GitHub Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Verze X.Y.Z (MSI: X a Y do 255, Z do 65535; každý release musí mít vyšší verzi, jinak MSI starou nenahradí)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Označit jako pre-release'
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Validate version
+        id: version
+        run: |
+          VERSION="${{ inputs.version }}"
+          if [[ ! "$VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] \
+            || (( BASH_REMATCH[1] > 255 || BASH_REMATCH[2] > 255 || BASH_REMATCH[3] > 65535 )); then
+            echo "::error::Verze '$VERSION' neodpovídá formátu X.Y.Z (X a Y do 255, Z do 65535), např. 0.3.0."
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # tagy kvůli kontrole, že verze ještě nevyšla
+
+      - name: Check that the version is new
+        run: |
+          TAG="desktop-${{ steps.version.outputs.version }}"
+          if git rev-parse -q --verify "refs/tags/$TAG" > /dev/null; then
+            echo "::error::Tag $TAG už existuje. Každý release potřebuje novou verzi."
+            exit 1
+          fi
+
+      # Verze musí odpovídat `jvmToolchain(17)` v modulech — s jinou by ji Gradle přes foojay
+      # resolver stahoval znovu při každém běhu. jpackage (MSI) je v JDK od 14.
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      # Projektové gradle.properties počítá s vývojářským strojem; uživatelský
+      # ~/.gradle/gradle.properties má přednost (stejně jako v android-release.yml).
+      - name: Limit Gradle memory for CI
+        run: |
+          mkdir -p ~/.gradle
+          {
+            echo 'org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8 -XX:+UseParallelGC'
+            echo 'kotlin.daemon.jvmargs=-Xmx2g'
+            echo 'org.gradle.workers.max=2'
+          } >> ~/.gradle/gradle.properties
+
+      - name: Check Telegram API credentials
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: |
+          if [ -z "$TELEGRAM_API_ID" ] || [ -z "$TELEGRAM_API_HASH" ]; then
+            echo "::error::Chybí secrets TELEGRAM_API_ID / TELEGRAM_API_HASH — build by se přeložil, ale přihlášení by skončilo chybou od serveru."
+            exit 1
+          fi
+
+      # WiX (nástroj na MSI) si Compose plugin stáhne sám. Bez ProGuardu (`packageMsi`, ne
+      # `packageReleaseMsi`): pravidla pro TDLib wrapper, Koin a serializaci na desktopu nejsou.
+      - name: Build MSI
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: |
+          ./gradlew :client:desktopApp:packageMsi -PdesktopVersion=${{ steps.version.outputs.version }}
+          ls -la client/desktopApp/build/compose/binaries/main/msi/
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: msi
+          path: client/desktopApp/build/compose/binaries/main/msi/*.msi
+          retention-days: 1
+          if-no-files-found: error
+
+  release:
+    needs: windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # celá historie + tagy kvůli changelogu od předchozí verze
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: msi
+          path: dist
+
+      - name: Tag
+        id: tag
+        run: |
+          TAG="desktop-${{ needs.windows.outputs.version }}"
+          PREV=$(git tag -l 'desktop-*' --sort=-v:refname | head -1)
+          git tag "$TAG" "$GITHUB_SHA"
+          git push origin "$TAG"
+          {
+            echo "tag=$TAG"
+            echo "prev=$PREV"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog
+        run: |
+          {
+            echo "**Desktop** ${{ needs.windows.outputs.version }} — Windows (MSI)"
+            echo
+            echo "Instalátor není podepsaný: Windows SmartScreen ho při prvním spuštění zastaví, projde se přes"
+            echo "„Další informace\" → „Přesto spustit\". Instaluje se jen pro přihlášeného uživatele, bez oprávnění správce."
+            echo
+            bash .github/scripts/release-notes.sh "${{ steps.tag.outputs.prev }}" "${{ steps.tag.outputs.tag }}" "targetu"
+          } > release-notes.md
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.tag.outputs.tag }}" dist/*.msi \
+            --title "${{ steps.tag.outputs.tag }}" \
+            --notes-file release-notes.md \
+            ${{ inputs.prerelease && '--prerelease' || '' }}

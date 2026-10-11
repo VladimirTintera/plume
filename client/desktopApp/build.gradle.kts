@@ -35,6 +35,9 @@ dependencies {
     implementation(libs.koin.core)
 }
 
+/** Verze balíčku: `-PdesktopVersion=X.Y.Z` (release z tagu), jinak 1.0.0 pro lokální build. */
+val desktopVersion: String = providers.gradleProperty("desktopVersion").orNull ?: "1.0.0"
+
 compose.desktop {
     application {
         mainClass = "eu.tintera.plume.desktop.MainKt"
@@ -53,15 +56,39 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "Plume"
-            // jpackage chce MAJOR.MINOR.PATCH a na macOS MAJOR > 0; s verzí Androidu se zatím nesvazuje.
-            packageVersion = "1.0.0"
+            // jpackage chce MAJOR.MINOR.PATCH, MSI navíc MAJOR a MINOR do 255 a PATCH do 65535,
+            // macOS MAJOR > 0. Podle verze MSI pozná aktualizaci: nainstalovat stejnou verzi
+            // znovu nejde, nižší přes vyšší taky ne. Release ji bere z tagu (`desktop-release.yml`).
+            packageVersion = desktopVersion
+            // Podle ToS Telegram API smí slovo Telegram stát jen za „Unofficial".
+            description = "Unofficial Telegram client"
+            copyright = "© 2026 Vladimír Tintěra. MIT License."
             vendor = "Vladimír Tintěra"
             // Moduly JDK pro jlink, podle `./gradlew :client:desktopApp:suggestRuntimeModules`.
             // `jdk.unsupported` je sun.misc.Unsafe (DataStore, kotlinx). Po nové závislosti
             // úlohu pustit znovu — chybějící modul se ukáže až za běhu zabalené aplikace.
             modules("java.instrument", "jdk.unsupported")
+
+            // Ikony generuje `play/tools/icon.py desktop` z téže geometrie jako ostatní platformy.
+            windows {
+                iconFile.set(project.file("icons/plume.ico"))
+                // Instalace jen pro uživatele (%LOCALAPPDATA%): bez oprávnění správce, což
+                // u nepodepsaného instalátoru ušetří další varování.
+                perUserInstall = true
+                menu = true
+                menuGroup = "Plume"
+                shortcut = true
+                // Podle něj MSI pozná, že jde o tutéž aplikaci, a starší verzi nahradí.
+                // NESMÍ SE MĚNIT — nové UUID by nainstalovalo druhou kopii vedle staré.
+                upgradeUuid = "d2ef8c8b-9027-4c2e-86a3-0e8d787909da"
+            }
             macOS {
                 bundleID = "eu.tintera.plume"
+                iconFile.set(project.file("icons/plume.icns"))
+            }
+            linux {
+                packageName = "plume"
+                iconFile.set(project.file("icons/plume.png"))
             }
         }
     }

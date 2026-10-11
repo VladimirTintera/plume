@@ -41,10 +41,15 @@ val generateChangelog = tasks.register("generateChangelog") {
             "chybí ${script.name}"
         } else {
             runCatching {
-                val process = ProcessBuilder("python3", script.absolutePath, "bundle", target.absolutePath)
-                    .directory(repoDir)
-                    .redirectErrorStream(true)
-                    .start()
+                // Na Windows bývá jen `python` (python.org i runner GitHubu), `python3` ne.
+                val process = listOf("python3", "python").firstNotNullOfOrNull { python ->
+                    runCatching {
+                        ProcessBuilder(python, script.absolutePath, "bundle", target.absolutePath)
+                            .directory(repoDir)
+                            .redirectErrorStream(true)
+                            .start()
+                    }.getOrNull()
+                } ?: error("python3 ani python není na PATH")
                 val output = process.inputStream.bufferedReader().readText().trim()
                 if (process.waitFor() == 0) {
                     logger.info(output)
