@@ -157,7 +157,13 @@ postaví MSI (`packageMsi -PdesktopVersion=…`), na Ubuntu založí GitHub Rele
 - **MSI jde do přílohy releasu**, artefakt běhu žije jen den: přílohy releasů se do kvóty
   Actions nepočítají.
 - **Na Windows bývá jen `python`, ne `python3`** — `generateChangelog` zkouší obojí, jinak by
-  „Co je nového" v aplikaci tiše zůstalo prázdné.
+  „Co je nového" v aplikaci tiše zůstalo prázdné. **A konzole je v cp1252**: skript vypisuje
+  češtinu a bez `PYTHONIOENCODING=utf-8` padal na `UnicodeEncodeError` — se stejným tichým
+  následkem.
+- **WiX bere jen znaky z cp1252.** „ě" ve jméně dodavatele shodilo `light.exe` kódem 311
+  (LGHT0311) a jpackage z toho udělal holé „exit code 1"; Compose ukáže jen cestu k logu na
+  runneru. Workflow proto při chybě logy jpackage vypisuje (krok „jpackage logs") a metadata
+  balíčku jdou na Windows přes `msiSafe` (bez diakritiky, když se do cp1252 nevejde).
 - **Ikony** (`client/desktopApp/icons/plume.{ico,icns,png}` a ikona okna) generuje
   `play/tools/icon.py desktop` z téže geometrie pírka jako ostatní platformy: zaoblený čtverec
   s průhlednými rohy podle mřížky ikon macOS (824/1024, poloměr 185). ICO nese velikosti

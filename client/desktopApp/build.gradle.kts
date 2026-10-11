@@ -9,7 +9,9 @@ import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.MethodVisitor
 import org.objectweb.asm.Opcodes
+import java.nio.charset.Charset
 import java.nio.file.Files
+import java.text.Normalizer
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
@@ -38,6 +40,18 @@ dependencies {
 /** Verze balíčku: `-PdesktopVersion=X.Y.Z` (release z tagu), jinak 1.0.0 pro lokální build. */
 val desktopVersion: String = providers.gradleProperty("desktopVersion").orNull ?: "1.0.0"
 
+/**
+ * Text pro metadata balíčku. **WiX (MSI) bere jen znaky z kódové stránky 1252** — „ě" v ní není
+ * a `light.exe` končí kódem 311 (LGHT0311), jpackage pak hlásí jen „exit code 1". Na Windows se
+ * proto text, který se do cp1252 nevejde, zbaví diakritiky celý („Vladimir Tintera", ne napůl
+ * „Vladimír Tintera"). Jinde zůstává beze změny.
+ */
+fun msiSafe(text: String): String {
+    val windows = System.getProperty("os.name").lowercase().contains("windows")
+    if (!windows || Charset.forName("windows-1252").newEncoder().canEncode(text)) return text
+    return Normalizer.normalize(text, Normalizer.Form.NFD).replace(Regex("\\p{M}+"), "")
+}
+
 compose.desktop {
     application {
         mainClass = "eu.tintera.plume.desktop.MainKt"
@@ -62,8 +76,8 @@ compose.desktop {
             packageVersion = desktopVersion
             // Podle ToS Telegram API smí slovo Telegram stát jen za „Unofficial".
             description = "Unofficial Telegram client"
-            copyright = "© 2026 Vladimír Tintěra. MIT License."
-            vendor = "Vladimír Tintěra"
+            copyright = msiSafe("© 2026 Vladimír Tintěra. MIT License.")
+            vendor = msiSafe("Vladimír Tintěra")
             // Moduly JDK pro jlink, podle `./gradlew :client:desktopApp:suggestRuntimeModules`.
             // `jdk.unsupported` je sun.misc.Unsafe (DataStore, kotlinx). Po nové závislosti
             // úlohu pustit znovu — chybějící modul se ukáže až za běhu zabalené aplikace.
