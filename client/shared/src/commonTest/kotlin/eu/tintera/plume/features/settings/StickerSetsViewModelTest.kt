@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.telegram.ArchivedStickerSets
+import eu.tintera.plume.core.telegram.CustomEmojiItem
+import eu.tintera.plume.core.telegram.CustomEmojiSet
+import eu.tintera.plume.core.telegram.CustomEmojiSetSample
 import eu.tintera.plume.core.telegram.GroupStickerSet
 import eu.tintera.plume.core.telegram.StickerCategory
 import eu.tintera.plume.core.telegram.StickerItem
@@ -78,6 +81,10 @@ class StickerSetsViewModelTest {
         override suspend fun search(query: StickerQuery) = StickerSearchResult(emptyList(), emptyList())
         override suspend fun categories(): List<StickerCategory> = emptyList()
         override suspend fun stickersForEmoji(emoji: String): List<StickerItem> = emptyList()
+        override suspend fun canUseCustomEmoji(chatId: Long) = false
+        override fun customEmojiSets(): Flow<List<CustomEmojiSet>> = flowOf(emptyList())
+        override suspend fun customEmojiSet(setId: Long) = Result.success(emptyList<CustomEmojiItem>())
+        override fun trendingCustomEmojiSets(): Flow<List<CustomEmojiSetSample>> = emptyFlow()
     }
 
     @Test

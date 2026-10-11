@@ -45,7 +45,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,10 +60,19 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.core.telegram.CustomEmojiItem
+import eu.tintera.plume.core.telegram.FormatSpan
+import eu.tintera.plume.core.telegram.MessageEntity
+import eu.tintera.plume.core.telegram.MessageEntityType
+import eu.tintera.plume.core.telegram.TextFormat
 import eu.tintera.plume.core.ui.MenuPopupProperties
+import eu.tintera.plume.core.ui.appendWithCustomEmoji
+import eu.tintera.plume.core.ui.customEmojiInlineContent
 import eu.tintera.plume.core.ui.previousClusterStart
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.add_24dp
 import eu.tintera.plume.resources.backspace_24dp
+import eu.tintera.plume.resources.custom_emoji_add_sets
 import eu.tintera.plume.resources.conversation_input_message
 import eu.tintera.plume.resources.emoji_delete
 import eu.tintera.plume.resources.emoji_none_found
@@ -89,6 +100,9 @@ internal fun EmojiPanel(
     draft: TextFieldValue,
     onDraftEdit: (TextFieldValue) -> Unit,
     languageCodes: List<String>,
+    draftFormats: List<FormatSpan> = emptyList(),
+    /** Vložení vlastního emoji; `null` = sady vlastních emoji se nenabízejí. */
+    onCustomEmoji: ((CustomEmojiItem) -> Unit)? = null,
 ) {
     val search by viewModel.emojiSearch.collectAsStateWithLifecycle()
     val skinTones by viewModel.skinTones.collectAsStateWithLifecycle()
@@ -120,6 +134,7 @@ internal fun EmojiPanel(
 
     DraftPreview(
         draft = draft,
+        formats = draftFormats,
         onBackspace = { onDraftEdit(draft.deletingBackward()) },
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
     )
@@ -159,10 +174,18 @@ internal fun EmojiPanel(
     }
 
     val scope = rememberCoroutineScope()
+    /*
+     * Za skupinami obyčejných emoji jdou sady vlastních emoji a za nimi „+" s populárními sadami.
+     * Jen tam, kde je uživatel smí použít ([onCustomEmoji]). Sady dorazí až po otevření, proto
+     * počet stránek jako lambda; přibývají na konci, takže se stránkám před nimi nic neposune.
+     */
+    val customSets by viewModel.customEmojiSets.collectAsStateWithLifecycle()
+    val customPages = if (onCustomEmoji != null) customSets.size + 1 else 0
+    val firstCustomPage = EMOJI_GROUPS.size + 1
     // První stránka jsou nedávná; bez nich se otevře rovnou na první skupině, ne na prázdné stránce.
     val pagerState = rememberPagerState(
         initialPage = if (recent.isEmpty()) 1 else 0,
-        pageCount = { EMOJI_GROUPS.size + 1 },
+        pageCount = { EMOJI_GROUPS.size + 1 + customPages },
     )
 
     PrimaryScrollableTabRow(
@@ -199,13 +222,40 @@ internal fun EmojiPanel(
                 )
             }
         }
+        if (onCustomEmoji != null) {
+            customSets.forEachIndexed { setIndex, set ->
+                val index = firstCustomPage + setIndex
+                Tab(
+                    selected = index == pagerState.currentPage,
+                    onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
+                ) { CustomEmojiTabIcon(set) }
+            }
+            val addIndex = firstCustomPage + customSets.size
+            Tab(
+                selected = addIndex == pagerState.currentPage,
+                onClick = { scope.launch { pagerState.animateScrollToPage(addIndex) } },
+            ) {
+                Icon(
+                    painterResource(Res.drawable.add_24dp),
+                    contentDescription = stringResource(Res.string.custom_emoji_add_sets),
+                    modifier = Modifier.padding(vertical = 10.dp),
+                )
+            }
+        }
     }
 
     HorizontalPager(
         state = pagerState,
         modifier = Modifier.fillMaxWidth().height(EMOJI_GRID_HEIGHT + sheetBottomInset()),
     ) { page ->
-        if (page > 0) {
+        if (page >= firstCustomPage && onCustomEmoji != null) {
+            val set = customSets.getOrNull(page - firstCustomPage)
+            if (set != null) {
+                CustomEmojiPage(set, viewModel, onPick = onCustomEmoji)
+            } else {
+                CustomEmojiTrendingPage(viewModel)
+            }
+        } else if (page > 0) {
             EmojiGrid(EMOJI_GROUPS[page - 1].emojis, cells)
         } else if (recent.isNotEmpty()) {
             EmojiGrid(recent, cells)
@@ -232,9 +282,22 @@ internal fun EmojiPanel(
 @Composable
 private fun DraftPreview(
     draft: TextFieldValue,
+    formats: List<FormatSpan>,
     onBackspace: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Vlastní emoji se v náhledu kreslí obrázkem, jako ve zprávě (`appendWithCustomEmoji`).
+    val customEmoji = formats.filter { it.format == TextFormat.CustomEmoji && it.customEmojiId != null && it.end <= draft.text.length }
+    val shown = remember(draft.text, customEmoji) {
+        var ids: Set<Long> = emptySet()
+        val text = buildAnnotatedString {
+            ids = appendWithCustomEmoji(
+                draft.text,
+                customEmoji.map { MessageEntity(it.start, it.end - it.start, MessageEntityType.CustomEmoji(it.customEmojiId!!)) },
+            )
+        }
+        text to ids
+    }
     Surface(
         shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -242,7 +305,12 @@ private fun DraftPreview(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = draft.text.ifEmpty { stringResource(Res.string.conversation_input_message) },
+                text = if (draft.text.isEmpty()) {
+                    AnnotatedString(stringResource(Res.string.conversation_input_message))
+                } else {
+                    shown.first
+                },
+                inlineContent = customEmojiInlineContent(shown.second),
                 color = if (draft.text.isEmpty()) {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 } else {

@@ -37,6 +37,7 @@ import eu.tintera.plume.core.telegram.cleared
 import eu.tintera.plume.core.telegram.covers
 import eu.tintera.plume.core.telegram.linkAt
 import eu.tintera.plume.core.telegram.linked
+import eu.tintera.plume.core.telegram.insertCustomEmoji
 import eu.tintera.plume.core.telegram.toggled
 import eu.tintera.plume.core.telegram.within
 import kotlin.reflect.KProperty
@@ -95,6 +96,18 @@ internal class ComposerDraft(value: TextFieldValue = TextFieldValue(), formats: 
         if (added <= 0 || new.selection.end != at + added) return null
         if (!new.text.startsWith(old.text.take(at)) || !new.text.endsWith(old.text.drop(at))) return null
         return at to at + added
+    }
+
+    /**
+     * Vloží vlastní emoji ([emoji] je obyčejné emoji, za které stojí) místo výběru, kurzor za něj.
+     * Jako každá jiná změna textu posune ostatní rozsahy ([insertCustomEmoji]).
+     */
+    fun insertCustomEmoji(emoji: String, customEmojiId: Long) {
+        val selection = value.selection
+        val result = insertCustomEmoji(value.text, formats, selection.min, selection.max, emoji, customEmojiId)
+        formats = result.formats
+        value = TextFieldValue(result.text, TextRange(selection.min + emoji.length))
+        pending = null
     }
 
     /** Text zvenku (koncept, upravovaná zpráva) i s jeho formátováním; kurzor na konec. */
@@ -206,7 +219,14 @@ internal class ComposerDraft(value: TextFieldValue = TextFieldValue(), formats: 
                     draft.value.selection.end,
                     // Oddělovače mimo tisknutelné znaky: adresa odkazu obsahuje „:" i „;".
                     draft.formats.joinToString(RECORD) {
-                        listOf(it.format.name, it.start, it.end, it.url.orEmpty(), it.language.orEmpty()).joinToString(FIELD)
+                        listOf(
+                            it.format.name,
+                            it.start,
+                            it.end,
+                            it.url.orEmpty(),
+                            it.language.orEmpty(),
+                            it.customEmojiId?.toString().orEmpty(),
+                        ).joinToString(FIELD)
                     },
                 )
             },
@@ -214,8 +234,8 @@ internal class ComposerDraft(value: TextFieldValue = TextFieldValue(), formats: 
                 ComposerDraft(
                     value = TextFieldValue(saved[0] as String, TextRange(saved[1] as Int, saved[2] as Int)),
                     formats = (saved[3] as String).split(RECORD).filter { it.isNotEmpty() }.mapNotNull { entry ->
-                        // Čtyři pole ukládala verze před jazykem bloku kódu.
-                        val fields = entry.split(FIELD).takeIf { it.size == 4 || it.size == 5 } ?: return@mapNotNull null
+                        // Čtyři pole ukládala verze před jazykem bloku kódu, pět před vlastními emoji.
+                        val fields = entry.split(FIELD).takeIf { it.size in 4..6 } ?: return@mapNotNull null
                         val format = TextFormat.entries.firstOrNull { it.name == fields[0] } ?: return@mapNotNull null
                         FormatSpan(
                             format = format,
@@ -223,6 +243,7 @@ internal class ComposerDraft(value: TextFieldValue = TextFieldValue(), formats: 
                             end = fields[2].toIntOrNull() ?: return@mapNotNull null,
                             url = fields[3].ifEmpty { null },
                             language = fields.getOrNull(4)?.ifEmpty { null },
+                            customEmojiId = fields.getOrNull(5)?.toLongOrNull(),
                         )
                     },
                 )
@@ -246,16 +267,24 @@ internal class FormattingTransformation(
     private val formats: List<FormatSpan>,
     private val contentColor: Color,
     private val accentColor: Color,
+    /**
+     * Zástupné emoji pod vlastním emoji se zprůhlední — přes něj se kreslí obrázek
+     * (`CustomEmojiOverlay`). Jen když pole neroluje: posun rolování pole nevydá a obrázek by
+     * ujel; pak zůstane vidět obyčejné emoji.
+     */
+    private val hideCustomEmoji: Boolean = false,
 ) : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         if (formats.isEmpty()) return TransformedText(text, OffsetMapping.Identity)
         val styled = AnnotatedString.Builder(text).apply {
-            formats.within(text.length).forEach { span -> addStyle(span.format.fieldStyle(), span.start, span.end) }
+            formats.within(text.length).forEach { span ->
+                span.format.fieldStyle()?.let { addStyle(it, span.start, span.end) }
+            }
         }.toAnnotatedString()
         return TransformedText(styled, OffsetMapping.Identity)
     }
 
-    private fun TextFormat.fieldStyle(): SpanStyle = when (this) {
+    private fun TextFormat.fieldStyle(): SpanStyle? = when (this) {
         TextFormat.Bold -> SpanStyle(fontWeight = FontWeight.Bold)
         TextFormat.Italic -> SpanStyle(fontStyle = FontStyle.Italic)
         TextFormat.Underline -> SpanStyle(textDecoration = TextDecoration.Underline)
@@ -266,14 +295,18 @@ internal class FormattingTransformation(
         TextFormat.Quote, TextFormat.ExpandableQuote -> SpanStyle(background = accentColor.copy(alpha = QUOTE_FIELD_ALPHA))
         // Jako odkaz ve zprávě: akcent a podtržení (podtržení nese odlišení i tam, kde barva splývá).
         TextFormat.Link -> SpanStyle(color = accentColor, textDecoration = TextDecoration.Underline)
+        // Průhledná barva skryje i barevné emoji: písmo emoji kreslí přes barvu s její alfou.
+        TextFormat.CustomEmoji -> if (hideCustomEmoji) SpanStyle(color = Color.Transparent) else null
     }
 
     // `VisualTransformation` pole porovnává, aby nepřepočítávalo text při každé kompozici.
     override fun equals(other: Any?): Boolean =
         other is FormattingTransformation && other.formats == formats &&
-            other.contentColor == contentColor && other.accentColor == accentColor
+            other.contentColor == contentColor && other.accentColor == accentColor &&
+            other.hideCustomEmoji == hideCustomEmoji
 
-    override fun hashCode(): Int = (formats.hashCode() * 31 + contentColor.hashCode()) * 31 + accentColor.hashCode()
+    override fun hashCode(): Int =
+        ((formats.hashCode() * 31 + contentColor.hashCode()) * 31 + accentColor.hashCode()) * 31 + hideCustomEmoji.hashCode()
 }
 
 /** Podklad spoileru v poli — výraznější než kód, aby se ty dva nepletly i bez strojového písma. */

@@ -3377,6 +3377,7 @@ internal fun MessageContent?.showsCaptionAboveMedia(): Boolean = when (this) {
 internal fun List<FormatSpan>.toTdl(text: String): List<TextEntity> = mapNotNull { span ->
     // Odkaz bez adresy by server odmítl i s celou zprávou.
     if (span.format == TextFormat.Link && span.url.isNullOrEmpty()) return@mapNotNull null
+    if (span.format == TextFormat.CustomEmoji && span.customEmojiId == null) return@mapNotNull null
     val start = span.start.coerceIn(0, text.length)
     val end = span.end.coerceIn(start, text.length)
     if (end > start) TextEntity(offset = start, length = end - start, type = span.toTdl()) else null
@@ -3394,4 +3395,5 @@ private fun FormatSpan.toTdl(): TextEntityType = when (format) {
     TextFormat.Quote -> TextEntityTypeBlockQuote()
     TextFormat.ExpandableQuote -> TextEntityTypeExpandableBlockQuote()
     TextFormat.Link -> TextEntityTypeTextUrl(url = url.orEmpty())
+    TextFormat.CustomEmoji -> TextEntityTypeCustomEmoji(customEmojiId = customEmojiId ?: 0)
 }

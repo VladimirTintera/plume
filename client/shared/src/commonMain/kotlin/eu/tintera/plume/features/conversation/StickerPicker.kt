@@ -103,6 +103,10 @@ import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.ChatKind
+import eu.tintera.plume.core.telegram.CustomEmojiItem
+import eu.tintera.plume.core.telegram.CustomEmojiSet
+import eu.tintera.plume.core.telegram.CustomEmojiSetSample
+import eu.tintera.plume.core.telegram.FormatSpan
 import eu.tintera.plume.core.telegram.EmojiRepository
 import eu.tintera.plume.core.telegram.GroupStickerSet
 import eu.tintera.plume.core.telegram.GifItem
@@ -392,6 +396,45 @@ class StickerPickerViewModel(
         viewModelScope.launch { repository.setInstalled(setId, installed = true) }
     }
 
+    private val _customEmojiAllowed = MutableStateFlow(false)
+
+    /** Výběr emoji nabízí vlastní emoji ([StickerRepository.canUseCustomEmoji]). */
+    val customEmojiAllowed: StateFlow<Boolean> = _customEmojiAllowed
+
+    private var customEmojiChatId: Long? = null
+
+    /** Zjistí, jestli smí uživatel v chatu [chatId] posílat vlastní emoji. */
+    fun checkCustomEmoji(chatId: Long) {
+        if (customEmojiChatId == chatId) return
+        customEmojiChatId = chatId
+        viewModelScope.launch { _customEmojiAllowed.value = repository.canUseCustomEmoji(chatId) }
+    }
+
+    /** Nainstalované sady vlastních emoji — záložky ve výběru emoji (jen kde je smí uživatel použít). */
+    val customEmojiSets: StateFlow<List<CustomEmojiSet>> = repository.customEmojiSets()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
+
+    private val customEmojiContents = MutableStateFlow<Map<Long, List<CustomEmojiItem>>>(emptyMap())
+
+    /** Obsah už otevřených sad vlastních emoji podle id. */
+    val customEmoji: StateFlow<Map<Long, List<CustomEmojiItem>>> = customEmojiContents
+
+    private val customEmojiLoading = mutableSetOf<Long>()
+
+    /** Načte obsah sady vlastních emoji, až se její stránka ukáže. */
+    fun loadCustomEmoji(setId: Long) {
+        if (setId in customEmojiContents.value || !customEmojiLoading.add(setId)) return
+        viewModelScope.launch {
+            val items = repository.customEmojiSet(setId).getOrDefault(emptyList())
+            customEmojiContents.update { it + (setId to items) }
+            customEmojiLoading.remove(setId)
+        }
+    }
+
+    /** Populární sady vlastních emoji; načtou se až s otevřením záložky „+". */
+    val trendingCustomEmoji: StateFlow<List<CustomEmojiSetSample>?> = repository.trendingCustomEmojiSets()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
+
     /** Trendy byly vidět — Telegram je přestane hlásit jako nové. */
     fun markTrendingViewed(sets: List<StickerSetSample>) {
         viewModelScope.launch { repository.markTrendingViewed(sets.map { it.id }) }
@@ -546,9 +589,20 @@ internal fun StickerPickerSheet(
     onPickGifWith: (GifItem, SendMenuChoice) -> Unit = { _, _ -> },
     /** Hlavní tlačítko náhledu podržené samolepky. Formulář ankety samolepku nevysílá, vybírá. */
     pickLabel: StringResource = Res.string.conversation_send,
+    /** Formátování rozepsaného textu — kvůli vlastním emoji v náhledu textu nad emoji. */
+    draftFormats: List<FormatSpan> = emptyList(),
+    /**
+     * Vložení vlastního emoji; `null` = výběr sady vlastních emoji nenabízí (formulář ankety).
+     * Bez Premium mimo Uložené zprávy je výběr nenabídne ani tak (`checkCustomEmoji`).
+     */
+    onCustomEmoji: ((CustomEmojiItem) -> Unit)? = null,
 ) {
     val viewModel: StickerPickerViewModel = koinViewModel()
-    LaunchedEffect(chatId) { viewModel.loadGroupSet(chatId) }
+    LaunchedEffect(chatId) {
+        viewModel.loadGroupSet(chatId)
+        viewModel.checkCustomEmoji(chatId)
+    }
+    val customEmojiAllowed by viewModel.customEmojiAllowed.collectAsStateWithLifecycle()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val search by viewModel.search.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
@@ -652,6 +706,8 @@ internal fun StickerPickerSheet(
                 draft = draft,
                 onDraftEdit = onDraftEdit,
                 languageCodes = languageCodes,
+                draftFormats = draftFormats,
+                onCustomEmoji = onCustomEmoji?.takeIf { customEmojiAllowed },
             )
             return@ModalBottomSheet
         }
