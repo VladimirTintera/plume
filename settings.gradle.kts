@@ -37,3 +37,4 @@ plugins {
 // na jednu sdílenou KMP knihovnu a tenké vstupní body. Stejný princip jako v mlogu.
 include(":client:shared")
 include(":client:androidApp")
+include(":client:desktopApp")

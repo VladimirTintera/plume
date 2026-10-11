@@ -177,12 +177,15 @@ kotlin {
         }
     }
 
+    // Desktop (macOS, Linux, Windows). Vstupní bod a balení je v :client:desktopApp, tady jen
+    // knihovna — stejné rozdělení jako u Androidu. TDLib dodává `tdl-coroutines-jvm` i s nativní
+    // knihovnou pro všechny tři systémy; macOS ji ale potřebuje opravit, viz desktopApp.
+    jvm()
+
     applyDefaultHierarchyTemplate()
 
     sourceSets {
-        // Platformy bez Material You (dynamic color ze systému). Zatím jen iOS, ale až přibude
-        // desktop (tdl-coroutines publikuje i JVM targety), spadne sem taky — proto vlastní
-        // source set a ne prosté iosMain.
+        // Platformy bez Material You (dynamic color ze systému): iOS a desktop.
         val nonDynamicThemeMain by creating {
             dependsOn(commonMain.get())
         }
@@ -290,6 +293,17 @@ kotlin {
 
         iosMain {
             dependsOn(nonDynamicThemeMain)
+        }
+
+        jvmMain {
+            dependsOn(nonDynamicThemeMain)
+        }
+
+        jvmMain.dependencies {
+            // Dispatchers.Main na desktopu je fronta událostí Swingu (AWT), ve které běží Compose.
+            implementation(libs.kotlinx.coroutines.swing)
+            // QR kód přihlášení, stejně jako na Androidu.
+            implementation(libs.zxing.core)
         }
 
         commonTest.dependencies {
@@ -449,6 +463,7 @@ val verifyNoHardcodedText = tasks.register("verifyNoHardcodedText") {
         layout.projectDirectory.dir("src/commonMain/kotlin"),
         layout.projectDirectory.dir("src/androidMain/kotlin"),
         layout.projectDirectory.dir("src/iosMain/kotlin"),
+        layout.projectDirectory.dir("src/jvmMain/kotlin"),
     )
     sources.forEach { inputs.dir(it) }
 
@@ -525,6 +540,7 @@ val verifyResourceReadsOffMain = tasks.register("verifyResourceReadsOffMain") {
         layout.projectDirectory.dir("src/commonMain/kotlin"),
         layout.projectDirectory.dir("src/androidMain/kotlin"),
         layout.projectDirectory.dir("src/iosMain/kotlin"),
+        layout.projectDirectory.dir("src/jvmMain/kotlin"),
     )
     sources.forEach { inputs.dir(it) }
     val roots = sources.map { it.asFile }

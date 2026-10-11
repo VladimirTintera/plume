@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Material 3 Expressive klient pro Telegram. Kotlin Multiplatform, Android + iOS, sdílené Compose UI.
+Material 3 Expressive klient pro Telegram. Kotlin Multiplatform, Android + iOS + desktop (JVM), sdílené Compose UI.
 
 **Pracovní název je „Plume"**, balíček `eu.tintera.plume`. Podle [Telegram API ToS](https://core.telegram.org/api/terms)
 nesmí název obsahovat „Telegram" bez předřazeného „Unofficial" a nesmí se použít oficiální logo.
@@ -26,6 +26,7 @@ Rozpracovaný detail chatu má vlastní seznam:
 ./gradlew :client:androidApp:assembleDebug          # Android APK
 ./gradlew :client:shared:linkDebugFrameworkIosSimulatorArm64   # ověření iOS linku
 ./gradlew :client:shared:testAndroidHostTest       # testy commonTest na JVM (sekundy, bez emulátoru)
+./gradlew :client:desktopApp:run                    # desktop (macOS potřebuje brew install openssl@3)
 open iosApp/iosApp.xcodeproj                         # iOS se staví z Xcode
 ```
 
@@ -68,6 +69,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [AI v zařízení](docs/poznatky/ai-v-zarizeni.md) — Gemini Nano a Gemma, stahování modelu, shrnutí a návrhy odpovědí, varování před podvodem, přepis a kontrola tónu před odesláním, vysvětlení zprávy
 - [Release, R8 a hlášení pádů](docs/poznatky/release.md) — vydání do Play, R8 a keep pravidla, Crashlytics, aktualizace z obchodu
 - [Výkon a paměť](docs/poznatky/vykon.md) — reporty Compose kompilátoru, LeakCanary, heap dumpy, composition tracing, start a plynulost
+- [Desktop (JVM)](docs/poznatky/desktop.md) — přepis jaru TDLib (rozbitá macOS knihovna, OpenSSL, hook), data a Klíčenka, co desktop neumí
 
 ## Pracovní postup
 
@@ -161,6 +163,7 @@ na klon: `git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"
 client/
   shared/      :client:shared     – KMP knihovna klienta (JEDINÝ modul s KMP pluginem)
   androidApp/  :client:androidApp – com.android.application, jen vstupní bod
+  desktopApp/  :client:desktopApp – Compose Desktop (kotlin-jvm), jen vstupní bod a balení
 iosApp/        – Xcode projekt; framework `ComposeApp` produkuje :client:shared
 ```
 
@@ -171,9 +174,8 @@ v `:client:shared`, ne v app modulech.
 ### Source-set hierarchie v `:client:shared`
 
 - `commonMain` – `App.kt`, `di/`, `app/`, `core/`, `features/`
-- `nonDynamicThemeMain` (→ ios) – platformy bez Material You. Zatím jen iOS, ale až přibude desktop
-  (tdl-coroutines publikuje i JVM targety), spadne sem taky.
-- `androidMain`, `iosMain` – platformní `actual`
+- `nonDynamicThemeMain` (→ ios, jvm) – platformy bez Material You.
+- `androidMain`, `iosMain`, `jvmMain` – platformní `actual` (`jvmMain` = desktop)
 
 ## Hranice kolem TDLib — nejdůležitější pravidlo projektu
 
@@ -247,6 +249,8 @@ a nepřijde jediná další odpověď ani update. Spolknout ji proto nejde, mus�
 - **Že vložení zabralo, hlídá `TdlTelegramSession` po přihlášení**: do `Ready` musí odpovědi
   hookem projít, jinak `logger.e` s výjimkou (v Crashlytics jako problém). Bump wrapperu nebo
   přejmenování `TdlibReceiveHook` by obcházku tiše rozpojily.
+- **Desktop ji má taky**, jen ji vkládá přepis jaru wrapperu při buildu, ne AGP
+  (`docs/poznatky/desktop.md`, „Hook TdlibJsonRepair na JVM").
 - **iOS obcházku NEMÁ** (`tdlibJsonRepairWired = false`): Kotlin/Native klib přepsat nejde.
   Dárek bez pozadí tam aplikaci dál shodí, dokud to neopraví wrapper.
 - **Kandidáti téhož druhu** (sken zdroje TDLib 1.8.67: `nullptr` do konstruktoru, dokumentace
