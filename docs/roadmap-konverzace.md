@@ -277,8 +277,10 @@ Co zbývá:
 - ~~**Odpověď z prohlížeče**~~ — hotovo (šipka vlevo v dolní liště, `ConversationReplyRequests`).
 - **Přiblížení dvojitým ťuknutím a štípnutím po přestavbě na karty** je ověřené jen
   čtením kódu; `adb input` dvojité ťuknutí nestihne a štípnutí neumí.
-- **Samolepky `.webm`** (VP9 s průhledností) jsou pořád jen statický náhled — potřebují
-  softwarový dekodér (libvpx), iOS WebM neumí vůbec.
+- ~~**Samolepky `.webm`**~~ — na Androidu hrají i s průhledností (`WebmSticker`,
+  `docs/poznatky/emoji-samolepky-reakce.md`). Zbývá: **iOS** (WebM tam neumí systém; VP9 přes
+  VideoToolbox jen na novějších zařízeních, kontejner by četl náš `WebmDemuxer`) a **vlastní
+  emoji a efekty zpráv ve `.webm`**.
 - ~~**Průběh stahování originálu.**~~ — hotovo (lesk přes zmenšeninu, dokud se ostrá verze
   stahuje; `docs/poznatky/prohlizec-medii.md`, „Soubory a média").
 
@@ -399,13 +401,13 @@ sada ze samolepky v chatu; emoji vkládané do textu včetně nedávných; mří
 samolepky k emoji v poli; velký náhled po podržení; hledání sad podle názvu; kategorie pod polem
 hledání; výběr se otevře na naposledy otevřené záložce; odebrání z Nedávných a jejich vymazání;
 sada skupiny jako záložka; správa sad v Nastavení (pořadí, archiv); sdílení sady; náhled podrženého GIFu i samolepek a GIFů nad polem
-(výsledky inline bota, návrhy k emoji); nastavení sady skupiny v úpravě skupiny. Zbývá:
+(výsledky inline bota, návrhy k emoji); nastavení sady skupiny v úpravě skupiny; videosamolepky `.webm` na Androidu. Zbývá:
 
 - **Vlastní emoji ve výběru emoji (emoji packy)** — zobrazovat v textu je umíme, vkládat ne.
   Posílat je smí jen Premium.
 - **Náhled bez puštění prstu** — v Telegramu se prstem po mřížce přejíždí mezi náhledy
   a puštěním náhled zmizí. U nás náhled zůstává otevřený, protože nese tlačítka.
-- **Samolepky `.webm`** — viz „D) Otevření média" výš (pořád jen statický náhled).
+- **Samolepky `.webm` na iOS a vlastní emoji ve `.webm`** — viz „D) Otevření média" výš.
 
 - ~~**Dvě různé pleti u emoji s více osobami**~~ — hotovo (mřížka 5 × 5 u 13 emoji se dvěma
   osobami; `docs/poznatky/emoji-samolepky-reakce.md`, „Výběr emoji"). Rodiny se třemi a víc osobami odstíny v Unicode nemají.

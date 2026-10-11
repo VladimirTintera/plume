@@ -2216,6 +2216,11 @@ sealed interface MessageMedia {
         val emoji: String,
         /** Skrytá kvůli citlivému obsahu, odkryje se ťuknutím — viz [SensitiveContent]. */
         val isSensitive: Boolean = false,
+        /**
+         * Videosamolepka (`.webm`, VP9, případně s průhledností) — hraje přes `WebmSticker` tam,
+         * kde to platforma umí (`webmStickersSupported`); jinde zůstává náhledem [thumbnailFileId].
+         */
+        val videoFileId: Int? = null,
     ) : MessageMedia
 
     /**

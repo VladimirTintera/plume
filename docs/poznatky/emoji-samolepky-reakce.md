@@ -110,8 +110,37 @@ testy `DiceMediaTest`).
   než cache ušetří. Kvůli cestě jako klíči se cache po odhlášení zahazuje (`forgetStickerAnimations`).
 - **Mimo obrazovku se animace zastavovat nemusí.** Položka `LazyColumn` mimo viewport vypadne
   z kompozice i s hodinami animace.
-- **`.webm` samolepky zůstávají statické.** Je to VP9 s průhledností: hardwarový dekodér na
-  Androidu alfu zahodí a iOS WebM neumí vůbec, takže by to znamenalo přibalit libvpx.
+- **`.webm` (videosamolepky) hrají na Androidu** (`VideoSticker` → `WebmSticker`), na iOS
+  a desktopu zůstávají náhledem (`webmStickersSupported`; soubor se tam ani nestahuje).
+  - **Průhlednost NENÍ v VP9, ale druhý VP9 stream v kontejneru**: stopa má `AlphaMode = 1`
+    a každý snímek je `BlockGroup`, jehož `BlockAdditional` (`BlockAddID = 1`) je VP9 snímek
+    s průhledností v jasu. Dekóduje se proto DVĚMA obyčejnými dekodéry a výsledek se složí —
+    libvpx přibalovat netřeba. Neprůhledné samolepky mají jen `SimpleBlock`. Ověřeno rozborem
+    skutečných samolepek (PepeVideo bez průhlednosti, GIFdotWEBM, PandaVideo s ní).
+  - **Kontejner čte vlastní `WebmDemuxer`** (commonMain, testy `WebmDemuxerTest`): systémový
+    `MediaExtractor` `BlockAdditional` nevydá. Čte jen první video stopu VP8/VP9, bloky
+    s lacingem přeskočí, poškozený soubor je `null`. Barevný prostor bere z `Colour`
+    (`MatrixCoefficients = 1` → BT.709, `Range = 2` → plný rozsah); samolepky mají obojí.
+  - **Dekóduje softwarový `MediaCodec`** (`c2.android.vp9.decoder`, starší `OMX.google`):
+    hardwarových instancí je pár a patří videu. Dekodér běží v procesu `media.swcodec`, ne
+    v aplikaci. Výstup jako `Image` (YUV 4:2:0, `COLOR_FormatYUV420Flexible`), převod na ARGB
+    rovnou do velikosti, ve které se samolepka kreslí; průhlednost je jas druhého proudu bez
+    převodu rozsahu. Posuny sloupců se počítají jednou za snímek — dělení v nejvnitřnější
+    smyčce bralo znatelnou část procesoru.
+  - **Smyčka**: po posledním snímku `END_OF_STREAM`, `flush` a znovu od prvního (jediného
+    klíčového). `flush` až při DALŠÍM snímku — zneplatnil by obrázek, který se ještě převádí.
+  - **Hraje nejvýš 10 naráz** (`Semaphore`, každá drží 1–2 instance kodeku). Další ČEKÁ ve
+    frontě na náhledu a rozběhne se, až jiná odjede z obrazovky. Dřív `tryAcquire`: zamítnutá
+    samolepka už nezačala nikdy, ani když se místo uvolnilo. Do limitu se počítají i bubliny
+    v chatu pod otevřeným sheetem.
+  - **Dekodér se zakládá jednou, až má plocha velikost** — klíčem efektu je „změřeno", ne
+    velikost: buňky mřížky se o pixel přeměřují (171 ↔ 172) a každá změna dekodér zahodila.
+  - **Kreslí se z trojice bitmap a nový snímek jen překreslí** (`drawWithContent` čte čítač
+    snímků), kompozice se neskládá znovu. V pozadí (`repeatOnLifecycle(STARTED)`) se nedekóduje.
+  - **Zátěž na emulátoru**: pár samolepek v chatu ~30 % aplikace (převod ~13 %, kreslení ~9 %)
+    a ~10 % `media.swcodec`. Na skutečném telefonu změřené NENÍ.
+  - **Vlastní emoji a efekty zpráv ve `.webm` zůstávají náhledem** — v textu jich bývá mnoho
+    naráz a limit by je vyčerpal; patří k nim vlastní úvaha.
 - **`RemoteImage` má parametr `background`.** Výchozí podložka `surfaceContainerHighest` je správně
   u fotky, ale u samolepky by z průhledného tvaru udělala obrázek v rámečku.
 - **`captionText()` vrací u samolepky prázdno.** Její emoji se dřív vypisovalo jako text zprávy;
@@ -201,7 +230,8 @@ emoji. Kreslí se jako inline obsah `RichText` (`CustomEmojiImage`, `customEmoji
 - **`needsRepainting` = obarvit barvou textu** (`tinted`, `SrcIn` nad vlastní vrstvou) — na
   odchozí bublině by jednobarevné emoji jinak splynulo.
 - **Formáty jako u samolepky**: `.tgs` hraje (Compottie), `.webp` a rastrový náhled jsou obrázek,
-  `.webm` zůstane náhledem, bez náhledu náhradním znakem.
+  `.webm` zůstane náhledem (videosamolepky hrají, vlastní emoji zatím ne), bez náhledu
+  náhradním znakem.
 - **Zpráva s vlastním emoji nejde upravit** — vlastní emoji pole nenese (`composedFormatsOf`),
   takže by ho úprava smazala.
 - **Bot vlastní emoji poslat nesmí** (Bot API je bez placeného uživatelského jména na Fragmentu

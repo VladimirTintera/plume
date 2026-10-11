@@ -119,6 +119,7 @@ import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.StickerPlayback
 import eu.tintera.plume.core.ui.RemoteImage
+import eu.tintera.plume.core.ui.VideoSticker
 import eu.tintera.plume.core.ui.emojiClusterCount
 import eu.tintera.plume.core.ui.tinted
 import eu.tintera.plume.core.ui.toggle
@@ -1481,7 +1482,8 @@ private fun StickerTabIcon(tab: StickerTab) {
  *
  * [playing] ji rozhýbe — mřížku jedné sady, nebo podrženou samolepku. Do načtení animace drží místo
  * tentýž statický náhled, takže se samolepka rozběhne na místě, bez probliknutí. Statická `.webp`
- * nemá co přehrát a zůstane stát.
+ * nemá co přehrát a zůstane stát. Videosamolepka `.webm` hraje přes [VideoSticker] (na iOS
+ * zůstane náhledem).
  */
 @Composable
 internal fun StickerPreview(
@@ -1492,6 +1494,7 @@ internal fun StickerPreview(
     val still = sticker.thumbnailFileId ?: sticker.fileId
     val description = sticker.emoji.ifBlank { stringResource(Res.string.media_sticker) }
     val animation = sticker.animationFileId
+    val video = sticker.videoFileId
 
     val stillImage: @Composable () -> Unit = {
         if (still != null) {
@@ -1512,6 +1515,14 @@ internal fun StickerPreview(
             fileId = animation,
             contentDescription = description,
             isPlaying = true,
+            modifier = modifier,
+            placeholder = stillImage,
+        )
+
+        // Videosamolepka hraje jen tam, kde má hrát; jinak (a na iOS) zůstane náhledem.
+        video != null && playing -> VideoSticker(
+            fileId = video,
+            contentDescription = description,
             modifier = modifier,
             placeholder = stillImage,
         )

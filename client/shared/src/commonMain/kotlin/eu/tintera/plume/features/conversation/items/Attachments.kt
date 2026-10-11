@@ -91,6 +91,7 @@ import eu.tintera.plume.resources.schedule_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.ui.StickerPlayback
+import eu.tintera.plume.core.ui.VideoSticker
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 
@@ -478,8 +479,8 @@ internal fun UploadIndicator(fileId: Int, onCancel: () -> Unit, modifier: Modifi
  * kolem ní by z ní udělal obrázek. Když se nedá vykreslit ani ona, ani její náhled, zbývá emoji,
  * které k ní Telegram vede; velké, ať je poznat, že to je celý obsah zprávy, a ne popisek.
  *
- * Animovaná `.tgs` hraje přes [AnimatedSticker] a do té doby (i když se načíst nepodaří) ukazuje
- * statický náhled. `.webm` zatím zůstává jen náhledem.
+ * Animovaná `.tgs` hraje přes [AnimatedSticker], videosamolepka `.webm` přes [VideoSticker];
+ * do té doby (i když se načíst nepodaří, a `.webm` na iOS vždycky) ukazují statický náhled.
  */
 @Composable
 private fun StickerImage(
@@ -491,7 +492,7 @@ private fun StickerImage(
     val description = sticker.emoji.ifBlank { stringResource(Res.string.media_sticker) }
     val staticFileId = sticker.fileId ?: sticker.thumbnailFileId
 
-    if (staticFileId == null && sticker.animationFileId == null) {
+    if (staticFileId == null && sticker.animationFileId == null && sticker.videoFileId == null) {
         Text(text = description, style = MaterialTheme.typography.displayMedium)
         return
     }
@@ -528,6 +529,7 @@ private fun StickerImage(
     }
 
     val animation = sticker.animationFileId
+    val video = sticker.videoFileId
     // Citlivá samolepka: rozostřená se štítkem, první ťuknutí ji odkryje, další otevře sadu.
     SensitiveBox(
         messageId = messageId,
@@ -538,6 +540,13 @@ private fun StickerImage(
         if (animation != null) {
             AnimatedSticker(
                 fileId = animation,
+                contentDescription = description,
+                modifier = size.then(blur),
+                placeholder = still,
+            )
+        } else if (video != null) {
+            VideoSticker(
+                fileId = video,
                 contentDescription = description,
                 modifier = size.then(blur),
                 placeholder = still,
