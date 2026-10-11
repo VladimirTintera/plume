@@ -2,11 +2,17 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
+import dev.g000sha256.tdl.dto.EmojiCategorySourceSearch
+import dev.g000sha256.tdl.dto.EmojiCategoryTypeRegularStickers
 import dev.g000sha256.tdl.dto.InputFileId
 import dev.g000sha256.tdl.dto.Sticker
+import dev.g000sha256.tdl.dto.StickerSetInfo
+import dev.g000sha256.tdl.dto.StickerFullTypeCustomEmoji
 import dev.g000sha256.tdl.dto.StickerFullTypeRegular
 import dev.g000sha256.tdl.dto.StickerTypeRegular
 import dev.g000sha256.tdl.toResult
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
@@ -28,6 +34,9 @@ private const val TRENDING_LIMIT = 50
 
 /** Nejvíc samolepek z jednoho hledání. TDLib víc než 100 nevrátí. */
 private const val SEARCH_LIMIT = 100
+
+/** Kolik nainstalovaných sad se najde podle názvu. Veřejné hledání limit nemá, TDLib vrací pár desítek. */
+private const val SET_SEARCH_LIMIT = 20
 
 /** Kolik samolepek se nabídne k emoji nad polem. Řádek se posouvá, víc by nikdo neprocházel. */
 private const val SUGGESTION_LIMIT = 30
@@ -118,7 +127,7 @@ class TdlStickerRepository(
                     }
             }
 
-    override fun trendingSets(): Flow<List<TrendingStickerSet>> =
+    override fun trendingSets(): Flow<List<StickerSetSample>> =
         merge(
             holder.updates { trendingStickerSetsUpdates }.filter { it.stickerType is StickerTypeRegular }.map { },
             // Přidání sady z trendů mění jen seznam nainstalovaných; trendy samy update nepošlou.
@@ -129,14 +138,7 @@ class TdlStickerRepository(
                 client.getTrendingStickerSets(stickerType = StickerTypeRegular(), offset = 0, limit = TRENDING_LIMIT)
                     .toResult()
                     .map { trending ->
-                        trending.sets.filterNotNull().map { set ->
-                            TrendingStickerSet(
-                                id = set.id,
-                                title = set.title,
-                                isInstalled = set.isInstalled && !set.isArchived,
-                                covers = set.covers.filterNotNull().map { it.toMedia() },
-                            )
-                        }
+                        trending.sets.toSamples()
                     }
                     .getOrElse { failure ->
                         logger.w(failure) { "Trendy se nepodařilo načíst." }
@@ -185,7 +187,14 @@ class TdlStickerRepository(
      * Slovo se na emoji převádí přes `getKeywordEmojis` v jazyce uživatele. Když převod nic nenajde,
      * veřejné hledání se vynechá — bez emoji by vrátilo nahodilé samolepky.
      */
-    override suspend fun search(query: StickerQuery): StickerSearchResult {
+    override suspend fun search(query: StickerQuery): StickerSearchResult = coroutineScope {
+        // Sady podle názvu jdou souběžně se samolepkami; veřejné hledání sad jde na server.
+        val sets = (query as? StickerQuery.Text)?.let { async { searchSets(it.text) } }
+        val stickers = searchStickers(query)
+        stickers.copy(sets = sets?.await().orEmpty())
+    }
+
+    private suspend fun searchStickers(query: StickerQuery): StickerSearchResult {
         val languages = (query as? StickerQuery.Text)?.languageCodes.orEmpty().toTypedArray()
 
         val emojis = when (query) {
@@ -247,6 +256,63 @@ class TdlStickerRepository(
         )
     }
 
+    /**
+     * Sady podle názvu: nainstalované (`searchInstalledStickerSets`) a veřejné (`searchStickerSets`,
+     * ta nainstalované sama vynechá). Nainstalované jdou první — tu, kterou uživatel hledá, většinou
+     * už má a jde se k ní jen proklikat.
+     */
+    private suspend fun searchSets(text: String): List<StickerSetSample> {
+        val installed = client.searchInstalledStickerSets(
+            stickerType = StickerTypeRegular(),
+            query = text,
+            limit = SET_SEARCH_LIMIT,
+        )
+            .toResult()
+            .map { it.sets.toSamples() }
+            .getOrElse { failure ->
+                logger.w(failure) { "Hledání ve vlastních sadách podle názvu selhalo." }
+                emptyList()
+            }
+        val public = client.searchStickerSets(stickerType = StickerTypeRegular(), query = text)
+            .toResult()
+            .map { it.sets.toSamples() }
+            .getOrElse { failure ->
+                logger.w(failure) { "Hledání veřejných sad podle názvu selhalo." }
+                emptyList()
+            }
+        return (installed + public).distinctBy { it.id }
+    }
+
+    /**
+     * Kategorie samolepek. Prémiová („samolepky Premium") se vynechává: nese jiný zdroj než
+     * emoji a výběr prémiové samolepky stejně nenabízí.
+     */
+    override suspend fun categories(): List<StickerCategory> =
+        client.getEmojiCategories(type = EmojiCategoryTypeRegularStickers())
+            .toResult()
+            .map { result ->
+                result.categories.filterNotNull().mapNotNull { category ->
+                    val source = category.source as? EmojiCategorySourceSearch ?: return@mapNotNull null
+                    val emojis = source.emojis.filterNotNull().filter { it.isNotBlank() }
+                    if (emojis.isEmpty()) return@mapNotNull null
+                    StickerCategory(
+                        name = category.name,
+                        /*
+                         * Bez náhledu: ten je u ikon kategorií prázdný průhledný obrázek
+                         * (126 B, ověřeno na zařízení), kresba je jen v animaci. Výběr pak
+                         * nehrající ikonu nakreslí prvním snímkem `.tgs`.
+                         */
+                        icon = category.icon.toMedia().copy(thumbnailFileId = null),
+                        iconTinted = (category.icon.fullType as? StickerFullTypeCustomEmoji)?.needsRepainting == true,
+                        emojis = emojis.joinToString(" "),
+                    )
+                }
+            }
+            .getOrElse { failure ->
+                logger.w(failure) { "Kategorie samolepek se nepodařilo načíst." }
+                emptyList()
+            }
+
     override suspend fun stickersForEmoji(emoji: String): List<StickerItem> =
         client.getStickers(
             stickerType = StickerTypeRegular(),
@@ -260,6 +326,16 @@ class TdlStickerRepository(
                 logger.w(failure) { "Samolepky k emoji se nepodařilo načíst." }
                 emptyList()
             }
+
+    private fun Array<StickerSetInfo>.toSamples(): List<StickerSetSample> =
+        filterNotNull().map { set ->
+            StickerSetSample(
+                id = set.id,
+                title = set.title,
+                isInstalled = set.isInstalled && !set.isArchived,
+                covers = set.covers.filterNotNull().map { it.toMedia() },
+            )
+        }
 
     /**
      * Převod na položky výběru, bez prémiových samolepek u uživatele bez Premium.

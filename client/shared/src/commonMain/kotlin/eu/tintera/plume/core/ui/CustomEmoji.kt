@@ -137,7 +137,7 @@ private fun StillEmoji(fileId: Int, description: String) {
 }
 
 /** Obarví obsah jednou barvou a zachová jeho průhlednost (`SrcIn` nad vlastní vrstvou). */
-private fun Modifier.tinted(color: Color): Modifier =
+internal fun Modifier.tinted(color: Color): Modifier =
     graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
         .drawWithContent {
             drawContent()

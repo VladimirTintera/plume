@@ -355,6 +355,27 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
 - **Výsledky hledání nahradí záložky ve stejně vysoké ploše** (řádek záložek má proto pevnou
   výšku), jinak by sheet při prvním písmenu poskočil. Co se ukazuje, rozhoduje text v poli, ne
   stav hledání — po smazání textu se záložky vrátí hned, bez čekání na debounce.
+- **Slovo hledá i sady podle názvu** (`searchInstalledStickerSets` + `searchStickerSets`; ta
+  druhá nainstalované sama vynechá), souběžně se samolepkami. Emoji a kategorie sady nehledají —
+  názvy sad emoji nemají. Sady jsou ve výsledcích **nahoře, ale jen dvě** a zbytek za tlačítkem
+  „Všechny sady": samolepek z vlastních sad bývá ke slovu přes stovku a sada pod nimi by byla
+  k nenalezení (napřed stály mezi samolepkami a „duck" je na emulátoru zahrabal o mnoho obrazovek
+  níž). Řádek sady je tentýž jako v Trendech (`StickerSetRow`, data `StickerSetSample`),
+  ťuknutí otevře detail nad výběrem. **Nainstalovanost se čte ze záložek** (živý seznam), ne
+  z výsledku hledání — ten je jednorázový a přidaná sada by dál nabízela Přidat.
+- **Kategorie pod polem hledání** (`getEmojiCategories(EmojiCategoryTypeRegularStickers)`):
+  každá je jen seznam emoji, ťuknutí hledá jako `StickerQuery.Emoji` bez debounce a bez
+  klávesnice, druhé ťuknutí hledání zruší, psaní kategorii zruší. Prémiová kategorie
+  (`EmojiCategorySourcePremium`) se vynechává.
+  - **Čip nese JEN ikonu.** Názvy server lokalizuje podle jazykového balíčku Telegramu
+    (`language_pack_id`), který aplikace nenastavuje, a v české aplikaci přišlo „Love",
+    „Approval". Název zůstává popisem pro čtečku.
+  - **Ikona je jednobarevné vlastní emoji (`needsRepainting`)** — Telegram ho kreslí bíle,
+    takže se obarví barvou obsahu čipu (`Modifier.tinted` z `CustomEmoji.kt`).
+  - **Náhled ikony je PRÁZDNÝ** (průhledná webp, 126 B, ověřeno vytažením souboru ze zařízení)
+    a animace se kreslí z prázdna, takže i první snímek `.tgs` je prázdný. Ikona proto stojí na
+    POSLEDNÍM snímku (`StickerPlayback.LastFrame`) a po výběru se jednou přehraje (`Once`).
+    S náhledem nebo prvním snímkem byly čipy prázdné a nic nehlásilo chybu.
 - **Oblíbené se přepínají hvězdičkou v NÁHLEDU podržené samolepky**, ne u každé buňky. Hvězdička
   všude by zaplevelila mřížku a ťuknutí vedle ní by samolepku omylem poslalo; podržení je zároveň
   „prohlížím si tuhle". Stav se lokálně nepřepisuje, potvrzení přijde `favoriteStickersUpdates`.

@@ -659,6 +659,8 @@
     <string name="stickers_none_found">Žádné samolepky jsme nenašli.</string>
     <string name="stickers_section_installed">Z tvých sad</string>
     <string name="stickers_section_public">Další samolepky</string>
+    <string name="stickers_section_sets">Sady samolepek</string>
+    <string name="stickers_sets_show_all">Všechny sady</string>
     <string name="stickers_tab_recent">Nedávné</string>
     <string name="stickers_tab_favorites">Oblíbené</string>
     <string name="stickers_tab_trending">Trendy</string>

@@ -649,6 +649,8 @@
     <string name="stickers_none_found">We found no stickers.</string>
     <string name="stickers_section_installed">From your sets</string>
     <string name="stickers_section_public">More stickers</string>
+    <string name="stickers_section_sets">Sticker sets</string>
+    <string name="stickers_sets_show_all">All sets</string>
     <string name="stickers_tab_recent">Recent</string>
     <string name="stickers_tab_favorites">Favourites</string>
     <string name="stickers_tab_trending">Trending</string>

@@ -3,6 +3,8 @@ package eu.tintera.plume.features.conversation
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,6 +29,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridItemScope
@@ -41,10 +44,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.PrimaryScrollableTabRow
@@ -55,6 +60,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberBottomSheetState
@@ -77,6 +83,9 @@ import eu.tintera.plume.core.ui.MorphShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
@@ -94,15 +103,18 @@ import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.telegram.EmojiRepository
 import eu.tintera.plume.core.telegram.GifItem
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.StickerCategory
 import eu.tintera.plume.core.telegram.StickerItem
 import eu.tintera.plume.core.telegram.StickerQuery
 import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.telegram.StickerSearchResult
 import eu.tintera.plume.core.telegram.StickerSetSummary
-import eu.tintera.plume.core.telegram.TrendingStickerSet
+import eu.tintera.plume.core.telegram.StickerSetSample
 import eu.tintera.plume.core.ui.AnimatedSticker
+import eu.tintera.plume.core.ui.StickerPlayback
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.emojiClusterCount
+import eu.tintera.plume.core.ui.tinted
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.close_24dp
@@ -130,6 +142,8 @@ import eu.tintera.plume.resources.stickers_recent_empty
 import eu.tintera.plume.resources.stickers_search
 import eu.tintera.plume.resources.stickers_section_installed
 import eu.tintera.plume.resources.stickers_section_public
+import eu.tintera.plume.resources.stickers_section_sets
+import eu.tintera.plume.resources.stickers_sets_show_all
 import eu.tintera.plume.resources.stickers_set_empty
 import eu.tintera.plume.resources.stickers_tab_emoji
 import eu.tintera.plume.resources.stickers_tab_favorites
@@ -145,6 +159,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
@@ -226,33 +241,40 @@ class StickerPickerViewModel(
     /** Sady, jejichž načítání už běží — aby dvě stránky nenačítaly totéž dvakrát. */
     private val loading = mutableSetOf<Long>()
 
-    private val searchRequest = MutableStateFlow(SearchRequest("", emptyList()))
+    private val searchRequest = MutableStateFlow<StickerSearchRequest>(StickerSearchRequest.Typed("", emptyList()))
 
     /**
      * Výsledek hledání.
      *
      * Hledá se až po krátké pauze v psaní, ne na každý znak — veřejné hledání jde na server.
      * `transformLatest` rozepsané hledání zahodí, jakmile se text změní, takže pomalá odpověď na
-     * „ko" nepřepíše výsledky pro „kočka".
+     * „ko" nepřepíše výsledky pro „kočka". Kategorie se hledá hned: ťuknutí je hotový dotaz.
      */
     val search: StateFlow<StickerSearchState> = searchRequest
-        .debounce { if (it.text.isBlank()) 0L else SEARCH_DEBOUNCE_MS }
+        .debounce { if (it is StickerSearchRequest.Typed && it.text.isNotBlank()) SEARCH_DEBOUNCE_MS else 0L }
         .distinctUntilChanged()
         .transformLatest { request ->
-            val text = request.text.trim()
-            if (text.isEmpty()) {
+            val query = request.toQuery()
+            if (query == null) {
                 emit(StickerSearchState.Idle)
                 return@transformLatest
             }
             emit(StickerSearchState.Searching)
-            val query = if (text.emojiClusterCount(MAX_SEARCH_EMOJI) > 0) {
-                StickerQuery.Emoji(text)
-            } else {
-                StickerQuery.Text(text, request.languageCodes)
-            }
             emit(StickerSearchState.Results(repository.search(query)))
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), StickerSearchState.Idle)
+
+    /**
+     * Kategorie pod polem hledání. Jednou za život ViewModelu: TDLib je drží v lokální databázi
+     * a mění se jen s novou sadou kategorií od Telegramu, ne během jednoho otevření výběru.
+     */
+    val categories: StateFlow<List<StickerCategory>> = flow { emit(repository.categories()) }
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+
+    /** Hledání podle kategorie. Text v poli tím zmizí — obojí naráz se hledat nedá. */
+    fun searchCategory(category: StickerCategory) {
+        searchRequest.value = StickerSearchRequest.Category(category.emojis)
+    }
 
     private val emojiRequest = MutableStateFlow(SearchRequest("", emptyList()))
 
@@ -281,7 +303,7 @@ class StickerPickerViewModel(
 
     /** Text hledání. Jazyk zařízení určuje, jak se slova převedou na emoji. */
     fun search(text: String, languageCodes: List<String>) {
-        searchRequest.value = SearchRequest(text, languageCodes)
+        searchRequest.value = StickerSearchRequest.Typed(text, languageCodes)
     }
 
     val state: StateFlow<StickerPickerState> = combine(
@@ -311,7 +333,7 @@ class StickerPickerViewModel(
      * Trendy. Vlastní tok s `WhileSubscribed`, mimo [state]: jdou na server, takže se načtou,
      * až když si je někdo opravdu otevře — ne při každém otevření výběru.
      */
-    val trending: StateFlow<List<TrendingStickerSet>?> = repository.trendingSets()
+    val trending: StateFlow<List<StickerSetSample>?> = repository.trendingSets()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
 
     fun installSet(setId: Long) {
@@ -319,7 +341,7 @@ class StickerPickerViewModel(
     }
 
     /** Trendy byly vidět — Telegram je přestane hlásit jako nové. */
-    fun markTrendingViewed(sets: List<TrendingStickerSet>) {
+    fun markTrendingViewed(sets: List<StickerSetSample>) {
         viewModelScope.launch { repository.markTrendingViewed(sets.map { it.id }) }
     }
 
@@ -346,10 +368,33 @@ class StickerPickerViewModel(
         /** Pauza v psaní, po které se hledá. */
         const val SEARCH_DEBOUNCE_MS = 300L
 
-        /** Kolik emoji v hledání se ještě bere jako hledání podle emoji. */
-        const val MAX_SEARCH_EMOJI = 10
     }
 }
+
+/** Co se v samolepkách hledá: napsaný text, nebo ťuknutá kategorie. */
+internal sealed interface StickerSearchRequest {
+    data class Typed(val text: String, val languageCodes: List<String>) : StickerSearchRequest
+    data class Category(val emojis: String) : StickerSearchRequest
+}
+
+/**
+ * Dotaz pro repository, nebo `null`, když se nehledá. Napsaná emoji se hledají jako emoji,
+ * cokoli jiného jako slovo (a tím i jako název sady).
+ */
+internal fun StickerSearchRequest.toQuery(): StickerQuery? = when (this) {
+    is StickerSearchRequest.Category -> StickerQuery.Emoji(emojis).takeIf { emojis.isNotBlank() }
+    is StickerSearchRequest.Typed -> {
+        val trimmed = text.trim()
+        when {
+            trimmed.isEmpty() -> null
+            trimmed.emojiClusterCount(MAX_SEARCH_EMOJI) > 0 -> StickerQuery.Emoji(trimmed)
+            else -> StickerQuery.Text(trimmed, languageCodes)
+        }
+    }
+}
+
+/** Kolik emoji v hledání se ještě bere jako hledání podle emoji. */
+private const val MAX_SEARCH_EMOJI = 10
 
 sealed interface EmojiSearchState {
     data object Idle : EmojiSearchState
@@ -409,7 +454,12 @@ internal fun StickerPickerSheet(
     val viewModel: StickerPickerViewModel = koinViewModel()
     val state by viewModel.state.collectAsStateWithLifecycle()
     val search by viewModel.search.collectAsStateWithLifecycle()
+    val categories by viewModel.categories.collectAsStateWithLifecycle()
     var searchText by rememberSaveable { mutableStateOf("") }
+    /** Ťuknutá kategorie (podle názvu); s napsaným textem se vylučuje. */
+    var categoryName by rememberSaveable { mutableStateOf<String?>(null) }
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     // Jazyk zařízení a angličtina jako záloha: klíčová slova samolepek bývají anglicky.
     val languageCodes = remember { listOf(Locale.current.language, "en").distinct() }
     /*
@@ -527,9 +577,29 @@ internal fun StickerPickerSheet(
             placeholder = stringResource(Res.string.stickers_search),
             onTextChange = {
                 searchText = it
+                // Psaní kategorii zruší: hledá se buď text, nebo kategorie.
+                categoryName = null
                 viewModel.search(it, languageCodes)
             },
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
+
+        StickerCategoryRow(
+            categories = categories,
+            selectedName = categoryName,
+            onSelect = { category ->
+                // Kategorie je hledání bez psaní: klávesnice by jen překryla výsledky.
+                keyboard?.hide()
+                focusManager.clearFocus()
+                searchText = ""
+                if (category.name == categoryName) {
+                    categoryName = null
+                    viewModel.search("", languageCodes)
+                } else {
+                    categoryName = category.name
+                    viewModel.searchCategory(category)
+                }
+            },
         )
 
         /*
@@ -537,12 +607,16 @@ internal fun StickerPickerSheet(
          * prvním písmenu poskočil. Výsledky se ukazují podle textu v poli, ne podle stavu
          * hledání: po smazání textu se záložky vrátí hned, bez čekání na debounce.
          */
-        if (searchText.isNotBlank()) {
+        if (searchText.isNotBlank() || categoryName != null) {
+            val installedSetIds = state.tabs.mapNotNullTo(HashSet()) { (it as? StickerTab.Set)?.summary?.id }
             Box(Modifier.fillMaxWidth().height(STICKER_TAB_ROW_HEIGHT + STICKER_PICKER_HEIGHT + sheetBottomInset())) {
                 StickerSearchResults(
                     search = search,
                     // Výsledky jsou jediná mřížka na obrazovce, hrají celé.
                     cells = cells.copy(playing = true),
+                    installedSetIds = installedSetIds,
+                    onOpenSet = { openSetId = it },
+                    onInstallSet = viewModel::installSet,
                 )
             }
             return@ModalBottomSheet
@@ -712,7 +786,7 @@ private fun TrendingPage(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 items(sets, key = { it.id }) { set ->
-                    TrendingSetRow(
+                    StickerSetRow(
                         set = set,
                         onOpen = { onOpenSet(set.id) },
                         onInstall = { viewModel.installSet(set.id) },
@@ -725,17 +799,18 @@ private fun TrendingPage(
 }
 
 @Composable
-private fun TrendingSetRow(
-    set: TrendingStickerSet,
+private fun StickerSetRow(
+    set: StickerSetSample,
     onOpen: () -> Unit,
     onInstall: () -> Unit,
     modifier: Modifier = Modifier,
+    horizontalPadding: Dp = 16.dp,
 ) {
     Column(
         modifier
             .fillMaxWidth()
             .clickable(onClick = onOpen)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = horizontalPadding, vertical = 8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -991,11 +1066,24 @@ internal fun StickerSearchField(
     }
 }
 
-/** Výsledky hledání: nejdřív z vlastních sad, pak z veřejných, každé pod svým nadpisem. */
+/**
+ * Výsledky hledání, každá skupina pod svým nadpisem: sady podle názvu, samolepky z vlastních sad
+ * a samolepky z veřejných sad.
+ *
+ * Sady stojí NAHOŘE, ale jen dvě (zbytek po ťuknutí na „Všechny sady"). Samolepek z vlastních
+ * sad bývá ke slovu i přes stovku (dva dotazy po nejvýš sto) — „duck" na testovacím účtu
+ * zaplnil mnoho obrazovek — a sada pod nimi by byla k nenalezení. Dvě sady zaberou zhruba
+ * polovinu plochy, takže první samolepky jsou vidět hned pod nimi. Nainstalovanost sady se čte
+ * z [installedSetIds] (živý seznam záložek), ne z výsledku hledání — ten je jednorázový a sada
+ * přidaná tlačítkem by jinak dál nabízela Přidat.
+ */
 @Composable
 private fun StickerSearchResults(
     search: StickerSearchState,
     cells: StickerCells,
+    installedSetIds: Set<Long>,
+    onOpenSet: (Long) -> Unit,
+    onInstallSet: (Long) -> Unit,
 ) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         when (search) {
@@ -1008,7 +1096,10 @@ private fun StickerSearchResults(
                 // ne composable funkce.
                 val installedTitle = stringResource(Res.string.stickers_section_installed)
                 val publicTitle = stringResource(Res.string.stickers_section_public)
-                if (result.installed.isEmpty() && result.public.isEmpty()) {
+                val setsTitle = stringResource(Res.string.stickers_section_sets)
+                // Rozbalení platí pro jeden výsledek; nové hledání začíná zase sbalené.
+                var setsExpanded by remember(result) { mutableStateOf(false) }
+                if (result.installed.isEmpty() && result.public.isEmpty() && result.sets.isEmpty()) {
                     Text(
                         text = stringResource(Res.string.stickers_none_found),
                         style = MaterialTheme.typography.bodyLarge,
@@ -1024,6 +1115,20 @@ private fun StickerSearchResults(
                     contentPadding = sheetListPadding(horizontal = 12.dp, vertical = 8.dp),
                     modifier = Modifier.fillMaxSize(),
                 ) {
+                    setsSection(
+                        title = setsTitle,
+                        sets = if (setsExpanded) result.sets else result.sets.take(SETS_COLLAPSED),
+                        installedSetIds = installedSetIds,
+                        onOpenSet = onOpenSet,
+                        onInstallSet = onInstallSet,
+                    )
+                    if (!setsExpanded && result.sets.size > SETS_COLLAPSED) {
+                        item(key = "sets-more", span = { GridItemSpan(maxLineSpan) }) {
+                            TextButton(onClick = { setsExpanded = true }) {
+                                Text(stringResource(Res.string.stickers_sets_show_all))
+                            }
+                        }
+                    }
                     searchSection(installedTitle, result.installed, cells)
                     searchSection(publicTitle, result.public, cells)
                 }
@@ -1039,6 +1144,37 @@ private fun LazyGridScope.searchSection(
 ) {
     if (stickers.isEmpty()) return
 
+    sectionHeader(title)
+    // Klíč nese sekci: tatáž samolepka se ve dvou sekcích neobjeví (veřejné se filtrují), ale
+    // klíče nadpisu a samolepky musí být různého tvaru i tak.
+    items(stickers, key = { "sticker-${it.id}" }) { sticker ->
+        StickerCell(sticker, cells, animateStickerItem())
+    }
+}
+
+/** Sady podle názvu: řádky jako v trendech, přes celou šířku mřížky. */
+private fun LazyGridScope.setsSection(
+    title: String,
+    sets: List<StickerSetSample>,
+    installedSetIds: Set<Long>,
+    onOpenSet: (Long) -> Unit,
+    onInstallSet: (Long) -> Unit,
+) {
+    if (sets.isEmpty()) return
+
+    sectionHeader(title)
+    items(sets, key = { "set-${it.id}" }, span = { GridItemSpan(maxLineSpan) }) { set ->
+        StickerSetRow(
+            set = set.copy(isInstalled = set.id in installedSetIds),
+            onOpen = { onOpenSet(set.id) },
+            onInstall = { onInstallSet(set.id) },
+            // Mřížka má vlastní odsazení po stranách; řádek ho nepotřebuje znovu celé.
+            horizontalPadding = 4.dp,
+        )
+    }
+}
+
+private fun LazyGridScope.sectionHeader(title: String) {
     item(key = "header-$title", span = { GridItemSpan(maxLineSpan) }) {
         Text(
             text = title,
@@ -1047,12 +1183,91 @@ private fun LazyGridScope.searchSection(
             modifier = Modifier.padding(start = 4.dp, top = 8.dp, bottom = 4.dp),
         )
     }
-    // Klíč nese sekci: tatáž samolepka se ve dvou sekcích neobjeví (veřejné se filtrují), ale
-    // klíče nadpisu a samolepky musí být různého tvaru i tak.
-    items(stickers, key = { "sticker-${it.id}" }) { sticker ->
-        StickerCell(sticker, cells, animateStickerItem())
+}
+
+/**
+ * Kategorie pod polem hledání (láska, pozdrav, smích…): ťuknutí hledá bez psaní, druhé ťuknutí
+ * hledání zruší.
+ *
+ * Čip nese JEN ikonu, jako v Telegramu. Název od Telegramu je jen pro čtečku obrazovky: server
+ * ho lokalizuje podle jazykového balíčku Telegramu (`language_pack_id`), který aplikace
+ * nenastavuje — a čeština mezi oficiálními není —, takže v české aplikaci přišlo „Love",
+ * „Approval" (ověřeno na emulátoru). Ikony (srdce, palec, úsměv) se čtou bez jazyka a vejde se
+ * jich na řádek víc.
+ *
+ * Řádek se objeví až s načtenými kategoriemi; bez nich (bez sítě při prvním otevření) by byl
+ * jen prázdný pruh.
+ */
+@Composable
+private fun StickerCategoryRow(
+    categories: List<StickerCategory>,
+    selectedName: String?,
+    onSelect: (StickerCategory) -> Unit,
+) {
+    AnimatedVisibility(
+        visible = categories.isNotEmpty(),
+        enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+            fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        exit = shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+            fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+    ) {
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            modifier = Modifier.fillMaxWidth().height(CATEGORY_ROW_HEIGHT),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            items(categories, key = { it.name }) { category ->
+                FilterChip(
+                    selected = category.name == selectedName,
+                    onClick = { onSelect(category) },
+                    label = { StickerCategoryIcon(category, selected = category.name == selectedName) },
+                    modifier = Modifier.semantics { contentDescription = category.name },
+                )
+            }
+        }
     }
 }
+
+/**
+ * Ikona kategorie: jednobarevné vlastní emoji Telegramu.
+ *
+ * Stojí na POSLEDNÍM snímku a po výběru se jednou přehraje. Animace ikon kategorií se kreslí
+ * z prázdna, takže první snímek je prázdný, a statický náhled od Telegramu taky (viz
+ * `TdlStickerRepository.categories`). Smyčka u deseti ikon vedle sebe by byla neklid.
+ *
+ * Barví se barvou obsahu čipu, takže se s výběrem přebarví spolu s plochou.
+ */
+@Composable
+private fun StickerCategoryIcon(category: StickerCategory, selected: Boolean) {
+    val tint = LocalContentColor.current
+    val modifier = Modifier
+        .size(CATEGORY_ICON_SIZE)
+        .then(if (category.iconTinted) Modifier.tinted(tint) else Modifier)
+    val animation = category.icon.animationFileId
+
+    if (animation == null) {
+        StickerPreview(category.icon, playing = false, modifier = modifier)
+        return
+    }
+    AnimatedSticker(
+        fileId = animation,
+        // Popis nese popisek čipu.
+        contentDescription = null,
+        playback = if (selected) StickerPlayback.Once else StickerPlayback.LastFrame,
+        modifier = modifier,
+        placeholder = {},
+    )
+}
+
+/** Kolik sad je ve výsledcích vidět, než je uživatel rozbalí. */
+private const val SETS_COLLAPSED = 2
+
+/** Ikona v čipu kategorie. O kus větší než ikona vedle popisku (18 dp) — popisek tu chybí. */
+private val CATEGORY_ICON_SIZE = 20.dp
+
+/** Řádek kategorií: čip (32 dp) a kousek vzduchu nad záložkami. */
+private val CATEGORY_ROW_HEIGHT = 44.dp
 
 @Composable
 private fun StickerTabIcon(tab: StickerTab) {
