@@ -1,3 +1,3 @@
 type: feat
-cs: Ikonka u zprávy s termínem, adresou, účtem či zásilkou: kalendář, mapy, QR platba, sledování
-en: Icon on messages with a date, address, account or parcel: calendar, maps, QR payment, tracking
+cs: Akce ze zpráv: termín do kalendáře, adresa do map, kontakt, QR platba, zásilka
+en: Message actions: event to calendar, address to maps, contact, QR payment, parcel

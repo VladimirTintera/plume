@@ -43,6 +43,12 @@ sealed interface ContextFinding {
     /** Adresa → mapy. [text] je adresa tak, jak ve zprávě stojí („Vinohradská 12, Praha 2"). */
     data class Address(val text: String) : ContextFinding
 
+    /**
+     * Telefon nebo e-mail → uložit do kontaktů. [name] jen tam, kde ve zprávě jasně stojí u čísla
+     * („Jan Novák: 602 123 456"); jinak ho uživatel vyplní v editoru kontaktu.
+     */
+    data class Contact(val name: String?, val phone: String?, val email: String?) : ContextFinding
+
     /** Číslo zásilky → sledování u dopravce. */
     data class Parcel(val carrier: ParcelCarrier, val number: String) : ContextFinding
 }
@@ -75,9 +81,11 @@ data class MessageContext(
     val event: EventCandidate? = null,
     val payments: List<ContextFinding.Payment> = emptyList(),
     val addresses: List<ContextFinding.Address> = emptyList(),
+    val contacts: List<ContextFinding.Contact> = emptyList(),
     val parcels: List<ContextFinding.Parcel> = emptyList(),
 ) {
-    val isEmpty: Boolean get() = event == null && payments.isEmpty() && addresses.isEmpty() && parcels.isEmpty()
+    val isEmpty: Boolean
+        get() = event == null && payments.isEmpty() && addresses.isEmpty() && contacts.isEmpty() && parcels.isEmpty()
 }
 
 /**
@@ -91,6 +99,9 @@ data class MessageContext(
  * - **Adresa** jen s jasnou stavbou: ulice, číslo, čárka a město, a k tomu PSČ, nebo ulice, která
  *   jako ulice vypadá („Vinohradská", „nám. Míru", „Na Příkopě"); anglicky číslo, název a druh
  *   ulice („221B Baker Street"). „Kapitola 12, Praha" adresou není.
+ * - **Kontakt** z telefonů a e-mailů, které ve zprávě vyznačil Telegram (`tel:`, `mailto:`), a kde
+ *   značka chybí, z mezinárodního čísla nebo českých devíti číslic. Číslo, které je kusem účtu,
+ *   kontaktem není.
  * - **Zásilka** jen ve formátu, který dopravce jednoznačně určí: S10 s kontrolní číslicí
  *   a Zásilkovna. Holá čísla PPL nebo DPD od telefonu nerozeznáš.
  */
@@ -101,10 +112,12 @@ fun findMessageContext(
     zone: TimeZone,
 ): MessageContext {
     if (text.isBlank()) return MessageContext()
+    val payments = payments(text)
     return MessageContext(
         event = eventCandidate(text, entities, sentAt, zone),
-        payments = payments(text),
+        payments = payments,
         addresses = addresses(text),
+        contacts = contacts(text, entities, payments),
         parcels = parcels(text),
     )
 }
@@ -145,6 +158,7 @@ fun MessageContext.contextFindings(
     }
     addAll(payments)
     addAll(addresses)
+    addAll(contacts)
     addAll(parcels)
 }
 
@@ -322,6 +336,59 @@ private fun addresses(text: String): List<ContextFinding.Address> {
         .toList()
 }
 
+// --- Kontakt ---------------------------------------------------------------------------------
+
+/** Telefon nebo e-mail ve zprávě: kde začíná a jak ho psal pisatel. */
+private class Reachable(val start: Int, val value: String, val isPhone: Boolean)
+
+/**
+ * Kontakty ze zprávy. Jeden telefon a nejvýš jeden e-mail jsou JEDEN kontakt (vizitka „Jan Novák,
+ * 602 123 456, jan@firma.cz"); víc telefonů je víc kontaktů, každý se jménem u sebe.
+ */
+private fun contacts(
+    text: String,
+    entities: List<MessageEntity>,
+    payments: List<ContextFinding.Payment>,
+): List<ContextFinding.Contact> {
+    // Číslo účtu i variabilní symbol mívají devět číslic jako telefon.
+    val accountDigits = payments.flatMap { listOfNotNull(it.iban.filter(Char::isDigit), it.variableSymbol) }
+    val found = buildList {
+        entities.forEach { entity ->
+            val url = (entity.type as? MessageEntityType.Link)?.url ?: return@forEach
+            val start = entity.offset.coerceIn(0, text.length)
+            when {
+                url.startsWith("tel:") -> add(Reachable(start, url.removePrefix("tel:"), isPhone = true))
+                url.startsWith("mailto:") -> add(Reachable(start, url.removePrefix("mailto:"), isPhone = false))
+            }
+        }
+        // Kde Telegram číslo nevyznačil (odesílaná zpráva, starší klient), poslouží regulár.
+        PHONE.findAll(text).forEach { add(Reachable(it.range.first, it.value, isPhone = true)) }
+        EMAIL.findAll(text).forEach { add(Reachable(it.range.first, it.value, isPhone = false)) }
+    }
+        .filterNot { it.isPhone && accountDigits.any { account -> it.value.filter(Char::isDigit) in account } }
+        .filter { !it.isPhone || it.value.count(Char::isDigit) in MIN_PHONE_DIGITS..MAX_PHONE_DIGITS }
+        .distinctBy { if (it.isPhone) it.value.filter(Char::isDigit).takeLast(9) else it.value.lowercase() }
+        .sortedBy { it.start }
+
+    val phones = found.filter { it.isPhone }
+    val emails = found.filterNot { it.isPhone }
+    if (phones.size <= 1 && emails.size <= 1) {
+        val first = phones.firstOrNull() ?: emails.firstOrNull() ?: return emptyList()
+        return listOf(ContextFinding.Contact(nameBefore(text, first.start), phones.firstOrNull()?.value, emails.firstOrNull()?.value))
+    }
+    return found.take(MAX_CONTACTS).map {
+        ContextFinding.Contact(nameBefore(text, it.start), phone = it.value.takeIf { _ -> it.isPhone }, email = it.value.takeUnless { _ -> it.isPhone })
+    }
+}
+
+/**
+ * Jméno těsně před číslem, jen v jasné stavbě: dvě slova velkým písmenem a za nimi oddělovač
+ * nebo „tel." („Jan Novák: 602…", „Jan Novák, tel. 602…", „Jan Novák (602…"). Bez oddělovače
+ * by se jménem stalo „Zavolej Petrovi 602…".
+ */
+private fun nameBefore(text: String, start: Int): String? =
+    NAME_BEFORE.find(text.substring(0, start))?.let { "${it.groupValues[1]} ${it.groupValues[2]}" }
+
 // --- Zásilka ---------------------------------------------------------------------------------
 
 private fun parcels(text: String): List<ContextFinding.Parcel> = buildList {
@@ -353,6 +420,9 @@ private const val MAX_TITLE_CHARS = 60
 private const val MAX_ACCOUNTS = 2
 private const val MAX_PARCELS = 3
 private const val MAX_ADDRESSES = 2
+private const val MAX_CONTACTS = 2
+private const val MIN_PHONE_DIGITS = 9
+private const val MAX_PHONE_DIGITS = 15
 private const val MIN_IBAN = 15
 private const val MAX_IBAN = 34
 
@@ -426,6 +496,19 @@ private val ENGLISH_ADDRESS = Regex(
     "(?<![\\p{L}\\d])\\d{1,5}[A-Za-z]?\\s+(?:\\p{Lu}[\\p{L}'\\-]*\\s+){1,3}" +
         "(?:Street|St|Road|Rd|Avenue|Ave|Lane|Ln|Boulevard|Blvd|Drive|Square|Sq|Place|Way|Court|Terrace|Crescent|Close)\\.?" +
         "(?![\\p{L}])(?:,\\s*$CAP_WORD(?:\\s$CAP_WORD)?)?",
+)
+
+/** Mezinárodní číslo („+420 602 123 456") nebo české devítimístné („602 123 456", začíná 2–9). */
+private val PHONE = Regex(
+    // Písmeno těsně u čísla znamená kód (zásilka „RR223456785CZ"), ne telefon.
+    "(?<![\\p{L}\\d+/\\-])(?:\\+\\d{1,3}(?:[ \\u00A0-]?\\d{2,4}){2,5}|[2-9]\\d{2}[ \\u00A0]?\\d{3}[ \\u00A0]?\\d{3})(?![\\p{L}\\d/])",
+)
+
+private val EMAIL = Regex("(?<![\\w.+-])[\\w.+-]+@[\\w-]+(?:\\.[\\w-]+)+(?![\\w-])")
+
+/** Dvě slova jména a za nimi oddělovač nebo „tel." — na KONCI textu před číslem. */
+private val NAME_BEFORE = Regex(
+    "(\\p{Lu}\\p{Ll}+)\\s+(\\p{Lu}\\p{Ll}+)\\s*(?:[,:(\\-\\u2013]\\s*(?:(?:tel|mob|mobil|telefon|phone)\\.?:?\\s*)?|(?:tel|mob|mobil|telefon|phone)\\.?:?\\s*)$",
 )
 
 private val S10 = Regex("(?<![A-Za-z0-9])([A-Z]{2})(\\d{9})([A-Z]{2})(?![A-Za-z0-9])")

@@ -2574,4 +2574,9 @@
     <string name="message_context_address">Address</string>
     <string name="message_context_maps">Open in maps</string>
     <string name="menu_context_address">Open in maps…</string>
+    <string name="message_context_contact">Save to contacts</string>
+    <string name="menu_context_contact">Save to contacts…</string>
+    <string name="message_context_phone">Phone</string>
+    <string name="message_context_email">Email</string>
+    <string name="message_context_no_contacts">There is no contacts app to save the contact to</string>
 </resources>

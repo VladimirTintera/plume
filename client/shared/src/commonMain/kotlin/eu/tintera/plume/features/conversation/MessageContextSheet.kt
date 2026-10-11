@@ -41,6 +41,13 @@ import eu.tintera.plume.resources.location_on_24dp
 import eu.tintera.plume.resources.menu_copy
 import eu.tintera.plume.resources.menu_remind
 import eu.tintera.plume.resources.message_context_account
+import eu.tintera.plume.resources.message_context_contact
+import eu.tintera.plume.resources.message_context_email
+import eu.tintera.plume.resources.message_context_phone
+import eu.tintera.plume.resources.person_24dp
+import eu.tintera.plume.resources.person_add_24dp
+import eu.tintera.plume.resources.call_24dp
+import eu.tintera.plume.resources.mail_24dp
 import eu.tintera.plume.resources.message_context_address
 import eu.tintera.plume.resources.message_context_maps
 import eu.tintera.plume.resources.map_24dp
@@ -81,13 +88,15 @@ internal fun MessageContextHost(viewModel: ConversationViewModel) {
         onCopy = viewModel::copyFromContext,
         onTrack = viewModel::trackParcel,
         onOpenMaps = viewModel::openMaps,
+        onSaveContact = viewModel::saveContact,
         onDismiss = viewModel::closeMessageContext,
     )
 }
 
 /**
  * Co se ve zprávě našlo a co s tím jde udělat: termín → kalendář nebo připomínka (a mapy, když
- * model našel místo), účet → QR platba a kopírování údajů, adresa → mapy, zásilka → sledování.
+ * model našel místo), účet → QR platba a kopírování údajů, adresa → mapy, kontakt → uložit do
+ * kontaktů, zásilka → sledování.
  *
  * - **Nic se nestane samo.** Kalendář otevře editor události, kde ji uloží uživatel; platbu
  *   provede banka. Sheet jen předvyplní, co ve zprávě stálo.
@@ -103,6 +112,7 @@ internal fun MessageContextSheet(
     onCopy: (String) -> Unit,
     onTrack: (url: String) -> Unit,
     onOpenMaps: (query: String) -> Unit,
+    onSaveContact: (ContextFinding.Contact) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
@@ -129,6 +139,7 @@ internal fun MessageContextSheet(
                             onOpenMaps = onOpenMaps,
                         )
                         is ContextFinding.Address -> AddressSection(finding, onCopy = onCopy, onOpenMaps = onOpenMaps)
+                        is ContextFinding.Contact -> ContactSection(finding, onCopy = onCopy, onSave = { onSaveContact(finding) })
                         is ContextFinding.Payment -> PaymentSection(finding, onCopy = onCopy)
                         is ContextFinding.Parcel -> ParcelSection(finding, onCopy = onCopy, onTrack = onTrack)
                     }
@@ -201,6 +212,43 @@ private fun EventSection(
             onClick = { onOpenMaps(place) },
         )
     }
+}
+
+@Composable
+private fun ContactSection(contact: ContextFinding.Contact, onCopy: (String) -> Unit, onSave: () -> Unit) {
+    contact.name?.let { name ->
+        DetailCard(icon = Res.drawable.person_24dp) {
+            Text(name, style = MaterialTheme.typography.titleMedium)
+        }
+    }
+    contact.phone?.let { phone ->
+        CopyRow(
+            label = null,
+            title = stringResource(Res.string.message_context_phone),
+            value = phone,
+            copied = phone,
+            onCopy = onCopy,
+            icon = Res.drawable.call_24dp,
+        )
+    }
+    contact.email?.let { email ->
+        CopyRow(
+            label = null,
+            title = stringResource(Res.string.message_context_email),
+            value = email,
+            copied = email,
+            onCopy = onCopy,
+            icon = Res.drawable.mail_24dp,
+        )
+    }
+    SheetActionRow(
+        icon = Res.drawable.person_add_24dp,
+        label = stringResource(Res.string.message_context_contact),
+        shape = RoundedCornerShape(ROW_CORNER),
+        onClick = onSave,
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+    )
 }
 
 @Composable

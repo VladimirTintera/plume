@@ -329,9 +329,10 @@ ze stejného důvodu jako návrhy odpovědí: model běží sám, bez ťuknutí.
 
 ### Akce ze zpráv
 
-Ikonka se sparkle (`auto_awesome`) na volné straně zprávy, ve které je termín, adresa, číslo
-účtu nebo zásilky; ťuknutí otevře sheet s akcemi (`MessageContextSheet`): kalendář
-a „Připomenout…", mapy, QR platba s kopírováním účtu, částky a VS, sledování zásilky. Rozpoznávají PRAVIDLA
+Ikonka se sparkle (`auto_awesome`) na volné straně zprávy, ve které je termín, adresa, telefon
+nebo e-mail, číslo účtu nebo zásilky; ťuknutí otevře sheet s akcemi (`MessageContextSheet`):
+kalendář a „Připomenout…", mapy, uložení do kontaktů, QR platba s kopírováním účtu, částky
+a VS, sledování zásilky. Rozpoznávají PRAVIDLA
 (`findMessageContext`, testy `MessageContextTest`), model jen posuzuje termín (`MessageContexts`,
 prompt `EventPrompt.kt`). Vypínač v Nastavení → Obecné → Chaty, **výchozí zapnuto** — na rozdíl
 od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v zařízení uživatel zapnul.
@@ -350,6 +351,17 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
 - **Mapy hledají text** (`mapsSearchUrl`: Google Maps přes https na Androidu, Apple Maps na
   iOS — táž volba jako u polohy, `mapsUrl`). Místo, které k termínu doplnil model, má
   „Otevřít v mapách" taky; je ve tvaru ze zprávy („Černém Mostě u kina") a mapy si s ním poradí.
+- **Kontakt bere telefony a e-maily, které vyznačil Telegram** (`TextEntityTypePhoneNumber` /
+  `EmailAddress` → `Link("tel:…")` / `Link("mailto:…")`), a kde značka chybí, regulár
+  (mezinárodní číslo, české devítimístné od 2). Číslo, které je kusem účtu nebo variabilním
+  symbolem, kontaktem není; písmeno těsně u čísla znamená kód zásilky. Jeden telefon a jeden
+  e-mail jsou jeden kontakt (vizitka). **Jméno jen z jasné stavby**: dvě slova velkým písmenem
+  a za nimi oddělovač nebo „tel." („Jan Novák, tel. …"); bez oddělovače by jménem bylo
+  „Zavolej Petrovi". Editor kontaktu ho dovolí doplnit.
+- **Uložení kontaktu otevře systémový editor** (Android `ContactsContract.Intents.Insert`, bez
+  oprávnění; iOS `CNContactViewController(forNewContact:)` v navigačním kontroleru, s popisem
+  `NSContactsUsageDescription`). V Kotlin/Native má `CNMutableContact` vlastnosti jen ke čtení
+  (dědí je z `CNContact`), zapisuje se settery (`setGivenName`…).
 - **Termín je jistý, nebo nejistý** (`EventCandidate.certain`). Jistý = den a čas, datum číslem,
   nebo termín vyznačený Telegramem (`MessageEntityType.DateTime`); ten se nabídne i bez modelu.
   Jen čas („v 15:00") je nejistý a nabídne se, jen když ho model potvrdí. Jen den („v pátek")
@@ -396,7 +408,9 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   jsem…"; sheet s názvem a místem od modelu; „Přidat do kalendáře" předá `ACTION_INSERT`
   Kalendáři Google (editor se bez účtu Google neukázal); kopírování účtu; sledování otevře
   `tracking.packeta.com/cs/Z1234567890`; adresa „Vinohradská 1511/230, 100 00 Praha 10" otevře
-  Mapy Google s `?q=Vinohradsk%C3%A1%201511%2F230…`. **Neověřené**: načtení QR bankovní aplikací, editor
+  Mapy Google s `?q=Vinohradsk%C3%A1%201511%2F230…`; vizitka „Jan Novák, tel. +420 602 123 456,
+  jan.novak@example.com" otevře editor Kontaktů Google se jménem, příjmením, telefonem
+  i e-mailem. **Neověřené**: načtení QR bankovní aplikací, editor
   události, Gemini Nano, iOS.
 
 ### Návrhy odpovědí

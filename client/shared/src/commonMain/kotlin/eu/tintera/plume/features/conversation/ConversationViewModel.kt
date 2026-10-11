@@ -12,6 +12,9 @@ import eu.tintera.plume.core.ai.OnDeviceAi
 import kotlin.time.Instant
 import eu.tintera.plume.core.calendar.CalendarEvent
 import eu.tintera.plume.core.calendar.CalendarEvents
+import eu.tintera.plume.core.contacts.ContactSaver
+import eu.tintera.plume.core.contacts.NewContact
+import eu.tintera.plume.resources.message_context_no_contacts
 import eu.tintera.plume.core.location.mapsSearchUrl
 import eu.tintera.plume.resources.message_context_no_calendar
 import kotlinx.datetime.toLocalDateTime
@@ -394,6 +397,8 @@ class ConversationViewModel(
     private val messageContexts: MessageContexts? = null,
     /** Přidání události do kalendáře z akcí u zprávy; bez něj se termín nenabízí. */
     private val calendarEvents: CalendarEvents? = null,
+    /** Uložení kontaktu z akcí u zprávy. */
+    private val contactSaver: ContactSaver? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -3887,6 +3892,16 @@ class ConversationViewModel(
     fun trackParcel(url: String) {
         closeMessageContext()
         openLink(url, confirmExternal = false)
+    }
+
+    /** Kontakt ze zprávy do systémového editoru kontaktů; uloží ho až uživatel. */
+    fun saveContact(contact: ContextFinding.Contact) {
+        val saver = contactSaver ?: return
+        if (saver.save(NewContact(name = contact.name, phone = contact.phone, email = contact.email))) {
+            closeMessageContext()
+        } else {
+            _state.update { it.copy(notice = UiText(Res.string.message_context_no_contacts)) }
+        }
     }
 
     /** Adresa nebo místo z akcí u zprávy v mapách platformy (hledání textem). */

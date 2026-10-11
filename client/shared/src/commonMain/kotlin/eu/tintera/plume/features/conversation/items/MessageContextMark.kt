@@ -16,6 +16,7 @@ import eu.tintera.plume.features.conversation.ContextFinding
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auto_awesome_24dp
 import eu.tintera.plume.resources.message_context_event
+import eu.tintera.plume.resources.message_context_contact
 import eu.tintera.plume.resources.message_context_maps
 import eu.tintera.plume.resources.message_context_open
 import eu.tintera.plume.resources.message_context_parcel
@@ -24,7 +25,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Ikonka „s tím jde něco udělat" vedle zprávy, ve které se našel termín, účet nebo zásilka
+ * Ikonka „s tím jde něco udělat" vedle zprávy, ve které se našel termín, adresa, kontakt, účet nebo zásilka
  * (`findMessageContext`). Ťuknutí otevře sheet s akcemi (`MessageContextSheet`).
  *
  * - **Na volné straně zprávy u spodní hrany**, jako značka efektu ([EffectMark]): nic
@@ -46,6 +47,7 @@ internal fun MessageContextMark(
             is ContextFinding.Event -> Res.string.message_context_event
             is ContextFinding.Payment -> Res.string.message_context_payment
             is ContextFinding.Address -> Res.string.message_context_maps
+            is ContextFinding.Contact -> Res.string.message_context_contact
             is ContextFinding.Parcel -> Res.string.message_context_parcel
         }
     }.distinct().map { stringResource(it) }

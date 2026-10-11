@@ -373,15 +373,15 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
   „Přihlášení QR kódem"). Pozor na to, že varování u legitimní zprávy je horší než žádné:
   práh se musí nastavit tak, aby se raději mlčelo.
 - **AI ikonka u zprávy s rozpoznaným kontextem** — první kolo hotovo: termín → kalendář nebo
-  připomínka, číslo účtu → QR platba a kopírování, adresa → mapy, číslo zásilky (Česká pošta /
-  S10, Zásilkovna) → sledování, z ikonky i z nabídky nad zprávou; model termín potvrzuje a doplní název a místo (`docs/poznatky/ai-v-zarizeni.md`,
+  připomínka, číslo účtu → QR platba a kopírování, adresa → mapy, telefon a e-mail → uložit do
+  kontaktů, číslo zásilky (Česká pošta / S10, Zásilkovna) → sledování, z ikonky i z nabídky nad zprávou; model termín potvrzuje a doplní název a místo (`docs/poznatky/ai-v-zarizeni.md`,
   „Akce ze zpráv"). Zbývá:
   - **ověřit na telefonu**: editor události v kalendáři (emulátor bez účtu Google chce
     přihlášení), načtení QR platby bankovní aplikací, Gemini Nano místo Gemmy, iOS (jen přeložené),
   - **adresa bez jasné stavby** („sraz na Vinohradské 12", víceslovné ulice jako „Karla Engliše
     3") a místo bez termínu („u Kotvy") — pravidla je vědomě nechávají, chtělo by to předfiltr
     a model, jako u termínu,
-  - **kontakt** (jméno + telefon / e-mail) → `ContactsContract.Intents.Insert`,
+  - **jméno u kontaktu** jen z jasné stavby („Jan Novák: 602…"); jinak by ho uměl model,
   - **let nebo rezervace**, **Wi-Fi s heslem** (`WifiNetworkSuggestion`), **kód ke zkopírování**
     (přihlašovací kódy od Telegramu NE), **cizí měna a jednotky**,
   - **čísla PPL a DPD**: holé číslo od telefonu nerozeznáš, chtělo by to slovo dopravce vedle,

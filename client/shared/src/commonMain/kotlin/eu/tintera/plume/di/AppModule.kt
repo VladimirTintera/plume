@@ -501,6 +501,7 @@ fun appModule() = module {
             scamWarnings = get(),
             messageContexts = get(),
             calendarEvents = getOrNull(),
+            contactSaver = getOrNull(),
         )
     }
 

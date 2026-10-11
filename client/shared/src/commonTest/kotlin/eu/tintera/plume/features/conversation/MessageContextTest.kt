@@ -194,6 +194,45 @@ class MessageContextTest {
     }
 
     @Test
+    fun kontaktSeJmenemTelefonemAMailem() {
+        val contact = context("Kontakt na instalatéra: Jan Novák, tel. +420 602 123 456, jan.novak@firma.cz").contacts.single()
+        assertEquals(ContextFinding.Contact("Jan Novák", "+420 602 123 456", "jan.novak@firma.cz"), contact)
+        assertEquals("Petra Malá", context("Petra Malá: 777 888 999").contacts.single().name)
+    }
+
+    @Test
+    fun kontaktBezJmena() {
+        // Bez oddělovače jméno není: „Zavolej Petrovi" jméno není.
+        assertEquals(ContextFinding.Contact(null, "602 123 456", null), context("Zavolej Petrovi 602 123 456").contacts.single())
+        assertEquals(ContextFinding.Contact(null, null, "info@plume.app"), context("piš na info@plume.app").contacts.single())
+    }
+
+    @Test
+    fun telefonZEntityTelegramu() {
+        val text = "Volej 00420602123456"
+        val entity = MessageEntity(6, 14, MessageEntityType.Link("tel:00420602123456"))
+        assertEquals("00420602123456", context(text, listOf(entity)).contacts.single().phone)
+        // Totéž číslo podruhé (entita i regulár) je jeden kontakt.
+        val twice = "Volej +420 602 123 456"
+        val tel = MessageEntity(6, 16, MessageEntityType.Link("tel:+420 602 123 456"))
+        assertEquals(1, context(twice, listOf(tel)).contacts.size)
+    }
+
+    @Test
+    fun dvaTelefonyJsouDvaKontakty() {
+        val contacts = context("Jan Novák: 602 123 456, Petra Malá: 777 888 999").contacts
+        assertEquals(listOf("Jan Novák", "Petra Malá"), contacts.map { it.name })
+    }
+
+    @Test
+    fun coKontaktemNeni() {
+        // Účet, variabilní symbol, zásilka, krátké číslo.
+        assertTrue(context("Pošli na 19-2000145399/0800, VS 602123456").contacts.isEmpty())
+        assertTrue(context("Balík RR223456785CZ").contacts.isEmpty())
+        assertTrue(context("PIN je 1234 a kód 123 456").contacts.isEmpty())
+    }
+
+    @Test
     fun obycejnaZpravaNicNema() {
         assertTrue(context("Ahoj, jak se máš?").isEmpty)
         assertTrue(context("").isEmpty)
