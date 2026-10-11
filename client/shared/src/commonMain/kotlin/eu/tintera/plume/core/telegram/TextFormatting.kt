@@ -27,6 +27,13 @@ enum class TextFormat {
 
     /** Odkaz s vlastním popiskem: text je popisek, adresu nese [FormatSpan.url]. */
     Link,
+
+    /**
+     * Vlastní emoji: text je obyčejné emoji, za které stojí, id nese [FormatSpan.customEmojiId].
+     * Není to formát písma, ale OBSAH — je nedělitelné ([afterEdit]), psaním se neprodlužuje,
+     * dvě stejná vedle sebe se nespojí a „Bez formátování" ho nesmaže ([cleared]).
+     */
+    CustomEmoji,
     ;
 
     /**
@@ -45,7 +52,8 @@ enum class TextFormat {
 /**
  * Formátovaný úsek `[start, end)` rozepsaného textu, v UTF-16 jednotkách jako `String`.
  * [url] je adresa odkazu ([TextFormat.Link]), [language] jazyk bloku kódu
- * ([TextFormat.CodeBlock], `pre` s jazykem); u ostatních formátů `null`.
+ * ([TextFormat.CodeBlock], `pre` s jazykem), [customEmojiId] id vlastního emoji
+ * ([TextFormat.CustomEmoji]); u ostatních formátů `null`.
  */
 data class FormatSpan(
     val format: TextFormat,
@@ -53,6 +61,7 @@ data class FormatSpan(
     val end: Int,
     val url: String? = null,
     val language: String? = null,
+    val customEmojiId: Long? = null,
 )
 
 /**
@@ -95,6 +104,10 @@ data class ComposedText(val text: String, val formats: List<FormatSpan> = emptyL
  * Text vložený přesně na konec rozsahu do něj patří (píše se dál tučně), na začátek ne. Text
  * napsaný přes celý rozsah si ho nechá — přepsané tučné slovo zůstane tučné. **Odkaz se psaním
  * na konci neprodlužuje**: slovo napsané za odkaz je další slovo věty, ne kus popisku.
+ *
+ * **Vlastní emoji je nedělitelné**: úprava, která zasáhne DOVNITŘ (smazání půlky emoji, vložení
+ * mezi jeho znaky, přepsání), ho zruší — zbytek znaků už není emoji, za které id stojí. Psaní
+ * před něj a za něj ho jen posune.
  */
 fun List<FormatSpan>.afterEdit(old: String, new: String, cursor: Int? = null): List<FormatSpan> {
     if (isEmpty() || old == new) return this
@@ -112,6 +125,7 @@ fun List<FormatSpan>.afterEdit(old: String, new: String, cursor: Int? = null): L
     val delta = inserted - (to - from)
 
     return mapNotNull { span ->
+        if (span.format == TextFormat.CustomEmoji) return@mapNotNull span.atomicAfterEdit(from, to, inserted, delta)
         val start = when {
             span.start < from -> span.start
             span.start == from -> if (insertion) span.start + inserted else from
@@ -126,6 +140,15 @@ fun List<FormatSpan>.afterEdit(old: String, new: String, cursor: Int? = null): L
         }
         span.copy(start = start, end = end).takeIf { end > start }
     }
+}
+
+/** Vlastní emoji po úpravě `[from, to)` → `inserted` znaků: posunuté, nebo `null`, když do něj zasáhla. */
+private fun FormatSpan.atomicAfterEdit(from: Int, to: Int, inserted: Int, delta: Int): FormatSpan? = when {
+    // Celá úprava před emoji (i vložení přesně na jeho začátek): posun.
+    to <= start -> copy(start = start + delta, end = end + delta)
+    // Celá úprava za emoji (i vložení přesně na jeho konec): beze změny.
+    from >= end -> this
+    else -> null
 }
 
 /** Rozsahy oříznuté na text délky [length]; co z něj celé vypadlo, zmizí. */
@@ -227,7 +250,7 @@ data class PendingFormats(
  * před kurzorem a končí na něm nebo za ním. Odkaz se psaním neprodlužuje, takže mezi nimi není.
  */
 fun List<FormatSpan>.continuingAt(cursor: Int): Set<TextFormat> =
-    filter { it.format != TextFormat.Link && it.start < cursor && it.end >= cursor }
+    filter { it.format != TextFormat.Link && it.format != TextFormat.CustomEmoji && it.start < cursor && it.end >= cursor }
         .mapTo(mutableSetOf()) { it.format.family }
 
 /** Rodiny, ve kterých se na [cursor] bude psát: co pokračuje, změněné čekajícími formáty. */
@@ -314,10 +337,10 @@ fun List<FormatSpan>.toggledExpandable(quote: FormatSpan): List<FormatSpan> {
     return map { if (it == quote) it.copy(format = format) else it }
 }
 
-/** Sundá z `[start, end)` všechno formátování („Bez formátování"). */
+/** Sundá z `[start, end)` všechno formátování („Bez formátování"). Vlastní emoji je obsah, zůstane. */
 fun List<FormatSpan>.cleared(start: Int, end: Int): List<FormatSpan> {
     if (start >= end) return this
-    return TextFormat.entries.map { it.family }.distinct().fold(this) { spans, family ->
+    return TextFormat.entries.filter { it != TextFormat.CustomEmoji }.map { it.family }.distinct().fold(this) { spans, family ->
         spans.removed(family, start, end)
     }
 }
@@ -337,10 +360,12 @@ private fun List<FormatSpan>.removed(family: TextFormat, start: Int, end: Int): 
 
 /**
  * Spojí překrývající se a navazující rozsahy téhož druhu do jednoho. Odkazy jen se stejnou
- * adresou — dva sousední odkazy jinam jsou dva odkazy.
+ * adresou — dva sousední odkazy jinam jsou dva odkazy. **Vlastní emoji se nespojují nikdy**:
+ * dvě stejná za sebou jsou dvě emoji, ne jedno přes dva znaky.
  */
 private fun List<FormatSpan>.merged(): List<FormatSpan> =
-    groupBy { Triple(it.format, it.url, it.language) }.flatMap { (_, spans) ->
+    groupBy { Triple(it.format, it.url, it.language) }.flatMap { (key, spans) ->
+        if (key.first == TextFormat.CustomEmoji) return@flatMap spans
         spans.sortedBy { it.start }.fold(mutableListOf<FormatSpan>()) { acc, span ->
             val last = acc.lastOrNull()
             if (last != null && span.start <= last.end) {
@@ -358,6 +383,25 @@ private fun String.lineBounds(start: Int, end: Int): Pair<Int, Int> {
     val last = maxOf(start, end - 1).coerceAtMost(length)
     val to = indexOf('\n', last).let { if (it < 0) length else it }
     return from to maxOf(to, from)
+}
+
+/**
+ * Vloží vlastní emoji [emoji] s id [customEmojiId] místo výběru `[start, end)` v [text]. Vrací
+ * nový text a rozsahy; kurzor patří za vložené emoji (`start + emoji.length`).
+ */
+fun insertCustomEmoji(
+    text: String,
+    formats: List<FormatSpan>,
+    start: Int,
+    end: Int,
+    emoji: String,
+    customEmojiId: Long,
+): ComposedText {
+    val from = start.coerceIn(0, text.length)
+    val to = end.coerceIn(from, text.length)
+    val newText = text.substring(0, from) + emoji + text.substring(to)
+    val shifted = formats.afterEdit(text, newText, cursor = from + emoji.length)
+    return ComposedText(newText, (shifted + FormatSpan(TextFormat.CustomEmoji, from, from + emoji.length, customEmojiId = customEmojiId)).merged())
 }
 
 /**
@@ -413,8 +457,14 @@ private fun formatsOf(text: String, entities: List<MessageEntity>, strict: Boole
             is MessageEntityType.BotCommand,
             is MessageEntityType.MediaTimestamp,
             -> null
+            // Vlastní emoji nese pole samo, ale úprava zprávy ho dál nebere: bez Premium by ho
+            // server při úpravě mohl tiše zahodit. Koncept ho vrátí do pole.
+            is MessageEntityType.CustomEmoji -> {
+                if (strict) return null
+                if (end > start) spans += FormatSpan(TextFormat.CustomEmoji, start, end, customEmojiId = type.id)
+                null
+            }
             is MessageEntityType.MentionUser,
-            is MessageEntityType.CustomEmoji,
             is MessageEntityType.DateTime,
             -> if (strict) return null else null
         }

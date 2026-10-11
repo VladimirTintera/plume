@@ -595,6 +595,30 @@ ním mřížka. Bez dotazu nahoře uložené GIFy, pod nimi populární. Ťuknut
 - **Zdrojový soubor nesmí obsahovat znak NUL.** Konstanta `"\u0000"` zapsaná nástrojem jako
   skutečný bajt udělala z `.kt` pro `grep` binární soubor a hledání v něm tiše nic nenašlo.
 
+## Vlastní emoji ve výběru emoji
+
+Za skupinami obyčejných emoji jsou záložky nainstalovaných sad vlastních emoji a na konci „+"
+s populárními sadami k přidání (`CustomEmojiPicker.kt`, `StickerRepository.customEmojiSets` /
+`trendingCustomEmojiSets`). Ťuknutí vloží emoji do textu jako `TextFormat.CustomEmoji` (model
+a pole viz „Formátování při psaní" v konverzace-psani.md).
+
+- **Bez Premium jen v Uložených zprávách** (`canUseCustomEmoji`: `getMe().isPremium` nebo chat
+  se sebou samým). Ověřeno pokusem: zpráva s vlastním emoji (Duck Emoji, testovací účet bez
+  Premium) poslaná do Uložených zpráv má entitu `TextEntityTypeCustomEmoji` i po potvrzení
+  serverem; jinde ho TDLib bez Premium nepovolí („Only premium users can use premium custom
+  emoji"). Jinde výběr sady vůbec nenabídne — žádný zámek, žádná propagace Premium.
+- **„+" s populárními sadami je tu kvůli tomu, že sady emoji jinak přidat nejde** — testovací
+  účet neměl ani jednu. Přidaná sada přibude jako záložka před „+".
+- **Ikona záložky je první emoji sady** (`CustomEmojiImage`), popis pro čtečku název sady.
+- **Náhled rozepsaného textu nad výběrem kreslí vlastní emoji obrázkem** (`appendWithCustomEmoji`),
+  stejně jako bublina. Proto `StickerPickerSheet` dostává `draftFormats`.
+- **Povolení řeší výběr sám**, ne `ConversationScreen` (v dexu na hraně): ten předává jen
+  `draftFormats` a `onCustomEmoji`, výběr zjistí z chatu, jestli je smí nabídnout.
+- **Ověřeno na emulátoru** (anglicky, účet bez Premium): „+" v Uložených zprávách, přidání
+  Duck Emoji, vložení dvou emoji (náhled i pole s obrázky), odeslání (bublina s obrázky),
+  koncept s vlastním emoji po ukončení aplikace; v Notifikátoru se sady nenabízejí.
+  S Premium ověřené NENÍ.
+
 ## Výběr emoji
 
 Týž sheet jako samolepky, přepínaný segmentovými tlačítky Emoji / Samolepky (a tlačítko ve vstupním

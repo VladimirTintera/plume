@@ -309,6 +309,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.text.TextLayoutResult
+import eu.tintera.plume.core.telegram.TextFormat
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -2209,6 +2211,11 @@ fun ConversationScreen(
                     draft = it
                     viewModel.onDraftChanged(composer.composed)
                 },
+                draftFormats = composer.formats,
+                onCustomEmoji = {
+                    composer.insertCustomEmoji(it.emoji, it.id)
+                    viewModel.onDraftChanged(composer.composed)
+                },
                 onPick = { sticker ->
                     stickerPickerOpen = false
                     haptics.confirm()
@@ -3349,10 +3356,17 @@ private fun MessageInput(
             onDismiss = { linkTarget = null },
         )
     }
+    // Rozložení textu v poli a výška jeho viditelné části — podle nich se kreslí vlastní emoji
+    // (`CustomEmojiOverlay`), jen když se text do pole vejde celý.
+    var fieldLayout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    var fieldViewport by remember { mutableStateOf(0) }
+    val hasCustomEmoji = composer.formats.any { it.format == TextFormat.CustomEmoji }
+    val customEmojiShown = hasCustomEmoji && customEmojiOverlayFits(fieldLayout, fieldViewport)
     val formatting = FormattingTransformation(
         formats = composer.formats,
         contentColor = MaterialTheme.colorScheme.onSurface,
         accentColor = MaterialTheme.colorScheme.primary,
+        hideCustomEmoji = customEmojiShown,
     )
 
     /*
@@ -3715,6 +3729,7 @@ private fun MessageInput(
                             true
                         },
                     visualTransformation = formatting,
+                    onTextLayout = { fieldLayout = it },
                     textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.onSurface),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     maxLines = 6,
@@ -3734,7 +3749,12 @@ private fun MessageInput(
                     decorationBox = { innerTextField ->
                         TextFieldDefaults.DecorationBox(
                             value = draft.text,
-                            innerTextField = innerTextField,
+                            innerTextField = {
+                                Box(Modifier.onSizeChanged { fieldViewport = it.height }) {
+                                    innerTextField()
+                                    if (customEmojiShown) CustomEmojiOverlay(fieldLayout, composer.formats)
+                                }
+                            },
                             enabled = true,
                             singleLine = false,
                             visualTransformation = VisualTransformation.None,

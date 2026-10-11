@@ -10,6 +10,7 @@ import dev.g000sha256.tdl.dto.Sticker
 import dev.g000sha256.tdl.dto.StickerSetInfo
 import dev.g000sha256.tdl.dto.StickerFullTypeCustomEmoji
 import dev.g000sha256.tdl.dto.StickerFullTypeRegular
+import dev.g000sha256.tdl.dto.StickerTypeCustomEmoji
 import dev.g000sha256.tdl.dto.StickerTypeRegular
 import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.async
@@ -237,6 +238,65 @@ class TdlStickerRepository(
         )
     }
 
+    override suspend fun canUseCustomEmoji(chatId: Long): Boolean {
+        val me = client.getMe().toResult().getOrNull() ?: return false
+        // Uložené zprávy jsou soukromý chat se sebou samým: jeho id je id uživatele.
+        return me.isPremium || chatId == me.id
+    }
+
+    override fun customEmojiSets(): Flow<List<CustomEmojiSet>> =
+        holder.updates { installedStickerSetsUpdates }
+            .filter { it.stickerType is StickerTypeCustomEmoji }
+            .map { }
+            .onStart { emit(Unit) }
+            .map {
+                client.getInstalledStickerSets(stickerType = StickerTypeCustomEmoji())
+                    .toResult()
+                    .map { sets ->
+                        sets.sets.filterNotNull().map { set ->
+                            CustomEmojiSet(
+                                id = set.id,
+                                title = set.title,
+                                cover = set.covers.filterNotNull().firstOrNull()?.toCustomEmojiItem(),
+                            )
+                        }
+                    }
+                    .getOrElse { failure ->
+                        logger.w(failure) { "Sady vlastních emoji se nepodařilo načíst." }
+                        emptyList()
+                    }
+            }
+
+    override suspend fun customEmojiSet(setId: Long): Result<List<CustomEmojiItem>> =
+        client.getStickerSet(setId = setId)
+            .toResult()
+            .map { set -> set.stickers.filterNotNull().mapNotNull { it.toCustomEmojiItem() } }
+
+    override fun trendingCustomEmojiSets(): Flow<List<CustomEmojiSetSample>> =
+        merge(
+            holder.updates { trendingStickerSetsUpdates }.filter { it.stickerType is StickerTypeCustomEmoji }.map { },
+            holder.updates { installedStickerSetsUpdates }.filter { it.stickerType is StickerTypeCustomEmoji }.map { },
+        )
+            .onStart { emit(Unit) }
+            .map {
+                client.getTrendingStickerSets(stickerType = StickerTypeCustomEmoji(), offset = 0, limit = TRENDING_LIMIT)
+                    .toResult()
+                    .map { trending ->
+                        trending.sets.filterNotNull().map { set ->
+                            CustomEmojiSetSample(
+                                id = set.id,
+                                title = set.title,
+                                isInstalled = set.isInstalled && !set.isArchived,
+                                covers = set.covers.filterNotNull().mapNotNull { it.toCustomEmojiItem() },
+                            )
+                        }
+                    }
+                    .getOrElse { failure ->
+                        logger.w(failure) { "Populární sady vlastních emoji se nepodařilo načíst." }
+                        emptyList()
+                    }
+            }
+
     override suspend fun stickerSet(setId: Long): Result<List<StickerItem>> =
         client.getStickerSet(setId = setId)
             .toResult()
@@ -391,6 +451,9 @@ class TdlStickerRepository(
                 logger.w(failure) { "Samolepky k emoji se nepodařilo načíst." }
                 emptyList()
             }
+
+    private fun Sticker.toCustomEmojiItem(): CustomEmojiItem? =
+        (fullType as? StickerFullTypeCustomEmoji)?.let { CustomEmojiItem(id = it.customEmojiId, emoji = emoji) }
 
     private fun Array<StickerSetInfo>.toSummaries(): List<StickerSetSummary> =
         filterNotNull().map { set ->

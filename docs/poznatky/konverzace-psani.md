@@ -619,6 +619,26 @@ funkce v `core/telegram/TextFormatting.kt` (testy `TextFormattingTest`).
   (`113 50`); Gboard ale při vložení do prázdného pole přidá na začátek mezeru, takže se po
   vrácení musí porovnat text (`uiautomator dump`) a mezera smazat.
 
+### Vlastní emoji v poli
+
+Vlastní emoji je v modelu formátování další druh rozsahu (`TextFormat.CustomEmoji`,
+`FormatSpan.customEmojiId`, testy `CustomEmojiFormattingTest`): text je obyčejné emoji, za které
+stojí, a odchází jako `TextEntityTypeCustomEmoji`. Je to ale OBSAH, ne formát písma:
+
+- **Nedělitelné** (`atomicAfterEdit`): úprava, která zasáhne dovnitř (backspace smaže jen půlku
+  páru UTF-16, vložení mezi znaky, přepsání), ho zruší; psaní před a za ně ho jen posune.
+- **Psaním se neprodlužuje** (jako odkaz) a **dvě stejná vedle sebe se nespojí** (`merged` je
+  vynechává) — jinak by z nich byl jeden rozsah přes dva znaky.
+- **„Bez formátování" ho nesmaže** a nepokračuje v něm psaní (`continuingAt`).
+- **Koncept ho nese** (`draftFormatsOf`, uložený stav pole má šesté pole s id), **úprava zprávy
+  ne**: `composedFormatsOf` u vlastního emoji dál vrací `null`, protože bez Premium by ho server
+  při úpravě mohl tiše zahodit.
+- **Obrázek se kreslí PŘES pole** (`CustomEmojiOverlay`): `BasicTextField` inline obsah neumí,
+  takže zástupné emoji se zprůhlední (barva `Transparent` skryje i barevné emoji — písmo emoji
+  kreslí s alfou barvy) a na jeho místo z `onTextLayout` se položí `CustomEmojiImage`.
+  **Jen když se text do pole vejde celý** (`customEmojiOverlayFits`): rolující pole (víc než
+  6 řádků) posun nevydá a obrázky by ujely — pak je vidět obyčejné emoji.
+
 ## Náhled odkazu při psaní
 
 Když rozepsaný text obsahuje odkaz, nad polem se po pauze v psaní ukáže náhled, jak ho připojí

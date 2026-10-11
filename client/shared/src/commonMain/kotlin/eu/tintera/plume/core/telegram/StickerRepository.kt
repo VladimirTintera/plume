@@ -81,6 +81,25 @@ interface StickerRepository {
      */
     suspend fun groupStickerSet(chatId: Long): GroupStickerSet?
 
+    /**
+     * Smí uživatel v chatu [chatId] posílat vlastní emoji? S Premium všude, bez něj jen do
+     * Uložených zpráv — ověřeno pokusem: zpráva s vlastním emoji tam entitu podrží i po
+     * potvrzení serverem. Jinde by ji TDLib bez Premium zahodila.
+     */
+    suspend fun canUseCustomEmoji(chatId: Long): Boolean
+
+    /** Nainstalované sady vlastních emoji, v pořadí uživatele. Živý tok jako [installedSets]. */
+    fun customEmojiSets(): Flow<List<CustomEmojiSet>>
+
+    /** Vlastní emoji jedné sady; načítá se až při otevření její záložky. */
+    suspend fun customEmojiSet(setId: Long): Result<List<CustomEmojiItem>>
+
+    /**
+     * Populární sady vlastních emoji k přidání — výběr je nabídne, když uživatel žádnou nemá.
+     * Živý tok: po přidání se přepočítá ([CustomEmojiSetSample.isInstalled]).
+     */
+    fun trendingCustomEmojiSets(): Flow<List<CustomEmojiSetSample>>
+
     /** Obsah jedné sady. Načítá se až při otevření její záložky — sad bývá desítky. */
     suspend fun stickerSet(setId: Long): Result<List<StickerItem>>
 
@@ -179,6 +198,20 @@ data class GroupStickerSet(
     val chatId: Long,
     val chatTitle: String,
     val chatPhotoFileId: Int?,
+)
+
+/** Vlastní emoji ve výběru: id a obyčejné emoji, za které stojí (to jde do textu). */
+data class CustomEmojiItem(val id: Long, val emoji: String)
+
+/** Sada vlastních emoji v záložkách výběru emoji. */
+data class CustomEmojiSet(val id: Long, val title: String, val cover: CustomEmojiItem?)
+
+/** Populární sada vlastních emoji s ukázkou. */
+data class CustomEmojiSetSample(
+    val id: Long,
+    val title: String,
+    val isInstalled: Boolean,
+    val covers: List<CustomEmojiItem>,
 )
 
 /** Sada v záložkách výběru. */
