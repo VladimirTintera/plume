@@ -132,6 +132,34 @@ a Linuxu AWT `TrayIcon.displayMessage`.
   **Neověřeno**: Windows a Linux (AWT), odznak v Docku, zavření okna a návrat z Docku,
   stažení oznámení po přečtení jinde (jen nepřímo — viz „ukradne").
 
+## Release (Windows)
+
+`.github/workflows/desktop-release.yml`, ručně: Actions → „Desktop Release" → verze X.Y.Z.
+Na `windows-latest` postaví MSI (`packageMsi -PdesktopVersion=…`), pak na Ubuntu založí tag
+`desktop-<verze>` a GitHub Release s MSI v příloze. Secrets stejné jako Android
+(`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`).
+
+- **Verze je jen z inputu**, ne z commitu; tag `desktop-<verze>` vzniká až po úspěšném buildu.
+  MSI pozná aktualizaci podle verze (X a Y do 255, Z do 65535) a podle `upgradeUuid`
+  v `client/desktopApp/build.gradle.kts`, **který se nesmí měnit** — nové UUID by nainstalovalo
+  druhou kopii vedle staré. Stejnou nebo nižší verzi MSI přes vyšší nenainstaluje.
+- **macOS nepřijme verzi s MAJOR 0** („The first number in an app-version cannot be zero") —
+  MSI ano. Až přibude macOS release, chce desktop verzi od 1.0.0.
+- **Instalace jen pro uživatele** (`perUserInstall`, `%LOCALAPPDATA%`): bez správce, což
+  u nepodepsaného instalátoru ušetří další dotaz. Data aplikace jsou dál v `%APPDATA%\Plume`.
+- **Nepodepsané.** SmartScreen při prvním spuštění zastaví instalátor („Další informace" →
+  „Přesto spustit"). Podpis chce certifikát pro podepisování kódu.
+- **Bez ProGuardu** (`packageMsi`, ne `packageReleaseMsi`) — pravidla pro wrapper TDLib, Koin
+  a serializaci na desktopu nejsou.
+- **MSI jde do přílohy releasu**, artefakt běhu žije jen den: přílohy releasů se do kvóty
+  Actions nepočítají.
+- **Na Windows bývá jen `python`, ne `python3`** — `generateChangelog` zkouší obojí, jinak by
+  „Co je nového" v aplikaci tiše zůstalo prázdné.
+- **Ikony** (`client/desktopApp/icons/plume.{ico,icns,png}` a ikona okna) generuje
+  `play/tools/icon.py desktop` z téže geometrie pírka jako ostatní platformy: zaoblený čtverec
+  s průhlednými rohy podle mřížky ikon macOS (824/1024, poloměr 185). ICO nese velikosti
+  16–256, Windows si vybírá podle místa (hlavní panel, Start, Průzkumník).
+
 ## Co platforma (zatím) neumí
 
 Prázdné `actual` volí chování, které sdílený kód už umí ohlásit, ne tiché nic: přehrávání
