@@ -396,13 +396,9 @@ zprávou"). Zbývá:
 
 Hotové: záložky Nedávné, Oblíbené, Trendy a sady se swipem; hledání samolepek i emoji; oblíbené;
 sada ze samolepky v chatu; emoji vkládané do textu včetně nedávných; mřížka jedné sady hraje;
-samolepky k emoji v poli; velký náhled po podržení. Zbývá:
+samolepky k emoji v poli; velký náhled po podržení; hledání sad podle názvu; kategorie pod polem
+hledání. Zbývá:
 
-- **Hledání sad podle názvu** — hledání vrací jen jednotlivé samolepky podle emoji a klíčových
-  slov, sadu „Duck" nenajde. TDLib: `searchInstalledStickerSets` a `searchStickerSets`; výsledky
-  jako sekce „Sady" s ukázkou a tlačítkem Přidat, jako v Trendech.
-- **Kategorie pod polem hledání** — čipy 😍 Láska, 👋 Pozdrav… (`getEmojiCategories`), ťuknutí
-  spustí hledání bez psaní a klávesnice nepřekryje mřížku. Hodí se udělat spolu s hledáním sad.
 - **Výběr si nepamatuje poslední záložku** (vyčteno z kódu, neověřeno): `PagerState` vzniká
   se sheetem, takže se otevře na Nedávných. Kdo posílá z jedné sady, musí k ní pokaždé dojet.
 - **Odebrat z Nedávných a smazat Nedávné** — omylem poslaná samolepka tam zůstane. Křížek

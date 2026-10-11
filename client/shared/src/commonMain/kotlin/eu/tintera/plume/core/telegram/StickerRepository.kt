@@ -38,9 +38,9 @@ interface StickerRepository {
 
     /**
      * Populární sady, které Telegram právě doporučuje. Živý tok: přepočítá se, když se trendy
-     * změní, i když si uživatel některou sadu přidá (kvůli [TrendingStickerSet.isInstalled]).
+     * změní, i když si uživatel některou sadu přidá (kvůli [StickerSetSample.isInstalled]).
      */
-    fun trendingSets(): Flow<List<TrendingStickerSet>>
+    fun trendingSets(): Flow<List<StickerSetSample>>
 
     /** Označí trendy za zhlédnuté, aby je Telegram přestal hlásit jako nové. */
     suspend fun markTrendingViewed(setIds: List<Long>)
@@ -52,12 +52,18 @@ interface StickerRepository {
     suspend fun stickerSet(setId: Long): Result<List<StickerItem>>
 
     /**
-     * Najde samolepky ve vlastních sadách i ve veřejných.
+     * Najde samolepky ve vlastních sadách i ve veřejných, a u slova navíc sady podle názvu.
      *
      * Nikdy neselže celé: když nevyjde jeden zdroj (typicky veřejné hledání bez sítě), vrátí se
      * aspoň ten druhý. Prázdný výsledek znamená „nic nenalezeno".
      */
     suspend fun search(query: StickerQuery): StickerSearchResult
+
+    /**
+     * Kategorie pro hledání bez psaní (láska, pozdrav, smích…), jak je nabízí Telegram. Každá je
+     * jen seznam emoji; samolepky k nim najde [search]. Při chybě prázdný seznam.
+     */
+    suspend fun categories(): List<StickerCategory>
 
     /**
      * Samolepky k jednomu [emoji] pro návrh nad vstupním polem: jen z toho, co uživatel zná
@@ -85,6 +91,26 @@ data class StickerSearchResult(
     val installed: List<StickerItem>,
     /** Z veřejných sad, bez těch, které už jsou v [installed]. */
     val public: List<StickerItem>,
+    /**
+     * Sady, jejichž název odpovídá slovu: nejdřív nainstalované, pak veřejné. U hledání podle
+     * emoji prázdné — názvy sad emoji nemají.
+     */
+    val sets: List<StickerSetSample> = emptyList(),
+)
+
+/** Kategorie pod polem hledání. */
+data class StickerCategory(
+    /** Název od Telegramu; slouží i jako stabilní klíč. */
+    val name: String,
+    /** Emoji, které kategorii zastupuje (vlastní emoji Telegramu). */
+    val icon: MessageMedia.Sticker,
+    /**
+     * Ikona je jednobarevná a má se obarvit barvou textu (`needsRepainting`). Telegram ji kreslí
+     * bíle, takže na světlém čipu by bez obarvení nebyla vidět.
+     */
+    val iconTinted: Boolean,
+    /** Emoji oddělená mezerou, jak je bere [StickerQuery.Emoji]. */
+    val emojis: String,
 )
 
 /** Sada otevřená ze samolepky v konverzaci. */
@@ -97,8 +123,8 @@ data class StickerSetDetail(
     val stickers: List<StickerItem>,
 )
 
-/** Sada v trendech. */
-data class TrendingStickerSet(
+/** Sada s ukázkou samolepek: v trendech a ve výsledcích hledání. */
+data class StickerSetSample(
     val id: Long,
     val title: String,
     val isInstalled: Boolean,
