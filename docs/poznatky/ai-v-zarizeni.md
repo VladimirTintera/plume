@@ -412,6 +412,13 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   „confirmation", „PNR", „locator"; mezi nimi nejvýš tři slova): 5–16 znaků z velkých písmen
   a číslic, i s tečkami (Booking „4123.456.789"), čistě číselný 6–12 číslic. Hodnota, která je
   rezervací, se už nenabídne jako obecný kód („kód rezervace: ABC123" chytí oboje).
+- **Let do kalendáře s časem ze zprávy** („Let OK 123" / „Přílet BA 117"): čas letu se odjinud
+  nezjistí, bere se termín, který ve zprávě našla pravidla — i NEJISTÝ („let OK 123 v 9:40"),
+  protože že jde o let, říká číslo letu a model to potvrzovat nemusí. Přílet jen tehdy, když
+  zpráva mluví o příletu a ne o odletu („odlet v 9:40, přílet ve 12:00" je odlet). Termín, který
+  nese let, se nenabízí ještě jako obecná událost — model by z „přistání na letišti" udělal
+  název „přistání na letišti" s místem „letišti". V popisu je celá zpráva, takže i kód
+  rezervace. Událost má hodinu, délku letu neznáme.
 - **Termín je jistý, nebo nejistý** (`EventCandidate.certain`). Jistý = den a čas, datum číslem,
   nebo termín vyznačený Telegramem (`MessageEntityType.DateTime`); ten se nabídne i bez modelu.
   Jen čas („v 15:00") je nejistý a nabídne se, jen když ho model potvrdí. Jen den („v pátek")
@@ -466,7 +473,9 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   (zrušený, síť se neuložila); „Slevový kód na první nákup: LETO20" zkopíruje „LETO20";
   „120 € na noc" se systémem `en_US` převede na „≈ 134,46 USD" s kurzem ČNB z 9. října 2026;
   „uběhl 10 km, venku bylo 20 °C" se systémem `en_US` ukáže „≈ 6,2 mi" a „≈ 68 °F";
-  „kód rezervace: XKQ7ZT" nabídne kód rezervace ke zkopírování.
+  „kód rezervace: XKQ7ZT" nabídne kód rezervace ke zkopírování; „Odlet OK 123 zítra v 9:40
+  z Ruzyně, kód rezervace XKQ7ZT" nabídne let se „Stav letu", „Odlet do kalendáře — zítra
+  09:40" (bez obecné karty události) a kód rezervace.
   **Neověřené**: načtení QR bankovní aplikací, editor
   události, Gemini Nano, iOS.
 
