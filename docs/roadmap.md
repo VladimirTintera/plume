@@ -464,8 +464,9 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
   na stažení z Play za to stojí (jinak dynamický modul Play Feature Delivery).
 - ~~**Lokální přepis řeči v zařízení (Speech-to-Text bez Premium).**~~ — hotovo přes Gemmu 4
   se zvukovým vstupem (`OnDeviceAi.transcribe`; `docs/poznatky/prohlizec-medii.md`, „Přepis
-  v telefonu"). Zbývá: telefony bez Gemmy (systémový `SpeechRecognizer` v zařízení, od
-  Androidu 13 umí číst ze souboru), iOS (`SFSpeechRecognizer` s `requiresOnDeviceRecognition`)
+  v telefonu"). ~~Telefony bez Gemmy~~ napsané (systémový `SpeechRecognizer` v zařízení,
+  Android 13+), ale **neověřené na skutečném telefonu** — emulátor ho nemá. Zbývá iOS
+  (`SFSpeechRecognizer` s `requiresOnDeviceRecognition`)
   a ověření kolečka. ~~Přepis přes restart aplikace~~ hotovo (uložený v nastavení po účtech).
 - ~~**Extrakce textu z fotek (OCR / Live Text).**~~ — hotovo (⋮ → „Text z fotky" v prohlížeči:
   zvýraznění řádků na snímku, výběr řádků ťuknutím, panel s výběrem a „Kopírovat vše / výběr";
