@@ -51,6 +51,16 @@ interface AppSettings {
 
     suspend fun setRecordMode(mode: RecordMode)
 
+    /**
+     * Záložka výběru samolepek, na které uživatel naposledy byl (klíč od výběru: nedávné,
+     * oblíbené, trendy, nebo sada). `null` = ještě žádná — výběr začne Nedávnými. Kdo posílá
+     * z jedné sady, nemusí k ní pokaždé dojíždět.
+     */
+    val lastStickerTab: StateFlow<String?>
+
+    /** Zapamatuje záložku. Neblokuje, jako [recordRecentEmoji]. */
+    fun setLastStickerTab(key: String)
+
     /** Emoji naposledy vybraná ve výběru, od nejnovějšího. Bez duplicit, nejvýš [MAX_RECENT_EMOJIS]. */
     val recentEmojis: StateFlow<List<String>>
 
@@ -449,6 +459,12 @@ class DataStoreAppSettings(
 
     override suspend fun setRecordMode(mode: RecordMode) {
         edit { it[RECORD_MODE] = mode.name }
+    }
+
+    override val lastStickerTab: StateFlow<String?> = value(null) { preferences -> preferences[LAST_STICKER_TAB] }
+
+    override fun setLastStickerTab(key: String) {
+        scope.launch { edit { it[LAST_STICKER_TAB] = key } }
     }
 
     override val recentEmojis: StateFlow<List<String>> = value(emptyList()) { preferences ->
@@ -950,6 +966,7 @@ class DataStoreAppSettings(
         val EXPRESSION_MODE = stringPreferencesKey("expression_mode")
         val RECORD_MODE = stringPreferencesKey("record_mode")
         val RECENT_EMOJIS = stringPreferencesKey("recent_emojis")
+        val LAST_STICKER_TAB = stringPreferencesKey("last_sticker_tab")
         val EMOJI_SKIN_TONES = stringPreferencesKey("emoji_skin_tones")
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")

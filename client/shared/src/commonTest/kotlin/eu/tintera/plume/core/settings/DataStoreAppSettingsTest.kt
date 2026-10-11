@@ -70,6 +70,17 @@ class DataStoreAppSettingsTest {
     }
 
     @Test
+    fun posledniZalozkaSamolepekSeUlozi() = settingsTest { settings, _ ->
+        assertEquals(null, settings.lastStickerTab.value)
+
+        settings.setLastStickerTab("set:42")
+        settings.lastStickerTab.awaitValue("uložená sada 42") { it == "set:42" }
+
+        settings.setLastStickerTab("favorites")
+        settings.lastStickerTab.awaitValue("uložené Oblíbené") { it == "favorites" }
+    }
+
+    @Test
     fun nedavnaEmojiNejnovejsiPrvniBezDuplicit() = settingsTest { settings, _ ->
         /*
          * Čeká se na CELÝ očekávaný seznam, ne jen na první položku.

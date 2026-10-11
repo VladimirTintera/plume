@@ -297,6 +297,17 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
   a pager sdílejí `PagerState`: swipe přepne záložku (`currentPage` už v půlce tahu), ťuknutí
   na záložku posune pager. Počet stránek je lambda, protože sady dorazí až po nedávných
   a oblíbených; klíč stránky je záložka, ne index, aby se stránkám nerozsypal scroll.
+- **Výběr se otevře na záložce, na které uživatel naposledy dosedl** (`AppSettings
+  .lastStickerTab`, klíč `StickerTab.storageKey()`: `recent`, `favorites`, `trending`,
+  `set:<id>`), i po restartu. Kdo posílá z jedné sady, nemusí k ní pokaždé dojíždět.
+  - **`PagerState` vzniká až s CELÝM seznamem záložek** (`StickerPickerState.loaded`,
+    `StickerTabsPager`) a rovnou s `initialPage`. První stav má jen Nedávné, Oblíbené a Trendy;
+    pager založený na něm by se otevřel na Nedávných a na sadu pak přeskočil. Čekání je dotaz
+    do lokální databáze TDLib a místo drží indikátor ve stejně vysoké ploše. Na emulátoru byl
+    výběr na sadě už v prvním snímku vyjíždějícího sheetu, řádek záložek posunutý k ní.
+  - **Ukládá se USAZENÁ stránka** (`settledPage`), ne každá, přes kterou prst přejel, a sada
+    se ukládá podle id — pořadí sad se mění. Odebraná sada se nenajde a výběr začne Nedávnými.
+  - Klíč stránky pageru je tentýž `storageKey()` — jeden klíč záložky, ne dva skoro stejné.
 - **ViewModel drží obsah VŠECH záložek**, ne jen vybrané — při swipu je vidět i sousední stránka.
 - **Obsah sady se načítá až když se její stránka poprvé ukáže** (`load` v `LaunchedEffect` stránky;
   pager skládá jen viditelné). Sad bývá desítky.
