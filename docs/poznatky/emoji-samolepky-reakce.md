@@ -390,6 +390,15 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
 - **Oblíbené se přepínají hvězdičkou v NÁHLEDU podržené samolepky**, ne u každé buňky. Hvězdička
   všude by zaplevelila mřížku a ťuknutí vedle ní by samolepku omylem poslalo; podržení je zároveň
   „prohlížím si tuhle". Stav se lokálně nepřepisuje, potvrzení přijde `favoriteStickersUpdates`.
+- **Z Nedávných se odebírá v NÁHLEDU podržené samolepky** (`removeRecentSticker`, ikona
+  `history_toggle_off`), stejně jako se tam přepínají oblíbené. Tlačítko je u každé samolepky,
+  která v nedávných je (`StickerCells.recentFileIds`), i když byla podržená ve výsledcích
+  hledání nebo v sadě; v detailu sady otevřeném z konverzace ne, tam se nedávné nesledují.
+  **Odebrání náhled zavře** (hvězdička ne): samolepka pod ním z mřížky odejde a náhled by visel
+  nad ničím. Bez potvrzení — příští odeslání ji vrátí. Stav se lokálně nepřepisuje, potvrzení
+  přijde `recentStickersUpdates`.
+- **„Vymazat" je nahoře v Nedávných** (položka přes celou šířku mřížky, jen u neprázdného
+  seznamu) a ptá se: seznam je v cloudu, zmizí na všech zařízeních účtu a vrátit nejde.
 - **Buňky mřížky mají `animateItem`** — odebraná samolepka plynule zmizí a ostatní se dosunou.
   Průhlednost přes effects spec, posun přes spatial. **Mřížka zůstává i prázdná** a prázdný text
   se nad ní jen objeví: kdyby ji prázdný stav nahradil, zmizela by i s poslední samolepkou dřív,

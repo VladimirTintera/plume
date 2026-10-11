@@ -43,6 +43,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -140,6 +141,11 @@ import eu.tintera.plume.resources.stickers_added
 import eu.tintera.plume.resources.stickers_clear_search
 import eu.tintera.plume.resources.stickers_favorites_empty
 import eu.tintera.plume.resources.stickers_none_found
+import eu.tintera.plume.resources.common_cancel
+import eu.tintera.plume.resources.stickers_recent_clear
+import eu.tintera.plume.resources.stickers_recent_clear_confirm
+import eu.tintera.plume.resources.stickers_recent_clear_text
+import eu.tintera.plume.resources.stickers_recent_clear_title
 import eu.tintera.plume.resources.stickers_recent_empty
 import eu.tintera.plume.resources.stickers_search
 import eu.tintera.plume.resources.stickers_section_installed
@@ -351,6 +357,18 @@ class StickerPickerViewModel(
         viewModelScope.launch { repository.markTrendingViewed(sets.map { it.id }) }
     }
 
+    /**
+     * Odebere samolepku z nedávných. Lokálně se nic nepřepisuje — potvrzení dorazí updatem
+     * a samolepka z mřížky odejde animací, jako odebraná oblíbená.
+     */
+    fun removeRecent(sticker: StickerItem) {
+        viewModelScope.launch { repository.removeRecent(sticker.sendFileId) }
+    }
+
+    fun clearRecent() {
+        viewModelScope.launch { repository.clearRecent() }
+    }
+
     /** Záložka, na které byl uživatel naposledy; čte se jednou, při otevření výběru. */
     val lastTabKey: String? get() = settings.lastStickerTab.value
 
@@ -506,6 +524,7 @@ internal fun StickerPickerSheet(
         scope.launch { sheetState.hide() }.invokeOnCompletion { onPickWith(sticker, choice) }
     }
     val favoriteIds = state.favorites.orEmpty().map { it.sendFileId }.toSet()
+    val recentIds = state.recent.orEmpty().map { it.sendFileId }.toSet()
     val toggleFavorite: (StickerItem) -> Unit = { sticker ->
         haptics.toggle(on = sticker.sendFileId !in favoriteIds)
         viewModel.toggleFavorite(sticker)
@@ -515,6 +534,8 @@ internal fun StickerPickerSheet(
     val cells = StickerCells(
         activeStickerId = previewSticker?.id,
         favoriteFileIds = favoriteIds,
+        recentFileIds = recentIds,
+        onRemoveRecent = viewModel::removeRecent,
         onPick = pick,
         onPreview = { sticker -> previewSticker = sticker },
         onToggleFavorite = toggleFavorite,
@@ -721,6 +742,7 @@ private fun StickerTabsPager(
             StickerPage(
                 tab = tab,
                 stickers = state.stickersOf(tab),
+                onClearRecent = viewModel::clearRecent,
                 cells = cells.copy(
                     /*
                      * Hraje jen USAZENÁ stránka. Během swipu jsou vidět dvě; přijíždějící sada by
@@ -776,7 +798,19 @@ private fun StickerPage(
     tab: StickerTab,
     stickers: List<StickerItem>?,
     cells: StickerCells,
+    onClearRecent: () -> Unit,
 ) {
+    var confirmClear by remember { mutableStateOf(false) }
+    if (confirmClear) {
+        ClearRecentDialog(
+            onConfirm = {
+                confirmClear = false
+                onClearRecent()
+            },
+            onDismiss = { confirmClear = false },
+        )
+    }
+
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         if (stickers == null) {
             LoadingIndicator()
@@ -793,6 +827,19 @@ private fun StickerPage(
             contentPadding = sheetListPadding(horizontal = 12.dp, vertical = 8.dp),
             modifier = Modifier.fillMaxSize(),
         ) {
+            /*
+             * „Vymazat" nahoře v Nedávných, jako v Telegramu. Jen tady: oblíbené se odebírají
+             * hvězdičkou po jedné a sada se odebírá celá v jejím detailu.
+             */
+            if (tab == StickerTab.Recent && stickers.isNotEmpty()) {
+                item(key = "clear-recent", span = { GridItemSpan(maxLineSpan) }) {
+                    Box(Modifier.animateItem(), contentAlignment = Alignment.CenterEnd) {
+                        TextButton(onClick = { confirmClear = true }) {
+                            Text(stringResource(Res.string.stickers_recent_clear))
+                        }
+                    }
+                }
+            }
             items(stickers, key = { it.id }) { sticker ->
                 StickerCell(sticker, cells, animateStickerItem())
             }
@@ -817,6 +864,25 @@ private fun StickerPage(
             )
         }
     }
+}
+
+/**
+ * Potvrzení vymazání nedávných. Seznam je v cloudu, takže zmizí na všech zařízeních účtu
+ * a vrátit ho nejde — proto se ptá, na rozdíl od odebrání jedné samolepky.
+ */
+@Composable
+private fun ClearRecentDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.stickers_recent_clear_title)) },
+        text = { Text(stringResource(Res.string.stickers_recent_clear_text)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(Res.string.stickers_recent_clear_confirm), color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+    )
 }
 
 /**
@@ -922,6 +988,12 @@ internal data class StickerCells(
     /** Podržení: otevře náhled ([StickerPreviewHost]). */
     val onPreview: (StickerItem) -> Unit,
     val onToggleFavorite: (StickerItem) -> Unit,
+    /**
+     * Soubory nedávných samolepek: podržená samolepka mezi nimi nabídne „Odebrat z nedávných".
+     * Prázdné tam, kde se nedávné neukazují (detail sady), a tlačítko tam pak není.
+     */
+    val recentFileIds: Set<Int> = emptySet(),
+    val onRemoveRecent: (StickerItem) -> Unit = {},
     /** Volby odeslání v náhledu podržené samolepky; `null` = tlačítko není (sada, anketa). */
     val sendMenu: SendMenuOffer? = null,
     val onPickWith: (StickerItem, SendMenuChoice) -> Unit = { _, _ -> },

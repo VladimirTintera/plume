@@ -397,10 +397,9 @@ zprávou"). Zbývá:
 Hotové: záložky Nedávné, Oblíbené, Trendy a sady se swipem; hledání samolepek i emoji; oblíbené;
 sada ze samolepky v chatu; emoji vkládané do textu včetně nedávných; mřížka jedné sady hraje;
 samolepky k emoji v poli; velký náhled po podržení; hledání sad podle názvu; kategorie pod polem
-hledání; výběr se otevře na naposledy otevřené záložce. Zbývá:
+hledání; výběr se otevře na naposledy otevřené záložce; odebrání z Nedávných a jejich vymazání.
+Zbývá:
 
-- **Odebrat z Nedávných a smazat Nedávné** — omylem poslaná samolepka tam zůstane. Křížek
-  v náhledu podržené samolepky (`removeRecentSticker`), „Vymazat" v záložce (`clearRecentStickers`).
 - **Sada skupiny** — supergroupa může mít vlastní sadu (`SupergroupFullInfo.stickerSetId`);
   ve výběru záložka za Oblíbenými, jen v té skupině.
 - **Správa sad v Nastavení** („Samolepky a emoji") — přeřazení tahem

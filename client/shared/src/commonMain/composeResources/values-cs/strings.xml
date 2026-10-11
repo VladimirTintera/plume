@@ -650,6 +650,11 @@
     <string name="pin_option_notify_group">Upozornit členy</string>
     <string name="pin_option_notify_channel">Upozornit odběratele</string>
     <string name="stickers_recent_empty">Tady se objeví samolepky, které pošleš.</string>
+    <string name="stickers_recent_remove">Odebrat z nedávných</string>
+    <string name="stickers_recent_clear">Vymazat</string>
+    <string name="stickers_recent_clear_title">Vymazat nedávné samolepky?</string>
+    <string name="stickers_recent_clear_text">Nedávno poslané samolepky zmizí z výběru na všech tvých zařízeních.</string>
+    <string name="stickers_recent_clear_confirm">Vymazat</string>
     <string name="stickers_favorites_empty">Zatím tu nejsou žádné oblíbené samolepky.</string>
     <string name="stickers_set_empty">Sada je prázdná, nebo se ji nepodařilo načíst.</string>
     <string name="stickers_trending_failed">Trendy se nepodařilo načíst.</string>

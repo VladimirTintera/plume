@@ -161,6 +161,18 @@ class TdlStickerRepository(
             .toResult()
             .map { }
 
+    override suspend fun removeRecent(stickerFileId: Int): Result<Unit> =
+        client.removeRecentSticker(isAttached = false, sticker = InputFileId(id = stickerFileId))
+            .toResult()
+            .map { }
+            .onFailure { logger.w(it) { "Samolepku se nepodařilo odebrat z nedávných." } }
+
+    override suspend fun clearRecent(): Result<Unit> =
+        client.clearRecentStickers(isAttached = false)
+            .toResult()
+            .map { }
+            .onFailure { logger.w(it) { "Nedávné samolepky se nepodařilo vymazat." } }
+
     override suspend fun setFavorite(stickerFileId: Int, favorite: Boolean): Result<Unit> {
         val file = InputFileId(id = stickerFileId)
         return if (favorite) {

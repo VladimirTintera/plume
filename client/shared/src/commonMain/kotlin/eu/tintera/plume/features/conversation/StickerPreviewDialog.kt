@@ -37,6 +37,8 @@ import androidx.compose.ui.window.DialogProperties
 import eu.tintera.plume.core.telegram.StickerItem
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_send_options
+import eu.tintera.plume.resources.history_toggle_off_24dp
+import eu.tintera.plume.resources.stickers_recent_remove
 import eu.tintera.plume.resources.menu_favorite_add
 import eu.tintera.plume.resources.menu_favorite_remove
 import eu.tintera.plume.resources.schedule_send_24dp
@@ -66,6 +68,9 @@ internal fun StickerPreviewDialog(
     onPick: () -> Unit,
     onPickWith: (SendMenuChoice) -> Unit,
     onToggleFavorite: () -> Unit,
+    /** Samolepka je mezi nedávnými — náhled nabídne odebrání. */
+    recent: Boolean,
+    onRemoveRecent: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     // Odchod se nejdřív dohraje, teprve pak dialog zmizí — zmizení bez animace vypadá jako pád.
@@ -120,6 +125,26 @@ internal fun StickerPreviewDialog(
                             )
                         }
                         sendMenu?.let { offer -> SendOptionsIconButton(offer, onPickWith) }
+                        /*
+                         * Odebrání náhled ZAVŘE, na rozdíl od hvězdičky: samolepka z mřížky pod
+                         * ním odejde a náhled samolepky, která v nedávných už není, by visel ve
+                         * vzduchu. Nevratné to není — příští odeslání ji tam vrátí —, proto
+                         * bez potvrzení.
+                         */
+                        if (recent) {
+                            FilledTonalIconButton(
+                                onClick = {
+                                    onRemoveRecent()
+                                    close()
+                                },
+                                shapes = IconButtonDefaults.shapes(),
+                            ) {
+                                Icon(
+                                    painterResource(Res.drawable.history_toggle_off_24dp),
+                                    contentDescription = stringResource(Res.string.stickers_recent_remove),
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -150,7 +175,7 @@ private fun SendOptionsIconButton(offer: SendMenuOffer, onChoice: (SendMenuChoic
 
 /**
  * Náhled nad mřížkou samolepek ([StickerCells]), když nějaká je podržená. Poslat a volby odeslání
- * náhled zavřou rovnou (zavírá se i sheet), hvězdička ho nechá otevřený — stav oblíbení se
+ * náhled zavřou rovnou (zavírá se i sheet), odebrání z nedávných animací, hvězdička ho nechá otevřený — stav oblíbení se
  * přepíše, až ho potvrdí TDLib.
  */
 @Composable
@@ -175,6 +200,8 @@ internal fun StickerPreviewHost(
             cells.onPickWith(sticker, choice)
         },
         onToggleFavorite = { cells.onToggleFavorite(sticker) },
+        recent = sticker.sendFileId in cells.recentFileIds,
+        onRemoveRecent = { cells.onRemoveRecent(sticker) },
         onDismiss = onClose,
     )
 }
