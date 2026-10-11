@@ -171,6 +171,13 @@ znamenaly slepou uličku — kód nikdy nepřišel a jiná cesta nebyla.
   `auth_error_email_unsupported` — e-mailové ověření ani registraci Plume nedělá.
   Jestli na čísle nevisí účet po předchozím majiteli, se nedotáhlo (rozhodlo by dokončení
   v oficiální aplikaci: nový účet se ptá na jméno); žádost o e-mail ukazuje spíš na nový účet.
+- **Ani založený účet bez aktivní relace to nezmění** (týž den, o pár minut později). Uživatel
+  se v oficiální aplikaci zaregistroval (kód e-mailem, ověření prozvoněním z +1 412…)
+  a odhlásil; Plume s vyčištěnými daty dostal znovu `TelegramMessage(length=45), next=null,
+  timeout=0` a během minuty nepřišel e-mail, SMS ani hovor. Kód tedy leží v servisním chatu
+  účtu, který nikdo nemá otevřený. Plume se na číslo bez jiné přihlášené relace nedostane;
+  napřed je potřeba přihlásit oficiální aplikaci (tam server nabídne e-mail) a pak Plume
+  kódem ze zprávy, nebo rovnou QR kódem.
 - **Tlačítko tedy čeká na server, který jinou cestu dá** (jiné `api_id`, jiná země, účet bez
   aktivní relace). Ověřené je jen testy `AuthViewModelTest` (lhůta, poslání, chyby), skutečné
   doručení SMS či hovoru ne.
