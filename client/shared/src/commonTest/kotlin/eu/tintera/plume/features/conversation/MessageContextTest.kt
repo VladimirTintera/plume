@@ -235,7 +235,7 @@ class MessageContextTest {
     @Test
     fun cisloLetu() {
         val flight = context("Letím zítra, let OK 123 v 9:40 z Ruzyně").flights.single()
-        assertEquals(ContextFinding.Flight("OK", "123", at = LocalDateTime(2026, 10, 15, 9, 40)), flight)
+        assertEquals(ContextFinding.Flight("OK", "123", at = LocalDateTime(2026, 10, 15, 9, 40), from = "PRG"), flight)
         assertEquals("https://www.flightaware.com/live/flight/OK123", flight.trackingUrl())
         assertEquals("FR1234", context("Flight FR1234 is delayed, gate B12").flights.single().code)
         assertEquals("W62345", context("Odlet W6 2345 ve 14:00").flights.single().code)
@@ -255,6 +255,44 @@ class MessageContextTest {
         assertTrue(findings(text).none { it is ContextFinding.Event })
         // Odlet i přílet ve zprávě: čas patří odletu.
         assertFalse(context("Odlet OK 123 zítra v 9:40, přílet ve 12:00").flights.single().arrival)
+    }
+
+    @Test
+    fun trasaADelkaLetu() {
+        // Dva časy v pásmech letišť: Praha 9:40 → Londýn 10:55 jsou 2 h 15 min, ne 1 h 15 min.
+        val flight = context("Let OK 123 PRG → LHR zítra, odlet 9:40, přílet 10:55").flights.single()
+        assertEquals("PRG", flight.from)
+        assertEquals("LHR", flight.to)
+        val schedule = flight.schedule(TimeZone.of("Europe/Prague"))!!
+        assertEquals(135, schedule.minutes)
+        assertFalse(schedule.estimated)
+        assertEquals(LocalDateTime(2026, 10, 15, 7, 40).toInstant(TimeZone.UTC), schedule.start)
+    }
+
+    @Test
+    fun odhadDelkyZTrasy() {
+        val flight = context("Let FR1234 z Ruzyně do LHR zítra v 6:15").flights.single()
+        assertEquals("PRG", flight.from)
+        val schedule = flight.schedule(TimeZone.of("Europe/Prague"))!!
+        assertTrue(schedule.estimated)
+        assertEquals(120, schedule.minutes)
+    }
+
+    @Test
+    fun nocniLetPresPulnoc() {
+        val schedule = context("Let OK 123 PRG-DXB zítra, odlet 22:30, přílet 6:20").flights.single()
+            .schedule(TimeZone.of("Europe/Prague"))!!
+        // 22:30 v Praze (20:30 UTC) → 6:20 v Dubaji (2:20 UTC) druhý den.
+        assertEquals(350, schedule.minutes)
+    }
+
+    @Test
+    fun letBezTrasyMaJenCas() {
+        val schedule = context("Let OK 123 zítra v 9:40").flights.single().schedule(TimeZone.of("Europe/Prague"))!!
+        assertNull(schedule.end)
+        assertNull(schedule.minutes)
+        // Neznámé letiště ani zkratka trasou nejsou.
+        assertNull(context("Let OK 123 ABC-XYZ zítra v 9:40").flights.single().from)
     }
 
     @Test

@@ -18,6 +18,12 @@ data class CalendarEvent(
     val start: LocalDateTime,
     /** Celý den: z [start] platí jen datum. */
     val allDay: Boolean,
+    /**
+     * Začátek a konec jako okamžiky, když je [start] v jiném pásmu než telefon (let z New Yorku)
+     * nebo je délka známá. Bez nich se [start] bere v pásmu telefonu a událost má hodinu.
+     */
+    val begin: Instant? = null,
+    val end: Instant? = null,
 )
 
 /**
@@ -36,7 +42,9 @@ expect class CalendarEvents {
 
 /** Začátek a konec události: hodina od začátku, celodenní do půlnoci dalšího dne. */
 internal fun CalendarEvent.span(zone: TimeZone): Pair<Instant, Instant> =
-    if (allDay) {
+    if (begin != null) {
+        begin to (end ?: begin.plus(1, DateTimeUnit.HOUR, zone))
+    } else if (allDay) {
         start.date.atStartOfDayIn(zone) to start.date.plus(DatePeriod(days = 1)).atStartOfDayIn(zone)
     } else {
         val begin = start.toInstant(zone)

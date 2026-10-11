@@ -4,6 +4,11 @@ import eu.tintera.plume.core.telegram.MessageEntity
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.ui.foldDiacritics
 import kotlinx.datetime.LocalDateTime
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.days
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.atTime
+import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Instant
@@ -62,6 +67,11 @@ sealed interface ContextFinding {
         val allDay: Boolean = false,
         /** Čas je PŘÍLET („přistání ve 14:30"), ne odlet. */
         val arrival: Boolean = false,
+        /** Letiště odletu a příletu z trasy ve zprávě („PRG → LHR"), kódy IATA z [AIRPORTS]. */
+        val from: String? = null,
+        val to: String? = null,
+        /** Druhý čas ve zprávě s odletem — přistání („odlet 9:40, přílet 10:55"), místní čas letiště [to]. */
+        val landsAt: LocalDateTime? = null,
     ) : ContextFinding {
         /** Jak se let píše na palubní vstupence a hledá: „OK123". */
         val code: String get() = airline + number
@@ -189,7 +199,12 @@ fun findMessageContext(
         // Termín ve zprávě s letem je čas letu. Stačí i nejistý („let OK 123 v 9:40"): že jde
         // o let, víme z čísla letu, model to potvrzovat nemusí.
         flights = flights(text).map { flight ->
-            event?.let { flight.copy(at = it.start, allDay = it.allDay) } ?: flight
+            val timed = event?.let { flight.copy(at = it.start, allDay = it.allDay) } ?: flight
+            // Dva časy u odletu: druhý je přistání, ve stejný den (přes půlnoc dopočítá [schedule]).
+            val landing = CLOCK_TIME.findAll(text).drop(1).firstOrNull()
+                ?.takeIf { !timed.arrival && !timed.allDay && timed.at != null }
+                ?.let { match -> runCatching { LocalTime(match.groupValues[1].toInt(), match.groupValues[2].toInt()) }.getOrNull() }
+            timed.copy(landsAt = landing?.let { timed.at!!.date.atTime(it) })
         },
         wifi = wifi(text),
         bookings = bookings,
@@ -511,13 +526,59 @@ private fun flights(text: String): List<ContextFinding.Flight> {
     // Přílet jen tehdy, když zpráva o odletu nemluví vůbec („odlet v 9:40, přílet ve 12:00" je odlet).
     val arrival = words.any { word -> ARRIVAL_STEMS.any { word.startsWith(it) } } &&
         words.none { word -> DEPARTURE_STEMS.any { word.startsWith(it) } }
+    val (from, to) = route(text, words)
     return FLIGHT.findAll(text)
         .filter { it.groupValues[1] in AIRLINES }
-        .map { ContextFinding.Flight(it.groupValues[1], it.groupValues[2], arrival = arrival) }
+        .map { ContextFinding.Flight(it.groupValues[1], it.groupValues[2], arrival = arrival, from = from, to = to) }
         .distinctBy { it.code }
         .take(MAX_FLIGHTS)
         .toList()
 }
+
+/**
+ * Trasa letu ze zprávy: dvojice kódů („PRG → LHR", „PRG-LHR", „PRG to LHR", „z PRG do LHR"), nebo
+ * jen jeden s předložkou („from JFK", „do LHR"), případně český název („z Ruzyně"). Jen letiště
+ * z tabulky [AIRPORTS] — tři velká písmena bývají i zkratky („MAN", „SIN").
+ */
+private fun route(text: String, words: List<String>): Pair<String?, String?> {
+    ROUTE_PAIR.find(text)?.let { match ->
+        val (from, to) = match.destructured
+        if (from in AIRPORTS && to in AIRPORTS && from != to) return from to to
+    }
+    val from = ROUTE_FROM.find(text)?.groupValues?.get(1)?.takeIf { it in AIRPORTS }
+        ?: AIRPORT_ALIASES.entries.firstOrNull { (stem, _) -> words.any { it.startsWith(stem) } }?.value
+    val to = ROUTE_TO.find(text)?.groupValues?.get(1)?.takeIf { it in AIRPORTS && it != from }
+    return from to to
+}
+
+/**
+ * Kdy let poletí a přistane, jako okamžiky: odlet je místní čas letiště odletu, přistání místní
+ * čas letiště příletu (Praha 9:40 → Londýn 10:55 je 2 h 15 min, ne 1 h 15 min). Bez letiště se
+ * bere pásmo uživatele [zone]. Délka je PŘESNÁ s oběma časy, ODHAD jen s trasou
+ * ([estimatedFlightMinutes]), jinak žádná. `null` bez času.
+ */
+fun ContextFinding.Flight.schedule(zone: TimeZone): FlightSchedule? {
+    val at = at?.takeIf { !allDay } ?: return null
+    val fromAirport = from?.let(AIRPORTS::get)
+    val toAirport = to?.let(AIRPORTS::get)
+    val startZone = (if (arrival) toAirport else fromAirport)?.let { TimeZone.of(it.zone) } ?: zone
+    val start = at.toInstant(startZone)
+    if (arrival) return FlightSchedule(start, end = null, minutes = null, estimated = false)
+    landsAt?.let { landing ->
+        var end = landing.toInstant(toAirport?.let { TimeZone.of(it.zone) } ?: zone)
+        // Přistání „dřív" než odlet je přistání druhý den (noční let).
+        while (end <= start) end += 1.days
+        return FlightSchedule(start, end, ((end - start).inWholeMinutes).toInt(), estimated = false)
+    }
+    if (fromAirport != null && toAirport != null) {
+        val minutes = estimatedFlightMinutes(fromAirport, toAirport)
+        return FlightSchedule(start, start + minutes.minutes, minutes, estimated = true)
+    }
+    return FlightSchedule(start, end = null, minutes = null, estimated = false)
+}
+
+/** Rozvrh letu pro kalendář a sheet; [end] a [minutes] `null`, když délku neznáme. */
+data class FlightSchedule(val start: Instant, val end: Instant?, val minutes: Int?, val estimated: Boolean)
 
 // --- Wi-Fi -----------------------------------------------------------------------------------
 
@@ -798,6 +859,14 @@ private val FLIGHT = Regex("(?<![\\p{L}\\d])([A-Z]{2}|[A-Z]\\d|\\d[A-Z])\\s?(\\d
 
 /** Slova o letu, celá (bez diakritiky, malými). */
 private val FLIGHT_WORDS = setOf("let", "letu", "letem", "lety", "gate", "gejt", "flug")
+
+/** Čas s dvojtečkou („9:40", „10:55") — pro druhý čas ve zprávě s letem (přistání). */
+private val CLOCK_TIME = Regex("(?<![\\d.:])([01]?\\d|2[0-3]):([0-5]\\d)(?![\\d.:])")
+
+/** Dvojice kódů letišť s oddělovačem: pomlčka, šipka, „to", „do". */
+private val ROUTE_PAIR = Regex("(?<![A-Za-z])([A-Z]{3})\\s?(?:-|\u2013|\u2014|\u2192|->|>|\\s(?:to|do)\\s)\\s?([A-Z]{3})(?![A-Za-z])")
+private val ROUTE_FROM = Regex("(?<![\\p{L}])(?:z|ze|from|[Zz] letiste)\\s+([A-Z]{3})(?![A-Za-z])")
+private val ROUTE_TO = Regex("(?<![\\p{L}])(?:do|to|na)\\s+([A-Z]{3})(?![A-Za-z])")
 
 /** Začátky slov o příletu a odletu (bez diakritiky, malými); rozhodují, co je čas ve zprávě. */
 private val ARRIVAL_STEMS = listOf("prilet", "pristan", "arriv", "landing", "lands")

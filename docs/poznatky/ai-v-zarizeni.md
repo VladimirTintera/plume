@@ -418,7 +418,17 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   zpráva mluví o příletu a ne o odletu („odlet v 9:40, přílet ve 12:00" je odlet). Termín, který
   nese let, se nenabízí ještě jako obecná událost — model by z „přistání na letišti" udělal
   název „přistání na letišti" s místem „letišti". V popisu je celá zpráva, takže i kód
-  rezervace. Událost má hodinu, délku letu neznáme.
+  rezervace.
+- **Trasa a délka letu ze zprávy a tabulky letišť** (`AIRPORTS`: kód IATA, město, souřadnice,
+  pásmo IANA; ~110 nejběžnějších). Trasa z dvojice kódů („PRG → LHR", „PRG-LHR", „z PRG do
+  LHR"), jednoho kódu s předložkou, nebo „z Ruzyně". Tři velká písmena mimo tabulku letištěm
+  nejsou („MAN" a „SIN" v ní jsou, ale jen v trase). **Časy ve zprávě jsou MÍSTNÍ časy letišť**:
+  odlet v pásmu letiště odletu, přistání v pásmu příletu — Praha 9:40 → Londýn 10:55 jsou
+  2 h 15 min, ne 1 h 15 min; přistání „dřív" než odlet je druhý den (noční let). S dvěma časy
+  je délka přesná, s trasou bez druhého času ODHAD ze vzdálenosti (780 km/h + 35 min, nahoru
+  na 5 min; Praha–Londýn 2 h) a sheet to říká. Událost dostane začátek a konec jako okamžiky
+  (`CalendarEvent.begin` / `end`), místo letiště odletu („Prague (PRG)") a trasu do popisu.
+  Kalendář pak ukáže odlet v pásmu telefonu, tak jak ho uživatel zažije.
 - **Termín je jistý, nebo nejistý** (`EventCandidate.certain`). Jistý = den a čas, datum číslem,
   nebo termín vyznačený Telegramem (`MessageEntityType.DateTime`); ten se nabídne i bez modelu.
   Jen čas („v 15:00") je nejistý a nabídne se, jen když ho model potvrdí. Jen den („v pátek")
@@ -475,7 +485,8 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   „uběhl 10 km, venku bylo 20 °C" se systémem `en_US` ukáže „≈ 6,2 mi" a „≈ 68 °F";
   „kód rezervace: XKQ7ZT" nabídne kód rezervace ke zkopírování; „Odlet OK 123 zítra v 9:40
   z Ruzyně, kód rezervace XKQ7ZT" nabídne let se „Stav letu", „Odlet do kalendáře — zítra
-  09:40" (bez obecné karty události) a kód rezervace.
+  09:40" (bez obecné karty události) a kód rezervace; „Let OK 123 PRG → LHR zítra, odlet 9:40,
+  přílet 10:55" ukáže pod číslem letu „PRG → LHR · 2 h 15 min".
   **Neověřené**: načtení QR bankovní aplikací, editor
   události, Gemini Nano, iOS.
 

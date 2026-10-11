@@ -66,6 +66,8 @@ import eu.tintera.plume.resources.message_context_wifi_qr
 import eu.tintera.plume.resources.wifi_24dp
 import eu.tintera.plume.resources.password_24dp
 import eu.tintera.plume.resources.message_context_flight_track
+import eu.tintera.plume.resources.message_context_flight_duration
+import eu.tintera.plume.resources.message_context_flight_estimated
 import eu.tintera.plume.resources.message_context_flight_calendar
 import eu.tintera.plume.resources.message_context_flight_arrival_calendar
 import eu.tintera.plume.resources.flight_24dp
@@ -412,6 +414,10 @@ private fun FlightSection(flight: ContextFinding.Flight, onCopy: (String) -> Uni
         onCopy = onCopy,
         icon = Res.drawable.flight_24dp,
     )
+    // Trasa a délka hned pod číslem letu, ke kterému patří.
+    val zone = remember { TimeZone.currentSystemDefault() }
+    val schedule = remember(flight) { flight.schedule(zone) }
+    FlightRoute(flight, schedule)
     SheetActionRow(
         icon = Res.drawable.open_in_new_24dp,
         label = stringResource(Res.string.message_context_flight_track),
@@ -422,8 +428,12 @@ private fun FlightSection(flight: ContextFinding.Flight, onCopy: (String) -> Uni
     )
     // Do kalendáře jen s časem ze zprávy; stav letu odjinud nezjistíme.
     flight.at?.let { at ->
-        val zone = remember { TimeZone.currentSystemDefault() }
-        val time = if (flight.allDay) at.date.asUpcomingDay() else at.toInstant(zone).epochSeconds.asUpcomingTime()
+        // Čas v pásmu TELEFONU — odlet z New Yorku v 9:40 se ukáže tak, jak ho uživatel zažije.
+        val time = when {
+            flight.allDay -> at.date.asUpcomingDay()
+            schedule != null -> schedule.start.epochSeconds.asUpcomingTime()
+            else -> at.toInstant(zone).epochSeconds.asUpcomingTime()
+        }
         SheetActionRow(
             icon = Res.drawable.event_24dp,
             label = stringResource(if (flight.arrival) Res.string.message_context_flight_arrival_calendar else Res.string.message_context_flight_calendar),
@@ -438,6 +448,27 @@ private fun FlightSection(flight: ContextFinding.Flight, onCopy: (String) -> Uni
             },
         )
     }
+}
+
+/**
+ * Trasa a délka letu pod číslem letu („PRG → LHR · 2 h 15 min"); odhad z trasy to řekne.
+ * Bez trasy i délky nic.
+ */
+@Composable
+private fun FlightRoute(flight: ContextFinding.Flight, schedule: FlightSchedule?) {
+    val route = listOfNotNull(flight.from, flight.to).takeIf { it.size == 2 }?.joinToString(" \u2192 ")
+    val minutes = schedule?.minutes
+    val duration = minutes?.let {
+        val text = stringResource(Res.string.message_context_flight_duration, it / 60, (it % 60).toString().padStart(2, '0'))
+        if (schedule.estimated) stringResource(Res.string.message_context_flight_estimated, text) else text
+    }
+    val line = listOfNotNull(route, duration).joinToString(" \u00B7 ").takeIf { it.isNotEmpty() } ?: return
+    Text(
+        line,
+        style = MaterialTheme.typography.bodyMedium.tabularNumbers(),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 20.dp),
+    )
 }
 
 @Composable

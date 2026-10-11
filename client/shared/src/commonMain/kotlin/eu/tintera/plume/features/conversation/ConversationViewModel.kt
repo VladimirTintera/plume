@@ -3912,17 +3912,33 @@ class ConversationViewModel(
     }
 
     /**
-     * Let do kalendáře: „Let OK 123" (nebo „Přílet OK 123") s časem ze zprávy a zprávou v popisu,
-     * kde bývá i kód rezervace. Délku letu neznáme, kalendář ji nechá upravit.
+     * Let do kalendáře: „Let OK 123" (nebo „Přílet OK 123") s časem ze zprávy v pásmu letiště,
+     * koncem podle přistání (nebo odhadu z trasy), letištěm jako místem a trasou a zprávou
+     * v popisu, kde bývá i kód rezervace.
      */
     fun addFlightToCalendar(messageId: Long, flight: ContextFinding.Flight) {
         val calendar = calendarEvents ?: return
         val start = flight.at ?: return
-        val description = _state.value.messages.firstOrNull { it.id == messageId }?.text?.trim().orEmpty()
+        val text = _state.value.messages.firstOrNull { it.id == messageId }?.text?.trim().orEmpty()
+        val schedule = flight.schedule(TimeZone.currentSystemDefault())
+        // Místo je letiště, odkud se letí (u příletu kam); trasa jde na začátek popisu.
+        val airport = (if (flight.arrival) flight.to else flight.from)?.let(AIRPORTS::get)
+        val route = listOfNotNull(flight.from, flight.to).takeIf { it.size == 2 }?.joinToString(" \u2192 ")
+        val description = listOfNotNull(route, text.takeIf { it.isNotEmpty() }).joinToString("\n\n")
         viewModelScope.launch {
             val name = "${flight.airline} ${flight.number}"
             val title = readString(if (flight.arrival) Res.string.message_context_flight_arrival_title else Res.string.message_context_flight_title, name)
-            val added = calendar.add(CalendarEvent(title = title, description = description, place = null, start = start, allDay = flight.allDay))
+            val added = calendar.add(
+                CalendarEvent(
+                    title = title,
+                    description = description,
+                    place = airport?.label,
+                    start = start,
+                    allDay = flight.allDay,
+                    begin = schedule?.start,
+                    end = schedule?.end,
+                ),
+            )
             if (added) {
                 closeMessageContext()
             } else {

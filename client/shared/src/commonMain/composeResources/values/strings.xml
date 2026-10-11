@@ -2609,4 +2609,6 @@
     <string name="message_context_flight_arrival_calendar">Arrival to calendar</string>
     <string name="message_context_flight_title">Flight %1$s</string>
     <string name="message_context_flight_arrival_title">Arrival %1$s</string>
+    <string name="message_context_flight_duration">%1$d h %2$s min</string>
+    <string name="message_context_flight_estimated">%1$s (estimate)</string>
 </resources>
