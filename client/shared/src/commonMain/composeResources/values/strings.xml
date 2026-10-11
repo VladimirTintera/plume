@@ -1400,7 +1400,6 @@
     <string name="search_filter_custom">Custom range…</string>
     <string name="search_filter_range">%1$s – %2$s</string>
     <string name="search_filter_apply">Apply</string>
-    <string name="search_filter_remove">Remove filter</string>
     <string name="search_content_photos">Photos</string>
     <string name="search_content_videos">Videos</string>
     <string name="search_content_files">Files</string>
@@ -1409,6 +1408,7 @@
     <string name="search_content_music">Music</string>
     <string name="search_filter_empty_hint">Try a different word, or loosen the filters.</string>
     <string name="search_filter_choose_period">Choose period</string>
+    <string name="search_filter_choose_content">Choose content</string>
     <string name="search_filter_week_short">Week</string>
     <string name="search_filter_month_short">Month</string>
     <string name="search_filter_year_short">Year</string>
