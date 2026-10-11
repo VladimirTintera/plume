@@ -1194,6 +1194,11 @@
     <string name="sticker_sets_archived_notice">%1$s was archived</string>
     <string name="sticker_sets_removed_notice">%1$s was removed</string>
     <string name="sticker_sets_failed">Sticker sets could not be changed</string>
+    <string name="sticker_set_share">Share set</string>
+    <string name="sticker_set_send_to_chat">Send to a chat</string>
+    <string name="sticker_set_copy_link">Copy link</string>
+    <string name="sticker_set_share_elsewhere">Share elsewhere</string>
+    <string name="sticker_set_link_copied">Link copied</string>
     <string name="chat_folder_new_title">New folder</string>
     <string name="chat_folder_edit_title">Edit folder</string>
     <string name="chat_folder_save">Save</string>

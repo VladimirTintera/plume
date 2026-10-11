@@ -1223,6 +1223,11 @@
     <string name="sticker_sets_archived_notice">Sada %1$s je v archivu</string>
     <string name="sticker_sets_removed_notice">Sada %1$s byla odebrána</string>
     <string name="sticker_sets_failed">Sady samolepek se nepodařilo změnit</string>
+    <string name="sticker_set_share">Sdílet sadu</string>
+    <string name="sticker_set_send_to_chat">Poslat do chatu</string>
+    <string name="sticker_set_copy_link">Kopírovat odkaz</string>
+    <string name="sticker_set_share_elsewhere">Sdílet jinam</string>
+    <string name="sticker_set_link_copied">Odkaz zkopírován</string>
     <string name="chat_folder_new_title">Nová složka</string>
     <string name="chat_folder_edit_title">Upravit složku</string>
     <string name="chat_folder_save">Uložit</string>
