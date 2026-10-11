@@ -4,6 +4,7 @@ import eu.tintera.plume.features.conversation.StoredTranscript
 import kotlinx.serialization.json.Json
 import eu.tintera.plume.core.bookmarks.MessageBookmark
 import eu.tintera.plume.core.snooze.ChatSnooze
+import eu.tintera.plume.core.chatcolor.StoredChatColor
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.GemmaModel
 import eu.tintera.plume.core.ai.ModelVariant
@@ -166,6 +167,12 @@ interface AppSettings {
 
     /** Uloží odložené chaty. Neblokuje. */
     fun setChatSnoozes(snoozes: List<ChatSnooze>)
+
+    /** Barvy konverzací všech účtů; filtruje a spravuje je [eu.tintera.plume.core.chatcolor.ChatColors]. */
+    val chatColors: StateFlow<List<StoredChatColor>>
+
+    /** Uloží barvy konverzací. Neblokuje. */
+    fun setChatColors(colors: List<StoredChatColor>)
 
     /**
      * Hotové přepisy hlasovek a koleček z modelu v telefonu, všech účtů; filtruje a spravuje je
@@ -621,6 +628,20 @@ class DataStoreAppSettings(
         }
     }
 
+    override val chatColors: StateFlow<List<StoredChatColor>> = value(emptyList()) { preferences ->
+        preferences[CHAT_COLORS]?.let { stored ->
+            runCatching { storedListJson.decodeFromString<List<StoredChatColor>>(stored) }.getOrNull()
+        }.orEmpty()
+    }
+
+    override fun setChatColors(colors: List<StoredChatColor>) {
+        scope.launch {
+            edit { preferences ->
+                if (colors.isEmpty()) preferences.remove(CHAT_COLORS) else preferences[CHAT_COLORS] = storedListJson.encodeToString(colors)
+            }
+        }
+    }
+
     override val quietHours: StateFlow<QuietHours> = value(QuietHours()) { preferences ->
         val default = QuietHours()
         // Čas mimo den (poškozený nebo cizí zápis) spadne na výchozí, jinak by úsek nedával smysl.
@@ -924,6 +945,7 @@ class DataStoreAppSettings(
         val QUIET_HOURS_ENABLED = booleanPreferencesKey("quiet_hours_enabled")
         val MESSAGE_BOOKMARKS = stringPreferencesKey("message_bookmarks")
         val CHAT_SNOOZES = stringPreferencesKey("chat_snoozes")
+        val CHAT_COLORS = stringPreferencesKey("chat_colors")
         val STORED_TRANSCRIPTS = stringPreferencesKey("stored_transcripts")
         val QUIET_HOURS_START = intPreferencesKey("quiet_hours_start")
         val QUIET_HOURS_END = intPreferencesKey("quiet_hours_end")

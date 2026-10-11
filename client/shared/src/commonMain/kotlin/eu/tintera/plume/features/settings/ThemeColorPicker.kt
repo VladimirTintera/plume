@@ -10,7 +10,9 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
-import androidx.compose.material3.ColorScheme
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -40,7 +42,9 @@ import eu.tintera.plume.core.ui.MorphShape
 import eu.tintera.plume.core.ui.ShapeMorphs
 import eu.tintera.plume.core.ui.animateMorph
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.chat_color_default
 import eu.tintera.plume.resources.check_24dp
+import eu.tintera.plume.resources.format_color_reset_24dp
 import eu.tintera.plume.resources.theme_color_blue
 import eu.tintera.plume.resources.theme_color_green
 import eu.tintera.plume.resources.theme_color_orange
@@ -71,6 +75,11 @@ internal fun ThemeColorPicker(
     isDark: Boolean,
     onSelect: (ThemeColor) -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Vzorek „Podle aplikace" na začátku řady (barva konverzace); `null` = nenabízet. Když se
+     * nabízí, je vybraný právě tehdy, když je [selected] `null`.
+     */
+    onSelectDefault: (() -> Unit)? = null,
 ) {
     FlowRow(
         modifier = modifier
@@ -80,23 +89,58 @@ internal fun ThemeColorPicker(
         horizontalArrangement = Arrangement.spacedBy(SWATCH_GAP, Alignment.CenterHorizontally),
         verticalArrangement = Arrangement.spacedBy(SWATCH_GAP),
     ) {
+        if (onSelectDefault != null) {
+            DefaultColorSwatch(selected = selected == null, onClick = onSelectDefault)
+        }
         ThemeColor.entries.forEach { color ->
-            ThemeColorSwatch(
-                scheme = expressiveColorScheme(isDark, color.seed),
+            val scheme = expressiveColorScheme(isDark, color.seed)
+            ColorSwatch(
                 selected = color == selected,
                 label = stringResource(color.label),
                 onClick = { onSelect(color) },
-            )
+                checkBackdrop = scheme.surface,
+                checkTint = scheme.primary,
+            ) {
+                val half = size.height / 2f
+                drawRect(scheme.primary, size = Size(size.width, half))
+                drawRect(scheme.secondaryContainer, topLeft = Offset(0f, half), size = Size(size.width / 2f, half))
+                drawRect(scheme.tertiaryContainer, topLeft = Offset(size.width / 2f, half), size = Size(size.width / 2f, half))
+            }
         }
     }
 }
 
+/**
+ * „Podle aplikace": neutrální plocha s přeškrtnutou kapkou, jako „bez barvy" u štítků v Keepu.
+ * Kreslit ho barvami aplikace by nešlo — v profilu chatu je kolem už paleta chatu a vzorek by
+ * se od modré nelišil.
+ */
 @Composable
-private fun ThemeColorSwatch(
-    scheme: ColorScheme,
+private fun DefaultColorSwatch(selected: Boolean, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    ColorSwatch(
+        selected = selected,
+        label = stringResource(Res.string.chat_color_default),
+        onClick = onClick,
+        checkBackdrop = colors.surface,
+        checkTint = colors.onSurface,
+        idleIcon = painterResource(Res.drawable.format_color_reset_24dp),
+        idleIconTint = colors.onSurfaceVariant,
+    ) {
+        drawRect(colors.surfaceContainerHighest)
+    }
+}
+
+@Composable
+private fun ColorSwatch(
     selected: Boolean,
     label: String,
     onClick: () -> Unit,
+    checkBackdrop: Color,
+    checkTint: Color,
+    idleIcon: Painter? = null,
+    idleIconTint: Color = Color.Unspecified,
+    fill: DrawScope.() -> Unit,
 ) {
     val progress = animateMorph(toShape = selected, label = "theme-color-swatch")
     Box(
@@ -116,16 +160,21 @@ private fun ThemeColorSwatch(
             .drawWithContent {
                 val outline = MorphShape(ShapeMorphs.Highlight, progress, SELECTED_ROTATION)
                     .createOutline(size, layoutDirection, this)
-                clipPath(Path().apply { addOutline(outline) }) {
-                    val half = size.height / 2f
-                    drawRect(scheme.primary, size = Size(size.width, half))
-                    drawRect(scheme.secondaryContainer, topLeft = Offset(0f, half), size = Size(size.width / 2f, half))
-                    drawRect(scheme.tertiaryContainer, topLeft = Offset(size.width / 2f, half), size = Size(size.width / 2f, half))
-                }
+                clipPath(Path().apply { addOutline(outline) }) { fill() }
                 drawContent()
             },
         contentAlignment = Alignment.Center,
     ) {
+        if (idleIcon != null) {
+            AnimatedVisibility(
+                visible = !selected,
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+            ) {
+                // Dekorace: co vzorek znamená, říká popis pro čtečku.
+                Icon(idleIcon, contentDescription = null, tint = idleIconTint)
+            }
+        }
         AnimatedVisibility(
             visible = selected,
             enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
@@ -136,14 +185,14 @@ private fun ThemeColorSwatch(
             // Fajfka na ploše VZORKU, ne aplikace: primární barva je proti své ploše čitelná
             // v každé paletě, kdežto proti ploše jiné palety by se slít mohla.
             Box(
-                Modifier.size(CHECK_BACKDROP).background(scheme.surface, CircleShape),
+                Modifier.size(CHECK_BACKDROP).background(checkBackdrop, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     painterResource(Res.drawable.check_24dp),
                     // Výběr čte čtečka z `selectable`, fajfka je dekorace.
                     contentDescription = null,
-                    tint = scheme.primary,
+                    tint = checkTint,
                     modifier = Modifier.size(CHECK_SIZE),
                 )
             }
@@ -151,7 +200,7 @@ private fun ThemeColorSwatch(
     }
 }
 
-private val ThemeColor.label: StringResource
+internal val ThemeColor.label: StringResource
     get() = when (this) {
         ThemeColor.BLUE -> Res.string.theme_color_blue
         ThemeColor.TEAL -> Res.string.theme_color_teal

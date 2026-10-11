@@ -221,6 +221,9 @@
     <string name="theme_color_red">Červená</string>
     <string name="theme_color_pink">Růžová</string>
     <string name="theme_color_purple">Fialová</string>
+    <string name="chat_color_title">Barva konverzace</string>
+    <string name="chat_color_explanation">Vidíš ji jen ty a jen v tomhle zařízení. Chat podle ní poznáš na první pohled.</string>
+    <string name="chat_color_default">Podle aplikace</string>
     <string name="settings_messages">Zprávy</string>
     <string name="settings_message_text_size">Velikost písma</string>
     <string name="settings_message_text_size_value">%1$d</string>

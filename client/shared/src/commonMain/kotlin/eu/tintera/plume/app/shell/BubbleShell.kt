@@ -10,6 +10,7 @@ import androidx.navigation3.runtime.rememberDecoratedNavEntries
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import eu.tintera.plume.app.root.presentation.theme.ChatColorTheme
 import eu.tintera.plume.features.conversation.ConversationReplyRequests
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.MediaRoute
@@ -45,31 +46,33 @@ fun BubbleShell(chatId: Long, onOpenInApp: (chatId: Long) -> Unit, onClose: () -
     )
     val provider = entryProvider<NavKey> {
         entry<ConversationRoute> { route ->
-            ConversationScreen(
-                viewModel = koinViewModel(
-                    key = "bubble-conversation-${route.chatId}",
-                    parameters = { parametersOf(route.chatId, route.messageId, route.threadId, route.topicId, route.savedTopicId) },
-                ),
-                // Šipka zpět v bublině: konverzace je kořen, pod ní nic není — bublinu sbalí.
-                onBack = onClose,
-                onOpenMedia = { messageId -> backStack.add(MediaRoute(route.chatId, messageId)) },
-                onOpenMediaAt = { messageId, seconds -> backStack.add(MediaRoute(route.chatId, messageId, startSeconds = seconds)) },
-                onOpenPollMedia = { messageId, index -> backStack.add(MediaRoute(route.chatId, messageId, pollMedia = index)) },
-                onOpenArticleMedia = { messageId, index -> backStack.add(MediaRoute(route.chatId, messageId, articleMedia = index)) },
-                onForward = { onOpenInApp(route.chatId) },
-                onOpenChat = { target -> onOpenInApp(target.chatId) },
-                onSearch = { onOpenInApp(route.chatId) },
-                onOpenProfile = { onOpenInApp(route.chatId) },
-                onOpenUserProfile = { userChatId -> onOpenInApp(userChatId) },
-                onCreatePoll = { onOpenInApp(route.chatId) },
-                onOpenWebApp = { onOpenInApp(route.chatId) },
-                onOpenBotShare = { onOpenInApp(route.chatId) },
-                onAddBotToGroup = { onOpenInApp(route.chatId) },
-                onOpenScreen = { onOpenInApp(route.chatId) },
-                onSwitchInline = { onOpenInApp(route.chatId) },
-                onAddMembers = { onOpenInApp(route.chatId) },
-                onOpenJoinRequests = { onOpenInApp(route.chatId) },
-            )
+            ChatColorTheme(route.chatId) {
+                ConversationScreen(
+                    viewModel = koinViewModel(
+                        key = "bubble-conversation-${route.chatId}",
+                        parameters = { parametersOf(route.chatId, route.messageId, route.threadId, route.topicId, route.savedTopicId) },
+                    ),
+                    // Šipka zpět v bublině: konverzace je kořen, pod ní nic není — bublinu sbalí.
+                    onBack = onClose,
+                    onOpenMedia = { messageId -> backStack.add(MediaRoute(route.chatId, messageId)) },
+                    onOpenMediaAt = { messageId, seconds -> backStack.add(MediaRoute(route.chatId, messageId, startSeconds = seconds)) },
+                    onOpenPollMedia = { messageId, index -> backStack.add(MediaRoute(route.chatId, messageId, pollMedia = index)) },
+                    onOpenArticleMedia = { messageId, index -> backStack.add(MediaRoute(route.chatId, messageId, articleMedia = index)) },
+                    onForward = { onOpenInApp(route.chatId) },
+                    onOpenChat = { target -> onOpenInApp(target.chatId) },
+                    onSearch = { onOpenInApp(route.chatId) },
+                    onOpenProfile = { onOpenInApp(route.chatId) },
+                    onOpenUserProfile = { userChatId -> onOpenInApp(userChatId) },
+                    onCreatePoll = { onOpenInApp(route.chatId) },
+                    onOpenWebApp = { onOpenInApp(route.chatId) },
+                    onOpenBotShare = { onOpenInApp(route.chatId) },
+                    onAddBotToGroup = { onOpenInApp(route.chatId) },
+                    onOpenScreen = { onOpenInApp(route.chatId) },
+                    onSwitchInline = { onOpenInApp(route.chatId) },
+                    onAddMembers = { onOpenInApp(route.chatId) },
+                    onOpenJoinRequests = { onOpenInApp(route.chatId) },
+                )
+            }
         }
         entry<MediaRoute> { route ->
             CompositionLocalProvider(

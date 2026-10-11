@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.chatcolor.ChatColors
+import eu.tintera.plume.core.settings.ThemeColor
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.map
@@ -99,7 +101,21 @@ class ChatProfileViewModel(
     private val musicQueue: MusicQueue,
     /** Záložky zpráv tohoto chatu; bez nich se řádek „Záložky" neukazuje. */
     private val bookmarks: MessageBookmarks? = null,
+    /** Barva konverzace; bez ní se řádek „Barva konverzace" neukazuje. */
+    private val chatColors: ChatColors? = null,
 ) : ViewModel() {
+
+    /** Barva, kterou uživatel konverzaci dal; `null` = barvy aplikace. */
+    val chatColor: StateFlow<ThemeColor?> = (chatColors?.colors ?: flowOf(emptyMap()))
+        .map { it[chatId] }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), chatColors?.current()?.get(chatId))
+
+    /** Řádek „Barva konverzace" se nabízí, jen když je kam barvu uložit. */
+    val supportsChatColor: Boolean = chatColors != null
+
+    fun setChatColor(color: ThemeColor?) {
+        chatColors?.set(chatId, color)
+    }
 
     /** Záložky zpráv v tomhle chatu, nejnovější první. */
     val chatBookmarks: StateFlow<List<MessageBookmark>> = (bookmarks?.all ?: flowOf(emptyList()))

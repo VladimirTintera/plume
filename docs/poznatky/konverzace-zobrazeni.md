@@ -710,6 +710,40 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
 - **Při odesílání se entity dohledávají** (`getTextEntities`), jinak odkaz odejde jako mrtvý text —
   server si ho sám neoznačí. Když dohledání selže, zpráva stejně odejde.
 
+## Barva konverzace
+
+Profil chatu → Barva konverzace: „Podle aplikace" a tytéž vzorky jako barva aplikace
+(`ChatColorSheet` nad `ThemeColorPicker`). Uložená je jen v tomhle zařízení, po účtech
+(`ChatColors`, `AppSettings.chatColors`, jako odložené chaty).
+
+- **Mění se CELÉ schéma, ne vybrané plochy** (`ChatColorTheme` kolem konverzace, seznamu témat,
+  profilu a bubliny konverzace). Z barvy se dopočítá táž paleta, jakou by dostala aplikace
+  (`expressiveColorScheme`, Vibrant), takže bubliny, pole, hlavička, sklo i plocha spolu ladí
+  a kontrast `on*` rolí hlídá M3 — nic se neladí ručně, `accentOn` i `senderColor` se přizpůsobí
+  samy. Neutrální plochy palety nesou nádech odstínu, takže chat pozná i podle pozadí.
+- **Proč ne tapeta Telegramu ani automatika z profilovky.** Obrázková pozadí (`Chat.background`)
+  aplikace odmítá vědomě (roadmapa konverzace, „Vědomě NE"). Barva odvozená automaticky by dostal
+  KAŽDÝ chat a přestala by cokoli znamenat — stejná úvaha jako u haptiky. Barvu, kterou dal
+  uživatel pár chatům, si spojí s významem („práce", „rodina").
+- **Výběr je jen z osmi vzorků**, žádné kolo barev: ošklivá kombinace nejde vyrobit.
+  „Podle aplikace" je neutrální vzorek s přeškrtnutou kapkou — kreslit ho barvami aplikace nejde,
+  protože kolem je už paleta chatu a vzorek by se od modré nelišil.
+- **V seznamu chatů nese barvu JEN odznak nepřečtených** (`rememberChatAccents`: paleta jedna na
+  barvu, ne na řádek — řádky se při scrollu skládají pořád znovu). Celý řádek v barvě by udělal
+  ze seznamu mozaiku; nepřečtený chat je navíc ten, u kterého na rozlišení záleží.
+- **Konverzace se skládá rovnou v barvě chatu** (`ChatColors.current()` jako počáteční hodnota
+  odběru). S `initial = null` by první snímek měl barvy aplikace a prolnutí k barvě chatu by při
+  každém otevření vypadalo jako bliknutí.
+- **Návrat k barvám aplikace míří na CÍLOVÉ schéma** (`LocalAppColorScheme` z `AppTheme`), ne na
+  `MaterialTheme.colorScheme`: to se během přepnutí motivu prolíná a je v každém snímku nová
+  instance, takže by se cíl vnořené animace měnil pořád. Režim (světlý/tmavý) dává
+  `LocalIsDarkTheme` — ze světlosti plochy se během prolínání poznat spolehlivě nedá.
+- **Výběr sheet nezavírá**: profil i sheet leží v barvě chatu a přebarví se hned za prstem — to je
+  náhled. Ověřeno na emulátoru (viz popis PR).
+- **Kontrast se zvýšeným kontrastem systému NEsleduje**, stejně jako barva aplikace ze seedu —
+  materialkolor dostává výchozí úroveň kontrastu. Barvy z tapety ho mají; když se to bude řešit,
+  pak pro obě palety naráz.
+
 ## Odkazy na Telegram
 
 Odkaz ze zprávy (text, náhled odkazu) jde přes `ConversationViewModel.openLink` →
