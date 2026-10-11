@@ -617,8 +617,8 @@ Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení
   podívat se do oficiálního klienta, jestli se bot nikde neukáže, a postavit to.
   Podrobnosti v `docs/poznatky/nastaveni.md`, „Synchronizace nastavení mezi zařízeními".
 - ~~**Diskrétní čtení a psaní (Ghost Mode).**~~ — hotovo (Nastavení → Obecné → Soukromí;
-  `docs/poznatky/nastaveni.md`, „Diskrétní čtení"). Poslech hlasovek a zhlédnutí v kanálech
-  zatím nekryje. Původní zadání: V Nastavení → Soukromí volba pro potlačení
+  `docs/poznatky/nastaveni.md`, „Diskrétní čtení"), ~~i poslech hlasovek~~. Mizející média
+  vědomě ne. Původní zadání: V Nastavení → Soukromí volba pro potlačení
   automatického odesílání potvrzení o přečtení (`viewMessages`) a indikátoru „Píše..."
   (`sendChatAction`). Zprávy se označí jako přečtené až při odeslání vlastní odpovědi v chatu
   nebo po ručním ťuknutí na plovoucí čip „Označit jako přečtené".
