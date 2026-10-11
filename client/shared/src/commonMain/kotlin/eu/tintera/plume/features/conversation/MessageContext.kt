@@ -684,11 +684,72 @@ private fun money(text: String, homeCurrency: String?): List<ContextFinding.Mone
             ?: return@mapNotNull null
         parseAmount(match.groupValues[1])?.let { ContextFinding.Money(match.value.trim(), it, currency) }
     }
-    return (prefixed + suffixed)
+    return (prefixed + suffixed + moneyInWords(text))
         .filter { it.currency != homeCurrency && it.amount > 0 }
         .distinctBy { it.currency to it.amount }
         .take(MAX_MONEY)
         .toList()
+}
+
+/**
+ * Částka s měnou SLOVY: číslo a za ním nejvýš tři slova — řád („1,5 milionu dolarů"), přívlastek
+ * („švédských korun", „kanadských dolarů") a měna. Hledá se v textu bez diakritiky malými, ven
+ * jde úsek původního textu (délka se nemění).
+ *
+ * Vynechané je, co je dvojznačné: samotné „jen" (= pouze) a anglické „pounds" (spíš váha, převádí
+ * se jako jednotka). Řád se musí počítat — bez něj by „1,5 milionu dolarů" bylo 1,50 USD.
+ */
+private fun moneyInWords(text: String): List<ContextFinding.Money> {
+    val folded = foldDiacritics(text).lowercase()
+    return MONEY_WORDS.findAll(folded).mapNotNull { match ->
+        val number = parseAmount(match.groupValues[1]) ?: return@mapNotNull null
+        val words = WORD_WITH_DOT.findAll(match.groupValues[2]).toList()
+        var index = 0
+        val scale = words.getOrNull(index)?.let { scaleOf(it.value) }?.also { index++ } ?: 1.0
+        var adjective: String? = null
+        var currency = words.getOrNull(index)?.let { currencyWordOf(it.value) }
+        if (currency == null) {
+            adjective = words.getOrNull(index)?.value
+            index++
+            currency = words.getOrNull(index)?.let { currencyWordOf(it.value) } ?: return@mapNotNull null
+        }
+        val code = adjective?.let { adjectiveCurrency(currency, it) } ?: currency
+        // Konec úseku = konec slova s měnou; slova jsou na konci nálezu, hned za číslem.
+        val wordsStart = match.range.last + 1 - match.groupValues[2].length
+        val end = wordsStart + words[index].range.last + 1
+        ContextFinding.Money(text.substring(match.range.first, end).trim(), number * scale, code)
+    }.toList()
+}
+
+private fun scaleOf(word: String): Double? = when {
+    word == "tis" || word == "tis." || word.startsWith("tisic") || word == "thousand" -> 1e3
+    word == "mil" || word == "mil." || word.startsWith("milion") || word == "million" || word == "millions" -> 1e6
+    word.startsWith("miliard") || word == "billion" || word == "billions" -> 1e9
+    else -> null
+}
+
+/** Měna podle slova (bez diakritiky, malými). Česky podle začátku slova kvůli skloňování. */
+private fun currencyWordOf(word: String): String? = CURRENCY_WORD_EXACT[word]
+    ?: CURRENCY_WORD_STEMS.entries.firstOrNull { (stem, _) -> word.startsWith(stem) }?.value
+
+/** Přívlastek, který z obecné měny dělá jinou: „kanadských dolarů" = CAD, „švédských korun" = SEK. */
+private fun adjectiveCurrency(currency: String, adjective: String): String? = when (currency) {
+    "USD" -> when {
+        adjective.startsWith("kanad") || adjective.startsWith("canad") -> "CAD"
+        adjective.startsWith("austral") -> "AUD"
+        adjective.startsWith("novozeland") -> "NZD"
+        adjective.startsWith("singapur") || adjective.startsWith("singapor") -> "SGD"
+        adjective.startsWith("hongkong") -> "HKD"
+        else -> null
+    }
+    "CZK" -> when {
+        adjective.startsWith("svedsk") || adjective.startsWith("swedish") -> "SEK"
+        adjective.startsWith("norsk") || adjective.startsWith("norwegian") -> "NOK"
+        adjective.startsWith("dansk") || adjective.startsWith("danish") -> "DKK"
+        adjective.startsWith("islandsk") || adjective.startsWith("icelandic") -> "ISK"
+        else -> null
+    }
+    else -> null
 }
 
 /**
@@ -1002,6 +1063,24 @@ private val MONEY_AFTER = Regex(
 private val CURRENCY_SYMBOLS = mapOf("€" to "EUR", "$" to "USD", "£" to "GBP", "K\u010d" to "CZK", "z\u0142" to "PLN", "Ft" to "HUF")
 
 private val CURRENCY_WORDS = mapOf("eur" to "EUR", "euro" to "EUR", "eura" to "EUR")
+
+/** Číslo a za ním nejvýš tři slova (řád, přívlastek, měna) — v textu bez diakritiky malými. */
+private val MONEY_WORDS = Regex("(?<![\\p{L}\\d.,])$MONEY_NUMBER((?:\\s+[\\p{L}.]+){1,3})")
+private val WORD_WITH_DOT = Regex("[\\p{L}]+\\.?")
+
+/** Měny slovy podle začátku slova (dolarů, liber, zlotých, forintů, franků…). */
+private val CURRENCY_WORD_STEMS: Map<String, String> = linkedMapOf(
+    "dolar" to "USD", "dollar" to "USD", "bucks" to "USD", "eur" to "EUR", "libr" to "GBP", "liber" to "GBP",
+    "sterling" to "GBP", "frank" to "CHF", "franc" to "CHF", "zlot" to "PLN", "forint" to "HUF", "korun" to "CZK",
+    "juan" to "CNY", "yuan" to "CNY", "rupi" to "INR", "rupee" to "INR", "baht" to "THB",
+)
+
+/** Krátká slova jen celými tvary: „jen" samo je „pouze", „lir" by chytilo i jiná slova. */
+private val CURRENCY_WORD_EXACT: Map<String, String> = mapOf(
+    "jenu" to "JPY", "jeny" to "JPY", "jenech" to "JPY", "yen" to "JPY",
+    "lira" to "TRY", "lir" to "TRY", "liry" to "TRY", "lire" to "TRY", "lirach" to "TRY",
+    "koruna" to "CZK", "koruny" to "CZK",
+)
 
 /**
  * Kódy, které se převádějí: měny z lístku ČNB. Kód mimo seznam („ABC") měnou není — tři velká

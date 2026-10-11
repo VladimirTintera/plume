@@ -393,6 +393,13 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   „1.250,50" i „1,250.50" (`parseAmount`: poslední oddělovač s jednou nebo dvěma číslicemi je
   desetinný). Bez `IGNORE_CASE`: „8 ft" jsou stopy, ne forinty. Tři velká písmena jen ze
   seznamu kódů — „10 SMS" měna není.
+- **Měna slovy**: číslo a nejvýš tři slova za ním — řád („1,5 milionu", „2 tisíce"), přívlastek
+  („švédských korun" = SEK, „kanadských dolarů" = CAD) a měna podle začátku slova kvůli
+  skloňování („dolarů", „liber", „zlotých", „forintů", „franků", „juanů", „rupií", anglicky
+  „dollars", „bucks", „yen"). **Řád se musí počítat** — bez něj by „1,5 milionu dolarů" bylo
+  1,50 USD. Vynechané je dvojznačné: samotné „jen" (= pouze; jen celými tvary „jenů", „jeny")
+  a anglické „pounds" (spíš váha, převádí se jako jednotka). Hledá se v textu bez diakritiky,
+  ven jde úsek původního textu („1,5 milionu liber").
 - **Kurz z denního lístku ČNB** (anglická verze: desetinná tečka, ASCII; zdarma, bez klíče).
   Kurzy jsou vůči koruně, takže jde převádět i mezi dvěma cizími měnami (EUR → USD přes CZK).
   Stahuje se až s otevřením sheetu („Načítám kurz ČNB…") a drží se 6 hodin. Obsah zprávy
@@ -490,7 +497,8 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   i let a „Stav letu" otevře FlightAware; „Wi-Fi na chatě: Chata_Lesni, heslo: medved2026"
   ukáže síť, heslo, QR kód a „Připojit k Wi-Fi" otevře systémový dialog uložení sítě
   (zrušený, síť se neuložila); „Slevový kód na první nákup: LETO20" zkopíruje „LETO20";
-  „120 € na noc" se systémem `en_US` převede na „≈ 134,46 USD" s kurzem ČNB z 9. října 2026;
+  „120 € na noc" se systémem `en_US` převede na „≈ 134,46 USD" s kurzem ČNB z 9. října 2026
+  a „1,5 milionu liber" na „≈ 1 982 869,63 USD";
   „uběhl 10 km, venku bylo 20 °C" se systémem `en_US` ukáže „≈ 6,2 mi" a „≈ 68 °F";
   „kód rezervace: XKQ7ZT" nabídne kód rezervace ke zkopírování; „Odlet OK 123 zítra v 9:40
   z Ruzyně, kód rezervace XKQ7ZT" nabídne let se „Stav letu", „Odlet do kalendáře — zítra

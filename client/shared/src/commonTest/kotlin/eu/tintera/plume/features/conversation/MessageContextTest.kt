@@ -388,6 +388,28 @@ class MessageContextTest {
     }
 
     @Test
+    fun menaSlovy() {
+        assertEquals(listOf("USD" to 50.0), money("Stálo to 50 dolarů"))
+        assertEquals(listOf("GBP" to 100.0), money("Půjčil jsem mu 100 liber"))
+        assertEquals(listOf("PLN" to 300.0), money("Vstupenka za 300 zlotých"))
+        assertEquals(listOf("HUF" to 450.0), money("Benzín 450 forintů za litr"))
+        assertEquals(listOf("SEK" to 1000.0), money("Stojí 1 000 švédských korun"))
+        assertEquals(listOf("CAD" to 50.0), money("Dal mi 50 kanadských dolarů"))
+        assertEquals(listOf("JPY" to 2_000_000.0), money("Byt za 2 miliony jenů"))
+        assertEquals(listOf("USD" to 1_500_000.0), money("Firma má 1,5 milionu dolarů"))
+        assertEquals(listOf("USD" to 30.0), money("It costs 30 dollars"))
+        assertEquals("1,5 milionu dolarů", findMessageContext("Firma má 1,5 milionu dolarů", emptyList(), wednesday, zone, "CZK").money.single().shown)
+    }
+
+    @Test
+    fun menaSlovyCoNeni() {
+        // „jen" je „pouze", koruny Čechovi nic, anglické pounds jsou váha.
+        assertTrue(money("Přišlo 100 jen tak").isEmpty())
+        assertTrue(money("Stojí 300 korun").isEmpty())
+        assertTrue(money("It weighs 5 pounds").isEmpty())
+    }
+
+    @Test
     fun coSeNeprevadi() {
         // Vlastní měna, neznámý kód, stopy místo forintů.
         assertTrue(money("Stojí to 250 Kč").isEmpty())

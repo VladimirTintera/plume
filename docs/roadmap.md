@@ -389,7 +389,8 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
     správa rezervace u dopravce chce adresu pro každou společnost zvlášť,
   - **Wi-Fi na iOS** jen s kopírováním hesla a QR kódem — připojení chce entitlement Hotspot
     Configuration v profilu aplikace; víceslovný název sítě jen v uvozovkách,
-  - **měna slovy** („dolarů", „liber") a `¥` (jen v jiné měně je jasné, zda jen nebo jüan),
+  - **`¥`** (jen, nebo jüan — ze značky to poznat nejde) a **„pounds"** (libry, nebo váha —
+    dnes se bere jako váha),
   - **snackbar „Zkopírováno" leží pod sheetem** a vidět není (na Androidu 13+ to zastoupí
     systémový náhled schránky, na starších nic),
   - **čísla PPL a DPD**: holé číslo od telefonu nerozeznáš, chtělo by to slovo dopravce vedle,
