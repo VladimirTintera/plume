@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import com.materialkolor.ktx.animateColorScheme
 import eu.tintera.plume.app.root.presentation.theme.AppMotion
@@ -42,6 +43,19 @@ fun ThemeMode.resolveIsDark(): Boolean = when (this) {
     ThemeMode.DARK -> true
     ThemeMode.SYSTEM -> isSystemInDarkTheme()
 }
+
+/**
+ * Je zvolený motiv tmavý? Kdo staví vlastní paletu uvnitř aplikace (barva konverzace), potřebuje
+ * vědět, pro který režim — ze světlosti plochy se to během prolínání motivu poznat spolehlivě nedá.
+ */
+val LocalIsDarkTheme = staticCompositionLocalOf { false }
+
+/**
+ * CÍLOVÉ schéma aplikace — stabilní instance, ne právě prolínané. Barva konverzace se k němu
+ * vrací, když ji uživatel zruší; prolínané schéma je v každém snímku nová instance a cíl
+ * animace by se s ním měnil pořád.
+ */
+val LocalAppColorScheme = staticCompositionLocalOf<ColorScheme?> { null }
 
 /**
  * Kořenové téma aplikace.
@@ -80,6 +94,8 @@ fun AppTheme(
                 LocalSharedTransitionScope provides this,
                 LocalBackgroundBlurAllowed provides rememberBackgroundBlurAllowed(),
                 LocalDarkSystemBars provides darkSystemBars,
+                LocalIsDarkTheme provides isDark,
+                LocalAppColorScheme provides target,
             ) {
                 content()
             }

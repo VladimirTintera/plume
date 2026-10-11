@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.chatcolor.ChatColors
+import eu.tintera.plume.core.settings.ThemeColor
 import kotlinx.datetime.todayIn
 import kotlinx.coroutines.flow.flowOf
 import eu.tintera.plume.core.telegram.ChatDraft
@@ -80,6 +82,8 @@ class ChatsViewModel(
     private val topicDrafts: TopicDrafts? = null,
     /** Odložení chatů; bez něj se „Odložit" nenabízí. */
     private val snoozes: ChatSnoozes? = null,
+    /** Barvy konverzací; bez nich mají všechny odznaky barvu aplikace. */
+    private val chatColorStore: ChatColors? = null,
     /** Hledání přirozeným jazykem; bez něj se „Hledat s AI" nenabízí. */
     private val naturalSearch: NaturalSearchModel? = null,
 ) : ViewModel() {
@@ -412,6 +416,11 @@ class ChatsViewModel(
     val separateUnreadChats: StateFlow<Boolean> = settings.separateUnreadChats
 
     /** Odložené chaty: kdo spí a do kdy, kdo se už vynořil (viz [ChatSnoozes]). */
+    /** Chat → barva, kterou mu uživatel dal; odznak nepřečtených se kreslí v ní. */
+    val chatColors: StateFlow<Map<Long, ThemeColor>> =
+        chatColorStore?.colors?.stateIn(viewModelScope, SharingStarted.Eagerly, chatColorStore.current())
+            ?: MutableStateFlow(emptyMap())
+
     val snoozeState: StateFlow<ChatSnoozeState> =
         snoozes?.state?.stateIn(viewModelScope, SharingStarted.Eagerly, ChatSnoozeState())
             ?: MutableStateFlow(ChatSnoozeState())

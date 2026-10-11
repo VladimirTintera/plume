@@ -592,6 +592,8 @@ snadno na to uživatel narazí.
 - ~~**Rychlá anotace a začernění fotek před odesláním**~~ — hotovo (pero, zvýrazňovač, začernění
   v náhledu přílohy; `docs/poznatky/konverzace-psani.md`, „Úprava fotky před odesláním"). Zbývá:
   iOS ověřit. ~~Ořez a otočení fotky~~ a ~~úprava na obrazovce „Komu: …"~~ — hotovo.
-- **Vědomě NE**: tapeta a téma chatu (`Chat.background`, `theme`) a barvy jmen podle profilu
-  (`accentColorId`) — aplikace má vlastní Material vzhled a `senderColor`; kdyby se přidávaly,
-  je to rozhodnutí o vzhledu, ne chybějící funkce.
+- **Vědomě NE**: tapeta a téma chatu od Telegramu (`Chat.background`, `theme`) a barvy jmen podle
+  profilu (`accentColorId`) — aplikace má vlastní Material vzhled a `senderColor`; kdyby se
+  přidávaly, je to rozhodnutí o vzhledu, ne chybějící funkce. Odlišit chat barvou jde vlastní
+  cestou: barva konverzace jen v tomhle zařízení, paleta z ní místo obrázku
+  (`docs/poznatky/konverzace-zobrazeni.md`, „Barva konverzace").

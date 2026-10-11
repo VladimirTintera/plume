@@ -517,10 +517,12 @@ Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku, p�
   z palety, kterou aplikace dostane (`ThemeColorPicker`, `AppSettings.themeColor`).
 - ~~**Nápovědy u gest napoprvé**~~ — hotovo: `RichTooltip` se šipkou u odkrývání časů,
   podržení pro volby odeslání a podržení pro nahrávání, každá jednou (`GestureHints`).
-- **Jemné ambientní podbarvení konverzace (Color Harmony).** Místo serverových obrázkových
-  tapet Telegramu (`Chat.background`), které aplikace vědomě odmítá, decentní ambientní nádech
-  pozadí (`surfaceContainerLow`) nebo záhlaví odvozený z barvy profilové fotky protějšku či skupiny.
-  Zvýší podvědomé odlišení konverzací při zachování čistých Material 3 pravidel.
+- ~~**Barva konverzace**~~ — hotovo: profil chatu → Barva konverzace, tytéž vzorky jako barva
+  aplikace a „Podle aplikace". Celá konverzace (i její profil a seznam témat) dostane paletu
+  z té barvy, v seznamu chatů ji nese jen odznak nepřečtených (`ChatColorTheme`, `ChatColors`;
+  `docs/poznatky/konverzace-zobrazeni.md`, „Barva konverzace"). Místo automatického podbarvení
+  z profilové fotky: barvu dává uživatel, takže něco znamená. Zbývá: synchronizace mezi
+  zařízeními (spolu s ostatním nastavením) a ověřit iOS.
 
 ## Vychytávky
 

@@ -22,6 +22,22 @@ fun expressiveColorScheme(isDark: Boolean, seed: Color): ColorScheme = rememberD
 )
 
 /**
+ * Schéma konverzace v barvě, kterou jí dal uživatel (`ChatColorTheme`).
+ *
+ * **TonalSpot, ne Vibrant jako aplikace.** Vibrant dává sytost, jakou odstín unese, a v tmavém
+ * motivu je primární tón 80 u zelené a tyrkysové skoro neonový — odchozí bublina pak svítila víc
+ * než cokoli jiného v aplikaci (ověřeno na emulátoru). Barva chatu má chat odlišit, ne přebít;
+ * TonalSpot (výchozí styl Material You) drží odstín seedu s umírněnou sytostí, takže chat
+ * v barvě vypadá jako aplikace s jinou tapetou.
+ */
+@Composable
+fun chatColorScheme(isDark: Boolean, seed: Color): ColorScheme = rememberDynamicColorScheme(
+    seedColor = seed,
+    isDark = isDark,
+    style = PaletteStyle.TonalSpot,
+)
+
+/**
  * Styl generování palety.
  *
  * **Vibrant, ne Expressive.** Expressive (ve specifikaci 2021, výchozí v materialkoloru) posouvá

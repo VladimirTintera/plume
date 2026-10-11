@@ -124,6 +124,7 @@ import eu.tintera.plume.core.navigation.SettingsSectionRoute
 import eu.tintera.plume.core.navigation.TopLevelRoute
 import eu.tintera.plume.core.ui.LocalTwoPane
 import eu.tintera.plume.core.ui.ChatContainer
+import eu.tintera.plume.app.root.presentation.theme.ChatColorTheme
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatListState
 import eu.tintera.plume.features.chats.ArchiveScreen
@@ -520,7 +521,7 @@ private fun shellEntryProvider(
     }
 
     entry<ConversationRoute>(metadata = ListDetailSceneStrategy.detailPane() + ChatScreenMetadata) { route ->
-        ChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             val settings = koinInject<AppSettings>()
             ConversationScreen(
                 // Klíč MUSÍ obsahovat chatId. ViewModel se cachuje podle klíče, takže
@@ -582,7 +583,7 @@ private fun shellEntryProvider(
      * téma se otevře jako konverzace nad nimi.
      */
     entry<SavedTopicsRoute>(metadata = ListDetailSceneStrategy.detailPane() + ChatScreenMetadata) { route ->
-        ChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             SavedTopicsScreen(
                 viewModel = koinViewModel(key = "saved-topics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
@@ -601,7 +602,7 @@ private fun shellEntryProvider(
      * konverzace NAD nimi, takže zpět vede do seznamu témat.
      */
     entry<ForumTopicsRoute>(metadata = ListDetailSceneStrategy.detailPane() + ChatScreenMetadata) { route ->
-        ChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             ForumTopicsScreen(
                 viewModel = koinViewModel(key = "forum-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
@@ -618,7 +619,7 @@ private fun shellEntryProvider(
     }
 
     entry<ArchiveForumTopicsRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE) + ChatScreenMetadata) { route ->
-        ChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             ForumTopicsScreen(
                 viewModel = koinViewModel(key = "forum-${route.chatId}", parameters = { parametersOf(route.chatId) }),
                 onBack = { chatsStack.pop(route) },
@@ -638,44 +639,46 @@ private fun shellEntryProvider(
     entry<ChatProfileRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
         val searchRequests = koinInject<ConversationSearchRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()
-        ChatProfileScreen(
-            viewModel = koinViewModel(key = "profile-${route.chatId}", parameters = { parametersOf(route.chatId) }),
-            onBack = { chatsStack.pop(route) },
-            // Hledat patří konverzaci: profil se zavře a konverzace pod ním otevře hledání.
-            // Profil odesílatele otevřený ze skupiny má pod sebou SKUPINU — pak se místo ní
-            // otevře konverzace s ním, jinak by hledání čekalo na chat, který není vidět.
-            onSearch = {
-                searchRequests.request(route.chatId)
-                chatsStack.pop(route)
-                if (!chatsStack.isOpenConversation(route.chatId)) chatsStack.add(ConversationRoute(route.chatId))
-            },
-            onOpenChat = { chatId ->
-                if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(chatId))
-            },
-            // Z profilu letí fotka z mřížky sdílených médií, ne z bubliny — jiný klíč sdíleného prvku.
-            onOpenMedia = { messageId, articleMedia ->
-                chatsStack.add(MediaRoute(route.chatId, messageId, fromSharedMedia = true, articleMedia = articleMedia))
-            },
-            onOpenPhotos = { chatsStack.add(MediaRoute(route.chatId, messageId = 0L, profilePhotos = true)) },
-            onChatGone = { chatsStack.closeChat(route.chatId) },
-            onEdit = { if (chatsStack.lastOrNull() != EditChatRoute(route.chatId)) chatsStack.add(EditChatRoute(route.chatId)) },
-            onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(userId)) },
-            onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
-            onOpenMemberRights = { userId, admin ->
-                chatsStack.add(MemberRightsRoute(route.chatId, userId, admin))
-            },
-            // Soukromý chat s botem má id bota, takže chat je zároveň bot.
-            onOpenMainWebApp = {
-                chatsStack.add(WebAppRoute(route.chatId, route.chatId, url = "", launch = false, archive = false, main = true))
-            },
-            // Záložka: profil se zavře a konverzace pod ním skočí na zprávu (`ConversationJumpRequests`).
-            // Bez konverzace pod profilem se otevře rovnou na té zprávě.
-            onOpenMessage = { messageId ->
-                jumpRequests.request(route.chatId, messageId)
-                chatsStack.pop(route)
-                if (!chatsStack.isOpenConversation(route.chatId)) chatsStack.add(ConversationRoute(route.chatId, messageId))
-            },
-        )
+        ChatColorTheme(route.chatId) {
+            ChatProfileScreen(
+                viewModel = koinViewModel(key = "profile-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+                onBack = { chatsStack.pop(route) },
+                // Hledat patří konverzaci: profil se zavře a konverzace pod ním otevře hledání.
+                // Profil odesílatele otevřený ze skupiny má pod sebou SKUPINU — pak se místo ní
+                // otevře konverzace s ním, jinak by hledání čekalo na chat, který není vidět.
+                onSearch = {
+                    searchRequests.request(route.chatId)
+                    chatsStack.pop(route)
+                    if (!chatsStack.isOpenConversation(route.chatId)) chatsStack.add(ConversationRoute(route.chatId))
+                },
+                onOpenChat = { chatId ->
+                    if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(chatId))
+                },
+                // Z profilu letí fotka z mřížky sdílených médií, ne z bubliny — jiný klíč sdíleného prvku.
+                onOpenMedia = { messageId, articleMedia ->
+                    chatsStack.add(MediaRoute(route.chatId, messageId, fromSharedMedia = true, articleMedia = articleMedia))
+                },
+                onOpenPhotos = { chatsStack.add(MediaRoute(route.chatId, messageId = 0L, profilePhotos = true)) },
+                onChatGone = { chatsStack.closeChat(route.chatId) },
+                onEdit = { if (chatsStack.lastOrNull() != EditChatRoute(route.chatId)) chatsStack.add(EditChatRoute(route.chatId)) },
+                onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(userId)) },
+                onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
+                onOpenMemberRights = { userId, admin ->
+                    chatsStack.add(MemberRightsRoute(route.chatId, userId, admin))
+                },
+                // Soukromý chat s botem má id bota, takže chat je zároveň bot.
+                onOpenMainWebApp = {
+                    chatsStack.add(WebAppRoute(route.chatId, route.chatId, url = "", launch = false, archive = false, main = true))
+                },
+                // Záložka: profil se zavře a konverzace pod ním skočí na zprávu (`ConversationJumpRequests`).
+                // Bez konverzace pod profilem se otevře rovnou na té zprávě.
+                onOpenMessage = { messageId ->
+                    jumpRequests.request(route.chatId, messageId)
+                    chatsStack.pop(route)
+                    if (!chatsStack.isOpenConversation(route.chatId)) chatsStack.add(ConversationRoute(route.chatId, messageId))
+                },
+            )
+        }
     }
 
     // Úprava se vrší nad profil a je to taky detail panel — v dvoupanelu profil vpravo nahradí.
@@ -754,7 +757,7 @@ private fun shellEntryProvider(
     }
 
     entry<ArchiveConversationRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE) + ChatScreenMetadata) { route ->
-        ChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             ConversationScreen(
                 viewModel = koinViewModel(
                     key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}",
@@ -800,49 +803,51 @@ private fun shellEntryProvider(
     entry<ArchiveChatProfileRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
         val searchRequests = koinInject<ConversationSearchRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()
-        ChatProfileScreen(
-            viewModel = koinViewModel(key = "profile-${route.chatId}", parameters = { parametersOf(route.chatId) }),
-            onBack = { chatsStack.pop(route) },
-            onSearch = {
-                searchRequests.request(route.chatId)
-                chatsStack.pop(route)
-                if (!chatsStack.isOpenArchiveConversation(route.chatId)) {
-                    chatsStack.add(ArchiveConversationRoute(route.chatId))
-                }
-            },
-            onOpenChat = { chatId ->
-                if (!chatsStack.isOpenArchiveConversation(chatId)) {
-                    chatsStack.add(ArchiveConversationRoute(chatId))
-                }
-            },
-            // Z profilu letí fotka z mřížky sdílených médií, ne z bubliny — jiný klíč sdíleného prvku.
-            onOpenMedia = { messageId, articleMedia ->
-                chatsStack.add(MediaRoute(route.chatId, messageId, fromSharedMedia = true, articleMedia = articleMedia))
-            },
-            onOpenPhotos = { chatsStack.add(MediaRoute(route.chatId, messageId = 0L, profilePhotos = true)) },
-            onChatGone = { chatsStack.closeChat(route.chatId) },
-            onEdit = {
-                if (chatsStack.lastOrNull() != ArchiveEditChatRoute(route.chatId)) {
-                    chatsStack.add(ArchiveEditChatRoute(route.chatId))
-                }
-            },
-            onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(userId)) },
-            onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
-            onOpenMemberRights = { userId, admin ->
-                chatsStack.add(ArchiveMemberRightsRoute(route.chatId, userId, admin))
-            },
-            // Soukromý chat s botem má id bota, takže chat je zároveň bot.
-            onOpenMainWebApp = {
-                chatsStack.add(WebAppRoute(route.chatId, route.chatId, url = "", launch = false, archive = true, main = true))
-            },
-            onOpenMessage = { messageId ->
-                jumpRequests.request(route.chatId, messageId)
-                chatsStack.pop(route)
-                if (!chatsStack.isOpenArchiveConversation(route.chatId)) {
-                    chatsStack.add(ArchiveConversationRoute(route.chatId, messageId))
-                }
-            },
-        )
+        ChatColorTheme(route.chatId) {
+            ChatProfileScreen(
+                viewModel = koinViewModel(key = "profile-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+                onBack = { chatsStack.pop(route) },
+                onSearch = {
+                    searchRequests.request(route.chatId)
+                    chatsStack.pop(route)
+                    if (!chatsStack.isOpenArchiveConversation(route.chatId)) {
+                        chatsStack.add(ArchiveConversationRoute(route.chatId))
+                    }
+                },
+                onOpenChat = { chatId ->
+                    if (!chatsStack.isOpenArchiveConversation(chatId)) {
+                        chatsStack.add(ArchiveConversationRoute(chatId))
+                    }
+                },
+                // Z profilu letí fotka z mřížky sdílených médií, ne z bubliny — jiný klíč sdíleného prvku.
+                onOpenMedia = { messageId, articleMedia ->
+                    chatsStack.add(MediaRoute(route.chatId, messageId, fromSharedMedia = true, articleMedia = articleMedia))
+                },
+                onOpenPhotos = { chatsStack.add(MediaRoute(route.chatId, messageId = 0L, profilePhotos = true)) },
+                onChatGone = { chatsStack.closeChat(route.chatId) },
+                onEdit = {
+                    if (chatsStack.lastOrNull() != ArchiveEditChatRoute(route.chatId)) {
+                        chatsStack.add(ArchiveEditChatRoute(route.chatId))
+                    }
+                },
+                onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(userId)) },
+                onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
+                onOpenMemberRights = { userId, admin ->
+                    chatsStack.add(ArchiveMemberRightsRoute(route.chatId, userId, admin))
+                },
+                // Soukromý chat s botem má id bota, takže chat je zároveň bot.
+                onOpenMainWebApp = {
+                    chatsStack.add(WebAppRoute(route.chatId, route.chatId, url = "", launch = false, archive = true, main = true))
+                },
+                onOpenMessage = { messageId ->
+                    jumpRequests.request(route.chatId, messageId)
+                    chatsStack.pop(route)
+                    if (!chatsStack.isOpenArchiveConversation(route.chatId)) {
+                        chatsStack.add(ArchiveConversationRoute(route.chatId, messageId))
+                    }
+                },
+            )
+        }
     }
 
     /*
@@ -1366,3 +1371,9 @@ private fun NavKey?.isOverSettingsSection(): Boolean =
     this == EditProfileRoute || this == BlockedSendersRoute || this == BlockSenderRoute || this == TwoStepRoute ||
         this == AppLockRoute || this == ChatFoldersRoute || this is ChatFolderEditRoute || this == ProxySettingsRoute ||
         this == AccountPrivacyRoute || this is PrivacySettingRoute
+
+/** Kontejner obrazovky chatu (konverzace, seznam témat) v barvě chatu (`ChatColorTheme`). */
+@Composable
+private fun ColoredChatContainer(chatId: Long, fromList: Boolean, content: @Composable () -> Unit) {
+    ChatContainer(chatId, fromList) { ChatColorTheme(chatId, content) }
+}

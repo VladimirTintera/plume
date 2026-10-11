@@ -187,6 +187,11 @@ import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.describe
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.chat_color_default
+import eu.tintera.plume.resources.chat_color_title
+import androidx.compose.foundation.shape.CircleShape
+import eu.tintera.plume.core.settings.ThemeColor
+import eu.tintera.plume.features.settings.label
 import eu.tintera.plume.resources.add_members_title
 import eu.tintera.plume.resources.add_subscribers_title
 import eu.tintera.plume.resources.person_add_24dp
@@ -261,6 +266,8 @@ fun ChatProfileScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val bookmarks by viewModel.chatBookmarks.collectAsStateWithLifecycle()
     var showBookmarks by rememberSaveable { mutableStateOf(false) }
+    val chatColor by viewModel.chatColor.collectAsStateWithLifecycle()
+    var showChatColor by rememberSaveable { mutableStateOf(false) }
     // Návrat z úpravy chatu (název, popis, veřejný odkaz): profil se tu skládá znovu, ale
     // ViewModel přežil a jinak by ukazoval, co přečetl při otevření.
     LaunchedEffect(Unit) { viewModel.refreshOnReturn() }
@@ -410,7 +417,8 @@ fun ChatProfileScreen(
                 val notifications = state.notifications
                 val showsAutoDelete = profile.canSetAutoDelete || profile.autoDeleteTime > 0
                 if (profile.usernames.isNotEmpty() || profile.phone != null || profile.about.isNotBlank() ||
-                    notifications != null || showsAutoDelete || profile.linkedChat != null || bookmarks.isNotEmpty()
+                    notifications != null || showsAutoDelete || profile.linkedChat != null || bookmarks.isNotEmpty() ||
+                    viewModel.supportsChatColor
                 ) {
                     ProfileInfo(
                         profile,
@@ -421,6 +429,8 @@ fun ChatProfileScreen(
                         onOpenLinkedChat = viewModel::openLinkedChat,
                         onOpenNotifications = viewModel::openNotificationSheet,
                         onOpenAutoDelete = viewModel::openAutoDeleteSheet.takeIf { profile.canSetAutoDelete },
+                        chatColor = chatColor,
+                        onOpenChatColor = { showChatColor = true }.takeIf { viewModel.supportsChatColor },
                     )
                 }
             }
@@ -431,6 +441,14 @@ fun ChatProfileScreen(
                 current = profile.autoDeleteTime,
                 onSelect = viewModel::setAutoDelete,
                 onDismiss = viewModel::closeAutoDeleteSheet,
+            )
+        }
+
+        if (showChatColor) {
+            ChatColorSheet(
+                current = chatColor,
+                onSelect = viewModel::setChatColor,
+                onDismiss = { showChatColor = false },
             )
         }
 
@@ -1062,6 +1080,10 @@ private fun ProfileInfo(
     onOpenNotifications: () -> Unit,
     /** `null` = mazání měnit nesmí; řádek se pak jen ukáže, když je zapnuté. */
     onOpenAutoDelete: (() -> Unit)?,
+    /** Barva konverzace; `null` = barvy aplikace. */
+    chatColor: ThemeColor?,
+    /** `null` = barvu nastavit nejde a řádek se neukazuje. */
+    onOpenChatColor: (() -> Unit)?,
 ) {
     val rows = buildList<@Composable (Shape) -> Unit> {
         profile.usernames.firstOrNull()?.let { username ->
@@ -1153,6 +1175,27 @@ private fun ProfileInfo(
                 }
             }
         }
+        // Barva je čistě moje a jen vzhled — až za upozorněními. Puntík nese barvu, jakou chat
+        // má: profil sám leží v barvě chatu, takže je to jeho `primary`.
+        onOpenChatColor?.let { onClick ->
+            add { shape ->
+                InfoRow(
+                    label = stringResource(Res.string.chat_color_title),
+                    shape = shape,
+                    onClick = onClick,
+                    trailing = chatColor?.let {
+                        {
+                            Box(Modifier.size(CHAT_COLOR_DOT).background(MaterialTheme.colorScheme.primary, CircleShape))
+                        }
+                    },
+                ) {
+                    Text(
+                        stringResource(chatColor?.label ?: Res.string.chat_color_default),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
+        }
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
@@ -1169,16 +1212,24 @@ private fun ProfileInfo(
 
 /** Údaj: hodnota a pod ní, co to je — jako v kontaktech. */
 @Composable
-private fun InfoRow(label: String, shape: Shape, onClick: (() -> Unit)? = null, value: @Composable () -> Unit) {
+private fun InfoRow(
+    label: String,
+    shape: Shape,
+    onClick: (() -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
+    value: @Composable () -> Unit,
+) {
     ListItem(
         headlineContent = value,
         supportingContent = { Text(label) },
+        trailingContent = trailing,
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
         modifier = Modifier.clip(shape).then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
     )
 }
 
 private val HEADER_AVATAR_SIZE = 112.dp
+private val CHAT_COLOR_DOT = 24.dp
 
 /**
  * Méně častá akce nad chatem za ⋮: odkaz, blokování, smazání / odchod.

@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.settings.ThemeColor
+import eu.tintera.plume.app.root.presentation.LocalIsDarkTheme
+import eu.tintera.plume.app.root.presentation.theme.chatColorScheme
+import eu.tintera.plume.app.root.presentation.theme.seed
+import androidx.compose.material3.ColorScheme
 import org.koin.compose.koinInject
 import androidx.compose.ui.graphics.Color
 import eu.tintera.plume.core.ui.asUpcomingTime
@@ -1096,6 +1101,8 @@ internal fun ChatListContent(
 
 
     val snoozes by viewModel.snoozeState.collectAsStateWithLifecycle()
+    val chatColors by viewModel.chatColors.collectAsStateWithLifecycle()
+    val chatAccents = rememberChatAccents(chatColors.values.toSet())
     val groups = (state as? ChatListState.Ready)?.chats?.let { chats ->
         remember(chats, separateUnread, hiddenSavedMessagesChatId, snoozes.due) {
             chatGroups(chats, separateUnread, hiddenSavedMessagesChatId, snoozes.due)
@@ -1267,6 +1274,7 @@ internal fun ChatListContent(
                                     else -> snoozes.sleeping[chat.id]?.let(RowSnooze::Sleeping)
                                 },
                                 shape = shape,
+                                accent = chatColors[chat.id]?.let(chatAccents::get),
                                 onClick = {
                                     if (!selecting) viewModel.opened(chat.id)
                                     when {
@@ -1574,6 +1582,8 @@ private fun ChatRow(
     snooze: RowSnooze?,
     /** Tvar bloku — počítá ho [groupItemShape] vedle, protože ho potřebuje i podklad pod tahem. */
     shape: RoundedCornerShape,
+    /** Paleta z barvy konverzace (odznaky nepřečtených); `null` = barvy aplikace. */
+    accent: ColorScheme?,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1813,7 +1823,7 @@ private fun ChatRow(
                 }
             }
 
-            UnreadBadges(chat, quiet = sleeping)
+            UnreadBadges(chat, quiet = sleeping, accent = accent)
         }
     }
 }
@@ -1836,9 +1846,12 @@ private fun UnreadBadges(
     chat: ChatSummary,
     /** Odznaky v neutrální barvě — u odloženého chatu, který se má do té doby neozývat. */
     quiet: Boolean = false,
+    /** Paleta z barvy konverzace; odznak je pak jediné místo v řádku, které ji nese. */
+    accent: ColorScheme? = null,
 ) {
-    val container = if (quiet) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.primary
-    val content = if (quiet) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary
+    val scheme = accent ?: MaterialTheme.colorScheme
+    val container = if (quiet) MaterialTheme.colorScheme.surfaceContainerHighest else scheme.primary
+    val content = if (quiet) MaterialTheme.colorScheme.onSurfaceVariant else scheme.onPrimary
     if (chat.unreadPollVoteCount == 0 && chat.unreadReactionCount == 0 && chat.unreadMentionCount == 0 && chat.unreadCount == 0) return
     Row(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -1874,6 +1887,26 @@ private fun IconBadge(icon: DrawableResource, description: String, container: Co
     ) {
         Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(12.dp))
     }
+}
+
+/**
+ * Palety barev, které mají některé chaty — jedna na barvu, ne na řádek: vygenerovat paletu stojí
+ * desítky výpočtů v HCT a řádky se při scrollu skládají pořád znovu.
+ *
+ * Barva chatu je v seznamu JEN v odznaku nepřečtených. Celý řádek v barvě by ze seznamu udělal
+ * pestrou mozaiku a barva by přestala cokoli znamenat; odznak je sytá tečka, kterou oko hledá
+ * stejně, a nepřečtený chat je právě ten, u kterého na rozlišení záleží.
+ */
+@Composable
+private fun rememberChatAccents(used: Set<ThemeColor>): Map<ThemeColor, ColorScheme> {
+    val isDark = LocalIsDarkTheme.current
+    val accents = HashMap<ThemeColor, ColorScheme>()
+    ThemeColor.entries.forEach { color ->
+        key(color) {
+            if (color in used) accents[color] = chatColorScheme(isDark, color.seed)
+        }
+    }
+    return accents
 }
 
 /** Kolik položek před koncem už spustí dotažení další dávky. */

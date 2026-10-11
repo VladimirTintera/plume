@@ -8,6 +8,7 @@ import eu.tintera.plume.features.conversation.ConversationJumpRequests
 import eu.tintera.plume.features.conversation.ChatSwitcher
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import eu.tintera.plume.core.snooze.ChatSnoozes
+import eu.tintera.plume.core.chatcolor.ChatColors
 import eu.tintera.plume.features.forward.ShareContactViewModel
 import eu.tintera.plume.features.profile.AddMembersViewModel
 import eu.tintera.plume.features.forward.BotShareViewModel
@@ -318,6 +319,7 @@ fun appModule() = module {
     single { ChatSwitcher(chats = get()) }
     single { MessageBookmarks(settings = get(), chats = get()) }
     single { ChatSnoozes(settings = get(), chats = get(), reminders = getOrNull()) }
+    single { ChatColors(settings = get(), chats = get()) }
     single { ConversationReplyRequests() }
     single { InlineQueryRequests() }
     single { RevealedSpoilers() }
@@ -378,6 +380,7 @@ fun appModule() = module {
             folderRepository = get(),
             topicDrafts = get(),
             snoozes = get(),
+            chatColorStore = get(),
             naturalSearch = get(),
         )
     }
@@ -545,6 +548,7 @@ fun appModule() = module {
             voicePlayer = get(),
             musicQueue = get(),
             bookmarks = get(),
+            chatColors = get(),
         )
     }
 
