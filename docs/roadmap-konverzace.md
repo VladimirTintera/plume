@@ -397,10 +397,8 @@ zprávou"). Zbývá:
 Hotové: záložky Nedávné, Oblíbené, Trendy a sady se swipem; hledání samolepek i emoji; oblíbené;
 sada ze samolepky v chatu; emoji vkládané do textu včetně nedávných; mřížka jedné sady hraje;
 samolepky k emoji v poli; velký náhled po podržení; hledání sad podle názvu; kategorie pod polem
-hledání. Zbývá:
+hledání; výběr se otevře na naposledy otevřené záložce. Zbývá:
 
-- **Výběr si nepamatuje poslední záložku** (vyčteno z kódu, neověřeno): `PagerState` vzniká
-  se sheetem, takže se otevře na Nedávných. Kdo posílá z jedné sady, musí k ní pokaždé dojet.
 - **Odebrat z Nedávných a smazat Nedávné** — omylem poslaná samolepka tam zůstane. Křížek
   v náhledu podržené samolepky (`removeRecentSticker`), „Vymazat" v záložce (`clearRecentStickers`).
 - **Sada skupiny** — supergroupa může mít vlastní sadu (`SupergroupFullInfo.stickerSetId`);

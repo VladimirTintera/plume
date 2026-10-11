@@ -70,6 +70,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -159,6 +161,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -186,6 +189,8 @@ data class StickerPickerState(
     val favorites: List<StickerItem>? = null,
     /** Obsah už otevřených sad podle id. Chybějící sada se teprve načítá. */
     val sets: Map<Long, List<StickerItem>> = emptyMap(),
+    /** Seznam záložek je úplný — dorazily i nainstalované sady. */
+    val loaded: Boolean = false,
 ) {
     /** Samolepky záložky; `null`, dokud se její obsah načítá. */
     fun stickersOf(tab: StickerTab): List<StickerItem>? = when (tab) {
@@ -317,6 +322,7 @@ class StickerPickerViewModel(
             recent = recent,
             favorites = favorites,
             sets = contents,
+            loaded = true,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), StickerPickerState())
 
@@ -343,6 +349,14 @@ class StickerPickerViewModel(
     /** Trendy byly vidět — Telegram je přestane hlásit jako nové. */
     fun markTrendingViewed(sets: List<StickerSetSample>) {
         viewModelScope.launch { repository.markTrendingViewed(sets.map { it.id }) }
+    }
+
+    /** Záložka, na které byl uživatel naposledy; čte se jednou, při otevření výběru. */
+    val lastTabKey: String? get() = settings.lastStickerTab.value
+
+    /** Uživatel dosedl na záložku — příště se výběr otevře na ní. */
+    fun rememberTab(key: String) {
+        if (key != settings.lastStickerTab.value) settings.setLastStickerTab(key)
     }
 
     /** Stránka záložky se ukázala. Nedávné a oblíbené jsou živé toky, načítá se jen sada. */
@@ -483,9 +497,6 @@ internal fun StickerPickerSheet(
     /** Sada otevřená z trendů. Sheet nad sheetem: výběr pod ní zůstává, zpátky se vrací zavřením. */
     var openSetId by rememberSaveable { mutableStateOf<Long?>(null) }
 
-    // Počet stránek se mění: sady dorazí až po nedávných a oblíbených. Proto lambda, ne číslo.
-    val pagerState = rememberPagerState(pageCount = { state.tabs.size })
-
     val pick: (StickerItem) -> Unit = { sticker ->
         // Nejdřív sheet schovat, pak poslat: zmizení bez animace by vypadalo jako pád,
         // a zpráva se tak objeví až nad zavřeným sheetem.
@@ -622,6 +633,57 @@ internal fun StickerPickerSheet(
             return@ModalBottomSheet
         }
 
+        StickerTabsPager(
+            state = state,
+            viewModel = viewModel,
+            cells = cells,
+            onOpenSet = { openSetId = it },
+        )
+    }
+}
+
+/**
+ * Řádek záložek a pod ním jejich stránky.
+ *
+ * Otevře se na záložce, na které byl uživatel naposledy ([AppSettings.lastStickerTab]) — kdo
+ * posílá z jedné sady, nemusí k ní pokaždé dojíždět. `PagerState` proto vzniká až se seznamem
+ * sad: s prvním stavem (jen Nedávné, Oblíbené, Trendy) by se výběr otevřel na Nedávných a pak
+ * přeskočil na sadu. Čekání je dotaz do lokální databáze TDLib, mezitím drží místo indikátor
+ * ve stejně vysoké ploše, takže sheet neposkočí.
+ *
+ * Pamatuje se USAZENÁ stránka, ne každá, přes kterou prst přejel. Sada, která mezitím zmizela,
+ * se nenajde a výběr začne Nedávnými.
+ */
+@Composable
+@OptIn(ExperimentalFoundationApi::class)
+private fun StickerTabsPager(
+    state: StickerPickerState,
+    viewModel: StickerPickerViewModel,
+    cells: StickerCells,
+    onOpenSet: (Long) -> Unit,
+) {
+    if (!state.loaded) {
+        Box(
+            Modifier.fillMaxWidth().height(STICKER_TAB_ROW_HEIGHT + STICKER_PICKER_HEIGHT + sheetBottomInset()),
+            contentAlignment = Alignment.Center,
+        ) { LoadingIndicator() }
+        return
+    }
+
+    val scope = rememberCoroutineScope()
+    val tabs by rememberUpdatedState(state.tabs)
+    // Počet stránek se mění: sada přibude nebo zmizí i za otevřeného výběru. Proto lambda, ne číslo.
+    val pagerState = rememberPagerState(
+        initialPage = remember { state.tabs.indexOfStored(viewModel.lastTabKey).coerceAtLeast(0) },
+        pageCount = { tabs.size },
+    )
+    LaunchedEffect(pagerState) {
+        snapshotFlow { tabs.getOrNull(pagerState.settledPage)?.storageKey() }
+            .filterNotNull()
+            .distinctUntilChanged()
+            .collect(viewModel::rememberTab)
+    }
+
         PrimaryScrollableTabRow(
             // `currentPage` se přepne v půlce swipu, takže indikátor jde s prstem, ne až po dojetí.
             selectedTabIndex = pagerState.currentPage.coerceIn(0, state.tabs.lastIndex),
@@ -642,7 +704,7 @@ internal fun StickerPickerSheet(
             state = pagerState,
             // Klíč podle záložky, ne indexu: až dorazí sady, stránky nedávných a oblíbených zůstanou
             // tytéž a nerozsype se jim stav (pozice scrollu).
-            key = { index -> state.tabs.getOrNull(index)?.pageKey() ?: index },
+            key = { index -> state.tabs.getOrNull(index)?.storageKey() ?: index },
             modifier = Modifier.fillMaxWidth().height(STICKER_PICKER_HEIGHT + sheetBottomInset()),
         ) { page ->
             val tab = state.tabs.getOrNull(page) ?: return@HorizontalPager
@@ -651,7 +713,7 @@ internal fun StickerPickerSheet(
             if (tab == StickerTab.Trending) {
                 TrendingPage(
                     viewModel = viewModel,
-                    onOpenSet = { openSetId = it },
+                    onOpenSet = onOpenSet,
                 )
                 return@HorizontalPager
             }
@@ -669,7 +731,6 @@ internal fun StickerPickerSheet(
                 ),
             )
         }
-    }
 }
 
 /**
@@ -693,13 +754,20 @@ private fun TrendingSetSheetHost(
     )
 }
 
-/** Stabilní klíč stránky záložky. */
-private fun StickerTab.pageKey(): Any = when (this) {
+/**
+ * Stabilní klíč záložky: klíč stránky pageru i hodnota pro [AppSettings.lastStickerTab]. Sada
+ * podle id, ne podle pořadí — pořadí sad si uživatel mění a přidaná sada by ostatní posunula.
+ */
+internal fun StickerTab.storageKey(): String = when (this) {
     StickerTab.Recent -> "recent"
     StickerTab.Favorites -> "favorites"
     StickerTab.Trending -> "trending"
-    is StickerTab.Set -> summary.id
+    is StickerTab.Set -> "set:${summary.id}"
 }
+
+/** Index záložky uložené pod [key], nebo -1 (nic uloženo, sada mezitím odebraná). */
+internal fun List<StickerTab>.indexOfStored(key: String?): Int =
+    if (key == null) -1 else indexOfFirst { it.storageKey() == key }
 
 /** Obsah jedné záložky: načítání, prázdný stav, nebo mřížka. */
 @Composable
