@@ -18,8 +18,8 @@ data class MessageSearchFilter(
      */
     val publicPosts: Boolean = false,
     /**
-     * Jen zprávy s tímhle obsahem (fotky, soubory…); `null` = jakékoli. Zatím ho vyplňuje jen
-     * hledání přirozeným jazykem — čip nad výsledky ho ukáže a dovolí zrušit.
+     * Jen zprávy s tímhle obsahem (fotky, soubory…); `null` = jakékoli. Volí se v řádku filtrů,
+     * nebo ho vyplní hledání přirozeným jazykem.
      */
     val content: SearchContent? = null,
 ) {

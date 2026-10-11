@@ -39,7 +39,8 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   známé). Zprávy jsou `searchMessages(chatList = null)` přes hlavní seznam i archiv, stránkované
   `nextOffset` (prázdný = konec), duplicity na hranici stránek zahazuje `mergeFoundMessages`.
 - **Filtry hledání zpráv jsou nad výsledky** (`MessageSearchFilters`, `MessageSearchFilter`):
-  druh chatu (Soukromé / Skupiny / Kanály) a období (týden, měsíc, rok, vlastní rozsah). Filtruje
+  druh chatu (Soukromé / Skupiny / Kanály), druh obsahu (Fotky, Videa, Soubory, Odkazy,
+  Hlasovky, Hudba) a období (týden, měsíc, rok, vlastní rozsah). Filtruje
   **server** (`searchMessages` s `chatTypeFilter`, `minDate`/`maxDate`, převod `dateRange`, testy
   `MessageSearchFilterTest`) — filtr nad načtenou stránkou by z padesáti výsledků nechal pár
   a zbytek dotahoval naprázdno. Druh chatu zúží lokálně i sekce chatů; s obdobím se sekce chatů
@@ -156,9 +157,12 @@ a filtry nad výsledky — chybu je vidět hned v čipech a opraví se ťuknutí
   „dovolené" převede na „dovolená", by nenašel nic. Od modelu se berou jen slova, která ve
   větě stojí; když žádná nedal, vezmou se slova věty bez slov filtru a období a bez předložek
   na krajích („recept na guláš ze [skupin]").
-- **Nový filtr druhu obsahu** (`MessageSearchFilter.content`, `SearchMessagesFilterPhoto` …
-  v `searchMessages`). Zatím ho nastavuje jen tohle hledání; čip „Fotky ×" ho ukáže a zruší.
-  Ruční výběr obsahu v řádku filtrů není.
+- **Filtr druhu obsahu** (`MessageSearchFilter.content`, `SearchMessagesFilterPhoto` …
+  v `searchMessages`) je split button jako období (`ContentFilterButton`): levá část zapne
+  a vypne poslední vybraný (výchozí Fotky), šipka otevře nabídku. Hledání větou rozsvítí
+  tentýž prvek. Stojí mezi druhem chatu a obdobím — oba první zužují „co", období „kdy".
+  S filtrem obsahu se sekce chatů schovají, jako s obdobím. Ověřeno na emulátoru: „drama"
+  + Videa ukáže jen videa z kanálů, vypnutí vrátí chaty.
 - **Prázdný dotaz s druhem obsahu je hledání zpráv, ne návrhy** („fotky z kanálu za poslední
   měsíc" nemá téma). TDLib `searchMessages` s prázdným dotazem a filtrem obsahu vrací zprávy
   (ověřeno: fotky z kanálu). Chaty se v tom případě nehledají — bez slova není co najít.

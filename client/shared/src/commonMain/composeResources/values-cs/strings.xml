@@ -1430,7 +1430,6 @@
     <string name="search_filter_custom">Vlastní rozsah…</string>
     <string name="search_filter_range">%1$s – %2$s</string>
     <string name="search_filter_apply">Použít</string>
-    <string name="search_filter_remove">Zrušit filtr</string>
     <string name="search_content_photos">Fotky</string>
     <string name="search_content_videos">Videa</string>
     <string name="search_content_files">Soubory</string>
@@ -1439,6 +1438,7 @@
     <string name="search_content_music">Hudba</string>
     <string name="search_filter_empty_hint">Zkus jiné slovo nebo uvolni filtry.</string>
     <string name="search_filter_choose_period">Vybrat období</string>
+    <string name="search_filter_choose_content">Vybrat druh obsahu</string>
     <string name="search_filter_week_short">Týden</string>
     <string name="search_filter_month_short">Měsíc</string>
     <string name="search_filter_year_short">Rok</string>

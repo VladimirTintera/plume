@@ -1,16 +1,13 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.resources.search_filter_choose_content
 import eu.tintera.plume.resources.search_content_music
 import eu.tintera.plume.resources.search_content_voice
 import eu.tintera.plume.resources.search_content_links
 import eu.tintera.plume.resources.search_content_files
 import eu.tintera.plume.resources.search_content_videos
 import eu.tintera.plume.resources.search_content_photos
-import eu.tintera.plume.resources.search_filter_remove
-import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.core.telegram.SearchContent
-import androidx.compose.material3.InputChipDefaults
-import androidx.compose.material3.InputChip
 import eu.tintera.plume.resources.search_filter_choose_period
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -88,7 +85,7 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 
 /**
- * Filtry nad výsledky hledání: druh chatu a období.
+ * Filtry nad výsledky hledání: druh chatu, druh obsahu a období.
  *
  * - **Druh chatu je connected button group** (Soukromé / Skupiny / Kanály, `ToggleButton`
  *   se spojenými tvary). Vybrané tlačítko je plné, s fajfkou a celé zakulacené, stejně jako
@@ -115,22 +112,6 @@ internal fun MessageSearchFilters(filter: MessageSearchFilter, onChange: (Messag
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
-        // Druh obsahu nastavuje zatím jen hledání přirozeným jazykem (`NaturalSearch`); čip ho
-        // ukáže a ťuknutím zruší — model se mohl splést a uživatel to musí vidět a opravit.
-        filter.content?.let { content ->
-            InputChip(
-                selected = true,
-                onClick = { onChange(filter.copy(content = null)) },
-                label = { Text(stringResource(content.label)) },
-                trailingIcon = {
-                    Icon(
-                        painterResource(Res.drawable.close_24dp),
-                        contentDescription = stringResource(Res.string.search_filter_remove),
-                        modifier = Modifier.size(InputChipDefaults.IconSize),
-                    )
-                },
-            )
-        }
         Row(horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
             KIND_CHIPS.forEachIndexed { index, (kind, label) ->
                 val selected = filter.chatKind == kind
@@ -156,6 +137,10 @@ internal fun MessageSearchFilters(filter: MessageSearchFilter, onChange: (Messag
                 }
             }
         }
+
+        // Druh obsahu za druhem chatu: oba zužují „co", období „kdy". Rozsvítí ho i hledání
+        // přirozeným jazykem (`NaturalSearch`), takže chybu modelu je vidět a opraví se tady.
+        ContentFilterButton(filter = filter, onChange = onChange)
 
         val active = filter.period != null
         val rotation by animateFloatAsState(if (periodMenu) 180f else 0f, label = "period-chevron")
@@ -253,6 +238,71 @@ internal fun MessageSearchFilters(filter: MessageSearchFilter, onChange: (Messag
             dismissButton = { TextButton(onClick = { pickRange = false }) { Text(stringResource(Res.string.common_cancel)) } },
         ) {
             DateRangePicker(state = state, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+/**
+ * Druh obsahu jako split button, stejně jako období: levá část filtr zapne a vypne a ukazuje
+ * který (pamatuje si poslední vybraný, výchozí Fotky), šipka otevře nabídku se zaškrtnutou
+ * volbou. „Cokoli" v nabídce není — to je vypnutí levé části.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ContentFilterButton(filter: MessageSearchFilter, onChange: (MessageSearchFilter) -> Unit) {
+    var menu by remember { mutableStateOf(false) }
+    var last by remember { mutableStateOf(SearchContent.Photos) }
+    filter.content?.let { if (it != last) last = it }
+    val active = filter.content != null
+    val rotation by animateFloatAsState(if (menu) 180f else 0f, label = "content-chevron")
+    Box {
+        SplitButtonLayout(
+            leadingButton = {
+                SplitButtonDefaults.LeadingButton(
+                    onClick = { onChange(filter.copy(content = if (active) null else last)) },
+                    colors = if (active) ButtonDefaults.buttonColors() else ButtonDefaults.filledTonalButtonColors(),
+                    contentPadding = PaddingValues(start = BUTTON_PADDING, end = BUTTON_PADDING / 2),
+                    modifier = Modifier.semantics { selected = active },
+                ) {
+                    AnimatedVisibility(visible = active) {
+                        Icon(
+                            painterResource(Res.drawable.check_24dp),
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = ButtonDefaults.IconSpacing).size(ButtonDefaults.IconSize),
+                        )
+                    }
+                    Text(stringResource(last.label))
+                }
+            },
+            trailingButton = {
+                SplitButtonDefaults.TrailingButton(
+                    checked = menu,
+                    onCheckedChange = { menu = it },
+                    colors = if (active) ButtonDefaults.buttonColors() else ButtonDefaults.filledTonalButtonColors(),
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.expand_more_24dp),
+                        contentDescription = stringResource(Res.string.search_filter_choose_content),
+                        modifier = Modifier.size(SplitButtonDefaults.TrailingIconSize).graphicsLayer { rotationZ = rotation },
+                    )
+                }
+            },
+        )
+        DropdownMenuPopup(expanded = menu, onDismissRequest = { menu = false }) {
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
+                SearchContent.entries.forEachIndexed { index, content ->
+                    DropdownMenuItem(
+                        checked = filter.content == content,
+                        onCheckedChange = {
+                            menu = false
+                            onChange(filter.copy(content = content))
+                        },
+                        text = { Text(stringResource(content.label)) },
+                        shapes = MenuDefaults.itemShape(index, SearchContent.entries.size),
+                        checkedLeadingIcon = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) },
+                    )
+                }
+            }
         }
     }
 }
