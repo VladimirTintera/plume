@@ -396,7 +396,10 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
 
 **Další nápady (říjen 2026)**, vybrané podle téhož pravidla:
 
-- **Hledání přirozeným jazykem.** „Fotky od Jany z loňského léta" → filtry, které hledání už
+- ~~**Hledání přirozeným jazykem.**~~ — hotovo („Hledat s AI" v hledání; `docs/poznatky/hledani-a-zakladani-chatu.md`,
+  „Hledání přirozeným jazykem"). Odesílatel („od Jany") zatím ne — globální hledání zpráv ho
+  neumí filtrovat; strukturovaný výstup Prompt API taky ne (řádky + pravidla). Původní zadání:
+  „Fotky od Jany z loňského léta" → filtry, které hledání už
   umí (chat, druh obsahu, období, odesílatel — `MessageSearchFilter`, hledání podle člena).
   Model nic negeneruje, jen vyplní typ přes `GenerateTypedContentRequest`, takže je to přirozený
   první krok ke **strukturovanému výstupu** výš. Chybu uživatel vidí hned (čipy filtrů nad

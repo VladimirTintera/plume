@@ -76,6 +76,7 @@
     <string name="chats_menu">Další možnosti</string>
     <string name="chats_search">Hledat v chatech</string>
     <string name="chats_search_clear">Vymazat hledání</string>
+    <string name="chats_search_ai">Hledat s AI</string>
     <string name="chats_search_empty">Nic nenalezeno</string>
     <string name="chats_search_empty_hint">Zkus jiné slovo nebo jméno.</string>
     <string name="chats_search_people">Lidé</string>
@@ -1426,6 +1427,13 @@
     <string name="search_filter_custom">Vlastní rozsah…</string>
     <string name="search_filter_range">%1$s – %2$s</string>
     <string name="search_filter_apply">Použít</string>
+    <string name="search_filter_remove">Zrušit filtr</string>
+    <string name="search_content_photos">Fotky</string>
+    <string name="search_content_videos">Videa</string>
+    <string name="search_content_files">Soubory</string>
+    <string name="search_content_links">Odkazy</string>
+    <string name="search_content_voice">Hlasovky</string>
+    <string name="search_content_music">Hudba</string>
     <string name="search_filter_empty_hint">Zkus jiné slovo nebo uvolni filtry.</string>
     <string name="search_filter_choose_period">Vybrat období</string>
     <string name="search_filter_week_short">Týden</string>

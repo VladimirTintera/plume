@@ -17,10 +17,18 @@ data class MessageSearchFilter(
      * kanály a období API nebere —, proto s nimi UI ty dva filtry schová.
      */
     val publicPosts: Boolean = false,
+    /**
+     * Jen zprávy s tímhle obsahem (fotky, soubory…); `null` = jakékoli. Zatím ho vyplňuje jen
+     * hledání přirozeným jazykem — čip nad výsledky ho ukáže a dovolí zrušit.
+     */
+    val content: SearchContent? = null,
 ) {
     /** Zužuje filtr výsledky? Volba veřejných příspěvků nic nezužuje, jen mění zdroj. */
-    val isEmpty: Boolean get() = chatKind == null && period == null
+    val isEmpty: Boolean get() = chatKind == null && period == null && content == null
 }
+
+/** Druh obsahu hledaných zpráv (`SearchMessagesFilter*` v TDLib). */
+enum class SearchContent { Photos, Videos, Files, Links, Voice, Music }
 
 sealed interface SearchPeriod {
     data object Week : SearchPeriod

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import kotlinx.datetime.todayIn
 import kotlinx.coroutines.flow.flowOf
 import eu.tintera.plume.core.telegram.ChatDraft
 import eu.tintera.plume.core.telegram.TopicDrafts
@@ -79,6 +80,8 @@ class ChatsViewModel(
     private val topicDrafts: TopicDrafts? = null,
     /** Odložení chatů; bez něj se „Odložit" nenabízí. */
     private val snoozes: ChatSnoozes? = null,
+    /** Hledání přirozeným jazykem; bez něj se „Hledat s AI" nenabízí. */
+    private val naturalSearch: NaturalSearchModel? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -449,6 +452,16 @@ class ChatsViewModel(
 
     /** Hledání v hlavičce seznamu (chaty, veřejné chaty i zprávy). Archiv hledání nemá, u něj zůstane bez dotazu a nic nehledá. */
     val search = ChatSearch(repository, viewModelScope, everywhere = true)
+
+    /** Umí telefon hledat přirozeným jazykem (zapnutá AI, připravený model)? */
+    val naturalSearchAvailable: StateFlow<Boolean> = (naturalSearch?.available ?: flowOf(false))
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** Věta z pole hledání → slova a filtry; `null`, když z ní model nic nevyčetl. */
+    suspend fun parseSearch(query: String): NaturalSearch? {
+        val timeZone = TimeZone.currentSystemDefault()
+        return naturalSearch?.parse(query, Clock.System.todayIn(timeZone), timeZone)
+    }
 
     /** Id Uložených zpráv — v seznamu nejsou, pokud nejsou připnuté (viz `chatGroups`). */
     val savedMessagesChatId: StateFlow<Long?> = repository.savedMessagesChatId

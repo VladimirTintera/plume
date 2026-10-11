@@ -1,5 +1,16 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.resources.search_content_music
+import eu.tintera.plume.resources.search_content_voice
+import eu.tintera.plume.resources.search_content_links
+import eu.tintera.plume.resources.search_content_files
+import eu.tintera.plume.resources.search_content_videos
+import eu.tintera.plume.resources.search_content_photos
+import eu.tintera.plume.resources.search_filter_remove
+import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.core.telegram.SearchContent
+import androidx.compose.material3.InputChipDefaults
+import androidx.compose.material3.InputChip
 import eu.tintera.plume.resources.search_filter_choose_period
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -104,6 +115,22 @@ internal fun MessageSearchFilters(filter: MessageSearchFilter, onChange: (Messag
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
+        // Druh obsahu nastavuje zatím jen hledání přirozeným jazykem (`NaturalSearch`); čip ho
+        // ukáže a ťuknutím zruší — model se mohl splést a uživatel to musí vidět a opravit.
+        filter.content?.let { content ->
+            InputChip(
+                selected = true,
+                onClick = { onChange(filter.copy(content = null)) },
+                label = { Text(stringResource(content.label)) },
+                trailingIcon = {
+                    Icon(
+                        painterResource(Res.drawable.close_24dp),
+                        contentDescription = stringResource(Res.string.search_filter_remove),
+                        modifier = Modifier.size(InputChipDefaults.IconSize),
+                    )
+                },
+            )
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
             KIND_CHIPS.forEachIndexed { index, (kind, label) ->
                 val selected = filter.chatKind == kind
@@ -242,6 +269,16 @@ private fun Long.localDayStart(): Long {
     val day = Instant.fromEpochMilliseconds(this).toLocalDateTime(TimeZone.UTC).date
     return day.atStartOfDayIn(TimeZone.currentSystemDefault()).epochSeconds
 }
+
+private val SearchContent.label
+    get() = when (this) {
+        SearchContent.Photos -> Res.string.search_content_photos
+        SearchContent.Videos -> Res.string.search_content_videos
+        SearchContent.Files -> Res.string.search_content_files
+        SearchContent.Links -> Res.string.search_content_links
+        SearchContent.Voice -> Res.string.search_content_voice
+        SearchContent.Music -> Res.string.search_content_music
+    }
 
 @Composable
 private fun SearchPeriod.label(): String = when (this) {
