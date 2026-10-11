@@ -461,8 +461,9 @@ upravená, kdy ji protějšek přečetl, kdo ji zhlédl a odkaz na ni (`MessageI
   Každá je vlastní věta — „—" by uživateli neřeklo, jestli zprávu nikdo nepřečetl, nebo jestli je
   čas jen skrytý. Poslední dvě se od sebe liší tím, kdo to může změnit.
 - **Ťuknutí na odkaz ho zkopíruje a sheet zavře.** Snackbar s potvrzením by pod modálním sheetem
-  zůstal schovaný a nebylo by poznat, že se něco stalo; Android 13+ sice ukazuje vlastní náhled
-  schránky, iOS a starší Androidy ne. Otevírat odkaz na zprávu, u které uživatel právě stojí,
+  zůstal schovaný a nebylo by poznat, že se něco stalo. Na Androidu 13+ snackbar není vůbec —
+  zkopírování tam potvrdí systémový náhled schránky (viz „Hláška „Zkopírováno"" v CLAUDE.md);
+  iOS a starší Androidy ho mají. Otevírat odkaz na zprávu, u které uživatel právě stojí,
   nedává smysl.
 - **`getMessageLink` má sedm parametrů** (`mediaTimestamp`, `checklistTaskId`, `pollOptionId`,
   `forAlbum`, `inMessageThread`) — pojmenované argumenty, jako u všeho generovaného.

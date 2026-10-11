@@ -498,7 +498,7 @@ class ChatProfileViewModel(
         val link = _state.value.profile?.link ?: return
         viewModelScope.launch {
             clipboard.copy(link)
-            _state.update { it.copy(error = UiText(Res.string.profile_link_copied)) }
+            if (!clipboard.confirmsCopy) _state.update { it.copy(error = UiText(Res.string.profile_link_copied)) }
         }
     }
 

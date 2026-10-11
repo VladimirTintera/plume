@@ -736,12 +736,12 @@ class MediaViewerViewModel(
         _state.update { state -> state.copy(recognizedText = state.recognizedText?.copy(selected = emptySet())) }
     }
 
-    /** Vybrané řádky, nebo celý rozpoznaný text, do schránky; potvrzení snackbarem. */
+    /** Vybrané řádky, nebo celý rozpoznaný text, do schránky; potvrzení snackbarem, kde ho nedá systém. */
     fun copyRecognizedText() {
         val text = _state.value.recognizedText?.shownText ?: return
         val clipboard = clipboard ?: return
         viewModelScope.launch { clipboard.copy(text) }
-        _state.update { it.copy(notice = UiText(Res.string.media_text_copied)) }
+        if (!clipboard.confirmsCopy) _state.update { it.copy(notice = UiText(Res.string.media_text_copied)) }
     }
 
     private fun finish(messageId: Long, notice: StringResource?) {

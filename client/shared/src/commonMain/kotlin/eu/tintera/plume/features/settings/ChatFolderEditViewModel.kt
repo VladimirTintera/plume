@@ -402,10 +402,10 @@ class ChatFolderEditViewModel(
             local.update { state ->
                 // V otevřeném odkazu potvrdí kopírování ikona — snackbar by zůstal pod sheetem.
                 val editor = state.linkEditor?.takeIf { it.link.url == link.url }
-                if (editor != null) {
-                    state.copy(linkEditor = editor.copy(copied = true))
-                } else {
-                    state.copy(notice = UiText(Res.string.invite_links_copied))
+                when {
+                    editor != null -> state.copy(linkEditor = editor.copy(copied = true))
+                    clipboard.confirmsCopy -> state
+                    else -> state.copy(notice = UiText(Res.string.invite_links_copied))
                 }
             }
         }

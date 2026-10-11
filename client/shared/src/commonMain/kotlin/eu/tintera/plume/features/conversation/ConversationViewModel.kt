@@ -2806,7 +2806,7 @@ class ConversationViewModel(
             is BotButtonKind.Url -> openLink(kind.url, confirmExternal = true)
             is BotButtonKind.CopyText -> viewModelScope.launch {
                 clipboard.copy(kind.text)
-                _state.update { it.copy(notice = UiText(Res.string.bot_text_copied)) }
+                if (!clipboard.confirmsCopy) _state.update { it.copy(notice = UiText(Res.string.bot_text_copied)) }
             }
             is BotButtonKind.User -> openMentioned { chatRepository.privateChat(kind.userId) }
             is BotButtonKind.WebApp -> requestWebApp(
@@ -3979,7 +3979,7 @@ class ConversationViewModel(
     fun copyFromContext(text: String) {
         viewModelScope.launch {
             clipboard.copy(text)
-            _state.update { it.copy(notice = UiText(Res.string.bot_text_copied)) }
+            if (!clipboard.confirmsCopy) _state.update { it.copy(notice = UiText(Res.string.bot_text_copied)) }
         }
     }
 
@@ -4127,7 +4127,7 @@ class ConversationViewModel(
         val text = open.body?.text ?: return
         viewModelScope.launch { clipboard.copy(text) }
         val notice = if (open.summary) Res.string.server_summary_copied else Res.string.translation_copied
-        _state.update { it.copy(translation = null, notice = UiText(notice)) }
+        _state.update { it.copy(translation = null, notice = if (clipboard.confirmsCopy) it.notice else UiText(notice)) }
     }
 
     /**
@@ -4135,12 +4135,18 @@ class ConversationViewModel(
      *
      * Sheet se přitom zavře. Jednak je tím skopírování hotová věc — kdo si o odkaz řekl, ten ho
      * má —, jednak by snackbar s potvrzením zůstal schovaný POD sheetem a nebylo by poznat,
-     * že se něco stalo. (Android 13+ ukazuje vlastní náhled schránky, iOS a starší Androidy ne.)
+     * že se něco stalo. Android 13+ ukazuje vlastní náhled schránky, takže tam snackbar odpadá
+     * (viz [TextClipboard.confirmsCopy]); iOS a starší Androidy ho nemají.
      */
     fun copyMessageLink(link: String) {
         viewModelScope.launch {
             clipboard.copy(link)
-            _state.update { it.copy(messageInfo = null, notice = UiText(Res.string.message_info_link_copied)) }
+            _state.update {
+                it.copy(
+                    messageInfo = null,
+                    notice = if (clipboard.confirmsCopy) it.notice else UiText(Res.string.message_info_link_copied),
+                )
+            }
         }
     }
 

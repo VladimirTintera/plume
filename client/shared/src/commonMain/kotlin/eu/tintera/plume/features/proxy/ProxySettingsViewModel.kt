@@ -118,7 +118,7 @@ class ProxySettingsViewModel(
         val link = proxy.config.shareLink() ?: return
         viewModelScope.launch {
             clipboard.copy(link)
-            _state.update { it.copy(notice = UiText(Res.string.proxy_link_copied)) }
+            if (!clipboard.confirmsCopy) _state.update { it.copy(notice = UiText(Res.string.proxy_link_copied)) }
         }
     }
 
