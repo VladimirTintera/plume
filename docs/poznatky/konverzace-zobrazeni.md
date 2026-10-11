@@ -517,20 +517,33 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   `DropdownMenuPopupPositionProvider` (s `transformOrigin` v rohu u tlačítka), takže vzhled je
   tentýž jako u ostatních nabídek. **Totéž čeká každou nabídku u spodku obrazovky.** Poznalo se
   to změřením (`uiautomator dump`): spodek menu byl přesně `výška okna − 48 dp`.
-- **Nabídka sponky si nebere fokus** (`PopupProperties(focusable = false)`), jinak klávesnice
-  zmizela bleskem a konverzace skočila dolů. Popup je na Androidu samostatné okno; fokusovatelné
-  převzalo fokus od pole, systém klávesnici schoval — a animaci insetů dostává okno, které
-  klávesnici řídí, tedy už okno nabídky. Hlavní okno dostalo rovnou konečné insety. Poznalo se
-  to z `dumpsys window | grep mCurrentFocus` (`Pop-Up Window`) a snímků těsně po sobě. Klávesnice
-  teď zůstane a nabídka stojí nad sponkou.
-  - **Nefokusovatelné okno nedostane zpět**, proto `NavigationBackHandler` (první zpět zavře
-    klávesnici, druhé nabídku). **A zavírá se už DOTYKEM mimo sebe — i na sponce**, takže klik
-    po puštění ji otevřel znovu; klik do půl vteřiny po zavření se proto bere jako zavření.
+- **Nabídky si neberou klávesnici** (`MenuPopupProperties` v `core/ui`, výchozí pro
+  `ExpressiveMenu`). Výchozí M3 menu je fokusovatelný popup — na Androidu samostatné okno, které
+  převzalo fokus od pole; systém klávesnici schoval a animaci insetů dostalo okno nabídky, takže
+  hlavní okno dostalo rovnou konečné insety a konverzace skokem spadla dolů. Poznalo se to
+  z `dumpsys window | grep mCurrentFocus` (`Pop-Up Window`) a snímků těsně po sobě. Týkalo se
+  sponky, podržení odesílacího tlačítka (to klávesnici navíc schovávalo samo), tlačítek dolů
+  a ke zmínkám i přepínače chatů na šipce zpět.
+  - **Řešení je `FLAG_ALT_FOCUSABLE_IM`, ne `focusable = false`.** Okno fokus dostane, ale
+    klávesnici nepotřebuje (jako `PopupWindow.INPUT_METHOD_NOT_NEEDED` u systémových nabídek),
+    takže `imeInputTarget` i `imeControlTarget` zůstanou na hlavním okně. Ověří se
+    `dumpsys window | grep -E "mCurrentFocus|imeInputTarget"`: fokus `Pop-Up Window`, cíl
+    klávesnice `MainActivity`, `dumpsys input_method` drží `mInputShown=true`.
+  - **Nefokusovatelné okno (dřívější řešení u sponky) mělo dvě díry**, které se musely lepit
+    ručně: nedostane zpět (`NavigationBackHandler`) a dotyk mimo něj projde do okna pod ním —
+    ťuknutí na sponku nabídku zavřelo a klik po puštění ji otevřel znovu (pojistka půl
+    vteřiny). Fokusovatelné okno obojí řeší samo: zpět zavře jen nabídku (klávesnice zůstane,
+    další zpět schová ji), dotyk mimo nabídku ji zavře a dál nejde.
+  - Popup bez `ExpressiveMenu` (`DropdownMenuPopup` přepínače chatů a filtrů hledání, odstíny
+    emoji nad hledáním) dostává `MenuPopupProperties` ručně.
   - **Sheet po volbě položky je zase další okno** a otevřený hned utrhl klávesnici stejně —
     konverzace nad sheetem skočila. `rememberAfterKeyboardHidden` (`core/ui`) klávesnici schová
-    a akci pustí, až insety `ime` dojdou k nule (nejvýš 600 ms). Totéž tlačítko emoji. Na
+    a akci pustí, až insety `ime` dojdou k nule (nejvýš 600 ms). Totéž tlačítko emoji a položky
+    nabídky odeslání, které otevírají sheet či dialog (naplánovat, efekt, přepsat); „bez zvuku"
+    a „až bude online" pošlou rovnou a klávesnice zůstane jako po obyčejném odeslání. Na
     emulátoru dojede klávesnice za ~320 ms; zbytek prodlevy u emoji je skládání sheetu.
-  - **Na iOS ověřené není** (jen přeložené).
+  - **Na iOS ověřené není** (jen přeložené). `MenuPopupProperties` je tam výchozí M3
+    (fokusovatelné), sponka tím přišla o dřívější `focusable = false`.
 - **Citace a psaní jsou JEDNA karta.** Dva samostatné kusy nad sebou dělaly z odpovědi cizí prvek
   vsunutý mezi konverzaci a vstup; ve společné kartě je vidět, že citace patří k tomu, co se
   právě píše. Citace (i hlavička úpravy) je **horní pruh karty v `tertiaryContainer`**

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.MenuPopupProperties
 import eu.tintera.plume.resources.search_filter_choose_content
 import eu.tintera.plume.resources.search_content_music
 import eu.tintera.plume.resources.search_content_voice
@@ -184,7 +185,7 @@ internal fun MessageSearchFilters(filter: MessageSearchFilter, onChange: (Messag
              * Expressive menu: vybrané období je zaškrtnuté. Předvolby a vlastní rozsah jsou dvě
              * skupiny — rozsah otevírá další krok (výběr dat) a pod sebou ukazuje, jaký je.
              */
-            DropdownMenuPopup(expanded = periodMenu, onDismissRequest = { periodMenu = false }) {
+            DropdownMenuPopup(expanded = periodMenu, onDismissRequest = { periodMenu = false }, properties = MenuPopupProperties) {
                 DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
                     PERIODS.forEachIndexed { index, (period, label) ->
                         DropdownMenuItem(
@@ -288,7 +289,7 @@ private fun ContentFilterButton(filter: MessageSearchFilter, onChange: (MessageS
                 }
             },
         )
-        DropdownMenuPopup(expanded = menu, onDismissRequest = { menu = false }) {
+        DropdownMenuPopup(expanded = menu, onDismissRequest = { menu = false }, properties = MenuPopupProperties) {
             DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
                 SearchContent.entries.forEachIndexed { index, content ->
                     DropdownMenuItem(
