@@ -508,6 +508,7 @@ fun appModule() = module {
             wifiJoiner = getOrNull(),
             exchangeRates = get(),
             currency = getOrNull(),
+            speechToText = getOrNull(),
         )
     }
 

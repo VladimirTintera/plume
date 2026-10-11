@@ -37,6 +37,7 @@ import eu.tintera.plume.core.ui.RollingNumber
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.chatTitle
 import eu.tintera.plume.core.ui.isSavedMessages
+import eu.tintera.plume.core.ui.MenuPopupProperties
 import eu.tintera.plume.core.ui.longPress
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
@@ -121,6 +122,7 @@ internal fun ChatSwitcherBackButton(
             expanded = expanded && canSwitch,
             onDismissRequest = { expanded = false },
             popupPositionProvider = MenuDefaults.rememberDropdownMenuPopupPositionProvider(MenuAnchorPosition.Below),
+            properties = MenuPopupProperties,
         ) {
             DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 1)) {
                 candidates.forEachIndexed { index, chat ->

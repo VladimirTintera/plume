@@ -19,12 +19,15 @@ import java.nio.ByteOrder
  *   kvalitní filtr by stál víc kódu, než kolik přepisu přidá.
  */
 internal object AudioClips {
-    private const val SAMPLE_RATE = 16_000
+    const val SAMPLE_RATE = 16_000
     const val MAX_CLIP_SECONDS = 30
+
+    /** Celý zvuk jako PCM 16 kHz mono 16 bitů — pro systémové rozpoznávání řeči (`SystemSpeechToText`). */
+    fun pcm16k(path: String): ShortArray = resample(decodeMono(path), SAMPLE_RATE)
 
     /** Kusy WAV připravené pro `Content.AudioBytes`; prázdné, když v souboru zvuk není. */
     fun wavClips(path: String): List<ByteArray> {
-        val samples = resample(decodeMono(path), SAMPLE_RATE)
+        val samples = pcm16k(path)
         val clip = SAMPLE_RATE * MAX_CLIP_SECONDS
         return (samples.indices step clip).map { from -> wav(samples.copyOfRange(from, minOf(from + clip, samples.size))) }
     }

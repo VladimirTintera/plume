@@ -57,8 +57,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
-import androidx.compose.ui.window.PopupProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.core.ui.MenuPopupProperties
 import eu.tintera.plume.core.ui.previousClusterStart
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.backspace_24dp
@@ -352,8 +352,9 @@ private fun EmojiCell(emoji: String, cells: EmojiCells) {
  * s různou pletí, jako na systémových klávesnicích.
  *
  * `Popup`, ne vlastní overlay: tlačítko zpět si obslouží sám (`focusable`), bez `BackHandler`,
- * který by v aplikaci zabil predictive back. Umisťuje se nad buňku a vodorovně se drží v okně —
- * u krajního sloupce by jinak vyjela z obrazovky.
+ * který by v aplikaci zabil predictive back. Klávesnici hledání si ale nebere
+ * ([MenuPopupProperties]), takže při výběru odstínu nad výsledky hledání nesjede. Umisťuje se
+ * nad buňku a vodorovně se drží v okně — u krajního sloupce by jinak vyjela z obrazovky.
  */
 @Composable
 private fun SkinTonePopup(
@@ -369,7 +370,7 @@ private fun SkinTonePopup(
     Popup(
         popupPositionProvider = positionProvider,
         onDismissRequest = onDismiss,
-        properties = PopupProperties(focusable = true),
+        properties = MenuPopupProperties,
     ) {
         Surface(
             shape = RoundedCornerShape(24.dp),
