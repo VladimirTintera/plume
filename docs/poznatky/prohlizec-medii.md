@@ -679,10 +679,22 @@ Gemma 4 se zvukovým vstupem (`OnDeviceAi.transcribe`, `LiteRtOnDeviceAi`). Tla�
 - **Server má přednost**: přepisuje líp a rychleji. Telefon jen tam, kde server odmítne
   (Premium chybí, zkušební přepisy došly nebo žádné nejsou), se zapnutou AI v zařízení
   a připraveným modelem, a jen do 5 minut záznamu (`MAX_ON_DEVICE_SECONDS`).
-- **Proč Gemma, ne `SpeechRecognizer`**: Gemma 4 E2B/E4B zvuk umí (katalog Gallery
-  `llmSupportAudio`, úloha `llm_ask_audio`), je už v aplikaci a dá se ověřit na emulátoru.
-  Systémové rozpoznávání v zařízení čte ze souboru až od Androidu 13 a na emulátoru není.
-  Gemini Nano přes ML Kit zvuk nebere (`canTranscribe` = `false`).
+- **Gemma má přednost, systém je záloha.** Gemma 4 E2B/E4B zvuk umí (katalog Gallery
+  `llmSupportAudio`, úloha `llm_ask_audio`) a přepisuje i interpunkci. Gemini Nano přes ML Kit
+  zvuk nebere (`canTranscribe` = `false`), takže telefon bez Gemmy přepíše systémem
+  (`SpeechToText`, Android `SystemSpeechToText`) — i bez zapnuté AI v zařízení: není to jazykový
+  model, nic se nestahuje a zvuk telefon neopouští (stejně jako text z fotky).
+- **Systémový přepis: `SpeechRecognizer.createOnDeviceSpeechRecognizer`** se zvukem z roury
+  (`EXTRA_AUDIO_SOURCE`, PCM 16 kHz mono z `AudioClips.pcm16k`) a segmentovanou relací
+  (`EXTRA_SEGMENTED_SESSION` = zdroj zvuku), aby nepřestal u první pauzy. Obojí i dotaz na
+  jazyky (`checkRecognitionSupport` → `installedOnDeviceLanguages`) je až od **Androidu 13**;
+  nabízí se jen NAINSTALOVANÝ jazyk aplikace — kvůli přepisu se nic nestahuje. Rozpoznávač se
+  smí volat jen z hlavního vlákna (`flowOn(Main)`).
+- **Na emulátoru systémový přepis NEJDE**: obraz API 37 má službu
+  `AiAiSpeechRecognitionService` (Android System Intelligence), ale
+  `isOnDeviceRecognitionAvailable` vrací `false`. Ověřeno jen, že se bez podpory přepis
+  nenabídne a nic nespadne, a že přepis Gemmou po změně běží dál. **Na skutečném telefonu
+  bez Gemmy neověřené** (roura, segmenty, čeština).
 - **Zvuk modelu jako v Gallery**: WAV 16 kHz mono 16 bit, kusy po 30 s (`AudioClips`), každý kus
   vlastní konverzací, text se skládá za sebe. Dekóduje systém (`MediaExtractor` + `MediaCodec`):
   hlasovka OGG/Opus, kolečko MP4/AAC; převzorkování lineárně, kanály průměrem.

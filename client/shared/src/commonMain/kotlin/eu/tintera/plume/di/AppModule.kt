@@ -497,6 +497,7 @@ fun appModule() = module {
             onDeviceAi = getOrNull(),
             localTranscripts = get(),
             scamWarnings = get(),
+            speechToText = getOrNull(),
         )
     }
 

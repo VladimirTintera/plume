@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import kotlinx.coroutines.flow.Flow
+import eu.tintera.plume.core.ai.ModelVariant
+import eu.tintera.plume.core.speech.SpeechToText
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.ScamKind
 import kotlinx.coroutines.CancellationException
@@ -384,6 +387,8 @@ class ConversationViewModel(
     /** Přepis řeči v telefonu, když ho server nedá (bez Premium). */
     private val onDeviceAi: OnDeviceAi? = null,
     private val localTranscripts: LocalTranscripts? = null,
+    /** Přepis systémem telefonu, když Gemma není (Android 13+, nainstalovaný jazyk). */
+    private val speechToText: SpeechToText? = null,
     /** Varování u zpráv, které vypadají jako podvod (model v zařízení). */
     private val scamWarnings: ScamWarnings? = null,
 ) : ViewModel() {
@@ -479,10 +484,7 @@ class ConversationViewModel(
         chatRepository.isPremium,
         chatRepository.speechTrial,
         combine(settings.onDeviceAiEnabled, settings.onDeviceAiVariant) { enabled, variant -> enabled to variant }
-            .mapLatest { (enabled, variant) ->
-                val ai = onDeviceAi
-                enabled && ai != null && runCatching { ai.canTranscribe(variant) }.getOrDefault(false)
-            },
+            .mapLatest { (enabled, variant) -> gemmaTranscribes(enabled, variant) || systemTranscribes() },
         localTranscripts?.state?.map { all -> all.filterKeys { it.first == chatId }.mapKeys { it.key.second } }
             ?: flowOf(emptyMap()),
     ) { premium, trial, onDevice, local -> TranscribeContext(premium, trial, onDevice, local) }
@@ -4866,7 +4868,6 @@ class ConversationViewModel(
      * vteřiny až desítky vteřin a odchod z chatu ho nemá zahodit.
      */
     private fun transcribeOnDevice(messageId: Long, fileId: Int) {
-        val ai = onDeviceAi ?: return
         val local = localTranscripts ?: return
         if (local.get(chatId, messageId) is SpeechTranscript.Pending) return
         local.set(chatId, messageId, SpeechTranscript.Pending(""))
@@ -4875,8 +4876,19 @@ class ConversationViewModel(
                 val file = fileRepository.file(fileId).first { it is FileState.Ready || it is FileState.Failed }
                 val path = (file as? FileState.Ready)?.path ?: throw IllegalStateException("Soubor $fileId se nestáhl")
                 var text = ""
-                ai.transcribe(settings.onDeviceAiVariant.value, path, platformLanguageCode).collect { generated ->
-                    text = generated.text
+                // Gemma má přednost (přepisuje i interpunkci a smysl), systém je záloha pro
+                // telefony bez ní — rozhoduje se až teď, stav se mohl od nabídky změnit.
+                val variant = settings.onDeviceAiVariant.value
+                val ai = onDeviceAi
+                val speech = speechToText
+                val chunks: Flow<String> = when {
+                    ai != null && gemmaTranscribes(settings.onDeviceAiEnabled.value, variant) ->
+                        ai.transcribe(variant, path, platformLanguageCode).map { it.text }
+                    speech != null && systemTranscribes() -> speech.transcribe(path, platformLanguageCode)
+                    else -> throw IllegalStateException("Přepis v telefonu už není k dispozici")
+                }
+                chunks.collect { chunk ->
+                    text = chunk
                     local.set(chatId, messageId, SpeechTranscript.Pending(text))
                 }
                 local.set(
@@ -4892,6 +4904,22 @@ class ConversationViewModel(
                 local.set(chatId, messageId, SpeechTranscript.Failed(SpeechTranscript.Failed.Reason.Other))
             }
         }
+    }
+
+    /** Přepíše Gemma (zapnutá AI, model se zvukovým vstupem připravený)? */
+    private suspend fun gemmaTranscribes(enabled: Boolean, variant: ModelVariant): Boolean {
+        val ai = onDeviceAi ?: return false
+        return enabled && runCatching { ai.canTranscribe(variant) }.getOrDefault(false)
+    }
+
+    /**
+     * Přepíše systém telefonu (`SpeechToText`)? Nezávisle na volbě AI v zařízení: není to jazykový
+     * model, nic se nestahuje a zvuk telefon neopouští — stejná povaha jako rozpoznání textu
+     * z fotky, které taky žádnou volbu nemá.
+     */
+    private suspend fun systemTranscribes(): Boolean {
+        val speech = speechToText ?: return false
+        return runCatching { speech.canTranscribe(platformLanguageCode) }.getOrDefault(false)
     }
 
     /**
