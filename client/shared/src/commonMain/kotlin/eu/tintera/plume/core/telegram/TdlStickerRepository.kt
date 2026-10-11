@@ -114,6 +114,7 @@ class TdlStickerRepository(
                         StickerSetDetail(
                             id = set.id,
                             title = set.title,
+                            name = set.name,
                             isInstalled = set.isInstalled && !set.isArchived,
                             isOfficial = set.isOfficial,
                             stickers = set.stickers.toItems(),

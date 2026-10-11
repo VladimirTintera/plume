@@ -445,6 +445,24 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
 - **Ikony Material Symbols ze SVG mají souřadnice y v -960..0.** Ve vector drawable se to řeší
   `group` s `translateY="960"`, cesta zůstává, jak je.
 
+## Sdílení sady
+
+V detailu sady (`StickerSetSheet`) je vedle názvu tlačítko sdílení s nabídkou: Poslat do chatu,
+Kopírovat odkaz, Sdílet jinam. Odkaz je `t.me/addstickers/<name>` (`stickerSetLink`,
+`StickerSetDetail.name`) a aplikace ho sama otevírá, takže kruh se uzavře i u příjemce
+s Plume (ověřeno: odkaz poslaný do Uložených zpráv po ťuknutí otevřel tutéž sadu).
+
+- **Poslat do chatu jde přes `ShareRequests`** — tentýž výběr „Komu: …" jako sdílení z jiné
+  aplikace. Sheet se před tím zavře, výběr chatu se otevře nad aplikací. Odkaz u příjemce
+  dostane náhled sady.
+- **Sdílet jinam** = `MediaSharer.shareText` (systémový dialog), jako odkaz pozvánky.
+- **Hláška o zkopírování jen tam, kde ji systém nedá sám** (`TextClipboard.confirmsCopy`):
+  Android 13+ ukáže vlastní okénko s obsahem schránky vlevo dole a snackbar „Odkaz
+  zkopírován" se s ním překrýval (ověřeno na emulátoru). Na iOS a starším Androidu hláška
+  zůstává.
+- **Snackbar je UVNITŘ sheetu** (`SnackbarHost` v `Box` kolem obsahu): sheet má vlastní
+  okno a snackbar obrazovky pod ním by zůstal schovaný.
+
 ## Správa sad v Nastavení
 
 Nastavení → Obecné → Chaty → Sady samolepek (`StickerSetsRoute`, `StickerSetsScreen`,

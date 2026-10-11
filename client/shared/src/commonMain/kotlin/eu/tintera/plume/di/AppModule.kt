@@ -393,7 +393,15 @@ fun appModule() = module {
     }
     viewModelOf(::StickerPickerViewModel)
     viewModel { params -> GifPickerViewModel(chatId = params.get(), repository = get()) }
-    viewModel { parameters -> StickerSetViewModel(setId = parameters.get(), repository = get()) }
+    viewModel { parameters ->
+        StickerSetViewModel(
+            setId = parameters.get(),
+            repository = get(),
+            clipboard = get(),
+            sharer = get(),
+            shareRequests = get(),
+        )
+    }
     viewModel { parameters ->
         // Indexem: odpověď (`Long?`) by se podle typu zaměnila s chatId.
         PollComposerViewModel(

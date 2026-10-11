@@ -10,4 +10,10 @@ package eu.tintera.plume.core.ui
 expect class TextClipboard {
     /** `suspend`, protože popisek schránky se čte z prostředků. */
     suspend fun copy(text: String)
+
+    /**
+     * Systém zkopírování potvrdí sám (Android 13+: okénko s obsahem schránky vlevo dole).
+     * Vlastní hláška „Zkopírováno" by se s ním pak zdvojila a překryla — ověřeno na emulátoru.
+     */
+    val confirmsCopy: Boolean
 }

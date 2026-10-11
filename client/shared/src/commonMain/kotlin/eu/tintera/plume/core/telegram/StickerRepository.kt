@@ -150,11 +150,19 @@ data class StickerCategory(
 data class StickerSetDetail(
     val id: Long,
     val title: String,
+    /** Krátké jméno sady z odkazu `t.me/addstickers/<name>` (viz [stickerSetLink]). */
+    val name: String,
     val isInstalled: Boolean,
     /** Oficiální sady (od Telegramu) odebrat nejdou. */
     val isOfficial: Boolean,
     val stickers: List<StickerItem>,
 )
+
+/**
+ * Odkaz na sadu, jak ho dávají i oficiální klienti. Aplikace takový odkaz sama otevírá
+ * (`InternalLink.StickerSet`), takže kruh se uzavře i u příjemce s Plume.
+ */
+fun stickerSetLink(name: String): String = "https://t.me/addstickers/$name"
 
 /** Sada s ukázkou samolepek: v trendech a ve výsledcích hledání. */
 data class StickerSetSample(
