@@ -62,10 +62,16 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.telegram.StickerSetSummary
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.GroupPermissions
 import eu.tintera.plume.core.telegram.LinkedChat
 import eu.tintera.plume.resources.edit_chat_discussion
+import eu.tintera.plume.resources.edit_chat_sticker_set
+import eu.tintera.plume.resources.edit_chat_sticker_set_none
+import eu.tintera.plume.resources.edit_chat_sticker_set_off
+import eu.tintera.plume.resources.sticker_24dp
+import eu.tintera.plume.resources.stickers_count
 import eu.tintera.plume.resources.edit_chat_discussion_none
 import eu.tintera.plume.resources.edit_chat_discussion_off
 import eu.tintera.plume.resources.edit_chat_discussion_on
@@ -135,6 +141,7 @@ fun EditChatScreen(
     val currentOnBack by rememberUpdatedState(onBack)
     var confirmDeletePhoto by rememberSaveable { mutableStateOf(false) }
     var showDiscussion by rememberSaveable { mutableStateOf(false) }
+    var showStickerSet by rememberSaveable { mutableStateOf(false) }
 
     val notice = viewModel.notice
     val noticeText = notice?.resolve()
@@ -209,6 +216,18 @@ fun EditChatScreen(
                 viewModel.setDiscussion(group)
             },
             onDismiss = { showDiscussion = false },
+        )
+    }
+
+    if (showStickerSet) {
+        GroupStickerSetSheet(
+            current = viewModel.stickerSet,
+            candidates = viewModel.stickerSetCandidates,
+            onSelect = { set ->
+                showStickerSet = false
+                viewModel.chooseStickerSet(set)
+            },
+            onDismiss = { showStickerSet = false },
         )
     }
 
@@ -336,6 +355,18 @@ fun EditChatScreen(
                     )
                 }
 
+                // Sada samolepek skupiny — dovoluje ji server, ne práva (`EditableChat.canSetStickerSet`).
+                if (chat.canSetStickerSet) {
+                    StickerSetGroup(
+                        set = viewModel.stickerSet,
+                        busy = viewModel.stickerSetBusy,
+                        onClick = {
+                            viewModel.loadStickerSetCandidates()
+                            showStickerSet = true
+                        },
+                    )
+                }
+
                 // Témata zapíná jen vlastník supergroupy (viz `EditableChat.canToggleForum`).
                 if (chat.canToggleForum) {
                     Card(Modifier.fillMaxWidth()) {
@@ -427,6 +458,44 @@ private fun PermissionsGroup(
                     onChange { it.copy(changeInfo = value) }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Sada samolepek skupiny: karta s řádkem, který otevře výběr sady. Podtitul říká, k čemu sada je,
+ * dokud žádná není; jinak počet samolepek.
+ */
+@Composable
+private fun StickerSetGroup(set: StickerSetSummary?, busy: Boolean, onClick: () -> Unit) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            stringResource(Res.string.edit_chat_sticker_set),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
+        )
+        Card(Modifier.fillMaxWidth()) {
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                headlineContent = { Text(set?.title ?: stringResource(Res.string.edit_chat_sticker_set_none)) },
+                supportingContent = {
+                    Text(
+                        if (set != null && set.size > 0) {
+                            pluralStringResource(Res.plurals.stickers_count, set.size, set.size)
+                        } else {
+                            stringResource(Res.string.edit_chat_sticker_set_off)
+                        },
+                    )
+                },
+                leadingContent = { Icon(painterResource(Res.drawable.sticker_24dp), contentDescription = null) },
+                trailingContent = if (busy) {
+                    { LoadingIndicator(Modifier.size(32.dp)) }
+                } else {
+                    null
+                },
+                modifier = Modifier.clickable(enabled = !busy, onClick = onClick),
+            )
         }
     }
 }

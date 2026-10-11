@@ -438,6 +438,24 @@ prázdné = `0`). Pod příspěvky se pak objeví „Komentovat" a vlákno vede 
   se vynechá. Ověřeno na emulátoru oběma směry. Odpojit jde jen z úpravy KANÁLU
   (`setChatDiscussionGroup` bere id kanálu a chce jeho správce).
 
+### Sada samolepek skupiny
+
+V úpravě supergroupy je řádek „Sada samolepek" (`GroupStickerSetSheet`): „Žádná sada"
+a nainstalované sady uživatele. Ukládá se hned (`ProfileRepository.setStickerSet` →
+`setSupergroupStickerSet`, `0` = zrušit), bez potvrzení — sada jen přibude členům ve výběru
+samolepek (záložka za Oblíbenými, viz „Výběr samolepek" v emoji-samolepky-reakce.md) a jde vrátit.
+
+- **O tom, jestli řádek je, rozhoduje server** (`SupergroupFullInfo.canSetStickerSet`), ne práva.
+  Malé skupině ho nedá ani vlastníkovi: „Plume test pozvánek" (vlastník, 2 členové) má `false`.
+  Odmítne to už TDLib sama („Can't set supergroup sticker set"), dřív než server.
+- **Nabízí se jen nainstalované sady**, jako v oficiálních klientech; současná sada (mohl ji
+  nastavit jiný správce) se ukáže vždycky, i když ji uživatel nemá.
+- **Výběr samolepek si sadu skupiny čte jednou za otevření konverzace** (`loadGroupSet`), takže
+  změna se v téže konverzaci projeví až po jejím znovuotevření.
+- **Ověřeno jen částečně**: v testovací skupině se řádek neukáže; s dočasně vynuceným řádkem
+  sheet se sadami a chybová hláška po odmítnutí (řádek zůstal „Žádná sada"). Skutečné nastavení
+  ověřené NENÍ — účet nemá skupinu, kde by to server dovolil, a cizí skupiny se nemění.
+
 ### Pozvánky a žádosti o vstup
 
 V úpravě skupiny (⋮ v profilu → Upravit) je blok Pozvánky se dvěma řádky: **Odkazy k pozvání**

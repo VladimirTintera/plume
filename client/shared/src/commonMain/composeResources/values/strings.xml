@@ -2198,6 +2198,14 @@
     <string name="edit_chat_discussion_linked">Discussion group linked</string>
     <string name="edit_chat_discussion_unlinked">Comments are off</string>
     <string name="edit_chat_discussion_failed">Couldn't change the discussion group</string>
+    <string name="edit_chat_sticker_set">Sticker set</string>
+    <string name="edit_chat_sticker_set_none">No set</string>
+    <string name="edit_chat_sticker_set_off">The group can have its own set for all members</string>
+    <string name="edit_chat_sticker_set_explanation">Members of this group see the set in their sticker picker here, even if they have not added it.</string>
+    <string name="edit_chat_sticker_set_empty">You have no sticker sets. Add a set first, then choose it here.</string>
+    <string name="edit_chat_sticker_set_done">Group sticker set changed</string>
+    <string name="edit_chat_sticker_set_removed">Group sticker set removed</string>
+    <string name="edit_chat_sticker_set_failed">The group sticker set could not be changed</string>
     <string name="edit_chat_forum_help">The group is split into topics, each with its own conversation.</string>
     <string name="edit_chat_upgrade_title">Upgrade the group?</string>
     <string name="edit_chat_upgrade_link">A public link needs a larger kind of group (a supergroup). Members, admins and settings stay. Earlier messages stay in the original group, and the note at the start of the new one opens them. This can't be undone.</string>
