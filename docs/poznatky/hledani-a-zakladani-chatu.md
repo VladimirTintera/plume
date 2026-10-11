@@ -138,6 +138,37 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 - **Ověřování snímky: `sips -c` ořezává ze STŘEDU**, `--cropOffset` ignoruje. Výřez „horní
   části" byl ve skutečnosti prostředek obrazovky a vypadalo to, že bar chybí.
 
+### Hledání přirozeným jazykem
+
+V rozbaleném hledání je u dotazu o aspoň třech slovech ikona „Hledat s AI" (jen se zapnutou
+AI v zařízení a PŘIPRAVENÝM modelem, `NaturalSearchModel`). Ťuknutí převede větu („fotky
+z kanálu za poslední měsíc", „smlouva v souborech z loňského roku") na slova k hledání
+a filtry nad výsledky — chybu je vidět hned v čipech a opraví se ťuknutím.
+
+- **Pravidla tam, kde jsou si jistá, model na zbytek** (`refineNaturalSearch`, testy
+  `NaturalSearchTest` na skutečných odpovědích z emulátoru). Gemma 4 E2B sama nestačila:
+  do slov k hledání dala celou větu, nebo jen slovo filtru („souborech"), soubory ani
+  „smlouvu" nepoznala a „poslední měsíc" spočítala jako rok — i se slovníkem v promptu.
+  Druh obsahu a chatu i běžná období („poslední týden / měsíc / rok", „loni", „letos",
+  „včera", „dnes") proto rozhodují slova věty; volnější formulace („loni v létě") zůstávají
+  na datech od modelu.
+- **Slova k hledání jen z věty.** TDLib hledá podle začátku slova, takže model, který
+  „dovolené" převede na „dovolená", by nenašel nic. Od modelu se berou jen slova, která ve
+  větě stojí; když žádná nedal, vezmou se slova věty bez slov filtru a období a bez předložek
+  na krajích („recept na guláš ze [skupin]").
+- **Nový filtr druhu obsahu** (`MessageSearchFilter.content`, `SearchMessagesFilterPhoto` …
+  v `searchMessages`). Zatím ho nastavuje jen tohle hledání; čip „Fotky ×" ho ukáže a zruší.
+  Ruční výběr obsahu v řádku filtrů není.
+- **Prázdný dotaz s druhem obsahu je hledání zpráv, ne návrhy** („fotky z kanálu za poslední
+  měsíc" nemá téma). TDLib `searchMessages` s prázdným dotazem a filtrem obsahu vrací zprávy
+  (ověřeno: fotky z kanálu). Chaty se v tom případě nehledají — bez slova není co najít.
+- **Výsledek modelu se zahodí, když se dotaz mezitím změnil**, a nic nevyčtené (`null`)
+  hlásí jen haptika `reject()`.
+- **Ověřeno na emulátoru** (Gemma 4 E2B, CPU, ~10 s): „fotky z kanalu za posledni mesic" →
+  prázdný dotaz, Fotky, Kanály, Měsíc, výsledky fotky z kanálů; „recept na gulas ze skupin" →
+  „recept na gulas", Skupiny; „smlouva v souborech z lonskeho roku" → „smlouva", Soubory,
+  loňský rok. Dotazy bez diakritiky (adb háčky neumí). **Gemini Nano neověřené.**
+
 ## Nová konverzace a kontakty
 
 `NewChatScreen` (`features/chats`), `NewChatRoute`, vstup FAB s tužkou v seznamu chatů.
