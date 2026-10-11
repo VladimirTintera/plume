@@ -2599,4 +2599,7 @@
     <string name="message_context_money_unsupported">There is no exchange rate for this currency</string>
     <string name="message_context_money_result">≈ %1$s %2$s</string>
     <string name="message_context_money_rate_date">Czech National Bank rate of %1$s</string>
+    <string name="message_context_units">Convert units</string>
+    <string name="menu_context_units">Convert units…</string>
+    <string name="message_context_units_result">≈ %1$s %2$s</string>
 </resources>

@@ -67,6 +67,12 @@ sealed interface ContextFinding {
      */
     data class Money(val shown: String, val amount: Double, val currency: String) : ContextFinding
 
+    /**
+     * Míra v jednotkách „druhé" soustavy → převod („65 palců" ≈ 165,1 cm metrickému uživateli,
+     * „5 km" ≈ 3,1 mi americkému). [shown] jak stála ve zprávě, [value] číslo, [unit] jednotka.
+     */
+    data class Measure(val shown: String, val value: Double, val unit: MeasureUnit) : ContextFinding
+
     /** Číslo zásilky → sledování u dopravce. */
     data class Parcel(val carrier: ParcelCarrier, val number: String) : ContextFinding
 }
@@ -104,11 +110,13 @@ data class MessageContext(
     val wifi: ContextFinding.Wifi? = null,
     val codes: List<ContextFinding.Code> = emptyList(),
     val money: List<ContextFinding.Money> = emptyList(),
+    val measures: List<ContextFinding.Measure> = emptyList(),
     val parcels: List<ContextFinding.Parcel> = emptyList(),
 ) {
     val isEmpty: Boolean
         get() = event == null && payments.isEmpty() && addresses.isEmpty() && contacts.isEmpty() &&
-            flights.isEmpty() && wifi == null && codes.isEmpty() && money.isEmpty() && parcels.isEmpty()
+            flights.isEmpty() && wifi == null && codes.isEmpty() && money.isEmpty() && measures.isEmpty() &&
+            parcels.isEmpty()
 }
 
 /**
@@ -135,6 +143,8 @@ data class MessageContext(
  *   kód je přesně to, co podvodník chce, a zprávy od služby Telegramu akce nemají vůbec).
  * - **Cizí měna** jen se značkou nebo kódem u čísla („120 €", „$45", „300 PLN", „2 500 Ft")
  *   a jen jiná než [homeCurrency] — korunu Čechovi převádět nemá smysl.
+ * - **Jednotky** jen té soustavy, kterou uživatel NEpoužívá ([metric]): metrickému míle, stopy,
+ *   palce, libry, unce, galony, °F a mph; americkému km, m, cm, kg, g, litry, °C a km/h.
  * - **Zásilka** jen ve formátu, který dopravce jednoznačně určí: S10 s kontrolní číslicí
  *   a Zásilkovna. Holá čísla PPL nebo DPD od telefonu nerozeznáš.
  */
@@ -145,6 +155,8 @@ fun findMessageContext(
     zone: TimeZone,
     /** Měna uživatele (`homeCurrency`); částky v ní se nepřevádějí. `null` = převádí se všechno. */
     homeCurrency: String? = null,
+    /** Používá uživatel metrické jednotky? Převádějí se jen jednotky té druhé soustavy. */
+    metric: Boolean = true,
 ): MessageContext {
     if (text.isBlank()) return MessageContext()
     val payments = payments(text)
@@ -157,6 +169,7 @@ fun findMessageContext(
         wifi = wifi(text),
         codes = codes(text, payments),
         money = money(text, homeCurrency),
+        measures = measures(text, metric),
         parcels = parcels(text),
     )
 }
@@ -202,6 +215,7 @@ fun MessageContext.contextFindings(
     wifi?.let(::add)
     addAll(codes)
     addAll(money)
+    addAll(measures)
     addAll(parcels)
 }
 
@@ -549,6 +563,52 @@ internal fun parseAmount(raw: String): Double? {
     return "$whole.${fraction.ifEmpty { "0" }}".toDoubleOrNull()
 }
 
+// --- Jednotky --------------------------------------------------------------------------------
+
+/**
+ * Jednotka, kterou umíme převést, a kam: imperiální na metrickou a naopak. [symbol] je, jak se
+ * píše za číslo (mezinárodní značky se nepřekládají), [target] cílová jednotka.
+ */
+enum class MeasureUnit(val symbol: String, val metric: Boolean, private val toTarget: (Double) -> Double, private val targetName: String) {
+    Mile("mi", false, { it * 1.609344 }, "Kilometer"),
+    MilesPerHour("mph", false, { it * 1.609344 }, "KilometersPerHour"),
+    Foot("ft", false, { it * 0.3048 }, "Meter"),
+    Inch("in", false, { it * 2.54 }, "Centimeter"),
+    Yard("yd", false, { it * 0.9144 }, "Meter"),
+    Pound("lb", false, { it * 0.45359237 }, "Kilogram"),
+    Ounce("oz", false, { it * 28.349523125 }, "Gram"),
+    Gallon("gal", false, { it * 3.785411784 }, "Liter"),
+    FluidOunce("fl oz", false, { it * 29.5735295625 }, "Milliliter"),
+    Fahrenheit("\u00B0F", false, { (it - 32) * 5 / 9 }, "Celsius"),
+    Kilometer("km", true, { it / 1.609344 }, "Mile"),
+    KilometersPerHour("km/h", true, { it / 1.609344 }, "MilesPerHour"),
+    Meter("m", true, { it / 0.3048 }, "Foot"),
+    Centimeter("cm", true, { it / 2.54 }, "Inch"),
+    Kilogram("kg", true, { it / 0.45359237 }, "Pound"),
+    Gram("g", true, { it / 28.349523125 }, "Ounce"),
+    Liter("l", true, { it / 3.785411784 }, "Gallon"),
+    Milliliter("ml", true, { it / 29.5735295625 }, "FluidOunce"),
+    Celsius("\u00B0C", true, { it * 9 / 5 + 32 }, "Fahrenheit"),
+    ;
+
+    /** Kam se převádí. Jménem, protože enum se v konstruktoru na pozdější hodnoty odkázat nemůže. */
+    val target: MeasureUnit get() = valueOf(targetName)
+
+    fun convert(value: Double): Double = toTarget(value)
+}
+
+private fun measures(text: String, metric: Boolean): List<ContextFinding.Measure> =
+    MEASURE.findAll(text).mapNotNull { match ->
+        val unit = unitOf(match.groupValues[3]) ?: return@mapNotNull null
+        // Převádí se jen to, co uživatel nepoužívá: Čech nepotřebuje přepočítat kilometry.
+        if (unit.metric == metric) return@mapNotNull null
+        val number = parseAmount(match.groupValues[2]) ?: return@mapNotNull null
+        val value = if (match.groupValues[1].isNotEmpty()) -number else number
+        // Záporná čísla dávají smysl jen u teploty („-5 °F").
+        if (value < 0 && unit != MeasureUnit.Fahrenheit && unit != MeasureUnit.Celsius) return@mapNotNull null
+        ContextFinding.Measure(match.value.trim(), value, unit)
+    }.distinctBy { it.unit to it.value }.take(MAX_MEASURES).toList()
+
 // --- Zásilka ---------------------------------------------------------------------------------
 
 private fun parcels(text: String): List<ContextFinding.Parcel> = buildList {
@@ -584,6 +644,7 @@ private const val MAX_CONTACTS = 2
 private const val MAX_FLIGHTS = 2
 private const val MAX_CODES = 2
 private const val MAX_MONEY = 2
+private const val MAX_MEASURES = 3
 private const val MIN_PHONE_DIGITS = 9
 private const val MAX_PHONE_DIGITS = 15
 private const val MIN_IBAN = 15
@@ -774,6 +835,53 @@ private val CURRENCY_CODES = setOf(
     "CNY", "TRY", "RON", "BGN", "ISK", "ILS", "INR", "KRW", "MXN", "NZD", "SGD", "ZAR", "THB",
     "BRL", "HKD", "IDR", "MYR", "PHP",
 )
+
+/**
+ * Číslo (i záporné, kvůli teplotě) a jednotka. Delší jednotky v alternaci napřed, aby „mi"
+ * nevyhrálo nad „miles" a „m" nad „mph". Bez `IGNORE_CASE`: „5 G" je síť, ne gramy. Anglické „in"
+ * schválně chybí — „2 in 1" palce nejsou; palce jen celým slovem („inch", „palců").
+ */
+private val MEASURE = Regex(
+    "(?<![\\p{L}\\d.,])(-|\u2212)?$MONEY_NUMBER\\s?" +
+        "(km/h|kmh|mph|\u00B0\\s?F|\u00B0\\s?C|\u2109|\u2103|miles|mile|mi|feet|foot|ft|inches|inch|palc\\p{L}*|palec|" +
+        "yards|yard|yd|pounds|pound|lbs|lb|ounces|ounce|fl\\.?\\s?oz|oz|gallons|gallon|gal|" +
+        "km|cm|kg|ml|m|g|l|L|litr\\p{L}*|liters|litres|liter|litre)(?![\\p{L}\\d/])",
+)
+
+/**
+ * Zápis jednotky ve zprávě → jednotka. Mezery a tečky se zahodí („fl. oz", „° F"), pak se hledá
+ * přesně (velké „L" pro litr) a malými; české tvary podle začátku („palců", „litrů").
+ */
+private fun unitOf(raw: String): MeasureUnit? {
+    val key = raw.replace(" ", "").replace(".", "")
+    return UNIT_WORDS[key] ?: UNIT_WORDS[key.lowercase()] ?: when {
+        key.lowercase().startsWith("palc") -> MeasureUnit.Inch
+        key.lowercase().startsWith("litr") -> MeasureUnit.Liter
+        else -> null
+    }
+}
+
+private val UNIT_WORDS: Map<String, MeasureUnit> = buildMap {
+    listOf("km/h", "kmh").forEach { put(it, MeasureUnit.KilometersPerHour) }
+    put("mph", MeasureUnit.MilesPerHour)
+    listOf("\u00B0F", "\u2109").forEach { put(it, MeasureUnit.Fahrenheit) }
+    listOf("\u00B0C", "\u2103").forEach { put(it, MeasureUnit.Celsius) }
+    listOf("miles", "mile", "mi").forEach { put(it, MeasureUnit.Mile) }
+    listOf("feet", "foot", "ft").forEach { put(it, MeasureUnit.Foot) }
+    listOf("inches", "inch", "palec").forEach { put(it, MeasureUnit.Inch) }
+    listOf("yards", "yard", "yd").forEach { put(it, MeasureUnit.Yard) }
+    listOf("pounds", "pound", "lbs", "lb").forEach { put(it, MeasureUnit.Pound) }
+    listOf("ounces", "ounce", "oz").forEach { put(it, MeasureUnit.Ounce) }
+    put("floz", MeasureUnit.FluidOunce)
+    listOf("gallons", "gallon", "gal").forEach { put(it, MeasureUnit.Gallon) }
+    put("km", MeasureUnit.Kilometer)
+    put("m", MeasureUnit.Meter)
+    put("cm", MeasureUnit.Centimeter)
+    put("kg", MeasureUnit.Kilogram)
+    put("g", MeasureUnit.Gram)
+    put("ml", MeasureUnit.Milliliter)
+    listOf("l", "L", "liters", "litres", "liter", "litre").forEach { put(it, MeasureUnit.Liter) }
+}
 
 private val S10 = Regex("(?<![A-Za-z0-9])([A-Z]{2})(\\d{9})([A-Z]{2})(?![A-Za-z0-9])")
 private val PACKETA = Regex("(?<![A-Za-z0-9])Z ?(\\d{3}) ?(\\d{4}) ?(\\d{3})(?![\\d])")

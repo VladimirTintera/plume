@@ -329,6 +329,46 @@ class MessageContextTest {
         assertEquals("0" to "05", moneyParts(0.049))
     }
 
+    private fun measures(text: String, metric: Boolean = true) =
+        findMessageContext(text, emptyList(), wednesday, zone, metric = metric).measures.map { it.unit to it.value }
+
+    @Test
+    fun imperialniJednotkyMetrickemu() {
+        assertEquals(listOf(MeasureUnit.Inch to 65.0), measures("Koupil jsem televizi 65 palců"))
+        assertEquals(listOf(MeasureUnit.Mile to 26.2), measures("The marathon is 26.2 miles"))
+        assertEquals(listOf(MeasureUnit.Fahrenheit to -5.0), measures("It's -5 °F outside"))
+        assertEquals(listOf(MeasureUnit.Pound to 2.0, MeasureUnit.Ounce to 8.0), measures("2 lbs and 8 oz of flour"))
+        assertEquals(listOf(MeasureUnit.MilesPerHour to 70.0), measures("Speed limit 70 mph"))
+        // Metrické jednotky Čechovi nic nepřevádí.
+        assertTrue(measures("Uběhl jsem 10 km a vážím 80 kg").isEmpty())
+    }
+
+    @Test
+    fun metrickeJednotkyAmericanovi() {
+        assertEquals(listOf(MeasureUnit.Kilometer to 5.0, MeasureUnit.Celsius to 20.0), measures("Run 5 km, it's 20 °C", metric = false))
+        assertTrue(measures("Speed limit 70 mph", metric = false).isEmpty())
+    }
+
+    @Test
+    fun coJednotkouNeni() {
+        // „2 in 1" nejsou palce, „5G" síť, záporná délka nedává smysl.
+        assertTrue(measures("2 in 1 shampoo").isEmpty())
+        assertTrue(measures("Mám 5G a 10 GB", metric = false).isEmpty())
+        assertTrue(measures("-3 miles").isEmpty())
+    }
+
+    @Test
+    fun prevodJednotek() {
+        assertEquals(165.1, MeasureUnit.Inch.convert(65.0), 1e-9)
+        assertEquals(MeasureUnit.Centimeter, MeasureUnit.Inch.target)
+        assertEquals(-20.0, MeasureUnit.Fahrenheit.convert(-4.0), 1e-9)
+        assertEquals("165" to null, measureParts(165.1))
+        assertEquals("42" to "2", measureParts(42.16))
+        assertEquals("20" to null, measureParts(20.0))
+        assertEquals("\u221220" to null, measureParts(-20.0))
+        assertEquals("1\u202F609" to null, measureParts(1609.3))
+    }
+
     @Test
     fun obycejnaZpravaNicNema() {
         assertTrue(context("Ahoj, jak se máš?").isEmpty)

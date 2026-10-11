@@ -333,7 +333,7 @@ Ikonka se sparkle (`auto_awesome`) na volné straně zprávy, ve které je term�
 nebo e-mail, číslo účtu, letu nebo zásilky, Wi-Fi s heslem nebo kód; ťuknutí otevře sheet
 s akcemi (`MessageContextSheet`): kalendář a „Připomenout…", mapy, uložení do kontaktů, QR
 platba s kopírováním účtu, částky a VS, stav letu, připojení k Wi-Fi, kopírování kódu,
-převod cizí měny, sledování zásilky. Rozpoznávají PRAVIDLA
+převod cizí měny a jednotek, sledování zásilky. Rozpoznávají PRAVIDLA
 (`findMessageContext`, testy `MessageContextTest`), model jen posuzuje termín (`MessageContexts`,
 prompt `EventPrompt.kt`). Vypínač v Nastavení → Obecné → Chaty, **výchozí zapnuto** — na rozdíl
 od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v zařízení uživatel zapnul.
@@ -402,6 +402,12 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   na to nestačí**: v procesu aplikace do něj Android promítne i jazyk nastavený jen pro
   aplikaci, takže s Plume v češtině a systémem `en_US` vyšla koruna místo dolaru (ověřeno na
   emulátoru). Od Androidu 13 proto `LocaleManager.getSystemLocales()`.
+- **Jednotky jen té soustavy, kterou uživatel NEpoužívá** (`HomeRegion.metric`: imperiální
+  jsou jen USA, Libérie a Myanmar — CLDR). Metrickému míle, mph, stopy, palce („65 palců"),
+  yardy, libry, unce, galony a °F; americkému km, km/h, m, cm, kg, g, litry a °C. Počítá se na
+  místě (`MeasureUnit`), síť ani model nejsou potřeba. Anglické „in" schválně chybí („2 in 1"),
+  palce jen celým slovem; bez `IGNORE_CASE` („5G" není gram). Výsledek od stovky celým číslem,
+  pod ní s jedním desetinným místem, a to jen když není nula.
 - **Termín je jistý, nebo nejistý** (`EventCandidate.certain`). Jistý = den a čas, datum číslem,
   nebo termín vyznačený Telegramem (`MessageEntityType.DateTime`); ten se nabídne i bez modelu.
   Jen čas („v 15:00") je nejistý a nabídne se, jen když ho model potvrdí. Jen den („v pátek")
@@ -454,7 +460,8 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   i let a „Stav letu" otevře FlightAware; „Wi-Fi na chatě: Chata_Lesni, heslo: medved2026"
   ukáže síť, heslo, QR kód a „Připojit k Wi-Fi" otevře systémový dialog uložení sítě
   (zrušený, síť se neuložila); „Slevový kód na první nákup: LETO20" zkopíruje „LETO20";
-  „120 € na noc" se systémem `en_US` převede na „≈ 134,46 USD" s kurzem ČNB z 9. října 2026.
+  „120 € na noc" se systémem `en_US` převede na „≈ 134,46 USD" s kurzem ČNB z 9. října 2026;
+  „uběhl 10 km, venku bylo 20 °C" se systémem `en_US` ukáže „≈ 6,2 mi" a „≈ 68 °F".
   **Neověřené**: načtení QR bankovní aplikací, editor
   události, Gemini Nano, iOS.
 

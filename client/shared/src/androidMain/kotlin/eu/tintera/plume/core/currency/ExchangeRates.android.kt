@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Currency
+import java.util.Locale
 
 actual class TextDownloader actual constructor() {
     actual suspend fun get(url: String): String? = withContext(Dispatchers.IO) {
@@ -36,14 +37,22 @@ actual class TextDownloader actual constructor() {
  * s češtinou v Plume a systémem `en_US` vyšla koruna místo dolaru (ověřeno na emulátoru).
  * Od Androidu 13 proto `LocaleManager.getSystemLocales()`, který jazyk aplikace nezná.
  */
-actual class HomeCurrency(private val context: Context) {
+actual class HomeRegion(private val context: Context) {
     actual val code: String?
-        get() = runCatching {
-            val locale = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.getSystemService(LocaleManager::class.java).systemLocales[0]
-            } else {
-                Resources.getSystem().configuration.locales[0]
-            }
-            Currency.getInstance(locale).currencyCode
-        }.getOrNull()
+        get() = runCatching { Currency.getInstance(systemLocale()).currencyCode }.getOrNull()
+
+    actual val metric: Boolean
+        get() = runCatching { systemLocale().country !in IMPERIAL_REGIONS }.getOrDefault(true)
+
+    private fun systemLocale(): Locale =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.getSystemService(LocaleManager::class.java).systemLocales[0]
+        } else {
+            Resources.getSystem().configuration.locales[0]
+        }
+
+    private companion object {
+        /** Regiony s imperiálními jednotkami (CLDR `measurementSystem` = US). */
+        val IMPERIAL_REGIONS = setOf("US", "LR", "MM")
+    }
 }

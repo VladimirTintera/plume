@@ -46,6 +46,8 @@ import eu.tintera.plume.resources.message_context_flight
 import eu.tintera.plume.resources.message_context_wifi
 import eu.tintera.plume.resources.message_context_code
 import eu.tintera.plume.resources.message_context_money_failed
+import eu.tintera.plume.resources.message_context_units_result
+import eu.tintera.plume.resources.straighten_24dp
 import eu.tintera.plume.resources.message_context_money_loading
 import eu.tintera.plume.resources.message_context_money_rate_date
 import eu.tintera.plume.resources.message_context_money_result
@@ -121,7 +123,7 @@ internal fun MessageContextHost(viewModel: ConversationViewModel) {
  * Co se ve zprávě našlo a co s tím jde udělat: termín → kalendář nebo připomínka (a mapy, když
  * model našel místo), účet → QR platba a kopírování údajů, adresa → mapy, kontakt → uložit do
  * kontaktů, let → stav letu, Wi-Fi → připojit a QR kód sítě, kód → zkopírovat, cizí měna →
- * převod kurzem ČNB, zásilka → sledování.
+ * převod kurzem ČNB, jednotky → převod, zásilka → sledování.
  *
  * - **Nic se nestane samo.** Kalendář otevře editor události, kde ji uloží uživatel; platbu
  *   provede banka. Sheet jen předvyplní, co ve zprávě stálo.
@@ -171,6 +173,7 @@ internal fun MessageContextSheet(
                         is ContextFinding.Contact -> ContactSection(finding, onCopy = onCopy, onSave = { onSaveContact(finding) })
                         is ContextFinding.Flight -> FlightSection(finding, onCopy = onCopy, onTrack = onTrack)
                         is ContextFinding.Money -> MoneySection(finding, homeCurrency, rates)
+                        is ContextFinding.Measure -> MeasureSection(finding)
                         is ContextFinding.Code -> CopyRow(
                             label = null,
                             title = stringResource(Res.string.message_context_code),
@@ -347,6 +350,34 @@ private fun MoneySection(money: ContextFinding.Money, homeCurrency: String?, rat
             }
         }
     }
+}
+
+/** Převod jednotek; počítá se na místě, kurz ani síť nepotřebuje. */
+@Composable
+private fun MeasureSection(measure: ContextFinding.Measure) {
+    val converted = measure.unit.convert(measure.value)
+    val (whole, fraction) = measureParts(converted)
+    val number = fraction?.let { stringResource(Res.string.decimal_number, whole, it) } ?: whole
+    DetailCard(icon = Res.drawable.straighten_24dp) {
+        Text(measure.shown, style = MaterialTheme.typography.titleMedium.tabularNumbers())
+        Text(
+            stringResource(Res.string.message_context_units_result, number, measure.unit.target.symbol),
+            style = MaterialTheme.typography.bodyLarge.tabularNumbers(),
+        )
+    }
+}
+
+/**
+ * Převedená míra: od stovky celá čísla („165 cm" by s desetinou nic nového neřekl), pod ní jedno
+ * desetinné místo, a to jen když není nula („3,1 mi", „20 °C"). Celá část po tisících.
+ */
+internal fun measureParts(value: Double): Pair<String, String?> {
+    val negative = value < 0
+    val absolute = kotlin.math.abs(value)
+    val tenths = if (absolute >= 100) kotlin.math.round(absolute).toLong() * 10 else kotlin.math.round(absolute * 10).toLong()
+    val whole = (tenths / 10).toString().reversed().chunked(3).joinToString("\u202F").reversed()
+    val fraction = (tenths % 10).takeIf { it != 0L }?.toString()
+    return (if (negative && tenths != 0L) "\u2212$whole" else whole) to fraction
 }
 
 /** Částka na dvě desetinná místa: celá část po tisících (úzká mezera), haléře zvlášť. */

@@ -15,7 +15,7 @@ import eu.tintera.plume.core.calendar.CalendarEvents
 import eu.tintera.plume.core.contacts.ContactSaver
 import eu.tintera.plume.core.currency.ExchangeRates
 import eu.tintera.plume.core.currency.RateTable
-import eu.tintera.plume.core.currency.HomeCurrency
+import eu.tintera.plume.core.currency.HomeRegion
 import eu.tintera.plume.core.wifi.WifiJoin
 import eu.tintera.plume.core.wifi.WifiJoiner
 import eu.tintera.plume.resources.message_context_wifi_failed
@@ -410,8 +410,8 @@ class ConversationViewModel(
     private val wifiJoiner: WifiJoiner? = null,
     /** Kurzy ČNB pro převod cizí měny v akcích u zprávy. */
     private val exchangeRates: ExchangeRates? = null,
-    /** Měna uživatele podle regionu telefonu. */
-    currency: HomeCurrency? = null,
+    /** Měna a jednotky uživatele podle regionu telefonu. */
+    currency: HomeRegion? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -549,6 +549,9 @@ class ConversationViewModel(
 
     /** Měna uživatele podle regionu telefonu; částky v ní se v akcích u zprávy nepřevádějí. */
     val homeCurrency: String? = currency?.code
+
+    /** Používá uživatel metrické jednotky? Převádějí se jen jednotky té druhé soustavy. */
+    val metricUnits: Boolean = currency?.metric ?: true
 
     /** Otevřený sheet akcí u zprávy (`MessageContextSheet`); `null` = zavřený. */
     val contextSheet: StateFlow<ContextSheet?> = _contextSheet.asStateFlow()
@@ -753,7 +756,7 @@ class ConversationViewModel(
                         recent.forEach { message ->
                             if (!message.offersContext()) return@forEach
                             val sentAt = Instant.fromEpochSeconds(message.timestamp.toLong()).toLocalDateTime(zone)
-                            val event = findMessageContext(message.text, message.entities, sentAt, zone, homeCurrency).event ?: return@forEach
+                            val event = findMessageContext(message.text, message.entities, sentAt, zone, homeCurrency, metricUnits).event ?: return@forEach
                             contexts.check(chatId, message.id, message.text, sentAt, event.start)
                         }
                     }
@@ -3876,7 +3879,7 @@ class ConversationViewModel(
         if (scamVerdicts.value.containsKey(message.id)) return emptyList()
         val zone = TimeZone.currentSystemDefault()
         val sentAt = Instant.fromEpochSeconds(message.timestamp.toLong()).toLocalDateTime(zone)
-        val found = findMessageContext(message.text, message.entities, sentAt, zone, homeCurrency)
+        val found = findMessageContext(message.text, message.entities, sentAt, zone, homeCurrency, metricUnits)
         if (found.isEmpty) return emptyList()
         val verdict = messageContexts?.verdicts?.value?.get(MessageContexts.Key(chatId, message.id, message.text.hashCode()))
         return found.contextFindings(message.text, verdict, Clock.System.now().toLocalDateTime(zone))

@@ -9,6 +9,7 @@ import platform.Foundation.NSUTF8StringEncoding
 import platform.Foundation.create
 import platform.Foundation.currencyCode
 import platform.Foundation.currentLocale
+import platform.Foundation.usesMetricSystem
 import platform.Foundation.dataTaskWithURL
 import kotlin.coroutines.resume
 
@@ -32,6 +33,8 @@ actual class TextDownloader actual constructor() {
     }
 }
 
-actual class HomeCurrency {
+actual class HomeRegion {
     actual val code: String? get() = NSLocale.currentLocale.currencyCode
+
+    actual val metric: Boolean get() = NSLocale.currentLocale.usesMetricSystem
 }

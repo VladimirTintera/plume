@@ -2677,4 +2677,7 @@
     <string name="message_context_money_unsupported">Pro tuhle měnu kurz není</string>
     <string name="message_context_money_result">≈ %1$s %2$s</string>
     <string name="message_context_money_rate_date">Kurz ČNB z %1$s</string>
+    <string name="message_context_units">Převést jednotky</string>
+    <string name="menu_context_units">Převést jednotky…</string>
+    <string name="message_context_units_result">≈ %1$s %2$s</string>
 </resources>

@@ -375,7 +375,8 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
 - **AI ikonka u zprávy s rozpoznaným kontextem** — první kolo hotovo: termín → kalendář nebo
   připomínka, číslo účtu → QR platba a kopírování, adresa → mapy, telefon a e-mail → uložit do
   kontaktů, číslo letu → stav letu, Wi-Fi s heslem → připojit a QR kód sítě, kód → zkopírovat,
-  cizí měna → převod kurzem ČNB, číslo zásilky (Česká pošta / S10, Zásilkovna) → sledování, z ikonky i z nabídky nad zprávou; model termín potvrzuje a doplní název a místo (`docs/poznatky/ai-v-zarizeni.md`,
+  cizí měna → převod kurzem ČNB, jednotky druhé soustavy → převod, číslo zásilky (Česká pošta /
+  S10, Zásilkovna) → sledování, z ikonky i z nabídky nad zprávou; model termín potvrzuje a doplní název a místo (`docs/poznatky/ai-v-zarizeni.md`,
   „Akce ze zpráv"). Zbývá:
   - **ověřit na telefonu**: editor události v kalendáři (emulátor bez účtu Google chce
     přihlášení), načtení QR platby bankovní aplikací, Gemini Nano místo Gemmy, iOS (jen přeložené),
@@ -386,7 +387,6 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
   - **kód rezervace** a let do kalendáře s časem odletu (dnes se termín a let nabízejí zvlášť),
   - **Wi-Fi na iOS** jen s kopírováním hesla a QR kódem — připojení chce entitlement Hotspot
     Configuration v profilu aplikace; víceslovný název sítě jen v uvozovkách,
-  - **jednotky** (mph, °F, palce) → převod; pravidla stačí, síť ne,
   - **měna slovy** („dolarů", „liber") a `¥` (jen v jiné měně je jasné, zda jen nebo jüan),
   - **snackbar „Zkopírováno" leží pod sheetem** a vidět není (na Androidu 13+ to zastoupí
     systémový náhled schránky, na starších nic),

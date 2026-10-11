@@ -16,11 +16,15 @@ expect class TextDownloader() {
 }
 
 /**
- * Měna, ve které uživatel počítá — podle REGIONU telefonu, ne jazyka aplikace (česky může psát
- * i někdo, kdo žije v Německu). [code] je `null`, když ji systém neřekne.
+ * Kde uživatel žije — podle REGIONU telefonu, ne jazyka aplikace (česky může psát i někdo, kdo
+ * žije v Německu): v jaké měně počítá a jaké jednotky používá.
  */
-expect class HomeCurrency {
+expect class HomeRegion {
+    /** Měna (ISO 4217), nebo `null`, když ji systém neřekne. */
     val code: String?
+
+    /** Metrická soustava; imperiální mají jen USA, Libérie a Myanmar. */
+    val metric: Boolean
 }
 
 /**
