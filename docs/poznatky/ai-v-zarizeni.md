@@ -400,6 +400,13 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   1,50 USD. Vynechané je dvojznačné: samotné „jen" (= pouze; jen celými tvary „jenů", „jeny")
   a anglické „pounds" (spíš váha, převádí se jako jednotka). Hledá se v textu bez diakritiky,
   ven jde úsek původního textu („1,5 milionu liber").
+- **Dvojznačné značky rozhoduje okolí zprávy, a když nerozhodne, nabídnou se obě možnosti**
+  (`Money.assumed`, karta pak měnu řekne: „¥800 (JPY)", „¥800 (CNY)"). `¥` je jen, nebo jüan
+  — podle zmínky o Japonsku / Tokiu / jenu, nebo o Číně / Pekingu / jüanu / RMB; `円`, `元`,
+  `JP¥`, `CN¥` a `RMB` jsou jednoznačné. Anglické „pounds" jsou libry, nebo váha — podle slov
+  o penězích („costs", „paid", „ticket", „rent", „stojí"…) a o váze („weighs", „flour",
+  „lost"…); bez nich převod váhy i měny. „Quid" a „pounds sterling" jsou peníze vždy,
+  zkratka „lb" váha vždy. Kořeny měst v kontextu se skloňují („v Tokiu") — proto „toki".
 - **Kurz z denního lístku ČNB** (anglická verze: desetinná tečka, ASCII; zdarma, bez klíče).
   Kurzy jsou vůči koruně, takže jde převádět i mezi dvěma cizími měnami (EUR → USD přes CZK).
   Stahuje se až s otevřením sheetu („Načítám kurz ČNB…") a drží se 6 hodin. Obsah zprávy
@@ -498,7 +505,8 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   ukáže síť, heslo, QR kód a „Připojit k Wi-Fi" otevře systémový dialog uložení sítě
   (zrušený, síť se neuložila); „Slevový kód na první nákup: LETO20" zkopíruje „LETO20";
   „120 € na noc" se systémem `en_US` převede na „≈ 134,46 USD" s kurzem ČNB z 9. října 2026
-  a „1,5 milionu liber" na „≈ 1 982 869,63 USD";
+  a „1,5 milionu liber" na „≈ 1 982 869,63 USD"; „Ta mikina stála ¥800" ukáže dvě karty,
+  „¥800 (JPY) ≈ 5,06 USD" a „¥800 (CNY) ≈ 119,53 USD";
   „uběhl 10 km, venku bylo 20 °C" se systémem `en_US` ukáže „≈ 6,2 mi" a „≈ 68 °F";
   „kód rezervace: XKQ7ZT" nabídne kód rezervace ke zkopírování; „Odlet OK 123 zítra v 9:40
   z Ruzyně, kód rezervace XKQ7ZT" nabídne let se „Stav letu", „Odlet do kalendáře — zítra

@@ -48,6 +48,7 @@ import eu.tintera.plume.resources.message_context_code
 import eu.tintera.plume.resources.message_context_booking
 import eu.tintera.plume.resources.confirmation_number_24dp
 import eu.tintera.plume.resources.message_context_money_failed
+import eu.tintera.plume.resources.message_context_money_assumed
 import eu.tintera.plume.resources.message_context_units_result
 import eu.tintera.plume.resources.straighten_24dp
 import eu.tintera.plume.resources.message_context_money_loading
@@ -326,7 +327,9 @@ private fun ColumnScope.WifiSection(wifi: ContextFinding.Wifi, onCopy: (String) 
 private fun MoneySection(money: ContextFinding.Money, homeCurrency: String?, rates: RatesState?) {
     val target = homeCurrency ?: CZK
     DetailCard(icon = Res.drawable.currency_exchange_24dp) {
-        Text(money.shown, style = MaterialTheme.typography.titleMedium.tabularNumbers())
+        // Odhadnutá měna (¥, „pounds") se řekne: „¥500 (JPY)" a vedle druhá karta „¥500 (CNY)".
+        val title = if (money.assumed) stringResource(Res.string.message_context_money_assumed, money.shown, money.currency) else money.shown
+        Text(title, style = MaterialTheme.typography.titleMedium.tabularNumbers())
         when (rates) {
             null, RatesState.Loading -> Text(
                 stringResource(Res.string.message_context_money_loading),

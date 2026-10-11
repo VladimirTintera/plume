@@ -401,9 +401,33 @@ class MessageContextTest {
         assertEquals("1,5 milionu dolarů", findMessageContext("Firma má 1,5 milionu dolarů", emptyList(), wednesday, zone, "CZK").money.single().shown)
     }
 
+    private fun moneyAssumed(text: String) =
+        findMessageContext(text, emptyList(), wednesday, zone, "CZK").money.map { Triple(it.currency, it.amount, it.assumed) }
+
+    @Test
+    fun jenNeboJuan() {
+        assertEquals(listOf(Triple("JPY", 500.0, false)), moneyAssumed("Oběd v Tokiu stál ¥500"))
+        assertEquals(listOf(Triple("CNY", 50.0, false)), moneyAssumed("V Pekingu jsem dal za čaj ¥50"))
+        // Bez kontextu obě možnosti, se značkou „odhad".
+        assertEquals(listOf(Triple("JPY", 800.0, true), Triple("CNY", 800.0, true)), moneyAssumed("Stálo to ¥800"))
+        assertEquals(listOf(Triple("CNY", 100.0, false)), moneyAssumed("Zaplatil jsem 100元"))
+        assertEquals(listOf(Triple("JPY", 1200.0, false)), moneyAssumed("Ramen za 1200円"))
+    }
+
+    @Test
+    fun poundsJakoPenize() {
+        assertEquals(listOf(Triple("GBP", 30.0, false)), moneyAssumed("The ticket costs 30 pounds"))
+        assertEquals(listOf(Triple("GBP", 20.0, false)), moneyAssumed("Lend me 20 quid"))
+        // Váha penězi není, bez kontextu obojí (a váha se nabídne jako jednotka).
+        assertTrue(moneyAssumed("It weighs 5 pounds").isEmpty())
+        assertEquals(listOf(Triple("GBP", 5.0, true)), moneyAssumed("I have 5 pounds"))
+        assertEquals(listOf(MeasureUnit.Pound to 5.0), measures("I have 5 pounds"))
+        assertTrue(measures("The ticket costs 30 pounds").isEmpty())
+    }
+
     @Test
     fun menaSlovyCoNeni() {
-        // „jen" je „pouze", koruny Čechovi nic, anglické pounds jsou váha.
+        // „jen" je „pouze", koruny Čechovi nic, pounds ve zprávě o váze nejsou peníze.
         assertTrue(money("Přišlo 100 jen tak").isEmpty())
         assertTrue(money("Stojí 300 korun").isEmpty())
         assertTrue(money("It weighs 5 pounds").isEmpty())

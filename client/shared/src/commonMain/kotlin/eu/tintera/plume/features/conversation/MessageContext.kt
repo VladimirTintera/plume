@@ -90,7 +90,16 @@ sealed interface ContextFinding {
      * Částka v cizí měně → převod na měnu uživatele. [shown] je, jak ve zprávě stála („120 €"),
      * [amount] totéž jako číslo, [currency] kód ISO 4217.
      */
-    data class Money(val shown: String, val amount: Double, val currency: String) : ContextFinding
+    data class Money(
+        val shown: String,
+        val amount: Double,
+        val currency: String,
+        /**
+         * Měna je odhad z dvojznačné značky (`¥` = jen, nebo jüan; „pounds" = libry, nebo váha),
+         * kterou okolí zprávy nerozhodlo. Sheet pak měnu řekne a nabídne i druhou možnost.
+         */
+        val assumed: Boolean = false,
+    ) : ContextFinding
 
     /**
      * Míra v jednotkách „druhé" soustavy → převod („65 palců" ≈ 165,1 cm metrickému uživateli,
@@ -674,21 +683,65 @@ private fun codes(text: String, payments: List<ContextFinding.Payment>): List<Co
 // --- Cizí měna -------------------------------------------------------------------------------
 
 private fun money(text: String, homeCurrency: String?): List<ContextFinding.Money> {
-    val prefixed = MONEY_BEFORE.findAll(text).mapNotNull { match ->
-        val currency = CURRENCY_SYMBOLS[match.groupValues[1]] ?: return@mapNotNull null
-        parseAmount(match.groupValues[2])?.let { ContextFinding.Money(match.value.trim(), it, currency) }
+    val yen = yenSense(foldDiacritics(text).lowercase())
+    val prefixed = MONEY_BEFORE.findAll(text).flatMap { match ->
+        val amount = parseAmount(match.groupValues[2]) ?: return@flatMap emptySequence()
+        moneyOf(match.value.trim(), amount, match.groupValues[1].trim(), yen)
     }
-    val suffixed = MONEY_AFTER.findAll(text).mapNotNull { match ->
-        val unit = match.groupValues[2]
-        val currency = CURRENCY_SYMBOLS[unit] ?: CURRENCY_WORDS[unit.lowercase()] ?: unit.takeIf { it in CURRENCY_CODES }
-            ?: return@mapNotNull null
-        parseAmount(match.groupValues[1])?.let { ContextFinding.Money(match.value.trim(), it, currency) }
+    val suffixed = MONEY_AFTER.findAll(text).flatMap { match ->
+        val amount = parseAmount(match.groupValues[1]) ?: return@flatMap emptySequence()
+        moneyOf(match.value.trim(), amount, match.groupValues[2], yen)
     }
     return (prefixed + suffixed + moneyInWords(text))
         .filter { it.currency != homeCurrency && it.amount > 0 }
         .distinctBy { it.currency to it.amount }
         .take(MAX_MONEY)
         .toList()
+}
+
+/**
+ * Částka podle značky nebo kódu. `¥` rozhodne okolí zprávy ([yenSense]); když nerozhodne, jsou
+ * to DVĚ možnosti — jen i jüan, obě s [ContextFinding.Money.assumed].
+ */
+private fun moneyOf(shown: String, amount: Double, unit: String, yen: Set<String>): Sequence<ContextFinding.Money> {
+    if (unit == "\u00A5") {
+        return yen.asSequence().map { ContextFinding.Money(shown, amount, it, assumed = yen.size > 1) }
+    }
+    val currency = CURRENCY_SYMBOLS[unit] ?: CURRENCY_WORDS[unit.lowercase()] ?: unit.takeIf { it in CURRENCY_CODES }
+        ?: return emptySequence()
+    return sequenceOf(ContextFinding.Money(shown, amount, currency))
+}
+
+/**
+ * Jeny, nebo jüany? Podle zmínky o Japonsku, nebo o Číně, v textu bez diakritiky malými.
+ * Bez zmínky (nebo s oběma) obojí.
+ */
+private fun yenSense(folded: String): Set<String> {
+    val words = WORD.findAll(folded).map { it.value }.toList()
+    val japan = words.any { word -> JAPAN_STEMS.any { word.startsWith(it) } }
+    val china = words.any { word -> CHINA_STEMS.any { word.startsWith(it) } }
+    return when {
+        japan && !china -> setOf("JPY")
+        china && !japan -> setOf("CNY")
+        else -> linkedSetOf("JPY", "CNY")
+    }
+}
+
+/**
+ * „Pounds" jsou libry, nebo váha? Podle slov o penězích a o váze, v textu bez diakritiky malými.
+ * Bez nich (nebo s oběma) obojí — sheet nabídne převod váhy i měny.
+ */
+internal enum class PoundSense { Money, Weight, Both }
+
+internal fun poundSense(folded: String): PoundSense {
+    val words = WORD.findAll(folded).map { it.value }.toList()
+    val money = "\u00A3" in folded || words.any { word -> MONEY_CONTEXT_STEMS.any { word.startsWith(it) } }
+    val weight = words.any { word -> WEIGHT_CONTEXT_STEMS.any { word.startsWith(it) } }
+    return when {
+        money && !weight -> PoundSense.Money
+        weight && !money -> PoundSense.Weight
+        else -> PoundSense.Both
+    }
 }
 
 /**
@@ -701,6 +754,7 @@ private fun money(text: String, homeCurrency: String?): List<ContextFinding.Mone
  */
 private fun moneyInWords(text: String): List<ContextFinding.Money> {
     val folded = foldDiacritics(text).lowercase()
+    val pounds = poundSense(folded)
     return MONEY_WORDS.findAll(folded).mapNotNull { match ->
         val number = parseAmount(match.groupValues[1]) ?: return@mapNotNull null
         val words = WORD_WITH_DOT.findAll(match.groupValues[2]).toList()
@@ -714,10 +768,18 @@ private fun moneyInWords(text: String): List<ContextFinding.Money> {
             currency = words.getOrNull(index)?.let { currencyWordOf(it.value) } ?: return@mapNotNull null
         }
         val code = adjective?.let { adjectiveCurrency(currency, it) } ?: currency
+        // Anglické „pounds" jsou peníze jen tam, kde zpráva o váze nemluví (viz [poundSense]).
+        val englishPound = words[index].value.startsWith("pound")
+        if (englishPound && pounds == PoundSense.Weight) return@mapNotNull null
         // Konec úseku = konec slova s měnou; slova jsou na konci nálezu, hned za číslem.
         val wordsStart = match.range.last + 1 - match.groupValues[2].length
         val end = wordsStart + words[index].range.last + 1
-        ContextFinding.Money(text.substring(match.range.first, end).trim(), number * scale, code)
+        ContextFinding.Money(
+            text.substring(match.range.first, end).trim(),
+            number * scale,
+            code,
+            assumed = englishPound && pounds == PoundSense.Both,
+        )
     }.toList()
 }
 
@@ -809,6 +871,12 @@ private fun measures(text: String, metric: Boolean): List<ContextFinding.Measure
         val unit = unitOf(match.groupValues[3]) ?: return@mapNotNull null
         // Převádí se jen to, co uživatel nepoužívá: Čech nepotřebuje přepočítat kilometry.
         if (unit.metric == metric) return@mapNotNull null
+        // „Pounds" ve zprávě o penězích nejsou váha (viz [poundSense]); zkratka „lb" váha je vždy.
+        if (unit == MeasureUnit.Pound && match.groupValues[3].lowercase().startsWith("pound") &&
+            poundSense(foldDiacritics(text).lowercase()) == PoundSense.Money
+        ) {
+            return@mapNotNull null
+        }
         val number = parseAmount(match.groupValues[2]) ?: return@mapNotNull null
         val value = if (match.groupValues[1].isNotEmpty()) -number else number
         // Záporná čísla dávají smysl jen u teploty („-5 °F").
@@ -1049,7 +1117,7 @@ private val CODE = Regex(
 private const val MONEY_NUMBER = "(\\d{1,3}(?:[ \\u00A0\\u202F,.]\\d{3})+(?:[.,]\\d{1,2})?|\\d+(?:[.,]\\d{1,2})?)"
 
 /** Značka před číslem: „€120", „$ 45", „£9.99". */
-private val MONEY_BEFORE = Regex("(?<![\\p{L}\\d])(€|\\$|£)\\s?$MONEY_NUMBER(?![\\d])")
+private val MONEY_BEFORE = Regex("(?<![\\p{L}\\d])(€|\\$|£|\u00A5|CN\u00A5|JP\u00A5|RMB\\s?)\\s?$MONEY_NUMBER(?![\\d])")
 
 /**
  * Značka nebo kód za číslem: „120 €", „300 PLN", „2 500 Ft", „15 eur". Bez `IGNORE_CASE`:
@@ -1057,10 +1125,29 @@ private val MONEY_BEFORE = Regex("(?<![\\p{L}\\d])(€|\\$|£)\\s?$MONEY_NUMBER(
  */
 private val MONEY_AFTER = Regex(
     "(?<![\\p{L}\\d.,])$MONEY_NUMBER\\s?(?:,-\\s?)?" +
-        "(€|\\$|£|K\u010d|z\u0142|Ft|[Ee]ur[oa]?|EUR|[A-Z]{3})(?![\\p{L}])",
+        "(€|\\$|£|\u00A5|\u5143|\u5186|K\u010d|z\u0142|Ft|[Ee]ur[oa]?|EUR|[A-Z]{3})(?![\\p{L}])",
 )
 
-private val CURRENCY_SYMBOLS = mapOf("€" to "EUR", "$" to "USD", "£" to "GBP", "K\u010d" to "CZK", "z\u0142" to "PLN", "Ft" to "HUF")
+private val CURRENCY_SYMBOLS = mapOf(
+    "€" to "EUR", "$" to "USD", "£" to "GBP", "K\u010d" to "CZK", "z\u0142" to "PLN", "Ft" to "HUF",
+    // Jen jednoznačné značky: 元 je jüan, 円 jen, CN¥ / JP¥ / RMB podle předpony. Holé ¥ viz [yenSense].
+    "\u5143" to "CNY", "\u5186" to "JPY", "CN\u00A5" to "CNY", "JP\u00A5" to "JPY", "RMB" to "CNY",
+)
+
+/** Zmínky o Japonsku a Číně pro `¥` (bez diakritiky, malými, začátek slova). */
+private val JAPAN_STEMS = listOf("japon", "japan", "toki", "tokyo", "osak", "kjot", "kyoto", "jenu", "jeny", "yen")
+private val CHINA_STEMS = listOf("cina", "ciny", "cine", "cinu", "cinsk", "china", "chines", "peking", "beijing", "sanghaj", "shanghai", "juan", "yuan", "rmb", "renminbi")
+
+/** Slova o penězích a o váze, která rozhodnou, co jsou „pounds" (bez diakritiky, malými, začátek slova). */
+private val MONEY_CONTEXT_STEMS = listOf(
+    "cost", "price", "pay", "paid", "spent", "spend", "earn", "salary", "rent", "worth", "buy", "bought",
+    "sell", "sold", "ticket", "fee", "budget", "cash", "owe", "charge", "bill", "sterling", "quid",
+    "stoj", "cen", "zaplat", "plat", "kup", "prodal", "najem", "vydel", "dluz", "listek",
+)
+private val WEIGHT_CONTEXT_STEMS = listOf(
+    "weigh", "weight", "heavy", "flour", "sugar", "butter", "meat", "lost", "gained", "gain", "lose",
+    "vah", "vaz", "tezk", "hubn", "pribral", "zhubl", "mouk", "cukr", "maso",
+)
 
 private val CURRENCY_WORDS = mapOf("eur" to "EUR", "euro" to "EUR", "eura" to "EUR")
 
@@ -1071,6 +1158,7 @@ private val WORD_WITH_DOT = Regex("[\\p{L}]+\\.?")
 /** Měny slovy podle začátku slova (dolarů, liber, zlotých, forintů, franků…). */
 private val CURRENCY_WORD_STEMS: Map<String, String> = linkedMapOf(
     "dolar" to "USD", "dollar" to "USD", "bucks" to "USD", "eur" to "EUR", "libr" to "GBP", "liber" to "GBP",
+    "pound" to "GBP", "quid" to "GBP",
     "sterling" to "GBP", "frank" to "CHF", "franc" to "CHF", "zlot" to "PLN", "forint" to "HUF", "korun" to "CZK",
     "juan" to "CNY", "yuan" to "CNY", "rupi" to "INR", "rupee" to "INR", "baht" to "THB",
 )

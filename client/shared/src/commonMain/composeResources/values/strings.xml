@@ -2611,4 +2611,5 @@
     <string name="message_context_flight_arrival_title">Arrival %1$s</string>
     <string name="message_context_flight_duration">%1$d h %2$s min</string>
     <string name="message_context_flight_estimated">%1$s (estimate)</string>
+    <string name="message_context_money_assumed">%1$s (%2$s)</string>
 </resources>
