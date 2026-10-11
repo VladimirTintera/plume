@@ -4,8 +4,12 @@
     iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/AppIcon.png   – iOS, 1024 × 1024, bez alfy
     client/androidApp/src/main/res/drawable/ic_launcher_foreground.xml – vektor adaptivní ikony
     client/shared/src/androidMain/res/drawable/ic_notification.xml    – malá ikona notifikace
+    client/desktopApp/icons/plume.{ico,icns,png}                     – desktop (Windows, macOS, Linux)
+    client/desktopApp/src/main/resources/plume-icon.png              – ikona okna a oznamovací oblasti
 
-Spuštění (z kořene repa): python3 play/tools/icon.py (Pillow, shapely). Barvy pozadí musí sedět
+Spuštění (z kořene repa): python3 play/tools/icon.py (Pillow, shapely), jen desktop:
+python3 play/tools/icon.py desktop. Bez Pillow a shapely v systému:
+uv run --with pillow --with shapely python3 play/tools/icon.py. Barvy pozadí musí sedět
 s `ic_launcher_background.xml`.
 
 Pírko se skládá v jednotkovém čtverci (0..1) jako tvar: vlajka mínus klínové zářezy a osten,
@@ -135,7 +139,40 @@ def vector(size=108, reach_dp=31, color="#FFF3E8", shaft_width=0.009, box=False)
 """
 
 
+def desktop(size):
+    """Ikona pro desktop: zaoblený čtverec s průhlednými rohy.
+
+    Na rozdíl od mobilů ji nikdo neořezává maskou — tvar si nese sama. Rozměry podle mřížky
+    ikon macOS (plocha 824 z 1024, poloměr rohu 185, zbytek okraj na stín a optické vyrovnání);
+    Windows i Linux berou čtvercový obrázek s alfou, takže se hodí i tam.
+    """
+    n = size * 4
+    inset, radius = round(n * 100 / 1024), round(n * 185 / 1024)
+    plate = Image.new("L", (n, n), 0)
+    ImageDraw.Draw(plate).rounded_rectangle([inset, inset, n - inset, n - inset], radius=radius, fill=255)
+    im = gradient(n, n).convert("RGBA")
+    im.paste(Image.new("RGBA", (n, n), INK + (255,)), (0, 0), feather_mask(n, inset, inset, (n - 2 * inset) / n))
+    im.putalpha(plate)
+    return im.resize((size, size), Image.LANCZOS)
+
+
+def write_desktop():
+    icons = ROOT / "client/desktopApp/icons"
+    icons.mkdir(parents=True, exist_ok=True)
+    big = desktop(1024)
+    # ICO: Windows vybírá podle velikosti (Průzkumník, hlavní panel, Start); 256 je největší.
+    big.save(icons / "plume.ico", sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])
+    big.save(icons / "plume.icns")
+    desktop(512).save(icons / "plume.png")
+    desktop(512).save(ROOT / "client/desktopApp/src/main/resources/plume-icon.png")
+
+
 if __name__ == "__main__":
+    import sys
+
+    write_desktop()
+    if sys.argv[1:] == ["desktop"]:
+        sys.exit()
     raster(512).save(ROOT / "play/graphics/icon/icon.png")
     raster(1024).save(ROOT / "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/AppIcon.png")
     (ROOT / "client/androidApp/src/main/res/drawable/ic_launcher_foreground.xml").write_text(vector(), encoding="utf-8")

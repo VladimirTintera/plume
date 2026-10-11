@@ -1,0 +1,170 @@
+# Desktop release — spouští se tagem ve formátu:
+#   desktop-<X.Y.Z>        např. desktop-0.3.0
+#
+# Tag zakládá „Release — bump & tag" (create-release-tag.yml, target desktop) a tenhle workflow
+# rovnou spustí. Jde to i ručně: pushnout tag, nebo Run workflow nad existujícím tagem.
+# Bez čísla buildu: MSI pozná aktualizaci jen podle X.Y.Z, takže každý release potřebuje
+# vyšší verzi (X a Y do 255, Z do 65535).
+#
+# Co workflow udělá:
+#   1. z tagu vytáhne verzi a na Windows postaví instalátor MSI (`packageMsi -PdesktopVersion`),
+#   2. založí GitHub Release s MSI v příloze a changelogem od předchozího desktop tagu.
+#      Verze 0.x jde jako pre-release.
+#
+# Zatím jen Windows. macOS a Linux se staví stejně (`packageDmg`, `packageDeb`), jen na svém
+# systému — jpackage cizí systém zabalit neumí — a macOS navíc chce verzi s MAJOR ≥ 1 a kvůli
+# TDLib Homebrew `openssl@3` (docs/poznatky/desktop.md).
+#
+# MSI jde do PŘÍLOHY RELEASU, ne jen do artefaktu běhu: přílohy releasů se do kvóty Actions
+# nepočítají, artefakty ano (proto tu žije jen den, než ho převezme release).
+#
+# Instalátor NENÍ PODEPSANÝ. Windows SmartScreen ho při prvním spuštění zastaví („Systém Windows
+# ochránil váš počítač") — projde se přes „Další informace" → „Přesto spustit". Podpis chce
+# certifikát pro podepisování kódu (roadmapa).
+#
+# Potřebné secrets (stejné jako u Androidu):
+#   TELEGRAM_API_ID             – api_id z my.telegram.org; bez něj se zapeče 0 a přihlášení selže
+#   TELEGRAM_API_HASH           – api_hash z my.telegram.org
+name: Desktop Release
+
+permissions:
+  contents: write   # zakládání GitHub Release
+
+on:
+  push:
+    tags:
+      - 'desktop-*'
+  # spouští create-release-tag.yml přes `gh workflow run --ref <tag>`
+  # (tagy pushnuté přes GITHUB_TOKEN push trigger samy nevyvolají)
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
+
+    steps:
+      - name: Parse tag
+        id: tag
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if [[ "$GITHUB_REF_TYPE" != "tag" || ! "$TAG" =~ ^desktop-(([0-9]+)\.([0-9]+)\.([0-9]+))$ ]] \
+            || (( BASH_REMATCH[2] > 255 || BASH_REMATCH[3] > 255 || BASH_REMATCH[4] > 65535 )); then
+            echo "::error::Workflow musí běžet nad tagem desktop-X.Y.Z (X a Y do 255, Z do 65535), např. desktop-0.3.0; běží nad '$TAG'."
+            exit 1
+          fi
+          echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+
+      # Verze musí odpovídat `jvmToolchain(17)` v modulech — s jinou by ji Gradle přes foojay
+      # resolver stahoval znovu při každém běhu. jpackage (MSI) je v JDK od 14.
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      # Projektové gradle.properties počítá s vývojářským strojem; uživatelský
+      # ~/.gradle/gradle.properties má přednost (stejně jako v android-release.yml).
+      - name: Limit Gradle memory for CI
+        run: |
+          mkdir -p ~/.gradle
+          {
+            echo 'org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8 -XX:+UseParallelGC'
+            echo 'kotlin.daemon.jvmargs=-Xmx2g'
+            echo 'org.gradle.workers.max=2'
+          } >> ~/.gradle/gradle.properties
+
+      - name: Check Telegram API credentials
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: |
+          if [ -z "$TELEGRAM_API_ID" ] || [ -z "$TELEGRAM_API_HASH" ]; then
+            echo "::error::Chybí secrets TELEGRAM_API_ID / TELEGRAM_API_HASH — build by se přeložil, ale přihlášení by skončilo chybou od serveru."
+            exit 1
+          fi
+
+      # WiX (nástroj na MSI) si Compose plugin stáhne sám. Bez ProGuardu (`packageMsi`, ne
+      # `packageReleaseMsi`): pravidla pro TDLib wrapper, Koin a serializaci na desktopu nejsou.
+      - name: Build MSI
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: |
+          ./gradlew :client:desktopApp:packageMsi -PdesktopVersion=${{ steps.tag.outputs.version }}
+          ls -la client/desktopApp/build/compose/binaries/main/msi/
+
+      # Compose u selhání jpackage ukáže jen cestu k logu na runneru; hláška je v něm.
+      - name: jpackage logs
+        if: failure()
+        run: |
+          for f in client/desktopApp/build/compose/logs/*/*.txt; do
+            [ -s "$f" ] || continue
+            echo "::group::$f"
+            cat "$f"
+            echo "::endgroup::"
+          done
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: msi
+          path: client/desktopApp/build/compose/binaries/main/msi/*.msi
+          retention-days: 1
+          if-no-files-found: error
+
+  release:
+    needs: windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # celá historie + tagy kvůli changelogu od předchozí verze
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: msi
+          path: dist
+
+      - name: Generate changelog
+        id: notes
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          VERSION="${{ needs.windows.outputs.version }}"
+          PREV=$(git tag -l 'desktop-*' --sort=-v:refname | grep -vx "$TAG" | head -1 || true)
+          # 0.x = ještě ne stabilní, na stránce releasů jako pre-release
+          if [[ "$VERSION" == 0.* ]]; then echo "prerelease=--prerelease" >> "$GITHUB_OUTPUT"; fi
+          {
+            echo "**Desktop** ${VERSION} — Windows (MSI)"
+            echo
+            echo "Instalátor není podepsaný: Windows SmartScreen ho při prvním spuštění zastaví, projde se přes"
+            echo "„Další informace\" → „Přesto spustit\". Instaluje se jen pro přihlášeného uživatele, bez oprávnění správce."
+            echo
+            bash .github/scripts/release-notes.sh "$PREV" "$TAG" "targetu"
+          } > release-notes.md
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            # re-run: release už existuje, jen vyměníme MSI a poznámky
+            gh release upload "$TAG" dist/*.msi --clobber
+            gh release edit "$TAG" --notes-file release-notes.md
+          else
+            gh release create "$TAG" dist/*.msi \
+              --title "$TAG" \
+              --notes-file release-notes.md \
+              ${{ steps.notes.outputs.prerelease }}
+          fi

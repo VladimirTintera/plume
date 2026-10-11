@@ -132,6 +132,43 @@ a Linuxu AWT `TrayIcon.displayMessage`.
   **Neověřeno**: Windows a Linux (AWT), odznak v Docku, zavření okna a návrat z Docku,
   stažení oznámení po přečtení jinde (jen nepřímo — viz „ukradne").
 
+## Release (Windows)
+
+Actions → „Release — bump & tag" → target **desktop** (`create-release-tag.yml`) založí tag
+`desktop-X.Y.Z` a spustí `.github/workflows/desktop-release.yml` nad ním: na `windows-latest`
+postaví MSI (`packageMsi -PdesktopVersion=…`), na Ubuntu založí GitHub Release s MSI v příloze
+(verze 0.x jako pre-release). Secrets stejné jako Android (`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`).
+
+- **Tag je `desktop-X.Y.Z`, bez čísla buildu** (Android má `android-X.Y.Z-B`). MSI pozná
+  aktualizaci jen podle X.Y.Z (X a Y do 255, Z do 65535) a podle `upgradeUuid`
+  v `client/desktopApp/build.gradle.kts`, **který se nesmí měnit** — nové UUID by nainstalovalo
+  druhou kopii vedle staré. Stejnou nebo nižší verzi MSI přes vyšší nenainstaluje, proto bump
+  `build` u desktopu nejde a explicitní verze musí být vyšší než poslední tag (hlídá bump).
+- **První desktop release** se spouští s vyplněnou Version — bez předchozího tagu není co
+  bumpovat. Verze se bere z tagu, ne z commitu, takže build je z tagu reprodukovatelný.
+- **macOS nepřijme verzi s MAJOR 0** („The first number in an app-version cannot be zero") —
+  MSI ano. Až přibude macOS release, chce desktop verzi od 1.0.0.
+- **Instalace jen pro uživatele** (`perUserInstall`, `%LOCALAPPDATA%`): bez správce, což
+  u nepodepsaného instalátoru ušetří další dotaz. Data aplikace jsou dál v `%APPDATA%\Plume`.
+- **Nepodepsané.** SmartScreen při prvním spuštění zastaví instalátor („Další informace" →
+  „Přesto spustit"). Podpis chce certifikát pro podepisování kódu.
+- **Bez ProGuardu** (`packageMsi`, ne `packageReleaseMsi`) — pravidla pro wrapper TDLib, Koin
+  a serializaci na desktopu nejsou.
+- **MSI jde do přílohy releasu**, artefakt běhu žije jen den: přílohy releasů se do kvóty
+  Actions nepočítají.
+- **Na Windows bývá jen `python`, ne `python3`** — `generateChangelog` zkouší obojí, jinak by
+  „Co je nového" v aplikaci tiše zůstalo prázdné. **A konzole je v cp1252**: skript vypisuje
+  češtinu a bez `PYTHONIOENCODING=utf-8` padal na `UnicodeEncodeError` — se stejným tichým
+  následkem.
+- **WiX bere jen znaky z cp1252.** „ě" ve jméně dodavatele shodilo `light.exe` kódem 311
+  (LGHT0311) a jpackage z toho udělal holé „exit code 1"; Compose ukáže jen cestu k logu na
+  runneru. Workflow proto při chybě logy jpackage vypisuje (krok „jpackage logs") a metadata
+  balíčku jdou na Windows přes `msiSafe` (bez diakritiky, když se do cp1252 nevejde).
+- **Ikony** (`client/desktopApp/icons/plume.{ico,icns,png}` a ikona okna) generuje
+  `play/tools/icon.py desktop` z téže geometrie pírka jako ostatní platformy: zaoblený čtverec
+  s průhlednými rohy podle mřížky ikon macOS (824/1024, poloměr 185). ICO nese velikosti
+  16–256, Windows si vybírá podle místa (hlavní panel, Start, Průzkumník).
+
 ## Co platforma (zatím) neumí
 
 Prázdné `actual` volí chování, které sdílený kód už umí ohlásit, ne tiché nic: přehrávání

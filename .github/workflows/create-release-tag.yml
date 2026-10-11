@@ -1,16 +1,22 @@
 # Vytvoření release tagu (a tím spuštění releasu) z GitHub UI:
 # Actions → "Release — bump & tag" → Run workflow → vybrat typ bumpu.
 #
-# Najde poslední tag daného targetu (android-X.Y.Z-B), inkrementuje příslušnou část verze
-# (versionCode se zvyšuje vždy), tag pushne a explicitně spustí release workflow. (Tagy
-# pushnuté přes GITHUB_TOKEN samy push trigger nespustí — ochrana GitHubu proti rekurzivním
-# workflow.)
+# Najde poslední tag daného targetu, inkrementuje příslušnou část verze, tag pushne a explicitně
+# spustí release workflow `<target>-release.yml` nad ním. (Tagy pushnuté přes GITHUB_TOKEN samy
+# push trigger nespustí — ochrana GitHubu proti rekurzivním workflow.)
 #
-# Zatím je tu jen Android; iOS přibude jako další target se svým prefixem.
+# Targety a jejich tagy:
+#   android-X.Y.Z-B   versionCode (B) se zvyšuje vždy, i při bumpu `build`.
+#   desktop-X.Y.Z     bez čísla buildu: MSI pozná aktualizaci jen podle X.Y.Z (X a Y do 255,
+#                     Z do 65535), takže bump `build` tu nejde a explicitní verze musí být vyšší
+#                     než poslední. Viz docs/poznatky/desktop.md, „Release (Windows)".
 #
-# První tag je potřeba vytvořit ručně podle aktuálně publikované verze. Když AAB nahraješ do
-# Play ručně, zaznamenej to suffixem -manual (release tím nespustíš):
+# Android: první tag je potřeba vytvořit ručně podle aktuálně publikované verze. Když AAB
+# nahraješ do Play ručně, zaznamenej to suffixem -manual (release tím nespustíš):
 #   git tag android-0.2.0-12-manual && git push origin android-0.2.0-12-manual
+#
+# Desktop: první release se spustí tímhle workflow s vyplněnou Version (bez předchozího tagu
+# není co bumpovat).
 
 name: Release — bump & tag
 
@@ -24,6 +30,7 @@ on:
         default: android
         options:
           - android
+          - desktop
       bump:
         description: 'Version bump (ignoruje se, pokud je vyplněna Version)'
         required: true
@@ -35,7 +42,7 @@ on:
           - minor
           - major
       version:
-        description: 'Version — explicitní verze X.Y.Z místo bumpu; versionCode se i tak inkrementuje automaticky'
+        description: 'Version — explicitní verze X.Y.Z místo bumpu (Android: versionCode se i tak inkrementuje automaticky; desktop: musí být vyšší než poslední)'
         required: false
         type: string
 
@@ -70,35 +77,79 @@ jobs:
           VERSION_OVERRIDE="${{ inputs.version }}"
 
           LAST=$(git tag -l "${PREFIX}-*" --sort=-v:refname | head -1)
-          if [ -z "$LAST" ]; then
-            echo "::error::Nenalezen žádný tag '${PREFIX}-*'. První tag vytvoř ručně podle aktuálně publikované verze, např. ${PREFIX}-0.2.0-12"
-            exit 1
-          fi
-          # suffix -manual = release provedený ručně mimo GitHub (zaznamenává verzi, nespouští release)
-          if [[ ! "$LAST" =~ ^${PREFIX}-([0-9]+)\.([0-9]+)\.([0-9]+)-([0-9]+)(-manual)?$ ]]; then
-            echo "::error::Poslední tag '${LAST}' neodpovídá formátu ${PREFIX}-X.Y.Z-B[-manual]"
-            exit 1
-          fi
-          MAJOR=${BASH_REMATCH[1]} MINOR=${BASH_REMATCH[2]} PATCH=${BASH_REMATCH[3]} BUILD=${BASH_REMATCH[4]}
 
-          if [ -n "$VERSION_OVERRIDE" ]; then
-            VERSION="$VERSION_OVERRIDE"
-          else
-            case "$BUMP" in
-              major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
-              minor) MINOR=$((MINOR+1)); PATCH=0 ;;
-              patch) PATCH=$((PATCH+1)) ;;
-              build) ;;
-            esac
-            VERSION="${MAJOR}.${MINOR}.${PATCH}"
-          fi
-          # versionCode roste vždy – Play si pamatuje každé nahrané číslo a stejné podruhé nevezme
-          BUILD=$((BUILD+1))
-          TAG="${PREFIX}-${VERSION}-${BUILD}"
+          case "$PREFIX" in
+            android)
+              if [ -z "$LAST" ]; then
+                echo "::error::Nenalezen žádný tag '${PREFIX}-*'. První tag vytvoř ručně podle aktuálně publikované verze, např. ${PREFIX}-0.2.0-12"
+                exit 1
+              fi
+              # suffix -manual = release provedený ručně mimo GitHub (zaznamenává verzi, nespouští release)
+              if [[ ! "$LAST" =~ ^${PREFIX}-([0-9]+)\.([0-9]+)\.([0-9]+)-([0-9]+)(-manual)?$ ]]; then
+                echo "::error::Poslední tag '${LAST}' neodpovídá formátu ${PREFIX}-X.Y.Z-B[-manual]"
+                exit 1
+              fi
+              MAJOR=${BASH_REMATCH[1]} MINOR=${BASH_REMATCH[2]} PATCH=${BASH_REMATCH[3]} BUILD=${BASH_REMATCH[4]}
+
+              if [ -n "$VERSION_OVERRIDE" ]; then
+                VERSION="$VERSION_OVERRIDE"
+              else
+                case "$BUMP" in
+                  major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+                  minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+                  patch) PATCH=$((PATCH+1)) ;;
+                  build) ;;
+                esac
+                VERSION="${MAJOR}.${MINOR}.${PATCH}"
+              fi
+              # versionCode roste vždy – Play si pamatuje každé nahrané číslo a stejné podruhé nevezme
+              BUILD=$((BUILD+1))
+              TAG="${PREFIX}-${VERSION}-${BUILD}"
+              ;;
+
+            desktop)
+              if [ -n "$VERSION_OVERRIDE" ]; then
+                VERSION="$VERSION_OVERRIDE"
+              elif [ -z "$LAST" ]; then
+                echo "::error::Nenalezen žádný tag 'desktop-*'. První desktop release spusť s vyplněnou Version, např. 0.3.0."
+                exit 1
+              else
+                if [[ ! "$LAST" =~ ^desktop-([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+                  echo "::error::Poslední tag '${LAST}' neodpovídá formátu desktop-X.Y.Z"
+                  exit 1
+                fi
+                MAJOR=${BASH_REMATCH[1]} MINOR=${BASH_REMATCH[2]} PATCH=${BASH_REMATCH[3]}
+                case "$BUMP" in
+                  major) MAJOR=$((MAJOR+1)); MINOR=0; PATCH=0 ;;
+                  minor) MINOR=$((MINOR+1)); PATCH=0 ;;
+                  patch) PATCH=$((PATCH+1)) ;;
+                  build)
+                    echo "::error::Desktop číslo buildu nemá — MSI by stejnou verzi nenainstaloval přes starou. Vyber patch, minor nebo major."
+                    exit 1
+                    ;;
+                esac
+                VERSION="${MAJOR}.${MINOR}.${PATCH}"
+              fi
+              if [[ "$VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] \
+                && (( BASH_REMATCH[1] > 255 || BASH_REMATCH[2] > 255 || BASH_REMATCH[3] > 65535 )); then
+                echo "::error::Verze ${VERSION} je mimo rozsah MSI (X a Y do 255, Z do 65535)."
+                exit 1
+              fi
+              # Nižší nebo stejnou verzi MSI přes vyšší nenainstaluje.
+              if [ -n "$LAST" ]; then
+                HIGHEST=$(printf '%s\n%s\n' "${LAST#desktop-}" "$VERSION" | sort -V | tail -1)
+                if [ "$VERSION" = "${LAST#desktop-}" ] || [ "$HIGHEST" != "$VERSION" ]; then
+                  echo "::error::Verze ${VERSION} není vyšší než poslední ${LAST}."
+                  exit 1
+                fi
+              fi
+              TAG="desktop-${VERSION}"
+              ;;
+          esac
 
           git tag "$TAG"
           git push origin "$TAG"
-          echo "Vytvořen tag **${TAG}** (předchozí: ${LAST})" >> "$GITHUB_STEP_SUMMARY"
+          echo "Vytvořen tag **${TAG}** (předchozí: ${LAST:-žádný})" >> "$GITHUB_STEP_SUMMARY"
 
           gh workflow run "${PREFIX}-release.yml" --ref "$TAG"
           echo "Spuštěn release workflow pro **${TAG}**" >> "$GITHUB_STEP_SUMMARY"
