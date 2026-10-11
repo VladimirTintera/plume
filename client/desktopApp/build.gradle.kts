@@ -39,6 +39,17 @@ compose.desktop {
     application {
         mainClass = "eu.tintera.plume.desktop.MainKt"
 
+        // `-PdesktopDebug`: zabalená aplikace (`runDistributable`) v ladicím režimu nad týmiž
+        // daty jako `run`. Oznámení na macOS fungují jen v `.app` balíčku, holý `java` z `run`
+        // je nemá (docs/poznatky/desktop.md, „Notifikace"). Do balíčku k vydání to nepatří —
+        // vlastnosti by se zapekly do Plume.cfg.
+        if (providers.gradleProperty("desktopDebug").isPresent) {
+            jvmArgs += listOf(
+                "-Dplume.debug=true",
+                "-Dplume.dataDir=" + rootProject.layout.projectDirectory.dir(".desktop-data").asFile.path,
+            )
+        }
+
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
             packageName = "Plume"

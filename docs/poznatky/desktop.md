@@ -80,6 +80,58 @@ bere `String?` a vrací `String?`. ASM je na classpath build skriptu díky AGP v
   odhlášení v jednom smazalo klíč i druhému a ten by databázi zahodil (`unlockDatabase` ji bez
   klíče nepřečte).
 
+## Notifikace
+
+TDLib notifikace vydává, dokud aplikace běží (push na desktopu není), a `NotificationPresenter`
+je předává systému přes `DesktopNotifier`: na macOS `UNUserNotificationCenter`, na Windows
+a Linuxu AWT `TrayIcon.displayMessage`.
+
+```bash
+./gradlew :client:desktopApp:runDistributable -PdesktopDebug   # oznámení se dají zkoušet jen takhle
+```
+
+- **`TrayIcon.displayMessage` na macOS 26 neukáže NIC.** AWT pod ním volá zastaralé
+  `NSUserNotification`; volání projde bez chyby, banner ani záznam v Centru oznámení nevznikne
+  (ověřeno). Na macOS proto vlastní JNI most v Objective-C (`jvmMain/objc/PlumeNotifications.m`,
+  `MacNotificationCenter`), který překládá `compileMacNotifications` v `client/shared` jako
+  univerzální binárku do resources `jvmMain`. Blocky i delegát jsou v Objective-C nativní,
+  takže JNA ani Swift není potřeba.
+- **`UNUserNotificationCenter` chce proces s vlastním `.app` balíčkem.** V holém `java`
+  (`./gradlew :client:desktopApp:run`) vyhodí `NSInternalInconsistencyException:
+  bundleProxyForCurrentProcess is nil` a SHODÍ CELÝ PROCES (výjimka z Objective-C se do JVM
+  nepřeloží). Most se proto napřed ptá, jestli `mainBundle` končí na `.app`; v ladicím běhu
+  oznámení prostě nejsou. Zkoušejí se v zabalené aplikaci: `-PdesktopDebug` zapeče do
+  `Plume.cfg` ladicí vlastnosti (`plume.debug`, `plume.dataDir` = `.desktop-data/`), takže
+  `runDistributable` jede nad stejnými daty a položkami v Klíčence jako `run`. Do balíčku
+  k vydání to nepatří.
+- **Ad-hoc podepsaná `Plume.app` povolení k oznámením dostane** — systémový dotaz se ukáže
+  a po souhlasu oznámení chodí. Povolení se váže na bundle id (`eu.tintera.plume`), takže platí
+  i pro ladicí balíček a přežije přestavění. Notifikace poslaná dřív, než uživatel na dotaz
+  odpoví, se zahodí.
+- **Aktivní okno oznámení nedostane** (`DesktopWindow.focused`, zapisuje vstupní bod). Po
+  spuštění má okno fokus, takže první testovací zpráva „nepřijde" — to je správně.
+- **Jiný přihlášený klient oznámení „ukradne".** Otevřený oficiální Telegram zprávu hned
+  přečte, TDLib oznámení stáhne (`removedNotificationIds`) a presenter ho z Centra oznámení
+  odebere dřív, než si ho člověk všimne. Před testem ostatní klienty zavřít.
+- **Jedna zpráva = jedno oznámení**, seskupené po chatech (`threadIdentifier`), id
+  `g<groupId>-n<notificationId>` — podle něj se ruší přesně to, co TDLib stáhne. Z dávky (start,
+  návrat spojení) se ukáže jen nejnovější zpráva chatu.
+- **Klik** vrátí v `userInfo` chat a téma, Kotlin dostane volání z vlákna `UserNotifications`
+  (`AttachCurrentThreadAsDaemon`), požádá `ChatOpenRequests` a `DesktopWindow.activate()`
+  vytáhne okno — i schované nebo minimalizované.
+- **Příloha oznámení je KOPIE souboru**: systém soubor přílohy přesouvá do vlastního úložiště,
+  takže by z TDLib zmizel. Bere se fotka ze zprávy, jinak profilovka chatu.
+- **Zavření okna na macOS aplikaci neukončí**, jen okno schová (`visible = false`) — jinak by
+  s posledním oknem skončily i oznámení. Vrací ho ikona v Docku (`AppReopenedListener`) nebo
+  klik na oznámení, ukončuje Cmd+Q. Na Windows a Linuxu zavření zatím aplikaci ukončí.
+- **Odznak v Docku** je počet nepřečtených v neztlumených chatech hlavního seznamu
+  (`Taskbar.setIconBadge`), jako na iOS. Windows text v odznaku ikony neumí.
+- **Tiché hodiny platí** (`supportsQuietHours = true`): oznámení přijde bez zvuku.
+- **Ověřeno na macOS 26.6** (`runDistributable -PdesktopDebug`, zpráva od Notifikátora):
+  banner se ukázal, klik vytáhl okno a otevřel chat. Potlačení při aktivním okně ověřené logem.
+  **Neověřeno**: Windows a Linux (AWT), odznak v Docku, zavření okna a návrat z Docku,
+  stažení oznámení po přečtení jinde (jen nepřímo — viz „ukradne").
+
 ## Co platforma (zatím) neumí
 
 Prázdné `actual` volí chování, které sdílený kód už umí ohlásit, ne tiché nic: přehrávání

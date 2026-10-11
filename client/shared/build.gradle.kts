@@ -136,6 +136,47 @@ val generateAppLanguages = tasks.register("generateAppLanguages") {
     }
 }
 
+/**
+ * Notifikace na macOS (`jvmMain/objc/PlumeNotifications.m`, JNI nad `UNUserNotificationCenter`).
+ *
+ * - **Jen na Macu.** Jinde se úloha přeskočí a knihovna v jaru nebude — `MacNotificationCenter`
+ *   ji pak nenajde a notifikace jdou přes AWT. Balíček pro macOS stejně vzniká jen na Macu.
+ * - **Univerzální binárka** (arm64 + x86_64), ať nezáleží na tom, jaké JDK aplikaci pouští.
+ * - **JNI hlavičky z JDK, které pouští Gradle.** `jni.h` se mezi verzemi nemění tak, aby na tom
+ *   záleželo, a toolchain tu hledat není nutné.
+ * - **Ad-hoc podpis**: na arm64 Macu se nepodepsaná knihovna nenahraje.
+ *
+ * MUSÍ být deklarovaný před blokem `kotlin { }` (pořadí top-level `val`, viz [generateChangelog]).
+ */
+val compileMacNotifications = tasks.register("compileMacNotifications") {
+    description = "Přeloží most k notifikacím macOS (UNUserNotificationCenter) do jvmMain resources."
+    val source = layout.projectDirectory.file("src/jvmMain/objc/PlumeNotifications.m")
+    val outputDir = layout.buildDirectory.dir("generated/macNotifications")
+    val javaHome = System.getProperty("java.home")
+    val onMac = System.getProperty("os.name").lowercase().contains("mac")
+    inputs.file(source)
+    outputs.dir(outputDir)
+    onlyIf { onMac }
+
+    doLast {
+        val library = outputDir.get().file("macos/libplumenotifications.dylib").asFile
+        library.parentFile.mkdirs()
+        fun run(vararg command: String) {
+            val process = ProcessBuilder(*command).redirectErrorStream(true).start()
+            val output = process.inputStream.bufferedReader().readText()
+            check(process.waitFor() == 0) { "${command.first()} selhal:\n$output" }
+        }
+        run(
+            "clang", "-dynamiclib", "-fobjc-arc", "-O2",
+            "-arch", "arm64", "-arch", "x86_64", "-mmacosx-version-min=11.0",
+            "-I$javaHome/include", "-I$javaHome/include/darwin",
+            "-framework", "Foundation", "-framework", "UserNotifications",
+            "-o", library.absolutePath, source.asFile.absolutePath,
+        )
+        run("codesign", "--force", "--sign", "-", library.absolutePath)
+    }
+}
+
 kotlin {
     jvmToolchain(17)
 
@@ -297,6 +338,11 @@ kotlin {
 
         jvmMain {
             dependsOn(nonDynamicThemeMain)
+        }
+
+        jvmMain {
+            // libplumenotifications.dylib z [compileMacNotifications]; mimo Mac je složka prázdná.
+            resources.srcDir(files(layout.buildDirectory.dir("generated/macNotifications")).builtBy(compileMacNotifications))
         }
 
         jvmMain.dependencies {

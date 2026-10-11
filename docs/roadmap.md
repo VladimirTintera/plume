@@ -88,8 +88,11 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
   a pak z přepisu jaru vyhodit opravu dylibu a přibalené OpenSSL. Do té doby se na macOS
   staví jen s Homebrew `openssl@3` a desktop na Apple Silicon běží až od macOS 26 (`minos`
   binárky wrapperu — taky v issue).
-- **Notifikace** (`NotificationPresenter` je prázdný): TDLib vydává `UpdateNotificationGroup`
-  za běhu, stačí je převést na systémová oznámení (AWT `SystemTray` nebo nativní most).
+- **Notifikace: ověřit Windows a Linux** (AWT `TrayIcon`, na Linuxu podle prostředí —
+  lepší by byl `org.freedesktop.Notifications` přes D-Bus), odznak v Docku a zavření okna
+  s návratem z Docku. Akce v oznámení (Odpovědět, Přečteno) zatím nejsou; na macOS by šly
+  přes `UNNotificationCategory`. Na Windows a Linuxu zavření okna aplikaci ukončí — chce
+  ikonu v oznamovací oblasti.
 - **Zvuk**: přehrávání hlasovek (Opus) a hudby, nahrávání hlasovek. JVM sám Opus ani MP3
   neumí; kandidáti jsou nativní libopus přes JNA, nebo FFmpeg (JavaCV) pro všechno naráz.
 - **Video**: přehrávač v aplikaci (vlcj chce VLC v systému, JavaCV nese FFmpeg). Dnes se video

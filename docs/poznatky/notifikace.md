@@ -356,8 +356,10 @@ přijdou potichu (`setSilent`). Výchozí úsek je 22:00–7:00, vypnuto.
   Kdo volá v noci, nejspíš to myslí vážně, a přijmout hovor Plume stejně neumí.
 - **Čas je místní čas zařízení** v okamžiku zobrazení, minuty od půlnoci. Úsek přes půlnoc je
   běžný; začátek == konec je prázdný úsek, ne celý den.
-- **Jen Android** (`NotificationPermission.supportsQuietHours`). Na iOS notifikace z APNs kreslí
-  systém; obdobou je režim Soustředění. Skupina se tam v Nastavení neukazuje.
+- **Android a desktop** (`NotificationPermission.supportsQuietHours`). Na iOS notifikace z APNs
+  kreslí systém; obdobou je režim Soustředění. Skupina se tam v Nastavení neukazuje. Desktop
+  (macOS `UNUserNotificationCenter`, jinde AWT) má vlastní oddíl v `docs/poznatky/desktop.md`,
+  „Notifikace".
 - **Jen v zařízení.** Ostatní zařízení o tichých hodinách nevědí — notifikace kreslí aplikace
   sama. Kandidát na synchronizaci přes CloudStorage (viz `docs/poznatky/nastaveni.md`).
 - **Totéž ztišení platí pro odložený chat**, dokud spí (viz „Odložení chatu" v `seznam-chatu.md`).
