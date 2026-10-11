@@ -118,6 +118,7 @@ import eu.tintera.plume.features.chats.ChatsViewModel
 import eu.tintera.plume.features.chats.NowPlayingViewModel
 import eu.tintera.plume.features.chats.AddBotToGroupViewModel
 import eu.tintera.plume.features.chats.NewChatViewModel
+import eu.tintera.plume.features.chats.NewContactViewModel
 import eu.tintera.plume.features.chats.CreateChatViewModel
 import eu.tintera.plume.core.telegram.ChatCreation
 import eu.tintera.plume.core.telegram.TdlChatCreation
@@ -676,6 +677,7 @@ fun appModule() = module {
     }
 
     viewModelOf(::NewChatViewModel)
+    viewModelOf(::NewContactViewModel)
 
     // Druh a členové jdou z routy; indexem, `get()` by bral podle typu.
     viewModel { parameters ->

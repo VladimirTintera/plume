@@ -118,6 +118,7 @@ import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.navigation.NewChatRoute
+import eu.tintera.plume.core.navigation.NewContactRoute
 import eu.tintera.plume.core.navigation.NewGroupMembersRoute
 import eu.tintera.plume.core.navigation.CreateChatRoute
 import eu.tintera.plume.core.navigation.SettingsRoute
@@ -133,6 +134,7 @@ import eu.tintera.plume.features.chats.ArchiveScreen
 import eu.tintera.plume.features.chats.ChatListScreen
 import eu.tintera.plume.features.chats.AddBotToGroupScreen
 import eu.tintera.plume.features.chats.NewChatScreen
+import eu.tintera.plume.features.chats.NewContactScreen
 import eu.tintera.plume.features.chats.NewGroupMembersScreen
 import eu.tintera.plume.features.chats.CreateChatScreen
 import eu.tintera.plume.features.conversation.ConversationPlaceholder
@@ -490,7 +492,23 @@ private fun shellEntryProvider(
             },
             onNewGroup = { if (chatsStack.lastOrNull() != NewGroupMembersRoute) chatsStack.add(NewGroupMembersRoute) },
             onNewChannel = { chatsStack.add(CreateChatRoute(channel = true)) },
+            onNewContact = { if (chatsStack.lastOrNull() != NewContactRoute) chatsStack.add(NewContactRoute) },
             modifier = Modifier.listPaneInsets(twoPane),
+        )
+    }
+
+    /*
+     * Nový kontakt. Formulář přes celou plochu jako založení skupiny; po přidání se odebere
+     * i „Nová zpráva" pod ním a otevře se konverzace — zpět z ní vede do seznamu.
+     */
+    entry<NewContactRoute> {
+        NewContactScreen(
+            viewModel = koinViewModel(),
+            onBack = { chatsStack.remove(NewContactRoute) },
+            onAdded = { chatId ->
+                chatsStack.removeAll { it == NewContactRoute || it == NewChatRoute }
+                chatsStack.openConversation(chatId)
+            },
         )
     }
 

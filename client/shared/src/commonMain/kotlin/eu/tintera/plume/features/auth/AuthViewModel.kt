@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
+import eu.tintera.plume.core.ui.PhoneEntry
+import eu.tintera.plume.core.ui.PhoneInput
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auth_error_generic
@@ -49,13 +51,13 @@ class AuthViewModel(
     private val _error = MutableStateFlow<UiText?>(null)
     val error: StateFlow<UiText?> = _error.asStateFlow()
 
+    private val phoneInput = PhoneInput(session, viewModelScope)
+
     /** Rozepsané číslo. Compose stav ze stejného důvodu jako [input]. */
-    var phone by mutableStateOf(PhoneEntry())
-        private set
+    val phone: PhoneEntry get() = phoneInput.phone
 
     /** Seznam zemí pro výběr. Prázdný, dokud nedorazí z TDLib — řádek zatím ukazuje jen předvolbu. */
-    private val _countries = MutableStateFlow<List<Country>>(emptyList())
-    val countries: StateFlow<List<Country>> = _countries.asStateFlow()
+    val countries: StateFlow<List<Country>> = phoneInput.countries
 
     private val _passwordStep = MutableStateFlow(PasswordStep.Password)
 
@@ -91,7 +93,7 @@ class AuthViewModel(
         // načítání nevolá znovu (StateFlow mezitím drží jen poslední stav), takže se nenačítá
         // dvakrát; po neúspěchu to zkusí příští návrat k číslu.
         viewModelScope.launch {
-            stage.collect { if (it == AuthStage.WaitPhoneNumber && _countries.value.isEmpty()) loadCountries() }
+            stage.collect { if (it == AuthStage.WaitPhoneNumber && countries.value.isEmpty()) phoneInput.loadCountries() }
         }
         // Obnova je náš postup nad JEDNÍM stavem TDLib. Jakmile automat odejde jinam (přihlášeno,
         // restart), nesmí se do příštího hesla přenést rozdělaný krok.
@@ -119,77 +121,15 @@ class AuthViewModel(
         recoveryCode = null
     }
 
-    /**
-     * Seznam zemí a odhad té naší. **Odhad se použije, jen dokud si uživatel nevybral sám**
-     * — dorazí po síti a přepsat jím ruční volbu by vypadalo jako chyba.
-     */
-    private suspend fun loadCountries() {
-        val all = session.countries().getOrElse { failure ->
-            logger.w(failure) { "Seznam zemí se nepodařilo načíst." }
-            return
-        }
-        _countries.value = all
-
-        val suggested = session.suggestedCountryCode().getOrNull() ?: return
-        if (phone.country != null) return
-        all.firstOrNull { it.code.equals(suggested, ignoreCase = true) }
-            ?.let { selectCountry(it) }
-    }
-
     fun selectCountry(country: Country) {
-        phone = phone.copy(country = country)
+        phoneInput.selectCountry(country)
         _error.value = null
-        reformatPhone()
     }
 
-    /**
-     * Uživatel píše národní část. Bere se z ní jen to, co je číslice — oddělovače dodá
-     * formátování a znaky navíc (mezery z vložené schránky) by se do čísla neměly dostat.
-     *
-     * **Vložené mezinárodní číslo se pozná podle `+`** a rozdělí se na zemi a zbytek; jinak by
-     * uživatel musel po vložení předvolbu ručně mazat.
-     */
+    /** Uživatel píše číslo; jak se z textu stane číslo, řeší [PhoneInput.onPhoneChange]. */
     fun onPhoneChange(value: String) {
         _error.value = null
-        if (value.startsWith('+')) {
-            adoptInternational(value)
-            return
-        }
-        phone = phone.copy(digits = value.filter { it.isDigit() })
-        reformatPhone()
-    }
-
-    private fun adoptInternational(value: String) {
-        viewModelScope.launch {
-            val normalized = "+" + value.filter { it.isDigit() }
-            val info = session.phoneNumberInfo(normalized).getOrNull()
-            val country = info?.country?.let { found -> _countries.value.firstOrNull { it.code == found.code } ?: found }
-            if (country == null) {
-                phone = phone.copy(digits = normalized.drop(1))
-            } else {
-                phone = PhoneEntry(
-                    country = country,
-                    digits = normalized.removePrefix(country.callingCode),
-                )
-            }
-            reformatPhone()
-        }
-    }
-
-    /**
-     * Formátování dělá TDLib (`getPhoneNumberInfoSync`), ne vlastní tabulka. Je to lokální dotaz,
-     * takže se smí volat při každém úhozu; kdyby selhal, ukáže se číslo neformátované — to je
-     * pořád použitelné pole.
-     */
-    private fun reformatPhone() {
-        val entry = phone
-        viewModelScope.launch {
-            val mask = session.phoneNumberInfo(entry.international).getOrNull()?.mask
-            val formatted = mask?.let(::formatNationalNumber) ?: entry.digits
-            // Mezitím mohl uživatel psát dál; přepsat by znamenalo skákat kurzorem.
-            if (phone.digits != entry.digits || phone.country != entry.country) return@launch
-            phone = phone.copy(formatted = formatted)
-        }
+        phoneInput.onPhoneChange(value)
     }
 
     // Session startuje `startKoin`, ne tenhle ViewModel — TDLib musí být inicializovaný

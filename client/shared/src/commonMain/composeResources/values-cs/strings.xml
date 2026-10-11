@@ -1301,10 +1301,15 @@
     <string name="new_chat_search">Hledat kontakty nebo @uživatele</string>
     <string name="new_chat_contacts">Kontakty</string>
     <string name="new_chat_empty">Žádné kontakty</string>
-    <string name="new_chat_empty_text">Najdi někoho podle @jména, nebo si přidej kontakt v telefonu.</string>
+    <string name="new_chat_empty_text">Najdi někoho podle @jména, nebo si přidej nový kontakt podle čísla.</string>
     <string name="new_chat_load_failed">Kontakty se nepodařilo načíst</string>
     <string name="new_chat_new_group">Nová skupina</string>
     <string name="new_chat_new_channel">Nový kanál</string>
+    <string name="new_chat_new_contact">Nový kontakt</string>
+    <string name="new_contact_add">Přidat</string>
+    <string name="new_contact_help">Kontakt se uloží do účtu Telegramu, ne do kontaktů v telefonu. Druhá strana tvoje číslo neuvidí.</string>
+    <string name="new_contact_not_found">S tímhle číslem na Telegramu nikoho najít nejde. Buď na něm účet není, nebo se podle čísla dohledat nedá.</string>
+    <string name="new_contact_failed">Kontakt se nepodařilo přidat.</string>
     <string name="new_group_members_title">Přidat členy</string>
     <string name="new_group_next">Další</string>
     <string name="create_chat_create">Vytvořit</string>

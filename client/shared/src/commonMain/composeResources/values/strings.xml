@@ -1272,10 +1272,15 @@
     <string name="new_chat_search">Search contacts or @username</string>
     <string name="new_chat_contacts">Contacts</string>
     <string name="new_chat_empty">No contacts</string>
-    <string name="new_chat_empty_text">Find someone by @username, or add a contact on your phone.</string>
+    <string name="new_chat_empty_text">Find someone by @username, or add a new contact by phone number.</string>
     <string name="new_chat_load_failed">Couldn't load contacts</string>
     <string name="new_chat_new_group">New group</string>
     <string name="new_chat_new_channel">New channel</string>
+    <string name="new_chat_new_contact">New contact</string>
+    <string name="new_contact_add">Add</string>
+    <string name="new_contact_help">The contact is saved to your Telegram account, not to your phone's contacts. The other person won't see your number.</string>
+    <string name="new_contact_not_found">Nobody can be found on Telegram with this number. Either there's no account on it, or it can't be found by number.</string>
+    <string name="new_contact_failed">Couldn't add the contact.</string>
     <string name="new_group_members_title">Add members</string>
     <string name="new_group_next">Next</string>
     <string name="create_chat_create">Create</string>

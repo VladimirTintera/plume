@@ -393,6 +393,10 @@ data class ShareToChatRoute(val chatId: Long) : Route
 @Serializable
 data object NewChatRoute : Route
 
+/** Nový kontakt podle telefonního čísla; po přidání se otevře konverzace s ním. */
+@Serializable
+data object NewContactRoute : Route
+
 /** Výběr členů nové skupiny; „Další" vede na [CreateChatRoute]. */
 @Serializable
 data object NewGroupMembersRoute : Route
@@ -464,6 +468,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ShareRoute::class, ShareRoute.serializer())
             subclass(ShareToChatRoute::class, ShareToChatRoute.serializer())
             subclass(NewChatRoute::class, NewChatRoute.serializer())
+            subclass(NewContactRoute::class, NewContactRoute.serializer())
             subclass(NewGroupMembersRoute::class, NewGroupMembersRoute.serializer())
             subclass(CreateChatRoute::class, CreateChatRoute.serializer())
         }

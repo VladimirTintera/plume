@@ -25,6 +25,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.campaign_24dp
 import eu.tintera.plume.resources.group_24dp
 import eu.tintera.plume.resources.new_chat_new_channel
+import eu.tintera.plume.resources.new_chat_new_contact
 import eu.tintera.plume.resources.new_chat_new_group
 import eu.tintera.plume.resources.chats_search_section_chats
 import eu.tintera.plume.resources.chats_search_section_global
@@ -34,6 +35,7 @@ import eu.tintera.plume.resources.new_chat_empty_text
 import eu.tintera.plume.resources.new_chat_search
 import eu.tintera.plume.resources.new_chat_title
 import eu.tintera.plume.resources.person_24dp
+import eu.tintera.plume.resources.person_add_24dp
 import eu.tintera.plume.resources.search_off_24dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
@@ -52,8 +54,8 @@ import org.jetbrains.compose.resources.stringResource
  * Co přibylo proti přeposílání: **sekce s nadpisy** (odkud výsledek je) a **dostupnost pod
  * jménem** — tady se vybírá člověk, ne cíl pro obsah.
  *
- * **Nad kontakty je založení skupiny a kanálu**, jako u oficiálních klientů: „Nová zpráva" je
- * jediné místo, odkud se cokoli nového zakládá. Při hledání se schovají — hledá se chat.
+ * **Nad kontakty je založení skupiny, kanálu a kontaktu**, jako u oficiálních klientů: „Nová
+ * zpráva" je jediné místo, odkud se cokoli nového zakládá. Při hledání se schovají — hledá se chat.
  */
 @Composable
 fun NewChatScreen(
@@ -62,6 +64,7 @@ fun NewChatScreen(
     onChatSelected: (chatId: Long) -> Unit,
     onNewGroup: () -> Unit,
     onNewChannel: () -> Unit,
+    onNewContact: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -93,27 +96,28 @@ fun NewChatScreen(
         onBack = onBack,
         error = state.error,
         onErrorShown = viewModel::consumeError,
-        header = { if (blankQuery) CreateChatRows(onNewGroup = onNewGroup, onNewChannel = onNewChannel) },
+        header = { if (blankQuery) CreateChatRows(onNewGroup = onNewGroup, onNewChannel = onNewChannel, onNewContact = onNewContact) },
         modifier = modifier,
     )
 }
 
-/** Dva řádky jako jeden blok, stejným tvarem jako „Zablokovat uživatele" nad seznamem blokovaných. */
+/** Řádky jako jeden blok, stejným tvarem jako „Zablokovat uživatele" nad seznamem blokovaných. */
 @Composable
-private fun CreateChatRows(onNewGroup: () -> Unit, onNewChannel: () -> Unit) {
+private fun CreateChatRows(onNewGroup: () -> Unit, onNewChannel: () -> Unit, onNewContact: () -> Unit) {
     Column(
         verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
         modifier = Modifier.fillMaxWidth().padding(bottom = GROUP_SPACING - GROUP_ITEM_SPACING),
     ) {
         CreateChatRow(Res.drawable.group_24dp, Res.string.new_chat_new_group, index = 0, onClick = onNewGroup)
         CreateChatRow(Res.drawable.campaign_24dp, Res.string.new_chat_new_channel, index = 1, onClick = onNewChannel)
+        CreateChatRow(Res.drawable.person_add_24dp, Res.string.new_chat_new_contact, index = 2, onClick = onNewContact)
     }
 }
 
 @Composable
 private fun CreateChatRow(icon: DrawableResource, title: StringResource, index: Int, onClick: () -> Unit) {
     Surface(
-        shape = groupItemShape(index, count = 2),
+        shape = groupItemShape(index, count = CREATE_ROWS),
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -129,3 +133,5 @@ private fun CreateChatRow(icon: DrawableResource, title: StringResource, index: 
         )
     }
 }
+
+private const val CREATE_ROWS = 3

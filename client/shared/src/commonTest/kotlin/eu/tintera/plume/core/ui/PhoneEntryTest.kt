@@ -1,7 +1,6 @@
-package eu.tintera.plume.features.auth
+package eu.tintera.plume.core.ui
 
 import androidx.compose.ui.text.AnnotatedString
-import eu.tintera.plume.core.ui.matching
 import eu.tintera.plume.core.telegram.Country
 import kotlin.test.Test
 import kotlin.test.assertEquals

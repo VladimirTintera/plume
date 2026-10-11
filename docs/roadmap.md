@@ -207,15 +207,9 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   a kanálu" a „Veřejný odkaz v úpravě chatu"). Zbývá ověřit pozvánku se skutečným člověkem,
   který přidávání zakazuje (dialog jen sondou). ~~Veřejná základní skupina~~ — hotovo
   (převod na supergroupu, `docs/poznatky/profil-chatu.md`, „Převod základní skupiny").
-  - **Přidat kontakt podle telefonního čísla.** Dnes jde kontakt přidat jen z otevřené konverzace
-    (pruh „Přidat do kontaktů“, `addToContacts`) nebo z profilu; člověka, se kterým ještě
-    konverzace není, najde Plume jen podle `@jména`. Chybí řádek „Nový kontakt“ v Nové zprávě
-    (jméno, příjmení, číslo s výběrem země jako u přihlášení) → `importContacts`, nebo
-    `searchUserByPhoneNumber` a `addContact`. Pozor na soukromí protějšku: když hledání číslem
-    zakazuje, server účet nevrátí — věta „Na tomhle čísle není nikdo, kdo by šel najít“, ne
-    chyba. Synchronizace kontaktů z telefonu (jako oficiální aplikace) taky není; je to jiné,
-    větší rozhodnutí (oprávnění ke kontaktům, nahrávání adresáře na server). Narazilo se na to
-    11. 10. 2026 při přidávání nového testovacího účtu.
+  ~~**Přidat kontakt podle telefonního čísla**~~ — hotovo („Nový kontakt" v Nové zprávě,
+  `docs/poznatky/hledani-a-zakladani-chatu.md`, „Nový kontakt podle čísla"). Zbývá zvážit
+  synchronizaci kontaktů z telefonu (oprávnění ke kontaktům, nahrávání adresáře na server).
 - **Ochrana před spamem.** ~~Zablokovat z nabídky nad chatem a při mazání rovnou zablokovat
   i nahlásit~~, ~~průvodce nahlášením s volbou důvodu~~ (i zprávy z nabídky nad zprávou),
   ~~pruh nad konverzací u chatu od neznámého~~ — hotovo (`docs/poznatky/spam-a-blokovani.md`, „Blokování a nahlášení
