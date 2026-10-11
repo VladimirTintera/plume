@@ -73,7 +73,8 @@ internal fun GifPreviewDialog(
     sendMenu: SendMenuOffer?,
     onPick: () -> Unit,
     onPickWith: (SendMenuChoice) -> Unit,
-    onToggleSaved: () -> Unit,
+    /** `null` = záložka není (výsledek inline bota: posílá se výsledek, ne GIF). */
+    onToggleSaved: (() -> Unit)?,
     onDismiss: () -> Unit,
 ) {
     // Odchod se nejdřív dohraje, teprve pak dialog zmizí — zmizení bez animace vypadá jako pád.
@@ -115,7 +116,7 @@ internal fun GifPreviewDialog(
                         // Poslat zavírá i sheet, náhled se proto neanimuje — odjede s ním.
                         Button(onClick = onPick) { Text(pickLabel) }
                         // Uložení náhled nezavírá, jako hvězdička u samolepky: stav potvrdí update.
-                        FilledTonalIconToggleButton(
+                        if (onToggleSaved != null) FilledTonalIconToggleButton(
                             checked = saved,
                             onCheckedChange = { onToggleSaved() },
                             shapes = IconButtonDefaults.toggleableShapes(),

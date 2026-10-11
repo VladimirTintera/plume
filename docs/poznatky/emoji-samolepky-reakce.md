@@ -510,6 +510,18 @@ testy `StickerSuggestionsTest`). Ťuknutí pošle samolepku MÍSTO emoji a pole 
   ustoupí. Kdo chtěl poslat emoji, odešle ho jako vždycky.
 - **Logika je ve vlastních funkcích** (`rememberStickerSuggestions`), ne v `ConversationScreen`:
   ta je v dexu na hraně (viz „ConversationScreen je v dexu na hraně" v CLAUDE.md).
+- **Podržení navržené samolepky otevře velký náhled** (`SuggestedStickerPreview`) s Poslat
+  a hvězdičkou, bez voleb odeslání — ty by se musely protáhnout přes `ConversationScreen`.
+  Oblíbené si náhled čte sám (`koinInject<StickerRepository>`) a jen po dobu, co je otevřený;
+  panel vlastní ViewModel na oblíbené nemá a `ConversationScreen` se kvůli tomu neměnil.
+- **Výsledky inline bota mají náhled taky** (GIF a samolepka, `InlineResultPreview`), ale JEN
+  S POSLAT: posílá se výsledek bota (`sendInlineResultMessage`), ne soubor, takže uložení GIFu
+  ani hvězdička by se k tomu, co odejde, nevztahovaly. Náhledy proto berou
+  `onToggleFavorite` / `onToggleSaved` jako nepovinné (`null` = tlačítko není).
+- **Náhled nad polem zavře klávesnici** (dialog si vezme fokus). Text v poli i panel výsledků
+  zůstanou, po zavření náhledu je výběr dál na místě — ověřeno na emulátoru s `@gif cat`.
+  Samolepka z inline bota ověřená není (testovací účet nemá bota, který samolepky vrací); jde
+  týmž `StickerPreviewDialog` jako návrhy.
 
 ## Výběr GIFů
 
