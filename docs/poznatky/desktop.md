@@ -134,15 +134,18 @@ a Linuxu AWT `TrayIcon.displayMessage`.
 
 ## Release (Windows)
 
-`.github/workflows/desktop-release.yml`, ručně: Actions → „Desktop Release" → verze X.Y.Z.
-Na `windows-latest` postaví MSI (`packageMsi -PdesktopVersion=…`), pak na Ubuntu založí tag
-`desktop-<verze>` a GitHub Release s MSI v příloze. Secrets stejné jako Android
-(`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`).
+Actions → „Release — bump & tag" → target **desktop** (`create-release-tag.yml`) založí tag
+`desktop-X.Y.Z` a spustí `.github/workflows/desktop-release.yml` nad ním: na `windows-latest`
+postaví MSI (`packageMsi -PdesktopVersion=…`), na Ubuntu založí GitHub Release s MSI v příloze
+(verze 0.x jako pre-release). Secrets stejné jako Android (`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`).
 
-- **Verze je jen z inputu**, ne z commitu; tag `desktop-<verze>` vzniká až po úspěšném buildu.
-  MSI pozná aktualizaci podle verze (X a Y do 255, Z do 65535) a podle `upgradeUuid`
+- **Tag je `desktop-X.Y.Z`, bez čísla buildu** (Android má `android-X.Y.Z-B`). MSI pozná
+  aktualizaci jen podle X.Y.Z (X a Y do 255, Z do 65535) a podle `upgradeUuid`
   v `client/desktopApp/build.gradle.kts`, **který se nesmí měnit** — nové UUID by nainstalovalo
-  druhou kopii vedle staré. Stejnou nebo nižší verzi MSI přes vyšší nenainstaluje.
+  druhou kopii vedle staré. Stejnou nebo nižší verzi MSI přes vyšší nenainstaluje, proto bump
+  `build` u desktopu nejde a explicitní verze musí být vyšší než poslední tag (hlídá bump).
+- **První desktop release** se spouští s vyplněnou Version — bez předchozího tagu není co
+  bumpovat. Verze se bere z tagu, ne z commitu, takže build je z tagu reprodukovatelný.
 - **macOS nepřijme verzi s MAJOR 0** („The first number in an app-version cannot be zero") —
   MSI ano. Až přibude macOS release, chce desktop verzi od 1.0.0.
 - **Instalace jen pro uživatele** (`perUserInstall`, `%LOCALAPPDATA%`): bez správce, což
