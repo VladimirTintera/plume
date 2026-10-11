@@ -272,6 +272,25 @@ class MessageContextTest {
         assertNull(context("Wifi heslo je tajne1234").wifi)
     }
 
+    private fun codes(text: String) = context(text).codes.map { it.value }
+
+    @Test
+    fun kodKeZkopirovani() {
+        assertEquals(listOf("LETO20"), codes("Slevový kód na první nákup: LETO20, platí do neděle"))
+        assertEquals(listOf("4821"), codes("Kód ke dveřím je 4821"))
+        assertEquals(listOf("SAVE-10"), codes("Use promo code SAVE-10 at checkout"))
+        assertEquals(listOf("482913"), codes("Váš ověřovací kód: 482913"))
+    }
+
+    @Test
+    fun coKodemNeni() {
+        // Přihlašovací kód Telegramu, obyčejné slovo, příliš dlouhé číslo, bez klíčového slova.
+        assertTrue(codes("Login code: 48291. Do not give this code to anyone, even if they say they are from Telegram!").isEmpty())
+        assertTrue(codes("Kód je jednoduchý, napíšu ti").isEmpty())
+        assertTrue(codes("kód 602123456").isEmpty())
+        assertTrue(codes("Sleva LETO20").isEmpty())
+    }
+
     @Test
     fun obycejnaZpravaNicNema() {
         assertTrue(context("Ahoj, jak se máš?").isEmpty)

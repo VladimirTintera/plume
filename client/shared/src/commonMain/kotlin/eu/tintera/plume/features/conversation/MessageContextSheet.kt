@@ -44,6 +44,8 @@ import eu.tintera.plume.resources.message_context_account
 import eu.tintera.plume.resources.message_context_contact
 import eu.tintera.plume.resources.message_context_flight
 import eu.tintera.plume.resources.message_context_wifi
+import eu.tintera.plume.resources.message_context_code
+import eu.tintera.plume.resources.redeem_24dp
 import eu.tintera.plume.resources.message_context_wifi_network
 import eu.tintera.plume.resources.message_context_wifi_password
 import eu.tintera.plume.resources.message_context_wifi_qr
@@ -106,7 +108,7 @@ internal fun MessageContextHost(viewModel: ConversationViewModel) {
 /**
  * Co se ve zprávě našlo a co s tím jde udělat: termín → kalendář nebo připomínka (a mapy, když
  * model našel místo), účet → QR platba a kopírování údajů, adresa → mapy, kontakt → uložit do
- * kontaktů, let → stav letu, Wi-Fi → připojit a QR kód sítě, zásilka → sledování.
+ * kontaktů, let → stav letu, Wi-Fi → připojit a QR kód sítě, kód → zkopírovat, zásilka → sledování.
  *
  * - **Nic se nestane samo.** Kalendář otevře editor události, kde ji uloží uživatel; platbu
  *   provede banka. Sheet jen předvyplní, co ve zprávě stálo.
@@ -153,6 +155,14 @@ internal fun MessageContextSheet(
                         is ContextFinding.Address -> AddressSection(finding, onCopy = onCopy, onOpenMaps = onOpenMaps)
                         is ContextFinding.Contact -> ContactSection(finding, onCopy = onCopy, onSave = { onSaveContact(finding) })
                         is ContextFinding.Flight -> FlightSection(finding, onCopy = onCopy, onTrack = onTrack)
+                        is ContextFinding.Code -> CopyRow(
+                            label = null,
+                            title = stringResource(Res.string.message_context_code),
+                            value = finding.value,
+                            copied = finding.value,
+                            onCopy = onCopy,
+                            icon = Res.drawable.redeem_24dp,
+                        )
                         is ContextFinding.Wifi -> WifiSection(finding, onCopy = onCopy, onJoin = onJoinWifi?.let { join -> { join(finding) } })
                         is ContextFinding.Payment -> PaymentSection(finding, onCopy = onCopy)
                         is ContextFinding.Parcel -> ParcelSection(finding, onCopy = onCopy, onTrack = onTrack)

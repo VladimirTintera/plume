@@ -330,9 +330,10 @@ ze stejného důvodu jako návrhy odpovědí: model běží sám, bez ťuknutí.
 ### Akce ze zpráv
 
 Ikonka se sparkle (`auto_awesome`) na volné straně zprávy, ve které je termín, adresa, telefon
-nebo e-mail, číslo účtu, letu nebo zásilky, Wi-Fi s heslem; ťuknutí otevře sheet s akcemi
-(`MessageContextSheet`): kalendář a „Připomenout…", mapy, uložení do kontaktů, QR platba
-s kopírováním účtu, částky a VS, stav letu, připojení k Wi-Fi, sledování zásilky. Rozpoznávají PRAVIDLA
+nebo e-mail, číslo účtu, letu nebo zásilky, Wi-Fi s heslem nebo kód; ťuknutí otevře sheet
+s akcemi (`MessageContextSheet`): kalendář a „Připomenout…", mapy, uložení do kontaktů, QR
+platba s kopírováním účtu, částky a VS, stav letu, připojení k Wi-Fi, kopírování kódu,
+sledování zásilky. Rozpoznávají PRAVIDLA
 (`findMessageContext`, testy `MessageContextTest`), model jen posuzuje termín (`MessageContexts`,
 prompt `EventPrompt.kt`). Vypínač v Nastavení → Obecné → Chaty, **výchozí zapnuto** — na rozdíl
 od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v zařízení uživatel zapnul.
@@ -379,6 +380,14 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   a heslo dá do schránky. iOS připojení z aplikace bez entitlementu Hotspot Configuration
   nedovolí, zbývá kopírování a QR kód sítě (`WIFI:T:WPA;S:…;P:…;;`, escapuje se `\ ; , : "`),
   který naskenuje fotoaparát jiného telefonu.
+- **Kód ke zkopírování jen za klíčovým slovem** („kód", „code", „voucher", „promo", „kupón",
+  „PIN", „OTP"; mezi nimi nejvýš tři slova) a jen z VELKÝCH písmen a číslic: číselný 3–8
+  číslic (devět je spíš telefon), smíšený 4–16 znaků. Velikost písmen hlídá třída znaků, ne
+  `IGNORE_CASE` — s ním by kódem bylo „na" a regulár by se k delší variantě nevrátil (táž past
+  jako u Wi-Fi). **Přihlašovací kód Telegramu se nenabídne nikdy**: zprávy služby Telegramu
+  (777000) akce nemají vůbec (`offersContext`) a kód ve zprávě, která Telegram zmiňuje, taky
+  ne — ověřovací kód je přesně to, co podvodník chce. Kód z banky nebo e-shopu kopírovat jde,
+  je to totéž, co nabízí Android u SMS.
 - **Termín je jistý, nebo nejistý** (`EventCandidate.certain`). Jistý = den a čas, datum číslem,
   nebo termín vyznačený Telegramem (`MessageEntityType.DateTime`); ten se nabídne i bez modelu.
   Jen čas („v 15:00") je nejistý a nabídne se, jen když ho model potvrdí. Jen den („v pátek")
@@ -430,7 +439,8 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   i e-mailem; „Přiletím letem BA 117, přistání na letišti kolem 14:30" nabídne termín od modelu
   i let a „Stav letu" otevře FlightAware; „Wi-Fi na chatě: Chata_Lesni, heslo: medved2026"
   ukáže síť, heslo, QR kód a „Připojit k Wi-Fi" otevře systémový dialog uložení sítě
-  (zrušený, síť se neuložila). **Neověřené**: načtení QR bankovní aplikací, editor
+  (zrušený, síť se neuložila); „Slevový kód na první nákup: LETO20" zkopíruje „LETO20".
+  **Neověřené**: načtení QR bankovní aplikací, editor
   události, Gemini Nano, iOS.
 
 ### Návrhy odpovědí

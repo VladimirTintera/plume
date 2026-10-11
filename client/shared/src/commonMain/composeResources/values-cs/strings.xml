@@ -2667,4 +2667,7 @@
     <string name="message_context_wifi_qr">Jiný telefon se připojí, když kód načte fotoaparátem</string>
     <string name="message_context_wifi_settings">Heslo je ve schránce, v nastavení Wi-Fi vyber %1$s</string>
     <string name="message_context_wifi_failed">Nastavení Wi-Fi nejde otevřít</string>
+    <string name="message_context_code">Kód</string>
+    <string name="message_context_code_copy">Kopírovat kód</string>
+    <string name="menu_context_code">Kopírovat kód…</string>
 </resources>

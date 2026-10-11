@@ -5758,10 +5758,16 @@ data class ContextSheet(val messageId: Long, val findings: List<ContextFinding>)
 
 /**
  * Nabízí zpráva akce ze svého textu? Ne systémová oznámení, mizející zprávy (ty nesmí ven, stejně
- * jako chráněný obsah) a zprávy omezené serverem.
+ * jako chráněný obsah), zprávy omezené serverem a zprávy služby Telegramu.
  */
 internal fun ChatMessage.offersContext(): Boolean =
-    !isService && !isRestricted && selfDestructType == null && text.isNotBlank()
+    !isService && !isRestricted && selfDestructType == null && text.isNotBlank() && senderId != TELEGRAM_SERVICE_ID
+
+/**
+ * Služba Telegramu (přihlašovací kódy, upozornění na nové přihlášení). Její zprávy akce nemají:
+ * kód k přihlášení se nikam nekopíruje a nic jiného, s čím by šlo něco udělat, v nich není.
+ */
+private const val TELEGRAM_SERVICE_ID = 777000L
 
 data class RemindRequest(
     val messageId: Long,

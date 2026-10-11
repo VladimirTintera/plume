@@ -58,6 +58,9 @@ sealed interface ContextFinding {
     /** Wi-Fi s heslem → připojit (Android), zkopírovat heslo, QR kód sítě pro jiný telefon. */
     data class Wifi(val ssid: String, val password: String) : ContextFinding
 
+    /** Kód ke zkopírování (slevový, ke dveřím, ověřovací) — jedním ťuknutím do schránky. */
+    data class Code(val value: String) : ContextFinding
+
     /** Číslo zásilky → sledování u dopravce. */
     data class Parcel(val carrier: ParcelCarrier, val number: String) : ContextFinding
 }
@@ -93,11 +96,12 @@ data class MessageContext(
     val contacts: List<ContextFinding.Contact> = emptyList(),
     val flights: List<ContextFinding.Flight> = emptyList(),
     val wifi: ContextFinding.Wifi? = null,
+    val codes: List<ContextFinding.Code> = emptyList(),
     val parcels: List<ContextFinding.Parcel> = emptyList(),
 ) {
     val isEmpty: Boolean
         get() = event == null && payments.isEmpty() && addresses.isEmpty() && contacts.isEmpty() &&
-            flights.isEmpty() && wifi == null && parcels.isEmpty()
+            flights.isEmpty() && wifi == null && codes.isEmpty() && parcels.isEmpty()
 }
 
 /**
@@ -118,6 +122,10 @@ data class MessageContext(
  *   „odlet", „letiště", „flight", „gate"…). Samo „OK 123" nebo „LO 5" je spíš cokoli jiného.
  * - **Wi-Fi** jen s názvem sítě I heslem o 8–63 znacích (víc ani míň WPA nedovolí):
  *   „Wi-Fi: Plume_Home, heslo: tajne1234", nebo zápis z QR kódu `WIFI:S:…;P:…;;`.
+ * - **Kód** jen za klíčovým slovem („kód", „code", „voucher", „promo", „kupón", „PIN") a jen
+ *   z velkých písmen a číslic: číselný 3–8 číslic, smíšený 4–16 znaků. **Ve zprávě, která
+ *   zmiňuje Telegram, žádný** — přihlašovací kód Telegramu se nikam nekopíruje (ověřovací
+ *   kód je přesně to, co podvodník chce, a zprávy od služby Telegramu akce nemají vůbec).
  * - **Zásilka** jen ve formátu, který dopravce jednoznačně určí: S10 s kontrolní číslicí
  *   a Zásilkovna. Holá čísla PPL nebo DPD od telefonu nerozeznáš.
  */
@@ -136,6 +144,7 @@ fun findMessageContext(
         contacts = contacts(text, entities, payments),
         flights = flights(text),
         wifi = wifi(text),
+        codes = codes(text, payments),
         parcels = parcels(text),
     )
 }
@@ -179,6 +188,7 @@ fun MessageContext.contextFindings(
     addAll(contacts)
     addAll(flights)
     wifi?.let(::add)
+    addAll(codes)
     addAll(parcels)
 }
 
@@ -468,6 +478,26 @@ private fun wifi(text: String): ContextFinding.Wifi? {
 private fun quotedOrBare(match: MatchResult): String =
     match.groupValues.drop(1).firstOrNull { it.isNotEmpty() }.orEmpty()
 
+// --- Kód ------------------------------------------------------------------------------------
+
+private fun codes(text: String, payments: List<ContextFinding.Payment>): List<ContextFinding.Code> {
+    val folded = foldDiacritics(text)
+    if ("telegram" in folded.lowercase()) return emptyList()
+    val symbols = payments.mapNotNull { it.variableSymbol }.toSet()
+    return CODE.findAll(folded)
+        // Kód je jen z ASCII, takže je v textu bez diakritiky stejný jako v původním.
+        .map { it.groupValues[1] }
+        .filter { value ->
+            val digitsOnly = value.all { it.isDigit() }
+            (if (digitsOnly) value.length in 3..8 else value.length in 4..16 && value.any { it.isLetter() }) &&
+                value !in symbols
+        }
+        .distinct()
+        .take(MAX_CODES)
+        .map { ContextFinding.Code(it) }
+        .toList()
+}
+
 // --- Zásilka ---------------------------------------------------------------------------------
 
 private fun parcels(text: String): List<ContextFinding.Parcel> = buildList {
@@ -501,6 +531,7 @@ private const val MAX_PARCELS = 3
 private const val MAX_ADDRESSES = 2
 private const val MAX_CONTACTS = 2
 private const val MAX_FLIGHTS = 2
+private const val MAX_CODES = 2
 private const val MIN_PHONE_DIGITS = 9
 private const val MAX_PHONE_DIGITS = 15
 private const val MIN_IBAN = 15
@@ -651,6 +682,17 @@ private val WIFI_PASSWORD = Regex(
 
 /** Slova, která za „wifi" stojí místo názvu („wifi heslo je…", „síť je dole"). */
 private val WIFI_NOT_A_NAME = setOf("heslo", "hesla", "password", "pass", "pw", "klic", "je", "is", "k", "na", "nefunguje", "nejde")
+
+/**
+ * Klíčové slovo, nejvýš tři slova mezi ním a kódem („slevový kód na první nákup: LETO20") a kód
+ * z VELKÝCH písmen a číslic. Velikost písmen se hlídá ve třídě znaků, ne příznakem: s
+ * `IGNORE_CASE` by kódem bylo i „na" a regulár by se k delší variantě už nevrátil (jako u Wi-Fi).
+ * Hledá se v textu bez diakritiky, takže „kód" je „kod".
+ */
+private val CODE = Regex(
+    "(?<![\\p{L}])(?:[Kk]od\\p{L}*|KOD\\p{L}*|[Cc]ode|CODE|[Vv]oucher\\p{L}*|[Pp]romo\\p{L}*|[Kk]upon\\p{L}*|[Cc]oupon|PIN|OTP)" +
+        "(?![\\p{L}])(?:\\s+[\\p{L}]+){0,3}?\\s*[:=\\-\u2013]?\\s*[\"\u201e]?([A-Z0-9][A-Z0-9\\-]{2,15})(?![\\p{L}\\d\\-])",
+)
 
 private val S10 = Regex("(?<![A-Za-z0-9])([A-Z]{2})(\\d{9})([A-Z]{2})(?![A-Za-z0-9])")
 private val PACKETA = Regex("(?<![A-Za-z0-9])Z ?(\\d{3}) ?(\\d{4}) ?(\\d{3})(?![\\d])")
