@@ -103,7 +103,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ExpressionMode
+import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.EmojiRepository
+import eu.tintera.plume.core.telegram.GroupStickerSet
 import eu.tintera.plume.core.telegram.GifItem
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.StickerCategory
@@ -114,6 +116,8 @@ import eu.tintera.plume.core.telegram.StickerSearchResult
 import eu.tintera.plume.core.telegram.StickerSetSummary
 import eu.tintera.plume.core.telegram.StickerSetSample
 import eu.tintera.plume.core.ui.AnimatedSticker
+import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.StickerPlayback
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.emojiClusterCount
@@ -155,6 +159,7 @@ import eu.tintera.plume.resources.stickers_sets_show_all
 import eu.tintera.plume.resources.stickers_set_empty
 import eu.tintera.plume.resources.stickers_tab_emoji
 import eu.tintera.plume.resources.stickers_tab_favorites
+import eu.tintera.plume.resources.stickers_tab_group
 import eu.tintera.plume.resources.stickers_tab_gifs
 import eu.tintera.plume.resources.stickers_tab_recent
 import eu.tintera.plume.resources.stickers_tab_stickers
@@ -174,6 +179,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -186,6 +192,11 @@ sealed interface StickerTab {
     /** Populární sady k přidání. Nemá mřížku samolepek, ale seznam sad. */
     data object Trending : StickerTab
     data class Set(val summary: StickerSetSummary) : StickerTab
+    /**
+     * Sada skupiny, ve které se píše. Jen v té skupině a i nenainstalovaná — správci ji
+     * nastavili pro všechny členy.
+     */
+    data class Group(val group: GroupStickerSet) : StickerTab
 }
 
 data class StickerPickerState(
@@ -197,6 +208,11 @@ data class StickerPickerState(
     val sets: Map<Long, List<StickerItem>> = emptyMap(),
     /** Seznam záložek je úplný — dorazily i nainstalované sady. */
     val loaded: Boolean = false,
+    /**
+     * Id nainstalovaných sad. Ze záložek se vyčíst nedá: sada skupiny, kterou má uživatel
+     * i nainstalovanou, má jen záložku skupiny (viz [stickerTabs]).
+     */
+    val installedSetIds: Set<Long> = emptySet(),
 ) {
     /** Samolepky záložky; `null`, dokud se její obsah načítá. */
     fun stickersOf(tab: StickerTab): List<StickerItem>? = when (tab) {
@@ -205,6 +221,7 @@ data class StickerPickerState(
         // Trendy mají vlastní stránku se seznamem sad, mřížku samolepek nemají.
         StickerTab.Trending -> null
         is StickerTab.Set -> sets[tab.summary.id]
+        is StickerTab.Group -> sets[tab.group.set.id]
     }
 }
 
@@ -212,7 +229,7 @@ data class StickerPickerState(
  * Záložky, které jsou vždycky, před nainstalovanými sadami. Trendy hned za oblíbenými: na konci
  * za desítkami sad by je nikdo nenašel.
  */
-private val FIXED_TABS = listOf(StickerTab.Recent, StickerTab.Favorites, StickerTab.Trending)
+private val FIXED_TABS = stickerTabs(emptyList(), group = null)
 
 /**
  * Stav výběru samolepek.
@@ -248,6 +265,27 @@ class StickerPickerViewModel(
     fun setSkinTone(base: String, variant: String) = settings.setEmojiSkinTone(base, variant.takeIf { it != base })
 
     private val setContents = MutableStateFlow<Map<Long, List<StickerItem>>>(emptyMap())
+
+    /** Sada skupiny, ve které se píše; `loaded` až po dotazu (i když žádná není). */
+    private val group = MutableStateFlow(GroupSetLookup())
+
+    /** Chat, pro který se sada skupiny zjišťuje — ať se při každém otevření výběru neptá znovu. */
+    private var groupChatId: Long? = null
+
+    /**
+     * Zjistí sadu skupiny [chatId]. Dotaz bývá lokální (plné údaje skupiny už načetla
+     * konverzace), ale může jít na server; výběr na něj čeká kvůli pořadí záložek (viz
+     * [StickerPickerState.loaded]), proto má strop. Co nestihne, to se v tomhle otevření neukáže.
+     */
+    fun loadGroupSet(chatId: Long) {
+        if (groupChatId == chatId) return
+        groupChatId = chatId
+        group.value = GroupSetLookup()
+        viewModelScope.launch {
+            val found = withTimeoutOrNull(GROUP_SET_TIMEOUT_MS) { repository.groupStickerSet(chatId) }
+            if (groupChatId == chatId) group.value = GroupSetLookup(loaded = true, set = found)
+        }
+    }
 
     /** Sady, jejichž načítání už běží — aby dvě stránky nenačítaly totéž dvakrát. */
     private val loading = mutableSetOf<Long>()
@@ -322,13 +360,16 @@ class StickerPickerViewModel(
         repository.recentStickers(),
         repository.favoriteStickers(),
         setContents,
-    ) { sets, recent, favorites, contents ->
+        group,
+    ) { sets, recent, favorites, contents, group ->
+        val groupSet = group.set
         StickerPickerState(
-            tabs = FIXED_TABS + sets.map { StickerTab.Set(it) },
+            tabs = stickerTabs(sets, groupSet),
             recent = recent,
             favorites = favorites,
             sets = contents,
-            loaded = true,
+            loaded = group.loaded,
+            installedSetIds = sets.mapTo(HashSet()) { it.id },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), StickerPickerState())
 
@@ -379,9 +420,11 @@ class StickerPickerViewModel(
 
     /** Stránka záložky se ukázala. Nedávné a oblíbené jsou živé toky, načítá se jen sada. */
     fun load(tab: StickerTab) {
-        if (tab !is StickerTab.Set) return
-
-        val setId = tab.summary.id
+        val setId = when (tab) {
+            is StickerTab.Set -> tab.summary.id
+            is StickerTab.Group -> tab.group.set.id
+            else -> return
+        }
         if (setId in setContents.value || !loading.add(setId)) return
 
         viewModelScope.launch {
@@ -397,11 +440,33 @@ class StickerPickerViewModel(
     private companion object {
         const val STOP_TIMEOUT_MS = 5_000L
 
+        /** Jak dlouho výběr čeká na sadu skupiny, než se otevře bez ní. */
+        const val GROUP_SET_TIMEOUT_MS = 1_500L
+
         /** Pauza v psaní, po které se hledá. */
         const val SEARCH_DEBOUNCE_MS = 300L
 
     }
 }
+
+/** Výsledek dotazu na sadu skupiny. */
+private data class GroupSetLookup(val loaded: Boolean = false, val set: GroupStickerSet? = null)
+
+/**
+ * Záložky v pořadí: Nedávné, Oblíbené, sada skupiny, Trendy, nainstalované sady.
+ *
+ * Sada skupiny hned za Oblíbenými — TDLib ji chce „před sadami uživatele" a v té skupině je
+ * nejčastější volbou. Když ji má uživatel i nainstalovanou, mezi sadami se znovu neukáže:
+ * dvě záložky s týmž obsahem by jen mátly.
+ */
+internal fun stickerTabs(installed: List<StickerSetSummary>, group: GroupStickerSet?): List<StickerTab> =
+    buildList {
+        add(StickerTab.Recent)
+        add(StickerTab.Favorites)
+        group?.let { add(StickerTab.Group(it)) }
+        add(StickerTab.Trending)
+        installed.filter { it.id != group?.set?.id }.mapTo(this) { StickerTab.Set(it) }
+    }
 
 /** Co se v samolepkách hledá: napsaný text, nebo ťuknutá kategorie. */
 internal sealed interface StickerSearchRequest {
@@ -484,6 +549,7 @@ internal fun StickerPickerSheet(
     pickLabel: StringResource = Res.string.conversation_send,
 ) {
     val viewModel: StickerPickerViewModel = koinViewModel()
+    LaunchedEffect(chatId) { viewModel.loadGroupSet(chatId) }
     val state by viewModel.state.collectAsStateWithLifecycle()
     val search by viewModel.search.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
@@ -640,13 +706,12 @@ internal fun StickerPickerSheet(
          * hledání: po smazání textu se záložky vrátí hned, bez čekání na debounce.
          */
         if (searchText.isNotBlank() || categoryName != null) {
-            val installedSetIds = state.tabs.mapNotNullTo(HashSet()) { (it as? StickerTab.Set)?.summary?.id }
             Box(Modifier.fillMaxWidth().height(STICKER_TAB_ROW_HEIGHT + STICKER_PICKER_HEIGHT + sheetBottomInset())) {
                 StickerSearchResults(
                     search = search,
                     // Výsledky jsou jediná mřížka na obrazovce, hrají celé.
                     cells = cells.copy(playing = true),
-                    installedSetIds = installedSetIds,
+                    installedSetIds = state.installedSetIds,
                     onOpenSet = { openSetId = it },
                     onInstallSet = viewModel::installSet,
                 )
@@ -785,6 +850,8 @@ internal fun StickerTab.storageKey(): String = when (this) {
     StickerTab.Favorites -> "favorites"
     StickerTab.Trending -> "trending"
     is StickerTab.Set -> "set:${summary.id}"
+    // Vlastní klíč, ne „set:": jinde se tatáž sada ukáže jako obyčejná, nebo vůbec.
+    is StickerTab.Group -> "group:${group.set.id}"
 }
 
 /** Index záložky uložené pod [key], nebo -1 (nic uloženo, sada mezitím odebraná). */
@@ -855,7 +922,7 @@ private fun StickerPage(
                     StickerTab.Recent -> stringResource(Res.string.stickers_recent_empty)
                     StickerTab.Favorites -> stringResource(Res.string.stickers_favorites_empty)
                     StickerTab.Trending -> ""
-                    is StickerTab.Set -> stringResource(Res.string.stickers_set_empty)
+                    is StickerTab.Set, is StickerTab.Group -> stringResource(Res.string.stickers_set_empty)
                 },
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1415,6 +1482,21 @@ private fun StickerTabIcon(tab: StickerTab) {
         StickerTab.Recent -> Icon(painterResource(Res.drawable.schedule_24dp), contentDescription = stringResource(Res.string.stickers_tab_recent))
         StickerTab.Favorites -> Icon(painterResource(Res.drawable.star_24dp), contentDescription = stringResource(Res.string.stickers_tab_favorites))
         StickerTab.Trending -> Icon(painterResource(Res.drawable.trending_up_24dp), contentDescription = stringResource(Res.string.stickers_tab_trending))
+        /*
+         * Fotka skupiny, ne obálka sady: obálka by vypadala jako další nainstalovaná sada
+         * a nebylo by poznat, že tahle patří k chatu. Tvar jako avatar skupiny všude jinde.
+         */
+        is StickerTab.Group -> {
+            val description = stringResource(Res.string.stickers_tab_group, tab.group.chatTitle)
+            Avatar(
+                chatId = tab.group.chatId,
+                title = tab.group.chatTitle,
+                avatarFileId = tab.group.chatPhotoFileId,
+                size = 28.dp,
+                shape = ChatKind.Group.avatarShape(),
+                modifier = Modifier.semantics { contentDescription = description },
+            )
+        }
         is StickerTab.Set -> {
             val cover = tab.summary.cover
             if (cover != null) {

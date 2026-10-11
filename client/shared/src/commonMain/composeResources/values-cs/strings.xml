@@ -668,6 +668,7 @@
     <string name="stickers_sets_show_all">Všechny sady</string>
     <string name="stickers_tab_recent">Nedávné</string>
     <string name="stickers_tab_favorites">Oblíbené</string>
+    <string name="stickers_tab_group">Samolepky skupiny %1$s</string>
     <string name="stickers_tab_trending">Trendy</string>
     <string name="emoji_group_smileys">Smajlíci</string>
     <string name="emoji_group_people">Lidé</string>

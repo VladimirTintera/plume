@@ -2,6 +2,7 @@ package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
+import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.EmojiCategorySourceSearch
 import dev.g000sha256.tdl.dto.EmojiCategoryTypeRegularStickers
 import dev.g000sha256.tdl.dto.InputFileId
@@ -182,6 +183,37 @@ class TdlStickerRepository(
         }
             .toResult()
             .map { }
+    }
+
+    override suspend fun groupStickerSet(chatId: Long): GroupStickerSet? {
+        val chat = client.getChat(chatId = chatId).toResult().getOrNull() ?: return null
+        val type = chat.type as? ChatTypeSupergroup ?: return null
+        // Kanál sadu skupiny nemá (a samolepky do něj píše jen správce).
+        if (type.isChannel) return null
+
+        val setId = client.getSupergroupFullInfo(supergroupId = type.supergroupId)
+            .toResult()
+            .getOrElse { failure ->
+                logger.w(failure) { "Údaje skupiny $chatId kvůli sadě se nepodařilo načíst." }
+                return null
+            }
+            .stickerSetId
+        if (setId == 0L) return null
+
+        val set = client.getStickerSet(setId = setId).toResult().getOrElse { failure ->
+            logger.w(failure) { "Sadu skupiny $chatId se nepodařilo načíst." }
+            return null
+        }
+        return GroupStickerSet(
+            set = StickerSetSummary(
+                id = set.id,
+                title = set.title,
+                cover = set.stickers.filterNotNull().firstOrNull()?.toMedia(),
+            ),
+            chatId = chatId,
+            chatTitle = chat.title,
+            chatPhotoFileId = chat.photo?.small?.id,
+        )
     }
 
     override suspend fun stickerSet(setId: Long): Result<List<StickerItem>> =

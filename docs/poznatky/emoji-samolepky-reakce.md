@@ -297,6 +297,20 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
   a pager sdílejí `PagerState`: swipe přepne záložku (`currentPage` už v půlce tahu), ťuknutí
   na záložku posune pager. Počet stránek je lambda, protože sady dorazí až po nedávných
   a oblíbených; klíč stránky je záložka, ne index, aby se stránkám nerozsypal scroll.
+- **Sada skupiny je záložka hned za Oblíbenými** (`StickerTab.Group`, `stickerTabs`,
+  `StickerRepository.groupStickerSet`: `SupergroupFullInfo.stickerSetId`), jen v té supergroupě
+  a i nenainstalovaná. Ikona je **fotka skupiny ve tvaru avataru skupiny**, ne obálka sady:
+  obálka by vypadala jako další nainstalovaná sada. Má-li ji uživatel i nainstalovanou, mezi
+  sadami se znovu neukáže; nainstalovanost pro výsledky hledání proto nese stav zvlášť
+  (`StickerPickerState.installedSetIds`), ze záložek se vyčíst nedá.
+  - **Výběr na sadu skupiny čeká** (`loaded` až po dotazu, strop 1,5 s): záložka přibývající
+    před Trendy by posunula indexy a obnovení poslední záložky by trefilo vedle. Dotaz bývá
+    lokální, plné údaje skupiny už načetla konverzace.
+  - Klíč poslední záložky je `group:<id>`, ne `set:<id>` — v jiném chatu se tatáž sada ukáže
+    jako obyčejná, nebo vůbec, a výběr pak začne Nedávnými.
+  - **Ověřovací skupina:** z testovacích skupin sadu má jen Android Developers (@android_ru,
+    `-1001055466536`), účet v ní ale NENÍ — ověřovalo se dočasnou náhradou chatu ve výběru,
+    ne odesláním. Malá skupina sadu nastavit nemůže (`canSetStickerSet = false`).
 - **Výběr se otevře na záložce, na které uživatel naposledy dosedl** (`AppSettings
   .lastStickerTab`, klíč `StickerTab.storageKey()`: `recent`, `favorites`, `trending`,
   `set:<id>`), i po restartu. Kdo posílá z jedné sady, nemusí k ní pokaždé dojíždět.
