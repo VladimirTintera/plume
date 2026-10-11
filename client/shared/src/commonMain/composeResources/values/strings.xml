@@ -21,6 +21,7 @@
     <string name="auth_headline_failed">That didn't work</string>
     <string name="auth_support_phone">We will send a confirmation code to this number.</string>
     <string name="auth_support_code_app">We sent the code to Telegram on your other signed-in device.</string>
+    <string name="auth_code_app_only_hint">No other device signed in to Telegram? This code only goes there. Sign in to the official app or web.telegram.org first, then sign in here with a QR code.</string>
     <string name="auth_support_code_sms">We sent the code in a text message.</string>
     <string name="auth_support_code_call">You will get a call that reads the code out.</string>
     <string name="auth_support_code_caller">We will call and hang up right away. The code is the end of the number the call comes from.</string>

@@ -21,6 +21,7 @@
     <string name="auth_headline_failed">Nepovedlo se</string>
     <string name="auth_support_phone">Na tohle číslo pošleme ověřovací kód.</string>
     <string name="auth_support_code_app">Kód jsme poslali do Telegramu na tvém dalším přihlášeném zařízení.</string>
+    <string name="auth_code_app_only_hint">Nemáš Telegram přihlášený na jiném zařízení? Jinam tenhle kód nepřijde. Přihlas se nejdřív v oficiální aplikaci nebo na web.telegram.org a pak sem QR kódem.</string>
     <string name="auth_support_code_sms">Kód jsme poslali v SMS.</string>
     <string name="auth_support_code_call">Zavoláme ti a kód nadiktujeme.</string>
     <string name="auth_support_code_caller">Zavoláme a hned zavěsíme. Kód je konec čísla, ze kterého hovor přijde.</string>

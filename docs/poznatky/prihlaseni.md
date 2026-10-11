@@ -156,6 +156,36 @@ znamenaly slepou uličku — kód nikdy nepřišel a jiná cesta nebyla.
   Hovor nakonec nepřišel (ani zmeškaný); po zrušení a NOVÉM přihlášení byla lhůta na SMS jen
   dvě minuty a přihlášení přes SMS prošlo. Lhůtu (`timeout`) tedy určuje server pokaždé zvlášť
   a hodina u prvního pokusu nebyla pravidlo.
+- **Úplně nové číslo nedostane SMS VŮBEC, ani v oficiální aplikaci** (11. 10. 2026, Pixel 7 Pro,
+  čerstvě aktivovaná SIM T-Mobile CZ, mobilní data vypnutá, přes Wi-Fi). Plume (debug build)
+  dostal tutéž odpověď jako u čísla s existujícím účtem: `type=TelegramMessage(length=45),
+  next=null, timeout=0` — „kód je v Telegramu na jiném zařízení“, žádná jiná cesta. U nového
+  čísla tím kód nedorazí nikam a z obrazovky kódu se nedá pohnout. Oficiální Telegram
+  (`org.telegram.messenger` z Play, týž telefon, týž okamžik, povolené hovory i protokol
+  hovorů) nedostal SMS ani prozvonění, ale obrazovku „Choose a login email“: kódy budou chodit
+  e-mailem místo SMS, zadej e-mail nebo „Sign in with Google“ (`auth.sentCodeTypeSetUpEmailRequired`,
+  v TDLib `AuthorizationStateWaitEmailAddress`). **Chybějící SMS tedy neškrtí Plume, ale
+  Telegram** — a našemu `api_id` neřekne ani to, že chce e-mail. Postup pro nové číslo: účet
+  založit v oficiální aplikaci (e-mail nebo Google), pak se přihlásit do Plume; kód přijde do
+  oficiální aplikace jako zpráva. I kdyby server Plume e-mail nabídl, skončí to hláškou
+  `auth_error_email_unsupported` — e-mailové ověření ani registraci Plume nedělá.
+  Jestli na čísle nevisí účet po předchozím majiteli, se nedotáhlo (rozhodlo by dokončení
+  v oficiální aplikaci: nový účet se ptá na jméno); žádost o e-mail ukazuje spíš na nový účet.
+- **Ani založený účet bez aktivní relace to nezmění** (týž den, o pár minut později). Uživatel
+  se v oficiální aplikaci zaregistroval (kód e-mailem, ověření prozvoněním z +1 412…)
+  a odhlásil; Plume s vyčištěnými daty dostal znovu `TelegramMessage(length=45), next=null,
+  timeout=0` a během minuty nepřišel e-mail, SMS ani hovor. Kód tedy leží v servisním chatu
+  účtu, který nikdo nemá otevřený. Plume se na číslo bez jiné přihlášené relace nedostane;
+  napřed je potřeba přihlásit oficiální aplikaci (tam server nabídne e-mail) a pak Plume
+  kódem ze zprávy, nebo rovnou QR kódem.
+- **Obrazovka kódu to proto říká sama** (`CodeForm`, `appOnly`): když kód jde jen do Telegramu
+  a `next` je `null`, stojí pod tlačítkem věta „Nemáš Telegram přihlášený na jiném zařízení?…“
+  s odkazem na oficiální aplikaci a web a vedle „Jiné číslo“ tlačítko „Přihlásit se QR kódem“.
+  Dřív uživatel s novým číslem čekal na kód, který nikdy nepřijde, a nedozvěděl se proč.
+  **QR jde spustit přímo z čekání na kód** — `requestQrCodeAuthentication` TDLib pustí
+  i z `authorizationStateWaitCode`, když neběží jiný dotaz; ověřeno na Pixelu 7 Pro
+  (`WaitCode` → `WaitOtherDeviceConfirmation`, QR se nakreslil). Druhé zařízení je potřeba
+  tak jako tak a QR je z něj rychlejší než opisovat kód ze zprávy.
 - **Tlačítko tedy čeká na server, který jinou cestu dá** (jiné `api_id`, jiná země, účet bez
   aktivní relace). Ověřené je jen testy `AuthViewModelTest` (lhůta, poslání, chyby), skutečné
   doručení SMS či hovoru ne.
@@ -165,6 +195,10 @@ znamenaly slepou uličku — kód nikdy nepřišel a jiná cesta nebyla.
 - **`length` u kódu do Telegramu přišla 45**, přestože kód v chatu Telegram měl pět číslic
   (u jiného pokusu na telefonu přišla délka 5 a kreslilo se pět políček). Mimo `CODE_DIGITS`
   se spadne na obyčejné pole, takže se dál přihlásit dá; proč server poslal 45, se nezjistilo.
+  **Při pokusu s novým číslem (11. 10. 2026) to nesedělo**: log hlásil `length=45` (jediný
+  řádek `Kód:`, `toString` DTO vypisuje `length` přímo), a přesto se nakreslilo pět políček
+  s číselnou klávesnicí — podle `digitsOrNull` mělo být obyčejné pole. Nevysvětlené; kdo
+  to bude řešit, ať si napřed ověří, jaké `AuthStage.WaitCode.code` doopravdy dorazí do UI.
 - **Zkoušet přihlášení bez odhlášení emulátoru jde v DRUHÉM UŽIVATELI Androidu**: `pm
   create-user`, `pm install-existing --user N eu.tintera.plume`, `am switch-user N`, mezi pokusy
   `pm clear --user N`. Dvě pasti: snímek obrazovky je v druhém uživateli celý černý (ovládá se
