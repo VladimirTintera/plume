@@ -200,6 +200,35 @@ a filtry nad výsledky — chybu je vidět hned v čipech a opraví se ťuknutí
 - **List panel na dvoupanelovém rozvržení:** Na tabletu / TwoPane nahradí levý panel stejně jako
   Archiv, po výběru kontaktu se zavře a v pravém panelu se otevře konverzace.
 
+## Nový kontakt podle čísla
+
+Třetí řádek nad kontakty v „Nové zprávě" (`NewContactRoute`, `NewContactScreen`,
+`NewContactViewModel`): jméno, nepovinné příjmení a číslo s výběrem země. Po přidání se otevře
+konverzace a z Chatů se odebere formulář i „Nová zpráva" — zpět vede do seznamu.
+
+- **`importContacts`, ne `searchUserByPhoneNumber` + `addContact`** (`ChatCreation.addContact`).
+  Jedno volání a číslo bez účtu je ODPOVĚĎ (id 0 v `userIds`), ne chyba, kterou by šlo splést
+  se spadlým spojením. Svoje číslo protějšku tím nesdílíme — to umí jen
+  `addContact(sharePhoneNumber = true)`. Daň: číslo bez účtu zůstane na serveru mezi
+  importovanými kontakty (jako u oficiálních klientů; `getContacts` ho nevrací).
+- **„Nikoho najít nejde" je věta pod polem, ne chyba.** Server nerozliší „účet tu není"
+  a „soukromí zakazuje hledání podle čísla" a my to rozlišovat nesmíme — věta jmenuje obojí.
+  Haptika `reject()`, protože přišla po ťuknutí na Přidat.
+- **Zadání čísla sdílí s přihlášením** (`PhoneInput` a `PhoneField` v `core/ui`, dřív
+  v `features/auth`): seznam zemí a odhad podle IP, formátování od TDLib, vložené `+420…`
+  rozdělené na zemi a zbytek. Dvě kopie by se rozešly; v `core/ui` je ze stejného důvodu jako
+  `ChatPicker` — `features/chats` nemá záviset na `features/auth`.
+- **Pod polem je, kam kontakt jde**: do účtu Telegramu, ne do telefonu, a protějšek naše číslo
+  neuvidí. U „přidat kontakt" se to jinak čeká od telefonu. Synchronizace adresáře z telefonu
+  (jako oficiální aplikace) vědomě NENÍ — oprávnění ke kontaktům a nahrávání adresáře na server
+  je samostatné rozhodnutí; prázdný seznam proto radí „přidej nový kontakt podle čísla", ne
+  „přidej kontakt v telefonu".
+- **Ověřeno na Pixelu 7 Pro** (česky, testovací účet …029): servisní číslo +420 111 111 111
+  ukázalo větu o nenalezeném čísle (a `performHapticFeedback(constant=17)`), druhé testovací
+  číslo …527 se přidalo jako „Test", otevřel se prázdný chat, zpět vedlo do seznamu a kontakt
+  je v Kontaktech „Nové zprávy". **Neověřeno**: anglické texty na zařízení, iOS (jen přeložené),
+  číslo se zakázaným hledáním (chce cizí účet).
+
 ## Založení skupiny a kanálu
 
 „Nová skupina" a „Nový kanál" jsou dva řádky nad kontakty v „Nové zprávě" (schované při

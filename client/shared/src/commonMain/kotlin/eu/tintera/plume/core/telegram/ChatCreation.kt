@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
+import dev.g000sha256.tdl.dto.ImportedContact
 import dev.g000sha256.tdl.toResult
 
 /** Člověk, kterého server do nové skupiny nepustil (soukromí); [name] může být prázdné. */
@@ -44,6 +45,14 @@ interface ChatCreation {
      * projde [usernameFormatError].
      */
     suspend fun checkUsername(username: String): Result<UsernameCheck>
+
+    /**
+     * Uloží do účtu kontakt podle telefonního čísla a vrátí soukromý chat s ním. `null` = na
+     * čísle nikoho najít nejde: účet tam není, nebo jeho soukromí hledání podle čísla nedovoluje.
+     * Server ty dva případy nerozliší a my je rozlišovat nesmíme. [phoneNumber] je mezinárodní
+     * tvar včetně předvolby.
+     */
+    suspend fun addContact(phoneNumber: String, firstName: String, lastName: String): Result<Long?>
 }
 
 /**
@@ -104,6 +113,21 @@ class TdlChatCreation(private val holder: TelegramClientHolder) : ChatCreation {
      * Chat, který ještě neexistuje, se ptá s `chatId = 0` — tak to `checkChatUsername` pro
      * zakládaný chat chce. Strop veřejných chatů hlásí jako `PublicChatsTooMany`.
      */
+    /*
+     * `importContacts`, ne `searchUserByPhoneNumber` + `addContact`: jedno volání a nenalezené
+     * číslo je odpověď (id 0), ne chyba, kterou by šlo splést se spadlým spojením. Svoje číslo
+     * protějšku tím nesdílíme — to umí jen `addContact(sharePhoneNumber = true)`.
+     */
+    override suspend fun addContact(phoneNumber: String, firstName: String, lastName: String): Result<Long?> = runCatching {
+        val imported = client.importContacts(
+            contacts = arrayOf(
+                ImportedContact(phoneNumber = phoneNumber, firstName = firstName, lastName = lastName, note = null),
+            ),
+        ).toResult().getOrThrow()
+        val userId = imported.userIds.firstOrNull()?.takeIf { it != 0L } ?: return@runCatching null
+        client.createPrivateChat(userId = userId, force = false).toResult().getOrThrow().id
+    }
+
     override suspend fun checkUsername(username: String): Result<UsernameCheck> =
         client.checkChatUsername(chatId = 0, username = username).toResult().map { it.toUsernameCheck() }
 
