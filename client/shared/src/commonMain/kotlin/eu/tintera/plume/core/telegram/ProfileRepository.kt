@@ -84,6 +84,13 @@ interface ProfileRepository {
     suspend fun setDiscussionGroup(channelId: Long, groupId: Long?): Result<Unit>
 
     /**
+     * Sada samolepek skupiny [chatId] (`setSupergroupStickerSet`); `null` sadu zruší. Členové ji
+     * mají ve výběru samolepek té skupiny, i když ji nainstalovanou nemají. Smí správce, kterému
+     * to server dovolí (`EditableChat.canSetStickerSet`).
+     */
+    suspend fun setStickerSet(chatId: Long, setId: Long?): Result<Unit>
+
+    /**
      * Veřejné jméno supergroupy nebo kanálu (`t.me/…`); prázdné = chat bude soukromý. Smí jen
      * vlastník ([EditableChat.canChangeUsername]).
      */
@@ -234,6 +241,13 @@ data class EditableChat(
     val linkedChat: LinkedChat? = null,
     /** Kanálu jde vybrat nebo odpojit diskusní skupinu (správce s právem měnit údaje). */
     val canSetDiscussion: Boolean = false,
+    /** Sada samolepek skupiny (`SupergroupFullInfo.stickerSetId`); `null` = žádná. */
+    val stickerSet: StickerSetSummary? = null,
+    /**
+     * Sadu skupiny jde nastavit. Rozhoduje server (`SupergroupFullInfo.canSetStickerSet`) —
+     * malým skupinám ji nedovolí ani vlastníkovi, takže se to z práv vypočítat nedá.
+     */
+    val canSetStickerSet: Boolean = false,
     /** Současné veřejné jméno (`t.me/…`); prázdné = soukromý chat. */
     val username: String = "",
     /**

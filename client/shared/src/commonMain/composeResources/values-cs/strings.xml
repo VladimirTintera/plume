@@ -2264,6 +2264,14 @@
     <string name="edit_chat_discussion_linked">Diskusní skupina připojená</string>
     <string name="edit_chat_discussion_unlinked">Komentáře jsou vypnuté</string>
     <string name="edit_chat_discussion_failed">Diskusní skupinu se nepodařilo změnit</string>
+    <string name="edit_chat_sticker_set">Sada samolepek</string>
+    <string name="edit_chat_sticker_set_none">Žádná sada</string>
+    <string name="edit_chat_sticker_set_off">Skupina může mít vlastní sadu pro všechny členy</string>
+    <string name="edit_chat_sticker_set_explanation">Členové skupiny uvidí sadu ve výběru samolepek tady, i když si ji nepřidali.</string>
+    <string name="edit_chat_sticker_set_empty">Nemáš žádné sady samolepek. Nejdřív si nějakou přidej, pak ji tu vyber.</string>
+    <string name="edit_chat_sticker_set_done">Sada samolepek skupiny je změněná</string>
+    <string name="edit_chat_sticker_set_removed">Sada samolepek skupiny je zrušená</string>
+    <string name="edit_chat_sticker_set_failed">Sadu samolepek skupiny se nepodařilo změnit</string>
     <string name="edit_chat_forum_help">Skupina se rozdělí na témata, každé má vlastní konverzaci.</string>
     <string name="edit_chat_upgrade_title">Převést skupinu?</string>
     <string name="edit_chat_upgrade_link">Veřejný odkaz má jen větší druh skupiny (supergroupa). Členové, správci i nastavení zůstanou. Dosavadní zprávy zůstanou v původní skupině a otevře je oznámení na začátku nové. Vrátit to nejde.</string>

@@ -202,6 +202,16 @@ class TdlProfileRepository(
             client.getChat(chatId = linkedId).toResult().getOrNull()
                 ?.let { LinkedChat(chatId = it.id, title = it.title, photoFileId = it.photo?.small?.id) }
         }
+        val stickerSet = supergroupInfo?.stickerSetId?.takeIf { it != 0L }?.let { setId ->
+            client.getStickerSet(setId = setId).toResult().getOrNull()?.let { set ->
+                StickerSetSummary(
+                    id = set.id,
+                    title = set.title,
+                    cover = set.stickers.filterNotNull().firstOrNull()?.toMedia(),
+                    size = set.stickers.size,
+                )
+            }
+        }
         val isBasicGroup = chat.type is ChatTypeBasicGroup
         // Převedená základní skupina (`isActive == false`) se hlásí jako opuštěná, takže `owner`
         // u ní vyjde `false` — upravuje se už ta nová.
@@ -228,7 +238,17 @@ class TdlProfileRepository(
             canChangeUsername = owner,
             linkedChat = linkedChat,
             canSetDiscussion = isChannel && rights.canChangeInfo,
+            stickerSet = stickerSet,
+            canSetStickerSet = !isChannel && supergroupInfo?.canSetStickerSet == true,
         )
+    }
+
+    override suspend fun setStickerSet(chatId: Long, setId: Long?): Result<Unit> = runCatching {
+        val type = client.getChat(chatId = chatId).toResult().getOrThrow().type as? ChatTypeSupergroup
+            ?: error("Sadu samolepek má jen supergroupa.")
+        client.setSupergroupStickerSet(supergroupId = type.supergroupId, stickerSetId = setId ?: 0)
+            .toResult().getOrThrow()
+        Unit
     }
 
     override suspend fun setDiscussionGroup(channelId: Long, groupId: Long?): Result<Unit> =

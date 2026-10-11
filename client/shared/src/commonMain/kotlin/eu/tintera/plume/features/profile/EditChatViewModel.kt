@@ -1,8 +1,11 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.resources.edit_chat_forum_failed
+import eu.tintera.plume.core.telegram.StickerRepository
+import eu.tintera.plume.core.telegram.StickerSetSummary
 import eu.tintera.plume.core.telegram.ForumRepository
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +22,9 @@ import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.EditableChat
 import eu.tintera.plume.core.telegram.LinkedChat
 import eu.tintera.plume.resources.edit_chat_discussion_failed
+import eu.tintera.plume.resources.edit_chat_sticker_set_done
+import eu.tintera.plume.resources.edit_chat_sticker_set_failed
+import eu.tintera.plume.resources.edit_chat_sticker_set_removed
 import eu.tintera.plume.resources.edit_chat_discussion_linked
 import eu.tintera.plume.resources.edit_chat_discussion_unlinked
 import eu.tintera.plume.core.telegram.GroupPermissions
@@ -63,6 +69,7 @@ class EditChatViewModel(
     inviteLinks: InviteLinkRepository,
     private val forums: ForumRepository,
     private val chats: ChatRepository,
+    private val stickers: StickerRepository,
 ) : ViewModel() {
 
     /**
@@ -95,6 +102,17 @@ class EditChatViewModel(
         private set
 
     var discussionBusy by mutableStateOf(false)
+        private set
+
+    /** Sada samolepek skupiny, jak ji ukazuje řádek; mění se po potvrzení serverem. */
+    var stickerSet by mutableStateOf<StickerSetSummary?>(null)
+        private set
+
+    /** Sady k výběru (nainstalované sady uživatele); `null`, dokud se nenačtou. */
+    var stickerSetCandidates by mutableStateOf<List<StickerSetSummary>?>(null)
+        private set
+
+    var stickerSetBusy by mutableStateOf(false)
         private set
 
     /**
@@ -157,6 +175,7 @@ class EditChatViewModel(
                     permissions = chat.permissions
                     isForum = chat.isForum
                     linkedChat = chat.linkedChat
+                    stickerSet = chat.stickerSet
                     username = chat.username
                     isPublic = chat.username.isNotEmpty()
                 }
@@ -390,6 +409,30 @@ class EditChatViewModel(
                 }
                 .onFailure { notice = it.reported(Res.string.edit_chat_discussion_failed) }
             discussionBusy = false
+        }
+    }
+
+    /**
+     * Načte sady k výběru — nainstalované sady uživatele, jako v oficiálních klientech; cizí sadu
+     * si napřed přidá. Volá se při otevření sheetu, ne dopředu.
+     */
+    fun loadStickerSetCandidates() {
+        stickerSetCandidates = null
+        viewModelScope.launch { stickerSetCandidates = stickers.installedSets().first() }
+    }
+
+    /** Nastaví sadu skupiny (`null` zruší). Řádek se změní až po potvrzení serverem. */
+    fun chooseStickerSet(set: StickerSetSummary?) {
+        if (stickerSetBusy) return
+        stickerSetBusy = true
+        viewModelScope.launch {
+            repository.setStickerSet(chatId, set?.id)
+                .onSuccess {
+                    stickerSet = set
+                    notice = UiText(if (set != null) Res.string.edit_chat_sticker_set_done else Res.string.edit_chat_sticker_set_removed)
+                }
+                .onFailure { notice = it.reported(Res.string.edit_chat_sticker_set_failed) }
+            stickerSetBusy = false
         }
     }
 

@@ -399,10 +399,8 @@ sada ze samolepky v chatu; emoji vkládané do textu včetně nedávných; mří
 samolepky k emoji v poli; velký náhled po podržení; hledání sad podle názvu; kategorie pod polem
 hledání; výběr se otevře na naposledy otevřené záložce; odebrání z Nedávných a jejich vymazání;
 sada skupiny jako záložka; správa sad v Nastavení (pořadí, archiv); sdílení sady; náhled podrženého GIFu i samolepek a GIFů nad polem
-(výsledky inline bota, návrhy k emoji). Zbývá:
+(výsledky inline bota, návrhy k emoji); nastavení sady skupiny v úpravě skupiny. Zbývá:
 
-- **Nastavit sadu skupiny** — správce supergroupy s `SupergroupFullInfo.canSetStickerSet`
-  (`setSupergroupStickerSet`), třeba v úpravě skupiny. Zobrazovat ji výběr umí.
 - **Vlastní emoji ve výběru emoji (emoji packy)** — zobrazovat v textu je umíme, vkládat ne.
   Posílat je smí jen Premium.
 - **Náhled bez puštění prstu** — v Telegramu se prstem po mřížce přejíždí mezi náhledy

@@ -306,6 +306,7 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
   - **Výběr na sadu skupiny čeká** (`loaded` až po dotazu, strop 1,5 s): záložka přibývající
     před Trendy by posunula indexy a obnovení poslední záložky by trefilo vedle. Dotaz bývá
     lokální, plné údaje skupiny už načetla konverzace.
+  - Nastavuje se v úpravě skupiny (viz „Sada samolepek skupiny" v profil-chatu.md).
   - Klíč poslední záložky je `group:<id>`, ne `set:<id>` — v jiném chatu se tatáž sada ukáže
     jako obyčejná, nebo vůbec, a výběr pak začne Nedávnými.
   - **Ověřovací skupina:** z testovacích skupin sadu má jen Android Developers (@android_ru,

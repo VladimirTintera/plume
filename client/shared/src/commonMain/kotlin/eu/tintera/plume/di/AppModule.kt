@@ -584,6 +584,7 @@ fun appModule() = module {
             inviteLinks = get(),
             forums = get(),
             chats = get(),
+            stickers = get(),
         )
     }
 
