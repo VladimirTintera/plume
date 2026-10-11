@@ -46,8 +46,8 @@ fun AnimatedSticker(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     /**
-     * `false` = jen první snímek. Ve výběru je vidět desítky samolepek naráz a nechat je hrát
-     * všechny by znamenalo desítky animací v jednom snímku; hraje se až tam, kde má smysl.
+     * `false` = jen první snímek. Kde je vedle sebe víc sad (obálky v záložkách výběru, ukázky
+     * v trendech), by hrající samolepky stály víc, než přinesou; hraje se až tam, kde má smysl.
      */
     isPlaying: Boolean = true,
     /** Jak animace běží; výchozí je smyčka (viz [StickerPlayback]). */

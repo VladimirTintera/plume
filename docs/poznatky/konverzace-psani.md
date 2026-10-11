@@ -408,7 +408,7 @@ u pole (`ScheduledMessagesSheet`): odeslat hned, změnit čas, smazat.
   zavření nabídky a nahrávání dál, bez zvuku; anketa naplánovaná z formuláře v seznamu
   naplánovaných. iOS jen přeložené.
 - **Samolepka a GIF mají volby odeslání u PODRŽENÉ buňky**, ne na podržení (`StickerCell`,
-  `GifCell`, společné `SendOptionsButton`, `SendMenuChoice`): podržení samolepku rozhýbe a druhé gesto nad ní by se s tím pralo. Tlačítko
+  `GifCell`, společné `SendOptionsButton`, `SendMenuChoice`): podržení samolepku vybere a druhé gesto nad ní by se s tím pralo. Tlačítko
   je v protějším rohu než hvězdička oblíbených a nabídne totéž co odesílací tlačítko bez efektu
   (bez zvuku, naplánovat, až bude online). Nabízí ho jen výběr v konverzaci — sada otevřená
   z historie a formulář ankety `sendMenu` nepředávají. Ověřeno na emulátoru v chatu s botem:
