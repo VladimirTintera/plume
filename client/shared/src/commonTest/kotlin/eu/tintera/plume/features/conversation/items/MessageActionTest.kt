@@ -13,6 +13,10 @@ import eu.tintera.plume.features.conversation.replyTarget
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.menu_bookmark_add
 import eu.tintera.plume.resources.menu_bookmark_remove
+import eu.tintera.plume.features.conversation.ContextFinding
+import eu.tintera.plume.features.conversation.ParcelCarrier
+import eu.tintera.plume.resources.menu_context_actions
+import eu.tintera.plume.resources.menu_context_parcel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -101,6 +105,7 @@ class MessageActionTest {
                 MessageMenuAction.Copy,
                 MessageMenuAction.SelectText,
                 MessageMenuAction.Translate,
+                MessageMenuAction.ContextActions,
                 MessageMenuAction.Forward,
                 MessageMenuAction.Info,
                 MessageMenuAction.ToggleBookmark,
@@ -127,6 +132,29 @@ class MessageActionTest {
         assertEquals(
             Res.string.menu_explain,
             MessageMenuAction.Explain.presentation(menu(items).copy(explainAvailable = true))?.label,
+        )
+    }
+
+    /** Akce z textu: jen když se něco našlo a obsah smí ven; popisek podle toho, co to je. */
+    @Test
+    fun akceZeZpravyPodleNalezu() {
+        val items = listOf(MessageMenuAction.ContextActions)
+        val parcel = ContextFinding.Parcel(ParcelCarrier.Packeta, "Z1234567890")
+        val payment = ContextFinding.Payment(iban = "CZ6508000000192000145399", account = "19-2000145399/0800")
+        assertNull(MessageMenuAction.ContextActions.presentation(menu(items)))
+        assertEquals(
+            Res.string.menu_context_parcel,
+            MessageMenuAction.ContextActions.presentation(menu(items).copy(contextFindings = listOf(parcel, parcel.copy(number = "Z0000000000"))))?.label,
+        )
+        assertEquals(
+            Res.string.menu_context_actions,
+            MessageMenuAction.ContextActions.presentation(menu(items).copy(contextFindings = listOf(parcel, payment)))?.label,
+        )
+        // Chráněný obsah ven nesmí ani do kalendáře nebo QR platby.
+        assertNull(
+            MessageMenuAction.ContextActions.presentation(
+                menu(items, actions = all.copy(canCopy = false)).copy(contextFindings = listOf(payment)),
+            ),
         )
     }
 

@@ -2566,5 +2566,9 @@
     <string name="message_context_carrier_international">International parcel</string>
     <string name="message_context_no_calendar">There is no calendar app to add the event to</string>
     <string name="settings_message_context">Actions from messages</string>
-    <string name="settings_message_context_summary">An icon next to a message with a date, bank account or parcel number offers your calendar, a QR payment or tracking. Recognized on your phone.</string>
+    <string name="settings_message_context_summary">An icon next to a message with a date, bank account or parcel number offers your calendar, a QR payment or tracking. Recognized on your phone; when off, the actions stay in the message menu.</string>
+    <string name="menu_context_event">Add to calendar…</string>
+    <string name="menu_context_payment">QR payment…</string>
+    <string name="menu_context_parcel">Track parcel…</string>
+    <string name="menu_context_actions">Actions from the message…</string>
 </resources>

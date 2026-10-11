@@ -374,7 +374,7 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
   práh se musí nastavit tak, aby se raději mlčelo.
 - **AI ikonka u zprávy s rozpoznaným kontextem** — první kolo hotovo: termín → kalendář nebo
   připomínka, číslo účtu → QR platba a kopírování, číslo zásilky (Česká pošta / S10, Zásilkovna)
-  → sledování; model termín potvrzuje a doplní název a místo (`docs/poznatky/ai-v-zarizeni.md`,
+  → sledování, z ikonky i z nabídky nad zprávou; model termín potvrzuje a doplní název a místo (`docs/poznatky/ai-v-zarizeni.md`,
   „Akce ze zpráv"). Zbývá:
   - **ověřit na telefonu**: editor události v kalendáři (emulátor bez účtu Google chce
     přihlášení), načtení QR platby bankovní aplikací, Gemini Nano místo Gemmy, iOS (jen přeložené),
@@ -385,7 +385,6 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
   - **čísla PPL a DPD**: holé číslo od telefonu nerozeznáš, chtělo by to slovo dopravce vedle,
   - **QR platbu sdílet jako obrázek** — ve stejném telefonu se z obrazovky nenaskenuje, část
     bankovních aplikací ale umí QR z galerie,
-  - **položka v nabídce nad zprávou** pro tytéž akce, když je ikonka vypnutá,
   - **`TextClassifier` / ML Kit Entity Extraction / `NSDataDetector`** místo vlastních pravidel —
     ověřit češtinu (ML Kit Entity Extraction ji v seznamu jazyků podle všeho nemá).
 - **Triáž chatů.** Odznak „čeká na odpověď" vs. „jen informace" v seznamu chatů. Rozhodnutí

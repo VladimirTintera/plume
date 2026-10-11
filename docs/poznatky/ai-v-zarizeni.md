@@ -370,6 +370,12 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   oprávnění), bez kalendáře soubor `.ics` (`toIcs`, testy `CalendarEventIcsTest`: čas v UTC,
   zalamování po 75 BAJTECH, ne znacích). iOS `EKEventEditViewController` — od iOS 17 bez
   přístupu ke kalendáři; projekt cílí na 18.2.
+- **Tytéž akce jsou v nabídce nad zprávou** (`MessageMenuAction.ContextActions`), s popiskem podle
+  nálezu („QR platba…", „Přidat do kalendáře…", u kombinace „Akce ze zprávy…"; tři tečky, protože
+  se otevře sheet). **I s vypnutou ikonkou**: vypínač brání tomu, co vyskakuje samo, nabídka se
+  otevírá vědomě — věta pod vypínačem to říká. Nálezy počítá ViewModel až při otevření nabídky
+  (`contextFindingsOf`), ne `menuActions` u každé zprávy; kandidát je proto u každé zprávy
+  s textem a bez nálezu se položka neukáže. Právo jako u kopírování (`canCopy`).
 - **Ikonka i sheet jsou mimo `ConversationScreen`** (v dexu na hraně): posudky sbírá položka
   (`ConversationItemScope.messageContext`), sheet si stav čte sám (`MessageContextHost`, jediné
   volání). `ConversationScreen` zůstal na 271 registrech.

@@ -1,6 +1,14 @@
 package eu.tintera.plume.features.conversation.items
 
 import eu.tintera.plume.resources.menu_explain
+import eu.tintera.plume.features.conversation.ContextFinding
+import eu.tintera.plume.resources.event_24dp
+import eu.tintera.plume.resources.local_shipping_24dp
+import eu.tintera.plume.resources.payments_24dp
+import eu.tintera.plume.resources.menu_context_actions
+import eu.tintera.plume.resources.menu_context_event
+import eu.tintera.plume.resources.menu_context_parcel
+import eu.tintera.plume.resources.menu_context_payment
 import eu.tintera.plume.resources.auto_awesome_24dp
 import eu.tintera.plume.core.telegram.ForwardOrigin
 
@@ -376,6 +384,27 @@ sealed interface MessageMenuAction : MessageAction {
     data object Explain : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
             MenuPresentation(Res.drawable.auto_awesome_24dp, Res.string.menu_explain).takeIf { menu.explainAvailable }
+    }
+
+    /**
+     * Akce z textu zprávy — tentýž sheet jako ikonka u zprávy (`MessageContextSheet`). Nabízí se,
+     * když se v textu něco našlo ([MessageMenu.contextFindings]), a to i s ikonkou vypnutou
+     * v nastavení: nabídka se otevírá vědomě, nic tu nevyskakuje samo. Chráněný obsah ven nesmí
+     * ani do kalendáře, takže stejné právo jako [Copy].
+     *
+     * Popisek říká, co se našlo; tři tečky, protože se otevře sheet, ne rovnou kalendář.
+     */
+    data object ContextActions : MessageMenuAction {
+        override fun presentation(menu: MessageMenu): MenuPresentation? {
+            val findings = menu.contextFindings.takeIf { it.isNotEmpty() && menu.actions.canCopy } ?: return null
+            val single = findings.first().takeIf { first -> findings.all { it::class == first::class } }
+            return when (single) {
+                is ContextFinding.Event -> MenuPresentation(Res.drawable.event_24dp, Res.string.menu_context_event)
+                is ContextFinding.Payment -> MenuPresentation(Res.drawable.payments_24dp, Res.string.menu_context_payment)
+                is ContextFinding.Parcel -> MenuPresentation(Res.drawable.local_shipping_24dp, Res.string.menu_context_parcel)
+                null -> MenuPresentation(Res.drawable.auto_awesome_24dp, Res.string.menu_context_actions)
+            }
+        }
     }
 
     /** Kandidát jen u samolepky. Jestli už v oblíbených je, se zjistí při otevření nabídky. */

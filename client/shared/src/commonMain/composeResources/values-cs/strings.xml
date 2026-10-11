@@ -2644,5 +2644,9 @@
     <string name="message_context_carrier_international">Zásilka ze zahraničí</string>
     <string name="message_context_no_calendar">Událost není kam přidat, v telefonu chybí kalendář</string>
     <string name="settings_message_context">Akce ze zpráv</string>
-    <string name="settings_message_context_summary">Ikonka u zprávy s termínem, číslem účtu nebo zásilky nabídne kalendář, QR platbu nebo sledování. Rozpoznává se v telefonu.</string>
+    <string name="settings_message_context_summary">Ikonka u zprávy s termínem, číslem účtu nebo zásilky nabídne kalendář, QR platbu nebo sledování. Rozpoznává se v telefonu; vypnutá ikonka je nechá v nabídce nad zprávou.</string>
+    <string name="menu_context_event">Přidat do kalendáře…</string>
+    <string name="menu_context_payment">QR platba…</string>
+    <string name="menu_context_parcel">Sledovat zásilku…</string>
+    <string name="menu_context_actions">Akce ze zprávy…</string>
 </resources>

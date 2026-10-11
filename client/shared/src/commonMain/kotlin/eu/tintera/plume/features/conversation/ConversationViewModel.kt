@@ -3827,6 +3827,30 @@ class ConversationViewModel(
         _contextSheet.value = ContextSheet(messageId, findings)
     }
 
+    /** „Akce ze zprávy…" v nabídce nad zprávou: tentýž sheet jako ikonka. */
+    private fun openContextFromMenu(messageId: Long) {
+        val findings = _state.value.messageMenu?.takeIf { it.messageId == messageId }?.contextFindings.orEmpty()
+        closeMenus()
+        openMessageContext(messageId, findings)
+    }
+
+    /**
+     * Akce z textu zprávy pro nabídku nad ní — totéž, co ukazuje ikonka (`messageContext`
+     * v položce), jen bez ohledu na vypínač ikonky. Termín, který model posoudil, se bere
+     * podle jeho posudku; nejistý bez posudku se nenabízí.
+     */
+    private fun contextFindingsOf(message: ChatMessage): List<ContextFinding> {
+        if (!message.offersContext() || _state.value.info?.protectsContent == true) return emptyList()
+        // U zprávy s varováním před podvodem ne — QR platba k podvodu je to, co podvodník chce.
+        if (scamVerdicts.value.containsKey(message.id)) return emptyList()
+        val zone = TimeZone.currentSystemDefault()
+        val sentAt = Instant.fromEpochSeconds(message.timestamp.toLong()).toLocalDateTime(zone)
+        val found = findMessageContext(message.text, message.entities, sentAt, zone)
+        if (found.isEmpty) return emptyList()
+        val verdict = messageContexts?.verdicts?.value?.get(MessageContexts.Key(chatId, message.id, message.text.hashCode()))
+        return found.contextFindings(message.text, verdict, Clock.System.now().toLocalDateTime(zone))
+    }
+
     fun closeMessageContext() {
         _contextSheet.value = null
     }
@@ -4138,6 +4162,7 @@ class ConversationViewModel(
             MessageMenuAction.Summarize -> showSummary(messageId)
             // Vysvětlení pouští obrazovka (sheet shrnutí); tady se jen zavře nabídka.
             MessageMenuAction.Explain -> _state.update { it.copy(messageMenu = null) }
+            MessageMenuAction.ContextActions -> openContextFromMenu(messageId)
             MessageMenuAction.SelectText -> selectText(messageId)
             MessageMenuAction.Pin -> requestPin(messageId)
             MessageMenuAction.Unpin -> unpinFromMenu(messageId)
@@ -4200,6 +4225,7 @@ class ConversationViewModel(
             }
 
             val explainAvailable = MessageMenuAction.Explain in items && explainAvailable()
+            val contextFindings = if (MessageMenuAction.ContextActions in items) contextFindingsOf(message) else emptyList()
             _state.update {
                 it.copy(
                     messageMenu = MessageMenu(
@@ -4215,6 +4241,7 @@ class ConversationViewModel(
                         pressedMessageId = pressed?.takeIf { it != messageId },
                         inTranslationLanguage = inTranslationLanguage,
                         explainAvailable = explainAvailable,
+                        contextFindings = contextFindings,
                     ),
                 )
             }
@@ -5787,6 +5814,8 @@ data class MessageMenu(
     val inTranslationLanguage: Boolean = false,
     /** Umí telefon vysvětlit zprávu modelem (zapnutá AI, model zařízení podporuje)? */
     val explainAvailable: Boolean = false,
+    /** Co se v textu zprávy našlo pro akce (termín, účet, zásilka); prázdné = položka není. */
+    val contextFindings: List<ContextFinding> = emptyList(),
 ) {
     /** Do rychlého řádku se vejde jen pár; zbytek je za „+". */
     val quickEmoji: List<String> get() = emoji.take(MAX_QUICK_REACTIONS)
