@@ -333,7 +333,7 @@ Ikonka se sparkle (`auto_awesome`) na volné straně zprávy, ve které je term�
 nebo e-mail, číslo účtu, letu nebo zásilky, Wi-Fi s heslem nebo kód; ťuknutí otevře sheet
 s akcemi (`MessageContextSheet`): kalendář a „Připomenout…", mapy, uložení do kontaktů, QR
 platba s kopírováním účtu, částky a VS, stav letu, připojení k Wi-Fi, kopírování kódu,
-sledování zásilky. Rozpoznávají PRAVIDLA
+převod cizí měny, sledování zásilky. Rozpoznávají PRAVIDLA
 (`findMessageContext`, testy `MessageContextTest`), model jen posuzuje termín (`MessageContexts`,
 prompt `EventPrompt.kt`). Vypínač v Nastavení → Obecné → Chaty, **výchozí zapnuto** — na rozdíl
 od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v zařízení uživatel zapnul.
@@ -388,6 +388,20 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   (777000) akce nemají vůbec (`offersContext`) a kód ve zprávě, která Telegram zmiňuje, taky
   ne — ověřovací kód je přesně to, co podvodník chce. Kód z banky nebo e-shopu kopírovat jde,
   je to totéž, co nabízí Android u SMS.
+- **Cizí měna jen se značkou nebo kódem u čísla** („120 €", „$45", „300 PLN", „2 500 Ft",
+  „15 eur") a jen jiná než měna uživatele (`HomeCurrency`). Číslo v zápisech „1 250,50",
+  „1.250,50" i „1,250.50" (`parseAmount`: poslední oddělovač s jednou nebo dvěma číslicemi je
+  desetinný). Bez `IGNORE_CASE`: „8 ft" jsou stopy, ne forinty. Tři velká písmena jen ze
+  seznamu kódů — „10 SMS" měna není.
+- **Kurz z denního lístku ČNB** (anglická verze: desetinná tečka, ASCII; zdarma, bez klíče).
+  Kurzy jsou vůči koruně, takže jde převádět i mezi dvěma cizími měnami (EUR → USD přes CZK).
+  Stahuje se až s otevřením sheetu („Načítám kurz ČNB…") a drží se 6 hodin. Obsah zprávy
+  nikam neodchází, stahuje se jen celý lístek. Stahování je platformní (`TextDownloader`:
+  `HttpURLConnection`, `NSURLSession`) — Ktor v projektu není a kvůli jednomu souboru nestojí.
+- **Měna uživatele je podle REGIONU systému, ne jazyka aplikace — a `Resources.getSystem()`
+  na to nestačí**: v procesu aplikace do něj Android promítne i jazyk nastavený jen pro
+  aplikaci, takže s Plume v češtině a systémem `en_US` vyšla koruna místo dolaru (ověřeno na
+  emulátoru). Od Androidu 13 proto `LocaleManager.getSystemLocales()`.
 - **Termín je jistý, nebo nejistý** (`EventCandidate.certain`). Jistý = den a čas, datum číslem,
   nebo termín vyznačený Telegramem (`MessageEntityType.DateTime`); ten se nabídne i bez modelu.
   Jen čas („v 15:00") je nejistý a nabídne se, jen když ho model potvrdí. Jen den („v pátek")
@@ -439,7 +453,8 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   i e-mailem; „Přiletím letem BA 117, přistání na letišti kolem 14:30" nabídne termín od modelu
   i let a „Stav letu" otevře FlightAware; „Wi-Fi na chatě: Chata_Lesni, heslo: medved2026"
   ukáže síť, heslo, QR kód a „Připojit k Wi-Fi" otevře systémový dialog uložení sítě
-  (zrušený, síť se neuložila); „Slevový kód na první nákup: LETO20" zkopíruje „LETO20".
+  (zrušený, síť se neuložila); „Slevový kód na první nákup: LETO20" zkopíruje „LETO20";
+  „120 € na noc" se systémem `en_US` převede na „≈ 134,46 USD" s kurzem ČNB z 9. října 2026.
   **Neověřené**: načtení QR bankovní aplikací, editor
   události, Gemini Nano, iOS.
 
