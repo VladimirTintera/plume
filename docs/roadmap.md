@@ -384,9 +384,9 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
     3") a místo bez termínu („u Kotvy") — pravidla je vědomě nechávají, chtělo by to předfiltr
     a model, jako u termínu,
   - **jméno u kontaktu** jen z jasné stavby („Jan Novák: 602…"); jinak by ho uměl model,
-  - **letiště mimo tabulku** (~110 nejběžnějších) a česky psaná města („z Prahy do Londýna" —
-    víc letišť v jednom městě a skloňování); správa rezervace u dopravce chce adresu pro každou
-    společnost zvlášť,
+  - **letiště mimo tabulku** (~110 nejběžnějších) a měst mimo seznam českých a anglických
+    názvů; u města s víc letišti se bere hlavní (Londýn → Heathrow), pokud zpráva nemá kód;
+    správa rezervace u dopravce chce adresu pro každou společnost zvlášť,
   - **Wi-Fi na iOS** jen s kopírováním hesla a QR kódem — připojení chce entitlement Hotspot
     Configuration v profilu aplikace; víceslovný název sítě jen v uvozovkách,
   - **měna slovy** („dolarů", „liber") a `¥` (jen v jiné měně je jasné, zda jen nebo jüan),

@@ -279,6 +279,27 @@ class MessageContextTest {
     }
 
     @Test
+    fun ceskaMestaLetist() {
+        val flight = context("Letím zítra OK 123 z Prahy do Londýna v 9:40").flights.single()
+        assertEquals("PRG" to "LHR", flight.from to flight.to)
+        assertEquals("VIE" to "CDG", context("Let OS 251 z Vídně do Paříže").flights.single().let { it.from to it.to })
+        assertEquals("FCO", context("Let FR1234 do Říma").flights.single().to)
+        assertEquals("HER", context("Odlet QS 1234 na Krétu").flights.single().to)
+        assertEquals("JFK", context("Let OK 52 do New Yorku").flights.single().to)
+        // Anglicky jen za from / to.
+        assertEquals("PRG" to "LHR", context("Flight BA 855 from Prague to London").flights.single().let { it.from to it.to })
+        // Kód letiště má přednost před městem.
+        assertEquals("LGW", context("Let U2 1234 z PRG do LGW, přes Londýn").flights.single().to)
+    }
+
+    @Test
+    fun mestoBezLetuNeniLetiste() {
+        // Bez čísla letu se trasa nehledá vůbec; „to split" není Split.
+        assertTrue(context("Jedu z Prahy do Brna").flights.isEmpty())
+        assertNull(context("Flight BA 855, we need to split the bill").flights.single().to)
+    }
+
+    @Test
     fun nocniLetPresPulnoc() {
         val schedule = context("Let OK 123 PRG-DXB zítra, odlet 22:30, přílet 6:20").flights.single()
             .schedule(TimeZone.of("Europe/Prague"))!!

@@ -526,7 +526,7 @@ private fun flights(text: String): List<ContextFinding.Flight> {
     // Přílet jen tehdy, když zpráva o odletu nemluví vůbec („odlet v 9:40, přílet ve 12:00" je odlet).
     val arrival = words.any { word -> ARRIVAL_STEMS.any { word.startsWith(it) } } &&
         words.none { word -> DEPARTURE_STEMS.any { word.startsWith(it) } }
-    val (from, to) = route(text, words)
+    val (from, to) = route(text)
     return FLIGHT.findAll(text)
         .filter { it.groupValues[1] in AIRLINES }
         .map { ContextFinding.Flight(it.groupValues[1], it.groupValues[2], arrival = arrival, from = from, to = to) }
@@ -537,17 +537,47 @@ private fun flights(text: String): List<ContextFinding.Flight> {
 
 /**
  * Trasa letu ze zprávy: dvojice kódů („PRG → LHR", „PRG-LHR", „PRG to LHR", „z PRG do LHR"), nebo
- * jen jeden s předložkou („from JFK", „do LHR"), případně český název („z Ruzyně"). Jen letiště
+ * jen jeden s předložkou („from JFK", „do LHR"), případně město („z Prahy do Londýna", „z Ruzyně",
+ * [citiesOf]). Kódem jen letiště
  * z tabulky [AIRPORTS] — tři velká písmena bývají i zkratky („MAN", „SIN").
  */
-private fun route(text: String, words: List<String>): Pair<String?, String?> {
+private fun route(text: String): Pair<String?, String?> {
     ROUTE_PAIR.find(text)?.let { match ->
         val (from, to) = match.destructured
         if (from in AIRPORTS && to in AIRPORTS && from != to) return from to to
     }
-    val from = ROUTE_FROM.find(text)?.groupValues?.get(1)?.takeIf { it in AIRPORTS }
-        ?: AIRPORT_ALIASES.entries.firstOrNull { (stem, _) -> words.any { it.startsWith(stem) } }?.value
-    val to = ROUTE_TO.find(text)?.groupValues?.get(1)?.takeIf { it in AIRPORTS && it != from }
+    val (cityFrom, cityTo) = citiesOf(foldDiacritics(text).lowercase())
+    val from = ROUTE_FROM.find(text)?.groupValues?.get(1)?.takeIf { it in AIRPORTS } ?: cityFrom
+    val to = (ROUTE_TO.find(text)?.groupValues?.get(1)?.takeIf { it in AIRPORTS } ?: cityTo)?.takeIf { it != from }
+    return from to to
+}
+
+/**
+ * Letiště podle měst za předložkou („z Prahy do Londýna", „from Prague to London"). Odlet za
+ * „z / ze / from", přílet za „do / na / to"; první nález vyhrává. Za předložkou se zkouší jedno
+ * i dvě slova („do New Yorku", „from Los Angeles").
+ */
+private fun citiesOf(folded: String): Pair<String?, String?> {
+    var from: String? = null
+    var to: String? = null
+    // Po slovech, ne regulárem: ten by k předložce spolkl i další slovo a „z Prahy do Londýna"
+    // by „do" snědlo „Prahy" (překrývající se nálezy regulár nevrací).
+    val words = WORD.findAll(folded).map { it.value }.toList()
+    words.forEachIndexed { index, preposition ->
+        if (preposition !in CITY_PREPOSITIONS) return@forEachIndexed
+        val first = words.getOrNull(index + 1) ?: return@forEachIndexed
+        val phrase = listOfNotNull(first, words.getOrNull(index + 2)).joinToString(" ")
+        val code = if (preposition == "from" || preposition == "to") {
+            ENGLISH_CITIES[phrase] ?: ENGLISH_CITIES[first]
+        } else {
+            CZECH_CITY_WORDS[first]
+                ?: CZECH_CITY_STEMS.entries.firstOrNull { (stem, _) -> phrase.startsWith(stem) }?.value
+        } ?: return@forEachIndexed
+        when (preposition) {
+            "z", "ze", "from" -> if (from == null) from = code
+            else -> if (to == null) to = code
+        }
+    }
     return from to to
 }
 
@@ -858,13 +888,20 @@ private val WORD = Regex("[\\p{L}\\p{N}]+")
 private val FLIGHT = Regex("(?<![\\p{L}\\d])([A-Z]{2}|[A-Z]\\d|\\d[A-Z])\\s?(\\d{1,4})(?![\\p{L}\\d])")
 
 /** Slova o letu, celá (bez diakritiky, malými). */
-private val FLIGHT_WORDS = setOf("let", "letu", "letem", "lety", "gate", "gejt", "flug")
+private val FLIGHT_WORDS = setOf(
+    "let", "letu", "letem", "lety", "gate", "gejt", "flug",
+    // Tvary slovesa „letět" („Letím zítra OK 123").
+    "leti", "letim", "letis", "letime", "letite", "letet", "poletim", "poletime", "letel", "letela",
+)
 
 /** Čas s dvojtečkou („9:40", „10:55") — pro druhý čas ve zprávě s letem (přistání). */
 private val CLOCK_TIME = Regex("(?<![\\d.:])([01]?\\d|2[0-3]):([0-5]\\d)(?![\\d.:])")
 
 /** Dvojice kódů letišť s oddělovačem: pomlčka, šipka, „to", „do". */
 private val ROUTE_PAIR = Regex("(?<![A-Za-z])([A-Z]{3})\\s?(?:-|\u2013|\u2014|\u2192|->|>|\\s(?:to|do)\\s)\\s?([A-Z]{3})(?![A-Za-z])")
+/** Předložky, za kterými se hledá město: odlet „z / ze / from", přílet „do / na / to". */
+private val CITY_PREPOSITIONS = setOf("z", "ze", "do", "na", "from", "to")
+
 private val ROUTE_FROM = Regex("(?<![\\p{L}])(?:z|ze|from|[Zz] letiste)\\s+([A-Z]{3})(?![A-Za-z])")
 private val ROUTE_TO = Regex("(?<![\\p{L}])(?:do|to|na)\\s+([A-Z]{3})(?![A-Za-z])")
 

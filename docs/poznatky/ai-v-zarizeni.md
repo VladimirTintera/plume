@@ -429,6 +429,15 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   na 5 min; Praha–Londýn 2 h) a sheet to říká. Událost dostane začátek a konec jako okamžiky
   (`CalendarEvent.begin` / `end`), místo letiště odletu („Prague (PRG)") a trasu do popisu.
   Kalendář pak ukáže odlet v pásmu telefonu, tak jak ho uživatel zažije.
+- **Města místo kódů**: česky za „z / ze / do / na" („z Prahy do Londýna", „do Říma", „na
+  Krétu") podle začátku slova bez diakritiky kvůli skloňování (`CZECH_CITY_STEMS`, krátké
+  kořeny jako Řím, Oslo a Riga jen celými tvary), anglicky za „from / to"
+  (`ENGLISH_CITIES`). Jen ve zprávě o letu, takže „to split the bill" Split není. Město s víc
+  letišti dostane hlavní (Londýn → Heathrow, Paříž → CDG); kód ve zprávě má přednost.
+  Vynechaná jsou jména, která jsou i běžným slovem nebo jménem (Nice, Sofie, Porto). **Hledá se
+  po slovech, ne regulárem**: „předložka a dvě slova" by u „z Prahy do Londýna" spolkla „do"
+  a přílet by se nenašel (regulár překrývající se nálezy nevrací). Mezi slovy o letu jsou
+  i tvary „letím / letíme" — bez nich by „Letím zítra OK 123…" let nenašlo.
 - **Termín je jistý, nebo nejistý** (`EventCandidate.certain`). Jistý = den a čas, datum číslem,
   nebo termín vyznačený Telegramem (`MessageEntityType.DateTime`); ten se nabídne i bez modelu.
   Jen čas („v 15:00") je nejistý a nabídne se, jen když ho model potvrdí. Jen den („v pátek")
@@ -486,7 +495,8 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   „kód rezervace: XKQ7ZT" nabídne kód rezervace ke zkopírování; „Odlet OK 123 zítra v 9:40
   z Ruzyně, kód rezervace XKQ7ZT" nabídne let se „Stav letu", „Odlet do kalendáře — zítra
   09:40" (bez obecné karty události) a kód rezervace; „Let OK 123 PRG → LHR zítra, odlet 9:40,
-  přílet 10:55" ukáže pod číslem letu „PRG → LHR · 2 h 15 min".
+  přílet 10:55" ukáže pod číslem letu „PRG → LHR · 2 h 15 min"; „Letím zítra OK 123 z Prahy do
+  Paříže, odlet 9:40, přílet 11:25" ukáže „PRG → CDG · 1 h 45 min".
   **Neověřené**: načtení QR bankovní aplikací, editor
   události, Gemini Nano, iOS.
 

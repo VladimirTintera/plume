@@ -163,9 +163,59 @@ internal val AIRPORTS: Map<String, Airport> = listOf(
 ).associateBy { it.code }
 
 /**
- * České názvy letišť, které se píšou místo kódu („z Ruzyně"), bez diakritiky a malými — začátek
- * slova kvůli skloňování.
+ * Města a letiště psaná česky — bez diakritiky, malými, jako ZAČÁTEK slova kvůli skloňování
+ * („prah" = Praha, Prahy, Praze; „londyn" = Londýn, Londýna). Uznají se jen za českou předložkou
+ * (z, ze, do, na) ve zprávě o letu. Město s víc letišti dostane hlavní (Londýn → Heathrow);
+ * kód letiště ve zprávě má vždycky přednost.
+ *
+ * Vynechaná jsou jména, která jsou zároveň běžným slovem nebo jménem (Nice, Sofie, Porto,
+ * Palma), a Kolín nad Rýnem — „z Kolína" je spíš Kolín u Prahy.
  */
-internal val AIRPORT_ALIASES: Map<String, String> = mapOf(
-    "ruzyn" to "PRG",
+internal val CZECH_CITY_STEMS: Map<String, String> = linkedMapOf(
+    "ruzyn" to "PRG", "prah" to "PRG", "brn" to "BRQ", "ostrav" to "OSR", "viden" to "VIE", "vidn" to "VIE",
+    "bratislav" to "BTS", "kosic" to "KSC", "budapest" to "BUD", "varsav" to "WAW", "krakov" to "KRK",
+    "berlin" to "BER", "mnichov" to "MUC", "frankfurt" to "FRA", "dusseldorf" to "DUS", "hambur" to "HAM",
+    "stuttgart" to "STR", "curych" to "ZRH", "zenev" to "GVA", "basilej" to "BSL", "amsterdam" to "AMS",
+    "brusel" to "BRU", "londyn" to "LHR", "manchester" to "MAN", "edinburgh" to "EDI", "dublin" to "DUB",
+    "pariz" to "CDG", "lyon" to "LYS", "marseill" to "MRS", "barcelon" to "BCN", "madrid" to "MAD",
+    "malag" to "AGP", "mallorc" to "PMI", "alicant" to "ALC", "tenerif" to "TFS", "gran canari" to "LPA",
+    "lisabon" to "LIS", "faro" to "FAO", "milan" to "MXP", "benat" to "VCE", "neapol" to "NAP",
+    "katani" to "CTA", "aten" to "ATH", "kret" to "HER", "rhod" to "RHO", "korfu" to "CFU", "solun" to "SKG",
+    "istanbul" to "IST", "antaly" to "AYT", "kodan" to "CPH", "stockholm" to "ARN", "helsink" to "HEL",
+    "reykjavik" to "KEF", "vilni" to "VNO", "tallin" to "TLL", "bukurest" to "OTP", "belehrad" to "BEG",
+    "zahreb" to "ZAG", "split" to "SPU", "dubrovni" to "DBV", "lublan" to "LJU", "malt" to "MLA",
+    "larnak" to "LCA", "dubaj" to "DXB", "abu dhab" to "AUH", "dauh" to "DOH", "kahir" to "CAI",
+    "hurghad" to "HRG", "sarm" to "SSH", "marrakes" to "RAK", "new york" to "JFK", "newyork" to "JFK",
+    "boston" to "BOS", "washington" to "IAD", "miami" to "MIA", "majami" to "MIA", "atlant" to "ATL",
+    "chicag" to "ORD", "dallas" to "DFW", "denver" to "DEN", "los angeles" to "LAX", "san francisc" to "SFO",
+    "seattl" to "SEA", "toront" to "YYZ", "montreal" to "YUL", "vancouver" to "YVR", "mexik" to "MEX",
+    "cancun" to "CUN", "sao paul" to "GRU", "toki" to "HND", "soul" to "ICN", "peking" to "PEK",
+    "sanghaj" to "PVG", "hongkong" to "HKG", "hong kong" to "HKG", "singapur" to "SIN", "bangkok" to "BKK",
+    "kuala lumpur" to "KUL", "bali" to "DPS", "dill" to "DEL", "bombaj" to "BOM", "mumbaj" to "BOM",
+    "sydney" to "SYD", "melbourn" to "MEL",
+)
+
+/** Řím má krátký kořen („rim" je i ráfek), proto jen celé tvary. Stejně Oslo a Riga. */
+internal val CZECH_CITY_WORDS: Map<String, String> = mapOf(
+    "rim" to "FCO", "rima" to "FCO", "rime" to "FCO", "rimu" to "FCO",
+    "oslo" to "OSL", "osla" to "OSL", "rigy" to "RIX", "riga" to "RIX", "rige" to "RIX", "rigu" to "RIX",
+)
+
+/**
+ * Anglické názvy měst (malými), jen za „from" / „to". Bez slov, která jsou zároveň běžná
+ * („Split", „Nice", „Malta" ne — „to split", „to nice").
+ */
+internal val ENGLISH_CITIES: Map<String, String> = linkedMapOf(
+    "prague" to "PRG", "vienna" to "VIE", "bratislava" to "BTS", "budapest" to "BUD", "warsaw" to "WAW",
+    "krakow" to "KRK", "berlin" to "BER", "munich" to "MUC", "frankfurt" to "FRA", "zurich" to "ZRH",
+    "geneva" to "GVA", "amsterdam" to "AMS", "brussels" to "BRU", "london" to "LHR", "manchester" to "MAN",
+    "edinburgh" to "EDI", "dublin" to "DUB", "paris" to "CDG", "barcelona" to "BCN", "madrid" to "MAD",
+    "lisbon" to "LIS", "rome" to "FCO", "milan" to "MXP", "venice" to "VCE", "naples" to "NAP",
+    "athens" to "ATH", "istanbul" to "IST", "copenhagen" to "CPH", "stockholm" to "ARN", "oslo" to "OSL",
+    "helsinki" to "HEL", "reykjavik" to "KEF", "dubai" to "DXB", "doha" to "DOH", "cairo" to "CAI",
+    "new york" to "JFK", "boston" to "BOS", "washington" to "IAD", "miami" to "MIA", "chicago" to "ORD",
+    "los angeles" to "LAX", "san francisco" to "SFO", "seattle" to "SEA", "toronto" to "YYZ",
+    "vancouver" to "YVR", "mexico city" to "MEX", "tokyo" to "HND", "seoul" to "ICN", "beijing" to "PEK",
+    "shanghai" to "PVG", "hong kong" to "HKG", "singapore" to "SIN", "bangkok" to "BKK", "bali" to "DPS",
+    "delhi" to "DEL", "mumbai" to "BOM", "sydney" to "SYD", "melbourne" to "MEL",
 )
