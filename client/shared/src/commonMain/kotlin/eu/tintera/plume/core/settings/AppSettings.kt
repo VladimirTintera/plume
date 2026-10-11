@@ -222,6 +222,17 @@ interface AppSettings {
     fun setScamWarningsEnabled(enabled: Boolean)
 
     /**
+     * Ikonka u zprávy, ve které je termín, číslo účtu nebo zásilky, a sheet s akcemi
+     * (`findMessageContext`). Na rozdíl od [scamWarningsEnabled] výchozí `true`: rozpoznávají
+     * pravidla v telefonu, nic se nestahuje ani neposílá a model se přidá, jen když si AI
+     * v zařízení uživatel zapnul.
+     */
+    val messageContextEnabled: StateFlow<Boolean>
+
+    /** Zapne/vypne akce u zpráv. Neblokuje, jako [recordRecentEmoji]. */
+    fun setMessageContextEnabled(enabled: Boolean)
+
+    /**
      * Kdo model počítá (Gemini Nano / Gemma) a jeho varianta. Platí pro CELOU aplikaci — každá
      * funkce s modelem bere tuhle hodnotu. Výchozí Gemini Nano, stabilní plná.
      */
@@ -695,6 +706,16 @@ class DataStoreAppSettings(
         }
     }
 
+    override val messageContextEnabled: StateFlow<Boolean> = value(true) { preferences ->
+        preferences[MESSAGE_CONTEXT_ENABLED] ?: true
+    }
+
+    override fun setMessageContextEnabled(enabled: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[MESSAGE_CONTEXT_ENABLED] = enabled }
+        }
+    }
+
     /*
      * Poskytovatel a model Gemmy se ukládají NÁZVEM (výčty, viz „Nastavení aplikace").
      * Chybějící poskytovatel je Gemini Nano: tak se aplikace chovala před tím, než šlo vybírat,
@@ -952,6 +973,7 @@ class DataStoreAppSettings(
         val ON_DEVICE_AI_ENABLED = booleanPreferencesKey("on_device_ai_enabled")
         val REPLY_SUGGESTIONS_ENABLED = booleanPreferencesKey("reply_suggestions_enabled")
         val SCAM_WARNINGS_ENABLED = booleanPreferencesKey("scam_warnings_enabled")
+        val MESSAGE_CONTEXT_ENABLED = booleanPreferencesKey("message_context_enabled")
         val ON_DEVICE_AI_PREVIEW = booleanPreferencesKey("on_device_ai_preview")
         val ON_DEVICE_AI_FAST = booleanPreferencesKey("on_device_ai_fast")
         val ON_DEVICE_AI_PROVIDER = stringPreferencesKey("on_device_ai_provider")

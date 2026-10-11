@@ -329,7 +329,9 @@ internal fun MessageMenuLayer(
         // zprávou o položku (48 dp) výš za každého kandidáta, kterého server nedovolil.
         val menuItems = shown.menu.items.mapNotNull { action ->
             action.presentation(shown.menu, selection)?.let { look ->
-                MenuItem(look.icon, stringResource(look.label), look.destructive) {
+                // Hodnota MÍSTO popisku, ne za ním: výška nabídky se počítá na jeden řádek na položku
+                // a „Sledovat zásilku · RR123456785CZ" by se zalomilo a konec nabídky usekl.
+                MenuItem(look.icon, look.labelArg ?: stringResource(look.label), look.destructive) {
                     itemScope.onAction(shown.menu.messageId, action.withSelection(selection))
                 }
             }

@@ -372,45 +372,32 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
   na pravidlo, které projekt už má (odkaz `tg://login` se z ťuknutí neotevírá, viz `docs/poznatky/prihlaseni.md`,
   „Přihlášení QR kódem"). Pozor na to, že varování u legitimní zprávy je horší než žádné:
   práh se musí nastavit tak, aby se raději mlčelo.
-- **AI ikonka u zprávy s rozpoznaným kontextem.** (Rozšiřuje původní „Termín a úkol ze zprávy":
-  „Sraz v 15:00 na Černém Mostě" → nabídka přidat do kalendáře nebo připomínku.) Když se ve
-  zprávě najde něco, s čím jde něco udělat, ukáže se u ní malá ikonka a ťuknutí na ni otevře
-  sheet s akcemi k tomu, co se našlo — jedna zpráva jich může mít víc. Čistá extrakce, tedy
-  silná stránka modelu, a výstup je typ (strukturovaný výstup výš), ne věta. Co rozpoznávat,
-  zhruba podle užitku:
-  - **Termín a místo → událost v kalendáři.** Na Androidu `Intent.ACTION_INSERT` do
-    `CalendarContract.Events` (bez oprávnění, otevře uživatelův kalendář s předvyplněnou
-    událostí), na iOS `EKEventEditViewController`; soubor `.ics` jako záložní cesta a na
-    sdílení. Relativní termín („zítra v 6", „v pátek") se počítá od DATA ZPRÁVY, ne od dneška.
-  - **Úkol nebo prosba** („pošli mi to do pátku") → připomínka; napojit na hotové
-    „Připomenout…".
-  - **Adresa nebo místo** → otevřít v mapách, navigovat.
-  - **Platební údaje** (číslo účtu / IBAN, částka, variabilní symbol) → QR platba (SPAYD, česká
-    „QR Platba") pro bankovní aplikaci, nebo kopírovat po polích. **U zprávy s varováním
-    „Možný podvod" se nenabízí** — přesně tohle podvodník chce.
-  - **Kontakt** (jméno + telefon / e-mail) → uložit do kontaktů
-    (`ContactsContract.Intents.Insert`, taky bez oprávnění).
-  - **Číslo zásilky** → sledování u dopravce (Zásilkovna, PPL, Česká pošta, DPD…); spíš
-    pravidla než model.
-  - **Let nebo rezervace** (číslo letu, kód rezervace) → stav letu, událost v kalendáři.
-  - **Wi-Fi (jméno sítě a heslo)** → připojit (`WifiNetworkSuggestion`); **kód** (slevový,
-    ke vstupu) → kopírovat. Přihlašovací kódy od Telegramu NE (stejná úvaha jako u `tg://login`).
-  - **Cizí měna a jednotky** (mph, °F, palce) → převod. Pravidla stačí, kurz ale chce síť.
-
-  Jak na to:
-  - **Napřed systém a pravidla, model až potom.** Android má `TextClassifier` (Smart Linkify:
-    adresy, termíny, telefony, čísla letů) a ML Kit Entity Extraction (navíc IBAN, částky,
-    čísla zásilek), iOS `NSDataDetector`. **Ověřit češtinu** — ML Kit Entity Extraction ji
-    v seznamu jazyků podle všeho nemá. Termíny pravidly už umí `reminderTimeFromText` (česky
-    i anglicky). Model nastoupí, kde pravidla nestačí, a jako potvrzení („je tohle opravdu
-    schůzka?"), aby ikonka nesvítila u „v 15:00 jsem byl u doktora".
-  - **Inference jen v popředí** (AICore), takže líně nad zprávami, které jsou vidět,
-    a výsledek kešovat podle id zprávy — upravená zpráva se vyhodnotí znovu.
-  - **Ikonka jen při jistotě**, stejný přístup jako u podvodu: radši nic než ikonka u každé
-    druhé zprávy. Vypínatelné v nastavení.
-  - **Kam ikonku dát**, rozhodnout na zařízení: k času v bublině, nebo čip pod bublinou jako
-    karta podvodu. Tytéž akce i v nabídce nad zprávou, ať se dají najít i bez ikonky.
-  - Obsah zprávy nikam neodchází, všechno běží v telefonu — jako u podvodu.
+- **AI ikonka u zprávy s rozpoznaným kontextem** — první kolo hotovo: termín → kalendář nebo
+  připomínka, číslo účtu → QR platba a kopírování, adresa → mapy, telefon a e-mail → uložit do
+  kontaktů, číslo letu → stav letu a let do kalendáře, Wi-Fi s heslem → připojit a QR kód sítě, kód → zkopírovat,
+  cizí měna → převod kurzem ČNB, jednotky druhé soustavy → převod, kód rezervace → zkopírovat,
+  číslo zásilky (Česká pošta / S10, Zásilkovna) → sledování, z ikonky i z nabídky nad zprávou; model termín potvrzuje a doplní název a místo (`docs/poznatky/ai-v-zarizeni.md`,
+  „Akce ze zpráv"). Zbývá:
+  - **ověřit na telefonu**: editor události v kalendáři (emulátor bez účtu Google chce
+    přihlášení), načtení QR platby bankovní aplikací, Gemini Nano místo Gemmy, iOS (jen přeložené),
+  - **adresa bez jasné stavby** („sraz na Vinohradské 12", víceslovné ulice jako „Karla Engliše
+    3") a místo bez termínu („u Kotvy") — pravidla je vědomě nechávají, chtělo by to předfiltr
+    a model, jako u termínu,
+  - **jméno u kontaktu** jen z jasné stavby („Jan Novák: 602…"); jinak by ho uměl model,
+  - **letiště mimo tabulku** (~110 nejběžnějších) a měst mimo seznam českých a anglických
+    názvů; u města s víc letišti se bere hlavní (Londýn → Heathrow), pokud zpráva nemá kód;
+    správa rezervace u dopravce chce adresu pro každou společnost zvlášť,
+  - **Wi-Fi na iOS** jen s kopírováním hesla a QR kódem — připojení chce entitlement Hotspot
+    Configuration v profilu aplikace; víceslovný název sítě jen v uvozovkách,
+  - **snackbar „Zkopírováno" leží pod sheetem** a vidět není (na Androidu 13+ to zastoupí
+    systémový náhled schránky, na starších nic),
+  - **čísla PPL a DPD**: holé číslo od telefonu nerozeznáš, chtělo by to slovo dopravce vedle,
+  - **místo od modelu bývá vágní** („letišti", „Kotvy") a mapy s ním neporadí — chtělo by to
+    nabízet mapy jen u místa, které vypadá jako adresa nebo název,
+  - **QR platbu sdílet jako obrázek** — ve stejném telefonu se z obrazovky nenaskenuje, část
+    bankovních aplikací ale umí QR z galerie,
+  - **`TextClassifier` / ML Kit Entity Extraction / `NSDataDetector`** místo vlastních pravidel —
+    ověřit češtinu (ML Kit Entity Extraction ji v seznamu jazyků podle všeho nemá).
 - **Triáž chatů.** Odznak „čeká na odpověď" vs. „jen informace" v seznamu chatů. Rozhodnutí
   ano/ne nad krátkým textem je rychlé (0,2–0,4 s), ale **počítá se pro každý chat zvlášť**,
   takže musí běžet nad načteným seznamem a výsledek se musí kešovat podle id zprávy.

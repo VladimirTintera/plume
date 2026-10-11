@@ -11,6 +11,9 @@ import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.open_in_new_24dp
+import eu.tintera.plume.resources.auto_awesome_24dp
+import eu.tintera.plume.resources.settings_message_context
+import eu.tintera.plume.resources.settings_message_context_summary
 import eu.tintera.plume.resources.settings_open_links_in_app
 import eu.tintera.plume.resources.settings_open_links_in_app_summary
 import org.koin.compose.koinInject
@@ -67,7 +70,8 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Skupina „Chaty" v Obecných: složky, akce tahem v seznamu chatů, rychlá reakce a otevírání odkazů.
+ * Skupina „Chaty" v Obecných: složky, akce tahem v seznamu chatů, rychlá reakce, otevírání odkazů
+ * a akce ze zpráv.
  * Samostatná sekce by měla pár položek.
  */
 @Composable
@@ -99,6 +103,7 @@ internal fun ChatsSettings(
         }
         QuickReactionSettings(quickReaction)
         OpenLinksInAppRow()
+        MessageContextRow()
     }
 
     picking?.let { side ->
@@ -139,6 +144,33 @@ private fun OpenLinksInAppRow() {
             onValueChange = { on ->
                 haptics.toggle(on)
                 settings.setOpenLinksInApp(on)
+            },
+        ),
+    )
+}
+
+/**
+ * Ikonka akcí u zprávy s termínem, účtem nebo zásilkou (`findMessageContext`). Tady, ne ve skupině
+ * AI v zařízení: rozpoznávají pravidla, takže funguje i bez modelu a na iOS — a skupina AI se na
+ * telefonu bez modelu vůbec neukáže.
+ */
+@Composable
+private fun MessageContextRow() {
+    val settings = koinInject<AppSettings>()
+    val haptics = LocalHapticFeedback.current
+    val enabled by settings.messageContextEnabled.collectAsStateWithLifecycle()
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        leadingContent = { Icon(painterResource(Res.drawable.auto_awesome_24dp), contentDescription = null) },
+        headlineContent = { Text(stringResource(Res.string.settings_message_context)) },
+        supportingContent = { Text(stringResource(Res.string.settings_message_context_summary)) },
+        trailingContent = { IconSwitch(checked = enabled, onCheckedChange = null) },
+        modifier = Modifier.toggleable(
+            value = enabled,
+            role = Role.Switch,
+            onValueChange = { on ->
+                haptics.toggle(on)
+                settings.setMessageContextEnabled(on)
             },
         ),
     )

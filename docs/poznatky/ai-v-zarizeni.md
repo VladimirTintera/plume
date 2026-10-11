@@ -327,6 +327,209 @@ ze stejného důvodu jako návrhy odpovědí: model běží sám, bez ťuknutí.
   kartu schová, tmavý motiv čitelný (akcent ustoupí `onErrorContainer`, viz `accentOn`).
   **Gemini Nano na skutečném zařízení neověřené.**
 
+### Akce ze zpráv
+
+Ikonka se sparkle (`auto_awesome`) na volné straně zprávy, ve které je termín, adresa, telefon
+nebo e-mail, číslo účtu, letu nebo zásilky, Wi-Fi s heslem nebo kód; ťuknutí otevře sheet
+s akcemi (`MessageContextSheet`): kalendář a „Připomenout…", mapy, uložení do kontaktů, QR
+platba s kopírováním účtu, částky a VS, stav letu, připojení k Wi-Fi, kopírování kódu,
+převod cizí měny a jednotek, kopírování kódu rezervace, sledování zásilky. Rozpoznávají PRAVIDLA
+(`findMessageContext`, testy `MessageContextTest`), model jen posuzuje termín (`MessageContexts`,
+prompt `EventPrompt.kt`). Vypínač v Nastavení → Obecné → Chaty, **výchozí zapnuto** — na rozdíl
+od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v zařízení uživatel zapnul.
+
+- **Pravidla napřed, protože jdou ověřit kontrolním součtem.** Český účet mod 11 a kód banky
+  ze seznamu ČNB (bez seznamu by „č. j. 1234/2025" prošlo jednou z jedenácti), IBAN mod 97,
+  zásilka S10 kontrolní číslicí. Model by tu jen hádal, co už víme jistě. Holá čísla PPL a DPD
+  od telefonu nerozeznáš, proto zatím nejsou.
+- **Adresa jen s jasnou stavbou**: ulice, číslo, čárka, město — a k tomu PSČ, nebo ulice, která
+  jako ulice vypadá (koncovka „-ská", „-ova", „-ního"…, klíčové slovo „nám.", předložka „Na").
+  Ulice je JEDNO slovo: víc slov by spolklo i slovo před ní („Sraz Vinohradská 12"), takže
+  „Karla Engliše 3" se nenajde. „Kapitola 12, Praha" adresou není. Anglicky číslo, název a druh
+  ulice („221B Baker Street"). Hledá se v textu bez diakritiky (`foldDiacritics` nemění délku
+  ani velikost písmen), ven jde úsek původního textu. Vložené příznaky regexů (`(?i:…)`) nejsou
+  na všech platformách stejné, velikost písmen je proto ručně (`[Nn]a`).
+- **Mapy hledají text** (`mapsSearchUrl`: Google Maps přes https na Androidu, Apple Maps na
+  iOS — táž volba jako u polohy, `mapsUrl`). Místo, které k termínu doplnil model, má
+  „Otevřít v mapách" taky; je ve tvaru ze zprávy („Černém Mostě u kina") a mapy si s ním poradí.
+- **Kontakt bere telefony a e-maily, které vyznačil Telegram** (`TextEntityTypePhoneNumber` /
+  `EmailAddress` → `Link("tel:…")` / `Link("mailto:…")`), a kde značka chybí, regulár
+  (mezinárodní číslo, české devítimístné od 2). Číslo, které je kusem účtu nebo variabilním
+  symbolem, kontaktem není; písmeno těsně u čísla znamená kód zásilky. Jeden telefon a jeden
+  e-mail jsou jeden kontakt (vizitka). **Jméno jen z jasné stavby**: dvě slova velkým písmenem
+  a za nimi oddělovač nebo „tel." („Jan Novák, tel. …"); bez oddělovače by jménem bylo
+  „Zavolej Petrovi". Editor kontaktu ho dovolí doplnit.
+- **Uložení kontaktu otevře systémový editor** (Android `ContactsContract.Intents.Insert`, bez
+  oprávnění; iOS `CNContactViewController(forNewContact:)` v navigačním kontroleru, s popisem
+  `NSContactsUsageDescription`). V Kotlin/Native má `CNMutableContact` vlastnosti jen ke čtení
+  (dědí je z `CNContact`), zapisuje se settery (`setGivenName`…).
+- **Číslo letu jen se dvěma signály**: kód ze seznamu leteckých společností (`AIRLINES`, IATA)
+  a slovo o letu ve zprávě („let", „odlet", „letiště", „flight", „gate"…). Samotné „OK 123"
+  nebo „LO 5" je spíš cokoli jiného. `VS` (Virgin Atlantic) v seznamu schválně není —
+  v češtině je to variabilní symbol. Stav letu na FlightAware, který kód IATA převede sám
+  („BA117" → „BAW117", ověřeno curlem); Flightradar24 robotům vrací 403 a ověřit se nedal.
+- **Wi-Fi jen s názvem I heslem o 8–63 znacích** (rozsah WPA) — „wifi heslo je…" bez názvu
+  sítě nic nenabídne. Textem („Wi-Fi na chatě: Chata_Lesni, heslo: …", s uvozovkami i víc
+  slov) a ze zápisu QR kódu `WIFI:S:…;P:…;;`. **Pořadí alternativ v reguláru rozhoduje**:
+  „klíčové slovo, pár slov a dvojtečka" musí být PRVNÍ — kratší varianta bez dvojtečky by
+  uspěla s hodnotou „na" (z „Wi-Fi na chatě:"), filtr by ji zahodil až po nálezu a regulár
+  by se k delší variantě na tomtéž místě už nevrátil.
+- **Připojení k Wi-Fi rozhoduje systém**: Android 11+ `Settings.ACTION_WIFI_ADD_NETWORKS`
+  s `WifiNetworkSuggestion` (WPA2) ukáže dialog „Uložit tuto síť?" — **oprávnění k Wi-Fi
+  potřeba není** (ověřeno na emulátoru, Android 17). Starší Android otevře nastavení Wi-Fi
+  a heslo dá do schránky. iOS připojení z aplikace bez entitlementu Hotspot Configuration
+  nedovolí, zbývá kopírování a QR kód sítě (`WIFI:T:WPA;S:…;P:…;;`, escapuje se `\ ; , : "`),
+  který naskenuje fotoaparát jiného telefonu.
+- **Kód ke zkopírování jen za klíčovým slovem** („kód", „code", „voucher", „promo", „kupón",
+  „PIN", „OTP"; mezi nimi nejvýš tři slova) a jen z VELKÝCH písmen a číslic: číselný 3–8
+  číslic (devět je spíš telefon), smíšený 4–16 znaků. Velikost písmen hlídá třída znaků, ne
+  `IGNORE_CASE` — s ním by kódem bylo „na" a regulár by se k delší variantě nevrátil (táž past
+  jako u Wi-Fi). **Přihlašovací kód Telegramu se nenabídne nikdy**: zprávy služby Telegramu
+  (777000) akce nemají vůbec (`offersContext`) a kód ve zprávě, která Telegram zmiňuje, taky
+  ne — ověřovací kód je přesně to, co podvodník chce. Kód z banky nebo e-shopu kopírovat jde,
+  je to totéž, co nabízí Android u SMS.
+- **Cizí měna jen se značkou nebo kódem u čísla** („120 €", „$45", „300 PLN", „2 500 Ft",
+  „15 eur") a jen jiná než měna uživatele (`HomeCurrency`). Číslo v zápisech „1 250,50",
+  „1.250,50" i „1,250.50" (`parseAmount`: poslední oddělovač s jednou nebo dvěma číslicemi je
+  desetinný). Bez `IGNORE_CASE`: „8 ft" jsou stopy, ne forinty. Tři velká písmena jen ze
+  seznamu kódů — „10 SMS" měna není.
+- **Měna slovy**: číslo a nejvýš tři slova za ním — řád („1,5 milionu", „2 tisíce"), přívlastek
+  („švédských korun" = SEK, „kanadských dolarů" = CAD) a měna podle začátku slova kvůli
+  skloňování („dolarů", „liber", „zlotých", „forintů", „franků", „juanů", „rupií", anglicky
+  „dollars", „bucks", „yen"). **Řád se musí počítat** — bez něj by „1,5 milionu dolarů" bylo
+  1,50 USD. Vynechané je dvojznačné: samotné „jen" (= pouze; jen celými tvary „jenů", „jeny")
+  a anglické „pounds" (spíš váha, převádí se jako jednotka). Hledá se v textu bez diakritiky,
+  ven jde úsek původního textu („1,5 milionu liber").
+- **Dvojznačné značky rozhoduje okolí zprávy, a když nerozhodne, nabídnou se obě možnosti**
+  (`Money.assumed`, karta pak měnu řekne: „¥800 (JPY)", „¥800 (CNY)"). `¥` je jen, nebo jüan
+  — podle zmínky o Japonsku / Tokiu / jenu, nebo o Číně / Pekingu / jüanu / RMB; `円`, `元`,
+  `JP¥`, `CN¥` a `RMB` jsou jednoznačné. Anglické „pounds" jsou libry, nebo váha — podle slov
+  o penězích („costs", „paid", „ticket", „rent", „stojí"…) a o váze („weighs", „flour",
+  „lost"…); bez nich převod váhy i měny. „Quid" a „pounds sterling" jsou peníze vždy,
+  zkratka „lb" váha vždy. Kořeny měst v kontextu se skloňují („v Tokiu") — proto „toki".
+- **Kurz z denního lístku ČNB** (anglická verze: desetinná tečka, ASCII; zdarma, bez klíče).
+  Kurzy jsou vůči koruně, takže jde převádět i mezi dvěma cizími měnami (EUR → USD přes CZK).
+  Stahuje se až s otevřením sheetu („Načítám kurz ČNB…") a drží se 6 hodin. Obsah zprávy
+  nikam neodchází, stahuje se jen celý lístek. Stahování je platformní (`TextDownloader`:
+  `HttpURLConnection`, `NSURLSession`) — Ktor v projektu není a kvůli jednomu souboru nestojí.
+- **Měna uživatele je podle REGIONU systému, ne jazyka aplikace — a `Resources.getSystem()`
+  na to nestačí**: v procesu aplikace do něj Android promítne i jazyk nastavený jen pro
+  aplikaci, takže s Plume v češtině a systémem `en_US` vyšla koruna místo dolaru (ověřeno na
+  emulátoru). Od Androidu 13 proto `LocaleManager.getSystemLocales()`.
+- **Jednotky jen té soustavy, kterou uživatel NEpoužívá** (`HomeRegion.metric`: imperiální
+  jsou jen USA, Libérie a Myanmar — CLDR). Metrickému míle, mph, stopy, palce („65 palců"),
+  yardy, libry, unce, galony a °F; americkému km, km/h, m, cm, kg, g, litry a °C. Počítá se na
+  místě (`MeasureUnit`), síť ani model nejsou potřeba. Anglické „in" schválně chybí („2 in 1"),
+  palce jen celým slovem; bez `IGNORE_CASE` („5G" není gram). Výsledek od stovky celým číslem,
+  pod ní s jedním desetinným místem, a to jen když není nula.
+- **Kód rezervace za klíčovým slovem** („rezervace" ve všech tvarech, „booking", „reservation",
+  „confirmation", „PNR", „locator"; mezi nimi nejvýš tři slova): 5–16 znaků z velkých písmen
+  a číslic, i s tečkami (Booking „4123.456.789"), čistě číselný 6–12 číslic. Hodnota, která je
+  rezervací, se už nenabídne jako obecný kód („kód rezervace: ABC123" chytí oboje).
+- **Let do kalendáře s časem ze zprávy** („Let OK 123" / „Přílet BA 117"): čas letu se odjinud
+  nezjistí, bere se termín, který ve zprávě našla pravidla — i NEJISTÝ („let OK 123 v 9:40"),
+  protože že jde o let, říká číslo letu a model to potvrzovat nemusí. Přílet jen tehdy, když
+  zpráva mluví o příletu a ne o odletu („odlet v 9:40, přílet ve 12:00" je odlet). Termín, který
+  nese let, se nenabízí ještě jako obecná událost — model by z „přistání na letišti" udělal
+  název „přistání na letišti" s místem „letišti". V popisu je celá zpráva, takže i kód
+  rezervace.
+- **Trasa a délka letu ze zprávy a tabulky letišť** (`AIRPORTS`: kód IATA, město, souřadnice,
+  pásmo IANA; ~110 nejběžnějších). Trasa z dvojice kódů („PRG → LHR", „PRG-LHR", „z PRG do
+  LHR"), jednoho kódu s předložkou, nebo „z Ruzyně". Tři velká písmena mimo tabulku letištěm
+  nejsou („MAN" a „SIN" v ní jsou, ale jen v trase). **Časy ve zprávě jsou MÍSTNÍ časy letišť**:
+  odlet v pásmu letiště odletu, přistání v pásmu příletu — Praha 9:40 → Londýn 10:55 jsou
+  2 h 15 min, ne 1 h 15 min; přistání „dřív" než odlet je druhý den (noční let). S dvěma časy
+  je délka přesná, s trasou bez druhého času ODHAD ze vzdálenosti (780 km/h + 35 min, nahoru
+  na 5 min; Praha–Londýn 2 h) a sheet to říká. Událost dostane začátek a konec jako okamžiky
+  (`CalendarEvent.begin` / `end`), místo letiště odletu („Prague (PRG)") a trasu do popisu.
+  Kalendář pak ukáže odlet v pásmu telefonu, tak jak ho uživatel zažije.
+- **Města místo kódů**: česky za „z / ze / do / na" („z Prahy do Londýna", „do Říma", „na
+  Krétu") podle začátku slova bez diakritiky kvůli skloňování (`CZECH_CITY_STEMS`, krátké
+  kořeny jako Řím, Oslo a Riga jen celými tvary), anglicky za „from / to"
+  (`ENGLISH_CITIES`). Jen ve zprávě o letu, takže „to split the bill" Split není. Město s víc
+  letišti dostane hlavní (Londýn → Heathrow, Paříž → CDG); kód ve zprávě má přednost.
+  Vynechaná jsou jména, která jsou i běžným slovem nebo jménem (Nice, Sofie, Porto). **Hledá se
+  po slovech, ne regulárem**: „předložka a dvě slova" by u „z Prahy do Londýna" spolkla „do"
+  a přílet by se nenašel (regulár překrývající se nálezy nevrací). Mezi slovy o letu jsou
+  i tvary „letím / letíme" — bez nich by „Letím zítra OK 123…" let nenašlo.
+- **Termín je jistý, nebo nejistý** (`EventCandidate.certain`). Jistý = den a čas, datum číslem,
+  nebo termín vyznačený Telegramem (`MessageEntityType.DateTime`); ten se nabídne i bez modelu.
+  Jen čas („v 15:00") je nejistý a nabídne se, jen když ho model potvrdí. Jen den („v pátek")
+  není termín vůbec.
+- **Minulost odfiltrují pravidla, model na ni nestačí.** Gemma 4 E2B odpověděla „schůzka" na
+  „Včera v 15:00 jsem byl u doktora" i na „Volal jsem ti v 9:30, ale nebral jsi to" — u té
+  druhé i s téměř stejným příkladem v promptu. Pravidla proto zahodí zprávu se „včera",
+  „minulý", „yesterday", „last week" a u termínu bez dne i český minulý čas (příčestí na -l
+  s „jsem/jsi/jsme/jste"). U termínu se dnem se minulý čas nekontroluje: „domluvili jsme se na
+  zítra v 15" je schůzka.
+- **Model se ptá napřed na čas (`WHEN: PAST/FUTURE`), pak na schůzku.** Samotné „je to
+  schůzka?" bralo Gemmu k souhlasu; s klasifikací minulosti na prvním řádku odpověděla u staré
+  zprávy o odstávce `PAST` a u schůzek `FUTURE`. Potvrzení chce obojí výslovně.
+- **Prompt termín NEtvrdí, jen nabízí výklad** („If it plans something, the time would be…").
+  S větou „It mentions <datum>" model termín přebíral jako fakt — pravidla „v 15:00" u minulé
+  zprávy posunou na příští den a model pak „věděl", že je v budoucnu.
+- **Místo jen takové, které ve zprávě stojí** (`placeInText`, začátek slova bez dvou posledních
+  písmen kvůli skloňování: „kino" ↔ „u kina"). Název od modelu se bere, jak je — uživatel ho
+  vidí a opraví v editoru kalendáře. Sheet říká, že název a místo navrhl model.
+- **Během posuzování se jistý termín ukazuje** (ikonka nečeká vteřiny na model), nejistý ne —
+  ten by naskočil a po odmítnutí zmizel. Posudky jsou v paměti procesu podle (chat, zpráva,
+  otisk textu), takže upravená zpráva se posoudí znovu; nepovedené (`Unavailable`) dostanou
+  novou šanci s dalším otevřením chatu (`reopen`).
+- **Nic nevynáší chráněný obsah**: chat s `has_protected_content` (`ChatInfo.protectsContent`),
+  mizející zprávy a zprávy s varováním před podvodem ikonku nemají — QR platba k podvodu je
+  přesně to, co podvodník chce.
+- **Kalendář nic neukládá sám**: Android `ACTION_INSERT` do `CalendarContract.Events` (bez
+  oprávnění), bez kalendáře soubor `.ics` (`toIcs`, testy `CalendarEventIcsTest`: čas v UTC,
+  zalamování po 75 BAJTECH, ne znacích). iOS `EKEventEditViewController` — od iOS 17 bez
+  přístupu ke kalendáři; projekt cílí na 18.2.
+- **Tytéž akce jsou v nabídce nad zprávou, každá jako vlastní položka** (`MessageMenuAction.ContextItem`,
+  `ContextVerb`, `contextMenuItems`, testy v `MessageActionTest`). Kandidát `ContextActions` se
+  při otevření nabídky rozvine na položky („Stav letu", „Odlet do kalendáře", „Kopírovat
+  rezervaci"). **Přímé akce se provedou hned** (kalendář, mapy, kontakt, připojení k Wi-Fi,
+  kopírování, sledování) — kvůli nim položka v nabídce je; sheet by byl ťuknutí navíc. **Co se
+  musí ukázat, otevře sheet** a má tři tečky: převod měny a jednotek, QR platba a Wi-Fi tam, kde
+  se připojit nedá (heslo a QR kód).
+  - **Nejvýš čtyři položky**, jinak tři a „Akce ze zprávy…" (sheet se vším). Zpráva s pěti
+    adresami by jinak nabídku protáhla přes obrazovku a vlastní položky zprávy (Přeposlat,
+    Připnout) odsunula dolů.
+  - **Více akcí stejného druhu nese hodnotu MÍSTO popisku** („RR123456785CZ" s ikonou zásilky),
+    druh řekne ikona. Hodnota ZA popiskem („Sledovat zásilku · RR…") se zalomila a výška
+    nabídky se počítá na jeden řádek na položku — konec nabídky se usekl. Ze stejného důvodu
+    je „Kopírovat rezervaci", ne „Kopírovat kód rezervace".
+  - **I s vypnutou ikonkou**: vypínač brání tomu, co vyskakuje samo, nabídka se otevírá
+    vědomě — věta pod vypínačem to říká. Nálezy počítá ViewModel až při otevření nabídky
+    (`contextFindingsOf`), ne `menuActions` u každé zprávy; kandidát je proto u každé zprávy
+    s textem a bez nálezu se rozvine na nic. Právo jako u kopírování (`canCopy`).
+  - Ověřeno na emulátoru: zpráva s letem a rezervací ukáže tři položky, „Kopírovat rezervaci"
+    zkopíruje kód a zavře nabídku.
+- **Ikonka i sheet jsou mimo `ConversationScreen`** (v dexu na hraně): posudky sbírá položka
+  (`ConversationItemScope.messageContext`), sheet si stav čte sám (`MessageContextHost`, jediné
+  volání). `ConversationScreen` zůstal na 271 registrech.
+- **„Kč" v regulárním výrazu je escapované** (`\u010d`): `verifyNoHardcodedText` diakritiku
+  v kódu mimo komentáře nepustí a tohle jsou data, ne text pro uživatele.
+- **Ověřeno na emulátoru** (`Plume_Galerie_Fold`, Gemma 4 E2B na CPU, ~30–40 s na posudek,
+  zprávy od bota Notifikátor): ikonky u schůzky, platby a zásilek, žádná u „včera…" a „volal
+  jsem…"; sheet s názvem a místem od modelu; „Přidat do kalendáře" předá `ACTION_INSERT`
+  Kalendáři Google (editor se bez účtu Google neukázal); kopírování účtu; sledování otevře
+  `tracking.packeta.com/cs/Z1234567890`; adresa „Vinohradská 1511/230, 100 00 Praha 10" otevře
+  Mapy Google s `?q=Vinohradsk%C3%A1%201511%2F230…`; vizitka „Jan Novák, tel. +420 602 123 456,
+  jan.novak@example.com" otevře editor Kontaktů Google se jménem, příjmením, telefonem
+  i e-mailem; „Přiletím letem BA 117, přistání na letišti kolem 14:30" nabídne termín od modelu
+  i let a „Stav letu" otevře FlightAware; „Wi-Fi na chatě: Chata_Lesni, heslo: medved2026"
+  ukáže síť, heslo, QR kód a „Připojit k Wi-Fi" otevře systémový dialog uložení sítě
+  (zrušený, síť se neuložila); „Slevový kód na první nákup: LETO20" zkopíruje „LETO20";
+  „120 € na noc" se systémem `en_US` převede na „≈ 134,46 USD" s kurzem ČNB z 9. října 2026
+  a „1,5 milionu liber" na „≈ 1 982 869,63 USD"; „Ta mikina stála ¥800" ukáže dvě karty,
+  „¥800 (JPY) ≈ 5,06 USD" a „¥800 (CNY) ≈ 119,53 USD";
+  „uběhl 10 km, venku bylo 20 °C" se systémem `en_US` ukáže „≈ 6,2 mi" a „≈ 68 °F";
+  „kód rezervace: XKQ7ZT" nabídne kód rezervace ke zkopírování; „Odlet OK 123 zítra v 9:40
+  z Ruzyně, kód rezervace XKQ7ZT" nabídne let se „Stav letu", „Odlet do kalendáře — zítra
+  09:40" (bez obecné karty události) a kód rezervace; „Let OK 123 PRG → LHR zítra, odlet 9:40,
+  přílet 10:55" ukáže pod číslem letu „PRG → LHR · 2 h 15 min"; „Letím zítra OK 123 z Prahy do
+  Paříže, odlet 9:40, přílet 11:25" ukáže „PRG → CDG · 1 h 45 min".
+  **Neověřené**: načtení QR bankovní aplikací, editor
+  události, Gemini Nano, iOS.
+
 ### Návrhy odpovědí
 
 Přijde zpráva, pole je prázdné → nad polem se ukážou až tři čipy s krátkou odpovědí. Ťuknutí ji

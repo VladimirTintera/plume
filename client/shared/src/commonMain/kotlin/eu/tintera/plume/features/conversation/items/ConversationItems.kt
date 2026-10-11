@@ -277,6 +277,9 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageM
         // Vysvětlit jen DLOUHOU CIZÍ zprávu: vlastní zprávu člověk zná a krátkou přečte
         // rychleji, než model odpoví.
         if (!message.isOutgoing && message.text.length >= EXPLAIN_MIN_CHARS) add(MessageMenuAction.Explain)
+        // Akce z textu (termín, účet, zásilka): jestli v něm něco je, zjistí ViewModel při
+        // otevření nabídky — tady by se pravidla pouštěla u každé zprávy v seznamu.
+        add(MessageMenuAction.ContextActions)
     }
     if (message.media is MessageMedia.Sticker) add(MessageMenuAction.ToggleFavoriteSticker)
     add(MessageMenuAction.Forward)

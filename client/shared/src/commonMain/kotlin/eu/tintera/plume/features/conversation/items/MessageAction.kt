@@ -1,6 +1,33 @@
 package eu.tintera.plume.features.conversation.items
 
 import eu.tintera.plume.resources.menu_explain
+import eu.tintera.plume.features.conversation.ContextFinding
+import eu.tintera.plume.resources.event_24dp
+import eu.tintera.plume.resources.local_shipping_24dp
+import eu.tintera.plume.resources.payments_24dp
+import eu.tintera.plume.resources.menu_context_actions
+import eu.tintera.plume.resources.menu_context_wifi_sheet
+import eu.tintera.plume.resources.message_context_event
+import eu.tintera.plume.resources.message_context_flight_calendar
+import eu.tintera.plume.resources.message_context_flight_arrival_calendar
+import eu.tintera.plume.resources.message_context_flight_track
+import eu.tintera.plume.resources.message_context_maps
+import eu.tintera.plume.resources.message_context_contact
+import eu.tintera.plume.resources.message_context_wifi
+import eu.tintera.plume.resources.message_context_code_copy
+import eu.tintera.plume.resources.message_context_booking_copy
+import eu.tintera.plume.resources.message_context_parcel
+import eu.tintera.plume.resources.confirmation_number_24dp
+import eu.tintera.plume.resources.menu_context_money
+import eu.tintera.plume.resources.menu_context_units
+import eu.tintera.plume.resources.straighten_24dp
+import eu.tintera.plume.resources.currency_exchange_24dp
+import eu.tintera.plume.resources.redeem_24dp
+import eu.tintera.plume.resources.wifi_24dp
+import eu.tintera.plume.resources.flight_24dp
+import eu.tintera.plume.resources.person_add_24dp
+import eu.tintera.plume.resources.map_24dp
+import eu.tintera.plume.resources.menu_context_payment
 import eu.tintera.plume.resources.auto_awesome_24dp
 import eu.tintera.plume.core.telegram.ForwardOrigin
 
@@ -378,6 +405,47 @@ sealed interface MessageMenuAction : MessageAction {
             MenuPresentation(Res.drawable.auto_awesome_24dp, Res.string.menu_explain).takeIf { menu.explainAvailable }
     }
 
+    /**
+     * Kandidát na akce z textu zprávy (termín, účet, zásilka…). ViewModel ho při otevření nabídky
+     * ROZBALÍ na položky jednotlivých akcí ([ContextItem], [contextMenuItems]); sám se ukáže jen
+     * jako „Akce ze zprávy…" za posledními z nich, když se všechny nevejdou. Nabízí se i s ikonkou
+     * vypnutou v nastavení — nabídka se otevírá vědomě. Chráněný obsah ven nesmí ani do
+     * kalendáře, takže stejné právo jako [Copy].
+     */
+    data object ContextActions : MessageMenuAction {
+        override fun presentation(menu: MessageMenu): MenuPresentation? =
+            MenuPresentation(Res.drawable.auto_awesome_24dp, Res.string.menu_context_actions)
+                .takeIf { menu.contextFindings.isNotEmpty() && menu.actions.canCopy }
+    }
+
+    /**
+     * Jedna akce z textu zprávy: [verb] co udělat, [index] s čím (`MessageMenu.contextFindings`),
+     * [value] ukázaná hodnota, když je akcí stejného druhu víc (místo popisku, druh řekne ikona).
+     * Co nic neukazuje, se provede rovnou (kalendář, mapy, kopírování); převody a QR platba
+     * otevřou sheet, proto mají tři tečky.
+     */
+    data class ContextItem(val verb: ContextVerb, val index: Int, val value: String? = null) : MessageMenuAction {
+        override fun presentation(menu: MessageMenu): MenuPresentation? {
+            if (!menu.actions.canCopy || menu.contextFindings.getOrNull(index) == null) return null
+            return when (verb) {
+                ContextVerb.Calendar -> MenuPresentation(Res.drawable.event_24dp, Res.string.message_context_event, labelArg = value)
+                ContextVerb.FlightCalendar -> MenuPresentation(Res.drawable.event_24dp, Res.string.message_context_flight_calendar, labelArg = value)
+                ContextVerb.ArrivalCalendar -> MenuPresentation(Res.drawable.event_24dp, Res.string.message_context_flight_arrival_calendar, labelArg = value)
+                ContextVerb.FlightStatus -> MenuPresentation(Res.drawable.flight_24dp, Res.string.message_context_flight_track, labelArg = value)
+                ContextVerb.Maps -> MenuPresentation(Res.drawable.map_24dp, Res.string.message_context_maps, labelArg = value)
+                ContextVerb.SaveContact -> MenuPresentation(Res.drawable.person_add_24dp, Res.string.message_context_contact, labelArg = value)
+                ContextVerb.JoinWifi -> MenuPresentation(Res.drawable.wifi_24dp, Res.string.message_context_wifi, labelArg = value)
+                ContextVerb.CopyCode -> MenuPresentation(Res.drawable.redeem_24dp, Res.string.message_context_code_copy, labelArg = value)
+                ContextVerb.CopyBooking -> MenuPresentation(Res.drawable.confirmation_number_24dp, Res.string.message_context_booking_copy, labelArg = value)
+                ContextVerb.TrackParcel -> MenuPresentation(Res.drawable.local_shipping_24dp, Res.string.message_context_parcel, labelArg = value)
+                ContextVerb.Payment -> MenuPresentation(Res.drawable.payments_24dp, Res.string.menu_context_payment, labelArg = value)
+                ContextVerb.Money -> MenuPresentation(Res.drawable.currency_exchange_24dp, Res.string.menu_context_money, labelArg = value)
+                ContextVerb.Units -> MenuPresentation(Res.drawable.straighten_24dp, Res.string.menu_context_units, labelArg = value)
+                ContextVerb.Wifi -> MenuPresentation(Res.drawable.wifi_24dp, Res.string.menu_context_wifi_sheet, labelArg = value)
+            }
+        }
+    }
+
     /** Kandidát jen u samolepky. Jestli už v oblíbených je, se zjistí při otevření nabídky. */
     data object ToggleFavoriteSticker : MessageMenuAction {
         override fun presentation(menu: MessageMenu) = when (menu.favoriteSticker) {
@@ -482,4 +550,53 @@ data class MenuPresentation(
     val icon: DrawableResource,
     val label: StringResource,
     val destructive: Boolean = false,
+    /**
+     * Hodnota místo popisku („RR123456785CZ" s ikonou zásilky), když je akcí stejného druhu víc
+     * a popisek by je nerozlišil. Místo, ne za: položka musí zůstat na jednom řádku.
+     */
+    val labelArg: String? = null,
 )
+
+/** Co položka akce z textu zprávy udělá (viz [MessageMenuAction.ContextItem]). */
+enum class ContextVerb {
+    Calendar, FlightCalendar, ArrivalCalendar, FlightStatus, Maps, SaveContact, JoinWifi, CopyCode,
+    CopyBooking, TrackParcel, Payment, Money, Units, Wifi,
+}
+
+/**
+ * Položky nabídky nad zprávou pro akce z jejího textu, v pořadí sheetu. Nejvýš [MAX_CONTEXT_ITEMS];
+ * když jich je víc, zbytek schová „Akce ze zprávy…" ([MessageMenuAction.ContextActions]), jinak by
+ * nabídka u zprávy s pěti nálezy přerostla obrazovku. Dvě akce stejného druhu nesou hodnotu,
+ * aby se daly rozlišit. [canJoinWifi] = telefon umí síť přidat sám (na iOS ne, tam sheet s heslem).
+ */
+internal fun contextMenuItems(findings: List<ContextFinding>, canJoinWifi: Boolean): List<MessageMenuAction> {
+    val entries = findings.flatMapIndexed { index, finding ->
+        when (finding) {
+            is ContextFinding.Event -> listOf(ContextVerb.Calendar to finding.title)
+            is ContextFinding.Payment -> listOf(ContextVerb.Payment to finding.account)
+            is ContextFinding.Address -> listOf(ContextVerb.Maps to finding.text)
+            is ContextFinding.Contact -> listOf(ContextVerb.SaveContact to (finding.name ?: finding.phone ?: finding.email.orEmpty()))
+            is ContextFinding.Flight -> listOfNotNull(
+                ContextVerb.FlightStatus to "${finding.airline} ${finding.number}",
+                finding.at?.let { (if (finding.arrival) ContextVerb.ArrivalCalendar else ContextVerb.FlightCalendar) to "${finding.airline} ${finding.number}" },
+            )
+            is ContextFinding.Wifi -> listOf((if (canJoinWifi) ContextVerb.JoinWifi else ContextVerb.Wifi) to finding.ssid)
+            is ContextFinding.Code -> listOf(ContextVerb.CopyCode to finding.value)
+            is ContextFinding.Booking -> listOf(ContextVerb.CopyBooking to finding.value)
+            is ContextFinding.Money -> listOf(ContextVerb.Money to finding.shown)
+            is ContextFinding.Measure -> listOf(ContextVerb.Units to finding.shown)
+            is ContextFinding.Parcel -> listOf(ContextVerb.TrackParcel to finding.number)
+        }.map { (verb, value) -> Triple(verb, index, value) }
+    }
+    val repeated = entries.groupingBy { it.first }.eachCount().filterValues { it > 1 }.keys
+    val items = entries.map { (verb, index, value) ->
+        MessageMenuAction.ContextItem(verb, index, value.takeIf { verb in repeated })
+    }
+    return if (items.size <= MAX_CONTEXT_ITEMS) {
+        items
+    } else {
+        items.take(MAX_CONTEXT_ITEMS - 1) + MessageMenuAction.ContextActions
+    }
+}
+
+private const val MAX_CONTEXT_ITEMS = 4

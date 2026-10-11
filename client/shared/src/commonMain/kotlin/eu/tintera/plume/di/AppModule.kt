@@ -3,6 +3,9 @@ package eu.tintera.plume.di
 import eu.tintera.plume.features.chats.NaturalSearchModel
 import eu.tintera.plume.features.conversation.LocalTranscripts
 import eu.tintera.plume.features.conversation.ScamWarnings
+import eu.tintera.plume.features.conversation.MessageContexts
+import eu.tintera.plume.core.currency.ExchangeRates
+import eu.tintera.plume.core.currency.TextDownloader
 import eu.tintera.plume.features.conversation.ReminderTimeModel
 import eu.tintera.plume.features.conversation.ConversationJumpRequests
 import eu.tintera.plume.features.conversation.ChatSwitcher
@@ -316,6 +319,8 @@ fun appModule() = module {
     factory { ReminderTimeModel(ai = get(), settings = get()) }
     factory { NaturalSearchModel(ai = get(), settings = get()) }
     single { ScamWarnings(ai = get(), settings = get(), appScope = get(named(APP_SCOPE))) }
+    single { MessageContexts(ai = get(), settings = get(), appScope = get(named(APP_SCOPE))) }
+    single { ExchangeRates(TextDownloader()) }
     single { ChatSwitcher(chats = get()) }
     single { MessageBookmarks(settings = get(), chats = get()) }
     single { ChatSnoozes(settings = get(), chats = get(), reminders = getOrNull()) }
@@ -497,6 +502,12 @@ fun appModule() = module {
             onDeviceAi = getOrNull(),
             localTranscripts = get(),
             scamWarnings = get(),
+            messageContexts = get(),
+            calendarEvents = getOrNull(),
+            contactSaver = getOrNull(),
+            wifiJoiner = getOrNull(),
+            exchangeRates = get(),
+            currency = getOrNull(),
             speechToText = getOrNull(),
         )
     }
