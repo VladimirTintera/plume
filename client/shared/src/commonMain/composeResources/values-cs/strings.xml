@@ -2660,4 +2660,11 @@
     <string name="message_context_flight">Let</string>
     <string name="message_context_flight_track">Stav letu</string>
     <string name="menu_context_flight">Stav letu…</string>
+    <string name="message_context_wifi">Připojit k Wi-Fi</string>
+    <string name="menu_context_wifi">Připojit k Wi-Fi…</string>
+    <string name="message_context_wifi_network">Síť Wi-Fi</string>
+    <string name="message_context_wifi_password">Heslo</string>
+    <string name="message_context_wifi_qr">Jiný telefon se připojí, když kód načte fotoaparátem</string>
+    <string name="message_context_wifi_settings">Heslo je ve schránce, v nastavení Wi-Fi vyber %1$s</string>
+    <string name="message_context_wifi_failed">Nastavení Wi-Fi nejde otevřít</string>
 </resources>

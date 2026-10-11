@@ -374,7 +374,8 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
   práh se musí nastavit tak, aby se raději mlčelo.
 - **AI ikonka u zprávy s rozpoznaným kontextem** — první kolo hotovo: termín → kalendář nebo
   připomínka, číslo účtu → QR platba a kopírování, adresa → mapy, telefon a e-mail → uložit do
-  kontaktů, číslo letu → stav letu, číslo zásilky (Česká pošta / S10, Zásilkovna) → sledování, z ikonky i z nabídky nad zprávou; model termín potvrzuje a doplní název a místo (`docs/poznatky/ai-v-zarizeni.md`,
+  kontaktů, číslo letu → stav letu, Wi-Fi s heslem → připojit a QR kód sítě, číslo zásilky
+  (Česká pošta / S10, Zásilkovna) → sledování, z ikonky i z nabídky nad zprávou; model termín potvrzuje a doplní název a místo (`docs/poznatky/ai-v-zarizeni.md`,
   „Akce ze zpráv"). Zbývá:
   - **ověřit na telefonu**: editor události v kalendáři (emulátor bez účtu Google chce
     přihlášení), načtení QR platby bankovní aplikací, Gemini Nano místo Gemmy, iOS (jen přeložené),
@@ -383,8 +384,10 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
     a model, jako u termínu,
   - **jméno u kontaktu** jen z jasné stavby („Jan Novák: 602…"); jinak by ho uměl model,
   - **kód rezervace** a let do kalendáře s časem odletu (dnes se termín a let nabízejí zvlášť),
-    **Wi-Fi s heslem** (`WifiNetworkSuggestion`), **kód ke zkopírování**
-    (přihlašovací kódy od Telegramu NE), **cizí měna a jednotky**,
+  - **Wi-Fi na iOS** jen s kopírováním hesla a QR kódem — připojení chce entitlement Hotspot
+    Configuration v profilu aplikace; víceslovný název sítě jen v uvozovkách,
+  - **kód ke zkopírování** (slevový, ke vstupu; přihlašovací kódy od Telegramu NE),
+    **cizí měna a jednotky**,
   - **čísla PPL a DPD**: holé číslo od telefonu nerozeznáš, chtělo by to slovo dopravce vedle,
   - **místo od modelu bývá vágní** („letišti", „Kotvy") a mapy s ním neporadí — chtělo by to
     nabízet mapy jen u místa, které vypadá jako adresa nebo název,

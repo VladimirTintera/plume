@@ -502,6 +502,7 @@ fun appModule() = module {
             messageContexts = get(),
             calendarEvents = getOrNull(),
             contactSaver = getOrNull(),
+            wifiJoiner = getOrNull(),
         )
     }
 

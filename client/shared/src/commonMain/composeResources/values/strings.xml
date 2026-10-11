@@ -2582,4 +2582,11 @@
     <string name="message_context_flight">Flight</string>
     <string name="message_context_flight_track">Flight status</string>
     <string name="menu_context_flight">Flight status…</string>
+    <string name="message_context_wifi">Connect to Wi-Fi</string>
+    <string name="menu_context_wifi">Connect to Wi-Fi…</string>
+    <string name="message_context_wifi_network">Wi-Fi network</string>
+    <string name="message_context_wifi_password">Password</string>
+    <string name="message_context_wifi_qr">Another phone joins by scanning the code with its camera</string>
+    <string name="message_context_wifi_settings">Password copied, choose %1$s in Wi-Fi settings</string>
+    <string name="message_context_wifi_failed">Wi-Fi settings could not be opened</string>
 </resources>

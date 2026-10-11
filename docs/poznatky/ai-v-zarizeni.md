@@ -330,9 +330,9 @@ ze stejného důvodu jako návrhy odpovědí: model běží sám, bez ťuknutí.
 ### Akce ze zpráv
 
 Ikonka se sparkle (`auto_awesome`) na volné straně zprávy, ve které je termín, adresa, telefon
-nebo e-mail, číslo účtu, letu nebo zásilky; ťuknutí otevře sheet s akcemi
+nebo e-mail, číslo účtu, letu nebo zásilky, Wi-Fi s heslem; ťuknutí otevře sheet s akcemi
 (`MessageContextSheet`): kalendář a „Připomenout…", mapy, uložení do kontaktů, QR platba
-s kopírováním účtu, částky a VS, stav letu, sledování zásilky. Rozpoznávají PRAVIDLA
+s kopírováním účtu, částky a VS, stav letu, připojení k Wi-Fi, sledování zásilky. Rozpoznávají PRAVIDLA
 (`findMessageContext`, testy `MessageContextTest`), model jen posuzuje termín (`MessageContexts`,
 prompt `EventPrompt.kt`). Vypínač v Nastavení → Obecné → Chaty, **výchozí zapnuto** — na rozdíl
 od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v zařízení uživatel zapnul.
@@ -367,6 +367,18 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   nebo „LO 5" je spíš cokoli jiného. `VS` (Virgin Atlantic) v seznamu schválně není —
   v češtině je to variabilní symbol. Stav letu na FlightAware, který kód IATA převede sám
   („BA117" → „BAW117", ověřeno curlem); Flightradar24 robotům vrací 403 a ověřit se nedal.
+- **Wi-Fi jen s názvem I heslem o 8–63 znacích** (rozsah WPA) — „wifi heslo je…" bez názvu
+  sítě nic nenabídne. Textem („Wi-Fi na chatě: Chata_Lesni, heslo: …", s uvozovkami i víc
+  slov) a ze zápisu QR kódu `WIFI:S:…;P:…;;`. **Pořadí alternativ v reguláru rozhoduje**:
+  „klíčové slovo, pár slov a dvojtečka" musí být PRVNÍ — kratší varianta bez dvojtečky by
+  uspěla s hodnotou „na" (z „Wi-Fi na chatě:"), filtr by ji zahodil až po nálezu a regulár
+  by se k delší variantě na tomtéž místě už nevrátil.
+- **Připojení k Wi-Fi rozhoduje systém**: Android 11+ `Settings.ACTION_WIFI_ADD_NETWORKS`
+  s `WifiNetworkSuggestion` (WPA2) ukáže dialog „Uložit tuto síť?" — **oprávnění k Wi-Fi
+  potřeba není** (ověřeno na emulátoru, Android 17). Starší Android otevře nastavení Wi-Fi
+  a heslo dá do schránky. iOS připojení z aplikace bez entitlementu Hotspot Configuration
+  nedovolí, zbývá kopírování a QR kód sítě (`WIFI:T:WPA;S:…;P:…;;`, escapuje se `\ ; , : "`),
+  který naskenuje fotoaparát jiného telefonu.
 - **Termín je jistý, nebo nejistý** (`EventCandidate.certain`). Jistý = den a čas, datum číslem,
   nebo termín vyznačený Telegramem (`MessageEntityType.DateTime`); ten se nabídne i bez modelu.
   Jen čas („v 15:00") je nejistý a nabídne se, jen když ho model potvrdí. Jen den („v pátek")
@@ -416,7 +428,9 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   Mapy Google s `?q=Vinohradsk%C3%A1%201511%2F230…`; vizitka „Jan Novák, tel. +420 602 123 456,
   jan.novak@example.com" otevře editor Kontaktů Google se jménem, příjmením, telefonem
   i e-mailem; „Přiletím letem BA 117, přistání na letišti kolem 14:30" nabídne termín od modelu
-  i let a „Stav letu" otevře FlightAware. **Neověřené**: načtení QR bankovní aplikací, editor
+  i let a „Stav letu" otevře FlightAware; „Wi-Fi na chatě: Chata_Lesni, heslo: medved2026"
+  ukáže síť, heslo, QR kód a „Připojit k Wi-Fi" otevře systémový dialog uložení sítě
+  (zrušený, síť se neuložila). **Neověřené**: načtení QR bankovní aplikací, editor
   události, Gemini Nano, iOS.
 
 ### Návrhy odpovědí

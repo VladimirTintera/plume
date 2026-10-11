@@ -250,6 +250,29 @@ class MessageContextTest {
     }
 
     @Test
+    fun wifiSHeslem() {
+        assertEquals(ContextFinding.Wifi("Plume_Home", "tajne1234"), context("Wi-Fi: Plume_Home, heslo: tajne1234").wifi)
+        assertEquals(ContextFinding.Wifi("Chata U Lesa", "medved2026"), context("Síť se jmenuje „Chata U Lesa“ a heslo k wifi je medved2026.").wifi)
+        assertEquals(ContextFinding.Wifi("Office", "p@ss;word"), context("SSID: Office password: \"p@ss;word\"").wifi)
+        assertEquals(ContextFinding.Wifi("Chata_Lesni", "medved2026"), context("Wi-Fi na chatě: Chata_Lesni, heslo: medved2026").wifi)
+    }
+
+    @Test
+    fun wifiZQrKodu() {
+        val wifi = context("WIFI:T:WPA;S:My\\;Net;P:secret12;;").wifi
+        assertEquals(ContextFinding.Wifi("My;Net", "secret12"), wifi)
+        assertEquals("WIFI:T:WPA;S:My\\;Net;P:secret12;;", wifi?.qrText())
+    }
+
+    @Test
+    fun coWifiNeni() {
+        // Bez hesla, heslo kratší než 8 znaků, „wifi heslo" bez názvu sítě.
+        assertNull(context("Wi-Fi Plume_Home nefunguje").wifi)
+        assertNull(context("Wi-Fi: Plume_Home, heslo: abc").wifi)
+        assertNull(context("Wifi heslo je tajne1234").wifi)
+    }
+
+    @Test
     fun obycejnaZpravaNicNema() {
         assertTrue(context("Ahoj, jak se máš?").isEmpty)
         assertTrue(context("").isEmpty)

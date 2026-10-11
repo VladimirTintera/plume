@@ -43,6 +43,12 @@ import eu.tintera.plume.resources.menu_remind
 import eu.tintera.plume.resources.message_context_account
 import eu.tintera.plume.resources.message_context_contact
 import eu.tintera.plume.resources.message_context_flight
+import eu.tintera.plume.resources.message_context_wifi
+import eu.tintera.plume.resources.message_context_wifi_network
+import eu.tintera.plume.resources.message_context_wifi_password
+import eu.tintera.plume.resources.message_context_wifi_qr
+import eu.tintera.plume.resources.wifi_24dp
+import eu.tintera.plume.resources.password_24dp
 import eu.tintera.plume.resources.message_context_flight_track
 import eu.tintera.plume.resources.flight_24dp
 import eu.tintera.plume.resources.message_context_email
@@ -92,6 +98,7 @@ internal fun MessageContextHost(viewModel: ConversationViewModel) {
         onTrack = viewModel::trackParcel,
         onOpenMaps = viewModel::openMaps,
         onSaveContact = viewModel::saveContact,
+        onJoinWifi = viewModel::joinWifi.takeIf { viewModel.canJoinWifi },
         onDismiss = viewModel::closeMessageContext,
     )
 }
@@ -99,7 +106,7 @@ internal fun MessageContextHost(viewModel: ConversationViewModel) {
 /**
  * Co se ve zprávě našlo a co s tím jde udělat: termín → kalendář nebo připomínka (a mapy, když
  * model našel místo), účet → QR platba a kopírování údajů, adresa → mapy, kontakt → uložit do
- * kontaktů, let → stav letu, zásilka → sledování.
+ * kontaktů, let → stav letu, Wi-Fi → připojit a QR kód sítě, zásilka → sledování.
  *
  * - **Nic se nestane samo.** Kalendář otevře editor události, kde ji uloží uživatel; platbu
  *   provede banka. Sheet jen předvyplní, co ve zprávě stálo.
@@ -116,6 +123,8 @@ internal fun MessageContextSheet(
     onTrack: (url: String) -> Unit,
     onOpenMaps: (query: String) -> Unit,
     onSaveContact: (ContextFinding.Contact) -> Unit,
+    /** `null`, když se k Wi-Fi z aplikace připojit nedá (iOS) — zbude heslo a QR kód. */
+    onJoinWifi: ((ContextFinding.Wifi) -> Unit)?,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
@@ -144,6 +153,7 @@ internal fun MessageContextSheet(
                         is ContextFinding.Address -> AddressSection(finding, onCopy = onCopy, onOpenMaps = onOpenMaps)
                         is ContextFinding.Contact -> ContactSection(finding, onCopy = onCopy, onSave = { onSaveContact(finding) })
                         is ContextFinding.Flight -> FlightSection(finding, onCopy = onCopy, onTrack = onTrack)
+                        is ContextFinding.Wifi -> WifiSection(finding, onCopy = onCopy, onJoin = onJoinWifi?.let { join -> { join(finding) } })
                         is ContextFinding.Payment -> PaymentSection(finding, onCopy = onCopy)
                         is ContextFinding.Parcel -> ParcelSection(finding, onCopy = onCopy, onTrack = onTrack)
                     }
@@ -216,6 +226,51 @@ private fun EventSection(
             onClick = { onOpenMaps(place) },
         )
     }
+}
+
+/**
+ * Wi-Fi: název a heslo ke zkopírování, připojení (kde jde) a QR kód sítě. QR je pro DRUHÝ
+ * telefon — naskenuje ho fotoaparát a připojí se bez opisování hesla.
+ */
+@Composable
+private fun ColumnScope.WifiSection(wifi: ContextFinding.Wifi, onCopy: (String) -> Unit, onJoin: (() -> Unit)?) {
+    CopyRow(
+        label = null,
+        title = stringResource(Res.string.message_context_wifi_network),
+        value = wifi.ssid,
+        copied = wifi.ssid,
+        onCopy = onCopy,
+        icon = Res.drawable.wifi_24dp,
+    )
+    CopyRow(
+        label = null,
+        title = stringResource(Res.string.message_context_wifi_password),
+        value = wifi.password,
+        copied = wifi.password,
+        onCopy = onCopy,
+        icon = Res.drawable.password_24dp,
+    )
+    onJoin?.let { join ->
+        SheetActionRow(
+            icon = Res.drawable.wifi_24dp,
+            label = stringResource(Res.string.message_context_wifi),
+            shape = RoundedCornerShape(ROW_CORNER),
+            onClick = join,
+            color = MaterialTheme.colorScheme.tertiaryContainer,
+            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        )
+    }
+    QrCode(
+        content = wifi.qrText(),
+        contentDescription = stringResource(Res.string.message_context_wifi_qr),
+        modifier = Modifier.align(Alignment.CenterHorizontally).width(QR_SIZE),
+    )
+    Text(
+        stringResource(Res.string.message_context_wifi_qr),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.align(Alignment.CenterHorizontally),
+    )
 }
 
 @Composable

@@ -41,6 +41,7 @@ import eu.tintera.plume.core.locale.AppLanguage
 import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.calendar.CalendarEvents
 import eu.tintera.plume.core.contacts.ContactSaver
+import eu.tintera.plume.core.wifi.WifiJoiner
 import eu.tintera.plume.core.language.LanguageDetector
 import eu.tintera.plume.core.language.IosLanguageDetector
 import kotlinx.coroutines.CoroutineScope
@@ -86,6 +87,7 @@ actual fun Module.platformModule() {
     single { TextClipboard() }
     single { CalendarEvents() }
     single { ContactSaver() }
+    single { WifiJoiner() }
     single<LanguageDetector> { IosLanguageDetector() }
     single<SquarePhoto> { IosSquarePhoto() }
     single<SnoozeReminders> { IosSnoozeReminders() }

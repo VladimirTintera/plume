@@ -13,6 +13,10 @@ import kotlin.time.Instant
 import eu.tintera.plume.core.calendar.CalendarEvent
 import eu.tintera.plume.core.calendar.CalendarEvents
 import eu.tintera.plume.core.contacts.ContactSaver
+import eu.tintera.plume.core.wifi.WifiJoin
+import eu.tintera.plume.core.wifi.WifiJoiner
+import eu.tintera.plume.resources.message_context_wifi_failed
+import eu.tintera.plume.resources.message_context_wifi_settings
 import eu.tintera.plume.core.contacts.NewContact
 import eu.tintera.plume.resources.message_context_no_contacts
 import eu.tintera.plume.core.location.mapsSearchUrl
@@ -399,6 +403,8 @@ class ConversationViewModel(
     private val calendarEvents: CalendarEvents? = null,
     /** Uložení kontaktu z akcí u zprávy. */
     private val contactSaver: ContactSaver? = null,
+    /** Připojení k Wi-Fi z akcí u zprávy; bez něj (iOS) jen heslo a QR kód. */
+    private val wifiJoiner: WifiJoiner? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -3892,6 +3898,28 @@ class ConversationViewModel(
     fun trackParcel(url: String) {
         closeMessageContext()
         openLink(url, confirmExternal = false)
+    }
+
+    /** Umí telefon nabídnout připojení k Wi-Fi ze zprávy? Na iOS ne (viz `WifiJoiner`). */
+    val canJoinWifi: Boolean get() = wifiJoiner?.canJoin == true
+
+    /**
+     * Připojení k Wi-Fi ze zprávy. Kde systém dialog „Uložit síť?" nemá a otevře se jen nastavení,
+     * heslo jde do schránky — v nastavení se pak jen vloží.
+     */
+    fun joinWifi(wifi: ContextFinding.Wifi) {
+        val joiner = wifiJoiner ?: return
+        when (joiner.join(wifi.ssid, wifi.password)) {
+            WifiJoin.Dialog -> closeMessageContext()
+            WifiJoin.Settings -> {
+                closeMessageContext()
+                viewModelScope.launch {
+                    clipboard.copy(wifi.password)
+                    _state.update { it.copy(notice = UiText(Res.string.message_context_wifi_settings, wifi.ssid)) }
+                }
+            }
+            WifiJoin.Failed -> _state.update { it.copy(notice = UiText(Res.string.message_context_wifi_failed)) }
+        }
     }
 
     /** Kontakt ze zprávy do systémového editoru kontaktů; uloží ho až uživatel. */

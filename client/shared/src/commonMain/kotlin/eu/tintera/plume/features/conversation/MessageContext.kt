@@ -55,6 +55,9 @@ sealed interface ContextFinding {
         val code: String get() = airline + number
     }
 
+    /** Wi-Fi s heslem → připojit (Android), zkopírovat heslo, QR kód sítě pro jiný telefon. */
+    data class Wifi(val ssid: String, val password: String) : ContextFinding
+
     /** Číslo zásilky → sledování u dopravce. */
     data class Parcel(val carrier: ParcelCarrier, val number: String) : ContextFinding
 }
@@ -89,11 +92,12 @@ data class MessageContext(
     val addresses: List<ContextFinding.Address> = emptyList(),
     val contacts: List<ContextFinding.Contact> = emptyList(),
     val flights: List<ContextFinding.Flight> = emptyList(),
+    val wifi: ContextFinding.Wifi? = null,
     val parcels: List<ContextFinding.Parcel> = emptyList(),
 ) {
     val isEmpty: Boolean
         get() = event == null && payments.isEmpty() && addresses.isEmpty() && contacts.isEmpty() &&
-            flights.isEmpty() && parcels.isEmpty()
+            flights.isEmpty() && wifi == null && parcels.isEmpty()
 }
 
 /**
@@ -112,6 +116,8 @@ data class MessageContext(
  *   kontaktem není.
  * - **Let** jen s kódem známé letecké společnosti ([AIRLINES]) a slovem o letu ve zprávě („let",
  *   „odlet", „letiště", „flight", „gate"…). Samo „OK 123" nebo „LO 5" je spíš cokoli jiného.
+ * - **Wi-Fi** jen s názvem sítě I heslem o 8–63 znacích (víc ani míň WPA nedovolí):
+ *   „Wi-Fi: Plume_Home, heslo: tajne1234", nebo zápis z QR kódu `WIFI:S:…;P:…;;`.
  * - **Zásilka** jen ve formátu, který dopravce jednoznačně určí: S10 s kontrolní číslicí
  *   a Zásilkovna. Holá čísla PPL nebo DPD od telefonu nerozeznáš.
  */
@@ -129,6 +135,7 @@ fun findMessageContext(
         addresses = addresses(text),
         contacts = contacts(text, entities, payments),
         flights = flights(text),
+        wifi = wifi(text),
         parcels = parcels(text),
     )
 }
@@ -171,6 +178,7 @@ fun MessageContext.contextFindings(
     addAll(addresses)
     addAll(contacts)
     addAll(flights)
+    wifi?.let(::add)
     addAll(parcels)
 }
 
@@ -195,6 +203,21 @@ sealed interface EventVerdict {
  * (Flightradar24 robotům vrací 403, takže se ověřit nedal).
  */
 fun ContextFinding.Flight.trackingUrl(): String = "https://www.flightaware.com/live/flight/$code"
+
+/**
+ * Síť jako text QR kódu (`WIFI:T:WPA;S:…;P:…;;`), jak ho čte fotoaparát Androidu i iPhonu.
+ * Zpětné lomítko, středník, čárka, dvojtečka a uvozovky se escapují lomítkem.
+ */
+fun ContextFinding.Wifi.qrText(): String = "WIFI:T:WPA;S:${wifiEscape(ssid)};P:${wifiEscape(password)};;"
+
+private fun wifiEscape(value: String): String = buildString {
+    value.forEach { char ->
+        if (char in WIFI_SPECIAL) append('\\')
+        append(char)
+    }
+}
+
+private const val WIFI_SPECIAL = "\\;,:\""
 
 fun ContextFinding.Parcel.trackingUrl(language: String): String = when (carrier) {
     ParcelCarrier.CzechPost -> "https://www.postaonline.cz/trackandtrace/-/zasilka/cislo?parcelNumbers=$number"
@@ -421,6 +444,30 @@ private fun flights(text: String): List<ContextFinding.Flight> {
         .toList()
 }
 
+// --- Wi-Fi -----------------------------------------------------------------------------------
+
+private fun wifi(text: String): ContextFinding.Wifi? {
+    WIFI_QR.find(text)?.let { match ->
+        val fields = WIFI_FIELD.findAll(match.value.removePrefix("WIFI:")).associate { field ->
+            field.groupValues[1].uppercase() to field.groupValues[2].replace(WIFI_UNESCAPE, "$1")
+        }
+        val ssid = fields["S"]
+        val password = fields["P"]
+        if (!ssid.isNullOrEmpty() && password != null && password.length in WPA_PASSWORD) {
+            return ContextFinding.Wifi(ssid, password)
+        }
+    }
+    val ssid = WIFI_NAME.findAll(text).map { quotedOrBare(it).trimEnd('.', ')', ':') }
+        .firstOrNull { it.isNotEmpty() && foldDiacritics(it).lowercase() !in WIFI_NOT_A_NAME } ?: return null
+    val password = WIFI_PASSWORD.findAll(text).map { quotedOrBare(it).trimEnd('.', ')') }
+        .firstOrNull { it.length in WPA_PASSWORD && it != ssid } ?: return null
+    return ContextFinding.Wifi(ssid, password)
+}
+
+/** Hodnota v uvozovkách („…", "…"), nebo bez nich do mezery, čárky či středníku. */
+private fun quotedOrBare(match: MatchResult): String =
+    match.groupValues.drop(1).firstOrNull { it.isNotEmpty() }.orEmpty()
+
 // --- Zásilka ---------------------------------------------------------------------------------
 
 private fun parcels(text: String): List<ContextFinding.Parcel> = buildList {
@@ -566,6 +613,44 @@ private val AIRLINES = setOf(
     "JL", "CX", "SQ", "QF", "ET", "MS", "SV", "AI", "CA", "MU", "CZ", "KE", "OZ", "TG", "VN", "NZ",
     "LA", "AV", "AM", "WN", "G9", "FZ", "XQ", "KM", "V7", "EN", "DE", "PS", "4U", "WK", "BJ", "J2",
 )
+
+private val WPA_PASSWORD = 8..63
+
+/** Zápis sítě z QR kódu; pole jsou `T:`, `S:`, `P:`, `H:` oddělená středníkem. */
+private val WIFI_QR = Regex("WIFI:(?:[A-Za-z]:(?:\\\\.|[^;\\\\])*;)+;?")
+private val WIFI_FIELD = Regex("([A-Za-z]):((?:\\\\.|[^;\\\\])*);")
+private val WIFI_UNESCAPE = Regex("\\\\(.)")
+
+/** Hodnota: v uvozovkách (i českých), nebo bez nich do mezery, čárky či středníku. */
+private const val WIFI_VALUE = "(?:\"([^\"\\n]{1,63})\"|\u201e([^\u201c\"\\n]{1,63})[\u201c\"]|([^\\s,;\"]{1,63}))"
+
+/**
+ * Pár slov mezi klíčovým slovem a dvojtečkou („Wi-Fi na chatě: …", „heslo do sítě doma: …").
+ * V alternativě PRVNÍ: kratší varianta by jinak uspěla s hodnotou „na" a regulár by se k této
+ * už nevrátil (filtr hodnoty běží až po nálezu).
+ */
+private const val WIFI_WORDS_COLON = "(?:\\s+[\\p{L}\\-]+){1,3}\\s*:"
+
+/**
+ * Název sítě: „Wi-Fi", „WLAN", „SSID", „síť" nebo „network", případně „se jmenuje / je / is",
+ * a hodnota. Diakritika je ve třídách znaků escapovaná (`verifyNoHardcodedText`).
+ */
+private val WIFI_NAME = Regex(
+    "(?<![\\p{L}])(?:wi-?fi|wlan|ssid|s[i\u00ed][t\u0165]|network)(?![\\p{L}])" +
+        "(?:$WIFI_WORDS_COLON|(?:\\s+(?:se\\s+jmenuje|je|is|name|n[a\u00e1]zev))?\\s*[:=\\-\u2013]?)\\s*$WIFI_VALUE",
+    RegexOption.IGNORE_CASE,
+)
+
+/** Heslo: „heslo", „password", „pass", „pw", „klíč", případně „k wifi / je / is", a hodnota. */
+private val WIFI_PASSWORD = Regex(
+    "(?<![\\p{L}])(?:heslo|hesla|password|passwd|pass|pw|kl[i\u00ed][c\u010d])(?![\\p{L}])" +
+        "(?:\\s+(?:k|ke|do|na|pro|to|for)\\s+(?:wi-?fi|wlan|s[i\u00ed]ti|s[i\u00ed][t\u0165]))?" +
+        "(?:$WIFI_WORDS_COLON|(?:\\s+(?:je|is))?\\s*[:=\\-\u2013]?)\\s*$WIFI_VALUE",
+    RegexOption.IGNORE_CASE,
+)
+
+/** Slova, která za „wifi" stojí místo názvu („wifi heslo je…", „síť je dole"). */
+private val WIFI_NOT_A_NAME = setOf("heslo", "hesla", "password", "pass", "pw", "klic", "je", "is", "k", "na", "nefunguje", "nejde")
 
 private val S10 = Regex("(?<![A-Za-z0-9])([A-Z]{2})(\\d{9})([A-Z]{2})(?![A-Za-z0-9])")
 private val PACKETA = Regex("(?<![A-Za-z0-9])Z ?(\\d{3}) ?(\\d{4}) ?(\\d{3})(?![\\d])")
