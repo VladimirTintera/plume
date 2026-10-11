@@ -4078,7 +4078,6 @@ private fun MessageInput(
                         // i u nahrávané hlasovky.
                         .longPressInstead(enabled = sendOptionsOffered) {
                             gestureHints?.used(GestureHint.SendOptions)
-                            keyboard?.hide()
                             voiceMenu = kind == SendButtonKind.SendVoice
                             if (voiceMenu) onVoiceMenu(true)
                             sendMenuOpen = true
@@ -4140,7 +4139,7 @@ private fun MessageInput(
                                 MenuAction(stringResource(Res.string.conversation_send_schedule), Res.drawable.schedule_send_24dp) {
                                     voiceChosen = true
                                     sendMenuOpen = false
-                                    onScheduleRecording()
+                                    afterKeyboardHidden(onScheduleRecording)
                                 }.takeIf { offer.schedule },
                                 MenuAction(stringResource(Res.string.conversation_send_when_online), Res.drawable.online_prediction_24dp) {
                                     voiceChosen = true
@@ -4156,7 +4155,7 @@ private fun MessageInput(
                             }.takeIf { sendMenu.silent },
                             MenuAction(stringResource(Res.string.conversation_send_schedule), Res.drawable.schedule_send_24dp) {
                                 sendMenuOpen = false
-                                onSchedule()
+                                afterKeyboardHidden(onSchedule)
                             }.takeIf { sendMenu.schedule },
                             MenuAction(stringResource(Res.string.conversation_send_when_online), Res.drawable.online_prediction_24dp) {
                                 sendMenuOpen = false
@@ -4165,11 +4164,12 @@ private fun MessageInput(
                             }.takeIf { sendMenu.whenOnline },
                             MenuAction(stringResource(Res.string.conversation_send_effect), Res.drawable.auto_awesome_24dp) {
                                 sendMenuOpen = false
-                                onPickEffect()
+                                afterKeyboardHidden(onPickEffect)
                             }.takeIf { sendMenu.effects },
                             MenuAction(stringResource(Res.string.conversation_send_rewrite), Res.drawable.edit_note_24dp) {
                                 sendMenuOpen = false
-                                rewrite.open(draft.text)
+                                val text = draft.text
+                                afterKeyboardHidden { rewrite.open(text) }
                             }.takeIf { rewriteOffered },
                         ),
                     ),

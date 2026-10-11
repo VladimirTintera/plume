@@ -43,8 +43,8 @@ class MenuAction(
  * Prázdné skupiny se zahazují, takže volající může skupinu poskládat z podmíněných položek
  * a nemusí hlídat, jestli v ní něco zbylo. Nabídka zavře sebe sama před akcí ([onDismiss]).
  *
- * [properties] jsou výchozí M3 (nabídka si bere fokus). Nabídka nad vstupním polem je
- * nefokusovatelná — viz `AttachButton`.
+ * Okno nabídky si nebere klávesnici ([MenuPopupProperties]): nabídka nad vstupním polem ji
+ * nechá otevřenou a konverzace pod ní neposkočí.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -54,7 +54,7 @@ fun ExpressiveMenu(
     groups: List<List<MenuAction>>,
     popupPositionProvider: DropdownMenuPopupPositionProvider =
         MenuDefaults.rememberDropdownMenuPopupPositionProvider(MenuAnchorPosition.Below),
-    properties: PopupProperties = PopupProperties(focusable = true),
+    properties: PopupProperties = MenuPopupProperties,
 ) {
     val shown = groups.filter { it.isNotEmpty() }
     DropdownMenuPopup(

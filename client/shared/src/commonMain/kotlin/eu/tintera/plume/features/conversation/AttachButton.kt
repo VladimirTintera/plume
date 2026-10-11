@@ -19,13 +19,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.window.PopupProperties
-import androidx.navigationevent.NavigationEventInfo
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.TimeMark
-import kotlin.time.TimeSource
-import androidx.navigationevent.compose.NavigationBackHandler
-import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.rememberAfterKeyboardHidden
@@ -60,12 +53,8 @@ import org.jetbrains.compose.resources.stringResource
  * v tom pásu leží — „spodkem k tlačítku" tím neprošlo a menu se posadilo k oknu, viditelně nad
  * tlačítko s mezerou. Vzhled je jinak tatáž Expressive nabídka jako všude ([ExpressiveMenu]).
  *
- * **Nabídka si nebere fokus** (`PopupProperties(focusable = false)`). Popup je na Androidu
- * samostatné okno; fokusovatelné okno převzalo fokus od pole a systém klávesnici schoval — jenže
- * animaci insetů dostává okno, které klávesnici řídí, a to už bylo okno nabídky. Hlavní okno
- * dostalo rovnou konečné insety a celá konverzace skokem spadla dolů. Teď klávesnice zůstane,
- * nabídka vyroste nad sponkou a zavírá se až s volbou položky, animovaně.
- * Nefokusovatelné okno nedostane zpět, proto [NavigationBackHandler].
+ * Klávesnice pod nabídkou zůstane (okno nabídky si ji nebere, viz `MenuPopupProperties`);
+ * schová se až s volbou položky, animovaně.
  */
 @Composable
 internal fun AttachButton(
@@ -84,27 +73,14 @@ internal fun AttachButton(
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    // Kdy se nabídka naposledy zavřela; obyčejné pole, ne stav — nic se podle něj nekreslí.
-    val dismissedAt = remember { arrayOfNulls<TimeMark>(1) }
     // Sheet i systémový výběr jsou další okno; otevřené hned by klávesnici utrhly skokem.
     val afterKeyboardHidden = rememberAfterKeyboardHidden()
 
     fun pick(action: () -> Unit) = afterKeyboardHidden(action)
 
-    NavigationBackHandler(
-        state = rememberNavigationEventState(NavigationEventInfo.None),
-        isBackEnabled = expanded,
-        onBackCompleted = { expanded = false },
-    )
-
     Box(modifier) {
         IconButton(
-            onClick = {
-                // Nefokusovatelná nabídka se zavře už DOTYKEM mimo sebe — i na sponce — a klik
-                // po puštění by ji hned otevřel znovu. Druhé ťuknutí na sponku má nabídku zavřít.
-                val justDismissed = dismissedAt[0]?.let { it.elapsedNow() < REOPEN_GUARD } == true
-                expanded = !expanded && !justDismissed
-            },
+            onClick = { expanded = true },
             colors = IconButtonDefaults.iconButtonColors(contentColor = contentColor),
             shapes = IconButtonDefaults.shapes(),
         ) {
@@ -113,12 +89,8 @@ internal fun AttachButton(
 
         ExpressiveMenu(
             expanded = expanded,
-            onDismiss = {
-                expanded = false
-                dismissedAt[0] = TimeSource.Monotonic.markNow()
-            },
+            onDismiss = { expanded = false },
             popupPositionProvider = remember { MenuAbovePositionProvider(alignEnd = false) },
-            properties = remember { PopupProperties(focusable = false) },
             groups = listOf(
                 listOfNotNull(
                     MenuAction(stringResource(Res.string.conversation_attach_media), Res.drawable.perm_media_24dp) { pick(onPickMedia) }
@@ -139,9 +111,6 @@ internal fun AttachButton(
         )
     }
 }
-
-/** Klik na sponku tak brzy po zavření nabídky patří k témuž ťuknutí, které ji zavřelo. */
-private val REOPEN_GUARD = 500.milliseconds
 
 /**
  * Nabídka spodkem nad kotvu, začátkem u jejího začátku (s [alignEnd] koncem u konce — pro
