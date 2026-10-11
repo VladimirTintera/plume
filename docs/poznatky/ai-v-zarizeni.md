@@ -482,12 +482,26 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   oprávnění), bez kalendáře soubor `.ics` (`toIcs`, testy `CalendarEventIcsTest`: čas v UTC,
   zalamování po 75 BAJTECH, ne znacích). iOS `EKEventEditViewController` — od iOS 17 bez
   přístupu ke kalendáři; projekt cílí na 18.2.
-- **Tytéž akce jsou v nabídce nad zprávou** (`MessageMenuAction.ContextActions`), s popiskem podle
-  nálezu („QR platba…", „Přidat do kalendáře…", u kombinace „Akce ze zprávy…"; tři tečky, protože
-  se otevře sheet). **I s vypnutou ikonkou**: vypínač brání tomu, co vyskakuje samo, nabídka se
-  otevírá vědomě — věta pod vypínačem to říká. Nálezy počítá ViewModel až při otevření nabídky
-  (`contextFindingsOf`), ne `menuActions` u každé zprávy; kandidát je proto u každé zprávy
-  s textem a bez nálezu se položka neukáže. Právo jako u kopírování (`canCopy`).
+- **Tytéž akce jsou v nabídce nad zprávou, každá jako vlastní položka** (`MessageMenuAction.ContextItem`,
+  `ContextVerb`, `contextMenuItems`, testy v `MessageActionTest`). Kandidát `ContextActions` se
+  při otevření nabídky rozvine na položky („Stav letu", „Odlet do kalendáře", „Kopírovat
+  rezervaci"). **Přímé akce se provedou hned** (kalendář, mapy, kontakt, připojení k Wi-Fi,
+  kopírování, sledování) — kvůli nim položka v nabídce je; sheet by byl ťuknutí navíc. **Co se
+  musí ukázat, otevře sheet** a má tři tečky: převod měny a jednotek, QR platba a Wi-Fi tam, kde
+  se připojit nedá (heslo a QR kód).
+  - **Nejvýš čtyři položky**, jinak tři a „Akce ze zprávy…" (sheet se vším). Zpráva s pěti
+    adresami by jinak nabídku protáhla přes obrazovku a vlastní položky zprávy (Přeposlat,
+    Připnout) odsunula dolů.
+  - **Více akcí stejného druhu nese hodnotu MÍSTO popisku** („RR123456785CZ" s ikonou zásilky),
+    druh řekne ikona. Hodnota ZA popiskem („Sledovat zásilku · RR…") se zalomila a výška
+    nabídky se počítá na jeden řádek na položku — konec nabídky se usekl. Ze stejného důvodu
+    je „Kopírovat rezervaci", ne „Kopírovat kód rezervace".
+  - **I s vypnutou ikonkou**: vypínač brání tomu, co vyskakuje samo, nabídka se otevírá
+    vědomě — věta pod vypínačem to říká. Nálezy počítá ViewModel až při otevření nabídky
+    (`contextFindingsOf`), ne `menuActions` u každé zprávy; kandidát je proto u každé zprávy
+    s textem a bez nálezu se rozvine na nic. Právo jako u kopírování (`canCopy`).
+  - Ověřeno na emulátoru: zpráva s letem a rezervací ukáže tři položky, „Kopírovat rezervaci"
+    zkopíruje kód a zavře nabídku.
 - **Ikonka i sheet jsou mimo `ConversationScreen`** (v dexu na hraně): posudky sbírá položka
   (`ConversationItemScope.messageContext`), sheet si stav čte sám (`MessageContextHost`, jediné
   volání). `ConversationScreen` zůstal na 271 registrech.

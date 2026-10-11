@@ -2567,23 +2567,17 @@
     <string name="message_context_no_calendar">There is no calendar app to add the event to</string>
     <string name="settings_message_context">Actions from messages</string>
     <string name="settings_message_context_summary">An icon next to a message with a date, bank account or parcel number offers your calendar, a QR payment or tracking. Recognized on your phone; when off, the actions stay in the message menu.</string>
-    <string name="menu_context_event">Add to calendar…</string>
     <string name="menu_context_payment">QR payment…</string>
-    <string name="menu_context_parcel">Track parcel…</string>
     <string name="menu_context_actions">Actions from the message…</string>
     <string name="message_context_address">Address</string>
     <string name="message_context_maps">Open in maps</string>
-    <string name="menu_context_address">Open in maps…</string>
     <string name="message_context_contact">Save to contacts</string>
-    <string name="menu_context_contact">Save to contacts…</string>
     <string name="message_context_phone">Phone</string>
     <string name="message_context_email">Email</string>
     <string name="message_context_no_contacts">There is no contacts app to save the contact to</string>
     <string name="message_context_flight">Flight</string>
     <string name="message_context_flight_track">Flight status</string>
-    <string name="menu_context_flight">Flight status…</string>
     <string name="message_context_wifi">Connect to Wi-Fi</string>
-    <string name="menu_context_wifi">Connect to Wi-Fi…</string>
     <string name="message_context_wifi_network">Wi-Fi network</string>
     <string name="message_context_wifi_password">Password</string>
     <string name="message_context_wifi_qr">Another phone joins by scanning the code with its camera</string>
@@ -2591,7 +2585,6 @@
     <string name="message_context_wifi_failed">Wi-Fi settings could not be opened</string>
     <string name="message_context_code">Code</string>
     <string name="message_context_code_copy">Copy code</string>
-    <string name="menu_context_code">Copy code…</string>
     <string name="message_context_money">Convert currency</string>
     <string name="menu_context_money">Convert currency…</string>
     <string name="message_context_money_loading">Loading the Czech National Bank rate…</string>
@@ -2603,8 +2596,7 @@
     <string name="menu_context_units">Convert units…</string>
     <string name="message_context_units_result">≈ %1$s %2$s</string>
     <string name="message_context_booking">Booking reference</string>
-    <string name="message_context_booking_copy">Copy booking reference</string>
-    <string name="menu_context_booking">Copy booking reference…</string>
+    <string name="message_context_booking_copy">Copy booking</string>
     <string name="message_context_flight_calendar">Departure to calendar</string>
     <string name="message_context_flight_arrival_calendar">Arrival to calendar</string>
     <string name="message_context_flight_title">Flight %1$s</string>
@@ -2612,4 +2604,5 @@
     <string name="message_context_flight_duration">%1$d h %2$s min</string>
     <string name="message_context_flight_estimated">%1$s (estimate)</string>
     <string name="message_context_money_assumed">%1$s (%2$s)</string>
+    <string name="menu_context_wifi_sheet">Wi-Fi and password…</string>
 </resources>

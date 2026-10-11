@@ -2645,23 +2645,17 @@
     <string name="message_context_no_calendar">Událost není kam přidat, v telefonu chybí kalendář</string>
     <string name="settings_message_context">Akce ze zpráv</string>
     <string name="settings_message_context_summary">Ikonka u zprávy s termínem, číslem účtu nebo zásilky nabídne kalendář, QR platbu nebo sledování. Rozpoznává se v telefonu; vypnutá ikonka je nechá v nabídce nad zprávou.</string>
-    <string name="menu_context_event">Přidat do kalendáře…</string>
     <string name="menu_context_payment">QR platba…</string>
-    <string name="menu_context_parcel">Sledovat zásilku…</string>
     <string name="menu_context_actions">Akce ze zprávy…</string>
     <string name="message_context_address">Adresa</string>
     <string name="message_context_maps">Otevřít v mapách</string>
-    <string name="menu_context_address">Otevřít v mapách…</string>
     <string name="message_context_contact">Uložit do kontaktů</string>
-    <string name="menu_context_contact">Uložit do kontaktů…</string>
     <string name="message_context_phone">Telefon</string>
     <string name="message_context_email">E-mail</string>
     <string name="message_context_no_contacts">Kontakt není kam uložit, v telefonu chybí aplikace Kontakty</string>
     <string name="message_context_flight">Let</string>
     <string name="message_context_flight_track">Stav letu</string>
-    <string name="menu_context_flight">Stav letu…</string>
     <string name="message_context_wifi">Připojit k Wi-Fi</string>
-    <string name="menu_context_wifi">Připojit k Wi-Fi…</string>
     <string name="message_context_wifi_network">Síť Wi-Fi</string>
     <string name="message_context_wifi_password">Heslo</string>
     <string name="message_context_wifi_qr">Jiný telefon se připojí, když kód načte fotoaparátem</string>
@@ -2669,7 +2663,6 @@
     <string name="message_context_wifi_failed">Nastavení Wi-Fi nejde otevřít</string>
     <string name="message_context_code">Kód</string>
     <string name="message_context_code_copy">Kopírovat kód</string>
-    <string name="menu_context_code">Kopírovat kód…</string>
     <string name="message_context_money">Převést měnu</string>
     <string name="menu_context_money">Převést měnu…</string>
     <string name="message_context_money_loading">Načítám kurz ČNB…</string>
@@ -2681,8 +2674,7 @@
     <string name="menu_context_units">Převést jednotky…</string>
     <string name="message_context_units_result">≈ %1$s %2$s</string>
     <string name="message_context_booking">Kód rezervace</string>
-    <string name="message_context_booking_copy">Kopírovat kód rezervace</string>
-    <string name="menu_context_booking">Kopírovat kód rezervace…</string>
+    <string name="message_context_booking_copy">Kopírovat rezervaci</string>
     <string name="message_context_flight_calendar">Odlet do kalendáře</string>
     <string name="message_context_flight_arrival_calendar">Přílet do kalendáře</string>
     <string name="message_context_flight_title">Let %1$s</string>
@@ -2690,4 +2682,5 @@
     <string name="message_context_flight_duration">%1$d h %2$s min</string>
     <string name="message_context_flight_estimated">%1$s (odhad)</string>
     <string name="message_context_money_assumed">%1$s (%2$s)</string>
+    <string name="menu_context_wifi_sheet">Wi-Fi a heslo…</string>
 </resources>

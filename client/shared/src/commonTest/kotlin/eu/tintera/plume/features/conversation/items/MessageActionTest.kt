@@ -16,7 +16,7 @@ import eu.tintera.plume.resources.menu_bookmark_remove
 import eu.tintera.plume.features.conversation.ContextFinding
 import eu.tintera.plume.features.conversation.ParcelCarrier
 import eu.tintera.plume.resources.menu_context_actions
-import eu.tintera.plume.resources.menu_context_parcel
+import eu.tintera.plume.resources.message_context_code_copy
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -135,26 +135,47 @@ class MessageActionTest {
         )
     }
 
-    /** Akce z textu: jen když se něco našlo a obsah smí ven; popisek podle toho, co to je. */
+    /** Akce z textu: položka pro každou akci, hodnota jen u stejného druhu, zbytek za „Akce ze zprávy…". */
     @Test
-    fun akceZeZpravyPodleNalezu() {
-        val items = listOf(MessageMenuAction.ContextActions)
+    fun akceZeZpravyPoPolozkach() {
         val parcel = ContextFinding.Parcel(ParcelCarrier.Packeta, "Z1234567890")
         val payment = ContextFinding.Payment(iban = "CZ6508000000192000145399", account = "19-2000145399/0800")
-        assertNull(MessageMenuAction.ContextActions.presentation(menu(items)))
+        val code = ContextFinding.Code("LETO20")
         assertEquals(
-            Res.string.menu_context_parcel,
-            MessageMenuAction.ContextActions.presentation(menu(items).copy(contextFindings = listOf(parcel, parcel.copy(number = "Z0000000000"))))?.label,
+            listOf(
+                MessageMenuAction.ContextItem(ContextVerb.TrackParcel, 0),
+                MessageMenuAction.ContextItem(ContextVerb.Payment, 1),
+                MessageMenuAction.ContextItem(ContextVerb.CopyCode, 2),
+            ),
+            contextMenuItems(listOf(parcel, payment, code), canJoinWifi = true),
         )
+        // Dvě zásilky: popisek nese číslo, ať se dají rozlišit.
+        val second = parcel.copy(number = "Z0000000000")
+        assertEquals(
+            listOf("Z1234567890", "Z0000000000"),
+            contextMenuItems(listOf(parcel, second), canJoinWifi = true).map { (it as MessageMenuAction.ContextItem).value },
+        )
+        // Víc než čtyři: tři a „Akce ze zprávy…".
+        val many = contextMenuItems(listOf(parcel, payment, code, ContextFinding.Booking("XKQ7ZT"), ContextFinding.Code("ABCD12")), canJoinWifi = true)
+        assertEquals(4, many.size)
+        assertEquals(MessageMenuAction.ContextActions, many.last())
+        // Wi-Fi bez možnosti připojit (iOS) otevře sheet s heslem.
+        assertEquals(
+            ContextVerb.Wifi,
+            (contextMenuItems(listOf(ContextFinding.Wifi("Doma", "tajne1234")), canJoinWifi = false).single() as MessageMenuAction.ContextItem).verb,
+        )
+    }
+
+    @Test
+    fun akceZeZpravyJenSeSvolenymObsahem() {
+        val item = MessageMenuAction.ContextItem(ContextVerb.CopyCode, 0)
+        val menu = menu(listOf(item)).copy(contextFindings = listOf(ContextFinding.Code("LETO20")))
+        assertEquals(Res.string.message_context_code_copy, item.presentation(menu)?.label)
+        // Chráněný obsah ven nesmí ani do schránky.
+        assertNull(item.presentation(menu.copy(actions = all.copy(canCopy = false))))
         assertEquals(
             Res.string.menu_context_actions,
-            MessageMenuAction.ContextActions.presentation(menu(items).copy(contextFindings = listOf(parcel, payment)))?.label,
-        )
-        // Chráněný obsah ven nesmí ani do kalendáře nebo QR platby.
-        assertNull(
-            MessageMenuAction.ContextActions.presentation(
-                menu(items, actions = all.copy(canCopy = false)).copy(contextFindings = listOf(payment)),
-            ),
+            MessageMenuAction.ContextActions.presentation(menu)?.label,
         )
     }
 

@@ -14,6 +14,9 @@ import eu.tintera.plume.core.calendar.CalendarEvent
 import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.core.calendar.CalendarEvents
 import eu.tintera.plume.core.contacts.ContactSaver
+import eu.tintera.plume.core.telegram.platformLanguageCode
+import eu.tintera.plume.features.conversation.items.ContextVerb
+import eu.tintera.plume.features.conversation.items.contextMenuItems
 import eu.tintera.plume.core.currency.ExchangeRates
 import eu.tintera.plume.core.currency.RateTable
 import eu.tintera.plume.core.currency.HomeRegion
@@ -3864,6 +3867,29 @@ class ConversationViewModel(
         }
     }
 
+    /**
+     * Položka akce v nabídce nad zprávou: co nic neukazuje, se provede rovnou, převody a QR platba
+     * otevřou sheet (tentýž jako ikonka).
+     */
+    private fun runContextItem(messageId: Long, item: MessageMenuAction.ContextItem) {
+        val findings = _state.value.messageMenu?.takeIf { it.messageId == messageId }?.contextFindings.orEmpty()
+        val finding = findings.getOrNull(item.index)
+        closeMenus()
+        when (item.verb) {
+            ContextVerb.Calendar -> (finding as? ContextFinding.Event)?.let(::addToCalendar)
+            ContextVerb.FlightCalendar, ContextVerb.ArrivalCalendar ->
+                (finding as? ContextFinding.Flight)?.let { addFlightToCalendar(messageId, it) }
+            ContextVerb.FlightStatus -> (finding as? ContextFinding.Flight)?.let { trackParcel(it.trackingUrl()) }
+            ContextVerb.Maps -> (finding as? ContextFinding.Address)?.let { openMaps(it.text) }
+            ContextVerb.SaveContact -> (finding as? ContextFinding.Contact)?.let(::saveContact)
+            ContextVerb.JoinWifi -> (finding as? ContextFinding.Wifi)?.let(::joinWifi)
+            ContextVerb.CopyCode -> (finding as? ContextFinding.Code)?.let { copyFromContext(it.value) }
+            ContextVerb.CopyBooking -> (finding as? ContextFinding.Booking)?.let { copyFromContext(it.value) }
+            ContextVerb.TrackParcel -> (finding as? ContextFinding.Parcel)?.let { trackParcel(it.trackingUrl(platformLanguageCode)) }
+            ContextVerb.Payment, ContextVerb.Money, ContextVerb.Units, ContextVerb.Wifi -> openMessageContext(messageId, findings)
+        }
+    }
+
     /** „Akce ze zprávy…" v nabídce nad zprávou: tentýž sheet jako ikonka. */
     private fun openContextFromMenu(messageId: Long) {
         val findings = _state.value.messageMenu?.takeIf { it.messageId == messageId }?.contextFindings.orEmpty()
@@ -4274,6 +4300,7 @@ class ConversationViewModel(
             // Vysvětlení pouští obrazovka (sheet shrnutí); tady se jen zavře nabídka.
             MessageMenuAction.Explain -> _state.update { it.copy(messageMenu = null) }
             MessageMenuAction.ContextActions -> openContextFromMenu(messageId)
+            is MessageMenuAction.ContextItem -> runContextItem(messageId, action)
             MessageMenuAction.SelectText -> selectText(messageId)
             MessageMenuAction.Pin -> requestPin(messageId)
             MessageMenuAction.Unpin -> unpinFromMenu(messageId)
@@ -4337,6 +4364,10 @@ class ConversationViewModel(
 
             val explainAvailable = MessageMenuAction.Explain in items && explainAvailable()
             val contextFindings = if (MessageMenuAction.ContextActions in items) contextFindingsOf(message) else emptyList()
+            // Kandidát na akce z textu se rozbalí na položky jednotlivých akcí.
+            val shownItems = items.flatMap { item ->
+                if (item == MessageMenuAction.ContextActions) contextMenuItems(contextFindings, canJoinWifi) else listOf(item)
+            }
             _state.update {
                 it.copy(
                     messageMenu = MessageMenu(
@@ -4346,7 +4377,7 @@ class ConversationViewModel(
                         emoji = emoji,
                         chosenEmoji = message.reactions.filter { r -> r.isChosen }.map { r -> r.emoji }.toSet(),
                         actions = actions,
-                        items = items,
+                        items = shownItems,
                         favoriteSticker = favorite,
                         bookmarked = bookmarks?.isBookmarked(chatId, messageId),
                         pressedMessageId = pressed?.takeIf { it != messageId },
