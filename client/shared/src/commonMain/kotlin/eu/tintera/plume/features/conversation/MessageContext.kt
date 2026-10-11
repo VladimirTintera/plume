@@ -40,6 +40,9 @@ sealed interface ContextFinding {
         val variableSymbol: String? = null,
     ) : ContextFinding
 
+    /** Adresa → mapy. [text] je adresa tak, jak ve zprávě stojí („Vinohradská 12, Praha 2"). */
+    data class Address(val text: String) : ContextFinding
+
     /** Číslo zásilky → sledování u dopravce. */
     data class Parcel(val carrier: ParcelCarrier, val number: String) : ContextFinding
 }
@@ -71,9 +74,10 @@ data class EventCandidate(
 data class MessageContext(
     val event: EventCandidate? = null,
     val payments: List<ContextFinding.Payment> = emptyList(),
+    val addresses: List<ContextFinding.Address> = emptyList(),
     val parcels: List<ContextFinding.Parcel> = emptyList(),
 ) {
-    val isEmpty: Boolean get() = event == null && payments.isEmpty() && parcels.isEmpty()
+    val isEmpty: Boolean get() = event == null && payments.isEmpty() && addresses.isEmpty() && parcels.isEmpty()
 }
 
 /**
@@ -84,6 +88,9 @@ data class MessageContext(
  *   Telegram (`MessageEntityType.DateTime`, přesný okamžik).
  * - **Účet** jen ověřený kontrolním součtem: české číslo s kódem banky ze seznamu ČNB
  *   ([BANK_CODES]), IBAN přes modulo 97. „Č. j. 1234/2025" tak účtem není.
+ * - **Adresa** jen s jasnou stavbou: ulice, číslo, čárka a město, a k tomu PSČ, nebo ulice, která
+ *   jako ulice vypadá („Vinohradská", „nám. Míru", „Na Příkopě"); anglicky číslo, název a druh
+ *   ulice („221B Baker Street"). „Kapitola 12, Praha" adresou není.
  * - **Zásilka** jen ve formátu, který dopravce jednoznačně určí: S10 s kontrolní číslicí
  *   a Zásilkovna. Holá čísla PPL nebo DPD od telefonu nerozeznáš.
  */
@@ -97,6 +104,7 @@ fun findMessageContext(
     return MessageContext(
         event = eventCandidate(text, entities, sentAt, zone),
         payments = payments(text),
+        addresses = addresses(text),
         parcels = parcels(text),
     )
 }
@@ -136,6 +144,7 @@ fun MessageContext.contextFindings(
         }
     }
     addAll(payments)
+    addAll(addresses)
     addAll(parcels)
 }
 
@@ -291,6 +300,28 @@ private fun normalizeAmount(whole: String, fraction: String): String =
 private fun variableSymbol(text: String): String? =
     VARIABLE_SYMBOL.findAll(foldDiacritics(text).lowercase()).map { it.groupValues[1] }.distinct().singleOrNull()
 
+// --- Adresa ----------------------------------------------------------------------------------
+
+/**
+ * Adresy ze zprávy. Hledá se v textu bez diakritiky ([foldDiacritics] délku ani velikost písmen
+ * nemění), takže klíčová slova jdou psát bez háčků; vrací se ale úsek PŮVODNÍHO textu.
+ */
+private fun addresses(text: String): List<ContextFinding.Address> {
+    val folded = foldDiacritics(text)
+    val czech = CZECH_ADDRESS.findAll(folded).filter { match ->
+        val hasPostal = match.groups[POSTAL_GROUP] != null
+        val keyword = match.groups[KEYWORD_GROUP] != null || match.groups[PREPOSITION_GROUP] != null
+        val street = match.groups[STREET_GROUP]?.value.orEmpty().lowercase()
+        hasPostal || keyword || STREET_SUFFIXES.any { street.endsWith(it) }
+    }
+    val english = ENGLISH_ADDRESS.findAll(folded)
+    return (czech + english)
+        .map { ContextFinding.Address(text.substring(it.range).trimEnd(',', '.', ' ')) }
+        .distinctBy { it.text }
+        .take(MAX_ADDRESSES)
+        .toList()
+}
+
 // --- Zásilka ---------------------------------------------------------------------------------
 
 private fun parcels(text: String): List<ContextFinding.Parcel> = buildList {
@@ -321,6 +352,7 @@ internal fun s10Valid(digits: String): Boolean {
 private const val MAX_TITLE_CHARS = 60
 private const val MAX_ACCOUNTS = 2
 private const val MAX_PARCELS = 3
+private const val MAX_ADDRESSES = 2
 private const val MIN_IBAN = 15
 private const val MAX_IBAN = 34
 
@@ -359,6 +391,41 @@ private val PAST_TENSE = Regex(
 /** Slova minulosti, česky bez diakritiky a anglicky. */
 private val PAST = Regex(
     "(?<![\\p{L}])(?:vcera|vcerejs\\p{L}*|predevcirem|minul(?:y|ou|e|eho|ym)|yesterday|last (?:week|night|month|year|monday|tuesday|wednesday|thursday|friday|saturday|sunday)|ago)(?![\\p{L}])",
+)
+
+/** Velkým písmenem začínající slovo, i se spojovníkem („Frydek-Mistek"). */
+private const val CAP_WORD = "\\p{Lu}[\\p{L}\\-]*"
+
+/** Město: slovo, a za ním nejvýš číslo obvodu („Praha 10") nebo „nad/pod X" („Usti nad Labem"). */
+private const val CITY = "$CAP_WORD(?:\\s\\d{1,2}(?![\\d/])|\\s(?:nad|pod)\\s$CAP_WORD)?"
+
+/**
+ * Česká adresa: [klíčové slovo] [předložka] Ulice číslo, [PSČ] Město. Ulice je JEDNO slovo
+ * velkým písmenem (s předložkou nebo klíčovým slovem před ním) — víc slov by spolklo i slovo
+ * před ulicí („Sraz Vinohradska 12"). Víceslovné ulice („Karla Englise 3") tak nenajde; radši nic.
+ */
+private val CZECH_ADDRESS = Regex(
+    "(?<![\\p{L}\\d])" +
+        // Velikost písmen ručně, ne `(?i:…)`: vložené příznaky regexů nejsou na všech platformách stejné.
+        "(?<keyword>(?:[Uu]l\\.|[Uu]lice|[Nn]am\\.|[Nn]amesti|[Tt]r\\.|[Tt]rida|[Nn]abr\\.|[Nn]abrezi)\\s+)?" +
+        "(?<preposition>(?:[Nn]a|[Nn]ad|[Pp]od|[Uu]|[Vv]|[Vv]e|[Zz]a|[Pp]red|[Kk])\\s+)?" +
+        "(?<street>$CAP_WORD)\\s+\\d{1,5}(?:/\\d{1,5})?[a-zA-Z]?,\\s*" +
+        "(?:(?<postal>\\d{3}\\s?\\d{2})\\s+)?$CITY",
+)
+
+private const val KEYWORD_GROUP = "keyword"
+private const val PREPOSITION_GROUP = "preposition"
+private const val STREET_GROUP = "street"
+private const val POSTAL_GROUP = "postal"
+
+/** Koncovky, podle kterých slovo vypadá jako název ulice (Vinohradska, Palackeho, Karlova…). */
+private val STREET_SUFFIXES = listOf("ska", "cka", "ova", "ovo", "ni", "eho", "ych", "ich", "ske", "strasse")
+
+/** Anglická adresa: číslo, jedno až tři slova a druh ulice („221B Baker Street, London"). */
+private val ENGLISH_ADDRESS = Regex(
+    "(?<![\\p{L}\\d])\\d{1,5}[A-Za-z]?\\s+(?:\\p{Lu}[\\p{L}'\\-]*\\s+){1,3}" +
+        "(?:Street|St|Road|Rd|Avenue|Ave|Lane|Ln|Boulevard|Blvd|Drive|Square|Sq|Place|Way|Court|Terrace|Crescent|Close)\\.?" +
+        "(?![\\p{L}])(?:,\\s*$CAP_WORD(?:\\s$CAP_WORD)?)?",
 )
 
 private val S10 = Regex("(?<![A-Za-z0-9])([A-Z]{2})(\\d{9})([A-Z]{2})(?![A-Za-z0-9])")

@@ -12,6 +12,7 @@ import eu.tintera.plume.core.ai.OnDeviceAi
 import kotlin.time.Instant
 import eu.tintera.plume.core.calendar.CalendarEvent
 import eu.tintera.plume.core.calendar.CalendarEvents
+import eu.tintera.plume.core.location.mapsSearchUrl
 import eu.tintera.plume.resources.message_context_no_calendar
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.toInstant
@@ -3886,6 +3887,12 @@ class ConversationViewModel(
     fun trackParcel(url: String) {
         closeMessageContext()
         openLink(url, confirmExternal = false)
+    }
+
+    /** Adresa nebo místo z akcí u zprávy v mapách platformy (hledání textem). */
+    fun openMaps(query: String) {
+        closeMessageContext()
+        urlOpener.open(mapsSearchUrl(query))
     }
 
     /** „Připomenout…" z akcí u termínu — tentýž sheet jako z nabídky nad zprávou. */

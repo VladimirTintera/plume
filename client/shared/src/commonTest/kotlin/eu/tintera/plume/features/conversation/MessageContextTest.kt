@@ -165,6 +165,34 @@ class MessageContextTest {
         assertFalse(s10Valid("123456789"))
     }
 
+    private fun addresses(text: String) = context(text).addresses.map { it.text }
+
+    @Test
+    fun ceskaAdresa() {
+        assertEquals(listOf("Vinohradská 1511/230, 100 00 Praha 10"), addresses("Jsme na adrese Vinohradská 1511/230, 100 00 Praha 10."))
+        assertEquals(listOf("Vinohradská 12, Praha 2"), addresses("Sraz Vinohradská 12, Praha 2 u vchodu"))
+        assertEquals(listOf("Na Příkopě 22, Praha"), addresses("Kancelář je Na Příkopě 22, Praha"))
+        assertEquals(listOf("nám. Míru 5, Brno"), addresses("Bydlím nám. Míru 5, Brno"))
+        assertEquals(listOf("Masarykova 3, Ústí nad Labem"), addresses("Masarykova 3, Ústí nad Labem"))
+        assertEquals(listOf("Hauptstraße 5, 10115 Berlin"), addresses("Hotel: Hauptstraße 5, 10115 Berlin"))
+    }
+
+    @Test
+    fun anglickaAdresa() {
+        assertEquals(listOf("221B Baker Street, London"), addresses("Visit us at 221B Baker Street, London."))
+        assertEquals(listOf("5 Main St"), addresses("Pick me up at 5 Main St."))
+    }
+
+    @Test
+    fun coAdresaNeni() {
+        // Bez PSČ, klíčového slova i koncovky ulice.
+        assertTrue(addresses("Kapitola 12, Praha je dobrá").isEmpty())
+        assertTrue(addresses("Přijde nás 12, Petr taky").isEmpty())
+        // Bez města.
+        assertTrue(addresses("Vinohradská 12").isEmpty())
+        assertTrue(addresses("I have 3 Big Dogs").isEmpty())
+    }
+
     @Test
     fun obycejnaZpravaNicNema() {
         assertTrue(context("Ahoj, jak se máš?").isEmpty)

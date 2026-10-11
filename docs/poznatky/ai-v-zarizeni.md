@@ -329,9 +329,9 @@ ze stejného důvodu jako návrhy odpovědí: model běží sám, bez ťuknutí.
 
 ### Akce ze zpráv
 
-Ikonka se sparkle (`auto_awesome`) na volné straně zprávy, ve které je termín, číslo účtu nebo
-zásilky; ťuknutí otevře sheet s akcemi (`MessageContextSheet`): kalendář a „Připomenout…", QR
-platba s kopírováním účtu, částky a VS, sledování zásilky. Rozpoznávají PRAVIDLA
+Ikonka se sparkle (`auto_awesome`) na volné straně zprávy, ve které je termín, adresa, číslo
+účtu nebo zásilky; ťuknutí otevře sheet s akcemi (`MessageContextSheet`): kalendář
+a „Připomenout…", mapy, QR platba s kopírováním účtu, částky a VS, sledování zásilky. Rozpoznávají PRAVIDLA
 (`findMessageContext`, testy `MessageContextTest`), model jen posuzuje termín (`MessageContexts`,
 prompt `EventPrompt.kt`). Vypínač v Nastavení → Obecné → Chaty, **výchozí zapnuto** — na rozdíl
 od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v zařízení uživatel zapnul.
@@ -340,6 +340,16 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   ze seznamu ČNB (bez seznamu by „č. j. 1234/2025" prošlo jednou z jedenácti), IBAN mod 97,
   zásilka S10 kontrolní číslicí. Model by tu jen hádal, co už víme jistě. Holá čísla PPL a DPD
   od telefonu nerozeznáš, proto zatím nejsou.
+- **Adresa jen s jasnou stavbou**: ulice, číslo, čárka, město — a k tomu PSČ, nebo ulice, která
+  jako ulice vypadá (koncovka „-ská", „-ova", „-ního"…, klíčové slovo „nám.", předložka „Na").
+  Ulice je JEDNO slovo: víc slov by spolklo i slovo před ní („Sraz Vinohradská 12"), takže
+  „Karla Engliše 3" se nenajde. „Kapitola 12, Praha" adresou není. Anglicky číslo, název a druh
+  ulice („221B Baker Street"). Hledá se v textu bez diakritiky (`foldDiacritics` nemění délku
+  ani velikost písmen), ven jde úsek původního textu. Vložené příznaky regexů (`(?i:…)`) nejsou
+  na všech platformách stejné, velikost písmen je proto ručně (`[Nn]a`).
+- **Mapy hledají text** (`mapsSearchUrl`: Google Maps přes https na Androidu, Apple Maps na
+  iOS — táž volba jako u polohy, `mapsUrl`). Místo, které k termínu doplnil model, má
+  „Otevřít v mapách" taky; je ve tvaru ze zprávy („Černém Mostě u kina") a mapy si s ním poradí.
 - **Termín je jistý, nebo nejistý** (`EventCandidate.certain`). Jistý = den a čas, datum číslem,
   nebo termín vyznačený Telegramem (`MessageEntityType.DateTime`); ten se nabídne i bez modelu.
   Jen čas („v 15:00") je nejistý a nabídne se, jen když ho model potvrdí. Jen den („v pátek")
@@ -385,7 +395,8 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   zprávy od bota Notifikátor): ikonky u schůzky, platby a zásilek, žádná u „včera…" a „volal
   jsem…"; sheet s názvem a místem od modelu; „Přidat do kalendáře" předá `ACTION_INSERT`
   Kalendáři Google (editor se bez účtu Google neukázal); kopírování účtu; sledování otevře
-  `tracking.packeta.com/cs/Z1234567890`. **Neověřené**: načtení QR bankovní aplikací, editor
+  `tracking.packeta.com/cs/Z1234567890`; adresa „Vinohradská 1511/230, 100 00 Praha 10" otevře
+  Mapy Google s `?q=Vinohradsk%C3%A1%201511%2F230…`. **Neověřené**: načtení QR bankovní aplikací, editor
   události, Gemini Nano, iOS.
 
 ### Návrhy odpovědí

@@ -2649,4 +2649,7 @@
     <string name="menu_context_payment">QR platba…</string>
     <string name="menu_context_parcel">Sledovat zásilku…</string>
     <string name="menu_context_actions">Akce ze zprávy…</string>
+    <string name="message_context_address">Adresa</string>
+    <string name="message_context_maps">Otevřít v mapách</string>
+    <string name="menu_context_address">Otevřít v mapách…</string>
 </resources>

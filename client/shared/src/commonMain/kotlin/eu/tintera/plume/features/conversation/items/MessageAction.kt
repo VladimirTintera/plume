@@ -6,6 +6,8 @@ import eu.tintera.plume.resources.event_24dp
 import eu.tintera.plume.resources.local_shipping_24dp
 import eu.tintera.plume.resources.payments_24dp
 import eu.tintera.plume.resources.menu_context_actions
+import eu.tintera.plume.resources.menu_context_address
+import eu.tintera.plume.resources.map_24dp
 import eu.tintera.plume.resources.menu_context_event
 import eu.tintera.plume.resources.menu_context_parcel
 import eu.tintera.plume.resources.menu_context_payment
@@ -401,6 +403,7 @@ sealed interface MessageMenuAction : MessageAction {
             return when (single) {
                 is ContextFinding.Event -> MenuPresentation(Res.drawable.event_24dp, Res.string.menu_context_event)
                 is ContextFinding.Payment -> MenuPresentation(Res.drawable.payments_24dp, Res.string.menu_context_payment)
+                is ContextFinding.Address -> MenuPresentation(Res.drawable.map_24dp, Res.string.menu_context_address)
                 is ContextFinding.Parcel -> MenuPresentation(Res.drawable.local_shipping_24dp, Res.string.menu_context_parcel)
                 null -> MenuPresentation(Res.drawable.auto_awesome_24dp, Res.string.menu_context_actions)
             }

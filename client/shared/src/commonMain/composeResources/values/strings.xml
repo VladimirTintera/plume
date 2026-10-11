@@ -2571,4 +2571,7 @@
     <string name="menu_context_payment">QR payment…</string>
     <string name="menu_context_parcel">Track parcel…</string>
     <string name="menu_context_actions">Actions from the message…</string>
+    <string name="message_context_address">Address</string>
+    <string name="message_context_maps">Open in maps</string>
+    <string name="menu_context_address">Open in maps…</string>
 </resources>

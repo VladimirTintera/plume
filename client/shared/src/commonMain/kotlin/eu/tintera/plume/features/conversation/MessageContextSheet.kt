@@ -41,6 +41,9 @@ import eu.tintera.plume.resources.location_on_24dp
 import eu.tintera.plume.resources.menu_copy
 import eu.tintera.plume.resources.menu_remind
 import eu.tintera.plume.resources.message_context_account
+import eu.tintera.plume.resources.message_context_address
+import eu.tintera.plume.resources.message_context_maps
+import eu.tintera.plume.resources.map_24dp
 import eu.tintera.plume.resources.message_context_all_day
 import eu.tintera.plume.resources.message_context_amount
 import eu.tintera.plume.resources.message_context_carrier_czech_post
@@ -77,13 +80,14 @@ internal fun MessageContextHost(viewModel: ConversationViewModel) {
         onRemind = { viewModel.remindFromContext(open.messageId) },
         onCopy = viewModel::copyFromContext,
         onTrack = viewModel::trackParcel,
+        onOpenMaps = viewModel::openMaps,
         onDismiss = viewModel::closeMessageContext,
     )
 }
 
 /**
- * Co se ve zprávě našlo a co s tím jde udělat: termín → kalendář nebo připomínka, účet → QR
- * platba a kopírování údajů, zásilka → sledování.
+ * Co se ve zprávě našlo a co s tím jde udělat: termín → kalendář nebo připomínka (a mapy, když
+ * model našel místo), účet → QR platba a kopírování údajů, adresa → mapy, zásilka → sledování.
  *
  * - **Nic se nestane samo.** Kalendář otevře editor události, kde ji uloží uživatel; platbu
  *   provede banka. Sheet jen předvyplní, co ve zprávě stálo.
@@ -98,6 +102,7 @@ internal fun MessageContextSheet(
     onRemind: () -> Unit,
     onCopy: (String) -> Unit,
     onTrack: (url: String) -> Unit,
+    onOpenMaps: (query: String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
@@ -117,7 +122,13 @@ internal fun MessageContextSheet(
                     verticalArrangement = Arrangement.spacedBy(SECTION_GAP),
                 ) {
                     when (finding) {
-                        is ContextFinding.Event -> EventSection(finding, onAdd = { onAddToCalendar(finding) }, onRemind = onRemind)
+                        is ContextFinding.Event -> EventSection(
+                            finding,
+                            onAdd = { onAddToCalendar(finding) },
+                            onRemind = onRemind,
+                            onOpenMaps = onOpenMaps,
+                        )
+                        is ContextFinding.Address -> AddressSection(finding, onCopy = onCopy, onOpenMaps = onOpenMaps)
                         is ContextFinding.Payment -> PaymentSection(finding, onCopy = onCopy)
                         is ContextFinding.Parcel -> ParcelSection(finding, onCopy = onCopy, onTrack = onTrack)
                     }
@@ -128,7 +139,12 @@ internal fun MessageContextSheet(
 }
 
 @Composable
-private fun EventSection(event: ContextFinding.Event, onAdd: () -> Unit, onRemind: () -> Unit) {
+private fun EventSection(
+    event: ContextFinding.Event,
+    onAdd: () -> Unit,
+    onRemind: () -> Unit,
+    onOpenMaps: (String) -> Unit,
+) {
     val zone = remember { TimeZone.currentSystemDefault() }
     val time = if (event.allDay) {
         stringResource(Res.string.message_context_all_day, event.start.date.asUpcomingDay())
@@ -174,6 +190,36 @@ private fun EventSection(event: ContextFinding.Event, onAdd: () -> Unit, onRemin
         label = stringResource(Res.string.menu_remind),
         shape = RoundedCornerShape(ROW_CORNER),
         onClick = onRemind,
+    )
+    // Místo od modelu je ze zprávy, jak stálo („na Černém Mostě u kina") — mapy si s tvarem
+    // poradí, hledání nemusí být v prvním pádu.
+    event.place?.let { place ->
+        SheetActionRow(
+            icon = Res.drawable.map_24dp,
+            label = stringResource(Res.string.message_context_maps),
+            shape = RoundedCornerShape(ROW_CORNER),
+            onClick = { onOpenMaps(place) },
+        )
+    }
+}
+
+@Composable
+private fun AddressSection(address: ContextFinding.Address, onCopy: (String) -> Unit, onOpenMaps: (String) -> Unit) {
+    CopyRow(
+        label = null,
+        title = stringResource(Res.string.message_context_address),
+        value = address.text,
+        copied = address.text,
+        onCopy = onCopy,
+        icon = Res.drawable.location_on_24dp,
+    )
+    SheetActionRow(
+        icon = Res.drawable.map_24dp,
+        label = stringResource(Res.string.message_context_maps),
+        shape = RoundedCornerShape(ROW_CORNER),
+        onClick = { onOpenMaps(address.text) },
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
     )
 }
 
