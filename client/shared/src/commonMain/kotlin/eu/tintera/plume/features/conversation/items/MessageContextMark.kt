@@ -20,6 +20,7 @@ import eu.tintera.plume.resources.message_context_contact
 import eu.tintera.plume.resources.message_context_flight_track
 import eu.tintera.plume.resources.message_context_wifi
 import eu.tintera.plume.resources.message_context_code_copy
+import eu.tintera.plume.resources.message_context_booking_copy
 import eu.tintera.plume.resources.message_context_money
 import eu.tintera.plume.resources.message_context_units
 import eu.tintera.plume.resources.message_context_maps
@@ -56,6 +57,7 @@ internal fun MessageContextMark(
             is ContextFinding.Flight -> Res.string.message_context_flight_track
             is ContextFinding.Wifi -> Res.string.message_context_wifi
             is ContextFinding.Code -> Res.string.message_context_code_copy
+            is ContextFinding.Booking -> Res.string.message_context_booking_copy
             is ContextFinding.Money -> Res.string.message_context_money
             is ContextFinding.Measure -> Res.string.message_context_units
             is ContextFinding.Parcel -> Res.string.message_context_parcel

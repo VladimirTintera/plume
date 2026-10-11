@@ -2680,4 +2680,7 @@
     <string name="message_context_units">Převést jednotky</string>
     <string name="menu_context_units">Převést jednotky…</string>
     <string name="message_context_units_result">≈ %1$s %2$s</string>
+    <string name="message_context_booking">Kód rezervace</string>
+    <string name="message_context_booking_copy">Kopírovat kód rezervace</string>
+    <string name="menu_context_booking">Kopírovat kód rezervace…</string>
 </resources>

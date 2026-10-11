@@ -11,6 +11,8 @@ import eu.tintera.plume.resources.menu_context_contact
 import eu.tintera.plume.resources.menu_context_flight
 import eu.tintera.plume.resources.menu_context_wifi
 import eu.tintera.plume.resources.menu_context_code
+import eu.tintera.plume.resources.menu_context_booking
+import eu.tintera.plume.resources.confirmation_number_24dp
 import eu.tintera.plume.resources.menu_context_money
 import eu.tintera.plume.resources.menu_context_units
 import eu.tintera.plume.resources.straighten_24dp
@@ -420,6 +422,7 @@ sealed interface MessageMenuAction : MessageAction {
                 is ContextFinding.Flight -> MenuPresentation(Res.drawable.flight_24dp, Res.string.menu_context_flight)
                 is ContextFinding.Wifi -> MenuPresentation(Res.drawable.wifi_24dp, Res.string.menu_context_wifi)
                 is ContextFinding.Code -> MenuPresentation(Res.drawable.redeem_24dp, Res.string.menu_context_code)
+                is ContextFinding.Booking -> MenuPresentation(Res.drawable.confirmation_number_24dp, Res.string.menu_context_booking)
                 is ContextFinding.Money -> MenuPresentation(Res.drawable.currency_exchange_24dp, Res.string.menu_context_money)
                 is ContextFinding.Measure -> MenuPresentation(Res.drawable.straighten_24dp, Res.string.menu_context_units)
                 is ContextFinding.Parcel -> MenuPresentation(Res.drawable.local_shipping_24dp, Res.string.menu_context_parcel)

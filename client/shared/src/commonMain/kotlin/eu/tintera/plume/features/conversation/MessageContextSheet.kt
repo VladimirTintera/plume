@@ -45,6 +45,8 @@ import eu.tintera.plume.resources.message_context_contact
 import eu.tintera.plume.resources.message_context_flight
 import eu.tintera.plume.resources.message_context_wifi
 import eu.tintera.plume.resources.message_context_code
+import eu.tintera.plume.resources.message_context_booking
+import eu.tintera.plume.resources.confirmation_number_24dp
 import eu.tintera.plume.resources.message_context_money_failed
 import eu.tintera.plume.resources.message_context_units_result
 import eu.tintera.plume.resources.straighten_24dp
@@ -123,7 +125,7 @@ internal fun MessageContextHost(viewModel: ConversationViewModel) {
  * Co se ve zprávě našlo a co s tím jde udělat: termín → kalendář nebo připomínka (a mapy, když
  * model našel místo), účet → QR platba a kopírování údajů, adresa → mapy, kontakt → uložit do
  * kontaktů, let → stav letu, Wi-Fi → připojit a QR kód sítě, kód → zkopírovat, cizí měna →
- * převod kurzem ČNB, jednotky → převod, zásilka → sledování.
+ * převod kurzem ČNB, jednotky → převod, kód rezervace → zkopírovat, zásilka → sledování.
  *
  * - **Nic se nestane samo.** Kalendář otevře editor události, kde ji uloží uživatel; platbu
  *   provede banka. Sheet jen předvyplní, co ve zprávě stálo.
@@ -174,6 +176,14 @@ internal fun MessageContextSheet(
                         is ContextFinding.Flight -> FlightSection(finding, onCopy = onCopy, onTrack = onTrack)
                         is ContextFinding.Money -> MoneySection(finding, homeCurrency, rates)
                         is ContextFinding.Measure -> MeasureSection(finding)
+                        is ContextFinding.Booking -> CopyRow(
+                            label = null,
+                            title = stringResource(Res.string.message_context_booking),
+                            value = finding.value,
+                            copied = finding.value,
+                            onCopy = onCopy,
+                            icon = Res.drawable.confirmation_number_24dp,
+                        )
                         is ContextFinding.Code -> CopyRow(
                             label = null,
                             title = stringResource(Res.string.message_context_code),

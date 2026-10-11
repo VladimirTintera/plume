@@ -58,6 +58,9 @@ sealed interface ContextFinding {
     /** Wi-Fi s heslem → připojit (Android), zkopírovat heslo, QR kód sítě pro jiný telefon. */
     data class Wifi(val ssid: String, val password: String) : ContextFinding
 
+    /** Kód rezervace (letenka, hotel, vlak) — do schránky, kde ho chce web nebo aplikace dopravce. */
+    data class Booking(val value: String) : ContextFinding
+
     /** Kód ke zkopírování (slevový, ke dveřím, ověřovací) — jedním ťuknutím do schránky. */
     data class Code(val value: String) : ContextFinding
 
@@ -108,6 +111,7 @@ data class MessageContext(
     val contacts: List<ContextFinding.Contact> = emptyList(),
     val flights: List<ContextFinding.Flight> = emptyList(),
     val wifi: ContextFinding.Wifi? = null,
+    val bookings: List<ContextFinding.Booking> = emptyList(),
     val codes: List<ContextFinding.Code> = emptyList(),
     val money: List<ContextFinding.Money> = emptyList(),
     val measures: List<ContextFinding.Measure> = emptyList(),
@@ -115,7 +119,7 @@ data class MessageContext(
 ) {
     val isEmpty: Boolean
         get() = event == null && payments.isEmpty() && addresses.isEmpty() && contacts.isEmpty() &&
-            flights.isEmpty() && wifi == null && codes.isEmpty() && money.isEmpty() && measures.isEmpty() &&
+            flights.isEmpty() && wifi == null && bookings.isEmpty() && codes.isEmpty() && money.isEmpty() && measures.isEmpty() &&
             parcels.isEmpty()
 }
 
@@ -137,6 +141,9 @@ data class MessageContext(
  *   „odlet", „letiště", „flight", „gate"…). Samo „OK 123" nebo „LO 5" je spíš cokoli jiného.
  * - **Wi-Fi** jen s názvem sítě I heslem o 8–63 znacích (víc ani míň WPA nedovolí):
  *   „Wi-Fi: Plume_Home, heslo: tajne1234", nebo zápis z QR kódu `WIFI:S:…;P:…;;`.
+ * - **Kód rezervace** za „rezervace", „číslo rezervace", „booking", „confirmation", „PNR"…:
+ *   5–16 znaků z velkých písmen a číslic (i s tečkami, „4123.456.789"), čistě číselný 6–12 číslic.
+ *   Tatáž hodnota se pak nenabízí ještě jako obecný kód.
  * - **Kód** jen za klíčovým slovem („kód", „code", „voucher", „promo", „kupón", „PIN") a jen
  *   z velkých písmen a číslic: číselný 3–8 číslic, smíšený 4–16 znaků. **Ve zprávě, která
  *   zmiňuje Telegram, žádný** — přihlašovací kód Telegramu se nikam nekopíruje (ověřovací
@@ -160,6 +167,7 @@ fun findMessageContext(
 ): MessageContext {
     if (text.isBlank()) return MessageContext()
     val payments = payments(text)
+    val bookings = bookings(text)
     return MessageContext(
         event = eventCandidate(text, entities, sentAt, zone),
         payments = payments,
@@ -167,7 +175,8 @@ fun findMessageContext(
         contacts = contacts(text, entities, payments),
         flights = flights(text),
         wifi = wifi(text),
-        codes = codes(text, payments),
+        bookings = bookings,
+        codes = codes(text, payments).filterNot { code -> bookings.any { it.value == code.value } },
         money = money(text, homeCurrency),
         measures = measures(text, metric),
         parcels = parcels(text),
@@ -213,6 +222,7 @@ fun MessageContext.contextFindings(
     addAll(contacts)
     addAll(flights)
     wifi?.let(::add)
+    addAll(bookings)
     addAll(codes)
     addAll(money)
     addAll(measures)
@@ -505,6 +515,23 @@ private fun wifi(text: String): ContextFinding.Wifi? {
 private fun quotedOrBare(match: MatchResult): String =
     match.groupValues.drop(1).firstOrNull { it.isNotEmpty() }.orEmpty()
 
+// --- Kód rezervace ---------------------------------------------------------------------------
+
+private fun bookings(text: String): List<ContextFinding.Booking> {
+    // Kód je ASCII, takže je v textu bez diakritiky stejný jako v původním (jako u [codes]).
+    if ("telegram" in foldDiacritics(text).lowercase()) return emptyList()
+    return BOOKING.findAll(foldDiacritics(text))
+        .map { it.groupValues[1].trimEnd('.', '-') }
+        .filter { value ->
+            val alnum = value.filter { it.isLetterOrDigit() }
+            if (alnum.all { it.isDigit() }) alnum.length in 6..12 else alnum.length in 5..16
+        }
+        .distinct()
+        .take(MAX_BOOKINGS)
+        .map { ContextFinding.Booking(it) }
+        .toList()
+}
+
 // --- Kód ------------------------------------------------------------------------------------
 
 private fun codes(text: String, payments: List<ContextFinding.Payment>): List<ContextFinding.Code> {
@@ -643,6 +670,7 @@ private const val MAX_ADDRESSES = 2
 private const val MAX_CONTACTS = 2
 private const val MAX_FLIGHTS = 2
 private const val MAX_CODES = 2
+private const val MAX_BOOKINGS = 2
 private const val MAX_MONEY = 2
 private const val MAX_MEASURES = 3
 private const val MIN_PHONE_DIGITS = 9
@@ -795,6 +823,17 @@ private val WIFI_PASSWORD = Regex(
 
 /** Slova, která za „wifi" stojí místo názvu („wifi heslo je…", „síť je dole"). */
 private val WIFI_NOT_A_NAME = setOf("heslo", "hesla", "password", "pass", "pw", "klic", "je", "is", "k", "na", "nefunguje", "nejde")
+
+/**
+ * Kód rezervace: klíčové slovo („rezervace" ve všech tvarech, „booking", „reservation",
+ * „confirmation", „PNR", „locator"), nejvýš tři slova („číslo vaší rezervace je") a kód z VELKÝCH
+ * písmen a číslic. Velikost písmen ručně ve třídě znaků, ze stejného důvodu jako u [CODE].
+ */
+private val BOOKING = Regex(
+    "(?<![\\p{L}])(?:[Rr]ezervac\\p{L}*|REZERVAC\\p{L}*|[Bb]ooking|BOOKING|[Rr]eservation|RESERVATION|" +
+        "[Cc]onfirmation|CONFIRMATION|PNR|[Ll]ocator)(?![\\p{L}])" +
+        "(?:\\s+[\\p{L}.]+){0,3}?\\s*[:#=\\-\u2013]?\\s*[\"\u201e]?([A-Z0-9][A-Z0-9.\\-]{4,15})(?![\\p{L}\\d])",
+)
 
 /**
  * Klíčové slovo, nejvýš tři slova mezi ním a kódem („slevový kód na první nákup: LETO20") a kód

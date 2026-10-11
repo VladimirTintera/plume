@@ -369,6 +369,25 @@ class MessageContextTest {
         assertEquals("1\u202F609" to null, measureParts(1609.3))
     }
 
+    private fun bookings(text: String) = context(text).bookings.map { it.value }
+
+    @Test
+    fun kodRezervace() {
+        assertEquals(listOf("XKQ7ZT"), bookings("Kód rezervace: XKQ7ZT, let OK 123"))
+        assertEquals(listOf("4123.456.789"), bookings("Číslo vaší rezervace je 4123.456.789."))
+        assertEquals(listOf("AB12CD"), bookings("Booking reference AB12CD"))
+        assertEquals(listOf("K8M2P"), bookings("PNR: K8M2P"))
+        // Tentýž kód se nenabídne ještě jednou jako obecný kód.
+        assertTrue(context("Kód rezervace: XKQ7ZT").codes.isEmpty())
+    }
+
+    @Test
+    fun coRezervaciNeni() {
+        assertTrue(bookings("Rezervace je na pátek").isEmpty())
+        assertTrue(bookings("Booking ABC").isEmpty())
+        assertTrue(bookings("Rezervace 12345").isEmpty())
+    }
+
     @Test
     fun obycejnaZpravaNicNema() {
         assertTrue(context("Ahoj, jak se máš?").isEmpty)

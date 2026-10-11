@@ -2602,4 +2602,7 @@
     <string name="message_context_units">Convert units</string>
     <string name="menu_context_units">Convert units…</string>
     <string name="message_context_units_result">≈ %1$s %2$s</string>
+    <string name="message_context_booking">Booking reference</string>
+    <string name="message_context_booking_copy">Copy booking reference</string>
+    <string name="menu_context_booking">Copy booking reference…</string>
 </resources>
