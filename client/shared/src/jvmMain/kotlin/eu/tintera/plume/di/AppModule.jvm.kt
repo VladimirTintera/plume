@@ -15,7 +15,9 @@ import eu.tintera.plume.core.files.MediaSaver
 import eu.tintera.plume.core.files.MediaSharer
 import eu.tintera.plume.core.language.LanguageDetector
 import eu.tintera.plume.core.locale.AppLanguage
+import eu.tintera.plume.core.notifications.DesktopNotifier
 import eu.tintera.plume.core.notifications.NotificationPermission
+import eu.tintera.plume.core.notifications.desktopNotifier
 import eu.tintera.plume.core.ocr.RecognizedText
 import eu.tintera.plume.core.ocr.TextRecognizer
 import eu.tintera.plume.core.platform.desktopDataDirectory
@@ -42,6 +44,9 @@ import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.core.update.AppUpdates
 import eu.tintera.plume.core.wifi.WifiJoiner
 import java.io.File
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlin.time.Instant
 import org.koin.core.module.Module
 
@@ -62,8 +67,19 @@ actual fun Module.platformModule() {
             service = secretService("eu.tintera.plume.applock"), account = "pin", logTag = "AppLock",
         ) {}
     }
-    single { NotificationPermission() }
-    single { NotificationPresenter() }
+    single<DesktopNotifier> { desktopNotifier() }
+    single { NotificationPermission(notifier = get()) }
+    single {
+        NotificationPresenter(
+            chats = get(),
+            settings = get(),
+            chatOpenRequests = get(),
+            notifier = get(),
+            // Vlastní scope: oznámení se sbírají po celou dobu běhu procesu.
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+            snoozes = get(),
+        )
+    }
     single { UrlOpener(settings = get()) }
     single { AppLanguage() }
     single { FileOpener() }
