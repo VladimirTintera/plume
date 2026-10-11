@@ -398,7 +398,7 @@ Hotové: záložky Nedávné, Oblíbené, Trendy a sady se swipem; hledání sam
 sada ze samolepky v chatu; emoji vkládané do textu včetně nedávných; mřížka jedné sady hraje;
 samolepky k emoji v poli; velký náhled po podržení; hledání sad podle názvu; kategorie pod polem
 hledání; výběr se otevře na naposledy otevřené záložce; odebrání z Nedávných a jejich vymazání;
-sada skupiny jako záložka; správa sad v Nastavení (pořadí, archiv); sdílení sady. Zbývá:
+sada skupiny jako záložka; správa sad v Nastavení (pořadí, archiv); sdílení sady; náhled podrženého GIFu. Zbývá:
 
 - **Nastavit sadu skupiny** — správce supergroupy s `SupergroupFullInfo.canSetStickerSet`
   (`setSupergroupStickerSet`), třeba v úpravě skupiny. Zobrazovat ji výběr umí.
@@ -406,8 +406,8 @@ sada skupiny jako záložka; správa sad v Nastavení (pořadí, archiv); sdíle
   Posílat je smí jen Premium.
 - **Náhled bez puštění prstu** — v Telegramu se prstem po mřížce přejíždí mezi náhledy
   a puštěním náhled zmizí. U nás náhled zůstává otevřený, protože nese tlačítka.
-- **Náhled i jinde** — podržený GIF (dnes jen tlačítko v rohu buňky), samolepky z výsledků
-  inline bota a z návrhů k emoji nad polem.
+- **Náhled i jinde** — samolepky a GIFy z výsledků inline bota a samolepky z návrhů k emoji
+  nad polem (podržený GIF ve výběru náhled už má).
 - **Samolepky `.webm`** — viz „D) Otevření média" výš (pořád jen statický náhled).
 
 - ~~**Dvě různé pleti u emoji s více osobami**~~ — hotovo (mřížka 5 × 5 u 13 emoji se dvěma

@@ -68,6 +68,11 @@ class TdlGifRepository(
             .toResult()
             .map { }
 
+    override suspend fun addSaved(gif: GifItem): Result<Unit> =
+        client.addSavedAnimation(animation = InputFileId(id = gif.animation.fileId))
+            .toResult()
+            .map { }
+
     private companion object {
         /** Kdyby server volbu neposlal. Tak se GIF bot jmenuje odjakživa. */
         const val DEFAULT_GIF_BOT = "gif"

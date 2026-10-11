@@ -1011,6 +1011,7 @@
     <string name="gifs_section_trending">Trending</string>
     <string name="gifs_none_found">No GIFs found.</string>
     <string name="gifs_remove_saved">Remove from saved</string>
+    <string name="gifs_save">Save GIF</string>
     <string name="gifs_failed">Couldn't load GIFs.</string>
     <string name="conversation_open_gifs">GIFs</string>
     <plurals name="invite_members">
