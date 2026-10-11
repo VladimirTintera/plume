@@ -122,7 +122,7 @@ class StickerSetViewModel(
  * Sada samolepek v bottom sheetu — otevírá se ťuknutím na samolepku v konverzaci.
  *
  * Ukazuje celou sadu a dá se z ní **přidat** mezi své (nebo odebrat). Mřížka se chová jako ve výběru:
- * ťuknutí samolepku pošle do tohoto chatu, podržení ji rozhýbe a nabídne hvězdičku oblíbených.
+ * ťuknutí samolepku pošle do tohoto chatu, podržení nabídne hvězdičku oblíbených. Sada hraje celá.
  * Výška mřížky je stejná jako ve výběru, aby oba sheety působily jako jedna věc.
  */
 @Composable
@@ -181,6 +181,8 @@ fun StickerSetSheet(
                         haptics.toggle(on = sticker.sendFileId !in current.favoriteFileIds)
                         viewModel.toggleFavorite(sticker)
                     },
+                    // Jedna sada na celý sheet — hraje celá, jako mřížka ve výběru.
+                    playing = true,
                 )
 
                 Column(Modifier.padding(horizontal = 24.dp)) {

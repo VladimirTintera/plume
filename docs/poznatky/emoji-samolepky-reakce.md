@@ -300,12 +300,25 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
 - **ViewModel drží obsah VŠECH záložek**, ne jen vybrané — při swipu je vidět i sousední stránka.
 - **Obsah sady se načítá až když se její stránka poprvé ukáže** (`load` v `LaunchedEffect` stránky;
   pager skládá jen viditelné). Sad bývá desítky.
-- **V mřížce samolepky NEHRAJÍ** (`AnimatedSticker(isPlaying = false)`). Desítky animací v jedné
-  mřížce by stály víc, než přinesou. Bere se nejlevnější podoba: rastrový náhled, statická `.webp`,
-  a teprve bez nich první snímek `.tgs`.
-- **Podržením se samolepka rozhýbe — vždy nejvýš jedna** (`activeStickerId`). Hraje, dokud se
-  nepodrží jiná, a přežije přepnutí záložky. Do načtení animace drží místo statický náhled, takže
-  se rozběhne bez probliknutí. Podržení nic neposílá; `combinedClickable` po dlouhém stisku klik
+- **Mřížka JEDNÉ sady hraje celá** (`StickerCells.playing`): stránka záložky (sada, nedávné,
+  oblíbené), výsledky hledání i sheet sady. Na obrazovce je tak nejvýš pár desítek samolepek
+  (buňka 76 dp, mřížka 320 dp: kolem pěti řádků po pěti) a `LazyVerticalGrid` skládá jen
+  viditelné buňky. Dřív mřížka nehrála vůbec a hýbala se jen podržená samolepka.
+- **V pageru hraje jen USAZENÁ stránka** (`page == pagerState.settledPage`). Během swipu jsou
+  vidět dvě; přijíždějící sada by uprostřed tahu rozbalovala a parsovala desítky animací naráz.
+  Rozběhne se po dosednutí ze statického náhledu, který odpovídá prvnímu snímku, takže to není
+  skok. Odjíždějící stránka hraje, dokud nezmizí.
+- **Kde je vedle sebe víc sad, samolepky dál NEHRAJÍ** (`StickerPreview(playing = false)`):
+  obálky v řádku záložek a ukázky v trendech. Bere se nejlevnější podoba: rastrový náhled,
+  statická `.webp`, a teprve bez nich první snímek `.tgs`.
+- **`useCompositionFrameRate` z Compottie NEPOUŽÍVAT** jako úsporu pro mřížku. Vypadá jako
+  „hraj v rytmu samolepky, ne 120Hz displeje", ale Compottie 2.3.1
+  (`LottieAnimatable.roundToCompositionFrameRate`) zaokrouhluje PRŮBĚH 0..1 na krok `1/fps` —
+  tedy na šedesátiny celé animace, ne snímky za vteřinu. Třívteřinová samolepka by jela
+  dvaceti snímky za vteřinu.
+- **Podržením se samolepka vybere — vždy nejvýš jedna** (`activeStickerId`): podbarvení,
+  hvězdička oblíbených a volby odeslání. Vybraná hraje i mimo usazenou stránku a přežije
+  přepnutí záložky. Podržení nic neposílá; `combinedClickable` po dlouhém stisku klik
   nevyvolá. Aktivní buňka je podbarvená — statická `.webp` se rozhýbat nemá jak a bez podbarvení
   by nebylo poznat, že podržení zabralo.
 - **Sheety výběru a sady nemají napůl rozbalený stav** (`enabledValues = Hidden, Expanded`).

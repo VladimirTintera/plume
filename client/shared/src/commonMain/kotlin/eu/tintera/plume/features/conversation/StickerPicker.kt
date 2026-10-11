@@ -422,10 +422,10 @@ internal fun StickerPickerSheet(
     val haptics = LocalHapticFeedback.current
 
     /*
-     * Samolepka rozhýbaná podržením. Vždy nejvýš JEDNA — hraje, dokud se nepodrží jiná.
+     * Samolepka vybraná podržením: podbarvení, hvězdička oblíbených a volby odeslání. Vždy nejvýš
+     * JEDNA — kdo si prohlíží sadu, porovnává samolepky po jedné. Přežívá přepnutí záložky.
      *
-     * Jedna kvůli výkonu (mřížka je právě proto statická) i kvůli čitelnosti: kdo si prohlíží
-     * sadu, porovnává samolepky po jedné. Přežívá přepnutí záložky; po návratu hraje dál.
+     * Hraje i mimo usazenou stránku (při swipu na sousední sadu), ostatní samolepky jen na ní.
      */
     var activeStickerId by rememberSaveable { mutableStateOf<Long?>(null) }
 
@@ -526,7 +526,11 @@ internal fun StickerPickerSheet(
             Box(Modifier.fillMaxWidth().height(STICKER_TAB_ROW_HEIGHT + STICKER_PICKER_HEIGHT + sheetBottomInset())) {
                 StickerSearchResults(
                     search = search,
-                    cells = StickerCells(activeStickerId, favoriteIds, pick, activate, toggleFavorite, sendMenu, pickWith),
+                    // Výsledky jsou jediná mřížka na obrazovce, hrají celé.
+                    cells = StickerCells(
+                        activeStickerId, favoriteIds, pick, activate, toggleFavorite, sendMenu, pickWith,
+                        playing = true,
+                    ),
                 )
             }
             return@ModalBottomSheet
@@ -569,7 +573,15 @@ internal fun StickerPickerSheet(
             StickerPage(
                 tab = tab,
                 stickers = state.stickersOf(tab),
-                cells = StickerCells(activeStickerId, favoriteIds, pick, activate, toggleFavorite, sendMenu, pickWith),
+                cells = StickerCells(
+                    activeStickerId, favoriteIds, pick, activate, toggleFavorite, sendMenu, pickWith,
+                    /*
+                     * Hraje jen USAZENÁ stránka. Během swipu jsou vidět dvě; přijíždějící sada by
+                     * se uprostřed tahu rozbalovala a parsovala desítky animací a tah by zadrhával.
+                     * Rozběhne se po dosednutí, z náhledu, který odpovídá prvnímu snímku.
+                     */
+                    playing = page == pagerState.settledPage,
+                ),
             )
         }
     }
@@ -757,10 +769,16 @@ internal class StickerCells(
     /** Co nabídne tlačítko odeslání u podržené samolepky; `null` = tlačítko není (sada, anketa). */
     val sendMenu: SendMenuOffer? = null,
     val onPickWith: (StickerItem, SendMenuChoice) -> Unit = { _, _ -> },
+    /**
+     * Hrají všechny samolepky mřížky, ne jen podržená. Jen tam, kde je mřížka na obrazovce
+     * jediná (jedna sada, oblíbené, výsledky hledání) — vidět je jich nejvýš pár desítek
+     * a `LazyVerticalGrid` skládá jen viditelné buňky.
+     */
+    val playing: Boolean = false,
 )
 
 /**
- * Jedna samolepka v mřížce: ťuknutí pošle, podržení rozhýbe.
+ * Jedna samolepka v mřížce: ťuknutí pošle, podržení vybere (a rozhýbe, pokud mřížka nehraje celá).
  *
  * U podržené samolepky se v rohu objeví **hvězdička oblíbených**. Jen u ní: hvězdička u každé
  * buňky by zaplevelila mřížku a ťuknutí vedle ní by samolepku omylem poslalo. Podržení je
@@ -768,7 +786,7 @@ internal class StickerCells(
  *
  * V protějším rohu je z téhož důvodu **tlačítko odeslání s volbami** (bez zvuku, naplánovat,
  * až bude online) — u textu je to podržení odesílacího tlačítka, jenže podržení samolepky ji
- * rozhýbe. Druhé gesto nad samolepkou by se s tím pralo; tlačítko u podržené ne.
+ * vybere. Druhé gesto nad samolepkou by se s tím pralo; tlačítko u podržené ne.
  */
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
@@ -810,13 +828,13 @@ internal fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Mo
                 .clip(STICKER_TOUCH_SHAPE)
                 .combinedClickable(
                     onClick = { cells.onPick(sticker) },
-                    // Podržení samolepku neposílá — jen ji rozhýbe. Po puštění `combinedClickable`
+                    // Podržení samolepku neposílá — jen ji vybere. Po puštění `combinedClickable`
                     // klik nevyvolá, takže nic neodejde omylem.
                     onLongClick = { cells.onActivate(sticker) },
                 ),
         )
 
-        StickerPreview(sticker.preview, playing = active, modifier = Modifier.fillMaxSize().padding(6.dp))
+        StickerPreview(sticker.preview, playing = active || cells.playing, modifier = Modifier.fillMaxSize().padding(6.dp))
 
         if (active) {
             cells.sendMenu?.let { offer ->
@@ -1056,12 +1074,14 @@ private fun StickerTabIcon(tab: StickerTab) {
 /**
  * Samolepka ve výběru.
  *
- * Běžně **nehraje** a kreslí se nejlevnější dostupnou podobou: rastrový náhled, pak statická `.webp`,
- * a teprve když není ani jedno, první snímek `.tgs` (ten znamená rozbalit a rozparsovat animaci).
- * Desítky animací v jedné mřížce by stály víc, než kolik přinesou.
+ * Bez [playing] **nehraje** a kreslí se nejlevnější dostupnou podobou: rastrový náhled, pak statická
+ * `.webp`, a teprve když není ani jedno, první snímek `.tgs` (ten znamená rozbalit a rozparsovat
+ * animaci). Tak se kreslí všude, kde je vedle sebe víc sad naráz — obálky v záložkách, ukázky
+ * v trendech.
  *
- * [playing] ji rozhýbe — jen podrženou. Do načtení animace drží místo tentýž statický náhled, takže
- * se samolepka rozběhne na místě, bez probliknutí. Statická `.webp` nemá co přehrát a zůstane stát.
+ * [playing] ji rozhýbe — mřížku jedné sady, nebo podrženou samolepku. Do načtení animace drží místo
+ * tentýž statický náhled, takže se samolepka rozběhne na místě, bez probliknutí. Statická `.webp`
+ * nemá co přehrát a zůstane stát.
  */
 @Composable
 internal fun StickerPreview(
