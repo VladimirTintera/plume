@@ -46,7 +46,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.core.telegram.StickerSetKind
 import eu.tintera.plume.core.telegram.StickerSetSummary
+import eu.tintera.plume.core.ui.CustomEmojiImage
+import eu.tintera.plume.resources.emoji_count
+import eu.tintera.plume.resources.emoji_sets_empty
+import eu.tintera.plume.resources.emoji_sets_help
+import eu.tintera.plume.resources.emoji_sets_title
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.MenuAction
@@ -102,6 +108,8 @@ import org.jetbrains.compose.resources.stringResource
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun StickerSetsScreen(
+    /** Samolepky, nebo sady vlastních emoji ([StickerSetKind.Emoji]) — táž obrazovka, jiné texty. */
+    kind: StickerSetKind,
     viewModel: StickerSetsViewModel,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -154,7 +162,7 @@ fun StickerSetsScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(Res.string.sticker_sets_title)) },
+                title = { Text(stringResource(if (kind == StickerSetKind.Emoji) Res.string.emoji_sets_title else Res.string.sticker_sets_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
@@ -182,7 +190,7 @@ fun StickerSetsScreen(
         ) {
             item(key = "help") {
                 Text(
-                    stringResource(Res.string.sticker_sets_help),
+                    stringResource(if (kind == StickerSetKind.Emoji) Res.string.emoji_sets_help else Res.string.sticker_sets_help),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
@@ -192,7 +200,7 @@ fun StickerSetsScreen(
             if (installed.isEmpty()) {
                 item(key = "empty") {
                     Text(
-                        stringResource(Res.string.sticker_sets_empty),
+                        stringResource(if (kind == StickerSetKind.Emoji) Res.string.emoji_sets_empty else Res.string.sticker_sets_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(16.dp),
@@ -282,11 +290,18 @@ private fun SetRow(
 ) {
     ListItem(
         headlineContent = { Text(set.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        supportingContent = { Text(pluralStringResource(Res.plurals.stickers_count, set.size, set.size)) },
+        supportingContent = {
+            val count = if (set.coverCustomEmojiId != null) Res.plurals.emoji_count else Res.plurals.stickers_count
+            Text(pluralStringResource(count, set.size, set.size))
+        },
         leadingContent = {
             // Obálka nehraje: v seznamu desítek sad by se hýbalo všechno naráz (jako záložky výběru).
+            // Sada emoji přes `CustomEmojiImage` — jednobarevné emoji obarví, samolepka by byla bílá.
             val cover = set.cover
-            if (cover != null) {
+            val emoji = set.coverCustomEmojiId
+            if (emoji != null) {
+                CustomEmojiImage(id = emoji, fallback = "", modifier = Modifier.size(COVER_SIZE))
+            } else if (cover != null) {
                 StickerPreview(cover, playing = false, modifier = Modifier.size(COVER_SIZE))
             } else {
                 Box(Modifier.size(COVER_SIZE), contentAlignment = Alignment.Center) {

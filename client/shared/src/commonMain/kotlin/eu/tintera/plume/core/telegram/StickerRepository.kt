@@ -13,8 +13,11 @@ import kotlinx.coroutines.flow.Flow
  */
 interface StickerRepository {
 
-    /** Nainstalované běžné sady v pořadí, které si uživatel nastavil. */
-    fun installedSets(): Flow<List<StickerSetSummary>>
+    /**
+     * Nainstalované sady v pořadí, které si uživatel nastavil — běžné samolepky, nebo s
+     * [StickerSetKind.Emoji] sady vlastních emoji (správa sad v Nastavení).
+     */
+    fun installedSets(kind: StickerSetKind = StickerSetKind.Stickers): Flow<List<StickerSetSummary>>
 
     /** Nedávno odeslané samolepky, od nejnovější. */
     fun recentStickers(): Flow<List<StickerItem>>
@@ -68,10 +71,10 @@ interface StickerRepository {
      * Nové pořadí nainstalovaných sad — to je i pořadí záložek ve výběru a platí na všech
      * zařízeních účtu. Potvrzení dorazí přes [installedSets].
      */
-    suspend fun reorderSets(setIds: List<Long>): Result<Unit>
+    suspend fun reorderSets(setIds: List<Long>, kind: StickerSetKind = StickerSetKind.Stickers): Result<Unit>
 
     /** Stránka archivovaných sad od sady za [afterSetId] (`0` = od začátku). */
-    suspend fun archivedSets(afterSetId: Long): Result<ArchivedStickerSets>
+    suspend fun archivedSets(afterSetId: Long, kind: StickerSetKind = StickerSetKind.Stickers): Result<ArchivedStickerSets>
 
     /**
      * Sada, kterou správci supergroupy [chatId] nastavili skupině (`SupergroupFullInfo
@@ -175,6 +178,8 @@ data class StickerSetDetail(
     /** Oficiální sady (od Telegramu) odebrat nejdou. */
     val isOfficial: Boolean,
     val stickers: List<StickerItem>,
+    /** Sada vlastních emoji, ne samolepek — jinak se počítá („N emoji") i kreslí. */
+    val isCustomEmoji: Boolean = false,
 )
 
 /**
@@ -224,7 +229,15 @@ data class StickerSetSummary(
     val size: Int = 0,
     /** Oficiální sady (od Telegramu) odebrat nejdou. */
     val isOfficial: Boolean = false,
+    /**
+     * Obálka sady vlastních emoji jako id — kreslí se přes `CustomEmojiImage`, které umí
+     * jednobarevné emoji obarvit. Jako samolepka ([cover]) by bylo bílé na světlém pozadí.
+     */
+    val coverCustomEmojiId: Long? = null,
 )
+
+/** Druh sady: samolepky, nebo vlastní emoji. Telegram drží pořadí i archiv každého zvlášť. */
+enum class StickerSetKind { Stickers, Emoji }
 
 /** Stránka archivovaných sad. */
 data class ArchivedStickerSets(
@@ -244,4 +257,6 @@ data class StickerItem(
     val id: Long,
     val sendFileId: Int,
     val preview: MessageMedia.Sticker,
+    /** Vlastní emoji (sada emoji) — kreslí se přes `CustomEmojiImage`, viz [StickerSetSummary.coverCustomEmojiId]. */
+    val customEmojiId: Long? = null,
 )

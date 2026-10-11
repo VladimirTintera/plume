@@ -1066,6 +1066,10 @@
         <item quantity="one">%1$d sticker</item>
         <item quantity="other">%1$d stickers</item>
     </plurals>
+    <plurals name="emoji_count">
+        <item quantity="one">%1$d emoji</item>
+        <item quantity="other">%1$d emoji</item>
+    </plurals>
     <string name="update_available_title">A new version is available</string>
     <string name="update_available_text">It downloads in the background, you can keep chatting.</string>
     <string name="update_action_update">Update</string>
@@ -1198,6 +1202,10 @@
     <string name="sticker_sets_archived_notice">%1$s was archived</string>
     <string name="sticker_sets_removed_notice">%1$s was removed</string>
     <string name="sticker_sets_failed">Sticker sets could not be changed</string>
+    <string name="emoji_sets_title">Emoji sets</string>
+    <string name="emoji_sets_row_help">Order of custom emoji sets in the emoji picker, archived sets</string>
+    <string name="emoji_sets_help">The order of your emoji sets is the order of their tabs in the emoji picker. Drag a set by its handle to move it.</string>
+    <string name="emoji_sets_empty">You have no custom emoji sets yet. Add one in the emoji picker under +.</string>
     <string name="sticker_set_share">Share set</string>
     <string name="sticker_set_send_to_chat">Send to a chat</string>
     <string name="sticker_set_copy_link">Copy link</string>

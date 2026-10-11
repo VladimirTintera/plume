@@ -1094,6 +1094,11 @@
         <item quantity="few">%1$d samolepky</item>
         <item quantity="other">%1$d samolepek</item>
     </plurals>
+    <plurals name="emoji_count">
+        <item quantity="one">%1$d emoji</item>
+        <item quantity="few">%1$d emoji</item>
+        <item quantity="other">%1$d emoji</item>
+    </plurals>
     <string name="update_available_title">Je k dispozici nová verze</string>
     <string name="update_available_text">Stáhne se na pozadí, můžeš dál psát.</string>
     <string name="update_action_update">Aktualizovat</string>
@@ -1227,6 +1232,10 @@
     <string name="sticker_sets_archived_notice">Sada %1$s je v archivu</string>
     <string name="sticker_sets_removed_notice">Sada %1$s byla odebrána</string>
     <string name="sticker_sets_failed">Sady samolepek se nepodařilo změnit</string>
+    <string name="emoji_sets_title">Sady emoji</string>
+    <string name="emoji_sets_row_help">Pořadí sad vlastních emoji ve výběru emoji, archivované sady</string>
+    <string name="emoji_sets_help">Pořadí tvých sad emoji je pořadí jejich záložek ve výběru emoji. Sadu přesuneš tažením za úchyt.</string>
+    <string name="emoji_sets_empty">Zatím nemáš žádné sady vlastních emoji. Přidáš je ve výběru emoji pod +.</string>
     <string name="sticker_set_share">Sdílet sadu</string>
     <string name="sticker_set_send_to_chat">Poslat do chatu</string>
     <string name="sticker_set_copy_link">Kopírovat odkaz</string>
