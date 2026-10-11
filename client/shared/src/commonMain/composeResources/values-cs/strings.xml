@@ -2683,4 +2683,8 @@
     <string name="message_context_booking">Kód rezervace</string>
     <string name="message_context_booking_copy">Kopírovat kód rezervace</string>
     <string name="menu_context_booking">Kopírovat kód rezervace…</string>
+    <string name="message_context_flight_calendar">Odlet do kalendáře</string>
+    <string name="message_context_flight_arrival_calendar">Přílet do kalendáře</string>
+    <string name="message_context_flight_title">Let %1$s</string>
+    <string name="message_context_flight_arrival_title">Přílet %1$s</string>
 </resources>

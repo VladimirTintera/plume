@@ -50,7 +50,19 @@ sealed interface ContextFinding {
     data class Contact(val name: String?, val phone: String?, val email: String?) : ContextFinding
 
     /** Číslo letu → stav letu. [airline] je kód IATA („OK"), [number] číslo („123"). */
-    data class Flight(val airline: String, val number: String) : ContextFinding {
+    data class Flight(
+        val airline: String,
+        val number: String,
+        /**
+         * Čas letu ze zprávy (termín, který v ní našla pravidla), nebo `null` — stav letu se jinde
+         * nezjistí. S ním jde let do kalendáře.
+         */
+        val at: LocalDateTime? = null,
+        /** Ze zprávy je jen den, ne čas. */
+        val allDay: Boolean = false,
+        /** Čas je PŘÍLET („přistání ve 14:30"), ne odlet. */
+        val arrival: Boolean = false,
+    ) : ContextFinding {
         /** Jak se let píše na palubní vstupence a hledá: „OK123". */
         val code: String get() = airline + number
     }
@@ -168,12 +180,17 @@ fun findMessageContext(
     if (text.isBlank()) return MessageContext()
     val payments = payments(text)
     val bookings = bookings(text)
+    val event = eventCandidate(text, entities, sentAt, zone)
     return MessageContext(
-        event = eventCandidate(text, entities, sentAt, zone),
+        event = event,
         payments = payments,
         addresses = addresses(text),
         contacts = contacts(text, entities, payments),
-        flights = flights(text),
+        // Termín ve zprávě s letem je čas letu. Stačí i nejistý („let OK 123 v 9:40"): že jde
+        // o let, víme z čísla letu, model to potvrzovat nemusí.
+        flights = flights(text).map { flight ->
+            event?.let { flight.copy(at = it.start, allDay = it.allDay) } ?: flight
+        },
         wifi = wifi(text),
         bookings = bookings,
         codes = codes(text, payments).filterNot { code -> bookings.any { it.value == code.value } },
@@ -198,7 +215,15 @@ fun MessageContext.contextFindings(
     verdict: EventVerdict?,
     now: LocalDateTime,
 ): List<ContextFinding> = buildList {
-    event?.takeIf { if (it.allDay) it.start.date >= now.date else it.start > now }?.let { candidate ->
+    // Let, jehož čas už minul, do kalendáře nepatří; stav letu a číslo ke zkopírování zůstanou.
+    val timedFlights = flights.map { flight ->
+        val at = flight.at ?: return@map flight
+        val passed = if (flight.allDay) at.date < now.date else at <= now
+        if (passed) flight.copy(at = null) else flight
+    }
+    // Termín, který nese let, se nenabízí ještě jednou jako obecná událost („přistání na letišti").
+    val flightCarriesTime = timedFlights.any { it.at != null }
+    event?.takeIf { !flightCarriesTime && if (it.allDay) it.start.date >= now.date else it.start > now }?.let { candidate ->
         val fallback = ContextFinding.Event(
             start = candidate.start,
             allDay = candidate.allDay,
@@ -220,7 +245,7 @@ fun MessageContext.contextFindings(
     addAll(payments)
     addAll(addresses)
     addAll(contacts)
-    addAll(flights)
+    addAll(timedFlights)
     wifi?.let(::add)
     addAll(bookings)
     addAll(codes)
@@ -483,9 +508,12 @@ private fun flights(text: String): List<ContextFinding.Flight> {
     val words = WORD.findAll(foldDiacritics(text).lowercase()).map { it.value }.toList()
     val aboutFlight = words.any { word -> word in FLIGHT_WORDS || FLIGHT_STEMS.any { word.startsWith(it) } }
     if (!aboutFlight) return emptyList()
+    // Přílet jen tehdy, když zpráva o odletu nemluví vůbec („odlet v 9:40, přílet ve 12:00" je odlet).
+    val arrival = words.any { word -> ARRIVAL_STEMS.any { word.startsWith(it) } } &&
+        words.none { word -> DEPARTURE_STEMS.any { word.startsWith(it) } }
     return FLIGHT.findAll(text)
         .filter { it.groupValues[1] in AIRLINES }
-        .map { ContextFinding.Flight(it.groupValues[1], it.groupValues[2]) }
+        .map { ContextFinding.Flight(it.groupValues[1], it.groupValues[2], arrival = arrival) }
         .distinctBy { it.code }
         .take(MAX_FLIGHTS)
         .toList()
@@ -770,6 +798,10 @@ private val FLIGHT = Regex("(?<![\\p{L}\\d])([A-Z]{2}|[A-Z]\\d|\\d[A-Z])\\s?(\\d
 
 /** Slova o letu, celá (bez diakritiky, malými). */
 private val FLIGHT_WORDS = setOf("let", "letu", "letem", "lety", "gate", "gejt", "flug")
+
+/** Začátky slov o příletu a odletu (bez diakritiky, malými); rozhodují, co je čas ve zprávě. */
+private val ARRIVAL_STEMS = listOf("prilet", "pristan", "arriv", "landing", "lands")
+private val DEPARTURE_STEMS = listOf("odlet", "odlit", "vzlet", "depart", "takeoff", "boarding")
 
 /** Začátky slov o letu („letiště", „odletu", „přílet", „boarding"). */
 private val FLIGHT_STEMS = listOf("letist", "letadl", "odlet", "prilet", "flight", "airport", "boarding", "terminal", "check-in", "checkin")

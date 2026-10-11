@@ -11,6 +11,7 @@ import eu.tintera.plume.core.telegram.TranscribeOffer
 import eu.tintera.plume.core.ai.OnDeviceAi
 import kotlin.time.Instant
 import eu.tintera.plume.core.calendar.CalendarEvent
+import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.core.calendar.CalendarEvents
 import eu.tintera.plume.core.contacts.ContactSaver
 import eu.tintera.plume.core.currency.ExchangeRates
@@ -24,6 +25,8 @@ import eu.tintera.plume.core.contacts.NewContact
 import eu.tintera.plume.resources.message_context_no_contacts
 import eu.tintera.plume.core.location.mapsSearchUrl
 import eu.tintera.plume.resources.message_context_no_calendar
+import eu.tintera.plume.resources.message_context_flight_title
+import eu.tintera.plume.resources.message_context_flight_arrival_title
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.TimeZone
@@ -3905,6 +3908,26 @@ class ConversationViewModel(
             closeMessageContext()
         } else {
             _state.update { it.copy(notice = UiText(Res.string.message_context_no_calendar)) }
+        }
+    }
+
+    /**
+     * Let do kalendáře: „Let OK 123" (nebo „Přílet OK 123") s časem ze zprávy a zprávou v popisu,
+     * kde bývá i kód rezervace. Délku letu neznáme, kalendář ji nechá upravit.
+     */
+    fun addFlightToCalendar(messageId: Long, flight: ContextFinding.Flight) {
+        val calendar = calendarEvents ?: return
+        val start = flight.at ?: return
+        val description = _state.value.messages.firstOrNull { it.id == messageId }?.text?.trim().orEmpty()
+        viewModelScope.launch {
+            val name = "${flight.airline} ${flight.number}"
+            val title = readString(if (flight.arrival) Res.string.message_context_flight_arrival_title else Res.string.message_context_flight_title, name)
+            val added = calendar.add(CalendarEvent(title = title, description = description, place = null, start = start, allDay = flight.allDay))
+            if (added) {
+                closeMessageContext()
+            } else {
+                _state.update { it.copy(notice = UiText(Res.string.message_context_no_calendar)) }
+            }
         }
     }
 

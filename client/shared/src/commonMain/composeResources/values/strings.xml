@@ -2605,4 +2605,8 @@
     <string name="message_context_booking">Booking reference</string>
     <string name="message_context_booking_copy">Copy booking reference</string>
     <string name="menu_context_booking">Copy booking reference…</string>
+    <string name="message_context_flight_calendar">Departure to calendar</string>
+    <string name="message_context_flight_arrival_calendar">Arrival to calendar</string>
+    <string name="message_context_flight_title">Flight %1$s</string>
+    <string name="message_context_flight_arrival_title">Arrival %1$s</string>
 </resources>

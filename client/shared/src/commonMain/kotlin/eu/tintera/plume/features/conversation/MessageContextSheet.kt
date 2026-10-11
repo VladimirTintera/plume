@@ -66,6 +66,8 @@ import eu.tintera.plume.resources.message_context_wifi_qr
 import eu.tintera.plume.resources.wifi_24dp
 import eu.tintera.plume.resources.password_24dp
 import eu.tintera.plume.resources.message_context_flight_track
+import eu.tintera.plume.resources.message_context_flight_calendar
+import eu.tintera.plume.resources.message_context_flight_arrival_calendar
 import eu.tintera.plume.resources.flight_24dp
 import eu.tintera.plume.resources.message_context_email
 import eu.tintera.plume.resources.message_context_phone
@@ -114,6 +116,7 @@ internal fun MessageContextHost(viewModel: ConversationViewModel) {
         onRemind = { viewModel.remindFromContext(open.messageId) },
         onCopy = viewModel::copyFromContext,
         onTrack = viewModel::trackParcel,
+        onAddFlight = { flight -> viewModel.addFlightToCalendar(open.messageId, flight) },
         onOpenMaps = viewModel::openMaps,
         onSaveContact = viewModel::saveContact,
         onJoinWifi = viewModel::joinWifi.takeIf { viewModel.canJoinWifi },
@@ -142,6 +145,7 @@ internal fun MessageContextSheet(
     onRemind: () -> Unit,
     onCopy: (String) -> Unit,
     onTrack: (url: String) -> Unit,
+    onAddFlight: (ContextFinding.Flight) -> Unit,
     onOpenMaps: (query: String) -> Unit,
     onSaveContact: (ContextFinding.Contact) -> Unit,
     /** `null`, když se k Wi-Fi z aplikace připojit nedá (iOS) — zbude heslo a QR kód. */
@@ -173,7 +177,7 @@ internal fun MessageContextSheet(
                         )
                         is ContextFinding.Address -> AddressSection(finding, onCopy = onCopy, onOpenMaps = onOpenMaps)
                         is ContextFinding.Contact -> ContactSection(finding, onCopy = onCopy, onSave = { onSaveContact(finding) })
-                        is ContextFinding.Flight -> FlightSection(finding, onCopy = onCopy, onTrack = onTrack)
+                        is ContextFinding.Flight -> FlightSection(finding, onCopy = onCopy, onTrack = onTrack, onAdd = { onAddFlight(finding) })
                         is ContextFinding.Money -> MoneySection(finding, homeCurrency, rates)
                         is ContextFinding.Measure -> MeasureSection(finding)
                         is ContextFinding.Booking -> CopyRow(
@@ -399,7 +403,7 @@ internal fun moneyParts(value: Double): Pair<String, String> {
 }
 
 @Composable
-private fun FlightSection(flight: ContextFinding.Flight, onCopy: (String) -> Unit, onTrack: (String) -> Unit) {
+private fun FlightSection(flight: ContextFinding.Flight, onCopy: (String) -> Unit, onTrack: (String) -> Unit, onAdd: () -> Unit) {
     CopyRow(
         label = null,
         title = stringResource(Res.string.message_context_flight),
@@ -416,6 +420,24 @@ private fun FlightSection(flight: ContextFinding.Flight, onCopy: (String) -> Uni
         color = MaterialTheme.colorScheme.tertiaryContainer,
         contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
     )
+    // Do kalendáře jen s časem ze zprávy; stav letu odjinud nezjistíme.
+    flight.at?.let { at ->
+        val zone = remember { TimeZone.currentSystemDefault() }
+        val time = if (flight.allDay) at.date.asUpcomingDay() else at.toInstant(zone).epochSeconds.asUpcomingTime()
+        SheetActionRow(
+            icon = Res.drawable.event_24dp,
+            label = stringResource(if (flight.arrival) Res.string.message_context_flight_arrival_calendar else Res.string.message_context_flight_calendar),
+            shape = RoundedCornerShape(ROW_CORNER),
+            onClick = onAdd,
+            trailing = {
+                Text(
+                    time,
+                    style = MaterialTheme.typography.labelLarge.tabularNumbers(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+        )
+    }
 }
 
 @Composable

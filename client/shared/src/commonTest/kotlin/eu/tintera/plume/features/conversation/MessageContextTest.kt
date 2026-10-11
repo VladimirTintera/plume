@@ -235,10 +235,33 @@ class MessageContextTest {
     @Test
     fun cisloLetu() {
         val flight = context("Letím zítra, let OK 123 v 9:40 z Ruzyně").flights.single()
-        assertEquals(ContextFinding.Flight("OK", "123"), flight)
+        assertEquals(ContextFinding.Flight("OK", "123", at = LocalDateTime(2026, 10, 15, 9, 40)), flight)
         assertEquals("https://www.flightaware.com/live/flight/OK123", flight.trackingUrl())
         assertEquals("FR1234", context("Flight FR1234 is delayed, gate B12").flights.single().code)
         assertEquals("W62345", context("Odlet W6 2345 ve 14:00").flights.single().code)
+    }
+
+    @Test
+    fun letDoKalendare() {
+        // Stačí i samotný čas — že jde o let, víme z čísla letu.
+        val departure = context("Let FR1234 odlétá v 6:15").flights.single()
+        assertEquals(LocalDateTime(2026, 10, 15, 6, 15), departure.at)
+        assertFalse(departure.arrival)
+        // Přistání = přílet; termín pak nese let a obecná událost se nenabízí.
+        val text = "Přiletím letem BA 117, přistání na letišti zítra ve 14:30"
+        val arrival = findings(text).filterIsInstance<ContextFinding.Flight>().single()
+        assertTrue(arrival.arrival)
+        assertEquals(LocalDateTime(2026, 10, 15, 14, 30), arrival.at)
+        assertTrue(findings(text).none { it is ContextFinding.Event })
+        // Odlet i přílet ve zprávě: čas patří odletu.
+        assertFalse(context("Odlet OK 123 zítra v 9:40, přílet ve 12:00").flights.single().arrival)
+    }
+
+    @Test
+    fun minulyLetDoKalendareNe() {
+        val flight = findings("Let OK 123 zítra v 9:40", now = LocalDateTime(2026, 10, 16, 8, 0))
+            .filterIsInstance<ContextFinding.Flight>().single()
+        assertNull(flight.at)
     }
 
     @Test
