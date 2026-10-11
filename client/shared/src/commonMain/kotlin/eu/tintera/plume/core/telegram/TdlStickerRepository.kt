@@ -29,6 +29,9 @@ private const val TRENDING_LIMIT = 50
 /** Nejvíc samolepek z jednoho hledání. TDLib víc než 100 nevrátí. */
 private const val SEARCH_LIMIT = 100
 
+/** Kolik samolepek se nabídne k emoji nad polem. Řádek se posouvá, víc by nikdo neprocházel. */
+private const val SUGGESTION_LIMIT = 30
+
 class TdlStickerRepository(
     private val holder: TelegramClientHolder,
 ) : StickerRepository {
@@ -243,6 +246,20 @@ class TdlStickerRepository(
             public = public.filterNot { it.id in installedIds },
         )
     }
+
+    override suspend fun stickersForEmoji(emoji: String): List<StickerItem> =
+        client.getStickers(
+            stickerType = StickerTypeRegular(),
+            query = emoji,
+            limit = SUGGESTION_LIMIT,
+            chatId = 0L,
+        )
+            .toResult()
+            .map { it.stickers.toItems() }
+            .getOrElse { failure ->
+                logger.w(failure) { "Samolepky k emoji se nepodařilo načíst." }
+                emptyList()
+            }
 
     /**
      * Převod na položky výběru, bez prémiových samolepek u uživatele bez Premium.
