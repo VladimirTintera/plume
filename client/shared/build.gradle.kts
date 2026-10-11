@@ -47,6 +47,9 @@ val generateChangelog = tasks.register("generateChangelog") {
                         ProcessBuilder(python, script.absolutePath, "bundle", target.absolutePath)
                             .directory(repoDir)
                             .redirectErrorStream(true)
+                            // Konzole Windows je v cp1252 a skript vypisuje češtinu: bez UTF-8 padal
+                            // na UnicodeEncodeError a poznámky se nezapekly.
+                            .apply { environment()["PYTHONIOENCODING"] = "utf-8" }
                             .start()
                     }.getOrNull()
                 } ?: error("python3 ani python není na PATH")

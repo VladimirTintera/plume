@@ -103,6 +103,17 @@ jobs:
           ./gradlew :client:desktopApp:packageMsi -PdesktopVersion=${{ steps.tag.outputs.version }}
           ls -la client/desktopApp/build/compose/binaries/main/msi/
 
+      # Compose u selhání jpackage ukáže jen cestu k logu na runneru; hláška je v něm.
+      - name: jpackage logs
+        if: failure()
+        run: |
+          for f in client/desktopApp/build/compose/logs/*/*.txt; do
+            [ -s "$f" ] || continue
+            echo "::group::$f"
+            cat "$f"
+            echo "::endgroup::"
+          done
+
       - uses: actions/upload-artifact@v7
         with:
           name: msi
