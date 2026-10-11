@@ -640,6 +640,11 @@
     <string name="pin_option_notify_group">Notify members</string>
     <string name="pin_option_notify_channel">Notify subscribers</string>
     <string name="stickers_recent_empty">Stickers you send will show up here.</string>
+    <string name="stickers_recent_remove">Remove from recent</string>
+    <string name="stickers_recent_clear">Clear</string>
+    <string name="stickers_recent_clear_title">Clear recent stickers?</string>
+    <string name="stickers_recent_clear_text">Recently sent stickers will disappear from the picker on all your devices.</string>
+    <string name="stickers_recent_clear_confirm">Clear</string>
     <string name="stickers_favorites_empty">No favourite stickers yet.</string>
     <string name="stickers_set_empty">The set is empty, or it couldn't be loaded.</string>
     <string name="stickers_trending_failed">Couldn't load trending sets.</string>

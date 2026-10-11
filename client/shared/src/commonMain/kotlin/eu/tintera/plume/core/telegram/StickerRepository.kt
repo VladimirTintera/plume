@@ -22,6 +22,15 @@ interface StickerRepository {
     fun favoriteStickers(): Flow<List<StickerItem>>
 
     /**
+     * Odebere samolepku z nedávných — typicky tu poslanou omylem. [stickerFileId] jako u
+     * [setFavorite]. Potvrzení dorazí přes [recentStickers].
+     */
+    suspend fun removeRecent(stickerFileId: Int): Result<Unit>
+
+    /** Vymaže všechny nedávné. Seznam je v cloudu, zmizí na všech zařízeních účtu. */
+    suspend fun clearRecent(): Result<Unit>
+
+    /**
      * Přidá samolepku do oblíbených, nebo ji z nich odebere. [stickerFileId] je
      * `MessageMedia.Sticker.stickerFileId` / [StickerItem.sendFileId].
      *
