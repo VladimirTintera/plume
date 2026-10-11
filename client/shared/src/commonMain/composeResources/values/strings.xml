@@ -658,6 +658,7 @@
     <string name="stickers_sets_show_all">All sets</string>
     <string name="stickers_tab_recent">Recent</string>
     <string name="stickers_tab_favorites">Favourites</string>
+    <string name="stickers_tab_group">Group stickers: %1$s</string>
     <string name="stickers_tab_trending">Trending</string>
     <string name="emoji_group_smileys">Smileys</string>
     <string name="emoji_group_people">People</string>

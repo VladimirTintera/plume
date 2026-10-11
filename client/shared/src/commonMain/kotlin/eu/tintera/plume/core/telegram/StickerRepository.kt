@@ -57,6 +57,14 @@ interface StickerRepository {
     /** Přidá sadu mezi nainstalované, nebo ji odebere. Potvrzení dorazí přes [stickerSetDetail]. */
     suspend fun setInstalled(setId: Long, installed: Boolean): Result<Unit>
 
+    /**
+     * Sada, kterou správci supergroupy [chatId] nastavili skupině (`SupergroupFullInfo
+     * .stickerSetId`). Posílat z ní jde v té skupině, i když ji uživatel nainstalovanou nemá.
+     * `null`, když chat supergroupa není (soukromý chat, kanál, malá skupina), sadu nemá, nebo
+     * se to nepodařilo zjistit.
+     */
+    suspend fun groupStickerSet(chatId: Long): GroupStickerSet?
+
     /** Obsah jedné sady. Načítá se až při otevření její záložky — sad bývá desítky. */
     suspend fun stickerSet(setId: Long): Result<List<StickerItem>>
 
@@ -139,6 +147,14 @@ data class StickerSetSample(
     val isInstalled: Boolean,
     /** Pár samolepek na ukázku. Celou sadu ukáže až detail sady. */
     val covers: List<MessageMedia.Sticker>,
+)
+
+/** Sada skupiny a skupina sama — záložka ve výběru ji ukazuje fotkou skupiny, ne obálkou sady. */
+data class GroupStickerSet(
+    val set: StickerSetSummary,
+    val chatId: Long,
+    val chatTitle: String,
+    val chatPhotoFileId: Int?,
 )
 
 /** Sada v záložkách výběru. */
