@@ -466,6 +466,13 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   holé `DropdownMenuPopup` / `Popup` bez vstupního pole ho dostane taky, jinak nabídka nad
   otevřenou klávesnicí klávesnici utrhne a obsah pod ní skočí. Viz „Nabídky si neberou
   klávesnici".
+- **Hláška „Zkopírováno" jen tam, kde zkopírování nepotvrdí systém** (`TextClipboard.confirmsCopy`,
+  Android 13+): systém sám ukáže okénko s obsahem schránky vlevo dole a vlastní snackbar se
+  s ním zdvojil a překryl (ověřeno na emulátoru). Kdo přidává kopírování, podmíní hlášku
+  `if (!clipboard.confirmsCopy)`. **Hláška, která říká víc než „zkopírováno", zůstává**
+  („odkaz vytvořen a zkopírován", „heslo je ve schránce, v nastavení Wi-Fi vyber síť"), stejně
+  jako potvrzení uvnitř sheetu (fajfka u kódu dárku, ikona u odkazu složky) — to je stav
+  ovládacího prvku, ne oznámení.
 
 ### Omezené rozostření
 

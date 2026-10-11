@@ -151,7 +151,7 @@ class InviteLinksViewModel(
     fun copy(link: InviteLink) {
         viewModelScope.launch {
             clipboard.copy(link.url)
-            notice = UiText(Res.string.invite_links_copied)
+            if (!clipboard.confirmsCopy) notice = UiText(Res.string.invite_links_copied)
         }
     }
 

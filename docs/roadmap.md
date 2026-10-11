@@ -417,8 +417,8 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
     správa rezervace u dopravce chce adresu pro každou společnost zvlášť,
   - **Wi-Fi na iOS** jen s kopírováním hesla a QR kódem — připojení chce entitlement Hotspot
     Configuration v profilu aplikace; víceslovný název sítě jen v uvozovkách,
-  - **snackbar „Zkopírováno" leží pod sheetem** a vidět není (na Androidu 13+ to zastoupí
-    systémový náhled schránky, na starších nic),
+  - **snackbar „Zkopírováno" leží pod sheetem** a vidět není (na Androidu 13+ se neukazuje
+    vůbec, potvrdí to systémový náhled schránky; na iOS a starších Androidech nic),
   - **čísla PPL a DPD**: holé číslo od telefonu nerozeznáš, chtělo by to slovo dopravce vedle,
   - **místo od modelu bývá vágní** („letišti", „Kotvy") a mapy s ním neporadí — chtělo by to
     nabízet mapy jen u místa, které vypadá jako adresa nebo název,
