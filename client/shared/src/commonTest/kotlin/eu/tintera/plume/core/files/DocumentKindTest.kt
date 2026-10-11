@@ -51,8 +51,8 @@ class DocumentKindTest {
     fun onlyImagesAndVideosOpenInViewer() {
         assertEquals(false, opensInViewer("smlouva.pdf", "application/pdf"))
         assertEquals(false, opensInViewer("scan.tiff", "image/tiff"))
-        // JPEG a MP4 otevře prohlížeč na každé platformě.
+        // JPEG otevře prohlížeč na každé platformě. MP4 ne: desktop přehrávač videa zatím nemá
+        // a video předává aplikaci systému (viz `viewerUnsupportedFormats` v jvmMain).
         assertEquals(true, opensInViewer("fotka.jpg", ""))
-        assertEquals(true, opensInViewer("klip.mp4", ""))
     }
 }

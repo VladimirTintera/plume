@@ -78,6 +78,34 @@ Android je napřed; tohle je, čím se to dorovnává.
 - **Release link do CI jako samostatný cachovaný krok.** Kotlin/Native pouští LTO nad celou
   statickou TDLib a naměřeno je 15+ minut na M-series; do smyčky, kterou čeká vývojář, to nepatří.
 
+## Desktop
+
+Běží na macOS (ověřeno: přihlášení QR kódem, seznam chatů, konverzace, odeslání zprávy).
+Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
+
+- **Ověřit Windows a Linux.** Přeložené a zabalitelné, ale nespuštěné. Linux chce glibc 2.38+.
+- **TDLib wrapper: počkat na opravu [tdl-coroutines#163](https://github.com/g000sha256/tdl-coroutines/issues/163)**
+  a pak z přepisu jaru vyhodit opravu dylibu a přibalené OpenSSL. Do té doby se na macOS
+  staví jen s Homebrew `openssl@3` a desktop na Apple Silicon běží až od macOS 26 (`minos`
+  binárky wrapperu — taky v issue).
+- **Notifikace** (`NotificationPresenter` je prázdný): TDLib vydává `UpdateNotificationGroup`
+  za běhu, stačí je převést na systémová oznámení (AWT `SystemTray` nebo nativní most).
+- **Zvuk**: přehrávání hlasovek (Opus) a hudby, nahrávání hlasovek. JVM sám Opus ani MP3
+  neumí; kandidáti jsou nativní libopus přes JNA, nebo FFmpeg (JavaCV) pro všechno naráz.
+- **Video**: přehrávač v aplikaci (vlcj chce VLC v systému, JavaCV nese FFmpeg). Dnes se video
+  otevírá v aplikaci systému.
+- **Trezor tajemství na Windows a Linuxu** (DPAPI, Secret Service / libsecret). Dnes soubor
+  s právy jen pro vlastníka vedle databáze.
+- **Vkládání obrázků ze schránky a přetažení souboru do okna** (`KeyboardContentReceiver`,
+  AWT drag & drop).
+- **Podpis a notarizace macOS balíčku**, ikona `.icns` / `.ico`, verze balíčku svázaná
+  s verzí aplikace (dnes pevně `1.0.0`), sestavení v CI.
+- **Jazyk aplikace jen pro aplikaci** (dnes jde za jazykem systému).
+- **Úprava fotky, profilové video, mini aplikace (WebView), poloha, QR čtečka, kalendář,
+  kontakty** — vše `actual`, které dnes říká „neumí".
+- **Desktopové chování**: zkratky z nabídky okna, pamatovaná velikost okna, tray ikona,
+  jedna instance aplikace.
+
 ## Obrazovky a sekce, které nejsou
 
 Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou). Routy: `ChatsRoute`, `SettingsRoute`,

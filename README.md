@@ -1,7 +1,7 @@
 # Plume
 
 Neoficiální Telegram klient postavený důsledně na Material 3 Expressive.
-Kotlin Multiplatform, sdílené Compose UI pro Android a iOS.
+Kotlin Multiplatform, sdílené Compose UI pro Android, iOS a desktop (macOS, Windows, Linux).
 
 > Používá [Telegram API](https://core.telegram.org/) přes [TDLib](https://core.telegram.org/tdlib).
 > Není to oficiální produkt Telegramu a není s ním nijak spojený.
@@ -54,7 +54,14 @@ aplikaci, [docs/roadmap-konverzace.md](docs/roadmap-konverzace.md) pro detail ch
    (build fáze „Compile Kotlin Framework"). Do `iosApp/Configuration/Config.xcconfig` doplň `TEAM_ID`,
    pokud chceš běžet na zařízení.
 
-5. Zapni hooky, pokud budeš přispívat:
+5. Desktop — na macOS napřed `brew install openssl@3` (přibaluje se k TDLib, viz
+   `docs/poznatky/desktop.md`), pak:
+
+   ```bash
+   ./gradlew :client:desktopApp:run
+   ```
+
+6. Zapni hooky, pokud budeš přispívat:
 
    ```bash
    git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"
