@@ -233,6 +233,23 @@ class MessageContextTest {
     }
 
     @Test
+    fun cisloLetu() {
+        val flight = context("Letím zítra, let OK 123 v 9:40 z Ruzyně").flights.single()
+        assertEquals(ContextFinding.Flight("OK", "123"), flight)
+        assertEquals("https://www.flightaware.com/live/flight/OK123", flight.trackingUrl())
+        assertEquals("FR1234", context("Flight FR1234 is delayed, gate B12").flights.single().code)
+        assertEquals("W62345", context("Odlet W6 2345 ve 14:00").flights.single().code)
+    }
+
+    @Test
+    fun coLetemNeni() {
+        // Bez slova o letu, neznámý dopravce, variabilní symbol.
+        assertTrue(context("Ok 2 lidi, OK 123").flights.isEmpty())
+        assertTrue(context("Náš let XX 123").flights.isEmpty())
+        assertTrue(context("Let mi zaplatit, VS 1234").flights.isEmpty())
+    }
+
+    @Test
     fun obycejnaZpravaNicNema() {
         assertTrue(context("Ahoj, jak se máš?").isEmpty)
         assertTrue(context("").isEmpty)

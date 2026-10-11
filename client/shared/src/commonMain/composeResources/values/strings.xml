@@ -2579,4 +2579,7 @@
     <string name="message_context_phone">Phone</string>
     <string name="message_context_email">Email</string>
     <string name="message_context_no_contacts">There is no contacts app to save the contact to</string>
+    <string name="message_context_flight">Flight</string>
+    <string name="message_context_flight_track">Flight status</string>
+    <string name="menu_context_flight">Flight status…</string>
 </resources>

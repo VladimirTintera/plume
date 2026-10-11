@@ -49,6 +49,12 @@ sealed interface ContextFinding {
      */
     data class Contact(val name: String?, val phone: String?, val email: String?) : ContextFinding
 
+    /** Číslo letu → stav letu. [airline] je kód IATA („OK"), [number] číslo („123"). */
+    data class Flight(val airline: String, val number: String) : ContextFinding {
+        /** Jak se let píše na palubní vstupence a hledá: „OK123". */
+        val code: String get() = airline + number
+    }
+
     /** Číslo zásilky → sledování u dopravce. */
     data class Parcel(val carrier: ParcelCarrier, val number: String) : ContextFinding
 }
@@ -82,10 +88,12 @@ data class MessageContext(
     val payments: List<ContextFinding.Payment> = emptyList(),
     val addresses: List<ContextFinding.Address> = emptyList(),
     val contacts: List<ContextFinding.Contact> = emptyList(),
+    val flights: List<ContextFinding.Flight> = emptyList(),
     val parcels: List<ContextFinding.Parcel> = emptyList(),
 ) {
     val isEmpty: Boolean
-        get() = event == null && payments.isEmpty() && addresses.isEmpty() && contacts.isEmpty() && parcels.isEmpty()
+        get() = event == null && payments.isEmpty() && addresses.isEmpty() && contacts.isEmpty() &&
+            flights.isEmpty() && parcels.isEmpty()
 }
 
 /**
@@ -102,6 +110,8 @@ data class MessageContext(
  * - **Kontakt** z telefonů a e-mailů, které ve zprávě vyznačil Telegram (`tel:`, `mailto:`), a kde
  *   značka chybí, z mezinárodního čísla nebo českých devíti číslic. Číslo, které je kusem účtu,
  *   kontaktem není.
+ * - **Let** jen s kódem známé letecké společnosti ([AIRLINES]) a slovem o letu ve zprávě („let",
+ *   „odlet", „letiště", „flight", „gate"…). Samo „OK 123" nebo „LO 5" je spíš cokoli jiného.
  * - **Zásilka** jen ve formátu, který dopravce jednoznačně určí: S10 s kontrolní číslicí
  *   a Zásilkovna. Holá čísla PPL nebo DPD od telefonu nerozeznáš.
  */
@@ -118,6 +128,7 @@ fun findMessageContext(
         payments = payments,
         addresses = addresses(text),
         contacts = contacts(text, entities, payments),
+        flights = flights(text),
         parcels = parcels(text),
     )
 }
@@ -159,6 +170,7 @@ fun MessageContext.contextFindings(
     addAll(payments)
     addAll(addresses)
     addAll(contacts)
+    addAll(flights)
     addAll(parcels)
 }
 
@@ -178,6 +190,12 @@ sealed interface EventVerdict {
 }
 
 /** Odkaz na sledování zásilky; [language] je jazyk aplikace (Zásilkovna má stránku česky i anglicky). */
+/**
+ * Stav letu na FlightAware. Bere kód IATA („BA117") a sám ho převede na ICAO; ověřeno curlem
+ * (Flightradar24 robotům vrací 403, takže se ověřit nedal).
+ */
+fun ContextFinding.Flight.trackingUrl(): String = "https://www.flightaware.com/live/flight/$code"
+
 fun ContextFinding.Parcel.trackingUrl(language: String): String = when (carrier) {
     ParcelCarrier.CzechPost -> "https://www.postaonline.cz/trackandtrace/-/zasilka/cislo?parcelNumbers=$number"
     ParcelCarrier.Packeta -> "https://tracking.packeta.com/${if (language == "cs") "cs" else "en"}/$number"
@@ -389,6 +407,20 @@ private fun contacts(
 private fun nameBefore(text: String, start: Int): String? =
     NAME_BEFORE.find(text.substring(0, start))?.let { "${it.groupValues[1]} ${it.groupValues[2]}" }
 
+// --- Let -------------------------------------------------------------------------------------
+
+private fun flights(text: String): List<ContextFinding.Flight> {
+    val words = WORD.findAll(foldDiacritics(text).lowercase()).map { it.value }.toList()
+    val aboutFlight = words.any { word -> word in FLIGHT_WORDS || FLIGHT_STEMS.any { word.startsWith(it) } }
+    if (!aboutFlight) return emptyList()
+    return FLIGHT.findAll(text)
+        .filter { it.groupValues[1] in AIRLINES }
+        .map { ContextFinding.Flight(it.groupValues[1], it.groupValues[2]) }
+        .distinctBy { it.code }
+        .take(MAX_FLIGHTS)
+        .toList()
+}
+
 // --- Zásilka ---------------------------------------------------------------------------------
 
 private fun parcels(text: String): List<ContextFinding.Parcel> = buildList {
@@ -421,6 +453,7 @@ private const val MAX_ACCOUNTS = 2
 private const val MAX_PARCELS = 3
 private const val MAX_ADDRESSES = 2
 private const val MAX_CONTACTS = 2
+private const val MAX_FLIGHTS = 2
 private const val MIN_PHONE_DIGITS = 9
 private const val MAX_PHONE_DIGITS = 15
 private const val MIN_IBAN = 15
@@ -509,6 +542,29 @@ private val EMAIL = Regex("(?<![\\w.+-])[\\w.+-]+@[\\w-]+(?:\\.[\\w-]+)+(?![\\w-
 /** Dvě slova jména a za nimi oddělovač nebo „tel." — na KONCI textu před číslem. */
 private val NAME_BEFORE = Regex(
     "(\\p{Lu}\\p{Ll}+)\\s+(\\p{Lu}\\p{Ll}+)\\s*(?:[,:(\\-\\u2013]\\s*(?:(?:tel|mob|mobil|telefon|phone)\\.?:?\\s*)?|(?:tel|mob|mobil|telefon|phone)\\.?:?\\s*)$",
+)
+
+private val WORD = Regex("[\\p{L}\\p{N}]+")
+
+/** Kód dopravce (dvě písmena, nebo písmeno a číslice) a číslo letu, s mezerou i bez. */
+private val FLIGHT = Regex("(?<![\\p{L}\\d])([A-Z]{2}|[A-Z]\\d|\\d[A-Z])\\s?(\\d{1,4})(?![\\p{L}\\d])")
+
+/** Slova o letu, celá (bez diakritiky, malými). */
+private val FLIGHT_WORDS = setOf("let", "letu", "letem", "lety", "gate", "gejt", "flug")
+
+/** Začátky slov o letu („letiště", „odletu", „přílet", „boarding"). */
+private val FLIGHT_STEMS = listOf("letist", "letadl", "odlet", "prilet", "flight", "airport", "boarding", "terminal", "check-in", "checkin")
+
+/**
+ * Kódy IATA běžných leteckých společností (Evropa a největší světové). Chybějící kód jen znamená,
+ * že se let nerozpozná. `VS` (Virgin Atlantic) tu schválně není: v češtině je to variabilní symbol.
+ */
+private val AIRLINES = setOf(
+    "OK", "QS", "FR", "W6", "W4", "U2", "LH", "LX", "OS", "LO", "AF", "KL", "BA", "IB", "VY", "SK",
+    "AY", "TK", "PC", "EK", "QR", "EY", "LY", "A3", "TP", "SN", "EI", "DY", "D8", "EW", "HV", "TO",
+    "X3", "BY", "LS", "AZ", "JU", "RO", "FB", "OU", "BT", "LG", "UA", "AA", "DL", "AC", "B6", "NH",
+    "JL", "CX", "SQ", "QF", "ET", "MS", "SV", "AI", "CA", "MU", "CZ", "KE", "OZ", "TG", "VN", "NZ",
+    "LA", "AV", "AM", "WN", "G9", "FZ", "XQ", "KM", "V7", "EN", "DE", "PS", "4U", "WK", "BJ", "J2",
 )
 
 private val S10 = Regex("(?<![A-Za-z0-9])([A-Z]{2})(\\d{9})([A-Z]{2})(?![A-Za-z0-9])")

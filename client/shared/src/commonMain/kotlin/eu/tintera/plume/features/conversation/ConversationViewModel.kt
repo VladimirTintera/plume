@@ -3888,7 +3888,7 @@ class ConversationViewModel(
         }
     }
 
-    /** Sledování zásilky u dopravce. Adresu skládáme sami, takže se na odkaz neptá. */
+    /** Sledování zásilky u dopravce nebo stav letu. Adresu skládáme sami, takže se na odkaz neptá. */
     fun trackParcel(url: String) {
         closeMessageContext()
         openLink(url, confirmExternal = false)

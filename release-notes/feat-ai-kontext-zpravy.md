@@ -1,3 +1,3 @@
 type: feat
-cs: Akce ze zpráv: termín do kalendáře, adresa do map, kontakt, QR platba, zásilka
-en: Message actions: event to calendar, address to maps, contact, QR payment, parcel
+cs: Akce ze zpráv: termín, adresa, kontakt, QR platba, let a zásilka jedním ťuknutím
+en: Message actions: date, address, contact, QR payment, flight and parcel in one tap

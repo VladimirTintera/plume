@@ -42,6 +42,9 @@ import eu.tintera.plume.resources.menu_copy
 import eu.tintera.plume.resources.menu_remind
 import eu.tintera.plume.resources.message_context_account
 import eu.tintera.plume.resources.message_context_contact
+import eu.tintera.plume.resources.message_context_flight
+import eu.tintera.plume.resources.message_context_flight_track
+import eu.tintera.plume.resources.flight_24dp
 import eu.tintera.plume.resources.message_context_email
 import eu.tintera.plume.resources.message_context_phone
 import eu.tintera.plume.resources.person_24dp
@@ -96,7 +99,7 @@ internal fun MessageContextHost(viewModel: ConversationViewModel) {
 /**
  * Co se ve zprávě našlo a co s tím jde udělat: termín → kalendář nebo připomínka (a mapy, když
  * model našel místo), účet → QR platba a kopírování údajů, adresa → mapy, kontakt → uložit do
- * kontaktů, zásilka → sledování.
+ * kontaktů, let → stav letu, zásilka → sledování.
  *
  * - **Nic se nestane samo.** Kalendář otevře editor události, kde ji uloží uživatel; platbu
  *   provede banka. Sheet jen předvyplní, co ve zprávě stálo.
@@ -140,6 +143,7 @@ internal fun MessageContextSheet(
                         )
                         is ContextFinding.Address -> AddressSection(finding, onCopy = onCopy, onOpenMaps = onOpenMaps)
                         is ContextFinding.Contact -> ContactSection(finding, onCopy = onCopy, onSave = { onSaveContact(finding) })
+                        is ContextFinding.Flight -> FlightSection(finding, onCopy = onCopy, onTrack = onTrack)
                         is ContextFinding.Payment -> PaymentSection(finding, onCopy = onCopy)
                         is ContextFinding.Parcel -> ParcelSection(finding, onCopy = onCopy, onTrack = onTrack)
                     }
@@ -212,6 +216,26 @@ private fun EventSection(
             onClick = { onOpenMaps(place) },
         )
     }
+}
+
+@Composable
+private fun FlightSection(flight: ContextFinding.Flight, onCopy: (String) -> Unit, onTrack: (String) -> Unit) {
+    CopyRow(
+        label = null,
+        title = stringResource(Res.string.message_context_flight),
+        value = "${flight.airline} ${flight.number}",
+        copied = flight.code,
+        onCopy = onCopy,
+        icon = Res.drawable.flight_24dp,
+    )
+    SheetActionRow(
+        icon = Res.drawable.open_in_new_24dp,
+        label = stringResource(Res.string.message_context_flight_track),
+        shape = RoundedCornerShape(ROW_CORNER),
+        onClick = { onTrack(flight.trackingUrl()) },
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+    )
 }
 
 @Composable

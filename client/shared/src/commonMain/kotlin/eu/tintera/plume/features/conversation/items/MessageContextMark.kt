@@ -17,6 +17,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auto_awesome_24dp
 import eu.tintera.plume.resources.message_context_event
 import eu.tintera.plume.resources.message_context_contact
+import eu.tintera.plume.resources.message_context_flight_track
 import eu.tintera.plume.resources.message_context_maps
 import eu.tintera.plume.resources.message_context_open
 import eu.tintera.plume.resources.message_context_parcel
@@ -48,6 +49,7 @@ internal fun MessageContextMark(
             is ContextFinding.Payment -> Res.string.message_context_payment
             is ContextFinding.Address -> Res.string.message_context_maps
             is ContextFinding.Contact -> Res.string.message_context_contact
+            is ContextFinding.Flight -> Res.string.message_context_flight_track
             is ContextFinding.Parcel -> Res.string.message_context_parcel
         }
     }.distinct().map { stringResource(it) }
