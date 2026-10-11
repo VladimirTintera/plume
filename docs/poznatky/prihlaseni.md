@@ -178,6 +178,14 @@ znamenaly slepou uličku — kód nikdy nepřišel a jiná cesta nebyla.
   účtu, který nikdo nemá otevřený. Plume se na číslo bez jiné přihlášené relace nedostane;
   napřed je potřeba přihlásit oficiální aplikaci (tam server nabídne e-mail) a pak Plume
   kódem ze zprávy, nebo rovnou QR kódem.
+- **Obrazovka kódu to proto říká sama** (`CodeForm`, `appOnly`): když kód jde jen do Telegramu
+  a `next` je `null`, stojí pod tlačítkem věta „Nemáš Telegram přihlášený na jiném zařízení?…“
+  s odkazem na oficiální aplikaci a web a vedle „Jiné číslo“ tlačítko „Přihlásit se QR kódem“.
+  Dřív uživatel s novým číslem čekal na kód, který nikdy nepřijde, a nedozvěděl se proč.
+  **QR jde spustit přímo z čekání na kód** — `requestQrCodeAuthentication` TDLib pustí
+  i z `authorizationStateWaitCode`, když neběží jiný dotaz; ověřeno na Pixelu 7 Pro
+  (`WaitCode` → `WaitOtherDeviceConfirmation`, QR se nakreslil). Druhé zařízení je potřeba
+  tak jako tak a QR je z něj rychlejší než opisovat kód ze zprávy.
 - **Tlačítko tedy čeká na server, který jinou cestu dá** (jiné `api_id`, jiná země, účet bez
   aktivní relace). Ověřené je jen testy `AuthViewModelTest` (lhůta, poslání, chyby), skutečné
   doručení SMS či hovoru ne.

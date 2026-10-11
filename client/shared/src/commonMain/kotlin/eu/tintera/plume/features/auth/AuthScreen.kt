@@ -73,6 +73,7 @@ import eu.tintera.plume.features.proxy.ProxySettingsScreen
 import org.koin.compose.viewmodel.koinViewModel
 import eu.tintera.plume.resources.auth_back_to_password
 import eu.tintera.plume.resources.auth_change_number
+import eu.tintera.plume.resources.auth_code_app_only_hint
 import eu.tintera.plume.resources.auth_continue
 import eu.tintera.plume.resources.auth_forgot_password
 import eu.tintera.plume.resources.auth_headline_new_password
@@ -261,6 +262,7 @@ fun AuthScreen(
                                 onValueChange = viewModel::onInputChange,
                                 onSubmit = viewModel::submit,
                                 onResend = viewModel::resendCode,
+                                onQrLogin = viewModel::startQrLogin,
                                 onChangeNumber = viewModel::restartLogin,
                             )
 
@@ -541,9 +543,16 @@ private fun CodeForm(
     onValueChange: (String) -> Unit,
     onSubmit: () -> Unit,
     onResend: () -> Unit,
+    onQrLogin: () -> Unit,
     onChangeNumber: () -> Unit,
 ) {
     val complete = code.digits == null || value.length == code.digits
+    /*
+     * Kód jen do Telegramu a jinou cestu server nedá — našemu `api_id` je to pravidlo, ne
+     * výjimka (`docs/poznatky/prihlaseni.md`, „Kód jinou cestou"). Kdo nemá přihlášenou jinou
+     * relaci (nové číslo, odhlášený všude), by na kód čekal donekonečna a nepoznal proč.
+     */
+    val appOnly = code.delivery == CodeDelivery.TelegramApp && next == null
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -574,6 +583,15 @@ private fun CodeForm(
 
         FormError(error)
         ContinueButton(enabled = value.isNotBlank() && complete, busy = busy, onClick = onSubmit)
+        if (appOnly) {
+            Text(
+                text = stringResource(Res.string.auth_code_app_only_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         // Kód poslaný na překlep v čísle nikdy nedorazí; bez tohohle se z kroku nedalo odejít.
         SecondaryActions {
             /*
@@ -594,6 +612,13 @@ private fun CodeForm(
                         // Odpočet se mění na místě; s proporcionálními číslicemi by tlačítko cukalo.
                         style = LocalTextStyle.current.tabularNumbers(),
                     )
+                }
+            }
+            // TDLib QR pustí i z čekání na kód. Druhé zařízení je potřeba tak jako tak, a QR
+            // je z něj rychlejší než opisovat kód ze zprávy.
+            if (appOnly) {
+                TextButton(onClick = onQrLogin, enabled = !busy) {
+                    Text(stringResource(Res.string.auth_sign_in_with_qr))
                 }
             }
             TextButton(onClick = onChangeNumber, enabled = !busy) {
