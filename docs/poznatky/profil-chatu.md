@@ -216,11 +216,17 @@ testy `MemberManagementTest`).
 - **Doby se drží pod 366 dny.** Všechno delší (a kratší než 30 sekund) bere TDLib jako navždy,
   takže by delší volba slibovala konec, který nenastane. Navždy je `untilDate = 0`.
 - **Práva správce jsou zúžená sada a zapisují se celým objektem** (jako `GroupPermissions`): co
-  aplikace nenabízí (videohovory, stories, témata, přímé zprávy kanálu), se u stávajícího správce
+  aplikace nenabízí (videohovory, stories, přímé zprávy kanálu), se u stávajícího správce
   přenese z jeho současných práv — nastavit mu to mohl jiný klient. `canManageChat` drží podle
   toho, jestli správcem vůbec zůstává; v Telegramu je to implicitní právo každého správce.
 - **Skupina a kanál ukazují každý jinou podmnožinu.** V kanálu se publikuje a upravují cizí
   příspěvky, ve skupině se připíná a omezuje; anonymita je jen v supergroupě.
+- **„Spravovat témata" jen ve skupině s tématy** (`AdminRights.manageTopics`,
+  `MemberDetail.isForum`). Dřív chybělo úplně, takže správce povýšený v Plume témata spravovat
+  nesměl a nikde se to nedalo zapnout. Nový správce ho ve skupině s tématy dostane ve výchozí
+  sadě, jinde se právo nenabízí ani neposílá. Ověřeno se dvěma účty (12. 10. 2026): správce
+  s právem na témata a bez mazání cizích zpráv má u cizího tématu Připnout, Přejmenovat
+  a Uzavřít, Smazat ne; přejmenování server přijal („Téma upraveno" u vlastníka).
 - **Seznam členů se po změně ČTE ZNOVU, neodvozuje se z updatu** (`ProfileRepository.memberUpdates`
   nad `UpdateChatMember`, `conflate`). Jeden update nese jednoho člena a co změna doopravdy
   udělala, ví jen server — tentýž vzor jako připnuté zprávy a relace v Nastavení. **`UpdateChatMember`

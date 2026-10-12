@@ -65,6 +65,7 @@ import eu.tintera.plume.resources.member_right_delete
 import eu.tintera.plume.resources.member_right_edit
 import eu.tintera.plume.resources.member_right_invite
 import eu.tintera.plume.resources.member_right_invite_channel
+import eu.tintera.plume.resources.member_right_manage_topics
 import eu.tintera.plume.resources.member_right_pin
 import eu.tintera.plume.resources.member_right_post
 import eu.tintera.plume.resources.member_right_promote
@@ -158,7 +159,7 @@ fun MemberRightsScreen(viewModel: MemberRightsViewModel, onBack: () -> Unit, mod
             MemberHeader(member)
 
             if (viewModel.admin) {
-                AdminRightsCard(member.kind, viewModel.rights, viewModel::setRights)
+                AdminRightsCard(member.kind, member.isForum, viewModel.rights, viewModel::setRights)
                 Text(
                     stringResource(Res.string.member_rights_admin_help),
                     style = MaterialTheme.typography.bodySmall,
@@ -212,6 +213,7 @@ private fun MemberHeader(member: MemberDetail) {
 @Composable
 private fun AdminRightsCard(
     kind: MemberGroupKind,
+    isForum: Boolean,
     rights: AdminRights,
     onChange: ((AdminRights) -> AdminRights) -> Unit,
 ) {
@@ -250,6 +252,13 @@ private fun AdminRightsCard(
             if (!channel) {
                 SwitchRow(Res.string.member_right_pin, rights.pinMessages) { value ->
                     onChange { it.copy(pinMessages = value) }
+                }
+            }
+
+            // Jen ve skupině s tématy: jinde by přepínač sliboval vliv, který nemá.
+            if (isForum) {
+                SwitchRow(Res.string.member_right_manage_topics, rights.manageTopics) { value ->
+                    onChange { it.copy(manageTopics = value) }
                 }
             }
 

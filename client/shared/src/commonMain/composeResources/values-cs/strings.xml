@@ -1529,6 +1529,7 @@
     <string name="member_right_invite">Zvát členy</string>
     <string name="member_right_invite_channel">Přidávat odběratele</string>
     <string name="member_right_pin">Připínat zprávy</string>
+    <string name="member_right_manage_topics">Spravovat témata</string>
     <string name="member_right_promote">Jmenovat další správce</string>
     <string name="member_right_anonymous">Vystupovat anonymně</string>
     <string name="member_restrict_duration">Omezit do</string>
