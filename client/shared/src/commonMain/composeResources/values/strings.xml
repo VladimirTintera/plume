@@ -1517,6 +1517,7 @@
     <string name="member_transferred">%1$s is the owner now.</string>
     <string name="error_transfer_needs_password">Turn on two-step verification in Telegram first — without it, ownership can't be transferred.</string>
     <string name="error_transfer_too_fresh">The password or this device is too new. Telegram allows the transfer only after a while.</string>
+    <string name="error_transfer_too_fresh_wait">The password or this device is too new. You can transfer ownership %1$s.</string>
     <string name="error_member_admin_forbidden">Only the owner can change this admin.</string>
     <!-- Model v zařízení (core/ai) -->
     <string name="settings_on_device_ai">On-device AI</string>

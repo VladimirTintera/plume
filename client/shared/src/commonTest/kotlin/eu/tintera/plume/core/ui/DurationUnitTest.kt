@@ -1,5 +1,9 @@
 package eu.tintera.plume.core.ui
 
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.relative_in_days
+import eu.tintera.plume.resources.relative_in_hours
+import eu.tintera.plume.resources.relative_in_minutes
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -29,5 +33,14 @@ class DurationUnitTest {
     @Test
     fun podMinutuJeMinuta() {
         assertEquals(DurationUnit.Minutes to 1, durationUnit(20))
+    }
+
+    @Test
+    fun cekaniSeZaokrouhlujeNahoru() {
+        // 6 dní a 23 hodin je „za 7 dní" — dolů by slibovalo dřív, než to půjde.
+        assertEquals(UiText(Res.plurals.relative_in_days, 7, 7), waitUiText(6 * 86_400 + 23 * 3_600))
+        assertEquals(UiText(Res.plurals.relative_in_days, 1, 1), waitUiText(86_400))
+        assertEquals(UiText(Res.plurals.relative_in_hours, 2, 2), waitUiText(3_600 + 1))
+        assertEquals(UiText(Res.plurals.relative_in_minutes, 1, 1), waitUiText(5))
     }
 }

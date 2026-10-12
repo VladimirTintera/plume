@@ -1548,6 +1548,7 @@
     <string name="member_transferred">Vlastníkem je teď %1$s.</string>
     <string name="error_transfer_needs_password">Nejdřív si v Telegramu zapněte dvoufázové ověření; bez něj vlastnictví předat nejde.</string>
     <string name="error_transfer_too_fresh">Heslo nebo tohle zařízení je moc čerstvé. Telegram převod dovolí až s odstupem.</string>
+    <string name="error_transfer_too_fresh_wait">Heslo nebo tohle zařízení je moc čerstvé. Převést vlastnictví půjde %1$s.</string>
     <string name="error_member_admin_forbidden">Tohohle správce může měnit jen vlastník.</string>
     <!-- Model v zařízení (core/ai) -->
     <string name="settings_on_device_ai">AI v zařízení</string>
