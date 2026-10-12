@@ -3146,6 +3146,7 @@ private fun ChatMemberStatus.toOwn(): OwnMemberStatus = when (this) {
         content = permissions.toContentAccess(),
         canChangeInfo = permissions.canChangeInfo,
         canInviteUsers = permissions.canInviteUsers,
+        canCreateTopics = permissions.canCreateTopics,
     )
     is ChatMemberStatusLeft -> OwnMemberStatus.Left
     is ChatMemberStatusBanned -> OwnMemberStatus.Banned

@@ -506,7 +506,8 @@ snadno na to uživatel narazí.
   vlákno v diskusní skupině (`docs/poznatky/typy-zprav.md`, „Komentáře"). ~~Odeslání komentáře ověřit~~ —
   ověřeno v testovacím kanálu (diskusi jde nově připojit v úpravě kanálu, `docs/poznatky/profil-chatu.md`, „Diskuse ke
   kanálu"; propojený chat je v Informacích profilu na obou stranách), ~~komentovat bez vstupu do skupiny (`joinToSendMessages`)~~ —
-  hotovo (pole se ukáže, odeslání ověřené není), ~~tváře
+  hotovo, odeslání ověřené se dvěma účty (odběratel kanálu mimo diskusní skupinu
+  okomentoval, ve skupině dál není), ~~tváře
   posledních komentujících (`recentReplierIds`)~~ — hotovo, ~~hledání a koncept ve vlákně
   (`topicId`)~~ — hotovo,
   ~~skok na první nepřečtený komentář~~ — hotovo (`docs/poznatky/typy-zprav.md`, „Komentáře").

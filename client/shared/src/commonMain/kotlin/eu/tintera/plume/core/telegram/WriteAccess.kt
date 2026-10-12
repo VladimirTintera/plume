@@ -54,6 +54,8 @@ internal sealed interface OwnMemberStatus {
         val content: ContentAccess,
         val canChangeInfo: Boolean = false,
         val canInviteUsers: Boolean = false,
+        /** Vlastní právo zakládat témata (`canCreateTopics`); výchozí právo skupiny pro něj neplatí. */
+        val canCreateTopics: Boolean = false,
     ) : OwnMemberStatus
     data object Left : OwnMemberStatus
     data object Banned : OwnMemberStatus

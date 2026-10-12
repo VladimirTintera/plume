@@ -50,7 +50,9 @@ import eu.tintera.plume.resources.edit_chat_perm_react
 import eu.tintera.plume.resources.edit_chat_perm_send_documents
 import eu.tintera.plume.resources.edit_chat_perm_send_messages
 import eu.tintera.plume.resources.edit_chat_perm_send_photos
+import eu.tintera.plume.resources.edit_chat_perm_send_polls
 import eu.tintera.plume.resources.edit_chat_perm_send_stickers
+import eu.tintera.plume.resources.edit_chat_perm_send_video_notes
 import eu.tintera.plume.resources.edit_chat_perm_send_videos
 import eu.tintera.plume.resources.edit_chat_perm_send_voice
 import eu.tintera.plume.resources.edit_profile_save
@@ -291,8 +293,14 @@ private fun RestrictionsCard(
             SwitchRow(Res.string.edit_chat_perm_send_voice, permissions.sendVoiceNotes) { value ->
                 onChange { it.copy(sendVoiceNotes = value) }
             }
+            SwitchRow(Res.string.edit_chat_perm_send_video_notes, permissions.sendVideoNotes) { value ->
+                onChange { it.copy(sendVideoNotes = value) }
+            }
             SwitchRow(Res.string.edit_chat_perm_send_stickers, permissions.sendStickers) { value ->
                 onChange { it.copy(sendStickers = value) }
+            }
+            SwitchRow(Res.string.edit_chat_perm_send_polls, permissions.sendPolls) { value ->
+                onChange { it.copy(sendPolls = value) }
             }
             SwitchRow(Res.string.edit_chat_perm_react, permissions.react) { value ->
                 onChange { it.copy(react = value) }

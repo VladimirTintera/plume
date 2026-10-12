@@ -220,7 +220,9 @@ a kořenová zpráva), a otevře se `ConversationRoute(chatId = skupina, threadI
 - **Komentovat jde i bez vstupu do skupiny, když to skupina dovolí**
   (`Supergroup.joinToSendMessages == false` → `writeAccess(nonMembersCanSend)`, testy
   `WriteAccessTest`). Nečlen pak má pole, ne „Přidat se" (`canJoin` je `false`), a platí pro něj
-  výchozí práva skupiny; vyhozenému to nepomůže. Jinak vidí „Přidat se". Bot API pole
+  výchozí práva skupiny; vyhozenému to nepomůže. Jinak vidí „Přidat se". **Odeslání ověřené se
+  dvěma účty** (12. 10. 2026): odběratel kanálu, který v diskusní skupině není, komentoval
+  z vlákna, komentář dorazil a skupina má dál jen vlastníka. Bot API pole
   `join_to_send_messages` u skupiny, která psaní bez vstupu dovoluje, vůbec neposílá — tak se
   pozná diskusní skupina k ověření (`getChat` na `linked_chat_id` kanálu).
 - **Čip nese tváře posledních komentujících místo ikony** (`MessageReplyInfo.recentReplierIds` →
@@ -364,7 +366,13 @@ a `topicActions` (`ForumTopics.kt`, testy `TopicManagementTest`).
 - **Ověřeno na emulátoru** v testovací skupině „Plume test pozvánek" (zapnutím témat): zapnutí,
   založení tématu se zelenou ikonou a jeho otevření, připnutí, uzavření, ztlumení, přejmenování,
   hledání, skrytí a vrácení obecného tématu, smazání s potvrzením, anglicky i česky.
-  **Neověřeno**: vypnutí témat, práva správce bez vlastnictví a člena (chce druhý účet), iOS.
+  **Člen ověřený se dvěma účty** (12. 10. 2026): „Nové téma" jen s právem skupiny
+  „Create topics", cizí téma nabízí jen ztlumení a upozornění. **Práva k tématům jsou živá**
+  (`ForumRepository.rightsUpdates` nad `chatPermissionsUpdates` a `supergroupUpdates`): dřív se
+  přečetla jednou při otevření a vypnutí „Create topics" ve skupině nebo zrušení omezení se
+  projevilo až po restartu aplikace — dnes do 2 s oběma směry. **Omezený člen zakládá podle
+  SVÝCH práv** (`OwnMemberStatus.Restricted.canCreateTopics`), dřív nesměl nic, ani když mu
+  omezení zakládání nechávalo. **Neověřeno**: vypnutí témat, správce bez vlastnictví, iOS.
 
 #### Cesty do tématu
 

@@ -136,7 +136,7 @@ class ForumTopicsViewModel(
             forums.topicChanges(chatId).collect { topicId -> refresh(topicId) }
         }
         viewModelScope.launch { loadMore() }
-        viewModelScope.launch { forums.rights(chatId).onSuccess { rights -> _state.update { it.copy(rights = rights) } } }
+        viewModelScope.launch { forums.rightsUpdates(chatId).collect { rights -> _state.update { it.copy(rights = rights) } } }
         // Hledá server; rozepsaný dotaz další znak zahodí, takže pomalá odpověď na „ko"
         // nepřepíše výsledky pro „kotlin" (stejně jako hledání chatů).
         viewModelScope.launch {

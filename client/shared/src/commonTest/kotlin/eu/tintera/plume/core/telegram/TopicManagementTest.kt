@@ -49,6 +49,16 @@ class TopicManagementTest {
     }
 
     @Test
+    fun omezenyClenZakladaPodleSvychPrav() {
+        val smi = OwnMemberStatus.Restricted(isMember = true, canSendMessages = true, content = ContentAccess.All, canCreateTopics = true)
+        // Výchozí právo skupiny pro omezeného neplatí — ani když dovoluje, ani když zakazuje.
+        assertEquals(TopicRights(canCreate = true), topicRights(smi, membersCanCreate = false))
+        assertEquals(TopicRights(), topicRights(smi.copy(canCreateTopics = false), membersCanCreate = true))
+        // Omezený, který už ve skupině není, nesmí nic.
+        assertEquals(TopicRights(), topicRights(smi.copy(isMember = false), membersCanCreate = true))
+    }
+
+    @Test
     fun vlastniTemaSmiAutorSpravovatBezPrav() {
         val actions = topicActions(topic(isOwn = true), TopicRights())
         assertTrue(actions.rename && actions.close && actions.delete)

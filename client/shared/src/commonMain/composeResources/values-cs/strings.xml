@@ -1448,6 +1448,8 @@
     <string name="edit_chat_perm_send_documents">Posílat soubory</string>
     <string name="edit_chat_perm_send_voice">Posílat hlasovky</string>
     <string name="edit_chat_perm_send_stickers">Posílat samolepky a GIFy</string>
+    <string name="edit_chat_perm_send_video_notes">Posílat video kolečka</string>
+    <string name="edit_chat_perm_send_polls">Posílat ankety</string>
     <string name="edit_chat_perm_react">Reagovat na zprávy</string>
     <string name="edit_chat_perm_invite">Přidávat členy</string>
     <string name="edit_chat_perm_pin">Připínat zprávy</string>
