@@ -389,8 +389,11 @@ u pole (`ScheduledMessagesSheet`): odeslat hned, změnit čas, smazat.
   naplánování s ikonou hodin a snackbarem, seznam („zítra 18:55"), odeslat hned (bot zprávu
   dostal, v historii jednou), **automatické odeslání v čase** (17:55 — bot dostal, hodiny
   zmizely), změna času („pondělí 18:56"), smazání, odmítnutí času, který už minul, a odeslání
-  bez zvuku (bot zprávu dostal; jestli bez zvuku, Bot API neprozradí). **Neověřeno**: „až bude
-  online" (chce člověka se známou dostupností), naplánované přílohy, iOS (jen přeložené).
+  bez zvuku (bot zprávu dostal; jestli bez zvuku, Bot API neprozradí). **„Až bude online"
+  ověřené se dvěma účty** (12. 10. 2026): protějšek offline (Plume i oficiální Telegram na
+  jeho telefonu zastavené, v hlavičce „naposledy…"), zpráva v seznamu naplánovaných jako „When
+  online"; po spuštění Plume u protějšku doručená do 10 s a ze seznamu zmizela. **Neověřeno**:
+  naplánované přílohy, iOS (jen přeložené).
 - **Hlasovka a anketa jdou naplánovat taky** — podržením odesílacího tlačítka během nahrávání
   a podržením „Odeslat" ve formuláři ankety (bez zvuku, naplánovat, u hlasovky i „až bude
   online"; efekt jen u textu, výběr efektu posílá obsah pole). Naplánovaná hlasovka se do

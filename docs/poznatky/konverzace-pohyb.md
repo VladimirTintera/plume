@@ -244,8 +244,12 @@ vlastní zprávy) a anketa (nové hlasy ve vlastní anketě, TDLib 15) s počtem
 - **Hlas v anketě bot nevyrobí** (Bot API hlasovat neumí) a vlastní účet ve vlastní anketě
   nepočítá. Tlačítko s anketou i odznak v seznamu se proto ověřily podstrčeným počtem pro chat
   s testovacím botem; ťuknutí prošlo hledáním s `SearchMessagesFilterUnreadPollVote` bez chyby
-  (prázdný výsledek). **Skutečný nový hlas, skok na anketu a zhasnutí po zhlédnutí ověřené
-  NEJSOU** — chce to druhého člověka, který hlasuje v neanonymní anketě.
+  (prázdný výsledek). **Skutečný nový hlas ověřený se dvěma účty** (12. 10. 2026, neanonymní
+  anketa ve skupině, hlasuje druhý účet): odznak „Nové hlasy v anketě" v seznamu chatů,
+  v konverzaci tlačítko „1 nový hlas v anketě", ťuknutí skočí na anketu a tlačítko zmizí;
+  zhlédnutá anketa odznak zhasne. **Aby tlačítko naskočilo, nesmí být z ankety vidět ani
+  zápatí** — pod pruhem nahoře (třeba „Pozvi do nové skupiny lidi") vykukující kousek se počítá
+  za zhlédnutí a hlas se přečte hned. Nový hlas vyrobí i změna hlasu (zrušit a hlasovat znovu).
 - **Ťuk podle souřadnic ze STARÉHO dumpu otevřel cizí chat** — seznam se mezi dumpem a ťuknutím
   přeskládal. Dump se dělá TĚSNĚ před ťuknutím a po něm se ověřuje název v hlavičce
   (`uiautomator dump`), než se na obrazovce cokoli dalšího udělá.

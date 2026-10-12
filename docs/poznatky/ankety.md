@@ -65,6 +65,7 @@ v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, 
   odesílatelů (`resolveSender`) při převodu zprávy — `toChatPoll` je čistá a nechává je prázdné.
   Čtečce obrazovky nic neříkají: kdo hlasoval, je v „Kdo hlasoval". Víc tváří než vlastní jeden
   účet nevyrobí — přes sebe se ověřovaly sondou, která seznam doplnila botem a iniciálami.
+  **Dvě skutečné tváře ověřené se dvěma účty** (12. 10. 2026): „V" a „P5" přes sebe, „2 hlasy".
 - **Zakládání je obrazovka `PollComposerRoute`** (sponka → Anketa), bez metadat scény jako
   přeposílání: jde přes celou plochu z hlavního seznamu i archivu, zpět umí sám `NavDisplay`.
   Pravidla formuláře jsou čisté funkce (`pollDraftOf`, `normalizedAnswers`,
