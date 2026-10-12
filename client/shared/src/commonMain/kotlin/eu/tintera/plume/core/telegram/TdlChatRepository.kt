@@ -117,6 +117,7 @@ import dev.g000sha256.tdl.dto.DraftMessage
 import dev.g000sha256.tdl.dto.DraftMessageContentText
 import dev.g000sha256.tdl.dto.MessageSourceChatList
 import dev.g000sha256.tdl.dto.MessageSender
+import dev.g000sha256.tdl.dto.Message
 import dev.g000sha256.tdl.dto.User
 import dev.g000sha256.tdl.dto.UserTypeBot
 import dev.g000sha256.tdl.dto.MessageSenderChat
@@ -396,7 +397,7 @@ class TdlChatRepository(
             holder.updates { chatLastMessageUpdates }.collect { update ->
                 // Náhled se čte z prostředků (`suspend`), takže se připraví před `edit` —
                 // ten bere obyčejnou funkci, protože běží pod zámkem nad stavem seznamu.
-                val preview = update.lastMessage?.previewText() ?: secretChatPreview(update.chatId)
+                val preview = update.lastMessage?.listPreview() ?: secretChatPreview(update.chatId)
                 setPositions(update.chatId, update.positions)
                 edit(update.chatId, fetchUnknown = true) { current ->
                     current.copy(
@@ -1342,7 +1343,7 @@ class TdlChatRepository(
                 FoundMessage(
                     chat = chat,
                     messageId = message.id,
-                    text = message.previewText(),
+                    text = message.listPreview(),
                     entities = message.previewEntities(),
                     date = message.date,
                     isOutgoing = message.isOutgoing,
@@ -1571,9 +1572,19 @@ class TdlChatRepository(
         summary.copy(
             verification = client.verificationOf(this),
             isForum = client.isForum(this),
-            lastMessagePreview = summary.lastMessagePreview ?: secretChatPreview(type),
+            lastMessagePreview = lastMessage?.let { message -> message.namedMemberPreview() }
+                ?: summary.lastMessagePreview
+                ?: secretChatPreview(type),
         )
     }
+
+    /** Náhled poslední zprávy; zpráva o členech se jmény („Pixel 5 opustil(a) skupinu"). */
+    private suspend fun Message.listPreview(): UiText = namedMemberPreview() ?: previewText()
+
+    private suspend fun Message.namedMemberPreview(): UiText? =
+        namedMemberServiceText(myUserId = { myUserId }) { id ->
+            client.getUser(userId = id).toResult().getOrNull()?.fullName()?.ifBlank { null }
+        }
 
     private fun ChatSummary.keepingLiveState(previous: ChatSummary?): ChatSummary =
         if (previous == null) this else copy(

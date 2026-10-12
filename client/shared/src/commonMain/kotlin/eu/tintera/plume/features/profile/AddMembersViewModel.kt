@@ -41,7 +41,8 @@ internal fun addMemberCandidates(
     savedMessagesChatId: Long?,
     memberIds: Set<Long>,
 ): Pair<List<ChatSummary>, List<ChatSummary>> {
-    fun ChatSummary.offered() = kind == ChatKind.Private && id != savedMessagesChatId && id !in memberIds
+    // Tajný chat má vlastní id, ne id člověka — přidat ho jako člena nejde.
+    fun ChatSummary.offered() = kind == ChatKind.Private && !isSecret && id != savedMessagesChatId && id !in memberIds
     val needle = foldDiacritics(query.trim())
     val shownContacts = contacts
         .filter { it.offered() }

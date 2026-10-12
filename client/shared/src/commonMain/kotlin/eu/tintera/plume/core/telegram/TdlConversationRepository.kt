@@ -2198,7 +2198,10 @@ class TdlConversationRepository(
             senderId = senderId,
             text = body.text,
             entities = body.entities,
-            description = body.description,
+            // Zpráva o členech se jmény („Pixel 5 opustil(a) skupinu"); bez jmen zůstane
+            // bezejmenná věta z `serviceText`.
+            description = namedMemberServiceText(myUserId = { myId() }) { resolveSender(it)?.title }
+                ?: body.description,
             media = messageMedia(
                 hideSensitive = hideSensitive,
                 // Uživatel sdíleného kontaktu: `getUser` je lokální, TDLib uživatele zná, když zná

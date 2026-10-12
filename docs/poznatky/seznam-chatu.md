@@ -256,6 +256,9 @@ z `checkChatFolderInviteLink`), v editoru vlastní složky je sekce Sdílení s 
   (`chat_folder_new_chats_update_period`, hodina) a server o nových chatech update nepošle.
   Při ověřování se Plume na straně příjemce proto zastavil (`am force-stop`). Je to cena za
   limit z dokumentace, ne chyba; oficiální klienti se ptají se stejnou periodou.
+- **Chat, ve kterém příjemce po smazání složky zůstal, skončil v archivu** (Pixel 5, „Plume
+  test zadosti"). Plume ho tam nepřesouvá; příčina (server, nebo nastavení archivu účtu)
+  ověřená není.
 
 ### Ověření a štítek podvodu
 

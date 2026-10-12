@@ -33,6 +33,13 @@ class CreateChatTest {
     }
 
     @Test
+    fun tajnyChatNeniClovek() {
+        // Id tajného chatu není id uživatele; server by ho jako člena odmítl.
+        val secret = chat(-2_000_000_000_001).copy(isSecret = true)
+        assertEquals(listOf(1L), groupMemberCandidates(listOf(chat(1), secret), savedMessagesChatId = null).map { it.id })
+    }
+
+    @Test
     fun bezUlozenychZpravSeNicNevyrazuje() {
         assertEquals(listOf(1L), groupMemberCandidates(listOf(chat(1)), savedMessagesChatId = null).map { it.id })
     }
