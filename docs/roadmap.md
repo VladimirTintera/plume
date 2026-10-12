@@ -133,9 +133,12 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
 - ~~**Archiv**~~ — hotovo (seznam v menu účtu, archivace a vrácení z nabídky chatu i tahem do
   strany s „Vrátit", počet nepřečtených u vstupu, nastavení archivu). Poučení v `docs/poznatky/seznam-chatu.md`,
   „Archiv". Zbývá:
-  - **Ověřit nastavení archivu proti druhému účtu.** Že se „archivovat od neznámých" a
-    „nechávat chaty v archivu" opravdu projeví, se s jedním účtem nedá vidět — zapsání
-    i přečtení hodnot ověřené je, jejich následek ne.
+  - ~~**Ověřit nastavení archivu proti druhému účtu.**~~ — „Nechávat chaty v archivu" ověřené se
+    dvěma účty (zapnuté: archivovaná skupina po nové zprávě zůstala v archivu; vypnuté: vrátila
+    se). „Archivovat od neznámých" testovacímu účtu server nepovolil
+    (`can_archive_and_mute_new_chats_from_unknown_users`), Plume ji proto nenabízí — ověřit
+    s účtem, kterému ji server dá (Premium), i „Vrátit mezi chaty" z pruhu u automaticky
+    archivovaného chatu.
 - ~~**Detail chatu / profil.**~~ — hotovo (ťuknutí na hlavičku: fotka, jméno, ztlumení, hledání,
   údaje, členové skupiny; `docs/poznatky/profil-chatu.md`, „Profil chatu"). Zbývá:
   - ~~**Sdílená média**~~ — hotovo (záložky Členové / Média / Soubory / Odkazy s dotahováním
@@ -204,8 +207,8 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   ~~**Založení skupiny a kanálu**~~ — hotovo („Nová skupina" / „Nový kanál" nad kontakty, výběr
   členů, název a fotka, u kanálu popis, ~~soukromý / veřejný s odkazem~~ a ~~pozvánka lidem,
   které server nepustil~~ a ~~veřejný odkaz v úpravě chatu~~; `docs/poznatky/hledani-a-zakladani-chatu.md`, „Založení skupiny
-  a kanálu" a „Veřejný odkaz v úpravě chatu"). Zbývá ověřit pozvánku se skutečným člověkem,
-  který přidávání zakazuje (dialog jen sondou). ~~Veřejná základní skupina~~ — hotovo
+  a kanálu" a „Veřejný odkaz v úpravě chatu"). ~~Ověřit pozvánku se skutečným člověkem,
+  který přidávání zakazuje~~ — ověřeno se dvěma účty. ~~Veřejná základní skupina~~ — hotovo
   (převod na supergroupu, `docs/poznatky/profil-chatu.md`, „Převod základní skupiny").
   ~~**Přidat kontakt podle telefonního čísla**~~ — hotovo („Nový kontakt" v Nové zprávě,
   `docs/poznatky/hledani-a-zakladani-chatu.md`, „Nový kontakt podle čísla"). Zbývá zvážit
@@ -234,18 +237,19 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
     musí jít z pruhu udělat" (dokumentace TDLib); Plume kreslí jen `ReportSpam`, `ReportAddBlock`
     a `AddContact`. Chybí:
     - ~~**Údaje o protějšku u `ReportAddBlock`**~~ — hotovo (`CounterpartAccount`). Česká
-      podoba řádků ověřená na zařízení není, jen anglická.
+      podoba řádků ověřená skutečným pruhem se dvěma účty.
     - ~~**Upozornění na emoji status** u `ReportSpam` / `ReportAddBlock`~~ — hotovo spolu
       s emoji statusy (`SpamBar.warnsEmojiStatus`), ověřené podstrčeným pruhem.
     - ~~**`SharePhoneNumber`**~~ a ~~**`JoinRequest`**~~ — hotovo (`ChatNoticeBarCard`, ověřené
       podstrčeným pruhem; skutečné nasdílení čísla ověřené není).
     - ~~**`InviteMembers`**~~ — hotovo (`InviteMembersBar`, výběr `AddMembersScreen`, i z ⋮
       v profilu). Pruh ověřený podstrčeným stavem, přidání testovacím botem; odmítnutí kvůli
-      soukromí jen sondou — skutečný člověk s takovým nastavením ověřený není.
+      soukromí ověřené se dvěma účty při zakládání skupiny (z ⋮ v profilu ne).
     - **Pruh firemního bota** (`UpdateChatBusinessBotManageBar`, jen účty s Telegram Business):
       pozastavit bota v chatu a odkaz na jeho správu. Je to samostatný update, ne `ChatActionBar`.
   - ~~**Nahlásit z režimu výběru víc zpráv**~~ — hotovo (vlajka v liště výběru).
-  - **Ověřit skutečný pruh (`UpdateChatActionBar`)** na chatu od cizího — zatím jen podstrčeným stavem.
+  - ~~**Ověřit skutečný pruh (`UpdateChatActionBar`)** na chatu od cizího~~ — ověřeno se dvěma účty
+    (`docs/poznatky/spam-a-blokovani.md`, „Ověření"); nahlášení se vědomě nezkoušelo.
   - ~~**Seznam blokovaných v Nastavení**~~ — hotovo (Obecné → Soukromí → Blokovaní), ~~i se
     „Zablokovat uživatele"~~ (kontakty a známé soukromé chaty, s potvrzením).
 - **Přihlašovací obrazovka** — hotová (výběr země, formátování čísla, návrat z QR na číslo,

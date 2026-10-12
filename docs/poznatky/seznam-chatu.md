@@ -666,6 +666,8 @@ snackbar s „Vrátit".
   bez „Nechávat chaty v archivu"** (`AnimatedVisibility` v sheetu). Týká se neztlumených chatů,
   které jsou ve složce vybrané nebo připnuté, a TDLib ho ignoruje, když platí volba nad ním —
   ta drží v archivu všechny neztlumené. Přepínač bez následku by sliboval něco, co se nestane.
+  „Nechávat chaty v archivu" ověřené se dvěma účty (12. 10. 2026): zapnuté — archivovaná
+  skupina po zprávě od druhého účtu zůstala v archivu; vypnuté — vrátila se do hlavního seznamu.
 - **„Archivovat chaty od neznámých" povoluje server** (`can_archive_and_mute_new_chats_from_unknown_users`);
   kde ho nepovolí, TDLib zapnutí odmítne. Přepínač se tam proto nenabízí vůbec — přepínač,
   který skončí chybou, je horší než žádný.
