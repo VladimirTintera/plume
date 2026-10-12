@@ -314,6 +314,12 @@ Ztlumit / Zapnout zvuk, omezená skupina a chat, ve kterém uživatel není, vě
   jako vzhled karty aktualizace. Ověřeno na emulátoru: „jen fotky" nechá sponku s jedinou
   položkou, smajlík místo samolepky a odeslání místo mikrofonu; „nic" sponku schovávalo celou
   (dnes v ní zůstane „Poloha", ověřené to s podstrčeným stavem znovu není).
+- **Se dvěma účty ověřeno** (12. 10. 2026, Pixel 7 vlastník, Pixel 5 člen): výchozí práva
+  „jen text" → sponka jen s Polohou a Kontaktem, výběr jen emoji, místo mikrofonu odeslání;
+  omezený člen (bez fotek, koleček a samolepek) → sponka bez fotek a GIFů, mikrofon nahrává
+  hlasovku a na kolečko se nepřepne. **Video kolečka a ankety předtím v nastavení práv chyběly**
+  — vypnuté hlasovky nechávaly kolečko, protože je to v TDLib vlastní právo; dnes je mají
+  výchozí práva skupiny i omezení člena (`GroupPermissions.sendVideoNotes`, `sendPolls`).
 
 ## „Píše…" v konverzaci
 

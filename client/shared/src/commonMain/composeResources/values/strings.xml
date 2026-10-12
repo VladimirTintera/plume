@@ -1417,6 +1417,8 @@
     <string name="edit_chat_perm_send_documents">Send files</string>
     <string name="edit_chat_perm_send_voice">Send voice messages</string>
     <string name="edit_chat_perm_send_stickers">Send stickers and GIFs</string>
+    <string name="edit_chat_perm_send_video_notes">Send video messages</string>
+    <string name="edit_chat_perm_send_polls">Send polls</string>
     <string name="edit_chat_perm_react">React to messages</string>
     <string name="edit_chat_perm_invite">Add members</string>
     <string name="edit_chat_perm_pin">Pin messages</string>

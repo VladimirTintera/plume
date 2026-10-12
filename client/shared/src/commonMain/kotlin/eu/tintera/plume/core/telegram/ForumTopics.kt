@@ -2,6 +2,7 @@ package eu.tintera.plume.core.telegram
 
 import eu.tintera.plume.core.ui.UiText
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 /**
  * Téma ve skupině s tématy (fórum). Skupina je pak seznam témat a každé téma vlastní konverzace
@@ -103,6 +104,13 @@ interface ForumRepository {
     /** Co smí přihlášený účet s tématy v téhle skupině ([topicRights]). */
     suspend fun rights(chatId: Long): Result<TopicRights>
 
+    /**
+     * [rights] napřed jednou, pak znovu při každé změně postavení nebo výchozích práv skupiny.
+     * Správce může člena omezit, povýšit nebo skupině zakázat témata za běhu — práva přečtená
+     * jen při otevření by pak nabízela tlačítko, které skončí chybou, nebo ho schovávala.
+     */
+    fun rightsUpdates(chatId: Long): Flow<TopicRights> = flow { rights(chatId).onSuccess { emit(it) } }
+
     /** Založí téma; vrací jeho id. [color] je jedna z [TOPIC_COLORS]. */
     suspend fun create(chatId: Long, name: String, color: Int): Result<Int>
 
@@ -153,8 +161,10 @@ data class TopicRights(
  * - Správce, co mu dovolují práva; zakládat témata smí správce s `canManageTopics` vždy,
  *   jinak jako člen.
  * - Člen jen zakládat, a jen když to skupina dovolí (`ChatPermissions.canCreateTopics`).
- * - Omezený člen, kdo ve skupině není, nebo neznámé postavení: nic. Chybějící tlačítko
- *   nového tématu je menší škoda než tlačítko, po kterém přijde chyba.
+ * - Omezený člen taky jen zakládat, ale podle SVÝCH práv — výchozí právo skupiny pro něj
+ *   neplatí. Omezení se ukládá celým objektem práv, takže „omezený" může mít dovoleno všechno.
+ * - Kdo ve skupině není, nebo neznámé postavení: nic. Chybějící tlačítko nového tématu je
+ *   menší škoda než tlačítko, po kterém přijde chyba.
  */
 internal fun topicRights(status: OwnMemberStatus?, membersCanCreate: Boolean): TopicRights = when (status) {
     is OwnMemberStatus.Creator -> if (status.isMember) TopicRights(canCreate = true, canManage = true, canDeleteAny = true) else TopicRights()
@@ -164,6 +174,7 @@ internal fun topicRights(status: OwnMemberStatus?, membersCanCreate: Boolean): T
         canDeleteAny = status.canDeleteMessages,
     )
     OwnMemberStatus.Member -> TopicRights(canCreate = membersCanCreate)
+    is OwnMemberStatus.Restricted -> TopicRights(canCreate = status.isMember && status.canCreateTopics)
     else -> TopicRights()
 }
 

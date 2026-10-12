@@ -13,6 +13,8 @@ import dev.g000sha256.tdl.dto.MessageSenderChat
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.MessageTopicForum
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -70,6 +72,19 @@ class TdlForumRepository(private val holder: TelegramClientHolder) : ForumReposi
         val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
         topicRights(client.ownMemberStatus(chat), membersCanCreate = chat.permissions.canCreateTopics)
     }
+
+    override fun rightsUpdates(chatId: Long): Flow<TopicRights> = flow {
+        val supergroupId = (client.getChat(chatId = chatId).toResult().getOrNull()?.type as? ChatTypeSupergroup)?.supergroupId
+        rights(chatId).onSuccess { emit(it) }
+        if (supergroupId == null) return@flow
+        emitAll(
+            merge(
+                holder.updates { chatPermissionsUpdates }.filter { it.chatId == chatId }.map { },
+                // Vlastní postavení (povýšení, omezení) nese update supergroupy.
+                holder.updates { supergroupUpdates }.filter { it.supergroup.id == supergroupId }.map { },
+            ).mapNotNull { rights(chatId).getOrNull() },
+        )
+    }.distinctUntilChanged()
 
     override suspend fun create(chatId: Long, name: String, color: Int): Result<Int> =
         client.createForumTopic(

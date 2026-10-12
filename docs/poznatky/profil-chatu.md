@@ -149,6 +149,11 @@ název, popis a výchozí práva členů.
   a přepsat mu to tiše by bylo horší než to nenabízet.
 - **Nabízí se jen ty druhy obsahu, které aplikace umí poslat** — tytéž jako `ContentAccess`.
   Přepínač u něčeho, co se z aplikace stejně poslat nedá, by sliboval vliv, který nemá.
+  Video kolečka a ankety mezi nimi chyběly, i když je aplikace posílá — doplněné (ověřeno se
+  dvěma účty: vypnutá kolečka u člena schovají přepínání na kolečko).
+- **Omezení se všemi přepínači zapnutými NENÍ zrušení omezení.** Člen zůstane „Omezeno bez
+  konce" s vlastními právy a výchozí práva skupiny (třeba nově povolená témata) pro něj
+  přestanou platit. Zpět mezi běžné členy vede jen „Zrušit omezení" (`unrestrictMember`).
 - **Název a popis jsou dvě volání.** Když první selže, druhé se neposílá a co prošlo, se zapíše
   jako výchozí stav — další pokus to neposílá znovu. Přesně jako u vlastního profilu.
 - **Fotka jde přes CESTU** (`InputChatPhotoStatic` + `InputFileLocal`), ne přes systémové URI —

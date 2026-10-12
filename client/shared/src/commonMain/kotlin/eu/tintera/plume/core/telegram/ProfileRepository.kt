@@ -273,8 +273,11 @@ data class GroupPermissions(
     val sendVideos: Boolean,
     val sendDocuments: Boolean,
     val sendVoiceNotes: Boolean,
+    /** Video kolečka — v TDLib vlastní právo, hlasovky ho nezahrnují. */
+    val sendVideoNotes: Boolean,
     /** Samolepky, animovaná emoji a GIFy — TDLib je vede pod jedním `canSendOtherMessages`. */
     val sendStickers: Boolean,
+    val sendPolls: Boolean,
     val react: Boolean,
     val inviteUsers: Boolean,
     val pinMessages: Boolean,
