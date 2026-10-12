@@ -68,6 +68,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
 import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
@@ -148,6 +149,7 @@ import eu.tintera.plume.features.media.MediaViewerScreen
 import org.koin.core.parameter.parametersOf
 import eu.tintera.plume.features.settings.SettingsScreen
 import eu.tintera.plume.features.settings.SettingsSectionScreen
+import eu.tintera.plume.features.links.ExternalLinkHost
 import org.koin.compose.viewmodel.koinViewModel
 
 /**
@@ -383,6 +385,16 @@ private fun ShellContent(
                 ),
             )
         }
+
+        /*
+         * Odkaz zvenčí (`t.me/…` z jiné aplikace, naskenovaný QR kód). Nad celým shellem: přijít
+         * může nad kteroukoli obrazovkou a sheet pozvánky nebo hláška nepatří žádné z nich.
+         */
+        ExternalLinkHost(
+            viewModel = koinViewModel(),
+            onNavigate = { destination -> navigation.openExternal(destination, twoPane) },
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 }
 
@@ -1366,7 +1378,7 @@ private fun BotShareRoute.usersRequest() = BotUsersRequest(buttonId, bots, maxQu
 private fun BotShareRoute.chatRequest() =
     BotChatRequest(buttonId, channel, forum, botIsMember, botAdministrator).takeUnless { users }
 
-private fun webAppRoute(chatId: Long, request: WebAppRequest, archive: Boolean) = WebAppRoute(
+internal fun webAppRoute(chatId: Long, request: WebAppRequest, archive: Boolean) = WebAppRoute(
     chatId = chatId,
     botUserId = request.botUserId,
     url = request.url,

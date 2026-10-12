@@ -9,6 +9,11 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.platform.LocalHapticFeedback
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.ui.IconSwitch
+import eu.tintera.plume.core.ui.rememberTelegramLinkHandling
+import eu.tintera.plume.resources.link_24dp
+import eu.tintera.plume.resources.settings_telegram_links
+import eu.tintera.plume.resources.settings_telegram_links_off
+import eu.tintera.plume.resources.settings_telegram_links_on
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.open_in_new_24dp
 import eu.tintera.plume.resources.auto_awesome_24dp
@@ -125,6 +130,7 @@ internal fun ChatsSettings(
         }
         QuickReactionSettings(quickReaction)
         OpenLinksInAppRow()
+        TelegramLinksRow()
         MessageContextRow()
     }
 
@@ -168,6 +174,30 @@ private fun OpenLinksInAppRow() {
                 settings.setOpenLinksInApp(on)
             },
         ),
+    )
+}
+
+/**
+ * Odkazy `t.me` z jiných aplikací a z fotoaparátu (naskenovaný „Můj QR kód"). Plume je přijímá,
+ * ale od Androidu 12 je systém pošle do prohlížeče, dokud je uživatel Plume nepovolí — řádek
+ * říká, jak to je, a vede do systémového nastavení. Přepínač to není: přepnout to aplikace
+ * sama nesmí. Kde volba není ([rememberTelegramLinkHandling] `null`), řádek chybí.
+ */
+@Composable
+private fun TelegramLinksRow() {
+    val handling = rememberTelegramLinkHandling() ?: return
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        leadingContent = { Icon(painterResource(Res.drawable.link_24dp), contentDescription = null) },
+        headlineContent = { Text(stringResource(Res.string.settings_telegram_links)) },
+        supportingContent = {
+            Text(
+                stringResource(
+                    if (handling.enabled) Res.string.settings_telegram_links_on else Res.string.settings_telegram_links_off,
+                ),
+            )
+        },
+        modifier = Modifier.clickable(onClick = handling.openSettings),
     )
 }
 

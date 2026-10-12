@@ -210,6 +210,19 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   ~~**Přidat kontakt podle telefonního čísla**~~ — hotovo („Nový kontakt" v Nové zprávě,
   `docs/poznatky/hledani-a-zakladani-chatu.md`, „Nový kontakt podle čísla"). Zbývá zvážit
   synchronizaci kontaktů z telefonu (oprávnění ke kontaktům, nahrávání adresáře na server).
+  ~~**Můj QR kód a odkazy zvenčí**~~ — hotovo, NEOVĚŘENO na zařízení (menu účtu, Nastavení →
+  Obecné, „Naskenovat QR kód" v Nové zprávě, `t.me` / `tg://` z jiných aplikací;
+  `docs/poznatky/hledani-a-zakladani-chatu.md`, „Můj QR kód a odkazy zvenčí"). Zbývá:
+  - **Výměna dotykem (Quick Share „Tap to Share", od 8/2026 na Pixelu 6+).** Na ploše si
+    telefony vymění SYSTÉMOVÉ kontakty, obsah jde přes nabídku Sdílet a přiložení telefonů.
+    Veřejné API pro aplikace dohledané není, takže cesta je nabídka Sdílet: „Sdílet" v sheetu
+    QR kódu posílá odkaz textem — ověřit, že dorazí dotykem, a zvážit vizitku (`.vcf` se
+    jménem, číslem jen se souhlasem a odkazem `t.me`), kterou si druhý uloží i bez Plume.
+  - **Kontaktní odkaz otevřít profilem s viditelným „Přidat do kontaktů"**, ne jen chatem —
+    jde-li o rychlé přidání, je to hlavní akce, a dnes je v ⋮ profilu nebo v pruhu nad chatem,
+    jen když ho server pošle.
+  - **iOS: odkazy zvenčí** (`CFBundleURLTypes` pro `tg`, předání z `onOpenURL` do
+    `LinkOpenRequests`). QR kód a čtečka tam jsou.
 - **Ochrana před spamem.** ~~Zablokovat z nabídky nad chatem a při mazání rovnou zablokovat
   i nahlásit~~, ~~průvodce nahlášením s volbou důvodu~~ (i zprávy z nabídky nad zprávou),
   ~~pruh nad konverzací u chatu od neznámého~~ — hotovo (`docs/poznatky/spam-a-blokovani.md`, „Blokování a nahlášení

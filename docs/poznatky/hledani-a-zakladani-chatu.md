@@ -229,6 +229,70 @@ konverzace a z Chatů se odebere formulář i „Nová zpráva" — zpět vede d
   je v Kontaktech „Nové zprávy". **Neověřeno**: anglické texty na zařízení, iOS (jen přeložené),
   číslo se zakázaným hledáním (chce cizí účet).
 
+## Můj QR kód a odkazy zvenčí
+
+Rychlá výměna kontaktu mezi dvěma lidmi vedle sebe: jeden ukáže „Můj QR kód", druhý ho
+naskenuje a otevře se mu chat. Sheet `MyQrCodeSheet` (`MyQrCodeViewModel`, `features/settings`)
+se otevírá z menu účtu v seznamu chatů a z ikony na kartě účtu v Nastavení → Obecné; čtečku
+nabízí sheet („Naskenovat kód druhého") a řádek „Naskenovat QR kód" v „Nové zprávě".
+
+- **Odkaz vyrábí TDLib (`getUserLink`, `AccountRepository.contactLink`).** S veřejným jménem
+  vrátí `t.me/jméno` s `expires_in = 0`, bez něj dočasný `t.me/contact/<token>`. Token najde
+  účet i se skrytým číslem, proto platí jen chvíli. **Kód se obnovuje sám minutu před koncem,
+  ale jen dokud je sheet otevřený** (`keepFresh` v efektu sheetu, ne v `init`): ViewModel žije
+  s obrazovkou pod sheetem a nový token na pozadí by nikomu neposloužil.
+- **Kód je `https://t.me/…`, ne `tg://`.** Přečte ho fotoaparát, oficiální klient i prohlížeč
+  (stránka `t.me` nabídne „otevřít v Telegramu" přes `tg://`) — tedy i člověk bez Plume.
+- **Prošlý token má vlastní větu** (`ContactLinkExpiredException`, „kód už neplatí, požádejte
+  o nový"). Dřív padal do `LinkUserNotFoundException`, jejíž věta mluví o skrytém čísle —
+  u kódu, který někdo ukázal před hodinou, by mátla.
+- **Čtečka je Google code scanner** (`rememberQrScanner`, bez oprávnění ke kameře). Přečtený text
+  projde hrubým sítem `isTelegramLink` (testy `TelegramLinkTest`): QR kód Wi-Fi, vizitka nebo
+  cizí web dostanou „Tohle není kód Telegramu", ne obecné „odkaz nejde otevřít". Co odkaz
+  znamená, rozhoduje až TDLib. Na desktopu kamera není (`qrScannerSupported = false`), tlačítko
+  ani řádek tam nejsou.
+- **„Zkopírováno" nese tlačítko** (fajfka na dvě vteřiny), ne snackbar — stav ovládacího prvku
+  uvnitř sheetu, viz „Hláška Zkopírováno" v CLAUDE.md.
+
+### Odkazy z jiných aplikací (`LinkOpenRequests`)
+
+Naskenovaný kód i `t.me/…` / `tg://…` z jiné aplikace jde do `LinkOpenRequests` (stav, ne
+událost — jako `ChatOpenRequests`) a otevírá ho shell: `ExternalLinkHost` nad `NavDisplay`
+s `ExternalLinkViewModel`. Je to `ConversationViewModel.openLink` bez konverzace kolem; sheety,
+které jinak kreslí konverzace (pozvánka, sdílená složka, sada samolepek, proxy, varování před
+přihlašovacím odkazem), kreslí host sám, i s vlastním snackbarem.
+
+- **Chat se otevře nad srovnaným zásobníkem** (`AppNavigation.openOverChats`), jako
+  z notifikace: odkaz zvenčí s tím, co bylo otevřené, nesouvisí. Pod téma a mini aplikaci se
+  vloží seznam témat / chat s botem, aby zpět vedlo tam (`openExternal`).
+- **Bot se z odkazu zvenčí nespouští sám**, i když odkaz nese `autostart` — chat nabídne Start
+  (`BotStartRequests`). Odkaz mohl poslat kdokoli a uživatel ho v Plume ještě neviděl.
+- **Neznámý webový odkaz jde VÝSLOVNĚ do prohlížeče** (`UrlOpener.openInBrowser`, na Androidu
+  selektor `CATEGORY_APP_BROWSER`). Obyčejný `ACTION_VIEW` i karta Custom Tabs by adresu `t.me`
+  mohly vrátit zase Plume.
+- **Manifest přijímá `tg://` a `http(s)://t.me` (i `*.t.me`, `telegram.me`, `telegram.dog`)
+  BEZ `autoVerify`.** Doménu `t.me` ověřit nejde — `assetlinks.json` na ní vydává Telegram.
+  Od Androidu 12 proto neověřený webový odkaz otevírá prohlížeč, dokud uživatel Plume odkazy
+  `t.me` nepovolí v systému („Otevírat ve výchozím nastavení"). Řádek „Otevírat odkazy Telegramu
+  v Plume" v Nastavení → Obecné (`rememberTelegramLinkHandling`) říká stav
+  (`DomainVerificationManager`, čte se při každém návratu) a vede tam. Do Androidu 11 systém
+  nabídne výběr aplikací sám, `tg://` nepotřebuje nic. S nainstalovaným oficiálním klientem,
+  který doménu ověřenou má, jde `t.me` z fotoaparátu do něj — Plume dostane `tg://` z jeho
+  výběru, nebo kód naskenovaný ve vlastní čtečce.
+- **Odkaz se z intentu po předání maže** (`MainActivity.receiveLink`), jinak by ho otočení
+  displeje otevřelo podruhé; studený start ho čte jen bez `savedInstanceState`.
+- **Kontaktní odkaz otevře CHAT, ne profil** (beze změny proti odkazu ve zprávě). Přidat do
+  kontaktů jde z pruhu nad konverzací, pokud ho server pošle (`ChatActionBarAddContact`), nebo
+  z ⋮ profilu.
+- **iOS odkazy zvenčí nepřijímá** (chybí `CFBundleURLTypes` pro `tg` a asociované domény);
+  QR kód, sdílení i čtečka tam fungují, jsou ve společném kódu.
+- **NEOVĚŘENO na zařízení ani emulátoru** — přeložené a otestované jen jednotkovými testy.
+  Ověřit: kód z menu účtu a z Nastavení (světlý i tmavý motiv), obnova prošlého tokenu,
+  naskenování kódu druhým telefonem (čtečkou v Plume, fotoaparátem s povolenými odkazy i bez nich
+  přes stránku `t.me`), řádek v Nastavení po přepnutí v systému, prošlý kód (věta), Wi-Fi kód
+  (věta), `adb shell am start -a android.intent.action.VIEW -d "tg://resolve?domain=…"`
+  a `-d "https://t.me/…"` za běhu i za studena, otočení displeje po otevření odkazu.
+
 ## Založení skupiny a kanálu
 
 „Nová skupina" a „Nový kanál" jsou dva řádky nad kontakty v „Nové zprávě" (schované při

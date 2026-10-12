@@ -2658,4 +2658,20 @@
     <string name="message_context_flight_estimated">%1$s (estimate)</string>
     <string name="message_context_money_assumed">%1$s (%2$s)</string>
     <string name="menu_context_wifi_sheet">Wi-Fi and password…</string>
+    <string name="my_qr_title">My QR code</string>
+    <string name="my_qr_hint">Let the other person scan the code with their camera or in Telegram. A chat with you opens for them.</string>
+    <string name="my_qr_expires">Valid until %1$s, then a new code replaces it.</string>
+    <string name="my_qr_permanent">The code leads to your public username, so it doesn't expire.</string>
+    <string name="my_qr_description">QR code with a link to your account</string>
+    <string name="my_qr_share">Share</string>
+    <string name="my_qr_copy">Copy</string>
+    <string name="my_qr_copied">Copied</string>
+    <string name="my_qr_failed">Couldn't create the code.</string>
+    <string name="my_qr_scan">Scan their code</string>
+    <string name="my_qr_not_telegram">This isn't a Telegram code.</string>
+    <string name="contact_link_expired">This contact code has expired. Ask for a new one.</string>
+    <string name="new_chat_scan_qr">Scan QR code</string>
+    <string name="settings_telegram_links">Open Telegram links in Plume</string>
+    <string name="settings_telegram_links_on">Links from other apps and scanned codes open here.</string>
+    <string name="settings_telegram_links_off">Links from other apps open in the browser. Allow t.me links in system settings.</string>
 </resources>

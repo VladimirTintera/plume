@@ -110,6 +110,7 @@ import eu.tintera.plume.core.telegram.ForwardOrigin
 import eu.tintera.plume.core.telegram.GiveawayStatus
 import eu.tintera.plume.resources.invite_request_sent
 import eu.tintera.plume.resources.conversation_link_failed
+import eu.tintera.plume.resources.contact_link_expired
 import eu.tintera.plume.resources.conversation_link_user_not_found
 import eu.tintera.plume.core.telegram.FolderInvitePreview
 import eu.tintera.plume.core.telegram.InvitePreview
@@ -143,6 +144,7 @@ import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSharer
 import eu.tintera.plume.core.files.SaveAsLauncher
 import eu.tintera.plume.core.share.ShareRequests
+import eu.tintera.plume.core.telegram.ContactLinkExpiredException
 import eu.tintera.plume.core.telegram.LinkUserNotFoundException
 import eu.tintera.plume.core.share.ShareTarget
 import eu.tintera.plume.core.share.SharedContent
@@ -2686,6 +2688,7 @@ class ConversationViewModel(
                 .onFailure { failure ->
                     val message = when (failure) {
                         is LinkUserNotFoundException -> UiText(Res.string.conversation_link_user_not_found)
+                        is ContactLinkExpiredException -> UiText(Res.string.contact_link_expired)
                         is UnsupportedProxyException -> UiText(Res.string.proxy_unsupported)
                         else -> failure.reported(Res.string.conversation_link_failed)
                     }

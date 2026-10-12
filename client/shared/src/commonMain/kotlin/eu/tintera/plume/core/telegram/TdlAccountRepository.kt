@@ -85,6 +85,10 @@ class TdlAccountRepository(
         client.setBio(bio = bio).toResult().map { }
             .onFailure { logger.w(it) { "Bio se nepodařilo uložit." } }
 
+    override suspend fun contactLink(): Result<ContactLink> =
+        client.getUserLink().toResult().map { ContactLink(url = it.url, expiresInSeconds = it.expiresIn) }
+            .onFailure { logger.w(it) { "Kontaktní odkaz se nepodařilo vyrobit." } }
+
     /** Veřejná fotka (`isPublic`) je jen pro ty, kdo vidí skutečnou fotku zakázanou nastavením — tady ne. */
     override suspend fun setPhoto(photo: ProfilePhotoFile): Result<Unit> =
         client.setProfilePhoto(photo = photo.toInputChatPhoto(), isPublic = false)

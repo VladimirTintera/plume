@@ -19,6 +19,12 @@ actual class UrlOpener(private val settings: AppSettings) {
         runCatching { openInSystem(URI(target)) }
             .onFailure { logger.w(it) { "Odkaz se nepodařilo otevřít: $target" } }
     }
+
+    /** Desktop odkazy `t.me` nepřijímá, výchozí prohlížeč je tedy totéž co [open]. */
+    actual fun openInBrowser(url: String): Boolean {
+        open(url)
+        return true
+    }
 }
 
 /**

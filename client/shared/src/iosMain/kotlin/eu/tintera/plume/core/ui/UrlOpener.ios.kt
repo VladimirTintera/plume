@@ -39,6 +39,16 @@ actual class UrlOpener(private val settings: AppSettings) {
         }
     }
 
+    /**
+     * Rovnou Safari, bez pokusu o univerzální odkaz. Plume si na iOS odkazy `t.me` zatím nebere,
+     * ale ať se po přidání asociovaných domén nevrátí odkaz zpátky do ní.
+     */
+    actual fun openInBrowser(url: String): Boolean {
+        val nsUrl = NSURL.URLWithString(url) ?: return false
+        presentSafari(nsUrl)
+        return true
+    }
+
     private fun presentSafari(url: NSURL) {
         val top = topViewController()
         if (top == null) {

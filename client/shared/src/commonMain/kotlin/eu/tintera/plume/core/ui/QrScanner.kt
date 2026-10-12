@@ -22,3 +22,6 @@ expect fun rememberQrScanner(
     onScanned: (String) -> Unit,
     onFailure: (QrScanFailure) -> Unit,
 ): () -> Unit
+
+/** Má platforma čtečku? Desktop kameru nemá — tlačítko, které jen ohlásí chybu, se nenabízí. */
+expect val qrScannerSupported: Boolean

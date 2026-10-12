@@ -238,3 +238,5 @@ private class CameraPreviewView(session: AVCaptureSession) : UIView(frame = CGRe
         CATransaction.commit()
     }
 }
+
+actual val qrScannerSupported: Boolean = true

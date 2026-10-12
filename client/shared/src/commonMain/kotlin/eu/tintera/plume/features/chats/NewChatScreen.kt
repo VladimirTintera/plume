@@ -20,9 +20,17 @@ import eu.tintera.plume.core.ui.ChatPicker
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.GROUP_SPACING
 import eu.tintera.plume.core.ui.PickerSection
+import eu.tintera.plume.core.ui.QrScanFailure
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.ui.qrScannerSupported
+import eu.tintera.plume.core.ui.rememberQrScanner
 import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.campaign_24dp
+import eu.tintera.plume.resources.devices_qr_permission
+import eu.tintera.plume.resources.devices_qr_unavailable
+import eu.tintera.plume.resources.new_chat_scan_qr
+import eu.tintera.plume.resources.qr_code_scanner_24dp
 import eu.tintera.plume.resources.group_24dp
 import eu.tintera.plume.resources.new_chat_new_channel
 import eu.tintera.plume.resources.new_chat_new_contact
@@ -69,6 +77,19 @@ fun NewChatScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val blankQuery = state.query.isBlank()
+    val startScan = rememberQrScanner(
+        onScanned = viewModel::onScanned,
+        onFailure = { failure ->
+            viewModel.onScanFailed(
+                UiText(
+                    when (failure) {
+                        QrScanFailure.Unavailable -> Res.string.devices_qr_unavailable
+                        QrScanFailure.PermissionDenied -> Res.string.devices_qr_permission
+                    },
+                ),
+            )
+        },
+    )
 
     ChatPicker(
         title = stringResource(Res.string.new_chat_title),
@@ -96,28 +117,45 @@ fun NewChatScreen(
         onBack = onBack,
         error = state.error,
         onErrorShown = viewModel::consumeError,
-        header = { if (blankQuery) CreateChatRows(onNewGroup = onNewGroup, onNewChannel = onNewChannel, onNewContact = onNewContact) },
+        header = {
+            if (blankQuery) {
+                CreateChatRows(
+                    onNewGroup = onNewGroup,
+                    onNewChannel = onNewChannel,
+                    onNewContact = onNewContact,
+                    onScanQr = startScan.takeIf { qrScannerSupported },
+                )
+            }
+        },
         modifier = modifier,
     )
 }
 
-/** Řádky jako jeden blok, stejným tvarem jako „Zablokovat uživatele" nad seznamem blokovaných. */
+/**
+ * Řádky jako jeden blok, stejným tvarem jako „Zablokovat uživatele" nad seznamem blokovaných.
+ * „Naskenovat QR kód" ([onScanQr]) je hned pod novým kontaktem — obojí přidává člověka; bez
+ * čtečky (desktop) chybí.
+ */
 @Composable
-private fun CreateChatRows(onNewGroup: () -> Unit, onNewChannel: () -> Unit, onNewContact: () -> Unit) {
+private fun CreateChatRows(onNewGroup: () -> Unit, onNewChannel: () -> Unit, onNewContact: () -> Unit, onScanQr: (() -> Unit)?) {
+    val count = if (onScanQr != null) 4 else 3
     Column(
         verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
         modifier = Modifier.fillMaxWidth().padding(bottom = GROUP_SPACING - GROUP_ITEM_SPACING),
     ) {
-        CreateChatRow(Res.drawable.group_24dp, Res.string.new_chat_new_group, index = 0, onClick = onNewGroup)
-        CreateChatRow(Res.drawable.campaign_24dp, Res.string.new_chat_new_channel, index = 1, onClick = onNewChannel)
-        CreateChatRow(Res.drawable.person_add_24dp, Res.string.new_chat_new_contact, index = 2, onClick = onNewContact)
+        CreateChatRow(Res.drawable.group_24dp, Res.string.new_chat_new_group, index = 0, count = count, onClick = onNewGroup)
+        CreateChatRow(Res.drawable.campaign_24dp, Res.string.new_chat_new_channel, index = 1, count = count, onClick = onNewChannel)
+        CreateChatRow(Res.drawable.person_add_24dp, Res.string.new_chat_new_contact, index = 2, count = count, onClick = onNewContact)
+        if (onScanQr != null) {
+            CreateChatRow(Res.drawable.qr_code_scanner_24dp, Res.string.new_chat_scan_qr, index = 3, count = count, onClick = onScanQr)
+        }
     }
 }
 
 @Composable
-private fun CreateChatRow(icon: DrawableResource, title: StringResource, index: Int, onClick: () -> Unit) {
+private fun CreateChatRow(icon: DrawableResource, title: StringResource, index: Int, count: Int, onClick: () -> Unit) {
     Surface(
-        shape = groupItemShape(index, count = CREATE_ROWS),
+        shape = groupItemShape(index, count = count),
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -134,4 +172,3 @@ private fun CreateChatRow(icon: DrawableResource, title: StringResource, index: 
     }
 }
 
-private const val CREATE_ROWS = 3

@@ -143,6 +143,12 @@ class UnsupportedProxyException : Exception("Unsupported proxy")
 class LinkUserNotFoundException : IllegalStateException("Uživatel z odkazu na Telegramu není.")
 
 /**
+ * Kontaktní odkaz (`t.me/contact/…`), který server nezná. Token platí jen chvíli (viz
+ * [ContactLink]), takže skoro vždycky jde o prošlý kód — věta o skrytém čísle by tu mátla.
+ */
+class ContactLinkExpiredException : IllegalStateException("Kontaktní odkaz už neplatí.")
+
+/**
  * Co řekne pozvánka do sdílené složky (`checkChatFolderInviteLink`).
  *
  * - [folderId] je `0`, dokud složku uživatel nemá; s nenulovým id pozvánka jen doplňuje chaty
