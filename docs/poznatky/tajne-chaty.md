@@ -26,6 +26,10 @@ a ukončit je (profil tajného chatu → ⋮ → „Ukončit tajný chat").
   Pixelu 5: čtyři tajné chaty s „Pixel 7 Pro", čtyři barvy). Avatar bere `avatarColorId`
   v seznamu, hledání, konceptech, přepínači chatů, výběru chatu a hlavičce konverzace;
   jinde (sdílená média, profil) zůstává id chatu.
+- **Zámek je i v kompaktních řádcích**: chaty v hledání (`ChatResultRow`), nalezené zprávy
+  a výběr chatu (`ChatPicker`, tedy přidání do složky, přeposlání, sdílení). Bez něj byly ve
+  výsledcích hledání „Pixel 5" čtyři stejné řádky a obyčejný chat šel najít jen pokusem —
+  narazilo se na to při posílání pozvánky mezi testovacími účty.
 - **„Nový tajný chat" v Nové zprávě je režim téhož výběru, ne další obrazovka**
   (`NewChatViewModel.startSecretMode`). Výběr se zúží na lidi: bez Uložených zpráv, bez
   veřejných výsledků a bez skupin a jiných tajných chatů z hledání; ťuknutí tajný chat

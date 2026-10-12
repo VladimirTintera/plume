@@ -29,6 +29,13 @@ expect class TelegramPaths {
      * šlo i to, ke kterému číslu a jakou cestou kód odešel.
      */
     val isDebugBuild: Boolean
+
+    /**
+     * Verze aplikace, jak ji hlásí `setTdlibParameters`. Server ji ukazuje u relace v seznamu
+     * zařízení i v oznámeních o přihlášení („Plume 0.3.75"). Dřív tam stálo natvrdo „0.1.0",
+     * takže z jiného klienta nešlo poznat, jakou verzí je zařízení přihlášené.
+     */
+    val applicationVersion: String
 }
 
 /** Popis zařízení, který se posílá serveru a zobrazuje v „Aktivní relace" v oficiálním klientovi. */

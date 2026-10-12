@@ -306,7 +306,7 @@ class TdlTelegramSession(
             systemLanguageCode = platformLanguageCode,
             deviceModel = platformDeviceModel,
             systemVersion = platformSystemVersion,
-            applicationVersion = "0.1.0",
+            applicationVersion = paths.applicationVersion,
         )
             .toResult()
             .exceptionOrNull()

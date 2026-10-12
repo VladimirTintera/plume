@@ -527,6 +527,18 @@ testy `InviteLinkEditorTest`).
   (limit zmizel, platnost zůstala), zrušení s potvrzením, smazání zrušených, prázdné žádosti,
   anglicky i česky. **Skutečná žádost o vstup ověřená NENÍ** — bot se přes pozvánku nepřidá,
   chce to druhý účet; seznam žádostí jen podstrčenými daty a vyřízení vůbec.
+  **Dvěma účty ověřené 12. 10. 2026** (níž).
+- **Ověřeno se dvěma skutečnými účty** (Pixel 7 vlastník, Pixel 5 žadatel, skupina „Plume test
+  zadosti" založená v Plume bez členů): odkaz se schvalováním (limit zmizel), náhled pozvánky
+  s „Požádat o vstup", hláška „žádost odeslána", pruh „1 žádost o vstup · Pixel 5" v konverzaci,
+  přijetí ze seznamu žádostí (Pixel 5 skupinu hned uvidí), „Kdo se přidal" u odkazu, po odchodu
+  a nové žádosti odmítnutí (počet v úpravě skupiny „Žádné nečekají").
+- **Vstup přes sdílenou složku server připíše HLAVNÍMU odkazu** („Kdo se přidal · 1" na kartě
+  hlavního odkazu s „přes sdílenou složku"), ne odkazu složky — ten ve výpisu odkazů skupiny
+  není. Servisní zprávu o vstupu přes složku server nevloží vůbec; skupina se to dozví jen
+  z počtu členů.
+- **Kdo odešel, se z „Kdo se přidal" ztratí** — odkaz se schvalováním po odchodu Pixelu 5 ukázal
+  „přidalo se 0". Server počítá jen ty, kdo ve skupině pořád jsou.
 - **Odkazy ostatních správců ověřené skutečnými daty**: testovací bot je v testovací skupině
   správce s právem zvát a odkazy si zakládá a ruší přes Bot API (`createChatInviteLink`,
   `revokeChatInviteLink`). „Kdo se přidal" s lidmi jen sondou (přidat se odkazem chce druhý

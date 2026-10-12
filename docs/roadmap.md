@@ -25,6 +25,9 @@ Teď je prázdné.
   hodnocení obsahu (IARC), cílová skupina, bezpečnost dat a prohlášení o reklamách.
 - **Seznam chatů na snímcích obrazovky chybí.** Na účtu jsou skutečné osoby; snímek seznamu
   chce demo účet se smyšlenými chaty.
+- **Název aplikace u `api_id` je „MGram"** — tak se Plume ukazuje v seznamu zařízení
+  a v oznámeních Telegramu („Device: MGram, 0.3.75"). Přejmenovat na my.telegram.org (API
+  development tools); v kódu se nenastavuje (`docs/poznatky/nastaveni.md`, „Zařízení").
 - ~~**`isShrinkResources` není zapnuté.**~~ — hotovo (release proklikaný na emulátoru;
   `docs/poznatky/release.md`, „R8").
 
@@ -153,8 +156,8 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
     ~~Sdílet kontakt~~ — hotovo (⋮ → Sdílet kontakt). ~~Správa pozvánek~~ — hotovo (odkazy
     s limitem, platností a schvalováním, zrušení a mazání, žádosti o vstup; `docs/poznatky/profil-chatu.md`,
     „Pozvánky a žádosti o vstup"; sdílení odkazu, odkazy ostatních správců, kdo se přidal
-    a pruh s čekajícími žádostmi v konverzaci jsou hotové). U pozvánek zbývá **ověřit
-    skutečnou žádost o vstup a „kdo se přidal" se skutečnými lidmi** (chce druhý účet).
+    a pruh s čekajícími žádostmi v konverzaci jsou hotové; skutečná žádost, přijetí, odmítnutí
+    a „kdo se přidal" ověřené dvěma účty).
     ~~Uložení úpravy skupiny, práv člena, omezení, vyhození a štítku~~ — ověřené v testovací
     skupině s botem. Zbývá **dokončený převod vlastnictví**: testovací účet …029 má dvoufázové
     ověření od 12. 10. 2026 a Telegram převod pustí po týdnu — **od 19. 10. 2026** ve skupině
@@ -170,8 +173,8 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   - **„Všechny chaty" jinde než první** (`mainChatListPosition`, jen Premium) — správa ho drží
     na místě, kde je.
   - ~~**Sdílené složky**~~ — hotovo: náhled a přidání z odkazu, odkazy na vlastní složku i jejich
-    úprava, nové chaty v přidané složce a chaty k opuštění při jejím smazání. Skutečné přidání
-    cizí složky a nové chaty od autora ověřené nejsou (chce to druhý účet).
+    úprava, nové chaty v přidané složce a chaty k opuštění při jejím smazání; přidání cizí
+    složky, nové chaty od autora i smazání s opuštěním chatů ověřené dvěma účty.
   - **Štítky složek u chatů** (`toggleChatFolderTags`, jen Premium) a barva složky.
   - ~~**Ikona složky**~~ a ~~**„Nechávat chaty ze složek v archivu"**~~ — hotovo. Zápis volby
     archivu ověřený není (mění nastavení účtu).

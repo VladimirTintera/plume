@@ -416,6 +416,13 @@ sada skupiny jako záložka; správa sad v Nastavení (pořadí, archiv); sdíle
   osobami; `docs/poznatky/emoji-samolepky-reakce.md`, „Výběr emoji"). Rodiny se třemi a víc osobami odstíny v Unicode nemají.
 - **Emoji novější než Unicode 15.0** — až je budou znát systémová písma podporovaných verzí.
 
+- **Servisní zprávy o členech jsou bez jmen** („Ze skupiny někdo odešel", „Žádost o vstup byla
+  schválena"), schválně — viz KDoc `serviceText`. Se dvěma skutečnými účty to působí jako
+  chyba: ve dvoučlenné skupině je jasné, kdo odešel, a aplikace to neřekne. U odchodu, vstupu
+  odkazem a schválené žádosti je aktér odesílatel zprávy a jeho jméno konverzace stejně
+  načítá pro bubliny; u přidání a vyhození jde o `memberUserIds` / `userId`. Oficiální
+  klienti jména píšou („Pixel 5 opustil(a) skupinu").
+
 ## Co TDLib umí a Plume zatím ne (audit září 2026)
 
 Prošlo se všech 105 podtypů `MessageContent` v `tdl-coroutines 15.0.0`, pole `Message`,

@@ -3,6 +3,7 @@ package eu.tintera.plume.core.telegram
 import kotlin.experimental.ExperimentalNativeApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.Foundation.NSApplicationSupportDirectory
+import platform.Foundation.NSBundle
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSLocale
 import platform.Foundation.NSLocaleCountryCode
@@ -25,6 +26,10 @@ actual class TelegramPaths {
     /** Debug framework (`linkDebugFramework…`), tedy build z Xcode v konfiguraci Debug. */
     @OptIn(ExperimentalNativeApi::class)
     actual val isDebugBuild: Boolean = Platform.isDebugBinary
+
+    /** `CFBundleShortVersionString` z `Info.plist` aplikace. */
+    actual val applicationVersion: String =
+        NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String ?: "?"
 
     /**
      * Application Support se na rozdíl od Androidu zálohuje (iCloud i lokální záloha), takže se

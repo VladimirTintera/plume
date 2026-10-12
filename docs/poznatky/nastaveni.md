@@ -386,6 +386,13 @@ jiného zařízení QR kódem. Hranice je `DeviceRepository` v `core/telegram`.
   a server by na cizí obsah odpověděl chybou, ze které uživatel nic nepozná.
 - **Odkaz `tg://login` se z ťuknutí NEOTEVÍRÁ**, jen ze čtečky. Přihlašovací odkaz poslaný ve
   zprávě je typický podvod („naskenuj/otevři tohle"); oficiální klienti ho taky jen skenují.
+- **Verze u relace je skutečná verze aplikace** (`TelegramPaths.applicationVersion`: Android
+  `versionName`, iOS `CFBundleShortVersionString`, desktop `jpackage.app-version`). Do
+  `setTdlibParameters` šlo natvrdo „0.1.0", takže v seznamu zařízení i v oznámení Telegramu
+  o změně hesla stálo „MGram 0.1.0" u Play verze 0.3.75 — z jiného zařízení nešlo poznat, co
+  na tom telefonu běží. Server si novou verzi vezme při dalším spuštění.
+- **Jméno aplikace u relace („MGram") NENÍ z kódu.** Je to název aplikace u `api_id` na
+  my.telegram.org; TDLib ho nikde nenastavuje. Změní se jen tam.
 
 ## „Co je nového" v aplikaci (`core/changelog`)
 

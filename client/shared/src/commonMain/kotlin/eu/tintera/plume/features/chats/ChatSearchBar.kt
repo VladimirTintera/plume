@@ -115,6 +115,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.SecretChatLock
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.chats_search
@@ -564,6 +565,8 @@ private fun SearchResults(
                     // Serverové výsledky přibývají za lokálními — plynule, ne skokem.
                     modifier = Modifier.animateItem(),
                     avatarShape = chat.kind.avatarShape(),
+                    avatarColorId = chat.avatarColorId,
+                    secret = chat.isSecret,
                 )
             }
 
@@ -582,6 +585,8 @@ private fun SearchResults(
                         onClick = { onPickLatest(chat.id) },
                         modifier = Modifier.animateItem(),
                         avatarShape = chat.kind.avatarShape(),
+                        avatarColorId = chat.avatarColorId,
+                        secret = chat.isSecret,
                     )
                 }
             }
@@ -659,6 +664,7 @@ private fun MessageResultRow(
     ListItem(
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (found.chat.isSecret) SecretChatLock(modifier = Modifier.padding(end = 6.dp))
                 Text(
                     chatTitle(found.chat.id, found.chat.title),
                     maxLines = 1,
@@ -795,9 +801,17 @@ private fun ChatResultRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     avatarShape: Shape = CircleShape,
+    avatarColorId: Long = chatId,
+    /** Tajný chat — zámek před jménem, jinak by splynul s obyčejným chatem téhož člověka. */
+    secret: Boolean = false,
 ) {
     ListItem(
-        headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        headlineContent = {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (secret) SecretChatLock()
+                Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        },
         // Archiv se v hlavním seznamu nevidí, takže nalezený archivovaný chat by jinak
         // vypadal, jako by se odněkud vynořil.
         supportingContent = if (archived) {
@@ -806,7 +820,7 @@ private fun ChatResultRow(
             null
         },
         leadingContent = {
-            Avatar(chatId = chatId, title = title, avatarFileId = avatarFileId, size = 40.dp, isSavedMessages = isSavedMessages(chatId), shape = avatarShape)
+            Avatar(chatId = avatarColorId, title = title, avatarFileId = avatarFileId, size = 40.dp, isSavedMessages = isSavedMessages(chatId), shape = avatarShape)
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = modifier.clickable(onClick = onClick),
