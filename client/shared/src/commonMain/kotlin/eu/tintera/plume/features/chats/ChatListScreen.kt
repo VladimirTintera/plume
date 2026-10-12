@@ -1232,7 +1232,7 @@ internal fun ChatListContent(
                                 .draggedItem(dragState, chat.id),
                         ) {
                             Avatar(
-                                chatId = chat.id,
+                                chatId = chat.avatarColorId,
                                 title = chat.title,
                                 avatarFileId = chat.avatarFileId,
                                 size = REORDER_AVATAR_SIZE,
@@ -1659,7 +1659,7 @@ private fun ChatRow(
         ) {
             Box {
                 Avatar(
-                    chatId = chat.id,
+                    chatId = chat.avatarColorId,
                     title = chat.title,
                     avatarFileId = chat.avatarFileId,
                     size = AVATAR_SIZE,

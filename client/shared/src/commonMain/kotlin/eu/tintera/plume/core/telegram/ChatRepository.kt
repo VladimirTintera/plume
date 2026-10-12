@@ -603,6 +603,12 @@ data class ChatSummary(
      */
     /** Tajný chat — zámek u jména. Protějšek může mít vedle i obyčejný chat. */
     val isSecret: Boolean = false,
+    /**
+     * Z čeho se počítá barva avataru bez fotky. U tajného chatu id protějšku, jinak id chatu:
+     * tajný chat má vlastní id, a každý tajný chat s týmž člověkem by tak měl jinou barvu
+     * než on sám i než ten předchozí.
+     */
+    val avatarColorId: Long = id,
     val verification: Verification? = null,
     /** Vlastní emoji statusu za jménem (viz [statusEmojiId]), nebo `null`. */
     val emojiStatus: Long? = null,

@@ -245,7 +245,7 @@ private fun DraftRow(item: DraftItem, enabled: Boolean, onClick: () -> Unit, onD
         verticalAlignment = Alignment.Top,
     ) {
         Avatar(
-            chatId = chat.id,
+            chatId = chat.avatarColorId,
             title = chat.title,
             avatarFileId = chat.avatarFileId,
             size = DRAFT_AVATAR_SIZE,

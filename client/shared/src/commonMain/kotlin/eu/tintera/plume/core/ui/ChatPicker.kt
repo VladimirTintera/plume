@@ -329,7 +329,7 @@ fun ChatPicker(
                      */
                     item(key = savedMessagesChatId) {
                         PickerRow(
-                            chatId = savedMessagesChatId,
+                            avatarColorId = savedMessagesChatId,
                             title = savedTitle,
                             subtitle = null,
                             avatarFileId = null,
@@ -359,7 +359,7 @@ fun ChatPicker(
                     itemsIndexed(section.chats, key = { _, chat -> "${section.key}-${chat.id}" }) { index, chat ->
                         val isSelected = selected?.contains(chat.id) == true
                         PickerRow(
-                            chatId = chat.id,
+                            avatarColorId = chat.avatarColorId,
                             title = chat.title,
                             subtitle = if (showPresence) chat.presence else null,
                             avatarFileId = chat.avatarFileId,
@@ -426,7 +426,7 @@ private fun SectionHeader(title: String, modifier: Modifier = Modifier) {
  */
 @Composable
 private fun PickerRow(
-    chatId: Long,
+    avatarColorId: Long,
     title: String,
     /** Dostupnost protějšku pod jménem; `null` = řádek je jen jméno. */
     subtitle: Presence?,
@@ -462,7 +462,7 @@ private fun PickerRow(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Avatar(
-                chatId = chatId,
+                chatId = avatarColorId,
                 title = title,
                 avatarFileId = avatarFileId,
                 size = AVATAR_SIZE,

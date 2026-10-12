@@ -293,10 +293,8 @@ ukončení, notifikace, zákaz snímků. Zbývá:
 
 - ~~**Šifrovací klíč**~~ — hotovo (obrázek a čísla shodné s oficiálním klientem,
   `docs/poznatky/tajne-chaty.md`, „Šifrovací klíč").
-- **Dostupnost a ověření v seznamu chatů** u tajného chatu (`userStatusUpdates` a `userUpdates`
-  se mapují na id uživatele, tajný chat má jiné).
-- **Média, hlasovky a kolečka v tajném chatu** ověřit na zařízení (TDLib je šifruje sám).
-- **Založení z „Nové zprávy"** (oficiální klienti mají „Nový tajný chat" vedle skupiny a kanálu).
+- ~~**Dostupnost a ověření v seznamu chatů**~~, ~~**média, hlasovky a kolečka**~~ a ~~**založení
+  z „Nové zprávy"**~~ — hotovo (`docs/poznatky/tajne-chaty.md`, „Ověření").
 - iOS a desktop ověřit.
 
 ## Hovory

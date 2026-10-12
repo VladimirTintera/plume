@@ -12,10 +12,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.tintera.plume.core.ui.ChatPicker
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.GROUP_SPACING
@@ -34,6 +39,7 @@ import eu.tintera.plume.resources.qr_code_scanner_24dp
 import eu.tintera.plume.resources.group_24dp
 import eu.tintera.plume.resources.new_chat_new_channel
 import eu.tintera.plume.resources.new_chat_new_contact
+import eu.tintera.plume.resources.new_chat_new_secret
 import eu.tintera.plume.resources.new_chat_new_group
 import eu.tintera.plume.resources.chats_search_section_chats
 import eu.tintera.plume.resources.chats_search_section_global
@@ -42,6 +48,7 @@ import eu.tintera.plume.resources.new_chat_empty
 import eu.tintera.plume.resources.new_chat_empty_text
 import eu.tintera.plume.resources.new_chat_search
 import eu.tintera.plume.resources.new_chat_title
+import eu.tintera.plume.resources.lock_24dp
 import eu.tintera.plume.resources.person_24dp
 import eu.tintera.plume.resources.person_add_24dp
 import eu.tintera.plume.resources.search_off_24dp
@@ -62,8 +69,10 @@ import org.jetbrains.compose.resources.stringResource
  * Co přibylo proti přeposílání: **sekce s nadpisy** (odkud výsledek je) a **dostupnost pod
  * jménem** — tady se vybírá člověk, ne cíl pro obsah.
  *
- * **Nad kontakty je založení skupiny, kanálu a kontaktu**, jako u oficiálních klientů: „Nová
+ * **Nad kontakty je založení skupiny, kanálu, tajného chatu a kontaktu**, jako u oficiálních klientů: „Nová
  * zpráva" je jediné místo, odkud se cokoli nového zakládá. Při hledání se schovají — hledá se chat.
+ * Tajný chat přepne tentýž výběr do režimu „komu" (jen lidé, ne skupiny ani Uložené) a zpět
+ * vede do Nové zprávy.
  */
 @Composable
 fun NewChatScreen(
@@ -77,6 +86,19 @@ fun NewChatScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val blankQuery = state.query.isBlank()
+    val openSecretChat by viewModel.openSecretChat.collectAsStateWithLifecycle()
+    val currentOnChatSelected by rememberUpdatedState(onChatSelected)
+    LaunchedEffect(openSecretChat) {
+        val chatId = openSecretChat ?: return@LaunchedEffect
+        viewModel.consumeOpenSecretChat()
+        currentOnChatSelected(chatId)
+    }
+    // Zpět z výběru pro tajný chat vede do Nové zprávy, ne pryč z ní.
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = state.secretMode,
+        onBackCompleted = { viewModel.leaveSecretMode() },
+    )
     val startScan = rememberQrScanner(
         onScanned = viewModel::onScanned,
         onFailure = { failure ->
@@ -92,7 +114,7 @@ fun NewChatScreen(
     )
 
     ChatPicker(
-        title = stringResource(Res.string.new_chat_title),
+        title = stringResource(if (state.secretMode) Res.string.new_chat_new_secret else Res.string.new_chat_title),
         query = state.query,
         onQueryChange = viewModel::onQueryChange,
         searchPlaceholder = stringResource(Res.string.new_chat_search),
@@ -105,8 +127,9 @@ fun NewChatScreen(
             PickerSection(key = "global", chats = state.globalResults, title = stringResource(Res.string.chats_search_section_global)),
         ),
         enabled = true,
-        // Jeden cíl: ťuknutí rovnou otevře konverzaci, není co potvrzovat.
-        onPick = onChatSelected,
+        // Jeden cíl: ťuknutí rovnou otevře konverzaci, není co potvrzovat. Při výběru pro tajný
+        // chat ho ťuknutí teprve založí; otevře se, až ho TDLib vrátí.
+        onPick = { chatId -> if (state.secretMode) viewModel.pickForSecretChat(chatId) else onChatSelected(chatId) },
         showPresence = true,
         savedMessagesChatId = state.savedMessagesChatId,
         // Bez dotazu je prázdno „nemáš kontakty", s dotazem „nic nenalezeno" — dvě různé
@@ -114,14 +137,15 @@ fun NewChatScreen(
         emptyIcon = if (blankQuery) Res.drawable.person_24dp else Res.drawable.search_off_24dp,
         emptyTitle = if (blankQuery) stringResource(Res.string.new_chat_empty) else null,
         emptyText = if (blankQuery) stringResource(Res.string.new_chat_empty_text) else null,
-        onBack = onBack,
+        onBack = { if (!viewModel.leaveSecretMode()) onBack() },
         error = state.error,
         onErrorShown = viewModel::consumeError,
         header = {
-            if (blankQuery) {
+            if (blankQuery && !state.secretMode) {
                 CreateChatRows(
                     onNewGroup = onNewGroup,
                     onNewChannel = onNewChannel,
+                    onNewSecretChat = viewModel::startSecretMode,
                     onNewContact = onNewContact,
                     onScanQr = startScan.takeIf { qrScannerSupported },
                 )
@@ -137,17 +161,24 @@ fun NewChatScreen(
  * čtečky (desktop) chybí.
  */
 @Composable
-private fun CreateChatRows(onNewGroup: () -> Unit, onNewChannel: () -> Unit, onNewContact: () -> Unit, onScanQr: (() -> Unit)?) {
-    val count = if (onScanQr != null) 4 else 3
+private fun CreateChatRows(
+    onNewGroup: () -> Unit,
+    onNewChannel: () -> Unit,
+    onNewSecretChat: () -> Unit,
+    onNewContact: () -> Unit,
+    onScanQr: (() -> Unit)?,
+) {
+    val count = if (onScanQr != null) 5 else 4
     Column(
         verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
         modifier = Modifier.fillMaxWidth().padding(bottom = GROUP_SPACING - GROUP_ITEM_SPACING),
     ) {
         CreateChatRow(Res.drawable.group_24dp, Res.string.new_chat_new_group, index = 0, count = count, onClick = onNewGroup)
         CreateChatRow(Res.drawable.campaign_24dp, Res.string.new_chat_new_channel, index = 1, count = count, onClick = onNewChannel)
-        CreateChatRow(Res.drawable.person_add_24dp, Res.string.new_chat_new_contact, index = 2, count = count, onClick = onNewContact)
+        CreateChatRow(Res.drawable.lock_24dp, Res.string.new_chat_new_secret, index = 2, count = count, onClick = onNewSecretChat)
+        CreateChatRow(Res.drawable.person_add_24dp, Res.string.new_chat_new_contact, index = 3, count = count, onClick = onNewContact)
         if (onScanQr != null) {
-            CreateChatRow(Res.drawable.qr_code_scanner_24dp, Res.string.new_chat_scan_qr, index = 3, count = count, onClick = onScanQr)
+            CreateChatRow(Res.drawable.qr_code_scanner_24dp, Res.string.new_chat_scan_qr, index = 4, count = count, onClick = onScanQr)
         }
     }
 }

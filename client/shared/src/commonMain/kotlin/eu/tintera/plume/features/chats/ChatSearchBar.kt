@@ -683,7 +683,7 @@ private fun MessageResultRow(
         },
         leadingContent = {
             Avatar(
-                chatId = found.chat.id,
+                chatId = found.chat.avatarColorId,
                 title = found.chat.title,
                 avatarFileId = found.chat.avatarFileId,
                 size = 40.dp,
@@ -769,7 +769,7 @@ private fun TopChat(chat: ChatSummary, onClick: () -> Unit) {
             .padding(vertical = 8.dp),
     ) {
         Avatar(
-            chatId = chat.id,
+            chatId = chat.avatarColorId,
             title = chat.title,
             avatarFileId = chat.avatarFileId,
             size = 52.dp,

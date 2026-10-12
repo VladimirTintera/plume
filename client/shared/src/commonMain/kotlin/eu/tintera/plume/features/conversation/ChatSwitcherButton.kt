@@ -158,7 +158,7 @@ private fun SwitcherItem(chat: ChatSummary, index: Int, count: Int, onClick: () 
         shape = MenuDefaults.itemShape(index, count).shape,
         leadingIcon = {
             Avatar(
-                chatId = chat.id,
+                chatId = chat.avatarColorId,
                 title = chat.title,
                 avatarFileId = chat.avatarFileId,
                 size = 32.dp,
