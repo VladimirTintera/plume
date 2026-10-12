@@ -69,6 +69,10 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.PointerEventPass
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import androidx.compose.runtime.produceState
+import eu.tintera.plume.core.telegram.MessageEntity
 import eu.tintera.plume.core.ui.rememberAfterKeyboardHidden
 import eu.tintera.plume.core.ui.AutoDeleteBadge
 import eu.tintera.plume.core.ui.longPress
@@ -711,9 +715,13 @@ fun ConversationScreen(
         canWrite = state.canWrite,
     )
     val summaryTitleForReply = state.info?.let { chatTitle(it.id, it.title) }
-    LaunchedEffect(replyTarget, repliesAvailable, summaryTitleForReply) {
+    // Během letu odeslané zprávy ne: pole je už prázdné, ale odeslaná zpráva ještě nedorazila,
+    // takže by poslední byla zase ta příchozí — model by se rozjel uprostřed animace a hned
+    // nato se zrušil.
+    val sending = state.flight != null
+    LaunchedEffect(replyTarget, repliesAvailable, summaryTitleForReply, sending) {
         val title = summaryTitleForReply
-        if (repliesAvailable && replyTarget != null && title != null) {
+        if (repliesAvailable && replyTarget != null && title != null && !sending) {
             replies.suggest(replyTarget, title, state.messages, summaryMe)
         } else {
             replies.clear()
@@ -4743,16 +4751,34 @@ private class ScreenItemScope(
 
     override fun dismissScamWarning(messageId: Long) = viewModel.dismissScamWarning(messageId)
 
+    /** Rozbor textu zpráv pravidly ([findMessageContext]); čte a píše se jen na hlavním vlákně. */
+    private val contextCache = HashMap<ContextKey, MessageContext>()
+
+    private data class ContextKey(val text: String, val entities: List<MessageEntity>, val timestamp: Int)
+
     @Composable
     override fun messageContext(message: ChatMessage): List<ContextFinding> {
         val verdicts by viewModel.contextVerdicts.collectAsStateWithLifecycle()
         val current = verdicts ?: return emptyList()
         if (!message.offersContext()) return emptyList()
-        val found = remember(message.text, message.entities, message.timestamp) {
+        // Rozbor pravidly je drahý (desítky regulárních výrazů) a v kompozici brzdil první snímky
+        // každé nové položky — i té, která zrovna přilétá ze vstupního pole. Počítá se proto mimo
+        // hlavní vlákno a pamatuje pro celou obrazovku; ikonka stojí mimo rozvržení
+        // (`offset`), takže když naskočí o snímek později, nic se neposune.
+        val key = ContextKey(message.text, message.entities, message.timestamp)
+        val found = produceState(contextCache[key], key) {
+            if (value != null) return@produceState
             val zone = TimeZone.currentSystemDefault()
             val sentAt = Instant.fromEpochSeconds(message.timestamp.toLong()).toLocalDateTime(zone)
-            findMessageContext(message.text, message.entities, sentAt, zone, viewModel.homeCurrency, viewModel.metricUnits)
-        }
+            val homeCurrency = viewModel.homeCurrency
+            val metricUnits = viewModel.metricUnits
+            val result = withContext(Dispatchers.Default) {
+                findMessageContext(message.text, message.entities, sentAt, zone, homeCurrency, metricUnits)
+            }
+            if (contextCache.size >= CONTEXT_CACHE_LIMIT) contextCache.clear()
+            contextCache[key] = result
+            value = result
+        }.value ?: return emptyList()
         if (found.isEmpty) return emptyList()
         val verdict = current[message.id to message.text.hashCode()]
         return remember(found, verdict) {
@@ -5131,3 +5157,6 @@ private fun rememberConversationItems(state: ConversationState): List<Conversati
         expiredMedia,
     ) { conversationItems(state, expiredMedia) }
 }
+
+/** Kolik rozborů textu zpráv si obrazovka pamatuje, než mezipaměť zahodí. */
+private const val CONTEXT_CACHE_LIMIT = 500
