@@ -311,6 +311,10 @@ data class ChatProfile(
     val membersHidden: Boolean = false,
     /** Uživatel za soukromým chatem; `null` u skupiny a kanálu. */
     val userId: Long? = null,
+    /** Profil tajného chatu (jinak soukromého, skupiny nebo kanálu). */
+    val isSecretChat: Boolean = false,
+    /** Tajný chat ještě běží (čeká na protějšek, nebo je dohodnutý) — jde ukončit. */
+    val secretChatOpen: Boolean = false,
     /** Uživatel nebo bot je zablokovaný. */
     val isBlocked: Boolean = false,
     /** Uživatel je v adresáři účtu (`User.isContact`); u bota a skupiny `false`. */

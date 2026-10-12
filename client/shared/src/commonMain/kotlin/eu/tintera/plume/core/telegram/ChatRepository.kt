@@ -123,6 +123,15 @@ interface ChatRepository {
     suspend fun privateChat(userId: Long): Result<Long>
 
     /**
+     * Nový tajný chat s uživatelem; vrací jeho id. Každé volání založí NOVÝ — tajný chat patří
+     * k jednomu zařízení na každé straně a starý se neobnovuje.
+     */
+    suspend fun createSecretChat(userId: Long): Result<Long> = Result.failure(UnsupportedOperationException())
+
+    /** Ukončí tajný chat; historie zůstane, psát do něj už nepůjde (ani protějšku). */
+    suspend fun closeSecretChat(chatId: Long): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /**
      * Je chat skupina s tématy? Otevírá se pak seznamem témat, ne konverzací. Lokální dotaz;
      * chat, který TDLib nezná, fórum není. Výchozí `false` pro podvrhy v testech.
      */
@@ -592,6 +601,8 @@ data class ChatSummary(
      * Ověřený, podvod, falešný (viz [Verification]); `null` u běžného účtu. `Chat` od TDLib ho
      * nenese — je na uživateli a supergroupě, dočítá se zvlášť a mění updatem.
      */
+    /** Tajný chat — zámek u jména. Protějšek může mít vedle i obyčejný chat. */
+    val isSecret: Boolean = false,
     val verification: Verification? = null,
     /** Vlastní emoji statusu za jménem (viz [statusEmojiId]), nebo `null`. */
     val emojiStatus: Long? = null,

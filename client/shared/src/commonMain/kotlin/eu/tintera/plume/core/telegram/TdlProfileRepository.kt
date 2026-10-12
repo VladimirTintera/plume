@@ -28,6 +28,7 @@ import dev.g000sha256.tdl.dto.SearchMessagesFilterChatPhoto
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSecret
+import dev.g000sha256.tdl.dto.SecretChatStateClosed
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.InputMessageText
@@ -76,7 +77,11 @@ class TdlProfileRepository(
         // Bez `else`: nový druh chatu v novější TDLib má rozbít překlad, ne tiše skončit jako skupina.
         val profile = when (val type = chat.type) {
             is ChatTypePrivate -> userProfile(base, type.userId)
-            is ChatTypeSecret -> userProfile(base, type.userId)
+            is ChatTypeSecret -> userProfile(base, type.userId).copy(
+                isSecretChat = true,
+                secretChatOpen = client.getSecretChat(secretChatId = type.secretChatId).toResult().getOrNull()
+                    ?.state.let { it != null && it !is SecretChatStateClosed },
+            )
 
             is ChatTypeBasicGroup -> {
                 val group = client.getBasicGroup(basicGroupId = type.basicGroupId).toResult().getOrNull()
@@ -138,7 +143,8 @@ class TdlProfileRepository(
             canSetAutoDelete = when (chat.type) {
                 // Uložené zprávy nikdo jiný nečte a tajný chat má vlastní časovač zpráv.
                 is ChatTypePrivate -> profile.kind != ProfileKind.SavedMessages
-                is ChatTypeSecret -> false
+                // Tajný chat má časovač zpráv; nastavit jde, dokud chat běží.
+            is ChatTypeSecret -> profile.secretChatOpen
                 is ChatTypeBasicGroup, is ChatTypeSupergroup -> profile.editRights.canChangeInfo
             },
         )

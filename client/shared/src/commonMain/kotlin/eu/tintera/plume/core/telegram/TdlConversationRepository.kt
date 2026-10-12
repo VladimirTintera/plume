@@ -24,6 +24,8 @@ import dev.g000sha256.tdl.dto.MessageContent
 import dev.g000sha256.tdl.dto.MessagePoll
 import dev.g000sha256.tdl.dto.MessageContact
 import dev.g000sha256.tdl.dto.ChatTypeSecret
+import dev.g000sha256.tdl.dto.SecretChatStatePending
+import dev.g000sha256.tdl.dto.SecretChatStateClosed
 import dev.g000sha256.tdl.dto.UserTypeBot
 import dev.g000sha256.tdl.dto.UserTypeRegular
 import dev.g000sha256.tdl.dto.ImportedContact
@@ -1872,6 +1874,7 @@ class TdlConversationRepository(
                     draftReplyQuote = draft?.quote,
                     draftLinkPreview = draft?.linkPreview,
                     verification = client.verificationOf(chat),
+                    isSecret = chat.type is ChatTypeSecret,
                     emojiStatus = chat.emojiStatus.statusEmojiId(),
                     restriction = restriction?.reasonText,
                     sensitive = client.hidesSensitive(restriction),
@@ -2031,10 +2034,18 @@ class TdlConversationRepository(
             membersCanSend = chat.permissions.canSendBasicMessages,
             nonMembersCanSend = nonMembersCanSend,
         )
+        // Tajný chat: psát jde jen v dohodnutém stavu. Dotaz je lokální, stav drží TDLib.
+        val secret = (chat.type as? ChatTypeSecret)?.let { type ->
+            when (client.getSecretChat(secretChatId = type.secretChatId).toResult().getOrNull()?.state) {
+                is SecretChatStatePending -> WriteAccess.SecretPending
+                is SecretChatStateClosed -> WriteAccess.SecretClosed
+                else -> null
+            }
+        }
         return ChatAccess(
             // Kdo smí psát bez vstupu, dostane pole, ne „Přidat se" — jako u oficiálních klientů.
             canJoin = supergroup != null && status == OwnMemberStatus.Left && !nonMembersCanSend,
-            writeAccess = topicWriteAccess(chatWrite, status, topicClosed = forumTopic?.info?.isClosed == true),
+            writeAccess = secret ?: topicWriteAccess(chatWrite, status, topicClosed = forumTopic?.info?.isClosed == true),
             content = contentAccess(status = status, groupDefaults = chat.permissions.toContentAccess()).let {
                 // Právo skupiny nestačí: do soukromého chatu s člověkem anketa nejde vůbec.
                 // V tématu anketa nejde: zakládá ji obrazovka, která o tématu neví.
@@ -2066,9 +2077,12 @@ class TdlConversationRepository(
         val type = client.getChat(chatId).toResult().getOrNull()?.type ?: return@flow
         val supergroupId = (type as? ChatTypeSupergroup)?.supergroupId
         val basicGroupId = (type as? ChatTypeBasicGroup)?.basicGroupId
-        if (supergroupId == null && basicGroupId == null) return@flow
+        val secretChatId = (type as? ChatTypeSecret)?.secretChatId
+        if (supergroupId == null && basicGroupId == null && secretChatId == null) return@flow
         emitAll(
             merge(
+                // Tajný chat: protějšek se připojil, nebo chat ukončil.
+                holder.updates { secretChatUpdates }.filter { it.secretChat.id == secretChatId }.map { },
                 holder.updates { chatPermissionsUpdates }.filter { it.chatId == chatId }.map { },
                 holder.updates { supergroupUpdates }.filter { it.supergroup.id == supergroupId }.map { },
                 holder.updates { basicGroupUpdates }.filter { it.basicGroup.id == basicGroupId }.map { },
@@ -2090,11 +2104,13 @@ class TdlConversationRepository(
      * protějšek neodpojí. V soukromém chatu je `chatId` shodné s `userId`.
      */
     override fun presenceUpdates(chatId: Long): Flow<Presence> = flow {
-        val initial = client.getUser(chatId).toResult().getOrNull()?.status
+        // Tajný chat má vlastní id; protějšek je uživatel z typu chatu.
+        val userId = (client.getChat(chatId).toResult().getOrNull()?.type as? ChatTypeSecret)?.userId ?: chatId
+        val initial = client.getUser(userId).toResult().getOrNull()?.status
         if (initial != null) emit(initial.toPresence())
 
         holder.updates { userStatusUpdates }
-            .filter { it.userId == chatId }
+            .filter { it.userId == userId }
             .collect { emit(it.status.toPresence()) }
     }
 

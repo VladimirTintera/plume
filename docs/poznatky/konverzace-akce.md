@@ -328,8 +328,8 @@ Hlavička konverzace to ukazuje odznakem s hodinami za názvem (`AutoDeleteBadge
 - **`autoDeleteIn` je zbývající čas, převádí se na okamžik** při převodu zprávy. Zbývající
   sekundy by se počítaly od doby načtení a v „Informace" by lhaly.
 - **Budoucí čas jde přes `asUpcomingTime`**, ne `asDayLabel` (ten je na minulost).
-- **Kdo smí měnit**: soukromý chat (i s botem) ano, Uložené zprávy a tajný chat ne (tajný má
-  vlastní časovač zpráv), skupina a kanál jen s právem měnit údaje chatu (`canChangeInfo`),
+- **Kdo smí měnit**: soukromý chat (i s botem) ano, Uložené zprávy ne, tajný chat ano, dokud
+  běží — tam je to časovač po přečtení v sekundách až týdnech (`docs/poznatky/tajne-chaty.md`), skupina a kanál jen s právem měnit údaje chatu (`canChangeInfo`),
   jak to vyžaduje TDLib. Kdo měnit nesmí, vidí řádek jen při zapnutém mazání, bez klikání.
 - **Nabízí se vypnuto, den, týden a měsíc** — jako oficiální klienti. **Měsíc je 31 dní**
   (2 678 400 s), tak ho Telegram posílá; jiná doba nastavená jinde se do výběru zařadí

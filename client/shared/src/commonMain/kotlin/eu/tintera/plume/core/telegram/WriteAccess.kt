@@ -24,6 +24,12 @@ enum class WriteAccess {
      * can't be explicitly sent to a Saved Messages topic"), psát se dá jen do Mých poznámek.
      */
     SavedTopic,
+
+    /** Tajný chat čeká na protějšek: dokud se nepřipojí, klíč není dohodnutý a psát nejde. */
+    SecretPending,
+
+    /** Tajný chat je ukončený (jednou ze stran, nebo vypršel); psát do něj už nejde nikdy. */
+    SecretClosed,
 }
 
 /** Postavení uživatele ve skupině nebo kanálu, zúžené na to, co z něj aplikace potřebuje. */

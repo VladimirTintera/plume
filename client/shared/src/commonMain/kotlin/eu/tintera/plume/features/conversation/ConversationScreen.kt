@@ -92,6 +92,8 @@ import eu.tintera.plume.resources.schedule_send_24dp
 import eu.tintera.plume.resources.online_prediction_24dp
 import eu.tintera.plume.resources.schedule_24dp
 import eu.tintera.plume.resources.conversation_scheduled_open
+import eu.tintera.plume.core.ui.SecretChatLock
+import eu.tintera.plume.core.ui.SecureScreen
 import eu.tintera.plume.core.ui.VerificationBadge
 import eu.tintera.plume.core.ui.EmojiStatusBadge
 import eu.tintera.plume.core.telegram.PollComposerMode
@@ -119,6 +121,8 @@ import eu.tintera.plume.core.ui.reject
 import eu.tintera.plume.core.ui.tick
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.conversation_not_member
+import eu.tintera.plume.resources.conversation_secret_closed
+import eu.tintera.plume.resources.conversation_secret_pending
 import eu.tintera.plume.resources.conversation_topic_closed
 import eu.tintera.plume.resources.conversation_write_restricted
 import eu.tintera.plume.resources.notifications_24dp
@@ -1515,6 +1519,12 @@ fun ConversationScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
+                                // Tajný chat: zámek a zákaz snímků obrazovky. Efekt patří celé
+                                // obrazovce; tady je proto, že `ConversationScreen` je v dexu na
+                                // hraně registrů (viz CLAUDE.md) a hlavička je vlastní lambda.
+                                val secret = state.info?.isSecret == true
+                                SecureScreen(enabled = secret)
+                                if (secret && !state.narrowed) SecretChatLock()
                                 Text(
                                     text = when {
                                         state.threadRootId != null -> stringResource(Res.string.comments_title)
@@ -1728,6 +1738,14 @@ fun ConversationScreen(
                 }
                 WriteAccess.TopicClosed -> {
                     ReadOnlyNote(Res.string.conversation_topic_closed, barGlass)
+                    return@Box
+                }
+                WriteAccess.SecretPending -> {
+                    ReadOnlyNote(Res.string.conversation_secret_pending, barGlass)
+                    return@Box
+                }
+                WriteAccess.SecretClosed -> {
+                    ReadOnlyNote(Res.string.conversation_secret_closed, barGlass)
                     return@Box
                 }
                 // Téma Uložených zpráv uložené odjinud: odeslat do něj TDLib nedovolí. Zdrojový

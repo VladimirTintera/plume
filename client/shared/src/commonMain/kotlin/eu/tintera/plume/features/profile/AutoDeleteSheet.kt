@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.ui.durationText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auto_delete_explanation
+import eu.tintera.plume.resources.auto_delete_explanation_secret
 import eu.tintera.plume.resources.auto_delete_off
 import eu.tintera.plume.resources.auto_delete_title
 import org.jetbrains.compose.resources.stringResource
@@ -38,11 +39,15 @@ internal fun AutoDeleteSheet(
     current: Int,
     onSelect: (Int) -> Unit,
     onDismiss: () -> Unit,
+    /** Tajný chat: časovač po přečtení v sekundách až týdnech, ne mazání po dnech. */
+    secret: Boolean = false,
     /** Věta s následkem; výchozí mluví o tomhle chatu, v Nastavení o nových chatech. */
-    explanation: String = stringResource(Res.string.auto_delete_explanation),
+    explanation: String = stringResource(
+        if (secret) Res.string.auto_delete_explanation_secret else Res.string.auto_delete_explanation,
+    ),
 ) {
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
-    val options = autoDeleteOptions(current)
+    val options = autoDeleteOptions(current, secret)
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Text(
@@ -74,10 +79,16 @@ internal fun AutoDeleteSheet(
 }
 
 /** Nabízené doby; jiná, právě platná doba se zařadí mezi ně, aby bylo vidět, co je nastavené. */
-internal fun autoDeleteOptions(current: Int): List<Int> =
-    (AUTO_DELETE_OPTIONS + current.takeIf { it > 0 }).filterNotNull().distinct().sorted()
+internal fun autoDeleteOptions(current: Int, secret: Boolean = false): List<Int> =
+    ((if (secret) SECRET_OPTIONS else AUTO_DELETE_OPTIONS) + current.takeIf { it > 0 }).filterNotNull().distinct().sorted()
 
 private const val DAY = 24 * 60 * 60
 
 /** Vypnuto, den, týden a měsíc (31 dní, jak ho posílá Telegram) — jako oficiální klienti. */
 private val AUTO_DELETE_OPTIONS = listOf(0, DAY, 7 * DAY, 31 * DAY)
+
+/**
+ * Tajný chat: časovač běží od PŘEČTENÍ a TDLib bere libovolné sekundy. Výběr jako oficiální
+ * klienti, jen zúžený — patnáct položek po sekundě by se do listu nevešlo.
+ */
+private val SECRET_OPTIONS = listOf(0, 10, 30, 60, 60 * 60, DAY, 7 * DAY)

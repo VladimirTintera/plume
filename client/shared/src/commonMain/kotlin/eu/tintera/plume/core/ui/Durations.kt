@@ -5,10 +5,12 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.duration_days
 import eu.tintera.plume.resources.duration_hours
 import eu.tintera.plume.resources.duration_minutes
+import eu.tintera.plume.resources.duration_seconds
 import eu.tintera.plume.resources.duration_months
 import eu.tintera.plume.resources.duration_short_days
 import eu.tintera.plume.resources.duration_short_hours
 import eu.tintera.plume.resources.duration_short_minutes
+import eu.tintera.plume.resources.duration_short_seconds
 import eu.tintera.plume.resources.duration_short_months
 import eu.tintera.plume.resources.duration_short_weeks
 import eu.tintera.plume.resources.duration_weeks
@@ -33,6 +35,7 @@ fun durationText(seconds: Int): String {
         DurationUnit.Days -> pluralStringResource(Res.plurals.duration_days, count, count)
         DurationUnit.Hours -> pluralStringResource(Res.plurals.duration_hours, count, count)
         DurationUnit.Minutes -> pluralStringResource(Res.plurals.duration_minutes, count, count)
+        DurationUnit.Seconds -> pluralStringResource(Res.plurals.duration_seconds, count, count)
     }
 }
 
@@ -48,6 +51,7 @@ fun durationUiText(seconds: Int): UiText {
         DurationUnit.Days -> Res.plurals.duration_days
         DurationUnit.Hours -> Res.plurals.duration_hours
         DurationUnit.Minutes -> Res.plurals.duration_minutes
+        DurationUnit.Seconds -> Res.plurals.duration_seconds
     }
     return UiText(resource, count, count)
 }
@@ -62,12 +66,12 @@ fun durationShortText(seconds: Int): String {
         DurationUnit.Days -> stringResource(Res.string.duration_short_days, count)
         DurationUnit.Hours -> stringResource(Res.string.duration_short_hours, count)
         DurationUnit.Minutes -> stringResource(Res.string.duration_short_minutes, count)
+        DurationUnit.Seconds -> stringResource(Res.string.duration_short_seconds, count)
     }
 }
 
-enum class DurationUnit { Minutes, Hours, Days, Weeks, Months }
+enum class DurationUnit { Seconds, Minutes, Hours, Days, Weeks, Months }
 
-/** Největší jednotka, ve které je délka celá; pod minutu se zaokrouhlí na minutu. */
 /**
  * „Za 7 dní", „za 3 hodiny", „za 1 minutu" — zbývající čekání zaokrouhlené NAHORU na celou
  * největší jednotku. Dolů by „za 6 dní" sliboval dřív, než to půjde. Tvary „za …" mají vlastní
@@ -82,11 +86,16 @@ fun waitUiText(seconds: Int): UiText {
     }
 }
 
+/**
+ * Největší jednotka, ve které je délka celá. Pod minutu sekundy (časovač tajného chatu), jinak
+ * se necelá délka zaokrouhlí na minuty.
+ */
 fun durationUnit(seconds: Int): Pair<DurationUnit, Int> = when {
     seconds >= MONTH && seconds % MONTH == 0 -> DurationUnit.Months to seconds / MONTH
     seconds >= WEEK && seconds % WEEK == 0 -> DurationUnit.Weeks to seconds / WEEK
     seconds >= DAY && seconds % DAY == 0 -> DurationUnit.Days to seconds / DAY
     seconds >= HOUR && seconds % HOUR == 0 -> DurationUnit.Hours to seconds / HOUR
+    seconds in 1 until MINUTE -> DurationUnit.Seconds to seconds
     else -> DurationUnit.Minutes to maxOf(1, seconds / MINUTE)
 }
 

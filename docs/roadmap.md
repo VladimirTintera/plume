@@ -286,6 +286,20 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
       a iOS rozšíření, které dnes chat vybírá samo — mohlo by jen předat obsah a výběr nechat
       aplikaci, pak by na obou platformách fungovalo sdílení stejně.
 
+## Tajné chaty
+
+Základ hotový (`docs/poznatky/tajne-chaty.md`): přijetí, založení z profilu, psaní, časovač,
+ukončení, notifikace, zákaz snímků. Zbývá:
+
+- **Šifrovací klíč** (`SecretChat.keyHash`) v profilu tajného chatu — obrázek nebo emoji
+  k porovnání s protějškem, jako u oficiálních klientů. Bez něj se nedá ověřit, že uprostřed
+  nikdo nesedí.
+- **Dostupnost a ověření v seznamu chatů** u tajného chatu (`userStatusUpdates` a `userUpdates`
+  se mapují na id uživatele, tajný chat má jiné).
+- **Média, hlasovky a kolečka v tajném chatu** ověřit na zařízení (TDLib je šifruje sám).
+- **Založení z „Nové zprávy"** (oficiální klienti mají „Nový tajný chat" vedle skupiny a kanálu).
+- iOS a desktop ověřit.
+
 ## Hovory
 
 Hovory nejsou vůbec. Zpráva o hovoru je v konverzaci bublina s holým „Hovor" / „Videohovor"
