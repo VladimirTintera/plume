@@ -197,3 +197,11 @@ i profil stojí na chatu, a ten po smazání není.
   archivovaném botovi ťuknout dá, jenže podstrčený pruh zůstává i po něm.
 - **Skutečné nahlášení, smazání s volbami a přidání kontaktu ověřené NEJSOU** — nahlášení by šlo
   moderátorům Telegramu na vlastního testovacího bota.
+- **Skutečný pruh ověřený se dvěma účty** (12. 10. 2026). Jak ho vyrobit: příjemce protějšek
+  odebere z kontaktů (profil → ⋮ → Odebrat z kontaktů) a smaže chat JEN U SEBE (historie
+  protějšku zůstane); pak protějšek napíše. Server dá `ReportAddBlock` — v Plume česky „Není
+  mezi tvými kontakty", „Na Telegramu od října 2026", „Telefonní číslo: 🇨🇿 Česko" a Zablokovat /
+  Nahlásit spam / Přidat kontakt. Sheet Zablokovat se otevřel (bez potvrzení). **„Přidat
+  kontakt" z pruhu přidal kontakt a pruh zhasl**, jméno je z účtu protějšku (ne to, pod kterým
+  ho měl uživatel uložený dřív). Nahlášení se nezkoušelo (šlo by moderátorům). Pruh čeká jen
+  na chat, kde příjemce sám ještě nic nenapsal — proto mazání u sebe.

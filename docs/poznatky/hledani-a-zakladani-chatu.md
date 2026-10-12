@@ -351,7 +351,11 @@ a fotka (`CreateChatRoute`, `CreateChatScreen`); kanál rovnou formulář s popi
   volné potvrdí, a založený kanál má `@plume_test_1005` v profilu i podle Bot API (`getChat`).
   **Dialog s pozvánkou jen sondou** (založení podstrčené výsledkem s testovacím botem mezi
   odmítnutými a selhaným odkazem, necommituje se): obě věty, „Poslat pozvánku" a bot dostal
-  pozvánku jako odkaz s entitou `url`. Skutečný člověk, který přidávání zakazuje, ověřený není.
+  pozvánku jako odkaz s entitou `url`. **Se skutečným člověkem ověřeno** (12. 10. 2026, druhý
+  testovací účet s „Kdo mě může přidat do skupin: Nikdo"): dialog „1 člověka přidat nešlo …
+  Pixel 5. Můžeš jim poslat pozvánku", „Poslat pozvánku" poslala odkaz `t.me/+…` s náhledem
+  a protějšek se přes něj v Plume přidal (sheet s názvem a počtem členů, „Join"). Servisní
+  zpráva o připojení přes odkaz nepřišla — oficiální klient ji nemá taky, posílá ji server.
   Pozvánka je i u veřejného chatu odkaz `t.me/+…` (`profile.inviteLink`), ne `t.me/jméno` —
   funguje stejně.
 
