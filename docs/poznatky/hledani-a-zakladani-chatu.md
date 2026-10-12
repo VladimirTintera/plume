@@ -226,8 +226,11 @@ konverzace a z Chatů se odebere formulář i „Nová zpráva" — zpět vede d
 - **Ověřeno na Pixelu 7 Pro** (česky, testovací účet …029): servisní číslo +420 111 111 111
   ukázalo větu o nenalezeném čísle (a `performHapticFeedback(constant=17)`), druhé testovací
   číslo …527 se přidalo jako „Test", otevřel se prázdný chat, zpět vedlo do seznamu a kontakt
-  je v Kontaktech „Nové zprávy". **Neověřeno**: anglické texty na zařízení, iOS (jen přeložené),
-  číslo se zakázaným hledáním (chce cizí účet).
+  je v Kontaktech „Nové zprávy". **Anglicky ověřeno na Pixelu 5** (systém v angličtině,
+  12. 10. 2026): formulář, nápověda pod polem i věta o nenalezeném čísle se vejdou a čtou se
+  dobře; tamtéž po přesunu `PhoneInput` do `core/ui` přihlašovací obrazovka — země z odhadu
+  podle IP, formátování čísla, odeslání a přihlášení kódem. **Neověřeno**: iOS (jen
+  přeložené), číslo se zakázaným hledáním (chce cizí účet).
 
 ## Můj QR kód a odkazy zvenčí
 
