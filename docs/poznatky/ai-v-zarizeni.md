@@ -338,6 +338,19 @@ převod cizí měny a jednotek, kopírování kódu rezervace, sledování zási
 prompt `EventPrompt.kt`). Vypínač v Nastavení → Obecné → Chaty, **výchozí zapnuto** — na rozdíl
 od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v zařízení uživatel zapnul.
 
+- **Rozbor pravidly je DRAHÝ a na hlavní vlákno nepatří.** Desítky regulárních výrazů,
+  `foldDiacritics` a hledání letišť, měn a jednotek dělají ~0,1 ms na zprávu na Macu (JVM
+  po zahřátí), na telefonu násobně víc. Dřív běžel dvakrát na hlavním vlákně: ViewModel
+  rozebíral posledních 20 zpráv při každé změně seznamu (jen kvůli předání termínu modelu,
+  a to i bez zapnuté AI, kdy `MessageContexts.check` výsledek zahodí), a každá položka
+  seznamu si ho počítala v kompozici. Odeslání mění seznam několikrát (rozepsaná zpráva,
+  potvrzení s novým id) a let odeslané zprávy z pole drhnul. Změřeno dočasným logem na
+  emulátoru (debug build): pět odeslání = 13 průchodů po 20 zprávách, každý 7–60 ms na hlavním
+  vlákně, tedy několik ztracených snímků na každý let. Teď ViewModel nedělá nic bez
+  zapnuté AI (`MessageContexts.enabled`), každou podobu zprávy (id, text) rozebere jednou
+  a na `Dispatchers.Default`; položka si výsledek bere z mezipaměti obrazovky, jinak ho
+  spočítá na pozadí (`produceState`). Ikonka stojí mimo rozvržení (`offset`), takže když
+  naskočí o snímek později, nic se neposune.
 - **Pravidla napřed, protože jdou ověřit kontrolním součtem.** Český účet mod 11 a kód banky
   ze seznamu ČNB (bez seznamu by „č. j. 1234/2025" prošlo jednou z jedenácti), IBAN mod 97,
   zásilka S10 kontrolní číslicí. Model by tu jen hádal, co už víme jistě. Holá čísla PPL a DPD
@@ -555,6 +568,10 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
   (na nejednoznačný vstup odpověděl polsky).
 - **Návrh se dělá JEDNOU na zprávu** (`ReplySuggestionsViewModel` si drží id). Bez toho by se
   inference pouštěla při každé změně stavu konverzace — přečtení, reakce, scroll.
+- **Během letu odeslané zprávy se návrh nepouští** (`state.flight` v `ConversationScreen`).
+  Pole se vyprázdní dřív, než odeslaná zpráva dorazí do seznamu, takže poslední zprávou byla na
+  okamžik zase ta příchozí: `clear()` při psaní zapomněl id, a model se tak rozjel znovu přesně
+  uprostřed animace — a hned nato se zrušil.
 - **Kdy nabídnout, je čistá funkce** `replySuggestionTarget` (testy `ReplySuggestionsTest`):
   poslední zpráva příchozí a neservisní, nic rozepsaného, neupravuje se, smí se psát. Vrací id
   zprávy, ne `Boolean` — obrazovka podle něj pozná, že jde o jinou zprávu, a nemusí si pamatovat nic.

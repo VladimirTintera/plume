@@ -299,6 +299,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import org.jetbrains.compose.resources.StringResource
 import eu.tintera.plume.core.telegram.InlineBotInfo
 import eu.tintera.plume.core.telegram.InlineQueryDraft
@@ -755,18 +757,27 @@ class ConversationViewModel(
         // nabízejí akce pravidla sama a tady se nic neděje.
         messageContexts?.let { contexts ->
             contexts.reopen(chatId)
+            // Rozbor pravidly je drahý (desítky regulárních výrazů na zprávu) a seznam se mění
+            // i několikrát za jedno odeslání — dřív se tu na hlavním vlákně rozebíralo všech
+            // dvacet zpráv pokaždé znovu a let odeslané zprávy drhnul. Proto: jen se zapnutou AI
+            // (bez ní `check` výsledek zahodí), každá podoba zprávy jednou a mimo hlavní vlákno.
             viewModelScope.launch {
+                val scanned = HashSet<Pair<Long, Int>>()
                 _state.map { it.info to it.messages.take(CONTEXT_RECENT_MESSAGES) }
                     .distinctUntilChanged()
                     .collect { (info, recent) ->
-                        if (info == null || info.protectsContent || !settings.messageContextEnabled.value) return@collect
+                        if (info == null || info.protectsContent || !contexts.enabled) return@collect
+                        val fresh = recent.filter { it.offersContext() && scanned.add(it.id to it.text.hashCode()) }
+                        if (fresh.isEmpty()) return@collect
                         val zone = TimeZone.currentSystemDefault()
-                        recent.forEach { message ->
-                            if (!message.offersContext()) return@forEach
-                            val sentAt = Instant.fromEpochSeconds(message.timestamp.toLong()).toLocalDateTime(zone)
-                            val event = findMessageContext(message.text, message.entities, sentAt, zone, homeCurrency, metricUnits).event ?: return@forEach
-                            contexts.check(chatId, message.id, message.text, sentAt, event.start)
+                        val events = withContext(Dispatchers.Default) {
+                            fresh.mapNotNull { message ->
+                                val sentAt = Instant.fromEpochSeconds(message.timestamp.toLong()).toLocalDateTime(zone)
+                                val event = findMessageContext(message.text, message.entities, sentAt, zone, homeCurrency, metricUnits).event
+                                event?.let { Triple(message, sentAt, it.start) }
+                            }
                         }
+                        events.forEach { (message, sentAt, start) -> contexts.check(chatId, message.id, message.text, sentAt, start) }
                     }
             }
         }

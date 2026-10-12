@@ -58,7 +58,7 @@ class MessageContexts(
      * a termín pak nabízejí pravidla sama.
      */
     fun check(chatId: Long, messageId: Long, text: String, sentAt: LocalDateTime, start: LocalDateTime) {
-        if (!enabled()) return
+        if (!enabled) return
         val key = Key(chatId, messageId, text.hashCode())
         var added = false
         _verdicts.update { current ->
@@ -76,11 +76,15 @@ class MessageContexts(
         _verdicts.update { current -> current.filterNot { (key, verdict) -> key.chatId == chatId && verdict == EventVerdict.Unavailable } }
     }
 
-    private fun enabled(): Boolean = settings.messageContextEnabled.value && settings.onDeviceAiEnabled.value
+    /**
+     * Posuzuje se vůbec? Bez zapnuté AI [check] nic nedělá — kdo by kvůli němu hledal termín
+     * pravidly ([findMessageContext]), udělá drahou práci zbytečně.
+     */
+    val enabled: Boolean get() = settings.messageContextEnabled.value && settings.onDeviceAiEnabled.value
 
     private suspend fun judge(request: Request) {
         val variant = settings.onDeviceAiVariant.value
-        val ready = enabled() && runCatching { ai.status(variant) == OnDeviceAiStatus.Ready }.getOrDefault(false)
+        val ready = enabled && runCatching { ai.status(variant) == OnDeviceAiStatus.Ready }.getOrDefault(false)
         if (!ready) {
             // Model zatím není: termín nabídnou pravidla, posoudí se až s dalším otevřením chatu
             // ([reopen]). Odebrat klíč by znamenalo zařadit zprávu znovu s každou změnou stavu.
