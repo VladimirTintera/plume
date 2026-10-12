@@ -514,7 +514,8 @@ snadno na to uživatel narazí.
   otevře ten chat; `docs/poznatky/konverzace-psani.md`, „Odpovědi (reply)"). **Ověřené jen sondou**, skutečnou odpověď
   z jiného chatu zatím nikdo neviděl. ~~**Odpověď na příběh** (`MessageReplyToStory`)~~ —
   hotovo, i s odkazem `t.me/…/s/N` (`docs/poznatky/typy-zprav.md`, „Odpověď na příběh a odkaz na příběh");
-  ověřené jen sondou. ~~Náhled obrázku v citaci~~ — hotovo (i u odpovědi z jiného chatu).
+  ověřené se dvěma účty. ~~Náhled obrázku v citaci~~ — hotovo (i u odpovědi z jiného chatu).
+  Zbývá zvážit **„Vy" místo vlastního jména** v citaci odpovědi na vlastní příběh.
 - ~~**Citlivý obsah**~~ — hotovo: fotka, video i GIF rozostřené se štítkem „Citlivý obsah",
   odkrytí ťuknutím (`docs/poznatky/prohlizec-medii.md`, „Citlivý obsah"). Zbývá:
   - ~~**přepínač „Zobrazovat citlivý obsah"** v Nastavení~~ — hotovo (Obecné → Soukromí);
