@@ -299,10 +299,10 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
 1. **Hovory v historii a příchozí hovor bez přenosu** (malé, jen nad TDLib):
    - ~~**Zpráva o hovoru jako řádek, ne bublina s jedním slovem**~~ — hotovo (směr, zmeškaný /
      odmítnutý / zrušený, délka, video; `docs/poznatky/typy-zprav.md`, „Zpráva o hovoru"). Ťuknutí nevede nikam.
-     **Skutečný hovor v historii ověřený není** — jen sondou v chatu s botem.
+     Skutečný hovor v historii ověřený se dvěma účty (`docs/poznatky/typy-zprav.md`, „Zpráva o hovoru").
    - ~~**Příchozí hovor ohlásit**~~ — hotovo na Androidu: notifikace v kanálu Hovory
-     s „Odmítnout" (`docs/poznatky/notifikace.md`, „Ohlášení příchozího hovoru"). **Skutečný hovor ověřený NENÍ**
-     (chce druhý účet), jen sondou. Na iOS ohlásí hovor push od Telegramu sám (`PHONE_CALL_REQUEST`
+     s „Odmítnout" (`docs/poznatky/notifikace.md`, „Ohlášení příchozího hovoru"). Ověřené skutečným hovorem
+     mezi dvěma telefony, i z pushe se zabitým procesem. Na iOS ohlásí hovor push od Telegramu sám (`PHONE_CALL_REQUEST`
      v textech pushe); v popředí aplikace se zatím neohlašuje nic.
    - ~~**Hovory ve skupině**~~ — hotovo: pruh „Probíhá videochat" / „Živé vysílání" / naplánovaný
      nad konverzací s počtem účastníků (`docs/poznatky/notifikace.md`, „Pruh videochatu"). Připojit se nejde;

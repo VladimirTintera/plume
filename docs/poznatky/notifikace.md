@@ -146,6 +146,13 @@ a odložené rušení prázdné notifikace.
   Není to okrajový případ: push probouzí MRTVÝ proces, takže bez toho by třetí zpráva nahradila
   notifikaci se dvěma předchozími. Převzaté řádky nemají `notificationId` — TDLib ho do notifikace
   nepředává — takže se jednotlivě zrušit nedají a odejdou až s celou notifikací.
+  **Odesílatel se převezme jen ze SKUPINOVÉ notifikace** (`isGroupConversation`). V soukromém
+  chatu nese osoba řádku název chatu (`setName(line.sender ?: conversation.title)`), a dokud se
+  brala jako odesílatel, z převzatých řádků vyšla „skupina": systém pak psal „Pixel 5: Zmeškaný
+  hovor" pod nadpisem „Pixel 5: Pixel 5". Projevilo se to jen po probuzení pushem nad notifikací,
+  která v liště zůstala — tedy přesně v případě, kvůli kterému převzetí existuje. Zjištěno a
+  ověřeno se dvěma účty na dvou telefonech (12. 10. 2026): zabitý proces (`am kill`), v liště
+  „Mizející fotka", nová zpráva → dva řádky, `isGroupConversation=false`, nadpis „Pixel 5".
 - **Profilovka se do notifikace předává jako CESTA, ne `fileId`.** Notifikace se skládá naráz
   a ikonu na ni nejde doplnit dodatečně, takže se soubor musí vyřídit dřív, než se hodnota dostane
   do `ChatNotification`. V repository se proto stahuje `synchronous = true` — vědomě naopak než
@@ -245,7 +252,13 @@ bez stopy a kdo měl jen Plume, dozvěděl se o něm až ze zmeškaného hovoru.
   se stejnou skupinou — přečtení zprávy pak ověří i rušení. Necommituje se. **Pozor:** aplikace
   na pozadí na emulátoru notifikaci nedostala (zmrazený proces, push nepřišel); ověřovat
   s aplikací v popředí v jiném chatu (Uložené zprávy). Ověřeno: vzhled, „Odmítnout" dojde
-  k `discardCall`, přečtení notifikaci stáhne. **Skutečný hovor (a hovor z pushe) ověřený NENÍ.**
+  k `discardCall`, přečtení notifikaci stáhne. **Skutečný hovor ověřený na dvou telefonech**
+  (12. 10. 2026, z oficiálního Telegramu na Pixelu 5 na Plume na Pixelu 7 Pro): notifikace
+  „Pixel 5 · Volá ti" v kanálu `calls` s „Odmítnout"; odmítnutí z Plume volající uvidí jako
+  „Line busy". **Z pushe taky**: proces Plume zabitý (`am kill`, ne `force-stop` — zastavená
+  aplikace push nedostane), notifikace hovoru do 2 s; když volající zavěsí, TDLib ji stáhne
+  a přijde zpráva „Zmeškaný hovor". Oficiální Telegram na témže účtu zvoní vedle — to je
+  v pořádku, hovor přijmout umí jen on.
 
 ### Pruh videochatu
 

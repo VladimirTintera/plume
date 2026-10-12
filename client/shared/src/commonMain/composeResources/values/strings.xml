@@ -231,6 +231,8 @@
     <string name="settings_separate_unread">Unread in their own block</string>
     <string name="settings_separate_unread_summary">Unread chats move above the rest. Off, the list keeps the order Telegram sends.</string>
     <string name="media_photo">Photo</string>
+    <string name="media_self_destruct_photo">Self-destructing photo</string>
+    <string name="media_self_destruct_video">Self-destructing video</string>
     <string name="media_download">Download</string>
     <string name="media_position">%1$d of %2$d</string>
     <string name="media_unsupported">We can't open this kind of attachment yet.</string>

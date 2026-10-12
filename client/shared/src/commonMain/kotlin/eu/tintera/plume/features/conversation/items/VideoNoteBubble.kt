@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -10,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -171,6 +173,12 @@ internal fun VideoNoteBubble(
                     text = formatDuration(if (sounding) elapsedSeconds else note.durationSeconds),
                     style = MaterialTheme.typography.labelSmall.tabularNumbers(),
                 )
+                // Nezhlédnuté kolečko má tečku jako neposlechnutá hlasovka — u příchozího „ještě
+                // jsi ho nepustil", u odchozího „protějšek ho ještě nepustil se zvukem". Tichá
+                // smyčka se za zhlédnutí nepočítá.
+                if (!note.isViewed) {
+                    Box(Modifier.padding(start = 4.dp).size(5.dp).background(LocalContentColor.current, CircleShape))
+                }
                 if (!sounding) {
                     Icon(
                         painterResource(Res.drawable.volume_off_24dp),

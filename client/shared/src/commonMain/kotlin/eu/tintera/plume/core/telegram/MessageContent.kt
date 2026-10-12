@@ -218,6 +218,8 @@ import eu.tintera.plume.resources.content_venue
 import eu.tintera.plume.resources.content_video_note
 import eu.tintera.plume.resources.conversation_voice_message
 import eu.tintera.plume.resources.media_photo
+import eu.tintera.plume.resources.media_self_destruct_photo
+import eu.tintera.plume.resources.media_self_destruct_video
 import eu.tintera.plume.resources.media_sticker
 import eu.tintera.plume.resources.media_video
 import eu.tintera.plume.resources.notification_new_message
@@ -244,22 +246,41 @@ internal fun Message.notificationText(): UiText =
 
 // Omezená zpráva má místo obsahu důvod — i v náhledu a v notifikaci, jinak by tam obsah prosákl.
 private fun Message.previewTextOrNull(): UiText? =
-    restrictionText?.let(UiText::Raw) ?: content.previewTextOrNull(isOutgoing = isOutgoing, isChannelPost = isChannelPost)
+    restrictionText?.let(UiText::Raw) ?: content.previewTextOrNull(
+        isOutgoing = isOutgoing,
+        isChannelPost = isChannelPost,
+        selfDestructs = selfDestructType != null,
+    )
 
 /** Entity náhledu v seznamu chatů; omezená zpráva má místo obsahu důvod, a ten entity nenese. */
 internal fun Message.previewEntities(): List<MessageEntity> =
-    if (restrictionText != null) emptyList() else content.previewEntities()
+    if (restrictionText != null) emptyList() else content.previewEntities(selfDestructs = selfDestructType != null)
 
 /**
  * Slovní podoba obsahu, i bez celé zprávy — odpověď na zprávu z jiného chatu nese jen obsah
  * citované zprávy, ne zprávu samotnou. [isOutgoing] je směr zprávy, které obsah patří (podle
  * něj se jmenuje zpráva o hovoru); u citace z jiného chatu ho neznáme a je `false`.
  * [isChannelPost] je `Message.isChannelPost` téže zprávy (kanál, nebo skupina, viz [serviceText]).
+ * [selfDestructs] = mizející médium (`Message.selfDestructType`); citace ho nezná a je `false`.
  */
-internal fun MessageContent.previewTextOrNull(isOutgoing: Boolean, isChannelPost: Boolean): UiText? = when (val content = this) {
+internal fun MessageContent.previewTextOrNull(
+    isOutgoing: Boolean,
+    isChannelPost: Boolean,
+    selfDestructs: Boolean = false,
+): UiText? = when (val content = this) {
     is MessageText -> UiText.Raw(content.text.text)
-    is MessagePhoto -> content.caption.text.orText(Res.string.media_photo)
-    is MessageVideo -> content.caption.text.orText(Res.string.media_video)
+    // Mizející médium jménem, ne „Fotka": v seznamu ani v notifikaci by se nepoznalo, že se
+    // otevře jen jednou. Popisek k mizejícímu obsahu patří, takže se do náhledu nedává.
+    is MessagePhoto -> if (selfDestructs) {
+        UiText(Res.string.media_self_destruct_photo)
+    } else {
+        content.caption.text.orText(Res.string.media_photo)
+    }
+    is MessageVideo -> if (selfDestructs) {
+        UiText(Res.string.media_self_destruct_video)
+    } else {
+        content.caption.text.orText(Res.string.media_video)
+    }
     is MessageAnimation -> content.caption.text.orText(Res.string.content_gif)
     is MessageDocument -> content.caption.text.orText(Res.string.content_file)
     // Skladba se v náhledu pozná jménem — „Audio" u každé by v seznamu nic neřeklo.
@@ -283,11 +304,12 @@ internal fun MessageContent.previewTextOrNull(isOutgoing: Boolean, isChannelPost
  * U popisku, který je prázdný, stojí v náhledu název typu („Fotka") — a prázdný popisek žádné
  * entity nemá, takže se rozsahy s textem nerozejdou.
  */
-internal fun MessageContent.previewEntities(): List<MessageEntity> {
+internal fun MessageContent.previewEntities(selfDestructs: Boolean = false): List<MessageEntity> {
     val formatted = when (this) {
         is MessageText -> text
-        is MessagePhoto -> caption
-        is MessageVideo -> caption
+        // Mizející médium má v náhledu název, ne popisek ([previewTextOrNull]).
+        is MessagePhoto -> caption.takeIf { !selfDestructs } ?: return emptyList()
+        is MessageVideo -> caption.takeIf { !selfDestructs } ?: return emptyList()
         is MessageAnimation -> caption
         is MessageDocument -> caption
         is MessageAudio -> caption
@@ -309,8 +331,9 @@ internal fun MessageContent.previewEntities(): List<MessageEntity> {
  */
 internal fun PushMessageContent.previewText(): UiText = when (this) {
     is PushMessageContentText -> UiText.Raw(text)
-    is PushMessageContentPhoto -> caption.orText(Res.string.media_photo)
-    is PushMessageContentVideo -> caption.orText(Res.string.media_video)
+    // `isSecret` je v pushi mizející médium; slova jako u zprávy ([previewTextOrNull]).
+    is PushMessageContentPhoto -> if (isSecret) UiText(Res.string.media_self_destruct_photo) else caption.orText(Res.string.media_photo)
+    is PushMessageContentVideo -> if (isSecret) UiText(Res.string.media_self_destruct_video) else caption.orText(Res.string.media_video)
     is PushMessageContentAnimation -> caption.orText(Res.string.content_gif)
     is PushMessageContentDocument -> UiText(Res.string.content_file)
     is PushMessageContentAudio -> UiText(Res.string.content_audio)

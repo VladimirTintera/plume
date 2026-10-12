@@ -127,7 +127,8 @@ nevyplatí.
 - **Tažení po waveformu `pointerInput` spotřebuje**, takže se na něm nerozjede swipe na odpověď.
   Posouvat jde jen vybranou hlasovku; u ostatních waveform gesta nemá.
 - **Poslechnuto = `openMessageContent`.** Ukáže se hned lokálně, potvrzení a poslechnutí našich
-  odchozích protějškem chodí `UpdateMessageContentOpened` (`contentOpenedUpdates`).
+  odchozích protějškem chodí `UpdateMessageContentOpened` (`contentOpenedUpdates`). Ověřeno se
+  dvěma účty (12. 10. 2026): po přehrání u příjemce zmizela tečka u odesílatele.
 - **Android přehraje Ogg/Opus sám** (`MediaPlayer`, atributy řeč/média).
 - **iOS Ogg NEPŘEHRAJE** — AVFoundation zná Opus jen v CAF. Dekodér Opusu ale systém má: pakety
   se z Oggu vytáhnou v Kotlinu (`parseOggOpus`, commonMain), `AVAudioConverter` je dekóduje do PCM

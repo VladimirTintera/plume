@@ -297,7 +297,9 @@ Co zbývá:
   v soukromém chatu (a její nepřítomnost v Uložených zprávách i ve skupině), viditelné vypnutí
   mizení u alba se snackbarem, odeslání obou režimů a `FLAG_SECURE` (příznak `SECURE`
   v `dumpsys window`, ne jen černý snímek). Postup je v `docs/poznatky/prohlizec-medii.md`, „Jak to ověřit".
-- **Příjem zatím nikdo neviděl a potřebuje druhý uživatelský účet.** Do bota se mizející
+- ~~**Příjem zatím nikdo neviděl**~~ — ověřeno se dvěma účty (časovač i jednorázové
+  zhlédnutí, `docs/poznatky/prohlizec-medii.md`, „Spoilery a mizející média"). Původně:
+  Do bota se mizející
   médium poslat DÁ (chat s botem je soukromý chat a server ho přijme), ale bot ho neodešle —
   Bot API mizení nezná, `sendPhoto` nemá `ttl_seconds`. U vlastní odeslané zprávy se odpočet
   z principu nespustí, takže přes ni se příjem ověřit nedá. Hlavně jde o to, jestli jednorázové
@@ -444,7 +446,7 @@ snadno na to uživatel narazí.
   (`docs/poznatky/prohlizec-medii.md`, „Přepis řeči"); zbývá ho ověřit s účtem, který přepisovat smí (Premium nebo
   zkušební přepisy), přepis ve skupině s boosty (`group_transcribe_level_min`) a hodnocení
   přepisu (`rateSpeechRecognition`). Dál zbývá ověřit
-  zhlédnutí u odesílatele, **nahrávání na iOS ověřit na telefonu** (simulátor kameru nemá),
+  ~~zhlédnutí u odesílatele~~ (ověřeno se dvěma účty), **nahrávání na iOS ověřit na telefonu** (simulátor kameru nemá),
   **přepnutí kamery během nahrávání na iOS** (chce `AVAssetWriter` místo
   `AVCaptureMovieFileOutput`) a na Androidu ověřit přepnutí na zadní kameru. ~~Náhled před odesláním~~ — hotovo (■ u zamčeného kolečka; `docs/poznatky/prohlizec-medii.md`, „Nahrávání koleček").
 - ~~**Hudba** (`MessageAudio`)~~ — hotovo: přehrávání v bublině s obalem, interpretem, posunem
