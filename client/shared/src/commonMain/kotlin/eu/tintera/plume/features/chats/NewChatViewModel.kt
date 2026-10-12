@@ -3,10 +3,13 @@ package eu.tintera.plume.features.chats
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.navigation.LinkOpenRequests
+import eu.tintera.plume.core.navigation.isTelegramLink
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.my_qr_not_telegram
 import eu.tintera.plume.resources.new_chat_load_failed
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,6 +30,7 @@ data class NewChatState(
 
 class NewChatViewModel(
     private val chatRepository: ChatRepository,
+    private val linkRequests: LinkOpenRequests = LinkOpenRequests(),
 ) : ViewModel() {
 
     private val logger = Logger.withTag("NewChatViewModel")
@@ -94,5 +98,19 @@ class NewChatViewModel(
 
     fun consumeError() {
         error.value = null
+    }
+
+    /**
+     * Kód naskenovaný z řádku „Naskenovat QR kód": odkaz na Telegram otevře shell
+     * ([LinkOpenRequests]) — kontaktní odkaz chat s tím člověkem, a „Nová zpráva" tím odejde.
+     * Cokoli jiného jen ohlásí, že to kód Telegramu není.
+     */
+    fun onScanned(content: String) {
+        val text = content.trim()
+        if (isTelegramLink(text)) linkRequests.request(text) else error.value = UiText(Res.string.my_qr_not_telegram)
+    }
+
+    fun onScanFailed(message: UiText) {
+        error.value = message
     }
 }

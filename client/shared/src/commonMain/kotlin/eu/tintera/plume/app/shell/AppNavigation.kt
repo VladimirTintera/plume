@@ -164,6 +164,17 @@ class AppNavigation internal constructor(
     }
 
     /**
+     * Odkaz zvenčí (jiná aplikace, čtečka QR kódů — [openExternal]): zásobník Chatů se srovná
+     * na seznam a [build] nad něj přidá cíl, jako u [openChat]. Odkaz s tím, co bylo v Plume
+     * zrovna otevřené, nesouvisí, takže zpět vede na seznam.
+     */
+    internal fun openOverChats(build: MutableList<NavKey>.() -> Unit) {
+        selected.value = ChatsRoute
+        popToRoot(ChatsRoute)
+        stack(ChatsRoute).build()
+    }
+
+    /**
      * Rychlý přepínač v konverzaci (podržení šipky zpět): vybraný chat nahradí všechno nad
      * seznamem chatů, jako by se na něj ťuklo v seznamu. Zpět z něj vede na seznam, ne do chatu,
      * ze kterého se přepnulo — přepínání sem a tam by jinak vršilo zásobník bez konce.

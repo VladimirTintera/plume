@@ -245,6 +245,9 @@ import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.core.ui.folderIcon
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.resources.chats_account
+import eu.tintera.plume.resources.my_qr_title
+import eu.tintera.plume.resources.qr_code_24dp
+import eu.tintera.plume.features.settings.MyQrCodeSheet
 import eu.tintera.plume.resources.nav_settings
 import eu.tintera.plume.resources.person_24dp
 import eu.tintera.plume.resources.settings_24dp
@@ -298,6 +301,7 @@ fun ChatListScreen(
     val archiveUnread by viewModel.archiveUnread.collectAsStateWithLifecycle()
     val drafts by viewModel.drafts.collectAsStateWithLifecycle()
     var showDrafts by rememberSaveable { mutableStateOf(false) }
+    var showMyQrCode by rememberSaveable { mutableStateOf(false) }
     val folderTabs by viewModel.folderTabs.collectAsStateWithLifecycle()
     val folderSuggestions by viewModel.folderSuggestions.collectAsStateWithLifecycle()
     val reorder by viewModel.reorder.collectAsStateWithLifecycle()
@@ -373,6 +377,7 @@ fun ChatListScreen(
             onDismiss = { showDrafts = false },
         )
     }
+    if (showMyQrCode) MyQrCodeSheet(onDismiss = { showMyQrCode = false })
     newFolderChats?.takeIf { it.sheetOpen }?.let { folderChats ->
         NewFolderChatsSheet(
             state = folderChats,
@@ -469,6 +474,7 @@ fun ChatListScreen(
                             onArchive = onOpenArchive,
                             draftCount = drafts?.size ?: 0,
                             onDrafts = { showDrafts = true },
+                            onMyQrCode = { showMyQrCode = true },
                             onSettings = onOpenSettings,
                         )
                     },
@@ -798,6 +804,7 @@ private fun AccountMenu(
     /** Kolik chatů má rozepsanou zprávu; bez konceptů položka v menu není. */
     draftCount: Int,
     onDrafts: () -> Unit,
+    onMyQrCode: () -> Unit,
     onSettings: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
@@ -873,7 +880,8 @@ private fun AccountMenu(
                 )
             }
         }
-        // Kam se odtud jde: místa v chatech, pak Nastavení — jiný druh cíle, vlastní skupina.
+        // Kam se odtud jde: místa v chatech, pak vlastní účet (QR kód) a Nastavení — jiný druh
+        // cíle, vlastní skupina.
         // Koncepty jen když nějaké jsou: prázdný přehled by byl položka, která nikam nevede.
         val draftsLabel = pluralStringResource(Res.plurals.chats_drafts_count, draftCount, draftCount)
         ExpressiveMenu(
@@ -912,7 +920,10 @@ private fun AccountMenu(
                         null
                     },
                 ),
-                listOf(MenuAction(stringResource(Res.string.nav_settings), Res.drawable.settings_24dp, onClick = onSettings)),
+                listOf(
+                    MenuAction(stringResource(Res.string.my_qr_title), Res.drawable.qr_code_24dp, onClick = onMyQrCode),
+                    MenuAction(stringResource(Res.string.nav_settings), Res.drawable.settings_24dp, onClick = onSettings),
+                ),
             ),
         )
     }

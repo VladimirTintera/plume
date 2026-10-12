@@ -32,7 +32,22 @@ interface AccountRepository {
 
     /** Odebere současnou fotku; ukáže se ta předchozí, pokud nějaká je. */
     suspend fun deletePhoto(): Result<Unit>
+
+    /**
+     * Odkaz, přes který si mě druhý najde a napíše mi (QR kód „Můj kontakt"). Server ho při
+     * každém volání může vydat nový; viz [ContactLink].
+     */
+    suspend fun contactLink(): Result<ContactLink>
 }
+
+/**
+ * Odkaz na vlastní účet (`getUserLink`).
+ *
+ * - S veřejným uživatelským jménem je to `t.me/jméno` a platí napořád ([expiresInSeconds] `0`).
+ * - Bez něj dočasný kontaktní odkaz `t.me/contact/…` s tokenem. Kdo ho otevře, najde účet
+ *   (`searchUserByToken`), i když číslo skrývá — proto platí jen chvíli a pak se vyrábí nový.
+ */
+data class ContactLink(val url: String, val expiresInSeconds: Int)
 
 data class EditableProfile(
     val id: Long,

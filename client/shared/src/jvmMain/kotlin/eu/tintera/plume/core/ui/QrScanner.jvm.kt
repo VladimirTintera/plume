@@ -12,3 +12,5 @@ actual fun rememberQrScanner(
     val failure = rememberUpdatedState(onFailure)
     return { failure.value(QrScanFailure.Unavailable) }
 }
+
+actual val qrScannerSupported: Boolean = false

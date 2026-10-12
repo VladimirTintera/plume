@@ -2737,4 +2737,20 @@
     <string name="message_context_flight_estimated">%1$s (odhad)</string>
     <string name="message_context_money_assumed">%1$s (%2$s)</string>
     <string name="menu_context_wifi_sheet">Wi-Fi a heslo…</string>
+    <string name="my_qr_title">Můj QR kód</string>
+    <string name="my_qr_hint">Ať si druhý kód naskenuje fotoaparátem nebo v Telegramu. Otevře se mu chat s vámi.</string>
+    <string name="my_qr_expires">Platí do %1$s, pak ho nahradí nový kód.</string>
+    <string name="my_qr_permanent">Kód vede na vaše veřejné uživatelské jméno, takže nevyprší.</string>
+    <string name="my_qr_description">QR kód s odkazem na váš účet</string>
+    <string name="my_qr_share">Sdílet</string>
+    <string name="my_qr_copy">Kopírovat</string>
+    <string name="my_qr_copied">Zkopírováno</string>
+    <string name="my_qr_failed">Kód se nepodařilo vytvořit.</string>
+    <string name="my_qr_scan">Naskenovat kód druhého</string>
+    <string name="my_qr_not_telegram">Tohle není kód Telegramu.</string>
+    <string name="contact_link_expired">Tenhle kontaktní kód už neplatí. Požádejte o nový.</string>
+    <string name="new_chat_scan_qr">Naskenovat QR kód</string>
+    <string name="settings_telegram_links">Otevírat odkazy Telegramu v Plume</string>
+    <string name="settings_telegram_links_on">Odkazy z jiných aplikací a naskenované kódy se otevřou tady.</string>
+    <string name="settings_telegram_links_off">Odkazy z jiných aplikací teď otevírá prohlížeč. Povolte odkazy t.me v nastavení systému.</string>
 </resources>

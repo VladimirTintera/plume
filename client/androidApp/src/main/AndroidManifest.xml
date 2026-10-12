@@ -134,6 +134,29 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
 
+            <!-- Odkazy na Telegram z jiných aplikací a z fotoaparátu (naskenovaný „Můj QR kód"):
+                 otevře je shell přes LinkOpenRequests. Schéma tg:// systém doručí rovnou (s oficiálním
+                 klientem nabídne výběr). Doménu t.me Plume ověřit nemůže (assetlinks.json na ní vydává
+                 Telegram), proto bez autoVerify: od Androidu 12 ji systém pošle sem, až ji uživatel
+                 povolí v „Otevírat ve výchozím nastavení" (řádek v Nastavení → Obecné → Chaty). -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="tg" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:scheme="http" />
+                <data android:host="t.me" />
+                <data android:host="*.t.me" />
+                <data android:host="telegram.me" />
+                <data android:host="telegram.dog" />
+            </intent-filter>
+
             <!-- Direct Share: chaty přímo v nabídce „Sdílet" (res/xml/shortcuts.xml). -->
             <meta-data
                 android:name="android.app.shortcuts"

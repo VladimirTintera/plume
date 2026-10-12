@@ -78,6 +78,26 @@ actual class UrlOpener(
         }
     }
 
+    /**
+     * Výchozí prohlížeč přes selektor (`CATEGORY_APP_BROWSER`): systém podle něj vybere
+     * prohlížeč a doručí mu původní `ACTION_VIEW` s adresou. Obyčejný `ACTION_VIEW` ani karta
+     * Custom Tabs nestačí — adresu `t.me` by systém mohl předat zpátky Plume, když ji má
+     * uživatel povolenou jako odkaz, který Plume otevírá.
+     */
+    actual fun openInBrowser(url: String): Boolean {
+        val intent = Intent(Intent.ACTION_VIEW, url.toUri())
+            .addCategory(Intent.CATEGORY_BROWSABLE)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        intent.selector = Intent.makeMainSelectorActivity(Intent.ACTION_MAIN, Intent.CATEGORY_APP_BROWSER)
+        return try {
+            context.startActivity(intent)
+            true
+        } catch (e: ActivityNotFoundException) {
+            logger.w(e) { "Odkaz nejde otevřít v prohlížeči: $url" }
+            false
+        }
+    }
+
     private fun view(uri: Uri) {
         // Spouštíme z aplikačního kontextu, ne z activity — bez NEW_TASK to Android odmítne.
         context.startActivity(Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

@@ -733,7 +733,12 @@ class TdlChatRepository(
 
             // Kontaktní odkaz (`t.me/contact/…`), který si člověk vyrobil ve svém profilu.
             is InternalLinkTypeUserToken ->
-                privateChatLink(client.searchUserByToken(token = type.token), draftText = "", openProfile = false)
+                privateChatLink(
+                    client.searchUserByToken(token = type.token),
+                    draftText = "",
+                    openProfile = false,
+                    notFound = ::ContactLinkExpiredException,
+                )
 
             // `t.me/share/url?url=…&text=…`. TDLib adresu i text složí do jednoho textu sám.
             is InternalLinkTypeMessageDraft ->
@@ -860,13 +865,20 @@ class TdlChatRepository(
     /**
      * Soukromý chat s uživatelem, kterého vydalo hledání podle čísla nebo kontaktního odkazu.
      * Chat se založí lokálně (`createPrivateChat`), jinak by ho TDLib neznal a nešel by otevřít.
+     * [notFound] je chyba, když server nikoho nevydá — u čísla a u kontaktního odkazu to
+     * znamená něco jiného (viz [ContactLinkExpiredException]).
      */
-    private suspend fun privateChatLink(user: TdlResult<User>, draftText: String, openProfile: Boolean): Result<InternalLink?> =
+    private suspend fun privateChatLink(
+        user: TdlResult<User>,
+        draftText: String,
+        openProfile: Boolean,
+        notFound: () -> Throwable = ::LinkUserNotFoundException,
+    ): Result<InternalLink?> =
         when (user) {
             is TdlResult.Failure ->
                 if (user.code == BAD_REQUEST || user.code == NOT_FOUND) {
                     logger.i { "Uživatel z odkazu nenalezen: ${user.code} ${user.message}" }
-                    Result.failure(LinkUserNotFoundException())
+                    Result.failure(notFound())
                 } else {
                     user.toResult().map { null }
                 }

@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
 import eu.tintera.plume.core.navigation.ChatOpenRequests
+import eu.tintera.plume.core.navigation.LinkOpenRequests
 import eu.tintera.plume.core.notifications.NotificationIntents
 import eu.tintera.plume.core.share.ShareIntake
 import eu.tintera.plume.core.ui.KeyboardShortcutOverview
@@ -22,6 +23,7 @@ import org.koin.android.ext.android.inject
 class MainActivity : ComponentActivity() {
 
     private val chatOpenRequests: ChatOpenRequests by inject()
+    private val linkOpenRequests: LinkOpenRequests by inject()
     private val shareIntake: ShareIntake by inject()
     private val keyboardShortcuts: KeyboardShortcuts by inject()
 
@@ -39,6 +41,8 @@ class MainActivity : ComponentActivity() {
         // proto se sdílení z intentu po zpracování maže, jinak by se výběr chatu ukázal podruhé.
         // `savedInstanceState` navíc značí obnovu: tehdy už sdílení jednou zpracované bylo.
         if (savedInstanceState == null) receiveShare(intent)
+        // Odkaz na Telegram z jiné aplikace; jednorázový ze stejného důvodu jako sdílení.
+        if (savedInstanceState == null) receiveLink(intent)
 
         // O oprávnění k notifikacím se žádá až v přihlášené části aplikace, viz
         // NotificationPermissionPrompt — ne odsud, kde by dialog vyskočil nad přihlášením.
@@ -64,6 +68,7 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         openChatFrom(intent)
         receiveShare(intent)
+        receiveLink(intent)
     }
 
     /**
@@ -81,6 +86,19 @@ class MainActivity : ComponentActivity() {
      */
     private fun receiveShare(intent: Intent) {
         if (shareIntake.handle(intent)) intent.action = null
+    }
+
+    /**
+     * Odkaz `t.me/…` nebo `tg://…` (filtry v manifestu). Co znamená, rozhodne až TDLib v shellu
+     * ([LinkOpenRequests]); tady se jen předá a z intentu smaže, aby ho otočení displeje
+     * neotevřelo podruhé.
+     */
+    private fun receiveLink(intent: Intent) {
+        if (intent.action != Intent.ACTION_VIEW) return
+        val url = intent.dataString ?: return
+        linkOpenRequests.request(url)
+        intent.action = null
+        intent.data = null
     }
 
     private fun openChatFrom(intent: Intent) {

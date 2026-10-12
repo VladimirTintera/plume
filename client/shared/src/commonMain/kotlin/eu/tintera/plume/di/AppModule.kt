@@ -64,6 +64,7 @@ import eu.tintera.plume.features.conversation.InlineQueryRequests
 import eu.tintera.plume.features.conversation.SwitchInlinePickerViewModel
 import eu.tintera.plume.features.conversation.ConversationSearchRequests
 import eu.tintera.plume.core.navigation.ChatOpenRequests
+import eu.tintera.plume.core.navigation.LinkOpenRequests
 import eu.tintera.plume.core.navigation.NO_STORY
 import eu.tintera.plume.core.navigation.BotStartRequests
 import eu.tintera.plume.core.share.ShareRequests
@@ -118,6 +119,8 @@ import eu.tintera.plume.features.chats.ChatsViewModel
 import eu.tintera.plume.features.chats.NowPlayingViewModel
 import eu.tintera.plume.features.chats.AddBotToGroupViewModel
 import eu.tintera.plume.features.chats.NewChatViewModel
+import eu.tintera.plume.features.links.ExternalLinkViewModel
+import eu.tintera.plume.features.settings.MyQrCodeViewModel
 import eu.tintera.plume.features.chats.NewContactViewModel
 import eu.tintera.plume.features.chats.CreateChatViewModel
 import eu.tintera.plume.core.telegram.ChatCreation
@@ -315,6 +318,7 @@ fun appModule() = module {
 
     // Most mezi platformním vstupem (ťuknutí na notifikaci) a navigací.
     single { ChatOpenRequests() }
+    single { LinkOpenRequests() }
     single { BotStartRequests() }
     single { ConversationSearchRequests() }
     single { ConversationJumpRequests() }
@@ -678,6 +682,8 @@ fun appModule() = module {
 
     viewModelOf(::NewChatViewModel)
     viewModelOf(::NewContactViewModel)
+    viewModelOf(::MyQrCodeViewModel)
+    viewModelOf(::ExternalLinkViewModel)
 
     // Druh a členové jdou z routy; indexem, `get()` by bral podle typu.
     viewModel { parameters ->

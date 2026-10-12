@@ -41,3 +41,5 @@ actual fun rememberQrScanner(
         }
     }
 }
+
+actual val qrScannerSupported: Boolean = true
