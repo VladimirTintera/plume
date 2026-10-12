@@ -371,6 +371,9 @@
     <string name="conversation_not_member">You are no longer in this chat.</string>
     <string name="conversation_topic_closed">This topic is closed. Only admins can post in it.</string>
     <string name="secret_chat">Secret chat</string>
+    <string name="secret_chat_key_title">Encryption key</string>
+    <string name="secret_chat_key_compare">Compare with the other person</string>
+    <string name="secret_chat_key_explanation">If this image and these numbers look the same on %1$s’s device, the chat is encrypted between the two of you and nobody in between can read it.</string>
     <string name="secret_chat_state_pending">Waiting for the other person to come online…</string>
     <string name="secret_chat_state_ready">Secret chat is ready</string>
     <string name="secret_chat_state_closed">Secret chat ended</string>

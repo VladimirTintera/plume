@@ -187,6 +187,8 @@ import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.describe
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.secret_chat_key_title
+import eu.tintera.plume.resources.secret_chat_key_compare
 import eu.tintera.plume.resources.lock_open_24dp
 import eu.tintera.plume.resources.lock_24dp
 import eu.tintera.plume.resources.secret_chat_start
@@ -274,6 +276,7 @@ fun ChatProfileScreen(
     var showBookmarks by rememberSaveable { mutableStateOf(false) }
     val chatColor by viewModel.chatColor.collectAsStateWithLifecycle()
     var showChatColor by rememberSaveable { mutableStateOf(false) }
+    var showSecretKey by rememberSaveable { mutableStateOf(false) }
     // Návrat z úpravy chatu (název, popis, veřejný odkaz): profil se tu skládá znovu, ale
     // ViewModel přežil a jinak by ukazoval, co přečetl při otevření.
     LaunchedEffect(Unit) { viewModel.refreshOnReturn() }
@@ -426,6 +429,7 @@ fun ChatProfileScreen(
                 val showsAutoDelete = profile.canSetAutoDelete || profile.autoDeleteTime > 0
                 if (profile.usernames.isNotEmpty() || profile.phone != null || profile.about.isNotBlank() ||
                     notifications != null || showsAutoDelete || profile.linkedChat != null || bookmarks.isNotEmpty() ||
+                    profile.secretChatKey != null ||
                     viewModel.supportsChatColor
                 ) {
                     ProfileInfo(
@@ -437,11 +441,17 @@ fun ChatProfileScreen(
                         onOpenLinkedChat = viewModel::openLinkedChat,
                         onOpenNotifications = viewModel::openNotificationSheet,
                         onOpenAutoDelete = viewModel::openAutoDeleteSheet.takeIf { profile.canSetAutoDelete },
+                        onOpenSecretKey = { showSecretKey = true },
                         chatColor = chatColor,
                         onOpenChatColor = { showChatColor = true }.takeIf { viewModel.supportsChatColor },
                     )
                 }
             }
+        }
+
+        val secretKey = profile.secretChatKey
+        if (showSecretKey && secretKey != null) {
+            SecretChatKeySheet(key = secretKey, partnerName = profile.title, onDismiss = { showSecretKey = false })
         }
 
         if (state.autoDeleteSheet) {
@@ -1089,6 +1099,7 @@ private fun ProfileInfo(
     onOpenNotifications: () -> Unit,
     /** `null` = mazání měnit nesmí; řádek se pak jen ukáže, když je zapnuté. */
     onOpenAutoDelete: (() -> Unit)?,
+    onOpenSecretKey: () -> Unit,
     /** Barva konverzace; `null` = barvy aplikace. */
     chatColor: ThemeColor?,
     /** `null` = barvu nastavit nejde a řádek se neukazuje. */
@@ -1139,6 +1150,19 @@ private fun ProfileInfo(
                     onClick = onOpenLinkedChat,
                 ) {
                     Text(linked.title, style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+        }
+        // Šifrovací klíč tajného chatu je údaj o chatu — za údaji o člověku, před nastaveními.
+        profile.secretChatKey?.let { key ->
+            add { shape ->
+                InfoRow(
+                    label = stringResource(Res.string.secret_chat_key_title),
+                    shape = shape,
+                    onClick = onOpenSecretKey,
+                    trailing = { SecretChatIdenticon(key, size = 40.dp) },
+                ) {
+                    Text(stringResource(Res.string.secret_chat_key_compare), style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }

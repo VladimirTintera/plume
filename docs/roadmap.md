@@ -291,9 +291,8 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
 Základ hotový (`docs/poznatky/tajne-chaty.md`): přijetí, založení z profilu, psaní, časovač,
 ukončení, notifikace, zákaz snímků. Zbývá:
 
-- **Šifrovací klíč** (`SecretChat.keyHash`) v profilu tajného chatu — obrázek nebo emoji
-  k porovnání s protějškem, jako u oficiálních klientů. Bez něj se nedá ověřit, že uprostřed
-  nikdo nesedí.
+- ~~**Šifrovací klíč**~~ — hotovo (obrázek a čísla shodné s oficiálním klientem,
+  `docs/poznatky/tajne-chaty.md`, „Šifrovací klíč").
 - **Dostupnost a ověření v seznamu chatů** u tajného chatu (`userStatusUpdates` a `userUpdates`
   se mapují na id uživatele, tajný chat má jiné).
 - **Média, hlasovky a kolečka v tajném chatu** ověřit na zařízení (TDLib je šifruje sám).
