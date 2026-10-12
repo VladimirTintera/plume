@@ -18,9 +18,26 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
 - **Servisní zpráva se kreslí na střed, ne do bubliny.** Bublina patří odesílateli a tyhle
   odesílatele nemají — jsou to oznámení o dění v chatu. Čas se u nich nevypisuje, reakce ani stav
   doručení k nim nepatří.
-- **V servisních zprávách se nevypisují jména.** TDLib dává jen id uživatelů a jméno by znamenalo
-  dotaz navíc na každou takovou zprávu, často na někoho, kdo v chatu už dávno není. Bezejmenná
-  formulace („Do skupiny přibyli členové") je vždycky pravdivá a nic nestojí.
+- **Zprávy o členech mají jména** („Pixel 5 opustil(a) skupinu", „Přidal(a) jsi Alici a Boba",
+  „Tvoje žádost o vstup byla schválena"; `memberServiceText`, testy `MemberServiceTextTest`).
+  Dřív byly všechny servisní zprávy bezejmenné, aby se nedohledávala jména — a se dvěma
+  skutečnými účty to vypadalo jako chyba: ve dvoučlenné skupině stálo „Ze skupiny někdo odešel".
+  - **Aktér je odesílatel zprávy** (kdo přidal, odešel, připojil se); TDLib k tomu dává jen
+    id dalších lidí (`memberUserIds`, `userId`). Kdo je „ty", rozhoduje vlastní id (u aktéra
+    i `isOutgoing`).
+  - **Jména se dohledávají jen u zpráv o členech a jen ta, která věta použije** — u hromadného
+    přidání první dvě, zbytek je „a 4 další". Ostatní servisní zprávy jména dál nemají.
+  - **Bez jména zůstane bezejmenná věta** (`serviceText`): kdo se ze skupiny dávno ztratil
+    a TDLib ho nezná, nedostane prázdné místo ani „null".
+  - **Čeština rod nezná, proto „(a)"**, stejně jako oficiální klient. Předmět („přidal(a)
+    Pixel 5") se neskloňuje — jméno je jen řetězec.
+  - **Konverzace i seznam chatů** (`TdlConversationRepository` přes `resolveSender`,
+    `TdlChatRepository.listPreview` přes `getUser`) i nalezené zprávy. Notifikace a témata
+    zůstávají bezejmenné — zprávy o členech tam skoro nechodí.
+  - **Ověřeno dvěma účty** (česky i anglicky): přijatá žádost, odchod, přidání a vyhození
+    z pohledu správce („Přidal(a) jsi Pixel 5") i člena („Your request to join was approved",
+    „You left the group"). „X tě odebral(a)" jen testem — vyhozený člen supergroup chat
+    nevidí vůbec.
 - **`MessageSupergroupChatCreate` chodí pro skupinu I kanál** („a newly created supergroup or
   channel") a obsah druh nenese — dokud tam natvrdo stál kanál, hlásila každá nová skupina
   „Kanál „X“ vytvořen". Rozlišuje `Message.isChannelPost` (`supergroupCreatedText`, testy

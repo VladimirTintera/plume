@@ -694,6 +694,26 @@
     <string name="service_joined_by_link">Someone joined via a link</string>
     <string name="service_join_approved">A join request was approved</string>
     <string name="service_member_left">Someone left the group</string>
+    <string name="service_member_joined">%1$s joined the group</string>
+    <string name="service_you_joined">You joined the group</string>
+    <string name="service_member_added">%1$s added %2$s</string>
+    <string name="service_you_added">You added %1$s</string>
+    <string name="service_added_you">%1$s added you</string>
+    <string name="service_member_joined_by_link">%1$s joined via invite link</string>
+    <string name="service_you_joined_by_link">You joined via invite link</string>
+    <string name="service_member_accepted">%1$s was accepted into the group</string>
+    <string name="service_you_accepted">Your request to join was approved</string>
+    <string name="service_member_left_named">%1$s left the group</string>
+    <string name="service_you_left">You left the group</string>
+    <string name="service_member_removed">%1$s removed %2$s</string>
+    <string name="service_you_removed">You removed %1$s</string>
+    <string name="service_removed_you">%1$s removed you</string>
+    <string name="service_names_two">%1$s and %2$s</string>
+    <string name="service_you_object">you</string>
+    <plurals name="service_names_more">
+        <item quantity="one">%1$s and %2$d other</item>
+        <item quantity="other">%1$s and %2$d others</item>
+    </plurals>
     <string name="service_title_changed">Name changed to “%1$s”</string>
     <string name="service_photo_changed">The group photo changed</string>
     <string name="service_photo_removed">The group photo was removed</string>

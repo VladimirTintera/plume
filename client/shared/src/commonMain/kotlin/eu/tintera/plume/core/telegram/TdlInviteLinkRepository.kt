@@ -4,7 +4,6 @@ import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.toResult
 import dev.g000sha256.tdl.dto.ChatInviteLink
 import dev.g000sha256.tdl.dto.ChatInviteLinkMember
-import dev.g000sha256.tdl.dto.User
 import dev.g000sha256.tdl.dto.UserTypeBot
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -195,7 +194,6 @@ private fun ChatInviteLink.toInviteLink() = InviteLink(
     isSubscription = subscriptionPricing != null,
 )
 
-private fun User.fullName(): String = listOf(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
 
 /** Tváří posledních žadatelů v pruhu nad konverzací — víc se jich přes sebe nevejde. */
 private const val MAX_RECENT_REQUESTERS = 3

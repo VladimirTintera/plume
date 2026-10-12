@@ -78,6 +78,9 @@ fun NewGroupMembersScreen(
     )
 }
 
-/** Do skupiny jdou lidé a boti (soukromé chaty), ne skupiny, kanály ani Uložené zprávy. */
+/**
+ * Do skupiny jdou lidé a boti (soukromé chaty), ne skupiny, kanály ani Uložené zprávy. Ani tajné
+ * chaty: jejich id není id člověka, takže by je server jako člena odmítl.
+ */
 internal fun groupMemberCandidates(chats: List<ChatSummary>, savedMessagesChatId: Long?): List<ChatSummary> =
-    chats.filter { it.kind == ChatKind.Private && it.id != savedMessagesChatId }
+    chats.filter { it.kind == ChatKind.Private && !it.isSecret && it.id != savedMessagesChatId }

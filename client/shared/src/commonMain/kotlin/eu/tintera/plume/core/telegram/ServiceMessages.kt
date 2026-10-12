@@ -165,9 +165,9 @@ import org.jetbrains.compose.resources.StringResource
  * se název, někdo připnul zprávu). Proto se kreslí na střed a bez bubliny; bublina je od
  * odesílatele a tyhle odesílatele nemají.
  *
- * **Nevypisují se jména.** TDLib vrací id uživatelů a jméno by znamenalo dotaz navíc na každou
- * takovou zprávu, často na někoho, kdo v chatu už dávno není. Bezejmenná formulace („Do skupiny
- * přibyli členové") je proti tomu vždycky pravdivá a nic nestojí.
+ * **Nevypisují se jména** — je to věta, která platí vždycky („Do skupiny přibyli členové").
+ * Zprávy o členech, kde jméno chybělo nejvíc, dostanou jména zvlášť ([memberServiceText]),
+ * když je volající zná; tahle věta zůstává jako náhrada, když je nezná.
  *
  * `null` pro obyčejný obsah je zároveň odpověď na otázku „je tohle servisní zpráva?" — jedno
  * místo rozhoduje o textu i o způsobu vykreslení, takže se ty dva nemůžou rozejít.
