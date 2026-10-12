@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.ui.ChatTypeSection
+import eu.tintera.plume.core.ui.localImage
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.core.ui.PhotoCropOverlay
@@ -256,7 +257,7 @@ private fun PhotoSlot(path: String?, channel: Boolean, busy: Boolean, enabled: B
             Box(contentAlignment = Alignment.Center) {
                 if (path != null) {
                     AsyncImage(
-                        model = "file://$path",
+                        model = localImage(path),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),

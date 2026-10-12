@@ -71,6 +71,7 @@ import eu.tintera.plume.core.telegram.PollDraft
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.IconSwitch
+import eu.tintera.plume.core.ui.localImage
 import eu.tintera.plume.core.ui.durationText
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.GROUP_SPACING
@@ -1438,7 +1439,7 @@ private fun MediaSlotPicture(media: PollDraftMedia) {
                 is OutgoingAttachment.Document -> null
             }
             image?.let {
-                AsyncImage(model = "file://$it", contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                AsyncImage(model = localImage(it), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             }
         }
         is PollDraftMedia.Gif -> media.animation.thumbnailFileId

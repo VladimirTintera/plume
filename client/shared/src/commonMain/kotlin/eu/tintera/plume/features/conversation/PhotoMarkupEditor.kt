@@ -62,6 +62,7 @@ import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import coil3.compose.rememberAsyncImagePainter
 import eu.tintera.plume.core.ui.CropBox
+import eu.tintera.plume.core.ui.localImage
 import eu.tintera.plume.core.ui.CropHandle
 import eu.tintera.plume.core.ui.DarkSystemBars
 import eu.tintera.plume.core.ui.MARKUP_PEN_COLORS
@@ -326,7 +327,7 @@ private fun MarkupCanvas(
     val currentView by rememberUpdatedState(view)
     val currentOnStroke by rememberUpdatedState(onStroke)
     // Coil potřebuje schéma, holá cesta by se vyhodnotila jako relativní URI.
-    val painter = rememberAsyncImagePainter("file://$path")
+    val painter = rememberAsyncImagePainter(localImage(path))
     // Rozkreslený tah, v podílech ORIGINÁLU; po zvednutí prstu se z něj stane hotový tah.
     val current = remember { mutableStateListOf<Float>() }
 
