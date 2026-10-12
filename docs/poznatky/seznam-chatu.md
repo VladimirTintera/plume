@@ -246,6 +246,16 @@ z `checkChatFolderInviteLink`), v editoru vlastní složky je sekce Sdílení s 
   (přejmenování, odškrtnutí jediného chatu s větou, uložení, smazání ze sheetu). Dialog
   s chaty k opuštění a karta nových chatů **jen sondou** (podstrčené chaty u vlastní složky,
   nic se nepotvrdilo) — přidaná cizí složka na testovacím účtu není. **iOS jen přeložené.**
+- **Dvěma účty ověřené 12. 10. 2026** (Pixel 7 autor, Pixel 5 příjemce): odkaz na složku
+  s jednou skupinou poslaný zprávou, náhled „Chaty k připojení", přidání (záložka složky
+  a skupina v ní), autor přidal do složky i odkazu druhou skupinu → karta „Nové chaty ve
+  složce" → sheet → připojení, smazání složky s dialogem chatů k opuštění (jedna odškrtnutá
+  zůstala, druhá se opustila).
+- **Karta nových chatů naskočí až po restartu, nebo do hodiny.** Keš `getChatFolderNewChats`
+  v `TdlChatFolderRepository` drží prázdnou odpověď z prvního otevření složky po celou periodu
+  (`chat_folder_new_chats_update_period`, hodina) a server o nových chatech update nepošle.
+  Při ověřování se Plume na straně příjemce proto zastavil (`am force-stop`). Je to cena za
+  limit z dokumentace, ne chyba; oficiální klienti se ptají se stejnou periodou.
 
 ### Ověření a štítek podvodu
 

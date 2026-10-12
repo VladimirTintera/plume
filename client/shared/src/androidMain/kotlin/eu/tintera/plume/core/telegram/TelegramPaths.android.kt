@@ -18,6 +18,11 @@ actual class TelegramPaths(context: Context) {
     /** Z manifestu aplikace, ne z knihovny: `:client:shared` se staví stejně pro debug i release. */
     actual val isDebugBuild: Boolean = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
 
+    /** `versionName` z manifestu aplikace (z tagu při vydání), stejně jako [isDebugBuild]. */
+    actual val applicationVersion: String =
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }
+            .getOrNull() ?: UNKNOWN_VERSION
+
     /**
      * Na Androidu stačí adresáře založit: zálohu vypíná manifest (`allowBackup="false"`) pro celou
      * aplikaci, takže se tu nic označovat nemusí.
@@ -27,6 +32,8 @@ actual class TelegramPaths(context: Context) {
         File(filesDirectory).mkdirs()
     }
 }
+
+private const val UNKNOWN_VERSION = "?"
 
 actual val platformDeviceModel: String = "${Build.MANUFACTURER} ${Build.MODEL}"
 

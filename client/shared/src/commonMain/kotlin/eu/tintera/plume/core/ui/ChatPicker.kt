@@ -361,6 +361,7 @@ fun ChatPicker(
                         PickerRow(
                             avatarColorId = chat.avatarColorId,
                             title = chat.title,
+                            secret = chat.isSecret,
                             subtitle = if (showPresence) chat.presence else null,
                             avatarFileId = chat.avatarFileId,
                             avatarShape = chat.kind.avatarShape(),
@@ -428,6 +429,8 @@ private fun SectionHeader(title: String, modifier: Modifier = Modifier) {
 private fun PickerRow(
     avatarColorId: Long,
     title: String,
+    /** Tajný chat — zámek před jménem, jinak by splynul s obyčejným chatem téhož člověka. */
+    secret: Boolean = false,
     /** Dostupnost protějšku pod jménem; `null` = řádek je jen jméno. */
     subtitle: Presence?,
     avatarFileId: Int?,
@@ -473,12 +476,15 @@ private fun PickerRow(
                 backdrop = containerColor,
             )
             Column(Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (secret) SecretChatLock()
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 subtitle?.let { presence ->
                     Text(
                         text = presence.describe(),

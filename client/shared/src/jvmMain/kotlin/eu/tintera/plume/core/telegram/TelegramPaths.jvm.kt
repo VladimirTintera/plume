@@ -12,6 +12,12 @@ actual class TelegramPaths {
 
     actual val isDebugBuild: Boolean = desktopDebugBuild
 
+    /**
+     * Verze balíčku, kterou do spouštěče zapeče jpackage (`packageVersion`, při vydání z tagu).
+     * Při `run` z Gradlu vlastnost není — pak „dev".
+     */
+    actual val applicationVersion: String = System.getProperty("jpackage.app-version") ?: "dev"
+
     actual fun prepare() {
         File(databaseDirectory).mkdirs()
         File(filesDirectory).mkdirs()
