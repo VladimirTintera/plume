@@ -12,6 +12,9 @@ import eu.tintera.plume.resources.duration_short_minutes
 import eu.tintera.plume.resources.duration_short_months
 import eu.tintera.plume.resources.duration_short_weeks
 import eu.tintera.plume.resources.duration_weeks
+import eu.tintera.plume.resources.relative_in_days
+import eu.tintera.plume.resources.relative_in_hours
+import eu.tintera.plume.resources.relative_in_minutes
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -65,6 +68,20 @@ fun durationShortText(seconds: Int): String {
 enum class DurationUnit { Minutes, Hours, Days, Weeks, Months }
 
 /** Největší jednotka, ve které je délka celá; pod minutu se zaokrouhlí na minutu. */
+/**
+ * „Za 7 dní", „za 3 hodiny", „za 1 minutu" — zbývající čekání zaokrouhlené NAHORU na celou
+ * největší jednotku. Dolů by „za 6 dní" sliboval dřív, než to půjde. Tvary „za …" mají vlastní
+ * plurály, protože čeština chce 4. pád („za hodinu", ne „za hodina").
+ */
+fun waitUiText(seconds: Int): UiText {
+    fun up(unit: Int) = (seconds + unit - 1) / unit
+    return when {
+        seconds >= DAY -> up(DAY).let { UiText(Res.plurals.relative_in_days, it, it) }
+        seconds >= HOUR -> up(HOUR).let { UiText(Res.plurals.relative_in_hours, it, it) }
+        else -> maxOf(1, up(MINUTE)).let { UiText(Res.plurals.relative_in_minutes, it, it) }
+    }
+}
+
 fun durationUnit(seconds: Int): Pair<DurationUnit, Int> = when {
     seconds >= MONTH && seconds % MONTH == 0 -> DurationUnit.Months to seconds / MONTH
     seconds >= WEEK && seconds % WEEK == 0 -> DurationUnit.Weeks to seconds / WEEK

@@ -28,6 +28,7 @@ import eu.tintera.plume.core.telegram.MemberDetail
 import eu.tintera.plume.core.telegram.OwnershipTransferCheck
 import eu.tintera.plume.resources.error_transfer_needs_password
 import eu.tintera.plume.resources.error_transfer_too_fresh
+import eu.tintera.plume.resources.error_transfer_too_fresh_wait
 import eu.tintera.plume.resources.member_banned
 import eu.tintera.plume.resources.member_dismissed
 import eu.tintera.plume.resources.member_load_failed
@@ -47,6 +48,7 @@ import eu.tintera.plume.core.telegram.MemberPage
 import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.ui.waitUiText
 import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.profile_failed
@@ -675,8 +677,16 @@ class ChatProfileViewModel(
                         OwnershipTransferCheck.Ready -> _state.update { it.copy(memberTransfer = member) }
                         OwnershipTransferCheck.PasswordNeeded ->
                             _state.update { it.copy(error = UiText(Res.string.error_transfer_needs_password)) }
-                        is OwnershipTransferCheck.TooFresh ->
-                            _state.update { it.copy(error = UiText(Res.string.error_transfer_too_fresh)) }
+                        // Kdy to půjde, říká server; bez toho by uživatel zkoušel naslepo.
+                        is OwnershipTransferCheck.TooFresh -> _state.update {
+                            it.copy(
+                                error = if (check.retryAfter > 0) {
+                                    UiText(Res.string.error_transfer_too_fresh_wait, waitUiText(check.retryAfter))
+                                } else {
+                                    UiText(Res.string.error_transfer_too_fresh)
+                                },
+                            )
+                        }
                     }
                 }
                 .onFailure { failure ->

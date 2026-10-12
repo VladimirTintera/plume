@@ -268,8 +268,12 @@ testy `MemberManagementTest`).
   kontrola přes Bot API `getChatMember`): omezení na den (zakázané fotky, `until_date` +24 h),
   úprava omezení s „ponechat" (konec beze změny), zrušení omezení, štítek i jeho smazání
   (`tag`), povýšení s výchozími právy a sesazení, vyhození na hodinu i navždy a návrat bota
-  přes „Přidat členy". **Dokončený převod vlastnictví ověřený NENÍ** — bot vlastníkem být nemůže
-  a účet nemá dvoufázové ověření.
+  přes „Přidat členy". **Dokončený převod vlastnictví ověřený NENÍ** — bot vlastníkem být nemůže.
+  Se dvěma účty (12. 10. 2026, skupina „Plume test predani", vlastník Pixel 7, člen Pixel 5):
+  s heslem nastaveným týž den Plume převod zastavil PŘED zadáním hesla, server vrátil
+  `PasswordTooFresh` s `retryAfter` = 7 dní. **Hláška teď čekací dobu říká** („Převést
+  vlastnictví půjde za 7 dní", `waitUiText` zaokrouhluje nahoru, plurály „za …" kvůli 4. pádu);
+  dřív jen „až s odstupem" a uživatel zkoušel naslepo. Dokončit převod jde od 19. 10. 2026.
 - **Dlouhý stisk přes `adb` chce 1,5 s.** Se `swipe … 900` se gesto vyhodnotilo jako ťuknutí
   a místo nabídky se otevřela konverzace s tím členem — vypadalo to jako chyba `combinedClickable`.
   A `uiautomator dump` při běžící animaci selže („null root node returned"), **jenže nechá na
