@@ -651,3 +651,7 @@ nese náhled v seznamu chatů, citace i notifikace. Pravidlo je čistá funkce `
   jim označilo zprávy jako přečtené) a bot volat neumí. Dočasně v `messageMedia` převést text
   `#call:<CallOutcome>:video:<sekundy>` na `MessageMedia.Call` (a v `captionBody` na prázdný
   text), zprávy poslat botem do Notifikátoru. Necommituje se.
+- **Skutečné hovory ověřené mezi dvěma testovacími účty** (12. 10. 2026): příjemce má
+  „Odmítnutý hovor" (odmítnutý z notifikace) a „Zmeškaný hovor" (volající zavěsil), volající
+  u obou „Cancelled call" — tak to pravidlo `callOutcome` chce, odchozí nedovolaný je vždycky
+  zrušený.

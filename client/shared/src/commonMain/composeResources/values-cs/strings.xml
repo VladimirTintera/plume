@@ -236,6 +236,8 @@
     <string name="settings_separate_unread">Nepřečtené ve vlastním bloku</string>
     <string name="settings_separate_unread_summary">Nepřečtené chaty se přesunou nad ostatní. Vypnuté drží pořadí, jak ho posílá Telegram.</string>
     <string name="media_photo">Fotka</string>
+    <string name="media_self_destruct_photo">Mizející fotka</string>
+    <string name="media_self_destruct_video">Mizející video</string>
     <string name="media_download">Stáhnout</string>
     <string name="media_position">%1$d z %2$d</string>
     <string name="media_unsupported">Tenhle typ přílohy zatím neumíme otevřít.</string>

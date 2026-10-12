@@ -656,10 +656,14 @@ actual class NotificationPresenter(
             .extractMessagingStyleFromNotification(existing.notification)
             ?: return emptyList()
 
+        // Jméno u řádku je odesílatel jen ve skupině. V soukromém chatu nese osoba řádku název
+        // chatu (viz `show`), a převzaté jako odesílatel by z konverzace udělalo skupinu:
+        // „Pixel 5: Zmeškaný hovor" pod nadpisem „Pixel 5: Pixel 5".
+        val isGroup = style.isGroupConversation
         return style.messages.map { message ->
             Line(
                 notificationId = null,
-                sender = message.person?.name?.toString(),
+                sender = message.person?.name?.toString()?.takeIf { isGroup },
                 text = message.text?.toString().orEmpty(),
                 timestampMs = message.timestamp,
                 // Profilovka se převezme taky — znovu ji z cesty poskládat nejde, tu už nemáme.

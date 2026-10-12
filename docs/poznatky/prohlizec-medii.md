@@ -537,8 +537,11 @@ týmž přehrávačem jako video (`MessageMedia.Animation`, `AnimationBubble`).
   + `AVAssetExportSession` v krátkém Swift skriptu. Nahrává se obrazovka emulátoru, takže jen
   plocha nebo chat s botem, nic s kontakty.
 - **Ověřeno na emulátoru**: tichá smyčka, zvuk s průběhem a uplynulým časem, návrat po dohrání
-  i druhým ťuknutím, nabídka dlouhým stiskem. **Neověřeno**: zhlédnutí u odesílatele (bot ho
-  nevidí), souhra s hrající hlasovkou, přepis řeči (`speechRecognitionResult`) a iOS
+  i druhým ťuknutím, nabídka dlouhým stiskem. **Zhlédnutí u odesílatele ověřené se dvěma
+  účty** (12. 10. 2026): tichá smyčka u příjemce se nepočítá, puštění se zvukem tečku zhasne
+  u příjemce i odesílatele. **Tečka „nezhlédnuto" je v odznaku délky** („0:04 • 🔇"), jako
+  u hlasovky; dřív ji kolečko nemělo vůbec, takže odesílatel nepoznal, jestli ho protějšek
+  pustil. **Neověřeno**: souhra s hrající hlasovkou, přepis řeči (`speechRecognitionResult`) a iOS
   (jen přeložené).
 
 ### Nahrávání koleček
@@ -1042,8 +1045,17 @@ za `MessageExpiredPhoto` / `MessageExpiredVideo`.
   vydával za vypršelou fotku; necommituje se): oznámení na střed, dlouhý stisk → „Smazat" →
   dialog → smazáno. Převod spotřebované sondou v prohlížeči (`ownSelfDestruct = false`, takže
   se spotřebovala i VLASTNÍ odeslaná fotka s 10s časovačem): první snímek chatu po zavření
-  prohlížeče už nesl oznámení, bublina neprobleskla. Skutečná vypršelá fotka od druhého účtu
-  ověřená není.
+  prohlížeče už nesl oznámení, bublina neprobleskla.
+- **Příjem ověřený se dvěma účty na dvou telefonech** (12. 10. 2026, Plume → Plume): 10s
+  časovač — rozmazaná bublina s odznakem „10s", v prohlížeči odpočet 8 s → 4 s, `SECURE`
+  v `dumpsys window`, po doběhnutí se prohlížeč zavřel a obě strany ukázaly oznámení
+  („Fotka vypršela" / „The photo expired"). Jednorázové zhlédnutí vydrželo otevřené 7 s
+  a vypršelo až po zavření. Notifikace obrázek nepřiložila.
+- **V náhledu a notifikaci je „Mizející fotka / video", ne „Fotka"** (`previewTextOrNull(selfDestructs)`,
+  push `isSecret`). Dřív se mizející médium v seznamu ani na liště nedalo poznat — oficiální
+  klient píše „Self-Destructing Photo". Popisek se do náhledu nedává (patří k mizejícímu
+  obsahu) a s ním ani jeho entity (`previewEntities`). `selfDestructType` nese ZPRÁVA, ne obsah,
+  proto příznak předává `Message.previewTextOrNull`; citace ho nezná.
 - **Jednorázové zhlédnutí se hlásí až při ODCHODU z prohlížeče** (`onCleared`, `appScope`).
   U `MessageSelfDestructTypeImmediately` TDLib po `openMessageContent` obsah vyřídí okamžitě
   (`ttl_on_open` → `on_message_ttl_expired`): smaže soubory a pošle vypršelý obsah, na který

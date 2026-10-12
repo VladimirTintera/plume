@@ -555,8 +555,11 @@ Nastavení → Obecné → Soukromí → „Diskrétní čtení": otevřená kon
   nepočítá vůbec).
 - **Ověřeno na emulátoru**: s volbou chat Telegram (2 nepřečtené) po otevření odznak 2
   podržel a nad polem byl čip; log `Diskrétní čtení: N viditelných zpráv se nehlásí`
-  a `…psaní se nehlásí`. Ťuknutí na čip a přečtení po vlastní zprávě na zařízení ověřené
-  NENÍ (Notifikátor má otevřený jiná session a čte ho hned, takže se nedalo pozorovat).
+  a `…psaní se nehlásí`. **Z pohledu protějšku ověřeno se dvěma účty** (12. 10. 2026, čte
+  Plume na Pixelu 7, píše Pixel 5): otevřený chat i psaní nechaly u odesílatele „Sent" bez
+  „píše…"; ťuknutí na čip → „Read", další zpráva přečtená po vlastní odpovědi (oficiální
+  klient u obou „Seen"). Pozor při ověřování: jednorázová nápověda „Další možnosti odeslání"
+  se při prvním psaní objeví přes čip a ťuknutí na čip pak trefí ji.
 
 ## Úložiště (`features/settings/StorageSettings`)
 
