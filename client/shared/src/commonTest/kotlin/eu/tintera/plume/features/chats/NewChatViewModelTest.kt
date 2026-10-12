@@ -102,6 +102,35 @@ class NewChatViewModelTest {
         assertEquals("Alice Smith", filteredState.contacts[0].title)
     }
 
+    @Test
+    fun tajnyChatSeZakladaAzPoVyberuCloveka() = runTest {
+        val started = mutableListOf<Long>()
+        val fakeRepo = object : FakeChatRepository(contactsResult = Result.success(listOf(testChat(1, "Alice")))) {
+            override suspend fun createSecretChat(userId: Long): Result<Long> {
+                started += userId
+                return Result.success(-2_000_000_000_001L)
+            }
+        }
+        val viewModel = NewChatViewModel(fakeRepo)
+        assertEquals(999L, viewModel.state.first { !it.loading }.savedMessagesChatId)
+
+        viewModel.startSecretMode()
+        // Uložené zprávy tajný chat mít nemůžou — karta nad kontakty zmizí.
+        val secret = viewModel.state.first { it.secretMode }
+        assertNull(secret.savedMessagesChatId)
+        assertTrue(started.isEmpty(), "Přepnutí do režimu nic nezakládá")
+
+        viewModel.pickForSecretChat(1L)
+        assertEquals(-2_000_000_000_001L, viewModel.openSecretChat.first { it != null })
+        assertEquals(listOf(1L), started)
+
+        viewModel.consumeOpenSecretChat()
+        assertNull(viewModel.openSecretChat.value)
+        assertTrue(viewModel.leaveSecretMode())
+        assertFalse(viewModel.state.first { !it.secretMode }.secretMode)
+        assertFalse(viewModel.leaveSecretMode(), "Mimo režim zpět patří obrazovce")
+    }
+
     private fun testChat(id: Long, title: String) = ChatSummary(
         id = id,
         title = title,

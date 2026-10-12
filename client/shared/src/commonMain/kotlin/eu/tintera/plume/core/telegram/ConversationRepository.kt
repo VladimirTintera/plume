@@ -1032,6 +1032,8 @@ data class ChatInfo(
     val verification: Verification? = null,
     /** Tajný chat — zámek u jména, zákaz snímků obrazovky. */
     val isSecret: Boolean = false,
+    /** Barva avataru bez fotky, viz [ChatSummary.avatarColorId]. */
+    val avatarColorId: Long = id,
     /** Vlastní emoji statusu za jménem v hlavičce (viz [statusEmojiId]), nebo `null`. */
     val emojiStatus: Long? = null,
     /**

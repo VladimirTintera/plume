@@ -198,6 +198,13 @@ class TdlChatRepository(
      */
     private val known = mutableMapOf<Long, ChatSummary>()
 
+    /**
+     * Protějšek každého známého tajného chatu (chat → uživatel). Tajný chat má vlastní id, takže
+     * updaty uživatele (dostupnost, ověření), které se na soukromý chat mapují přímo id, by ho
+     * jinak minuly. Pod [mutex] jako [known].
+     */
+    private val secretPeers = mutableMapOf<Long, Long>()
+
     /** Pozice chatu ve složkách. Chat mimo všechny složky tu nemá záznam. */
     private val positions = mutableMapOf<Long, Map<ChatFolder, FolderPosition>>()
     private val mutex = Mutex()
@@ -469,7 +476,9 @@ class TdlChatRepository(
          */
         scope.launch {
             holder.updates { userStatusUpdates }.collect { update ->
-                edit(update.userId) { it.copy(presence = update.status.toPresence()) }
+                chatsOfUser(update.userId).forEach { chatId ->
+                    edit(chatId) { it.copy(presence = update.status.toPresence()) }
+                }
             }
         }
 
@@ -480,7 +489,8 @@ class TdlChatRepository(
          */
         scope.launch {
             holder.updates { userUpdates }.collect { update ->
-                edit(update.user.id) { it.copy(verification = update.user.verificationStatus.toVerification()) }
+                val verification = update.user.verificationStatus.toVerification()
+                chatsOfUser(update.user.id).forEach { chatId -> edit(chatId) { it.copy(verification = verification) } }
             }
         }
         scope.launch {
@@ -614,7 +624,9 @@ class TdlChatRepository(
     private suspend fun ChatSummary.withPresence(): ChatSummary {
         if (!isPrivate) return this
 
-        val status = client.getUser(id).toResult().getOrNull()?.status ?: return this
+        // Tajný chat: protějšek z mapy, id chatu není id uživatele.
+        val userId = mutex.withLock { secretPeers[id] } ?: id
+        val status = client.getUser(userId).toResult().getOrNull()?.status ?: return this
         return copy(presence = status.toPresence())
     }
 
@@ -1554,6 +1566,8 @@ class TdlChatRepository(
         client.getChat(chatId = chatId).toResult().getOrNull()?.type?.let { secretChatPreview(it) }
 
     private suspend fun Chat.fullSummary(): ChatSummary = toSummary().let { summary ->
+        // Protějšek tajného chatu si zapamatovat dřív, než se bude dohledávat dostupnost.
+        (type as? ChatTypeSecret)?.let { secret -> mutex.withLock { secretPeers[id] = secret.userId } }
         summary.copy(
             verification = client.verificationOf(this),
             isForum = client.isForum(this),
@@ -1579,6 +1593,10 @@ class TdlChatRepository(
      * poslední zprávu: dostupnost chodí i k uživatelům bez chatu, a tam by se dotaz opakoval
      * naprázdno s každou změnou.
      */
+    /** Soukromý chat s uživatelem (id uživatele) a všechny jeho známé tajné chaty. */
+    private suspend fun chatsOfUser(userId: Long): List<Long> =
+        listOf(userId) + mutex.withLock { secretPeers.filterValues { it == userId }.keys.toList() }
+
     private suspend fun edit(chatId: Long, fetchUnknown: Boolean = false, transform: (ChatSummary) -> ChatSummary) {
         val found = mutex.withLock {
             val current = known[chatId] ?: return@withLock false
@@ -1596,6 +1614,7 @@ class TdlChatRepository(
         mutex.withLock {
             known.clear()
             positions.clear()
+            secretPeers.clear()
             exhausted.clear()
             synced.clear()
             activityTimers.values.forEach { it.cancel() }
@@ -1704,6 +1723,7 @@ private suspend fun Chat.toSummary(): ChatSummary {
         isMarkedAsUnread = isMarkedAsUnread,
         kind = type.chatKind(),
         isSecret = type is ChatTypeSecret,
+        avatarColorId = (type as? ChatTypeSecret)?.userId ?: id,
         lastMessageTimestamp = lastMessage?.date,
         // Dostupnost `Chat` nenese — dorazí updatem. Do té doby je `null`, což UI kreslí
         // prostě bez tečky.

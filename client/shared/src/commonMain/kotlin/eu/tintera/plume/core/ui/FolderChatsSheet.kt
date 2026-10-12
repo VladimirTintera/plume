@@ -172,7 +172,7 @@ fun CheckableChatRows(
                     headlineContent = { Text(chat.title, maxLines = 1) },
                     leadingContent = {
                         Avatar(
-                            chatId = chat.id,
+                            chatId = chat.avatarColorId,
                             title = chat.title,
                             avatarFileId = chat.avatarFileId,
                             size = 40.dp,

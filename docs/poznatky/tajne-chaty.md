@@ -2,7 +2,7 @@
 
 Tajný chat (`ChatTypeSecret`) je šifrovaný mezi DVĚMA ZAŘÍZENÍMI, ne mezi účty: běží jen na
 zařízení, které ho založilo, a na tom, které ho na druhé straně přijalo. Plume je umí přijmout,
-založit (profil člověka → ⋮ → „Začít tajný chat"), psát do nich, nastavit časovač zpráv
+založit (profil člověka → ⋮ → „Začít tajný chat", nebo Nová zpráva → „Nový tajný chat"), psát do nich, nastavit časovač zpráv
 a ukončit je (profil tajného chatu → ⋮ → „Ukončit tajný chat").
 
 - **Bez `useSecretChats = true` v `setTdlibParameters` TDLib tajné chaty vůbec nepřijme ani
@@ -13,9 +13,24 @@ a ukončit je (profil tajného chatu → ⋮ → „Ukončit tajný chat").
   Při ověřování se proto oficiální aplikaci na obou telefonech přijímání vypnulo.
 - **Id tajného chatu NENÍ id uživatele** (je to `-2 000 000 000 000 + secretChatId`).
   Kód, který bral id soukromého chatu jako id protějšku, u tajného chatu mlčel: dostupnost
-  v hlavičce (`presenceUpdates`) se proto bere z `ChatTypeSecret.userId`. **Ještě to tak dělají**
-  dostupnost a ověření v seznamu chatů (`userStatusUpdates`, `userUpdates` → `edit(userId)`) —
-  u tajného chatu se nepromítnou (zapsané v roadmapě).
+  v hlavičce (`presenceUpdates`) se proto bere z `ChatTypeSecret.userId`.
+- **Seznam chatů si vede protějšky tajných chatů** (`secretPeers` v `TdlChatRepository`, plní
+  se ve `fullSummary`). Dostupnost a ověření chodí updatem na UŽIVATELE (`userStatusUpdates`,
+  `userUpdates`) a dřív se zapisovaly jen do `edit(userId)` — tedy do obyčejného chatu, tečka
+  u tajného nesvítila nikdy. Teď jdou do všech chatů téhož člověka (`chatsOfUser`).
+  **Mutex kolem mapy není reentrantní** (kotlinx): `fullSummary` se nesmí volat pod
+  `mutex.withLock`, jinak zamrzne celý seznam.
+- **Barva avataru se u tajného chatu bere z protějšku** (`avatarColorId` v `ChatSummary`
+  i `ChatInfo`). Barva bez fotky je hash id a tajný chat má id vlastní — každý tajný chat
+  s týmž člověkem tak měl jinou barvu než ostatní i než obyčejný chat s ním (snímek na
+  Pixelu 5: čtyři tajné chaty s „Pixel 7 Pro", čtyři barvy). Avatar bere `avatarColorId`
+  v seznamu, hledání, konceptech, přepínači chatů, výběru chatu a hlavičce konverzace;
+  jinde (sdílená média, profil) zůstává id chatu.
+- **„Nový tajný chat" v Nové zprávě je režim téhož výběru, ne další obrazovka**
+  (`NewChatViewModel.startSecretMode`). Výběr se zúží na lidi: bez Uložených zpráv, bez
+  veřejných výsledků a bez skupin a jiných tajných chatů z hledání; ťuknutí tajný chat
+  teprve založí (`createSecretChat`) a otevře se, až ho TDLib vrátí. Zpět (šipka i systémové)
+  vede do Nové zprávy. Dvojí ťuknutí nezaloží dva — každý by protějšek viděl zvlášť.
 - **Stav tajného chatu je druh práva psát** (`WriteAccess.SecretPending` / `SecretClosed`
   v `chatAccess`, živě přes `secretChatUpdates` v `accessUpdates`). Místo vstupního pole pak
   stojí věta — „Čeká se, až se protějšek připojí…" / „Tajný chat je ukončený…", stejně jako
@@ -67,5 +82,13 @@ tajných chatů vypnuté): založení z Pixelu 5 (zámek v hlavičce, `SECURE` v
 přijetí na Pixelu 7 (zámek v seznamu), zprávy oběma směry i „přečteno", časovač 10 s (servisní
 zpráva, zpráva zmizela na obou stranách po přečtení), čekání na protějšek (Plume na druhé
 straně zastavený → věta místo pole, po spuštění pole do 4 s), notifikace o novém tajném chatu,
-ukončení z obou stran (věta místo pole u obou). **Neověřeno**: média a hlasovky v tajném chatu,
-iOS (jen přeložené), desktop.
+ukončení z obou stran (věta místo pole u obou).
+
+Druhé kolo (týž den): dostupnost v seznamu (tečka u všech tajných chatů s protějškem online),
+barva avataru shodná u všech tajných chatů s týmž člověkem, založení z Nové zprávy (výběr bez
+Uložených, Pixel 7 přijal, pole k psaní hned), fotka z Pixelu 5 (dorazila, otevřela se
+v prohlížeči), hlasovka z Pixelu 7 (přehrála se na Pixelu 5) a kolečko z Pixelu 5 (přehrálo
+se na Pixelu 7). **Snímky obrazovky tajného chatu jsou kvůli `SECURE` prázdné** — kontroluje
+se výpisem `uiautomator`. Prohlížeč u tajné fotky nabízí uložení a sdílení: řídí se
+`canBeSaved` a TDLib ho u fotky bez časovače dává `true`. **Neověřeno**: ověření (fajfka)
+v seznamu u tajného chatu (testovací účty ověřené nejsou), iOS (jen přeložené), desktop.

@@ -1337,6 +1337,7 @@
     <string name="new_chat_new_group">Nová skupina</string>
     <string name="new_chat_new_channel">Nový kanál</string>
     <string name="new_chat_new_contact">Nový kontakt</string>
+    <string name="new_chat_new_secret">Nový tajný chat</string>
     <string name="new_contact_add">Přidat</string>
     <string name="new_contact_help">Kontakt se uloží do účtu Telegramu, ne do kontaktů v telefonu. Druhá strana tvoje číslo neuvidí.</string>
     <string name="new_contact_not_found">S tímhle číslem na Telegramu nikoho najít nejde. Buď na něm účet není, nebo se podle čísla dohledat nedá.</string>

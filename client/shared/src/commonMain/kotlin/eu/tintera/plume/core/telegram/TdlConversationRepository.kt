@@ -1875,6 +1875,7 @@ class TdlConversationRepository(
                     draftLinkPreview = draft?.linkPreview,
                     verification = client.verificationOf(chat),
                     isSecret = chat.type is ChatTypeSecret,
+                    avatarColorId = (chat.type as? ChatTypeSecret)?.userId ?: chat.id,
                     emojiStatus = chat.emojiStatus.statusEmojiId(),
                     restriction = restriction?.reasonText,
                     sensitive = client.hidesSensitive(restriction),

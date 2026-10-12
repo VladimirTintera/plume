@@ -1478,7 +1478,7 @@ fun ConversationScreen(
                             // by jinak nechal před jménem díru.
                             Box(Modifier.padding(end = 12.dp)) {
                                 Avatar(
-                                    chatId = info.id,
+                                    chatId = info.avatarColorId,
                                     title = info.title,
                                     avatarFileId = info.avatarFileId,
                                     size = HEADER_AVATAR,
