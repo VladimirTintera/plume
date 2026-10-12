@@ -543,7 +543,9 @@ přehrávání po sobě, odpovědi) aplikace nemá.
   zprávy od testovacího bota s `#pribeh…` převod dočasně vydává za `MessageStory` — fotka
   z téže zprávy jako obsah, skutečný dotaz na kanál @telegram (bez příběhů, tedy „není")
   a podstrčené živé vysílání. Necommituje se. **Skutečný sdílený příběh ověřený NENÍ**, iOS
-  jen přeložené.
+  jen přeložené. **Dvěma testovacími účty ho vyrobit nejde**: příběh zveřejněný jen pro vybraný
+  kontakt (testovací účty mají v adresáři skutečné lidi, viditelnost se proto omezuje) oficiální
+  aplikace přeposlat nenabídne — sdílet jde jen veřejný příběh.
 
 #### Odpověď na příběh a odkaz na příběh
 
@@ -573,8 +575,12 @@ MessageMedia.Story`, `toExternalReply` v `TdlConversationRepository`). Ťuknutí
   příběh; necommituje se): citace s náhledem a jménem kanálu, ťuknutí otevře prohlížeč
   s fotkou příběhu, u neexistujícího hláška. **`searchPublicStoriesByTag` vrací hlavně příběhy
   LIDÍ** — sonda proto brala jen kanály (`posterChatId < 0`). Odkaz `t.me/telegram/s/1` od bota
-  zůstal v aplikaci a ohlásil nedostupný příběh. **Skutečná odpověď na příběh ověřená NENÍ**
-  (příběhy aplikace neumí, takže na ně z Plume odpovědět nejde), iOS jen přeložené.
+  zůstal v aplikaci a ohlásil nedostupný příběh. **Skutečná odpověď na příběh ověřená se dvěma
+  účty** (12. 10. 2026): Pixel 5 zveřejnil v oficiální aplikaci příběh jen pro „Pixel 7 Pro",
+  ten na něj odpověděl z oficiální aplikace. Plume u příjemce odpovědi (autora příběhu) i u
+  odesílatele kreslí citaci s náhledem a „Příběh", ťuknutí otevře prohlížeč s fotkou, autorem
+  a časem zveřejnění. **U vlastního příběhu stojí v citaci jméno vlastního účtu** („VT"), ne
+  „Vy" — funkční to je, jen to čte jako cizí jméno. iOS jen přeložené.
 
 ### Kontakt
 
