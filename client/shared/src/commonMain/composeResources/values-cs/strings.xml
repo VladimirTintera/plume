@@ -378,6 +378,9 @@
     <string name="conversation_not_member">V tomhle chatu už nejste.</string>
     <string name="conversation_topic_closed">Téma je uzavřené. Psát do něj můžou jen správci.</string>
     <string name="secret_chat">Tajný chat</string>
+    <string name="secret_chat_key_title">Šifrovací klíč</string>
+    <string name="secret_chat_key_compare">Porovnej s protějškem</string>
+    <string name="secret_chat_key_explanation">Když tenhle obrázek a čísla vypadají stejně i na zařízení, kde je %1$s, je chat šifrovaný jen mezi vámi dvěma a nikdo mezi tím ho nepřečte.</string>
     <string name="secret_chat_state_pending">Čeká se, až se protějšek připojí…</string>
     <string name="secret_chat_state_ready">Tajný chat je připravený</string>
     <string name="secret_chat_state_closed">Tajný chat je ukončený</string>

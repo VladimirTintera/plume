@@ -77,11 +77,14 @@ class TdlProfileRepository(
         // Bez `else`: nový druh chatu v novější TDLib má rozbít překlad, ne tiše skončit jako skupina.
         val profile = when (val type = chat.type) {
             is ChatTypePrivate -> userProfile(base, type.userId)
-            is ChatTypeSecret -> userProfile(base, type.userId).copy(
-                isSecretChat = true,
-                secretChatOpen = client.getSecretChat(secretChatId = type.secretChatId).toResult().getOrNull()
-                    ?.state.let { it != null && it !is SecretChatStateClosed },
-            )
+            is ChatTypeSecret -> {
+                val secret = client.getSecretChat(secretChatId = type.secretChatId).toResult().getOrNull()
+                userProfile(base, type.userId).copy(
+                    isSecretChat = true,
+                    secretChatOpen = secret?.state.let { it != null && it !is SecretChatStateClosed },
+                    secretChatKey = secret?.keyHash?.let(SecretChatKey::of),
+                )
+            }
 
             is ChatTypeBasicGroup -> {
                 val group = client.getBasicGroup(basicGroupId = type.basicGroupId).toResult().getOrNull()

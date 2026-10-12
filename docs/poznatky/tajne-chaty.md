@@ -40,6 +40,26 @@ a ukončit je (profil tajného chatu → ⋮ → „Ukončit tajný chat").
 - **Ukončení z protějšku dorazí se zpožděním, když je Plume v pozadí** (zmrazený proces):
   ověřeno, že po návratu do popředí se stav do chvíle přepne. V popředí okamžitě.
 
+## Šifrovací klíč
+
+Profil tajného chatu → „Šifrovací klíč" (řádek s malým obrázkem) → list s obrázkem 12 × 12,
+šestnáctkovými čísly a větou, s kým a co porovnat (`SecretChatKey`, `SecretChatKeySheet`).
+
+- **Podoba je daná protokolem a oficiálními klienty, ne vkusem.** `keyHash` (36 bajtů) se kreslí
+  po dvou bitech od NEJNIŽŠÍCH bitů prvního bajtu, zleva doprava a shora dolů, ve čtyřech
+  pevných barvách FFFFFF, D5E6F3, 2D5775, 2F99C9 (dokumentace TDLib). Barvy jsou proto natvrdo
+  — výjimka z pravidla „barvy jen z `colorScheme`": porovnává se s obrázkem v jiné aplikaci.
+- **Čísla taky jako oficiální Android klient**: prvních 32 bajtů, osm na řádek, velkými písmeny,
+  uprostřed širší mezera („26 FA BB DD  03 6D 15 37"). První verze psala „26fa bbdd" — stejné
+  hodnoty, ale při porovnání s oficiální aplikací vypadaly jako jiné.
+- **List se otevírá rovnou celý** (`enabledValues = Hidden, Expanded`): napůl otevřený schoval
+  právě větu, která říká, co s obrázkem dělat.
+- Prázdný `keyHash` (chat ještě není dohodnutý) → řádek se neukazuje. Starý 16bajtový hash
+  (vrstva pod 46) se kreslí 8 × 8.
+- **Ověřeno proti oficiální aplikaci** (12. 10. 2026): Plume na Pixelu 5 ↔ oficiální Telegram
+  na Pixelu 7 (Plume tam zastavený, aby chat přijala oficiální aplikace) — obrázek shodný bod
+  po bodu, čísla shodná. Plume ↔ Plume taky.
+
 ## Ověření
 
 Se dvěma účty na dvou telefonech (12. 10. 2026, Plume ↔ Plume, oficiální aplikaci přijímání

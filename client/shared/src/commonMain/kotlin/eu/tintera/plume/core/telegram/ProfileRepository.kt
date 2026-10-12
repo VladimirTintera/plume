@@ -315,6 +315,8 @@ data class ChatProfile(
     val isSecretChat: Boolean = false,
     /** Tajný chat ještě běží (čeká na protějšek, nebo je dohodnutý) — jde ukončit. */
     val secretChatOpen: Boolean = false,
+    /** Otisk klíče tajného chatu k porovnání s protějškem; `null`, dokud není dohodnutý. */
+    val secretChatKey: SecretChatKey? = null,
     /** Uživatel nebo bot je zablokovaný. */
     val isBlocked: Boolean = false,
     /** Uživatel je v adresáři účtu (`User.isContact`); u bota a skupiny `false`. */
