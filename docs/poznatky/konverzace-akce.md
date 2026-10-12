@@ -459,7 +459,9 @@ upravená, kdy ji protějšek přečetl, kdo ji zhlédl a odkaz na ni (`MessageI
 - **Čas přečtení má PĚT podob, ne „čas nebo nic"** (`MessageReadState`): přečteno, nepřečteno,
   server už čas nedrží, protějšek má časy skryté, a „skrýváš je sám, takže je nevidíš ani ty".
   Každá je vlastní věta — „—" by uživateli neřeklo, jestli zprávu nikdo nepřečetl, nebo jestli je
-  čas jen skrytý. Poslední dvě se od sebe liší tím, kdo to může změnit.
+  čas jen skrytý. Poslední dvě se od sebe liší tím, kdo to může změnit. Podoba „přečteno"
+  ověřená se dvěma účty (12. 10. 2026): „Odesláno 17:54, Přečteno 17:56" sedělo na minutu
+  s tím, kdy protějšek zprávu přečetl.
 - **Ťuknutí na odkaz ho zkopíruje a sheet zavře.** Snackbar s potvrzením by pod modálním sheetem
   zůstal schovaný a nebylo by poznat, že se něco stalo. Na Androidu 13+ snackbar není vůbec —
   zkopírování tam potvrdí systémový náhled schránky (viz „Hláška „Zkopírováno"" v CLAUDE.md);

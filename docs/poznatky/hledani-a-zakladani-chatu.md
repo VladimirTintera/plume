@@ -336,6 +336,11 @@ a fotka (`CreateChatRoute`, `CreateChatScreen`); kanál rovnou formulář s popi
   přesně to, co odejde.
 - **Po založení se z Chatů odebere celá větev** (nová zpráva, členové, formulář) a zpět z nového
   chatu vede do seznamu, ne do formuláře, ze kterého by šlo založit druhý.
+- **Se skutečným členem ověřeno** (12. 10. 2026, Plume na Pixelu 7 Pro, člen druhý testovací
+  účet): skupina vznikla a druhý účet ji má v seznamu chatů. Servisní zpráva je jen „Skupina
+  … vytvořena", „přibyl člen" server u členů přidaných hned po založení nepošle. Nad konverzací
+  je pruh „Pozvi do nové skupiny lidi" i se členem — posílá ho server
+  (`ChatActionBarInviteMembers`) každé čerstvé skupině, křížek ho zavře napořád.
 - **Ověřeno na emulátoru se souhlasem** (česky): skupina s testovacím botem jako jediným
   členem (servisní zprávy „vytvořena" a „přibyli členové", tlačítko příkazů bota) a kanál
   s popisem (čtvercový avatar, popis v profilu); po založení se otevře chat a zpět vede do

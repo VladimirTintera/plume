@@ -565,8 +565,7 @@ snadno na to uživatel narazí.
 - ~~**Nepřečtené zmínky a reakce**~~ — hotovo: tlačítka „@" a „❤" nad tlačítkem dolů, odznaky
   v seznamu chatů, „Označit vše" podržením (`docs/poznatky/konverzace-pohyb.md`, „Nepřečtené zmínky, reakce a hlasy v anketě"). Zbývá:
   ~~ověřit skutečnou zmínku ve skupině~~ (ověřeno, při tom opravené přečtení reakce na viditelné
-  zprávě) a **skutečný nový hlas v anketě** (tlačítko s anketou je
-  hotové, ověřené jen podstrčeným počtem). ~~Zvýraznění, KDO reagoval~~ — hotovo (`docs/poznatky/emoji-samolepky-reakce.md`,
+  zprávě) a ~~skutečný nový hlas v anketě~~ (ověřeno se dvěma účty). ~~Zvýraznění, KDO reagoval~~ — hotovo (`docs/poznatky/emoji-samolepky-reakce.md`,
   „Reakce"); jména ve skupině ověřená v testovací skupině s botem.
 - ~~**Prázdný chat s botem**~~ — hotovo: profil bota (tvář, jméno, popis), tlačítko Start
   i parametr ze startovacího odkazu (`docs/poznatky/boti.md`, „Spuštění bota"). ~~Klikatelné odkazy
@@ -583,7 +582,7 @@ snadno na to uživatel narazí.
   hlasovky a ankety~~ — hotovo. ~~Plánování samolepky~~ — hotovo (tlačítko u podržené
   samolepky i GIFu ve výběru), ~~anketa naplánovaná jako odpověď~~ (hotovo — formulář
   odpověď ohlásí jako spotřebovanou), opakované připomínky
-  (`repeatPeriod`, jen s Premium) a ověřit „až bude online" s člověkem.
+  (`repeatPeriod`, jen s Premium). ~~Ověřit „až bude online" s člověkem~~ — ověřeno se dvěma účty.
 - ~~**Ověření, podvod, falešný účet**~~ — hotovo: štítek u jména v seznamu chatů, v hlavičce
   konverzace a v profilu, u podvodu a falešného s vysvětlením (`docs/poznatky/seznam-chatu.md`, „Ověření a štítek
   podvodu"). ~~Značka ověření od bota (`botVerificationIconCustomEmojiId`, vlastní emoji)~~
