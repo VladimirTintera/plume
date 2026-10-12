@@ -63,6 +63,7 @@ import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.core.ui.SwipeDirection
 import eu.tintera.plume.core.ui.detectHorizontalSwipe
 import androidx.compose.material3.LocalContentColor
+import eu.tintera.plume.core.ui.SecretChatLock
 import eu.tintera.plume.core.ui.VerificationBadge
 import eu.tintera.plume.core.ui.EmojiStatusBadge
 import eu.tintera.plume.core.ui.appendWithCustomEmoji
@@ -1713,6 +1714,12 @@ private fun ChatRow(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         modifier = Modifier.weight(1f),
                     ) {
+                        val badgeAccent = accentOn(
+                            background = containerColor,
+                            accent = MaterialTheme.colorScheme.primary,
+                            fallback = LocalContentColor.current,
+                        )
+                        if (chat.isSecret) SecretChatLock(tint = badgeAccent)
                         Text(
                             text = chatTitle(chat.id, chat.title),
                             // `bodyLarge` místo `titleMedium`: stejná velikost, ale běžný řez.
@@ -1723,11 +1730,6 @@ private fun ChatRow(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false).sharedNavText(chatTitleKey(chat.id)),
-                        )
-                        val badgeAccent = accentOn(
-                            background = containerColor,
-                            accent = MaterialTheme.colorScheme.primary,
-                            fallback = LocalContentColor.current,
                         )
                         chat.verification?.let { VerificationBadge(verification = it, accent = badgeAccent) }
                         chat.emojiStatus?.let { EmojiStatusBadge(it, accent = badgeAccent) }

@@ -187,6 +187,12 @@ import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.describe
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.lock_open_24dp
+import eu.tintera.plume.resources.lock_24dp
+import eu.tintera.plume.resources.secret_chat_start
+import eu.tintera.plume.resources.secret_chat_close_title
+import eu.tintera.plume.resources.secret_chat_close_text
+import eu.tintera.plume.resources.secret_chat_close
 import eu.tintera.plume.resources.chat_color_default
 import eu.tintera.plume.resources.chat_color_title
 import androidx.compose.foundation.shape.CircleShape
@@ -380,6 +386,8 @@ fun ChatProfileScreen(
                             onSetContact = viewModel::setContact,
                             onReport = viewModel::report,
                             onDeleteOrLeave = viewModel::deleteOrLeave,
+                            onStartSecretChat = viewModel::startSecretChat,
+                            onCloseSecretChat = viewModel::closeSecretChat,
                         )
                     }
                 },
@@ -439,6 +447,7 @@ fun ChatProfileScreen(
         if (state.autoDeleteSheet) {
             AutoDeleteSheet(
                 current = profile.autoDeleteTime,
+                secret = profile.isSecretChat,
                 onSelect = viewModel::setAutoDelete,
                 onDismiss = viewModel::closeAutoDeleteSheet,
             )
@@ -1252,8 +1261,11 @@ private fun ProfileMenu(
     onSetContact: (Boolean) -> Unit,
     onReport: () -> Unit,
     onDeleteOrLeave: (SpamCleanup) -> Unit,
+    onStartSecretChat: () -> Unit,
+    onCloseSecretChat: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var confirmCloseSecret by rememberSaveable { mutableStateOf(false) }
     var confirmBlock by rememberSaveable { mutableStateOf(false) }
     var confirmRemoveContact by rememberSaveable { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
@@ -1266,9 +1278,12 @@ private fun ProfileMenu(
     val canShareContact = profile.kind == ProfileKind.User && profile.userId != null && !profile.phone.isNullOrBlank()
     // Do kontaktů jde člověk, ne bot a ne vlastní účet (ten je `SavedMessages`).
     val canManageContact = profile.kind == ProfileKind.User && profile.userId != null
+    // Tajný chat jde začít s člověkem (ne s botem, ne se sebou — to je `SavedMessages`), a to
+    // i z profilu jiného tajného chatu: každý je vázaný na jedno zařízení.
+    val canStartSecret = profile.kind == ProfileKind.User && profile.userId != null
     if (
         profile.link == null && !canBlock && !canDeleteOrLeave && !canEdit && !canReport && !canShareContact &&
-        !profile.canAddMembers && !canManageContact
+        !profile.canAddMembers && !canManageContact && !canStartSecret
     ) {
         return
     }
@@ -1301,6 +1316,11 @@ private fun ProfileMenu(
                     profile.link?.let { MenuAction(stringResource(Res.string.profile_copy_link), Res.drawable.link_24dp, onClick = onCopyLink) },
                     if (canShareContact) {
                         MenuAction(stringResource(Res.string.profile_share_contact), Res.drawable.share_24dp, onClick = onShareContact)
+                    } else {
+                        null
+                    },
+                    if (canStartSecret) {
+                        MenuAction(stringResource(Res.string.secret_chat_start), Res.drawable.lock_24dp, onClick = onStartSecretChat)
                     } else {
                         null
                     },
@@ -1344,6 +1364,16 @@ private fun ProfileMenu(
                 ),
                 // Nevratné zvlášť, ve vlastní skupině a chybovou barvou.
                 listOfNotNull(
+                    if (profile.isSecretChat && profile.secretChatOpen) {
+                        MenuAction(
+                            stringResource(Res.string.secret_chat_close),
+                            Res.drawable.lock_open_24dp,
+                            destructive = true,
+                            onClick = { confirmCloseSecret = true },
+                        )
+                    } else {
+                        null
+                    },
                     if (canDeleteOrLeave) {
                         MenuAction(
                             stringResource(
@@ -1362,6 +1392,25 @@ private fun ProfileMenu(
                     },
                 ),
             ),
+        )
+    }
+
+    if (confirmCloseSecret) {
+        AlertDialog(
+            onDismissRequest = { confirmCloseSecret = false },
+            title = { Text(stringResource(Res.string.secret_chat_close_title)) },
+            text = { Text(stringResource(Res.string.secret_chat_close_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmCloseSecret = false
+                    onCloseSecretChat()
+                }) {
+                    Text(stringResource(Res.string.secret_chat_close), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmCloseSecret = false }) { Text(stringResource(Res.string.common_cancel)) }
+            },
         )
     }
 

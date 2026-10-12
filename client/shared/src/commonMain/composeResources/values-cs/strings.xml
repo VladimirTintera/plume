@@ -377,6 +377,21 @@
     <string name="conversation_write_restricted">Správci v téhle skupině psaní omezili.</string>
     <string name="conversation_not_member">V tomhle chatu už nejste.</string>
     <string name="conversation_topic_closed">Téma je uzavřené. Psát do něj můžou jen správci.</string>
+    <string name="secret_chat">Tajný chat</string>
+    <string name="secret_chat_state_pending">Čeká se, až se protějšek připojí…</string>
+    <string name="secret_chat_state_ready">Tajný chat je připravený</string>
+    <string name="secret_chat_state_closed">Tajný chat je ukončený</string>
+    <string name="auto_delete_explanation_secret">Zprávy zmizí u obou z vás tolik času poté, co je protějšek přečte.</string>
+    <string name="notification_new_secret_chat">Začíná s tebou tajný chat</string>
+    <string name="secret_chat_start">Začít tajný chat</string>
+    <string name="secret_chat_start_failed">Tajný chat se nepodařilo začít.</string>
+    <string name="secret_chat_close">Ukončit tajný chat</string>
+    <string name="secret_chat_close_title">Ukončit tajný chat?</string>
+    <string name="secret_chat_close_text">Historie tu zůstane, ale psát do tohohle tajného chatu už nebude moct nikdo z vás. Nový jde začít kdykoli.</string>
+    <string name="secret_chat_closed">Tajný chat je ukončený</string>
+    <string name="secret_chat_close_failed">Tajný chat se nepodařilo ukončit.</string>
+    <string name="conversation_secret_pending">Čeká se, až se protějšek připojí. Pak se tajný chat spustí a půjde psát.</string>
+    <string name="conversation_secret_closed">Tajný chat je ukončený. Psát do něj už nejde.</string>
     <string name="conversation_join_failed">Přidat se nepodařilo.</string>
     <string name="conversation_link_failed">Odkaz se nepodařilo otevřít.</string>
     <string name="conversation_link_user_not_found">Tenhle člověk na Telegramu není, nebo své číslo skrývá.</string>
@@ -1912,6 +1927,11 @@
     <string name="poll_compose_hide_results">Výsledky až po skončení</string>
     <string name="poll_compose_drop_reply">Poslat bez odpovědi</string>
     <string name="poll_duration_none">Bez omezení</string>
+    <plurals name="duration_seconds">
+        <item quantity="one">%1$d sekunda</item>
+        <item quantity="few">%1$d sekundy</item>
+        <item quantity="other">%1$d sekund</item>
+    </plurals>
     <plurals name="duration_minutes">
         <item quantity="one">%1$d minuta</item>
         <item quantity="few">%1$d minuty</item>
@@ -1937,6 +1957,7 @@
         <item quantity="few">%1$d měsíce</item>
         <item quantity="other">%1$d měsíců</item>
     </plurals>
+    <string name="duration_short_seconds">%1$d s</string>
     <string name="duration_short_minutes">%1$d min</string>
     <string name="duration_short_hours">%1$d h</string>
     <string name="duration_short_days">%1$d d</string>

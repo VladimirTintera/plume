@@ -51,6 +51,9 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.waitUiText
 import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.secret_chat_start_failed
+import eu.tintera.plume.resources.secret_chat_closed
+import eu.tintera.plume.resources.secret_chat_close_failed
 import eu.tintera.plume.resources.profile_failed
 import eu.tintera.plume.resources.profile_mute_failed
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -573,6 +576,32 @@ class ChatProfileViewModel(
     fun openLinkedChat() {
         val linked = _state.value.profile?.linkedChat ?: return
         _state.update { it.copy(openChat = linked.chatId) }
+    }
+
+    /**
+     * Nový tajný chat s člověkem z profilu. Založí se hned a otevře; protějšek ho dostane, až
+     * bude online — do té doby konverzace říká, že se čeká.
+     */
+    fun startSecretChat() {
+        val userId = _state.value.profile?.userId ?: return
+        viewModelScope.launch {
+            chats.createSecretChat(userId)
+                .onSuccess { target -> _state.update { it.copy(openChat = target) } }
+                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.secret_chat_start_failed)) } }
+        }
+    }
+
+    /** Ukončí tajný chat. Historie zůstane, psát do něj už nepůjde ani protějšku. */
+    fun closeSecretChat() {
+        viewModelScope.launch {
+            chats.closeSecretChat(chatId)
+                .onSuccess {
+                    _state.update {
+                        it.copy(profile = it.profile?.copy(secretChatOpen = false), error = UiText(Res.string.secret_chat_closed))
+                    }
+                }
+                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.secret_chat_close_failed)) } }
+        }
     }
 
     /** Člen skupiny: otevře se soukromý chat s ním (TDLib ho založí lokálně, nic se neposílá). */

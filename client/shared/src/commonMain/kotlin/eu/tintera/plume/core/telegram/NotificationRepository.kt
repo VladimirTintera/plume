@@ -96,8 +96,9 @@ data class ChatNotification(
     /**
      * Id zprávy, ke které notifikace patří. Jediné, co mají společné dočasná notifikace z pushe
      * a skutečná, která ji nahradí — id notifikace i text se liší (push u fotky předřazuje 🖼).
+     * `null` u oznámení bez zprávy (nový tajný chat).
      */
-    val messageId: Long,
+    val messageId: Long?,
     val chatId: Long,
     val chatTitle: String,
     /** `null` v soukromém chatu, kde je odesílatel totožný s chatem. */

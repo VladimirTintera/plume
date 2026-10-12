@@ -31,8 +31,12 @@ class DurationUnitTest {
     }
 
     @Test
-    fun podMinutuJeMinuta() {
-        assertEquals(DurationUnit.Minutes to 1, durationUnit(20))
+    fun podMinutuSekundy() {
+        // Časovač tajného chatu: 10 s je „10 sekund", ne zaokrouhlená minuta.
+        assertEquals(DurationUnit.Seconds to 20, durationUnit(20))
+        assertEquals(DurationUnit.Minutes to 1, durationUnit(60))
+        // Necelá minuta nad minutou zůstává v minutách, jako dřív.
+        assertEquals(DurationUnit.Minutes to 1, durationUnit(90))
     }
 
     @Test

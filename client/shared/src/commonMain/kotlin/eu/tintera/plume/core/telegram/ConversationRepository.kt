@@ -1030,6 +1030,8 @@ data class ChatInfo(
     val draftReplyQuote: ReplyQuote? = null,
     /** Ověřený, podvod, falešný (viz [Verification]) — štítek u jména v hlavičce. */
     val verification: Verification? = null,
+    /** Tajný chat — zámek u jména, zákaz snímků obrazovky. */
+    val isSecret: Boolean = false,
     /** Vlastní emoji statusu za jménem v hlavičce (viz [statusEmojiId]), nebo `null`. */
     val emojiStatus: Long? = null,
     /**

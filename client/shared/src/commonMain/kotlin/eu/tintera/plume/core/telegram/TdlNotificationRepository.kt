@@ -26,10 +26,12 @@ import dev.g000sha256.tdl.dto.NotificationGroupTypeMessages
 import dev.g000sha256.tdl.dto.MessageTopicForum
 import dev.g000sha256.tdl.dto.NotificationTypeNewMessage
 import dev.g000sha256.tdl.dto.NotificationTypeNewPushMessage
+import dev.g000sha256.tdl.dto.NotificationTypeNewSecretChat
 import dev.g000sha256.tdl.dto.PushMessageContentPhoto
 import dev.g000sha256.tdl.dto.UpdateNotificationGroup
 import dev.g000sha256.tdl.toResult
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.notification_new_secret_chat
 import eu.tintera.plume.resources.notification_new_message
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -282,8 +284,16 @@ class TdlNotificationRepository(
                 )
             }
 
-            // Hovory jdou vlastní cestou (`NotificationUpdate.Call`, výš). Tajné chaty zatím
-            // nezobrazujeme — přeskočit je je lepší než ukázat notifikaci bez obsahu.
+            // Protějšek založil tajný chat. Zpráva k tomu žádná není; bez oznámení by se o chatu
+            // dozvěděl, až by mu napsal.
+            is NotificationTypeNewSecretChat -> NotificationContent(
+                messageId = null,
+                senderName = null,
+                senderPhoto = null,
+                text = readString(Res.string.notification_new_secret_chat),
+            )
+
+            // Hovory jdou vlastní cestou (`NotificationUpdate.Call`, výš).
             else -> null
         }
 
@@ -344,7 +354,16 @@ class TdlNotificationRepository(
         client.processPushNotification(payload = payload)
             .toResult()
             .map { }
-            .onFailure { logger.e(it) { "processPushNotification selhalo." } }
+            .onFailure { failure ->
+                // Push o novém tajném chatu TDLib zpracovat neumí (hlášku má přímo v knihovně);
+                // chat dorazí updatem, až se připojí, a oznámí ho `NotificationTypeNewSecretChat`.
+                // Není to chyba, kvůli které by se mělo hlásit do Crashlytics.
+                if (failure.message == SECRET_CHAT_PUSH_UNSUPPORTED) {
+                    logger.i { "Push o novém tajném chatu TDLib nezpracuje, chat dorazí updatem." }
+                } else {
+                    logger.e(failure) { "processPushNotification selhalo." }
+                }
+            }
 
     /**
      * Odesílatel zprávy.
@@ -402,7 +421,7 @@ class TdlNotificationRepository(
     private class Sender(val name: String?, val photo: File?)
 
     private class NotificationContent(
-        val messageId: Long,
+        val messageId: Long?,
         val senderName: String?,
         val senderPhoto: File?,
         val text: String,
@@ -414,6 +433,9 @@ class TdlNotificationRepository(
     )
 
     private companion object {
+        /** Hláška TDLib (ověřeno `strings` nad knihovnou) u pushe o novém tajném chatu. */
+        const val SECRET_CHAT_PUSH_UNSUPPORTED = "New secret chat notification is not supported"
+
         /** Nejvyšší priorita: notifikace čeká, takže má smysl ji vyřídit dřív než zbytek fronty. */
         const val AVATAR_PRIORITY = 32
 

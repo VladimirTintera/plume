@@ -97,6 +97,10 @@ import dev.g000sha256.tdl.dto.ChatActionUploadingVideo
 import dev.g000sha256.tdl.dto.ChatActionUploadingVideoNote
 import dev.g000sha256.tdl.dto.ChatActionUploadingVoiceNote
 import dev.g000sha256.tdl.dto.ChatTypeSecret
+import dev.g000sha256.tdl.dto.SecretChatStateReady
+import dev.g000sha256.tdl.dto.SecretChatStatePending
+import dev.g000sha256.tdl.dto.SecretChatStateClosed
+import dev.g000sha256.tdl.dto.SecretChatState
 import dev.g000sha256.tdl.dto.BlockListMain
 import dev.g000sha256.tdl.dto.ChatActionBarReportAddBlock
 import dev.g000sha256.tdl.dto.ChatActionBarAddContact
@@ -154,6 +158,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.secret_chat_state_ready
+import eu.tintera.plume.resources.secret_chat_state_pending
+import eu.tintera.plume.resources.secret_chat_state_closed
 import eu.tintera.plume.resources.chats_load_failed
 
 /**
@@ -382,7 +389,7 @@ class TdlChatRepository(
             holder.updates { chatLastMessageUpdates }.collect { update ->
                 // Náhled se čte z prostředků (`suspend`), takže se připraví před `edit` —
                 // ten bere obyčejnou funkci, protože běží pod zámkem nad stavem seznamu.
-                val preview = update.lastMessage?.previewText()
+                val preview = update.lastMessage?.previewText() ?: secretChatPreview(update.chatId)
                 setPositions(update.chatId, update.positions)
                 edit(update.chatId, fetchUnknown = true) { current ->
                     current.copy(
@@ -484,6 +491,21 @@ class TdlChatRepository(
                         isForum = update.supergroup.isForum,
                     )
                 }
+            }
+        }
+
+        /*
+         * Stav tajného chatu. Prázdný tajný chat nemá poslední zprávu, takže pod jménem stojí
+         * jeho stav — a ten se mění, když se protějšek připojí nebo chat ukončí. Chat s historií
+         * má náhled zprávy a stav nepotřebuje.
+         */
+        scope.launch {
+            holder.updates { secretChatUpdates }.collect { update ->
+                val chat = client.createSecretChat(secretChatId = update.secretChat.id).toResult().getOrNull()
+                    ?: return@collect
+                if (chat.lastMessage != null) return@collect
+                val preview = update.secretChat.state.preview()
+                edit(chat.id) { it.copy(lastMessagePreview = preview, lastMessagePreviewEntities = emptyList()) }
             }
         }
 
@@ -910,6 +932,16 @@ class TdlChatRepository(
 
     override suspend fun privateChat(userId: Long): Result<Long> =
         client.createPrivateChat(userId = userId, force = false).toResult().map { it.id }
+
+    override suspend fun createSecretChat(userId: Long): Result<Long> =
+        client.createNewSecretChat(userId = userId).toResult().map { it.id }
+
+    override suspend fun closeSecretChat(chatId: Long): Result<Unit> = runCatching {
+        val type = client.getChat(chatId = chatId).toResult().getOrThrow().type as? ChatTypeSecret
+            ?: error("Chat $chatId není tajný.")
+        client.closeSecretChat(secretChatId = type.secretChatId).toResult().getOrThrow()
+        Unit
+    }
 
     override suspend fun isForum(chatId: Long): Boolean =
         mutex.withLock { known[chatId]?.isForum }
@@ -1512,8 +1544,22 @@ class TdlChatRepository(
      * zelenou tečku i „píše…", protože obojí by se vrátilo na `null`.
      */
     /** Položka i s tím, co `Chat` nenese a dočítá se lokálně: ověření a to, jestli je to fórum. */
-    private suspend fun Chat.fullSummary(): ChatSummary =
-        toSummary().copy(verification = client.verificationOf(this), isForum = client.isForum(this))
+    /** Pod jménem prázdného tajného chatu jeho stav; jiný chat `null`. Lokální dotaz. */
+    private suspend fun secretChatPreview(type: ChatType): UiText? {
+        val secret = type as? ChatTypeSecret ?: return null
+        return client.getSecretChat(secretChatId = secret.secretChatId).toResult().getOrNull()?.state?.preview()
+    }
+
+    private suspend fun secretChatPreview(chatId: Long): UiText? =
+        client.getChat(chatId = chatId).toResult().getOrNull()?.type?.let { secretChatPreview(it) }
+
+    private suspend fun Chat.fullSummary(): ChatSummary = toSummary().let { summary ->
+        summary.copy(
+            verification = client.verificationOf(this),
+            isForum = client.isForum(this),
+            lastMessagePreview = summary.lastMessagePreview ?: secretChatPreview(type),
+        )
+    }
 
     private fun ChatSummary.keepingLiveState(previous: ChatSummary?): ChatSummary =
         if (previous == null) this else copy(
@@ -1657,6 +1703,7 @@ private suspend fun Chat.toSummary(): ChatSummary {
         isMuted = notificationSettings.isMuted(),
         isMarkedAsUnread = isMarkedAsUnread,
         kind = type.chatKind(),
+        isSecret = type is ChatTypeSecret,
         lastMessageTimestamp = lastMessage?.date,
         // Dostupnost `Chat` nenese — dorazí updatem. Do té doby je `null`, což UI kreslí
         // prostě bez tečky.
@@ -1863,3 +1910,12 @@ private fun SettingsSection?.toAppScreen(): AppScreen = when (this) {
     is SettingsSectionPowerSaving, is SettingsSectionPremium, is SettingsSectionPrivacyPolicy,
     is SettingsSectionSearch, is SettingsSectionSendGift -> AppScreen.Settings
 }
+
+/** Stav tajného chatu slovy — pod jménem chatu, dokud v něm není žádná zpráva. */
+private fun SecretChatState.preview(): UiText = UiText(
+    when (this) {
+        is SecretChatStatePending -> Res.string.secret_chat_state_pending
+        is SecretChatStateReady -> Res.string.secret_chat_state_ready
+        is SecretChatStateClosed -> Res.string.secret_chat_state_closed
+    },
+)

@@ -299,7 +299,8 @@ class TdlTelegramSession(
             useFileDatabase = true,
             useChatInfoDatabase = true,
             useMessageDatabase = true,
-            useSecretChats = false,
+            // Tajné chaty: bez toho TDLib žádný nepřijme ani nezaloží (`docs/poznatky/tajne-chaty.md`).
+            useSecretChats = true,
             apiId = BuildConfiguration.TELEGRAM_API_ID,
             apiHash = BuildConfiguration.TELEGRAM_API_HASH,
             systemLanguageCode = platformLanguageCode,
