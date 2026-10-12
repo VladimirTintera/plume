@@ -372,7 +372,9 @@ a `topicActions` (`ForumTopics.kt`, testy `TopicManagementTest`).
   přečetla jednou při otevření a vypnutí „Create topics" ve skupině nebo zrušení omezení se
   projevilo až po restartu aplikace — dnes do 2 s oběma směry. **Omezený člen zakládá podle
   SVÝCH práv** (`OwnMemberStatus.Restricted.canCreateTopics`), dřív nesměl nic, ani když mu
-  omezení zakládání nechávalo. **Neověřeno**: vypnutí témat, správce bez vlastnictví, iOS.
+  omezení zakládání nechávalo. **Správce bez vlastnictví ověřený** (s „Spravovat témata", bez
+  mazání: Připnout / Přejmenovat / Uzavřít, Smazat ne; přejmenování prošlo). **Neověřeno**:
+  vypnutí témat, iOS.
 
 #### Cesty do tématu
 

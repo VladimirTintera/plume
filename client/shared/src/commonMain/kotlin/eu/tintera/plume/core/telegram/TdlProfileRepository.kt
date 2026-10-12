@@ -509,6 +509,9 @@ class TdlProfileRepository(
         val (sender, isBot) = member(userId) ?: error("Uživatele $userId se nepodařilo načíst.")
         val status = chatMember.status
         val restricted = status as? ChatMemberStatusRestricted
+        val isForum = (chat.type as? ChatTypeSupergroup)?.let { type ->
+            client.getSupergroup(supergroupId = type.supergroupId).toResult().getOrNull()?.isForum
+        } == true
 
         MemberDetail(
             chatId = chatId,
@@ -518,10 +521,12 @@ class TdlProfileRepository(
             isBot = isBot,
             role = status.role(),
             kind = kind,
+            isForum = isForum,
             tag = chatMember.tag.trim().ifEmpty { null },
-            // Kdo správce není, dostane běžnou moderátorskou sadu jako výchozí nabídku.
+            // Kdo správce není, dostane běžnou moderátorskou sadu jako výchozí nabídku; ve skupině
+            // s tématy k ní patří i jejich správa, jinde to právo nedává smysl.
             adminRights = (status as? ChatMemberStatusAdministrator)?.rights?.toAdminRights()
-                ?: AdminRights.Default,
+                ?: AdminRights.Default.copy(manageTopics = isForum),
             // Omezený člen má vlastní práva, ostatní výchozí práva skupiny.
             permissions = (restricted?.permissions ?: chat.permissions).toGroupPermissions(),
             isRestricted = restricted != null,
@@ -703,6 +708,7 @@ private fun ChatAdministratorRights.toAdminRights() = AdminRights(
     pinMessages = canPinMessages,
     promoteMembers = canPromoteMembers,
     anonymous = isAnonymous,
+    manageTopics = canManageTopics,
 )
 
 /** Nový správce: všechno vypnuté, a teprve na to se položí vybraná práva. */
@@ -742,7 +748,7 @@ private fun ChatAdministratorRights.merged(next: AdminRights) = ChatAdministrato
     canInviteUsers = next.inviteUsers,
     canRestrictMembers = next.restrictMembers,
     canPinMessages = next.pinMessages,
-    canManageTopics = canManageTopics,
+    canManageTopics = next.manageTopics,
     canPromoteMembers = next.promoteMembers,
     canManageVideoChats = canManageVideoChats,
     canPostStories = canPostStories,

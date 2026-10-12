@@ -1498,6 +1498,7 @@
     <string name="member_right_invite">Add members</string>
     <string name="member_right_invite_channel">Add subscribers</string>
     <string name="member_right_pin">Pin messages</string>
+    <string name="member_right_manage_topics">Manage topics</string>
     <string name="member_right_promote">Add new admins</string>
     <string name="member_right_anonymous">Remain anonymous</string>
     <string name="member_restrict_duration">Restrict until</string>

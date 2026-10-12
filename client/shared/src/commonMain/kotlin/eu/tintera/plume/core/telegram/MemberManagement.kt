@@ -81,6 +81,8 @@ data class AdminRights(
     val promoteMembers: Boolean = false,
     /** Vystupovat ve skupině anonymně, jménem skupiny. Jen skupina. */
     val anonymous: Boolean = false,
+    /** Spravovat cizí témata (přejmenovat, uzavřít, připnout). Jen skupina s tématy. */
+    val manageTopics: Boolean = false,
 ) {
     /**
      * Správce má aspoň jedno právo. Prázdná práva znamenají sesazení na běžného člena — tak to
@@ -88,7 +90,7 @@ data class AdminRights(
      */
     val any: Boolean
         get() = changeInfo || postMessages || editMessages || deleteMessages ||
-            restrictMembers || inviteUsers || pinMessages || promoteMembers || anonymous
+            restrictMembers || inviteUsers || pinMessages || promoteMembers || anonymous || manageTopics
 
     companion object {
         /** Co dostane nově povýšený správce, dokud si uživatel nevybere: běžná moderátorská sada. */
@@ -113,6 +115,8 @@ data class MemberDetail(
     val isBot: Boolean,
     val role: MemberRole,
     val kind: MemberGroupKind,
+    /** Skupina má témata — jen tehdy se nabízí právo spravovat je. */
+    val isForum: Boolean = false,
     /** Vlastní štítek člena; prázdný od serveru → `null`. */
     val tag: String?,
     /** Práva správce; u toho, kdo správce není, výchozí nabídka pro povýšení. */
