@@ -125,7 +125,7 @@ fun RemoteImage(
                 val sharpening = current != readyPath && state is FileState.Downloading
                 AsyncImage(
                     // Coil potřebuje schéma; holá cesta by se vyhodnotila jako relativní URI.
-                    model = "file://$current",
+                    model = localImage(current),
                     contentDescription = contentDescription,
                     contentScale = contentScale,
                     modifier = Modifier

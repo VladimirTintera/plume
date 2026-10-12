@@ -5,6 +5,7 @@ import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
+import okio.Path.Companion.toPath
 
 /**
  * Uloží stažený snímek nebo video do galerie telefonu.
@@ -35,7 +36,7 @@ fun savedFileName(originalName: String?, sourcePath: String, timestamp: Int, zon
     fun Int.pad() = toString().padStart(2, '0')
     val stamp = "${moment.year}${moment.month.number.pad()}${moment.day.pad()}_" +
         "${moment.hour.pad()}${moment.minute.pad()}${moment.second.pad()}"
-    val extension = sourcePath.substringAfterLast('/').substringAfterLast('.', "")
+    val extension = sourcePath.toPath().name.substringAfterLast('.', "")
     return if (extension.isEmpty()) "Plume_$stamp" else "Plume_$stamp.$extension"
 }
 

@@ -148,7 +148,7 @@ private fun PhotoCrop(
     // Na poměru stran se zmenšením nic nemění, a výřez je v podílech.
     val request = remember(shown) {
         ImageRequest.Builder(context)
-            .data("file://$shown")
+            .data(localImage(shown))
             .size(PREVIEW_EDGE)
             .placeholderMemoryCacheKey(lastKey)
             .build()

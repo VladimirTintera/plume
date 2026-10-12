@@ -33,4 +33,14 @@ class SavedFileNameTest {
     fun pathWithoutExtension() {
         assertEquals("Plume_20260918_233017", savedFileName(null, "/files/photos.d/12", timestamp, prague))
     }
+
+    // Desktop pod Windows: TDLib vrací cesty se zpětnými lomítky.
+    @Test
+    fun windowsPath() {
+        assertEquals(
+            "Plume_20260918_233017.jpg",
+            savedFileName(null, "C:\\Users\\jan\\AppData\\Roaming\\Plume\\photos\\12_3.jpg", timestamp, prague),
+        )
+        assertEquals("Plume_20260918_233017", savedFileName(null, "C:\\Plume\\photos.d\\12", timestamp, prague))
+    }
 }

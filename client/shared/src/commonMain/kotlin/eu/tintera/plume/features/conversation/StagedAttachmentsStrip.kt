@@ -39,6 +39,7 @@ import coil3.compose.AsyncImage
 import eu.tintera.plume.core.telegram.AttachmentMode
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.ui.attachmentKey
+import eu.tintera.plume.core.ui.localImage
 import eu.tintera.plume.core.ui.sharedFlight
 import eu.tintera.plume.features.conversation.items.SpoilerOverlay
 import eu.tintera.plume.features.conversation.items.rememberSpoilerBlurStyle
@@ -57,6 +58,7 @@ import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.schedule_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import okio.Path.Companion.toPath
 
 /**
  * Přílohy čekající na odeslání, nahoře v kartě vstupního pole.
@@ -112,7 +114,7 @@ fun StagedAttachmentsStrip(
                         tint = MaterialTheme.colorScheme.primary,
                     )
                     Text(
-                        text = attachment.path.substringAfterLast('/'),
+                        text = attachment.path.toPath().name,
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1,
                         overflow = TextOverflow.MiddleEllipsis,
@@ -181,7 +183,7 @@ private fun SinglePhotoPreview(
                         .sharedFlight(attachmentKey(attachment.path), visible = !isPreviewOpen),
                 ) {
                     AsyncImage(
-                        model = "file://$image",
+                        model = localImage(image),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -345,7 +347,7 @@ private fun PhotoCarousel(
                 ) {
                     AsyncImage(
                         // Coil potřebuje schéma, holá cesta by se vyhodnotila jako relativní URI.
-                        model = "file://$image",
+                        model = localImage(image),
                         contentDescription = stringResource(Res.string.conversation_attachment_position, index + 1, attachments.size),
                         contentScale = ContentScale.Crop,
                         modifier = Modifier

@@ -106,6 +106,7 @@ import kotlinx.coroutines.launch
 import eu.tintera.plume.core.telegram.AttachmentMode
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.localImage
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.ui.DarkSystemBars
 import eu.tintera.plume.core.ui.EmbeddedMediaPicker
@@ -351,7 +352,7 @@ private fun ShareToChatContent(
                 latestAttachments.getOrNull(index)?.let { attachment ->
                     AsyncImage(
                         // Coil potřebuje schéma, holá cesta by se vyhodnotila jako relativní URI.
-                        model = "file://${attachment.previewPath}",
+                        model = localImage(attachment.previewPath),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
@@ -747,7 +748,7 @@ private fun SharedPhoto(
             overlay = badges,
             thumbnail = {
                 AsyncImage(
-                    model = "file://${attachment.previewPath}",
+                    model = localImage(attachment.previewPath),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize().spoilerBlur(
@@ -776,7 +777,7 @@ private fun SharedPhoto(
             overlay = badges,
         ) {
             AsyncImage(
-                model = "file://${attachment.previewPath}",
+                model = localImage(attachment.previewPath),
                 contentDescription = null,
                 // Karta už poměr stran drží, takže `Crop` jen dorovná zaokrouhlení a nic
                 // neukrojí — sdílený snímek má být vidět CELÝ, je to to jediné, co odejde.

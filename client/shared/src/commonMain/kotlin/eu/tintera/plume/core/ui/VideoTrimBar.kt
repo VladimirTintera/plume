@@ -189,7 +189,7 @@ private fun StripFrame(control: VideoCropControl, atMs: Long, modifier: Modifier
     Box(modifier.fillMaxHeight()) {
         path?.let {
             AsyncImage(
-                model = "file://$it",
+                model = localImage(it),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),

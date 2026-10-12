@@ -169,6 +169,18 @@ postaví MSI (`packageMsi -PdesktopVersion=…`), na Ubuntu založí GitHub Rele
   s průhlednými rohy podle mřížky ikon macOS (824/1024, poloměr 185). ICO nese velikosti
   16–256, Windows si vybírá podle místa (hlavní panel, Start, Průzkumník).
 
+## Cesty k souborům na Windows
+
+- **Obrázek ze souboru jde do Coilu jako `localImage(path)` (`okio.Path`), nikdy jako
+  `"file://$path"`.** Coil řetězec rozebírá jako URI: z `file://C:\Users\…\a.jpg` udělá autoritu
+  `C:` a cestu `Users\…\a.jpg`, relativní k pracovnímu adresáři. Výsledek je
+  `FileNotFoundException`, kterou Coil spolkne, a na Windows nebyl vidět jediný obrázek — fotky,
+  avatary, náhledy příloh — zatímco na macOS, Androidu i iOS všechno fungovalo. `Path` Coil mapuje
+  na URI z částí bez rozboru (`PathMapper`). Reprodukuje to `LocalImageTest` v `jvmTest`, ovšem
+  jen na Windows; na ostatních systémech prošla i stará podoba.
+- **Jméno souboru z cesty se bere `toPath().name`, ne `substringAfterLast('/')`**: TDLib na
+  Windows vrací cesty se zpětnými lomítky a z lomítka by vyšla celá cesta.
+
 ## Co platforma (zatím) neumí
 
 Prázdné `actual` volí chování, které sdílený kód už umí ohlásit, ne tiché nic: přehrávání

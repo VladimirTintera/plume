@@ -46,6 +46,7 @@ import eu.tintera.plume.core.telegram.AttachmentMode
 import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.ui.DarkSystemBars
+import eu.tintera.plume.core.ui.localImage
 import eu.tintera.plume.core.ui.MEDIA_PAGE_VERTICAL_GAP
 import eu.tintera.plume.core.ui.aspectRatioOf
 import eu.tintera.plume.core.ui.attachmentKey
@@ -174,7 +175,7 @@ internal fun StagedAttachmentPreview(
                 thumbnail = {
                     AsyncImage(
                         // Coil potřebuje schéma, holá cesta by se vyhodnotila jako relativní URI.
-                        model = "file://${attachment.thumbnail?.path ?: attachment.path}",
+                        model = localImage(attachment.thumbnail?.path ?: attachment.path),
                         contentDescription = stringResource(Res.string.attachment_preview_title),
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -203,7 +204,7 @@ internal fun StagedAttachmentPreview(
                 cardModifier = flight,
             ) {
                 AsyncImage(
-                    model = "file://${attachment.path}",
+                    model = localImage(attachment.path),
                     contentDescription = stringResource(Res.string.attachment_preview_title),
                     // Karta má poměr stran snímku, takže `Crop` nic neukrojí.
                     contentScale = ContentScale.Crop,
