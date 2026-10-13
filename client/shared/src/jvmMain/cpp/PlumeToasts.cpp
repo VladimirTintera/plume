@@ -50,8 +50,13 @@ static void plumeEnsureCom() {
     CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 }
 
-// Klik na toast: Windows zavolá aktivátor na vlákně RPC s argumenty `launch` z XML.
-static void plumeDeliver(LPCWSTR arguments) {
+static jstring plumeJavaString(JNIEnv *env, LPCWSTR value) {
+    return value == nullptr ? nullptr : env->NewString(reinterpret_cast<const jchar *>(value), static_cast<jsize>(wcslen(value)));
+}
+
+// Klik na toast nebo jeho tlačítko: Windows zavolá aktivátor na vlákně RPC s argumenty z XML
+// (`launch` toastu, `arguments` tlačítka) a s tím, co uživatel napsal do pole `reply`.
+static void plumeDeliver(LPCWSTR arguments, LPCWSTR reply) {
     if (plumeVm == nullptr || arguments == nullptr) return;
     JNIEnv *env = nullptr;
     bool attached = false;
@@ -59,16 +64,22 @@ static void plumeDeliver(LPCWSTR arguments) {
         if (plumeVm->AttachCurrentThreadAsDaemon(reinterpret_cast<void **>(&env), nullptr) != JNI_OK) return;
         attached = true;
     }
-    jstring value = env->NewString(reinterpret_cast<const jchar *>(arguments), static_cast<jsize>(wcslen(arguments)));
-    env->CallStaticVoidMethod(plumeClass, plumeOnActivated, value);
+    jstring value = plumeJavaString(env, arguments);
+    jstring text = plumeJavaString(env, reply);
+    env->CallStaticVoidMethod(plumeClass, plumeOnActivated, value, text);
     if (env->ExceptionCheck()) env->ExceptionClear();
     env->DeleteLocalRef(value);
+    if (text != nullptr) env->DeleteLocalRef(text);
     if (attached) plumeVm->DetachCurrentThread();
 }
 
 struct PlumeActivator : winrt::implements<PlumeActivator, INotificationActivationCallback> {
-    HRESULT __stdcall Activate(LPCWSTR, LPCWSTR invokedArgs, const NOTIFICATION_USER_INPUT_DATA *, ULONG) noexcept final {
-        plumeDeliver(invokedArgs);
+    HRESULT __stdcall Activate(LPCWSTR, LPCWSTR invokedArgs, const NOTIFICATION_USER_INPUT_DATA *data, ULONG count) noexcept final {
+        LPCWSTR reply = nullptr;
+        for (ULONG i = 0; i < count; i++) {
+            if (data[i].Key != nullptr && wcscmp(data[i].Key, L"reply") == 0) reply = data[i].Value;
+        }
+        plumeDeliver(invokedArgs, reply);
         return S_OK;
     }
 };
@@ -170,7 +181,7 @@ Java_eu_tintera_plume_core_notifications_WindowsToasts_nativeInit(
     jstring shortcutPath, jstring shortcutTarget, jboolean processAumid) {
     env->GetJavaVM(&plumeVm);
     plumeClass = static_cast<jclass>(env->NewGlobalRef(cls));
-    plumeOnActivated = env->GetStaticMethodID(cls, "onActivated", "(Ljava/lang/String;)V");
+    plumeOnActivated = env->GetStaticMethodID(cls, "onActivated", "(Ljava/lang/String;Ljava/lang/String;)V");
     if (plumeOnActivated == nullptr) return E_FAIL;
     plumeAumid = plumeString(env, aumid);
     const std::wstring clsidText = plumeString(env, clsid);

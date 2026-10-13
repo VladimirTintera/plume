@@ -217,6 +217,36 @@ předá systému — co se ladí, je čistá funkce.
   instalace z MSI, `LocalServer32`), doplnění AUMID do zástupce z MSI, zvuk (ověřen jen atribut
   v XML), vytažení okna dopředu, když je jiná aplikace v popředí.
 
+### Tlačítka toastu (odpověď, přečtení, ztlumení)
+
+Toast chatu má tytéž akce jako notifikace na Androidu: pole „Odpovědět" s Odeslat, „Označit
+jako přečtené" a „Ztlumit na hodinu" (jen kde `ChatNotification.canMute`; odpověď jen kde
+`canReply`). Co se děje v TDLib, je sdílené `NotificationActions` — desktop jen zapojuje.
+
+- **Všechna tlačítka `activationType="background"`.** Nezabalená aplikace je dostane stejně
+  jako klik — voláním COM aktivátoru — jen bez toho, aby Windows čekal, že vytáhne okno.
+  Aktivátor rozliší akci podle `arguments` tlačítka (`action=reply|read|mute&chat=…`); klik na
+  toast a hlavičku nese `launch` bez `action` a otevírá chat jako dřív, takže toasty ze starší
+  verze v Centru oznámení fungují dál (`parseActivation`, testy `ToastXmlTest`).
+- **Napsaný text přichází v `NOTIFICATION_USER_INPUT_DATA`** u `Activate` pod klíčem pole
+  (`reply`); dřív ho most zahazoval. Most ho předá jako druhý argument `onActivated`.
+- **Odeslat jde stisknout i s prázdným polem** — prázdná (i jen mezery) odpověď se zahodí.
+- **Toast po stisku tlačítka zavře Windows sám**, ať akce dopadla jakkoli. Zmizení toastu tedy
+  přečtení NEDOKAZUJE; pozná se na odznaku nepřečtených (`DesktopTaskbar` v logu) nebo v logu
+  presenteru. Nepovedená odpověď se proto ohlásí NOVÝM toastem („Neodesláno: …"), na Androidu
+  se překresluje původní notifikace.
+- **Ve skupině odpověď cituje** nejnovější zprávu oznámení, v soukromém chatu nic — stejně jako
+  Android (`quoteMessageId` = `messageId`, když je `senderName`).
+- **Čeká se štědřeji než na Androidu** (30 s na přihlášení, minuta na potvrzení): proces se
+  neuspí a nehlídá ho systémový limit příjemce. Nepotvrzenou zprávu TDLib došle sám, jen chat
+  zůstane nepřečtený.
+- **Popisky se překládají při zobrazení** (`readString`) — toast je hotový text v XML, po změně
+  jazyka zůstanou staré toasty v původním jazyce.
+- **Ověřeno na Windows 11** (ladicí běh, Plume schovaná v oznamovací oblasti): odpověď z toastu
+  odešla s diakritikou, server ji potvrdil, okno zůstalo schované a chat se přečetl.
+  „Označit jako přečtené" ověřil uživatel ručně (log přečtení přibyl až po tom testu).
+  **Neověřeno**: Ztlumit na hodinu, toast „Neodesláno", studený start z tlačítka (MSI).
+
 ## Hlavní panel Windows
 
 Počet nepřečtených a upozornění na novou zprávu na tlačítku okna (`DesktopTaskbar`). Stačí na
