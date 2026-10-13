@@ -18,6 +18,9 @@ import eu.tintera.plume.core.calls.CallMedia
 import eu.tintera.plume.core.calls.CallMediaEvents
 import eu.tintera.plume.core.calls.CallMediaServer
 import eu.tintera.plume.core.calls.CallMediaSession
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.call_bar_failed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -131,9 +134,11 @@ internal class TdlCallRepository(
             media?.setOutput(CallAudioOutput.Speaker)
         }
         return holder.client.createCall(userId = userId, protocol = protocol, isVideo = video).toResult().map { }
-            .onFailure {
+            .onFailure { failure ->
+                logger.w(failure) { "Hovor se nepodařilo zahájit." }
                 outgoingCamera = false
                 media?.stop()
+                showFailed(userId, video, failure.userMessage(Res.string.call_bar_failed))
             }
     }
 
@@ -156,9 +161,17 @@ internal class TdlCallRepository(
             ?: return Result.failure(IllegalStateException("Žádný hovor nezvoní."))
         val protocol = protocol() ?: return Result.failure(UnsupportedOperationException("Hovory tu nejsou."))
         startAudio()
+        _active.update { it?.copy(failure = null) }
         if (camera) setCamera(true)
         return holder.client.acceptCall(callId = call.id, protocol = protocol).toResult().map { }
-            .onFailure { media?.stop() }
+            .onFailure { failure ->
+                logger.w(failure) { "Hovor se nepodařilo přijmout." }
+                media?.stop()
+                _active.update { active ->
+                    active?.takeIf { it.id == call.id }?.copy(phase = CallPhase.Failed, failure = failure.userMessage(Res.string.call_bar_failed)) ?: active
+                }
+                finish(call.id, CallPhase.Failed)
+            }
     }
 
     override suspend fun hangUp() = hangUp(disconnected = false)
@@ -218,6 +231,33 @@ internal class TdlCallRepository(
         _active.update { it?.copy(frontCamera = front) }
     }
 
+    override fun reportFailure(userId: Long, video: Boolean, reason: UiText) {
+        val current = _active.value
+        if (current != null && current.userId == userId && current.phase !in ENDED) {
+            _active.value = current.copy(failure = reason)
+            return
+        }
+        showFailed(userId, video, reason)
+    }
+
+    /**
+     * Neúspěšný hovor, který nikdy nezačal (`createCall` selhal, chybí oprávnění): krátce se
+     * ukáže s důvodem, ať vytočení beze slova nezmizí. Probíhající hovor nepřepisuje.
+     */
+    private fun showFailed(userId: Long, video: Boolean, reason: UiText) {
+        val current = _active.value
+        if (current != null && current.phase !in ENDED) return
+        _active.value = ActiveCall(
+            id = FAILED_BEFORE_START_ID,
+            userId = userId,
+            isOutgoing = true,
+            phase = CallPhase.Failed,
+            isVideo = video,
+            failure = reason,
+        )
+        finish(FAILED_BEFORE_START_ID, CallPhase.Failed)
+    }
+
     override fun setMuted(muted: Boolean) {
         media?.setMuted(muted)
         _active.update { it?.copy(muted = muted) }
@@ -255,6 +295,23 @@ internal class TdlCallRepository(
             is CallStateDiscarded -> finish(call.id, CallPhase.Ended)
             is CallStateError -> {
                 logger.w { "Hovor skončil chybou: ${state.error.code} ${state.error.message}" }
+                val reason = errorText(state.error.message, Res.string.call_bar_failed)
+                val known = _active.value?.takeIf { it.id == call.id }
+                if (known != null) {
+                    _active.value = known.copy(phase = CallPhase.Failed, failure = reason)
+                } else if (call.isOutgoing) {
+                    // Chyba hned po `createCall` (soukromí, omezení počtu hovorů) chodí dřív než
+                    // `Pending` — bez tohohle by se obrazovka hovoru vůbec neotevřela a vytočení
+                    // by beze slova nic neudělalo.
+                    _active.value = ActiveCall(
+                        id = call.id,
+                        userId = call.userId,
+                        isOutgoing = true,
+                        phase = CallPhase.Failed,
+                        isVideo = call.isVideo,
+                        failure = reason,
+                    )
+                }
                 finish(call.id, CallPhase.Failed)
             }
             else -> Unit
@@ -336,9 +393,10 @@ internal class TdlCallRepository(
         if (startedCallId == callId || _active.value?.id == callId) media?.stop()
         if (startedCallId == callId) startedCallId = null
         _active.update { active -> active?.takeIf { it.id == callId }?.copy(phase = if (active.phase == CallPhase.Failed) CallPhase.Failed else phase) ?: active }
-        // Konec chvíli ukázat, ať se hovor jen beze slova neztratí.
+        // Konec chvíli ukázat, ať se hovor jen beze slova neztratí; důvod selhání déle — je to věta.
+        val visible = if (_active.value?.takeIf { it.id == callId }?.failure != null) FAILURE_VISIBLE_MS else ENDED_VISIBLE_MS
         scope.launch {
-            delay(ENDED_VISIBLE_MS)
+            delay(visible)
             _active.update { active -> active?.takeIf { it.id != callId || it.phase !in ENDED } }
         }
     }
@@ -346,5 +404,9 @@ internal class TdlCallRepository(
     private companion object {
         val ENDED = setOf(CallPhase.Ended, CallPhase.Failed)
         const val ENDED_VISIBLE_MS = 2_000L
+        const val FAILURE_VISIBLE_MS = 5_000L
+
+        /** Id hovoru, který nikdy nezačal (TDLib čísluje hovory od 1). */
+        const val FAILED_BEFORE_START_ID = 0
     }
 }

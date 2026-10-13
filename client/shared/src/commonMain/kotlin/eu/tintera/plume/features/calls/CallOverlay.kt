@@ -104,6 +104,10 @@ import eu.tintera.plume.resources.notification_call_decline
 import eu.tintera.plume.resources.volume_up_24dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.ui.resolve
+import eu.tintera.plume.resources.call_failed_microphone
+import eu.tintera.plume.resources.call_failed_camera
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
@@ -189,6 +193,8 @@ private fun callStatus(call: ActiveCall): String {
             delay(500)
         }
     }
+    // Konkrétní důvod (soukromí, omezení počtu hovorů, oprávnění) říká víc než obecný stav.
+    call.failure?.let { return it.resolve() }
     return when (call.phase) {
         CallPhase.Ringing -> stringResource(if (call.isVideo) Res.string.video_call_incoming else Res.string.call_incoming)
         CallPhase.Calling -> stringResource(Res.string.call_bar_calling)
@@ -362,7 +368,12 @@ private fun CallHeadline(call: ActiveCall, name: String, compact: Boolean = fals
         textAlign = TextAlign.Center,
     )
     Spacer(Modifier.height(if (compact) 4.dp else 8.dp))
-    Text(callStatus(call), style = MaterialTheme.typography.titleMedium.tabularNumbers(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(
+        callStatus(call),
+        style = MaterialTheme.typography.titleMedium.tabularNumbers(),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+    )
     if (call.emojis.isNotEmpty() && !call.phase.ended) {
         Spacer(Modifier.height(if (compact) 8.dp else 24.dp))
         Text(call.emojis.joinToString("  "), style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium)
@@ -394,10 +405,11 @@ private fun rememberAcceptCall(calls: CallRepository): (ActiveCall) -> Unit {
                 scope.launch { calls.accept(camera = withCamera).onFailure { logger.w(it) { "Hovor ${call.id} se nepodařilo přijmout." } } }
                 Unit
             }
+            val denied = { calls.reportFailure(call.userId, call.isVideo, UiText(Res.string.call_failed_microphone)) }
             if (call.isVideo) {
-                camera.request { granted -> if (granted) accept(true) else microphone.request { if (it) accept(false) } }
+                camera.request { granted -> if (granted) accept(true) else microphone.request { if (it) accept(false) else denied() } }
             } else {
-                microphone.request { if (it) accept(false) }
+                microphone.request { if (it) accept(false) else denied() }
             }
         }
     }
@@ -540,7 +552,7 @@ private fun CallBar(call: ActiveCall, calls: CallRepository, onExpand: () -> Uni
         ) {
             Column(Modifier.weight(1f)) {
                 Text(name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(callStatus(call), style = MaterialTheme.typography.bodyMedium.tabularNumbers(), maxLines = 1)
+                Text(callStatus(call), style = MaterialTheme.typography.bodyMedium.tabularNumbers(), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (call.phase == CallPhase.Ringing) {
                 Button(onClick = onExpand) { Text(stringResource(Res.string.call_answer)) }
@@ -588,7 +600,14 @@ fun rememberStartCall(userId: Long?): ((video: Boolean) -> Unit)? {
     return remember(userId, microphone, camera) {
         { video ->
             (if (video) camera else microphone).request { granted ->
-                if (granted) scope.launch { calls.call(userId, video).onFailure { logger.w(it) { "Hovor se nepodařilo zahájit." } } }
+                if (granted) {
+                    // Selhání ukáže obrazovka hovoru (`ActiveCall.failure`), tady zbývá log.
+                    scope.launch { calls.call(userId, video).onFailure { logger.w(it) { "Hovor se nepodařilo zahájit." } } }
+                } else {
+                    // Bez oprávnění (zvlášť trvale odepřeného, kdy se systém už nezeptá) by
+                    // ťuknutí neudělalo vůbec nic.
+                    calls.reportFailure(userId, video, UiText(if (video) Res.string.call_failed_camera else Res.string.call_failed_microphone))
+                }
             }
         }
     }

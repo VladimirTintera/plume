@@ -818,6 +818,10 @@
     <string name="call_unmute">Unmute microphone</string>
     <string name="call_back">Call back</string>
     <string name="call_unavailable">This person can't be called</string>
+    <string name="error_call_privacy">This person doesn't accept calls from you.</string>
+    <string name="error_call_outdated">This person's app can't take calls.</string>
+    <string name="call_failed_microphone">Calls need access to the microphone. Allow it in the app settings.</string>
+    <string name="call_failed_camera">Video calls need access to the camera and microphone. Allow them in the app settings.</string>
     <string name="call_outgoing">Outgoing call</string>
     <string name="call_incoming">Incoming call</string>
     <string name="call_missed">Missed call</string>

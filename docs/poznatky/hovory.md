@@ -292,6 +292,31 @@ volá zpátky, stejně jako tehdy.
   Zavolat / Videohovor, ťuknutí na „Odchozí videohovor" vytočilo videohovor a druhý telefon
   zazvonil, podržení zprávy o hovoru otevřelo nabídku nad zprávou.
 
+## Když hovor nejde zahájit
+
+Důvod se ukáže na obrazovce hovoru místo stavu (`ActiveCall.failure`, `UiText`), u neúspěšného
+hovoru 5 s místo 2 — je to věta, ne slovo.
+
+- **Chyby hovoru chodí dvěma cestami.** Selhání samotného `createCall` / `acceptCall`
+  (`Result`), nebo hovor vznikne a hned skončí `CallStateError` s hláškou od serveru. Omezení
+  počtu hovorů přišlo tou druhou: `429 Too Many Requests: retry after 1579` — a **dřív než
+  `Pending`**, takže hovor ještě nebyl v `active` a obrazovka se vůbec neotevřela; vytočení
+  beze slova nic neudělalo. Chyba odchozího hovoru bez stavu proto stav založí.
+- **Překlad je ve společné tabulce** (`errorText` v `TelegramErrors.kt`, testy
+  `TelegramErrorsTest`): `USER_PRIVACY_RESTRICTED` i `USER_IS_BLOCKED` → „nepřijímá od tebe
+  hovory" (zablokování se neprozrazuje), `PARTICIPANT_VERSION_OUTDATED` → aplikace protějšku
+  hovory neumí, omezení počtu → „zkus to za N min" jako jinde. Ostatní spadne na „Hovor se
+  nepodařilo spojit".
+- **Hovor, který nikdy nezačal** (`createCall` selhal, chybí oprávnění), má id 0 (TDLib čísluje
+  od 1) a probíhající hovor nepřepíše.
+- **Zamítnuté oprávnění** (mikrofon, u videohovoru i kamera) se hlásí stejně
+  (`CallRepository.reportFailure`): trvale odepřené by se systém už nezeptal a ťuknutí na
+  Zavolat by neudělalo nic. U zvonícího hovoru důvod nahradí stav a zvonění pokračuje.
+- **Ověřeno na Pixelu 5**: odebraný mikrofon (`pm revoke`), Zavolat z hlavičky, v dialogu
+  „Nepovolovat" → obrazovka hovoru s větou o mikrofonu, po 5 s zmizí. Cesty se serverovými
+  chybami ověřené jen testy překladu — soukromí by chtělo měnit nastavení testovacího účtu
+  a omezení počtu desítky hovorů.
+
 ## Kdo říká systému, kam jde zvuk
 
 **Vlastníkem režimu hovoru je Plume, ne Telecom** — a systém bere volbu výstupu JEN od

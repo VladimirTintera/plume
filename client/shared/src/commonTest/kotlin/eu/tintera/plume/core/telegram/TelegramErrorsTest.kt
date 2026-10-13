@@ -3,6 +3,8 @@ package eu.tintera.plume.core.telegram
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_action_failed
+import eu.tintera.plume.resources.error_call_outdated
+import eu.tintera.plume.resources.error_call_privacy
 import eu.tintera.plume.resources.error_flood_wait_minutes
 import eu.tintera.plume.resources.error_flood_wait_seconds
 import eu.tintera.plume.resources.error_phone_code_invalid
@@ -85,5 +87,23 @@ class TelegramErrorsTest {
     @Test
     fun `flood wait bez cisla nesmi spadnout`() {
         assertEquals(UiText(fallback), IllegalStateException("FLOOD_WAIT_").userMessage(fallback))
+    }
+
+    @Test
+    fun `hovor zablokovany protejskem se tvari jako soukromi`() {
+        // Zablokování by se nemělo prozradit; oficiální klienti říkají totéž.
+        assertEquals(UiText(Res.string.error_call_privacy), errorText("USER_PRIVACY_RESTRICTED", fallback))
+        assertEquals(UiText(Res.string.error_call_privacy), errorText("USER_IS_BLOCKED", fallback))
+    }
+
+    @Test
+    fun `protejsek se starou aplikaci ma vlastni vetu`() {
+        assertEquals(UiText(Res.string.error_call_outdated), errorText("PARTICIPANT_VERSION_OUTDATED", fallback))
+    }
+
+    @Test
+    fun `omezeni poctu hovoru z CallStateError rika minuty`() {
+        // Tak přišla chyba hovoru po desítkách zkušebních hovorů (`CallStateError`, kód 429).
+        assertEquals(UiText(Res.string.error_flood_wait_minutes, 27), errorText("Too Many Requests: retry after 1579", fallback))
     }
 }
