@@ -149,6 +149,15 @@ předá systému — co se ladí, je čistá funkce.
   lokálně přeskočí a oznámení půjdou přes AWT jako dřív; na CI (`CI`) je to chyba, ať release
   nevyjde potichu bez toastů. `windows-latest` MSVC má. DLL je pro architekturu JDK, které
   Gradle spouští (x64 / arm64), stejně jako TDLib.
+- **Překládá se jako C++20.** S `/std:c++17` sáhne C++/WinRT po `<experimental/coroutine>`
+  a MSVC z Visual Studia 2026 (14.51, na `windows-latest` od podzimu 2026) to odmítne chybou
+  STL1011. Lokálně s VS 2022 C++17 procházelo, takže se to ukázalo až v release buildu
+  `desktop-0.3.2`, který tím neprošel. Pojistka „bez MSVC na CI = chyba" přitom zafungovala:
+  release nevyšel potichu bez toastů. **Pozor: CI na pull requestech nativní most nepřekládá**
+  (překládá jen release z tagu), takže změna v `PlumeToasts.cpp` nebo v úloze se na CI poprvé
+  přeloží až při vydání.
+- **Hlavičky JNI se berou z JDK 17 toolchainu**, ne z JVM démona Gradle (`jniToolchainHome`):
+  démona spuštěného z Android Studia pohání JBR, který `include/` nemá.
 - **Bez zástupce ve Startu s AUMID Windows 11 toast NEVYKRESLÍ.** Aplikace z MSI není
   zabalená (MSIX) a identitu si zakládá sama. Napřed jen v registru
   (`HKCU\Software\Classes\AppUserModelId\<AUMID>` s `DisplayName`, `IconUri`,
@@ -228,6 +237,36 @@ předá systému — co se ladí, je čistá funkce.
 - **Testovací toast skriptem PowerShellu: soubor s BOM, nebo ASCII.** Windows PowerShell 5.1
   čte `.ps1` bez BOM jako ANSI, takže UTF-8 diakritika v XML toastu vyjde rozbitá — vypadá to
   jako chyba Plume, ale je to skript. Toasty Plume jdou do Windows jako UTF-16 přes JNI.
+
+### Tlačítka toastu (odpověď, přečtení, ztlumení)
+
+Toast chatu má tytéž akce jako notifikace na Androidu: pole „Odpovědět" s Odeslat, „Označit
+jako přečtené" a „Ztlumit na hodinu" (jen kde `ChatNotification.canMute`; odpověď jen kde
+`canReply`). Co se děje v TDLib, je sdílené `NotificationActions` — desktop jen zapojuje.
+
+- **Všechna tlačítka `activationType="background"`.** Nezabalená aplikace je dostane stejně
+  jako klik — voláním COM aktivátoru — jen bez toho, aby Windows čekal, že vytáhne okno.
+  Aktivátor rozliší akci podle `arguments` tlačítka (`action=reply|read|mute&chat=…`); klik na
+  toast a hlavičku nese `launch` bez `action` a otevírá chat jako dřív, takže toasty ze starší
+  verze v Centru oznámení fungují dál (`parseActivation`, testy `ToastXmlTest`).
+- **Napsaný text přichází v `NOTIFICATION_USER_INPUT_DATA`** u `Activate` pod klíčem pole
+  (`reply`); dřív ho most zahazoval. Most ho předá jako druhý argument `onActivated`.
+- **Odeslat jde stisknout i s prázdným polem** — prázdná (i jen mezery) odpověď se zahodí.
+- **Toast po stisku tlačítka zavře Windows sám**, ať akce dopadla jakkoli. Zmizení toastu tedy
+  přečtení NEDOKAZUJE; pozná se na odznaku nepřečtených (`DesktopTaskbar` v logu) nebo v logu
+  presenteru. Nepovedená odpověď se proto ohlásí NOVÝM toastem („Neodesláno: …"), na Androidu
+  se překresluje původní notifikace.
+- **Ve skupině odpověď cituje** nejnovější zprávu oznámení, v soukromém chatu nic — stejně jako
+  Android (`quoteMessageId` = `messageId`, když je `senderName`).
+- **Čeká se štědřeji než na Androidu** (30 s na přihlášení, minuta na potvrzení): proces se
+  neuspí a nehlídá ho systémový limit příjemce. Nepotvrzenou zprávu TDLib došle sám, jen chat
+  zůstane nepřečtený.
+- **Popisky se překládají při zobrazení** (`readString`) — toast je hotový text v XML, po změně
+  jazyka zůstanou staré toasty v původním jazyce.
+- **Ověřeno na Windows 11** (ladicí běh, Plume schovaná v oznamovací oblasti): odpověď z toastu
+  odešla s diakritikou, server ji potvrdil, okno zůstalo schované a chat se přečetl.
+  „Označit jako přečtené" ověřil uživatel ručně (log přečtení přibyl až po tom testu).
+  **Neověřeno**: Ztlumit na hodinu, toast „Neodesláno", studený start z tlačítka (MSI).
 
 ## Hlavní panel Windows
 

@@ -224,6 +224,15 @@ v `RecordControls.kt`, rozhodnutí o tahu čistá funkce `recordDragOutcome` (te
     Ověřeno na emulátoru: dva úseky, odeslaný soubor má podle granule v Oggu 35,1 s, tedy oba
     (délku v Bot API hlásíme sami, ta nic nedokazuje). iOS jen přeložené.
   - Ověřeno na emulátoru uživatelem (nahrát, zamknout, ■, přehrát, odeslat). iOS jen přeložené.
+- **`VoiceRecorder` není vláknově bezpečný — jeho rozsah musí běžet na vlákně volajícího.**
+  V aplikaci je to `viewModelScope` (`Main`), takže tik úrovní a `finish` se nepotkají.
+  `VoiceRecorderContinueTest` mu ale dával `Dispatchers.Default` a při plném `jvmTest` občas
+  (2× ze 6) padal na `assertNotNull` druhého `finish`: tik, který už prošel `delay`, nejde
+  zrušit, takže po `reset` zapsal stav zpátky. Další `start` ho vzal za běžící nahrávání, nic
+  nespustil a `finish` vrátil `null` (`startedAt == null`). Okno je pár mikrosekund mezi
+  `finish` a dalším `start`; spolehlivě ho otevřelo až 200 ms čekání mezi nimi, ne zpomalený
+  tik. Ten jen posunul pozdní zápis za `start`. Test teď nahrávači dává rozsah `runBlocking`
+  (`this`), a to i s oběma pokusy prošel. **Kdo nahrávač testuje, nedává mu cizí dispatcher.**
 - **Nahrávač je `factory`, ne `single`** — patří obrazovce. Odchod z chatu nahrávku zahodí,
   spuštění nahrávání zastaví hrající hlasovku (nahrávala by se z reproduktoru).
 - **Odesílá se jako samolepka** (`sendMedia`): bez letu, rozepsaný text zůstává, citace se použije.
