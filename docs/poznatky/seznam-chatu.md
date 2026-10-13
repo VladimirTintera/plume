@@ -490,6 +490,15 @@ v ⋮ vrátí jednu konverzaci. Hranice je `SavedTopicsRepository` (`TdlSavedTop
   odpočet, který nová zpráva o psaní posouvá — při souvislém psaní nikdy nedoběhne.
 - **Vlastní činnost se zahazuje.** Porovnává se s id přihlášeného účtu, zjištěným jednou při
   přihlášení; v seznamu by vypadalo divně, že chat hlásí psaní, když píšeme my.
+- **Fotka chatu se mění updatem `updateChatPhoto`, ne novým `Chat`.** Dlouho ho nikdo neodebíral
+  a `avatarFileId` se bral jen z objektu chatu při prvním `upsert`: nová (i odebraná) fotka
+  skupiny nebo kontaktu se v seznamu ukázala až po restartu. Totéž hlavička otevřené konverzace,
+  která `chatInfo` čte jednou při otevření — ta teď bere název a fotku živě z repository
+  (`ChatRepository.appearance`, stejný vzor jako `muted`). **Ověřeno na emulátoru proti
+  starému buildu**: testovací skupina, fotka změněná z úpravy skupiny — se starým buildem
+  zůstaly v seznamu i hlavičce iniciály, s opravou se fotka objevila hned, a po odebrání se
+  iniciály vrátily. Kdo přidává další vlastnost chatu, ať zkontroluje, jestli k ní nechodí
+  vlastní update (`*Updates` v `TdlClient`): `Chat` od TDLib přijde jen jednou.
 - **Činnost má přednost před náhledem zprávy** a odlišuje se barvou — je to novější informace
   a obojí najednou se do řádku nevejde.
 - **Telegram dostupnost záměrně rozmazává.** Kdo si to v soukromí vypne, je vidět jen jako

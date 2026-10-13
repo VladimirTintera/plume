@@ -314,9 +314,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - ~~**Neodeslanou zprávu nejde poslat znovu.**~~ — hotovo („Neodesláno. Ťukni a zkus to znovu."
   pod bublinou a „Poslat znovu" v nabídce; `docs/poznatky/konverzace-psani.md`, „Neodeslaná
   zpráva a opakované odeslání"). Zbývá ověřit album a zprávu, kterou znovu poslat nejde.
-- **Fotka chatu se nejspíš neobnovuje živě.** `chatPhotoUpdates` nikdo neodebírá a
-  `TdlChatRepository` bere `avatarFileId` jen z objektu chatu při `upsert`; nová fotka skupiny
-  nebo kontaktu by se tak v seznamu ukázala až po restartu. Odvozené z kódu, NEOVĚŘENO.
+- ~~**Fotka chatu se nejspíš neobnovuje živě.**~~ — potvrzeno a opraveno (`chatPhotoUpdates`
+  v seznamu chatů, hlavička konverzace živě i s názvem; `docs/poznatky/seznam-chatu.md`,
+  „Co položka ukazuje").
 - **Profil se živě neobnovuje** (`userFullInfoUpdates`; přiznané v `ChatProfileViewModel`).
 - **Systémové updaty bez odběru:** `termsOfServiceUpdates` (nové podmínky služby — oficiální
   klient je musí ukázat), `serviceNotificationUpdates` (oznámení od Telegramu, část z nich má

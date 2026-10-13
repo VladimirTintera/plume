@@ -106,6 +106,7 @@ open class FakeChatRepository(
         Result.success(Unit)
 
     override fun muted(chatId: Long): Flow<Boolean?> = emptyFlow()
+    override fun appearance(chatId: Long): Flow<eu.tintera.plume.core.telegram.ChatAppearance?> = emptyFlow()
 
     override suspend fun setMuted(chatId: Long, muted: Boolean): Result<Unit> = Result.success(Unit)
     override suspend fun muteFor(chatId: Long, duration: kotlin.time.Duration): Result<Unit> = Result.success(Unit)

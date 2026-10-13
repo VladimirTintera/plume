@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.Flow
 import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.speech.SpeechToText
@@ -1626,6 +1627,17 @@ class ConversationViewModel(
                             content = access.content,
                         ),
                     )
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            // Přejmenování a nová fotka za běhu. `chatInfo` se čte jednou při otevření, takže
+            // hlavička jinak ukazovala starý název a fotku, dokud se chat neotevřel znovu.
+            // Před načtením `info` se nic nepřepisuje — to pak přijde rovnou čerstvé.
+            chatRepository.appearance(chatId).filterNotNull().collect { appearance ->
+                _state.update {
+                    it.copy(info = it.info?.copy(title = appearance.title, avatarFileId = appearance.avatarFileId))
                 }
             }
         }
