@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.AccountRepository
+import eu.tintera.plume.core.telegram.AccountUsernames
 import eu.tintera.plume.core.telegram.Birthdate
 import eu.tintera.plume.core.telegram.PersonalChannel
 import eu.tintera.plume.core.telegram.EditableProfile
@@ -19,6 +20,7 @@ import eu.tintera.plume.core.ui.CropRegion
 import eu.tintera.plume.core.ui.ProfilePhotoCrop
 import eu.tintera.plume.core.ui.VideoCropControl
 import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.usernames_failed
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.edit_profile_load_failed
 import eu.tintera.plume.resources.edit_profile_not_photo
@@ -64,6 +66,13 @@ class EditProfileViewModel(
      * Uložit, rok jen s [showBirthYear] — viz [birthdateToSave].
      */
     var birthdate by mutableStateOf<Birthdate?>(null)
+    /**
+     * Všechna uživatelská jména. **Zapnutí, vypnutí a pořadí se ukládá hned**, ne tlačítkem
+     * Uložit — jako fotka: jsou to samostatné akce na serveru, žádný rozepsaný text.
+     */
+    var usernames by mutableStateOf(AccountUsernames())
+        private set
+
     /** Osobní kanál v profilu; `null` = žádný. Ukládá se tlačítkem Uložit. */
     var personalChannel by mutableStateOf<PersonalChannel?>(null)
 
@@ -104,6 +113,7 @@ class EditProfileViewModel(
                     bio = profile.bio
                     birthdate = profile.birthdate
                     personalChannel = profile.personalChannel
+                    usernames = profile.usernames
                     // Datum bez roku: rok ukazovat nechtěl. Bez data: nové datum rok ukazuje.
                     showBirthYear = profile.birthdate?.year != null || profile.birthdate == null
                 }
@@ -196,6 +206,43 @@ class EditProfileViewModel(
             result
                 .onSuccess { saved = true }
                 .onFailure { notice = it.reported(Res.string.edit_profile_save_failed) }
+        }
+    }
+
+    /**
+     * Zapne nebo vypne jméno. Seznam se změní hned (zapnuté jde na konec, jako to dělá server)
+     * a při selhání se vrátí s hláškou.
+     */
+    fun setUsernameActive(username: String, active: Boolean) {
+        val previous = usernames
+        if (active == username in previous.active) return
+        usernames = if (active) {
+            previous.copy(active = previous.active + username, disabled = previous.disabled - username)
+        } else {
+            previous.copy(active = previous.active - username, disabled = listOf(username) + previous.disabled)
+        }
+        viewModelScope.launch {
+            account.setUsernameActive(username, active).onFailure { failure ->
+                usernames = previous
+                notice = failure.reported(Res.string.usernames_failed)
+            }
+        }
+    }
+
+    /** Posune zapnuté jméno o místo výš ([up]) nebo níž; první je hlavní. */
+    fun moveUsername(username: String, up: Boolean) {
+        val previous = usernames
+        val active = previous.active.toMutableList()
+        val from = active.indexOf(username)
+        val to = if (up) from - 1 else from + 1
+        if (from < 0 || to !in active.indices) return
+        active.add(to, active.removeAt(from))
+        usernames = previous.copy(active = active)
+        viewModelScope.launch {
+            account.reorderUsernames(active).onFailure { failure ->
+                usernames = previous
+                notice = failure.reported(Res.string.usernames_failed)
+            }
         }
     }
 

@@ -357,8 +357,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - ~~Narozeniny~~ — hotovo: vlastní datum v úpravě profilu, datum v profilu kontaktu, karta
   s narozeninami kontaktů (`docs/poznatky/nastaveni.md`, „Narozeniny"). Zbývá návrh data
   narození od kontaktu (`MessageSuggestBirthdate`), dnes jen popis zprávy.
-- ~~Osobní kanál v profilu~~ — hotovo (`docs/poznatky/nastaveni.md`, „Osobní kanál"). Zbývá víc
-  uživatelských jmen (`reorderActiveUsernames`, `toggleUsernameIsActive`).
+- ~~Osobní kanál v profilu~~ — hotovo (`docs/poznatky/nastaveni.md`, „Osobní kanál"). ~~Víc
+  uživatelských jmen~~ — hotovo pro vlastní účet (`docs/poznatky/nastaveni.md`, „Víc uživatelských
+  jmen"); kanály, skupiny a boti zbývají.
 - Statistika přenesených dat (`getNetworkStatistics`) a automatické ukládání médií do galerie
   (`getAutosaveSettings` / `setAutosaveSettings`).
 - Notifikace reakcí (`setReactionNotificationSettings`) a zvuky notifikací z Telegramu

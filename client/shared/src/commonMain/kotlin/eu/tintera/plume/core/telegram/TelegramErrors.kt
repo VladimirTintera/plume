@@ -11,6 +11,7 @@ import eu.tintera.plume.resources.error_email_reset_pending
 import eu.tintera.plume.resources.error_first_name_invalid
 import eu.tintera.plume.resources.error_username_invalid
 import eu.tintera.plume.resources.error_username_occupied
+import eu.tintera.plume.resources.error_usernames_active_too_much
 import eu.tintera.plume.resources.error_flood_wait_minutes
 import eu.tintera.plume.resources.error_invite_invalid
 import eu.tintera.plume.resources.error_flood_wait_seconds
@@ -166,6 +167,7 @@ internal fun errorText(raw: String?, fallback: StringResource): UiText {
         // Úprava profilu. Dostupnost jména se ověřuje předem, tohle je souboj o jméno mezi
         // kontrolou a uložením, nebo pravidlo, které místní kontrola nezná.
         "USERNAME_OCCUPIED" -> Res.string.error_username_occupied
+        "USERNAMES_ACTIVE_TOO_MUCH" -> Res.string.error_usernames_active_too_much
         "USERNAME_INVALID" -> Res.string.error_username_invalid
         "FIRSTNAME_INVALID" -> Res.string.error_first_name_invalid
         "ABOUT_TOO_LONG" -> Res.string.error_about_too_long

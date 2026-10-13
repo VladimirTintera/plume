@@ -30,6 +30,15 @@ interface AccountRepository {
     /** Datum narození; `null` = odebrat. Kdo ho uvidí, řídí soukromí ([PrivacySetting.Birthdate]). */
     suspend fun setBirthdate(birthdate: Birthdate?): Result<Unit> = Result.failure(UnsupportedOperationException())
 
+    /**
+     * Zapne nebo vypne další uživatelské jméno (`toggleUsernameIsActive`). Upravitelné jméno vypnout
+     * nejde; zapnutých může být jen omezeně (`USERNAMES_ACTIVE_TOO_MUCH`).
+     */
+    suspend fun setUsernameActive(username: String, active: Boolean): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /** Nové pořadí zapnutých jmen (`reorderActiveUsernames`) — musí obsahovat všechna; první je hlavní. */
+    suspend fun reorderUsernames(active: List<String>): Result<Unit> = Result.failure(UnsupportedOperationException())
+
     /** Kanály, které jdou ukázat v profilu (`getSuitablePersonalChats`): veřejné kanály, které vlastním. */
     suspend fun suitablePersonalChannels(): Result<List<PersonalChannel>> = Result.failure(UnsupportedOperationException())
 
@@ -108,6 +117,23 @@ data class LoginPasskey(
 )
 
 /**
+ * Uživatelská jména účtu (`Usernames`).
+ *
+ * @property active zapnutá jména v pořadí, první je hlavní (ukazuje se jako `@jméno`).
+ * @property disabled vypnutá jména — patří účtu, ale nikde se neukazují.
+ * @property editable jméno, které jde změnit polem v úpravě profilu (`setUsername`); prázdné = není.
+ *   Ostatní jsou sběratelská (Fragment) a změnit je nejde, jen zapnout, vypnout a seřadit.
+ */
+data class AccountUsernames(
+    val active: List<String> = emptyList(),
+    val disabled: List<String> = emptyList(),
+    val editable: String = "",
+) {
+    /** Je co spravovat? S jediným (upravitelným) jménem stačí pole nad seznamem. */
+    val hasMore: Boolean get() = (active + disabled).any { it != editable }
+}
+
+/**
  * Kanál, který uživatel ukazuje v profilu (`personalChatId`).
  *
  * @property subscribers počet odběratelů, `null` = neznámý.
@@ -136,6 +162,8 @@ data class EditableProfile(
     val birthdate: Birthdate? = null,
     /** Kanál ukázaný v profilu; `null` = žádný. */
     val personalChannel: PersonalChannel? = null,
+    /** Všechna uživatelská jména účtu (víc jich mívá jen ten, kdo si je koupil na Fragmentu). */
+    val usernames: AccountUsernames = AccountUsernames(),
 )
 
 enum class UsernameCheck { Available, Invalid, Occupied, Purchasable, TooManyPublic }

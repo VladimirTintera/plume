@@ -2879,4 +2879,13 @@
     <string name="profile_personal_channel">Channel</string>
     <string name="personal_channel_retry">Try again</string>
     <string name="profile_personal_channel_subscribers">Channel · %1$s</string>
+    <string name="error_usernames_active_too_much">You already have as many active usernames as allowed. Turn another one off first.</string>
+    <string name="usernames_section">Usernames</string>
+    <string name="usernames_hint">Active usernames find you and show on your profile; the first one is the main one. Collectible usernames from Fragment can't be changed, only turned on, off and reordered.</string>
+    <string name="usernames_editable">Edit it in the field above</string>
+    <string name="usernames_collectible">Collectible</string>
+    <string name="usernames_move_up">Move up</string>
+    <string name="usernames_move_down">Move down</string>
+    <string name="usernames_failed">Couldn't change usernames.</string>
+    <string name="profile_username_more">also %1$s</string>
 </resources>

@@ -426,6 +426,31 @@ v profilu druhého uživatele (`ChatProfile.birthdate`, řádek „Datum narozen
   ťuknutí na člověka v kartě ani křížek vyzkoušené NEJSOU** — testovací účet narozeniny kontaktů
   nehlásí a uložení i schování by měnilo skutečný účet.
 
+## Víc uživatelských jmen
+
+Účet může mít kromě upravitelného jména i sběratelská, koupená na Fragmentu (`Usernames`:
+`activeUsernames`, `disabledUsernames`, `editableUsername`). V úpravě profilu je pod polem
+uživatelského jména seznam „Uživatelská jména" (`UsernamesSection`), **jen když jich je víc než
+to upravitelné** (`AccountUsernames.hasMore`) — běžný účet ho neuvidí. V profilu se pod hlavním
+jménem ukážou další zapnutá („také @b, @c"), u lidí i u kanálů a skupin.
+
+- **TDLib: `toggleUsernameIsActive` a `reorderActiveUsernames`** (pořadí musí obsahovat VŠECHNA
+  zapnutá jména, první je hlavní). Upravitelné jméno vypnout nejde, přepínač ho jen ukazuje;
+  mění se polem nad seznamem (`setUsername`).
+- **Ukládá se hned, ne tlačítkem Uložit** — jako fotka: samostatné akce na serveru, žádný
+  rozepsaný text. Seznam se změní okamžitě (zapnuté jde na konec, jako to dělá server)
+  a při chybě se vrátí s hláškou.
+- **Zapnutých jmen je strop** — `USERNAMES_ACTIVE_TOO_MUCH` má vlastní větu („Nejdřív jiné
+  vypni"); kolik to je, TDLib neříká.
+- **Řazení šipkami, ne tažením**: jmen bývá pár a tah uvnitř posuvného formuláře by se pral
+  s posouváním.
+- Jména kanálů a skupin (`toggleSupergroupUsernameIsActive`) a botů tu nejsou — jen vlastní účet.
+- **Ověřeno**: `EditProfileUsernamesTest` (seznam jen s víc jmény, zapnutí a vypnutí, strop
+  s návratem a hláškou, posun s celým pořadím); na emulátoru **se sondou** (dvě podstrčená
+  sběratelská jména, přepínače a šipky bez volání TDLib; jména kontaktu v profilu) seznam,
+  posun nahoru, zapnutí a „také …" v profilu. **Se skutečnými sběratelskými jmény vyzkoušené
+  NENÍ** — testovací účet žádné nemá.
+
 ## Osobní kanál
 
 Kanál, který uživatel ukazuje v profilu (`personalChatId`). Vlastní v úpravě profilu

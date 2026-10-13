@@ -2963,4 +2963,13 @@
     <string name="profile_personal_channel">Kanál</string>
     <string name="personal_channel_retry">Zkusit znovu</string>
     <string name="profile_personal_channel_subscribers">Kanál · %1$s</string>
+    <string name="error_usernames_active_too_much">Zapnutých jmen už máš nejvíc, kolik jde. Nejdřív jiné vypni.</string>
+    <string name="usernames_section">Uživatelská jména</string>
+    <string name="usernames_hint">Podle zapnutých jmen tě lidé najdou a ukazují se v profilu, první je hlavní. Sběratelská jména z Fragmentu změnit nejde, jen zapnout, vypnout a seřadit.</string>
+    <string name="usernames_editable">Mění se v poli výš</string>
+    <string name="usernames_collectible">Sběratelské</string>
+    <string name="usernames_move_up">Posunout výš</string>
+    <string name="usernames_move_down">Posunout níž</string>
+    <string name="usernames_failed">Uživatelská jména se nepodařilo změnit.</string>
+    <string name="profile_username_more">také %1$s</string>
 </resources>

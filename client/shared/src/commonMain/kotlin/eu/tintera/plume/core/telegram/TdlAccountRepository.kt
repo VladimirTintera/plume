@@ -67,6 +67,9 @@ class TdlAccountRepository(
                 photoThumbnailFileId = me.profilePhoto?.small?.id,
                 birthdate = full?.birthdate?.toDomain(),
                 personalChannel = full?.personalChatId?.takeIf { it != 0L }?.let { client.personalChannel(it) },
+                usernames = me.usernames?.let {
+                    AccountUsernames(active = it.activeUsernames.toList(), disabled = it.disabledUsernames.toList(), editable = it.editableUsername)
+                } ?: AccountUsernames(),
             ),
         )
     }
@@ -93,6 +96,14 @@ class TdlAccountRepository(
     override suspend fun setBirthdate(birthdate: Birthdate?): Result<Unit> =
         client.setBirthdate(birthdate = birthdate?.toTdl()).toResult().map { }
             .onFailure { logger.w(it) { "Datum narození se nepodařilo uložit." } }
+
+    override suspend fun setUsernameActive(username: String, active: Boolean): Result<Unit> =
+        client.toggleUsernameIsActive(username = username, isActive = active).toResult().map { }
+            .onFailure { logger.w(it) { "Uživatelské jméno se nepodařilo zapnout / vypnout." } }
+
+    override suspend fun reorderUsernames(active: List<String>): Result<Unit> =
+        client.reorderActiveUsernames(usernames = active.toTypedArray()).toResult().map { }
+            .onFailure { logger.w(it) { "Pořadí uživatelských jmen se nepodařilo uložit." } }
 
     override suspend fun suitablePersonalChannels(): Result<List<PersonalChannel>> =
         client.getSuitablePersonalChats().toResult()
