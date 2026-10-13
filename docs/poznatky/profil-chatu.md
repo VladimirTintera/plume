@@ -76,6 +76,11 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
   `canGetMembers`, kanál ne). Smazané účty (bez jména) a kdo odešel se vynechají. Ťuknutí na
   člena otevře soukromý chat.
 
+### Osobní kanál a datum narození
+
+Řádky v údajích o uživateli; poučení je v `docs/poznatky/nastaveni.md`, „Osobní kanál"
+a „Narozeniny" (tam se obojí i nastavuje).
+
 ### Členové velké skupiny
 
 Záložka Členové se stránkuje po 50 (`MEMBERS_PAGE_SIZE`) a u skupiny, která se na stránku

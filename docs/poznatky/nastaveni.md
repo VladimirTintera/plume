@@ -426,6 +426,35 @@ v profilu druhého uživatele (`ChatProfile.birthdate`, řádek „Datum narozen
   ťuknutí na člověka v kartě ani křížek vyzkoušené NEJSOU** — testovací účet narozeniny kontaktů
   nehlásí a uložení i schování by měnilo skutečný účet.
 
+## Osobní kanál
+
+Kanál, který uživatel ukazuje v profilu (`personalChatId`). Vlastní v úpravě profilu
+(`PersonalChannelRow`, `PersonalChannelPicker.kt`), cizí v profilu jako řádek „Kanál · N
+odběratelů" s avatarem kanálu, ťuknutí kanál otevře (`ChatProfile.personalChannel`).
+
+- **TDLib: `getSuitablePersonalChats` a `setPersonalChat`** (0 = odebrat). Výběr nabízí jen to,
+  co vrátí server — podle API (`channels.getAdminedPublicChannels` s `for_personal`) veřejné
+  kanály, které uživatel vlastní. **Testovací účet nedostal žádný**, přestože kanál „Plume
+  verejny test" založil (`total=0` v logu) — kanál tedy podmínky nesplňuje; prázdný výběr to
+  říká větou místo prázdného okna.
+- **Kanály se čtou až s otevřením výběru, a pokaždé znovu** — kanál mohl mezitím přibýt.
+  Vybraný kanál zůstává v nabídce, i když mezi vhodnými už není (přestal být veřejný), jinak by
+  výběr nic vybraného neukazoval.
+- **Ukládá se tlačítkem Uložit** jako ostatní údaje profilu. Změnu pozná `changed` podle id
+  kanálu, ne celého objektu — počet odběratelů se mezi čteními mění.
+- **Řádek v profilu stojí hned za bio** (patří k člověku jako bio), před nastaveními chatu.
+  Počet odběratelů je v popisku (`Supergroup.memberCount`, plné údaje kanálu se kvůli řádku
+  netahají; 0 = neznámý, pak jen „Kanál"). Napřed byl titulek, počet a popisek pod sebou na
+  třech řádcích; dva čtou líp.
+- Převod chatu na kanál je jeden pro obojí (`TdlClient.personalChannel`): chat, který TDLib nezná
+  nebo není kanál, se vynechá.
+- **Ověřeno**: `EditProfilePersonalChannelTest` (výběr se uloží až tlačítkem, „Žádný" kanál
+  odebere, jiný počet odběratelů není změna); na emulátoru výběr se skutečnou (prázdnou)
+  odpovědí serveru, zavřený bez uložení, a **se sondou** (první kanál ze seznamu chatů jako
+  osobní kanál kontaktu) řádek v profilu. **Uložení kanálu ani ťuknutí na řádek vyzkoušené
+  NEJSOU** — testovací účet žádný vhodný kanál nemá a otevření kanálu ze sondy by v něm označilo
+  zprávy jako přečtené. Ťuknutí jde stejnou cestou jako propojený chat (`openChat`).
+
 ## Změna telefonního čísla
 
 Úprava profilu → „Telefonní číslo" (`ChangePhoneScreen`, `ChangePhoneRoute` nad `EditProfileRoute`):

@@ -66,6 +66,7 @@ class TdlAccountRepository(
                 photoFileId = me.profilePhoto?.big?.id,
                 photoThumbnailFileId = me.profilePhoto?.small?.id,
                 birthdate = full?.birthdate?.toDomain(),
+                personalChannel = full?.personalChatId?.takeIf { it != 0L }?.let { client.personalChannel(it) },
             ),
         )
     }
@@ -92,6 +93,15 @@ class TdlAccountRepository(
     override suspend fun setBirthdate(birthdate: Birthdate?): Result<Unit> =
         client.setBirthdate(birthdate = birthdate?.toTdl()).toResult().map { }
             .onFailure { logger.w(it) { "Datum narození se nepodařilo uložit." } }
+
+    override suspend fun suitablePersonalChannels(): Result<List<PersonalChannel>> =
+        client.getSuitablePersonalChats().toResult()
+            .map { chats -> chats.chatIds.toList().mapNotNull { client.personalChannel(it) } }
+            .onFailure { logger.w(it) { "Kanály pro profil se nepodařilo načíst." } }
+
+    override suspend fun setPersonalChannel(chatId: Long?): Result<Unit> =
+        client.setPersonalChat(chatId = chatId ?: 0L).toResult().map { }
+            .onFailure { logger.w(it) { "Osobní kanál se nepodařilo uložit." } }
 
     /** `settings` výchozí (null) — stejná úvaha jako u přihlášení, viz `docs/poznatky/prihlaseni.md`. */
     override suspend fun sendPhoneChangeCode(phoneNumber: String): Result<PhoneChangeCode> =

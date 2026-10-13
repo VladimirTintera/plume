@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.profile_personal_channel
+import eu.tintera.plume.resources.profile_personal_channel_subscribers
 import eu.tintera.plume.core.telegram.Birthdate
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.resources.birthdate_age
@@ -436,6 +438,7 @@ fun ChatProfileScreen(
                 val notifications = state.notifications
                 val showsAutoDelete = profile.canSetAutoDelete || profile.autoDeleteTime > 0
                 if (profile.usernames.isNotEmpty() || profile.phone != null || profile.birthdate != null || profile.about.isNotBlank() ||
+                    profile.personalChannel != null ||
                     notifications != null || showsAutoDelete || profile.linkedChat != null || bookmarks.isNotEmpty() ||
                     profile.secretChatKey != null ||
                     viewModel.supportsChatColor
@@ -447,6 +450,7 @@ fun ChatProfileScreen(
                         onOpenBookmarks = { showBookmarks = true },
                         onLinkClick = viewModel::openLink,
                         onOpenLinkedChat = viewModel::openLinkedChat,
+                        onOpenPersonalChannel = viewModel::openPersonalChannel,
                         onOpenNotifications = viewModel::openNotificationSheet,
                         onOpenAutoDelete = viewModel::openAutoDeleteSheet.takeIf { profile.canSetAutoDelete },
                         onOpenSecretKey = { showSecretKey = true },
@@ -1104,6 +1108,7 @@ private fun ProfileInfo(
     onOpenBookmarks: () -> Unit,
     onLinkClick: (String) -> Unit,
     onOpenLinkedChat: () -> Unit,
+    onOpenPersonalChannel: () -> Unit,
     onOpenNotifications: () -> Unit,
     /** `null` = mazání měnit nesmí; řádek se pak jen ukáže, když je zapnuté. */
     onOpenAutoDelete: (() -> Unit)?,
@@ -1151,6 +1156,32 @@ private fun ProfileInfo(
                         // `surfaceContainerLowest`, takže blok musí být o stupeň výš.
                         quoteBackground = MaterialTheme.colorScheme.surfaceContainerHigh,
                     )
+                }
+            }
+        }
+        // Osobní kanál patří k člověku jako bio — hned za ním. Ťuknutí kanál otevře.
+        profile.personalChannel?.let { channel ->
+            add { shape ->
+                InfoRow(
+                    label = channel.subscribers?.let { count ->
+                        stringResource(
+                            Res.string.profile_personal_channel_subscribers,
+                            pluralStringResource(Res.plurals.invite_subscribers, count, count.grouped()),
+                        )
+                    } ?: stringResource(Res.string.profile_personal_channel),
+                    shape = shape,
+                    onClick = onOpenPersonalChannel,
+                    trailing = {
+                        Avatar(
+                            chatId = channel.chatId,
+                            title = channel.title,
+                            avatarFileId = channel.photoFileId,
+                            size = 40.dp,
+                            shape = ChatKind.Channel.avatarShape(),
+                        )
+                    },
+                ) {
+                    Text(channel.title, style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }

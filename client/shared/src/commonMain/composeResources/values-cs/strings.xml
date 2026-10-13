@@ -2955,4 +2955,12 @@
     <string name="suggestion_birthdate_title">Přidej datum narození</string>
     <string name="suggestion_birthdate_text">Kontakty ho uvidí a můžou ti popřát.</string>
     <string name="suggestion_birthdate_action">Přidat</string>
+    <string name="personal_channel_row">Osobní kanál</string>
+    <string name="personal_channel_none">Žádný</string>
+    <string name="personal_channel_pick_text">Kdo otevře tvůj profil, uvidí tenhle kanál a může ho otevřít.</string>
+    <string name="personal_channel_empty">Osobním kanálem může být jen veřejný kanál, který vlastníš, a žádný takový nemáš.</string>
+    <string name="personal_channel_load_failed">Kanály se nepodařilo načíst.</string>
+    <string name="profile_personal_channel">Kanál</string>
+    <string name="personal_channel_retry">Zkusit znovu</string>
+    <string name="profile_personal_channel_subscribers">Kanál · %1$s</string>
 </resources>

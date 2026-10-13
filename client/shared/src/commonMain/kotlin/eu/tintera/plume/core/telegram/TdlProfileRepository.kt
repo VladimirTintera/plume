@@ -174,6 +174,7 @@ class TdlProfileRepository(
             // TDLib posílá číslo bez „+"; prázdné = uživatel ho neukazuje.
             phone = user.phoneNumber.takeIf { it.isNotBlank() }?.let { "+$it" },
             birthdate = full?.birthdate?.toDomain(),
+            personalChannel = full?.personalChatId?.takeIf { it != 0L }?.let { client.personalChannel(it) },
             userId = userId,
             isBlocked = full?.blockList != null,
             isContact = user.isContact,

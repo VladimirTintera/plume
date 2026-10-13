@@ -277,6 +277,13 @@ fun EditProfileScreen(
                     onChange = { viewModel.birthdate = it },
                     onShowYearChange = { viewModel.showBirthYear = it },
                 )
+                PersonalChannelRow(
+                    value = viewModel.personalChannel,
+                    channels = viewModel.suitableChannels,
+                    failed = viewModel.suitableChannelsFailed,
+                    onOpen = viewModel::loadSuitableChannels,
+                    onChange = { viewModel.personalChannel = it },
+                )
                 PhoneNumberRow(onClick = onChangePhone)
             }
         }

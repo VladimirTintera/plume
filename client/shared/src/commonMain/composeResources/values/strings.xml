@@ -2871,4 +2871,12 @@
     <string name="suggestion_birthdate_title">Add your birthday</string>
     <string name="suggestion_birthdate_text">Contacts will see it and can wish you a happy birthday.</string>
     <string name="suggestion_birthdate_action">Add</string>
+    <string name="personal_channel_row">Personal channel</string>
+    <string name="personal_channel_none">None</string>
+    <string name="personal_channel_pick_text">Anyone who opens your profile sees this channel and can open it.</string>
+    <string name="personal_channel_empty">Only a public channel you own can be your personal channel, and you don't have one.</string>
+    <string name="personal_channel_load_failed">Couldn't load your channels.</string>
+    <string name="profile_personal_channel">Channel</string>
+    <string name="personal_channel_retry">Try again</string>
+    <string name="profile_personal_channel_subscribers">Channel · %1$s</string>
 </resources>

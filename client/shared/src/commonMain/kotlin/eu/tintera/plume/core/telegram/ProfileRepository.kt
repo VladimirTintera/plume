@@ -310,6 +310,8 @@ data class ChatProfile(
     val phone: String?,
     /** Datum narození uživatele, jen když ho vidět smím; u skupiny a kanálu `null`. */
     val birthdate: Birthdate? = null,
+    /** Kanál, který uživatel ukazuje v profilu; jinak `null`. */
+    val personalChannel: PersonalChannel? = null,
     /** Počet členů / odběratelů; u soukromého chatu `null`. */
     val memberCount: Int?,
     /** Server vydá seznam členů (skupina, ne kanál; supergroup se skrytými členy ne). */
