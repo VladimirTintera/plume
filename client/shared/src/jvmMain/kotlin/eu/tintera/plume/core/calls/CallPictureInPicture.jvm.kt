@@ -14,4 +14,5 @@ actual fun rememberCallPictureInPicture(
 
 private object NoCallPictureInPicture : CallPictureInPicture {
     override val active: Boolean = false
+    override val elsewhere: Boolean = false
 }

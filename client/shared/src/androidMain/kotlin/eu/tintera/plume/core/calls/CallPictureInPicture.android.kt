@@ -20,11 +20,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.core.app.PictureInPictureModeChangedInfo
 import androidx.core.content.ContextCompat
-import androidx.core.util.Consumer
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.client.R
+import eu.tintera.plume.core.video.PictureInPictureArbiter
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.call_hang_up
 import eu.tintera.plume.resources.call_mute
@@ -36,9 +35,9 @@ import org.jetbrains.compose.resources.stringResource
  * v prohlížeči (`rememberPictureInPicture`, viz `docs/poznatky/prohlizec-medii.md`) — tytéž
  * zásady: automatika od Androidu 12 `setAutoEnterEnabled`, starší přes `onUserLeaveHint`,
  * akce jako `RemoteAction` s broadcastem jen pro vlastní balíček, poměr stran v mezích, které
- * systém bere.
+ * systém bere. Parametry i automatiku vede [PictureInPictureArbiter], sdílený s prohlížečem.
  *
- * - **Parametry se vypínají, jakmile obraz v hovoru není** (i s koncem hovoru) — jinak by
+ * - **Okénko hovor chce, jen dokud je v něm obraz** (i s koncem hovoru přestane) — jinak by
  *   aplikace šla do okénka i bez videohovoru.
  * - **Konec hovoru v okénku okénko zavře** (`moveTaskToBack`): zbylo by v něm „Hovor skončil"
  *   nad zmenšenou aplikací. Jiná cesta, jak okénko zavřít z aplikace, není.
@@ -55,13 +54,13 @@ actual fun rememberCallPictureInPicture(
     val supported = remember(activity) {
         activity != null && activity.packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
     }
+    val arbiter = remember(activity) { activity?.let(PictureInPictureArbiter::of) }
     val state = remember(activity) { AndroidCallPictureInPicture() }
 
-    DisposableEffect(activity) {
-        val listener = Consumer<PictureInPictureModeChangedInfo> { info -> state.active = info.isInPictureInPictureMode }
-        activity?.addOnPictureInPictureModeChangedListener(listener)
-        state.active = activity?.isInPictureInPictureMode == true
-        onDispose { activity?.removeOnPictureInPictureModeChangedListener(listener) }
+    // Okénko si s videem v prohlížeči dělí aktivita; parametry a automatiku vede rozhodčí.
+    DisposableEffect(arbiter) {
+        arbiter?.register(state.owner)
+        onDispose { arbiter?.unregister(state.owner) }
     }
 
     val toggleMute by rememberUpdatedState(onToggleMute)
@@ -88,30 +87,11 @@ actual fun rememberCallPictureInPicture(
     val params = remember(supported, enabled, aspectRatio, muted, muteLabel, hangUpLabel) {
         if (supported && activity != null) callPipParams(activity, enabled, aspectRatio, muted, muteLabel, hangUpLabel) else null
     }
-    DisposableEffect(params) {
-        params?.let { runCatching { activity?.setPictureInPictureParams(it) }.onFailure(::logFailure) }
+    DisposableEffect(params, enabled) {
+        state.owner.params = params
+        state.owner.wantsAutoEnter = enabled
+        arbiter?.update()
         onDispose { }
-    }
-    DisposableEffect(activity) {
-        onDispose {
-            if (supported && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                runCatching { activity?.setPictureInPictureParams(PictureInPictureParams.Builder().setAutoEnterEnabled(false).build()) }
-            }
-        }
-    }
-
-    // Pod Androidem 12 automatika v parametrech není: do okénka ručně při odchodu z aplikace.
-    val currentEnabled by rememberUpdatedState(enabled)
-    val currentParams by rememberUpdatedState(params)
-    DisposableEffect(activity) {
-        val listener = Runnable {
-            val current = currentParams
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && currentEnabled && current != null) {
-                runCatching { activity?.enterPictureInPictureMode(current) }.onFailure(::logFailure)
-            }
-        }
-        activity?.addOnUserLeaveHintListener(listener)
-        onDispose { activity?.removeOnUserLeaveHintListener(listener) }
     }
 
     // Obraz z hovoru zmizel (konec, obě kamery vypnuté) a aplikace je v okénku: pryč s ním.
@@ -124,6 +104,8 @@ actual fun rememberCallPictureInPicture(
 
 private class AndroidCallPictureInPicture : CallPictureInPicture {
     override var active by mutableStateOf(false)
+    override var elsewhere by mutableStateOf(false)
+    val owner = PictureInPictureArbiter.Owner(onActive = { active = it }, onOther = { elsewhere = it })
 }
 
 private fun callPipParams(

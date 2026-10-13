@@ -21,10 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.app.PictureInPictureModeChangedInfo
 import androidx.core.content.ContextCompat
-import androidx.core.util.Consumer
-import co.touchlab.kermit.Logger
 import eu.tintera.plume.client.R
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.media_pause
@@ -38,8 +35,9 @@ import org.jetbrains.compose.resources.stringResource
  * - **Automatický přechod** od Androidu 12 nese `setAutoEnterEnabled` (systém ho spustí sám při
  *   gestu domů a animuje z videa); starší verze ho spustí z `onUserLeaveHint`. Obojí jen,
  *   dokud video hraje.
- * - **Parametry se při odchodu z kompozice vypínají.** `setPictureInPictureParams` platí pro
- *   aktivitu, ne pro obrazovku: bez vypnutí by aktivita šla do okénka i ze seznamu chatů.
+ * - **Parametry vede [PictureInPictureArbiter]**: `setPictureInPictureParams` platí pro
+ *   aktivitu, ne pro obrazovku, a okénko chce i videohovor. Po odchodu z kompozice se
+ *   prohlížeč odhlásí; bez toho by aktivita šla do okénka i ze seznamu chatů.
  * - **Akce v okénku** jsou `RemoteAction` s broadcastem jen pro vlastní balíček
  *   (`setPackage`, přijímač `RECEIVER_NOT_EXPORTED`).
  * - Poměr stran ořízne na meze, které systém bere (1 : 2,39 až 2,39 : 1); mimo ně by
@@ -57,13 +55,12 @@ actual fun rememberPictureInPicture(
     val supported = remember(activity) {
         activity != null && activity.packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
     }
-    val state = remember(activity) { AndroidPictureInPicture(activity, supported) }
+    val state = remember(activity) { AndroidPictureInPicture(activity?.let(PictureInPictureArbiter::of), supported) }
 
-    DisposableEffect(activity) {
-        val listener = Consumer<PictureInPictureModeChangedInfo> { info -> state.active = info.isInPictureInPictureMode }
-        activity?.addOnPictureInPictureModeChangedListener(listener)
-        state.active = activity?.isInPictureInPictureMode == true
-        onDispose { activity?.removeOnPictureInPictureModeChangedListener(listener) }
+    // Okénko si s hovorem dělí aktivita; parametry a automatiku vede rozhodčí.
+    DisposableEffect(state) {
+        state.arbiter?.register(state.owner)
+        onDispose { state.arbiter?.unregister(state.owner) }
     }
 
     val toggle by rememberUpdatedState(onTogglePlay)
@@ -75,46 +72,31 @@ actual fun rememberPictureInPicture(
         onDispose { context.unregisterReceiver(receiver) }
     }
 
-    // Parametry se mění s poměrem stran a s tím, jestli video hraje (ikona akce, automatika).
+    // Parametry se mění s poměrem stran a s tím, jestli video hraje (ikona akce, automatika:
+    // do okénka se jde samo jen s hrajícím videem).
     val playLabel = stringResource(Res.string.media_play)
     val pauseLabel = stringResource(Res.string.media_pause)
-    state.params = remember(supported, aspectRatio, playing, playLabel, pauseLabel) {
+    val params = remember(supported, aspectRatio, playing, playLabel, pauseLabel) {
         if (supported) pipParams(context, aspectRatio, playing, if (playing) pauseLabel else playLabel) else null
     }
-    DisposableEffect(state.params) {
-        state.params?.let { params -> runCatching { activity?.setPictureInPictureParams(params) }.onFailure { logPipFailure(it) } }
+    DisposableEffect(params, playing) {
+        state.owner.params = params
+        state.owner.wantsAutoEnter = playing
+        state.arbiter?.update()
         onDispose { }
-    }
-    DisposableEffect(activity) {
-        onDispose {
-            if (supported && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                runCatching { activity?.setPictureInPictureParams(PictureInPictureParams.Builder().setAutoEnterEnabled(false).build()) }
-            }
-        }
-    }
-
-    // Pod Androidem 12 automatika v parametrech není: přechod při odchodu z aplikace ručně.
-    val currentPlaying by rememberUpdatedState(playing)
-    DisposableEffect(activity) {
-        val listener = Runnable {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S && currentPlaying) state.enter()
-        }
-        activity?.addOnUserLeaveHintListener(listener)
-        onDispose { activity?.removeOnUserLeaveHintListener(listener) }
     }
     return state
 }
 
 private class AndroidPictureInPicture(
-    private val activity: ComponentActivity?,
+    val arbiter: PictureInPictureArbiter?,
     override val supported: Boolean,
 ) : PictureInPicture {
     override var active by mutableStateOf(false)
-    var params: PictureInPictureParams? = null
+    val owner = PictureInPictureArbiter.Owner(onActive = { active = it })
 
     override fun enter() {
-        val current = params ?: return
-        runCatching { activity?.enterPictureInPictureMode(current) }.onFailure { logPipFailure(it) }
+        arbiter?.enter(owner)
     }
 }
 
@@ -141,10 +123,6 @@ private fun pipParams(context: Context, aspectRatio: Float, playing: Boolean, la
             }
         }
         .build()
-}
-
-private fun logPipFailure(failure: Throwable) {
-    Logger.withTag("PictureInPicture").w(failure) { "Obraz v obraze se nepodařilo nastavit." }
 }
 
 private const val ACTION_TOGGLE = "eu.tintera.plume.action.PIP_TOGGLE"

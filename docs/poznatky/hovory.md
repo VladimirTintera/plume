@@ -201,8 +201,17 @@ uprostřed hlasového hovoru, vypnutá a znovu zapnutá, přepnutí kamery, kame
   `ic_pip_mic*`, `ic_pip_hang_up` v prostředcích Androidu).
   - **Stejný mechanismus jako u videa v prohlížeči** (`docs/poznatky/prohlizec-medii.md`,
     „Obraz v obraze"): do okénka jde celá aktivita, `CallOverlay` v něm místo všeho kreslí jen
-    obraz. Parametry jsou jedny na aktivitu — **zavřený prohlížeč médií vypne automatiku
-    i hovoru**, dokud se stav hovoru nezmění (v roadmapě).
+    obraz.
+  - **Okénko si s prohlížečem dělí aktivita a vede ho jeden rozhodčí**
+    (`PictureInPictureArbiter` v `core/video`). Parametry jsou jedny na aktivitu: dokud si je
+    každý nastavoval sám, vypnul ten, kdo skončil, automatiku i druhému — zavřený prohlížeč
+    během videohovoru poslal hovor po odchodu z aplikace místo do okénka na pozadí. Platí
+    poslední přihlášený, který okénko právě chce (hrající video, hovor s obrazem); odhlášení
+    jen znovu rozhodne. **„Jsem v okénku" dostane jen ten, kvůli komu se do okénka šlo**,
+    ostatní „okénko je cizí" a nekreslí se: pruh hovoru ležel přes video v okénku.
+  - Ověřeno na Pixelu 5 během videohovoru: otevřené a zavřené video v prohlížeči, pak Domů →
+    okénko s hovorem (9 : 16); hrající video v prohlížeči a Domů → okénko s videem bez pruhu
+    hovoru.
   - **Konec hovoru okénko zavře** (`moveTaskToBack`): v okénku by zbylo „Hovor skončil".
     Totéž, když obraz zmizí (obě kamery vypnuté).
   - **Ověřeno na Pixelu 5** (Plume ↔ Plume): Domů během videohovoru otevře okénko

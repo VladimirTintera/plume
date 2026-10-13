@@ -868,9 +868,11 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   mizející video ne (okénko nad jinými aplikacemi by obešlo `FLAG_SECURE` i odpočet).
   - **Android posílá do okénka CELOU aktivitu** (`supportsPictureInPicture` na `MainActivity`),
     takže `VideoPage` během PiP schová ovládání a nechá jen obraz. Parametry
-    (`setPictureInPictureParams`) platí pro aktivitu, ne pro obrazovku — **při odchodu
-    z kompozice se automatika vypíná**, jinak by aplikace šla do okénka i ze seznamu chatů
-    (ověřeno: po zavření prohlížeče Home okénko neotevře).
+    (`setPictureInPictureParams`) platí pro aktivitu, ne pro obrazovku, a okénko chce
+    i videohovor — **vede je jeden rozhodčí na aktivitu** (`PictureInPictureArbiter`, viz
+    `docs/poznatky/hovory.md`, „Obraz v obraze"). Prohlížeč se při odchodu z kompozice
+    odhlásí, jinak by aplikace šla do okénka i ze seznamu chatů (ověřeno: po zavření
+    prohlížeče Home okénko neotevře — leda probíhá videohovor, pak jde do okénka on).
   - **`smallestScreenSize` musí být v `configChanges`.** Přechod do okénka mění velikost okna;
     bez něj by se aktivita vytvořila znovu a přehrávač s ní zanikl.
   - **Automatika:** od Androidu 12 `setAutoEnterEnabled(playing)`, starší přes

@@ -458,9 +458,6 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    zvuku"). Změna sítě a systémový telefon taky (`docs/poznatky/hovory.md`, „Změna sítě
    za hovoru", „Systémový telefon"). Videohovory taky (`docs/poznatky/hovory.md`,
    „Videohovory"). Zbývá na Androidu:
-   - **Okénko videohovoru po prohlížení videa**: zavřený prohlížeč médií vypne automatický
-     přechod do okénka i hovoru (parametry PiP jsou jedny na aktivitu), dokud se stav hovoru
-     nezmění (`docs/poznatky/hovory.md`, „Obraz v obraze").
    Původní plán sondy:
 
    **Doporučení: C, začít dvoudenní sondou na Androidu.** ntgcalls v `debug` větvi, jen zvuk:

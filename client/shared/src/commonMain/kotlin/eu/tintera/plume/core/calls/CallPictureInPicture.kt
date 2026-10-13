@@ -12,8 +12,14 @@ import androidx.compose.runtime.Stable
  */
 @Stable
 interface CallPictureInPicture {
-    /** Aplikace je právě v okénku. */
+    /** Aplikace je právě v okénku kvůli hovoru. */
     val active: Boolean
+
+    /**
+     * Aplikace je v okénku kvůli něčemu jinému (video v prohlížeči) — hovor se pak nekreslí
+     * vůbec, jinak by jeho pruh ležel přes video.
+     */
+    val elsewhere: Boolean
 }
 
 /**
