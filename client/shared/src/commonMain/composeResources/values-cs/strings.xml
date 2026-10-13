@@ -3035,4 +3035,15 @@
     <string name="notif_sound_delete_title">Smazat zvuk „%1$s“?</string>
     <string name="notif_sound_delete_text">Zmizí ze všech zařízení účtu.</string>
     <string name="notif_sound_delete_confirm">Smazat</string>
+    <string name="settings_help">Pomoc</string>
+    <string name="settings_ask_question">Zeptat se</string>
+    <string name="settings_ask_question_summary">Chat s podporou Telegramu</string>
+    <string name="settings_faq">Časté dotazy k Telegramu</string>
+    <string name="settings_faq_summary">Odpovědi na běžné otázky o Telegramu</string>
+    <string name="ask_question_title">Zeptat se podpory Telegramu?</string>
+    <string name="ask_question_text">Podporu Telegramu dělají dobrovolníci. Odpoví, jakmile můžou, ale na většinu otázek už je odpověď v častých dotazech.</string>
+    <string name="ask_question_plume">Plume je neoficiální aplikace — s Plume samotným ti podpora Telegramu neporadí.</string>
+    <string name="ask_question_confirm">Zeptat se</string>
+    <string name="ask_question_faq">Časté dotazy</string>
+    <string name="ask_question_failed">Chat s podporou se nepodařilo otevřít.</string>
 </resources>

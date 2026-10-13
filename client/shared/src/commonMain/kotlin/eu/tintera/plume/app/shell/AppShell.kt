@@ -1136,6 +1136,7 @@ private fun shellEntryProvider(
             // Sem se chodí z menu účtu na každé šířce, takže šipka zpět do Chatů je vždycky.
             // Zavírá Nastavení celá — v dvoupanelu je sekce otevřená pořád, viz `closeSettings`.
             onBack = navigation::closeSettings,
+            onOpenChat = { chatId -> navigation.openChat(chatId) },
             modifier = Modifier.listPaneInsets(twoPane),
         )
     }

@@ -61,6 +61,8 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     /** Šipka zpět do Chatů. Nastavení se otevírají z menu účtu, jiná cesta zpět není. */
     onBack: (() -> Unit)? = null,
+    /** Otevřít chat (s podporou Telegramu z „Zeptat se"). */
+    onOpenChat: (Long) -> Unit = {},
 ) {
     val scrollBehavior = settingsScrollBehavior()
     Scaffold(
@@ -88,6 +90,7 @@ fun SettingsScreen(
                     onClick = { onSectionClick(section) },
                 )
             }
+            HelpGroup(onOpenChat = onOpenChat)
         }
     }
 }
