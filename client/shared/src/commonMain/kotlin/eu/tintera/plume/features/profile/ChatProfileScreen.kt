@@ -233,6 +233,7 @@ import eu.tintera.plume.resources.profile_phone
 import eu.tintera.plume.resources.profile_search
 import eu.tintera.plume.resources.profile_unmute
 import eu.tintera.plume.resources.profile_username
+import eu.tintera.plume.resources.profile_username_more
 import eu.tintera.plume.resources.profile_username_value
 import eu.tintera.plume.resources.search_24dp
 import eu.tintera.plume.resources.auto_delete_title
@@ -1122,7 +1123,19 @@ private fun ProfileInfo(
         profile.usernames.firstOrNull()?.let { username ->
             add { shape ->
                 InfoRow(label = stringResource(Res.string.profile_username), shape = shape) {
-                    Text(stringResource(Res.string.profile_username_value, username), style = MaterialTheme.typography.bodyLarge)
+                    Column {
+                        Text(stringResource(Res.string.profile_username_value, username), style = MaterialTheme.typography.bodyLarge)
+                        // Další zapnutá jména (sběratelská z Fragmentu) pod hlavním — najdou ho podle všech.
+                        val others = profile.usernames.drop(1)
+                        if (others.isNotEmpty()) {
+                            val joined = others.map { stringResource(Res.string.profile_username_value, it) }.joinToString(", ")
+                            Text(
+                                stringResource(Res.string.profile_username_more, joined),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
             }
         }

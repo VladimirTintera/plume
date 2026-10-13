@@ -251,6 +251,14 @@ fun EditProfileScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
+                if (viewModel.usernames.hasMore) {
+                    UsernamesSection(
+                        usernames = viewModel.usernames,
+                        onSetActive = viewModel::setUsernameActive,
+                        onMove = viewModel::moveUsername,
+                    )
+                }
+
                 val bioLength = viewModel.bio.trim().length
                 OutlinedTextField(
                     value = viewModel.bio,
