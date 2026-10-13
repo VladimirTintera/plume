@@ -232,7 +232,28 @@ class TdlNotificationSettingsRepository(
         showPreview = showPreview,
         pinnedMessages = !disablePinnedMessageNotifications,
         mentions = !disableMentionNotifications,
+        soundId = soundId,
     )
+
+    override suspend fun setScopeSound(scope: NotificationScope, soundId: Long): Result<Unit> {
+        val current = client.getScopeNotificationSettings(scope = scope.toTdl()).toResult()
+            .getOrElse { return Result.failure(it) }
+        val updated = ScopeNotificationSettings(
+            muteFor = current.muteFor,
+            soundId = soundId,
+            showPreview = current.showPreview,
+            useDefaultMuteStories = current.useDefaultMuteStories,
+            muteStories = current.muteStories,
+            storySoundId = current.storySoundId,
+            showStoryPoster = current.showStoryPoster,
+            disablePinnedMessageNotifications = current.disablePinnedMessageNotifications,
+            disableMentionNotifications = current.disableMentionNotifications,
+        )
+        return client.setScopeNotificationSettings(scope = scope.toTdl(), notificationSettings = updated)
+            .toResult()
+            .map { }
+            .onFailure { logger.w(it) { "Zvuk rozsahu $scope se nepodařilo uložit." } }
+    }
 
     private companion object {
         /** „Navždy" — stejná hodnota jako u ztlumení chatu. */

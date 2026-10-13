@@ -1,11 +1,19 @@
 package eu.tintera.plume.core.notifications
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import androidx.core.content.FileProvider
 import eu.tintera.plume.core.share.shortcutId
+import eu.tintera.plume.core.telegram.NO_SOUND_ID
 import eu.tintera.plume.core.telegram.NotificationChannelKind
+import eu.tintera.plume.core.telegram.NotificationSoundChoice
+import eu.tintera.plume.core.telegram.isSoundChannel
+import eu.tintera.plume.core.telegram.soundChannelKey
 import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notification_channel_calls
@@ -20,8 +28,11 @@ import eu.tintera.plume.resources.notification_channel_model_download
 import eu.tintera.plume.resources.notification_channel_model_download_description
 import eu.tintera.plume.resources.notification_channel_private
 import eu.tintera.plume.resources.notification_channel_private_description
+import eu.tintera.plume.resources.notification_channel_silent
 import eu.tintera.plume.resources.notification_channel_snooze
 import eu.tintera.plume.resources.notification_channel_snooze_description
+import eu.tintera.plume.resources.notification_channel_with_sound
+import java.io.File
 
 /**
  * Id systémového kanálu. **Nesmí se měnit**: kanál s novým id je pro systém jiný kanál a co si
@@ -122,6 +133,92 @@ fun deleteConversationChannels(context: Context) {
         .filter { it.conversationId != null }
         .forEach { manager.deleteNotificationChannel(it.id) }
 }
+
+/**
+ * Kanál pro notifikaci se zvukem z Telegramu ([sound], podle `notificationSoundId`).
+ *
+ * **Výchozí zvuk = výchozí kanál** ([channelId]) beze změny — co si v něm uživatel nastavil,
+ * platí dál. Bez zvuku a tón účtu mají kanál vlastní (`private_silent`, `private_tone_<id>`):
+ * zvuk kanálu po založení nastavuje už jen uživatel, takže jiný zvuk = jiný kanál. Nový kanál
+ * převezme z výchozího všechno, co jde přečíst (důležitost, vibrace, světlo, odznak, zamykací
+ * obrazovku, Nerušit), a přidá zvuk. Existující kanál se nechá být — i s tím, co v něm uživatel
+ * mezitím změnil. Návrat k výchozímu zvuku vrátí notifikace do výchozího kanálu.
+ *
+ * Tón, který se nestihl stáhnout, nebo kanál, který nejde založit, znamená výchozí kanál:
+ * notifikace má zaznít, i když ne tím tónem.
+ */
+suspend fun soundChannelId(context: Context, kind: NotificationChannelKind, sound: NotificationSoundChoice): String {
+    val id = when (sound) {
+        NotificationSoundChoice.Default -> return kind.channelId
+        NotificationSoundChoice.Silent -> soundChannelKey(kind.channelId, NO_SOUND_ID)
+        is NotificationSoundChoice.Tone -> soundChannelKey(kind.channelId, sound.id)
+    }
+    val manager = context.getSystemService(NotificationManager::class.java)
+    if (manager.getNotificationChannel(id) != null) return id
+    val base = manager.getNotificationChannel(kind.channelId) ?: return kind.channelId
+    val (soundName, uri) = when (sound) {
+        is NotificationSoundChoice.Tone -> sound.title to (toneUri(context, sound) ?: return kind.channelId)
+        else -> readString(Res.string.notification_channel_silent) to null
+    }
+    val channel = NotificationChannel(id, readString(Res.string.notification_channel_with_sound, base.name.toString(), soundName), base.importance).apply {
+        description = base.description
+        setSound(uri, if (uri == null) null else base.audioAttributes ?: Notification.AUDIO_ATTRIBUTES_DEFAULT)
+        enableVibration(base.shouldVibrate())
+        vibrationPattern = base.vibrationPattern
+        enableLights(base.shouldShowLights())
+        lightColor = base.lightColor
+        setShowBadge(base.canShowBadge())
+        lockscreenVisibility = base.lockscreenVisibility
+        setBypassDnd(base.canBypassDnd())
+    }
+    return runCatching { manager.createNotificationChannel(channel); id }.getOrElse { kind.channelId }
+}
+
+/** Kanál se zvukem [soundId], když už existuje; jinak výchozí kanál ([channelId]). */
+fun existingSoundChannelId(context: Context, kind: NotificationChannelKind, soundId: Long): String {
+    val id = soundChannelKey(kind.channelId, soundId)
+    val manager = context.getSystemService(NotificationManager::class.java)
+    return if (manager.getNotificationChannel(id) != null) id else kind.channelId
+}
+
+/**
+ * Tón jako `content://` pro kanál. **Kopie v adresáři aplikace, ne soubor TDLib** — ten může
+ * TDLib uklidit a provider by musel vydat celý jeho adresář. Systém zvuk kanálu přehrává
+ * pokaždé znovu z URI, takže kopie musí zůstat; právo ke čtení dostane System UI, které zvuk
+ * přehrává (jako to dělá Telegram Android).
+ */
+private fun toneUri(context: Context, tone: NotificationSoundChoice.Tone): Uri? = runCatching {
+    val source = File(tone.path ?: return null)
+    val directory = File(context.filesDir, SOUNDS_DIRECTORY).apply { mkdirs() }
+    val target = File(directory, "${tone.id}.${source.extension.ifBlank { "mp3" }}")
+    if (!target.exists() || target.length() != source.length()) source.copyTo(target, overwrite = true)
+    val uri = FileProvider.getUriForFile(context, "${context.packageName}$SOUNDS_AUTHORITY_SUFFIX", target)
+    SYSTEM_SOUND_PLAYERS.forEach { context.grantUriPermission(it, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+    uri
+}.getOrNull()
+
+/** Kanály tónu [soundId] (všechny druhy chatů) a jeho kopie pryč — tón už účet nemá. */
+fun deleteToneChannels(context: Context, soundId: Long) {
+    val manager = context.getSystemService(NotificationManager::class.java)
+    NotificationChannelKind.entries.forEach { kind -> manager.deleteNotificationChannel(soundChannelKey(kind.channelId, soundId)) }
+    File(context.filesDir, SOUNDS_DIRECTORY).listFiles()?.filter { it.nameWithoutExtension == soundId.toString() }?.forEach { it.delete() }
+}
+
+/** Kanály se zvukem z Telegramu po odhlášení pryč — patří účtu, ne aplikaci. */
+fun deleteSoundChannels(context: Context) {
+    val manager = context.getSystemService(NotificationManager::class.java)
+    manager.notificationChannels
+        .filter { isSoundChannel(it.id) }
+        .forEach { manager.deleteNotificationChannel(it.id) }
+    File(context.filesDir, SOUNDS_DIRECTORY).deleteRecursively()
+}
+
+/** Musí sedět s `notification_images.xml` (cesta) a autoritou provideru v manifestu. */
+private const val SOUNDS_DIRECTORY = "notification_sounds"
+private const val SOUNDS_AUTHORITY_SUFFIX = ".notificationimages"
+
+/** Kdo zvuk kanálu přehrává: System UI a systém sám (podle verze Androidu). */
+private val SYSTEM_SOUND_PLAYERS = listOf("com.android.systemui", "android")
 
 private const val LEGACY_CHANNEL_ID = "messages"
 

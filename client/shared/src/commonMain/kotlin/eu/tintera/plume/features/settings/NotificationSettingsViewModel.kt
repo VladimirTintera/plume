@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.telegram.DEFAULT_SOUND_ID
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.notifications.NotificationPermission
@@ -145,7 +146,7 @@ class NotificationSettingsViewModel(
 
     fun openSystemSettings() = permission.openSystemSettings()
 
-    fun openChannelSettings(channel: NotificationChannelKind) = permission.openChannelSettings(channel)
+    fun openChannelSettings(channel: NotificationChannelKind, soundId: Long = DEFAULT_SOUND_ID) = permission.openChannelSettings(channel, soundId)
 
     fun noticeShown() = local.update { it.copy(notice = null) }
 

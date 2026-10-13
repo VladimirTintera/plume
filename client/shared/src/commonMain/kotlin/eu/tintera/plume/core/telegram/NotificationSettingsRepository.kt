@@ -16,6 +16,9 @@ interface NotificationSettingsRepository {
 
     suspend fun setScopeSettings(scope: NotificationScope, settings: ScopeSettings): Result<Unit>
 
+    /** Zvuk rozsahu: [DEFAULT_SOUND_ID], [NO_SOUND_ID], nebo id tónu účtu. */
+    suspend fun setScopeSound(scope: NotificationScope, soundId: Long): Result<Unit> = Result.failure(UnsupportedOperationException())
+
     /** Chaty rozsahu s vlastním nastavením upozornění — jediné místo, kde je vidět, co kde je ztlumené. */
     suspend fun exceptions(scope: NotificationScope): Result<List<NotificationException>>
 
@@ -113,6 +116,8 @@ data class ScopeSettings(
     val pinnedMessages: Boolean,
     /** Zmínky a odpovědi na mě — projdou i ztlumeným chatem. */
     val mentions: Boolean,
+    /** Zvuk: [DEFAULT_SOUND_ID], [NO_SOUND_ID], nebo id tónu účtu. */
+    val soundId: Long = DEFAULT_SOUND_ID,
 )
 
 data class NotificationException(

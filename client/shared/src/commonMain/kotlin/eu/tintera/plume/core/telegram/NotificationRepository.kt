@@ -141,6 +141,11 @@ data class ChatNotification(
     /** Systémový kanál, kterým notifikace půjde (Android). Viz [notificationChannelFor]. */
     val channel: NotificationChannelKind = NotificationChannelKind.Private,
     /**
+     * Zvuk, který pro notifikaci určila TDLib (`notificationSoundId` — chat, téma, nebo rozsah).
+     * Na Androidu vybírá kanál: výchozí, tichý, nebo kanál s tónem (viz `soundChannelId`).
+     */
+    val sound: NotificationSoundChoice = NotificationSoundChoice.Default,
+    /**
      * Téma skupiny s tématy, ve kterém zpráva je; ťuknutí na notifikaci ho otevře. `null` mimo
      * fórum — a u notifikace z pushe: push téma nenese, takže ta otevře skupinu celou, dokud ji
      * nenahradí skutečná notifikace.
@@ -156,6 +161,31 @@ data class ChatNotification(
  * i ztlumeným chatem a v tiché skupině jsou to jediné, co má zvonit.
  */
 enum class NotificationChannelKind { Private, Groups, Channels, Mentions }
+
+/**
+ * Id kanálu pro zvuk [soundId] pod výchozím kanálem [baseId]: výchozí zvuk (záporné id) = výchozí
+ * kanál, bez zvuku `<base>_silent`, tón `<base>_tone_<id>`. Id musí být stabilní — stejný zvuk
+ * se musí trefit do téhož kanálu, i s tím, co si v něm uživatel nastavil.
+ */
+fun soundChannelKey(baseId: String, soundId: Long): String = when {
+    soundId < 0 -> baseId
+    soundId == NO_SOUND_ID -> "${baseId}_silent"
+    else -> "${baseId}_tone_$soundId"
+}
+
+/** Je kanál [id] kanálem se zvukem z Telegramu (ne výchozí)? Takové se po odhlášení mažou. */
+fun isSoundChannel(id: String): Boolean = id.endsWith("_silent") || id.contains("_tone_")
+
+/** Zvuk notifikace podle Telegramu. */
+sealed interface NotificationSoundChoice {
+    /** Výchozí zvuk aplikace — výchozí kanál, jak si ho uživatel nastavil. */
+    data object Default : NotificationSoundChoice
+
+    data object Silent : NotificationSoundChoice
+
+    /** Tón účtu; [path] = soubor na disku, `null`, když se nestihl stáhnout (pak jako [Default]). */
+    data class Tone(val id: Long, val title: String, val path: String?) : NotificationSoundChoice
+}
 
 /**
  * Kanál pro notifikaci. [isMention] = skupina notifikací `NotificationGroupTypeMentions`

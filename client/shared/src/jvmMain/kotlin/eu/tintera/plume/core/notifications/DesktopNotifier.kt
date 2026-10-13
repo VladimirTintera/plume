@@ -27,23 +27,7 @@ internal data class DesktopNotification(
     val avatarPath: String?,
     /** Čas zprávy v sekundách; `null` = teď. */
     val timestamp: Long? = null,
-    /** Tlačítka u oznámení chatu (zatím jen toasty Windows); `null` = žádná. */
-    val buttons: NotificationButtons? = null,
 )
-
-/** Tlačítka toastu chatu, jak je má Android: odpověď, přečtení, ztlumení. */
-internal data class NotificationButtons(
-    /** Nejnovější zpráva oznámení — po ni se čte. `null` = po nejnovější v chatu. */
-    val messageId: Long?,
-    /** Citovaná zpráva odpovědi: ve skupině nejnovější z oznámení, v soukromém chatu nic. */
-    val quoteMessageId: Long?,
-    val canReply: Boolean,
-    val canMute: Boolean,
-    val labels: Labels,
-) {
-    /** Popisky přeložené v okamžiku zobrazení; toast je hotový text, ne odkaz do prostředků. */
-    data class Labels(val reply: String, val send: String, val markRead: String, val mute: String)
-}
 
 /** Systémová oznámení desktopu. Platformu vybírá [desktopNotifier]. */
 internal interface DesktopNotifier {
@@ -63,11 +47,8 @@ internal interface DesktopNotifier {
 
     fun removeAll()
 
-    /**
-     * Klik na oznámení ([ToastActivation.Open]) nebo na jeho tlačítko (odpověď, přečtení,
-     * ztlumení — ta běží na pozadí). Tlačítka mají zatím jen toasty Windows.
-     */
-    var onActivated: ((ToastActivation) -> Unit)?
+    /** Klik na notifikaci. */
+    var onActivated: ((chatId: Long, topicId: Int?) -> Unit)?
 }
 
 internal fun desktopNotifier(): DesktopNotifier = when {
@@ -112,12 +93,10 @@ private class MacNotifier : DesktopNotifier {
         if (available) MacNotificationCenter.nativeRemoveAll()
     }
 
-    override var onActivated: ((ToastActivation) -> Unit)? = null
+    override var onActivated: ((chatId: Long, topicId: Int?) -> Unit)? = null
         set(value) {
             field = value
-            MacNotificationCenter.onActivated = { chatId, topicId ->
-                value?.invoke(ToastActivation.Open(chatId, topicId.takeIf { it != 0 }))
-            }
+            MacNotificationCenter.onActivated = { chatId, topicId -> value?.invoke(chatId, topicId.takeIf { it != 0 }) }
         }
 
     /**
@@ -161,13 +140,11 @@ private class WindowsNotifier : DesktopNotifier {
         check("smazat", WindowsToasts.nativeRemoveAll())
     }
 
-    override var onActivated: ((ToastActivation) -> Unit)? = null
+    override var onActivated: ((chatId: Long, topicId: Int?) -> Unit)? = null
         set(value) {
             field = value
-            // Až teď: kliknutí ze studeného startu čeká ve WindowsToasts, dokud tu někdo není.
-            WindowsToasts.onActivated = { arguments, reply ->
-                val activation = parseActivation(arguments, reply)
-                if (activation == null) logger.d { "Toast bez akce: $arguments" } else value?.invoke(activation)
+            WindowsToasts.onActivated = { arguments ->
+                parseActivation(arguments)?.let { (chatId, topicId) -> value?.invoke(chatId, topicId) }
             }
         }
 
@@ -206,7 +183,7 @@ private class TrayNotifier : DesktopNotifier {
                 ?: BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)
             TrayIcon(image, "Plume").apply {
                 isImageAutoSize = true
-                addActionListener { last?.let { onActivated?.invoke(ToastActivation.Open(it.chatId, it.topicId)) } }
+                addActionListener { last?.let { onActivated?.invoke(it.chatId, it.topicId) } }
                 SystemTray.getSystemTray().add(this)
             }
         }.onFailure { logger.w(it) { "Ikonu v oznamovací oblasti nejde přidat." } }.getOrNull()
@@ -230,5 +207,5 @@ private class TrayNotifier : DesktopNotifier {
 
     override fun removeAll() = Unit
 
-    override var onActivated: ((ToastActivation) -> Unit)? = null
+    override var onActivated: ((chatId: Long, topicId: Int?) -> Unit)? = null
 }

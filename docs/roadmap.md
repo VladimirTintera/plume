@@ -364,8 +364,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   „Přenesená data"). ~~Automatické ukládání do galerie~~ — hotovo (Úložiště → Ukládání do
   galerie; `docs/poznatky/prohlizec-medii.md`, „Automatické ukládání do galerie"). Zbývá
   zakládání výjimek z profilu chatu (dnes jen úprava a odebrání).
-- Notifikace reakcí (`setReactionNotificationSettings`) a zvuky notifikací z Telegramu
-  (`getSavedNotificationSounds`; viz [Notifikace](#notifikace)).
+- ~~Zvuky notifikací z Telegramu~~ — hotovo pro rozsahy (`docs/poznatky/notifikace.md`, „Zvuky
+  z Telegramu"); zbývá výběr zvuku jednoho chatu v profilu. **Notifikace reakcí NEJDOU**: TDLib je
+  neumí (push `REACT_*` odmítne, kód je zakomentovaný) a zašifrovaný push si Plume nepřečte.
 - Podpora — „Zeptat se" (`getSupportUser`).
 
 **Konverzace a hledání:**
@@ -844,9 +845,8 @@ Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení
   - ~~**Upozornění jednoho chatu v profilu**~~ — hotovo (doba ztlumení, náhled, připnuté,
     zmínky, obnovení, zvuk přes kanál konverzace) a doby ztlumení i v nabídce chatu v seznamu.
   - **Stories** (`muteStories`, `showStoryPoster`), až budou stories.
-  - **Zvuk z Telegramu** (`notificationSoundId`) se nesynchronizuje. Šlo by to jen novým kanálem
-    s verzí v id při každé změně (jako oficiální klient) — a tím zahodit, co si uživatel nastavil
-    v systému. Stojí za to, až bude v aplikaci výběr zvuku.
+  - ~~**Zvuk z Telegramu**~~ — hotovo: kanál podle zvuku (výchozí kanál zůstává), výběr pro
+    rozsahy a tóny účtu. Zbývá výběr pro jeden chat v profilu.
   - **iOS** kanály nemá; obdobou je `threadIdentifier` a `interruptionLevel` (zmínky jako
     `timeSensitive`). Přijde na řadu s notifikacemi na iOS vůbec.
 - **Rychlé akce z notifikace.** Odpověď, označení za přečtené a ztlumení na hodinu jsou na
