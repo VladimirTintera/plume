@@ -111,6 +111,8 @@ enum class AppScreen {
     EditProfile,
     /** Dvoufázové ověření (Obecné → Soukromí). Jen z doporučené akce, odkaz `tg://` na něj Plume nemá. */
     TwoStepVerification,
+    /** Přihlašovací e-mail (Obecné → Soukromí). Jen z doporučené akce. */
+    LoginEmail,
     /** Soukromí je v Obecných, samostatná sekce není. */
     General,
     Notifications,

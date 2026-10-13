@@ -25,6 +25,8 @@ import eu.tintera.plume.core.navigation.PrivacySettingRoute
 import eu.tintera.plume.features.settings.AccountPrivacyScreen
 import eu.tintera.plume.features.settings.PrivacySettingScreen
 import eu.tintera.plume.core.navigation.TwoStepRoute
+import eu.tintera.plume.core.navigation.LoginEmailRoute
+import eu.tintera.plume.features.settings.LoginEmailScreen
 import eu.tintera.plume.core.navigation.AppLockRoute
 import eu.tintera.plume.core.navigation.ChatFolderEditRoute
 import eu.tintera.plume.core.navigation.ChatFoldersRoute
@@ -1148,6 +1150,7 @@ private fun shellEntryProvider(
             onOpenProxy = { if (settingsStack.lastOrNull() != ProxySettingsRoute) settingsStack.add(ProxySettingsRoute) },
             onOpenAccountPrivacy = { if (settingsStack.lastOrNull() != AccountPrivacyRoute) settingsStack.add(AccountPrivacyRoute) },
             onOpenTwoStep = { if (settingsStack.lastOrNull() != TwoStepRoute) settingsStack.add(TwoStepRoute) },
+            onOpenLoginEmail = { if (settingsStack.lastOrNull() != LoginEmailRoute) settingsStack.add(LoginEmailRoute) },
             onOpenAppLock = { if (settingsStack.lastOrNull() != AppLockRoute) settingsStack.add(AppLockRoute) },
         )
     }
@@ -1236,6 +1239,13 @@ private fun shellEntryProvider(
         metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
     ) { route ->
         TwoStepScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
+    }
+
+    // Přihlašovací e-mail nad sekcí Obecné, jako dvoufázové ověření.
+    entry<LoginEmailRoute>(
+        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+    ) { route ->
+        LoginEmailScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Zámek aplikace nad sekcí Obecné, jako dvoufázové ověření.
@@ -1428,6 +1438,7 @@ private fun conversationBelow(stack: List<NavKey>, route: MediaRoute): Long? {
 /** Obrazovky, které se vrší nad sekci Nastavení: úprava profilu, blokovaní, dvoufázové ověření, složky chatů. */
 private fun NavKey?.isOverSettingsSection(): Boolean =
     this == EditProfileRoute || this == BlockedSendersRoute || this == BlockSenderRoute || this == TwoStepRoute ||
+        this == LoginEmailRoute ||
         this == AppLockRoute || this == ChatFoldersRoute || this is ChatFolderEditRoute || this == ProxySettingsRoute ||
         this == StickerSetsRoute || this == EmojiSetsRoute ||
         this == AccountPrivacyRoute || this is PrivacySettingRoute

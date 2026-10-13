@@ -597,7 +597,7 @@ fun ChatListScreen(
                                         SuggestedAction.CheckPassword, SuggestedAction.CheckPhoneNumber ->
                                             viewModel.hideSuggestion(action)
                                         is SuggestedAction.SetPassword -> onOpenScreen(AppScreen.TwoStepVerification)
-                                        is SuggestedAction.SetLoginEmail -> Unit
+                                        is SuggestedAction.SetLoginEmail -> onOpenScreen(AppScreen.LoginEmail)
                                         SuggestedAction.SetProfilePhoto -> onOpenScreen(AppScreen.EditProfile)
                                         SuggestedAction.ArchiveUnknownChats -> viewModel.enableArchiveUnknownChats(action)
                                         is SuggestedAction.Custom -> openNoticeLink(action.url)

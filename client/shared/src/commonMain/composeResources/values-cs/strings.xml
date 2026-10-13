@@ -2861,7 +2861,8 @@
     <string name="suggestion_set_password_text_delay">Bez hesla se na nové zařízení přihlásíš až %1$s.</string>
     <string name="suggestion_set_password_action">Nastavit</string>
     <string name="suggestion_login_email_title">Přidej přihlašovací e-mail</string>
-    <string name="suggestion_login_email_text">Telegram na něj bude posílat přihlašovací kódy. Přidat ho jde zatím v oficiální aplikaci Telegramu.</string>
+    <string name="suggestion_login_email_action">Přidat</string>
+    <string name="suggestion_login_email_text">Telegram na něj bude posílat přihlašovací kódy místo SMS.</string>
     <string name="suggestion_profile_photo_title">Přidej si profilovou fotku</string>
     <string name="suggestion_profile_photo_text">Lidé tě podle ní snáz poznají.</string>
     <string name="suggestion_profile_photo_action">Přidat</string>
@@ -2870,4 +2871,14 @@
     <string name="suggestion_archive_action">Zapnout</string>
     <string name="suggestion_custom_action">Otevřít</string>
     <string name="suggestion_failed">Nepovedlo se to.</string>
+    <string name="settings_login_email">Přihlašovací e-mail</string>
+    <string name="settings_login_email_none">Nenastavený</string>
+    <string name="login_email_intro">Telegram na něj posílá kódy k přihlášení místo SMS.</string>
+    <string name="login_email_current">Kódy teď chodí na %1$s.</string>
+    <string name="login_email_add_title">Přidat přihlašovací e-mail</string>
+    <string name="login_email_change_title">Nový přihlašovací e-mail</string>
+    <string name="login_email_send">Poslat kód</string>
+    <string name="login_email_confirm">Potvrdit</string>
+    <string name="login_email_done">Přihlašovací e-mail je nastavený.</string>
+    <string name="error_login_email_not_allowed">Telegram teď přihlašovací e-mail přidat nedovolí.</string>
 </resources>

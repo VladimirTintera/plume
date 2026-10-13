@@ -2779,7 +2779,8 @@
     <string name="suggestion_set_password_text_delay">Without a password you can sign in on a new device only %1$s.</string>
     <string name="suggestion_set_password_action">Set up</string>
     <string name="suggestion_login_email_title">Add a login email</string>
-    <string name="suggestion_login_email_text">Telegram will send login codes there. You can add it in the official Telegram app for now.</string>
+    <string name="suggestion_login_email_action">Add</string>
+    <string name="suggestion_login_email_text">Telegram will send login codes there instead of a text message.</string>
     <string name="suggestion_profile_photo_title">Add a profile photo</string>
     <string name="suggestion_profile_photo_text">It helps people recognize you.</string>
     <string name="suggestion_profile_photo_action">Add</string>
@@ -2788,4 +2789,14 @@
     <string name="suggestion_archive_action">Turn on</string>
     <string name="suggestion_custom_action">Open</string>
     <string name="suggestion_failed">That didn't work.</string>
+    <string name="settings_login_email">Login email</string>
+    <string name="settings_login_email_none">Not set</string>
+    <string name="login_email_intro">Telegram sends login codes there instead of a text message.</string>
+    <string name="login_email_current">Codes now go to %1$s.</string>
+    <string name="login_email_add_title">Add a login email</string>
+    <string name="login_email_change_title">New login email</string>
+    <string name="login_email_send">Send code</string>
+    <string name="login_email_confirm">Confirm</string>
+    <string name="login_email_done">The login email is set.</string>
+    <string name="error_login_email_not_allowed">Telegram doesn't allow adding a login email right now.</string>
 </resources>

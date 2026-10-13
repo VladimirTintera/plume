@@ -86,11 +86,11 @@ nahoře v hlavním seznamu (`SuggestedActionCard`) — **vždy jen první**, aby
   „Přidat" fotku na úpravu profilu. Zpět vede po krocích přes Nastavení do Chatů.
 - **Archivace od neznámých se zapíná celým nastavením archivu** (ostatní volby se přenesou)
   a po úspěchu se akce schová sama.
-- **Přihlašovací e-mail Plume nastavit neumí** (`setLoginEmailAddress` chybí, viz roadmapa) —
-  karta odkáže na oficiální aplikaci. **Vyžadovaný** e-mail (`canBeHidden == false`, u Telegramu
-  `SETUP_LOGIN_EMAIL_NOSKIP`) má podle dokumentace blokovat celou aplikaci; Plume ukáže kartu
-  bez tlačítek, kterou nejde schovat. Blokovat aplikaci bez cesty, jak požadavek splnit, by byla
-  slepá ulička.
+- **Přihlašovací e-mail vede na vlastní obrazovku** („Přidat", `AppScreen.LoginEmail`; viz
+  `docs/poznatky/nastaveni.md`, „Přihlašovací e-mail"). **Vyžadovaný** e-mail (`canBeHidden ==
+  false`, u Telegramu `SETUP_LOGIN_EMAIL_NOSKIP`) má podle dokumentace blokovat celou aplikaci;
+  Plume ukáže kartu, kterou nejde schovat, jen splnit — blokovat celou aplikaci by bylo víc, než
+  je potřeba, když cesta ke splnění je jedno ťuknutí.
 - **Změnit číslo Plume taky neumí** — „Je … pořád tvoje číslo?" má jen „Ano, je" a větu
   o oficiální aplikaci. Číslo je naformátované od TDLib (`displayPhone`, „+420 601 234 567").
 

@@ -353,6 +353,32 @@ doména `TwoStepVerification.kt`), kroky průvodce čisté funkce v `TwoStepFlow
   skutečný kód z e-mailu a reset ověřené NEJSOU** — mění skutečný účet; ověří je uživatel
   zapnutím na zařízení. iOS jen přeložené a slinkované.
 
+## Přihlašovací e-mail
+
+Obecné → Soukromí → Přihlašovací e-mail (`LoginEmailScreen`, `LoginEmailRoute`): adresa, kód
+z ní, hotovo. Telegram na něj posílá přihlašovací kódy místo SMS. Vede sem i doporučená akce
+nad seznamem chatů („Přidej přihlašovací e-mail", `AppScreen.LoginEmail`).
+
+- **Řádek jen tam, kde to jde** (`LoginEmailRow`): účet e-mail už má (maska v
+  `PasswordState.loginEmailAddressPattern`, u nás `TwoStepStatus.loginEmailPattern`), nebo ho
+  Telegram chce (doporučená akce). Jinak `setLoginEmailAddress` server odmítne (`EMAIL_NOT_SETUP`,
+  dokumentace metody) a řádek by sliboval cestu, která není.
+- **Bez e-mailu se napřed volá `isLoginEmailAddressRequired`** — dokumentace TDLib ho uvádí jako
+  podmínku nastavení, ne jen informaci (uvnitř je dotaz na server, `CheckPromoDataQuery`).
+- **TDLib posílá vždy účel „změna"** (`emailVerifyPurposeLoginChange`, `PasswordManager`), i když
+  účet žádný e-mail nemá; nový kód a jeho kontrola jdou na adresu z posledního
+  `setLoginEmailAddress` (bez něj „No login email address code was sent").
+- **Změna platí až po potvrzení kódu**; do té doby chodí kódy na starou adresu. Po potvrzení se
+  obrazovka zavře a řádek ukáže novou masku (`TwoStepViewModel.reload` při návratu).
+- **Splněná doporučená akce se schová i ručně** (`hideSuggestedAction`) — kdyby ji server
+  neodebral sám, karta by visela nad seznamem dál.
+- Kód je obyčejné pole jako u obnovovacího e-mailu (délku TDLib říká jen někdy), bez
+  `contentType` — `SmsOtpCode` by nabízel kód z SMS. Zpět z kódu vede k adrese (pole ji drží).
+- **Ověřeno**: `LoginEmailViewModelTest`; na emulátoru sondou (podstrčená doporučená akce,
+  necommituje se) karta → „Přidat" → obrazovka s fokusem v poli, řádek „Nenastavený"
+  v Soukromí; bez akce a bez e-mailu se řádek neukáže. **Skutečné odeslání kódu a potvrzení
+  ověřené NENÍ** — měnilo by přihlašovací e-mail skutečného účtu.
+
 ## Zařízení (aktivní relace)
 
 Sekce Nastavení „Zařízení" (`features/devices`): kde je účet přihlášený, odhlášení jednoho nebo

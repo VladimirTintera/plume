@@ -22,6 +22,11 @@ data class TwoStepStatus(
     val hasPassportData: Boolean,
     val pendingEmail: EmailCodeInfo?,
     val resetDate: Long,
+    /**
+     * Maska přihlašovacího e-mailu („a***@g***.com"), nebo `null`, když účet žádný nemá. Patří
+     * k heslu jen tím, že ji TDLib posílá v `PasswordState` — s heslem jinak nesouvisí.
+     */
+    val loginEmailPattern: String? = null,
 )
 
 /** Kam odešel kód: maska adresy (`a***@g***.com`) a délka kódu (0 = neznámá). */
@@ -108,4 +113,22 @@ interface PasswordRepository {
     suspend fun reset(): Result<PasswordResetResult>
 
     suspend fun cancelReset(): Result<Unit>
+
+    /**
+     * Chce Telegram po účtu přihlašovací e-mail (`isLoginEmailAddressRequired`)? Účet bez
+     * e-mailu ho smí nastavit, jen když dostal doporučenou akci A tohle projde; jinak server
+     * nastavení odmítne (`EMAIL_NOT_SETUP`).
+     */
+    suspend fun isLoginEmailRequired(): Result<Boolean> = Result.failure(UnsupportedOperationException())
+
+    /**
+     * Pošle kód na nový přihlašovací e-mail. Změna platí až po [checkLoginEmailCode] — do té doby
+     * kódy chodí na starou adresu.
+     */
+    suspend fun setLoginEmail(email: String): Result<EmailCodeInfo> = Result.failure(UnsupportedOperationException())
+
+    suspend fun checkLoginEmailCode(code: String): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /** Kód znovu na adresu z posledního [setLoginEmail]. */
+    suspend fun resendLoginEmailCode(): Result<EmailCodeInfo> = Result.failure(UnsupportedOperationException())
 }

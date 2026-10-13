@@ -45,7 +45,7 @@ import org.koin.compose.viewmodel.koinViewModel
  * [SettingsSectionScreen].
  */
 @Composable
-fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onOpenBlocked: () -> Unit, onOpenFolders: () -> Unit, onOpenStickerSets: () -> Unit, onOpenEmojiSets: () -> Unit, onOpenProxy: () -> Unit, onOpenAccountPrivacy: () -> Unit, onOpenTwoStep: () -> Unit, onOpenAppLock: () -> Unit) {
+fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onOpenBlocked: () -> Unit, onOpenFolders: () -> Unit, onOpenStickerSets: () -> Unit, onOpenEmojiSets: () -> Unit, onOpenProxy: () -> Unit, onOpenAccountPrivacy: () -> Unit, onOpenTwoStep: () -> Unit, onOpenAppLock: () -> Unit, onOpenLoginEmail: () -> Unit) {
     val account by viewModel.account.collectAsStateWithLifecycle()
     var confirmLogOut by rememberSaveable { mutableStateOf(false) }
 
@@ -117,6 +117,7 @@ fun GeneralSettings(viewModel: SettingsViewModel, onEditProfile: () -> Unit, onO
         onOpenBlocked = onOpenBlocked,
         onOpenAccountPrivacy = onOpenAccountPrivacy,
         onOpenTwoStep = onOpenTwoStep,
+        onOpenLoginEmail = onOpenLoginEmail,
         onOpenAppLock = onOpenAppLock,
     )
 
