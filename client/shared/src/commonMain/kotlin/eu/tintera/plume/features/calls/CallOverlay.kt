@@ -49,6 +49,19 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.audio.rememberRecordPermission
 import eu.tintera.plume.core.calls.CallRequests
+import org.jetbrains.compose.resources.DrawableResource
+import eu.tintera.plume.resources.call_output_bluetooth
+import eu.tintera.plume.resources.call_output_headset
+import eu.tintera.plume.resources.call_output_phone
+import eu.tintera.plume.resources.call_audio_output
+import eu.tintera.plume.resources.bluetooth_24dp
+import eu.tintera.plume.resources.headphones_24dp
+import eu.tintera.plume.resources.smartphone_24dp
+import eu.tintera.plume.resources.check_24dp
+import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.ExpressiveMenu
+import eu.tintera.plume.core.calls.CallAudioOutput
+import androidx.compose.foundation.layout.Box
 import eu.tintera.plume.core.telegram.ActiveCall
 import eu.tintera.plume.core.telegram.CallPhase
 import eu.tintera.plume.core.telegram.CallRepository
@@ -228,16 +241,7 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
                     }
                 }
                 !call.phase.ended -> Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
-                    LabeledButton(stringResource(Res.string.call_speaker)) {
-                        FilledIconToggleButton(
-                            checked = call.speaker,
-                            onCheckedChange = calls::setSpeaker,
-                            shapes = IconButtonDefaults.toggleableShapes(),
-                            modifier = Modifier.size(IconButtonDefaults.largeContainerSize()),
-                        ) {
-                            Icon(painterResource(Res.drawable.volume_up_24dp), contentDescription = stringResource(Res.string.call_speaker), modifier = Modifier.size(IconButtonDefaults.largeIconSize))
-                        }
-                    }
+                    AudioOutputButton(call, calls)
                     LabeledButton(stringResource(Res.string.call_mute)) {
                         FilledIconToggleButton(
                             checked = call.muted,
@@ -256,6 +260,82 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
             Spacer(Modifier.height(24.dp))
         }
     }
+}
+
+/**
+ * Kam jde zvuk. Jen sluchátko a reproduktor = přepínač „Reproduktor" (nejčastější případ,
+ * jedno ťuknutí). S připojenou soupravou nebo sluchátky výběr z nabídky — přepínač by
+ * nevěděl, kam se má vrátit; popisek pak říká, kam zvuk jde teď.
+ */
+@Composable
+private fun AudioOutputButton(call: ActiveCall, calls: CallRepository) {
+    val choice = call.outputs.any { it.kind == CallAudioOutput.Kind.Bluetooth || it.kind == CallAudioOutput.Kind.Headset }
+    if (!choice) {
+        LabeledButton(stringResource(Res.string.call_speaker)) {
+            FilledIconToggleButton(
+                checked = call.output.kind == CallAudioOutput.Kind.Speaker,
+                onCheckedChange = { on -> calls.setOutput(if (on) CallAudioOutput.Speaker else CallAudioOutput.Earpiece) },
+                shapes = IconButtonDefaults.toggleableShapes(),
+                modifier = Modifier.size(IconButtonDefaults.largeContainerSize()),
+            ) {
+                Icon(painterResource(Res.drawable.volume_up_24dp), contentDescription = stringResource(Res.string.call_speaker), modifier = Modifier.size(IconButtonDefaults.largeIconSize))
+            }
+        }
+        return
+    }
+    var open by remember { mutableStateOf(false) }
+    val currentLabel = outputLabel(call.output)
+    LabeledButton(currentLabel) {
+        Box {
+            FilledTonalIconButton(
+                onClick = { open = true },
+                shapes = IconButtonDefaults.shapes(),
+                modifier = Modifier.size(IconButtonDefaults.largeContainerSize()),
+            ) {
+                Icon(
+                    painterResource(outputIcon(call.output)),
+                    contentDescription = stringResource(Res.string.call_audio_output, currentLabel),
+                    modifier = Modifier.size(IconButtonDefaults.largeIconSize),
+                )
+            }
+            ExpressiveMenu(
+                expanded = open,
+                onDismiss = { open = false },
+                groups = listOf(
+                    call.outputs.map { output ->
+                        MenuAction(
+                            label = outputLabel(output),
+                            icon = outputIcon(output),
+                            trailing = if (output == call.output) {
+                                { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) }
+                            } else {
+                                null
+                            },
+                            onClick = {
+                                open = false
+                                calls.setOutput(output)
+                            },
+                        )
+                    },
+                ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun outputLabel(output: CallAudioOutput): String = when (output.kind) {
+    CallAudioOutput.Kind.Earpiece -> stringResource(Res.string.call_output_phone)
+    CallAudioOutput.Kind.Speaker -> stringResource(Res.string.call_speaker)
+    CallAudioOutput.Kind.Headset -> stringResource(Res.string.call_output_headset)
+    CallAudioOutput.Kind.Bluetooth -> output.name ?: stringResource(Res.string.call_output_bluetooth)
+}
+
+private fun outputIcon(output: CallAudioOutput): DrawableResource = when (output.kind) {
+    CallAudioOutput.Kind.Earpiece -> Res.drawable.smartphone_24dp
+    CallAudioOutput.Kind.Speaker -> Res.drawable.volume_up_24dp
+    CallAudioOutput.Kind.Headset -> Res.drawable.headphones_24dp
+    CallAudioOutput.Kind.Bluetooth -> Res.drawable.bluetooth_24dp
 }
 
 @Composable

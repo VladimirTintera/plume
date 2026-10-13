@@ -13,6 +13,15 @@ interface CallMedia {
     /** Co knihovna umí — tím se hovor nabízí v `createCall` / `acceptCall`. */
     val protocol: CallMediaProtocol
 
+    /**
+     * Zvuková relace hovoru: režim hovoru a výstup (sluchátko, reproduktor, Bluetooth).
+     * Spouští se UŽ PŘI VYTÁČENÍ A PŘIJETÍ, ne až se spojením — tón protistrany potřebuje
+     * režim hovoru (mimo něj ho telefon na vibracích ztlumí) a přepnout reproduktor má jít
+     * hned. [onOutputs] hlásí, kam jde zvuk a kam jde přepnout, při každé změně zařízení.
+     * Končí s [stop].
+     */
+    fun startAudio(onOutputs: (available: List<CallAudioOutput>, current: CallAudioOutput) -> Unit)
+
     /** Spustí přenos. Volá se jednou na hovor, po `CallStateReady`. */
     fun start(session: CallMediaSession, events: CallMediaEvents)
 
@@ -21,8 +30,8 @@ interface CallMedia {
 
     fun setMuted(muted: Boolean)
 
-    /** Hovor do reproduktoru (`true`), nebo do sluchátka u ucha. */
-    fun setSpeaker(on: Boolean)
+    /** Kam jde zvuk hovoru: sluchátko, reproduktor, sluchátka s kabelem, nebo Bluetooth. */
+    fun setOutput(output: CallAudioOutput)
 
     /** Zastaví přenos a vrátí zvuk telefonu, jak byl. Bezpečné volat opakovaně. */
     fun stop()
@@ -73,6 +82,16 @@ interface CallMediaEvents {
     fun onSignaling(data: ByteArray)
 
     fun onConnection(state: CallConnection)
+}
+
+/** Výstup zvuku hovoru. [name] jen u Bluetooth (jméno soupravy), jinak `null`. */
+data class CallAudioOutput(val kind: Kind, val name: String? = null) {
+    enum class Kind { Earpiece, Speaker, Headset, Bluetooth }
+
+    companion object {
+        val Earpiece = CallAudioOutput(Kind.Earpiece)
+        val Speaker = CallAudioOutput(Kind.Speaker)
+    }
 }
 
 enum class CallConnection { Connecting, Connected, Failed, Closed }

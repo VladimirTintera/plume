@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.calls.CallAudioOutput
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -23,7 +24,7 @@ interface CallRepository {
 
     fun setMuted(muted: Boolean)
 
-    fun setSpeaker(on: Boolean)
+    fun setOutput(output: CallAudioOutput)
 }
 
 data class ActiveCall(
@@ -36,8 +37,10 @@ data class ActiveCall(
     /** Kdy se spojil přenos (epoch ms); `null`, dokud se nespojil. Od něj běží délka hovoru. */
     val connectedAt: Long? = null,
     val muted: Boolean = false,
-    /** Zvuk jde do reproduktoru; jinak do sluchátka (a obrazovku u ucha zhasne senzor). */
-    val speaker: Boolean = false,
+    /** Kam jde zvuk; ve sluchátku zhasíná obrazovku u ucha senzor přiblížení. */
+    val output: CallAudioOutput = CallAudioOutput.Earpiece,
+    /** Kam jde přepnout. Jen sluchátko a reproduktor = stačí přepínač, víc = výběr. */
+    val outputs: List<CallAudioOutput> = listOf(CallAudioOutput.Earpiece, CallAudioOutput.Speaker),
 )
 
 enum class CallPhase {

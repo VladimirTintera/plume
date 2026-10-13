@@ -18,6 +18,8 @@ import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notification_channel_calls
 import eu.tintera.plume.resources.notification_channel_calls_description
+import eu.tintera.plume.resources.notification_channel_incoming_calls
+import eu.tintera.plume.resources.notification_channel_incoming_calls_description
 import eu.tintera.plume.resources.notification_channel_channels
 import eu.tintera.plume.resources.notification_channel_channels_description
 import eu.tintera.plume.resources.notification_channel_groups
@@ -81,6 +83,18 @@ suspend fun createNotificationChannels(context: Context) {
     manager.createNotificationChannel(
         NotificationChannel(CALLS_CHANNEL_ID, readString(Res.string.notification_channel_calls), NotificationManager.IMPORTANCE_HIGH)
             .apply { description = readString(Res.string.notification_channel_calls_description) },
+    )
+    // Příchozí hovor, který Plume umí přijmout: vysoká důležitost (celoobrazovková výzva,
+    // plovoucí notifikace), ale BEZ zvuku a vibrací — zvoní `CallRinger` vyzváněcím tónem ve
+    // smyčce. Kanál zvlášť, protože `setSilent` u notifikace celoobrazovkovou výzvu zablokuje
+    // (tichá notifikace „nevyrušuje" a systém ji nespustí) a zvuk kanálu nejde po založení změnit.
+    manager.createNotificationChannel(
+        NotificationChannel(INCOMING_CALLS_CHANNEL_ID, readString(Res.string.notification_channel_incoming_calls), NotificationManager.IMPORTANCE_HIGH)
+            .apply {
+                description = readString(Res.string.notification_channel_incoming_calls_description)
+                setSound(null, null)
+                enableVibration(false)
+            },
     )
     createModelDownloadChannel(context)
     createSnoozeChannel(context)
@@ -224,6 +238,9 @@ private const val LEGACY_CHANNEL_ID = "messages"
 
 /** Kanál příchozích hovorů. **Nesmí se měnit**, ze stejného důvodu jako [channelId]. */
 const val CALLS_CHANNEL_ID = "calls"
+
+/** Tichý kanál příchozích hovorů, které Plume přijímá sám (zvoní `CallRinger`). Nesmí se měnit. */
+const val INCOMING_CALLS_CHANNEL_ID = "incoming-calls"
 
 /** Průběh stahování modelu AI (`ModelDownloadWorker`). Stejně jako ostatní id se nesmí měnit. */
 const val MODEL_DOWNLOAD_CHANNEL_ID = "ai-model-download"

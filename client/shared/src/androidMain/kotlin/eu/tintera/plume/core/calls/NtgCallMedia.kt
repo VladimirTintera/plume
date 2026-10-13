@@ -1,9 +1,7 @@
 package eu.tintera.plume.core.calls
 
 import android.content.Context
-import android.media.AudioDeviceInfo
 import android.media.AudioManager
-import android.os.Build
 import co.touchlab.kermit.Logger
 import io.github.pytgcalls.ConnectionState
 import io.github.pytgcalls.NTgCalls
@@ -32,7 +30,7 @@ class NtgCallMedia(context: Context) : CallMedia {
 
     private var ntg: NTgCalls? = null
     private var callId = 0L
-    private var previousAudioMode = AudioManager.MODE_NORMAL
+    private var router: CallAudioRouter? = null
 
     override val protocol: CallMediaProtocol by lazy {
         worker.submit<CallMediaProtocol> {
@@ -42,10 +40,20 @@ class NtgCallMedia(context: Context) : CallMedia {
         }.get()
     }
 
+    override fun startAudio(onOutputs: (List<CallAudioOutput>, CallAudioOutput) -> Unit) {
+        worker.execute {
+            // Systém ví, že běží hovor (ozvěna, hlasitost hovoru), a zvuk jde tam, kam patří.
+            router?.stop()
+            router = CallAudioRouter(audio, onOutputs).also { it.start() }
+        }
+    }
+
     override fun start(session: CallMediaSession, events: CallMediaEvents) {
         worker.execute {
             runCatching {
-                stopNow()
+                // Předchozí přenos pryč, zvuková relace (spuštěná při vytáčení / přijetí) zůstává.
+                ntg?.let { old -> runCatching { old.stop(callId) } }
+                ntg = null
                 ensureWebRtcContext()
                 callId = session.callId.toLong()
                 val instance = NTgCalls()
@@ -73,7 +81,7 @@ class NtgCallMedia(context: Context) : CallMedia {
                     session.allowP2p,
                     session.customParameters,
                 )
-                beginAudioSession()
+
             }.onFailure { failure ->
                 logger.e(failure) { "Přenos hovoru se nepodařilo spustit." }
                 events.onConnection(CallConnection.Failed)
@@ -94,24 +102,8 @@ class NtgCallMedia(context: Context) : CallMedia {
         }
     }
 
-    override fun setSpeaker(on: Boolean) {
-        worker.execute { runCatching { route(speaker = on) }.onFailure { logger.w(it) { "Přepnutí reproduktoru selhalo." } } }
-    }
-
-    /**
-     * Sluchátko, nebo reproduktor. Od Androidu 12 přes `setCommunicationDevice` (starší
-     * `isSpeakerphoneOn` tam pro hovory nefunguje spolehlivě), do té doby postaru.
-     */
-    private fun route(speaker: Boolean) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val wanted = if (speaker) AudioDeviceInfo.TYPE_BUILTIN_SPEAKER else AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
-            audio.availableCommunicationDevices.firstOrNull { it.type == wanted }
-                ?.let { audio.setCommunicationDevice(it) }
-                ?: audio.clearCommunicationDevice()
-        } else {
-            @Suppress("DEPRECATION")
-            audio.isSpeakerphoneOn = speaker
-        }
+    override fun setOutput(output: CallAudioOutput) {
+        worker.execute { router?.select(output) }
     }
 
     override fun stop() {
@@ -119,29 +111,13 @@ class NtgCallMedia(context: Context) : CallMedia {
     }
 
     private fun stopNow() {
-        val instance = ntg ?: return
-        ntg = null
-        runCatching { instance.stop(callId) }.onFailure { logger.w(it) { "Zastavení hovoru selhalo." } }
-        endAudioSession()
-    }
-
-    /** Hovor jde do sluchátka, ne do reproduktoru, a systém ví, že běží hovor (ozvěna, hlasitost). */
-    private fun beginAudioSession() {
-        previousAudioMode = audio.mode
-        audio.mode = AudioManager.MODE_IN_COMMUNICATION
-        route(speaker = false)
-    }
-
-    private fun endAudioSession() {
-        runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                audio.clearCommunicationDevice()
-            } else {
-                @Suppress("DEPRECATION")
-                audio.isSpeakerphoneOn = false
-            }
-            audio.mode = previousAudioMode
+        ntg?.let { instance ->
+            runCatching { instance.stop(callId) }.onFailure { logger.w(it) { "Zastavení hovoru selhalo." } }
         }
+        ntg = null
+        // I u hovoru, který se nespojil (zrušený při vytáčení): zvuková relace běží od začátku.
+        router?.stop()
+        router = null
     }
 
     /** WebRTC v knihovně čte kontext přes `ContextUtils`; bez něj výčet zařízení spadne. */
