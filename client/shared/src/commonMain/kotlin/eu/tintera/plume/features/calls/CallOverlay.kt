@@ -318,8 +318,9 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
                             }
                         }
                         ongoing -> Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-                            AudioOutputButton(call, calls, Modifier.weight(1f))
-                            LabeledButton(stringResource(Res.string.call_camera), Modifier.weight(1f)) {
+                            // Jediný výstup (desktop: vybírá systém) není co přepínat.
+                            if (call.outputs.size > 1) AudioOutputButton(call, calls, Modifier.weight(1f))
+                            if (calls.supportsVideo) LabeledButton(stringResource(Res.string.call_camera), Modifier.weight(1f)) {
                                 FilledIconToggleButton(
                                     checked = call.camera,
                                     onCheckedChange = { on ->
@@ -600,7 +601,9 @@ fun rememberStartCall(userId: Long?): ((video: Boolean) -> Unit)? {
     val microphone = rememberRecordPermission()
     val camera = rememberVideoNotePermission()
     return remember(userId, microphone, camera) {
-        { video ->
+        { requested ->
+            // Bez obrazu (desktop) se videohovor vytočí jako hlasový — kamera tam ani není.
+            val video = requested && calls.supportsVideo
             (if (video) camera else microphone).request { granted ->
                 if (granted) {
                     // Selhání ukáže obrazovka hovoru (`ActiveCall.failure`), tady zbývá log.
@@ -614,6 +617,10 @@ fun rememberStartCall(userId: Long?): ((video: Boolean) -> Unit)? {
         }
     }
 }
+
+/** Hovory umí i obraz — jinak se videohovor nenabízí (desktop). */
+@Composable
+fun rememberVideoCallsSupported(): Boolean = koinInject<CallRepository>().supportsVideo
 
 /** Poměr stran obrazu z telefonu na výšku (šířka / výška). */
 private const val PORTRAIT_ASPECT = 9f / 16f

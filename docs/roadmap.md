@@ -96,6 +96,8 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
   s návratem z Docku. Akce v oznámení (Odpovědět, Přečteno) zatím nejsou; na macOS by šly
   přes `UNNotificationCategory`. Na Windows a Linuxu zavření okna aplikaci ukončí — chce
   ikonu v oznamovací oblasti.
+- **Hovory**: hlasové hovory na macOS běží (ntgcalls přes JNA, `docs/poznatky/hovory.md`,
+  „Desktop"); Windows a Linux neověřené, chybí zvonění, oznámení příchozího hovoru a video.
 - **Zvuk**: přehrávání hlasovek (Opus) a hudby, nahrávání hlasovek. JVM sám Opus ani MP3
   neumí; kandidáti jsou nativní libopus přes JNA, nebo FFmpeg (JavaCV) pro všechno naráz.
 - **Video**: přehrávač v aplikaci (vlcj chce VLC v systému, JavaCV nese FFmpeg). Dnes se video
@@ -457,7 +459,11 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    přiblížení). Vyzvánění a Bluetooth taky (`docs/poznatky/hovory.md`, „Vyzvánění a výstup
    zvuku"). Změna sítě a systémový telefon taky (`docs/poznatky/hovory.md`, „Změna sítě
    za hovoru", „Systémový telefon"). Videohovory taky (`docs/poznatky/hovory.md`,
-   „Videohovory"). Zbývá na Androidu:
+   „Videohovory"). **Desktop: hlasové hovory na macOS** (`docs/poznatky/hovory.md`,
+   „Desktop"). Zbývá:
+   - **Desktop: Windows a Linux ověřit** (knihovna se stáhne a přibalí, nespuštěné), zvonění
+     a oznámení příchozího hovoru (dnes jen obrazovka hovoru v otevřené aplikaci), video.
+   - **iOS** (tgcalls xcframework, CallKit, VoIP pushe) a **skupinové hovory / videochaty**.
    Původní plán sondy:
 
    **Doporučení: C, začít dvoudenní sondou na Androidu.** ntgcalls v `debug` větvi, jen zvuk:

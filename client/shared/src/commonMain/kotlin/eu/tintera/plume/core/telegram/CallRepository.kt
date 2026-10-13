@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.StateFlow
 interface CallRepository {
     val supported: Boolean
 
+    /** Hovory umí i obraz; desktop zatím jen zvuk (videohovor se tam nenabízí, přijme se bez kamery). */
+    val supportsVideo: Boolean
+
     /** Probíhající hovor, nebo `null`. Najednou je jen jeden, jako u telefonu. */
     val active: StateFlow<ActiveCall?>
 

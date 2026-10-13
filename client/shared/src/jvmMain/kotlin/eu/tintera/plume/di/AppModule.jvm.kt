@@ -4,6 +4,8 @@ import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.ai.NoopOnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.audio.AudioEngine
+import eu.tintera.plume.core.calls.CallMedia
+import eu.tintera.plume.core.calls.DesktopCallMedia
 import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.audio.EarSensor
 import eu.tintera.plume.core.calendar.CalendarEvents
@@ -57,6 +59,9 @@ import org.koin.core.module.Module
  */
 actual fun Module.platformModule() {
     single<OnDeviceAi> { NoopOnDeviceAi }
+    // Hovory jen se zvukem přes ntgcalls; bez přibalené knihovny (Intel Mac, build bez sítě)
+    // se CallMedia neregistruje a hovory se nenabídnou (`CallRepository.supported`).
+    if (DesktopCallMedia.available()) single<CallMedia> { DesktopCallMedia() }
     single { TelegramPaths() }
     single<DatabaseKeyStore> {
         object : DatabaseKeyStore, SecretStore by desktopSecretStore(

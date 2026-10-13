@@ -53,7 +53,7 @@ fun ConversationCallButton(info: ChatInfo?, request: CallRequest?, onRequestHand
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(
-            onClick = { if (info?.callSupportsVideo == true) open = true else start(false) },
+            onClick = { if (info?.callSupportsVideo == true && calls.supportsVideo) open = true else start(false) },
             shapes = IconButtonDefaults.shapes(),
         ) {
             Icon(painterResource(Res.drawable.call_24dp), contentDescription = stringResource(Res.string.call_start))

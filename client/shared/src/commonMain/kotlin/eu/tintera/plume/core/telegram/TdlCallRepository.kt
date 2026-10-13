@@ -67,6 +67,8 @@ internal class TdlCallRepository(
 
     override val supported: Boolean get() = media != null
 
+    override val supportsVideo: Boolean get() = media?.supportsVideo == true
+
     /** Hovor, kterému už běží přenos — `Ready` chodí i opakovaně, spustit se má jednou. */
     private var startedCallId: Int? = null
 
@@ -122,23 +124,25 @@ internal class TdlCallRepository(
     }
 
     override suspend fun call(userId: Long, video: Boolean): Result<Unit> {
+        // Desktop umí jen zvuk: videohovor se tam vytočí jako hlasový.
+        val withVideo = video && supportsVideo
         val protocol = protocol() ?: return Result.failure(UnsupportedOperationException("Hovory tu nejsou."))
         logger.i { "Protokol: ${protocol.libraryVersions.joinToString()} vrstvy ${protocol.minLayer}..${protocol.maxLayer}" }
         // Zvuk napřed: tón protistrany a reproduktor fungují už při vytáčení.
         startAudio()
         // Hovor (`Pending`) přijde až po `createCall`; kamera se mu předá při založení.
-        outgoingCamera = video
-        if (video) {
+        outgoingCamera = withVideo
+        if (withVideo) {
             media?.setCamera(on = true, front = true)
             // Videohovor se drží v ruce před sebou, ne u ucha.
             media?.setOutput(CallAudioOutput.Speaker)
         }
-        return holder.client.createCall(userId = userId, protocol = protocol, isVideo = video).toResult().map { }
+        return holder.client.createCall(userId = userId, protocol = protocol, isVideo = withVideo).toResult().map { }
             .onFailure { failure ->
                 logger.w(failure) { "Hovor se nepodařilo zahájit." }
                 outgoingCamera = false
                 media?.stop()
-                showFailed(userId, video, failure.userMessage(Res.string.call_bar_failed))
+                showFailed(userId, withVideo, failure.userMessage(Res.string.call_bar_failed))
             }
     }
 
@@ -162,7 +166,7 @@ internal class TdlCallRepository(
         val protocol = protocol() ?: return Result.failure(UnsupportedOperationException("Hovory tu nejsou."))
         startAudio()
         _active.update { it?.copy(failure = null) }
-        if (camera) setCamera(true)
+        if (camera && supportsVideo) setCamera(true)
         return holder.client.acceptCall(callId = call.id, protocol = protocol).toResult().map { }
             .onFailure { failure ->
                 logger.w(failure) { "Hovor se nepodařilo přijmout." }
@@ -217,6 +221,7 @@ internal class TdlCallRepository(
     }
 
     override fun setCamera(on: Boolean) {
+        if (on && !supportsVideo) return
         val call = _active.value ?: return
         media?.setCamera(on = on, front = call.frontCamera)
         _active.update { it?.copy(camera = on) }
