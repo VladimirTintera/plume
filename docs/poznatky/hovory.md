@@ -184,11 +184,11 @@ uprostřed hlasového hovoru, vypnutá a znovu zapnutá, přepnutí kamery, kame
   vzniká až po `Ready`, takže by do té doby bylo černo. Kamera se proto otevře hned na
   sdílené kameře knihovny (`SharedCamera`: `SmartVideoSource.getInstance` + vlastní
   `CapturerObserver` + `open`) a snímky (`VideoFrame` s texturou ve sdíleném kontextu EGL) jdou
-  rovnou do rendereru. Zdroj knihovny ji po `Ready` převezme stejným `getInstance` („Reusing
-  video source") bez nového otevření — jen ji přepne sama na sebe (`switchCamera` na tutéž
-  kameru, ~0,3 s), to knihovna dělá při každém převzetí. Zrušený hovor kameru uvolní
-  (`softRelease`). Ověřeno na Pixelu 5 i Pixelu 7 Pro: náhled při „Volám…", převzetí po
-  přijetí, přepnutí přední ↔ zadní při vytáčení, uvolnění kamery po zrušení.
+  rovnou do rendereru. **Před spuštěním přenosu se napevno uvolní** a zdroj knihovny kameru
+  otevře znovu sám — převzít běžící kameru nesmí (viz „Zablokování při převzetí běžící
+  kamery"); mezi `Ready` a spojením náhled chvíli stojí. Zrušený hovor kameru uvolní.
+  Ověřeno na Pixelu 5 i Pixelu 7 Pro: náhled při „Volám…", přepnutí přední ↔ zadní při
+  vytáčení, uvolnění kamery po zrušení.
 - **Telecom dostane typ hovoru jen při přihlášení** (`CALL_TYPE_VIDEO_CALL`); kamera zapnutá
   později ho nezmění — na chování to vliv nemá.
 - **Přijetí videohovoru** se ptá na kameru i mikrofon (`rememberVideoNotePermission`);
@@ -270,6 +270,36 @@ a `addCall` pro každý hovor, jakmile vytáčí nebo zvoní. Pod Androidem 14 k
 - **Pozor na staré řádky v `dumpsys audio`**: historie (`setCommunicationRouteForClient …
   bt_sco`) obsahuje zařízení i dávno odpojená. Jestli jsou sluchátka opravdu připojená,
   říká `dumpsys bluetooth_manager` (`ACL BR/EDR:Y`), ne výskyt jména v `dumpsys audio`.
+
+## Zablokování při převzetí běžící kamery
+
+**Zdroj kamery ntgcalls (`JavaVideoCapturerModule`) nesmí vzniknout nad kamerou, která už
+běží** — celý přenos se zablokuje a s ním i vlákno `ntgcalls`, takže až do restartu aplikace
+nespojí ani jeden další hovor (na druhé straně `TIMEOUT` po přijetí, u právě běžícího hovoru
+po 20 s `FAILED`).
+
+- **Mechanismus (ze zdroje ntgcalls 3.0.3 a zásobníků přes `jdb`)**: `StreamManager::start`
+  (při spojení) i `handle_capture_config` (zapnutí kamery za hovoru) drží zámek `mutex_`
+  a volají Java `JavaVideoCapturerModule.open`, která chce Java zámek `lock`. Vlákno kamery
+  (`VideoCapturerThread`) ten `lock` drží v `onFrameCaptured` a v `nativeOnFrame` čeká na
+  `mutex_`. Dokud kamera do zdroje snímky neposílá (běžný případ: `open` ji teprve spustí),
+  souběh nenastane; převezme-li ale zdroj BĚŽÍCÍ kameru (`getInstance` → „Reusing video
+  source"), snímky do něj tečou hned od založení. `NTgCalls.stop` pak čeká na `mutex_` navždy.
+- **Spustil to náhled při vytáčení**, který kameru zdroji předával běžící (a stalo se jen
+  občas: snímek musel přijít přesně, když `start` držel zámek). Stejně by to udělalo rychlé
+  vypnutí a zapnutí kamery za hovoru — knihovna kameru uvolňuje až za 200 ms (`softRelease`).
+- **Oprava (`SharedCamera.releaseNow` / `releaseCurrent`)**: náhled se před spuštěním přenosu
+  napevno uvolní (`SmartVideoSource.release`) a vypnutá kamera za hovoru taky; zruší se přitom
+  i odložené uvolnění knihovny, které by jinak po 200 ms vynulovalo odkaz na novou kameru.
+  Přepnutí přední ↔ zadní nový zdroj nezakládá, to dál jde na běžící kameře.
+- **Jak se to hledalo**: vlákno, které „jen čeká", se z `/proc/<pid>/task/*/wchan` nepozná
+  (nečinný executor je taky ve `futex_wait_queue`). Rozhodl Java zásobník přes JDWP — aplikace
+  je debug: `adb forward tcp:8701 jdwp:<pid>`, `jdb -attach localhost:8701`, v JEDNOM sezení
+  `threads`, `thread <id>`, `suspend`, `where` (id se s každým připojením mění). `ntgcalls`
+  stál v `NTgCalls.stop`, `VideoCapturerThread` v `nativeOnFrame`, nativní vlákno v `open`.
+- **Ověřeno**: pět videohovorů Pixel 5 → Pixel 7 Pro za sebou (Pixel 7 Pro přijímal s kamerou,
+  tedy s náhledem mezi přijetím a spojením; ve třetím kamera vypnutá a za 0,1 s zapnutá),
+  všechny se spojily na obou stranách a kamery se po zavěšení uvolnily.
 
 ## Hovor z konverzace
 
