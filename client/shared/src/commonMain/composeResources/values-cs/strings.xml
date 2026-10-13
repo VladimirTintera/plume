@@ -1424,6 +1424,10 @@
     <string name="settings_section_notifications">Notifikace</string>
     <string name="settings_section_notifications_summary">Upozornění, náhledy a výjimky</string>
     <string name="settings_notif_system">Povolení v systému</string>
+    <string name="settings_notif_background">Na pozadí</string>
+    <string name="settings_launch_at_login">Spouštět po přihlášení</string>
+    <string name="settings_launch_at_login_summary">Oznámení chodí, jen když Plume běží. Po přihlášení do Windows se spustí schovaná v oznamovací oblasti.</string>
+    <string name="settings_launch_at_login_failed">Spouštění po přihlášení nejde změnit.</string>
     <string name="settings_notif_enabled">Upozornění</string>
     <string name="settings_notif_preview">Náhled zprávy</string>
     <string name="settings_notif_preview_summary">Text zprávy v upozornění</string>

@@ -38,6 +38,16 @@ actual class NotificationPermission internal constructor(private val notifier: D
     }
 
     /** Kanály má jen Android. */
+    /**
+     * macOS: povolení `UNUserNotificationCenter`. Windows: vypnutí v Nastavení → Systém →
+     * Oznámení, ale jen s toasty — AWT bubliny (build bez knihovny) se jím neřídí. Linux nic.
+     */
+    actual val hasSystemPermission: Boolean = when (desktopOs) {
+        DesktopOs.MacOs -> true
+        DesktopOs.Windows -> WindowsToasts.available
+        else -> false
+    }
+
     actual val supportsChannelSettings: Boolean = false
 
     /** Oznámení skládá aplikace sama, takže zvuk podle času ovládne — jako na Androidu. */

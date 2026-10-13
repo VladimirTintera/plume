@@ -40,7 +40,14 @@ object DesktopInstance {
         val directory = desktopDataDirectory
         val lockFile = File(directory, "instance.lock")
         val portFile = File(directory, "instance.port")
-        val acquired = runCatching { RandomAccessFile(lockFile, "rw").channel.tryLock() }.getOrNull()
+        // `null` = zámek drží jiný proces. Výjimka = zámek nejde založit vůbec (adresář dat nejde
+        // vytvořit…) — to NENÍ „už běžím": aplikace dřív v takovém případě tiše skončila s kódem 0.
+        val acquired = try {
+            RandomAccessFile(lockFile, "rw").channel.tryLock()
+        } catch (e: Exception) {
+            logger.w(e) { "Zámek jediné instance nejde založit, běžím bez něj." }
+            return true
+        }
         if (acquired == null) {
             logger.i { "Plume už běží, žádám ji o okno." }
             signal(portFile)

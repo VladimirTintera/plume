@@ -278,3 +278,56 @@ Java_eu_tintera_plume_core_notifications_WindowsToasts_nativeRemoveAll(JNIEnv *,
         return winrt::to_hresult();
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Spouštění po přihlášení (eu.tintera.plume.core.platform.WindowsStartup). Nesouvisí s toasty,
+// jen sdílí knihovnu: stačí ji nahrát, nativeInit toastů se tu nevolá.
+//
+// Záznam je hodnota v HKCU\...\CurrentVersion\Run — totéž místo, které ukazuje Nastavení →
+// Aplikace → Po spuštění. Vypnutí odtamtud Windows nezapisuje do Run, ale do
+// Explorer\StartupApproved\Run: binární hodnota, lichý první bajt = vypnuto (0x03), sudý
+// = zapnuto (0x02). Záznam v Run se tedy počítá jen tehdy, když ho tam Windows nevypnul.
+
+static const wchar_t *const PLUME_RUN_KEY = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+static const wchar_t *const PLUME_APPROVED_KEY = L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\StartupApproved\\Run";
+
+// Příkaz ze záznamu v Run, nebo null, když záznam není nebo ho Windows vypnul.
+extern "C" JNIEXPORT jstring JNICALL
+Java_eu_tintera_plume_core_platform_WindowsStartup_nativeCommand(JNIEnv *env, jclass, jstring name) {
+    const std::wstring value = plumeString(env, name);
+    DWORD size = 0;
+    if (RegGetValueW(HKEY_CURRENT_USER, PLUME_RUN_KEY, value.c_str(), RRF_RT_REG_SZ, nullptr, nullptr, &size) != ERROR_SUCCESS) {
+        return nullptr;
+    }
+    std::wstring command(size / sizeof(wchar_t), L'\0');
+    if (RegGetValueW(HKEY_CURRENT_USER, PLUME_RUN_KEY, value.c_str(), RRF_RT_REG_SZ, nullptr, command.data(), &size) != ERROR_SUCCESS) {
+        return nullptr;
+    }
+    command.resize(wcslen(command.c_str()));
+
+    BYTE approved[12] = {};
+    DWORD approvedSize = sizeof(approved);
+    if (RegGetValueW(HKEY_CURRENT_USER, PLUME_APPROVED_KEY, value.c_str(), RRF_RT_REG_BINARY, nullptr, approved, &approvedSize) == ERROR_SUCCESS &&
+        approvedSize > 0 && (approved[0] & 1) != 0) {
+        return nullptr;
+    }
+    return plumeJavaString(env, command.c_str());
+}
+
+// Zapíše záznam (command != null) nebo ho smaže. Při zapnutí se maže i příznak vypnutí ze
+// StartupApproved — kdo to zapíná v Plume, chce, aby to platilo. Vrací HRESULT; 0 = v pořádku.
+extern "C" JNIEXPORT jint JNICALL
+Java_eu_tintera_plume_core_platform_WindowsStartup_nativeSetCommand(JNIEnv *env, jclass, jstring name, jstring command) {
+    const std::wstring value = plumeString(env, name);
+    LSTATUS status;
+    if (command != nullptr) {
+        status = plumeSetValue(PLUME_RUN_KEY, value.c_str(), plumeString(env, command));
+    } else {
+        status = RegDeleteKeyValueW(HKEY_CURRENT_USER, PLUME_RUN_KEY, value.c_str());
+        if (status == ERROR_FILE_NOT_FOUND) status = ERROR_SUCCESS;
+    }
+    if (status != ERROR_SUCCESS) return HRESULT_FROM_WIN32(status);
+    LSTATUS approved = RegDeleteKeyValueW(HKEY_CURRENT_USER, PLUME_APPROVED_KEY, value.c_str());
+    if (approved != ERROR_SUCCESS && approved != ERROR_FILE_NOT_FOUND) return HRESULT_FROM_WIN32(approved);
+    return S_OK;
+}

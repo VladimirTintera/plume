@@ -15,8 +15,10 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import eu.tintera.plume.App
 import eu.tintera.plume.core.platform.DesktopInstance
+import eu.tintera.plume.core.platform.DesktopStartup
 import eu.tintera.plume.core.platform.DesktopTrayIcon
 import eu.tintera.plume.core.platform.DesktopWindow
+import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.platform.desktopClosesToTray
 import eu.tintera.plume.core.telegram.preloadTdlibNativeDependencies
 import eu.tintera.plume.di.startKoin
@@ -34,18 +36,22 @@ import javax.imageio.ImageIO
  * pak OpenSSL pro TDLib dřív, než ho `startKoin` poprvé použije (spouští TDLib hned, viz
  * `startKoin`), jinak se nativní knihovna na macOS nenačte.
  */
-fun main() {
+fun main(args: Array<String>) {
     // Plume už běží (třeba schovaná v oznamovací oblasti): ta vytáhne okno, tahle končí.
     if (!DesktopInstance.acquire()) return
     preloadTdlibNativeDependencies()
     startKoin()
+    // Spouštění po přihlášení míří na spouštěč; po přeinstalaci jinam se cesta opraví.
+    LaunchAtLogin().refreshCommand()
+    // Po přihlášení (`--autostart`) rovnou do oznamovací oblasti — okno nemá vyskakovat.
+    val startHidden = DesktopStartup.startsHidden(args)
 
     val icon = Thread.currentThread().contextClassLoader.getResourceAsStream("plume-icon.png")
         ?.use { BitmapPainter(ImageIO.read(it).toComposeImageBitmap()) }
     val mac = System.getProperty("os.name").orEmpty().lowercase().contains("mac")
 
     application {
-        var visible by remember { mutableStateOf(true) }
+        var visible by remember { mutableStateOf(!startHidden) }
         val state = rememberWindowState(width = 1200.dp, height = 800.dp)
 
         // Ťuknutí na ikonu v Docku vrátí schované okno (viz `onCloseRequest`).

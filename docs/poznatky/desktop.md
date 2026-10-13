@@ -311,6 +311,44 @@ Na Windows zavření okna schová aplikaci do oznamovací oblasti (`DesktopTrayI
   spuštění skončí za pár sekund a okno první instance je vidět a v popředí, návrat do popředí
   v logu. **Neověřeno**: macOS (popředí podle schovaného okna), instalace z MSI.
 
+## Spouštění po přihlášení (Windows)
+
+Push na desktopu není, oznámení chodí jen tehdy, když Plume běží — po restartu počítače by
+nepřišlo nic, dokud ji člověk sám neotevře. Nastavení → Notifikace → Na pozadí → „Spouštět po
+přihlášení" (`LaunchAtLogin`, na mobilech a zatím na macOS a Linuxu `supported = false`).
+
+- **Záznam v `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`**, hodnota `Plume` (ladicí
+  balíček `Plume (debug)`, ať nepřepíše instalaci), příkaz `"…\Plume.exe" --autostart`. Totéž
+  místo ukazuje Nastavení Windows → Aplikace → Po spuštění.
+- **Vypnutí z Windows se nezapisuje do `Run`**, ale do `Explorer\StartupApproved\Run`: binární
+  hodnota, lichý první bajt = vypnuto. `nativeCommand` takový záznam bere jako vypnutý;
+  zapnutí v Plume příznak smaže, ať platí. Stav drží systém — čte se při každém návratu na
+  obrazovku a po zápisu se čte zpátky, ukazuje se, co v registru opravdu je.
+- **`--autostart` = okno rovnou schované** v oznamovací oblasti (`DesktopStartup.startsHidden`),
+  po přihlášení nemá nic vyskakovat. Argument dojde i do procesu-potomka spouštěče jpackage.
+- **Jen spouštěč z balíčku** (`WindowsNative.launcher`): holá `java` z `run` se znovu spustit
+  nedá, v ladicím běhu z Gradle se přepínač neukazuje. Vyzkoušet jde přes
+  `runDistributable -PdesktopDebug`. Cesta v záznamu se při každém startu opraví
+  (`refreshCommand`), kdyby se aplikace přeinstalovala jinam.
+- **Registr zapisuje nativní most** (`PlumeToasts.cpp`, `WindowsStartup`), ne `reg.exe`:
+  konzolový proces spuštěný z okenní aplikace může bliknout oknem. Knihovnu nahrává
+  `WindowsNative` odděleně od toastů — čtení stavu nesmí zakládat registraci toastů ani sahat
+  na zástupce ve Startu.
+- **Cesty k registru v C++ se zdvojenými lomítky, a hlídá to `/we4129`.** Kód zapsaný přes
+  heredoc v Git Bashi přišel o zdvojení: `L"Software\Microsoft\…"` se přeložilo jako
+  `SoftwareMicrosoft…` (neznámé escape sekvence = písmeno) a záznam skončil v nesmyslném klíči
+  `HKCU\SoftwareMicrosoftWindowsCurrentVersionRun`. Přepínač se přitom tvářil zapnutě, protože
+  čtení šlo do téhož špatného klíče. MSVC na to jen varoval (C4129); `/we4129` z toho dělá
+  chybu. Zdrojáky s lomítky se proto píšou nástrojem pro soubory, ne heredocem.
+- **`-PdesktopDebug` zapisoval do `Plume.cfg` cestu se zpětnými lomítky** a jpackage je v ní
+  bere jako escape: z `C:\Develop\telegram\.desktop-data` bylo `C:Develop<tab>elegram…`.
+  Teď `invariantSeparatorsPath`. A **`DesktopInstance` bral chybu zámku za „už běžím"** —
+  s nesmyslnou cestou aplikace tiše skončila s kódem 0. Teď rozlišuje `null` (zámek drží jiný
+  proces) od výjimky (zámek nejde založit — běží se bez něj).
+- **Ověřeno na Windows 11** (`runDistributable -PdesktopDebug`): přepínač zapsal správný záznam,
+  spuštění jeho příkazem otevřelo Plume se schovaným oknem (`IsWindowVisible = false`).
+  **Neověřeno**: skutečné přihlášení do Windows, instalace z MSI.
+
 ## Release (Windows)
 
 Actions → „Release — bump & tag" → target **desktop** (`create-release-tag.yml`) založí tag

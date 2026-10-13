@@ -12,8 +12,10 @@ import eu.tintera.plume.core.telegram.NotificationScope
 import eu.tintera.plume.core.telegram.NotificationSettingsRepository
 import eu.tintera.plume.core.telegram.ScopeSettings
 import eu.tintera.plume.core.telegram.userMessage
+import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.settings_launch_at_login_failed
 import eu.tintera.plume.resources.settings_notif_error
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,6 +28,8 @@ import kotlinx.coroutines.launch
 
 data class NotificationSettingsState(
     val permissionGranted: Boolean = true,
+    /** Spouštění po přihlášení (desktop); `null` = platforma ho neumí, řádek se neukazuje. */
+    val launchAtLogin: Boolean? = null,
     /** `null` u rozsahu = ještě se načítá. */
     val scopes: Map<NotificationScope, ScopeSettings?> = emptyMap(),
     /** Výjimky podle rozsahu; chybějící klíč = ještě nenačtené. */
@@ -41,9 +45,15 @@ class NotificationSettingsViewModel(
     private val repository: NotificationSettingsRepository,
     private val permission: NotificationPermission,
     private val settings: AppSettings,
+    private val launchAtLogin: LaunchAtLogin,
 ) : ViewModel() {
 
-    private val local = MutableStateFlow(NotificationSettingsState(permissionGranted = permission.isGranted()))
+    private val local = MutableStateFlow(
+        NotificationSettingsState(permissionGranted = permission.isGranted(), launchAtLogin = readLaunchAtLogin()),
+    )
+
+    /** Řádek „Povolení v systému": na Linuxu není co ukázat ani otevřít. */
+    val hasSystemPermission: Boolean = permission.hasSystemPermission
 
     val supportsChannelSettings: Boolean = permission.supportsChannelSettings
 
@@ -89,9 +99,25 @@ class NotificationSettingsViewModel(
      * (ztlumení z nabídky chatu) nebo na jiném zařízení.
      */
     fun refresh() {
-        local.update { it.copy(permissionGranted = permission.isGranted()) }
+        local.update { it.copy(permissionGranted = permission.isGranted(), launchAtLogin = readLaunchAtLogin()) }
         loadExceptions()
     }
+
+    /**
+     * Zapíše a hned přečte zpátky — stav drží systém (a Windows ho umí vypnout i sám), takže se
+     * ukazuje, co v něm opravdu je, ne co se chtělo.
+     */
+    fun setLaunchAtLogin(enabled: Boolean) {
+        val done = launchAtLogin.setEnabled(enabled)
+        local.update {
+            it.copy(
+                launchAtLogin = readLaunchAtLogin(),
+                notice = if (done) it.notice else UiText(Res.string.settings_launch_at_login_failed),
+            )
+        }
+    }
+
+    private fun readLaunchAtLogin(): Boolean? = if (launchAtLogin.supported) launchAtLogin.isEnabled() else null
 
     private fun loadExceptions() {
         NotificationScope.entries.forEach { scope ->

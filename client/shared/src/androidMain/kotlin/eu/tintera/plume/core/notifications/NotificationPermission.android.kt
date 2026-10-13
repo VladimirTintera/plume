@@ -30,6 +30,8 @@ actual class NotificationPermission(private val context: Context) {
         context.startActivity(intent)
     }
 
+    actual val hasSystemPermission: Boolean = true
+
     actual val supportsChannelSettings: Boolean = true
 
     /** Notifikace kreslí aplikace sama (`NotificationPresenter`), takže je umí ztišit. */

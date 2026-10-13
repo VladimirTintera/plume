@@ -1393,6 +1393,10 @@
     <string name="settings_section_notifications">Notifications</string>
     <string name="settings_section_notifications_summary">Alerts, previews and exceptions</string>
     <string name="settings_notif_system">Allowed in system</string>
+    <string name="settings_notif_background">In the background</string>
+    <string name="settings_launch_at_login">Start when you sign in</string>
+    <string name="settings_launch_at_login_summary">Notifications only arrive while Plume is running. After you sign in to Windows it starts hidden in the notification area.</string>
+    <string name="settings_launch_at_login_failed">Couldn't change starting at sign-in.</string>
     <string name="settings_notif_enabled">Notifications</string>
     <string name="settings_notif_preview">Message preview</string>
     <string name="settings_notif_preview_summary">Show message text in the notification</string>
