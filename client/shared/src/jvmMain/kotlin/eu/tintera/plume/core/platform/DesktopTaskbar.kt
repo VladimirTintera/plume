@@ -11,6 +11,8 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -41,8 +43,13 @@ internal object DesktopTaskbar {
 
     private val unread = MutableStateFlow(0)
 
+    /** Počet nepřečtených pro odznak; čte ho i ikona v oznamovací oblasti ([DesktopTrayIcon]). */
+    val unreadCount: StateFlow<Int> = unread.asStateFlow()
+
     /** Barvy odznaku z motivu aplikace; do první kompozice motivu se overlay nekreslí. */
     private val colors = MutableStateFlow<BadgeColors?>(null)
+
+    val badgeColors: StateFlow<BadgeColors?> = colors.asStateFlow()
 
     data class BadgeColors(val container: Int, val content: Int)
 
@@ -113,8 +120,11 @@ internal object DesktopTaskbar {
      * rozmazané číslice. Nad 99 jen „99+": tři číslice se do 16 bodů nevejdou čitelně.
      * Písmo je systémové (Segoe UI), ne písmo aplikace: odznak je součást hlavního panelu.
      */
-    internal fun badgeImage(count: Int, colors: BadgeColors, scale: Double): BufferedImage {
-        val size = (OVERLAY_SIZE * scale).roundToInt().coerceAtLeast(OVERLAY_SIZE)
+    internal fun badgeImage(count: Int, colors: BadgeColors, scale: Double): BufferedImage =
+        badgeImage(count, colors, size = (OVERLAY_SIZE * scale).roundToInt().coerceAtLeast(OVERLAY_SIZE))
+
+    /** Kolečko s číslem o průměru [size] pixelů; kreslí ho i ikona v oznamovací oblasti. */
+    internal fun badgeImage(count: Int, colors: BadgeColors, size: Int): BufferedImage {
         val label = if (count > MAX_COUNT) "$MAX_COUNT+" else count.toString()
         return BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB).apply {
             val graphics = createGraphics()

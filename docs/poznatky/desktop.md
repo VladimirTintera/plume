@@ -249,6 +249,21 @@ Na Windows zavření okna schová aplikaci do oznamovací oblasti (`DesktopTrayI
   Windows znamená DVOJKLIK; ikona se tam ale otevírá jedním kliknutím. Nabídka je AWT
   `PopupMenu` (jinou `TrayIcon` neumí, `Tray` ji má taky). Popisky se mění s jazykem aplikace
   bez nové ikony (`setLabels`).
+- **Odznak nepřečtených i na ikoně u hodin** (`DesktopTray.setBadge`), týž počet a tytéž barvy
+  motivu jako na hlavním panelu (`DesktopTaskbar.unreadCount` / `badgeColors`); tooltip říká
+  totéž slovy („Plume – 3 nepřečtené zprávy", plurál), což čte i čtečka obrazovky. Ikona se
+  mění `TrayIcon.setImage`, nativní kód netřeba.
+  - **Vícerozlišovací obrázek, `isImageAutoSize = false`.** Ikona u hodin má 16 bodů; varianty
+    pro měřítka 100–300 % (`BaseMultiResolutionImage`) drží číslo ostré, automatické zmenšení
+    by je obešlo a zmenšený velký obrázek by číslo rozmazal.
+  - **Kolečko má 68 % ikony a pírko skoro zakryje** — vědomě, menší kolečko by v 16 pixelech
+    nemělo čitelné dvouciferné číslo (stejně to řeší Telegram Desktop). Kolem kolečka je ikona
+    vyříznutá průhledným lemem, aby kolečko na fialové ikoně nesplynulo.
+  - **Ikona u hodin se kreslí BEZ průhledného okraje** (`trimTransparent`). `plume-icon.png`
+    má okraj 47 px z 512 na každé straně — správně pro hlavní panel a Start, ale u hodin
+    z 16 pixelů zbylo viditelných 13 a Plume byla menší než ikony ostatních aplikací.
+  - Ověřeno snímkem oblasti u hodin (Windows 11, 100 %): odznak „1" v barvách motivu, ikona
+    stejně velká jako ostatní.
 - **Jen Windows.** macOS má Dock a Linux oznamovací oblast mít nemusí (GNOME bez rozšíření)
   — schované okno by nešlo vrátit. Linux dál
   zavřením končí. AWT notifikace (`TrayNotifier`, Linux a Windows bez knihovny toastů) bere
