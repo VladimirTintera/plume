@@ -3054,4 +3054,14 @@
     <string name="conversation_jump_date_empty">Od toho dne v chatu nic není.</string>
     <string name="conversation_jump_date_failed">Zprávy z toho dne se nepodařilo najít.</string>
     <string name="conversation_jump_date_go">Přejít</string>
+    <string name="instant_view_mark">Rychlé zobrazení</string>
+    <string name="instant_view_open_browser">Otevřít v prohlížeči</string>
+    <string name="instant_view_full_page">Zbytek dočíst v prohlížeči</string>
+    <string name="instant_view_failed">Stránku se nepodařilo načíst.</string>
+    <string name="instant_view_retry">Zkusit znovu</string>
+    <plurals name="instant_view_views">
+        <item quantity="one">%1$s zobrazení</item>
+        <item quantity="few">%1$s zobrazení</item>
+        <item quantity="other">%1$s zobrazení</item>
+    </plurals>
 </resources>

@@ -160,6 +160,7 @@ import eu.tintera.plume.core.telegram.ChatActivity
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ContentAccess
 import eu.tintera.plume.core.telegram.diceEmojiFor
+import eu.tintera.plume.core.navigation.InstantViewRequests
 import eu.tintera.plume.core.navigation.BotStartRequests
 import eu.tintera.plume.core.telegram.BotIntro
 import eu.tintera.plume.resources.conversation_bot_start_failed
@@ -432,6 +433,8 @@ class ConversationViewModel(
     private val exchangeRates: ExchangeRates? = null,
     /** Měna a jednotky uživatele podle regionu telefonu. */
     currency: HomeRegion? = null,
+    /** Čtečka Instant View z náhledu odkazu; bez ní se odkaz otevře v prohlížeči. */
+    private val instantViewRequests: InstantViewRequests? = null,
 ) : ViewModel() {
 
     /** Hledání místa pro sponku → Poloha (sheet [PlacePickerHost]). */
@@ -4320,6 +4323,7 @@ class ConversationViewModel(
             }
             MessageMenuAction.StopPoll -> _state.update { it.copy(messageMenu = null, pendingStopPoll = messageId) }
             is MessageAction.OpenLink -> openLink(action.url)
+            is MessageAction.OpenInstantView -> instantViewRequests?.request(action.url) ?: openLink(action.url)
             is MessageAction.OpenMention -> openMentioned { chatRepository.chatByUsername(action.username) }
             is MessageAction.OpenUser -> openMentioned { chatRepository.privateChat(action.userId) }
             MessageAction.AddContact -> addSharedContact(messageId)

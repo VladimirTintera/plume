@@ -169,6 +169,9 @@ sealed interface MessageAction {
     data object AddPollOption : MessageAction
     data class OpenLink(val url: String) : MessageAction
 
+    /** Rychlé zobrazení stránky z náhledu odkazu (Instant View). */
+    data class OpenInstantView(val url: String) : MessageAction
+
     /** `@jméno` v textu: najít veřejný chat a otevřít ho nad konverzací. */
     data class OpenMention(val username: String) : MessageAction
 

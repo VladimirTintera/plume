@@ -19,6 +19,8 @@ import eu.tintera.plume.core.navigation.MemberRightsRoute
 import eu.tintera.plume.core.navigation.EditChatRoute
 import eu.tintera.plume.core.navigation.EditProfileRoute
 import eu.tintera.plume.core.navigation.AccountPrivacyRoute
+import eu.tintera.plume.core.navigation.InstantViewRequests
+import eu.tintera.plume.core.navigation.InstantViewRoute
 import eu.tintera.plume.core.navigation.DeleteAccountRoute
 import eu.tintera.plume.core.navigation.BlockSenderRoute
 import eu.tintera.plume.core.navigation.BlockedSendersRoute
@@ -30,6 +32,7 @@ import eu.tintera.plume.core.navigation.LoginEmailRoute
 import eu.tintera.plume.core.navigation.NetworkUsageRoute
 import eu.tintera.plume.core.navigation.PasskeysRoute
 import eu.tintera.plume.core.navigation.ChangePhoneRoute
+import eu.tintera.plume.features.instantview.InstantViewScreen
 import eu.tintera.plume.features.settings.ChangePhoneScreen
 import eu.tintera.plume.features.settings.NetworkUsageScreen
 import eu.tintera.plume.features.settings.PasskeysScreen
@@ -400,6 +403,15 @@ private fun ShellContent(
          * Odkaz zvenčí (`t.me/…` z jiné aplikace, naskenovaný QR kód). Nad celým shellem: přijít
          * může nad kteroukoli obrazovkou a sheet pozvánky nebo hláška nepatří žádné z nich.
          */
+        // Čtečka Instant View z náhledu odkazu: konverzace požádá, shell přidá obrazovku nad ni.
+        val instantViews = koinInject<InstantViewRequests>()
+        val instantView by instantViews.request.collectAsStateWithLifecycle()
+        LaunchedEffect(instantView) {
+            val request = instantView ?: return@LaunchedEffect
+            instantViews.consume(request)
+            navigation.stack(ChatsRoute).add(InstantViewRoute(request.url))
+        }
+
         ExternalLinkHost(
             viewModel = koinViewModel(),
             onNavigate = { destination -> navigation.openExternal(destination, twoPane) },
@@ -681,6 +693,13 @@ private fun shellEntryProvider(
     }
 
     // Profil je detail jako konverzace: na širokém rozvržení ji v pravém panelu nahradí.
+    entry<InstantViewRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
+        InstantViewScreen(
+            viewModel = koinViewModel(key = "instant-view-${route.url}", parameters = { parametersOf(route.url) }),
+            onBack = { chatsStack.pop(route) },
+        )
+    }
+
     entry<ChatProfileRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
         val searchRequests = koinInject<ConversationSearchRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()

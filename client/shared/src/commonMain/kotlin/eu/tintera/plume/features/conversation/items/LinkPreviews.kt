@@ -92,6 +92,7 @@ internal fun LinkPreviewCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                if (preview.instantView) InstantViewMark(accent, Modifier.padding(top = 4.dp))
             }
 
             // Malý obrázek vedle textu, jen když odesílatel nechtěl velký.

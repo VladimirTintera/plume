@@ -224,4 +224,19 @@ class RichMessageBodyTest {
         assertEquals(6, (media[1].media as MessageMedia.VoiceNote).fileId)
         assertEquals(listOf(0, 1), media.map { it.index })
     }
+
+    @Test
+    fun ctecka_odstavceOddeluje_seznamACitaciNechaUSebe() {
+        fun item(text: String) = PageBlockListItem("", arrayOf<PageBlock>(PageBlockParagraph(plain(text))), false, false, 0, "")
+        val result = arrayOf(
+            PageBlockParagraph(plain("Úvod")),
+            PageBlockParagraph(plain("Druhý")),
+            PageBlockHeader(plain("Kapitola")),
+            PageBlockList(arrayOf(item("mléko"), item("chleba"))),
+            PageBlockBlockQuote(arrayOf<PageBlock>(PageBlockParagraph(plain("Ahoj")), PageBlockParagraph(plain("Čau"))), plain("Jan")),
+            PageBlockParagraph(plain("Konec")),
+        ).toRichBody(labels, spacious = true)
+        assertEquals("Úvod\n\nDruhý\n\nKapitola\n• mléko\n• chleba\n\nAhoj\nČau\n— Jan\n\nKonec", result.text)
+        assertEquals(listOf("Ahoj\nČau\n— Jan"), result.covered(MessageEntityType.Quote(expandable = false)))
+    }
 }

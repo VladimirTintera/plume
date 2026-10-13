@@ -112,7 +112,7 @@ internal data class BubbleMessageItem(
                         preview = preview,
                         accent = accent,
                         // Ťuknutí jde stejnou cestou jako odkaz v textu, tedy přes ViewModel.
-                        onOpen = { act(MessageAction.OpenLink(preview.url)) },
+                        onOpen = { act(preview.openAction()) },
                         onLongClick = ::requestMenu,
                         modifier = modifier,
                         messageId = message.id,

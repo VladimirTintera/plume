@@ -1,20 +1,18 @@
 package eu.tintera.plume.features.conversation.items
 
-import androidx.compose.ui.unit.DpSize
-import eu.tintera.plume.features.conversation.showsLargePhoto
-import eu.tintera.plume.core.telegram.MessageMedia
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -27,11 +25,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.LinkPreview
+import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.features.conversation.photoFrame
+import eu.tintera.plume.features.conversation.showsLargePhoto
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.bolt_filled_24dp
+import eu.tintera.plume.resources.instant_view_mark
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * Zpráva s náhledem odkazu (pravidlo: [showsLinkPreviewCard]): **jedna karta ze dvou částí** —
@@ -207,7 +213,7 @@ internal data class LinkPreviewMessageItem(
      */
     @OptIn(ExperimentalFoundationApi::class)
     private fun MessageBodyScope.openLink(): Modifier = Modifier.combinedClickable(
-        onClick = { act(MessageAction.OpenLink(preview.url)) },
+        onClick = { act(preview.openAction()) },
         onLongClick = ::requestMenu,
     )
 }
@@ -249,5 +255,25 @@ internal fun PreviewInfo(preview: LinkPreview, accent: Color, modifier: Modifier
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        if (preview.instantView) InstantViewMark(accent, Modifier.padding(top = 4.dp))
+    }
+}
+
+/**
+ * Ťuknutí na náhled: stránka s Instant View se otevře ve čtečce v aplikaci, ostatní odkazem
+ * (prohlížeč nebo, u `t.me`, přímo v Plume).
+ */
+internal fun LinkPreview.openAction(): MessageAction =
+    if (instantView) MessageAction.OpenInstantView(url) else MessageAction.OpenLink(url)
+
+/**
+ * Značka „⚡ Rychlé zobrazení" — že se stránka otevře v aplikaci, je vidět předem, jako tlačítko
+ * Instant View v oficiálních klientech. Značka, ne tlačítko: otevírá ťuknutí na celý náhled.
+ */
+@Composable
+internal fun InstantViewMark(accent: Color, modifier: Modifier = Modifier) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Icon(painterResource(Res.drawable.bolt_filled_24dp), contentDescription = null, tint = accent, modifier = Modifier.size(16.dp))
+        Text(stringResource(Res.string.instant_view_mark), style = MaterialTheme.typography.labelLarge, color = accent)
     }
 }

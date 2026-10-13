@@ -1,6 +1,7 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.features.settings.ChangePhoneViewModel
+import eu.tintera.plume.features.instantview.InstantViewViewModel
 import eu.tintera.plume.features.settings.AutosaveViewModel
 import eu.tintera.plume.features.settings.NotificationSoundsViewModel
 import eu.tintera.plume.features.settings.NetworkUsageViewModel
@@ -71,7 +72,10 @@ import eu.tintera.plume.features.conversation.InlineQueryRequests
 import eu.tintera.plume.features.conversation.SwitchInlinePickerViewModel
 import eu.tintera.plume.features.conversation.ConversationSearchRequests
 import eu.tintera.plume.core.navigation.ChatOpenRequests
+import eu.tintera.plume.core.navigation.InstantViewRequests
 import eu.tintera.plume.core.navigation.LinkOpenRequests
+import eu.tintera.plume.core.telegram.InstantViewRepository
+import eu.tintera.plume.core.telegram.TdlInstantViewRepository
 import eu.tintera.plume.core.navigation.NO_STORY
 import eu.tintera.plume.core.navigation.BotStartRequests
 import eu.tintera.plume.core.share.ShareRequests
@@ -359,6 +363,8 @@ fun appModule() = module {
     // Most mezi platformním vstupem (ťuknutí na notifikaci) a navigací.
     single { ChatOpenRequests() }
     single { LinkOpenRequests() }
+    single { InstantViewRequests() }
+    single<InstantViewRepository> { TdlInstantViewRepository(holder = get()) }
     single { BotStartRequests() }
     single { ConversationSearchRequests() }
     single { ConversationJumpRequests() }
@@ -493,6 +499,7 @@ fun appModule() = module {
     viewModel { PasskeysViewModel(accounts = get()) }
     viewModel { NetworkUsageViewModel(storage = get()) }
     viewModel { AutosaveViewModel(autosave = get(), chats = get()) }
+    viewModel { parameters -> InstantViewViewModel(url = parameters.get(), repository = get(), urlOpener = get(), linkRequests = get()) }
     viewModel { NotificationSoundsViewModel(sounds = get(), settings = get(), permission = get()) }
     viewModel { DeleteAccountViewModel(accounts = get(), passwords = get()) }
     viewModelOf(::AppLockViewModel)
@@ -576,6 +583,7 @@ fun appModule() = module {
             exchangeRates = get(),
             currency = getOrNull(),
             speechToText = getOrNull(),
+            instantViewRequests = get(),
         )
     }
 
