@@ -30,6 +30,12 @@ interface AccountRepository {
     /** Datum narození; `null` = odebrat. Kdo ho uvidí, řídí soukromí ([PrivacySetting.Birthdate]). */
     suspend fun setBirthdate(birthdate: Birthdate?): Result<Unit> = Result.failure(UnsupportedOperationException())
 
+    /** Kanály, které jdou ukázat v profilu (`getSuitablePersonalChats`): veřejné kanály, které vlastním. */
+    suspend fun suitablePersonalChannels(): Result<List<PersonalChannel>> = Result.failure(UnsupportedOperationException())
+
+    /** Osobní kanál v profilu; `null` = odebrat. */
+    suspend fun setPersonalChannel(chatId: Long?): Result<Unit> = Result.failure(UnsupportedOperationException())
+
     /** Nová profilová fotka z připraveného souboru (čtvercový JPEG, nebo krátké čtvercové video). */
     suspend fun setPhoto(photo: ProfilePhotoFile): Result<Unit>
 
@@ -101,6 +107,18 @@ data class LoginPasskey(
     val iconCustomEmojiId: Long?,
 )
 
+/**
+ * Kanál, který uživatel ukazuje v profilu (`personalChatId`).
+ *
+ * @property subscribers počet odběratelů, `null` = neznámý.
+ */
+data class PersonalChannel(
+    val chatId: Long,
+    val title: String,
+    val photoFileId: Int?,
+    val subscribers: Int?,
+)
+
 data class ContactLink(val url: String, val expiresInSeconds: Int)
 
 data class EditableProfile(
@@ -116,6 +134,8 @@ data class EditableProfile(
     val photoThumbnailFileId: Int?,
     /** Datum narození; `null` = neuvedené. */
     val birthdate: Birthdate? = null,
+    /** Kanál ukázaný v profilu; `null` = žádný. */
+    val personalChannel: PersonalChannel? = null,
 )
 
 enum class UsernameCheck { Available, Invalid, Occupied, Purchasable, TooManyPublic }

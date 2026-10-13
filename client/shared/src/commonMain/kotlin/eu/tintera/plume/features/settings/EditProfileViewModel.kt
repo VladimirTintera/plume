@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.AccountRepository
 import eu.tintera.plume.core.telegram.Birthdate
+import eu.tintera.plume.core.telegram.PersonalChannel
 import eu.tintera.plume.core.telegram.EditableProfile
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.UsernameCheck
@@ -32,7 +33,7 @@ import eu.tintera.plume.core.ui.USERNAME_CHECK_DELAY_MS
 import eu.tintera.plume.core.ui.UsernameStatus
 
 /**
- * Úprava vlastního profilu: jméno, uživatelské jméno, bio, datum narození a fotka.
+ * Úprava vlastního profilu: jméno, uživatelské jméno, bio, datum narození, osobní kanál a fotka.
  *
  * **Text polí je Compose stav přímo ve ViewModelu**, ne `StateFlow`: hodnota vrácená přes tok
  * o dispatch později poskakuje kurzorem (viz „Hledání v konverzaci"). Pole tak píšou i čtou
@@ -63,6 +64,15 @@ class EditProfileViewModel(
      * Uložit, rok jen s [showBirthYear] — viz [birthdateToSave].
      */
     var birthdate by mutableStateOf<Birthdate?>(null)
+    /** Osobní kanál v profilu; `null` = žádný. Ukládá se tlačítkem Uložit. */
+    var personalChannel by mutableStateOf<PersonalChannel?>(null)
+
+    /** Kanály na výběr (`getSuitablePersonalChats`); `null` = ještě se nenačetly. Čtou se až s výběrem. */
+    var suitableChannels by mutableStateOf<List<PersonalChannel>?>(null)
+        private set
+    var suitableChannelsFailed by mutableStateOf(false)
+        private set
+
     /** „Ukazovat rok". Rok se při vypnutí jen schová, ne zapomene — zapnutí ho vrátí. */
     var showBirthYear by mutableStateOf(true)
 
@@ -93,6 +103,7 @@ class EditProfileViewModel(
                     username = profile.username
                     bio = profile.bio
                     birthdate = profile.birthdate
+                    personalChannel = profile.personalChannel
                     // Datum bez roku: rok ukazovat nechtěl. Bez data: nové datum rok ukazuje.
                     showBirthYear = profile.birthdate?.year != null || profile.birthdate == null
                 }
@@ -128,7 +139,8 @@ class EditProfileViewModel(
             val profile = original ?: return false
             return firstName.trim() != profile.firstName || lastName.trim() != profile.lastName ||
                 username.trim() != profile.username || bio.trim() != profile.bio ||
-                birthdateToSave != profile.birthdate
+                birthdateToSave != profile.birthdate ||
+                personalChannel?.chatId != profile.personalChannel?.chatId
         }
 
     val canSave: Boolean
@@ -141,7 +153,7 @@ class EditProfileViewModel(
         }
 
     /**
-     * Uloží, co se změnilo — jméno, uživatelské jméno, bio a datum narození jsou čtyři různá volání. Když jedno
+     * Uloží, co se změnilo — jméno, uživatelské jméno, bio, datum narození a kanál jsou různá volání. Když jedno
      * selže, další se neposílají a obrazovka zůstane otevřená s hláškou; co už prošlo, se
      * zapíše do [original], takže další pokus to neposílá znovu.
      */
@@ -173,12 +185,27 @@ class EditProfileViewModel(
                     account.setBirthdate(date).getOrThrow()
                     current = current.copy(birthdate = date)
                 }
+                val channel = personalChannel
+                if (channel?.chatId != current.personalChannel?.chatId) {
+                    account.setPersonalChannel(channel?.chatId).getOrThrow()
+                    current = current.copy(personalChannel = channel)
+                }
             }
             original = current
             saving = false
             result
                 .onSuccess { saved = true }
                 .onFailure { notice = it.reported(Res.string.edit_profile_save_failed) }
+        }
+    }
+
+    /** Načte kanály na výběr; s každým otevřením výběru znovu (kanál mohl mezitím přibýt). */
+    fun loadSuitableChannels() {
+        suitableChannelsFailed = false
+        viewModelScope.launch {
+            account.suitablePersonalChannels()
+                .onSuccess { suitableChannels = it }
+                .onFailure { suitableChannelsFailed = true }
         }
     }
 

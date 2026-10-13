@@ -589,6 +589,11 @@ class ChatProfileViewModel(
         _state.update { it.copy(openChat = linked.chatId) }
     }
 
+    fun openPersonalChannel() {
+        val channel = _state.value.profile?.personalChannel ?: return
+        _state.update { it.copy(openChat = channel.chatId) }
+    }
+
     /**
      * Nový tajný chat s člověkem z profilu. Založí se hned a otevře; protějšek ho dostane, až
      * bude online — do té doby konverzace říká, že se čeká.
