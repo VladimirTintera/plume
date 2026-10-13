@@ -2753,4 +2753,16 @@
     <string name="settings_telegram_links">Open Telegram links in Plume</string>
     <string name="settings_telegram_links_on">Links from other apps and scanned codes open here.</string>
     <string name="settings_telegram_links_off">Links from other apps open in the browser. Allow t.me links in system settings.</string>
+    <string name="notice_service_title">Message from Telegram</string>
+    <string name="notice_service_ok">OK</string>
+    <string name="notice_service_log_out">Log out</string>
+    <string name="notice_terms_title">New terms of service</string>
+    <string name="notice_terms_min_age">Only people aged %1$d or older can accept them.</string>
+    <string name="notice_terms_accept">Accept</string>
+    <string name="notice_terms_later">Not now</string>
+    <string name="notice_terms_accept_failed">Couldn't accept the terms.</string>
+    <string name="notice_frozen_title">Your account is frozen</string>
+    <string name="notice_frozen_text">Telegram restricted the account for breaking its terms. Without an appeal it will be deleted on %1$s.</string>
+    <string name="notice_frozen_text_no_date">Telegram restricted the account for breaking its terms.</string>
+    <string name="notice_frozen_appeal">Appeal</string>
 </resources>

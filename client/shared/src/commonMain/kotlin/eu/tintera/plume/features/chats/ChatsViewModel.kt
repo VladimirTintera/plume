@@ -58,6 +58,8 @@ import kotlinx.coroutines.launch
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_action_failed
+import eu.tintera.plume.core.telegram.AccountFreeze
+import eu.tintera.plume.core.telegram.AccountNotices
 import eu.tintera.plume.resources.chat_folders_failed
 
 /**
@@ -86,6 +88,8 @@ class ChatsViewModel(
     private val chatColorStore: ChatColors? = null,
     /** Hledání přirozeným jazykem; bez něj se „Hledat s AI" nenabízí. */
     private val naturalSearch: NaturalSearchModel? = null,
+    /** Zmrazení účtu pro kartu nahoře v seznamu; bez něj karta není. */
+    private val accountNotices: AccountNotices? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -482,6 +486,10 @@ class ChatsViewModel(
     val hiddenSavedMessagesChatId: StateFlow<Long?> =
         combine(repository.savedMessagesChatId, shownFolder) { id, shown -> id.takeUnless { shown is ChatFolder.Custom } }
             .stateIn(viewModelScope, SharingStarted.Eagerly, repository.savedMessagesChatId.value)
+
+    /** Zmrazený účet — karta nahoře v hlavním seznamu (v archivu ne), `null` = účet zmrazený není. */
+    val freeze: StateFlow<AccountFreeze?> =
+        accountNotices?.freeze?.takeIf { folder == ChatFolder.Main } ?: MutableStateFlow(null)
 
     /** Karta s aktualizací nahoře v seznamu, `null` = žádná. Pravidlo je v [updateCard]. */
     val updateCard: StateFlow<AppUpdateState?> =

@@ -2835,4 +2835,16 @@
     <string name="settings_telegram_links">Otevírat odkazy Telegramu v Plume</string>
     <string name="settings_telegram_links_on">Odkazy z jiných aplikací a naskenované kódy se otevřou tady.</string>
     <string name="settings_telegram_links_off">Odkazy z jiných aplikací teď otevírá prohlížeč. Povolte odkazy t.me v nastavení systému.</string>
+    <string name="notice_service_title">Oznámení od Telegramu</string>
+    <string name="notice_service_ok">Rozumím</string>
+    <string name="notice_service_log_out">Odhlásit</string>
+    <string name="notice_terms_title">Nové podmínky služby</string>
+    <string name="notice_terms_min_age">Přijmout je smí jen starší %1$d let.</string>
+    <string name="notice_terms_accept">Přijmout</string>
+    <string name="notice_terms_later">Teď ne</string>
+    <string name="notice_terms_accept_failed">Podmínky se nepodařilo přijmout.</string>
+    <string name="notice_frozen_title">Účet je zmrazený</string>
+    <string name="notice_frozen_text">Telegram účet omezil kvůli porušení podmínek. Bez odvolání bude %1$s smazán.</string>
+    <string name="notice_frozen_text_no_date">Telegram účet omezil kvůli porušení podmínek.</string>
+    <string name="notice_frozen_appeal">Odvolat se</string>
 </resources>

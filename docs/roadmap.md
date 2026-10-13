@@ -319,10 +319,12 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   „Co položka ukazuje").
 - ~~**Profil se živě neobnovuje**~~ — hotovo (`ProfileRepository.profileUpdates`;
   `docs/poznatky/profil-chatu.md`, „Profil chatu").
-- **Systémové updaty bez odběru:** `termsOfServiceUpdates` (nové podmínky služby — oficiální
-  klient je musí ukázat), `serviceNotificationUpdates` (oznámení od Telegramu, část z nich má
-  být popup), `suggestedActionsUpdates` („ověř heslo", „ověř telefonní číslo"…),
-  `freezeStateUpdates` (zmrazený účet — dnes by se projevil jen chybami u akcí).
+- ~~**Systémové updaty bez odběru:** podmínky služby, oznámení od Telegramu, zmrazený účet~~ —
+  hotovo (`docs/poznatky/systemova-oznameni.md`); skutečný update od serveru neověřený.
+- **Doporučené akce** (`suggestedActionsUpdates`): „ověř heslo", „ověř telefonní číslo",
+  „nastav heslo", „nastav přihlašovací e-mail" (u `canBeHidden == false` blokující, celoobrazovkový
+  — dokumentace `SETUP_LOGIN_EMAIL_NOSKIP`), vlastní akce s odkazem; nabídky Premium vynechat.
+  Karta v seznamu chatů, schovat přes `hideSuggestedAction`.
 
 **Správa skupin a kanálů** (nad rámec názvu, popisu, fotky, práv a pozvánek):
 

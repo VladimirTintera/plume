@@ -116,6 +116,9 @@ import eu.tintera.plume.core.telegram.TelegramClientHolder
 import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.features.auth.AuthViewModel
 import eu.tintera.plume.features.chats.ChatsViewModel
+import eu.tintera.plume.features.notices.AccountNoticesViewModel
+import eu.tintera.plume.core.telegram.AccountNotices
+import eu.tintera.plume.core.telegram.TdlAccountNotices
 import eu.tintera.plume.features.chats.NowPlayingViewModel
 import eu.tintera.plume.features.chats.AddBotToGroupViewModel
 import eu.tintera.plume.features.chats.NewChatViewModel
@@ -225,6 +228,11 @@ fun appModule() = module {
             session = get(),
             scope = get(named(APP_SCOPE)),
         )
+    }
+    // Eager ze stejného důvodu: zmrazení účtu a podmínky služby TDLib pošle hned po startu
+    // a oznámení od služby jen jednou — odběr, který vznikne až s obrazovkou, by je minul.
+    single<AccountNotices>(createdAtStart = true) {
+        TdlAccountNotices(holder = get(), scope = get(named(APP_SCOPE)))
     }
     // Eager ze stejného důvodu: `UpdateForumTopic` s konceptem chodí i bez otevřeného přehledu.
     single<TopicDrafts>(createdAtStart = true) {
@@ -378,6 +386,7 @@ fun appModule() = module {
 
     viewModelOf(::AuthViewModel)
     viewModelOf(::NowPlayingViewModel)
+    viewModelOf(::AccountNoticesViewModel)
     // Složka je parametr: hlavní seznam i archiv jsou tentýž ViewModel. Bez parametru hlavní.
     viewModel { parameters ->
         ChatsViewModel(
@@ -394,6 +403,7 @@ fun appModule() = module {
             snoozes = get(),
             chatColorStore = get(),
             naturalSearch = get(),
+            accountNotices = get(),
         )
     }
     viewModelOf(::StickerPickerViewModel)
