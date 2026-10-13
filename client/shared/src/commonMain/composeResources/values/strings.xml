@@ -2908,4 +2908,22 @@
     <string name="network_usage_reset_failed">Couldn't reset statistics.</string>
     <string name="network_usage_group">Network</string>
     <string name="network_usage_mobile_short">Mobile</string>
+    <string name="autosave_group">Save to gallery</string>
+    <string name="autosave_private">Private chats</string>
+    <string name="autosave_groups">Groups</string>
+    <string name="autosave_channels">Channels</string>
+    <string name="autosave_off">Off</string>
+    <string name="autosave_photos">Photos</string>
+    <string name="autosave_videos_up_to">Videos up to %1$s</string>
+    <string name="autosave_photos_videos_up_to">Photos and videos up to %1$s</string>
+    <string name="autosave_hint">Photos and videos from new messages are saved once they download; downloading follows Automatic downloads above. The setting is shared by all devices of your account.</string>
+    <string name="autosave_exceptions">Exceptions</string>
+    <string name="autosave_photos_switch">Photos</string>
+    <string name="autosave_videos_switch">Videos</string>
+    <string name="autosave_max_video">Largest video</string>
+    <string name="autosave_done">Done</string>
+    <string name="autosave_remove_exception">Remove exception</string>
+    <string name="autosave_load_failed">Couldn't load save-to-gallery settings.</string>
+    <string name="autosave_save_failed">Couldn't change save-to-gallery settings.</string>
+    <string name="autosave_retry">Try again</string>
 </resources>

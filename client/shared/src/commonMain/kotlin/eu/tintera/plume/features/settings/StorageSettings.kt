@@ -9,6 +9,7 @@ import eu.tintera.plume.resources.storage_pack_deleted
 import eu.tintera.plume.resources.storage_delete_pack_body
 import eu.tintera.plume.resources.storage_translation_packs
 import eu.tintera.plume.resources.translate_24dp
+import eu.tintera.plume.core.files.autosavesToGallery
 import eu.tintera.plume.core.telegram.localizedLanguageName
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.compose.foundation.background
@@ -239,6 +240,8 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
                     modifier = Modifier.clickable(onClick = onOpenNetworkUsage),
                 )
             }
+
+            if (autosavesToGallery) AutosaveGroup(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
 
             SettingsGroup(Res.string.storage_keep_media_title) {
                 ListItem(

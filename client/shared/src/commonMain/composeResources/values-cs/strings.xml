@@ -2992,4 +2992,22 @@
     <string name="network_usage_reset_failed">Statistiku se nepodařilo vynulovat.</string>
     <string name="network_usage_group">Síť</string>
     <string name="network_usage_mobile_short">Mobilní</string>
+    <string name="autosave_group">Ukládání do galerie</string>
+    <string name="autosave_private">Soukromé chaty</string>
+    <string name="autosave_groups">Skupiny</string>
+    <string name="autosave_channels">Kanály</string>
+    <string name="autosave_off">Vypnuto</string>
+    <string name="autosave_photos">Fotky</string>
+    <string name="autosave_videos_up_to">Videa do %1$s</string>
+    <string name="autosave_photos_videos_up_to">Fotky a videa do %1$s</string>
+    <string name="autosave_hint">Fotky a videa z nových zpráv se uloží, jakmile se stáhnou; stahování řídí Automatické stahování výš. Nastavení je společné pro všechna zařízení účtu.</string>
+    <string name="autosave_exceptions">Výjimky</string>
+    <string name="autosave_photos_switch">Fotky</string>
+    <string name="autosave_videos_switch">Videa</string>
+    <string name="autosave_max_video">Největší video</string>
+    <string name="autosave_done">Hotovo</string>
+    <string name="autosave_remove_exception">Odebrat výjimku</string>
+    <string name="autosave_load_failed">Nastavení ukládání do galerie se nepodařilo načíst.</string>
+    <string name="autosave_save_failed">Nastavení ukládání do galerie se nepodařilo změnit.</string>
+    <string name="autosave_retry">Zkusit znovu</string>
 </resources>

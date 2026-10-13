@@ -23,6 +23,12 @@ expect class MediaSaver {
 }
 
 /**
+ * Má platforma galerii, do které se dá ukládat automaticky? Android a iOS ano; desktop ne —
+ * ruční „Do galerie" tam ukládá do Stažených, a ty by automatika zahltila.
+ */
+expect val autosavesToGallery: Boolean
+
+/**
  * Jméno, pod kterým se médium uloží.
  *
  * Soubor si nese své původní jméno ([originalName]) a to zůstává — odesílatel ho vybral. Fotka

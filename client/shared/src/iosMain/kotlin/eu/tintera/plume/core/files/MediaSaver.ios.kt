@@ -54,3 +54,5 @@ actual fun rememberSavePermission(): SavePermission = remember {
         }
     }
 }
+
+actual val autosavesToGallery: Boolean = true
