@@ -351,7 +351,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - ~~Změna telefonního čísla~~ — hotovo (úprava profilu → Telefonní číslo).
 - ~~Smazání účtu a samosmazání po neaktivitě~~ — hotovo (Soukromí účtu → Smazání účtu;
   `docs/poznatky/nastaveni.md`, „Smazání účtu a samosmazání").
-- ~~Přihlašovací e-mail~~ (hotovo) a přístupové klíče (`addLoginPasskey`, `getLoginPasskeys`).
+- ~~Přihlašovací e-mail~~ (hotovo) a ~~přístupové klíče~~ — seznam a odebrání hotové (Obecné →
+  Soukromí); přidat klíč ani se jím přihlásit cizí klient NEMŮŽE (`docs/poznatky/nastaveni.md`,
+  „Přístupové klíče").
 - Narozeniny: vlastní datum (`setBirthdate`) a pruh s narozeninami kontaktů
   (`contactCloseBirthdaysUpdates`); soukromí narozenin hotové je.
 - Osobní kanál v profilu (`setPersonalChat`), víc uživatelských jmen

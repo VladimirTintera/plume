@@ -63,6 +63,16 @@ interface AccountRepository {
      */
     suspend fun deleteAccount(reason: String, password: String): Result<Unit> =
         Result.failure(UnsupportedOperationException())
+
+    /**
+     * Přístupové klíče, kterými se jde do účtu přihlásit (`getLoginPasskeys`). Plume je jen
+     * ukazuje a odebírá: vytvořit klíč ani se jím přihlásit neumí, viz `docs/poznatky/nastaveni.md`,
+     * „Přístupové klíče".
+     */
+    suspend fun loginPasskeys(): Result<List<LoginPasskey>> = Result.failure(UnsupportedOperationException())
+
+    /** Klíč už k přihlášení nepůjde použít. Ve správci hesel na zařízení ale zůstane. */
+    suspend fun removeLoginPasskey(id: String): Result<Unit> = Result.failure(UnsupportedOperationException())
 }
 
 /**
@@ -72,6 +82,22 @@ interface AccountRepository {
  * - Bez něj dočasný kontaktní odkaz `t.me/contact/…` s tokenem. Kdo ho otevře, najde účet
  *   (`searchUserByToken`), i když číslo skrývá — proto platí jen chvíli a pak se vyrábí nový.
  */
+/**
+ * Přístupový klíč k přihlášení (`passkey`).
+ *
+ * @property name název od správce hesel, který klíč vytvořil („Google Password Manager"); může být prázdný.
+ * @property addedAt kdy byl přidán, v sekundách epochy.
+ * @property lastUsedAt kdy se jím naposledy přihlásilo; `null` = ještě nikdy.
+ * @property iconCustomEmojiId vlastní emoji s ikonou správce hesel; `null` = neznámá.
+ */
+data class LoginPasskey(
+    val id: String,
+    val name: String,
+    val addedAt: Int,
+    val lastUsedAt: Int?,
+    val iconCustomEmojiId: Long?,
+)
+
 data class ContactLink(val url: String, val expiresInSeconds: Int)
 
 data class EditableProfile(

@@ -2909,4 +2909,27 @@
     <string name="delete_account_failed">Účet se nepodařilo smazat. Zkus to znovu.</string>
     <string name="delete_account_status_failed">Nepodařilo se zjistit, jestli účet chrání heslo.</string>
     <string name="delete_account_retry">Zkusit znovu</string>
+    <string name="settings_passkeys">Přístupové klíče</string>
+    <plurals name="settings_passkeys_count">
+        <item quantity="one">%1$d klíč</item>
+        <item quantity="few">%1$d klíče</item>
+        <item quantity="other">%1$d klíčů</item>
+    </plurals>
+    <string name="settings_passkeys_none">Žádný, přidat jde v oficiální aplikaci</string>
+    <string name="passkeys_intro">Přístupovým klíčem se do Telegramu přihlásíš otiskem prstu, obličejem nebo zámkem obrazovky, bez kódu a hesla. Klíč leží ve správci hesel, třeba ve Správci hesel Google nebo na Klíčence iCloud.</string>
+    <string name="passkeys_limitation">Plume klíč přidat ani se jím přihlásit neumí: Android a iOS pouští k přihlašovacím údajům Telegramu jen aplikace, které Telegram uvádí na svém webu. Přidat ho jde v oficiální aplikaci Telegram; tady ho uvidíš a můžeš odebrat.</string>
+    <string name="passkeys_section">Tvoje klíče</string>
+    <string name="passkeys_empty">Zatím žádný klíč.</string>
+    <string name="passkeys_load_failed">Klíče se nepodařilo načíst.</string>
+    <string name="passkeys_retry">Zkusit znovu</string>
+    <string name="passkey_unnamed">Přístupový klíč</string>
+    <string name="passkey_added">Přidán %1$s</string>
+    <string name="passkey_used">naposledy použit %1$s</string>
+    <string name="passkey_never_used">zatím nepoužit</string>
+    <string name="passkey_summary">%1$s · %2$s</string>
+    <string name="passkey_remove">Odebrat klíč</string>
+    <string name="passkey_remove_title">Odebrat klíč „%1$s“?</string>
+    <string name="passkey_remove_text">Tímhle klíčem se pak do Telegramu nepřihlásíš. Ve správci hesel zůstane, smaž ho tam zvlášť.</string>
+    <string name="passkey_remove_confirm">Odebrat</string>
+    <string name="passkey_remove_failed">Klíč se nepodařilo odebrat.</string>
 </resources>

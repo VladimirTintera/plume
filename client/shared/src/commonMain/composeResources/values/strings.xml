@@ -2827,4 +2827,26 @@
     <string name="delete_account_failed">Couldn't delete the account. Try again.</string>
     <string name="delete_account_status_failed">Couldn't find out whether the account is protected by a password.</string>
     <string name="delete_account_retry">Try again</string>
+    <string name="settings_passkeys">Passkeys</string>
+    <plurals name="settings_passkeys_count">
+        <item quantity="one">%1$d passkey</item>
+        <item quantity="other">%1$d passkeys</item>
+    </plurals>
+    <string name="settings_passkeys_none">None, can be added in the official app</string>
+    <string name="passkeys_intro">With a passkey you sign in to Telegram with your fingerprint, face or screen lock, without a code or password. The passkey lives in a password manager, such as Google Password Manager or iCloud Keychain.</string>
+    <string name="passkeys_limitation">Plume can't add a passkey or sign in with one: Android and iOS only let apps listed on Telegram's website use Telegram sign-in credentials. You can add one in the official Telegram app; here you can see it and remove it.</string>
+    <string name="passkeys_section">Your passkeys</string>
+    <string name="passkeys_empty">No passkeys yet.</string>
+    <string name="passkeys_load_failed">Couldn't load passkeys.</string>
+    <string name="passkeys_retry">Try again</string>
+    <string name="passkey_unnamed">Passkey</string>
+    <string name="passkey_added">Added %1$s</string>
+    <string name="passkey_used">last used %1$s</string>
+    <string name="passkey_never_used">not used yet</string>
+    <string name="passkey_summary">%1$s · %2$s</string>
+    <string name="passkey_remove">Remove passkey</string>
+    <string name="passkey_remove_title">Remove passkey “%1$s”?</string>
+    <string name="passkey_remove_text">You won't be able to sign in to Telegram with it any more. It stays in your password manager; delete it there separately.</string>
+    <string name="passkey_remove_confirm">Remove</string>
+    <string name="passkey_remove_failed">Couldn't remove the passkey.</string>
 </resources>
