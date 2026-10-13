@@ -155,7 +155,12 @@ a desktop.
   `isDisconnected = true`, ať to protějšek dostane jako přerušený hovor, ne zavěšení.
 - **„Čekám na připojení…"** místo času (obrazovka hovoru, pruh i notifikace) bere Plume
   z vlastního monitoru sítě (`NetworkKind.None`), protože od ntgcalls se to nedozví.
-- Ověřené: viz níž v souhrnu PR (výpadek Wi-Fi za hovoru).
+- **Ověřeno na Pixelu 7 Pro** (13. 10. 2026, Plume ↔ Plume s Pixelem 5): Wi-Fi vypnutá
+  a znovu zapnutá za hovoru, mezitím zapnutá mobilní data — hovor pokračoval, WebRTC
+  vytvořilo nová spojení přes mobilní síť (`connection.cc … Cellular`) a k `FAILED`
+  nedošlo. **„Čekám na připojení…" z logu ověřené není**: podrobný výpis WebRTC
+  (`connection.cc`) vytlačí z logcatu vlastní řádky aplikace během desítek vteřin; při
+  dalším ověřování číst log průběžně (`logcat | grep`), ne až po testu.
 
 ## Vyzvánění a výstup zvuku (Android)
 
