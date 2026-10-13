@@ -142,6 +142,21 @@ notifikace i obrazovka hovoru přišly a přijetí spojilo.
 (`ConnectionService` / `core-telecom`: souběh s GSM hovorem, hovor v autě), video, iOS
 a desktop.
 
+## Změna sítě za hovoru
+
+- **Přechod Wi-Fi ↔ data řeší WebRTC v ntgcalls samo**: ICE s průběžným sbíráním kandidátů
+  (`GATHER_CONTINUALLY`) a znovusbíráním po výpadku sítě (`regather_on_failed_networks`,
+  `wrtc/src/interfaces/native_network_interface.cpp`). Nové kandidáty posílá signalizací
+  přes TDLib; ten o změně sítě ví od `ConnectionController` (`setNetworkType`), takže
+  signalizace po přepnutí neuvízne na mrtvém spojení.
+- **ntgcalls výpadek NEHLÁSÍ**: odpojení vede jen na interní „Reconnecting" (zpět do
+  `Connecting`, callback se nevolá), obnova taky ne. Až když spojení **20 s** stojí
+  (`kMaxTimeout` v `native_connection.cpp`), přijde `FAILED` a Plume zavěsí — s
+  `isDisconnected = true`, ať to protějšek dostane jako přerušený hovor, ne zavěšení.
+- **„Čekám na připojení…"** místo času (obrazovka hovoru, pruh i notifikace) bere Plume
+  z vlastního monitoru sítě (`NetworkKind.None`), protože od ntgcalls se to nedozví.
+- Ověřené: viz níž v souhrnu PR (výpadek Wi-Fi za hovoru).
+
 ## Vyzvánění a výstup zvuku (Android)
 
 - **Příchozí hovor zvoní `CallRinger`**: vyzváněcí tón telefonu (`RingtoneManager`,

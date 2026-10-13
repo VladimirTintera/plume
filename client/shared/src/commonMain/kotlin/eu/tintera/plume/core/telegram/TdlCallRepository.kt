@@ -22,7 +22,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
+import eu.tintera.plume.core.connectivity.NetworkKind
+import eu.tintera.plume.core.connectivity.NetworkStatus
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
@@ -43,7 +48,12 @@ internal class TdlCallRepository(
     private val holder: TelegramClientHolder,
     private val media: CallMedia?,
     private val scope: CoroutineScope,
+    /** Stav sítě telefonu — kvůli „Čekám na připojení" při výpadku za hovoru. */
+    network: Flow<NetworkStatus>? = null,
 ) : CallRepository {
+
+    /** Telefon je bez sítě; nový hovor si stav převezme. */
+    private var networkLost = false
 
     private val logger = Logger.withTag("Calls")
 
@@ -56,6 +66,11 @@ internal class TdlCallRepository(
     private var startedCallId: Int? = null
 
     init {
+        network?.map { it.kind == NetworkKind.None }?.distinctUntilChanged()?.onEach { lost ->
+            networkLost = lost
+            if (lost) logger.i { "Síť za hovoru chybí." }
+            _active.update { it?.copy(networkLost = lost) }
+        }?.launchIn(scope)
         holder.updates { callUpdates }
             .onEach { onCall(it.call) }
             .launchIn(scope)
@@ -109,14 +124,20 @@ internal class TdlCallRepository(
             .onFailure { media?.stop() }
     }
 
-    override suspend fun hangUp() {
+    override suspend fun hangUp() = hangUp(disconnected = false)
+
+    /**
+     * [disconnected] = hovor ukončil výpadek přenosu, ne člověk. TDLib to pošle serveru
+     * (`isDisconnected`) a protějšek se to dozví jako přerušený hovor, ne jako zavěšení.
+     */
+    private suspend fun hangUp(disconnected: Boolean) {
         val call = _active.value ?: return
         val connectedAt = call.connectedAt
         val duration = connectedAt?.let { ((Clock.System.now().toEpochMilliseconds() - it) / 1000).toInt() } ?: 0
         media?.stop()
         holder.client.discardCall(
             callId = call.id,
-            isDisconnected = false,
+            isDisconnected = disconnected,
             inviteLink = "",
             duration = duration,
             isVideo = false,
@@ -146,6 +167,7 @@ internal class TdlCallRepository(
                     userId = call.userId,
                     isOutgoing = call.isOutgoing,
                     phase = if (call.isOutgoing) CallPhase.Calling else CallPhase.Ringing,
+                    networkLost = networkLost,
                 ).let { new ->
                     lastOutputs?.takeIf { call.isOutgoing }?.let { (available, output) -> new.copy(outputs = available, output = output) } ?: new
                 }
@@ -212,9 +234,12 @@ internal class TdlCallRepository(
                                 connectedAt = active.connectedAt ?: Clock.System.now().toEpochMilliseconds(),
                             ) ?: active
                         }
+                        // Přenos se nespojil, nebo se po výpadku sítě do 20 s neobnovil (ntgcalls
+                        // výpadek do té doby jen přečkává a nic nehlásí).
                         CallConnection.Failed -> scope.launch {
+                            logger.w { "Přenos hovoru selhal, ukončuji." }
                             _active.update { active -> active?.takeIf { it.id == call.id }?.copy(phase = CallPhase.Failed) ?: active }
-                            hangUp()
+                            hangUp(disconnected = true)
                         }
                         else -> Unit
                     }
