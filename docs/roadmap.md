@@ -307,11 +307,10 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - ~~**Přihlášení s e-mailovým kódem.**~~ — hotovo (zadání adresy, kód, oprava adresy, reset
   přihlašovacího e-mailu; `docs/poznatky/prihlaseni.md`, „Přihlašovací e-mail"). Zbývá ověřit
   se skutečným serverem — testovací účet e-mail nechce. Google a Apple ID vědomě ne.
-- **Ověření aplikace při přihlášení.** `applicationVerificationRequiredUpdates`
-  a `applicationRecaptchaVerificationRequiredUpdates` nikdo neodebírá; když server před
-  odesláním kódu chce Play Integrity nebo reCAPTCHA, přihlášení zůstane viset bez hlášky.
-  Odpovídá se `setApplicationVerificationToken`. Ověřit, jestli to pro `api_id` Plume vůbec
-  nastává (`docs/poznatky/prihlaseni.md`, „Kód jinou cestou").
+- ~~**Ověření aplikace při přihlášení.**~~ — hotovo: Plume ověření (Play Integrity, APNs,
+  reCAPTCHA) hned odmítá a dotaz skončí srozumitelnou větou místo věčného čekání; hlásí se do
+  Crashlytics (`docs/poznatky/prihlaseni.md`, „Ověření aplikace"). Zbývá podle Crashlytics
+  posoudit, jestli to server po Plume vůbec chce.
 - **Neodeslanou zprávu nejde poslat znovu.** `SendState.Failed` se v bublině ukáže, ale
   `resendMessages` se nevolá — zbývá zprávu smazat a napsat znovu.
 - **Fotka chatu se nejspíš neobnovuje živě.** `chatPhotoUpdates` nikdo neodebírá a
