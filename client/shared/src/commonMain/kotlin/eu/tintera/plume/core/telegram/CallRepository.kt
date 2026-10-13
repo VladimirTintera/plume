@@ -14,10 +14,14 @@ interface CallRepository {
     /** Probíhající hovor, nebo `null`. Najednou je jen jeden, jako u telefonu. */
     val active: StateFlow<ActiveCall?>
 
-    suspend fun call(userId: Long): Result<Unit>
+    /** [video] = videohovor: kamera běží od vytáčení a zvuk jde do reproduktoru. */
+    suspend fun call(userId: Long, video: Boolean = false): Result<Unit>
 
-    /** Přijme příchozí hovor ([CallPhase.Ringing]). */
-    suspend fun accept(): Result<Unit>
+    /**
+     * Přijme příchozí hovor ([CallPhase.Ringing]). [camera] = se zapnutou kamerou (videohovor
+     * přijatý s oprávněním ke kameře); bez ní protistranu dál vidí, jen ona nevidí nás.
+     */
+    suspend fun accept(camera: Boolean = false): Result<Unit>
 
     /** Zavěsí, odmítne, nebo zruší — podle toho, v jaké fázi hovor je. */
     suspend fun hangUp()
@@ -37,6 +41,12 @@ interface CallRepository {
     fun setResumeHandler(handler: (suspend () -> Boolean)?)
 
     fun setOutput(output: CallAudioOutput)
+
+    /** Zapne / vypne kameru; zapnutí přepne zvuk ze sluchátka u ucha na reproduktor. */
+    fun setCamera(on: Boolean)
+
+    /** Přední ↔ zadní kamera. */
+    fun switchCamera()
 }
 
 data class ActiveCall(
@@ -60,6 +70,14 @@ data class ActiveCall(
     val networkLost: Boolean = false,
     /** Podržený kvůli jinému hovoru (GSM); zvuk neteče oběma směry. */
     val held: Boolean = false,
+    /** Hovor začal jako videohovor (TDLib `call.isVideo`); kamera jde zapnout v každém. */
+    val isVideo: Boolean = false,
+    /** Posíláme obraz z kamery. */
+    val camera: Boolean = false,
+    /** Přední kamera (náhled se zrcadlí), jinak zadní. */
+    val frontCamera: Boolean = true,
+    /** Protistrana posílá obraz. */
+    val remoteVideo: Boolean = false,
 )
 
 enum class CallPhase {

@@ -1,10 +1,12 @@
 package eu.tintera.plume.core.calls
 
+import android.Manifest
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
@@ -70,6 +72,7 @@ class CallService : Service(), KoinComponent {
                     return@collect
                 }
                 updateProximity(call)
+                updateCamera(call)
                 runCatching { getSystemService(android.app.NotificationManager::class.java).notify(NOTIFICATION_ID, notification(call)) }
             }
         }
@@ -97,11 +100,29 @@ class CallService : Service(), KoinComponent {
         return START_NOT_STICKY
     }
 
-    private fun foregroundTypes(): Int = when {
+    private fun foregroundTypes(camera: Boolean = false): Int = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.R ->
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
+                (if (camera) ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA else 0)
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL
         else -> 0
+    }
+
+    /** Typ služby, se kterým běží — kamera se přidá a ubere s kamerou hovoru. */
+    private var runningWithCamera = false
+
+    /**
+     * Kamera na pozadí: Android ji aplikaci mimo popředí odebere, ledaže běží služba typu
+     * `camera`. Typ se přidá se zapnutím kamery (to je vždycky akce uživatele v aplikaci,
+     * tedy z popředí, jak Android chce) a ubere s vypnutím.
+     */
+    private suspend fun updateCamera(call: ActiveCall) {
+        val wanted = call.camera && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        if (wanted == runningWithCamera) return
+        runCatching { ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(call), foregroundTypes(camera = wanted)) }
+            .onSuccess { runningWithCamera = wanted }
+            .onFailure { logger.w(it) { "Typ služby hovoru (kamera: $wanted) nejde změnit." } }
     }
 
     private suspend fun notification(call: ActiveCall): Notification {
@@ -141,7 +162,9 @@ class CallService : Service(), KoinComponent {
 
     /** Zhasnutí u ucha jen ve sluchátku a jen při běžícím hovoru. */
     private fun updateProximity(call: ActiveCall) {
-        val wanted = call.phase == CallPhase.Active && call.output.kind == CallAudioOutput.Kind.Earpiece
+        // S obrazem se telefon drží před sebou, ne u ucha.
+        val wanted = call.phase == CallPhase.Active && call.output.kind == CallAudioOutput.Kind.Earpiece &&
+            !call.camera && !call.remoteVideo
         val lock = proximity ?: getSystemService(PowerManager::class.java)
             ?.takeIf { it.isWakeLockLevelSupported(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK) }
             ?.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "plume:call-proximity")

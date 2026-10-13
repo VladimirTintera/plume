@@ -75,7 +75,8 @@ class TelecomCallBridge(
             displayName = name,
             address = Uri.fromParts(URI_SCHEME, call.userId.toString(), null),
             direction = if (call.isOutgoing) CallAttributesCompat.DIRECTION_OUTGOING else CallAttributesCompat.DIRECTION_INCOMING,
-            callType = CallAttributesCompat.CALL_TYPE_AUDIO_CALL,
+            // Typ jde zadat jen při přihlášení; kamera zapnutá později ho nezmění (a nevadí to).
+            callType = if (call.isVideo) CallAttributesCompat.CALL_TYPE_VIDEO_CALL else CallAttributesCompat.CALL_TYPE_AUDIO_CALL,
             callCapabilities = CallAttributesCompat.SUPPORTS_SET_INACTIVE,
         )
         runCatching {
@@ -124,7 +125,7 @@ class TelecomCallBridge(
                 reported = true
                 // Příchozí hovor přijatý v aplikaci Telecomu ohlásí `answer`, odchozí `setActive`.
                 val result = runCatching {
-                    if (call.isOutgoing) setActive() else answer(CallAttributesCompat.CALL_TYPE_AUDIO_CALL)
+                    if (call.isOutgoing) setActive() else answer(if (call.isVideo) CallAttributesCompat.CALL_TYPE_VIDEO_CALL else CallAttributesCompat.CALL_TYPE_AUDIO_CALL)
                 }
                 logger.i { "Telecom: hovor ${call.id} aktivní (${result.getOrNull() ?: result.exceptionOrNull()?.message})" }
             }
@@ -155,6 +156,9 @@ internal class TelecomAudioRoutes(private val audio: AudioManager) : CallAudioRo
     private var fallback: CallAudioRouter? = null
     private var started = false
 
+    /** Výstup vybraný dřív, než hovor v Telecomu byl (videohovor → reproduktor od vytáčení). */
+    private var pending: CallAudioOutput? = null
+
     override fun start(onChange: (List<CallAudioOutput>, CallAudioOutput) -> Unit) {
         this.onChange = onChange
         started = true
@@ -167,6 +171,13 @@ internal class TelecomAudioRoutes(private val audio: AudioManager) : CallAudioRo
             combine(scope.availableEndpoints, scope.currentCallEndpoint) { available, current -> available to current }
                 .collect { (available, current) ->
                     endpoints = available
+                    pending?.let { wanted ->
+                        pending = null
+                        available.firstOrNull { it.output() == wanted }?.takeIf { it != current }?.let { endpoint ->
+                            runCatching { scope.requestEndpointChange(endpoint) }
+                                .onFailure { logger.w(it) { "Telecom výstup nepřepnul." } }
+                        }
+                    }
                     val outputs = available.mapNotNull { it.output() }.distinct()
                     current.output()?.let { if (started) onChange(outputs.ifEmpty { listOf(it) }, it) }
                 }
@@ -176,17 +187,25 @@ internal class TelecomAudioRoutes(private val audio: AudioManager) : CallAudioRo
     fun detach() {
         control = null
         endpoints = emptyList()
+        pending = null
     }
 
     /** Telecom hovor nepřijal: zvuk převezme Plume sám. */
     fun fallBack() {
         if (!started || fallback != null) return
-        fallback = CallAudioRouter(audio).also { it.start(onChange) }
+        fallback = CallAudioRouter(audio).also { router ->
+            router.start(onChange)
+            pending?.let(router::select)
+            pending = null
+        }
     }
 
     override fun select(output: CallAudioOutput) {
         fallback?.let { it.select(output); return }
-        val scope = control ?: return
+        val scope = control ?: run {
+            pending = output
+            return
+        }
         val endpoint = endpoints.firstOrNull { it.output() == output } ?: return
         scope.launch {
             runCatching { scope.requestEndpointChange(endpoint) }

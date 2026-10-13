@@ -118,14 +118,27 @@ internal class TdlCallRepository(
         )
     }
 
-    override suspend fun call(userId: Long): Result<Unit> {
+    override suspend fun call(userId: Long, video: Boolean): Result<Unit> {
         val protocol = protocol() ?: return Result.failure(UnsupportedOperationException("Hovory tu nejsou."))
         logger.i { "Protokol: ${protocol.libraryVersions.joinToString()} vrstvy ${protocol.minLayer}..${protocol.maxLayer}" }
         // Zvuk napřed: tón protistrany a reproduktor fungují už při vytáčení.
         startAudio()
-        return holder.client.createCall(userId = userId, protocol = protocol, isVideo = false).toResult().map { }
-            .onFailure { media?.stop() }
+        // Hovor (`Pending`) přijde až po `createCall`; kamera se mu předá při založení.
+        outgoingCamera = video
+        if (video) {
+            media?.setCamera(on = true, front = true)
+            // Videohovor se drží v ruce před sebou, ne u ucha.
+            media?.setOutput(CallAudioOutput.Speaker)
+        }
+        return holder.client.createCall(userId = userId, protocol = protocol, isVideo = video).toResult().map { }
+            .onFailure {
+                outgoingCamera = false
+                media?.stop()
+            }
     }
+
+    /** Kamera pro odchozí hovor, který ještě nemá stav (čeká se na `Pending`). */
+    private var outgoingCamera = false
 
     /** Výstupy zvuku z poslední zvukové relace — hovor (`Pending`) může přijít až po nich. */
     private var lastOutputs: Pair<List<CallAudioOutput>, CallAudioOutput>? = null
@@ -138,11 +151,12 @@ internal class TdlCallRepository(
         }
     }
 
-    override suspend fun accept(): Result<Unit> {
+    override suspend fun accept(camera: Boolean): Result<Unit> {
         val call = _active.value?.takeIf { it.phase == CallPhase.Ringing }
             ?: return Result.failure(IllegalStateException("Žádný hovor nezvoní."))
         val protocol = protocol() ?: return Result.failure(UnsupportedOperationException("Hovory tu nejsou."))
         startAudio()
+        if (camera) setCamera(true)
         return holder.client.acceptCall(callId = call.id, protocol = protocol).toResult().map { }
             .onFailure { media?.stop() }
     }
@@ -163,7 +177,7 @@ internal class TdlCallRepository(
             isDisconnected = disconnected,
             inviteLink = "",
             duration = duration,
-            isVideo = false,
+            isVideo = call.isVideo || call.camera,
             connectionId = 0L,
         ).toResult().onFailure { logger.w(it) { "Hovor se nepodařilo ukončit." } }
     }
@@ -189,6 +203,21 @@ internal class TdlCallRepository(
         _active.update { it?.copy(held = held) }
     }
 
+    override fun setCamera(on: Boolean) {
+        val call = _active.value ?: return
+        media?.setCamera(on = on, front = call.frontCamera)
+        _active.update { it?.copy(camera = on) }
+        // Kdo zapne kameru, drží telefon před sebou — ze sluchátka u ucha by nic neslyšel.
+        if (on && call.output.kind == CallAudioOutput.Kind.Earpiece) setOutput(CallAudioOutput.Speaker)
+    }
+
+    override fun switchCamera() {
+        val call = _active.value ?: return
+        val front = !call.frontCamera
+        if (call.camera) media?.setCamera(on = true, front = front)
+        _active.update { it?.copy(frontCamera = front) }
+    }
+
     override fun setMuted(muted: Boolean) {
         media?.setMuted(muted)
         _active.update { it?.copy(muted = muted) }
@@ -207,6 +236,8 @@ internal class TdlCallRepository(
                     isOutgoing = call.isOutgoing,
                     phase = if (call.isOutgoing) CallPhase.Calling else CallPhase.Ringing,
                     networkLost = networkLost,
+                    isVideo = call.isVideo,
+                    camera = call.isOutgoing && outgoingCamera,
                 ).let { new ->
                     lastOutputs?.takeIf { call.isOutgoing }?.let { (available, output) -> new.copy(outputs = available, output = output) } ?: new
                 }
@@ -286,6 +317,9 @@ internal class TdlCallRepository(
                     }
                 }
 
+                override fun onRemoteVideo(active: Boolean) {
+                    _active.update { current -> current?.takeIf { it.id == call.id }?.copy(remoteVideo = active) ?: current }
+                }
             },
         )
         // Co protějšek poslal dřív, než se přenos spustil — v původním pořadí.
@@ -298,6 +332,7 @@ internal class TdlCallRepository(
     private fun finish(callId: Int, phase: CallPhase) {
         // Zastavit i hovor, který se nespojil: zvuková relace běží od vytáčení / přijetí.
         pendingSignaling.remove(callId)
+        outgoingCamera = false
         if (startedCallId == callId || _active.value?.id == callId) media?.stop()
         if (startedCallId == callId) startedCallId = null
         _active.update { active -> active?.takeIf { it.id == callId }?.copy(phase = if (active.phase == CallPhase.Failed) CallPhase.Failed else phase) ?: active }

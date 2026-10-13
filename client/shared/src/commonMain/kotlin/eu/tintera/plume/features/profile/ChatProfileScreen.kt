@@ -204,6 +204,8 @@ import eu.tintera.plume.resources.lock_24dp
 import eu.tintera.plume.resources.secret_chat_start
 import eu.tintera.plume.resources.call_start
 import eu.tintera.plume.resources.call_24dp
+import eu.tintera.plume.resources.call_start_video
+import eu.tintera.plume.resources.videocam_24dp
 import eu.tintera.plume.features.calls.rememberStartCall
 import eu.tintera.plume.resources.secret_chat_close_title
 import eu.tintera.plume.resources.secret_chat_close_text
@@ -1351,7 +1353,7 @@ private fun ProfileMenu(
     onStartSecretChat: () -> Unit,
     onCloseSecretChat: () -> Unit,
     /** Zavolat (`null` = hovory tu nejsou, viz `CallRepository.supported`). */
-    onCall: (() -> Unit)?,
+    onCall: ((video: Boolean) -> Unit)?,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var confirmCloseSecret by rememberSaveable { mutableStateOf(false) }
@@ -1409,7 +1411,12 @@ private fun ProfileMenu(
                         null
                     },
                     if (canStartSecret && onCall != null) {
-                        MenuAction(stringResource(Res.string.call_start), Res.drawable.call_24dp, onClick = onCall)
+                        MenuAction(stringResource(Res.string.call_start), Res.drawable.call_24dp, onClick = { onCall(false) })
+                    } else {
+                        null
+                    },
+                    if (canStartSecret && onCall != null) {
+                        MenuAction(stringResource(Res.string.call_start_video), Res.drawable.videocam_24dp, onClick = { onCall(true) })
                     } else {
                         null
                     },

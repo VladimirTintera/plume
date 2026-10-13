@@ -1,7 +1,7 @@
 package eu.tintera.plume.core.calls
 
 /**
- * Mediální vrstva hovoru — zvuk (a později obraz) mezi dvěma zařízeními.
+ * Mediální vrstva hovoru — zvuk a obraz mezi dvěma zařízeními.
  *
  * TDLib obstará signalizaci a klíč (`createCall`, `CallStateReady`), přenos ne; ten dělá
  * knihovna nad WebRTC (`docs/poznatky/hovory.md`). Tohle rozhraní je hranice mezi nimi:
@@ -38,6 +38,14 @@ interface CallMedia {
 
     /** Kam jde zvuk hovoru: sluchátko, reproduktor, sluchátka s kabelem, nebo Bluetooth. */
     fun setOutput(output: CallAudioOutput)
+
+    /**
+     * Kamera: [on] posílá obraz z přední ([front]), nebo zadní kamery, `false` ho zastaví.
+     * Jde zapnout i v hovoru, který začal jako hlasový, a před spuštěním přenosu (vytáčený
+     * videohovor) — pak se použije, až přenos naběhne. Náhled i obraz protistrany kreslí
+     * platforma (`CallVideo`).
+     */
+    fun setCamera(on: Boolean, front: Boolean)
 
     /** Zastaví přenos a vrátí zvuk telefonu, jak byl. Bezpečné volat opakovaně. */
     fun stop()
@@ -88,7 +96,13 @@ interface CallMediaEvents {
     fun onSignaling(data: ByteArray)
 
     fun onConnection(state: CallConnection)
+
+    /** Protistrana zapnula ([active]), nebo vypnula / pozastavila kameru. */
+    fun onRemoteVideo(active: Boolean)
 }
+
+/** Který obraz hovoru se kreslí: náš z kamery (náhled), nebo protistrany. */
+enum class CallVideoSource { Local, Remote }
 
 /** Výstup zvuku hovoru. [name] jen u Bluetooth (jméno soupravy), jinak `null`. */
 data class CallAudioOutput(val kind: Kind, val name: String? = null) {

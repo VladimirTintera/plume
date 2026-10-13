@@ -5,18 +5,36 @@ import android.media.AudioManager
 import co.touchlab.kermit.Logger
 import io.github.pytgcalls.ConnectionState
 import io.github.pytgcalls.NTgCalls
+import io.github.pytgcalls.VideoRotation
+import io.github.pytgcalls.devices.JavaVideoCapturerModule
 import io.github.pytgcalls.media.AudioDescription
 import io.github.pytgcalls.media.MediaDescription
 import io.github.pytgcalls.media.MediaSource
+import io.github.pytgcalls.media.StreamDevice
 import io.github.pytgcalls.media.StreamMode
+import io.github.pytgcalls.media.StreamStatus
+import io.github.pytgcalls.media.VideoDescription
+import io.github.pytgcalls.models.Frame
 import io.github.pytgcalls.p2p.RTCServer
+import org.json.JSONObject
 import org.webrtc.ContextUtils
+import org.webrtc.EglBase
+import org.webrtc.JavaI420Buffer
+import org.webrtc.VideoFrame
+import org.webrtc.VideoSink
+import java.nio.ByteBuffer
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 
 /**
  * Přenos hovoru přes ntgcalls (LGPL-3.0, `libntgcalls.so` s WebRTC uvnitř, viz
  * `docs/poznatky/hovory.md`). Pořadí volání drží knihovna: hovor → zdroje (mikrofon,
- * reproduktor) → klíč z TDLib (`skipExchange`, výměnu udělal TDLib) → spojení.
+ * reproduktor, kamera) → klíč z TDLib (`skipExchange`, výměnu udělal TDLib) → spojení.
+ *
+ * **Kameru bere knihovna sama** (zdroj DEVICE se jménem kamery, `JavaVideoCapturerModule`
+ * nad Camera2) a snímky z ní vrací i nám pro náhled; obraz protistrany chodí jako EXTERNAL
+ * přehrávání. Obojí jsou I420 snímky v `onFrames`, které se předají rendererům ([CallVideoSinks]).
  *
  * Všechno jde přes jedno vlákno: knihovna není dělaná na souběžná volání a první dotyk
  * (`getProtocol`) nahrává ~20 MB knihovnu — na hlavním vlákně by to bylo znát.
@@ -25,7 +43,7 @@ class NtgCallMedia internal constructor(
     context: Context,
     /** Kdo vede zvuk: Telecom, nebo náhradně Plume sám (viz [CallAudioRoutes]). */
     private val routes: () -> CallAudioRoutes,
-) : CallMedia {
+) : CallMedia, CallVideoSinks {
 
     constructor(context: Context) : this(context, { CallAudioRouter(context.getSystemService(AudioManager::class.java)) })
 
@@ -41,6 +59,31 @@ class NtgCallMedia internal constructor(
     /** Uživatel si ztlumil mikrofon — po skončení podržení (GSM hovor) se mu nesmí zapnout. */
     private var userMuted = false
     private var held = false
+
+    /** Kamera: zapnutá a která. Platí i před spuštěním přenosu (vytáčený videohovor). */
+    private var cameraOn = false
+    private var cameraFront = true
+
+    /** Kamery telefonu (metadata pro ntgcalls), načtené při prvním zapnutí. */
+    private val cameras: List<Camera> by lazy { readCameras() }
+
+    private val sinks = ConcurrentHashMap<CallVideoSource, VideoSink>()
+
+    /**
+     * Přímé buffery na snímky, po zdroji. Snímek 720p má 1,4 MB a nový buffer pro každý
+     * (30 za vteřinu) by uvolnil až GC; buffer se vrací, až ho renderer pustí.
+     */
+    private val framePools = ConcurrentHashMap<CallVideoSource, ConcurrentLinkedQueue<ByteBuffer>>()
+
+    override val eglContext: EglBase.Context get() = JavaVideoCapturerModule.getSharedEGLContext()
+
+    override fun attach(source: CallVideoSource, sink: VideoSink) {
+        sinks[source] = sink
+    }
+
+    override fun detach(source: CallVideoSource, sink: VideoSink) {
+        sinks.remove(source, sink)
+    }
 
     override val protocol: CallMediaProtocol by lazy {
         worker.submit<CallMediaProtocol> {
@@ -80,12 +123,23 @@ class NtgCallMedia internal constructor(
                         },
                     )
                 }
+                instance.onRemoteSourceChange { _, source ->
+                    if (source.device == StreamDevice.CAMERA) events.onRemoteVideo(source.state == StreamStatus.ACTIVE)
+                }
+                instance.onFrames { _, mode, device, frames ->
+                    if (device != StreamDevice.CAMERA) return@onFrames
+                    val source = if (mode == StreamMode.CAPTURE) CallVideoSource.Local else CallVideoSource.Remote
+                    val sink = sinks[source] ?: return@onFrames
+                    frames.lastOrNull()?.let { render(source, sink, it) }
+                }
                 instance.createP2pCall(callId)
-                instance.setStreamSources(callId, StreamMode.CAPTURE, MediaDescription(device(MICROPHONE), null, null, null))
+                instance.setStreamSources(callId, StreamMode.CAPTURE, capture())
                 // V režimu PLAYBACK je slot `microphone` mikrofon PROTISTRANY: příjem zvuku
                 // ntgcalls zapne jen pro něj (`StreamManager::optimize_sources`). Reproduktor
                 // ve slotu `speaker` dal ticho — spojení naváže, ale příchozí kanál nevznikne.
-                instance.setStreamSources(callId, StreamMode.PLAYBACK, MediaDescription(device(SPEAKER), null, null, null))
+                // Kamera protistrany se přijímá VŽDY, i v hlasovém hovoru: zapnout ji může
+                // kdykoli a bez příjmu by se obraz nedohodl.
+                instance.setStreamSources(callId, StreamMode.PLAYBACK, MediaDescription(device(SPEAKER), null, REMOTE_CAMERA, null))
                 instance.skipExchange(callId, session.encryptionKey, session.isOutgoing)
                 instance.connectP2p(
                     callId,
@@ -137,6 +191,105 @@ class NtgCallMedia internal constructor(
         worker.execute { router?.select(output) }
     }
 
+    override fun setCamera(on: Boolean, front: Boolean) {
+        worker.execute {
+            if (cameraOn == on && cameraFront == front) return@execute
+            val switching = cameraOn && on
+            cameraOn = on
+            cameraFront = front
+            if (!on) framePools.remove(CallVideoSource.Local)
+            // Bez běžícího přenosu se jen zapamatuje; `start` ji pak dá do zdrojů rovnou.
+            val instance = ntg ?: return@execute
+            if (switching && switchRunningCamera()) return@execute
+            if (switching) {
+                // Výměna zdroje kameru zhasne (viz `switchRunningCamera`): napřed pryč, pak nová.
+                // Protistrana na okamžik dostane „kamera vypnutá".
+                runCatching { instance.setStreamSources(callId, StreamMode.CAPTURE, MediaDescription(device(MICROPHONE), null, null, null)) }
+            }
+            runCatching { instance.setStreamSources(callId, StreamMode.CAPTURE, capture()) }
+                .onFailure { logger.w(it) { "Kameru se nepodařilo přepnout." } }
+        }
+    }
+
+    /** Co posíláme: mikrofon a s kamerou i obraz. */
+    private fun capture(): MediaDescription {
+        val camera = if (cameraOn) camera(cameraFront) else null
+        if (cameraOn && camera == null) logger.w { "Telefon nemá kameru." }
+        return MediaDescription(
+            device(MICROPHONE),
+            null,
+            camera?.let { VideoDescription(MediaSource.DEVICE, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS, it.metadata, true) },
+            null,
+        )
+    }
+
+    /**
+     * Přední ↔ zadní na BĚŽÍCÍ kameře, bez výměny zdroje v ntgcalls.
+     *
+     * Výměna zdroje (jiné `input` ve `setStreamSources`) kameru ZHASNE: knihovna napřed založí
+     * nový zdroj, který převezme sdílenou kameru (`SmartVideoSource`, „Reusing video source"),
+     * a teprve pak zruší starý — a ten uvolnění sdílené kamery naplánuje za 200 ms. Obraz
+     * pak stojí, dokud se kamera nezapne znovu. Proto se přepíná přímo sdílená kamera:
+     * `getInstance` se stejným rozměrem a jiným id ji přepne (`switchCamera`). Třída je
+     * v knihovně neveřejná, volá se reflexí; keep pravidla ntgcalls drží jména. Když to po
+     * aktualizaci knihovny nepůjde, vrací `false` a přepne se výměnou zdroje.
+     */
+    private fun switchRunningCamera(): Boolean {
+        val id = camera(cameraFront)?.id ?: return false
+        return runCatching {
+            val source = Class.forName("io.github.pytgcalls.devices.SmartVideoSource")
+            val getInstance = source.getDeclaredMethod(
+                "getInstance",
+                Boolean::class.javaPrimitiveType,
+                String::class.java,
+                Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+            )
+            getInstance.isAccessible = true
+            getInstance.invoke(null, false, id, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS)
+        }.onFailure { logger.w(it) { "Kameru nejde přepnout na místě, měním zdroj." } }.isSuccess
+    }
+
+    private fun camera(front: Boolean): Camera? = cameras.firstOrNull { it.front == front } ?: cameras.firstOrNull()
+
+    private fun readCameras(): List<Camera> = runCatching {
+        ensureWebRtcContext()
+        NTgCalls.getMediaDevices().camera.map { info ->
+            val json = runCatching { JSONObject(info.metadata) }.getOrNull()
+            Camera(metadata = info.metadata, id = json?.optString("id") ?: info.name, front = json?.optBoolean("is_front") ?: false)
+        }
+    }.onFailure { logger.w(it) { "Kamery se nepodařilo zjistit." } }.getOrDefault(emptyList())
+
+    /**
+     * Snímek I420 (těsně za sebou Y, U, V) do rendereru. Volá se z vlákna knihovny; renderer
+     * si snímek kreslí na vlastním vlákně EGL a buffer vrátí, až s ním skončí.
+     */
+    private fun render(source: CallVideoSource, sink: VideoSink, frame: Frame) {
+        val info = frame.frame_data ?: return
+        val width = info.width
+        val height = info.height
+        if (width <= 0 || height <= 0) return
+        val ySize = width * height
+        val chromaWidth = (width + 1) / 2
+        val chromaSize = chromaWidth * ((height + 1) / 2)
+        val size = ySize + 2 * chromaSize
+        if (frame.data.size < size) return
+        val pool = framePools.getOrPut(source) { ConcurrentLinkedQueue() }
+        val buffer = pool.poll()?.takeIf { it.capacity() >= size }?.apply { clear() } ?: ByteBuffer.allocateDirect(size)
+        buffer.put(frame.data, 0, size)
+        fun plane(offset: Int, length: Int) = buffer.duplicate().apply { position(offset); limit(offset + length) }.slice()
+        val i420 = JavaI420Buffer.wrap(
+            width, height,
+            plane(0, ySize), width,
+            plane(ySize, chromaSize), chromaWidth,
+            plane(ySize + chromaSize, chromaSize), chromaWidth,
+        ) { if (pool.size < FRAME_POOL_DEPTH) pool.offer(buffer) }
+        val video = VideoFrame(i420, info.rotation.degrees, info.absolute_capture_timestamp_ms * 1_000_000L)
+        runCatching { sink.onFrame(video) }
+        video.release()
+    }
+
     override fun stop() {
         worker.execute { stopNow() }
     }
@@ -148,6 +301,9 @@ class NtgCallMedia internal constructor(
         ntg = null
         held = false
         userMuted = false
+        cameraOn = false
+        cameraFront = true
+        framePools.clear()
         // I u hovoru, který se nespojil (zrušený při vytáčení): zvuková relace běží od začátku.
         router?.stop()
         router = null
@@ -165,6 +321,31 @@ class NtgCallMedia internal constructor(
 
         fun device(metadata: String) = AudioDescription(MediaSource.DEVICE, 48_000, 2, metadata, true)
 
+        /**
+         * Kamera bere snímky na šířku (rotaci nese snímek zvlášť) a knihovna je škáluje přesně
+         * na tenhle rozměr — musí tedy mít poměr stran kamery, jinak by obraz zdeformovala.
+         */
+        const val CAMERA_WIDTH = 1280
+        const val CAMERA_HEIGHT = 720
+        const val CAMERA_FPS = 30
+
+        /** Obraz protistrany: EXTERNAL = snímky jdou nám (`onFrames`); 0 = rozměr podle snímku. */
+        val REMOTE_CAMERA = VideoDescription(MediaSource.EXTERNAL, 0, 0, 0, "", false)
+
+        /** Renderer drží nejvýš snímek, dva; víc bufferů je rezerva. */
+        const val FRAME_POOL_DEPTH = 4
+
+        val VideoRotation.degrees: Int
+            get() = when (this) {
+                VideoRotation.VIDEO_ROTATION_0 -> 0
+                VideoRotation.VIDEO_ROTATION_90 -> 90
+                VideoRotation.VIDEO_ROTATION_180 -> 180
+                VideoRotation.VIDEO_ROTATION_270 -> 270
+            }
+
         fun CallMediaServer.toRtcServer() = RTCServer(id, ipv4, ipv6, port, username, password, turn, stun, tcp, peerTag)
     }
 }
+
+/** Kamera telefonu, jak ji zná ntgcalls: metadata `{"id": …, "is_front": …}` jdou do zdroje beze změny. */
+private class Camera(val metadata: String, val id: String, val front: Boolean)
