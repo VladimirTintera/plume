@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.features.notices.rememberNoticeLinkOpener
+import eu.tintera.plume.features.notices.FrozenAccountCard
 import eu.tintera.plume.core.settings.ThemeColor
 import eu.tintera.plume.app.root.presentation.LocalIsDarkTheme
 import eu.tintera.plume.app.root.presentation.theme.chatColorScheme
@@ -296,6 +298,8 @@ fun ChatListScreen(
     val savedMessagesChatId by viewModel.savedMessagesChatId.collectAsStateWithLifecycle()
     val hiddenSavedMessagesChatId by viewModel.hiddenSavedMessagesChatId.collectAsStateWithLifecycle()
     val updateCard by viewModel.updateCard.collectAsStateWithLifecycle()
+    val freeze by viewModel.freeze.collectAsStateWithLifecycle()
+    val openNoticeLink = rememberNoticeLinkOpener()
     val unconfirmedLogin by viewModel.unconfirmedLogin.collectAsStateWithLifecycle()
     val newFolderChats by viewModel.newFolderChats.collectAsStateWithLifecycle()
     val account by viewModel.account.collectAsStateWithLifecycle()
@@ -527,7 +531,7 @@ fun ChatListScreen(
                     onScrolledToChat = { scrollToChat = null },
                     listState = listState,
                     // Položky hlavičky: nové přihlášení a karta s aktualizací.
-                    headerItemCount = listOfNotNull(unconfirmedLogin, updateCard, newFolderChats).size,
+                    headerItemCount = listOfNotNull(freeze, unconfirmedLogin, updateCard, newFolderChats).size,
                     empty = {
                         /*
                          * Prázdná SLOŽKA je jiný stav než prázdný účet: chaty jsou, jen ne tyhle (třeba
@@ -553,8 +557,17 @@ fun ChatListScreen(
                         }
                     },
                 ) {
-                    // Nad chaty, jako vlastní bloky se stejnou mezerou jako mezi skupinami. Přihlášení
-                    // napřed: týká se bezpečnosti účtu, aktualizace počká.
+                    // Nad chaty, jako vlastní bloky se stejnou mezerou jako mezi skupinami. Zmrazení
+                    // a přihlášení napřed: týkají se účtu samotného, aktualizace počká.
+                    freeze?.let { frozen ->
+                        item(key = FROZEN_ACCOUNT_KEY, contentType = FROZEN_ACCOUNT_KEY) {
+                            FrozenAccountCard(
+                                freeze = frozen,
+                                onAppeal = openNoticeLink,
+                                modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
+                            )
+                        }
+                    }
                     unconfirmedLogin?.let { login ->
                         item(key = UNCONFIRMED_LOGIN_KEY, contentType = UNCONFIRMED_LOGIN_KEY) {
                             UnconfirmedLoginCard(
@@ -1944,6 +1957,7 @@ private val REORDER_AVATAR_SIZE = 40.dp
 
 /** Klíč karty s aktualizací. */
 private const val UPDATE_CARD_KEY = "update-card"
+private const val FROZEN_ACCOUNT_KEY = "frozen-account"
 private const val NEW_FOLDER_CHATS_KEY = "new-folder-chats"
 private const val UNCONFIRMED_LOGIN_KEY = "unconfirmed-login"
 
