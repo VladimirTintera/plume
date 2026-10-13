@@ -260,6 +260,12 @@ interface ChatRepository {
     /** Je chat ztlumený? Živě, pro profil chatu; `null`, dokud chat repository nezná. */
     fun muted(chatId: Long): Flow<Boolean?>
 
+    /**
+     * Název a fotka chatu, živě — pro hlavičku otevřené konverzace, která je jinak načte jen
+     * jednou při otevření. `null`, dokud chat repository nezná.
+     */
+    fun appearance(chatId: Long): Flow<ChatAppearance?>
+
     /** Kolik je v chatu nepřečtených zpráv, živě (`UpdateChatReadInbox`); neznámý chat = 0. */
     fun unreadCount(chatId: Long): Flow<Int> = flowOf(0)
 
@@ -706,3 +712,11 @@ enum class ChatActivity {
 fun interface DraftRestore {
     suspend fun restore(): Result<Unit>
 }
+
+/** Jak se chat představuje: název a fotka. Mění se za běhu — přejmenování, nová fotka. */
+data class ChatAppearance(
+    val title: String,
+    /** `fileId` malé varianty fotky, nebo `null` bez fotky. */
+    val avatarFileId: Int?,
+)
+

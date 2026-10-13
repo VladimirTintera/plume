@@ -454,6 +454,14 @@ class TdlChatRepository(
             }
         }
 
+        // Nová (nebo smazaná) fotka skupiny i kontaktu. Bez odběru zůstala v seznamu stará fotka
+        // až do restartu: `avatarFileId` se bral jen z objektu chatu při prvním `upsert`.
+        scope.launch {
+            holder.updates { chatPhotoUpdates }.collect { update ->
+                edit(update.chatId) { it.copy(avatarFileId = update.photo?.small?.id) }
+            }
+        }
+
         // Ztlumení a ruční nepřečtení se mění z nabídky akcí, ale potvrzení chodí updatem —
         // stav se tedy nepřepisuje lokálně, čeká se na TDLib jako u všeho ostatního.
         scope.launch {
@@ -685,6 +693,9 @@ class TdlChatRepository(
 
     override fun muted(chatId: Long): Flow<Boolean?> =
         all.map { it[chatId]?.isMuted }.distinctUntilChanged()
+
+    override fun appearance(chatId: Long): Flow<ChatAppearance?> =
+        all.map { chats -> chats[chatId]?.let { ChatAppearance(it.title, it.avatarFileId) } }.distinctUntilChanged()
 
     override fun unreadCount(chatId: Long): Flow<Int> =
         all.map { it[chatId]?.unreadCount ?: 0 }.distinctUntilChanged()
