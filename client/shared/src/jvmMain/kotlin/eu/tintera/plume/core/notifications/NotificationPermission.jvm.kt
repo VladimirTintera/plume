@@ -21,20 +21,15 @@ import org.koin.compose.koinInject
 
 /**
  * Oprávnění k notifikacím na desktopu. Na macOS je to systémové povolení pro `eu.tintera.plume`
- * (Nastavení systému → Oznámení). Windows se neptá, oznámení aplikace jde jen vypnout
- * (Nastavení → Systém → Oznámení); na Linuxu stačí, že systém má oznamovací oblast.
+ * (Nastavení systému → Oznámení), jinde žádné není — stačí, že systém má oznamovací oblast.
  */
 actual class NotificationPermission internal constructor(private val notifier: DesktopNotifier) {
 
     actual fun isGranted(): Boolean = notifier.isGranted() == true
 
     actual fun openSystemSettings() {
-        val settings = when (desktopOs) {
-            DesktopOs.MacOs -> MAC_NOTIFICATION_SETTINGS
-            DesktopOs.Windows -> WINDOWS_NOTIFICATION_SETTINGS
-            else -> return
-        }
-        runCatching { openInSystem(URI(settings)) }
+        if (desktopOs != DesktopOs.MacOs) return
+        runCatching { openInSystem(URI(MAC_NOTIFICATION_SETTINGS)) }
     }
 
     /** Kanály má jen Android. */
@@ -66,9 +61,6 @@ actual class NotificationPermission internal constructor(private val notifier: D
 
     private companion object {
         const val MAC_NOTIFICATION_SETTINGS = "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=eu.tintera.plume"
-
-        /** Seznam aplikací; na řádek jedné aplikace odkaz nevede. */
-        const val WINDOWS_NOTIFICATION_SETTINGS = "ms-settings:notifications"
     }
 }
 

@@ -14,6 +14,7 @@ import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.KeepMedia
 import eu.tintera.plume.core.storage.StorageCleaner
 import eu.tintera.plume.core.telegram.StorageCategory
+import eu.tintera.plume.core.telegram.NetworkUsage
 import eu.tintera.plume.core.telegram.StorageRepository
 import eu.tintera.plume.core.telegram.StorageUsage
 import eu.tintera.plume.core.telegram.userMessage
@@ -43,6 +44,8 @@ data class StorageState(
     val translationPacks: List<TranslationPack> = emptyList(),
     /** Jednorázová hláška pro snackbar; obrazovka ji po zobrazení vynuluje. */
     val notice: StorageNotice? = null,
+    /** Přenesená data pro souhrn v řádku; `null` = ještě nedorazila (nebo selhala). */
+    val networkUsage: NetworkUsage? = null,
 )
 
 /** Model AI v telefonu. [complete] = stažený celý; jinak zbyla část po zastaveném stahování. */
@@ -96,6 +99,8 @@ class StorageViewModel(
                 .onFailure { failure -> logger.w(failure) { "Velikost databáze se nepodařilo zjistit" } }
             loadModels()
             loadTranslationPacks()
+            // Rychlé lokální čtení — před podrobným přehledem, který trvá vteřiny.
+            repository.networkUsage().onSuccess { usage -> _state.update { it.copy(networkUsage = usage) } }
             repository.usage()
                 .onSuccess { usage -> _state.update { it.copy(usage = usage, loadFailed = false) } }
                 .onFailure { failure ->
