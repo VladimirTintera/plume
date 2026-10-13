@@ -11,6 +11,8 @@ import dev.g000sha256.tdl.dto.ChatMemberStatus
 import dev.g000sha256.tdl.dto.ChatMemberStatusMember
 import dev.g000sha256.tdl.dto.ChatMemberStatusRestricted
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
@@ -558,6 +560,41 @@ class TdlProfileRepository(
      * TDLib v keši až minutu — přečíst ho hned po vyhození vrátí starý počet. Když se změní,
      * TDLib pošle `UpdateSupergroupFullInfo`, a teprve na ten profil počet opraví.
      */
+    /**
+     * Odkud se profil skládá, se zjistí z druhu chatu: u člověka (i v tajném chatu) jeho `User`
+     * a `UserFullInfo`, u skupiny její `BasicGroup` / `Supergroup`. Plné info skupin hlídá už
+     * [memberUpdates], tady by bylo podruhé.
+     */
+    override fun profileUpdates(chatId: Long): Flow<Unit> = flow {
+        val chat = client.getChat(chatId = chatId).toResult().getOrNull() ?: return@flow
+        val type = chat.type
+        val userId = when (type) {
+            is ChatTypePrivate -> type.userId
+            is ChatTypeSecret -> type.userId
+            else -> null
+        }
+        val sources = buildList {
+            add(holder.updates { chatTitleUpdates }.filter { it.chatId == chatId }.map { })
+            add(holder.updates { chatPhotoUpdates }.filter { it.chatId == chatId }.map { })
+            add(holder.updates { chatEmojiStatusUpdates }.filter { it.chatId == chatId }.map { })
+            add(holder.updates { chatMessageAutoDeleteTimeUpdates }.filter { it.chatId == chatId }.map { })
+            if (userId != null) {
+                add(holder.updates { userUpdates }.filter { it.user.id == userId }.map { })
+                add(holder.updates { userFullInfoUpdates }.filter { it.userId == userId }.map { })
+            }
+            if (type is ChatTypeSecret) {
+                add(holder.updates { secretChatUpdates }.filter { it.secretChat.id == type.secretChatId }.map { })
+            }
+            if (type is ChatTypeBasicGroup) {
+                add(holder.updates { basicGroupUpdates }.filter { it.basicGroup.id == type.basicGroupId }.map { })
+            }
+            if (type is ChatTypeSupergroup) {
+                add(holder.updates { supergroupUpdates }.filter { it.supergroup.id == type.supergroupId }.map { })
+            }
+        }
+        emitAll(sources.merge())
+    }
+
     override fun memberUpdates(chatId: Long): Flow<Unit> = merge(
         holder.updates { chatMemberUpdates }.filter { it.chatId == chatId }.map { },
         holder.updates { supergroupFullInfoUpdates }.filter { supergroupChatId(it.supergroupId) == chatId }.map { },

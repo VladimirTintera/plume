@@ -317,7 +317,8 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - ~~**Fotka chatu se nejspíš neobnovuje živě.**~~ — potvrzeno a opraveno (`chatPhotoUpdates`
   v seznamu chatů, hlavička konverzace živě i s názvem; `docs/poznatky/seznam-chatu.md`,
   „Co položka ukazuje").
-- **Profil se živě neobnovuje** (`userFullInfoUpdates`; přiznané v `ChatProfileViewModel`).
+- ~~**Profil se živě neobnovuje**~~ — hotovo (`ProfileRepository.profileUpdates`;
+  `docs/poznatky/profil-chatu.md`, „Profil chatu").
 - **Systémové updaty bez odběru:** `termsOfServiceUpdates` (nové podmínky služby — oficiální
   klient je musí ukázat), `serviceNotificationUpdates` (oznámení od Telegramu, část z nich má
   být popup), `suggestedActionsUpdates` („ověř heslo", „ověř telefonní číslo"…),
