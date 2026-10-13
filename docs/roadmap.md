@@ -454,8 +454,9 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    se zvukem Plume ↔ oficiální Android oběma směry i Plume ↔ Plume, verze 8.0.0, emoji
    shodná. **Obálka na Androidu hotová** (`docs/poznatky/hovory.md`, „Obálka na Androidu":
    služba, přijetí z notifikace i nad zámkem, obrazovka hovoru, reproduktor, senzor
-   přiblížení). Zbývá na Androidu: vyzvánění ve smyčce, Bluetooth, přechod sítě za hovoru,
-   `ConnectionService` / `core-telecom` (souběh s GSM hovorem, Android Auto), video.
+   přiblížení). Vyzvánění a Bluetooth taky (`docs/poznatky/hovory.md`, „Vyzvánění a výstup
+   zvuku"). Zbývá na Androidu: přechod sítě za hovoru, `ConnectionService` /
+   `core-telecom` (souběh s GSM hovorem, Android Auto), video.
    Původní plán sondy:
 
    **Doporučení: C, začít dvoudenní sondou na Androidu.** ntgcalls v `debug` větvi, jen zvuk:

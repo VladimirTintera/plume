@@ -12,6 +12,7 @@ import dev.g000sha256.tdl.dto.CallStateHangingUp
 import dev.g000sha256.tdl.dto.CallStatePending
 import dev.g000sha256.tdl.dto.CallStateReady
 import dev.g000sha256.tdl.toResult
+import eu.tintera.plume.core.calls.CallAudioOutput
 import eu.tintera.plume.core.calls.CallConnection
 import eu.tintera.plume.core.calls.CallMedia
 import eu.tintera.plume.core.calls.CallMediaEvents
@@ -82,14 +83,30 @@ internal class TdlCallRepository(
     override suspend fun call(userId: Long): Result<Unit> {
         val protocol = protocol() ?: return Result.failure(UnsupportedOperationException("Hovory tu nejsou."))
         logger.i { "Protokol: ${protocol.libraryVersions.joinToString()} vrstvy ${protocol.minLayer}..${protocol.maxLayer}" }
+        // Zvuk napřed: tón protistrany a reproduktor fungují už při vytáčení.
+        startAudio()
         return holder.client.createCall(userId = userId, protocol = protocol, isVideo = false).toResult().map { }
+            .onFailure { media?.stop() }
+    }
+
+    /** Výstupy zvuku z poslední zvukové relace — hovor (`Pending`) může přijít až po nich. */
+    private var lastOutputs: Pair<List<CallAudioOutput>, CallAudioOutput>? = null
+
+    private fun startAudio() {
+        lastOutputs = null
+        media?.startAudio { available, current ->
+            lastOutputs = available to current
+            _active.update { it?.copy(outputs = available, output = current) }
+        }
     }
 
     override suspend fun accept(): Result<Unit> {
         val call = _active.value?.takeIf { it.phase == CallPhase.Ringing }
             ?: return Result.failure(IllegalStateException("Žádný hovor nezvoní."))
         val protocol = protocol() ?: return Result.failure(UnsupportedOperationException("Hovory tu nejsou."))
+        startAudio()
         return holder.client.acceptCall(callId = call.id, protocol = protocol).toResult().map { }
+            .onFailure { media?.stop() }
     }
 
     override suspend fun hangUp() {
@@ -107,9 +124,9 @@ internal class TdlCallRepository(
         ).toResult().onFailure { logger.w(it) { "Hovor se nepodařilo ukončit." } }
     }
 
-    override fun setSpeaker(on: Boolean) {
-        media?.setSpeaker(on)
-        _active.update { it?.copy(speaker = on) }
+    override fun setOutput(output: CallAudioOutput) {
+        media?.setOutput(output)
+        _active.update { it?.copy(output = output) }
     }
 
     override fun setMuted(muted: Boolean) {
@@ -122,12 +139,16 @@ internal class TdlCallRepository(
         // Druhý hovor během hovoru neřešíme — server ho druhé straně ohlásí jako obsazeno.
         if (current != null && current.id != call.id && current.phase !in ENDED) return
         when (val state = call.state) {
-            is CallStatePending -> _active.value = ActiveCall(
-                id = call.id,
-                userId = call.userId,
-                isOutgoing = call.isOutgoing,
-                phase = if (call.isOutgoing) CallPhase.Calling else CallPhase.Ringing,
-            )
+            // `Pending` chodí víckrát (vytvořen, doručen) — stav téhož hovoru se nezakládá znovu.
+            is CallStatePending -> _active.value = current?.takeIf { it.id == call.id }
+                ?: ActiveCall(
+                    id = call.id,
+                    userId = call.userId,
+                    isOutgoing = call.isOutgoing,
+                    phase = if (call.isOutgoing) CallPhase.Calling else CallPhase.Ringing,
+                ).let { new ->
+                    lastOutputs?.takeIf { call.isOutgoing }?.let { (available, output) -> new.copy(outputs = available, output = output) } ?: new
+                }
             is CallStateExchangingKeys -> _active.update { it?.copy(phase = CallPhase.Connecting) }
             is CallStateReady -> {
                 _active.update { it?.copy(phase = it.phase.takeIf { p -> p == CallPhase.Active } ?: CallPhase.Connecting, emojis = state.emojis.toList()) }
@@ -198,15 +219,15 @@ internal class TdlCallRepository(
                         else -> Unit
                     }
                 }
+
             },
         )
     }
 
     private fun finish(callId: Int, phase: CallPhase) {
-        if (startedCallId == callId) {
-            media?.stop()
-            startedCallId = null
-        }
+        // Zastavit i hovor, který se nespojil: zvuková relace běží od vytáčení / přijetí.
+        if (startedCallId == callId || _active.value?.id == callId) media?.stop()
+        if (startedCallId == callId) startedCallId = null
         _active.update { active -> active?.takeIf { it.id == callId }?.copy(phase = if (active.phase == CallPhase.Failed) CallPhase.Failed else phase) ?: active }
         // Konec chvíli ukázat, ať se hovor jen beze slova neztratí.
         scope.launch {

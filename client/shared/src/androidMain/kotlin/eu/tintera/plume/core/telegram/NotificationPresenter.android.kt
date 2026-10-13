@@ -32,6 +32,7 @@ import eu.tintera.plume.resources.notification_call_voice
 import eu.tintera.plume.resources.notification_call_video
 import eu.tintera.plume.resources.notification_call_unknown
 import eu.tintera.plume.core.notifications.CALLS_CHANNEL_ID
+import eu.tintera.plume.core.notifications.INCOMING_CALLS_CHANNEL_ID
 import eu.tintera.plume.core.notifications.createNotificationChannels
 import eu.tintera.plume.core.notifications.deleteConversationChannels
 import eu.tintera.plume.core.notifications.deleteSoundChannels
@@ -517,7 +518,8 @@ actual class NotificationPresenter(
             .build()
         val decline = NotificationIntents.declineCall(context, call.groupId, call.chatId, call.callId, call.isVideo)
         val answer = NotificationIntents.answerCall(context, call.groupId, call.callId) ?: return
-        val built = NotificationCompat.Builder(context, CALLS_CHANNEL_ID)
+        // Tichý kanál: zvoní `CallRinger` tónem ve smyčce, zvuk notifikace by ho zdvojil.
+        val built = NotificationCompat.Builder(context, INCOMING_CALLS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setStyle(NotificationCompat.CallStyle.forIncomingCall(person, decline, answer).setIsVideo(call.isVideo))
             .setContentText(readString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice))

@@ -27,6 +27,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <!-- Vibrace při vyzvánění hovoru (CallRinger). Haptika aplikace jde přes view a oprávnění
+         nepotřebuje — tohle je jen pro zvonění. -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Stahování modelu Gemma (gigabajty) jako úloha WorkManageru se službou v popředí
          (ModelDownloadWorker). Typ dataSync Play taky chce vysvětlit v deklaraci služeb v popředí. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />

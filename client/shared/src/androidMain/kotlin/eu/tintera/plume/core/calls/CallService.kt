@@ -138,7 +138,7 @@ class CallService : Service(), KoinComponent {
 
     /** Zhasnutí u ucha jen ve sluchátku a jen při běžícím hovoru. */
     private fun updateProximity(call: ActiveCall) {
-        val wanted = call.phase == CallPhase.Active && !call.speaker
+        val wanted = call.phase == CallPhase.Active && call.output.kind == CallAudioOutput.Kind.Earpiece
         val lock = proximity ?: getSystemService(PowerManager::class.java)
             ?.takeIf { it.isWakeLockLevelSupported(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK) }
             ?.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "plume:call-proximity")

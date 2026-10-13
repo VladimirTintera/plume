@@ -138,10 +138,46 @@ zhasnutý a zamčený telefon (rozsvítí se obrazovka hovoru nad zámkem, přij
 zmenšení, rozbalení a Zpět, a **Plume zabitý na pozadí** (`am kill`): push ho probudil,
 notifikace i obrazovka hovoru přišly a přijetí spojilo.
 
-**Co dál chybí**: vyzvánění (kanál `calls` hraje zvuk notifikace, ne vyzváněcí tón ve
-smyčce), Bluetooth a sluchátka s kabelem, přechod Wi-Fi ↔ data za hovoru, integrace se
-systémovým telefonem (`ConnectionService` / `core-telecom`: souběh s GSM hovorem, hovor
-v autě), video, iOS a desktop.
+**Co dál chybí**: přechod Wi-Fi ↔ data za hovoru, integrace se systémovým telefonem
+(`ConnectionService` / `core-telecom`: souběh s GSM hovorem, hovor v autě), video, iOS
+a desktop.
+
+## Vyzvánění a výstup zvuku (Android)
+
+- **Příchozí hovor zvoní `CallRinger`**: vyzváněcí tón telefonu (`RingtoneManager`,
+  `USAGE_NOTIFICATION_RINGTONE`) ve smyčce a vibrace jako při vyzvánění, dokud se hovor
+  nepřijme, neodmítne nebo nezruší. Řídí se režimem zvonění (tichý = nic, vibrace = jen
+  vibrace, normální = tón a vibrace, když je zapnutá systémová „Vibrace při vyzvánění",
+  klíč `vibrate_when_ringing`); **Nerušit** (filtr jiný než „vše") zvonění vypne. Vibrace
+  chtějí oprávnění `VIBRATE` — haptika jinde jde přes view a nepotřebuje ho.
+- **Notifikace příchozího hovoru je v tichém kanálu `incoming-calls`**, ne `setSilent`:
+  tichou notifikaci Android nebere jako vyrušující a **celoobrazovkovou výzvu nespustí**
+  (ověřeno: s `setSilent` zůstal zhasnutý telefon zhasnutý a jen zvonil). Zvuk kanálu po
+  založení změnit nejde, proto nový kanál bez zvuku a vibrací.
+- **Odchozí hovor má tón protistrany** (`ToneGenerator.TONE_SUP_RINGTONE` na
+  `STREAM_VOICE_CALL`) do zvednutí. **Jen v režimu hovoru**: mimo něj ho systém pustí jako
+  DTMF a telefon na vibracích ho ztlumí úplně (stopa v `dumpsys media.audio_flinger` měla
+  `-inf` dB, v režimu hovoru −29 dB).
+- **Zvuková relace (režim hovoru + výstup) začíná už vytáčením / přijetím**
+  (`CallMedia.startAudio`), ne až spojením: tón protistrany potřebuje režim hovoru a přepnout
+  reproduktor má jít hned. Končí s `stop` — i u hovoru, který se nespojil. Po hovoru se
+  vrací vždycky `MODE_NORMAL`, ne „předchozí" režim.
+- **Výstup vybírá `CallAudioRouter`**: sám od sebe Bluetooth > sluchátka (kabel, USB) >
+  sluchátko telefonu. Dřív Plume na začátku hovoru natvrdo nastavil sluchátko telefonu
+  a připojenou soupravu tím přebil. Připojení soupravy za hovoru na ni přepne i z
+  reproduktoru; zmizí-li vybrané zařízení, vrátí se automatická volba. Od Androidu 12
+  `setCommunicationDevice` nad `availableCommunicationDevices`, starší `startBluetoothSco`
+  a `isSpeakerphoneOn`.
+- **Jen sluchátko a reproduktor = přepínač „Reproduktor"**, se soupravou nebo sluchátky
+  výběr z nabídky (Telefon / Reproduktor / Sluchátka / název soupravy) s ikonou a popiskem
+  podle toho, kam zvuk jde.
+- **Ověřeno na Pixelu 5 a Pixelu 7 Pro**: zhasnutý Pixel 7 se rozsvítil a zvonil tónem
+  i vibrací (`dumpsys audio` / `vibrator_manager`, usage RINGTONE), přijetím zvonění
+  i tón protistrany utichly, zrušení volajícím zvonění zastavilo, tón protistrany v režimu
+  hovoru (Pixel 5 na vibracích). **Pixel Buds Pro 2**: hovor šel sám do soupravy
+  (`bt_sco_hs`), výběr přepnul na reproduktor, telefon (se senzorem přiblížení) a zpět,
+  po hovoru souprava zpět na A2DP. **Neověřeno**: odpojení soupravy za hovoru, kabelová
+  sluchátka, Android pod 12 (cesta přes `startBluetoothSco`).
 
 ## Neověřené
 
