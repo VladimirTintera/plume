@@ -156,11 +156,18 @@ val generateAppLanguages = tasks.register("generateAppLanguages") {
  *
  * MUSÍ být deklarovaný před blokem `kotlin { }` (pořadí top-level `val`, viz [generateChangelog]).
  */
+/** JDK s hlavičkami JNI pro nativní mosty notifikací — tentýž, jakým se překládá Kotlin. */
+val jniToolchainHome: Provider<String> = javaToolchains
+    .launcherFor { languageVersion.set(JavaLanguageVersion.of(17)) }
+    .map { it.metadata.installationPath.asFile.absolutePath }
+
 val compileMacNotifications = tasks.register("compileMacNotifications") {
     description = "Přeloží most k notifikacím macOS (UNUserNotificationCenter) do jvmMain resources."
     val source = layout.projectDirectory.file("src/jvmMain/objc/PlumeNotifications.m")
     val outputDir = layout.buildDirectory.dir("generated/macNotifications")
-    val javaHome = System.getProperty("java.home")
+    // Hlavičky JNI z toolchainu projektu, ne z JVM démona Gradle: démona může spustit IDE se
+    // svým runtime (JBR z Android Studia), který `include/` nemá — překlad pak padal na `jni.h`.
+    val jdkHome = jniToolchainHome
     val onMac = System.getProperty("os.name").lowercase().contains("mac")
     inputs.file(source)
     outputs.dir(outputDir)
@@ -177,11 +184,73 @@ val compileMacNotifications = tasks.register("compileMacNotifications") {
         run(
             "clang", "-dynamiclib", "-fobjc-arc", "-O2",
             "-arch", "arm64", "-arch", "x86_64", "-mmacosx-version-min=11.0",
-            "-I$javaHome/include", "-I$javaHome/include/darwin",
+            "-I${jdkHome.get()}/include", "-I${jdkHome.get()}/include/darwin",
             "-framework", "Foundation", "-framework", "UserNotifications",
             "-o", library.absolutePath, source.asFile.absolutePath,
         )
         run("codesign", "--force", "--sign", "-", library.absolutePath)
+    }
+}
+
+/**
+ * Most k toastům Windows (`src/jvmMain/cpp/PlumeToasts.cpp`, C++/WinRT) do jvmMain resources.
+ * Potřebuje MSVC s Windows SDK (Visual Studio nebo Build Tools, úloha „Vývoj desktopových
+ * aplikací pomocí C++"). Bez nich se lokálně přeskočí a oznámení půjdou přes AWT jako dřív;
+ * na CI (`CI`) je to chyba, ať release nevyjde potichu bez toastů.
+ */
+val compileWindowsNotifications = tasks.register("compileWindowsNotifications") {
+    description = "Přeloží most k toastům Windows (WinRT) do jvmMain resources."
+    val source = layout.projectDirectory.file("src/jvmMain/cpp/PlumeToasts.cpp")
+    val outputDir = layout.buildDirectory.dir("generated/windowsNotifications")
+    val workDir = layout.buildDirectory.dir("tmp/windowsNotifications")
+    // Hlavičky JNI z toolchainu projektu, ne z JVM démona Gradle: démona může spustit IDE se
+    // svým runtime (JBR z Android Studia), který `include/` nemá — překlad pak padal na `jni.h`.
+    val jdkHome = jniToolchainHome
+    val onWindows = System.getProperty("os.name").lowercase().contains("windows")
+    // Knihovna pro architekturu JDK, které aplikaci spouští i balí (jako TDLib v desktopApp).
+    val arch = if (System.getProperty("os.arch").lowercase().let { "aarch64" in it || "arm64" in it }) "arm64" else "x64"
+    val requireToolchain = System.getenv("CI") != null
+    inputs.file(source)
+    outputs.dir(outputDir)
+    onlyIf { onWindows }
+
+    doLast {
+        val vswhere = File(System.getenv("ProgramFiles(x86)") ?: "C:\\Program Files (x86)", "Microsoft Visual Studio\\Installer\\vswhere.exe")
+        val installation = vswhere.takeIf { it.isFile }?.let {
+            val process = ProcessBuilder(
+                it.path, "-latest", "-products", "*",
+                "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+                "-property", "installationPath",
+            ).redirectErrorStream(true).start()
+            process.inputStream.bufferedReader().readText().trim().also { process.waitFor() }
+        }?.takeIf { it.isNotEmpty() }
+        val vcvars = installation?.let { File(it, "VC\\Auxiliary\\Build\\vcvarsall.bat") }?.takeIf { it.isFile }
+        if (vcvars == null) {
+            val message = "Chybí MSVC (Visual Studio s C++), toasty Windows se nepřeloží a oznámení půjdou přes AWT."
+            if (requireToolchain) throw GradleException(message)
+            logger.warn(message)
+            return@doLast
+        }
+        val library = outputDir.get().file("windows/plumenotifications.dll").asFile
+        library.parentFile.mkdirs()
+        val work = workDir.get().asFile.apply { mkdirs() }
+        // vcvarsall nastaví prostředí jen pro cmd, ve kterém běží — překlad proto jde jedním skriptem.
+        val script = File(work, "build.cmd")
+        script.writeText(
+            listOf(
+                "@echo off",
+                "call \"${vcvars.path}\" $arch >nul || exit /b 1",
+                "cl /nologo /LD /EHsc /std:c++17 /O2 /MT /permissive- /W3 " +
+                    "/I \"${jdkHome.get()}\\include\" /I \"${jdkHome.get()}\\include\\win32\" " +
+                    "/Fo\"${work.path}\\\\\" \"${source.asFile.path}\" /Fe\"${library.path}\" " +
+                    "/link runtimeobject.lib ole32.lib oleaut32.lib advapi32.lib shell32.lib propsys.lib shlwapi.lib",
+            ).joinToString("\r\n"),
+        )
+        val process = ProcessBuilder("cmd", "/c", script.path).redirectErrorStream(true).start()
+        val output = process.inputStream.bufferedReader().readText()
+        check(process.waitFor() == 0) { "Překlad toastů Windows selhal:\n$output" }
+        // Linker nechává importní knihovnu vedle DLL; do resources nepatří.
+        listOf("lib", "exp").forEach { File(library.parentFile, "plumenotifications.$it").delete() }
     }
 }
 
@@ -351,6 +420,8 @@ kotlin {
         jvmMain {
             // libplumenotifications.dylib z [compileMacNotifications]; mimo Mac je složka prázdná.
             resources.srcDir(files(layout.buildDirectory.dir("generated/macNotifications")).builtBy(compileMacNotifications))
+            // plumenotifications.dll z [compileWindowsNotifications]; mimo Windows je složka prázdná.
+            resources.srcDir(files(layout.buildDirectory.dir("generated/windowsNotifications")).builtBy(compileWindowsNotifications))
         }
 
         jvmMain.dependencies {

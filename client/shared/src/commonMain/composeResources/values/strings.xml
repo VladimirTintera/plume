@@ -1007,6 +1007,9 @@
     <string name="notification_call_answer_elsewhere">For now you can only answer in the official Telegram app.</string>
     <string name="notification_call_decline">Decline</string>
     <string name="notification_call_unknown">Unknown caller</string>
+    <!-- Ikona v oznamovací oblasti (Windows), kam se aplikace schová po zavření okna. -->
+    <string name="tray_open">Open Plume</string>
+    <string name="tray_quit">Quit</string>
     <string name="video_chat_active">Video chat in progress</string>
     <string name="video_chat_live">Live stream in progress</string>
     <string name="video_chat_scheduled">Video chat starts %1$s</string>

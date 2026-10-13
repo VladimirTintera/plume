@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.navigation.ChatOpenRequests
 import eu.tintera.plume.core.notifications.DesktopNotification
 import eu.tintera.plume.core.notifications.DesktopNotifier
+import eu.tintera.plume.core.platform.DesktopTaskbar
 import eu.tintera.plume.core.platform.DesktopWindow
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.snooze.ChatSnoozes
@@ -12,7 +13,6 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.notification_call_unknown
 import eu.tintera.plume.resources.notification_call_video
 import eu.tintera.plume.resources.notification_call_voice
-import java.awt.Taskbar
 import kotlin.time.Clock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,7 +27,8 @@ import kotlinx.datetime.toLocalDateTime
 
 /**
  * Notifikace na desktopu: TDLib je vydává, dokud aplikace běží (push tu není), a presenter je
- * předává systému přes [DesktopNotifier] — na macOS `UNUserNotificationCenter`, jinde AWT.
+ * předává systému přes [DesktopNotifier] — na macOS `UNUserNotificationCenter`, na Windows
+ * toasty WinRT, na Linuxu AWT.
  *
  * - **Jedna zpráva = jedno oznámení**, seskupené po chatech (`thread`). Tak to na macOS dělají
  *   Zprávy i Telegram; skládat zprávy do jednoho oznámení jako `MessagingStyle` na Androidu
@@ -39,8 +40,9 @@ import kotlinx.datetime.toLocalDateTime
  * - **Aktivní okno oznámení nedostane** ([DesktopWindow.focused]): uživatel se do aplikace
  *   právě dívá a nepřečtené vidí v seznamu. Tak to dělá i Telegram Desktop.
  * - **Tiché hodiny a odložené chaty** jako na Androidu: oznámení přijde, jen bez zvuku.
- * - **Odznak v Docku** (macOS) je počet nepřečtených zpráv v neztlumených chatech hlavního
- *   seznamu, stejně jako odznak na iOS.
+ * - **Odznak** je počet nepřečtených zpráv v neztlumených chatech hlavního seznamu, stejně jako
+ *   na iOS: v Docku (macOS), na tlačítku okna (Windows). Viz [DesktopTaskbar].
+ * - **Tlačítko okna na Windows blikne** u oznámení se zvukem, když okno není aktivní.
  */
 actual class NotificationPresenter internal constructor(
     private val chats: ChatRepository,
@@ -89,6 +91,7 @@ actual class NotificationPresenter internal constructor(
     }
 
     private fun add(notifications: List<ChatNotification>) {
+        var attention = false
         notifications.groupBy { it.groupId }.forEach { (groupId, batch) ->
             val ids = known.getOrPut(groupId) { mutableSetOf() }
             val fresh = batch.filter { ids.add(it.notificationId) }
@@ -100,6 +103,7 @@ actual class NotificationPresenter internal constructor(
             val quiet = settings.quietHours.value.silences(newest.channel, minuteOfDay()) ||
                 snoozes?.isSleeping(newest.chatId) == true
             logger.d { "Oznámení skupiny $groupId (${fresh.size} nových), potichu=${newest.isSilent || quiet}." }
+            if (!newest.isSilent && !quiet) attention = true
             notifier.show(
                 DesktopNotification(
                     id = id(groupId, newest.notificationId),
@@ -110,10 +114,14 @@ actual class NotificationPresenter internal constructor(
                     chatId = newest.chatId,
                     topicId = newest.topicId,
                     silent = newest.isSilent || quiet,
-                    imagePath = newest.imagePath ?: newest.chatAvatarPath,
+                    imagePath = newest.imagePath,
+                    avatarPath = newest.chatAvatarPath,
+                    timestamp = newest.timestamp.toLong(),
                 ),
             )
         }
+        // Jednou za dávku, ne za každý chat.
+        if (attention) DesktopTaskbar.requestAttention()
     }
 
     private fun remove(update: NotificationUpdate.Removed) {
@@ -138,7 +146,8 @@ actual class NotificationPresenter internal constructor(
                 chatId = call.chatId,
                 topicId = null,
                 silent = false,
-                imagePath = call.avatarPath,
+                imagePath = null,
+                avatarPath = call.avatarPath,
             ),
         )
     }
@@ -147,14 +156,12 @@ actual class NotificationPresenter internal constructor(
         known.clear()
         calls.clear()
         notifier.removeAll()
-        setBadge(0)
+        DesktopTaskbar.setUnread(0)
     }
 
     @OptIn(FlowPreview::class)
     private fun startBadge() {
-        val taskbar = runCatching { Taskbar.getTaskbar() }.getOrNull()
-            ?.takeIf { it.isSupported(Taskbar.Feature.ICON_BADGE_TEXT) }
-            ?: return
+        DesktopTaskbar.start(scope)
         scope.launch {
             chats.chats(ChatFolder.Main)
                 .filterIsInstance<ChatListState.Ready>()
@@ -162,14 +169,7 @@ actual class NotificationPresenter internal constructor(
                 .distinctUntilChanged()
                 // Seznam se při startu skládá po dávkách; stačí se podívat, až se usadí.
                 .debounce(BADGE_SETTLE_MS)
-                .collect { count -> runCatching { taskbar.setIconBadge(count.takeIf { it > 0 }?.toString()) } }
-        }
-    }
-
-    private fun setBadge(count: Int) {
-        runCatching {
-            val taskbar = Taskbar.getTaskbar()
-            if (taskbar.isSupported(Taskbar.Feature.ICON_BADGE_TEXT)) taskbar.setIconBadge(count.takeIf { it > 0 }?.toString())
+                .collect(DesktopTaskbar::setUnread)
         }
     }
 

@@ -27,6 +27,7 @@ import eu.tintera.plume.core.settings.ThemeColor
 import eu.tintera.plume.core.settings.ThemeMode
 import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.telegram.AuthStage
+import eu.tintera.plume.core.ui.AppIconBadgeColors
 import eu.tintera.plume.core.ui.PrivacyCover
 import eu.tintera.plume.core.ui.SecureScreen
 import eu.tintera.plume.core.ui.forgetKnownImagePaths
@@ -100,6 +101,8 @@ fun AppRoot(content: @Composable () -> Unit) {
         Surface(Modifier.fillMaxSize()) {
             // Na iOS přehled úloh skrývá kryt nad oknem, FLAG_SECURE tam není.
             PrivacyCover(enabled = lockSettings != null, color = MaterialTheme.colorScheme.background)
+            // Desktop: odznak nepřečtených na hlavním panelu v barvách motivu.
+            AppIconBadgeColors()
             val authViewModel: AuthViewModel = koinViewModel()
             val stage by authViewModel.stage.collectAsStateWithLifecycle()
 

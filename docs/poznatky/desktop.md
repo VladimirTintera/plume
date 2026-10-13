@@ -84,10 +84,10 @@ bere `String?` a vrací `String?`. ASM je na classpath build skriptu díky AGP v
 
 TDLib notifikace vydává, dokud aplikace běží (push na desktopu není), a `NotificationPresenter`
 je předává systému přes `DesktopNotifier`: na macOS `UNUserNotificationCenter`, na Windows
-a Linuxu AWT `TrayIcon.displayMessage`.
+toasty WinRT (oddíl „Notifikace na Windows" níž), na Linuxu AWT `TrayIcon.displayMessage`.
 
 ```bash
-./gradlew :client:desktopApp:runDistributable -PdesktopDebug   # oznámení se dají zkoušet jen takhle
+./gradlew :client:desktopApp:runDistributable -PdesktopDebug   # na macOS se oznámení dají zkoušet jen takhle
 ```
 
 - **`TrayIcon.displayMessage` na macOS 26 neukáže NIC.** AWT pod ním volá zastaralé
@@ -121,16 +121,156 @@ a Linuxu AWT `TrayIcon.displayMessage`.
   vytáhne okno — i schované nebo minimalizované.
 - **Příloha oznámení je KOPIE souboru**: systém soubor přílohy přesouvá do vlastního úložiště,
   takže by z TDLib zmizel. Bere se fotka ze zprávy, jinak profilovka chatu.
-- **Zavření okna na macOS aplikaci neukončí**, jen okno schová (`visible = false`) — jinak by
-  s posledním oknem skončily i oznámení. Vrací ho ikona v Docku (`AppReopenedListener`) nebo
-  klik na oznámení, ukončuje Cmd+Q. Na Windows a Linuxu zavření zatím aplikaci ukončí.
-- **Odznak v Docku** je počet nepřečtených v neztlumených chatech hlavního seznamu
-  (`Taskbar.setIconBadge`), jako na iOS. Windows text v odznaku ikony neumí.
+- **Zavření okna na macOS a Windows aplikaci neukončí**, jen okno schová (`visible = false`) —
+  jinak by s posledním oknem skončily i oznámení. Na macOS ho vrací ikona v Docku
+  (`AppReopenedListener`), na Windows ikona v oznamovací oblasti (oddíl „Oznamovací oblast
+  a jediná instance" níž); všude klik na oznámení a další spuštění. Ukončuje Cmd+Q, resp.
+  nabídka ikony. Na Linuxu zavření aplikaci ukončí.
+- **Odznak** je počet nepřečtených v neztlumených chatech hlavního seznamu, jako na iOS: v Docku
+  text (`Taskbar.setIconBadge`), na Windows overlay na tlačítku okna (oddíl „Hlavní panel
+  Windows" níž). Obojí řídí `DesktopTaskbar`.
 - **Tiché hodiny platí** (`supportsQuietHours = true`): oznámení přijde bez zvuku.
 - **Ověřeno na macOS 26.6** (`runDistributable -PdesktopDebug`, zpráva od Notifikátora):
   banner se ukázal, klik vytáhl okno a otevřel chat. Potlačení při aktivním okně ověřené logem.
   **Neověřeno**: Windows a Linux (AWT), odznak v Docku, zavření okna a návrat z Docku,
   stažení oznámení po přečtení jinde (jen nepřímo — viz „ukradne").
+
+### Notifikace na Windows
+
+AWT `TrayIcon.displayMessage` umělo na Windows jen bublinu: nešla stáhnout po přečtení jinde,
+klik otevřel poslední zobrazenou zprávu (ne tu, na kterou se kliklo), bez profilovky, bez
+seskupení a bez tichého režimu (tiché hodiny tedy nefungovaly). Proto vlastní JNI most k toastům
+WinRT v C++/WinRT (`jvmMain/cpp/PlumeToasts.cpp`, `WindowsToasts`, `WindowsNotifier`), stejný
+přístup jako u macOS. XML toastu skládá Kotlin (`toastXml`, testy `ToastXmlTest`), most ho jen
+předá systému — co se ladí, je čistá funkce.
+
+- **Překládá ho `compileWindowsNotifications`** (MSVC z Visual Studia nebo Build Tools, najde ho
+  `vswhere`; statické CRT `/MT`, takže DLL nepotřebuje VC++ Redistributable). Bez MSVC se
+  lokálně přeskočí a oznámení půjdou přes AWT jako dřív; na CI (`CI`) je to chyba, ať release
+  nevyjde potichu bez toastů. `windows-latest` MSVC má. DLL je pro architekturu JDK, které
+  Gradle spouští (x64 / arm64), stejně jako TDLib.
+- **Bez zástupce ve Startu s AUMID Windows 11 toast NEVYKRESLÍ.** Aplikace z MSI není
+  zabalená (MSIX) a identitu si zakládá sama. Napřed jen v registru
+  (`HKCU\Software\Classes\AppUserModelId\<AUMID>` s `DisplayName`, `IconUri`,
+  `CustomActivator`, jak to popisuje Community Toolkit): `Show` prošel bez chyby, toast byl
+  v historii i v `wpndatabase.db` (`%LOCALAPPDATA%\Microsoft\Windows\Notifications`, tabulka
+  `NotificationHandler` s typem `app:desktop` a nastavením jako Chrome), ale na obrazovce ani
+  v Centru oznámení nebyl — **a nic to nehlásí**. Nepomohlo ani `SetCurrentProcessExplicitAppUserModelID`.
+  Se zástupcem nesoucím `System.AppUserModel.ID` se ukázal (rozhodnuto snímky rohu obrazovky,
+  kontrolou byl toast pod AUMID PowerShellu). Zástupce si Průzkumník indexuje pár sekund; toast
+  hned po založení se ještě nemusí ukázat.
+- **Zástupce: doplnit MSI, ne zakládat druhý.** Instalace z MSI zakládá
+  `Start Menu\Programs\Plume\Plume.lnk`; `WindowsToasts.shortcut` ho najde a nativní část mu
+  doplní `System.AppUserModel.ID` a `…ToastActivatorCLSID` (cíl nemění, zapisuje jen při rozdílu).
+  Aktualizace MSI zástupce přepíše a aplikace ho při dalším startu doplní znovu. Bez MSI
+  (rozbalená distribuce) vznikne `Programs\Plume.lnk`, ladicí běh má `Plume (debug).lnk` s cílem
+  `java.exe` — spustit z něj aplikaci nejde, je jen nositel identity.
+- **AUMID procesu se nastavuje stejný jako na zástupci, a to DŘÍV, než vznikne okno**
+  (`nativeInit` běží ze `startKoin` přes presenter, okno až potom). Okno bez něj by neslo
+  implicitní AUMID podle cesty k exe, jiný než zástupce, a na hlavním panelu by se rozešlo
+  s připnutou ikonou. Ikona připnutá před touhle verzí AUMID nemá — může se ukázat dvakrát,
+  než ji uživatel připne znovu. **Ladicí běh AUMID procesu NEnastavuje:** okno se zástupcovým
+  AUMID dostane na hlavním panelu ikonu ZÁSTUPCE, ne svou — a ladicí zástupce míří na
+  `java.exe`, takže tam byl Duke. Toastům AUMID procesu nechybí, stačí jim zástupce.
+- **Registr zůstává taky** (`DisplayName`, `IconUri`, `CustomActivator`): nese název a ikonu
+  v nastavení oznámení a CLSID aktivátoru.
+- **Klik doručuje COM třída** (`INotificationActivationCallback`, CLSID z `CustomActivator`),
+  zaregistrovaná `CoRegisterClassObject` ve vlastním vlákně, které drží MTA naživu. Windows ji
+  zavolá na vlákně RPC s atributem `launch` z XML (`chat=…&topic=…`). Když aplikace neběží,
+  spustí příkaz z `HKCU\Software\Classes\CLSID\{…}\LocalServer32` — `Plume.exe -ToastActivated`
+  (jen zabalená aplikace; holý `java` z ladicího běhu se znovu spustit nedá). Kliknutí, které
+  přijde dřív, než si ho presenter převezme, počká (`WindowsToasts.pending`).
+- **CLSID se NESMÍ MĚNIT** — toasty v Centru oznámení z předchozí verze by po aktualizaci nešly
+  otevřít. Ladicí běh má vlastní AUMID (`eu.tintera.plume.debug`, v nastavení „Plume (debug)")
+  i CLSID, ať nepřepisuje registraci nainstalované aplikace.
+- **`ToastNotifier.Setting` u nezabalené aplikace nevěřit** (bez zástupce vrátil
+  `ERROR_NOT_FOUND`, ověřeno na Windows 11). Stav povolení se proto čte z registru, kam ho zapisuje Nastavení →
+  Systém → Oznámení: `…\Notifications\Settings\<AUMID>\Enabled = 0` (vypnuto pro Plume)
+  a `…\PushNotifications\ToastEnabled = 0` (vypnuto všechno). Windows se na povolení neptá,
+  takže úvodní dialog s vysvětlením se tu neukazuje.
+- **Historie toastů chce u nezabalené aplikace AUMID** (`History.Remove(tag, group, aumid)`,
+  `Clear(aumid)`); přetížení bez něj platí jen pro MSIX. Skupina je jedna pro všechno (`plume`),
+  protože presenter při rušení zná jen id; seskupení po chatech nese `<header>` v XML.
+- **Tag smí mít nejvýš 64 znaků** — `g<groupId>-n<notificationId>` se vejde i s maximálními int.
+- **Nevalidní XML odmítne `LoadXml` celé** (`0xC00CE553`) a toast se neukáže. Proto `toastXml`
+  escapuje i apostrof a vyhazuje řídicí znaky, které XML 1.0 nepřipouští.
+- **Obrázky jsou `file:///C:/…`** (`Path.toUri`; `File.toURI` dává jen jedno lomítko). Fotka ze
+  zprávy jde pod text, profilovka chatu jako kulatá ikona (`appLogoOverride`, `hint-crop`).
+  Kopie souboru jako na macOS potřeba není — Windows soubor nepřesouvá.
+- **DLL a ikona se rozbalují do dat aplikace** (`native/plumenotifications.dll`,
+  `notification-icon.png`), ne do TEMPu: nahranou DLL Windows smazat nedovolí, `deleteOnExit`
+  by nezabralo a v TEMPu by s každým spuštěním přibyla kopie. Přepisují se jen, když se liší.
+- **Odinstalace MSI klíče v registru nemaže** (zapisuje je aplikace, ne instalátor). Neškodí:
+  bez aplikace je nikdo nečte.
+- **Historie toastů NEDOKAZUJE, že se toast ukázal** (viz zástupce výš). Vypsat jde
+  z PowerShellu (`[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null`,
+  pak `[Windows.UI.Notifications.ToastNotificationManager]::History.GetHistory('eu.tintera.plume.debug')`)
+  a hodí se na tag, XML a stažení. Jestli toast opravdu vidět je, rozhodne až oko nebo snímek.
+- **Testovací zprávy botem: diakritiku posílat ze souboru** (`--data-urlencode "text@soubor"`).
+  Z příkazové řádky Git Bashe na Windows dorazí do `curl` v jiném kódování a Bot API odpoví
+  „strings must be encoded in UTF-8".
+- **Ověřeno na Windows 11** (ladicí běh, zprávy od testovacího bota): toast se zobrazí s názvem
+  chatu a fotkou ze zprávy, tichá zpráva má `<audio silent="true"/>` (`potichu=true` v logu),
+  klik otevře chat (`Klik na oznámení` v logu), přečtení na telefonu toast do 2 s stáhne. Zpráva
+  v chatu otevřeném v Plume oznámení nevydá vůbec (TDLib ji odloží a zruší). Nevalidní XML
+  vrátí HRESULT místo pádu. **Neověřeno**: spuštění zavřené aplikace kliknutím na toast (jen
+  instalace z MSI, `LocalServer32`), doplnění AUMID do zástupce z MSI, zvuk (ověřen jen atribut
+  v XML), vytažení okna dopředu, když je jiná aplikace v popředí.
+
+## Hlavní panel Windows
+
+Počet nepřečtených a upozornění na novou zprávu na tlačítku okna (`DesktopTaskbar`). Stačí na
+to AWT `Taskbar`: na Windows umí `ICON_BADGE_IMAGE_WINDOW` (`ITaskbarList3::SetOverlayIcon`)
+a `USER_ATTENTION_WINDOW` (`FlashWindowEx`); `ICON_BADGE_TEXT` ani `ICON_BADGE_NUMBER` ne.
+
+- **Overlay nastavený dřív, než vznikne tlačítko, Windows TIŠE ZAHODÍ.** Tlačítko vzniká chvíli
+  po ukázání okna (zpráva `TaskbarButtonCreated`, kterou AWT ven nepustí). Hned po startu se
+  odznak neukázal, za 1,5 s ano — ověřeno zkouškou na holém `JFrame` s AUMID procesu i bez
+  něj. Po každém ukázání okna (start, návrat z oznamovací oblasti) se proto 1,5 s čeká;
+  schované okno tlačítko nemá a overlay s ním zaniká.
+- **Obrázek kreslíme sami, v pixelech podle měřítka obrazovky** (16 bodů × `scaleX`):
+  zmenšený větší obrázek by měl rozmazané číslice. Nad 99 „99+". Písmo je Segoe UI (systém),
+  ne písmo aplikace — odznak patří k hlavnímu panelu.
+- **Barvy jsou `error` / `onError` motivu** (`AppIconBadgeColors`, prázdné `expect` na
+  Androidu a iOS, kde odznak kreslí systém). Overlay se kreslí mimo Compose, takže barvy
+  předává composable uvnitř `AppTheme`; do první kompozice motivu se overlay nekreslí.
+- **Blikání jen u oznámení se zvukem a jen u viditelného okna bez fokusu.** Tiché hodiny, tichá
+  zpráva i odložený chat neblikají — „potichu" znamená nerušit. Schované okno tlačítko nemá,
+  upozorní toast. Bliká se jednou za dávku, ne za každý chat.
+- **Ověřeno na Windows 11** (ladicí běh, snímky hlavního panelu): odznak „1" naskočil po
+  startu, zpráva od bota ho zvedla na „2" a tlačítko se rozblikalo.
+
+## Oznamovací oblast a jediná instance
+
+Na Windows zavření okna schová aplikaci do oznamovací oblasti (`DesktopTrayIcon`,
+`desktopClosesToTray`), jako Telegram Desktop. Bez toho by s oknem skončily i toasty.
+
+- **Vlastní AWT `TrayIcon`, ne `Tray` z Compose.** `Tray` hlásí jen `ActionListener`, a ten na
+  Windows znamená DVOJKLIK; ikona se tam ale otevírá jedním kliknutím. Nabídka je AWT
+  `PopupMenu` (jinou `TrayIcon` neumí, `Tray` ji má taky). Popisky se mění s jazykem aplikace
+  bez nové ikony (`setLabels`).
+- **Jen Windows.** macOS má Dock a Linux oznamovací oblast mít nemusí (GNOME bez rozšíření)
+  — schované okno by nešlo vrátit. Linux dál
+  zavřením končí. AWT notifikace (`TrayNotifier`, Linux a Windows bez knihovny toastů) bere
+  ikonu aplikace, je-li, ať v oblasti nevisí dvě.
+- **Jediná instance** (`DesktopInstance`, volá se jako úplně první věc v `main`). S aplikací
+  v oznamovací oblasti se ze Startu spouští znovu běžně a druhý proces by narazil na zamčenou
+  databázi TDLib. Druhý proces požádá první o okno a skončí. Zámek je `FileLock`
+  (`instance.lock` v datech aplikace) — ten po pádu uvolní systém, kdežto pouhá existence
+  souboru by po pádu blokovala navždy. Žádost jde po loopbacku na port z `instance.port`
+  s náhodným tokenem: port vidí každý místní proces, token jen uživatel s přístupem k datům.
+  Ladicí běh má jiný adresář dat, takže vedle instalace běžet může.
+- **Okno vytažené na žádost druhé instance dostane fokus** (ověřeno: `GetForegroundWindow` po
+  druhém spuštění). Windows ho povolí, protože popředí právě drží spouštěný proces.
+- **Schované nebo minimalizované okno = aplikace v pozadí** (`AppForeground` = `DesktopWindow.shown`;
+  dřív desktop hlásil popředí pořád). Volba `online` se vypne — server nás přestane vidět online
+  a telefon zase upozorňuje (TDLib oznámení odkládá, dokud je účet online jinde) — zámek
+  aplikace se po zvolené době zamkne a návrat do popředí obnoví spojení jako na Androidu
+  (v logu „Návrat do popředí, obnovuji spojení"). Fokus o popředí nerozhoduje, jen
+  o oznámeních: okno vedle jiného je pořád vidět. Platí i pro macOS (schování do Docku).
+- **Ověřeno na Windows 11** (ladicí běh): `WM_CLOSE` okno schová a proces běží dál, druhé
+  spuštění skončí za pár sekund a okno první instance je vidět a v popředí, návrat do popředí
+  v logu. **Neověřeno**: macOS (popředí podle schovaného okna), instalace z MSI.
 
 ## Release (Windows)
 
