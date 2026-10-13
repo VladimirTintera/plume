@@ -183,6 +183,25 @@ uprostřed hlasového hovoru, vypnutá a znovu zapnutá, přepnutí kamery, kame
   později ho nezmění — na chování to vliv nemá.
 - **Přijetí videohovoru** se ptá na kameru i mikrofon (`rememberVideoNotePermission`);
   kdo kameru nepovolí, přijme bez ní — protistranu vidí, ona jeho ne.
+- **Obraz v obraze** (`rememberCallPictureInPicture` v `core/calls`): po odchodu z aplikace
+  jde videohovor do okénka sám, **jen dokud je v hovoru obraz** (naše kamera, nebo
+  protistrany) — hlasovému hovoru stačí notifikace. V okénku je jen obraz protistrany (bez ní
+  náš), poměr stran podle jejích snímků (`CallVideo.onAspectRatio`, do prvního snímku 9 : 16).
+  Akce pod okénkem: ztlumit / zapnout mikrofon a zavěsit (`RemoteAction`, ikony
+  `ic_pip_mic*`, `ic_pip_hang_up` v prostředcích Androidu).
+  - **Stejný mechanismus jako u videa v prohlížeči** (`docs/poznatky/prohlizec-medii.md`,
+    „Obraz v obraze"): do okénka jde celá aktivita, `CallOverlay` v něm místo všeho kreslí jen
+    obraz. Parametry jsou jedny na aktivitu — **zavřený prohlížeč médií vypne automatiku
+    i hovoru**, dokud se stav hovoru nezmění (v roadmapě).
+  - **Konec hovoru okénko zavře** (`moveTaskToBack`): v okénku by zbylo „Hovor skončil".
+    Totéž, když obraz zmizí (obě kamery vypnuté).
+  - **Před spojením je okénko černé**: vlastní kamera dává snímky až po spojení (viz roadmapa).
+  - **Ověřeno na Pixelu 5** (Plume ↔ Plume): Domů během videohovoru otevře okénko
+    (`mode=pinned` v `dumpsys activity activities`) s obrazem protistrany, ztlumení z okénka
+    tam i zpět (ikona se překreslí), zavěšení z okénka okénko zavře a uvolní kamery na obou
+    stranách, návrat z okénka do aplikace. **Nabídka okénka se ukáže ťuknutím a za pár vteřin
+    zmizí** — při ověřování se ťuká na okénko a hned na akci jedním `adb shell "…; sleep 0.7; …"`,
+    akce leží dole v okénku (`mBounds` úlohy).
 - **Při ladění logu: `grep` do souboru jen s `--line-buffered`.** Bez něj se poslední řádky
   do souboru nedostanou a vypadá to, že se nic nestalo (tak to vypadalo s přepnutím kamery).
 

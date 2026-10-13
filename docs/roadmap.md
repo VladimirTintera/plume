@@ -458,8 +458,9 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    zvuku"). Změna sítě a systémový telefon taky (`docs/poznatky/hovory.md`, „Změna sítě
    za hovoru", „Systémový telefon"). Videohovory taky (`docs/poznatky/hovory.md`,
    „Videohovory"). Zbývá na Androidu:
-   - **Obraz v obraze** pro videohovor po odchodu z aplikace (kamera i obraz protistrany na
-     pozadí běží, jen nejsou vidět).
+   - **Okénko videohovoru po prohlížení videa**: zavřený prohlížeč médií vypne automatický
+     přechod do okénka i hovoru (parametry PiP jsou jedny na aktivitu), dokud se stav hovoru
+     nezmění (`docs/poznatky/hovory.md`, „Obraz v obraze").
    - **Náhled vlastní kamery už při vytáčení** — snímky dává knihovna až po spojení.
    - **Videohovor z obrazovky konverzace** (dnes jen z nabídky profilu) a zpětné volání
      ťuknutím na zprávu o hovoru.

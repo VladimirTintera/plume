@@ -1,7 +1,9 @@
 package eu.tintera.plume.core.calls
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import org.koin.compose.koinInject
@@ -16,8 +18,9 @@ import org.webrtc.TextureViewRenderer
  * oříznou), jinak orientovaný se vejde celý — z videa na šířku by na výšku zbyl úzký střed.
  */
 @Composable
-actual fun CallVideo(source: CallVideoSource, mirror: Boolean, modifier: Modifier) {
+actual fun CallVideo(source: CallVideoSource, mirror: Boolean, modifier: Modifier, onAspectRatio: (Float) -> Unit) {
     val sinks = koinInject<CallMedia>() as? CallVideoSinks ?: return
+    val aspectRatio by rememberUpdatedState(onAspectRatio)
     key(source) {
         AndroidView(
             factory = { context ->
@@ -31,7 +34,10 @@ actual fun CallVideo(source: CallVideoSource, mirror: Boolean, modifier: Modifie
                             override fun onFrameResolutionChanged(width: Int, height: Int, rotation: Int) {
                                 val rotated = rotation % 180 != 0
                                 val frameLandscape = if (rotated) height > width else width > height
+                                val shownWidth = if (rotated) height else width
+                                val shownHeight = if (rotated) width else height
                                 renderer.post {
+                                    if (shownWidth > 0 && shownHeight > 0) aspectRatio(shownWidth.toFloat() / shownHeight)
                                     val viewLandscape = renderer.width > renderer.height
                                     renderer.setScalingType(
                                         if (frameLandscape == viewLandscape) {
