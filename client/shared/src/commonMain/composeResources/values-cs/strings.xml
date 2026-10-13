@@ -2932,4 +2932,27 @@
     <string name="passkey_remove_text">Tímhle klíčem se pak do Telegramu nepřihlásíš. Ve správci hesel zůstane, smaž ho tam zvlášť.</string>
     <string name="passkey_remove_confirm">Odebrat</string>
     <string name="passkey_remove_failed">Klíč se nepodařilo odebrat.</string>
+    <string name="birthdate_row">Datum narození</string>
+    <string name="birthdate_none">Neuvedeno</string>
+    <string name="birthdate_show_year">Ukazovat rok</string>
+    <string name="birthdate_privacy_hint">Kdo datum uvidí, nastavíš v Soukromí účtu.</string>
+    <string name="birthdate_remove">Odebrat</string>
+    <string name="birthdate_done">Hotovo</string>
+    <string name="birthdate_with_age">%1$s (%2$s)</string>
+    <plurals name="birthdate_age">
+        <item quantity="one">%1$d rok</item>
+        <item quantity="few">%1$d roky</item>
+        <item quantity="other">%1$d let</item>
+    </plurals>
+    <string name="birthdays_title">Narozeniny</string>
+    <string name="birthdays_hide">Schovat narozeniny</string>
+    <string name="birthday_today">Dnes má narozeniny</string>
+    <string name="birthday_tomorrow">Zítra má narozeniny</string>
+    <string name="birthday_yesterday">Narozeniny byly včera</string>
+    <string name="birthday_today_age">Dnes slaví %1$d. narozeniny</string>
+    <string name="birthday_tomorrow_age">Zítra slaví %1$d. narozeniny</string>
+    <string name="birthday_yesterday_age">Včera byly %1$d. narozeniny</string>
+    <string name="suggestion_birthdate_title">Přidej datum narození</string>
+    <string name="suggestion_birthdate_text">Kontakty ho uvidí a můžou ti popřát.</string>
+    <string name="suggestion_birthdate_action">Přidat</string>
 </resources>

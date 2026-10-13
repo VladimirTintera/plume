@@ -379,6 +379,53 @@ nad seznamem chatů („Přidej přihlašovací e-mail", `AppScreen.LoginEmail`)
   v Soukromí; bez akce a bez e-mailu se řádek neukáže. **Skutečné odeslání kódu a potvrzení
   ověřené NENÍ** — měnilo by přihlašovací e-mail skutečného účtu.
 
+## Narozeniny
+
+Tři místa: vlastní datum v úpravě profilu (`BirthdateRows`, `BirthdatePicker.kt`), datum
+v profilu druhého uživatele (`ChatProfile.birthdate`, řádek „Datum narození" s věkem) a karta
+„Narozeniny" nahoře v hlavním seznamu chatů (`BirthdaysCard`). Doménový typ `Birthdate`
+(`core/telegram/Birthdays.kt`) nese i výpočty, testy `BirthdateTest`.
+
+- **Rok je nepovinný** (TDLib `year = 0`, u nás `null`). Bez roku se věk nikde neukazuje.
+  V úpravě profilu je to volba „Ukazovat rok" POD řádkem s datem: kalendář M3 rok mít musí,
+  takže se vybírá celé datum a rok se při uložení zahodí (`birthdateToSave`). **Vypnutí rok jen
+  schová, nezapomene** — zapnutí ho vrátí. Datum uložené bez roku se otevře s vypnutou volbou;
+  zapnout ji jde jen výběrem roku v kalendáři (volba ho otevře).
+- **Volba roku NENÍ v dialogu s kalendářem.** Obsah `DatePickerDialog` leží v `Box` s omezenou
+  výškou: řádek pod kalendářem se napřed kreslil přes jeho hlavičku, a když dostal vlastní
+  sloupec, kalendář se stlačil a první týden přejel přes názvy dnů (obojí ověřené na emulátoru).
+  Posuvný sloupec nejde — výběr roku uvnitř kalendáře je líná mřížka a v posuvném sloupci by
+  spadl na nekonečnou výšku.
+- **Kalendář počítá v milisekundách UTC**; datum se převádí přes půlnoc UTC, jinak by den podle
+  časového pásma uskočil. Budoucí data vybrat nejde (`SelectableDates`).
+- **Ukládá se tlačítkem Uložit** jako jméno a bio (`setBirthdate`, `null` = odebrat). Kdo datum
+  uvidí, řídí soukromí (`PrivacySetting.Birthdate`, hotové dřív) — věta pod volbou roku na to
+  odkazuje.
+- **Narození 29. února slaví v nepřestupném roce 28. února** (`Birthdate.inYear`), jinak by
+  tři roky ze čtyř narozeniny neměli.
+- **Karta narozenin: `updateContactCloseBirthdays`** (kontakty se narozeninami včera, dnes,
+  zítra) drží eagerní `AccountNotices.closeBirthdays` — TDLib seznam pošle po startu a pak jen
+  při změně. Jméno a fotka se dočítají `getUser`. Řadí se dnes → zítra → včera (co jde ještě
+  stihnout, je nahoře). Věk je ten, který slaví v nejbližších narozeninách (`turningOn`), takže
+  „Včera byly 46. narozeniny" platí i přes Nový rok.
+- **Texty se vyhýbají rodu**: „Dnes má narozeniny", „Narozeniny byly včera", „Dnes slaví 30.
+  narozeniny" — „měl/měla" by vyžadovalo pohlaví, které Telegram nezná.
+- **Lidé v kartě stojí na dlaždicích `surfaceContainerLowest`**, ne přímo na `tertiaryContainer`
+  karty: barvy avatarů jsou container role včetně `tertiaryContainer`, takže avatar v barvě karty
+  zmizel (ověřeno na emulátoru, z „PS" zůstala jen písmena).
+- **Ťuknutí na člověka otevře chat** přes `privateChat` (lokálně založí chat, který TDLib nemusí
+  znát); **křížek schová kartu na 24 hodin na serveru** (`hideContactCloseBirthdays`) — platí
+  i v ostatních klientech. Kartu pak odebere až update od TDLib.
+- **Karta stojí nad doporučenou akcí**: platí jen dnes, rada počká. Doporučená akce „Přidej datum
+  narození" (`SuggestedAction.SetBirthdate`) se teď nabízí a vede do úpravy profilu.
+- **Ověřeno**: `BirthdateTest` (věk, 29. únor, dnes/zítra/včera přes Nový rok, kolik slaví),
+  `EditProfileBirthdateTest` (rok se schová a vrátí, uloží se bez roku, odebrání); na emulátoru
+  výběr data a volba roku v úpravě profilu (**neuloženo**), a **se sondou** (podstrčené
+  narozeniny tří kontaktů, doporučená akce a datum v profilu) karta, „Přidat" do úpravy profilu
+  a řádek „24. prosince 1985 (40 let)". **Skutečný update s narozeninami kontaktů, uložení data,
+  ťuknutí na člověka v kartě ani křížek vyzkoušené NEJSOU** — testovací účet narozeniny kontaktů
+  nehlásí a uložení i schování by měnilo skutečný účet.
+
 ## Změna telefonního čísla
 
 Úprava profilu → „Telefonní číslo" (`ChangePhoneScreen`, `ChangePhoneRoute` nad `EditProfileRoute`):

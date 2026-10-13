@@ -2849,4 +2849,26 @@
     <string name="passkey_remove_text">You won't be able to sign in to Telegram with it any more. It stays in your password manager; delete it there separately.</string>
     <string name="passkey_remove_confirm">Remove</string>
     <string name="passkey_remove_failed">Couldn't remove the passkey.</string>
+    <string name="birthdate_row">Birthday</string>
+    <string name="birthdate_none">Not set</string>
+    <string name="birthdate_show_year">Show year</string>
+    <string name="birthdate_privacy_hint">Who sees your birthday is set in Account privacy.</string>
+    <string name="birthdate_remove">Remove</string>
+    <string name="birthdate_done">Done</string>
+    <string name="birthdate_with_age">%1$s (%2$s)</string>
+    <plurals name="birthdate_age">
+        <item quantity="one">%1$d year old</item>
+        <item quantity="other">%1$d years old</item>
+    </plurals>
+    <string name="birthdays_title">Birthdays</string>
+    <string name="birthdays_hide">Hide birthdays</string>
+    <string name="birthday_today">Birthday today</string>
+    <string name="birthday_tomorrow">Birthday tomorrow</string>
+    <string name="birthday_yesterday">Birthday was yesterday</string>
+    <string name="birthday_today_age">Turns %1$d today</string>
+    <string name="birthday_tomorrow_age">Turns %1$d tomorrow</string>
+    <string name="birthday_yesterday_age">Turned %1$d yesterday</string>
+    <string name="suggestion_birthdate_title">Add your birthday</string>
+    <string name="suggestion_birthdate_text">Contacts will see it and can wish you a happy birthday.</string>
+    <string name="suggestion_birthdate_action">Add</string>
 </resources>

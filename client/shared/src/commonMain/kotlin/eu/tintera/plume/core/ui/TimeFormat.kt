@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.ui
 
 import androidx.compose.runtime.Composable
+import eu.tintera.plume.core.telegram.Birthdate
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.date_day_month
 import eu.tintera.plume.resources.date_day_month_year
@@ -301,4 +302,12 @@ internal fun Month.name(): StringResource = when (this) {
     Month.OCTOBER -> Res.string.month_10
     Month.NOVEMBER -> Res.string.month_11
     else -> Res.string.month_12
+}
+
+/** Datum narození: „12. října 1990", bez roku „12. října". */
+@Composable
+fun Birthdate.label(): String {
+    val monthName = stringResource(Month(month).name())
+    return year?.let { stringResource(Res.string.date_day_month_year, day, monthName, it) }
+        ?: stringResource(Res.string.date_day_month, day, monthName)
 }

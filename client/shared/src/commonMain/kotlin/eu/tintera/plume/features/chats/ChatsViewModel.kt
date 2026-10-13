@@ -61,6 +61,7 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_action_failed
 import eu.tintera.plume.core.telegram.AccountFreeze
+import eu.tintera.plume.core.telegram.CloseBirthday
 import eu.tintera.plume.core.telegram.AccountNotices
 import eu.tintera.plume.core.telegram.SuggestedAction
 import eu.tintera.plume.core.telegram.TelegramSession
@@ -508,6 +509,32 @@ class ChatsViewModel(
             ?.map { it.firstOrNull() }
             ?.stateIn(viewModelScope, SharingStarted.Eagerly, accountNotices.suggestedActions.value.firstOrNull())
             ?: MutableStateFlow(null)
+
+    /** Narozeniny kontaktů (včera, dnes, zítra) — karta nahoře v hlavním seznamu, v archivu ne. */
+    val birthdays: StateFlow<List<CloseBirthday>> =
+        accountNotices?.closeBirthdays?.takeIf { folder == ChatFolder.Main } ?: MutableStateFlow(emptyList())
+
+    /** Křížek na kartě narozenin: schovat na 24 hodin, na serveru (platí i v jiných klientech). */
+    fun hideBirthdays() {
+        val notices = accountNotices ?: return
+        viewModelScope.launch {
+            notices.hideCloseBirthdays().onFailure { failure ->
+                _actions.value = ChatActionsState(error = failure.userMessage(Res.string.suggestion_failed))
+            }
+        }
+    }
+
+    /**
+     * Chat s kontaktem z karty narozenin. TDLib ho nemusí znát (nikdy se nepsalo), proto
+     * `privateChat` — založí ho lokálně, nic se neposílá.
+     */
+    fun openPrivateChat(userId: Long, onReady: (Long) -> Unit) {
+        viewModelScope.launch {
+            repository.privateChat(userId)
+                .onSuccess(onReady)
+                .onFailure { failure -> _actions.value = ChatActionsState(error = failure.userMessage(Res.string.suggestion_failed)) }
+        }
+    }
 
     /** Telefon účtu pro „Je … pořád tvoje číslo?", naformátovaný jako v Telegramu. */
     val accountPhone: StateFlow<String?> = accounts.account

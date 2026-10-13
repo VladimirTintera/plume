@@ -2,6 +2,7 @@ package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.telegram.AppScreen
 import eu.tintera.plume.core.telegram.SuggestedAction
+import eu.tintera.plume.features.notices.BirthdaysCard
 import eu.tintera.plume.features.notices.SuggestedActionCard
 import eu.tintera.plume.features.notices.rememberNoticeLinkOpener
 import eu.tintera.plume.features.notices.FrozenAccountCard
@@ -305,6 +306,7 @@ fun ChatListScreen(
     val updateCard by viewModel.updateCard.collectAsStateWithLifecycle()
     val freeze by viewModel.freeze.collectAsStateWithLifecycle()
     val suggestion by viewModel.suggestion.collectAsStateWithLifecycle()
+    val birthdays by viewModel.birthdays.collectAsStateWithLifecycle()
     val accountPhone by viewModel.accountPhone.collectAsStateWithLifecycle()
     val openNoticeLink = rememberNoticeLinkOpener()
     val unconfirmedLogin by viewModel.unconfirmedLogin.collectAsStateWithLifecycle()
@@ -538,7 +540,7 @@ fun ChatListScreen(
                     onScrolledToChat = { scrollToChat = null },
                     listState = listState,
                     // Položky hlavičky: nové přihlášení a karta s aktualizací.
-                    headerItemCount = listOfNotNull(freeze, unconfirmedLogin, suggestion, updateCard, newFolderChats).size,
+                    headerItemCount = listOfNotNull(freeze, unconfirmedLogin, birthdays.takeIf { it.isNotEmpty() }, suggestion, updateCard, newFolderChats).size,
                     empty = {
                         /*
                          * Prázdná SLOŽKA je jiný stav než prázdný účet: chaty jsou, jen ne tyhle (třeba
@@ -586,6 +588,17 @@ fun ChatListScreen(
                             )
                         }
                     }
+                    // Narozeniny před radou: platí jen dnes (a včera, zítra), rada počká.
+                    if (birthdays.isNotEmpty()) {
+                        item(key = BIRTHDAYS_KEY, contentType = BIRTHDAYS_KEY) {
+                            BirthdaysCard(
+                                birthdays = birthdays,
+                                onOpen = { userId -> viewModel.openPrivateChat(userId, onChatClick) },
+                                onHide = viewModel::hideBirthdays,
+                                modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
+                            )
+                        }
+                    }
                     // Za přihlášením: rada od Telegramu je méně naléhavá než cizí zařízení v účtu.
                     suggestion?.let { action ->
                         item(key = SUGGESTION_KEY, contentType = SUGGESTION_KEY) {
@@ -598,7 +611,7 @@ fun ChatListScreen(
                                             viewModel.hideSuggestion(action)
                                         is SuggestedAction.SetPassword -> onOpenScreen(AppScreen.TwoStepVerification)
                                         is SuggestedAction.SetLoginEmail -> onOpenScreen(AppScreen.LoginEmail)
-                                        SuggestedAction.SetProfilePhoto -> onOpenScreen(AppScreen.EditProfile)
+                                        SuggestedAction.SetProfilePhoto, SuggestedAction.SetBirthdate -> onOpenScreen(AppScreen.EditProfile)
                                         SuggestedAction.ArchiveUnknownChats -> viewModel.enableArchiveUnknownChats(action)
                                         is SuggestedAction.Custom -> openNoticeLink(action.url)
                                     }
@@ -1996,6 +2009,7 @@ private val REORDER_AVATAR_SIZE = 40.dp
 private const val UPDATE_CARD_KEY = "update-card"
 private const val FROZEN_ACCOUNT_KEY = "frozen-account"
 private const val SUGGESTION_KEY = "suggested-action"
+private const val BIRTHDAYS_KEY = "close-birthdays"
 private const val NEW_FOLDER_CHATS_KEY = "new-folder-chats"
 private const val UNCONFIRMED_LOGIN_KEY = "unconfirmed-login"
 

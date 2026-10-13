@@ -270,6 +270,13 @@ fun EditProfileScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
+                BirthdateRows(
+                    value = viewModel.birthdate,
+                    shown = viewModel.birthdateToSave,
+                    showYear = viewModel.showBirthYear,
+                    onChange = { viewModel.birthdate = it },
+                    onShowYearChange = { viewModel.showBirthYear = it },
+                )
                 PhoneNumberRow(onClick = onChangePhone)
             }
         }
