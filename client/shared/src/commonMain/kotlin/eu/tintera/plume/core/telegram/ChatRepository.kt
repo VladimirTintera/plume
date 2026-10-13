@@ -123,6 +123,12 @@ interface ChatRepository {
     suspend fun privateChat(userId: Long): Result<Long>
 
     /**
+     * Chat s podporou Telegramu (`getSupportUser`) — dobrovolníci, kteří odpovídají na otázky
+     * k Telegramu. Založí se lokálně jako [privateChat], nic se neposílá.
+     */
+    suspend fun supportChat(): Result<Long> = Result.failure(UnsupportedOperationException())
+
+    /**
      * Nový tajný chat s uživatelem; vrací jeho id. Každé volání založí NOVÝ — tajný chat patří
      * k jednomu zařízení na každé straně a starý se neobnovuje.
      */

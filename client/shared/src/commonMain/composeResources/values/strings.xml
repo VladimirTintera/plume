@@ -2951,4 +2951,15 @@
     <string name="notif_sound_delete_title">Delete sound “%1$s”?</string>
     <string name="notif_sound_delete_text">It disappears from all devices of your account.</string>
     <string name="notif_sound_delete_confirm">Delete</string>
+    <string name="settings_help">Help</string>
+    <string name="settings_ask_question">Ask a question</string>
+    <string name="settings_ask_question_summary">Chat with Telegram support</string>
+    <string name="settings_faq">Telegram FAQ</string>
+    <string name="settings_faq_summary">Answers to common questions about Telegram</string>
+    <string name="ask_question_title">Ask Telegram support?</string>
+    <string name="ask_question_text">Telegram support is run by volunteers. They answer as soon as they can, but most questions are already answered in the FAQ.</string>
+    <string name="ask_question_plume">Plume is an unofficial app — Telegram support can't help with Plume itself.</string>
+    <string name="ask_question_confirm">Ask</string>
+    <string name="ask_question_faq">FAQ</string>
+    <string name="ask_question_failed">Couldn't open the support chat.</string>
 </resources>

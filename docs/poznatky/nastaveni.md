@@ -306,6 +306,24 @@ převádí platforma (`ProfileVideo`).
   cestou. **Vlastní profil a založení chatu s videem ověřené nejsou** (mění skutečný účet /
   zakládají další chat), jdou ale stejnou cestou.
 
+## Pomoc: Zeptat se a časté dotazy
+
+Pod sekcemi v kořeni Nastavení je blok „Pomoc" (`HelpGroup`): „Zeptat se" otevře chat
+s podporou Telegramu (`ChatRepository.supportChat` = `getSupportUser` + lokální
+`createPrivateChat`, nic se neposílá), „Časté dotazy k Telegramu" otevře `telegram.org/faq`
+v prohlížeči (`UrlOpener`).
+
+- **Před chatem dialog**: podporu dělají dobrovolníci Telegramu a na většinu otázek je odpověď
+  v častých dotazech (tak to říkají i oficiální klienti) — a **Plume je neoficiální aplikace,
+  s ní podpora Telegramu neporadí**. Bez té věty by se tam uživatel ptal na chyby Plume.
+- Podporou je pro testovací účet bot „Volunteer Support" s interaktivními častými dotazy
+  (ověřeno na emulátoru, „Spustit" nestisknuto). Kdo dostane živého dobrovolníka, rozhoduje
+  server.
+- Text dialogu jsou DVA řetězce (dva odstavce), ne jeden s `\n\n`: projekt `\n` v textech
+  nepoužívá a že ho Compose Resources rozbalí, ověřené není.
+- Odkazy `tg://settings/ask_question` a `…/faq` dál otevírají Nastavení na kořeni — blok Pomoc je
+  tam vidět.
+
 ## Dvoufázové ověření
 
 Nastavení → Obecné → Soukromí → Dvoufázové ověření (poslední řádek bloku, „Zapnuto" /

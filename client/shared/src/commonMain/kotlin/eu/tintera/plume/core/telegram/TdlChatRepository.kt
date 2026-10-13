@@ -954,6 +954,11 @@ class TdlChatRepository(
     override suspend fun chatByUsername(username: String): Result<Long> =
         client.searchPublicChat(username = username).toResult().map { it.id }
 
+    override suspend fun supportChat(): Result<Long> =
+        client.getSupportUser().toResult()
+            .onFailure { logger.w(it) { "Uživatele podpory se nepodařilo zjistit." } }
+            .mapCatching { user -> client.createPrivateChat(userId = user.id, force = false).toResult().getOrThrow().id }
+
     override suspend fun privateChat(userId: Long): Result<Long> =
         client.createPrivateChat(userId = userId, force = false).toResult().map { it.id }
 

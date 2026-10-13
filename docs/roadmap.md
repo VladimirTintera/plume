@@ -367,7 +367,7 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - ~~Zvuky notifikací z Telegramu~~ — hotovo pro rozsahy (`docs/poznatky/notifikace.md`, „Zvuky
   z Telegramu"); zbývá výběr zvuku jednoho chatu v profilu. **Notifikace reakcí NEJDOU**: TDLib je
   neumí (push `REACT_*` odmítne, kód je zakomentovaný) a zašifrovaný push si Plume nepřečte.
-- Podpora — „Zeptat se" (`getSupportUser`).
+- ~~Podpora — „Zeptat se"~~ — hotovo (Nastavení → Pomoc, i časté dotazy; `docs/poznatky/nastaveni.md`).
 
 **Konverzace a hledání:**
 
