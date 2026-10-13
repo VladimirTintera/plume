@@ -27,7 +27,8 @@ import kotlinx.datetime.toLocalDateTime
 
 /**
  * Notifikace na desktopu: TDLib je vydává, dokud aplikace běží (push tu není), a presenter je
- * předává systému přes [DesktopNotifier] — na macOS `UNUserNotificationCenter`, jinde AWT.
+ * předává systému přes [DesktopNotifier] — na macOS `UNUserNotificationCenter`, na Windows
+ * toasty WinRT, na Linuxu AWT.
  *
  * - **Jedna zpráva = jedno oznámení**, seskupené po chatech (`thread`). Tak to na macOS dělají
  *   Zprávy i Telegram; skládat zprávy do jednoho oznámení jako `MessagingStyle` na Androidu
@@ -110,7 +111,9 @@ actual class NotificationPresenter internal constructor(
                     chatId = newest.chatId,
                     topicId = newest.topicId,
                     silent = newest.isSilent || quiet,
-                    imagePath = newest.imagePath ?: newest.chatAvatarPath,
+                    imagePath = newest.imagePath,
+                    avatarPath = newest.chatAvatarPath,
+                    timestamp = newest.timestamp.toLong(),
                 ),
             )
         }
@@ -138,7 +141,8 @@ actual class NotificationPresenter internal constructor(
                 chatId = call.chatId,
                 topicId = null,
                 silent = false,
-                imagePath = call.avatarPath,
+                imagePath = null,
+                avatarPath = call.avatarPath,
             ),
         )
     }

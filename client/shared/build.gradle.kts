@@ -185,6 +185,66 @@ val compileMacNotifications = tasks.register("compileMacNotifications") {
     }
 }
 
+/**
+ * Most k toastům Windows (`src/jvmMain/cpp/PlumeToasts.cpp`, C++/WinRT) do jvmMain resources.
+ * Potřebuje MSVC s Windows SDK (Visual Studio nebo Build Tools, úloha „Vývoj desktopových
+ * aplikací pomocí C++"). Bez nich se lokálně přeskočí a oznámení půjdou přes AWT jako dřív;
+ * na CI (`CI`) je to chyba, ať release nevyjde potichu bez toastů.
+ */
+val compileWindowsNotifications = tasks.register("compileWindowsNotifications") {
+    description = "Přeloží most k toastům Windows (WinRT) do jvmMain resources."
+    val source = layout.projectDirectory.file("src/jvmMain/cpp/PlumeToasts.cpp")
+    val outputDir = layout.buildDirectory.dir("generated/windowsNotifications")
+    val workDir = layout.buildDirectory.dir("tmp/windowsNotifications")
+    val javaHome = System.getProperty("java.home")
+    val onWindows = System.getProperty("os.name").lowercase().contains("windows")
+    // Knihovna pro architekturu JDK, které aplikaci spouští i balí (jako TDLib v desktopApp).
+    val arch = if (System.getProperty("os.arch").lowercase().let { "aarch64" in it || "arm64" in it }) "arm64" else "x64"
+    val requireToolchain = System.getenv("CI") != null
+    inputs.file(source)
+    outputs.dir(outputDir)
+    onlyIf { onWindows }
+
+    doLast {
+        val vswhere = File(System.getenv("ProgramFiles(x86)") ?: "C:\\Program Files (x86)", "Microsoft Visual Studio\\Installer\\vswhere.exe")
+        val installation = vswhere.takeIf { it.isFile }?.let {
+            val process = ProcessBuilder(
+                it.path, "-latest", "-products", "*",
+                "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+                "-property", "installationPath",
+            ).redirectErrorStream(true).start()
+            process.inputStream.bufferedReader().readText().trim().also { process.waitFor() }
+        }?.takeIf { it.isNotEmpty() }
+        val vcvars = installation?.let { File(it, "VC\\Auxiliary\\Build\\vcvarsall.bat") }?.takeIf { it.isFile }
+        if (vcvars == null) {
+            val message = "Chybí MSVC (Visual Studio s C++), toasty Windows se nepřeloží a oznámení půjdou přes AWT."
+            if (requireToolchain) throw GradleException(message)
+            logger.warn(message)
+            return@doLast
+        }
+        val library = outputDir.get().file("windows/plumenotifications.dll").asFile
+        library.parentFile.mkdirs()
+        val work = workDir.get().asFile.apply { mkdirs() }
+        // vcvarsall nastaví prostředí jen pro cmd, ve kterém běží — překlad proto jde jedním skriptem.
+        val script = File(work, "build.cmd")
+        script.writeText(
+            listOf(
+                "@echo off",
+                "call \"${vcvars.path}\" $arch >nul || exit /b 1",
+                "cl /nologo /LD /EHsc /std:c++17 /O2 /MT /permissive- /W3 " +
+                    "/I \"$javaHome\\include\" /I \"$javaHome\\include\\win32\" " +
+                    "/Fo\"${work.path}\\\\\" \"${source.asFile.path}\" /Fe\"${library.path}\" " +
+                    "/link runtimeobject.lib ole32.lib oleaut32.lib advapi32.lib",
+            ).joinToString("\r\n"),
+        )
+        val process = ProcessBuilder("cmd", "/c", script.path).redirectErrorStream(true).start()
+        val output = process.inputStream.bufferedReader().readText()
+        check(process.waitFor() == 0) { "Překlad toastů Windows selhal:\n$output" }
+        // Linker nechává importní knihovnu vedle DLL; do resources nepatří.
+        listOf("lib", "exp").forEach { File(library.parentFile, "plumenotifications.$it").delete() }
+    }
+}
+
 kotlin {
     jvmToolchain(17)
 
@@ -351,6 +411,8 @@ kotlin {
         jvmMain {
             // libplumenotifications.dylib z [compileMacNotifications]; mimo Mac je složka prázdná.
             resources.srcDir(files(layout.buildDirectory.dir("generated/macNotifications")).builtBy(compileMacNotifications))
+            // plumenotifications.dll z [compileWindowsNotifications]; mimo Windows je složka prázdná.
+            resources.srcDir(files(layout.buildDirectory.dir("generated/windowsNotifications")).builtBy(compileWindowsNotifications))
         }
 
         jvmMain.dependencies {
