@@ -404,6 +404,7 @@ fun appModule() = module {
             chatColorStore = get(),
             naturalSearch = get(),
             accountNotices = get(),
+            session = get(),
         )
     }
     viewModelOf(::StickerPickerViewModel)

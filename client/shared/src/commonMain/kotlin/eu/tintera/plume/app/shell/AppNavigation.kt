@@ -17,6 +17,7 @@ import eu.tintera.plume.core.navigation.ChatFolderEditRoute
 import eu.tintera.plume.core.navigation.ChatFoldersRoute
 import eu.tintera.plume.core.navigation.CreateChatRoute
 import eu.tintera.plume.core.navigation.EditProfileRoute
+import eu.tintera.plume.core.navigation.TwoStepRoute
 import eu.tintera.plume.core.navigation.NewChatRoute
 import eu.tintera.plume.core.navigation.NewGroupMembersRoute
 import eu.tintera.plume.core.telegram.AppScreen
@@ -96,6 +97,7 @@ class AppNavigation internal constructor(
             AppScreen.Devices -> openSettingsAt(SettingsSection.Devices)
             AppScreen.Storage -> openSettingsAt(SettingsSection.Storage)
             AppScreen.EditProfile -> openSettingsAt(SettingsSection.General, EditProfileRoute)
+            AppScreen.TwoStepVerification -> openSettingsAt(SettingsSection.General, TwoStepRoute)
             AppScreen.ChatFolders -> openChatFolders()
             AppScreen.NewChat -> openInChats(NewChatRoute)
             AppScreen.NewGroup -> openInChats(NewGroupMembersRoute)

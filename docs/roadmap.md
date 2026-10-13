@@ -321,10 +321,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   `docs/poznatky/profil-chatu.md`, „Profil chatu").
 - ~~**Systémové updaty bez odběru:** podmínky služby, oznámení od Telegramu, zmrazený účet~~ —
   hotovo (`docs/poznatky/systemova-oznameni.md`); skutečný update od serveru neověřený.
-- **Doporučené akce** (`suggestedActionsUpdates`): „ověř heslo", „ověř telefonní číslo",
-  „nastav heslo", „nastav přihlašovací e-mail" (u `canBeHidden == false` blokující, celoobrazovkový
-  — dokumentace `SETUP_LOGIN_EMAIL_NOSKIP`), vlastní akce s odkazem; nabídky Premium vynechat.
-  Karta v seznamu chatů, schovat přes `hideSuggestedAction`.
+- ~~**Doporučené akce**~~ — hotovo (karta v seznamu chatů; `docs/poznatky/systemova-oznameni.md`,
+  „Doporučené akce"). Zbývá nastavení přihlašovacího e-mailu (`setLoginEmailAddress`) a změna
+  čísla — dnes na ně karta odkazuje do oficiální aplikace.
 
 **Správa skupin a kanálů** (nad rámec názvu, popisu, fotky, práv a pozvánek):
 

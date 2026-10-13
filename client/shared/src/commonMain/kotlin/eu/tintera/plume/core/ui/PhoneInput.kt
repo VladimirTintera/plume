@@ -54,6 +54,17 @@ fun formatNationalNumber(mask: String): String =
 private const val EXPECTED_DIGIT = '-'
 
 /**
+ * Celé číslo k přečtení, jak ho píše Telegram: „+420 601 234 567". Formát dává TDLib (lokálně,
+ * [TelegramSession.phoneNumberInfo]); když číslo nezná, zůstane aspoň s `+` a bez mezer.
+ */
+suspend fun TelegramSession.displayPhone(raw: String): String {
+    val international = "+" + raw.filter { it.isDigit() }
+    val info = phoneNumberInfo(international).getOrNull() ?: return international
+    val national = formatNationalNumber(info.mask)
+    return if (national.isBlank() || info.callingCode.isBlank()) international else "+${info.callingCode} $national"
+}
+
+/**
  * Zadávání čísla s výběrem země pro ViewModel: seznam zemí, odhad podle IP, formátování od
  * TDLib a vložené mezinárodní číslo. **Sdílí ho přihlášení a nový kontakt** — obojí je „zadej
  * číslo" a dvě kopie by se rozešly (formátování, vložení s `+`). Kreslí ho [PhoneField].

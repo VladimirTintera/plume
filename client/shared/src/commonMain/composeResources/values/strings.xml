@@ -2765,4 +2765,27 @@
     <string name="notice_frozen_text">Telegram restricted the account for breaking its terms. Without an appeal it will be deleted on %1$s.</string>
     <string name="notice_frozen_text_no_date">Telegram restricted the account for breaking its terms.</string>
     <string name="notice_frozen_appeal">Appeal</string>
+    <string name="suggestion_later">Not now</string>
+    <string name="suggestion_check_password_title">Do you remember your password?</string>
+    <string name="suggestion_check_password_text">Without your two-step verification password you can't sign in on a new device.</string>
+    <string name="suggestion_check_password_yes">I remember it</string>
+    <string name="suggestion_check_password_no">I forgot it</string>
+    <string name="suggestion_check_phone_title">Is %1$s still your number?</string>
+    <string name="suggestion_check_phone_title_unknown">Is this still your number?</string>
+    <string name="suggestion_check_phone_text">Login codes go to this number. You can change it in the official Telegram app for now.</string>
+    <string name="suggestion_check_phone_yes">Yes, it is</string>
+    <string name="suggestion_set_password_title">Protect your account with a password</string>
+    <string name="suggestion_set_password_text">It keeps the account safe even if someone gets your login code.</string>
+    <string name="suggestion_set_password_text_delay">Without a password you can sign in on a new device only %1$s.</string>
+    <string name="suggestion_set_password_action">Set up</string>
+    <string name="suggestion_login_email_title">Add a login email</string>
+    <string name="suggestion_login_email_text">Telegram will send login codes there. You can add it in the official Telegram app for now.</string>
+    <string name="suggestion_profile_photo_title">Add a profile photo</string>
+    <string name="suggestion_profile_photo_text">It helps people recognize you.</string>
+    <string name="suggestion_profile_photo_action">Add</string>
+    <string name="suggestion_archive_title">Archive chats from strangers</string>
+    <string name="suggestion_archive_text">New chats from people outside your contacts go to the archive, muted.</string>
+    <string name="suggestion_archive_action">Turn on</string>
+    <string name="suggestion_custom_action">Open</string>
+    <string name="suggestion_failed">That didn't work.</string>
 </resources>

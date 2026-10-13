@@ -7,6 +7,24 @@ import dev.g000sha256.tdl.dto.MessageDocument
 import dev.g000sha256.tdl.dto.MessagePhoto
 import dev.g000sha256.tdl.dto.MessageText
 import dev.g000sha256.tdl.dto.MessageVideo
+import dev.g000sha256.tdl.dto.SuggestedActionAddLoginPasskey
+import dev.g000sha256.tdl.dto.SuggestedActionCheckPassword
+import dev.g000sha256.tdl.dto.SuggestedActionCheckPhoneNumber
+import dev.g000sha256.tdl.dto.SuggestedActionConvertToBroadcastGroup
+import dev.g000sha256.tdl.dto.SuggestedActionCustom
+import dev.g000sha256.tdl.dto.SuggestedActionEnableArchiveAndMuteNewChats
+import dev.g000sha256.tdl.dto.SuggestedActionExtendPremium
+import dev.g000sha256.tdl.dto.SuggestedActionExtendStarSubscriptions
+import dev.g000sha256.tdl.dto.SuggestedActionGiftPremiumForChristmas
+import dev.g000sha256.tdl.dto.SuggestedActionRestorePremium
+import dev.g000sha256.tdl.dto.SuggestedActionSetBirthdate
+import dev.g000sha256.tdl.dto.SuggestedActionSetLoginEmailAddress
+import dev.g000sha256.tdl.dto.SuggestedActionSetPassword
+import dev.g000sha256.tdl.dto.SuggestedActionSetProfilePhoto
+import dev.g000sha256.tdl.dto.SuggestedActionSubscribeToAnnualPremium
+import dev.g000sha256.tdl.dto.SuggestedActionUpgradePremium
+import dev.g000sha256.tdl.dto.SuggestedActionViewChecksHint
+import dev.g000sha256.tdl.dto.SuggestedAction as TdlSuggestedAction
 import dev.g000sha256.tdl.toResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +53,12 @@ class TdlAccountNotices(
 
     private val _freeze = MutableStateFlow<AccountFreeze?>(null)
     override val freeze: StateFlow<AccountFreeze?> = _freeze.asStateFlow()
+
+    private val _suggestedActions = MutableStateFlow<List<SuggestedAction>>(emptyList())
+    override val suggestedActions: StateFlow<List<SuggestedAction>> = _suggestedActions.asStateFlow()
+
+    /** Objekt od TDLib ke každé akci — `hideSuggestedAction` chce zpátky přesně ten. */
+    private val tdlActions = mutableMapOf<SuggestedAction, TdlSuggestedAction>()
 
     private var nextNoticeId = 0L
 
@@ -78,12 +102,23 @@ class TdlAccountNotices(
                 }
             }
         }
+        // Přidané a odebrané akce: TDLib po startu pošle všechny aktuální jako přidané.
+        scope.launch {
+            holder.updates { suggestedActionsUpdates }.collect { update ->
+                val removed = update.removedActions.mapNotNull { it.toDomain() }.toSet()
+                val added = update.addedActions.mapNotNull { tdl -> tdl.toDomain()?.also { tdlActions[it] = tdl } }
+                removed.forEach { tdlActions.remove(it) }
+                _suggestedActions.update { current -> (current - removed + added).distinct() }
+            }
+        }
         // Odhlášení: nový účet nic z toho starého nezdědí.
         scope.launch {
             holder.replaced.collect {
                 _serviceNotices.value = emptyList()
                 _termsOfService.value = null
                 _freeze.value = null
+                _suggestedActions.value = emptyList()
+                tdlActions.clear()
             }
         }
     }
@@ -97,6 +132,15 @@ class TdlAccountNotices(
         return holder.client.acceptTermsOfService(termsOfServiceId = terms.id)
             .toResult()
             .map { _termsOfService.value = null }
+    }
+
+    /**
+     * Schová akci na serveru. Ze seznamu ji vyřadí až update, který po tom TDLib pošle — kdyby
+     * server schování odmítl, karta zůstane, jak má.
+     */
+    override suspend fun hideSuggestedAction(action: SuggestedAction): Result<Unit> {
+        val tdl = tdlActions[action] ?: return Result.success(Unit)
+        return holder.client.hideSuggestedAction(action = tdl).toResult().map { }
     }
 
     override fun postponeTermsOfService() {
@@ -120,3 +164,27 @@ private fun MessageContent.noticeBody(): MessageBody = when (this) {
     is MessageDocument -> caption.toBody()
     else -> MessageBody(text = "")
 }
+
+/**
+ * Akce, kterou Plume umí nabídnout, nebo `null`. `when` je bez `else`: nová akce v novější TDLib
+ * rozbije překlad a někdo rozhodne, jestli ji nabízet — tiše vynechaná by mohla být právě ta,
+ * kterou Telegram vyžaduje.
+ */
+internal fun TdlSuggestedAction.toDomain(): SuggestedAction? = when (this) {
+    is SuggestedActionCheckPassword -> SuggestedAction.CheckPassword
+    is SuggestedActionCheckPhoneNumber -> SuggestedAction.CheckPhoneNumber
+    is SuggestedActionSetPassword -> SuggestedAction.SetPassword(authorizationDelay.coerceAtLeast(0))
+    is SuggestedActionSetLoginEmailAddress -> SuggestedAction.SetLoginEmail(canBeHidden)
+    is SuggestedActionSetProfilePhoto -> SuggestedAction.SetProfilePhoto
+    is SuggestedActionEnableArchiveAndMuteNewChats -> SuggestedAction.ArchiveUnknownChats
+    is SuggestedActionCustom -> SuggestedAction.Custom(name = name, title = title.text, description = description.text, url = url)
+    // Placené služby Plume nepropaguje (Premium, hvězdy, dárky); narozeniny, přístupové klíče
+    // a převod skupiny na kanál nastavit neumí; nápověda k fajfkám je v aplikaci jinde.
+    is SuggestedActionAddLoginPasskey, is SuggestedActionConvertToBroadcastGroup,
+    is SuggestedActionExtendPremium, is SuggestedActionExtendStarSubscriptions,
+    is SuggestedActionGiftPremiumForChristmas, is SuggestedActionRestorePremium,
+    is SuggestedActionSetBirthdate, is SuggestedActionSubscribeToAnnualPremium,
+    is SuggestedActionUpgradePremium, is SuggestedActionViewChecksHint,
+        -> null
+}
+
