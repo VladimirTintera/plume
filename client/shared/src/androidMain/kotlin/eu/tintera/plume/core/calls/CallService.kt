@@ -26,6 +26,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.call_bar_calling
 import eu.tintera.plume.resources.call_bar_connecting
 import eu.tintera.plume.resources.call_notification_ongoing
+import eu.tintera.plume.resources.call_waiting_for_network
 import eu.tintera.plume.resources.notification_call_unknown
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
@@ -118,7 +119,9 @@ class CallService : Service(), KoinComponent {
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setContentIntent(NotificationIntents.showCall(this))
         val connectedAt = call.connectedAt
-        if (connectedAt != null) {
+        if (call.networkLost) {
+            builder.setContentText(readString(Res.string.call_waiting_for_network))
+        } else if (connectedAt != null) {
             builder.setUsesChronometer(true).setWhen(connectedAt).setShowWhen(true)
                 .setContentText(readString(Res.string.call_notification_ongoing))
         } else {

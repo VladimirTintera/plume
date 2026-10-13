@@ -41,6 +41,11 @@ data class ActiveCall(
     val output: CallAudioOutput = CallAudioOutput.Earpiece,
     /** Kam jde přepnout. Jen sluchátko a reproduktor = stačí přepínač, víc = výběr. */
     val outputs: List<CallAudioOutput> = listOf(CallAudioOutput.Earpiece, CallAudioOutput.Speaker),
+    /**
+     * Telefon je právě bez sítě (přepíná se Wi-Fi a data, výpadek). Přenos to přečká, když se
+     * síť do 20 s vrátí (pak zavěsí sám), a tak dlouho se místo času ukazuje, že se čeká.
+     */
+    val networkLost: Boolean = false,
 )
 
 enum class CallPhase {

@@ -74,7 +74,9 @@ import eu.tintera.plume.resources.call_24dp
 import eu.tintera.plume.resources.call_answer
 import eu.tintera.plume.resources.call_bar_calling
 import eu.tintera.plume.resources.call_bar_connecting
+import eu.tintera.plume.resources.call_waiting_for_network
 import eu.tintera.plume.resources.call_bar_ended
+import eu.tintera.plume.resources.call_bar_dropped
 import eu.tintera.plume.resources.call_bar_failed
 import eu.tintera.plume.resources.call_emojis_hint
 import eu.tintera.plume.resources.call_hang_up
@@ -168,10 +170,15 @@ private fun callStatus(call: ActiveCall): String {
     return when (call.phase) {
         CallPhase.Ringing -> stringResource(Res.string.call_incoming)
         CallPhase.Calling -> stringResource(Res.string.call_bar_calling)
-        CallPhase.Connecting -> stringResource(Res.string.call_bar_connecting)
-        CallPhase.Active -> formatDuration(((now - (call.connectedAt ?: now)) / 1000).toInt())
+        CallPhase.Connecting, CallPhase.Active -> when {
+            // Výpadek sítě (přepnutí Wi-Fi a dat): čas by běžel, i když nic neteče.
+            call.networkLost -> stringResource(Res.string.call_waiting_for_network)
+            call.phase == CallPhase.Connecting -> stringResource(Res.string.call_bar_connecting)
+            else -> formatDuration(((now - (call.connectedAt ?: now)) / 1000).toInt())
+        }
         CallPhase.Ended -> stringResource(Res.string.call_bar_ended)
-        CallPhase.Failed -> stringResource(Res.string.call_bar_failed)
+        // Spojený hovor, který spadl (síť se do 20 s nevrátila), se „nespojil" neříká.
+        CallPhase.Failed -> stringResource(if (call.connectedAt != null) Res.string.call_bar_dropped else Res.string.call_bar_failed)
     }
 }
 

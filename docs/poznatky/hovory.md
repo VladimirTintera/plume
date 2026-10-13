@@ -142,6 +142,38 @@ notifikace i obrazovka hovoru přišly a přijetí spojilo.
 (`ConnectionService` / `core-telecom`: souběh s GSM hovorem, hovor v autě), video, iOS
 a desktop.
 
+## Změna sítě za hovoru
+
+- **Přechod Wi-Fi ↔ data řeší WebRTC v ntgcalls samo**: ICE s průběžným sbíráním kandidátů
+  (`GATHER_CONTINUALLY`) a znovusbíráním po výpadku sítě (`regather_on_failed_networks`,
+  `wrtc/src/interfaces/native_network_interface.cpp`). Nové kandidáty posílá signalizací
+  přes TDLib; ten o změně sítě ví od `ConnectionController` (`setNetworkType`), takže
+  signalizace po přepnutí neuvízne na mrtvém spojení.
+- **ntgcalls výpadek NEHLÁSÍ**: odpojení vede jen na interní „Reconnecting" (zpět do
+  `Connecting`, callback se nevolá), obnova taky ne. Až když spojení **20 s** stojí
+  (`kMaxTimeout` v `native_connection.cpp`), přijde `FAILED` a Plume zavěsí — s
+  `isDisconnected = true`, ať to protějšek dostane jako přerušený hovor, ne zavěšení.
+- **„Čekám na připojení…"** místo času (obrazovka hovoru, pruh i notifikace) bere Plume
+  z vlastního monitoru sítě (`NetworkKind.None`), protože od ntgcalls se to nedozví.
+- **Ověřeno na Pixelu 7 Pro** (13. 10. 2026, Plume ↔ Plume s Pixelem 5): Wi-Fi vypnutá
+  a znovu zapnutá za hovoru, mezitím zapnutá mobilní data — hovor pokračoval, WebRTC
+  vytvořilo nová spojení přes mobilní síť (`connection.cc … Cellular`) a k `FAILED`
+  nedošlo. **Úplná ztráta sítě** (Wi-Fi vypnutá, mobilní data vypnutá): na Pixelu 7
+  „Čekám na připojení…", na Pixelu 5 hovor dál; po zapnutí Wi-Fi zase běží čas a hovor
+  pokračoval (ověřil uživatel na telefonu).
+- **Podrobný výpis WebRTC (`connection.cc`) vytlačí z logcatu vlastní řádky aplikace během
+  desítek vteřin** — při ověřování hovorů číst log průběžně (`logcat | grep` na pozadí),
+  ne až po testu. Na Pixelu 7 přes bezdrátové adb se navíc s Wi-Fi ztratí i adb.
+- **Připojení a odpojení sluchátek za hovoru** (Pixel Buds Pro 2): zvuk přešel na
+  soupravu a po odpojení zpět do sluchátka telefonu (`setCommunicationRouteForClient …
+  earpiece` v systémovém logu); ověřil uživatel.
+- **Ukončení po 20 s bez sítě ověřené z obou stran**: (a) Pixel 7 bez sítě — Pixel 5 (se
+  sítí) nahlásil `FAILED` 32 s po spojení a hovor sám ukončil; (b) Pixel 5 bez sítě —
+  „Waiting for network…", po ~22 s `FAILED`, ukončení, úklid (režim zvuku, služba).
+  Spadlý hovor, který už běžel, hlásí „Hovor se přerušil", ne „nepodařilo se spojit"
+  (`connectedAt` je vyplněné). Záznam logu Pixelu 7 přežije výpadek bezdrátového adb, když
+  běží přímo v telefonu (`nohup sh -c "logcat | grep … > /data/local/tmp/…"`).
+
 ## Vyzvánění a výstup zvuku (Android)
 
 - **Příchozí hovor zvoní `CallRinger`**: vyzváněcí tón telefonu (`RingtoneManager`,
@@ -176,8 +208,9 @@ a desktop.
   i tón protistrany utichly, zrušení volajícím zvonění zastavilo, tón protistrany v režimu
   hovoru (Pixel 5 na vibracích). **Pixel Buds Pro 2**: hovor šel sám do soupravy
   (`bt_sco_hs`), výběr přepnul na reproduktor, telefon (se senzorem přiblížení) a zpět,
-  po hovoru souprava zpět na A2DP. **Neověřeno**: odpojení soupravy za hovoru, kabelová
-  sluchátka, Android pod 12 (cesta přes `startBluetoothSco`).
+  po hovoru souprava zpět na A2DP; připojení a odpojení soupravy za hovoru (viz „Změna
+  sítě za hovoru"). **Neověřeno**: kabelová sluchátka, Android pod 12 (cesta přes
+  `startBluetoothSco`).
 
 ## Neověřené
 

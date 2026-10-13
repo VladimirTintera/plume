@@ -809,6 +809,7 @@
     <string name="call_bar_calling">Vytáčím…</string>
     <string name="call_bar_connecting">Spojuji…</string>
     <string name="call_bar_ended">Hovor skončil</string>
+    <string name="call_bar_dropped">Hovor se přerušil</string>
     <string name="call_bar_failed">Hovor se nepodařilo spojit</string>
     <string name="call_answer">Přijmout</string>
     <string name="call_hang_up">Zavěsit</string>
@@ -821,6 +822,7 @@
     <string name="call_output_headset">Sluchátka</string>
     <string name="call_output_bluetooth">Bluetooth</string>
     <string name="call_audio_output">Zvuk jde do: %1$s</string>
+    <string name="call_waiting_for_network">Čekám na připojení…</string>
     <string name="call_outgoing">Odchozí hovor</string>
     <string name="call_incoming">Příchozí hovor</string>
     <string name="call_missed">Zmeškaný hovor</string>

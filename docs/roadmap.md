@@ -455,7 +455,8 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    shodná. **Obálka na Androidu hotová** (`docs/poznatky/hovory.md`, „Obálka na Androidu":
    služba, přijetí z notifikace i nad zámkem, obrazovka hovoru, reproduktor, senzor
    přiblížení). Vyzvánění a Bluetooth taky (`docs/poznatky/hovory.md`, „Vyzvánění a výstup
-   zvuku"). Zbývá na Androidu: přechod sítě za hovoru, `ConnectionService` /
+   zvuku"). Změna sítě taky (`docs/poznatky/hovory.md`, „Změna sítě za hovoru"). Zbývá na
+   Androidu: `ConnectionService` /
    `core-telecom` (souběh s GSM hovorem, Android Auto), video.
    Původní plán sondy:
 

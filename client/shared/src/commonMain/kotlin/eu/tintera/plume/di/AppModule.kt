@@ -116,6 +116,7 @@ import eu.tintera.plume.core.telegram.NotificationRepository
 import eu.tintera.plume.core.telegram.CallRepository
 import eu.tintera.plume.core.telegram.TdlCallRepository
 import eu.tintera.plume.core.calls.CallMedia
+import eu.tintera.plume.core.connectivity.NetworkMonitor
 import eu.tintera.plume.core.calls.CallRequests
 import eu.tintera.plume.core.notifications.NotificationActions
 import eu.tintera.plume.core.telegram.TdlChatRepository
@@ -265,7 +266,12 @@ fun appModule() = module {
     // kde ji platformní modul zaregistruje (Android); jinde jsou hovory nedostupné.
     single { CallRequests() }
     single<CallRepository>(createdAtStart = true) {
-        TdlCallRepository(holder = get(), media = getOrNull<CallMedia>(), scope = get(named(APP_SCOPE)))
+        TdlCallRepository(
+            holder = get(),
+            media = getOrNull<CallMedia>(),
+            scope = get(named(APP_SCOPE)),
+            network = getOrNull<NetworkMonitor>()?.status,
+        )
     }
     if (autosavesToGallery) {
         single(createdAtStart = true) {
