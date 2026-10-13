@@ -463,6 +463,17 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    „Desktop"). Zbývá:
    - **Desktop: Windows a Linux ověřit** (knihovna se stáhne a přibalí, nespuštěné), zvonění
      a oznámení příchozího hovoru (dnes jen obrazovka hovoru v otevřené aplikaci), video.
+   - **Desktop: zabalená aplikace** — ověřit, že JNA najde `libntgcalls` v jaru i po jpackage
+     (MSI, později DMG), a že macOS u balíčku chce `NSMicrophoneUsageDescription`. JNA dnes
+     35 MB knihovnu při každém spuštění vybaluje do dočasné složky; šlo by ji vybalit jednou
+     do dat aplikace. Stav spojení v logu jako jméno, ne číslo.
+   - **Android: neověřené kousky** — Bluetooth souprava s novým směrováním zvuku (Plume
+     nastavuje výstup sám jako vlastník režimu, `docs/poznatky/hovory.md`, „Kdo říká systému,
+     kam jde zvuk"); návrat z okénka s videem k pruhu hovoru; hlasový hovor a Domů (okénko se
+     otevřít nemá); obraz v obraze pod Androidem 12 (`onUserLeaveHint`); videohovor
+     z oficiálního Telegramu do Plume; dlouhý videohovor (teplota, baterie).
+   - **Play Console: deklarovat typ služby v popředí `camera`** (kamera videohovoru na pozadí)
+     — udělá uživatel, bez toho Play vydání s videohovory nepustí.
    - **iOS** (tgcalls xcframework, CallKit, VoIP pushe) a **skupinové hovory / videochaty**.
    Původní plán sondy:
 
