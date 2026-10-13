@@ -17,6 +17,7 @@ import io.github.pytgcalls.media.VideoDescription
 import io.github.pytgcalls.models.Frame
 import io.github.pytgcalls.p2p.RTCServer
 import org.json.JSONObject
+import org.webrtc.CapturerObserver
 import org.webrtc.ContextUtils
 import org.webrtc.EglBase
 import org.webrtc.JavaI420Buffer
@@ -134,6 +135,8 @@ class NtgCallMedia internal constructor(
                 }
                 instance.createP2pCall(callId)
                 instance.setStreamSources(callId, StreamMode.CAPTURE, capture())
+                // Kameru z náhledu si zdroj knihovny právě převzal; uvolňuje ji už on.
+                if (cameraOn) preview = null else stopPreview()
                 // V režimu PLAYBACK je slot `microphone` mikrofon PROTISTRANY: příjem zvuku
                 // ntgcalls zapne jen pro něj (`StreamManager::optimize_sources`). Reproduktor
                 // ve slotu `speaker` dal ticho — spojení naváže, ale příchozí kanál nevznikne.
@@ -198,8 +201,11 @@ class NtgCallMedia internal constructor(
             cameraOn = on
             cameraFront = front
             if (!on) framePools.remove(CallVideoSource.Local)
-            // Bez běžícího přenosu se jen zapamatuje; `start` ji pak dá do zdrojů rovnou.
-            val instance = ntg ?: return@execute
+            // Bez běžícího přenosu běží jen náhled; `start` dá kameru do zdrojů a ten ji převezme.
+            val instance = ntg ?: run {
+                if (on) startPreview() else stopPreview()
+                return@execute
+            }
             if (switching && switchRunningCamera()) return@execute
             if (switching) {
                 // Výměna zdroje kameru zhasne (viz `switchRunningCamera`): napřed pryč, pak nová.
@@ -224,31 +230,50 @@ class NtgCallMedia internal constructor(
     }
 
     /**
-     * Přední ↔ zadní na BĚŽÍCÍ kameře, bez výměny zdroje v ntgcalls.
-     *
-     * Výměna zdroje (jiné `input` ve `setStreamSources`) kameru ZHASNE: knihovna napřed založí
-     * nový zdroj, který převezme sdílenou kameru (`SmartVideoSource`, „Reusing video source"),
-     * a teprve pak zruší starý — a ten uvolnění sdílené kamery naplánuje za 200 ms. Obraz
-     * pak stojí, dokud se kamera nezapne znovu. Proto se přepíná přímo sdílená kamera:
-     * `getInstance` se stejným rozměrem a jiným id ji přepne (`switchCamera`). Třída je
-     * v knihovně neveřejná, volá se reflexí; keep pravidla ntgcalls drží jména. Když to po
-     * aktualizaci knihovny nepůjde, vrací `false` a přepne se výměnou zdroje.
+     * Přední ↔ zadní na BĚŽÍCÍ kameře, bez výměny zdroje v ntgcalls — ta by kameru zhasla
+     * ([SharedCamera]). `false`, když sdílenou kameru použít nejde; pak se mění zdroj.
      */
     private fun switchRunningCamera(): Boolean {
         val id = camera(cameraFront)?.id ?: return false
-        return runCatching {
-            val source = Class.forName("io.github.pytgcalls.devices.SmartVideoSource")
-            val getInstance = source.getDeclaredMethod(
-                "getInstance",
-                Boolean::class.javaPrimitiveType,
-                String::class.java,
-                Int::class.javaPrimitiveType,
-                Int::class.javaPrimitiveType,
-                Int::class.javaPrimitiveType,
-            )
-            getInstance.isAccessible = true
-            getInstance.invoke(null, false, id, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS)
-        }.onFailure { logger.w(it) { "Kameru nejde přepnout na místě, měním zdroj." } }.isSuccess
+        return (SharedCamera.use(id, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS) != null)
+            .also { if (!it) logger.w { "Kameru nejde přepnout na místě, měním zdroj." } }
+    }
+
+    /**
+     * Náhled před spojením: přenos (a s ním zdroj kamery knihovny) vzniká až po `Ready`, takže
+     * vytáčený videohovor by do té doby ukazoval černo. Kamera se proto otevře hned a snímky
+     * (`VideoFrame` s texturou ve sdíleném kontextu EGL) jdou rovnou do rendereru náhledu.
+     * Zdroj knihovny pak sdílenou kameru převezme a snímky chodí přes `onFrames`.
+     */
+    private fun startPreview() {
+        val id = camera(cameraFront)?.id ?: return
+        // I u běžícího náhledu: `use` s jiným id kameru přepne (přední ↔ zadní při vytáčení).
+        val source = SharedCamera.use(id, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS) ?: return
+        if (preview == null && !SharedCamera.preview(source, previewObserver)) {
+            logger.w { "Náhled kamery před spojením nejde, ukáže se až po spojení." }
+            SharedCamera.release(source)
+            return
+        }
+        preview = source
+    }
+
+    /** Kamera přestala být potřeba dřív, než si ji vzal přenos (vypnutá, hovor zrušený). */
+    private fun stopPreview() {
+        preview?.let(SharedCamera::release)
+        preview = null
+    }
+
+    /** Sdílená kamera v náhledu, dokud si ji nepřevezme přenos. */
+    private var preview: Any? = null
+
+    private val previewObserver = object : CapturerObserver {
+        override fun onCapturerStarted(success: Boolean) = Unit
+
+        override fun onCapturerStopped() = Unit
+
+        override fun onFrameCaptured(frame: VideoFrame) {
+            sinks[CallVideoSource.Local]?.let { sink -> runCatching { sink.onFrame(frame) } }
+        }
     }
 
     private fun camera(front: Boolean): Camera? = cameras.firstOrNull { it.front == front } ?: cameras.firstOrNull()
@@ -299,6 +324,7 @@ class NtgCallMedia internal constructor(
             runCatching { instance.stop(callId) }.onFailure { logger.w(it) { "Zastavení hovoru selhalo." } }
         }
         ntg = null
+        stopPreview()
         held = false
         userMuted = false
         cameraOn = false

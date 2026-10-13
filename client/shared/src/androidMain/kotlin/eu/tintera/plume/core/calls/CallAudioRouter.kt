@@ -145,23 +145,24 @@ internal class CallAudioRouter(
         }
     }
 
-    private fun AudioDeviceInfo.output(): CallAudioOutput? = when (type) {
-        AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> CallAudioOutput.Earpiece
-        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> CallAudioOutput.Speaker
-        AudioDeviceInfo.TYPE_WIRED_HEADSET,
-        AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
-        AudioDeviceInfo.TYPE_USB_HEADSET,
-        -> CallAudioOutput(CallAudioOutput.Kind.Headset)
-        AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
-        TYPE_BLE_HEADSET,
-        -> CallAudioOutput(CallAudioOutput.Kind.Bluetooth, productName?.toString()?.takeIf { it.isNotBlank() })
-        else -> null
-    }
-
     private companion object {
-        /** `AudioDeviceInfo.TYPE_BLE_HEADSET` (API 31); číslem, ať jde přeložit i pro starší. */
-        const val TYPE_BLE_HEADSET = 26
-
         val PERSONAL = setOf(CallAudioOutput.Kind.Headset, CallAudioOutput.Kind.Bluetooth)
     }
 }
+
+/** Výstup hovoru, kterým zařízení je; `null` u zařízení, kam hovor nejde (HDMI, dok…). */
+internal fun AudioDeviceInfo.output(): CallAudioOutput? = when (type) {
+    AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> CallAudioOutput.Earpiece
+    AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> CallAudioOutput.Speaker
+    AudioDeviceInfo.TYPE_WIRED_HEADSET,
+    AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+    AudioDeviceInfo.TYPE_USB_HEADSET,
+    -> CallAudioOutput(CallAudioOutput.Kind.Headset)
+    AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+    TYPE_BLE_HEADSET,
+    -> CallAudioOutput(CallAudioOutput.Kind.Bluetooth, productName?.toString()?.takeIf { it.isNotBlank() })
+    else -> null
+}
+
+/** `AudioDeviceInfo.TYPE_BLE_HEADSET` (API 31); číslem, ať jde přeložit i pro starší. */
+private const val TYPE_BLE_HEADSET = 26

@@ -178,7 +178,17 @@ uprostřed hlasového hovoru, vypnutá a znovu zapnutá, přepnutí kamery, kame
   activity services`). **Typ `camera` je v Play potřeba deklarovat** u služeb v popředí.
 - **Videohovor jde do reproduktoru** (a zapnutí kamery v hlasovém hovoru přepne sluchátko na
   reproduktor); senzor přiblížení s obrazem nezhasíná. Reproduktor vybraný při vytáčení,
-  kdy hovor v Telecomu ještě není, se uplatní po přihlášení (`TelecomAudioRoutes.pending`).
+  kdy hovor v Telecomu ještě není, platí hned a Telecomu se oznámí po přihlášení (viz
+  „Kdo říká systému, kam jde zvuk").
+- **Náhled kamery už při vytáčení** (a mezi přijetím a spojením): zdroj kamery ntgcalls
+  vzniká až po `Ready`, takže by do té doby bylo černo. Kamera se proto otevře hned na
+  sdílené kameře knihovny (`SharedCamera`: `SmartVideoSource.getInstance` + vlastní
+  `CapturerObserver` + `open`) a snímky (`VideoFrame` s texturou ve sdíleném kontextu EGL) jdou
+  rovnou do rendereru. Zdroj knihovny ji po `Ready` převezme stejným `getInstance` („Reusing
+  video source") bez nového otevření — jen ji přepne sama na sebe (`switchCamera` na tutéž
+  kameru, ~0,3 s), to knihovna dělá při každém převzetí. Zrušený hovor kameru uvolní
+  (`softRelease`). Ověřeno na Pixelu 5 i Pixelu 7 Pro: náhled při „Volám…", převzetí po
+  přijetí, přepnutí přední ↔ zadní při vytáčení, uvolnění kamery po zrušení.
 - **Telecom dostane typ hovoru jen při přihlášení** (`CALL_TYPE_VIDEO_CALL`); kamera zapnutá
   později ho nezmění — na chování to vliv nemá.
 - **Přijetí videohovoru** se ptá na kameru i mikrofon (`rememberVideoNotePermission`);
@@ -195,7 +205,6 @@ uprostřed hlasového hovoru, vypnutá a znovu zapnutá, přepnutí kamery, kame
     i hovoru**, dokud se stav hovoru nezmění (v roadmapě).
   - **Konec hovoru okénko zavře** (`moveTaskToBack`): v okénku by zbylo „Hovor skončil".
     Totéž, když obraz zmizí (obě kamery vypnuté).
-  - **Před spojením je okénko černé**: vlastní kamera dává snímky až po spojení (viz roadmapa).
   - **Ověřeno na Pixelu 5** (Plume ↔ Plume): Domů během videohovoru otevře okénko
     (`mode=pinned` v `dumpsys activity activities`) s obrazem protistrany, ztlumení z okénka
     tam i zpět (ikona se překreslí), zavěšení z okénka okénko zavře a uvolní kamery na obou
@@ -244,10 +253,10 @@ a `addCall` pro každý hovor, jakmile vytáčí nebo zvoní. Pod Androidem 14 k
   ntgcalls stojí, „Podrženo"). **Po GSM hovoru ho systém sám NEVRÁTÍ** — zůstal by viset
   podržený. Vrací ho uživatel tlačítkem „Pokračovat v hovoru" → `CallControlScope.setActive`
   (`CallRepository.resume` přes `setResumeHandler`), jako u systémového telefonu.
-- **Výstup zvuku vede Telecom** (`TelecomAudioRoutes`: `availableEndpoints`,
-  `currentCallEndpoint`, `requestEndpointChange`) — vlastní `setCommunicationDevice` by se
-  s ním přetahoval. `CallAudioRouter` zůstává jako záloha, když Telecom aplikaci nebo hovor
-  nepřijme. **Režim hovoru nastavuje Plume i tak** (od vytáčení, kvůli tónu protistrany).
+- **Výstupy a volbu vede Telecom** (`TelecomAudioRoutes`: `availableEndpoints`,
+  `currentCallEndpoint`, `requestEndpointChange`), **systému ji ale říká Plume** — viz
+  „Kdo říká systému, kam jde zvuk". `CallAudioRouter` zůstává jako záloha, když Telecom
+  aplikaci nebo hovor nepřijme.
 - **Na Androidu 14 (Pixel 5) přepíná Telecom reproduktor postaru**: `ActiveSpeakerRoute`,
   ale `Active communication device` v `dumpsys audio` dál hlásí sluchátko. Kam zvuk opravdu
   jde, říká `deviceId` přehrávače (2 = reproduktor) a řádky `Devices:` streamů.
@@ -261,6 +270,35 @@ a `addCall` pro každý hovor, jakmile vytáčí nebo zvoní. Pod Androidem 14 k
 - **Pozor na staré řádky v `dumpsys audio`**: historie (`setCommunicationRouteForClient …
   bt_sco`) obsahuje zařízení i dávno odpojená. Jestli jsou sluchátka opravdu připojená,
   říká `dumpsys bluetooth_manager` (`ACL BR/EDR:Y`), ne výskyt jména v `dumpsys audio`.
+
+## Kdo říká systému, kam jde zvuk
+
+**Vlastníkem režimu hovoru je Plume, ne Telecom** — a systém bere volbu výstupu JEN od
+vlastníka režimu. U hovoru přes `CallsManager` (Jetpack core-telecom) Telecom
+`MODE_IN_COMMUNICATION` nenastavuje; v historii `dumpsys audio` je jen `setMode` od Plume
+(nastavuje ho od vytáčení kvůli tónu protistrany) a od Telecomu až `MODE_NORMAL` po konci.
+
+- **Příznak: videohovor zhruba v každém pátém pokusu do sluchátka u ucha.** Telecom
+  (i sám core-telecom u videohovoru) přepne na reproduktor (`ActiveSpeakerRoute`,
+  `setCommunicationDevice` z pid system_serveru), systém jeho volbu nepoužije („Computed
+  Preferred communication device: null"), Telecomu pak přijde hlášení „reproduktor vypnut"
+  (`SPEAKER_OFF` z přijímače změn reproduktoru, ~10 ms po zapnutí) a vrátí se na sluchátko
+  (`ActiveEarpieceRoute`). Zda to vyjde, rozhodovalo načasování.
+- **Testovací smyčka s `am force-stop` to maskovala**: mrtvý proces přestane být vlastníkem
+  režimu a systém pak volbu Telecomu vezme. Měřit se musí v jednom živém procesu.
+- **Oprava (`TelecomAudioRoutes`)**: naši volbu (i odloženou z vytáčení) nastaví Plume hned
+  sám (`setCommunicationDevice`) a Telecomu ji oznámí; 3 s po ní platí přednostně a Telecomu
+  se oznamuje znovu, kdykoli se odchýlí (umí se vrátit i po potvrzení). Mimo tu lhůtu Plume
+  zrcadlí, co hlásí Telecom (připojená souprava, volba v systému). `setCommunicationDevice`
+  trvá stovky milisekund — jde vlastním vláknem (`call-audio`), stejným jako `setMode`.
+- **Ověřeno**: 9 z 9 videohovorů z Pixelu 5 a videohovor z Pixelu 7 Pro (Android 17) do
+  reproduktoru na obou stranách, hlasový hovor do sluchátka na obou, reproduktor tam a zpět,
+  zapnutí kamery přepne na reproduktor. Skutečné zařízení potvrdil i `dumpsys
+  media.audio_flinger` (`Output devices: 0x2 (AUDIO_DEVICE_OUT_SPEAKER)`).
+  **Bluetooth s touto logikou ověřený NENÍ** (souprava při testu nebyla připojená).
+- **Měřit jde jen pár desítek hovorů**: po zhruba čtyřiceti zkušebních hovorech za hodinu
+  Telegram další odmítl (`429 Too Many Requests: retry after 1579`, hovor skončí
+  `CallStateError`). Přijímat hovory omezení nebrání — zkoušet dál jde opačným směrem.
 
 ## Změna sítě za hovoru
 
