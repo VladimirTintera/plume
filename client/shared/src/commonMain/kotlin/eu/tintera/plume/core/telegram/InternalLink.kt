@@ -113,6 +113,8 @@ enum class AppScreen {
     TwoStepVerification,
     /** Přihlašovací e-mail (Obecné → Soukromí). Jen z doporučené akce. */
     LoginEmail,
+    /** Přístupové klíče (Obecné → Soukromí), i z `tg://settings/privacy/passkey`. */
+    Passkeys,
     /** Změna telefonního čísla (úprava profilu). Jen z doporučené akce. */
     ChangePhone,
     /** Soukromí je v Obecných, samostatná sekce není. */

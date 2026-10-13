@@ -178,8 +178,10 @@ internal fun TdlSuggestedAction.toDomain(): SuggestedAction? = when (this) {
     is SuggestedActionSetProfilePhoto -> SuggestedAction.SetProfilePhoto
     is SuggestedActionEnableArchiveAndMuteNewChats -> SuggestedAction.ArchiveUnknownChats
     is SuggestedActionCustom -> SuggestedAction.Custom(name = name, title = title.text, description = description.text, url = url)
-    // Placené služby Plume nepropaguje (Premium, hvězdy, dárky); narozeniny, přístupové klíče
-    // a převod skupiny na kanál nastavit neumí; nápověda k fajfkám je v aplikaci jinde.
+    // Placené služby Plume nepropaguje (Premium, hvězdy, dárky); narozeniny a převod skupiny
+    // na kanál nastavit neumí; nápověda k fajfkám je v aplikaci jinde. Přístupový klíč přidat
+    // NEJDE: Android a iOS ho k doméně telegram.org dovolí vytvořit jen aplikacím, které
+    // Telegram uvádí na webu (assetlinks.json, apple-app-site-association).
     is SuggestedActionAddLoginPasskey, is SuggestedActionConvertToBroadcastGroup,
     is SuggestedActionExtendPremium, is SuggestedActionExtendStarSubscriptions,
     is SuggestedActionGiftPremiumForChristmas, is SuggestedActionRestorePremium,

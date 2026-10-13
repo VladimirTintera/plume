@@ -74,8 +74,9 @@ nahoře v hlavním seznamu (`SuggestedActionCard`) — **vždy jen první**, aby
 
 - **Plume nabízí jen to, co umí splnit, a neprodává**: ověř heslo, ověř číslo, nastav heslo,
   přihlašovací e-mail, profilová fotka, archivace chatů od neznámých a vlastní akce od Telegramu
-  (`Custom`, s odkazem). Premium, hvězdy, dárky, narozeniny, přístupové klíče, převod skupiny na
-  kanál a nápověda k fajfkám se vynechávají (`toDomain`, `when` bez `else` — nová akce v TDLib
+  (`Custom`, s odkazem). Premium, hvězdy, dárky, narozeniny, přístupové klíče (přidat je cizí
+  klient nemůže, viz `docs/poznatky/nastaveni.md`), převod skupiny na kanál a nápověda k fajfkám
+  se vynechávají (`toDomain`, `when` bez `else` — nová akce v TDLib
   rozbije překlad a musí se rozhodnout, ne tiše zmizet).
 - **„Teď ne", „Pamatuji", „Ano, je" schovají akci na serveru** (`hideSuggestedAction`), takže
   se neukáže ani v jiném klientovi. Ze seznamu ji vyřadí až update, který TDLib pošle potom —

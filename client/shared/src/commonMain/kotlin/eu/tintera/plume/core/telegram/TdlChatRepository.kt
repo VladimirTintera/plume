@@ -1940,7 +1940,8 @@ private data class ActivitySource(val senderId: Long, val topicId: Int?)
 private fun SettingsSection?.toAppScreen(): AppScreen = when (this) {
     null -> AppScreen.Settings
     is SettingsSectionEditProfile -> AppScreen.EditProfile
-    is SettingsSectionPrivacyAndSecurity -> AppScreen.General
+    // Podsekce „passkey" a „passkey/create" vedou na seznam klíčů; přidat klíč Plume neumí.
+    is SettingsSectionPrivacyAndSecurity -> if (subsection.startsWith("passkey")) AppScreen.Passkeys else AppScreen.General
     is SettingsSectionNotifications -> AppScreen.Notifications
     is SettingsSectionAppearance -> AppScreen.Appearance
     is SettingsSectionDevices, is SettingsSectionQrCode -> AppScreen.Devices

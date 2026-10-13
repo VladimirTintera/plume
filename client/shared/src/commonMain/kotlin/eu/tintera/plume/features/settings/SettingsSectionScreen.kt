@@ -45,6 +45,7 @@ fun SettingsSectionScreen(
     onOpenAccountPrivacy: () -> Unit,
     onOpenTwoStep: () -> Unit,
     onOpenLoginEmail: () -> Unit,
+    onOpenPasskeys: () -> Unit,
     onOpenAppLock: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -69,7 +70,7 @@ fun SettingsSectionScreen(
             // Jen jedna větev se skládá, takže vznikne právě jeden ViewModel — ten druhý
             // by si jinak vyžádal účet ze serveru zbytečně.
             when (section) {
-                SettingsSection.General -> GeneralSettings(viewModel = koinViewModel(), onEditProfile = onEditProfile, onOpenBlocked = onOpenBlocked, onOpenFolders = onOpenFolders, onOpenStickerSets = onOpenStickerSets, onOpenEmojiSets = onOpenEmojiSets, onOpenProxy = onOpenProxy, onOpenAccountPrivacy = onOpenAccountPrivacy, onOpenTwoStep = onOpenTwoStep, onOpenAppLock = onOpenAppLock, onOpenLoginEmail = onOpenLoginEmail)
+                SettingsSection.General -> GeneralSettings(viewModel = koinViewModel(), onEditProfile = onEditProfile, onOpenBlocked = onOpenBlocked, onOpenFolders = onOpenFolders, onOpenStickerSets = onOpenStickerSets, onOpenEmojiSets = onOpenEmojiSets, onOpenProxy = onOpenProxy, onOpenAccountPrivacy = onOpenAccountPrivacy, onOpenTwoStep = onOpenTwoStep, onOpenAppLock = onOpenAppLock, onOpenLoginEmail = onOpenLoginEmail, onOpenPasskeys = onOpenPasskeys)
                 SettingsSection.Notifications -> NotificationSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
                 SettingsSection.Appearance -> AppearanceSettings(viewModel = koinViewModel())
                 SettingsSection.Devices -> DevicesSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)

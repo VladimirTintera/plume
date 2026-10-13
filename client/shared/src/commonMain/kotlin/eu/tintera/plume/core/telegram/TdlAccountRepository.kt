@@ -109,6 +109,28 @@ class TdlAccountRepository(
             // Heslo do logu nejde, jen hláška TDLib (konstanta jako PASSWORD_HASH_INVALID).
             .onFailure { logger.w(it) { "Účet se nepodařilo smazat." } }
 
+    override suspend fun loginPasskeys(): Result<List<LoginPasskey>> =
+        client.getLoginPasskeys()
+            .toResult()
+            .map { result ->
+                result.passkeys.map { key ->
+                    LoginPasskey(
+                        id = key.id,
+                        name = key.name,
+                        addedAt = key.additionDate,
+                        lastUsedAt = key.lastUsageDate.takeIf { it > 0 },
+                        iconCustomEmojiId = key.softwareIconCustomEmojiId.takeIf { it != 0L },
+                    )
+                }
+            }
+            .onFailure { logger.w(it) { "Přístupové klíče se nepodařilo načíst." } }
+
+    override suspend fun removeLoginPasskey(id: String): Result<Unit> =
+        client.removeLoginPasskey(passkeyId = id)
+            .toResult()
+            .map { }
+            .onFailure { logger.w(it) { "Přístupový klíč se nepodařilo odebrat." } }
+
     override suspend fun contactLink(): Result<ContactLink> =
         client.getUserLink().toResult().map { ContactLink(url = it.url, expiresInSeconds = it.expiresIn) }
             .onFailure { logger.w(it) { "Kontaktní odkaz se nepodařilo vyrobit." } }

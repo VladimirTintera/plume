@@ -70,6 +70,10 @@ data object TwoStepRoute : Route
 @Serializable
 data object LoginEmailRoute : Route
 
+/** Přístupové klíče (seznam a odebrání). Vrší se nad sekci Obecné jako [TwoStepRoute]. */
+@Serializable
+data object PasskeysRoute : Route
+
 /** Změna telefonního čísla. Vrší se nad úpravou profilu (nebo sekcí Obecné z doporučené akce). */
 @Serializable
 data object ChangePhoneRoute : Route
@@ -453,6 +457,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(PrivacySettingRoute::class, PrivacySettingRoute.serializer())
             subclass(TwoStepRoute::class, TwoStepRoute.serializer())
             subclass(LoginEmailRoute::class, LoginEmailRoute.serializer())
+            subclass(PasskeysRoute::class, PasskeysRoute.serializer())
             subclass(ChangePhoneRoute::class, ChangePhoneRoute.serializer())
             subclass(AppLockRoute::class, AppLockRoute.serializer())
             subclass(ChatFoldersRoute::class, ChatFoldersRoute.serializer())

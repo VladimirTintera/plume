@@ -408,6 +408,39 @@ nové číslo, kód z něj, hotovo. Vede sem i doporučená akce „Je … poř�
   a zpět do úpravy profilu. **Skutečné odeslání kódu a změna čísla ověřené NEJSOU** — kód by
   šel SMS na cizí číslo a měnil by číslo skutečného účtu.
 
+## Přístupové klíče
+
+Obecné → Soukromí → „Přístupové klíče" (`PasskeysScreen`, `PasskeysRoute` nad sekcí Obecné,
+i z odkazu `tg://settings/privacy/passkey`): seznam klíčů s datem přidání a posledního použití
+a jejich odebrání. **Přidat klíč ani se jím přihlásit Plume NEUMÍ, a umět nemůže.**
+
+- **Klíč je WebAuthn vázaný na doménu Telegramu a systém ho cizí aplikaci nevydá.** Android
+  (Credential Manager) pustí aplikaci ke klíčům domény jen tehdy, když ji doména uvádí
+  v `/.well-known/assetlinks.json` se vztahem `delegate_permission/common.get_login_creds`;
+  iOS chce aplikaci v sekci `webcredentials` souboru `apple-app-site-association`. Na
+  `telegram.org` jsou (ověřeno 13. 10. 2026) jen oficiální aplikace Telegramu a Telegram X
+  (`org.thunderdog.challegram`). Plume by tam musel zapsat Telegram; jinak `addLoginPasskey`
+  (registrace) i `checkAuthenticationPasskey` (přihlášení) skončí na odmítnutí ze systému dřív,
+  než se cokoli pošle. Obejít to jde jen oprávněním prohlížeče (`CREDENTIAL_MANAGER_SET_ORIGIN`),
+  které běžná aplikace nedostane.
+- **Seznam a odebrání systém nepotřebují** — `getLoginPasskeys` a `removeLoginPasskey` jsou jen
+  volání serveru. Má to smysl: klíč ze ztraceného telefonu nebo ze správce hesel, který už
+  uživatel nepoužívá, jde odebrat i z Plume.
+- **Odebraný klíč zůstává ve správci hesel** (server o něm přestane vědět, smazat ho z Googlu
+  nebo z Klíčenky musí uživatel sám) — dialog to říká.
+- **Update o změně seznamu TDLib nemá**, takže obrazovka si seznam po odebrání upraví sama
+  a řádek v Soukromí počet čte při každém zobrazení sekce.
+- **Doporučená akce „přidej přístupový klíč" se dál vynechává** (`toDomain` → `null`): nabízet
+  něco, co Plume udělat nemůže, by jen poslalo uživatele do slepé uličky.
+- Ikona u klíče je vlastní emoji správce hesel (`softwareIconCustomEmojiId`), když ji server
+  zná; jinak Material Symbol `passkey`.
+- **Ověřeno**: `PasskeysViewModelTest` (odebrání až po potvrzení, chyba odebrání, opakované
+  načtení); na emulátoru řádek „Žádný, přidat jde v oficiální aplikaci" a prázdný seznam ze
+  serveru, odkaz `tg://settings/privacy/passkey` (`am start -d`) a **se sondou** (dva vymyšlené
+  klíče, odebrání bez volání TDLib) seznam, bezejmenný klíč, dialog a odebrání. **Skutečný klíč
+  ani jeho odebrání vyzkoušené NEJSOU** — testovací účet žádný nemá a přidat ho jde jen
+  v oficiální aplikaci.
+
 ## Smazání účtu a samosmazání
 
 Na konci „Soukromí účtu" je skupina „Smazání účtu" jako v oficiálních klientech: „Smazat, když
