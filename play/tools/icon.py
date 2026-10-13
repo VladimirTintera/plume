@@ -139,19 +139,15 @@ def vector(size=108, reach_dp=31, color="#FFF3E8", shaft_width=0.009, box=False)
 """
 
 
-def desktop(size, margin=True):
+def desktop(size):
     """Ikona pro desktop: zaoblený čtverec s průhlednými rohy.
 
-    Na rozdíl od mobilů ji nikdo neořezává maskou — tvar si nese sama. S `margin` rozměry podle
-    mřížky ikon macOS (plocha 824 z 1024, poloměr rohu 185, zbytek okraj na stín a optické
-    vyrovnání) — pro Dock a Linux. Bez něj plocha až do kraje se stejně zaoblenými rohy: Windows
-    kreslí ikonu na hlavním panelu, u hodin i v toastu do celého čtverce a s okrajem macOS byla
-    Plume viditelně menší než ostatní aplikace.
+    Na rozdíl od mobilů ji nikdo neořezává maskou — tvar si nese sama. Rozměry podle mřížky
+    ikon macOS (plocha 824 z 1024, poloměr rohu 185, zbytek okraj na stín a optické vyrovnání);
+    Windows i Linux berou čtvercový obrázek s alfou, takže se hodí i tam.
     """
     n = size * 4
-    inset = round(n * 100 / 1024) if margin else 0
-    # Poloměr rohu je tentýž podíl PLOCHY (185 z 824), ne celého obrázku.
-    radius = round((n - 2 * inset) * 185 / 824)
+    inset, radius = round(n * 100 / 1024), round(n * 185 / 1024)
     plate = Image.new("L", (n, n), 0)
     ImageDraw.Draw(plate).rounded_rectangle([inset, inset, n - inset, n - inset], radius=radius, fill=255)
     im = gradient(n, n).convert("RGBA")
@@ -165,13 +161,10 @@ def write_desktop():
     icons.mkdir(parents=True, exist_ok=True)
     big = desktop(1024)
     # ICO: Windows vybírá podle velikosti (Průzkumník, hlavní panel, Start); 256 je největší.
-    # Bez okraje macOS — Windows kreslí ikonu do celého čtverce.
-    desktop(1024, margin=False).save(icons / "plume.ico", sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])
+    big.save(icons / "plume.ico", sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])
     big.save(icons / "plume.icns")
     desktop(512).save(icons / "plume.png")
-    # Ikona okna, oznamovací oblasti a toastů: na macOS ji nikdo neukazuje (Dock bere .icns),
-    # takže jde rovnou bez okraje pro Windows.
-    desktop(512, margin=False).save(ROOT / "client/desktopApp/src/main/resources/plume-icon.png")
+    desktop(512).save(ROOT / "client/desktopApp/src/main/resources/plume-icon.png")
 
 
 if __name__ == "__main__":

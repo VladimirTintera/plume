@@ -1029,12 +1029,6 @@
     <string name="notification_call_unknown">Neznámý volající</string>
     <string name="tray_open">Otevřít Plume</string>
     <string name="tray_quit">Ukončit</string>
-    <plurals name="tray_tooltip_unread">
-        <item quantity="one">Plume – %1$d nepřečtená zpráva</item>
-        <item quantity="few">Plume – %1$d nepřečtené zprávy</item>
-        <item quantity="many">Plume – %1$d nepřečtené zprávy</item>
-        <item quantity="other">Plume – %1$d nepřečtených zpráv</item>
-    </plurals>
     <string name="video_chat_active">Probíhá videochat</string>
     <string name="video_chat_live">Probíhá živé vysílání</string>
     <string name="video_chat_scheduled">Videochat začne %1$s</string>
@@ -3052,4 +3046,8 @@
     <string name="ask_question_confirm">Zeptat se</string>
     <string name="ask_question_faq">Časté dotazy</string>
     <string name="ask_question_failed">Chat s podporou se nepodařilo otevřít.</string>
+    <string name="conversation_jump_to_date">Přejít na datum</string>
+    <string name="conversation_jump_date_empty">Od toho dne v chatu nic není.</string>
+    <string name="conversation_jump_date_failed">Zprávy z toho dne se nepodařilo najít.</string>
+    <string name="conversation_jump_date_go">Přejít</string>
 </resources>

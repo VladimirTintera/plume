@@ -17,6 +17,12 @@ import kotlinx.coroutines.flow.Flow
 interface ConversationRepository {
 
     /**
+     * První zpráva od okamžiku [epochSeconds] (začátek vybraného dne) — cíl skoku na datum.
+     * `null`, když od té doby v chatu nic není (vybraný den je novější než poslední zpráva).
+     */
+    suspend fun firstMessageFrom(chatId: Long, epochSeconds: Int): Result<Long?> = Result.failure(UnsupportedOperationException())
+
+    /**
      * Konverzace zúžená na jedno téma skupiny s tématy: historie, nové zprávy, přečtení, koncept,
      * „píše…" i odeslání patří tématu. Výchozí implementace (testy, podvrhy) zužovat neumí.
      */

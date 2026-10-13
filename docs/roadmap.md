@@ -371,8 +371,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 
 **Konverzace a hledání:**
 
-- Skok na datum a kalendář médií (`getChatMessageByDate`, `getChatMessageCalendar`,
-  `getChatSparseMessagePositions`).
+- ~~Skok na datum~~ — hotovo (kalendář v hledání v konverzaci; `docs/poznatky/konverzace-pohyb.md`,
+  „Skok na datum"). Zbývá kalendář médií ve sdílených médiích (`getChatMessageCalendar`) a rychlé
+  rolování po pozicích (`getChatSparseMessagePositions`).
 - Instant View článků (`getWebPageInstantView`) — dnes se otevírají v prohlížeči.
 - Checklisty: zobrazí se jen jako popis „Seznam úkolů: …" (`MessageContent.kt`); vytvořit,
   doplnit ani odškrtnout je nejde (`InputMessageChecklist`, `addChecklistTasks`,

@@ -32,6 +32,10 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -44,6 +48,7 @@ import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.conversation_jump_to_date
 import eu.tintera.plume.resources.conversation_search
 import eu.tintera.plume.resources.conversation_search_by_member
 import eu.tintera.plume.resources.conversation_search_clear
@@ -55,6 +60,7 @@ import eu.tintera.plume.resources.conversation_search_none
 import eu.tintera.plume.resources.conversation_search_older
 import eu.tintera.plume.resources.conversation_search_position
 import eu.tintera.plume.resources.conversation_search_sender_remove
+import eu.tintera.plume.resources.event_24dp
 import eu.tintera.plume.resources.keyboard_arrow_down_24dp
 import eu.tintera.plume.resources.keyboard_arrow_up_24dp
 import eu.tintera.plume.resources.person_search_24dp
@@ -90,7 +96,19 @@ internal fun InChatSearchTopBar(
     /** Výběr člena; `null` mimo skupiny, kde odesílatel není jen jeden protějšek. */
     onPickSender: (() -> Unit)? = null,
     onRemoveSender: () -> Unit = {},
+    /** Skok na začátek vybraného dne (sekundy epochy); `null` = kalendář se nenabízí (téma, vlákno). */
+    onJumpToDate: ((Int) -> Unit)? = null,
 ) {
+    var pickingDate by rememberSaveable { mutableStateOf(false) }
+    if (pickingDate && onJumpToDate != null) {
+        JumpToDateDialog(
+            onPick = { seconds ->
+                pickingDate = false
+                onJumpToDate(seconds)
+            },
+            onDismiss = { pickingDate = false },
+        )
+    }
     Surface(color = MaterialTheme.colorScheme.surface) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -153,6 +171,16 @@ internal fun InChatSearchTopBar(
                     Icon(
                         painterResource(Res.drawable.person_search_24dp),
                         contentDescription = stringResource(Res.string.conversation_search_by_member),
+                    )
+                }
+            }
+            // Kalendář vedle výběru člena, jako v oficiálních klientech: skok na den je jiný
+            // způsob, jak v historii něco najít.
+            if (onJumpToDate != null) {
+                IconButton(onClick = { pickingDate = true }, shapes = IconButtonDefaults.shapes()) {
+                    Icon(
+                        painterResource(Res.drawable.event_24dp),
+                        contentDescription = stringResource(Res.string.conversation_jump_to_date),
                     )
                 }
             }

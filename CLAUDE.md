@@ -46,7 +46,7 @@ v `docs/poznatky/` — **než sáhneš na oblast, přečti její soubor**, a pou
 ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>' CLAUDE.md docs/poznatky`.
 
 - [Konverzace: zobrazení zpráv](docs/poznatky/konverzace-zobrazeni.md) — bloky seznamu, bublina a její tvar, média bez bubliny, alba, předěly, doručení, vzhled a sklo, barva konverzace, text s entitami a odkazy, přeposlání, soubory, reklamy
-- [Konverzace: pohyb v historii](docs/poznatky/konverzace-pohyb.md) — otevřený chat, skok na nepřečtené / citaci / zmínky, připnuté, hledání, okno v historii, hlášení přečtení, gesta tahem do strany, rychlý přepínač chatů
+- [Konverzace: pohyb v historii](docs/poznatky/konverzace-pohyb.md) — otevřený chat, skok na nepřečtené / citaci / zmínky / datum, připnuté, hledání, okno v historii, hlášení přečtení, gesta tahem do strany, rychlý přepínač chatů
 - [Konverzace: psaní a odesílání](docs/poznatky/konverzace-psani.md) — vstupní pole, přílohy a galerie, úprava fotky, práva psát, „píše…“, plánování, úprava, formátování, náhled odkazu, koncept, napovídání, odpovědi, let odeslané zprávy
 - [Konverzace: akce nad zprávami](docs/poznatky/konverzace-akce.md) — nabídka nad zprávou a citace z ní, překlad, shrnutí od serveru, automatické mazání, výběr víc zpráv, informace o zprávě, připomenutí, přeposílání
 - [Boti a mini aplikace](docs/poznatky/boti.md) — tlačítka pod zprávou, vlastní klávesnice, příkazy, Start, inline boti, mini aplikace (WebView most)

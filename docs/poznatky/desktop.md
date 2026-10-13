@@ -213,21 +213,9 @@ předá systému — co se ladí, je čistá funkce.
   chatu a fotkou ze zprávy, tichá zpráva má `<audio silent="true"/>` (`potichu=true` v logu),
   klik otevře chat (`Klik na oznámení` v logu), přečtení na telefonu toast do 2 s stáhne. Zpráva
   v chatu otevřeném v Plume oznámení nevydá vůbec (TDLib ji odloží a zruší). Nevalidní XML
-  vrátí HRESULT místo pádu. **Neověřeno**: zvuk (ověřen jen atribut v XML), vytažení okna
-  dopředu, když je jiná aplikace v popředí.
-- **Ověřeno na instalaci z MSI** (release `desktop-0.3.3` přes 0.3.1, Windows 11): aplikace při
-  prvním startu doplnila zástupci `Start Menu\Programs\Plume\Plume.lnk` AUMID
-  `eu.tintera.plume` i `ToastActivatorCLSID` (cíl zůstal `Plume.exe`) a zapsala `LocalServer32`
-  s nainstalovanou cestou. Toast ze schované aplikace se ukázal, odpověď z něj odešla. **Klik
-  na toast u ZAVŘENÉ aplikace ji spustil a otevřel chat**: rodič procesu je `svchost.exe`
-  (služba DCOM), příkaz `Plume.exe -ToastActivated -Embedding` — `-Embedding` přidává COM sám.
-- **Spouštěč z jpackage běží jako DVA procesy `Plume.exe`**: spouštěč pustí svou kopii jako
-  potomka a JVM běží v ní. COM spustí rodiče, třídu aktivátoru ale registruje potomek — a klik
-  se přesto doručí (ověřeno studeným startem výš). Jediná instance, zámek i aktivátor žijí
-  v potomkovi; kdo hledá proces Plume, najde oba.
-- **Testovací toast skriptem PowerShellu: soubor s BOM, nebo ASCII.** Windows PowerShell 5.1
-  čte `.ps1` bez BOM jako ANSI, takže UTF-8 diakritika v XML toastu vyjde rozbitá — vypadá to
-  jako chyba Plume, ale je to skript. Toasty Plume jdou do Windows jako UTF-16 přes JNI.
+  vrátí HRESULT místo pádu. **Neověřeno**: spuštění zavřené aplikace kliknutím na toast (jen
+  instalace z MSI, `LocalServer32`), doplnění AUMID do zástupce z MSI, zvuk (ověřen jen atribut
+  v XML), vytažení okna dopředu, když je jiná aplikace v popředí.
 
 ## Hlavní panel Windows
 
@@ -250,8 +238,7 @@ a `USER_ATTENTION_WINDOW` (`FlashWindowEx`); `ICON_BADGE_TEXT` ani `ICON_BADGE_N
   zpráva i odložený chat neblikají — „potichu" znamená nerušit. Schované okno tlačítko nemá,
   upozorní toast. Bliká se jednou za dávku, ne za každý chat.
 - **Ověřeno na Windows 11** (ladicí běh, snímky hlavního panelu): odznak „1" naskočil po
-  startu, zpráva od bota ho zvedla na „2" a tlačítko se rozblikalo. Na instalaci z MSI (0.3.3):
-  jedno tlačítko s ikonou Plume a odznakem — okno s AUMID procesu se od zástupce neodtrhlo.
+  startu, zpráva od bota ho zvedla na „2" a tlačítko se rozblikalo.
 
 ## Oznamovací oblast a jediná instance
 
@@ -262,21 +249,6 @@ Na Windows zavření okna schová aplikaci do oznamovací oblasti (`DesktopTrayI
   Windows znamená DVOJKLIK; ikona se tam ale otevírá jedním kliknutím. Nabídka je AWT
   `PopupMenu` (jinou `TrayIcon` neumí, `Tray` ji má taky). Popisky se mění s jazykem aplikace
   bez nové ikony (`setLabels`).
-- **Odznak nepřečtených i na ikoně u hodin** (`DesktopTray.setBadge`), týž počet a tytéž barvy
-  motivu jako na hlavním panelu (`DesktopTaskbar.unreadCount` / `badgeColors`); tooltip říká
-  totéž slovy („Plume – 3 nepřečtené zprávy", plurál), což čte i čtečka obrazovky. Ikona se
-  mění `TrayIcon.setImage`, nativní kód netřeba.
-  - **Vícerozlišovací obrázek, `isImageAutoSize = false`.** Ikona u hodin má 16 bodů; varianty
-    pro měřítka 100–300 % (`BaseMultiResolutionImage`) drží číslo ostré, automatické zmenšení
-    by je obešlo a zmenšený velký obrázek by číslo rozmazal.
-  - **Kolečko má 68 % ikony a pírko skoro zakryje** — vědomě, menší kolečko by v 16 pixelech
-    nemělo čitelné dvouciferné číslo (stejně to řeší Telegram Desktop). Kolem kolečka je ikona
-    vyříznutá průhledným lemem, aby kolečko na fialové ikoně nesplynulo.
-  - **Ikona u hodin se kreslí BEZ průhledného okraje** (`trimTransparent`). `plume-icon.png`
-    má okraj 47 px z 512 na každé straně — správně pro hlavní panel a Start, ale u hodin
-    z 16 pixelů zbylo viditelných 13 a Plume byla menší než ikony ostatních aplikací.
-  - Ověřeno snímkem oblasti u hodin (Windows 11, 100 %): odznak „1" v barvách motivu, ikona
-    stejně velká jako ostatní.
 - **Jen Windows.** macOS má Dock a Linux oznamovací oblast mít nemusí (GNOME bez rozšíření)
   — schované okno by nešlo vrátit. Linux dál
   zavřením končí. AWT notifikace (`TrayNotifier`, Linux a Windows bez knihovny toastů) bere
@@ -298,8 +270,7 @@ Na Windows zavření okna schová aplikaci do oznamovací oblasti (`DesktopTrayI
   o oznámeních: okno vedle jiného je pořád vidět. Platí i pro macOS (schování do Docku).
 - **Ověřeno na Windows 11** (ladicí běh): `WM_CLOSE` okno schová a proces běží dál, druhé
   spuštění skončí za pár sekund a okno první instance je vidět a v popředí, návrat do popředí
-  v logu. Na instalaci z MSI (0.3.3): Ukončit z nabídky ikony aplikaci zavře úplně (oba procesy
-  `Plume.exe` zmizí). **Neověřeno**: macOS (popředí podle schovaného okna).
+  v logu. **Neověřeno**: macOS (popředí podle schovaného okna), instalace z MSI.
 
 ## Release (Windows)
 
@@ -335,18 +306,8 @@ postaví MSI (`packageMsi -PdesktopVersion=…`), na Ubuntu založí GitHub Rele
   balíčku jdou na Windows přes `msiSafe` (bez diakritiky, když se do cp1252 nevejde).
 - **Ikony** (`client/desktopApp/icons/plume.{ico,icns,png}` a ikona okna) generuje
   `play/tools/icon.py desktop` z téže geometrie pírka jako ostatní platformy: zaoblený čtverec
-  s průhlednými rohy. ICO nese velikosti 16–256, Windows si vybírá podle místa (hlavní panel,
-  Start, Průzkumník).
-  - **Okraj jen pro macOS a Linux.** `.icns` a `plume.png` jdou podle mřížky ikon macOS (plocha
-    824 z 1024 a okraj na stín), protože Dock s okrajem počítá. **`.ico` a `plume-icon.png`
-    jsou bez okraje** (`desktop(…, margin=False)`, poloměr rohu je týž podíl plochy): Windows
-    kreslí ikonu na hlavním panelu, u hodin i v toastu do celého čtverce a s okrajem macOS
-    byla Plume viditelně menší než ostatní aplikace (ověřeno snímkem hlavního panelu).
-    `plume-icon.png` na macOS nikdo neukazuje (Dock bere `.icns`), takže může být rovnou
-    pro Windows.
-  - Bez `shapely` v systému a bez `uv`: dočasné venv (`py -m venv …`, `pip install pillow
-    shapely`) a skript jeho Pythonem. Výstup je deterministický — co se nezměnilo, vyjde bajt
-    po bajtu stejně.
+  s průhlednými rohy podle mřížky ikon macOS (824/1024, poloměr 185). ICO nese velikosti
+  16–256, Windows si vybírá podle místa (hlavní panel, Start, Průzkumník).
 
 ## Cesty k souborům na Windows
 

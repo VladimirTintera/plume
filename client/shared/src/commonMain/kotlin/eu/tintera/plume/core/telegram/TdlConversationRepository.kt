@@ -244,6 +244,32 @@ class TdlConversationRepository(
     private val readTopic: MessageTopic? =
         topic ?: savedTopicId?.let { MessageTopicSavedMessages(savedMessagesTopicId = it) }
 
+    /**
+     * Skok na datum: `getChatMessageByDate` vrací POSLEDNÍ zprávu před okamžikem, ne první po
+     * něm. Cíl je proto zpráva hned za ní (`getChatHistory` o jednu novější). Když před
+     * okamžikem nic není (404 — den je starší než chat), vezme se nejstarší zpráva chatu:
+     * historie od nejmenšího id serveru směrem k novějším.
+     */
+    override suspend fun firstMessageFrom(chatId: Long, epochSeconds: Int): Result<Long?> = runCatching {
+        val before = client.getChatMessageByDate(chatId = chatId, date = epochSeconds - 1).toResult()
+            .map<Long?, Message> { it.id }
+            .recoverCatching { failure -> if (failure is TdlThrowable && failure.code == NOT_FOUND) null else throw failure }
+            .getOrThrow()
+        val from = before ?: FIRST_SERVER_MESSAGE_ID
+        // TDLib vrací napřed, co má v lokální databázi — u staré historie s oknem jedné novější
+        // přišla zpráva samotná a jedna STARŠÍ, novější ne (ověřeno na kanálu). S oknem pěti
+        // novějších dorazily hned; pro jistotu se dotaz opakuje, jak radí dokumentace
+        // `getChatHistory`, dokud novější nepřijde.
+        var target: Long? = null
+        repeat(NEWER_ATTEMPTS) {
+            val ids = client.getChatHistory(chatId = chatId, fromMessageId = from, offset = -NEWER_WINDOW, limit = NEWER_WINDOW + 1, onlyLocal = false)
+                .toResult().getOrThrow().messages.filterNotNull().map { it.id }
+            target = firstMessageAfter(before, ids)
+            if (target != null) return@runCatching target
+        }
+        target
+    }.onFailure { logger.w(it) { "Zprávu podle data se nepodařilo najít." } }
+
     override fun inForumTopic(topicId: Int): ConversationRepository =
         TdlConversationRepository(holder = holder, forumTopicId = topicId, savedTopics = savedTopics)
 
@@ -3448,3 +3474,18 @@ private fun FormatSpan.toTdl(): TextEntityType = when (format) {
     TextFormat.Link -> TextEntityTypeTextUrl(url = url.orEmpty())
     TextFormat.CustomEmoji -> TextEntityTypeCustomEmoji(customEmojiId = customEmojiId ?: 0)
 }
+
+/**
+ * Cíl skoku na datum z poslední zprávy PŘED dnem ([before], `null` = žádná) a pár zpráv za ní
+ * ([newer], v libovolném pořadí): nejstarší zpráva novější než [before]. `null`, když za ní nic
+ * není — vybraný den je novější než poslední zpráva chatu.
+ */
+internal fun firstMessageAfter(before: Long?, newer: List<Long>): Long? =
+    newer.filter { before == null || it > before }.minOrNull()
+
+/** Kolik novějších zpráv se při skoku na datum chce a kolikrát se o ně TDLib požádá. */
+private const val NEWER_WINDOW = 5
+private const val NEWER_ATTEMPTS = 3
+
+/** Id první zprávy na serveru (`ServerMessageId(1) << 20`) — od něj se čte historie od začátku. */
+private const val FIRST_SERVER_MESSAGE_ID = 1L shl 20
