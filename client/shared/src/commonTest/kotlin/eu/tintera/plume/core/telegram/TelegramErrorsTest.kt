@@ -7,6 +7,7 @@ import eu.tintera.plume.resources.error_flood_wait_minutes
 import eu.tintera.plume.resources.error_flood_wait_seconds
 import eu.tintera.plume.resources.error_phone_code_invalid
 import eu.tintera.plume.resources.error_pin_limit
+import eu.tintera.plume.resources.error_verification_failed
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -37,6 +38,15 @@ class TelegramErrorsTest {
         assertEquals(
             UiText(Res.string.error_pin_limit),
             IllegalStateException("The maximum number of pinned chats exceeded").userMessage(fallback),
+        )
+    }
+
+    @Test
+    fun `odmitnute overeni aplikace rekne proc a kudy dal`() {
+        // Plume ověření odmítá samo (`declineVerification`), TDLib pak dotaz ukončí touhle konstantou.
+        assertEquals(
+            UiText(Res.string.error_verification_failed),
+            IllegalStateException("VERIFICATION_FAILED").userMessage(fallback),
         )
     }
 

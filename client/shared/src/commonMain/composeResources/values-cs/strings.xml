@@ -314,6 +314,7 @@
     <string name="error_recovery_code_expired">Kód z e-mailu vypršel. Nech si poslat nový.</string>
     <string name="error_email_not_allowed">Tenhle e-mail použít nejde. Zkus jiný.</string>
     <string name="error_email_reset_pending">Reset e-mailu ještě neproběhl. Zkus to později.</string>
+    <string name="error_verification_failed">Telegram tohle pustí jen po ověření oficiální aplikace, a to Plume udělat nemůže. Zkus to v oficiální aplikaci Telegramu.</string>
     <string name="error_recovery_unavailable">K účtu není nastavený obnovovací e-mail.</string>
     <string name="file_download_failed">Soubor se nepodařilo stáhnout.</string>
     <string name="file_unavailable">Soubor není dostupný.</string>

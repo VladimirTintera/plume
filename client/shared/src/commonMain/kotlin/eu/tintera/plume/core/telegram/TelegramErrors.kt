@@ -34,6 +34,7 @@ import eu.tintera.plume.resources.settings_two_step_error_email_invalid
 import eu.tintera.plume.resources.error_summary_premium_limit
 import eu.tintera.plume.resources.error_transfer_needs_password
 import eu.tintera.plume.resources.error_transfer_too_fresh
+import eu.tintera.plume.resources.error_verification_failed
 import org.jetbrains.compose.resources.StringResource
 
 /**
@@ -94,6 +95,9 @@ fun Throwable.userMessage(fallback: StringResource): UiText {
         "Invalid recovery code" -> Res.string.error_recovery_code_invalid
         // `resendAuthenticationCode` bez další cesty (`nextType` je null) — TDLib to odmítne sama.
         "Authentication code can't be resend" -> Res.string.error_code_resend_unavailable
+        // Ověření aplikace, které Plume odmítlo, protože ho udělat neumí (`declineVerification`
+        // v `TdlTelegramSession`). Konstantu si TDLib píše sama (`NetQueryVerifier`).
+        "VERIFICATION_FAILED" -> Res.string.error_verification_failed
 
         // Konstanty od serveru. TDLib je nepřekládá, posílá je dál, jak přišly.
         "PINNED_DIALOGS_TOO_MUCH" -> Res.string.error_pin_limit

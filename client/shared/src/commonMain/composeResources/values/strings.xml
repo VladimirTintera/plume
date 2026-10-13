@@ -309,6 +309,7 @@
     <string name="error_recovery_code_expired">The code from the email expired. Have a new one sent.</string>
     <string name="error_email_not_allowed">This email can't be used. Try another one.</string>
     <string name="error_email_reset_pending">The email reset hasn't finished yet. Try again later.</string>
+    <string name="error_verification_failed">Telegram allows this only after verifying the official app, which Plume can't do. Try it in the official Telegram app.</string>
     <string name="error_recovery_unavailable">This account has no recovery email.</string>
     <string name="file_download_failed">Couldn't download the file.</string>
     <string name="file_unavailable">The file isn't available.</string>

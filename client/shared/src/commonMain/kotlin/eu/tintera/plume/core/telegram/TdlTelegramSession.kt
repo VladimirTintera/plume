@@ -125,10 +125,48 @@ class TdlTelegramSession(
             }
             onClientClosed(target)
         }
+        // Taky před prvním requestem: update bez odběratele se zahodí (wrapper je drží
+        // v `SharedFlow` bez paměti) a dotaz, který na ověření čeká, by visel navždy.
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            target.applicationVerificationRequiredUpdates.collect { update ->
+                declineVerification(target, update.verificationId, kind = "Play Integrity / APNs")
+            }
+        }
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            target.applicationRecaptchaVerificationRequiredUpdates.collect { update ->
+                declineVerification(target, update.verificationId, kind = "reCAPTCHA (${update.action})")
+            }
+        }
 
         target.getAuthorizationState()
             .toResult()
             .onFailure { logger.e(it) { "Nepodařilo se přečíst authorization state." } }
+    }
+
+    /**
+     * Ověření aplikace, které server chce před dokončením dotazu — Plume ho udělat neumí, takže
+     * ho hned odmítne a dotaz skončí chybou `VERIFICATION_FAILED` (věta v [userMessage]).
+     *
+     * **Bez odpovědi by dotaz visel navždy.** Server odpoví na libovolný dotaz 403
+     * `INTEGRITY_CHECK_CLASSIC_…` (Android), `APNS_VERIFY_CHECK_…` (iOS) nebo
+     * `RECAPTCHA_CHECK_…`; TDLib ho odloží, pošle update a pustí ho dál až s tokenem, nebo
+     * s prázdným tokenem jako chybu. Žádná lhůta tam není (`NetQueryDispatcher`,
+     * `NetQueryVerifier` ve zdroji TDLib). Týká se to přihlášení (`auth.sendCode`) stejně
+     * jako čehokoli po něm; desktopová TDLib tyhle chyby na ověření nepřevádí vůbec.
+     *
+     * **Token Plume získat nemůže**, dokumentace to říká „for official mobile applications
+     * only": Play Integrity se ptá Google Cloud projektu Telegramu, kterému se ověří podpis
+     * oficiální aplikace; tajemství pro iOS chodí pushem jen na její APNs registraci; klíč
+     * reCAPTCHA je Telegramu, omezený na jeho balíčky. Pokus by jen protáhl čekání.
+     *
+     * `e` s výjimkou, ať je v Crashlytics vidět, jestli a jak často to server po Plume chce —
+     * podle toho se dá rozhodnout, jestli to stojí za víc než větu.
+     */
+    private suspend fun declineVerification(target: TdlClient, verificationId: Long, kind: String) {
+        logger.e(ApplicationVerificationRequired(kind)) { "Server chce ověření aplikace ($kind), odmítám." }
+        target.setApplicationVerificationToken(verificationId = verificationId, token = "")
+            .toResult()
+            .onFailure { logger.w(it) { "Odmítnutí ověření aplikace TDLib nevzala." } }
     }
 
     /**
@@ -609,6 +647,9 @@ class TdlTelegramSession(
         const val WRONG_KEY_MESSAGE = "Wrong database encryption key"
     }
 }
+
+/** Jen kvůli místu a seskupení v Crashlytics, viz `declineVerification`. */
+private class ApplicationVerificationRequired(kind: String) : IllegalStateException("Application verification required: $kind")
 
 /**
  * Země podle názvu, bez ohledu na diakritiku a velikost písmen. TDLib řadí podle KÓDU země

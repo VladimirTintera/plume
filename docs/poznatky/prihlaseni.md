@@ -338,6 +338,35 @@ neumíme". Kroky jsou `AuthStage.WaitEmailAddress` a `WaitEmailCode` (testy `Aut
   testovací účet e-mail nechce a našemu `api_id` ho server zatím nenabídl ani u nového čísla
   (viz „Kód jinou cestou"). Až se to stane, v debug logu je `Kód e-mailem:`.
 
+### Ověření aplikace (Play Integrity, APNs, reCAPTCHA)
+
+Server může před dokončením dotazu chtít doklad, že ho posílá oficiální aplikace: na libovolný
+dotaz odpoví 403 `INTEGRITY_CHECK_CLASSIC_…` (Android), `APNS_VERIFY_CHECK_…` (iOS) nebo
+`RECAPTCHA_CHECK_…`. Typicky u `auth.sendCode`, ale TDLib to dělá u všeho.
+
+- **TDLib dotaz odloží a čeká na aplikaci bez lhůty** (`NetQueryDispatcher`, `NetQueryVerifier`
+  ve zdroji TDLib): pošle `updateApplicationVerificationRequired` /
+  `updateApplicationRecaptchaVerificationRequired` a dotaz pustí dál až po
+  `setApplicationVerificationToken`. Dřív to nikdo neodebíral, takže by přihlášení viselo
+  s točícím se tlačítkem navždy a nic by se nedozvěděl ani log.
+- **Plume ověření hned odmítá prázdným tokenem** (`declineVerification` v `TdlTelegramSession`);
+  dotaz skončí chybou `VERIFICATION_FAILED` a ta má vlastní větu („jen po ověření oficiální
+  aplikace, zkus to v oficiální aplikaci"). Token získat nejde, dokumentace to vede „for official
+  mobile applications only": Play Integrity se ptá Cloud projektu Telegramu, který ověří podpis
+  oficiální aplikace; tajemství pro iOS chodí pushem jen na její APNs registraci; klíč reCAPTCHA
+  je omezený na balíčky Telegramu.
+- **Odběr běží od startu klienta**, v `attach` vedle stavu přihlášení. Wrapper drží updaty
+  v `SharedFlow` bez paměti, takže update poslaný dřív, než se kdo přihlásí k odběru, se ztratí —
+  a s ním i jediná šance dotaz uvolnit.
+- **Hlásí se jako problém do Crashlytics** (`logger.e` s výjimkou `ApplicationVerificationRequired`
+  a druhem ověření). Jestli a jak často to server po Plume chce, nevíme; podle toho se pozná,
+  jestli stojí za víc než větu.
+- **Desktopová TDLib chyby na ověření nepřevádí** (jen sestavení pro Android a iOS), tam dotaz
+  rovnou skončí chybou od serveru.
+- **Ověřeno jen překladem a testem věty.** Vyvolat to na emulátoru nejde: TDLib to umí podstrčit
+  jen s přepínačem `TD_TEST_VERIFICATION` při sestavení a server po našem `api_id` ověření
+  zatím nechtěl. Na emulátoru ověřené je, že odběry nerozbily start a přihlášení.
+
 ### Výběr země a formát čísla
 
 **Seznam zemí ani formáty čísel se nedrží u nás** — dává je TDLib, a všechno „can be called
