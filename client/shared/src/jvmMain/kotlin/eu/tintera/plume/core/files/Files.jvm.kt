@@ -95,3 +95,5 @@ actual fun rememberSaveAs(): SaveAsLauncher? = remember {
 }
 
 actual val saveAsSupported: Boolean = true
+
+actual val autosavesToGallery: Boolean = false

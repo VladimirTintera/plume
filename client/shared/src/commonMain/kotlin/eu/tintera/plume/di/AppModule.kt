@@ -1,6 +1,7 @@
 package eu.tintera.plume.di
 
 import eu.tintera.plume.features.settings.ChangePhoneViewModel
+import eu.tintera.plume.features.settings.AutosaveViewModel
 import eu.tintera.plume.features.settings.NetworkUsageViewModel
 import eu.tintera.plume.features.settings.PasskeysViewModel
 import eu.tintera.plume.features.settings.DeleteAccountViewModel
@@ -151,6 +152,11 @@ import eu.tintera.plume.features.share.ShareViewModel
 import eu.tintera.plume.features.settings.AppearanceViewModel
 import eu.tintera.plume.features.settings.AutoDownloadViewModel
 import eu.tintera.plume.core.connectivity.AutoDownloadPolicy
+import eu.tintera.plume.core.files.AutosaveWorker
+import eu.tintera.plume.core.files.MediaSaver
+import eu.tintera.plume.core.files.autosavesToGallery
+import eu.tintera.plume.core.telegram.AutosaveRepository
+import eu.tintera.plume.core.telegram.TdlAutosaveRepository
 import eu.tintera.plume.core.ui.KeyboardShortcuts
 import eu.tintera.plume.features.settings.ChatSwipeSettingsViewModel
 import eu.tintera.plume.features.settings.QuickReactionSettingsViewModel
@@ -238,6 +244,23 @@ fun appModule() = module {
     // a oznámení od služby jen jednou — odběr, který vznikne až s obrazovkou, by je minul.
     single<AccountNotices>(createdAtStart = true) {
         TdlAccountNotices(holder = get(), scope = get(named(APP_SCOPE)))
+    }
+    // Eager ze stejného důvodu: nové zprávy chodí updatem, ukládání do galerie je nesmí minout.
+    single<AutosaveRepository>(createdAtStart = true) {
+        TdlAutosaveRepository(holder = get(), scope = get(named(APP_SCOPE)))
+    }
+    if (autosavesToGallery) {
+        single(createdAtStart = true) {
+            val saver = get<MediaSaver>()
+            val policy = get<AutoDownloadPolicy>()
+            AutosaveWorker(
+                autosave = get(),
+                files = get(),
+                save = saver::save,
+                limits = { policy.limits.value },
+                scope = get(named(APP_SCOPE)),
+            ).also { it.start() }
+        }
     }
     // Eager ze stejného důvodu: `UpdateForumTopic` s konceptem chodí i bez otevřeného přehledu.
     single<TopicDrafts>(createdAtStart = true) {
@@ -465,6 +488,7 @@ fun appModule() = module {
     viewModel { ChangePhoneViewModel(accounts = get(), session = get(), notices = get()) }
     viewModel { PasskeysViewModel(accounts = get()) }
     viewModel { NetworkUsageViewModel(storage = get()) }
+    viewModel { AutosaveViewModel(autosave = get(), chats = get()) }
     viewModel { DeleteAccountViewModel(accounts = get(), passwords = get()) }
     viewModelOf(::AppLockViewModel)
     // Widget na plochu jen tam, kde ho platforma má (Android).

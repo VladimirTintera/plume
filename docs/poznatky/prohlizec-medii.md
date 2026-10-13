@@ -1283,3 +1283,46 @@ dělala na všech sítích dřív (5 MB); výchozí je Wi-Fi Naplno, mobilní da
   rozmazaná s tlačítkem a v logu `Files` ani jedna žádost o soubor, ťuknutí stáhne fotku
   i zmenšeninu. **Neověřeno:** spořič dat a režim nízkých dat (logika jen testy), skutečný
   roaming a iOS (jen přeložené).
+
+
+### Automatické ukládání do galerie
+
+Úložiště → Ukládání do galerie: výchozí pravidla pro soukromé chaty, skupiny a kanály (fotky,
+videa, největší video) a výjimky pro jednotlivé chaty (`AutosaveGroup`, `AutosaveViewModel`).
+Ukládá `AutosaveWorker` (`core/files`) přes `MediaSaver` — tentýž, který ukládá ručně
+z prohlížeče.
+
+- **Nastavení drží Telegram na serveru** (`getAutosaveSettings` / `setAutosaveSettings`,
+  `updateAutosaveSettings`) — je společné s oficiálními aplikacemi na všech zařízeních účtu.
+  **Ukládat ale musí každá aplikace sama**, TDLib jen řekne co. Plume dřív nastavení
+  ignorovalo: kdo si ukládání zapnul v oficiální aplikaci, v Plume ho neměl.
+- **Ukládají se fotky a videa z NOVĚ příchozích zpráv** (`updateNewMessage`, i ty dohnané po
+  startu). Nikdy: vlastní a naplánované zprávy, chráněný obsah (`canBeSaved`), mizející média,
+  média „jen na ťuknutí" (`isSecret`) a tajné chaty — uložit je do galerie by obcházelo to, co
+  odesílatel nebo chat výslovně nechce.
+- **Ukládání nestahuje víc, než by stáhlo automatické stahování** (`autosaveAction`): fotka se
+  stáhne, když se fotky stahují samy, video, když se vejde do limitu souborů dané sítě
+  (Naplno 20 MB). Jinak se jen čeká (`FileRepository.observe`), až soubor stáhne otevřený chat
+  nebo prohlížeč — nejvýš 6 hodin a jen v běžícím procesu. Kdo na mobilních datech stahování
+  vypnul, nečeká, že mu je sní galerie. Najednou se kvůli ukládání stahují nejvýš dva soubory.
+- **Repository vzniká eagerně** — nové zprávy chodí updatem a ten bez odběratele zmizí.
+  Nastavení se čte až s první zprávou (a s obrazovkou) a drží se v paměti; update ho zneplatní.
+- **Server u vypnutých videí vrací nejmenší limit (512 kB).** Zapnout videa s ním by ukládalo jen
+  půlmegová videa, proto se při zapnutí předvybere 100 MB a 512 kB se v nabídce ukáže, jen když
+  videa zapnutá byla (ověřeno na emulátoru, účet měl všude „Vypnuto").
+- **Změna jde na server až „Hotovo"** v dialogu, ne po každém přepínači — tři volání za sebou
+  by se předbíhala.
+- **Zapnutí si řekne o oprávnění zápisu** (`rememberSavePermission`): iOS (přidávání do knihovny
+  fotek) a Android do verze 9. Nastavení se změní i při odmítnutí — patří i jiným zařízením;
+  ukládání pak v logu hlásí „NEULOŽENO".
+- **Desktop automatické ukládání nemá** (`autosavesToGallery = false`): galerii nemá a ruční
+  „Do galerie" tam ukládá do Stažených, které by automatika zahltila.
+- **Výjimky se zatím jen upravují a odebírají**, zakládá se v oficiálních aplikacích (Plume
+  nemá v profilu chatu kam je dát) — viz `docs/roadmap.md`.
+- **Ověřeno**: `AutosaveTest` (výjimka přebije druh, kdy stahovat fotku a video), `AutosaveWorkerTest`
+  (stáhne a uloží, skupina se neukládá, bez automatického stahování se čeká na cizí stažení,
+  nestažené se neuloží); na emulátoru skutečné nastavení účtu a dialog (zavřený přes Zrušit),
+  a **se sondou** (v paměti podstrčené „fotky ze soukromých chatů", na server nic) uložení
+  existující fotky do `Pictures/Plume` i skutečné nově příchozí fotky ze soukromého chatu.
+  **Změna nastavení na serveru a iOS vyzkoušené NEJSOU** (iOS jen přeložené) — nastavení platí
+  pro celý účet včetně oficiálních aplikací.
