@@ -323,7 +323,7 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   hotovo (`docs/poznatky/systemova-oznameni.md`); skutečný update od serveru neověřený.
 - ~~**Doporučené akce**~~ — hotovo (karta v seznamu chatů; `docs/poznatky/systemova-oznameni.md`,
   „Doporučené akce"). ~~Nastavení přihlašovacího e-mailu~~ — hotovo (`docs/poznatky/nastaveni.md`,
-  „Přihlašovací e-mail"). Zbývá změna čísla — dnes na ni karta odkazuje do oficiální aplikace.
+  „Přihlašovací e-mail"). ~~Změna čísla~~ — hotovo (`docs/poznatky/nastaveni.md`, „Změna telefonního čísla").
 
 **Správa skupin a kanálů** (nad rámec názvu, popisu, fotky, práv a pozvánek):
 
@@ -348,7 +348,7 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 
 **Účet a nastavení:**
 
-- Změna telefonního čísla (`sendPhoneNumberCode` / `checkPhoneNumberCode`).
+- ~~Změna telefonního čísla~~ — hotovo (úprava profilu → Telefonní číslo).
 - Smazání účtu a samosmazání po neaktivitě (`deleteAccount`, `getAccountTtl` / `setAccountTtl`).
 - ~~Přihlašovací e-mail~~ (hotovo) a přístupové klíče (`addLoginPasskey`, `getLoginPasskeys`).
 - Narozeniny: vlastní datum (`setBirthdate`) a pruh s narozeninami kontaktů

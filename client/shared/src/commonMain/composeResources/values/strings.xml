@@ -2772,7 +2772,7 @@
     <string name="suggestion_check_password_no">I forgot it</string>
     <string name="suggestion_check_phone_title">Is %1$s still your number?</string>
     <string name="suggestion_check_phone_title_unknown">Is this still your number?</string>
-    <string name="suggestion_check_phone_text">Login codes go to this number. You can change it in the official Telegram app for now.</string>
+    <string name="suggestion_check_phone_text">Login codes go to this number.</string>
     <string name="suggestion_check_phone_yes">Yes, it is</string>
     <string name="suggestion_set_password_title">Protect your account with a password</string>
     <string name="suggestion_set_password_text">It keeps the account safe even if someone gets your login code.</string>
@@ -2799,4 +2799,15 @@
     <string name="login_email_confirm">Confirm</string>
     <string name="login_email_done">The login email is set.</string>
     <string name="error_login_email_not_allowed">Telegram doesn't allow adding a login email right now.</string>
+    <string name="error_phone_number_occupied">This number already belongs to another Telegram account.</string>
+    <string name="error_phone_number_banned">Telegram has banned this number.</string>
+    <string name="error_fresh_change_phone">You can change the number only 24 hours after signing in on this device.</string>
+    <string name="change_phone_row">Phone number</string>
+    <string name="change_phone_title">Change number</string>
+    <string name="change_phone_intro">Your account and all messages, media and contacts stay; only the number you sign in with changes. A code will be sent to the new number.</string>
+    <string name="change_phone_send">Send code</string>
+    <string name="change_phone_confirm">Change number</string>
+    <string name="change_phone_send_failed">Couldn't send the code to this number.</string>
+    <string name="change_phone_failed">Couldn't change the number.</string>
+    <string name="suggestion_check_phone_change">Change</string>
 </resources>

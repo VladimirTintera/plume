@@ -9,6 +9,7 @@ import dev.g000sha256.tdl.dto.AuthorizationStateClosed
 import dev.g000sha256.tdl.dto.AuthorizationStateClosing
 import dev.g000sha256.tdl.dto.AuthorizationStateLoggingOut
 import dev.g000sha256.tdl.dto.AuthorizationStateReady
+import dev.g000sha256.tdl.dto.AuthenticationCodeInfo
 import dev.g000sha256.tdl.dto.AuthenticationCodeType
 import dev.g000sha256.tdl.dto.AuthenticationCodeTypeCall
 import dev.g000sha256.tdl.dto.AuthenticationCodeTypeFirebaseAndroid
@@ -250,29 +251,6 @@ class TdlTelegramSession(
         }
     }
 
-    /**
-     * Podoba kódu pro UI. `when` je schválně bez `else`: `AuthenticationCodeType` je sealed, takže
-     * nový způsob doručení v novější TDLib rozbije překlad, místo aby tiše spadl na obyčejné pole.
-     *
-     * Délka se bere jen v rozumném rozsahu ([CODE_DIGITS]). Nesmyslná hodnota od serveru by
-     * znamenala nula políček, tedy pole, do kterého se nedá psát; mimo rozsah se proto vrátí
-     * `null` a zůstane obyčejné pole, které funguje vždycky.
-     */
-    private fun AuthenticationCodeType.toAuthCode(): AuthCode = when (this) {
-        is AuthenticationCodeTypeTelegramMessage -> AuthCode(digitsOrNull(length), CodeDelivery.TelegramApp)
-        is AuthenticationCodeTypeSms -> AuthCode(digitsOrNull(length), CodeDelivery.Sms)
-        is AuthenticationCodeTypeFirebaseAndroid -> AuthCode(digitsOrNull(length), CodeDelivery.Sms)
-        is AuthenticationCodeTypeFirebaseIos -> AuthCode(digitsOrNull(length), CodeDelivery.Sms)
-        is AuthenticationCodeTypeCall -> AuthCode(digitsOrNull(length), CodeDelivery.Call)
-        is AuthenticationCodeTypeMissedCall -> AuthCode(digitsOrNull(length), CodeDelivery.CallerNumber)
-        // Prozvonění nese vzor čísla, ne počet číslic — kolik jich uživatel opíše, dopředu nevíme.
-        is AuthenticationCodeTypeFlashCall -> AuthCode(digits = null, CodeDelivery.CallerNumber)
-        is AuthenticationCodeTypeFragment -> AuthCode(digitsOrNull(length), CodeDelivery.Fragment)
-        is AuthenticationCodeTypeSmsWord -> AuthCode(digits = null, CodeDelivery.Word)
-        is AuthenticationCodeTypeSmsPhrase -> AuthCode(digits = null, CodeDelivery.Phrase)
-    }
-
-    private fun digitsOrNull(length: Int): Int? = length.takeIf { it in CODE_DIGITS }
 
     private fun EmailAddressResetState.toEmailReset(): EmailReset = when (this) {
         is EmailAddressResetStateAvailable -> EmailReset.Available(waitPeriod.coerceAtLeast(0))
@@ -630,11 +608,6 @@ class TdlTelegramSession(
         /** Kolik notifikací se drží v jedné skupině (chatu). */
         const val NOTIFICATION_GROUP_SIZE_MAX = 10L
 
-        /**
-         * Délky kódu, ze kterých se dá nakreslit řada políček. Telegram posílá pětimístné
-         * a šestimístné; horní mez je na to, aby se políčka vešla i na úzký telefon.
-         */
-        val CODE_DIGITS = 1..8
 
         /** Maska, kterou TDLib dosadí, když server žádnou neposlal (`AuthManager::on_sent_code`). */
         const val UNKNOWN_EMAIL_PATTERN = "<unknown>"
@@ -650,6 +623,43 @@ class TdlTelegramSession(
 
 /** Jen kvůli místu a seskupení v Crashlytics, viz `declineVerification`. */
 private class ApplicationVerificationRequired(kind: String) : IllegalStateException("Application verification required: $kind")
+
+/**
+ * Podoba kódu pro UI. `when` je schválně bez `else`: `AuthenticationCodeType` je sealed, takže
+ * nový způsob doručení v novější TDLib rozbije překlad, místo aby tiše spadl na obyčejné pole.
+ *
+ * Délka se bere jen v rozumném rozsahu ([CODE_DIGITS]). Nesmyslná hodnota od serveru by
+ * znamenala nula políček, tedy pole, do kterého se nedá psát; mimo rozsah se proto vrátí
+ * `null` a zůstane obyčejné pole, které funguje vždycky.
+ */
+internal fun AuthenticationCodeType.toAuthCode(): AuthCode = when (this) {
+    is AuthenticationCodeTypeTelegramMessage -> AuthCode(digitsOrNull(length), CodeDelivery.TelegramApp)
+    is AuthenticationCodeTypeSms -> AuthCode(digitsOrNull(length), CodeDelivery.Sms)
+    is AuthenticationCodeTypeFirebaseAndroid -> AuthCode(digitsOrNull(length), CodeDelivery.Sms)
+    is AuthenticationCodeTypeFirebaseIos -> AuthCode(digitsOrNull(length), CodeDelivery.Sms)
+    is AuthenticationCodeTypeCall -> AuthCode(digitsOrNull(length), CodeDelivery.Call)
+    is AuthenticationCodeTypeMissedCall -> AuthCode(digitsOrNull(length), CodeDelivery.CallerNumber)
+    // Prozvonění nese vzor čísla, ne počet číslic — kolik jich uživatel opíše, dopředu nevíme.
+    is AuthenticationCodeTypeFlashCall -> AuthCode(digits = null, CodeDelivery.CallerNumber)
+    is AuthenticationCodeTypeFragment -> AuthCode(digitsOrNull(length), CodeDelivery.Fragment)
+    is AuthenticationCodeTypeSmsWord -> AuthCode(digits = null, CodeDelivery.Word)
+    is AuthenticationCodeTypeSmsPhrase -> AuthCode(digits = null, CodeDelivery.Phrase)
+}
+
+internal fun digitsOrNull(length: Int): Int? = length.takeIf { it in CODE_DIGITS }
+
+/**
+ * Délky kódu, ze kterých se dá nakreslit řada políček. Telegram posílá pětimístné a šestimístné;
+ * horní mez je na to, aby se políčka vešla i na úzký telefon.
+ */
+private val CODE_DIGITS = 1..8
+
+/** Kód poslaný na telefonní číslo: podoba, jiná cesta a lhůta — přihlášení i změna čísla. */
+internal fun AuthenticationCodeInfo.toPhoneChangeCode(): PhoneChangeCode = PhoneChangeCode(
+    code = type.toAuthCode(),
+    next = nextType?.toAuthCode()?.delivery,
+    resendTimeout = timeout.coerceAtLeast(0),
+)
 
 /**
  * Země podle názvu, bez ohledu na diakritiku a velikost písmen. TDLib řadí podle KÓDU země

@@ -37,6 +37,20 @@ interface AccountRepository {
      * Odkaz, přes který si mě druhý najde a napíše mi (QR kód „Můj kontakt"). Server ho při
      * každém volání může vydat nový; viz [ContactLink].
      */
+    /**
+     * Pošle kód na NOVÉ číslo (`sendPhoneNumberCode` s `PhoneNumberCodeTypeChange`). Číslo se
+     * změní až po [checkPhoneChangeCode]; účet i všechna data v cloudu zůstávají, mění se jen
+     * číslo, na které se přihlašuje.
+     */
+    suspend fun sendPhoneChangeCode(phoneNumber: String): Result<PhoneChangeCode> =
+        Result.failure(UnsupportedOperationException())
+
+    /** Kód jinou cestou (SMS, hovor) — jen s [PhoneChangeCode.next] a po uplynutí lhůty. */
+    suspend fun resendPhoneChangeCode(): Result<PhoneChangeCode> = Result.failure(UnsupportedOperationException())
+
+    /** Kód z nového čísla — tím se číslo účtu změní. */
+    suspend fun checkPhoneChangeCode(code: String): Result<Unit> = Result.failure(UnsupportedOperationException())
+
     suspend fun contactLink(): Result<ContactLink>
 }
 
@@ -89,3 +103,15 @@ const val USERNAME_MAX_LENGTH = 32
 
 /** Strop délky jména i příjmení, jak ho vynucuje server. */
 const val NAME_MAX_LENGTH = 64
+
+/**
+ * Kód odeslaný na telefonní číslo: jakou má podobu ([code]), kudy půjde, když si ho uživatel
+ * nechá poslat znovu ([next], `null` = jinou cestou nejde), a za kolik sekund to smí
+ * ([resendTimeout], počítáno od příchodu).
+ */
+data class PhoneChangeCode(
+    val code: AuthCode,
+    val next: CodeDelivery?,
+    val resendTimeout: Int,
+)
+

@@ -26,6 +26,8 @@ import eu.tintera.plume.features.settings.AccountPrivacyScreen
 import eu.tintera.plume.features.settings.PrivacySettingScreen
 import eu.tintera.plume.core.navigation.TwoStepRoute
 import eu.tintera.plume.core.navigation.LoginEmailRoute
+import eu.tintera.plume.core.navigation.ChangePhoneRoute
+import eu.tintera.plume.features.settings.ChangePhoneScreen
 import eu.tintera.plume.features.settings.LoginEmailScreen
 import eu.tintera.plume.core.navigation.AppLockRoute
 import eu.tintera.plume.core.navigation.ChatFolderEditRoute
@@ -1274,7 +1276,15 @@ private fun shellEntryProvider(
             onBack = { settingsStack.pop(route) },
             // Prohlížeč se vrší nad Nastavení; zavírá se z toho zásobníku, ve kterém leží.
             onOpenPhotos = { userId -> settingsStack.add(MediaRoute(userId, messageId = 0L, profilePhotos = true)) },
+            onChangePhone = { if (settingsStack.lastOrNull() != ChangePhoneRoute) settingsStack.add(ChangePhoneRoute) },
         )
+    }
+
+    // Změna čísla nad úpravou profilu.
+    entry<ChangePhoneRoute>(
+        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+    ) { route ->
+        ChangePhoneScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 }
 
@@ -1438,7 +1448,7 @@ private fun conversationBelow(stack: List<NavKey>, route: MediaRoute): Long? {
 /** Obrazovky, které se vrší nad sekci Nastavení: úprava profilu, blokovaní, dvoufázové ověření, složky chatů. */
 private fun NavKey?.isOverSettingsSection(): Boolean =
     this == EditProfileRoute || this == BlockedSendersRoute || this == BlockSenderRoute || this == TwoStepRoute ||
-        this == LoginEmailRoute ||
+        this == LoginEmailRoute || this == ChangePhoneRoute ||
         this == AppLockRoute || this == ChatFoldersRoute || this is ChatFolderEditRoute || this == ProxySettingsRoute ||
         this == StickerSetsRoute || this == EmojiSetsRoute ||
         this == AccountPrivacyRoute || this is PrivacySettingRoute

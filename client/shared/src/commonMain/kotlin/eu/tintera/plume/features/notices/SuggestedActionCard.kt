@@ -44,6 +44,7 @@ import eu.tintera.plume.resources.suggestion_check_phone_text
 import eu.tintera.plume.resources.suggestion_check_phone_title
 import eu.tintera.plume.resources.suggestion_check_phone_title_unknown
 import eu.tintera.plume.resources.suggestion_check_phone_yes
+import eu.tintera.plume.resources.suggestion_check_phone_change
 import eu.tintera.plume.resources.suggestion_custom_action
 import eu.tintera.plume.resources.suggestion_later
 import eu.tintera.plume.resources.suggestion_login_email_action
@@ -158,7 +159,7 @@ private fun SuggestedAction.content(phone: String?): SuggestionContent = when (t
             ?: UiText(Res.string.suggestion_check_phone_title_unknown),
         text = UiText(Res.string.suggestion_check_phone_text),
         primary = Res.string.suggestion_check_phone_yes,
-        secondary = null,
+        secondary = Res.string.suggestion_check_phone_change,
     )
     is SuggestedAction.SetPassword -> SuggestionContent(
         icon = Res.drawable.password_24dp,
