@@ -405,6 +405,8 @@ postaví MSI (`packageMsi -PdesktopVersion=…`), na Ubuntu založí GitHub Rele
 
 ## Co platforma (zatím) neumí
 
+**Hovory jen se zvukem** přes ntgcalls (`docs/poznatky/hovory.md`, „Desktop").
+
 Prázdné `actual` volí chování, které sdílený kód už umí ohlásit, ne tiché nic: přehrávání
 zvuku vyhodí výjimku („hlasovku se nepodařilo přehrát"), nahrávání taky („nahrávání nejde
 spustit"), video má `isFailed = true` a otevírá se v aplikaci systému

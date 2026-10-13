@@ -1,4 +1,7 @@
+import java.net.URI
+import java.security.MessageDigest
 import java.util.Properties
+import java.util.zip.ZipFile
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -160,6 +163,74 @@ val generateAppLanguages = tasks.register("generateAppLanguages") {
 val jniToolchainHome: Provider<String> = javaToolchains
     .launcherFor { languageVersion.set(JavaLanguageVersion.of(17)) }
     .map { it.metadata.installationPath.asFile.absolutePath }
+
+/**
+ * Nativní knihovna ntgcalls pro hovory na desktopu (`core/calls/DesktopCallMedia.kt`) — jen pro
+ * systém, na kterém se staví (jako TDLib), z vydání na GitHubu, ověřená SHA-256 (`digest`
+ * v API vydání). Vybalí se do resources `jvmMain` pod prefix JNA (`darwin-aarch64/…`), kde ji
+ * `Native.load` sama najde. Zip se drží v mezipaměti Gradlu, ne v `build/`, ať ho `clean`
+ * nestahuje znovu (12–40 MB).
+ *
+ * **Bez sítě nebo na nepodporovaném systému (Intel Mac) build nespadne** — knihovna chybí
+ * a hovory se na desktopu nenabídnou (`DesktopCallMedia.available`).
+ */
+val ntgcallsVersion = libs.versions.ntgcalls.get()
+val downloadNtgcalls = tasks.register("downloadNtgcalls") {
+    description = "Stáhne nativní ntgcalls pro hovory na desktopu do jvmMain resources."
+    val outputDir = layout.buildDirectory.dir("generated/ntgcalls")
+    // Lokální kopie: akce úlohy nesmí sahat na proměnné skriptu (konfigurační cache).
+    val version = ntgcallsVersion
+    val cacheDir = gradle.gradleUserHomeDir.resolve("caches/plume-ntgcalls/$version")
+    val os = System.getProperty("os.name").lowercase()
+    val arch = System.getProperty("os.arch").lowercase()
+    val arm = arch == "aarch64" || arch == "arm64"
+    // Soubor vydání, jeho SHA-256 (z API vydání) a prefix JNA pro tenhle systém.
+    val asset: Triple<String, String, String>? = when {
+        os.contains("mac") && arm -> Triple("macos-arm64", "da3a98767978facf093d363c44651204259f5e896f84fe3a7eb170d53ed07578", "darwin-aarch64")
+        os.contains("win") && !arm -> Triple("windows-x86_64", "925efdfee4042f243e5f9ce5dad5b8f13236c54e8dd31bc2108abf071af6420d", "win32-x86-64")
+        os.contains("linux") && !arm -> Triple("linux-x86_64", "0e579e0cae2ff7133222a67a74e15af53a6c7d6ae2655fddd75d412876ad33c4", "linux-x86-64")
+        os.contains("linux") && arm -> Triple("linux-arm64", "2958e1bc0707955b1606d0fe69ea6082e7a47358b90e5cb307274d9388db0bb8", "linux-aarch64")
+        else -> null
+    }
+    inputs.property("asset", asset?.first ?: "none")
+    inputs.property("version", version)
+    outputs.dir(outputDir)
+
+    doLast {
+        val target = outputDir.get().asFile
+        target.deleteRecursively()
+        target.mkdirs()
+        if (asset == null) {
+            logger.warn("ntgcalls pro $os/$arch není, hovory na desktopu nebudou.")
+            return@doLast
+        }
+        val (name, sha256, prefix) = asset
+        val zip = cacheDir.resolve("ntgcalls.$name-shared_libs.zip")
+        fun digest(file: File): String = MessageDigest.getInstance("SHA-256")
+            .digest(file.readBytes()).joinToString("") { "%02x".format(it) }
+        runCatching {
+            if (!zip.exists() || digest(zip) != sha256) {
+                cacheDir.mkdirs()
+                val url = "https://github.com/pytgcalls/ntgcalls/releases/download/v$version/${zip.name}"
+                URI(url).toURL().openStream().use { input -> zip.outputStream().use { input.copyTo(it) } }
+                check(digest(zip) == sha256) { "SHA-256 ${zip.name} nesedí, soubor smazán." }
+            }
+            ZipFile(zip).use { archive ->
+                val library = archive.entries().asSequence().firstOrNull { entry ->
+                    !entry.isDirectory && entry.name.substringAfterLast('/').let {
+                        it == "libntgcalls.dylib" || it == "ntgcalls.dll" || it == "libntgcalls.so"
+                    }
+                } ?: error("V ${zip.name} není knihovna ntgcalls.")
+                val out = target.resolve("$prefix/${library.name.substringAfterLast('/')}")
+                out.parentFile.mkdirs()
+                archive.getInputStream(library).use { input -> out.outputStream().use { input.copyTo(it) } }
+            }
+        }.onFailure { failure ->
+            zip.takeIf { it.exists() && runCatching { digest(it) != sha256 }.getOrDefault(true) }?.delete()
+            logger.warn("ntgcalls se nepodařilo připravit (${failure.message}), hovory na desktopu nebudou.")
+        }
+    }
+}
 
 val compileMacNotifications = tasks.register("compileMacNotifications") {
     description = "Přeloží most k notifikacím macOS (UNUserNotificationCenter) do jvmMain resources."
@@ -430,6 +501,8 @@ kotlin {
             resources.srcDir(files(layout.buildDirectory.dir("generated/macNotifications")).builtBy(compileMacNotifications))
             // plumenotifications.dll z [compileWindowsNotifications]; mimo Windows je složka prázdná.
             resources.srcDir(files(layout.buildDirectory.dir("generated/windowsNotifications")).builtBy(compileWindowsNotifications))
+            // Nativní ntgcalls pro hovory z [downloadNtgcalls] (jen pro systém, na kterém se staví).
+            resources.srcDir(files(layout.buildDirectory.dir("generated/ntgcalls")).builtBy(downloadNtgcalls))
         }
 
         jvmMain.dependencies {
@@ -437,6 +510,8 @@ kotlin {
             implementation(libs.kotlinx.coroutines.swing)
             // QR kód přihlášení, stejně jako na Androidu.
             implementation(libs.zxing.core)
+            // Hovory: C API ntgcalls (`core/calls/NtgNative.kt`).
+            implementation(libs.jna)
         }
 
         commonTest.dependencies {

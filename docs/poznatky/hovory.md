@@ -455,6 +455,40 @@ vlastníka režimu. U hovoru přes `CallsManager` (Jetpack core-telecom) Telecom
   sítě za hovoru"). **Neověřeno**: kabelová sluchátka, Android pod 12 (cesta přes
   `startBluetoothSco`).
 
+## Desktop
+
+Hlasové hovory na desktopu přes **C API ntgcalls 3.0.3** (`NtgNative` — vazba JNA,
+`DesktopCallMedia`), stejné pořadí volání jako na Androidu. Jen zvuk; video (`supportsVideo`
+= `false`) se nenabízí, videohovor se vytočí i přijme jako hlasový.
+
+- **Vazba přes JNA, ne JNI ani Java FFM.** Desktop jede na JDK 17 (FFM je finální až v 22)
+  a ntgcalls Java vazby pro desktop nemá (jen Android, C, Node, Python, Rust). C API je
+  synchronní, struktury se předávají hodnotou (`Structure.ByValue`), zpětná volání chodí
+  z vláken knihovny a **musí zůstat silně odkazovaná**, jinak je GC uklidí.
+- **C `bool` jako `Byte` 1/0, ne Kotlin `Boolean`.** JNA převádí `Boolean` na `int`
+  a knihovna `is_outgoing = true` četla jako nepravdu: desktop jako volající se choval jako
+  volaný, `InitialSetup` (ICE ufrag/pwd a otisk DTLS) neposlal nikdo — signalizace tekla, ACK
+  chodily, ale spojení skončilo po 10 s TIMEOUT. Jako volaný (`false`) desktop fungoval, proto
+  se to projevilo jen jedním směrem. Ve strukturách je `bool` 1 bajt tak jako tak.
+- **Zvuk bere knihovna sama**: macOS AudioQueue (CoreAudio), Windows Core Audio, Linux
+  Pulse/ALSA — nezávisle na tom, že desktop jinak zvuk přehrávat neumí. Metadata zařízení si
+  každý modul čte po svém: macOS prázdné `uid` = výchozí zařízení systému, Windows `index` 0 =
+  výchozí, Pulse a ALSA chtějí `id` (bere se první zařízení, které knihovna vypíše). Výstup se
+  nepřepíná (jediný „Reproduktor", tlačítko výstupu se s jedním výstupem nekreslí).
+- **Knihovnu přibalí Gradle** (`downloadNtgcalls` v `client/shared/build.gradle.kts`): jen pro
+  systém, na kterém se staví, z vydání na GitHubu, ověřenou SHA-256 (`digest` z API vydání),
+  do resources `jvmMain` pod prefix JNA (`darwin-aarch64/libntgcalls.dylib`, 35 MB), odkud ji
+  `Native.load` sám vybalí. Zip se drží v `~/.gradle/caches/plume-ntgcalls/`. **Bez sítě nebo
+  na Intel Macu build nespadne** — `CallMedia` se nezaregistruje a hovory se nenabídnou.
+  Knihovna závisí jen na systémových frameworcích (žádné cesty do Homebrew jako TDLib).
+- **Při ladění pomůže log knihovny**: `ntg_set_log_callback`, zdroj 2 = ntgcalls (zprávy
+  signalizace „Sending initial setup", „processSignalingData"), zdroj 1 = WebRTC. Běžně jen
+  chyby; WebRTC na úrovni informací píše desítky řádků za vteřinu.
+- **Ověřeno na macOS (arm64) s Pixelem 5**: příchozí hovor na desktop i odchozí z desktopu,
+  zvuk oběma směry (poslechem), emoji shodná, zavěšení z desktopu i z telefonu. **Windows
+  a Linux jen přeložené.** Chybí zvonění a oznámení příchozího hovoru (zazvoní jen obrazovka
+  hovoru v otevřené aplikaci) a video.
+
 ## Neověřené
 
 - **VoIP pushe na iOS** pro aplikaci s vlastním `api_id` (`deviceTokenApplePushVoIP`) — bez
