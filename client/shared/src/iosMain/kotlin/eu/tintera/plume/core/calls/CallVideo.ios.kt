@@ -5,4 +5,4 @@ import androidx.compose.ui.Modifier
 
 /** Hovory tu nejsou (bez mediální vrstvy), obraz se nekreslí. */
 @Composable
-actual fun CallVideo(source: CallVideoSource, mirror: Boolean, modifier: Modifier) = Unit
+actual fun CallVideo(source: CallVideoSource, mirror: Boolean, modifier: Modifier, onAspectRatio: (Float) -> Unit) = Unit

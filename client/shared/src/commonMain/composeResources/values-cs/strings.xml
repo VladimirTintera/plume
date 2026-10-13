@@ -828,6 +828,7 @@
     <string name="call_start_video">Videohovor</string>
     <string name="call_camera">Kamera</string>
     <string name="call_switch_camera">Přepnout kameru</string>
+    <string name="call_unmute">Zapnout mikrofon</string>
     <string name="call_outgoing">Odchozí hovor</string>
     <string name="call_incoming">Příchozí hovor</string>
     <string name="call_missed">Zmeškaný hovor</string>

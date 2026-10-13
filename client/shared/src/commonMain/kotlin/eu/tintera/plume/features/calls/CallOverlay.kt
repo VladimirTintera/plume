@@ -49,6 +49,8 @@ import androidx.navigationevent.compose.rememberNavigationEventState
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.audio.rememberRecordPermission
 import eu.tintera.plume.core.calls.CallVideo
+import eu.tintera.plume.core.calls.rememberCallPictureInPicture
+import androidx.compose.runtime.mutableFloatStateOf
 import eu.tintera.plume.core.calls.CallVideoSource
 import eu.tintera.plume.core.camera.rememberVideoNotePermission
 import androidx.compose.ui.draw.clip
@@ -125,6 +127,7 @@ fun CallOverlay(modifier: Modifier = Modifier) {
     val answer by requests.answer.collectAsStateWithLifecycle()
     val show by requests.show.collectAsStateWithLifecycle()
     val accept = rememberAcceptCall(calls)
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(answer, call?.id, call?.phase) {
         val callId = answer ?: return@LaunchedEffect
@@ -134,6 +137,20 @@ fun CallOverlay(modifier: Modifier = Modifier) {
     }
 
     val current = call ?: return
+    // Poměr stran obrazu protistrany — tvar okénka obrazu v obraze. Do prvního snímku na výšku.
+    var remoteAspect by remember(current.id) { mutableFloatStateOf(PORTRAIT_ASPECT) }
+    val video = !current.phase.ended && (current.remoteVideo || current.camera)
+    val pip = rememberCallPictureInPicture(
+        enabled = video,
+        aspectRatio = if (current.remoteVideo) remoteAspect else PORTRAIT_ASPECT,
+        muted = current.muted,
+        onToggleMute = { calls.setMuted(!current.muted) },
+        onHangUp = { scope.launch { calls.hangUp() } },
+    )
+    if (pip.active) {
+        CallPictureInPictureContent(current, modifier)
+        return
+    }
     // Nový hovor (i nové „ukaž hovor" z notifikace) se otevírá přes celou obrazovku.
     var expanded by rememberSaveable(current.id, show) { mutableStateOf(true) }
     val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
@@ -144,7 +161,7 @@ fun CallOverlay(modifier: Modifier = Modifier) {
         label = "call-overlay",
     ) { full ->
         if (full) {
-            CallScreen(current, calls, onMinimize = { expanded = false })
+            CallScreen(current, calls, onMinimize = { expanded = false }, onRemoteAspect = { remoteAspect = it })
         } else {
             CallBar(current, calls, onExpand = { expanded = true })
         }
@@ -192,7 +209,7 @@ private fun callStatus(call: ActiveCall): String {
 private val CallPhase.ended get() = this == CallPhase.Ended || this == CallPhase.Failed
 
 @Composable
-private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -> Unit) {
+private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -> Unit, onRemoteAspect: (Float) -> Unit) {
     val scope = rememberCoroutineScope()
     val accept = rememberAcceptCall(calls)
     val cameraPermission = rememberVideoNotePermission()
@@ -216,7 +233,12 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
     Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize()) {
             full?.let { source ->
-                CallVideo(source, mirror = source == CallVideoSource.Local && call.frontCamera, modifier = Modifier.fillMaxSize())
+                CallVideo(
+                    source,
+                    mirror = source == CallVideoSource.Local && call.frontCamera,
+                    modifier = Modifier.fillMaxSize(),
+                    onAspectRatio = { if (source == CallVideoSource.Remote) onRemoteAspect(it) },
+                )
             }
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -378,6 +400,18 @@ private fun rememberAcceptCall(calls: CallRepository): (ActiveCall) -> Unit {
                 microphone.request { if (it) accept(false) }
             }
         }
+    }
+}
+
+/**
+ * Obsah okénka obrazu v obraze: jen obraz (protistrany, a když ho není, náš), bez ovládání —
+ * na ťuknutí by okénko bylo malé a akce Ztlumit / Zavěsit dává systém pod okénkem.
+ */
+@Composable
+private fun CallPictureInPictureContent(call: ActiveCall, modifier: Modifier) {
+    Surface(color = MaterialTheme.colorScheme.surface, modifier = modifier.fillMaxSize()) {
+        val source = if (call.remoteVideo) CallVideoSource.Remote else CallVideoSource.Local
+        CallVideo(source, mirror = source == CallVideoSource.Local && call.frontCamera, modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -559,6 +593,9 @@ fun rememberStartCall(userId: Long?): ((video: Boolean) -> Unit)? {
         }
     }
 }
+
+/** Poměr stran obrazu z telefonu na výšku (šířka / výška). */
+private const val PORTRAIT_ASPECT = 9f / 16f
 
 /** Plocha pod textem a ovládáním nad obrazem: obraz prosvítá, text je čitelný. */
 private const val VEIL_ALPHA = 0.8f
