@@ -149,6 +149,15 @@ předá systému — co se ladí, je čistá funkce.
   lokálně přeskočí a oznámení půjdou přes AWT jako dřív; na CI (`CI`) je to chyba, ať release
   nevyjde potichu bez toastů. `windows-latest` MSVC má. DLL je pro architekturu JDK, které
   Gradle spouští (x64 / arm64), stejně jako TDLib.
+- **Překládá se jako C++20.** S `/std:c++17` sáhne C++/WinRT po `<experimental/coroutine>`
+  a MSVC z Visual Studia 2026 (14.51, na `windows-latest` od podzimu 2026) to odmítne chybou
+  STL1011. Lokálně s VS 2022 C++17 procházelo, takže se to ukázalo až v release buildu
+  `desktop-0.3.2`, který tím neprošel. Pojistka „bez MSVC na CI = chyba" přitom zafungovala:
+  release nevyšel potichu bez toastů. **Pozor: CI na pull requestech nativní most nepřekládá**
+  (překládá jen release z tagu), takže změna v `PlumeToasts.cpp` nebo v úloze se na CI poprvé
+  přeloží až při vydání.
+- **Hlavičky JNI se berou z JDK 17 toolchainu**, ne z JVM démona Gradle (`jniToolchainHome`):
+  démona spuštěného z Android Studia pohání JBR, který `include/` nemá.
 - **Bez zástupce ve Startu s AUMID Windows 11 toast NEVYKRESLÍ.** Aplikace z MSI není
   zabalená (MSIX) a identitu si zakládá sama. Napřed jen v registru
   (`HKCU\Software\Classes\AppUserModelId\<AUMID>` s `DisplayName`, `IconUri`,
