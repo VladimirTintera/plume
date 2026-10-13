@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_send_failed_unknown
 import co.touchlab.kermit.Logger
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.MessageLiveLocation
@@ -603,6 +605,24 @@ class TdlConversationRepository(
                     canSave = properties.canBeSaved,
                     canReport = properties.canReportChat,
                 )
+            }
+
+    /**
+     * `quote` jde `null`: jinou citaci chce server jen u `needAnotherReplyQuote`, a taková zpráva
+     * se k opakování nenabízí ([toSendFailure]). Hvězdy taky ne — placené zprávy Plume neumí.
+     * Zpráva, kterou TDLib znovu poslat nedokázal, má ve výsledku `null`; když je to každá, je to
+     * neúspěch, jinak by ťuknutí nic neudělalo a nikdo by se nedozvěděl proč.
+     */
+    override suspend fun resend(chatId: Long, messageIds: List<Long>): Result<Unit> =
+        client.resendMessages(
+            chatId = chatId,
+            messageIds = messageIds.sorted().toLongArray(),
+            quote = null,
+            paidMessageStarCount = 0,
+        )
+            .toResult()
+            .mapCatching { result ->
+                check(result.messages.any { it != null }) { "TDLib nic znovu neposlal: $messageIds" }
             }
 
     override suspend fun deleteMessages(
@@ -2223,6 +2243,7 @@ class TdlConversationRepository(
             schedule = schedulingState?.toSchedule(),
             hasTimestampedMedia = hasTimestampedMedia,
             sendState = if (outgoing) sendingState.toSendState() else null,
+            sendFailure = (sendingState as? MessageSendingStateFailed)?.toSendFailure(),
             // Odpověď mimo tenhle chat nese `externalReply` — v načtené historii citovaná zpráva
             // není, takže se na ni skákat nedá.
             replyToMessageId = (replyTo as? MessageReplyToMessage)
@@ -3040,6 +3061,15 @@ private fun MessageSender.plainId(): Long = when (this) {
  * `null` znamená, že zpráva je na serveru — TDLib pole vyplňuje jen dokud je rozepsaná
  * nebo selhala.
  */
+/**
+ * Proč zpráva neodešla. `needAnotherSender` a `needDropReply` opakování nebrání — TDLib při
+ * něm sám vezme výchozího odesílatele, resp. zahodí odpověď (`MessagesManager::resend_messages`).
+ */
+internal fun MessageSendingStateFailed.toSendFailure(): SendFailure = SendFailure(
+    canRetry = canRetry && !needAnotherReplyQuote && requiredPaidMessageStarCount == 0L,
+    reason = errorText(error.message, Res.string.conversation_send_failed_unknown),
+)
+
 private fun MessageSendingState?.toSendState(): SendState = when (this) {
     is MessageSendingStatePending -> SendState.Sending
     is MessageSendingStateFailed -> SendState.Failed

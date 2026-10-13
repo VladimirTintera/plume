@@ -311,8 +311,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   reCAPTCHA) hned odmítá a dotaz skončí srozumitelnou větou místo věčného čekání; hlásí se do
   Crashlytics (`docs/poznatky/prihlaseni.md`, „Ověření aplikace"). Zbývá podle Crashlytics
   posoudit, jestli to server po Plume vůbec chce.
-- **Neodeslanou zprávu nejde poslat znovu.** `SendState.Failed` se v bublině ukáže, ale
-  `resendMessages` se nevolá — zbývá zprávu smazat a napsat znovu.
+- ~~**Neodeslanou zprávu nejde poslat znovu.**~~ — hotovo („Neodesláno. Ťukni a zkus to znovu."
+  pod bublinou a „Poslat znovu" v nabídce; `docs/poznatky/konverzace-psani.md`, „Neodeslaná
+  zpráva a opakované odeslání"). Zbývá ověřit album a zprávu, kterou znovu poslat nejde.
 - **Fotka chatu se nejspíš neobnovuje živě.** `chatPhotoUpdates` nikdo neodebírá a
   `TdlChatRepository` bere `avatarFileId` jen z objektu chatu při `upsert`; nová fotka skupiny
   nebo kontaktu by se tak v seznamu ukázala až po restartu. Odvozené z kódu, NEOVĚŘENO.

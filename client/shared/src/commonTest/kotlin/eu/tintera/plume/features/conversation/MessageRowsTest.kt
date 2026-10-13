@@ -6,7 +6,12 @@ import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.MessageEntity
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.SendFailure
 import eu.tintera.plume.core.telegram.SendState
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.error_no_write_access
+import eu.tintera.plume.resources.error_slowmode_wait_seconds
 import eu.tintera.plume.features.conversation.items.albumRowSizes
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,6 +34,7 @@ class MessageRowsTest {
         replyToMessageId: Long? = null,
         linkPreview: LinkPreview? = null,
         entities: List<MessageEntity> = emptyList(),
+        failure: SendFailure? = null,
     ) = ChatMessage(
         id = id,
         isOutgoing = isOutgoing,
@@ -46,6 +52,7 @@ class MessageRowsTest {
         timestamp = timestamp,
         isEdited = false,
         mediaAlbumId = album,
+        sendFailure = failure,
     )
 
     @Test
@@ -465,5 +472,46 @@ class MessageRowsTest {
     @Test
     fun zpravaBezCitaceSeNesbali() {
         assertFalse(collapsesQuote(message(1, text = "Jen text.")))
+    }
+
+    private val slowMode = SendFailure(canRetry = true, reason = UiText(Res.string.error_slowmode_wait_seconds, 30))
+    private val forbidden = SendFailure(canRetry = false, reason = UiText(Res.string.error_no_write_access))
+
+    private fun failed(id: Long, album: Long = 0L, failure: SendFailure = slowMode) =
+        message(id, album = album, sendState = SendState.Failed, failure = failure)
+
+    @Test
+    fun znovuSePosilaJenNeodeslanaZprava() {
+        val messages = listOf(failed(3), message(2, sendState = SendState.Sent), message(1, sendState = SendState.Sent))
+        assertEquals(listOf(3L), failedGroup(messages, 3).map { it.id })
+        // Mezitím odešla, nebo zmizela: není co posílat.
+        assertTrue(failedGroup(messages, 2).isEmpty())
+        assertTrue(failedGroup(messages, 99).isEmpty())
+    }
+
+    @Test
+    fun albumSePosilaCeleAVzestupne() {
+        // Odeslaná fotka alba zůstává, neodeslané jdou spolu — po kouskách by se album rozpadlo.
+        val messages = listOf(failed(6, album = 9), message(5, album = 9, sendState = SendState.Sent), failed(4, album = 9), failed(3))
+        assertEquals(listOf(4L, 6L), failedGroup(messages, 6).map { it.id })
+        assertEquals(listOf(4L, 6L), failedGroup(messages, 4).map { it.id })
+    }
+
+    @Test
+    fun albumJdePoslatZnovuJenCele() {
+        assertNull(albumFailure(listOf(message(2, album = 9, sendState = SendState.Sent))))
+        assertEquals(slowMode, albumFailure(listOf(failed(2, album = 9), failed(1, album = 9))))
+        // Důvod je ten, kvůli kterému to nejde.
+        assertEquals(
+            SendFailure(canRetry = false, reason = forbidden.reason),
+            albumFailure(listOf(failed(2, album = 9), failed(1, album = 9, failure = forbidden))),
+        )
+    }
+
+    @Test
+    fun neodeslaneAlbumNeseDuvodVBubline() {
+        val row = groupAlbums(listOf(failed(2, album = 9, failure = forbidden), message(1, album = 9, sendState = SendState.Sent))).single()
+        assertEquals(SendState.Failed, row.display.sendState)
+        assertEquals(false, row.display.sendFailure?.canRetry)
     }
 }

@@ -19,6 +19,7 @@ import eu.tintera.plume.resources.menu_context_actions
 import eu.tintera.plume.resources.message_context_code_copy
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -100,6 +101,7 @@ class MessageActionTest {
     fun textNabiziUpravuAKopirovaniVPoradiNabidky() {
         assertEquals(
             listOf(
+                MessageMenuAction.Resend,
                 MessageMenuAction.Reply,
                 MessageMenuAction.Edit,
                 MessageMenuAction.Copy,
@@ -307,6 +309,14 @@ class MessageActionTest {
         val items = listOf(MessageMenuAction.ShareFile, MessageMenuAction.SaveFileAs)
         assertTrue(items.none { it.presentation(menu(items, actions = protected)) != null })
         assertTrue(items.all { it.presentation(menu(items)) != null })
+    }
+
+    /** „Poslat znovu" je kandidát u každé zprávy, ukáže se jen u té, kterou poslat znovu jde. */
+    @Test
+    fun poslatZnovuJenUNeodeslaneZpravy() {
+        val items = menuActions(message(), isPinned = false)
+        assertNull(MessageMenuAction.Resend.presentation(menu(items)))
+        assertNotNull(MessageMenuAction.Resend.presentation(menu(items).copy(resendable = true)))
     }
 
     @Test

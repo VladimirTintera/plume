@@ -73,6 +73,8 @@ import eu.tintera.plume.resources.menu_select_text
 import eu.tintera.plume.resources.menu_unpin
 import eu.tintera.plume.resources.push_pin_24dp
 import eu.tintera.plume.resources.reply_24dp
+import eu.tintera.plume.resources.refresh_24dp
+import eu.tintera.plume.resources.menu_resend
 import eu.tintera.plume.resources.select_check_box_24dp
 import eu.tintera.plume.resources.star_24dp
 import eu.tintera.plume.resources.text_select_24dp
@@ -311,6 +313,16 @@ sealed interface MessageMenuAction : MessageAction {
 
     /** Co ťuknutí odešle, když je označený text; bez výběru položka sama. */
     fun withSelection(selection: String?): MessageAction = this
+
+    /**
+     * Poslat znovu zprávu, která neodešla. Kandidát u každé zprávy; ukáže se jen u neodeslané,
+     * kterou znovu poslat jde ([MessageMenu.resendable]). Totéž posílá i ťuknutí na „Neodesláno"
+     * pod bublinou — tam i u zprávy, kterou poslat nejde, a ViewModel pak řekne proč.
+     */
+    data object Resend : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.refresh_24dp, Res.string.menu_resend).takeIf { menu.resendable }
+    }
 
     data object Reply : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =

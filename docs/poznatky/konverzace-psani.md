@@ -913,3 +913,38 @@ vloží `@jmeno`, nebo u člena bez veřejného jména jeho křestní jméno se 
   by se dvě animace popraly o tentýž prvek.
 - **„Jsem dole" kontroluje i offset**, ne jen index 0. Bez toho se za dole považuje i stav,
   kdy je poslední bublina z půlky za okrajem.
+
+## Neodeslaná zpráva a opakované odeslání
+
+Pod neodeslanou bublinou je místo samotného vykřičníku věta s výzvou („Neodesláno. Ťukni
+a zkus to znovu.", vzor Google Messages) a „Poslat znovu" je první položka nabídky nad zprávou
+(`MessageMenuAction.Resend`). U zprávy, kterou znovu poslat nejde, ťuknutí řekne proč
+(`SendFailure.reason`). Dřív byl vykřičník slepá ulička: zpráva šla jen smazat a napsat znovu.
+
+- **Znovu poslat jde jen málo chyb** (`MessagesManager::can_resend_message` ve zdroji TDLib):
+  429 (limit), `Message is too old to be re-sent automatically`, `SCHEDULE_TOO_MUCH`,
+  `SEND_AS_PEER_INVALID`, `QUOTE_TEXT_INVALID`, `REPLY_MESSAGE_ID_INVALID` a placené zprávy.
+  Přeposlanou zprávu TDLib znovu poslat neumí vůbec. O tom rozhoduje `canRetry` od TDLib;
+  Plume k tomu přidává jen to, co samo neumí: jinou citaci (`needAnotherReplyQuote`) a hvězdy
+  (`requiredPaidMessageStarCount`). Jiného odesílatele a zahození odpovědi udělá TDLib při
+  opakování sám.
+- **Nejběžnější skutečný případ je zpráva poslaná offline, která čekala přes den**
+  (`MAX_RESEND_DELAY` = 86 400 s): TDLib ji po startu z binlogu automaticky neodešle
+  a označí ji „příliš stará". Uložených zpráv se to netýká.
+- **Opakování zprávu NAHRADÍ**: TDLib starou smaže (`updateDeleteMessages`, trvale) a novou
+  ohlásí jako novou zprávu ve stavu odesílání, s novým id a na konci chatu. ViewModel tedy nic
+  nepřepisuje, obrazovku srovnají updaty jako u každé jiné zprávy (`ConversationRepository.resend`).
+- **Album se posílá celé najednou** (`failedGroup`): po kouskách by se rozpadlo na samostatné
+  fotky. Znovu poslat jde, jen když jde každá jeho neodeslaná zpráva (`albumFailure`), a důvod
+  je ten, kvůli kterému to nejde. Id musí jít vzestupně, jinak TDLib odmítne.
+- **Před uplynutím `retryAfter` TDLib odmítne sám** („Message can't be re-sent yet",
+  `error_resend_too_early`); odpočet se nedrží, `retryAfter` se v TDLib bez updatu mění.
+- **Věta pod bublinou je širší než krátká bublina** — sloupec zprávy proto musí mít zarovnání
+  podle strany (`MessageFrame`), jinak odchozí bublinu odsunul od pravého okraje.
+- **Ověřeno na emulátoru se skutečným serverem**: letový režim, zpráva testovacímu botovi,
+  zabitá aplikace, hodiny posunuté o dva dny (`settings put global auto_time 0`,
+  `cmd alarm set-time <ms>`), start offline → „Neodesláno. Ťukni a zkus to znovu." a „Poslat
+  znovu" v nabídce; po vrácení času a sítě ťuknutí zprávu odeslalo (stará zmizela, nová
+  doručená a přečtená). **Neověřené**: zpráva, kterou znovu poslat nejde (věta s důvodem),
+  album a pomalý režim ve skupině.
+

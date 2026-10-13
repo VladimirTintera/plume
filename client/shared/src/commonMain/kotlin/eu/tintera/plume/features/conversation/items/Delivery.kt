@@ -8,10 +8,14 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -19,8 +23,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.telegram.SendFailure
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_not_sent_details
+import eu.tintera.plume.resources.conversation_not_sent_retry
+import eu.tintera.plume.resources.menu_resend
 import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.conversation_delivery_failed
 import eu.tintera.plume.resources.conversation_delivery_read
@@ -50,6 +60,10 @@ internal enum class Delivery { Sending, Sent, Read, Failed }
 @Composable
 internal fun DeliveryBadge(
     delivery: Delivery?,
+    /** Proč zpráva neodešla; u [Delivery.Failed] rozhoduje o větě vedle vykřičníku. */
+    failure: SendFailure? = null,
+    /** Ťuknutí na neodeslanou zprávu: poslat znovu, nebo říct, proč to nejde. */
+    onFailedClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     /*
@@ -76,7 +90,42 @@ internal fun DeliveryBadge(
             shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()),
         modifier = modifier.padding(top = DELIVERY_BADGE_GAP, end = DELIVERY_BADGE_INSET),
     ) {
-        lastShown?.let { DeliveryIcon(it) }
+        lastShown?.let { shown ->
+            if (shown == Delivery.Failed) {
+                FailedNote(failure = failure, onClick = onFailedClick)
+            } else {
+                DeliveryIcon(shown)
+            }
+        }
+    }
+}
+
+/**
+ * Neodeslaná zpráva: vykřičník a věta, co s tím. Samotný vykřičník byl slepá ulička — bylo vidět,
+ * že zpráva neodešla, ale ne co dál. Jako v Google Messages je pod bublinou rovnou výzva
+ * („Neodesláno. Ťukni a zkus to znovu."); u zprávy, kterou znovu poslat nejde, ťuknutí řekne
+ * proč. Ťuká se na celý řádek, ne jen na ikonu — 14 dp by se netrefil nikdo.
+ */
+@Composable
+private fun FailedNote(failure: SendFailure?, onClick: () -> Unit) {
+    val canRetry = failure?.canRetry == true
+    val label = stringResource(if (canRetry) Res.string.menu_resend else Res.string.conversation_delivery_failed)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(FAILED_NOTE_GAP),
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.small)
+            .clickable(onClickLabel = label, role = Role.Button, onClick = onClick)
+            .padding(horizontal = FAILED_NOTE_PADDING, vertical = FAILED_NOTE_PADDING),
+    ) {
+        DeliveryIcon(Delivery.Failed)
+        Text(
+            text = stringResource(
+                if (canRetry) Res.string.conversation_not_sent_retry else Res.string.conversation_not_sent_details,
+            ),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.error,
+        )
     }
 }
 
@@ -128,6 +177,12 @@ private fun DeliveryIcon(delivery: Delivery) {
         )
     }
 }
+
+/** Mezera mezi vykřičníkem a větou u neodeslané zprávy. */
+private val FAILED_NOTE_GAP = 4.dp
+
+/** Vnitřní okraj ťukací plochy „Neodesláno" — aby se dala trefit, a přitom nezvedla řádek moc. */
+private val FAILED_NOTE_PADDING = 4.dp
 
 /** Jak malá nová ikona doručení naskočí. Dost na to, aby změna šla postřehnout koutkem oka. */
 private const val DELIVERY_ICON_INITIAL_SCALE = 0.5f
