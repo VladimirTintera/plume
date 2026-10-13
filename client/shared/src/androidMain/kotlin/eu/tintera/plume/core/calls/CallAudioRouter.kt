@@ -28,8 +28,8 @@ import co.touchlab.kermit.Logger
  */
 internal class CallAudioRouter(
     private val audio: AudioManager,
-    private val onChange: (available: List<CallAudioOutput>, current: CallAudioOutput) -> Unit,
-) {
+) : CallAudioRoutes {
+    private var onChange: (available: List<CallAudioOutput>, current: CallAudioOutput) -> Unit = { _, _ -> }
     private val logger = Logger.withTag("CallAudioRouter")
     private val main = Handler(Looper.getMainLooper())
 
@@ -48,8 +48,9 @@ internal class CallAudioRouter(
         override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) = refresh()
     }
 
-    fun start() {
+    override fun start(onChange: (available: List<CallAudioOutput>, current: CallAudioOutput) -> Unit) {
         if (started) return
+        this.onChange = onChange
         started = true
         audio.mode = AudioManager.MODE_IN_COMMUNICATION
         chosen = null
@@ -57,12 +58,12 @@ internal class CallAudioRouter(
         refresh()
     }
 
-    fun select(output: CallAudioOutput) {
+    override fun select(output: CallAudioOutput) {
         chosen = output
         refresh()
     }
 
-    fun stop() {
+    override fun stop() {
         if (!started) return
         started = false
         audio.unregisterAudioDeviceCallback(devices)

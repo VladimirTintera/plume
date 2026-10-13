@@ -2,6 +2,7 @@ package eu.tintera.plume.di
 
 import eu.tintera.plume.core.calls.CallRinger
 import eu.tintera.plume.core.calls.CallServiceControls
+import eu.tintera.plume.core.calls.TelecomCallBridge
 import eu.tintera.plume.core.telegram.CallRepository
 import eu.tintera.plume.core.calls.CallMedia
 import eu.tintera.plume.core.calls.NtgCallMedia
@@ -77,7 +78,12 @@ actual fun Module.platformModule() {
     single { LiteRtOnDeviceAi(androidContext(), get()) }
     single { TelegramPaths(androidContext()) }
     // Přenos hovorů (ntgcalls) — jen Android, viz docs/poznatky/hovory.md.
-    single<CallMedia> { NtgCallMedia(androidContext()) }
+    // Zvuk hovoru vede systémový Telecom (most níž), náhradně Plume sám.
+    single<CallMedia> { NtgCallMedia(androidContext(), routes = { get<TelecomCallBridge>().routes() }) }
+    // Hovory přihlášené do systémového telefonu: souběh s GSM, auto, hodinky, výstup zvuku.
+    single(createdAtStart = true) {
+        TelecomCallBridge(context = androidContext(), calls = get(), chats = get(), scope = get(named(APP_SCOPE))).also { it.start() }
+    }
     single<DatabaseKeyStore> {
         object : DatabaseKeyStore, SecretStore by KeystoreSecretStore(
             androidContext(), fileName = "tdlib-key", keyAlias = "plume_tdlib_database", logTag = "DatabaseKey",

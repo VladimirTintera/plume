@@ -74,6 +74,8 @@ import eu.tintera.plume.resources.call_24dp
 import eu.tintera.plume.resources.call_answer
 import eu.tintera.plume.resources.call_bar_calling
 import eu.tintera.plume.resources.call_bar_connecting
+import eu.tintera.plume.resources.call_on_hold
+import eu.tintera.plume.resources.call_resume
 import eu.tintera.plume.resources.call_waiting_for_network
 import eu.tintera.plume.resources.call_bar_ended
 import eu.tintera.plume.resources.call_bar_dropped
@@ -171,6 +173,8 @@ private fun callStatus(call: ActiveCall): String {
         CallPhase.Ringing -> stringResource(Res.string.call_incoming)
         CallPhase.Calling -> stringResource(Res.string.call_bar_calling)
         CallPhase.Connecting, CallPhase.Active -> when {
+            // Systém dal přednost jinému hovoru (GSM) — zvuk neteče.
+            call.held -> stringResource(Res.string.call_on_hold)
             // Výpadek sítě (přepnutí Wi-Fi a dat): čas by běžel, i když nic neteče.
             call.networkLost -> stringResource(Res.string.call_waiting_for_network)
             call.phase == CallPhase.Connecting -> stringResource(Res.string.call_bar_connecting)
@@ -224,6 +228,12 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
                 )
             }
             Spacer(Modifier.weight(1f))
+            if (call.held && !call.phase.ended) {
+                // Po GSM hovoru systém hovor sám nevrátí; bez tlačítka by zůstal viset podržený.
+                Button(onClick = { scope.launch { calls.resume() } }, modifier = Modifier.padding(bottom = 24.dp)) {
+                    Text(stringResource(Res.string.call_resume))
+                }
+            }
             when {
                 call.phase == CallPhase.Ringing -> Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth()) {
                     LabeledButton(stringResource(Res.string.notification_call_decline)) {

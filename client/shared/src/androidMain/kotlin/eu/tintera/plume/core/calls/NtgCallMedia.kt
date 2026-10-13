@@ -21,7 +21,13 @@ import java.util.concurrent.Executors
  * Všechno jde přes jedno vlákno: knihovna není dělaná na souběžná volání a první dotyk
  * (`getProtocol`) nahrává ~20 MB knihovnu — na hlavním vlákně by to bylo znát.
  */
-class NtgCallMedia(context: Context) : CallMedia {
+class NtgCallMedia internal constructor(
+    context: Context,
+    /** Kdo vede zvuk: Telecom, nebo náhradně Plume sám (viz [CallAudioRoutes]). */
+    private val routes: () -> CallAudioRoutes,
+) : CallMedia {
+
+    constructor(context: Context) : this(context, { CallAudioRouter(context.getSystemService(AudioManager::class.java)) })
 
     private val logger = Logger.withTag("NtgCallMedia")
     private val appContext = context.applicationContext
@@ -30,7 +36,11 @@ class NtgCallMedia(context: Context) : CallMedia {
 
     private var ntg: NTgCalls? = null
     private var callId = 0L
-    private var router: CallAudioRouter? = null
+    private var router: CallAudioRoutes? = null
+
+    /** Uživatel si ztlumil mikrofon — po skončení podržení (GSM hovor) se mu nesmí zapnout. */
+    private var userMuted = false
+    private var held = false
 
     override val protocol: CallMediaProtocol by lazy {
         worker.submit<CallMediaProtocol> {
@@ -44,7 +54,7 @@ class NtgCallMedia(context: Context) : CallMedia {
         worker.execute {
             // Systém ví, že běží hovor (ozvěna, hlasitost hovoru), a zvuk jde tam, kam patří.
             router?.stop()
-            router = CallAudioRouter(audio, onOutputs).also { it.start() }
+            router = routes().also { it.start(onOutputs) }
         }
     }
 
@@ -72,7 +82,10 @@ class NtgCallMedia(context: Context) : CallMedia {
                 }
                 instance.createP2pCall(callId)
                 instance.setStreamSources(callId, StreamMode.CAPTURE, MediaDescription(device(MICROPHONE), null, null, null))
-                instance.setStreamSources(callId, StreamMode.PLAYBACK, MediaDescription(null, device(SPEAKER), null, null))
+                // V režimu PLAYBACK je slot `microphone` mikrofon PROTISTRANY: příjem zvuku
+                // ntgcalls zapne jen pro něj (`StreamManager::optimize_sources`). Reproduktor
+                // ve slotu `speaker` dal ticho — spojení naváže, ale příchozí kanál nevznikne.
+                instance.setStreamSources(callId, StreamMode.PLAYBACK, MediaDescription(device(SPEAKER), null, null, null))
                 instance.skipExchange(callId, session.encryptionKey, session.isOutgoing)
                 instance.connectP2p(
                     callId,
@@ -98,7 +111,25 @@ class NtgCallMedia(context: Context) : CallMedia {
 
     override fun setMuted(muted: Boolean) {
         worker.execute {
-            runCatching { ntg?.let { if (muted) it.mute(callId) else it.unmute(callId) } }
+            userMuted = muted
+            if (!held) runCatching { ntg?.let { if (muted) it.mute(callId) else it.unmute(callId) } }
+        }
+    }
+
+    override fun setHeld(held: Boolean) {
+        worker.execute {
+            this.held = held
+            runCatching {
+                ntg?.let { instance ->
+                    if (held) {
+                        instance.mute(callId)
+                        instance.pause(callId)
+                    } else {
+                        instance.resume(callId)
+                        if (!userMuted) instance.unmute(callId)
+                    }
+                }
+            }.onFailure { logger.w(it) { "Podržení hovoru selhalo." } }
         }
     }
 
@@ -115,6 +146,8 @@ class NtgCallMedia(context: Context) : CallMedia {
             runCatching { instance.stop(callId) }.onFailure { logger.w(it) { "Zastavení hovoru selhalo." } }
         }
         ntg = null
+        held = false
+        userMuted = false
         // I u hovoru, který se nespojil (zrušený při vytáčení): zvuková relace běží od začátku.
         router?.stop()
         router = null

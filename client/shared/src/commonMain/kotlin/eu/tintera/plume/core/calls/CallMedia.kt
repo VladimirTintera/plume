@@ -30,6 +30,12 @@ interface CallMedia {
 
     fun setMuted(muted: Boolean)
 
+    /**
+     * Podržení: systém dal přednost jinému hovoru (GSM). Mikrofon ani přehrávání neběží,
+     * po uvolnění se vrátí, jak byly (ztlumení uživatelem zůstane).
+     */
+    fun setHeld(held: Boolean)
+
     /** Kam jde zvuk hovoru: sluchátko, reproduktor, sluchátka s kabelem, nebo Bluetooth. */
     fun setOutput(output: CallAudioOutput)
 

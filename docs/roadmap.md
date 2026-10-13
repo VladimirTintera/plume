@@ -455,9 +455,8 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    shodná. **Obálka na Androidu hotová** (`docs/poznatky/hovory.md`, „Obálka na Androidu":
    služba, přijetí z notifikace i nad zámkem, obrazovka hovoru, reproduktor, senzor
    přiblížení). Vyzvánění a Bluetooth taky (`docs/poznatky/hovory.md`, „Vyzvánění a výstup
-   zvuku"). Změna sítě taky (`docs/poznatky/hovory.md`, „Změna sítě za hovoru"). Zbývá na
-   Androidu: `ConnectionService` /
-   `core-telecom` (souběh s GSM hovorem, Android Auto), video.
+   zvuku"). Změna sítě a systémový telefon taky (`docs/poznatky/hovory.md`, „Změna sítě
+   za hovoru", „Systémový telefon"). Zbývá na Androidu video.
    Původní plán sondy:
 
    **Doporučení: C, začít dvoudenní sondou na Androidu.** ntgcalls v `debug` větvi, jen zvuk:
