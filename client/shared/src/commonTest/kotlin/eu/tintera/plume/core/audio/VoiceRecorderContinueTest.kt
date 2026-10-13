@@ -1,9 +1,5 @@
 package eu.tintera.plume.core.audio
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import okio.FileSystem
@@ -23,15 +19,18 @@ import kotlin.test.assertTrue
  *
  * Na skutečném čase (`runBlocking`): [VoiceRecorder] měří délku monotónními hodinami, ne
  * plánovačem korutin. Nahrávač je podvržený a „nahrává" Ogg s pevným počtem paketů.
+ *
+ * Nahrávač běží v rozsahu `runBlocking` (`this`), tedy na TÉMŽ vlákně jako test — stejně jako
+ * v aplikaci na `viewModelScope`. [VoiceRecorder] není vláknově bezpečný: s `Dispatchers.Default`
+ * tik úrovní, který už prošel `delay`, po `finish` zapsal stav zpátky, další `start` ho viděl jako
+ * běžící nahrávání, nic nespustil a druhé `finish` vrátilo `null`.
  */
 class VoiceRecorderContinueTest {
     private val fileSystem = FileSystem.SYSTEM
     private val folder: Path = FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "voice-continue-${Random.nextLong()}"
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @AfterTest
     fun cleanUp() {
-        scope.cancel()
         fileSystem.deleteRecursively(folder, mustExist = false)
     }
 
@@ -70,7 +69,7 @@ class VoiceRecorderContinueTest {
 
     @Test
     fun navazanyUsekSeSpojiSPuvodniNahravkou() = runBlocking {
-        val recorder = VoiceRecorder(FakeCapture(packets = 30), scope)
+        val recorder = VoiceRecorder(FakeCapture(packets = 30), this)
         recorder.start().getOrThrow()
         delay(1_100)
         val first = assertNotNull(recorder.finish())
@@ -91,7 +90,7 @@ class VoiceRecorderContinueTest {
 
     @Test
     fun prilisKratkyDovetekNechaPuvodniNahravku() = runBlocking {
-        val recorder = VoiceRecorder(FakeCapture(packets = 30), scope)
+        val recorder = VoiceRecorder(FakeCapture(packets = 30), this)
         recorder.start().getOrThrow()
         delay(1_100)
         val first = assertNotNull(recorder.finish())
@@ -105,7 +104,7 @@ class VoiceRecorderContinueTest {
 
     @Test
     fun kosZahodiIPuvodniNahravku() = runBlocking {
-        val recorder = VoiceRecorder(FakeCapture(packets = 30), scope)
+        val recorder = VoiceRecorder(FakeCapture(packets = 30), this)
         recorder.start().getOrThrow()
         delay(1_100)
         val first = assertNotNull(recorder.finish())
@@ -117,8 +116,8 @@ class VoiceRecorderContinueTest {
     }
 
     @Test
-    fun naM4aNavazatNejde() {
-        val recorder = VoiceRecorder(FakeCapture(packets = 30), scope)
+    fun naM4aNavazatNejde() = runBlocking {
+        val recorder = VoiceRecorder(FakeCapture(packets = 30), this)
         assertFalse(recorder.canContinue(RecordedVoice(path = "voice.m4a", durationSeconds = 3, waveform = ByteArray(0))))
     }
 
@@ -133,7 +132,7 @@ class VoiceRecorderContinueTest {
                 return (folder / "joined.ogg").toString()
             }
         }
-        val recorder = VoiceRecorder(capture, scope)
+        val recorder = VoiceRecorder(capture, this)
         recorder.start().getOrThrow()
         delay(1_100)
         val first = assertNotNull(recorder.finish())
@@ -151,7 +150,7 @@ class VoiceRecorderContinueTest {
             override fun canJoin(path: String) = true
             override suspend fun join(previous: String, next: String): String = error("Kodér selhal.")
         }
-        val recorder = VoiceRecorder(capture, scope)
+        val recorder = VoiceRecorder(capture, this)
         recorder.start().getOrThrow()
         delay(1_100)
         val first = assertNotNull(recorder.finish())

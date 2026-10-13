@@ -118,6 +118,10 @@ class RecordedVoice(
  *
  * Úrovně se čtou po [LEVEL_TICK_MS]; všechny se drží na waveform (minuta je 1 200 čísel), do stavu
  * jde jen konec. Nahrávka kratší než [MIN_DURATION_MS] se zahodí — je to skoro vždycky omyl.
+ *
+ * **Není vláknově bezpečný:** volá se z jednoho vlákna a [scope] musí běžet na témž (v aplikaci
+ * `viewModelScope`). Tik úrovní na jiném vlákně by po [finish] mohl zapsat stav zpátky
+ * a další [start] by pak nic nespustil.
  */
 class VoiceRecorder(private val recorder: MediaCapture, private val scope: CoroutineScope) {
 
