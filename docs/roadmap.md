@@ -360,8 +360,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - ~~Osobní kanál v profilu~~ — hotovo (`docs/poznatky/nastaveni.md`, „Osobní kanál"). ~~Víc
   uživatelských jmen~~ — hotovo pro vlastní účet (`docs/poznatky/nastaveni.md`, „Víc uživatelských
   jmen"); kanály, skupiny a boti zbývají.
-- Statistika přenesených dat (`getNetworkStatistics`) a automatické ukládání médií do galerie
-  (`getAutosaveSettings` / `setAutosaveSettings`).
+- ~~Statistika přenesených dat~~ — hotovo (Úložiště → Přenesená data; `docs/poznatky/nastaveni.md`,
+  „Přenesená data"). Zbývá automatické ukládání médií do galerie (`getAutosaveSettings` /
+  `setAutosaveSettings`) — TDLib drží jen nastavení, ukládat musí aplikace sama.
 - Notifikace reakcí (`setReactionNotificationSettings`) a zvuky notifikací z Telegramu
   (`getSavedNotificationSounds`; viz [Notifikace](#notifikace)).
 - Podpora — „Zeptat se" (`getSupportUser`).

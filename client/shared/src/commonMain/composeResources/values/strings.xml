@@ -1007,9 +1007,6 @@
     <string name="notification_call_answer_elsewhere">For now you can only answer in the official Telegram app.</string>
     <string name="notification_call_decline">Decline</string>
     <string name="notification_call_unknown">Unknown caller</string>
-    <!-- Ikona v oznamovací oblasti (Windows), kam se aplikace schová po zavření okna. -->
-    <string name="tray_open">Open Plume</string>
-    <string name="tray_quit">Quit</string>
     <string name="video_chat_active">Video chat in progress</string>
     <string name="video_chat_live">Live stream in progress</string>
     <string name="video_chat_scheduled">Video chat starts %1$s</string>
@@ -2891,4 +2888,24 @@
     <string name="usernames_move_down">Move down</string>
     <string name="usernames_failed">Couldn't change usernames.</string>
     <string name="profile_username_more">also %1$s</string>
+    <string name="network_usage_title">Data usage</string>
+    <string name="network_usage_summary">Received %1$s · sent %2$s</string>
+    <string name="network_usage_mobile">Mobile</string>
+    <string name="network_usage_wifi">Wi‑Fi</string>
+    <string name="network_usage_roaming">Roaming</string>
+    <string name="network_usage_other">Other</string>
+    <string name="network_usage_messages">Messages and other data</string>
+    <string name="network_usage_calls">Calls</string>
+    <string name="network_usage_calls_summary">%1$s · %2$s</string>
+    <string name="network_usage_since">Counted since %1$s. Only Plume on this device; other devices of your account aren't included.</string>
+    <string name="network_usage_empty">Nothing transferred yet.</string>
+    <string name="network_usage_load_failed">Couldn't load data usage.</string>
+    <string name="network_usage_retry">Try again</string>
+    <string name="network_usage_reset">Reset statistics</string>
+    <string name="network_usage_reset_title">Reset statistics?</string>
+    <string name="network_usage_reset_text">All numbers go back to zero and counting starts again from now.</string>
+    <string name="network_usage_reset_confirm">Reset</string>
+    <string name="network_usage_reset_failed">Couldn't reset statistics.</string>
+    <string name="network_usage_group">Network</string>
+    <string name="network_usage_mobile_short">Mobile</string>
 </resources>

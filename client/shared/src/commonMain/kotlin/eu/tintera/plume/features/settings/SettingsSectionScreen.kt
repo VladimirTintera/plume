@@ -46,6 +46,7 @@ fun SettingsSectionScreen(
     onOpenTwoStep: () -> Unit,
     onOpenLoginEmail: () -> Unit,
     onOpenPasskeys: () -> Unit,
+    onOpenNetworkUsage: () -> Unit,
     onOpenAppLock: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -74,7 +75,7 @@ fun SettingsSectionScreen(
                 SettingsSection.Notifications -> NotificationSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
                 SettingsSection.Appearance -> AppearanceSettings(viewModel = koinViewModel())
                 SettingsSection.Devices -> DevicesSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
-                SettingsSection.Storage -> StorageSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
+                SettingsSection.Storage -> StorageSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState, onOpenNetworkUsage = onOpenNetworkUsage)
                 SettingsSection.WhatsNew -> WhatsNewSettings()
             }
         }

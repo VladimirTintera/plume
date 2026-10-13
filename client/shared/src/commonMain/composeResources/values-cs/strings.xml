@@ -1027,8 +1027,6 @@
     <string name="notification_call_answer_elsewhere">Přijmout jde zatím jen v oficiální aplikaci Telegramu.</string>
     <string name="notification_call_decline">Odmítnout</string>
     <string name="notification_call_unknown">Neznámý volající</string>
-    <string name="tray_open">Otevřít Plume</string>
-    <string name="tray_quit">Ukončit</string>
     <string name="video_chat_active">Probíhá videochat</string>
     <string name="video_chat_live">Probíhá živé vysílání</string>
     <string name="video_chat_scheduled">Videochat začne %1$s</string>
@@ -2974,4 +2972,24 @@
     <string name="usernames_move_down">Posunout níž</string>
     <string name="usernames_failed">Uživatelská jména se nepodařilo změnit.</string>
     <string name="profile_username_more">také %1$s</string>
+    <string name="network_usage_title">Přenesená data</string>
+    <string name="network_usage_summary">Staženo %1$s · odesláno %2$s</string>
+    <string name="network_usage_mobile">Mobilní data</string>
+    <string name="network_usage_wifi">Wi‑Fi</string>
+    <string name="network_usage_roaming">Roaming</string>
+    <string name="network_usage_other">Jiné</string>
+    <string name="network_usage_messages">Zprávy a ostatní data</string>
+    <string name="network_usage_calls">Hovory</string>
+    <string name="network_usage_calls_summary">%1$s · %2$s</string>
+    <string name="network_usage_since">Počítá se od %1$s. Jen Plume na tomhle zařízení; jiná zařízení účtu tu nejsou.</string>
+    <string name="network_usage_empty">Zatím se nic nepřeneslo.</string>
+    <string name="network_usage_load_failed">Statistiku se nepodařilo načíst.</string>
+    <string name="network_usage_retry">Zkusit znovu</string>
+    <string name="network_usage_reset">Vynulovat statistiku</string>
+    <string name="network_usage_reset_title">Vynulovat statistiku?</string>
+    <string name="network_usage_reset_text">Všechna čísla se vrátí na nulu a počítání začne znovu od teď.</string>
+    <string name="network_usage_reset_confirm">Vynulovat</string>
+    <string name="network_usage_reset_failed">Statistiku se nepodařilo vynulovat.</string>
+    <string name="network_usage_group">Síť</string>
+    <string name="network_usage_mobile_short">Mobilní</string>
 </resources>

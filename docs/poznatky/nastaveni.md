@@ -853,6 +853,39 @@ v DI není, `StorageViewModel` ho bere přes `getOrNull`).
   smazán", zmizení skupiny, nové stažení přes sheet překladu (výzva se po smazání znovu ukázala).
   iOS jen přeložené.
 
+### Přenesená data (`NetworkUsageScreen`)
+
+Úložiště → Síť → „Přenesená data" (souhrn „Staženo · odesláno" přímo v řádku), obrazovka
+s přepínačem sítě, velkým číslem za síť a rozpisem podle druhu — stejné druhy a ikony jako
+přehled úložiště, navíc „Zprávy a ostatní data" a „Hovory". Dole odkdy se počítá a vynulování.
+
+- **TDLib: `getNetworkStatistics(onlyCurrent = false)` a `resetNetworkStatistics`.** Obojí je
+  lokální — statistika žije v databázi TDLib na zařízení, server o ní neví. Proto věta „jen Plume
+  na tomhle zařízení".
+- **Dělení podle sítě stojí na `setNetworkType`**, které Plume hlásí odjakživa (`NetworkMonitor`,
+  `ConnectionController`). Desktop hlásí jen „Jiné"; přepínač se ukazuje, jen když teklo víc sítí.
+- **Položky TDLib se NESMÍ sčítat podle typu souboru.** Statistika se ukládá pod klíčem
+  `net_stats_<jméno>` a několik typů jméno sdílí (`get_file_type_unique_name` v TDLib
+  `FileType.cpp`): „photos" = fotka, mizející fotka, živá fotka a mizející živá fotka, „voice"
+  = hlasovka a mizející hlasovka, „videos", „video_notes" obdobně. Uložená čísla se vracejí
+  u každého typu znovu — na emulátoru čtyři položky s přesně 26 544 / 849 729 B, sečtené
+  čtyřnásobek a živá fotka navíc i ve videích. Typy se proto slučují podle počítadla
+  (`StatsSlot`) a bere se maximum: uložená část je u všech stejná, liší se jen přenos od
+  spuštění. Test `NetworkStatisticsSlotsTest` s čísly z emulátoru.
+- **Data bez souboru chodí jako `FileTypeNone`, ne `null`** (v TDLib počítadlo „common"),
+  přestože dokumentace slibuje `null`. Napřed spadla do „Ostatní (profilové fotky, náhledy)"
+  a ta pak tvořila 21 z 24 MB. Jsou to zprávy, aktualizace a seznam chatů.
+- **Živá fotka je pro statistiku fotka**, ne video (TDLib ji počítá do „photos"); v přehledu
+  úložiště zůstává ve videích — tam rozhoduje soubor.
+- **Výchozí síť je ta s nejvíc daty**, ne první v pořadí — obvykle ta, na které uživatel je.
+  „Mobilní data" se do čtvrtiny šířky přepínače nevešla, tlačítko má „Mobilní".
+- Délka hovorů je jen největší celá jednotka (`durationText`), jako jinde v aplikaci.
+- **Ověřeno**: `NetworkUsageTest` (slučování do sítí a druhů, prázdné se vynechá, hovor s délkou
+  ne), `NetworkStatisticsSlotsTest`, `NetworkUsageViewModelTest` (výchozí síť, vynulování
+  a nové čtení, chyba); na emulátoru se skutečnou statistikou (Wi-Fi 22 MB, mobilní 193 kB,
+  jiné) a dialog vynulování zavřený přes Zrušit. **Vynulování samo vyzkoušené není** (jen test),
+  hovory taky ne — emulátor žádný nevolal.
+
 ## Menší přepínače
 
 Rychlá reakce a odkazy v aplikaci jsou ve skupině Chaty v Obecných, jazyk aplikace v Obecných

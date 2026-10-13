@@ -70,6 +70,10 @@ data object TwoStepRoute : Route
 @Serializable
 data object LoginEmailRoute : Route
 
+/** Přenesená data (statistika sítě). Vrší se nad sekci Úložiště. */
+@Serializable
+data object NetworkUsageRoute : Route
+
 /** Přístupové klíče (seznam a odebrání). Vrší se nad sekci Obecné jako [TwoStepRoute]. */
 @Serializable
 data object PasskeysRoute : Route
@@ -458,6 +462,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(TwoStepRoute::class, TwoStepRoute.serializer())
             subclass(LoginEmailRoute::class, LoginEmailRoute.serializer())
             subclass(PasskeysRoute::class, PasskeysRoute.serializer())
+            subclass(NetworkUsageRoute::class, NetworkUsageRoute.serializer())
             subclass(ChangePhoneRoute::class, ChangePhoneRoute.serializer())
             subclass(AppLockRoute::class, AppLockRoute.serializer())
             subclass(ChatFoldersRoute::class, ChatFoldersRoute.serializer())

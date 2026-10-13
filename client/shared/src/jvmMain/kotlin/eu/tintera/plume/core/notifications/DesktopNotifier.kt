@@ -2,7 +2,6 @@ package eu.tintera.plume.core.notifications
 
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.platform.DesktopOs
-import eu.tintera.plume.core.platform.DesktopTray
 import eu.tintera.plume.core.platform.desktopOs
 import java.awt.SystemTray
 import java.awt.TrayIcon
@@ -21,12 +20,7 @@ internal data class DesktopNotification(
     val chatId: Long,
     val topicId: Int?,
     val silent: Boolean,
-    /** Fotka ze zprávy. */
     val imagePath: String?,
-    /** Profilovka chatu (u hovoru volajícího). */
-    val avatarPath: String?,
-    /** Čas zprávy v sekundách; `null` = teď. */
-    val timestamp: Long? = null,
 )
 
 /** Systémová oznámení desktopu. Platformu vybírá [desktopNotifier]. */
@@ -51,12 +45,8 @@ internal interface DesktopNotifier {
     var onActivated: ((chatId: Long, topicId: Int?) -> Unit)?
 }
 
-internal fun desktopNotifier(): DesktopNotifier = when {
-    desktopOs == DesktopOs.MacOs -> MacNotifier()
-    // Bez knihovny toastů (build na stroji bez MSVC) zůstává AWT jako dřív.
-    desktopOs == DesktopOs.Windows && WindowsToasts.available -> WindowsNotifier()
-    else -> TrayNotifier()
-}
+internal fun desktopNotifier(): DesktopNotifier =
+    if (desktopOs == DesktopOs.MacOs) MacNotifier() else TrayNotifier()
 
 private class MacNotifier : DesktopNotifier {
 
@@ -81,7 +71,7 @@ private class MacNotifier : DesktopNotifier {
             chatId = notification.chatId,
             topicId = notification.topicId ?: 0,
             silent = notification.silent,
-            attachmentPath = (notification.imagePath ?: notification.avatarPath)?.let(::attachmentCopy),
+            attachmentPath = notification.imagePath?.let(::attachmentCopy),
         )
     }
 
@@ -114,56 +104,7 @@ private class MacNotifier : DesktopNotifier {
 }
 
 /**
- * Windows: toasty WinRT přes [WindowsToasts]. Na rozdíl od AWT se dají stáhnout (přečtení
- * jinde), seskupují se po chatech, nesou profilovku a klik otevře právě ten chat.
- */
-private class WindowsNotifier : DesktopNotifier {
-
-    private val logger = Logger.withTag("WindowsNotifier")
-
-    override val available: Boolean get() = WindowsToasts.available
-
-    /** Windows se na povolení neptá; vypnout jde jen v Nastavení systému. */
-    override fun isGranted(): Boolean = WindowsToasts.nativeSetting() == 0
-
-    override fun requestPermission(): Boolean = isGranted()
-
-    override fun show(notification: DesktopNotification) {
-        check("zobrazit", WindowsToasts.nativeShow(toastXml(notification), notification.id, GROUP))
-    }
-
-    override fun remove(ids: List<String>) {
-        if (ids.isNotEmpty()) check("stáhnout", WindowsToasts.nativeRemove(ids.toTypedArray(), GROUP))
-    }
-
-    override fun removeAll() {
-        check("smazat", WindowsToasts.nativeRemoveAll())
-    }
-
-    override var onActivated: ((chatId: Long, topicId: Int?) -> Unit)? = null
-        set(value) {
-            field = value
-            WindowsToasts.onActivated = { arguments ->
-                parseActivation(arguments)?.let { (chatId, topicId) -> value?.invoke(chatId, topicId) }
-            }
-        }
-
-    private fun check(action: String, result: Int) {
-        if (result != 0) logger.w { "Toast nejde $action: 0x${result.toUInt().toString(16)}." }
-    }
-
-    private companion object {
-        /**
-         * Skupina v historii toastů. Jedna pro všechno: tag (`g<skupina>-n<notifikace>`) je
-         * jedinečný sám a nezabalená aplikace musí skupinu uvést i při rušení, kde ji presenter
-         * nezná. Seskupení po chatech nese hlavička v XML, ne skupina.
-         */
-        const val GROUP = "plume"
-    }
-}
-
-/**
- * Linux (a Windows bez knihovny toastů): AWT `TrayIcon.displayMessage` — na Windows bublina u ikony v oznamovací
+ * Windows a Linux: AWT `TrayIcon.displayMessage` — na Windows bublina u ikony v oznamovací
  * oblasti (od Windows 10 jako oznámení systému), na Linuxu podle prostředí. Kliknutí hlásí
  * ikona jako akci a vztahuje se k poslední zobrazené zprávě. Zrušit zobrazené oznámení AWT
  * neumí, takže [remove] nic nedělá.
@@ -196,8 +137,7 @@ private class TrayNotifier : DesktopNotifier {
     override fun requestPermission(): Boolean = available
 
     override fun show(notification: DesktopNotification) {
-        // Na Windows je v oznamovací oblasti už ikona aplikace (DesktopTray); druhá by tam visela vedle.
-        val tray = DesktopTray.icon ?: icon ?: return
+        val tray = icon ?: return
         last = notification
         val title = listOfNotNull(notification.title, notification.subtitle).joinToString(" · ")
         tray.displayMessage(title, notification.body, TrayIcon.MessageType.NONE)
