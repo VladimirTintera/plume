@@ -173,6 +173,7 @@ class TdlProfileRepository(
             usernames = user.usernames?.activeUsernames?.toList().orEmpty(),
             // TDLib posílá číslo bez „+"; prázdné = uživatel ho neukazuje.
             phone = user.phoneNumber.takeIf { it.isNotBlank() }?.let { "+$it" },
+            birthdate = full?.birthdate?.toDomain(),
             userId = userId,
             isBlocked = full?.blockList != null,
             isContact = user.isContact,

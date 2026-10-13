@@ -1,5 +1,13 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.telegram.Birthdate
+import eu.tintera.plume.core.ui.label
+import eu.tintera.plume.resources.birthdate_age
+import eu.tintera.plume.resources.birthdate_row
+import eu.tintera.plume.resources.birthdate_with_age
+import kotlin.time.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.files.opensInViewer
@@ -427,7 +435,7 @@ fun ChatProfileScreen(
                 )
                 val notifications = state.notifications
                 val showsAutoDelete = profile.canSetAutoDelete || profile.autoDeleteTime > 0
-                if (profile.usernames.isNotEmpty() || profile.phone != null || profile.about.isNotBlank() ||
+                if (profile.usernames.isNotEmpty() || profile.phone != null || profile.birthdate != null || profile.about.isNotBlank() ||
                     notifications != null || showsAutoDelete || profile.linkedChat != null || bookmarks.isNotEmpty() ||
                     profile.secretChatKey != null ||
                     viewModel.supportsChatColor
@@ -1120,6 +1128,13 @@ private fun ProfileInfo(
                 }
             }
         }
+        profile.birthdate?.let { birthdate ->
+            add { shape ->
+                InfoRow(label = stringResource(Res.string.birthdate_row), shape = shape) {
+                    Text(birthdateWithAge(birthdate), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+        }
         if (profile.about.isNotBlank()) {
             val isPerson = profile.kind == ProfileKind.User || profile.kind == ProfileKind.Bot
             add { shape ->
@@ -1484,4 +1499,13 @@ private fun ProfileMenu(
             onDismiss = { confirmDelete = false },
         )
     }
+}
+
+/** „12. října 1990 (35 let)", bez roku jen datum. */
+@Composable
+private fun birthdateWithAge(birthdate: Birthdate): String {
+    val today = remember { Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date }
+    val label = birthdate.label()
+    val age = birthdate.ageOn(today) ?: return label
+    return stringResource(Res.string.birthdate_with_age, label, pluralStringResource(Res.plurals.birthdate_age, age, age))
 }

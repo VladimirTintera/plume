@@ -4,6 +4,7 @@ import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.SuggestedActionCheckPassword
 import dev.g000sha256.tdl.dto.SuggestedActionCustom
 import dev.g000sha256.tdl.dto.SuggestedActionExtendPremium
+import dev.g000sha256.tdl.dto.SuggestedActionAddLoginPasskey
 import dev.g000sha256.tdl.dto.SuggestedActionSetBirthdate
 import dev.g000sha256.tdl.dto.SuggestedActionSetLoginEmailAddress
 import dev.g000sha256.tdl.dto.SuggestedActionSetPassword
@@ -36,6 +37,12 @@ class SuggestedActionTest {
     fun placeneSluzbyANeumeneSeVynechaji() {
         assertNull(SuggestedActionUpgradePremium().toDomain())
         assertNull(SuggestedActionExtendPremium(managePremiumSubscriptionUrl = "https://t.me/premium").toDomain())
-        assertNull(SuggestedActionSetBirthdate().toDomain())
+        // Přístupový klíč cizí klient přidat nemůže (viz docs/poznatky/nastaveni.md).
+        assertNull(SuggestedActionAddLoginPasskey().toDomain())
+    }
+
+    @Test
+    fun datumNarozeniSeNabizi() {
+        assertEquals(SuggestedAction.SetBirthdate, SuggestedActionSetBirthdate().toDomain())
     }
 }

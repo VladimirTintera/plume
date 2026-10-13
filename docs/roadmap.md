@@ -354,8 +354,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - ~~Přihlašovací e-mail~~ (hotovo) a ~~přístupové klíče~~ — seznam a odebrání hotové (Obecné →
   Soukromí); přidat klíč ani se jím přihlásit cizí klient NEMŮŽE (`docs/poznatky/nastaveni.md`,
   „Přístupové klíče").
-- Narozeniny: vlastní datum (`setBirthdate`) a pruh s narozeninami kontaktů
-  (`contactCloseBirthdaysUpdates`); soukromí narozenin hotové je.
+- ~~Narozeniny~~ — hotovo: vlastní datum v úpravě profilu, datum v profilu kontaktu, karta
+  s narozeninami kontaktů (`docs/poznatky/nastaveni.md`, „Narozeniny"). Zbývá návrh data
+  narození od kontaktu (`MessageSuggestBirthdate`), dnes jen popis zprávy.
 - Osobní kanál v profilu (`setPersonalChat`), víc uživatelských jmen
   (`reorderActiveUsernames`, `toggleUsernameIsActive`).
 - Statistika přenesených dat (`getNetworkStatistics`) a automatické ukládání médií do galerie

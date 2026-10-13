@@ -308,6 +308,8 @@ data class ChatProfile(
     val aboutEntities: List<MessageEntity>,
     /** Telefon, jen když ho uživatel ukazuje (jinak prázdný řetězec od TDLib → `null`). */
     val phone: String?,
+    /** Datum narození uživatele, jen když ho vidět smím; u skupiny a kanálu `null`. */
+    val birthdate: Birthdate? = null,
     /** Počet členů / odběratelů; u soukromého chatu `null`. */
     val memberCount: Int?,
     /** Server vydá seznam členů (skupina, ne kanál; supergroup se skrytými členy ne). */

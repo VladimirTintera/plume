@@ -54,6 +54,9 @@ class TdlAccountNotices(
     private val _freeze = MutableStateFlow<AccountFreeze?>(null)
     override val freeze: StateFlow<AccountFreeze?> = _freeze.asStateFlow()
 
+    private val _closeBirthdays = MutableStateFlow<List<CloseBirthday>>(emptyList())
+    override val closeBirthdays: StateFlow<List<CloseBirthday>> = _closeBirthdays.asStateFlow()
+
     private val _suggestedActions = MutableStateFlow<List<SuggestedAction>>(emptyList())
     override val suggestedActions: StateFlow<List<SuggestedAction>> = _suggestedActions.asStateFlow()
 
@@ -111,6 +114,23 @@ class TdlAccountNotices(
                 _suggestedActions.update { current -> (current - removed + added).distinct() }
             }
         }
+        // Narozeniny kontaktů: TDLib pošle seznam po startu a pak při každé změně (i po schování).
+        // Jméno a fotka se dočítají lokálně — kontakt TDLib zná.
+        scope.launch {
+            holder.updates { contactCloseBirthdaysUpdates }.collect { update ->
+                _closeBirthdays.value = update.closeBirthdayUsers.mapNotNull { close ->
+                    val user = holder.client.getUser(userId = close.userId).toResult()
+                        .onFailure { logger.w(it) { "Kontakt s narozeninami se nepodařilo dočíst." } }
+                        .getOrNull() ?: return@mapNotNull null
+                    CloseBirthday(
+                        userId = user.id,
+                        name = listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" "),
+                        photoFileId = user.profilePhoto?.small?.id,
+                        birthdate = close.birthdate.toDomain(),
+                    )
+                }
+            }
+        }
         // Odhlášení: nový účet nic z toho starého nezdědí.
         scope.launch {
             holder.replaced.collect {
@@ -118,6 +138,7 @@ class TdlAccountNotices(
                 _termsOfService.value = null
                 _freeze.value = null
                 _suggestedActions.value = emptyList()
+                _closeBirthdays.value = emptyList()
                 tdlActions.clear()
             }
         }
@@ -142,6 +163,11 @@ class TdlAccountNotices(
         val tdl = tdlActions[action] ?: return Result.success(Unit)
         return holder.client.hideSuggestedAction(action = tdl).toResult().map { }
     }
+
+    /** Ze seznamu je vyřadí až update od TDLib, jako u doporučených akcí. */
+    override suspend fun hideCloseBirthdays(): Result<Unit> =
+        holder.client.hideContactCloseBirthdays().toResult().map { }
+            .onFailure { logger.w(it) { "Narozeniny se nepodařilo schovat." } }
 
     override fun postponeTermsOfService() {
         _termsOfService.value = null
@@ -176,16 +202,17 @@ internal fun TdlSuggestedAction.toDomain(): SuggestedAction? = when (this) {
     is SuggestedActionSetPassword -> SuggestedAction.SetPassword(authorizationDelay.coerceAtLeast(0))
     is SuggestedActionSetLoginEmailAddress -> SuggestedAction.SetLoginEmail(canBeHidden)
     is SuggestedActionSetProfilePhoto -> SuggestedAction.SetProfilePhoto
+    is SuggestedActionSetBirthdate -> SuggestedAction.SetBirthdate
     is SuggestedActionEnableArchiveAndMuteNewChats -> SuggestedAction.ArchiveUnknownChats
     is SuggestedActionCustom -> SuggestedAction.Custom(name = name, title = title.text, description = description.text, url = url)
-    // Placené služby Plume nepropaguje (Premium, hvězdy, dárky); narozeniny a převod skupiny
-    // na kanál nastavit neumí; nápověda k fajfkám je v aplikaci jinde. Přístupový klíč přidat
+    // Placené služby Plume nepropaguje (Premium, hvězdy, dárky); převod skupiny na kanál
+    // nastavit neumí; nápověda k fajfkám je v aplikaci jinde. Přístupový klíč přidat
     // NEJDE: Android a iOS ho k doméně telegram.org dovolí vytvořit jen aplikacím, které
     // Telegram uvádí na webu (assetlinks.json, apple-app-site-association).
     is SuggestedActionAddLoginPasskey, is SuggestedActionConvertToBroadcastGroup,
     is SuggestedActionExtendPremium, is SuggestedActionExtendStarSubscriptions,
     is SuggestedActionGiftPremiumForChristmas, is SuggestedActionRestorePremium,
-    is SuggestedActionSetBirthdate, is SuggestedActionSubscribeToAnnualPremium,
+    is SuggestedActionSubscribeToAnnualPremium,
     is SuggestedActionUpgradePremium, is SuggestedActionViewChecksHint,
         -> null
 }

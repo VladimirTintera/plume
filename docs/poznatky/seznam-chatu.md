@@ -400,6 +400,12 @@ Nastavení — vzor Gmailu a Google Messages; dřív tu bylo ⋮ vedle pilulky).
 - **Odznak nepřečtených není chybově červený.** M3 `Badge` je ve výchozím stavu `error`; nepřečtená
   zpráva ale není chyba a v odlehčeném seznamu byla ta červená jediná sytá barva na obrazovce.
 
+### Karta narozenin
+
+Nad doporučenou akcí, jen v hlavním seznamu (`BirthdaysCard`, `ChatsViewModel.birthdays`).
+Poučení (dlaždice kvůli barvě avatarů, řazení, schování na 24 hodin) je v
+`docs/poznatky/nastaveni.md`, „Narozeniny".
+
 ### Uložené zprávy
 
 Uložené zprávy jsou v Telegramu **obyčejný soukromý chat s vlastním účtem** — id chatu je id

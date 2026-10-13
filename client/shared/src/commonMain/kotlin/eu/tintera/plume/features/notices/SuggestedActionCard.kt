@@ -29,6 +29,10 @@ import eu.tintera.plume.core.ui.waitUiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.alternate_email_24dp
 import eu.tintera.plume.resources.archive_24dp
+import eu.tintera.plume.resources.cake_24dp
+import eu.tintera.plume.resources.suggestion_birthdate_action
+import eu.tintera.plume.resources.suggestion_birthdate_text
+import eu.tintera.plume.resources.suggestion_birthdate_title
 import eu.tintera.plume.resources.lightbulb_24dp
 import eu.tintera.plume.resources.password_24dp
 import eu.tintera.plume.resources.person_24dp
@@ -184,6 +188,13 @@ private fun SuggestedAction.content(phone: String?): SuggestionContent = when (t
         title = UiText(Res.string.suggestion_profile_photo_title),
         text = UiText(Res.string.suggestion_profile_photo_text),
         primary = Res.string.suggestion_profile_photo_action,
+        secondary = Res.string.suggestion_later,
+    )
+    SuggestedAction.SetBirthdate -> SuggestionContent(
+        icon = Res.drawable.cake_24dp,
+        title = UiText(Res.string.suggestion_birthdate_title),
+        text = UiText(Res.string.suggestion_birthdate_text),
+        primary = Res.string.suggestion_birthdate_action,
         secondary = Res.string.suggestion_later,
     )
     SuggestedAction.ArchiveUnknownChats -> SuggestionContent(

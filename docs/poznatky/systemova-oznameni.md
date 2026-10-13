@@ -73,8 +73,8 @@ jako přidané. Drží je tentýž eagerní `AccountNotices` (`suggestedActions`
 nahoře v hlavním seznamu (`SuggestedActionCard`) — **vždy jen první**, aby rady nevytlačily chaty.
 
 - **Plume nabízí jen to, co umí splnit, a neprodává**: ověř heslo, ověř číslo, nastav heslo,
-  přihlašovací e-mail, profilová fotka, archivace chatů od neznámých a vlastní akce od Telegramu
-  (`Custom`, s odkazem). Premium, hvězdy, dárky, narozeniny, přístupové klíče (přidat je cizí
+  přihlašovací e-mail, profilová fotka, datum narození, archivace chatů od neznámých a vlastní akce
+  od Telegramu (`Custom`, s odkazem). Premium, hvězdy, dárky, přístupové klíče (přidat je cizí
   klient nemůže, viz `docs/poznatky/nastaveni.md`), převod skupiny na kanál a nápověda k fajfkám
   se vynechávají (`toDomain`, `when` bez `else` — nová akce v TDLib
   rozbije překlad a musí se rozhodnout, ne tiše zmizet).

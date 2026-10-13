@@ -49,9 +49,10 @@ class TdlAccountRepository(
 
     override suspend fun editableProfile(): Result<EditableProfile> {
         val me = client.getMe().toResult().getOrElse { return Result.failure(it) }
-        val bio = client.getUserFullInfo(userId = me.id).toResult()
+        val full = client.getUserFullInfo(userId = me.id).toResult()
             .onFailure { logger.w(it) { "Bio se nepodařilo přečíst." } }
-            .getOrNull()?.bio?.text.orEmpty()
+            .getOrNull()
+        val bio = full?.bio?.text.orEmpty()
         val bioMax = (client.getOption(name = "bio_length_max").toResult().getOrNull() as? OptionValueInteger)
             ?.value?.toInt() ?: DEFAULT_BIO_MAX
         return Result.success(
@@ -64,6 +65,7 @@ class TdlAccountRepository(
                 bioMaxLength = bioMax,
                 photoFileId = me.profilePhoto?.big?.id,
                 photoThumbnailFileId = me.profilePhoto?.small?.id,
+                birthdate = full?.birthdate?.toDomain(),
             ),
         )
     }
@@ -86,6 +88,10 @@ class TdlAccountRepository(
     override suspend fun setBio(bio: String): Result<Unit> =
         client.setBio(bio = bio).toResult().map { }
             .onFailure { logger.w(it) { "Bio se nepodařilo uložit." } }
+
+    override suspend fun setBirthdate(birthdate: Birthdate?): Result<Unit> =
+        client.setBirthdate(birthdate = birthdate?.toTdl()).toResult().map { }
+            .onFailure { logger.w(it) { "Datum narození se nepodařilo uložit." } }
 
     /** `settings` výchozí (null) — stejná úvaha jako u přihlášení, viz `docs/poznatky/prihlaseni.md`. */
     override suspend fun sendPhoneChangeCode(phoneNumber: String): Result<PhoneChangeCode> =

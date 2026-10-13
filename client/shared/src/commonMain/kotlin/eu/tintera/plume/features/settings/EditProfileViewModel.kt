@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.AccountRepository
+import eu.tintera.plume.core.telegram.Birthdate
 import eu.tintera.plume.core.telegram.EditableProfile
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.UsernameCheck
@@ -31,7 +32,7 @@ import eu.tintera.plume.core.ui.USERNAME_CHECK_DELAY_MS
 import eu.tintera.plume.core.ui.UsernameStatus
 
 /**
- * Úprava vlastního profilu: jméno, uživatelské jméno, bio a fotka.
+ * Úprava vlastního profilu: jméno, uživatelské jméno, bio, datum narození a fotka.
  *
  * **Text polí je Compose stav přímo ve ViewModelu**, ne `StateFlow`: hodnota vrácená přes tok
  * o dispatch později poskakuje kurzorem (viz „Hledání v konverzaci"). Pole tak píšou i čtou
@@ -57,6 +58,17 @@ class EditProfileViewModel(
     var lastName by mutableStateOf("")
     var username by mutableStateOf("")
     var bio by mutableStateOf("")
+    /**
+     * Datum narození z kalendáře, i s rokem; `null` = neuvedené. Ukládá se s texty tlačítkem
+     * Uložit, rok jen s [showBirthYear] — viz [birthdateToSave].
+     */
+    var birthdate by mutableStateOf<Birthdate?>(null)
+    /** „Ukazovat rok". Rok se při vypnutí jen schová, ne zapomene — zapnutí ho vrátí. */
+    var showBirthYear by mutableStateOf(true)
+
+    /** Co se uloží: bez roku, když ho uživatel ukazovat nechce (nebo ho datum nemá). */
+    val birthdateToSave: Birthdate?
+        get() = birthdate?.let { if (showBirthYear) it else it.copy(year = null) }
 
     var usernameStatus by mutableStateOf<UsernameStatus>(UsernameStatus.Idle)
         private set
@@ -80,6 +92,9 @@ class EditProfileViewModel(
                     lastName = profile.lastName
                     username = profile.username
                     bio = profile.bio
+                    birthdate = profile.birthdate
+                    // Datum bez roku: rok ukazovat nechtěl. Bez data: nové datum rok ukazuje.
+                    showBirthYear = profile.birthdate?.year != null || profile.birthdate == null
                 }
                 .onFailure { failure ->
                     loadFailed = true
@@ -112,7 +127,8 @@ class EditProfileViewModel(
         get() {
             val profile = original ?: return false
             return firstName.trim() != profile.firstName || lastName.trim() != profile.lastName ||
-                username.trim() != profile.username || bio.trim() != profile.bio
+                username.trim() != profile.username || bio.trim() != profile.bio ||
+                birthdateToSave != profile.birthdate
         }
 
     val canSave: Boolean
@@ -125,7 +141,7 @@ class EditProfileViewModel(
         }
 
     /**
-     * Uloží, co se změnilo — jméno, uživatelské jméno a bio jsou tři různá volání. Když jedno
+     * Uloží, co se změnilo — jméno, uživatelské jméno, bio a datum narození jsou čtyři různá volání. Když jedno
      * selže, další se neposílají a obrazovka zůstane otevřená s hláškou; co už prošlo, se
      * zapíše do [original], takže další pokus to neposílá znovu.
      */
@@ -151,6 +167,11 @@ class EditProfileViewModel(
                 if (about != current.bio) {
                     account.setBio(about).getOrThrow()
                     current = current.copy(bio = about)
+                }
+                val date = birthdateToSave
+                if (date != current.birthdate) {
+                    account.setBirthdate(date).getOrThrow()
+                    current = current.copy(birthdate = date)
                 }
             }
             original = current

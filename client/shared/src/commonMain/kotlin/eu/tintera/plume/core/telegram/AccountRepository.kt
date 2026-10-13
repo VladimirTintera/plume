@@ -27,6 +27,9 @@ interface AccountRepository {
 
     suspend fun setBio(bio: String): Result<Unit>
 
+    /** Datum narození; `null` = odebrat. Kdo ho uvidí, řídí soukromí ([PrivacySetting.Birthdate]). */
+    suspend fun setBirthdate(birthdate: Birthdate?): Result<Unit> = Result.failure(UnsupportedOperationException())
+
     /** Nová profilová fotka z připraveného souboru (čtvercový JPEG, nebo krátké čtvercové video). */
     suspend fun setPhoto(photo: ProfilePhotoFile): Result<Unit>
 
@@ -111,6 +114,8 @@ data class EditableProfile(
     /** `fileId` velké varianty fotky, nebo `null` bez fotky. */
     val photoFileId: Int?,
     val photoThumbnailFileId: Int?,
+    /** Datum narození; `null` = neuvedené. */
+    val birthdate: Birthdate? = null,
 )
 
 enum class UsernameCheck { Available, Invalid, Occupied, Purchasable, TooManyPublic }
