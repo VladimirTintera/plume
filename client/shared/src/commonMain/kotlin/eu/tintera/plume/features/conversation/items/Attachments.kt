@@ -88,6 +88,7 @@ import eu.tintera.plume.resources.media_video
 import eu.tintera.plume.resources.media_view_once
 import eu.tintera.plume.resources.play_arrow_24dp
 import eu.tintera.plume.resources.schedule_24dp
+import eu.tintera.plume.core.telegram.CallRepository
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import eu.tintera.plume.core.ui.StickerPlayback
@@ -396,7 +397,12 @@ internal fun MessageAttachment(
             accent = accent,
         )
 
-        is MessageMedia.Call -> CallRow(call = media, accent = accent)
+        is MessageMedia.Call -> CallRow(
+            call = media,
+            accent = accent,
+            onCallBack = if (koinInject<CallRepository>().supported) { { onAction(MessageAction.CallBack) } } else null,
+            onRequestMenu = onRequestMenu,
+        )
 
         is MessageMedia.VideoNote -> VideoNoteBubble(note = media, handlers = videoNote, onRequestMenu = onRequestMenu)
 

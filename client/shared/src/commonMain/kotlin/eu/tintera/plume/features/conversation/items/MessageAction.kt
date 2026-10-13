@@ -187,6 +187,9 @@ sealed interface MessageAction {
     /** „Přidat do kontaktů" na kartě sdíleného kontaktu. */
     data object AddContact : MessageAction
 
+    /** Ťuknutí na zprávu o hovoru: zavolat zpátky, stejně (hlas / video) jako tehdy. */
+    data object CallBack : MessageAction
+
     /** Kanál ze soutěže: otevřít ho nad konverzací. */
     data class OpenChat(val chatId: Long) : MessageAction
 

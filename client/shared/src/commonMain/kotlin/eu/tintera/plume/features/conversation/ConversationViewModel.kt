@@ -254,6 +254,7 @@ import eu.tintera.plume.resources.conversation_repin_failed
 import eu.tintera.plume.resources.conversation_send_failed
 import eu.tintera.plume.resources.conversation_sticker_send_failed
 import eu.tintera.plume.resources.contact_add_failed
+import eu.tintera.plume.resources.call_unavailable
 import eu.tintera.plume.resources.contact_remove_failed
 import eu.tintera.plume.resources.conversation_unpin_failed
 import eu.tintera.plume.resources.conversation_unread_mark_failed
@@ -4327,6 +4328,7 @@ class ConversationViewModel(
             is MessageAction.OpenMention -> openMentioned { chatRepository.chatByUsername(action.username) }
             is MessageAction.OpenUser -> openMentioned { chatRepository.privateChat(action.userId) }
             MessageAction.AddContact -> addSharedContact(messageId)
+            MessageAction.CallBack -> callBack(messageId)
             MessageAction.StopLiveLocation -> stopLiveLocation(messageId)
             MessageAction.SetProximityAlert -> openProximityAlert(messageId)
             is MessageAction.OpenChat -> openMentioned { Result.success(action.chatId) }
@@ -4702,6 +4704,24 @@ class ConversationViewModel(
                     _state.update { it.copy(error = failure.userMessage(Res.string.contact_add_failed)) }
                 }
         }
+    }
+
+    /**
+     * Zavolat zpátky ze zprávy o hovoru: videohovor zase videem, když ho protějšek přijímá.
+     * Samotné vytočení (s dotazem na mikrofon a kameru) dělá obrazovka ([ConversationState.callRequest]).
+     */
+    private fun callBack(messageId: Long) {
+        val call = _state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Call ?: return
+        val info = _state.value.info
+        if (info?.callUserId == null) {
+            _state.update { it.copy(error = UiText(Res.string.call_unavailable)) }
+            return
+        }
+        _state.update { it.copy(callRequest = CallRequest(video = call.isVideo && info.callSupportsVideo)) }
+    }
+
+    fun consumeCallRequest() {
+        _state.update { it.copy(callRequest = null) }
     }
 
     /** „Vrátit" ze snackbaru po přidání kontaktu. */
@@ -6365,6 +6385,8 @@ data class ConversationState(
     val unpinned: ChatMessage? = null,
     /** Uživatel, kterého karta kontaktu právě přidala — obrazovka ukáže snackbar s „Vrátit". */
     val addedContact: Long? = null,
+    /** Zavolat zpátky (ťuknutí na zprávu o hovoru); vyřídí ho tlačítko hovoru v hlavičce. */
+    val callRequest: CallRequest? = null,
     /** Zpráva, jejíž text se právě upravuje ve vstupním poli; `null` při běžném psaní. */
     val editing: ChatMessage? = null,
     /** Náhled odkazu v rozepsaném textu, jak ho vrátil server; `null`, když text odkaz nemá. */
@@ -6751,3 +6773,6 @@ data class StoryTarget(val posterChatId: Long, val storyId: Int)
 
 /** Cesta, pod kterou přílohu zná vestavěná galerie (viz [galleryPath] nad záznamy úprav). */
 fun ConversationState.galleryPath(path: String): String = photoEdits.galleryPath(path)
+
+/** Požadavek na hovor ze zprávy o hovoru; každý je nová instance, i dva stejné po sobě. */
+class CallRequest(val video: Boolean)

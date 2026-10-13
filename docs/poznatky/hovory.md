@@ -271,6 +271,27 @@ a `addCall` pro každý hovor, jakmile vytáčí nebo zvoní. Pod Androidem 14 k
   bt_sco`) obsahuje zařízení i dávno odpojená. Jestli jsou sluchátka opravdu připojená,
   říká `dumpsys bluetooth_manager` (`ACL BR/EDR:Y`), ne výskyt jména v `dumpsys audio`.
 
+## Hovor z konverzace
+
+Sluchátko v hlavičce soukromého i tajného chatu (`ConversationCallButton`): ťuknutí nabídne
+hlasový hovor a videohovor, protějšku bez videohovorů volá rovnou. Ťuknutí na zprávu o hovoru
+volá zpátky, stejně jako tehdy.
+
+- **Komu jde zavolat, říká `ChatInfo.callUserId`**: protějšek soukromého nebo tajného chatu
+  (v tajném se id chatu s id uživatele neshoduje), který je člověk (`UserTypeRegular`, ne bot,
+  ne vlastní účet) a hovory od nás přijímá (`userFullInfo.canBeCalled` — soukromí hovorů).
+  Videohovor nabízí jen s `supportsVideoCalls`. Nedostupné podrobnosti (bez sítě) hovor
+  nezakazují; rozhodne server.
+- **Zavolání zpátky jde přes stav, ne přímo z bubliny**: ViewModel zprávu převede na
+  `ConversationState.callRequest` a vytočí tlačítko v hlavičce — dotaz na mikrofon a kameru umí
+  jen kompozice. Když volat nejde, ViewModel ukáže hlášku „Tomuto člověku nejde zavolat".
+- **Tlačítko je ve vlastní funkci**, `ConversationScreen` ho jen volá jedním řádkem — ten je
+  v dexu na hraně (CLAUDE.md, Gotchas). Po změně ověřeno otevřením chatu na zařízení.
+- **Během hovoru tlačítko zmizí** — druhý hovor naráz Plume nevede.
+- **Ověřeno na Pixelu 5 a Pixelu 7 Pro**: sluchátko v soukromém chatu (ve skupině ne), nabídka
+  Zavolat / Videohovor, ťuknutí na „Odchozí videohovor" vytočilo videohovor a druhý telefon
+  zazvonil, podržení zprávy o hovoru otevřelo nabídku nad zprávou.
+
 ## Kdo říká systému, kam jde zvuk
 
 **Vlastníkem režimu hovoru je Plume, ne Telecom** — a systém bere volbu výstupu JEN od

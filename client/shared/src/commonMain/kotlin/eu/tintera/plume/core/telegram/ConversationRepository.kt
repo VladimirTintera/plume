@@ -1074,6 +1074,13 @@ data class ChatInfo(
     val topic: TopicHeader? = null,
     /** Téma Uložených zpráv, do kterého je konverzace zúžená; hlavička pak ukazuje zdrojový chat. */
     val savedTopic: SavedTopicHeader? = null,
+    /**
+     * Komu jde z chatu zavolat: protějšek soukromého i tajného chatu, když je to člověk (ne bot,
+     * ne vlastní účet) a hovory od nás přijímá (`canBeCalled` — soukromí hovorů). Jinak `null`.
+     */
+    val callUserId: Long? = null,
+    /** Protějšek přijímá i videohovory (`supportsVideoCalls`). */
+    val callSupportsVideo: Boolean = false,
 )
 
 /**
