@@ -125,6 +125,8 @@ internal val AuthStage.signedOut: Boolean
     get() = when (this) {
         AuthStage.WaitPhoneNumber,
         is AuthStage.WaitCode,
+        AuthStage.WaitEmailAddress,
+        is AuthStage.WaitEmailCode,
         is AuthStage.WaitPassword,
         is AuthStage.WaitQrConfirmation,
         AuthStage.WaitRegistration,

@@ -5,6 +5,8 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.error_about_too_long
 import eu.tintera.plume.resources.error_admin_required
 import eu.tintera.plume.resources.error_code_resend_unavailable
+import eu.tintera.plume.resources.error_email_not_allowed
+import eu.tintera.plume.resources.error_email_reset_pending
 import eu.tintera.plume.resources.error_first_name_invalid
 import eu.tintera.plume.resources.error_username_invalid
 import eu.tintera.plume.resources.error_username_occupied
@@ -102,12 +104,16 @@ fun Throwable.userMessage(fallback: StringResource): UiText {
         // `auth.resendCode`, když server další cestu doručení nemá (dokumentace metody v API).
         "SEND_CODE_UNAVAILABLE" -> Res.string.error_code_resend_unavailable
         "PASSWORD_HASH_INVALID" -> Res.string.error_password_invalid
-        // Obnova hesla e-mailem. `CODE_INVALID` je obecná konstanta, ale jiný kód než ten
-        // z e-mailu se v přihlášení touhle cestou neposílá (SMS kód má `PHONE_CODE_INVALID`).
+        // Kód z e-mailu — obnova hesla i přihlašovací e-mail (`account.verifyEmail`). `CODE_INVALID`
+        // je obecná konstanta, ale jiný kód než ten z e-mailu se v přihlášení touhle cestou
+        // neposílá (SMS kód má `PHONE_CODE_INVALID`).
         "CODE_INVALID" -> Res.string.error_recovery_code_invalid
-        "PASSWORD_RECOVERY_EXPIRED" -> Res.string.error_recovery_code_expired
+        "PASSWORD_RECOVERY_EXPIRED", "EMAIL_VERIFY_EXPIRED" -> Res.string.error_recovery_code_expired
+        // Přihlašovací e-mail (`account.sendVerifyEmailCode`, `auth.resetLoginEmail`; dokumentace metod).
+        "EMAIL_NOT_ALLOWED" -> Res.string.error_email_not_allowed
+        "TASK_ALREADY_EXISTS" -> Res.string.error_email_reset_pending
         "PASSWORD_RECOVERY_NA" -> Res.string.error_recovery_unavailable
-        // Dvoufázové ověření v Nastavení: adresu, kterou server nevezme, hrubé síto propustilo.
+        // Adresa, kterou server nevezme a hrubé síto propustilo (dvoufázové ověření, přihlašovací e-mail).
         "EMAIL_INVALID" -> Res.string.settings_two_step_error_email_invalid
         // Pozvánka do chatu (`checkChatInviteLink`): neplatný odkaz hlásí server jako vypršelý.
         "INVITE_HASH_EXPIRED", "INVITE_HASH_INVALID" -> Res.string.error_invite_invalid

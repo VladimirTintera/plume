@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.Country
+import eu.tintera.plume.core.telegram.EmailReset
 import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.core.telegram.userMessage
 import androidx.compose.runtime.getValue
@@ -20,13 +21,17 @@ import kotlin.time.Duration.Companion.seconds
 import eu.tintera.plume.core.ui.PhoneEntry
 import eu.tintera.plume.core.ui.PhoneInput
 import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.features.settings.isPlausibleEmail
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.auth_error_email
+import eu.tintera.plume.resources.auth_error_email_reset
 import eu.tintera.plume.resources.auth_error_generic
 import eu.tintera.plume.resources.auth_error_hint_equals_password
 import eu.tintera.plume.resources.auth_error_qr
 import eu.tintera.plume.resources.auth_error_recovery_request
 import eu.tintera.plume.resources.auth_error_resend
 import eu.tintera.plume.resources.auth_error_restart
+import eu.tintera.plume.resources.settings_two_step_error_email_invalid
 
 class AuthViewModel(
     private val session: TelegramSession,
@@ -81,6 +86,22 @@ class AuthViewModel(
      */
     val resendIn: StateFlow<Int> = _resendIn.asStateFlow()
 
+    private val _changingEmail = MutableStateFlow(false)
+
+    /**
+     * Oprava adresy nad [AuthStage.WaitEmailCode]: TDLib zůstává v čekání na kód a novou adresu
+     * vezme i odtud, takže krok „zadej jiný e-mail" drží ViewModel — stejně jako obnovu hesla.
+     */
+    val changingEmail: StateFlow<Boolean> = _changingEmail.asStateFlow()
+
+    private val _emailResetIn = MutableStateFlow(0)
+
+    /**
+     * Za kolik sekund proběhne zažádaný reset e-mailu ([EmailReset.Pending]); 0 = hotovo, nebo
+     * se nečeká. TDLib zbývající čas posílá jen s novým stavem, průběžně ho odpočítáváme sami.
+     */
+    val emailResetIn: StateFlow<Int> = _emailResetIn.asStateFlow()
+
     /**
      * Kód z e-mailu, který server už uznal. Drží se mimo [input], protože v kroku nového hesla
      * pole patří heslu, a kód se posílá až s ním (`recoverAuthenticationPassword`).
@@ -88,6 +109,23 @@ class AuthViewModel(
     private var recoveryCode: String? = null
 
     init {
+        // Oprava adresy patří k jednomu čekání na kód. Nový stav (kód na opravenou adresu,
+        // reset, odchod jinam) ji ukončí — `StateFlow` stejný stav znovu nepošle, takže úspěch
+        // opravy zavírá krok i v `submit`.
+        viewModelScope.launch {
+            stage.collect { _changingEmail.value = false }
+        }
+        viewModelScope.launch {
+            stage.collectLatest { current ->
+                var left = ((current as? AuthStage.WaitEmailCode)?.reset as? EmailReset.Pending)?.resetInSeconds ?: 0
+                _emailResetIn.value = left
+                while (left > 0) {
+                    delay(1.seconds)
+                    left--
+                    _emailResetIn.value = left
+                }
+            }
+        }
         // Země jen pro zadání čísla, ne při každém startu: ViewModel vzniká v `App` vždy, i když
         // je uživatel přihlášený a přihlašovací obrazovku nikdy neuvidí. Collector se po dobu
         // načítání nevolá znovu (StateFlow mezitím drží jen poslední stav), takže se nenačítá
@@ -168,11 +206,26 @@ class AuthViewModel(
             return
         }
 
+        // Adresa, ne kód: buď první zadání, nebo oprava nad čekáním na kód.
+        val enteringEmail = stageNow == AuthStage.WaitEmailAddress ||
+            (stageNow is AuthStage.WaitEmailCode && _changingEmail.value)
+        // Hrubé síto proti překlepu; bez něj by chybu řekl až server, a obecnou větou.
+        if (enteringEmail && !isPlausibleEmail(value)) {
+            _error.value = UiText(Res.string.settings_two_step_error_email_invalid)
+            return
+        }
+
         viewModelScope.launch {
             _busy.value = true
             val result = when (stageNow) {
                 AuthStage.WaitPhoneNumber -> session.submitPhoneNumber(phone.international)
                 is AuthStage.WaitCode -> session.submitCode(value)
+                AuthStage.WaitEmailAddress -> session.submitEmailAddress(value)
+                is AuthStage.WaitEmailCode -> if (enteringEmail) {
+                    session.submitEmailAddress(value).onSuccess { _changingEmail.value = false }
+                } else {
+                    session.submitEmailCode(value)
+                }
                 is AuthStage.WaitPassword -> when (step) {
                     PasswordStep.Password -> session.submitPassword(value)
                     PasswordStep.RecoveryCode -> session.checkPasswordRecoveryCode(value).onSuccess {
@@ -198,7 +251,7 @@ class AuthViewModel(
                 .onSuccess { input = "" }
                 .onFailure { failure ->
                     logger.w(failure) { "Přihlašovací krok selhal." }
-                    _error.value = failure.userMessage(Res.string.auth_error_generic)
+                    _error.value = failure.userMessage(if (enteringEmail) Res.string.auth_error_email else Res.string.auth_error_generic)
                 }
         }
     }
@@ -224,6 +277,57 @@ class AuthViewModel(
                 .onFailure { failure ->
                     logger.w(failure) { "Kód se nepodařilo poslat jinou cestou." }
                     _error.value = failure.userMessage(Res.string.auth_error_resend)
+                }
+            _busy.value = false
+        }
+    }
+
+    /** Oprava adresy, na kterou odešel kód — jen u adresy zadané v tomhle přihlášení. */
+    fun changeEmail() {
+        val current = stage.value as? AuthStage.WaitEmailCode ?: return
+        if (!current.isSetup || _busy.value) return
+        _changingEmail.value = true
+        input = ""
+        _error.value = null
+    }
+
+    /** Kód na tutéž adresu znovu. Jen u adresy zadané v tomhle přihlášení, viz [TelegramSession.resendEmailCode]. */
+    fun resendEmailCode() {
+        val current = stage.value as? AuthStage.WaitEmailCode ?: return
+        if (!current.isSetup || _busy.value) return
+        viewModelScope.launch {
+            _busy.value = true
+            session.resendEmailCode()
+                .onSuccess {
+                    input = ""
+                    _error.value = null
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Kód na e-mail se nepodařilo poslat znovu." }
+                    _error.value = failure.userMessage(Res.string.auth_error_email)
+                }
+            _busy.value = false
+        }
+    }
+
+    /**
+     * Reset přihlašovacího e-mailu. Žádost s čekáním ho jen rozjede (odpočet přijde novým stavem),
+     * hotový reset pošle kód na číslo. Během čekání se nic neposílá — server by odpověděl
+     * „ještě ne" a místo odpočtu by byla chyba.
+     */
+    fun resetEmail() {
+        val current = stage.value as? AuthStage.WaitEmailCode ?: return
+        if (current.reset == null || _emailResetIn.value > 0 || _busy.value) return
+        viewModelScope.launch {
+            _busy.value = true
+            session.resetEmailAddress()
+                .onSuccess {
+                    input = ""
+                    _error.value = null
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Přihlašovací e-mail se nepodařilo resetovat." }
+                    _error.value = failure.userMessage(Res.string.auth_error_email_reset)
                 }
             _busy.value = false
         }
@@ -285,6 +389,11 @@ class AuthViewModel(
                 PasswordStep.Password -> Unit
             }
         }
+        if (stage.value is AuthStage.WaitEmailCode && _changingEmail.value) {
+            _changingEmail.value = false
+            input = ""
+            return
+        }
         if (stage.value.canGoBack()) restartLogin()
     }
 
@@ -342,7 +451,8 @@ enum class PasswordStep {
  * nic není; z ostatních kroků k číslu.
  */
 internal fun AuthStage.canGoBack(): Boolean = when (this) {
-    is AuthStage.WaitCode, is AuthStage.WaitPassword, is AuthStage.WaitQrConfirmation -> true
+    is AuthStage.WaitCode, is AuthStage.WaitPassword, is AuthStage.WaitQrConfirmation,
+    AuthStage.WaitEmailAddress, is AuthStage.WaitEmailCode -> true
     else -> false
 }
 
@@ -352,6 +462,7 @@ internal fun AuthStage.canGoBack(): Boolean = when (this) {
  */
 internal fun AuthStage.offersProxy(): Boolean = when (this) {
     AuthStage.WaitPhoneNumber, is AuthStage.WaitCode, is AuthStage.WaitPassword,
-    is AuthStage.WaitQrConfirmation, AuthStage.WaitRegistration -> true
+    is AuthStage.WaitQrConfirmation, AuthStage.WaitRegistration,
+    AuthStage.WaitEmailAddress, is AuthStage.WaitEmailCode -> true
     else -> false
 }

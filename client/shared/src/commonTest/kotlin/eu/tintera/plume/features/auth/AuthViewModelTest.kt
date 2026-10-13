@@ -5,11 +5,15 @@ import eu.tintera.plume.core.telegram.AuthCode
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.CodeDelivery
 import eu.tintera.plume.core.telegram.Country
+import eu.tintera.plume.core.telegram.EmailReset
 import eu.tintera.plume.core.telegram.PhoneNumberDetails
 import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.auth_error_email_reset
 import eu.tintera.plume.resources.auth_error_resend
+import eu.tintera.plume.resources.error_email_not_allowed
+import eu.tintera.plume.resources.settings_two_step_error_email_invalid
 import eu.tintera.plume.resources.error_code_resend_unavailable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -321,6 +325,140 @@ class AuthViewModelTest {
         assertEquals(GERMANY, viewModel.phone.country)
     }
 
+    @Test
+    fun emailProjdeHrubymSitemAzPakJdeNaServer() = runTest {
+        val session = FakeSession(AuthStage.WaitEmailAddress)
+        val viewModel = AuthViewModel(session)
+
+        viewModel.submitInput("jana.example.com")
+        assertEquals(UiText(Res.string.settings_two_step_error_email_invalid), viewModel.error.value)
+        assertTrue(session.emailAddresses.isEmpty())
+
+        viewModel.submitInput(" jana@example.com ")
+        assertEquals(listOf("jana@example.com"), session.emailAddresses)
+        assertNull(viewModel.error.value)
+    }
+
+    @Test
+    fun emailOdmitnutyServeremMaVlastniVetu() = runTest {
+        val session = FakeSession(AuthStage.WaitEmailAddress)
+        session.emailAddressResult = Result.failure(IllegalStateException("EMAIL_NOT_ALLOWED"))
+        val viewModel = AuthViewModel(session)
+
+        viewModel.submitInput("jana@example.com")
+
+        assertEquals(UiText(Res.string.error_email_not_allowed), viewModel.error.value)
+        assertEquals("jana@example.com", viewModel.input)
+    }
+
+    @Test
+    fun kodZEmailuJdeJakoKodNeJakoAdresa() = runTest {
+        val session = FakeSession(emailCode(isSetup = true))
+        val viewModel = AuthViewModel(session)
+
+        viewModel.submitInput(" 123456 ")
+
+        assertEquals(listOf("123456"), session.emailCodes)
+        assertTrue(session.emailAddresses.isEmpty())
+    }
+
+    @Test
+    fun opravaAdresyNadKodemAZpetKeKodu() = runTest {
+        val session = FakeSession(emailCode(isSetup = true))
+        val viewModel = AuthViewModel(session)
+        advanceUntilIdle()
+
+        viewModel.changeEmail()
+        assertTrue(viewModel.changingEmail.value)
+        viewModel.submitInput("jana@example.org")
+        assertEquals(listOf("jana@example.org"), session.emailAddresses)
+        assertTrue(session.emailCodes.isEmpty())
+        // Úspěch opravu zavře i bez nového stavu — `StateFlow` stejný stav znovu nepošle.
+        assertFalse(viewModel.changingEmail.value)
+
+        viewModel.changeEmail()
+        viewModel.back()
+        advanceUntilIdle()
+        assertFalse(viewModel.changingEmail.value)
+        assertEquals(0, session.restarts)
+
+        // Z kódu samotného vede zpět k číslu.
+        viewModel.back()
+        advanceUntilIdle()
+        assertEquals(1, session.restarts)
+    }
+
+    @Test
+    fun drivejsiPrihlasovaciEmailNejdeOpravitAniObeslat() = runTest {
+        val session = FakeSession(emailCode(isSetup = false))
+        val viewModel = AuthViewModel(session)
+        advanceUntilIdle()
+
+        viewModel.changeEmail()
+        viewModel.resendEmailCode()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.changingEmail.value)
+        assertEquals(0, session.emailResends)
+    }
+
+    @Test
+    fun zazadanyResetCekaNaUplynutiLhuty() = runTest {
+        val session = FakeSession(emailCode(isSetup = false, reset = EmailReset.Pending(resetInSeconds = 2)))
+        val viewModel = AuthViewModel(session)
+        runCurrent()
+        assertEquals(2, viewModel.emailResetIn.value)
+
+        viewModel.resetEmail()
+        runCurrent()
+        assertEquals(0, session.emailResets)
+
+        advanceTimeBy(2_000)
+        runCurrent()
+        assertEquals(0, viewModel.emailResetIn.value)
+
+        viewModel.resetEmail()
+        runCurrent()
+        assertEquals(1, session.emailResets)
+    }
+
+    @Test
+    fun resetBezNabidkyServeruSeNeposila() = runTest {
+        val session = FakeSession(emailCode(isSetup = false, reset = null))
+        val viewModel = AuthViewModel(session)
+        advanceUntilIdle()
+
+        viewModel.resetEmail()
+        advanceUntilIdle()
+
+        assertEquals(0, session.emailResets)
+    }
+
+    @Test
+    fun chybaResetuJeNaseVeta() = runTest {
+        val session = FakeSession(emailCode(isSetup = false, reset = EmailReset.Available(waitSeconds = 604_800)))
+        session.emailResetResult = Result.failure(IllegalStateException("Something unexpected"))
+        val viewModel = AuthViewModel(session)
+        advanceUntilIdle()
+
+        viewModel.resetEmail()
+        advanceUntilIdle()
+
+        assertEquals(1, session.emailResets)
+        assertEquals(UiText(Res.string.auth_error_email_reset), viewModel.error.value)
+    }
+
+    @Test
+    fun emailoveKrokyVedouZpetANabizejiProxy() {
+        assertTrue(AuthStage.WaitEmailAddress.canGoBack())
+        assertTrue(emailCode(isSetup = false).canGoBack())
+        assertTrue(AuthStage.WaitEmailAddress.offersProxy())
+        assertTrue(emailCode(isSetup = true).offersProxy())
+    }
+
+    private fun emailCode(isSetup: Boolean, reset: EmailReset? = null) =
+        AuthStage.WaitEmailCode(emailPattern = "j***@e***.com", digits = 6, isSetup = isSetup, reset = reset)
+
     private lateinit var session: FakeSession
 
     /** ViewModel v daném kroku obnovy, s uznaným kódem „123456". */
@@ -361,6 +499,32 @@ private class FakeSession(initial: AuthStage) : TelegramSession {
     override suspend fun resendCode(): Result<Unit> {
         resends++
         return resendResult
+    }
+
+    val emailAddresses = mutableListOf<String>()
+    var emailAddressResult: Result<Unit> = Result.success(Unit)
+    override suspend fun submitEmailAddress(email: String): Result<Unit> {
+        emailAddresses += email
+        return emailAddressResult
+    }
+
+    val emailCodes = mutableListOf<String>()
+    override suspend fun submitEmailCode(code: String): Result<Unit> {
+        emailCodes += code
+        return Result.success(Unit)
+    }
+
+    var emailResends = 0
+    override suspend fun resendEmailCode(): Result<Unit> {
+        emailResends++
+        return Result.success(Unit)
+    }
+
+    var emailResets = 0
+    var emailResetResult: Result<Unit> = Result.success(Unit)
+    override suspend fun resetEmailAddress(): Result<Unit> {
+        emailResets++
+        return emailResetResult
     }
 
     override suspend fun submitPassword(password: String): Result<Unit> {
