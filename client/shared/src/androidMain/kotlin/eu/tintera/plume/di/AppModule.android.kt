@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.speech.SystemSpeechToText
 import eu.tintera.plume.core.speech.SpeechToText
 import eu.tintera.plume.core.translation.MlKitTranslator
@@ -81,6 +82,7 @@ actual fun Module.platformModule() {
         ) {}
     }
     single { NotificationPermission(androidContext()) }
+    single { LaunchAtLogin() }
     single { UrlOpener(androidContext(), settings = get()) }
     single { AppLanguage(androidContext()) }
     single { FileOpener(androidContext()) }

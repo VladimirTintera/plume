@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.ai.NoopOnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.audio.AudioEngine
@@ -69,6 +70,7 @@ actual fun Module.platformModule() {
     }
     single<DesktopNotifier> { desktopNotifier() }
     single { NotificationPermission(notifier = get()) }
+    single { LaunchAtLogin() }
     single {
         NotificationPresenter(
             chats = get(),

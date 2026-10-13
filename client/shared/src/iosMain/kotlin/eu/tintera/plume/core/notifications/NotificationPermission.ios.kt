@@ -60,6 +60,8 @@ actual class NotificationPermission {
     }
 
     /** iOS kanály nemá; zvuk se nastavuje pro celou aplikaci v systému. */
+    actual val hasSystemPermission: Boolean = true
+
     actual val supportsChannelSettings: Boolean = false
 
     /** Notifikace z APNs ukazuje systém a rozšíření notifikací zvuk neovládne podle času; obdobou je režim Soustředění. */

@@ -24,6 +24,13 @@ expect class NotificationPermission {
     fun openSystemSettings()
 
     /**
+     * Má platforma systémové povolení oznámení, které jde ukázat a otevřít ([isGranted],
+     * [openSystemSettings])? Linux ne: žádné povolení tam není a nastavení k otevření taky ne,
+     * řádek „Povolení v systému" by tvrdil „zapnuto" a na klik nedělal nic.
+     */
+    val hasSystemPermission: Boolean
+
+    /**
      * Umí platforma nastavit zvuk a vibrace pro jednotlivý kanál? Android ano (od 8.0 je to
      * jediné místo, kde se nastavují), iOS kanály nemá.
      */

@@ -84,6 +84,9 @@ import eu.tintera.plume.resources.settings_notif_sound_summary
 import eu.tintera.plume.resources.settings_notif_state_custom
 import eu.tintera.plume.resources.settings_notif_state_enabled
 import eu.tintera.plume.resources.settings_notif_state_muted
+import eu.tintera.plume.resources.settings_launch_at_login
+import eu.tintera.plume.resources.settings_launch_at_login_summary
+import eu.tintera.plume.resources.settings_notif_background
 import eu.tintera.plume.resources.settings_notif_system
 import eu.tintera.plume.resources.settings_notifications_off
 import eu.tintera.plume.resources.settings_notifications_on
@@ -140,8 +143,9 @@ fun NotificationSettings(
     }
 
     // Stav oprávnění se ukazuje vždycky, ne jen když chybí — jinak by nebylo kde ověřit, že
-    // notifikace opravdu běží. Bez něj ostatní volby nic nezmění, proto je nahoře.
-    SettingsGroup(Res.string.settings_notif_system) {
+    // notifikace opravdu běží. Bez něj ostatní volby nic nezmění, proto je nahoře. Linux
+    // povolení nemá (viz `NotificationPermission.hasSystemPermission`).
+    if (viewModel.hasSystemPermission) SettingsGroup(Res.string.settings_notif_system) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = {
@@ -160,6 +164,19 @@ fun NotificationSettings(
             trailingContent = { Icon(painterResource(Res.drawable.open_in_new_24dp), contentDescription = null) },
             modifier = Modifier.clickable(onClick = viewModel::openSystemSettings),
         )
+    }
+
+    // Desktop: oznámení chodí, jen když aplikace běží (push tam není) — hned pod povolením,
+    // protože bez běžící aplikace nezmění nic ani ono.
+    state.launchAtLogin?.let { enabled ->
+        SettingsGroup(Res.string.settings_notif_background) {
+            SwitchRow(
+                title = Res.string.settings_launch_at_login,
+                summary = Res.string.settings_launch_at_login_summary,
+                checked = enabled,
+                onChange = viewModel::setLaunchAtLogin,
+            )
+        }
     }
 
     NotificationScope.entries.forEach { notificationScope ->

@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.ocr.TextRecognizer
 import eu.tintera.plume.core.ocr.VisionTextRecognizer
 import eu.tintera.plume.core.snooze.IosSnoozeReminders
@@ -66,6 +67,7 @@ actual fun Module.platformModule() {
         ) {}
     }
     single { NotificationPermission() }
+    single { LaunchAtLogin() }
     single { NotificationPresenter(chats = get()) }
     single { UrlOpener(settings = get()) }
     single { AppLanguage() }

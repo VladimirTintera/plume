@@ -237,12 +237,15 @@ val compileWindowsNotifications = tasks.register("compileWindowsNotifications") 
         // vcvarsall nastaví prostředí jen pro cmd, ve kterém běží — překlad proto jde jedním skriptem.
         // C++20, ne 17: C++/WinRT pod C++17 sahá po <experimental/coroutine> a MSVC z Visual
         // Studia 2026 (windows-latest) ho odmítá chybou STL1011; C++20 bere standardní <coroutine>.
+        // /we4129 = neznámá escape sekvence je chyba, ne varování: cesta k registru napsaná
+        // s jednoduchými lomítky („Software\Microsoft…") se přeložila jako „SoftwareMicrosoft…"
+        // a spouštění po přihlášení se zapsalo do nesmyslného klíče — jen s varováním C4129.
         val script = File(work, "build.cmd")
         script.writeText(
             listOf(
                 "@echo off",
                 "call \"${vcvars.path}\" $arch >nul || exit /b 1",
-                "cl /nologo /LD /EHsc /std:c++20 /O2 /MT /permissive- /W3 " +
+                "cl /nologo /LD /EHsc /std:c++20 /O2 /MT /permissive- /W3 /we4129 " +
                     "/I \"${jdkHome.get()}\\include\" /I \"${jdkHome.get()}\\include\\win32\" " +
                     "/Fo\"${work.path}\\\\\" \"${source.asFile.path}\" /Fe\"${library.path}\" " +
                     "/link runtimeobject.lib ole32.lib oleaut32.lib advapi32.lib shell32.lib propsys.lib shlwapi.lib",

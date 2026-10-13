@@ -2,6 +2,7 @@ package eu.tintera.plume.core.notifications
 
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.platform.DesktopOs
+import eu.tintera.plume.core.platform.WindowsNative
 import eu.tintera.plume.core.platform.desktopDataDirectory
 import eu.tintera.plume.core.platform.desktopDebugBuild
 import eu.tintera.plume.core.platform.desktopOs
@@ -37,24 +38,7 @@ internal object WindowsToasts {
     private val lock = Any()
     private var pending: Pair<String, String?>? = null
 
-    val available: Boolean by lazy { desktopOs == DesktopOs.Windows && load() && init() }
-
-    /**
-     * Knihovna se rozbaluje do dat aplikace, ne do TEMPu: nahranou DLL Windows smazat nedovolí,
-     * takže by `deleteOnExit` nezabralo a s každým spuštěním by v TEMPu přibyla kopie.
-     */
-    private fun load(): Boolean = runCatching {
-        val file = File(desktopDataDirectory, "native/$LIBRARY")
-        if (!copyResource("/windows/$LIBRARY", file)) {
-            logger.w { "Knihovna toastů chybí v jaru (build bez MSVC?), oznámení půjdou přes AWT." }
-            return false
-        }
-        System.load(file.absolutePath)
-        true
-    }.getOrElse {
-        logger.w(it) { "Knihovnu toastů nejde nahrát." }
-        false
-    }
+    val available: Boolean by lazy { WindowsNative.loaded && init() }
 
     private fun init(): Boolean {
         val command = ProcessHandle.current().info().command().orElse(null) ?: return false
@@ -92,21 +76,8 @@ internal object WindowsToasts {
      */
     private fun iconFile(): File? = runCatching {
         // Ikonu nese vstupní bod (`:client:desktopApp`), tady je na classpath za běhu.
-        File(desktopDataDirectory, "notification-icon.png").takeIf { copyResource("/plume-icon.png", it) }
+        File(desktopDataDirectory, "notification-icon.png").takeIf { WindowsNative.copyResource("/plume-icon.png", it) }
     }.getOrNull()
-
-    /**
-     * Zkopíruje prostředek z jaru, jen když se liší (nová verze aplikace). DLL, kterou má
-     * nahranou jiná běžící instance, přepsat nejde; ta stejná se pak prostě použije.
-     */
-    private fun copyResource(name: String, file: File): Boolean {
-        val bytes = WindowsToasts::class.java.getResourceAsStream(name)?.use { it.readBytes() } ?: return false
-        if (!file.isFile || !file.readBytes().contentEquals(bytes)) {
-            file.parentFile.mkdirs()
-            file.writeBytes(bytes)
-        }
-        return true
-    }
 
     /**
      * Čím Windows aplikaci spustí po kliknutí na toast, když neběží: spouštěč z MSI
@@ -151,7 +122,6 @@ internal object WindowsToasts {
     @JvmStatic
     external fun nativeRemoveAll(): Int
 
-    private const val LIBRARY = "plumenotifications.dll"
     private const val AUMID = "eu.tintera.plume"
     private val DISPLAY_NAME = if (desktopDebugBuild) "Plume (debug)" else "Plume"
 

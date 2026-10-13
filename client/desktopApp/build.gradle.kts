@@ -63,7 +63,9 @@ compose.desktop {
         if (providers.gradleProperty("desktopDebug").isPresent) {
             jvmArgs += listOf(
                 "-Dplume.debug=true",
-                "-Dplume.dataDir=" + rootProject.layout.projectDirectory.dir(".desktop-data").asFile.path,
+                // Lomítka `/`, ne `\`: jpackage bere zpětné lomítko v Plume.cfg jako escape a z cesty
+                // na Windows udělal `C:Develop<tab>elegram…` (z `\t`). Java `/` na Windows přijme.
+                "-Dplume.dataDir=" + rootProject.layout.projectDirectory.dir(".desktop-data").asFile.invariantSeparatorsPath,
             )
         }
 
