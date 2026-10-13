@@ -21,20 +21,21 @@ internal object WindowsToasts {
     private val logger = Logger.withTag("WindowsToasts")
 
     /**
-     * Klik na toast: argumenty `launch` z XML. Kliknutí, které přijde dřív, než si ho někdo
-     * převezme (studený start z Centra oznámení), počká v [pending].
+     * Klik na toast nebo jeho tlačítko: argumenty z XML a text z pole odpovědi (`null`, když
+     * toast pole nemá). Kliknutí, které přijde dřív, než si ho někdo převezme (studený start
+     * z Centra oznámení), počká v [pending].
      */
-    var onActivated: ((String) -> Unit)? = null
+    var onActivated: ((arguments: String, reply: String?) -> Unit)? = null
         set(value) {
             val waiting = synchronized(lock) {
                 field = value
                 pending.also { pending = null }
             }
-            if (value != null && waiting != null) value(waiting)
+            if (value != null && waiting != null) value(waiting.first, waiting.second)
         }
 
     private val lock = Any()
-    private var pending: String? = null
+    private var pending: Pair<String, String?>? = null
 
     val available: Boolean by lazy { desktopOs == DesktopOs.Windows && load() && init() }
 
@@ -119,9 +120,9 @@ internal object WindowsToasts {
     }
 
     @JvmStatic
-    fun onActivated(arguments: String) {
-        val handler = synchronized(lock) { onActivated.also { if (it == null) pending = arguments } }
-        handler?.invoke(arguments)
+    fun onActivated(arguments: String, reply: String?) {
+        val handler = synchronized(lock) { onActivated.also { if (it == null) pending = arguments to reply } }
+        handler?.invoke(arguments, reply)
     }
 
     /** Vrací HRESULT, 0 = v pořádku. */
