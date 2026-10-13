@@ -138,9 +138,64 @@ zhasnutý a zamčený telefon (rozsvítí se obrazovka hovoru nad zámkem, přij
 zmenšení, rozbalení a Zpět, a **Plume zabitý na pozadí** (`am kill`): push ho probudil,
 notifikace i obrazovka hovoru přišly a přijetí spojilo.
 
-**Co dál chybí**: přechod Wi-Fi ↔ data za hovoru, integrace se systémovým telefonem
-(`ConnectionService` / `core-telecom`: souběh s GSM hovorem, hovor v autě), video, iOS
-a desktop.
+**Co dál chybí**: video, iOS a desktop.
+
+## Ticho při spojeném hovoru
+
+Všechny hovory až do přechodu na Telecom byly NĚMÉ — spojily se, čas běžel, Telecom, výstupy i změna sítě
+fungovaly, ale protistranu nebylo slyšet na žádném telefonu. Nikdo si toho nevšiml, protože
+se ověřovalo podle logu a obrazovky, ne poslechem.
+
+- **V režimu `PLAYBACK` je slot `microphone` v `MediaDescription` mikrofon PROTISTRANY.**
+  Příjem zvuku ntgcalls zapíná jen pro něj (`StreamManager::optimize_sources`:
+  `enable_audio_incoming(writers_.contains(Microphone))`). Reproduktor ve slotu `speaker`
+  (`MediaDescription(null, speaker, …)`, jak to dělá Mithka nad ntgcalls 2.2.5) ve 3.0.3 dá
+  ticho: výstup Oboe se otevře, ale příchozí kanál nevznikne. Správně
+  `MediaDescription(device(SPEAKER), null, null, null)` — metadata dál `is_microphone: false`,
+  zařízení je výstup (kontroluje to `BaseDeviceModule`: `is_microphone` musí sedět s režimem).
+- **Poznat to jde z logu**: s příjmem se objeví `Adding incoming audio channel with ssrc …`
+  a `AddRecvStream`; bez něj jen `AddSendStream`. `Unable to set playout device`
+  (`adm_helpers.cc`) je šum — vlastní ADM ntgcalls výběr zařízení neumí a nevadí to.
+- **Hovor se ověřuje POSLECHEM na obou stranách**, ne stavem spojení. Spojené ICE/DTLS
+  a běžící čas nic neříkají o tom, jestli jde zvuk oběma směry.
+- **Signalizace před spuštěním přenosu se drží ve frontě** (`TdlCallRepository.pendingSignaling`)
+  a po `start` se přehraje. Ticho nezpůsobovala (byla to první, mylná stopa), ale zahodit
+  `InitialSetup` protějšku, který přijde před naším `Ready`, by dohodu kanálů rozbilo.
+
+Ověřeno na Pixelu 5 a Pixelu 7 Pro poslechem: protistranu je slyšet na obou telefonech.
+
+## Systémový telefon (Telecom, Android)
+
+Hovory jsou přihlášené do Telecomu přes Jetpack `androidx.core:core-telecom` 1.0.1
+(`TelecomCallBridge`): `CallsManager.registerAppWithTelecom(CAPABILITY_BASELINE)` při startu
+a `addCall` pro každý hovor, jakmile vytáčí nebo zvoní. Pod Androidem 14 knihovna jede přes
+`ConnectionService`, od 14 přes transakční API; obojí `self_mng` účet (`MANAGE_OWN_CALLS`).
+
+- **Stav se zrcadlí z `CallRepository`**: spojení → `setActive` (odchozí) / `answer`
+  (příchozí přijatý v aplikaci), konec → `disconnect` (`LOCAL`, u selhání `ERROR`).
+  Opačně: `onAnswer` (auto, hodinky) → `accept`, `onDisconnect` → `hangUp`,
+  `onSetInactive` / `onSetActive` → `setHeld`.
+- **GSM hovor hovor Plume podrží** (`ACTIVE → ON_HOLD`, `onSetInactive` → mikrofon i přehrávání
+  ntgcalls stojí, „Podrženo"). **Po GSM hovoru ho systém sám NEVRÁTÍ** — zůstal by viset
+  podržený. Vrací ho uživatel tlačítkem „Pokračovat v hovoru" → `CallControlScope.setActive`
+  (`CallRepository.resume` přes `setResumeHandler`), jako u systémového telefonu.
+- **Výstup zvuku vede Telecom** (`TelecomAudioRoutes`: `availableEndpoints`,
+  `currentCallEndpoint`, `requestEndpointChange`) — vlastní `setCommunicationDevice` by se
+  s ním přetahoval. `CallAudioRouter` zůstává jako záloha, když Telecom aplikaci nebo hovor
+  nepřijme. **Režim hovoru nastavuje Plume i tak** (od vytáčení, kvůli tónu protistrany).
+- **Na Androidu 14 (Pixel 5) přepíná Telecom reproduktor postaru**: `ActiveSpeakerRoute`,
+  ale `Active communication device` v `dumpsys audio` dál hlásí sluchátko. Kam zvuk opravdu
+  jde, říká `deviceId` přehrávače (2 = reproduktor) a řádky `Devices:` streamů.
+- **Ověřeno na Pixelu 5 a Pixelu 7 Pro**: hovor v Telecomu na obou stranách (`self_mng`,
+  `CONNECTING` / `RINGING` → `ACTIVE`), reproduktor tam a zpět přes Telecom, GSM hovor
+  z jiného telefonu na Pixel 5 hovor Plume podržel, po něm „Resume call" vrátil `ACTIVE`
+  a mikrofon zase nahrával; zavěšení (i podrženého hovoru) Telecom uklidí.
+  Bluetooth přes Telecom (Pixel 7 Pro, Pixel Buds Pro 2): připojení sluchátek za hovoru
+  přepnulo hovor na ně (`bt_sco_hs`), výběr přepnul na reproduktor a zpět.
+  **Neověřeno**: Android Auto, hodinky, přijetí odjinud (`onAnswer`).
+- **Pozor na staré řádky v `dumpsys audio`**: historie (`setCommunicationRouteForClient …
+  bt_sco`) obsahuje zařízení i dávno odpojená. Jestli jsou sluchátka opravdu připojená,
+  říká `dumpsys bluetooth_manager` (`ACL BR/EDR:Y`), ne výskyt jména v `dumpsys audio`.
 
 ## Změna sítě za hovoru
 

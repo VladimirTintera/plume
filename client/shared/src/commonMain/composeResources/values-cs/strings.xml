@@ -823,6 +823,8 @@
     <string name="call_output_bluetooth">Bluetooth</string>
     <string name="call_audio_output">Zvuk jde do: %1$s</string>
     <string name="call_waiting_for_network">Čekám na připojení…</string>
+    <string name="call_on_hold">Podrženo</string>
+    <string name="call_resume">Pokračovat v hovoru</string>
     <string name="call_outgoing">Odchozí hovor</string>
     <string name="call_incoming">Příchozí hovor</string>
     <string name="call_missed">Zmeškaný hovor</string>

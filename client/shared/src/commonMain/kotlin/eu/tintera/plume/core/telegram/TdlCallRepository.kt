@@ -34,6 +34,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
 
 /**
@@ -65,6 +67,12 @@ internal class TdlCallRepository(
     /** Hovor, kterému už běží přenos — `Ready` chodí i opakovaně, spustit se má jednou. */
     private var startedCallId: Int? = null
 
+    /** Signalizace protějšku, která dorazila dřív, než u nás běžel přenos (podle hovoru). */
+    private val pendingSignaling = mutableMapOf<Int, MutableList<ByteArray>>()
+
+    /** Signalizace a spuštění přenosu jdou z různých odběrů; paket nesmí uvíznout mezi nimi. */
+    private val signalingLock = Mutex()
+
     init {
         network?.map { it.kind == NetworkKind.None }?.distinctUntilChanged()?.onEach { lost ->
             networkLost = lost
@@ -76,9 +84,24 @@ internal class TdlCallRepository(
             .launchIn(scope)
         holder.updates { newCallSignalingDataUpdates }
             .onEach { update ->
-                if (update.callId == startedCallId) media?.receiveSignaling(update.data)
+                signalingLock.withLock { onSignaling(update.callId, update.data) }
             }
             .launchIn(scope)
+    }
+
+    /** Pod [signalingLock]. */
+    private fun onSignaling(callId: Int, data: ByteArray) {
+        if (callId == startedCallId) {
+            media?.receiveSignaling(data)
+            return
+        }
+        // Přenos u nás ještě neběží (náš `Ready` se může zpracovat až po první signalizaci
+        // protějšku). Zahodit ji nejde: nese `InitialSetup` a `NegotiateChannels`, bez kterých
+        // se kanály nedohodnou. Vlastní fronta ntgcalls pomáhá až od chvíle, kdy přenos
+        // existuje; tahle drží, co přišlo před ním.
+        val queue = pendingSignaling.getOrPut(callId) { mutableListOf() }
+        queue += data
+        logger.i { "Signalizace hovoru $callId před spuštěním přenosu, čeká (${queue.size})." }
     }
 
     /** Mimo hlavní vlákno: první dotaz nahrává knihovnu přenosu (desítky MB). */
@@ -150,12 +173,28 @@ internal class TdlCallRepository(
         _active.update { it?.copy(output = output) }
     }
 
+    private var resumeHandler: (suspend () -> Boolean)? = null
+
+    override fun setResumeHandler(handler: (suspend () -> Boolean)?) {
+        resumeHandler = handler
+    }
+
+    override suspend fun resume() {
+        val handler = resumeHandler
+        if (handler == null || handler()) setHeld(false)
+    }
+
+    override fun setHeld(held: Boolean) {
+        media?.setHeld(held)
+        _active.update { it?.copy(held = held) }
+    }
+
     override fun setMuted(muted: Boolean) {
         media?.setMuted(muted)
         _active.update { it?.copy(muted = muted) }
     }
 
-    private fun onCall(call: Call) {
+    private suspend fun onCall(call: Call) {
         val current = _active.value
         // Druhý hovor během hovoru neřešíme — server ho druhé straně ohlásí jako obsazeno.
         if (current != null && current.id != call.id && current.phase !in ENDED) return
@@ -174,9 +213,11 @@ internal class TdlCallRepository(
             is CallStateExchangingKeys -> _active.update { it?.copy(phase = CallPhase.Connecting) }
             is CallStateReady -> {
                 _active.update { it?.copy(phase = it.phase.takeIf { p -> p == CallPhase.Active } ?: CallPhase.Connecting, emojis = state.emojis.toList()) }
-                if (startedCallId != call.id) {
-                    startedCallId = call.id
-                    startMedia(call, state)
+                signalingLock.withLock {
+                    if (startedCallId != call.id) {
+                        startedCallId = call.id
+                        startMedia(call, state)
+                    }
                 }
             }
             is CallStateHangingUp -> Unit
@@ -247,10 +288,16 @@ internal class TdlCallRepository(
 
             },
         )
+        // Co protějšek poslal dřív, než se přenos spustil — v původním pořadí.
+        pendingSignaling.remove(call.id)?.let { early ->
+            logger.i { "Předávám ${early.size} dřívějších signalizačních paketů." }
+            early.forEach(media::receiveSignaling)
+        }
     }
 
     private fun finish(callId: Int, phase: CallPhase) {
         // Zastavit i hovor, který se nespojil: zvuková relace běží od vytáčení / přijetí.
+        pendingSignaling.remove(callId)
         if (startedCallId == callId || _active.value?.id == callId) media?.stop()
         if (startedCallId == callId) startedCallId = null
         _active.update { active -> active?.takeIf { it.id == callId }?.copy(phase = if (active.phase == CallPhase.Failed) CallPhase.Failed else phase) ?: active }

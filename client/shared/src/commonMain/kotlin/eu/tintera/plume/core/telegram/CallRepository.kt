@@ -24,6 +24,18 @@ interface CallRepository {
 
     fun setMuted(muted: Boolean)
 
+    /** Podržet / uvolnit hovor — volá systém, když přijde jiný (GSM) hovor. */
+    fun setHeld(held: Boolean)
+
+    /**
+     * Uživatel chce podržený hovor zpátky. Systém ho po GSM hovoru sám nevrátí — požádat musí
+     * aplikace (Telecom `setActive`), a teprve když systém svolí, zvuk zase teče.
+     */
+    suspend fun resume()
+
+    /** Kdo umí podržený hovor vrátit u systému (Android Telecom); `null` = vrátí se hned. */
+    fun setResumeHandler(handler: (suspend () -> Boolean)?)
+
     fun setOutput(output: CallAudioOutput)
 }
 
@@ -46,6 +58,8 @@ data class ActiveCall(
      * síť do 20 s vrátí (pak zavěsí sám), a tak dlouho se místo času ukazuje, že se čeká.
      */
     val networkLost: Boolean = false,
+    /** Podržený kvůli jinému hovoru (GSM); zvuk neteče oběma směry. */
+    val held: Boolean = false,
 )
 
 enum class CallPhase {
