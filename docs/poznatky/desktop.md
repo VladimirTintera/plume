@@ -121,9 +121,11 @@ toasty WinRT (oddíl „Notifikace na Windows" níž), na Linuxu AWT `TrayIcon.d
   vytáhne okno — i schované nebo minimalizované.
 - **Příloha oznámení je KOPIE souboru**: systém soubor přílohy přesouvá do vlastního úložiště,
   takže by z TDLib zmizel. Bere se fotka ze zprávy, jinak profilovka chatu.
-- **Zavření okna na macOS aplikaci neukončí**, jen okno schová (`visible = false`) — jinak by
-  s posledním oknem skončily i oznámení. Vrací ho ikona v Docku (`AppReopenedListener`) nebo
-  klik na oznámení, ukončuje Cmd+Q. Na Windows a Linuxu zavření zatím aplikaci ukončí.
+- **Zavření okna na macOS a Windows aplikaci neukončí**, jen okno schová (`visible = false`) —
+  jinak by s posledním oknem skončily i oznámení. Na macOS ho vrací ikona v Docku
+  (`AppReopenedListener`), na Windows ikona v oznamovací oblasti (oddíl „Oznamovací oblast
+  a jediná instance" níž); všude klik na oznámení a další spuštění. Ukončuje Cmd+Q, resp.
+  nabídka ikony. Na Linuxu zavření aplikaci ukončí.
 - **Odznak v Docku** je počet nepřečtených v neztlumených chatech hlavního seznamu
   (`Taskbar.setIconBadge`), jako na iOS. Windows text v odznaku ikony neumí.
 - **Tiché hodiny platí** (`supportsQuietHours = true`): oznámení přijde bez zvuku.
@@ -211,6 +213,38 @@ předá systému — co se ladí, je čistá funkce.
   vrátí HRESULT místo pádu. **Neověřeno**: spuštění zavřené aplikace kliknutím na toast (jen
   instalace z MSI, `LocalServer32`), doplnění AUMID do zástupce z MSI, zvuk (ověřen jen atribut
   v XML), vytažení okna dopředu, když je jiná aplikace v popředí.
+
+## Oznamovací oblast a jediná instance
+
+Na Windows zavření okna schová aplikaci do oznamovací oblasti (`DesktopTrayIcon`,
+`desktopClosesToTray`), jako Telegram Desktop. Bez toho by s oknem skončily i toasty.
+
+- **Vlastní AWT `TrayIcon`, ne `Tray` z Compose.** `Tray` hlásí jen `ActionListener`, a ten na
+  Windows znamená DVOJKLIK; ikona se tam ale otevírá jedním kliknutím. Nabídka je AWT
+  `PopupMenu` (jinou `TrayIcon` neumí, `Tray` ji má taky). Popisky se mění s jazykem aplikace
+  bez nové ikony (`setLabels`).
+- **Jen Windows.** macOS má Dock a Linux oznamovací oblast mít nemusí (GNOME bez rozšíření)
+  — schované okno by nešlo vrátit. Linux dál
+  zavřením končí. AWT notifikace (`TrayNotifier`, Linux a Windows bez knihovny toastů) bere
+  ikonu aplikace, je-li, ať v oblasti nevisí dvě.
+- **Jediná instance** (`DesktopInstance`, volá se jako úplně první věc v `main`). S aplikací
+  v oznamovací oblasti se ze Startu spouští znovu běžně a druhý proces by narazil na zamčenou
+  databázi TDLib. Druhý proces požádá první o okno a skončí. Zámek je `FileLock`
+  (`instance.lock` v datech aplikace) — ten po pádu uvolní systém, kdežto pouhá existence
+  souboru by po pádu blokovala navždy. Žádost jde po loopbacku na port z `instance.port`
+  s náhodným tokenem: port vidí každý místní proces, token jen uživatel s přístupem k datům.
+  Ladicí běh má jiný adresář dat, takže vedle instalace běžet může.
+- **Okno vytažené na žádost druhé instance dostane fokus** (ověřeno: `GetForegroundWindow` po
+  druhém spuštění). Windows ho povolí, protože popředí právě drží spouštěný proces.
+- **Schované nebo minimalizované okno = aplikace v pozadí** (`AppForeground` = `DesktopWindow.shown`;
+  dřív desktop hlásil popředí pořád). Volba `online` se vypne — server nás přestane vidět online
+  a telefon zase upozorňuje (TDLib oznámení odkládá, dokud je účet online jinde) — zámek
+  aplikace se po zvolené době zamkne a návrat do popředí obnoví spojení jako na Androidu
+  (v logu „Návrat do popředí, obnovuji spojení"). Fokus o popředí nerozhoduje, jen
+  o oznámeních: okno vedle jiného je pořád vidět. Platí i pro macOS (schování do Docku).
+- **Ověřeno na Windows 11** (ladicí běh): `WM_CLOSE` okno schová a proces běží dál, druhé
+  spuštění skončí za pár sekund a okno první instance je vidět a v popředí, návrat do popředí
+  v logu. **Neověřeno**: macOS (popředí podle schovaného okna), instalace z MSI.
 
 ## Release (Windows)
 

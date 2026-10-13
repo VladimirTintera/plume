@@ -2,6 +2,7 @@ package eu.tintera.plume.core.notifications
 
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.platform.DesktopOs
+import eu.tintera.plume.core.platform.DesktopTray
 import eu.tintera.plume.core.platform.desktopOs
 import java.awt.SystemTray
 import java.awt.TrayIcon
@@ -195,7 +196,8 @@ private class TrayNotifier : DesktopNotifier {
     override fun requestPermission(): Boolean = available
 
     override fun show(notification: DesktopNotification) {
-        val tray = icon ?: return
+        // Na Windows je v oznamovací oblasti už ikona aplikace (DesktopTray); druhá by tam visela vedle.
+        val tray = DesktopTray.icon ?: icon ?: return
         last = notification
         val title = listOfNotNull(notification.title, notification.subtitle).joinToString(" · ")
         tray.displayMessage(title, notification.body, TrayIcon.MessageType.NONE)

@@ -23,6 +23,19 @@ object DesktopWindow {
         _focused.value = focused
     }
 
+    private val _shown = MutableStateFlow(true)
+
+    /**
+     * Okno je na obrazovce — ne schované (Dock, oznamovací oblast) ani minimalizované. Podle toho
+     * je aplikace v popředí ([eu.tintera.plume.core.connectivity.AppForeground]). Zapisuje
+     * vstupní bod.
+     */
+    val shown: StateFlow<Boolean> = _shown.asStateFlow()
+
+    fun setShown(shown: Boolean) {
+        _shown.value = shown
+    }
+
     private val _activations = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
     /** Žádosti o vytažení okna dopředu (klik na notifikaci). Vyřizuje vstupní bod. */
