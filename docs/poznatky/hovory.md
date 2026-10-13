@@ -166,8 +166,13 @@ a desktop.
   ne až po testu. Na Pixelu 7 přes bezdrátové adb se navíc s Wi-Fi ztratí i adb.
 - **Připojení a odpojení sluchátek za hovoru** (Pixel Buds Pro 2): zvuk přešel na
   soupravu a po odpojení zpět do sluchátka telefonu (`setCommunicationRouteForClient …
-  earpiece` v systémovém logu); ověřil uživatel. Ukončení po 20 s bez sítě vyzkoušené
-  není.
+  earpiece` v systémovém logu); ověřil uživatel.
+- **Ukončení po 20 s bez sítě ověřené z obou stran**: (a) Pixel 7 bez sítě — Pixel 5 (se
+  sítí) nahlásil `FAILED` 32 s po spojení a hovor sám ukončil; (b) Pixel 5 bez sítě —
+  „Waiting for network…", po ~22 s `FAILED`, ukončení, úklid (režim zvuku, služba).
+  Spadlý hovor, který už běžel, hlásí „Hovor se přerušil", ne „nepodařilo se spojit"
+  (`connectedAt` je vyplněné). Záznam logu Pixelu 7 přežije výpadek bezdrátového adb, když
+  běží přímo v telefonu (`nohup sh -c "logcat | grep … > /data/local/tmp/…"`).
 
 ## Vyzvánění a výstup zvuku (Android)
 

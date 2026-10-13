@@ -796,6 +796,7 @@
     <string name="call_bar_calling">Calling…</string>
     <string name="call_bar_connecting">Connecting…</string>
     <string name="call_bar_ended">Call ended</string>
+    <string name="call_bar_dropped">Call dropped</string>
     <string name="call_bar_failed">Couldn't connect the call</string>
     <string name="call_answer">Answer</string>
     <string name="call_hang_up">Hang up</string>
