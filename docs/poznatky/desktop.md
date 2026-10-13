@@ -213,9 +213,21 @@ předá systému — co se ladí, je čistá funkce.
   chatu a fotkou ze zprávy, tichá zpráva má `<audio silent="true"/>` (`potichu=true` v logu),
   klik otevře chat (`Klik na oznámení` v logu), přečtení na telefonu toast do 2 s stáhne. Zpráva
   v chatu otevřeném v Plume oznámení nevydá vůbec (TDLib ji odloží a zruší). Nevalidní XML
-  vrátí HRESULT místo pádu. **Neověřeno**: spuštění zavřené aplikace kliknutím na toast (jen
-  instalace z MSI, `LocalServer32`), doplnění AUMID do zástupce z MSI, zvuk (ověřen jen atribut
-  v XML), vytažení okna dopředu, když je jiná aplikace v popředí.
+  vrátí HRESULT místo pádu. **Neověřeno**: zvuk (ověřen jen atribut v XML), vytažení okna
+  dopředu, když je jiná aplikace v popředí.
+- **Ověřeno na instalaci z MSI** (release `desktop-0.3.3` přes 0.3.1, Windows 11): aplikace při
+  prvním startu doplnila zástupci `Start Menu\Programs\Plume\Plume.lnk` AUMID
+  `eu.tintera.plume` i `ToastActivatorCLSID` (cíl zůstal `Plume.exe`) a zapsala `LocalServer32`
+  s nainstalovanou cestou. Toast ze schované aplikace se ukázal, odpověď z něj odešla. **Klik
+  na toast u ZAVŘENÉ aplikace ji spustil a otevřel chat**: rodič procesu je `svchost.exe`
+  (služba DCOM), příkaz `Plume.exe -ToastActivated -Embedding` — `-Embedding` přidává COM sám.
+- **Spouštěč z jpackage běží jako DVA procesy `Plume.exe`**: spouštěč pustí svou kopii jako
+  potomka a JVM běží v ní. COM spustí rodiče, třídu aktivátoru ale registruje potomek — a klik
+  se přesto doručí (ověřeno studeným startem výš). Jediná instance, zámek i aktivátor žijí
+  v potomkovi; kdo hledá proces Plume, najde oba.
+- **Testovací toast skriptem PowerShellu: soubor s BOM, nebo ASCII.** Windows PowerShell 5.1
+  čte `.ps1` bez BOM jako ANSI, takže UTF-8 diakritika v XML toastu vyjde rozbitá — vypadá to
+  jako chyba Plume, ale je to skript. Toasty Plume jdou do Windows jako UTF-16 přes JNI.
 
 ## Hlavní panel Windows
 
@@ -238,7 +250,8 @@ a `USER_ATTENTION_WINDOW` (`FlashWindowEx`); `ICON_BADGE_TEXT` ani `ICON_BADGE_N
   zpráva i odložený chat neblikají — „potichu" znamená nerušit. Schované okno tlačítko nemá,
   upozorní toast. Bliká se jednou za dávku, ne za každý chat.
 - **Ověřeno na Windows 11** (ladicí běh, snímky hlavního panelu): odznak „1" naskočil po
-  startu, zpráva od bota ho zvedla na „2" a tlačítko se rozblikalo.
+  startu, zpráva od bota ho zvedla na „2" a tlačítko se rozblikalo. Na instalaci z MSI (0.3.3):
+  jedno tlačítko s ikonou Plume a odznakem — okno s AUMID procesu se od zástupce neodtrhlo.
 
 ## Oznamovací oblast a jediná instance
 
@@ -270,7 +283,8 @@ Na Windows zavření okna schová aplikaci do oznamovací oblasti (`DesktopTrayI
   o oznámeních: okno vedle jiného je pořád vidět. Platí i pro macOS (schování do Docku).
 - **Ověřeno na Windows 11** (ladicí běh): `WM_CLOSE` okno schová a proces běží dál, druhé
   spuštění skončí za pár sekund a okno první instance je vidět a v popředí, návrat do popředí
-  v logu. **Neověřeno**: macOS (popředí podle schovaného okna), instalace z MSI.
+  v logu. Na instalaci z MSI (0.3.3): Ukončit z nabídky ikony aplikaci zavře úplně (oba procesy
+  `Plume.exe` zmizí). **Neověřeno**: macOS (popředí podle schovaného okna).
 
 ## Release (Windows)
 
