@@ -557,7 +557,7 @@ private fun AuthStage.supportingText(): UiText? = when (this) {
  * Věta nad polem podle toho, kudy kód doopravdy přišel. Dokud tu stála jedna věta pro všechno
  * („do jiného klienta nebo SMS"), byla polovinu času vedle — a přitom to TDLib pokaždé řekne.
  */
-private fun CodeDelivery.supportingText(): StringResource = when (this) {
+internal fun CodeDelivery.supportingText(): StringResource = when (this) {
     CodeDelivery.TelegramApp -> Res.string.auth_support_code_app
     CodeDelivery.Sms -> Res.string.auth_support_code_sms
     CodeDelivery.Call -> Res.string.auth_support_code_call
@@ -571,7 +571,7 @@ private fun CodeDelivery.supportingText(): StringResource = when (this) {
  * Popisek tlačítka „poslat kód jinak" podle cesty, kterou nabízí server. Slovo a fráze jsou
  * pořád SMS, prozvonění pořád hovor — rozdíl vysvětlí věta nad polem, až kód odejde.
  */
-private fun CodeDelivery.resendLabel(): StringResource = when (this) {
+internal fun CodeDelivery.resendLabel(): StringResource = when (this) {
     CodeDelivery.Sms, CodeDelivery.Word, CodeDelivery.Phrase -> Res.string.auth_resend_sms
     CodeDelivery.Call, CodeDelivery.CallerNumber -> Res.string.auth_resend_call
     CodeDelivery.TelegramApp -> Res.string.auth_resend_app

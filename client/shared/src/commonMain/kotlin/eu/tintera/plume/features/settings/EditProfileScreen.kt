@@ -1,5 +1,16 @@
 package eu.tintera.plume.features.settings
 
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.resources.change_phone_row
+import eu.tintera.plume.resources.call_24dp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ListItem
+import androidx.compose.runtime.produceState
+import eu.tintera.plume.core.ui.displayPhone
+import eu.tintera.plume.core.telegram.TelegramSession
+import eu.tintera.plume.core.telegram.AccountRepository
+import org.koin.compose.koinInject
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -93,6 +104,8 @@ fun EditProfileScreen(
     onBack: () -> Unit,
     /** Ťuknutí na fotku: historie vlastních profilových fotek v prohlížeči (id účtu = id chatu). */
     onOpenPhotos: (userId: Long) -> Unit,
+    /** „Telefonní číslo": změna čísla. */
+    onChangePhone: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -256,6 +269,8 @@ fun EditProfileScreen(
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                     modifier = Modifier.fillMaxWidth(),
                 )
+
+                PhoneNumberRow(onClick = onChangePhone)
             }
         }
         PhotoCropOverlay(
@@ -268,3 +283,25 @@ fun EditProfileScreen(
 }
 
 private val AVATAR_SIZE = 112.dp
+
+/**
+ * Číslo účtu pod polem bia, ťuknutí vede na změnu. Do úpravy profilu patří stejně jako jméno —
+ * je to údaj, podle kterého účet najdou kontakty. Formát dává TDLib ([displayPhone]).
+ */
+@Composable
+private fun PhoneNumberRow(onClick: () -> Unit) {
+    val accounts = koinInject<AccountRepository>()
+    val session = koinInject<TelegramSession>()
+    val account by accounts.account.collectAsStateWithLifecycle(initialValue = null)
+    val raw = account?.phoneNumber?.takeIf { it.isNotBlank() }
+    val shown by produceState<String?>(initialValue = null, raw) {
+        value = raw?.let { session.displayPhone(it) }
+    }
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        leadingContent = { Icon(painterResource(Res.drawable.call_24dp), contentDescription = null) },
+        headlineContent = { Text(stringResource(Res.string.change_phone_row)) },
+        supportingContent = { shown?.let { Text(it) } },
+        modifier = Modifier.clickable(onClick = onClick),
+    )
+}

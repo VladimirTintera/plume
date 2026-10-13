@@ -1,6 +1,8 @@
 package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
+import dev.g000sha256.tdl.dto.ResendCodeReasonUserRequest
+import dev.g000sha256.tdl.dto.PhoneNumberCodeTypeChange
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.CheckChatUsernameResult
 import dev.g000sha256.tdl.dto.CheckChatUsernameResultOk
@@ -84,6 +86,21 @@ class TdlAccountRepository(
     override suspend fun setBio(bio: String): Result<Unit> =
         client.setBio(bio = bio).toResult().map { }
             .onFailure { logger.w(it) { "Bio se nepodařilo uložit." } }
+
+    /** `settings` výchozí (null) — stejná úvaha jako u přihlášení, viz `docs/poznatky/prihlaseni.md`. */
+    override suspend fun sendPhoneChangeCode(phoneNumber: String): Result<PhoneChangeCode> =
+        client.sendPhoneNumberCode(phoneNumber = phoneNumber, settings = null, type = PhoneNumberCodeTypeChange())
+            .toResult().map { it.toPhoneChangeCode() }
+            .onFailure { logger.w(it) { "Kód na nové číslo se nepodařilo poslat." } }
+
+    override suspend fun resendPhoneChangeCode(): Result<PhoneChangeCode> =
+        client.resendPhoneNumberCode(reason = ResendCodeReasonUserRequest())
+            .toResult().map { it.toPhoneChangeCode() }
+            .onFailure { logger.w(it) { "Kód na nové číslo se nepodařilo poslat znovu." } }
+
+    override suspend fun checkPhoneChangeCode(code: String): Result<Unit> =
+        client.checkPhoneNumberCode(code = code).toResult().map { }
+            .onFailure { logger.w(it) { "Kód z nového čísla neprošel." } }
 
     override suspend fun contactLink(): Result<ContactLink> =
         client.getUserLink().toResult().map { ContactLink(url = it.url, expiresInSeconds = it.expiresIn) }

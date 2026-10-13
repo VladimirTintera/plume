@@ -379,6 +379,35 @@ nad seznamem chatů („Přidej přihlašovací e-mail", `AppScreen.LoginEmail`)
   v Soukromí; bez akce a bez e-mailu se řádek neukáže. **Skutečné odeslání kódu a potvrzení
   ověřené NENÍ** — měnilo by přihlašovací e-mail skutečného účtu.
 
+## Změna telefonního čísla
+
+Úprava profilu → „Telefonní číslo" (`ChangePhoneScreen`, `ChangePhoneRoute` nad `EditProfileRoute`):
+nové číslo, kód z něj, hotovo. Vede sem i doporučená akce „Je … pořád tvoje číslo?" („Změnit",
+`AppScreen.ChangePhone`, zpět vede přes úpravu profilu).
+
+- **TDLib: `sendPhoneNumberCode` s `PhoneNumberCodeTypeChange`, pak `checkPhoneNumberCode`**;
+  kód jinou cestou `resendPhoneNumberCode`. Odpověď je `AuthenticationCodeInfo` jako u přihlášení,
+  takže převod (`toAuthCode`, délka, jiná cesta, lhůta) je jeden — vytažený z `TdlTelegramSession`
+  (`toPhoneChangeCode`) a sdílený.
+- **Číslo se zadává stejně jako při přihlášení** (`PhoneInput`, `PhoneField`, výběr země, formát
+  od TDLib) a kód taky (`CodeField`, věty „kudy kód přišel" a „poslat jinak" z přihlášení,
+  odpočet lhůty). Dvě kopie téhož by se rozešly.
+- **Účet i data zůstávají**, mění se jen číslo pro přihlášení — obrazovka to říká předem.
+- **Chyby z dokumentace** (`account.sendChangePhoneCode`, `account.changePhone`):
+  `PHONE_NUMBER_OCCUPIED` (číslo má jiný účet), `PHONE_NUMBER_BANNED`,
+  `FRESH_CHANGE_PHONE_FORBIDDEN` (do 24 h po přihlášení na zařízení), kód `PHONE_CODE_*`.
+- **Po změně se schová „Je … pořád tvoje číslo?"**, kdyby ji server neodebral sám.
+- **Kudy kód na nové číslo přijde našemu `api_id`, ověřené není.** U přihlášení server Plume jinou
+  cestu než zprávu do Telegramu nenabízí (`docs/poznatky/prihlaseni.md`, „Kód jinou cestou");
+  nové číslo účet obvykle nemá, takže by to měla být SMS — a jestli ji server pošle, se ukáže až
+  na skutečné změně.
+- Číslo v úpravě profilu i v kartě je naformátované od TDLib (`displayPhone`).
+- **Ověřeno**: `ChangePhoneViewModelTest` (obsazené číslo, kód a dokončení se schováním akce,
+  lhůta pro jinou cestu, zpět); na emulátoru řádek „Telefonní číslo +420 601 234 567" v úpravě
+  profilu, obrazovka se zemí odhadnutou podle IP, „Změnit" z karty (sondou podstrčená akce)
+  a zpět do úpravy profilu. **Skutečné odeslání kódu a změna čísla ověřené NEJSOU** — kód by
+  šel SMS na cizí číslo a měnil by číslo skutečného účtu.
+
 ## Zařízení (aktivní relace)
 
 Sekce Nastavení „Zařízení" (`features/devices`): kde je účet přihlášený, odhlášení jednoho nebo

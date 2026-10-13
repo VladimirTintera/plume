@@ -91,8 +91,9 @@ nahoře v hlavním seznamu (`SuggestedActionCard`) — **vždy jen první**, aby
   false`, u Telegramu `SETUP_LOGIN_EMAIL_NOSKIP`) má podle dokumentace blokovat celou aplikaci;
   Plume ukáže kartu, kterou nejde schovat, jen splnit — blokovat celou aplikaci by bylo víc, než
   je potřeba, když cesta ke splnění je jedno ťuknutí.
-- **Změnit číslo Plume taky neumí** — „Je … pořád tvoje číslo?" má jen „Ano, je" a větu
-  o oficiální aplikaci. Číslo je naformátované od TDLib (`displayPhone`, „+420 601 234 567").
+- **„Je … pořád tvoje číslo?"** má „Ano, je" (schová) a „Změnit" (změna čísla, viz
+  `docs/poznatky/nastaveni.md`, „Změna telefonního čísla"). Číslo je naformátované od TDLib
+  (`displayPhone`, „+420 601 234 567").
 
 **Ověřeno na emulátoru sondou** (podstrčené akce, schování jen lokálně; NECOMMITUJE se): všech
 sedm karet, „Ano, je" / „Pamatuji" / „Teď ne" přepínají na další, „Nastavit" otevřelo dvoufázové

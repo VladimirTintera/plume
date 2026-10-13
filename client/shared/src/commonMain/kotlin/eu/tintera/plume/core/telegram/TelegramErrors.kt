@@ -27,6 +27,9 @@ import eu.tintera.plume.resources.error_password_invalid
 import eu.tintera.plume.resources.error_phone_code_expired
 import eu.tintera.plume.resources.error_phone_code_invalid
 import eu.tintera.plume.resources.error_phone_number_invalid
+import eu.tintera.plume.resources.error_phone_number_occupied
+import eu.tintera.plume.resources.error_phone_number_banned
+import eu.tintera.plume.resources.error_fresh_change_phone
 import eu.tintera.plume.resources.error_pin_limit
 import eu.tintera.plume.resources.error_recovery_code_expired
 import eu.tintera.plume.resources.error_recovery_code_invalid
@@ -126,6 +129,10 @@ internal fun errorText(raw: String?, fallback: StringResource): UiText {
         "PINNED_DIALOGS_TOO_MUCH" -> Res.string.error_pin_limit
         "CHAT_ADMIN_REQUIRED" -> Res.string.error_admin_required
         "PHONE_NUMBER_INVALID" -> Res.string.error_phone_number_invalid
+        // Změna čísla (dokumentace `account.sendChangePhoneCode` a `account.changePhone`).
+        "PHONE_NUMBER_OCCUPIED" -> Res.string.error_phone_number_occupied
+        "PHONE_NUMBER_BANNED" -> Res.string.error_phone_number_banned
+        "FRESH_CHANGE_PHONE_FORBIDDEN" -> Res.string.error_fresh_change_phone
         // Zpráva člověku, kterého má uživatel zablokovaného (dokumentace `messages.sendMessage`).
         "YOU_BLOCKED_USER" -> Res.string.error_you_blocked_user
         "CHAT_WRITE_FORBIDDEN" -> Res.string.error_no_write_access

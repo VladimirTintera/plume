@@ -604,11 +604,12 @@ fun ChatListScreen(
                                     }
                                 },
                                 onSecondary = {
-                                    // „Zapomněl(a) jsem" vede k heslu (změna, obnova e-mailem); jinde „Teď ne".
-                                    if (action == SuggestedAction.CheckPassword) {
-                                        onOpenScreen(AppScreen.TwoStepVerification)
-                                    } else {
-                                        viewModel.hideSuggestion(action)
+                                    // „Zapomněl(a) jsem" vede k heslu (změna, obnova e-mailem), „Změnit" ke změně
+                                    // čísla; jinde „Teď ne".
+                                    when (action) {
+                                        SuggestedAction.CheckPassword -> onOpenScreen(AppScreen.TwoStepVerification)
+                                        SuggestedAction.CheckPhoneNumber -> onOpenScreen(AppScreen.ChangePhone)
+                                        else -> viewModel.hideSuggestion(action)
                                     }
                                 },
                                 modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),

@@ -2854,7 +2854,7 @@
     <string name="suggestion_check_password_no">Zapomněl(a) jsem</string>
     <string name="suggestion_check_phone_title">Je %1$s pořád tvoje číslo?</string>
     <string name="suggestion_check_phone_title_unknown">Je tohle pořád tvoje číslo?</string>
-    <string name="suggestion_check_phone_text">Na tohle číslo chodí přihlašovací kódy. Změnit ho jde zatím v oficiální aplikaci Telegramu.</string>
+    <string name="suggestion_check_phone_text">Na tohle číslo chodí přihlašovací kódy.</string>
     <string name="suggestion_check_phone_yes">Ano, je</string>
     <string name="suggestion_set_password_title">Zabezpeč účet heslem</string>
     <string name="suggestion_set_password_text">Ochrání účet, i kdyby někdo získal přihlašovací kód.</string>
@@ -2881,4 +2881,15 @@
     <string name="login_email_confirm">Potvrdit</string>
     <string name="login_email_done">Přihlašovací e-mail je nastavený.</string>
     <string name="error_login_email_not_allowed">Telegram teď přihlašovací e-mail přidat nedovolí.</string>
+    <string name="error_phone_number_occupied">Tohle číslo už má jiný účet Telegramu.</string>
+    <string name="error_phone_number_banned">Tohle číslo má Telegram zablokované.</string>
+    <string name="error_fresh_change_phone">Číslo jde změnit až 24 hodin po přihlášení na tomhle zařízení.</string>
+    <string name="change_phone_row">Telefonní číslo</string>
+    <string name="change_phone_title">Změnit číslo</string>
+    <string name="change_phone_intro">Účet i všechny zprávy, média a kontakty zůstanou, mění se jen číslo, na které se přihlašuješ. Na nové číslo přijde kód.</string>
+    <string name="change_phone_send">Poslat kód</string>
+    <string name="change_phone_confirm">Změnit číslo</string>
+    <string name="change_phone_send_failed">Kód na tohle číslo se nepodařilo poslat.</string>
+    <string name="change_phone_failed">Číslo se nepodařilo změnit.</string>
+    <string name="suggestion_check_phone_change">Změnit</string>
 </resources>
