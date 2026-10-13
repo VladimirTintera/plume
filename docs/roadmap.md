@@ -456,7 +456,13 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    služba, přijetí z notifikace i nad zámkem, obrazovka hovoru, reproduktor, senzor
    přiblížení). Vyzvánění a Bluetooth taky (`docs/poznatky/hovory.md`, „Vyzvánění a výstup
    zvuku"). Změna sítě a systémový telefon taky (`docs/poznatky/hovory.md`, „Změna sítě
-   za hovoru", „Systémový telefon"). Zbývá na Androidu video.
+   za hovoru", „Systémový telefon"). Videohovory taky (`docs/poznatky/hovory.md`,
+   „Videohovory"). Zbývá na Androidu:
+   - **Obraz v obraze** pro videohovor po odchodu z aplikace (kamera i obraz protistrany na
+     pozadí běží, jen nejsou vidět).
+   - **Náhled vlastní kamery už při vytáčení** — snímky dává knihovna až po spojení.
+   - **Videohovor z obrazovky konverzace** (dnes jen z nabídky profilu) a zpětné volání
+     ťuknutím na zprávu o hovoru.
    Původní plán sondy:
 
    **Doporučení: C, začít dvoudenní sondou na Androidu.** ntgcalls v `debug` větvi, jen zvuk:

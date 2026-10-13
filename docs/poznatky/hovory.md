@@ -138,7 +138,53 @@ zhasnutý a zamčený telefon (rozsvítí se obrazovka hovoru nad zámkem, přij
 zmenšení, rozbalení a Zpět, a **Plume zabitý na pozadí** (`am kill`): push ho probudil,
 notifikace i obrazovka hovoru přišly a přijetí spojilo.
 
-**Co dál chybí**: video, iOS a desktop.
+**Co dál chybí**: iOS a desktop (video viz „Videohovory").
+
+## Videohovory
+
+Videohovor z nabídky profilu, kamera zapnutelná v každém hovoru (i v hlasovém, i u
+protistrany), přední / zadní kamera, obraz protistrany přes celou obrazovku a náš náhled
+v rohu. Ověřeno na Pixelu 5 a Pixelu 7 Pro: Plume ↔ Plume oběma směry, kamera zapnutá
+uprostřed hlasového hovoru, vypnutá a znovu zapnutá, přepnutí kamery, kamera na pozadí
+(plocha), a **Plume → oficiální Telegram pro Android** (obraz oběma směry).
+
+- **Kameru bere ntgcalls 3.0.3 sám** (zdroj DEVICE, `VideoDescription(DEVICE, 1280, 720, 30,
+  metadata kamery)`; metadata `{"id": …, "is_front": …}` z `NTgCalls.getMediaDevices()`).
+  Snímky z ní vrací i nám (`onFrames`, CAPTURE + CAMERA) — to Mithka nad 2.2.5 neměla
+  a kameru si brala sama přes EXTERNAL, s otáčením snímků a pády enkodéru. Pořadí argumentů
+  `VideoDescription` se mezi 2.x a 3.x změnilo (`width, height, fps, input, keepOpen`).
+- **Rozměr zdroje musí mít poměr stran kamery (na šířku)**: knihovna snímek škáluje přesně
+  na něj a otočení nese zvlášť (`frame.rotation`). Rozměr na výšku by obraz zdeformoval.
+- **Obraz protistrany se přijímá VŽDY**, i v hlasovém hovoru: PLAYBACK s kamerou EXTERNAL
+  (rozměr 0 = podle snímku). Příjem videa ntgcalls zapne jen s ní (`enable_video_incoming`)
+  a protistrana může kameru zapnout kdykoli.
+- **Stav kamery protistrany** chodí signalizační zprávou `MediaState` a knihovna ho pošle do
+  `onRemoteSourceChange` (CAMERA: ACTIVE / PAUSED / IDLING). Jen ACTIVE = je co ukázat.
+- **Přepnutí kamery výměnou zdroje kameru ZHASNE.** Jiné `input` ve `setStreamSources`
+  vyrobí nový zdroj dřív, než zruší starý: nový převezme sdílenou kameru (`SmartVideoSource`,
+  „Reusing video source"), starý pak naplánuje její uvolnění za 200 ms („Released video
+  source") a obraz stojí. Přepíná se proto přímo sdílená kamera — `SmartVideoSource.getInstance`
+  se stejným rozměrem a jiným id zavolá `switchCamera` (třída je neveřejná, reflexí; keep
+  pravidla ntgcalls jména drží). Když to po aktualizaci knihovny nepůjde, kamera se vypne
+  a hned zapne (protistrana na okamžik uvidí vypnutou kameru).
+- **Vykresluje `TextureViewRenderer` z AAR** (WebRTC nad EGL, sdílený kontext
+  `JavaVideoCapturerModule.getSharedEGLContext()`) v `AndroidView`; `TextureView`, ne
+  `SurfaceView`, aby šel oříznout do zaobleného rohu a překrýt ovládáním. Snímek z `onFrames`
+  (bajty I420) se kopíruje do přímého bufferu z malé zásoby — nový buffer pro 1,4MB snímek
+  30× za vteřinu by uvolnil až GC. Obraz stejné orientace jako plocha ji vyplní, jiné se vejde.
+- **Kamera na pozadí chce službu typu `camera`** (`FOREGROUND_SERVICE_CAMERA`): typ se přidá
+  se zapnutím kamery (vždycky akce v aplikaci, tedy z popředí) a ubere s vypnutím. Ověřeno:
+  na ploše kamera dál dává 30 snímků/s a protistrana je kreslí (`types=0xC4` ve `dumpsys
+  activity services`). **Typ `camera` je v Play potřeba deklarovat** u služeb v popředí.
+- **Videohovor jde do reproduktoru** (a zapnutí kamery v hlasovém hovoru přepne sluchátko na
+  reproduktor); senzor přiblížení s obrazem nezhasíná. Reproduktor vybraný při vytáčení,
+  kdy hovor v Telecomu ještě není, se uplatní po přihlášení (`TelecomAudioRoutes.pending`).
+- **Telecom dostane typ hovoru jen při přihlášení** (`CALL_TYPE_VIDEO_CALL`); kamera zapnutá
+  později ho nezmění — na chování to vliv nemá.
+- **Přijetí videohovoru** se ptá na kameru i mikrofon (`rememberVideoNotePermission`);
+  kdo kameru nepovolí, přijme bez ní — protistranu vidí, ona jeho ne.
+- **Při ladění logu: `grep` do souboru jen s `--line-buffered`.** Bez něj se poslední řádky
+  do souboru nedostanou a vypadá to, že se nic nestalo (tak to vypadalo s přepnutím kamery).
 
 ## Ticho při spojeném hovoru
 
