@@ -408,6 +408,40 @@ nové číslo, kód z něj, hotovo. Vede sem i doporučená akce „Je … poř�
   a zpět do úpravy profilu. **Skutečné odeslání kódu a změna čísla ověřené NEJSOU** — kód by
   šel SMS na cizí číslo a měnil by číslo skutečného účtu.
 
+## Smazání účtu a samosmazání
+
+Na konci „Soukromí účtu" je skupina „Smazání účtu" jako v oficiálních klientech: „Smazat, když
+tu nejsem" (samosmazání po neaktivitě) a „Smazat účet hned" (`DeleteAccountScreen`,
+`DeleteAccountRoute` nad `AccountPrivacyRoute`).
+
+- **Samosmazání: `getAccountTtl` / `setAccountTtl`**, volby 1, 3, 6, 12, 18 a 24 měsíců
+  (30, 90, 182, 365, 548, 730 dní). Update na to TDLib neposílá, takže volba se pohne hned
+  a při selhání se vrátí s větou pod řádkem (jako čas přečtení). **Server vrací i hodnoty,
+  které mezi volbami nejsou** (180, 183 dní) — `accountTtlMonths` je přiřadí ke stejnému počtu
+  měsíců, jinak by v nabídce stály dvě „6 měsíců" a vybraná by nebyla žádná. Hodnota, která
+  nesedí na nic, se vypíše počtem dní a zůstane v nabídce vybraná.
+- **`deleteAccount(reason, password)`: s heslem se účet smaže hned, bez hesla u účtu
+  s dvoufázovým ověřením se smazání jen NAPLÁNUJE na týden.** TDLib (`AuthManager::delete_account`)
+  s prázdným heslem pošle `account.deleteAccount` bez hesla a server odpoví
+  `2FA_CONFIRM_WAIT_<sekundy>`; to je reset účtu se zapomenutým heslem, jiná funkce. Obrazovka
+  proto napřed zjistí `PasswordRepository.status()` a s heslem chce heslo POVINNĚ; dokud stav
+  nedorazí (nebo selže), smazat nejde. Účet bez hesla pošle prázdné.
+- **Heslo se neořezává** (mezera na konci k němu patří) a nikam se neloguje; žije jen ve
+  ViewModelu, ne v uloženém stavu. Špatné heslo je `PASSWORD_HASH_INVALID` → „Heslo nesedí".
+- **Dvě ťuknutí a obě říkají následek**: tlačítko v chybové barvě pod textem o tom, co zmizí
+  a co zůstane (kontakty a cloud pryč, u ostatních „Smazaný účet", skupiny a kanály bez
+  zakladatele, nový účet na totéž číslo od nuly — TDLib: „The phone number of the account can be
+  used to create a new account"), pak dialog „Smazat účet natrvalo?".
+- **Po smazání TDLib zahodí klíče** (`destroy_auth_keys`) a klient se zavře stejně jako po
+  odhlášení: `AuthStage.LoggingOut`, úklid (zámek aplikace, …) a nový klient na přihlášení.
+  Obrazovka nic dalšího nedělá, tlačítko jen zůstane točit.
+- **Ověřeno**: `DeleteAccountViewModelTest` (bez hesla prázdné heslo a ořezaný důvod, s heslem
+  bez vyplnění nic, špatné heslo, nezjištěný stav, převod lhůty na měsíce); na emulátoru skupina
+  v Soukromí účtu se lhůtou „12 měsíců" ze serveru, nabídka lhůt (zavřená bez výběru), obrazovka
+  smazání bez hesla (testovací účet heslo nemá) a **se sondou** (vynucené heslo, `deleteAccount`
+  nahrazené chybou bez volání TDLib) potvrzovací dialog a „Heslo nesedí". **Skutečné smazání
+  ani změna lhůty vyzkoušené NEJSOU** — obojí by měnilo skutečný účet.
+
 ## Zařízení (aktivní relace)
 
 Sekce Nastavení „Zařízení" (`features/devices`): kde je účet přihlášený, odhlášení jednoho nebo

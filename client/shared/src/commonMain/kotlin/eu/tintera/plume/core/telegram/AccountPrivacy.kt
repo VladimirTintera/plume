@@ -25,6 +25,14 @@ interface PrivacyRepository {
     suspend fun setShowsReadDate(show: Boolean): Result<Unit>
 
     /**
+     * Po kolika dnech bez přihlášení se účet sám smaže (`getAccountTtl`). Update na to TDLib
+     * neposílá.
+     */
+    suspend fun accountTtlDays(): Result<Int> = Result.failure(UnsupportedOperationException())
+
+    suspend fun setAccountTtlDays(days: Int): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /**
      * Jména a fotky výjimek. Čte se lokálně; kdo se dočíst nedá (smazaný účet), dostane prázdné
      * jméno a UI dosadí vlastní — z výjimek ho nevyhazujeme, server ho v pravidlech drží dál.
      */

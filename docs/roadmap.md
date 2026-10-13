@@ -349,7 +349,8 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 **Účet a nastavení:**
 
 - ~~Změna telefonního čísla~~ — hotovo (úprava profilu → Telefonní číslo).
-- Smazání účtu a samosmazání po neaktivitě (`deleteAccount`, `getAccountTtl` / `setAccountTtl`).
+- ~~Smazání účtu a samosmazání po neaktivitě~~ — hotovo (Soukromí účtu → Smazání účtu;
+  `docs/poznatky/nastaveni.md`, „Smazání účtu a samosmazání").
 - ~~Přihlašovací e-mail~~ (hotovo) a přístupové klíče (`addLoginPasskey`, `getLoginPasskeys`).
 - Narozeniny: vlastní datum (`setBirthdate`) a pruh s narozeninami kontaktů
   (`contactCloseBirthdaysUpdates`); soukromí narozenin hotové je.

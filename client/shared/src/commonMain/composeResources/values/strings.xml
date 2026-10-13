@@ -2810,4 +2810,21 @@
     <string name="change_phone_send_failed">Couldn't send the code to this number.</string>
     <string name="change_phone_failed">Couldn't change the number.</string>
     <string name="suggestion_check_phone_change">Change</string>
+    <string name="privacy_section_delete">Delete account</string>
+    <string name="privacy_account_ttl">Delete if away for</string>
+    <string name="privacy_account_ttl_text">If you don't sign in from any device for this long, the account is deleted along with your contacts and cloud data.</string>
+    <string name="privacy_delete_now">Delete account now</string>
+    <string name="delete_account_title">Delete account</string>
+    <string name="delete_account_intro">Your account will be deleted along with your contacts and everything stored in the cloud. People you chatted with will see “Deleted Account” instead of you. Groups and channels you created stay, without their creator; admins keep their rights.</string>
+    <string name="delete_account_undo">This can't be undone. You can sign up again with the same number later, but the new account starts from scratch.</string>
+    <string name="delete_account_away">Just want a break? You can sign out instead, or have the account deleted only after a long time away (Account privacy).</string>
+    <string name="delete_account_reason">Why are you leaving? (optional)</string>
+    <string name="delete_account_password">Your account is protected by two-step verification. Enter the password to confirm.</string>
+    <string name="delete_account_button">Delete account</string>
+    <string name="delete_account_confirm_title">Delete account for good?</string>
+    <string name="delete_account_confirm_text">The account is deleted right away and Plume signs out. This can't be undone.</string>
+    <string name="delete_account_confirm">Delete</string>
+    <string name="delete_account_failed">Couldn't delete the account. Try again.</string>
+    <string name="delete_account_status_failed">Couldn't find out whether the account is protected by a password.</string>
+    <string name="delete_account_retry">Try again</string>
 </resources>

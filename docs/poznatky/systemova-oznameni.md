@@ -39,7 +39,7 @@ nahoře v seznamu chatů (`FrozenAccountCard`).
 - **Ťuknutí mimo ani zpět ho nezavřou** (blokující), ale **odmítnout tu nejde, jen odložit**
   („Teď ne", do příštího startu). Odmítnutí podle TDLib znamená smazat účet (`deleteAccount`
   s důvodem „Decline ToS update") — nevratný krok, který do dialogu s dlouhým právním textem
-  nepatří. Kdo chce účet smazat, udělá to vědomě jinde.
+  nepatří. Kdo chce účet smazat, udělá to vědomě jinde (Soukromí účtu → Smazat účet hned).
 - **Dlouhý text se v dialogu posouvá**, tlačítka zůstávají vidět. Věková hranice
   (`minUserAge`) je nad textem.
 - Chyba přijetí zůstane v dialogu (věta, ne hláška TDLib); dialog se nezavře.

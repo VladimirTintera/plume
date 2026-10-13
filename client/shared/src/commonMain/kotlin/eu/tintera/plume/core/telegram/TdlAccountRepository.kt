@@ -102,6 +102,13 @@ class TdlAccountRepository(
         client.checkPhoneNumberCode(code = code).toResult().map { }
             .onFailure { logger.w(it) { "Kód z nového čísla neprošel." } }
 
+    override suspend fun deleteAccount(reason: String, password: String): Result<Unit> =
+        client.deleteAccount(reason = reason, password = password)
+            .toResult()
+            .map { }
+            // Heslo do logu nejde, jen hláška TDLib (konstanta jako PASSWORD_HASH_INVALID).
+            .onFailure { logger.w(it) { "Účet se nepodařilo smazat." } }
+
     override suspend fun contactLink(): Result<ContactLink> =
         client.getUserLink().toResult().map { ContactLink(url = it.url, expiresInSeconds = it.expiresIn) }
             .onFailure { logger.w(it) { "Kontaktní odkaz se nepodařilo vyrobit." } }

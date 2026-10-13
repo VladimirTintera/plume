@@ -2892,4 +2892,21 @@
     <string name="change_phone_send_failed">Kód na tohle číslo se nepodařilo poslat.</string>
     <string name="change_phone_failed">Číslo se nepodařilo změnit.</string>
     <string name="suggestion_check_phone_change">Změnit</string>
+    <string name="privacy_section_delete">Smazání účtu</string>
+    <string name="privacy_account_ttl">Smazat, když tu nejsem</string>
+    <string name="privacy_account_ttl_text">Když se po tuhle dobu nepřihlásíš z žádného zařízení, účet se smaže i s kontakty a daty v cloudu.</string>
+    <string name="privacy_delete_now">Smazat účet hned</string>
+    <string name="delete_account_title">Smazat účet</string>
+    <string name="delete_account_intro">Účet se smaže i s kontakty a vším, co je uložené v cloudu. Kdo si s tebou psal, uvidí místo tebe „Smazaný účet“. Skupiny a kanály, které jsi založil, zůstanou bez zakladatele; správci si práva ponechají.</string>
+    <string name="delete_account_undo">Vrátit to nejde. Na stejné číslo si později můžeš založit nový účet, ale začne od nuly.</string>
+    <string name="delete_account_away">Chceš jen pauzu? Můžeš se odhlásit, nebo nechat účet smazat až po dlouhé nepřítomnosti (Soukromí účtu).</string>
+    <string name="delete_account_reason">Proč odcházíš? (nepovinné)</string>
+    <string name="delete_account_password">Účet chrání dvoufázové ověření. Pro potvrzení zadej heslo.</string>
+    <string name="delete_account_button">Smazat účet</string>
+    <string name="delete_account_confirm_title">Smazat účet natrvalo?</string>
+    <string name="delete_account_confirm_text">Účet se smaže hned a Plume se odhlásí. Vrátit to nepůjde.</string>
+    <string name="delete_account_confirm">Smazat</string>
+    <string name="delete_account_failed">Účet se nepodařilo smazat. Zkus to znovu.</string>
+    <string name="delete_account_status_failed">Nepodařilo se zjistit, jestli účet chrání heslo.</string>
+    <string name="delete_account_retry">Zkusit znovu</string>
 </resources>

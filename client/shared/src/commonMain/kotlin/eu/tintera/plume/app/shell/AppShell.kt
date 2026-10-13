@@ -19,6 +19,7 @@ import eu.tintera.plume.core.navigation.MemberRightsRoute
 import eu.tintera.plume.core.navigation.EditChatRoute
 import eu.tintera.plume.core.navigation.EditProfileRoute
 import eu.tintera.plume.core.navigation.AccountPrivacyRoute
+import eu.tintera.plume.core.navigation.DeleteAccountRoute
 import eu.tintera.plume.core.navigation.BlockSenderRoute
 import eu.tintera.plume.core.navigation.BlockedSendersRoute
 import eu.tintera.plume.core.navigation.PrivacySettingRoute
@@ -28,6 +29,7 @@ import eu.tintera.plume.core.navigation.TwoStepRoute
 import eu.tintera.plume.core.navigation.LoginEmailRoute
 import eu.tintera.plume.core.navigation.ChangePhoneRoute
 import eu.tintera.plume.features.settings.ChangePhoneScreen
+import eu.tintera.plume.features.settings.DeleteAccountScreen
 import eu.tintera.plume.features.settings.LoginEmailScreen
 import eu.tintera.plume.core.navigation.AppLockRoute
 import eu.tintera.plume.core.navigation.ChatFolderEditRoute
@@ -1165,7 +1167,14 @@ private fun shellEntryProvider(
             viewModel = koinViewModel(),
             onBack = { settingsStack.pop(route) },
             onOpen = { setting -> if (settingsStack.lastOrNull() !is PrivacySettingRoute) settingsStack.add(PrivacySettingRoute(setting)) },
+            onDeleteAccount = { if (settingsStack.lastOrNull() != DeleteAccountRoute) settingsStack.add(DeleteAccountRoute) },
         )
+    }
+
+    entry<DeleteAccountRoute>(
+        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+    ) { route ->
+        DeleteAccountScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     entry<PrivacySettingRoute>(
@@ -1451,7 +1460,7 @@ private fun NavKey?.isOverSettingsSection(): Boolean =
         this == LoginEmailRoute || this == ChangePhoneRoute ||
         this == AppLockRoute || this == ChatFoldersRoute || this is ChatFolderEditRoute || this == ProxySettingsRoute ||
         this == StickerSetsRoute || this == EmojiSetsRoute ||
-        this == AccountPrivacyRoute || this is PrivacySettingRoute
+        this == AccountPrivacyRoute || this is PrivacySettingRoute || this == DeleteAccountRoute
 
 /** Kontejner obrazovky chatu (konverzace, seznam témat) v barvě chatu (`ChatColorTheme`). */
 @Composable

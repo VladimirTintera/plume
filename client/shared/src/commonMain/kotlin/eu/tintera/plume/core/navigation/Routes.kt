@@ -88,6 +88,10 @@ data object BlockSenderRoute : Route
 @Serializable
 data object AccountPrivacyRoute : Route
 
+/** Smazání účtu. Vrší se nad [AccountPrivacyRoute], kde je samosmazání po neaktivitě. */
+@Serializable
+data object DeleteAccountRoute : Route
+
 /** Jedno nastavení soukromí s výjimkami. Vrší se nad [AccountPrivacyRoute]. */
 @Serializable
 data class PrivacySettingRoute(val setting: PrivacySetting) : Route
@@ -445,6 +449,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(BlockedSendersRoute::class, BlockedSendersRoute.serializer())
             subclass(BlockSenderRoute::class, BlockSenderRoute.serializer())
             subclass(AccountPrivacyRoute::class, AccountPrivacyRoute.serializer())
+            subclass(DeleteAccountRoute::class, DeleteAccountRoute.serializer())
             subclass(PrivacySettingRoute::class, PrivacySettingRoute.serializer())
             subclass(TwoStepRoute::class, TwoStepRoute.serializer())
             subclass(LoginEmailRoute::class, LoginEmailRoute.serializer())

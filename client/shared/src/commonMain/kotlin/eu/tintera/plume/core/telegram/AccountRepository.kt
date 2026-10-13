@@ -34,10 +34,6 @@ interface AccountRepository {
     suspend fun deletePhoto(): Result<Unit>
 
     /**
-     * Odkaz, přes který si mě druhý najde a napíše mi (QR kód „Můj kontakt"). Server ho při
-     * každém volání může vydat nový; viz [ContactLink].
-     */
-    /**
      * Pošle kód na NOVÉ číslo (`sendPhoneNumberCode` s `PhoneNumberCodeTypeChange`). Číslo se
      * změní až po [checkPhoneChangeCode]; účet i všechna data v cloudu zůstávají, mění se jen
      * číslo, na které se přihlašuje.
@@ -51,7 +47,22 @@ interface AccountRepository {
     /** Kód z nového čísla — tím se číslo účtu změní. */
     suspend fun checkPhoneChangeCode(code: String): Result<Unit> = Result.failure(UnsupportedOperationException())
 
+    /**
+     * Odkaz, přes který si mě druhý najde a napíše mi (QR kód „Můj kontakt"). Server ho při
+     * každém volání může vydat nový; viz [ContactLink].
+     */
     suspend fun contactLink(): Result<ContactLink>
+
+    /**
+     * Smaže účet natrvalo (`deleteAccount`). Účet s dvoufázovým ověřením musí poslat heslo:
+     * bez něj by server smazání jen naplánoval na týden (`2FA_CONFIRM_WAIT_…`). Po úspěchu TDLib
+     * zahodí klíče a klient se zavře stejně jako po odhlášení.
+     *
+     * @param reason proč odchází, smí být prázdné; jde Telegramu.
+     * @param password heslo dvoufázového ověření, prázdné u účtu bez něj.
+     */
+    suspend fun deleteAccount(reason: String, password: String): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
 }
 
 /**

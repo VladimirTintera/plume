@@ -24,7 +24,31 @@ data class AccountPrivacyState(
     val readDate: Boolean? = null,
     val readDateFailed: Boolean = false,
     val isPremium: Boolean = false,
+    /** Po kolika dnech bez přihlášení se účet smaže; `null` = ještě se načítá (nebo selhalo). */
+    val accountTtlDays: Int? = null,
+    val accountTtlFailed: Boolean = false,
 )
+
+/**
+ * Volby samosmazání účtu jako v oficiálním klientu: 1, 3, 6, 12, 18 a 24 měsíců ve dnech, které
+ * server bere.
+ */
+internal val ACCOUNT_TTL_OPTIONS = listOf(30, 90, 182, 365, 548, 730)
+
+/**
+ * Kolik měsíců hodnota znamená, nebo `null`, když neodpovídá žádné volbě (jiný klient,
+ * výchozí hodnota serveru). Server vrací i 180 nebo 183 dní místo našich 182 — pořád „6 měsíců"
+ * a pořád vybraná volba, jinak by v nabídce stály dvě stejné.
+ */
+internal fun accountTtlMonths(days: Int): Int? = when (days) {
+    in 28..31 -> 1
+    in 89..92 -> 3
+    in 180..184 -> 6
+    in 365..366 -> 12
+    in 545..550 -> 18
+    in 729..732 -> 24
+    else -> null
+}
 
 /**
  * Seznam „Soukromí účtu". Každé nastavení je živé ([PrivacyRepository.rules]), takže se tu
@@ -55,6 +79,11 @@ class AccountPrivacyViewModel(
                 .onSuccess { show -> _state.update { it.copy(readDate = show) } }
                 .onFailure { _state.update { it.copy(readDateFailed = true) } }
         }
+        viewModelScope.launch {
+            privacy.accountTtlDays()
+                .onSuccess { days -> _state.update { it.copy(accountTtlDays = days) } }
+                .onFailure { _state.update { it.copy(accountTtlFailed = true) } }
+        }
         viewModelScope.launch { chats.isPremium.collect { premium -> _state.update { it.copy(isPremium = premium) } } }
     }
 
@@ -69,6 +98,19 @@ class AccountPrivacyViewModel(
         viewModelScope.launch {
             privacy.setShowsReadDate(show).onFailure {
                 _state.update { it.copy(readDate = previous, readDateFailed = true) }
+            }
+        }
+    }
+
+    /** Jako čas přečtení: volba se změní hned a při selhání se vrátí s větou pod sebou. */
+    fun setAccountTtl(days: Int) {
+        val previous = _state.value.accountTtlDays ?: return
+        // 180 → 182 je pořád „6 měsíců"; zápis by nic nezměnil.
+        if (previous == days || accountTtlMonths(previous)?.let { it == accountTtlMonths(days) } == true) return
+        _state.update { it.copy(accountTtlDays = days, accountTtlFailed = false) }
+        viewModelScope.launch {
+            privacy.setAccountTtlDays(days).onFailure {
+                _state.update { it.copy(accountTtlDays = previous, accountTtlFailed = true) }
             }
         }
     }
