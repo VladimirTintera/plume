@@ -46,6 +46,7 @@ import eu.tintera.plume.resources.suggestion_check_phone_title_unknown
 import eu.tintera.plume.resources.suggestion_check_phone_yes
 import eu.tintera.plume.resources.suggestion_custom_action
 import eu.tintera.plume.resources.suggestion_later
+import eu.tintera.plume.resources.suggestion_login_email_action
 import eu.tintera.plume.resources.suggestion_login_email_text
 import eu.tintera.plume.resources.suggestion_login_email_title
 import eu.tintera.plume.resources.suggestion_profile_photo_action
@@ -67,7 +68,7 @@ import org.jetbrains.compose.resources.stringResource
  *
  * „Teď ne" akci schová na serveru (`hideSuggestedAction`), takže se neukáže ani v jiném klientovi.
  * Přihlašovací e-mail, který Telegram vyžaduje ([SuggestedAction.SetLoginEmail.canBeHidden]
- * `false`), schovat nejde.
+ * `false`), schovat nejde — jen nastavit.
  */
 @Composable
 fun SuggestedActionCard(
@@ -174,7 +175,7 @@ private fun SuggestedAction.content(phone: String?): SuggestionContent = when (t
         icon = Res.drawable.alternate_email_24dp,
         title = UiText(Res.string.suggestion_login_email_title),
         text = UiText(Res.string.suggestion_login_email_text),
-        primary = null,
+        primary = Res.string.suggestion_login_email_action,
         secondary = Res.string.suggestion_later.takeIf { canBeHidden },
     )
     SuggestedAction.SetProfilePhoto -> SuggestionContent(

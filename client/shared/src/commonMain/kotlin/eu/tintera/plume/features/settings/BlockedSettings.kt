@@ -111,6 +111,7 @@ internal fun PrivacySettings(
     onOpenAccountPrivacy: () -> Unit,
     onOpenTwoStep: () -> Unit,
     onOpenAppLock: () -> Unit,
+    onOpenLoginEmail: () -> Unit,
 ) {
     SettingsGroup(Res.string.settings_privacy) {
         AccountPrivacyRow(onOpenAccountPrivacy)
@@ -118,6 +119,7 @@ internal fun PrivacySettings(
         DefaultAutoDeleteRow(autoDelete)
         SensitiveContentRow(sensitive)
         TwoStepRow(twoStep, onOpenTwoStep)
+        LoginEmailRow(twoStep, onOpenLoginEmail)
         AppLockRow(onOpenAppLock)
         StripTrackingParametersRow()
         DiscreetReadingRow()

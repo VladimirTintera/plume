@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
+import dev.g000sha256.tdl.dto.EmailAddressAuthenticationCode
 import dev.g000sha256.tdl.TdlClient
 import dev.g000sha256.tdl.dto.EmailAddressAuthenticationCodeInfo
 import dev.g000sha256.tdl.dto.PasswordState
@@ -56,6 +57,22 @@ class TdlPasswordRepository(private val holder: TelegramClientHolder) : Password
         client.resendRecoveryEmailAddressCode().toResult().map { it.toStatus() }
             .onFailure { logger.w(it) { "Kód se nepodařilo poslat znovu" } }
 
+    /** Neúspěch není chyba, jen „nevyžaduje" — TDLib jinou odpověď než `Ok` a chybu nemá. */
+    override suspend fun isLoginEmailRequired(): Result<Boolean> =
+        Result.success(client.isLoginEmailAddressRequired().toResult().isSuccess)
+
+    override suspend fun setLoginEmail(email: String): Result<EmailCodeInfo> =
+        client.setLoginEmailAddress(newLoginEmailAddress = email).toResult().map { it.toInfo() }
+            .onFailure { logger.w(it) { "Kód na přihlašovací e-mail se nepodařilo poslat" } }
+
+    override suspend fun checkLoginEmailCode(code: String): Result<Unit> =
+        client.checkLoginEmailAddressCode(code = EmailAddressAuthenticationCode(code = code)).toResult().map { }
+            .onFailure { logger.w(it) { "Kód z přihlašovacího e-mailu neprošel" } }
+
+    override suspend fun resendLoginEmailCode(): Result<EmailCodeInfo> =
+        client.resendLoginEmailAddressCode().toResult().map { it.toInfo() }
+            .onFailure { logger.w(it) { "Kód na přihlašovací e-mail se nepodařilo poslat znovu" } }
+
     override suspend fun cancelEmailVerification(): Result<TwoStepStatus> =
         client.cancelRecoveryEmailAddressVerification().toResult().map { it.toStatus() }
             .onFailure { logger.w(it) { "Ověření e-mailu se nepodařilo zrušit" } }
@@ -94,6 +111,7 @@ private fun PasswordState.toStatus() = TwoStepStatus(
     hasPassportData = hasPassportData,
     pendingEmail = recoveryEmailAddressCodeInfo?.toInfo(),
     resetDate = pendingResetDate.toLong(),
+    loginEmailPattern = loginEmailAddressPattern.takeIf { it.isNotBlank() },
 )
 
 private fun EmailAddressAuthenticationCodeInfo.toInfo() = EmailCodeInfo(pattern = emailAddressPattern, length = length)

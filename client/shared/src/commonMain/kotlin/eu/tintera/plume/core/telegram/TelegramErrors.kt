@@ -6,6 +6,7 @@ import eu.tintera.plume.resources.error_about_too_long
 import eu.tintera.plume.resources.error_admin_required
 import eu.tintera.plume.resources.error_code_resend_unavailable
 import eu.tintera.plume.resources.error_email_not_allowed
+import eu.tintera.plume.resources.error_login_email_not_allowed
 import eu.tintera.plume.resources.error_email_reset_pending
 import eu.tintera.plume.resources.error_first_name_invalid
 import eu.tintera.plume.resources.error_username_invalid
@@ -140,6 +141,8 @@ internal fun errorText(raw: String?, fallback: StringResource): UiText {
         "PASSWORD_RECOVERY_EXPIRED", "EMAIL_VERIFY_EXPIRED" -> Res.string.error_recovery_code_expired
         // Přihlašovací e-mail (`account.sendVerifyEmailCode`, `auth.resetLoginEmail`; dokumentace metod).
         "EMAIL_NOT_ALLOWED" -> Res.string.error_email_not_allowed
+        // Změna přihlašovacího e-mailu u účtu, který žádný nemá a Telegram ho po něm nechce.
+        "EMAIL_NOT_SETUP" -> Res.string.error_login_email_not_allowed
         "TASK_ALREADY_EXISTS" -> Res.string.error_email_reset_pending
         "PASSWORD_RECOVERY_NA" -> Res.string.error_recovery_unavailable
         // Adresa, kterou server nevezme a hrubé síto propustilo (dvoufázové ověření, přihlašovací e-mail).

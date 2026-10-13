@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.features.settings.LoginEmailViewModel
 import eu.tintera.plume.features.chats.NaturalSearchModel
 import eu.tintera.plume.features.conversation.LocalTranscripts
 import eu.tintera.plume.features.conversation.ScamWarnings
@@ -456,6 +457,7 @@ fun appModule() = module {
     }
     viewModelOf(::DefaultAutoDeleteViewModel)
     viewModelOf(::TwoStepViewModel)
+    viewModel { LoginEmailViewModel(passwords = get(), notices = get()) }
     viewModelOf(::AppLockViewModel)
     // Widget na plochu jen tam, kde ho platforma má (Android).
     viewModel { AppearanceViewModel(settings = get(), homeWidgets = getOrNull()) }

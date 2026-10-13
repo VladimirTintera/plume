@@ -66,6 +66,10 @@ data object BlockedSendersRoute : Route
 @Serializable
 data object TwoStepRoute : Route
 
+/** Přihlašovací e-mail. Vrší se nad sekci Obecné jako [TwoStepRoute]; kroky jsou stav obrazovky. */
+@Serializable
+data object LoginEmailRoute : Route
+
 /**
  * Zámek aplikace (PIN a biometrie). Vrší se nad sekci Obecné stejně jako [TwoStepRoute].
  */
@@ -439,6 +443,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(AccountPrivacyRoute::class, AccountPrivacyRoute.serializer())
             subclass(PrivacySettingRoute::class, PrivacySettingRoute.serializer())
             subclass(TwoStepRoute::class, TwoStepRoute.serializer())
+            subclass(LoginEmailRoute::class, LoginEmailRoute.serializer())
             subclass(AppLockRoute::class, AppLockRoute.serializer())
             subclass(ChatFoldersRoute::class, ChatFoldersRoute.serializer())
             subclass(StickerSetsRoute::class, StickerSetsRoute.serializer())

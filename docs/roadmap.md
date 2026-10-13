@@ -322,8 +322,8 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - ~~**Systémové updaty bez odběru:** podmínky služby, oznámení od Telegramu, zmrazený účet~~ —
   hotovo (`docs/poznatky/systemova-oznameni.md`); skutečný update od serveru neověřený.
 - ~~**Doporučené akce**~~ — hotovo (karta v seznamu chatů; `docs/poznatky/systemova-oznameni.md`,
-  „Doporučené akce"). Zbývá nastavení přihlašovacího e-mailu (`setLoginEmailAddress`) a změna
-  čísla — dnes na ně karta odkazuje do oficiální aplikace.
+  „Doporučené akce"). ~~Nastavení přihlašovacího e-mailu~~ — hotovo (`docs/poznatky/nastaveni.md`,
+  „Přihlašovací e-mail"). Zbývá změna čísla — dnes na ni karta odkazuje do oficiální aplikace.
 
 **Správa skupin a kanálů** (nad rámec názvu, popisu, fotky, práv a pozvánek):
 
@@ -350,8 +350,7 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 
 - Změna telefonního čísla (`sendPhoneNumberCode` / `checkPhoneNumberCode`).
 - Smazání účtu a samosmazání po neaktivitě (`deleteAccount`, `getAccountTtl` / `setAccountTtl`).
-- Přihlašovací e-mail (`setLoginEmailAddress`, `checkLoginEmailAddressCode`) a přístupové
-  klíče (`addLoginPasskey`, `getLoginPasskeys`).
+- ~~Přihlašovací e-mail~~ (hotovo) a přístupové klíče (`addLoginPasskey`, `getLoginPasskeys`).
 - Narozeniny: vlastní datum (`setBirthdate`) a pruh s narozeninami kontaktů
   (`contactCloseBirthdaysUpdates`); soukromí narozenin hotové je.
 - Osobní kanál v profilu (`setPersonalChat`), víc uživatelských jmen
