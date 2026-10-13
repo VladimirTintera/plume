@@ -289,6 +289,104 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
       a iOS rozšíření, které dnes chat vybírá samo — mohlo by jen předat obsah a výběr nechat
       aplikaci, pak by na obou platformách fungovalo sdílení stejně.
 
+## Mezery proti API TDLib
+
+Porovnání API ve wrapperu `tdl-coroutines` 15.0.0 s tím, co volá `core/telegram` (říjen 2026):
+**z 1022 funkcí se volá 294, ze 190 updatů se odebírá 70.** Většinu zbytku tvoří Bot API,
+Telegram Business, Passport a testovací volání, které klient nepotřebuje. Sem patří jen to, co
+v jiné sekci roadmapy (nebo v [roadmap-konverzace.md](roadmap-konverzace.md)) zapsané nebylo;
+hovory, příběhy, platby, hvězdy a dárky mají své místo jinde.
+
+Porovnání se dá zopakovat: jména funkcí z `TdlClient.kt` ve zdrojovém jaru wrapperu
+(`grep -oE "suspend fun [a-zA-Z]+"`, updaty `val [a-zA-Z]+Updates`) proti
+`grep -rl "dev.g000sha256.tdl" client` a hledání `\bjméno\(`. Výsledek je hrubé síto:
+funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc může dělat jiné volání).
+
+**Co uživatele zablokuje nebo vypadá jako chyba** — přednostně:
+
+- **Přihlášení s e-mailovým kódem.** `AuthorizationStateWaitEmailAddress` /
+  `…WaitEmailCode` končí v `TdlTelegramSession` hláškou „nepodporováno"
+  (`auth_error_email_unsupported`), přitom Telegram e-mail při přihlášení chce čím dál častěji.
+  Chybí `setAuthenticationEmailAddress`, `checkAuthenticationEmailCode`,
+  `resetAuthenticationEmailAddress` (a přihlášení přes Apple / Google ID, které ten stav nabízí).
+- **Ověření aplikace při přihlášení.** `applicationVerificationRequiredUpdates`
+  a `applicationRecaptchaVerificationRequiredUpdates` nikdo neodebírá; když server před
+  odesláním kódu chce Play Integrity nebo reCAPTCHA, přihlášení zůstane viset bez hlášky.
+  Odpovídá se `setApplicationVerificationToken`. Ověřit, jestli to pro `api_id` Plume vůbec
+  nastává (`docs/poznatky/prihlaseni.md`, „Kód jinou cestou").
+- **Neodeslanou zprávu nejde poslat znovu.** `SendState.Failed` se v bublině ukáže, ale
+  `resendMessages` se nevolá — zbývá zprávu smazat a napsat znovu.
+- **Fotka chatu se nejspíš neobnovuje živě.** `chatPhotoUpdates` nikdo neodebírá a
+  `TdlChatRepository` bere `avatarFileId` jen z objektu chatu při `upsert`; nová fotka skupiny
+  nebo kontaktu by se tak v seznamu ukázala až po restartu. Odvozené z kódu, NEOVĚŘENO.
+- **Profil se živě neobnovuje** (`userFullInfoUpdates`; přiznané v `ChatProfileViewModel`).
+- **Systémové updaty bez odběru:** `termsOfServiceUpdates` (nové podmínky služby — oficiální
+  klient je musí ukázat), `serviceNotificationUpdates` (oznámení od Telegramu, část z nich má
+  být popup), `suggestedActionsUpdates` („ověř heslo", „ověř telefonní číslo"…),
+  `freezeStateUpdates` (zmrazený účet — dnes by se projevil jen chybami u akcí).
+
+**Správa skupin a kanálů** (nad rámec názvu, popisu, fotky, práv a pozvánek):
+
+- Pomalý režim (`setChatSlowModeDelay`), povolené reakce (`setChatAvailableReactions`),
+  ochrana obsahu (`toggleChatHasProtectedContent`).
+- Přepínače supergroupy: vstup na žádost, psát až po vstupu, podpisy autorů, skrytí členů,
+  historie pro nové členy, agresivní antispam, automatický překlad
+  (`toggleSupergroupJoinByRequest`, `…JoinToSendMessages`, `…SignMessages`, `…HasHiddenMembers`,
+  `…IsAllHistoryAvailable`, `…HasAggressiveAntiSpamEnabled`, `…HasAutomaticTranslation`).
+- Seznamy vyhozených a omezených členů — `SupergroupMembersFilterBanned` / `…Restricted` se
+  nepoužívají, takže zrušit vyhození jde jen tomu, koho má správce zrovna před sebou.
+- Při mazání zprávy člena „smazat vše od něj" a „nahlásit spam" (`deleteChatMessagesBySender`,
+  `reportSupergroupSpam`, `deleteAllRecentMessageReactionsFromSender`).
+- Odepnout všechny zprávy (`unpinAllChatMessages`, `unpinAllForumTopicMessages`).
+- Smazat skupinu nebo kanál pro všechny (`deleteChat`) — dnes jen opustit.
+- Záznam posledních akcí (`getChatEventLog`) a statistiky kanálu a příspěvku
+  (`getChatStatistics`, `getMessageStatistics`, `getMessagePublicForwards`).
+- Psaní jménem kanálu ve skupině (`getChatAvailableMessageSenders`, `setChatMessageSender`).
+- Přímé zprávy kanálu (monoforum: `loadDirectMessagesChatTopics` a spol.) a navrhované příspěvky
+  (`approveSuggestedPost`).
+- Zobrazení fóra jako jednoho seznamu zpráv (`toggleChatViewAsTopics`).
+
+**Účet a nastavení:**
+
+- Změna telefonního čísla (`sendPhoneNumberCode` / `checkPhoneNumberCode`).
+- Smazání účtu a samosmazání po neaktivitě (`deleteAccount`, `getAccountTtl` / `setAccountTtl`).
+- Přihlašovací e-mail (`setLoginEmailAddress`, `checkLoginEmailAddressCode`) a přístupové
+  klíče (`addLoginPasskey`, `getLoginPasskeys`).
+- Narozeniny: vlastní datum (`setBirthdate`) a pruh s narozeninami kontaktů
+  (`contactCloseBirthdaysUpdates`); soukromí narozenin hotové je.
+- Osobní kanál v profilu (`setPersonalChat`), víc uživatelských jmen
+  (`reorderActiveUsernames`, `toggleUsernameIsActive`).
+- Statistika přenesených dat (`getNetworkStatistics`) a automatické ukládání médií do galerie
+  (`getAutosaveSettings` / `setAutosaveSettings`).
+- Notifikace reakcí (`setReactionNotificationSettings`) a zvuky notifikací z Telegramu
+  (`getSavedNotificationSounds`; viz [Notifikace](#notifikace)).
+- Podpora — „Zeptat se" (`getSupportUser`).
+
+**Konverzace a hledání:**
+
+- Skok na datum a kalendář médií (`getChatMessageByDate`, `getChatMessageCalendar`,
+  `getChatSparseMessagePositions`).
+- Instant View článků (`getWebPageInstantView`) — dnes se otevírají v prohlížeči.
+- Checklisty: zobrazí se jen jako popis „Seznam úkolů: …" (`MessageContent.kt`); vytvořit,
+  doplnit ani odškrtnout je nejde (`InputMessageChecklist`, `addChecklistTasks`,
+  `markChecklistTasksAsDone`).
+- Výměna média při úpravě zprávy (`editMessageMedia`).
+- Hudba se posílá jako soubor, ne jako audio (`InputMessageAudio` se nepoužívá).
+- Ťuknutí na velké animované emoji s efektem pro oba (`clickAnimatedEmojiMessage`,
+  `animatedEmojiMessageClickedUpdates`).
+- Napovídání hashtagů a nedávných inline botů (`searchHashtags`, `getRecentInlineBots`).
+- Ankety: smazat možnost (`deletePollOption`), statistika hlasů (`getPollVoteStatistics`).
+- Označit celou složku jako přečtenou (`readChatList`).
+- Odebrat jednu položku z nedávného hledání a z nejčastějších lidí (`removeRecentlyFoundChat`,
+  `removeTopChat`).
+- Záložky profilu, které chybí: společné skupiny (`getGroupsInCommon`), podobné kanály
+  (`getChatSimilarChats`), GIFy a kolečka (filtry `SearchMessagesFilterAnimation` /
+  `…VideoNote` se nepoužívají).
+
+**Novinky TDLib, na které se zatím nesáhlo:** AI úpravy textu od serveru
+(`composeTextWithAi`, `fixTextWithAi`, styly psaní), komunity (`createCommunity`), hudba
+v profilu (`getUserProfileAudios`), mizející zprávy (`sendEphemeralMessage`), živé příběhy.
+
 ## Tajné chaty
 
 Základ hotový (`docs/poznatky/tajne-chaty.md`): přijetí, založení z profilu, psaní, časovač,
@@ -302,9 +400,8 @@ ukončení, notifikace, zákaz snímků. Zbývá:
 
 ## Hovory
 
-Hovory nejsou vůbec. Zpráva o hovoru je v konverzaci bublina s holým „Hovor" / „Videohovor"
-(`MessageCall` v `MessageContent.kt`) a příchozí hovor (`updateCall`) aplikace neodebírá —
-kdo má jen Plume, o hovoru se nedozví.
+Hovory nejsou vůbec: zpráva o hovoru je jen řádek v historii a příchozí hovor se na Androidu
+ohlásí notifikací, která ho umí jen odmítnout (krok 1 níž). Přijmout ani zavolat nejde.
 
 **TDLib umí jen signalizaci, ne přenos zvuku a obrazu.** Založení, přijetí, zavěšení
 (`createCall`, `acceptCall`, `discardCall`), stav přes `updateCall`, výměnu klíčů s emoji
