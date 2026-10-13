@@ -450,6 +450,11 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
      API mezi hlavními verzemi nekompatibilní, JNI chce keep pravidla pro R8, na iOS jiná
      knihovna než na Androidu.
 
+   **Sonda C prošla (13. 10. 2026, `docs/poznatky/hovory.md`, „Sonda s ntgcalls")**: hovor
+   se zvukem Plume ↔ oficiální Android oběma směry i Plume ↔ Plume, verze 8.0.0, emoji
+   shodná. Další krok je obálka níž (služba, `ConnectionService`, přijetí z notifikace,
+   obrazovka hovoru), pak video. Původní plán sondy:
+
    **Doporučení: C, začít dvoudenní sondou na Androidu.** ntgcalls v `debug` větvi, jen zvuk:
    `CallStateReady` → `skip_exchange` + `connect_p2p`, signalizace oběma směry, hovor
    z Plume do oficiálního klienta a zpět. Před sondou zkontrolovat 16KB zarovnání `.so`

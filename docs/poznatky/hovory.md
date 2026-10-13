@@ -64,10 +64,43 @@ Telegramu pro Android na Pixelu 7 s různým `libraryVersions` a zapisovala `Cal
 - **Mithka s ntgcalls vypnula R8** — JNI hledá třídy podle jména. Plume R8 má, takže to chce
   keep pravidla, ne vypnutí (`docs/poznatky/release.md`, „R8").
 
-## Neověřené (zjistit před psaním kódu)
+## Sonda s ntgcalls (Android, 13. 10. 2026)
 
-- **16KB stránky**: Play od Androidu 15 chce nativní knihovny zarovnané na 16 kB; u AAR
-  ntgcalls zkontrolovat (`zipalign -c -P 16`, `readelf -l`) dřív, než se na něm postaví.
+Hovor ve dvou jen se zvukem: `CallMedia` (společné rozhraní bez TDLib) → `NtgCallMedia`
+(Android), signalizace a stavy v `TdlCallRepository`, pruh hovoru nad aplikací (`CallBar`)
+a „Zavolat" v nabídce profilu. Ověřeno na Pixelu 5 a Pixelu 7 Pro: **Plume → oficiální
+Android, oficiální → Plume i Plume ↔ Plume**, pokaždé verze 8.0.0, emoji shodná na obou
+stranách, zavěšení z obou stran (délka hovoru se zapíše), zvuk se po hovoru vrátí do
+normálního režimu. Mikrofon i přehrávání hovoru jedou s potlačením ozvěny a šumu
+(`dumpsys audio`). **Jestli je zvuk slyšet, je potřeba ověřit ušima.**
+
+- **AAR `io.github.pytgcalls:ntgcalls:3.0.3`**: `.so` zarovnané na 16 kB (`LOAD align
+  2**14`, Play OK), libc++ staticky (s TDLib se nepere), závislosti jen systémové
+  (`libOpenSLES`, `libEGL`…). Keep pravidla si nese sám (`proguard.txt`); po R8 zůstávají
+  třídy `io.github.pytgcalls` nepřejmenované, tedy past z Mithky se nás netýká (ověřeno
+  dexdumpem, release za běhu ne). Do manifestu přidává `CAMERA` a `RECORD_AUDIO` — obojí
+  už máme.
+- **Velikost**: `libntgcalls.so` je v APK nezabalená (21,5 MB na arm64, 14,3 MB na armv7);
+  release arm64 APK má s ní 93,5 MB. Stažení z Play je komprimované, bude to méně.
+- **Pořadí volání drží knihovna**: `createP2pCall` → `setStreamSources` (CAPTURE mikrofon,
+  PLAYBACK reproduktor; zařízení je JSON `{"is_microphone":…}`) → `skipExchange(klíč,
+  odchozí)` (výměnu udělal TDLib) → `connectP2p(servery, verze, p2p, customParameters)`.
+  Před prvním dotykem `ContextUtils.initialize` (WebRTC čte kontext odtud).
+- **`customParameters` z TDLib bývá prázdný řetězec a ntgcalls ho parsuje jako JSON** —
+  `boost::json` vyhodí výjimku a ta shodí CELÝ proces (SIGSEGV při rozbalování výjimky
+  v `P2PCall::connect`). Posílá se `{}`.
+- **Server si vybere 8.0.0** i při nabídce 8/9/12/13 z ntgcalls; oficiální klient taky.
+- **Oficiální Telegram na témže telefonu se cpe dopředu**: příchozí hovor dostanou obě
+  aplikace a oficiální má celoobrazovkovou výzvu, která překryje Plume. Při ověřování se
+  oficiální aplikace zastavila (`am force-stop org.telegram.messenger`). Skutečný uživatel
+  s jednou aplikací to neuvidí; přijetí z pozadí ale chce full-screen intent a službu
+  (níž).
+- **Co sonda NEŘEŠÍ**: hovor na pozadí a se zamčenou obrazovkou (bez foreground služby
+  `phoneCall` a `ConnectionService` ho systém může zastavit), přijetí z notifikace,
+  sluchátko/reproduktor/Bluetooth, přechod Wi-Fi ↔ data, video, iOS a desktop.
+
+## Neověřené
+
 - **VoIP pushe na iOS** pro aplikaci s vlastním `api_id` (`deviceTokenApplePushVoIP`) — bez
   nich hovor na zamčeném iPhonu nezazvoní; Plume zatím čeká i na běžný APNs certifikát.
 - **Spojení jen přes TURN bez reflectoru** — až s mediální vrstvou.

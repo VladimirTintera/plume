@@ -113,6 +113,9 @@ import eu.tintera.plume.core.telegram.RevealedSpoilers
 import eu.tintera.plume.core.telegram.SelfDestructTimers
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.NotificationRepository
+import eu.tintera.plume.core.telegram.CallRepository
+import eu.tintera.plume.core.telegram.TdlCallRepository
+import eu.tintera.plume.core.calls.CallMedia
 import eu.tintera.plume.core.notifications.NotificationActions
 import eu.tintera.plume.core.telegram.TdlChatRepository
 import eu.tintera.plume.core.telegram.TdlConversationRepository
@@ -257,6 +260,11 @@ fun appModule() = module {
         TdlAutosaveRepository(holder = get(), scope = get(named(APP_SCOPE)))
     }
     single<NotificationSoundRepository> { TdlNotificationSoundRepository(holder = get()) }
+    // Eager: příchozí hovor chodí updatem a nesmí se minout. Mediální vrstva je jen tam,
+    // kde ji platformní modul zaregistruje (Android); jinde jsou hovory nedostupné.
+    single<CallRepository>(createdAtStart = true) {
+        TdlCallRepository(holder = get(), media = getOrNull<CallMedia>(), scope = get(named(APP_SCOPE)))
+    }
     if (autosavesToGallery) {
         single(createdAtStart = true) {
             val saver = get<MediaSaver>()

@@ -82,6 +82,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
 import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
@@ -96,6 +97,7 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.ui.NavDisplay
 import eu.tintera.plume.core.adaptive.TWO_PANE_MIN_WIDTH
 import eu.tintera.plume.core.adaptive.contentPaneScaffoldDirective
+import eu.tintera.plume.features.calls.CallBar
 import eu.tintera.plume.core.adaptive.singlePane
 import eu.tintera.plume.core.adaptive.twoPane
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -239,11 +241,15 @@ fun AppShell(modifier: Modifier = Modifier) {
         navigation.openShareTo(chatId)
     }
 
-    ShellContent(
-        navigation = navigation,
-        entryDecorators = entryDecorators,
-        modifier = modifier.fillMaxSize(),
-    )
+    Box(modifier.fillMaxSize()) {
+        ShellContent(
+            navigation = navigation,
+            entryDecorators = entryDecorators,
+            modifier = Modifier.fillMaxSize(),
+        )
+        // Probíhající hovor nad vším — hovor přežije přechod mezi obrazovkami (sonda).
+        CallBar(Modifier.align(Alignment.TopCenter))
+    }
 }
 
 /**

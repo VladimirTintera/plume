@@ -792,6 +792,14 @@
     <string name="product_test">Test payment</string>
     <string name="content_story">Story</string>
     <string name="content_paid">Paid content</string>
+    <string name="call_start">Call</string>
+    <string name="call_bar_calling">Calling…</string>
+    <string name="call_bar_connecting">Connecting…</string>
+    <string name="call_bar_ended">Call ended</string>
+    <string name="call_bar_failed">Couldn't connect the call</string>
+    <string name="call_answer">Answer</string>
+    <string name="call_hang_up">Hang up</string>
+    <string name="call_mute">Mute microphone</string>
     <string name="call_outgoing">Outgoing call</string>
     <string name="call_incoming">Incoming call</string>
     <string name="call_missed">Missed call</string>
