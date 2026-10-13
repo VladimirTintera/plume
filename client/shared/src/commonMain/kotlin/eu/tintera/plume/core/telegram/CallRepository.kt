@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.telegram
 
 import eu.tintera.plume.core.calls.CallAudioOutput
+import eu.tintera.plume.core.ui.UiText
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -47,6 +48,12 @@ interface CallRepository {
 
     /** Přední ↔ zadní kamera. */
     fun switchCamera()
+
+    /**
+     * Hovor nejde zahájit ani přijmout z důvodu mimo přenos (chybí oprávnění). Zvonící hovor
+     * dostane [reason] místo stavu, jinak se krátce ukáže neúspěšný hovor s [reason].
+     */
+    fun reportFailure(userId: Long, video: Boolean, reason: UiText)
 }
 
 data class ActiveCall(
@@ -78,6 +85,11 @@ data class ActiveCall(
     val frontCamera: Boolean = true,
     /** Protistrana posílá obraz. */
     val remoteVideo: Boolean = false,
+    /**
+     * Proč hovor nejde (soukromí protějšku, omezení počtu hovorů, chybějící oprávnění); obrazovka
+     * ho ukáže místo obecného „nepodařilo se spojit". `null` = důvod nevíme, nebo není.
+     */
+    val failure: UiText? = null,
 )
 
 enum class CallPhase {

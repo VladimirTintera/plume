@@ -831,6 +831,10 @@
     <string name="call_unmute">Zapnout mikrofon</string>
     <string name="call_back">Zavolat zpět</string>
     <string name="call_unavailable">Tomuto člověku nejde zavolat</string>
+    <string name="error_call_privacy">Tento člověk od tebe hovory nepřijímá.</string>
+    <string name="error_call_outdated">Aplikace protějšku hovory neumí.</string>
+    <string name="call_failed_microphone">Hovor potřebuje přístup k mikrofonu. Povol ho v nastavení aplikace.</string>
+    <string name="call_failed_camera">Videohovor potřebuje přístup ke kameře a mikrofonu. Povol je v nastavení aplikace.</string>
     <string name="call_outgoing">Odchozí hovor</string>
     <string name="call_incoming">Příchozí hovor</string>
     <string name="call_missed">Zmeškaný hovor</string>

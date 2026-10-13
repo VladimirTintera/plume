@@ -3,6 +3,8 @@ package eu.tintera.plume.core.telegram
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.error_about_too_long
+import eu.tintera.plume.resources.error_call_outdated
+import eu.tintera.plume.resources.error_call_privacy
 import eu.tintera.plume.resources.error_admin_required
 import eu.tintera.plume.resources.error_code_resend_unavailable
 import eu.tintera.plume.resources.error_email_not_allowed
@@ -179,6 +181,11 @@ internal fun errorText(raw: String?, fallback: StringResource): UiText {
         // Shrnutí od serveru (`summarizeMessage`): bez Premium jich server pustí jen omezeně.
         // Ověřeno na účtu bez Premium — přišlo to hned u prvního pokusu.
         "SUMMARY_FLOOD_PREMIUM" -> Res.string.error_summary_premium_limit
+
+        // Hovory (dokumentace `phone.requestCall`). Zablokování od protějšku se navenek neliší
+        // od soukromí — prozrazovat ho nemá cenu, oficiální klienti říkají totéž.
+        "USER_PRIVACY_RESTRICTED", "USER_IS_BLOCKED" -> Res.string.error_call_privacy
+        "PARTICIPANT_VERSION_OUTDATED" -> Res.string.error_call_outdated
 
         else -> fallback
     }
