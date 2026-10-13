@@ -87,6 +87,12 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
   všechny najednou. Nová větev a nový PR až pro jinou oblast.
 - Do `main` se dostane jen sloučením PR. Slučuje uživatel, ne agent — ani automatické sloučení
   se nezapíná bez výslovného pokynu.
+- **Před commitem projdi `git diff --cached --stat` a hledej soubory, na které jsi nesahal.**
+  Dvakrát (#650, #657) vznikl commit na čerstvém `main` z pracovního stromu se STARŠÍM stavem
+  souborů a `git add -A` tiše vrátil cizí sloučené PR — nativní toasty, opravy testů, C++20
+  pro CI. Neozval se žádný konflikt ani chyba; přišlo se na to až podle zmizelého kódu. Smazané
+  soubory nebo `-` řádky v cizích oblastech znamenají zastaralý strom: zahodit a přenést jen
+  vlastní změny na aktuální `main`.
 - Popis PR říká, CO se změnilo a PROČ, a jak to ověřit na zařízení. Když změna na zařízení
   vyzkoušená není, musí to v popisu stát.
 - Poučení z opravy patří do souboru oblasti v `docs/poznatky/` (obecné pravidlo pro celý projekt
