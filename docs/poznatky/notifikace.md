@@ -242,6 +242,9 @@ bez stopy a kdo měl jen Plume, dozvěděl se o něm až ze zmeškaného hovoru.
   (ověřené NENÍ). `updateCall` se odebírá jen kvůli videu (notifikace nese jen id hovoru).
 - **Vlastní notifikace v kanálu `calls`, ne řádek konverzace** — „Odpovědět" ani „Přečteno"
   k hovoru nepatří. Kanál zvlášť, aby si ho šlo vypnout samotný.
+- **Když Plume hovory umí (Android s ntgcalls), je to `CallStyle` s Přijmout / Odmítnout**
+  a celoobrazovkovou výzvou — viz `docs/poznatky/hovory.md`, „Obálka na Androidu". Odstavce
+  níž platí pro platformy, kde přijmout nejde.
 - **`CallStyle` ne.** Od Androidu 12 chce službu v popředí, nebo celoobrazovkový intent, a
   přijmout hovor stejně nejde. Kategorie je `CALL`, notifikace `ongoing` (dokud zvoní, nemá jít
   smáznout omylem) a po 90 s zmizí i sama (`setTimeoutAfter`), kdyby se zrušení ztratilo.

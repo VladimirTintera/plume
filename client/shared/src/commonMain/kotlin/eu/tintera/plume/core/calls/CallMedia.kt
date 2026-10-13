@@ -21,6 +21,9 @@ interface CallMedia {
 
     fun setMuted(muted: Boolean)
 
+    /** Hovor do reproduktoru (`true`), nebo do sluchátka u ucha. */
+    fun setSpeaker(on: Boolean)
+
     /** Zastaví přenos a vrátí zvuk telefonu, jak byl. Bezpečné volat opakovaně. */
     fun stop()
 }

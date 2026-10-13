@@ -22,6 +22,8 @@ interface CallRepository {
     suspend fun hangUp()
 
     fun setMuted(muted: Boolean)
+
+    fun setSpeaker(on: Boolean)
 }
 
 data class ActiveCall(
@@ -34,6 +36,8 @@ data class ActiveCall(
     /** Kdy se spojil přenos (epoch ms); `null`, dokud se nespojil. Od něj běží délka hovoru. */
     val connectedAt: Long? = null,
     val muted: Boolean = false,
+    /** Zvuk jde do reproduktoru; jinak do sluchátka (a obrazovku u ucha zhasne senzor). */
+    val speaker: Boolean = false,
 )
 
 enum class CallPhase {

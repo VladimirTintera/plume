@@ -107,6 +107,11 @@ internal class TdlCallRepository(
         ).toResult().onFailure { logger.w(it) { "Hovor se nepodařilo ukončit." } }
     }
 
+    override fun setSpeaker(on: Boolean) {
+        media?.setSpeaker(on)
+        _active.update { it?.copy(speaker = on) }
+    }
+
     override fun setMuted(muted: Boolean) {
         media?.setMuted(muted)
         _active.update { it?.copy(muted = muted) }

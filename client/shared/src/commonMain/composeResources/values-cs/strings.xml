@@ -813,6 +813,10 @@
     <string name="call_answer">Přijmout</string>
     <string name="call_hang_up">Zavěsit</string>
     <string name="call_mute">Ztlumit mikrofon</string>
+    <string name="call_speaker">Reproduktor</string>
+    <string name="call_minimize">Zmenšit hovor</string>
+    <string name="call_emojis_hint">Když protějšek vidí stejná emoji, slyšíte se jen vy dva.</string>
+    <string name="call_notification_ongoing">Probíhající hovor</string>
     <string name="call_outgoing">Odchozí hovor</string>
     <string name="call_incoming">Příchozí hovor</string>
     <string name="call_missed">Zmeškaný hovor</string>

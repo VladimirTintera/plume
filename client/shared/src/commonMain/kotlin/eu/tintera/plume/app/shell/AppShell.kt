@@ -97,7 +97,7 @@ import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDe
 import androidx.navigation3.ui.NavDisplay
 import eu.tintera.plume.core.adaptive.TWO_PANE_MIN_WIDTH
 import eu.tintera.plume.core.adaptive.contentPaneScaffoldDirective
-import eu.tintera.plume.features.calls.CallBar
+import eu.tintera.plume.features.calls.CallOverlay
 import eu.tintera.plume.core.adaptive.singlePane
 import eu.tintera.plume.core.adaptive.twoPane
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -247,8 +247,8 @@ fun AppShell(modifier: Modifier = Modifier) {
             entryDecorators = entryDecorators,
             modifier = Modifier.fillMaxSize(),
         )
-        // Probíhající hovor nad vším — hovor přežije přechod mezi obrazovkami (sonda).
-        CallBar(Modifier.align(Alignment.TopCenter))
+        // Probíhající hovor nad vším — přes celou obrazovku, nebo zmenšený do pruhu nahoře.
+        CallOverlay(Modifier.align(Alignment.TopCenter))
     }
 }
 
