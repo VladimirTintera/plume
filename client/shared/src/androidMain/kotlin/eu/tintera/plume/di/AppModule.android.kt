@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.calls.CallMedia
+import eu.tintera.plume.core.calls.NtgCallMedia
 import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.speech.SystemSpeechToText
 import eu.tintera.plume.core.speech.SpeechToText
@@ -71,6 +73,8 @@ actual fun Module.platformModule() {
     // který ukazuje Nastavení, musí být TÝŽ, do kterého úloha zapisuje.
     single { LiteRtOnDeviceAi(androidContext(), get()) }
     single { TelegramPaths(androidContext()) }
+    // Přenos hovorů (ntgcalls) — jen Android, viz docs/poznatky/hovory.md.
+    single<CallMedia> { NtgCallMedia(androidContext()) }
     single<DatabaseKeyStore> {
         object : DatabaseKeyStore, SecretStore by KeystoreSecretStore(
             androidContext(), fileName = "tdlib-key", keyAlias = "plume_tdlib_database", logTag = "DatabaseKey",

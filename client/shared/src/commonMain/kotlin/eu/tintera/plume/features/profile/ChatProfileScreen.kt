@@ -202,6 +202,9 @@ import eu.tintera.plume.resources.secret_chat_key_compare
 import eu.tintera.plume.resources.lock_open_24dp
 import eu.tintera.plume.resources.lock_24dp
 import eu.tintera.plume.resources.secret_chat_start
+import eu.tintera.plume.resources.call_start
+import eu.tintera.plume.resources.call_24dp
+import eu.tintera.plume.features.calls.rememberStartCall
 import eu.tintera.plume.resources.secret_chat_close_title
 import eu.tintera.plume.resources.secret_chat_close_text
 import eu.tintera.plume.resources.secret_chat_close
@@ -402,6 +405,7 @@ fun ChatProfileScreen(
                             onDeleteOrLeave = viewModel::deleteOrLeave,
                             onStartSecretChat = viewModel::startSecretChat,
                             onCloseSecretChat = viewModel::closeSecretChat,
+                            onCall = rememberStartCall(profile.userId),
                         )
                     }
                 },
@@ -1346,6 +1350,8 @@ private fun ProfileMenu(
     onDeleteOrLeave: (SpamCleanup) -> Unit,
     onStartSecretChat: () -> Unit,
     onCloseSecretChat: () -> Unit,
+    /** Zavolat (`null` = hovory tu nejsou, viz `CallRepository.supported`). */
+    onCall: (() -> Unit)?,
 ) {
     var expanded by remember { mutableStateOf(false) }
     var confirmCloseSecret by rememberSaveable { mutableStateOf(false) }
@@ -1399,6 +1405,11 @@ private fun ProfileMenu(
                     profile.link?.let { MenuAction(stringResource(Res.string.profile_copy_link), Res.drawable.link_24dp, onClick = onCopyLink) },
                     if (canShareContact) {
                         MenuAction(stringResource(Res.string.profile_share_contact), Res.drawable.share_24dp, onClick = onShareContact)
+                    } else {
+                        null
+                    },
+                    if (canStartSecret && onCall != null) {
+                        MenuAction(stringResource(Res.string.call_start), Res.drawable.call_24dp, onClick = onCall)
                     } else {
                         null
                     },
