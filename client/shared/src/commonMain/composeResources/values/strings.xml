@@ -1010,11 +1010,6 @@
     <!-- Ikona v oznamovací oblasti (Windows), kam se aplikace schová po zavření okna. -->
     <string name="tray_open">Open Plume</string>
     <string name="tray_quit">Quit</string>
-    <!-- Tooltip ikony v oznamovací oblasti; „Plume" je jméno aplikace. -->
-    <plurals name="tray_tooltip_unread">
-        <item quantity="one">Plume – %1$d unread message</item>
-        <item quantity="other">Plume – %1$d unread messages</item>
-    </plurals>
     <string name="video_chat_active">Video chat in progress</string>
     <string name="video_chat_live">Live stream in progress</string>
     <string name="video_chat_scheduled">Video chat starts %1$s</string>
@@ -2967,4 +2962,8 @@
     <string name="ask_question_confirm">Ask</string>
     <string name="ask_question_faq">FAQ</string>
     <string name="ask_question_failed">Couldn't open the support chat.</string>
+    <string name="conversation_jump_to_date">Go to date</string>
+    <string name="conversation_jump_date_empty">There are no messages from that day on.</string>
+    <string name="conversation_jump_date_failed">Couldn't find messages from that day.</string>
+    <string name="conversation_jump_date_go">Go</string>
 </resources>

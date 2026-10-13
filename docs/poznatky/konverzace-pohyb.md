@@ -345,6 +345,33 @@ Lupa v hlavičce chatu přepne hlavičku na **vyhledávací pilulku** a místo v
 - **`highlightRanges` / `foldDiacritics` jsou v `core/ui`** (`SearchHighlight.kt`), sdílí je
   hledání napříč chaty i konverzace. Obojí hledá bez ohledu na diakritiku jako TDLib.
 
+## Skok na datum
+
+V hledání v konverzaci je vedle výběru člena ikona kalendáře (`InChatSearchTopBar`,
+`JumpToDateDialog`): vybraný den → první zpráva od jeho začátku (`firstMessageFrom`) → skok
+jako na citaci (`jumpToMessage`, okno v historii), hledání se zavře.
+
+- **`getChatMessageByDate` vrací POSLEDNÍ zprávu NEJPOZDĚJI v daný okamžik, ne první po něm.**
+  Cíl je proto zpráva za ní: poslední zpráva před půlnocí vybraného dne + `getChatHistory`
+  o kus novější, nejstarší z novějších (`firstMessageAfter`, testy `JumpToDateTest`).
+- **TDLib napřed vrací, co má lokálně.** S oknem jedné novější přišla u kanálu se starou
+  historií zpráva samotná a jedna STARŠÍ — novější vůbec, takže skok tiše skončil jako „nic
+  tam není". Okno je proto pět novějších a dotaz se zopakuje až třikrát (na emulátoru stačil
+  první).
+- **Den starší než chat** (404 od `getChatMessageByDate`): historie od nejmenšího id serveru
+  (`1 << 20`) směrem k novějším dá nejstarší zprávu. **Den novější než poslední zpráva**: nic
+  novějšího není → hláška „Od toho dne v chatu nic není", hledání zůstane otevřené.
+- **Den je MÍSTNÍ**: kalendář počítá v milisekundách UTC, den se z něj přečte přes UTC a pak se
+  vezme jeho místní půlnoc. Budoucí dny vybrat nejde.
+- **Jen v celém chatu** (`canJumpToDate`): ve vlákně komentářů a v tématu by
+  `getChatMessageByDate` trefil zprávu mimo něj, tam se kalendář nenabízí.
+- **Kde cíl skončí**: s kotvou nahoře stojí po výměně okna zhruba v půlce obrazovky s předělem
+  dne a nad ním je poslední zpráva před vybraným dnem — je vidět, kde den začíná. Ověřeno na
+  emulátoru v kanálu se starou historií: 1. 1. 2021 → příspěvek ze 17. února 2021 (nic mezi
+  nimi), 1. 6. 2021 → 30. července 2021; v čerstvé skupině 1. 10. → „Skupina vytvořena".
+- `ConversationScreen` dostal jen jeden argument (`onJumpToDate`) — je na hraně počtu registrů
+  (viz CLAUDE.md), dialog i jeho stav žijí v `InChatSearchTopBar`.
+
 ## Okno v historii
 
 Skok na zprávu mimo načtené (hledání, citace, stovky nepřečtených) NENAČÍTÁ historii od

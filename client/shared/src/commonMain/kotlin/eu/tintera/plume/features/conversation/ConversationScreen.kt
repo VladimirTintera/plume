@@ -1402,6 +1402,7 @@ fun ConversationScreen(
                     // píše jen kanál.
                     onPickSender = viewModel::openMemberPicker.takeIf { state.info?.let { it.isGroup && !it.isChannel } == true },
                     onRemoveSender = { viewModel.setSearchSender(null) },
+                    onJumpToDate = viewModel::jumpToDate.takeIf { viewModel.canJumpToDate },
                 )
                 return@topBar
             }

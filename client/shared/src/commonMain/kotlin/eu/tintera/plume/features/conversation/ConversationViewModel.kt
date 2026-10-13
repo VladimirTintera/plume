@@ -26,6 +26,8 @@ import eu.tintera.plume.core.currency.RateTable
 import eu.tintera.plume.core.currency.HomeRegion
 import eu.tintera.plume.core.wifi.WifiJoin
 import eu.tintera.plume.core.wifi.WifiJoiner
+import eu.tintera.plume.resources.conversation_jump_date_failed
+import eu.tintera.plume.resources.conversation_jump_date_empty
 import eu.tintera.plume.resources.message_context_wifi_failed
 import eu.tintera.plume.resources.message_context_wifi_settings
 import eu.tintera.plume.core.contacts.NewContact
@@ -1138,6 +1140,33 @@ class ConversationViewModel(
         searchJob?.cancel()
         memberJob?.cancel()
         _state.update { it.copy(search = null, memberPicker = null) }
+    }
+
+    /**
+     * Skok na datum jde jen v celém chatu: `getChatMessageByDate` zná celý chat, takže ve vlákně
+     * komentářů nebo v tématu by trefil zprávu mimo něj.
+     */
+    val canJumpToDate: Boolean get() = threadRootId == null && forumTopicId == null && savedTopicId == null
+
+    /**
+     * Skok na první zprávu od začátku dne [epochSeconds]. Hledání se zavře — kalendář je jeho
+     * součást, ale cíl je konverzace — a skočí se jako na citaci, s kotvou nahoře. Po výměně
+     * okna stojí cíl s předělem dne zhruba v půlce obrazovky a nad ním poslední zpráva před
+     * vybraným dnem (ověřeno na emulátoru) — je vidět, kde den začíná.
+     */
+    fun jumpToDate(epochSeconds: Int) {
+        viewModelScope.launch {
+            repository.firstMessageFrom(chatId, epochSeconds)
+                .onSuccess { messageId ->
+                    if (messageId == null) {
+                        _state.update { it.copy(error = UiText(Res.string.conversation_jump_date_empty)) }
+                    } else {
+                        closeSearch()
+                        jumpToMessage(messageId, anchor = ScrollAnchor.Top)
+                    }
+                }
+                .onFailure { failure -> _state.update { it.copy(error = failure.userMessage(Res.string.conversation_jump_date_failed)) } }
+        }
     }
 
     /**
