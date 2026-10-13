@@ -209,6 +209,8 @@ import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_resend_failed
+import eu.tintera.plume.resources.conversation_send_failed_unknown
 import eu.tintera.plume.resources.article_load_failed
 import eu.tintera.plume.resources.folder_invite_added
 import eu.tintera.plume.resources.folder_invite_failed
@@ -4327,6 +4329,7 @@ class ConversationViewModel(
             MessageMenuAction.Pin -> requestPin(messageId)
             MessageMenuAction.Unpin -> unpinFromMenu(messageId)
             MessageMenuAction.Delete -> requestDelete(messageId)
+            MessageMenuAction.Resend -> resend(messageId)
             MessageMenuAction.Select -> startSelection(messageId)
             MessageMenuAction.Report -> reportMessage(messageId)
             MessageAction.ToggleSelection -> toggleSelection(messageId)
@@ -4406,6 +4409,9 @@ class ConversationViewModel(
                         inTranslationLanguage = inTranslationLanguage,
                         explainAvailable = explainAvailable,
                         contextFindings = contextFindings,
+                        resendable = failedGroup(it.messages, messageId).let { group ->
+                            group.isNotEmpty() && group.all { m -> m.sendFailure?.canRetry == true }
+                        },
                     ),
                 )
             }
@@ -4584,6 +4590,31 @@ class ConversationViewModel(
     }
 
     /** Otevře potvrzení smazání. Nevratná akce se nedělá na jedno ťuknutí. */
+    /**
+     * Pošle znovu neodeslanou zprávu (u alba všechny jeho neodeslané zprávy naráz, viz
+     * [failedGroup]). Zprávu, kterou znovu poslat nejde, neposílá — řekne, proč neodešla:
+     * ťuknutí na „Neodesláno" musí něco udělat, i když opakování nepomůže.
+     *
+     * Obrazovka se srovná sama z updatů: TDLib starou zprávu smaže a novou ohlásí jako novou
+     * ve stavu odesílání, takže se tady nic nepřepisuje.
+     */
+    private fun resend(messageId: Long) {
+        _state.update { it.copy(messageMenu = null) }
+        val group = failedGroup(_state.value.messages, messageId)
+        if (group.isEmpty()) return
+        group.firstOrNull { it.sendFailure?.canRetry != true }?.let { blocked ->
+            val reason = blocked.sendFailure?.reason ?: UiText(Res.string.conversation_send_failed_unknown)
+            _state.update { it.copy(notice = reason) }
+            return
+        }
+        viewModelScope.launch {
+            repository.resend(chatId, group.map { it.id }).onFailure { failure ->
+                logger.w(failure) { "Zprávu $messageId se nepodařilo poslat znovu." }
+                _state.update { it.copy(notice = failure.userMessage(Res.string.conversation_resend_failed)) }
+            }
+        }
+    }
+
     private fun requestDelete(messageId: Long) {
         val menu = _state.value.messageMenu ?: return
         _state.update {
@@ -6029,6 +6060,8 @@ data class MessageMenu(
     val explainAvailable: Boolean = false,
     /** Co se v textu zprávy našlo pro akce (termín, účet, zásilka); prázdné = položka není. */
     val contextFindings: List<ContextFinding> = emptyList(),
+    /** Zpráva (u alba všechny jeho neodeslané) neodešla a jde poslat znovu — „Poslat znovu". */
+    val resendable: Boolean = false,
 ) {
     /** Do rychlého řádku se vejde jen pár; zbytek je za „+". */
     val quickEmoji: List<String> get() = emoji.take(MAX_QUICK_REACTIONS)

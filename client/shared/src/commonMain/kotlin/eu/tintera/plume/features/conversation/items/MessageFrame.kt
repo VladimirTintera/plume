@@ -694,6 +694,9 @@ private fun MessageFrame(
             // Posun se čte až ve fázi layoutu (`offset { }`), ne v kompozici. Jinak by se celá
             // zpráva i s obsahem přeskládávala na každý snímek tahu.
             Modifier.offset { IntOffset(drag.value.roundToInt(), 0) },
+            // Zpráva drží svou stranu, i když je něco pod ní širší než ona — „Neodesláno. Ťukni
+            // a zkus to znovu." pod krátkou bublinou ji jinak odsunulo od pravého okraje.
+            horizontalAlignment = if (message.isOutgoing) Alignment.End else Alignment.Start,
         ) {
             /*
              * Zpráva sama. Když je nad ní otevřená nabídka, SKRYJE se, ale drží místo — nabídka ji
@@ -863,6 +866,8 @@ private fun MessageFrame(
 
             DeliveryBadge(
                 delivery = frame.badge,
+                failure = message.sendFailure,
+                onFailedClick = { bodyScope.act(MessageMenuAction.Resend) },
                 modifier = Modifier.align(Alignment.End),
             )
         }

@@ -290,6 +290,16 @@ interface ConversationRepository {
     suspend fun deleteMessages(chatId: Long, messageIds: List<Long>, revoke: Boolean): Result<Unit>
 
     /**
+     * Pošle znovu zprávy, které neodešly ([SendState.Failed] s [SendFailure.canRetry]).
+     *
+     * **Neodeslaná zpráva se nahradí novou, s jiným id**: TDLib starou smaže (`deletedMessages`)
+     * a novou ohlásí jako novou zprávu ve stavu odesílání (`newMessages`), takže obrazovka se
+     * srovná sama z updatů. Album se posílá celé najednou, jinak by se rozpadlo na jednotlivé
+     * zprávy.
+     */
+    suspend fun resend(chatId: Long, messageIds: List<Long>): Result<Unit>
+
+    /**
      * Všechny připnuté zprávy chatu, od nejnovější.
      *
      * Nese i to, jestli je smí uživatel odepnout — právo připínat je v chatu jedno pro všechny
@@ -1161,6 +1171,8 @@ data class ChatMessage(
      * se mění nezávisle na zprávě.
      */
     val sendState: SendState?,
+    /** Proč zpráva neodešla a jestli jde poslat znovu; jen u [SendState.Failed], jinak `null`. */
+    val sendFailure: SendFailure? = null,
     /**
      * Id zprávy, na kterou tahle odpovídá.
      *
@@ -1860,6 +1872,17 @@ sealed interface SentMessageUpdate {
  * ([ChatInfo.lastReadOutboxMessageId]); kdyby byl tady, musely by se při každém přečtení
  * přemapovat všechny zprávy v historii.
  */
+/** Neodeslaná zpráva: jde poslat znovu, a proč neodešla. */
+data class SendFailure(
+    /**
+     * Jde poslat znovu tak, jak je. Ne, když by to server odmítl zase: chce jinou citaci
+     * (výběr citace při opakování Plume nemá) nebo zaplatit hvězdy (placené zprávy Plume neumí).
+     */
+    val canRetry: Boolean,
+    /** Proč neodešla — věta pro uživatele, ne hláška od TDLib. */
+    val reason: UiText,
+)
+
 enum class SendState {
     /** Odesílá se; server ještě nepotvrdil. */
     Sending,

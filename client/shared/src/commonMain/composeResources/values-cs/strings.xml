@@ -315,6 +315,10 @@
     <string name="error_email_not_allowed">Tenhle e-mail použít nejde. Zkus jiný.</string>
     <string name="error_email_reset_pending">Reset e-mailu ještě neproběhl. Zkus to později.</string>
     <string name="error_verification_failed">Telegram tohle pustí jen po ověření oficiální aplikace, a to Plume udělat nemůže. Zkus to v oficiální aplikaci Telegramu.</string>
+    <string name="error_slowmode_wait_seconds">Ve skupině je pomalý režim. Další zprávu půjde poslat za %1$d s.</string>
+    <string name="error_slowmode_wait_minutes">Ve skupině je pomalý režim. Další zprávu půjde poslat za %1$d min.</string>
+    <string name="error_resend_too_early">Zprávu půjde poslat znovu až za chvíli.</string>
+    <string name="error_you_blocked_user">Tohohle člověka máš zablokovaného.</string>
     <string name="error_recovery_unavailable">K účtu není nastavený obnovovací e-mail.</string>
     <string name="file_download_failed">Soubor se nepodařilo stáhnout.</string>
     <string name="file_unavailable">Soubor není dostupný.</string>
@@ -545,6 +549,11 @@
     <string name="conversation_delivery_sent">Odesláno</string>
     <string name="conversation_delivery_read">Přečteno</string>
     <string name="conversation_delivery_failed">Odeslání selhalo</string>
+    <string name="conversation_not_sent_retry">Neodesláno. Ťukni a zkus to znovu.</string>
+    <string name="conversation_not_sent_details">Neodesláno. Ťukni pro důvod.</string>
+    <string name="conversation_send_failed_unknown">Telegram zprávu nepřijal.</string>
+    <string name="conversation_resend_failed">Zprávu se nepodařilo poslat znovu.</string>
+    <string name="menu_resend">Poslat znovu</string>
     <string name="conversation_cancel_sending">Zrušit odesílání</string>
     <string name="conversation_stop_recording">Zastavit a poslechnout</string>
     <string name="conversation_stop_video_note">Zastavit a přehrát</string>

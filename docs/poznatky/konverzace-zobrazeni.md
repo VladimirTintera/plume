@@ -307,7 +307,8 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   přečetl, takže by odznak schovalo neprávem.
 - **`Sending` a `Sent` zůstávají u každé zprávy** — ty ještě něco říkají.
 - **`Failed` se ukazuje VŽDY.** Je to jediný stav, který uživatel musí zaregistrovat; schovat ho
-  kvůli úspoře místa není úspora, ale skrytá chyba.
+  kvůli úspoře místa není úspora, ale skrytá chyba. A nese větu, co dál („Neodesláno. Ťukni a zkus
+  to znovu."), viz `docs/poznatky/konverzace-psani.md`, „Neodeslaná zpráva a opakované odeslání".
 - **Ťuknutí na vlastní zprávu si odznak vyžádá**, druhé ho schová (`readReceiptFor`
   v `ConversationState`, `toggleReadReceipt`). Je to ubezpečení u jedné konkrétní zprávy —
   u starších se jinak nedá zjistit, jestli je protějšek přečetl.

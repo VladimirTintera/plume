@@ -9,6 +9,7 @@ import eu.tintera.plume.core.files.DocumentKind
 import eu.tintera.plume.core.telegram.composedFormatsOf
 import eu.tintera.plume.core.telegram.MessageEntityType
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.SendFailure
 import eu.tintera.plume.core.telegram.SendState
 
 /**
@@ -51,6 +52,7 @@ internal class MessageRow(val messages: List<ChatMessage>) {
                 messages.any { it.sendState == SendState.Sending } -> SendState.Sending
                 else -> primary.sendState
             },
+            sendFailure = albumFailure(messages),
         )
     }
 
@@ -294,4 +296,31 @@ internal fun ChatMessage.copyableText(): String = text.ifBlank {
         is MessageMedia.VideoNote -> (media.transcript as? SpeechTranscript.Done)?.text.orEmpty()
         else -> ""
     }
+}
+
+/**
+ * Proč album neodešlo: znovu poslat jde, jen když jde každá jeho neodeslaná zpráva — posílá se
+ * celé najednou. `null`, když neodešlo nic.
+ */
+internal fun albumFailure(messages: List<ChatMessage>): SendFailure? {
+    val failures = messages.mapNotNull { it.sendFailure }
+    if (failures.isEmpty()) return null
+    // Důvod té, kvůli které to nejde — uživatel se ptá, proč album nejde poslat znovu.
+    val blocking = failures.firstOrNull { !it.canRetry }
+    return SendFailure(canRetry = blocking == null, reason = (blocking ?: failures.first()).reason)
+}
+
+/**
+ * Co poslat znovu po ťuknutí na [messageId]: ta zpráva, a když je z alba, všechny neodeslané
+ * zprávy toho alba. Album poslané po kouskách by se rozpadlo na samostatné fotky. Prázdné, když
+ * zpráva neodeslaná není (mezitím odešla nebo zmizela).
+ */
+internal fun failedGroup(messages: List<ChatMessage>, messageId: Long): List<ChatMessage> {
+    val message = messages.firstOrNull { it.id == messageId } ?: return emptyList()
+    val group = if (message.mediaAlbumId != 0L) {
+        messages.filter { it.mediaAlbumId == message.mediaAlbumId }
+    } else {
+        listOf(message)
+    }
+    return group.filter { it.sendState == SendState.Failed }.sortedBy { it.id }
 }

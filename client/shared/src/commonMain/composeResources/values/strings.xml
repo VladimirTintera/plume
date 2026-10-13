@@ -310,6 +310,10 @@
     <string name="error_email_not_allowed">This email can't be used. Try another one.</string>
     <string name="error_email_reset_pending">The email reset hasn't finished yet. Try again later.</string>
     <string name="error_verification_failed">Telegram allows this only after verifying the official app, which Plume can't do. Try it in the official Telegram app.</string>
+    <string name="error_slowmode_wait_seconds">The group has slow mode on. You can send again in %1$d s.</string>
+    <string name="error_slowmode_wait_minutes">The group has slow mode on. You can send again in %1$d min.</string>
+    <string name="error_resend_too_early">The message can be sent again only after a while.</string>
+    <string name="error_you_blocked_user">You have blocked this person.</string>
     <string name="error_recovery_unavailable">This account has no recovery email.</string>
     <string name="file_download_failed">Couldn't download the file.</string>
     <string name="file_unavailable">The file isn't available.</string>
@@ -536,6 +540,11 @@
     <string name="conversation_delivery_sent">Sent</string>
     <string name="conversation_delivery_read">Read</string>
     <string name="conversation_delivery_failed">Sending failed</string>
+    <string name="conversation_not_sent_retry">Not sent. Tap to try again.</string>
+    <string name="conversation_not_sent_details">Not sent. Tap for the reason.</string>
+    <string name="conversation_send_failed_unknown">Telegram didn't accept the message.</string>
+    <string name="conversation_resend_failed">Couldn't send the message again.</string>
+    <string name="menu_resend">Send again</string>
     <string name="conversation_cancel_sending">Cancel sending</string>
     <string name="conversation_stop_recording">Stop and listen</string>
     <string name="conversation_stop_video_note">Stop and watch</string>

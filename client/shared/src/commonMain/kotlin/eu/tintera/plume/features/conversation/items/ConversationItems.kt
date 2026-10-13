@@ -260,6 +260,9 @@ private fun messageItem(
  * voláním, než kterým se ukládá.
  */
 internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageMenuAction> = buildList {
+    // Neodeslaná zpráva má jedinou akci, která ji spraví, a ta jde první. Kandidát je u každé:
+    // u alba nese neodeslanou fotku jiná zpráva než ta, na které nabídka visí.
+    add(MessageMenuAction.Resend)
     add(MessageMenuAction.Reply)
     val poll = message.poll
     if (poll?.canRetract == true) add(MessageMenuAction.RetractVote)

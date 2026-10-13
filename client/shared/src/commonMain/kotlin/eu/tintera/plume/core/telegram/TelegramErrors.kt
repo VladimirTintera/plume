@@ -34,6 +34,10 @@ import eu.tintera.plume.resources.settings_two_step_error_email_invalid
 import eu.tintera.plume.resources.error_summary_premium_limit
 import eu.tintera.plume.resources.error_transfer_needs_password
 import eu.tintera.plume.resources.error_transfer_too_fresh
+import eu.tintera.plume.resources.error_you_blocked_user
+import eu.tintera.plume.resources.error_resend_too_early
+import eu.tintera.plume.resources.error_slowmode_wait_minutes
+import eu.tintera.plume.resources.error_slowmode_wait_seconds
 import eu.tintera.plume.resources.error_verification_failed
 import org.jetbrains.compose.resources.StringResource
 
@@ -63,14 +67,30 @@ import org.jetbrains.compose.resources.StringResource
  * vrací `Result`, ne typ z TDLib) a naše vlastní chyby se sem trefit nemají — ty spadnou na
  * [fallback].
  */
-fun Throwable.userMessage(fallback: StringResource): UiText {
-    val raw = message ?: return UiText(fallback)
+fun Throwable.userMessage(fallback: StringResource): UiText = errorText(message, fallback)
+
+/**
+ * Totéž jako [userMessage] pro hlášku, která nepřišla jako výjimka — chyba, se kterou zpráva
+ * neodešla, je součástí zprávy (`MessageSendingStateFailed.error`).
+ */
+internal fun errorText(raw: String?, fallback: StringResource): UiText {
+    raw ?: return UiText(fallback)
 
     floodWaitSeconds(raw)?.let { seconds ->
         return if (seconds < 60) {
             UiText(Res.string.error_flood_wait_seconds, seconds)
         } else {
             UiText(Res.string.error_flood_wait_minutes, (seconds + 59) / 60)
+        }
+    }
+
+    // Pomalý režim ve skupině: další zprávu pustí až po uplynutí doby (dokumentace
+    // `messages.sendMessage`). Počet sekund je za podtržítkem jako u `FLOOD_WAIT_`.
+    raw.takeIf { it.startsWith(SLOWMODE_WAIT_PREFIX) }?.removePrefix(SLOWMODE_WAIT_PREFIX)?.toIntOrNull()?.let { seconds ->
+        return if (seconds < 60) {
+            UiText(Res.string.error_slowmode_wait_seconds, seconds)
+        } else {
+            UiText(Res.string.error_slowmode_wait_minutes, (seconds + 59) / 60)
         }
     }
 
@@ -95,6 +115,8 @@ fun Throwable.userMessage(fallback: StringResource): UiText {
         "Invalid recovery code" -> Res.string.error_recovery_code_invalid
         // `resendAuthenticationCode` bez další cesty (`nextType` je null) — TDLib to odmítne sama.
         "Authentication code can't be resend" -> Res.string.error_code_resend_unavailable
+        // `resendMessages` před uplynutím `retryAfter` (`MessagesManager::resend_messages`).
+        "Message can't be re-sent yet" -> Res.string.error_resend_too_early
         // Ověření aplikace, které Plume odmítlo, protože ho udělat neumí (`declineVerification`
         // v `TdlTelegramSession`). Konstantu si TDLib píše sama (`NetQueryVerifier`).
         "VERIFICATION_FAILED" -> Res.string.error_verification_failed
@@ -103,6 +125,9 @@ fun Throwable.userMessage(fallback: StringResource): UiText {
         "PINNED_DIALOGS_TOO_MUCH" -> Res.string.error_pin_limit
         "CHAT_ADMIN_REQUIRED" -> Res.string.error_admin_required
         "PHONE_NUMBER_INVALID" -> Res.string.error_phone_number_invalid
+        // Zpráva člověku, kterého má uživatel zablokovaného (dokumentace `messages.sendMessage`).
+        "YOU_BLOCKED_USER" -> Res.string.error_you_blocked_user
+        "CHAT_WRITE_FORBIDDEN" -> Res.string.error_no_write_access
         "PHONE_CODE_INVALID" -> Res.string.error_phone_code_invalid
         "PHONE_CODE_EXPIRED" -> Res.string.error_phone_code_expired
         // `auth.resendCode`, když server další cestu doručení nemá (dokumentace metody v API).
@@ -159,6 +184,7 @@ private fun floodWaitSeconds(raw: String): Int? = when {
 }
 
 private const val FLOOD_WAIT_PREFIX = "FLOOD_WAIT_"
+private const val SLOWMODE_WAIT_PREFIX = "SLOWMODE_WAIT_"
 private const val TOO_MANY_REQUESTS_PREFIX = "Too Many Requests: retry after "
 private const val PASSWORD_TOO_FRESH_PREFIX = "PASSWORD_TOO_FRESH_"
 private const val SESSION_TOO_FRESH_PREFIX = "SESSION_TOO_FRESH_"
