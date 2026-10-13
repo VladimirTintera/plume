@@ -10,10 +10,11 @@ import java.io.File
 /**
  * JNI most k toastům Windows (`jvmMain/cpp/PlumeToasts.cpp`).
  *
- * Aplikace z MSI není zabalená (MSIX), takže si identitu pro toasty registruje sama: AUMID
- * v `HKCU\Software\Classes\AppUserModelId` a COM třídu, kterou Windows zavolá po kliknutí.
- * Ladicí běh má vlastní AUMID i třídu, ať nepřepisuje registraci nainstalované aplikace
- * (viz docs/poznatky/desktop.md, „Notifikace na Windows").
+ * Aplikace z MSI není zabalená (MSIX), takže si identitu pro toasty zakládá sama: AUMID na
+ * zástupci ve Startu (bez něj Windows 11 toast nevykreslí), v `HKCU\Software\Classes\AppUserModelId`
+ * a COM třídu, kterou Windows zavolá po kliknutí. Ladicí běh má vlastní AUMID, třídu i zástupce,
+ * ať nepřepisuje registraci nainstalované aplikace (viz docs/poznatky/desktop.md,
+ * „Notifikace na Windows"). Inicializace musí proběhnout dřív, než vznikne okno.
  */
 internal object WindowsToasts {
 
@@ -55,15 +56,32 @@ internal object WindowsToasts {
     }
 
     private fun init(): Boolean {
+        val command = ProcessHandle.current().info().command().orElse(null) ?: return false
         val result = nativeInit(
             aumid = if (desktopDebugBuild) "$AUMID.debug" else AUMID,
-            displayName = if (desktopDebugBuild) "Plume (debug)" else "Plume",
+            displayName = DISPLAY_NAME,
             iconPath = iconFile()?.absolutePath,
             clsid = if (desktopDebugBuild) DEBUG_ACTIVATOR else ACTIVATOR,
-            serverCommand = serverCommand(),
+            serverCommand = serverCommand(command),
+            shortcutPath = shortcut().absolutePath,
+            shortcutTarget = command,
         )
         if (result != 0) logger.w { "Toasty nejde zaregistrovat: 0x${result.toUInt().toString(16)}." }
         return result == 0
+    }
+
+    /**
+     * Zástupce ve Startu, který ponese AUMID. Instalace z MSI ho zakládá sama
+     * (`Programs\Plume\Plume.lnk`) a ten se jen doplní; bez MSI (rozbalená distribuce, ladicí
+     * běh) vznikne vlastní. Ladicí běh má zástupce zvlášť, aby nepřepsal identitu instalace.
+     */
+    private fun shortcut(): File {
+        val appData = System.getenv("APPDATA") ?: "${System.getProperty("user.home")}\\AppData\\Roaming"
+        val programs = File(appData, "Microsoft\\Windows\\Start Menu\\Programs")
+        val name = "$DISPLAY_NAME.lnk"
+        if (desktopDebugBuild) return File(programs, name)
+        return programs.walk().maxDepth(2).firstOrNull { it.isFile && it.name.equals(name, ignoreCase = true) }
+            ?: File(programs, name)
     }
 
     /**
@@ -93,8 +111,7 @@ internal object WindowsToasts {
      * (`Plume.exe`). Ladicí běh z Gradle je holý `java` s classpath, ten se spustit znovu nedá —
      * tam kliknutí funguje jen za běhu.
      */
-    private fun serverCommand(): String? {
-        val command = ProcessHandle.current().info().command().orElse(null) ?: return null
+    private fun serverCommand(command: String): String? {
         val name = File(command).name.lowercase()
         if (name == "java.exe" || name == "javaw.exe") return null
         return "\"$command\" $ACTIVATION_ARGUMENT"
@@ -108,7 +125,15 @@ internal object WindowsToasts {
 
     /** Vrací HRESULT, 0 = v pořádku. */
     @JvmStatic
-    external fun nativeInit(aumid: String, displayName: String, iconPath: String?, clsid: String, serverCommand: String?): Int
+    external fun nativeInit(
+        aumid: String,
+        displayName: String,
+        iconPath: String?,
+        clsid: String,
+        serverCommand: String?,
+        shortcutPath: String,
+        shortcutTarget: String,
+    ): Int
 
     /** 0 = povoleno, 1 = vypnuto pro aplikaci, 2 = vypnutá všechna oznámení. */
     @JvmStatic
@@ -125,6 +150,7 @@ internal object WindowsToasts {
 
     private const val LIBRARY = "plumenotifications.dll"
     private const val AUMID = "eu.tintera.plume"
+    private val DISPLAY_NAME = if (desktopDebugBuild) "Plume (debug)" else "Plume"
 
     /** COM třídy aktivátoru. NESMÍ SE MĚNIT — toasty v Centru oznámení by po aktualizaci nešly otevřít. */
     private const val ACTIVATOR = "{c5ef2be3-fe5d-474b-803c-dd0c88ca0d7d}"

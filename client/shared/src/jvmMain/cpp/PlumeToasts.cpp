@@ -2,14 +2,18 @@
 // (eu.tintera.plume.core.notifications.WindowsToasts). Překládá ji úloha
 // compileWindowsNotifications v client/shared/build.gradle.kts; viz docs/poznatky/desktop.md.
 //
-// Aplikace z MSI není zabalená (MSIX), takže si identitu pro toasty registruje sama:
-// AppUserModelID v HKCU\Software\Classes\AppUserModelId a k němu COM třídu, kterou Windows
-// zavolá po kliknutí na toast (INotificationActivationCallback). Zástupce ve Startu s AUMID
-// potřeba není. XML toastu skládá Kotlin, tady se jen předává systému.
+// Aplikace z MSI není zabalená (MSIX), takže si identitu pro toasty zakládá sama: AppUserModelID
+// na zástupci ve Startu (bez něj Windows 11 toast přijme, ale nevykreslí), v registru
+// HKCU\Software\Classes\AppUserModelId a k němu COM třídu, kterou Windows zavolá po kliknutí na
+// toast (INotificationActivationCallback). XML toastu skládá Kotlin, tady se jen předává systému.
 
 #include <unknwn.h>
 #include <windows.h>
 #include <NotificationActivationCallback.h>
+#include <propkey.h>
+#include <propvarutil.h>
+#include <shobjidl.h>
+#include <shlobj.h>
 
 #include <winrt/base.h>
 #include <winrt/Windows.Foundation.h>
@@ -88,6 +92,50 @@ static LSTATUS plumeSetValue(const std::wstring &key, LPCWSTR name, const std::w
                            static_cast<DWORD>((value.size() + 1) * sizeof(wchar_t)));
 }
 
+// Zástupce ve Startu s AUMID a CLSID aktivátoru. Bez něj Windows 11 toast přijme do historie,
+// ale nevykreslí ho (ověřeno: identita jen v registru se neukázala, se zástupcem ano).
+// Existujícímu zástupci (z MSI) se jen doplní vlastnosti a cíl zůstává; chybějící se založí
+// s cílem `target`. Zapisuje se, jen když se něco liší — Průzkumník po zápisu zástupce indexuje.
+static HRESULT plumeEnsureShortcut(const std::wstring &path, const std::wstring &target, const std::wstring &aumid,
+                                   const CLSID &activator) {
+    try {
+        auto link = winrt::create_instance<IShellLinkW>(CLSID_ShellLink, CLSCTX_INPROC_SERVER);
+        auto file = link.as<IPersistFile>();
+        const bool exists = GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES;
+        if (exists) {
+            winrt::check_hresult(file->Load(path.c_str(), STGM_READWRITE));
+        } else {
+            winrt::check_hresult(link->SetPath(target.c_str()));
+        }
+        auto store = link.as<IPropertyStore>();
+        bool changed = !exists;
+        PROPVARIANT value;
+        PropVariantInit(&value);
+        if (SUCCEEDED(store->GetValue(PKEY_AppUserModel_ID, &value))) {
+            changed |= value.vt != VT_LPWSTR || aumid != value.pwszVal;
+        }
+        PropVariantClear(&value);
+        if (SUCCEEDED(store->GetValue(PKEY_AppUserModel_ToastActivatorCLSID, &value))) {
+            changed |= value.vt != VT_CLSID || !IsEqualCLSID(*value.puuid, activator);
+        }
+        PropVariantClear(&value);
+        if (!changed) return S_OK;
+
+        winrt::check_hresult(InitPropVariantFromString(aumid.c_str(), &value));
+        HRESULT hr = store->SetValue(PKEY_AppUserModel_ID, value);
+        PropVariantClear(&value);
+        winrt::check_hresult(hr);
+        winrt::check_hresult(InitPropVariantFromCLSID(activator, &value));
+        hr = store->SetValue(PKEY_AppUserModel_ToastActivatorCLSID, value);
+        PropVariantClear(&value);
+        winrt::check_hresult(hr);
+        winrt::check_hresult(store->Commit());
+        return file->Save(path.c_str(), TRUE);
+    } catch (...) {
+        return winrt::to_hresult();
+    }
+}
+
 // Registrace COM třídy musí přežít vlákno, které ji založilo: třída zaregistrovaná v MTA platí,
 // dokud MTA existuje, a to drží tohle vlákno, které už nikdy neskončí.
 static HRESULT plumeRegisterActivator(const CLSID &clsid) {
@@ -112,12 +160,14 @@ static HRESULT plumeRegisterActivator(const CLSID &clsid) {
     return result.get();
 }
 
-// Zápis identity do registru a registrace aktivátoru. `serverCommand` je příkaz, kterým Windows
-// aplikaci spustí po kliknutí na toast, když neběží (null = ladicí běh z `java`, jen za běhu).
-// Vrací HRESULT; 0 = v pořádku.
+// Identita aplikace: zástupce ve Startu, AUMID procesu, registr a aktivátor. `serverCommand` je
+// příkaz, kterým Windows aplikaci spustí po kliknutí na toast, když neběží (null = ladicí běh
+// z `java`, jen za běhu). Volat dřív, než vznikne první okno — AUMID procesu se oknu přiřadí
+// při vzniku. Vrací HRESULT; 0 = v pořádku.
 extern "C" JNIEXPORT jint JNICALL
 Java_eu_tintera_plume_core_notifications_WindowsToasts_nativeInit(
-    JNIEnv *env, jclass cls, jstring aumid, jstring displayName, jstring iconPath, jstring clsid, jstring serverCommand) {
+    JNIEnv *env, jclass cls, jstring aumid, jstring displayName, jstring iconPath, jstring clsid, jstring serverCommand,
+    jstring shortcutPath, jstring shortcutTarget) {
     env->GetJavaVM(&plumeVm);
     plumeClass = static_cast<jclass>(env->NewGlobalRef(cls));
     plumeOnActivated = env->GetStaticMethodID(cls, "onActivated", "(Ljava/lang/String;)V");
@@ -127,6 +177,14 @@ Java_eu_tintera_plume_core_notifications_WindowsToasts_nativeInit(
 
     CLSID activator;
     HRESULT hr = CLSIDFromString(clsidText.c_str(), &activator);
+    if (FAILED(hr)) return hr;
+
+    plumeEnsureCom();
+    hr = plumeEnsureShortcut(plumeString(env, shortcutPath), plumeString(env, shortcutTarget), plumeAumid, activator);
+    if (FAILED(hr)) return hr;
+    // Zástupce nese AUMID, takže ho musí nést i okno — jinak by se na hlavním panelu neslo pod
+    // jinou identitou než připnutá ikona a ukázalo by se dvakrát.
+    hr = SetCurrentProcessExplicitAppUserModelID(plumeAumid.c_str());
     if (FAILED(hr)) return hr;
 
     const std::wstring appKey = L"Software\\Classes\\AppUserModelId\\" + plumeAumid;

@@ -234,7 +234,7 @@ val compileWindowsNotifications = tasks.register("compileWindowsNotifications") 
                 "cl /nologo /LD /EHsc /std:c++17 /O2 /MT /permissive- /W3 " +
                     "/I \"$javaHome\\include\" /I \"$javaHome\\include\\win32\" " +
                     "/Fo\"${work.path}\\\\\" \"${source.asFile.path}\" /Fe\"${library.path}\" " +
-                    "/link runtimeobject.lib ole32.lib oleaut32.lib advapi32.lib",
+                    "/link runtimeobject.lib ole32.lib oleaut32.lib advapi32.lib shell32.lib propsys.lib shlwapi.lib",
             ).joinToString("\r\n"),
         )
         val process = ProcessBuilder("cmd", "/c", script.path).redirectErrorStream(true).start()
