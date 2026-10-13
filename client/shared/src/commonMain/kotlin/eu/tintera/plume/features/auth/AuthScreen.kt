@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -49,6 +51,9 @@ import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
@@ -60,12 +65,14 @@ import eu.tintera.plume.core.ui.PhoneField
 import eu.tintera.plume.core.telegram.AuthCode
 import eu.tintera.plume.core.telegram.AuthStage
 import eu.tintera.plume.core.telegram.CodeDelivery
+import eu.tintera.plume.core.telegram.EmailReset
 import eu.tintera.plume.core.ui.INTRO_ICON_SIZE
 import eu.tintera.plume.core.ui.IntroShape
 import eu.tintera.plume.core.ui.QrCode
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.tabularNumbers
+import eu.tintera.plume.core.ui.waitUiText
 import eu.tintera.plume.features.conversation.formatDuration
 import androidx.compose.material3.LocalTextStyle
 import eu.tintera.plume.resources.Res
@@ -75,6 +82,23 @@ import eu.tintera.plume.features.proxy.ProxySettingsScreen
 import org.koin.compose.viewmodel.koinViewModel
 import eu.tintera.plume.resources.auth_back_to_password
 import eu.tintera.plume.resources.auth_change_number
+import eu.tintera.plume.resources.auth_email_back_to_code
+import eu.tintera.plume.resources.auth_email_change
+import eu.tintera.plume.resources.auth_email_reset
+import eu.tintera.plume.resources.auth_email_reset_confirm
+import eu.tintera.plume.resources.auth_email_reset_finish
+import eu.tintera.plume.resources.auth_email_reset_pending
+import eu.tintera.plume.resources.auth_email_reset_ready
+import eu.tintera.plume.resources.auth_email_reset_text_now
+import eu.tintera.plume.resources.auth_email_reset_text_wait
+import eu.tintera.plume.resources.auth_email_reset_title
+import eu.tintera.plume.resources.auth_headline_email
+import eu.tintera.plume.resources.auth_headline_email_code
+import eu.tintera.plume.resources.auth_input_email
+import eu.tintera.plume.resources.auth_support_email_address
+import eu.tintera.plume.resources.auth_support_email_code
+import eu.tintera.plume.resources.auth_support_email_code_unknown
+import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.auth_code_app_only_hint
 import eu.tintera.plume.resources.auth_continue
 import eu.tintera.plume.resources.auth_forgot_password
@@ -121,6 +145,7 @@ import eu.tintera.plume.resources.auth_support_phone
 import eu.tintera.plume.resources.auth_support_qr
 import eu.tintera.plume.resources.auth_support_registration
 import eu.tintera.plume.resources.auth_use_phone_number
+import eu.tintera.plume.resources.alternate_email_24dp
 import eu.tintera.plume.resources.error_24dp
 import eu.tintera.plume.resources.forum_24dp
 import eu.tintera.plume.resources.mail_24dp
@@ -159,20 +184,38 @@ fun AuthScreen(
     val hint = viewModel.hint
     val recoveryUnavailable by viewModel.recoveryUnavailable.collectAsStateWithLifecycle()
     val resendIn by viewModel.resendIn.collectAsStateWithLifecycle()
+    val changingEmail by viewModel.changingEmail.collectAsStateWithLifecycle()
+    val emailResetIn by viewModel.emailResetIn.collectAsStateWithLifecycle()
 
     var pickingCountry by rememberSaveable { mutableStateOf(false) }
     var showingProxy by rememberSaveable { mutableStateOf(false) }
+    var confirmingEmailReset by rememberSaveable { mutableStateOf(false) }
 
     // Krok hesla platí jen nad heslem; ViewModel ho při odchodu nuluje až z odběru, takže by
     // na jeden snímek mohl viset nad jiným stavem.
-    val view = AuthView(stage, if (stage is AuthStage.WaitPassword) passwordStep else PasswordStep.Password)
+    val view = AuthView(
+        stage = stage,
+        step = if (stage is AuthStage.WaitPassword) passwordStep else PasswordStep.Password,
+        changingEmail = stage is AuthStage.WaitEmailCode && changingEmail,
+    )
 
     // Přihlášení není v `NavDisplay`, takže zpět bez tohohle aplikaci zavřelo — i z kódu poslaného
     // na špatné číslo. `NavigationBackHandler`, ne `BackHandler`: ten by zabil predictive back.
+    //
+    // **Zpět s klávesnicí vidět napřed schová klávesnici.** Handler se zapíná až s novým krokem,
+    // tedy POZDĚJI, než si klávesnice zaregistrovala vlastní zpět, a callback zapnutý později
+    // vyhrává — zpět z kódu tak klávesnici přeskočilo a rozepsané přihlášení zahodilo (ověřeno
+    // na emulátoru gestem i klávesou). Rozhoduje se až při zpět, jako u `PopupBackAfterKeyboard`:
+    // vypínat handler podle klávesnice by bylo horší, protože inset klávesnice po gestu zpět
+    // občas zůstane viset (systém klávesnici hlásí skrytou, Compose ne) a zpět by pak prošlo
+    // do aktivity a aplikaci zavřelo. Takhle jen jednou nic neudělá. Výška klávesnice, ne
+    // `isImeVisible`: ta funguje i na iOS.
+    val imeVisible by rememberUpdatedState(WindowInsets.ime.getBottom(LocalDensity.current) > 0)
+    val keyboard = LocalSoftwareKeyboardController.current
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
         isBackEnabled = stage.canGoBack() && !busy && !showingProxy,
-        onBackCompleted = viewModel::back,
+        onBackCompleted = { if (imeVisible) keyboard?.hide() else viewModel.back() },
     )
 
     // Proxy přes přihlášení: kde je Telegram blokovaný, se bez ní k přihlášení nikdo nedostane,
@@ -268,6 +311,43 @@ fun AuthScreen(
                                 onChangeNumber = viewModel::restartLogin,
                             )
 
+                            AuthStage.WaitEmailAddress -> EmailAddressForm(
+                                value = input,
+                                error = error,
+                                busy = busy,
+                                onValueChange = viewModel::onInputChange,
+                                onSubmit = viewModel::submit,
+                                onBackToCode = null,
+                                onChangeNumber = viewModel::restartLogin,
+                            )
+
+                            is AuthStage.WaitEmailCode -> if (shown.changingEmail) {
+                                EmailAddressForm(
+                                    value = input,
+                                    error = error,
+                                    busy = busy,
+                                    onValueChange = viewModel::onInputChange,
+                                    onSubmit = viewModel::submit,
+                                    onBackToCode = viewModel::back,
+                                    onChangeNumber = viewModel::restartLogin,
+                                )
+                            } else {
+                                EmailCodeForm(
+                                    stage = current,
+                                    resetIn = emailResetIn,
+                                    value = input,
+                                    error = error,
+                                    busy = busy,
+                                    onValueChange = viewModel::onInputChange,
+                                    onSubmit = viewModel::submit,
+                                    onResend = viewModel::resendEmailCode,
+                                    onChangeEmail = viewModel::changeEmail,
+                                    onReset = { confirmingEmailReset = true },
+                                    onFinishReset = viewModel::resetEmail,
+                                    onChangeNumber = viewModel::restartLogin,
+                                )
+                            }
+
                             is AuthStage.WaitPassword -> when (shown.step) {
                                 PasswordStep.Password -> PasswordForm(
                                     value = input,
@@ -333,6 +413,20 @@ fun AuthScreen(
     }
     }
 
+    // Žádost o reset se ptá předem: odpojí přihlašovací e-mail účtu, a kdo se jen přeťukl,
+    // by o to po čekací době přišel.
+    val resetOffer = ((stage as? AuthStage.WaitEmailCode)?.reset as? EmailReset.Available)
+    if (confirmingEmailReset && resetOffer != null) {
+        EmailResetDialog(
+            waitSeconds = resetOffer.waitSeconds,
+            onConfirm = {
+                confirmingEmailReset = false
+                viewModel.resetEmail()
+            },
+            onDismiss = { confirmingEmailReset = false },
+        )
+    }
+
     if (recoveryUnavailable) {
         RecoveryUnavailableDialog(onDismiss = viewModel::dismissRecoveryUnavailable)
     }
@@ -368,6 +462,7 @@ private fun phaseTransition() =
 private enum class AuthPhase(val icon: DrawableResource) {
     Number(Res.drawable.smartphone_24dp),
     Code(Res.drawable.schedule_24dp),
+    Email(Res.drawable.alternate_email_24dp),
     Recovery(Res.drawable.mail_24dp),
     Qr(Res.drawable.qr_code_scanner_24dp),
     Error(Res.drawable.error_24dp),
@@ -375,15 +470,22 @@ private enum class AuthPhase(val icon: DrawableResource) {
 }
 
 /**
- * Co obrazovka ukazuje: stav automatu a u hesla ještě krok obnovy, který TDLib nezná.
+ * Co obrazovka ukazuje: stav automatu a kroky, které TDLib nezná — obnova hesla a oprava
+ * adresy nad čekáním na kód z e-mailu.
  *
  * [key] rozhoduje o animaci. U hesla je to jen krok: maska e-mailu, kterou TDLib pošle novým
  * stavem těsně po žádosti o kód, je pořád tentýž krok — s celým stavem jako klíčem by obsah
- * přijel podruhé ve chvíli, kdy ho uživatel začíná číst.
+ * přijel podruhé ve chvíli, kdy ho uživatel začíná číst. Oprava adresy je krok sama o sobě.
  */
-private data class AuthView(val stage: AuthStage, val step: PasswordStep) {
-    val key: Any get() = if (stage is AuthStage.WaitPassword) step else stage
+private data class AuthView(val stage: AuthStage, val step: PasswordStep, val changingEmail: Boolean) {
+    val key: Any get() = when {
+        stage is AuthStage.WaitPassword -> step
+        changingEmail -> EMAIL_CHANGE_KEY
+        else -> stage
+    }
 }
+
+private const val EMAIL_CHANGE_KEY = "email-change"
 
 private fun AuthView.phase(): AuthPhase =
     if (stage is AuthStage.WaitPassword && step != PasswordStep.Password) AuthPhase.Recovery else stage.phase()
@@ -396,6 +498,7 @@ private fun AuthStage.phase(): AuthPhase = when (this) {
         -> AuthPhase.Number
 
     is AuthStage.WaitCode -> AuthPhase.Code
+    AuthStage.WaitEmailAddress, is AuthStage.WaitEmailCode -> AuthPhase.Email
     is AuthStage.WaitPassword -> AuthPhase.Code
     is AuthStage.WaitQrConfirmation -> AuthPhase.Qr
     is AuthStage.Failed -> AuthPhase.Error
@@ -403,6 +506,7 @@ private fun AuthStage.phase(): AuthPhase = when (this) {
 }
 
 private fun AuthView.headline(): StringResource = when {
+    changingEmail -> Res.string.auth_headline_email
     stage !is AuthStage.WaitPassword -> stage.headline()
     step == PasswordStep.RecoveryCode -> Res.string.auth_headline_recovery
     step == PasswordStep.NewPassword -> Res.string.auth_headline_new_password
@@ -410,6 +514,7 @@ private fun AuthView.headline(): StringResource = when {
 }
 
 private fun AuthView.supportingText(): UiText? = when {
+    changingEmail -> UiText(Res.string.auth_support_email_address)
     stage !is AuthStage.WaitPassword -> stage.supportingText()
     step == PasswordStep.RecoveryCode -> stage.recoveryEmailPattern
         ?.let { UiText(Res.string.auth_support_recovery_sent, it) }
@@ -423,6 +528,8 @@ private fun AuthStage.headline(): StringResource = when (this) {
     AuthStage.Connecting -> Res.string.auth_headline_connecting
     AuthStage.WaitPhoneNumber -> Res.string.auth_headline_phone
     is AuthStage.WaitCode -> Res.string.auth_headline_code
+    AuthStage.WaitEmailAddress -> Res.string.auth_headline_email
+    is AuthStage.WaitEmailCode -> Res.string.auth_headline_email_code
     is AuthStage.WaitPassword -> Res.string.auth_headline_password
     is AuthStage.WaitQrConfirmation -> Res.string.auth_headline_qr
     AuthStage.WaitRegistration -> Res.string.auth_headline_registration
@@ -434,6 +541,10 @@ private fun AuthStage.headline(): StringResource = when (this) {
 private fun AuthStage.supportingText(): UiText? = when (this) {
     AuthStage.WaitPhoneNumber -> UiText(Res.string.auth_support_phone)
     is AuthStage.WaitCode -> UiText(code.delivery.supportingText())
+    AuthStage.WaitEmailAddress -> UiText(Res.string.auth_support_email_address)
+    is AuthStage.WaitEmailCode -> emailPattern
+        ?.let { UiText(Res.string.auth_support_email_code, it) }
+        ?: UiText(Res.string.auth_support_email_code_unknown)
     is AuthStage.WaitPassword -> hint?.let { UiText(Res.string.auth_support_password_hint, it) }
     is AuthStage.WaitQrConfirmation -> UiText(Res.string.auth_support_qr)
     AuthStage.WaitRegistration -> UiText(Res.string.auth_support_registration)
@@ -628,6 +739,169 @@ private fun CodeForm(
             }
         }
     }
+}
+
+/**
+ * Adresa pro přihlašovací kódy — napoprvé i jako oprava překlepu nad čekáním na kód
+ * ([onBackToCode] pak vede zpátky ke kódu, který na starou adresu už odešel).
+ */
+@Composable
+private fun EmailAddressForm(
+    value: String,
+    error: UiText?,
+    busy: Boolean,
+    onValueChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+    onBackToCode: (() -> Unit)?,
+    onChangeNumber: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        BlockTextField(
+            value = value,
+            onValueChange = onValueChange,
+            placeholder = Res.string.auth_input_email,
+            isError = error != null,
+            keyboardType = KeyboardType.Email,
+            contentType = ContentType.EmailAddress,
+            onSubmit = onSubmit,
+        )
+        FormError(error)
+        ContinueButton(enabled = value.isNotBlank(), busy = busy, onClick = onSubmit)
+        SecondaryActions {
+            if (onBackToCode != null) {
+                TextButton(onClick = onBackToCode, enabled = !busy) {
+                    Text(stringResource(Res.string.auth_email_back_to_code))
+                }
+            }
+            TextButton(onClick = onChangeNumber, enabled = !busy) {
+                Text(stringResource(Res.string.auth_change_number))
+            }
+        }
+    }
+}
+
+/**
+ * Kód z e-mailu. Políčka jako u kódu z SMS, když server řekne délku; jinak obyčejné pole.
+ *
+ * Pod tlačítkem je reset e-mailu pro toho, kdo k němu ztratil přístup — jinak by byl kód
+ * na e-mail slepá ulička, ze které vede jen „Jiné číslo". Oprava adresy a nové poslání kódu
+ * jsou jen u adresy zadané v tomhle přihlášení; adresu nastavenou dřív zná jen server.
+ */
+@Composable
+private fun EmailCodeForm(
+    stage: AuthStage.WaitEmailCode,
+    resetIn: Int,
+    value: String,
+    error: UiText?,
+    busy: Boolean,
+    onValueChange: (String) -> Unit,
+    onSubmit: () -> Unit,
+    onResend: () -> Unit,
+    onChangeEmail: () -> Unit,
+    onReset: () -> Unit,
+    onFinishReset: () -> Unit,
+    onChangeNumber: () -> Unit,
+) {
+    val digits = stage.digits
+    val complete = digits == null || value.length == digits
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        if (digits == null) {
+            BlockTextField(
+                value = value,
+                onValueChange = onValueChange,
+                placeholder = Res.string.auth_input_recovery_code,
+                isError = error != null,
+                keyboardType = KeyboardType.Number,
+                // Bez `contentType`: `SmsOtpCode` by autofill nabídl kód z SMS, a ten sem nepatří.
+                onSubmit = onSubmit,
+            )
+        } else {
+            CodeField(
+                value = value,
+                digits = digits,
+                isError = error != null,
+                onValueChange = onValueChange,
+                onSubmit = onSubmit,
+            )
+            LaunchedEffect(value) { if (value.length == digits) onSubmit() }
+        }
+
+        FormError(error)
+        ContinueButton(enabled = value.isNotBlank() && complete, busy = busy, onClick = onSubmit)
+
+        // Zažádaný reset: kolik zbývá, a po uplynutí cesta ke kódu na číslo.
+        if (stage.reset is EmailReset.Pending) {
+            Text(
+                text = if (resetIn > 0) {
+                    UiText(Res.string.auth_email_reset_pending, waitUiText(resetIn)).resolve()
+                } else {
+                    stringResource(Res.string.auth_email_reset_ready)
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+
+        SecondaryActions {
+            when (stage.reset) {
+                is EmailReset.Available -> TextButton(onClick = onReset, enabled = !busy) {
+                    Text(stringResource(Res.string.auth_email_reset))
+                }
+                is EmailReset.Pending -> if (resetIn == 0) {
+                    TextButton(onClick = onFinishReset, enabled = !busy) {
+                        Text(stringResource(Res.string.auth_email_reset_finish))
+                    }
+                }
+                null -> Unit
+            }
+            if (stage.isSetup) {
+                TextButton(onClick = onResend, enabled = !busy) {
+                    Text(stringResource(Res.string.auth_recovery_resend))
+                }
+                TextButton(onClick = onChangeEmail, enabled = !busy) {
+                    Text(stringResource(Res.string.auth_email_change))
+                }
+            }
+            TextButton(onClick = onChangeNumber, enabled = !busy) {
+                Text(stringResource(Res.string.auth_change_number))
+            }
+        }
+    }
+}
+
+/** Potvrzení žádosti o reset přihlašovacího e-mailu; říká, za jak dlouho proběhne. */
+@Composable
+private fun EmailResetDialog(waitSeconds: Int, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.auth_email_reset_title)) },
+        text = {
+            Text(
+                if (waitSeconds > 0) {
+                    UiText(Res.string.auth_email_reset_text_wait, waitUiText(waitSeconds)).resolve()
+                } else {
+                    stringResource(Res.string.auth_email_reset_text_now)
+                },
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text(stringResource(Res.string.auth_email_reset_confirm)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+        },
+    )
 }
 
 @Composable

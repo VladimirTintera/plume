@@ -167,8 +167,9 @@ znamenaly slepou uličku — kód nikdy nepřišel a jiná cesta nebyla.
   v TDLib `AuthorizationStateWaitEmailAddress`). **Chybějící SMS tedy neškrtí Plume, ale
   Telegram** — a našemu `api_id` neřekne ani to, že chce e-mail. Postup pro nové číslo: účet
   založit v oficiální aplikaci (e-mail nebo Google), pak se přihlásit do Plume; kód přijde do
-  oficiální aplikace jako zpráva. I kdyby server Plume e-mail nabídl, skončí to hláškou
-  `auth_error_email_unsupported` — e-mailové ověření ani registraci Plume nedělá.
+  oficiální aplikace jako zpráva. Kdyby server Plume e-mail nabídl, zvládne ho (viz
+  „Přihlašovací e-mail" níž); registraci nového účtu ale Plume nedělá, takže nové číslo po
+  e-mailu stejně skončí odkazem na oficiální aplikaci.
   Jestli na čísle nevisí účet po předchozím majiteli, se nedotáhlo (rozhodlo by dokončení
   v oficiální aplikaci: nový účet se ptá na jméno); žádost o e-mail ukazuje spíš na nový účet.
 - **Ani založený účet bez aktivní relace to nezmění** (týž den, o pár minut později). Uživatel
@@ -262,8 +263,21 @@ Z kódu i hesla vede „Jiné číslo" a systémové zpět zpátky k číslu.
   v kódu i heslu pustí, jenže automat by dál hlásil kód a obrazovka čísla by existovala jen
   u nás. Dokud heslo nesedí, server přihlášení nedokončil (`SESSION_PASSWORD_NEEDED`), takže
   po `destroy` nezůstane viset relace.
-- **Zpět je `NavigationBackHandler`**, jen v kódu, hesle a QR. Na čísle zpět aplikaci zavře jako
-  dřív — před číslem nic není. Uvnitř obnovy jde zpět o krok obnovy.
+- **Zpět je `NavigationBackHandler`**, jen v kódu, hesle, e-mailu a QR. Na čísle zpět aplikaci
+  zavře jako dřív — před číslem nic není. Uvnitř obnovy jde zpět o krok obnovy.
+- **Zpět s klávesnicí vidět napřed schová klávesnici** (`AuthScreen`, rozhoduje se až při zpět).
+  Handler se zapíná až s novým krokem — kód přijde, když klávesnice z čísla ještě svítí —, takže
+  se zaregistruje POZDĚJI než zpět klávesnice, a pozdější callback vyhrává. Zpět z kódu tak
+  klávesnici přeskočilo a celé přihlášení restartovalo; ověřeno na emulátoru gestem i klávesou,
+  týkalo se to kódu z SMS, hesla i e-mailu.
+- **Handler se podle klávesnice NEVYPÍNÁ, jen se při zpět zeptá.** Inset klávesnice v Compose
+  po gestu zpět občas zůstane viset: systém klávesnici hlásí skrytou (`dumpsys input_method`:
+  `mInputShown=false`, inset `ime visible=false`), ale `WindowInsets.ime` drží výšku — obsah je
+  posunutý nahoru a spodek obrazovky (tlačítka, proxy) chybí. Na emulátoru zhruba jednou
+  z pěti tahů `input swipe 2 850 500 850 300`, s klávesou zpět (`keyevent 4`) ani jednou;
+  spraví to další ukázání klávesnice. S handlerem vypnutým podle insetu šlo zpět v tu chvíli
+  do aktivity a **zavřelo aplikaci**; takhle jen jednou nic neudělá. Totéž pravidlo jako
+  u `PopupBackAfterKeyboard`. Jestli inset visí i na skutečném telefonu, ověřené není.
 - **„Další" v poli nového hesla fokus přesouvá RUČNĚ** (`onNext` → `FocusRequester` nápovědy).
   Výchozí přesun skočil na tlačítko s okem a nápověda se psala naprázdno — ověřeno na emulátoru.
   Totéž čeká každé pole s ikonou, za kterým je další pole.
@@ -279,6 +293,50 @@ Z kódu i hesla vede „Jiné číslo" a systémové zpět zpátky k číslu.
   „bca"); po znaku s pauzou vyjde správně. Pole přihlášení jedou přes `StateFlow` odjakživa
   (proti tomu varuje „Úprava profilu"); na zařízení se to zatím neprojevilo, ale při rychlém
   psaní na slabém telefonu by mohlo.
+
+### Přihlašovací e-mail
+
+Telegram chce u části přihlášení e-mail, na který posílá kódy místo SMS: u nového čísla
+a u účtu, který se přihlašuje často (`auth.sentCodeTypeSetUpEmailRequired`, v TDLib
+`AuthorizationStateWaitEmailAddress`). Účet s přihlašovacím e-mailem nastaveným dřív dostane
+kód rovnou na něj (`AuthorizationStateWaitEmailCode`). Dřív obojí končilo hláškou „tohle
+neumíme". Kroky jsou `AuthStage.WaitEmailAddress` a `WaitEmailCode` (testy `AuthViewModelTest`).
+
+- **Jak se TDLib v těch stavech chová, se četlo ze zdroje** (`td/telegram/AuthManager.cpp`),
+  dokumentace to neříká:
+  - `setAuthenticationEmailAddress` jde i z `WaitEmailCode`, když neběží jiný dotaz — tudy
+    vede **oprava překlepu v adrese** (krok „Jiný e-mail", drží ho ViewModel jako obnovu hesla).
+  - `resendAuthenticationCode` ve `WaitEmailCode` pošle kód **znovu na zadanou adresu**.
+    U přihlašovacího e-mailu nastaveného dřív žádnou adresu nemá (server posílá jen masku),
+    takže oprava ani nové poslání se tam nenabízí (`WaitEmailCode.isSetup`).
+  - **Stav TDLib ty dva případy nerozliší.** `TdlTelegramSession` si pamatuje, že kódu
+    předcházel `WaitEmailAddress` (`emailSetup`); jen v paměti, takže po restartu procesu
+    uprostřed kroku se oprava adresy nenabídne. Kód i „Jiné číslo" zůstanou.
+  - Maska, kterou server nepošle, je u TDLib doslovně `<unknown>` — bere se jako žádná.
+- **Reset přihlašovacího e-mailu** pro toho, kdo k němu ztratil přístup („Nemáš přístup
+  k e-mailu?", s potvrzením). `EmailAddressResetStateAvailable(waitPeriod)` → žádost rozjede
+  čekání, typicky týden; `…Pending(resetIn)` → odpočet; po něm „Přihlásit se kódem na telefon"
+  a kód přijde na číslo (`WaitCode`).
+  - **`TASK_ALREADY_EXISTS` po první žádosti je úspěch.** Server tak odpoví, když čekání rozjel;
+    TDLib to pozná, pošle nový stav s `Pending` — a chybu vrátí volajícímu taky. Session ji proto
+    u žádosti z `Available` spolkne, jinak by vedle odpočtu stála chybová věta. U `Pending` je to
+    opravdu „ještě ne" (`error_email_reset_pending`).
+  - `resetIn` TDLib průběžně neposílá, odpočítává ViewModel (`emailResetIn`) jako lhůtu u kódu.
+  - Během čekání se reset neposílá; tlačítko přijde až s nulou.
+- **Google a Apple tu nejsou**, přestože je TDLib nabízí (`allowGoogleId`, `allowAppleId`).
+  Token musí vydat Google či Apple pro OAuth klienta Telegramu, a ten je svázaný s podpisem
+  oficiální aplikace.
+- **Hrubé síto adresy je to z dvoufázového ověření** (`isPlausibleEmail`), chyby serveru
+  `EMAIL_INVALID`, `EMAIL_NOT_ALLOWED`, `CODE_INVALID` a `EMAIL_VERIFY_EXPIRED` mají vlastní
+  věty (dokumentace `account.sendVerifyEmailCode`, `account.verifyEmail`, `auth.resetLoginEmail`).
+- **Kód z e-mailu má políčka, když server řekne délku** (`EmailAddressAuthenticationCodeInfo.length`,
+  0 = neznámá → obyčejné pole), a odesílá se sám jako kód z SMS.
+- **Ověřeno na emulátoru podstrčenou session** (delegující `TelegramSession` zapojená jedním
+  řádkem v `AuthViewModel`, NECOMMITUJE se): zadání adresy, hrubé síto, kód na adresu s opravou
+  a novým posláním, špatný kód, kód na dřív nastavený e-mail s nabídkou resetu, potvrzovací
+  dialog, odpočet, hotový reset, pole bez délky kódu, zpět. **Skutečný server ověřený NENÍ** —
+  testovací účet e-mail nechce a našemu `api_id` ho server zatím nenabídl ani u nového čísla
+  (viz „Kód jinou cestou"). Až se to stane, v debug logu je `Kód e-mailem:`.
 
 ### Výběr země a formát čísla
 

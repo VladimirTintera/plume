@@ -304,11 +304,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 
 **Co uživatele zablokuje nebo vypadá jako chyba** — přednostně:
 
-- **Přihlášení s e-mailovým kódem.** `AuthorizationStateWaitEmailAddress` /
-  `…WaitEmailCode` končí v `TdlTelegramSession` hláškou „nepodporováno"
-  (`auth_error_email_unsupported`), přitom Telegram e-mail při přihlášení chce čím dál častěji.
-  Chybí `setAuthenticationEmailAddress`, `checkAuthenticationEmailCode`,
-  `resetAuthenticationEmailAddress` (a přihlášení přes Apple / Google ID, které ten stav nabízí).
+- ~~**Přihlášení s e-mailovým kódem.**~~ — hotovo (zadání adresy, kód, oprava adresy, reset
+  přihlašovacího e-mailu; `docs/poznatky/prihlaseni.md`, „Přihlašovací e-mail"). Zbývá ověřit
+  se skutečným serverem — testovací účet e-mail nechce. Google a Apple ID vědomě ne.
 - **Ověření aplikace při přihlášení.** `applicationVerificationRequiredUpdates`
   a `applicationRecaptchaVerificationRequiredUpdates` nikdo neodebírá; když server před
   odesláním kódu chce Play Integrity nebo reCAPTCHA, přihlášení zůstane viset bez hlášky.

@@ -43,6 +43,29 @@ interface TelegramSession {
      */
     suspend fun resendCode(): Result<Unit>
 
+    /**
+     * E-mail pro přihlašovací kódy — v [AuthStage.WaitEmailAddress], a znovu (překlep v adrese)
+     * v [AuthStage.WaitEmailCode] s [AuthStage.WaitEmailCode.isSetup]. Kód na adresu odejde hned.
+     */
+    suspend fun submitEmailAddress(email: String): Result<Unit>
+
+    /** Kód z e-mailu v [AuthStage.WaitEmailCode]. */
+    suspend fun submitEmailCode(code: String): Result<Unit>
+
+    /**
+     * Kód na tutéž adresu znovu. Jen s [AuthStage.WaitEmailCode.isSetup]: adresu, kterou zná
+     * jen server (přihlašovací e-mail nastavený dřív), TDLib znovu obeslat neumí.
+     */
+    suspend fun resendEmailCode(): Result<Unit>
+
+    /**
+     * Reset přihlašovacího e-mailu — pro toho, kdo k němu ztratil přístup. Jde jen
+     * s [AuthStage.WaitEmailCode.reset]. U [EmailReset.Available] s čekáním se tím čekání
+     * rozjede (nový stav s [EmailReset.Pending]); hotový reset pošle kód na telefonní číslo
+     * a automat přejde do [AuthStage.WaitCode].
+     */
+    suspend fun resetEmailAddress(): Result<Unit>
+
     /** Heslo dvoufázového ověření (cloud password), ne kód z SMS. */
     suspend fun submitPassword(password: String): Result<Unit>
 
@@ -192,6 +215,21 @@ enum class CodeDelivery {
     Fragment,
 }
 
+/**
+ * Reset přihlašovacího e-mailu. Po něm kód přijde na telefonní číslo jako dřív — cesta pro
+ * toho, kdo k e-mailu ztratil přístup. Doménový obraz TDLib `EmailAddressResetState`.
+ */
+sealed interface EmailReset {
+    /** Reset jde zažádat; proběhne za [waitSeconds] od žádosti (0 = hned, s Premium). */
+    data class Available(val waitSeconds: Int) : EmailReset
+
+    /**
+     * Reset je zažádaný a proběhne za [resetInSeconds]. TDLib čas přepočítá jen v novém stavu,
+     * průběžně ne — odpočítává se proto od příchodu stavu.
+     */
+    data class Pending(val resetInSeconds: Int) : EmailReset
+}
+
 /** Fáze přihlašovacího automatu. Doménový obraz TDLib `AuthorizationState`. */
 sealed interface AuthStage {
 
@@ -214,6 +252,31 @@ sealed interface AuthStage {
          * ne původní lhůtu, takže se odpočítává od chvíle, kdy stav dorazil.
          */
         val resendTimeout: Int = 0,
+    ) : AuthStage
+
+    /**
+     * Server chce e-mail, na který bude posílat přihlašovací kódy místo SMS — u nového čísla,
+     * nebo u účtu, který se přihlašuje často (dokumentace `auth.sentCodeTypeSetUpEmailRequired`).
+     *
+     * Přihlášení přes Google a Apple, které TDLib v tomhle stavu nabízí, tu není: token musí
+     * vydat Google či Apple pro OAuth klienta TELEGRAMU, a ten je svázaný s podpisem
+     * oficiální aplikace — cizí aplikace ho nedostane.
+     */
+    data object WaitEmailAddress : AuthStage
+
+    /** Kód odešel e-mailem: buď na adresu právě zadanou, nebo na dřív nastavený přihlašovací e-mail. */
+    data class WaitEmailCode(
+        /** Maska adresy („a***@g***.com"), nebo `null`, když ji server neposlal. */
+        val emailPattern: String?,
+        /** Počet číslic, nebo `null`, když ho server neřekl — pak obyčejné pole. */
+        val digits: Int?,
+        /**
+         * Adresu zadal uživatel v tomhle přihlášení ([WaitEmailAddress]), takže ji jde opravit
+         * a kód poslat znovu. U přihlašovacího e-mailu nastaveného dřív zná adresu jen server.
+         */
+        val isSetup: Boolean,
+        /** Jestli a kdy jde e-mail resetovat; `null`, když reset server nenabízí. */
+        val reset: EmailReset?,
     ) : AuthStage
 
     data class WaitPassword(

@@ -29,6 +29,10 @@ import dev.g000sha256.tdl.dto.AuthorizationStateWaitPhoneNumber
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitPremiumPurchase
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitRegistration
 import dev.g000sha256.tdl.dto.AuthorizationStateWaitTdlibParameters
+import dev.g000sha256.tdl.dto.EmailAddressAuthenticationCode
+import dev.g000sha256.tdl.dto.EmailAddressResetState
+import dev.g000sha256.tdl.dto.EmailAddressResetStateAvailable
+import dev.g000sha256.tdl.dto.EmailAddressResetStatePending
 import dev.g000sha256.tdl.dto.OptionValueInteger
 import dev.g000sha256.tdl.dto.ResendCodeReasonUserRequest
 import dev.g000sha256.tdl.TdlThrowable
@@ -47,7 +51,6 @@ import eu.tintera.plume.core.secrets.DatabaseKeyStore
 import eu.tintera.plume.core.ui.foldDiacritics
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.auth_error_email_unsupported
 import eu.tintera.plume.resources.auth_error_premium_required
 import eu.tintera.plume.resources.auth_error_start_failed
 import eu.tintera.plume.resources.auth_error_missing_api_credentials
@@ -81,6 +84,15 @@ class TdlTelegramSession(
      * protože přihlášený nikdy nebyl.
      */
     private var restartingLogin = false
+
+    /**
+     * Kód na e-mail jde z adresy zadané v tomhle přihlášení (po [AuthorizationStateWaitEmailAddress]),
+     * ne z přihlašovacího e-mailu nastaveného dřív. Stav TDLib to nerozliší, a přitom na tom
+     * visí oprava adresy i nové poslání kódu: `resendAuthenticationCode` obesílá adresu, kterou
+     * zadal klient, a u dřívějšího e-mailu žádnou nemá. Drží se jen v paměti — po restartu
+     * procesu uprostřed kroku se oprava adresy nenabídne, kód ani „Jiné číslo" tím nepřijdou.
+     */
+    private var emailSetup = false
 
     override suspend fun start() {
         if (started) return
@@ -140,6 +152,15 @@ class TdlTelegramSession(
             val info = state.codeInfo
             logger.d { "Kód: type=${info.type}, next=${info.nextType}, timeout=${info.timeout}" }
         }
+        if (state is AuthorizationStateWaitEmailCode && paths.isDebugBuild) {
+            logger.d { "Kód e-mailem: délka=${state.codeInfo.length}, reset=${state.emailAddressResetState}, nastavení=$emailSetup" }
+        }
+
+        when (state) {
+            is AuthorizationStateWaitEmailAddress -> emailSetup = true
+            is AuthorizationStateWaitEmailCode -> Unit
+            else -> emailSetup = false
+        }
 
         when (state) {
             is AuthorizationStateWaitTdlibParameters -> sendTdlibParameters()
@@ -175,14 +196,18 @@ class TdlTelegramSession(
             // sem dojít nemusí, viz `attach`.
             is AuthorizationStateClosed -> _authStage.value = closingStage()
 
-            // Stavy kolem e-mailového ověření a Premium nákupu spike neřeší. Padnout na nich ale
-            // nesmíme — uživatel by viděl zamrzlou obrazovku bez vysvětlení. Text pojmenovává
-            // KONKRÉTNÍ fázi: dřív se do hlášky vkládal název třídy, což uživateli neřeklo nic
-            // (a po zapnutí R8 to byl rovnou obfuskovaný nesmysl — „… není podporovaná: mu").
-            is AuthorizationStateWaitEmailAddress,
-            is AuthorizationStateWaitEmailCode,
-                -> _authStage.value = AuthStage.Failed(UiText(Res.string.auth_error_email_unsupported))
+            is AuthorizationStateWaitEmailAddress -> _authStage.value = AuthStage.WaitEmailAddress
+            is AuthorizationStateWaitEmailCode -> _authStage.value = AuthStage.WaitEmailCode(
+                emailPattern = state.codeInfo.emailAddressPattern.takeUnless { it.isBlank() || it == UNKNOWN_EMAIL_PATTERN },
+                digits = digitsOrNull(state.codeInfo.length),
+                isSetup = emailSetup,
+                reset = state.emailAddressResetState?.toEmailReset(),
+            )
 
+            // Nákup Premium Plume neřeší. Padnout na něm ale nesmíme — uživatel by viděl zamrzlou
+            // obrazovku bez vysvětlení. Text pojmenovává KONKRÉTNÍ fázi: dřív se do hlášky
+            // vkládal název třídy, což uživateli neřeklo nic (a po zapnutí R8 to byl rovnou
+            // obfuskovaný nesmysl — „… není podporovaná: mu").
             is AuthorizationStateWaitPremiumPurchase -> _authStage.value = AuthStage.Failed(UiText(Res.string.auth_error_premium_required))
         }
     }
@@ -210,6 +235,11 @@ class TdlTelegramSession(
     }
 
     private fun digitsOrNull(length: Int): Int? = length.takeIf { it in CODE_DIGITS }
+
+    private fun EmailAddressResetState.toEmailReset(): EmailReset = when (this) {
+        is EmailAddressResetStateAvailable -> EmailReset.Available(waitPeriod.coerceAtLeast(0))
+        is EmailAddressResetStatePending -> EmailReset.Pending(resetIn.coerceAtLeast(0))
+    }
 
     private fun closingStage(): AuthStage =
         if (restartingLogin) AuthStage.Connecting else AuthStage.LoggingOut
@@ -403,6 +433,42 @@ class TdlTelegramSession(
             .toResult()
             .map { }
 
+    override suspend fun submitEmailAddress(email: String): Result<Unit> =
+        client.setAuthenticationEmailAddress(emailAddress = email)
+            .toResult()
+            .map { }
+
+    override suspend fun submitEmailCode(code: String): Result<Unit> =
+        client.checkAuthenticationEmailCode(code = EmailAddressAuthenticationCode(code = code))
+            .toResult()
+            .map { }
+
+    /**
+     * V `WaitEmailCode` posílá `resendAuthenticationCode` kód znovu na zadanou adresu
+     * (`AuthManager::resend_authentication_code` v TDLib) — důvod tam nehraje roli.
+     */
+    override suspend fun resendEmailCode(): Result<Unit> =
+        client.resendAuthenticationCode(reason = ResendCodeReasonUserRequest())
+            .toResult()
+            .map { }
+
+    /**
+     * **`TASK_ALREADY_EXISTS` po žádosti s čekáním je úspěch, ne chyba.** Server tak odpoví,
+     * když reset rozjel a čeká se; TDLib to ví a sám pošle nový stav s
+     * `EmailAddressResetStatePending` (`AuthManager::on_reset_email_address_result`), chybu
+     * ale volajícímu vrátí taky. Hláška by stála vedle odpočtu, který říká opak. Při čekání,
+     * které už běží, je to naopak opravdu „ještě ne" a projde jako chyba.
+     */
+    override suspend fun resetEmailAddress(): Result<Unit> {
+        val startsWait = (_authStage.value as? AuthStage.WaitEmailCode)?.reset is EmailReset.Available
+        return client.resetAuthenticationEmailAddress()
+            .toResult()
+            .map { }
+            .recoverCatching { failure ->
+                if (!(startsWait && failure.message == RESET_ALREADY_REQUESTED)) throw failure
+            }
+    }
+
     override suspend fun submitPassword(password: String): Result<Unit> =
         client.checkAuthenticationPassword(password = password)
             .toResult()
@@ -531,6 +597,12 @@ class TdlTelegramSession(
          * a šestimístné; horní mez je na to, aby se políčka vešla i na úzký telefon.
          */
         val CODE_DIGITS = 1..8
+
+        /** Maska, kterou TDLib dosadí, když server žádnou neposlal (`AuthManager::on_sent_code`). */
+        const val UNKNOWN_EMAIL_PATTERN = "<unknown>"
+
+        /** Odpověď `auth.resetLoginEmail`, když reset už běží (dokumentace metody). */
+        const val RESET_ALREADY_REQUESTED = "TASK_ALREADY_EXISTS"
 
 
         const val WRONG_KEY_CODE = 401
