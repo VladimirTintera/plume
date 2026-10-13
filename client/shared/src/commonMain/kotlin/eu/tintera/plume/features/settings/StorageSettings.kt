@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.resources.data_usage_24dp
+import eu.tintera.plume.resources.network_usage_group
+import eu.tintera.plume.resources.network_usage_summary
+import eu.tintera.plume.resources.network_usage_title
 import eu.tintera.plume.resources.storage_delete_pack_title
 import eu.tintera.plume.resources.storage_pack_deleted
 import eu.tintera.plume.resources.storage_delete_pack_body
@@ -130,7 +134,7 @@ import org.jetbrains.compose.resources.stringResource
  * Obsah do sloupce sekce, ne celá obrazovka — hlavičku a scrollování drží `SettingsSectionScreen`.
  */
 @Composable
-fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHostState) {
+fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHostState, onOpenNetworkUsage: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val keepMedia by viewModel.keepMedia.collectAsStateWithLifecycle()
 
@@ -213,6 +217,27 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
                     )
                 }
                 Text(stringResource(Res.string.storage_clear))
+            }
+
+            // Přenesená data nejsou místo na disku, ale „Data a úložiště" je jejich přirozený domov.
+            SettingsGroup(Res.string.network_usage_group) {
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    leadingContent = { CategoryIcon(Res.drawable.data_usage_24dp) },
+                    headlineContent = { Text(stringResource(Res.string.network_usage_title)) },
+                    supportingContent = state.networkUsage?.let { network ->
+                        {
+                            Text(
+                                stringResource(
+                                    Res.string.network_usage_summary,
+                                    fileSizeText(network.receivedBytes),
+                                    fileSizeText(network.sentBytes),
+                                ),
+                            )
+                        }
+                    },
+                    modifier = Modifier.clickable(onClick = onOpenNetworkUsage),
+                )
             }
 
             SettingsGroup(Res.string.storage_keep_media_title) {
@@ -469,7 +494,7 @@ private fun ChatStorageRow(chat: ChatStorage, onClick: (() -> Unit)?) {
 
 /** Ikona v tónovaném kruhu, jako u Zařízení — řádky se tím srovnají s avatary chatů. */
 @Composable
-private fun CategoryIcon(icon: DrawableResource) {
+internal fun CategoryIcon(icon: DrawableResource) {
     Box(
         Modifier.size(40.dp).background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
         contentAlignment = Alignment.Center,
@@ -568,7 +593,7 @@ private val KeepMedia.label: StringResource
         KeepMedia.Forever -> Res.string.storage_keep_forever
     }
 
-private val StorageCategory.label: StringResource
+internal val StorageCategory.label: StringResource
     get() = when (this) {
         StorageCategory.Photos -> Res.string.storage_category_photos
         StorageCategory.Videos -> Res.string.storage_category_videos
@@ -580,7 +605,7 @@ private val StorageCategory.label: StringResource
         StorageCategory.Other -> Res.string.storage_category_other
     }
 
-private val StorageCategory.icon: DrawableResource
+internal val StorageCategory.icon: DrawableResource
     get() = when (this) {
         StorageCategory.Photos -> Res.drawable.image_24dp
         StorageCategory.Videos -> Res.drawable.videocam_24dp

@@ -30,6 +30,12 @@ interface StorageRepository {
      * média"; samolepky, avatary a náhledy nechá být (výchozí výběr TDLib). Vrací uvolněné bajty.
      */
     suspend fun clearOlderThan(olderThanSeconds: Int): Result<Long>
+
+    /** Přenesená data od instalace nebo od vynulování (`getNetworkStatistics`). Jen lokální čtení. */
+    suspend fun networkUsage(): Result<NetworkUsage> = Result.failure(UnsupportedOperationException())
+
+    /** Vynuluje statistiku přenesených dat (`resetNetworkStatistics`); počítá se znovu od teď. */
+    suspend fun resetNetworkUsage(): Result<Unit> = Result.failure(UnsupportedOperationException())
 }
 
 /** Druh souboru, jak ho rozlišuje přehled. Pořadí je pořadí v dialogu mazání. */

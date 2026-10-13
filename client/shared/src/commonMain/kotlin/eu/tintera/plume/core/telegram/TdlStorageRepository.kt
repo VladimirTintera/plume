@@ -28,6 +28,15 @@ import dev.g000sha256.tdl.dto.FileTypeVideoNote
 import dev.g000sha256.tdl.dto.FileTypeVideoStory
 import dev.g000sha256.tdl.dto.FileTypeVoiceNote
 import dev.g000sha256.tdl.dto.FileTypeWallpaper
+import dev.g000sha256.tdl.dto.NetworkStatisticsEntry
+import dev.g000sha256.tdl.dto.NetworkStatisticsEntryCall
+import dev.g000sha256.tdl.dto.NetworkStatisticsEntryFile
+import dev.g000sha256.tdl.dto.NetworkType
+import dev.g000sha256.tdl.dto.NetworkTypeMobile
+import dev.g000sha256.tdl.dto.NetworkTypeMobileRoaming
+import dev.g000sha256.tdl.dto.NetworkTypeNone
+import dev.g000sha256.tdl.dto.NetworkTypeOther
+import dev.g000sha256.tdl.dto.NetworkTypeWiFi
 import dev.g000sha256.tdl.dto.StorageStatisticsByChat
 import dev.g000sha256.tdl.toResult
 
@@ -134,6 +143,104 @@ class TdlStorageRepository(private val holder: TelegramClientHolder) : StorageRe
         /** Kolik chatů s největším využitím přehled vyjmenuje; zbytek je jeden řádek. */
         const val CHAT_LIMIT = 30
     }
+
+    override suspend fun networkUsage(): Result<NetworkUsage> =
+        client.getNetworkStatistics(onlyCurrent = false).toResult()
+            .map { statistics -> networkUsageOf(statistics.sinceDate, statistics.entries.toRecords()) }
+            .onFailure { logger.w(it) { "Statistiku přenesených dat se nepodařilo načíst." } }
+
+    override suspend fun resetNetworkUsage(): Result<Unit> =
+        client.resetNetworkStatistics().toResult().map { }
+            .onFailure { logger.w(it) { "Statistiku přenesených dat se nepodařilo vynulovat." } }
+}
+
+/**
+ * Položky statistiky po našem. Síť „žádná" se vynechá, data bez souboru (`FileTypeNone`, v TDLib
+ * „common") jsou zprávy.
+ *
+ * **Soubory se slučují podle počítadla, ne podle typu.** TDLib ukládá statistiku pod klíčem
+ * `net_stats_<jméno>` a několik typů jméno sdílí (`get_file_type_unique_name` v `FileType.cpp`):
+ * fotka, mizející fotka, živá fotka a mizející živá fotka jsou všechny „photos". Uložená čísla
+ * se tak vracejí u každého z nich znovu — na emulátoru čtyři položky s přesně 26 544 / 849 729 B.
+ * Sečtené daly čtyřnásobek a živá fotka navíc přibyla k videím. Ze skupiny se proto bere
+ * maximum: uložená část je u všech stejná, liší se jen přenos od spuštění u typu, který ho měl.
+ */
+internal fun Array<NetworkStatisticsEntry>.toRecords(): List<TrafficRecord> {
+    val files = filterIsInstance<NetworkStatisticsEntryFile>().mapNotNull { entry ->
+        val network = entry.networkType.usageNetwork() ?: return@mapNotNull null
+        val slot = entry.fileType.statsSlot()
+        Triple(network, slot, entry)
+    }
+    val fileRecords = files.groupBy { (network, slot, _) -> network to slot }
+        .map { (key, group) ->
+            TrafficRecord(
+                network = key.first,
+                kind = key.second.kind,
+                sentBytes = group.maxOf { it.third.sentBytes },
+                receivedBytes = group.maxOf { it.third.receivedBytes },
+            )
+        }
+    val calls = filterIsInstance<NetworkStatisticsEntryCall>().mapNotNull { call ->
+        call.networkType.usageNetwork()?.let { network ->
+            TrafficRecord(network, TrafficKind.Calls, call.sentBytes, call.receivedBytes, callSeconds = call.duration.toLong())
+        }
+    }
+    return fileRecords + calls
+}
+
+/** Počítadlo statistiky TDLib (jméno klíče) a druh, kam patří. */
+private enum class StatsSlot(val kind: TrafficKind) {
+    Common(TrafficKind.Messages),
+    Photos(TrafficKind.Photos),
+    Stories(TrafficKind.Photos),
+    VideoStories(TrafficKind.Videos),
+    Videos(TrafficKind.Videos),
+    Voice(TrafficKind.VoiceMessages),
+    VideoNotes(TrafficKind.VoiceMessages),
+    Documents(TrafficKind.Files),
+    Music(TrafficKind.Music),
+    Animations(TrafficKind.Gifs),
+    Stickers(TrafficKind.Stickers),
+    Thumbnails(TrafficKind.Other),
+    ProfilePhotos(TrafficKind.Other),
+    Wallpapers(TrafficKind.Other),
+    NotificationSounds(TrafficKind.Other),
+    Passport(TrafficKind.Other),
+    Secret(TrafficKind.Other),
+    SecretThumbnails(TrafficKind.Other),
+    Temp(TrafficKind.Other),
+}
+
+/** Podle `get_file_type_unique_name` (TDLib `FileType.cpp`). `when` bez `else`: nový typ rozbije překlad. */
+private fun FileType?.statsSlot(): StatsSlot = when (this) {
+    null, is FileTypeNone -> StatsSlot.Common
+    is FileTypePhoto, is FileTypeSelfDestructingPhoto, is FileTypeLivePhotoVideo,
+    is FileTypeSelfDestructingLivePhotoVideo -> StatsSlot.Photos
+    is FileTypePhotoStory -> StatsSlot.Stories
+    is FileTypeVideoStory -> StatsSlot.VideoStories
+    is FileTypeVideo, is FileTypeSelfDestructingVideo -> StatsSlot.Videos
+    is FileTypeVoiceNote, is FileTypeSelfDestructingVoiceNote -> StatsSlot.Voice
+    is FileTypeVideoNote, is FileTypeSelfDestructingVideoNote -> StatsSlot.VideoNotes
+    is FileTypeDocument -> StatsSlot.Documents
+    is FileTypeAudio -> StatsSlot.Music
+    is FileTypeAnimation -> StatsSlot.Animations
+    is FileTypeSticker -> StatsSlot.Stickers
+    is FileTypeThumbnail -> StatsSlot.Thumbnails
+    is FileTypeProfilePhoto -> StatsSlot.ProfilePhotos
+    is FileTypeWallpaper -> StatsSlot.Wallpapers
+    is FileTypeNotificationSound -> StatsSlot.NotificationSounds
+    is FileTypeSecure -> StatsSlot.Passport
+    is FileTypeSecret -> StatsSlot.Secret
+    is FileTypeSecretThumbnail -> StatsSlot.SecretThumbnails
+    is FileTypeUnknown -> StatsSlot.Temp
+}
+
+private fun NetworkType.usageNetwork(): UsageNetwork? = when (this) {
+    is NetworkTypeMobile -> UsageNetwork.Mobile
+    is NetworkTypeMobileRoaming -> UsageNetwork.Roaming
+    is NetworkTypeWiFi -> UsageNetwork.WiFi
+    is NetworkTypeOther -> UsageNetwork.Other
+    is NetworkTypeNone -> null
 }
 
 /** Kam druh souboru TDLib patří v přehledu. `when` bez `else`: nový druh rozbije překlad. */
