@@ -2847,4 +2847,27 @@
     <string name="notice_frozen_text">Telegram účet omezil kvůli porušení podmínek. Bez odvolání bude %1$s smazán.</string>
     <string name="notice_frozen_text_no_date">Telegram účet omezil kvůli porušení podmínek.</string>
     <string name="notice_frozen_appeal">Odvolat se</string>
+    <string name="suggestion_later">Teď ne</string>
+    <string name="suggestion_check_password_title">Pamatuješ si heslo?</string>
+    <string name="suggestion_check_password_text">Bez hesla dvoufázového ověření se na nové zařízení nepřihlásíš.</string>
+    <string name="suggestion_check_password_yes">Pamatuji</string>
+    <string name="suggestion_check_password_no">Zapomněl(a) jsem</string>
+    <string name="suggestion_check_phone_title">Je %1$s pořád tvoje číslo?</string>
+    <string name="suggestion_check_phone_title_unknown">Je tohle pořád tvoje číslo?</string>
+    <string name="suggestion_check_phone_text">Na tohle číslo chodí přihlašovací kódy. Změnit ho jde zatím v oficiální aplikaci Telegramu.</string>
+    <string name="suggestion_check_phone_yes">Ano, je</string>
+    <string name="suggestion_set_password_title">Zabezpeč účet heslem</string>
+    <string name="suggestion_set_password_text">Ochrání účet, i kdyby někdo získal přihlašovací kód.</string>
+    <string name="suggestion_set_password_text_delay">Bez hesla se na nové zařízení přihlásíš až %1$s.</string>
+    <string name="suggestion_set_password_action">Nastavit</string>
+    <string name="suggestion_login_email_title">Přidej přihlašovací e-mail</string>
+    <string name="suggestion_login_email_text">Telegram na něj bude posílat přihlašovací kódy. Přidat ho jde zatím v oficiální aplikaci Telegramu.</string>
+    <string name="suggestion_profile_photo_title">Přidej si profilovou fotku</string>
+    <string name="suggestion_profile_photo_text">Lidé tě podle ní snáz poznají.</string>
+    <string name="suggestion_profile_photo_action">Přidat</string>
+    <string name="suggestion_archive_title">Chaty od neznámých do archivu</string>
+    <string name="suggestion_archive_text">Nové chaty od lidí mimo kontakty půjdou ztlumené do archivu.</string>
+    <string name="suggestion_archive_action">Zapnout</string>
+    <string name="suggestion_custom_action">Otevřít</string>
+    <string name="suggestion_failed">Nepovedlo se to.</string>
 </resources>

@@ -112,6 +112,8 @@ private class FakeNotices(private val acceptResult: Result<Unit> = Result.succes
     override val serviceNotices = MutableStateFlow<List<ServiceNotice>>(emptyList())
     override val termsOfService = MutableStateFlow<TermsOfServiceUpdate?>(null)
     override val freeze = MutableStateFlow<AccountFreeze?>(null)
+    override val suggestedActions = MutableStateFlow<List<eu.tintera.plume.core.telegram.SuggestedAction>>(emptyList())
+    override suspend fun hideSuggestedAction(action: eu.tintera.plume.core.telegram.SuggestedAction) = Result.success(Unit)
 
     override fun dismissServiceNotice(id: Long) = serviceNotices.update { list -> list.filterNot { it.id == id } }
 

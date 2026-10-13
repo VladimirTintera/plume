@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.telegram.AppScreen
+import eu.tintera.plume.core.telegram.SuggestedAction
+import eu.tintera.plume.features.notices.SuggestedActionCard
 import eu.tintera.plume.features.notices.rememberNoticeLinkOpener
 import eu.tintera.plume.features.notices.FrozenAccountCard
 import eu.tintera.plume.core.settings.ThemeColor
@@ -286,6 +289,8 @@ fun ChatListScreen(
     onCreateFolder: () -> Unit = {},
     /** „+" v řádku složek → Spravovat složky. */
     onManageFolders: () -> Unit = {},
+    /** Obrazovka aplikace z doporučené akce (dvoufázové ověření, úprava profilu). */
+    onOpenScreen: (AppScreen) -> Unit = {},
     /** Vedle seznamu je otevřená konverzace (dvoupanel) — hudbu pak ukazuje její dock. */
     conversationOpen: Boolean = false,
     nowPlayingViewModel: NowPlayingViewModel = koinViewModel(),
@@ -299,6 +304,8 @@ fun ChatListScreen(
     val hiddenSavedMessagesChatId by viewModel.hiddenSavedMessagesChatId.collectAsStateWithLifecycle()
     val updateCard by viewModel.updateCard.collectAsStateWithLifecycle()
     val freeze by viewModel.freeze.collectAsStateWithLifecycle()
+    val suggestion by viewModel.suggestion.collectAsStateWithLifecycle()
+    val accountPhone by viewModel.accountPhone.collectAsStateWithLifecycle()
     val openNoticeLink = rememberNoticeLinkOpener()
     val unconfirmedLogin by viewModel.unconfirmedLogin.collectAsStateWithLifecycle()
     val newFolderChats by viewModel.newFolderChats.collectAsStateWithLifecycle()
@@ -531,7 +538,7 @@ fun ChatListScreen(
                     onScrolledToChat = { scrollToChat = null },
                     listState = listState,
                     // Položky hlavičky: nové přihlášení a karta s aktualizací.
-                    headerItemCount = listOfNotNull(freeze, unconfirmedLogin, updateCard, newFolderChats).size,
+                    headerItemCount = listOfNotNull(freeze, unconfirmedLogin, suggestion, updateCard, newFolderChats).size,
                     empty = {
                         /*
                          * Prázdná SLOŽKA je jiný stav než prázdný účet: chaty jsou, jen ne tyhle (třeba
@@ -575,6 +582,35 @@ fun ChatListScreen(
                                 enabled = true,
                                 onConfirm = { viewModel.confirmLogin(login.sessionId) },
                                 onTerminate = { viewModel.terminateLogin(login.sessionId) },
+                                modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
+                            )
+                        }
+                    }
+                    // Za přihlášením: rada od Telegramu je méně naléhavá než cizí zařízení v účtu.
+                    suggestion?.let { action ->
+                        item(key = SUGGESTION_KEY, contentType = SUGGESTION_KEY) {
+                            SuggestedActionCard(
+                                action = action,
+                                phone = accountPhone,
+                                onPrimary = {
+                                    when (action) {
+                                        SuggestedAction.CheckPassword, SuggestedAction.CheckPhoneNumber ->
+                                            viewModel.hideSuggestion(action)
+                                        is SuggestedAction.SetPassword -> onOpenScreen(AppScreen.TwoStepVerification)
+                                        is SuggestedAction.SetLoginEmail -> Unit
+                                        SuggestedAction.SetProfilePhoto -> onOpenScreen(AppScreen.EditProfile)
+                                        SuggestedAction.ArchiveUnknownChats -> viewModel.enableArchiveUnknownChats(action)
+                                        is SuggestedAction.Custom -> openNoticeLink(action.url)
+                                    }
+                                },
+                                onSecondary = {
+                                    // „Zapomněl(a) jsem" vede k heslu (změna, obnova e-mailem); jinde „Teď ne".
+                                    if (action == SuggestedAction.CheckPassword) {
+                                        onOpenScreen(AppScreen.TwoStepVerification)
+                                    } else {
+                                        viewModel.hideSuggestion(action)
+                                    }
+                                },
                                 modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
                             )
                         }
@@ -1958,6 +1994,7 @@ private val REORDER_AVATAR_SIZE = 40.dp
 /** Klíč karty s aktualizací. */
 private const val UPDATE_CARD_KEY = "update-card"
 private const val FROZEN_ACCOUNT_KEY = "frozen-account"
+private const val SUGGESTION_KEY = "suggested-action"
 private const val NEW_FOLDER_CHATS_KEY = "new-folder-chats"
 private const val UNCONFIRMED_LOGIN_KEY = "unconfirmed-login"
 

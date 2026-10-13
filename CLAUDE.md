@@ -64,7 +64,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Sdílení do aplikace](docs/poznatky/sdileni.md) — ShareRequests, Direct Share a obrazovka „Komu: …“, iOS rozšíření a návrhy chatů
 - [Přihlášení a odhlášení](docs/poznatky/prihlaseni.md) — QR kód, přihlašovací obrazovka (kód, heslo, obnova, země), odhlášení a nový klient
 - [Šifrovaná databáze, spojení a proxy](docs/poznatky/databaze-spojeni-proxy.md) — klíč databáze a jeho migrace, stav spojení a obnova po pozadí, proxy a sponzorovaný chat
-- [Systémová oznámení od Telegramu](docs/poznatky/systemova-oznameni.md) — oznámení od služby, nové podmínky služby, zmrazený účet; proč se odebírají eagerně
+- [Systémová oznámení od Telegramu](docs/poznatky/systemova-oznameni.md) — oznámení od služby, nové podmínky služby, zmrazený účet, doporučené akce; proč se odebírají eagerně
 - [Nastavení](docs/poznatky/nastaveni.md) — AppSettings (DataStore), obrazovka nastavení, soukromí, úprava profilu a ořez fotky, dvoufázové ověření, diskrétní čtení, zařízení, úložiště, „Co je nového“, synchronizace bez backendu (WebApp CloudStorage)
 - [Zámek aplikace](docs/poznatky/zamek-aplikace.md) — PIN a biometrie, záznam v Keystore / Keychainu, kdy se zamyká, brzda pokusů, co zámek nechrání
 - [AI v zařízení](docs/poznatky/ai-v-zarizeni.md) — Gemini Nano a Gemma, stahování modelu, shrnutí a návrhy odpovědí, varování před podvodem, přepis a kontrola tónu před odesláním, vysvětlení zprávy

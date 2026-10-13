@@ -455,6 +455,7 @@ private fun shellEntryProvider(
             onOpenProxySettings = navigation::openProxySettings,
             onCreateFolder = { navigation.openChatFolders(create = true) },
             onManageFolders = { navigation.openChatFolders() },
+            onOpenScreen = { screen -> navigation.openScreen(screen, twoPane) },
             modifier = Modifier.listPaneInsets(twoPane),
         )
     }

@@ -29,6 +29,50 @@ interface AccountNotices {
 
     /** Zmrazený účet, nebo `null`. */
     val freeze: StateFlow<AccountFreeze?>
+
+    /**
+     * Doporučené akce (`updateSuggestedActions`), v pořadí, v jakém přišly — jen ty, které Plume
+     * umí nabídnout ([SuggestedAction]). Nabídky Premium a hvězd se vynechávají.
+     */
+    val suggestedActions: StateFlow<List<SuggestedAction>>
+
+    /** Schovat akci na serveru — neukáže se už nikde, ani v jiném klientovi. */
+    suspend fun hideSuggestedAction(action: SuggestedAction): Result<Unit>
+}
+
+/**
+ * Doporučená akce od Telegramu, kterou Plume umí nabídnout. TDLib jich zná víc (Premium, hvězdy,
+ * dárky, narozeniny, přístupové klíče, převod skupiny na kanál); ty se vynechávají — buď je Plume
+ * neumí splnit, nebo by jen propagovaly placené služby.
+ */
+sealed interface SuggestedAction {
+    /** „Pamatuješ si heslo dvoufázového ověření?" */
+    data object CheckPassword : SuggestedAction
+
+    /** „Je tohle pořád tvoje číslo?" Změnit číslo Plume zatím neumí, jen potvrdit. */
+    data object CheckPhoneNumber : SuggestedAction
+
+    /** Nastavit heslo; bez něj se na nové zařízení přihlásí až za [authorizationDelaySeconds] (0 = bez čekání). */
+    data class SetPassword(val authorizationDelaySeconds: Int) : SuggestedAction
+
+    /**
+     * Přidat přihlašovací e-mail. [canBeHidden] `false` znamená, že ho Telegram vyžaduje
+     * (`SETUP_LOGIN_EMAIL_NOSKIP`) a karta nejde schovat.
+     */
+    data class SetLoginEmail(val canBeHidden: Boolean) : SuggestedAction
+
+    data object SetProfilePhoto : SuggestedAction
+
+    /** Zapnout archivaci a ztlumení nových chatů od neznámých. */
+    data object ArchiveUnknownChats : SuggestedAction
+
+    /** Vlastní doporučení od Telegramu s odkazem. [name] je klíč pro schování. */
+    data class Custom(
+        val name: String,
+        val title: String,
+        val description: String,
+        val url: String,
+    ) : SuggestedAction
 }
 
 /** Oznámení od Telegramu (`updateServiceNotification`) — ukazuje se jako popup. */

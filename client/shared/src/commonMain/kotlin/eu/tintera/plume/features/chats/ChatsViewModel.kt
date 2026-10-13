@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import eu.tintera.plume.core.chatcolor.ChatColors
 import eu.tintera.plume.core.settings.ThemeColor
 import kotlinx.datetime.todayIn
@@ -60,6 +62,10 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_action_failed
 import eu.tintera.plume.core.telegram.AccountFreeze
 import eu.tintera.plume.core.telegram.AccountNotices
+import eu.tintera.plume.core.telegram.SuggestedAction
+import eu.tintera.plume.core.telegram.TelegramSession
+import eu.tintera.plume.core.ui.displayPhone
+import eu.tintera.plume.resources.suggestion_failed
 import eu.tintera.plume.resources.chat_folders_failed
 
 /**
@@ -88,8 +94,10 @@ class ChatsViewModel(
     private val chatColorStore: ChatColors? = null,
     /** Hledání přirozeným jazykem; bez něj se „Hledat s AI" nenabízí. */
     private val naturalSearch: NaturalSearchModel? = null,
-    /** Zmrazení účtu pro kartu nahoře v seznamu; bez něj karta není. */
+    /** Zmrazení účtu a doporučené akce pro karty nahoře v seznamu; bez něj karty nejsou. */
     private val accountNotices: AccountNotices? = null,
+    /** Formát telefonního čísla v doporučené akci; bez něj číslo zůstane bez mezer. */
+    private val session: TelegramSession? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -490,6 +498,50 @@ class ChatsViewModel(
     /** Zmrazený účet — karta nahoře v hlavním seznamu (v archivu ne), `null` = účet zmrazený není. */
     val freeze: StateFlow<AccountFreeze?> =
         accountNotices?.freeze?.takeIf { folder == ChatFolder.Main } ?: MutableStateFlow(null)
+
+    /**
+     * Doporučená akce od Telegramu — karta nahoře v hlavním seznamu, vždy jen první. `null` =
+     * žádná (nebo archiv).
+     */
+    val suggestion: StateFlow<SuggestedAction?> =
+        accountNotices?.suggestedActions?.takeIf { folder == ChatFolder.Main }
+            ?.map { it.firstOrNull() }
+            ?.stateIn(viewModelScope, SharingStarted.Eagerly, accountNotices.suggestedActions.value.firstOrNull())
+            ?: MutableStateFlow(null)
+
+    /** Telefon účtu pro „Je … pořád tvoje číslo?", naformátovaný jako v Telegramu. */
+    val accountPhone: StateFlow<String?> = accounts.account
+        .map { account -> account?.phoneNumber?.takeIf { it.isNotBlank() } }
+        .distinctUntilChanged()
+        .map { raw -> raw?.let { session?.displayPhone(it) ?: "+${it.removePrefix("+")}" } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** „Teď ne", „Pamatuji", „Ano, je": schovat akci na serveru. */
+    fun hideSuggestion(action: SuggestedAction) {
+        val notices = accountNotices ?: return
+        viewModelScope.launch {
+            notices.hideSuggestedAction(action).onFailure { failure ->
+                logger.w(failure) { "Doporučenou akci se nepodařilo schovat." }
+                _actions.value = ChatActionsState(error = failure.userMessage(Res.string.suggestion_failed))
+            }
+        }
+    }
+
+    /**
+     * Zapne archivaci nových chatů od neznámých. Nastavení archivu se zapisuje celé, ostatní volby
+     * se přenesou. Po úspěchu se akce schová — server ji sám odebrat nemusí.
+     */
+    fun enableArchiveUnknownChats(action: SuggestedAction) {
+        viewModelScope.launch {
+            repository.archiveSettings()
+                .mapCatching { settings -> repository.setArchiveSettings(settings.copy(archiveUnknownSenders = true)).getOrThrow() }
+                .onSuccess { hideSuggestion(action) }
+                .onFailure { failure ->
+                    logger.w(failure) { "Archivaci chatů od neznámých se nepodařilo zapnout." }
+                    _actions.value = ChatActionsState(error = failure.userMessage(Res.string.suggestion_failed))
+                }
+        }
+    }
 
     /** Karta s aktualizací nahoře v seznamu, `null` = žádná. Pravidlo je v [updateCard]. */
     val updateCard: StateFlow<AppUpdateState?> =

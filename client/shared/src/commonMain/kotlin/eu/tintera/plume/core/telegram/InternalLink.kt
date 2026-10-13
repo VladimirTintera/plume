@@ -109,6 +109,8 @@ enum class AppScreen {
     /** Nastavení na kořeni — i pro sekce, které Plume nemá (jazyk, Premium…). */
     Settings,
     EditProfile,
+    /** Dvoufázové ověření (Obecné → Soukromí). Jen z doporučené akce, odkaz `tg://` na něj Plume nemá. */
+    TwoStepVerification,
     /** Soukromí je v Obecných, samostatná sekce není. */
     General,
     Notifications,

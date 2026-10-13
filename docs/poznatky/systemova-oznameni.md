@@ -5,7 +5,8 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 
 Co Telegram účtu sděluje mimo chaty a TDLib předepisuje ukázat: oznámení od služby
 (`updateServiceNotification`), nové podmínky služby (`updateTermsOfService`) a zmrazený účet
-(`updateFreezeState`). Dlouho je nikdo neodebíral. Drží je `AccountNotices` (`core/telegram`),
+(`updateFreezeState`), a k tomu doporučené akce (`updateSuggestedActions`). Dlouho je nikdo
+neodebíral. Drží je `AccountNotices` (`core/telegram`),
 dialogy kreslí `AccountNoticesHost` nad přihlášenou částí aplikace (`App`), zmrazení je karta
 nahoře v seznamu chatů (`FrozenAccountCard`).
 
@@ -64,4 +65,37 @@ nahoře v seznamu chatů (`FrozenAccountCard`).
   hranicí, „Teď ne", „Odvolat se" otevřelo Spam Info Bota v Plume.
 - **Skutečný update od serveru ověřený NENÍ** — ani jedno z toho se na testovacím účtu
   vyvolat nedá. Přijetí podmínek se nezkoušelo vůbec (sonda by poslala vymyšlené id).
-- **Doporučené akce (`updateSuggestedActions`) tu nejsou** — viz `docs/roadmap.md`.
+
+## Doporučené akce
+
+`updateSuggestedActions` nese přidané a odebrané akce; po startu TDLib pošle všechny aktuální
+jako přidané. Drží je tentýž eagerní `AccountNotices` (`suggestedActions`), kreslí je karta
+nahoře v hlavním seznamu (`SuggestedActionCard`) — **vždy jen první**, aby rady nevytlačily chaty.
+
+- **Plume nabízí jen to, co umí splnit, a neprodává**: ověř heslo, ověř číslo, nastav heslo,
+  přihlašovací e-mail, profilová fotka, archivace chatů od neznámých a vlastní akce od Telegramu
+  (`Custom`, s odkazem). Premium, hvězdy, dárky, narozeniny, přístupové klíče, převod skupiny na
+  kanál a nápověda k fajfkám se vynechávají (`toDomain`, `when` bez `else` — nová akce v TDLib
+  rozbije překlad a musí se rozhodnout, ne tiše zmizet).
+- **„Teď ne", „Pamatuji", „Ano, je" schovají akci na serveru** (`hideSuggestedAction`), takže
+  se neukáže ani v jiném klientovi. Ze seznamu ji vyřadí až update, který TDLib pošle potom —
+  kdyby server schování odmítl, karta zůstane. `hideSuggestedAction` chce zpátky PŘESNĚ objekt
+  od TDLib, repository si ho ke každé akci pamatuje.
+- **Navigace jde přes `AppScreen`** (dvoufázové ověření přibylo jako `TwoStepVerification`,
+  úprava profilu už byla): „Nastavit heslo" i „Zapomněl(a) jsem" vedou na dvoufázové ověření,
+  „Přidat" fotku na úpravu profilu. Zpět vede po krocích přes Nastavení do Chatů.
+- **Archivace od neznámých se zapíná celým nastavením archivu** (ostatní volby se přenesou)
+  a po úspěchu se akce schová sama.
+- **Přihlašovací e-mail Plume nastavit neumí** (`setLoginEmailAddress` chybí, viz roadmapa) —
+  karta odkáže na oficiální aplikaci. **Vyžadovaný** e-mail (`canBeHidden == false`, u Telegramu
+  `SETUP_LOGIN_EMAIL_NOSKIP`) má podle dokumentace blokovat celou aplikaci; Plume ukáže kartu
+  bez tlačítek, kterou nejde schovat. Blokovat aplikaci bez cesty, jak požadavek splnit, by byla
+  slepá ulička.
+- **Změnit číslo Plume taky neumí** — „Je … pořád tvoje číslo?" má jen „Ano, je" a větu
+  o oficiální aplikaci. Číslo je naformátované od TDLib (`displayPhone`, „+420 601 234 567").
+
+**Ověřeno na emulátoru sondou** (podstrčené akce, schování jen lokálně; NECOMMITUJE se): všech
+sedm karet, „Ano, je" / „Pamatuji" / „Teď ne" přepínají na další, „Nastavit" otevřelo dvoufázové
+ověření a zpět se vrátilo do seznamu, vyžadovaný e-mail bez tlačítek. **Neověřené**: skutečný
+update od serveru, schování na serveru a zapnutí archivace (měnilo by nastavení skutečného účtu).
+
