@@ -452,8 +452,11 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
 
    **Sonda C prošla (13. 10. 2026, `docs/poznatky/hovory.md`, „Sonda s ntgcalls")**: hovor
    se zvukem Plume ↔ oficiální Android oběma směry i Plume ↔ Plume, verze 8.0.0, emoji
-   shodná. Další krok je obálka níž (služba, `ConnectionService`, přijetí z notifikace,
-   obrazovka hovoru), pak video. Původní plán sondy:
+   shodná. **Obálka na Androidu hotová** (`docs/poznatky/hovory.md`, „Obálka na Androidu":
+   služba, přijetí z notifikace i nad zámkem, obrazovka hovoru, reproduktor, senzor
+   přiblížení). Zbývá na Androidu: vyzvánění ve smyčce, Bluetooth, přechod sítě za hovoru,
+   `ConnectionService` / `core-telecom` (souběh s GSM hovorem, Android Auto), video.
+   Původní plán sondy:
 
    **Doporučení: C, začít dvoudenní sondou na Androidu.** ntgcalls v `debug` větvi, jen zvuk:
    `CallStateReady` → `skip_exchange` + `connect_p2p`, signalizace oběma směry, hovor

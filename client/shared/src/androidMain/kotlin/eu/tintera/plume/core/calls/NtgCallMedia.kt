@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.calls
 
 import android.content.Context
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Build
 import co.touchlab.kermit.Logger
@@ -93,6 +94,26 @@ class NtgCallMedia(context: Context) : CallMedia {
         }
     }
 
+    override fun setSpeaker(on: Boolean) {
+        worker.execute { runCatching { route(speaker = on) }.onFailure { logger.w(it) { "Přepnutí reproduktoru selhalo." } } }
+    }
+
+    /**
+     * Sluchátko, nebo reproduktor. Od Androidu 12 přes `setCommunicationDevice` (starší
+     * `isSpeakerphoneOn` tam pro hovory nefunguje spolehlivě), do té doby postaru.
+     */
+    private fun route(speaker: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val wanted = if (speaker) AudioDeviceInfo.TYPE_BUILTIN_SPEAKER else AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
+            audio.availableCommunicationDevices.firstOrNull { it.type == wanted }
+                ?.let { audio.setCommunicationDevice(it) }
+                ?: audio.clearCommunicationDevice()
+        } else {
+            @Suppress("DEPRECATION")
+            audio.isSpeakerphoneOn = speaker
+        }
+    }
+
     override fun stop() {
         worker.execute { stopNow() }
     }
@@ -108,13 +129,17 @@ class NtgCallMedia(context: Context) : CallMedia {
     private fun beginAudioSession() {
         previousAudioMode = audio.mode
         audio.mode = AudioManager.MODE_IN_COMMUNICATION
-        @Suppress("DEPRECATION")
-        audio.isSpeakerphoneOn = false
+        route(speaker = false)
     }
 
     private fun endAudioSession() {
         runCatching {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) audio.clearCommunicationDevice()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                audio.clearCommunicationDevice()
+            } else {
+                @Suppress("DEPRECATION")
+                audio.isSpeakerphoneOn = false
+            }
             audio.mode = previousAudioMode
         }
     }

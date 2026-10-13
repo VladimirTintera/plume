@@ -800,6 +800,10 @@
     <string name="call_answer">Answer</string>
     <string name="call_hang_up">Hang up</string>
     <string name="call_mute">Mute microphone</string>
+    <string name="call_speaker">Speaker</string>
+    <string name="call_minimize">Minimize call</string>
+    <string name="call_emojis_hint">If the other person sees the same emoji, only the two of you can hear this call.</string>
+    <string name="call_notification_ongoing">Ongoing call</string>
     <string name="call_outgoing">Outgoing call</string>
     <string name="call_incoming">Incoming call</string>
     <string name="call_missed">Missed call</string>

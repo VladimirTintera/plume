@@ -74,6 +74,8 @@ actual class NotificationPresenter(
     private val settings: AppSettings,
     /** Odložené chaty: dokud spí, přijdou jejich notifikace potichu. */
     private val snoozes: ChatSnoozes? = null,
+    /** Umí Plume hovor přijmout (mediální vrstva, `CallRepository.supported`)? */
+    private val callsSupported: Boolean = false,
     private val now: () -> Instant = { Clock.System.now() },
 ) {
 
@@ -457,6 +459,10 @@ actual class NotificationPresenter(
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
         if (!granted) return
+        if (callsSupported) {
+            showAnswerableCall(call)
+            return
+        }
         val name = call.callerName.ifBlank { readString(Res.string.notification_call_unknown) }
         val built = NotificationCompat.Builder(context, CALLS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
@@ -486,6 +492,43 @@ actual class NotificationPresenter(
             .setContentIntent(NotificationIntents.openChat(context = context, notificationId = call.groupId, chatId = call.chatId))
             .build()
         logger.d { "Zobrazuji příchozí hovor ${call.callId} (${if (call.isVideo) "video" else "hlas"})." }
+        manager.notify(call.groupId, built)
+    }
+
+    /**
+     * Příchozí hovor, který Plume umí přijmout: `CallStyle` s „Přijmout" a „Odmítnout" od
+     * systému a celoobrazovková výzva (na zamčeném telefonu otevře aplikaci rovnou na hovoru).
+     *
+     * - **`CallStyle` chce službu v popředí, nebo celoobrazovkový intent** — služba při
+     *   zvonění neběží (spouští se až přijetím), takže intent je povinný, ne ozdoba.
+     * - **„Přijmout" otevírá aplikaci** ([NotificationIntents.answerCall]), přijetí pak zařídí
+     *   shell po dotazu na mikrofon. Broadcast by aplikaci do popředí nedostal a bez popředí
+     *   Android službě hovoru mikrofon nedá.
+     * - **Celoobrazovková výzva se ukáže jen se zamčeným nebo zhasnutým displejem**; jinak
+     *   systém dá místo ní plovoucí notifikaci. Od Androidu 14 ji smí jen aplikace s oprávněním
+     *   `USE_FULL_SCREEN_INTENT` (Play ho dá aplikacím na hovory); bez něj zbude plovoucí.
+     */
+    private suspend fun showAnswerableCall(call: IncomingCall) {
+        val name = call.callerName.ifBlank { readString(Res.string.notification_call_unknown) }
+        val person = Person.Builder()
+            .setName(name)
+            .setIcon(avatarBitmap(call.avatarPath)?.let { IconCompat.createWithBitmap(it) })
+            .setImportant(true)
+            .build()
+        val decline = NotificationIntents.declineCall(context, call.groupId, call.chatId, call.callId, call.isVideo)
+        val answer = NotificationIntents.answerCall(context, call.groupId, call.callId) ?: return
+        val built = NotificationCompat.Builder(context, CALLS_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setStyle(NotificationCompat.CallStyle.forIncomingCall(person, decline, answer).setIsVideo(call.isVideo))
+            .setContentText(readString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice))
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setOngoing(true)
+            .setTimeoutAfter(CALL_TIMEOUT_MS)
+            .setFullScreenIntent(NotificationIntents.showCall(context), true)
+            .setContentIntent(NotificationIntents.showCall(context))
+            .build()
+        logger.d { "Zobrazuji příchozí hovor ${call.callId}, přijmout jde v Plume." }
         manager.notify(call.groupId, built)
     }
 

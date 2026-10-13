@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.calls.CallServiceControls
+import eu.tintera.plume.core.telegram.CallRepository
 import eu.tintera.plume.core.calls.CallMedia
 import eu.tintera.plume.core.calls.NtgCallMedia
 import eu.tintera.plume.core.platform.LaunchAtLogin
@@ -152,6 +154,11 @@ actual fun Module.platformModule() {
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
             settings = get(),
             snoozes = get(),
+            callsSupported = get<CallRepository>().supported,
         )
+    }
+    // Služba v popředí po dobu hovoru — spouští se z popředí, jakmile hovor vytáčí nebo běží.
+    single(createdAtStart = true) {
+        CallServiceControls(context = androidContext(), calls = get(), scope = get(named(APP_SCOPE))).also { it.start() }
     }
 }

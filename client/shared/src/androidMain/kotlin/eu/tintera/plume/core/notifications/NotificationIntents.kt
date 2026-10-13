@@ -177,6 +177,52 @@ object NotificationIntents {
         )
     }
 
+    /** Hovor, který má aplikace po otevření přijmout (akce „Přijmout" v notifikaci). */
+    const val EXTRA_ANSWER_CALL = "eu.tintera.plume.extra.ANSWER_CALL"
+
+    /** Otevřít aplikaci na obrazovce hovoru (ťuknutí na notifikaci hovoru, celoobrazovková výzva). */
+    const val EXTRA_SHOW_CALL = "eu.tintera.plume.extra.SHOW_CALL"
+
+    /**
+     * „Přijmout" z notifikace otevírá ACTIVITY, ne broadcast: od Androidu 12 notifikace nesmí
+     * spouštět aktivitu oklikou přes přijímač (trampolína), a přijetí hovoru stejně chce
+     * aplikaci v popředí — mikrofon pro službu hovoru dá Android jen tehdy.
+     */
+    fun answerCall(context: Context, groupId: Int, callId: Int): PendingIntent? {
+        val component = context.packageManager.getLaunchIntentForPackage(context.packageName)?.component ?: return null
+        val intent = Intent(ACTION_ANSWER_CALL)
+            .setComponent(component)
+            .putExtra(EXTRA_ANSWER_CALL, callId)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        return PendingIntent.getActivity(
+            context,
+            groupId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    /** Akce intentu „Přijmout" — odliší ho od otevření hovoru podle `filterEquals`. */
+    private const val ACTION_ANSWER_CALL = "eu.tintera.plume.action.ANSWER_CALL"
+    private const val ACTION_SHOW_CALL = "eu.tintera.plume.action.SHOW_CALL"
+
+    /** Otevře aplikaci na obrazovce hovoru. */
+    fun showCall(context: Context): PendingIntent? {
+        val component = context.packageManager.getLaunchIntentForPackage(context.packageName)?.component ?: return null
+        val intent = Intent(ACTION_SHOW_CALL)
+            .setComponent(component)
+            .putExtra(EXTRA_SHOW_CALL, true)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        return PendingIntent.getActivity(
+            context,
+            SHOW_CALL_REQUEST,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+    }
+
+    private const val SHOW_CALL_REQUEST = 7303
+
     /** Broadcast „Ztlumit". IMMUTABLE — do intentu nikdo nic nevkládá. */
     fun mute(context: Context, groupId: Int, chatId: Long): PendingIntent {
         val intent = Intent(ACTION_MUTE)

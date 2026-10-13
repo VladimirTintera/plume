@@ -99,6 +99,49 @@ normálního režimu. Mikrofon i přehrávání hovoru jedou s potlačením ozv�
   `phoneCall` a `ConnectionService` ho systém může zastavit), přijetí z notifikace,
   sluchátko/reproduktor/Bluetooth, přechod Wi-Fi ↔ data, video, iOS a desktop.
 
+## Obálka na Androidu
+
+Hovor, který přežije zavřenou aplikaci a zamčený telefon:
+
+- **Služba v popředí po dobu hovoru** (`CallService`, typ `phoneCall|microphone`,
+  oprávnění `FOREGROUND_SERVICE_PHONE_CALL`, `FOREGROUND_SERVICE_MICROPHONE`
+  a `MANAGE_OWN_CALLS`, bez kterého typ `phoneCall` Android 14 nepustí). Spouští ji
+  `CallServiceControls`, jakmile hovor vytáčí / spojuje / běží — vždycky po akci uživatele
+  v aplikaci, tedy z popředí; mikrofon na pozadí Android dá jen službě, která tak vznikla.
+  Ověřeno: na ploše mikrofon dál nahrává (`dumpsys audio`, `silenced:false`).
+- **Notifikace probíhajícího hovoru je `CallStyle.forOngoingCall`**: jméno, čas (chronometr
+  od spojení) a „Zavěsit" od systému → `ACTION_HANG_UP` do služby. Kanál `calls`, potichu.
+- **Příchozí hovor je `CallStyle.forIncomingCall`** s „Přijmout" a „Odmítnout", když Plume
+  hovory umí (`NotificationPresenter(callsSupported)`), jinak postaru s větou o oficiální
+  aplikaci. **`CallStyle` bez služby chce celoobrazovkový intent** — služba při zvonění
+  neběží, takže `setFullScreenIntent` je povinný (`USE_FULL_SCREEN_INTENT`).
+- **„Přijmout" otevírá aktivitu, ne broadcast**: trampolína přes přijímač je od Androidu 12
+  zakázaná a přijetí chce aplikaci v popředí (mikrofon pro službu). `MainActivity` předá
+  požadavek do `CallRequests`, shell se zeptá na mikrofon a zavolá `accept`.
+- **Nad zámkem**: dokud hovor trvá, má `MainActivity` `setShowWhenLocked` a
+  `setTurnScreenOn` — celoobrazovková výzva tak rozsvítí displej a ukáže obrazovku hovoru
+  nad zámkem; přijmout jde bez odemčení. Po hovoru se obojí vrací.
+- **U ucha zhasíná senzor přiblížení** (`PROXIMITY_SCREEN_OFF_WAKE_LOCK`), jen ve sluchátku
+  a při běžícím hovoru.
+- **Reproduktor** od Androidu 12 přes `setCommunicationDevice` (vestavěný reproduktor /
+  sluchátko), starší `isSpeakerphoneOn`.
+- **Obrazovka hovoru** (`CallOverlay`): nový hovor přes celou obrazovku, šipka nebo Zpět ji
+  zmenší do pruhu nahoře (Zpět hovor neukončí), ťuknutí na pruh ji zase rozbalí, stejně
+  tak ťuknutí na notifikaci (`CallRequests.show`). Pozadí `surface`, ne
+  `surfaceContainer` — nevybraný `FilledIconToggleButton` má plochu `surfaceContainer`
+  a na stejné ploše splynul.
+
+Ověřeno na Pixelu 5 a Pixelu 7 Pro (Plume ↔ Plume): příchozí notifikace s Přijmout /
+Odmítnout na ploše, přijetí z ní, hovor na ploše, reproduktor tam a zpět, zámek senzoru,
+zavěšení ze systémové notifikace (služba skončí na obou stranách, zvuk zpět v normálu),
+zhasnutý a zamčený telefon (rozsvítí se obrazovka hovoru nad zámkem, přijetí bez odemčení),
+zmenšení, rozbalení a Zpět.
+
+**Co dál chybí**: vyzvánění (kanál `calls` hraje zvuk notifikace, ne vyzváněcí tón ve
+smyčce), Bluetooth a sluchátka s kabelem, přechod Wi-Fi ↔ data za hovoru, integrace se
+systémovým telefonem (`ConnectionService` / `core-telecom`: souběh s GSM hovorem, hovor
+v autě), video, iOS a desktop.
+
 ## Neověřené
 
 - **VoIP pushe na iOS** pro aplikaci s vlastním `api_id` (`deviceTokenApplePushVoIP`) — bez

@@ -1,6 +1,8 @@
 package eu.tintera.plume
 
 import android.content.Intent
+import android.os.Build
+import android.view.WindowManager
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.KeyboardShortcutGroup
@@ -9,7 +11,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
+import eu.tintera.plume.core.calls.CallRequests
 import eu.tintera.plume.core.navigation.ChatOpenRequests
+import eu.tintera.plume.core.telegram.CallRepository
 import eu.tintera.plume.core.navigation.LinkOpenRequests
 import eu.tintera.plume.core.notifications.NotificationIntents
 import eu.tintera.plume.core.share.ShareIntake
@@ -17,6 +21,8 @@ import eu.tintera.plume.core.ui.KeyboardShortcutOverview
 import eu.tintera.plume.core.ui.KeyboardShortcuts
 import eu.tintera.plume.core.ui.handle
 import eu.tintera.plume.core.ui.handleEscape
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 
@@ -26,6 +32,8 @@ class MainActivity : ComponentActivity() {
     private val linkOpenRequests: LinkOpenRequests by inject()
     private val shareIntake: ShareIntake by inject()
     private val keyboardShortcuts: KeyboardShortcuts by inject()
+    private val callRequests: CallRequests by inject()
+    private val calls: CallRepository by inject()
 
     /** Texty pro systémový přehled zkratek; do načtení přehled Plume neukáže nic. */
     private var shortcutOverview: KeyboardShortcutOverview? = null
@@ -37,6 +45,8 @@ class MainActivity : ComponentActivity() {
 
         // Studený start z notifikace: chatId přijde v intentu, kterým se activity zakládá.
         openChatFrom(intent)
+        receiveCall(intent)
+        showOverLockScreenDuringCalls()
         // Studený start ze sdílení. Po otočení se `onCreate` spustí nad týmž intentem znovu —
         // proto se sdílení z intentu po zpracování maže, jinak by se výběr chatu ukázal podruhé.
         // `savedInstanceState` navíc značí obnovu: tehdy už sdílení jednou zpracované bylo.
@@ -67,8 +77,42 @@ class MainActivity : ComponentActivity() {
         // Bez tohohle by `getIntent()` dál vracelo ten, kterým se activity zakládala.
         setIntent(intent)
         openChatFrom(intent)
+        receiveCall(intent)
         receiveShare(intent)
         receiveLink(intent)
+    }
+
+    /** „Přijmout" nebo ťuknutí na hovor v notifikaci — vyřídí shell (mikrofon, přijetí). */
+    private fun receiveCall(intent: Intent) {
+        val answer = intent.getIntExtra(NotificationIntents.EXTRA_ANSWER_CALL, NO_CALL)
+        if (answer != NO_CALL) {
+            callRequests.answer(answer)
+            intent.removeExtra(NotificationIntents.EXTRA_ANSWER_CALL)
+        }
+        if (intent.getBooleanExtra(NotificationIntents.EXTRA_SHOW_CALL, false)) {
+            callRequests.show()
+            intent.removeExtra(NotificationIntents.EXTRA_SHOW_CALL)
+        }
+    }
+
+    /**
+     * Po dobu hovoru (zvonění i hovor) se aplikace ukáže i nad zamčenou obrazovkou a rozsvítí
+     * displej — celoobrazovková výzva hovoru by jinak otevřela jen zámek. Po hovoru zpět, ať se
+     * Plume nad zámkem neukazuje jindy.
+     */
+    private fun showOverLockScreenDuringCalls() {
+        lifecycleScope.launch {
+            calls.active.map { it != null }.distinctUntilChanged().collect { inCall ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                    setShowWhenLocked(inCall)
+                    setTurnScreenOn(inCall)
+                } else {
+                    @Suppress("DEPRECATION")
+                    val flags = WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                    if (inCall) window.addFlags(flags) else window.clearFlags(flags)
+                }
+            }
+        }
     }
 
     /**
@@ -118,5 +162,6 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val NO_CHAT = 0L
+        const val NO_CALL = 0
     }
 }

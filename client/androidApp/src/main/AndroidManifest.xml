@@ -21,6 +21,12 @@
          v deklaraci služeb v popředí. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Hovory: služba v popředí po dobu hovoru (typ phoneCall chce MANAGE_OWN_CALLS, mikrofon
+         na pozadí typ microphone) a celoobrazovková výzva příchozího hovoru. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <!-- Stahování modelu Gemma (gigabajty) jako úloha WorkManageru se službou v popředí
          (ModelDownloadWorker). Typ dataSync Play taky chce vysvětlit v deklaraci služeb v popředí. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
@@ -243,6 +249,10 @@
         </service>
 
         <!-- Sdílení živé polohy (LiveLocationService v :client:shared). -->
+        <service
+            android:name="eu.tintera.plume.core.calls.CallService"
+            android:exported="false"
+            android:foregroundServiceType="phoneCall|microphone" />
         <service
             android:name="eu.tintera.plume.core.location.LiveLocationService"
             android:exported="false"
