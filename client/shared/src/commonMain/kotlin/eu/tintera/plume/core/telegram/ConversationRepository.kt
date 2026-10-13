@@ -1665,6 +1665,8 @@ data class LinkPreview(
      * vyrobí stejně jako u videa poslaného přímo.
      */
     val isVideo: Boolean = false,
+    /** Stránka má Instant View (`instantViewVersion > 0`) — jde přečíst v aplikaci, bez prohlížeče. */
+    val instantView: Boolean = false,
 )
 
 /**

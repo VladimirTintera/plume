@@ -84,18 +84,26 @@ internal data class RichMediaLabels(
  *
  * @param isFull článek je celý; jinak TDLib poslal jen začátek ([Article.isPartial]).
  * @param hideSensitive médium se rozostří jako citlivé (viz `hidesSensitive`).
+ * @param spacious mezi bloky volný řádek (čtečka Instant View). V bublině by text zbytečně
+ *   natáhl; ve čtečce přes celou obrazovku bez něj odstavce splývají. Položky seznamu, řádky
+ *   tabulky a obsah citace zůstávají u sebe — tam mezera nepatří.
  */
 internal fun Array<PageBlock>.toRichBody(
     labels: RichMediaLabels,
     isFull: Boolean = true,
     hideSensitive: Boolean = false,
+    spacious: Boolean = false,
 ): MessageBody {
-    val writer = RichWriter(labels, hideSensitive)
+    val writer = RichWriter(labels, hideSensitive, spacious)
     forEach { writer.block(it, indent = "") }
     return writer.build(isPartial = !isFull)
 }
 
-private class RichWriter(private val labels: RichMediaLabels, private val hideSensitive: Boolean) {
+private class RichWriter(
+    private val labels: RichMediaLabels,
+    private val hideSensitive: Boolean,
+    private val spacious: Boolean,
+) {
     private val text = StringBuilder()
     private val entities = mutableListOf<MessageEntity>()
     private val media = mutableListOf<ArticleMedia>()
@@ -123,6 +131,27 @@ private class RichWriter(private val labels: RichMediaLabels, private val hideSe
     /** Blok za odrážkou seznamu začne na řádku odrážky, ne na novém. */
     private var continueLine = false
 
+    /** Uvnitř seznamu, tabulky nebo citace: bloky bez volného řádku i v [spacious]. */
+    private var tight = 0
+
+    private inline fun tight(content: () -> Unit) {
+        tight++
+        content()
+        tight--
+    }
+
+    /** Právě skončil nadpis: blok pod ním k němu patří, mezeru nedostane. */
+    private var afterHeading = false
+
+    /** Volný řádek nad blokem ([spacious]); na začátku textu, za jiným volným řádkem a pod nadpisem ne. */
+    private fun gap() {
+        if (afterHeading) {
+            afterHeading = false
+            return
+        }
+        if (spacious && tight == 0 && text.isNotEmpty() && !text.endsWith("\n\n")) text.append('\n')
+    }
+
     /** Nový řádek, jen když poslední není prázdný — bloky se tak nerozjedou dvojitými mezerami. */
     private fun newLine() {
         if (continueLine) {
@@ -130,6 +159,7 @@ private class RichWriter(private val labels: RichMediaLabels, private val hideSe
             return
         }
         if (text.isNotEmpty() && text.last() != '\n') text.append('\n')
+        gap()
     }
 
     /** Obalí, co [content] napíše, entitou [type]; prázdný úsek entitu nedostane. */
@@ -165,28 +195,11 @@ private class RichWriter(private val labels: RichMediaLabels, private val hideSe
             is PageBlockAuthorDate -> line(indent) { styled(MessageEntityType.Italic) { rich(block.author) } }
             is PageBlockMathematicalExpression -> line(indent) { styled(MessageEntityType.Code()) { text.append(block.expression) } }
             is PageBlockDivider -> line(indent) { text.append(DIVIDER) }
-            is PageBlockList -> block.items.forEach { item ->
-                val bullet = when {
-                    item.hasCheckbox -> if (item.isChecked) CHECKED else UNCHECKED
-                    else -> item.label.ifBlank { BULLET }
-                }
-                // První blok položky stojí za odrážkou, další pod ní s odsazením.
-                item.blocks.forEachIndexed { i, inner ->
-                    if (i == 0) {
-                        line(indent) {
-                            text.append(bullet).append(' ')
-                            inline(inner)
-                        }
-                    } else {
-                        block(inner, "$indent$NESTED")
-                    }
-                }
-                if (item.blocks.isEmpty()) line(indent) { text.append(bullet) }
-            }
+            is PageBlockList -> list(block, indent)
             is PageBlockBlockQuote -> {
                 newLine()
                 styled(MessageEntityType.Quote(expandable = false)) {
-                    block.blocks.forEach { block(it, indent) }
+                    tight { block.blocks.forEach { block(it, indent) } }
                     credit(block.credit)
                 }
             }
@@ -210,7 +223,8 @@ private class RichWriter(private val labels: RichMediaLabels, private val hideSe
                 block.blocks.forEach { block(it, indent) }
             }
             is PageBlockTable -> {
-                block.cells.forEach { row ->
+                if (spacious && tight == 0) newLine()
+                tight { block.cells.forEach { row ->
                     line(indent) {
                         row.forEachIndexed { i, cell ->
                             if (i > 0) text.append(CELL_SEPARATOR)
@@ -221,7 +235,7 @@ private class RichWriter(private val labels: RichMediaLabels, private val hideSe
                             }
                         }
                     }
-                }
+                } }
                 line(indent) { styled(MessageEntityType.Italic) { rich(block.caption) } }
             }
             is PageBlockPhoto -> media(
@@ -261,6 +275,31 @@ private class RichWriter(private val labels: RichMediaLabels, private val hideSe
         }
     }
 
+    private fun list(block: PageBlockList, indent: String) {
+        // Volný řádek nad seznamem, mezi položkami ne.
+        if (spacious && tight == 0) newLine()
+        tight {
+            block.items.forEach { item ->
+                val bullet = when {
+                    item.hasCheckbox -> if (item.isChecked) CHECKED else UNCHECKED
+                    else -> item.label.ifBlank { BULLET }
+                }
+                // První blok položky stojí za odrážkou, další pod ní s odsazením.
+                item.blocks.forEachIndexed { i, inner ->
+                    if (i == 0) {
+                        line(indent) {
+                            text.append(bullet).append(' ')
+                            inline(inner)
+                        }
+                    } else {
+                        block(inner, "$indent$NESTED")
+                    }
+                }
+                if (item.blocks.isEmpty()) line(indent) { text.append(bullet) }
+            }
+        }
+    }
+
     /** Blok za odrážkou: text bez vlastního nového řádku, jinak jako samostatný blok. */
     private fun inline(block: PageBlock) {
         when (block) {
@@ -279,9 +318,10 @@ private class RichWriter(private val labels: RichMediaLabels, private val hideSe
         // a nadpisu za odrážkou seznamu).
         if (text.isNotEmpty() && !continueLine) {
             newLine()
-            text.append('\n')
+            if (!text.endsWith("\n\n")) text.append('\n')
         }
         line(indent) { styled(MessageEntityType.Bold) { rich(richText) } }
+        afterHeading = spacious
     }
 
     private fun credit(credit: RichText?) {

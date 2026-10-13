@@ -160,6 +160,40 @@ zmínky, hashtagy, příkazy, spoiler, vlastní emoji, datum.
   další `getUpdates` nezmění, a zprávy mezitím server zahodí — volat s
   `allowed_updates=["message","my_chat_member","callback_query"]`.
 
+### Instant View
+
+Odkaz, ke kterému Telegram umí Instant View, se otevře ve čtečce v aplikaci, ne v prohlížeči.
+Náhled odkazu to ohlásí řádkem „⚡ Rychlé zobrazení" (`LinkPreview.instantView` =
+`instantViewVersion > 0`), ťuknutí na náhled pošle `MessageAction.OpenInstantView` místo
+`OpenLink`. Stránku skládá server (`getWebPageInstantView`, `InstantViewRepository`) ze stejných
+bloků jako článek ve zprávě, takže se převádí týmž `toRichBody` a kreslí po úsecích
+(`articleSegments`) — čtečka je `features/instantview`.
+
+- **Čtečka se otevírá přes `InstantViewRequests`, ne parametrem konverzace.** `ConversationScreen`
+  je na hraně počtu registrů (viz CLAUDE.md), takže žádost vyřídí shell (`InstantViewRoute`
+  do zásobníku chatů, detailní panel), stejně jako odkazy zvenčí (`LinkOpenRequests`).
+- **Vlastní sazba, ne bublina.** Bublina kreslí článek komponentami navázanými na zprávu (let
+  médií podle id zprávy, rámeček); stránka žádnou zprávou není. Čtečka kreslí text jako
+  `RichText`, fotky přes celou šířku čtecího sloupce (nejvýš 680 dp), video a GIF náhledem.
+  **Přehrát je nejde** — prohlížeč médií stojí na zprávě; celou stránku otevře tlačítko vpravo
+  nahoře v prohlížeči.
+- **Ve čtečce jsou mezi bloky volné řádky** (`toRichBody(spacious = true)`). Bez nich odstavce
+  splývaly (v bublině je dělí jen konec řádku, a to tam stačí). Položky seznamu, řádky tabulky
+  a obsah citace zůstávají u sebe a pod mezinadpisem mezera není — nadpis patří k textu pod ním.
+- **Název článku (`PageBlockTitle`) se z textu vyjme a je nadpisem čtečky** (`headlineMedium`).
+  V textu byl jen tučným řádkem stejné velikosti jako odstavec.
+- **Odkaz uvnitř stránky** na Telegram jde do Plume (`LinkOpenRequests`), jinam do prohlížeče.
+- **404 není chyba, ale „Instant View nemá"** — náhled mohl být starší než změna stránky.
+  Čtečka pak stránku otevře v prohlížeči a sama se zavře. Jiná chyba ukáže „Zkusit znovu"
+  a „Otevřít v prohlížeči".
+- **Useknutá stránka** (`isFull = false`) má na konci „Zbytek dočíst v prohlížeči"; plnou verzi
+  TDLib na rozdíl od článku ve zprávě nevydá.
+- **Zprava doleva psaná stránka** (`isRtl`) se tak i sází (`LocalLayoutDirection`).
+- **Ověřuje se botem**: zpráva s odkazem na blog telegram.org (`/blog/700-million-and-premium`
+  Instant View má; `/blog/telegram-10-years` přesměruje na úvodní stránku a nemá). Ověřeno na
+  emulátoru česky: značka v náhledu, čtečka s nadpisem, počtem zobrazení, odstavci, citacemi,
+  fotkami a náhledy videí. **Neověřeno**: RTL stránka, useknutá stránka, iOS (jen přeložené).
+
 ### Počty pod příspěvkem
 
 Pod příspěvkem kanálu je řádek se zhlédnutími a přeposláními (`PostStatsRow`) a u příspěvku

@@ -216,6 +216,10 @@ data class ForumTopicsRoute(val chatId: Long) : Route
 @Serializable
 data class ChatProfileRoute(val chatId: Long) : Route
 
+/** Čtečka Instant View stránky [url] (z náhledu odkazu). Vrší se nad konverzací v zásobníku Chatů. */
+@Serializable
+data class InstantViewRoute(val url: String) : Route
+
 /**
  * Úprava skupiny nebo kanálu (název, popis, fotka, práva členů). Vrší se nad profil a je to
  * taky detailový panel — na širokém rozvržení profil vpravo nahradí.
@@ -482,6 +486,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ArchiveJoinRequestsRoute::class, ArchiveJoinRequestsRoute.serializer())
             subclass(ConversationRoute::class, ConversationRoute.serializer())
             subclass(ChatProfileRoute::class, ChatProfileRoute.serializer())
+            subclass(InstantViewRoute::class, InstantViewRoute.serializer())
             subclass(EditChatRoute::class, EditChatRoute.serializer())
             subclass(MemberRightsRoute::class, MemberRightsRoute.serializer())
             subclass(InviteLinksRoute::class, InviteLinksRoute.serializer())

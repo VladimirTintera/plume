@@ -446,7 +446,7 @@ private fun Array<PageBlock>.plainText(): String = mapNotNull { block ->
  * Formátování se zahazuje, text zůstává. **Spoiler se vynechá** — náhled by ho prozradil; stejně
  * tak co text nenese (ikona, tlačítko, vzorec).
  */
-private fun RichText.plainText(): String = when (this) {
+internal fun RichText.plainText(): String = when (this) {
     is RichTextPlain -> text
     is RichTexts -> texts.joinToString("") { it.plainText() }
     is RichTextBold -> text.plainText()
@@ -1160,6 +1160,7 @@ internal fun TdlLinkPreview.toDomain(): LinkPreview? {
         showAboveText = preview.showAboveText,
         canChangeSize = preview.hasLargeMedia,
         isVideo = preview.type is LinkPreviewTypeVideo || preview.type is LinkPreviewTypeEmbeddedVideoPlayer,
+        instantView = preview.instantViewVersion > 0,
     )
     if (result.siteName == null && result.title == null && result.description == null && photo == null) {
         return null

@@ -58,7 +58,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Profil chatu](docs/poznatky/profil-chatu.md) — profil, členové a jejich správa, úprava skupiny, pozvánky, témata, sdílená média, historie fotek
 - [Prohlížeč médií a média](docs/poznatky/prohlizec-medii.md) — prohlížeč, video a PiP, GIFy, kolečka a jejich nahrávání, automatické ukládání do galerie, poloha a mapy, spoilery, mizející a citlivý obsah, text z fotky, FileRepository
 - [Hlasovky a hudba](docs/poznatky/zvuk.md) — přehrávání, u ucha, nahrávání a náhled hlasovky, hudba na pozadí a dock přehrávače
-- [Typy zpráv](docs/poznatky/typy-zprav.md) — popisy a servisní zprávy, články, počty a komentáře, témata ve skupinách, placená média, dárky, příběhy, kontakt, hovor
+- [Typy zpráv](docs/poznatky/typy-zprav.md) — popisy a servisní zprávy, články a Instant View, počty a komentáře, témata ve skupinách, placená média, dárky, příběhy, kontakt, hovor
 - [Emoji, samolepky a reakce](docs/poznatky/emoji-samolepky-reakce.md) — velká emoji, kostky, efekty, vlastní emoji, výběry samolepek / GIFů / emoji, reakce a jejich čipy
 - [Notifikace](docs/poznatky/notifikace.md) — TDLib a push, kanály a nastavení, zvuky z Telegramu, akce z notifikace, iOS (APNs), ohlášení hovoru, pruh videochatu
 - [Sdílení do aplikace](docs/poznatky/sdileni.md) — ShareRequests, Direct Share a obrazovka „Komu: …“, iOS rozšíření a návrhy chatů

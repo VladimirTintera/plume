@@ -2966,4 +2966,13 @@
     <string name="conversation_jump_date_empty">There are no messages from that day on.</string>
     <string name="conversation_jump_date_failed">Couldn't find messages from that day.</string>
     <string name="conversation_jump_date_go">Go</string>
+    <string name="instant_view_mark">Instant View</string>
+    <string name="instant_view_open_browser">Open in browser</string>
+    <string name="instant_view_full_page">Read the rest in the browser</string>
+    <string name="instant_view_failed">Couldn't load the page.</string>
+    <string name="instant_view_retry">Try again</string>
+    <plurals name="instant_view_views">
+        <item quantity="one">%1$s view</item>
+        <item quantity="other">%1$s views</item>
+    </plurals>
 </resources>
