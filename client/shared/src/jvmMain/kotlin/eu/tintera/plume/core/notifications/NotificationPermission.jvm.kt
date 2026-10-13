@@ -29,12 +29,14 @@ actual class NotificationPermission internal constructor(private val notifier: D
     actual fun isGranted(): Boolean = notifier.isGranted() == true
 
     actual fun openSystemSettings() {
-        val settings = when (desktopOs) {
-            DesktopOs.MacOs -> MAC_NOTIFICATION_SETTINGS
-            DesktopOs.Windows -> WINDOWS_NOTIFICATION_SETTINGS
-            else -> return
+        when (desktopOs) {
+            DesktopOs.MacOs -> runCatching { openInSystem(URI(MAC_NOTIFICATION_SETTINGS)) }
+            // `Desktop.browse` (openInSystem) otevřel `ms-settings:` v PROHLÍŽEČI, ne v aplikaci
+            // Nastavení. Systémové schéma předá svému handleru Průzkumník — okenní program,
+            // takže na rozdíl od `cmd /c start` nebliká konzole.
+            DesktopOs.Windows -> runCatching { ProcessBuilder("explorer.exe", WINDOWS_NOTIFICATION_SETTINGS).start() }
+            else -> Unit
         }
-        runCatching { openInSystem(URI(settings)) }
     }
 
     /** Kanály má jen Android. */

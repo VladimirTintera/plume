@@ -197,6 +197,11 @@ předá systému — co se ladí, je čistá funkce.
   Systém → Oznámení: `…\Notifications\Settings\<AUMID>\Enabled = 0` (vypnuto pro Plume)
   a `…\PushNotifications\ToastEnabled = 0` (vypnuto všechno). Windows se na povolení neptá,
   takže úvodní dialog s vysvětlením se tu neukazuje.
+- **Řádek „Povolení v systému" otevírá Nastavení → Systém → Oznámení** (`ms-settings:notifications`;
+  na řádek jedné nezabalené aplikace odkaz nevede). **Přes `explorer.exe`, ne `Desktop.browse`:**
+  AWT `browse` otevřel `ms-settings:` v prohlížeči (u uživatele Chrome), ne v aplikaci
+  Nastavení. Průzkumník předá schéma jeho handleru a je to okenní program, takže na rozdíl
+  od `cmd /c start` nebliká konzole. Totéž platí pro každé další systémové schéma.
 - **Historie toastů chce u nezabalené aplikace AUMID** (`History.Remove(tag, group, aumid)`,
   `Clear(aumid)`); přetížení bez něj platí jen pro MSIX. Skupina je jedna pro všechno (`plume`),
   protože presenter při rušení zná jen id; seskupení po chatech nese `<header>` v XML.
