@@ -91,9 +91,12 @@ fun main() {
                 }
                 window.addWindowFocusListener(listener)
                 DesktopWindow.setFocused(window.isFocused)
+                // Tlačítko okna na hlavním panelu: odznak nepřečtených a blikání (DesktopTaskbar).
+                DesktopWindow.attach(window)
                 onDispose {
                     window.removeWindowFocusListener(listener)
                     DesktopWindow.setFocused(false)
+                    DesktopWindow.attach(null)
                 }
             }
             App()

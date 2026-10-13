@@ -126,8 +126,9 @@ toasty WinRT (oddíl „Notifikace na Windows" níž), na Linuxu AWT `TrayIcon.d
   (`AppReopenedListener`), na Windows ikona v oznamovací oblasti (oddíl „Oznamovací oblast
   a jediná instance" níž); všude klik na oznámení a další spuštění. Ukončuje Cmd+Q, resp.
   nabídka ikony. Na Linuxu zavření aplikaci ukončí.
-- **Odznak v Docku** je počet nepřečtených v neztlumených chatech hlavního seznamu
-  (`Taskbar.setIconBadge`), jako na iOS. Windows text v odznaku ikony neumí.
+- **Odznak** je počet nepřečtených v neztlumených chatech hlavního seznamu, jako na iOS: v Docku
+  text (`Taskbar.setIconBadge`), na Windows overlay na tlačítku okna (oddíl „Hlavní panel
+  Windows" níž). Obojí řídí `DesktopTaskbar`.
 - **Tiché hodiny platí** (`supportsQuietHours = true`): oznámení přijde bez zvuku.
 - **Ověřeno na macOS 26.6** (`runDistributable -PdesktopDebug`, zpráva od Notifikátora):
   banner se ukázal, klik vytáhl okno a otevřel chat. Potlačení při aktivním okně ověřené logem.
@@ -168,7 +169,9 @@ předá systému — co se ladí, je čistá funkce.
   (`nativeInit` běží ze `startKoin` přes presenter, okno až potom). Okno bez něj by neslo
   implicitní AUMID podle cesty k exe, jiný než zástupce, a na hlavním panelu by se rozešlo
   s připnutou ikonou. Ikona připnutá před touhle verzí AUMID nemá — může se ukázat dvakrát,
-  než ji uživatel připne znovu.
+  než ji uživatel připne znovu. **Ladicí běh AUMID procesu NEnastavuje:** okno se zástupcovým
+  AUMID dostane na hlavním panelu ikonu ZÁSTUPCE, ne svou — a ladicí zástupce míří na
+  `java.exe`, takže tam byl Duke. Toastům AUMID procesu nechybí, stačí jim zástupce.
 - **Registr zůstává taky** (`DisplayName`, `IconUri`, `CustomActivator`): nese název a ikonu
   v nastavení oznámení a CLSID aktivátoru.
 - **Klik doručuje COM třída** (`INotificationActivationCallback`, CLSID z `CustomActivator`),
@@ -213,6 +216,29 @@ předá systému — co se ladí, je čistá funkce.
   vrátí HRESULT místo pádu. **Neověřeno**: spuštění zavřené aplikace kliknutím na toast (jen
   instalace z MSI, `LocalServer32`), doplnění AUMID do zástupce z MSI, zvuk (ověřen jen atribut
   v XML), vytažení okna dopředu, když je jiná aplikace v popředí.
+
+## Hlavní panel Windows
+
+Počet nepřečtených a upozornění na novou zprávu na tlačítku okna (`DesktopTaskbar`). Stačí na
+to AWT `Taskbar`: na Windows umí `ICON_BADGE_IMAGE_WINDOW` (`ITaskbarList3::SetOverlayIcon`)
+a `USER_ATTENTION_WINDOW` (`FlashWindowEx`); `ICON_BADGE_TEXT` ani `ICON_BADGE_NUMBER` ne.
+
+- **Overlay nastavený dřív, než vznikne tlačítko, Windows TIŠE ZAHODÍ.** Tlačítko vzniká chvíli
+  po ukázání okna (zpráva `TaskbarButtonCreated`, kterou AWT ven nepustí). Hned po startu se
+  odznak neukázal, za 1,5 s ano — ověřeno zkouškou na holém `JFrame` s AUMID procesu i bez
+  něj. Po každém ukázání okna (start, návrat z oznamovací oblasti) se proto 1,5 s čeká;
+  schované okno tlačítko nemá a overlay s ním zaniká.
+- **Obrázek kreslíme sami, v pixelech podle měřítka obrazovky** (16 bodů × `scaleX`):
+  zmenšený větší obrázek by měl rozmazané číslice. Nad 99 „99+". Písmo je Segoe UI (systém),
+  ne písmo aplikace — odznak patří k hlavnímu panelu.
+- **Barvy jsou `error` / `onError` motivu** (`AppIconBadgeColors`, prázdné `expect` na
+  Androidu a iOS, kde odznak kreslí systém). Overlay se kreslí mimo Compose, takže barvy
+  předává composable uvnitř `AppTheme`; do první kompozice motivu se overlay nekreslí.
+- **Blikání jen u oznámení se zvukem a jen u viditelného okna bez fokusu.** Tiché hodiny, tichá
+  zpráva i odložený chat neblikají — „potichu" znamená nerušit. Schované okno tlačítko nemá,
+  upozorní toast. Bliká se jednou za dávku, ne za každý chat.
+- **Ověřeno na Windows 11** (ladicí běh, snímky hlavního panelu): odznak „1" naskočil po
+  startu, zpráva od bota ho zvedla na „2" a tlačítko se rozblikalo.
 
 ## Oznamovací oblast a jediná instance
 

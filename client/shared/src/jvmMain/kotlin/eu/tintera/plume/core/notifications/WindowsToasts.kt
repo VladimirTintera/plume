@@ -65,6 +65,7 @@ internal object WindowsToasts {
             serverCommand = serverCommand(command),
             shortcutPath = shortcut().absolutePath,
             shortcutTarget = command,
+            processAumid = !desktopDebugBuild,
         )
         if (result != 0) logger.w { "Toasty nejde zaregistrovat: 0x${result.toUInt().toString(16)}." }
         return result == 0
@@ -133,6 +134,7 @@ internal object WindowsToasts {
         serverCommand: String?,
         shortcutPath: String,
         shortcutTarget: String,
+        processAumid: Boolean,
     ): Int
 
     /** 0 = povoleno, 1 = vypnuto pro aplikaci, 2 = vypnutá všechna oznámení. */

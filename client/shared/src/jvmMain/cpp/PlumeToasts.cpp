@@ -167,7 +167,7 @@ static HRESULT plumeRegisterActivator(const CLSID &clsid) {
 extern "C" JNIEXPORT jint JNICALL
 Java_eu_tintera_plume_core_notifications_WindowsToasts_nativeInit(
     JNIEnv *env, jclass cls, jstring aumid, jstring displayName, jstring iconPath, jstring clsid, jstring serverCommand,
-    jstring shortcutPath, jstring shortcutTarget) {
+    jstring shortcutPath, jstring shortcutTarget, jboolean processAumid) {
     env->GetJavaVM(&plumeVm);
     plumeClass = static_cast<jclass>(env->NewGlobalRef(cls));
     plumeOnActivated = env->GetStaticMethodID(cls, "onActivated", "(Ljava/lang/String;)V");
@@ -183,9 +183,13 @@ Java_eu_tintera_plume_core_notifications_WindowsToasts_nativeInit(
     hr = plumeEnsureShortcut(plumeString(env, shortcutPath), plumeString(env, shortcutTarget), plumeAumid, activator);
     if (FAILED(hr)) return hr;
     // Zástupce nese AUMID, takže ho musí nést i okno — jinak by se na hlavním panelu neslo pod
-    // jinou identitou než připnutá ikona a ukázalo by se dvakrát.
-    hr = SetCurrentProcessExplicitAppUserModelID(plumeAumid.c_str());
-    if (FAILED(hr)) return hr;
+    // jinou identitou než připnutá ikona a ukázalo by se dvakrát. Ladicí běh ne: jeho zástupce
+    // míří na java.exe a hlavní panel by oknu se zástupcovým AUMID dal ikonu Javy. Toasty se
+    // vykreslí i bez AUMID procesu, stačí jim zástupce.
+    if (processAumid) {
+        hr = SetCurrentProcessExplicitAppUserModelID(plumeAumid.c_str());
+        if (FAILED(hr)) return hr;
+    }
 
     const std::wstring appKey = L"Software\\Classes\\AppUserModelId\\" + plumeAumid;
     LSTATUS status = plumeSetValue(appKey, L"DisplayName", plumeString(env, displayName));

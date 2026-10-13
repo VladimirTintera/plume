@@ -23,6 +23,20 @@ object DesktopWindow {
         _focused.value = focused
     }
 
+    /**
+     * Okno aplikace pro to, co se váže k jeho tlačítku na hlavním panelu ([DesktopTaskbar]).
+     * Zapisuje vstupní bod, `null` když okno není.
+     */
+    private val _window = MutableStateFlow<java.awt.Window?>(null)
+
+    val window: StateFlow<java.awt.Window?> = _window.asStateFlow()
+
+    val awtWindow: java.awt.Window? get() = _window.value
+
+    fun attach(window: java.awt.Window?) {
+        _window.value = window
+    }
+
     private val _shown = MutableStateFlow(true)
 
     /**
