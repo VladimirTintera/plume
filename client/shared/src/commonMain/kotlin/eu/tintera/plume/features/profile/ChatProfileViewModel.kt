@@ -187,6 +187,16 @@ class ChatProfileViewModel(
             profiles.memberUpdates(chatId).conflate().collect { reloadProfile() }
         }
         viewModelScope.launch {
+            /*
+             * Přejmenování, nová fotka, změněné bio či jméno, zablokování z jiného zařízení —
+             * profil se čte znovu (lokálně). Dřív se četl jen při otevření a po návratu z úpravy,
+             * takže změna odjinud zůstala stará, dokud se profil neotevřel znovu. Členy to
+             * nečte: o ty se stará `memberUpdates`. `conflate`, protože změna jména a fotky
+             * přijdou těsně po sobě.
+             */
+            profiles.profileUpdates(chatId).conflate().collect { refreshProfile() }
+        }
+        viewModelScope.launch {
             notificationSettings.chatSettings(chatId).collect { prefs -> _state.update { it.copy(notifications = prefs) } }
         }
         viewModelScope.launch {
@@ -508,7 +518,8 @@ class ChatProfileViewModel(
     }
 
     /**
-     * Stav se po úspěchu přepíše lokálně — `UpdateUserFullInfo` profil neodebírá.
+     * Stav se po úspěchu přepíše hned lokálně, aby přepínač nečekal; potvrzení dorazí i updatem
+     * (`profileUpdates`, plné info uživatele nese blokování).
      *
      * Blokování vede přes [ChatRepository], ne přes profil: je to tatáž akce jako v nabídce nad
      * chatem v seznamu a dvě cesty k `setMessageSenderBlockList` by se dřív nebo později rozešly.
@@ -787,9 +798,9 @@ class ChatProfileViewModel(
 
     /**
      * Profil se znovu skládá po návratu z obrazovky nad ním (úprava chatu, správa členů) —
-     * NavDisplay kreslí jen horní scénu. Data se čtou jen při otevření a změnu názvu, popisu
-     * nebo veřejného odkazu TDLib profilu nehlásí, takže by zůstala stará. Poprvé nic: první
-     * načtení dělá `init`.
+     * NavDisplay kreslí jen horní scénu. Změny chodí i updaty (`profileUpdates`), tohle je
+     * pojistka pro to, co se při úpravě změní bez updatu, který by profil hlídal (převod
+     * základní skupiny na supergroupu mění celý chat). Poprvé nic: první načtení dělá `init`.
      */
     fun refreshOnReturn() {
         if (!composedOnce) {
@@ -801,9 +812,14 @@ class ChatProfileViewModel(
 
     private fun reloadProfile() {
         viewModelScope.launch {
-            profiles.profile(chatId).onSuccess { profile -> _state.update { it.copy(profile = profile) } }
+            refreshProfile()
             reloadMembers()
         }
+    }
+
+    /** Jen profil, bez členů. Selhání se nehlásí — na obrazovce zůstane, co tam bylo. */
+    private suspend fun refreshProfile() {
+        profiles.profile(chatId).onSuccess { profile -> _state.update { it.copy(profile = profile) } }
     }
 
     fun openLink(url: String) {

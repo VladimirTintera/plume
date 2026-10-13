@@ -10,8 +10,19 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
 (uživatelské jméno, telefon, bio nebo popis) a u skupiny členové s rolí.
 
 - **`ProfileRepository` v `core/telegram`** nad `getUserFullInfo` / `getBasicGroupFullInfo` /
-  `getSupergroupFullInfo` a `searchChatMembers`. Data se čtou při otevření; živé je jen ztlumení
-  (`ChatRepository.muted`, stejný vzor jako `activity`) a dostupnost (`presenceUpdates`).
+  `getSupergroupFullInfo` a `searchChatMembers`. Data se čtou při otevření a **znovu po každé
+  změně** (`profileUpdates`): název, fotka, emoji status a automatické mazání chatu, `User`
+  a `UserFullInfo` člověka (jméno, uživatelské jméno, telefon, bio, blokování), `BasicGroup` /
+  `Supergroup` (veřejný odkaz, počet členů) a stav tajného chatu. Plné info skupin hlídá
+  `memberUpdates`. Zvlášť živé je ztlumení (`ChatRepository.muted`) a dostupnost (`presenceUpdates`).
+- **Profil se na update čte CELÝ, neskládá se z updatu.** Čtení je lokální a co se změnilo, nese
+  celý objekt od TDLib; poskládat profil z jednotlivých updatů by znamenalo udržovat druhou kopii
+  převodu. Dřív se profil četl jen při otevření a po návratu z úpravy (`refreshOnReturn`, zůstala
+  jako pojistka), takže přejmenování nebo nová fotka odjinud zůstaly staré, dokud se profil
+  neotevřel znovu. **Ověřeno na emulátoru sondou** (necommituje se): ViewModel profilu testovací
+  skupiny ji po deseti sekundách sám přejmenoval přes `setTitle` bez lokálního přepisu —
+  otevřený profil ukázal nový název. Cesta přes `User` / `UserFullInfo` je tatáž, jen ji
+  na emulátoru nebylo čím vyvolat.
 - **Profil je detailový panel** (`detailPane()`): na telefonu překryje konverzaci, na širokém
   rozvržení ji v pravém panelu nahradí a zpět vede do ní. Spodní bar se skrývá jako u konverzace
   (`inDetail`). Routa je v `NavSavedStateConfiguration`.

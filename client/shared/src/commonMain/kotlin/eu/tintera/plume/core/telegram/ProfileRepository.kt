@@ -7,8 +7,8 @@ import kotlin.time.Duration
  * Profil chatu: kdo nebo co to je, o čem je a kdo v něm je.
  *
  * Hranice kolem TDLib jako ostatní repository — obrazovka vidí jen [ChatProfile] a [ProfileMember].
- * Data se čtou při otevření profilu; živé je jen ztlumení ([ChatRepository.muted]) a dostupnost
- * ([ConversationRepository.presenceUpdates]).
+ * Data se čtou při otevření profilu a znovu po každé změně ([profileUpdates], [memberUpdates]);
+ * zvlášť živé je ztlumení ([ChatRepository.muted]) a dostupnost ([ConversationRepository.presenceUpdates]).
  */
 interface ProfileRepository {
     suspend fun profile(chatId: Long): Result<ChatProfile>
@@ -137,6 +137,14 @@ interface ProfileRepository {
      * členy mění.
      */
     fun memberUpdates(chatId: Long): Flow<Unit>
+
+    /**
+     * Ozve se, když se změnilo něco, z čeho se skládá [profile]: název a fotka chatu, jméno,
+     * uživatelské jméno, telefon a bio člověka, blokování, veřejný odkaz a počet členů skupiny,
+     * stav tajného chatu. Profil se na to čte znovu, celý — stejná úvaha jako u [memberUpdates]:
+     * co se změnilo, ví celý objekt od TDLib, ne jednotlivý update. Čtení je lokální.
+     */
+    fun profileUpdates(chatId: Long): Flow<Unit>
 
     /**
      * Práva správce. **Prázdná práva ([AdminRights.any] `false`) člena ze správcovství sesadí** —
