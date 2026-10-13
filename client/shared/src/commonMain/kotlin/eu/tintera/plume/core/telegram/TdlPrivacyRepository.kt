@@ -6,6 +6,7 @@ import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSecret
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
+import dev.g000sha256.tdl.dto.AccountTtl
 import dev.g000sha256.tdl.dto.ReadDatePrivacySettings
 import dev.g000sha256.tdl.dto.UserPrivacySetting
 import dev.g000sha256.tdl.dto.UserPrivacySettingAllowCalls
@@ -79,6 +80,18 @@ class TdlPrivacyRepository(private val holder: TelegramClientHolder) : PrivacyRe
             .toResult()
             .map { }
             .onFailure { logger.w(it) { "Čas přečtení se nepodařilo zapsat." } }
+
+    override suspend fun accountTtlDays(): Result<Int> =
+        client.getAccountTtl()
+            .toResult()
+            .map { it.days }
+            .onFailure { logger.w(it) { "Samosmazání účtu se nepodařilo přečíst." } }
+
+    override suspend fun setAccountTtlDays(days: Int): Result<Unit> =
+        client.setAccountTtl(ttl = AccountTtl(days = days))
+            .toResult()
+            .map { }
+            .onFailure { logger.w(it) { "Samosmazání účtu ($days dní) se nepodařilo zapsat." } }
 
     override suspend fun members(userIds: List<Long>, chatIds: List<Long>): List<PrivacyMember> =
         userIds.map { user(it) } + chatIds.map { group(it) }

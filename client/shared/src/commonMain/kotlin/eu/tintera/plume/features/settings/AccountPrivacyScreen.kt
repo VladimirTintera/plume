@@ -104,6 +104,20 @@ import eu.tintera.plume.resources.settings_account_privacy
 import eu.tintera.plume.resources.settings_blocked_deleted
 import eu.tintera.plume.resources.smartphone_24dp
 import eu.tintera.plume.resources.add_photo_alternate_24dp
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import eu.tintera.plume.resources.common_cancel
+import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.devices_ttl_days
+import eu.tintera.plume.resources.duration_months
+import eu.tintera.plume.resources.privacy_account_ttl
+import eu.tintera.plume.resources.privacy_account_ttl_text
+import eu.tintera.plume.resources.privacy_delete_now
+import eu.tintera.plume.resources.privacy_section_delete
+import eu.tintera.plume.resources.timer_24dp
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
@@ -194,9 +208,22 @@ fun AccountPrivacyScreen(
     viewModel: AccountPrivacyViewModel,
     onBack: () -> Unit,
     onOpen: (PrivacySetting) -> Unit,
+    onDeleteAccount: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var pickTtl by rememberSaveable { mutableStateOf(false) }
+    val ttl = state.accountTtlDays
+    if (pickTtl && ttl != null) {
+        AccountTtlDialog(
+            selected = ttl,
+            onSelect = { days ->
+                pickTtl = false
+                viewModel.setAccountTtl(days)
+            },
+            onDismiss = { pickTtl = false },
+        )
+    }
     val scrollBehavior = settingsScrollBehavior()
     Scaffold(
         modifier = modifier.settingsScroll(scrollBehavior),
@@ -222,6 +249,21 @@ fun AccountPrivacyScreen(
             }
             SettingsGroup(Res.string.privacy_section_allowed) {
                 for (setting in ALLOWED) PrivacyRow(setting, state, onOpen)
+            }
+            // Jako v oficiálních klientech na konci soukromí: samosmazání po neaktivitě
+            // a smazání hned, obojí o témž.
+            SettingsGroup(Res.string.privacy_section_delete) {
+                AccountTtlRow(state, onClick = { pickTtl = true })
+                ListItem(
+                    colors = ListItemDefaults.colors(
+                        containerColor = Color.Transparent,
+                        headlineColor = MaterialTheme.colorScheme.error,
+                        leadingIconColor = MaterialTheme.colorScheme.error,
+                    ),
+                    leadingContent = { Icon(painterResource(Res.drawable.delete_24dp), contentDescription = null) },
+                    headlineContent = { Text(stringResource(Res.string.privacy_delete_now)) },
+                    modifier = Modifier.clickable(onClick = onDeleteAccount),
+                )
             }
         }
     }
@@ -284,6 +326,81 @@ private fun ReadDateRow(state: AccountPrivacyState, onChange: (Boolean) -> Unit)
         checked = show,
         onChange = onChange,
         icon = Res.drawable.done_all_24dp,
+    )
+}
+
+/** Řádek samosmazání: dokud hodnota nedorazí, nic netvrdí; selhání čtení i zápisu řekne větou. */
+@Composable
+private fun AccountTtlRow(state: AccountPrivacyState, onClick: () -> Unit) {
+    val days = state.accountTtlDays
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        leadingContent = { Icon(painterResource(Res.drawable.timer_24dp), contentDescription = null) },
+        headlineContent = { Text(stringResource(Res.string.privacy_account_ttl)) },
+        supportingContent = when {
+            days != null && state.accountTtlFailed -> {
+                { Text(stringResource(Res.string.privacy_save_failed), color = MaterialTheme.colorScheme.error) }
+            }
+            days != null -> {
+                { Text(accountTtlLabel(days)) }
+            }
+            state.accountTtlFailed -> {
+                { Text(stringResource(Res.string.privacy_load_failed), color = MaterialTheme.colorScheme.error) }
+            }
+            else -> null
+        },
+        modifier = Modifier.clickable(enabled = days != null, onClick = onClick),
+    )
+}
+
+/** „6 měsíců"; hodnotu, která žádné volbě neodpovídá (jiný klient), vypíše počtem dní. */
+@Composable
+private fun accountTtlLabel(days: Int): String {
+    val months = accountTtlMonths(days)
+    return if (months != null) {
+        pluralStringResource(Res.plurals.duration_months, months, months)
+    } else {
+        pluralStringResource(Res.plurals.devices_ttl_days, days, days)
+    }
+}
+
+@Composable
+private fun AccountTtlDialog(selected: Int, onSelect: (Int) -> Unit, onDismiss: () -> Unit) {
+    // Volba se stejným počtem měsíců zastoupí hodnotu ze serveru (180 → 182); hodnota z jiného
+    // klienta, která mezi volbami není, zůstane vidět a vybraná.
+    val selectedMonths = accountTtlMonths(selected)
+    val options = if (selectedMonths != null) ACCOUNT_TTL_OPTIONS else (ACCOUNT_TTL_OPTIONS + selected).sorted()
+    val haptics = LocalHapticFeedback.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.privacy_account_ttl)) },
+        text = {
+            Column {
+                Text(
+                    stringResource(Res.string.privacy_account_ttl_text),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                for (days in options) {
+                    val isSelected = days == selected || (selectedMonths != null && accountTtlMonths(days) == selectedMonths)
+                    ListItem(
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        headlineContent = { Text(accountTtlLabel(days)) },
+                        leadingContent = { RadioButton(selected = isSelected, onClick = null) },
+                        modifier = Modifier.selectable(
+                            selected = isSelected,
+                            role = Role.RadioButton,
+                            onClick = {
+                                if (!isSelected) haptics.toggle(true)
+                                onSelect(days)
+                            },
+                        ),
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 
