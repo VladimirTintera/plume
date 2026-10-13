@@ -306,8 +306,18 @@ postaví MSI (`packageMsi -PdesktopVersion=…`), na Ubuntu založí GitHub Rele
   balíčku jdou na Windows přes `msiSafe` (bez diakritiky, když se do cp1252 nevejde).
 - **Ikony** (`client/desktopApp/icons/plume.{ico,icns,png}` a ikona okna) generuje
   `play/tools/icon.py desktop` z téže geometrie pírka jako ostatní platformy: zaoblený čtverec
-  s průhlednými rohy podle mřížky ikon macOS (824/1024, poloměr 185). ICO nese velikosti
-  16–256, Windows si vybírá podle místa (hlavní panel, Start, Průzkumník).
+  s průhlednými rohy. ICO nese velikosti 16–256, Windows si vybírá podle místa (hlavní panel,
+  Start, Průzkumník).
+  - **Okraj jen pro macOS a Linux.** `.icns` a `plume.png` jdou podle mřížky ikon macOS (plocha
+    824 z 1024 a okraj na stín), protože Dock s okrajem počítá. **`.ico` a `plume-icon.png`
+    jsou bez okraje** (`desktop(…, margin=False)`, poloměr rohu je týž podíl plochy): Windows
+    kreslí ikonu na hlavním panelu, u hodin i v toastu do celého čtverce a s okrajem macOS
+    byla Plume viditelně menší než ostatní aplikace (ověřeno snímkem hlavního panelu).
+    `plume-icon.png` na macOS nikdo neukazuje (Dock bere `.icns`), takže může být rovnou
+    pro Windows.
+  - Bez `shapely` v systému a bez `uv`: dočasné venv (`py -m venv …`, `pip install pillow
+    shapely`) a skript jeho Pythonem. Výstup je deterministický — co se nezměnilo, vyjde bajt
+    po bajtu stejně.
 
 ## Cesty k souborům na Windows
 
