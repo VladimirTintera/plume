@@ -155,6 +155,8 @@ fun CallOverlay(modifier: Modifier = Modifier) {
         CallPictureInPictureContent(current, modifier)
         return
     }
+    // V okénku je něco jiného (video z prohlížeče): pruh hovoru by ležel přes něj.
+    if (pip.elsewhere) return
     // Nový hovor (i nové „ukaž hovor" z notifikace) se otevírá přes celou obrazovku.
     var expanded by rememberSaveable(current.id, show) { mutableStateOf(true) }
     val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
