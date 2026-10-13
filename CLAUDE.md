@@ -60,7 +60,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Hlasovky a hudba](docs/poznatky/zvuk.md) — přehrávání, u ucha, nahrávání a náhled hlasovky, hudba na pozadí a dock přehrávače
 - [Typy zpráv](docs/poznatky/typy-zprav.md) — popisy a servisní zprávy, články, počty a komentáře, témata ve skupinách, placená média, dárky, příběhy, kontakt, hovor
 - [Emoji, samolepky a reakce](docs/poznatky/emoji-samolepky-reakce.md) — velká emoji, kostky, efekty, vlastní emoji, výběry samolepek / GIFů / emoji, reakce a jejich čipy
-- [Notifikace](docs/poznatky/notifikace.md) — TDLib a push, kanály a nastavení, akce z notifikace, iOS (APNs), ohlášení hovoru, pruh videochatu
+- [Notifikace](docs/poznatky/notifikace.md) — TDLib a push, kanály a nastavení, zvuky z Telegramu, akce z notifikace, iOS (APNs), ohlášení hovoru, pruh videochatu
 - [Sdílení do aplikace](docs/poznatky/sdileni.md) — ShareRequests, Direct Share a obrazovka „Komu: …“, iOS rozšíření a návrhy chatů
 - [Přihlášení a odhlášení](docs/poznatky/prihlaseni.md) — QR kód, přihlašovací obrazovka (kód, heslo, obnova, země), odhlášení a nový klient
 - [Šifrovaná databáze, spojení a proxy](docs/poznatky/databaze-spojeni-proxy.md) — klíč databáze a jeho migrace, stav spojení a obnova po pozadí, proxy a sponzorovaný chat

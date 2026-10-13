@@ -43,7 +43,9 @@ actual class NotificationPermission internal constructor(private val notifier: D
     /** Oznámení skládá aplikace sama, takže zvuk podle času ovládne — jako na Androidu. */
     actual val supportsQuietHours: Boolean = true
 
-    actual fun openChannelSettings(channel: NotificationChannelKind) = Unit
+    actual fun openChannelSettings(channel: NotificationChannelKind, soundId: Long) = Unit
+
+    actual fun forgetTone(soundId: Long) = Unit
 
     actual fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind) = Unit
 

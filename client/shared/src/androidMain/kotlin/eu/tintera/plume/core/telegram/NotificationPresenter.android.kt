@@ -34,6 +34,9 @@ import eu.tintera.plume.resources.notification_call_unknown
 import eu.tintera.plume.core.notifications.CALLS_CHANNEL_ID
 import eu.tintera.plume.core.notifications.createNotificationChannels
 import eu.tintera.plume.core.notifications.deleteConversationChannels
+import eu.tintera.plume.core.notifications.deleteSoundChannels
+import eu.tintera.plume.core.notifications.soundChannelId
+import eu.tintera.plume.core.telegram.NotificationSoundChoice
 import eu.tintera.plume.core.share.bookmarkIcon
 import eu.tintera.plume.core.share.conversationShortcut
 import eu.tintera.plume.core.share.pushConversationShortcut
@@ -144,6 +147,7 @@ actual class NotificationPresenter(
                     canReply = newest.canReply,
                     canMute = newest.canMute,
                     channel = newest.channel,
+                    sound = newest.sound,
                     // Po restartu procesu je mapa prázdná, ale notifikace v liště zůstaly.
                     // Bez převzetí jejich řádků by nová zpráva přepsala předchozí.
                     lines = recoverLines(groupId),
@@ -157,6 +161,7 @@ actual class NotificationPresenter(
             conversation.canReply = newest.canReply
             conversation.canMute = newest.canMute
             conversation.channel = newest.channel
+            conversation.sound = newest.sound
             // Téma nejnovější zprávy: ťuknutí i odpověď míří tam, kam se uživatel právě dívá.
             // Z pushe téma nepřijde (`null` = celá skupina), a staré téma se nedrží: zpráva
             // z jiného tématu by jinak otevřela to předchozí.
@@ -272,6 +277,7 @@ actual class NotificationPresenter(
         // Notifikace z minulého běhu procesu v `conversations` nejsou.
         manager.cancelAll()
         runCatching { deleteConversationChannels(context) }
+        runCatching { deleteSoundChannels(context) }
             .onFailure { logger.w(it) { "Kanály konverzací se nepodařilo smazat." } }
         // Dlouhověké zkratky si systém drží i mimo dynamické, `removeAllDynamicShortcuts` by
         // je v keši nechal.
@@ -381,7 +387,7 @@ actual class NotificationPresenter(
             }
         }
 
-        val built = NotificationCompat.Builder(context, conversation.channel.channelId)
+        val built = NotificationCompat.Builder(context, soundChannelId(context, conversation.channel, conversation.sound))
             .setSmallIcon(R.drawable.ic_notification)
             // Velká ikona je záloha. U `MessagingStyle` si ji Android bere ze ZKRATKY (viz
             // `publishShortcut`) a tuhle ignoruje — uplatní se, jen když se zkratku nepodaří
@@ -734,6 +740,8 @@ actual class NotificationPresenter(
         var canMute: Boolean = true,
         /** Systémový kanál; TDLib drží zmínky v jiné skupině než běžné zprávy téhož chatu. */
         var channel: NotificationChannelKind = NotificationChannelKind.Private,
+        /** Zvuk podle Telegramu; spolu s [channel] vybírá systémový kanál (`soundChannelId`). */
+        var sound: NotificationSoundChoice = NotificationSoundChoice.Default,
         /** Téma nejnovější zprávy ve skupině s tématy; `null` = celý chat. */
         var topicId: Int? = null,
     )

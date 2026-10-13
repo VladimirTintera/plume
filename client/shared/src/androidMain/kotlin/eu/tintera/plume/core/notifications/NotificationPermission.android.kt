@@ -35,14 +35,17 @@ actual class NotificationPermission(private val context: Context) {
     /** Notifikace kreslí aplikace sama (`NotificationPresenter`), takže je umí ztišit. */
     actual val supportsQuietHours: Boolean = true
 
-    actual fun openChannelSettings(channel: NotificationChannelKind) {
+    /** Kanál, kterým rozsah se zvukem [soundId] zní — kanál s tónem, když už vznikl, jinak výchozí. */
+    actual fun openChannelSettings(channel: NotificationChannelKind, soundId: Long) {
         val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
             .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-            .putExtra(Settings.EXTRA_CHANNEL_ID, channel.channelId)
+            .putExtra(Settings.EXTRA_CHANNEL_ID, existingSoundChannelId(context, channel, soundId))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
         context.startActivity(intent)
     }
+
+    actual fun forgetTone(soundId: Long) = deleteToneChannels(context, soundId)
 
     actual fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind) {
         val conversationId = ensureConversationChannel(context, channel, chatId, title)

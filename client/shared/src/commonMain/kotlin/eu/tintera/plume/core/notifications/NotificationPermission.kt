@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.notifications
 
 import androidx.compose.runtime.Composable
+import eu.tintera.plume.core.telegram.DEFAULT_SOUND_ID
 import eu.tintera.plume.core.telegram.NotificationChannelKind
 
 /**
@@ -32,7 +33,10 @@ expect class NotificationPermission {
     val supportsQuietHours: Boolean
 
     /** Otevře systémové nastavení kanálu — zvuk, vibrace, důležitost. */
-    fun openChannelSettings(channel: NotificationChannelKind)
+    fun openChannelSettings(channel: NotificationChannelKind, soundId: Long = DEFAULT_SOUND_ID)
+
+    /** Tón účtu smazaný — pryč i jeho kanály a kopie souboru (Android), ať v systému nevisí. */
+    fun forgetTone(soundId: Long)
 
     /**
      * Otevře systémové nastavení jedné konverzace (zvuk, prioritní, tichá). Kde to platforma

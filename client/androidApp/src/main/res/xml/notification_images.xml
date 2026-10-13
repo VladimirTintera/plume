@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Jediný adresář, který FileProvider vydává: zmenšené kopie fotek pro notifikace.
-     Název musí sedět s IMAGES_DIRECTORY v NotificationPresenter. Soubory TDLib ven nejdou. -->
+<!-- Adresáře, které FileProvider vydává: zmenšené kopie fotek pro notifikace (název musí sedět
+     s IMAGES_DIRECTORY v NotificationPresenter) a kopie tónů z Telegramu pro kanály se zvukem
+     (SOUNDS_DIRECTORY v NotificationChannels). Soubory TDLib ven nejdou. -->
 <paths>
     <cache-path
         name="notification_images"
         path="notification_images/" />
+    <files-path
+        name="notification_sounds"
+        path="notification_sounds/" />
 </paths>

@@ -688,12 +688,6 @@ Telegram sám.
   - Vlastní volba je hlavní stav, ne cache: `AppSettings.loadedAutoDownload()` a
     `autoDownloadSync()` čekají na načtení souboru. Výchozí hodnota `StateFlow` před načtením by
     synchronizaci řekla, že si uživatel nic nevybral.
-  - **Test na skutečném čase smí koncový stav ČEKAT, ne tvrdit hned po vedlejším účinku.**
-    `zmenaJdeNaServer` čekal na zápis do fake předvoleb (`presets.saved`) a hned pak tvrdil
-    `Synced` — jenže fake si zápis poznamená uvnitř `save` a `Synced` jde do DataStore až po
-    návratu z něj. Při plném `jvmTest` na Windows to jednou vyšlo `Push`. Potvrzeno vloženým
-    `delay(300)` mezi `save` a `Synced`: test pak padal pokaždé, s `await("Synced")` prošel.
-    Obecně: co je v testu pozorovatelné dřív než konec operace, není znamení, že doběhla.
 - **Kandidát: CloudStorage mini aplikací.** Je to úložiště klíč–hodnota pro dvojici „bot,
   uživatel“ na serverech Telegramu: nejvýš **1024 klíčů**, klíč 1–128 znaků `A-Za-z0-9_-`,
   hodnota 0–4096 znaků. Bot API pro něj žádnou metodu nemá, takže ho ani majitel bota nepřečte.

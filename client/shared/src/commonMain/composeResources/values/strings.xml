@@ -2929,4 +2929,26 @@
     <string name="autosave_load_failed">Couldn't load save-to-gallery settings.</string>
     <string name="autosave_save_failed">Couldn't change save-to-gallery settings.</string>
     <string name="autosave_retry">Try again</string>
+    <string name="notification_channel_silent">no sound</string>
+    <string name="notification_channel_with_sound">%1$s · %2$s</string>
+    <string name="notif_sound_row">Sound</string>
+    <string name="notif_sound_default">Default</string>
+    <string name="notif_sound_default_summary">As set in the system channel</string>
+    <string name="notif_sound_none">No sound</string>
+    <string name="notif_sound_unknown">Custom sound</string>
+    <string name="notif_sound_tones">Your sounds</string>
+    <string name="notif_sound_upload">Upload a sound</string>
+    <string name="notif_sound_upload_hint">At most %1$d kB and %2$d s. Sounds are stored in your account and other devices have them too.</string>
+    <string name="notif_sound_upload_failed">Couldn't upload the sound. It can be at most %1$d kB and %2$d s long.</string>
+    <string name="notif_sound_play">Play</string>
+    <string name="notif_sound_delete">Delete sound</string>
+    <string name="notif_sound_delete_failed">Couldn't delete the sound.</string>
+    <string name="notif_sound_save_failed">Couldn't change the sound.</string>
+    <plurals name="notif_sound_seconds">
+        <item quantity="one">%1$d second</item>
+        <item quantity="other">%1$d seconds</item>
+    </plurals>
+    <string name="notif_sound_delete_title">Delete sound “%1$s”?</string>
+    <string name="notif_sound_delete_text">It disappears from all devices of your account.</string>
+    <string name="notif_sound_delete_confirm">Delete</string>
 </resources>

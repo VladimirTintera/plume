@@ -2,6 +2,7 @@ package eu.tintera.plume.di
 
 import eu.tintera.plume.features.settings.ChangePhoneViewModel
 import eu.tintera.plume.features.settings.AutosaveViewModel
+import eu.tintera.plume.features.settings.NotificationSoundsViewModel
 import eu.tintera.plume.features.settings.NetworkUsageViewModel
 import eu.tintera.plume.features.settings.PasskeysViewModel
 import eu.tintera.plume.features.settings.DeleteAccountViewModel
@@ -156,6 +157,8 @@ import eu.tintera.plume.core.files.AutosaveWorker
 import eu.tintera.plume.core.files.MediaSaver
 import eu.tintera.plume.core.files.autosavesToGallery
 import eu.tintera.plume.core.telegram.AutosaveRepository
+import eu.tintera.plume.core.telegram.NotificationSoundRepository
+import eu.tintera.plume.core.telegram.TdlNotificationSoundRepository
 import eu.tintera.plume.core.telegram.TdlAutosaveRepository
 import eu.tintera.plume.core.ui.KeyboardShortcuts
 import eu.tintera.plume.features.settings.ChatSwipeSettingsViewModel
@@ -249,6 +252,7 @@ fun appModule() = module {
     single<AutosaveRepository>(createdAtStart = true) {
         TdlAutosaveRepository(holder = get(), scope = get(named(APP_SCOPE)))
     }
+    single<NotificationSoundRepository> { TdlNotificationSoundRepository(holder = get()) }
     if (autosavesToGallery) {
         single(createdAtStart = true) {
             val saver = get<MediaSaver>()
@@ -489,6 +493,7 @@ fun appModule() = module {
     viewModel { PasskeysViewModel(accounts = get()) }
     viewModel { NetworkUsageViewModel(storage = get()) }
     viewModel { AutosaveViewModel(autosave = get(), chats = get()) }
+    viewModel { NotificationSoundsViewModel(sounds = get(), settings = get(), permission = get()) }
     viewModel { DeleteAccountViewModel(accounts = get(), passwords = get()) }
     viewModelOf(::AppLockViewModel)
     // Widget na plochu jen tam, kde ho platforma má (Android).

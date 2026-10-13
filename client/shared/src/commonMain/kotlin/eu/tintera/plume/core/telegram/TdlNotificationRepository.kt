@@ -200,6 +200,7 @@ class TdlNotificationRepository(
             isMention = update.type is NotificationGroupTypeMentions,
             kind = settingsChat?.type?.chatKind() ?: ChatKind.Private,
         )
+        val sound = soundOf(update.notificationSoundId)
 
         val notifications = added.mapNotNull { notification ->
             val content = notification.content() ?: return@mapNotNull null
@@ -225,6 +226,7 @@ class TdlNotificationRepository(
                 canReply = canReply,
                 canMute = canMute,
                 channel = channel,
+                sound = sound,
                 topicId = content.topicId,
             )
         }
@@ -394,6 +396,19 @@ class TdlNotificationRepository(
      * a ikonu na ni nejde doplnit dodatečně — bez čekání by prostě nebyla. Profilovka je
      * pár kilobajtů a většinou už na disku je, protože ji ukazuje seznam chatů.
      */
+    /**
+     * Zvuk notifikace z `notificationSoundId`: 0 = bez zvuku, záporné = výchozí (TDLib ho tak
+     * hlásí, když chat i rozsah jedou podle aplikace), jinak tón účtu. Tón se stáhne se stropem
+     * jako obrázky — nestihne-li se, notifikace zazní výchozím zvukem, ne vůbec.
+     */
+    private suspend fun soundOf(id: Long): NotificationSoundChoice = when {
+        id == NO_SOUND_ID -> NotificationSoundChoice.Silent
+        id < 0 -> NotificationSoundChoice.Default
+        else -> client.getSavedNotificationSound(notificationSoundId = id).toResult().getOrNull()
+            ?.let { NotificationSoundChoice.Tone(id = id, title = it.title, path = downloadedPath(it.sound, IMAGE_TIMEOUT)) }
+            ?: NotificationSoundChoice.Default
+    }
+
     private suspend fun downloadedPath(file: File?, timeout: Duration = AVATAR_TIMEOUT): String? {
         if (file == null) return null
         if (file.local.isDownloadingCompleted && file.local.path.isNotEmpty()) return file.local.path

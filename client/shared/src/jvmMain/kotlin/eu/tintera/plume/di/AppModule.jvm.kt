@@ -78,7 +78,6 @@ actual fun Module.platformModule() {
             // Vlastní scope: oznámení se sbírají po celou dobu běhu procesu.
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
             snoozes = get(),
-            actions = get(),
         )
     }
     single { UrlOpener(settings = get()) }

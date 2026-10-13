@@ -3012,4 +3012,27 @@
     <string name="autosave_load_failed">Nastavení ukládání do galerie se nepodařilo načíst.</string>
     <string name="autosave_save_failed">Nastavení ukládání do galerie se nepodařilo změnit.</string>
     <string name="autosave_retry">Zkusit znovu</string>
+    <string name="notification_channel_silent">bez zvuku</string>
+    <string name="notification_channel_with_sound">%1$s · %2$s</string>
+    <string name="notif_sound_row">Zvuk</string>
+    <string name="notif_sound_default">Výchozí</string>
+    <string name="notif_sound_default_summary">Podle systémového kanálu</string>
+    <string name="notif_sound_none">Bez zvuku</string>
+    <string name="notif_sound_unknown">Vlastní zvuk</string>
+    <string name="notif_sound_tones">Tvoje zvuky</string>
+    <string name="notif_sound_upload">Nahrát zvuk</string>
+    <string name="notif_sound_upload_hint">Nejvýš %1$d kB a %2$d s. Zvuky se ukládají k účtu, takže je mají i ostatní zařízení.</string>
+    <string name="notif_sound_upload_failed">Zvuk se nepodařilo nahrát. Smí mít nejvýš %1$d kB a %2$d s.</string>
+    <string name="notif_sound_play">Přehrát</string>
+    <string name="notif_sound_delete">Smazat zvuk</string>
+    <string name="notif_sound_delete_failed">Zvuk se nepodařilo smazat.</string>
+    <string name="notif_sound_save_failed">Zvuk se nepodařilo změnit.</string>
+    <plurals name="notif_sound_seconds">
+        <item quantity="one">%1$d sekunda</item>
+        <item quantity="few">%1$d sekundy</item>
+        <item quantity="other">%1$d sekund</item>
+    </plurals>
+    <string name="notif_sound_delete_title">Smazat zvuk „%1$s“?</string>
+    <string name="notif_sound_delete_text">Zmizí ze všech zařízení účtu.</string>
+    <string name="notif_sound_delete_confirm">Smazat</string>
 </resources>

@@ -64,7 +64,9 @@ actual class NotificationPermission {
 
     /** Notifikace z APNs ukazuje systém a rozšíření notifikací zvuk neovládne podle času; obdobou je režim Soustředění. */
     actual val supportsQuietHours: Boolean = false
-    actual fun openChannelSettings(channel: NotificationChannelKind) = Unit
+    actual fun openChannelSettings(channel: NotificationChannelKind, soundId: Long) = Unit
+
+    actual fun forgetTone(soundId: Long) = Unit
     actual fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind) = Unit
 
     private fun refresh() {

@@ -301,7 +301,8 @@ JEHO kanálu (`ACTION_CHANNEL_NOTIFICATION_SETTINGS`).
 - **Kanál je po založení uživatelův.** `createNotificationChannel` u existujícího id přepíše jen
   název a popis — proto se volá při každém startu (překlad po změně jazyka) a nic tím nerozbije.
   **Id kanálu se nesmí měnit** (`channelId`): nové id je pro systém nový kanál a nastavení
-  starého zůstane u něj. Zvuk z Telegramu (`notificationSoundId`) se proto nesynchronizuje.
+  starého zůstane u něj. Zvuk z Telegramu proto výchozí kanál nemění — dostává kanál vlastní,
+  viz „Zvuky z Telegramu".
 - **Kanály telegramových kanálů mají `IMPORTANCE_DEFAULT`**, ostatní `HIGH` — příspěvků chodí
   hodně a málokdy se na ně reaguje hned. Rozhoduje se jen při založení.
 - **Starý kanál `messages` se maže** (`deleteNotificationChannel`), jinak by v systému visel
@@ -351,6 +352,49 @@ JEHO kanálu (`ACTION_CHANNEL_NOTIFICATION_SETTINGS`).
   kanálu): zpráva ve skupině kanálem `groups`, `text_mention` účtu kanálem `mentions` jako
   samostatná notifikace téhož chatu, příspěvek kanálu kanálem `channels`. Do skutečných skupin
   se testovací zprávy neposílají — test jde jen tam, kde je bot.
+
+### Zvuky z Telegramu
+
+Nastavení → Notifikace → u každého rozsahu „Zvuk" (`NotificationSoundSheet`,
+`NotificationSoundsViewModel`): Výchozí, Bez zvuku a tóny účtu (`getSavedNotificationSounds`)
+s ukázkou a smazáním; „Nahrát zvuk" (`addSavedNotificationSound`, strop ze serveru —
+`notification_sound_size_max` / `_duration_max`, na emulátoru 300 kB a 5 s). Zvuk rozsahu
+se zapisuje do jeho nastavení (`setScopeSound`), je to nastavení účtu — platí i v oficiálních
+aplikacích, a tóny jsou na serveru.
+
+- **Id zvuku: −1 = výchozí, 0 = bez zvuku, jinak tón účtu.** Tak to vrací TDLib
+  (`get_notification_sound_ringtone_id`) a tak chodí i `notificationSoundId` v
+  `updateNotificationGroup` — ověřeno v logu, výchozí zvuk přišel jako −1.
+- **Zvuk vybírá kanál, ne aplikace při přehrání** (`soundChannelId`, čistá funkce
+  `soundChannelKey`, testy `SoundChannelTest`): výchozí zvuk = výchozí kanál beze změny, bez zvuku
+  `<kanál>_silent`, tón `<kanál>_tone_<id>`. Zvuk kanálu po založení nastavuje jen uživatel,
+  takže jiný zvuk musí být jiný kanál — a výchozí kanál, do kterého si uživatel mohl nastavit
+  cokoli, zůstává nedotčený. Nový kanál převezme z výchozího, co jde přečíst (důležitost,
+  vibrace, světlo, odznak, zamykací obrazovka, Nerušit). Existující kanál se nechá být.
+- **Kanál se volí podle `notificationSoundId` z TDLib**, který už je výsledkem chatu, tématu
+  i rozsahu. Proto fungují i zvuky jednotlivých chatů nastavené v oficiální aplikaci, přestože
+  výběr pro jeden chat Plume zatím nemá. Mezery: kanál konverzace (`ensureConversationChannel`)
+  visí pod výchozím kanálem rozsahu, takže chat s vlastním tónem ho obejde.
+- **Tón jako `content://` z kopie, ne ze souboru TDLib** (`files/notification_sounds/<id>.<ext>`,
+  tentýž `FileProvider` jako fotky v notifikacích, `notification_images.xml`) s právem čtení pro
+  `com.android.systemui` a `android` — zvuk kanálu přehrává System UI a čte ho z URI při každé
+  notifikaci, takže kopie musí zůstat. Tón se stahuje synchronně se stropem 4 s; nestihne-li se,
+  notifikace jde výchozím kanálem — zazní, jen ne tím tónem.
+- **Ukázku tónu přehrává `AudioEngine`** hlasovek; s výběrem se uvolní.
+- **Smazání tónu chce potvrzení** (zmizí ze všech zařízení účtu) a smaže i jeho kanály a kopii
+  (`forgetTone`). Po odhlášení mizí všechny kanály se zvukem (`deleteSoundChannels`).
+- „Zvuk a vibrace" otevírá kanál, kterým rozsah opravdu zní — s tónem jeho kanál, když už vznikl
+  (`existingSoundChannelId`).
+- **Ověřeno**: `SoundChannelTest`, `NotificationSoundsViewModelTest`; na emulátoru výběr se
+  skutečnými daty účtu (žádné tóny, strop 300 kB a 5 s, nic nevybráno) a **se sondou**: tóny
+  v seznamu, a notifikace od testovacího bota s podstrčeným tónem (systémový zvuk emulátoru)
+  šla kanálem `private_tone_999` („Soukromé chaty · Sonda", důležitost převzatá, zvuk
+  `content://…/notification_sounds/999.ogg`) a `RingtonePlayer` ho přehrál. **Výběr zvuku rozsahu,
+  nahrání a smazání skutečného tónu vyzkoušené NEJSOU** — mění nastavení a tóny účtu.
+- **Notifikace reakcí TDLib neumí** (`NotificationManager.cpp`: push `REACT_*` odmítne
+  „Reaction notifications are unsupported", kód v `MessagesManager` je zakomentovaný). Push je
+  zašifrovaný a rozšifrovat ho umí jen TDLib, takže si ho Plume nepřečte samo.
+  `setReactionNotificationSettings` by jen měnilo, co server posílá oficiálním aplikacím.
 
 ### Tiché hodiny
 

@@ -103,17 +103,13 @@ class AutoDownloadSyncTest {
         assertEquals(AutoDownloadSettings(), settings.autoDownload.value)
     }
 
-    /**
-     * `Synced` se ČEKÁ, ne tvrdí: fake si zápis zapíše do [FakePresets.saved] uvnitř `save`,
-     * kdežto `Synced` jde do DataStore až po něm. Mezi tím stav pořád drží `Push`.
-     */
     @Test
     fun zmenaJdeNaServer() = syncTest(AuthStage.Ready, prepare = { it.setAutoDownloadSync(SettingsSync.Synced) }) {
         val new = AutoDownloadSettings(wifi = AutoDownloadLevel.Low)
         sync.change(new)
         await("zápis na server") { presets.saved.lastOrNull() == new }
         await("lokálně") { settings.autoDownload.value == new }
-        await("Synced") { settings.autoDownloadSync() == SettingsSync.Synced }
+        assertEquals(SettingsSync.Synced, settings.autoDownloadSync())
     }
 
     /**
@@ -160,7 +156,6 @@ class AutoDownloadSyncTest {
     }
 
     private companion object {
-        /** Pojistka proti zaseknutí, ne měřítko rychlosti — viz `DataStoreAppSettingsTest`. */
-        const val WAIT_MS = 15_000L
+        const val WAIT_MS = 5_000L
     }
 }

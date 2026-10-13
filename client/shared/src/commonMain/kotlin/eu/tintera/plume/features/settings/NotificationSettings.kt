@@ -1,5 +1,14 @@
 package eu.tintera.plume.features.settings
 
+import org.koin.compose.viewmodel.koinViewModel
+import eu.tintera.plume.resources.notif_sound_unknown
+import eu.tintera.plume.resources.notif_sound_row
+import eu.tintera.plume.resources.notif_sound_none
+import eu.tintera.plume.resources.notif_sound_default
+import eu.tintera.plume.core.ui.resolveNow
+import eu.tintera.plume.core.telegram.NotificationTone
+import eu.tintera.plume.core.telegram.NO_SOUND_ID
+import eu.tintera.plume.core.telegram.DEFAULT_SOUND_ID
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -99,8 +108,14 @@ import org.jetbrains.compose.resources.stringResource
  * Androidu patří kanálu a po jeho založení ho aplikace nepřepíše.
  */
 @Composable
-fun NotificationSettings(viewModel: NotificationSettingsViewModel, snackbarHostState: SnackbarHostState) {
+fun NotificationSettings(
+    viewModel: NotificationSettingsViewModel,
+    snackbarHostState: SnackbarHostState,
+    sounds: NotificationSoundsViewModel = koinViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val soundsState by sounds.state.collectAsStateWithLifecycle()
+    val tones by sounds.tones.collectAsStateWithLifecycle()
 
     val notice = state.notice
     val noticeText = notice?.resolve()
@@ -111,6 +126,11 @@ fun NotificationSettings(viewModel: NotificationSettingsViewModel, snackbarHostS
             viewModel.noticeShown()
             scope.launch { snackbarHostState.showSnackbar(noticeText) }
         }
+    }
+    LaunchedEffect(soundsState.error) {
+        val error = soundsState.error ?: return@LaunchedEffect
+        sounds.consumeError()
+        scope.launch { snackbarHostState.showSnackbar(error.resolveNow()) }
     }
 
     // Návrat ze systémového nastavení nebo z chatu, kde se mohlo přepnout ztlumení.
@@ -150,7 +170,25 @@ fun NotificationSettings(viewModel: NotificationSettingsViewModel, snackbarHostS
             supportsChannelSettings = viewModel.supportsChannelSettings,
             onUpdate = { transform -> viewModel.update(notificationScope, transform) },
             onOpenExceptions = { viewModel.openExceptions(notificationScope) },
-            onOpenChannel = { viewModel.openChannelSettings(notificationScope.channel) },
+            onOpenChannel = { viewModel.openChannelSettings(notificationScope.channel, state.scopes[notificationScope]?.soundId ?: DEFAULT_SOUND_ID) },
+            soundLabel = soundLabel(state.scopes[notificationScope]?.soundId, tones),
+            onPickSound = { sounds.open(notificationScope) },
+        )
+    }
+
+    soundsState.picking?.let { picking ->
+        NotificationSoundSheet(
+            title = picking.title,
+            selected = state.scopes[picking]?.soundId ?: DEFAULT_SOUND_ID,
+            tones = tones,
+            limits = soundsState.limits,
+            uploading = soundsState.uploading,
+            onSelect = { soundId -> sounds.select(picking, soundId) },
+            onUpload = sounds::upload,
+            onDelete = sounds::delete,
+            tonePath = sounds::tonePath,
+            onError = { message -> scope.launch { snackbarHostState.showSnackbar(message.resolveNow()) } },
+            onDismiss = sounds::close,
         )
     }
 
@@ -202,6 +240,8 @@ private fun ScopeGroup(
     onUpdate: ((ScopeSettings) -> ScopeSettings) -> Unit,
     onOpenExceptions: () -> Unit,
     onOpenChannel: () -> Unit,
+    soundLabel: String,
+    onPickSound: () -> Unit,
 ) {
     SettingsGroup(scope.title) {
         if (settings == null) {
@@ -251,6 +291,14 @@ private fun ScopeGroup(
                 modifier = Modifier.clickable(onClick = onOpenExceptions),
             )
         }
+        // Zvuk z Telegramu — nastavení účtu, platí i v oficiálních aplikacích. Na Androidu vybírá
+        // kanál (výchozí, tichý, s tónem); vibrace a ostatní dál v systémovém kanálu níž.
+        ListItem(
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+            headlineContent = { Text(stringResource(Res.string.notif_sound_row)) },
+            supportingContent = { Text(soundLabel) },
+            modifier = Modifier.clickable(onClick = onPickSound),
+        )
         if (supportsChannelSettings) {
             LinkRow(
                 title = Res.string.settings_notif_sound,
@@ -443,3 +491,11 @@ private val ExceptionState.label: StringResource
         ExceptionState.Enabled -> Res.string.settings_notif_state_enabled
         ExceptionState.Custom -> Res.string.settings_notif_state_custom
     }
+
+/** „Výchozí", „Bez zvuku", název tónu — a tón, který účet nemá, jako „Vlastní zvuk". */
+@Composable
+private fun soundLabel(soundId: Long?, tones: List<NotificationTone>): String = when {
+    soundId == null || soundId == DEFAULT_SOUND_ID -> stringResource(Res.string.notif_sound_default)
+    soundId == NO_SOUND_ID -> stringResource(Res.string.notif_sound_none)
+    else -> tones.firstOrNull { it.id == soundId }?.title ?: stringResource(Res.string.notif_sound_unknown)
+}
