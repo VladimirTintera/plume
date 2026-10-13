@@ -1010,6 +1010,11 @@
     <!-- Ikona v oznamovací oblasti (Windows), kam se aplikace schová po zavření okna. -->
     <string name="tray_open">Open Plume</string>
     <string name="tray_quit">Quit</string>
+    <!-- Tooltip ikony v oznamovací oblasti; „Plume" je jméno aplikace. -->
+    <plurals name="tray_tooltip_unread">
+        <item quantity="one">Plume – %1$d unread message</item>
+        <item quantity="other">Plume – %1$d unread messages</item>
+    </plurals>
     <string name="video_chat_active">Video chat in progress</string>
     <string name="video_chat_live">Live stream in progress</string>
     <string name="video_chat_scheduled">Video chat starts %1$s</string>
