@@ -135,7 +135,8 @@ Ověřeno na Pixelu 5 a Pixelu 7 Pro (Plume ↔ Plume): příchozí notifikace s
 Odmítnout na ploše, přijetí z ní, hovor na ploše, reproduktor tam a zpět, zámek senzoru,
 zavěšení ze systémové notifikace (služba skončí na obou stranách, zvuk zpět v normálu),
 zhasnutý a zamčený telefon (rozsvítí se obrazovka hovoru nad zámkem, přijetí bez odemčení),
-zmenšení, rozbalení a Zpět.
+zmenšení, rozbalení a Zpět, a **Plume zabitý na pozadí** (`am kill`): push ho probudil,
+notifikace i obrazovka hovoru přišly a přijetí spojilo.
 
 **Co dál chybí**: vyzvánění (kanál `calls` hraje zvuk notifikace, ne vyzváněcí tón ve
 smyčce), Bluetooth a sluchátka s kabelem, přechod Wi-Fi ↔ data za hovoru, integrace se
