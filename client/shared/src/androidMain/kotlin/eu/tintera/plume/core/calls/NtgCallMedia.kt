@@ -134,9 +134,10 @@ class NtgCallMedia internal constructor(
                     frames.lastOrNull()?.let { render(source, sink, it) }
                 }
                 instance.createP2pCall(callId)
+                // Náhled pryč DŘÍV, než vznikne zdroj kamery knihovny: převzetí běžící kamery
+                // zablokuje přenos (`SharedCamera`). Do spojení náhled stojí, pak běží zdroj.
+                stopPreview()
                 instance.setStreamSources(callId, StreamMode.CAPTURE, capture())
-                // Kameru z náhledu si zdroj knihovny právě převzal; uvolňuje ji už on.
-                if (cameraOn) preview = null else stopPreview()
                 // V režimu PLAYBACK je slot `microphone` mikrofon PROTISTRANY: příjem zvuku
                 // ntgcalls zapne jen pro něj (`StreamManager::optimize_sources`). Reproduktor
                 // ve slotu `speaker` dal ticho — spojení naváže, ale příchozí kanál nevznikne.
@@ -211,9 +212,13 @@ class NtgCallMedia internal constructor(
                 // Výměna zdroje kameru zhasne (viz `switchRunningCamera`): napřed pryč, pak nová.
                 // Protistrana na okamžik dostane „kamera vypnutá".
                 runCatching { instance.setStreamSources(callId, StreamMode.CAPTURE, MediaDescription(device(MICROPHONE), null, null, null)) }
+                SharedCamera.releaseCurrent()
             }
             runCatching { instance.setStreamSources(callId, StreamMode.CAPTURE, capture()) }
                 .onFailure { logger.w(it) { "Kameru se nepodařilo přepnout." } }
+            // Vypnutá kamera napevno pryč: knihovna ji uvolní až za 200 ms a zapnutí v té lhůtě
+            // by převzalo běžící kameru (zablokování, viz `SharedCamera`).
+            if (!on) SharedCamera.releaseCurrent()
         }
     }
 
@@ -243,7 +248,7 @@ class NtgCallMedia internal constructor(
      * Náhled před spojením: přenos (a s ním zdroj kamery knihovny) vzniká až po `Ready`, takže
      * vytáčený videohovor by do té doby ukazoval černo. Kamera se proto otevře hned a snímky
      * (`VideoFrame` s texturou ve sdíleném kontextu EGL) jdou rovnou do rendereru náhledu.
-     * Zdroj knihovny pak sdílenou kameru převezme a snímky chodí přes `onFrames`.
+     * Před spuštěním přenosu se napevno uvolní (`start`); převzít ji zdroj knihovny nesmí.
      */
     private fun startPreview() {
         val id = camera(cameraFront)?.id ?: return
@@ -251,15 +256,15 @@ class NtgCallMedia internal constructor(
         val source = SharedCamera.use(id, CAMERA_WIDTH, CAMERA_HEIGHT, CAMERA_FPS) ?: return
         if (preview == null && !SharedCamera.preview(source, previewObserver)) {
             logger.w { "Náhled kamery před spojením nejde, ukáže se až po spojení." }
-            SharedCamera.release(source)
+            SharedCamera.releaseNow(source)
             return
         }
         preview = source
     }
 
-    /** Kamera přestala být potřeba dřív, než si ji vzal přenos (vypnutá, hovor zrušený). */
+    /** Kamera náhledu napevno pryč: vypnutá, hovor zrušený, nebo začíná přenos (viz `start`). */
     private fun stopPreview() {
-        preview?.let(SharedCamera::release)
+        preview?.let(SharedCamera::releaseNow)
         preview = null
     }
 
