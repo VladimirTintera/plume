@@ -712,8 +712,10 @@ nese náhled v seznamu chatů, citace i notifikace. Pravidlo je čistá funkce `
   `previewTextOrNull`, ne v `describe()` nad `MessageContent`.
 - **Chybová barva jen u zmeškaného a odmítnutého** — to jediné po uživateli něco chce. Obojí je
   příchozí, tedy na světlé bublině; kontrast se přesto hlídá `accentOn`.
-- **Ťuknutí nikam nevede.** Hovory Plume neumí (viz `docs/roadmap.md`, „Hovory") a „zavolat
-  zpátky" by slibovalo něco, co se nestane; ťuknutí i dlouhý stisk dostane bublina.
+- **Ťuknutí zavolá zpátky** (`MessageAction.CallBack`), stejně jako tehdy — videohovor zase
+  videem, když ho protějšek přijímá; dlouhý stisk otevře nabídku nad zprávou. Kde hovory nejsou
+  (iOS, desktop), ťuknutí i dlouhý stisk dostane bublina. Viz `docs/poznatky/hovory.md`,
+  „Hovor z konverzace".
 - **Ověřuje se sondou**: skutečné hovory jsou jen v chatech se skutečnými lidmi (otevření by
   jim označilo zprávy jako přečtené) a bot volat neumí. Dočasně v `messageMedia` převést text
   `#call:<CallOutcome>:video:<sekundy>` na `MessageMedia.Call` (a v `captionBody` na prázdný

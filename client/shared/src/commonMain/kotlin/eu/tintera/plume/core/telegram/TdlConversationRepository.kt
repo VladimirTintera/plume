@@ -1891,6 +1891,7 @@ class TdlConversationRepository(
                 val restriction = client.restrictionInfoOf(chat)
                 // V tématu koncept tématu; koncept skupiny do něj nepatří.
                 val draft = (if (forumTopicId != null) forumTopic?.draftMessage else chat.draftMessage)?.toSavedDraft()
+                val calls = callTarget(chat)
                 ChatInfo(
                     id = chat.id,
                     title = chat.title,
@@ -1936,8 +1937,28 @@ class TdlConversationRepository(
                         )
                     },
                     savedTopic = savedTopic?.header,
+                    callUserId = calls?.first,
+                    callSupportsVideo = calls?.second == true,
                 )
             }
+
+    /**
+     * Komu z chatu zavolat a jestli i s videem: jen člověk v soukromém nebo tajném chatu, který
+     * hovory přijímá. Nedostupné podrobnosti (bez sítě) hovor nezakazují — rozhodne server.
+     */
+    private suspend fun callTarget(chat: Chat): Pair<Long, Boolean>? {
+        val userId = when (val type = chat.type) {
+            is ChatTypePrivate -> type.userId
+            is ChatTypeSecret -> type.userId
+            else -> return null
+        }
+        if (userId == myId()) return null
+        val user = client.getUser(userId = userId).toResult().getOrNull() ?: return null
+        if (user.type !is UserTypeRegular) return null
+        val full = client.getUserFullInfo(userId = userId).toResult().getOrNull()
+        if (full?.canBeCalled == false) return null
+        return userId to (full?.supportsVideoCalls != false)
+    }
 
 
     /** Koncept, jak ho čte konverzace: chat, téma i vlákno komentářů ho nesou stejně. */

@@ -461,8 +461,8 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    - **Okénko videohovoru po prohlížení videa**: zavřený prohlížeč médií vypne automatický
      přechod do okénka i hovoru (parametry PiP jsou jedny na aktivitu), dokud se stav hovoru
      nezmění (`docs/poznatky/hovory.md`, „Obraz v obraze").
-   - **Videohovor z obrazovky konverzace** (dnes jen z nabídky profilu) a zpětné volání
-     ťuknutím na zprávu o hovoru.
+   - **Hláška, když hovor nejde zahájit** (soukromí protějšku se mezitím změnilo, omezení
+     počtu hovorů `429`): dnes se jen zapíše do logu (`rememberStartCall`).
    Původní plán sondy:
 
    **Doporučení: C, začít dvoudenní sondou na Androidu.** ntgcalls v `debug` větvi, jen zvuk:

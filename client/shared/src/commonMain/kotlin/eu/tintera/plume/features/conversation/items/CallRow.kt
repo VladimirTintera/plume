@@ -30,6 +30,9 @@ import eu.tintera.plume.resources.call_made_24dp
 import eu.tintera.plume.resources.call_missed_24dp
 import eu.tintera.plume.resources.call_missed_outgoing_24dp
 import eu.tintera.plume.resources.call_received_24dp
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import eu.tintera.plume.resources.call_back
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -37,14 +40,15 @@ import org.jetbrains.compose.resources.stringResource
  * Zpráva o hovoru: kolečko se šipkou směru, pod názvem délka hovoru.
  *
  * Stejná stavba jako řádek souboru (kolečko v akcentu bubliny, text vedle), aby se v konverzaci
- * nevymýšlel další tvar. **Ťuknutí nevede nikam** — hovory Plume neumí a zpětné zavolání by
- * slibovalo něco, co se nestane; ťuknutí i dlouhý stisk proto dostane bublina jako u textu.
+ * nevymýšlel další tvar. **Ťuknutí zavolá zpátky** ([onCallBack]), dlouhý stisk otevře nabídku
+ * nad zprávou. Kde hovory nejsou (iOS, desktop), je [onCallBack] `null` a ťuknutí i dlouhý
+ * stisk dostane bublina jako u textu — řádek by sliboval něco, co se nestane.
  *
  * Zmeškaný a odmítnutý hovor má šipku v chybové barvě: je to jediný stav, který po uživateli
  * něco chce (zavolat zpátky). Barva je jen doplněk — název ho říká slovy.
  */
 @Composable
-internal fun CallRow(call: MessageMedia.Call, accent: Color) {
+internal fun CallRow(call: MessageMedia.Call, accent: Color, onCallBack: (() -> Unit)? = null, onRequestMenu: () -> Unit = {}) {
     val contentAccent = accent.takeIf { it != Color.Unspecified } ?: LocalContentColor.current
     val iconTint = if (call.outcome.isFailure) {
         // Zmeškaný i odmítnutý je vždycky příchozí, tedy na světlé bublině příchozí zprávy.
@@ -58,8 +62,19 @@ internal fun CallRow(call: MessageMedia.Call, accent: Color) {
         contentAccent
     }
 
+    val callBackLabel = stringResource(Res.string.call_back)
     Row(
-        modifier = Modifier.padding(vertical = 4.dp),
+        modifier = Modifier
+            .then(
+                if (onCallBack != null) {
+                    Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .combinedClickable(onClick = onCallBack, onLongClick = onRequestMenu, onClickLabel = callBackLabel)
+                } else {
+                    Modifier
+                },
+            )
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {

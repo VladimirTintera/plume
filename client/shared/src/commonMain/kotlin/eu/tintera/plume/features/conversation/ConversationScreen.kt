@@ -139,6 +139,7 @@ import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.ui.unit.Dp
 import eu.tintera.plume.resources.conversation_search
+import eu.tintera.plume.features.calls.ConversationCallButton
 import eu.tintera.plume.resources.comments_title
 import eu.tintera.plume.resources.search_24dp
 import eu.tintera.plume.resources.summarize_24dp
@@ -1629,6 +1630,7 @@ fun ConversationScreen(
                             )
                         }
                     }
+                    ConversationCallButton(state.info, state.callRequest, viewModel::consumeCallRequest)
                     if (!botIntro) {
                         IconButton(onClick = viewModel::openSearch, shapes = IconButtonDefaults.shapes()) {
                             Icon(

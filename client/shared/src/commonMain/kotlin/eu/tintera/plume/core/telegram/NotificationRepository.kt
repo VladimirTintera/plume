@@ -76,9 +76,9 @@ sealed interface NotificationUpdate {
 }
 
 /**
- * Příchozí hovor pro notifikaci. **Přijmout ho Plume neumí** (TDLib dělá jen signalizaci, přenos
- * zvuku chce tgcalls, viz `docs/roadmap.md`, „Hovory"), takže notifikace jen ohlásí, kdo volá,
- * a nabídne odmítnutí — kdo má jen Plume, se o hovoru jinak nedozví vůbec.
+ * Příchozí hovor pro notifikaci: kdo volá a jestli videem. Kde Plume hovory umí (Android,
+ * `NotificationPresenter(callsSupported)`), nabídne notifikace Přijmout i Odmítnout; jinde jen
+ * ohlásí, kdo volá, a nabídne odmítnutí — kdo má jen Plume, se o hovoru jinak nedozví vůbec.
  */
 data class IncomingCall(
     val groupId: Int,
