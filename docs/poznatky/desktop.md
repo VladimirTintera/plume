@@ -84,10 +84,10 @@ bere `String?` a vrací `String?`. ASM je na classpath build skriptu díky AGP v
 
 TDLib notifikace vydává, dokud aplikace běží (push na desktopu není), a `NotificationPresenter`
 je předává systému přes `DesktopNotifier`: na macOS `UNUserNotificationCenter`, na Windows
-a Linuxu AWT `TrayIcon.displayMessage`.
+toasty WinRT (oddíl „Notifikace na Windows" níž), na Linuxu AWT `TrayIcon.displayMessage`.
 
 ```bash
-./gradlew :client:desktopApp:runDistributable -PdesktopDebug   # oznámení se dají zkoušet jen takhle
+./gradlew :client:desktopApp:runDistributable -PdesktopDebug   # na macOS se oznámení dají zkoušet jen takhle
 ```
 
 - **`TrayIcon.displayMessage` na macOS 26 neukáže NIC.** AWT pod ním volá zastaralé
@@ -131,6 +131,86 @@ a Linuxu AWT `TrayIcon.displayMessage`.
   banner se ukázal, klik vytáhl okno a otevřel chat. Potlačení při aktivním okně ověřené logem.
   **Neověřeno**: Windows a Linux (AWT), odznak v Docku, zavření okna a návrat z Docku,
   stažení oznámení po přečtení jinde (jen nepřímo — viz „ukradne").
+
+### Notifikace na Windows
+
+AWT `TrayIcon.displayMessage` umělo na Windows jen bublinu: nešla stáhnout po přečtení jinde,
+klik otevřel poslední zobrazenou zprávu (ne tu, na kterou se kliklo), bez profilovky, bez
+seskupení a bez tichého režimu (tiché hodiny tedy nefungovaly). Proto vlastní JNI most k toastům
+WinRT v C++/WinRT (`jvmMain/cpp/PlumeToasts.cpp`, `WindowsToasts`, `WindowsNotifier`), stejný
+přístup jako u macOS. XML toastu skládá Kotlin (`toastXml`, testy `ToastXmlTest`), most ho jen
+předá systému — co se ladí, je čistá funkce.
+
+- **Překládá ho `compileWindowsNotifications`** (MSVC z Visual Studia nebo Build Tools, najde ho
+  `vswhere`; statické CRT `/MT`, takže DLL nepotřebuje VC++ Redistributable). Bez MSVC se
+  lokálně přeskočí a oznámení půjdou přes AWT jako dřív; na CI (`CI`) je to chyba, ať release
+  nevyjde potichu bez toastů. `windows-latest` MSVC má. DLL je pro architekturu JDK, které
+  Gradle spouští (x64 / arm64), stejně jako TDLib.
+- **Bez zástupce ve Startu s AUMID Windows 11 toast NEVYKRESLÍ.** Aplikace z MSI není
+  zabalená (MSIX) a identitu si zakládá sama. Napřed jen v registru
+  (`HKCU\Software\Classes\AppUserModelId\<AUMID>` s `DisplayName`, `IconUri`,
+  `CustomActivator`, jak to popisuje Community Toolkit): `Show` prošel bez chyby, toast byl
+  v historii i v `wpndatabase.db` (`%LOCALAPPDATA%\Microsoft\Windows\Notifications`, tabulka
+  `NotificationHandler` s typem `app:desktop` a nastavením jako Chrome), ale na obrazovce ani
+  v Centru oznámení nebyl — **a nic to nehlásí**. Nepomohlo ani `SetCurrentProcessExplicitAppUserModelID`.
+  Se zástupcem nesoucím `System.AppUserModel.ID` se ukázal (rozhodnuto snímky rohu obrazovky,
+  kontrolou byl toast pod AUMID PowerShellu). Zástupce si Průzkumník indexuje pár sekund; toast
+  hned po založení se ještě nemusí ukázat.
+- **Zástupce: doplnit MSI, ne zakládat druhý.** Instalace z MSI zakládá
+  `Start Menu\Programs\Plume\Plume.lnk`; `WindowsToasts.shortcut` ho najde a nativní část mu
+  doplní `System.AppUserModel.ID` a `…ToastActivatorCLSID` (cíl nemění, zapisuje jen při rozdílu).
+  Aktualizace MSI zástupce přepíše a aplikace ho při dalším startu doplní znovu. Bez MSI
+  (rozbalená distribuce) vznikne `Programs\Plume.lnk`, ladicí běh má `Plume (debug).lnk` s cílem
+  `java.exe` — spustit z něj aplikaci nejde, je jen nositel identity.
+- **AUMID procesu se nastavuje stejný jako na zástupci, a to DŘÍV, než vznikne okno**
+  (`nativeInit` běží ze `startKoin` přes presenter, okno až potom). Okno bez něj by neslo
+  implicitní AUMID podle cesty k exe, jiný než zástupce, a na hlavním panelu by se rozešlo
+  s připnutou ikonou. Ikona připnutá před touhle verzí AUMID nemá — může se ukázat dvakrát,
+  než ji uživatel připne znovu.
+- **Registr zůstává taky** (`DisplayName`, `IconUri`, `CustomActivator`): nese název a ikonu
+  v nastavení oznámení a CLSID aktivátoru.
+- **Klik doručuje COM třída** (`INotificationActivationCallback`, CLSID z `CustomActivator`),
+  zaregistrovaná `CoRegisterClassObject` ve vlastním vlákně, které drží MTA naživu. Windows ji
+  zavolá na vlákně RPC s atributem `launch` z XML (`chat=…&topic=…`). Když aplikace neběží,
+  spustí příkaz z `HKCU\Software\Classes\CLSID\{…}\LocalServer32` — `Plume.exe -ToastActivated`
+  (jen zabalená aplikace; holý `java` z ladicího běhu se znovu spustit nedá). Kliknutí, které
+  přijde dřív, než si ho presenter převezme, počká (`WindowsToasts.pending`).
+- **CLSID se NESMÍ MĚNIT** — toasty v Centru oznámení z předchozí verze by po aktualizaci nešly
+  otevřít. Ladicí běh má vlastní AUMID (`eu.tintera.plume.debug`, v nastavení „Plume (debug)")
+  i CLSID, ať nepřepisuje registraci nainstalované aplikace.
+- **`ToastNotifier.Setting` u nezabalené aplikace nevěřit** (bez zástupce vrátil
+  `ERROR_NOT_FOUND`, ověřeno na Windows 11). Stav povolení se proto čte z registru, kam ho zapisuje Nastavení →
+  Systém → Oznámení: `…\Notifications\Settings\<AUMID>\Enabled = 0` (vypnuto pro Plume)
+  a `…\PushNotifications\ToastEnabled = 0` (vypnuto všechno). Windows se na povolení neptá,
+  takže úvodní dialog s vysvětlením se tu neukazuje.
+- **Historie toastů chce u nezabalené aplikace AUMID** (`History.Remove(tag, group, aumid)`,
+  `Clear(aumid)`); přetížení bez něj platí jen pro MSIX. Skupina je jedna pro všechno (`plume`),
+  protože presenter při rušení zná jen id; seskupení po chatech nese `<header>` v XML.
+- **Tag smí mít nejvýš 64 znaků** — `g<groupId>-n<notificationId>` se vejde i s maximálními int.
+- **Nevalidní XML odmítne `LoadXml` celé** (`0xC00CE553`) a toast se neukáže. Proto `toastXml`
+  escapuje i apostrof a vyhazuje řídicí znaky, které XML 1.0 nepřipouští.
+- **Obrázky jsou `file:///C:/…`** (`Path.toUri`; `File.toURI` dává jen jedno lomítko). Fotka ze
+  zprávy jde pod text, profilovka chatu jako kulatá ikona (`appLogoOverride`, `hint-crop`).
+  Kopie souboru jako na macOS potřeba není — Windows soubor nepřesouvá.
+- **DLL a ikona se rozbalují do dat aplikace** (`native/plumenotifications.dll`,
+  `notification-icon.png`), ne do TEMPu: nahranou DLL Windows smazat nedovolí, `deleteOnExit`
+  by nezabralo a v TEMPu by s každým spuštěním přibyla kopie. Přepisují se jen, když se liší.
+- **Odinstalace MSI klíče v registru nemaže** (zapisuje je aplikace, ne instalátor). Neškodí:
+  bez aplikace je nikdo nečte.
+- **Historie toastů NEDOKAZUJE, že se toast ukázal** (viz zástupce výš). Vypsat jde
+  z PowerShellu (`[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null`,
+  pak `[Windows.UI.Notifications.ToastNotificationManager]::History.GetHistory('eu.tintera.plume.debug')`)
+  a hodí se na tag, XML a stažení. Jestli toast opravdu vidět je, rozhodne až oko nebo snímek.
+- **Testovací zprávy botem: diakritiku posílat ze souboru** (`--data-urlencode "text@soubor"`).
+  Z příkazové řádky Git Bashe na Windows dorazí do `curl` v jiném kódování a Bot API odpoví
+  „strings must be encoded in UTF-8".
+- **Ověřeno na Windows 11** (ladicí běh, zprávy od testovacího bota): toast se zobrazí s názvem
+  chatu a fotkou ze zprávy, tichá zpráva má `<audio silent="true"/>` (`potichu=true` v logu),
+  klik otevře chat (`Klik na oznámení` v logu), přečtení na telefonu toast do 2 s stáhne. Zpráva
+  v chatu otevřeném v Plume oznámení nevydá vůbec (TDLib ji odloží a zruší). Nevalidní XML
+  vrátí HRESULT místo pádu. **Neověřeno**: spuštění zavřené aplikace kliknutím na toast (jen
+  instalace z MSI, `LocalServer32`), doplnění AUMID do zástupce z MSI, zvuk (ověřen jen atribut
+  v XML), vytažení okna dopředu, když je jiná aplikace v popředí.
 
 ## Release (Windows)
 
