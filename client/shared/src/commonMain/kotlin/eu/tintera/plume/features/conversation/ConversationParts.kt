@@ -11,17 +11,17 @@ import org.jetbrains.compose.resources.StringResource
  * Co si části [ConversationViewModel] volají navzájem. Každá část dostává v konstruktoru jen to,
  * co opravdu potřebuje; volání do jiné části je funkce. Kde volající pojmenovává argumenty, je
  * to rozhraní — funkční typ pojmenované argumenty neunese. `fun interface` zase nedovolí
- * výchozí hodnoty, takže [MessageJumper] je obyčejné rozhraní.
+ * výchozí hodnoty, takže [MediaSender] a [MessageJumper] jsou obyčejná rozhraní.
  */
 
 /**
  * Odeslání média s citací a hlášením chyby (viz `ConversationViewModel.sendMedia`): spotřebuje
  * rozepsanou citaci, nahlásí chat jako použitý a naplánované ohlásí místo vložení do konverzace.
  */
-internal fun interface MediaSender {
+internal interface MediaSender {
     fun sendMedia(
         failureMessage: StringResource,
-        scheduled: Boolean,
+        scheduled: Boolean = false,
         send: suspend (replyTo: Long?, quote: ReplyQuote?) -> Result<ChatMessage>,
     )
 }
