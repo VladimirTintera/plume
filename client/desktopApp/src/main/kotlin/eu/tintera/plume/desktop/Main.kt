@@ -22,6 +22,7 @@ import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.platform.desktopClosesToTray
 import eu.tintera.plume.core.telegram.preloadTdlibNativeDependencies
 import eu.tintera.plume.di.startKoin
+import io.github.kdroidfilter.platformtools.darkmodedetector.mac.setMacOsAdaptiveTitleBar
 import java.awt.Desktop
 import java.awt.desktop.AppReopenedListener
 import java.awt.event.WindowEvent
@@ -40,6 +41,9 @@ fun main(args: Array<String>) {
     // Plume už běží (třeba schovaná v oznamovací oblasti): ta vytáhne okno, tahle končí.
     if (!DesktopInstance.acquire()) return
     preloadTdlibNativeDependencies()
+    // macOS: titulek podle systémového vzhledu, jinak zůstane světlý i v tmavém režimu. Musí být
+    // před vznikem okna. Windows řeší `WindowTitleBarAppearance` podle motivu aplikace.
+    setMacOsAdaptiveTitleBar()
     startKoin()
     // Spouštění po přihlášení míří na spouštěč; po přeinstalaci jinam se cesta opraví.
     LaunchAtLogin().refreshCommand()

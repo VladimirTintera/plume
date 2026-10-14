@@ -58,8 +58,12 @@ fun PaneScaffoldDirective.twoPane(): PaneScaffoldDirective = withHorizontalParti
  */
 fun PaneScaffoldDirective.threePane(): PaneScaffoldDirective = withHorizontalPartitions(3)
 
-/** Mezera mezi panely vedle sebe (M3: 24 dp). */
-val PANE_SPACING = 24.dp
+/**
+ * Mezera mezi seznamem a kartou vedle něj. Nedělá ji scaffold, ale karta (`PaneCard`): mezera
+ * z direktivy by oddělila i konverzaci od profilu, které jsou jedna karta. Seznam leží na ploše
+ * okna a jeho řádky mají vlastní okraj, takže stačí menší než 24 dp z M3.
+ */
+val PANE_SPACING = 12.dp
 
 /** Šířka seznamu chatů vedle konverzace — výchozí šířka panelu v M3. */
 val LIST_PANE_WIDTH = ContentWidth.Pane
@@ -88,9 +92,9 @@ val THREE_PANE_MIN_WIDTH = WindowSizeClass.WIDTH_DP_LARGE_LOWER_BOUND.dp
 private fun PaneScaffoldDirective.withHorizontalPartitions(n: Int): PaneScaffoldDirective =
     PaneScaffoldDirective(
         maxHorizontalPartitions = n,
-        // Panely jsou karty na tónované ploše (`PaneCard`) a mezi nimi je mezera z M3 — v ní
-        // stojí táhlo, které jinak nemá kam.
-        horizontalPartitionSpacerSize = PANE_SPACING,
+        // Mezeru mezi panely si dělá karta sama (`PaneCard`): tahle by rozdělila i konverzaci
+        // od profilu. Táhlo stojí na hranici panelů, tedy v mezeře před kartou.
+        horizontalPartitionSpacerSize = 0.dp,
         maxVerticalPartitions = maxVerticalPartitions,
         verticalPartitionSpacerSize = verticalPartitionSpacerSize,
         defaultPanePreferredWidth = defaultPanePreferredWidth,

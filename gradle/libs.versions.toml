@@ -28,6 +28,8 @@ androidx-browser = "1.10.0"
 ntgcalls = "3.0.3"
 # JNA: vazba desktopu na C API ntgcalls (hovory, docs/poznatky/hovory.md, „Desktop").
 jna = "5.19.1"
+# Titulek okna na desktopu v barvách motivu (tmavý režim DWM na Windows, vzhled na macOS).
+platformtools = "0.7.5"
 # Hovory napojené na systémový telefon (Telecom / ConnectionService) — docs/poznatky/hovory.md.
 androidx-core-telecom = "1.0.1"
 androidx-lifecycle = "2.11.0"
@@ -102,6 +104,7 @@ tracing-perfetto = "1.0.1"
 
 [libraries]
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
+platformtools-darkmodedetector = { module = "io.github.kdroidfilter:platformtools.darkmodedetector", version.ref = "platformtools" }
 leakcanary = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakcanary" }
 compose-runtime-tracing = { module = "androidx.compose.runtime:runtime-tracing", version.ref = "compose-runtime-tracing" }
 tracing-perfetto-binary = { module = "androidx.tracing:tracing-perfetto-binary", version.ref = "tracing-perfetto" }

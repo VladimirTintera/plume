@@ -284,6 +284,26 @@ a `USER_ATTENTION_WINDOW` (`FlashWindowEx`); `ICON_BADGE_TEXT` ani `ICON_BADGE_N
 - **Ověřeno na Windows 11** (ladicí běh, snímky hlavního panelu): odznak „1" naskočil po
   startu, zpráva od bota ho zvedla na „2" a tlačítko se rozblikalo.
 
+## Titulek okna v barvách motivu
+
+Bílý systémový titulek nad tmavou aplikací byl nejrušivější prvek okna. `WindowTitleBarAppearance`
+(expect v `Theme.kt`, reálně jen `jvmMain`) volá `AppTheme` se ZVOLENÝM motivem, ne se systémovým.
+
+- **Tmavý režim titulku** (`DWMWA_USE_IMMERSIVE_DARK_MODE`) nastavuje knihovna platformtools
+  (`setWindowsAdaptiveTitleBar`, táž jako v Mlogu). Podle něj systém kreslí tlačítka okna.
+- **Barvu titulku a textu** (`DWMWA_CAPTION_COLOR` 35, `DWMWA_TEXT_COLOR` 36) nastavujeme sami
+  přes JNA na plochu okna (`surfaceContainer`, na ní leží seznam) a `onSurface`. Samotný tmavý
+  titulek je neutrálně šedý (#202020) a vedle tónované palety působil jako cizí pruh. Atributy
+  zná až Windows 11; na Windows 10 volání vrátí chybu a zůstane jen tmavý titulek.
+- **Barva je z CÍLOVÉHO schématu**, ne z prolínaného — DWM se nevolá v každém snímku přechodu,
+  titulek přeskočí na novou barvu hned.
+- **Okno si bere z `DesktopWindow.window`** (zapisuje vstupní bod), protože `AppTheme` je
+  v `commonMain` a k `ComposeWindow` nedosáhne.
+- **macOS**: `setMacOsAdaptiveTitleBar()` ve vstupním bodu, PŘED vznikem okna (systémová
+  vlastnost `apple.awt.application.appearance`). Řídí se systémovým vzhledem, ne motivem
+  aplikace — vlastnost se čte jen při startu. Na Macu neověřené.
+- Ověřeno na Windows 11 v tmavém motivu: titulek splývá s plochou okna.
+
 ## Oznamovací oblast a jediná instance
 
 Na Windows zavření okna schová aplikaci do oznamovací oblasti (`DesktopTrayIcon`,

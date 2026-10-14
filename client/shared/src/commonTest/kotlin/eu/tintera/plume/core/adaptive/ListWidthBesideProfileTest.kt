@@ -11,27 +11,27 @@ import kotlin.test.assertEquals
 class ListWidthBesideProfileTest {
 
     private val default = 360.dp
-    private val spacer = 24.dp
+    private val gap = 12.dp
 
     @Test
     fun sbalenyZustaneSbaleny() {
-        assertEquals(COLLAPSED_LIST_WIDTH, listWidthBesideProfile(ListPaneAnchor.Collapsed, 1200.dp, default, spacer))
+        assertEquals(COLLAPSED_LIST_WIDTH, listWidthBesideProfile(ListPaneAnchor.Collapsed, 1200.dp, default, gap))
     }
 
     @Test
     fun vychoziSeVejde() {
-        // 1200 − profil 360 − konverzace 360 − dvě mezery = 432 dp, výchozí 360 se vejde.
-        assertEquals(default, listWidthBesideProfile(ListPaneAnchor.Default, 1200.dp, default, spacer))
+        // 1200 − profil 360 − konverzace 360 − mezera před kartou = 468 dp, výchozí 360 se vejde.
+        assertEquals(default, listWidthBesideProfile(ListPaneAnchor.Default, 1200.dp, default, gap))
     }
 
     @Test
     fun polovinaSeZuziKvuliKonverzaci() {
-        assertEquals(432.dp, listWidthBesideProfile(ListPaneAnchor.Half, 1200.dp, default, spacer))
+        assertEquals(468.dp, listWidthBesideProfile(ListPaneAnchor.Half, 1200.dp, default, gap))
     }
 
     @Test
     fun polovinaNaSirokePlochoZustanePolovinou() {
-        // 3000 dp: polovina je 1488 dp, konverzaci zbyde 3000 − 1488 − 360 − 48 = 1104 dp.
-        assertEquals(1488.dp, listWidthBesideProfile(ListPaneAnchor.Half, 3000.dp, default, spacer))
+        // 3000 dp: polovina je 1500 dp, konverzaci zbyde 3000 − 1500 − 360 − 12 = 1128 dp.
+        assertEquals(1500.dp, listWidthBesideProfile(ListPaneAnchor.Half, 3000.dp, default, gap))
     }
 }

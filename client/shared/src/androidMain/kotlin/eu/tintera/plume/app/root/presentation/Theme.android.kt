@@ -52,3 +52,7 @@ actual fun SystemBarsAppearance(isDark: Boolean) {
         }
     }
 }
+
+/** Titulek okna má jen desktop. */
+@Composable
+actual fun WindowTitleBarAppearance(isDark: Boolean, background: Color, content: Color) = Unit

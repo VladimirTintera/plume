@@ -91,7 +91,9 @@ import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
 import eu.tintera.plume.core.adaptive.Panes
 import eu.tintera.plume.core.adaptive.ContentWidth
 import eu.tintera.plume.core.adaptive.PANE_SPACING
+import eu.tintera.plume.core.adaptive.LocalPaneNeighbours
 import eu.tintera.plume.core.adaptive.PaneCard
+import eu.tintera.plume.core.adaptive.PaneNeighbours
 import eu.tintera.plume.core.adaptive.listWidthBesideProfile
 import eu.tintera.plume.core.adaptive.rememberPaneCardDecorator
 import eu.tintera.plume.core.adaptive.LocalExpandListPane
@@ -419,6 +421,18 @@ private fun ShellContent(
         } else {
             null
         }
+
+        /*
+         * Co stojí vedle karty (`PaneCard`): seznam vlevo, profil vpravo. Pod THREE_PANE_MIN_WIDTH
+         * profil seznam vytlačí a karta začíná u kraje okna. Bere se zásobník sekce, která je
+         * vidět — Nastavení mají vlastní.
+         */
+        val shownStack = if (navigation.section == ChatsRoute) chatsDisplayed else settingsDisplayed
+        val extraBeside = twoPane && shownStack.lastOrNull { paneOf(it) != null }?.let(paneOf)?.role == PaneRole.Extra
+        val paneNeighbours = PaneNeighbours(
+            listBeside = twoPane && (!extraBeside || threePane),
+            extraBeside = extraBeside,
+        )
         if (listPaneWidth != null) entryProvider = buildEntryProvider(listPaneWidth)
 
         ShellShortcuts(navigation = navigation, chatsStack = chatsStack, twoPane = twoPane)
@@ -428,11 +442,12 @@ private fun ShellContent(
         // Id Uložených zpráv pro všechno, co kreslí chat (název, záložka místo fotky).
         val savedMessagesChatId by chatRepository.savedMessagesChatId.collectAsStateWithLifecycle()
 
-        // Plocha pod panely-kartami, viditelná v mezerách mezi nimi (`PaneCard`).
+        // Plocha okna: leží na ní seznam a vedle něj karta (`PaneCard`).
         if (wide) Box(Modifier.matchParentSize().background(MaterialTheme.colorScheme.surfaceContainer))
 
         CompositionLocalProvider(
             LocalPanesSideBySide provides wide,
+            LocalPaneNeighbours provides paneNeighbours,
             LocalSavedMessagesChatId provides savedMessagesChatId,
             // I ve třech panelech: zvolená kotva tam určuje šířku seznamu, takže rozbalení zabere i bez táhla.
             LocalExpandListPane provides listExpansion.expand.takeIf { twoPane && mainListShown },
@@ -540,7 +555,7 @@ private fun shellEntryProvider(
 
     entry<ChatsRoute>(
         metadata = Panes.list(
-            detailPlaceholder = { PaneCard { ConversationPlaceholder() } },
+            detailPlaceholder = { PaneCard(PaneRole.Detail) { ConversationPlaceholder() } },
         ) + ChatListMetadata + Panes.width(listPaneWidth),
     ) {
         val settings = koinInject<AppSettings>()
@@ -596,7 +611,7 @@ private fun shellEntryProvider(
     entry<ArchiveRoute>(
         metadata = Panes.list(
             ARCHIVE_SCENE,
-            detailPlaceholder = { PaneCard { ConversationPlaceholder() } },
+            detailPlaceholder = { PaneCard(PaneRole.Detail) { ConversationPlaceholder() } },
         ) + ChatListMetadata,
     ) {
         ArchiveScreen(
@@ -623,7 +638,7 @@ private fun shellEntryProvider(
      */
     entry<NewChatRoute>(
         metadata = Panes.list(
-            detailPlaceholder = { PaneCard { ConversationPlaceholder() } },
+            detailPlaceholder = { PaneCard(PaneRole.Detail) { ConversationPlaceholder() } },
         ),
     ) {
         NewChatScreen(

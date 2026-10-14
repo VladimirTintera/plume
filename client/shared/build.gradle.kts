@@ -512,6 +512,8 @@ kotlin {
             implementation(libs.zxing.core)
             // Hovory: C API ntgcalls (`core/calls/NtgNative.kt`).
             implementation(libs.jna)
+            // Tmavý titulek okna na Windows (`WindowTitleBarAppearance`).
+            implementation(libs.platformtools.darkmodedetector)
         }
 
         commonTest.dependencies {

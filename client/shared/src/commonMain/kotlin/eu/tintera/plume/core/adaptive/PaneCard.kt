@@ -1,41 +1,118 @@
 package eu.tintera.plume.core.adaptive
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavEntryDecorator
 import androidx.navigation3.runtime.NavKey
 import eu.tintera.plume.core.ui.LocalPanesSideBySide
 
 /**
- * Panel jako karta na tónované ploše, jak je má M3 Expressive: zaoblená plocha `surface` na
- * `surfaceContainer` (tu kreslí shell pod celou scénou) a mezi panely mezera [PANE_SPACING],
- * ve které stojí táhlo. Bez mezery by táhlo leželo přes okraj konverzace a panely by se
- * slévaly do jedné plochy.
+ * Co stojí vedle karty (konverzace, sekce Nastavení, placeholder): seznam vlevo a profil
+ * vpravo. Poskytuje shell podle počtu panelů; karta podle toho volí okraj a rohy.
+ */
+@Immutable
+data class PaneNeighbours(
+    /** Vlevo od karty je seznam — karta od něj odstoupí o [PANE_SPACING]. */
+    val listBeside: Boolean = false,
+    /** Vpravo od karty je profil — karta s ním tvoří jednu plochu (rovné rohy, předěl). */
+    val extraBeside: Boolean = false,
+)
+
+val LocalPaneNeighbours = compositionLocalOf { PaneNeighbours() }
+
+/**
+ * Panel podle role, když panely stojí vedle sebe ([LocalPanesSideBySide]):
  *
- * Jen když panely stojí vedle sebe ([LocalPanesSideBySide]); na telefonu obsah jde od kraje
- * ke kraji jako dřív. Struktura je v obou případech táž — kdyby se větvila, přišel by obsah
- * při změně šířky okna o svůj stav.
+ * - **Seznam leží přímo na ploše okna** (`surfaceContainer`, kreslí ji shell pod scénou), bez
+ *   karty. Jeho `surface` a `background` se proto přemapují na tutéž barvu: obrazovky seznamů
+ *   (chaty, archiv, sekce Nastavení) si pozadí kreslí samy a jinak by na ploše okna stál
+ *   obdélník o tón jinou barvou — tedy zase karta, jen bez rohů. Řádky (`surfaceContainerLowest`)
+ *   tak sedí na ploše okna stejně jako segmentovaný seznam v M3.
+ * - **Konverzace a profil jsou JEDNA karta** (`surface`, rohy `shapes.large`): u sebe rovné rohy
+ *   a mezi sebou jen tenký předěl. Dřív byl každý panel kartou zvlášť a uvnitř seznamu i profilu
+ *   byly další karty (řádky, bloky informací) — tři vrstvy zaoblených ploch do sebe a mezi nimi
+ *   24 dp prázdna.
+ *
+ * Mezera mezi panely proto NENÍ v direktivě scaffoldu (`horizontalPartitionSpacerSize = 0`):
+ * mezera z knihovny je všude stejná, takže by rozdělila i konverzaci od profilu, a kreslit přes
+ * ni nejde (panely mají `clipToBounds`). Okraj si dělá karta sama ([PANE_SPACING] od seznamu)
+ * a táhlo stojí na hranici panelů, tedy v té mezeře.
+ *
+ * Na telefonu obsah jde od kraje ke kraji jako dřív. **Struktura je ve všech případech táž**
+ * (téma, `Box`) — kdyby se větvila, přišel by obsah při změně šířky okna o svůj stav.
  */
 @Composable
-fun PaneCard(content: @Composable () -> Unit) {
+fun PaneCard(role: PaneRole, content: @Composable () -> Unit) {
     val sideBySide = LocalPanesSideBySide.current
-    val shape = if (sideBySide) MaterialTheme.shapes.large else RectangleShape
-    Box(
-        Modifier
-            .fillMaxSize()
-            .clip(shape)
-            .then(if (sideBySide) Modifier.background(MaterialTheme.colorScheme.surface) else Modifier),
-    ) {
-        content()
+    val neighbours = LocalPaneNeighbours.current
+    val flat = sideBySide && role == PaneRole.List
+    val card = sideBySide && role != PaneRole.List
+
+    // Rohy u profilu se zarovnají postupně: profil vjíždí animací scaffoldu a skokem rovné rohy
+    // by na okamžik trčely do prázdna.
+    val corner = if (card) CARD_CORNER else 0.dp
+    val endCorner by animateDpAsState(
+        if (card && !(role == PaneRole.Detail && neighbours.extraBeside)) CARD_CORNER else 0.dp,
+        label = "pane-end-corner",
+    )
+    val startCorner = if (role == PaneRole.Extra) 0.dp else corner
+    val shape = RoundedCornerShape(
+        topStart = startCorner,
+        bottomStart = startCorner,
+        topEnd = endCorner,
+        bottomEnd = endCorner,
+    )
+    val divider = MaterialTheme.colorScheme.outlineVariant
+
+    val base = MaterialTheme.colorScheme
+    val scheme = if (flat) {
+        remember(base) { base.copy(surface = base.surfaceContainer, background = base.surfaceContainer) }
+    } else {
+        base
+    }
+    MaterialExpressiveTheme(colorScheme = scheme) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(start = if (card && role == PaneRole.Detail && neighbours.listBeside) PANE_SPACING else 0.dp)
+                .clip(shape)
+                .then(if (card) Modifier.background(MaterialTheme.colorScheme.surface) else Modifier)
+                .then(
+                    if (card && role == PaneRole.Extra) {
+                        Modifier.drawWithContent {
+                            drawContent()
+                            val x = 0.5.dp.toPx()
+                            drawLine(divider, Offset(x, 0f), Offset(x, size.height), strokeWidth = 1.dp.toPx())
+                        }
+                    } else {
+                        Modifier
+                    },
+                ),
+        ) {
+            content()
+        }
     }
 }
+
+/** Zaoblení karty: `shapes.large` M3. */
+private val CARD_CORNER: Dp = 16.dp
 
 /**
  * Obalí do [PaneCard] každou položku, která patří do panelu list-detail scény ([paneInfo]).
@@ -44,11 +121,12 @@ fun PaneCard(content: @Composable () -> Unit) {
 @Composable
 fun rememberPaneCardDecorator(): NavEntryDecorator<NavKey> = remember {
     NavEntryDecorator { entry ->
-        if (entry.paneInfo == null) {
+        val info = entry.paneInfo
+        if (info == null) {
             entry.Content()
             return@NavEntryDecorator
         }
-        PaneCard {
+        PaneCard(info.role) {
             val maxWidth = entry.contentMaxWidth
             if (maxWidth == null) entry.Content() else Box(Modifier.centeredColumn(maxWidth)) { entry.Content() }
         }
