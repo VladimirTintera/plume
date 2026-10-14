@@ -211,6 +211,15 @@ interface ChatRepository {
 
     suspend fun clearRecentlyFound(): Result<Unit>
 
+    /** Odebere jeden chat z historie hledání (`removeRecentlyFoundChat`). */
+    suspend fun removeRecentlyFound(chatId: Long): Result<Unit>
+
+    /**
+     * Odebere člověka z nejčastějších (`removeTopChat`). Telegram ho tam vrátí, až si s ním
+     * uživatel zase začne psát často — tak to dělají i oficiální klienti.
+     */
+    suspend fun removeTopChat(chatId: Long): Result<Unit>
+
     /**
      * Lidé, se kterými si uživatel píše nejčastěji. Prázdný seznam, když si to uživatel
      * v Telegramu vypnul (TDLib pak vrátí chybu, kterou tu nepovažujeme za selhání).

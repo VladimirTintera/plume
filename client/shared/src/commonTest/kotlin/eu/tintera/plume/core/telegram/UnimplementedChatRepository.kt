@@ -37,6 +37,8 @@ open class UnimplementedChatRepository : ChatRepository {
     override suspend fun recentlyFoundChats() : Result<List<ChatSummary>> = error("recentlyFoundChats")
     override suspend fun addRecentlyFound(chatId: Long) : Result<Unit> = error("addRecentlyFound")
     override suspend fun clearRecentlyFound() : Result<Unit> = error("clearRecentlyFound")
+    override suspend fun removeRecentlyFound(chatId: Long) : Result<Unit> = error("removeRecentlyFound")
+    override suspend fun removeTopChat(chatId: Long) : Result<Unit> = error("removeTopChat")
     override suspend fun topChats() : Result<List<ChatSummary>> = error("topChats")
     override val archiveUnread: StateFlow<ArchiveUnread> get() = error("archiveUnread")
     override suspend fun archiveSettings() : Result<ArchiveSettings> = error("archiveSettings")

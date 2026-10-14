@@ -108,6 +108,8 @@
     <string name="chats_search_people">Lidé</string>
     <string name="chats_search_recent">Nedávno hledané</string>
     <string name="chats_search_clear_recent">Vymazat</string>
+    <string name="chats_search_remove_recent">Odebrat z historie</string>
+    <string name="chats_search_remove_top">Odebrat z návrhů</string>
     <string name="chats_search_archived">V archivu</string>
     <string name="chats_search_section_chats">Chaty</string>
     <string name="chats_search_section_global">Globální výsledky</string>

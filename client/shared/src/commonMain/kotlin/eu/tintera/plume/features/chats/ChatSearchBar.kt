@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.resources.chats_search_remove_recent
+import eu.tintera.plume.resources.chats_search_remove_top
+import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.ExpressiveMenu
+import androidx.compose.foundation.combinedClickable
 import eu.tintera.plume.resources.chats_search_ai
 import eu.tintera.plume.resources.auto_awesome_24dp
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -165,7 +170,8 @@ internal fun ChatSearchBar(
     onChatClick: (Long) -> Unit,
     onMessageClick: (chatId: Long, messageId: Long, topicId: Int?) -> Unit,
     onLoadMoreMessages: () -> Unit,
-    onClearRecent: () -> Unit,
+    /** Úklid návrhů pod prázdným dotazem: vymazat historii, odebrat jeden chat, odebrat člověka. */
+    suggestionActions: SuggestionActions,
     onFilterChange: (MessageSearchFilter) -> Unit,
     /** Dotaz zvenku (hashtag z konverzace): hledání se s ním rozbalí. */
     request: String?,
@@ -362,7 +368,7 @@ internal fun ChatSearchBar(
                 onMessageClick(chatId, messageId, topicId)
             },
             onLoadMoreMessages = onLoadMoreMessages,
-            onClearRecent = onClearRecent,
+            suggestionActions = suggestionActions,
             onFilterChange = onFilterChange,
         )
     }
@@ -435,7 +441,7 @@ private fun SearchResults(
     onPick: (Long) -> Unit,
     onMessageClick: (chatId: Long, messageId: Long, topicId: Int?) -> Unit,
     onLoadMoreMessages: () -> Unit,
-    onClearRecent: () -> Unit,
+    suggestionActions: SuggestionActions,
     onFilterChange: (MessageSearchFilter) -> Unit,
 ) {
     val trimmed = query.trim()
@@ -445,7 +451,7 @@ private fun SearchResults(
 
     // Prázdný dotaz s druhem obsahu (z hledání přirozeným jazykem) hledá zprávy, ne návrhy.
     if (trimmed.isEmpty() && search.filter.content == null) {
-        Suggestions(search, onPick = { onPickLatest(it) }, onClearRecent = onClearRecent)
+        Suggestions(search, onPick = { onPickLatest(it) }, actions = suggestionActions)
         return
     }
 
@@ -706,7 +712,7 @@ private fun MessageResultRow(
 private fun Suggestions(
     search: ChatSearchState,
     onPick: (Long) -> Unit,
-    onClearRecent: () -> Unit,
+    actions: SuggestionActions,
 ) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = resultsPadding()) {
         if (search.top.isNotEmpty()) {
@@ -718,7 +724,7 @@ private fun Suggestions(
                     modifier = Modifier.padding(bottom = 8.dp),
                 ) {
                     items(search.top, key = { it.id }) { chat ->
-                        TopChat(chat, onClick = { onPick(chat.id) })
+                        TopChat(chat, onClick = { onPick(chat.id) }, onRemove = { actions.onRemoveTop(chat.id) })
                     }
                 }
             }
@@ -727,7 +733,7 @@ private fun Suggestions(
         if (search.recent.isNotEmpty()) {
             item(key = "recent-header") {
                 SectionHeader(stringResource(Res.string.chats_search_recent)) {
-                    TextButton(onClick = onClearRecent) { Text(stringResource(Res.string.chats_search_clear_recent)) }
+                    TextButton(onClick = actions.onClear) { Text(stringResource(Res.string.chats_search_clear_recent)) }
                 }
             }
             items(search.recent, key = { "recent-${it.id}" }) { chat ->
@@ -739,6 +745,7 @@ private fun Suggestions(
                     onClick = { onPick(chat.id) },
                     modifier = Modifier.animateItem(),
                     avatarShape = chat.kind.avatarShape(),
+                    onRemove = { actions.onRemoveRecent(chat.id) },
                 )
             }
         }
@@ -761,33 +768,52 @@ private fun SectionHeader(title: String, action: @Composable () -> Unit = {}) {
     }
 }
 
-/** Nejčastější člověk: avatar a pod ním křestní jméno, jako řádek „lidí" v oficiálních klientech. */
+/**
+ * Nejčastější člověk: avatar a pod ním křestní jméno, jako řádek „lidí" v oficiálních klientech.
+ * Podržení nabídne „Odebrat z návrhů" — Telegram ho tam vrátí, až si spolu zase budou psát často.
+ */
 @Composable
-private fun TopChat(chat: ChatSummary, onClick: () -> Unit) {
+private fun TopChat(chat: ChatSummary, onClick: () -> Unit, onRemove: () -> Unit) {
     val title = chatTitle(chat.id, chat.title)
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier
-            .width(TOP_CHAT_WIDTH)
-            .clip(MaterialTheme.shapes.medium)
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp),
-    ) {
-        Avatar(
-            chatId = chat.avatarColorId,
-            title = chat.title,
-            avatarFileId = chat.avatarFileId,
-            size = 52.dp,
-            isSavedMessages = isSavedMessages(chat.id),
-            shape = chat.kind.avatarShape(),
-        )
-        Text(
-            // Jen první slovo — celé jméno se pod avatar nevejde a useknuté nic neřekne.
-            title.substringBefore(' '),
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+    var menuOpen by remember { mutableStateOf(false) }
+    Box {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier
+                .width(TOP_CHAT_WIDTH)
+                .clip(MaterialTheme.shapes.medium)
+                // Odezvu na podržení dělá `combinedClickable` sám.
+                .combinedClickable(onClick = onClick, onLongClick = { menuOpen = true })
+                .padding(vertical = 8.dp),
+        ) {
+            Avatar(
+                chatId = chat.avatarColorId,
+                title = chat.title,
+                avatarFileId = chat.avatarFileId,
+                size = 52.dp,
+                isSavedMessages = isSavedMessages(chat.id),
+                shape = chat.kind.avatarShape(),
+            )
+            Text(
+                // Jen první slovo — celé jméno se pod avatar nevejde a useknuté nic neřekne.
+                title.substringBefore(' '),
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        ExpressiveMenu(
+            expanded = menuOpen,
+            onDismiss = { menuOpen = false },
+            groups = listOf(
+                listOf(
+                    MenuAction(stringResource(Res.string.chats_search_remove_top), Res.drawable.close_24dp) {
+                        menuOpen = false
+                        onRemove()
+                    },
+                ),
+            ),
         )
     }
 }
@@ -804,6 +830,8 @@ private fun ChatResultRow(
     avatarColorId: Long = chatId,
     /** Tajný chat — zámek před jménem, jinak by splynul s obyčejným chatem téhož člověka. */
     secret: Boolean = false,
+    /** Řádek historie hledání: křížek ho z historie odebere. `null` = křížek není. */
+    onRemove: (() -> Unit)? = null,
 ) {
     ListItem(
         headlineContent = {
@@ -822,10 +850,24 @@ private fun ChatResultRow(
         leadingContent = {
             Avatar(chatId = avatarColorId, title = title, avatarFileId = avatarFileId, size = 40.dp, isSavedMessages = isSavedMessages(chatId), shape = avatarShape)
         },
+        trailingContent = onRemove?.let { remove ->
+            {
+                IconButton(onClick = remove, shapes = IconButtonDefaults.shapes()) {
+                    Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.chats_search_remove_recent))
+                }
+            }
+        },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         modifier = modifier.clickable(onClick = onClick),
     )
 }
+
+/** Úklid návrhů pod prázdným dotazem; jeden objekt místo tří parametrů hledání. */
+class SuggestionActions(
+    val onClear: () -> Unit,
+    val onRemoveRecent: (chatId: Long) -> Unit,
+    val onRemoveTop: (chatId: Long) -> Unit,
+)
 
 private val TOP_CHAT_WIDTH = 76.dp
 

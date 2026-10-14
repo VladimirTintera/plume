@@ -21,6 +21,14 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   a historie hledání. Historii vede TDLib — `searchChats("")` ji vrací, ťuknutí na výsledek ji
   zapisuje (`addRecentlyFoundChat`), „Vymazat" ji smaže. `searchRecentlyFoundChats` prázdný
   dotaz nebere. Návrhy se načítají, jen když je hledání rozbalené (`setSuggestionsWanted`).
+- **Návrhy jde uklízet po jednom.** Řádek historie má křížek „Odebrat z historie"
+  (`removeRecentlyFoundChat`), nejčastější člověk po podržení nabídne „Odebrat z návrhů"
+  (`removeTopChat`, kategorie Lidé). Návrhy se pak čtou znovu (`suggestionsVersion`), nic se
+  nepřepisuje lokálně. Telegram odebraného člověka mezi nejčastější vrátí, až si spolu zase
+  budou psát často — tak to mají i oficiální klienti. Akce nad návrhy jdou do hledání jedním
+  objektem (`SuggestionActions`), ne třemi parametry.
+  - Ověřeno na emulátoru (14. 10. 2026, účet …527): „Pixel" z Lidí pryč (i po novém otevření
+    hledání), „Plume test kanal" z historie křížkem pryč i se sekcí.
 - **`getTopChats` vrací chybu, když si to uživatel v Telegramu vypnul** — to je prázdný řádek,
   ne selhání.
 - **Uložené zprávy TDLib najde pod jménem účtu**, takže se z výsledků vyřazují a hledají podle

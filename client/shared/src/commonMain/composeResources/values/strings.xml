@@ -108,6 +108,8 @@
     <string name="chats_search_people">People</string>
     <string name="chats_search_recent">Recent</string>
     <string name="chats_search_clear_recent">Clear</string>
+    <string name="chats_search_remove_recent">Remove from history</string>
+    <string name="chats_search_remove_top">Remove from suggestions</string>
     <string name="chats_search_archived">In archive</string>
     <string name="chats_search_section_chats">Chats</string>
     <string name="chats_search_section_global">Global results</string>
