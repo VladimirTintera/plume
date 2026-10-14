@@ -260,3 +260,23 @@ internal fun MutableList<NavKey>.toggleProfile(owner: NavKey, profile: NavKey, s
         add(profile)
     }
 }
+
+/**
+ * Šipka zpět v konverzaci [route]. Na telefonu vede o krok zpět jako systémové zpět ([pop]).
+ * Vedle seznamu [list] (hlavní seznam, nebo archiv) zavře celou větev nad ním — konverzace
+ * otevřené zmínkami jedna z druhé i profil — a zůstane seznam s prázdným panelem: konverzace se
+ * zavírá, ne prochází zpátky. Systémové zpět a Esc dál jdou po jedné položce.
+ *
+ * Téma nad seznamem témat se vrací do toho seznamu: je to jeho rodič, ne historie.
+ */
+internal fun MutableList<NavKey>.closeConversation(route: NavKey, list: NavKey, sideBySide: Boolean): Boolean {
+    val index = lastIndexOf(route)
+    if (!sideBySide || index <= 0) return pop(route)
+    val parent = this[index - 1]
+    val keep = when {
+        parent is ForumTopicsRoute || parent is ArchiveForumTopicsRoute || parent is SavedTopicsRoute -> index
+        else -> subList(0, index).lastIndexOf(list).takeIf { it >= 0 }?.plus(1) ?: return pop(route)
+    }
+    while (size > keep) removeAt(lastIndex)
+    return true
+}

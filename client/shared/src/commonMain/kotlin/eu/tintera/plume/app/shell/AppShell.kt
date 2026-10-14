@@ -683,10 +683,9 @@ private fun shellEntryProvider(
     }
 
     entry<ConversationRoute>(metadata = Panes.detail() + ChatScreenMetadata) { route ->
-        // Leží přímo na seznamu? Pamatuje se: při návratu je route ze zásobníku pryč dřív, než dojede přechod.
-        val fromList = remember(route) { chatsStack.liesOnChatList(route) }
-        ColoredChatContainer(route.chatId, fromList = fromList) {
+        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             val settings = koinInject<AppSettings>()
+            val sideBySide = LocalPanesSideBySide.current
             ConversationScreen(
                 // Klíč MUSÍ obsahovat chatId. ViewModel se cachuje podle klíče, takže
                 // konstantní klíč znamená, že druhá otevřená konverzace dostane ViewModel
@@ -696,8 +695,8 @@ private fun shellEntryProvider(
                     key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}-${route.savedTopicId}",
                     parameters = { parametersOf(route.chatId, route.messageId, route.threadId, route.topicId, route.savedTopicId) },
                 ),
-                // Odebírá SVOU položku, ne poslední — viz `pop`.
-                onBack = { chatsStack.pop(route) },
+                // Odebírá SVOU položku, ne poslední — viz `pop`. Vedle seznamu zavře celou větev nad ním.
+                onBack = { chatsStack.closeConversation(route, list = ChatsRoute, sideBySide = sideBySide) },
                 onChatGone = { chatsStack.closeChat(route.chatId) },
                 onOpenMedia = { messageId ->
                     chatsStack.add(MediaRoute(route.chatId, messageId))
@@ -739,7 +738,6 @@ private fun shellEntryProvider(
                     chatsStack.openSavedTopics(route.chatId)
                 },
                 onSwitchChat = rememberSwitchChat(navigation),
-                showBack = !(LocalPanesSideBySide.current && fromList),
             )
         }
     }
@@ -936,14 +934,14 @@ private fun shellEntryProvider(
     }
 
     entry<ArchiveConversationRoute>(metadata = Panes.detail(ARCHIVE_SCENE) + ChatScreenMetadata) { route ->
-        val fromList = remember(route) { chatsStack.liesOnChatList(route) }
-        ColoredChatContainer(route.chatId, fromList = fromList) {
+        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+            val sideBySide = LocalPanesSideBySide.current
             ConversationScreen(
                 viewModel = koinViewModel(
                     key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}",
                     parameters = { parametersOf(route.chatId, route.messageId, route.threadId, route.topicId) },
                 ),
-                onBack = { chatsStack.pop(route) },
+                onBack = { chatsStack.closeConversation(route, list = ArchiveRoute, sideBySide = sideBySide) },
                 onChatGone = { chatsStack.closeChat(route.chatId) },
                 onOpenMedia = { messageId ->
                     chatsStack.add(MediaRoute(route.chatId, messageId))
@@ -977,7 +975,6 @@ private fun shellEntryProvider(
                 onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
                 onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
                 onSwitchChat = rememberSwitchChat(navigation),
-                showBack = !(LocalPanesSideBySide.current && fromList),
             )
         }
     }

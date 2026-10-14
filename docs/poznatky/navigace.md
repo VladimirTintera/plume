@@ -269,7 +269,7 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   klíčů), takže si položky Chatů shell staví sám s šířkou v klíči. Ze stejného důvodu se
   v obsahu položek nesmí spoléhat na hodnoty zachycené při stavbě poskytovatele (`wide`):
   po změně šířky okna bez navigace zůstanou staré. Co závisí na šířce, čte
-  `LocalPanesSideBySide` uvnitř obsahu (✕ v profilu, šipka zpět v konverzaci).
+  `LocalPanesSideBySide` uvnitř obsahu (✕ v profilu, chování šipky zpět v konverzaci).
 - **Sbalený seznam (`CollapsedChatList`) se zapíná podle ŠÍŘKY, ne kotvy** (pod 200 dp): během
   tahu se prochází všemi šířkami a řádek s názvem by byl nečitelný dávno před sbalenou kotvou.
   Hledání ze sloupce seznam napřed rozbalí (`LocalExpandListPane`) a požadavek na hledání počká,
@@ -280,9 +280,12 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   změřilo už zrušenou vrstvu popupu. `WithTooltip` a `RootOverlay` (`core/ui`) jsou převzaté
   z KMPMlog, kde na tutéž chybu narazili dřív: bublina se kreslí z kořene kompozice
   (`RootOverlayHost` v `AppTheme`) a ruší ji až běžná rekompozice.
-- **Konverzace vedle seznamu nemá šipku zpět** (`showBack`), když leží přímo na seznamu — zpět
-  by ji jen zavřelo na placeholder. Otevřená zmínkou z jiné konverzace nebo téma nad seznamem
-  témat šipku mají, zpět tam vede jinam.
+- **Šipka zpět v konverzaci vedle seznamu konverzaci ZAVŘE** (`closeConversation`, testy
+  `CloseConversationTest`): odebere celou větev nad seznamem — konverzace otevřené zmínkami jedna
+  z druhé i profil — a zůstane seznam s placeholderem. Procházet zpátky řetězem zmínek šipkou
+  nedávalo smysl, když je seznam vedle. Systémové zpět a Esc jdou dál po jedné položce, na
+  telefonu je šipka obyčejné zpět. Téma nad seznamem témat se vrací do něj (rodič, ne historie).
+  **Šipku neschovávat**: bez ní nešla otevřená konverzace zavřít vůbec (zkusilo se, vrátilo se).
 
 ### Zásobník pro každou sekci
 
