@@ -29,7 +29,12 @@ internal data class DesktopNotification(
     val timestamp: Long? = null,
     /** Tlačítka u oznámení chatu (zatím jen toasty Windows); `null` = žádná. */
     val buttons: NotificationButtons? = null,
+    /** Příchozí hovor, který jde přijmout tady: Přijmout a Odmítnout; `null` = není hovor. */
+    val call: CallButtons? = null,
 )
+
+/** Tlačítka oznámení příchozího hovoru, popisky přeložené v okamžiku zobrazení. */
+internal data class CallButtons(val callId: Int, val answer: String, val decline: String)
 
 /** Tlačítka toastu chatu, jak je má Android: odpověď, přečtení, ztlumení. */
 internal data class NotificationButtons(
@@ -64,8 +69,15 @@ internal interface DesktopNotifier {
     fun removeAll()
 
     /**
+     * Popisky tlačítek hovoru. macOS je nese v kategorii oznámení, kterou systém registruje
+     * asynchronně — proto se nastavují dopředu, ne až s prvním hovorem.
+     */
+    fun prepareCalls(answer: String, decline: String) = Unit
+
+    /**
      * Klik na oznámení ([ToastActivation.Open]) nebo na jeho tlačítko (odpověď, přečtení,
-     * ztlumení — ta běží na pozadí). Tlačítka mají zatím jen toasty Windows.
+     * ztlumení — ta běží na pozadí). Tlačítka zpráv mají zatím jen toasty Windows, tlačítka
+     * hovoru i macOS.
      */
     var onActivated: ((ToastActivation) -> Unit)?
 }
@@ -101,7 +113,17 @@ private class MacNotifier : DesktopNotifier {
             topicId = notification.topicId ?: 0,
             silent = notification.silent,
             attachmentPath = (notification.imagePath ?: notification.avatarPath)?.let(::attachmentCopy),
+            callId = notification.call?.callId ?: 0,
         )
+    }
+
+    /** Naposledy registrované popisky; kategorie se přepisuje, jen když se změní (jazyk). */
+    private var callLabels: Pair<String, String>? = null
+
+    override fun prepareCalls(answer: String, decline: String) {
+        if (!available || callLabels == answer to decline) return
+        callLabels = answer to decline
+        MacNotificationCenter.nativeSetCallActions(answer, decline)
     }
 
     override fun remove(ids: List<String>) {
@@ -115,8 +137,13 @@ private class MacNotifier : DesktopNotifier {
     override var onActivated: ((ToastActivation) -> Unit)? = null
         set(value) {
             field = value
-            MacNotificationCenter.onActivated = { chatId, topicId ->
-                value?.invoke(ToastActivation.Open(chatId, topicId.takeIf { it != 0 }))
+            MacNotificationCenter.onActivated = { chatId, topicId, action, callId ->
+                val activation = when (action) {
+                    MacNotificationCenter.ACTION_ANSWER -> ToastActivation.AnswerCall(chatId, callId)
+                    MacNotificationCenter.ACTION_DECLINE -> ToastActivation.DeclineCall(chatId, callId)
+                    else -> ToastActivation.Open(chatId, topicId.takeIf { it != 0 })
+                }
+                value?.invoke(activation)
             }
         }
 

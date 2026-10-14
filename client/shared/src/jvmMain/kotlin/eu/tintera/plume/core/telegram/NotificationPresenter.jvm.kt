@@ -1,7 +1,9 @@
 package eu.tintera.plume.core.telegram
 
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.calls.CallRequests
 import eu.tintera.plume.core.navigation.ChatOpenRequests
+import eu.tintera.plume.core.notifications.CallButtons
 import eu.tintera.plume.core.notifications.DesktopNotification
 import eu.tintera.plume.core.notifications.DesktopNotifier
 import eu.tintera.plume.core.notifications.NotificationActions
@@ -14,6 +16,8 @@ import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.snooze.ChatSnoozes
 import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.call_answer
+import eu.tintera.plume.resources.notification_call_decline
 import eu.tintera.plume.resources.notification_call_unknown
 import eu.tintera.plume.resources.notification_call_video
 import eu.tintera.plume.resources.notification_call_voice
@@ -58,6 +62,9 @@ import kotlinx.datetime.toLocalDateTime
  * - **Tlačítka toastu na Windows** (odpovědět, přečíst, ztlumit na hodinu) dělají totéž co akce
  *   notifikace na Androidu, přes sdílené [NotificationActions]. Běží na pozadí, okno se
  *   nevytahuje; nepovedená odpověď se ohlásí dalším toastem.
+ * - **Příchozí hovor, který tu jde přijmout** ([callsSupported]), má Přijmout a Odmítnout
+ *   (macOS i Windows) a je tichý — zvoní `DesktopCallRinger` ve smyčce. Přijmout vytáhne okno
+ *   a předá hovor obrazovce hovoru ([CallRequests]), ta se zeptá na mikrofon a přijme.
  */
 actual class NotificationPresenter internal constructor(
     private val chats: ChatRepository,
@@ -69,6 +76,10 @@ actual class NotificationPresenter internal constructor(
     private val snoozes: ChatSnoozes? = null,
     /** Tlačítka toastu; bez nich se tlačítka nenabízejí. */
     private val actions: NotificationActions? = null,
+    /** Přijetí hovoru z oznámení; bez něj oznámení hovoru tlačítka nemá. */
+    private val callRequests: CallRequests? = null,
+    /** Hovory tu jde přijmout (ntgcalls je přibalená). */
+    private val callsSupported: Boolean = false,
 ) {
 
     private val logger = Logger.withTag("Notifications")
@@ -81,6 +92,9 @@ actual class NotificationPresenter internal constructor(
 
     /** Skupiny notifikací příchozích hovorů; zruší je [NotificationUpdate.Removed] s týmž `groupId`. */
     private val calls = mutableSetOf<Int>()
+
+    /** Ukázané příchozí hovory podle id hovoru — Odmítnout potřebuje vědět, jestli šlo o video. */
+    private val incoming = mutableMapOf<Int, IncomingCall>()
 
     /** Názvy chatů z ukázaných oznámení — pro toast o neodeslané odpovědi. Jen z [dispatcher]. */
     private val titles = mutableMapOf<Long, String>()
@@ -99,6 +113,12 @@ actual class NotificationPresenter internal constructor(
             }
         }
         if (!notifier.available) logger.i { "Systémová oznámení tu nejsou k dispozici (ladicí běh na macOS?)." }
+        if (answerable) {
+            scope.launch(dispatcher) {
+                val labels = callLabels()
+                notifier.prepareCalls(labels.answer, labels.decline)
+            }
+        }
 
         scope.launch(dispatcher) {
             repository.updates.collect { update ->
@@ -199,6 +219,17 @@ actual class NotificationPresenter internal constructor(
                 .onSuccess { logger.d { "Chat ${activation.chatId} přečten z toastu." } }
             is ToastActivation.Mute -> actions.mute(activation.chatId, READY_TIMEOUT)
                 .onSuccess { logger.d { "Chat ${activation.chatId} ztlumen z toastu." } }
+            is ToastActivation.AnswerCall -> {
+                logger.d { "Přijmout hovor ${activation.callId} z oznámení." }
+                callRequests?.answer(activation.callId)
+                DesktopWindow.activate()
+            }
+            is ToastActivation.DeclineCall -> {
+                val isVideo = withContext(dispatcher) { incoming[activation.callId]?.isVideo } ?: false
+                actions.declineCall(activation.callId, isVideo, READY_TIMEOUT)
+                    .onSuccess { logger.d { "Hovor ${activation.callId} odmítnut z oznámení." } }
+                    .onFailure { logger.w(it) { "Hovor ${activation.callId} nejde odmítnout." } }
+            }
             is ToastActivation.Open -> Unit
         }
     }
@@ -223,6 +254,7 @@ actual class NotificationPresenter internal constructor(
 
     private fun remove(update: NotificationUpdate.Removed) {
         if (calls.remove(update.groupId)) {
+            incoming.values.removeAll { it.groupId == update.groupId }
             notifier.remove(listOf(callId(update.groupId)))
             return
         }
@@ -230,9 +262,26 @@ actual class NotificationPresenter internal constructor(
         notifier.remove(update.notificationIds.map { id(update.groupId, it) })
     }
 
+    /**
+     * Příchozí hovor. Aktivní okno oznámení nedostane — obrazovka hovoru je v něm vidět a zvoní
+     * se tak jako tak. Hovor, který tu přijmout nejde, zůstává jako dřív: jen „Volá ti" a klik
+     * otevře chat.
+     */
     private suspend fun showCall(call: IncomingCall) {
-        if (DesktopWindow.focused.value) return
+        if (DesktopWindow.focused.value) {
+            logger.d { "Okno je aktivní, příchozí hovor ${call.callId} se neoznamuje." }
+            return
+        }
+        logger.d { "Oznamuji příchozí hovor ${call.callId}, přijmout jde tady: $answerable." }
         calls += call.groupId
+        val buttons = if (answerable) {
+            incoming[call.callId] = call
+            val labels = callLabels()
+            notifier.prepareCalls(labels.answer, labels.decline)
+            labels.copy(callId = call.callId)
+        } else {
+            null
+        }
         notifier.show(
             DesktopNotification(
                 id = callId(call.groupId),
@@ -242,16 +291,27 @@ actual class NotificationPresenter internal constructor(
                 body = readString(if (call.isVideo) Res.string.notification_call_video else Res.string.notification_call_voice),
                 chatId = call.chatId,
                 topicId = null,
-                silent = false,
+                // Zvoní DesktopCallRinger; zvuk oznámení by ho zdvojil.
+                silent = buttons != null,
                 imagePath = null,
                 avatarPath = call.avatarPath,
+                call = buttons,
             ),
         )
     }
 
+    private val answerable: Boolean get() = callsSupported && callRequests != null && actions != null
+
+    private suspend fun callLabels() = CallButtons(
+        callId = 0,
+        answer = readString(Res.string.call_answer),
+        decline = readString(Res.string.notification_call_decline),
+    )
+
     private fun clear() {
         known.clear()
         calls.clear()
+        incoming.clear()
         notifier.removeAll()
         DesktopTaskbar.setUnread(0)
     }

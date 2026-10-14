@@ -6,6 +6,9 @@ import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.audio.AudioEngine
 import eu.tintera.plume.core.calls.CallMedia
 import eu.tintera.plume.core.calls.DesktopCallMedia
+import eu.tintera.plume.core.calls.DesktopCallRinger
+import eu.tintera.plume.core.telegram.CallRepository
+import org.koin.core.qualifier.named
 import eu.tintera.plume.core.audio.AudioRecorder
 import eu.tintera.plume.core.audio.EarSensor
 import eu.tintera.plume.core.calendar.CalendarEvents
@@ -61,7 +64,11 @@ actual fun Module.platformModule() {
     single<OnDeviceAi> { NoopOnDeviceAi }
     // Hovory jen se zvukem přes ntgcalls; bez přibalené knihovny (Intel Mac, build bez sítě)
     // se CallMedia neregistruje a hovory se nenabídnou (`CallRepository.supported`).
-    if (DesktopCallMedia.available()) single<CallMedia> { DesktopCallMedia() }
+    if (DesktopCallMedia.available()) {
+        single<CallMedia> { DesktopCallMedia() }
+        // Vyzvánění příchozího hovoru a tón protistrany u odchozího.
+        single(createdAtStart = true) { DesktopCallRinger(calls = get(), scope = get(named(APP_SCOPE))).also { it.start() } }
+    }
     single { TelegramPaths() }
     single<DatabaseKeyStore> {
         object : DatabaseKeyStore, SecretStore by desktopSecretStore(
@@ -86,6 +93,8 @@ actual fun Module.platformModule() {
             scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
             snoozes = get(),
             actions = get(),
+            callRequests = get(),
+            callsSupported = get<CallRepository>().supported,
         )
     }
     single { UrlOpener(settings = get()) }

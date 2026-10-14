@@ -26,6 +26,7 @@ class ToastXmlTest {
         avatarPath: String? = null,
         timestamp: Long? = null,
         buttons: NotificationButtons? = null,
+        call: CallButtons? = null,
     ) = DesktopNotification(
         id = "g1-n2",
         thread = "chat-42",
@@ -39,6 +40,7 @@ class ToastXmlTest {
         avatarPath = avatarPath,
         timestamp = timestamp,
         buttons = buttons,
+        call = call,
     )
 
     private val labels = NotificationButtons.Labels(reply = "Odpovědět", send = "Odeslat", markRead = "Přečteno", mute = "Ztlumit & dost")
@@ -153,5 +155,25 @@ class ToastXmlTest {
         val readOnly = parse(toastXml(notification(buttons = buttons(canReply = false, canMute = false))))
         assertEquals(0, readOnly.getElementsByTagName("input").length)
         assertEquals(listOf("Přečteno"), readOnly.actions().map { it.getAttribute("content") })
+    }
+
+    @Test
+    fun incomingCallStaysUntilAnsweredOrDeclined() {
+        val document = parse(toastXml(notification(silent = true, call = CallButtons(callId = 314, answer = "Přijmout", decline = "Odmítnout"))))
+        assertEquals("incomingCall", document.documentElement.getAttribute("scenario"))
+        val (answer, decline) = document.actions()
+        assertEquals("Přijmout", answer.getAttribute("content"))
+        // Přijmout vytahuje okno, Odmítnout ne.
+        assertEquals("foreground", answer.getAttribute("activationType"))
+        assertEquals("background", decline.getAttribute("activationType"))
+        assertEquals(ToastActivation.AnswerCall(chatId = 42, callId = 314), parseActivation(answer.getAttribute("arguments")))
+        assertEquals(ToastActivation.DeclineCall(chatId = 42, callId = 314), parseActivation(decline.getAttribute("arguments")))
+        assertEquals(1, document.getElementsByTagName("audio").length)
+    }
+
+    @Test
+    fun messageIsNotCall() {
+        assertFalse(parse(toastXml(notification())).documentElement.hasAttribute("scenario"))
+        assertNull(parseActivation("action=answer&chat=42"))
     }
 }
