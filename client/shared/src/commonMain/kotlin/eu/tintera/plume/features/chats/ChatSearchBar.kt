@@ -3,6 +3,7 @@ package eu.tintera.plume.features.chats
 import eu.tintera.plume.resources.chats_search_ai
 import eu.tintera.plume.resources.auto_awesome_24dp
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import eu.tintera.plume.core.ui.TextFieldSlot
 import eu.tintera.plume.core.ui.reject
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material3.IconButtonDefaults
@@ -245,59 +246,64 @@ internal fun ChatSearchBar(
             },
             leadingIcon = {
                 if (expanded) {
-                    IconButton(onClick = ::collapse, shapes = IconButtonDefaults.shapes()) {
-                        Icon(
-                            painterResource(Res.drawable.arrow_back_24dp),
-                            contentDescription = stringResource(Res.string.common_back),
-                        )
+                    TextFieldSlot {
+                        IconButton(onClick = ::collapse, shapes = IconButtonDefaults.shapes()) {
+                            Icon(
+                                painterResource(Res.drawable.arrow_back_24dp),
+                                contentDescription = stringResource(Res.string.common_back),
+                            )
+                        }
                     }
                 } else {
                     Icon(painterResource(Res.drawable.search_24dp), contentDescription = null)
                 }
             },
+            // Avatar účtu, vymazat a AI jsou tlačítka — kurzor jako nad tlačítkem, ne nad textem.
             trailingIcon = {
-                when {
-                    expanded && textFieldState.text.isNotEmpty() -> Row(verticalAlignment = Alignment.CenterVertically) {
-                        // „Hledat s AI" jen u věty, ne u jména chatu: jedno dvě slova se hledají
-                        // tak, jak jsou, a ikona by u nich jen překážela.
-                        if (aiSearch != null && (aiBusy || naturalSentence(textFieldState.text.toString()))) {
-                            AiSearchButton(
-                                busy = aiBusy,
-                                onClick = {
-                                    val query = textFieldState.text.toString()
-                                    aiBusy = true
-                                    scope.launch {
-                                        val found = try {
-                                            aiSearch(query)
-                                        } finally {
-                                            aiBusy = false
+                TextFieldSlot {
+                    when {
+                        expanded && textFieldState.text.isNotEmpty() -> Row(verticalAlignment = Alignment.CenterVertically) {
+                            // „Hledat s AI" jen u věty, ne u jména chatu: jedno dvě slova se hledají
+                            // tak, jak jsou, a ikona by u nich jen překážela.
+                            if (aiSearch != null && (aiBusy || naturalSentence(textFieldState.text.toString()))) {
+                                AiSearchButton(
+                                    busy = aiBusy,
+                                    onClick = {
+                                        val query = textFieldState.text.toString()
+                                        aiBusy = true
+                                        scope.launch {
+                                            val found = try {
+                                                aiSearch(query)
+                                            } finally {
+                                                aiBusy = false
+                                            }
+                                            // Dotaz se mezitím změnil — výsledek patří k jinému.
+                                            if (textFieldState.text.toString() != query) return@launch
+                                            if (found == null) {
+                                                haptics.reject()
+                                            } else {
+                                                // Napřed filtr, pak text: hledání se pustí jednou,
+                                                // s obojím (`ChatSearch` sbírá nejnovější).
+                                                onFilterChange(found.filter)
+                                                textFieldState.setTextAndPlaceCursorAtEnd(found.text)
+                                            }
                                         }
-                                        // Dotaz se mezitím změnil — výsledek patří k jinému.
-                                        if (textFieldState.text.toString() != query) return@launch
-                                        if (found == null) {
-                                            haptics.reject()
-                                        } else {
-                                            // Napřed filtr, pak text: hledání se pustí jednou,
-                                            // s obojím (`ChatSearch` sbírá nejnovější).
-                                            onFilterChange(found.filter)
-                                            textFieldState.setTextAndPlaceCursorAtEnd(found.text)
-                                        }
-                                    }
-                                },
-                            )
+                                    },
+                                )
+                            }
+                            IconButton(
+                                onClick = { textFieldState.clearText() },
+                                shapes = IconButtonDefaults.shapes(),
+                            ) {
+                                Icon(
+                                    painterResource(Res.drawable.close_24dp),
+                                    contentDescription = stringResource(Res.string.chats_search_clear),
+                                )
+                            }
                         }
-                        IconButton(
-                            onClick = { textFieldState.clearText() },
-                            shapes = IconButtonDefaults.shapes(),
-                        ) {
-                            Icon(
-                                painterResource(Res.drawable.close_24dp),
-                                contentDescription = stringResource(Res.string.chats_search_clear),
-                            )
-                        }
+                        // V rozbaleném hledání stav ani účet nepatří — uživatel se dívá na výsledky.
+                        !expanded -> trailing()
                     }
-                    // V rozbaleném hledání stav ani účet nepatří — uživatel se dívá na výsledky.
-                    !expanded -> trailing()
                 }
             },
         )

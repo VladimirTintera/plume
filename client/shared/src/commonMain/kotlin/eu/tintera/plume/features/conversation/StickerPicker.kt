@@ -79,6 +79,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.draw.drawBehind
+import eu.tintera.plume.core.ui.TextFieldSlot
 import eu.tintera.plume.core.ui.animateMorph
 import eu.tintera.plume.core.ui.ShapeMorphs
 import eu.tintera.plume.core.ui.MorphShape
@@ -1279,8 +1280,10 @@ internal fun StickerSearchField(
             leadingIcon = { Icon(painterResource(Res.drawable.search_24dp), contentDescription = null) },
             trailingIcon = if (text.isNotEmpty()) {
                 {
-                    IconButton(onClick = { onTextChange("") }, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.stickers_clear_search))
+                    TextFieldSlot {
+                        IconButton(onClick = { onTextChange("") }, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.stickers_clear_search))
+                        }
                     }
                 }
             } else {

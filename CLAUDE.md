@@ -479,6 +479,10 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   holé `DropdownMenuPopup` / `Popup` bez vstupního pole ho dostane taky, jinak nabídka nad
   otevřenou klávesnicí klávesnici utrhne a obsah pod ní skočí. Viz „Nabídky si neberou
   klávesnici".
+- **Tlačítko ve slotu textového pole patří do `TextFieldSlot`** (`core/ui`): `leadingIcon` /
+  `trailingIcon` s `IconButton`, avatarem a podobně. `BasicTextField` dává textový kurzor celému
+  boxu i s dekorací a ikony ho dědí — na desktopu se nad avatarem účtu v hledání ukazoval
+  kurzor pro psaní. Ozdobná ikona (lupa) obal nepotřebuje.
 - **Bublina (tooltip) jen přes `WithTooltip` nebo `RootTooltipBox`** (`core/ui/WithTooltip.kt`),
   nikdy holý `TooltipBox` — hlídá to `verifyTooltipsThroughRoot`. Holý na desktopu shodí
   vykreslování, když kotva s viditelnou bublinou zmizí během měření (změna šířky okna). Viz
