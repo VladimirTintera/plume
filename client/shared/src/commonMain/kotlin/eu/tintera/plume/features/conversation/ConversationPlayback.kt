@@ -42,8 +42,8 @@ import kotlinx.coroutines.launch
 
 /**
  * Přehrávání v konverzaci: hlasovky (i řetězení neposlechnutých), kolečko se zvukem, zvuk
- * v článku, hudba v mini přehrávači, hlášení poslechu (s ohledem na diskrétní čtení) a přepis
- * řeči na serveru nebo v telefonu.
+ * v článku, čas v médiu („1:23" v textu), hudba v mini přehrávači, hlášení poslechu (s ohledem
+ * na diskrétní čtení) a přepis řeči na serveru nebo v telefonu.
  *
  * Část [ConversationViewModel] — ten na ni deleguje a drží její toky ve veřejném API.
  */
@@ -62,6 +62,8 @@ internal class ConversationPlayback(
     private val localTranscripts: LocalTranscripts?,
     private val onDeviceAi: OnDeviceAi?,
     private val speechToText: SpeechToText?,
+    /** Video v náhledu odkazu se od času v textu otevře na webu, touž cestou jako odkaz. */
+    private val openLink: (url: String) -> Unit,
     private val logger: Logger,
 ) {
     /**
@@ -333,6 +335,41 @@ internal class ConversationPlayback(
                     }
                 },
             )
+        }
+    }
+
+    /** Obrazovka chat otevřela. Bez toho by se po otočení displeje otevřel znovu. */
+    /**
+     * Čas v médiu („1:23"). Médium je v téže zprávě, nebo ve zprávě, na kterou odpovídá
+     * (`hasTimestampedMedia`) — tak to definuje TDLib. Video se otevře v prohlížeči od toho
+     * místa (navigace je věc obrazovky, proto stav [ConversationState.openMediaAt]); hlasovka,
+     * skladba a kolečko hrají v chatu, jako po ťuknutí na ně; video z náhledu odkazu se otevře na
+     * webu od toho místa.
+     */
+    fun playMediaAt(messageId: Long, seconds: Int) {
+        val current = state.value
+        val message = current.messages.firstOrNull { it.id == messageId } ?: return
+        val target = timestampTarget(message, current.messages, current.quotes) ?: return
+        val startMs = seconds * 1000L
+        when (val media = target.media) {
+            is MessageMedia.Video -> state.update { it.copy(openMediaAt = MediaAt(target.id, seconds)) }
+            is MessageMedia.VoiceNote -> {
+                state.update { it.copy(soundingVideoNote = null) }
+                voicePlayer.play(VoiceKey(chatId, target.id), startMs = startMs) { voicePath(media) }
+                if (!target.isOutgoing && !media.isListened) reportListened(target.id)
+            }
+            is MessageMedia.Audio -> {
+                state.update { it.copy(soundingVideoNote = null) }
+                musicQueue.play(chatId, target.id, media, startMs)
+            }
+            is MessageMedia.VideoNote -> {
+                voicePlayer.stop()
+                state.update { it.copy(soundingVideoNote = target.id, soundingVideoNoteFromMs = startMs) }
+                if (!target.isOutgoing && !media.isViewed) reportListened(target.id)
+            }
+            // Video v náhledu odkazu (YouTube…) v aplikaci nepřehráváme: otevře se jeho web
+            // od toho místa, kde to adresa umí (`videoLinkAt`).
+            else -> target.linkPreview?.takeIf { it.isVideo }?.let { openLink(videoLinkAt(it.url, seconds)) }
         }
     }
 }
