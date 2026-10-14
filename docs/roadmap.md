@@ -341,7 +341,8 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - ~~Při mazání zprávy člena „smazat vše od něj" a „nahlásit spam"~~ — hotovo i s vyhozením
   (`docs/poznatky/konverzace-akce.md`, „Smazání cizích zpráv správcem"). Zbývá smazat reakce
   člena (`deleteAllRecentMessageReactionsFromSender`) a ověřit nahlášení spamu.
-- Odepnout všechny zprávy (`unpinAllChatMessages`, `unpinAllForumTopicMessages`).
+- ~~Odepnout všechny zprávy (`unpinAllChatMessages`, `unpinAllForumTopicMessages`)~~ — hotovo
+  (sheet připnutých → „Odepnout vše"). Zbývá ověřit v tématu skupiny.
 - ~~Smazat skupinu nebo kanál pro všechny (`deleteChat`)~~ — hotovo (konec úpravy skupiny).
 - Záznam posledních akcí (`getChatEventLog`) a statistiky kanálu a příspěvku
   (`getChatStatistics`, `getMessageStatistics`, `getMessagePublicForwards`).

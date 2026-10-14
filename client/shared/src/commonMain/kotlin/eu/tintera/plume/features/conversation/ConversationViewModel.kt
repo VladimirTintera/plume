@@ -85,6 +85,7 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
+import eu.tintera.plume.resources.conversation_unpin_all_failed
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.paid_media_unsupported
 import eu.tintera.plume.resources.story_live_unsupported
@@ -1064,6 +1065,21 @@ class ConversationViewModel(
                     _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_unpin_failed)) }
                     refreshPinned()
                 }
+        }
+    }
+
+    /**
+     * Odepne všechny připnuté (v tématu jen jeho). Pruh zmizí hned, jako u jedné zprávy; při
+     * selhání se seznam přečte znovu. „Vrátit" tu není — vracet by se muselo připnout každou
+     * zprávu zvlášť, proto se obrazovka ptá předem.
+     */
+    fun unpinAll() {
+        _state.update { it.copy(pinned = emptyList()) }
+        viewModelScope.launch {
+            repository.unpinAll(chatId).onFailure { failure ->
+                _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_unpin_all_failed)) }
+                refreshPinned()
+            }
         }
     }
 

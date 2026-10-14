@@ -527,6 +527,7 @@ internal fun ConversationDialogs(
             canUnpin = state.canUnpin,
             onOpen = { message -> viewModel.jumpToMessage(message.id, anchor = ScrollAnchor.Top) },
             onUnpin = viewModel::unpin,
+            onUnpinAll = viewModel::unpinAll,
             onDismiss = { sheets.allPinned = false },
         )
     }

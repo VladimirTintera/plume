@@ -1,5 +1,14 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.common_cancel
+import eu.tintera.plume.resources.conversation_unpin_all_body
+import eu.tintera.plume.resources.conversation_unpin_all_title
+import eu.tintera.plume.resources.conversation_unpin_all
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -247,10 +256,12 @@ internal fun PinnedMessagesSheet(
     canUnpin: Boolean,
     onOpen: (ChatMessage) -> Unit,
     onUnpin: (ChatMessage) -> Unit,
+    onUnpinAll: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
     val scope = rememberCoroutineScope()
+    var confirmUnpinAll by rememberSaveable { mutableStateOf(false) }
 
     // Sheet se napřed schová, teprve pak se skáče — zmizení bez animace vypadá jako pád.
     fun hideThen(action: () -> Unit) {
@@ -261,11 +272,22 @@ internal fun PinnedMessagesSheet(
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Text(
-            text = pluralStringResource(Res.plurals.conversation_pinned_count, messages.size, messages.size),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 4.dp, bottom = 12.dp),
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp, top = 4.dp, bottom = 12.dp),
+        ) {
+            Text(
+                text = pluralStringResource(Res.plurals.conversation_pinned_count, messages.size, messages.size),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f),
+            )
+            // U jediné zprávy stačí křížek v řádku; „vše" dává smysl až od dvou.
+            if (canUnpin && messages.size > 1) {
+                TextButton(onClick = { confirmUnpinAll = true }) {
+                    Text(stringResource(Res.string.conversation_unpin_all), color = MaterialTheme.colorScheme.error)
+                }
+            }
+        }
         // Blok zaoblených řádků jako seznam chatů, kontakty nebo odkazy v profilu — dřív to byly
         // holé řádky na ploše sheetu, jiný vzhled pro tentýž „seznam věcí".
         LazyColumn(
@@ -284,6 +306,26 @@ internal fun PinnedMessagesSheet(
                 )
             }
         }
+    }
+
+    // „Vrátit" by muselo připnout každou zprávu zvlášť, proto se ptá předem — na rozdíl od jedné.
+    if (confirmUnpinAll) {
+        AlertDialog(
+            onDismissRequest = { confirmUnpinAll = false },
+            title = { Text(pluralStringResource(Res.plurals.conversation_unpin_all_title, messages.size, messages.size)) },
+            text = { Text(stringResource(Res.string.conversation_unpin_all_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmUnpinAll = false
+                    hideThen(onUnpinAll)
+                }) {
+                    Text(stringResource(Res.string.conversation_unpin_all), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmUnpinAll = false }) { Text(stringResource(Res.string.common_cancel)) }
+            },
+        )
     }
 }
 
