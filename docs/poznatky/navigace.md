@@ -295,7 +295,7 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   `AppSettings` nenačte, je to výchozí, a ta se neukládá (shoduje se s `null`), takže uloženou
   nepřepíše. `animateTo` kotvy, kterou stav ještě nezná, vyhodí `IllegalArgumentException`
   (`require` v knihovně) — chytá se jen ta, `runCatching` by spolkl i zrušení korutiny.
-- **Ve třech panelech se táhlo nekreslí** a zvolená šířka jde metadaty seznamu
+- **Ve třech panelech je táhlo seznamu vlastní** (`rememberListPaneResize`, viz „Táhlo profilu"; knihovna tam žádné nekreslí) a šířka jde metadaty seznamu
   (`listWidthBesideProfile`, testy `ListWidthBesideProfileTest`): sbalený zůstane sbalený, širší
   se zúží, aby konverzaci vedle profilu zbylo aspoň 360 dp. **Metadata položky se ale počítají
   jen při změně zásobníku** (`rememberDecoratedNavEntries(zásobník, …)` si položky pamatuje podle
@@ -324,6 +324,40 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   nedávalo smysl, když je seznam vedle. Systémové zpět a Esc jdou dál po jedné položce, na
   telefonu je šipka obyčejné zpět. Téma nad seznamem témat se vrací do něj (rodič, ne historie).
   **Šipku neschovávat**: bez ní nešla otevřená konverzace zavřít vůbec (zkusilo se, vrátilo se).
+
+### Táhlo profilu
+
+Šířka profilu vedle konverzace se mění táhlem na předělu s konverzací (stav
+`rememberProfilePaneResize`), kotvy výchozí (360/412) / 480 / 600 dp, zvolená
+v `AppSettings.profilePaneAnchor`. Stejným mechanismem má táhlo i seznam ve třech panelech
+(`rememberListPaneResize`, kotvy seznamu, ukládá se tatáž `listPaneAnchor` jako z táhla
+knihovny ve dvou panelech).
+
+- **Táhlo knihovny na to nejde.** Ve třech panelech ho `ThreePaneScaffold` nekreslí vůbec
+  a ve dvou (konverzace | profil) nastavuje šířku PRVNÍHO panelu, tedy konverzace. Šířka
+  proto jde metadaty (`Panes.width` u profilu a obrazovek z něj, v Chatech i archivu, a u
+  seznamu) a táhla jsou vlastní (`PaneResize`).
+- **Táhla se kreslí NAD panely** (`PaneHandleOverlay` přes celou scénu), ne v panelu. Obsah
+  panelu se ořezává na jeho okraj: táhlo na předělu by bylo napůl uříznuté a první pokus ho
+  proto dal dovnitř profilu — leželo přes dlaždici „Ztlumit" (snímek od uživatele). Panel jen
+  hlásí, kde leží (`PaneCard` → `paneBounds`), a vrstva posadí táhlo na jeho okraj: profil na
+  levý, seznam doprostřed mezery za pravým. Uzel táhla zabírá celou vrstvu, jinak by posunuté
+  táhlo nebralo dotyk; mimo táhlo jde dotyk do panelů pod ním.
+- **Za tahu se šířka omezuje hned** (profil: konverzaci zbude aspoň 360 dp a sám nejužší na
+  výchozí šířce; seznam: od sbaleného sloupce po místo vedle profilu), po puštění dosedne na
+  nejbližší kotvu. Kotva se zapíše do stavu hned, ne až z toku nastavení — ten přijde o snímek
+  později a panel by skočil zpátky. Seznam má přednost: širší profil se zúží on.
+- **Položky Chatů se za tahu staví znovu** (šířky jsou v klíči `chatsEntries`), obsah ne: drží
+  ho `contentKey`.
+- **Za tahu a dojezdu panely NEanimuje knihovna** (`DraggedWidth`, `Panes.instantBounds`).
+  Napřed šířka za tahu skákala po krocích a knihovní pružina (`AnimatedPane`) každý krok
+  animovala znovu: panely prst dotahovaly a cukaly, a po puštění šířka skočila na kotvu bez
+  animace — vedle hladkého táhla knihovny ve dvou panelech to působilo trhaně. Teď šířka jde
+  přímo za prstem, po puštění dojede na kotvu jednou pružinou (`MotionScheme`, prostorová)
+  a po tu dobu mají panely rozměry bez animace (`snap()`). **Animaci rozměrů DETAILU scéna
+  bere z položky SEZNAMU** (`lastList.boundsAnimationSpec()` v `ThreePaneScaffoldScene`),
+  proto ji nese i seznam.
+- Jen Chaty; podstránky Nastavení ve třetím panelu mají výchozí šířku.
 
 ### Standardní šířky
 

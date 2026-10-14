@@ -13,7 +13,11 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
@@ -107,6 +111,17 @@ fun PaneCard(role: PaneRole, content: @Composable () -> Unit) {
                 ),
         ) {
             content()
+            // Kde panel leží — táhlo šířky na předělu kreslí shell nad panely
+            // (`PaneHandleOverlay`); tady by ho ořez panelu uřízl.
+            val resize = when {
+                card && role == PaneRole.Extra -> LocalProfilePaneResize.current
+                flat -> LocalListPaneResize.current
+                else -> null
+            }
+            if (resize != null) {
+                Box(Modifier.matchParentSize().onGloballyPositioned { resize.paneBounds.value = it.boundsInWindow() })
+                DisposableEffect(resize) { onDispose { resize.paneBounds.value = null } }
+            }
         }
     }
 }

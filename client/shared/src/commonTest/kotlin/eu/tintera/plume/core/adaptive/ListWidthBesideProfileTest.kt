@@ -34,4 +34,18 @@ class ListWidthBesideProfileTest {
         // 3000 dp: polovina je 1500 dp, konverzaci zbyde 3000 − 1500 − 360 − 12 = 1128 dp.
         assertEquals(1500.dp, listWidthBesideProfile(ListPaneAnchor.Half, 3000.dp, default, gap))
     }
+
+    @Test
+    fun tahSeOmeziJakoKotvy() {
+        assertEquals(COLLAPSED_LIST_WIDTH, clampListBesideProfile(40.dp, 2000.dp, default, gap))
+        // 1200 dp: 1200 − profil 360 − konverzace 360 − mezera = 468 dp nejvýš.
+        assertEquals(468.dp, clampListBesideProfile(900.dp, 1200.dp, default, gap))
+    }
+
+    @Test
+    fun pustenyTahDosedneNaNejblizsiKotvu() {
+        assertEquals(ListPaneAnchor.Collapsed, nearestListAnchorBesideProfile(150.dp, 2000.dp, default, gap))
+        assertEquals(ListPaneAnchor.Default, nearestListAnchorBesideProfile(420.dp, 2000.dp, default, gap))
+        assertEquals(ListPaneAnchor.Half, nearestListAnchorBesideProfile(900.dp, 2000.dp, default, gap))
+    }
 }

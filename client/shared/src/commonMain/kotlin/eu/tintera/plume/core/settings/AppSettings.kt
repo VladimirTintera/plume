@@ -10,6 +10,7 @@ import eu.tintera.plume.core.ai.GemmaModel
 import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.adaptive.ListPaneAnchor
+import eu.tintera.plume.core.adaptive.ProfilePaneAnchor
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
@@ -118,6 +119,15 @@ interface AppSettings {
      * šířka ([ListPaneAnchor.Default]). Výchozí se neukládá, jako u motivu.
      */
     val listPaneAnchor: StateFlow<ListPaneAnchor?>
+
+    /**
+     * Kotva, na kterou uživatel táhlem posunul profil vedle konverzace; `null` = výchozí šířka
+     * ([ProfilePaneAnchor.Default]). Výchozí se neukládá.
+     */
+    val profilePaneAnchor: StateFlow<ProfilePaneAnchor?>
+
+    /** Uloží kotvu profilu. Neblokuje, jako [recordRecentEmoji]. */
+    fun setProfilePaneAnchor(anchor: ProfilePaneAnchor)
 
     /** Uloží kotvu seznamu chatů. Neblokuje, jako [recordRecentEmoji]. */
     fun setListPaneAnchor(anchor: ListPaneAnchor)
@@ -537,6 +547,18 @@ class DataStoreAppSettings(
     override fun setThemeColor(color: ThemeColor) {
         scope.launch {
             edit { preferences -> preferences[THEME_COLOR] = color.name }
+        }
+    }
+
+    override val profilePaneAnchor: StateFlow<ProfilePaneAnchor?> = value(null) { preferences ->
+        ProfilePaneAnchor.entries.firstOrNull { it.name == preferences[PROFILE_PANE_ANCHOR] }
+    }
+
+    override fun setProfilePaneAnchor(anchor: ProfilePaneAnchor) {
+        scope.launch {
+            edit { preferences ->
+                if (anchor == ProfilePaneAnchor.Default) preferences.remove(PROFILE_PANE_ANCHOR) else preferences[PROFILE_PANE_ANCHOR] = anchor.name
+            }
         }
     }
 
@@ -994,6 +1016,7 @@ class DataStoreAppSettings(
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val THEME_COLOR = stringPreferencesKey("theme_color")
         val LIST_PANE_ANCHOR = stringPreferencesKey("list_pane_anchor")
+        val PROFILE_PANE_ANCHOR = stringPreferencesKey("profile_pane_anchor")
         val SEPARATE_UNREAD_CHATS = booleanPreferencesKey("separate_unread_chats")
         val SAVED_MESSAGES_AS_CHATS = booleanPreferencesKey("saved_messages_as_chats")
         val TRANSLATE_ON_DEVICE = booleanPreferencesKey("translate_on_device")
