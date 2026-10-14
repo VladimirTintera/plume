@@ -202,6 +202,10 @@ data class ArchiveJoinRequestsRoute(val chatId: Long) : Route
 @Serializable
 data class ArchiveRemovedMembersRoute(val chatId: Long, val banned: Boolean) : Route
 
+/** Poslední akce otevřené z úpravy skupiny v archivní větvi. */
+@Serializable
+data class ArchiveEventLogRoute(val chatId: Long) : Route
+
 /**
  * Konverzace. V list-detail rozvržení je to detail panel vedle seznamu.
  *
@@ -279,6 +283,10 @@ data class JoinRequestsRoute(val chatId: Long) : Route
  */
 @Serializable
 data class RemovedMembersRoute(val chatId: Long, val banned: Boolean) : Route
+
+/** Poslední akce ve skupině nebo kanálu. Vrší se nad úpravu, taky jako detailový panel. */
+@Serializable
+data class EventLogRoute(val chatId: Long) : Route
 
 /**
  * Prohlížeč média přes celou obrazovku.
@@ -523,6 +531,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ArchiveInviteLinksRoute::class, ArchiveInviteLinksRoute.serializer())
             subclass(ArchiveJoinRequestsRoute::class, ArchiveJoinRequestsRoute.serializer())
             subclass(ArchiveRemovedMembersRoute::class, ArchiveRemovedMembersRoute.serializer())
+            subclass(ArchiveEventLogRoute::class, ArchiveEventLogRoute.serializer())
             subclass(ConversationRoute::class, ConversationRoute.serializer())
             subclass(ChatProfileRoute::class, ChatProfileRoute.serializer())
             subclass(InstantViewRoute::class, InstantViewRoute.serializer())
@@ -531,6 +540,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(InviteLinksRoute::class, InviteLinksRoute.serializer())
             subclass(JoinRequestsRoute::class, JoinRequestsRoute.serializer())
             subclass(RemovedMembersRoute::class, RemovedMembersRoute.serializer())
+            subclass(EventLogRoute::class, EventLogRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
             subclass(ShareContactRoute::class, ShareContactRoute.serializer())

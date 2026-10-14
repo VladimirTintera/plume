@@ -340,6 +340,31 @@ antispam, podpisy a profily autorů v kanálu, zakázat ukládání obsahu. Na k
   „Plume test smazani": aplikace se vrátila do seznamu a skupina z něj zmizela. Kanál, veřejná
   skupina, diskuse kanálu, skrytí členů a antispam ověřené NEJSOU (testovací účet takové nemá).
 
+### Poslední akce
+
+Úprava skupiny nebo kanálu má pro správce řádek **Poslední akce** (`EventLogRoute`,
+`EventLogScreen`, `EventLogViewModel`): co kdo udělal za posledních 48 hodin
+(`getChatEventLog`), po dnech, u každé události autor, popis, podrobnost a čas.
+
+- **Popis je podstatné jméno, ne věta se slovesem** („Nový název: …", „Vyhození: Jan",
+  „Témata: zapnuto"). Čeština by u slovesa potřebovala rod autora („změnil / změnila"), a ten
+  Telegram neposílá — hádat ho ze jména nejde. Přepínače mají hodnotu příslovcem
+  („zapnuto / vypnuto"), které sedí k čemukoli bez ohledu na rod.
+- **Převod je v `core/telegram/ChatEventLog.kt`** (`toEventText`, `when` bez `else`): nový druh
+  události v novější TDLib rozbije překlad, neprojde tiše. Co se podrobně nepopisuje (barvy,
+  pozadí, status), má obecnou větu svého druhu („Změna vzhledu").
+- **Změny členů se rozlišují podle starého a nového postavení**: `ChatEventMemberPromoted`
+  je povýšení, úprava práv, sesazení i předání vlastnictví; `ChatEventMemberRestricted`
+  vyhození, omezení i jejich zrušení.
+- **Podrobnost je náhled zprávy** (`Message.previewText`, i u smazané a upravené), nový popis
+  nebo odkaz pozvánky — na dva řádky. Jména autorů se čtou jednou za stránku.
+- **Jen supergroup a kanál, jen vlastník a správce** (`EditableChat.canViewEventLog`); základní
+  skupina záznam nemá. Živě se neobnovuje, TDLib na něj update nemá.
+- Ověřeno na emulátoru (14. 10. 2026, „Plume test moderace"): celý den testů — přidání členů,
+  smazané zprávy s textem, vyhození, povolení návratu, omezení a jeho zrušení, přepínače
+  nastavení, změna reakcí, připnutí a odepnutí. Kanál a hledání / filtry záznamu (TDLib je
+  umí) ověřené nejsou; filtry aplikace zatím nenabízí.
+
 ### Omezení a vyhození
 
 Úprava skupiny má kartu **Členové** s řádky Omezení a Vyhození (v kanálu jen Vyhození), každý

@@ -55,7 +55,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Spam, nahlášení a blokování](docs/poznatky/spam-a-blokovani.md) — průvodce nahlášením, úklid spamu, pruh nad konverzací (ChatActionBar), seznam blokovaných
 - [Seznam chatů](docs/poznatky/seznam-chatu.md) — skupiny řádků, složky a FAB menu, ověření, hlavička s pilulkou, Uložené zprávy, přehled konceptů, archiv a tah do archivu, akce, odložení a výběr víc chatů, widget na ploše
 - [Navigace](docs/poznatky/navigace.md) — Navigation3, list-detail scény, insety, přechody a predictive back, zásobník pro každou sekci
-- [Profil chatu](docs/poznatky/profil-chatu.md) — profil, členové a jejich správa, společné skupiny a podobné kanály, omezení a vyhození, nastavení skupiny a kanálu (pomalý režim, reakce, přepínače, smazání pro všechny), úprava skupiny, pozvánky, témata, sdílená média, historie fotek
+- [Profil chatu](docs/poznatky/profil-chatu.md) — profil, členové a jejich správa, společné skupiny a podobné kanály, omezení a vyhození, poslední akce správců, nastavení skupiny a kanálu (pomalý režim, reakce, přepínače, smazání pro všechny), úprava skupiny, pozvánky, témata, sdílená média, historie fotek
 - [Prohlížeč médií a média](docs/poznatky/prohlizec-medii.md) — prohlížeč, video a PiP, GIFy, kolečka a jejich nahrávání, automatické ukládání do galerie, poloha a mapy, spoilery, mizející a citlivý obsah, text z fotky, FileRepository
 - [Hlasovky a hudba](docs/poznatky/zvuk.md) — přehrávání, u ucha, nahrávání a náhled hlasovky, hudba na pozadí a dock přehrávače
 - [Typy zpráv](docs/poznatky/typy-zprav.md) — popisy a servisní zprávy, články a Instant View, počty a komentáře, témata ve skupinách, placená média, dárky, příběhy, kontakt, hovor

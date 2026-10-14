@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.history_24dp
+import eu.tintera.plume.resources.event_log_row_help
+import eu.tintera.plume.resources.event_log_row
 import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.resources.edit_chat_forum_help
@@ -151,6 +154,8 @@ fun EditChatScreen(
     onOpenJoinRequests: () -> Unit,
     /** Seznam vyhozených ([banned] `true`), nebo omezených členů. */
     onOpenRemoved: (banned: Boolean) -> Unit,
+    /** Poslední akce ve skupině; nabízí se jen správcům ([EditableChat.canViewEventLog]). */
+    onOpenEventLog: () -> Unit,
     /** Chat je smazaný pro všechny: zavřít všechno, co ho ukazuje. */
     onDeleted: () -> Unit,
     /** Základní skupina se převedla na supergroupu: (staré id, nové id). */
@@ -496,6 +501,18 @@ fun EditChatScreen(
 
                 // Omezení a vyhození: supergroup a kanál, vlastník a správce s právem omezovat.
                 chat.moderation?.let { ModerationGroup(it, onOpenRemoved) }
+
+                if (chat.canViewEventLog) {
+                    Card(Modifier.fillMaxWidth()) {
+                        ListItem(
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            headlineContent = { Text(stringResource(Res.string.event_log_row)) },
+                            supportingContent = { Text(stringResource(Res.string.event_log_row_help)) },
+                            leadingContent = { Icon(painterResource(Res.drawable.history_24dp), contentDescription = null) },
+                            modifier = Modifier.clickable(onClick = onOpenEventLog),
+                        )
+                    }
+                }
 
                 // Nevratné, proto poslední a v chybové barvě, s potvrzením — jako oficiální klienti.
                 if (chat.canDeleteForAll) {

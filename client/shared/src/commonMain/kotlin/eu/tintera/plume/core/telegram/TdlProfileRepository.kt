@@ -43,6 +43,8 @@ import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.InputMessageText
 import dev.g000sha256.tdl.dto.InputChatPhotoPrevious
 import dev.g000sha256.tdl.dto.MessageSenderUser
+import dev.g000sha256.tdl.dto.MessageSenderChat
+import dev.g000sha256.tdl.dto.MessageSender
 import dev.g000sha256.tdl.dto.SupergroupMembersFilterAdministrators
 import dev.g000sha256.tdl.dto.SupergroupMembersFilterBanned
 import dev.g000sha256.tdl.dto.SupergroupMembersFilterRecent
@@ -263,6 +265,7 @@ class TdlProfileRepository(
             stickerSet = stickerSet,
             canSetStickerSet = !isChannel && supergroupInfo?.canSetStickerSet == true,
             canDeleteForAll = chat.canBeDeletedForAllUsers,
+            canViewEventLog = supergroup != null && (own is OwnMemberStatus.Admin || (own as? OwnMemberStatus.Creator)?.isMember == true),
             settings = chat.memberGroupKind()?.let { kind ->
                 groupSettings(chat, kind, own, supergroup, supergroupInfo)
             } ?: GroupSettings(),
@@ -327,6 +330,43 @@ class TdlProfileRepository(
         is ChatAvailableReactionsSome -> ChatReactions(
             all = false,
             emojis = reactions.mapNotNull { (it as? ReactionTypeEmoji)?.emoji },
+        )
+    }
+
+    override suspend fun eventLog(chatId: Long, fromEventId: Long): Result<ChatLogPage> = runCatching {
+        val events = client.getChatEventLog(
+            chatId = chatId,
+            query = "",
+            fromEventId = fromEventId,
+            limit = CHAT_LOG_PAGE,
+            filters = null,
+            userIds = longArrayOf(),
+        ).toResult().getOrThrow().events.filterNotNull()
+        // Jména se čtou jednou za stránku: jeden správce bývá autorem desítek událostí.
+        val senders = mutableMapOf<Long, SenderInfo>()
+        suspend fun sender(id: MessageSender): SenderInfo = when (id) {
+            is MessageSenderUser -> senders.getOrPut(id.userId) {
+                member(id.userId)?.first ?: SenderInfo(id = id.userId, title = "", avatarFileId = null)
+            }
+            is MessageSenderChat -> senders.getOrPut(id.chatId) {
+                client.getChat(chatId = id.chatId).toResult().getOrNull()
+                    ?.let { SenderInfo(id = it.id, title = it.title, avatarFileId = it.photo?.small?.id) }
+                    ?: SenderInfo(id = id.chatId, title = "", avatarFileId = null)
+            }
+        }
+        ChatLogPage(
+            events = events.map { event ->
+                val text = event.action.toEventText { sender(it).title }
+                ChatLogEvent(
+                    id = event.id,
+                    date = event.date,
+                    actor = sender(event.memberId),
+                    description = text.description,
+                    detail = text.detail,
+                )
+            },
+            // Plná stránka = možná je další; pokračuje se od nejstarší vrácené (TDLib ji vynechá).
+            nextFromEventId = events.lastOrNull()?.id?.takeIf { events.size == CHAT_LOG_PAGE },
         )
     }
 

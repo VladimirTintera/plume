@@ -1,0 +1,181 @@
+package eu.tintera.plume.features.profile
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import eu.tintera.plume.core.telegram.ChatLogEvent
+import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
+import eu.tintera.plume.core.ui.IntroEmptyState
+import eu.tintera.plume.core.ui.asDayLabel
+import eu.tintera.plume.core.ui.asTimeOfDay
+import eu.tintera.plume.core.ui.groupItemShape
+import eu.tintera.plume.core.ui.isSameDayAs
+import eu.tintera.plume.core.ui.resolve
+import eu.tintera.plume.core.ui.tabularNumbers
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.arrow_back_24dp
+import eu.tintera.plume.resources.common_back
+import eu.tintera.plume.resources.event_log_empty
+import eu.tintera.plume.resources.event_log_empty_help
+import eu.tintera.plume.resources.event_log_title
+import eu.tintera.plume.resources.history_24dp
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+
+/**
+ * Poslední akce: po dnech („Dnes", „Včera"), v každém řádku kdo, co a v kolik. Podrobnost
+ * (text smazané zprávy, nový popis, odkaz) je pod popisem na dva řádky — celá patří
+ * do konverzace, sem jen tolik, aby se poznalo, o co šlo.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun EventLogScreen(viewModel: EventLogViewModel, onBack: () -> Unit, modifier: Modifier = Modifier) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val notice = viewModel.notice
+    val noticeText = notice?.resolve()
+    // Snackbar mimo tělo efektu: vynulování hlášky mění klíč a zrušilo by ho (viz „Vrátit").
+    LaunchedEffect(notice) {
+        if (noticeText != null) {
+            viewModel.notice = null
+            scope.launch { snackbarHostState.showSnackbar(noticeText) }
+        }
+    }
+    val events = viewModel.events
+
+    Scaffold(
+        modifier = modifier,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(Res.string.event_log_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        when {
+            events == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                if (!viewModel.loadFailed) LoadingIndicator()
+            }
+            events.isEmpty() -> IntroEmptyState(
+                icon = Res.drawable.history_24dp,
+                title = stringResource(Res.string.event_log_empty),
+                text = stringResource(Res.string.event_log_empty_help),
+                modifier = Modifier.fillMaxSize().padding(padding),
+            )
+            else -> EventList(events, viewModel, padding)
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private fun EventList(events: List<ChatLogEvent>, viewModel: EventLogViewModel, padding: PaddingValues) {
+    // Dny jako bloky: řádky jednoho dne mají společné zaoblení, nad blokem jeho název.
+    val days = remember(events) { events.groupConsecutive { a, b -> a.date.isSameDayAs(b.date) } }
+    LazyColumn(
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = padding.calculateTopPadding() + 8.dp,
+            bottom = padding.calculateBottomPadding() + 24.dp,
+        ),
+        verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        days.forEach { day ->
+            item(key = "day-${day.first().id}") {
+                Text(
+                    day.first().date.asDayLabel(),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
+                )
+            }
+            itemsIndexed(day, key = { _, event -> event.id }) { index, event ->
+                if (event.id == events.last().id) LaunchedEffect(event.id) { viewModel.loadMore() }
+                EventRow(event, Modifier.animateItem().clip(groupItemShape(index, day.size)))
+            }
+        }
+        if (viewModel.loadingMore) {
+            item(key = "loading") {
+                Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) { LoadingIndicator() }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EventRow(event: ChatLogEvent, modifier: Modifier = Modifier) {
+    val description = event.description.resolve()
+    // Smazaný účet jméno nemá; popis pak nese řádek sám.
+    val actor = event.actor.title.ifBlank { null }
+    ListItem(
+        headlineContent = { Text(actor ?: description, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        supportingContent = {
+            Column {
+                if (actor != null) Text(description, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                event.detail?.let { detail ->
+                    Text(
+                        detail.resolve(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        },
+        leadingContent = {
+            Avatar(chatId = event.actor.id, title = event.actor.title, avatarFileId = event.actor.avatarFileId)
+        },
+        trailingContent = { Text(event.date.asTimeOfDay(), style = MaterialTheme.typography.labelMedium.tabularNumbers()) },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        modifier = modifier,
+    )
+}
+
+/** Souvislé úseky seznamu, ve kterých [same] platí pro sousedy — dny v seznamu od nejnovějšího. */
+internal fun <T> List<T>.groupConsecutive(same: (T, T) -> Boolean): List<List<T>> {
+    val groups = mutableListOf<MutableList<T>>()
+    forEach { item ->
+        val last = groups.lastOrNull()
+        if (last != null && same(last.last(), item)) last += item else groups += mutableListOf(item)
+    }
+    return groups
+}
