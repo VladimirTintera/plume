@@ -277,9 +277,9 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
 - **Bublina se jménem u avataru přes `WithTooltip`, ne holý `TooltipBox`.** Najetí na avatar
   a hned tah táhlem shodilo desktop na `RootNodeOwner is already disposed`: `BoxWithConstraints`
   přepnul sloupec na plný seznam uprostřed měření, kotva viditelné bubliny zmizela a skiko pak
-  změřilo už zrušenou vrstvu popupu. `WithTooltip` a `RootOverlay` (`core/ui`) jsou převzaté
-  z KMPMlog, kde na tutéž chybu narazili dřív: bublina se kreslí z kořene kompozice
-  (`RootOverlayHost` v `AppTheme`) a ruší ji až běžná rekompozice.
+  změřilo už zrušenou vrstvu popupu. Bublina se proto kreslí z kořene kompozice a ruší ji až
+  běžná rekompozice — mechanismus a pravidlo pro celý projekt jsou v `docs/poznatky/desktop.md`,
+  „Bubliny (tooltip) z kořene kompozice".
 - **Šipka zpět v konverzaci vedle seznamu konverzaci ZAVŘE** (`closeConversation`, testy
   `CloseConversationTest`): odebere celou větev nad seznamem — konverzace otevřené zmínkami jedna
   z druhé i profil — a zůstane seznam s placeholderem. Procházet zpátky řetězem zmínek šipkou

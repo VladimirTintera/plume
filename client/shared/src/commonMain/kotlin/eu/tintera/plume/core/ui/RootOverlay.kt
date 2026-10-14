@@ -60,7 +60,8 @@ fun RootOverlayHost(content: @Composable () -> Unit) {
  * mimo měření.
  *
  * **Jen pro neukotvené překryvy.** `Popup` (menu) se polohuje vůči rodiči, takže z kořene by skončil
- * v rohu okna. Výjimka je [WithTooltip]: poloha bubliny se počítá z uložených mezí kotvy v okně.
+ * v rohu okna. Výjimka je [RootTooltipBox] (a [WithTooltip] nad ním): v kořeni stojí náhradní
+ * kotva na uložených mezích té skutečné v okně a bublina se polohuje k ní.
  *
  * **Výběr textu je v překryvu vypnutý** (`DisableSelection`): mezi localy volajícího je
  * i `LocalSelectionRegistrar` a texty překryvu by se registrovaly do cizího výběru v jiném stromu

@@ -403,6 +403,40 @@ postaví MSI (`packageMsi -PdesktopVersion=…`), na Ubuntu založí GitHub Rele
 - **Jméno souboru z cesty se bere `toPath().name`, ne `substringAfterLast('/')`**: TDLib na
   Windows vrací cesty se zpětnými lomítky a z lomítka by vyšla celá cesta.
 
+## Bubliny (tooltip) z kořene kompozice
+
+**Holý M3 `TooltipBox` na desktopu shodí vykreslování**, když jeho kotva s viditelnou bublinou
+zmizí z kompozice BĚHEM MĚŘENÍ: větev `BoxWithConstraints` podle šířky (dva panely ↔ jeden,
+sbalený seznam chatů ↔ plný), slot `Scaffold`u, položka lazy seznamu. Skiko
+(`CanvasLayersComposeSceneImpl.doMeasureAndLayout`) si napřed zkopíruje ownery všech vrstev
+a pak je měří; popup bubliny se mezitím zlikviduje a smyčka sáhne na jeho owner —
+`IllegalArgumentException: RootNodeOwner is already disposed`. Na Androidu je popup samostatné
+okno a nespadne. Poprvé to shodilo sbalený seznam chatů (najetí na avatar, pak tah táhlem);
+mechanismus i řešení jsou převzaté z KMPMlog, kde se na tutéž chybu přišlo dřív.
+
+- **Bublina jde jen přes `WithTooltip` (text) nebo `RootTooltipBox` (vlastní obsah, stav řízený
+  programem, vypnutá gesta)** v `core/ui/WithTooltip.kt`. Obojí kreslí bublinu přes
+  `RootOverlay` z kořene kompozice (`RootOverlayHost` v `AppTheme`): kotva při odchodu jen
+  odhlásí záznam a vrstvu zruší až běžná rekompozice hostitele, mimo měření. **Holý
+  `TooltipBox` jinde nepustí `verifyTooltipsThroughRoot`** (visí na `check`, hledá import).
+- **Kotva zůstává v M3 `TooltipBox`** (najetí myší, dlouhý stisk, fokus, přístupnost), jen
+  dostane stav hlásící „neviditelný" a popup nezaloží. Bublinu kreslí druhý `TooltipBox`
+  v kořeni nad týmž stavem, takže `show()` / `dismiss()` zvenku i animace odjezdu fungují dál.
+- **V kořeni stojí NÁHRADNÍ kotva na mezích té skutečné v okně**, ne v rohu. KMPMlog jen
+  podstrkává meze poskytovateli polohy, a to na bublinu se šipkou nestačí: `caretShape` si
+  stranu šipky bere z TYPU poskytovatele (`Start` a `Right` mají šipku z boku) a polohu ze
+  souřadnic kotvy. Obalený poskytovatel by stranu ztratil a kotva v rohu by šipku poslala jinam.
+  Meze kotvy jsou stav, takže bublina jde za kotvou, když se pod ní pohne. Náhradní kotva nemá
+  vstup, dotyk na skutečnou projde (test `anchorStaysClickableUnderVisibleBubble`).
+- **Ztrátu fokusu a Escape obsluhuje obal sám**: M3 je podmiňuje viditelností bubliny a kotva
+  ji vidí jako skrytou. Tabulátor z kotvy do bubliny s akcí mezi dvěma `TooltipBox` přenést
+  nejde — žádná dnešní bublina s akcí ovšem gesta kotvy nemá (nápověda gest je řízená programem).
+- **Pojistky v `jvmTest`** (`RootTooltipTest`, headless `runComposeUiTest` nad skiko scénou,
+  bez okna): bublina přežije zúžení pod práh dvou panelů, sedí u kotvy nad ní i vedle ní,
+  `WithTooltip` se ukáže najetím myši. `rawTooltipRemovedDuringMeasureCrashes` dokládá chybu
+  v Compose Multiplatform 1.12: **až začne padat, upstream ji opravil** a obal i kontrola můžou
+  pryč. Popup (menu) přes kořen vykreslit nejde — polohuje se k rodiči.
+
 ## Co platforma (zatím) neumí
 
 **Hovory jen se zvukem** přes ntgcalls (`docs/poznatky/hovory.md`, „Desktop").

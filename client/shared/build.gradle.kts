@@ -518,6 +518,12 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
         }
+
+        jvmTest.dependencies {
+            // Headless Compose UI testy (`runComposeUiTest` nad skiko scénou, bez okna a displeje).
+            implementation(libs.compose.ui.test)
+            implementation(compose.desktop.currentOs)
+        }
     }
 }
 
@@ -771,6 +777,47 @@ val verifyResourceReadsOffMain = tasks.register("verifyResourceReadsOffMain") {
 }
 
 tasks.named("check") { dependsOn(verifyResourceReadsOffMain) }
+
+/**
+ * Hlídá, že bubliny jdou přes `WithTooltip` / `RootTooltipBox` (`core/ui/WithTooltip.kt`), které je
+ * kreslí z kořene kompozice, a nikde jinde se nepoužije holý M3 `TooltipBox`.
+ *
+ * Holý `TooltipBox` na desktopu shodí vykreslování (`RootNodeOwner is already disposed`), když jeho
+ * kotva s viditelnou bublinou zmizí z kompozice během měření — větev `BoxWithConstraints` podle
+ * šířky, slot `Scaffold`u, položka lazy seznamu. Při zkoušení se to neukáže: musí se sejít
+ * viditelná bublina se změnou rozložení, třeba tahem za okraj okna.
+ */
+val verifyTooltipsThroughRoot = tasks.register("verifyTooltipsThroughRoot") {
+    group = "verification"
+    description = "Ověří, že se bubliny kreslí přes WithTooltip / RootTooltipBox, ne holým TooltipBox."
+
+    val sources = listOf(
+        layout.projectDirectory.dir("src/commonMain/kotlin"),
+        layout.projectDirectory.dir("src/androidMain/kotlin"),
+        layout.projectDirectory.dir("src/iosMain/kotlin"),
+        layout.projectDirectory.dir("src/jvmMain/kotlin"),
+    )
+    sources.forEach { inputs.dir(it) }
+    val roots = sources.map { it.asFile }
+    val projectDir = layout.projectDirectory.asFile
+
+    doLast {
+        val rawTooltip = Regex("""^import androidx\.compose\.material3\.(?:TooltipBox|\*)\b|\bandroidx\.compose\.material3\.TooltipBox\(""")
+        val offenders = roots
+            .flatMap { it.walkTopDown().filter { f -> f.extension == "kt" && f.name != "WithTooltip.kt" } }
+            .flatMap { file ->
+                file.readLines().mapIndexedNotNull { index, line ->
+                    "${file.relativeTo(projectDir)}:${index + 1}: $line".takeIf { rawTooltip.containsMatchIn(line.trim()) }
+                }
+            }
+        check(offenders.isEmpty()) {
+            "Bublina se kreslí přes WithTooltip nebo RootTooltipBox (core/ui/WithTooltip.kt), ne holým TooltipBox:\n" +
+                offenders.joinToString("\n")
+        }
+    }
+}
+
+tasks.named("check") { dependsOn(verifyTooltipsThroughRoot) }
 
 // api_id/api_hash z my.telegram.org. Čtou se z local.properties (gitignorovaný), aby se pár
 // nikdy nedostal do repozitáře. Bez nich se projekt přeloží, ale přihlášení skončí chybou
