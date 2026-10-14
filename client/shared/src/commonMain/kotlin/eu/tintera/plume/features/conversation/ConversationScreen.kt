@@ -2,21 +2,17 @@ package eu.tintera.plume.features.conversation
 
 import androidx.compose.ui.input.key.key
 import eu.tintera.plume.core.telegram.MessageMedia
-import eu.tintera.plume.core.ui.resolveNow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.layout.layout
 import eu.tintera.plume.core.ui.SwipeDirection
 import eu.tintera.plume.core.ui.detectHorizontalSwipe
 import eu.tintera.plume.core.telegram.VideoChatInfo
 import eu.tintera.plume.core.telegram.PendingJoinRequests
-import androidx.compose.ui.platform.LocalHapticFeedback
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.blur.hazeBlur
 import eu.tintera.plume.core.ui.sharedElementClipArea
 import eu.tintera.plume.core.ui.rememberSharedElementClip
 import eu.tintera.plume.core.ui.LocalSharedElementClip
 import androidx.compose.material3.FilledTonalButton
-import eu.tintera.plume.core.ui.reject
 import eu.tintera.plume.resources.summary_me
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.navigationevent.compose.rememberNavigationEventState
@@ -58,10 +54,8 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -109,16 +103,13 @@ import eu.tintera.plume.core.ui.rememberEmbeddedMediaSelection
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.features.conversation.items.FloatingDayBadge
 import eu.tintera.plume.features.conversation.items.ConversationItemContent
-import eu.tintera.plume.features.conversation.items.DayDividerItem
 import eu.tintera.plume.features.conversation.items.MESSAGE_SPACING
 import eu.tintera.plume.features.conversation.items.MenuAnchor
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.mapUrl
 import kotlin.math.abs
 import eu.tintera.plume.features.conversation.items.MessageItem
-import eu.tintera.plume.features.conversation.items.SPONSORED_KEY_PREFIX
 import eu.tintera.plume.features.conversation.items.TIME_COLUMN_WIDTH
-import eu.tintera.plume.features.conversation.items.UnreadDividerItem
 import eu.tintera.plume.features.conversation.items.ConversationItem
 import eu.tintera.plume.features.conversation.items.conversationItems
 import eu.tintera.plume.resources.Res
@@ -131,18 +122,12 @@ import eu.tintera.plume.resources.block_24dp
 import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.resources.conversation_empty
 import eu.tintera.plume.resources.conversation_fallback_title
-import eu.tintera.plume.resources.conversation_undo
-import eu.tintera.plume.resources.conversation_unpinned
-import eu.tintera.plume.resources.spam_bar_contact_added
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.debounce
 import eu.tintera.plume.core.telegram.SpamBar
 import eu.tintera.plume.core.telegram.ChatBar
 import eu.tintera.plume.core.telegram.InviteMembersBar
 import eu.tintera.plume.core.telegram.JoinRequestBar
 import eu.tintera.plume.core.telegram.SharePhoneBar
-import eu.tintera.plume.features.report.ReportHost
-import eu.tintera.plume.features.proxy.ProxyLinkHost
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
@@ -236,8 +221,6 @@ fun ConversationScreen(
     var spamBarAction by rememberSaveable { mutableStateOf<SpamBarAction?>(null) }
 
 
-    ReportHost(viewModel.reportFlow, snackbarHostState)
-    ProxyLinkHost(viewModel.proxyLinkFlow, snackbarHostState)
 
     // Pruh mezitím zmizel (přidán kontakt, zavřeno jinde) — sheet nemá čeho se týkat.
     LaunchedEffect(spamBar) { if (spamBar == null) spamBarAction = null }
@@ -258,11 +241,6 @@ fun ConversationScreen(
     // Co je otevřené nad konverzací po ťuknutí v obrazovce (výběry, dialogy), viz `ConversationSheets`.
     val sheets = rememberConversationSheets()
 
-    // Snackbar o odepnutí se skládá v efektu, kde `stringResource` volat nejde — text se proto
-    // přečte tady v kompozici.
-    val unpinnedMessage = stringResource(Res.string.conversation_unpinned)
-    val contactAddedMessage = stringResource(Res.string.spam_bar_contact_added)
-    val undoLabel = stringResource(Res.string.conversation_undo)
 
     // Paměť toho, co už je v galerii vybrané. Patří obrazovce: panel se zavřením zahodí, takže
     // by se při dalším otevření dala tatáž fotka vybrat podruhé.
@@ -309,7 +287,6 @@ fun ConversationScreen(
 
 
     val scope = rememberCoroutineScope()
-    val haptics = LocalHapticFeedback.current
 
     /*
      * Odkrývání časů tahem doleva.
@@ -323,98 +300,10 @@ fun ConversationScreen(
     val revealMax = with(LocalDensity.current) { TIME_COLUMN_WIDTH.toPx() }
     val revealSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
 
-    // Chyby se dřív zahazovaly: `state.error` se vykreslovalo jen u prázdné konverzace, takže
-    // neúspěšná reakce nebo odeslání zmizely bez jediné stopy.
-    LaunchedEffect(state.error) {
-        val message = state.error ?: return@LaunchedEffect
-        // Chyba po akci uživatele je jediné místo, kde odezva hlásí NEúspěch — snackbar se dá
-        // přehlédnout, hlavně u odeslání, které mezitím vypadá jako hotové.
-        haptics.reject()
-        snackbarHostState.showSnackbar(message.resolveNow())
-        viewModel.dismissError()
-    }
+    ConversationSnackbars(state, viewModel, snackbarHostState)
 
-    // Snackbar běží v `snackbarScope`, ne v těle efektu. Vynulování `unpinned` změní klíč efektu,
-    // ten se restartuje a zrušil by i snackbar, který se právě ukazuje — takže se neukázal nikdy.
-    val snackbarScope = rememberCoroutineScope()
+    ConversationPaging(listState, viewModel, reachedEnd = state.reachedEnd)
 
-    // Stejná past jako u `unpinned` níž: vynulování mění klíč efektu, takže snackbar běží mimo něj.
-    // I text se čte AŽ TAM: `getString` je `suspend`, a dokud se četl v těle efektu, restart po
-    // vynulování ho zrušil — hláška se ukázala, jen když byl text náhodou už načtený.
-    LaunchedEffect(state.notice) {
-        val notice = state.notice ?: return@LaunchedEffect
-        viewModel.consumeNotice()
-        snackbarScope.launch {
-            val text = notice.resolveNow()
-            snackbarHostState.showSnackbar(text, duration = SnackbarDuration.Short)
-        }
-    }
-
-    LaunchedEffect(state.unpinned) {
-        val unpinned = state.unpinned ?: return@LaunchedEffect
-        // Vynulovat hned, ne až po zavření snackbaru — jinak by se po otočení ukázal znovu.
-        viewModel.consumeUnpinned()
-        snackbarScope.launch {
-            val result = snackbarHostState.showSnackbar(
-                message = unpinnedMessage,
-                actionLabel = undoLabel,
-                duration = SnackbarDuration.Short,
-            )
-            if (result == SnackbarResult.ActionPerformed) viewModel.undoUnpin(unpinned)
-        }
-    }
-
-    // Přidaný kontakt z karty ve zprávě: stejný vzor jako odepnutí — vynulovat hned, snackbar mimo efekt.
-    LaunchedEffect(state.addedContact) {
-        val userId = state.addedContact ?: return@LaunchedEffect
-        viewModel.consumeAddedContact()
-        snackbarScope.launch {
-            val result = snackbarHostState.showSnackbar(
-                message = contactAddedMessage,
-                actionLabel = undoLabel,
-                duration = SnackbarDuration.Short,
-            )
-            if (result == SnackbarResult.ActionPerformed) viewModel.undoAddContact(userId)
-        }
-    }
-
-    // `reverseLayout` obrací i význam indexů: index 0 je nejnovější zpráva dole, vyšší indexy
-    // jsou starší nahoře. Stránkování do minulosti se tedy spouští na KONCI seznamu.
-    val shouldLoadOlder by remember(listState) {
-        derivedStateOf {
-            val info = listState.layoutInfo
-            val last = info.visibleItemsInfo.lastOrNull()?.index ?: return@derivedStateOf false
-            last >= info.totalItemsCount - LOAD_MORE_THRESHOLD
-        }
-    }
-    LaunchedEffect(listState) {
-        snapshotFlow { shouldLoadOlder }.collect { if (it) viewModel.loadOlder() }
-    }
-
-    /*
-     * Okno v historii (po skoku na starou zprávu) se dotahuje i k PŘÍTOMNOSTI — na začátku
-     * seznamu, tedy u spodní hrany. Jestli je okno v historii, ví ViewModel (`reachedEnd`);
-     * obrazovka jen hlásí, že je uživatel blízko.
-     */
-    val shouldLoadNewer by remember(listState) {
-        derivedStateOf { listState.firstVisibleItemIndex < LOAD_MORE_THRESHOLD }
-    }
-    LaunchedEffect(listState, state.reachedEnd) {
-        if (state.reachedEnd) return@LaunchedEffect
-        snapshotFlow { shouldLoadNewer }.collect { if (it) viewModel.loadNewer() }
-    }
-
-    // „Jsem dole" = vidím nejnovější zprávu. Při `reverseLayout` je to index 0; kontroluje se
-    // i offset, aby se za dole nepovažoval stav, kdy je poslední bublina jen z půlky vidět.
-    val atBottom by remember(listState) {
-        derivedStateOf {
-            listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
-        }
-    }
-
-    // Kolik cizích zpráv přišlo, zatímco uživatel četl historii.
-    var pendingNewMessages by rememberSaveable { mutableIntStateOf(0) }
-    var lastSeenMessageId by rememberSaveable { mutableStateOf<Long?>(null) }
 
     /**
      * Změřená výška pruhů nad seznamem (proti spamu a s připnutou zprávou); nula, když žádný
@@ -617,83 +506,7 @@ fun ConversationScreen(
         if (visibleDay != null) floatingDay = visibleDay
     }
 
-    /*
-     * Skok na zprávu — první nepřečtenou, nebo citovanou.
-     *
-     * Zprávu hledáme podle id, ne podle indexu — než efekt doběhne, může seznam narůst o novou
-     * zprávu a index by ukazoval jinam.
-     */
-    val jumpSpec = MaterialTheme.motionScheme.slowSpatialSpec<Float>()
-    val leaveMoveSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
-    val leaveFadeSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-    val gatherSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
-    val restoreSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-    val leaveDistance = with(LocalDensity.current) { JUMP_LEAVE_DISTANCE.toPx() }
-    val gatherDistance = with(LocalDensity.current) { JUMP_GATHER_DISTANCE.toPx() }
-    // Seznam se během dojíždění mění (dotahují se stránky), takže se cíl hledá v AKTUÁLNÍM seznamu.
-    val currentItems by rememberUpdatedState(items)
-    val indexByKey = remember(items) { items.withIndex().associate { (index, item) -> item.key to index } }
-    jumpTransition.indexOf = { indexByKey[it] ?: -1 }
-
-    /*
-     * Skok na nenačtenou zprávu: seznam začne odjíždět HNED, načítání okna kolem zprávy běží
-     * mezitím. Když se zpráva nenajde, seznam se vrátí.
-     */
-    LaunchedEffect(state.pendingJump) {
-        val pending = state.pendingJump
-        when {
-            state.scrollTarget != null -> Unit
-            pending != null -> jumpTransition.leave(
-                distance = if (pending.older) leaveDistance else -leaveDistance,
-                moveSpec = leaveMoveSpec,
-                fadeSpec = leaveFadeSpec,
-            )
-            else -> jumpTransition.restore(restoreSpec)
-        }
-    }
-
-    LaunchedEffect(state.scrollTarget) {
-        val target = state.scrollTarget ?: return@LaunchedEffect
-        // Hledá se BLOK, ne zpráva: fotka z alba je v seznamu součástí jedné položky.
-        var index = items.indexOfFirst { it.containsMessage(target.messageId) }
-        // Nahoru se posazuje i předěl nad zprávou — u první nepřečtené je to právě to, co má
-        // uživatel vidět. Předěl je v obráceném seznamu ZA zprávou.
-        if (index >= 0 && target.anchor == ScrollAnchor.Top) {
-            while (items.getOrNull(index + 1).let { it is UnreadDividerItem || it is DayDividerItem }) index++
-        }
-        /*
-         * Na citaci a mezi výsledky hledání se DOJÍŽDÍ (`animateToAnchor`), ke vzdálené nebo
-         * nenačtené zprávě se PŘEJEDE (`JumpTransition`). První nepřečtená při otevření chatu
-         * a návrat dolů skočí hned.
-         */
-        val findCurrent = { currentItems.indexOfFirst { it.containsMessage(target.messageId) } }
-        when {
-            index < 0 -> jumpTransition.reset()
-            target.anchor != ScrollAnchor.Center -> {
-                jumpTransition.reset()
-                listState.scrollToAnchor(index, target.anchor)
-            }
-            target.animate && listState.itemsAwayFrom(index) <= MAX_ANIMATED_JUMP_ITEMS -> {
-                jumpTransition.reset()
-                listState.animateToAnchor(index, target.anchor, jumpSpec, findCurrent)
-            }
-            else -> {
-                // Starší zprávy jsou nahoře, obsah tedy odjíždí dolů.
-                val older = target.older ?: (index > listState.firstVisibleItemIndex)
-                jumpTransition.leave(
-                    distance = if (older) leaveDistance else -leaveDistance,
-                    moveSpec = leaveMoveSpec,
-                    fadeSpec = leaveFadeSpec,
-                )
-                val now = findCurrent().takeIf { it >= 0 } ?: index
-                listState.scrollToAnchor(now, target.anchor)
-                currentItems.getOrNull(now)?.let {
-                    jumpTransition.arrive(it.key, now, gatherDistance, gatherSpec)
-                }
-            }
-        }
-        viewModel.consumeScrollTarget()
-    }
+    ConversationJumps(state, items, listState, jumpTransition, viewModel)
 
     /*
      * Tlačítko „dolů" i bez nových zpráv.
@@ -706,132 +519,9 @@ fun ConversationScreen(
     }
     val measuredSizes = rememberMeasuredSizes(listState)
 
-    val newest = state.messages.firstOrNull()
+    val pendingNewMessages = rememberNewMessages(listState, state)
 
-    /*
-     * Nová zpráva dole: seznam se ukotví u spodní hrany UŽ PŘI JEJÍM VLOŽENÍ.
-     *
-     * `LazyColumn` drží pozici podle klíče první viditelné položky. Nová zpráva na indexu 0 se
-     * tedy vložila POD spodní hranu a teprve efekt o snímek později k ní dojížděl — bublina
-     * nejdřív nebyla vidět, pak k ní seznam poskočil, a let ze vstupního pole mířil na cíl,
-     * který se mu pod rukama posouval. `requestScrollToItem` platí pro nejbližší přeměření,
-     * tedy pro tentýž layout, ve kterém se zpráva objeví; proto se volá v kompozici, ne v efektu.
-     *
-     * Hlídá se klíč, ne id: potvrzení odeslání mění id, ale novou zprávu nepřináší.
-     */
-    val anchor = remember { NewestItem() }
-    if (newest != null) {
-        val key = state.keyOf(newest)
-        if (key != anchor.key) {
-            // První naplnění seznamu není „nová zpráva", jen se zobrazila historie. Smazání
-            // nejnovější zprávy klíč taky změní, ale id přitom klesne.
-            // Dotažená stránka k přítomnosti (okno v historii) taky posune nejnovější klíč, ale
-            // nic nepřišlo — `live` je, jestli předchozí stav končil u přítomnosti.
-            val arrived = anchor.key != null && newest.id > anchor.id && anchor.live
-            anchor.lastWasArrival = arrived
-            // Vlastní zpráva dolů vždycky — jinak by odeslání vypadalo, že se nic nestalo.
-            // Cizí jen když je uživatel dole; při čtení historie by ho to vytrhlo ze čtení.
-            if (arrived && (newest.isOutgoing || atBottom)) listState.requestScrollToItem(0)
-            anchor.key = key
-            anchor.id = newest.id
-        }
-        anchor.live = state.reachedEnd
-    }
-
-    /*
-     * „Píše…" se vkládá pod nejnovější zprávu, a seznam drží pozici podle první viditelné
-     * položky — tou je zpráva, takže by se indikátor vložil POD spodní hranu a nebyl by vidět.
-     * Kdo je dole, tomu se seznam ukotví i s ním; kdo čte historii, toho nevytrhne.
-     */
-    val typingShown = state.typing != null && state.reachedEnd
-    val typingAnchor = remember { booleanArrayOf(false) }
-    if (typingShown != typingAnchor[0]) {
-        if (typingShown && atBottom) listState.requestScrollToItem(0)
-        typingAnchor[0] = typingShown
-    }
-
-    val newestMessageId = newest?.id
-
-    LaunchedEffect(newestMessageId) {
-        val newestId = newestMessageId ?: return@LaunchedEffect
-        val previous = lastSeenMessageId
-        lastSeenMessageId = newestId
-
-        // První naplnění seznamu není „nová zpráva", jen se zobrazila historie.
-        if (previous == null) return@LaunchedEffect
-        if (newestId <= previous) return@LaunchedEffect
-
-        // Stránka dotažená k přítomnosti není „nové zprávy" — odznak by lhal.
-        if (!anchor.lastWasArrival) return@LaunchedEffect
-
-        // Id zpráv v chatu rostou, takže „nové" jsou ty nad posledním viděným.
-        val arrived = state.messages.takeWhile { it.id > previous }
-
-        // Scroll už obstaral `requestScrollToItem` výš; tady se jen počítá odznak.
-        when {
-            arrived.any { it.isOutgoing } || atBottom -> pendingNewMessages = 0
-
-            // Čtu historii: NEscrollovat, vytrhlo by mě to ze čtení. Místo toho odznak dole.
-            else -> pendingNewMessages += arrived.count { !it.isOutgoing }
-        }
-    }
-
-    // Jakmile se uživatel dostane dolů, odznak nemá co hlásit.
-    LaunchedEffect(atBottom) {
-        if (atBottom) pendingNewMessages = 0
-    }
-
-    // Zhlédnutí reklamy se hlásí, teprve až je karta na obrazovce CELÁ. TDLib to vyžaduje
-    // („když je vidět celý text"); hlásit ji při prvním pixelu by znamenalo vykazovat
-    // inzerentovi zhlédnutí, která se nestala. Beru přísnější podmínku — celá karta včetně
-    // tlačítka — protože rozměr samotného textu odsud nezjistím.
-    LaunchedEffect(listState, state.sponsored) {
-        if (state.sponsored.isEmpty()) return@LaunchedEffect
-
-        snapshotFlow {
-            val info = listState.layoutInfo
-            info.visibleItemsInfo
-                .filter { item ->
-                    item.offset >= info.viewportStartOffset &&
-                        item.offset + item.size <= info.viewportEndOffset
-                }
-                .mapNotNull { it.key as? String }
-                .filter { it.startsWith(SPONSORED_KEY_PREFIX) }
-                .toSet()
-        }
-            .debounce(SPONSORED_VIEW_DEBOUNCE_MS)
-            .collect { keys ->
-                keys.forEach { key ->
-                    key.removePrefix(SPONSORED_KEY_PREFIX).toLongOrNull()
-                        ?.let(viewModel::reportSponsoredSeen)
-                }
-            }
-    }
-
-    /*
-     * Hlášení přečtení.
-     *
-     * Bere se **klíč položky, ne její index**. Index do `state.messages` nesedí: před zprávami
-     * stojí sponzorované položky, takže v kanálu s reklamou byl výběr posunutý o jejich počet
-     * a hlásily se za přečtené zprávy, které uživatel neviděl. Klíč zpráv je rovnou jejich id,
-     * takže se nemá co rozejít, ani až seznam další položku přibere.
-     *
-     * Odpočet čeká, až se scrollování uklidní — jinak by při rychlém průletu odešla jedna žádost
-     * na každý snímek. Efekt proto **nesmí záviset na `state.messages`**: s ním se restartoval
-     * při každé nové zprávě a odpočet začínal znovu od nuly.
-     *
-     * Hlásí se ZMĚNA, a proto se vedle viditelných položek čtou i zprávy s nepřečtenou reakcí
-     * nebo hlasem v anketě (`unreadMarkedIds`). Reakce na zprávu, která už je vidět, viditelné
-     * položky nezmění — bez toho by zůstala nepřečtená a tlačítko „❤" by viselo nad zprávou,
-     * na kterou se uživatel právě dívá, dokud by nezaroloval.
-     */
-    LaunchedEffect(listState) {
-        snapshotFlow {
-            listState.layoutInfo.visibleItemsInfo.mapNotNull { it.key as? Long } to state.unreadMarkedIds()
-        }
-            .debounce(READ_DEBOUNCE_MS)
-            .collect { (keys, _) -> viewModel.markRead(keys) }
-    }
+    ConversationViewReporting(listState, stateHolder, viewModel)
 
     // Nabídka nad zprávou je vrstva NAD Scaffoldem (viz `MessageMenuLayer`), proto obal.
     // Scaffold je zároveň to, co její závoj rozostří (`hazeSource`).
@@ -1391,32 +1081,8 @@ fun ConversationScreen(
     }
 }
 
-/**
- * Naposledy zpracovaná nejnovější zpráva, pro ukotvení seznamu dole.
- *
- * Obyčejná třída, ne `mutableStateOf`: zapisuje se v kompozici a zápis do snapshot stavu by
- * obrazovku jen znovu rekomponoval, aniž by se tím cokoli změnilo.
- */
-private class NewestItem {
-    var key: Long? = null
-    var id: Long = 0L
-
-    /** Předchozí stav končil u přítomnosti — jen pak je novější nejnovější zpráva příchozí. */
-    var live: Boolean = true
-
-    /** Poslední změna nejnovější zprávy byla příchod, ne dotažená stránka. Čte ho odznak dole. */
-    var lastWasArrival: Boolean = false
-}
-
-private const val LOAD_MORE_THRESHOLD = 5
-
 /** O kolik položek výš od spodku se objeví tlačítko „dolů". */
 private const val SCROLL_DOWN_THRESHOLD_ITEMS = 3
-
-private const val READ_DEBOUNCE_MS = 400L
-
-/** Jak dlouho musí být reklama v klidu na obrazovce, než se zhlédnutí nahlásí. */
-private const val SPONSORED_VIEW_DEBOUNCE_MS = 1000L
 
 /**
  * Bloky seznamu konverzace (viz [conversationItems]). Vlastní funkce, ne kus [ConversationScreen]:
