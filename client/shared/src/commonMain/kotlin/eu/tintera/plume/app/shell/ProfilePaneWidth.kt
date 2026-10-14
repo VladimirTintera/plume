@@ -20,16 +20,19 @@ import eu.tintera.plume.resources.profile_pane_width
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
-/** Šířka profilu vedle konverzace a táhlo, které ji mění. */
-internal class ProfilePaneWidth(val width: Dp, val resize: PaneResize)
+/**
+ * Šířka profilu vedle konverzace a táhlo, které ji mění. [resizing] = za tahu nebo dojezdu,
+ * kdy shell panelům vypíná animaci rozměrů (viz [DraggedWidth]).
+ */
+internal class ProfilePaneWidth(val width: Dp, val resize: PaneResize, val resizing: Boolean)
 
 /**
  * Šířka profilu ze zvolené kotvy (`AppSettings.profilePaneAnchor`), za tahu podle prstu.
  *
  * - **Za tahu se šířka rovnou omezuje** ([profileWidthBeside]), ne až při kreslení: jinak by
  *   tah za hranici „nabíral" a cesta zpátky by chvíli nic nedělala.
- * - **Po puštění se dorovná na nejbližší kotvu** a ta se uloží. Do stavu se zapíše hned, ne až
- *   z toku nastavení — ten dorazí o snímek později a profil by na okamžik skočil zpátky.
+ * - **Po puštění dojede pružinou na nejbližší kotvu** ([DraggedWidth]) a ta se uloží. Do stavu
+ *   se zapíše hned, ne až z toku nastavení — ten dorazí o snímek později a profil by skočil zpátky.
  * - **Výchozí kotva se neukládá**, jako u seznamu.
  */
 @Composable
@@ -37,26 +40,27 @@ internal fun rememberProfilePaneResize(defaultWidth: Dp, total: Dp, listWidth: D
     val settings = koinInject<AppSettings>()
     val saved by settings.profilePaneAnchor.collectAsStateWithLifecycle()
     var chosen by remember { mutableStateOf<ProfilePaneAnchor?>(null) }
-    var dragging by remember { mutableStateOf<Dp?>(null) }
+    val dragged = rememberDraggedWidth()
     val anchor = chosen ?: saved ?: ProfilePaneAnchor.Default
     val clamp = { wanted: Dp -> profileWidthBeside(wanted, total, listWidth, defaultWidth) }
-    val width = clamp(dragging ?: anchor.width(defaultWidth))
+    val width = clamp(dragged.value ?: anchor.width(defaultWidth))
 
     val currentWidth by rememberUpdatedState(width)
     val currentAnchor by rememberUpdatedState(anchor)
     val currentClamp by rememberUpdatedState(clamp)
     val currentDefault by rememberUpdatedState(defaultWidth)
     val label = stringResource(Res.string.profile_pane_width)
-    val resize = remember(label, settings) {
+    val resize = remember(label, settings, dragged) {
         val settle = { next: ProfilePaneAnchor ->
-            chosen = next
-            dragging = null
-            settings.setProfilePaneAnchor(next)
+            dragged.settle(from = currentWidth, target = currentClamp(next.width(currentDefault))) {
+                chosen = next
+                settings.setProfilePaneAnchor(next)
+            }
         }
         PaneResize(
             edge = PaneEdge.Start,
             // Profil je vpravo: tah doleva (záporný posun) ho rozšiřuje.
-            onDrag = { delta -> dragging = currentClamp((dragging ?: currentWidth) - delta) },
+            onDrag = { delta -> dragged.drag(from = currentWidth, delta = -delta, clamp = currentClamp) },
             onDragStopped = { settle(nearestProfileAnchor(currentWidth, currentDefault)) },
             onCycle = {
                 val entries = ProfilePaneAnchor.entries
@@ -65,5 +69,5 @@ internal fun rememberProfilePaneResize(defaultWidth: Dp, total: Dp, listWidth: D
             label = label,
         )
     }
-    return ProfilePaneWidth(width, resize)
+    return ProfilePaneWidth(width, resize, resizing = dragged.active)
 }

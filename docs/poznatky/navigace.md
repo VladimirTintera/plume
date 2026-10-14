@@ -348,8 +348,15 @@ knihovny ve dvou panelech).
   nejbližší kotvu. Kotva se zapíše do stavu hned, ne až z toku nastavení — ten přijde o snímek
   později a panel by skočil zpátky. Seznam má přednost: širší profil se zúží on.
 - **Položky Chatů se za tahu staví znovu** (šířky jsou v klíči `chatsEntries`), obsah ne: drží
-  ho `contentKey`. Rozvržení animuje knihovna (`AnimatedPane`), takže panel prst sleduje
-  s lehkou pružinou.
+  ho `contentKey`.
+- **Za tahu a dojezdu panely NEanimuje knihovna** (`DraggedWidth`, `Panes.instantBounds`).
+  Napřed šířka za tahu skákala po krocích a knihovní pružina (`AnimatedPane`) každý krok
+  animovala znovu: panely prst dotahovaly a cukaly, a po puštění šířka skočila na kotvu bez
+  animace — vedle hladkého táhla knihovny ve dvou panelech to působilo trhaně. Teď šířka jde
+  přímo za prstem, po puštění dojede na kotvu jednou pružinou (`MotionScheme`, prostorová)
+  a po tu dobu mají panely rozměry bez animace (`snap()`). **Animaci rozměrů DETAILU scéna
+  bere z položky SEZNAMU** (`lastList.boundsAnimationSpec()` v `ThreePaneScaffoldScene`),
+  proto ji nese i seznam.
 - Jen Chaty; podstránky Nastavení ve třetím panelu mají výchozí šířku.
 
 ### Standardní šířky

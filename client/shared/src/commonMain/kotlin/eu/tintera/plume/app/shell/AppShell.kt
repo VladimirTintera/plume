@@ -362,7 +362,7 @@ private fun ShellContent(
          */
         lateinit var entryProvider: (NavKey) -> NavEntry<NavKey>
         val paneOf: (NavKey) -> PaneInfo? = { entryProvider(it).paneInfo }
-        val buildEntryProvider = { listPaneWidth: Dp?, profilePaneWidth: Dp? ->
+        val buildEntryProvider = { listPaneWidth: Dp?, profilePaneWidth: Dp?, instantPaneBounds: Boolean ->
             shellEntryProvider(
                 chatsStack = chatsStack,
                 settingsStack = settingsStack,
@@ -373,11 +373,12 @@ private fun ShellContent(
                 paneOf = paneOf,
                 listPaneWidth = listPaneWidth,
                 profilePaneWidth = profilePaneWidth,
+                instantPaneBounds = instantPaneBounds,
                 closeShare = closeShare,
                 navigation = navigation,
             )
         }
-        entryProvider = buildEntryProvider(null, null)
+        entryProvider = buildEntryProvider(null, null, false)
 
         /*
          * Profil ve třetím panelu patří ke konverzaci pod sebou. Otevře-li se nad ním jiná
@@ -450,8 +451,10 @@ private fun ShellContent(
             listWidth = if (threePane) listPaneWidth ?: base.defaultPanePreferredWidth else null,
         )
         val profilePaneWidth = profileResize.width.takeIf { profileBeside }
+        // Za tahu vlastním táhlem a za jeho dojezdu řídí pohyb táhlo, ne pružina knihovny (`DraggedWidth`).
+        val instantPaneBounds = (listResizeShown != null && listResize.resizing) || (profileBeside && profileResize.resizing)
         if (listPaneWidth != null || profilePaneWidth != null) {
-            entryProvider = buildEntryProvider(listPaneWidth, profilePaneWidth)
+            entryProvider = buildEntryProvider(listPaneWidth, profilePaneWidth, instantPaneBounds)
         }
 
         ShellShortcuts(navigation = navigation, chatsStack = chatsStack, twoPane = twoPane)
@@ -489,7 +492,7 @@ private fun ShellContent(
             val settingsWithLeaving = rememberWithLeavingExtras(settingsDisplayed, paneOf)
             val chatsDrawn = if (twoPane) chatsWithLeaving else chatsDisplayed
             val settingsDrawn = if (twoPane) settingsWithLeaving else settingsDisplayed
-            val chatsEntries = remember(chatsDrawn.toList(), listPaneWidth, profilePaneWidth) { chatsDrawn.map(entryProvider) }
+            val chatsEntries = remember(chatsDrawn.toList(), listPaneWidth, profilePaneWidth, instantPaneBounds) { chatsDrawn.map(entryProvider) }
             /*
              * Položky se dekorují pro KAŽDOU sekci, i tu, která není vidět. Zásobník, který se
              * zrovna nedekoruje, by pro Nav3 vypadal jako odebraný a jeho ViewModely by se zrušily.
@@ -583,6 +586,8 @@ private fun shellEntryProvider(
     listPaneWidth: Dp?,
     /** Šířka profilu vedle konverzace (táhlo profilu); `null` = výchozí. */
     profilePaneWidth: Dp?,
+    /** Za tahu vlastním táhlem a jeho dojezdu bez animace rozměrů panelů (`Panes.instantBounds`). */
+    instantPaneBounds: Boolean,
     closeShare: () -> Unit,
     navigation: AppNavigation,
 ): (NavKey) -> NavEntry<NavKey> = entryProvider {
@@ -590,7 +595,7 @@ private fun shellEntryProvider(
     entry<ChatsRoute>(
         metadata = Panes.list(
             detailPlaceholder = { PaneCard(PaneRole.Detail) { ConversationPlaceholder() } },
-        ) + ChatListMetadata + Panes.width(listPaneWidth),
+        ) + ChatListMetadata + Panes.width(listPaneWidth) + Panes.instantBounds(instantPaneBounds),
     ) {
         val settings = koinInject<AppSettings>()
         val savedMessagesChatId = LocalSavedMessagesChatId.current
@@ -646,7 +651,7 @@ private fun shellEntryProvider(
         metadata = Panes.list(
             ARCHIVE_SCENE,
             detailPlaceholder = { PaneCard(PaneRole.Detail) { ConversationPlaceholder() } },
-        ) + ChatListMetadata,
+        ) + ChatListMetadata + Panes.instantBounds(instantPaneBounds),
     ) {
         ArchiveScreen(
             // Klíč se složkou: ViewModel se cachuje podle klíče a Koin by u cachované instance
@@ -865,7 +870,7 @@ private fun shellEntryProvider(
      * se z něj otevírají — jako detail by nahradily konverzaci uprostřed. Jiná konverzace
      * otevřená nad profilem ho na široké ploše vystřídá profilem té nové (`followProfile`).
      */
-    entry<ChatProfileRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth)) { route ->
+    entry<ChatProfileRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
         val searchRequests = koinInject<ConversationSearchRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()
         ChatColorTheme(route.chatId) {
@@ -911,7 +916,7 @@ private fun shellEntryProvider(
     }
 
     // Úprava se vrší nad profil, ve třetím panelu ho nahradí.
-    entry<EditChatRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth)) { route ->
+    entry<EditChatRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
         EditChatScreen(
             viewModel = koinViewModel(key = "edit-chat-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
@@ -921,7 +926,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ArchiveEditChatRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth)) { route ->
+    entry<ArchiveEditChatRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
         EditChatScreen(
             viewModel = koinViewModel(key = "edit-chat-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
@@ -932,28 +937,28 @@ private fun shellEntryProvider(
     }
 
     // Pozvánky a žádosti se vrší nad úpravu, taky ve třetím panelu.
-    entry<InviteLinksRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth)) { route ->
+    entry<InviteLinksRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
         InviteLinksScreen(
             viewModel = koinViewModel(key = "invite-links-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
         )
     }
 
-    entry<ArchiveInviteLinksRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth)) { route ->
+    entry<ArchiveInviteLinksRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
         InviteLinksScreen(
             viewModel = koinViewModel(key = "invite-links-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
         )
     }
 
-    entry<JoinRequestsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth)) { route ->
+    entry<JoinRequestsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
         JoinRequestsScreen(
             viewModel = koinViewModel(key = "join-requests-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
         )
     }
 
-    entry<ArchiveJoinRequestsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth)) { route ->
+    entry<ArchiveJoinRequestsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
         JoinRequestsScreen(
             viewModel = koinViewModel(key = "join-requests-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
@@ -965,7 +970,7 @@ private fun shellEntryProvider(
      * nahradí. Klíč nese i `userId` a druh práv: ViewModel se cachuje
      * podle klíče a Koin u cachované instance ignoruje nové parametry.
      */
-    entry<MemberRightsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth)) { route ->
+    entry<MemberRightsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
         MemberRightsScreen(
             viewModel = koinViewModel(
                 key = "member-rights-${route.chatId}-${route.userId}-${route.admin}",
@@ -975,7 +980,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ArchiveMemberRightsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth)) { route ->
+    entry<ArchiveMemberRightsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
         MemberRightsScreen(
             viewModel = koinViewModel(
                 key = "member-rights-${route.chatId}-${route.userId}-${route.admin}",
@@ -1033,7 +1038,7 @@ private fun shellEntryProvider(
         }
     }
 
-    entry<ArchiveChatProfileRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth)) { route ->
+    entry<ArchiveChatProfileRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
         val searchRequests = koinInject<ConversationSearchRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()
         ChatColorTheme(route.chatId) {

@@ -119,42 +119,44 @@ private suspend fun PaneExpansionState.animateToIfAnchored(anchor: PaneExpansion
     }
 }
 
-/** Šířka seznamu ve třech panelech a táhlo, které ji mění. */
-internal class ListPaneWidth(val width: Dp, val resize: PaneResize)
+/** Šířka seznamu ve třech panelech a táhlo, které ji mění; [resizing] viz [DraggedWidth]. */
+internal class ListPaneWidth(val width: Dp, val resize: PaneResize, val resizing: Boolean)
 
 /**
  * Táhlo seznamu ve třech panelech (seznam | konverzace | profil), kde to knihovní nekreslí
- * (`PaneResize`). Šířka jde metadaty seznamu ([listWidthBesideProfile]); po puštění dosedne na
- * nejbližší kotvu a uloží se jako `AppSettings.listPaneAnchor` — tatáž kotva pak platí i ve dvou
- * panelech s táhlem knihovny. Do stavu se kotva zapíše hned (`settled`), ne až z toku nastavení,
- * jinak by seznam na snímek skočil zpátky.
+ * (`PaneResize`). Šířka jde metadaty seznamu ([listWidthBesideProfile]); po puštění dojede
+ * pružinou na nejbližší kotvu ([DraggedWidth]) a uloží se jako `AppSettings.listPaneAnchor` —
+ * tatáž kotva pak platí i ve dvou panelech s táhlem knihovny. Do stavu se kotva zapíše hned
+ * (`settled`), ne až z toku nastavení, jinak by seznam na snímek skočil zpátky.
  */
 @Composable
 internal fun rememberListPaneResize(expansion: ListPaneExpansion, defaultWidth: Dp, total: Dp): ListPaneWidth {
     val settings = koinInject<AppSettings>()
-    var dragging by remember { mutableStateOf<Dp?>(null) }
+    val dragged = rememberDraggedWidth()
     var settled by remember { mutableStateOf<ListPaneAnchor?>(null) }
     // Až kotvu potvrdí nastavení, místní už není potřeba (zápis až po kompozici).
     SideEffect { if (settled == expansion.anchor) settled = null }
     val anchor = settled ?: expansion.anchor
-    val width = dragging ?: listWidthBesideProfile(anchor, total, defaultWidth, PANE_SPACING)
+    val width = dragged.value ?: listWidthBesideProfile(anchor, total, defaultWidth, PANE_SPACING)
 
     val currentWidth by rememberUpdatedState(width)
     val currentTotal by rememberUpdatedState(total)
     val currentDefault by rememberUpdatedState(defaultWidth)
     val currentAnchor by rememberUpdatedState(anchor)
     val label = stringResource(Res.string.list_pane_width)
-    val resize = remember(label, settings) {
+    val resize = remember(label, settings, dragged) {
         val settle = { next: ListPaneAnchor ->
-            settled = next
-            dragging = null
-            settings.setListPaneAnchor(next)
+            val target = listWidthBesideProfile(next, currentTotal, currentDefault, PANE_SPACING)
+            dragged.settle(from = currentWidth, target = target) {
+                settled = next
+                settings.setListPaneAnchor(next)
+            }
         }
         PaneResize(
             edge = PaneEdge.End,
             // Seznam je vlevo: tah doprava (kladný posun) ho rozšiřuje.
             onDrag = { delta ->
-                dragging = clampListBesideProfile((dragging ?: currentWidth) + delta, currentTotal, currentDefault, PANE_SPACING)
+                dragged.drag(from = currentWidth, delta = delta) { clampListBesideProfile(it, currentTotal, currentDefault, PANE_SPACING) }
             },
             onDragStopped = {
                 settle(nearestListAnchorBesideProfile(currentWidth, currentTotal, currentDefault, PANE_SPACING))
@@ -166,5 +168,5 @@ internal fun rememberListPaneResize(expansion: ListPaneExpansion, defaultWidth: 
             label = label,
         )
     }
-    return ListPaneWidth(width, resize)
+    return ListPaneWidth(width, resize, resizing = dragged.active)
 }

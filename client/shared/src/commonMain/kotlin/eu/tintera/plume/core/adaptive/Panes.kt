@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.adaptive
 
+import androidx.compose.animation.core.snap
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.ThreePaneScaffoldScope
 import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
@@ -31,6 +32,15 @@ object Panes {
     /** Třetí panel — profil a obrazovky, které se z něj otevírají. Patří k detailu pod sebou. */
     fun extra(sceneKey: Any = Unit): Map<String, Any> =
         ListDetailSceneStrategy.extraPane(sceneKey) + info(PaneRole.Extra, sceneKey)
+
+    /**
+     * Rozměry panelu se mění bez animace — za tahu vlastním táhlem a za jeho dojezdu, kdy pohyb
+     * řídí táhlo samo (`DraggedWidth`). Knihovní pružina by každý krok tahu animovala znovu
+     * a panely by prst dotahovaly. Pozor: scéna bere animaci rozměrů DETAILU z položky SEZNAMU
+     * (`ThreePaneScaffoldScene`, `lastList.boundsAnimationSpec()`), takže patří i seznamu.
+     */
+    fun instantBounds(on: Boolean): Map<String, Any> =
+        if (on) ListDetailSceneStrategy.paneAnimation(boundsAnimationSpec = snap()) else emptyMap()
 
     /** Preferovaná šířka panelu; `null` = výchozí z direktivy (nebo podle táhla). */
     fun width(width: Dp?): Map<String, Any> =
