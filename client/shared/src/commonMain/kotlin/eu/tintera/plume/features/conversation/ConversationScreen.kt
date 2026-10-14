@@ -16,8 +16,6 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import eu.tintera.plume.core.ui.RollingNumber
 import eu.tintera.plume.core.ui.readString
-import eu.tintera.plume.resources.forum_24dp
-import eu.tintera.plume.resources.saved_view_as_chats
 import eu.tintera.plume.resources.saved_topic_read_only
 import eu.tintera.plume.resources.saved_topic_open_chat
 import eu.tintera.plume.resources.service_upgraded_open_new
@@ -138,12 +136,8 @@ import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.ui.unit.Dp
-import eu.tintera.plume.resources.conversation_search
-import eu.tintera.plume.features.calls.ConversationCallButton
+import eu.tintera.plume.features.calls.ConversationCallButtons
 import eu.tintera.plume.resources.comments_title
-import eu.tintera.plume.resources.search_24dp
-import eu.tintera.plume.resources.summarize_24dp
-import eu.tintera.plume.resources.summary_action
 import eu.tintera.plume.resources.summary_me
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.navigationevent.compose.rememberNavigationEventState
@@ -491,6 +485,8 @@ fun ConversationScreen(
      * něco dělá (přestěhuje se do hlavního seznamu); jinde se nic měnit nemusí.
      */
     onUnarchived: () -> Unit = {},
+    /** Chat je smazaný nebo opuštěný (⋮ v hlavičce, pruh proti spamu) — zavřít všechno, co ho ukazuje. */
+    onChatGone: () -> Unit = onBack,
     /** Sponka → Anketa (a tlačítko bota „vytvořit anketu"): formulář nové ankety nad konverzací. */
     onCreatePoll: (PollComposerRequest) -> Unit = {},
     /** Mini aplikace bota — obrazovka přes celou plochu nad konverzací. */
@@ -637,8 +633,8 @@ fun ConversationScreen(
     /** Otevřený sheet z pruhu proti spamu; `null` = zavřený. */
     var spamBarAction by rememberSaveable { mutableStateOf<SpamBarAction?>(null) }
 
-    // Chat se z pruhu proti spamu smazal — konverzace nemá co ukazovat.
-    LaunchedEffect(chatGone) { if (chatGone) onBack() }
+    // Chat se smazal (⋮ v hlavičce, pruh proti spamu) — konverzace nemá co ukazovat.
+    LaunchedEffect(chatGone) { if (chatGone) onChatGone() }
     val unarchived by viewModel.unarchived.collectAsStateWithLifecycle()
     LaunchedEffect(unarchived) { if (unarchived) onUnarchived() }
 
@@ -1610,35 +1606,18 @@ fun ConversationScreen(
                     ChatSwitcherBackButton(chatId = viewModel.chatId, onBack = onBack, onSwitch = onSwitchChat)
                 },
                 actions = {
+                    // Hlavní akce jsou hovor a videohovor, všechno ostatní je za ⋮.
+                    ConversationCallButtons(state.info, state.callRequest, viewModel::consumeCallRequest)
                     // Prázdný chat s botem je jeho profil — není co shrnout ani hledat.
                     // Omezený chat nemá co ukázat, tedy ani co shrnout nebo hledat.
-                    val botIntro = showsBotIntro(state) || chatHidden
-                    if (summaryAvailable && state.threadRootId == null && !botIntro) {
-                        IconButton(onClick = startSummary, shapes = IconButtonDefaults.shapes()) {
-                            Icon(
-                                painterResource(Res.drawable.summarize_24dp),
-                                contentDescription = stringResource(Res.string.summary_action),
-                            )
-                        }
-                    }
-                    // Uložené zprávy podle zdrojového chatu: jen u celých Uložených zpráv, ne v tématu.
-                    if (onViewAsChats != null && state.info?.isSavedMessages == true && !state.narrowed) {
-                        IconButton(onClick = onViewAsChats, shapes = IconButtonDefaults.shapes()) {
-                            Icon(
-                                painterResource(Res.drawable.forum_24dp),
-                                contentDescription = stringResource(Res.string.saved_view_as_chats),
-                            )
-                        }
-                    }
-                    ConversationCallButton(state.info, state.callRequest, viewModel::consumeCallRequest)
-                    if (!botIntro) {
-                        IconButton(onClick = viewModel::openSearch, shapes = IconButtonDefaults.shapes()) {
-                            Icon(
-                                painterResource(Res.drawable.search_24dp),
-                                contentDescription = stringResource(Res.string.conversation_search),
-                            )
-                        }
-                    }
+                    ConversationMenu(
+                        state = state,
+                        viewModel = viewModel,
+                        showsContent = !showsBotIntro(state) && !chatHidden,
+                        onSummary = startSummary.takeIf { summaryAvailable && state.threadRootId == null },
+                        // Uložené zprávy podle zdrojového chatu: jen u celých Uložených zpráv, ne v tématu.
+                        onViewAsChats = onViewAsChats.takeIf { state.info?.isSavedMessages == true && !state.narrowed },
+                    )
                 },
             )
         },

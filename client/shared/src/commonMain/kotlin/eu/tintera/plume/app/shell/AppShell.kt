@@ -597,6 +597,7 @@ private fun shellEntryProvider(
                 ),
                 // Odebírá SVOU položku, ne poslední — viz `pop`.
                 onBack = { chatsStack.pop(route) },
+                onChatGone = { chatsStack.closeChat(route.chatId) },
                 onOpenMedia = { messageId ->
                     chatsStack.add(MediaRoute(route.chatId, messageId))
                 },
@@ -729,7 +730,6 @@ private fun shellEntryProvider(
                     chatsStack.add(MediaRoute(route.chatId, messageId, fromSharedMedia = true, articleMedia = articleMedia))
                 },
                 onOpenPhotos = { chatsStack.add(MediaRoute(route.chatId, messageId = 0L, profilePhotos = true)) },
-                onChatGone = { chatsStack.closeChat(route.chatId) },
                 onEdit = { if (chatsStack.lastOrNull() != EditChatRoute(route.chatId)) chatsStack.add(EditChatRoute(route.chatId)) },
                 onShareContact = { userId -> chatsStack.addOnce(ShareContactRoute(userId)) },
                 onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
@@ -834,6 +834,7 @@ private fun shellEntryProvider(
                     parameters = { parametersOf(route.chatId, route.messageId, route.threadId, route.topicId) },
                 ),
                 onBack = { chatsStack.pop(route) },
+                onChatGone = { chatsStack.closeChat(route.chatId) },
                 onOpenMedia = { messageId ->
                     chatsStack.add(MediaRoute(route.chatId, messageId))
                 },
@@ -894,7 +895,6 @@ private fun shellEntryProvider(
                     chatsStack.add(MediaRoute(route.chatId, messageId, fromSharedMedia = true, articleMedia = articleMedia))
                 },
                 onOpenPhotos = { chatsStack.add(MediaRoute(route.chatId, messageId = 0L, profilePhotos = true)) },
-                onChatGone = { chatsStack.closeChat(route.chatId) },
                 onEdit = {
                     if (chatsStack.lastOrNull() != ArchiveEditChatRoute(route.chatId)) {
                         chatsStack.add(ArchiveEditChatRoute(route.chatId))

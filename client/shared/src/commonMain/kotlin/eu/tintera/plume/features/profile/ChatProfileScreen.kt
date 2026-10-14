@@ -50,9 +50,6 @@ import eu.tintera.plume.resources.chats_leave_title
 import eu.tintera.plume.resources.chats_delete_body
 import eu.tintera.plume.resources.chats_delete_title
 import eu.tintera.plume.resources.chats_action_leave
-import eu.tintera.plume.resources.chats_action_delete
-import eu.tintera.plume.resources.profile_leave_group
-import eu.tintera.plume.resources.profile_leave_channel
 import eu.tintera.plume.resources.profile_block_bot_body
 import eu.tintera.plume.resources.profile_block_body
 import eu.tintera.plume.resources.profile_block_title
@@ -60,15 +57,6 @@ import eu.tintera.plume.resources.profile_unblock
 import eu.tintera.plume.resources.profile_block
 import eu.tintera.plume.resources.profile_copy_link
 import eu.tintera.plume.resources.profile_more
-import eu.tintera.plume.resources.logout_24dp
-import eu.tintera.plume.resources.delete_24dp
-import eu.tintera.plume.resources.flag_24dp
-import eu.tintera.plume.resources.chats_action_report
-import eu.tintera.plume.resources.chats_delete_report
-import eu.tintera.plume.core.telegram.SpamActions
-import eu.tintera.plume.features.chats.ChatDeleteSheet
-import eu.tintera.plume.features.chats.SpamCleanup
-import eu.tintera.plume.features.report.ReportHost
 import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.profile_edit
 import eu.tintera.plume.resources.block_24dp
@@ -199,7 +187,6 @@ import eu.tintera.plume.core.ui.describe
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.secret_chat_key_title
 import eu.tintera.plume.resources.secret_chat_key_compare
-import eu.tintera.plume.resources.lock_open_24dp
 import eu.tintera.plume.resources.lock_24dp
 import eu.tintera.plume.resources.secret_chat_start
 import eu.tintera.plume.resources.call_start
@@ -208,9 +195,6 @@ import eu.tintera.plume.resources.call_start_video
 import eu.tintera.plume.resources.videocam_24dp
 import eu.tintera.plume.features.calls.rememberStartCall
 import eu.tintera.plume.features.calls.rememberVideoCallsSupported
-import eu.tintera.plume.resources.secret_chat_close_title
-import eu.tintera.plume.resources.secret_chat_close_text
-import eu.tintera.plume.resources.secret_chat_close
 import eu.tintera.plume.resources.chat_color_default
 import eu.tintera.plume.resources.chat_color_title
 import androidx.compose.foundation.shape.CircleShape
@@ -272,8 +256,6 @@ fun ChatProfileScreen(
     onOpenMedia: (messageId: Long, articleMedia: Int) -> Unit,
     /** Ťuknutí na velkou fotku: historie profilových fotek v prohlížeči. */
     onOpenPhotos: () -> Unit,
-    /** Chat je smazaný nebo opuštěný — zavřít profil i konverzaci. */
-    onChatGone: () -> Unit,
     /** Úprava skupiny; nabídne se, jen když na ni uživatel má právo. */
     onEdit: () -> Unit,
     /** ⋮ → Sdílet kontakt: výběr chatů, do kterých kontakt poslat. */
@@ -298,7 +280,6 @@ fun ChatProfileScreen(
     // ViewModel přežil a jinak by ukazoval, co přečetl při otevření.
     LaunchedEffect(Unit) { viewModel.refreshOnReturn() }
     val snackbarHostState = remember { SnackbarHostState() }
-    ReportHost(viewModel.reportFlow, snackbarHostState)
     val currentOnOpenChat by rememberUpdatedState(onOpenChat)
 
     LaunchedEffect(state.openChat) {
@@ -311,10 +292,6 @@ fun ChatProfileScreen(
         val target = state.openMedia ?: return@LaunchedEffect
         viewModel.consumeOpenMedia()
         currentOnOpenMedia(target.messageId, target.articleMedia)
-    }
-    val currentOnChatGone by rememberUpdatedState(onChatGone)
-    LaunchedEffect(state.chatGone) {
-        if (state.chatGone) currentOnChatGone()
     }
     val currentOnMemberRights by rememberUpdatedState(onOpenMemberRights)
     LaunchedEffect(state.openMemberRights) {
@@ -401,13 +378,9 @@ fun ChatProfileScreen(
                             onEdit = onEdit,
                             onShareContact = { profile.userId?.let(onShareContact) },
                             onAddMembers = onAddMembers,
-                            spam = state.spam?.copy(isBlocked = profile.isBlocked),
                             onSetBlocked = viewModel::setBlocked,
                             onSetContact = viewModel::setContact,
-                            onReport = viewModel::report,
-                            onDeleteOrLeave = viewModel::deleteOrLeave,
                             onStartSecretChat = viewModel::startSecretChat,
-                            onCloseSecretChat = viewModel::closeSecretChat,
                             onCall = rememberStartCall(profile.userId),
                         )
                     }
@@ -1331,12 +1304,17 @@ private val HEADER_AVATAR_SIZE = 112.dp
 private val CHAT_COLOR_DOT = 24.dp
 
 /**
- * Méně častá akce nad chatem za ⋮: odkaz, blokování, smazání / odchod.
+ * Méně častá akce nad člověkem nebo chatem za ⋮: úprava, odkaz, kontakt, hovor, tajný chat,
+ * blokování.
  *
  * Nahoře v liště, ne jako další dlaždice: dlaždice (Ztlumit, Hledat) jsou to, kvůli čemu se do
- * profilu chodí; tohle se dělá jednou za čas a dvě z toho jsou nevratné. Nabídka (`ExpressiveMenu`) tu
- * nevadí — past s odstupem od okraje (viz „Vzhled konverzace") je jen u spodku obrazovky.
- * Nevratné akce mají potvrzení s konkrétním následkem, stejné texty jako v seznamu chatů.
+ * profilu chodí; tohle se dělá jednou za čas. Nabídka (`ExpressiveMenu`) tu nevadí — past
+ * s odstupem od okraje (viz „Vzhled konverzace") je jen u spodku obrazovky. Zablokování má
+ * potvrzení s konkrétním následkem.
+ *
+ * Nahlášení, smazání / odchod a ukončení tajného chatu jsou v ⋮ konverzace (`ConversationMenu`):
+ * týkají se konverzace, ne člověka. Hovor zůstává i tady — profil člena jde otevřít z jeho
+ * zprávy ve skupině, bez konverzace s ním.
  */
 @Composable
 private fun ProfileMenu(
@@ -1345,28 +1323,19 @@ private fun ProfileMenu(
     onEdit: () -> Unit,
     onShareContact: () -> Unit,
     onAddMembers: () -> Unit,
-    /** Co jde nahlásit a zablokovat; `null`, dokud to nedorazí. */
-    spam: SpamActions?,
     onSetBlocked: (Boolean) -> Unit,
     onSetContact: (Boolean) -> Unit,
-    onReport: () -> Unit,
-    onDeleteOrLeave: (SpamCleanup) -> Unit,
     onStartSecretChat: () -> Unit,
-    onCloseSecretChat: () -> Unit,
     /** Zavolat (`null` = hovory tu nejsou, viz `CallRepository.supported`). */
     onCall: ((video: Boolean) -> Unit)?,
 ) {
     val videoCalls = rememberVideoCallsSupported()
     var expanded by remember { mutableStateOf(false) }
-    var confirmCloseSecret by rememberSaveable { mutableStateOf(false) }
     var confirmBlock by rememberSaveable { mutableStateOf(false) }
     var confirmRemoveContact by rememberSaveable { mutableStateOf(false) }
-    var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val canBlock = profile.userId != null
-    val canDeleteOrLeave = profile.isPrivate || profile.isMember
     // Úprava se nabízí, jen když je aspoň jedno z práv — co uvnitř ukáže, rozhoduje obrazovka.
     val canEdit = profile.editRights.any
-    val canReport = spam?.canReport == true
     // Kontakt se posílá s číslem; kdo ho skrývá (nebo bot, ten žádné nemá), poslat nejde.
     val canShareContact = profile.kind == ProfileKind.User && profile.userId != null && !profile.phone.isNullOrBlank()
     // Do kontaktů jde člověk, ne bot a ne vlastní účet (ten je `SavedMessages`).
@@ -1375,7 +1344,7 @@ private fun ProfileMenu(
     // i z profilu jiného tajného chatu: každý je vázaný na jedno zařízení.
     val canStartSecret = profile.kind == ProfileKind.User && profile.userId != null
     if (
-        profile.link == null && !canBlock && !canDeleteOrLeave && !canEdit && !canReport && !canShareContact &&
+        profile.link == null && !canBlock && !canEdit && !canShareContact &&
         !profile.canAddMembers && !canManageContact && !canStartSecret
     ) {
         return
@@ -1451,69 +1420,8 @@ private fun ProfileMenu(
                     } else {
                         null
                     },
-                    // Nahlášení se ptá na důvod (průvodce), proto „…". Jen u spamového action
-                    // baru ho server vezme rovnou jako spam, a pak to popisek řekne.
-                    if (canReport) {
-                        MenuAction(
-                            stringResource(
-                                if (spam?.reportsSpamDirectly == true) Res.string.chats_delete_report else Res.string.chats_action_report,
-                            ),
-                            Res.drawable.flag_24dp,
-                            onClick = onReport,
-                        )
-                    } else {
-                        null
-                    },
-                ),
-                // Nevratné zvlášť, ve vlastní skupině a chybovou barvou.
-                listOfNotNull(
-                    if (profile.isSecretChat && profile.secretChatOpen) {
-                        MenuAction(
-                            stringResource(Res.string.secret_chat_close),
-                            Res.drawable.lock_open_24dp,
-                            destructive = true,
-                            onClick = { confirmCloseSecret = true },
-                        )
-                    } else {
-                        null
-                    },
-                    if (canDeleteOrLeave) {
-                        MenuAction(
-                            stringResource(
-                                when (profile.kind) {
-                                    ProfileKind.Channel -> Res.string.profile_leave_channel
-                                    ProfileKind.Group -> Res.string.profile_leave_group
-                                    else -> Res.string.chats_action_delete
-                                },
-                            ),
-                            if (profile.isPrivate) Res.drawable.delete_24dp else Res.drawable.logout_24dp,
-                            destructive = true,
-                            onClick = { confirmDelete = true },
-                        )
-                    } else {
-                        null
-                    },
                 ),
             ),
-        )
-    }
-
-    if (confirmCloseSecret) {
-        AlertDialog(
-            onDismissRequest = { confirmCloseSecret = false },
-            title = { Text(stringResource(Res.string.secret_chat_close_title)) },
-            text = { Text(stringResource(Res.string.secret_chat_close_text)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmCloseSecret = false
-                    onCloseSecretChat()
-                }) {
-                    Text(stringResource(Res.string.secret_chat_close), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmCloseSecret = false }) { Text(stringResource(Res.string.common_cancel)) }
-            },
         )
     }
 
@@ -1545,22 +1453,6 @@ private fun ProfileMenu(
                 }) { Text(stringResource(Res.string.profile_remove_contact), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { confirmRemoveContact = false }) { Text(stringResource(Res.string.common_cancel)) } },
-        )
-    }
-    /*
-     * Smazání je sheet s podmenu, ne dialog — tentýž jako v nabídce nad chatem v seznamu, i se
-     * zablokováním a nahlášením. Dvě podoby téhož kroku by se rozešly.
-     */
-    if (confirmDelete) {
-        ChatDeleteSheet(
-            isPrivate = profile.isPrivate,
-            title = profile.title,
-            spam = spam,
-            onConfirm = { cleanup ->
-                confirmDelete = false
-                onDeleteOrLeave(cleanup)
-            },
-            onDismiss = { confirmDelete = false },
         )
     }
 }

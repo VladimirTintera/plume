@@ -312,9 +312,17 @@ po 20 s `FAILED`).
 
 ## Hovor z konverzace
 
-Sluchátko v hlavičce soukromého i tajného chatu (`ConversationCallButton`): ťuknutí nabídne
-hlasový hovor a videohovor, protějšku bez videohovorů volá rovnou. Ťuknutí na zprávu o hovoru
-volá zpátky, stejně jako tehdy.
+Kamera a sluchátko v hlavičce soukromého i tajného chatu (`ConversationCallButtons`) jsou
+hlavní akce lišty, každé volá rovnou — všechno ostatní je za ⋮ (`ConversationMenu`). Kamera jen
+tehdy, když videohovor umí obě strany (protějšek `supportsVideoCalls`, platforma
+`CallRepository.supportsVideo`); jinak zbude samotné sluchátko. Ťuknutí na zprávu o hovoru volá
+zpátky, stejně jako tehdy.
+
+- **Dřív bylo jedno sluchátko s nabídkou Zavolat / Videohovor** vedle Shrnout a Hledat. Hovor
+  tak byl o ťuknutí dál a videohovor schovaný; uživatel ho hledal v ⋮ profilu. Teď jsou to dvě
+  přímé akce a Hledat / Shrnout šly do ⋮.
+- **Hovor zůstává i v ⋮ profilu.** Profil člena jde otevřít z jeho zprávy ve skupině
+  (`onOpenUserProfile`), bez konverzace s ním — odtud by jinak zavolat nešlo.
 
 - **Komu jde zavolat, říká `ChatInfo.callUserId`**: protějšek soukromého nebo tajného chatu
   (v tajném se id chatu s id uživatele neshoduje), který je člověk (`UserTypeRegular`, ne bot,
@@ -327,8 +335,8 @@ volá zpátky, stejně jako tehdy.
 - **Tlačítko je ve vlastní funkci**, `ConversationScreen` ho jen volá jedním řádkem — ten je
   v dexu na hraně (CLAUDE.md, Gotchas). Po změně ověřeno otevřením chatu na zařízení.
 - **Během hovoru tlačítko zmizí** — druhý hovor naráz Plume nevede.
-- **Ověřeno na Pixelu 5 a Pixelu 7 Pro**: sluchátko v soukromém chatu (ve skupině ne), nabídka
-  Zavolat / Videohovor, ťuknutí na „Odchozí videohovor" vytočilo videohovor a druhý telefon
+- **Ověřeno na Pixelu 5 a Pixelu 7 Pro** (ještě s nabídkou u sluchátka): sluchátko v soukromém
+  chatu (ve skupině ne), nabídka Zavolat / Videohovor, ťuknutí na „Odchozí videohovor" vytočilo videohovor a druhý telefon
   zazvonil, podržení zprávy o hovoru otevřelo nabídku nad zprávou.
 
 ## Když hovor nejde zahájit

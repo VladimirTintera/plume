@@ -3,7 +3,7 @@
 Tajný chat (`ChatTypeSecret`) je šifrovaný mezi DVĚMA ZAŘÍZENÍMI, ne mezi účty: běží jen na
 zařízení, které ho založilo, a na tom, které ho na druhé straně přijalo. Plume je umí přijmout,
 založit (profil člověka → ⋮ → „Začít tajný chat", nebo Nová zpráva → „Nový tajný chat"), psát do nich, nastavit časovač zpráv
-a ukončit je (profil tajného chatu → ⋮ → „Ukončit tajný chat").
+a ukončit je (konverzace tajného chatu → ⋮ → „Ukončit tajný chat").
 
 - **Bez `useSecretChats = true` v `setTdlibParameters` TDLib tajné chaty vůbec nepřijme ani
   nezaloží.** Plume ho měl vypnuté, takže tajný chat od protějšku přijalo jiné zařízení účtu

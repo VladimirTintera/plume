@@ -7,8 +7,8 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 
 Spam se řeší třemi věcmi naráz — nahlásit, zablokovat, smazat — a jde to ze tří míst:
 **pruh nad konverzací** u chatu od neznámého (`SpamBarCard`), **podmenu „Smazat"** v nabídce
-nad chatem (a totéž jako sheet v profilu, `DeleteChatOptions`) a **„Nahlásit"** samostatně
-(nabídka nad chatem, ⋮ v profilu, nabídka nad zprávou). Nahlášení je vždycky tentýž průvodce
+nad chatem (a totéž jako sheet z ⋮ v hlavičce konverzace, `DeleteChatOptions`) a **„Nahlásit"**
+samostatně (nabídka nad chatem, ⋮ v hlavičce konverzace, nabídka nad zprávou). Nahlášení je vždycky tentýž průvodce
 (`ReportFlow` + `ReportSheet`, testy `ReportFlowTest`).
 
 - **Blokování má JEDNU cestu, a je jí `ChatRepository`** (`setBlocked(chatId, …)` →

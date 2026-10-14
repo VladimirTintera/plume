@@ -62,12 +62,6 @@ interface ProfileRepository {
     ): Result<MemberPage>
 
     /**
-     * Soukromý chat smaže jen u nás (`deleteChatHistory`, `revoke = false`), ze skupiny a kanálu
-     * odejde (`leaveChat`) — stejně jako „Smazat" v seznamu chatů, viz „Akce nad chatem".
-     */
-    suspend fun deleteOrLeave(profile: ChatProfile): Result<Unit>
-
-    /**
      * Co jde na chatu upravit a jak to teď vypadá. Čte se až při otevření úpravy — profil
      * z toho potřebuje jen [ChatProfile.editRights], aby věděl, jestli položku nabídnout.
      */
