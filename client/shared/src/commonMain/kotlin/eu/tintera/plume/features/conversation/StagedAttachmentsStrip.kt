@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.music_note_24dp
+import eu.tintera.plume.core.telegram.sendableTogether
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -83,7 +85,7 @@ fun StagedAttachmentsStrip(
 ) {
     if (attachments.isEmpty()) return
 
-    if (attachments.first() !is OutgoingAttachment.Document) {
+    if (attachments.first().let { it is OutgoingAttachment.Photo || it is OutgoingAttachment.Video }) {
         if (attachments.size == 1) {
             SinglePhotoPreview(
                 attachment = attachments.first(),
@@ -106,15 +108,19 @@ fun StagedAttachmentsStrip(
         }
     } else {
         Column(modifier.padding(start = 16.dp, end = 4.dp, top = 8.dp)) {
-            attachments.forEachIndexed { index, attachment ->
+            // Jak doopravdy odejdou: skladba mezi soubory jde jako soubor, a řádek to má říct.
+            sendableTogether(attachments).forEachIndexed { index, attachment ->
+                val audio = attachment as? OutgoingAttachment.Audio
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        painterResource(Res.drawable.description_24dp),
+                        painterResource(if (audio != null) Res.drawable.music_note_24dp else Res.drawable.description_24dp),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                     )
                     Text(
-                        text = attachment.path.toPath().name,
+                        // Skladba se představí jako v přehrávači; bez značek aspoň jménem souboru.
+                        text = audio?.title?.let { title -> listOfNotNull(title, audio.performer).joinToString(" – ") }
+                            ?: attachment.path.toPath().name,
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 1,
                         overflow = TextOverflow.MiddleEllipsis,

@@ -140,7 +140,27 @@ album. Bublina ukazuje průběh nahrávání.
   sám, pro starší `ExifInterface`. iOS: kreslení přes `UIGraphicsImageRenderer` ji použije taky
   a HEIC se tím zároveň převede na JPEG.
 - **Soubor jde beze změny s `disableContentTypeDetection = true`** — uživatel posílal „soubor",
-  TDLib by jinak z videa nebo hudby udělal přehrávatelnou zprávu.
+  TDLib by jinak z videa udělal přehrávatelnou zprávu.
+- **Hudba vybraná jako soubor odejde jako skladba** (`OutgoingAttachment.Audio`,
+  `InputMessageAudio`): v konverzaci s přehrávačem, názvem a interpretem. Údaje čte platforma ze
+  značek souboru — Android `MediaMetadataRetriever` (podle typu obsahu `audio/*`), iOS
+  `AVURLAsset.commonMetadata` (podle přípony přes `UTType`); obal alba jako JPEG do 320 px.
+  Soubor, který se jako skladba přečíst nedá, odejde jako soubor. Desktop zůstává u souboru (JVM
+  MP3 neumí). Totéž platí pro hudbu sdílenou z jiných aplikací.
+  - **Skladba patří ke SOUBORŮM**, ne k fotkám: vybírá se sponkou „Soubor" a přidává se k nim.
+    Jenže do alba ji TDLib pustí jen se skladbami („Documents and audio files can be only grouped
+    in an album with messages of the same type"), takže **smíšený výběr odejde celý jako soubory**
+    (`sendableTogether`) — a řádek nad polem to ukazuje stejně (ikona souboru místo noty).
+  - **Chat bez práva na hudbu (`canSendAudios`) dostane skladbu jako soubor**, smí-li soubory
+    (`allowedByContent`). `ContentAccess.audios` proto přibyl; dřív tam hudba nebyla, protože se
+    neposílala.
+  - **Pás příloh nad polem rozhodoval „fotka, nebo soubor" podle `!is Document`** — skladba se
+    tak nakreslila jako fotka v carouselu („Odebrat fotku"). Podmínka je teď kladná (fotka nebo
+    video), aby další druh přílohy nespadl do fotek potichu.
+  - **Ověřeno na emulátoru** testovací MP3 složenou v Pythonu (tiché rámce MPEG, ID3 se jménem,
+    interpretem a obalem): řádek „Plume testovaci skladba – Plume", bublina s přehrávačem, délkou
+    0:07 a obalem. Na Macu ffmpeg ani lame není; tichý rámec MPEG-1 Layer III s nulovými daty je
+    platný a dekodér ho přehraje jako ticho.
 - **iOS delegáty výběrů se drží silnou referencí** (`remember`). UIKit je drží jen slabě
   a bez toho by je uklidil garbage collector dřív, než uživatel něco vybere — výběr by tiše nic
   neudělal. Soubor z UIDocumentPickeru je v dočasném adresáři, který systém po delegátovi maže,
@@ -475,6 +495,19 @@ text, tlačítko je fajfka a potvrzení volá `editMessageText`.
   se schová, ikona je vždycky smajlík. Samolepka do textu upravované zprávy nepatří. Uložená
   volba části výběru se tím nemění. Emoji vložené při úpravě neukládá koncept ani „píše…" —
   `onDraftChanged` se při úpravě vrací hned.
+- **Přílohu jde při úpravě vyměnit** (`editMessageMedia`, tlačítko se sponkou v hlavičce úpravy).
+  Nová příloha se v hlavičce ukáže („Nová fotka", „Nový soubor: …") a vymění se až uložením,
+  i s popiskem z pole; šipka zpět ji zahodí a úprava popisku běží dál.
+  - **Nabízí se jen tam, kde to server dovolí** (`MessageProperties.canEditMedia` →
+    `MessageActions.canEditMedia`, čte se s nabídkou nad zprávou) a jen u fotky, videa, souboru
+    a skladby (`replaceableMedia`). Mizející zprávu server vyměnit nedovolí.
+  - **Fotka a video se mění jen fotkou nebo videem, soubor souborem** (`ReplaceMedia.accepts`):
+    v albu server dovolí právě záměnu fotky za video, a sponka podle druhu otevře správný výběr.
+    Co nesedí nebo co chat nepřijme, se neuloží a ohlásí.
+  - **Nová příloha je změna sama o sobě**: uložení s nezměněným popiskem ji pošle, kdežto bez ní
+    by se beze změny nic neposlalo.
+  - Ověřeno na emulátoru: fotka vyměněná za jinou („upraveno" u zprávy), u skladby sponka
+    otevřela výběr souborů.
 - **Po „Upravit" se pole samo nefokusuje.** Že se něco stalo, ukazuje karta s původním textem
   a fajfka místo odeslání; klávesnici si uživatel vyvolá ťuknutím do pole. Dřív si pole fokus
   a klávesnici vyžádalo samo (uživatel si to nepřál).

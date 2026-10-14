@@ -561,6 +561,12 @@
     <string name="conversation_attach">Přiložit</string>
     <string name="conversation_editing">Úprava zprávy</string>
     <string name="conversation_editing_caption">Úprava popisku</string>
+    <string name="conversation_edit_replace_media">Vyměnit přílohu</string>
+    <string name="conversation_edit_keep_media">Ponechat původní přílohu</string>
+    <string name="conversation_edit_new_photo">Nová fotka</string>
+    <string name="conversation_edit_new_video">Nové video</string>
+    <string name="conversation_edit_new_audio">Nová skladba: %1$s</string>
+    <string name="conversation_edit_new_file">Nový soubor: %1$s</string>
     <string name="conversation_cancel_edit">Zrušit úpravu</string>
     <string name="conversation_reply">Odpověď</string>
     <string name="conversation_voice_message">Hlasová zpráva</string>

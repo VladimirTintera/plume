@@ -383,8 +383,10 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - Checklisty: zobrazí se jen jako popis „Seznam úkolů: …" (`MessageContent.kt`); vytvořit,
   doplnit ani odškrtnout je nejde (`InputMessageChecklist`, `addChecklistTasks`,
   `markChecklistTasksAsDone`).
-- Výměna média při úpravě zprávy (`editMessageMedia`).
-- Hudba se posílá jako soubor, ne jako audio (`InputMessageAudio` se nepoužívá).
+- ~~Výměna média při úpravě zprávy (`editMessageMedia`)~~ — hotovo (`docs/poznatky/konverzace-psani.md`,
+  „Úprava zprávy"). Zbývá GIF a výměna z vestavěné galerie (dnes systémový výběr).
+- ~~Hudba se posílá jako soubor~~ — hotovo (`docs/poznatky/konverzace-psani.md`, „Posílání příloh
+  a alb"). Zbývá desktop (JVM značky MP3 nepřečte) a ověřit iOS na zařízení.
 - Ťuknutí na velké animované emoji s efektem pro oba (`clickAnimatedEmojiMessage`,
   `animatedEmojiMessageClickedUpdates`).
 - Napovídání hashtagů a nedávných inline botů (`searchHashtags`, `getRecentInlineBots`).

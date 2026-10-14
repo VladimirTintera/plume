@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.sendableTogether
 import eu.tintera.plume.core.telegram.AttachmentMode
 import eu.tintera.plume.core.telegram.ContentAccess
 import eu.tintera.plume.core.telegram.OutgoingAttachment
@@ -97,6 +98,7 @@ class StagedAttachmentsTest {
         photos = true,
         videos = false,
         documents = false,
+        audios = false,
         voiceNotes = false,
         videoNotes = false,
         stickers = false,
@@ -142,5 +144,33 @@ class FormatDurationTest {
         assertEquals("0:42", formatDuration(42))
         assertEquals("12:05", formatDuration(725))
         assertEquals("1:02:03", formatDuration(3723))
+    }
+
+    // --- Hudba jako skladba ---
+
+    private val skladba = OutgoingAttachment.Audio(path = "/a/song.mp3", title = "Píseň", performer = null, durationSeconds = 180, cover = null)
+
+    /** Skladba se vybírá jako soubor, takže se k souborům přidává, ne je nahrazuje. */
+    @Test
+    fun skladbaSeSkladaSeSoubory() {
+        val soubor = OutgoingAttachment.Document("/a/doc.pdf")
+        assertEquals(listOf(soubor, skladba), stageAttachments(listOf(soubor), listOf(skladba)).attachments)
+    }
+
+    @Test
+    fun skladbaBezPravaNaHudbuOdejdeJakoSoubor() {
+        val nic = ContentAccess.All.copy(documents = false, audios = false)
+        val jenSoubory = nic.copy(documents = true)
+        assertEquals<List<OutgoingAttachment>>(listOf(skladba.asDocument()), allowedByContent(listOf(skladba), jenSoubory))
+        assertEquals<List<OutgoingAttachment>>(listOf(skladba), allowedByContent(listOf(skladba), jenSoubory.copy(audios = true)))
+        assertEquals(emptyList<OutgoingAttachment>(), allowedByContent(listOf(skladba), nic))
+    }
+
+    /** TDLib: skladby jdou do alba jen se skladbami — smíšený výběr odejde celý jako soubory. */
+    @Test
+    fun smisenyVyberOdejdeJakoSoubory() {
+        val soubor = OutgoingAttachment.Document("/a/doc.pdf")
+        assertEquals(listOf(soubor, skladba.asDocument()), sendableTogether(listOf(soubor, skladba)))
+        assertEquals(listOf(skladba, skladba), sendableTogether(listOf(skladba, skladba)))
     }
 }

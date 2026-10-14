@@ -76,7 +76,7 @@ actual fun rememberAttachmentPicker(
         ActivityResultContracts.PickMultipleVisualMedia(maxItems = PICK_LIMIT),
     ) { uris -> prepare(uris, ::prepareVisual) }
     val documentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        prepare(uris.take(PICK_LIMIT), ::prepareDocument)
+        prepare(uris.take(PICK_LIMIT), ::prepareFile)
     }
 
     return remember(photoLauncher, documentLauncher) {
@@ -291,6 +291,50 @@ internal fun prepareDocument(context: Context, uri: Uri): OutgoingAttachment.Doc
         target.outputStream().use { input.copyTo(it) }
     }
     return OutgoingAttachment.Document(path = target.absolutePath)
+}
+
+/**
+ * Soubor ze sponky „Soubor": hudba odejde jako skladba (s názvem, interpretem a obalem ze
+ * souboru), všechno ostatní beze změny jako soubor. Rozhoduje typ obsahu od systému.
+ */
+internal fun prepareFile(context: Context, uri: Uri): OutgoingAttachment {
+    val document = prepareDocument(context, uri)
+    if (context.contentResolver.getType(uri)?.startsWith("audio/") != true) return document
+    // Soubor, který se jako skladba přečíst nedá, odejde aspoň jako soubor.
+    return runCatching { audioMetadata(File(document.path)) }.getOrNull() ?: document
+}
+
+/** Název, interpret, délka a obal alba (JPEG do 320 px vedle souboru) ze značek skladby. */
+private fun audioMetadata(target: File): OutgoingAttachment.Audio {
+    val retriever = MediaMetadataRetriever()
+    try {
+        retriever.setDataSource(target.absolutePath)
+        fun text(key: Int) = retriever.extractMetadata(key)?.trim()?.takeIf { it.isNotEmpty() }
+        val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+        val cover = runCatching {
+            val bytes = retriever.embeddedPicture ?: return@runCatching null
+            val picture = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return@runCatching null
+            val scale = minOf(1f, VIDEO_THUMBNAIL_EDGE.toFloat() / max(picture.width, picture.height))
+            val scaled = Bitmap.createScaledBitmap(
+                picture,
+                (picture.width * scale).roundToInt().coerceAtLeast(1),
+                (picture.height * scale).roundToInt().coerceAtLeast(1),
+                true,
+            )
+            val file = File(target.parentFile, "cover.jpg")
+            file.outputStream().use { scaled.compress(Bitmap.CompressFormat.JPEG, PHOTO_JPEG_QUALITY, it) }
+            OutgoingThumbnail(path = file.absolutePath, width = scaled.width, height = scaled.height)
+        }.getOrNull()
+        return OutgoingAttachment.Audio(
+            path = target.absolutePath,
+            title = text(MediaMetadataRetriever.METADATA_KEY_TITLE),
+            performer = text(MediaMetadataRetriever.METADATA_KEY_ARTIST),
+            durationSeconds = ((durationMs + 500) / 1000).toInt(),
+            cover = cover,
+        )
+    } finally {
+        retriever.release()
+    }
 }
 
 /**

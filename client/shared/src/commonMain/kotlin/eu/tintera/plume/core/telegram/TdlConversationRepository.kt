@@ -123,6 +123,8 @@ import dev.g000sha256.tdl.dto.InputMessageAnimation
 import dev.g000sha256.tdl.dto.InputMessageContent
 import dev.g000sha256.tdl.dto.InputMessageDice
 import dev.g000sha256.tdl.dto.InputMessageDocument
+import dev.g000sha256.tdl.dto.InputAudio
+import dev.g000sha256.tdl.dto.InputMessageAudio
 import dev.g000sha256.tdl.dto.InputMessagePhoto
 import dev.g000sha256.tdl.dto.InputMessageReplyToMessage
 import dev.g000sha256.tdl.dto.InputMessageSticker
@@ -632,6 +634,7 @@ class TdlConversationRepository(
                     canForward = properties.canBeForwarded,
                     canSave = properties.canBeSaved,
                     canReport = properties.canReportChat,
+                    canEditMedia = properties.canEditMedia,
                 )
             }
 
@@ -1229,7 +1232,7 @@ class TdlConversationRepository(
         // Entity popisku se dohledávají jako u textu — jinak by odkaz v popisku odešel jako mrtvý text.
         val formattedCaption = caption.takeIf { it.isNotBlank() }
             ?.let { FormattedText(text = it, entities = detectEntities(it, mentions, formats)) }
-        val contents = attachments.mapIndexed { index, attachment ->
+        val contents = sendableTogether(attachments).mapIndexed { index, attachment ->
             attachment.toInputContent(caption = formattedCaption.takeIf { index == 0 })
         }
 
@@ -1290,7 +1293,7 @@ class TdlConversationRepository(
                 ),
             )
             // Formulář soubor nenabízí; kdyby se sem dostal, anketa odejde bez něj.
-            is OutgoingAttachment.Document -> null
+            is OutgoingAttachment.Document, is OutgoingAttachment.Audio -> null
         }
         is PollDraftMedia.Gif -> InputPollMediaAnimation(
             animation = InputAnimation(
@@ -1385,6 +1388,19 @@ class TdlConversationRepository(
                     // Soubor zůstane souborem: bez toho by TDLib z odeslaného videa nebo hudby
                     // udělal přehrávatelnou zprávu, a uživatel posílal výslovně „soubor".
                     disableContentTypeDetection = true,
+                ),
+                caption = caption,
+            )
+
+            is OutgoingAttachment.Audio -> InputMessageAudio(
+                audio = InputAudio(
+                    audio = file,
+                    albumCoverThumbnail = cover?.let {
+                        InputThumbnail(thumbnail = InputFileLocal(path = it.path), width = it.width, height = it.height)
+                    },
+                    duration = durationSeconds,
+                    title = title.orEmpty(),
+                    performer = performer.orEmpty(),
                 ),
                 caption = caption,
             )
@@ -1782,6 +1798,25 @@ class TdlConversationRepository(
         )
             .toResult()
             .map { }
+
+    override suspend fun editMedia(
+        chatId: Long,
+        messageId: Long,
+        attachment: OutgoingAttachment,
+        caption: String,
+        formats: List<FormatSpan>,
+    ): Result<Unit> {
+        val formatted = caption.takeIf { it.isNotBlank() }
+            ?.let { FormattedText(text = it, entities = detectEntities(it, formats = formats)) }
+        return client.editMessageMedia(
+            chatId = chatId,
+            messageId = messageId,
+            replyMarkup = null,
+            inputMessageContent = attachment.toInputContent(caption = formatted),
+        )
+            .toResult()
+            .map { }
+    }
 
     /** Obsah zprávy, jak ho zná lokální databáze; `null`, když ji TDLib nevydá. */
     private suspend fun currentContent(chatId: Long, messageId: Long): MessageContent? =
@@ -3265,14 +3300,12 @@ private const val MENTION_LIMIT = 20
 /** Strop stránek připnutých zpráv. Pět set připnutých v jednom chatu je víc než dost. */
 private const val MAX_PINNED_PAGES = 5
 
-/**
- * Práva na druhy obsahu z `ChatPermissions`. Bere se jen to, co aplikace umí poslat — hudba
- * by tu byla mrtvé pole.
- */
+/** Práva na druhy obsahu z `ChatPermissions`. Bere se jen to, co aplikace umí poslat. */
 private fun ChatPermissions.toContentAccess(): ContentAccess = ContentAccess(
     photos = canSendPhotos,
     videos = canSendVideos,
     documents = canSendDocuments,
+    audios = canSendAudios,
     voiceNotes = canSendVoiceNotes,
     videoNotes = canSendVideoNotes,
     stickers = canSendOtherMessages,

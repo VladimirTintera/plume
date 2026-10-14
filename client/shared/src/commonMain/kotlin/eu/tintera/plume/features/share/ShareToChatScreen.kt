@@ -949,7 +949,7 @@ private val OutgoingAttachment.previewRatio: Float?
         val (width, height) = when (this) {
             is OutgoingAttachment.Photo -> width to height
             is OutgoingAttachment.Video -> width to height
-            is OutgoingAttachment.Document -> return null
+            is OutgoingAttachment.Document, is OutgoingAttachment.Audio -> return null
         }
         return if (width > 0 && height > 0) width.toFloat() / height else null
     }
