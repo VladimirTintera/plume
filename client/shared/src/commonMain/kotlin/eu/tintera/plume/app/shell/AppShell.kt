@@ -85,7 +85,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
-import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
+import eu.tintera.plume.core.adaptive.Panes
+import eu.tintera.plume.core.adaptive.PaneInfo
+import eu.tintera.plume.core.adaptive.PaneRole
+import eu.tintera.plume.core.adaptive.THREE_PANE_MIN_WIDTH
+import eu.tintera.plume.core.adaptive.dropCoveredExtras
+import eu.tintera.plume.core.adaptive.paneInfo
+import eu.tintera.plume.core.adaptive.threePane
+import eu.tintera.plume.core.adaptive.withoutCoveredExtras
 import androidx.compose.material3.adaptive.navigation3.rememberListDetailSceneStrategy
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
@@ -143,7 +150,7 @@ import eu.tintera.plume.core.navigation.SettingsRoute
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.navigation.SettingsSectionRoute
 import eu.tintera.plume.core.navigation.TopLevelRoute
-import eu.tintera.plume.core.ui.LocalTwoPane
+import eu.tintera.plume.core.ui.LocalPanesSideBySide
 import eu.tintera.plume.core.ui.ChatContainer
 import eu.tintera.plume.app.root.presentation.theme.ChatColorTheme
 import eu.tintera.plume.core.telegram.ChatFolder
@@ -320,44 +327,77 @@ private fun ShellContent(
             (shownList as? ChatListState.Ready)?.chats?.isEmpty() == true
 
         val twoPane = wide && !nothingToPick
-        val directive = if (twoPane) base.twoPane() else base.singlePane()
+
+        /*
+         * Zavření výběru pro sdílení vrací do aplikace, ze které se sdílelo, ne do Plume.
+         * Návrat do seznamu chatů by vypadal, že se sdílený obsah ztratil — a ztratil by se,
+         * protože bez volby chatu nemá kam jít. Výběr se napřed odebere, aby příští
+         * otevření Plume začalo tam, kde bylo před sdílením.
+         */
+        val returnToCaller = rememberReturnToCaller()
+        val closeShare = {
+            chatsStack.remove(ShareRoute)
+            chatsStack.removeAll { it is ShareToChatRoute }
+            returnToCaller()
+        }
+        // Role panelu se čte z metadat položky (`Panes`), a ty zná jen poskytovatel položek.
+        // Ptá se na ni i on sám (seznam chatů: je konverzace vidět?), proto odkaz přes proměnnou.
+        lateinit var entryProvider: (NavKey) -> NavEntry<NavKey>
+        val paneOf: (NavKey) -> PaneInfo? = { entryProvider(it).paneInfo }
+        entryProvider = shellEntryProvider(
+            chatsStack = chatsStack,
+            settingsStack = settingsStack,
+            selectedSettingsSection = settingsDisplayed.filterIsInstance<SettingsSectionRoute>()
+                .lastOrNull()?.section,
+            wide = wide,
+            twoPane = twoPane,
+            paneOf = paneOf,
+            closeShare = closeShare,
+            navigation = navigation,
+        )
+
+        /*
+         * Profil ve třetím panelu patří ke konverzaci pod sebou. Otevře-li se nad ním jiná
+         * konverzace (zmínka, „Napsat zprávu" členovi skupiny, jiný chat ze seznamu), profil
+         * ze zásobníku zmizí — scéna by ho jinak nechala vedle cizího chatu (`coveredExtras`).
+         * Stejný vzor jako sekce Nastavení výš: efekt zásobník opraví, kreslí se rovnou opravený.
+         * Na telefonu ne: tam je profil pod konverzací obyčejná historie a zpět se do něj vrací.
+         */
+        val chatsDisplayed: List<NavKey> = if (wide) chatsStack.withoutCoveredExtras(paneOf) else chatsStack
+        val extrasCovered = chatsDisplayed.size != chatsStack.size
+        LaunchedEffect(extrasCovered) {
+            if (extrasCovered) chatsStack.dropCoveredExtras(paneOf)
+        }
+
+        /*
+         * Třetí panel jen tehdy, když v něm něco je: scaffold se třemi oddíly by ho rozbalil
+         * i prázdný. Rozhoduje poslední položka scény — obrazovka přes celou plochu (prohlížeč
+         * nad profilem) roli nemá a pod ní se má scéna kreslit tak, jak ji uživatel nechal.
+         * Pod THREE_PANE_MIN_WIDTH zůstanou dva oddíly a scaffold podle historie ukáže
+         * konverzaci s profilem, seznam schová.
+         */
+        val extraShown = navigation.section == ChatsRoute &&
+            chatsDisplayed.lastOrNull { paneOf(it) != null }?.let(paneOf)?.role == PaneRole.Extra
+        val directive = when {
+            !twoPane -> base.singlePane()
+            extraShown && maxWidth >= THREE_PANE_MIN_WIDTH -> base.threePane()
+            else -> base.twoPane()
+        }
 
         ShellShortcuts(navigation = navigation, chatsStack = chatsStack, twoPane = twoPane)
 
-        // Dvoupanelový stav se hlásí dolů: obrazovky podle něj poznají, že se nevyměňují,
-        // a sdílený prvek nezaloží — viz LocalTwoPane.
+        // Široká plocha se hlásí dolů: obrazovky podle ní poznají, že se nevyměňují,
+        // a sdílený prvek nezaloží — viz LocalPanesSideBySide.
         // Id Uložených zpráv pro všechno, co kreslí chat (název, záložka místo fotky).
         val savedMessagesChatId by chatRepository.savedMessagesChatId.collectAsStateWithLifecycle()
 
-        CompositionLocalProvider(LocalTwoPane provides wide, LocalSavedMessagesChatId provides savedMessagesChatId) {
-            /*
-             * Zavření výběru pro sdílení vrací do aplikace, ze které se sdílelo, ne do Plume.
-             * Návrat do seznamu chatů by vypadal, že se sdílený obsah ztratil — a ztratil by se,
-             * protože bez volby chatu nemá kam jít. Výběr se napřed odebere, aby příští
-             * otevření Plume začalo tam, kde bylo před sdílením.
-             */
-            val returnToCaller = rememberReturnToCaller()
-            val closeShare = {
-                chatsStack.remove(ShareRoute)
-                chatsStack.removeAll { it is ShareToChatRoute }
-                returnToCaller()
-            }
-            val entryProvider = shellEntryProvider(
-                chatsStack = chatsStack,
-                settingsStack = settingsStack,
-                selectedSettingsSection = settingsDisplayed.filterIsInstance<SettingsSectionRoute>()
-                    .lastOrNull()?.section,
-                wide = wide,
-                twoPane = twoPane,
-                closeShare = closeShare,
-                navigation = navigation,
-            )
+        CompositionLocalProvider(LocalPanesSideBySide provides wide, LocalSavedMessagesChatId provides savedMessagesChatId) {
             /*
              * Položky se dekorují pro KAŽDOU sekci, i tu, která není vidět. Zásobník, který se
              * zrovna nedekoruje, by pro Nav3 vypadal jako odebraný a jeho ViewModely by se zrušily.
              */
             val entriesBySection = mapOf<TopLevelRoute, List<NavEntry<NavKey>>>(
-                ChatsRoute to rememberDecoratedNavEntries(chatsStack, entryDecorators, entryProvider),
+                ChatsRoute to rememberDecoratedNavEntries(chatsDisplayed, entryDecorators, entryProvider),
                 SettingsRoute to rememberDecoratedNavEntries(settingsDisplayed, entryDecorators, entryProvider),
             )
 
@@ -436,12 +476,13 @@ private fun shellEntryProvider(
     selectedSettingsSection: SettingsSection?,
     wide: Boolean,
     twoPane: Boolean,
+    paneOf: (NavKey) -> PaneInfo?,
     closeShare: () -> Unit,
     navigation: AppNavigation,
 ): (NavKey) -> NavEntry<NavKey> = entryProvider {
 
     entry<ChatsRoute>(
-        metadata = ListDetailSceneStrategy.listPane(
+        metadata = Panes.list(
             detailPlaceholder = { ConversationPlaceholder() },
         ) + ChatListMetadata,
     ) {
@@ -449,8 +490,9 @@ private fun shellEntryProvider(
         val savedMessagesChatId = LocalSavedMessagesChatId.current
         ChatListScreen(
             viewModel = koinViewModel(),
-            // Konverzace vedle seznamu má vlastní přehrávač (dock), druhý by ho zdvojil.
-            conversationOpen = chatsStack.lastOrNull() is ConversationRoute,
+            // Konverzace vedle seznamu má vlastní přehrávač (dock), druhý by ho zdvojil. Profil
+            // ve třetím panelu ji nezakrývá, takže se nepočítá.
+            conversationOpen = chatsStack.lastOrNull { paneOf(it)?.role != PaneRole.Extra } is ConversationRoute,
             // Vybraný řádek jen vedle detailu. Na telefonu by se otevíraný řádek přebarvil
             // uprostřed růstu v konverzaci (viz ChatContainer) a nic by tím neoznačil.
             selectedChatId = chatsStack.lastOrNull { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute }
@@ -494,7 +536,7 @@ private fun shellEntryProvider(
      * konverzace hlavního seznamu; zpět odebere celou archivní větev a vrátí hlavní seznam.
      */
     entry<ArchiveRoute>(
-        metadata = ListDetailSceneStrategy.listPane(
+        metadata = Panes.list(
             ARCHIVE_SCENE,
             detailPlaceholder = { ConversationPlaceholder() },
         ) + ChatListMetadata,
@@ -522,7 +564,7 @@ private fun shellEntryProvider(
      * po výběru kontaktu se odebere a otevře se konverzace.
      */
     entry<NewChatRoute>(
-        metadata = ListDetailSceneStrategy.listPane(
+        metadata = Panes.list(
             detailPlaceholder = { ConversationPlaceholder() },
         ),
     ) {
@@ -583,7 +625,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ConversationRoute>(metadata = ListDetailSceneStrategy.detailPane() + ChatScreenMetadata) { route ->
+    entry<ConversationRoute>(metadata = Panes.detail() + ChatScreenMetadata) { route ->
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             val settings = koinInject<AppSettings>()
             ConversationScreen(
@@ -622,7 +664,7 @@ private fun shellEntryProvider(
                 // a skupina s tématy do seznamu témat (`openTarget`).
                 onOpenChat = { target -> chatsStack.openTarget(target, archive = false) },
                 onSearch = { query -> navigation.openSearch(query, keepConversation = twoPane) },
-                onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
+                onOpenProfile = { chatsStack.toggleProfile(route, ChatProfileRoute(route.chatId), sideBySide = wide) },
                 onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(chatId)) },
                 onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
                 onOpenWebApp = { request -> chatsStack.add(webAppRoute(route.chatId, request, archive = false)) },
@@ -646,7 +688,7 @@ private fun shellEntryProvider(
      * Témata Uložených zpráv stojí na místě konverzace (detail panel), jako témata skupiny;
      * téma se otevře jako konverzace nad nimi.
      */
-    entry<SavedTopicsRoute>(metadata = ListDetailSceneStrategy.detailPane() + ChatScreenMetadata) { route ->
+    entry<SavedTopicsRoute>(metadata = Panes.detail() + ChatScreenMetadata) { route ->
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             SavedTopicsScreen(
                 viewModel = koinViewModel(key = "saved-topics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
@@ -665,7 +707,7 @@ private fun shellEntryProvider(
      * Témata skupiny s tématy stojí na místě konverzace (detail panel); téma se otevře jako
      * konverzace NAD nimi, takže zpět vede do seznamu témat.
      */
-    entry<ForumTopicsRoute>(metadata = ListDetailSceneStrategy.detailPane() + ChatScreenMetadata) { route ->
+    entry<ForumTopicsRoute>(metadata = Panes.detail() + ChatScreenMetadata) { route ->
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             ForumTopicsScreen(
                 viewModel = koinViewModel(key = "forum-${route.chatId}", parameters = { parametersOf(route.chatId) }),
@@ -675,14 +717,14 @@ private fun shellEntryProvider(
                         chatsStack.add(ConversationRoute(route.chatId, topicId = topicId))
                     }
                 },
-                onOpenProfile = { chatsStack.add(ChatProfileRoute(route.chatId)) },
+                onOpenProfile = { chatsStack.toggleProfile(route, ChatProfileRoute(route.chatId), sideBySide = wide) },
                 onViewAsMessages = { chatsStack.add(ConversationRoute(route.chatId)) },
                 onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
             )
         }
     }
 
-    entry<ArchiveForumTopicsRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE) + ChatScreenMetadata) { route ->
+    entry<ArchiveForumTopicsRoute>(metadata = Panes.detail(ARCHIVE_SCENE) + ChatScreenMetadata) { route ->
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             ForumTopicsScreen(
                 viewModel = koinViewModel(key = "forum-${route.chatId}", parameters = { parametersOf(route.chatId) }),
@@ -692,22 +734,28 @@ private fun shellEntryProvider(
                         chatsStack.add(ArchiveConversationRoute(route.chatId, topicId = topicId))
                     }
                 },
-                onOpenProfile = { chatsStack.add(ArchiveChatProfileRoute(route.chatId)) },
+                onOpenProfile = { chatsStack.toggleProfile(route, ArchiveChatProfileRoute(route.chatId), sideBySide = wide) },
                 onViewAsMessages = { chatsStack.add(ArchiveConversationRoute(route.chatId)) },
                 onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
             )
         }
     }
 
-    // Profil je detail jako konverzace: na širokém rozvržení ji v pravém panelu nahradí.
-    entry<InstantViewRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
+    // Článek je detail jako konverzace: na širokém rozvržení ji v pravém panelu nahradí.
+    entry<InstantViewRoute>(metadata = Panes.detail()) { route ->
         InstantViewScreen(
             viewModel = koinViewModel(key = "instant-view-${route.url}", parameters = { parametersOf(route.url) }),
             onBack = { chatsStack.pop(route) },
         )
     }
 
-    entry<ChatProfileRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
+    /*
+     * Profil je třetí panel (extra): na velké ploše se otevře vedle seznamu a konverzace, na
+     * střední vedle konverzace (seznam se schová), na telefonu ji nahradí. Totéž obrazovky, které
+     * se z něj otevírají — jako detail by nahradily konverzaci uprostřed. Jiná konverzace
+     * otevřená nad profilem ho na široké ploše zavře (`coveredExtras` v shellu).
+     */
+    entry<ChatProfileRoute>(metadata = Panes.extra()) { route ->
         val searchRequests = koinInject<ConversationSearchRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()
         ChatColorTheme(route.chatId) {
@@ -747,12 +795,13 @@ private fun shellEntryProvider(
                     chatsStack.pop(route)
                     if (!chatsStack.isOpenConversation(route.chatId)) chatsStack.add(ConversationRoute(route.chatId, messageId))
                 },
+                closeIcon = wide,
             )
         }
     }
 
-    // Úprava se vrší nad profil a je to taky detail panel — v dvoupanelu profil vpravo nahradí.
-    entry<EditChatRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
+    // Úprava se vrší nad profil, ve třetím panelu ho nahradí.
+    entry<EditChatRoute>(metadata = Panes.extra()) { route ->
         EditChatScreen(
             viewModel = koinViewModel(key = "edit-chat-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
@@ -762,7 +811,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ArchiveEditChatRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
+    entry<ArchiveEditChatRoute>(metadata = Panes.extra(ARCHIVE_SCENE)) { route ->
         EditChatScreen(
             viewModel = koinViewModel(key = "edit-chat-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
@@ -772,29 +821,29 @@ private fun shellEntryProvider(
         )
     }
 
-    // Pozvánky a žádosti se vrší nad úpravu, taky jako detail panel.
-    entry<InviteLinksRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
+    // Pozvánky a žádosti se vrší nad úpravu, taky ve třetím panelu.
+    entry<InviteLinksRoute>(metadata = Panes.extra()) { route ->
         InviteLinksScreen(
             viewModel = koinViewModel(key = "invite-links-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
         )
     }
 
-    entry<ArchiveInviteLinksRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
+    entry<ArchiveInviteLinksRoute>(metadata = Panes.extra(ARCHIVE_SCENE)) { route ->
         InviteLinksScreen(
             viewModel = koinViewModel(key = "invite-links-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
         )
     }
 
-    entry<JoinRequestsRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
+    entry<JoinRequestsRoute>(metadata = Panes.extra()) { route ->
         JoinRequestsScreen(
             viewModel = koinViewModel(key = "join-requests-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
         )
     }
 
-    entry<ArchiveJoinRequestsRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
+    entry<ArchiveJoinRequestsRoute>(metadata = Panes.extra(ARCHIVE_SCENE)) { route ->
         JoinRequestsScreen(
             viewModel = koinViewModel(key = "join-requests-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
@@ -802,11 +851,11 @@ private fun shellEntryProvider(
     }
 
     /*
-     * Práva člena se vrší nad profil stejně jako úprava skupiny — je to detail panel, takže
-     * v dvoupanelu profil vpravo nahradí. Klíč nese i `userId` a druh práv: ViewModel se cachuje
+     * Práva člena se vrší nad profil stejně jako úprava skupiny a ve třetím panelu ho
+     * nahradí. Klíč nese i `userId` a druh práv: ViewModel se cachuje
      * podle klíče a Koin u cachované instance ignoruje nové parametry.
      */
-    entry<MemberRightsRoute>(metadata = ListDetailSceneStrategy.detailPane()) { route ->
+    entry<MemberRightsRoute>(metadata = Panes.extra()) { route ->
         MemberRightsScreen(
             viewModel = koinViewModel(
                 key = "member-rights-${route.chatId}-${route.userId}-${route.admin}",
@@ -816,7 +865,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ArchiveMemberRightsRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
+    entry<ArchiveMemberRightsRoute>(metadata = Panes.extra(ARCHIVE_SCENE)) { route ->
         MemberRightsScreen(
             viewModel = koinViewModel(
                 key = "member-rights-${route.chatId}-${route.userId}-${route.admin}",
@@ -826,7 +875,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ArchiveConversationRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE) + ChatScreenMetadata) { route ->
+    entry<ArchiveConversationRoute>(metadata = Panes.detail(ARCHIVE_SCENE) + ChatScreenMetadata) { route ->
         ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
             ConversationScreen(
                 viewModel = koinViewModel(
@@ -855,7 +904,7 @@ private fun shellEntryProvider(
                 },
                 onOpenChat = { target -> chatsStack.openTarget(target, archive = true) },
                 onSearch = { query -> navigation.openSearch(query, keepConversation = false) },
-                onOpenProfile = { chatsStack.add(ArchiveChatProfileRoute(route.chatId)) },
+                onOpenProfile = { chatsStack.toggleProfile(route, ArchiveChatProfileRoute(route.chatId), sideBySide = wide) },
                 onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(chatId)) },
                 onUnarchived = { chatsStack.moveConversationToMain(route.chatId) },
                 onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
@@ -871,7 +920,7 @@ private fun shellEntryProvider(
         }
     }
 
-    entry<ArchiveChatProfileRoute>(metadata = ListDetailSceneStrategy.detailPane(ARCHIVE_SCENE)) { route ->
+    entry<ArchiveChatProfileRoute>(metadata = Panes.extra(ARCHIVE_SCENE)) { route ->
         val searchRequests = koinInject<ConversationSearchRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()
         ChatColorTheme(route.chatId) {
@@ -916,6 +965,7 @@ private fun shellEntryProvider(
                         chatsStack.add(ArchiveConversationRoute(route.chatId, messageId))
                     }
                 },
+                closeIcon = wide,
             )
         }
     }
@@ -1146,7 +1196,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<SettingsRoute>(metadata = ListDetailSceneStrategy.listPane(SETTINGS_SCENE)) {
+    entry<SettingsRoute>(metadata = Panes.list(SETTINGS_SCENE)) {
         SettingsScreen(
             selectedSection = selectedSettingsSection,
             // Otevření jiné sekce ji NAHRADÍ, nevrší se zásobník — stejně jako
@@ -1167,7 +1217,7 @@ private fun shellEntryProvider(
     }
 
     entry<SettingsSectionRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         // V dvoupanelu je seznam sekcí pořád vidět vedle, takže šipka zpět nemá
         // kam vést; na telefonu je sekce samostatná obrazovka a zpět se z ní chodí.
@@ -1193,7 +1243,7 @@ private fun shellEntryProvider(
 
     // Soukromí účtu nad sekcí Obecné, jedno nastavení s výjimkami nad ním.
     entry<AccountPrivacyRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         AccountPrivacyScreen(
             viewModel = koinViewModel(),
@@ -1204,13 +1254,13 @@ private fun shellEntryProvider(
     }
 
     entry<DeleteAccountRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         DeleteAccountScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     entry<PrivacySettingRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         PrivacySettingScreen(
             viewModel = koinViewModel(key = "privacy-${route.setting}", parameters = { parametersOf(route.setting) }),
@@ -1219,14 +1269,14 @@ private fun shellEntryProvider(
     }
 
     entry<ProxySettingsRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         ProxySettingsScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Složky chatů nad sekcí Obecné, jako seznam blokovaných; editor složky nad nimi.
     entry<ChatFoldersRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         ChatFoldersScreen(
             viewModel = koinViewModel(),
@@ -1237,7 +1287,7 @@ private fun shellEntryProvider(
 
     // Sady samolepek nad sekcí Obecné, jako složky chatů.
     entry<StickerSetsRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         StickerSetsScreen(
             kind = StickerSetKind.Stickers,
@@ -1248,7 +1298,7 @@ private fun shellEntryProvider(
 
     // Sady vlastních emoji: táž obrazovka, jiný seznam.
     entry<EmojiSetsRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         StickerSetsScreen(
             kind = StickerSetKind.Emoji,
@@ -1258,7 +1308,7 @@ private fun shellEntryProvider(
     }
 
     entry<ChatFolderEditRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         ChatFolderEditScreen(
             viewModel = koinViewModel(key = "chat-folder-${route.folderId}", parameters = { parametersOf(route.folderId) }),
@@ -1268,7 +1318,7 @@ private fun shellEntryProvider(
 
     // Seznam blokovaných nad sekcí Obecné, jako úprava profilu.
     entry<BlockedSendersRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         BlockedSendersScreen(
             viewModel = koinViewModel(),
@@ -1279,42 +1329,42 @@ private fun shellEntryProvider(
 
     // Dvoufázové ověření nad sekcí Obecné, jako seznam blokovaných.
     entry<TwoStepRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         TwoStepScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Přihlašovací e-mail nad sekcí Obecné, jako dvoufázové ověření.
     entry<LoginEmailRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         LoginEmailScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Přenesená data nad sekcí Úložiště.
     entry<NetworkUsageRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         NetworkUsageScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Přístupové klíče nad sekcí Obecné, jako dvoufázové ověření.
     entry<PasskeysRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         PasskeysScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Zámek aplikace nad sekcí Obecné, jako dvoufázové ověření.
     entry<AppLockRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         AppLockScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Výběr k zablokování nad seznamem blokovaných; po zablokování se vrací do něj.
     entry<BlockSenderRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         BlockSenderScreen(
             viewModel = koinViewModel(),
@@ -1324,7 +1374,7 @@ private fun shellEntryProvider(
 
     // Úprava profilu nad sekcí Obecné; šipka zpět je i v dvoupanelu, vede zpátky do sekce.
     entry<EditProfileRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         EditProfileScreen(
             viewModel = koinViewModel(),
@@ -1337,7 +1387,7 @@ private fun shellEntryProvider(
 
     // Změna čísla nad úpravou profilu.
     entry<ChangePhoneRoute>(
-        metadata = ListDetailSceneStrategy.detailPane(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE),
     ) { route ->
         ChangePhoneScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }

@@ -196,29 +196,53 @@ kde zpět řídí stránka.
 
 ### Šířkové třídy, tři panely a kotvy
 
-Stav k říjnu 2026; plán, co s tím, je v `docs/roadmap.md`, „Velká plocha".
+Co zbývá (táhlo, kotvy, vzhled panelů), je v `docs/roadmap.md`, „Velká plocha".
 
-- **Šířkové třídy M3 se nepoužívají.** Jediný práh je vlastní `TWO_PANE_MIN_WIDTH = 720.dp`
-  (`core/adaptive/PaneDirective.kt`): pod ním jeden panel, nad ním vždycky dva, a výsledek
-  `calculatePaneScaffoldDirective` se přebije `singlePane()` / `twoPane()`. Na jiné šířce
-  nezávisí nic dalšího.
-- **Velikostní třída se počítá z `BREAKPOINTS_V1`**, které znají jen Compact (< 600 dp),
-  Medium (600–839) a Expanded (≥ 840). Large (≥ 1200) a Extra-large (≥ 1600) jsou až
-  v `BREAKPOINTS_V2`; s V1 je pro knihovnu i 2000 dp široké okno jen Expanded.
-- **Co dělá `calculatePaneScaffoldDirective` (adaptive 1.3.0-beta02, ověřeno v bajtkódu
-  přes `javap -c`):** Compact a Medium 1 panel, Expanded 2 panely s mezerou 24 dp, od Large
-  3 panely (na XL s širší výchozí šířkou panelu, `DefaultPreferredWidthXL`). Na Medium dá dva
-  panely varianta `calculatePaneScaffoldDirectiveWithTwoPanesOnMediumWidth`.
-- **Co umí `adaptive-navigation3`, a projekt nepoužívá:** metadata
-  `ListDetailSceneStrategy.extraPane()` (třetí panel), `preferredPaneSize()` (šířka panelu),
-  `paneAnimation()`; `rememberListDetailSceneStrategy` bere `paneExpansionState`
-  a `paneExpansionDragHandle` — táhlo mezi panely s kotvami `PaneExpansionAnchor.Offset`
-  / `Proportion`. Je tam i `SupportingPaneSceneStrategy`.
-- **Profil a obrazovky z něj jsou `detailPane()`**, takže na široké ploše nahradí konverzaci,
-  místo aby se otevřely vedle ní.
-- **Práh 720 dp má rozumný základ**, i když není standardní: seznam 360 dp (výchozí šířka
-  panelu) + nejužší použitelná konverzace 360 dp, a vnitřní displej Foldu (Medium) tak dostane
+- **Počet panelů určuje shell, ne knihovna** (`core/adaptive/PaneDirective.kt`): pod
+  `TWO_PANE_MIN_WIDTH` (720 dp) jeden, nad ním dva, od `THREE_PANE_MIN_WIDTH` (Large,
+  1200 dp) tři — ale jen s profilem navrchu. Výsledek `calculatePaneScaffoldDirective` se
+  přebije `singlePane()` / `twoPane()` / `threePane()`; z knihovny zůstávají výchozí šířka
+  panelu a pant.
+- **Práh 720 dp není standardní, ale má základ**: seznam (`LIST_PANE_WIDTH`, 360 dp) + nejužší
+  konverzace (`MIN_CONVERSATION_WIDTH`, 360 dp), a vnitřní displej Foldu (Medium) tak dostane
   dva panely. Standardní dvoupanel na Medium (od 600 dp) by konverzaci nechal 240 dp.
+- **Velikostní třída se počítá z `BREAKPOINTS_V2`.** V1 zná jen Compact, Medium a Expanded,
+  takže i okno přes dva monitory bylo pro knihovnu Expanded. S V2 dává XL (≥ 1600 dp) širší
+  výchozí panel — 412 dp místo 360 (`DefaultPreferredWidthXL`).
+- **Profil a obrazovky z něj jsou `Panes.extra()`** (úprava, pozvánky, žádosti, práva člena,
+  i archivní varianty). Na Large stojí seznam | konverzace | profil, pod Large scaffold podle
+  historie ukáže konverzaci a profil a seznam schová, na telefonu profil konverzaci nahradí.
+- **Metadata panelů jdou přes `Panes`, ne přímo přes `ListDetailSceneStrategy`.** Knihovna má
+  klíč i hodnoty rolí `internal`, takže by se z položky nedalo zjistit, do kterého panelu patří.
+  `Panes` k nim přidá vlastní `PaneInfo` (role a scéna); shell podle něj srovnává zásobník
+  a volí počet panelů.
+
+Chování knihovny (`adaptive-navigation3` a `adaptive-layout` 1.3.0-beta02, přečteno ze
+zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaffoldValue.kt`,
+`ThreePaneScaffold.kt`):
+
+- **Scéna kreslí do každého panelu POSLEDNÍ položku té role** (`findLast`). Víc položek
+  `extraPane` nad sebou je tedy v pořádku: profil → úprava skupiny ukáže úpravu na místě profilu
+  a zpět (`PopUntilContentChange`) vrátí profil.
+- **Proto profil zůstane viset, když se nad něj otevře jiná konverzace** — poslední detail je
+  nová konverzace, poslední extra pořád starý profil. Na široké ploše se takový „zakrytý" extra
+  ze zásobníku odebere (`coveredExtras`, testy `CoveredExtrasTest`): kreslí se rovnou zásobník
+  bez něj a efekt pak opraví i skutečný, jako u sekce Nastavení. Na telefonu je to obyčejná
+  historie a zpět se do profilu vrací.
+- **Scaffold se třemi oddíly rozbalí třetí panel i PRÁZDNÝ** (`tertiaryPane ?: {}`;
+  `calculateThreePaneScaffoldValue` prochází po historii ještě všechny tři role podle priority).
+  Bez profilu by tak vpravo zůstal prázdný sloupec — třetí oddíl se proto zapíná, jen když je
+  navrchu scény extra položka. Prohlížeč nad profilem roli nemá a přeskakuje se, aby se pod ním
+  scéna kreslila tak, jak zůstala.
+- **Zpět gestem z profilu na Large nezobrazí během tahu, jak se třetí panel zavírá**: předchozí
+  stav scaffoldu se počítá s TOUTÉŽ direktivou (tři oddíly), takže v něm třetí panel pořád je;
+  zavře se animací až po dokončení gesta, kdy shell přepne na dva oddíly.
+- **Táhlo (`paneExpansionDragHandle`) funguje jen mezi DVĚMA rozbalenými panely**
+  (`expandedPanes.size == 2` v měření; `paneExpansionStateKey` je pro tři panely `Default`).
+  Ve třech panelech rozhodují šířky z `preferredPaneSize`: zbytek dostane panel s nejvyšší
+  prioritou (detail, tedy konverzace), a když se nevejdou, zmenší se poměrně všechny.
+- **Sdílené prvky a container transform** vypíná `LocalPanesSideBySide` (dřív `LocalTwoPane`)
+  i pro třetí panel — avatar by letěl z hlavičky konverzace, která zůstává vidět.
 
 ### Zásobník pro každou sekci
 

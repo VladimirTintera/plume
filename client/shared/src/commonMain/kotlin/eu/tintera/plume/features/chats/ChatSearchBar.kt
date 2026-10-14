@@ -84,7 +84,7 @@ import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.AppBarWithSearch
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.ExpandedFullScreenSearchBar
-import eu.tintera.plume.core.ui.LocalTwoPane
+import eu.tintera.plume.core.ui.LocalPanesSideBySide
 import eu.tintera.plume.core.ui.PopupBackAfterKeyboard
 import eu.tintera.plume.core.ui.popupDismissesOnBack
 import androidx.compose.foundation.layout.ColumnScope
@@ -373,7 +373,7 @@ internal fun ChatSearchBar(
      * i otevřenou konverzaci vpravo — a výsledky by se natáhly přes celý rozložený Fold.
      * Material doporučuje přesně tohle: docked na střední a velké šířce, full screen na telefonu.
      */
-    if (LocalTwoPane.current) {
+    if (LocalPanesSideBySide.current) {
         /*
          * Zpět má napřed schovat klávesnici, teprve další zpět hledání zavřít — jako na telefonu.
          * Panel je popup a ten si na Androidu 13+ bere zpět PŘED klávesnicí: zavřel hledání

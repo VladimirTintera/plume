@@ -65,7 +65,7 @@ private val NoChatContainerSource = ChatContainerSource(Modifier, Modifier)
 @Composable
 fun rememberChatContainerSource(chatId: Long): ChatContainerSource {
     val shared = LocalSharedTransitionScope.current ?: return NoChatContainerSource
-    if (LocalTwoPane.current) return NoChatContainerSource
+    if (LocalPanesSideBySide.current) return NoChatContainerSource
     val scope = LocalNavAnimatedContentScope.current
     val state = with(shared) { rememberSharedContentState(key = chatContainerKey(chatId)) }
     val contentAlpha = scope.transition.animateFloat(
@@ -110,7 +110,7 @@ fun rememberChatContainerSource(chatId: Long): ChatContainerSource {
 @Composable
 fun ChatContainer(chatId: Long, fromList: Boolean, content: @Composable () -> Unit) {
     val shared = LocalSharedTransitionScope.current
-    if (shared == null || !fromList || LocalTwoPane.current) {
+    if (shared == null || !fromList || LocalPanesSideBySide.current) {
         content()
         return
     }

@@ -207,6 +207,8 @@ import eu.tintera.plume.resources.profile_open_app
 import eu.tintera.plume.resources.apps_24dp
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.common_back
+import eu.tintera.plume.resources.common_close
+import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.invite_members
 import eu.tintera.plume.resources.invite_subscribers
 import eu.tintera.plume.resources.notifications_24dp
@@ -268,6 +270,11 @@ fun ChatProfileScreen(
     onOpenMainWebApp: () -> Unit = {},
     /** Záložka: zavřít profil a skočit v konverzaci na zprávu. */
     onOpenMessage: (messageId: Long) -> Unit = {},
+    /**
+     * ✕ místo šipky zpět: profil stojí jako panel vedle konverzace, takže se zavírá, ne vrací.
+     * Obrazovky otevřené z profilu (úprava, práva člena) šipku zpět mají — vedou zpátky do něj.
+     */
+    closeIcon: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -367,7 +374,11 @@ fun ChatProfileScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        if (closeIcon) {
+                            Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+                        } else {
+                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                        }
                     }
                 },
                 actions = {

@@ -19,7 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
-import eu.tintera.plume.core.ui.LocalTwoPane
+import eu.tintera.plume.core.ui.LocalPanesSideBySide
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.common_back
@@ -40,7 +40,7 @@ import org.jetbrains.compose.resources.stringResource
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun settingsScrollBehavior(): TopAppBarScrollBehavior? =
-    if (LocalTwoPane.current) null else TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    if (LocalPanesSideBySide.current) null else TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
 /** Obal Scaffoldu, přes který se scroll obsahu dostane k hlavičce. */
 @OptIn(ExperimentalMaterial3Api::class)

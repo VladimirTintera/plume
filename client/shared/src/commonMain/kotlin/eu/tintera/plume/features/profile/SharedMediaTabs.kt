@@ -234,7 +234,7 @@ private fun MediaTile(message: ChatMessage, media: MessageMedia, shape: Shape, o
             // Prohlížeč z dlaždice vyroste a při zavření se do ní vrátí. Klíč je JINÝ než
             // u bubliny v konverzaci (`LocalSharedMediaFlight`): při otevření profilu a návratu
             // z něj jsou obě strany složené naráz a se společným klíčem se spárovaly mezi sebou.
-            .sharedNavElement(photoKey(message.id), shape = shape, inTwoPane = true)
+            .sharedNavElement(photoKey(message.id), shape = shape, besidePanes = true)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             .clickable(onClick = { if (hidden) revealedSpoilers.reveal(message.id) else onOpen() }),
     ) {
