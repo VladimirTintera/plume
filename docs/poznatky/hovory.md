@@ -519,11 +519,24 @@ s fajfkou), jen s jmény zařízení.
   Přepínač „Reproduktor" zůstává jen pro dvojici sluchátko telefonu ↔ reproduktor bez jmen,
   tedy Android bez soupravy. Android jména jinde než u Bluetooth nedává, takže se tam nic
   nemění.
-- **Seznam se čte s vytočením / přijetím**: sluchátka připojená až za hovoru v nabídce
-  nebudou. Mikrofon se nevybírá, je to výchozí vstup systému.
+- **Změny zařízení za hovoru sleduje CoreAudio** (`AudioObjectAddPropertyListenerBlock` na
+  `kAudioHardwarePropertyDevices` a `…DefaultOutputDevice`, od vytočení / přijetí do konce
+  hovoru). Při každé změně se seznam přečte znovu a nahlásí:
+  - **nic zvoleného** → hraje výchozí výstup systému, i když se změní. macOS po připojení
+    sluchátek přepne výchozí výstup na ně a hovor jde s ním, jako na Androidu. Zvuk se
+    přesouvá přenastavením PLAYBACK na `uid` nového výchozího zařízení: s prázdným `uid`
+    by knihovna zůstala na zařízení, na kterém AudioQueue otevřela.
+  - **zvolené zařízení zmizelo** (odpojená sluchátka) → zpátky na výchozí výstup systému.
+  - **zvolené zařízení zůstalo** → hraje dál, i když se výchozí výstup změní.
+  Jedna změna přijde jako několik hlášení po sobě. Přepnutí se ale dělá jen tehdy, když
+  se cílové zařízení liší od toho, na kterém přehrávání běží (`playback`).
+- Mikrofon se nevybírá, je to výchozí vstup systému.
 - **Ověřeno na macOS 26 s Pixel Buds Pro 2** (hovor s Pixelem 5): nabídka „Reproduktory
   MacBook Pro" / „Pixel Buds Pro 2", přepnutí tam i zpět poslechem (uživatel). S jediným
-  výstupem se tlačítko nekreslí.
+  výstupem se tlačítko nekreslí. Za hovoru (poslechem potvrdil uživatel):
+  - připojení Buds přesunulo zvuk do nich a tlačítko se objevilo;
+  - jejich odpojení vrátilo zvuk do reproduktorů a tlačítko zmizelo;
+  - ručně zvolené Buds po odpojení spadly zpět na reproduktory.
 
 ### Video na desktopu
 

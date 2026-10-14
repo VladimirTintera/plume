@@ -3,18 +3,49 @@ package eu.tintera.plume.core.calls
 import eu.tintera.plume.core.platform.MacNative
 
 /**
- * JNI most k CoreAudio (`jvmMain/objc/PlumeAudio.m`): typ připojení zvukového zařízení
- * a výchozí výstup systému. Seznam zařízení dává ntgcalls (`ntg_get_media_devices`).
+ * JNI most k CoreAudio (`jvmMain/objc/PlumeAudio.m`): typ připojení zvukového zařízení,
+ * výchozí výstup systému a sledování změn zařízení. Seznam zařízení dává ntgcalls
+ * (`ntg_get_media_devices`).
  */
 internal object MacAudio {
 
-    val available: Boolean get() = MacNative.loaded
+    val available: Boolean by lazy { MacNative.loaded && runCatching { nativeInit() }.getOrDefault(false) }
+
+    @Volatile
+    private var onChange: (() -> Unit)? = null
+
+    /**
+     * Hlásí změny zařízení (připojení, odpojení, jiný výchozí výstup) z vlákna CoreAudio,
+     * dokud se nezavolá [unwatch]. Jedna změna často přijde jako několik hlášení po sobě.
+     */
+    fun watch(listener: () -> Unit) {
+        if (!available) return
+        onChange = listener
+        nativeWatch(true)
+    }
+
+    fun unwatch() {
+        if (!available) return
+        nativeWatch(false)
+        onChange = null
+    }
+
+    @JvmStatic
+    fun onDevicesChanged() {
+        onChange?.invoke()
+    }
 
     /** Typ připojení zařízení s [uid] (`kAudioDeviceTransportType…`), 0 = nevíme. */
     fun transportType(uid: String): Int = if (available) runCatching { nativeTransportType(uid) }.getOrDefault(0) else 0
 
     /** UID výchozího výstupu systému. */
     fun defaultOutputUid(): String? = if (available) runCatching { nativeDefaultOutputUid() }.getOrNull() else null
+
+    @JvmStatic
+    private external fun nativeInit(): Boolean
+
+    @JvmStatic
+    private external fun nativeWatch(on: Boolean)
 
     @JvmStatic
     private external fun nativeTransportType(uid: String): Int
