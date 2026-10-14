@@ -96,6 +96,7 @@ import eu.tintera.plume.core.adaptive.PaneCard
 import eu.tintera.plume.core.adaptive.PaneNeighbours
 import eu.tintera.plume.core.adaptive.listWidthBesideProfile
 import eu.tintera.plume.core.adaptive.rememberPaneCardDecorator
+import eu.tintera.plume.core.adaptive.rememberWithLeavingExtras
 import eu.tintera.plume.core.adaptive.LocalExpandListPane
 import eu.tintera.plume.core.adaptive.PaneInfo
 import eu.tintera.plume.core.adaptive.PaneRole
@@ -393,10 +394,11 @@ private fun ShellContent(
          * i prázdný. Rozhoduje poslední položka scény — obrazovka přes celou plochu (prohlížeč
          * nad profilem) roli nemá a pod ní se má scéna kreslit tak, jak ji uživatel nechal.
          * Pod THREE_PANE_MIN_WIDTH zůstanou dva oddíly a scaffold podle historie ukáže
-         * konverzaci s profilem, seznam schová.
+         * konverzaci s profilem (sekci s podstránkou), seznam schová. Platí pro zásobník
+         * vybrané sekce aplikace: v Chatech profil, v Nastavení podstránka sekce.
          */
-        val extraShown = navigation.section == ChatsRoute &&
-            chatsDisplayed.lastOrNull { paneOf(it) != null }?.let(paneOf)?.role == PaneRole.Extra
+        val shownStack = if (navigation.section == SettingsRoute) settingsDisplayed else chatsDisplayed
+        val extraShown = shownStack.lastOrNull { paneOf(it) != null }?.let(paneOf)?.role == PaneRole.Extra
         val threePane = twoPane && extraShown && maxWidth >= THREE_PANE_MIN_WIDTH
         val directive = when {
             !twoPane -> base.singlePane()
@@ -425,10 +427,9 @@ private fun ShellContent(
         /*
          * Co stojí vedle karty (`PaneCard`): seznam vlevo, profil vpravo. Pod THREE_PANE_MIN_WIDTH
          * profil seznam vytlačí a karta začíná u kraje okna. Bere se zásobník sekce, která je
-         * vidět — Nastavení mají vlastní.
+         * vidět — Nastavení mají vlastní (podstránka sekce je tam třetí panel).
          */
-        val shownStack = if (navigation.section == ChatsRoute) chatsDisplayed else settingsDisplayed
-        val extraBeside = twoPane && shownStack.lastOrNull { paneOf(it) != null }?.let(paneOf)?.role == PaneRole.Extra
+        val extraBeside = twoPane && extraShown
         val paneNeighbours = PaneNeighbours(
             listBeside = twoPane && (!extraBeside || threePane),
             extraBeside = extraBeside,
@@ -459,14 +460,23 @@ private fun ShellContent(
              * ta si je pamatuje jen podle klíčů, a šířka seznamu ve třech panelech je v jeho
              * METADATECH — po změně kotvy by zůstala stará.
              */
-            val chatsEntries = remember(chatsDisplayed.toList(), listPaneWidth) { chatsDisplayed.map(entryProvider) }
+            /*
+             * Zavřený třetí panel (profil, podstránka Nastavení) ještě chvíli ve scéně, ať odjede
+             * animací, místo aby problikl — viz `rememberWithLeavingExtras`. Jen pro kreslení
+             * a jen s panely vedle sebe: na telefonu je to celá obrazovka s vlastním přechodem.
+             */
+            val chatsWithLeaving = rememberWithLeavingExtras(chatsDisplayed, paneOf)
+            val settingsWithLeaving = rememberWithLeavingExtras(settingsDisplayed, paneOf)
+            val chatsDrawn = if (twoPane) chatsWithLeaving else chatsDisplayed
+            val settingsDrawn = if (twoPane) settingsWithLeaving else settingsDisplayed
+            val chatsEntries = remember(chatsDrawn.toList(), listPaneWidth) { chatsDrawn.map(entryProvider) }
             /*
              * Položky se dekorují pro KAŽDOU sekci, i tu, která není vidět. Zásobník, který se
              * zrovna nedekoruje, by pro Nav3 vypadal jako odebraný a jeho ViewModely by se zrušily.
              */
             val entriesBySection = mapOf<TopLevelRoute, List<NavEntry<NavKey>>>(
                 ChatsRoute to rememberDecoratedNavEntries(chatsEntries, decorators),
-                SettingsRoute to rememberDecoratedNavEntries(settingsDisplayed, decorators, entryProvider),
+                SettingsRoute to rememberDecoratedNavEntries(settingsDrawn, decorators, entryProvider),
             )
 
             val transitions = rememberNavTransitions(chatContainer = !wide)
@@ -1291,6 +1301,13 @@ private fun shellEntryProvider(
         )
     }
 
+    /*
+     * Nastavení jako chaty s profilem: seznam | sekce (detail) | podstránka sekce (extra). Od
+     * Large tři panely, pod ním sekce s podstránkou a seznam se schová, na telefonu po jedné
+     * obrazovce. Podstránky se vrší nad sebou ve třetím panelu (Soukromí účtu → jedno
+     * nastavení) a zpět vede po nich. Úprava profilu je detail — stojí na místě sekce, protože
+     * se otevírá z karty v seznamu; změna čísla nad ní je zase podstránka.
+     */
     entry<SettingsSectionRoute>(
         metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
@@ -1317,7 +1334,7 @@ private fun shellEntryProvider(
 
     // Soukromí účtu nad sekcí Soukromí, jedno nastavení s výjimkami nad ním.
     entry<AccountPrivacyRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         AccountPrivacyScreen(
             viewModel = koinViewModel(),
@@ -1328,13 +1345,13 @@ private fun shellEntryProvider(
     }
 
     entry<DeleteAccountRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         DeleteAccountScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     entry<PrivacySettingRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         PrivacySettingScreen(
             viewModel = koinViewModel(key = "privacy-${route.setting}", parameters = { parametersOf(route.setting) }),
@@ -1343,14 +1360,14 @@ private fun shellEntryProvider(
     }
 
     entry<ProxySettingsRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         ProxySettingsScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Složky chatů nad sekcí Chaty; editor složky nad nimi.
     entry<ChatFoldersRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         ChatFoldersScreen(
             viewModel = koinViewModel(),
@@ -1361,7 +1378,7 @@ private fun shellEntryProvider(
 
     // Sady samolepek nad sekcí Chaty, jako složky chatů.
     entry<StickerSetsRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         StickerSetsScreen(
             kind = StickerSetKind.Stickers,
@@ -1372,7 +1389,7 @@ private fun shellEntryProvider(
 
     // Sady vlastních emoji: táž obrazovka, jiný seznam.
     entry<EmojiSetsRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         StickerSetsScreen(
             kind = StickerSetKind.Emoji,
@@ -1382,7 +1399,7 @@ private fun shellEntryProvider(
     }
 
     entry<ChatFolderEditRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         ChatFolderEditScreen(
             viewModel = koinViewModel(key = "chat-folder-${route.folderId}", parameters = { parametersOf(route.folderId) }),
@@ -1392,7 +1409,7 @@ private fun shellEntryProvider(
 
     // Seznam blokovaných nad sekcí Soukromí.
     entry<BlockedSendersRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         BlockedSendersScreen(
             viewModel = koinViewModel(),
@@ -1403,42 +1420,42 @@ private fun shellEntryProvider(
 
     // Dvoufázové ověření nad sekcí Soukromí, jako seznam blokovaných.
     entry<TwoStepRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         TwoStepScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Přihlašovací e-mail nad sekcí Soukromí, jako dvoufázové ověření.
     entry<LoginEmailRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         LoginEmailScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Přenesená data nad sekcí Úložiště.
     entry<NetworkUsageRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         NetworkUsageScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Přístupové klíče nad sekcí Soukromí, jako dvoufázové ověření.
     entry<PasskeysRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         PasskeysScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Zámek aplikace nad sekcí Soukromí, jako dvoufázové ověření.
     entry<AppLockRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         AppLockScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Výběr k zablokování nad seznamem blokovaných; po zablokování se vrací do něj.
     entry<BlockSenderRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         BlockSenderScreen(
             viewModel = koinViewModel(),
@@ -1462,7 +1479,7 @@ private fun shellEntryProvider(
 
     // Změna čísla nad úpravou profilu.
     entry<ChangePhoneRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
+        metadata = Panes.extra(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         ChangePhoneScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
