@@ -249,6 +249,12 @@ interface ChatRepository {
     suspend fun setPinned(chatId: Long, folder: ChatFolder, pinned: Boolean): Result<Unit>
 
     /**
+     * Označí jako přečtené všechny chaty složky (`readChatList`): zprávy, zmínky i reakce. Nové
+     * počty přijdou updaty, nic se nepřepisuje lokálně.
+     */
+    suspend fun readAll(folder: ChatFolder): Result<Unit>
+
+    /**
      * Nové pořadí připnutých chatů ve složce, jedním voláním (`setPinnedChats`).
      *
      * **[chatIds] musí být VŠECHNY připnuté chaty složky**: TDLib bere seznam jako nový stav
