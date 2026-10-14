@@ -16,6 +16,13 @@ static jmethodID plumeOnActivated;
 
 static NSString *const KEY_CHAT_ID = @"chatId";
 static NSString *const KEY_TOPIC_ID = @"topicId";
+static NSString *const KEY_CALL_ID = @"callId";
+
+// Kategorie oznámení příchozího hovoru a její tlačítka; identifikátory tlačítek zná i Kotlin
+// (MacNotificationCenter.ACTION_*).
+static NSString *const CATEGORY_CALL = @"call";
+static NSString *const ACTION_ANSWER = @"answer";
+static NSString *const ACTION_DECLINE = @"decline";
 
 static BOOL plumeAvailable(void) {
     return [[[[NSBundle mainBundle] bundleURL] pathExtension] isEqualToString:@"app"];
@@ -44,12 +51,17 @@ static NSString *plumeString(JNIEnv *env, jstring value) {
 }
 
 // Klik na notifikaci: systém aplikaci aktivuje sám, Kotlin otevře chat a vytáhne okno.
+// Tlačítko hovoru přijde jako jeho identifikátor; Přijmout aplikaci aktivuje (volba
+// Foreground), Odmítnout běží na pozadí.
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center
 didReceiveNotificationResponse:(UNNotificationResponse *)response
          withCompletionHandler:(void (^)(void))completionHandler {
     NSDictionary *info = response.notification.request.content.userInfo;
     NSNumber *chatId = info[KEY_CHAT_ID];
     NSNumber *topicId = info[KEY_TOPIC_ID];
+    NSNumber *callId = info[KEY_CALL_ID];
+    NSString *action = response.actionIdentifier;
+    BOOL button = [action isEqualToString:ACTION_ANSWER] || [action isEqualToString:ACTION_DECLINE];
     if (chatId != nil && plumeVm != NULL) {
         JNIEnv *env = NULL;
         BOOL attached = NO;
@@ -57,8 +69,11 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
             (*plumeVm)->AttachCurrentThreadAsDaemon(plumeVm, (void **)&env, NULL);
             attached = YES;
         }
+        jstring jaction = button ? (*env)->NewStringUTF(env, action.UTF8String) : NULL;
         (*env)->CallStaticVoidMethod(env, plumeClass, plumeOnActivated,
-                                     (jlong)chatId.longLongValue, (jint)(topicId != nil ? topicId.intValue : 0));
+                                     (jlong)chatId.longLongValue, (jint)(topicId != nil ? topicId.intValue : 0),
+                                     jaction, (jint)(callId != nil ? callId.intValue : 0));
+        if (jaction != NULL) (*env)->DeleteLocalRef(env, jaction);
         if ((*env)->ExceptionCheck(env)) (*env)->ExceptionClear(env);
         if (attached) (*plumeVm)->DetachCurrentThread(plumeVm);
     }
@@ -74,7 +89,7 @@ Java_eu_tintera_plume_core_notifications_MacNotificationCenter_nativeInit(JNIEnv
     if (!plumeAvailable()) return JNI_FALSE;
     (*env)->GetJavaVM(env, &plumeVm);
     plumeClass = (*env)->NewGlobalRef(env, cls);
-    plumeOnActivated = (*env)->GetStaticMethodID(env, cls, "onActivated", "(JI)V");
+    plumeOnActivated = (*env)->GetStaticMethodID(env, cls, "onActivated", "(JILjava/lang/String;I)V");
     if (plumeOnActivated == NULL) return JNI_FALSE;
     plumeDelegate = [PlumeNotificationDelegate new];
     UNUserNotificationCenter.currentNotificationCenter.delegate = plumeDelegate;
@@ -125,7 +140,7 @@ Java_eu_tintera_plume_core_notifications_MacNotificationCenter_nativeRequestAuth
 JNIEXPORT void JNICALL
 Java_eu_tintera_plume_core_notifications_MacNotificationCenter_nativeShow(
     JNIEnv *env, jclass cls, jstring identifier, jstring thread, jstring title, jstring subtitle,
-    jstring body, jlong chatId, jint topicId, jboolean silent, jstring attachmentPath) {
+    jstring body, jlong chatId, jint topicId, jboolean silent, jstring attachmentPath, jint callId) {
     if (!plumeAvailable()) return;
     UNMutableNotificationContent *content = [UNMutableNotificationContent new];
     content.title = plumeString(env, title) ?: @"";
@@ -133,8 +148,9 @@ Java_eu_tintera_plume_core_notifications_MacNotificationCenter_nativeShow(
     if (sub != nil) content.subtitle = sub;
     content.body = plumeString(env, body) ?: @"";
     content.threadIdentifier = plumeString(env, thread) ?: @"";
-    content.userInfo = @{KEY_CHAT_ID: @(chatId), KEY_TOPIC_ID: @(topicId)};
+    content.userInfo = @{KEY_CHAT_ID: @(chatId), KEY_TOPIC_ID: @(topicId), KEY_CALL_ID: @(callId)};
     if (!silent) content.sound = UNNotificationSound.defaultSound;
+    if (callId != 0) content.categoryIdentifier = CATEGORY_CALL;
 
     // Příloha je KOPIE (dělá ji Kotlin): systém soubor přílohy přesouvá do vlastního úložiště.
     NSString *path = plumeString(env, attachmentPath);
@@ -149,6 +165,25 @@ Java_eu_tintera_plume_core_notifications_MacNotificationCenter_nativeShow(
                                                                           content:content
                                                                           trigger:nil];
     [UNUserNotificationCenter.currentNotificationCenter addNotificationRequest:request withCompletionHandler:nil];
+}
+
+// Kategorie se registruje asynchronně a celá sada naráz (jiné kategorie Plume nemá); oznámení
+// přidané dřív, než doběhne, by tlačítka nemělo — proto ji Kotlin nastavuje předem.
+JNIEXPORT void JNICALL
+Java_eu_tintera_plume_core_notifications_MacNotificationCenter_nativeSetCallActions(
+    JNIEnv *env, jclass cls, jstring answer, jstring decline) {
+    if (!plumeAvailable()) return;
+    UNNotificationAction *answerAction = [UNNotificationAction actionWithIdentifier:ACTION_ANSWER
+                                                                              title:plumeString(env, answer) ?: @""
+                                                                            options:UNNotificationActionOptionForeground];
+    UNNotificationAction *declineAction = [UNNotificationAction actionWithIdentifier:ACTION_DECLINE
+                                                                               title:plumeString(env, decline) ?: @""
+                                                                             options:UNNotificationActionOptionDestructive];
+    UNNotificationCategory *category = [UNNotificationCategory categoryWithIdentifier:CATEGORY_CALL
+                                                                              actions:@[answerAction, declineAction]
+                                                                    intentIdentifiers:@[]
+                                                                              options:UNNotificationCategoryOptionNone];
+    [UNUserNotificationCenter.currentNotificationCenter setNotificationCategories:[NSSet setWithObject:category]];
 }
 
 JNIEXPORT void JNICALL

@@ -139,7 +139,7 @@ zhasnutý a zamčený telefon (rozsvítí se obrazovka hovoru nad zámkem, přij
 zmenšení, rozbalení a Zpět, a **Plume zabitý na pozadí** (`am kill`): push ho probudil,
 notifikace i obrazovka hovoru přišly a přijetí spojilo.
 
-**Co dál chybí**: iOS a desktop (video viz „Videohovory").
+**Co dál chybí**: iOS (desktop viz „Desktop", video „Videohovory").
 
 ## Videohovory
 
@@ -495,8 +495,37 @@ Hlasové hovory na desktopu přes **C API ntgcalls 3.0.3** (`NtgNative` — vazb
   chyby; WebRTC na úrovni informací píše desítky řádků za vteřinu.
 - **Ověřeno na macOS (arm64) s Pixelem 5**: příchozí hovor na desktop i odchozí z desktopu,
   zvuk oběma směry (poslechem), emoji shodná, zavěšení z desktopu i z telefonu. **Windows
-  a Linux jen přeložené.** Chybí zvonění a oznámení příchozího hovoru (zazvoní jen obrazovka
-  hovoru v otevřené aplikaci) a video.
+  a Linux jen přeložené.** Chybí video.
+
+### Zvonění a příchozí hovor na desktopu
+
+- **Zvoní `DesktopCallRinger`** (protějšek `CallRinger` z Androidu): příchozí hovor ve smyčce,
+  i s aktivním oknem; odchozí má tón protistrany (425 Hz, vteřinu zní a čtyři ne, jako
+  `TONE_SUP_RINGTONE`). Desktop nemá systémový vyzváněcí tón, který by šel přehrát, takže
+  se oba tóny **počítají v kódu** (`CallTones`: stoupající trojzvuk C6–E6–G6 s doznívajícím
+  úderem). Hraje je Java Sound (`SourceDataLine`) do výchozího výstupu, nezávisle na
+  ntgcalls; po kouscích po desetině vteřiny, aby konec zvonění nečekal na konec periody.
+  Tiché hodiny aplikace zvonění neberou, stejně jako na Androidu.
+- **Oznámení systému samo nestačí.** Na macOS je to banner, který za pár vteřin odjede,
+  a tlačítka (kategorie `UNNotificationCategory` s Přijmout / Odmítnout) schovává pod
+  „Volby". Trvalé a s tlačítky ho macOS ukáže jen ve stylu „Výstrahy", který si volí uživatel
+  v Nastavení systému, a to pro všechna oznámení aplikace, tedy i pro zprávy. Proto:
+- **Okénko příchozího hovoru** (`IncomingCallWindow`, jako u Telegram Desktop): malé okno
+  bez rámu, vždy navrchu, nahoře uprostřed obrazovky (v pravém horním rohu ukazuje oznámení
+  macOS, v pravém dolním Windows). Je vidět, dokud hovor zvoní a hlavní okno není vpředu.
+  Nebere fokus (`focusable = false`), takže psaní v jiné aplikaci nepřeruší. Přijmout vytáhne
+  hlavní okno a hovor přijme obrazovka hovoru přes `CallRequests`, stejně jako z oznámení.
+- **Oznámení zůstává** (tiché, zvoní okénko a tón): záznam v Centru oznámení a Přijmout /
+  Odmítnout i tam. Windows toast má `scenario="incomingCall"` (drží se na obrazovce) a
+  Přijmout s `activationType="foreground"`, aby Windows dovolil okno vytáhnout.
+- **Kategorie oznámení se registruje asynchronně** (`setNotificationCategories` nemá
+  completion handler), takže se popisky nastavují při startu presenteru, ne až s prvním
+  hovorem; oznámení přidané dřív, než registrace doběhne, by tlačítka nemělo.
+- **Ověřeno na macOS 26 s Pixelem 5** (zabalený ladicí běh): zvonění (vlákno `call-ringtone`,
+  výstup ve `coreaudiod`), zrušení volajícím zvonění zastaví, s minimalizovaným oknem přišlo
+  oznámení a Přijmout z něj hovor spojilo, okénko nahoře uprostřed a Přijmout z něj spojilo,
+  tón protistrany při vytáčení a jeho konec po odmítnutí na telefonu. **Neověřeno**: Odmítnout
+  z okénka i z oznámení, Windows (toast s tlačítky, okénko) a Linux.
 
 ## Sdílení obrazovky (průzkum 14. 10. 2026)
 

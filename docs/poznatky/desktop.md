@@ -447,6 +447,17 @@ postaví MSI (`packageMsi -PdesktopVersion=…`), na Ubuntu založí GitHub Rele
 - **Jméno souboru z cesty se bere `toPath().name`, ne `substringAfterLast('/')`**: TDLib na
   Windows vrací cesty se zpětnými lomítky a z lomítka by vyšla celá cesta.
 
+## Okno mimo hlavní (okénko hovoru)
+
+Druhé okno (`IncomingCallWindow`) se skládá přímo v `application {}` vedle hlavního `Window`.
+
+- **V `application {}` není `LocalLifecycleOwner`**, ten dává až `Window`. Volání
+  `collectAsStateWithLifecycle` mimo okno shodí celou aplikaci hned při startu
+  (`IllegalStateException: CompositionLocal LocalLifecycleOwner not present`, „Failed to
+  launch JVM"). Mimo okno se proto sbírá `collectAsState`; uvnitř okna zase funguje všechno.
+- **Motiv si okno bere samo** (`SettingsTheme`, tentýž jako `AppRoot`) — kompozice
+  `application {}` žádný motiv nemá.
+
 ## Bubliny (tooltip) z kořene kompozice
 
 **Holý M3 `TooltipBox` na desktopu shodí vykreslování**, když jeho kotva s viditelnou bublinou

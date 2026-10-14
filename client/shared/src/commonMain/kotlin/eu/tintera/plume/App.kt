@@ -68,13 +68,11 @@ fun App() {
 }
 
 /**
- * Společný kořen aplikace a bubliny konverzace (`BubbleShell`): motiv z nastavení, zámek
- * aplikace, přihlášení a hodnoty, které přihlášená část čte (`LocalAutoDownload`, velikost
- * písma). [content] je obsah přihlášené části — v aplikaci shell, v bublině jedna konverzace.
- * Zámek tak platí i v bublině: jinak by obešla PIN.
+ * Motiv podle nastavení (režim, barvy z tapety, barva). Kromě [AppRoot] ho bere i samostatné
+ * okno mimo hlavní (desktop: okénko příchozího hovoru), ať má tytéž barvy jako aplikace.
  */
 @Composable
-fun AppRoot(content: @Composable () -> Unit) {
+fun SettingsTheme(content: @Composable () -> Unit) {
     /*
      * Motiv se čte z nastavení, ne z výchozí hodnoty parametru. `null` znamená „uživatel si
      * nevybral" — teprve tehdy rozhoduje platforma (`supportsDynamicColor`), takže se do úložiště
@@ -84,6 +82,23 @@ fun AppRoot(content: @Composable () -> Unit) {
     val themeMode by settings.themeMode.collectAsStateWithLifecycle()
     val dynamicColor by settings.dynamicColor.collectAsStateWithLifecycle()
     val themeColor by settings.themeColor.collectAsStateWithLifecycle()
+    AppTheme(
+        themeMode = themeMode ?: ThemeMode.SYSTEM,
+        dynamicColor = dynamicColor ?: supportsDynamicColor,
+        themeColor = themeColor ?: ThemeColor.BLUE,
+        content = content,
+    )
+}
+
+/**
+ * Společný kořen aplikace a bubliny konverzace (`BubbleShell`): motiv z nastavení, zámek
+ * aplikace, přihlášení a hodnoty, které přihlášená část čte (`LocalAutoDownload`, velikost
+ * písma). [content] je obsah přihlášené části — v aplikaci shell, v bublině jedna konverzace.
+ * Zámek tak platí i v bublině: jinak by obešla PIN.
+ */
+@Composable
+fun AppRoot(content: @Composable () -> Unit) {
+    val settings = koinInject<AppSettings>()
     val messageTextSize by settings.messageTextSize.collectAsStateWithLifecycle()
 
     val appLock = koinInject<AppLock>()
@@ -93,11 +108,7 @@ fun AppRoot(content: @Composable () -> Unit) {
     // Skrytí obsahu v přehledu úloh: FLAG_SECURE se zapne, pokud je zámek aplikace zapnutý
     SecureScreen(enabled = lockSettings != null)
 
-    AppTheme(
-        themeMode = themeMode ?: ThemeMode.SYSTEM,
-        dynamicColor = dynamicColor ?: supportsDynamicColor,
-        themeColor = themeColor ?: ThemeColor.BLUE,
-    ) {
+    SettingsTheme {
         Surface(Modifier.fillMaxSize()) {
             // Na iOS přehled úloh skrývá kryt nad oknem, FLAG_SECURE tam není.
             PrivacyCover(enabled = lockSettings != null, color = MaterialTheme.colorScheme.background)

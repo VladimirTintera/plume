@@ -11,15 +11,19 @@ import eu.tintera.plume.core.platform.MacNative
  */
 internal object MacNotificationCenter {
 
-    /** Klik na notifikaci: chat a téma (0 = bez tématu). Nastavuje presenter. */
+    /**
+     * Klik na notifikaci nebo její tlačítko: chat, téma (0 = bez tématu), tlačítko
+     * ([ACTION_ANSWER], [ACTION_DECLINE], `null` = klik na oznámení) a hovor (0 = není hovor).
+     * Nastavuje presenter.
+     */
     @Volatile
-    var onActivated: ((chatId: Long, topicId: Int) -> Unit)? = null
+    var onActivated: ((chatId: Long, topicId: Int, action: String?, callId: Int) -> Unit)? = null
 
     val available: Boolean by lazy { MacNative.loaded && nativeInit() }
 
     @JvmStatic
-    fun onActivated(chatId: Long, topicId: Int) {
-        onActivated?.invoke(chatId, topicId)
+    fun onActivated(chatId: Long, topicId: Int, action: String?, callId: Int) {
+        onActivated?.invoke(chatId, topicId, action, callId)
     }
 
     @JvmStatic
@@ -43,11 +47,21 @@ internal object MacNotificationCenter {
         topicId: Int,
         silent: Boolean,
         attachmentPath: String?,
+        /** Příchozí hovor (0 = zpráva): oznámení dostane kategorii s Přijmout a Odmítnout. */
+        callId: Int,
     )
+
+    /** Kategorie oznámení hovoru s tlačítky; popisky jsou v ní, ne v jednotlivém oznámení. */
+    @JvmStatic
+    external fun nativeSetCallActions(answer: String, decline: String)
 
     @JvmStatic
     external fun nativeRemove(identifiers: Array<String>)
 
     @JvmStatic
     external fun nativeRemoveAll()
+
+    // Identifikátory tlačítek; tytéž jsou v PlumeNotifications.m.
+    const val ACTION_ANSWER = "answer"
+    const val ACTION_DECLINE = "decline"
 }

@@ -176,7 +176,7 @@ fun CallOverlay(modifier: Modifier = Modifier) {
 
 /** Jméno a fotka protějšku (soukromý chat má id uživatele). */
 @Composable
-private fun rememberPeer(userId: Long): Pair<String, Int?> {
+internal fun rememberPeer(userId: Long): Pair<String, Int?> {
     val chats = koinInject<ChatRepository>()
     var peer by remember(userId) { mutableStateOf("" to null as Int?) }
     LaunchedEffect(userId) {
@@ -187,7 +187,7 @@ private fun rememberPeer(userId: Long): Pair<String, Int?> {
 
 /** Stav slovy, u běžícího hovoru čas od spojení. */
 @Composable
-private fun callStatus(call: ActiveCall): String {
+internal fun callStatus(call: ActiveCall): String {
     var now by remember { mutableLongStateOf(Clock.System.now().toEpochMilliseconds()) }
     LaunchedEffect(call.connectedAt) {
         while (call.connectedAt != null) {
@@ -507,7 +507,7 @@ private fun outputIcon(output: CallAudioOutput): DrawableResource = when (output
 }
 
 @Composable
-private fun LabeledButton(label: String, modifier: Modifier = Modifier, button: @Composable () -> Unit) {
+internal fun LabeledButton(label: String, modifier: Modifier = Modifier, button: @Composable () -> Unit) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp), modifier = modifier) {
         button()
         Text(label, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -516,7 +516,7 @@ private fun LabeledButton(label: String, modifier: Modifier = Modifier, button: 
 
 /** Zavěšení je sluchátko otočené dolů na chybové ploše, jako v systémovém telefonu. */
 @Composable
-private fun HangUpButton(description: String, large: Boolean = true, onClick: () -> Unit) {
+internal fun HangUpButton(description: String, large: Boolean = true, onClick: () -> Unit) {
     FilledIconButton(
         onClick = onClick,
         colors = IconButtonDefaults.filledIconButtonColors(

@@ -16,11 +16,15 @@ import kotlin.time.Instant
  * - **Tlačítka jako na Androidu** ([DesktopNotification.buttons]): pole „Odpovědět" s Odeslat,
  *   „Označit jako přečtené" a „Ztlumit na hodinu". Všechna `activationType="background"` —
  *   jdou na aktivátor jako klik, ale okno se kvůli nim nevytahuje.
+ * - **Příchozí hovor** ([DesktopNotification.call]) má `scenario="incomingCall"`: toast zůstane
+ *   na obrazovce, dokud se nerozhodne, a tlačítka Přijmout (`foreground` — Windows tím aplikaci
+ *   dovolí vytáhnout okno) a Odmítnout (na pozadí). Zvoní aplikace sama, toast je tichý.
  */
 internal fun toastXml(notification: DesktopNotification): String {
     val launch = escape(activationArguments(notification.chatId, notification.topicId))
     return buildString {
         append("<toast launch=\"").append(launch).append('"')
+        if (notification.call != null) append(" scenario=\"incomingCall\"")
         notification.timestamp?.let { append(" displayTimestamp=\"").append(Instant.fromEpochSeconds(it)).append('"') }
         append('>')
         append("<header id=\"").append(escape(notification.thread))
@@ -40,6 +44,7 @@ internal fun toastXml(notification: DesktopNotification): String {
         }
         append("</binding></visual>")
         notification.buttons?.let { appendActions(notification, it) }
+        notification.call?.let { appendCallActions(notification, it) }
         if (notification.silent) append("<audio silent=\"true\"/>")
         append("</toast>")
     }
@@ -60,10 +65,18 @@ private fun StringBuilder.appendActions(notification: DesktopNotification, butto
     append("</actions>")
 }
 
-private fun StringBuilder.appendAction(label: String, arguments: String, inputId: String? = null) {
+private fun StringBuilder.appendCallActions(notification: DesktopNotification, call: CallButtons) {
+    val arguments = "chat=${notification.chatId}&call=${call.callId}"
+    append("<actions>")
+    appendAction(call.answer, "action=$ACTION_ANSWER&$arguments", activation = "foreground")
+    appendAction(call.decline, "action=$ACTION_DECLINE&$arguments")
+    append("</actions>")
+}
+
+private fun StringBuilder.appendAction(label: String, arguments: String, inputId: String? = null, activation: String = "background") {
     append("<action content=\"").append(escape(label))
         .append("\" arguments=\"").append(escape(arguments))
-        .append("\" activationType=\"background\"")
+        .append("\" activationType=\"").append(activation).append('"')
     inputId?.let { append(" hint-inputId=\"").append(it).append('"') }
     append("/>")
 }
@@ -86,6 +99,8 @@ internal fun parseActivation(arguments: String, reply: String? = null): ToastAct
             ?.let { ToastActivation.Reply(chatId, topicId, quoteMessageId = long("quote"), text = it) }
         ACTION_READ -> ToastActivation.MarkRead(chatId, messageId = long("msg"))
         ACTION_MUTE -> ToastActivation.Mute(chatId)
+        ACTION_ANSWER -> values["call"]?.toIntOrNull()?.let { ToastActivation.AnswerCall(chatId, it) }
+        ACTION_DECLINE -> values["call"]?.toIntOrNull()?.let { ToastActivation.DeclineCall(chatId, it) }
         else -> null
     }
 }
@@ -102,6 +117,11 @@ internal sealed interface ToastActivation {
     data class MarkRead(override val chatId: Long, val messageId: Long?) : ToastActivation
 
     data class Mute(override val chatId: Long) : ToastActivation
+
+    /** Přijmout příchozí hovor: přijímá obrazovka hovoru (po dotazu na mikrofon), okno jde dopředu. */
+    data class AnswerCall(override val chatId: Long, val callId: Int) : ToastActivation
+
+    data class DeclineCall(override val chatId: Long, val callId: Int) : ToastActivation
 }
 
 /** Klíč pole odpovědi; tentýž hledá aktivátor v `PlumeToasts.cpp`. */
@@ -109,6 +129,8 @@ private const val REPLY_INPUT = "reply"
 private const val ACTION_REPLY = "reply"
 private const val ACTION_READ = "read"
 private const val ACTION_MUTE = "mute"
+private const val ACTION_ANSWER = "answer"
+private const val ACTION_DECLINE = "decline"
 
 /** `file:///C:/…` — Windows chce tři lomítka; `File.toURI` dává jen jedno. */
 private fun fileUri(path: String): String? = File(path).takeIf { it.isFile }?.toPath()?.toUri()?.toString()
