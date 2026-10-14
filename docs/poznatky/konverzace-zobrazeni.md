@@ -89,13 +89,16 @@ navzájem (`MediaSender`, `MessageJumper`, `Throwable.reported`).
   pravidlo, ne jako spoléhání na chybu.
 - **Části se testují samy, bez ViewModelu** (`ConversationSearchTest`, `ConversationSelectionTest`,
   `ConversationReactionsTest`, `ConversationScheduledTest`, `ConversationComposerTest`,
-  `ConversationMessageActionsTest`, `ConversationAttachmentsTest`, `ConversationLinksTest`):
+  `ConversationMessageActionsTest`, `ConversationAttachmentsTest`, `ConversationLinksTest`,
+  `ConversationBotsTest`, `ConversationSuggestionsTest`):
   stav je obyčejný `MutableStateFlow`, repository
   `UnimplementedConversationRepository`, `UnimplementedChatRepository` a nastavení
   `UnimplementedAppSettings` (v testech; každé nepřepsané volání vyhodí
   chybu se jménem metody, takže test řekne, na co ještě sahá) a volání do jiných částí jsou
   lambdy. Vygenerované je z rozhraní — po změně `ConversationRepository` překladač vyjmenuje
-  člen, který chybí.
+  člen, který chybí. **Metoda bez uvedeného návratového typu má ve stubu `: Unit`**: holé
+  `= error(…)` by odvodilo `Nothing` a test by ji pak nemohl přepsat (narazilo se na tom
+  u `markOneTimeKeyboardUsed`).
 - **Rozsah části v testu je `this` (`TestScope`), ne `backgroundScope`.** `advanceUntilIdle`
   na práci v `backgroundScope` nečeká, takže spuštěné dotazy na repository vůbec neproběhly
   a testy padaly na prázdné výsledky. Části nic dlouhodobého nespouštějí, `runTest` na ně
@@ -104,7 +107,8 @@ navzájem (`MediaSender`, `MessageJumper`, `Throwable.reported`).
   `expect class`; výběr proto dostává `copyToClipboard: suspend (String) -> Unit`. Stejně psaní
   i přílohy dostávají `reportUsed` místo `ShareTargets` (třída se závislostmi na systému
   a souborech) a odkazy `openUrl` a `openProxy` místo `UrlOpener` (`expect class`)
-  a `ProxyLinkFlow`.
+  a `ProxyLinkFlow`. Boti dostávají `openUrl`, `copyToClipboard` a `clipboardConfirmsCopy`
+  (hodnota `TextClipboard.confirmsCopy`, na platformě neměnná).
 - **Čas v médiu („1:23" v textu) je přehrávání, ne odkaz** (`ConversationPlayback.playMediaAt`).
   Dokud ležel v odkazech, táhly kvůli němu odkazy za sebou přehrávač, frontu hudby i celou
   část přehrávání — a v testu nešly sestavit. Odkazům z něj zbylo jen video z náhledu odkazu,
