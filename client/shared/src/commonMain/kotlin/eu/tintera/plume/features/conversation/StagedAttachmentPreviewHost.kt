@@ -18,8 +18,8 @@ import eu.tintera.plume.core.ui.PhotoMarkup
  * Připravená příloha přes celou obrazovku ([StagedAttachmentPreview]) a nad ní úprava fotky
  * ([PhotoMarkupEditor]).
  *
- * **Vlastní funkce, ne kus `ConversationScreen`**: ta je v dexu na hraně počtu registrů (viz
- * „`ConversationScreen` je v dexu na hraně" v CLAUDE.md) a editor by ji přes ni přetlačil.
+ * **Vlastní funkce, ne kus `ConversationScreen`** (viz „Obrazovka konverzace je rozdělená do částí"
+ * v CLAUDE.md).
  *
  * [index] je pořadí přílohy nad polem, `null` = náhled zavřený. Při zavírání se dokresluje
  * příloha, která byla otevřená naposledy — jinak by náhled při mizení zmizel naráz.

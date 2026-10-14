@@ -147,7 +147,6 @@ fun ConversationScreen(
     // Co je otevřené nad konverzací po ťuknutí v obrazovce (výběry, dialogy), viz `ConversationSheets`.
     val sheets = rememberConversationSheets()
 
-
     // Paměť toho, co už je v galerii vybrané. Patří obrazovce: panel se zavřením zahodí, takže
     // by se při dalším otevření dala tatáž fotka vybrat podruhé.
     val mediaSelection = rememberEmbeddedMediaSelection()
@@ -191,7 +190,6 @@ fun ConversationScreen(
         }
     }
 
-
     val scope = rememberCoroutineScope()
 
     /*
@@ -207,7 +205,6 @@ fun ConversationScreen(
     ConversationSnackbars(state, viewModel, snackbarHostState)
 
     ConversationPaging(listState, viewModel, reachedEnd = state.reachedEnd)
-
 
     /**
      * Změřená výška pruhů nad seznamem (proti spamu a s připnutou zprávou); nula, když žádný
@@ -242,7 +239,6 @@ fun ConversationScreen(
     ConversationEvents(state, viewModel, navigation)
     // Pro lambdy v `itemScope`, která vzniká jednou: volají vždycky aktuální navigaci.
     val currentNavigation by rememberUpdatedState(navigation)
-
 
     /*
      * Zpráva, na jejíž tvář se naposledy ťuklo: jen ta nese sdílený prvek do profilu. Přežije
@@ -440,250 +436,246 @@ fun ConversationScreen(
     // Tvary, pod které zajede, hlásí vstupní pole — proto už tady, nad Scaffoldem.
     val listClip = rememberSharedElementClip()
     Box(modifier) {
-    // Zpět hledání zavře, z chatu se odchází až dalším. `NavigationBackHandler`, ne
-    // `BackHandler` — ten by zabil predictive back.
-    NavigationBackHandler(
-        state = rememberNavigationEventState(NavigationEventInfo.None),
-        isBackEnabled = state.search != null,
-        onBackCompleted = viewModel::closeSearch,
-    )
-    // Rozbalený dock živé polohy zavře zpět dřív, než se odejde z chatu.
-    NavigationBackHandler(
-        state = rememberNavigationEventState(NavigationEventInfo.None),
-        isBackEnabled = dockExpanded,
-        onBackCompleted = { dockExpanded = false },
-    )
-    // Zpět ukončí výběr, teprve další odejde z chatu — jako u hledání.
-    NavigationBackHandler(
-        state = rememberNavigationEventState(NavigationEventInfo.None),
-        isBackEnabled = state.selection != null,
-        onBackCompleted = viewModel::closeSelection,
-    )
-    // Otevřený seznam příkazů zavře zpět dřív, než se odejde z chatu.
-    NavigationBackHandler(
-        state = rememberNavigationEventState(NavigationEventInfo.None),
-        isBackEnabled = state.commandsOpen,
-        onBackCompleted = viewModel::closeCommands,
-    )
-    NavigationBackHandler(
-        state = rememberNavigationEventState(NavigationEventInfo.None),
-        isBackEnabled = sheets.previewAttachmentIndex != null,
-        onBackCompleted = { sheets.previewAttachmentIndex = null },
-    )
-
-    /*
-     * Plocha stránky při hledání USTOUPÍ o stupeň (`surfaceContainerLowest`): je to třetí signál
-     * režimu vedle pilulky v hlavičce a plovoucího toolbaru, a jediný, který je vidět i koutkem
-     * oka nad samotnými zprávami.
-     *
-     * **Ustupuje se OD bublin, ne k nim.** Posun opačným směrem (`surfaceContainerLow` a výš) je
-     * sice výraznější, ale míří k `surfaceContainerHigh` příchozí bubliny — plocha by se
-     * přiblížila tomu, co má nést, a zprávy by při hledání četly hůř než jindy. Takhle se rozdíl
-     * naopak o kousek zvětší a nálezy vyskočí. Je to proto jemné vědomě: silnější tónování
-     * v tomhle směru role nenabízejí.
-     */
-    val pageColor by animateColorAsState(
-        targetValue = if (state.search != null) {
-            MaterialTheme.colorScheme.surfaceContainerLowest
-        } else {
-            MaterialTheme.colorScheme.background
-        },
-        animationSpec = MaterialTheme.motionScheme.slowEffectsSpec<Color>(),
-        label = "conversation-page",
-    )
-
-    Scaffold(
-        // Barva popředí se z plochy neodvozuje: `surfaceContainerLowest` mapování nemá a fallback
-        // by závisel na tom, co je zrovna v `LocalContentColor`.
-        containerColor = pageColor,
-        contentColor = MaterialTheme.colorScheme.onBackground,
-        modifier = Modifier.fillMaxSize().hazeSource(hazeState),
-        /*
-         * Spodní inset si řeší vstupní pole samo (`windowInsetsPadding` se `safeDrawing`).
-         *
-         * Kdyby ho dal i Scaffold do `padding`, započítal by se dvakrát a pole by viselo o výšku
-         * systémové lišty výš — `padding` se v obsahu jen aplikuje, inset se tím nekonzumuje.
-         * Takhle navíc sahá obsah i závoj pole až pod lištu, stejně jako pod pole samotné.
-         */
-        contentWindowInsets = ScaffoldDefaults.contentWindowInsets
-            .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
-        topBar = {
-            ConversationTopBar(
-                state = state,
-                viewModel = viewModel,
-                navigation = navigation,
-                chatHidden = chatHidden,
-                onSummary = startSummary.takeIf { summaryAvailable && state.threadRootId == null },
-            )
-        },
-        /*
-         * Vstupní pole JE `bottomBar`. Scaffold ho změří (i s citací, úpravou, víc řádky
-         * a klávesnicí) a podle toho sám postaví snackbar a tlačítko dolů nad něj.
-         *
-         * Obsah Scaffoldu je přesto přes celou plochu: spodní padding se nedává na kontejner,
-         * ale do `contentPadding` seznamu. Zprávy tak pod pole zajíždějí a v klidu nad ním
-         * končí. Kdyby šel padding na kontejner, seznam by před polem natvrdo skončil a přes
-         * obrazovku by vedl předěl, o který se zprávy při scrollu „zasekávají".
-         */
-        bottomBar = {
-            ConversationBottomBar(
-                state = state,
-                viewModel = viewModel,
-                navigation = navigation,
-                composer = composer,
-                sheets = sheets,
-                recording = recording,
-                videoNotePlayback = videoNotePlayback,
-                voicePlayback = voicePlayback,
-                replies = replies,
-                gestureHints = gestureHints,
-                mediaSelection = mediaSelection,
-                chatHidden = chatHidden,
-                listHaze = listHaze,
-                listClip = listClip,
-                onContentBottom = { contentBottom.value = it },
-                onSuggestionsFloating = { suggestionsFloating = it },
-            )
-        },
-        // Tlačítko dolů ve FAB slotu: Scaffold ho drží nad polem a snackbar pak nad ním.
-        // Uprostřed, ne vpravo: vpravo by viselo přímo nad tlačítkem odeslání a mikrofonu
-        // a ťuknutí o kousek vedle by místo skoku dolů spustilo nahrávání.
-        floatingActionButtonPosition = FabPosition.Center,
-        floatingActionButton = {
-            ConversationFloatingButtons(
-                state = state,
-                viewModel = viewModel,
-                suggestionsFloating = suggestionsFloating,
-                farFromBottom = farFromBottom,
-                newMessages = pendingNewMessages,
-                onScrollDown = {
-                    if (state.reachedEnd) {
-                        scope.launch {
-                            listState.animateScrollToBottom { index ->
-                                items.getOrNull(index)?.let { measuredSizes[it.key] }
-                            }
-                        }
-                    } else {
-                        viewModel.jumpToLatest()
-                    }
-                },
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
-        // Nabídka nad zprávou se kreslí až v bublině — viz `MessageMenuOverlay`.
-
-        ConversationDialogs(
-            state = state,
-            viewModel = viewModel,
-            sheets = sheets,
-            composer = composer,
-            mediaSelection = mediaSelection,
-            summary = summary,
-            startSummary = startSummary,
+        // Zpět hledání zavře, z chatu se odchází až dalším. `NavigationBackHandler`, ne
+        // `BackHandler` — ten by zabil predictive back.
+        NavigationBackHandler(
+            state = rememberNavigationEventState(NavigationEventInfo.None),
+            isBackEnabled = state.search != null,
+            onBackCompleted = viewModel::closeSearch,
+        )
+        // Rozbalený dock živé polohy zavře zpět dřív, než se odejde z chatu.
+        NavigationBackHandler(
+            state = rememberNavigationEventState(NavigationEventInfo.None),
+            isBackEnabled = dockExpanded,
+            onBackCompleted = { dockExpanded = false },
+        )
+        // Zpět ukončí výběr, teprve další odejde z chatu — jako u hledání.
+        NavigationBackHandler(
+            state = rememberNavigationEventState(NavigationEventInfo.None),
+            isBackEnabled = state.selection != null,
+            onBackCompleted = viewModel::closeSelection,
+        )
+        // Otevřený seznam příkazů zavře zpět dřív, než se odejde z chatu.
+        NavigationBackHandler(
+            state = rememberNavigationEventState(NavigationEventInfo.None),
+            isBackEnabled = state.commandsOpen,
+            onBackCompleted = viewModel::closeCommands,
+        )
+        NavigationBackHandler(
+            state = rememberNavigationEventState(NavigationEventInfo.None),
+            isBackEnabled = sheets.previewAttachmentIndex != null,
+            onBackCompleted = { sheets.previewAttachmentIndex = null },
         )
 
+        /*
+         * Plocha stránky při hledání USTOUPÍ o stupeň (`surfaceContainerLowest`): je to třetí signál
+         * režimu vedle pilulky v hlavičce a plovoucího toolbaru, a jediný, který je vidět i koutkem
+         * oka nad samotnými zprávami.
+         *
+         * **Ustupuje se OD bublin, ne k nim.** Posun opačným směrem (`surfaceContainerLow` a výš) je
+         * sice výraznější, ale míří k `surfaceContainerHigh` příchozí bubliny — plocha by se
+         * přiblížila tomu, co má nést, a zprávy by při hledání četly hůř než jindy. Takhle se rozdíl
+         * naopak o kousek zvětší a nálezy vyskočí. Je to proto jemné vědomě: silnější tónování
+         * v tomhle směru role nenabízejí.
+         */
+        val pageColor by animateColorAsState(
+            targetValue = if (state.search != null) {
+                MaterialTheme.colorScheme.surfaceContainerLowest
+            } else {
+                MaterialTheme.colorScheme.background
+            },
+            animationSpec = MaterialTheme.motionScheme.slowEffectsSpec<Color>(),
+            label = "conversation-page",
+        )
 
-        val layoutDirection = LocalLayoutDirection.current
-        // Pruh připnutých a vstupní pole leží PŘES seznam — fotka letící pod ně se o ně ořízne.
-        val clipDensity = LocalDensity.current
-        val obscuredBottom = padding.calculateBottomPadding()
-        SideEffect {
-            with(clipDensity) {
-                listClip.obscuredTop = pinnedHeight.toPx()
-                listClip.obscuredBottom = obscuredBottom.toPx()
+        Scaffold(
+            // Barva popředí se z plochy neodvozuje: `surfaceContainerLowest` mapování nemá a fallback
+            // by závisel na tom, co je zrovna v `LocalContentColor`.
+            containerColor = pageColor,
+            contentColor = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.fillMaxSize().hazeSource(hazeState),
+            /*
+             * Spodní inset si řeší vstupní pole samo (`windowInsetsPadding` se `safeDrawing`).
+             *
+             * Kdyby ho dal i Scaffold do `padding`, započítal by se dvakrát a pole by viselo o výšku
+             * systémové lišty výš — `padding` se v obsahu jen aplikuje, inset se tím nekonzumuje.
+             * Takhle navíc sahá obsah i závoj pole až pod lištu, stejně jako pod pole samotné.
+             */
+            contentWindowInsets = ScaffoldDefaults.contentWindowInsets
+                .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
+            topBar = {
+                ConversationTopBar(
+                    state = state,
+                    viewModel = viewModel,
+                    navigation = navigation,
+                    chatHidden = chatHidden,
+                    onSummary = startSummary.takeIf { summaryAvailable && state.threadRootId == null },
+                )
+            },
+            /*
+             * Vstupní pole JE `bottomBar`. Scaffold ho změří (i s citací, úpravou, víc řádky
+             * a klávesnicí) a podle toho sám postaví snackbar a tlačítko dolů nad něj.
+             *
+             * Obsah Scaffoldu je přesto přes celou plochu: spodní padding se nedává na kontejner,
+             * ale do `contentPadding` seznamu. Zprávy tak pod pole zajíždějí a v klidu nad ním
+             * končí. Kdyby šel padding na kontejner, seznam by před polem natvrdo skončil a přes
+             * obrazovku by vedl předěl, o který se zprávy při scrollu „zasekávají".
+             */
+            bottomBar = {
+                ConversationBottomBar(
+                    state = state,
+                    viewModel = viewModel,
+                    navigation = navigation,
+                    composer = composer,
+                    sheets = sheets,
+                    recording = recording,
+                    videoNotePlayback = videoNotePlayback,
+                    voicePlayback = voicePlayback,
+                    replies = replies,
+                    gestureHints = gestureHints,
+                    mediaSelection = mediaSelection,
+                    chatHidden = chatHidden,
+                    listHaze = listHaze,
+                    listClip = listClip,
+                    onContentBottom = { contentBottom.value = it },
+                    onSuggestionsFloating = { suggestionsFloating = it },
+                )
+            },
+            // Tlačítko dolů ve FAB slotu: Scaffold ho drží nad polem a snackbar pak nad ním.
+            // Uprostřed, ne vpravo: vpravo by viselo přímo nad tlačítkem odeslání a mikrofonu
+            // a ťuknutí o kousek vedle by místo skoku dolů spustilo nahrávání.
+            floatingActionButtonPosition = FabPosition.Center,
+            floatingActionButton = {
+                ConversationFloatingButtons(
+                    state = state,
+                    viewModel = viewModel,
+                    suggestionsFloating = suggestionsFloating,
+                    farFromBottom = farFromBottom,
+                    newMessages = pendingNewMessages,
+                    onScrollDown = {
+                        if (state.reachedEnd) {
+                            scope.launch {
+                                listState.animateScrollToBottom { index ->
+                                    items.getOrNull(index)?.let { measuredSizes[it.key] }
+                                }
+                            }
+                        } else {
+                            viewModel.jumpToLatest()
+                        }
+                    },
+                )
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+        ) { padding ->
+            // Nabídka nad zprávou se kreslí až v bublině — viz `MessageMenuOverlay`.
+
+            ConversationDialogs(
+                state = state,
+                viewModel = viewModel,
+                sheets = sheets,
+                composer = composer,
+                mediaSelection = mediaSelection,
+                summary = summary,
+                startSummary = startSummary,
+            )
+
+            val layoutDirection = LocalLayoutDirection.current
+            // Pruh připnutých a vstupní pole leží PŘES seznam — fotka letící pod ně se o ně ořízne.
+            val clipDensity = LocalDensity.current
+            val obscuredBottom = padding.calculateBottomPadding()
+            SideEffect {
+                with(clipDensity) {
+                    listClip.obscuredTop = pinnedHeight.toPx()
+                    listClip.obscuredBottom = obscuredBottom.toPx()
+                }
+            }
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(
+                        top = padding.calculateTopPadding(),
+                        start = padding.calculateStartPadding(layoutDirection),
+                        end = padding.calculateEndPadding(layoutDirection),
+                    )
+                    .onGloballyPositioned { contentTop.value = it.boundsInWindow().top },
+            ) {
+                ConversationContent(
+                    state = state,
+                    viewModel = viewModel,
+                    items = items,
+                    itemScope = itemScope,
+                    listState = listState,
+                    jumpTransition = jumpTransition,
+                    gestureHints = gestureHints,
+                    timeReveal = timeReveal,
+                    listHaze = listHaze,
+                    listClip = listClip,
+                    sensitiveWarning = sensitiveWarning,
+                    onShowSensitive = { sensitiveAccepted = true },
+                    topPadding = pinnedHeight,
+                    bottomPadding = padding.calculateBottomPadding(),
+                    floatingDay = floatingDay,
+                )
+
+                ConversationBars(
+                    state = state,
+                    viewModel = viewModel,
+                    navigation = navigation,
+                    sheets = sheets,
+                    chatHidden = chatHidden,
+                    listHaze = listHaze,
+                    topVisibleKey = { topVisibleKey },
+                    liveLocations = shownDocked,
+                    dockReveal = { dockReveal.value },
+                    dockExpanded = dockExpanded,
+                    onDockExpandedChange = { dockExpanded = it },
+                    playerDock = playerDock,
+                    voicePlayback = voicePlayback,
+                    soundingVideoNote = soundingVideoNote,
+                    onPinnedHeight = { pinnedHeight = it },
+                    onBarsHeight = { barsHeight = it },
+                )
+
+                // Akce u zprávy (ikonka u termínu, účtu, zásilky); stav si čte sám.
+                MessageContextHost(viewModel)
+
+                // Nad seznamem, pod vstupním polem: odeslání i koš zůstávají ovladatelné.
+                VideoNoteRecordingOverlay(
+                    visible = recording.isVideoRecording,
+                    camera = recording.camera,
+                    recording = { recording.video() },
+                    modifier = Modifier.fillMaxSize().padding(bottom = obscuredBottom),
+                    preview = recording.videoNotePreview,
+                    playback = videoNotePlayback,
+                )
+                // Zámek nad tlačítkem je tady, ne v liště — sklo pod polem by ho ořízlo.
+                RecordLockHost(
+                    visible = recording.isRecording && recording.gesture.held && !recording.gesture.locked,
+                    gesture = recording.gesture,
+                    modifier = Modifier.fillMaxSize().padding(bottom = obscuredBottom),
+                )
             }
         }
-        Box(
-            Modifier
-                .fillMaxSize()
-                .padding(
-                    top = padding.calculateTopPadding(),
-                    start = padding.calculateStartPadding(layoutDirection),
-                    end = padding.calculateEndPadding(layoutDirection),
-                )
-                .onGloballyPositioned { contentTop.value = it.boundsInWindow().top },
-        ) {
-            ConversationContent(
-                state = state,
-                viewModel = viewModel,
-                items = items,
-                itemScope = itemScope,
-                listState = listState,
-                jumpTransition = jumpTransition,
-                gestureHints = gestureHints,
-                timeReveal = timeReveal,
-                listHaze = listHaze,
-                listClip = listClip,
-                sensitiveWarning = sensitiveWarning,
-                onShowSensitive = { sensitiveAccepted = true },
-                topPadding = pinnedHeight,
-                bottomPadding = padding.calculateBottomPadding(),
-                floatingDay = floatingDay,
-            )
 
+        MessageMenuLayer(
+            menu = state.messageMenu,
+            item = state.messageMenu?.let { menu ->
+                items.firstOrNull { it is MessageItem && it.frame.message.id == menu.messageId } as? MessageItem
+            },
+            anchor = menuAnchor,
+            contentTop = contentTop.value,
+            contentBottom = contentBottom.value,
+            itemScope = itemScope,
+            hazeState = hazeState,
+            onShownChange = { menuKey.value = it },
+        )
 
-            ConversationBars(
-                state = state,
-                viewModel = viewModel,
-                navigation = navigation,
-                sheets = sheets,
-                chatHidden = chatHidden,
-                listHaze = listHaze,
-                topVisibleKey = { topVisibleKey },
-                liveLocations = shownDocked,
-                dockReveal = { dockReveal.value },
-                dockExpanded = dockExpanded,
-                onDockExpandedChange = { dockExpanded = it },
-                playerDock = playerDock,
-                voicePlayback = voicePlayback,
-                soundingVideoNote = soundingVideoNote,
-                onPinnedHeight = { pinnedHeight = it },
-                onBarsHeight = { barsHeight = it },
-            )
-
-            // Akce u zprávy (ikonka u termínu, účtu, zásilky); stav si čte sám.
-            MessageContextHost(viewModel)
-
-
-            // Nad seznamem, pod vstupním polem: odeslání i koš zůstávají ovladatelné.
-            VideoNoteRecordingOverlay(
-                visible = recording.isVideoRecording,
-                camera = recording.camera,
-                recording = { recording.video() },
-                modifier = Modifier.fillMaxSize().padding(bottom = obscuredBottom),
-                preview = recording.videoNotePreview,
-                playback = videoNotePlayback,
-            )
-            // Zámek nad tlačítkem je tady, ne v liště — sklo pod polem by ho ořízlo.
-            RecordLockHost(
-                visible = recording.isRecording && recording.gesture.held && !recording.gesture.locked,
-                gesture = recording.gesture,
-                modifier = Modifier.fillMaxSize().padding(bottom = obscuredBottom),
-            )
-
-        }
-    }
-
-    MessageMenuLayer(
-        menu = state.messageMenu,
-        item = state.messageMenu?.let { menu ->
-            items.firstOrNull { it is MessageItem && it.frame.message.id == menu.messageId } as? MessageItem
-        },
-        anchor = menuAnchor,
-        contentTop = contentTop.value,
-        contentBottom = contentBottom.value,
-        itemScope = itemScope,
-        hazeState = hazeState,
-        onShownChange = { menuKey.value = it },
-    )
-
-    StagedAttachmentPreviewHost(
-        state = state,
-        viewModel = viewModel,
-        index = sheets.previewAttachmentIndex,
-        onIndexChange = { sheets.previewAttachmentIndex = it },
-    )
+        StagedAttachmentPreviewHost(
+            state = state,
+            viewModel = viewModel,
+            index = sheets.previewAttachmentIndex,
+            onIndexChange = { sheets.previewAttachmentIndex = it },
+        )
     }
 }
 
@@ -691,8 +683,8 @@ fun ConversationScreen(
 private const val SCROLL_DOWN_THRESHOLD_ITEMS = 3
 
 /**
- * Bloky seznamu konverzace (viz [conversationItems]). Vlastní funkce, ne kus [ConversationScreen]:
- * ta je v dexu na hraně registrů (viz CLAUDE.md, „ConversationScreen je v dexu na hraně").
+ * Bloky seznamu konverzace (viz [conversationItems]). Vlastní funkce, ne kus [ConversationScreen]
+ * (viz „Obrazovka konverzace je rozdělená do částí" v CLAUDE.md).
  */
 @Composable
 private fun rememberConversationItems(state: ConversationState): List<ConversationItem> {

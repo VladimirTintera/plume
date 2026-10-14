@@ -559,7 +559,7 @@ testy `StickerSuggestionsTest`). Ťuknutí pošle samolepku MÍSTO emoji a pole 
 - **Plave nad polem** jako ostatní napovídání (`FloatingSuggestion`), tlačítko dolů mezitím
   ustoupí. Kdo chtěl poslat emoji, odešle ho jako vždycky.
 - **Logika je ve vlastních funkcích** (`rememberStickerSuggestions`), ne v `ConversationScreen`:
-  ta je v dexu na hraně (viz „ConversationScreen je v dexu na hraně" v CLAUDE.md).
+  viz „Obrazovka konverzace je rozdělená do částí" v CLAUDE.md.
 - **Podržení navržené samolepky otevře velký náhled** (`SuggestedStickerPreview`) s Poslat
   a hvězdičkou, bez voleb odeslání — ty by se musely protáhnout přes `ConversationScreen`.
   Oblíbené si náhled čte sám (`koinInject<StickerRepository>`) a jen po dobu, co je otevřený;

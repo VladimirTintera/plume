@@ -45,7 +45,7 @@ Tenhle soubor nese jen to, co platí pro celý projekt. Poznatky ke konkrétním
 v `docs/poznatky/` — **než sáhneš na oblast, přečti její soubor**, a poučení z opravy zapiš tam,
 ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>' CLAUDE.md docs/poznatky`.
 
-- [Konverzace: zobrazení zpráv](docs/poznatky/konverzace-zobrazeni.md) — bloky seznamu, bublina a její tvar, média bez bubliny, alba, předěly, doručení, vzhled a sklo, barva konverzace, text s entitami a odkazy, přeposlání, soubory, reklamy
+- [Konverzace: zobrazení zpráv](docs/poznatky/konverzace-zobrazeni.md) — skladba obrazovky (který soubor nese kterou část), bloky seznamu, bublina a její tvar, média bez bubliny, alba, předěly, doručení, vzhled a sklo, barva konverzace, text s entitami a odkazy, přeposlání, soubory, reklamy
 - [Konverzace: pohyb v historii](docs/poznatky/konverzace-pohyb.md) — otevřený chat, skok na nepřečtené / citaci / zmínky / datum, připnuté, hledání, okno v historii, hlášení přečtení, gesta tahem do strany, rychlý přepínač chatů
 - [Konverzace: psaní a odesílání](docs/poznatky/konverzace-psani.md) — vstupní pole, přílohy a galerie, úprava fotky, práva psát, „píše…“, plánování, úprava, formátování, náhled odkazu, koncept, napovídání, odpovědi, let odeslané zprávy
 - [Konverzace: akce nad zprávami](docs/poznatky/konverzace-akce.md) — nabídka nad zprávou a citace z ní, překlad, shrnutí od serveru, automatické mazání, výběr víc zpráv, informace o zprávě, připomenutí, přeposílání
@@ -648,13 +648,15 @@ vkus toho, kdo zrovna píše obrazovku.
   ne čísla odvozená z paddingu. Reprodukce na emulátoru Fold: seznam chatů na složeném
   displeji, `adb emu unfold` / `fold` v cyklu (bez opravy pád do šesti cyklů).
 
-- **`ConversationScreen` je v dexu na hraně a nová logika patří do VLASTNÍ funkce.** Po přidání
-  docku přehrávače přímo do ní měla funkce 275 registrů a otevření každého chatu padalo na
-  `NullPointerException … Composer.sourceInformationMarkerStart` na `null` v
-  `rememberComposableLambda` u `bottomBar = {`. Dřívější verze měla 253 registrů a fungovala, po
-  vytažení do `rememberPlayerDock` / `ConversationPlayerDock` má 268 a funguje. **Mechanismus
-  (D8 nebo ART) ověřený NENÍ** — jisté je jen, že vytažení pomohlo. Kdo přidává do
-  `ConversationScreen`, ať aplikaci po změně otevře v chatu, ne jen přeloží; počet registrů
+- **Obrazovka konverzace je rozdělená do částí a nová logika patří do té své, ne do
+  `ConversationScreen`.** Funkce bývala v dexu na hraně: s 275 registry otevření každého chatu
+  padalo na `NullPointerException … Composer.sourceInformationMarkerStart` na `null` v
+  `rememberComposableLambda` u `bottomBar = {`. **Mechanismus (D8 nebo ART) ověřený NENÍ** —
+  jisté je jen, že vytažení kódu pomohlo. Před rozdělením měla 274 registrů a 5 172 řádků, po
+  něm 144 a 725; nejvíc (50) ušetřilo sloučení dvaceti tří callbacků do `ConversationNavigation`,
+  protože každý parametr composable funkce stojí registr i s příznaky `$changed`. Mapa částí
+  a pravidla mezi nimi: „Skladba obrazovky" v `docs/poznatky/konverzace-zobrazeni.md`. Kdo
+  přidává do obrazovky, ať aplikaci po změně otevře v chatu, ne jen přeloží; počet registrů
   ukáže `dexdump -d` nad APK (`registers` u `ConversationScreen(`).
 
 - **`adb shell input text` do pole BEZ fokusu jde jako klávesnice do obrazovky a mezera

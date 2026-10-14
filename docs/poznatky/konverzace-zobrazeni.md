@@ -3,6 +3,43 @@
 Poznatky k jedné oblasti aplikace. Obecná pravidla projektu a rejstřík ostatních souborů jsou
 v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 
+## Skladba obrazovky
+
+`ConversationScreen` jen drží stav sdílený mezi částmi a skládá je do Scaffoldu. Každá část má
+vlastní soubor v `features/conversation/`:
+
+| Část | Soubor | Co v ní je |
+|---|---|---|
+| Hlavička | `ConversationTopBar.kt` | výběr, hledání, nebo název s avatarem, podtitulem a akcemi |
+| Pruhy nad seznamem | `ConversationBars.kt` | spam a oznámení o chatu, žádosti o vstup, videochat, připnuté, dock polohy, přehrávač |
+| Obsah | `ConversationContent.kt` | seznam zpráv, nebo stav místo něj; plovoucí datum |
+| Spodní lišta | `ConversationBottomBar.kt` | vstupní pole s napovídáním, nebo lišta místo něj (Přidat se, Start, ztlumení…) |
+| Vstupní pole | `MessageInput.kt` | karta pole, tlačítko odeslání a nahrávání, hlavičky citace a úpravy |
+| FAB slot | `ConversationFloatingButtons.kt` | odznaky zmínek a reakcí, „přečíst", tlačítko dolů |
+| Dialogy a sheety | `ConversationDialogs.kt` | výběry, plánování, sheety otevírané stavem ViewModelu; `ConversationSheets` |
+| Efekty seznamu | `ConversationListEffects.kt` | snackbary, stránkování, skoky na zprávu, nové zprávy dole, hlášení přečtení a reklam |
+| Navigace | `ConversationNavigation.kt` | `ConversationNavigation` (callbacky do shellu) a `ConversationEvents` (jednorázové události) |
+| Nahrávání | `ConversationRecording.kt` | stav hlasovky a kolečka, gesto, oprávnění, kamera |
+
+- **Nová logika patří do své části, ne do `ConversationScreen`.** Funkce byla v dexu na hraně
+  registrů (viz „Obrazovka konverzace je rozdělená do částí" v CLAUDE.md).
+- **Co patří jedné části, drží si ta část sama**: stav pruhů a sheet z pruhu proti spamu, výběr
+  příloh, emoji ke slovu, stav spojení. V obrazovce zůstává jen to, co čte víc částí:
+  `ConversationSheets` (co je otevřené nad konverzací), `ConversationRecording`, `ComposerDraft`,
+  stav seznamu a změřené výšky pruhů a pole.
+- **`state` předaný jako hodnota je snímek z doby skládání.** Efekt, který žije přes víc změn
+  stavu (`snapshotFlow` u hlášení přečtení a reklam), musí číst `stateHolder`. V obrazovce to
+  nebylo vidět, protože tam je `state` delegát (`by stateHolder`) a čte se vždy aktuální.
+- **Rychle se měnící hodnoty se předávají jako lambda nebo `State`, ne jako hodnota**: klíč
+  nejvyšší viditelné zprávy, odkrytí časů, vysunutí docku. Přečtené při volání by skládaly
+  volajícího (viz `topVisibleKey` v `docs/poznatky/vykon.md`).
+- **Funkce, která vrací hodnotu, se nepřeskakuje** a běží na místě volání. Na tom stojí
+  `rememberNewMessages`: `requestScrollToItem` v kompozici musí proběhnout v tomtéž průchodu
+  jako dřív v těle obrazovky.
+- **`ConversationNavigation` je `data class`.** Volající ji skládá při každé rekompozici znovu;
+  bez `equals` by se lišila referencí a konverzace by se skládala s ním. Lambdy volajícího si
+  pamatuje strong skipping, takže dvě po sobě složené instance jsou si rovné.
+
 ## Bloky seznamu
 
 Seznam zpráv se skládá z **bloků** (`ConversationItem`), které nesou svoje data a **samy se
