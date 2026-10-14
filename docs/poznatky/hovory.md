@@ -510,9 +510,31 @@ desktopu" níž).
   v Kotlinu (BT.601, omezený rozsah) rovnou s otočením. Telefon na výšku posílá snímek na
   šířku s rotací 90 / 270, a ta znamená „otočit po směru hodinových ručiček". Renderer
   WebRTC nad OpenGL jako na Androidu tu není a 720p při 30 fps v Kotlinu stačí.
-- **Náhled kamery až od spojení** (`previewsBeforeConnect = false`): kameru otevírá knihovna
-  při startu přenosu. Na Androidu ji při vytáčení drží sdílená kamera mimo knihovnu. Při
-  vytáčení s kamerou proto obrazovka ukazuje fotku, ne prázdnou plochu.
+- **Náhled kamery do spojení dělá Plume sám** (`MacCamera`, `jvmMain/objc/PlumeCamera.m`,
+  jen macOS): knihovna kameru otevře až se spojením (`StreamManager` otevírá zdroje, teprve
+  když má spojení režim). Náhled je vlastní `AVCaptureSession` s výstupem BGRA 1280 × 720,
+  snímky jdou JNI do `VideoFrames.pushBgra`.
+  - **Před startem přenosu se náhled zastaví** (synchronně, kamera je pak volná) a jeho
+    poslední snímek zůstane vidět, dokud nepřijde první snímek z knihovny. Přechod je
+    plynulý, totéž dělá `SharedCamera` na Androidu. Zastaví se i se zrušeným vytáčením
+    (`stop()` u hovoru, který se nespojil).
+  - **Zařízení se vybírá stejně jako v knihovně** (první z vestavěných a externích kamer
+    v `AVCaptureDeviceDiscoverySession`), ať náhled i hovor ukazují tutéž kameru.
+  - **Velikost se nastavuje ve výstupu** (`kCVPixelBufferWidthKey` / `HeightKey`). Předvolba
+    sezení `AVCaptureSessionPreset1280x720` u kamery MacBooku nezabrala a snímky chodily
+    1920 × 1080.
+  - **Windows a Linux náhled před spojením nemají** (`previewsBeforeConnect = false`): při
+    vytáčení s kamerou je tam vidět fotka, ne prázdná plocha.
+- **Na kameru a mikrofon se macOS ptá hned při vytočení / přijetí**
+  (`rememberCallCameraPermission`, `rememberCallMicrophonePermission` →
+  `AVCaptureDevice requestAccessForMediaType`, čeká se mimo vlákno UI). Dřív se ptala až
+  knihovna uprostřed spojování: přenos pak čekal na odpověď a spojení se obnovovalo.
+- **Ad hoc podepsaný ladicí balíček se ptá po každém sestavení znovu.** TCC si pamatuje
+  požadavek na podpis (`Failed to match existing code requirement` v logu `tccd`) a ad hoc
+  podpis je pokaždé jiný. Vydání podepsané stálou identitou se zeptá jednou.
+- **Dotaz TCC na mých snímcích obrazovky nebyl vidět** (nástroj filtruje okna aplikací,
+  ke kterým nemá přístup), uživatel ho ale viděl. Že dotaz visí, prozradil `jstack`
+  (vlákno `call-permission` v `nativeRequestAccess`) a log `tccd` (`AUTHREQ_PROMPTING`).
 - **Přepnout kameru nejde** (`canSwitchCamera = false`, tlačítko se nekreslí). Zapnutí
   a vypnutí za hovoru přenastaví zdroje CAPTURE (`ntg_set_stream_sources`).
 - **Oprávnění: hardened runtime chce entitlementy**, viz `docs/poznatky/desktop.md`,
@@ -522,7 +544,15 @@ desktopu" níž).
 - **Ověřeno na macOS 26 s Pixelem 5** (aplikace spuštěná přes `open`, povolená kamera
   i mikrofon): videohovor z telefonu na Mac i z Macu na telefon, obraz oběma směry rovně
   (potvrdil uživatel), náhled v rohu jako zrcadlo, vypnutí a zapnutí kamery za hovoru.
-  **Neověřeno**: Windows a Linux (modul WebRTC), externí kamera, otočení telefonu za hovoru.
+  Náhled při vytáčení z Macu a jeho plynulý přechod do rohu po spojení potvrdil uživatel.
+  Zrušené vytáčení snímání zastaví (`AVCaptureSession … running -> 0` v systémovém logu).
+  **Neověřeno**: Windows a Linux (modul WebRTC), externí kamera, otočení telefonu za hovoru,
+  náhled při zvonění příchozího videohovoru.
+- **Oficiální Telegram na témže účtu na telefonu může zvonit dál**, i když hovor přijal
+  Plume a hovor mezitím skončil. Notifikace `incoming_calls…` s vibrací (usage RINGTONE)
+  běžela minuty po zavěšení. Že hovor přijala jiná relace, má oficiální aplikaci oznámit
+  server, z Plume to ovlivnit nejde. Na testovacím telefonu pomůže
+  `am force-stop org.telegram.messenger`.
 - **Jednou spadla knihovna na poškozené haldě** (`process_signaling_data` → parse JSON,
   `xzone_malloc` trap ve vlákně `ntg-media`). Stalo se po minutovém čekání na systémový dotaz
   na mikrofon, kdy se spojení obnovovalo („Reconnecting…"). Data signalizace to nebyla:

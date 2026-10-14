@@ -18,9 +18,11 @@ import java.util.concurrent.Executors
  * - **Video**: kameru snímá knihovna sama (macOS AVFoundation, jinde WebRTC), vybírá se první
  *   ze seznamu `ntg_get_media_devices`. Snímky naší kamery (CAPTURE) i protistrany (PLAYBACK,
  *   slot `camera` jako EXTERNAL) chodí jako I420 do `ntg_on_frames_callback` a odtud do
- *   [VideoFrames], které kreslí `CallVideo`. **Náhled kamery je až od spojení**: na Androidu
- *   ho při vytáčení drží sdílená kamera mimo knihovnu, tady by na to byla potřeba druhá
- *   instance knihovny.
+ *   [VideoFrames], které kreslí `CallVideo`.
+ * - **Náhled kamery do spojení dělá Plume sám** ([MacCamera], jen macOS): knihovna kameru
+ *   otevře až se spojením. Před startem přenosu se náhled zastaví (kamera je volná) a jeho
+ *   poslední snímek zůstane vidět, dokud nepřijde první snímek z knihovny — jako
+ *   `SharedCamera` na Androidu. Windows a Linux náhled před spojením nemají.
  * - Všechno jde přes jedno vlákno, jako na Androidu; zpětná volání chodí z vláken knihovny.
  */
 class DesktopCallMedia : CallMedia {
@@ -63,8 +65,10 @@ class DesktopCallMedia : CallMedia {
     /** Kamera je jedna (vybírá se první), přepínat není mezi čím. */
     override val canSwitchCamera: Boolean = false
 
-    /** Kameru otevírá knihovna až se spojením (viz třída). */
-    override val previewsBeforeConnect: Boolean = false
+    /** Náhled do spojení jen přes [MacCamera] (viz třída). */
+    override val previewsBeforeConnect: Boolean get() = MacCamera.available
+
+    private var previewing = false
 
     override val protocol: CallMediaProtocol by lazy {
         worker.submit<CallMediaProtocol> {
@@ -120,6 +124,8 @@ class DesktopCallMedia : CallMedia {
                 }.also { lib.ntg_on_frames_callback(instance, it, null) }
 
                 lib.check("create_p2p_call") { ntg_create_p2p_call(instance, callId) }
+                // Náhled pryč DŘÍV, než kameru otevře knihovna; jeho poslední snímek zůstává.
+                stopPreview()
                 val found = devices()
                 devices = found
                 lib.check("set_stream_sources(capture)") {
@@ -199,7 +205,11 @@ class DesktopCallMedia : CallMedia {
             if (cameraOn == on) return@execute
             cameraOn = on
             if (!on) video.clear(CallVideoSource.Local)
-            val instance = handle ?: return@execute
+            val instance = handle ?: run {
+                // Ještě se nespojilo (vytáčení, zvonění): náhled dělá Plume sám.
+                if (on) startPreview() else stopPreview()
+                return@execute
+            }
             val found = devices ?: return@execute
             runCatching {
                 native.check("set_stream_sources(camera $on)") {
@@ -210,7 +220,31 @@ class DesktopCallMedia : CallMedia {
     }
 
     override fun stop() {
-        worker.execute { stopNow() }
+        worker.execute {
+            // Hovor, který se nespojil (zrušené vytáčení): přenos neběžel, náhled ano.
+            stopPreview()
+            cameraOn = false
+            video.clearAll()
+            stopNow()
+        }
+    }
+
+    private fun startPreview() {
+        if (previewing || !MacCamera.available) return
+        var first = true
+        previewing = MacCamera.start { pixels, width, height, stride ->
+            if (first) logger.d { "První snímek náhledu: ${width}×$height." }
+            first = false
+            runCatching { video.pushBgra(CallVideoSource.Local, pixels, width, height, stride) }
+                .onFailure { logger.w(it) { "Snímek náhledu se nepodařilo vykreslit." } }
+        }
+        if (!previewing) logger.w { "Náhled kamery nejde spustit." }
+    }
+
+    private fun stopPreview() {
+        if (!previewing) return
+        previewing = false
+        MacCamera.stop()
     }
 
     private fun stopNow() {
