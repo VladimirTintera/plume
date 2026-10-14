@@ -17,9 +17,7 @@ import eu.tintera.plume.core.telegram.ReplyKeyboardButtonKind
 import eu.tintera.plume.core.telegram.SwitchInlineTarget
 import eu.tintera.plume.core.telegram.UnsupportedBotButton
 import eu.tintera.plume.core.telegram.UnsupportedKeyboardButton
-import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UiText
-import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.bot_answer
 import eu.tintera.plume.resources.bot_button_failed
@@ -60,8 +58,12 @@ internal class ConversationBots(
     private val repository: ConversationRepository,
     private val chatRepository: ChatRepository,
     private val settings: AppSettings,
-    private val urlOpener: UrlOpener,
-    private val clipboard: TextClipboard,
+    /** Odkaz ven (prohlížeč); `UrlOpener` je `expect class`, v testu ho nahradit nejde. */
+    private val openUrl: (url: String) -> Unit,
+    /** Zápis do schránky (`TextClipboard.copy`); `TextClipboard` je `expect class`. */
+    private val copyToClipboard: suspend (text: String) -> Unit,
+    /** Systém zkopírování potvrdí sám (`TextClipboard.confirmsCopy`) — vlastní hláška by se zdvojila. */
+    private val clipboardConfirmsCopy: Boolean,
     private val botStartRequests: BotStartRequests,
     /** Odkaz z tlačítka, zmínka a profil — jdou touž cestou jako z textu zprávy. */
     private val links: ConversationLinks,
@@ -108,7 +110,7 @@ internal class ConversationBots(
                 .onSuccess { prompt ->
                     when (prompt) {
                         is LoginUrlPrompt.Open ->
-                            if (prompt.skipConfirmation) urlOpener.open(prompt.url) else links.openLink(prompt.url, confirmExternal = true)
+                            if (prompt.skipConfirmation) openUrl(prompt.url) else links.openLink(prompt.url, confirmExternal = true)
                         is LoginUrlPrompt.Confirm ->
                             state.update { it.copy(loginRequest = LoginRequest(messageId, button.buttonId, prompt)) }
                     }
@@ -123,11 +125,11 @@ internal class ConversationBots(
         state.update { it.copy(loginRequest = null) }
         scope.launch {
             repository.loginUrl(chatId, request.messageId, request.buttonId, allowWriteAccess)
-                .onSuccess(urlOpener::open)
+                .onSuccess(openUrl)
                 // Přihlásit se nepovedlo, ale web uživatel chtěl — otevře se bez přihlášení a řekne se proč.
                 .onFailure {
                     state.update { it.copy(notice = UiText(Res.string.bot_login_failed)) }
-                    urlOpener.open(request.prompt.url)
+                    openUrl(request.prompt.url)
                 }
         }
     }
@@ -152,8 +154,8 @@ internal class ConversationBots(
             BotButtonKind.Callback -> askBot(messageId, row, column, button.text)
             is BotButtonKind.Url -> links.openLink(kind.url, confirmExternal = true)
             is BotButtonKind.CopyText -> scope.launch {
-                clipboard.copy(kind.text)
-                if (!clipboard.confirmsCopy) state.update { it.copy(notice = UiText(Res.string.bot_text_copied)) }
+                copyToClipboard(kind.text)
+                if (!clipboardConfirmsCopy) state.update { it.copy(notice = UiText(Res.string.bot_text_copied)) }
             }
             is BotButtonKind.User -> links.openMentioned { chatRepository.privateChat(kind.userId) }
             is BotButtonKind.WebApp -> links.requestWebApp(
@@ -266,7 +268,7 @@ internal class ConversationBots(
 
     /** Dárkový kód Premium do schránky; potvrzení ukáže sheet sám — snackbar by byl pod ním. */
     fun copyGiftCode(code: String) {
-        scope.launch { clipboard.copy(code) }
+        scope.launch { copyToClipboard(code) }
         state.update { current -> current.copy(giveaway = current.giveaway?.copy(codeCopied = true)) }
     }
 
