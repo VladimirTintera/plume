@@ -864,6 +864,15 @@ class TdlConversationRepository(
     override suspend fun unpin(chatId: Long, messageId: Long): Result<Unit> =
         client.unpinChatMessage(chatId = chatId, messageId = messageId).toResult().map { }
 
+    override suspend fun unpinAll(chatId: Long): Result<Unit> {
+        val result = if (forumTopicId != null) {
+            client.unpinAllForumTopicMessages(chatId = chatId, forumTopicId = forumTopicId)
+        } else {
+            client.unpinAllChatMessages(chatId = chatId)
+        }
+        return result.toResult().map { }
+    }
+
     override suspend fun pin(
         chatId: Long,
         messageId: Long,

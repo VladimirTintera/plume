@@ -336,6 +336,13 @@ interface ConversationRepository {
     suspend fun unpin(chatId: Long, messageId: Long): Result<Unit>
 
     /**
+     * Odepne všechny připnuté zprávy — v tématu skupiny jen ty z tématu
+     * (`unpinAllForumTopicMessages`), jinak celého chatu (`unpinAllChatMessages`). Potvrzení
+     * dorazí přes [pinnedMessageChanges].
+     */
+    suspend fun unpinAll(chatId: Long): Result<Unit>
+
+    /**
      * Připne zprávu. Potvrzení dorazí přes [pinnedMessageChanges].
      *
      * [notify] upozorní členy skupiny nebo odběratele kanálu. [onlyForSelf] dává smysl jen

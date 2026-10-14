@@ -50,6 +50,7 @@ open class UnimplementedConversationRepository : ConversationRepository {
     override suspend fun resend(chatId: Long, messageIds: List<Long>) : Result<Unit> = error("resend")
     override suspend fun pinnedMessages(chatId: Long) : Result<PinnedMessages> = error("pinnedMessages")
     override suspend fun unpin(chatId: Long, messageId: Long) : Result<Unit> = error("unpin")
+    override suspend fun unpinAll(chatId: Long) : Result<Unit> = error("unpinAll")
     override suspend fun pin(chatId: Long, messageId: Long, notify: Boolean, onlyForSelf: Boolean) : Result<Unit> = error("pin")
     override fun pinnedMessageChanges(chatId: Long) : Flow<Unit> = error("pinnedMessageChanges")
     override suspend fun visualMedia(chatId: Long, messageId: Long, older: Int, newer: Int) : Result<List<ChatMessage>> = error("visualMedia")

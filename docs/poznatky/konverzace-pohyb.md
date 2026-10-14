@@ -113,6 +113,12 @@ za ikonou seznamu v sheetu (`PinnedMessagesSheet`), s odepínáním.
   křížek vedle jedné z mnoha svádí k domněnce, že zavře celý pruh.
 - **Sheet se po odepnutí nezavírá** (odepíná se často víc zpráv po sobě), po ťuknutí na řádek
   ano — napřed se schová, pak se skáče.
+- **„Odepnout vše" je v hlavičce sheetu**, od dvou připnutých a jen s právem odepínat
+  (`unpinAllChatMessages`, v tématu skupiny `unpinAllForumTopicMessages` — repository zná
+  téma z konstrukce). **Na rozdíl od jedné zprávy se ptá předem**: „Vrátit" by muselo připnout
+  každou zprávu zvlášť. Pruh zmizí hned, při selhání se seznam přečte znovu. Ověřeno na
+  emulátoru (dvě připnuté zprávy bota v „Plume test moderace"): dialog „Odepnout 2 zprávy?",
+  po potvrzení pruh pryč i po restartu aplikace. Téma skupiny ověřené NENÍ.
 - **Pruh je plovoucí pilulka z mléčného skla** (`CircleShape`, stín, `glassStyle`), ne karta se
   svislým proužkem vlevo. Proužek (dílek na zprávu) byl jazyk M2 a v aplikaci už jednou ustoupil
   ploše (citace, náhled odkazu); pilulka mluví stejně jako plovoucí lišty konverzace. Fotka,

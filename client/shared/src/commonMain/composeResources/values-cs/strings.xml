@@ -343,6 +343,14 @@
     <string name="voice_speed_fast">1,5×</string>
     <string name="voice_speed_double">2×</string>
     <string name="conversation_unpin_failed">Zprávu se nepodařilo odepnout.</string>
+    <string name="conversation_unpin_all">Odepnout vše</string>
+    <plurals name="conversation_unpin_all_title">
+        <item quantity="one">Odepnout %1$d zprávu?</item>
+        <item quantity="few">Odepnout %1$d zprávy?</item>
+        <item quantity="other">Odepnout %1$d zpráv?</item>
+    </plurals>
+    <string name="conversation_unpin_all_body">Zmizí z pruhu připnutých všem v chatu. Zpátky se dají připnout jen po jedné.</string>
+    <string name="conversation_unpin_all_failed">Zprávy se nepodařilo odepnout.</string>
     <string name="conversation_repin_failed">Zprávu se nepodařilo znovu připnout.</string>
     <string name="conversation_history_failed">Historii se nepodařilo načíst.</string>
     <string name="conversation_quote_deleted">Citovaná zpráva už není k dispozici.</string>
