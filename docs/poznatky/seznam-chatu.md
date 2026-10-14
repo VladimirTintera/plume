@@ -40,8 +40,8 @@ když si o to uživatel řekne v Nastavení (`separateUnreadChats`, **výchozí 
 
 ### Složky místo filtrů a FAB
 
-Seznam chatů zužují JEN složky Telegramu v řádku pod pilulkou (viz „Složky chatů"). Dole je
-FAB menu „Vytvořit" (`NewChatFabMenu`): přepínací FAB s tužkou a nad ním Nový kanál, Nová
+Seznam chatů zužují JEN složky Telegramu v plovoucí liště dole vedle FAB (viz „Složky chatů").
+Vpravo dole je FAB menu „Vytvořit" (`NewChatFabMenu`): přepínací FAB s tužkou a nad ním Nový kanál, Nová
 skupina a Nová zpráva.
 
 - **Dřív tu byl plovoucí toolbar s vlastními filtry** (Vše, Nepřečtené, Lidé, Skupiny, Kanály;
@@ -49,7 +49,7 @@ skupina a Nová zpráva.
   Telegramu („Nepřečtené", „Osobní"…) — a s nimi přidanými stály v aplikaci dvě řady téhož nad
   sebou. Uživatel to vyhodnotil jako duplicitu a zrušily se. Co se tím ztratilo: kombinace
   „složka × filtr" (nepřečtené uvnitř Práce) a filtry pro toho, kdo složky nemá. Náhrada je
-  „+" na konci řádku složek, který doporučené složky nabídne na jedno ťuknutí.
+  „+" na konci lišty složek, který doporučené složky nabídne na jedno ťuknutí.
 - **„+" otevře sheet** (`FolderSuggestionsSheet`, stav `ChatsViewModel.folderSuggestions`):
   doporučené složky (`getRecommendedChatFolders`, čtou se při každém otevření), pod nimi „Nová
   složka" a „Spravovat složky" do Nastavení → Obecné → Složky chatů
@@ -57,15 +57,13 @@ skupina a Nová zpráva.
   se rovnou VYBERE — kdo si přidá „Nepřečtené", chce je vidět.
 - **Sheet říká, že se složka synchronizuje** s ostatními klienty. U filtru, který dřív žil jen
   v Plume, by to nikdo nečekal.
-- **Bez složek se řádek NEKRESLÍ** (`folderTabs` vrátí prázdný seznam). Dřív v něm stálo
+- **Bez složek se lišta NEKRESLÍ** (`folderTabs` vrátí prázdný seznam). Dřív v něm stálo
   samotné „Všechny chaty" a „+", aby k doporučeným složkám vedla cesta z hlavního seznamu —
   jenže jediné tlačítko, které nejde odvybrat, není volba, jen řádek místa navíc nad chaty
   u každého, kdo složky nepoužívá. Uživatel ho chtěl pryč. Doporučené složky dál nabízí
-  Nastavení → Obecné → Složky chatů; po přidání první složky se řádek objeví i s „+".
+  Nastavení → Obecné → Složky chatů; po přidání první složky se lišta objeví i s „+".
   Ověřeno na emulátoru (česky): účet bez složek bez řádku, přidaná doporučená „Unread" v Nastavení
   řádek ukáže, a když se smaže, zatímco je vybraná, řádek zmizí a seznam je zase celý.
-- **„+" je mimo spojenou skupinu** (`OutlinedIconButton` s odstupem): je to akce, ne volba;
-  ve skupině by se tvářil jako další složka.
 - **Prázdná složka má `IntroEmptyState` s ikonou složky** („Nic tu není") — chaty jsou, jen
   ne tyhle (typicky „Nepřečtené" se vším přečteným). Prázdný účet má dál holý text.
 - **FAB a snackbar nejsou ve slotech Scaffoldu** a stojí nad klávesnicí (`imePadding` za
@@ -83,8 +81,8 @@ skupina a Nová zpráva.
   odchází z aplikace. Položka napřed menu zavře, pak naviguje — po návratu má být zavřené.
 - **Popisek přepínače se mění se stavem** („Vytvořit" / „Zavřít") a čtečka ho čte PŘED
   položkami (`traversalIndex = -1`), jako v ukázce M3; z poslední položky menu zavře vlastní akce.
-- **Vybraná složka se v řádku vždycky ukáže** (`bringIntoViewRequester` u vybraného tlačítka):
-  přidaná doporučená složka stojí na konci řádku a vybrala by se za okrajem obrazovky.
+- **Vybraná složka se v liště vždycky ukáže** (`bringIntoViewRequester` u vybrané položky):
+  přidaná doporučená složka stojí na konci lišty a vybrala by se za okrajem.
 - **Server doporučené složky vracet nemusí** — účtu, který už má „Unread" i „Personal", nevrátil
   žádnou. Sheet se pak ověřuje sondou (podstrčená doporučená složka v `openFolderSuggestions`;
   necommituje se), založení jde skutečným `createChatFolder`.
@@ -97,10 +95,34 @@ skupina a Nová zpráva.
 
 ### Složky chatů
 
-Složky Telegramu (`ChatListFolder`) jsou řádek přepínacích tlačítek pod pilulkou hledání:
-„Všechny chaty · Práce 3 · Rodina…" (`ChatFolderRow`, pravidla `folderTabs` a `selectedFolderId`
-v `ChatFolderTabs.kt`, testy `ChatFolderTabsTest`). Bez složek se řádek nekreslí vůbec
-(viz „Složky místo filtrů a FAB").
+Složky Telegramu (`ChatListFolder`) jsou plovoucí lišta dole vedle FAB (`ChatFolderToolbar`,
+`HorizontalFloatingToolbar`; pravidla `folderTabs` a `selectedFolderId` v `ChatFolderTabs.kt`,
+testy `ChatFolderTabsTest`). Bez složek se lišta nekreslí vůbec (viz „Složky místo filtrů a FAB").
+
+- **Dřív to byl řádek přepínacích tlačítek pod pilulkou** (connected button group s fajfkou
+  a „+" v obrysovém kruhu). Uživatel ho měl za ošklivý: vybraná složka byla nejvýraznější věc
+  na obrazovce, nevybraná vypadala jako holý text a „+" byl vyšší než zbytek řádku. Lišta dole
+  je u palce a nahoře zbyla jen pilulka.
+- **Popisky, když se vejdou; jinak ikony a popisek jen u vybrané.** Rozhoduje ZMĚŘENÁ šířka
+  (`SubcomposeLayout`: napřed se nanečisto změří verze se všemi popisky), ne počet složek —
+  tři dlouhé názvy se na telefon nevejdou, pět krátkých na desktop ano. Co se nevejde ani jako
+  ikony, posouvá se do strany. Ikona je ta od TDLib (zvolená, jinak výchozí podle obsahu),
+  „Všechny chaty" mají ikonu „All". Bez popisku nese název bublina (podržení / najetí myší)
+  a čtečka obrazovky, počet nepřečtených je v odznaku na ikoně.
+- **Bublina se u položky s popiskem VYPÍNÁ, neodpojuje** (`RootTooltipBox(enableUserInput =
+  false)`). S obalem přidávaným jen bez popisku se položka při změně výběru skládala znovu
+  a popisek naskočil bez animace.
+- **Položky nejsou `IconButton`, ani „+".** `IconButton` hlásí zarovnávací čáry minimální
+  dotykové plochy (`MinimumInteractiveLeftAlignmentLine`) a `HorizontalFloatingToolbar` podle
+  nich vyvažuje svislé odsazení (`minimumInteractiveBalancedPadding`). V posouvaném řádku se
+  čára „+" počítá od jeho polohy v řádku — stovky pixelů — a lišta narostla přes půl obrazovky.
+  Položky jsou proto vlastní 48dp plochy (`selectable` s rolí Tab, „+" `clickable`).
+- **Lišta leží VEDLE FAB menu v `Box`, ne s ním v `Row`.** Rozbalené FAB menu je široké jako
+  nejdelší položka a v řádku by lištu odstrčilo; při otevřeném menu se lišta schová. Osa lišty
+  (64 dp) je na ose FAB (56 dp nad 16 dp okrajem menu), proto odstup zespodu 12 dp.
+- **Při scrollu dolů lišta zajede do FAB, při scrollu nahoru (a na vršku) vyjede** — jako
+  pilulka nahoře, aby nezakrývala čtené chaty. Samotná lišta má výchozí elevaci 0; nad kartami
+  chatů by se slévala, takže dostává elevaci jako lišta s FAB.
 
 - **Složka je další `ChatFolder` (`Custom(id)`), ne nový druh seznamu.** Repository drží pozice
   chatu ve VŠECH seznamech, které TDLib hlásí (`positions`), takže seznam složky se skládá
@@ -118,10 +140,8 @@ v `ChatFolderTabs.kt`, testy `ChatFolderTabsTest`). Bez složek se řádek nekre
   i zabití procesu ji zachovají, nové spuštění začne na všech chatech. Smazaná složka (třeba
   na jiném zařízení) spadne na celý seznam, ale výběr se NEPŘEPISUJE — po startu přichází
   `UpdateChatFolders` až po prvním složení a uložená volba by se jinak ztratila.
-- **Řádek odjíždí spolu s pilulkou.** Scroll behavior nenese `AppBarWithSearch`, ale sloupec
-  kolem pilulky i řádku (`Modifier.searchBarScrollBehavior()` je veřejný); bar sám ho nedostane,
-  jinak by odjel jen on a řádek zůstal viset nahoře.
-- **Jen ťuknutím, ne tahem do strany.** Vodorovný tah po seznamu patří archivaci.
+- **Jen ťuknutím, ne tahem do strany** (žádný pager mezi složkami). Vodorovný tah po seznamu
+  patří archivaci.
 - **„Všechny chaty" stojí, kam ho uživatel v Telegramu přesunul** (`mainChatListPosition`,
   bez Premium vždycky první); pozice za koncem (složka mezitím zmizela) jde na konec.
 - **Číslo u složky je počet nepřečtených NEZTLUMENÝCH chatů** (`UpdateUnreadChatCount` pro
@@ -132,6 +152,11 @@ v `ChatFolderTabs.kt`, testy `ChatFolderTabsTest`). Bez složek se řádek nekre
 - **Ověřeno na emulátoru** dvěma složkami založenými sondou (`createChatFolder`; jedna s vybranými
   chaty včetně Uložených zpráv, druhá „všichni boti"): řádek, přepnutí, číslo u složky, obnova
   po `am kill`, odjetí s pilulkou. **iOS jen přeložené.**
+- **Lišta ověřená na emulátoru** (česky, světlý i tmavý motiv) se třemi podstrčenými složkami
+  (sonda ve `folderTabs`, necommituje se — účet na emulátoru složky nemá): kompaktní režim
+  s popiskem u vybrané, přepnutí s přejetím popisku, odznak, „+" na konci posunu, schování
+  při otevřeném FAB menu a při scrollu dolů, návrat nahoru. Režim se všemi popisky
+  (široké okno) a desktop jen přeložené; **iOS jen přeložené.**
 
 #### Správa složek
 

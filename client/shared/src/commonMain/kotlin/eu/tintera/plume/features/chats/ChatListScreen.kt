@@ -97,7 +97,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -357,6 +359,25 @@ fun ChatListScreen(
 
     val listState = rememberLazyListState()
     /*
+     * Lišta složek při scrollu dolů zajede do FAB a při scrollu nahoru (a na vršku seznamu) zase
+     * vyjede — stejně jako pilulka hledání nahoře, aby nezakrývala chaty, které uživatel čte.
+     */
+    var folderToolbarHidden by remember { mutableStateOf(false) }
+    LaunchedEffect(listState) {
+        var previous = 0 to 0
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { position ->
+                val (index, offset) = position
+                folderToolbarHidden = when {
+                    index == 0 && offset == 0 -> false
+                    index < previous.first || (index == previous.first && offset < previous.second) -> false
+                    index > previous.first || offset > previous.second -> true
+                    else -> folderToolbarHidden
+                }
+                previous = position
+            }
+    }
+    /*
      * FAB menu „Vytvořit" (viz `docs/poznatky/seznam-chatu.md`, „Složky místo filtrů a FAB"). Zpět ho napřed zavře,
      * teprve další zpět odejde z aplikace; `NavigationBackHandler`, ne `BackHandler` (zabil by
      * predictive back).
@@ -537,27 +558,6 @@ fun ChatListScreen(
                         request = searchRequest,
                         onRequestHandled = onSearchRequestHandled,
                         trailing = accountMenu,
-                        below = {
-                            AnimatedVisibility(
-                                visible = folderTabs.isNotEmpty(),
-                                enter = expandVertically() + fadeIn(),
-                                exit = shrinkVertically() + fadeOut(),
-                            ) {
-                                ChatFolderRow(
-                                    tabs = folderTabs,
-                                    onSelect = { id ->
-                                        viewModel.selectFolder(id)
-                                        /*
-                                         * Jiná složka = jiný seznam; začít od jeho vršku. V obsluze ťuknutí,
-                                         * NE v efektu nad složkou: ten by se spustil i při každém návratu
-                                         * seznamu do kompozice (z konverzace na telefonu) a odjel nahoru.
-                                         */
-                                        scope.launch { listState.scrollToItem(0) }
-                                    },
-                                    onAdd = viewModel::openFolderSuggestions,
-                                )
-                            }
-                        },
                     )
                     FabMenuScrim(
                         visible = fabMenuExpanded,
@@ -759,13 +759,45 @@ fun ChatListScreen(
                         onRead = viewModel::readSelected,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                     )
-                    if (reorder == null && selection == null) NewChatFabMenu(
-                        expanded = fabMenuExpanded,
-                        onExpandedChange = { fabMenuExpanded = it },
-                        onNewChat = onNewChat,
-                        onNewGroup = onNewGroup,
-                        onNewChannel = onNewChannel,
-                    )
+                    /*
+                     * Složky v plovoucí liště vedle FAB (viz `docs/poznatky/seznam-chatu.md`, „Složky
+                     * chatů"). Lišta leží VEDLE FAB menu v `Box`, ne s ním v `Row`: rozbalené menu je
+                     * široké jako nejdelší položka a v řádku by lištu odstrčilo. Odstup zprava je
+                     * šířka FAB s okraji menu, zespodu tak, aby lišta (64 dp) a FAB (56 dp) měly
+                     * společnou osu.
+                     */
+                    if (reorder == null && selection == null) Box(contentAlignment = Alignment.BottomEnd) {
+                        // Nescopovaná varianta: `Box` stojí v `Column` a jeho rozsah by se nabízel taky.
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = folderTabs.isNotEmpty() && !fabMenuExpanded && !folderToolbarHidden,
+                            enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                                expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec(), expandFrom = Alignment.End),
+                            exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                                shrinkHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec(), shrinkTowards = Alignment.End),
+                            modifier = Modifier.padding(start = FAB_MARGIN, end = FOLDER_TOOLBAR_END, bottom = FOLDER_TOOLBAR_BOTTOM),
+                        ) {
+                            ChatFolderToolbar(
+                                tabs = folderTabs,
+                                onSelect = { id ->
+                                    viewModel.selectFolder(id)
+                                    /*
+                                     * Jiná složka = jiný seznam; začít od jeho vršku. V obsluze ťuknutí,
+                                     * NE v efektu nad složkou: ten by se spustil i při každém návratu
+                                     * seznamu do kompozice (z konverzace na telefonu) a odjel nahoru.
+                                     */
+                                    scope.launch { listState.scrollToItem(0) }
+                                },
+                                onAdd = viewModel::openFolderSuggestions,
+                            )
+                        }
+                        NewChatFabMenu(
+                            expanded = fabMenuExpanded,
+                            onExpandedChange = { fabMenuExpanded = it },
+                            onNewChat = onNewChat,
+                            onNewGroup = onNewGroup,
+                            onNewChannel = onNewChannel,
+                        )
+                    }
                     /*
                      * Pod FAB, u palce, jako u hudebních aplikací — a hlavně mimo lištu hledání, která
                      * při scrollu odjíždí. Seznam se odsazuje o jeho výšku, poslední chat je nad ním.
@@ -2085,6 +2117,12 @@ private const val FAB_MENU_SCRIM_ALPHA = 0.8f
  * a trochu vzduchu, aby poslední chat nekončil těsně pod ním.
  */
 private val FAB_CLEARANCE = 56.dp + FAB_MARGIN + 8.dp
+
+/** Lišta složek končí před FAB: jeho šířka (56 dp), okraj FAB menu a mezera mezi lištou a FAB. */
+private val FOLDER_TOOLBAR_END = 56.dp + FAB_MARGIN + 8.dp
+
+/** Osa lišty (64 dp) na ose FAB, který má pod sebou 16 dp: 16 + 56 / 2 − 64 / 2. */
+private val FOLDER_TOOLBAR_BOTTOM = 12.dp
 
 /**
  * Alt+↓ / Alt+↑ (a Ctrl+Tab) z klávesnice: další a předchozí chat v pořadí, jak je vidět —
