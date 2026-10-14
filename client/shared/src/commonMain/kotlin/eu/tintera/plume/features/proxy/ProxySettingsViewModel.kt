@@ -44,7 +44,7 @@ data class ProxySettingsState(
 )
 
 /**
- * Nastavení → Obecné → Proxy. Seznam se po každé akci ČTE ZNOVU: TDLib o změně seznamu update
+ * Nastavení → Úložiště → Proxy. Seznam se po každé akci ČTE ZNOVU: TDLib o změně seznamu update
  * nepošle a co zapnutí jedné proxy udělalo s ostatními, ví jen on.
  */
 class ProxySettingsViewModel(

@@ -215,10 +215,16 @@
     <string name="settings_sign_out_title">Sign out?</string>
     <string name="settings_sign_out_body">Messages and downloaded files will be deleted from this device. Your account and your chats on other devices stay as they are.</string>
     <string name="settings_sign_out_confirm">Sign out</string>
-    <string name="settings_section_general">General</string>
-    <string name="settings_section_general_summary">Account, profile, blocked, sign out</string>
+    <string name="settings_section_privacy">Privacy</string>
+    <string name="settings_section_privacy_summary">Who sees what, blocked users, passwords, app lock</string>
+    <string name="settings_section_chats">Chats</string>
+    <string name="settings_section_chats_summary">Folders, swipe actions, reactions, links</string>
+    <string name="settings_section_ai">On-device AI</string>
+    <string name="settings_section_ai_summary">Reply suggestions, scam warnings, the model</string>
+    <string name="settings_discretion">Discretion</string>
+    <string name="settings_security">Security</string>
     <string name="settings_section_appearance">Appearance</string>
-    <string name="settings_section_appearance_summary">Theme, chat list</string>
+    <string name="settings_section_appearance_summary">Theme, color, text size</string>
     <string name="settings_theme">Theme</string>
     <string name="settings_theme_system">Follow the system</string>
     <string name="settings_theme_light">Light</string>
@@ -1254,7 +1260,7 @@
         <item quantity="other">%1$d days</item>
     </plurals>
     <string name="chat_folders_all">All chats</string>
-    <string name="settings_chat_folders_group">Chats</string>
+    <string name="settings_links">Links</string>
     <string name="settings_open_links_in_app">Open links in the app</string>
     <string name="settings_open_links_in_app_summary">Web pages open inside Plume, not in the browser. Links an app can handle still go to that app.</string>
     <string name="settings_quick_reaction">Quick reaction</string>
@@ -1653,7 +1659,7 @@
     </plurals>
     <string name="summary_me">Me</string>
     <string name="summary_preparing">Reading the conversation…</string>
-    <string name="summary_model_missing">The model is not downloaded yet. Download it in Settings → General.</string>
+    <string name="summary_model_missing">The model is not downloaded yet. Download it in Settings → On-device AI.</string>
     <string name="summary_nothing">There is nothing to summarize here.</string>
     <string name="summary_failed">The summary could not be created.</string>
     <string name="summary_disclaimer">Generated on this device. It may be inaccurate.</string>
@@ -1667,9 +1673,9 @@
     <string name="ai_failure_no_space">There is not enough space on the phone for the model.</string>
     <string name="ai_failure_needs_update">The model needs a newer version of the system or of the AICore app.</string>
     <string name="ai_failure_unavailable">The model on this phone is not available right now.</string>
-    <string name="ai_failure_nano">Gemini Nano on this phone failed. Clearing the storage of the AICore app in system Settings helps, or switch to Gemma in Settings → General → On-device AI.</string>
-    <string name="ai_failure_nano_code">Gemini Nano on this phone failed (AICore, code %1$s). Clearing the storage of the AICore app in system Settings helps, or switch to Gemma in Settings → General → On-device AI.</string>
-    <string name="ai_failure_gemma">The Gemma model failed. If trying again does not help, delete the model in Settings → General → On-device AI and download it again.</string>
+    <string name="ai_failure_nano">Gemini Nano on this phone failed. Clearing the storage of the AICore app in system Settings helps, or switch to Gemma in Settings → On-device AI.</string>
+    <string name="ai_failure_nano_code">Gemini Nano on this phone failed (AICore, code %1$s). Clearing the storage of the AICore app in system Settings helps, or switch to Gemma in Settings → On-device AI.</string>
+    <string name="ai_failure_gemma">The Gemma model failed. If trying again does not help, delete the model in Settings → On-device AI and download it again.</string>
     <string name="ai_failure_empty">The model did not write any text.</string>
     <string name="settings_on_device_ai_preview">Preview model version</string>
     <string name="settings_on_device_ai_preview_summary">The newest version before its stable release. It may not exist for this device and downloads separately.</string>
@@ -2632,7 +2638,7 @@
     <string name="settings_discreet_reading_summary">Open chats do not report that you read them, listen to voice messages or type. Messages are marked as read when you reply or tap Mark as read.</string>
     <string name="conversation_mark_read">Mark as read</string>
     <string name="settings_section_storage">Storage</string>
-    <string name="settings_section_storage_summary">Space used, clearing and auto-download</string>
+    <string name="settings_section_storage_summary">Space used, auto-download, proxy</string>
     <string name="auto_download_title">Auto-download</string>
     <string name="auto_download_wifi">On Wi-Fi</string>
     <string name="auto_download_mobile">On mobile data</string>

@@ -205,7 +205,7 @@ internal interface ConversationItemScope {
      */
     fun canSendCommands(): Boolean = false
 
-    /** Přidá dvojité ťuknutí na zprávu rychlou reakci (Nastavení → Obecné → Chaty)? */
+    /** Přidá dvojité ťuknutí na zprávu rychlou reakci (Nastavení → Chaty)? */
     fun doubleTapReaction(): Boolean = false
 
     /** Tlačítko bota u zprávy, na jehož odpověď se čeká (řádek, sloupec); `null` = žádné. */

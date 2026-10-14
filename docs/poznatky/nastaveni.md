@@ -102,7 +102,34 @@ se z telefonu nedalo chodit zpět bez `BackHandler`, který v téhle aplikaci za
   sekci aplikace; klíčem je i velikost zásobníku Nastavení (návrat na kořen). **Obecně: efekt, který zapisuje do zásobníku, nepatří do
   obrazovky, která může být zrovna na odchodu.**
 - **Šipka zpět je v sekci jen na compactu.** V dvoupanelu je seznam sekcí pořád vidět vedle
-  a sekce se NAHRAZUJE, nevrší se zásobník — stejně jako konverzace.
+  a sekce se NAHRAZUJE, nevrší se zásobník — stejně jako konverzace. Rozhoduje
+  `LocalPanesSideBySide` čtený v obsahu položky, ne `wide` zachycené při stavbě poskytovatele
+  položek: položky se pamatují podle klíčů zásobníku, takže po změně šířky okna bez navigace
+  by šipka zůstala ve starém stavu.
+
+**Seznam od přeskupení (říjen 2026)**, odshora: karta účtu → úprava profilu; sekce Soukromí,
+Notifikace, Chaty, Vzhled, Úložiště, Zařízení, AI v zařízení; řádek Jazyk; Pomoc (Zeptat se,
+Časté dotazy, Co je nového); Odhlásit se. Dřív vše kromě notifikací, vzhledu, zařízení
+a úložiště leželo ve sběrné sekci Obecné (asi 25 řádků). Rozvrh a rozhodnutí: `docs/roadmap.md`,
+„Přeskupení sekcí".
+
+- **Zrušená sekce v uloženém zásobníku nesmí shodit obnovu** (`SettingsSectionSerializer`,
+  testy `SettingsSectionSerializerTest`). Výchozí serializer výčtu na neznámém jméně vyhodí
+  `SerializationException`; zásobníky se ukládají přes `rememberNavBackStack`, takže by stačilo,
+  aby mezi uložením a obnovou (zabití procesu) přišla verze bez `General`. Neznámé jméno je
+  teď první sekce. Až se bude sekce zase rušit nebo přejmenovávat, není potřeba nic dalšího.
+- **Úprava profilu stojí na místě sekce, ne nad ní.** Karta účtu je v seznamu, takže
+  `EditProfileRoute` leží přímo nad `SettingsRoute` a ve dvoupanelu je vedle seznamu místo
+  sekce (karta je vybraná, `accountSelected`). Sekce i karta jdou přes `replaceSettingsDetail`:
+  NAHRADÍ, co je nad seznamem otevřené. V dvoupanelu nemá úprava šipku zpět a po uložení
+  zůstane otevřená; na telefonu se po uložení zavře jako dřív.
+- **AI v zařízení se v seznamu ukazuje jen se dostupným modelem** — stejný tok
+  (`OnDeviceAi.availability()`) jako uvnitř sekce, ať se rozhodnutí nerozejde.
+- **Co je nového je pořád `SettingsSection`** (otevírá se jako sekce vedle seznamu), jen řádek
+  stojí v Pomoci, ne mezi sekcemi.
+- **Správa stažených modelů AI zůstala v Úložišti** (zabrané místo, jako balíčky pro překlad).
+  Rozvrh ji chtěl přesunout do AI v zařízení, ale sekce AI má smazání aktuálního modelu
+  sama a seznam všech stažených patří k přehledu místa.
 - **Do Nastavení se chodí z menu účtu na každé šířce** (fotka ve vyhledávací pilulce seznamu
   chatů, `AppNavigation.openSettings`), a proto vždycky na kořen — menu slibuje „Nastavení",
   ne sekci, kterou tam uživatel kdysi nechal. Seznam sekcí má proto šipku zpět do Chatů vždycky
@@ -145,7 +172,7 @@ se z telefonu nedalo chodit zpět bez `BackHandler`, který v téhle aplikaci za
 
 ### Soukromí účtu
 
-Obecné → Soukromí → Soukromí účtu (`AccountPrivacyRoute`, `AccountPrivacyScreen`): seznam
+Soukromí → Soukromí účtu (`AccountPrivacyRoute`, `AccountPrivacyScreen`): seznam
 nastavení se stavem („Moje kontakty · 2 výjimky") a detail jednoho z nich (`PrivacySettingRoute`,
 `PrivacySettingScreen`): Všichni / Moje kontakty / Nikdo a výjimky „Vždy povolit" a „Nikdy
 nepovolit" (lidé i skupiny, přidávají se přes `ChatPicker`). Hranice je `PrivacyRepository`
@@ -187,11 +214,11 @@ nepovolit" (lidé i skupiny, přidávají se přes `ChatPicker`). Hranice je `Pr
 
 ### Úprava profilu
 
-Karta účtu v Obecných otevře `EditProfileRoute` (`EditProfileScreen`, `AccountRepository`): fotka,
+Karta účtu nahoře v seznamu Nastavení otevře `EditProfileRoute` (`EditProfileScreen`, `AccountRepository`): fotka,
 jméno, příjmení, uživatelské jméno a bio.
 
-- **Routa se vrší nad sekci Obecné** — na telefonu jako obrazovka, v dvoupanelu nahradí sekci
-  vpravo. **Zpět tam musí být `PopUntilContentChange`** (jen když je úprava nahoře): dvoupanel
+- **Routa stojí přímo nad seznamem, na místě sekce** (od přeskupení; dřív se vršila nad Obecné) — na telefonu jako obrazovka, v dvoupanelu je vpravo místo sekce
+  a karta účtu je vybraná. **Zpět tam musí být `PopUntilContentChange`** (jen když je úprava nahoře): dvoupanel
   zůstává dvoupanelem, takže výchozí `PopUntilScaffoldValueChange` odebral úpravu i sekci pod
   ní a gesto zpět odešlo z Nastavení rovnou do Chatů. Klik na jinou sekci úpravu ze zásobníku
   odebere taky, jinak by visela pod novou sekcí.
@@ -208,7 +235,7 @@ jméno, příjmení, uživatelské jméno a bio.
 - **Jméno, uživatelské jméno a bio jsou tři volání.** Když jedno selže, další se neposílají
   a co prošlo, se zapíše jako výchozí stav — další pokus ho neposílá znovu.
 - **Strop bia posílá server** (`bio_length_max`, bez Premium 70); počítadlo je vidět pořád.
-- **Účet je živý** (`AccountRepository.account` nad `UpdateUser`): karta v Obecných i fotka ve
+- **Účet je živý** (`AccountRepository.account` nad `UpdateUser`): karta účtu i fotka ve
   vyhledávací pilulce se po úpravě změní samy, i když se profil upravil na jiném zařízení.
 - **Ověřeno bez zásahu do účtu**: načtení, všechny tři stavy kontroly jména (krátké, obsazené
   „durov", volné), odchod bez uložení a zpět v dvoupanelu. Uložení a změna fotky mění skutečný
@@ -326,7 +353,7 @@ v prohlížeči (`UrlOpener`).
 
 ## Dvoufázové ověření
 
-Nastavení → Obecné → Soukromí → Dvoufázové ověření (poslední řádek bloku, „Zapnuto" /
+Nastavení → Soukromí → Dvoufázové ověření (poslední řádek bloku, „Zapnuto" /
 „Vypnuto"; dokud stav nedorazí, podtitul není). Obrazovka stavu (`TwoStepRoute`,
 `TwoStepScreen`) a průvodci: zapnutí (heslo dvakrát, nápověda, nepovinný obnovovací e-mail
 a kód z něj), změna hesla, změna e-mailu, vypnutí a zapomenuté heslo — e-mailem, nebo bez něj
@@ -373,7 +400,7 @@ doména `TwoStepVerification.kt`), kroky průvodce čisté funkce v `TwoStepFlow
 
 ## Přihlašovací e-mail
 
-Obecné → Soukromí → Přihlašovací e-mail (`LoginEmailScreen`, `LoginEmailRoute`): adresa, kód
+Soukromí → Přihlašovací e-mail (`LoginEmailScreen`, `LoginEmailRoute`): adresa, kód
 z ní, hotovo. Telegram na něj posílá přihlašovací kódy místo SMS. Vede sem i doporučená akce
 nad seznamem chatů („Přidej přihlašovací e-mail", `AppScreen.LoginEmail`).
 
@@ -529,7 +556,7 @@ nové číslo, kód z něj, hotovo. Vede sem i doporučená akce „Je … poř�
 
 ## Přístupové klíče
 
-Obecné → Soukromí → „Přístupové klíče" (`PasskeysScreen`, `PasskeysRoute` nad sekcí Obecné,
+Soukromí → „Přístupové klíče" (`PasskeysScreen`, `PasskeysRoute` nad sekcí Soukromí,
 i z odkazu `tg://settings/privacy/passkey`): seznam klíčů s datem přidání a posledního použití
 a jejich odebrání. **Přidat klíč ani se jím přihlásit Plume NEUMÍ, a umět nemůže.**
 
@@ -615,7 +642,7 @@ jiného zařízení QR kódem. Hranice je `DeviceRepository` v `core/telegram`.
   (`enabledValues = Hidden, Expanded`). Dokud bylo tlačítko pod údaji a přepínači, napůl
   rozbalený sheet ho schoval pod okraj a vypadalo to, že jednotlivé zařízení odhlásit nejde —
   jen všechna naráz.
-- **Odhlášení TOHOTO zařízení je v Obecných, ne v detailu zařízení** — maže lokální data TDLib
+- **Odhlášení TOHOTO zařízení je dole v seznamu Nastavení, ne v detailu zařízení** — maže lokální data TDLib
   a je to jiný následek než odhlášení cizího zařízení.
 - **Čtečka QR kódů je platformní** (`rememberQrScanner`). Android: **Google code scanner**
   (`play-services-code-scanner`) — skenovací obrazovku kreslí Play služby, aplikace nepotřebuje
@@ -781,7 +808,7 @@ click ID a trackery sociálních sítí / sdílení).
 
 ## Diskrétní čtení (`AppSettings.discreetReading`)
 
-Nastavení → Obecné → Soukromí → „Diskrétní čtení": otevřená konverzace nehlásí přečtení
+Nastavení → Soukromí → „Diskrétní čtení": otevřená konverzace nehlásí přečtení
 (`viewMessages`) ani „píše…" (`sendChatAction`). Výchozí vypnuto.
 
 - **Potlačuje se v `ConversationViewModel`, ne v repository**: `markRead` (viditelné zprávy)
@@ -912,8 +939,8 @@ přehled úložiště, navíc „Zprávy a ostatní data" a „Hovory". Dole odk
 
 ## Menší přepínače
 
-Rychlá reakce a odkazy v aplikaci jsou ve skupině Chaty v Obecných, jazyk aplikace v Obecných
-nad ní, velikost písma zpráv ve Vzhledu. Enter odesílá z fyzické klávesnice (viz „Klávesové
+Rychlá reakce a akce ze zpráv jsou v sekci Chaty (skupina Zprávy), odkazy v aplikaci tamtéž (skupina Odkazy), jazyk aplikace
+je samostatný řádek v seznamu Nastavení, velikost písma zpráv ve Vzhledu. Enter odesílá z fyzické klávesnice (viz „Klávesové
 zkratky" v `navigace.md`).
 
 ### Velikost písma zpráv (`LocalMessageTextSize`, `messageTextStyle`)

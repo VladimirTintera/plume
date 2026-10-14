@@ -36,7 +36,6 @@ import org.koin.compose.viewmodel.koinViewModel
 fun SettingsSectionScreen(
     section: SettingsSection,
     onBack: (() -> Unit)?,
-    onEditProfile: () -> Unit,
     onOpenBlocked: () -> Unit,
     onOpenFolders: () -> Unit,
     onOpenStickerSets: () -> Unit,
@@ -68,14 +67,36 @@ fun SettingsSectionScreen(
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = settingsContentBottom(padding, 8.dp)),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // Jen jedna větev se skládá, takže vznikne právě jeden ViewModel — ten druhý
-            // by si jinak vyžádal účet ze serveru zbytečně.
+            // Jen jedna větev se skládá, takže vzniknou jen ViewModely otevřené sekce.
             when (section) {
-                SettingsSection.General -> GeneralSettings(viewModel = koinViewModel(), onEditProfile = onEditProfile, onOpenBlocked = onOpenBlocked, onOpenFolders = onOpenFolders, onOpenStickerSets = onOpenStickerSets, onOpenEmojiSets = onOpenEmojiSets, onOpenProxy = onOpenProxy, onOpenAccountPrivacy = onOpenAccountPrivacy, onOpenTwoStep = onOpenTwoStep, onOpenAppLock = onOpenAppLock, onOpenLoginEmail = onOpenLoginEmail, onOpenPasskeys = onOpenPasskeys)
+                SettingsSection.Privacy -> PrivacySettings(
+                    blocked = koinViewModel(),
+                    sensitive = koinViewModel(),
+                    autoDelete = koinViewModel(),
+                    twoStep = koinViewModel(),
+                    onOpenBlocked = onOpenBlocked,
+                    onOpenAccountPrivacy = onOpenAccountPrivacy,
+                    onOpenTwoStep = onOpenTwoStep,
+                    onOpenAppLock = onOpenAppLock,
+                    onOpenLoginEmail = onOpenLoginEmail,
+                    onOpenPasskeys = onOpenPasskeys,
+                )
                 SettingsSection.Notifications -> NotificationSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
+                SettingsSection.Chats -> ChatsSettings(
+                    swipe = koinViewModel(),
+                    quickReaction = koinViewModel(),
+                    appearance = koinViewModel(),
+                    onOpenFolders = onOpenFolders,
+                    onOpenStickerSets = onOpenStickerSets,
+                    onOpenEmojiSets = onOpenEmojiSets,
+                )
                 SettingsSection.Appearance -> AppearanceSettings(viewModel = koinViewModel())
+                SettingsSection.Storage -> {
+                    StorageSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState, onOpenNetworkUsage = onOpenNetworkUsage)
+                    ConnectionSettings(viewModel = koinViewModel(), onOpenProxy = onOpenProxy)
+                }
                 SettingsSection.Devices -> DevicesSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
-                SettingsSection.Storage -> StorageSettings(viewModel = koinViewModel(), snackbarHostState = snackbarHostState, onOpenNetworkUsage = onOpenNetworkUsage)
+                SettingsSection.Ai -> OnDeviceAiSettings(viewModel = koinViewModel())
                 SettingsSection.WhatsNew -> WhatsNewSettings()
             }
         }

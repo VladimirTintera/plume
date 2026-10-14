@@ -97,7 +97,7 @@ internal fun PasskeysRow(onOpen: () -> Unit) {
 
 /**
  * Přístupové klíče: co to je, proč je Plume jen ukazuje, seznam a odebrání. Vrší se nad sekci
- * Obecné jako dvoufázové ověření.
+ * Soukromí jako dvoufázové ověření.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable

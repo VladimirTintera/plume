@@ -27,9 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatRepository
-import eu.tintera.plume.core.ui.GROUP_CORNER
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
-import eu.tintera.plume.core.ui.INNER_CORNER
+import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.ask_question_confirm
@@ -54,7 +53,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
 /**
- * „Pomoc" pod sekcemi Nastavení: chat s podporou Telegramu a jeho časté dotazy.
+ * „Pomoc" pod sekcemi Nastavení: chat s podporou Telegramu, jeho časté dotazy a Co je nového.
  *
  * **„Zeptat se" napřed řekne, komu se píše**: podporu dělají dobrovolníci Telegramu (tak to
  * oficiální klienti říkají taky, s odkazem na časté dotazy) — a Plume je neoficiální aplikace,
@@ -62,7 +61,12 @@ import org.koin.compose.koinInject
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-internal fun HelpGroup(onOpenChat: (Long) -> Unit) {
+internal fun HelpGroup(
+    onOpenChat: (Long) -> Unit,
+    /** Vedle seznamu je otevřené „Co je nového" — řádek je vybraný jako sekce. */
+    whatsNewSelected: Boolean,
+    onOpenWhatsNew: () -> Unit,
+) {
     val chats = koinInject<ChatRepository>()
     val urlOpener = koinInject<UrlOpener>()
     val scope = rememberCoroutineScope()
@@ -75,15 +79,37 @@ internal fun HelpGroup(onOpenChat: (Long) -> Unit) {
             stringResource(Res.string.settings_help),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 6.dp),
+            modifier = Modifier.padding(start = 16.dp, bottom = 6.dp),
         )
-        HelpRow(Res.drawable.contact_support_24dp, Res.string.settings_ask_question, Res.string.settings_ask_question_summary, first = true, last = false) {
-            failed = false
-            asking = true
-        }
-        HelpRow(Res.drawable.help_24dp, Res.string.settings_faq, Res.string.settings_faq_summary, first = false, last = true) {
-            urlOpener.open(FAQ_URL)
-        }
+        SettingsListRow(
+            icon = Res.drawable.contact_support_24dp,
+            title = stringResource(Res.string.settings_ask_question),
+            summary = stringResource(Res.string.settings_ask_question_summary),
+            first = true,
+            last = false,
+            onClick = {
+                failed = false
+                asking = true
+            },
+        )
+        SettingsListRow(
+            icon = Res.drawable.help_24dp,
+            title = stringResource(Res.string.settings_faq),
+            summary = stringResource(Res.string.settings_faq_summary),
+            first = false,
+            last = false,
+            onClick = { urlOpener.open(FAQ_URL) },
+        )
+        // Co je nového je čtení o aplikaci, ne nastavení — patří k pomoci, ne mezi sekce.
+        SettingsListRow(
+            icon = SettingsSection.WhatsNew.icon,
+            title = stringResource(SettingsSection.WhatsNew.title),
+            summary = stringResource(SettingsSection.WhatsNew.summary),
+            first = false,
+            last = true,
+            selected = whatsNewSelected,
+            onClick = onOpenWhatsNew,
+        )
     }
 
     if (asking) {
@@ -125,27 +151,6 @@ internal fun HelpGroup(onOpenChat: (Long) -> Unit) {
             },
         )
     }
-}
-
-/** Řádek jako sekce nad ním: stejný blok se zaoblenými krajními položkami. */
-@Composable
-private fun HelpRow(icon: DrawableResource, title: StringResource, summary: StringResource, first: Boolean, last: Boolean, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(
-        topStart = if (first) GROUP_CORNER else INNER_CORNER,
-        topEnd = if (first) GROUP_CORNER else INNER_CORNER,
-        bottomStart = if (last) GROUP_CORNER else INNER_CORNER,
-        bottomEnd = if (last) GROUP_CORNER else INNER_CORNER,
-    )
-    ListItem(
-        colors = ListItemDefaults.colors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-            leadingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        ),
-        leadingContent = { Icon(painterResource(icon), contentDescription = null) },
-        headlineContent = { Text(stringResource(title)) },
-        supportingContent = { Text(stringResource(summary)) },
-        modifier = Modifier.fillMaxWidth().clip(shape).clickable(onClick = onClick),
-    )
 }
 
 /** Časté dotazy Telegramu; stránka si jazyk vybere sama podle prohlížeče. */

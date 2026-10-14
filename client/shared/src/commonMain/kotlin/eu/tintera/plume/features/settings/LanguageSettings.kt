@@ -39,36 +39,27 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
 /**
- * Skupina „Jazyk" v Obecných: jazyk aplikace nezávisle na systému.
+ * Řádek „Jazyk" v seznamu Nastavení: jazyk aplikace nezávisle na systému. Samostatný řádek, ne
+ * sekce — hledá ho i ten, kdo vzhled neřeší, a sekce s jedinou volbou by byla navíc.
  *
- * Kde ho systém pro jednu aplikaci nezná (Android do 12), se skupina neukáže vůbec. Na iOS jen
- * otevře systémové Nastavení — změnit ho z aplikace tam nejde (viz [AppLanguage]).
+ * Kde ho systém pro jednu aplikaci nezná (Android do 12, desktop), se řádek neukáže vůbec. Na iOS
+ * jen otevře systémové Nastavení — změnit ho z aplikace tam nejde (viz [AppLanguage]).
  */
 @Composable
-internal fun LanguageSettings(language: AppLanguage = koinInject()) {
+internal fun LanguageRow(language: AppLanguage = koinInject()) {
     if (!language.isSupported) return
     // Systém drží volbu sám a po změně překreslí obrazovku novou konfigurací; tady jen zrcadlo.
     var current by remember { mutableStateOf(language.current()) }
     var picking by rememberSaveable { mutableStateOf(false) }
 
-    SettingsGroup(Res.string.settings_language_group) {
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            leadingContent = { Icon(painterResource(Res.drawable.language_24dp), contentDescription = null) },
-            headlineContent = { Text(stringResource(Res.string.settings_app_language)) },
-            supportingContent = {
-                Text(
-                    when {
-                        !language.canChooseInApp -> stringResource(Res.string.settings_language_in_system)
-                        else -> languageLabel(current)
-                    },
-                )
-            },
-            modifier = Modifier.clickable {
-                if (language.canChooseInApp) picking = true else language.openSystemSettings()
-            },
-        )
-    }
+    SettingsListRow(
+        icon = Res.drawable.language_24dp,
+        title = stringResource(Res.string.settings_language_group),
+        summary = if (language.canChooseInApp) languageLabel(current) else stringResource(Res.string.settings_language_in_system),
+        first = true,
+        last = true,
+        onClick = { if (language.canChooseInApp) picking = true else language.openSystemSettings() },
+    )
 
     if (picking) {
         LanguageDialog(

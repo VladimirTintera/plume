@@ -469,7 +469,7 @@ class ChatsViewModel(
         snoozes?.opened(chatId)
     }
 
-    /** Co dělá tah chatem doprava a doleva (Nastavení → Obecné → Chaty). */
+    /** Co dělá tah chatem doprava a doleva (Nastavení → Chaty). */
     val swipeActions: StateFlow<ChatSwipeActions> = settings.chatSwipeActions
 
     /** Hledání v hlavičce seznamu (chaty, veřejné chaty i zprávy). Archiv hledání nemá, u něj zůstane bez dotazu a nic nehledá. */

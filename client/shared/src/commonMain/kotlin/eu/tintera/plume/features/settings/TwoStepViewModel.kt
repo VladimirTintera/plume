@@ -82,7 +82,7 @@ data class TwoStepState(
 )
 
 /**
- * Dvoufázové ověření v Nastavení → Obecné → Soukromí.
+ * Dvoufázové ověření v Nastavení → Soukromí.
  *
  * **Hesla, kód a e-mail jsou Compose stav přímo ve ViewModelu**, ne `StateFlow` (kurzor by
  * poskakoval, viz úprava profilu) a **ne `rememberSaveable`**: uložený stav se serializuje

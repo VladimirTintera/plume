@@ -68,7 +68,7 @@ data class BlockedSendersState(
 }
 
 /**
- * Seznam blokovaných v Nastavení → Obecné. Jediné místo, kde jde zrušit blokování někoho, s kým
+ * Seznam blokovaných v Nastavení → Soukromí. Jediné místo, kde jde zrušit blokování někoho, s kým
  * uživatel chat smazal — nabídka nad chatem i profil stojí na chatu.
  *
  * Blokování jde přes [ChatRepository], jako všude jinde v aplikaci (viz `docs/poznatky/spam-a-blokovani.md`, „Blokování
@@ -83,12 +83,12 @@ class BlockedSendersViewModel(private val chats: ChatRepository) : ViewModel() {
 
     /**
      * Odblokovaní v téhle relaci. Server je hned po změně ještě vracel mezi blokovanými (na
-     * emulátoru: odblokovaný bot po přečtení seznamu v něm zůstal, počet v Obecných přitom už
+     * emulátoru: odblokovaný bot po přečtení seznamu v něm zůstal, počet v Soukromí přitom už
      * seděl) — takže se z výsledků vyřazují, dokud uživatel nedá „Vrátit".
      */
     private val unblockedIds = mutableSetOf<Long>()
 
-    // Seznam se nečte v `init`: obě místa, která ho ukazují (řádek v Obecných, seznam
+    // Seznam se nečte v `init`: obě místa, která ho ukazují (řádek v Soukromí, seznam
     // blokovaných), ho čtou samy při zobrazení — a v init by se tak četl dvakrát.
 
     /**

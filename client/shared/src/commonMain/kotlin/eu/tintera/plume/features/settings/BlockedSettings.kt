@@ -87,6 +87,8 @@ import eu.tintera.plume.resources.settings_blocked_none
 import eu.tintera.plume.resources.settings_blocked_search
 import eu.tintera.plume.resources.settings_blocked_summary
 import eu.tintera.plume.resources.settings_privacy
+import eu.tintera.plume.resources.settings_discretion
+import eu.tintera.plume.resources.settings_security
 import eu.tintera.plume.resources.settings_sensitive_content
 import eu.tintera.plume.resources.settings_sensitive_content_failed
 import eu.tintera.plume.resources.settings_sensitive_content_summary
@@ -97,9 +99,8 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Skupina „Soukromí" v Obecných: blokovaní, mazání v nových chatech, citlivý obsah a dvoufázové
- * ověření. Samostatná sekce Soukromí by měla
- * dvě položky, proto tady.
+ * Sekce Soukromí: kdo co vidí a s kým se mluví, co po sobě aplikace nechává (diskrétnost)
+ * a čím je účet a aplikace chráněná (zabezpečení).
  */
 @Composable
 internal fun PrivacySettings(
@@ -119,12 +120,16 @@ internal fun PrivacySettings(
         BlockedRow(blocked, onOpenBlocked)
         DefaultAutoDeleteRow(autoDelete)
         SensitiveContentRow(sensitive)
+    }
+    SettingsGroup(Res.string.settings_discretion) {
+        DiscreetReadingRow()
+        StripTrackingParametersRow()
+    }
+    SettingsGroup(Res.string.settings_security) {
         TwoStepRow(twoStep, onOpenTwoStep)
         LoginEmailRow(twoStep, onOpenLoginEmail)
         PasskeysRow(onOpenPasskeys)
         AppLockRow(onOpenAppLock)
-        StripTrackingParametersRow()
-        DiscreetReadingRow()
     }
 }
 

@@ -5,7 +5,13 @@ import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import eu.tintera.plume.core.telegram.PrivacySetting
 import androidx.navigation3.runtime.NavKey
 import androidx.savedstate.serialization.SavedStateConfiguration
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.polymorphic
 import kotlinx.serialization.modules.subclass
@@ -31,11 +37,32 @@ data object SettingsRoute : TopLevelRoute
  * Sekce nastavení. Je v navigaci, ne ve feature balíčku, protože ji nese [SettingsSectionRoute] —
  * a co je v routě, musí umět serializace.
  *
- * Ukládá se **názvem** (kotlinx.serialization tak výčty serializuje), takže přidání hodnoty
- * doprostřed nezmění význam uloženého zásobníku.
+ * Ukládá se **názvem**, takže přidání hodnoty doprostřed nezmění význam uloženého zásobníku.
+ * Pořadí je pořadí v seznamu sekcí; první se otevírá v dvoupanelu, když žádná vybraná není.
+ * [Ai] seznam ukazuje, jen kde je model dostupný, [WhatsNew] stojí ve skupině Pomoc.
+ *
+ * Zrušené jméno v uloženém stavu (dřív `General`) obnovu neshodí — viz [SettingsSectionSerializer].
  */
-@Serializable
-enum class SettingsSection { General, Notifications, Appearance, Devices, Storage, WhatsNew }
+@Serializable(with = SettingsSectionSerializer::class)
+enum class SettingsSection { Privacy, Notifications, Chats, Appearance, Storage, Devices, Ai, WhatsNew }
+
+/**
+ * Sekce podle jména; jméno, které výčet nezná, je první sekce. Výchozí serializer výčtu by na
+ * něm vyhodil `SerializationException` a obnova zásobníku po zabití procesu by shodila aplikaci —
+ * stačí, aby mezi uložením a obnovou přišla verze, která sekci zrušila nebo přejmenovala (tak
+ * zmizelo `General` při přeskupení Nastavení).
+ */
+object SettingsSectionSerializer : KSerializer<SettingsSection> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("eu.tintera.plume.core.navigation.SettingsSection", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: SettingsSection) = encoder.encodeString(value.name)
+
+    override fun deserialize(decoder: Decoder): SettingsSection {
+        val name = decoder.decodeString()
+        return SettingsSection.entries.firstOrNull { it.name == name } ?: SettingsSection.entries.first()
+    }
+}
 
 /**
  * Jedna sekce nastavení. V list-detail rozvržení je to detail panel vedle seznamu sekcí,
@@ -45,28 +72,28 @@ enum class SettingsSection { General, Notifications, Appearance, Devices, Storag
 data class SettingsSectionRoute(val section: SettingsSection) : Route
 
 /**
- * Úprava vlastního profilu. Vrší se nad sekci Obecné (odkud se otevírá kartou účtu): na telefonu
- * samostatná obrazovka, v dvoupanelu nahradí sekci v pravém panelu a zpět vede do ní.
+ * Úprava vlastního profilu, z karty účtu nahoře v seznamu sekcí. Stojí přímo nad seznamem, místo sekce: na telefonu
+ * samostatná obrazovka, v dvoupanelu je v pravém panelu místo sekce (karta účtu je pak vybraná).
  */
 @Serializable
 data object EditProfileRoute : Route
 
 /**
- * Seznam blokovaných. Vrší se nad sekci Obecné stejně jako [EditProfileRoute]: na telefonu
+ * Seznam blokovaných. Vrší se nad sekci Soukromí: na telefonu
  * samostatná obrazovka, v dvoupanelu nahradí sekci vpravo a zpět vede do ní.
  */
 @Serializable
 data object BlockedSendersRoute : Route
 
 /**
- * Dvoufázové ověření (cloud heslo). Vrší se nad sekci Obecné stejně jako [BlockedSendersRoute].
+ * Dvoufázové ověření (cloud heslo). Vrší se nad sekci Soukromí stejně jako [BlockedSendersRoute].
  * Průvodce (zapnutí, změna, obnova) je stav obrazovky, ne další routy: hesla do zásobníku
  * (a tím do uloženého stavu) nepatří.
  */
 @Serializable
 data object TwoStepRoute : Route
 
-/** Přihlašovací e-mail. Vrší se nad sekci Obecné jako [TwoStepRoute]; kroky jsou stav obrazovky. */
+/** Přihlašovací e-mail. Vrší se nad sekci Soukromí jako [TwoStepRoute]; kroky jsou stav obrazovky. */
 @Serializable
 data object LoginEmailRoute : Route
 
@@ -74,16 +101,16 @@ data object LoginEmailRoute : Route
 @Serializable
 data object NetworkUsageRoute : Route
 
-/** Přístupové klíče (seznam a odebrání). Vrší se nad sekci Obecné jako [TwoStepRoute]. */
+/** Přístupové klíče (seznam a odebrání). Vrší se nad sekci Soukromí jako [TwoStepRoute]. */
 @Serializable
 data object PasskeysRoute : Route
 
-/** Změna telefonního čísla. Vrší se nad úpravou profilu (nebo sekcí Obecné z doporučené akce). */
+/** Změna telefonního čísla. Vrší se nad úpravou profilu (i z doporučené akce). */
 @Serializable
 data object ChangePhoneRoute : Route
 
 /**
- * Zámek aplikace (PIN a biometrie). Vrší se nad sekci Obecné stejně jako [TwoStepRoute].
+ * Zámek aplikace (PIN a biometrie). Vrší se nad sekci Soukromí stejně jako [TwoStepRoute].
  */
 @Serializable
 data object AppLockRoute : Route
@@ -92,7 +119,7 @@ data object AppLockRoute : Route
 @Serializable
 data object BlockSenderRoute : Route
 
-/** Soukromí účtu (kdo vidí co). Vrší se nad sekci Obecné stejně jako seznam blokovaných. */
+/** Soukromí účtu (kdo vidí co). Vrší se nad sekci Soukromí stejně jako seznam blokovaných. */
 @Serializable
 data object AccountPrivacyRoute : Route
 
@@ -104,15 +131,15 @@ data object DeleteAccountRoute : Route
 @Serializable
 data class PrivacySettingRoute(val setting: PrivacySetting) : Route
 
-/** Proxy — vrší se nad sekci Obecné stejně jako složky chatů. */
+/** Proxy — vrší se nad sekci Úložiště (skupina Připojení). */
 @Serializable
 data object ProxySettingsRoute : Route
 
-/** Složky chatů — vrší se nad sekci Obecné stejně jako seznam blokovaných. */
+/** Složky chatů — vrší se nad sekci Chaty. */
 @Serializable
 data object ChatFoldersRoute : Route
 
-/** Sady samolepek (pořadí, archiv) — vrší se nad sekci Obecné stejně jako složky chatů. */
+/** Sady samolepek (pořadí, archiv) — vrší se nad sekci Chaty stejně jako složky chatů. */
 @Serializable
 data object StickerSetsRoute : Route
 

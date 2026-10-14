@@ -88,12 +88,12 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Úprava vlastního profilu. Otevírá se kartou účtu v Obecných.
+ * Úprava vlastního profilu. Otevírá se kartou účtu nahoře v seznamu Nastavení.
  *
  * - **Uložit je v liště a svítí, jen když je co uložit** a všechno projde (jméno neprázdné,
  *   uživatelské jméno volné, bio pod stropem). Chybu pole říká pod ním, ne až po ťuknutí.
  * - **Fotka se mění hned**, bez Uložit — viz [EditProfileViewModel].
- * - **Šipka zpět je vždycky**, i v dvoupanelu: úprava se vrší nad sekci Obecné a zpět vede do ní.
+ * - **Šipka zpět jen na telefonu**: v dvoupanelu stojí úprava místo sekce vedle seznamu, a po uložení tam zůstane.
  *   Neuložené změny zahodí — jako v kontaktech; potvrzovací dialog před odchodem by z běžného
  *   „rozmyslel jsem si to" dělal překážku.
  */
@@ -101,7 +101,8 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun EditProfileScreen(
     viewModel: EditProfileViewModel,
-    onBack: () -> Unit,
+    /** Zpět a zavření po uložení. `null` v dvoupanelu: profil tam stojí místo sekce vedle seznamu, nemá kam vést. */
+    onBack: (() -> Unit)?,
     /** Ťuknutí na fotku: historie vlastních profilových fotek v prohlížeči (id účtu = id chatu). */
     onOpenPhotos: (userId: Long) -> Unit,
     /** „Telefonní číslo": změna čísla. */
@@ -123,7 +124,7 @@ fun EditProfileScreen(
         }
     }
     LaunchedEffect(viewModel.saved) {
-        if (viewModel.saved) currentOnBack()
+        if (viewModel.saved) currentOnBack?.invoke()
     }
 
     val picker = rememberAttachmentPicker(onPicked = viewModel::setPhoto, onError = viewModel::reportError)
@@ -156,7 +157,7 @@ fun EditProfileScreen(
                 TopAppBar(
                     title = { Text(stringResource(Res.string.edit_profile_title)) },
                     navigationIcon = {
-                        IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                        if (onBack != null) IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
                             Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
                         }
                     },

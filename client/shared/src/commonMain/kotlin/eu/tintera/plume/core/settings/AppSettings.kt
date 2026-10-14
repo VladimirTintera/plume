@@ -143,7 +143,7 @@ interface AppSettings {
     fun setSavedMessagesAsChats(asChats: Boolean)
 
     /**
-     * Co dělá tah chatem doprava a doleva v seznamu chatů (Nastavení → Obecné → Chaty).
+     * Co dělá tah chatem doprava a doleva v seznamu chatů (Nastavení → Chaty).
      * Výchozí je archivace na obou stranách; výchozí hodnota strany se neukládá, jako u motivu.
      */
     val chatSwipeActions: StateFlow<ChatSwipeActions>

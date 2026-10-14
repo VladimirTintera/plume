@@ -76,19 +76,21 @@ import eu.tintera.plume.resources.proxy_row_via
 import eu.tintera.plume.resources.proxy_title
 import eu.tintera.plume.resources.settings_connection_group
 import eu.tintera.plume.resources.vpn_lock_24dp
-import eu.tintera.plume.resources.settings_chat_folders_group
+import eu.tintera.plume.resources.settings_chats
+import eu.tintera.plume.resources.settings_messages
+import eu.tintera.plume.resources.settings_links
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Skupina „Chaty" v Obecných: složky, sady samolepek, akce tahem v seznamu chatů, rychlá reakce, otevírání odkazů
- * a akce ze zpráv.
- * Samostatná sekce by měla pár položek.
+ * Sekce Chaty: jak se chová seznam chatů (složky, řazení, akce tahem, widget), práce se
+ * zprávami (reakce, akce ze zpráv, sady samolepek a emoji) a kde se otevírají odkazy.
  */
 @Composable
 internal fun ChatsSettings(
     swipe: ChatSwipeSettingsViewModel,
     quickReaction: QuickReactionSettingsViewModel,
+    appearance: AppearanceViewModel,
     onOpenFolders: () -> Unit,
     onOpenStickerSets: () -> Unit,
     onOpenEmojiSets: () -> Unit,
@@ -97,7 +99,7 @@ internal fun ChatsSettings(
     // Která strana má otevřený výběr; `null` = žádná.
     var picking by rememberSaveable { mutableStateOf<SwipeSide?>(null) }
 
-    SettingsGroup(Res.string.settings_chat_folders_group) {
+    SettingsGroup(Res.string.settings_chats) {
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { Icon(painterResource(Res.drawable.folder_24dp), contentDescription = null) },
@@ -105,6 +107,22 @@ internal fun ChatsSettings(
             supportingContent = { Text(stringResource(Res.string.chat_folders_row_help)) },
             modifier = Modifier.clickable(onClick = onOpenFolders),
         )
+        SeparateUnreadRow(appearance)
+        SwipeSide.entries.forEach { side ->
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                leadingContent = { Icon(painterResource(side.icon), contentDescription = null) },
+                headlineContent = { Text(stringResource(side.title)) },
+                supportingContent = { Text(stringResource(side.of(actions).label)) },
+                modifier = Modifier.clickable { picking = side },
+            )
+        }
+        ChatsWidgetRow(appearance)
+    }
+
+    SettingsGroup(Res.string.settings_messages) {
+        QuickReactionSettings(quickReaction)
+        MessageContextRow()
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { Icon(painterResource(Res.drawable.sticker_24dp), contentDescription = null) },
@@ -119,19 +137,11 @@ internal fun ChatsSettings(
             supportingContent = { Text(stringResource(Res.string.emoji_sets_row_help)) },
             modifier = Modifier.clickable(onClick = onOpenEmojiSets),
         )
-        SwipeSide.entries.forEach { side ->
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                leadingContent = { Icon(painterResource(side.icon), contentDescription = null) },
-                headlineContent = { Text(stringResource(side.title)) },
-                supportingContent = { Text(stringResource(side.of(actions).label)) },
-                modifier = Modifier.clickable { picking = side },
-            )
-        }
-        QuickReactionSettings(quickReaction)
+    }
+
+    SettingsGroup(Res.string.settings_links) {
         OpenLinksInAppRow()
         TelegramLinksRow()
-        MessageContextRow()
     }
 
     picking?.let { side ->
@@ -298,7 +308,7 @@ private val ChatSwipeAction.label: StringResource
     }
 
 /**
- * Připojení: proxy. Vlastní skupina, protože nesouvisí s chaty ani se soukromím — řeší, jestli
+ * Připojení: proxy. Skupina v sekci Úložiště, jako „Data a úložiště" v oficiálním Telegramu — řeší, jestli
  * se aplikace k Telegramu vůbec dostane.
  *
  * Podtitul říká, přes kterou proxy se aplikace připojuje. Zapnutá proxy, která nefunguje, je

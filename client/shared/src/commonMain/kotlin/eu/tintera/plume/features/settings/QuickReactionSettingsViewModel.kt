@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Rychlá reakce (Obecné → Chaty): jestli ji dvojité ťuknutí přidává (aplikace) a kterou (účet).
+ * Rychlá reakce (Chaty): jestli ji dvojité ťuknutí přidává (aplikace) a kterou (účet).
  *
  * Výběr reakce běží v rozsahu aplikace, ne ve `viewModelScope` — stejná úvaha jako u zápisu
  * nastavení (viz [AppearanceViewModel]). Při selhání se reakce v [QuickReaction] sama vrátí.

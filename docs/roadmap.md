@@ -707,8 +707,8 @@ otevřený při přepnutí chatu (`feat/profil-zustava`). Co platí a jak se cho
 v `docs/poznatky/navigace.md`, „Šířkové třídy, tři panely a kotvy" a „Táhlo, kotvy a sbalený
 seznam". Zbývá:
 
-1. **Nastavení na tři panely — samostatný PR, až po přeskupení sekcí.** Seznam sekcí | sekce
-   | podstránka (Soukromí → Blokovaní). Napřed přeskupení sekcí — rozvrh je v [Nastavení](#nastavení),
+1. **Nastavení na tři panely — samostatný PR.** Seznam sekcí | sekce
+   | podstránka (Soukromí → Blokovaní). Sekce jsou od října 2026 přeskupené, viz [Nastavení](#nastavení),
    „Přeskupení sekcí".
 
 2. **Drobnosti.**
@@ -800,15 +800,14 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
 
 ## Nastavení
 
-Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení, Úložiště, Co je nového), vpravo jejich obsah. Obecné drží kartu
-účtu (jméno, telefon, uživatelské jméno) a odhlášení; Notifikace oprávnění a volby po rozsazích; Vzhled motiv aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
+Nastavení je list-detail: vlevo karta účtu, sekce, řádek Jazyk, Pomoc a odhlášení, vpravo obsah vybrané sekce (nebo úprava profilu).
 
-### Přeskupení sekcí (plán, říjen 2026)
+### Přeskupení sekcí (říjen 2026)
 
-Rozvrh odsouhlasený s uživatelem; nikdo zatím nezačal. Navazuje na něj Nastavení na tři panely
+Hotové (`feat/nastaveni-sekce`); poučení v `docs/poznatky/nastaveni.md`, „Obrazovka nastavení". Odchylka od rozvrhu: správa stažených modelů AI zůstala v Úložišti (přehled místa), sekce AI maže aktuální model sama. Navazuje na to Nastavení na tři panely
 („Velká plocha"), samostatný PR až potom.
 
-**Co dnes nesedí.** Obecné je sběrná sekce: karta účtu, Jazyk, Chaty (složky, samolepky, tahy,
+**Co nesedělo.** Obecné byla sběrná sekce: karta účtu, Jazyk, Chaty (složky, samolepky, tahy,
 reakce, odkazy), celé Soukromí a zabezpečení (10 řádků), Proxy, AI v zařízení a Odhlášení —
 asi 25 řádků v šesti skupinách, podtitulek přitom slibuje „účet, profil, blokovaní, odhlášení".
 Související věci jsou rozdělené: „Nepřečtené ve vlastním bloku" je ve Vzhledu, zbytek chování
