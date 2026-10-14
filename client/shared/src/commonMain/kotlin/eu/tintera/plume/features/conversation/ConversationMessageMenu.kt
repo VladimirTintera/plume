@@ -1,0 +1,325 @@
+package eu.tintera.plume.features.conversation
+
+import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.ai.OnDeviceAi
+import eu.tintera.plume.core.ai.OnDeviceAiStatus
+import eu.tintera.plume.core.bookmarks.MessageBookmarks
+import eu.tintera.plume.core.language.LanguageDetector
+import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.MessageActions
+import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.StickerRepository
+import eu.tintera.plume.core.ui.TextClipboard
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.ui.resolveNow
+import eu.tintera.plume.features.conversation.items.MessageMenuAction
+import eu.tintera.plume.features.conversation.items.contextMenuItems
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_bookmark_added
+import eu.tintera.plume.resources.conversation_bookmark_removed
+import eu.tintera.plume.resources.conversation_favorite_added
+import eu.tintera.plume.resources.conversation_favorite_failed
+import eu.tintera.plume.resources.conversation_favorite_removed
+import eu.tintera.plume.resources.message_info_failed
+import eu.tintera.plume.resources.message_info_link_copied
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+
+/**
+ * Nabídka nad zprávou (a nad oznámením): co se v ní nabídne podle práv a obsahu zprávy,
+ * a akce, které nevedou do jiné části — kopírování, výběr textu, informace o zprávě, odkaz na
+ * zprávu, záložka, oblíbená samolepka, potvrzení přečtení.
+ *
+ * Část [ConversationViewModel] — ten na ni deleguje.
+ */
+internal class ConversationMessageMenu(
+    private val chatId: Long,
+    private val state: MutableStateFlow<ConversationState>,
+    private val scope: CoroutineScope,
+    private val repository: ConversationRepository,
+    private val settings: AppSettings,
+    private val clipboard: TextClipboard,
+    private val languageDetector: LanguageDetector,
+    private val onDeviceAi: OnDeviceAi?,
+    private val bookmarks: MessageBookmarks?,
+    private val stickerRepository: StickerRepository,
+    /** Nabídka nabízí „Akce u zprávy", když v ní model něco našel. */
+    private val messageContext: ConversationMessageContext,
+    /** „Přeložit" se nenabízí u zprávy, která už je v jazyce překladu. */
+    private val translation: ConversationTranslation,
+    private val logger: Logger,
+) {
+    /**
+     * Informace o zprávě z nabídky: kdy odešla, kdy ji kdo přečetl, kdo ji zhlédl a odkaz na ni.
+     *
+     * Načítá se až tady. Skoro žádná zpráva nemá všechna tři práva (`canGetReadDate`,
+     * `canGetViewers`, `canGetLink`), takže ptát se dopředu by znamenalo tři dotazy na každou
+     * zprávu v historii kvůli sheetu, který se otevře jednou za čas.
+     */
+    /**
+     * Otevře text zprávy k výběru úryvku.
+     *
+     * Nabídku to ukončí, jako „Informace" — je to jednorázová akce, která si otevře vlastní
+     * sheet. Text se bere týž, co by šel do schránky ([copyableText]), takže se výběr nabízí
+     * přesně nad tím, co zpráva opravdu nese.
+     */
+    fun selectText(messageId: Long) {
+        val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
+        state.update { it.copy(messageMenu = null, selectingText = message) }
+    }
+
+    fun dismissTextSelection() {
+        state.update { it.copy(selectingText = null) }
+    }
+
+    fun showMessageInfo(messageId: Long) {
+        val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
+        state.update { it.copy(messageMenu = null, messageInfo = MessageInfoSheet(message = message)) }
+
+        scope.launch {
+            repository.messageInfo(chatId, messageId)
+                .onSuccess { info ->
+                    state.update { current ->
+                        // Mezitím mohl uživatel sheet zavřít nebo otevřít u jiné zprávy.
+                        val open = current.messageInfo?.takeIf { it.message.id == messageId }
+                            ?: return@update current
+                        current.copy(messageInfo = open.copy(info = info))
+                    }
+                }
+                .onFailure { failure ->
+                    state.update {
+                        it.copy(
+                            messageInfo = null,
+                            error = failure.reported(logger, Res.string.message_info_failed),
+                        )
+                    }
+                }
+        }
+    }
+
+    fun dismissMessageInfo() {
+        state.update { it.copy(messageInfo = null) }
+    }
+
+    /**
+     * Odkaz na zprávu do schránky.
+     *
+     * Sheet se přitom zavře. Jednak je tím skopírování hotová věc — kdo si o odkaz řekl, ten ho
+     * má —, jednak by snackbar s potvrzením zůstal schovaný POD sheetem a nebylo by poznat,
+     * že se něco stalo. Android 13+ ukazuje vlastní náhled schránky, takže tam snackbar odpadá
+     * (viz [TextClipboard.confirmsCopy]); iOS a starší Androidy ho nemají.
+     */
+    fun copyMessageLink(link: String) {
+        scope.launch {
+            clipboard.copy(link)
+            state.update {
+                it.copy(
+                    messageInfo = null,
+                    notice = if (clipboard.confirmsCopy) it.notice else UiText(Res.string.message_info_link_copied),
+                )
+            }
+        }
+    }
+
+    /**
+     * Ťuknutí na vlastní zprávu: ukáže u ní odznak přečtení, druhé ťuknutí ho schová.
+     *
+     * Nic se nikam neposílá — stav přečtení je v `lastReadOutboxMessageId`, posuvném ukazateli
+     * na chatu, takže se odvodí porovnáním id. Cizí a servisní zprávy odznak nemají, takže se
+     * u nich ťuknutí zahodí.
+     */
+    fun toggleReadReceipt(messageId: Long) {
+        val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
+        if (!message.isOutgoing || message.isService) return
+
+        state.update { it.copy(readReceiptFor = messageId.takeIf { id -> id != it.readReceiptFor }) }
+    }
+
+    /**
+     * Nabídnout „Vysvětlit"? Se zapnutou AI v zařízení a modelem, který telefon umí (stažený být
+     * nemusí — sheet pak řekne, kde ho stáhnout, stejně jako u shrnutí konverzace).
+     */
+    private suspend fun explainAvailable(): Boolean {
+        val ai = onDeviceAi ?: return false
+        if (!settings.onDeviceAiEnabled.value) return false
+        return runCatching { ai.status(settings.onDeviceAiVariant.value) != OnDeviceAiStatus.Unsupported }.getOrDefault(false)
+    }
+
+    /** Nabídka s kandidáty, které nabídl blok; co z nich server dovolí, se zjistí tady. */
+    fun showMessageMenu(messageId: Long, items: List<MessageMenuAction>, pressed: Long? = null) {
+        val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
+
+        scope.launch {
+            val sticker = message.media as? MessageMedia.Sticker
+
+            val (emoji, actions, favorite, inTranslationLanguage) = coroutineScope {
+                val emojiTask = async { repository.availableReactions(chatId, messageId) }
+                val actionsTask = async { repository.messageActions(chatId, messageId) }
+                // Oblíbenost jen u samolepky; seznam oblíbených je krátký a TDLib ho má lokálně.
+                val favoriteTask = async {
+                    sticker?.let { s ->
+                        stickerRepository.favoriteStickers().first().any { it.sendFileId == s.stickerFileId }
+                    }
+                }
+                // Rozpoznání jazyka jen kvůli „Přeložit", a se stropem: nabídka čeká na všechny
+                // úlohy a pomalé rozpoznání (studený model) ji nesmí zdržet — pak se prostě nabízí.
+                val languageTask = async {
+                    val text = languageDetectionText(message.text)
+                    if (MessageMenuAction.Translate !in items || text == null) return@async false
+                    val detected = withTimeoutOrNull(LANGUAGE_DETECTION_TIMEOUT_MS) { languageDetector.detect(text) }
+                    alreadyInLanguage(detected, translation.translationTarget())
+                }
+                MenuLoad(
+                    emojiTask.await().getOrDefault(emptyList()),
+                    actionsTask.await().getOrElse { failure ->
+                        logger.w(failure) { "Příznaky zprávy $messageId se nepodařilo zjistit." }
+                        MessageActions.Fallback
+                    },
+                    favoriteTask.await(),
+                    languageTask.await(),
+                )
+            }
+
+            val explainAvailable = MessageMenuAction.Explain in items && explainAvailable()
+            val contextFindings = if (MessageMenuAction.ContextActions in items) messageContext.contextFindingsOf(message) else emptyList()
+            // Kandidát na akce z textu se rozbalí na položky jednotlivých akcí.
+            val shownItems = items.flatMap { item ->
+                if (item == MessageMenuAction.ContextActions) contextMenuItems(contextFindings, messageContext.canJoinWifi) else listOf(item)
+            }
+            state.update {
+                it.copy(
+                    messageMenu = MessageMenu(
+                        messageId = messageId,
+                        timestamp = message.timestamp,
+                        isOutgoing = message.isOutgoing,
+                        emoji = emoji,
+                        chosenEmoji = message.reactions.filter { r -> r.isChosen }.map { r -> r.emoji }.toSet(),
+                        actions = actions,
+                        items = shownItems,
+                        favoriteSticker = favorite,
+                        bookmarked = bookmarks?.isBookmarked(chatId, messageId),
+                        pressedMessageId = pressed?.takeIf { it != messageId },
+                        inTranslationLanguage = inTranslationLanguage,
+                        explainAvailable = explainAvailable,
+                        contextFindings = contextFindings,
+                        resendable = failedGroup(it.messages, messageId).let { group ->
+                            group.isNotEmpty() && group.all { m -> m.sendFailure?.canRetry == true }
+                        },
+                    ),
+                )
+            }
+        }
+    }
+
+    /**
+     * Přidá zprávu do záložek, nebo ji z nich odebere. Otisk zprávy (text, odesílatel) se skládá
+     * teď, v jazyce aplikace — záložka pak v seznamu nepotřebuje zprávu načítat. Výsledek hlásí
+     * snackbar, v konverzaci se nic nezmění.
+     */
+    fun toggleBookmark(messageId: Long) {
+        val bookmarks = bookmarks ?: return
+        val menu = state.value.messageMenu?.takeIf { it.messageId == messageId } ?: return
+        val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
+        closeMenus()
+
+        if (menu.bookmarked == true) {
+            bookmarks.remove(chatId, messageId)
+            state.update { it.copy(notice = UiText(Res.string.conversation_bookmark_removed)) }
+            return
+        }
+        scope.launch {
+            // Stejný otisk jako řádek přepisu výběru: „[Fotka] popisek", text, nebo popis.
+            val preview = transcriptBody(message, resolve = { it.resolveNow() }).orEmpty()
+            val sender = if (message.isOutgoing) null else message.senderName ?: state.value.info?.title
+            if (bookmarks.add(chatId, messageId, preview, sender, message.timestamp)) {
+                state.update { it.copy(notice = UiText(Res.string.conversation_bookmark_added)) }
+            }
+        }
+    }
+
+    private data class MenuLoad(
+        val emoji: List<String>,
+        val actions: MessageActions,
+        val favorite: Boolean?,
+        val inTranslationLanguage: Boolean,
+    )
+
+    /**
+     * Přidá samolepku ze zprávy do oblíbených, nebo ji z nich odebere.
+     *
+     * V konverzaci se tím nic nezmění, takže výsledek hlásí snackbar — jinak by po zavření nabídky
+     * nebylo poznat, že se něco stalo.
+     */
+    fun toggleFavoriteSticker(messageId: Long) {
+        val menu = state.value.messageMenu?.takeIf { it.messageId == messageId } ?: return
+        val favorite = menu.favoriteSticker ?: return
+        val sticker = state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Sticker
+            ?: return
+        closeMenus()
+
+        scope.launch {
+            stickerRepository.setFavorite(sticker.stickerFileId, !favorite)
+                .onSuccess {
+                    state.update {
+                        it.copy(notice = UiText(if (favorite) Res.string.conversation_favorite_removed else Res.string.conversation_favorite_added))
+                    }
+                }
+                .onFailure { failure ->
+                    state.update { it.copy(error = failure.reported(logger, Res.string.conversation_favorite_failed)) }
+                }
+        }
+    }
+
+    fun closeMenus() {
+        state.update { it.copy(messageMenu = null, noticeMenu = null) }
+    }
+
+    /**
+     * Nabídka nad systémovým oznámením. Nabízí jen smazání, takže když ho server nedovolí
+     * (oznámení v kanálu, kde účet není správce), neotevře se vůbec — prázdná nabídka nebo
+     * „Smazat", které skončí chybou, by byly horší než nic.
+     */
+    fun showNoticeMenu(messageId: Long) {
+        scope.launch {
+            val actions = repository.messageActions(chatId, messageId).getOrElse { failure ->
+                logger.w(failure) { "Příznaky oznámení $messageId se nepodařilo zjistit." }
+                return@launch
+            }
+            if (!actions.canDeleteForSelf && !actions.canDeleteForAll) return@launch
+            state.update {
+                it.copy(noticeMenu = NoticeMenu(messageId, actions.canDeleteForSelf, actions.canDeleteForAll))
+            }
+        }
+    }
+
+    /**
+     * Zkopíruje text zprávy do schránky.
+     *
+     * Kopíruje se text, jak ho vidí uživatel — bez entit. Formátování má smysl v Telegramu,
+     * ale do cizí aplikace se stejně přenese jen holý řetězec.
+     */
+    fun copyMessage(messageId: Long) {
+        val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
+        copyText(message.copyableText())
+    }
+
+    /** Zkopíruje text — celou zprávu, nebo úryvek označený v nabídce nad zprávou. */
+    fun copyText(text: String) {
+        scope.launch { clipboard.copy(text) }
+        closeMenus()
+    }
+}
+
+/**
+ * Strop pro rozpoznání jazyka při otevírání nabídky nad zprávou. Rychlé je v řádu milisekund,
+ * jen první volání po startu načítá model; nabídka na něj čekat nemá.
+ */
+private const val LANGUAGE_DETECTION_TIMEOUT_MS = 300L

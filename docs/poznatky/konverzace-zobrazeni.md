@@ -40,6 +40,54 @@ vlastní soubor v `features/conversation/`:
   bez `equals` by se lišila referencí a konverzace by se skládala s ním. Lambdy volajícího si
   pamatuje strong skipping, takže dvě po sobě složené instance jsou si rovné.
 
+## Skladba ViewModelu
+
+`ConversationViewModel` sám drží jen jádro: stav a jeho plnění z TDLib (`observeUpdates`),
+stránkování, skoky na zprávu, hlášení přečtení, připnuté zprávy, reklamy a rozcestník akcí
+z bubliny (`onAction`). Ostatní dělají části v `features/conversation/`:
+
+| Část | Co dělá |
+|---|---|
+| `ConversationComposer` | koncept, „píše…", odpověď a citace, úprava, náhled odkazu, efekty, odeslání (`sendMedia`) |
+| `ConversationAttachments` | samolepky, GIFy, poloha, kontakt, přílohy nad polem a jejich odeslání, sdílený obsah |
+| `ConversationSuggestions` | zmínky a inline boti nad polem |
+| `ConversationLinks` | kam vede odkaz nebo ťuknutí: chat, zpráva, příběh, pozvánka, start bota, mini aplikace |
+| `ConversationBots` | tlačítka a klávesnice bota, příkazy, ankety, přihlášení, soutěž |
+| `ConversationMessageMenu` | nabídka nad zprávou, kopírování, informace, záložky |
+| `ConversationMessageActions` | připnutí, smazání, přeposlání, připomínka, nahlášení, kontakt z karty |
+| `ConversationReactions` | reakce a kdo jak reagoval |
+| `ConversationSelection` | výběr víc zpráv a hromadné akce |
+| `ConversationSearch` | hledání v chatu, filtr podle člena, skok na datum |
+| `ConversationTranslation` | překlad (server i telefon) a shrnutí |
+| `ConversationMessageContext` | akce u zprávy a posudky modelu (termíny, podvod) |
+| `ConversationPlayback` | hlasovky, kolečko se zvukem, hudba, hlášení poslechu, přepis řeči |
+| `ConversationRecorder` | nahrávání hlasovky a kolečka s náhledem |
+| `ConversationDocuments` | stažení, otevření, sdílení a uložení souboru |
+| `ConversationChatActions` | chat jako celek: pruhy nad konverzací, vstup, ztlumení, smazání |
+| `ConversationScheduled` | naplánované zprávy |
+
+`ConversationState.kt` nese stav a jeho typy, `ConversationParts.kt` to, co si části volají
+navzájem (`MediaSender`, `MessageJumper`, `Throwable.reported`).
+
+- **Veřejné API pro obrazovku je pořád ViewModel.** Části jsou `internal` a ViewModel na ně
+  deleguje jednořádkovými funkcemi; obrazovka o nich neví. Nová logika patří do části, ne do
+  ViewModelu; nová část = nový soubor, pole ve ViewModelu a delegace.
+- **Závislosti jsou v konstruktoru části, a jen ty, které potřebuje.** Volání do jiné části je
+  funkce (`closeMenus: () -> Unit`), nebo rovnou instance, když by nevznikl kruh (boti dostávají
+  `ConversationLinks`). Kruh se řeší funkcí, která sáhne na druhou část až při volání
+  (`sendAttachments = { … -> attachments.sendAttachments(…) }` v psaní).
+- **Kde volající pojmenovává argumenty nebo spoléhá na výchozí hodnoty, je to rozhraní**, ne
+  funkční typ — ten pojmenované argumenty neunese a `fun interface` zase nedovolí výchozí
+  hodnoty (`MediaSender`, `MessageJumper`).
+- **Pořadí inicializace:** části vznikají až po `_state` a `logger` a části, které dostávají
+  jinou část jako instanci, až po ní. Pole částí mají **explicitní typ** — vzájemné odkazy přes
+  lambdy jinak zacyklí odvození typu („Type checking has run into a recursive problem").
+- **Pole se stavem se v části jmenuje `state`, takže lokální `val state` ani parametr lambdy
+  `{ state -> }` mít nesmí** — zakryly by ho. Ve ViewModelu bylo `_state.update { state -> … }`
+  a `val state = _state.value` běžné; v částech je `current` / `snapshot`. Překladač zakrytí
+  pozná jen tam, kde se typy liší (`.update` na `ConversationState`), proto se to drží jako
+  pravidlo, ne jako spoléhání na chybu.
+
 ## Bloky seznamu
 
 Seznam zpráv se skládá z **bloků** (`ConversationItem`), které nesou svoje data a **samy se

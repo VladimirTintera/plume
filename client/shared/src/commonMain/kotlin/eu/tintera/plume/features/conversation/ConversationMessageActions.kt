@@ -1,0 +1,335 @@
+package eu.tintera.plume.features.conversation
+
+import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.ForwardOptions
+import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.MessageSchedule
+import eu.tintera.plume.core.telegram.userMessage
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.features.report.ReportFlow
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.call_unavailable
+import eu.tintera.plume.resources.contact_add_failed
+import eu.tintera.plume.resources.contact_remove_failed
+import eu.tintera.plume.resources.conversation_cancel_send_failed
+import eu.tintera.plume.resources.conversation_delete_failed
+import eu.tintera.plume.resources.conversation_pin_failed
+import eu.tintera.plume.resources.conversation_remind_failed
+import eu.tintera.plume.resources.conversation_remind_set
+import eu.tintera.plume.resources.conversation_resend_failed
+import eu.tintera.plume.resources.conversation_send_failed_unknown
+import kotlin.time.Clock
+import kotlin.time.Instant
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.toLocalDateTime
+
+/**
+ * Co se dá se zprávou udělat z nabídky nebo z karty ve zprávě: připnout a odepnout, smazat
+ * (i zrušit odesílání), znovu odeslat, přeposlat, připomenout (s termínem od pravidel nebo
+ * modelu), nahlásit, přidat kontakt z karty, zavolat zpět.
+ *
+ * Část [ConversationViewModel] — ten na ni deleguje.
+ */
+internal class ConversationMessageActions(
+    private val chatId: Long,
+    private val state: MutableStateFlow<ConversationState>,
+    private val scope: CoroutineScope,
+    private val repository: ConversationRepository,
+    private val chatRepository: ChatRepository,
+    /** Termín připomínky od modelu v zařízení, když ho nenajdou pravidla. */
+    private val reminderTimeModel: ReminderTimeModel?,
+    private val reportFlow: ReportFlow,
+    private val closeMenus: () -> Unit,
+    /** Odepnutí z nabídky jde touž cestou jako z pruhu připnutých (s „Vrátit"). */
+    private val unpin: (ChatMessage) -> Unit,
+    private val logger: Logger,
+) {
+    /**
+     * Připnutí z nabídky.
+     *
+     * Ve skupině, kanálu i soukromém chatu se nejdřív zeptá — každý z nich má jednu volbu, která
+     * mění, koho se to dotkne (upozornit členy / připnout i protějšku). V Uložených zprávách
+     * žádná taková volba není, takže se připíná rovnou.
+     */
+    fun requestPin(messageId: Long) {
+        val info = state.value.info
+        if (info == null || info.isSavedMessages) {
+            closeMenus()
+            pin(messageId, notify = false, onlyForSelf = false)
+            return
+        }
+
+        state.update {
+            it.copy(
+                messageMenu = null,
+                pendingPin = PendingPin(
+                    messageId = messageId,
+                    scope = when {
+                        info.isChannel -> PinScope.Channel
+                        info.isGroup -> PinScope.Group
+                        else -> PinScope.Private
+                    },
+                ),
+            )
+        }
+    }
+
+    fun cancelPin() {
+        state.update { it.copy(pendingPin = null) }
+    }
+
+    /** [option] je zaškrtávátko dialogu: upozornit členy, nebo v soukromém chatu připnout i protějšku. */
+    fun confirmPin(option: Boolean) {
+        val pending = state.value.pendingPin ?: return
+        state.update { it.copy(pendingPin = null) }
+
+        when (pending.scope) {
+            // Připnutí v soukromém chatu nikoho neupozorňuje — oznámení o něm by bylo jen šum
+            // navíc k servisní zprávě, kterou protějšek stejně uvidí.
+            PinScope.Private -> pin(pending.messageId, notify = false, onlyForSelf = !option)
+            PinScope.Group, PinScope.Channel -> pin(pending.messageId, notify = option, onlyForSelf = false)
+        }
+    }
+
+    /**
+     * Pruh připnutých se neaktualizuje ručně: `UpdateMessageIsPinned` spustí nové čtení seznamu,
+     * stejně jako u odepnutí jinde.
+     */
+    private fun pin(messageId: Long, notify: Boolean, onlyForSelf: Boolean) {
+        scope.launch {
+            repository.pin(chatId, messageId, notify = notify, onlyForSelf = onlyForSelf)
+                .onFailure { failure ->
+                    state.update { it.copy(error = failure.reported(logger, Res.string.conversation_pin_failed)) }
+                }
+        }
+    }
+
+    /** Odepnutí z nabídky. Chová se stejně jako křížek v pruhu, včetně „Vrátit". */
+    fun unpinFromMenu(messageId: Long) {
+        val message = state.value.pinned.firstOrNull { it.id == messageId }
+            ?: state.value.messages.firstOrNull { it.id == messageId }
+        closeMenus()
+        if (message != null) unpin(message)
+    }
+
+    /** Otevře potvrzení smazání. Nevratná akce se nedělá na jedno ťuknutí. */
+    /**
+     * Pošle znovu neodeslanou zprávu (u alba všechny jeho neodeslané zprávy naráz, viz
+     * [failedGroup]). Zprávu, kterou znovu poslat nejde, neposílá — řekne, proč neodešla:
+     * ťuknutí na „Neodesláno" musí něco udělat, i když opakování nepomůže.
+     *
+     * Obrazovka se srovná sama z updatů: TDLib starou zprávu smaže a novou ohlásí jako novou
+     * ve stavu odesílání, takže se tady nic nepřepisuje.
+     */
+    fun resend(messageId: Long) {
+        state.update { it.copy(messageMenu = null) }
+        val group = failedGroup(state.value.messages, messageId)
+        if (group.isEmpty()) return
+        group.firstOrNull { it.sendFailure?.canRetry != true }?.let { blocked ->
+            val reason = blocked.sendFailure?.reason ?: UiText(Res.string.conversation_send_failed_unknown)
+            state.update { it.copy(notice = reason) }
+            return
+        }
+        scope.launch {
+            repository.resend(chatId, group.map { it.id }).onFailure { failure ->
+                logger.w(failure) { "Zprávu $messageId se nepodařilo poslat znovu." }
+                state.update { it.copy(notice = failure.userMessage(Res.string.conversation_resend_failed)) }
+            }
+        }
+    }
+
+    fun requestDelete(messageId: Long) {
+        val menu = state.value.messageMenu ?: return
+        state.update {
+            it.copy(
+                messageMenu = null,
+                pendingDelete = PendingDelete(
+                    messageId = messageId,
+                    // Nabídka nad albem maže celé album — v bublině je to jedna věc.
+                    messageIds = it.albumMemberIds(messageId),
+                    canDeleteForAll = menu.actions.canDeleteForAll,
+                    canDeleteForSelf = menu.actions.canDeleteForSelf,
+                ),
+            )
+        }
+    }
+
+    /**
+     * „Nahlásit" z nabídky nad zprávou: průvodce s touhle zprávou (u alba s celým albem, jako
+     * u mazání). Server se pak zeptá na důvod — zprávy mu tím odpadne dodávat zvlášť.
+     */
+    fun reportMessage(messageId: Long) {
+        val ids = state.value.albumMemberIds(messageId)
+        closeMenus()
+        reportFlow.start(chatId, messageIds = ids)
+    }
+
+    /**
+     * „Přidat do kontaktů" na kartě sdíleného kontaktu. Karta tlačítko schová hned po úspěchu —
+     * zpráva se kvůli tomu znovu nepřevádí — a snackbar nabídne „Vrátit": přidání jde vzít
+     * zpátky a dialog před vratnou akcí jen zdržuje.
+     */
+    fun addSharedContact(messageId: Long) {
+        scope.launch {
+            repository.addSharedContact(chatId, messageId)
+                .onSuccess { userId ->
+                    state.update { it.withContactAddable(userId, addable = false).copy(addedContact = userId) }
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Přidání kontaktu ze zprávy $messageId selhalo." }
+                    state.update { it.copy(error = failure.userMessage(Res.string.contact_add_failed)) }
+                }
+        }
+    }
+
+    /**
+     * Zavolat zpátky ze zprávy o hovoru: videohovor zase videem, když ho protějšek přijímá.
+     * Samotné vytočení (s dotazem na mikrofon a kameru) dělá obrazovka ([ConversationState.callRequest]).
+     */
+    fun callBack(messageId: Long) {
+        val call = state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Call ?: return
+        val info = state.value.info
+        if (info?.callUserId == null) {
+            state.update { it.copy(error = UiText(Res.string.call_unavailable)) }
+            return
+        }
+        state.update { it.copy(callRequest = CallRequest(video = call.isVideo && info.callSupportsVideo)) }
+    }
+
+    fun consumeCallRequest() {
+        state.update { it.copy(callRequest = null) }
+    }
+
+    /** „Vrátit" ze snackbaru po přidání kontaktu. */
+    fun undoAddContact(userId: Long) {
+        scope.launch {
+            chatRepository.removeContact(userId)
+                .onSuccess { state.update { it.withContactAddable(userId, addable = true) } }
+                .onFailure { failure ->
+                    logger.w(failure) { "Odebrání kontaktu $userId selhalo." }
+                    state.update { it.copy(error = failure.userMessage(Res.string.contact_remove_failed)) }
+                }
+        }
+    }
+
+    /** Obrazovka snackbar k přidanému kontaktu ukázala. */
+    fun consumeAddedContact() {
+        state.update { it.copy(addedContact = null) }
+    }
+
+    /**
+     * „Přeposlat" z nabídky. Obrazovka si o cíl řekne sama (otevře výběr chatu), takže se tu jen
+     * zapamatuje, co se přeposílá — u alba celé album, jako u mazání.
+     */
+    fun requestForward(messageId: Long) {
+        state.update { it.copy(messageMenu = null, forwardRequest = it.albumMemberIds(messageId)) }
+    }
+
+    /**
+     * Sheet připomínky; termín ze zprávy ([reminderTimeFromText]) jde nahoru jako první volba.
+     * Počítá se od odeslání zprávy a nabízí se, jen když ještě nebyl (a je aspoň za minutu,
+     * jako u plánování).
+     */
+    fun requestRemind(messageId: Long) {
+        val message = state.value.messages.firstOrNull { it.id == messageId }
+        val zone = TimeZone.currentSystemDefault()
+        val sentAt = message?.let { Instant.fromEpochSeconds(it.timestamp.toLong()).toLocalDateTime(zone) }
+        val fromRules = sentAt?.let { reminderTimeFromText(message.text, it) }
+        val suggested = fromRules?.toInstant(zone)?.epochSeconds?.takeIf { scheduleValid(it, Clock.System.now().epochSeconds) }
+        state.update { it.copy(messageMenu = null, remindRequest = RemindRequest(messageId, suggested)) }
+
+        // Model jen tam, kde pravidla nenašla NIC. Termín, který pravidla našla a který už
+        // minul, model nespraví — a ptát se ho by jen zdrželo sheet.
+        val model = reminderTimeModel ?: return
+        if (fromRules != null || sentAt == null) return
+        scope.launch {
+            if (!model.available()) return@launch
+            updateRemind(messageId) { it.copy(suggesting = true) }
+            val at = model.suggest(message.text, sentAt)?.toInstant(zone)?.epochSeconds
+                ?.takeIf { scheduleValid(it, Clock.System.now().epochSeconds) }
+            updateRemind(messageId) { it.copy(suggesting = false, suggestedAt = at, fromModel = at != null) }
+        }
+    }
+
+    /** Změna otevřeného sheetu připomínky — jen když je pořád otevřený u téže zprávy. */
+    private fun updateRemind(messageId: Long, change: (RemindRequest) -> RemindRequest) = state.update { current ->
+        val open = current.remindRequest?.takeIf { it.messageId == messageId } ?: return@update current
+        current.copy(remindRequest = change(open))
+    }
+
+    fun closeRemind() {
+        state.update { it.copy(remindRequest = null) }
+    }
+
+    /**
+     * Připomínka: zpráva (u alba celé album) se naplánovaně přepošle do Uložených zpráv na
+     * [at] (sekundy od epochy). Telegram na zprávu doručenou z naplánovaných v Uložených
+     * zprávách upozorní — tak „Připomínky" dělají oficiální klienti, a nepotřebuje to vlastní
+     * notifikaci ani oprávnění k budíku. Připomínka žije na serveru, takže přijde i na jiném
+     * zařízení a přežije přeinstalaci.
+     */
+    fun remind(messageId: Long, at: Long) {
+        val ids = state.value.albumMemberIds(messageId)
+        state.update { it.copy(remindRequest = null) }
+        val saved = chatRepository.savedMessagesChatId.value ?: return
+        scope.launch {
+            val result = repository.forward(chatId, ids, saved, ForwardOptions(schedule = MessageSchedule.At(at)))
+            result.onFailure { logger.w(it) { "Připomínku se nepodařilo naplánovat." } }
+            val notice = if (result.isSuccess) Res.string.conversation_remind_set else Res.string.conversation_remind_failed
+            state.update { it.copy(notice = UiText(notice)) }
+        }
+    }
+
+    fun consumeForwardRequest() {
+        state.update { it.copy(forwardRequest = null) }
+    }
+
+    fun cancelDelete() {
+        state.update { it.copy(pendingDelete = null) }
+    }
+
+    /**
+     * Smaže zprávu.
+     *
+     * Ze seznamu se **neodstraňuje ručně** — TDLib pošle `UpdateDeleteMessages` a ten se už
+     * zpracovává. Předběhnout server by znamenalo riskovat, že zpráva zmizí z obrazovky
+     * a na serveru zůstane.
+     */
+    fun confirmDelete(revoke: Boolean) {
+        val pending = state.value.pendingDelete ?: return
+        state.update { it.copy(pendingDelete = null) }
+
+        scope.launch {
+            repository.deleteMessages(chatId, pending.messageIds, revoke)
+                .onFailure { failure ->
+                    state.update {
+                        it.copy(error = failure.reported(logger, Res.string.conversation_delete_failed))
+                    }
+                }
+        }
+    }
+
+    /**
+     * Zruší odesílání přílohy.
+     *
+     * Rozepsanou zprávu stačí smazat: TDLib tím zastaví i nahrávání. Ze seznamu zmizí updatem
+     * o smazání jako každá jiná. Hláška jen při selhání — mezitím mohla zpráva doběhnout.
+     */
+    fun cancelUpload(messageId: Long) {
+        scope.launch {
+            repository.deleteMessages(chatId, listOf(messageId), revoke = true)
+                .onFailure { failure ->
+                    state.update { it.copy(error = failure.reported(logger, Res.string.conversation_cancel_send_failed)) }
+                }
+        }
+    }
+}
