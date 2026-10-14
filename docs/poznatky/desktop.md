@@ -479,9 +479,15 @@ soubory; soubory z Finderu či Průzkumníka jde pustit kamkoli do konverzace
   VŠECHNY fotky (přípona, kterou čte ImageIO), jde album fotek, jinak všechno jako soubory. Jeden
   GIF odchází hned jako animace (jako na Androidu). Adresáře se přeskočí.
 - **Klávesa se zachytí `onPreviewKeyEvent` nad polem** a propustí dál, když ve schránce není
-  soubor ani obrázek — text vkládá pole samo. Kontextová nabídka vlastní položku nemá: desktop
-  kreslí starou nabídku Compose (`ComposeFoundationFlags.isNewContextMenuEnabled` je tu `false`),
-  která `appendTextContextMenuComponents` nečte.
+  soubor ani obrázek — text vkládá pole samo.
+- **Kontextová nabídka pole má „Vložit obrázek", u souborů „Vložit jako přílohu"**, jen když
+  schránka nese, co pole přijme (rozhoduje totéž `clipboardPaste` jako klávesa). Desktop kreslí
+  STAROU nabídku Compose (`ContextMenuArea`; `ComposeFoundationFlags.isNewContextMenuEnabled` je
+  tu ve výchozím stavu `false`), která `appendTextContextMenuComponents` z Androidu a iOS nečte.
+  Položka proto jde přes její vlastní `ContextMenuDataProvider` nad polem — seznam si skládá až
+  při otevření, takže se schránka čte v tu chvíli. Přepnout desktop na novou nabídku by změnilo
+  vzhled všech kontextových nabídek v aplikaci; kvůli jedné položce to nestálo za to. Ověřeno
+  dočasným UI testem (pravé tlačítko nad polem, klik na položku) nad skutečnou schránkou.
 - **Pořadí ve schránce: soubory, pak obrázek, ale jen BEZ textu.** Finder ke zkopírovanému
   souboru přidá jméno jako text, takže soubory mají přednost. Excel a Word dávají k buňkám
   a odstavcům i obrázek a vložit se má text; snímek obrazovky (`«class PNGf»`, Java ho vidí jen

@@ -1127,6 +1127,7 @@
     <string name="format_clear">Clear formatting</string>
     <string name="paste_gif">Paste GIF</string>
     <string name="paste_image">Paste image</string>
+    <string name="paste_as_attachment">Paste as attachment</string>
     <string name="drop_files_here">Drop files here to attach them</string>
     <string name="gifs_search">Search GIFs</string>
     <string name="gifs_section_saved">Saved</string>
