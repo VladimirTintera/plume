@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.navigation.SettingsSection
+import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.GROUP_CORNER
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.INNER_CORNER
@@ -189,11 +190,15 @@ fun SettingsScreen(
 }
 
 /**
- * Kdo je přihlášený. Ťuknutí vede do úpravy profilu — tam, kde je vidět, co se upravuje; QR kód
- * je vedle jména jako v oficiálních klientech (ukazuje se ten účet, který karta popisuje).
+ * Kdo je přihlášený. Ťuknutí na kartu vede do úpravy profilu — tam, kde je vidět, co se upravuje;
+ * QR kód je vedle jména jako v oficiálních klientech (ukazuje se ten účet, který karta popisuje).
  *
- * Stejný blok jako řádky sekcí pod ní, vybraný stejnou rolí: ve dvoupanelu stojí úprava profilu
- * vedle seznamu místo sekce.
+ * - **Fotka vlevo, bez řádku „Upravit profil".** Fotka se jménem se čte jako odkaz na profil
+ *   (oficiální Telegram, systémové Nastavení Androidu); řádek s výzvou byl jen řádek navíc.
+ * - **Co ťuknutí udělá, říká čtečce `onClickLabel`** — dřív to nesl právě ten řádek. Proto
+ *   `clickable` na kartě, ne `Card(onClick)`, který popis akce nepřijme.
+ * - Stejný blok jako řádky sekcí pod ní, vybraný stejnou rolí: ve dvoupanelu stojí úprava
+ *   profilu vedle seznamu místo sekce.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -205,21 +210,34 @@ private fun AccountCard(viewModel: SettingsViewModel, selected: Boolean, onClick
     val container = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest
     val content = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
     val secondary = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    val shape = RoundedCornerShape(GROUP_CORNER)
     Card(
-        onClick = onClick,
-        shape = RoundedCornerShape(GROUP_CORNER),
+        shape = shape,
         colors = CardDefaults.cardColors(containerColor = container, contentColor = content),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .clickable(onClickLabel = stringResource(Res.string.settings_edit_profile), onClick = onClick),
     ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.Top) {
-            Column(
-                Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                val current = account
-                if (current == null) {
-                    LoadingIndicator()
-                } else {
+        Row(
+            Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            val current = account
+            if (current == null) {
+                LoadingIndicator(Modifier.weight(1f))
+            } else {
+                Avatar(
+                    chatId = current.id,
+                    title = current.displayName,
+                    avatarFileId = current.photoFileId,
+                    size = ACCOUNT_AVATAR_SIZE,
+                )
+                Column(
+                    Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
                     Text(current.displayName, style = MaterialTheme.typography.titleLarge)
                     Text(
                         current.phoneNumber.let { if (it.startsWith("+")) it else "+$it" },
@@ -233,14 +251,6 @@ private fun AccountCard(viewModel: SettingsViewModel, selected: Boolean, onClick
                             color = secondary,
                         )
                     }
-                    Text(
-                        stringResource(Res.string.settings_edit_profile),
-                        style = MaterialTheme.typography.labelLarge,
-                        // Akcent jen na nevybrané kartě — na `secondaryContainer` by `primary`
-                        // nemusela mít kontrast (viz „Akcent na tónované ploše" v CLAUDE.md).
-                        color = if (selected) content else MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
                 }
             }
             if (account != null) {
@@ -373,3 +383,6 @@ internal val SettingsSection.summary: StringResource
     }
 
 private val BLOCK_SPACING = 16.dp
+
+/** Fotka účtu na kartě: zhruba výška tří řádků textu vedle ní, takže karta kvůli ní nepovyroste. */
+private val ACCOUNT_AVATAR_SIZE = 56.dp
