@@ -716,7 +716,7 @@ class ConversationViewModel(
         state = _state,
         scope = viewModelScope,
         repository = repository,
-        clipboard = clipboard,
+        copyToClipboard = clipboard::copy,
         reportFlow = reportFlow,
         logger = logger,
     )

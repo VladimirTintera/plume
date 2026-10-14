@@ -4,7 +4,6 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageActions
-import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.features.report.ReportFlow
@@ -28,7 +27,8 @@ internal class ConversationSelection(
     private val state: MutableStateFlow<ConversationState>,
     private val scope: CoroutineScope,
     private val repository: ConversationRepository,
-    private val clipboard: TextClipboard,
+    /** Zápis do schránky (`TextClipboard.copy`); funkce, aby šla v testu nahradit. */
+    private val copyToClipboard: suspend (text: String) -> Unit,
     private val reportFlow: ReportFlow,
     private val logger: Logger,
 ) {
@@ -110,7 +110,7 @@ internal class ConversationSelection(
         if (text.isBlank()) return
 
         closeSelection()
-        scope.launch { clipboard.copy(text) }
+        scope.launch { copyToClipboard(text) }
     }
 
     /**
@@ -131,7 +131,7 @@ internal class ConversationSelection(
         closeSelection()
         scope.launch {
             val text = format(messages, UiText(Res.string.summary_me).resolveNow(), chatTitle)
-            if (text.isNotBlank()) clipboard.copy(text)
+            if (text.isNotBlank()) copyToClipboard(text)
         }
     }
 

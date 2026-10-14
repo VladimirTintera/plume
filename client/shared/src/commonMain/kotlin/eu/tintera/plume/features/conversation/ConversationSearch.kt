@@ -186,4 +186,4 @@ internal class ConversationSearch(
 }
 
 /** Pauza v psaní, po které se v chatu hledá. Každý dotaz jde na server. */
-private const val SEARCH_DEBOUNCE_MS = 300L
+internal const val SEARCH_DEBOUNCE_MS = 300L
