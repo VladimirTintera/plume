@@ -173,11 +173,6 @@ internal fun ChatSearchBar(
     /** Konec sbalené pilulky (menu účtu). V rozbaleném hledání není — tam je ✕ dotazu. */
     trailing: @Composable () -> Unit,
     /**
-     * Pod pilulkou (řádek složek). Odjíždí a vrací se SPOLU s ní: scroll behavior nese sloupec
-     * kolem obou, ne bar sám — jinak by řádek po odjetí pilulky visel nahoře sám.
-     */
-    below: @Composable () -> Unit = {},
-    /**
      * Hledání přirozeným jazykem (`NaturalSearchModel`): věta → slova a filtry. `null` = model
      * není (vypnutá AI, nestažený model) a ikona se nenabízí.
      */
@@ -351,7 +346,6 @@ internal fun ChatSearchBar(
             colors = colors,
             modifier = Modifier.background(MaterialTheme.colorScheme.surface),
         )
-        below()
     }
 
     val results: @Composable ColumnScope.() -> Unit = {
