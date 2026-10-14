@@ -243,3 +243,20 @@ internal fun List<NavKey>.liesOnChatList(route: NavKey): Boolean {
     val index = lastIndexOf(route)
     return index > 0 && this[index - 1].let { it == ChatsRoute || it == ArchiveRoute }
 }
+
+/**
+ * Ťuknutí na hlavičku konverzace (nebo seznamu témat) [owner]. Na široké ploše stojí profil
+ * vedle konverzace, takže druhé ťuknutí ho zavře i s tím, co se z něj otevřelo — jako panel
+ * s informacemi v Telegram Desktop. Na telefonu profil konverzaci nahradí a zpět vede z něj.
+ *
+ * Co v zásobníku leží nad konverzací, na kterou jde ťuknout, je na široké ploše jen třetí panel:
+ * detail by ji nahradil a obrazovka přes celou plochu zakryl.
+ */
+internal fun MutableList<NavKey>.toggleProfile(owner: NavKey, profile: NavKey, sideBySide: Boolean) {
+    val index = lastIndexOf(owner)
+    if (sideBySide && index in 0 until lastIndex) {
+        while (lastIndex > index) removeAt(lastIndex)
+    } else {
+        add(profile)
+    }
+}
