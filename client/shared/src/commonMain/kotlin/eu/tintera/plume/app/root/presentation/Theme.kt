@@ -1,5 +1,6 @@
 package eu.tintera.plume.app.root.presentation
 
+import eu.tintera.plume.core.ui.RootOverlayHost
 import eu.tintera.plume.core.ui.DarkSystemBarsRequests
 import eu.tintera.plume.core.ui.LocalBackgroundBlurAllowed
 import eu.tintera.plume.core.ui.LocalDarkSystemBars
@@ -97,7 +98,8 @@ fun AppTheme(
                 LocalIsDarkTheme provides isDark,
                 LocalAppColorScheme provides target,
             ) {
-                content()
+                // Bubliny z kořene kompozice, mimo měření obrazovek — viz WithTooltip.
+                RootOverlayHost(content)
             }
         }
     }

@@ -27,12 +27,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PlainTooltip
-import androidx.compose.material3.Text
 import androidx.compose.material3.TooltipAnchorPosition
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -51,6 +46,7 @@ import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.chatTitle
 import eu.tintera.plume.core.ui.isSavedMessages
 import eu.tintera.plume.core.ui.tabularNumbers
+import eu.tintera.plume.core.ui.WithTooltip
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_search
@@ -67,8 +63,8 @@ import org.jetbrains.compose.resources.stringResource
  *   rozbalením se nic nepřeskládá.
  * - **Hledání seznam napřed rozbalí** ([onSearch]) — pilulka hledání se do sloupce nevejde
  *   a výsledky by v něm byly nečitelné.
- * - **Jméno chatu ukáže bublina po najetí myší** (na dotykové ploše podržení); čtečka ho
- *   dostane jako popis.
+ * - **Jméno chatu ukáže bublina po najetí myší** ([WithTooltip], ne holý `TooltipBox`; na dotykové
+ *   ploše podržení); čtečka ho dostane jako popis.
  * - Karty nad seznamem (aktualizace, nové přihlášení), FAB a výběr víc chatů tu nejsou:
  *   potřebují šířku a po rozbalení jsou zpátky.
  */
@@ -143,12 +139,9 @@ internal fun CollapsedChatList(
 @Composable
 private fun CollapsedChat(chat: ChatSummary, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val title = chatTitle(chat.id, chat.title)
-    TooltipBox(
-        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Right),
-        tooltip = { PlainTooltip { Text(title) } },
-        state = rememberTooltipState(),
-        modifier = modifier,
-    ) {
+    // Ne holý TooltipBox: tah táhlem přepne sloupec na plný seznam uprostřed měření a bublina,
+    // která nad avatarem ještě visí, by na desktopu shodila vykreslování (viz WithTooltip).
+    WithTooltip(label = title, position = TooltipAnchorPosition.Right, modifier = modifier) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
