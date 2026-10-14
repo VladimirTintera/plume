@@ -4,7 +4,14 @@ import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageReaction
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.job
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 
 /** Chat, ve kterém se testy částí [ConversationViewModel] odehrávají. */
 internal const val TEST_CHAT = 42L
@@ -61,3 +68,15 @@ internal fun testChatInfo(
     draftReplyToMessageId = null,
     canJoin = canJoin,
 )
+
+
+/**
+ * Rozsah pro část, která v něm drží nekonečný odběr (`stateIn(…, Eagerly)`): na plánovači
+ * testu, ale NE jako jeho dítě. Dítě by `runTest` čekal donekonečna a `backgroundScope` zase
+ * nečeká `advanceUntilIdle`. Zruší se spolu s koncem testu.
+ */
+@OptIn(ExperimentalCoroutinesApi::class)
+internal fun TestScope.detachedScope(): CoroutineScope =
+    CoroutineScope(StandardTestDispatcher(testScheduler) + Job()).also { detached ->
+        backgroundScope.coroutineContext.job.invokeOnCompletion { detached.cancel() }
+    }

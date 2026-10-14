@@ -46,6 +46,22 @@ data class NowPlaying(
 )
 
 /**
+ * Co z fronty hudby potřebuje konverzace ([MusicQueue]); rozhraní kvůli testům, jako
+ * [VoicePlayerControl].
+ */
+interface MusicQueueControl {
+    val nowPlaying: StateFlow<NowPlaying?>
+
+    fun toggle(chatId: Long, messageId: Long, audio: MessageMedia.Audio)
+
+    fun play(chatId: Long, messageId: Long, audio: MessageMedia.Audio, startMs: Long = 0L)
+
+    fun stop()
+
+    fun skipToNext()
+}
+
+/**
  * Hudba v aplikaci: co hraje, co je před tím a za tím, a ovládání ze systému.
  *
  * **Skladba hraje dál i po odchodu z konverzace**, proto fronta nemůže bydlet v jejím
@@ -62,7 +78,7 @@ class MusicQueue(
     private val player: VoicePlayer,
     private val conversations: ConversationRepository,
     private val files: FileRepository,
-) {
+) : MusicQueueControl {
 
     /**
      * [advancing]: skladba se právě spouští a přehrávač ji ještě nemá (dohrála předchozí, hledá
@@ -82,7 +98,7 @@ class MusicQueue(
     private val logger = Logger.withTag("MusicQueue")
 
     /** Hrající skladba, `null`, když hudba nehraje (hraje hlasovka, nebo nic). */
-    val nowPlaying: StateFlow<NowPlaying?> = combine(player.state, current, player.speed) { playback, current, speed ->
+    override val nowPlaying: StateFlow<NowPlaying?> = combine(player.state, current, player.speed) { playback, current, speed ->
         if (current == null) return@combine null
         val own = playback?.takeIf { it.key == current.key && it.music }
         if (own == null && !current.advancing) return@combine null
@@ -120,7 +136,7 @@ class MusicQueue(
     }
 
     /** Skladba z bubliny nebo ze záložky Hudba: pustí ji, nebo u té vybrané přepne pauzu. */
-    fun toggle(chatId: Long, messageId: Long, audio: MessageMedia.Audio) {
+    override fun toggle(chatId: Long, messageId: Long, audio: MessageMedia.Audio) {
         val key = VoiceKey(chatId, messageId)
         val playback = player.state.value
         if (playback?.key == key) {
@@ -135,7 +151,7 @@ class MusicQueue(
     }
 
     /** Pustí skladbu od začátku, nebo od [startMs] (čas v médiu, „1:23"). */
-    fun play(chatId: Long, messageId: Long, audio: MessageMedia.Audio, startMs: Long = 0L) =
+    override fun play(chatId: Long, messageId: Long, audio: MessageMedia.Audio, startMs: Long) =
         play(VoiceKey(chatId, messageId), audio, startMs)
 
     fun pause() = player.pause()
@@ -147,12 +163,12 @@ class MusicQueue(
         player.seekTo(key, positionMs)
     }
 
-    fun stop() {
+    override fun stop() {
         if (player.state.value?.music == true) player.stop()
         current.value = null
     }
 
-    fun skipToNext() = skipToNext(finishedKey = null)
+    override fun skipToNext() = skipToNext(finishedKey = null)
 
     fun skipToPrevious() {
         val chatId = current.value?.key?.chatId ?: return

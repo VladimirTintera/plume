@@ -113,6 +113,36 @@ data class VoicePlayback(
 }
 
 /**
+ * Co z přehrávače hlasovek potřebuje konverzace ([VoicePlayer]). Rozhraní, aby šly části
+ * konverzace testovat bez platformního [AudioEngine] a [EarSensor].
+ */
+interface VoicePlayerControl {
+    val state: StateFlow<VoicePlayback?>
+    val speed: StateFlow<VoiceSpeed>
+
+    /** Viz [VoicePlayer.toggle]. */
+    fun toggle(key: VoiceKey, music: Boolean = false, path: suspend () -> String)
+
+    /** Viz [VoicePlayer.play]. */
+    fun play(
+        key: VoiceKey,
+        music: Boolean = false,
+        startMs: Long = 0L,
+        onFinished: (() -> Unit)? = null,
+        path: suspend () -> String,
+    )
+
+    fun seek(key: VoiceKey, fraction: Float)
+
+    /** Viz [VoicePlayer.stop]. */
+    fun stop(chatId: Long? = null, keepMusic: Boolean = false)
+
+    fun pause()
+
+    fun resume()
+}
+
+/**
  * Přehrávač hlasovek a hudby pro celou aplikaci — **hraje nejvýš jedna**. Spuštění jiné hlasovky tu
  * předchozí zastaví, stejně jako v Telegramu.
  *
@@ -138,10 +168,10 @@ class VoicePlayer(
     private val newEngine: () -> AudioEngine,
     private val settings: AppSettings,
     private val earSensor: EarSensor,
-) {
+) : VoicePlayerControl {
 
     private val _state = MutableStateFlow<VoicePlayback?>(null)
-    val state: StateFlow<VoicePlayback?> = _state.asStateFlow()
+    override val state: StateFlow<VoicePlayback?> = _state.asStateFlow()
 
     private val _errors = MutableSharedFlow<UiText>(extraBufferCapacity = 1)
     val errors: SharedFlow<UiText> = _errors.asSharedFlow()
@@ -156,7 +186,7 @@ class VoicePlayer(
     val completions: SharedFlow<VoiceKey> = _completions.asSharedFlow()
 
     /** Zvolená rychlost; platí pro všechny hlasovky a přežívá restart. */
-    val speed: StateFlow<VoiceSpeed> = settings.voiceSpeed
+    override val speed: StateFlow<VoiceSpeed> = settings.voiceSpeed
 
     private var engine: AudioEngine? = null
     private var raiseToEar = true
@@ -176,7 +206,7 @@ class VoicePlayer(
      * Pustí hlasovku, nebo u té, která už je vybraná, přepne pauzu. [path] se volá jen při novém
      * spuštění — stahování souboru tedy začne až tady.
      */
-    fun toggle(key: VoiceKey, music: Boolean = false, path: suspend () -> String) {
+    override fun toggle(key: VoiceKey, music: Boolean, path: suspend () -> String) {
         val current = _state.value
         if (current?.key == key) {
             when {
@@ -193,16 +223,16 @@ class VoicePlayer(
      * Pustí hlasovku od začátku (nebo od [startMs] — čas v médiu), ať byla vybraná, nebo ne.
      * Tudy jde řetězení neposlechnutých.
      */
-    fun play(
+    override fun play(
         key: VoiceKey,
-        music: Boolean = false,
-        startMs: Long = 0L,
+        music: Boolean,
+        startMs: Long,
         /**
          * Zavolá se po dohrání, SYNCHRONNĚ a ještě před vynulováním stavu — na rozdíl od
          * [completions], které doběhnou až v korutině. [MusicQueue] tak ví, že přehrávání končí
          * kvůli další skladbě, dřív, než uvidí prázdný stav.
          */
-        onFinished: (() -> Unit)? = null,
+        onFinished: (() -> Unit)?,
         path: suspend () -> String,
     ) {
         stop()
@@ -244,7 +274,7 @@ class VoicePlayer(
     }
 
     /** Posun v právě vybrané hlasovce. Jiné hlasovky se to netýká. */
-    fun seek(key: VoiceKey, fraction: Float) {
+    override fun seek(key: VoiceKey, fraction: Float) {
         val current = _state.value?.takeIf { it.key == key && !it.loading } ?: return
         seekTo(key, (current.durationMs * fraction.coerceIn(0f, 1f)).toLong())
     }
@@ -272,7 +302,7 @@ class VoicePlayer(
      * [keepMusic]: hudba se nezastaví — odchod z konverzace ji nechá hrát dál, hlasovku ne
      * (neměla by kde ukazovat průběh a nahrávala by se do cizí obrazovky).
      */
-    fun stop(chatId: Long? = null, keepMusic: Boolean = false) {
+    override fun stop(chatId: Long?, keepMusic: Boolean) {
         if (chatId != null && _state.value?.key?.chatId != chatId) return
         if (keepMusic && _state.value?.music == true) return
         // Výstup vracet netřeba: `release()` níž systému komunikační režim sundá sám.
@@ -324,14 +354,14 @@ class VoicePlayer(
         }
     }
 
-    fun pause() {
+    override fun pause() {
         stopListeningForEar(returnToSpeaker = true)
         engine?.pause()
         tickJob?.cancel()
         _state.update { it?.copy(playing = false, positionMs = engine?.positionMs ?: it.positionMs) }
     }
 
-    fun resume() {
+    override fun resume() {
         val engine = engine ?: return
         engine.start()
         startListeningForEar()
