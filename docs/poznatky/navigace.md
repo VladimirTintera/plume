@@ -194,6 +194,32 @@ stejně jako `BackHandler`: gesto dostane on, ne `NavDisplay`. Tak to měl prohl
 zapnutý ho smí mít jen obrazovka, kde zpět opravdu NENÍ odchod: mini aplikace (`WebAppScreen`),
 kde zpět řídí stránka.
 
+### Šířkové třídy, tři panely a kotvy
+
+Stav k říjnu 2026; plán, co s tím, je v `docs/roadmap.md`, „Velká plocha".
+
+- **Šířkové třídy M3 se nepoužívají.** Jediný práh je vlastní `TWO_PANE_MIN_WIDTH = 720.dp`
+  (`core/adaptive/PaneDirective.kt`): pod ním jeden panel, nad ním vždycky dva, a výsledek
+  `calculatePaneScaffoldDirective` se přebije `singlePane()` / `twoPane()`. Na jiné šířce
+  nezávisí nic dalšího.
+- **Velikostní třída se počítá z `BREAKPOINTS_V1`**, které znají jen Compact (< 600 dp),
+  Medium (600–839) a Expanded (≥ 840). Large (≥ 1200) a Extra-large (≥ 1600) jsou až
+  v `BREAKPOINTS_V2`; s V1 je pro knihovnu i 2000 dp široké okno jen Expanded.
+- **Co dělá `calculatePaneScaffoldDirective` (adaptive 1.3.0-beta02, ověřeno v bajtkódu
+  přes `javap -c`):** Compact a Medium 1 panel, Expanded 2 panely s mezerou 24 dp, od Large
+  3 panely (na XL s širší výchozí šířkou panelu, `DefaultPreferredWidthXL`). Na Medium dá dva
+  panely varianta `calculatePaneScaffoldDirectiveWithTwoPanesOnMediumWidth`.
+- **Co umí `adaptive-navigation3`, a projekt nepoužívá:** metadata
+  `ListDetailSceneStrategy.extraPane()` (třetí panel), `preferredPaneSize()` (šířka panelu),
+  `paneAnimation()`; `rememberListDetailSceneStrategy` bere `paneExpansionState`
+  a `paneExpansionDragHandle` — táhlo mezi panely s kotvami `PaneExpansionAnchor.Offset`
+  / `Proportion`. Je tam i `SupportingPaneSceneStrategy`.
+- **Profil a obrazovky z něj jsou `detailPane()`**, takže na široké ploše nahradí konverzaci,
+  místo aby se otevřely vedle ní.
+- **Práh 720 dp má rozumný základ**, i když není standardní: seznam 360 dp (výchozí šířka
+  panelu) + nejužší použitelná konverzace 360 dp, a vnitřní displej Foldu (Medium) tak dostane
+  dva panely. Standardní dvoupanel na Medium (od 600 dp) by konverzaci nechal 240 dp.
+
 ### Zásobník pro každou sekci
 
 Každá sekce aplikace (Chaty, Nastavení) má **vlastní zásobník** a všechny drží jeden stav,
