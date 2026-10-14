@@ -63,13 +63,6 @@ import eu.tintera.plume.resources.bot_unsupported_buy
 import eu.tintera.plume.resources.bot_unsupported_game
 import eu.tintera.plume.resources.bot_unsupported_password
 import eu.tintera.plume.core.telegram.SenderInfo
-import eu.tintera.plume.core.telegram.ForwardOrigin
-import eu.tintera.plume.resources.invite_request_sent
-import eu.tintera.plume.resources.conversation_link_failed
-import eu.tintera.plume.resources.contact_link_expired
-import eu.tintera.plume.resources.conversation_link_user_not_found
-import eu.tintera.plume.core.telegram.InviteJoinResult
-import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.language.LanguageDetector
 import eu.tintera.plume.core.telegram.MentionCandidate
 import androidx.lifecycle.ViewModel
@@ -88,9 +81,6 @@ import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSharer
 import eu.tintera.plume.core.files.SaveAsLauncher
 import eu.tintera.plume.core.share.ShareRequests
-import eu.tintera.plume.core.telegram.ContactLinkExpiredException
-import eu.tintera.plume.core.telegram.LinkUserNotFoundException
-import eu.tintera.plume.core.share.ShareTarget
 import eu.tintera.plume.core.share.SharedContent
 import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.settings.AppSettings
@@ -147,13 +137,8 @@ import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_resend_failed
 import eu.tintera.plume.resources.conversation_send_failed_unknown
-import eu.tintera.plume.resources.article_load_failed
-import eu.tintera.plume.resources.folder_invite_added
-import eu.tintera.plume.resources.folder_invite_failed
-import eu.tintera.plume.resources.folder_invite_joined
 import eu.tintera.plume.resources.paid_media_unsupported
 import eu.tintera.plume.resources.story_live_unsupported
-import eu.tintera.plume.resources.story_unavailable
 import eu.tintera.plume.resources.conversation_selection_limit
 import eu.tintera.plume.resources.conversation_attachments_limit
 import eu.tintera.plume.resources.conversation_content_not_allowed
@@ -169,9 +154,6 @@ import eu.tintera.plume.resources.conversation_favorite_failed
 import eu.tintera.plume.resources.conversation_favorite_removed
 import eu.tintera.plume.resources.conversation_history_failed
 import eu.tintera.plume.resources.conversation_pin_failed
-import eu.tintera.plume.resources.conversation_join_failed
-import eu.tintera.plume.resources.conversation_mention_not_found
-import eu.tintera.plume.resources.comments_unavailable
 import eu.tintera.plume.resources.conversation_message_deleted
 import eu.tintera.plume.resources.conversation_quote_deleted
 import eu.tintera.plume.resources.conversation_reaction_failed
@@ -203,8 +185,6 @@ import eu.tintera.plume.features.chats.SpamCleanup
 import eu.tintera.plume.features.report.ReportFlow
 import eu.tintera.plume.features.proxy.ProxyLinkFlow
 import eu.tintera.plume.core.telegram.ProxyRepository
-import eu.tintera.plume.core.telegram.UnsupportedProxyException
-import eu.tintera.plume.resources.proxy_unsupported
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.asStateFlow
@@ -503,7 +483,7 @@ class ConversationViewModel(
         exchangeRates = exchangeRates,
         currency = currency,
         closeMenus = ::closeMenus,
-        openLink = { openLink(it) },
+        openLink = { links.openLink(it) },
         requestRemind = ::requestRemind,
         logger = logger,
     )
@@ -583,8 +563,8 @@ class ConversationViewModel(
         media = mediaSender,
         composedDraft = { draft },
         onDraftChanged = ::onDraftChanged,
-        openBotStart = ::openBotStart,
-        requestWebApp = ::requestWebApp,
+        openBotStart = { links.openBotStart(it) },
+        requestWebApp = { links.requestWebApp(it) },
         logger = logger,
     )
     fun mentionQuery(query: String?) = suggestions.mentionQuery(query)
@@ -594,6 +574,43 @@ class ConversationViewModel(
     fun setInlineLocation(location: GeoPoint?) = suggestions.setInlineLocation(location)
     fun sendInlineResult(result: InlineResult) = suggestions.sendInlineResult(result)
     fun pressInlineButton() = suggestions.pressInlineButton()
+
+    /** Kam vedou odkazy a ťuknutí: chaty, zprávy, příběhy, pozvánky, mini aplikace — viz [ConversationLinks]. */
+    private val links = ConversationLinks(
+        chatId = chatId,
+        forumTopicId = forumTopicId,
+        savedTopicId = savedTopicId,
+        state = _state,
+        scope = viewModelScope,
+        repository = repository,
+        chatRepository = chatRepository,
+        urlOpener = urlOpener,
+        shareRequests = shareRequests,
+        botStartRequests = botStartRequests,
+        voicePlayer = voicePlayer,
+        musicQueue = musicQueue,
+        playback = playback,
+        proxyLinkFlow = proxyLinkFlow,
+        jumper = jumper,
+        logger = logger,
+    )
+    fun openConfirmedLink() = links.openConfirmedLink()
+    fun dismissLink() = links.dismissLink()
+    fun consumeOpenWebApp() = links.consumeOpenWebApp()
+    fun joinInvite() = links.joinInvite()
+    fun dismissInvite() = links.dismissInvite()
+    fun toggleFolderInviteChat(chatId: Long) = links.toggleFolderInviteChat(chatId)
+    fun addFolderInvite() = links.addFolderInvite()
+    fun dismissFolderInvite() = links.dismissFolderInvite()
+    fun consumeOpenStickerSet() = links.consumeOpenStickerSet()
+    fun consumeOpenProfile() = links.consumeOpenProfile()
+    fun consumeOpenMediaAt() = links.consumeOpenMediaAt()
+    fun consumeOpenChat() = links.consumeOpenChat()
+    fun consumeOpenScreen() = links.consumeOpenScreen()
+    fun consumeOpenStory() = links.consumeOpenStory()
+    fun dismissLoginWarning() = links.dismissLoginWarning()
+    fun consumeAddBotToGroup() = links.consumeAddBotToGroup()
+    fun consumeSwitchInline() = links.consumeSwitchInline()
 
     /** Serializuje stránkování — bez toho by dva rychlé scrolly načetly tutéž stránku dvakrát. */
     private val loadMutex = Mutex()
@@ -2405,113 +2422,6 @@ class ConversationViewModel(
         }
     }
 
-    /**
-     * Otevře odkaz ze zprávy. Odkaz na Telegram otevře aplikace sama ([InternalLink]), ostatní
-     * jde do prohlížeče.
-     *
-     * - chat (`t.me/jméno`) se otevře nad touhle konverzací, jako zmínka;
-     * - odkaz na zprávu v TOMHLE chatu na ni skočí na místě (dojetím nebo přejezdem, se
-     *   zvýrazněním), v jiném chatu ho otevře se skokem na zprávu;
-     * - pozvánka ukáže náhled chatu ([ConversationState.invite]) — přidává se až na potvrzení;
-     * - sada samolepek otevře svůj sheet.
-     *
-     * Rozpoznání je lokální volání TDLib, takže běžný webový odkaz jde do prohlížeče bez prodlevy.
-     */
-    private fun openLink(url: String, confirmExternal: Boolean = false) {
-        viewModelScope.launch {
-            chatRepository.resolveLink(url)
-                .onSuccess { link ->
-                    when (link) {
-                        null -> if (confirmExternal) {
-                            _state.update { it.copy(confirmLink = url) }
-                        } else {
-                            urlOpener.open(url)
-                        }
-                        is InternalLink.Chat -> openChatLink(link)
-                        // Výběr chatu otevře shell sám — sdílení bez vybraného chatu (viz ShareRequests).
-                        is InternalLink.ShareText -> shareRequests.start(link.text, hasFiles = false)
-                        is InternalLink.Message -> when {
-                            // Tentýž chat, a v tématu jen totéž téma — zpráva z jiného tématu
-                            // v téhle historii není, skok by skončil „už není k dispozici".
-                            // V tématu Uložených zpráv odkaz téma nenese, takže se otevře celý chat.
-                            link.chatId == chatId && savedTopicId == null &&
-                                (forumTopicId == null || link.topicId == forumTopicId) ->
-                                link.messageId?.let { jumpToMessage(it, fromSearch = true) }
-                            else -> openTarget(ChatTarget(link.chatId, link.messageId, topicId = link.topicId))
-                        }
-                        is InternalLink.Invite -> _state.update { it.copy(invite = InviteSheetState(link.link, link.preview)) }
-                        is InternalLink.FolderInvite -> _state.update {
-                            it.copy(folderInvite = FolderInviteSheetState(link.link, link.preview))
-                        }
-                        is InternalLink.StickerSet -> _state.update { it.copy(openStickerSet = link.setId) }
-                        is InternalLink.Proxy -> proxyLinkFlow.open(link.config)
-                        is InternalLink.BotStart -> openBotStart(link)
-                        // Skupinu vybírá obrazovka výběru; přidání se potvrzuje až tam.
-                        is InternalLink.BotStartInGroup -> _state.update { it.copy(addBotToGroup = link) }
-                        is InternalLink.MainWebApp -> requestWebApp(
-                            WebAppRequest(link.botUserId, url = "", launch = false, main = true, startParameter = link.startParameter),
-                        )
-                        is InternalLink.Screen -> _state.update { it.copy(openScreen = link.screen) }
-                        is InternalLink.LoginWarning -> _state.update { it.copy(loginWarning = link.kind) }
-                        is InternalLink.Story -> openStory(StoryTarget(link.posterChatId, link.storyId))
-                        is InternalLink.WebApp -> requestWebApp(
-                            WebAppRequest(
-                                link.botUserId,
-                                url = "",
-                                launch = false,
-                                startParameter = link.startParameter,
-                                shortName = link.shortName,
-                            ),
-                        )
-                    }
-                }
-                .onFailure { failure ->
-                    val message = when (failure) {
-                        is LinkUserNotFoundException -> UiText(Res.string.conversation_link_user_not_found)
-                        is ContactLinkExpiredException -> UiText(Res.string.contact_link_expired)
-                        is UnsupportedProxyException -> UiText(Res.string.proxy_unsupported)
-                        else -> failure.reported(logger, Res.string.conversation_link_failed)
-                    }
-                    _state.update { it.copy(error = message) }
-                }
-        }
-    }
-
-    /**
-     * Odkaz na chat. Profil (`?profile`) se otevře nad touhle konverzací; jinak chat, a text
-     * z odkazu (`?text=…`) čeká v jeho poli jako sdílený text — připojí se za rozepsaný koncept,
-     * nic se neodesílá. Jde přes [ShareRequests] s vybraným chatem: konverzace si ho vyzvedne,
-     * až obnoví vlastní koncept, a v tomhle chatu ho vyzvedne rovnou.
-     */
-    private fun openChatLink(link: InternalLink.Chat) {
-        if (link.openProfile) {
-            _state.update { it.copy(openProfile = link.chatId) }
-            return
-        }
-        link.draftText?.let { text ->
-            shareRequests.start(text, hasFiles = false, target = ShareTarget(link.chatId, confirm = false))
-        }
-        if (link.chatId != chatId) openTarget(ChatTarget(link.chatId))
-    }
-
-    /**
-     * Startovací odkaz bota. S `autostart` se bot spustí hned, jinak se parametr odloží
-     * ([BotStartRequests]) a chat bota nabídne Start — parametr píše odkaz, ne uživatel, a co
-     * bot s ním udělá, se uživatel dozví až po ťuknutí.
-     */
-    private fun openBotStart(link: InternalLink.BotStart) {
-        if (link.autostart) {
-            viewModelScope.launch {
-                repository.startBot(link.chatId, link.parameter).onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_bot_start_failed)) }
-                }
-            }
-        } else {
-            botStartRequests.request(link.chatId, link.parameter)
-        }
-        if (link.chatId != chatId) openTarget(ChatTarget(link.chatId))
-    }
-
     /** Tlačítko Start: pošle „/start" s parametrem z odkazu, bez odkazu prázdný. */
     fun startBot() {
         if (_state.value.startingBot) return
@@ -2531,15 +2441,6 @@ class ConversationViewModel(
         }
     }
 
-    /** Odkaz z tlačítka bota potvrzený v dialogu. */
-    fun openConfirmedLink() {
-        val url = _state.value.confirmLink ?: return
-        _state.update { it.copy(confirmLink = null) }
-        urlOpener.open(url)
-    }
-
-    fun dismissLink() = _state.update { it.copy(confirmLink = null) }
-
     /**
      * Tlačítko „přihlásit na web" (`getLoginUrlInfo`).
      *
@@ -2555,12 +2456,12 @@ class ConversationViewModel(
                 .onSuccess { prompt ->
                     when (prompt) {
                         is LoginUrlPrompt.Open ->
-                            if (prompt.skipConfirmation) urlOpener.open(prompt.url) else openLink(prompt.url, confirmExternal = true)
+                            if (prompt.skipConfirmation) urlOpener.open(prompt.url) else links.openLink(prompt.url, confirmExternal = true)
                         is LoginUrlPrompt.Confirm ->
                             _state.update { it.copy(loginRequest = LoginRequest(messageId, button.buttonId, prompt)) }
                     }
                 }
-                .onFailure { openLink(button.url, confirmExternal = true) }
+                .onFailure { links.openLink(button.url, confirmExternal = true) }
         }
     }
 
@@ -2597,13 +2498,13 @@ class ConversationViewModel(
         val button = message.keyboard?.rows?.getOrNull(row)?.getOrNull(column) ?: return
         when (val kind = button.kind) {
             BotButtonKind.Callback -> askBot(messageId, row, column, button.text)
-            is BotButtonKind.Url -> openLink(kind.url, confirmExternal = true)
+            is BotButtonKind.Url -> links.openLink(kind.url, confirmExternal = true)
             is BotButtonKind.CopyText -> viewModelScope.launch {
                 clipboard.copy(kind.text)
                 if (!clipboard.confirmsCopy) _state.update { it.copy(notice = UiText(Res.string.bot_text_copied)) }
             }
-            is BotButtonKind.User -> openMentioned { chatRepository.privateChat(kind.userId) }
-            is BotButtonKind.WebApp -> requestWebApp(
+            is BotButtonKind.User -> links.openMentioned { chatRepository.privateChat(kind.userId) }
+            is BotButtonKind.WebApp -> links.requestWebApp(
                 WebAppRequest(botOf(message), kind.url, launch = true),
             )
             BotButtonKind.Disabled -> Unit
@@ -2631,7 +2532,7 @@ class ConversationViewModel(
                         }
                     }
                     // Hra nebo start jiného bota; odkaz od bota je stejně skrytý jako na tlačítku.
-                    if (answer.url.isNotEmpty()) openLink(answer.url, confirmExternal = true)
+                    if (answer.url.isNotEmpty()) links.openLink(answer.url, confirmExternal = true)
                 }
                 .onFailure { failure ->
                     val message = failure.reported(logger, Res.string.bot_button_failed)
@@ -2677,17 +2578,6 @@ class ConversationViewModel(
             }
         }
     }
-
-    /** Obrazovka formulář ankety otevřela. */
-    /**
-     * Mini aplikace bota. Souhlas před prvním otevřením u bota se ptá až obrazovka mini aplikace
-     * (`WebAppViewModel`) — vstupů je víc než konverzace.
-     */
-    private fun requestWebApp(request: WebAppRequest) {
-        _state.update { it.copy(openWebApp = request) }
-    }
-
-    fun consumeOpenWebApp() = _state.update { it.copy(openWebApp = null) }
 
     /** Bot, kterému zpráva s tlačítkem patří: odesílatel (kladné id = uživatel), jinak chat s botem. */
     private fun botOf(message: ChatMessage?): Long = message?.senderId?.takeIf { it > 0 } ?: chatId
@@ -2735,253 +2625,10 @@ class ConversationViewModel(
     fun openPollVoter(senderId: Long) {
         _state.update { it.copy(pollVoters = null) }
         if (senderId > 0) {
-            openMentioned { chatRepository.privateChat(senderId) }
+            links.openMentioned { chatRepository.privateChat(senderId) }
         } else if (senderId != chatId) {
-            openTarget(ChatTarget(senderId))
+            links.openTarget(ChatTarget(senderId))
         }
-    }
-
-    /** Přidat se přes pozvánku z náhledu. Po přidání se chat otevře. */
-    fun joinInvite() {
-        val invite = _state.value.invite?.takeUnless { it.joining } ?: return
-        _state.update { it.copy(invite = invite.copy(joining = true)) }
-        viewModelScope.launch {
-            chatRepository.joinByInvite(invite.link)
-                .onSuccess { result ->
-                    when (result) {
-                        is InviteJoinResult.Joined -> {
-                            _state.update { it.copy(invite = null) }
-                            openTarget(ChatTarget(result.chatId))
-                        }
-                        InviteJoinResult.Requested ->
-                            _state.update { it.copy(invite = null, notice = UiText(Res.string.invite_request_sent)) }
-                    }
-                }
-                .onFailure { failure ->
-                    val message = failure.reported(logger, Res.string.conversation_join_failed)
-                    _state.update { it.copy(invite = it.invite?.copy(joining = false), error = message) }
-                }
-        }
-    }
-
-    fun dismissInvite() {
-        _state.update { it.copy(invite = null) }
-    }
-
-    fun toggleFolderInviteChat(chatId: Long) {
-        _state.update { state ->
-            val invite = state.folderInvite?.takeUnless { it.adding } ?: return@update state
-            val selected = if (chatId in invite.selected) invite.selected - chatId else invite.selected + chatId
-            state.copy(folderInvite = invite.copy(selected = selected))
-        }
-    }
-
-    /**
-     * Přidá sdílenou složku (nebo jen nové chaty do složky, kterou uživatel už má). Do vybraných
-     * chatů se tím uživatel přidá; složka se pak objeví v řádku nad seznamem chatů sama
-     * (`UpdateChatFolders`), takže se nikam nenaviguje — stačí hláška.
-     */
-    fun addFolderInvite() {
-        val invite = _state.value.folderInvite?.takeUnless { it.adding || !it.canAdd } ?: return
-        _state.update { it.copy(folderInvite = invite.copy(adding = true)) }
-        viewModelScope.launch {
-            chatRepository.addFolderByInvite(invite.link, invite.preview.missingChats.map { it.id }.filter { it in invite.selected })
-                .onSuccess {
-                    val done = if (invite.preview.folderId == 0) Res.string.folder_invite_added else Res.string.folder_invite_joined
-                    _state.update { it.copy(folderInvite = null, notice = UiText(done, invite.preview.title)) }
-                }
-                .onFailure { failure ->
-                    val message = failure.reported(logger, Res.string.folder_invite_failed)
-                    _state.update { it.copy(folderInvite = it.folderInvite?.copy(adding = false), error = message) }
-                }
-        }
-    }
-
-    fun dismissFolderInvite() {
-        _state.update { it.copy(folderInvite = null) }
-    }
-
-    /** Obrazovka sheet sady otevřela. */
-    fun consumeOpenStickerSet() {
-        _state.update { it.copy(openStickerSet = null) }
-    }
-
-    /**
-     * Zmínka v textu: najde chat a obrazovka ho otevře nad touhle konverzací ([ConversationState.openChat]).
-     * Zmínka téhož chatu (sebe sama v Uložených zprávách, kanál ve vlastním příspěvku) nikam nevede.
-     */
-    private fun openMentioned(resolve: suspend () -> Result<Long>) {
-        viewModelScope.launch {
-            resolve()
-                .onSuccess { target -> if (target != chatId) openTarget(ChatTarget(target)) }
-                .onFailure { failure ->
-                    val message = failure.reported(logger, Res.string.conversation_mention_not_found)
-                    _state.update { it.copy(error = message) }
-                }
-        }
-    }
-
-    /**
-     * Chat k otevření nad konverzací. Skupina s tématy bez určeného tématu a zprávy se otevře
-     * seznamem témat, jako ze seznamu chatů — zmínka `@skupina` i odkaz `t.me/skupina` by jinak
-     * vedly do promíchané konverzace celé skupiny. Zjištění je lokální dotaz.
-     */
-    private fun openTarget(target: ChatTarget) {
-        viewModelScope.launch {
-            val forum = target.messageId == null && target.threadId == null && target.topicId == null &&
-                chatRepository.isForum(target.chatId)
-            _state.update { it.copy(openChat = target.copy(forum = forum)) }
-        }
-    }
-
-    /**
-     * Zdroj přeposlané zprávy. Původní příspěvek se otevře jako odkaz na zprávu: v tomhle chatu
-     * skokem na místě, jinde konverzací se skokem na ni (i v kanálu, kde uživatel není — ten
-     * dostane „Přidat se").
-     */
-    /**
-     * Komentáře k příspěvku kanálu: vlákno v připojené diskusní skupině. Kde to je, ví jen
-     * server (`getMessageThread`), navigace je věc obrazovky — jako u zmínky.
-     */
-    /**
-     * Dočte useknutý článek („Číst dál"). Celý přijde jako nová podoba téže zprávy a nahradí ji
-     * v seznamu; repository si ho pamatuje, takže další převody zprávy (reakce, přečtení)
-     * nevrátí zase začátek.
-     */
-    private fun readFullArticle(messageId: Long) {
-        if (messageId in _state.value.loadingArticles) return
-        _state.update { it.copy(loadingArticles = it.loadingArticles + messageId) }
-        viewModelScope.launch {
-            repository.fullArticle(chatId, messageId)
-                .onSuccess { message ->
-                    _state.update { it.copy(messages = merge(it.messages, listOf(message))) }
-                }
-                .onFailure { failure ->
-                    logger.w(failure) { "Článek $messageId se nepodařilo dočíst." }
-                    _state.update { it.copy(notice = failure.userMessage(Res.string.article_load_failed)) }
-                }
-            _state.update { it.copy(loadingArticles = it.loadingArticles - messageId) }
-        }
-    }
-
-    private fun openComments(messageId: Long) {
-        viewModelScope.launch {
-            repository.commentThread(chatId, messageId)
-                .onSuccess { thread ->
-                    _state.update { it.copy(openChat = ChatTarget(thread.chatId, threadId = thread.rootMessageId)) }
-                }
-                .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(logger, Res.string.comments_unavailable)) }
-                }
-        }
-    }
-
-    private fun openForwardOrigin(origin: ForwardOrigin) {
-        when (origin) {
-            is ForwardOrigin.User -> openMentioned { chatRepository.privateChat(origin.userId) }
-            is ForwardOrigin.Chat -> when {
-                origin.chatId != chatId -> openTarget(ChatTarget(origin.chatId, origin.messageId))
-                else -> origin.messageId?.let { jumpToMessage(it) }
-            }
-            // Skrytý účet server neprozradí, značka se u něj nedá ťuknout.
-            is ForwardOrigin.Hidden -> Unit
-        }
-    }
-
-    /**
-     * Profil odesílatele ze skupiny. Profil stojí na CHATU, takže se napřed najde (a případně
-     * lokálně založí) soukromý chat s ním — stejně jako při ťuknutí na člena v profilu skupiny.
-     */
-    private fun openSenderProfile(userId: Long) {
-        viewModelScope.launch {
-            chatRepository.privateChat(userId)
-                .onSuccess { target -> _state.update { it.copy(openProfile = target) } }
-                .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_mention_not_found)) }
-                }
-        }
-    }
-
-    /** Obrazovka profil otevřela; jednorázová událost jako [consumeOpenChat]. */
-    fun consumeOpenProfile() {
-        _state.update { it.copy(openProfile = null) }
-    }
-
-    /** Obrazovka chat otevřela. Bez toho by se po otočení displeje otevřel znovu. */
-    /**
-     * Čas v médiu („1:23"). Médium je v téže zprávě, nebo ve zprávě, na kterou odpovídá
-     * (`hasTimestampedMedia`) — tak to definuje TDLib. Video se otevře v prohlížeči od toho
-     * místa (navigace je věc obrazovky, proto stav [ConversationState.openMediaAt]); hlasovka,
-     * skladba a kolečko hrají v chatu, jako po ťuknutí na ně; video z náhledu odkazu se otevře na
-     * webu od toho místa.
-     */
-    private fun playMediaAt(messageId: Long, seconds: Int) {
-        val state = _state.value
-        val message = state.messages.firstOrNull { it.id == messageId } ?: return
-        val target = timestampTarget(message, state.messages, state.quotes) ?: return
-        val startMs = seconds * 1000L
-        when (val media = target.media) {
-            is MessageMedia.Video -> _state.update { it.copy(openMediaAt = MediaAt(target.id, seconds)) }
-            is MessageMedia.VoiceNote -> {
-                _state.update { it.copy(soundingVideoNote = null) }
-                voicePlayer.play(VoiceKey(chatId, target.id), startMs = startMs) { playback.voicePath(media) }
-                if (!target.isOutgoing && !media.isListened) playback.reportListened(target.id)
-            }
-            is MessageMedia.Audio -> {
-                _state.update { it.copy(soundingVideoNote = null) }
-                musicQueue.play(chatId, target.id, media, startMs)
-            }
-            is MessageMedia.VideoNote -> {
-                voicePlayer.stop()
-                _state.update { it.copy(soundingVideoNote = target.id, soundingVideoNoteFromMs = startMs) }
-                if (!target.isOutgoing && !media.isViewed) playback.reportListened(target.id)
-            }
-            // Video v náhledu odkazu (YouTube…) v aplikaci nepřehráváme: otevře se jeho web
-            // od toho místa, kde to adresa umí (`videoLinkAt`).
-            else -> target.linkPreview?.takeIf { it.isVideo }?.let { openLink(videoLinkAt(it.url, seconds)) }
-        }
-    }
-
-    fun consumeOpenMediaAt() {
-        _state.update { it.copy(openMediaAt = null) }
-    }
-
-    fun consumeOpenChat() {
-        _state.update { it.copy(openChat = null) }
-    }
-
-    fun consumeOpenScreen() {
-        _state.update { it.copy(openScreen = null) }
-    }
-
-    fun consumeOpenStory() {
-        _state.update { it.copy(openStory = null) }
-    }
-
-    /**
-     * Příběh z citace odpovědi nebo z odkazu: s fotkou či videem do prohlížeče, jinak jen věta.
-     * Ptá se až teď — příběh mezitím mohl vypršet, a prohlížeč, který se otevře a nemá co
-     * ukázat, je horší než hláška nad polem.
-     */
-    private fun openStory(target: StoryTarget) {
-        viewModelScope.launch {
-            val story = repository.story(target.posterChatId, target.storyId)
-            when {
-                story.content != null -> _state.update { it.copy(openStory = target) }
-                story.isLive -> _state.update { it.copy(notice = UiText(Res.string.story_live_unsupported)) }
-                else -> _state.update { it.copy(notice = UiText(Res.string.story_unavailable)) }
-            }
-        }
-    }
-
-    fun dismissLoginWarning() = _state.update { it.copy(loginWarning = null) }
-
-    fun consumeAddBotToGroup() {
-        _state.update { it.copy(addBotToGroup = null) }
-    }
-
-    fun consumeSwitchInline() {
-        _state.update { it.copy(switchInline = null) }
     }
 
     /**
@@ -3032,7 +2679,7 @@ class ConversationViewModel(
             is ReplyKeyboardButtonKind.Poll -> _state.update { it.copy(openPollComposer = kind.mode) }
             is ReplyKeyboardButtonKind.WebApp -> {
                 val owner = _state.value.messages.firstOrNull { it.id == keyboard.messageId }
-                requestWebApp(
+                links.requestWebApp(
                     WebAppRequest(botOf(owner), kind.url, launch = false, keyboardButtonText = button.text),
                 )
             }
@@ -3049,7 +2696,7 @@ class ConversationViewModel(
         val app = _state.value.botMenuApp ?: return
         closeCommands()
         // Odkaz `t.me/bot/app` se zpracuje jako odkaz (TDLib to u tlačítka nabídky předepisuje).
-        if (app.isLink) openLink(app.url) else requestWebApp(WebAppRequest(chatId, app.url, launch = true))
+        if (app.isLink) links.openLink(app.url) else links.requestWebApp(WebAppRequest(chatId, app.url, launch = true))
     }
 
     /** Tlačítko příkazů u pole: otevře seznam, druhé ťuknutí ho zavře. */
@@ -3503,22 +3150,22 @@ class ConversationViewModel(
                 vote(messageId, emptyList())
             }
             MessageMenuAction.StopPoll -> _state.update { it.copy(messageMenu = null, pendingStopPoll = messageId) }
-            is MessageAction.OpenLink -> openLink(action.url)
-            is MessageAction.OpenInstantView -> instantViewRequests?.request(action.url) ?: openLink(action.url)
-            is MessageAction.OpenMention -> openMentioned { chatRepository.chatByUsername(action.username) }
-            is MessageAction.OpenUser -> openMentioned { chatRepository.privateChat(action.userId) }
+            is MessageAction.OpenLink -> links.openLink(action.url)
+            is MessageAction.OpenInstantView -> instantViewRequests?.request(action.url) ?: links.openLink(action.url)
+            is MessageAction.OpenMention -> links.openMentioned { chatRepository.chatByUsername(action.username) }
+            is MessageAction.OpenUser -> links.openMentioned { chatRepository.privateChat(action.userId) }
             MessageAction.AddContact -> addSharedContact(messageId)
             MessageAction.CallBack -> callBack(messageId)
             MessageAction.StopLiveLocation -> stopLiveLocation(messageId)
             MessageAction.SetProximityAlert -> openProximityAlert(messageId)
-            is MessageAction.OpenChat -> openMentioned { Result.success(action.chatId) }
+            is MessageAction.OpenChat -> links.openMentioned { Result.success(action.chatId) }
             MessageAction.ShowGiveaway -> showGiveaway(messageId)
             is MessageAction.SendBotCommand -> sendBotCommand(action.command)
             is MessageAction.UseInlineBot -> suggestions.useInlineBot(action.username)
-            is MessageAction.OpenSenderProfile -> openSenderProfile(action.userId)
-            is MessageAction.OpenForwardOrigin -> openForwardOrigin(action.origin)
-            MessageAction.OpenComments -> openComments(messageId)
-            MessageAction.ReadFullArticle -> readFullArticle(messageId)
+            is MessageAction.OpenSenderProfile -> links.openSenderProfile(action.userId)
+            is MessageAction.OpenForwardOrigin -> links.openForwardOrigin(action.origin)
+            MessageAction.OpenComments -> links.openComments(messageId)
+            MessageAction.ReadFullArticle -> links.readFullArticle(messageId)
             is MessageAction.ToggleArticleAudio -> playback.toggleArticleAudio(messageId, action.index)
             is MessageAction.SeekArticleAudio ->
                 voicePlayer.seek(VoiceKey(chatId, messageId, part = action.index), action.fraction)
@@ -3527,10 +3174,10 @@ class ConversationViewModel(
             MessageAction.CancelUpload -> cancelUpload(messageId)
             MessageAction.ExplainPaidMedia -> _state.update { it.copy(notice = UiText(Res.string.paid_media_unsupported)) }
             MessageAction.ExplainLiveStory -> _state.update { it.copy(notice = UiText(Res.string.story_live_unsupported)) }
-            is MessageAction.OpenStory -> openStory(StoryTarget(action.posterChatId, action.storyId))
+            is MessageAction.OpenStory -> links.openStory(StoryTarget(action.posterChatId, action.storyId))
             MessageAction.ToggleVoice -> playback.toggleVoice(messageId)
             MessageAction.ToggleVideoNoteSound -> playback.toggleVideoNoteSound(messageId)
-            is MessageAction.PlayMediaAt -> playMediaAt(messageId, action.seconds)
+            is MessageAction.PlayMediaAt -> links.playMediaAt(messageId, action.seconds)
             MessageAction.VideoNoteSoundEnded -> _state.update {
                 if (it.soundingVideoNote == messageId) it.copy(soundingVideoNote = null) else it
             }
