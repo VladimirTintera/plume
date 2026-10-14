@@ -469,7 +469,9 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
      hovoru a video na macOS hotové (`docs/poznatky/hovory.md`, „Zvonění a příchozí hovor na
      desktopu", „Video na desktopu").
    - **Desktop: video dál** — náhled kamery při vytáčení na Windows a Linuxu (macOS hotový,
-     `docs/poznatky/hovory.md`, „Video na desktopu"), výběr kamery (bere se první),
+     `docs/poznatky/hovory.md`, „Video na desktopu"), výběr kamery (bere se první) a mikrofonu,
+     výstupy připojené až za hovoru (seznam se čte s vytočením), výběr výstupu na Windows
+     a Linuxu,
      sestavení podepsané stálou identitou i pro ladění (ad hoc podpis nutí povolovat kameru
      a mikrofon po každém sestavení znovu).
    - **Desktop: zabalená aplikace** — v `.app` z `createDistributable` JNA `libntgcalls`

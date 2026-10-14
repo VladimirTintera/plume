@@ -452,8 +452,10 @@ private fun CallPictureInPictureContent(call: ActiveCall, modifier: Modifier) {
  */
 @Composable
 private fun AudioOutputButton(call: ActiveCall, calls: CallRepository, modifier: Modifier = Modifier) {
-    val choice = call.outputs.any { it.kind == CallAudioOutput.Kind.Bluetooth || it.kind == CallAudioOutput.Kind.Headset }
-    if (!choice) {
+    // Přepínač stačí jen na dvojici sluchátko telefonu ↔ reproduktor (Android bez soupravy);
+    // desktop má výstupů víc a pojmenovaných (reproduktory počítače, monitoru, sluchátka).
+    val toggle = call.outputs.all { it.name == null && (it.kind == CallAudioOutput.Kind.Earpiece || it.kind == CallAudioOutput.Kind.Speaker) }
+    if (toggle) {
         LabeledButton(stringResource(Res.string.call_speaker), modifier) {
             FilledIconToggleButton(
                 checked = call.output.kind == CallAudioOutput.Kind.Speaker,
@@ -507,11 +509,11 @@ private fun AudioOutputButton(call: ActiveCall, calls: CallRepository, modifier:
 }
 
 @Composable
-private fun outputLabel(output: CallAudioOutput): String = when (output.kind) {
+private fun outputLabel(output: CallAudioOutput): String = output.name ?: when (output.kind) {
     CallAudioOutput.Kind.Earpiece -> stringResource(Res.string.call_output_phone)
     CallAudioOutput.Kind.Speaker -> stringResource(Res.string.call_speaker)
     CallAudioOutput.Kind.Headset -> stringResource(Res.string.call_output_headset)
-    CallAudioOutput.Kind.Bluetooth -> output.name ?: stringResource(Res.string.call_output_bluetooth)
+    CallAudioOutput.Kind.Bluetooth -> stringResource(Res.string.call_output_bluetooth)
 }
 
 private fun outputIcon(output: CallAudioOutput): DrawableResource = when (output.kind) {

@@ -113,8 +113,13 @@ interface CallMediaEvents {
 /** Který obraz hovoru se kreslí: náš z kamery (náhled), nebo protistrany. */
 enum class CallVideoSource { Local, Remote }
 
-/** Výstup zvuku hovoru. [name] jen u Bluetooth (jméno soupravy), jinak `null`. */
-data class CallAudioOutput(val kind: Kind, val name: String? = null) {
+/**
+ * Výstup zvuku hovoru. [name] je jméno zařízení, když ho má smysl ukázat: na Androidu jen
+ * u Bluetooth (souprava), na desktopu u každého (výstupů stejného druhu bývá víc —
+ * reproduktory počítače, monitoru). [id] rozliší zařízení pro mediální vrstvu (desktop:
+ * metadata zařízení pro ntgcalls); na Androidu `null`, tam stačí druh.
+ */
+data class CallAudioOutput(val kind: Kind, val name: String? = null, val id: String? = null) {
     enum class Kind { Earpiece, Speaker, Headset, Bluetooth }
 
     companion object {

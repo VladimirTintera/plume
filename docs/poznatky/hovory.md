@@ -482,8 +482,9 @@ desktopu" níž).
 - **Zvuk bere knihovna sama**: macOS AudioQueue (CoreAudio), Windows Core Audio, Linux
   Pulse/ALSA — nezávisle na tom, že desktop jinak zvuk přehrávat neumí. Metadata zařízení si
   každý modul čte po svém: macOS prázdné `uid` = výchozí zařízení systému, Windows `index` 0 =
-  výchozí, Pulse a ALSA chtějí `id` (bere se první zařízení, které knihovna vypíše). Výstup se
-  nepřepíná (jediný „Reproduktor", tlačítko výstupu se s jedním výstupem nekreslí).
+  výchozí, Pulse a ALSA chtějí `id` (bere se první zařízení, které knihovna vypíše).
+- **Výstup zvuku jde na macOS za hovoru přepnout** (oddíl „Výstup zvuku na desktopu" níž);
+  Windows a Linux mají jen výchozí výstup systému a tlačítko výstupu se tam nekreslí.
 - **Knihovnu přibalí Gradle** (`downloadNtgcalls` v `client/shared/build.gradle.kts`): jen pro
   systém, na kterém se staví, z vydání na GitHubu, ověřenou SHA-256 (`digest` z API vydání),
   do resources `jvmMain` pod prefix JNA (`darwin-aarch64/libntgcalls.dylib`, 35 MB), odkud ji
@@ -496,6 +497,33 @@ desktopu" níž).
 - **Ověřeno na macOS (arm64) s Pixelem 5**: příchozí hovor na desktop i odchozí z desktopu,
   zvuk oběma směry (poslechem), emoji shodná, zavěšení z desktopu i z telefonu. **Windows
   a Linux jen přeložené.**
+
+### Výstup zvuku na desktopu
+
+Na macOS nabízí tlačítko výstupu za hovoru všechna výstupní zařízení: reproduktory počítače,
+monitoru, sluchátka v konektoru, Bluetooth, USB. Funguje stejně jako na Androidu (nabídka
+s fajfkou), jen s jmény zařízení.
+
+- **Seznam dává knihovna** (`ntg_get_media_devices().speaker`, metadata
+  `{"is_microphone":false,"uid":…}`), CoreAudio jen doplní typ připojení (`PlumeAudio.m`,
+  `kAudioDevicePropertyTransportType`) a výchozí výstup systému. Typ určuje ikonu: Bluetooth,
+  USB = sluchátka, ostatní (vestavěné, HDMI, AirPlay) reproduktor. Virtuální zařízení
+  (záznam obrazovky, ovladače konferenčních aplikací) se vynechávají.
+- **Vybraný je na začátku výchozí výstup systému.** Do zvolení jiného jde zvuk na `uid` ""
+  (knihovna pak nechá AudioQueue na výchozím zařízení), po zvolení na konkrétní `uid`.
+- **Přepnutí = nové zdroje PLAYBACK** (`ntg_set_stream_sources` se slotem `microphone`
+  = zvolený výstup; v režimu PLAYBACK je to přehrávání protistrany). Knihovna AudioQueue
+  otevře znovu s `kAudioQueueProperty_CurrentDevice`, ve zvuku je krátká mezera. Obraz
+  protistrany (slot `camera`) se tím nepřeruší.
+- **Popisek nese jméno zařízení** (`CallAudioOutput.name`, nově pro každý druh, kde je).
+  Přepínač „Reproduktor" zůstává jen pro dvojici sluchátko telefonu ↔ reproduktor bez jmen,
+  tedy Android bez soupravy. Android jména jinde než u Bluetooth nedává, takže se tam nic
+  nemění.
+- **Seznam se čte s vytočením / přijetím**: sluchátka připojená až za hovoru v nabídce
+  nebudou. Mikrofon se nevybírá, je to výchozí vstup systému.
+- **Ověřeno na macOS 26 s Pixel Buds Pro 2** (hovor s Pixelem 5): nabídka „Reproduktory
+  MacBook Pro" / „Pixel Buds Pro 2", přepnutí tam i zpět poslechem (uživatel). S jediným
+  výstupem se tlačítko nekreslí.
 
 ### Video na desktopu
 
