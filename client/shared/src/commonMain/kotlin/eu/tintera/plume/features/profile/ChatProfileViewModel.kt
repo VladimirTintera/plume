@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.audio.VoiceKey
 import eu.tintera.plume.core.telegram.RelatedChat
 import eu.tintera.plume.core.chatcolor.ChatColors
 import eu.tintera.plume.core.settings.ThemeColor
@@ -294,6 +295,21 @@ class ChatProfileViewModel(
     fun toggleMusic(messageId: Long) {
         val audio = _state.value.sharedMessage(messageId)?.media as? MessageMedia.Audio ?: return
         musicQueue.toggle(chatId, messageId, audio)
+    }
+
+    /**
+     * Hlasovka ze záložky: hraje tímtéž přehrávačem a klíčem jako v konverzaci, takže po návratu
+     * do chatu běží dál ve své bublině. Stahuje se až tímhle ťuknutím.
+     */
+    fun toggleVoice(messageId: Long) {
+        val voice = _state.value.sharedMessage(messageId)?.media as? MessageMedia.VoiceNote ?: return
+        voicePlayer.toggle(VoiceKey(chatId, messageId)) {
+            when (val file = files.file(voice.fileId).first { it is FileState.Ready || it is FileState.Failed }) {
+                is FileState.Ready -> file.path
+                is FileState.Failed -> error(file.message)
+                else -> error("Nedosažitelné")
+            }
+        }
     }
 
     /**

@@ -385,6 +385,7 @@
     <string name="profile_tab_media">Media</string>
     <string name="profile_tab_members">Members</string>
     <string name="profile_tab_music">Music</string>
+    <string name="profile_tab_voice">Voice</string>
     <string name="profile_shared_music_play">Play</string>
     <string name="profile_shared_music_pause">Pause</string>
     <string name="profile_members_search">Search members</string>

@@ -497,6 +497,85 @@ internal fun SharedMusicList(
     }
 }
 
+/**
+ * Hlasovky: řádky s tlačítkem přehrání, délkou (při přehrávání pozice / délka) a kdo a kdy.
+ * Hrají přímo tady, tímtéž přehrávačem jako v konverzaci.
+ */
+@Composable
+internal fun SharedVoiceList(
+    messages: List<ChatMessage>,
+    loading: Boolean,
+    playback: VoicePlayback?,
+    chatId: Long,
+    contentPadding: PaddingValues,
+    onToggle: (messageId: Long) -> Unit,
+    onLoadMore: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(
+        contentPadding = contentPadding,
+        verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+        modifier = modifier.fillMaxSize(),
+    ) {
+        itemsIndexed(messages, key = { _, message -> message.id }) { index, message ->
+            LoadMoreAtEnd(index, messages.size, onLoadMore)
+            val voice = message.media as? MessageMedia.VoiceNote ?: return@itemsIndexed
+            VoiceRow(
+                message = message,
+                voice = voice,
+                playback = playback?.takeIf { it.key == VoiceKey(chatId, message.id) },
+                onToggle = { onToggle(message.id) },
+                modifier = Modifier.animateItem().clip(groupItemShape(index, messages.size)),
+            )
+        }
+        if (loading) item { TabLoading() }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private fun VoiceRow(
+    message: ChatMessage,
+    voice: MessageMedia.VoiceNote,
+    playback: VoicePlayback?,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val playing = playback?.playing == true
+    val time = if (playback != null && playback.durationMs > 0) {
+        "${formatDuration((playback.positionMs / 1000).toInt())} / ${formatDuration((playback.durationMs / 1000).toInt())}"
+    } else {
+        formatDuration(voice.durationSeconds)
+    }
+    // Kdo mluví, jen ve skupině; v soukromém chatu je to jasné z profilu, který je otevřený.
+    val meta = listOfNotNull(message.senderName?.ifBlank { null }, message.timestamp.asDayLabel()).joinToString(" · ")
+    val actionLabel = stringResource(if (playing) Res.string.profile_shared_music_pause else Res.string.profile_shared_music_play)
+    ListItem(
+        headlineContent = { Text(time, style = LocalTextStyle.current.tabularNumbers(), maxLines = 1) },
+        supportingContent = { Text(meta, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        leadingContent = {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(FILE_ICON_SIZE)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+            ) {
+                when {
+                    playback?.loading == true && !playing -> CircularWavyProgressIndicator(Modifier.size(24.dp))
+                    else -> Icon(
+                        painterResource(if (playing) Res.drawable.pause_24dp else Res.drawable.play_arrow_24dp),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+            }
+        },
+        colors = rowColors(),
+        modifier = modifier.clickable(onClickLabel = actionLabel, onClick = onToggle),
+    )
+}
+
 /** Řádek skladby: obal (nebo nota) s tlačítkem, název a pod ním interpret s délkou. */
 @Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

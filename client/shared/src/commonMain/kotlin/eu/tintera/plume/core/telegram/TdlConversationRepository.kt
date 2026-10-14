@@ -184,6 +184,7 @@ import dev.g000sha256.tdl.dto.SearchMessagesFilterAudio
 import dev.g000sha256.tdl.dto.SearchMessagesFilterDocument
 import dev.g000sha256.tdl.dto.SearchMessagesFilterPhotoAndVideo
 import dev.g000sha256.tdl.dto.SearchMessagesFilterUrl
+import dev.g000sha256.tdl.dto.SearchMessagesFilterVoiceNote
 import dev.g000sha256.tdl.dto.SearchMessagesFilterVideoNote
 import dev.g000sha256.tdl.dto.SearchMessagesFilterAnimation
 import dev.g000sha256.tdl.dto.SearchMessagesFilterPinned
@@ -974,8 +975,8 @@ class TdlConversationRepository(
                     // Článek s fotkami a videi patří do Médií taky — TDLib ho hledáním vrací
                     // a mřížka ho rozbalí na dlaždice (`sharedMediaTiles`).
                     .filter { kind != SharedMediaKind.Media || it.isLastingVisualMedia || it.hasArticleVisualMedia }
-                    // Mizející kolečko po zhlédnutí zmizí, do trvalého přehledu nepatří.
-                    .filter { kind != SharedMediaKind.VideoNotes || it.selfDestructType == null }
+                    // Mizející kolečko a hlasovka po přehrání zmizí, do trvalého přehledu nepatří.
+                    .filter { (kind != SharedMediaKind.VideoNotes && kind != SharedMediaKind.Voice) || it.selfDestructType == null }
                 // Konec se pozná JEN podle toho, že server nevrátil nic. Počet po filtrování
                 // na to nestačí: stránka samých mizejících fotek vyjde prázdná uprostřed chatu.
                 SharedMediaPage(
@@ -1004,6 +1005,7 @@ class TdlConversationRepository(
                 music = counts.getValue(SharedMediaKind.Music),
                 gifs = counts.getValue(SharedMediaKind.Gifs),
                 videoNotes = counts.getValue(SharedMediaKind.VideoNotes),
+                voice = counts.getValue(SharedMediaKind.Voice),
             )
         }
     }
@@ -3376,6 +3378,7 @@ private fun SharedMediaKind.toFilter(): SearchMessagesFilter = when (this) {
     SharedMediaKind.Links -> SearchMessagesFilterUrl()
     SharedMediaKind.Gifs -> SearchMessagesFilterAnimation()
     SharedMediaKind.VideoNotes -> SearchMessagesFilterVideoNote()
+    SharedMediaKind.Voice -> SearchMessagesFilterVoiceNote()
 }
 
 /**

@@ -2469,6 +2469,9 @@ enum class SharedMediaKind {
     /** Skladby (`MessageAudio`); hlasovky mezi ně nepatří — ty jsou řeč, ne hudba. */
     Music,
 
+    /** Hlasovky; přehrávají se přímo v záložce, jako skladby. */
+    Voice,
+
     /** Zprávy s odkazem — filtruje je server, ne my. */
     Links,
 
@@ -2502,6 +2505,7 @@ data class SharedMediaCounts(
     val music: Int = 0,
     val gifs: Int = 0,
     val videoNotes: Int = 0,
+    val voice: Int = 0,
 ) {
     fun of(kind: SharedMediaKind): Int = when (kind) {
         SharedMediaKind.Media -> media
@@ -2510,6 +2514,7 @@ data class SharedMediaCounts(
         SharedMediaKind.Links -> links
         SharedMediaKind.Gifs -> gifs
         SharedMediaKind.VideoNotes -> videoNotes
+        SharedMediaKind.Voice -> voice
     }
 
     companion object {

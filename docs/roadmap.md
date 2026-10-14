@@ -398,8 +398,8 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   `removeTopChat`)~~ — hotovo (křížek v historii, podržení člověka v Lidech).
 - ~~Záložky profilu, které chybí: společné skupiny (`getGroupsInCommon`), podobné kanály
   (`getChatSimilarChats`), GIFy a kolečka~~ — hotovo (`docs/poznatky/profil-chatu.md`,
-  „Sdílená média v profilu"). Zbývá ověřit podobné kanály a posuvnou řadu záložek; hlasovky
-  jako vlastní záložka (`SearchMessagesFilterVoiceNote`) nejsou.
+  „Sdílená média v profilu"). Zbývá ověřit podobné kanály. Hlasovky jsou taky
+  (vlastní záložka s přehráváním).
 
 **Novinky TDLib, na které se zatím nesáhlo:** AI úpravy textu od serveru
 (`composeTextWithAi`, `fixTextWithAi`, styly psaní), komunity (`createCommunity`), hudba

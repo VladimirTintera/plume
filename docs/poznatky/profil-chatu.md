@@ -732,6 +732,14 @@ obsahu bývá zlomek zpráv.
   u GIFu štítek, u kolečka kruh a délka. **Prohlížeč ani jedno neumí**, takže ťuknutí zavře
   profil a skočí na zprávu v konverzaci (`onOpenMessage`, táž cesta jako záložky zpráv) — tam
   se přehrají jako vždycky. Hledání nemají (není podle čeho), mizející kolečko se vyřazuje.
+- **Hlasovky jsou vlastní záložka** (`SharedMediaKind.Voice`, `SearchMessagesFilterVoiceNote`,
+  `SharedVoiceList`): řádek s tlačítkem, délkou (při přehrávání pozice / délka) a kdo a kdy.
+  **Hrají přímo v záložce**, tímtéž `VoicePlayer` a klíčem (`VoiceKey(chatId, messageId)`) jako
+  v konverzaci, takže po návratu do chatu běží dál ve své bublině. Poslech se nehlásí jako
+  přečtený (`reportListened` je věc konverzace). Hledání nemají, mizející se vyřazují.
+  - Ověřeno na emulátoru (profil „Pixel 7 Pro", sedm záložek): hlasovka „0:04 · Pondělí",
+    přehrání s pauzou a během „0:02 / 0:03". **Sedm záložek se nevešlo a řada se posouvala**,
+    vybraná se posunula do viditelné části — tím je ověřený i posuvný režim řady.
 - **Společné skupiny a podobné kanály jsou záložky se seznamem chatů** (`ProfileTab.CommonGroups`
   / `SimilarChannels`, `getGroupsInCommon` / `getChatSimilarChats`, nejvýš 100). Čtou se
   samostatně po načtení profilu a **přidávají se NA KONEC řady**: záložka vložená doprostřed by
@@ -744,8 +752,9 @@ obsahu bývá zlomek zpráv.
 - **Ověřeno na emulátoru** (14. 10. 2026, účet …527, profil „Pixel 7 Pro"): záložky Média,
   Odkazy, GIFy, Kolečka, Skupiny přes celou šířku i po výběru poslední; kulaté kolečko s délkou,
   GIF se štítkem, ťuknutí na obojí skočilo na zprávu; pět společných skupin s počty, ťuknutí
-  otevřelo skupinu. **Podobné kanály a řada, která se nevejde a posouvá, ověřené NEJSOU** —
-  testovací účet nemá kanál, ke kterému by server podobné vydal.
+  otevřelo skupinu. **Podobné kanály ověřené NEJSOU** — testovací účet
+  nemá kanál, ke kterému by server podobné vydal. Řada, která se nevejde, se ověřila se
+  záložkou Hlasovky (sedm záložek).
 - **`mailto:` se v adrese neukazuje** (`displayUrl`, testy `SharedMediaTest`). Filtr odkazů bere
   i e-maily a schéma u nich nic neříká; `https` od `tg` odlišit potřeba je, takže se zahazuje
   jen ono.
