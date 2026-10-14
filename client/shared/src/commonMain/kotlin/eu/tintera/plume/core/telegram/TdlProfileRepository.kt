@@ -307,13 +307,6 @@ class TdlProfileRepository(
         Unit
     }
 
-    override suspend fun deleteOrLeave(profile: ChatProfile): Result<Unit> =
-        if (profile.isPrivate) {
-            client.deleteChatHistory(chatId = profile.chatId, removeFromChatList = true, revoke = false)
-        } else {
-            client.leaveChat(chatId = profile.chatId)
-        }.toResult().map { }
-
     private fun OwnMemberStatus?.isMember(): Boolean = when (this) {
         is OwnMemberStatus.Creator -> isMember
         is OwnMemberStatus.Admin, OwnMemberStatus.Member -> true

@@ -116,17 +116,23 @@ nevejde, má nad seznamem pole hledání (`MemberList`, testy `MemberListTest`).
   „10704668 odběratelů" se nedalo přečíst. Commonmain `NumberFormat` nemá; mezera je čitelná
   v češtině i angličtině. Plurály proto berou číslo jako `%1$s`.
 
-- **Méně časté akce jsou za ⋮ v liště** (`ProfileMenu`): kopírovat odkaz (veřejné jméno, jinak
-  pozvánka — tu server vydá jen správci s právem zvát), zablokovat / odblokovat uživatele či
-  bota a smazat chat / opustit skupinu nebo kanál. Dlaždice nesou to, kvůli čemu se do profilu
-  chodí; tohle se dělá jednou za čas a dvě z toho jsou nevratné, s potvrzením a stejnými texty
-  jako v seznamu chatů. Odblokovat je bez potvrzení.
+- **Méně časté akce jsou za ⋮ v liště** (`ProfileMenu`): upravit, přidat členy, kopírovat odkaz
+  (veřejné jméno, jinak pozvánka — tu server vydá jen správci s právem zvát), sdílet kontakt,
+  zavolat, začít tajný chat, kontakty a zablokovat / odblokovat uživatele či bota. Dlaždice nesou
+  to, kvůli čemu se do profilu chodí; tohle se dělá jednou za čas. Zablokovat má potvrzení,
+  odblokovat ne.
+- **Nahlásit, smazat chat / opustit skupinu nebo kanál a ukončit tajný chat jsou v ⋮
+  konverzace** (`ConversationMenu`), ne v profilu. Týkají se konverzace, ne člověka: profil člena
+  otevřený z jeho zprávy ve skupině nabízel smazat soukromý chat, který s ním uživatel ani nemá.
+  Smazání je tentýž sheet s volbami proti spamu (`ChatDeleteSheet`) jako dřív v profilu.
 - **Po smazání nebo odchodu se zavře všechno, co chat ukazuje** (`closeChat` v `ChatsStack.kt`,
   test v `ChatsStackTest`): konverzace, profil a prohlížeč médií, v hlavním seznamu i archivu.
+  Konverzace to dostává jako `onChatGone` (⋮ v hlavičce i pruh proti spamu); dřív se zavřela
+  jen ona sama, takže po odchodu ze skupiny s tématy by pod ní zůstal seznam témat.
 - **Blokuje se hlavní seznam** (`BlockListMain`) — ten brání psát i volat. Stav se čte
   z `UserFullInfo.blockList` a po akci přepíše lokálně: profil `UpdateUserFullInfo` neodebírá.
-- **Opustit se nabízí jen tam, kde uživatel je** (`isMember` z vlastního postavení) — z chatu
-  otevřeného z globálního hledání není odkud odejít.
+- **Opustit se nabízí jen tam, kde uživatel je** (v konverzaci `!canJoin` a `writeAccess` jiné
+  než `NotMember`) — z chatu otevřeného z globálního hledání není odkud odejít.
 - **Snackbar profilu dřív neukázal nikdy nic**, ani chybu: efekt klíčovaný `state.error` hlášku
   vynuloval a tím se sám zrušil (past „Vrátit"). Teď běží v `rememberCoroutineScope`.
 - **⋮ → Sdílet kontakt** (`ShareContactRoute`, `ShareContactScreen`): tentýž `ChatPicker` jako

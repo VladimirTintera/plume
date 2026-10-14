@@ -164,8 +164,8 @@ fun DeleteChatOptions(
 }
 
 /**
- * Podmenu smazání jako samostatný sheet — pro profil, kde nabídka ⋮ je obyčejné menu a podmenu
- * se do ní rozbalit nedá. Obsah je tentýž jako v nabídce nad chatem ([DeleteChatOptions]).
+ * Podmenu smazání jako samostatný sheet — pro hlavičku konverzace, kde nabídka ⋮ je obyčejné
+ * menu a podmenu se do ní rozbalit nedá. Obsah je tentýž jako v nabídce nad chatem ([DeleteChatOptions]).
  */
 @Composable
 fun ChatDeleteSheet(

@@ -176,6 +176,7 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.LinkPreviewOptions
 import eu.tintera.plume.core.telegram.ChatRepository
+import eu.tintera.plume.core.telegram.SpamActions
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.ConnectionState
 import eu.tintera.plume.core.telegram.ConversationRepository
@@ -230,7 +231,10 @@ import eu.tintera.plume.resources.conversation_content_not_allowed
 import eu.tintera.plume.resources.conversation_gif_send_failed
 import eu.tintera.plume.resources.conversation_location_send_failed
 import eu.tintera.plume.resources.conversation_self_destruct_album
+import eu.tintera.plume.resources.profile_action_failed
 import eu.tintera.plume.resources.profile_mute_failed
+import eu.tintera.plume.resources.secret_chat_close_failed
+import eu.tintera.plume.resources.secret_chat_closed
 import eu.tintera.plume.resources.conversation_attachments_send_failed
 import eu.tintera.plume.resources.conversation_cancel_send_failed
 import eu.tintera.plume.resources.conversation_delete_failed
@@ -1676,8 +1680,15 @@ class ConversationViewModel(
         }
 
         viewModelScope.launch {
-            // Jen kvůli kanálu bez práva publikovat: místo pole je tam tlačítko Ztlumit.
+            // Ztlumit v nabídce ⋮ a v kanálu bez práva publikovat místo pole.
             chatRepository.muted(chatId).collect { muted -> _state.update { it.copy(muted = muted) } }
+        }
+
+        viewModelScope.launch {
+            // Nahlásit a volby ve sheetu smazání (nabídka ⋮). Bez nich se nahlášení nenabídne.
+            chatRepository.spamActions(chatId)
+                .onSuccess { spam -> _state.update { it.copy(spam = spam) } }
+                .onFailure { failure -> logger.w(failure) { "Volby proti spamu u chatu $chatId se nepodařilo zjistit." } }
         }
 
         // Chat s botem: popis do prázdného chatu a tlačítko Start. Ve vlákně komentářů bot není.
@@ -4818,6 +4829,40 @@ class ConversationViewModel(
         }
     }
 
+    /** Nahlášení celého chatu z nabídky ⋮ v hlavičce, bez mazání. */
+    fun reportChat() {
+        reportFlow.start(chatId)
+    }
+
+    /**
+     * Smazání chatu / odchod ze skupiny nebo kanálu z nabídky ⋮ v hlavičce, s volbami ze sheetu
+     * smazání — stejné pořadí jako v seznamu chatů ([cleanUpSpam]). Po úspěchu se konverzace
+     * zavře ([chatGone]).
+     */
+    fun deleteOrLeave(cleanup: SpamCleanup) {
+        reportFlow.thenAfterReport(cleanup.report, chatId) {
+            cleanUpSpam(
+                cleanup = cleanup,
+                block = { chatRepository.setBlocked(chatId, true) },
+                delete = { chatRepository.deleteOrLeave(chatId) },
+            )
+                .onSuccess { _chatGone.value = true }
+                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.profile_action_failed)) } }
+        }
+    }
+
+    /**
+     * Ukončí tajný chat z nabídky ⋮. Historie zůstane, psát do něj už nepůjde ani protějšku —
+     * místo pole se ukáže věta o ukončeném chatu, až to ohlásí `accessUpdates`.
+     */
+    fun closeSecretChat() {
+        viewModelScope.launch {
+            chatRepository.closeSecretChat(chatId)
+                .onSuccess { _state.update { it.copy(notice = UiText(Res.string.secret_chat_closed)) } }
+                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.secret_chat_close_failed)) } }
+        }
+    }
+
     /**
      * „Přeposlat" z nabídky. Obrazovka si o cíl řekne sama (otevře výběr chatu), takže se tu jen
      * zapamatuje, co se přeposílá — u alba celé album, jako u mazání.
@@ -6494,8 +6539,10 @@ data class ConversationState(
     val openStickerSet: Long? = null,
     /** Běží přidání ke skupině / kanálu ([ConversationViewModel.join]). */
     val joining: Boolean = false,
-    /** Ztlumení chatu; `null`, dokud se nepřečte. Ukazuje se jen v kanálu bez práva publikovat. */
+    /** Ztlumení chatu; `null`, dokud se nepřečte. V nabídce ⋮ a v kanálu bez práva publikovat. */
     val muted: Boolean? = null,
+    /** Co jde s chatem udělat proti spamu (nahlásit, zablokovat); `null`, dokud to nedorazí. */
+    val spam: SpamActions? = null,
     /** Reklamy k zobrazení. Podle Telegram ToS se nesmí filtrovat ani skrývat. */
     val sponsored: List<SponsoredMessage> = emptyList(),
     /** Text právě letící ze vstupního pole do bubliny; `null` když se nic neodesílá. */
