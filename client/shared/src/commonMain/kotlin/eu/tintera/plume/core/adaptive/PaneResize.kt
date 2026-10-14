@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 
 /** Na kterém okraji panelu, který hlásí svou polohu, táhlo stojí. */
@@ -35,9 +36,16 @@ enum class PaneEdge {
     /** Levý okraj: profil, předěl s konverzací. */
     Start,
 
-    /** Za pravým okrajem, uprostřed mezery: seznam, předěl s konverzací. */
+    /**
+     * Uprostřed VIDITELNÉ mezery za pravým okrajem: seznam, předěl s konverzací. Mezera, kterou
+     * oko vidí, začíná u řádků seznamu ([LIST_CONTENT_INSET] před okrajem panelu) a končí u karty
+     * konverzace ([PANE_SPACING] za ním) — od okraje panelu počítané táhlo se lepilo na kartu.
+     */
     End,
 }
+
+/** Vnitřní okraj řádků seznamu chatů u stran panelu; podle něj se táhlo seznamu staví doprostřed mezery. */
+val LIST_CONTENT_INSET = 16.dp
 
 /**
  * Vlastní táhlo mezi panely tam, kde táhlo knihovny (`paneExpansionDragHandle`) nestačí: ve
@@ -79,13 +87,15 @@ val LocalListPaneResize = compositionLocalOf<PaneResize?> { null }
 @Composable
 fun PaneHandleOverlay(resizes: List<PaneResize>, modifier: Modifier = Modifier) {
     var origin by remember { mutableStateOf(Offset.Zero) }
-    val spacing = with(LocalDensity.current) { PANE_SPACING.toPx() }
+    val density = LocalDensity.current
+    // Střed viditelné mezery od řádků seznamu ke kartě konverzace (viz [PaneEdge.End]).
+    val gapCenter = with(density) { ((PANE_SPACING - LIST_CONTENT_INSET) / 2).toPx() }
     Box(modifier.fillMaxSize().onGloballyPositioned { origin = it.boundsInWindow().topLeft }) {
         resizes.forEach { resize ->
             val pane = resize.paneBounds.value ?: return@forEach
             val edgeX = when (resize.edge) {
                 PaneEdge.Start -> pane.left
-                PaneEdge.End -> pane.right + spacing / 2
+                PaneEdge.End -> pane.right + gapCenter
             }
             PaneHandle(
                 resize,

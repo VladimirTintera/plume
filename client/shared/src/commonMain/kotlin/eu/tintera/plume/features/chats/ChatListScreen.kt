@@ -56,6 +56,7 @@ import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.tintera.plume.core.ui.RollingNumber
 import eu.tintera.plume.core.adaptive.COLLAPSED_LIST_MAX_WIDTH
+import eu.tintera.plume.core.adaptive.LIST_CONTENT_INSET
 import eu.tintera.plume.core.adaptive.LocalExpandListPane
 import eu.tintera.plume.core.ui.readPluralString
 import eu.tintera.plume.core.ui.readString
@@ -1292,8 +1293,8 @@ internal fun ChatListContent(
                     top = padding.calculateTopPadding() + 8.dp - TOP_ANCHOR_HEIGHT -
                         GROUP_ITEM_SPACING,
                     bottom = padding.calculateBottomPadding() + 8.dp,
-                    start = 16.dp,
-                    end = 16.dp,
+                    start = LIST_CONTENT_INSET,
+                    end = LIST_CONTENT_INSET,
                 ),
                 // Rozestup UVNITŘ skupiny. Mezera mezi skupinami se přidává u její první
                 // položky — seznam o sousedech položky nic neví.
