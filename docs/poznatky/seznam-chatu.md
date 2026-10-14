@@ -126,6 +126,19 @@ testy `ChatFolderTabsTest`). Bez složek se lišta nekreslí vůbec (viz „Slo�
   pilulka nahoře, aby nezakrývala čtené chaty. Samotná lišta má výchozí elevaci 0; nad kartami
   chatů by se slévala, takže dostává elevaci jako lišta s FAB.
 
+- **Podržení složky otevře nabídku „Označit vše jako přečtené"** (`readChatList`, `ChatRepository.readAll`,
+  `ChatsViewModel.readFolder`). U „Vše" to vezme hlavní seznam. Odznaky se přepočítají samy
+  updaty, hláška jde jen při selhání. Potvrzení není: nic se nemaže a oficiální klienti se taky
+  neptají.
+  - **Položka nese název složky** („Označit vše v „Práce“ jako přečtené"). Ikona bez popisku
+    dřív na podržení ukazovala bublinu s názvem; teď by se pustila zároveň s nabídkou, a tak
+    u složek bublina není a název je v nabídce. Čtečka obrazovky dostává název i akci podržení
+    (`clearAndSetSemantics` s `onLongClick`).
+  - **Odezvu na podržení dělá `combinedClickable` sám** (viz „Haptika" v CLAUDE.md).
+  - Ověřeno na emulátoru (14. 10. 2026, účet …527): složka „Skupiny" (druh Skupiny) s odznakem 1
+    po dvou zprávách bota; po „Označit vše…" skupina i odznak přečtené, chat Telegramu mimo
+    složku zůstal nepřečtený. Testovací složka se pak smazala. Na „Vše" se to nezkoušelo —
+    přečetlo by to i chaty skutečných lidí a poslalo jim potvrzení o přečtení.
 - **Složka je další `ChatFolder` (`Custom(id)`), ne nový druh seznamu.** Repository drží pozice
   chatu ve VŠECH seznamech, které TDLib hlásí (`positions`), takže seznam složky se skládá
   stejným `publish` jako hlavní a archiv. Seznamy se ale publikují jen pro složky, o které si

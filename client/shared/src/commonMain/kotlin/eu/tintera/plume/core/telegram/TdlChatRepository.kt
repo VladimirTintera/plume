@@ -639,6 +639,9 @@ class TdlChatRepository(
         return copy(presence = status.toPresence())
     }
 
+    override suspend fun readAll(folder: ChatFolder): Result<Unit> =
+        client.readChatList(chatList = folder.toChatList()).toResult().map { }
+
     override suspend fun setPinned(chatId: Long, folder: ChatFolder, pinned: Boolean): Result<Unit> =
         client.toggleChatIsPinned(chatList = folder.toChatList(), chatId = chatId, isPinned = pinned)
             .toResult()

@@ -262,6 +262,19 @@ class ChatsViewModel(
      * ne hledat v řádku. Server ji do řádku pošle sám (`UpdateChatFolders`); výběr se uloží hned,
      * a dokud složka v řádku není, platí celý seznam ([selectedFolderId]).
      */
+    /**
+     * Podržení složky v liště → „Označit vše jako přečtené" (`readChatList`). [id] `null` je
+     * hlavní seznam. Odznaky se přepočítají samy updaty; hláška jde jen při selhání.
+     */
+    fun readFolder(id: Int?) {
+        viewModelScope.launch {
+            repository.readAll(if (id == null) ChatFolder.Main else ChatFolder.Custom(id)).onFailure { failure ->
+                logger.w(failure) { "Složku $id se nepodařilo označit jako přečtenou." }
+                _actions.update { it.copy(error = failure.userMessage(Res.string.chats_action_failed)) }
+            }
+        }
+    }
+
     fun addRecommendedFolder(recommended: RecommendedChatFolder) {
         val repo = folderRepository ?: return
         val state = _folderSuggestions.value?.takeIf { it.adding == null } ?: return

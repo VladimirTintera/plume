@@ -788,6 +788,7 @@ fun ChatListScreen(
                                     scope.launch { listState.scrollToItem(0) }
                                 },
                                 onAdd = viewModel::openFolderSuggestions,
+                                onReadAll = viewModel::readFolder,
                             )
                         }
                         NewChatFabMenu(

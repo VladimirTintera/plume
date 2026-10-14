@@ -1,5 +1,19 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.resources.done_all_24dp
+import eu.tintera.plume.resources.chat_folders_read_all_main
+import eu.tintera.plume.resources.chat_folders_read_all
+import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.ExpressiveMenu
+import androidx.compose.material3.MenuAnchorPosition
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandHorizontally
@@ -83,6 +97,8 @@ internal fun ChatFolderToolbar(
     tabs: List<FolderTab>,
     onSelect: (Int?) -> Unit,
     onAdd: () -> Unit,
+    /** Podržení složky → „Označit vše jako přečtené"; `null` = hlavní seznam. */
+    onReadAll: (Int?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     HorizontalFloatingToolbar(
@@ -93,7 +109,7 @@ internal fun ChatFolderToolbar(
         modifier = modifier,
     ) {
         // Toolbar dává obsah do `Row` bez `verticalAlignment` (viz ChatSelectionToolbar).
-        FolderItems(tabs, onSelect, onAdd, Modifier.align(Alignment.CenterVertically))
+        FolderItems(tabs, onSelect, onAdd, onReadAll, Modifier.align(Alignment.CenterVertically))
     }
 }
 
@@ -107,15 +123,16 @@ private fun FolderItems(
     tabs: List<FolderTab>,
     onSelect: (Int?) -> Unit,
     onAdd: () -> Unit,
+    onReadAll: (Int?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val scroll = rememberScrollState()
     SubcomposeLayout(modifier) { constraints ->
-        val probe = subcompose(PROBE) { FolderRow(tabs, labels = true, onSelect = {}, onAdd = {}) }
+        val probe = subcompose(PROBE) { FolderRow(tabs, labels = true, onSelect = {}, onAdd = {}, onReadAll = {}) }
             .map { it.measure(Constraints()) }
         val labels = probe.sumOf { it.width } <= constraints.maxWidth
         val content = subcompose(CONTENT) {
-            FolderRow(tabs, labels = labels, onSelect = onSelect, onAdd = onAdd, modifier = Modifier.horizontalScroll(scroll))
+            FolderRow(tabs, labels = labels, onSelect = onSelect, onAdd = onAdd, onReadAll = onReadAll, modifier = Modifier.horizontalScroll(scroll))
         }.map { it.measure(constraints.copy(minWidth = 0)) }
         val width = content.maxOf { it.width }
         val height = content.maxOf { it.height }
@@ -129,6 +146,7 @@ private fun FolderRow(
     labels: Boolean,
     onSelect: (Int?) -> Unit,
     onAdd: () -> Unit,
+    onReadAll: (Int?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -137,7 +155,12 @@ private fun FolderRow(
         modifier = modifier,
     ) {
         tabs.forEach { tab ->
-            FolderItem(tab, label = labels || tab.selected, onClick = { if (!tab.selected) onSelect(tab.id) })
+            FolderItem(
+                tab,
+                label = labels || tab.selected,
+                onClick = { if (!tab.selected) onSelect(tab.id) },
+                onReadAll = { onReadAll(tab.id) },
+            )
         }
         val addLabel = stringResource(Res.string.chat_folders_add_folder)
         /*
@@ -167,8 +190,9 @@ private fun FolderRow(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FolderItem(tab: FolderTab, label: Boolean, onClick: () -> Unit) {
+private fun FolderItem(tab: FolderTab, label: Boolean, onClick: () -> Unit, onReadAll: () -> Unit) {
     val title = tab.plainTitle()
+    var menuOpen by remember { mutableStateOf(false) }
     val container by animateColorAsState(
         targetValue = if (tab.selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
@@ -185,8 +209,11 @@ private fun FolderItem(tab: FolderTab, label: Boolean, onClick: () -> Unit) {
      */
     val bringIntoView = remember { BringIntoViewRequester() }
     LaunchedEffect(tab.selected) { if (tab.selected) bringIntoView.bringIntoView() }
-    // Bublina jen u samotné ikony; kdo vidí název, bublinu nepotřebuje.
-    FolderTooltip(title, enabled = !label) {
+    /*
+     * Podržení otevře nabídku složky. Bublina s názvem, kterou ikona bez popisku dřív na podržení
+     * ukazovala, tu proto není — pustily by se obě naráz. Název nese položka nabídky a čtečka.
+     */
+    Box {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
@@ -194,9 +221,20 @@ private fun FolderItem(tab: FolderTab, label: Boolean, onClick: () -> Unit) {
                 .height(ITEM_HEIGHT)
                 .clip(CircleShape)
                 .background(container)
-                .selectable(selected = tab.selected, role = Role.Tab, onClick = onClick)
+                .combinedClickable(
+                    role = Role.Tab,
+                    onClick = onClick,
+                    // Odezvu na podržení dělá `combinedClickable` sám; ruční by ji zdvojila.
+                    onLongClick = { menuOpen = true },
+                )
                 .padding(horizontal = ITEM_PADDING)
-                .clearAndSetSemantics { contentDescription = title },
+                .clearAndSetSemantics {
+                    contentDescription = title
+                    selected = tab.selected
+                    role = Role.Tab
+                    onClick(action = { onClick(); true })
+                    onLongClick(action = { menuOpen = true; true })
+                },
         ) {
             BadgedBox(
                 badge = {
@@ -227,6 +265,26 @@ private fun FolderItem(tab: FolderTab, label: Boolean, onClick: () -> Unit) {
                 }
             }
         }
+        ExpressiveMenu(
+            expanded = menuOpen,
+            onDismiss = { menuOpen = false },
+            popupPositionProvider = MenuDefaults.rememberDropdownMenuPopupPositionProvider(MenuAnchorPosition.Above),
+            groups = listOf(
+                listOf(
+                    MenuAction(
+                        if (tab.id == null) {
+                            stringResource(Res.string.chat_folders_read_all_main)
+                        } else {
+                            stringResource(Res.string.chat_folders_read_all, title)
+                        },
+                        Res.drawable.done_all_24dp,
+                    ) {
+                        menuOpen = false
+                        onReadAll()
+                    },
+                ),
+            ),
+        )
     }
 }
 
