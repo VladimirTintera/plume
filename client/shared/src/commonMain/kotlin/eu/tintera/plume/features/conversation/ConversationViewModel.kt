@@ -38,8 +38,6 @@ import eu.tintera.plume.core.telegram.composedFormatsOf
 import eu.tintera.plume.core.telegram.within
 import eu.tintera.plume.core.telegram.UnreadMarkKind
 import eu.tintera.plume.resources.bot_location_unavailable
-import kotlinx.coroutines.flow.flowOf
-import eu.tintera.plume.resources.video_chat_join_elsewhere
 import eu.tintera.plume.core.telegram.VideoChatInfo
 import eu.tintera.plume.core.telegram.InviteLinkRepository
 import eu.tintera.plume.core.url.UrlCleaner
@@ -155,7 +153,6 @@ import eu.tintera.plume.resources.article_load_failed
 import eu.tintera.plume.resources.folder_invite_added
 import eu.tintera.plume.resources.folder_invite_failed
 import eu.tintera.plume.resources.folder_invite_joined
-import eu.tintera.plume.resources.chat_bar_phone_shared
 import eu.tintera.plume.resources.paid_media_unsupported
 import eu.tintera.plume.resources.story_live_unsupported
 import eu.tintera.plume.resources.story_unavailable
@@ -165,10 +162,6 @@ import eu.tintera.plume.resources.conversation_content_not_allowed
 import eu.tintera.plume.resources.conversation_gif_send_failed
 import eu.tintera.plume.resources.conversation_location_send_failed
 import eu.tintera.plume.resources.conversation_self_destruct_album
-import eu.tintera.plume.resources.profile_action_failed
-import eu.tintera.plume.resources.profile_mute_failed
-import eu.tintera.plume.resources.secret_chat_close_failed
-import eu.tintera.plume.resources.secret_chat_closed
 import eu.tintera.plume.resources.conversation_attachments_send_failed
 import eu.tintera.plume.resources.conversation_cancel_send_failed
 import eu.tintera.plume.resources.conversation_delete_failed
@@ -208,18 +201,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import eu.tintera.plume.core.telegram.ChatBar
-import eu.tintera.plume.core.telegram.SharePhoneBar
 import eu.tintera.plume.features.chats.SpamCleanup
-import eu.tintera.plume.features.chats.cleanUpSpam
 import eu.tintera.plume.features.report.ReportFlow
 import eu.tintera.plume.features.proxy.ProxyLinkFlow
 import eu.tintera.plume.core.telegram.ProxyRepository
 import eu.tintera.plume.core.telegram.UnsupportedProxyException
 import eu.tintera.plume.resources.proxy_unsupported
-import eu.tintera.plume.resources.chats_blocked
-import eu.tintera.plume.resources.chats_unarchived
-import eu.tintera.plume.resources.spam_bar_contact_added
-import eu.tintera.plume.resources.spam_bar_failed
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.asStateFlow
@@ -389,62 +376,11 @@ class ConversationViewModel(
     private val _state = MutableStateFlow(ConversationState(threadRootId = threadRootId, forumTopicId = forumTopicId, savedTopicId = savedTopicId))
     val state: StateFlow<ConversationState> = _state.asStateFlow()
 
-    /**
-     * Pruh nad konverzací (spam od neznámého, nasdílení čísla, žádost o vstup). Samostatný tok
-     * ze stejného důvodu jako [connection]: mění se zřídka a nezávisle na zprávách.
-     */
-    val chatBar: StateFlow<ChatBar?> = chatRepository.chatBar(chatId)
-        // Převedená základní skupina: TDLib u ní dál drží pruh „Pozvat členy", jenže zvát
-        // a psát se dá jen do té nové. Pruh tam nic nenabízí.
-        .combine(_state.map { it.info?.upgradedToChatId != null }.distinctUntilChanged()) { bar, upgraded ->
-            bar.takeIf { !upgraded }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    /**
-     * Videochat skupiny / živé vysílání kanálu pro pruh nad konverzací. Ve vlákně komentářů ne —
-     * patří diskusní skupině, ne příspěvku.
-     */
-    val videoChat: StateFlow<VideoChatInfo?> =
-        (if (threadRootId == null) chatRepository.videoChat(chatId) else flowOf(null))
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    /**
-     * Čekající žádosti o vstup pro pruh nad konverzací. TDLib je posílá jen správci, který je smí
-     * vyřizovat (`Chat.pendingJoinRequests`), takže tu o právech rozhodovat netřeba. Ve vlákně
-     * komentářů ne, ze stejného důvodu jako videochat.
-     */
-    val joinRequests: StateFlow<PendingJoinRequests?> =
-        (if (threadRootId == null) inviteLinks.pendingJoinRequests(chatId) else flowOf(null))
-            .map { requests -> requests?.takeIf { it.count > 0 } }
-            .distinctUntilChanged()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    /** Ťuknutí na pruh videochatu: připojit se jde zatím jen jinde. */
-    fun explainVideoChat() = _state.update { it.copy(notice = UiText(Res.string.video_chat_join_elsewhere)) }
-
     /** Průvodce nahlášením — z nabídky nad zprávou i z pruhu proti spamu. */
     val reportFlow = ReportFlow(viewModelScope, chatRepository::report)
 
     /** Proxy z odkazu `t.me/proxy` — přidá se až po potvrzení v dialogu. */
     val proxyLinkFlow = ProxyLinkFlow(viewModelScope, proxies)
-
-    private val _chatGone = MutableStateFlow(false)
-
-    /**
-     * Chat se z pruhu proti spamu smazal — obrazovka konverzaci zavře. Stav, ne událost:
-     * obrazovka si ho vyzvedne, i kdyby zrovna nebyla složená.
-     */
-    val chatGone: StateFlow<Boolean> = _chatGone.asStateFlow()
-
-    private val _unarchived = MutableStateFlow(false)
-
-    /**
-     * Automaticky archivovaný chat se z pruhu vrátil mezi chaty. Obrazovka otevřená z archivu
-     * se tím přestěhuje do hlavního seznamu — v archivu už chat není. Stav ze stejného důvodu
-     * jako [chatGone].
-     */
-    val unarchived: StateFlow<Boolean> = _unarchived.asStateFlow()
 
     /** Vynucené odpovědi, na které se pole už přepnulo — jednou na zprávu. */
     private val forceReplied = mutableSetOf<Long>()
@@ -607,6 +543,35 @@ class ConversationViewModel(
     fun onMemberQuery(text: String) = search.onMemberQuery(text)
     fun searchOlder() = search.searchOlder()
     fun searchNewer() = search.searchNewer()
+
+    /** Chat jako celek: pruhy nad konverzací, vstup, ztlumení, smazání — viz [ConversationChatActions]. */
+    private val chatActions = ConversationChatActions(
+        chatId = chatId,
+        threadRootId = threadRootId,
+        state = _state,
+        scope = viewModelScope,
+        repository = repository,
+        chatRepository = chatRepository,
+        inviteLinks = inviteLinks,
+        reportFlow = reportFlow,
+        logger = logger,
+    )
+    val chatBar: StateFlow<ChatBar?> get() = chatActions.chatBar
+    val videoChat: StateFlow<VideoChatInfo?> get() = chatActions.videoChat
+    val joinRequests: StateFlow<PendingJoinRequests?> get() = chatActions.joinRequests
+    fun explainVideoChat() = chatActions.explainVideoChat()
+    val chatGone: StateFlow<Boolean> get() = chatActions.chatGone
+    val unarchived: StateFlow<Boolean> get() = chatActions.unarchived
+    fun join() = chatActions.join()
+    fun toggleMute() = chatActions.toggleMute()
+    fun addSpamBarContact() = chatActions.addSpamBarContact()
+    fun unarchiveFromSpamBar() = chatActions.unarchiveFromSpamBar()
+    fun sharePhoneNumber() = chatActions.sharePhoneNumber()
+    fun dismissChatBar() = chatActions.dismissChatBar()
+    fun resolveSpamBar(cleanup: SpamBarCleanup) = chatActions.resolveSpamBar(cleanup)
+    fun reportChat() = chatActions.reportChat()
+    fun deleteOrLeave(cleanup: SpamCleanup) = chatActions.deleteOrLeave(cleanup)
+    fun closeSecretChat() = chatActions.closeSecretChat()
 
     /** Serializuje stránkování — bez toho by dva rychlé scrolly načetly tutéž stránku dvakrát. */
     private val loadMutex = Mutex()
@@ -1976,32 +1941,6 @@ class ConversationViewModel(
                         )
                     }
                 }
-        }
-    }
-
-    /**
-     * Text chyby do stavu obrazovky. Zaloguje surovou příčinu (a tím ji pošle i do kontextu
-     * hlášení pádů) a vrátí větu pro uživatele.
-     *
-     * Hláška od TDLib se na obrazovku nedostane — je to anglická konstanta jako
-     * `MESSAGE_EDIT_TIME_EXPIRED`, viz [userMessage]. `w` je tu správná závažnost: server řekl
-     * ne, což je očekávané selhání, ne chyba, kolem které by se měl v konzoli zakládat problém.
-     */
-    /**
-     * Přidat se ke skupině nebo kanálu z globálního hledání. Po úspěchu se místo tlačítka
-     * vrátí vstupní pole (v kanálu ho server stejně nepustí, ale to platí pro každý kanál).
-     */
-    fun join() {
-        if (_state.value.joining) return
-        _state.update { it.copy(joining = true) }
-        viewModelScope.launch {
-            repository.joinChat(chatId)
-                .onSuccess { _state.update { it.copy(info = it.info?.copy(canJoin = false)) } }
-                .onFailure { failure ->
-                    val message = failure.reported(logger, Res.string.conversation_join_failed)
-                    _state.update { it.copy(error = message) }
-                }
-            _state.update { it.copy(joining = false) }
         }
     }
 
@@ -3411,16 +3350,6 @@ class ConversationViewModel(
         _state.update { it.copy(addingPollOption = null) }
     }
 
-    /** Ztlumit / zapnout zvuk kanálu z pruhu místo vstupního pole. Potvrzení přijde updatem. */
-    fun toggleMute() {
-        val muted = _state.value.muted ?: return
-        viewModelScope.launch {
-            chatRepository.setMuted(chatId, !muted).onFailure { failure ->
-                _state.update { it.copy(error = failure.reported(logger, Res.string.profile_mute_failed)) }
-            }
-        }
-    }
-
     /**
      * „Citovat" z nabídky nad zprávou s označeným textem: odpověď jen na úryvek.
      *
@@ -4164,117 +4093,6 @@ class ConversationViewModel(
     /** Obrazovka snackbar k přidanému kontaktu ukázala. */
     fun consumeAddedContact() {
         _state.update { it.copy(addedContact = null) }
-    }
-
-    /** Pruh proti spamu: přidat protějšek do kontaktů. Pruh pak zmizí sám (update od serveru). */
-    fun addSpamBarContact() {
-        viewModelScope.launch {
-            chatRepository.addToContacts(chatId)
-                .onSuccess { _state.update { it.copy(notice = UiText(Res.string.spam_bar_contact_added)) } }
-                .onFailure { failure ->
-                    logger.w(failure) { "Přidání do kontaktů z chatu $chatId selhalo." }
-                    _state.update { it.copy(error = failure.userMessage(Res.string.spam_bar_failed)) }
-                }
-        }
-    }
-
-    /** „Vrátit mezi chaty" z pruhu u chatu, který server archivoval sám. */
-    fun unarchiveFromSpamBar() {
-        viewModelScope.launch {
-            chatRepository.unarchiveFromSpamBar(chatId)
-                .onSuccess {
-                    _state.update { it.copy(notice = UiText(Res.string.chats_unarchived)) }
-                    _unarchived.value = true
-                }
-                .onFailure { failure ->
-                    logger.w(failure) { "Vrácení chatu $chatId z archivu selhalo." }
-                    _state.update { it.copy(error = failure.userMessage(Res.string.spam_bar_failed)) }
-                }
-        }
-    }
-
-    /** Nasdílí vlastní číslo protějšku (pruh [SharePhoneBar], po potvrzení dialogem). */
-    fun sharePhoneNumber() {
-        viewModelScope.launch {
-            chatRepository.sharePhoneNumber(chatId)
-                .onSuccess { _state.update { it.copy(notice = UiText(Res.string.chat_bar_phone_shared)) } }
-                .onFailure { failure ->
-                    logger.w(failure) { "Nasdílení čísla v chatu $chatId selhalo." }
-                    _state.update { it.copy(error = failure.userMessage(Res.string.spam_bar_failed)) }
-                }
-        }
-    }
-
-    /** Zavře pruh nad konverzací napořád. */
-    fun dismissChatBar() {
-        viewModelScope.launch {
-            chatRepository.dismissChatBar(chatId).onFailure { failure ->
-                logger.w(failure) { "Pruh proti spamu v chatu $chatId nejde zavřít." }
-                _state.update { it.copy(error = failure.userMessage(Res.string.spam_bar_failed)) }
-            }
-        }
-    }
-
-    /**
-     * Akce z pruhu proti spamu se vším, co si uživatel přibalil. Pořadí je nahlásit →
-     * zablokovat → smazat, jako u smazání v seznamu chatů ([cleanUpSpam]): nahlásit jde jen
-     * existující chat a po chybě blokování se nesmí smazat nic.
-     */
-    fun resolveSpamBar(cleanup: SpamBarCleanup) {
-        reportFlow.thenAfterReport(cleanup.report, chatId) {
-            cleanUpSpam(
-                cleanup = SpamCleanup(block = cleanup.block),
-                block = { chatRepository.setBlocked(chatId, true) },
-                delete = {
-                    if (cleanup.delete) {
-                        chatRepository.deleteOrLeave(chatId).onSuccess { _chatGone.value = true }
-                    } else {
-                        Result.success(Unit)
-                    }
-                },
-            ).onSuccess {
-                if (cleanup.block && !cleanup.delete) {
-                    _state.update { it.copy(notice = UiText(Res.string.chats_blocked)) }
-                }
-            }.onFailure { failure ->
-                logger.w(failure) { "Vyřízení spamu v chatu $chatId selhalo." }
-                _state.update { it.copy(error = failure.userMessage(Res.string.spam_bar_failed)) }
-            }
-        }
-    }
-
-    /** Nahlášení celého chatu z nabídky ⋮ v hlavičce, bez mazání. */
-    fun reportChat() {
-        reportFlow.start(chatId)
-    }
-
-    /**
-     * Smazání chatu / odchod ze skupiny nebo kanálu z nabídky ⋮ v hlavičce, s volbami ze sheetu
-     * smazání — stejné pořadí jako v seznamu chatů ([cleanUpSpam]). Po úspěchu se konverzace
-     * zavře ([chatGone]).
-     */
-    fun deleteOrLeave(cleanup: SpamCleanup) {
-        reportFlow.thenAfterReport(cleanup.report, chatId) {
-            cleanUpSpam(
-                cleanup = cleanup,
-                block = { chatRepository.setBlocked(chatId, true) },
-                delete = { chatRepository.deleteOrLeave(chatId) },
-            )
-                .onSuccess { _chatGone.value = true }
-                .onFailure { failure -> _state.update { it.copy(error = failure.reported(logger, Res.string.profile_action_failed)) } }
-        }
-    }
-
-    /**
-     * Ukončí tajný chat z nabídky ⋮. Historie zůstane, psát do něj už nepůjde ani protějšku —
-     * místo pole se ukáže věta o ukončeném chatu, až to ohlásí `accessUpdates`.
-     */
-    fun closeSecretChat() {
-        viewModelScope.launch {
-            chatRepository.closeSecretChat(chatId)
-                .onSuccess { _state.update { it.copy(notice = UiText(Res.string.secret_chat_closed)) } }
-                .onFailure { failure -> _state.update { it.copy(error = failure.reported(logger, Res.string.secret_chat_close_failed)) } }
-        }
     }
 
     /**
