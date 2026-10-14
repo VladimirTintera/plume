@@ -10,6 +10,7 @@ import eu.tintera.plume.core.ai.GemmaModel
 import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.adaptive.ListPaneAnchor
+import eu.tintera.plume.core.adaptive.ProfilePaneAnchor
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
@@ -53,6 +54,8 @@ open class UnimplementedAppSettings : AppSettings {
     override fun setThemeColor(color: ThemeColor): Unit = error("setThemeColor")
     override val listPaneAnchor: StateFlow<ListPaneAnchor?> get() = error("listPaneAnchor")
     override fun setListPaneAnchor(anchor: ListPaneAnchor): Unit = error("setListPaneAnchor")
+    override val profilePaneAnchor: StateFlow<ProfilePaneAnchor?> get() = error("profilePaneAnchor")
+    override fun setProfilePaneAnchor(anchor: ProfilePaneAnchor): Unit = error("setProfilePaneAnchor")
     override val separateUnreadChats: StateFlow<Boolean> get() = error("separateUnreadChats")
     override fun setSeparateUnreadChats(separate: Boolean): Unit = error("setSeparateUnreadChats")
     override val savedMessagesAsChats: StateFlow<Boolean> get() = error("savedMessagesAsChats")

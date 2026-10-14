@@ -93,6 +93,7 @@
     <string name="saved_messages">Saved Messages</string>
     <string name="chats_menu">More options</string>
     <string name="chats_search">Search chats</string>
+    <string name="profile_pane_width">Profile width</string>
     <string name="chats_pending_freeze">Your account is frozen</string>
     <string name="chats_pending_login">New sign-in to your account</string>
     <string name="chats_pending_birthdays">Birthdays</string>

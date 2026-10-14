@@ -13,6 +13,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
@@ -107,6 +108,10 @@ fun PaneCard(role: PaneRole, content: @Composable () -> Unit) {
                 ),
         ) {
             content()
+            // Táhlo šířky profilu u předělu s konverzací (jen kde ho shell nabízí — profil v Chatech).
+            if (card && role == PaneRole.Extra) {
+                LocalProfilePaneResize.current?.let { ProfilePaneHandle(it, Modifier.align(Alignment.CenterStart)) }
+            }
         }
     }
 }

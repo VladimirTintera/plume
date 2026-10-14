@@ -325,6 +325,24 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   telefonu je šipka obyčejné zpět. Téma nad seznamem témat se vrací do něj (rodič, ne historie).
   **Šipku neschovávat**: bez ní nešla otevřená konverzace zavřít vůbec (zkusilo se, vrátilo se).
 
+### Táhlo profilu
+
+Šířka profilu vedle konverzace se mění táhlem u levého okraje karty profilu (`ProfilePaneHandle`
+v `PaneCard`, stav `rememberProfilePaneResize`), kotvy výchozí (360/412) / 480 / 600 dp,
+zvolená v `AppSettings.profilePaneAnchor`.
+
+- **Táhlo knihovny na to nejde.** Ve třech panelech ho `ThreePaneScaffold` nekreslí vůbec
+  a ve dvou (konverzace | profil) nastavuje šířku PRVNÍHO panelu, tedy konverzace. Šířka
+  profilu proto jde metadaty (`Panes.width` u profilu a obrazovek z něj, v Chatech i archivu)
+  a táhlo je vlastní — stejně ve dvou i třech panelech.
+- **Za tahu se šířka omezuje hned** (`profileWidthBeside`: konverzaci zbude aspoň 360 dp, profil
+  nejužší na výchozí šířce), po puštění dosedne na nejbližší kotvu. Kotva se zapíše do stavu
+  hned, ne až z toku nastavení — ten přijde o snímek později a profil by skočil zpátky.
+- **Položky Chatů se za tahu staví znovu** (šířka je v klíči `chatsEntries`), obsah ne: drží ho
+  `contentKey`. Rozvržení animuje knihovna (`AnimatedPane`), takže profil prst sleduje s lehkou
+  pružinou.
+- Jen profil v Chatech; podstránky Nastavení ve třetím panelu mají výchozí šířku.
+
 ### Standardní šířky
 
 Na okně přes dva monitory (snímek ~2000 dp) se konverzace roztáhla přes celou šířku: přijaté zprávy

@@ -97,6 +97,7 @@ import eu.tintera.plume.core.adaptive.PaneNeighbours
 import eu.tintera.plume.core.adaptive.listWidthBesideProfile
 import eu.tintera.plume.core.adaptive.rememberPaneCardDecorator
 import eu.tintera.plume.core.adaptive.rememberWithLeavingExtras
+import eu.tintera.plume.core.adaptive.LocalProfilePaneResize
 import eu.tintera.plume.core.adaptive.LocalExpandListPane
 import eu.tintera.plume.core.adaptive.PaneInfo
 import eu.tintera.plume.core.adaptive.PaneRole
@@ -359,7 +360,7 @@ private fun ShellContent(
          */
         lateinit var entryProvider: (NavKey) -> NavEntry<NavKey>
         val paneOf: (NavKey) -> PaneInfo? = { entryProvider(it).paneInfo }
-        val buildEntryProvider = { listPaneWidth: Dp? ->
+        val buildEntryProvider = { listPaneWidth: Dp?, profilePaneWidth: Dp? ->
             shellEntryProvider(
                 chatsStack = chatsStack,
                 settingsStack = settingsStack,
@@ -369,11 +370,12 @@ private fun ShellContent(
                 twoPane = twoPane,
                 paneOf = paneOf,
                 listPaneWidth = listPaneWidth,
+                profilePaneWidth = profilePaneWidth,
                 closeShare = closeShare,
                 navigation = navigation,
             )
         }
-        entryProvider = buildEntryProvider(null)
+        entryProvider = buildEntryProvider(null, null)
 
         /*
          * Profil ve třetím panelu patří ke konverzaci pod sebou. Otevře-li se nad ním jiná
@@ -434,7 +436,22 @@ private fun ShellContent(
             listBeside = twoPane && (!extraBeside || threePane),
             extraBeside = extraBeside,
         )
-        if (listPaneWidth != null) entryProvider = buildEntryProvider(listPaneWidth)
+
+        /*
+         * Šířka profilu vedle konverzace: táhlo v kartě profilu (`ProfilePaneResize`), dva
+         * i tři panely. Jde metadaty profilu, protože táhlo knihovny ve třech panelech není
+         * a ve dvou nastavuje šířku konverzace. Za tahu platí šířka tahu, po puštění kotva.
+         */
+        val profileBeside = navigation.section == ChatsRoute && extraBeside
+        val profileResize = rememberProfilePaneResize(
+            defaultWidth = base.defaultPanePreferredWidth,
+            total = maxWidth,
+            listWidth = if (threePane) listPaneWidth ?: base.defaultPanePreferredWidth else null,
+        )
+        val profilePaneWidth = profileResize.width.takeIf { profileBeside }
+        if (listPaneWidth != null || profilePaneWidth != null) {
+            entryProvider = buildEntryProvider(listPaneWidth, profilePaneWidth)
+        }
 
         ShellShortcuts(navigation = navigation, chatsStack = chatsStack, twoPane = twoPane)
 
@@ -452,6 +469,7 @@ private fun ShellContent(
             LocalSavedMessagesChatId provides savedMessagesChatId,
             // I ve třech panelech: zvolená kotva tam určuje šířku seznamu, takže rozbalení zabere i bez táhla.
             LocalExpandListPane provides listExpansion.expand.takeIf { twoPane && mainListShown },
+            LocalProfilePaneResize provides profileResize.resize.takeIf { profileBeside },
         ) {
             val paneCard = rememberPaneCardDecorator()
             val decorators = remember(entryDecorators, paneCard) { entryDecorators + paneCard }
@@ -469,7 +487,7 @@ private fun ShellContent(
             val settingsWithLeaving = rememberWithLeavingExtras(settingsDisplayed, paneOf)
             val chatsDrawn = if (twoPane) chatsWithLeaving else chatsDisplayed
             val settingsDrawn = if (twoPane) settingsWithLeaving else settingsDisplayed
-            val chatsEntries = remember(chatsDrawn.toList(), listPaneWidth) { chatsDrawn.map(entryProvider) }
+            val chatsEntries = remember(chatsDrawn.toList(), listPaneWidth, profilePaneWidth) { chatsDrawn.map(entryProvider) }
             /*
              * Položky se dekorují pro KAŽDOU sekci, i tu, která není vidět. Zásobník, který se
              * zrovna nedekoruje, by pro Nav3 vypadal jako odebraný a jeho ViewModely by se zrušily.
@@ -559,6 +577,8 @@ private fun shellEntryProvider(
     paneOf: (NavKey) -> PaneInfo?,
     /** Šířka hlavního seznamu ve třech panelech (zvolená kotva); jinak `null` = podle táhla. */
     listPaneWidth: Dp?,
+    /** Šířka profilu vedle konverzace (táhlo profilu); `null` = výchozí. */
+    profilePaneWidth: Dp?,
     closeShare: () -> Unit,
     navigation: AppNavigation,
 ): (NavKey) -> NavEntry<NavKey> = entryProvider {
@@ -841,7 +861,7 @@ private fun shellEntryProvider(
      * se z něj otevírají — jako detail by nahradily konverzaci uprostřed. Jiná konverzace
      * otevřená nad profilem ho na široké ploše vystřídá profilem té nové (`followProfile`).
      */
-    entry<ChatProfileRoute>(metadata = Panes.extra()) { route ->
+    entry<ChatProfileRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth)) { route ->
         val searchRequests = koinInject<ConversationSearchRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()
         ChatColorTheme(route.chatId) {
@@ -887,7 +907,7 @@ private fun shellEntryProvider(
     }
 
     // Úprava se vrší nad profil, ve třetím panelu ho nahradí.
-    entry<EditChatRoute>(metadata = Panes.extra()) { route ->
+    entry<EditChatRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth)) { route ->
         EditChatScreen(
             viewModel = koinViewModel(key = "edit-chat-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
@@ -897,7 +917,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ArchiveEditChatRoute>(metadata = Panes.extra(ARCHIVE_SCENE)) { route ->
+    entry<ArchiveEditChatRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth)) { route ->
         EditChatScreen(
             viewModel = koinViewModel(key = "edit-chat-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
@@ -908,28 +928,28 @@ private fun shellEntryProvider(
     }
 
     // Pozvánky a žádosti se vrší nad úpravu, taky ve třetím panelu.
-    entry<InviteLinksRoute>(metadata = Panes.extra()) { route ->
+    entry<InviteLinksRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth)) { route ->
         InviteLinksScreen(
             viewModel = koinViewModel(key = "invite-links-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
         )
     }
 
-    entry<ArchiveInviteLinksRoute>(metadata = Panes.extra(ARCHIVE_SCENE)) { route ->
+    entry<ArchiveInviteLinksRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth)) { route ->
         InviteLinksScreen(
             viewModel = koinViewModel(key = "invite-links-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
         )
     }
 
-    entry<JoinRequestsRoute>(metadata = Panes.extra()) { route ->
+    entry<JoinRequestsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth)) { route ->
         JoinRequestsScreen(
             viewModel = koinViewModel(key = "join-requests-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
         )
     }
 
-    entry<ArchiveJoinRequestsRoute>(metadata = Panes.extra(ARCHIVE_SCENE)) { route ->
+    entry<ArchiveJoinRequestsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth)) { route ->
         JoinRequestsScreen(
             viewModel = koinViewModel(key = "join-requests-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
@@ -941,7 +961,7 @@ private fun shellEntryProvider(
      * nahradí. Klíč nese i `userId` a druh práv: ViewModel se cachuje
      * podle klíče a Koin u cachované instance ignoruje nové parametry.
      */
-    entry<MemberRightsRoute>(metadata = Panes.extra()) { route ->
+    entry<MemberRightsRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth)) { route ->
         MemberRightsScreen(
             viewModel = koinViewModel(
                 key = "member-rights-${route.chatId}-${route.userId}-${route.admin}",
@@ -951,7 +971,7 @@ private fun shellEntryProvider(
         )
     }
 
-    entry<ArchiveMemberRightsRoute>(metadata = Panes.extra(ARCHIVE_SCENE)) { route ->
+    entry<ArchiveMemberRightsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth)) { route ->
         MemberRightsScreen(
             viewModel = koinViewModel(
                 key = "member-rights-${route.chatId}-${route.userId}-${route.admin}",
@@ -1009,7 +1029,7 @@ private fun shellEntryProvider(
         }
     }
 
-    entry<ArchiveChatProfileRoute>(metadata = Panes.extra(ARCHIVE_SCENE)) { route ->
+    entry<ArchiveChatProfileRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth)) { route ->
         val searchRequests = koinInject<ConversationSearchRequests>()
         val jumpRequests = koinInject<ConversationJumpRequests>()
         ChatColorTheme(route.chatId) {
