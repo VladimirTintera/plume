@@ -78,6 +78,15 @@ class DesktopCallMedia : CallMedia {
     /** Výstup zvolený za hovoru (metadata zařízení); `null` = výchozí výstup systému. */
     private var selectedOutput: String? = null
 
+    /** Výstup, který má hrát (zvolený, jinak výchozí systému); `null` = nevíme (Windows, Linux). */
+    private var currentOutput: String? = null
+
+    /** Na čem přehrávání protistrany v knihovně opravdu běží. */
+    private var playback: String? = null
+
+    /** Komu hlásit výstupy (repository), od [startAudio] do [stop]. */
+    private var outputsListener: ((List<CallAudioOutput>, CallAudioOutput) -> Unit)? = null
+
     override val protocol: CallMediaProtocol by lazy {
         worker.submit<CallMediaProtocol> {
             val out = NtgProtocol()
@@ -96,17 +105,41 @@ class DesktopCallMedia : CallMedia {
     override fun startAudio(onOutputs: (List<CallAudioOutput>, CallAudioOutput) -> Unit) {
         worker.execute {
             selectedOutput = null
-            val outputs = runCatching { macOutputs() }
-                .onFailure { logger.w(it) { "Výstupy zvuku nejde zjistit." } }
-                .getOrDefault(emptyList())
-            if (outputs.isEmpty()) {
-                onOutputs(listOf(CallAudioOutput.Speaker), CallAudioOutput.Speaker)
-                return@execute
-            }
-            val default = MacAudio.defaultOutputUid()
-            logger.d { "Výstupy zvuku: ${outputs.joinToString { "${it.name} (${it.kind})" }}." }
-            onOutputs(outputs, outputs.firstOrNull { uid(it.id) == default } ?: outputs.first())
+            currentOutput = null
+            outputsListener = onOutputs
+            reportOutputs()
+            // Zařízení připojená / odpojená za hovoru: seznam znovu a případně jiný výstup.
+            MacAudio.watch { worker.execute { reportOutputs() } }
         }
+    }
+
+    /**
+     * Přečte výstupy, nahlásí je a zajistí, že zvuk jde do vybraného:
+     * - **zvolené zařízení zmizelo** (odpojená sluchátka) → zpátky na výchozí výstup systému,
+     * - **nic zvoleného** → výchozí výstup systému, i když se změní (po připojení sluchátek na
+     *   ně macOS sám přepne, a hovor má jít s ním — jako na Androidu).
+     */
+    private fun reportOutputs() {
+        val listener = outputsListener ?: return
+        val outputs = runCatching { macOutputs() }
+            .onFailure { logger.w(it) { "Výstupy zvuku nejde zjistit." } }
+            .getOrDefault(emptyList())
+        if (outputs.isEmpty()) {
+            listener(listOf(CallAudioOutput.Speaker), CallAudioOutput.Speaker)
+            return
+        }
+        if (selectedOutput != null && outputs.none { it.id == selectedOutput }) {
+            logger.i { "Zvolený výstup zvuku zmizel, zpátky na výchozí." }
+            selectedOutput = null
+        }
+        val default = MacAudio.defaultOutputUid()
+        val current = outputs.firstOrNull { it.id == selectedOutput }
+            ?: outputs.firstOrNull { uid(it.id) == default }
+            ?: outputs.first()
+        logger.d { "Výstupy zvuku: ${outputs.joinToString { "${it.name} (${it.kind})" }}, hraje ${current.name}." }
+        listener(outputs, current)
+        currentOutput = current.id
+        current.id?.let(::applyPlayback)
     }
 
     private fun macOutputs(): List<CallAudioOutput> {
@@ -185,7 +218,7 @@ class DesktopCallMedia : CallMedia {
                         instance,
                         callId,
                         NtgNative.STREAM_MODE_PLAYBACK,
-                        media(microphone = selectedOutput ?: found.speaker, camera = REMOTE_CAMERA),
+                        media(microphone = (currentOutput ?: found.speaker).also { playback = it }, camera = REMOTE_CAMERA),
                     )
                 }
                 lib.check("skip_exchange") {
@@ -246,15 +279,22 @@ class DesktopCallMedia : CallMedia {
     override fun setOutput(output: CallAudioOutput) {
         worker.execute {
             val metadata = output.id ?: return@execute
-            if (selectedOutput == metadata) return@execute
             selectedOutput = metadata
-            val instance = handle ?: return@execute
-            runCatching {
-                native.check("set_stream_sources(output)") {
-                    ntg_set_stream_sources(instance, callId, NtgNative.STREAM_MODE_PLAYBACK, media(microphone = metadata, camera = REMOTE_CAMERA))
-                }
-            }.onFailure { logger.w(it) { "Výstup zvuku nejde přepnout." } }
+            currentOutput = metadata
+            applyPlayback(metadata)
         }
+    }
+
+    /** Přehrávání protistrany na zařízení [metadata]; bez běžícího přenosu jen čeká na [start]. */
+    private fun applyPlayback(metadata: String) {
+        val instance = handle ?: return
+        if (playback == metadata) return
+        runCatching {
+            native.check("set_stream_sources(output)") {
+                ntg_set_stream_sources(instance, callId, NtgNative.STREAM_MODE_PLAYBACK, media(microphone = metadata, camera = REMOTE_CAMERA))
+            }
+            playback = metadata
+        }.onFailure { logger.w(it) { "Výstup zvuku nejde přepnout." } }
     }
 
     /**
@@ -282,6 +322,10 @@ class DesktopCallMedia : CallMedia {
 
     override fun stop() {
         worker.execute {
+            MacAudio.unwatch()
+            outputsListener = null
+            selectedOutput = null
+            currentOutput = null
             // Hovor, který se nespojil (zrušené vytáčení): přenos neběžel, náhled ano.
             stopPreview()
             cameraOn = false
@@ -328,6 +372,7 @@ class DesktopCallMedia : CallMedia {
             native.ntg_instance_destroy(instance)
         }.onFailure { logger.w(it) { "Zastavení hovoru selhalo." } }
         handle = null
+        playback = null
         held = false
         userMuted = false
         cameraOn = false
