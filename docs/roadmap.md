@@ -711,9 +711,8 @@ v `docs/poznatky/navigace.md`, „Šířkové třídy, tři panely a kotvy" a �
 seznam". Zbývá:
 
 1. **Drobnosti.**
-   - Sbalený seznam nemá karty nad seznamem (aktualizace, nové přihlášení), FAB ani výběr víc
-     chatů. Kdyby chyběly, stačí ve sloupci ukázat aspoň tečku, že nahoře něco čeká.
    - Šířka panelu profilu je výchozí z direktivy; táhlo mezi konverzací a profilem není.
+   - Sbalený seznam nemá FAB ani výběr víc chatů (karty nad seznamem hlásí tlačítko s tečkou).
 
 **Jak ověřovat:** desktop změnou velikosti okna (nejrychlejší cesta k Large a XL), emulátor
 tabletu, Fold (`adb emu fold` / `unfold` v cyklu — viz Gotchas o insetech v `CLAUDE.md`, změna

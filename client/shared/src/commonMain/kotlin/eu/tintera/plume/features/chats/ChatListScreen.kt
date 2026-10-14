@@ -470,6 +470,21 @@ fun ChatListScreen(
                     onOpenSearch()
                 },
                 account = accountMenu,
+                // V pořadí karet nad seznamem (níž, `header`): první čekající je nejdůležitější.
+                pendingCard = when {
+                    freeze != null -> PendingCard.Freeze
+                    unconfirmedLogin != null -> PendingCard.Login
+                    birthdays.isNotEmpty() -> PendingCard.Birthdays
+                    suggestion != null -> PendingCard.Suggestion
+                    newFolderChats != null -> PendingCard.FolderChats
+                    updateCard != null -> PendingCard.Update
+                    else -> null
+                },
+                onShowCards = {
+                    expandListPane?.invoke()
+                    // Karty jsou na vršku seznamu; ten se teprve složí, proto žádost, ne posun.
+                    listState.requestScrollToItem(0)
+                },
             )
             return@BoxWithConstraints
         }

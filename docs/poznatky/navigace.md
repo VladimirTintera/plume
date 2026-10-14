@@ -307,6 +307,11 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   tahu se prochází všemi šířkami a řádek s názvem by byl nečitelný dávno před sbalenou kotvou.
   Hledání ze sloupce seznam napřed rozbalí (`LocalExpandListPane`) a požadavek na hledání počká,
   až se pilulka objeví.
+  Karty nad seznamem (aktualizace, nové přihlášení, narozeniny…) se do sloupce nevejdou; že
+  nějaká čeká, ukazuje tlačítko s tečkou pod lupou (`PendingCard`, ikona a bublina podle
+  nejdůležitější, zmrazený účet a cizí přihlášení v chybové barvě). Ťuknutí seznam rozbalí
+  a `requestScrollToItem(0)` ho pošle na vršek — `scrollToItem` by čekal na rozložení seznamu,
+  který se v tu chvíli teprve skládá.
 - **Bublina se jménem u avataru přes `WithTooltip`, ne holý `TooltipBox`.** Najetí na avatar
   a hned tah táhlem shodilo desktop na `RootNodeOwner is already disposed`: `BoxWithConstraints`
   přepnul sloupec na plný seznam uprostřed měření, kotva viditelné bubliny zmizela a skiko pak

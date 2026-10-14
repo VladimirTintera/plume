@@ -93,6 +93,12 @@
     <string name="saved_messages">Uložené zprávy</string>
     <string name="chats_menu">Další možnosti</string>
     <string name="chats_search">Hledat v chatech</string>
+    <string name="chats_pending_freeze">Účet je zmrazený</string>
+    <string name="chats_pending_login">Nové přihlášení k účtu</string>
+    <string name="chats_pending_birthdays">Narozeniny</string>
+    <string name="chats_pending_suggestion">Doporučení od Telegramu</string>
+    <string name="chats_pending_folder_chats">Nové chaty ve složce</string>
+    <string name="chats_pending_update">Aktualizace aplikace</string>
     <string name="chats_search_clear">Vymazat hledání</string>
     <string name="chats_search_ai">Hledat s AI</string>
     <string name="chats_search_empty">Nic nenalezeno</string>
