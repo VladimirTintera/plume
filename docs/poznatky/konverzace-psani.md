@@ -215,8 +215,7 @@ kontextu), stejně jako ořez profilové fotky (`SquarePhoto`).
   Vysouvaná řada zmenšovala plochu fotky a ta při přepnutí nástroje poskočila.
 - **Fotka se v editoru nepřibližuje** — dva prsty by se praly s kreslením jedním; zpět editor
   zavře bez uložení. Náhled i editor jsou ve vlastní funkci (`StagedAttachmentPreviewHost`), ne
-  v `ConversationScreen` (viz „`ConversationScreen` je v dexu na hraně" v CLAUDE.md; po změně má
-  270 registrů a chat se otevírá).
+  v `ConversationScreen` (viz „Obrazovka konverzace je rozdělená do částí" v CLAUDE.md).
 - **Na emulátoru Fold neodpovídají souřadnice `input motionevent` přesně snímku obrazovky**
   (`screencap -d`): tah leží zhruba o 20 px výš, než kam se podle snímku mířilo. Chyba aplikace to
   není — `settings put system pointer_location 1` ukáže stopu dotyku přesně ve středu tahu.

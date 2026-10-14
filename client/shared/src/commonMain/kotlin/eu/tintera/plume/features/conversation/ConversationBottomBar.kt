@@ -1,0 +1,579 @@
+package eu.tintera.plume.features.conversation
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.State
+import eu.tintera.plume.core.audio.VoicePlayback
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.intl.Locale
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.blur.hazeBlur
+import eu.tintera.plume.core.adaptive.ContentWidth
+import eu.tintera.plume.core.adaptive.centeredColumn
+import eu.tintera.plume.core.location.rememberDeviceLocation
+import eu.tintera.plume.core.settings.RecordMode
+import eu.tintera.plume.core.telegram.ChatReplyMarkup
+import eu.tintera.plume.core.telegram.ContentAccess
+import eu.tintera.plume.core.telegram.PollComposerMode
+import eu.tintera.plume.core.telegram.ReplyKeyboardButtonKind
+import eu.tintera.plume.core.telegram.SavedTopicKind
+import eu.tintera.plume.core.telegram.WriteAccess
+import eu.tintera.plume.core.telegram.commandSuggestions
+import eu.tintera.plume.core.telegram.inlineQueryOf
+import eu.tintera.plume.core.telegram.mentionInsertion
+import eu.tintera.plume.core.telegram.mentionQueryAt
+import eu.tintera.plume.core.ui.EmbeddedMediaSelection
+import eu.tintera.plume.core.ui.KeyboardContent
+import eu.tintera.plume.core.ui.LocalSharedElementOcclusion
+import eu.tintera.plume.core.ui.SharedElementClip
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.ui.confirm
+import eu.tintera.plume.core.ui.embeddedMediaPickerAvailable
+import eu.tintera.plume.core.ui.label
+import eu.tintera.plume.core.ui.reject
+import eu.tintera.plume.core.ui.rememberAttachmentPicker
+import eu.tintera.plume.core.ui.sharedElementOcclusionBand
+import eu.tintera.plume.core.ui.tick
+import eu.tintera.plume.core.ui.toggle
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_bot_start
+import eu.tintera.plume.resources.conversation_camera_permission
+import eu.tintera.plume.resources.conversation_microphone_permission
+import eu.tintera.plume.resources.conversation_not_member
+import eu.tintera.plume.resources.conversation_secret_closed
+import eu.tintera.plume.resources.conversation_secret_pending
+import eu.tintera.plume.resources.conversation_topic_closed
+import eu.tintera.plume.resources.conversation_write_restricted
+import eu.tintera.plume.resources.saved_topic_open_chat
+import eu.tintera.plume.resources.saved_topic_read_only
+import eu.tintera.plume.resources.service_upgraded_open_new
+import org.koin.compose.viewmodel.koinViewModel
+
+/**
+ * Spodek konverzace: vstupní pole s napovídáním nad ním, nebo to, co stojí místo něj — akce
+ * výběru, šipky hledání, Přidat se / Start, ztlumení kanálu, věta, proč psát nejde.
+ *
+ * Vstupní pole JE `bottomBar` Scaffoldu: ten ho změří (i s citací, úpravou, víc řádky
+ * a klávesnicí) a podle toho postaví snackbar a tlačítko dolů nad něj.
+ */
+@Composable
+internal fun ConversationBottomBar(
+    state: ConversationState,
+    viewModel: ConversationViewModel,
+    navigation: ConversationNavigation,
+    composer: ComposerDraft,
+    sheets: ConversationSheets,
+    recording: ConversationRecording,
+    videoNotePlayback: VideoNotePreviewPlayback,
+    voicePlayback: State<VoicePlayback?>,
+    replies: ReplySuggestionsViewModel,
+    gestureHints: GestureHints,
+    mediaSelection: EmbeddedMediaSelection,
+    /** Obsah chatu se neukazuje (omezený, nepotvrzený citlivý) — do něj se ani psát nedá. */
+    chatHidden: Boolean,
+    /** Zdroj mléčného skla: seznam zpráv pod lištou. */
+    listHaze: HazeState,
+    listClip: SharedElementClip,
+    /** Horní hrana lišty v okně — spodní mez pro nabídku nad zprávou. */
+    onContentBottom: (Float) -> Unit,
+    /** Nad polem plave napovídání; tlačítko dolů a zmínky zatím ustoupí. */
+    onSuggestionsFloating: (Boolean) -> Unit,
+) {
+    val haptics = LocalHapticFeedback.current
+    var draft by composer
+    val replySuggestions by replies.suggestions.collectAsStateWithLifecycle()
+    // Emoji k rozepsanému slovu. Jazyk zařízení a angličtina, jako hledání ve výběru emoji.
+    val emojiWords: EmojiSuggestionsViewModel = koinViewModel(key = "emoji-words-${viewModel.chatId}")
+    val emojiSuggestions by emojiWords.suggestions.collectAsStateWithLifecycle()
+    val emojiLanguages = remember { listOf(Locale.current.language, "en").distinct() }
+    /** Poslední otevřená část výběru — uložená v nastavení, takže platí i po restartu aplikace. */
+    val expressionMode by viewModel.expressionMode.collectAsStateWithLifecycle()
+    val recordMode = recording.mode(state.content)
+
+    // Vybrané soubory jsou už zkopírované v cache aplikace; čekají nad polem na popisek a odeslání.
+    val attachmentPicker = rememberAttachmentPicker(
+        onPicked = viewModel::addAttachments,
+        onError = viewModel::reportError,
+    )
+    /*
+     * Galerie se kreslí rovnou nad vstupním polem, kde ji systém umí vložit dovnitř aplikace
+     * (`EmbeddedMediaPicker`); jinde zůstává systémový výběr, tedy odchod na vlastní obrazovku.
+     * Rozhoduje se tady, aby o tom `AttachButton` nemusel vědět — nabídka je v obou případech
+     * stejná.
+     */
+    val embeddedMediaPicker = embeddedMediaPickerAvailable()
+
+    // Horní hrana pole je spodní mez pro nabídku nad zprávou (viz `contentBottom`).
+    // Na široké ploše ve sloupci uprostřed, stejně jako zprávy nad ním.
+    Box(
+        Modifier
+            .centeredColumn(ContentWidth.Conversation)
+            .onGloballyPositioned { onContentBottom(it.boundsInWindow().top) },
+    ) {
+    /*
+     * Lišty místo pole (Přidat se, Start, Ztlumit, věta „nejde psát") mají pod sebou
+     * TENTÝŽ pás skla jako pole. Seznam zpráv pod spodní lištu zajíždí (spodek je
+     * `contentPadding`, ne konec plochy), takže bez pásu prosvítaly bubliny zpod tlačítka.
+     */
+    val barGlass = Modifier.hazeBlur(
+        input = HazeInput.Sources(listHaze),
+        style = glassStyle(
+            color = MaterialTheme.colorScheme.surface,
+            alpha = GLASS_TINT_ALPHA,
+            fallbackAlpha = INPUT_SCRIM_ALPHA,
+        ),
+    )
+    // Při výběru patří spodek akcím nad ním; rozepsaný text zůstává v konceptu.
+    state.selection?.let { selection ->
+        SelectionToolbar(
+            selection = selection,
+            onCopy = viewModel::copySelection,
+            onCopyWithNames = viewModel::copySelectionWithNames,
+            onCopyMarkdown = viewModel::copySelectionAsMarkdown,
+            onForward = viewModel::forwardSelection,
+            onReport = viewModel::reportSelection,
+            onDelete = viewModel::deleteSelection,
+        )
+        return@Box
+    }
+    // Při hledání patří spodek šipkám mezi výsledky; rozepsaný text zůstává v konceptu.
+    state.search?.let { search ->
+        InChatSearchNavigator(
+            search = search,
+            // Procházení po dílcích — tik, ne potvrzení: výsledků bývají stovky.
+            onOlder = {
+                haptics.tick()
+                viewModel.searchOlder()
+            },
+            onNewer = {
+                haptics.tick()
+                viewModel.searchNewer()
+            },
+        )
+        return@Box
+    }
+    // Omezený chat: do chatu, který se nedá ukázat, se ani psát nedá.
+    if (chatHidden) return@Box
+    if (state.info?.canJoin == true) {
+        JoinBar(joining = state.joining, onJoin = viewModel::join, modifier = barGlass)
+        return@Box
+    }
+    // Převedená základní skupina: psát se dá jen do té nové, tak tam vede.
+    state.info?.upgradedToChatId?.let { upgraded ->
+        JoinBar(
+            joining = false,
+            onJoin = { navigation.onOpenChat(ChatTarget(upgraded)) },
+            label = Res.string.service_upgraded_open_new,
+            modifier = barGlass,
+        )
+        return@Box
+    }
+    // Nespuštěný bot (nebo čekající parametr z odkazu): Start místo pole.
+    if (showsBotStart(state)) {
+        JoinBar(
+            joining = state.startingBot,
+            onJoin = {
+                haptics.confirm()
+                viewModel.startBot()
+            },
+            label = Res.string.conversation_bot_start,
+            modifier = barGlass,
+        )
+        return@Box
+    }
+    // Kde se psát nesmí, pole by skončilo chybou až po odeslání. Kanál aspoň nabídne ztlumení.
+    when (state.info?.writeAccess) {
+        WriteAccess.ChannelReadOnly -> {
+            MuteBar(muted = state.muted, onToggle = viewModel::toggleMute, modifier = barGlass)
+            return@Box
+        }
+        WriteAccess.Restricted -> {
+            ReadOnlyNote(Res.string.conversation_write_restricted, barGlass)
+            return@Box
+        }
+        WriteAccess.NotMember -> {
+            ReadOnlyNote(Res.string.conversation_not_member, barGlass)
+            return@Box
+        }
+        WriteAccess.TopicClosed -> {
+            ReadOnlyNote(Res.string.conversation_topic_closed, barGlass)
+            return@Box
+        }
+        WriteAccess.SecretPending -> {
+            ReadOnlyNote(Res.string.conversation_secret_pending, barGlass)
+            return@Box
+        }
+        WriteAccess.SecretClosed -> {
+            ReadOnlyNote(Res.string.conversation_secret_closed, barGlass)
+            return@Box
+        }
+        // Téma Uložených zpráv uložené odjinud: odeslat do něj TDLib nedovolí. Zdrojový
+        // chat aspoň jde otevřít — tam se odpovídá; bez známého chatu jen proč.
+        WriteAccess.SavedTopic -> {
+            val source = (state.info?.savedTopic?.kind as? SavedTopicKind.FromChat)?.chatId
+            if (source != null) {
+                JoinBar(
+                    joining = false,
+                    onJoin = { navigation.onOpenChat(ChatTarget(source)) },
+                    label = Res.string.saved_topic_open_chat,
+                    modifier = barGlass,
+                )
+            } else {
+                ReadOnlyNote(Res.string.saved_topic_read_only, barGlass)
+            }
+            return@Box
+        }
+        WriteAccess.Allowed, null -> Unit
+    }
+    Column {
+    ReplySuggestionChips(
+        suggestions = replySuggestions,
+        // Návrh se jen VLOŽÍ do pole; odeslání zůstává na uživateli. `onDraftChanged`
+        // musí jít taky — uloží koncept a ohlásí „píše…", jako by to napsal sám.
+        onPick = { suggestion ->
+            draft = TextFieldValue(suggestion, selection = TextRange(suggestion.length))
+            viewModel.onDraftChanged(composer.composed)
+            replies.consume()
+        },
+    )
+    // Vlastní klávesnice bota stojí NAD polem (viz `ReplyKeyboardPanel`); při úpravě
+    // zprávy ne — tlačítko by poslalo novou zprávu uprostřed opravy staré.
+    (state.replyMarkup as? ChatReplyMarkup.Keyboard)?.takeIf { state.editing == null }?.let { keyboard ->
+        // Použitá jednorázová klávesnice se otevírá sbalená i po návratu do chatu — TDLib
+        // si použití nepamatuje a klávesnice v chatu zůstává (viz `keyboardUsed`).
+        val usedKeyboard by viewModel.usedKeyboardMessageId.collectAsStateWithLifecycle()
+        var collapsed by rememberSaveable(keyboard.messageId) {
+            mutableStateOf(keyboard.oneTime && usedKeyboard == keyboard.messageId)
+        }
+        ReplyKeyboardPanel(
+            keyboard = keyboard,
+            collapsed = collapsed,
+            onToggle = { collapsed = !collapsed },
+            onPress = { row, column ->
+                haptics.confirm()
+                // Jednorázová klávesnice se po použití SCHOVÁ, nezmizí (Bot API
+                // `one_time_keyboard`) — šipkou jde vrátit. Vysvětlení u tlačítka, které
+                // Plume neumí, použití není.
+                val kind = keyboard.rows.getOrNull(row)?.getOrNull(column)?.kind
+                if (keyboard.oneTime && kind !is ReplyKeyboardButtonKind.Unsupported) collapsed = true
+                viewModel.pressReplyKeyboardButton(row, column)
+            },
+        )
+    }
+    // Příkazy botů: napovídání podle rozepsaného „/…", nebo celý seznam z tlačítka u pole.
+    val typedCommands = commandSuggestions(draft.text, state.botCommands)
+    // Inline bot (`@gif kočka`): výsledky nad polem. S přílohami je text popisek a při úpravě
+    // text staré zprávy — ani jedno není dotaz na bota.
+    val inlineDraft = remember(draft.text, state.editing, state.attachments.isEmpty()) {
+        inlineQueryOf(draft.text).takeIf { state.editing == null && state.attachments.isEmpty() }
+    }
+    // Zmínka (`@ja` u kurzoru): členové skupiny nad polem. Kurzor, ne celý text — zmínka se
+    // píše kdekoli ve větě. S rozepsaným dotazem na inline bota se nenapovídá, to je jiné „@".
+    val mentionQuery = remember(draft, inlineDraft) {
+        draft.takeIf { inlineDraft == null && it.selection.collapsed }
+            ?.let { mentionQueryAt(it.text, it.selection.start) }
+    }
+    LaunchedEffect(mentionQuery?.query) { viewModel.mentionQuery(mentionQuery?.query) }
+    // Emoji ke slovu u kurzoru. Ne vedle jiného napovídání — dotaz na inline bota a zmínka
+    // mají nad polem přednost a emoji plovoucí přes jejich panel by ho zakryla.
+    val emojiWord = remember(draft, inlineDraft, mentionQuery, typedCommands) {
+        draft.takeIf {
+            inlineDraft == null && mentionQuery == null && typedCommands == null && it.selection.collapsed
+        }?.let { emojiWordAt(it.text, it.selection.start) }
+    }
+    LaunchedEffect(emojiWord?.word) { emojiWords.lookup(emojiWord?.word, emojiLanguages) }
+    val shownEmojis = emojiSuggestions?.takeIf { it.word == emojiWord?.word }?.emojis.orEmpty()
+    // Samolepky k emoji, které je v poli samo. Jen kde se samolepka smí poslat a pole
+    // je obyčejná zpráva — ne při úpravě ani s přílohou, kde by emoji byl popisek.
+    val stickerEmoji = remember(draft.text, inlineDraft, state.editing, state.attachments.isEmpty(), state.content.stickers) {
+        stickerSuggestionEmoji(draft.text).takeIf {
+            inlineDraft == null && state.editing == null && state.attachments.isEmpty() && state.content.stickers
+        }
+    }
+    val shownStickers = rememberStickerSuggestions(stickerEmoji, viewModel.chatId)
+    LaunchedEffect(inlineDraft) { viewModel.inlineQuery(inlineDraft) }
+    // Bot, který chce polohu, ji dostane přibližnou — dotaz na oprávnění přijde až u něj.
+    val inlineLocation = rememberDeviceLocation()
+    val locationBot = state.inline?.bot?.takeIf { it.needLocation }?.userId
+    LaunchedEffect(locationBot) {
+        if (locationBot != null) inlineLocation.request(viewModel::setInlineLocation)
+    }
+    /*
+     * Napovídání při psaní PLAVE nad polem a místo v rozvržení nezabírá (viz
+     * `FloatingSuggestion`): mění se s každým písmenem a konverzace pod ním nesmí
+     * poskakovat. Stojí těsně nad polem, u textu, ke kterému patří. Návrhy odpovědi
+     * a klávesnice bota výš zůstávají v rozvržení — viz `ReplySuggestionChips`.
+     */
+    val suggestionGlass = Modifier.hazeBlur(
+        input = HazeInput.Sources(listHaze),
+        // Inverzní plocha, jako snackbar (viz `FloatingSuggestion`).
+        style = glassStyle(
+            color = MaterialTheme.colorScheme.inverseSurface,
+            alpha = FLOATING_SUGGESTION_TINT_ALPHA,
+            fallbackAlpha = GLASS_FALLBACK_ALPHA,
+        ),
+    )
+    val commandsShown = state.editing == null && (typedCommands != null || state.commandsOpen)
+    // Plovoucí napovídání leží tam, kde jinak stojí tlačítko dolů a zmínky — ty se
+    // mezitím schovají, jinak by visely přes seznam příkazů nebo přes emoji.
+    val floatingShown = (commandsShown && state.botCommands.isNotEmpty()) ||
+        (mentionQuery != null && state.mentionSuggestions?.candidates.orEmpty().isNotEmpty()) ||
+        (emojiWord != null && shownEmojis.isNotEmpty()) ||
+        (stickerEmoji != null && shownStickers.isNotEmpty()) ||
+        inlineDraft != null
+    SideEffect { onSuggestionsFloating(floatingShown) }
+    Column(Modifier.floatAbove()) {
+        BotCommandsPanel(
+            commands = typedCommands ?: state.botCommands.takeIf { state.commandsOpen }.orEmpty(),
+            visible = commandsShown,
+            onPick = { command ->
+                haptics.confirm()
+                // Rozepsané „/st" byl ten příkaz — pole se vyprázdní a koncept s ním.
+                if (typedCommands != null) {
+                    draft = TextFieldValue()
+                    viewModel.onDraftChanged(composer.composed)
+                }
+                viewModel.closeCommands()
+                viewModel.sendCommand(command.text)
+            },
+            glass = suggestionGlass,
+        )
+        MentionSuggestionsPanel(
+            candidates = state.mentionSuggestions?.candidates.orEmpty(),
+            visible = mentionQuery != null,
+            onPick = { candidate ->
+                val query = mentionQuery ?: return@MentionSuggestionsPanel
+                val (text, cursor) = mentionInsertion(draft.text, draft.selection.start, query, candidate)
+                draft = TextFieldValue(text, selection = TextRange(cursor))
+                viewModel.mentionPicked(candidate)
+                viewModel.onDraftChanged(composer.composed)
+            },
+            glass = suggestionGlass,
+        )
+        EmojiSuggestionsPanel(
+            emojis = shownEmojis,
+            visible = emojiWord != null,
+            onPick = { emoji ->
+                val word = emojiWord ?: return@EmojiSuggestionsPanel
+                haptics.confirm()
+                val (text, cursor) = emojiReplacement(draft.text, word, emoji)
+                draft = TextFieldValue(text, selection = TextRange(cursor))
+                emojiWords.picked(emoji)
+                viewModel.onDraftChanged(composer.composed)
+            },
+            glass = suggestionGlass,
+        )
+        StickerSuggestionsPanel(
+            stickers = shownStickers,
+            visible = stickerEmoji != null,
+            onPick = { sticker ->
+                haptics.confirm()
+                viewModel.sendSticker(sticker)
+                // Emoji v poli byla ta samolepka — pole se vyprázdní a koncept s ním.
+                draft = TextFieldValue()
+                viewModel.onDraftChanged(composer.composed)
+            },
+            glass = suggestionGlass,
+        )
+        InlineResultsPanel(
+            inline = state.inline,
+            visible = inlineDraft != null,
+            onPick = { result ->
+                haptics.confirm()
+                viewModel.sendInlineResult(result)
+                // Dotaz v poli byl ten výsledek — pole se vyprázdní a koncept s ním.
+                draft = TextFieldValue()
+                viewModel.onDraftChanged(composer.composed)
+            },
+            onButton = viewModel::pressInlineButton,
+            onLoadMore = viewModel::loadMoreInline,
+            glass = suggestionGlass,
+        )
+    }
+    // Fotka letící z prohlížeče zajede pod kartu pole a tlačítko, ne jen za čáru nad nimi.
+    CompositionLocalProvider(LocalSharedElementOcclusion provides listClip) {
+    MessageInput(
+        gestureHints = gestureHints,
+        glass = Modifier.sharedElementOcclusionBand().hazeBlur(
+            input = HazeInput.Sources(listHaze),
+            style = glassStyle(
+                color = MaterialTheme.colorScheme.surface,
+                alpha = GLASS_TINT_ALPHA,
+                // Bez rozostření zůstane dřívější krycí pás; jinak by pod ním prosvítaly
+                // zprávy a psaní by se v nich ztratilo.
+                fallbackAlpha = INPUT_SCRIM_ALPHA,
+            ),
+        ),
+        replyingTo = state.replyingTo,
+        replyQuote = state.replyQuote?.text,
+        partnerName = state.info?.title,
+        flight = state.flight,
+        onCancelReply = viewModel::clearReply,
+        // Odeslání je potvrzení akce; dosud ho doprovázel jen let bubliny. Hlásí se
+        // v okamžiku ťuknutí, ne po odpovědi serveru — odezva patří ke gestu.
+        onSend = { text, options ->
+            haptics.confirm()
+            viewModel.send(text, options)
+        },
+        sendMenu = sendMenuOffer(state),
+        onSchedule = { sheets.scheduleTarget = ScheduleTarget.Draft },
+        onPickEffect = {
+            viewModel.loadEffects()
+            sheets.effectPicker = true
+        },
+        onOpenScheduled = viewModel::openScheduled.takeIf { state.hasScheduledMessages },
+        onDraftChanged = viewModel::onDraftChanged,
+        editing = state.editing,
+        onCancelEdit = viewModel::cancelEdit,
+        placeholder = state.inputPlaceholder,
+        linkPreview = composerLinkPreview(
+            preview = state.linkPreview,
+            options = state.linkPreviewOptions,
+            editingCaption = state.editing?.composerEdit() == ComposerEdit.Caption,
+            hasAttachments = state.attachments.isNotEmpty(),
+        ),
+        linkPreviewLinks = state.linkPreviewLinks,
+        linkPreviewOptions = state.linkPreviewOptions,
+        onLinkPreviewOptions = viewModel::setLinkPreviewOptions,
+        inputFill = state.inputFill,
+        onInputFilled = viewModel::consumeInputFill,
+        onOpenStickers = { sheets.stickerPicker = true },
+        onPickMedia = { if (embeddedMediaPicker) sheets.mediaPicker = true else attachmentPicker.pickMedia() },
+        isRecording = recording.isRecording,
+        recording = { recording.current() },
+        recordMode = recordMode,
+        canSwitchRecordMode = canSwitchRecordMode(state.content.voiceNotes, recording.videoNotesAllowed(state.content)),
+        onSwitchRecordMode = {
+            viewModel.setRecordMode(if (recordMode == RecordMode.VideoNote) RecordMode.Voice else RecordMode.VideoNote)
+        },
+        // Zastavené kolečko je pořád kolečko: odeslání se tak jmenuje i v náhledu.
+        recordingKind = if (recording.isVideoRecording || recording.videoNotePreview != null) RecordMode.VideoNote else RecordMode.Voice,
+        recordGesture = recording.gesture,
+        onStartRecording = { held ->
+            val video = recordMode == RecordMode.VideoNote
+            // Odpověď bez dialogu přijde hned, uvnitř `request`; z dialogu až potom.
+            var immediate = true
+            (if (video) recording.videoNotePermission else recording.recordPermission).request { granted ->
+                when {
+                    !granted -> {
+                        haptics.reject()
+                        viewModel.reportError(
+                            UiText(if (video) Res.string.conversation_camera_permission else Res.string.conversation_microphone_permission),
+                        )
+                    }
+                    // Oprávnění přišlo až z dialogu: prst mezitím tlačítko pustil, a nahrávat
+                    // bez něj by bylo nahrávání, o kterém uživatel neví. Podrží znovu.
+                    held && !immediate -> Unit
+                    else -> {
+                        // Nahrávání běží, dokud ho uživatel neukončí — přepnutý stav, ne
+                        // hotová akce. Odepřené oprávnění je naopak odmítnutí.
+                        haptics.toggle(on = true)
+                        if (video) viewModel.startVideoRecording() else viewModel.startRecording()
+                    }
+                }
+            }
+            immediate = false
+        },
+        onCancelRecording = {
+            haptics.reject()
+            viewModel.cancelRecording()
+        },
+        voicePreview = recording.voicePreview,
+        voicePreviewPlayback = { voicePlayback.value?.takeIf { it.key.isVoicePreview } },
+        onStopRecording = {
+            // Mikrofon se zavírá — přepnutý stav, jako při spuštění.
+            haptics.toggle(on = false)
+            viewModel.stopRecordingForPreview()
+        },
+        onToggleVoicePreview = viewModel::toggleVoicePreview,
+        onSeekVoicePreview = viewModel::seekVoicePreview,
+        onContinueVoicePreview = {
+            haptics.toggle(on = true)
+            viewModel.continueVoicePreview()
+        },
+        onDiscardVoicePreview = {
+            haptics.reject()
+            viewModel.discardVoicePreview()
+        },
+        videoNotePreview = recording.videoNotePreview,
+        videoNotePlayback = videoNotePlayback,
+        onDiscardVideoNotePreview = {
+            haptics.reject()
+            viewModel.discardVideoNotePreview()
+        },
+        onContinueVideoNotePreview = {
+            haptics.toggle(on = true)
+            viewModel.continueVideoNotePreview()
+        },
+        onSendRecording = { options ->
+            haptics.confirm()
+            viewModel.sendRecording(options)
+        },
+        // Nabídka nad hlasovkou nahrávání pozastaví, zavření bez volby ho obnoví.
+        onVoiceMenu = { open -> if (open) viewModel.pauseRecording() else viewModel.resumeRecording() },
+        onScheduleRecording = { sheets.scheduleTarget = ScheduleTarget.Voice },
+        onPickDocument = attachmentPicker::pickDocument,
+        // Anketa jde jen tam, kde to dovolí právo i druh chatu (`ContentAccess.polls`).
+        onCreatePoll = {
+            navigation.onCreatePoll(PollComposerRequest(PollComposerMode.Any, state.replyingTo?.id, state.replyQuote))
+        }.takeIf { state.content.polls },
+        // Poloha je „základní zpráva" jako text: smí se všude, kde je vstupní pole.
+        onSendLocation = { sheets.locationPicker = true },
+        // Kontakt je taky „základní zpráva" (TDLib ho řadí k textu), jako poloha.
+        onShareContact = viewModel::openContactPicker,
+        onToggleCommands = viewModel::toggleCommands.takeIf { state.botCommands.isNotEmpty() },
+        menuApp = state.botMenuApp,
+        onOpenMenuApp = viewModel::openBotMenuApp,
+        attachments = state.attachments,
+        // Vykreslovaná úprava fotky blokuje odeslání stejně jako kopírování z galerie.
+        attachmentsPreparing = mediaSelection.preparing || state.markupBusy,
+        onRemoveAttachment = viewModel::removeAttachment,
+        onOpenAttachment = { index -> sheets.previewAttachmentIndex = index },
+        onSetAttachmentMode = viewModel::setAttachmentMode,
+        content = state.content,
+        selfDestructAllowed = state.canSelfDestruct(attachmentCount = 1),
+        previewAttachmentIndex = sheets.previewAttachmentIndex,
+        expressionMode = expressionMode,
+        composer = composer,
+        onKeyboardContent = { received ->
+            when (received) {
+                // GIF odchází hned, jako samolepka; obrázek čeká nad polem jako z výběru.
+                is KeyboardContent.Animation -> viewModel.sendAnimation(received.animation)
+                is KeyboardContent.Image -> viewModel.addAttachments(listOf(received.photo))
+                is KeyboardContent.File -> viewModel.addAttachments(listOf(received.document))
+            }
+        },
+        onKeyboardContentFailed = viewModel::reportError,
+    )
+    }
+    }
+    }
+}
+
+/**
+ * Průsvit pruhu pod vstupním polem.
+ *
+ * Dost na to, aby text pod ním nerušil, ale ne plná barva — ta by udělala ostrý předěl přes
+ * celou obrazovku, což je právě to, co se odstraňovalo.
+ */
+private const val INPUT_SCRIM_ALPHA = 0.93f
