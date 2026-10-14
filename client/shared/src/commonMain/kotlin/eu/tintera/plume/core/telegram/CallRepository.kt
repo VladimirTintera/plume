@@ -6,14 +6,20 @@ import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Hovor ve dvou: TDLib dělá signalizaci a klíč, přenos [eu.tintera.plume.core.calls.CallMedia].
- * Bez mediální vrstvy (iOS, desktop) je [supported] `false` a hovory se nenabízejí — příchozí
- * dál jen ohlásí notifikace.
+ * Bez mediální vrstvy (iOS, desktop bez přibalené knihovny) je [supported] `false` a hovory se
+ * nenabízejí — příchozí dál jen ohlásí notifikace.
  */
 interface CallRepository {
     val supported: Boolean
 
-    /** Hovory umí i obraz; desktop zatím jen zvuk (videohovor se tam nenabízí, přijme se bez kamery). */
+    /** Hovory umí i obraz (bez něj se videohovor nenabízí a přijme se bez kamery). */
     val supportsVideo: Boolean
+
+    /** Kamera jde přepnout (přední / zadní); na desktopu ne. */
+    val canSwitchCamera: Boolean get() = true
+
+    /** Náhled kamery je vidět už při vytáčení; na desktopu až od spojení. */
+    val previewsBeforeConnect: Boolean get() = true
 
     /** Probíhající hovor, nebo `null`. Najednou je jen jeden, jako u telefonu. */
     val active: StateFlow<ActiveCall?>

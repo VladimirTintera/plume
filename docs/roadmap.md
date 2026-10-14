@@ -463,11 +463,16 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    „Videohovory"). **Desktop: hlasové hovory na macOS** (`docs/poznatky/hovory.md`,
    „Desktop"). Zbývá:
    - **Desktop: Windows a Linux ověřit** (knihovna se stáhne a přibalí, nespuštěné; toast
-     hovoru s Přijmout / Odmítnout a okénko příchozího hovoru tam nikdo neviděl), Odmítnout
-     z okénka a z oznámení na macOS, video. Zvonění a okénko příchozího hovoru hotové
-     (`docs/poznatky/hovory.md`, „Zvonění a příchozí hovor na desktopu").
-   - **Desktop: zabalená aplikace** — ověřit, že JNA najde `libntgcalls` v jaru i po jpackage
-     (MSI, později DMG), a že macOS u balíčku chce `NSMicrophoneUsageDescription`. JNA dnes
+     hovoru s Přijmout / Odmítnout, okénko příchozího hovoru a kamera přes modul WebRTC tam
+     nikdo neviděl), Odmítnout z okénka a z oznámení na macOS. Zvonění, okénko příchozího
+     hovoru a video na macOS hotové (`docs/poznatky/hovory.md`, „Zvonění a příchozí hovor na
+     desktopu", „Video na desktopu").
+   - **Desktop: video dál** — náhled kamery už při vytáčení (dnes až od spojení), výběr
+     kamery (bere se první), ukončení aplikace uprostřed hovoru (`pkill` shodil JVM).
+   - **Desktop: zabalená aplikace** — v `.app` z `createDistributable` JNA `libntgcalls`
+     najde a popisy použití i entitlementy kamery a mikrofonu jsou hotové
+     (`docs/poznatky/desktop.md`, „Kamera a mikrofon v podepsané aplikaci"); ověřit ještě
+     MSI a DMG. Popisy použití v Info.plist jsou jen anglicky. JNA dnes
      35 MB knihovnu při každém spuštění vybaluje do dočasné složky; šlo by ji vybalit jednou
      do dat aplikace. Stav spojení v logu jako jméno, ne číslo.
    - **Android: neověřené kousky** — Bluetooth souprava s novým směrováním zvuku (Plume

@@ -60,6 +60,7 @@ internal interface NtgNative : Library {
     fun ntg_on_signaling_data_callback(handle: Pointer, callback: SignalingCallback?, userData: Pointer?): Int
     fun ntg_on_connection_change_callback(handle: Pointer, callback: ConnectionCallback?, userData: Pointer?): Int
     fun ntg_on_remote_source_change_callback(handle: Pointer, callback: RemoteSourceCallback?, userData: Pointer?): Int
+    fun ntg_on_frames_callback(handle: Pointer, callback: FramesCallback?, userData: Pointer?): Int
 
     fun interface LogCallback : Callback {
         fun invoke(message: NtgLogMessage.ByValue, userData: Pointer?)
@@ -77,10 +78,16 @@ internal interface NtgNative : Library {
         fun invoke(handle: Pointer?, chatId: Long, source: NtgRemoteSource.ByValue, userData: Pointer?)
     }
 
+    /** Snímky: [frames] ukazuje na pole `ntg_frame` o [framesLength] prvcích, platné jen během volání. */
+    fun interface FramesCallback : Callback {
+        fun invoke(handle: Pointer?, chatId: Long, mode: Int, device: Int, frames: Pointer?, framesLength: Long, userData: Pointer?)
+    }
+
     companion object {
         const val OK = 0
 
         const val MEDIA_SOURCE_DEVICE = 4
+        const val MEDIA_SOURCE_EXTERNAL = 6
 
         const val STREAM_MODE_CAPTURE = 0
         const val STREAM_MODE_PLAYBACK = 1
@@ -146,11 +153,52 @@ internal open class NtgMediaDescription : Structure() {
     @JvmField var microphone: NtgAudioDescription.ByReference? = null
     @JvmField var speaker: NtgAudioDescription.ByReference? = null
 
-    /** Video (`ntg_video_description*`) desktop zatím neposílá ani nepřijímá. */
-    @JvmField var camera: Pointer? = null
+    @JvmField var camera: NtgVideoDescription.ByReference? = null
+
+    /** Sdílení obrazovky desktop zatím nemá. */
     @JvmField var screen: Pointer? = null
 
     class ByValue : NtgMediaDescription(), Structure.ByValue
+}
+
+@Structure.FieldOrder("media_source", "width", "height", "fps", "input", "keep_open")
+internal open class NtgVideoDescription : Structure() {
+    @JvmField var media_source: Int = 0
+    @JvmField var width: Short = 0
+    @JvmField var height: Short = 0
+    @JvmField var fps: Byte = 0
+    @JvmField var input: String? = null
+    @JvmField var keep_open: Byte = 0
+
+    class ByReference : NtgVideoDescription(), Structure.ByReference
+}
+
+/** `uint16_t` šířka a výška: v Kotlinu `Short`, čte se přes [widthPx] / [heightPx]. */
+@Structure.FieldOrder("absolute_capture_timestamp_ms", "rotation", "width", "height")
+internal open class NtgFrameData : Structure() {
+    @JvmField var absolute_capture_timestamp_ms: Long = 0
+    @JvmField var rotation: Int = 0
+    @JvmField var width: Short = 0
+    @JvmField var height: Short = 0
+
+    val widthPx: Int get() = width.toInt() and 0xFFFF
+    val heightPx: Int get() = height.toInt() and 0xFFFF
+
+    /** Ve stupních po směru hodinových ručiček (`ntg_video_rotation`: 0, 90, 180, 270). */
+    val rotationDegrees: Int get() = rotation.coerceIn(0, 3) * 90
+}
+
+@Structure.FieldOrder("ssrc", "data", "data_len", "frame_data")
+internal open class NtgFrame : Structure {
+    constructor() : super()
+    constructor(pointer: Pointer) : super(pointer) {
+        read()
+    }
+
+    @JvmField var ssrc: Long = 0
+    @JvmField var data: Pointer? = null
+    @JvmField var data_len: Long = 0
+    @JvmField var frame_data: NtgFrameData = NtgFrameData()
 }
 
 @Structure.FieldOrder("min_layer", "max_layer", "udp_p2p", "udp_reflector", "library_versions", "library_versions_len")
@@ -196,6 +244,8 @@ internal open class NtgMediaDevices : Structure() {
     fun microphones(): List<NtgDeviceInfo> = devices(microphone, microphone_len)
 
     fun speakers(): List<NtgDeviceInfo> = devices(speaker, speaker_len)
+
+    fun cameras(): List<NtgDeviceInfo> = devices(camera, camera_len)
 
     private fun devices(first: Pointer?, count: Long): List<NtgDeviceInfo> {
         if (first == null || count <= 0) return emptyList()

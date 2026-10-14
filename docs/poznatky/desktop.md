@@ -447,6 +447,29 @@ postaví MSI (`packageMsi -PdesktopVersion=…`), na Ubuntu založí GitHub Rele
 - **Jméno souboru z cesty se bere `toPath().name`, ne `substringAfterLast('/')`**: TDLib na
   Windows vrací cesty se zpětnými lomítky a z lomítka by vyšla celá cesta.
 
+## Kamera a mikrofon v podepsané aplikaci
+
+`Plume.app` z jpackage je podepsaná (i ad hoc) s **hardened runtime**, a ten na kameru
+a mikrofon chce entitlementy `com.apple.security.device.camera` a
+`com.apple.security.device.audio-input` (`client/desktopApp/entitlements.plist`).
+
+- **Bez nich TCC dotaz na povolení vůbec neukáže a nic nehlásí.** Relace AVFoundation se
+  „rozběhne", zelená kamera v liště svítí, ale nepřijde jediný snímek. `tccd` v systémovém
+  logu píše „Prompting policy for hardened runtime; service: kTCCServiceCamera requires
+  entitlement … but it is missing" a „Policy disallows prompt". Najde se to přes
+  `/usr/bin/log show --predicate 'process == "tccd"'` (v zsh je `log` vestavěný příkaz,
+  proto plná cesta).
+- **Z Gradlu (`runDistributable`) to vypadá, že mikrofon funguje.** Aplikace je potomek
+  procesu `java` a TCC se ptá za „zodpovědný" proces nahoře (Terminál, Claude). Ten mikrofon
+  povolený mít může, kameru taky ne. Ověřuje se proto spuštěním přes LaunchServices:
+  `open --stdout <log> --stderr <err> client/desktopApp/build/compose/binaries/main/app/Plume.app`.
+- **Vlastní `entitlementsFile` nahrazuje výchozí oprávnění Compose**
+  (`allow-jit`, `allow-unsigned-executable-memory`, `disable-library-validation`), proto
+  je soubor opakuje. Bez nich JVM v hardened runtime nenaběhne.
+- **`NSCameraUsageDescription` a `NSMicrophoneUsageDescription` v `Info.plist`**
+  (`infoPlist.extraKeysRawXml`): bez popisu macOS aplikaci při prvním sáhnutí na kameru
+  ukončí. Text je anglicky, přeložit by šel jen přes `.lproj` v balíčku.
+
 ## Okno mimo hlavní (okénko hovoru)
 
 Druhé okno (`IncomingCallWindow`) se skládá přímo v `application {}` vedle hlavního `Window`.
@@ -532,7 +555,8 @@ soubory; soubory z Finderu či Průzkumníka jde pustit kamkoli do konverzace
 
 ## Co platforma (zatím) neumí
 
-**Hovory jen se zvukem** přes ntgcalls (`docs/poznatky/hovory.md`, „Desktop").
+**Hovory** přes ntgcalls (`docs/poznatky/hovory.md`, „Desktop"), se zvukem i videem, bez
+přepínání kamery a bez náhledu před spojením.
 
 Prázdné `actual` volí chování, které sdílený kód už umí ohlásit, ne tiché nic: přehrávání
 zvuku vyhodí výjimku („hlasovku se nepodařilo přehrát"), nahrávání taky („nahrávání nejde
