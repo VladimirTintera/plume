@@ -383,6 +383,10 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   `LoadingIndicator`, `WideNavigationRail`, `ButtonGroup`, `FloatingActionButtonMenu`. Bez alphy
   expressive vrstva neexistuje.
 - **Preferuj defaulty.** Neoverriduj `containerColor`/elevation, dokud k tomu není konkrétní důvod.
+- **Maximální šířky rozvržení jsou ze škály `ContentWidth`** (`core/adaptive`: Pane 360, Form 420,
+  Bubble 560, Sheet 640, Reading 720, Conversation 840), ne konstanty po obrazovkách. Na ploše
+  přes dva monitory se bez stropu konverzace i Nastavení natáhly přes tisíce dp. Drobné šířky
+  uvnitř bublin (čip, štítek) jsou věc bubliny. Viz `docs/poznatky/navigace.md`, „Standardní šířky".
 - **Vrstvení = surface container role, ne `tonalElevation`.** `surface` < `surfaceContainerLow/…` <
   `surfaceContainerHigh` (overlay) < `surfaceContainerHighest` (menu nad overlayem). `tonalElevation`
   u `surfaceContainer*` barev nic nedělá — M3 `Surface` tónuje jen `color == colorScheme.surface`.

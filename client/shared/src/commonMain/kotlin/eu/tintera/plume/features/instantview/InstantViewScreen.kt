@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.instantview
 
+import eu.tintera.plume.core.adaptive.ContentWidth
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -229,4 +230,4 @@ internal fun hostOf(url: String): String =
     url.substringAfter("://").substringBefore('/').substringBefore('?').removePrefix("www.")
 
 /** Šířka čtecího sloupce; na tabletu by řádky přes celou šířku nešly číst. */
-private val READING_WIDTH = 680.dp
+private val READING_WIDTH = ContentWidth.Reading

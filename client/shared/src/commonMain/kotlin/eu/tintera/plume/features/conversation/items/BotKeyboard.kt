@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.adaptive.ContentWidth
 import eu.tintera.plume.core.ui.CustomEmojiIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -253,7 +254,7 @@ private val BUTTON_EMOJI_SIZE = 18.dp
 private val BUTTON_EMOJI_GAP = 6.dp
 
 /** Stejný strop jako u zprávy samotné (`MessageBox`). */
-private val MAX_MESSAGE_WIDTH = 560.dp
+private val MAX_MESSAGE_WIDTH = ContentWidth.Bubble
 private val KEYBOARD_GAP = 4.dp
 private val KEYBOARD_SPACING = 2.dp
 /**
