@@ -89,6 +89,8 @@ import eu.tintera.plume.core.telegram.CallPhase
 import eu.tintera.plume.core.telegram.CallRepository
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.HideSystemBars
+import eu.tintera.plume.core.ui.statusBarArea
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.features.conversation.formatDuration
 import eu.tintera.plume.resources.Res
@@ -278,6 +280,15 @@ private fun CallScreen(
     val veil = if (full != null) MaterialTheme.colorScheme.surface.copy(alpha = VEIL_ALPHA) else Color.Transparent
     // Přes obraz spojeného hovoru ovládání po chvíli zmizí a ťuknutí ho vrátí (viz [rememberCallControls]).
     val controls = rememberCallControls(autoHide = full != null && call.phase == CallPhase.Active && !call.held)
+    // Se schovaným ovládáním i bez systémových lišt: přes obraz (hlavně sdílenou obrazovku
+    // protistrany, která má vlastní stavový řádek) by jinak ležely dvě lišty přes sebe.
+    // Ťuknutí vrátí ovládání i lišty.
+    HideSystemBars(hidden = !controls.visible)
+    // Sdílená obrazovka protistrany: celá (okraje jsou důležité, hlavně pro ukazovátko)
+    // a vždycky POD místem stavového řádku. Má svůj vlastní a ten náš by ležel přes něj —
+    // i tam, kde ho schovat nejde (Pixel 5 s Androidem 14 ho za hovoru drží vynuceně
+    // a aplikaci přitom hlásí, že je schovaný, takže se to poznat nedá).
+    val remoteScreen = full == CallVideoSource.Remote && call.remoteScreen
     // Protistrana sdílí obrazovku a umí ukázat ukazovátko: podržením se na ni ukazuje.
     val pointing = full == CallVideoSource.Remote && call.remoteScreen && call.remotePointer
     val pointer = remember { CallPointerState() }
@@ -286,21 +297,27 @@ private fun CallScreen(
     var askOverlay by remember { mutableStateOf(false) }
     val startSharing = { screenShare?.request { granted -> if (granted) calls.setScreenSharing(true) } }
     Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize()) {
-        Box(
-            Modifier
-                .fillMaxSize()
-                .then(controls.modifier)
-                .callPointer(pointing, remoteAspect, pointer) { x, y, down -> calls.sendPointer(x, y, down) },
-        ) {
+        Box(Modifier.fillMaxSize().then(controls.modifier)) {
             full?.let { source ->
-                CallVideo(
-                    source,
-                    mirror = source == CallVideoSource.Local && call.frontCamera,
-                    modifier = Modifier.fillMaxSize(),
-                    onAspectRatio = { if (source == CallVideoSource.Remote) onRemoteAspect(it) },
-                )
+                // Ukazovátko patří přímo na obraz: souřadnice se počítají z jeho plochy, i když
+                // je posunutý pod stavový řádek. Jako potomek dostane dotyk dřív než `clickable`
+                // ovládání na ploše kolem, takže podržení ovládání nepřepne.
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .then(if (remoteScreen) Modifier.windowInsetsPadding(statusBarArea()) else Modifier)
+                        .callPointer(pointing, remoteAspect, fit = remoteScreen, pointer) { x, y, down -> calls.sendPointer(x, y, down) },
+                ) {
+                    CallVideo(
+                        source,
+                        mirror = source == CallVideoSource.Local && call.frontCamera,
+                        modifier = Modifier.fillMaxSize(),
+                        fit = remoteScreen,
+                        onAspectRatio = { if (source == CallVideoSource.Remote) onRemoteAspect(it) },
+                    )
+                    CallPointerFinger(pointer)
+                }
             }
-            CallPointerFinger(pointer)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp),

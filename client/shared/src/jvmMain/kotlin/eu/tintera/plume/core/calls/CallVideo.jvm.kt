@@ -25,7 +25,7 @@ import org.koin.compose.getKoin
  * šířku zbyl jen pruh přes střed obličeje.
  */
 @Composable
-actual fun CallVideo(source: CallVideoSource, mirror: Boolean, modifier: Modifier, onAspectRatio: (Float) -> Unit) {
+actual fun CallVideo(source: CallVideoSource, mirror: Boolean, modifier: Modifier, fit: Boolean, onAspectRatio: (Float) -> Unit) {
     // Bez přibalené knihovny CallMedia v Koinu není (viz AppModule.jvm).
     val media = getKoin().getOrNull<CallMedia>() as? DesktopCallMedia ?: return
     val frame by media.video.frames(source).collectAsState()
@@ -35,7 +35,7 @@ actual fun CallVideo(source: CallVideoSource, mirror: Boolean, modifier: Modifie
     LaunchedEffect(frameAspect) { aspectRatio(frameAspect) }
     BoxWithConstraints(modifier) {
         val boxLandscape = constraints.maxWidth > constraints.maxHeight
-        val fill = (image.width > image.height) == boxLandscape
+        val fill = !fit && (image.width > image.height) == boxLandscape
         Canvas(Modifier.fillMaxSize().clipToBounds()) {
             val scale = if (fill) {
                 maxOf(size.width / image.width, size.height / image.height)

@@ -37,4 +37,12 @@ class CallPointerMappingTest {
         // V pruhu vedle obrazu se neukazuje.
         assertNull(pointerOnFrame(Offset(100f, 500f), size, aspect))
     }
+
+    @Test
+    fun sharedScreenFitsWholeEvenInSameOrientation() {
+        // Sdílená obrazovka (fit): 1 : 2,22 na ploše 1 : 2 se vejde celá (900 px), po stranách pruhy 50 px.
+        val size = IntSize(1000, 2000)
+        assertNear(Offset(0f, 0f), pointerOnFrame(Offset(50f, 0f), size, 0.45f, fit = true))
+        assertNull(pointerOnFrame(Offset(20f, 1000f), size, 0.45f, fit = true))
+    }
 }

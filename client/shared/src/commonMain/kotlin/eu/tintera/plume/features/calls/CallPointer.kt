@@ -38,13 +38,14 @@ internal class CallPointerState {
  * Posílá se nejvýš po [SEND_INTERVAL_MS] — signalizace jde přes server a víc zpráv by ji
  * jen zahltilo; zvednutí prstu jde vždycky.
  *
- * Patří ZA modifikátor ovládání (`clickable`): v hlavním průchodu jde událost napřed sem
- * a spotřebovaná už ťuknutí nepřepne.
+ * Patří na plochu obrazu, která je POTOMKEM plochy s ovládáním (`clickable`): v hlavním
+ * průchodu jde událost napřed k potomkovi, a spotřebovaná už ťuknutí nepřepne.
  */
 @Composable
 internal fun Modifier.callPointer(
     enabled: Boolean,
     frameAspect: Float,
+    fit: Boolean,
     state: CallPointerState,
     onPoint: (x: Float, y: Float, down: Boolean) -> Unit,
 ): Modifier {
@@ -52,6 +53,7 @@ internal fun Modifier.callPointer(
     val haptics = LocalHapticFeedback.current
     val point by rememberUpdatedState(onPoint)
     val aspect by rememberUpdatedState(frameAspect)
+    val fitAlways by rememberUpdatedState(fit)
     return pointerInput(Unit) {
         awaitEachGesture {
             val first = awaitFirstDown(requireUnconsumed = false)
@@ -71,7 +73,7 @@ internal fun Modifier.callPointer(
             var lastSent = TimeSource.Monotonic.markNow()
             fun send(position: Offset, down: Boolean, force: Boolean) {
                 state.finger = position.takeIf { down }
-                val normalized = pointerOnFrame(position, size, aspect) ?: return
+                val normalized = pointerOnFrame(position, size, aspect, fitAlways) ?: return
                 if (!force && lastSent.elapsedNow().inWholeMilliseconds < SEND_INTERVAL_MS) return
                 lastSent = TimeSource.Monotonic.markNow()
                 point(normalized.x, normalized.y, down)
@@ -104,13 +106,13 @@ internal fun CallPointerFinger(state: CallPointerState, modifier: Modifier = Mod
 
 /**
  * Místo dotyku → místo v obrazu protistrany (0–1), stejně jako ho kreslí `CallVideo`: obraz
- * stejně orientovaný jako plocha ji vyplní (okraje se oříznou), jinak orientovaný se vejde
- * celý (s pruhy). Dotyk mimo obraz (v pruhu) = `null`.
+ * stejně orientovaný jako plocha ji vyplní (okraje se oříznou), jinak orientovaný — nebo
+ * s [fit] vždycky — se vejde celý (s pruhy). Dotyk mimo obraz (v pruhu) = `null`.
  */
-internal fun pointerOnFrame(position: Offset, size: IntSize, frameAspect: Float): Offset? {
+internal fun pointerOnFrame(position: Offset, size: IntSize, frameAspect: Float, fit: Boolean = false): Offset? {
     if (size.width <= 0 || size.height <= 0 || frameAspect <= 0f) return null
     val boxAspect = size.width.toFloat() / size.height
-    val fill = (frameAspect > 1f) == (boxAspect > 1f)
+    val fill = !fit && (frameAspect > 1f) == (boxAspect > 1f)
     val widthBound = boxAspect > frameAspect
     // Vyplnění: obraz roste, dokud nepokryje plochu; přizpůsobení: dokud se nedotkne okraje.
     val (imageWidth, imageHeight) = if (fill == widthBound) {

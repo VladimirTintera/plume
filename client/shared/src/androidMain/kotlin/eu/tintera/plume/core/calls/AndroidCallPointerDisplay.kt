@@ -1,16 +1,21 @@
 package eu.tintera.plume.core.calls
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.PixelFormat
 import android.hardware.input.InputManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.Settings
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.DecelerateInterpolator
 import co.touchlab.kermit.Logger
 
 /**
@@ -75,52 +80,124 @@ internal class AndroidCallPointerDisplay(context: Context) : CallPointerDisplay 
     }
 }
 
-/** Značka: kroužek s tečkou uprostřed, po zvednutí prstu vybledne. */
+/**
+ * Značka ukazovátka. Musí být vidět na čemkoli — světlé aplikaci, tmavé, fotce — a okno
+ * má navíc průhlednost 0,8 (viz třída výš), takže samotná barva nestačí:
+ * - **kroužek ve třech vrstvách**: tmavý stín, bílý lem a barevný střed. Na světlém
+ *   pozadí nese obrys stín, na tmavém lem; barva akcentu jen říká, že je to Plume.
+ * - **pulz**: od značky se opakovaně rozbíhá kruh, oko si pohybu všimne dřív než tvaru.
+ * - **stopa**: za tahem zůstane krátká čára, která do [TRAIL_MS] zmizí — je z ní vidět,
+ *   odkud a kam protistrana ukazovala, i když se člověk podívá pozdě.
+ * Po zvednutí prstu značka chvíli zůstane ([LINGER_MS]) a vybledne.
+ */
 private class PointerView(context: Context) : View(context) {
 
     private val density = resources.displayMetrics.density
     private val accent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        context.getColor(android.R.color.system_accent1_400)
+        context.getColor(android.R.color.system_accent1_500)
     } else {
-        context.getColor(android.R.color.holo_orange_light)
+        context.getColor(android.R.color.holo_orange_dark)
     }
+    private fun stroke(color: Int, width: Float) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = color
+        style = Paint.Style.STROKE
+        strokeWidth = width * density
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+    }
+    private val shadow = stroke(Color.BLACK, SHADOW_DP).apply { alpha = SHADOW_ALPHA }
+    private val halo = stroke(Color.WHITE, HALO_DP)
+    private val ring = stroke(accent, RING_DP)
+    private val pulse = stroke(accent, RING_DP)
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = accent
         alpha = FILL_ALPHA
     }
-    private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = accent
-        style = Paint.Style.STROKE
-        strokeWidth = RING_WIDTH_DP * density
-    }
+    private val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = accent }
+
     private var x = -1f
     private var y = -1f
-    private val fade = Runnable { animate().alpha(0f).setDuration(FADE_MS) }
+    private val trail = ArrayDeque<TrailPoint>()
+    private val path = Path()
+    // Po vyblednutí pulz zastavit: neviditelný view se nekreslí a animátor by běžel dál.
+    private val fade = Runnable {
+        animate().alpha(0f).setDuration(FADE_MS).withEndAction {
+            pulser.cancel()
+            trail.clear()
+        }
+    }
+
+    /** 0–1 v cyklu pulzu; animátor běží, dokud je značka vidět. */
+    private var phase = 0f
+    private val pulser = ValueAnimator.ofFloat(0f, 1f).apply {
+        duration = PULSE_MS
+        repeatCount = ValueAnimator.INFINITE
+        interpolator = DecelerateInterpolator()
+        addUpdateListener {
+            phase = it.animatedValue as Float
+            invalidate()
+        }
+    }
 
     fun point(nx: Float, ny: Float, down: Boolean) {
         x = nx * width
         y = ny * height
+        val now = SystemClock.uptimeMillis()
+        trail.addLast(TrailPoint(x, y, now))
         removeCallbacks(fade)
         animate().cancel()
         alpha = 1f
+        if (!pulser.isStarted) pulser.start()
         if (!down) postDelayed(fade, LINGER_MS)
         invalidate()
     }
 
-    override fun onDraw(canvas: Canvas) {
-        if (x < 0f) return
-        val radius = RADIUS_DP * density
-        canvas.drawCircle(x, y, radius, fill)
-        canvas.drawCircle(x, y, radius, ring)
-        canvas.drawCircle(x, y, DOT_DP * density, ring)
+    override fun onDetachedFromWindow() {
+        pulser.cancel()
+        super.onDetachedFromWindow()
     }
 
+    override fun onDraw(canvas: Canvas) {
+        if (x < 0f) return
+        drawTrail(canvas)
+        val radius = RADIUS_DP * density
+        // Pulz: kruh se rozbíhá do dvojnásobku a mizí.
+        pulse.alpha = ((1f - phase) * PULSE_ALPHA).toInt()
+        canvas.drawCircle(x, y, radius * (1f + phase), pulse)
+        canvas.drawCircle(x, y, radius, fill)
+        canvas.drawCircle(x, y, radius, shadow)
+        canvas.drawCircle(x, y, radius, halo)
+        canvas.drawCircle(x, y, radius, ring)
+        canvas.drawCircle(x, y, DOT_DP * density + HALO_DP * density / 2, halo)
+        canvas.drawCircle(x, y, DOT_DP * density, dot)
+    }
+
+    /** Stopa za tahem: body mladší než [TRAIL_MS], stejné vrstvy jako kroužek. */
+    private fun drawTrail(canvas: Canvas) {
+        val now = SystemClock.uptimeMillis()
+        while (trail.isNotEmpty() && now - trail.first().at > TRAIL_MS) trail.removeFirst()
+        if (trail.size < 2) return
+        path.reset()
+        trail.forEachIndexed { index, point -> if (index == 0) path.moveTo(point.x, point.y) else path.lineTo(point.x, point.y) }
+        canvas.drawPath(path, shadow)
+        canvas.drawPath(path, halo)
+        canvas.drawPath(path, ring)
+    }
+
+    private class TrailPoint(val x: Float, val y: Float, val at: Long)
+
     private companion object {
-        const val RADIUS_DP = 28f
-        const val DOT_DP = 3f
-        const val RING_WIDTH_DP = 3f
-        const val FILL_ALPHA = 70
-        const val LINGER_MS = 1_200L
+        const val RADIUS_DP = 34f
+        const val DOT_DP = 6f
+        const val RING_DP = 5f
+        const val HALO_DP = 9f
+        const val SHADOW_DP = 13f
+        const val SHADOW_ALPHA = 110
+        const val FILL_ALPHA = 60
+        const val PULSE_ALPHA = 220
+        const val PULSE_MS = 900L
+        const val TRAIL_MS = 700L
+        const val LINGER_MS = 1_500L
         const val FADE_MS = 400L
     }
 }

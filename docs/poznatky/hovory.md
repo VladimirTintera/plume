@@ -801,12 +801,45 @@ oficiální klient zprávy ignoruje.
     trefil do jiné aplikace a Plume oprávnění nedostalo.
   - Okno zmizí s koncem sdílení i hovoru (`hide`). Značka po zvednutí prstu chvíli zůstane
     a vybledne.
+  - **Značka musí být vidět na čemkoli**, a okno má navíc průhlednost 0,8:
+    - kroužek ve třech vrstvách: tmavý stín, bílý lem a barevný střed (na světlém pozadí
+      nese obrys stín, na tmavém lem);
+    - opakovaně se rozbíhající pulz, protože pohybu si oko všimne dřív;
+    - stopa za tahem (0,7 s), takže je vidět, odkud a kam protistrana ukazovala.
+    Původní tenký průhledný kroužek uživatel na sdílené obrazovce přehlédl. Pulz se po
+    vyblednutí zastaví (`withEndAction`): neviditelný view se nekreslí a kontrola
+    v `onDraw` by se nespustila.
+- **Divák sdílené obrazovky vidí celou obrazovku pod místem svého stavového řádku**
+  (`CallVideo(fit = true)`, `statusBarArea()`):
+  - **Bez toho ležely dvě lišty přes sebe**: vlastní stavový řádek diváka přes stavový
+    řádek sdílejícího v obrazu.
+  - **Schovat lištu nestačí.** `HideSystemBars` ji se schovaným ovládáním schová a na
+    Pixelu 7 Pro (Android 16) to funguje. Pixel 5 (Android 14) ji ale za hovoru drží
+    vynuceně: okno dostane jen „fake" řízení (`(fake) InsetsSourceControl`, cíl
+    `InsetsPolicy$1`) a aplikaci přitom hlásí, že je schovaná (`WindowInsets.statusBars`
+    = 0). Poznat se to z aplikace nedá. Proč systém lištu drží, nezjištěno; Fotoaparát
+    jako srovnání nevyšel (otevřel dotaz na oprávnění).
+  - Proto se sdílená obrazovka posouvá vždycky pod `statusBarsIgnoringVisibility`. Kde se
+    lišta schová, zbude nahoře úzký tmavý pruh; lišty se nepřekryjí nikde.
+  - **Celá, ne oříznutá**: okraje sdílené obrazovky jsou důležité, hlavně pro ukazovátko.
+
+- **`TextureViewRenderer` „přizpůsobit" neumí, když má view pevnou velikost.** Renderer
+  obraz vždycky ořízne na poměr stran svého view (`setLayoutAspectRatio`).
+  `SCALE_ASPECT_FIT` jen v `onMeasure` zmenší view, a to `fillMaxSize` z Compose nedovolí,
+  takže „přizpůsobit" se tiše chovalo jako „vyplnit". Sdílená obrazovka přišla o horní
+  a dolní okraj, v prvním pokusu přesně o polovinu stavového řádku. Teď `CallVideo` na
+  Androidu dá view poměr stran snímku (`aspectRatio`) a vycentruje ho. Týká se i obrazu
+  na šířku na telefonu na výšku, který se dřív ořezával taky.
 - **Ověřeno 14. 10. 2026** (Pixel 7 Pro sdílí, Pixel 5 ukazuje, Plume ↔ Plume):
   - `Hello` s ukazovátkem, nápověda u diváka;
   - podržení a tah: značka na Pixelu 7 Pro jela s prstem a po zvednutí vybledla, kroužek
     na Pixelu 5 (potvrdil uživatel); okno `APPLICATION_OVERLAY` s `alpha=0.8`;
   - na Pixelu 7 Pro šlo při sdílení normálně ťukat a posouvat;
-  - po zavěšení okno, projekce i služba pryč.
+  - po zavěšení okno, projekce i služba pryč;
+  - výraznější značka (stín, lem, pulz, stopa) je dobře vidět, potvrdil uživatel;
+  - na Pixelu 5 sdílená obrazovka celá pod jeho stavovým řádkem a ukazovátko míří
+    přesně (střed a spodní okraj), potvrdil uživatel; na Pixelu 7 Pro stavový řádek se
+    schovaným ovládáním zmizí (`visible=false`).
   **Neověřeno**: desktop jako divák (podržení myši), Android pod 12 (průhlednost okna),
   otočení telefonu za ukazování.
 - **Plné vzdálené ovládání (ťuknutí za protistranu) zvažované a odložené.** Šlo by přes
