@@ -3,11 +3,11 @@ package eu.tintera.plume.features.conversation
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.ai.OnDeviceAi
-import eu.tintera.plume.core.audio.MusicQueue
+import eu.tintera.plume.core.audio.MusicQueueControl
 import eu.tintera.plume.core.audio.NowPlaying
 import eu.tintera.plume.core.audio.VoiceKey
 import eu.tintera.plume.core.audio.VoicePlayback
-import eu.tintera.plume.core.audio.VoicePlayer
+import eu.tintera.plume.core.audio.VoicePlayerControl
 import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.speech.SpeechToText
@@ -56,8 +56,8 @@ internal class ConversationPlayback(
     private val repository: ConversationRepository,
     private val chatRepository: ChatRepository,
     private val settings: AppSettings,
-    private val voicePlayer: VoicePlayer,
-    private val musicQueue: MusicQueue,
+    private val voicePlayer: VoicePlayerControl,
+    private val musicQueue: MusicQueueControl,
     private val fileRepository: FileRepository,
     private val localTranscripts: LocalTranscripts?,
     private val onDeviceAi: OnDeviceAi?,
