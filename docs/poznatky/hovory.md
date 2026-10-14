@@ -3,10 +3,11 @@
 Poznatky k jedné oblasti aplikace. Obecná pravidla projektu a rejstřík ostatních souborů jsou
 v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 
-Plume hovory zatím neumí — jen je ukazuje v historii a ohlásí příchozí (viz
-`docs/poznatky/typy-zprav.md`, „Zpráva o hovoru", a `docs/poznatky/notifikace.md`, „Ohlášení
-příchozího hovoru"). Tenhle soubor drží, co se o hovorech zjistilo průzkumem (13. 10. 2026);
-plán je v `docs/roadmap.md`, „Hovory".
+Hovory ve dvou spojuje Plume na Androidu (zvuk i video, přes ntgcalls) a na desktopu (jen
+zvuk); iOS a skupinové hovory (videochaty) zatím nejsou. Zprávu o hovoru v historii popisuje
+`docs/poznatky/typy-zprav.md`, „Zpráva o hovoru", ohlášení příchozího
+`docs/poznatky/notifikace.md`, „Ohlášení příchozího hovoru". Co zbývá, je v `docs/roadmap.md`,
+„Hovory".
 
 ## Co dělá TDLib a co ne
 
@@ -496,6 +497,55 @@ Hlasové hovory na desktopu přes **C API ntgcalls 3.0.3** (`NtgNative` — vazb
   zvuk oběma směry (poslechem), emoji shodná, zavěšení z desktopu i z telefonu. **Windows
   a Linux jen přeložené.** Chybí zvonění a oznámení příchozího hovoru (zazvoní jen obrazovka
   hovoru v otevřené aplikaci) a video.
+
+## Sdílení obrazovky (průzkum 14. 10. 2026)
+
+**Jen čtení, nic neověřené**: API TDLib (`td_api.tl`, ve wrapperu nekontrolované) a zdrojáky
+ntgcalls 3.0.3 (`ntgcalls-3.0.3-sources.jar` v Gradle cache, jen Java část). Kód ani sonda
+nejsou.
+
+- **TDLib má sdílení obrazovky jen u skupinových hovorů** (videochaty, konferenční hovory):
+  `startGroupCallScreenSharing(groupCallId, audioSourceId, payload)` otevře druhé spojení jen
+  pro obrazovku (payload vyrobí mediální knihovna, odpověď se jí vrátí),
+  `toggleGroupCallScreenSharingIsPaused`, `endGroupCallScreenSharing`. Účastník nese
+  `screenSharingVideoInfo` vedle `videoInfo` z kamery a `screenSharingAudioSourceId`. Plume
+  do videochatů zatím nevstupuje, takže tahle cesta čeká na skupinové hovory.
+- **Hovor ve dvou nemá v TDLib o obrazovce nic.** Oficiální klienti posílají obrazovku jako
+  video stopu mediální knihovny (v tgcalls zdroj typu screencast) a domlouvají se zašifrovanou
+  signalizací (`sendCallSignalingData`), které TDLib nerozumí. Je to tedy čistě věc ntgcalls,
+  stejně jako kamera.
+- **ntgcalls na Androidu obrazovku snímat umí** (`SmartVideoSource`, `JavaVideoCapturerModule`):
+  - Výsledek systémového dialogu (`MediaProjectionManager.createScreenCaptureIntent()`) se
+    předá `JavaVideoCapturerModule.setMediaProjectionPermissionResult(intent)` — uloží se do
+    STATICKÉHO pole a zůstane tam i po hovoru.
+  - Zařízení s názvem `"screen"` vyrobí `ScreenCapturerAndroid` z WebRTC (s prázdným
+    `MediaProjection.Callback`) a vlastní `SurfaceTextureHelper` („ScreenCapturerThread").
+  - Obrazovka má v `MediaDescription` vlastní slot `screen` vedle `camera`
+    (`StreamDevice.SCREEN`; `MediaSource.DESKTOP` je zdroj pro desktop). **Zdroj obrazovky je
+    jiná instance `SmartVideoSource` než kamera** (index 1, kamera 0), takže kameru nepřevezme
+    a nezhasne (srv. „Přepnutí kamery výměnou zdroje" ve „Videohovorech").
+  - Jak se z `VideoDescription` (`input`, metadata) stane zařízení `"screen"`, rozhoduje
+    nativní část — ze zdrojáků Javy to vidět není. `getMediaDevices().screen` na Androidu
+    plní taky nativní část (Java `getDevices` vrací jen kamery).
+  - Pro videochat jsou `initPresentation` / `stopPresentation` (payload pro
+    `startGroupCallScreenSharing`).
+- **Co bude potřeba v aplikaci (Android)**: služba hovoru má dnes typy
+  `phoneCall|microphone|camera`, přibude `mediaProjection`
+  (`FOREGROUND_SERVICE_MEDIA_PROJECTION`) — přidávat a ubírat se sdílením, jako kamera. Od
+  Androidu 14 musí služba s tímhle typem běžet DŘÍV, než se zavolá `getMediaProjection` (ten
+  volá `ScreenCapturerAndroid` až při startu snímání), a intent ze souhlasu platí na jedno
+  použití — každé sdílení = nový dialog. Typ `mediaProjection` se jako `camera` deklaruje
+  v Play Console.
+- **Otevřené otázky pro sondu** (Plume → oficiální Telegram pro Android):
+  - Jak ntgcalls v hovoru ve dvou obrazovku pošle — místo kamery, nebo vedle ní — a jestli ji
+    oficiální klient pozná jako obrazovku (bez zrcadlení a bez ořezu na celou plochu jako
+    u kamery).
+  - Příjem: co přijde do `onRemoteSourceChange`, když obrazovku sdílí protistrana (SCREEN,
+    nebo CAMERA), a jestli se přijímá jako kamera (PLAYBACK s EXTERNAL ve slotu `screen`).
+  - Rozměr zdroje: poměr stran displeje, ne kamery; otáčení telefonu za sdílení.
+- **Desktop** (`MediaSource.DESKTOP` v C API) nezkoumaný — desktop zatím nemá ani kameru.
+  **iOS** umí sdílet celý systém jen přes Broadcast Upload Extension (ReplayKit), tedy
+  samostatný cíl v Xcode.
 
 ## Neověřené
 

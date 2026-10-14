@@ -347,6 +347,7 @@ class ConversationViewModel(
         localTranscripts = localTranscripts,
         onDeviceAi = onDeviceAi,
         speechToText = speechToText,
+        openLink = { links.openLink(it) },
         logger = logger,
     )
     val voicePlayback: StateFlow<VoicePlayback?> get() = playback.voicePlayback
@@ -507,13 +508,10 @@ class ConversationViewModel(
         scope = viewModelScope,
         repository = repository,
         chatRepository = chatRepository,
-        urlOpener = urlOpener,
+        openUrl = urlOpener::open,
         shareRequests = shareRequests,
         botStartRequests = botStartRequests,
-        voicePlayer = voicePlayer,
-        musicQueue = musicQueue,
-        playback = playback,
-        proxyLinkFlow = proxyLinkFlow,
+        openProxy = proxyLinkFlow::open,
         jumper = jumper,
         logger = logger,
     )
@@ -543,8 +541,9 @@ class ConversationViewModel(
         repository = repository,
         chatRepository = chatRepository,
         settings = settings,
-        urlOpener = urlOpener,
-        clipboard = clipboard,
+        openUrl = urlOpener::open,
+        copyToClipboard = clipboard::copy,
+        clipboardConfirmsCopy = clipboard.confirmsCopy,
         botStartRequests = botStartRequests,
         links = links,
         suggestions = suggestions,
@@ -622,7 +621,7 @@ class ConversationViewModel(
         chatRepository = chatRepository,
         settings = settings,
         shareRequests = shareRequests,
-        shareTargets = shareTargets,
+        reportUsed = shareTargets::reportUsed,
         liveLocations = liveLocations,
         photoMarkup = photoMarkup,
         composer = composer,
@@ -1763,7 +1762,7 @@ class ConversationViewModel(
             is MessageAction.OpenStory -> links.openStory(StoryTarget(action.posterChatId, action.storyId))
             MessageAction.ToggleVoice -> playback.toggleVoice(messageId)
             MessageAction.ToggleVideoNoteSound -> playback.toggleVideoNoteSound(messageId)
-            is MessageAction.PlayMediaAt -> links.playMediaAt(messageId, action.seconds)
+            is MessageAction.PlayMediaAt -> playback.playMediaAt(messageId, action.seconds)
             MessageAction.VideoNoteSoundEnded -> _state.update {
                 if (it.soundingVideoNote == messageId) it.copy(soundingVideoNote = null) else it
             }

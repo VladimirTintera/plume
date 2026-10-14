@@ -60,7 +60,7 @@ z bubliny (`onAction`). Ostatní dělají části v `features/conversation/`:
 | `ConversationSearch` | hledání v chatu, filtr podle člena, skok na datum |
 | `ConversationTranslation` | překlad (server i telefon) a shrnutí |
 | `ConversationMessageContext` | akce u zprávy a posudky modelu (termíny, podvod) |
-| `ConversationPlayback` | hlasovky, kolečko se zvukem, hudba, hlášení poslechu, přepis řeči |
+| `ConversationPlayback` | hlasovky, kolečko se zvukem, čas v médiu, hudba, hlášení poslechu, přepis řeči |
 | `ConversationRecorder` | nahrávání hlasovky a kolečka s náhledem |
 | `ConversationDocuments` | stažení, otevření, sdílení a uložení souboru |
 | `ConversationChatActions` | chat jako celek: pruhy nad konverzací, vstup, ztlumení, smazání |
@@ -89,19 +89,30 @@ navzájem (`MediaSender`, `MessageJumper`, `Throwable.reported`).
   pravidlo, ne jako spoléhání na chybu.
 - **Části se testují samy, bez ViewModelu** (`ConversationSearchTest`, `ConversationSelectionTest`,
   `ConversationReactionsTest`, `ConversationScheduledTest`, `ConversationComposerTest`,
-  `ConversationMessageActionsTest`): stav je obyčejný `MutableStateFlow`, repository
+  `ConversationMessageActionsTest`, `ConversationAttachmentsTest`, `ConversationLinksTest`,
+  `ConversationBotsTest`, `ConversationSuggestionsTest`):
+  stav je obyčejný `MutableStateFlow`, repository
   `UnimplementedConversationRepository`, `UnimplementedChatRepository` a nastavení
   `UnimplementedAppSettings` (v testech; každé nepřepsané volání vyhodí
   chybu se jménem metody, takže test řekne, na co ještě sahá) a volání do jiných částí jsou
   lambdy. Vygenerované je z rozhraní — po změně `ConversationRepository` překladač vyjmenuje
-  člen, který chybí.
+  člen, který chybí. **Metoda bez uvedeného návratového typu má ve stubu `: Unit`**: holé
+  `= error(…)` by odvodilo `Nothing` a test by ji pak nemohl přepsat (narazilo se na tom
+  u `markOneTimeKeyboardUsed`).
 - **Rozsah části v testu je `this` (`TestScope`), ne `backgroundScope`.** `advanceUntilIdle`
   na práci v `backgroundScope` nečeká, takže spuštěné dotazy na repository vůbec neproběhly
   a testy padaly na prázdné výsledky. Části nic dlouhodobého nespouštějí, `runTest` na ně
   počká i na konci.
 - **Závislost, kterou nejde v testu nahradit, se předává jako funkce.** `TextClipboard` je
   `expect class`; výběr proto dostává `copyToClipboard: suspend (String) -> Unit`. Stejně psaní
-  dostává `reportUsed` místo `ShareTargets` (třída se závislostmi na systému a souborech).
+  i přílohy dostávají `reportUsed` místo `ShareTargets` (třída se závislostmi na systému
+  a souborech) a odkazy `openUrl` a `openProxy` místo `UrlOpener` (`expect class`)
+  a `ProxyLinkFlow`. Boti dostávají `openUrl`, `copyToClipboard` a `clipboardConfirmsCopy`
+  (hodnota `TextClipboard.confirmsCopy`, na platformě neměnná).
+- **Čas v médiu („1:23" v textu) je přehrávání, ne odkaz** (`ConversationPlayback.playMediaAt`).
+  Dokud ležel v odkazech, táhly kvůli němu odkazy za sebou přehrávač, frontu hudby i celou
+  část přehrávání — a v testu nešly sestavit. Odkazům z něj zbylo jen video z náhledu odkazu,
+  které přehrávání otevře přes `openLink`.
 
 ## Bloky seznamu
 

@@ -247,7 +247,7 @@ internal class ConversationSuggestions(
  * Pauza v psaní, po které jde inline dotaz na bota. Kratší než u náhledu odkazu: výsledky se
  * ukazují průběžně a čekání je znát, delší by dotaz na každé písmeno jen oddálilo.
  */
-private val INLINE_QUERY_DELAY = 400.milliseconds
+internal val INLINE_QUERY_DELAY = 400.milliseconds
 
 /** Pauza v psaní, po které se hledají členové ke zmínce. Hledání je lokální, stačí krátká. */
-private val MENTION_QUERY_DELAY = 150.milliseconds
+internal val MENTION_QUERY_DELAY = 150.milliseconds
