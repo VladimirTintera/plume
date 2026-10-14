@@ -7,6 +7,9 @@ import com.sun.jna.Pointer
 import java.io.File
 import com.sun.jna.ptr.ByteByReference
 import java.util.concurrent.Executors
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 
@@ -15,8 +18,8 @@ import kotlin.time.Duration
  * Androidu (`NtgCallMedia`) — hovor → zdroje → klíč z TDLib → spojení.
  *
  * - **Zvuk bere knihovna sama** (CoreAudio na macOS, Core Audio/WASAPI na Windows, Pulse/ALSA
- *   na Linuxu), nezávisle na tom, že desktop jinak zvuk přehrávat neumí. Mikrofon i výstup jsou
- *   výchozí zařízení systému; přepínat výstup se nedá (jediný výstup „Reproduktor").
+ *   na Linuxu), nezávisle na tom, že desktop jinak zvuk přehrávat neumí. Mikrofon je výchozí
+ *   zařízení systému; výstup jde na macOS za hovoru přepnout ([startAudio], [setOutput]).
  * - **Video**: kameru snímá knihovna sama (macOS AVFoundation, jinde WebRTC), vybírá se první
  *   ze seznamu `ntg_get_media_devices`. Snímky naší kamery (CAPTURE) i protistrany (PLAYBACK,
  *   slot `camera` jako EXTERNAL) chodí jako I420 do `ntg_on_frames_callback` a odtud do
@@ -72,6 +75,9 @@ class DesktopCallMedia : CallMedia {
 
     private var previewing = false
 
+    /** Výstup zvolený za hovoru (metadata zařízení); `null` = výchozí výstup systému. */
+    private var selectedOutput: String? = null
+
     override val protocol: CallMediaProtocol by lazy {
         worker.submit<CallMediaProtocol> {
             val out = NtgProtocol()
@@ -81,9 +87,47 @@ class DesktopCallMedia : CallMedia {
         }.get()
     }
 
+    /**
+     * Výstupy zvuku: na macOS výstupní zařízení ze seznamu knihovny (jméno, druh podle
+     * typu připojení z CoreAudio) a vybraný je výchozí výstup systému. Seznam se čte
+     * s vytočením / přijetím; sluchátka připojená až za hovoru v něm nebudou. Windows
+     * a Linux zatím jen výchozí výstup systému (neověřené platformy).
+     */
     override fun startAudio(onOutputs: (List<CallAudioOutput>, CallAudioOutput) -> Unit) {
-        // Výstup vybírá systém; jediná možnost je ta, kterou má počítač nastavenou.
-        onOutputs(listOf(CallAudioOutput.Speaker), CallAudioOutput.Speaker)
+        worker.execute {
+            selectedOutput = null
+            val outputs = runCatching { macOutputs() }
+                .onFailure { logger.w(it) { "Výstupy zvuku nejde zjistit." } }
+                .getOrDefault(emptyList())
+            if (outputs.isEmpty()) {
+                onOutputs(listOf(CallAudioOutput.Speaker), CallAudioOutput.Speaker)
+                return@execute
+            }
+            val default = MacAudio.defaultOutputUid()
+            logger.d { "Výstupy zvuku: ${outputs.joinToString { "${it.name} (${it.kind})" }}." }
+            onOutputs(outputs, outputs.firstOrNull { uid(it.id) == default } ?: outputs.first())
+        }
+    }
+
+    private fun macOutputs(): List<CallAudioOutput> {
+        if (!System.getProperty("os.name").lowercase().contains("mac") || !MacAudio.available) return emptyList()
+        val out = NtgMediaDevices()
+        check(native.ntg_get_media_devices(out) == NtgNative.OK) { "ntg_get_media_devices: ${native.ntg_last_error()}" }
+        try {
+            return out.speakers().mapNotNull { device ->
+                val metadata = device.metadata ?: return@mapNotNull null
+                val uid = uid(metadata) ?: return@mapNotNull null
+                val kind = macOutputKind(MacAudio.transportType(uid)) ?: return@mapNotNull null
+                CallAudioOutput(kind = kind, name = device.name, id = metadata)
+            }
+        } finally {
+            native.ntg_media_devices_free(out)
+        }
+    }
+
+    /** `uid` z metadat zařízení (`{"is_microphone":false,"uid":"…"}`). */
+    private fun uid(metadata: String?): String? = metadata?.let {
+        runCatching { Json.parseToJsonElement(it).jsonObject["uid"]?.jsonPrimitive?.content }.getOrNull()
     }
 
     override fun start(session: CallMediaSession, events: CallMediaEvents) {
@@ -141,7 +185,7 @@ class DesktopCallMedia : CallMedia {
                         instance,
                         callId,
                         NtgNative.STREAM_MODE_PLAYBACK,
-                        media(microphone = found.speaker, camera = REMOTE_CAMERA),
+                        media(microphone = selectedOutput ?: found.speaker, camera = REMOTE_CAMERA),
                     )
                 }
                 lib.check("skip_exchange") {
@@ -195,8 +239,23 @@ class DesktopCallMedia : CallMedia {
         }
     }
 
-    /** Výstup vybírá systém (viz třída). */
-    override fun setOutput(output: CallAudioOutput) = Unit
+    /**
+     * Přepne výstup: za hovoru přenastaví zdroje PLAYBACK (knihovna znovu otevře AudioQueue
+     * s jiným `uid`, krátká mezera ve zvuku). Před spojením si jen zapamatuje volbu.
+     */
+    override fun setOutput(output: CallAudioOutput) {
+        worker.execute {
+            val metadata = output.id ?: return@execute
+            if (selectedOutput == metadata) return@execute
+            selectedOutput = metadata
+            val instance = handle ?: return@execute
+            runCatching {
+                native.check("set_stream_sources(output)") {
+                    ntg_set_stream_sources(instance, callId, NtgNative.STREAM_MODE_PLAYBACK, media(microphone = metadata, camera = REMOTE_CAMERA))
+                }
+            }.onFailure { logger.w(it) { "Výstup zvuku nejde přepnout." } }
+        }
+    }
 
     /**
      * Zapne nebo vypne kameru. Před spojením si jen zapamatuje, co chtít ([start] ji pak
