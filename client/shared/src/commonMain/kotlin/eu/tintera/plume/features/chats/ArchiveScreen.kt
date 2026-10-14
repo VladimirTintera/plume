@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.resources.chats_archive_read_all
+import eu.tintera.plume.resources.done_all_24dp
+import eu.tintera.plume.core.ui.WithTooltip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -59,6 +62,7 @@ fun ArchiveScreen(
     val reorder by viewModel.reorder.collectAsStateWithLifecycle()
     val selection by viewModel.selection.collectAsStateWithLifecycle()
     val selectionActions by viewModel.selectionActions.collectAsStateWithLifecycle()
+    val archiveUnread by viewModel.archiveUnread.collectAsStateWithLifecycle()
 
     ChatActionsHost(viewModel, snackbarHostState, onArchived = onChatArchived)
 
@@ -115,6 +119,17 @@ fun ArchiveScreen(
                     }
                 },
                 actions = {
+                    // Jen když je co číst; jinak by ikona slibovala akci, která nic neudělá.
+                    if (archiveUnread.chats > 0) {
+                        WithTooltip(stringResource(Res.string.chats_archive_read_all)) {
+                            IconButton(onClick = viewModel::readArchive, shapes = IconButtonDefaults.shapes()) {
+                                Icon(
+                                    painterResource(Res.drawable.done_all_24dp),
+                                    contentDescription = stringResource(Res.string.chats_archive_read_all),
+                                )
+                            }
+                        }
+                    }
                     /*
                      * Jedna ikona místo ⋮ s jedinou položkou: uvnitř archivu nemá posuvník co
                      * jiného znamenat než jeho nastavení. Nenabízí se, dokud (nebo když) ho

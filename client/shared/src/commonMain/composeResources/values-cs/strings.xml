@@ -155,6 +155,7 @@
     <string name="chats_archive_empty_title">Archiv je prázdný</string>
     <string name="chats_archive_empty">Chat se sem přesune tahem do strany nebo z nabídky po dlouhém stisku.</string>
     <string name="chats_archive_settings">Nastavení archivu</string>
+    <string name="chats_archive_read_all">Označit archiv jako přečtený</string>
     <string name="chats_archive_unknown">Archivovat chaty od neznámých</string>
     <string name="chats_archive_unknown_summary">Nové chaty od lidí mimo kontakty půjdou rovnou sem a ztlumené.</string>
     <string name="chats_archive_keep">Nechávat chaty v archivu</string>
