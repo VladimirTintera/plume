@@ -12,6 +12,7 @@ import com.sun.jna.Native
 import com.sun.jna.Pointer
 import com.sun.jna.ptr.IntByReference
 import eu.tintera.plume.core.platform.DesktopWindow
+import eu.tintera.plume.core.platform.MacTitleBar
 import io.github.kdroidfilter.platformtools.darkmodedetector.windows.setWindowsAdaptiveTitleBar
 
 /**
@@ -25,13 +26,21 @@ import io.github.kdroidfilter.platformtools.darkmodedetector.windows.setWindowsA
  *   (#202020) a vedle tónované palety působil jako cizí pruh. Na Windows 10 atribut neexistuje,
  *   volání vrátí chybu a zůstane tmavý titulek.
  *
- * macOS bere vzhled titulku ze systémové vlastnosti nastavené před vznikem okna (vstupní bod).
+ * macOS totéž přes vlastní most do AppKitu ([MacTitleBar]): vzhled okna podle motivu a průhledný
+ * titulek nad plochou v barvě [background]. Text titulku si systém obarví podle vzhledu sám,
+ * [content] tam nemá kam jít.
  */
 @Composable
 actual fun WindowTitleBarAppearance(isDark: Boolean, background: Color, content: Color) {
-    if (!windows) return
     val window by DesktopWindow.window.collectAsState()
     val current = window ?: return
+    if (mac) {
+        LaunchedEffect(current, isDark, background) {
+            MacTitleBar.apply(current, isDark, background.red, background.green, background.blue)
+        }
+        return
+    }
+    if (!windows) return
     current.setWindowsAdaptiveTitleBar(dark = isDark)
     LaunchedEffect(current, background, content) {
         val hwnd = Native.getComponentPointer(current) ?: return@LaunchedEffect
@@ -42,7 +51,9 @@ actual fun WindowTitleBarAppearance(isDark: Boolean, background: Color, content:
     }
 }
 
-private val windows = System.getProperty("os.name").orEmpty().lowercase().contains("windows")
+private val osName = System.getProperty("os.name").orEmpty().lowercase()
+private val windows = "windows" in osName
+private val mac = "mac" in osName
 
 /** COLORREF je `0x00BBGGRR`, tedy obrácené pořadí než ARGB. */
 private fun Color.colorRef(): Int {

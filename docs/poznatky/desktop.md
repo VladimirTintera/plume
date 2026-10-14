@@ -299,9 +299,28 @@ Bílý systémový titulek nad tmavou aplikací byl nejrušivější prvek okna.
   titulek přeskočí na novou barvu hned.
 - **Okno si bere z `DesktopWindow.window`** (zapisuje vstupní bod), protože `AppTheme` je
   v `commonMain` a k `ComposeWindow` nedosáhne.
-- **macOS**: `setMacOsAdaptiveTitleBar()` ve vstupním bodu, PŘED vznikem okna (systémová
-  vlastnost `apple.awt.application.appearance`). Řídí se systémovým vzhledem, ne motivem
-  aplikace — vlastnost se čte jen při startu. Na Macu neověřené.
+- **macOS: vlastní most do AppKitu** (`MacTitleBar`, `jvmMain/objc/PlumeWindow.m`, v téže
+  knihovně jako notifikace, nahrává ji `MacNative`). Oknu nastaví `appearance` (Aqua / DarkAqua
+  podle ZVOLENÉHO motivu, za běhu), `titlebarAppearsTransparent` a `backgroundColor` = plocha
+  okna; průhledný titulek pak ukáže barvu pozadí okna. Text titulku si barví systém podle
+  vzhledu, `content` se na Macu nepoužije.
+  - **Proč ne vlastnosti `apple.awt.*` na `JRootPane`**: vzhled jednoho okna
+    (`apple.awt.windowAppearance`) má jen JetBrains Runtime, Adoptium 17 ani 25 ne (ověřeno ve
+    zdrojích `CPlatformWindow`). Barvu titulku nenastaví žádná.
+  - **Okno se hledá podle titulku** v `NSApp.windows`: ukazatel na `NSWindow` drží
+    `sun.lwawt.macosx.CPlatformWindow` a bez `--add-opens` se k němu nedosáhne. Přejmenování
+    okna za běhu by vazbu rozpojilo.
+  - **`NSWindow` vzniká až při prvním zobrazení** (spuštění schované po přihlášení ho nemá),
+    proto `MacTitleBar` čeká na `windowOpened`. Na okno se sahá jen z hlavního vlákna AppKitu
+    (`dispatch_async`), fronta událostí AWT je jiné vlákno.
+  - `setMacOsAdaptiveTitleBar()` ve vstupním bodu zůstává: drží titulek podle systému do
+    chvíle, než ho přebarví motiv — jinak by při startu v tmavém systému krátce svítil bílý.
+  - Ověřeno na macOS 26.6 v ladicím běhu, světlý i tmavý motiv (změřeno ze snímku: titulek
+    #E7EFF8 = `surfaceContainer`).
+- **Přihlašovací obrazovka leží na `surfaceContainer`**, ne na `surface`: titulek má barvu plochy
+  okna (`surfaceContainer`, seznam chatů), a nad přihlášením na `surface` byl vidět jako pruh
+  (#E7EFF8 nad #F6FAFF). Blok s telefonem je proto `surfaceContainerLowest` jako skupiny
+  v Nastavení; jinde (změna čísla, nový kontakt) zůstává `surfaceContainerLow` na `surface`.
 - Ověřeno na Windows 11 v tmavém motivu: titulek splývá s plochou okna.
 
 ## Oznamovací oblast a jediná instance
