@@ -702,7 +702,8 @@ celou aplikaci a rozdělený na dvě místa by se rozešel. Zbývá:
 
 Rozbor z října 2026. Hotové: šířkové třídy V2 a odvozené prahy, profil jako třetí panel
 (`feat/tri-panely`), panely jako karty, táhlo s kotvami, sbalený seznam a šipka
-zpět, která vedle seznamu konverzaci zavře (`feat/kotvy-panelu`). Co platí a jak se chová knihovna, je
+zpět, která vedle seznamu konverzaci zavře (`feat/kotvy-panelu`), profil, který zůstane
+otevřený při přepnutí chatu (`feat/profil-zustava`). Co platí a jak se chová knihovna, je
 v `docs/poznatky/navigace.md`, „Šířkové třídy, tři panely a kotvy" a „Táhlo, kotvy a sbalený
 seznam". Zbývá:
 
@@ -710,10 +711,7 @@ seznam". Zbývá:
    | podstránka (Soukromí → Blokovaní). Napřed se musí probrat a rozeskupit sekce samotné —
    sekce Obecné je sběrná a nesedí (připomínka uživatele z října 2026).
 
-2. **Nápad: profil zůstane otevřený při přepnutí chatu.** Dnes ho jiný chat ze seznamu zavře
-   (`coveredExtras`). Telegram Desktop panel s informacemi nechá a přepne ho na nový chat.
-
-3. **Drobnosti.**
+2. **Drobnosti.**
    - Obsah Nastavení (detail sekce) a profilu omezit čitelnou maximální šířkou; na XL by se
      řádky natáhly přes 1000 dp. Bubliny mají strop 560 dp už dnes.
    - Sbalený seznam nemá karty nad seznamem (aktualizace, nové přihlášení), FAB ani výběr víc

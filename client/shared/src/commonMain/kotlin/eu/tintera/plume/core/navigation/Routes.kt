@@ -210,8 +210,8 @@ data class SavedTopicsRoute(val chatId: Long) : Route
 data class ForumTopicsRoute(val chatId: Long) : Route
 
 /**
- * Profil chatu (ťuknutí na hlavičku konverzace). Detailový panel: na telefonu překryje konverzaci,
- * na širokém rozvržení ji v pravém panelu nahradí a zpět vede do ní.
+ * Profil chatu (ťuknutí na hlavičku konverzace). Třetí panel: na telefonu překryje konverzaci,
+ * na široké ploše stojí vedle ní a při přepnutí chatu přejde na nový (`followProfile`).
  */
 @Serializable
 data class ChatProfileRoute(val chatId: Long) : Route
@@ -222,7 +222,7 @@ data class InstantViewRoute(val url: String) : Route
 
 /**
  * Úprava skupiny nebo kanálu (název, popis, fotka, práva členů). Vrší se nad profil a je to
- * taky detailový panel — na širokém rozvržení profil vpravo nahradí.
+ * taky třetí panel — na široké ploše profil v něm nahradí.
  */
 @Serializable
 data class EditChatRoute(val chatId: Long) : Route

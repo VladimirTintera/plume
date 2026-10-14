@@ -7,6 +7,9 @@ import eu.tintera.plume.core.navigation.ArchiveInviteLinksRoute
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import androidx.navigation3.runtime.NavKey
+import eu.tintera.plume.core.adaptive.PaneInfo
+import eu.tintera.plume.core.adaptive.PaneRole
+import eu.tintera.plume.core.adaptive.coveredExtras
 import eu.tintera.plume.core.navigation.ArchiveChatProfileRoute
 import eu.tintera.plume.core.navigation.ArchiveConversationRoute
 import eu.tintera.plume.core.navigation.ArchiveRoute
@@ -279,4 +282,48 @@ internal fun MutableList<NavKey>.closeConversation(route: NavKey, list: NavKey, 
     }
     while (size > keep) removeAt(lastIndex)
     return true
+}
+
+/**
+ * Panel s profilem zůstává otevřený, i když se vedle něj přepne konverzace — jako panel
+ * s informacemi v Telegram Desktop. Na široké ploše.
+ *
+ * Profil patří ke konverzaci POD sebou, takže když se nad něj otevře jiná konverzace (jiný chat
+ * ze seznamu, zmínka, „Napsat zprávu" členovi), zakrytý profil i co se z něj otevřelo ze
+ * zásobníku zmizí ([coveredExtras]) a místo něj se hned za novou konverzaci vloží JEJÍ profil.
+ * Panel tak drží, co uživatel otevřel, a ukazuje chat, který je vedle.
+ *
+ * Konverzace bez profilu (Uložené zprávy po chatech, článek) panel zavře. Zavřený panel (✕,
+ * ťuknutí na hlavičku) se s přepnutím neotevírá — žádný profil v zásobníku není co přenést.
+ *
+ * Vrací, jestli se zásobník změnil. Na telefonu se nevolá: tam je profil pod konverzací
+ * obyčejná historie a zpět se do něj vrací.
+ */
+internal fun MutableList<NavKey>.followProfile(paneOf: (NavKey) -> PaneInfo?): Boolean {
+    val covered = coveredExtras(paneOf)
+    if (covered.isEmpty()) return false
+    val scenes = covered.mapNotNull { paneOf(this[it])?.scene }.toSet()
+    covered.forEach(::removeAt)
+    for (scene in scenes) {
+        val detail = indexOfLast { paneOf(it)?.let { info -> info.role == PaneRole.Detail && info.scene == scene } == true }
+        if (detail < 0) continue
+        // Profil téže scény nad konverzací už je (otevřel se v témže kroku) — nic nepřidávat.
+        val hasExtra = subList(detail + 1, size).any { paneOf(it)?.let { info -> info.role == PaneRole.Extra && info.scene == scene } == true }
+        val profile = this[detail].profileRoute()
+        if (!hasExtra && profile != null) add(detail + 1, profile)
+    }
+    return true
+}
+
+/** [followProfile] nad kopií — co se kreslí, než efekt opraví skutečný zásobník. */
+internal fun List<NavKey>.withProfileFollowing(paneOf: (NavKey) -> PaneInfo?): List<NavKey> =
+    if (coveredExtras(paneOf).isEmpty()) this else toMutableList().apply { followProfile(paneOf) }
+
+/** Profil chatu, který stojí v detailu; `null` = obrazovka bez profilu. */
+private fun NavKey.profileRoute(): NavKey? = when (this) {
+    is ConversationRoute -> ChatProfileRoute(chatId)
+    is ForumTopicsRoute -> ChatProfileRoute(chatId)
+    is ArchiveConversationRoute -> ArchiveChatProfileRoute(chatId)
+    is ArchiveForumTopicsRoute -> ArchiveChatProfileRoute(chatId)
+    else -> null
 }

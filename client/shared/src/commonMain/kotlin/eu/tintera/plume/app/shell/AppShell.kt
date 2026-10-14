@@ -97,10 +97,8 @@ import eu.tintera.plume.core.adaptive.LocalExpandListPane
 import eu.tintera.plume.core.adaptive.PaneInfo
 import eu.tintera.plume.core.adaptive.PaneRole
 import eu.tintera.plume.core.adaptive.THREE_PANE_MIN_WIDTH
-import eu.tintera.plume.core.adaptive.dropCoveredExtras
 import eu.tintera.plume.core.adaptive.paneInfo
 import eu.tintera.plume.core.adaptive.threePane
-import eu.tintera.plume.core.adaptive.withoutCoveredExtras
 import androidx.compose.material3.adaptive.navigation3.rememberListDetailSceneStrategy
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
@@ -374,15 +372,16 @@ private fun ShellContent(
 
         /*
          * Profil ve třetím panelu patří ke konverzaci pod sebou. Otevře-li se nad ním jiná
-         * konverzace (zmínka, „Napsat zprávu" členovi skupiny, jiný chat ze seznamu), profil
-         * ze zásobníku zmizí — scéna by ho jinak nechala vedle cizího chatu (`coveredExtras`).
-         * Stejný vzor jako sekce Nastavení výš: efekt zásobník opraví, kreslí se rovnou opravený.
-         * Na telefonu ne: tam je profil pod konverzací obyčejná historie a zpět se do něj vrací.
+         * konverzace (jiný chat ze seznamu, zmínka, „Napsat zprávu" členovi skupiny), panel
+         * zůstane otevřený a přejde na profil té nové (`followProfile`) — scéna by jinak nechala
+         * starý profil vedle cizího chatu. Stejný vzor jako sekce Nastavení výš: efekt zásobník
+         * opraví, kreslí se rovnou opravený. Na telefonu ne: tam je profil pod konverzací
+         * obyčejná historie a zpět se do něj vrací.
          */
-        val chatsDisplayed: List<NavKey> = if (wide) chatsStack.withoutCoveredExtras(paneOf) else chatsStack
-        val extrasCovered = chatsDisplayed.size != chatsStack.size
-        LaunchedEffect(extrasCovered) {
-            if (extrasCovered) chatsStack.dropCoveredExtras(paneOf)
+        val chatsDisplayed: List<NavKey> = if (wide) chatsStack.withProfileFollowing(paneOf) else chatsStack
+        val profileMoved = chatsDisplayed !== chatsStack
+        LaunchedEffect(profileMoved) {
+            if (profileMoved) chatsStack.followProfile(paneOf)
         }
 
         /*
@@ -811,7 +810,7 @@ private fun shellEntryProvider(
      * Profil je třetí panel (extra): na velké ploše se otevře vedle seznamu a konverzace, na
      * střední vedle konverzace (seznam se schová), na telefonu ji nahradí. Totéž obrazovky, které
      * se z něj otevírají — jako detail by nahradily konverzaci uprostřed. Jiná konverzace
-     * otevřená nad profilem ho na široké ploše zavře (`coveredExtras` v shellu).
+     * otevřená nad profilem ho na široké ploše vystřídá profilem té nové (`followProfile`).
      */
     entry<ChatProfileRoute>(metadata = Panes.extra()) { route ->
         val searchRequests = koinInject<ConversationSearchRequests>()
