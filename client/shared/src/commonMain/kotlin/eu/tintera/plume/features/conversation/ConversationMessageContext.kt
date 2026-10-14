@@ -78,7 +78,7 @@ internal class ConversationMessageContext(
     /**
      * Zprávy tohohle chatu, u kterých se varuje před podvodem, podle id. Samostatný tok, ne
      * součást [ConversationState]: přibývá zřídka, nezávisle na zprávách, a čte se až v položce,
-     * ne v `ConversationScreen` (ten je v dexu na hraně).
+     * ne v celé obrazovce.
      */
     val scamVerdicts: StateFlow<Map<Long, ScamKind>> = (
         scamWarnings?.verdicts?.combine(settings.scamWarningsEnabled) { all, on ->

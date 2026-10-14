@@ -132,6 +132,13 @@ import eu.tintera.plume.core.location.GeoPoint
  * Zprávy se drží **seřazené od nejnovější po nejstarší**, protože stejně je vykresluje
  * `LazyColumn(reverseLayout = true)` — nejnovější dole, stránkování nahoru. Kdyby se držely
  * opačně, každé přidání staré stránky by znamenalo přepočet celého seznamu.
+ *
+ * **Sám drží jen jádro**: stav ([state]) a jeho plnění z TDLib (`observeUpdates`), stránkování,
+ * skoky na zprávu, hlášení přečtení, připnuté zprávy, reklamy a rozcestník akcí z bubliny
+ * ([onAction]). Všechno ostatní dělají části (`ConversationComposer`, `ConversationLinks`,
+ * `ConversationBots`…), které dostávají sdílený stav a jen ty závislosti, které potřebují;
+ * ViewModel na ně deleguje a jeho veřejné API pro obrazovku je tak pořád na jednom místě.
+ * Mapa částí: „Skladba ViewModelu" v `docs/poznatky/konverzace-zobrazeni.md`.
  */
 class ConversationViewModel(
     val chatId: Long,
