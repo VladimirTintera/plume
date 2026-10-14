@@ -563,6 +563,35 @@ class TdlProfileRepository(
         return ProfilePhoto(id = id, addedDate = addedDate, media = media)
     }
 
+    override suspend fun commonGroups(userId: Long): Result<List<RelatedChat>> = runCatching {
+        val found = client.getGroupsInCommon(userId = userId, offsetChatId = 0, limit = RELATED_CHATS_LIMIT)
+            .toResult().getOrThrow()
+        found.chatIds.toList().mapNotNull { relatedChat(it) }
+    }
+
+    override suspend fun similarChannels(chatId: Long): Result<List<RelatedChat>> = runCatching {
+        val found = client.getChatSimilarChats(chatId = chatId).toResult().getOrThrow()
+        found.chatIds.toList().take(RELATED_CHATS_LIMIT).mapNotNull { relatedChat(it) }
+    }
+
+    /** Chat do záložky: název, fotka a počet členů. Chat, který se načíst nedá, se vynechá. */
+    private suspend fun relatedChat(chatId: Long): RelatedChat? {
+        val chat = client.getChat(chatId = chatId).toResult().getOrNull() ?: return null
+        val count = when (val type = chat.type) {
+            is ChatTypeSupergroup -> client.getSupergroup(supergroupId = type.supergroupId).toResult().getOrNull()?.memberCount
+            is ChatTypeBasicGroup -> client.getBasicGroup(basicGroupId = type.basicGroupId).toResult().getOrNull()?.memberCount
+            else -> null
+        }
+        return RelatedChat(
+            chatId = chat.id,
+            title = chat.title,
+            photoFileId = chat.photo?.small?.id,
+            // Supergroup bez načtených údajů hlásí nulu; „0 členů" by lhalo.
+            memberCount = count?.takeIf { it > 0 },
+            isChannel = (chat.type as? ChatTypeSupergroup)?.isChannel == true,
+        )
+    }
+
     override suspend fun members(
         chatId: Long,
         query: String,

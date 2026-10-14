@@ -392,9 +392,10 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - Označit celou složku jako přečtenou (`readChatList`).
 - Odebrat jednu položku z nedávného hledání a z nejčastějších lidí (`removeRecentlyFoundChat`,
   `removeTopChat`).
-- Záložky profilu, které chybí: společné skupiny (`getGroupsInCommon`), podobné kanály
-  (`getChatSimilarChats`), GIFy a kolečka (filtry `SearchMessagesFilterAnimation` /
-  `…VideoNote` se nepoužívají).
+- ~~Záložky profilu, které chybí: společné skupiny (`getGroupsInCommon`), podobné kanály
+  (`getChatSimilarChats`), GIFy a kolečka~~ — hotovo (`docs/poznatky/profil-chatu.md`,
+  „Sdílená média v profilu"). Zbývá ověřit podobné kanály a posuvnou řadu záložek; hlasovky
+  jako vlastní záložka (`SearchMessagesFilterVoiceNote`) nejsou.
 
 **Novinky TDLib, na které se zatím nesáhlo:** AI úpravy textu od serveru
 (`composeTextWithAi`, `fixTextWithAi`, styly psaní), komunity (`createCommunity`), hudba

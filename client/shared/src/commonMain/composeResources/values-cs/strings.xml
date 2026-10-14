@@ -374,6 +374,12 @@
     <string name="profile_mute">Ztlumit</string>
     <string name="profile_tab_files">Soubory</string>
     <string name="profile_tab_links">Odkazy</string>
+    <string name="profile_tab_gifs">GIFy</string>
+    <string name="profile_tab_video_notes">Kolečka</string>
+    <string name="profile_tab_common_groups">Skupiny</string>
+    <string name="profile_tab_similar_channels">Podobné</string>
+    <string name="profile_shared_gif">GIF</string>
+    <string name="profile_shared_video_note">Video kolečko</string>
     <string name="profile_tab_media">Média</string>
     <string name="profile_tab_members">Členové</string>
     <string name="profile_tab_music">Hudba</string>

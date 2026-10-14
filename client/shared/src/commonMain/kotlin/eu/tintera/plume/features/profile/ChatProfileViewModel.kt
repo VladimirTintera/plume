@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.telegram.RelatedChat
 import eu.tintera.plume.core.chatcolor.ChatColors
 import eu.tintera.plume.core.settings.ThemeColor
 import kotlinx.coroutines.flow.SharingStarted
@@ -151,6 +152,7 @@ class ChatProfileViewModel(
                     _state.update { it.copy(profile = profile, loading = false) }
                     if (profile.canListMembers) loadMembers(query = "")
                     if (profile.kind == ProfileKind.User) observePresence()
+                    loadRelatedChats(profile)
                 }
                 .onFailure { failure ->
                     _state.update { it.copy(loading = false, error = failure.reported(Res.string.profile_failed)) }
@@ -568,6 +570,29 @@ class ChatProfileViewModel(
     }
 
     /** Člen skupiny: otevře se soukromý chat s ním (TDLib ho založí lokálně, nic se neposílá). */
+    /**
+     * Společné skupiny (u člověka a bota) a podobné kanály (u kanálu). Selhání se nehlásí, jen
+     * se záložka neukáže — profil je k užitku i bez nich, stejně jako bez sdíleného obsahu.
+     */
+    private fun loadRelatedChats(profile: ChatProfile) {
+        viewModelScope.launch {
+            when (profile.kind) {
+                ProfileKind.User, ProfileKind.Bot -> profiles.commonGroups(profile.userId ?: chatId)
+                    .onSuccess { found -> _state.update { it.copy(commonGroups = found) } }
+                    .onFailure { logger.w(it) { "Společné skupiny se nepodařilo načíst." } }
+                ProfileKind.Channel -> profiles.similarChannels(chatId)
+                    .onSuccess { found -> _state.update { it.copy(similarChannels = found) } }
+                    .onFailure { logger.w(it) { "Podobné kanály se nepodařilo načíst." } }
+                ProfileKind.Group, ProfileKind.SavedMessages -> Unit
+            }
+        }
+    }
+
+    /** Ťuknutí na skupinu nebo kanál v záložce: otevřít ho jako konverzaci. */
+    fun openRelatedChat(chatId: Long) {
+        _state.update { it.copy(openChat = chatId) }
+    }
+
     fun openMember(userId: Long) {
         viewModelScope.launch {
             chats.privateChat(userId)
@@ -809,6 +834,10 @@ data class ChatProfileState(
     val autoDeleteSheet: Boolean = false,
     /** `null`, dokud počty nedorazí; teprve podle nich se vykreslí záložky. */
     val counts: SharedMediaCounts? = null,
+    /** Společné skupiny s uživatelem; `null` = nenačtené nebo se nehodí (záložka se nekreslí). */
+    val commonGroups: List<RelatedChat>? = null,
+    /** Podobné kanály; `null` = nenačtené nebo nejde o kanál. */
+    val similarChannels: List<RelatedChat>? = null,
     /** Načtený obsah záložek; chybějící klíč = záložka se ještě neukázala. */
     val shared: Map<SharedMediaKind, SharedMediaTab> = emptyMap(),
     /** Text v poli hledání záložky — může předbíhat [SharedMediaTab.query], dokud server neodpoví. */
@@ -846,6 +875,10 @@ data class ChatProfileState(
                 SharedMediaKind.entries.forEach { kind ->
                     if (counts.of(kind) > 0) add(ProfileTab.Shared(kind))
                 }
+                // Na konci: dorazí samostatným dotazem a záložka přidaná doprostřed by posunula
+                // tu, na které uživatel zrovna stojí.
+                if (!commonGroups.isNullOrEmpty()) add(ProfileTab.CommonGroups)
+                if (!similarChannels.isNullOrEmpty()) add(ProfileTab.SimilarChannels)
             }
         }
 
@@ -873,6 +906,12 @@ data class MemberRightsTarget(val userId: Long, val admin: Boolean)
 sealed interface ProfileTab {
     data object Members : ProfileTab
     data class Shared(val kind: SharedMediaKind) : ProfileTab
+
+    /** Skupiny, ve kterých je člověk i účet. Jen profil uživatele a bota. */
+    data object CommonGroups : ProfileTab
+
+    /** Kanály podobné tomuhle. Jen profil kanálu. */
+    data object SimilarChannels : ProfileTab
 }
 
 /** Pauza v psaní, po které se hledání členů zeptá serveru. */

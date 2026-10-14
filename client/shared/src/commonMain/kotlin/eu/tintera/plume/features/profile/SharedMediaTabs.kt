@@ -1,5 +1,15 @@
 package eu.tintera.plume.features.profile
 
+import org.jetbrains.compose.resources.pluralStringResource
+import eu.tintera.plume.resources.invite_subscribers
+import eu.tintera.plume.resources.invite_members
+import eu.tintera.plume.resources.gif_box_24dp
+import eu.tintera.plume.resources.videocam_24dp
+import eu.tintera.plume.resources.profile_shared_video_note
+import eu.tintera.plume.resources.profile_shared_gif
+import eu.tintera.plume.core.ui.grouped
+import eu.tintera.plume.core.telegram.RelatedChat
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.LocalTextStyle
 import eu.tintera.plume.resources.profile_shared_music_play
 import eu.tintera.plume.resources.profile_shared_music_pause
@@ -283,6 +293,139 @@ private fun MediaTile(message: ChatMessage, media: MessageMedia, shape: Shape, o
                     modifier = Modifier.padding(2.dp).size(16.dp),
                 )
             }
+        }
+    }
+}
+
+/**
+ * GIFy a video kolečka: mřížka náhledů jako Média, u koleček kulatých s délkou. Prohlížeč
+ * ani jedno neumí, takže ťuknutí zavře profil a skočí na zprávu v konverzaci ([onOpen]) —
+ * tam se GIF i kolečko přehrají jako vždycky.
+ */
+@Composable
+internal fun SharedClipsGrid(
+    messages: List<ChatMessage>,
+    loading: Boolean,
+    contentPadding: PaddingValues,
+    onOpen: (messageId: Long) -> Unit,
+    onLoadMore: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(MEDIA_COLUMNS),
+        contentPadding = contentPadding,
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = modifier.fillMaxSize(),
+    ) {
+        val clips = messages.filter { it.media is MessageMedia.Animation || it.media is MessageMedia.VideoNote }
+        itemsIndexed(clips, key = { _, message -> message.id }) { index, message ->
+            LoadMoreAtEnd(index, clips.size, onLoadMore)
+            ClipTile(message, shape = mediaTileShape(index, clips.size), onOpen = { onOpen(message.id) })
+        }
+        if (loading) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                TabLoading()
+            }
+        }
+    }
+}
+
+/**
+ * Dlaždice GIFu nebo kolečka: statický náhled (pohyb by u desítek dlaždic naráz stál víc, než
+ * dá), u GIFu štítek „GIF", u kolečka kruh a délka. **Skrytý GIF (spoiler) zůstává rozostřený**
+ * jako v Médiích; tady se ale neodkrývá — otevře se v konverzaci, a ta ho odkryje sama.
+ */
+@Composable
+private fun ClipTile(message: ChatMessage, shape: Shape, onOpen: () -> Unit) {
+    val gif = message.media as? MessageMedia.Animation
+    val note = message.media as? MessageMedia.VideoNote
+    val thumbnail = gif?.thumbnailFileId ?: note?.thumbnailFileId
+    val spoilerStyle = rememberSpoilerBlurStyle()
+    Box(
+        Modifier
+            .aspectRatio(1f)
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .clickable(onClick = onOpen),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                // Kolečko je v konverzaci kruh; ve čtverci by vypadalo jako obyčejné video.
+                .then(if (note != null) Modifier.padding(6.dp).clip(CircleShape) else Modifier)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (thumbnail != null) {
+                RemoteImage(
+                    fileId = thumbnail,
+                    thumbnailFileId = thumbnail,
+                    placeholder = gif?.minithumbnail ?: note?.minithumbnail,
+                    contentDescription = stringResource(
+                        if (note != null) Res.string.profile_shared_video_note else Res.string.profile_shared_gif,
+                    ),
+                    modifier = Modifier.fillMaxSize().spoilerBlur(gif?.hasSpoiler == true, revealed = false, spoilerStyle),
+                )
+            } else {
+                Icon(painterResource(if (note != null) Res.drawable.videocam_24dp else Res.drawable.gif_box_24dp), contentDescription = null)
+            }
+        }
+        Surface(
+            shape = RoundedCornerShape(percent = 50),
+            color = Color.Black.copy(alpha = VIDEO_BADGE_ALPHA),
+            contentColor = Color.White,
+            modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
+        ) {
+            Text(
+                text = if (note != null) formatDuration(note.durationSeconds) else stringResource(Res.string.profile_shared_gif),
+                style = MaterialTheme.typography.labelSmall.tabularNumbers(),
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+            )
+        }
+    }
+}
+
+/**
+ * Společné skupiny nebo podobné kanály: řádky jako členové — avatar, název a počet členů.
+ * Ťuknutí otevře chat ([onOpen]).
+ */
+@Composable
+internal fun RelatedChatsList(
+    chats: List<RelatedChat>,
+    contentPadding: PaddingValues,
+    onOpen: (chatId: Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LazyColumn(
+        contentPadding = contentPadding,
+        verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
+        modifier = modifier.fillMaxSize(),
+    ) {
+        itemsIndexed(chats, key = { _, chat -> chat.chatId }) { index, chat ->
+            ListItem(
+                headlineContent = { Text(chat.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                supportingContent = chat.memberCount?.let { count ->
+                    {
+                        Text(
+                            pluralStringResource(
+                                if (chat.isChannel) Res.plurals.invite_subscribers else Res.plurals.invite_members,
+                                count,
+                                count.grouped(),
+                            ),
+                        )
+                    }
+                },
+                leadingContent = {
+                    Avatar(chatId = chat.chatId, title = chat.title, avatarFileId = chat.photoFileId, size = MEMBER_AVATAR_SIZE)
+                },
+                colors = rowColors(),
+                modifier = Modifier
+                    .animateItem()
+                    .clip(groupItemShape(index, chats.size))
+                    .clickable { onOpen(chat.chatId) },
+            )
         }
     }
 }

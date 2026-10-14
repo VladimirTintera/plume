@@ -57,6 +57,18 @@ interface ProfileRepository {
      * [filter] omezení a vyhození vydá jen supergroup (a kanál) a jen správci, který smí omezovat
      * — základní skupina vyhozené nevede, vyhození je v ní jen odebrání. Správci napřed tam nejsou.
      */
+    /**
+     * Skupiny, ve kterých je uživatel [userId] i účet (`getGroupsInCommon`), nejvýš
+     * [RELATED_CHATS_LIMIT] — víc se do záložky profilu stejně nikdo dívat nebude.
+     */
+    suspend fun commonGroups(userId: Long): Result<List<RelatedChat>>
+
+    /**
+     * Kanály podobné kanálu [chatId] (`getChatSimilarChats`). Bez Premium jich server vydá
+     * jen pár, a to stačí.
+     */
+    suspend fun similarChannels(chatId: Long): Result<List<RelatedChat>>
+
     suspend fun members(
         chatId: Long,
         query: String = "",
@@ -427,6 +439,19 @@ data class ProfileMember(
 )
 
 enum class MemberRole { Owner, Admin, Member }
+
+/** Chat v záložce Společné skupiny nebo Podobné kanály. */
+data class RelatedChat(
+    val chatId: Long,
+    val title: String,
+    val photoFileId: Int?,
+    /** Počet členů / odběratelů; `null`, když ho server nevydal. */
+    val memberCount: Int?,
+    val isChannel: Boolean,
+)
+
+/** Kolik společných skupin a podobných kanálů se čte — víc jich v záložce nikdo procházet nebude. */
+const val RELATED_CHATS_LIMIT = 100
 
 /** Které členy číst: běžný seznam, nebo ty, kterým správce něco zakázal. */
 enum class MemberFilter {

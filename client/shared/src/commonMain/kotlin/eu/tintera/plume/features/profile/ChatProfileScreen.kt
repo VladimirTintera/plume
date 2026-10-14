@@ -1,5 +1,14 @@
 package eu.tintera.plume.features.profile
 
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.layout.Layout
+import androidx.compose.foundation.horizontalScroll
+import eu.tintera.plume.resources.profile_tab_similar_channels
+import eu.tintera.plume.resources.profile_tab_common_groups
+import eu.tintera.plume.resources.profile_tab_video_notes
+import eu.tintera.plume.resources.profile_tab_gifs
+import eu.tintera.plume.resources.campaign_24dp
+import eu.tintera.plume.resources.gif_box_24dp
 import eu.tintera.plume.resources.profile_personal_channel
 import eu.tintera.plume.resources.profile_personal_channel_subscribers
 import eu.tintera.plume.core.telegram.Birthdate
@@ -521,6 +530,7 @@ fun ChatProfileScreen(
                 header = header,
                 topPadding = padding.calculateTopPadding(),
                 bottomPadding = 24.dp + bottom,
+                onOpenMessage = onOpenMessage,
             )
         }
     }
@@ -551,6 +561,7 @@ private fun ProfileTabs(
     header: @Composable () -> Unit,
     topPadding: Dp,
     bottomPadding: Dp,
+    onOpenMessage: (messageId: Long) -> Unit,
 ) {
     /*
      * Počet stránek i klíč čtou TÝŽ stav. Pager je uvnitř `BoxWithConstraints`
@@ -602,7 +613,13 @@ private fun ProfileTabs(
                 LaunchedEffect(tab) {
                     if (tab is ProfileTab.Shared) viewModel.loadShared(tab.kind)
                 }
-                TabContent(tab = tab, state = state, viewModel = viewModel, contentPadding = contentPadding)
+                TabContent(
+                    tab = tab,
+                    state = state,
+                    viewModel = viewModel,
+                    contentPadding = contentPadding,
+                    onOpenMessage = onOpenMessage,
+                )
             }
         }
     }
@@ -641,51 +658,109 @@ private fun ProfileTabSelector(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-        modifier = modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .selectableGroup(),
-    ) {
-        tabs.forEachIndexed { index, tab ->
-            val checked = index == selected
-            val weight by animateFloatAsState(
-                targetValue = if (checked && tabs.size > 1) SELECTED_TAB_WEIGHT else 1f,
-                animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-                label = "profile-tab-weight",
-            )
-            ToggleButton(
-                checked = checked,
-                onCheckedChange = { onSelect(index) },
-                shapes = when {
-                    tabs.size == 1 -> ToggleButtonDefaults.shapes()
-                    index == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                    index == tabs.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                },
-                // Čtyři popisky se na telefon vejdou jen s užším vnitřním odsazením.
-                contentPadding = PaddingValues(horizontal = 8.dp),
-                modifier = Modifier.weight(weight).semantics { role = Role.Tab },
-            ) {
-                AnimatedVisibility(
-                    visible = checked,
-                    enter = expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()) +
-                        scaleIn(MaterialTheme.motionScheme.defaultSpatialSpec()) +
-                        fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
-                    exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) +
-                        fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
-                ) {
-                    Icon(
-                        painterResource(tab.icon()),
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = ButtonDefaults.IconSpacing).size(ButtonDefaults.IconSize),
-                    )
-                }
-                Text(stringResource(tab.label()), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    if (tabs.size <= MAX_FITTING_TABS) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+            modifier = modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(horizontal = TABS_PADDING, vertical = 8.dp)
+                .selectableGroup(),
+        ) {
+            tabs.forEachIndexed { index, tab ->
+                val weight by animateFloatAsState(
+                    targetValue = if (index == selected && tabs.size > 1) SELECTED_TAB_WEIGHT else 1f,
+                    animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+                    label = "profile-tab-weight",
+                )
+                ProfileTabButton(tabs, index, tab, selected, onSelect, Modifier.weight(weight))
             }
         }
+        return
+    }
+
+    /*
+     * Víc než čtyři záložky: každé tlačítko má svoji šířku. Když se vejdou, rozdělí se zbylé
+     * místo rovným dílem (řada s mezerou vpravo vypadala nedodělaně); když ne, řada se posouvá
+     * do strany a vybraná se po změně — i tahem pageru — posune do viditelné části.
+     */
+    val rowScroll = rememberScrollState()
+    val tabStarts = remember { mutableMapOf<Int, Int>() }
+    val margin = with(LocalDensity.current) { TABS_PADDING.roundToPx() }
+    LaunchedEffect(selected) {
+        tabStarts[selected]?.let { rowScroll.animateScrollTo((it - margin).coerceAtLeast(0)) }
+    }
+    BoxWithConstraints(modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface)) {
+        val viewport = constraints.maxWidth
+        Layout(
+            content = {
+                tabs.forEachIndexed { index, tab -> ProfileTabButton(tabs, index, tab, selected, onSelect) }
+            },
+            modifier = Modifier
+                .horizontalScroll(rowScroll)
+                .padding(horizontal = TABS_PADDING, vertical = 8.dp)
+                .selectableGroup(),
+        ) { measurables, _ ->
+            val gap = ButtonGroupDefaults.ConnectedSpaceBetween.roundToPx()
+            val natural = measurables.map { it.maxIntrinsicWidth(Constraints.Infinity) }
+            val available = viewport - 2 * TABS_PADDING.roundToPx() - gap * (measurables.size - 1)
+            val extra = ((available - natural.sum()) / measurables.size).coerceAtLeast(0)
+            val placeables = measurables.mapIndexed { index, measurable ->
+                val width = natural[index] + extra
+                measurable.measure(Constraints(minWidth = width, maxWidth = width))
+            }
+            val width = placeables.sumOf { it.width } + gap * (placeables.size - 1)
+            layout(width, placeables.maxOf { it.height }) {
+                var x = 0
+                placeables.forEachIndexed { index, placeable ->
+                    tabStarts[index] = x
+                    placeable.placeRelative(x, 0)
+                    x += placeable.width + gap
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ProfileTabButton(
+    tabs: List<ProfileTab>,
+    index: Int,
+    tab: ProfileTab,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val checked = index == selected
+    ToggleButton(
+        checked = checked,
+        onCheckedChange = { onSelect(index) },
+        shapes = when {
+            tabs.size == 1 -> ToggleButtonDefaults.shapes()
+            index == 0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+            index == tabs.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+            else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+        },
+        // Čtyři popisky se na telefon vejdou jen s užším vnitřním odsazením.
+        contentPadding = PaddingValues(horizontal = 8.dp),
+        modifier = modifier.semantics { role = Role.Tab },
+    ) {
+        AnimatedVisibility(
+            visible = checked,
+            enter = expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+                scaleIn(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+                fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+            exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+        ) {
+            Icon(
+                painterResource(tab.icon()),
+                contentDescription = null,
+                modifier = Modifier.padding(end = ButtonDefaults.IconSpacing).size(ButtonDefaults.IconSize),
+            )
+        }
+        Text(stringResource(tab.label()), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -695,8 +770,22 @@ private fun TabContent(
     state: ChatProfileState,
     viewModel: ChatProfileViewModel,
     contentPadding: PaddingValues,
+    /** GIF a kolečko: zavřít profil a skočit na zprávu, prohlížeč je neumí. */
+    onOpenMessage: (messageId: Long) -> Unit,
 ) {
     when (tab) {
+        ProfileTab.CommonGroups -> RelatedChatsList(
+            chats = state.commonGroups.orEmpty(),
+            contentPadding = contentPadding,
+            onOpen = viewModel::openRelatedChat,
+        )
+
+        ProfileTab.SimilarChannels -> RelatedChatsList(
+            chats = state.similarChannels.orEmpty(),
+            contentPadding = contentPadding,
+            onOpen = viewModel::openRelatedChat,
+        )
+
         ProfileTab.Members -> ProfileMembersList(
             list = state.members,
             contentPadding = contentPadding,
@@ -774,6 +863,14 @@ private fun TabContent(
                     onOpen = viewModel::openLink,
                     onLoadMore = { viewModel.loadMoreShared(tab.kind) },
                 )
+
+                SharedMediaKind.Gifs, SharedMediaKind.VideoNotes -> SharedClipsGrid(
+                    messages = messages,
+                    loading = loading,
+                    contentPadding = contentPadding,
+                    onOpen = onOpenMessage,
+                    onLoadMore = { viewModel.loadMoreShared(tab.kind) },
+                )
             }
         }
     }
@@ -781,7 +878,7 @@ private fun TabContent(
 
 /** Nápověda v poli hledání záložky; média hledání nemají (viz [offersSharedSearch]). */
 private fun SharedMediaKind.searchPlaceholder(): StringResource = when (this) {
-    SharedMediaKind.Media, SharedMediaKind.Files -> Res.string.profile_search_files
+    SharedMediaKind.Media, SharedMediaKind.Files, SharedMediaKind.Gifs, SharedMediaKind.VideoNotes -> Res.string.profile_search_files
     SharedMediaKind.Music -> Res.string.profile_search_music
     SharedMediaKind.Links -> Res.string.profile_search_links
 }
@@ -791,6 +888,8 @@ private val ProfileTab.key: String
     get() = when (this) {
         ProfileTab.Members -> "members"
         is ProfileTab.Shared -> kind.name
+        ProfileTab.CommonGroups -> "common-groups"
+        ProfileTab.SimilarChannels -> "similar-channels"
     }
 
 /** Ikona vybrané záložky; vyplněná varianta tam, kde ji Material Symbols má. */
@@ -801,8 +900,18 @@ private fun ProfileTab.icon(): DrawableResource = when (this) {
         SharedMediaKind.Files -> Res.drawable.description_filled_24dp
         SharedMediaKind.Music -> Res.drawable.music_note_24dp
         SharedMediaKind.Links -> Res.drawable.link_24dp
+        SharedMediaKind.Gifs -> Res.drawable.gif_box_24dp
+        SharedMediaKind.VideoNotes -> Res.drawable.videocam_24dp
     }
+    ProfileTab.CommonGroups -> Res.drawable.group_filled_24dp
+    ProfileTab.SimilarChannels -> Res.drawable.campaign_24dp
 }
+
+/** Kolik záložek se vejde do řady na telefon; s víc má každá svou šířku a řada se může posouvat. */
+private const val MAX_FITTING_TABS = 4
+
+/** Odsazení řady záložek od kraje, stejné jako u stránek pod ní. */
+private val TABS_PADDING = 16.dp
 
 /** O kolik je vybraná záložka širší než ostatní — přesně tolik, aby se vešla ikona. */
 private const val SELECTED_TAB_WEIGHT = 1.4f
@@ -814,7 +923,11 @@ private fun ProfileTab.label(): StringResource = when (this) {
         SharedMediaKind.Files -> Res.string.profile_tab_files
         SharedMediaKind.Music -> Res.string.profile_tab_music
         SharedMediaKind.Links -> Res.string.profile_tab_links
+        SharedMediaKind.Gifs -> Res.string.profile_tab_gifs
+        SharedMediaKind.VideoNotes -> Res.string.profile_tab_video_notes
     }
+    ProfileTab.CommonGroups -> Res.string.profile_tab_common_groups
+    ProfileTab.SimilarChannels -> Res.string.profile_tab_similar_channels
 }
 
 @Composable

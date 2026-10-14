@@ -727,6 +727,25 @@ obsahu bývá zlomek zpráv.
 - **Ověřeno na emulátoru** v chatu s Notifikátorem: „klip" v Souborech našel `klip.mp4`,
   nesmysl ukázal „Nic nenalezeno", ✕ vrátil celý seznam, „meet" v Odkazech našel zprávu podle
   textu, Hudba s pár skladbami pole nemá.
+- **GIFy a kolečka jsou další dva druhy** (`SharedMediaKind.Gifs` / `VideoNotes`, filtry
+  `SearchMessagesFilterAnimation` / `…VideoNote`): mřížka statických náhledů (`SharedClipsGrid`),
+  u GIFu štítek, u kolečka kruh a délka. **Prohlížeč ani jedno neumí**, takže ťuknutí zavře
+  profil a skočí na zprávu v konverzaci (`onOpenMessage`, táž cesta jako záložky zpráv) — tam
+  se přehrají jako vždycky. Hledání nemají (není podle čeho), mizející kolečko se vyřazuje.
+- **Společné skupiny a podobné kanály jsou záložky se seznamem chatů** (`ProfileTab.CommonGroups`
+  / `SimilarChannels`, `getGroupsInCommon` / `getChatSimilarChats`, nejvýš 100). Čtou se
+  samostatně po načtení profilu a **přidávají se NA KONEC řady**: záložka vložená doprostřed by
+  posunula tu, na které uživatel zrovna stojí. Selhání se nehlásí, záložka se jen neukáže.
+- **Víc než čtyři záložky mají každá svou šířku** (`ProfileTabSelector`, vlastní `Layout`):
+  když se vejdou, rozdělí se zbylé místo rovným dílem, když ne, řada se posouvá do strany
+  a vybraná se po změně posune do viditelné části. První verze jen posouvala — pět záložek se
+  vešlo a vpravo zela mezera, což vypadalo nedodělaně. Do čtyř zůstávají váhy s rozšířenou
+  vybranou, jak byly.
+- **Ověřeno na emulátoru** (14. 10. 2026, účet …527, profil „Pixel 7 Pro"): záložky Média,
+  Odkazy, GIFy, Kolečka, Skupiny přes celou šířku i po výběru poslední; kulaté kolečko s délkou,
+  GIF se štítkem, ťuknutí na obojí skočilo na zprávu; pět společných skupin s počty, ťuknutí
+  otevřelo skupinu. **Podobné kanály a řada, která se nevejde a posouvá, ověřené NEJSOU** —
+  testovací účet nemá kanál, ke kterému by server podobné vydal.
 - **`mailto:` se v adrese neukazuje** (`displayUrl`, testy `SharedMediaTest`). Filtr odkazů bere
   i e-maily a schéma u nich nic neříká; `https` od `tg` odlišit potřeba je, takže se zahazuje
   jen ono.
