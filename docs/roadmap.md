@@ -411,8 +411,8 @@ ukončení, notifikace, zákaz snímků. Zbývá:
 
 ## Hovory
 
-Hovory nejsou vůbec: zpráva o hovoru je jen řádek v historii a příchozí hovor se na Androidu
-ohlásí notifikací, která ho umí jen odmítnout (krok 1 níž). Přijmout ani zavolat nejde.
+Hovory ve dvou fungují na Androidu (zvuk i video) a na desktopu (jen zvuk), viz krok 2 níž;
+iOS a skupinové hovory chybí.
 
 **TDLib umí jen signalizaci, ne přenos zvuku a obrazu.** Založení, přijetí, zavěšení
 (`createCall`, `acceptCall`, `discardCall`), stav přes `updateCall`, výměnu klíčů s emoji
@@ -474,6 +474,9 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
      z oficiálního Telegramu do Plume; dlouhý videohovor (teplota, baterie).
    - **Play Console: deklarovat typ služby v popředí `camera`** (kamera videohovoru na pozadí)
      — udělá uživatel, bez toho Play vydání s videohovory nepustí.
+   - **Sdílení obrazovky** — ntgcalls na Androidu obrazovku snímat umí (`MediaProjection`),
+     TDLib ho má jen pro videochaty. Nejdřív sonda v hovoru ve dvou do oficiálního klienta;
+     průzkum a otevřené otázky v `docs/poznatky/hovory.md`, „Sdílení obrazovky".
    - **iOS** (tgcalls xcframework, CallKit, VoIP pushe) a **skupinové hovory / videochaty**.
    Původní plán sondy:
 
