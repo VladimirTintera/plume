@@ -83,9 +83,17 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
 import eu.tintera.plume.core.adaptive.Panes
+import eu.tintera.plume.core.adaptive.PANE_SPACING
+import eu.tintera.plume.core.adaptive.PaneCard
+import eu.tintera.plume.core.adaptive.listWidthBesideProfile
+import eu.tintera.plume.core.adaptive.rememberPaneCardDecorator
+import eu.tintera.plume.core.adaptive.LocalExpandListPane
 import eu.tintera.plume.core.adaptive.PaneInfo
 import eu.tintera.plume.core.adaptive.PaneRole
 import eu.tintera.plume.core.adaptive.THREE_PANE_MIN_WIDTH
@@ -340,21 +348,29 @@ private fun ShellContent(
             chatsStack.removeAll { it is ShareToChatRoute }
             returnToCaller()
         }
-        // Role panelu se čte z metadat položky (`Panes`), a ty zná jen poskytovatel položek.
-        // Ptá se na ni i on sám (seznam chatů: je konverzace vidět?), proto odkaz přes proměnnou.
+        /*
+         * Role panelu se čte z metadat položky (`Panes`), a ty zná jen poskytovatel položek.
+         * Ptá se na ni i on sám (seznam chatů: je konverzace vidět?), proto odkaz přes proměnnou.
+         * Poskytovatel se staví dvakrát: šířka seznamu ve třech panelech (níž) se počítá z rolí
+         * a sama jde do metadat seznamu. Role na ní nezávisí, takže na první stačí bez ní.
+         */
         lateinit var entryProvider: (NavKey) -> NavEntry<NavKey>
         val paneOf: (NavKey) -> PaneInfo? = { entryProvider(it).paneInfo }
-        entryProvider = shellEntryProvider(
-            chatsStack = chatsStack,
-            settingsStack = settingsStack,
-            selectedSettingsSection = settingsDisplayed.filterIsInstance<SettingsSectionRoute>()
-                .lastOrNull()?.section,
-            wide = wide,
-            twoPane = twoPane,
-            paneOf = paneOf,
-            closeShare = closeShare,
-            navigation = navigation,
-        )
+        val buildEntryProvider = { listPaneWidth: Dp? ->
+            shellEntryProvider(
+                chatsStack = chatsStack,
+                settingsStack = settingsStack,
+                selectedSettingsSection = settingsDisplayed.filterIsInstance<SettingsSectionRoute>()
+                    .lastOrNull()?.section,
+                wide = wide,
+                twoPane = twoPane,
+                paneOf = paneOf,
+                listPaneWidth = listPaneWidth,
+                closeShare = closeShare,
+                navigation = navigation,
+            )
+        }
+        entryProvider = buildEntryProvider(null)
 
         /*
          * Profil ve třetím panelu patří ke konverzaci pod sebou. Otevře-li se nad ním jiná
@@ -378,11 +394,31 @@ private fun ShellContent(
          */
         val extraShown = navigation.section == ChatsRoute &&
             chatsDisplayed.lastOrNull { paneOf(it) != null }?.let(paneOf)?.role == PaneRole.Extra
+        val threePane = twoPane && extraShown && maxWidth >= THREE_PANE_MIN_WIDTH
         val directive = when {
             !twoPane -> base.singlePane()
-            extraShown && maxWidth >= THREE_PANE_MIN_WIDTH -> base.threePane()
+            threePane -> base.threePane()
             else -> base.twoPane()
         }
+
+        /*
+         * Táhlo jen mezi HLAVNÍM seznamem chatů a konverzací. Archiv, nová zpráva a Nastavení
+         * mají svou výchozí šířku: sbalený archiv by byl jen sloupec avatarů bez vysvětlení,
+         * co je to za seznam. Mezi konverzací a profilem (pod Large) taky ne — stav táhla
+         * počítá šířku PRVNÍHO panelu, takže by konverzaci zmáčkl na šířku sbaleného seznamu.
+         * Ve třech panelech táhlo knihovna nekreslí vůbec; zvolená šířka seznamu tam jde
+         * metadaty ([listWidthBesideProfile]).
+         */
+        val listExpansion = rememberListPaneExpansion(base.defaultPanePreferredWidth)
+        val mainListShown = navigation.section == ChatsRoute &&
+            chatsDisplayed.lastOrNull { paneOf(it)?.role == PaneRole.List } == ChatsRoute
+        val draggable = twoPane && mainListShown && !extraShown
+        val listPaneWidth = if (threePane && mainListShown) {
+            listWidthBesideProfile(listExpansion.anchor, maxWidth, base.defaultPanePreferredWidth, PANE_SPACING)
+        } else {
+            null
+        }
+        if (listPaneWidth != null) entryProvider = buildEntryProvider(listPaneWidth)
 
         ShellShortcuts(navigation = navigation, chatsStack = chatsStack, twoPane = twoPane)
 
@@ -391,14 +427,30 @@ private fun ShellContent(
         // Id Uložených zpráv pro všechno, co kreslí chat (název, záložka místo fotky).
         val savedMessagesChatId by chatRepository.savedMessagesChatId.collectAsStateWithLifecycle()
 
-        CompositionLocalProvider(LocalPanesSideBySide provides wide, LocalSavedMessagesChatId provides savedMessagesChatId) {
+        // Plocha pod panely-kartami, viditelná v mezerách mezi nimi (`PaneCard`).
+        if (wide) Box(Modifier.matchParentSize().background(MaterialTheme.colorScheme.surfaceContainer))
+
+        CompositionLocalProvider(
+            LocalPanesSideBySide provides wide,
+            LocalSavedMessagesChatId provides savedMessagesChatId,
+            // I ve třech panelech: zvolená kotva tam určuje šířku seznamu, takže rozbalení zabere i bez táhla.
+            LocalExpandListPane provides listExpansion.expand.takeIf { twoPane && mainListShown },
+        ) {
+            val paneCard = rememberPaneCardDecorator()
+            val decorators = remember(entryDecorators, paneCard) { entryDecorators + paneCard }
+            /*
+             * Položky Chatů se staví samy, ne přes `rememberDecoratedNavEntries(zásobník, …)`:
+             * ta si je pamatuje jen podle klíčů, a šířka seznamu ve třech panelech je v jeho
+             * METADATECH — po změně kotvy by zůstala stará.
+             */
+            val chatsEntries = remember(chatsDisplayed.toList(), listPaneWidth) { chatsDisplayed.map(entryProvider) }
             /*
              * Položky se dekorují pro KAŽDOU sekci, i tu, která není vidět. Zásobník, který se
              * zrovna nedekoruje, by pro Nav3 vypadal jako odebraný a jeho ViewModely by se zrušily.
              */
             val entriesBySection = mapOf<TopLevelRoute, List<NavEntry<NavKey>>>(
-                ChatsRoute to rememberDecoratedNavEntries(chatsDisplayed, entryDecorators, entryProvider),
-                SettingsRoute to rememberDecoratedNavEntries(settingsDisplayed, entryDecorators, entryProvider),
+                ChatsRoute to rememberDecoratedNavEntries(chatsEntries, decorators),
+                SettingsRoute to rememberDecoratedNavEntries(settingsDisplayed, decorators, entryProvider),
             )
 
             val transitions = rememberNavTransitions(chatContainer = !wide)
@@ -440,6 +492,8 @@ private fun ShellContent(
                             BackNavigationBehavior.PopUntilScaffoldValueChange
                         },
                         directive = directive,
+                        paneExpansionDragHandle = ListPaneDragHandle.takeIf { draggable },
+                        paneExpansionState = listExpansion.state.takeIf { draggable },
                     ),
                 ),
             )
@@ -477,14 +531,16 @@ private fun shellEntryProvider(
     wide: Boolean,
     twoPane: Boolean,
     paneOf: (NavKey) -> PaneInfo?,
+    /** Šířka hlavního seznamu ve třech panelech (zvolená kotva); jinak `null` = podle táhla. */
+    listPaneWidth: Dp?,
     closeShare: () -> Unit,
     navigation: AppNavigation,
 ): (NavKey) -> NavEntry<NavKey> = entryProvider {
 
     entry<ChatsRoute>(
         metadata = Panes.list(
-            detailPlaceholder = { ConversationPlaceholder() },
-        ) + ChatListMetadata,
+            detailPlaceholder = { PaneCard { ConversationPlaceholder() } },
+        ) + ChatListMetadata + Panes.width(listPaneWidth),
     ) {
         val settings = koinInject<AppSettings>()
         val savedMessagesChatId = LocalSavedMessagesChatId.current
@@ -526,6 +582,7 @@ private fun shellEntryProvider(
             onCreateFolder = { navigation.openChatFolders(create = true) },
             onManageFolders = { navigation.openChatFolders() },
             onOpenScreen = { screen -> navigation.openScreen(screen, twoPane) },
+            onOpenSearch = { navigation.openSearch(query = "", keepConversation = twoPane) },
             modifier = Modifier.listPaneInsets(twoPane),
         )
     }
@@ -538,7 +595,7 @@ private fun shellEntryProvider(
     entry<ArchiveRoute>(
         metadata = Panes.list(
             ARCHIVE_SCENE,
-            detailPlaceholder = { ConversationPlaceholder() },
+            detailPlaceholder = { PaneCard { ConversationPlaceholder() } },
         ) + ChatListMetadata,
     ) {
         ArchiveScreen(
@@ -565,7 +622,7 @@ private fun shellEntryProvider(
      */
     entry<NewChatRoute>(
         metadata = Panes.list(
-            detailPlaceholder = { ConversationPlaceholder() },
+            detailPlaceholder = { PaneCard { ConversationPlaceholder() } },
         ),
     ) {
         NewChatScreen(

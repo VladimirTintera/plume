@@ -55,6 +55,8 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import eu.tintera.plume.core.ui.RollingNumber
+import eu.tintera.plume.core.adaptive.COLLAPSED_LIST_MAX_WIDTH
+import eu.tintera.plume.core.adaptive.LocalExpandListPane
 import eu.tintera.plume.core.ui.readPluralString
 import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.campaign_24dp
@@ -118,6 +120,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -294,6 +297,8 @@ fun ChatListScreen(
     onOpenScreen: (AppScreen) -> Unit = {},
     /** Vedle seznamu je otevřená konverzace (dvoupanel) — hudbu pak ukazuje její dock. */
     conversationOpen: Boolean = false,
+    /** Hledání ze sbaleného sloupce; otevře se, až se seznam rozbalí (viz [CollapsedChatList]). */
+    onOpenSearch: () -> Unit = {},
     nowPlayingViewModel: NowPlayingViewModel = koinViewModel(),
     modifier: Modifier = Modifier,
 ) {
@@ -433,322 +438,347 @@ fun ChatListScreen(
         onPauseOrDispose { }
     }
 
-    /*
-     * FAB a snackbar nejsou ve slotech Scaffoldu: FAB je součástí plovoucího toolbaru dole
-     * a snackbar musí stát NAD ním — Scaffold by FAB dal do rohu a snackbar pod toolbar.
-     */
-    Scaffold(
-        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            reorder?.let { current ->
-                ReorderTopBar(
-                    title = stringResource(Res.string.chats_reorder_title),
-                    busy = current.busy,
-                    onCancel = viewModel::cancelReorder,
-                    onDone = viewModel::saveReorder,
-                )
-                return@Scaffold
-            }
-            selection?.let { current ->
-                ChatSelectionTopBar(count = current.count, onClose = viewModel::closeSelection)
-                return@Scaffold
-            }
-            // Hlavička pod otevřeným FAB menu ztlumená a neťukací, stejně jako seznam.
-            Box {
-                ChatSearchBar(
-                    connection = shownConnection?.label(),
-                    search = search,
-                    savedMessagesChatId = savedMessagesChatId,
-                    scrollBehavior = scrollBehavior,
-                    onQueryChange = viewModel.search::setQuery,
-                    onExpandedChange = viewModel.search::setSuggestionsWanted,
-                    onChatClick = { chatId ->
-                        viewModel.search.recordFound(chatId)
-                        scrollToChat = chatId
-                        // Výsledky hledání jsou položky seznamu, takže vědí, jestli je chat fórum.
-                        val forum = with(search) { results + top + recent + global }.any { it.id == chatId && it.isForum }
-                        if (forum) onForumClick(chatId) else onChatClick(chatId)
-                    },
-                    onMessageClick = { chatId, messageId, topicId ->
-                        scrollToChat = chatId
-                        onMessageClick(chatId, messageId, topicId)
-                    },
-                    onLoadMoreMessages = viewModel.search::loadMoreMessages,
-                    onClearRecent = viewModel.search::clearRecent,
-                    onFilterChange = viewModel.search::setFilter,
-                    aiSearch = viewModel::parseSearch.takeIf { naturalSearchAvailable },
-                    request = searchRequest,
-                    onRequestHandled = onSearchRequestHandled,
-                    trailing = {
-                        AccountMenu(
-                            account = account,
-                            archiveUnread = archiveUnread,
-                            connection = shownConnection,
-                            onSavedMessages = { viewModel.openSavedMessages(onChatClick) },
-                            onArchive = onOpenArchive,
-                            draftCount = drafts?.size ?: 0,
-                            onDrafts = { showDrafts = true },
-                            onMyQrCode = { showMyQrCode = true },
-                            onSettings = onOpenSettings,
-                        )
-                    },
-                    below = {
-                        AnimatedVisibility(
-                            visible = folderTabs.isNotEmpty(),
-                            enter = expandVertically() + fadeIn(),
-                            exit = shrinkVertically() + fadeOut(),
-                        ) {
-                            ChatFolderRow(
-                                tabs = folderTabs,
-                                onSelect = { id ->
-                                    viewModel.selectFolder(id)
-                                    /*
-                                     * Jiná složka = jiný seznam; začít od jeho vršku. V obsluze ťuknutí,
-                                     * NE v efektu nad složkou: ten by se spustil i při každém návratu
-                                     * seznamu do kompozice (z konverzace na telefonu) a odjel nahoru.
-                                     */
-                                    scope.launch { listState.scrollToItem(0) }
-                                },
-                                onAdd = viewModel::openFolderSuggestions,
-                            )
-                        }
-                    },
-                )
-                FabMenuScrim(
-                    visible = fabMenuExpanded,
-                    onDismiss = { fabMenuExpanded = false },
-                    modifier = Modifier.matchParentSize(),
-                )
-            }
-        },
-    ) { scaffoldPadding ->
-        // Poslední chat se musí dát odscrollovat nad FAB, jinak by pod ním zůstal schovaný.
-        val padding = PaddingValues(
-            top = scaffoldPadding.calculateTopPadding(),
-            bottom = scaffoldPadding.calculateBottomPadding() + FAB_CLEARANCE +
-                with(LocalDensity.current) { playerHeight.toDp() },
+    val accountMenu: @Composable () -> Unit = {
+        AccountMenu(
+            account = account,
+            archiveUnread = archiveUnread,
+            connection = shownConnection,
+            onSavedMessages = { viewModel.openSavedMessages(onChatClick) },
+            onArchive = onOpenArchive,
+            draftCount = drafts?.size ?: 0,
+            onDrafts = { showDrafts = true },
+            onMyQrCode = { showMyQrCode = true },
+            onSettings = onOpenSettings,
         )
-        Box(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxSize().hazeSource(listHaze)) {
-                ChatListContent(
-                    viewModel = viewModel,
-                    selectedChatId = selectedChatId,
-                    onChatClick = onChatClick,
-                    onForumClick = onForumClick,
-                    padding = padding,
-                    scrollToChat = scrollToChat,
-                    onScrolledToChat = { scrollToChat = null },
-                    listState = listState,
-                    // Položky hlavičky: nové přihlášení a karta s aktualizací.
-                    headerItemCount = listOfNotNull(freeze, unconfirmedLogin, birthdays.takeIf { it.isNotEmpty() }, suggestion, updateCard, newFolderChats).size,
-                    empty = {
-                        /*
-                         * Prázdná SLOŽKA je jiný stav než prázdný účet: chaty jsou, jen ne tyhle (třeba
-                         * „Nepřečtené" se vším přečteným). Tentýž animovaný stav jako archiv, s ikonou
-                         * složky; klíč podle složky, aby se úvodní animace pustila u každé zvlášť.
-                         */
-                        if (selectedFolder != null) {
-                            key(selectedFolder.id) {
-                                IntroEmptyState(
-                                    icon = folderIcon(selectedFolder.iconName),
-                                    title = stringResource(Res.string.chats_folder_empty_title),
-                                    text = stringResource(Res.string.chats_folder_empty),
+    }
+
+    /*
+     * Seznam sbalený táhlem na úzký sloupec. Rozhoduje šířka, ne zvolená kotva: během tahu se
+     * prochází všemi šířkami a řádek s názvem by byl nečitelný dávno před sbalenou kotvou.
+     * Sheety a hlášky výš zůstávají společné, takže se při přepnutí nezavřou.
+     */
+    val expandListPane = LocalExpandListPane.current
+    BoxWithConstraints(modifier) {
+        if (maxWidth < COLLAPSED_LIST_MAX_WIDTH) {
+            CollapsedChatList(
+                viewModel = viewModel,
+                selectedChatId = selectedChatId,
+                onChatClick = onChatClick,
+                onForumClick = onForumClick,
+                onSearch = {
+                    expandListPane?.invoke()
+                    onOpenSearch()
+                },
+                account = accountMenu,
+            )
+            return@BoxWithConstraints
+        }
+
+        /*
+         * FAB a snackbar nejsou ve slotech Scaffoldu: FAB je součástí plovoucího toolbaru dole
+         * a snackbar musí stát NAD ním — Scaffold by FAB dal do rohu a snackbar pod toolbar.
+         */
+        Scaffold(
+            modifier = Modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
+            topBar = {
+                reorder?.let { current ->
+                    ReorderTopBar(
+                        title = stringResource(Res.string.chats_reorder_title),
+                        busy = current.busy,
+                        onCancel = viewModel::cancelReorder,
+                        onDone = viewModel::saveReorder,
+                    )
+                    return@Scaffold
+                }
+                selection?.let { current ->
+                    ChatSelectionTopBar(count = current.count, onClose = viewModel::closeSelection)
+                    return@Scaffold
+                }
+                // Hlavička pod otevřeným FAB menu ztlumená a neťukací, stejně jako seznam.
+                Box {
+                    ChatSearchBar(
+                        connection = shownConnection?.label(),
+                        search = search,
+                        savedMessagesChatId = savedMessagesChatId,
+                        scrollBehavior = scrollBehavior,
+                        onQueryChange = viewModel.search::setQuery,
+                        onExpandedChange = viewModel.search::setSuggestionsWanted,
+                        onChatClick = { chatId ->
+                            viewModel.search.recordFound(chatId)
+                            scrollToChat = chatId
+                            // Výsledky hledání jsou položky seznamu, takže vědí, jestli je chat fórum.
+                            val forum = with(search) { results + top + recent + global }.any { it.id == chatId && it.isForum }
+                            if (forum) onForumClick(chatId) else onChatClick(chatId)
+                        },
+                        onMessageClick = { chatId, messageId, topicId ->
+                            scrollToChat = chatId
+                            onMessageClick(chatId, messageId, topicId)
+                        },
+                        onLoadMoreMessages = viewModel.search::loadMoreMessages,
+                        onClearRecent = viewModel.search::clearRecent,
+                        onFilterChange = viewModel.search::setFilter,
+                        aiSearch = viewModel::parseSearch.takeIf { naturalSearchAvailable },
+                        request = searchRequest,
+                        onRequestHandled = onSearchRequestHandled,
+                        trailing = accountMenu,
+                        below = {
+                            AnimatedVisibility(
+                                visible = folderTabs.isNotEmpty(),
+                                enter = expandVertically() + fadeIn(),
+                                exit = shrinkVertically() + fadeOut(),
+                            ) {
+                                ChatFolderRow(
+                                    tabs = folderTabs,
+                                    onSelect = { id ->
+                                        viewModel.selectFolder(id)
+                                        /*
+                                         * Jiná složka = jiný seznam; začít od jeho vršku. V obsluze ťuknutí,
+                                         * NE v efektu nad složkou: ten by se spustil i při každém návratu
+                                         * seznamu do kompozice (z konverzace na telefonu) a odjel nahoru.
+                                         */
+                                        scope.launch { listState.scrollToItem(0) }
+                                    },
+                                    onAdd = viewModel::openFolderSuggestions,
                                 )
                             }
-                        } else {
-                            Text(
-                                stringResource(Res.string.chats_empty),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.align(Alignment.Center).padding(24.dp),
-                            )
+                        },
+                    )
+                    FabMenuScrim(
+                        visible = fabMenuExpanded,
+                        onDismiss = { fabMenuExpanded = false },
+                        modifier = Modifier.matchParentSize(),
+                    )
+                }
+            },
+        ) { scaffoldPadding ->
+            // Poslední chat se musí dát odscrollovat nad FAB, jinak by pod ním zůstal schovaný.
+            val padding = PaddingValues(
+                top = scaffoldPadding.calculateTopPadding(),
+                bottom = scaffoldPadding.calculateBottomPadding() + FAB_CLEARANCE +
+                    with(LocalDensity.current) { playerHeight.toDp() },
+            )
+            Box(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().hazeSource(listHaze)) {
+                    ChatListContent(
+                        viewModel = viewModel,
+                        selectedChatId = selectedChatId,
+                        onChatClick = onChatClick,
+                        onForumClick = onForumClick,
+                        padding = padding,
+                        scrollToChat = scrollToChat,
+                        onScrolledToChat = { scrollToChat = null },
+                        listState = listState,
+                        // Položky hlavičky: nové přihlášení a karta s aktualizací.
+                        headerItemCount = listOfNotNull(freeze, unconfirmedLogin, birthdays.takeIf { it.isNotEmpty() }, suggestion, updateCard, newFolderChats).size,
+                        empty = {
+                            /*
+                             * Prázdná SLOŽKA je jiný stav než prázdný účet: chaty jsou, jen ne tyhle (třeba
+                             * „Nepřečtené" se vším přečteným). Tentýž animovaný stav jako archiv, s ikonou
+                             * složky; klíč podle složky, aby se úvodní animace pustila u každé zvlášť.
+                             */
+                            if (selectedFolder != null) {
+                                key(selectedFolder.id) {
+                                    IntroEmptyState(
+                                        icon = folderIcon(selectedFolder.iconName),
+                                        title = stringResource(Res.string.chats_folder_empty_title),
+                                        text = stringResource(Res.string.chats_folder_empty),
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    stringResource(Res.string.chats_empty),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                                )
+                            }
+                        },
+                    ) {
+                        // Nad chaty, jako vlastní bloky se stejnou mezerou jako mezi skupinami. Zmrazení
+                        // a přihlášení napřed: týkají se účtu samotného, aktualizace počká.
+                        freeze?.let { frozen ->
+                            item(key = FROZEN_ACCOUNT_KEY, contentType = FROZEN_ACCOUNT_KEY) {
+                                FrozenAccountCard(
+                                    freeze = frozen,
+                                    onAppeal = openNoticeLink,
+                                    modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
+                                )
+                            }
                         }
-                    },
-                ) {
-                    // Nad chaty, jako vlastní bloky se stejnou mezerou jako mezi skupinami. Zmrazení
-                    // a přihlášení napřed: týkají se účtu samotného, aktualizace počká.
-                    freeze?.let { frozen ->
-                        item(key = FROZEN_ACCOUNT_KEY, contentType = FROZEN_ACCOUNT_KEY) {
-                            FrozenAccountCard(
-                                freeze = frozen,
-                                onAppeal = openNoticeLink,
-                                modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
-                            )
+                        unconfirmedLogin?.let { login ->
+                            item(key = UNCONFIRMED_LOGIN_KEY, contentType = UNCONFIRMED_LOGIN_KEY) {
+                                UnconfirmedLoginCard(
+                                    device = login,
+                                    enabled = true,
+                                    onConfirm = { viewModel.confirmLogin(login.sessionId) },
+                                    onTerminate = { viewModel.terminateLogin(login.sessionId) },
+                                    modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
+                                )
+                            }
+                        }
+                        // Narozeniny před radou: platí jen dnes (a včera, zítra), rada počká.
+                        if (birthdays.isNotEmpty()) {
+                            item(key = BIRTHDAYS_KEY, contentType = BIRTHDAYS_KEY) {
+                                BirthdaysCard(
+                                    birthdays = birthdays,
+                                    onOpen = { userId -> viewModel.openPrivateChat(userId, onChatClick) },
+                                    onHide = viewModel::hideBirthdays,
+                                    modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
+                                )
+                            }
+                        }
+                        // Za přihlášením: rada od Telegramu je méně naléhavá než cizí zařízení v účtu.
+                        suggestion?.let { action ->
+                            item(key = SUGGESTION_KEY, contentType = SUGGESTION_KEY) {
+                                SuggestedActionCard(
+                                    action = action,
+                                    phone = accountPhone,
+                                    onPrimary = {
+                                        when (action) {
+                                            SuggestedAction.CheckPassword, SuggestedAction.CheckPhoneNumber ->
+                                                viewModel.hideSuggestion(action)
+                                            is SuggestedAction.SetPassword -> onOpenScreen(AppScreen.TwoStepVerification)
+                                            is SuggestedAction.SetLoginEmail -> onOpenScreen(AppScreen.LoginEmail)
+                                            SuggestedAction.SetProfilePhoto, SuggestedAction.SetBirthdate -> onOpenScreen(AppScreen.EditProfile)
+                                            SuggestedAction.ArchiveUnknownChats -> viewModel.enableArchiveUnknownChats(action)
+                                            is SuggestedAction.Custom -> openNoticeLink(action.url)
+                                        }
+                                    },
+                                    onSecondary = {
+                                        // „Zapomněl(a) jsem" vede k heslu (změna, obnova e-mailem), „Změnit" ke změně
+                                        // čísla; jinde „Teď ne".
+                                        when (action) {
+                                            SuggestedAction.CheckPassword -> onOpenScreen(AppScreen.TwoStepVerification)
+                                            SuggestedAction.CheckPhoneNumber -> onOpenScreen(AppScreen.ChangePhone)
+                                            else -> viewModel.hideSuggestion(action)
+                                        }
+                                    },
+                                    modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
+                                )
+                            }
+                        }
+                        newFolderChats?.let { folderChats ->
+                            item(key = NEW_FOLDER_CHATS_KEY, contentType = NEW_FOLDER_CHATS_KEY) {
+                                NewFolderChatsCard(
+                                    state = folderChats,
+                                    onShow = viewModel::openNewFolderChats,
+                                    onHide = { viewModel.processNewFolderChats(join = false) },
+                                    modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
+                                )
+                            }
+                        }
+                        updateCard?.let { update ->
+                            item(key = UPDATE_CARD_KEY, contentType = UPDATE_CARD_KEY) {
+                                UpdateCard(
+                                    state = update,
+                                    onUpdate = startUpdate,
+                                    onDismiss = viewModel::dismissUpdate,
+                                    onRestart = viewModel::completeUpdate,
+                                    modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
+                                )
+                            }
                         }
                     }
-                    unconfirmedLogin?.let { login ->
-                        item(key = UNCONFIRMED_LOGIN_KEY, contentType = UNCONFIRMED_LOGIN_KEY) {
-                            UnconfirmedLoginCard(
-                                device = login,
-                                enabled = true,
-                                onConfirm = { viewModel.confirmLogin(login.sessionId) },
-                                onTerminate = { viewModel.terminateLogin(login.sessionId) },
-                                modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
-                            )
-                        }
-                    }
-                    // Narozeniny před radou: platí jen dnes (a včera, zítra), rada počká.
-                    if (birthdays.isNotEmpty()) {
-                        item(key = BIRTHDAYS_KEY, contentType = BIRTHDAYS_KEY) {
-                            BirthdaysCard(
-                                birthdays = birthdays,
-                                onOpen = { userId -> viewModel.openPrivateChat(userId, onChatClick) },
-                                onHide = viewModel::hideBirthdays,
-                                modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
-                            )
-                        }
-                    }
-                    // Za přihlášením: rada od Telegramu je méně naléhavá než cizí zařízení v účtu.
-                    suggestion?.let { action ->
-                        item(key = SUGGESTION_KEY, contentType = SUGGESTION_KEY) {
-                            SuggestedActionCard(
-                                action = action,
-                                phone = accountPhone,
-                                onPrimary = {
-                                    when (action) {
-                                        SuggestedAction.CheckPassword, SuggestedAction.CheckPhoneNumber ->
-                                            viewModel.hideSuggestion(action)
-                                        is SuggestedAction.SetPassword -> onOpenScreen(AppScreen.TwoStepVerification)
-                                        is SuggestedAction.SetLoginEmail -> onOpenScreen(AppScreen.LoginEmail)
-                                        SuggestedAction.SetProfilePhoto, SuggestedAction.SetBirthdate -> onOpenScreen(AppScreen.EditProfile)
-                                        SuggestedAction.ArchiveUnknownChats -> viewModel.enableArchiveUnknownChats(action)
-                                        is SuggestedAction.Custom -> openNoticeLink(action.url)
-                                    }
-                                },
-                                onSecondary = {
-                                    // „Zapomněl(a) jsem" vede k heslu (změna, obnova e-mailem), „Změnit" ke změně
-                                    // čísla; jinde „Teď ne".
-                                    when (action) {
-                                        SuggestedAction.CheckPassword -> onOpenScreen(AppScreen.TwoStepVerification)
-                                        SuggestedAction.CheckPhoneNumber -> onOpenScreen(AppScreen.ChangePhone)
-                                        else -> viewModel.hideSuggestion(action)
-                                    }
-                                },
-                                modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
-                            )
-                        }
-                    }
-                    newFolderChats?.let { folderChats ->
-                        item(key = NEW_FOLDER_CHATS_KEY, contentType = NEW_FOLDER_CHATS_KEY) {
-                            NewFolderChatsCard(
-                                state = folderChats,
-                                onShow = viewModel::openNewFolderChats,
-                                onHide = { viewModel.processNewFolderChats(join = false) },
-                                modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
-                            )
-                        }
-                    }
-                    updateCard?.let { update ->
-                        item(key = UPDATE_CARD_KEY, contentType = UPDATE_CARD_KEY) {
-                            UpdateCard(
-                                state = update,
-                                onUpdate = startUpdate,
-                                onDismiss = viewModel::dismissUpdate,
-                                onRestart = viewModel::completeUpdate,
-                                modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
-                            )
-                        }
-                    }
+
                 }
 
-            }
-
-            /*
-             * Závoj pod stavovou lištou. Odjetý bar ji odkryje a chaty by pod ní jezdily bez
-             * pozadí, přes hodiny a ikony. Leží nad seznamem, ale pod barem — Scaffold kreslí
-             * `topBar` přes obsah.
-             *
-             * Přechod do průhledna, ne plná barva: s plným pásem končily chaty o výšku lišty
-             * pod horním okrajem ostrou hranou, jako useknuté. Takhle jedou až nahoru a jen
-             * se pod lištou vytrácejí; u horního okraje, kde jsou ikony, je závoj skoro plný.
-             */
-            val surface = MaterialTheme.colorScheme.surface
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .windowInsetsTopHeight(WindowInsets.statusBars)
-                    .background(
-                        Brush.verticalGradient(
-                            0f to surface,
-                            0.6f to surface.copy(alpha = 0.85f),
-                            1f to surface.copy(alpha = 0f),
-                        ),
-                    ),
-            )
-
-            FabMenuScrim(visible = fabMenuExpanded, onDismiss = { fabMenuExpanded = false })
-
-            /*
-             * Nad navigační lištou A nad klávesnicí. Scaffold dává do paddingu jen systémové
-             * lišty, takže vysunutá klávesnice (hledání, dvoupanel s psaním vpravo) FAB
-             * i snackbar překryla. Sjednocení (`union`) bere větší z obou, jinak by se lišta
-             * a klávesnice sečetly.
-             *
-             * Insety, ne `padding(scaffoldPadding)` + `consumeWindowInsets(PaddingValues)`.
-             * Hodnota `PaddingValues` se mění s rozložením Foldu, a to ve chvíli, kdy NavDisplay
-             * přesouvá seznam do list-detail scény: `update` modifikátoru pak běží nad
-             * odpojeným uzlem a Compose 1.12 spadne („visitSubtreeIf called on an unattached
-             * node"). Insety jsou popis, ne čísla, takže se modifikátor při rozložení nemění.
-             *
-             * FAB a snackbar nejsou ve slotech Scaffoldu: Scaffold by je postavil jen nad
-             * systémové lišty, ne nad klávesnici.
-             */
-            Column(
-                horizontalAlignment = Alignment.End,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .windowInsetsPadding(
-                        ScaffoldDefaults.contentWindowInsets
-                            .only(WindowInsetsSides.Bottom)
-                            .union(WindowInsets.ime),
-                    ),
-            ) {
-                SnackbarHost(snackbarHostState, Modifier.fillMaxWidth())
-                // Lišta výběru stojí MÍSTO FAB menu, uprostřed: zakládat nový chat uprostřed
-                // vybírání nedává smysl a obojí by se o spodek obrazovky přetahovalo.
-                ChatSelectionToolbar(
-                    actions = selectionActions,
-                    onArchive = viewModel::archiveSelected,
-                    onMute = viewModel::muteSelected,
-                    onRead = viewModel::readSelected,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                )
-                if (reorder == null && selection == null) NewChatFabMenu(
-                    expanded = fabMenuExpanded,
-                    onExpandedChange = { fabMenuExpanded = it },
-                    onNewChat = onNewChat,
-                    onNewGroup = onNewGroup,
-                    onNewChannel = onNewChannel,
-                )
                 /*
-                 * Pod FAB, u palce, jako u hudebních aplikací — a hlavně mimo lištu hledání, která
-                 * při scrollu odjíždí. Seznam se odsazuje o jeho výšku, poslední chat je nad ním.
+                 * Závoj pod stavovou lištou. Odjetý bar ji odkryje a chaty by pod ní jezdily bez
+                 * pozadí, přes hodiny a ikony. Leží nad seznamem, ale pod barem — Scaffold kreslí
+                 * `topBar` přes obsah.
+                 *
+                 * Přechod do průhledna, ne plná barva: s plným pásem končily chaty o výšku lišty
+                 * pod horním okrajem ostrou hranou, jako useknuté. Takhle jedou až nahoru a jen
+                 * se pod lištou vytrácejí; u horního okraje, kde jsou ikony, je závoj skoro plný.
                  */
-                AnimatedVisibility(
-                    visible = shownPlayer != null,
-                    enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
-                    exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
-                    modifier = Modifier.onSizeChanged { playerHeight = it.height },
-                ) {
-                    lastPlayer[0]?.let { player ->
-                        PlayerDockBar(
-                            player = player,
-                            playback = { nowPlayingViewModel.playback.value?.takeIf { it.key == player.key } },
-                            reveal = { 1f },
-                            onToggle = nowPlayingViewModel::togglePlaying,
-                            onNext = nowPlayingViewModel::skipToNext,
-                            onStop = nowPlayingViewModel::stop,
-                            onShow = { onMessageClick(player.key.chatId, player.key.messageId, null) },
-                            glass = Modifier.hazeBlur(
-                                input = HazeInput.Sources(listHaze),
-                                style = glassStyle(
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    alpha = GLASS_TEXT_TINT_ALPHA,
-                                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                                ),
+                val surface = MaterialTheme.colorScheme.surface
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .windowInsetsTopHeight(WindowInsets.statusBars)
+                        .background(
+                            Brush.verticalGradient(
+                                0f to surface,
+                                0.6f to surface.copy(alpha = 0.85f),
+                                1f to surface.copy(alpha = 0f),
                             ),
-                        )
+                        ),
+                )
+
+                FabMenuScrim(visible = fabMenuExpanded, onDismiss = { fabMenuExpanded = false })
+
+                /*
+                 * Nad navigační lištou A nad klávesnicí. Scaffold dává do paddingu jen systémové
+                 * lišty, takže vysunutá klávesnice (hledání, dvoupanel s psaním vpravo) FAB
+                 * i snackbar překryla. Sjednocení (`union`) bere větší z obou, jinak by se lišta
+                 * a klávesnice sečetly.
+                 *
+                 * Insety, ne `padding(scaffoldPadding)` + `consumeWindowInsets(PaddingValues)`.
+                 * Hodnota `PaddingValues` se mění s rozložením Foldu, a to ve chvíli, kdy NavDisplay
+                 * přesouvá seznam do list-detail scény: `update` modifikátoru pak běží nad
+                 * odpojeným uzlem a Compose 1.12 spadne („visitSubtreeIf called on an unattached
+                 * node"). Insety jsou popis, ne čísla, takže se modifikátor při rozložení nemění.
+                 *
+                 * FAB a snackbar nejsou ve slotech Scaffoldu: Scaffold by je postavil jen nad
+                 * systémové lišty, ne nad klávesnici.
+                 */
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .windowInsetsPadding(
+                            ScaffoldDefaults.contentWindowInsets
+                                .only(WindowInsetsSides.Bottom)
+                                .union(WindowInsets.ime),
+                        ),
+                ) {
+                    SnackbarHost(snackbarHostState, Modifier.fillMaxWidth())
+                    // Lišta výběru stojí MÍSTO FAB menu, uprostřed: zakládat nový chat uprostřed
+                    // vybírání nedává smysl a obojí by se o spodek obrazovky přetahovalo.
+                    ChatSelectionToolbar(
+                        actions = selectionActions,
+                        onArchive = viewModel::archiveSelected,
+                        onMute = viewModel::muteSelected,
+                        onRead = viewModel::readSelected,
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                    )
+                    if (reorder == null && selection == null) NewChatFabMenu(
+                        expanded = fabMenuExpanded,
+                        onExpandedChange = { fabMenuExpanded = it },
+                        onNewChat = onNewChat,
+                        onNewGroup = onNewGroup,
+                        onNewChannel = onNewChannel,
+                    )
+                    /*
+                     * Pod FAB, u palce, jako u hudebních aplikací — a hlavně mimo lištu hledání, která
+                     * při scrollu odjíždí. Seznam se odsazuje o jeho výšku, poslední chat je nad ním.
+                     */
+                    AnimatedVisibility(
+                        visible = shownPlayer != null,
+                        enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+                        exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut(),
+                        modifier = Modifier.onSizeChanged { playerHeight = it.height },
+                    ) {
+                        lastPlayer[0]?.let { player ->
+                            PlayerDockBar(
+                                player = player,
+                                playback = { nowPlayingViewModel.playback.value?.takeIf { it.key == player.key } },
+                                reveal = { 1f },
+                                onToggle = nowPlayingViewModel::togglePlaying,
+                                onNext = nowPlayingViewModel::skipToNext,
+                                onStop = nowPlayingViewModel::stop,
+                                onShow = { onMessageClick(player.key.chatId, player.key.messageId, null) },
+                                glass = Modifier.hazeBlur(
+                                    input = HazeInput.Sources(listHaze),
+                                    style = glassStyle(
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        alpha = GLASS_TEXT_TINT_ALPHA,
+                                        fallbackAlpha = GLASS_FALLBACK_ALPHA,
+                                    ),
+                                ),
+                            )
+                        }
                     }
                 }
             }

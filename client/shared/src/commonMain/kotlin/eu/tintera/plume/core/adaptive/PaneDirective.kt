@@ -58,6 +58,9 @@ fun PaneScaffoldDirective.twoPane(): PaneScaffoldDirective = withHorizontalParti
  */
 fun PaneScaffoldDirective.threePane(): PaneScaffoldDirective = withHorizontalPartitions(3)
 
+/** Mezera mezi panely vedle sebe (M3: 24 dp). */
+val PANE_SPACING = 24.dp
+
 /** Šířka seznamu chatů vedle konverzace — výchozí šířka panelu v M3. */
 val LIST_PANE_WIDTH = 360.dp
 
@@ -67,11 +70,11 @@ val MIN_CONVERSATION_WIDTH = 360.dp
 /**
  * Od téhle šířky content-oblasti má smysl ukázat seznam a konverzaci vedle sebe.
  *
- * Není to standardní práh M3 (dva panely dává až Expanded, od 840 dp), ale seznam plus nejužší
- * konverzace — dva panely tak dostane i vnitřní displej Foldu (Medium). Standardní dvoupanel
- * už od Medium (600 dp) by konverzaci nechal 240 dp.
+ * Není to standardní práh M3 (dva panely dává až Expanded, od 840 dp), ale seznam, mezera a nejužší
+ * konverzace (744 dp) — dva panely tak dostane i vnitřní displej Foldu naležato (Medium).
+ * Standardní dvoupanel už od Medium (600 dp) by konverzaci nechal 216 dp.
  */
-val TWO_PANE_MIN_WIDTH = LIST_PANE_WIDTH + MIN_CONVERSATION_WIDTH
+val TWO_PANE_MIN_WIDTH = LIST_PANE_WIDTH + PANE_SPACING + MIN_CONVERSATION_WIDTH
 
 /**
  * Od téhle šířky se profil otevírá jako třetí panel vedle seznamu a konverzace. Pod ní se seznam
@@ -85,9 +88,9 @@ val THREE_PANE_MIN_WIDTH = WindowSizeClass.WIDTH_DP_LARGE_LOWER_BOUND.dp
 private fun PaneScaffoldDirective.withHorizontalPartitions(n: Int): PaneScaffoldDirective =
     PaneScaffoldDirective(
         maxHorizontalPartitions = n,
-        // Mezera mezi panely = 0; rozestup řeší až vlastní okraje obsahu, jinak by se scaffold
-        // padding sčítal s okraji karet a vznikla dvojitá mezera.
-        horizontalPartitionSpacerSize = 0.dp,
+        // Panely jsou karty na tónované ploše (`PaneCard`) a mezi nimi je mezera z M3 — v ní
+        // stojí táhlo, které jinak nemá kam.
+        horizontalPartitionSpacerSize = PANE_SPACING,
         maxVerticalPartitions = maxVerticalPartitions,
         verticalPartitionSpacerSize = verticalPartitionSpacerSize,
         defaultPanePreferredWidth = defaultPanePreferredWidth,
