@@ -27,6 +27,9 @@ import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Přenos hovoru přes ntgcalls (LGPL-3.0, `libntgcalls.so` s WebRTC uvnitř, viz
@@ -64,6 +67,19 @@ class NtgCallMedia internal constructor(
     /** Kamera: zapnutá a která. Platí i před spuštěním přenosu (vytáčený videohovor). */
     private var cameraOn = false
     private var cameraFront = true
+
+    /** Posíláme obrazovku místo kamery ([setScreenSharing]). */
+    private var screenOn = false
+
+    /** Kolikáté sdílení běží — pozdní konec projekce z dřívějšího se tím pozná a zahodí. */
+    private var screenGeneration = 0
+
+    /** Komu hlásit události běžícího přenosu (od [start]). */
+    private var events: CallMediaEvents? = null
+
+    /** Protistrana posílá kameru / obrazovku; obraz protistrany je, když aspoň jedno. */
+    private var remoteCamera = false
+    private var remoteScreen = false
 
     /** Kamery telefonu (metadata pro ntgcalls), načtené při prvním zapnutí. */
     private val cameras: List<Camera> by lazy { readCameras() }
@@ -110,6 +126,7 @@ class NtgCallMedia internal constructor(
                 ntg = null
                 ensureWebRtcContext()
                 callId = session.callId.toLong()
+                this.events = events
                 val instance = NTgCalls()
                 ntg = instance
                 instance.onSignalingData { _, data -> events.onSignaling(data) }
@@ -124,11 +141,20 @@ class NtgCallMedia internal constructor(
                         },
                     )
                 }
+                remoteCamera = false
+                remoteScreen = false
                 instance.onRemoteSourceChange { _, source ->
-                    if (source.device == StreamDevice.CAMERA) events.onRemoteVideo(source.state == StreamStatus.ACTIVE)
+                    // Obraz protistrany je kamera, nebo sdílená obrazovka (v hovoru ve dvou jedno z nich).
+                    when (source.device) {
+                        StreamDevice.CAMERA -> remoteCamera = source.state == StreamStatus.ACTIVE
+                        StreamDevice.SCREEN -> remoteScreen = source.state == StreamStatus.ACTIVE
+                        else -> return@onRemoteSourceChange
+                    }
+                    events.onRemoteVideo(remoteCamera || remoteScreen)
                 }
                 instance.onFrames { _, mode, device, frames ->
-                    if (device != StreamDevice.CAMERA) return@onFrames
+                    // Naše sdílená obrazovka se v náhledu nekreslí (obraz v obraze sebe sama).
+                    if (device != StreamDevice.CAMERA && !(device == StreamDevice.SCREEN && mode == StreamMode.PLAYBACK)) return@onFrames
                     val source = if (mode == StreamMode.CAPTURE) CallVideoSource.Local else CallVideoSource.Remote
                     val sink = sinks[source] ?: return@onFrames
                     frames.lastOrNull()?.let { render(source, sink, it) }
@@ -143,7 +169,8 @@ class NtgCallMedia internal constructor(
                 // ve slotu `speaker` dal ticho — spojení naváže, ale příchozí kanál nevznikne.
                 // Kamera protistrany se přijímá VŽDY, i v hlasovém hovoru: zapnout ji může
                 // kdykoli a bez příjmu by se obraz nedohodl.
-                instance.setStreamSources(callId, StreamMode.PLAYBACK, MediaDescription(device(SPEAKER), null, REMOTE_CAMERA, null))
+                // Obrazovka protistrany stejně: slot `screen` jako EXTERNAL.
+                instance.setStreamSources(callId, StreamMode.PLAYBACK, MediaDescription(device(SPEAKER), null, REMOTE_CAMERA, REMOTE_CAMERA))
                 instance.skipExchange(callId, session.encryptionKey, session.isOutgoing)
                 instance.connectP2p(
                     callId,
@@ -195,6 +222,56 @@ class NtgCallMedia internal constructor(
         worker.execute { router?.select(output) }
     }
 
+    override val supportsScreenSharing: Boolean = true
+
+    /**
+     * Obrazovka místo kamery. Souhlas ([ScreenCapture.permission]) už je, službu s typem
+     * `mediaProjection` přidává `CallService` podle stavu hovoru — tady se na ni počká, až pak
+     * se zdroje přenastaví (`getMediaProjection` volá knihovna s otevřením zdroje).
+     */
+    override fun setScreenSharing(on: Boolean) {
+        worker.execute {
+            if (screenOn == on) return@execute
+            val instance = ntg
+            if (on) {
+                val intent = ScreenCapture.permission ?: run {
+                    logger.w { "Sdílení obrazovky bez souhlasu uživatele." }
+                    return@execute
+                }
+                val ready = runBlocking {
+                    withTimeoutOrNull(SCREEN_SERVICE_TIMEOUT_MS) { ScreenCapture.serviceReady.first { it } }
+                }
+                if (ready == null) {
+                    logger.w { "Služba hovoru neběží s typem mediaProjection, obrazovku nejde sdílet." }
+                    return@execute
+                }
+                JavaVideoCapturerModule.setMediaProjectionPermissionResult(intent)
+                // Souhlas je na jedno použití; další sdílení si řekne o nový.
+                ScreenCapture.permission = null
+            }
+            screenOn = on
+            val generation = ++screenGeneration
+            if (instance == null) return@execute
+            runCatching { instance.setStreamSources(callId, StreamMode.CAPTURE, capture()) }
+                .onFailure { logger.w(it) { "Sdílení obrazovky nejde ${if (on) "zapnout" else "vypnout"}." } }
+            if (on) {
+                ScreenCapture.watchStop(stillWanted = { screenOn && screenGeneration == generation }) {
+                    worker.execute { screenStoppedBySystem(generation) }
+                }
+            }
+        }
+    }
+
+    /** Snímání ukončil systém: obrazovka ze zdrojů pryč a hovor se to dozví. */
+    private fun screenStoppedBySystem(generation: Int) {
+        if (!screenOn || screenGeneration != generation) return
+        logger.i { "Sdílení obrazovky ukončil systém." }
+        screenOn = false
+        runCatching { ntg?.setStreamSources(callId, StreamMode.CAPTURE, capture()) }
+            .onFailure { logger.w(it) { "Po konci sdílení nejde vrátit zdroje." } }
+        events?.onScreenSharingStopped()
+    }
+
     override fun setCamera(on: Boolean, front: Boolean) {
         worker.execute {
             if (cameraOn == on && cameraFront == front) return@execute
@@ -222,8 +299,13 @@ class NtgCallMedia internal constructor(
         }
     }
 
-    /** Co posíláme: mikrofon a s kamerou i obraz. */
+    /** Co posíláme: mikrofon a s kamerou, nebo se sdílením obrazovky i obraz. */
     private fun capture(): MediaDescription {
+        if (screenOn) {
+            // Obrazovka místo kamery — knihovna je v hovoru ve dvou smíchat nedovolí.
+            val (width, height) = ScreenCapture.size(appContext)
+            return MediaDescription(device(MICROPHONE), null, null, VideoDescription(MediaSource.DESKTOP, width, height, SCREEN_FPS, SCREEN_INPUT, true))
+        }
         val camera = if (cameraOn) camera(cameraFront) else null
         if (cameraOn && camera == null) logger.w { "Telefon nemá kameru." }
         return MediaDescription(
@@ -333,6 +415,8 @@ class NtgCallMedia internal constructor(
         held = false
         userMuted = false
         cameraOn = false
+        screenOn = false
+        events = null
         cameraFront = true
         framePools.clear()
         // I u hovoru, který se nespojil (zrušený při vytáčení): zvuková relace běží od začátku.
@@ -359,6 +443,15 @@ class NtgCallMedia internal constructor(
         const val CAMERA_WIDTH = 1280
         const val CAMERA_HEIGHT = 720
         const val CAMERA_FPS = 30
+
+        /** Obrazovka se mění pomaleji než obraz z kamery; víc snímků by jen zatížilo kodér. */
+        const val SCREEN_FPS = 15
+
+        /** Zařízení obrazovky, jak ho hlásí knihovna (`MediaDevice::get_screen_devices`). */
+        const val SCREEN_INPUT = """{"id":"screen"}"""
+
+        /** Jak dlouho čekat, než služba hovoru poběží s typem `mediaProjection`. */
+        const val SCREEN_SERVICE_TIMEOUT_MS = 3_000L
 
         /** Obraz protistrany: EXTERNAL = snímky jdou nám (`onFrames`); 0 = rozměr podle snímku. */
         val REMOTE_CAMERA = VideoDescription(MediaSource.EXTERNAL, 0, 0, 0, "", false)

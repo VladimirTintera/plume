@@ -73,6 +73,8 @@ internal class TdlCallRepository(
 
     override val previewsBeforeConnect: Boolean get() = media?.previewsBeforeConnect == true
 
+    override val supportsScreenSharing: Boolean get() = media?.supportsScreenSharing == true
+
     /** Hovor, kterému už běží přenos — `Ready` chodí i opakovaně, spustit se má jednou. */
     private var startedCallId: Int? = null
 
@@ -232,9 +234,25 @@ internal class TdlCallRepository(
     override fun setCamera(on: Boolean) {
         if (on && !supportsVideo) return
         val call = _active.value ?: return
+        // Kamera a obrazovka se v hovoru ve dvou nemíchají: kamera sdílení ukončí.
+        if (on && call.screenSharing) setScreenSharing(false)
         media?.setCamera(on = on, front = call.frontCamera)
         _active.update { it?.copy(camera = on) }
         // Kdo zapne kameru, drží telefon před sebou — ze sluchátka u ucha by nic neslyšel.
+        if (on && call.output.kind == CallAudioOutput.Kind.Earpiece) setOutput(CallAudioOutput.Speaker)
+    }
+
+    override fun setScreenSharing(on: Boolean) {
+        if (on && !supportsScreenSharing) return
+        val call = _active.value?.takeIf { it.screenSharing != on } ?: return
+        if (on && call.camera) {
+            media?.setCamera(on = false, front = call.frontCamera)
+            _active.update { it?.copy(camera = false) }
+        }
+        // Napřed stav (služba podle něj přidá typ `mediaProjection`), pak knihovna — ta na
+        // službu počká, Android 14 bez ní snímání obrazovky nepustí.
+        _active.update { it?.copy(screenSharing = on) }
+        media?.setScreenSharing(on)
         if (on && call.output.kind == CallAudioOutput.Kind.Earpiece) setOutput(CallAudioOutput.Speaker)
     }
 
@@ -397,6 +415,10 @@ internal class TdlCallRepository(
 
                 override fun onRemoteVideo(active: Boolean) {
                     _active.update { current -> current?.takeIf { it.id == call.id }?.copy(remoteVideo = active) ?: current }
+                }
+
+                override fun onScreenSharingStopped() {
+                    _active.update { current -> current?.takeIf { it.id == call.id }?.copy(screenSharing = false) ?: current }
                 }
             },
         )

@@ -483,11 +483,12 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    - **Android: hodinový videohovor** (teplota a baterie; šest minut ověřených,
      `docs/poznatky/hovory.md`, „Ověřeno 14. 10. 2026"). Ostatní dřív neověřené kousky
      (Bluetooth, okénko, Android 11, hovor z oficiálního klienta) jsou ověřené.
-   - **Play Console: deklarovat typ služby v popředí `camera`** (kamera videohovoru na pozadí)
-     — udělá uživatel, bez toho Play vydání s videohovory nepustí.
-   - **Sdílení obrazovky** — ntgcalls na Androidu obrazovku snímat umí (`MediaProjection`),
-     TDLib ho má jen pro videochaty. Nejdřív sonda v hovoru ve dvou do oficiálního klienta;
-     průzkum a otevřené otázky v `docs/poznatky/hovory.md`, „Sdílení obrazovky".
+   - **Play Console: deklarovat typy služby v popředí `camera` a `mediaProjection`** (kamera
+     videohovoru a sdílení obrazovky na pozadí) — udělá uživatel, bez toho Play vydání
+     s videohovory a sdílením nepustí.
+   - **Sdílení obrazovky dál** — v hovoru ve dvou hotové na Androidu (posílá i přijímá)
+     a příjem na desktopu (`docs/poznatky/hovory.md`, „Sdílení obrazovky"). Zbývá: posílání
+     z desktopu, Android pod 14, otočení telefonu za sdílení.
    - **iOS** (tgcalls xcframework, CallKit, VoIP pushe) a **skupinové hovory / videochaty**.
    Původní plán sondy:
 

@@ -93,6 +93,7 @@ internal interface NtgNative : Library {
         const val STREAM_MODE_PLAYBACK = 1
 
         const val STREAM_DEVICE_CAMERA = 2
+        const val STREAM_DEVICE_SCREEN = 3
 
         const val STREAM_STATUS_ACTIVE = 0
 
@@ -155,8 +156,8 @@ internal open class NtgMediaDescription : Structure() {
 
     @JvmField var camera: NtgVideoDescription.ByReference? = null
 
-    /** Sdílení obrazovky desktop zatím nemá. */
-    @JvmField var screen: Pointer? = null
+    /** Obrazovka: desktop ji jen přijímá (PLAYBACK), sám zatím nesdílí. */
+    @JvmField var screen: NtgVideoDescription.ByReference? = null
 
     class ByValue : NtgMediaDescription(), Structure.ByValue
 }

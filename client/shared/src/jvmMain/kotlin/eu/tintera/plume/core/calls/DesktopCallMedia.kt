@@ -75,6 +75,10 @@ class DesktopCallMedia : CallMedia {
 
     private var previewing = false
 
+    /** Protistrana posílá kameru / obrazovku; obraz protistrany je, když aspoň jedno. */
+    private var remoteCamera = false
+    private var remoteScreen = false
+
     /** Výstup zvolený za hovoru (metadata zařízení); `null` = výchozí výstup systému. */
     private var selectedOutput: String? = null
 
@@ -185,17 +189,24 @@ class DesktopCallMedia : CallMedia {
                         },
                     )
                 }.also { lib.ntg_on_connection_change_callback(instance, it, null) }
+                remoteCamera = false
+                remoteScreen = false
                 remoteSourceCallback = NtgNative.RemoteSourceCallback { _, _, source, _ ->
-                    if (source.device == NtgNative.STREAM_DEVICE_CAMERA) {
-                        val active = source.state == NtgNative.STREAM_STATUS_ACTIVE
-                        if (!active) video.clear(CallVideoSource.Remote)
-                        events.onRemoteVideo(active)
+                    // Obraz protistrany je kamera, nebo sdílená obrazovka (v hovoru ve dvou jedno z nich).
+                    val active = source.state == NtgNative.STREAM_STATUS_ACTIVE
+                    when (source.device) {
+                        NtgNative.STREAM_DEVICE_CAMERA -> remoteCamera = active
+                        NtgNative.STREAM_DEVICE_SCREEN -> remoteScreen = active
+                        else -> return@RemoteSourceCallback
                     }
+                    if (!remoteCamera && !remoteScreen) video.clear(CallVideoSource.Remote)
+                    events.onRemoteVideo(remoteCamera || remoteScreen)
                 }.also { lib.ntg_on_remote_source_change_callback(instance, it, null) }
                 val seen = mutableSetOf<Pair<Int, Int>>()
                 framesCallback = NtgNative.FramesCallback { _, _, mode, device, frames, count, _ ->
                     if (synchronized(seen) { seen.add(mode to device) }) logger.d { "První snímky: režim $mode, zařízení $device." }
-                    if (device == NtgNative.STREAM_DEVICE_CAMERA && frames != null && count > 0) {
+                    val remoteScreenFrame = device == NtgNative.STREAM_DEVICE_SCREEN && mode == NtgNative.STREAM_MODE_PLAYBACK
+                    if ((device == NtgNative.STREAM_DEVICE_CAMERA || remoteScreenFrame) && frames != null && count > 0) {
                         val source = if (mode == NtgNative.STREAM_MODE_CAPTURE) CallVideoSource.Local else CallVideoSource.Remote
                         // Z dávky stačí poslední snímek, starší by se stejně hned překreslil.
                         render(source, NtgFrame(frames.share((count - 1) * FRAME_SIZE)))
@@ -218,7 +229,7 @@ class DesktopCallMedia : CallMedia {
                         instance,
                         callId,
                         NtgNative.STREAM_MODE_PLAYBACK,
-                        media(microphone = (currentOutput ?: found.speaker).also { playback = it }, camera = REMOTE_CAMERA),
+                        media(microphone = (currentOutput ?: found.speaker).also { playback = it }, camera = REMOTE_CAMERA, screen = REMOTE_CAMERA),
                     )
                 }
                 lib.check("skip_exchange") {
@@ -291,7 +302,7 @@ class DesktopCallMedia : CallMedia {
         if (playback == metadata) return
         runCatching {
             native.check("set_stream_sources(output)") {
-                ntg_set_stream_sources(instance, callId, NtgNative.STREAM_MODE_PLAYBACK, media(microphone = metadata, camera = REMOTE_CAMERA))
+                ntg_set_stream_sources(instance, callId, NtgNative.STREAM_MODE_PLAYBACK, media(microphone = metadata, camera = REMOTE_CAMERA, screen = REMOTE_CAMERA))
             }
             playback = metadata
         }.onFailure { logger.w(it) { "Výstup zvuku nejde přepnout." } }
@@ -461,7 +472,11 @@ class DesktopCallMedia : CallMedia {
         }
     }
 
-    private fun media(microphone: String, camera: NtgVideoDescription.ByReference? = null): NtgMediaDescription.ByValue =
+    private fun media(
+        microphone: String,
+        camera: NtgVideoDescription.ByReference? = null,
+        screen: NtgVideoDescription.ByReference? = null,
+    ): NtgMediaDescription.ByValue =
         NtgMediaDescription.ByValue().apply {
             this.microphone = NtgAudioDescription.ByReference().apply {
                 media_source = NtgNative.MEDIA_SOURCE_DEVICE
@@ -471,6 +486,7 @@ class DesktopCallMedia : CallMedia {
                 keep_open = 1
             }
             this.camera = camera
+            this.screen = screen
         }
 
     /**

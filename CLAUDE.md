@@ -71,7 +71,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Release, R8 a hlášení pádů](docs/poznatky/release.md) — vydání do Play, R8 a keep pravidla, Crashlytics, aktualizace z obchodu
 - [Výkon a paměť](docs/poznatky/vykon.md) — reporty Compose kompilátoru, LeakCanary, heap dumpy, composition tracing, start a plynulost
 - [Tajné chaty](docs/poznatky/tajne-chaty.md) — přijetí a založení (`useSecretChats`), id není id uživatele, stav jako právo psát, časovač po přečtení, notifikace, zákaz snímků
-- [Hovory](docs/poznatky/hovory.md) — co dělá TDLib a co knihovna (ntgcalls), verze a servery, licence, obálka na Androidu (služba, Telecom, výstup zvuku), ticho a zablokování v knihovně, videohovory a obraz v obraze, hovor z konverzace a chybové hlášky, desktop (JNA, zvonění a okénko příchozího hovoru, video)
+- [Hovory](docs/poznatky/hovory.md) — co dělá TDLib a co knihovna (ntgcalls), verze a servery, licence, obálka na Androidu (služba, Telecom, výstup zvuku), ticho a zablokování v knihovně, videohovory a obraz v obraze, sdílení obrazovky, hovor z konverzace a chybové hlášky, desktop (JNA, zvonění a okénko příchozího hovoru, video)
 - [Desktop (JVM)](docs/poznatky/desktop.md) — přepis jaru TDLib (rozbitá macOS knihovna, OpenSSL, hook), data a Klíčenka, notifikace (JNI most k UNUserNotificationCenter), titulek okna v barvách motivu, vložení ze schránky a přetažení souborů, release MSI pro Windows a ikony, bubliny z kořene kompozice, co desktop neumí
 
 ## Pracovní postup

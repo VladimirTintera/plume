@@ -21,6 +21,9 @@ interface CallRepository {
     /** Náhled kamery je vidět už při vytáčení; na desktopu až od spojení. */
     val previewsBeforeConnect: Boolean get() = true
 
+    /** Jde sdílet obrazovku (Android). */
+    val supportsScreenSharing: Boolean get() = false
+
     /** Probíhající hovor, nebo `null`. Najednou je jen jeden, jako u telefonu. */
     val active: StateFlow<ActiveCall?>
 
@@ -66,6 +69,13 @@ interface CallRepository {
     fun switchCamera()
 
     /**
+     * Sdílení obrazovky místo kamery: zapnutí kameru vypne (v hovoru ve dvou jde jen jedno
+     * z nich), zapnutí kamery zase vypne sdílení. Souhlas se snímáním obrazovky musí být
+     * vyřízený předem (`rememberScreenSharePermission`).
+     */
+    fun setScreenSharing(on: Boolean) = Unit
+
+    /**
      * Hovor nejde zahájit ani přijmout z důvodu mimo přenos (chybí oprávnění). Zvonící hovor
      * dostane [reason] místo stavu, jinak se krátce ukáže neúspěšný hovor s [reason].
      */
@@ -99,6 +109,8 @@ data class ActiveCall(
     val camera: Boolean = false,
     /** Náhled kamery u zvonícího videohovoru ([CallRepository.previewCamera]); obraz nejde ven. */
     val preview: Boolean = false,
+    /** Posíláme obrazovku (místo kamery). */
+    val screenSharing: Boolean = false,
     /** Přední kamera (náhled se zrcadlí), jinak zadní. */
     val frontCamera: Boolean = true,
     /** Protistrana posílá obraz. */
