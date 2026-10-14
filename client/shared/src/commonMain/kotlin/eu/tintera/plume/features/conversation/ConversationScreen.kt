@@ -30,7 +30,7 @@ import eu.tintera.plume.core.ui.threshold
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.TooltipAnchorPosition
-import androidx.compose.material3.TooltipBox
+import eu.tintera.plume.core.ui.RootTooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.ui.layout.layout
@@ -3951,7 +3951,7 @@ private fun MessageInput(
                 effects = sendMenu.effects,
             ) {
             Box(Modifier.onGloballyPositioned { recordGesture.buttonCenterX = it.boundsInWindow().center.x }) {
-                TooltipBox(
+                RootTooltipBox(
                     positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
                     tooltip = {
                         PlainTooltip {
@@ -3971,7 +3971,7 @@ private fun MessageInput(
                     enableUserInput = false,
                 ) {
                 /*
-                 * Morf, dýchání a barvy se čtou AŽ TADY, v obsahu `TooltipBox` (vlastní rozsah
+                 * Morf, dýchání a barvy se čtou AŽ TADY, v obsahu `RootTooltipBox` (vlastní rozsah
                  * rekompozice). Čtené v kartě pole by s každým snímkem animace přeskládaly celou
                  * kartu i s polem — při nahrávání po celou dobu nahrávky (změřeno Perfettem).
                  */

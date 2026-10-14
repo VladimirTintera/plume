@@ -561,6 +561,11 @@ naplánovat) a podržení mikrofonu / kamery pro nahrávání. Co už uživatel 
   šipka za okrajem.
 - **Nápověda propouští dotyky** (nefokusovatelný popup): tah doleva přes ni rovnou odkryje
   časy a ťuknutí vedle ji zavře (`onDismissRequest`).
+- **Bublina se kreslí z kořene kompozice** (`RootTooltipBox`, ne holý `TooltipBox`): nápověda
+  visí, dokud ji uživatel nezavře, a kotva u tlačítka odeslání leží ve slotu `Scaffold`u. Změna
+  šířky okna na desktopu by ji odebrala uprostřed měření a shodila vykreslování — viz
+  `docs/poznatky/desktop.md`, „Bubliny (tooltip) z kořene kompozice". Šipka z boku (časy)
+  funguje, protože v kořeni stojí náhradní kotva na mezích té skutečné.
 - **Ověřeno na emulátoru** (česky, chat s testovacím botem): nahrávání s kamerou, volby
   odeslání s efekty nad tlačítkem, časy u pravého okraje (sondou, která časy brala jako
   neviděné) a jejich zavření tahem. iOS jen přeložené.

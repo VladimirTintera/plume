@@ -72,7 +72,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Výkon a paměť](docs/poznatky/vykon.md) — reporty Compose kompilátoru, LeakCanary, heap dumpy, composition tracing, start a plynulost
 - [Tajné chaty](docs/poznatky/tajne-chaty.md) — přijetí a založení (`useSecretChats`), id není id uživatele, stav jako právo psát, časovač po přečtení, notifikace, zákaz snímků
 - [Hovory](docs/poznatky/hovory.md) — co dělá TDLib a co knihovna (ntgcalls), verze a servery, licence, obálka na Androidu (služba, Telecom, výstup zvuku), ticho a zablokování v knihovně, videohovory a obraz v obraze, hovor z konverzace a chybové hlášky, desktop (JNA)
-- [Desktop (JVM)](docs/poznatky/desktop.md) — přepis jaru TDLib (rozbitá macOS knihovna, OpenSSL, hook), data a Klíčenka, notifikace (JNI most k UNUserNotificationCenter), release MSI pro Windows a ikony, co desktop neumí
+- [Desktop (JVM)](docs/poznatky/desktop.md) — přepis jaru TDLib (rozbitá macOS knihovna, OpenSSL, hook), data a Klíčenka, notifikace (JNI most k UNUserNotificationCenter), release MSI pro Windows a ikony, bubliny z kořene kompozice, co desktop neumí
 
 ## Pracovní postup
 
@@ -475,6 +475,10 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   holé `DropdownMenuPopup` / `Popup` bez vstupního pole ho dostane taky, jinak nabídka nad
   otevřenou klávesnicí klávesnici utrhne a obsah pod ní skočí. Viz „Nabídky si neberou
   klávesnici".
+- **Bublina (tooltip) jen přes `WithTooltip` nebo `RootTooltipBox`** (`core/ui/WithTooltip.kt`),
+  nikdy holý `TooltipBox` — hlídá to `verifyTooltipsThroughRoot`. Holý na desktopu shodí
+  vykreslování, když kotva s viditelnou bublinou zmizí během měření (změna šířky okna). Viz
+  „Bubliny (tooltip) z kořene kompozice" v `docs/poznatky/desktop.md`.
 - **Hláška „Zkopírováno" jen tam, kde zkopírování nepotvrdí systém** (`TextClipboard.confirmsCopy`,
   Android 13+): systém sám ukáže okénko s obsahem schránky vlevo dole a vlastní snackbar se
   s ním zdvojil a překryl (ověřeno na emulátoru). Kdo přidává kopírování, podmíní hlášku
