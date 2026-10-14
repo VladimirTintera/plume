@@ -703,6 +703,18 @@ interface ConversationRepository {
     ): Result<Unit>
 
     /**
+     * Vymění přílohu zprávy za [attachment] a s ní uloží popisek (`editMessageMedia`) — popisek
+     * je součást nového obsahu, prázdný ho odebere. Jen u zprávy s [MessageActions.canEditMedia].
+     */
+    suspend fun editMedia(
+        chatId: Long,
+        messageId: Long,
+        attachment: OutgoingAttachment,
+        caption: String,
+        formats: List<FormatSpan> = emptyList(),
+    ): Result<Unit>
+
+    /**
      * Potvrzení nebo selhání odeslané zprávy.
      *
      * Nese **staré i nové id**: TDLib po potvrzení zprávě id změní, takže ji nestačí aktualizovat,
@@ -957,6 +969,26 @@ sealed interface OutgoingAttachment {
     /** Cokoli jako soubor, beze změny. Název souboru se bere z cesty. */
     data class Document(override val path: String) : OutgoingAttachment {
         override val mode: AttachmentMode get() = AttachmentMode.AsFile
+    }
+
+    /**
+     * Hudba jako skladba (`InputMessageAudio`): v konverzaci s přehrávačem, názvem a interpretem,
+     * ne jako obecný soubor. Údaje čte platforma ze souboru (ID3 a spol.) — server je doplní jen
+     * někdy. [title] a [performer] můžou chybět, [cover] je obal alba jako JPEG do 320 px.
+     *
+     * Do alba jde jen s dalšími skladbami; se soubory se pošle jako soubor (viz `sendAttachments`).
+     */
+    data class Audio(
+        override val path: String,
+        val title: String?,
+        val performer: String?,
+        val durationSeconds: Int,
+        val cover: OutgoingThumbnail?,
+    ) : OutgoingAttachment {
+        override val mode: AttachmentMode get() = AttachmentMode.Standard
+
+        /** Tentýž soubor jako obecný soubor — tam, kde skladba nesmí (právo chatu, album se soubory). */
+        fun asDocument(): Document = Document(path)
     }
 }
 
@@ -1763,6 +1795,11 @@ data class MessageActions(
     val canSave: Boolean,
     /** Nahlášení zprávy moderátorům (`canReportChat`) — průvodce `reportChat` s touhle zprávou. */
     val canReport: Boolean = false,
+    /**
+     * Přílohu jde při úpravě vyměnit (`canEditMedia`). Server to nedovolí u mizející zprávy
+     * a u zpráv, které média neunesou; v albu jen fotku za video a naopak.
+     */
+    val canEditMedia: Boolean = false,
 ) {
     companion object {
         /**
@@ -2522,3 +2559,15 @@ data class MusicNeighbors(val previous: ChatMessage?, val next: ChatMessage?)
 
 /** Druhá strana převodu skupiny: [chatId] je stará základní skupina, nebo ([toNewGroup]) ta nová. */
 data class GroupUpgradeLink(val chatId: Long, val toNewGroup: Boolean)
+
+/**
+ * Přílohy tak, jak smějí odejít jedním albem. Skladby jdou do alba jen se skladbami a soubory
+ * jen se soubory (TDLib: „Documents and audio files can be only grouped in an album with
+ * messages of the same type"); smíšený výběr proto odejde celý jako soubory — tak ho uživatel
+ * vybíral. Samotná skladba nebo samé skladby zůstávají skladbami.
+ */
+fun sendableTogether(attachments: List<OutgoingAttachment>): List<OutgoingAttachment> {
+    val mixed = attachments.any { it is OutgoingAttachment.Audio } && attachments.any { it !is OutgoingAttachment.Audio }
+    if (!mixed) return attachments
+    return attachments.map { if (it is OutgoingAttachment.Audio) it.asDocument() else it }
+}

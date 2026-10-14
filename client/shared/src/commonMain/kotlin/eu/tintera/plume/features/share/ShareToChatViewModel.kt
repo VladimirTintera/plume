@@ -272,7 +272,7 @@ class ShareToChatViewModel(
                 when (attachment) {
                     is OutgoingAttachment.Photo -> attachment.copy(mode = mode)
                     is OutgoingAttachment.Video -> attachment.copy(mode = mode)
-                    is OutgoingAttachment.Document -> attachment
+                    is OutgoingAttachment.Document, is OutgoingAttachment.Audio -> attachment
                 }
             }
         }

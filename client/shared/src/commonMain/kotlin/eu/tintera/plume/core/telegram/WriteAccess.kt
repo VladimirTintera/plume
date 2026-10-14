@@ -131,13 +131,17 @@ internal fun topicWriteAccess(chatAccess: WriteAccess, status: OwnMemberStatus?,
  * a druhy obsahu nemá co omezovat. Skupina může mít zakázané jen některé druhy: text dovolený,
  * fotky ne. Bez tohohle rozlišení nabídla sponka výběr, který skončil chybou AŽ PO odeslání.
  *
- * Druhy jsou jen ty, které aplikace umí poslat. Hudba (`canSendAudios`) tu není, protože se
- * neposílá; až přibude, přibude i pole.
+ * Druhy jsou jen ty, které aplikace umí poslat.
  */
 data class ContentAccess(
     val photos: Boolean,
     val videos: Boolean,
     val documents: Boolean,
+    /**
+     * Hudba jako skladba (`canSendAudios`). Bez ní se skladba pošle jako soubor, když soubory
+     * smějí — uživatel vybíral „soubor", a ten chat přijme.
+     */
+    val audios: Boolean,
     val voiceNotes: Boolean,
     /**
      * Video kolečka (`canSendVideoNotes`). Bez výchozí hodnoty, stejně jako [polls]: každé
@@ -161,6 +165,7 @@ data class ContentAccess(
             photos = true,
             videos = true,
             documents = true,
+            audios = true,
             voiceNotes = true,
             videoNotes = true,
             stickers = true,

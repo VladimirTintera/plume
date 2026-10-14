@@ -13,7 +13,7 @@ import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.TelegramClientHolder
 import eu.tintera.plume.core.ui.PICK_LIMIT
 import eu.tintera.plume.core.ui.outgoingPath
-import eu.tintera.plume.core.ui.prepareDocument
+import eu.tintera.plume.core.ui.prepareFile
 import eu.tintera.plume.core.ui.preparePhotoData
 import eu.tintera.plume.core.ui.prepareVideoAt
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -319,7 +319,7 @@ class IosShareInbox(
     }
 
     private suspend fun prepare(path: String, kind: String, visual: Boolean): OutgoingAttachment = when {
-        !visual -> prepareDocument(NSURL.fileURLWithPath(path))
+        !visual -> prepareFile(NSURL.fileURLWithPath(path))
         kind == KIND_VIDEO -> prepareVideoAt(path)
         else -> preparePhotoData(NSData.dataWithContentsOfFile(path) ?: error("Obrázek nejde načíst."))
     }

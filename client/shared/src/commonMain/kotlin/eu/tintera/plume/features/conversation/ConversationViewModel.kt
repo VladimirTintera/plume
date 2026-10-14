@@ -614,6 +614,8 @@ class ConversationViewModel(
     fun setLinkPreviewOptions(options: LinkPreviewOptions) = composer.setLinkPreviewOptions(options)
     fun consumeInputFill(fill: InputFill) = composer.consumeInputFill(fill)
     fun cancelEdit() = composer.cancelEdit()
+    fun replaceEditMedia(picked: List<OutgoingAttachment>) = composer.replaceEditMedia(picked)
+    fun keepEditMedia() = composer.keepEditMedia()
     fun clearReply() = composer.clearReply()
 
     /** Přílohy a co se posílá mimo text: samolepky, GIFy, poloha, kontakt, soubory — viz [ConversationAttachments]. */
@@ -1778,7 +1780,11 @@ class ConversationViewModel(
             MessageAction.CycleVoiceSpeed -> voicePlayer.cycleSpeed()
             MessageAction.Transcribe -> playback.transcribe(messageId)
             is MessageAction.SeekVoice -> playback.seekVoice(messageId, action.fraction)
-            MessageMenuAction.Edit -> composer.startEdit(messageId)
+            // Výměnu přílohy dovoluje server zprávu po zprávě; ví to jen nabídka, která se právě zavírá.
+            MessageMenuAction.Edit -> composer.startEdit(
+                messageId,
+                canEditMedia = _state.value.messageMenu?.takeIf { it.messageId == messageId }?.actions?.canEditMedia == true,
+            )
             MessageMenuAction.Copy -> menu.copyMessage(messageId)
             is MessageAction.QuoteReply -> composer.quoteReply(messageId, action.text)
             is MessageAction.CopyText -> menu.copyText(action.text)

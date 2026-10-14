@@ -115,6 +115,11 @@ internal fun ConversationBottomBar(
         onPicked = viewModel::addAttachments,
         onError = viewModel::reportError,
     )
+    // Nová příloha při úpravě zprávy — jiný cíl než přílohy nad polem, proto vlastní výběr.
+    val replacementPicker = rememberAttachmentPicker(
+        onPicked = viewModel::replaceEditMedia,
+        onError = viewModel::reportError,
+    )
     /*
      * Galerie se kreslí rovnou nad vstupním polem, kde ji systém umí vložit dovnitř aplikace
      * (`EmbeddedMediaPicker`); jinde zůstává systémový výběr, tedy odchod na vlastní obrazovku.
@@ -445,6 +450,18 @@ internal fun ConversationBottomBar(
         onDraftChanged = viewModel::onDraftChanged,
         editing = state.editing,
         onCancelEdit = viewModel::cancelEdit,
+        editMedia = state.editReplace?.let { replace ->
+            EditMediaControls(
+                replacement = state.editReplacement,
+                onReplace = {
+                    when (replace) {
+                        ReplaceMedia.Visual -> replacementPicker.pickMedia()
+                        ReplaceMedia.File -> replacementPicker.pickDocument()
+                    }
+                },
+                onKeep = viewModel::keepEditMedia,
+            )
+        },
         placeholder = state.inputPlaceholder,
         linkPreview = composerLinkPreview(
             preview = state.linkPreview,

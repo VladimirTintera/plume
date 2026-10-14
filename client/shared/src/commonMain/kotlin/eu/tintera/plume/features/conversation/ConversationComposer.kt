@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.conversation_content_not_allowed
 import androidx.lifecycle.ViewModel
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.settings.AppSettings
@@ -437,17 +438,49 @@ internal class ConversationComposer(
      * Rozepsaný text se **odloží a po skončení úpravy vrátí**. Úprava je vsuvka — kdo si
      * uprostřed psaní všimne překlepu v minulé zprávě, nechce kvůli tomu přijít o rozepsanou.
      */
-    fun startEdit(messageId: Long) {
+    fun startEdit(messageId: Long, canEditMedia: Boolean = false) {
         val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
         val formats = composedFormatsOf(message.text, message.entities) ?: return
-        enterEdit(message, ComposedText(message.text, formats), message.linkPreviewOptions ?: LinkPreviewOptions())
+        enterEdit(
+            message,
+            ComposedText(message.text, formats),
+            message.linkPreviewOptions ?: LinkPreviewOptions(),
+            replace = replaceableMedia(message, canEditMedia),
+        )
+    }
+
+    /**
+     * Nová příloha z výběru při úpravě. Bere se první; co k vyměňované příloze nesedí (soubor
+     * místo fotky), nebo co chat nepřijme, se neuloží a ohlásí — server by to odmítl až při
+     * uložení a úprava by se vracela s chybou.
+     */
+    fun replaceEditMedia(picked: List<OutgoingAttachment>) {
+        val replace = state.value.editReplace ?: return
+        val first = picked.firstOrNull() ?: return
+        val allowed = allowedByContent(listOf(first), state.value.content).firstOrNull()
+        if (allowed == null || !replace.accepts(allowed)) {
+            state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
+            return
+        }
+        state.update { it.copy(editReplacement = allowed) }
+    }
+
+    /** Ponechat původní přílohu — výměna se zahodí, úprava popisku běží dál. */
+    fun keepEditMedia() {
+        state.update { it.copy(editReplacement = null) }
     }
 
     /**
      * Pole v úpravě [target] s textem [text] a volbou náhledu [linkOptions]. Náhled se zjistí
      * hned — text se do pole vkládá bez `onDraftChanged` a na pauzu v psaní není proč čekat.
      */
-    private fun enterEdit(target: ChatMessage, text: ComposedText, linkOptions: LinkPreviewOptions) {
+    private fun enterEdit(
+        target: ChatMessage,
+        text: ComposedText,
+        linkOptions: LinkPreviewOptions,
+        replace: ReplaceMedia? = null,
+        replacement: OutgoingAttachment? = null,
+    ) {
         // Přepnutí z jedné úpravy do druhé nesmí přepsat odložený koncept textem první úpravy.
         if (state.value.editing == null) {
             draftBeforeEdit = draft
@@ -459,6 +492,8 @@ internal class ConversationComposer(
         state.update {
             it.copy(
                 editing = target,
+                editReplace = replace,
+                editReplacement = replacement,
                 messageMenu = null,
                 inputFill = InputFill(text.text, onlyIfEmpty = false, formats = text.formats),
                 linkPreview = null,
@@ -483,6 +518,8 @@ internal class ConversationComposer(
         state.update {
             it.copy(
                 editing = null,
+                editReplace = null,
+                editReplacement = null,
                 inputFill = InputFill(draftBeforeEdit.text, onlyIfEmpty = false, formats = draftBeforeEdit.formats),
                 linkPreview = stash.preview,
                 linkPreviewLinks = stash.links,
@@ -509,7 +546,19 @@ internal class ConversationComposer(
 
         val linkOptions = state.value.linkPreviewOptions
         val linkPreview = linkOptions.forEdit(sanitized.text, shown = state.value.linkPreview)
+        val replace = state.value.editReplace
+        val replacement = state.value.editReplacement
         leaveEdit()
+        // Nová příloha je změna sama o sobě; popisek jde s ní, nové volání ho uloží taky.
+        if (replacement != null) {
+            scope.launch {
+                repository.editMedia(chatId, target.id, replacement, sanitized.text, sanitized.formats).onFailure { failure ->
+                    state.update { it.copy(error = failure.reported(logger, Res.string.conversation_edit_failed)) }
+                    enterEdit(target, text, linkOptions, replace, replacement)
+                }
+            }
+            return
+        }
         // Beze změny není co posílat; server by vrátil chybu „zpráva se nezměnila". Změna jen
         // formátování (tučné slovo) je ale změna.
         val optionsChanged = kind == ComposerEdit.Text &&
@@ -524,7 +573,7 @@ internal class ConversationComposer(
             }
             edited.onFailure { failure ->
                 state.update { it.copy(error = failure.reported(logger, Res.string.conversation_edit_failed)) }
-                enterEdit(target, text, linkOptions)
+                enterEdit(target, text, linkOptions, replace)
             }
         }
     }

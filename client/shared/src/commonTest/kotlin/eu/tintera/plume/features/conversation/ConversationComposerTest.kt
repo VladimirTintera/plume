@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.settings.UnimplementedAppSettings
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ComposedText
@@ -89,6 +90,19 @@ class ConversationComposerTest {
         ): Result<Unit> {
             edits += messageId to text
             return editResult
+        }
+
+        val mediaEdits = mutableListOf<Triple<Long, OutgoingAttachment, String>>()
+
+        override suspend fun editMedia(
+            chatId: Long,
+            messageId: Long,
+            attachment: OutgoingAttachment,
+            caption: String,
+            formats: List<FormatSpan>,
+        ): Result<Unit> {
+            mediaEdits += Triple(messageId, attachment, caption)
+            return Result.success(Unit)
         }
 
         /** Náhled odkazu v textech testů není — server by žádný nenašel. */
@@ -382,5 +396,69 @@ class ConversationComposerTest {
 
         assertEquals(1L, state.value.replyingTo?.id)
         assertNull(state.value.replyQuote)
+    }
+
+    // --- Výměna přílohy při úpravě ---
+
+    private fun photoMessage(id: Long) = testMessage(id, "popisek").copy(
+        media = MessageMedia.Photo(fileId = 1, thumbnailFileId = null, fullFileId = 1, width = 10, height = 10),
+    )
+
+    private val novaFotka = OutgoingAttachment.Photo(path = "/a/nova.jpg", width = 10, height = 10)
+
+    @Test
+    fun vymenaSeNabidneJenKdyzJiServerDovoli() = runTest {
+        val state = testState(photoMessage(5))
+        val composer = composer(state)
+
+        composer.startEdit(5)
+        assertNull(state.value.editReplace)
+
+        composer.cancelEdit()
+        composer.startEdit(5, canEditMedia = true)
+        assertEquals(ReplaceMedia.Visual, state.value.editReplace)
+    }
+
+    @Test
+    fun ulozeniSNovouPrilohouJiVymeniIsPopiskem() = runTest {
+        val state = testState(photoMessage(5))
+        val composer = composer(state)
+        composer.startEdit(5, canEditMedia = true)
+
+        composer.replaceEditMedia(listOf(novaFotka))
+        // Popisek beze změny: bez nové přílohy by se nic neposlalo.
+        composer.send(ComposedText("popisek"))
+        advanceUntilIdle()
+
+        assertEquals(listOf(Triple(5L, novaFotka as OutgoingAttachment, "popisek")), repository.mediaEdits)
+        assertNull(state.value.editing)
+        assertNull(state.value.editReplacement)
+    }
+
+    /** Fotku za soubor server nevymění — výběr se neuloží a ohlásí se. */
+    @Test
+    fun souborMistoFotkySeNeprijme() = runTest {
+        val state = testState(photoMessage(5))
+        val composer = composer(state)
+        composer.startEdit(5, canEditMedia = true)
+
+        composer.replaceEditMedia(listOf(OutgoingAttachment.Document("/a/doc.pdf")))
+
+        assertNull(state.value.editReplacement)
+        assertNotNull(state.value.notice)
+    }
+
+    @Test
+    fun ponechaniPuvodniPrilohyVratiUpravuPopisku() = runTest {
+        val state = testState(photoMessage(5))
+        val composer = composer(state)
+        composer.startEdit(5, canEditMedia = true)
+        composer.replaceEditMedia(listOf(novaFotka))
+
+        composer.keepEditMedia()
+        composer.send(ComposedText("popisek"))
+        advanceUntilIdle()
+
+        assertTrue(repository.mediaEdits.isEmpty())
     }
 }

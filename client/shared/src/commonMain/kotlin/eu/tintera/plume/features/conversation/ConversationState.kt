@@ -581,6 +581,10 @@ data class ConversationState(
     val callRequest: CallRequest? = null,
     /** Zpráva, jejíž text se právě upravuje ve vstupním poli; `null` při běžném psaní. */
     val editing: ChatMessage? = null,
+    /** Čím jde při úpravě vyměnit přílohu; `null` = výměna se nenabízí (viz [replaceableMedia]). */
+    val editReplace: ReplaceMedia? = null,
+    /** Nová příloha, která při uložení úpravy nahradí tu původní; `null` = příloha zůstává. */
+    val editReplacement: OutgoingAttachment? = null,
     /** Náhled odkazu v rozepsaném textu, jak ho vrátil server; `null`, když text odkaz nemá. */
     val linkPreview: LinkPreview? = null,
     /** Odkazy v rozepsaném textu, jak stojí za sebou; víc než jeden = jde vybrat, ke kterému náhled. */
@@ -973,3 +977,27 @@ private const val MAX_QUICK_REACTIONS = 6
 /** Médium článku podle pořadí; jen z načtené zprávy — co je vidět, je načtené. */
 internal fun ConversationState.articleMedia(messageId: Long, index: Int): MessageMedia? =
     messages.firstOrNull { it.id == messageId }?.article?.media?.firstOrNull { it.index == index }?.media
+
+/** Ze kterého výběru se bere nová příloha při úpravě: fotky a videa, nebo soubory. */
+enum class ReplaceMedia { Visual, File }
+
+/**
+ * Čím jde přílohu zprávy vyměnit. Fotka a video jen fotkou nebo videem (v albu server dovolí
+ * právě tuhle záměnu), soubor a skladba souborem; ostatní (GIF, hlasovka, samolepka) se při
+ * úpravě nevyměňují. Rozhoduje i server ([canEditMedia] z `MessageProperties`): mizející zprávu
+ * vyměnit nedovolí.
+ */
+internal fun replaceableMedia(message: ChatMessage, canEditMedia: Boolean): ReplaceMedia? {
+    if (!canEditMedia) return null
+    return when (message.media) {
+        is MessageMedia.Photo, is MessageMedia.Video -> ReplaceMedia.Visual
+        is MessageMedia.Document, is MessageMedia.Audio -> ReplaceMedia.File
+        else -> null
+    }
+}
+
+/** Sedí nová příloha k tomu, co se vyměňuje? Fotku nelze vyměnit za soubor ani naopak. */
+internal fun ReplaceMedia.accepts(attachment: OutgoingAttachment): Boolean = when (this) {
+    ReplaceMedia.Visual -> attachment is OutgoingAttachment.Photo || attachment is OutgoingAttachment.Video
+    ReplaceMedia.File -> attachment is OutgoingAttachment.Document || attachment is OutgoingAttachment.Audio
+}

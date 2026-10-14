@@ -37,8 +37,12 @@ internal fun stageAttachments(
     )
 }
 
-/** Fotky a videa jdou do jednoho alba spolu; soubory jen se soubory. */
-private val OutgoingAttachment.isVisual: Boolean get() = this !is OutgoingAttachment.Document
+/**
+ * Fotky a videa jdou do jednoho alba spolu; soubory jen se soubory. Skladba patří k souborům —
+ * vybírá se jako soubor a nad polem stojí v jeho řádcích.
+ */
+private val OutgoingAttachment.isVisual: Boolean
+    get() = this is OutgoingAttachment.Photo || this is OutgoingAttachment.Video
 
 /**
  * Smí se u přílohy nabídnout jednorázové zhlédnutí nebo časovač.
@@ -68,7 +72,7 @@ internal fun dropForbiddenSelfDestruct(
         when (attachment) {
             is OutgoingAttachment.Photo -> attachment.copy(mode = AttachmentMode.Standard)
             is OutgoingAttachment.Video -> attachment.copy(mode = AttachmentMode.Standard)
-            is OutgoingAttachment.Document -> attachment
+            is OutgoingAttachment.Document, is OutgoingAttachment.Audio -> attachment
         }
     }
 }
@@ -93,11 +97,17 @@ private fun OutgoingAttachment.goesAsDocument(): Boolean =
 internal fun allowedByContent(
     picked: List<OutgoingAttachment>,
     content: ContentAccess,
-): List<OutgoingAttachment> = picked.filter { attachment ->
+): List<OutgoingAttachment> = picked.mapNotNull { attachment ->
     when {
-        attachment.goesAsDocument() -> content.documents
-        attachment is OutgoingAttachment.Photo -> content.photos
-        attachment is OutgoingAttachment.Video -> content.videos
-        else -> true
+        // Skladba, kterou chat nepřijme, odejde jako soubor — vybírala se jako soubor.
+        attachment is OutgoingAttachment.Audio -> when {
+            content.audios -> attachment
+            content.documents -> attachment.asDocument()
+            else -> null
+        }
+        attachment.goesAsDocument() -> attachment.takeIf { content.documents }
+        attachment is OutgoingAttachment.Photo -> attachment.takeIf { content.photos }
+        attachment is OutgoingAttachment.Video -> attachment.takeIf { content.videos }
+        else -> attachment
     }
 }

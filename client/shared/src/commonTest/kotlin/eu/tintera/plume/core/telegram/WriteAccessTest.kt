@@ -48,6 +48,7 @@ class WriteAccessTest {
         photos = false,
         videos = false,
         documents = false,
+        audios = false,
         voiceNotes = false,
         videoNotes = false,
         stickers = false,

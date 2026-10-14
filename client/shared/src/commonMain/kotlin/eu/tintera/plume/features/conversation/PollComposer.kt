@@ -1436,7 +1436,7 @@ private fun MediaSlotPicture(media: PollDraftMedia) {
             val image = when (val file = media.attachment) {
                 is OutgoingAttachment.Photo -> file.path
                 is OutgoingAttachment.Video -> file.thumbnail?.path
-                is OutgoingAttachment.Document -> null
+                is OutgoingAttachment.Document, is OutgoingAttachment.Audio -> null
             }
             image?.let {
                 AsyncImage(model = localImage(it), contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())

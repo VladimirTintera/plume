@@ -85,6 +85,7 @@ open class UnimplementedConversationRepository : ConversationRepository {
     override suspend fun sendAttachments(chatId: Long, attachments: List<OutgoingAttachment>, caption: String, replyToMessageId: Long?, quote: ReplyQuote?, options: SendOptions, mentions: List<NameMention>, formats: List<FormatSpan>) : Result<List<ChatMessage>> = error("sendAttachments")
     override suspend fun editText(chatId: Long, messageId: Long, text: String, linkPreview: LinkPreviewOptions?, formats: List<FormatSpan>) : Result<Unit> = error("editText")
     override suspend fun editCaption(chatId: Long, messageId: Long, caption: String, formats: List<FormatSpan>) : Result<Unit> = error("editCaption")
+    override suspend fun editMedia(chatId: Long, messageId: Long, attachment: OutgoingAttachment, caption: String, formats: List<FormatSpan>) : Result<Unit> = error("editMedia")
     override fun sentMessageUpdates(chatId: Long) : Flow<SentMessageUpdate> = error("sentMessageUpdates")
     override fun readOutboxUpdates(chatId: Long) : Flow<Long> = error("readOutboxUpdates")
     override fun presenceUpdates(chatId: Long) : Flow<Presence> = error("presenceUpdates")

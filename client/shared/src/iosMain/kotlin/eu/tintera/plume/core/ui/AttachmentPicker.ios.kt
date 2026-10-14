@@ -33,6 +33,18 @@ import platform.AVFoundation.AVAssetTrack
 import platform.AVFoundation.AVFileTypeMPEG4
 import platform.AVFoundation.AVMediaTypeVideo
 import platform.AVFoundation.AVURLAsset
+import platform.UniformTypeIdentifiers.conformsToType
+import platform.AVFoundation.dataValue
+import platform.AVFoundation.stringValue
+import platform.AVFoundation.metadataItemsFromArray
+import platform.UniformTypeIdentifiers.UTTypeAudio
+import platform.UniformTypeIdentifiers.UTType
+import platform.AVFoundation.commonMetadata
+import platform.AVFoundation.AVMetadataCommonKeyArtist
+import platform.AVFoundation.AVMetadataCommonKeyTitle
+import platform.AVFoundation.AVMetadataCommonKeyArtwork
+import platform.AVFoundation.AVMetadataKeySpaceCommon
+import platform.AVFoundation.AVMetadataItem
 import platform.AVFoundation.duration
 import platform.AVFoundation.naturalSize
 import platform.AVFoundation.preferredTransform
@@ -134,7 +146,7 @@ private class IosAttachmentPicker(
 
     private val documentDelegate = object : NSObject(), UIDocumentPickerDelegateProtocol {
         override fun documentPicker(controller: UIDocumentPickerViewController, didPickDocumentsAtURLs: List<*>) {
-            prepare(didPickDocumentsAtURLs.filterIsInstance<NSURL>().take(PICK_LIMIT)) { prepareDocument(it) }
+            prepare(didPickDocumentsAtURLs.filterIsInstance<NSURL>().take(PICK_LIMIT)) { prepareFile(it) }
         }
     }
 
@@ -368,6 +380,57 @@ internal fun prepareDocument(url: NSURL): OutgoingAttachment.Document {
     val copied = NSFileManager.defaultManager.copyItemAtURL(url, toURL = NSURL.fileURLWithPath(path), error = null)
     check(copied) { "Soubor nejde zkopírovat." }
     return OutgoingAttachment.Document(path = path)
+}
+
+/**
+ * Soubor ze sponky „Soubor": hudba odejde jako skladba (název, interpret a obal ze značek
+ * souboru), všechno ostatní beze změny jako soubor. Typ se pozná podle přípony.
+ */
+internal fun prepareFile(url: NSURL): OutgoingAttachment {
+    val document = prepareDocument(url)
+    val extension = document.path.substringAfterLast('.', missingDelimiterValue = "")
+    val audio = UTType.typeWithFilenameExtension(extension)?.conformsToType(UTTypeAudio) == true
+    if (!audio) return document
+    // Soubor, který se jako skladba přečíst nedá, odejde aspoň jako soubor.
+    return runCatching { audioAt(document.path) }.getOrNull() ?: document
+}
+
+/** Název, interpret, délka a obal alba (JPEG do [VIDEO_THUMBNAIL_EDGE]) ze značek skladby. */
+@OptIn(ExperimentalForeignApi::class)
+private fun audioAt(path: String): OutgoingAttachment.Audio {
+    val asset = AVURLAsset(uRL = NSURL.fileURLWithPath(path), options = null)
+    val duration = CMTimeGetSeconds(asset.duration).takeIf { !it.isNaN() } ?: 0.0
+    fun item(key: String?) = key?.let {
+        AVMetadataItem.metadataItemsFromArray(asset.commonMetadata, withKey = it, keySpace = AVMetadataKeySpaceCommon)
+            .firstOrNull() as? AVMetadataItem
+    }
+    fun text(key: String?) = item(key)?.stringValue?.trim()?.takeIf { it.isNotEmpty() }
+    val cover = item(AVMetadataCommonKeyArtwork)?.dataValue?.let { data -> coverThumbnail(data, directoryOf(path)) }
+    return OutgoingAttachment.Audio(
+        path = path,
+        title = text(AVMetadataCommonKeyTitle),
+        performer = text(AVMetadataCommonKeyArtist),
+        durationSeconds = duration.roundToInt(),
+        cover = cover,
+    )
+}
+
+/** Obal alba zmenšený na [VIDEO_THUMBNAIL_EDGE] jako JPEG vedle skladby; bez něj skladba odejde taky. */
+@OptIn(ExperimentalForeignApi::class)
+private fun coverThumbnail(data: NSData, directory: String): OutgoingThumbnail? {
+    val image = UIImage.imageWithData(data) ?: return null
+    val (width, height) = image.size.useContents { width to height }
+    if (width <= 0.0 || height <= 0.0) return null
+    val scale = minOf(1.0, VIDEO_THUMBNAIL_EDGE / max(width, height))
+    val size = CGSizeMake(width * scale, height * scale)
+    val format = UIGraphicsImageRendererFormat.defaultFormat().apply { this.scale = 1.0 }
+    val scaled = UIGraphicsImageRenderer(size = size, format = format).imageWithActions { _ ->
+        image.drawInRect(CGRectMake(0.0, 0.0, width * scale, height * scale))
+    }
+    val jpeg = UIImageJPEGRepresentation(scaled, PHOTO_JPEG_QUALITY / 100.0) ?: return null
+    val target = "$directory/cover.jpg"
+    if (!jpeg.writeToFile(target, atomically = true)) return null
+    return OutgoingThumbnail(path = target, width = (width * scale).roundToInt(), height = (height * scale).roundToInt())
 }
 
 /** Cesta v dočasném adresáři aplikace, každá příloha ve vlastním podadresáři (jména se nepřepíšou). */

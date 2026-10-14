@@ -1,5 +1,13 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.conversation_edit_new_file
+import eu.tintera.plume.resources.conversation_edit_new_audio
+import eu.tintera.plume.resources.conversation_edit_new_video
+import eu.tintera.plume.resources.conversation_edit_new_photo
+import eu.tintera.plume.resources.conversation_edit_replace_media
+import eu.tintera.plume.resources.conversation_edit_keep_media
+import eu.tintera.plume.resources.attach_file_24dp
+import eu.tintera.plume.resources.undo_24dp
 import eu.tintera.plume.resources.edit_note_24dp
 import eu.tintera.plume.resources.conversation_send_rewrite
 import eu.tintera.plume.core.ui.isFromHardwareKeyboard
@@ -226,6 +234,8 @@ internal fun MessageInput(
     /** Upravovaná zpráva; karta pak místo citace ukazuje, co se upravuje. */
     editing: ChatMessage?,
     onCancelEdit: () -> Unit,
+    /** Výměna přílohy při úpravě; `null` = nenabízí se (viz `replaceableMedia`). */
+    editMedia: EditMediaControls? = null,
     /** Nápověda do prázdného pole, kterou si přeje bot; `null` = výchozí. */
     placeholder: String? = null,
     /** Náhled odkazu v rozepsaném textu, pokud se má ukázat ([composerLinkPreview]). */
@@ -501,7 +511,7 @@ internal fun MessageInput(
               Column {
                 // Úprava má přednost před citací: odpověď se při ní neruší, jen se na chvíli schová.
                 if (editing != null) {
-                    EditingHeader(message = editing, onCancel = onCancelEdit)
+                    EditingHeader(message = editing, onCancel = onCancelEdit, media = editMedia)
                 } else {
                   AnimatedVisibility(
                       visible = attachmentsPreparing,
@@ -1476,9 +1486,10 @@ private val LINK_HEADER_THUMBNAIL = 36.dp
  * původní text nekreslí vůbec — prázdný řádek by vypadal jako chyba vykreslení.
  */
 @Composable
-private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit) = ComposerHeader {
+private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit, media: EditMediaControls?) = ComposerHeader {
     val accent = composerHeaderAccent()
     val caption = message.composerEdit() == ComposerEdit.Caption
+    val replacement = media?.replacement
     Column(Modifier.weight(1f).padding(start = 14.dp, top = 8.dp, bottom = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
@@ -1495,7 +1506,17 @@ private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit) = Composer
                 color = accent,
             )
         }
-        if (message.text.isNotBlank()) {
+        // Nová příloha má přednost před původním popiskem: ten je v poli a tohle je to, co se
+        // při uložení stane navíc — bez řádku by výměna nebyla vidět nikde.
+        if (replacement != null) {
+            Text(
+                text = replacement.replacementLabel(),
+                style = MaterialTheme.typography.bodySmall,
+                color = accent,
+                maxLines = 1,
+                overflow = TextOverflow.MiddleEllipsis,
+            )
+        } else if (message.text.isNotBlank()) {
             Text(
                 text = message.text,
                 style = MaterialTheme.typography.bodySmall,
@@ -1504,7 +1525,40 @@ private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit) = Composer
             )
         }
     }
+    if (media != null) {
+        if (replacement != null) {
+            IconButton(onClick = media.onKeep, shapes = IconButtonDefaults.shapes()) {
+                Icon(painterResource(Res.drawable.undo_24dp), contentDescription = stringResource(Res.string.conversation_edit_keep_media))
+            }
+        } else {
+            IconButton(onClick = media.onReplace, shapes = IconButtonDefaults.shapes()) {
+                Icon(painterResource(Res.drawable.attach_file_24dp), contentDescription = stringResource(Res.string.conversation_edit_replace_media))
+            }
+        }
+    }
     IconButton(onClick = onCancel, shapes = IconButtonDefaults.shapes()) {
         Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.conversation_cancel_edit))
     }
+}
+
+/**
+ * Výměna přílohy při úpravě: [replacement] je vybraná nová příloha (`null` = zatím žádná),
+ * [onReplace] otevře výběr, [onKeep] výměnu zahodí. Jeden objekt místo tří parametrů pole.
+ */
+class EditMediaControls(
+    val replacement: OutgoingAttachment?,
+    val onReplace: () -> Unit,
+    val onKeep: () -> Unit,
+)
+
+/** Řádek v hlavičce úpravy: čím se příloha nahradí. Rod podle druhu, proto čtyři věty. */
+@Composable
+private fun OutgoingAttachment.replacementLabel(): String = when (this) {
+    is OutgoingAttachment.Photo -> stringResource(Res.string.conversation_edit_new_photo)
+    is OutgoingAttachment.Video -> stringResource(Res.string.conversation_edit_new_video)
+    is OutgoingAttachment.Audio -> stringResource(
+        Res.string.conversation_edit_new_audio,
+        title?.let { listOfNotNull(it, performer).joinToString(" – ") } ?: path.substringAfterLast('/'),
+    )
+    is OutgoingAttachment.Document -> stringResource(Res.string.conversation_edit_new_file, path.substringAfterLast('/'))
 }
