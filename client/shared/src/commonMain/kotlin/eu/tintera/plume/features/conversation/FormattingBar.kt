@@ -40,12 +40,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Text
-import androidx.compose.material3.TooltipAnchorPosition
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.rememberTooltipState
+import eu.tintera.plume.core.ui.WithTooltip
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -218,14 +214,9 @@ private fun toggleColors() = IconButtonDefaults.iconToggleButtonColors(
     checkedContentColor = MaterialTheme.colorScheme.onPrimary,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun Labelled(label: String, content: @Composable (String) -> Unit) {
-    TooltipBox(
-        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-        tooltip = { PlainTooltip { Text(label) } },
-        state = rememberTooltipState(),
-    ) {
+    WithTooltip(label) {
         content(label)
     }
 }
