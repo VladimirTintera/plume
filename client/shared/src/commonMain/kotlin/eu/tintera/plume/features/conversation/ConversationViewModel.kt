@@ -2,31 +2,22 @@ package eu.tintera.plume.features.conversation
 
 import kotlinx.coroutines.flow.filterNotNull
 import eu.tintera.plume.core.speech.SpeechToText
-import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.ScamKind
 import eu.tintera.plume.core.ai.OnDeviceAi
 import kotlin.time.Instant
 import eu.tintera.plume.core.calendar.CalendarEvents
 import eu.tintera.plume.core.contacts.ContactSaver
-import eu.tintera.plume.features.conversation.items.contextMenuItems
 import eu.tintera.plume.core.currency.ExchangeRates
 import eu.tintera.plume.core.currency.HomeRegion
 import eu.tintera.plume.core.wifi.WifiJoiner
 import kotlinx.datetime.toLocalDateTime
-import kotlinx.datetime.toInstant
 import kotlinx.datetime.TimeZone
 import eu.tintera.plume.core.translation.OnDeviceTranslator
-import eu.tintera.plume.resources.conversation_remind_failed
-import eu.tintera.plume.resources.conversation_remind_set
-import eu.tintera.plume.core.telegram.ForwardOptions
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import eu.tintera.plume.core.snooze.ChatSnoozes
 import eu.tintera.plume.core.ui.PhotoMarkup
 import eu.tintera.plume.core.ui.PhotoMarkupRenderer
 import eu.tintera.plume.core.telegram.QuickReaction
-import eu.tintera.plume.resources.conversation_bookmark_removed
-import eu.tintera.plume.resources.conversation_bookmark_added
-import eu.tintera.plume.resources.summary_me
 import eu.tintera.plume.core.telegram.PollDraftMedia
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.telegram.ComposedText
@@ -75,8 +66,6 @@ import eu.tintera.plume.core.telegram.ConnectionState
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.ThreadConversationRepository
 import eu.tintera.plume.core.telegram.FileRepository
-import eu.tintera.plume.core.telegram.MessageActions
-import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.GifItem
 import eu.tintera.plume.core.telegram.OutgoingAnimation
@@ -90,42 +79,23 @@ import eu.tintera.plume.core.telegram.SentMessageUpdate
 import eu.tintera.plume.core.telegram.SponsoredMessage
 import eu.tintera.plume.core.telegram.StickerItem
 import eu.tintera.plume.core.telegram.StickerRepository
-import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UiText
-import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.conversation_resend_failed
-import eu.tintera.plume.resources.conversation_send_failed_unknown
 import eu.tintera.plume.resources.paid_media_unsupported
 import eu.tintera.plume.resources.story_live_unsupported
-import eu.tintera.plume.resources.conversation_selection_limit
-import eu.tintera.plume.resources.conversation_cancel_send_failed
-import eu.tintera.plume.resources.conversation_delete_failed
-import eu.tintera.plume.resources.conversation_favorite_added
-import eu.tintera.plume.resources.conversation_favorite_failed
-import eu.tintera.plume.resources.conversation_favorite_removed
 import eu.tintera.plume.resources.conversation_history_failed
-import eu.tintera.plume.resources.conversation_pin_failed
 import eu.tintera.plume.resources.conversation_message_deleted
 import eu.tintera.plume.resources.conversation_quote_deleted
-import eu.tintera.plume.resources.conversation_reaction_failed
 import eu.tintera.plume.resources.conversation_repin_failed
-import eu.tintera.plume.resources.contact_add_failed
-import eu.tintera.plume.resources.call_unavailable
-import eu.tintera.plume.resources.contact_remove_failed
 import eu.tintera.plume.resources.conversation_unpin_failed
 import eu.tintera.plume.resources.conversation_unread_mark_failed
-import eu.tintera.plume.resources.message_info_failed
-import eu.tintera.plume.resources.message_info_link_copied
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -149,7 +119,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import org.jetbrains.compose.resources.StringResource
@@ -390,7 +359,7 @@ class ConversationViewModel(
         fileRepository = fileRepository,
         fileOpener = fileOpener,
         sharer = sharer,
-        closeMenus = ::closeMenus,
+        closeMenus = { menu.closeMenus() },
         logger = logger,
     )
     fun saveDocumentAs(messageId: Long, launcher: SaveAsLauncher) = documents.saveDocumentAs(messageId, launcher)
@@ -429,9 +398,9 @@ class ConversationViewModel(
         wifiJoiner = wifiJoiner,
         exchangeRates = exchangeRates,
         currency = currency,
-        closeMenus = ::closeMenus,
+        closeMenus = { menu.closeMenus() },
         openLink = { links.openLink(it) },
-        requestRemind = ::requestRemind,
+        requestRemind = { messageActions.requestRemind(it) },
         logger = logger,
     )
     val scamVerdicts: StateFlow<Map<Long, ScamKind>> get() = messageContext.scamVerdicts
@@ -676,6 +645,81 @@ class ConversationViewModel(
     fun setAttachmentMode(index: Int, mode: AttachmentMode) = attachments.setAttachmentMode(index, mode)
     fun toggleAttachmentSpoiler(index: Int) = attachments.toggleAttachmentSpoiler(index)
     fun setAttachmentSelfDestruct(index: Int, type: SelfDestructType?) = attachments.setAttachmentSelfDestruct(index, type)
+
+    /** Nabídka nad zprávou a co z ní nevede jinam: kopírování, informace, záložky — viz [ConversationMessageMenu]. */
+    private val menu: ConversationMessageMenu = ConversationMessageMenu(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        repository = repository,
+        settings = settings,
+        clipboard = clipboard,
+        languageDetector = languageDetector,
+        onDeviceAi = onDeviceAi,
+        bookmarks = bookmarks,
+        stickerRepository = stickerRepository,
+        messageContext = messageContext,
+        translation = translation,
+        logger = logger,
+    )
+    fun dismissTextSelection() = menu.dismissTextSelection()
+    fun dismissMessageInfo() = menu.dismissMessageInfo()
+    fun copyMessageLink(link: String) = menu.copyMessageLink(link)
+
+    /** Reakce na zprávy — viz [ConversationReactions]. */
+    private val reactions: ConversationReactions = ConversationReactions(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        repository = repository,
+        quickReaction = quickReaction,
+        closeMenus = { menu.closeMenus() },
+        logger = logger,
+    )
+    fun filterReactionDetails(emoji: String?) = reactions.filterReactionDetails(emoji)
+    fun dismissReactionDetails() = reactions.dismissReactionDetails()
+
+    /** Akce se zprávou: připnutí, smazání, přeposlání, připomínka, nahlášení — viz [ConversationMessageActions]. */
+    private val messageActions: ConversationMessageActions = ConversationMessageActions(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        repository = repository,
+        chatRepository = chatRepository,
+        reminderTimeModel = reminderTimeModel,
+        reportFlow = reportFlow,
+        closeMenus = { menu.closeMenus() },
+        unpin = { unpin(it) },
+        logger = logger,
+    )
+    fun cancelPin() = messageActions.cancelPin()
+    fun confirmPin(option: Boolean) = messageActions.confirmPin(option)
+    fun consumeCallRequest() = messageActions.consumeCallRequest()
+    fun undoAddContact(userId: Long) = messageActions.undoAddContact(userId)
+    fun consumeAddedContact() = messageActions.consumeAddedContact()
+    fun closeRemind() = messageActions.closeRemind()
+    fun remind(messageId: Long, at: Long) = messageActions.remind(messageId, at)
+    fun consumeForwardRequest() = messageActions.consumeForwardRequest()
+    fun cancelDelete() = messageActions.cancelDelete()
+    fun confirmDelete(revoke: Boolean) = messageActions.confirmDelete(revoke)
+
+    /** Výběr víc zpráv — viz [ConversationSelection]. */
+    private val selection: ConversationSelection = ConversationSelection(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        repository = repository,
+        clipboard = clipboard,
+        reportFlow = reportFlow,
+        logger = logger,
+    )
+    fun closeSelection() = selection.closeSelection()
+    fun copySelection() = selection.copySelection()
+    fun copySelectionWithNames() = selection.copySelectionWithNames()
+    fun copySelectionAsMarkdown() = selection.copySelectionAsMarkdown()
+    fun forwardSelection() = selection.forwardSelection()
+    fun reportSelection() = selection.reportSelection()
+    fun deleteSelection() = selection.deleteSelection()
 
     /** Serializuje stránkování — bez toho by dva rychlé scrolly načetly tutéž stránku dvakrát. */
     private val loadMutex = Mutex()
@@ -1609,105 +1653,6 @@ class ConversationViewModel(
     }
 
     /**
-     * Přepne reakci.
-     *
-     * Stav se **mění lokálně hned**, ještě než dorazí potvrzení ze serveru — jinak by mezi ťuknutím
-     * a odpovědí byla viditelná prodleva a gesto by působilo rozbitě. Když volání selže, změna se
-     * vrátí zpět. Server pak stejně pošle autoritativní stav přes `interactionUpdates`.
-     */
-    private fun toggleReaction(messageId: Long, emoji: String) {
-        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        val existing = message.reactions.firstOrNull { it.emoji == emoji }
-        val add = existing?.isChosen != true
-
-        val before = message.reactions
-        applyReactions(messageId, before.toggled(emoji, add))
-
-        viewModelScope.launch {
-            repository.setReaction(chatId, messageId, emoji, add).onFailure { failure ->
-                applyReactions(messageId, before)
-                _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_reaction_failed)) }
-            }
-        }
-        closeMenus()
-    }
-
-    /**
-     * Rychlá reakce dvojitým ťuknutím: přepne reakci účtu ([QuickReaction]) jako ťuknutí na ni
-     * v nabídce — už přidanou tedy odebere.
-     *
-     * **Dostupnost se ověřuje dřív, než se cokoli změní.** Kanál si sadu reakcí omezuje,
-     * v Uložených zprávách reakce nejsou vůbec, a vlastní emoji může chtít Premium. Optimisticky
-     * přidaná reakce, kterou server odmítne, by problikla a skončila chybovou hláškou — u gesta,
-     * o kterém uživatel nemusí ani vědět, že ho udělal. Nedostupná reakce proto neudělá nic.
-     * Odebrání vlastní reakce se neověřuje: ta zjevně dostupná byla.
-     */
-    private fun quickReact(messageId: Long) {
-        val reaction = quickReaction.reaction.value ?: return
-        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        if (message.reactions.any { it.emoji == reaction && it.isChosen }) {
-            toggleReaction(messageId, reaction)
-            return
-        }
-        viewModelScope.launch {
-            val available = repository.availableReactions(chatId, messageId).getOrNull() ?: return@launch
-            if (reaction in available) toggleReaction(messageId, reaction)
-        }
-    }
-
-    /**
-     * Informace o zprávě z nabídky: kdy odešla, kdy ji kdo přečetl, kdo ji zhlédl a odkaz na ni.
-     *
-     * Načítá se až tady. Skoro žádná zpráva nemá všechna tři práva (`canGetReadDate`,
-     * `canGetViewers`, `canGetLink`), takže ptát se dopředu by znamenalo tři dotazy na každou
-     * zprávu v historii kvůli sheetu, který se otevře jednou za čas.
-     */
-    /**
-     * Otevře text zprávy k výběru úryvku.
-     *
-     * Nabídku to ukončí, jako „Informace" — je to jednorázová akce, která si otevře vlastní
-     * sheet. Text se bere týž, co by šel do schránky ([copyableText]), takže se výběr nabízí
-     * přesně nad tím, co zpráva opravdu nese.
-     */
-    private fun selectText(messageId: Long) {
-        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        _state.update { it.copy(messageMenu = null, selectingText = message) }
-    }
-
-    fun dismissTextSelection() {
-        _state.update { it.copy(selectingText = null) }
-    }
-
-    private fun showMessageInfo(messageId: Long) {
-        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        _state.update { it.copy(messageMenu = null, messageInfo = MessageInfoSheet(message = message)) }
-
-        viewModelScope.launch {
-            repository.messageInfo(chatId, messageId)
-                .onSuccess { info ->
-                    _state.update { state ->
-                        // Mezitím mohl uživatel sheet zavřít nebo otevřít u jiné zprávy.
-                        val open = state.messageInfo?.takeIf { it.message.id == messageId }
-                            ?: return@update state
-                        state.copy(messageInfo = open.copy(info = info))
-                    }
-                }
-                .onFailure { failure ->
-                    _state.update {
-                        it.copy(
-                            messageInfo = null,
-                            error = failure.reported(logger, Res.string.message_info_failed),
-                        )
-                    }
-                }
-        }
-    }
-
-    fun dismissMessageInfo() {
-        _state.update { it.copy(messageInfo = null) }
-    }
-
-    /**
      * Diskrétní čtení: vlastní zpráva v chatu prozradí, že uživatel chat četl, takže se přečte
      * celý — protějšek by jinak viděl odpověď na zprávu, kterou „nečetl". Bez diskrétního čtení
      * nic: přečtení hlásí seznam sám, jak se zprávy ukazují.
@@ -1737,90 +1682,6 @@ class ConversationViewModel(
     }
 
     /**
-     * Odkaz na zprávu do schránky.
-     *
-     * Sheet se přitom zavře. Jednak je tím skopírování hotová věc — kdo si o odkaz řekl, ten ho
-     * má —, jednak by snackbar s potvrzením zůstal schovaný POD sheetem a nebylo by poznat,
-     * že se něco stalo. Android 13+ ukazuje vlastní náhled schránky, takže tam snackbar odpadá
-     * (viz [TextClipboard.confirmsCopy]); iOS a starší Androidy ho nemají.
-     */
-    fun copyMessageLink(link: String) {
-        viewModelScope.launch {
-            clipboard.copy(link)
-            _state.update {
-                it.copy(
-                    messageInfo = null,
-                    notice = if (clipboard.confirmsCopy) it.notice else UiText(Res.string.message_info_link_copied),
-                )
-            }
-        }
-    }
-
-    /**
-     * Ťuknutí na vlastní zprávu: ukáže u ní odznak přečtení, druhé ťuknutí ho schová.
-     *
-     * Nic se nikam neposílá — stav přečtení je v `lastReadOutboxMessageId`, posuvném ukazateli
-     * na chatu, takže se odvodí porovnáním id. Cizí a servisní zprávy odznak nemají, takže se
-     * u nich ťuknutí zahodí.
-     */
-    private fun toggleReadReceipt(messageId: Long) {
-        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        if (!message.isOutgoing || message.isService) return
-
-        _state.update { it.copy(readReceiptFor = messageId.takeIf { id -> id != it.readReceiptFor }) }
-    }
-
-    /**
-     * Ťuknutí na čip reakce: otevře detail a dotáhne, kdo reagoval.
-     *
-     * Reakci to **nepřepíná**. Přidat i odebrat jde z nabídky nad zprávou, kde je vybraná reakce
-     * zvýrazněná a ťuknutí na ni ji sundá — jinak by se ťuknutí na čip pralo o význam
-     * s otevřením detailu.
-     */
-    private fun showReactionDetails(messageId: Long) {
-        val counts = _state.value.messages.firstOrNull { it.id == messageId }?.reactions.orEmpty()
-        _state.update { it.copy(reactionDetails = ReactionDetails(messageId = messageId, counts = counts)) }
-        loadReactionDetails(messageId, filter = null)
-    }
-
-    /**
-     * Zúží detail na jednu reakci ([emoji]), `null` vrátí všechny. Dosavadní seznam zůstává, dokud
-     * nedorazí nový — výměna za indikátor by sheet pod prstem smrštila a zase natáhla.
-     */
-    fun filterReactionDetails(emoji: String?) {
-        val open = _state.value.reactionDetails ?: return
-        if (open.filter == emoji) return
-        _state.update { it.copy(reactionDetails = open.copy(filter = emoji)) }
-        loadReactionDetails(open.messageId, emoji)
-    }
-
-    private fun loadReactionDetails(messageId: Long, filter: String?) {
-        viewModelScope.launch {
-            repository.reactionDetails(chatId, messageId, filter)
-                .onSuccess { details ->
-                    _state.update { state ->
-                        // Mezitím mohl uživatel sheet zavřít, otevřít u jiné zprávy nebo přepnout filtr.
-                        val open = state.reactionDetails?.takeIf { it.messageId == messageId && it.filter == filter }
-                            ?: return@update state
-                        state.copy(reactionDetails = open.copy(loading = false, items = details))
-                    }
-                }
-                .onFailure { failure ->
-                    _state.update {
-                        it.copy(
-                            reactionDetails = null,
-                            error = failure.reported(logger, Res.string.conversation_reaction_failed),
-                        )
-                    }
-                }
-        }
-    }
-
-    fun dismissReactionDetails() {
-        _state.update { it.copy(reactionDetails = null) }
-    }
-
-    /**
      * Otevře nabídku nad zprávou.
      *
      * Emoji a příznaky akcí se načítají **současně** — jsou to dva nezávislé dotazy a nabídka
@@ -1838,9 +1699,9 @@ class ConversationViewModel(
      */
     fun onAction(messageId: Long, action: MessageAction) {
         when (action) {
-            is MessageAction.ShowMenu -> showMessageMenu(messageId, action.items, action.pressed)
-            MessageAction.CloseMenu -> closeMenus()
-            MessageAction.ShowNoticeMenu -> showNoticeMenu(messageId)
+            is MessageAction.ShowMenu -> menu.showMessageMenu(messageId, action.items, action.pressed)
+            MessageAction.CloseMenu -> menu.closeMenus()
+            MessageAction.ShowNoticeMenu -> menu.showNoticeMenu(messageId)
             is MessageAction.DeleteNotice -> _state.update {
                 it.copy(
                     noticeMenu = null,
@@ -1851,10 +1712,10 @@ class ConversationViewModel(
                     ),
                 )
             }
-            is MessageAction.React -> toggleReaction(messageId, action.emoji)
-            MessageAction.QuickReact -> quickReact(messageId)
-            MessageAction.ShowReactions -> showReactionDetails(messageId)
-            MessageAction.ToggleReadReceipt -> toggleReadReceipt(messageId)
+            is MessageAction.React -> reactions.toggleReaction(messageId, action.emoji)
+            MessageAction.QuickReact -> reactions.quickReact(messageId)
+            MessageAction.ShowReactions -> reactions.showReactionDetails(messageId)
+            MessageAction.ToggleReadReceipt -> menu.toggleReadReceipt(messageId)
             MessageAction.SwipeReply -> composer.replyTo(messageId)
             // U alba na fotku, na které stisk začal, ne na zprávu s popiskem, které patří blok.
             MessageMenuAction.Reply -> composer.replyTo(_state.value.messageMenu?.takeIf { it.messageId == messageId }?.replyTarget ?: messageId)
@@ -1864,7 +1725,7 @@ class ConversationViewModel(
             MessageAction.ShowPollVoters -> _state.update { it.copy(pollVoters = messageId) }
             MessageAction.AddPollOption -> _state.update { it.copy(addingPollOption = messageId) }
             MessageMenuAction.RetractVote -> {
-                closeMenus()
+                menu.closeMenus()
                 bots.vote(messageId, emptyList())
             }
             MessageMenuAction.StopPoll -> _state.update { it.copy(messageMenu = null, pendingStopPoll = messageId) }
@@ -1872,8 +1733,8 @@ class ConversationViewModel(
             is MessageAction.OpenInstantView -> instantViewRequests?.request(action.url) ?: links.openLink(action.url)
             is MessageAction.OpenMention -> links.openMentioned { chatRepository.chatByUsername(action.username) }
             is MessageAction.OpenUser -> links.openMentioned { chatRepository.privateChat(action.userId) }
-            MessageAction.AddContact -> addSharedContact(messageId)
-            MessageAction.CallBack -> callBack(messageId)
+            MessageAction.AddContact -> messageActions.addSharedContact(messageId)
+            MessageAction.CallBack -> messageActions.callBack(messageId)
             MessageAction.StopLiveLocation -> attachments.stopLiveLocation(messageId)
             MessageAction.SetProximityAlert -> attachments.openProximityAlert(messageId)
             is MessageAction.OpenChat -> links.openMentioned { Result.success(action.chatId) }
@@ -1889,7 +1750,7 @@ class ConversationViewModel(
                 voicePlayer.seek(VoiceKey(chatId, messageId, part = action.index), action.fraction)
             is MessageAction.OpenArticleDocument -> documents.openArticleDocument(messageId, action.index)
             MessageAction.OpenDocument -> documents.openDocument(messageId)
-            MessageAction.CancelUpload -> cancelUpload(messageId)
+            MessageAction.CancelUpload -> messageActions.cancelUpload(messageId)
             MessageAction.ExplainPaidMedia -> _state.update { it.copy(notice = UiText(Res.string.paid_media_unsupported)) }
             MessageAction.ExplainLiveStory -> _state.update { it.copy(notice = UiText(Res.string.story_live_unsupported)) }
             is MessageAction.OpenStory -> links.openStory(StoryTarget(action.posterChatId, action.storyId))
@@ -1903,28 +1764,28 @@ class ConversationViewModel(
             MessageAction.Transcribe -> playback.transcribe(messageId)
             is MessageAction.SeekVoice -> playback.seekVoice(messageId, action.fraction)
             MessageMenuAction.Edit -> composer.startEdit(messageId)
-            MessageMenuAction.Copy -> copyMessage(messageId)
+            MessageMenuAction.Copy -> menu.copyMessage(messageId)
             is MessageAction.QuoteReply -> composer.quoteReply(messageId, action.text)
-            is MessageAction.CopyText -> copyText(action.text)
-            MessageMenuAction.ToggleFavoriteSticker -> toggleFavoriteSticker(messageId)
-            MessageMenuAction.ToggleBookmark -> toggleBookmark(messageId)
-            MessageMenuAction.Forward -> requestForward(messageId)
-            MessageMenuAction.Remind -> requestRemind(messageId)
-            MessageMenuAction.Info -> showMessageInfo(messageId)
+            is MessageAction.CopyText -> menu.copyText(action.text)
+            MessageMenuAction.ToggleFavoriteSticker -> menu.toggleFavoriteSticker(messageId)
+            MessageMenuAction.ToggleBookmark -> menu.toggleBookmark(messageId)
+            MessageMenuAction.Forward -> messageActions.requestForward(messageId)
+            MessageMenuAction.Remind -> messageActions.requestRemind(messageId)
+            MessageMenuAction.Info -> menu.showMessageInfo(messageId)
             MessageMenuAction.Translate -> translation.showTranslation(messageId)
             MessageMenuAction.Summarize -> translation.showSummary(messageId)
             // Vysvětlení pouští obrazovka (sheet shrnutí); tady se jen zavře nabídka.
             MessageMenuAction.Explain -> _state.update { it.copy(messageMenu = null) }
             MessageMenuAction.ContextActions -> messageContext.openContextFromMenu(messageId)
             is MessageMenuAction.ContextItem -> messageContext.runContextItem(messageId, action)
-            MessageMenuAction.SelectText -> selectText(messageId)
-            MessageMenuAction.Pin -> requestPin(messageId)
-            MessageMenuAction.Unpin -> unpinFromMenu(messageId)
-            MessageMenuAction.Delete -> requestDelete(messageId)
-            MessageMenuAction.Resend -> resend(messageId)
-            MessageMenuAction.Select -> startSelection(messageId)
-            MessageMenuAction.Report -> reportMessage(messageId)
-            MessageAction.ToggleSelection -> toggleSelection(messageId)
+            MessageMenuAction.SelectText -> menu.selectText(messageId)
+            MessageMenuAction.Pin -> messageActions.requestPin(messageId)
+            MessageMenuAction.Unpin -> messageActions.unpinFromMenu(messageId)
+            MessageMenuAction.Delete -> messageActions.requestDelete(messageId)
+            MessageMenuAction.Resend -> messageActions.resend(messageId)
+            MessageMenuAction.Select -> selection.startSelection(messageId)
+            MessageMenuAction.Report -> messageActions.reportMessage(messageId)
+            MessageAction.ToggleSelection -> selection.toggleSelection(messageId)
             MessageMenuAction.ShareFile -> documents.shareDocument(messageId)
             MessageAction.OpenMedia, is MessageAction.OpenPollMedia, is MessageAction.OpenArticleMedia,
             is MessageAction.OpenStickerSet,
@@ -1934,615 +1795,9 @@ class ConversationViewModel(
         }
     }
 
-    /**
-     * Nabídnout „Vysvětlit"? Se zapnutou AI v zařízení a modelem, který telefon umí (stažený být
-     * nemusí — sheet pak řekne, kde ho stáhnout, stejně jako u shrnutí konverzace).
-     */
-    private suspend fun explainAvailable(): Boolean {
-        val ai = onDeviceAi ?: return false
-        if (!settings.onDeviceAiEnabled.value) return false
-        return runCatching { ai.status(settings.onDeviceAiVariant.value) != OnDeviceAiStatus.Unsupported }.getOrDefault(false)
-    }
-
-    /** Nabídka s kandidáty, které nabídl blok; co z nich server dovolí, se zjistí tady. */
-    private fun showMessageMenu(messageId: Long, items: List<MessageMenuAction>, pressed: Long? = null) {
-        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-
-        viewModelScope.launch {
-            val sticker = message.media as? MessageMedia.Sticker
-
-            val (emoji, actions, favorite, inTranslationLanguage) = coroutineScope {
-                val emojiTask = async { repository.availableReactions(chatId, messageId) }
-                val actionsTask = async { repository.messageActions(chatId, messageId) }
-                // Oblíbenost jen u samolepky; seznam oblíbených je krátký a TDLib ho má lokálně.
-                val favoriteTask = async {
-                    sticker?.let { s ->
-                        stickerRepository.favoriteStickers().first().any { it.sendFileId == s.stickerFileId }
-                    }
-                }
-                // Rozpoznání jazyka jen kvůli „Přeložit", a se stropem: nabídka čeká na všechny
-                // úlohy a pomalé rozpoznání (studený model) ji nesmí zdržet — pak se prostě nabízí.
-                val languageTask = async {
-                    val text = languageDetectionText(message.text)
-                    if (MessageMenuAction.Translate !in items || text == null) return@async false
-                    val detected = withTimeoutOrNull(LANGUAGE_DETECTION_TIMEOUT_MS) { languageDetector.detect(text) }
-                    alreadyInLanguage(detected, translation.translationTarget())
-                }
-                MenuLoad(
-                    emojiTask.await().getOrDefault(emptyList()),
-                    actionsTask.await().getOrElse { failure ->
-                        logger.w(failure) { "Příznaky zprávy $messageId se nepodařilo zjistit." }
-                        MessageActions.Fallback
-                    },
-                    favoriteTask.await(),
-                    languageTask.await(),
-                )
-            }
-
-            val explainAvailable = MessageMenuAction.Explain in items && explainAvailable()
-            val contextFindings = if (MessageMenuAction.ContextActions in items) messageContext.contextFindingsOf(message) else emptyList()
-            // Kandidát na akce z textu se rozbalí na položky jednotlivých akcí.
-            val shownItems = items.flatMap { item ->
-                if (item == MessageMenuAction.ContextActions) contextMenuItems(contextFindings, messageContext.canJoinWifi) else listOf(item)
-            }
-            _state.update {
-                it.copy(
-                    messageMenu = MessageMenu(
-                        messageId = messageId,
-                        timestamp = message.timestamp,
-                        isOutgoing = message.isOutgoing,
-                        emoji = emoji,
-                        chosenEmoji = message.reactions.filter { r -> r.isChosen }.map { r -> r.emoji }.toSet(),
-                        actions = actions,
-                        items = shownItems,
-                        favoriteSticker = favorite,
-                        bookmarked = bookmarks?.isBookmarked(chatId, messageId),
-                        pressedMessageId = pressed?.takeIf { it != messageId },
-                        inTranslationLanguage = inTranslationLanguage,
-                        explainAvailable = explainAvailable,
-                        contextFindings = contextFindings,
-                        resendable = failedGroup(it.messages, messageId).let { group ->
-                            group.isNotEmpty() && group.all { m -> m.sendFailure?.canRetry == true }
-                        },
-                    ),
-                )
-            }
-        }
-    }
-
-    /**
-     * Přidá zprávu do záložek, nebo ji z nich odebere. Otisk zprávy (text, odesílatel) se skládá
-     * teď, v jazyce aplikace — záložka pak v seznamu nepotřebuje zprávu načítat. Výsledek hlásí
-     * snackbar, v konverzaci se nic nezmění.
-     */
-    private fun toggleBookmark(messageId: Long) {
-        val bookmarks = bookmarks ?: return
-        val menu = _state.value.messageMenu?.takeIf { it.messageId == messageId } ?: return
-        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        closeMenus()
-
-        if (menu.bookmarked == true) {
-            bookmarks.remove(chatId, messageId)
-            _state.update { it.copy(notice = UiText(Res.string.conversation_bookmark_removed)) }
-            return
-        }
-        viewModelScope.launch {
-            // Stejný otisk jako řádek přepisu výběru: „[Fotka] popisek", text, nebo popis.
-            val preview = transcriptBody(message, resolve = { it.resolveNow() }).orEmpty()
-            val sender = if (message.isOutgoing) null else message.senderName ?: _state.value.info?.title
-            if (bookmarks.add(chatId, messageId, preview, sender, message.timestamp)) {
-                _state.update { it.copy(notice = UiText(Res.string.conversation_bookmark_added)) }
-            }
-        }
-    }
-
-    private data class MenuLoad(
-        val emoji: List<String>,
-        val actions: MessageActions,
-        val favorite: Boolean?,
-        val inTranslationLanguage: Boolean,
-    )
-
-    /**
-     * Přidá samolepku ze zprávy do oblíbených, nebo ji z nich odebere.
-     *
-     * V konverzaci se tím nic nezmění, takže výsledek hlásí snackbar — jinak by po zavření nabídky
-     * nebylo poznat, že se něco stalo.
-     */
-    private fun toggleFavoriteSticker(messageId: Long) {
-        val menu = _state.value.messageMenu?.takeIf { it.messageId == messageId } ?: return
-        val favorite = menu.favoriteSticker ?: return
-        val sticker = _state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Sticker
-            ?: return
-        closeMenus()
-
-        viewModelScope.launch {
-            stickerRepository.setFavorite(sticker.stickerFileId, !favorite)
-                .onSuccess {
-                    _state.update {
-                        it.copy(notice = UiText(if (favorite) Res.string.conversation_favorite_removed else Res.string.conversation_favorite_added))
-                    }
-                }
-                .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_favorite_failed)) }
-                }
-        }
-    }
-
     /** Obrazovka oznámení ukázala. */
     fun consumeNotice() {
         _state.update { it.copy(notice = null) }
-    }
-
-    private fun closeMenus() {
-        _state.update { it.copy(messageMenu = null, noticeMenu = null) }
-    }
-
-    /**
-     * Nabídka nad systémovým oznámením. Nabízí jen smazání, takže když ho server nedovolí
-     * (oznámení v kanálu, kde účet není správce), neotevře se vůbec — prázdná nabídka nebo
-     * „Smazat", které skončí chybou, by byly horší než nic.
-     */
-    private fun showNoticeMenu(messageId: Long) {
-        viewModelScope.launch {
-            val actions = repository.messageActions(chatId, messageId).getOrElse { failure ->
-                logger.w(failure) { "Příznaky oznámení $messageId se nepodařilo zjistit." }
-                return@launch
-            }
-            if (!actions.canDeleteForSelf && !actions.canDeleteForAll) return@launch
-            _state.update {
-                it.copy(noticeMenu = NoticeMenu(messageId, actions.canDeleteForSelf, actions.canDeleteForAll))
-            }
-        }
-    }
-
-    /**
-     * Zkopíruje text zprávy do schránky.
-     *
-     * Kopíruje se text, jak ho vidí uživatel — bez entit. Formátování má smysl v Telegramu,
-     * ale do cizí aplikace se stejně přenese jen holý řetězec.
-     */
-    private fun copyMessage(messageId: Long) {
-        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        copyText(message.copyableText())
-    }
-
-    /** Zkopíruje text — celou zprávu, nebo úryvek označený v nabídce nad zprávou. */
-    private fun copyText(text: String) {
-        viewModelScope.launch { clipboard.copy(text) }
-        closeMenus()
-    }
-
-    /**
-     * Připnutí z nabídky.
-     *
-     * Ve skupině, kanálu i soukromém chatu se nejdřív zeptá — každý z nich má jednu volbu, která
-     * mění, koho se to dotkne (upozornit členy / připnout i protějšku). V Uložených zprávách
-     * žádná taková volba není, takže se připíná rovnou.
-     */
-    private fun requestPin(messageId: Long) {
-        val info = _state.value.info
-        if (info == null || info.isSavedMessages) {
-            closeMenus()
-            pin(messageId, notify = false, onlyForSelf = false)
-            return
-        }
-
-        _state.update {
-            it.copy(
-                messageMenu = null,
-                pendingPin = PendingPin(
-                    messageId = messageId,
-                    scope = when {
-                        info.isChannel -> PinScope.Channel
-                        info.isGroup -> PinScope.Group
-                        else -> PinScope.Private
-                    },
-                ),
-            )
-        }
-    }
-
-    fun cancelPin() {
-        _state.update { it.copy(pendingPin = null) }
-    }
-
-    /** [option] je zaškrtávátko dialogu: upozornit členy, nebo v soukromém chatu připnout i protějšku. */
-    fun confirmPin(option: Boolean) {
-        val pending = _state.value.pendingPin ?: return
-        _state.update { it.copy(pendingPin = null) }
-
-        when (pending.scope) {
-            // Připnutí v soukromém chatu nikoho neupozorňuje — oznámení o něm by bylo jen šum
-            // navíc k servisní zprávě, kterou protějšek stejně uvidí.
-            PinScope.Private -> pin(pending.messageId, notify = false, onlyForSelf = !option)
-            PinScope.Group, PinScope.Channel -> pin(pending.messageId, notify = option, onlyForSelf = false)
-        }
-    }
-
-    /**
-     * Pruh připnutých se neaktualizuje ručně: `UpdateMessageIsPinned` spustí nové čtení seznamu,
-     * stejně jako u odepnutí jinde.
-     */
-    private fun pin(messageId: Long, notify: Boolean, onlyForSelf: Boolean) {
-        viewModelScope.launch {
-            repository.pin(chatId, messageId, notify = notify, onlyForSelf = onlyForSelf)
-                .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_pin_failed)) }
-                }
-        }
-    }
-
-    /** Odepnutí z nabídky. Chová se stejně jako křížek v pruhu, včetně „Vrátit". */
-    private fun unpinFromMenu(messageId: Long) {
-        val message = _state.value.pinned.firstOrNull { it.id == messageId }
-            ?: _state.value.messages.firstOrNull { it.id == messageId }
-        closeMenus()
-        if (message != null) unpin(message)
-    }
-
-    /** Otevře potvrzení smazání. Nevratná akce se nedělá na jedno ťuknutí. */
-    /**
-     * Pošle znovu neodeslanou zprávu (u alba všechny jeho neodeslané zprávy naráz, viz
-     * [failedGroup]). Zprávu, kterou znovu poslat nejde, neposílá — řekne, proč neodešla:
-     * ťuknutí na „Neodesláno" musí něco udělat, i když opakování nepomůže.
-     *
-     * Obrazovka se srovná sama z updatů: TDLib starou zprávu smaže a novou ohlásí jako novou
-     * ve stavu odesílání, takže se tady nic nepřepisuje.
-     */
-    private fun resend(messageId: Long) {
-        _state.update { it.copy(messageMenu = null) }
-        val group = failedGroup(_state.value.messages, messageId)
-        if (group.isEmpty()) return
-        group.firstOrNull { it.sendFailure?.canRetry != true }?.let { blocked ->
-            val reason = blocked.sendFailure?.reason ?: UiText(Res.string.conversation_send_failed_unknown)
-            _state.update { it.copy(notice = reason) }
-            return
-        }
-        viewModelScope.launch {
-            repository.resend(chatId, group.map { it.id }).onFailure { failure ->
-                logger.w(failure) { "Zprávu $messageId se nepodařilo poslat znovu." }
-                _state.update { it.copy(notice = failure.userMessage(Res.string.conversation_resend_failed)) }
-            }
-        }
-    }
-
-    private fun requestDelete(messageId: Long) {
-        val menu = _state.value.messageMenu ?: return
-        _state.update {
-            it.copy(
-                messageMenu = null,
-                pendingDelete = PendingDelete(
-                    messageId = messageId,
-                    // Nabídka nad albem maže celé album — v bublině je to jedna věc.
-                    messageIds = it.albumMemberIds(messageId),
-                    canDeleteForAll = menu.actions.canDeleteForAll,
-                    canDeleteForSelf = menu.actions.canDeleteForSelf,
-                ),
-            )
-        }
-    }
-
-    /**
-     * „Nahlásit" z nabídky nad zprávou: průvodce s touhle zprávou (u alba s celým albem, jako
-     * u mazání). Server se pak zeptá na důvod — zprávy mu tím odpadne dodávat zvlášť.
-     */
-    private fun reportMessage(messageId: Long) {
-        val ids = _state.value.albumMemberIds(messageId)
-        closeMenus()
-        reportFlow.start(chatId, messageIds = ids)
-    }
-
-    /**
-     * „Přidat do kontaktů" na kartě sdíleného kontaktu. Karta tlačítko schová hned po úspěchu —
-     * zpráva se kvůli tomu znovu nepřevádí — a snackbar nabídne „Vrátit": přidání jde vzít
-     * zpátky a dialog před vratnou akcí jen zdržuje.
-     */
-    private fun addSharedContact(messageId: Long) {
-        viewModelScope.launch {
-            repository.addSharedContact(chatId, messageId)
-                .onSuccess { userId ->
-                    _state.update { it.withContactAddable(userId, addable = false).copy(addedContact = userId) }
-                }
-                .onFailure { failure ->
-                    logger.w(failure) { "Přidání kontaktu ze zprávy $messageId selhalo." }
-                    _state.update { it.copy(error = failure.userMessage(Res.string.contact_add_failed)) }
-                }
-        }
-    }
-
-    /**
-     * Zavolat zpátky ze zprávy o hovoru: videohovor zase videem, když ho protějšek přijímá.
-     * Samotné vytočení (s dotazem na mikrofon a kameru) dělá obrazovka ([ConversationState.callRequest]).
-     */
-    private fun callBack(messageId: Long) {
-        val call = _state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Call ?: return
-        val info = _state.value.info
-        if (info?.callUserId == null) {
-            _state.update { it.copy(error = UiText(Res.string.call_unavailable)) }
-            return
-        }
-        _state.update { it.copy(callRequest = CallRequest(video = call.isVideo && info.callSupportsVideo)) }
-    }
-
-    fun consumeCallRequest() {
-        _state.update { it.copy(callRequest = null) }
-    }
-
-    /** „Vrátit" ze snackbaru po přidání kontaktu. */
-    fun undoAddContact(userId: Long) {
-        viewModelScope.launch {
-            chatRepository.removeContact(userId)
-                .onSuccess { _state.update { it.withContactAddable(userId, addable = true) } }
-                .onFailure { failure ->
-                    logger.w(failure) { "Odebrání kontaktu $userId selhalo." }
-                    _state.update { it.copy(error = failure.userMessage(Res.string.contact_remove_failed)) }
-                }
-        }
-    }
-
-    /** Obrazovka snackbar k přidanému kontaktu ukázala. */
-    fun consumeAddedContact() {
-        _state.update { it.copy(addedContact = null) }
-    }
-
-    /**
-     * „Přeposlat" z nabídky. Obrazovka si o cíl řekne sama (otevře výběr chatu), takže se tu jen
-     * zapamatuje, co se přeposílá — u alba celé album, jako u mazání.
-     */
-    private fun requestForward(messageId: Long) {
-        _state.update { it.copy(messageMenu = null, forwardRequest = it.albumMemberIds(messageId)) }
-    }
-
-    /**
-     * Sheet připomínky; termín ze zprávy ([reminderTimeFromText]) jde nahoru jako první volba.
-     * Počítá se od odeslání zprávy a nabízí se, jen když ještě nebyl (a je aspoň za minutu,
-     * jako u plánování).
-     */
-    private fun requestRemind(messageId: Long) {
-        val message = _state.value.messages.firstOrNull { it.id == messageId }
-        val zone = TimeZone.currentSystemDefault()
-        val sentAt = message?.let { Instant.fromEpochSeconds(it.timestamp.toLong()).toLocalDateTime(zone) }
-        val fromRules = sentAt?.let { reminderTimeFromText(message.text, it) }
-        val suggested = fromRules?.toInstant(zone)?.epochSeconds?.takeIf { scheduleValid(it, Clock.System.now().epochSeconds) }
-        _state.update { it.copy(messageMenu = null, remindRequest = RemindRequest(messageId, suggested)) }
-
-        // Model jen tam, kde pravidla nenašla NIC. Termín, který pravidla našla a který už
-        // minul, model nespraví — a ptát se ho by jen zdrželo sheet.
-        val model = reminderTimeModel ?: return
-        if (fromRules != null || sentAt == null) return
-        viewModelScope.launch {
-            if (!model.available()) return@launch
-            updateRemind(messageId) { it.copy(suggesting = true) }
-            val at = model.suggest(message.text, sentAt)?.toInstant(zone)?.epochSeconds
-                ?.takeIf { scheduleValid(it, Clock.System.now().epochSeconds) }
-            updateRemind(messageId) { it.copy(suggesting = false, suggestedAt = at, fromModel = at != null) }
-        }
-    }
-
-    /** Změna otevřeného sheetu připomínky — jen když je pořád otevřený u téže zprávy. */
-    private fun updateRemind(messageId: Long, change: (RemindRequest) -> RemindRequest) = _state.update { state ->
-        val open = state.remindRequest?.takeIf { it.messageId == messageId } ?: return@update state
-        state.copy(remindRequest = change(open))
-    }
-
-    fun closeRemind() {
-        _state.update { it.copy(remindRequest = null) }
-    }
-
-    /**
-     * Připomínka: zpráva (u alba celé album) se naplánovaně přepošle do Uložených zpráv na
-     * [at] (sekundy od epochy). Telegram na zprávu doručenou z naplánovaných v Uložených
-     * zprávách upozorní — tak „Připomínky" dělají oficiální klienti, a nepotřebuje to vlastní
-     * notifikaci ani oprávnění k budíku. Připomínka žije na serveru, takže přijde i na jiném
-     * zařízení a přežije přeinstalaci.
-     */
-    fun remind(messageId: Long, at: Long) {
-        val ids = _state.value.albumMemberIds(messageId)
-        _state.update { it.copy(remindRequest = null) }
-        val saved = chatRepository.savedMessagesChatId.value ?: return
-        viewModelScope.launch {
-            val result = repository.forward(chatId, ids, saved, ForwardOptions(schedule = MessageSchedule.At(at)))
-            result.onFailure { logger.w(it) { "Připomínku se nepodařilo naplánovat." } }
-            val notice = if (result.isSuccess) Res.string.conversation_remind_set else Res.string.conversation_remind_failed
-            _state.update { it.copy(notice = UiText(notice)) }
-        }
-    }
-
-    fun consumeForwardRequest() {
-        _state.update { it.copy(forwardRequest = null) }
-    }
-
-    /**
-     * Vstup do režimu výběru z nabídky nad zprávou — s tou zprávou rovnou vybranou.
-     *
-     * Nabídka se tím zavře: výběr je jiný režim celé konverzace, ne další akce nad jednou zprávou.
-     */
-    private fun startSelection(messageId: Long) {
-        _state.update { it.copy(messageMenu = null, selection = MessageSelection()) }
-        toggleSelection(messageId)
-    }
-
-    /**
-     * Přidá blok do výběru, nebo ho z něj vyndá. Poslední odebraný výběr ukončí — zůstat
-     * v režimu s nulou vybraných by byl stav, ve kterém nejde nic dělat a není jasné proč.
-     */
-    private fun toggleSelection(messageId: Long) {
-        val state = _state.value
-        val selection = state.selection ?: return
-        val key = state.blockKeyOf(messageId) ?: return
-
-        if (key in selection.keys) {
-            val keys = selection.keys - key
-            _state.update {
-                it.copy(
-                    selection = if (keys.isEmpty()) {
-                        null
-                    } else {
-                        selection.copy(keys = keys, rights = selection.rights - key, withText = selection.withText - key)
-                    },
-                )
-            }
-            return
-        }
-
-        if (selection.count >= MAX_SELECTED_MESSAGES) {
-            _state.update { it.copy(notice = UiText(Res.string.conversation_selection_limit, listOf(MAX_SELECTED_MESSAGES))) }
-            return
-        }
-
-        // Popisek alba nemusí být na ťuknuté fotce, takže se text hledá v celém bloku.
-        val hasText = state.albumMemberIds(messageId)
-            .mapNotNull { id -> state.messages.firstOrNull { it.id == id } }
-            .any { it.copyableText().isNotBlank() }
-        _state.update {
-            it.copy(
-                selection = selection.copy(
-                    keys = selection.keys + key,
-                    withText = if (hasText) selection.withText + key else selection.withText,
-                ),
-            )
-        }
-
-        // Práva se ptáme na každý vybraný blok zvlášť — dopředu pro celou historii by to byl
-        // dotaz na každou zprávu, a výběr má strop, takže jich nikdy nebude moc.
-        viewModelScope.launch {
-            val actions = repository.messageActions(chatId, messageId).getOrElse { MessageActions.Fallback }
-            _state.update { state ->
-                val current = state.selection ?: return@update state
-                // Než odpověď dorazila, mohl uživatel blok z výběru vyndat nebo výběr zavřít.
-                if (key !in current.keys) return@update state
-                state.copy(selection = current.copy(rights = current.rights + (key to actions)))
-            }
-        }
-    }
-
-    fun closeSelection() {
-        _state.update { it.copy(selection = null) }
-    }
-
-    /** Texty vybraných zpráv pod sebe, od nejstarší. Zprávy bez textu se vynechají. */
-    fun copySelection() {
-        val state = _state.value
-        val text = state.selectedMessageIds()
-            .mapNotNull { id -> state.messages.firstOrNull { it.id == id } }
-            .mapNotNull { it.copyableText().takeIf(String::isNotBlank) }
-            .joinToString(SELECTION_COPY_SEPARATOR)
-        if (text.isBlank()) return
-
-        closeSelection()
-        viewModelScope.launch { clipboard.copy(text) }
-    }
-
-    /**
-     * Vybrané zprávy jako přepis s časem a jménem, od nejstarší — pro poznámky nebo jazykový
-     * model (viz [selectionTranscript]). Překládá se teď (`resolveNow`), schránka jazyk neudrží.
-     */
-    fun copySelectionWithNames() = copySelectionAs { messages, me, title -> selectionTranscript(messages, me, title) }
-
-    /** Vybrané zprávy jako Markdown pro poznámky, i s formátováním (viz [selectionMarkdown]). */
-    fun copySelectionAsMarkdown() = copySelectionAs { messages, me, title -> selectionMarkdown(messages, me, title) }
-
-    private fun copySelectionAs(format: suspend (List<ChatMessage>, me: String, chatTitle: String) -> String) {
-        val state = _state.value
-        val messages = state.selectedMessageIds().mapNotNull { id -> state.messages.firstOrNull { it.id == id } }
-        if (messages.isEmpty()) return
-        val chatTitle = state.info?.title.orEmpty()
-
-        closeSelection()
-        viewModelScope.launch {
-            val text = format(messages, UiText(Res.string.summary_me).resolveNow(), chatTitle)
-            if (text.isNotBlank()) clipboard.copy(text)
-        }
-    }
-
-    /** Výběr do přeposlání; cíl si vyžádá obrazovka, stejně jako u jedné zprávy. */
-    fun forwardSelection() {
-        val ids = _state.value.selectedMessageIds()
-        if (ids.isEmpty()) return
-        _state.update { it.copy(selection = null, forwardRequest = ids) }
-    }
-
-    /**
-     * Nahlásit celý výběr moderátorům: tentýž průvodce jako u jedné zprávy, jen s víc zprávami.
-     * Server se zeptá na důvod; zavření průvodce nic neodešle.
-     */
-    fun reportSelection() {
-        val ids = _state.value.selectedMessageIds()
-        if (ids.isEmpty() || _state.value.selection?.canReport != true) return
-        _state.update { it.copy(selection = null) }
-        reportFlow.start(chatId, messageIds = ids)
-    }
-
-    /** Potvrzení smazání celého výběru. Práva jsou už načtená, takže se dialog zeptá rovnou. */
-    fun deleteSelection() {
-        val state = _state.value
-        val selection = state.selection ?: return
-        val ids = state.selectedMessageIds()
-        if (ids.isEmpty()) return
-
-        _state.update {
-            it.copy(
-                selection = null,
-                pendingDelete = PendingDelete(
-                    messageId = ids.first(),
-                    messageIds = ids,
-                    canDeleteForSelf = selection.canDeleteForSelf,
-                    canDeleteForAll = selection.canDeleteForAll,
-                    count = selection.count,
-                ),
-            )
-        }
-    }
-
-    fun cancelDelete() {
-        _state.update { it.copy(pendingDelete = null) }
-    }
-
-    /**
-     * Smaže zprávu.
-     *
-     * Ze seznamu se **neodstraňuje ručně** — TDLib pošle `UpdateDeleteMessages` a ten se už
-     * zpracovává. Předběhnout server by znamenalo riskovat, že zpráva zmizí z obrazovky
-     * a na serveru zůstane.
-     */
-    fun confirmDelete(revoke: Boolean) {
-        val pending = _state.value.pendingDelete ?: return
-        _state.update { it.copy(pendingDelete = null) }
-
-        viewModelScope.launch {
-            repository.deleteMessages(chatId, pending.messageIds, revoke)
-                .onFailure { failure ->
-                    _state.update {
-                        it.copy(error = failure.reported(logger, Res.string.conversation_delete_failed))
-                    }
-                }
-        }
-    }
-
-    /**
-     * Zruší odesílání přílohy.
-     *
-     * Rozepsanou zprávu stačí smazat: TDLib tím zastaví i nahrávání. Ze seznamu zmizí updatem
-     * o smazání jako každá jiná. Hláška jen při selhání — mezitím mohla zpráva doběhnout.
-     */
-    private fun cancelUpload(messageId: Long) {
-        viewModelScope.launch {
-            repository.deleteMessages(chatId, listOf(messageId), revoke = true)
-                .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_cancel_send_failed)) }
-                }
-        }
-    }
-
-    private fun applyReactions(messageId: Long, reactions: List<MessageReaction>) {
-        _state.update { state ->
-            state.copy(
-                messages = state.messages.map {
-                    if (it.id == messageId) it.copy(reactions = reactions) else it
-                },
-            )
-        }
     }
 
     fun dismissError() {
@@ -2617,12 +1872,3 @@ private const val HIGHLIGHT_DURATION_MS = 2500L
  * vyšší výběr by skončil chybou až u akce — a projít víc než sto zpráv ťuknutím stejně nikdo nechce.
  */
 internal const val MAX_SELECTED_MESSAGES = 100
-
-/** Mezi zprávami ve schránce zůstane prázdný řádek — jinak by dlouhé zprávy splynuly v jednu. */
-private const val SELECTION_COPY_SEPARATOR = "\n\n"
-
-/**
- * Strop pro rozpoznání jazyka při otevírání nabídky nad zprávou. Rychlé je v řádu milisekund,
- * jen první volání po startu načítá model; nabídka na něj čekat nemá.
- */
-private const val LANGUAGE_DETECTION_TIMEOUT_MS = 300L
