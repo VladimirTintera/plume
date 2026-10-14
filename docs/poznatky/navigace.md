@@ -244,6 +244,46 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
 - **Sdílené prvky a container transform** vypíná `LocalPanesSideBySide` (dřív `LocalTwoPane`)
   i pro třetí panel — avatar by letěl z hlavičky konverzace, která zůstává vidět.
 
+### Táhlo, kotvy a sbalený seznam
+
+- **Panely jsou karty** (`PaneCard`, `shapes.large` na `surface`) na ploše `surfaceContainer`,
+  kterou kreslí shell pod scénou, s mezerou `PANE_SPACING` (24 dp). Kartu dává dekorátor položek
+  (`rememberPaneCardDecorator`) všemu, co má roli panelu; placeholder ji má zvlášť, protože
+  položkou není. Na telefonu je struktura táž, jen bez ořezu — větvení by obsahu při změně šířky
+  okna vzalo stav. Práh dvou panelů počítá i s mezerou: 360 + 24 + 360 = 744 dp.
+- **Táhlo jen mezi HLAVNÍM seznamem chatů a konverzací** (`ListPaneExpansion.kt`). Stav táhla
+  (`PaneExpansionState`) počítá šířku PRVNÍHO rozbaleného panelu, takže mezi konverzací
+  a profilem (pod Large) by konverzaci zmáčkl na šířku sbaleného seznamu. Archiv, nová zpráva
+  a Nastavení mají výchozí šířku. Kde táhlo není, dostane scaffold `paneExpansionState = null`
+  a vytvoří si vlastní výchozí.
+- **Kotvy** (`ListPaneAnchor`): sbalený sloupec 96 dp (šířka railu M3 Expressive), výchozí šířka
+  z direktivy (360, na XL 412) a polovina plochy. Po puštění se seznam dorovná na nejbližší.
+- **Zvolená kotva se ukládá jen po akci uživatele.** Stav začíná na uložené kotvě; dokud se
+  `AppSettings` nenačte, je to výchozí, a ta se neukládá (shoduje se s `null`), takže uloženou
+  nepřepíše. `animateTo` kotvy, kterou stav ještě nezná, vyhodí `IllegalArgumentException`
+  (`require` v knihovně) — chytá se jen ta, `runCatching` by spolkl i zrušení korutiny.
+- **Ve třech panelech se táhlo nekreslí** a zvolená šířka jde metadaty seznamu
+  (`listWidthBesideProfile`, testy `ListWidthBesideProfileTest`): sbalený zůstane sbalený, širší
+  se zúží, aby konverzaci vedle profilu zbylo aspoň 360 dp. **Metadata položky se ale počítají
+  jen při změně zásobníku** (`rememberDecoratedNavEntries(zásobník, …)` si položky pamatuje podle
+  klíčů), takže si položky Chatů shell staví sám s šířkou v klíči. Ze stejného důvodu se
+  v obsahu položek nesmí spoléhat na hodnoty zachycené při stavbě poskytovatele (`wide`):
+  po změně šířky okna bez navigace zůstanou staré. Co závisí na šířce, čte
+  `LocalPanesSideBySide` uvnitř obsahu (✕ v profilu, šipka zpět v konverzaci).
+- **Sbalený seznam (`CollapsedChatList`) se zapíná podle ŠÍŘKY, ne kotvy** (pod 200 dp): během
+  tahu se prochází všemi šířkami a řádek s názvem by byl nečitelný dávno před sbalenou kotvou.
+  Hledání ze sloupce seznam napřed rozbalí (`LocalExpandListPane`) a požadavek na hledání počká,
+  až se pilulka objeví.
+- **Bublina se jménem u avataru přes `WithTooltip`, ne holý `TooltipBox`.** Najetí na avatar
+  a hned tah táhlem shodilo desktop na `RootNodeOwner is already disposed`: `BoxWithConstraints`
+  přepnul sloupec na plný seznam uprostřed měření, kotva viditelné bubliny zmizela a skiko pak
+  změřilo už zrušenou vrstvu popupu. `WithTooltip` a `RootOverlay` (`core/ui`) jsou převzaté
+  z KMPMlog, kde na tutéž chybu narazili dřív: bublina se kreslí z kořene kompozice
+  (`RootOverlayHost` v `AppTheme`) a ruší ji až běžná rekompozice.
+- **Konverzace vedle seznamu nemá šipku zpět** (`showBack`), když leží přímo na seznamu — zpět
+  by ji jen zavřelo na placeholder. Otevřená zmínkou z jiné konverzace nebo téma nad seznamem
+  témat šipku mají, zpět tam vede jinam.
+
 ### Zásobník pro každou sekci
 
 Každá sekce aplikace (Chaty, Nastavení) má **vlastní zásobník** a všechny drží jeden stav,
