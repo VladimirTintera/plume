@@ -120,6 +120,9 @@ interface CallMediaEvents {
 
     /** Sdílení obrazovky ukončil systém (tlačítko „Zastavit sdílení" ve stavovém řádku). */
     fun onScreenSharingStopped() = Unit
+
+    /** Protistrana začala / přestala sdílet obrazovku (obraz protistrany je pak obrazovka). */
+    fun onRemoteScreen(active: Boolean) = Unit
 }
 
 /** Který obraz hovoru se kreslí: náš z kamery (náhled), nebo protistrany. */

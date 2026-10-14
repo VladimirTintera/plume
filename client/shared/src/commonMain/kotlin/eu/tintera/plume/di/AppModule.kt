@@ -118,6 +118,7 @@ import eu.tintera.plume.core.telegram.CallRepository
 import eu.tintera.plume.core.telegram.TdlCallRepository
 import eu.tintera.plume.core.calls.CallMedia
 import eu.tintera.plume.core.connectivity.NetworkMonitor
+import eu.tintera.plume.core.calls.CallPointerDisplay
 import eu.tintera.plume.core.calls.CallRequests
 import eu.tintera.plume.core.notifications.NotificationActions
 import eu.tintera.plume.core.telegram.TdlChatRepository
@@ -272,6 +273,7 @@ fun appModule() = module {
             media = getOrNull<CallMedia>(),
             scope = get(named(APP_SCOPE)),
             network = getOrNull<NetworkMonitor>()?.status,
+            pointerDisplay = getOrNull<CallPointerDisplay>(),
         )
     }
     if (autosavesToGallery) {

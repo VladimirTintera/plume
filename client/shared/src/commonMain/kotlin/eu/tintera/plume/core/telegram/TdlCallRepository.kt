@@ -18,6 +18,10 @@ import eu.tintera.plume.core.calls.CallMedia
 import eu.tintera.plume.core.calls.CallMediaEvents
 import eu.tintera.plume.core.calls.CallMediaServer
 import eu.tintera.plume.core.calls.CallMediaSession
+import eu.tintera.plume.core.calls.CallPointerDisplay
+import eu.tintera.plume.core.calls.CallSideChannel
+import eu.tintera.plume.core.calls.CallSideMessage
+import eu.tintera.plume.core.calls.sideChannelKey
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.call_bar_failed
@@ -55,6 +59,8 @@ internal class TdlCallRepository(
     private val scope: CoroutineScope,
     /** Stav sítě telefonu — kvůli „Čekám na připojení" při výpadku za hovoru. */
     network: Flow<NetworkStatus>? = null,
+    /** Kde ukázat ukazovátko protistrany, když sdílíme obrazovku (Android); `null` = nikde. */
+    private val pointerDisplay: CallPointerDisplay? = null,
 ) : CallRepository {
 
     /** Telefon je bez sítě; nový hovor si stav převezme. */
@@ -102,6 +108,11 @@ internal class TdlCallRepository(
 
     /** Pod [signalingLock]. */
     private fun onSignaling(callId: Int, data: ByteArray) {
+        // Naše zprávy Plume ↔ Plume (ukazovátko) do knihovny nepatří — vyloví se tady.
+        if (CallSideChannel.isOurs(data)) {
+            onSideMessage(callId, data)
+            return
+        }
         if (callId == startedCallId) {
             media?.receiveSignaling(data)
             return
@@ -113,6 +124,37 @@ internal class TdlCallRepository(
         val queue = pendingSignaling.getOrPut(callId) { mutableListOf() }
         queue += data
         logger.i { "Signalizace hovoru $callId před spuštěním přenosu, čeká (${queue.size})." }
+    }
+
+    /** Klíč postranního kanálu běžícího hovoru (z klíče hovoru), `null` = přenos neběží. */
+    private var sideKey: ByteArray? = null
+    private var sideCallId: Int? = null
+
+    private fun onSideMessage(callId: Int, data: ByteArray) {
+        val key = sideKey?.takeIf { sideCallId == callId } ?: return
+        val message = CallSideChannel.open(key, data) ?: run {
+            logger.w { "Zprávu Plume v signalizaci nejde přečíst." }
+            return
+        }
+        when (message) {
+            is CallSideMessage.Hello -> {
+                logger.i { "Protějšek je Plume, ukazovátko: ${message.pointer}." }
+                _active.update { it?.copy(remotePointer = message.pointer) }
+            }
+            // Ukazovátko patří na obrazovku, kterou právě sdílíme; jindy nemá kde být.
+            is CallSideMessage.Pointer -> if (_active.value?.screenSharing == true) {
+                pointerDisplay?.show(message.x.coerceIn(0f, 1f), message.y.coerceIn(0f, 1f), message.down)
+            }
+        }
+    }
+
+    private fun sendSide(message: CallSideMessage) {
+        val key = sideKey ?: return
+        val callId = sideCallId ?: return
+        scope.launch {
+            holder.client.sendCallSignalingData(callId = callId, data = CallSideChannel.seal(key, message)).toResult()
+                .onFailure { logger.w(it) { "Zprávu Plume nejde poslat." } }
+        }
     }
 
     /** Mimo hlavní vlákno: první dotaz nahrává knihovnu přenosu (desítky MB). */
@@ -253,7 +295,21 @@ internal class TdlCallRepository(
         // službu počká, Android 14 bez ní snímání obrazovky nepustí.
         _active.update { it?.copy(screenSharing = on) }
         media?.setScreenSharing(on)
+        // Protějšek Plume se dozví, jestli mu na sdílené obrazovce ukážeme ukazovátko.
+        // Oficiální klient zprávu nerozšifruje a zahodí.
+        if (on) {
+            val pointer = pointerDisplay?.available == true
+            logger.i { "Sdílím obrazovku, ukazovátko protistrany: $pointer (zobrazení ${if (pointerDisplay == null) "není" else "je"})." }
+            sendSide(CallSideMessage.Hello(pointer = pointer))
+        } else {
+            pointerDisplay?.hide()
+        }
         if (on && call.output.kind == CallAudioOutput.Kind.Earpiece) setOutput(CallAudioOutput.Speaker)
+    }
+
+    override fun sendPointer(x: Float, y: Float, down: Boolean) {
+        if (_active.value?.remotePointer != true) return
+        sendSide(CallSideMessage.Pointer(x, y, down))
     }
 
     override fun previewCamera(on: Boolean) {
@@ -360,6 +416,8 @@ internal class TdlCallRepository(
     private fun startMedia(call: Call, state: CallStateReady) {
         val media = media ?: return
         logger.i { "Přenos: verze ${state.protocol.libraryVersions.joinToString()}, serverů ${state.servers.size}" }
+        sideKey = sideChannelKey(state.encryptionKey)
+        sideCallId = call.id
         media.start(
             CallMediaSession(
                 callId = call.id,
@@ -396,11 +454,13 @@ internal class TdlCallRepository(
 
                 override fun onConnection(state: CallConnection) {
                     when (state) {
-                        CallConnection.Connected -> _active.update { active ->
-                            active?.takeIf { it.id == call.id }?.copy(
-                                phase = CallPhase.Active,
-                                connectedAt = active.connectedAt ?: Clock.System.now().toEpochMilliseconds(),
-                            ) ?: active
+                        CallConnection.Connected -> {
+                            _active.update { active ->
+                                active?.takeIf { it.id == call.id }?.copy(
+                                    phase = CallPhase.Active,
+                                    connectedAt = active.connectedAt ?: Clock.System.now().toEpochMilliseconds(),
+                                ) ?: active
+                            }
                         }
                         // Přenos se nespojil, nebo se po výpadku sítě do 20 s neobnovil (ntgcalls
                         // výpadek do té doby jen přečkává a nic nehlásí).
@@ -419,6 +479,14 @@ internal class TdlCallRepository(
 
                 override fun onScreenSharingStopped() {
                     _active.update { current -> current?.takeIf { it.id == call.id }?.copy(screenSharing = false) ?: current }
+                    pointerDisplay?.hide()
+                }
+
+                override fun onRemoteScreen(active: Boolean) {
+                    _active.update { current ->
+                        // Konec sdílení u protějšku: ukazovátko jeho další sdílení ohlásí znovu.
+                        current?.takeIf { it.id == call.id }?.copy(remoteScreen = active, remotePointer = current.remotePointer && active) ?: current
+                    }
                 }
             },
         )
@@ -430,6 +498,11 @@ internal class TdlCallRepository(
     }
 
     private fun finish(callId: Int, phase: CallPhase) {
+        if (sideCallId == callId) {
+            sideKey = null
+            sideCallId = null
+            pointerDisplay?.hide()
+        }
         // Zastavit i hovor, který se nespojil: zvuková relace běží od vytáčení / přijetí.
         pendingSignaling.remove(callId)
         outgoingCamera = false

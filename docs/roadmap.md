@@ -492,7 +492,10 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
      s videohovory a sdílením nepustí.
    - **Sdílení obrazovky dál** — v hovoru ve dvou hotové na Androidu (posílá i přijímá)
      a příjem na desktopu (`docs/poznatky/hovory.md`, „Sdílení obrazovky"). Zbývá: posílání
-     z desktopu, Android pod 14, otočení telefonu za sdílení.
+     z desktopu, Android pod 14, otočení telefonu za sdílení. Ukazovátko na sdílené obrazovce hotové
+     (`docs/poznatky/hovory.md`, „Ukazovátko na sdílené obrazovce"); zbývá ověřit desktop
+     jako diváka a opakovat `Hello`, když se oprávnění povolí až za sdílení. Plné vzdálené
+     ovládání zvažované a odložené (důvody tamtéž).
    - **iOS** (tgcalls xcframework, CallKit, VoIP pushe) a **skupinové hovory / videochaty**.
    Původní plán sondy:
 

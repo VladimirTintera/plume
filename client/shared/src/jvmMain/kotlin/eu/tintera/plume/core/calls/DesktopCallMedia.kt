@@ -196,7 +196,10 @@ class DesktopCallMedia : CallMedia {
                     val active = source.state == NtgNative.STREAM_STATUS_ACTIVE
                     when (source.device) {
                         NtgNative.STREAM_DEVICE_CAMERA -> remoteCamera = active
-                        NtgNative.STREAM_DEVICE_SCREEN -> remoteScreen = active
+                        NtgNative.STREAM_DEVICE_SCREEN -> {
+                            remoteScreen = active
+                            events.onRemoteScreen(active)
+                        }
                         else -> return@RemoteSourceCallback
                     }
                     if (!remoteCamera && !remoteScreen) video.clear(CallVideoSource.Remote)
