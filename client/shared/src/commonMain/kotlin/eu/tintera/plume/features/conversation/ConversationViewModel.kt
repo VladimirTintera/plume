@@ -597,7 +597,7 @@ class ConversationViewModel(
         repository = repository,
         chatRepository = chatRepository,
         settings = settings,
-        shareTargets = shareTargets,
+        reportUsed = shareTargets::reportUsed,
         suggestions = suggestions,
         readAfterOwnMessage = { readAfterOwnMessage() },
         sendAttachments = { caption, files, options -> attachments.sendAttachments(caption, files, options) },

@@ -3,7 +3,6 @@ package eu.tintera.plume.features.conversation
 import androidx.lifecycle.ViewModel
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.settings.AppSettings
-import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatReplyMarkup
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -54,7 +53,11 @@ internal class ConversationComposer(
     private val repository: ConversationRepository,
     private val chatRepository: ChatRepository,
     private val settings: AppSettings,
-    private val shareTargets: ShareTargets,
+    /**
+     * Do chatu se něco poslalo (`ShareTargets.reportUsed`, Direct Share). Funkce, aby šla
+     * v testu nahradit — `ShareTargets` je třída se závislostmi na systému.
+     */
+    private val reportUsed: (chatId: Long) -> Unit,
     /** Zmínky jménem čekající na odeslání. */
     private val suggestions: ConversationSuggestions,
     /** Vlastní zpráva přečte konverzaci až k sobě. */
@@ -117,7 +120,7 @@ internal class ConversationComposer(
         scope.launch {
             send(replyTo, quote)
                 .onSuccess { pending ->
-                    shareTargets.reportUsed(chatId)
+                    reportUsed(chatId)
                     // Naplánovaná do konverzace nepatří, jen se ohlásí — jako naplánovaný text.
                     if (scheduled) {
                         state.update { it.copy(notice = UiText(Res.string.conversation_scheduled_notice)) }
@@ -233,7 +236,7 @@ internal class ConversationComposer(
                 // TDLib vrací rozepsanou zprávu okamžitě, takže bublina naskočí bez čekání
                 // na server. Skutečné id dorazí potvrzením a zprávu v seznamu nahradí.
                 .onSuccess { pending ->
-                    shareTargets.reportUsed(chatId)
+                    reportUsed(chatId)
                     // Na vynucenou odpověď se odpovědělo; TDLib ji po klientovi chce odebrat.
                     val force = state.value.replyMarkup as? ChatReplyMarkup.ForceReply
                     if (force != null && force.messageId == replyTo) {

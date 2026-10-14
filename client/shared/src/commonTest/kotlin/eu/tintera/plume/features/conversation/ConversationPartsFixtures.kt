@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageReaction
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,3 +40,24 @@ internal fun testMessage(
 /** Stav konverzace se zprávami seřazenými od nejnovější, jak je drží ViewModel. */
 internal fun testState(vararg messages: ChatMessage) =
     MutableStateFlow(ConversationState(messages = messages.sortedByDescending { it.id }))
+
+/** Hlavička chatu; výchozí je soukromý chat, kam se smí psát. */
+internal fun testChatInfo(
+    isGroup: Boolean = false,
+    isChannel: Boolean = false,
+    isSavedMessages: Boolean = false,
+    canJoin: Boolean = false,
+) = ChatInfo(
+    id = TEST_CHAT,
+    title = "Test",
+    lastReadOutboxMessageId = 0,
+    lastReadInboxMessageId = 0,
+    unreadCount = 0,
+    avatarFileId = null,
+    isGroup = isGroup,
+    isChannel = isChannel,
+    isSavedMessages = isSavedMessages,
+    draftText = null,
+    draftReplyToMessageId = null,
+    canJoin = canJoin,
+)
