@@ -243,6 +243,15 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
 - **Zpět gestem z profilu na Large nezobrazí během tahu, jak se třetí panel zavírá**: předchozí
   stav scaffoldu se počítá s TOUTÉŽ direktivou (tři oddíly), takže v něm třetí panel pořád je;
   zavře se animací až po dokončení gesta, kdy shell přepne na dva oddíly.
+- **Zavřený třetí panel by zmizel problikem, ne odjel.** Scéna kreslí do třetího panelu
+  POSLEDNÍ extra položku (`lastExtra?.let { … }`); jakmile ze zásobníku zmizí, dostane scaffold
+  místo obsahu `null` a panel zmizí v jednom snímku, i když se rozvržení animuje.
+  `rememberWithLeavingExtras` (`core/adaptive/LeavingExtras.kt`) proto odcházející položky
+  ještě 600 ms drží ve scéně — NA ZAČÁTKU zásobníku: scaffold přiděluje oddíly podle historie
+  odzadu, takže položka vepředu zůstane `Hidden` a `AnimatedPane` ji nechá odjet (navrchu by
+  se panel neskryl vůbec). Jen pro kreslení a jen s panely vedle sebe, skutečný zásobník ji už
+  nemá; znovu otevřený panel odcházející hned zahodí. Platí pro profil v Chatech i podstránky
+  Nastavení. Ověřeno na desktopu uživatelem.
 - **Táhlo (`paneExpansionDragHandle`) funguje jen mezi DVĚMA rozbalenými panely**
   (`expandedPanes.size == 2` v měření; `paneExpansionStateKey` je pro tři panely `Default`).
   Ve třech panelech rozhodují šířky z `preferredPaneSize`: zbytek dostane panel s nejvyšší
