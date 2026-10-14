@@ -50,7 +50,10 @@ val NavEntry<*>.paneInfo: PaneInfo? get() = metadata[PANE_INFO_KEY] as? PaneInfo
  *
  * Extra panel patří k detailu POD sebou. Scéna ale kreslí poslední detail a poslední extra
  * položku zvlášť, takže by zakrytý profil zůstal ve třetím panelu vedle cizí konverzace. Na
- * telefonu to nevadí — tam je to obyčejná historie a zpět se do profilu vrací.
+ * telefonu to nevadí — tam je to obyčejná historie a zpět se do profilu vrací. Co s nimi, řeší
+ * shell (`followProfile`: panel přejde na profil nové konverzace).
+ *
+ * Indexy jdou OD KONCE, takže se jejich odebíráním po řadě neposunou.
  */
 fun <K> List<K>.coveredExtras(paneOf: (K) -> PaneInfo?): List<Int> {
     val coveredScenes = mutableSetOf<Any>()
@@ -64,15 +67,4 @@ fun <K> List<K>.coveredExtras(paneOf: (K) -> PaneInfo?): List<Int> {
         }
     }
     return covered
-}
-
-/** Zásobník bez [coveredExtras]. */
-fun <K> List<K>.withoutCoveredExtras(paneOf: (K) -> PaneInfo?): List<K> {
-    val covered = coveredExtras(paneOf).toSet()
-    return if (covered.isEmpty()) this else filterIndexed { index, _ -> index !in covered }
-}
-
-/** Odebere ze zásobníku [coveredExtras]. Indexy jdou od konce, takže se odebíráním neposunou. */
-fun <K> MutableList<K>.dropCoveredExtras(paneOf: (K) -> PaneInfo?) {
-    coveredExtras(paneOf).forEach(::removeAt)
 }

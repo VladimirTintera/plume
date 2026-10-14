@@ -226,9 +226,15 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   a zpět (`PopUntilContentChange`) vrátí profil.
 - **Proto profil zůstane viset, když se nad něj otevře jiná konverzace** — poslední detail je
   nová konverzace, poslední extra pořád starý profil. Na široké ploše se takový „zakrytý" extra
-  ze zásobníku odebere (`coveredExtras`, testy `CoveredExtrasTest`): kreslí se rovnou zásobník
-  bez něj a efekt pak opraví i skutečný, jako u sekce Nastavení. Na telefonu je to obyčejná
+  (`coveredExtras`, testy `CoveredExtrasTest`) i s tím, co se z něj otevřelo, ze zásobníku
+  odebere a hned za novou konverzaci se vloží JEJÍ profil (`followProfile`, testy
+  `FollowProfileTest`): panel zůstane otevřený a ukazuje chat, který je vedle, jako panel
+  s informacemi v Telegram Desktop. Kreslí se rovnou opravený zásobník a efekt pak opraví
+  i skutečný, jako u sekce Nastavení. Obrazovka bez profilu (článek, Uložené zprávy po chatech)
+  panel zavře; zavřený panel (✕, hlavička) se přepnutím neotevírá. Na telefonu je to obyčejná
   historie a zpět se do profilu vrací.
+  - **Napřed se zakrytý profil jen zavíral** (první verze). Přepnutí chatu tak zavřelo panel,
+    který si uživatel otevřel, a u každého chatu se musel otevírat znovu.
 - **Scaffold se třemi oddíly rozbalí třetí panel i PRÁZDNÝ** (`tertiaryPane ?: {}`;
   `calculateThreePaneScaffoldValue` prochází po historii ještě všechny tři role podle priority).
   Bez profilu by tak vpravo zůstal prázdný sloupec — třetí oddíl se proto zapíná, jen když je

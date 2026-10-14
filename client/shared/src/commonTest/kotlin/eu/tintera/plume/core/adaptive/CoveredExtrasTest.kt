@@ -6,6 +6,7 @@ import kotlin.test.assertEquals
 /**
  * Profil ve třetím panelu patří ke konverzaci pod sebou ([coveredExtras]). Otevře-li se nad ním
  * jiná konverzace, musí ze zásobníku pryč — jinak by scéna kreslila profil vedle cizího chatu.
+ * Co ho nahradí, testuje `FollowProfileTest`.
  */
 class CoveredExtrasTest {
 
@@ -24,7 +25,10 @@ class CoveredExtrasTest {
         // "media" je přes celou plochu a metadata panelu nemá.
     )
 
-    private fun List<String>.normalized() = withoutCoveredExtras { pane[it] }
+    private fun List<String>.normalized(): List<String> {
+        val covered = coveredExtras { pane[it] }.toSet()
+        return filterIndexed { index, _ -> index !in covered }
+    }
 
     @Test
     fun profilNadKonverzaciZustava() {
@@ -60,9 +64,9 @@ class CoveredExtrasTest {
     }
 
     @Test
-    fun odebiraniVZasobnikuNeposouvaIndexy() {
-        val stack = mutableListOf("chats", "convA", "profileA", "convB", "profileA", "editA", "convA")
-        stack.dropCoveredExtras { pane[it] }
-        assertEquals(listOf("chats", "convA", "convB", "convA"), stack)
+    fun indexyJdouOdKonce() {
+        val stack = listOf("chats", "convA", "profileA", "convB", "profileA", "editA", "convA")
+        // Odebíráním po řadě se indexy neposunou.
+        assertEquals(listOf(5, 4, 2), stack.coveredExtras { pane[it] })
     }
 }
