@@ -92,9 +92,13 @@ navzájem (`MediaSender`, `MessageJumper`, `Throwable.reported`).
   `ConversationMessageActionsTest`, `ConversationAttachmentsTest`, `ConversationLinksTest`,
   `ConversationBotsTest`, `ConversationSuggestionsTest`, `ConversationPlaybackTest`,
   `ConversationRecorderTest`, `ConversationDocumentsTest`, `ConversationTranslationTest`,
-  `ConversationMessageContextTest`):
+  `ConversationMessageContextTest`, `ConversationMessageMenuTest`, `ConversationChatActionsTest`
+  — tedy všechny; držáky obrazovky `ConversationSheets` a `ConversationRecording` testuje
+  `ConversationScreenHoldersTest`):
   stav je obyčejný `MutableStateFlow`, repository
-  `UnimplementedConversationRepository`, `UnimplementedChatRepository` a nastavení
+  `UnimplementedConversationRepository`, `UnimplementedChatRepository`,
+  `UnimplementedStickerRepository`, `UnimplementedInviteLinkRepository`, model
+  `UnimplementedOnDeviceAi` a nastavení
   `UnimplementedAppSettings` (v testech; každé nepřepsané volání vyhodí
   chybu se jménem metody, takže test řekne, na co ještě sahá) a volání do jiných částí jsou
   lambdy. Vygenerované je z rozhraní — po změně `ConversationRepository` překladač vyjmenuje
@@ -111,7 +115,9 @@ navzájem (`MediaSender`, `MessageJumper`, `Throwable.reported`).
   a souborech) a odkazy `openUrl` a `openProxy` místo `UrlOpener` (`expect class`)
   a `ProxyLinkFlow`. Boti dostávají `openUrl`, `copyToClipboard` a `clipboardConfirmsCopy`
   (hodnota `TextClipboard.confirmsCopy`, na platformě neměnná), stejně jako překlad a akce
-  u zprávy. Dokumenty dostávají `openFile` a `share` místo `FileOpener` a `MediaSharer`, akce
+  u zprávy a nabídka nad zprávou. Nabídka bere skutečné části překladu a akcí u zprávy (ptá se
+  jich na cílový jazyk a nálezy), test je proto staví taky — stačí jim tytéž náhrady.
+  Dokumenty dostávají `openFile` a `share` místo `FileOpener` a `MediaSharer`, akce
   u zprávy `addCalendarEvent`, `saveNewContact`, `joinWifiNetwork` a `loadRates` místo
   `CalendarEvents`, `ContactSaver`, `WifiJoiner` a `ExchangeRates` (jejich `null` znamená totéž
   co dřív chybějící třída) a místo `HomeRegion` rovnou měnu a jednotky.
