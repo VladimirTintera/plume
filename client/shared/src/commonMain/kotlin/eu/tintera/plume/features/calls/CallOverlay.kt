@@ -162,6 +162,9 @@ fun CallOverlay(modifier: Modifier = Modifier) {
         muted = current.muted,
         onToggleMute = { calls.setMuted(!current.muted) },
         onHangUp = { scope.launch { calls.hangUp() } },
+        // Zavřené okénko: hovor běží dál na pozadí, ale obraz z kamery by šel ven, aniž by
+        // o něm uživatel věděl. Kamera se vypne, po návratu do aplikace jde zapnout znovu.
+        onDismissed = { if (current.camera) calls.setCamera(false) },
     )
     if (pip.active) {
         CallPictureInPictureContent(current, modifier)

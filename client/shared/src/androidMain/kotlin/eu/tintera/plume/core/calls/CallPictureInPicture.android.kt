@@ -10,6 +10,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.drawable.Icon
 import android.os.Build
+import android.os.PowerManager
 import android.util.Rational
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.LocalActivity
@@ -21,6 +22,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.client.R
 import eu.tintera.plume.core.video.PictureInPictureArbiter
@@ -41,6 +45,9 @@ import org.jetbrains.compose.resources.stringResource
  *   aplikace šla do okénka i bez videohovoru.
  * - **Konec hovoru v okénku okénko zavře** (`moveTaskToBack`): zbylo by v něm „Hovor skončil"
  *   nad zmenšenou aplikací. Jiná cesta, jak okénko zavřít z aplikace, není.
+ * - **Zavřené okénko** (tah dolů) pozná aktivita jako `ON_STOP`, zatímco je ještě v okénku
+ *   (doporučení Androidu, jiný signál není). Totéž ale udělá zhasnutí obrazovky, proto se
+ *   zavření hlásí jen se zapnutou obrazovkou (`PowerManager.isInteractive`).
  */
 @Composable
 actual fun rememberCallPictureInPicture(
@@ -49,6 +56,7 @@ actual fun rememberCallPictureInPicture(
     muted: Boolean,
     onToggleMute: () -> Unit,
     onHangUp: () -> Unit,
+    onDismissed: () -> Unit,
 ): CallPictureInPicture {
     val activity = LocalActivity.current as? ComponentActivity
     val supported = remember(activity) {
@@ -92,6 +100,18 @@ actual fun rememberCallPictureInPicture(
         state.owner.wantsAutoEnter = enabled
         arbiter?.update()
         onDispose { }
+    }
+
+    val dismissed by rememberUpdatedState(onDismissed)
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(activity, lifecycle) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event != Lifecycle.Event.ON_STOP || activity == null || !activity.isInPictureInPictureMode) return@LifecycleEventObserver
+            val screenOn = activity.getSystemService(PowerManager::class.java)?.isInteractive != false
+            if (screenOn) dismissed()
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
     }
 
     // Obraz z hovoru zmizel (konec, obě kamery vypnuté) a aplikace je v okénku: pryč s ním.

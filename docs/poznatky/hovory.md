@@ -221,6 +221,33 @@ uprostřed hlasového hovoru, vypnutá a znovu zapnutá, přepnutí kamery, kame
     stranách, návrat z okénka do aplikace. **Nabídka okénka se ukáže ťuknutím a za pár vteřin
     zmizí** — při ověřování se ťuká na okénko a hned na akci jedním `adb shell "…; sleep 0.7; …"`,
     akce leží dole v okénku (`mBounds` úlohy).
+  - **Zavřené okénko (tah dolů) vypne kameru**, hovor běží dál na pozadí jen se zvukem
+    (`onDismissed` → `setCamera(false)`). Okénko tím zmizí z obrazovky, ale služba hovoru
+    běží a kamera by dál posílala obraz, o kterém uživatel neví. Po návratu do aplikace jde
+    kamera zapnout znovu.
+    - **Zavření pozná aktivita jako `ON_STOP` uprostřed okénka** (`isInPictureInPictureMode`),
+      jiný signál Android nedává. Stejně se ale chová zhasnutí obrazovky, proto se zavření
+      hlásí jen se zapnutou obrazovkou (`PowerManager.isInteractive`). Zamčení telefonu
+      s okénkem kameru nevypne.
+    - Ověřeno na Pixelu 7 Pro: zhasnutí v okénku nechalo kameru běžet, zavření tahem ji
+      vypnulo (`dumpsys media.camera` bez klienta) a hovor na Pixelu 5 běžel dál. Po návratu
+      bylo tlačítko kamery vypnuté a šla znovu zapnout.
+- **Ověřeno 14. 10. 2026 (dřív neověřené kousky)**:
+  - **Hlasový hovor a Domů** okénko neotevře, na Pixelu 7 Pro (Android 16) i na Androidu 11.
+  - **Návrat z okénka** (ťuknutí a rozbalení) vrátí celou obrazovku hovoru s ovládáním.
+  - **Android 11** (emulátor `Plume_A11`, API 30): videohovor a Domů → okénko přes
+    `onUserLeaveHint`.
+  - **Videohovor z oficiálního Telegramu do Plume** (Pixel 5 → Pixel 7 Pro): přijetí
+    z notifikace (u videohovoru je tlačítko systému „Video"), obraz oběma směry rovně.
+  - **Bluetooth s vlastním směrováním** (Pixel Buds Pro 2): souprava připojená za hovoru
+    převzala zvuk (`bt_sco_hs`), z nabídky výstupu reproduktor a zpět. Po 5 s drží a souboj
+    s Telecomem se neopakuje. Po odpojení soupravy hraje reproduktor (zapnutá kamera).
+  - **Delší videohovor** (Pixel 7 Pro, 6 minut, 720p):
+    - povrch telefonu 30,8 → 34,5 °C, tepelný stav po celou dobu 0;
+    - baterie 43 → 41 % (zhruba 20 %/h);
+    - CPU procesu Plume 117–151 % z 800 %;
+    - obraz 24 fps bez zahozených snímků.
+    Hodinový hovor ověřený není.
 - **Při ladění logu: `grep` do souboru jen s `--line-buffered`.** Bez něj se poslední řádky
   do souboru nedostanou a vypadá to, že se nic nestalo (tak to vypadalo s přepnutím kamery).
 

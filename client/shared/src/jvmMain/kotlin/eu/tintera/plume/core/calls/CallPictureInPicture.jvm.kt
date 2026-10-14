@@ -10,6 +10,7 @@ actual fun rememberCallPictureInPicture(
     muted: Boolean,
     onToggleMute: () -> Unit,
     onHangUp: () -> Unit,
+    onDismissed: () -> Unit,
 ): CallPictureInPicture = NoCallPictureInPicture
 
 private object NoCallPictureInPicture : CallPictureInPicture {
