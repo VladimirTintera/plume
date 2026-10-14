@@ -1,100 +1,42 @@
 package eu.tintera.plume.features.conversation
 
-import eu.tintera.plume.core.adaptive.ContentWidth
-import eu.tintera.plume.core.adaptive.centeredColumn
 import androidx.compose.ui.input.key.key
-import eu.tintera.plume.resources.saved_topic_read_only
-import eu.tintera.plume.resources.saved_topic_open_chat
-import eu.tintera.plume.resources.service_upgraded_open_new
-import eu.tintera.plume.core.ui.savedTopicTitle
-import eu.tintera.plume.core.ui.SavedTopicAvatar
 import eu.tintera.plume.core.telegram.MessageMedia
-import eu.tintera.plume.core.telegram.SavedTopicKind
-import androidx.compose.runtime.DisposableEffect
 import eu.tintera.plume.core.ui.resolveNow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.layout
-import eu.tintera.plume.core.camera.rememberVideoNoteCamera
-import eu.tintera.plume.core.camera.rememberVideoNotePermission
-import eu.tintera.plume.core.settings.RecordMode
-import eu.tintera.plume.resources.conversation_camera_permission
 import eu.tintera.plume.core.ui.SwipeDirection
 import eu.tintera.plume.core.ui.detectHorizontalSwipe
-import androidx.compose.ui.text.intl.Locale
-import eu.tintera.plume.resources.conversation_bot_start
-import androidx.compose.ui.composed
-import eu.tintera.plume.core.ui.AutoDeleteBadge
 import eu.tintera.plume.core.telegram.VideoChatInfo
 import eu.tintera.plume.core.telegram.PendingJoinRequests
-import eu.tintera.plume.core.ui.SecretChatLock
-import eu.tintera.plume.core.ui.SecureScreen
-import eu.tintera.plume.core.ui.VerificationBadge
-import eu.tintera.plume.core.ui.EmojiStatusBadge
-import eu.tintera.plume.core.telegram.PollComposerMode
-import eu.tintera.plume.core.telegram.ReplyKeyboardButtonKind
-import eu.tintera.plume.core.telegram.ChatReplyMarkup
 import androidx.compose.ui.platform.LocalHapticFeedback
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.blur.hazeBlur
-import eu.tintera.plume.core.telegram.ChatKind
-import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.sharedElementClipArea
 import eu.tintera.plume.core.ui.rememberSharedElementClip
 import eu.tintera.plume.core.ui.LocalSharedElementClip
-import eu.tintera.plume.core.ui.LocalSharedElementOcclusion
-import eu.tintera.plume.core.ui.sharedElementOcclusionBand
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.FilledTonalButton
-import eu.tintera.plume.core.telegram.ContentAccess
-import eu.tintera.plume.core.telegram.WriteAccess
-import eu.tintera.plume.core.ui.confirm
 import eu.tintera.plume.core.ui.reject
-import eu.tintera.plume.core.ui.tick
-import eu.tintera.plume.core.ui.toggle
-import eu.tintera.plume.resources.conversation_not_member
-import eu.tintera.plume.resources.conversation_secret_closed
-import eu.tintera.plume.resources.conversation_secret_pending
-import eu.tintera.plume.resources.conversation_topic_closed
-import eu.tintera.plume.resources.conversation_write_restricted
-import androidx.compose.ui.draw.clip
-import eu.tintera.plume.resources.profile_open
-import eu.tintera.plume.features.calls.ConversationCallButtons
-import eu.tintera.plume.resources.comments_title
 import eu.tintera.plume.resources.summary_me
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.navigationevent.compose.rememberNavigationEventState
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.NavigationEventInfo
 import eu.tintera.plume.core.ui.chatTitle
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
-import eu.tintera.plume.core.ui.KeyboardContent
 import eu.tintera.plume.features.conversation.items.SoundingVideoNote
 import eu.tintera.plume.features.conversation.items.rememberSoundingVideoNote
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import eu.tintera.plume.core.ui.avatarPolygon
 import eu.tintera.plume.core.ui.rememberShownConnection
-import eu.tintera.plume.core.ui.rememberConnectionIndicator
-import eu.tintera.plume.core.ui.OnlineDot
-import eu.tintera.plume.resources.presence_online
-import eu.tintera.plume.core.ui.RING_STROKE
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -110,14 +52,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import eu.tintera.plume.core.files.rememberSaveAs
 import androidx.compose.material3.FabPosition
-import eu.tintera.plume.core.telegram.commandSuggestions
-import eu.tintera.plume.core.location.rememberDeviceLocation
-import eu.tintera.plume.core.telegram.inlineQueryOf
-import eu.tintera.plume.core.telegram.mentionInsertion
-import eu.tintera.plume.core.telegram.mentionQueryAt
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -127,7 +63,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -158,34 +93,20 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
-import eu.tintera.plume.core.audio.rememberRecordPermission
 import eu.tintera.plume.core.settings.GestureHint
 import eu.tintera.plume.core.telegram.ChatMessage
-import eu.tintera.plume.core.telegram.UnreadMarkKind
-import eu.tintera.plume.core.ui.describe
 import eu.tintera.plume.core.telegram.Presence
-import eu.tintera.plume.core.ui.Avatar
-import eu.tintera.plume.core.ui.ForumTopicIcon
-import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.startOfLocalDay
-import eu.tintera.plume.core.ui.chatAvatarKey
-import eu.tintera.plume.core.ui.chatTitleKey
 import eu.tintera.plume.core.ui.label
-import eu.tintera.plume.core.ui.embeddedMediaPickerAvailable
 import eu.tintera.plume.core.ui.rememberEmbeddedMediaSelection
-import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.resolve
-import eu.tintera.plume.core.ui.sharedNavElement
-import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.features.conversation.items.FloatingDayBadge
 import eu.tintera.plume.features.conversation.items.ConversationItemContent
 import eu.tintera.plume.features.conversation.items.DayDividerItem
@@ -200,7 +121,6 @@ import eu.tintera.plume.features.conversation.items.TIME_COLUMN_WIDTH
 import eu.tintera.plume.features.conversation.items.UnreadDividerItem
 import eu.tintera.plume.features.conversation.items.ConversationItem
 import eu.tintera.plume.features.conversation.items.conversationItems
-import eu.tintera.plume.features.conversation.items.describe
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_chat_sensitive_show
 import eu.tintera.plume.resources.conversation_chat_sensitive_text
@@ -211,7 +131,6 @@ import eu.tintera.plume.resources.block_24dp
 import eu.tintera.plume.core.ui.IntroEmptyState
 import eu.tintera.plume.resources.conversation_empty
 import eu.tintera.plume.resources.conversation_fallback_title
-import eu.tintera.plume.resources.conversation_microphone_permission
 import eu.tintera.plume.resources.conversation_undo
 import eu.tintera.plume.resources.conversation_unpinned
 import eu.tintera.plume.resources.spam_bar_contact_added
@@ -258,11 +177,6 @@ fun ConversationScreen(
     // Návrhy odpovědi. Vlastní ViewModel jako shrnutí a klíčovaný chatem ze stejného důvodu.
     val replies: ReplySuggestionsViewModel = koinViewModel(key = "replies-${viewModel.chatId}")
     val repliesAvailable by replies.available.collectAsStateWithLifecycle()
-    val replySuggestions by replies.suggestions.collectAsStateWithLifecycle()
-    // Emoji k rozepsanému slovu. Jazyk zařízení a angličtina, jako hledání ve výběru emoji.
-    val emojiWords: EmojiSuggestionsViewModel = koinViewModel(key = "emoji-words-${viewModel.chatId}")
-    val emojiSuggestions by emojiWords.suggestions.collectAsStateWithLifecycle()
-    val emojiLanguages = remember { listOf(Locale.current.language, "en").distinct() }
     val startSummary = {
         // Zdroj se čte až v korutině, PO dotažení historie — a ze stateHolderu, ne z `state`
         // zachyceného při skládání: ten je z doby před dotažením a chyběly by v něm stránky.
@@ -282,30 +196,10 @@ fun ConversationScreen(
     val voiceSpeed = viewModel.voiceSpeed.collectAsStateWithLifecycle()
     val transcribeContext = viewModel.transcribeContext.collectAsStateWithLifecycle()
     val connection by viewModel.connection.collectAsStateWithLifecycle()
-    // Nahrávání se mění po 50 ms; obrazovka čte jen jestli běží, čas a úrovně až pruh nahrávání.
-    val voiceRecordingState = viewModel.voiceRecording.collectAsStateWithLifecycle()
-    val videoRecordingState = viewModel.videoRecording.collectAsStateWithLifecycle()
-    val isRecording by remember {
-        derivedStateOf { voiceRecordingState.value != null || videoRecordingState.value != null }
-    }
-    val isVideoRecording by remember { derivedStateOf { videoRecordingState.value != null } }
-    val voicePreview by viewModel.voicePreview.collectAsStateWithLifecycle()
-    val videoNotePreview by viewModel.videoNotePreview.collectAsStateWithLifecycle()
+    // Hlasovka a kolečko: stav, gesto, oprávnění a kamera — viz `ConversationRecording`.
+    val recording = rememberConversationRecording(viewModel)
     // Nový náhled (i hotový po mezistavu) začíná potichu, jako kolečko v bublině.
-    val videoNotePlayback = remember(videoNotePreview) { VideoNotePreviewPlayback() }
-    val recordGesture = remember { RecordGestureState() }
-    val recordPermission = rememberRecordPermission()
-    val videoNotePermission = rememberVideoNotePermission()
-    val preferredRecordMode by viewModel.recordMode.collectAsStateWithLifecycle()
-    // Kamera žije s obrazovkou, ViewModel si ji jen půjčuje (viz `CaptureSlot`).
-    val videoNoteCamera = rememberVideoNoteCamera()
-    DisposableEffect(videoNoteCamera) {
-        videoNoteCamera?.let(viewModel::attachCamera)
-        onDispose { videoNoteCamera?.let(viewModel::detachCamera) }
-    }
-    // Kolečko jen tam, kde ho chat dovolí A kde je čím ho natočit.
-    val videoNotesAllowed = state.content.videoNotes && videoNoteCamera != null
-    val recordMode = recordModeFor(preferredRecordMode, state.content.voiceNotes, videoNotesAllowed)
+    val videoNotePlayback = remember(recording.videoNotePreview) { VideoNotePreviewPlayback() }
 
     /*
      * Stav seznamu patří jednomu OKNU zpráv (`window`). Když se seznam vymění celý (skok do
@@ -370,19 +264,6 @@ fun ConversationScreen(
     val contactAddedMessage = stringResource(Res.string.spam_bar_contact_added)
     val undoLabel = stringResource(Res.string.conversation_undo)
 
-    // Vybrané soubory jsou už zkopírované v cache aplikace; čekají nad polem na popisek a odeslání.
-    val attachmentPicker = rememberAttachmentPicker(
-        onPicked = viewModel::addAttachments,
-        onError = viewModel::reportError,
-    )
-
-    /*
-     * Galerie se kreslí rovnou nad vstupním polem, kde ji systém umí vložit dovnitř aplikace
-     * (`EmbeddedMediaPicker`); jinde zůstává systémový výběr, tedy odchod na vlastní obrazovku.
-     * Rozhoduje se tady, aby o tom `AttachButton` nemusel vědět — nabídka je v obou případech
-     * stejná.
-     */
-    val embeddedMediaPicker = embeddedMediaPickerAvailable()
     // Paměť toho, co už je v galerii vybrané. Patří obrazovce: panel se zavřením zahodí, takže
     // by se při dalším otevření dala tatáž fotka vybrat podruhé.
     val mediaSelection = rememberEmbeddedMediaSelection()
@@ -400,8 +281,8 @@ fun ConversationScreen(
     // Nápovědy gest napoprvé. Podmínky se čtou až v `snapshotFlow`, obrazovka se kvůli nim neskládá.
     val gestureHints = rememberConversationGestureHints(viewModel, stateHolder) {
         sheets.stickerPicker || sheets.mediaPicker || sheets.locationPicker || sheets.livePeriod || sheets.effectPicker ||
-            sheets.scheduleTarget != null || sheets.previewAttachmentIndex != null || isRecording ||
-            voicePreview != null || videoNotePreview != null ||
+            sheets.scheduleTarget != null || sheets.previewAttachmentIndex != null || recording.isRecording ||
+            recording.voicePreview != null || recording.videoNotePreview != null ||
             (stateHolder.value.info?.sensitive == true && !sensitiveAccepted)
     }
 
@@ -427,8 +308,6 @@ fun ConversationScreen(
     }
 
 
-    /** Poslední otevřená část výběru — uložená v nastavení, takže platí i po restartu aplikace. */
-    val expressionMode by viewModel.expressionMode.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
 
@@ -1034,241 +913,13 @@ fun ConversationScreen(
          */
         contentWindowInsets = ScaffoldDefaults.contentWindowInsets
             .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
-        topBar = topBar@{
-            state.selection?.let { selection ->
-                SelectionTopBar(selection = selection, onClose = viewModel::closeSelection)
-                return@topBar
-            }
-            state.search?.let { search ->
-                InChatSearchTopBar(
-                    initialQuery = search.query,
-                    onQueryChange = viewModel::onSearchQuery,
-                    onClose = viewModel::closeSearch,
-                    sender = search.sender,
-                    // Podle člena jen ve skupině: v soukromém chatu jsou odesílatelé dva a v kanálu
-                    // píše jen kanál.
-                    onPickSender = viewModel::openMemberPicker.takeIf { state.info?.let { it.isGroup && !it.isChannel } == true },
-                    onRemoveSender = { viewModel.setSearchSender(null) },
-                    onJumpToDate = viewModel::jumpToDate.takeIf { viewModel.canJumpToDate },
-                )
-                return@topBar
-            }
-            TopAppBar(
-                title = {
-                    // Hlavička vede do profilu chatu — tak to znají uživatelé ze všech klientů.
-                    // Uložené zprávy profil nemají (je to vlastní účet, nic k ukázání).
-                    val profileLabel = stringResource(Res.string.profile_open)
-                    /*
-                     * Stav spojení nese avatar (zvlní se a točí), stejně jako fotka účtu
-                     * v seznamu chatů — ne text pod názvem. Čtečce obrazovky ho řekne popis
-                     * stavu hlavičky.
-                     */
-                    val shownConnection = rememberShownConnection(connection)
-                    val connectionLabel = shownConnection?.label()?.let { stringResource(it) }
-                    // „Online" už v podtitulu není, nese ho jen tečka — čtečce ho proto řekne
-                    // popis stavu hlavičky, stejně jako výpadek spojení (ten má přednost: bez
-                    // spojení je dostupnost stará hodnota).
-                    val onlineLabel = stringResource(Res.string.presence_online)
-                        .takeIf { state.presence is Presence.Online && state.info?.isSavedMessages == false }
-                    val headerState = connectionLabel ?: onlineLabel
-                    val kind = when {
-                        state.info?.isChannel == true -> ChatKind.Channel
-                        state.info?.isGroup == true -> ChatKind.Group
-                        else -> ChatKind.Private
-                    }
-                    val indicator = rememberConnectionIndicator(
-                        connection = shownConnection,
-                        avatarSize = HEADER_AVATAR,
-                        grownSize = HEADER_AVATAR_GROWN,
-                        base = kind.avatarPolygon(),
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable(
-                                // Vlákno komentářů vlastní profil nemá; profil skupiny by vedl pryč.
-                                enabled = state.info?.isSavedMessages == false && state.threadRootId == null,
-                                onClickLabel = profileLabel,
-                                onClick = navigation.onOpenProfile,
-                            )
-                            .semantics { headerState?.let { stateDescription = it } }
-                            // Místo pro zvětšený avatar s prstencem: řádek ořezává (tvar vlnky
-                            // stisku), takže bez rezervy by prstenec usekl vlevo i nahoře a dole.
-                            .padding(horizontal = HEADER_RING_ROOM, vertical = HEADER_RING_ROOM),
-                    ) {
-                        // Nad profilem bota je jeho tvář velká uprostřed obrazovky a nese i tečku
-                        // a výpadek spojení (`BotIntroPage`); v hlavičce by byla podruhé.
-                        val headerAvatar = !showsBotIntro(state)
-                        // Téma: jeho ikona místo fotky skupiny. Nic neletí — seznam témat je
-                        // jiná obrazovka a fotka skupiny v ní v řádku není.
-                        state.info?.topic?.let { topic ->
-                            ForumTopicIcon(
-                                icon = topic.icon,
-                                name = topic.name,
-                                isGeneral = topic.isGeneral,
-                                size = HEADER_AVATAR,
-                                modifier = Modifier.padding(end = 12.dp),
-                            )
-                        }
-                        // Téma Uložených zpráv: fotka chatu, ze kterého se ukládalo (Moje poznámky
-                        // záložka). Taky nic neletí, řádek v seznamu témat je jiná obrazovka.
-                        state.info?.savedTopic?.let { topic ->
-                            SavedTopicAvatar(topic = topic, size = HEADER_AVATAR, modifier = Modifier.padding(end = 12.dp))
-                        }
-                        state.info?.takeIf { it.topic == null && it.savedTopic == null }?.let { info ->
-                          AnimatedVisibility(
-                              visible = headerAvatar,
-                              enter = fadeIn() + expandHorizontally(),
-                              exit = fadeOut() + shrinkHorizontally(),
-                          ) {
-                            // Mezera ke jménu je součást avataru, ne řádku: schovaný avatar
-                            // by jinak nechal před jménem díru.
-                            Box(Modifier.padding(end = 12.dp)) {
-                                Avatar(
-                                    chatId = info.avatarColorId,
-                                    title = info.title,
-                                    avatarFileId = info.avatarFileId,
-                                    size = HEADER_AVATAR,
-                                    isSavedMessages = info.isSavedMessages,
-                                    // Stejný tvar jako v seznamu, odkud avatar přiletěl. Při výpadku
-                                    // ořezává indikátor — vlastní tvar by vlnky u skupiny schoval.
-                                    shape = if (indicator.isShaping) RectangleShape else kind.avatarShape(),
-                                    // Vlákno komentářů je jiná obrazovka než chat skupiny; sdílený
-                                    // klíč by se přetahoval s její hlavičkou i s položkou v seznamu.
-                                    modifier = Modifier
-                                        .then(
-                                            if (state.threadRootId == null) {
-                                                Modifier.sharedNavElement(chatAvatarKey(info.id))
-                                            } else {
-                                                Modifier
-                                            },
-                                        )
-                                        .then(with(indicator) { Modifier.avatar() }),
-                                )
-                                with(indicator) { Spacer(Modifier.matchParentSize().ring()) }
-                                // Jako v seznamu chatů. Bez spojení je dostupnost stará hodnota
-                                // a tečka by přeškrtla prstenec.
-                                if (shownConnection == null && state.presence is Presence.Online && !info.isSavedMessages) {
-                                    OnlineDot(
-                                        rim = MaterialTheme.colorScheme.surface,
-                                        size = HEADER_ONLINE_DOT,
-                                        modifier = Modifier.align(Alignment.BottomEnd),
-                                        // Letí s avatarem ze seznamu chatů; ve vlákně ne, stejně
-                                        // jako avatar.
-                                        chatId = info.id.takeIf { state.threadRootId == null },
-                                    )
-                                }
-                            }
-                          }
-                        }
-                        Column {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            ) {
-                                // Tajný chat: zámek a zákaz snímků obrazovky. Efekt patří celé
-                                // obrazovce; tady je proto, že `ConversationScreen` je v dexu na
-                                // hraně registrů (viz CLAUDE.md) a hlavička je vlastní lambda.
-                                val secret = state.info?.isSecret == true
-                                SecureScreen(enabled = secret)
-                                if (secret && !state.narrowed) SecretChatLock()
-                                Text(
-                                    text = when {
-                                        state.threadRootId != null -> stringResource(Res.string.comments_title)
-                                        state.info?.topic != null -> state.info?.topic?.name.orEmpty()
-                                        state.info?.savedTopic != null -> savedTopicTitle(state.info!!.savedTopic!!)
-                                        else -> state.info?.let { chatTitle(it.id, it.title) }
-                                            ?: stringResource(Res.string.conversation_fallback_title)
-                                    },
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    // Klíč se dá jen když chat známe; než dorazí `info`, není s čím
-                                    // párovat. Váha bez vyplnění: dlouhý název se zkrátí, štítek
-                                    // za ním zůstane vidět.
-                                    modifier = Modifier.weight(1f, fill = false).then(
-                                        state.info
-                                            ?.takeIf { !state.narrowed }
-                                            ?.let { Modifier.sharedNavText(chatTitleKey(it.id)) }
-                                            ?: Modifier,
-                                    ),
-                                )
-                                // Podvod a falešný účet musí být vidět tam, kde se píše — ve
-                                // vlákně komentářů je hlavička o skupině, ne o účtu.
-                                state.info?.verification
-                                    ?.takeIf { !state.narrowed }
-                                    ?.let { VerificationBadge(it) }
-                                state.info?.emojiStatus
-                                    ?.takeIf { !state.narrowed }
-                                    ?.let { EmojiStatusBadge(it) }
-                                // Automatické mazání: co se tu napíše, samo zmizí. Ve vlákně
-                                // komentářů by patřilo celé skupině, ne vláknu.
-                                state.autoDeleteTime
-                                    .takeIf { it > 0 && !state.narrowed }
-                                    ?.let { AutoDeleteBadge(it) }
-                            }
-
-                            /*
-                             * Podtitul: kdy byl protějšek naposledy vidět. Stav spojení tu NENÍ, ten
-                             * nese avatar — a „online" taky ne, to říká tečka na avataru. Dvakrát
-                             * totéž hned vedle sebe byl jen šum.
-                             *
-                             * Bez spojení se ale dostupnost schová: dokud spojení nestojí, je
-                             * „naposledy viděn" jen stará hodnota, kterou nemá co obnovit.
-                             *
-                             * „Píše…" tu NENÍ: kreslí se v seznamu zpráv tam, kam zpráva naskočí
-                             * (`TypingItem`), jako v Google Zprávách. Výšku hlavičky animuje
-                             * `AnimatedContent`, jinak by název při objevení podtitulu poskočil.
-                             */
-                            // Ve vlákně komentářů a v tématu říká podtitul, ve které skupině se diskutuje.
-                            val threadSubtitle = state.info
-                                ?.takeIf { state.narrowed }
-                                ?.let { HeaderSubtitle(chatTitle(it.id, it.title)) }
-                            val subtitle = threadSubtitle ?: state.presence
-                                ?.takeIf { shownConnection == null }
-                                // Vlastní dostupnost v Uložených zprávách nic neříká — byl bys
-                                // pořád „online", protože se na ně právě díváš.
-                                ?.takeUnless { state.info?.isSavedMessages == true }
-                                ?.takeUnless { it is Presence.Online }
-                                ?.let { HeaderSubtitle(it.describe()) }
-                            val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-                            val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-
-                            AnimatedContent(
-                                targetState = subtitle,
-                                transitionSpec = { fadeIn(effects) togetherWith fadeOut(fastEffects) },
-                                contentAlignment = Alignment.CenterStart,
-                                label = "header-subtitle",
-                            ) { current ->
-                                current ?: return@AnimatedContent
-                                Text(
-                                    text = current.text,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                )
-                            }
-                        }
-                    }
-                },
-                navigationIcon = {
-                    // Podržení nabídne rychlý přepínač chatů; ťuknutí je dál „zpět".
-                    ChatSwitcherBackButton(chatId = viewModel.chatId, onBack = navigation.onBack, onSwitch = navigation.onSwitchChat)
-                },
-                actions = {
-                    // Hlavní akce jsou hovor a videohovor, všechno ostatní je za ⋮.
-                    ConversationCallButtons(state.info, state.callRequest, viewModel::consumeCallRequest)
-                    // Prázdný chat s botem je jeho profil — není co shrnout ani hledat.
-                    // Omezený chat nemá co ukázat, tedy ani co shrnout nebo hledat.
-                    ConversationMenu(
-                        state = state,
-                        viewModel = viewModel,
-                        showsContent = !showsBotIntro(state) && !chatHidden,
-                        onSummary = startSummary.takeIf { summaryAvailable && state.threadRootId == null },
-                        // Uložené zprávy podle zdrojového chatu: jen u celých Uložených zpráv, ne v tématu.
-                        onViewAsChats = navigation.onViewAsChats?.takeIf { state.info?.isSavedMessages == true && !state.narrowed },
-                    )
-                },
+        topBar = {
+            ConversationTopBar(
+                state = state,
+                viewModel = viewModel,
+                navigation = navigation,
+                chatHidden = chatHidden,
+                onSummary = startSummary.takeIf { summaryAvailable && state.threadRootId == null },
             )
         },
         /*
@@ -1281,496 +932,37 @@ fun ConversationScreen(
          * obrazovku by vedl předěl, o který se zprávy při scrollu „zasekávají".
          */
         bottomBar = {
-            // Horní hrana pole je spodní mez pro nabídku nad zprávou (viz `contentBottom`).
-            // Na široké ploše ve sloupci uprostřed, stejně jako zprávy nad ním.
-            Box(
-                Modifier
-                    .centeredColumn(ContentWidth.Conversation)
-                    .onGloballyPositioned { contentBottom.value = it.boundsInWindow().top },
-            ) {
-            /*
-             * Lišty místo pole (Přidat se, Start, Ztlumit, věta „nejde psát") mají pod sebou
-             * TENTÝŽ pás skla jako pole. Seznam zpráv pod spodní lištu zajíždí (spodek je
-             * `contentPadding`, ne konec plochy), takže bez pásu prosvítaly bubliny zpod tlačítka.
-             */
-            val barGlass = Modifier.hazeBlur(
-                input = HazeInput.Sources(listHaze),
-                style = glassStyle(
-                    color = MaterialTheme.colorScheme.surface,
-                    alpha = GLASS_TINT_ALPHA,
-                    fallbackAlpha = INPUT_SCRIM_ALPHA,
-                ),
-            )
-            // Při výběru patří spodek akcím nad ním; rozepsaný text zůstává v konceptu.
-            state.selection?.let { selection ->
-                SelectionToolbar(
-                    selection = selection,
-                    onCopy = viewModel::copySelection,
-                    onCopyWithNames = viewModel::copySelectionWithNames,
-                    onCopyMarkdown = viewModel::copySelectionAsMarkdown,
-                    onForward = viewModel::forwardSelection,
-                    onReport = viewModel::reportSelection,
-                    onDelete = viewModel::deleteSelection,
-                )
-                return@Box
-            }
-            // Při hledání patří spodek šipkám mezi výsledky; rozepsaný text zůstává v konceptu.
-            state.search?.let { search ->
-                InChatSearchNavigator(
-                    search = search,
-                    // Procházení po dílcích — tik, ne potvrzení: výsledků bývají stovky.
-                    onOlder = {
-                        haptics.tick()
-                        viewModel.searchOlder()
-                    },
-                    onNewer = {
-                        haptics.tick()
-                        viewModel.searchNewer()
-                    },
-                )
-                return@Box
-            }
-            // Omezený chat: do chatu, který se nedá ukázat, se ani psát nedá.
-            if (chatHidden) return@Box
-            if (state.info?.canJoin == true) {
-                JoinBar(joining = state.joining, onJoin = viewModel::join, modifier = barGlass)
-                return@Box
-            }
-            // Převedená základní skupina: psát se dá jen do té nové, tak tam vede.
-            state.info?.upgradedToChatId?.let { upgraded ->
-                JoinBar(
-                    joining = false,
-                    onJoin = { navigation.onOpenChat(ChatTarget(upgraded)) },
-                    label = Res.string.service_upgraded_open_new,
-                    modifier = barGlass,
-                )
-                return@Box
-            }
-            // Nespuštěný bot (nebo čekající parametr z odkazu): Start místo pole.
-            if (showsBotStart(state)) {
-                JoinBar(
-                    joining = state.startingBot,
-                    onJoin = {
-                        haptics.confirm()
-                        viewModel.startBot()
-                    },
-                    label = Res.string.conversation_bot_start,
-                    modifier = barGlass,
-                )
-                return@Box
-            }
-            // Kde se psát nesmí, pole by skončilo chybou až po odeslání. Kanál aspoň nabídne ztlumení.
-            when (state.info?.writeAccess) {
-                WriteAccess.ChannelReadOnly -> {
-                    MuteBar(muted = state.muted, onToggle = viewModel::toggleMute, modifier = barGlass)
-                    return@Box
-                }
-                WriteAccess.Restricted -> {
-                    ReadOnlyNote(Res.string.conversation_write_restricted, barGlass)
-                    return@Box
-                }
-                WriteAccess.NotMember -> {
-                    ReadOnlyNote(Res.string.conversation_not_member, barGlass)
-                    return@Box
-                }
-                WriteAccess.TopicClosed -> {
-                    ReadOnlyNote(Res.string.conversation_topic_closed, barGlass)
-                    return@Box
-                }
-                WriteAccess.SecretPending -> {
-                    ReadOnlyNote(Res.string.conversation_secret_pending, barGlass)
-                    return@Box
-                }
-                WriteAccess.SecretClosed -> {
-                    ReadOnlyNote(Res.string.conversation_secret_closed, barGlass)
-                    return@Box
-                }
-                // Téma Uložených zpráv uložené odjinud: odeslat do něj TDLib nedovolí. Zdrojový
-                // chat aspoň jde otevřít — tam se odpovídá; bez známého chatu jen proč.
-                WriteAccess.SavedTopic -> {
-                    val source = (state.info?.savedTopic?.kind as? SavedTopicKind.FromChat)?.chatId
-                    if (source != null) {
-                        JoinBar(
-                            joining = false,
-                            onJoin = { navigation.onOpenChat(ChatTarget(source)) },
-                            label = Res.string.saved_topic_open_chat,
-                            modifier = barGlass,
-                        )
-                    } else {
-                        ReadOnlyNote(Res.string.saved_topic_read_only, barGlass)
-                    }
-                    return@Box
-                }
-                WriteAccess.Allowed, null -> Unit
-            }
-            Column {
-            ReplySuggestionChips(
-                suggestions = replySuggestions,
-                // Návrh se jen VLOŽÍ do pole; odeslání zůstává na uživateli. `onDraftChanged`
-                // musí jít taky — uloží koncept a ohlásí „píše…", jako by to napsal sám.
-                onPick = { suggestion ->
-                    draft = TextFieldValue(suggestion, selection = TextRange(suggestion.length))
-                    viewModel.onDraftChanged(composer.composed)
-                    replies.consume()
-                },
-            )
-            // Vlastní klávesnice bota stojí NAD polem (viz `ReplyKeyboardPanel`); při úpravě
-            // zprávy ne — tlačítko by poslalo novou zprávu uprostřed opravy staré.
-            (state.replyMarkup as? ChatReplyMarkup.Keyboard)?.takeIf { state.editing == null }?.let { keyboard ->
-                // Použitá jednorázová klávesnice se otevírá sbalená i po návratu do chatu — TDLib
-                // si použití nepamatuje a klávesnice v chatu zůstává (viz `keyboardUsed`).
-                val usedKeyboard by viewModel.usedKeyboardMessageId.collectAsStateWithLifecycle()
-                var collapsed by rememberSaveable(keyboard.messageId) {
-                    mutableStateOf(keyboard.oneTime && usedKeyboard == keyboard.messageId)
-                }
-                ReplyKeyboardPanel(
-                    keyboard = keyboard,
-                    collapsed = collapsed,
-                    onToggle = { collapsed = !collapsed },
-                    onPress = { row, column ->
-                        haptics.confirm()
-                        // Jednorázová klávesnice se po použití SCHOVÁ, nezmizí (Bot API
-                        // `one_time_keyboard`) — šipkou jde vrátit. Vysvětlení u tlačítka, které
-                        // Plume neumí, použití není.
-                        val kind = keyboard.rows.getOrNull(row)?.getOrNull(column)?.kind
-                        if (keyboard.oneTime && kind !is ReplyKeyboardButtonKind.Unsupported) collapsed = true
-                        viewModel.pressReplyKeyboardButton(row, column)
-                    },
-                )
-            }
-            // Příkazy botů: napovídání podle rozepsaného „/…", nebo celý seznam z tlačítka u pole.
-            val typedCommands = commandSuggestions(draft.text, state.botCommands)
-            // Inline bot (`@gif kočka`): výsledky nad polem. S přílohami je text popisek a při úpravě
-            // text staré zprávy — ani jedno není dotaz na bota.
-            val inlineDraft = remember(draft.text, state.editing, state.attachments.isEmpty()) {
-                inlineQueryOf(draft.text).takeIf { state.editing == null && state.attachments.isEmpty() }
-            }
-            // Zmínka (`@ja` u kurzoru): členové skupiny nad polem. Kurzor, ne celý text — zmínka se
-            // píše kdekoli ve větě. S rozepsaným dotazem na inline bota se nenapovídá, to je jiné „@".
-            val mentionQuery = remember(draft, inlineDraft) {
-                draft.takeIf { inlineDraft == null && it.selection.collapsed }
-                    ?.let { mentionQueryAt(it.text, it.selection.start) }
-            }
-            LaunchedEffect(mentionQuery?.query) { viewModel.mentionQuery(mentionQuery?.query) }
-            // Emoji ke slovu u kurzoru. Ne vedle jiného napovídání — dotaz na inline bota a zmínka
-            // mají nad polem přednost a emoji plovoucí přes jejich panel by ho zakryla.
-            val emojiWord = remember(draft, inlineDraft, mentionQuery, typedCommands) {
-                draft.takeIf {
-                    inlineDraft == null && mentionQuery == null && typedCommands == null && it.selection.collapsed
-                }?.let { emojiWordAt(it.text, it.selection.start) }
-            }
-            LaunchedEffect(emojiWord?.word) { emojiWords.lookup(emojiWord?.word, emojiLanguages) }
-            val shownEmojis = emojiSuggestions?.takeIf { it.word == emojiWord?.word }?.emojis.orEmpty()
-            // Samolepky k emoji, které je v poli samo. Jen kde se samolepka smí poslat a pole
-            // je obyčejná zpráva — ne při úpravě ani s přílohou, kde by emoji byl popisek.
-            val stickerEmoji = remember(draft.text, inlineDraft, state.editing, state.attachments.isEmpty(), state.content.stickers) {
-                stickerSuggestionEmoji(draft.text).takeIf {
-                    inlineDraft == null && state.editing == null && state.attachments.isEmpty() && state.content.stickers
-                }
-            }
-            val shownStickers = rememberStickerSuggestions(stickerEmoji, viewModel.chatId)
-            LaunchedEffect(inlineDraft) { viewModel.inlineQuery(inlineDraft) }
-            // Bot, který chce polohu, ji dostane přibližnou — dotaz na oprávnění přijde až u něj.
-            val inlineLocation = rememberDeviceLocation()
-            val locationBot = state.inline?.bot?.takeIf { it.needLocation }?.userId
-            LaunchedEffect(locationBot) {
-                if (locationBot != null) inlineLocation.request(viewModel::setInlineLocation)
-            }
-            /*
-             * Napovídání při psaní PLAVE nad polem a místo v rozvržení nezabírá (viz
-             * `FloatingSuggestion`): mění se s každým písmenem a konverzace pod ním nesmí
-             * poskakovat. Stojí těsně nad polem, u textu, ke kterému patří. Návrhy odpovědi
-             * a klávesnice bota výš zůstávají v rozvržení — viz `ReplySuggestionChips`.
-             */
-            val suggestionGlass = Modifier.hazeBlur(
-                input = HazeInput.Sources(listHaze),
-                // Inverzní plocha, jako snackbar (viz `FloatingSuggestion`).
-                style = glassStyle(
-                    color = MaterialTheme.colorScheme.inverseSurface,
-                    alpha = FLOATING_SUGGESTION_TINT_ALPHA,
-                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                ),
-            )
-            val commandsShown = state.editing == null && (typedCommands != null || state.commandsOpen)
-            // Plovoucí napovídání leží tam, kde jinak stojí tlačítko dolů a zmínky — ty se
-            // mezitím schovají, jinak by visely přes seznam příkazů nebo přes emoji.
-            val floatingShown = (commandsShown && state.botCommands.isNotEmpty()) ||
-                (mentionQuery != null && state.mentionSuggestions?.candidates.orEmpty().isNotEmpty()) ||
-                (emojiWord != null && shownEmojis.isNotEmpty()) ||
-                (stickerEmoji != null && shownStickers.isNotEmpty()) ||
-                inlineDraft != null
-            SideEffect { suggestionsFloating = floatingShown }
-            Column(Modifier.floatAbove()) {
-                BotCommandsPanel(
-                    commands = typedCommands ?: state.botCommands.takeIf { state.commandsOpen }.orEmpty(),
-                    visible = commandsShown,
-                    onPick = { command ->
-                        haptics.confirm()
-                        // Rozepsané „/st" byl ten příkaz — pole se vyprázdní a koncept s ním.
-                        if (typedCommands != null) {
-                            draft = TextFieldValue()
-                            viewModel.onDraftChanged(composer.composed)
-                        }
-                        viewModel.closeCommands()
-                        viewModel.sendCommand(command.text)
-                    },
-                    glass = suggestionGlass,
-                )
-                MentionSuggestionsPanel(
-                    candidates = state.mentionSuggestions?.candidates.orEmpty(),
-                    visible = mentionQuery != null,
-                    onPick = { candidate ->
-                        val query = mentionQuery ?: return@MentionSuggestionsPanel
-                        val (text, cursor) = mentionInsertion(draft.text, draft.selection.start, query, candidate)
-                        draft = TextFieldValue(text, selection = TextRange(cursor))
-                        viewModel.mentionPicked(candidate)
-                        viewModel.onDraftChanged(composer.composed)
-                    },
-                    glass = suggestionGlass,
-                )
-                EmojiSuggestionsPanel(
-                    emojis = shownEmojis,
-                    visible = emojiWord != null,
-                    onPick = { emoji ->
-                        val word = emojiWord ?: return@EmojiSuggestionsPanel
-                        haptics.confirm()
-                        val (text, cursor) = emojiReplacement(draft.text, word, emoji)
-                        draft = TextFieldValue(text, selection = TextRange(cursor))
-                        emojiWords.picked(emoji)
-                        viewModel.onDraftChanged(composer.composed)
-                    },
-                    glass = suggestionGlass,
-                )
-                StickerSuggestionsPanel(
-                    stickers = shownStickers,
-                    visible = stickerEmoji != null,
-                    onPick = { sticker ->
-                        haptics.confirm()
-                        viewModel.sendSticker(sticker)
-                        // Emoji v poli byla ta samolepka — pole se vyprázdní a koncept s ním.
-                        draft = TextFieldValue()
-                        viewModel.onDraftChanged(composer.composed)
-                    },
-                    glass = suggestionGlass,
-                )
-                InlineResultsPanel(
-                    inline = state.inline,
-                    visible = inlineDraft != null,
-                    onPick = { result ->
-                        haptics.confirm()
-                        viewModel.sendInlineResult(result)
-                        // Dotaz v poli byl ten výsledek — pole se vyprázdní a koncept s ním.
-                        draft = TextFieldValue()
-                        viewModel.onDraftChanged(composer.composed)
-                    },
-                    onButton = viewModel::pressInlineButton,
-                    onLoadMore = viewModel::loadMoreInline,
-                    glass = suggestionGlass,
-                )
-            }
-            // Fotka letící z prohlížeče zajede pod kartu pole a tlačítko, ne jen za čáru nad nimi.
-            CompositionLocalProvider(LocalSharedElementOcclusion provides listClip) {
-            MessageInput(
-                gestureHints = gestureHints,
-                glass = Modifier.sharedElementOcclusionBand().hazeBlur(
-                    input = HazeInput.Sources(listHaze),
-                    style = glassStyle(
-                        color = MaterialTheme.colorScheme.surface,
-                        alpha = GLASS_TINT_ALPHA,
-                        // Bez rozostření zůstane dřívější krycí pás; jinak by pod ním prosvítaly
-                        // zprávy a psaní by se v nich ztratilo.
-                        fallbackAlpha = INPUT_SCRIM_ALPHA,
-                    ),
-                ),
-                replyingTo = state.replyingTo,
-                replyQuote = state.replyQuote?.text,
-                partnerName = state.info?.title,
-                flight = state.flight,
-                onCancelReply = viewModel::clearReply,
-                // Odeslání je potvrzení akce; dosud ho doprovázel jen let bubliny. Hlásí se
-                // v okamžiku ťuknutí, ne po odpovědi serveru — odezva patří ke gestu.
-                onSend = { text, options ->
-                    haptics.confirm()
-                    viewModel.send(text, options)
-                },
-                sendMenu = sendMenuOffer(state),
-                onSchedule = { sheets.scheduleTarget = ScheduleTarget.Draft },
-                onPickEffect = {
-                    viewModel.loadEffects()
-                    sheets.effectPicker = true
-                },
-                onOpenScheduled = viewModel::openScheduled.takeIf { state.hasScheduledMessages },
-                onDraftChanged = viewModel::onDraftChanged,
-                editing = state.editing,
-                onCancelEdit = viewModel::cancelEdit,
-                placeholder = state.inputPlaceholder,
-                linkPreview = composerLinkPreview(
-                    preview = state.linkPreview,
-                    options = state.linkPreviewOptions,
-                    editingCaption = state.editing?.composerEdit() == ComposerEdit.Caption,
-                    hasAttachments = state.attachments.isNotEmpty(),
-                ),
-                linkPreviewLinks = state.linkPreviewLinks,
-                linkPreviewOptions = state.linkPreviewOptions,
-                onLinkPreviewOptions = viewModel::setLinkPreviewOptions,
-                inputFill = state.inputFill,
-                onInputFilled = viewModel::consumeInputFill,
-                onOpenStickers = { sheets.stickerPicker = true },
-                onPickMedia = { if (embeddedMediaPicker) sheets.mediaPicker = true else attachmentPicker.pickMedia() },
-                isRecording = isRecording,
-                recording = { voiceRecordingState.value ?: videoRecordingState.value },
-                recordMode = recordMode,
-                canSwitchRecordMode = canSwitchRecordMode(state.content.voiceNotes, videoNotesAllowed),
-                onSwitchRecordMode = {
-                    viewModel.setRecordMode(if (recordMode == RecordMode.VideoNote) RecordMode.Voice else RecordMode.VideoNote)
-                },
-                // Zastavené kolečko je pořád kolečko: odeslání se tak jmenuje i v náhledu.
-                recordingKind = if (isVideoRecording || videoNotePreview != null) RecordMode.VideoNote else RecordMode.Voice,
-                recordGesture = recordGesture,
-                onStartRecording = { held ->
-                    val video = recordMode == RecordMode.VideoNote
-                    // Odpověď bez dialogu přijde hned, uvnitř `request`; z dialogu až potom.
-                    var immediate = true
-                    (if (video) videoNotePermission else recordPermission).request { granted ->
-                        when {
-                            !granted -> {
-                                haptics.reject()
-                                viewModel.reportError(
-                                    UiText(if (video) Res.string.conversation_camera_permission else Res.string.conversation_microphone_permission),
-                                )
-                            }
-                            // Oprávnění přišlo až z dialogu: prst mezitím tlačítko pustil, a nahrávat
-                            // bez něj by bylo nahrávání, o kterém uživatel neví. Podrží znovu.
-                            held && !immediate -> Unit
-                            else -> {
-                                // Nahrávání běží, dokud ho uživatel neukončí — přepnutý stav, ne
-                                // hotová akce. Odepřené oprávnění je naopak odmítnutí.
-                                haptics.toggle(on = true)
-                                if (video) viewModel.startVideoRecording() else viewModel.startRecording()
-                            }
-                        }
-                    }
-                    immediate = false
-                },
-                onCancelRecording = {
-                    haptics.reject()
-                    viewModel.cancelRecording()
-                },
-                voicePreview = voicePreview,
-                voicePreviewPlayback = { voicePlayback.value?.takeIf { it.key.isVoicePreview } },
-                onStopRecording = {
-                    // Mikrofon se zavírá — přepnutý stav, jako při spuštění.
-                    haptics.toggle(on = false)
-                    viewModel.stopRecordingForPreview()
-                },
-                onToggleVoicePreview = viewModel::toggleVoicePreview,
-                onSeekVoicePreview = viewModel::seekVoicePreview,
-                onContinueVoicePreview = {
-                    haptics.toggle(on = true)
-                    viewModel.continueVoicePreview()
-                },
-                onDiscardVoicePreview = {
-                    haptics.reject()
-                    viewModel.discardVoicePreview()
-                },
-                videoNotePreview = videoNotePreview,
-                videoNotePlayback = videoNotePlayback,
-                onDiscardVideoNotePreview = {
-                    haptics.reject()
-                    viewModel.discardVideoNotePreview()
-                },
-                onContinueVideoNotePreview = {
-                    haptics.toggle(on = true)
-                    viewModel.continueVideoNotePreview()
-                },
-                onSendRecording = { options ->
-                    haptics.confirm()
-                    viewModel.sendRecording(options)
-                },
-                // Nabídka nad hlasovkou nahrávání pozastaví, zavření bez volby ho obnoví.
-                onVoiceMenu = { open -> if (open) viewModel.pauseRecording() else viewModel.resumeRecording() },
-                onScheduleRecording = { sheets.scheduleTarget = ScheduleTarget.Voice },
-                onPickDocument = attachmentPicker::pickDocument,
-                // Anketa jde jen tam, kde to dovolí právo i druh chatu (`ContentAccess.polls`).
-                onCreatePoll = {
-                    navigation.onCreatePoll(PollComposerRequest(PollComposerMode.Any, state.replyingTo?.id, state.replyQuote))
-                }.takeIf { state.content.polls },
-                // Poloha je „základní zpráva" jako text: smí se všude, kde je vstupní pole.
-                onSendLocation = { sheets.locationPicker = true },
-                // Kontakt je taky „základní zpráva" (TDLib ho řadí k textu), jako poloha.
-                onShareContact = viewModel::openContactPicker,
-                onToggleCommands = viewModel::toggleCommands.takeIf { state.botCommands.isNotEmpty() },
-                menuApp = state.botMenuApp,
-                onOpenMenuApp = viewModel::openBotMenuApp,
-                attachments = state.attachments,
-                // Vykreslovaná úprava fotky blokuje odeslání stejně jako kopírování z galerie.
-                attachmentsPreparing = mediaSelection.preparing || state.markupBusy,
-                onRemoveAttachment = viewModel::removeAttachment,
-                onOpenAttachment = { index -> sheets.previewAttachmentIndex = index },
-                onSetAttachmentMode = viewModel::setAttachmentMode,
-                content = state.content,
-                selfDestructAllowed = state.canSelfDestruct(attachmentCount = 1),
-                previewAttachmentIndex = sheets.previewAttachmentIndex,
-                expressionMode = expressionMode,
+            ConversationBottomBar(
+                state = state,
+                viewModel = viewModel,
+                navigation = navigation,
                 composer = composer,
-                onKeyboardContent = { received ->
-                    when (received) {
-                        // GIF odchází hned, jako samolepka; obrázek čeká nad polem jako z výběru.
-                        is KeyboardContent.Animation -> viewModel.sendAnimation(received.animation)
-                        is KeyboardContent.Image -> viewModel.addAttachments(listOf(received.photo))
-                        is KeyboardContent.File -> viewModel.addAttachments(listOf(received.document))
-                    }
-                },
-                onKeyboardContentFailed = viewModel::reportError,
+                sheets = sheets,
+                recording = recording,
+                videoNotePlayback = videoNotePlayback,
+                voicePlayback = voicePlayback,
+                replies = replies,
+                gestureHints = gestureHints,
+                mediaSelection = mediaSelection,
+                chatHidden = chatHidden,
+                listHaze = listHaze,
+                listClip = listClip,
+                onContentBottom = { contentBottom.value = it },
+                onSuggestionsFloating = { suggestionsFloating = it },
             )
-            }
-            }
-            }
         },
         // Tlačítko dolů ve FAB slotu: Scaffold ho drží nad polem a snackbar pak nad ním.
         // Uprostřed, ne vpravo: vpravo by viselo přímo nad tlačítkem odeslání a mikrofonu
         // a ťuknutí o kousek vedle by místo skoku dolů spustilo nahrávání.
         floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
-            // Nad polem zrovna plave napovídání (viz `FloatingSuggestion`) — tlačítka by visela
-            // přes něj, takže na tu chvíli ustoupí.
-            AnimatedVisibility(
-                visible = !suggestionsFloating,
-                enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()),
-                exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
-            ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            // Zmínky a reakce nad tlačítkem dolů: jsou vidět, i když je uživatel dole — zmínka
-            // bývá hluboko v nepřečtené historii a tlačítko dolů o ní nic neřekne.
-            UnreadMarkButton(
-                kind = UnreadMarkKind.Mention,
-                count = state.unreadMarks.mentions,
-                onClick = viewModel::jumpToUnreadMark,
-                onReadAll = viewModel::readAllMarks,
-            )
-            UnreadMarkButton(
-                kind = UnreadMarkKind.Reaction,
-                count = state.unreadMarks.reactions,
-                onClick = viewModel::jumpToUnreadMark,
-                onReadAll = viewModel::readAllMarks,
-            )
-            UnreadMarkButton(
-                kind = UnreadMarkKind.PollVote,
-                count = state.unreadMarks.pollVotes,
-                onClick = viewModel::jumpToUnreadMark,
-                onReadAll = viewModel::readAllMarks,
-            )
-            // Diskrétní čtení: přečtení se samo nehlásí, tak jde poslat ručně. Jen v chatu samém —
-            // ve vlákně a v tématu by „přečíst chat" přečetlo i to, co uživatel neviděl.
-            MarkReadChip(
-                visible = state.discreetUnread > 0 && state.threadRootId == null && state.forumTopicId == null,
-                onClick = viewModel::readNow,
-            )
-            ScrollToBottomButton(
-                // V okně v historii vede dolů i od spodní hrany — nejnovější zprávy nejsou načtené.
-                visible = farFromBottom || pendingNewMessages > 0 || !state.reachedEnd,
-                count = pendingNewMessages,
-                onClick = {
+            ConversationFloatingButtons(
+                state = state,
+                viewModel = viewModel,
+                suggestionsFloating = suggestionsFloating,
+                farFromBottom = farFromBottom,
+                newMessages = pendingNewMessages,
+                onScrollDown = {
                     if (state.reachedEnd) {
                         scope.launch {
                             listState.animateScrollToBottom { index ->
@@ -1782,8 +974,6 @@ fun ConversationScreen(
                     }
                 },
             )
-            }
-            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
@@ -2162,17 +1352,17 @@ fun ConversationScreen(
 
             // Nad seznamem, pod vstupním polem: odeslání i koš zůstávají ovladatelné.
             VideoNoteRecordingOverlay(
-                visible = isVideoRecording,
-                camera = videoNoteCamera,
-                recording = { videoRecordingState.value },
+                visible = recording.isVideoRecording,
+                camera = recording.camera,
+                recording = { recording.video() },
                 modifier = Modifier.fillMaxSize().padding(bottom = obscuredBottom),
-                preview = videoNotePreview,
+                preview = recording.videoNotePreview,
                 playback = videoNotePlayback,
             )
             // Zámek nad tlačítkem je tady, ne v liště — sklo pod polem by ho ořízlo.
             RecordLockHost(
-                visible = isRecording && recordGesture.held && !recordGesture.locked,
-                gesture = recordGesture,
+                visible = recording.isRecording && recording.gesture.held && !recording.gesture.locked,
+                gesture = recording.gesture,
                 modifier = Modifier.fillMaxSize().padding(bottom = obscuredBottom),
             )
 
@@ -2201,18 +1391,6 @@ fun ConversationScreen(
     }
 }
 
-/** Avatar v hlavičce. */
-private val HEADER_AVATAR = 36.dp
-
-/** Avatar v hlavičce při výpadku spojení (viz `ConnectionIndicator`). */
-private val HEADER_AVATAR_GROWN = 42.dp
-
-/** Rezerva řádku hlavičky kolem avataru pro jeho zvětšení a půl tahu prstence. */
-private val HEADER_RING_ROOM = (HEADER_AVATAR_GROWN + RING_STROKE - HEADER_AVATAR) / 2
-
-/** Tečka dostupnosti na 36dp avataru — v seznamu chatů je 14 dp na 52dp. */
-private val HEADER_ONLINE_DOT = 11.dp
-
 /**
  * Naposledy zpracovaná nejnovější zpráva, pro ukotvení seznamu dole.
  *
@@ -2239,17 +1417,6 @@ private const val READ_DEBOUNCE_MS = 400L
 
 /** Jak dlouho musí být reklama v klidu na obrazovce, než se zhlédnutí nahlásí. */
 private const val SPONSORED_VIEW_DEBOUNCE_MS = 1000L
-
-/**
- * Průsvit pruhu pod vstupním polem.
- *
- * Dost na to, aby text pod ním nerušil, ale ne plná barva — ta by udělala ostrý předěl přes
- * celou obrazovku, což je právě to, co se odstraňovalo.
- */
-private const val INPUT_SCRIM_ALPHA = 0.93f
-
-/** Řádek pod názvem chatu: naposledy viděn, nebo ve vlákně název skupiny. */
-private data class HeaderSubtitle(val text: String)
 
 /**
  * Bloky seznamu konverzace (viz [conversationItems]). Vlastní funkce, ne kus [ConversationScreen]:

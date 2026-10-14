@@ -1,50 +1,31 @@
 package eu.tintera.plume.features.conversation
 
-import eu.tintera.plume.resources.conversation_mark_read
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import eu.tintera.plume.core.ui.RollingNumber
-import androidx.compose.ui.platform.LocalHapticFeedback
-import eu.tintera.plume.core.ui.confirm
-import androidx.compose.ui.draw.clip
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.ui.semantics.contentDescription
-import eu.tintera.plume.core.ui.ExpressiveMenu
-import eu.tintera.plume.core.ui.MenuAction
-import eu.tintera.plume.core.ui.tabularNumbers
-import eu.tintera.plume.resources.done_all_24dp
-import eu.tintera.plume.resources.alternate_email_24dp
-import eu.tintera.plume.resources.favorite_filled_24dp
-import eu.tintera.plume.resources.ballot_24dp
-import eu.tintera.plume.resources.conversation_unread_mentions
-import eu.tintera.plume.resources.conversation_unread_reactions
-import eu.tintera.plume.resources.conversation_read_all_mentions
-import eu.tintera.plume.resources.conversation_read_all_reactions
-import eu.tintera.plume.resources.conversation_read_all_poll_votes
-import eu.tintera.plume.resources.conversation_unread_poll_votes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.scaleIn
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,13 +35,34 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.UnreadMarkKind
+import eu.tintera.plume.core.ui.ExpressiveMenu
+import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.RollingNumber
+import eu.tintera.plume.core.ui.confirm
 import eu.tintera.plume.core.ui.label
+import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.alternate_email_24dp
 import eu.tintera.plume.resources.arrow_downward_24dp
+import eu.tintera.plume.resources.ballot_24dp
+import eu.tintera.plume.resources.conversation_mark_read
 import eu.tintera.plume.resources.conversation_new_messages
+import eu.tintera.plume.resources.conversation_read_all_mentions
+import eu.tintera.plume.resources.conversation_read_all_poll_votes
+import eu.tintera.plume.resources.conversation_read_all_reactions
 import eu.tintera.plume.resources.conversation_scroll_to_end
+import eu.tintera.plume.resources.conversation_unread_mentions
+import eu.tintera.plume.resources.conversation_unread_poll_votes
+import eu.tintera.plume.resources.conversation_unread_reactions
+import eu.tintera.plume.resources.done_all_24dp
+import eu.tintera.plume.resources.favorite_filled_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -286,3 +288,63 @@ private const val NUMBER_MARK = "\uE000"
 
 /** Tlačítko „dolů" bez počtu je kruh téhle velikosti — zároveň minimální dotyková plocha. */
 private val SCROLL_DOWN_BUTTON_SIZE = 48.dp
+
+/**
+ * FAB slot konverzace: odznaky zmínek, reakcí a hlasů v anketě, „přečíst" při diskrétním čtení
+ * a tlačítko dolů. Scaffold ho drží nad polem a snackbar pak nad ním.
+ */
+@Composable
+internal fun ConversationFloatingButtons(
+    state: ConversationState,
+    viewModel: ConversationViewModel,
+    /** Nad polem plave napovídání (viz `FloatingSuggestion`) — tlačítka na tu chvíli ustoupí. */
+    suggestionsFloating: Boolean,
+    /** Seznam je víc než pár zpráv nad spodkem. */
+    farFromBottom: Boolean,
+    /** Kolik cizích zpráv přišlo, zatímco uživatel četl historii. */
+    newMessages: Int,
+    onScrollDown: () -> Unit,
+) {
+    // Nad polem zrovna plave napovídání (viz `FloatingSuggestion`) — tlačítka by visela
+    // přes něj, takže na tu chvíli ustoupí.
+    AnimatedVisibility(
+        visible = !suggestionsFloating,
+        enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()),
+        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+    ) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    // Zmínky a reakce nad tlačítkem dolů: jsou vidět, i když je uživatel dole — zmínka
+    // bývá hluboko v nepřečtené historii a tlačítko dolů o ní nic neřekne.
+    UnreadMarkButton(
+        kind = UnreadMarkKind.Mention,
+        count = state.unreadMarks.mentions,
+        onClick = viewModel::jumpToUnreadMark,
+        onReadAll = viewModel::readAllMarks,
+    )
+    UnreadMarkButton(
+        kind = UnreadMarkKind.Reaction,
+        count = state.unreadMarks.reactions,
+        onClick = viewModel::jumpToUnreadMark,
+        onReadAll = viewModel::readAllMarks,
+    )
+    UnreadMarkButton(
+        kind = UnreadMarkKind.PollVote,
+        count = state.unreadMarks.pollVotes,
+        onClick = viewModel::jumpToUnreadMark,
+        onReadAll = viewModel::readAllMarks,
+    )
+    // Diskrétní čtení: přečtení se samo nehlásí, tak jde poslat ručně. Jen v chatu samém —
+    // ve vlákně a v tématu by „přečíst chat" přečetlo i to, co uživatel neviděl.
+    MarkReadChip(
+        visible = state.discreetUnread > 0 && state.threadRootId == null && state.forumTopicId == null,
+        onClick = viewModel::readNow,
+    )
+    ScrollToBottomButton(
+        // V okně v historii vede dolů i od spodní hrany — nejnovější zprávy nejsou načtené.
+        visible = farFromBottom || newMessages > 0 || !state.reachedEnd,
+        count = newMessages,
+        onClick = onScrollDown,
+    )
+    }
+    }
+}
