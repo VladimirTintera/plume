@@ -7,6 +7,7 @@ import eu.tintera.plume.core.audio.AudioEngine
 import eu.tintera.plume.core.calls.CallMedia
 import eu.tintera.plume.core.calls.DesktopCallMedia
 import eu.tintera.plume.core.calls.DesktopCallRinger
+import eu.tintera.plume.core.calls.DesktopCallShutdown
 import eu.tintera.plume.core.telegram.CallRepository
 import org.koin.core.qualifier.named
 import eu.tintera.plume.core.audio.AudioRecorder
@@ -65,7 +66,10 @@ actual fun Module.platformModule() {
     // Hovory jen se zvukem přes ntgcalls; bez přibalené knihovny (Intel Mac, build bez sítě)
     // se CallMedia neregistruje a hovory se nenabídnou (`CallRepository.supported`).
     if (DesktopCallMedia.available()) {
-        single<CallMedia> { DesktopCallMedia() }
+        single { DesktopCallMedia() }
+        single<CallMedia> { get<DesktopCallMedia>() }
+        // Ukončení aplikace uprostřed hovoru: zavěsit a zastavit knihovnu dřív, než JVM skončí.
+        single(createdAtStart = true) { DesktopCallShutdown(calls = get(), media = get()).also { it.install() } }
         // Vyzvánění příchozího hovoru a tón protistrany u odchozího.
         single(createdAtStart = true) { DesktopCallRinger(calls = get(), scope = get(named(APP_SCOPE))).also { it.start() } }
     }

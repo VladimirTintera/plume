@@ -96,8 +96,9 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
   s návratem z Docku. Akce v oznámení (Odpovědět, Přečteno) zatím nejsou; na macOS by šly
   přes `UNNotificationCategory`. Na Windows a Linuxu zavření okna aplikaci ukončí — chce
   ikonu v oznamovací oblasti.
-- **Hovory**: hlasové hovory na macOS běží (ntgcalls přes JNA, `docs/poznatky/hovory.md`,
-  „Desktop"); Windows a Linux neověřené, chybí zvonění, oznámení příchozího hovoru a video.
+- **Hovory**: na macOS hlasové i videohovory se zvoněním, okénkem příchozího hovoru
+  a náhledem kamery (ntgcalls přes JNA, `docs/poznatky/hovory.md`, „Desktop"); Windows
+  a Linux neověřené. Co zbývá, je v sekci Hovory.
 - **Zvuk**: přehrávání hlasovek (Opus) a hudby, nahrávání hlasovek. JVM sám Opus ani MP3
   neumí; kandidáti jsou nativní libopus přes JNA, nebo FFmpeg (JavaCV) pro všechno naráz.
 - **Video**: přehrávač v aplikaci (vlcj chce VLC v systému, JavaCV nese FFmpeg). Dnes se video
@@ -464,12 +465,13 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    „Desktop"). Zbývá:
    - **Desktop: Windows a Linux ověřit** (knihovna se stáhne a přibalí, nespuštěné; toast
      hovoru s Přijmout / Odmítnout, okénko příchozího hovoru a kamera přes modul WebRTC tam
-     nikdo neviděl), Odmítnout z okénka a z oznámení na macOS. Zvonění, okénko příchozího
+     nikdo neviděl). Zvonění, okénko příchozího
      hovoru a video na macOS hotové (`docs/poznatky/hovory.md`, „Zvonění a příchozí hovor na
      desktopu", „Video na desktopu").
    - **Desktop: video dál** — náhled kamery při vytáčení na Windows a Linuxu (macOS hotový,
      `docs/poznatky/hovory.md`, „Video na desktopu"), výběr kamery (bere se první),
-     ukončení aplikace uprostřed hovoru (`pkill` shodil JVM).
+     sestavení podepsané stálou identitou i pro ladění (ad hoc podpis nutí povolovat kameru
+     a mikrofon po každém sestavení znovu).
    - **Desktop: zabalená aplikace** — v `.app` z `createDistributable` JNA `libntgcalls`
      najde a popisy použití i entitlementy kamery a mikrofonu jsou hotové
      (`docs/poznatky/desktop.md`, „Kamera a mikrofon v podepsané aplikaci"); ověřit ještě

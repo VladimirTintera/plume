@@ -577,9 +577,14 @@ klienti: člověk vidí, jak bude vypadat, než zvedne. Android i macOS.
   na mikrofon, kdy se spojení obnovovalo („Reconnecting…"). Data signalizace to nebyla:
   vazba C je kopíruje synchronně ještě před asynchronní úlohou (`ntgcalls_c.cpp.tpl`).
   Neopakovalo se; kdyby ano, hledat v knihovně.
-- **Ukončení přes `pkill` (SIGTERM) za běhu knihovny** dvakrát skončilo pádem JVM ve vlákně
-  `AudioEncoderQueue`. Normální ukončení (Cmd+Q, Apple event `quit`) po hovoru je čisté.
-  Ukončení uprostřed hovoru neověřené.
+- **Ukončení aplikace uprostřed hovoru** (Cmd+Q, nabídka ikony, SIGTERM) dřív pokaždé
+  shodilo JVM: vlákno WebRTC `AudioEncoderQueue` posílalo zvuk (`ChannelSend::SendData`),
+  zatímco JVM končil a uvolňoval paměť (`EXC_BAD_ACCESS`). A protistraně hovor běžel dál,
+  dokud nevypršelo spojení. Teď hook JVM (`DesktopCallShutdown`) hovor zavěsí přes TDLib
+  (`discardCall`, TDLib v hooku ještě běží) a synchronně zastaví knihovnu
+  (`DesktopCallMedia.shutdown`, frontou pracovního vlákna). Obojí s časovým limitem.
+  Ověřeno s Pixelem 5: Apple event `quit` i `pkill -TERM` uprostřed hovoru bez crash reportu
+  a hovor na telefonu hned skončil.
 
 ### Zvonění a příchozí hovor na desktopu
 
@@ -608,8 +613,10 @@ klienti: člověk vidí, jak bude vypadat, než zvedne. Android i macOS.
 - **Ověřeno na macOS 26 s Pixelem 5** (zabalený ladicí běh): zvonění (vlákno `call-ringtone`,
   výstup ve `coreaudiod`), zrušení volajícím zvonění zastaví, s minimalizovaným oknem přišlo
   oznámení a Přijmout z něj hovor spojilo, okénko nahoře uprostřed a Přijmout z něj spojilo,
-  tón protistrany při vytáčení a jeho konec po odmítnutí na telefonu. **Neověřeno**: Odmítnout
-  z okénka i z oznámení, Windows (toast s tlačítky, okénko) a Linux.
+  tón protistrany při vytáčení a jeho konec po odmítnutí na telefonu. Odmítnout z okénka
+  (s minimalizovaným oknem; hovor skončil i na druhém zařízení téhož účtu) a z oznámení
+  (Volby → Odmítnout, ověřil uživatel). **Neověřeno**: Windows (toast s tlačítky, okénko)
+  a Linux.
 
 ## Sdílení obrazovky (průzkum 14. 10. 2026)
 
