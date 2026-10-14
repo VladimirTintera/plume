@@ -756,6 +756,67 @@ screen sources"), zapnutí jednoho vypne druhé. Přijímá Android i desktop.
   (`startGroupCallScreenSharing`). iOS celý systém sdílí jen přes Broadcast Upload
   Extension (ReplayKit), tedy samostatný cíl v Xcode.
 
+## Ukazovátko na sdílené obrazovce (Plume ↔ Plume)
+
+Kdo se dívá na obrazovku, kterou protistrana sdílí, ji podržením prstu (na desktopu tlačítka
+myši) a tahem ukazuje: „tady ťukni". Sdílející uvidí značku přes jakoukoli aplikaci a ta se
+díky tomu objeví i ve sdíleném obrazu. Nic se za nikoho neťuká. Jen mezi dvěma Plume,
+oficiální klient zprávy ignoruje.
+
+- **Postranní kanál = signalizace hovoru** (`CallSideChannel`, `TdlCallRepository.onSideMessage`).
+  Telegram ani ntgcalls vlastní kanál nemají, `sendCallSignalingData` ale přenese libovolná
+  data. Naše zprávy začínají značkou `PLUMESC1` a na přijímající straně se vyloví DŘÍV, než
+  by šly do knihovny.
+  - Obsah je JSON (`Hello`, `Pointer`) zašifrovaný AES-256-GCM klíčem odvozeným z klíče
+    hovoru (SHA-256 se solí). Server signalizaci vidí, obsah hovoru vidět nemá.
+  - **Sonda (14. 10. 2026)**: ping → pong Plume ↔ Plume trval 178–197 ms, jedním směrem tedy
+    kolem 0,1 s. Oficiální klient (ntgcalls zprávu nerozšifruje a zahodí) hovor po přijetí
+    pingu udržel; 25 s bez výpadku.
+- **`Hello(pointer)` posílá sdílející se začátkem sdílení**: jestli značku umí ukázat
+  (`CallPointerDisplay.available`). Divák (`ActiveCall.remotePointer` + `remoteScreen`)
+  ukazovátko nabídne jen po něm, takže proti oficiálnímu klientovi se nenabídne vůbec.
+  `remoteScreen` hlásí knihovna jako změnu zdroje SCREEN protistrany (`onRemoteScreen`).
+  Oprávnění povolené až UPROSTŘED sdílení se projeví s dalším sdílením, `Hello` se znovu
+  neposílá.
+- **Gesto diváka** (`Modifier.callPointer`): začíná až podržením
+  (`viewConfiguration.longPressTimeoutMillis`), krátké ťuknutí dál schovává a ukazuje
+  ovládání. Po podržení se všechno spotřebuje, takže `clickable` ovládání nepřepne. Modifikátor
+  stojí ZA `clickable` ovládání, protože v hlavním průchodu jde událost napřed do vnitřního.
+  Poloha se posílá nejvýš po 50 ms a zvednutí prstu vždycky.
+  - **Místo v obrazu** (`pointerOnFrame`, testy `CallPointerMappingTest`) počítá stejně
+    jako `CallVideo`: stejně orientovaný obraz vyplní a ořízne se, jinak orientovaný se vejde
+    s pruhy. Dotyk v pruhu se neposílá.
+  - Pod prstem kreslí vlastní kroužek (`CallPointerFinger`), než značka dorazí ve sdíleném
+    obrazu (tam a zpět kolem 0,4 s).
+- **Značka u sdílejícího** (`AndroidCallPointerDisplay`): okno `TYPE_APPLICATION_OVERLAY`
+  přes celý displej (`LAYOUT_IN_SCREEN`, `NO_LIMITS`, výřez `ALWAYS`), dotyky nebere.
+  - **Průhlednost okna nejvýš `maximumObscuringOpacityForTouch` (0,8).** Od Androidu 12 okno
+    jiné aplikace přes dotyky, které je neprůhlednější, nepustí dotyky aplikaci pod sebe
+    (ochrana proti tapjackingu), i když samo dotyky nebere. Sdílející by pak na svůj telefon
+    neťukl.
+  - **Oprávnění „Zobrazení přes jiné aplikace"** (`SYSTEM_ALERT_WINDOW`) se nabídne dialogem
+    před prvním sdílením za běh aplikace (`PointerOverlayAsk`); „Teď ne" sdílí bez ukazovátka.
+    **Od Androidu 11 `ACTION_MANAGE_OVERLAY_PERMISSION` balíček ignoruje** a otevře seznam
+    všech aplikací, proto dialog říká „najdi v seznamu Plume". Při testu se uživatel napoprvé
+    trefil do jiné aplikace a Plume oprávnění nedostalo.
+  - Okno zmizí s koncem sdílení i hovoru (`hide`). Značka po zvednutí prstu chvíli zůstane
+    a vybledne.
+- **Ověřeno 14. 10. 2026** (Pixel 7 Pro sdílí, Pixel 5 ukazuje, Plume ↔ Plume):
+  - `Hello` s ukazovátkem, nápověda u diváka;
+  - podržení a tah: značka na Pixelu 7 Pro jela s prstem a po zvednutí vybledla, kroužek
+    na Pixelu 5 (potvrdil uživatel); okno `APPLICATION_OVERLAY` s `alpha=0.8`;
+  - na Pixelu 7 Pro šlo při sdílení normálně ťukat a posouvat;
+  - po zavěšení okno, projekce i služba pryč.
+  **Neověřeno**: desktop jako divák (podržení myši), Android pod 12 (průhlednost okna),
+  otočení telefonu za ukazování.
+- **Plné vzdálené ovládání (ťuknutí za protistranu) zvažované a odložené.** Šlo by přes
+  stejný kanál a `AccessibilityService.dispatchGesture`. Proti němu ale mluví:
+  - podvody („pusťte mě do telefonu") a banky, které aplikace se službou přístupnosti
+    detekují;
+  - deklarace služby přístupnosti v Google Play;
+  - pojistky (souhlas pro každé spojení, indikátor, stop).
+  Ukazovátko pokryje většinu pomoci na dálku bez těchto rizik.
+
 ## Neověřené
 
 - **VoIP pushe na iOS** pro aplikaci s vlastním `api_id` (`deviceTokenApplePushVoIP`) — bez

@@ -76,6 +76,13 @@ interface CallRepository {
     fun setScreenSharing(on: Boolean) = Unit
 
     /**
+     * Ukazovátko na obrazovce, kterou sdílí protistrana: místo v poměru k jejímu obrazu
+     * (0–1), [down] = prst je dole. Jde jen protějšku Plume, který ukazovátko ohlásil
+     * ([ActiveCall.remotePointer]).
+     */
+    fun sendPointer(x: Float, y: Float, down: Boolean) = Unit
+
+    /**
      * Hovor nejde zahájit ani přijmout z důvodu mimo přenos (chybí oprávnění). Zvonící hovor
      * dostane [reason] místo stavu, jinak se krátce ukáže neúspěšný hovor s [reason].
      */
@@ -111,6 +118,10 @@ data class ActiveCall(
     val preview: Boolean = false,
     /** Posíláme obrazovku (místo kamery). */
     val screenSharing: Boolean = false,
+    /** Protistrana sdílí obrazovku (místo kamery). */
+    val remoteScreen: Boolean = false,
+    /** Protistrana (Plume) umí na své sdílené obrazovce ukázat naše ukazovátko. */
+    val remotePointer: Boolean = false,
     /** Přední kamera (náhled se zrcadlí), jinak zadní. */
     val frontCamera: Boolean = true,
     /** Protistrana posílá obraz. */

@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -63,9 +65,11 @@ import eu.tintera.plume.resources.screen_share_24dp
 import eu.tintera.plume.resources.videocam_24dp
 import eu.tintera.plume.resources.video_call_incoming
 import eu.tintera.plume.core.calls.CallRequests
+import eu.tintera.plume.core.calls.PointerOverlayAsk
 import eu.tintera.plume.core.calls.rememberCallCameraGranted
 import eu.tintera.plume.core.calls.rememberCallCameraPermission
 import eu.tintera.plume.core.calls.rememberCallMicrophonePermission
+import eu.tintera.plume.core.calls.rememberPointerOverlayPermission
 import eu.tintera.plume.core.calls.rememberScreenSharePermission
 import org.jetbrains.compose.resources.DrawableResource
 import eu.tintera.plume.resources.call_output_bluetooth
@@ -103,6 +107,11 @@ import eu.tintera.plume.resources.call_hang_up
 import eu.tintera.plume.resources.call_incoming
 import eu.tintera.plume.resources.call_minimize
 import eu.tintera.plume.resources.call_mute
+import eu.tintera.plume.resources.call_pointer_hint
+import eu.tintera.plume.resources.call_pointer_permission_allow
+import eu.tintera.plume.resources.call_pointer_permission_skip
+import eu.tintera.plume.resources.call_pointer_permission_text
+import eu.tintera.plume.resources.call_pointer_permission_title
 import eu.tintera.plume.resources.call_speaker
 import eu.tintera.plume.resources.keyboard_arrow_down_24dp
 import eu.tintera.plume.resources.mic_24dp
@@ -186,7 +195,7 @@ fun CallOverlay(modifier: Modifier = Modifier) {
         label = "call-overlay",
     ) { full ->
         if (full) {
-            CallScreen(current, calls, onMinimize = { expanded = false }, onRemoteAspect = { remoteAspect = it })
+            CallScreen(current, calls, remoteAspect, onMinimize = { expanded = false }, onRemoteAspect = { remoteAspect = it })
         } else {
             CallBar(current, calls, onExpand = { expanded = true })
         }
@@ -236,7 +245,13 @@ internal fun callStatus(call: ActiveCall): String {
 private val CallPhase.ended get() = this == CallPhase.Ended || this == CallPhase.Failed
 
 @Composable
-private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -> Unit, onRemoteAspect: (Float) -> Unit) {
+private fun CallScreen(
+    call: ActiveCall,
+    calls: CallRepository,
+    remoteAspect: Float,
+    onMinimize: () -> Unit,
+    onRemoteAspect: (Float) -> Unit,
+) {
     val scope = rememberCoroutineScope()
     val accept = rememberAcceptCall(calls)
     val cameraPermission = rememberCallCameraPermission()
@@ -263,8 +278,20 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
     val veil = if (full != null) MaterialTheme.colorScheme.surface.copy(alpha = VEIL_ALPHA) else Color.Transparent
     // Přes obraz spojeného hovoru ovládání po chvíli zmizí a ťuknutí ho vrátí (viz [rememberCallControls]).
     val controls = rememberCallControls(autoHide = full != null && call.phase == CallPhase.Active && !call.held)
+    // Protistrana sdílí obrazovku a umí ukázat ukazovátko: podržením se na ni ukazuje.
+    val pointing = full == CallVideoSource.Remote && call.remoteScreen && call.remotePointer
+    val pointer = remember { CallPointerState() }
+    // Sdílení obrazovky: napřed (jednou za běh) nabídnout oprávnění pro ukazovátko protistrany.
+    val overlay = rememberPointerOverlayPermission()
+    var askOverlay by remember { mutableStateOf(false) }
+    val startSharing = { screenShare?.request { granted -> if (granted) calls.setScreenSharing(true) } }
     Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().then(controls.modifier)) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .then(controls.modifier)
+                .callPointer(pointing, remoteAspect, pointer) { x, y, down -> calls.sendPointer(x, y, down) },
+        ) {
             full?.let { source ->
                 CallVideo(
                     source,
@@ -273,6 +300,7 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
                     onAspectRatio = { if (source == CallVideoSource.Remote) onRemoteAspect(it) },
                 )
             }
+            CallPointerFinger(pointer)
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp),
@@ -290,8 +318,10 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
                                 onCheckedChange = { on ->
                                     if (!on) {
                                         calls.setScreenSharing(false)
+                                    } else if (overlay != null && !overlay.granted && !PointerOverlayAsk.asked) {
+                                        askOverlay = true
                                     } else {
-                                        screenShare.request { granted -> if (granted) calls.setScreenSharing(true) }
+                                        startSharing()
                                     }
                                 },
                                 shapes = IconButtonDefaults.toggleableShapes(),
@@ -317,6 +347,15 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
                         Surface(color = veil, shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.padding(top = 16.dp)) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
                                 CallHeadline(call, name, compact = true)
+                                if (pointing) {
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        stringResource(Res.string.call_pointer_hint),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        textAlign = TextAlign.Center,
+                                    )
+                                }
                             }
                         }
                     }
@@ -403,6 +442,27 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
                 Spacer(Modifier.height(8.dp))
             }
         }
+    }
+    if (askOverlay && overlay != null) {
+        AlertDialog(
+            onDismissRequest = { askOverlay = false },
+            title = { Text(stringResource(Res.string.call_pointer_permission_title)) },
+            text = { Text(stringResource(Res.string.call_pointer_permission_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    askOverlay = false
+                    PointerOverlayAsk.asked = true
+                    overlay.request { startSharing() }
+                }) { Text(stringResource(Res.string.call_pointer_permission_allow)) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    askOverlay = false
+                    PointerOverlayAsk.asked = true
+                    startSharing()
+                }) { Text(stringResource(Res.string.call_pointer_permission_skip)) }
+            },
+        )
     }
 }
 

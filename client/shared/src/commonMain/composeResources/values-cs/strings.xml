@@ -855,6 +855,11 @@
     <string name="call_switch_camera">Přepnout kameru</string>
     <string name="call_share_screen">Sdílet obrazovku</string>
     <string name="call_controls_toggle">Ukázat nebo skrýt ovládání hovoru</string>
+    <string name="call_pointer_hint">Podržením ukážeš na sdílené obrazovce</string>
+    <string name="call_pointer_permission_title">Má ti protistrana ukazovat na obrazovku?</string>
+    <string name="call_pointer_permission_text">Plume může při sdílení obrazovky ukázat, kam protistrana ukazuje, a to přes jiné aplikace. Na další obrazovce najdi v seznamu Plume a povol „Zobrazení přes jiné aplikace“. Za tebe se nic neťukne.</string>
+    <string name="call_pointer_permission_allow">Povolit</string>
+    <string name="call_pointer_permission_skip">Teď ne</string>
     <string name="call_unmute">Zapnout mikrofon</string>
     <string name="call_back">Zavolat zpět</string>
     <string name="call_unavailable">Tomuto člověku nejde zavolat</string>

@@ -147,7 +147,10 @@ class NtgCallMedia internal constructor(
                     // Obraz protistrany je kamera, nebo sdílená obrazovka (v hovoru ve dvou jedno z nich).
                     when (source.device) {
                         StreamDevice.CAMERA -> remoteCamera = source.state == StreamStatus.ACTIVE
-                        StreamDevice.SCREEN -> remoteScreen = source.state == StreamStatus.ACTIVE
+                        StreamDevice.SCREEN -> {
+                            remoteScreen = source.state == StreamStatus.ACTIVE
+                            events.onRemoteScreen(remoteScreen)
+                        }
                         else -> return@onRemoteSourceChange
                     }
                     events.onRemoteVideo(remoteCamera || remoteScreen)

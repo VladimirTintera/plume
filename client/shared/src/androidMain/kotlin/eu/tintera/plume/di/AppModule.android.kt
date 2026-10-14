@@ -1,5 +1,7 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.core.calls.AndroidCallPointerDisplay
+import eu.tintera.plume.core.calls.CallPointerDisplay
 import eu.tintera.plume.core.calls.CallRinger
 import eu.tintera.plume.core.calls.CallServiceControls
 import eu.tintera.plume.core.calls.TelecomCallBridge
@@ -168,6 +170,8 @@ actual fun Module.platformModule() {
     single(createdAtStart = true) {
         CallServiceControls(context = androidContext(), calls = get(), scope = get(named(APP_SCOPE))).also { it.start() }
     }
+    // Ukazovátko protistrany přes jiné aplikace, když sdílíme obrazovku.
+    single<CallPointerDisplay> { AndroidCallPointerDisplay(androidContext()) }
     // Vyzvánění příchozího hovoru a tón protistrany u odchozího.
     single(createdAtStart = true) {
         CallRinger(context = androidContext(), calls = get(), scope = get(named(APP_SCOPE))).also { it.start() }
