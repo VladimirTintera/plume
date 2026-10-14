@@ -111,6 +111,9 @@ class SharedMediaTabTest {
         assertTrue(offersSharedSearch(SharedMediaKind.Files, count = SHARED_SEARCH_MIN_COUNT + 1, query = ""))
         assertTrue(offersSharedSearch(SharedMediaKind.Links, count = 40, query = ""))
         assertTrue(offersSharedSearch(SharedMediaKind.Music, count = 40, query = ""))
+        // GIF ani kolečko nemají podle čeho hledat — jako fotky v Médiích.
+        assertFalse(offersSharedSearch(SharedMediaKind.Gifs, count = 500, query = ""))
+        assertFalse(offersSharedSearch(SharedMediaKind.VideoNotes, count = 500, query = ""))
     }
 
     @Test

@@ -2427,6 +2427,12 @@ enum class SharedMediaKind {
 
     /** Zprávy s odkazem — filtruje je server, ne my. */
     Links,
+
+    /** GIFy (`MessageAnimation`). Prohlížeč je neumí, ťuknutí skočí na zprávu v konverzaci. */
+    Gifs,
+
+    /** Video kolečka; mizející se vyřazují. Ťuknutí skočí na zprávu, přehrávají se v konverzaci. */
+    VideoNotes,
 }
 
 /**
@@ -2445,12 +2451,21 @@ data class SharedMediaPage(
 )
 
 /** Kolik čeho v chatu je; podle toho profil řádek ukáže, nebo ne. */
-data class SharedMediaCounts(val media: Int, val files: Int, val links: Int, val music: Int = 0) {
+data class SharedMediaCounts(
+    val media: Int,
+    val files: Int,
+    val links: Int,
+    val music: Int = 0,
+    val gifs: Int = 0,
+    val videoNotes: Int = 0,
+) {
     fun of(kind: SharedMediaKind): Int = when (kind) {
         SharedMediaKind.Media -> media
         SharedMediaKind.Files -> files
         SharedMediaKind.Music -> music
         SharedMediaKind.Links -> links
+        SharedMediaKind.Gifs -> gifs
+        SharedMediaKind.VideoNotes -> videoNotes
     }
 
     companion object {

@@ -62,7 +62,10 @@ data class SharedMediaTab(
  * se ale neschová, ani kdyby počet klesl.
  */
 fun offersSharedSearch(kind: SharedMediaKind, count: Int, query: String): Boolean =
-    kind != SharedMediaKind.Media && (count > SHARED_SEARCH_MIN_COUNT || query.isNotEmpty())
+    kind in SEARCHABLE_KINDS && (count > SHARED_SEARCH_MIN_COUNT || query.isNotEmpty())
+
+/** Druhy, ve kterých je podle čeho hledat — název souboru, skladby, text s odkazem. GIF a kolečko ne. */
+private val SEARCHABLE_KINDS = setOf(SharedMediaKind.Files, SharedMediaKind.Music, SharedMediaKind.Links)
 
 /** Od kolika položek se nad záložkou nabízí hledání — zhruba co se vejde na obrazovku telefonu. */
 const val SHARED_SEARCH_MIN_COUNT = 8
