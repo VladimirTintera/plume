@@ -963,3 +963,7 @@ private const val TELEGRAM_SERVICE_ID = 777000L
  * Šest jako v Google Messages — na jeden řádek se vejdou i na úzkém telefonu vedle tlačítka „+".
  */
 private const val MAX_QUICK_REACTIONS = 6
+
+/** Médium článku podle pořadí; jen z načtené zprávy — co je vidět, je načtené. */
+internal fun ConversationState.articleMedia(messageId: Long, index: Int): MessageMedia? =
+    messages.firstOrNull { it.id == messageId }?.article?.media?.firstOrNull { it.index == index }?.media

@@ -1,17 +1,9 @@
 package eu.tintera.plume.features.conversation
 
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.Flow
-import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.speech.SpeechToText
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.ScamKind
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.mapLatest
-import eu.tintera.plume.core.telegram.SpeechTranscript
-import eu.tintera.plume.core.telegram.transcribeOffer
-import eu.tintera.plume.core.telegram.TranscribeOffer
 import eu.tintera.plume.core.ai.OnDeviceAi
 import kotlin.time.Instant
 import eu.tintera.plume.core.calendar.CalendarEvent
@@ -152,7 +144,6 @@ import eu.tintera.plume.core.telegram.ConnectionState
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.ThreadConversationRepository
 import eu.tintera.plume.core.telegram.FileRepository
-import eu.tintera.plume.core.telegram.FileState
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageReaction
@@ -190,7 +181,6 @@ import eu.tintera.plume.resources.chat_bar_phone_shared
 import eu.tintera.plume.resources.paid_media_unsupported
 import eu.tintera.plume.resources.story_live_unsupported
 import eu.tintera.plume.resources.story_unavailable
-import eu.tintera.plume.resources.transcribe_failed
 import eu.tintera.plume.resources.conversation_selection_limit
 import eu.tintera.plume.resources.conversation_attachments_limit
 import eu.tintera.plume.resources.conversation_content_not_allowed
@@ -225,11 +215,6 @@ import eu.tintera.plume.resources.call_unavailable
 import eu.tintera.plume.resources.contact_remove_failed
 import eu.tintera.plume.resources.conversation_unpin_failed
 import eu.tintera.plume.resources.conversation_unread_mark_failed
-import eu.tintera.plume.resources.document_download_failed
-import eu.tintera.plume.resources.document_open_failed
-import eu.tintera.plume.resources.media_save_failed
-import eu.tintera.plume.resources.media_saved_as
-import eu.tintera.plume.resources.media_share_failed
 import eu.tintera.plume.resources.share_failed_files
 import eu.tintera.plume.resources.message_info_failed
 import eu.tintera.plume.resources.message_info_link_copied
@@ -267,7 +252,6 @@ import kotlin.time.Clock
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -429,56 +413,6 @@ class ConversationViewModel(
         .map { it[chatId] }
         .stateIn(viewModelScope, SharingStarted.Eagerly, settings.usedOneTimeKeyboards.value[chatId])
 
-    /**
-     * Přehrávání hlasovky. Samostatný tok, ne součást [state]: pozice se mění dvacetkrát za
-     * vteřinu a přepočítávat kvůli tomu celý stav konverzace by bylo zbytečné.
-     */
-    val voicePlayback: StateFlow<VoicePlayback?> = voicePlayer.state
-
-    /** Zvolená rychlost přehrávání; jedna pro celou aplikaci, proto rovnou z přehrávače. */
-    val voiceSpeed: StateFlow<VoiceSpeed> = voicePlayer.speed
-
-    /** Hrající skladba (i z jiného chatu) pro mini přehrávač v docku: název, interpret, další. */
-    val nowPlaying: StateFlow<NowPlaying?> = musicQueue.nowPlaying
-
-    /** Pauza / přehrát z mini přehrávače v docku — týká se toho, co právě hraje, ať je to cokoli. */
-    fun togglePlaying() {
-        val playback = voicePlayer.state.value ?: return
-        when {
-            playback.loading -> Unit
-            playback.playing -> voicePlayer.pause()
-            else -> voicePlayer.resume()
-        }
-    }
-
-    /** Další skladba z mini přehrávače; hraje dál fronta hudby, ne tahle konverzace. */
-    fun skipToNextTrack() = musicQueue.skipToNext()
-
-    /** Zastavení z mini přehrávače. Hudbu přes frontu, aby po ní nezůstalo systémové ovládání. */
-    fun stopPlaying() {
-        if (voicePlayer.state.value?.music == true) musicQueue.stop() else voicePlayer.stop()
-    }
-
-    /** Premium a zkušební přepisy řeči — rozhodují, jestli se u hlasovky nabídne přepis. */
-    val isPremium: StateFlow<Boolean> = chatRepository.isPremium
-    val speechTrial: StateFlow<SpeechTrial?> = chatRepository.speechTrial
-
-    /**
-     * Všechno, co rozhoduje o přepisu záznamu, v jednom toku: Premium, zkušební přepisy, jestli
-     * přepíše telefon, a přepisy z telefonu v tomhle chatu. Jeden tok kvůli `ConversationScreen`,
-     * který je v dexu na hraně a každé další `collectAsState` mu přidá registr.
-     */
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val transcribeContext: StateFlow<TranscribeContext> = combine(
-        chatRepository.isPremium,
-        chatRepository.speechTrial,
-        combine(settings.onDeviceAiEnabled, settings.onDeviceAiVariant) { enabled, variant -> enabled to variant }
-            .mapLatest { (enabled, variant) -> gemmaTranscribes(enabled, variant) || systemTranscribes() },
-        localTranscripts?.state?.map { all -> all.filterKeys { it.first == chatId }.mapKeys { it.key.second } }
-            ?: flowOf(emptyMap()),
-    ) { premium, trial, onDevice, local -> TranscribeContext(premium, trial, onDevice, local) }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, TranscribeContext(chatRepository.isPremium.value, chatRepository.speechTrial.value))
-
     private val _state = MutableStateFlow(ConversationState(threadRootId = threadRootId, forumTopicId = forumTopicId, savedTopicId = savedTopicId))
     val state: StateFlow<ConversationState> = _state.asStateFlow()
 
@@ -618,6 +552,45 @@ class ConversationViewModel(
     fun continueVideoNotePreview() = recorder.continueVideoNotePreview()
     fun discardVideoNotePreview() = recorder.discardVideoNotePreview()
 
+    /** Přehrávání hlasovek, koleček a hudby a přepis řeči — viz [ConversationPlayback]. */
+    private val playback = ConversationPlayback(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        appScope = appScope,
+        repository = repository,
+        chatRepository = chatRepository,
+        settings = settings,
+        voicePlayer = voicePlayer,
+        musicQueue = musicQueue,
+        fileRepository = fileRepository,
+        localTranscripts = localTranscripts,
+        onDeviceAi = onDeviceAi,
+        speechToText = speechToText,
+        logger = logger,
+    )
+    val voicePlayback: StateFlow<VoicePlayback?> get() = playback.voicePlayback
+    val voiceSpeed: StateFlow<VoiceSpeed> get() = playback.voiceSpeed
+    val nowPlaying: StateFlow<NowPlaying?> get() = playback.nowPlaying
+    fun togglePlaying() = playback.togglePlaying()
+    fun skipToNextTrack() = playback.skipToNextTrack()
+    fun stopPlaying() = playback.stopPlaying()
+    val isPremium: StateFlow<Boolean> get() = playback.isPremium
+    val speechTrial: StateFlow<SpeechTrial?> get() = playback.speechTrial
+    val transcribeContext: StateFlow<TranscribeContext> get() = playback.transcribeContext
+
+    /** Soubory ve zprávách: stažení a otevření, sdílení, uložení — viz [ConversationDocuments]. */
+    private val documents = ConversationDocuments(
+        state = _state,
+        scope = viewModelScope,
+        fileRepository = fileRepository,
+        fileOpener = fileOpener,
+        sharer = sharer,
+        closeMenus = ::closeMenus,
+        logger = logger,
+    )
+    fun saveDocumentAs(messageId: Long, launcher: SaveAsLauncher) = documents.saveDocumentAs(messageId, launcher)
+
     /** Serializuje stránkování — bez toho by dva rychlé scrolly načetly tutéž stránku dvakrát. */
     private val loadMutex = Mutex()
 
@@ -693,9 +666,6 @@ class ConversationViewModel(
      * Jen po dobu konverzace: bot si inline režim může zapnout.
      */
     private val notInlineBots = mutableSetOf<Long>()
-
-    /** Běžící otevírání souborů podle `fileId`; druhé ťuknutí to čekání zruší. */
-    private val documentJobs = mutableMapOf<Int, Job>()
 
     /** Už nahlášená zhlédnutí reklam — každé se hlásí jen jednou. */
     private val reportedSponsoredViews = mutableSetOf<Long>()
@@ -805,7 +775,7 @@ class ConversationViewModel(
             voicePlayer.completions.collect { finished ->
                 // Zvuk z článku (`part`) se neřetězí — „další neposlechnutá" po článku nedává smysl.
                 if (finished.chatId == chatId && !finished.isVoicePreview && finished.part == VoiceKey.NO_PART) {
-                    playNextUnlistened(after = finished.messageId)
+                    playback.playNextUnlistened(after = finished.messageId)
                 }
             }
         }
@@ -856,7 +826,7 @@ class ConversationViewModel(
         }
 
         viewModelScope.launch {
-            repository.contentOpenedUpdates(chatId).collect { messageId -> markListened(messageId) }
+            repository.contentOpenedUpdates(chatId).collect { messageId -> playback.markListened(messageId) }
         }
 
         viewModelScope.launch {
@@ -3166,8 +3136,8 @@ class ConversationViewModel(
             is MessageMedia.Video -> _state.update { it.copy(openMediaAt = MediaAt(target.id, seconds)) }
             is MessageMedia.VoiceNote -> {
                 _state.update { it.copy(soundingVideoNote = null) }
-                voicePlayer.play(VoiceKey(chatId, target.id), startMs = startMs) { voicePath(media) }
-                if (!target.isOutgoing && !media.isListened) reportListened(target.id)
+                voicePlayer.play(VoiceKey(chatId, target.id), startMs = startMs) { playback.voicePath(media) }
+                if (!target.isOutgoing && !media.isListened) playback.reportListened(target.id)
             }
             is MessageMedia.Audio -> {
                 _state.update { it.copy(soundingVideoNote = null) }
@@ -3176,7 +3146,7 @@ class ConversationViewModel(
             is MessageMedia.VideoNote -> {
                 voicePlayer.stop()
                 _state.update { it.copy(soundingVideoNote = target.id, soundingVideoNoteFromMs = startMs) }
-                if (!target.isOutgoing && !media.isViewed) reportListened(target.id)
+                if (!target.isOutgoing && !media.isViewed) playback.reportListened(target.id)
             }
             // Video v náhledu odkazu (YouTube…) v aplikaci nepřehráváme: otevře se jeho web
             // od toho místa, kde to adresa umí (`videoLinkAt`).
@@ -3875,8 +3845,8 @@ class ConversationViewModel(
      */
     fun readNow() {
         // Poslech nahlášený s přečtením: kdo chat přečetl, ten hlasovku taky poslechl.
-        val listened = discreetListened.toList()
-        discreetListened.clear()
+        val listened = playback.discreetListened.toList()
+        playback.discreetListened.clear()
         viewModelScope.launch {
             chatRepository.readChat(chatId).onFailure { failure ->
                 logger.w(failure) { "Chat se nepodařilo označit jako přečtený." }
@@ -4314,24 +4284,24 @@ class ConversationViewModel(
             is MessageAction.OpenForwardOrigin -> openForwardOrigin(action.origin)
             MessageAction.OpenComments -> openComments(messageId)
             MessageAction.ReadFullArticle -> readFullArticle(messageId)
-            is MessageAction.ToggleArticleAudio -> toggleArticleAudio(messageId, action.index)
+            is MessageAction.ToggleArticleAudio -> playback.toggleArticleAudio(messageId, action.index)
             is MessageAction.SeekArticleAudio ->
                 voicePlayer.seek(VoiceKey(chatId, messageId, part = action.index), action.fraction)
-            is MessageAction.OpenArticleDocument -> openArticleDocument(messageId, action.index)
-            MessageAction.OpenDocument -> openDocument(messageId)
+            is MessageAction.OpenArticleDocument -> documents.openArticleDocument(messageId, action.index)
+            MessageAction.OpenDocument -> documents.openDocument(messageId)
             MessageAction.CancelUpload -> cancelUpload(messageId)
             MessageAction.ExplainPaidMedia -> _state.update { it.copy(notice = UiText(Res.string.paid_media_unsupported)) }
             MessageAction.ExplainLiveStory -> _state.update { it.copy(notice = UiText(Res.string.story_live_unsupported)) }
             is MessageAction.OpenStory -> openStory(StoryTarget(action.posterChatId, action.storyId))
-            MessageAction.ToggleVoice -> toggleVoice(messageId)
-            MessageAction.ToggleVideoNoteSound -> toggleVideoNoteSound(messageId)
+            MessageAction.ToggleVoice -> playback.toggleVoice(messageId)
+            MessageAction.ToggleVideoNoteSound -> playback.toggleVideoNoteSound(messageId)
             is MessageAction.PlayMediaAt -> playMediaAt(messageId, action.seconds)
             MessageAction.VideoNoteSoundEnded -> _state.update {
                 if (it.soundingVideoNote == messageId) it.copy(soundingVideoNote = null) else it
             }
             MessageAction.CycleVoiceSpeed -> voicePlayer.cycleSpeed()
-            MessageAction.Transcribe -> transcribe(messageId)
-            is MessageAction.SeekVoice -> seekVoice(messageId, action.fraction)
+            MessageAction.Transcribe -> playback.transcribe(messageId)
+            is MessageAction.SeekVoice -> playback.seekVoice(messageId, action.fraction)
             MessageMenuAction.Edit -> startEdit(messageId)
             MessageMenuAction.Copy -> copyMessage(messageId)
             is MessageAction.QuoteReply -> quoteReply(messageId, action.text)
@@ -4355,7 +4325,7 @@ class ConversationViewModel(
             MessageMenuAction.Select -> startSelection(messageId)
             MessageMenuAction.Report -> reportMessage(messageId)
             MessageAction.ToggleSelection -> toggleSelection(messageId)
-            MessageMenuAction.ShareFile -> shareDocument(messageId)
+            MessageMenuAction.ShareFile -> documents.shareDocument(messageId)
             MessageAction.OpenMedia, is MessageAction.OpenPollMedia, is MessageAction.OpenArticleMedia,
             is MessageAction.OpenStickerSet,
             is MessageAction.SearchHashtag,
@@ -5061,359 +5031,6 @@ class ConversationViewModel(
         }
     }
 
-    /** Stáhne soubor a předá ho systému. */
-    private fun openDocument(messageId: Long) = withDocument(messageId) { path, document ->
-        if (!fileOpener.open(path, document.mimeType)) {
-            _state.update { it.copy(notice = UiText(Res.string.document_open_failed)) }
-        }
-    }
-
-    /** Médium článku podle pořadí; jen z načtené zprávy — co je vidět, je načtené. */
-    private fun articleMedia(messageId: Long, index: Int): MessageMedia? =
-        _state.value.messages.firstOrNull { it.id == messageId }?.article?.media?.firstOrNull { it.index == index }?.media
-
-    /** Soubor v článku: stejně jako soubor ve zprávě, jen se hledá v médiích článku. */
-    private fun openArticleDocument(messageId: Long, index: Int) {
-        val document = articleMedia(messageId, index) as? MessageMedia.Document ?: return
-        withDocument(document) { path, _ ->
-            if (!fileOpener.open(path, document.mimeType)) {
-                _state.update { it.copy(notice = UiText(Res.string.document_open_failed)) }
-            }
-        }
-    }
-
-    /**
-     * Zvuk nebo hlasovka v článku. Hraje TENTÝŽ přehrávač jako hlasovky (zvuk je v aplikaci
-     * jeden); klíč nese pořadí v článku. Skladba z článku nejde do fronty hudby na pozadí —
-     * sousedy fronta hledá mezi zprávami, a médium článku zpráva sama není.
-     */
-    private fun toggleArticleAudio(messageId: Long, index: Int) {
-        val fileId = when (val media = articleMedia(messageId, index)) {
-            is MessageMedia.VoiceNote -> media.fileId
-            is MessageMedia.Audio -> media.fileId
-            else -> return
-        }
-        _state.update { it.copy(soundingVideoNote = null) }
-        voicePlayer.toggle(VoiceKey(chatId, messageId, part = index)) { filePath(fileId) }
-    }
-
-    /**
-     * Stáhne soubor a otevře systémový dialog sdílení.
-     *
-     * Položka nabídky nabídku zavírá sama: stahování může chvíli trvat a jeho průběh je vidět
-     * v řádku souboru, ne v nabídce — a hláška o výsledku by pod závojem zapadla.
-     */
-    private fun shareDocument(messageId: Long) {
-        closeMenus()
-        shareDownloaded(messageId)
-    }
-
-    private fun shareDownloaded(messageId: Long) = withDocument(messageId) { path, document ->
-        if (!sharer.share(path, document.fileName)) {
-            _state.update { it.copy(notice = UiText(Res.string.media_share_failed)) }
-        }
-    }
-
-    /**
-     * Stáhne soubor a nabídne systémový výběr umístění („Uložit jako…").
-     *
-     * Výběr je aktivita systému, takže [launcher] dodá obrazovka; ViewModel ho jen zavolá, až je
-     * soubor na disku. Zavřený výběr (`null`) není chyba a hlášku nedostane.
-     */
-    fun saveDocumentAs(messageId: Long, launcher: SaveAsLauncher) {
-        closeMenus()
-        saveDownloadedAs(messageId, launcher)
-    }
-
-    private fun saveDownloadedAs(messageId: Long, launcher: SaveAsLauncher) = withDocument(messageId) { path, document ->
-        launcher.launch(path, document.fileName) { saved ->
-            when (saved) {
-                true -> _state.update { it.copy(notice = UiText(Res.string.media_saved_as)) }
-                false -> _state.update { it.copy(notice = UiText(Res.string.media_save_failed)) }
-                null -> Unit
-            }
-        }
-    }
-
-    /**
-     * Stáhne soubor zprávy a pak s ním udělá [use] — otevření, sdílení i „Uložit jako…" jdou
-     * touž cestou, takže mají stejný průběh v řádku souboru i stejné hlášky při selhání.
-     *
-     * Stahuje se až na pokyn — soubory v chatu bývají velké a stahovat je dopředu by znamenalo
-     * data za všechno, co kdo poslal. Průběh se drží ve stavu podle `fileId`, takže ho ukáže
-     * i bublina alba.
-     */
-    private fun withDocument(
-        messageId: Long,
-        use: suspend (path: String, document: MessageMedia.Document) -> Unit,
-    ) {
-        val document = when (val media = _state.value.messages.firstOrNull { it.id == messageId }?.media) {
-            is MessageMedia.Document -> media
-            is MessageMedia.Audio -> media.asDocument()
-            else -> return
-        }
-        withDocument(document, use)
-    }
-
-    private fun withDocument(
-        document: MessageMedia.Document,
-        use: suspend (path: String, document: MessageMedia.Document) -> Unit,
-    ) {
-
-        // Druhé ťuknutí během čekání ho zruší. Bez toho by se z rozbitého stahování (mrtvé spojení,
-        // odpověď, která nedorazí) nedalo dostat ven — kolečko by se točilo napořád.
-        documentJobs.remove(document.fileId)?.let { running ->
-            running.cancel()
-            // Zrušit i stahování v TDLib — jinak by soubor tekl dál a potichu se dostáhl.
-            viewModelScope.launch { fileRepository.cancelDownload(document.fileId) }
-            _state.update { it.copy(documentDownloads = it.documentDownloads - document.fileId) }
-            return
-        }
-
-        _state.update { it.copy(documentDownloads = it.documentDownloads + (document.fileId to 0f)) }
-
-        documentJobs[document.fileId] = viewModelScope.launch {
-            try {
-                logger.d { "Otevírám soubor ${document.fileId} (${document.fileName})" }
-                // Ťuknutí je výslovný pokyn: stahování se spustí znovu, i kdyby předchozí zůstalo viset.
-                fileRepository.retryDownload(document.fileId)
-
-                val states = fileRepository.file(document.fileId)
-                    .onEach { state ->
-                        if (state is FileState.Downloading) {
-                            _state.update { it.copy(documentDownloads = it.documentDownloads + (document.fileId to state.progress)) }
-                        }
-                    }
-
-                /*
-                 * Na ROZBĚH stahování se čeká jen chvíli, na dokončení pak jak dlouho je potřeba.
-                 * Když TDLib neodpoví (mrtvé spojení), zůstal by stav `Pending` napořád; jakmile
-                 * ale stahování běží, průběh je vidět a velký soubor smí trvat.
-                 */
-                val started = withTimeoutOrNull(DOWNLOAD_START_TIMEOUT) { states.first { it !is FileState.Pending } }
-                val file = started?.let { first ->
-                    if (first is FileState.Ready || first is FileState.Failed) first else states.first { it is FileState.Ready || it is FileState.Failed }
-                }
-                logger.d { "Soubor ${document.fileId} skončil jako $file" }
-
-                when (file) {
-                    is FileState.Ready -> use(file.path, document)
-                    else -> _state.update { it.copy(error = UiText(Res.string.document_download_failed)) }
-                }
-            } finally {
-                // I při zrušení (odchod z chatu, druhé ťuknutí) musí průběh ze stavu zmizet.
-                documentJobs.remove(document.fileId)
-                _state.update { it.copy(documentDownloads = it.documentDownloads - document.fileId) }
-            }
-        }
-    }
-
-    /**
-     * Pustí nebo pozastaví hlasovku.
-     *
-     * Soubor se stáhne až teď — dopředu by to byla data za každou hlasovku v historii. Příchozí
-     * neposlechnutá se nahlásí jako poslechnutá (`openMessageContent`) a hned se tak i ukáže;
-     * potvrzení ze serveru přijde `contentOpenedUpdates`.
-     */
-    private fun toggleVoice(messageId: Long) {
-        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        (message.media as? MessageMedia.Audio)?.let { audio ->
-            _state.update { it.copy(soundingVideoNote = null) }
-            musicQueue.toggle(chatId, messageId, audio)
-            return
-        }
-        val voice = message.media as? MessageMedia.VoiceNote ?: return
-
-        // Zvuk hraje vždycky jen jeden: hlasovka umlčí kolečko a naopak.
-        _state.update { it.copy(soundingVideoNote = null) }
-        voicePlayer.toggle(VoiceKey(chatId, messageId)) { voicePath(voice) }
-        if (!message.isOutgoing && !voice.isListened) reportListened(messageId)
-    }
-
-    /**
-     * Pošle hlasovku nebo kolečko k přepisu. Výsledek nese obsah zprávy a dorazí úpravou
-     * ([ConversationRepository.editedMessages]) — napřed rozpracovaný, pak hotový.
-     */
-    private fun transcribe(messageId: Long) {
-        val media = _state.value.messages.firstOrNull { it.id == messageId }?.media
-        val (fileId, duration) = when (media) {
-            is MessageMedia.VoiceNote -> media.fileId to media.durationSeconds
-            is MessageMedia.VideoNote -> media.fileId to media.durationSeconds
-            else -> return
-        }
-        val context = transcribeContext.value
-        if (transcribeOffer(context.isPremium, context.trial, duration, context.onDevice) == TranscribeOffer.OnDevice) {
-            transcribeOnDevice(messageId, fileId)
-            return
-        }
-        viewModelScope.launch {
-            repository.recognizeSpeech(chatId, messageId).onFailure { failure ->
-                logger.w(failure) { "Přepis zprávy $messageId se nepodařilo spustit." }
-                _state.update { it.copy(notice = failure.userMessage(Res.string.transcribe_failed)) }
-            }
-        }
-    }
-
-    /**
-     * Přepis v telefonu (`OnDeviceAi.transcribe`): soubor se stáhne, model ho přepíše a výsledek
-     * jde do [LocalTranscripts] — zprávu na serveru měnit nejde. Běží v [appScope]: přepis trvá
-     * vteřiny až desítky vteřin a odchod z chatu ho nemá zahodit.
-     */
-    private fun transcribeOnDevice(messageId: Long, fileId: Int) {
-        val local = localTranscripts ?: return
-        if (local.get(chatId, messageId) is SpeechTranscript.Pending) return
-        local.set(chatId, messageId, SpeechTranscript.Pending(""))
-        appScope.launch {
-            try {
-                val file = fileRepository.file(fileId).first { it is FileState.Ready || it is FileState.Failed }
-                val path = (file as? FileState.Ready)?.path ?: throw IllegalStateException("Soubor $fileId se nestáhl")
-                var text = ""
-                // Gemma má přednost (přepisuje i interpunkci a smysl), systém je záloha pro
-                // telefony bez ní — rozhoduje se až teď, stav se mohl od nabídky změnit.
-                val variant = settings.onDeviceAiVariant.value
-                val ai = onDeviceAi
-                val speech = speechToText
-                val chunks: Flow<String> = when {
-                    ai != null && gemmaTranscribes(settings.onDeviceAiEnabled.value, variant) ->
-                        ai.transcribe(variant, path, platformLanguageCode).map { it.text }
-                    speech != null && systemTranscribes() -> speech.transcribe(path, platformLanguageCode)
-                    else -> throw IllegalStateException("Přepis v telefonu už není k dispozici")
-                }
-                chunks.collect { chunk ->
-                    text = chunk
-                    local.set(chatId, messageId, SpeechTranscript.Pending(text))
-                }
-                local.set(
-                    chatId,
-                    messageId,
-                    if (text.isBlank()) SpeechTranscript.Failed(SpeechTranscript.Failed.Reason.Other) else SpeechTranscript.Done(text.trim()),
-                )
-            } catch (e: CancellationException) {
-                local.set(chatId, messageId, SpeechTranscript.Failed(SpeechTranscript.Failed.Reason.Other))
-                throw e
-            } catch (e: Exception) {
-                logger.w(e) { "Přepis zprávy $messageId v telefonu se nepovedl." }
-                local.set(chatId, messageId, SpeechTranscript.Failed(SpeechTranscript.Failed.Reason.Other))
-            }
-        }
-    }
-
-    /** Přepíše Gemma (zapnutá AI, model se zvukovým vstupem připravený)? */
-    private suspend fun gemmaTranscribes(enabled: Boolean, variant: ModelVariant): Boolean {
-        val ai = onDeviceAi ?: return false
-        return enabled && runCatching { ai.canTranscribe(variant) }.getOrDefault(false)
-    }
-
-    /**
-     * Přepíše systém telefonu (`SpeechToText`)? Nezávisle na volbě AI v zařízení: není to jazykový
-     * model, nic se nestahuje a zvuk telefon neopouští — stejná povaha jako rozpoznání textu
-     * z fotky, které taky žádnou volbu nemá.
-     */
-    private suspend fun systemTranscribes(): Boolean {
-        val speech = speechToText ?: return false
-        return runCatching { speech.canTranscribe(platformLanguageCode) }.getOrDefault(false)
-    }
-
-    /**
-     * Pustí video kolečko se zvukem, nebo ho vrátí do tiché smyčky.
-     *
-     * Kolečko se zvukem je jedno na konverzaci a hrající hlasovka se zastaví. Příchozí
-     * nezhlédnuté se nahlásí jako zhlédnuté — protějšek to vidí stejně jako u hlasovky.
-     */
-    private fun toggleVideoNoteSound(messageId: Long) {
-        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        val note = message.media as? MessageMedia.VideoNote ?: return
-        if (_state.value.soundingVideoNote == messageId) {
-            _state.update { it.copy(soundingVideoNote = null) }
-            return
-        }
-        voicePlayer.stop()
-        _state.update { it.copy(soundingVideoNote = messageId, soundingVideoNoteFromMs = 0L) }
-        if (!message.isOutgoing && !note.isViewed) reportListened(messageId)
-    }
-
-    /**
-     * Poslechnuté hlasovky a zhlédnutá kolečka, která diskrétní čtení zatím NENAHLÁSILO —
-     * odejdou s přečtením chatu ([readNow]). Odchod z chatu je zahodí: protějšek se o poslechu
-     * nedozví a po návratu je hlasovka zase neposlechnutá, jak ji vede server.
-     */
-    private val discreetListened = LinkedHashSet<Long>()
-
-    /**
-     * Označí hlasovku za poslechnutou lokálně i na serveru. Při diskrétním čtení jen lokálně
-     * ([discreetListened]): poslech je stejné prozrazení jako přečtení.
-     */
-    private fun reportListened(messageId: Long) {
-        markListened(messageId)
-        if (settings.discreetReading.value) {
-            discreetListened += messageId
-            logger.d { "Diskrétní čtení: poslech zprávy $messageId se nehlásí" }
-            return
-        }
-        viewModelScope.launch {
-            repository.openContent(chatId, messageId).onFailure { failure ->
-                logger.w(failure) { "Poslechnutí hlasovky nebo kolečka se nepodařilo nahlásit." }
-            }
-        }
-    }
-
-    private fun seekVoice(messageId: Long, fraction: Float) {
-        voicePlayer.seek(VoiceKey(chatId, messageId), fraction)
-    }
-
-    /**
-     * Po dohrání pustí NÁSLEDUJÍCÍ hlasovku, a jen když je příchozí a neposlechnutá.
-     *
-     * Řetězí se tím poslech dávky hlasovek, které někdo poslal za sebou — to je ten případ, kvůli
-     * kterému funkce existuje. Přeskakovat k neposlechnuté někde dál v historii by naopak
-     * překvapilo: uživatel si pustil jednu starou hlasovku a najednou mu hraje něco úplně jiného.
-     * Proto se bere jen ta nejbližší novější, a když poslechnutá je, řetěz končí.
-     *
-     * Vlastní odchozí hlasovku nikdo „neposlechl" v tomhle smyslu, takže na ní řetěz taky končí.
-     */
-    private fun playNextUnlistened(after: Long) {
-        // Skladby řetězí MusicQueue (hrají i bez konverzace); hlasovky se hudbou neřetězí.
-        val finished = _state.value.messages.firstOrNull { it.id == after }
-        if (finished?.media is MessageMedia.Audio) return
-        val next = _state.value.messages
-            .filter { it.id > after && it.media is MessageMedia.VoiceNote }
-            .minByOrNull { it.id }
-            ?: return
-        val voice = next.media as? MessageMedia.VoiceNote ?: return
-        if (next.isOutgoing || voice.isListened) return
-
-        voicePlayer.play(VoiceKey(chatId, next.id)) { voicePath(voice) }
-        reportListened(next.id)
-    }
-
-    /** Počká na stažený soubor hlasovky; stahování začne až tímhle odběrem. */
-    private suspend fun voicePath(voice: MessageMedia.VoiceNote): String = filePath(voice.fileId)
-
-    /** Počká na stažený soubor; stahování začne až tímhle odběrem. */
-    private suspend fun filePath(fileId: Int): String =
-        when (val file = fileRepository.file(fileId).first { it is FileState.Ready || it is FileState.Failed }) {
-            is FileState.Ready -> file.path
-            is FileState.Failed -> error(file.message)
-            else -> error("Nedosažitelné")
-        }
-
-    private fun markListened(messageId: Long) {
-        _state.update { state ->
-            state.copy(
-                messages = state.messages.map { message ->
-                    if (message.id != messageId) return@map message
-                    when (val media = message.media) {
-                        is MessageMedia.VoiceNote ->
-                            if (media.isListened) message else message.copy(media = media.copy(isListened = true))
-                        is MessageMedia.VideoNote ->
-                            if (media.isViewed) message else message.copy(media = media.copy(isViewed = true))
-                        else -> message
-                    }
-                },
-            )
-        }
-    }
-
     /**
      * Zruší odesílání přílohy.
      *
@@ -5549,8 +5166,6 @@ internal const val MAX_SELECTED_MESSAGES = 100
 /** Mezi zprávami ve schránce zůstane prázdný řádek — jinak by dlouhé zprávy splynuly v jednu. */
 private const val SELECTION_COPY_SEPARATOR = "\n\n"
 
-/** Jak dlouho se čeká, než se stahování souboru vůbec rozběhne. */
-private val DOWNLOAD_START_TIMEOUT = 30.seconds
 
 private fun UnsupportedBotButton.explanation(): StringResource = when (this) {
     UnsupportedBotButton.SwitchInline -> Res.string.bot_unsupported_switch_inline
