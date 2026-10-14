@@ -9,7 +9,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.adaptive.ProfilePaneAnchor
-import eu.tintera.plume.core.adaptive.ProfilePaneResize
+import eu.tintera.plume.core.adaptive.PaneEdge
+import eu.tintera.plume.core.adaptive.PaneResize
 import eu.tintera.plume.core.adaptive.nearestProfileAnchor
 import eu.tintera.plume.core.adaptive.profileWidthBeside
 import eu.tintera.plume.core.adaptive.width
@@ -20,7 +21,7 @@ import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 
 /** Šířka profilu vedle konverzace a táhlo, které ji mění. */
-internal class ProfilePaneWidth(val width: Dp, val resize: ProfilePaneResize)
+internal class ProfilePaneWidth(val width: Dp, val resize: PaneResize)
 
 /**
  * Šířka profilu ze zvolené kotvy (`AppSettings.profilePaneAnchor`), za tahu podle prstu.
@@ -52,7 +53,8 @@ internal fun rememberProfilePaneResize(defaultWidth: Dp, total: Dp, listWidth: D
             dragging = null
             settings.setProfilePaneAnchor(next)
         }
-        ProfilePaneResize(
+        PaneResize(
+            edge = PaneEdge.Start,
             // Profil je vpravo: tah doleva (záporný posun) ho rozšiřuje.
             onDrag = { delta -> dragging = currentClamp((dragging ?: currentWidth) - delta) },
             onDragStopped = { settle(nearestProfileAnchor(currentWidth, currentDefault)) },

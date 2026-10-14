@@ -5,6 +5,7 @@ import androidx.compose.material3.adaptive.layout.PaneExpansionAnchor
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 
 /**
  * Kotvy, na které jde táhlem posunout hranici mezi seznamem chatů a konverzací. Pořadí odpovídá
@@ -59,9 +60,22 @@ fun listWidthBesideProfile(anchor: ListPaneAnchor, total: Dp, defaultWidth: Dp, 
         ListPaneAnchor.Default -> defaultWidth
         ListPaneAnchor.Half -> total / 2
     }
+    return clampListBesideProfile(wanted, total, defaultWidth, gap)
+}
+
+/**
+ * Libovolná šířka seznamu ve třech panelech (za tahu táhlem) omezená jako [listWidthBesideProfile]:
+ * nejužší sbalený sloupec, nejširší tak, aby vedle profilu na výchozí šířce zbylo konverzaci
+ * [MIN_CONVERSATION_WIDTH]. Seznam má přednost: širší profil se pak zúží on ([profileWidthBeside]).
+ */
+fun clampListBesideProfile(wanted: Dp, total: Dp, defaultWidth: Dp, gap: Dp): Dp {
     val room = total - defaultWidth - MIN_CONVERSATION_WIDTH - gap
     return wanted.coerceAtMost(room).coerceAtLeast(COLLAPSED_LIST_WIDTH)
 }
+
+/** Kotva, jejíž šířka ve třech panelech je nejblíž [width] — kam seznam dosedne po puštění táhla. */
+fun nearestListAnchorBesideProfile(width: Dp, total: Dp, defaultWidth: Dp, gap: Dp): ListPaneAnchor =
+    ListPaneAnchor.entries.minBy { abs((listWidthBesideProfile(it, total, defaultWidth, gap) - width).value) }
 
 /**
  * Rozbalení sbaleného seznamu chatů na výchozí šířku — hledání ve sbaleném sloupci potřebuje

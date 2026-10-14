@@ -98,6 +98,8 @@ import eu.tintera.plume.core.adaptive.listWidthBesideProfile
 import eu.tintera.plume.core.adaptive.rememberPaneCardDecorator
 import eu.tintera.plume.core.adaptive.rememberWithLeavingExtras
 import eu.tintera.plume.core.adaptive.LocalProfilePaneResize
+import eu.tintera.plume.core.adaptive.LocalListPaneResize
+import eu.tintera.plume.core.adaptive.PaneHandleOverlay
 import eu.tintera.plume.core.adaptive.LocalExpandListPane
 import eu.tintera.plume.core.adaptive.PaneInfo
 import eu.tintera.plume.core.adaptive.PaneRole
@@ -420,11 +422,10 @@ private fun ShellContent(
         val mainListShown = navigation.section == ChatsRoute &&
             chatsDisplayed.lastOrNull { paneOf(it)?.role == PaneRole.List } == ChatsRoute
         val draggable = twoPane && mainListShown && !extraShown
-        val listPaneWidth = if (threePane && mainListShown) {
-            listWidthBesideProfile(listExpansion.anchor, maxWidth, base.defaultPanePreferredWidth, PANE_SPACING)
-        } else {
-            null
-        }
+        // Ve třech panelech táhlo knihovny není — seznam má vlastní (`rememberListPaneResize`).
+        val listResize = rememberListPaneResize(listExpansion, base.defaultPanePreferredWidth, maxWidth)
+        val listPaneWidth = listResize.width.takeIf { threePane && mainListShown }
+        val listResizeShown = listResize.resize.takeIf { threePane && mainListShown }
 
         /*
          * Co stojí vedle karty (`PaneCard`): seznam vlevo, profil vpravo. Pod THREE_PANE_MIN_WIDTH
@@ -470,6 +471,7 @@ private fun ShellContent(
             // I ve třech panelech: zvolená kotva tam určuje šířku seznamu, takže rozbalení zabere i bez táhla.
             LocalExpandListPane provides listExpansion.expand.takeIf { twoPane && mainListShown },
             LocalProfilePaneResize provides profileResize.resize.takeIf { profileBeside },
+            LocalListPaneResize provides listResizeShown,
         ) {
             val paneCard = rememberPaneCardDecorator()
             val decorators = remember(entryDecorators, paneCard) { entryDecorators + paneCard }
@@ -541,6 +543,8 @@ private fun ShellContent(
                     ),
                 ),
             )
+            // Vlastní táhla nad panely (seznam ve třech panelech, profil) — viz `PaneResize`.
+            PaneHandleOverlay(listOfNotNull(listResizeShown, profileResize.resize.takeIf { profileBeside }))
         }
 
         /*
