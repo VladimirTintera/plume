@@ -96,6 +96,7 @@ import eu.tintera.plume.core.adaptive.PaneCard
 import eu.tintera.plume.core.adaptive.PaneNeighbours
 import eu.tintera.plume.core.adaptive.listWidthBesideProfile
 import eu.tintera.plume.core.adaptive.rememberPaneCardDecorator
+import eu.tintera.plume.core.adaptive.rememberWithLeavingExtras
 import eu.tintera.plume.core.adaptive.LocalExpandListPane
 import eu.tintera.plume.core.adaptive.PaneInfo
 import eu.tintera.plume.core.adaptive.PaneRole
@@ -459,14 +460,23 @@ private fun ShellContent(
              * ta si je pamatuje jen podle klíčů, a šířka seznamu ve třech panelech je v jeho
              * METADATECH — po změně kotvy by zůstala stará.
              */
-            val chatsEntries = remember(chatsDisplayed.toList(), listPaneWidth) { chatsDisplayed.map(entryProvider) }
+            /*
+             * Zavřený třetí panel (profil, podstránka Nastavení) ještě chvíli ve scéně, ať odjede
+             * animací, místo aby problikl — viz `rememberWithLeavingExtras`. Jen pro kreslení
+             * a jen s panely vedle sebe: na telefonu je to celá obrazovka s vlastním přechodem.
+             */
+            val chatsWithLeaving = rememberWithLeavingExtras(chatsDisplayed, paneOf)
+            val settingsWithLeaving = rememberWithLeavingExtras(settingsDisplayed, paneOf)
+            val chatsDrawn = if (twoPane) chatsWithLeaving else chatsDisplayed
+            val settingsDrawn = if (twoPane) settingsWithLeaving else settingsDisplayed
+            val chatsEntries = remember(chatsDrawn.toList(), listPaneWidth) { chatsDrawn.map(entryProvider) }
             /*
              * Položky se dekorují pro KAŽDOU sekci, i tu, která není vidět. Zásobník, který se
              * zrovna nedekoruje, by pro Nav3 vypadal jako odebraný a jeho ViewModely by se zrušily.
              */
             val entriesBySection = mapOf<TopLevelRoute, List<NavEntry<NavKey>>>(
                 ChatsRoute to rememberDecoratedNavEntries(chatsEntries, decorators),
-                SettingsRoute to rememberDecoratedNavEntries(settingsDisplayed, decorators, entryProvider),
+                SettingsRoute to rememberDecoratedNavEntries(settingsDrawn, decorators, entryProvider),
             )
 
             val transitions = rememberNavTransitions(chatContainer = !wide)
