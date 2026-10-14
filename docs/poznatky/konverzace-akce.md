@@ -223,8 +223,11 @@ zprávy autora ve skupině** a **Vyhodit autora ze skupiny** (`PendingDelete.mod
 - **Ověřeno na emulátoru** (14. 10. 2026, „Plume test moderace", zprávy bota Notifikátor poslané
   přes Bot API): dialog ukázal všechny tři volby, „smazat vše" a „vyhodit" smazaly obě zprávy bota
   a bota vyhodily („Odebral(a) jsi Notifikator"). **Nahlášení spamu se nezkoušelo** — nahlásilo by
-  testovacího bota doopravdy. Smazání z výběru jde touž cestou (`deleteSelection` dočte volby),
-  na zařízení ověřené není.
+  testovacího bota doopravdy.
+- **Smazání z výběru ověřené taky** (14. 10. 2026, build z `main` po sloučení): tři vybrané
+  zprávy bota → „Smazat 3 zprávy?“ s „Autor zpráv: Notifikator“ a všemi třemi volbami; jen se
+  zaškrtnutým „Vyhodit“ zmizely právě vybrané zprávy (`deleteMessages`, ne `…BySender`) a bot byl
+  vyhozený. Volby dočte `deleteSelection` ve ViewModelu (`loadSenderModeration`), ne výběr sám.
 
 ## Překlad zprávy
 
