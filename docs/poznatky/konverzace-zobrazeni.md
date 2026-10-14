@@ -87,6 +87,21 @@ navzájem (`MediaSender`, `MessageJumper`, `Throwable.reported`).
   a `val state = _state.value` běžné; v částech je `current` / `snapshot`. Překladač zakrytí
   pozná jen tam, kde se typy liší (`.update` na `ConversationState`), proto se to drží jako
   pravidlo, ne jako spoléhání na chybu.
+- **Části se testují samy, bez ViewModelu** (`ConversationSearchTest`, `ConversationSelectionTest`,
+  `ConversationReactionsTest`, `ConversationScheduledTest`, `ConversationComposerTest`,
+  `ConversationMessageActionsTest`): stav je obyčejný `MutableStateFlow`, repository
+  `UnimplementedConversationRepository`, `UnimplementedChatRepository` a nastavení
+  `UnimplementedAppSettings` (v testech; každé nepřepsané volání vyhodí
+  chybu se jménem metody, takže test řekne, na co ještě sahá) a volání do jiných částí jsou
+  lambdy. Vygenerované je z rozhraní — po změně `ConversationRepository` překladač vyjmenuje
+  člen, který chybí.
+- **Rozsah části v testu je `this` (`TestScope`), ne `backgroundScope`.** `advanceUntilIdle`
+  na práci v `backgroundScope` nečeká, takže spuštěné dotazy na repository vůbec neproběhly
+  a testy padaly na prázdné výsledky. Části nic dlouhodobého nespouštějí, `runTest` na ně
+  počká i na konci.
+- **Závislost, kterou nejde v testu nahradit, se předává jako funkce.** `TextClipboard` je
+  `expect class`; výběr proto dostává `copyToClipboard: suspend (String) -> Unit`. Stejně psaní
+  dostává `reportUsed` místo `ShareTargets` (třída se závislostmi na systému a souborech).
 
 ## Bloky seznamu
 

@@ -14,6 +14,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import eu.tintera.plume.App
+import eu.tintera.plume.core.platform.DesktopDevMark
 import eu.tintera.plume.core.platform.DesktopInstance
 import eu.tintera.plume.core.platform.DesktopStartup
 import eu.tintera.plume.core.platform.DesktopTrayIcon
@@ -51,7 +52,7 @@ fun main(args: Array<String>) {
     val startHidden = DesktopStartup.startsHidden(args)
 
     val icon = Thread.currentThread().contextClassLoader.getResourceAsStream("plume-icon.png")
-        ?.use { BitmapPainter(ImageIO.read(it).toComposeImageBitmap()) }
+        ?.use { BitmapPainter(DesktopDevMark.icon(ImageIO.read(it)).toComposeImageBitmap()) }
     val mac = System.getProperty("os.name").orEmpty().lowercase().contains("mac")
 
     application {
@@ -80,7 +81,8 @@ fun main(args: Array<String>) {
             // resp. z nabídky ikony. Na Linuxu oznamovací oblast být nemusí, tam zavření = konec.
             onCloseRequest = { if (mac || desktopClosesToTray) visible = false else exitApplication() },
             visible = visible,
-            title = APP_NAME,
+            // Ladicí běh z Gradle se značkou v názvu i ikoně, ať se nesplete s nainstalovanou aplikací.
+            title = DesktopDevMark.name(APP_NAME),
             icon = icon,
             state = state,
         ) {

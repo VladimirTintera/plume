@@ -324,6 +324,11 @@ Na Windows zavření okna schová aplikaci do oznamovací oblasti (`DesktopTrayI
   souboru by po pádu blokovala navždy. Žádost jde po loopbacku na port z `instance.port`
   s náhodným tokenem: port vidí každý místní proces, token jen uživatel s přístupem k datům.
   Ladicí běh má jiný adresář dat, takže vedle instalace běžet může.
+- **Ladicí běh je označený** (`DesktopDevMark`): „Plume (dev)" v titulku okna a v popisku
+  v oznamovací oblasti a oranžová tečka v rohu ikony na hlavním panelu i v oznamovací oblasti.
+  Ladicí běh a nainstalovaná aplikace běží vedle sebe se stejným oknem a stejnou ikonou, takže
+  se testovalo v té špatné. Rozhoduje `plume.debug` (nastavuje ho `run` a `-PdesktopDebug`),
+  nainstalovaná aplikace se nemění. Toasty Windows nesou dál ikonu bez tečky.
 - **Okno vytažené na žádost druhé instance dostane fokus** (ověřeno: `GetForegroundWindow` po
   druhém spuštění). Windows ho povolí, protože popředí právě drží spouštěný proces.
 - **Schované nebo minimalizované okno = aplikace v pozadí** (`AppForeground` = `DesktopWindow.shown`;

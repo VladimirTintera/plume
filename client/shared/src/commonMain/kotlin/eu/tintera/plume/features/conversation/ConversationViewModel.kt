@@ -597,7 +597,7 @@ class ConversationViewModel(
         repository = repository,
         chatRepository = chatRepository,
         settings = settings,
-        shareTargets = shareTargets,
+        reportUsed = shareTargets::reportUsed,
         suggestions = suggestions,
         readAfterOwnMessage = { readAfterOwnMessage() },
         sendAttachments = { caption, files, options -> attachments.sendAttachments(caption, files, options) },
@@ -716,7 +716,7 @@ class ConversationViewModel(
         state = _state,
         scope = viewModelScope,
         repository = repository,
-        clipboard = clipboard,
+        copyToClipboard = clipboard::copy,
         reportFlow = reportFlow,
         logger = logger,
     )
