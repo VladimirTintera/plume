@@ -10,7 +10,6 @@ import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.StickerRepository
-import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
@@ -46,7 +45,9 @@ internal class ConversationMessageMenu(
     private val scope: CoroutineScope,
     private val repository: ConversationRepository,
     private val settings: AppSettings,
-    private val clipboard: TextClipboard,
+    private val copyToClipboard: suspend (String) -> Unit,
+    /** Potvrdí zkopírování sám systém (`TextClipboard.confirmsCopy`)? Pak hláška od nás není. */
+    private val clipboardConfirmsCopy: Boolean,
     private val languageDetector: LanguageDetector,
     private val onDeviceAi: OnDeviceAi?,
     private val bookmarks: MessageBookmarks?,
@@ -57,13 +58,6 @@ internal class ConversationMessageMenu(
     private val translation: ConversationTranslation,
     private val logger: Logger,
 ) {
-    /**
-     * Informace o zprávě z nabídky: kdy odešla, kdy ji kdo přečetl, kdo ji zhlédl a odkaz na ni.
-     *
-     * Načítá se až tady. Skoro žádná zpráva nemá všechna tři práva (`canGetReadDate`,
-     * `canGetViewers`, `canGetLink`), takže ptát se dopředu by znamenalo tři dotazy na každou
-     * zprávu v historii kvůli sheetu, který se otevře jednou za čas.
-     */
     /**
      * Otevře text zprávy k výběru úryvku.
      *
@@ -80,6 +74,13 @@ internal class ConversationMessageMenu(
         state.update { it.copy(selectingText = null) }
     }
 
+    /**
+     * Informace o zprávě z nabídky: kdy odešla, kdy ji kdo přečetl, kdo ji zhlédl a odkaz na ni.
+     *
+     * Načítá se až tady. Skoro žádná zpráva nemá všechna tři práva (`canGetReadDate`,
+     * `canGetViewers`, `canGetLink`), takže ptát se dopředu by znamenalo tři dotazy na každou
+     * zprávu v historii kvůli sheetu, který se otevře jednou za čas.
+     */
     fun showMessageInfo(messageId: Long) {
         val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
         state.update { it.copy(messageMenu = null, messageInfo = MessageInfoSheet(message = message)) }
@@ -115,15 +116,15 @@ internal class ConversationMessageMenu(
      * Sheet se přitom zavře. Jednak je tím skopírování hotová věc — kdo si o odkaz řekl, ten ho
      * má —, jednak by snackbar s potvrzením zůstal schovaný POD sheetem a nebylo by poznat,
      * že se něco stalo. Android 13+ ukazuje vlastní náhled schránky, takže tam snackbar odpadá
-     * (viz [TextClipboard.confirmsCopy]); iOS a starší Androidy ho nemají.
+     * (viz `TextClipboard.confirmsCopy`); iOS a starší Androidy ho nemají.
      */
     fun copyMessageLink(link: String) {
         scope.launch {
-            clipboard.copy(link)
+            copyToClipboard(link)
             state.update {
                 it.copy(
                     messageInfo = null,
-                    notice = if (clipboard.confirmsCopy) it.notice else UiText(Res.string.message_info_link_copied),
+                    notice = if (clipboardConfirmsCopy) it.notice else UiText(Res.string.message_info_link_copied),
                 )
             }
         }
@@ -313,7 +314,7 @@ internal class ConversationMessageMenu(
 
     /** Zkopíruje text — celou zprávu, nebo úryvek označený v nabídce nad zprávou. */
     fun copyText(text: String) {
-        scope.launch { clipboard.copy(text) }
+        scope.launch { copyToClipboard(text) }
         closeMenus()
     }
 }

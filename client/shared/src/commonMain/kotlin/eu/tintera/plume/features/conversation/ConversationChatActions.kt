@@ -110,14 +110,6 @@ internal class ConversationChatActions(
     val unarchived: StateFlow<Boolean> = _unarchived.asStateFlow()
 
     /**
-     * Text chyby do stavu obrazovky. Zaloguje surovou příčinu (a tím ji pošle i do kontextu
-     * hlášení pádů) a vrátí větu pro uživatele.
-     *
-     * Hláška od TDLib se na obrazovku nedostane — je to anglická konstanta jako
-     * `MESSAGE_EDIT_TIME_EXPIRED`, viz [userMessage]. `w` je tu správná závažnost: server řekl
-     * ne, což je očekávané selhání, ne chyba, kolem které by se měl v konzoli zakládat problém.
-     */
-    /**
      * Přidat se ke skupině nebo kanálu z globálního hledání. Po úspěchu se místo tlačítka
      * vrátí vstupní pole (v kanálu ho server stejně nepustí, ale to platí pro každý kanál).
      */
