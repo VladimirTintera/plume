@@ -15,6 +15,7 @@ import eu.tintera.plume.features.conversation.ConversationReplyRequests
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.navigation.NavSavedStateConfiguration
+import eu.tintera.plume.features.conversation.ConversationNavigation
 import eu.tintera.plume.features.conversation.ConversationScreen
 import eu.tintera.plume.core.ui.LocalArticleMediaFlight
 import eu.tintera.plume.core.ui.LocalPollMediaFlight
@@ -52,25 +53,27 @@ fun BubbleShell(chatId: Long, onOpenInApp: (chatId: Long) -> Unit, onClose: () -
                         key = "bubble-conversation-${route.chatId}",
                         parameters = { parametersOf(route.chatId, route.messageId, route.threadId, route.topicId, route.savedTopicId) },
                     ),
-                    // Šipka zpět v bublině: konverzace je kořen, pod ní nic není — bublinu sbalí.
-                    onBack = onClose,
-                    onOpenMedia = { messageId -> backStack.add(MediaRoute(route.chatId, messageId)) },
-                    onOpenMediaAt = { messageId, seconds -> backStack.add(MediaRoute(route.chatId, messageId, startSeconds = seconds)) },
-                    onOpenPollMedia = { messageId, index -> backStack.add(MediaRoute(route.chatId, messageId, pollMedia = index)) },
-                    onOpenArticleMedia = { messageId, index -> backStack.add(MediaRoute(route.chatId, messageId, articleMedia = index)) },
-                    onForward = { onOpenInApp(route.chatId) },
-                    onOpenChat = { target -> onOpenInApp(target.chatId) },
-                    onSearch = { onOpenInApp(route.chatId) },
-                    onOpenProfile = { onOpenInApp(route.chatId) },
-                    onOpenUserProfile = { userChatId -> onOpenInApp(userChatId) },
-                    onCreatePoll = { onOpenInApp(route.chatId) },
-                    onOpenWebApp = { onOpenInApp(route.chatId) },
-                    onOpenBotShare = { onOpenInApp(route.chatId) },
-                    onAddBotToGroup = { onOpenInApp(route.chatId) },
-                    onOpenScreen = { onOpenInApp(route.chatId) },
-                    onSwitchInline = { onOpenInApp(route.chatId) },
-                    onAddMembers = { onOpenInApp(route.chatId) },
-                    onOpenJoinRequests = { onOpenInApp(route.chatId) },
+                    navigation = ConversationNavigation(
+                        // Šipka zpět v bublině: konverzace je kořen, pod ní nic není — bublinu sbalí.
+                        onBack = onClose,
+                        onOpenMedia = { messageId -> backStack.add(MediaRoute(route.chatId, messageId)) },
+                        onOpenMediaAt = { messageId, seconds -> backStack.add(MediaRoute(route.chatId, messageId, startSeconds = seconds)) },
+                        onOpenPollMedia = { messageId, index -> backStack.add(MediaRoute(route.chatId, messageId, pollMedia = index)) },
+                        onOpenArticleMedia = { messageId, index -> backStack.add(MediaRoute(route.chatId, messageId, articleMedia = index)) },
+                        onForward = { onOpenInApp(route.chatId) },
+                        onOpenChat = { target -> onOpenInApp(target.chatId) },
+                        onSearch = { onOpenInApp(route.chatId) },
+                        onOpenProfile = { onOpenInApp(route.chatId) },
+                        onOpenUserProfile = { userChatId -> onOpenInApp(userChatId) },
+                        onCreatePoll = { onOpenInApp(route.chatId) },
+                        onOpenWebApp = { onOpenInApp(route.chatId) },
+                        onOpenBotShare = { onOpenInApp(route.chatId) },
+                        onAddBotToGroup = { onOpenInApp(route.chatId) },
+                        onOpenScreen = { onOpenInApp(route.chatId) },
+                        onSwitchInline = { onOpenInApp(route.chatId) },
+                        onAddMembers = { onOpenInApp(route.chatId) },
+                        onOpenJoinRequests = { onOpenInApp(route.chatId) },
+                    ),
                 )
             }
         }

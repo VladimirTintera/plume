@@ -26,8 +26,6 @@ import androidx.compose.ui.composed
 import eu.tintera.plume.core.ui.AutoDeleteBadge
 import eu.tintera.plume.core.telegram.VideoChatInfo
 import eu.tintera.plume.core.telegram.PendingJoinRequests
-import eu.tintera.plume.core.telegram.AppScreen
-import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.ui.SecretChatLock
 import eu.tintera.plume.core.ui.SecureScreen
 import eu.tintera.plume.core.ui.VerificationBadge
@@ -220,7 +218,6 @@ import eu.tintera.plume.resources.spam_bar_contact_added
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import eu.tintera.plume.core.telegram.SpamBar
-import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ChatBar
 import eu.tintera.plume.core.telegram.InviteMembersBar
 import eu.tintera.plume.core.telegram.JoinRequestBar
@@ -233,61 +230,8 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun ConversationScreen(
     viewModel: ConversationViewModel,
-    onBack: () -> Unit,
-    onOpenMedia: (messageId: Long) -> Unit,
-    /** Video od daného místa — čas v médiu („1:23" v textu). */
-    onOpenMediaAt: (messageId: Long, seconds: Int) -> Unit = { messageId, _ -> onOpenMedia(messageId) },
-    onForward: (messageIds: List<Long>) -> Unit,
-    /** Příloha ankety v prohlížeči; `index` viz [MessageAction.OpenPollMedia]. */
-    onOpenPollMedia: (messageId: Long, index: Int) -> Unit = { _, _ -> },
-    /** Médium článku v prohlížeči; `index` viz [MessageAction.OpenArticleMedia]. */
-    onOpenArticleMedia: (messageId: Long, index: Int) -> Unit = { _, _ -> },
-    /** Příběh v prohlížeči — citace odpovědi na příběh, odkaz `t.me/jméno/s/N`. */
-    onOpenStory: (StoryTarget) -> Unit = {},
-    /**
-     * Otevřít chat nad konverzací (zmínka, odkaz, komentáře); kam přesně — zpráva, vlákno,
-     * téma, seznam témat —, říká [ChatTarget].
-     */
-    onOpenChat: (ChatTarget) -> Unit,
-    /** Hashtag v textu: hledání zpráv s tagem v seznamu chatů. */
-    onSearch: (query: String) -> Unit,
-    /** Ťuknutí na hlavičku: profil chatu. */
-    onOpenProfile: () -> Unit,
-    /** Profil jiného chatu nad konverzací — odesílatel ze skupiny, na jehož tvář se ťuklo. */
-    onOpenUserProfile: (chatId: Long) -> Unit,
-    /**
-     * Chat se z pruhu vrátil z archivu mezi chaty. Jen konverzace otevřená Z ARCHIVU s tím
-     * něco dělá (přestěhuje se do hlavního seznamu); jinde se nic měnit nemusí.
-     */
-    onUnarchived: () -> Unit = {},
-    /** Chat je smazaný nebo opuštěný (⋮ v hlavičce, pruh proti spamu) — zavřít všechno, co ho ukazuje. */
-    onChatGone: () -> Unit = onBack,
-    /** Sponka → Anketa (a tlačítko bota „vytvořit anketu"): formulář nové ankety nad konverzací. */
-    onCreatePoll: (PollComposerRequest) -> Unit = {},
-    /** Mini aplikace bota — obrazovka přes celou plochu nad konverzací. */
-    onOpenWebApp: (WebAppRequest) -> Unit = {},
-    /** Tlačítko bota „vyber lidi / chat": výběr nad konverzací. */
-    onOpenBotShare: (BotShareRequest) -> Unit = {},
-    /** Odkaz `t.me/bot?startgroup=…`: výběr skupiny, do které bota přidat. */
-    onAddBotToGroup: (InternalLink.BotStartInGroup) -> Unit = {},
-    /** Odkaz na obrazovku aplikace (`tg://settings/…`, `tg://newgroup`) — navigaci řeší shell. */
-    onOpenScreen: (AppScreen) -> Unit = {},
-    /** Tlačítko bota s inline dotazem do jiného chatu: výběr chatu. */
-    onSwitchInline: (SwitchInlinePick) -> Unit = {},
-    /** Pruh „Pozvat členy" nad čerstvou skupinou: výběr lidí. */
-    onAddMembers: () -> Unit = {},
-    /** Pruh s čekajícími žádostmi o vstup: otevře jejich seznam. */
-    onOpenJoinRequests: () -> Unit = {},
-    /**
-     * Uložené zprávy jako seznam témat podle zdrojového chatu. `null` = nenabízet (každá jiná
-     * konverzace i téma samo).
-     */
-    onViewAsChats: (() -> Unit)? = null,
-    /**
-     * Rychlý přepínač (podržení šipky zpět): vybraný chat místo téhle konverzace. `null` =
-     * nenabízet (bublina konverzace).
-     */
-    onSwitchChat: ((ChatSummary) -> Unit)? = null,
+    /** Kam konverzace odchází — viz [ConversationNavigation]. */
+    navigation: ConversationNavigation,
     modifier: Modifier = Modifier,
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
@@ -363,14 +307,6 @@ fun ConversationScreen(
     val videoNotesAllowed = state.content.videoNotes && videoNoteCamera != null
     val recordMode = recordModeFor(preferredRecordMode, state.content.voiceNotes, videoNotesAllowed)
 
-    // Výběr cílového chatu je vlastní obrazovka, takže požadavek z nabídky se předá navigaci.
-    val forwardRequest = state.forwardRequest
-    LaunchedEffect(forwardRequest) {
-        if (forwardRequest != null) {
-            onForward(forwardRequest)
-            viewModel.consumeForwardRequest()
-        }
-    }
     /*
      * Stav seznamu patří jednomu OKNU zpráv (`window`). Když se seznam vymění celý (skok do
      * historie, návrat k přítomnosti), odejdou všechny položky naráz a `animateItem` je nechá
@@ -402,14 +338,9 @@ fun ConversationScreen(
             onDismiss = { confirmSharePhone = false },
         )
     }
-    val chatGone by viewModel.chatGone.collectAsStateWithLifecycle()
     /** Otevřený sheet z pruhu proti spamu; `null` = zavřený. */
     var spamBarAction by rememberSaveable { mutableStateOf<SpamBarAction?>(null) }
 
-    // Chat se smazal (⋮ v hlavičce, pruh proti spamu) — konverzace nemá co ukazovat.
-    LaunchedEffect(chatGone) { if (chatGone) onChatGone() }
-    val unarchived by viewModel.unarchived.collectAsStateWithLifecycle()
-    LaunchedEffect(unarchived) { if (unarchived) onUnarchived() }
 
     ReportHost(viewModel.reportFlow, snackbarHostState)
     ProxyLinkHost(viewModel.proxyLinkFlow, snackbarHostState)
@@ -636,55 +567,10 @@ fun ConversationScreen(
     /** Horní hrana seznamu (spodek hlavičky) v okně; nabídka nad zprávou nad ni nesmí. */
     val contentTop = remember { mutableStateOf<Float?>(null) }
 
-    val currentOnOpenMedia by rememberUpdatedState(onOpenMedia)
-    val currentOnOpenPollMedia by rememberUpdatedState(onOpenPollMedia)
-    val currentOnOpenArticleMedia by rememberUpdatedState(onOpenArticleMedia)
-    val currentOnSearch by rememberUpdatedState(onSearch)
-    val currentOnOpenChat by rememberUpdatedState(onOpenChat)
+    ConversationEvents(state, viewModel, navigation)
+    // Pro lambdy v `itemScope`, která vzniká jednou: volají vždycky aktuální navigaci.
+    val currentNavigation by rememberUpdatedState(navigation)
 
-    // Chat ze zmínky nebo odkazu: ViewModel ho najde, navigace je věc obrazovky. Událost se
-    // nuluje hned, jinak by se po otočení otevřel znovu.
-    val currentOnOpenMediaAt by rememberUpdatedState(onOpenMediaAt)
-    LaunchedEffect(state.openMediaAt) {
-        val target = state.openMediaAt ?: return@LaunchedEffect
-        viewModel.consumeOpenMediaAt()
-        currentOnOpenMediaAt(target.messageId, target.seconds)
-    }
-    LaunchedEffect(state.openChat) {
-        val target = state.openChat ?: return@LaunchedEffect
-        viewModel.consumeOpenChat()
-        currentOnOpenChat(target)
-    }
-    val currentOnOpenScreen by rememberUpdatedState(onOpenScreen)
-    LaunchedEffect(state.openScreen) {
-        val screen = state.openScreen ?: return@LaunchedEffect
-        viewModel.consumeOpenScreen()
-        currentOnOpenScreen(screen)
-    }
-    val currentOnOpenStory by rememberUpdatedState(onOpenStory)
-    LaunchedEffect(state.openStory) {
-        val story = state.openStory ?: return@LaunchedEffect
-        viewModel.consumeOpenStory()
-        currentOnOpenStory(story)
-    }
-    val currentOnAddBotToGroup by rememberUpdatedState(onAddBotToGroup)
-    LaunchedEffect(state.addBotToGroup) {
-        val link = state.addBotToGroup ?: return@LaunchedEffect
-        viewModel.consumeAddBotToGroup()
-        currentOnAddBotToGroup(link)
-    }
-    val currentOnSwitchInline by rememberUpdatedState(onSwitchInline)
-    LaunchedEffect(state.switchInline) {
-        val pick = state.switchInline ?: return@LaunchedEffect
-        viewModel.consumeSwitchInline()
-        currentOnSwitchInline(pick)
-    }
-    val currentOnOpenUserProfile by rememberUpdatedState(onOpenUserProfile)
-    LaunchedEffect(state.openProfile) {
-        val target = state.openProfile ?: return@LaunchedEffect
-        viewModel.consumeOpenProfile()
-        currentOnOpenUserProfile(target)
-    }
 
     /*
      * Zpráva, na jejíž tvář se naposledy ťuklo: jen ta nese sdílený prvek do profilu. Přežije
@@ -723,11 +609,11 @@ fun ConversationScreen(
             onMenuAnchor = { menuAnchor = it },
             menuKey = menuKey,
             timeReveal = { timeReveal.value },
-            onOpenMedia = { currentOnOpenMedia(it) },
-            onOpenPollMedia = { messageId, index -> currentOnOpenPollMedia(messageId, index) },
-            onOpenArticleMedia = { messageId, index -> currentOnOpenArticleMedia(messageId, index) },
+            onOpenMedia = { currentNavigation.onOpenMedia(it) },
+            onOpenPollMedia = { messageId, index -> currentNavigation.onOpenPollMedia(messageId, index) },
+            onOpenArticleMedia = { messageId, index -> currentNavigation.onOpenArticleMedia(messageId, index) },
             onOpenStickerSet = { sheets.openStickerSetId = it },
-            onSearch = { currentOnSearch(it) },
+            onSearch = { currentNavigation.onSearch(it) },
             // Výběr umístění je aktivita systému, takže ho má obrazovka; ViewModel jen stáhne.
             onSaveFileAs = { messageId -> currentSaveAs?.let { viewModel.saveDocumentAs(messageId, it) } },
             jumpTransition = jumpTransition,
@@ -1204,7 +1090,7 @@ fun ConversationScreen(
                                 // Vlákno komentářů vlastní profil nemá; profil skupiny by vedl pryč.
                                 enabled = state.info?.isSavedMessages == false && state.threadRootId == null,
                                 onClickLabel = profileLabel,
-                                onClick = onOpenProfile,
+                                onClick = navigation.onOpenProfile,
                             )
                             .semantics { headerState?.let { stateDescription = it } }
                             // Místo pro zvětšený avatar s prstencem: řádek ořezává (tvar vlnky
@@ -1367,7 +1253,7 @@ fun ConversationScreen(
                 },
                 navigationIcon = {
                     // Podržení nabídne rychlý přepínač chatů; ťuknutí je dál „zpět".
-                    ChatSwitcherBackButton(chatId = viewModel.chatId, onBack = onBack, onSwitch = onSwitchChat)
+                    ChatSwitcherBackButton(chatId = viewModel.chatId, onBack = navigation.onBack, onSwitch = navigation.onSwitchChat)
                 },
                 actions = {
                     // Hlavní akce jsou hovor a videohovor, všechno ostatní je za ⋮.
@@ -1380,7 +1266,7 @@ fun ConversationScreen(
                         showsContent = !showsBotIntro(state) && !chatHidden,
                         onSummary = startSummary.takeIf { summaryAvailable && state.threadRootId == null },
                         // Uložené zprávy podle zdrojového chatu: jen u celých Uložených zpráv, ne v tématu.
-                        onViewAsChats = onViewAsChats.takeIf { state.info?.isSavedMessages == true && !state.narrowed },
+                        onViewAsChats = navigation.onViewAsChats?.takeIf { state.info?.isSavedMessages == true && !state.narrowed },
                     )
                 },
             )
@@ -1454,7 +1340,7 @@ fun ConversationScreen(
             state.info?.upgradedToChatId?.let { upgraded ->
                 JoinBar(
                     joining = false,
-                    onJoin = { onOpenChat(ChatTarget(upgraded)) },
+                    onJoin = { navigation.onOpenChat(ChatTarget(upgraded)) },
                     label = Res.string.service_upgraded_open_new,
                     modifier = barGlass,
                 )
@@ -1506,7 +1392,7 @@ fun ConversationScreen(
                     if (source != null) {
                         JoinBar(
                             joining = false,
-                            onJoin = { onOpenChat(ChatTarget(source)) },
+                            onJoin = { navigation.onOpenChat(ChatTarget(source)) },
                             label = Res.string.saved_topic_open_chat,
                             modifier = barGlass,
                         )
@@ -1807,7 +1693,7 @@ fun ConversationScreen(
                 onPickDocument = attachmentPicker::pickDocument,
                 // Anketa jde jen tam, kde to dovolí právo i druh chatu (`ContentAccess.polls`).
                 onCreatePoll = {
-                    onCreatePoll(PollComposerRequest(PollComposerMode.Any, state.replyingTo?.id, state.replyQuote))
+                    navigation.onCreatePoll(PollComposerRequest(PollComposerMode.Any, state.replyingTo?.id, state.replyQuote))
                 }.takeIf { state.content.polls },
                 // Poloha je „základní zpráva" jako text: smí se všude, kde je vstupní pole.
                 onSendLocation = { sheets.locationPicker = true },
@@ -1913,26 +1799,6 @@ fun ConversationScreen(
             startSummary = startSummary,
         )
 
-        // Jednorázová událost od tlačítka bota. Navigace je synchronní, takže vynulování potom
-        // efekt nezruší uprostřed (past „Vrátit" v docs/poznatky/konverzace-pohyb.md se týká práce, která teprve běží).
-        state.openPollComposer?.let { mode ->
-            LaunchedEffect(mode) {
-                onCreatePoll(PollComposerRequest(mode, state.replyingTo?.id, state.replyQuote))
-                viewModel.consumeOpenPollComposer()
-            }
-        }
-        state.openBotShare?.let { request ->
-            LaunchedEffect(request) {
-                viewModel.consumeOpenBotShare()
-                onOpenBotShare(request)
-            }
-        }
-        state.openWebApp?.let { request ->
-            LaunchedEffect(request) {
-                viewModel.consumeOpenWebApp()
-                onOpenWebApp(request)
-            }
-        }
 
         val layoutDirection = LocalLayoutDirection.current
         // Pruh připnutých a vstupní pole leží PŘES seznam — fotka letící pod ně se o ně ořízne.
@@ -2150,7 +2016,7 @@ fun ConversationScreen(
                             SharePhoneBar, InviteMembersBar, is JoinRequestBar -> ChatNoticeBarCard(
                                 bar = bar,
                                 onSharePhone = { confirmSharePhone = true },
-                                onInviteMembers = onAddMembers,
+                                onInviteMembers = navigation.onAddMembers,
                                 onDismiss = viewModel::dismissChatBar,
                             )
                             null -> Unit
@@ -2168,7 +2034,7 @@ fun ConversationScreen(
                         lastJoinRequests[0]?.let { requests ->
                             JoinRequestsBar(
                                 requests = requests,
-                                onClick = onOpenJoinRequests,
+                                onClick = navigation.onOpenJoinRequests,
                                 onHide = { joinRequestsHiddenAt = requests.count },
                                 glass = Modifier.hazeBlur(
                                     input = HazeInput.Sources(listHaze),
@@ -2278,7 +2144,7 @@ fun ConversationScreen(
                     viewModel = viewModel,
                     voicePlayback = voicePlayback,
                     soundingVideoNote = soundingVideoNote,
-                    onOpenChat = onOpenChat,
+                    onOpenChat = navigation.onOpenChat,
                     glass = Modifier.hazeBlur(
                         input = HazeInput.Sources(listHaze),
                         style = glassStyle(
