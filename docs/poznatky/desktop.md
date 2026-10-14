@@ -299,9 +299,28 @@ Bílý systémový titulek nad tmavou aplikací byl nejrušivější prvek okna.
   titulek přeskočí na novou barvu hned.
 - **Okno si bere z `DesktopWindow.window`** (zapisuje vstupní bod), protože `AppTheme` je
   v `commonMain` a k `ComposeWindow` nedosáhne.
-- **macOS**: `setMacOsAdaptiveTitleBar()` ve vstupním bodu, PŘED vznikem okna (systémová
-  vlastnost `apple.awt.application.appearance`). Řídí se systémovým vzhledem, ne motivem
-  aplikace — vlastnost se čte jen při startu. Na Macu neověřené.
+- **macOS: vlastní most do AppKitu** (`MacTitleBar`, `jvmMain/objc/PlumeWindow.m`, v téže
+  knihovně jako notifikace, nahrává ji `MacNative`). Oknu nastaví `appearance` (Aqua / DarkAqua
+  podle ZVOLENÉHO motivu, za běhu), `titlebarAppearsTransparent` a `backgroundColor` = plocha
+  okna; průhledný titulek pak ukáže barvu pozadí okna. Text titulku si barví systém podle
+  vzhledu, `content` se na Macu nepoužije.
+  - **Proč ne vlastnosti `apple.awt.*` na `JRootPane`**: vzhled jednoho okna
+    (`apple.awt.windowAppearance`) má jen JetBrains Runtime, Adoptium 17 ani 25 ne (ověřeno ve
+    zdrojích `CPlatformWindow`). Barvu titulku nenastaví žádná.
+  - **Okno se hledá podle titulku** v `NSApp.windows`: ukazatel na `NSWindow` drží
+    `sun.lwawt.macosx.CPlatformWindow` a bez `--add-opens` se k němu nedosáhne. Přejmenování
+    okna za běhu by vazbu rozpojilo.
+  - **`NSWindow` vzniká až při prvním zobrazení** (spuštění schované po přihlášení ho nemá),
+    proto `MacTitleBar` čeká na `windowOpened`. Na okno se sahá jen z hlavního vlákna AppKitu
+    (`dispatch_async`), fronta událostí AWT je jiné vlákno.
+  - `setMacOsAdaptiveTitleBar()` ve vstupním bodu zůstává: drží titulek podle systému do
+    chvíle, než ho přebarví motiv — jinak by při startu v tmavém systému krátce svítil bílý.
+  - Ověřeno na macOS 26.6 v ladicím běhu, světlý i tmavý motiv (změřeno ze snímku: titulek
+    #E7EFF8 = `surfaceContainer`).
+- **Přihlašovací obrazovka leží na `surfaceContainer`**, ne na `surface`: titulek má barvu plochy
+  okna (`surfaceContainer`, seznam chatů), a nad přihlášením na `surface` byl vidět jako pruh
+  (#E7EFF8 nad #F6FAFF). Blok s telefonem je proto `surfaceContainerLowest` jako skupiny
+  v Nastavení; jinde (změna čísla, nový kontakt) zůstává `surfaceContainerLow` na `surface`.
 - Ověřeno na Windows 11 v tmavém motivu: titulek splývá s plochou okna.
 
 ## Oznamovací oblast a jediná instance
@@ -515,6 +534,18 @@ spustit"), video má `isFailed = true` a otevírá se v aplikaci systému
   fotka, ostatní včetně videa jako soubor.
 - **Vložení ze schránky a přetažení souborů** mají vlastní oddíl výš.
 - **`Desktop.browse`/`open` na Linuxu bez GNOME knihoven nefungují**, náhradou je `xdg-open`.
+- **Titulek okna na Linuxu se motivem neřídí** (`WindowTitleBarAppearance` tam nedělá nic).
+  Kreslí ho správce oken a AWT běží přes X11 (na Waylandu XWayland). Zvažované cesty, nic
+  z toho neověřené, protože Linux na zkoušku není:
+  - **Tmavý titulek podle motivu na GNOME**: vlastnost okna `_GTK_THEME_VARIANT = "dark"`
+    přes JNA (`Native.getComponentID` + `XChangeProperty` z libX11), přepnutelná za běhu.
+    Nejisté je, jestli ji respektuje i `mutter-x11-frames`, který od GNOME 44 kreslí titulky
+    X11 oken. Barvu titulku tak nastavit nejde.
+  - **Barva titulku jen na KDE**: KWin čte `_KDE_NET_WM_COLOR_SCHEME` (cesta k souboru
+    barevného schématu, `.colors`) a Breeze podle něj barví titulek; soubor by se generoval
+    z palety. Na GNOME nic nedělá.
+  - **Vlastní titulek v Compose** (okno bez rámu) by šel všude, ale tahání, dvojklik,
+    přichytávání a změnu velikosti by bylo nutné dodělat ručně — za tu cenu nestojí.
 - **Mini aplikace se hlásí jako `tdesktop`** (`webAppPlatform`), WebView ale není.
 - **Test `DocumentKindTest` tvrdil, že MP4 otevře prohlížeč na každé platformě.** Na desktopu
   to neplatí; commonTest teď běží i na JVM (`jvmTest`), takže takové „všude" předpoklady

@@ -42,8 +42,8 @@ fun main(args: Array<String>) {
     // Plume už běží (třeba schovaná v oznamovací oblasti): ta vytáhne okno, tahle končí.
     if (!DesktopInstance.acquire()) return
     preloadTdlibNativeDependencies()
-    // macOS: titulek podle systémového vzhledu, jinak zůstane světlý i v tmavém režimu. Musí být
-    // před vznikem okna. Windows řeší `WindowTitleBarAppearance` podle motivu aplikace.
+    // macOS: titulek podle systémového vzhledu do chvíle, než ho `WindowTitleBarAppearance`
+    // přebarví podle motivu aplikace (jinak by do té doby svítil bílý). Musí být před vznikem okna.
     setMacOsAdaptiveTitleBar()
     startKoin()
     // Spouštění po přihlášení míří na spouštěč; po přeinstalaci jinam se cesta opraví.

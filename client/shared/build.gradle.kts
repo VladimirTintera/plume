@@ -233,14 +233,16 @@ val downloadNtgcalls = tasks.register("downloadNtgcalls") {
 }
 
 val compileMacNotifications = tasks.register("compileMacNotifications") {
-    description = "Přeloží most k notifikacím macOS (UNUserNotificationCenter) do jvmMain resources."
-    val source = layout.projectDirectory.file("src/jvmMain/objc/PlumeNotifications.m")
+    description = "Přeloží nativní most macOS (notifikace, titulek okna) do jvmMain resources."
+    // Jedna knihovna pro všechno nativní na Macu, jako `plumenotifications.dll` na Windows.
+    val sources = listOf("PlumeNotifications.m", "PlumeWindow.m")
+        .map { layout.projectDirectory.file("src/jvmMain/objc/$it") }
     val outputDir = layout.buildDirectory.dir("generated/macNotifications")
     // Hlavičky JNI z toolchainu projektu, ne z JVM démona Gradle: démona může spustit IDE se
     // svým runtime (JBR z Android Studia), který `include/` nemá — překlad pak padal na `jni.h`.
     val jdkHome = jniToolchainHome
     val onMac = System.getProperty("os.name").lowercase().contains("mac")
-    inputs.file(source)
+    inputs.files(sources)
     outputs.dir(outputDir)
     onlyIf { onMac }
 
@@ -256,8 +258,8 @@ val compileMacNotifications = tasks.register("compileMacNotifications") {
             "clang", "-dynamiclib", "-fobjc-arc", "-O2",
             "-arch", "arm64", "-arch", "x86_64", "-mmacosx-version-min=11.0",
             "-I${jdkHome.get()}/include", "-I${jdkHome.get()}/include/darwin",
-            "-framework", "Foundation", "-framework", "UserNotifications",
-            "-o", library.absolutePath, source.asFile.absolutePath,
+            "-framework", "Foundation", "-framework", "UserNotifications", "-framework", "AppKit",
+            "-o", library.absolutePath, *sources.map { it.asFile.absolutePath }.toTypedArray(),
         )
         run("codesign", "--force", "--sign", "-", library.absolutePath)
     }

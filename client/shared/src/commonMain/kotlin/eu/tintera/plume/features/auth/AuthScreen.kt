@@ -228,7 +228,9 @@ fun AuthScreen(
     )
 
     Box(modifier.fillMaxSize()) {
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+    // Plocha okna aplikace (`surfaceContainer`, na ní leží i seznam chatů), ne `surface`: na
+    // desktopu má titulek okna barvu `surfaceContainer` a s přihlášením by jinak nesplynul.
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surfaceContainer) {
         Box(
             Modifier
                 .fillMaxSize()
@@ -1078,6 +1080,8 @@ private fun PhoneForm(
             onPhoneChange = onPhoneChange,
             onPickCountry = onPickCountry,
             onSubmit = onSubmit,
+            // Na ploše `surfaceContainer` jako skupiny v Nastavení.
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         )
         FormError(error)
         ContinueButton(enabled = phone.isComplete, busy = busy, onClick = onSubmit)
