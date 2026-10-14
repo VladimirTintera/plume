@@ -13,8 +13,14 @@ interface CallMedia {
     /** Co knihovna umí — tím se hovor nabízí v `createCall` / `acceptCall`. */
     val protocol: CallMediaProtocol
 
-    /** Umí obraz (kamera, obraz protistrany); desktop zatím jen zvuk. */
+    /** Umí obraz (kamera, obraz protistrany). */
     val supportsVideo: Boolean get() = true
+
+    /** Je mezi čím přepínat (přední a zadní kamera); desktop bere jednu kameru. */
+    val canSwitchCamera: Boolean get() = true
+
+    /** Náhled kamery běží už při vytáčení; desktop ho má až od spojení (kameru drží knihovna). */
+    val previewsBeforeConnect: Boolean get() = true
 
     /**
      * Zvuková relace hovoru: režim hovoru a výstup (sluchátko, reproduktor, Bluetooth).

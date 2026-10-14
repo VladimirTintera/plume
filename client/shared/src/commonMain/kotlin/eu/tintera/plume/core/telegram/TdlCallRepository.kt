@@ -69,6 +69,10 @@ internal class TdlCallRepository(
 
     override val supportsVideo: Boolean get() = media?.supportsVideo == true
 
+    override val canSwitchCamera: Boolean get() = media?.canSwitchCamera == true
+
+    override val previewsBeforeConnect: Boolean get() = media?.previewsBeforeConnect == true
+
     /** Hovor, kterému už běží přenos — `Ready` chodí i opakovaně, spustit se má jednou. */
     private var startedCallId: Int? = null
 

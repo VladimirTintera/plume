@@ -103,6 +103,22 @@ compose.desktop {
             macOS {
                 bundleID = "eu.tintera.plume"
                 iconFile.set(project.file("icons/plume.icns"))
+                // Hovory: podpis s hardened runtime potřebuje oprávnění ke kameře a mikrofonu,
+                // jinak TCC dotaz neukáže a AVFoundation tiše nedává nic. Soubor nahrazuje
+                // výchozí oprávnění Compose, proto je opakuje.
+                entitlementsFile.set(project.file("entitlements.plist"))
+                runtimeEntitlementsFile.set(project.file("entitlements.plist"))
+                // Bez popisu použití macOS aplikaci při prvním sáhnutí na kameru (AVFoundation
+                // v ntgcalls) UKONČÍ; u mikrofonu by dotaz neměl čím vysvětlit.
+                // Anglicky — Info.plist jinak než přes `.lproj` přeložit nejde.
+                infoPlist {
+                    extraKeysRawXml = """
+                        <key>NSCameraUsageDescription</key>
+                        <string>Plume uses the camera for video calls.</string>
+                        <key>NSMicrophoneUsageDescription</key>
+                        <string>Plume uses the microphone for calls.</string>
+                    """.trimIndent()
+                }
             }
             linux {
                 packageName = "plume"

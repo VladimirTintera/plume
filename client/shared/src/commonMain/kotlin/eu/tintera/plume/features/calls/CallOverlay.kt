@@ -52,7 +52,6 @@ import eu.tintera.plume.core.calls.CallVideo
 import eu.tintera.plume.core.calls.rememberCallPictureInPicture
 import androidx.compose.runtime.mutableFloatStateOf
 import eu.tintera.plume.core.calls.CallVideoSource
-import eu.tintera.plume.core.camera.rememberVideoNotePermission
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import eu.tintera.plume.resources.call_camera
@@ -61,6 +60,7 @@ import eu.tintera.plume.resources.cameraswitch_24dp
 import eu.tintera.plume.resources.videocam_24dp
 import eu.tintera.plume.resources.video_call_incoming
 import eu.tintera.plume.core.calls.CallRequests
+import eu.tintera.plume.core.calls.rememberCallCameraPermission
 import org.jetbrains.compose.resources.DrawableResource
 import eu.tintera.plume.resources.call_output_bluetooth
 import eu.tintera.plume.resources.call_output_headset
@@ -220,7 +220,7 @@ private val CallPhase.ended get() = this == CallPhase.Ended || this == CallPhase
 private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -> Unit, onRemoteAspect: (Float) -> Unit) {
     val scope = rememberCoroutineScope()
     val accept = rememberAcceptCall(calls)
-    val cameraPermission = rememberVideoNotePermission()
+    val cameraPermission = rememberCallCameraPermission()
     val (name, avatarFileId) = rememberPeer(call.userId)
     // Zpět hovor neukončí, jen ho zmenší — jako u telefonu.
     NavigationBackHandler(
@@ -232,7 +232,8 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
     // Přes celou plochu obraz protistrany, a když ho není, náš náhled; v rohu náš vedle jejího.
     val full = when {
         ongoing && call.remoteVideo -> CallVideoSource.Remote
-        ongoing && call.camera -> CallVideoSource.Local
+        // Bez náhledu před spojením (desktop) by místo fotky zbyla prázdná plocha.
+        ongoing && call.camera && (calls.previewsBeforeConnect || call.connectedAt != null) -> CallVideoSource.Local
         else -> null
     }
     val corner = CallVideoSource.Local.takeIf { full == CallVideoSource.Remote && call.camera }
@@ -257,7 +258,7 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
                         Icon(painterResource(Res.drawable.keyboard_arrow_down_24dp), contentDescription = stringResource(Res.string.call_minimize))
                     }
                     Spacer(Modifier.weight(1f))
-                    if (ongoing && call.camera) {
+                    if (ongoing && call.camera && calls.canSwitchCamera) {
                         FilledTonalIconButton(onClick = calls::switchCamera, shapes = IconButtonDefaults.shapes()) {
                             Icon(painterResource(Res.drawable.cameraswitch_24dp), contentDescription = stringResource(Res.string.call_switch_camera))
                         }
@@ -401,7 +402,7 @@ private fun CallHeadline(call: ActiveCall, name: String, compact: Boolean = fals
 private fun rememberAcceptCall(calls: CallRepository): (ActiveCall) -> Unit {
     val scope = rememberCoroutineScope()
     val microphone = rememberRecordPermission()
-    val camera = rememberVideoNotePermission()
+    val camera = rememberCallCameraPermission()
     return remember(calls, microphone, camera) {
         { call ->
             val accept = { withCamera: Boolean ->
@@ -599,7 +600,7 @@ fun rememberStartCall(userId: Long?): ((video: Boolean) -> Unit)? {
     if (!calls.supported || userId == null) return null
     val scope = rememberCoroutineScope()
     val microphone = rememberRecordPermission()
-    val camera = rememberVideoNotePermission()
+    val camera = rememberCallCameraPermission()
     return remember(userId, microphone, camera) {
         { requested ->
             // Bez obrazu (desktop) se videohovor vytočí jako hlasový — kamera tam ani není.

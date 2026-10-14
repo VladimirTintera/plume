@@ -466,9 +466,9 @@ vlastníka režimu. U hovoru přes `CallsManager` (Jetpack core-telecom) Telecom
 
 ## Desktop
 
-Hlasové hovory na desktopu přes **C API ntgcalls 3.0.3** (`NtgNative` — vazba JNA,
-`DesktopCallMedia`), stejné pořadí volání jako na Androidu. Jen zvuk; video (`supportsVideo`
-= `false`) se nenabízí, videohovor se vytočí i přijme jako hlasový.
+Hovory na desktopu přes **C API ntgcalls 3.0.3** (`NtgNative` — vazba JNA,
+`DesktopCallMedia`), stejné pořadí volání jako na Androidu. Zvuk i video (oddíl „Video na
+desktopu" níž).
 
 - **Vazba přes JNA, ne JNI ani Java FFM.** Desktop jede na JDK 17 (FFM je finální až v 22)
   a ntgcalls Java vazby pro desktop nemá (jen Android, C, Node, Python, Rust). C API je
@@ -495,7 +495,42 @@ Hlasové hovory na desktopu přes **C API ntgcalls 3.0.3** (`NtgNative` — vazb
   chyby; WebRTC na úrovni informací píše desítky řádků za vteřinu.
 - **Ověřeno na macOS (arm64) s Pixelem 5**: příchozí hovor na desktop i odchozí z desktopu,
   zvuk oběma směry (poslechem), emoji shodná, zavěšení z desktopu i z telefonu. **Windows
-  a Linux jen přeložené.** Chybí video.
+  a Linux jen přeložené.**
+
+### Video na desktopu
+
+- **Kameru snímá knihovna sama**: na macOS `MacCameraCapturerModule` (AVFoundation přes
+  `RTCCameraVideoCapturer`), jinde modul WebRTC. Zařízení je první ze seznamu
+  `ntg_get_media_devices().camera`, metadata `{"id": …}` (na macOS `uniqueID`). Knihovna snímek
+  přeškáluje na požadovaný rozměr (1280 × 720) bez ohledu na poměr stran kamery.
+- **Snímky jdou do `ntg_on_frames_callback`**, naše kamera (CAPTURE) i protistrana (PLAYBACK
+  se slotem `camera` jako EXTERNAL, rozměr 0 = podle snímku), jako I420. Pole `ntg_frame`
+  platí jen během zpětného volání, data se hned kopírují. Z dávky se kreslí jen poslední snímek.
+- **Kreslí se bitmapou ve Skii** (`VideoFrames`, `CallVideo.jvm`): převod I420 → BGRA
+  v Kotlinu (BT.601, omezený rozsah) rovnou s otočením. Telefon na výšku posílá snímek na
+  šířku s rotací 90 / 270, a ta znamená „otočit po směru hodinových ručiček". Renderer
+  WebRTC nad OpenGL jako na Androidu tu není a 720p při 30 fps v Kotlinu stačí.
+- **Náhled kamery až od spojení** (`previewsBeforeConnect = false`): kameru otevírá knihovna
+  při startu přenosu. Na Androidu ji při vytáčení drží sdílená kamera mimo knihovnu. Při
+  vytáčení s kamerou proto obrazovka ukazuje fotku, ne prázdnou plochu.
+- **Přepnout kameru nejde** (`canSwitchCamera = false`, tlačítko se nekreslí). Zapnutí
+  a vypnutí za hovoru přenastaví zdroje CAPTURE (`ntg_set_stream_sources`).
+- **Oprávnění: hardened runtime chce entitlementy**, viz `docs/poznatky/desktop.md`,
+  „Kamera a mikrofon v podepsané aplikaci". Bez nich se snímací relace „rozběhne" (zelená
+  kamera v liště, „Capture session started"), ale nepřijde ani jeden snímek a dotaz na
+  povolení macOS nikdy neukáže. Diagnóza přišla až z logu `tccd`, knihovna o tom nehlásí nic.
+- **Ověřeno na macOS 26 s Pixelem 5** (aplikace spuštěná přes `open`, povolená kamera
+  i mikrofon): videohovor z telefonu na Mac i z Macu na telefon, obraz oběma směry rovně
+  (potvrdil uživatel), náhled v rohu jako zrcadlo, vypnutí a zapnutí kamery za hovoru.
+  **Neověřeno**: Windows a Linux (modul WebRTC), externí kamera, otočení telefonu za hovoru.
+- **Jednou spadla knihovna na poškozené haldě** (`process_signaling_data` → parse JSON,
+  `xzone_malloc` trap ve vlákně `ntg-media`). Stalo se po minutovém čekání na systémový dotaz
+  na mikrofon, kdy se spojení obnovovalo („Reconnecting…"). Data signalizace to nebyla:
+  vazba C je kopíruje synchronně ještě před asynchronní úlohou (`ntgcalls_c.cpp.tpl`).
+  Neopakovalo se; kdyby ano, hledat v knihovně.
+- **Ukončení přes `pkill` (SIGTERM) za běhu knihovny** dvakrát skončilo pádem JVM ve vlákně
+  `AudioEncoderQueue`. Normální ukončení (Cmd+Q, Apple event `quit`) po hovoru je čisté.
+  Ukončení uprostřed hovoru neověřené.
 
 ### Zvonění a příchozí hovor na desktopu
 

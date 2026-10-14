@@ -10,15 +10,23 @@ import java.util.concurrent.Executors
 
 /**
  * Přenos hovoru na desktopu: ntgcalls přes C API ([NtgNative]), stejné pořadí volání jako na
- * Androidu (`NtgCallMedia`) — hovor → zdroje → klíč z TDLib → spojení. Jen zvuk.
+ * Androidu (`NtgCallMedia`) — hovor → zdroje → klíč z TDLib → spojení.
  *
  * - **Zvuk bere knihovna sama** (CoreAudio na macOS, Core Audio/WASAPI na Windows, Pulse/ALSA
  *   na Linuxu), nezávisle na tom, že desktop jinak zvuk přehrávat neumí. Mikrofon i výstup jsou
  *   výchozí zařízení systému; přepínat výstup se nedá (jediný výstup „Reproduktor").
- * - **Video zatím ne** ([supportsVideo] je `false`): kamera ani obraz protistrany.
+ * - **Video**: kameru snímá knihovna sama (macOS AVFoundation, jinde WebRTC), vybírá se první
+ *   ze seznamu `ntg_get_media_devices`. Snímky naší kamery (CAPTURE) i protistrany (PLAYBACK,
+ *   slot `camera` jako EXTERNAL) chodí jako I420 do `ntg_on_frames_callback` a odtud do
+ *   [VideoFrames], které kreslí `CallVideo`. **Náhled kamery je až od spojení**: na Androidu
+ *   ho při vytáčení drží sdílená kamera mimo knihovnu, tady by na to byla potřeba druhá
+ *   instance knihovny.
  * - Všechno jde přes jedno vlákno, jako na Androidu; zpětná volání chodí z vláken knihovny.
  */
 class DesktopCallMedia : CallMedia {
+    /** Obraz hovoru pro `CallVideo`. */
+    internal val video = VideoFrames()
+
     private val logger = Logger.withTag("DesktopCallMedia")
     private val worker = Executors.newSingleThreadExecutor { Thread(it, "ntgcalls").apply { isDaemon = true } }
 
@@ -34,18 +42,29 @@ class DesktopCallMedia : CallMedia {
     private var callId = 0L
     private var userMuted = false
     private var held = false
+    private var cameraOn = false
+    private var devices: Devices? = null
+    private var pixels = ByteArray(0)
 
     // Zpětná volání drží tahle instance — JNA by je jinak nechala uklidit, zatímco je knihovna volá.
     private var signalingCallback: NtgNative.SignalingCallback? = null
     private var connectionCallback: NtgNative.ConnectionCallback? = null
     private var remoteSourceCallback: NtgNative.RemoteSourceCallback? = null
+    private var framesCallback: NtgNative.FramesCallback? = null
 
     private val logCallback = NtgNative.LogCallback { message, _ ->
         // Jen chyby: WebRTC na úrovni informací píše desítky řádků za vteřinu.
         if (message.level >= LOG_ERROR) logger.w { "ntgcalls: ${message.message}" }
     }
 
-    override val supportsVideo: Boolean = false
+    /** Přijímat obraz jde vždycky; když kamera chybí, zapnutí kamery jen nic neukáže. */
+    override val supportsVideo: Boolean = true
+
+    /** Kamera je jedna (vybírá se první), přepínat není mezi čím. */
+    override val canSwitchCamera: Boolean = false
+
+    /** Kameru otevírá knihovna až se spojením (viz třída). */
+    override val previewsBeforeConnect: Boolean = false
 
     override val protocol: CallMediaProtocol by lazy {
         worker.submit<CallMediaProtocol> {
@@ -85,19 +104,37 @@ class DesktopCallMedia : CallMedia {
                 }.also { lib.ntg_on_connection_change_callback(instance, it, null) }
                 remoteSourceCallback = NtgNative.RemoteSourceCallback { _, _, source, _ ->
                     if (source.device == NtgNative.STREAM_DEVICE_CAMERA) {
-                        logger.i { "Protistrana posílá obraz (${source.state}), desktop ho zatím neukáže." }
+                        val active = source.state == NtgNative.STREAM_STATUS_ACTIVE
+                        if (!active) video.clear(CallVideoSource.Remote)
+                        events.onRemoteVideo(active)
                     }
                 }.also { lib.ntg_on_remote_source_change_callback(instance, it, null) }
+                val seen = mutableSetOf<Pair<Int, Int>>()
+                framesCallback = NtgNative.FramesCallback { _, _, mode, device, frames, count, _ ->
+                    if (synchronized(seen) { seen.add(mode to device) }) logger.d { "První snímky: režim $mode, zařízení $device." }
+                    if (device == NtgNative.STREAM_DEVICE_CAMERA && frames != null && count > 0) {
+                        val source = if (mode == NtgNative.STREAM_MODE_CAPTURE) CallVideoSource.Local else CallVideoSource.Remote
+                        // Z dávky stačí poslední snímek, starší by se stejně hned překreslil.
+                        render(source, NtgFrame(frames.share((count - 1) * FRAME_SIZE)))
+                    }
+                }.also { lib.ntg_on_frames_callback(instance, it, null) }
 
                 lib.check("create_p2p_call") { ntg_create_p2p_call(instance, callId) }
-                val devices = audioDevices()
+                val found = devices()
+                devices = found
                 lib.check("set_stream_sources(capture)") {
-                    ntg_set_stream_sources(instance, callId, NtgNative.STREAM_MODE_CAPTURE, media(microphone = devices.first))
+                    ntg_set_stream_sources(instance, callId, NtgNative.STREAM_MODE_CAPTURE, capture(found))
                 }
                 // V režimu PLAYBACK je slot `microphone` mikrofon PROTISTRANY (viz `NtgCallMedia`):
-                // příjem zvuku ntgcalls zapne jen pro něj.
+                // příjem zvuku ntgcalls zapne jen pro něj. Slot `camera` jako EXTERNAL = obraz
+                // protistrany jde nám (`ntg_on_frames_callback`), bez něj by ho knihovna nepřijala.
                 lib.check("set_stream_sources(playback)") {
-                    ntg_set_stream_sources(instance, callId, NtgNative.STREAM_MODE_PLAYBACK, media(microphone = devices.second))
+                    ntg_set_stream_sources(
+                        instance,
+                        callId,
+                        NtgNative.STREAM_MODE_PLAYBACK,
+                        media(microphone = found.speaker, camera = REMOTE_CAMERA),
+                    )
                 }
                 lib.check("skip_exchange") {
                     ntg_skip_exchange(instance, callId, session.encryptionKey, session.encryptionKey.size.toLong(), session.isOutgoing.toByte())
@@ -153,8 +190,24 @@ class DesktopCallMedia : CallMedia {
     /** Výstup vybírá systém (viz třída). */
     override fun setOutput(output: CallAudioOutput) = Unit
 
-    /** Video desktop zatím neumí ([supportsVideo]). */
-    override fun setCamera(on: Boolean, front: Boolean) = Unit
+    /**
+     * Zapne nebo vypne kameru. Před spojením si jen zapamatuje, co chtít ([start] ji pak
+     * zahrne do zdrojů); za hovoru přenastaví zdroje CAPTURE. Přední / zadní desktop nezná.
+     */
+    override fun setCamera(on: Boolean, front: Boolean) {
+        worker.execute {
+            if (cameraOn == on) return@execute
+            cameraOn = on
+            if (!on) video.clear(CallVideoSource.Local)
+            val instance = handle ?: return@execute
+            val found = devices ?: return@execute
+            runCatching {
+                native.check("set_stream_sources(camera $on)") {
+                    ntg_set_stream_sources(instance, callId, NtgNative.STREAM_MODE_CAPTURE, capture(found))
+                }
+            }.onFailure { logger.w(it) { "Kameru nejde ${if (on) "zapnout" else "vypnout"}." } }
+        }
+    }
 
     override fun stop() {
         worker.execute { stopNow() }
@@ -169,9 +222,49 @@ class DesktopCallMedia : CallMedia {
         handle = null
         held = false
         userMuted = false
+        cameraOn = false
+        devices = null
         signalingCallback = null
         connectionCallback = null
         remoteSourceCallback = null
+        framesCallback = null
+        video.clearAll()
+    }
+
+    /** Snímek z knihovny: data platí jen během zpětného volání, proto se hned zkopírují. */
+    private fun render(source: CallVideoSource, frame: NtgFrame) {
+        val info = frame.frame_data
+        val width = info.widthPx
+        val height = info.heightPx
+        val data = frame.data ?: return
+        if (width <= 0 || height <= 0) return
+        val size = width * height + 2 * ((width + 1) / 2) * ((height + 1) / 2)
+        if (frame.data_len < size) return
+        runCatching {
+            synchronized(this) {
+                if (pixels.size < size) pixels = ByteArray(size)
+                data.read(0, pixels, 0, size)
+                video.push(source, pixels, width, height, info.rotationDegrees)
+            }
+        }.onFailure { logger.w(it) { "Snímek se nepodařilo vykreslit." } }
+    }
+
+    private fun capture(found: Devices): NtgMediaDescription.ByValue {
+        val camera = found.camera?.takeIf { cameraOn }
+        if (cameraOn && camera == null) logger.w { "Kamera není, hovor jde bez obrazu." }
+        return media(
+            microphone = found.microphone,
+            camera = camera?.let {
+                NtgVideoDescription.ByReference().apply {
+                    media_source = NtgNative.MEDIA_SOURCE_DEVICE
+                    width = CAMERA_WIDTH
+                    height = CAMERA_HEIGHT
+                    fps = CAMERA_FPS
+                    input = it
+                    keep_open = 1
+                }
+            },
+        )
     }
 
     private fun toggle(action: NtgNative.(Pointer, Long, ByteByReference) -> Int) {
@@ -185,39 +278,47 @@ class DesktopCallMedia : CallMedia {
         check(result == NtgNative.OK) { "ntg_$what: $result ${ntg_last_error()}" }
     }
 
+    /** Metadata zařízení pro `ntg_set_stream_sources` (JSON, jak ho chce knihovna). */
+    private data class Devices(val microphone: String, val speaker: String, val camera: String?)
+
     /**
      * Mikrofon a výstup: výchozí zařízení systému. Metadata zná každý zvukový modul knihovny
      * po svém — macOS prázdné `uid` (= výchozí), Windows `index` 0 (= výchozí), Pulse a ALSA
-     * id zařízení, a tam se bere první, které knihovna vypíše.
+     * id zařízení, a tam se bere první, které knihovna vypíše. Kamera je všude první ze seznamu
+     * (`{"id": …}`); na macOS ji seznam dává přes AVFoundation.
      */
-    private fun audioDevices(): Pair<String, String> {
+    private fun devices(): Devices {
         val os = System.getProperty("os.name").lowercase()
-        return when {
-            os.contains("mac") -> MAC_MICROPHONE to MAC_SPEAKER
-            os.contains("win") -> WINDOWS_MICROPHONE to WINDOWS_SPEAKER
-            else -> {
-                val out = NtgMediaDevices()
-                check(native.ntg_get_media_devices(out) == NtgNative.OK) { "ntg_get_media_devices: ${native.ntg_last_error()}" }
-                try {
-                    val microphone = out.microphones().firstOrNull()?.metadata ?: error("Žádný mikrofon.")
-                    val speaker = out.speakers().firstOrNull()?.metadata ?: error("Žádný výstup zvuku.")
-                    microphone to speaker
-                } finally {
-                    native.ntg_media_devices_free(out)
-                }
+        val out = NtgMediaDevices()
+        check(native.ntg_get_media_devices(out) == NtgNative.OK) { "ntg_get_media_devices: ${native.ntg_last_error()}" }
+        try {
+            val camera = out.cameras().firstOrNull()
+            logger.i { "Kamera: ${camera?.name ?: "žádná"}." }
+            return when {
+                os.contains("mac") -> Devices(MAC_MICROPHONE, MAC_SPEAKER, camera?.metadata)
+                os.contains("win") -> Devices(WINDOWS_MICROPHONE, WINDOWS_SPEAKER, camera?.metadata)
+                else -> Devices(
+                    microphone = out.microphones().firstOrNull()?.metadata ?: error("Žádný mikrofon."),
+                    speaker = out.speakers().firstOrNull()?.metadata ?: error("Žádný výstup zvuku."),
+                    camera = camera?.metadata,
+                )
             }
+        } finally {
+            native.ntg_media_devices_free(out)
         }
     }
 
-    private fun media(microphone: String): NtgMediaDescription.ByValue = NtgMediaDescription.ByValue().apply {
-        this.microphone = NtgAudioDescription.ByReference().apply {
-            media_source = NtgNative.MEDIA_SOURCE_DEVICE
-            sample_rate = SAMPLE_RATE
-            channel_count = CHANNELS
-            input = microphone
-            keep_open = 1
+    private fun media(microphone: String, camera: NtgVideoDescription.ByReference? = null): NtgMediaDescription.ByValue =
+        NtgMediaDescription.ByValue().apply {
+            this.microphone = NtgAudioDescription.ByReference().apply {
+                media_source = NtgNative.MEDIA_SOURCE_DEVICE
+                sample_rate = SAMPLE_RATE
+                channel_count = CHANNELS
+                input = microphone
+                keep_open = 1
+            }
+            this.camera = camera
         }
-    }
 
     /**
      * Souvislé pole struktur (`toArray`), jak ho C čeká; `peer_tag` drží [Memory] až do volání.
@@ -260,6 +361,21 @@ class DesktopCallMedia : CallMedia {
             val onPath = System.getProperty("jna.library.path")?.split(File.pathSeparator)?.any { File(it, file).isFile } == true
             return bundled || onPath
         }
+
+        /** Velikost `ntg_frame` v poli snímků (podle zarovnání platformy, jak ho počítá JNA). */
+        private val FRAME_SIZE: Long by lazy { NtgFrame().size().toLong() }
+
+        /** Obraz protistrany: EXTERNAL = snímky jdou nám; 0 = rozměr podle snímku. */
+        private val REMOTE_CAMERA: NtgVideoDescription.ByReference
+            get() = NtgVideoDescription.ByReference().apply {
+                media_source = NtgNative.MEDIA_SOURCE_EXTERNAL
+                input = ""
+            }
+
+        // Jako na Androidu; knihovna vybere nejbližší formát kamery a přeškáluje na tenhle.
+        private const val CAMERA_WIDTH: Short = 1280
+        private const val CAMERA_HEIGHT: Short = 720
+        private const val CAMERA_FPS: Byte = 30
 
         private const val SAMPLE_RATE = 48_000
         private const val CHANNELS: Byte = 2
