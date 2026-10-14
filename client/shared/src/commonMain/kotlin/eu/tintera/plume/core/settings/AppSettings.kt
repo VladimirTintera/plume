@@ -9,6 +9,7 @@ import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.GemmaModel
 import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.audio.VoiceSpeed
+import eu.tintera.plume.core.adaptive.ListPaneAnchor
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
@@ -111,6 +112,15 @@ interface AppSettings {
 
     /** Uloží barvu palety. Neblokuje, jako [recordRecentEmoji]. */
     fun setThemeColor(color: ThemeColor)
+
+    /**
+     * Kotva, na kterou uživatel táhlem posunul seznam chatů vedle konverzace; `null` = výchozí
+     * šířka ([ListPaneAnchor.Default]). Výchozí se neukládá, jako u motivu.
+     */
+    val listPaneAnchor: StateFlow<ListPaneAnchor?>
+
+    /** Uloží kotvu seznamu chatů. Neblokuje, jako [recordRecentEmoji]. */
+    fun setListPaneAnchor(anchor: ListPaneAnchor)
 
     /**
      * Mají nepřečtené chaty v seznamu vlastní blok?
@@ -527,6 +537,18 @@ class DataStoreAppSettings(
     override fun setThemeColor(color: ThemeColor) {
         scope.launch {
             edit { preferences -> preferences[THEME_COLOR] = color.name }
+        }
+    }
+
+    override val listPaneAnchor: StateFlow<ListPaneAnchor?> = value(null) { preferences ->
+        ListPaneAnchor.entries.firstOrNull { it.name == preferences[LIST_PANE_ANCHOR] }
+    }
+
+    override fun setListPaneAnchor(anchor: ListPaneAnchor) {
+        scope.launch {
+            edit { preferences ->
+                if (anchor == ListPaneAnchor.Default) preferences.remove(LIST_PANE_ANCHOR) else preferences[LIST_PANE_ANCHOR] = anchor.name
+            }
         }
     }
 
@@ -971,6 +993,7 @@ class DataStoreAppSettings(
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val THEME_COLOR = stringPreferencesKey("theme_color")
+        val LIST_PANE_ANCHOR = stringPreferencesKey("list_pane_anchor")
         val SEPARATE_UNREAD_CHATS = booleanPreferencesKey("separate_unread_chats")
         val SAVED_MESSAGES_AS_CHATS = booleanPreferencesKey("saved_messages_as_chats")
         val TRANSLATE_ON_DEVICE = booleanPreferencesKey("translate_on_device")

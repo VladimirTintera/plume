@@ -4,6 +4,7 @@ import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
 import androidx.compose.material3.adaptive.layout.ThreePaneScaffoldScope
 import androidx.compose.material3.adaptive.navigation3.ListDetailSceneStrategy
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.Dp
 import androidx.navigation3.runtime.NavEntry
 
 /** Panel list-detail scény, do kterého obrazovka patří. */
@@ -30,6 +31,10 @@ object Panes {
     /** Třetí panel — profil a obrazovky, které se z něj otevírají. Patří k detailu pod sebou. */
     fun extra(sceneKey: Any = Unit): Map<String, Any> =
         ListDetailSceneStrategy.extraPane(sceneKey) + info(PaneRole.Extra, sceneKey)
+
+    /** Preferovaná šířka panelu; `null` = výchozí z direktivy (nebo podle táhla). */
+    fun width(width: Dp?): Map<String, Any> =
+        if (width == null) emptyMap() else ListDetailSceneStrategy.preferredPaneSize(width = width)
 
     private fun info(role: PaneRole, sceneKey: Any): Map<String, Any> = mapOf(PANE_INFO_KEY to PaneInfo(role, sceneKey))
 }

@@ -700,39 +700,25 @@ celou aplikaci a rozdělený na dvě místa by se rozešel. Zbývá:
 
 ## Velká plocha (adaptivní rozvržení)
 
-Rozbor z října 2026. Šířkové třídy V2, odvozené prahy a profil jako třetí panel jsou hotové
-(`feat/tri-panely`); co platí a jak se chová knihovna, je v `docs/poznatky/navigace.md`,
-„Šířkové třídy, tři panely a kotvy". Zbývá:
+Rozbor z října 2026. Hotové: šířkové třídy V2 a odvozené prahy, profil jako třetí panel
+(`feat/tri-panely`), panely jako karty, táhlo s kotvami, sbalený seznam a šipka
+zpět, která vedle seznamu konverzaci zavře (`feat/kotvy-panelu`). Co platí a jak se chová knihovna, je
+v `docs/poznatky/navigace.md`, „Šířkové třídy, tři panely a kotvy" a „Táhlo, kotvy a sbalený
+seznam". Zbývá:
 
-1. **Šířky panelů, táhlo a kotvy — další PR.**
-   - Seznamu a profilu dát šířku metadaty `ListDetailSceneStrategy.preferredPaneSize`
-     (360 dp, na XL širší výchozí šířka knihovny); konverzace bere zbytek.
-   - Táhlo mezi panely: `rememberListDetailSceneStrategy(paneExpansionState = …,
-     paneExpansionDragHandle = …)` s `VerticalDragHandle` z material3 a kotvami
-     (`PaneExpansionAnchor`): seznam 360 dp, polovina plochy, seznam sbalený na úzký sloupec.
-     Zvolenou kotvu pamatovat v `AppSettings`.
-   - **Sbalený seznam (jen avatary s odznaky) je součástí téhož PR** — rozhodnuto v říjnu 2026.
-     Je to nová varianta řádku seznamu chatů, ne jen kotva.
-   - **Táhlo knihovny funguje jen mezi DVĚMA panely.** Ve třech (seznam | konverzace | profil)
-     se nekreslí, šířky tam určuje `preferredPaneSize`. Zvolená šířka seznamu (i sbalená) se
-     proto musí do třetího panelu přenést přes metadata seznamu, jinak by po otevření profilu
-     seznam skočil zpátky na 360 dp.
-   - Táhlo potřebuje mezeru mezi panely — dnes je záměrně 0 dp (`withHorizontalPartitions`).
-     Tedy přechod na vzhled panelů M3 Expressive: panely jako zaoblené plochy na
-     `surfaceContainer`, mezera 24 dp. **Odsouhlaseno** (říjen 2026), viditelná změna vzhledu.
-
-2. **Nastavení na tři panely — samostatný PR, až po přeskupení sekcí.** Seznam sekcí | sekce
+1. **Nastavení na tři panely — samostatný PR, až po přeskupení sekcí.** Seznam sekcí | sekce
    | podstránka (Soukromí → Blokovaní). Napřed se musí probrat a rozeskupit sekce samotné —
    sekce Obecné je sběrná a nesedí (připomínka uživatele z října 2026).
 
-3. **Nápad: profil zůstane otevřený při přepnutí chatu.** Dnes ho jiný chat ze seznamu zavře
+2. **Nápad: profil zůstane otevřený při přepnutí chatu.** Dnes ho jiný chat ze seznamu zavře
    (`coveredExtras`). Telegram Desktop panel s informacemi nechá a přepne ho na nový chat.
 
-4. **Drobnosti k tomu.**
-   - Konverzace ve dvoupanelu nemá mít šipku zpět (`ChatSwitcherBackButton`) — seznam je
-     vedle. Podržení pro rychlý přepínač chatů na velké ploše asi taky ztrácí smysl.
+3. **Drobnosti.**
    - Obsah Nastavení (detail sekce) a profilu omezit čitelnou maximální šířkou; na XL by se
      řádky natáhly přes 1000 dp. Bubliny mají strop 560 dp už dnes.
+   - Sbalený seznam nemá karty nad seznamem (aktualizace, nové přihlášení), FAB ani výběr víc
+     chatů. Kdyby chyběly, stačí ve sloupci ukázat aspoň tečku, že nahoře něco čeká.
+   - Šířka panelu profilu je výchozí z direktivy; táhlo mezi konverzací a profilem není.
 
 **Jak ověřovat:** desktop změnou velikosti okna (nejrychlejší cesta k Large a XL), emulátor
 tabletu, Fold (`adb emu fold` / `unfold` v cyklu — viz Gotchas o insetech v `CLAUDE.md`, změna
