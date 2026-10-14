@@ -683,7 +683,9 @@ private fun shellEntryProvider(
     }
 
     entry<ConversationRoute>(metadata = Panes.detail() + ChatScreenMetadata) { route ->
-        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+        // Leží přímo na seznamu? Pamatuje se: při návratu je route ze zásobníku pryč dřív, než dojede přechod.
+        val fromList = remember(route) { chatsStack.liesOnChatList(route) }
+        ColoredChatContainer(route.chatId, fromList = fromList) {
             val settings = koinInject<AppSettings>()
             ConversationScreen(
                 // Klíč MUSÍ obsahovat chatId. ViewModel se cachuje podle klíče, takže
@@ -737,6 +739,7 @@ private fun shellEntryProvider(
                     chatsStack.openSavedTopics(route.chatId)
                 },
                 onSwitchChat = rememberSwitchChat(navigation),
+                showBack = !(LocalPanesSideBySide.current && fromList),
             )
         }
     }
@@ -852,7 +855,7 @@ private fun shellEntryProvider(
                     chatsStack.pop(route)
                     if (!chatsStack.isOpenConversation(route.chatId)) chatsStack.add(ConversationRoute(route.chatId, messageId))
                 },
-                closeIcon = wide,
+                closeIcon = LocalPanesSideBySide.current,
             )
         }
     }
@@ -933,7 +936,8 @@ private fun shellEntryProvider(
     }
 
     entry<ArchiveConversationRoute>(metadata = Panes.detail(ARCHIVE_SCENE) + ChatScreenMetadata) { route ->
-        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+        val fromList = remember(route) { chatsStack.liesOnChatList(route) }
+        ColoredChatContainer(route.chatId, fromList = fromList) {
             ConversationScreen(
                 viewModel = koinViewModel(
                     key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}",
@@ -973,6 +977,7 @@ private fun shellEntryProvider(
                 onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
                 onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
                 onSwitchChat = rememberSwitchChat(navigation),
+                showBack = !(LocalPanesSideBySide.current && fromList),
             )
         }
     }
@@ -1022,7 +1027,7 @@ private fun shellEntryProvider(
                         chatsStack.add(ArchiveConversationRoute(route.chatId, messageId))
                     }
                 },
-                closeIcon = wide,
+                closeIcon = LocalPanesSideBySide.current,
             )
         }
     }

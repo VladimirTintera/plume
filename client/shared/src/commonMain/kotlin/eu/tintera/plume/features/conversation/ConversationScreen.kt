@@ -513,6 +513,12 @@ fun ConversationScreen(
      * nenabízet (bublina konverzace).
      */
     onSwitchChat: ((ChatSummary) -> Unit)? = null,
+    /**
+     * Šipka zpět v hlavičce. Bez ní je konverzace vedle seznamu, ze kterého se otevřela: zpět by
+     * ji jen zavřelo na prázdný panel a chat se přepíná rovnou v seznamu (i rychlý přepínač na
+     * podržení tu ztrácí smysl). Zpět systémem i klávesou dál funguje.
+     */
+    showBack: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val stateHolder = viewModel.state.collectAsStateWithLifecycle()
@@ -1603,7 +1609,7 @@ fun ConversationScreen(
                 },
                 navigationIcon = {
                     // Podržení nabídne rychlý přepínač chatů; ťuknutí je dál „zpět".
-                    ChatSwitcherBackButton(chatId = viewModel.chatId, onBack = onBack, onSwitch = onSwitchChat)
+                    if (showBack) ChatSwitcherBackButton(chatId = viewModel.chatId, onBack = onBack, onSwitch = onSwitchChat)
                 },
                 actions = {
                     // Hlavní akce jsou hovor a videohovor, všechno ostatní je za ⋮.
