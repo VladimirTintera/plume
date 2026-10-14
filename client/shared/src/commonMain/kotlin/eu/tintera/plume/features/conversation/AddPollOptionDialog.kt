@@ -19,6 +19,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.POLL_ANSWER_MAX
 import eu.tintera.plume.core.telegram.PollDraftMedia
+import eu.tintera.plume.core.ui.TextFieldSlot
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.resources.Res
@@ -70,12 +71,14 @@ internal fun AddPollOptionDialog(
                 supportingText = { Text(stringResource(Res.string.poll_compose_counter, text.length, POLL_ANSWER_MAX)) },
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 trailingIcon = {
-                    MediaSlot(
-                        media = media,
-                        kinds = PollMediaKind.entries,
-                        onChoose = { kind -> if (kind == PollMediaKind.PhotoOrVideo) mediaPicker.pickMedia() else choosing = kind },
-                        onRemove = { media = null },
-                    )
+                    TextFieldSlot {
+                        MediaSlot(
+                            media = media,
+                            kinds = PollMediaKind.entries,
+                            onChoose = { kind -> if (kind == PollMediaKind.PhotoOrVideo) mediaPicker.pickMedia() else choosing = kind },
+                            onRemove = { media = null },
+                        )
+                    }
                 },
                 modifier = Modifier.focusRequester(focus),
             )

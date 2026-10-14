@@ -13,6 +13,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberBottomSheetState
+import eu.tintera.plume.core.ui.TextFieldSlot
 import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.resources.chat_folder_icon
 import eu.tintera.plume.resources.chat_folder_icon_auto
@@ -257,11 +258,13 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
                 // Ikona stojí u názvu, jako v oficiálních klientech: je to druhá půlka toho,
                 // jak se složka jmenuje, ne další blok formuláře.
                 leadingIcon = {
-                    IconButton(onClick = viewModel::openIconPicker, shapes = IconButtonDefaults.shapes()) {
-                        Icon(
-                            painterResource(folderIcon(state.shownIconName)),
-                            contentDescription = stringResource(Res.string.chat_folder_icon),
-                        )
+                    TextFieldSlot {
+                        IconButton(onClick = viewModel::openIconPicker, shapes = IconButtonDefaults.shapes()) {
+                            Icon(
+                                painterResource(folderIcon(state.shownIconName)),
+                                contentDescription = stringResource(Res.string.chat_folder_icon),
+                            )
+                        }
                     }
                 },
                 singleLine = true,
