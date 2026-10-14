@@ -23,6 +23,9 @@ internal object MacCamera {
     @Volatile
     private var sink: ((pixels: ByteBuffer, width: Int, height: Int, stride: Int) -> Unit)? = null
 
+    /** Je oprávnění už udělené? Bez systémového dotazu (náhled u zvonění se kvůli němu neptá). */
+    fun hasAccess(video: Boolean): Boolean = available && nativeHasAccess(video)
+
     /** Systémový dotaz, když se uživatel ještě nerozhodl; čeká na odpověď — ne z hlavního vlákna. */
     fun requestAccess(video: Boolean): Boolean = available && nativeRequestAccess(video)
 
@@ -47,6 +50,9 @@ internal object MacCamera {
 
     @JvmStatic
     private external fun nativeInit(): Boolean
+
+    @JvmStatic
+    private external fun nativeHasAccess(video: Boolean): Boolean
 
     @JvmStatic
     private external fun nativeRequestAccess(video: Boolean): Boolean

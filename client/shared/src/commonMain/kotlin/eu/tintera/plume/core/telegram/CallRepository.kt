@@ -55,6 +55,13 @@ interface CallRepository {
     /** Zapne / vypne kameru; zapnutí přepne zvuk ze sluchátka u ucha na reproduktor. */
     fun setCamera(on: Boolean)
 
+    /**
+     * Náhled kamery u zvonícího příchozího videohovoru: člověk vidí, jak bude vypadat, než
+     * zvedne. Obraz se neposílá (přenos ještě neběží) a zvuk se nepřepíná. Zastaví ho
+     * přijetí bez kamery, odmítnutí i konec hovoru; přijetí s kamerou ho převezme.
+     */
+    fun previewCamera(on: Boolean)
+
     /** Přední ↔ zadní kamera. */
     fun switchCamera()
 
@@ -90,6 +97,8 @@ data class ActiveCall(
     val isVideo: Boolean = false,
     /** Posíláme obraz z kamery. */
     val camera: Boolean = false,
+    /** Náhled kamery u zvonícího videohovoru ([CallRepository.previewCamera]); obraz nejde ven. */
+    val preview: Boolean = false,
     /** Přední kamera (náhled se zrcadlí), jinak zadní. */
     val frontCamera: Boolean = true,
     /** Protistrana posílá obraz. */

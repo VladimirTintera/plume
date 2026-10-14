@@ -169,8 +169,13 @@ internal class TdlCallRepository(
             ?: return Result.failure(IllegalStateException("Žádný hovor nezvoní."))
         val protocol = protocol() ?: return Result.failure(UnsupportedOperationException("Hovory tu nejsou."))
         startAudio()
-        _active.update { it?.copy(failure = null) }
-        if (camera && supportsVideo) setCamera(true)
+        _active.update { it?.copy(failure = null, preview = false) }
+        if (camera && supportsVideo) {
+            setCamera(true)
+        } else if (call.preview) {
+            // Přijato bez kamery (oprávnění odepřené): náhled ze zvonění pryč.
+            media?.setCamera(on = false, front = call.frontCamera)
+        }
         return holder.client.acceptCall(callId = call.id, protocol = protocol).toResult().map { }
             .onFailure { failure ->
                 logger.w(failure) { "Hovor se nepodařilo přijmout." }
@@ -231,6 +236,13 @@ internal class TdlCallRepository(
         _active.update { it?.copy(camera = on) }
         // Kdo zapne kameru, drží telefon před sebou — ze sluchátka u ucha by nic neslyšel.
         if (on && call.output.kind == CallAudioOutput.Kind.Earpiece) setOutput(CallAudioOutput.Speaker)
+    }
+
+    override fun previewCamera(on: Boolean) {
+        if (on && (!supportsVideo || !previewsBeforeConnect)) return
+        val call = _active.value?.takeIf { it.phase == CallPhase.Ringing && it.preview != on } ?: return
+        media?.setCamera(on = on, front = call.frontCamera)
+        _active.update { it?.copy(preview = on) }
     }
 
     override fun switchCamera() {

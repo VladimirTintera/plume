@@ -17,3 +17,10 @@ expect fun rememberCallCameraPermission(): RecordPermission
  */
 @Composable
 expect fun rememberCallMicrophonePermission(): RecordPermission
+
+/**
+ * Je kamera pro hovor už povolená? Bez dotazu: náhled u zvonícího videohovoru se kvůli
+ * oprávnění neptá — dotaz přijde až s „Přijmout".
+ */
+@Composable
+expect fun rememberCallCameraGranted(): Boolean
