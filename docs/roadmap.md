@@ -467,8 +467,9 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
      nikdo neviděl), Odmítnout z okénka a z oznámení na macOS. Zvonění, okénko příchozího
      hovoru a video na macOS hotové (`docs/poznatky/hovory.md`, „Zvonění a příchozí hovor na
      desktopu", „Video na desktopu").
-   - **Desktop: video dál** — náhled kamery už při vytáčení (dnes až od spojení), výběr
-     kamery (bere se první), ukončení aplikace uprostřed hovoru (`pkill` shodil JVM).
+   - **Desktop: video dál** — náhled kamery při vytáčení na Windows a Linuxu (macOS hotový,
+     `docs/poznatky/hovory.md`, „Video na desktopu"), výběr kamery (bere se první),
+     ukončení aplikace uprostřed hovoru (`pkill` shodil JVM).
    - **Desktop: zabalená aplikace** — v `.app` z `createDistributable` JNA `libntgcalls`
      najde a popisy použití i entitlementy kamery a mikrofonu jsou hotové
      (`docs/poznatky/desktop.md`, „Kamera a mikrofon v podepsané aplikaci"); ověřit ještě

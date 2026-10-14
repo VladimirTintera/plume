@@ -556,7 +556,7 @@ soubory; soubory z Finderu či Průzkumníka jde pustit kamkoli do konverzace
 ## Co platforma (zatím) neumí
 
 **Hovory** přes ntgcalls (`docs/poznatky/hovory.md`, „Desktop"), se zvukem i videem, bez
-přepínání kamery a bez náhledu před spojením.
+přepínání kamery; náhled kamery před spojením jen na macOS.
 
 Prázdné `actual` volí chování, které sdílený kód už umí ohlásit, ne tiché nic: přehrávání
 zvuku vyhodí výjimku („hlasovku se nepodařilo přehrát"), nahrávání taky („nahrávání nejde

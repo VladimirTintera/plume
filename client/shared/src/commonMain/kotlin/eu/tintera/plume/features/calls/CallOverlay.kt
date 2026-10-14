@@ -47,7 +47,6 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import co.touchlab.kermit.Logger
-import eu.tintera.plume.core.audio.rememberRecordPermission
 import eu.tintera.plume.core.calls.CallVideo
 import eu.tintera.plume.core.calls.rememberCallPictureInPicture
 import androidx.compose.runtime.mutableFloatStateOf
@@ -61,6 +60,7 @@ import eu.tintera.plume.resources.videocam_24dp
 import eu.tintera.plume.resources.video_call_incoming
 import eu.tintera.plume.core.calls.CallRequests
 import eu.tintera.plume.core.calls.rememberCallCameraPermission
+import eu.tintera.plume.core.calls.rememberCallMicrophonePermission
 import org.jetbrains.compose.resources.DrawableResource
 import eu.tintera.plume.resources.call_output_bluetooth
 import eu.tintera.plume.resources.call_output_headset
@@ -401,7 +401,7 @@ private fun CallHeadline(call: ActiveCall, name: String, compact: Boolean = fals
 @Composable
 private fun rememberAcceptCall(calls: CallRepository): (ActiveCall) -> Unit {
     val scope = rememberCoroutineScope()
-    val microphone = rememberRecordPermission()
+    val microphone = rememberCallMicrophonePermission()
     val camera = rememberCallCameraPermission()
     return remember(calls, microphone, camera) {
         { call ->
@@ -599,7 +599,7 @@ fun rememberStartCall(userId: Long?): ((video: Boolean) -> Unit)? {
     val calls = koinInject<CallRepository>()
     if (!calls.supported || userId == null) return null
     val scope = rememberCoroutineScope()
-    val microphone = rememberRecordPermission()
+    val microphone = rememberCallMicrophonePermission()
     val camera = rememberCallCameraPermission()
     return remember(userId, microphone, camera) {
         { requested ->

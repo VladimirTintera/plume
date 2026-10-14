@@ -4,8 +4,16 @@ import androidx.compose.runtime.Composable
 import eu.tintera.plume.core.audio.RecordPermission
 
 /**
- * Oprávnění ke kameře pro videohovor. Na telefonech totéž jako u videokoleček; desktop kolečka
- * nenatáčí (jejich oprávnění tam vždycky odmítne), kameru hovoru ale má.
+ * Oprávnění ke kameře pro videohovor (s mikrofonem — videohovor bez zvuku nedává smysl). Na
+ * telefonech totéž jako u videokoleček; desktop kolečka nenatáčí (jejich oprávnění tam vždycky
+ * odmítne), kameru hovoru ale má.
  */
 @Composable
 expect fun rememberCallCameraPermission(): RecordPermission
+
+/**
+ * Oprávnění k mikrofonu pro hovor. Na telefonech totéž jako u hlasovek; na macOS se ptá systém
+ * hned při vytočení / přijetí, ne až uprostřed spojování.
+ */
+@Composable
+expect fun rememberCallMicrophonePermission(): RecordPermission

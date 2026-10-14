@@ -2,6 +2,7 @@ package eu.tintera.plume.core.calls
 
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import java.nio.ByteBuffer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,6 +36,24 @@ internal class VideoFrames {
             i420ToBgra(i420, width, height, rotation, pixels)
             // `makeRaster` pixely kopíruje, buffer se tedy smí přepsat dalším snímkem.
             val image = Image.makeRaster(ImageInfo(outWidth, outHeight, ColorType.BGRA_8888, ColorAlphaType.OPAQUE), pixels, outWidth * 4)
+            frames.getValue(source).value = image.toComposeImageBitmap()
+        }
+    }
+
+    /**
+     * Snímek BGRA s řádky po [stride] bajtech (náhled z [MacCamera]); [pixels] platí jen
+     * během volání, proto se hned kopíruje.
+     */
+    fun pushBgra(source: CallVideoSource, pixels: ByteBuffer, width: Int, height: Int, stride: Int) {
+        val buffer = buffers.getValue(source)
+        synchronized(buffer) {
+            val rowBytes = width * 4
+            val out = buffer.pixels(rowBytes * height)
+            for (row in 0 until height) {
+                pixels.position(row * stride)
+                pixels.get(out, row * rowBytes, rowBytes)
+            }
+            val image = Image.makeRaster(ImageInfo(width, height, ColorType.BGRA_8888, ColorAlphaType.OPAQUE), out, rowBytes)
             frames.getValue(source).value = image.toComposeImageBitmap()
         }
     }
