@@ -708,8 +708,8 @@ v `docs/poznatky/navigace.md`, „Šířkové třídy, tři panely a kotvy" a �
 seznam". Zbývá:
 
 1. **Nastavení na tři panely — samostatný PR, až po přeskupení sekcí.** Seznam sekcí | sekce
-   | podstránka (Soukromí → Blokovaní). Napřed se musí probrat a rozeskupit sekce samotné —
-   sekce Obecné je sběrná a nesedí (připomínka uživatele z října 2026).
+   | podstránka (Soukromí → Blokovaní). Napřed přeskupení sekcí — rozvrh je v [Nastavení](#nastavení),
+   „Přeskupení sekcí".
 
 2. **Drobnosti.**
    - Sbalený seznam nemá karty nad seznamem (aktualizace, nové přihlášení), FAB ani výběr víc
@@ -800,8 +800,68 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
 
 ## Nastavení
 
-Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení), vpravo jejich obsah. Obecné drží kartu
+Nastavení je list-detail: vlevo sekce (Obecné, Notifikace, Vzhled, Zařízení, Úložiště, Co je nového), vpravo jejich obsah. Obecné drží kartu
 účtu (jméno, telefon, uživatelské jméno) a odhlášení; Notifikace oprávnění a volby po rozsazích; Vzhled motiv aplikace a vyčlenění nepřečtených chatů do vlastního bloku.
+
+### Přeskupení sekcí (plán, říjen 2026)
+
+Rozvrh odsouhlasený s uživatelem; nikdo zatím nezačal. Navazuje na něj Nastavení na tři panely
+(„Velká plocha"), samostatný PR až potom.
+
+**Co dnes nesedí.** Obecné je sběrná sekce: karta účtu, Jazyk, Chaty (složky, samolepky, tahy,
+reakce, odkazy), celé Soukromí a zabezpečení (10 řádků), Proxy, AI v zařízení a Odhlášení —
+asi 25 řádků v šesti skupinách, podtitulek přitom slibuje „účet, profil, blokovaní, odhlášení".
+Související věci jsou rozdělené: „Nepřečtené ve vlastním bloku" je ve Vzhledu, zbytek chování
+seznamu v Obecných; modely AI se zapínají v Obecných, mažou v Úložišti; Proxy je v Obecných,
+přenesená data v Úložišti. Karta účtu se najde až po otevření Obecných.
+
+**Nový seznam sekcí:**
+
+```
+[Karta účtu: fotka, jméno, číslo, @jméno, QR]  → Upravit profil
+Soukromí
+Notifikace
+Chaty
+Vzhled
+Úložiště
+Zařízení
+AI v zařízení        (jen kde je dostupný model)
+Jazyk · Čeština      (řádek, otevře rovnou výběr; bez vlastní sekce)
+Pomoc: Zeptat se · Časté dotazy · Co je nového
+Odhlásit se          (vlastní skupina, chybová barva)
+```
+
+- **Soukromí** — *Soukromí:* Soukromí účtu (kdo vidí / kdo smí, smazání účtu), Blokovaní,
+  Automatické mazání v nových chatech, Citlivý obsah. *Stopy:* Diskrétní čtení, Odstraňovat
+  sledovací parametry. *Zabezpečení:* Dvoufázové ověření, Přihlašovací e-mail, Přístupové klíče,
+  Zámek aplikace.
+- **Notifikace** — beze změny.
+- **Chaty** — *Seznam:* Složky chatů, Nepřečtené ve vlastním bloku (z Vzhledu), Tah doprava
+  a doleva, Widget na plochu (z Vzhledu). *Zprávy:* Rychlá reakce a emoji, Akce ze zpráv, Sady
+  samolepek, Sady emoji. *Odkazy:* Otevírat v aplikaci, Odkazy Telegramu v Plume.
+- **Vzhled** — Motiv, Barva, Velikost písma.
+- **Úložiště** — dnešní obsah a navíc skupina *Připojení* s Proxy (jako oficiální Telegram).
+  Správa stažených modelů AI odtud odchází do AI v zařízení; balíčky pro překlad zůstávají.
+- **Zařízení** — beze změny.
+- **AI v zařízení** — zapnutí funkcí, volba modelu, stažení i smazání na jednom místě.
+- **Co je nového** se stěhuje do Pomoci: je to čtení, ne nastavení.
+
+**Rozhodnutí:** karta účtu nahoře v seznamu sekcí (jako Telegram i systém Android), ne uvnitř
+sekce; Jazyk jako samostatný řádek, ne skupina ve Vzhledu (hledá ho i ten, kdo vzhled neřeší);
+Odhlásit se dole v seznamu sekcí, ne v úpravě profilu; Proxy do Úložiště; krátké názvy sekcí
+(„Soukromí", „Úložiště"), ne „Soukromí a zabezpečení" / „Data a úložiště".
+
+**Na co pamatovat při implementaci:**
+- `SettingsSection` (`core/navigation/Routes.kt`) se ukládá v zásobníku JMÉNEM — zrušená nebo
+  přejmenovaná hodnota (`General`) by obnovu uloženého stavu shodila. Napřed ověřit, co
+  kotlinx.serialization s neznámou hodnotou výčtu udělá, a podle toho nechat starou hodnotu jako
+  alias, nebo obnovu ošetřit.
+- Podstránky se dnes „vrší nad sekci Obecné" — komentáře v `Routes.kt`, `openSettingsAt(…)`
+  v `AppNavigation.kt`, `openProxySettings`, `openChatFolders` a mapování `AppScreen`
+  (`General` i pro `tg://settings/privacy`, `ChangePhone` přes `EditProfile`).
+- Úprava profilu je s kartou nahoře podstránka SEZNAMU sekcí, ne sekce; ve dvoupanelu vedle
+  seznamu stojí místo sekce.
+- Podtitulky sekcí podle nového obsahu, texty v obou jazycích, poznatky v `docs/poznatky/nastaveni.md`.
 
 - ~~**Úprava vlastního profilu**~~ — hotovo (fotka, jméno, uživatelské jméno s kontrolou
   dostupnosti, bio; `docs/poznatky/nastaveni.md`, „Úprava profilu"). ~~Historie profilových fotek~~ — hotovo v profilu chatu i u vlastního účtu (`docs/poznatky/profil-chatu.md`, „Historie profilových fotek"), u vlastního i s nastavením starší fotky jako hlavní a smazáním jednotlivé fotky. ~~Ruční ořez
