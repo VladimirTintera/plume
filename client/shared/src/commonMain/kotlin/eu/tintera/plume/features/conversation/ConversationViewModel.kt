@@ -76,7 +76,6 @@ import eu.tintera.plume.core.telegram.MessageSchedule
 import eu.tintera.plume.core.telegram.MessageEffect
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.SpeechTrial
-import eu.tintera.plume.resources.conversation_scheduled_load_failed
 import eu.tintera.plume.resources.conversation_schedule_failed
 import eu.tintera.plume.resources.conversation_scheduled_notice
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -628,6 +627,19 @@ class ConversationViewModel(
     fun sendKeyboardLocation(point: GeoPoint?) = bots.sendKeyboardLocation(point)
     fun addPollOption(text: String, media: PollDraftMedia?) = bots.addPollOption(text, media)
     fun dismissAddPollOption() = bots.dismissAddPollOption()
+
+    /** Naplánované zprávy — viz [ConversationScheduled]. */
+    private val scheduled = ConversationScheduled(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        repository = repository,
+        logger = logger,
+    )
+    fun openScheduled() = scheduled.openScheduled()
+    fun closeScheduled() = scheduled.closeScheduled()
+    fun reschedule(messageId: Long, schedule: MessageSchedule?) = scheduled.reschedule(messageId, schedule)
+    fun deleteScheduled(messageId: Long) = scheduled.deleteScheduled(messageId)
 
     /** Serializuje stránkování — bez toho by dva rychlé scrolly načetly tutéž stránku dvakrát. */
     private val loadMutex = Mutex()
@@ -1499,7 +1511,7 @@ class ConversationViewModel(
                 _state.update { it.copy(hasScheduledMessages = has) }
                 // Otevřený seznam se přečte znovu: naplánovaná zpráva mohla mezitím odejít.
                 if (_state.value.scheduledMessages != null) {
-                    if (has) loadScheduled() else _state.update { it.copy(scheduledMessages = null) }
+                    if (has) scheduled.loadScheduled() else _state.update { it.copy(scheduledMessages = null) }
                 }
             }
         }
@@ -1869,64 +1881,6 @@ class ConversationViewModel(
             null -> AttachmentMode.Standard
         }
         setAttachmentMode(index, newMode)
-    }
-
-    /**
-     * Odešle připravené přílohy s popiskem.
-     *
-     * Jako odeslání textu: koncept se zahodí, citace se spotřebuje, „píšu" se zapomene. Na rozdíl od
-     * textové zprávy TDLib u příloh koncept sám nesmaže, takže se maže výslovně. Bez letu ze vstupního
-     * pole — přílohy z pole nevyletěly. Když odeslání selže, přílohy se vrátí nad pole, ať se nemusí
-     * vybírat znovu.
-     */
-    /** Otevře seznam naplánovaných zpráv. */
-    fun openScheduled() {
-        _state.update { it.copy(scheduledMessages = it.scheduledMessages ?: emptyList()) }
-        loadScheduled()
-    }
-
-    fun closeScheduled() {
-        _state.update { it.copy(scheduledMessages = null) }
-    }
-
-    private fun loadScheduled() {
-        viewModelScope.launch {
-            repository.scheduledMessages(chatId)
-                .onSuccess { list ->
-                    // Zavřený mezitím zůstane zavřený; prázdný se zavře sám.
-                    _state.update { state ->
-                        if (state.scheduledMessages == null) state
-                        else state.copy(scheduledMessages = list.takeIf { it.isNotEmpty() })
-                    }
-                }
-                .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_scheduled_load_failed)) }
-                }
-        }
-    }
-
-    /**
-     * Naplánovanou zprávu odešle hned ([schedule] `null`), nebo přeplánuje. Seznam se pak čte
-     * znovu — co se stalo, ví server; odeslaná zpráva dorazí do konverzace jako každá nová.
-     */
-    fun reschedule(messageId: Long, schedule: MessageSchedule?) {
-        viewModelScope.launch {
-            repository.reschedule(chatId, messageId, schedule)
-                .onSuccess { loadScheduled() }
-                .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_schedule_failed)) }
-                }
-        }
-    }
-
-    fun deleteScheduled(messageId: Long) {
-        viewModelScope.launch {
-            repository.deleteMessages(chatId, listOf(messageId), revoke = true)
-                .onSuccess { loadScheduled() }
-                .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_delete_failed)) }
-                }
-        }
     }
 
     private fun sendAttachments(caption: ComposedText, attachments: List<OutgoingAttachment>, options: SendOptions) {
