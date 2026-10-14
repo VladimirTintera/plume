@@ -117,6 +117,27 @@ interface ProfileRepository {
     suspend fun setPermissions(chatId: Long, permissions: GroupPermissions): Result<Unit>
 
     /**
+     * Smaže skupinu nebo kanál pro všechny (`deleteChat`): zmizí zprávy i členové a uvolní se
+     * veřejné jméno. Nevratné; jen když [EditableChat.canDeleteForAll].
+     */
+    suspend fun deleteChatForAll(chatId: Long): Result<Unit>
+
+    /** Pomalý režim; jen hodnoty z [SLOW_MODE_DELAYS], 0 = vypnout. */
+    suspend fun setSlowMode(chatId: Long, seconds: Int): Result<Unit>
+
+    /**
+     * Jeden přepínač nastavení. Podpisy a profily autorů jsou v TDLib jedno volání — druhou
+     * hodnotu repository dočte, a vypnuté podpisy vypnou i profily.
+     */
+    suspend fun setGroupToggle(chatId: Long, toggle: GroupToggle, value: Boolean): Result<Unit>
+
+    /**
+     * Povolené reakce. Vlastní emoji reakce, které aplikace nenabízí, a strop počtu reakcí na
+     * zprávu se přenesou z aktuálního stavu.
+     */
+    suspend fun setReactions(chatId: Long, reactions: ChatReactions): Result<Unit>
+
+    /**
      * Jeden člen se vším, co jeho správa potřebuje — role, práva, omezení a hlavně
      * [MemberDetail.actions], tedy co s ním smí právě tenhle uživatel.
      *
@@ -269,6 +290,10 @@ data class EditableChat(
     val canChangeUsername: Boolean = false,
     /** Seznamy omezených a vyhozených; `null` = nenabízí se (viz [MemberModeration]). */
     val moderation: MemberModeration? = null,
+    /** Pomalý režim, reakce a přepínače; co se nenabízí, v něm není ([groupSettingsOffer]). */
+    val settings: GroupSettings = GroupSettings(),
+    /** Chat jde smazat pro všechny (`Chat.canBeDeletedForAllUsers`) — vlastník skupiny nebo kanálu. */
+    val canDeleteForAll: Boolean = false,
 )
 
 /**

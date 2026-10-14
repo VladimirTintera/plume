@@ -92,6 +92,13 @@ import eu.tintera.plume.resources.edit_chat_people_count
 import eu.tintera.plume.resources.lock_24dp
 import eu.tintera.plume.resources.person_remove_24dp
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.resources.edit_chat_delete_group_body
+import eu.tintera.plume.resources.edit_chat_delete_channel_body
+import eu.tintera.plume.resources.edit_chat_delete_group_title
+import eu.tintera.plume.resources.edit_chat_delete_channel_title
+import eu.tintera.plume.resources.edit_chat_delete_group
+import eu.tintera.plume.resources.edit_chat_delete_channel
 import eu.tintera.plume.resources.edit_chat_upgrade_confirm
 import eu.tintera.plume.resources.edit_chat_upgrade_topics
 import eu.tintera.plume.resources.edit_chat_upgrade_link
@@ -144,6 +151,8 @@ fun EditChatScreen(
     onOpenJoinRequests: () -> Unit,
     /** Seznam vyhozených ([banned] `true`), nebo omezených členů. */
     onOpenRemoved: (banned: Boolean) -> Unit,
+    /** Chat je smazaný pro všechny: zavřít všechno, co ho ukazuje. */
+    onDeleted: () -> Unit,
     /** Základní skupina se převedla na supergroupu: (staré id, nové id). */
     onUpgraded: (Long, Long) -> Unit,
     modifier: Modifier = Modifier,
@@ -154,6 +163,13 @@ fun EditChatScreen(
     var confirmDeletePhoto by rememberSaveable { mutableStateOf(false) }
     var showDiscussion by rememberSaveable { mutableStateOf(false) }
     var showStickerSet by rememberSaveable { mutableStateOf(false) }
+    var showSlowMode by rememberSaveable { mutableStateOf(false) }
+    var showReactions by rememberSaveable { mutableStateOf(false) }
+    var confirmDeleteChat by rememberSaveable { mutableStateOf(false) }
+    val currentOnDeleted by rememberUpdatedState(onDeleted)
+    LaunchedEffect(viewModel.deleted) {
+        if (viewModel.deleted) currentOnDeleted()
+    }
 
     // Návrat ze seznamu omezených / vyhozených: obrazovka se skládá znovu a počty se přečtou.
     LaunchedEffect(Unit) { viewModel.refreshOnReturn() }
@@ -243,6 +259,62 @@ fun EditChatScreen(
             },
             onDismiss = { showStickerSet = false },
         )
+    }
+
+    val editable = viewModel.original
+    if (confirmDeleteChat && editable != null) {
+        val channel = editable.isChannel
+        AlertDialog(
+            onDismissRequest = { confirmDeleteChat = false },
+            title = {
+                Text(stringResource(if (channel) Res.string.edit_chat_delete_channel_title else Res.string.edit_chat_delete_group_title))
+            },
+            text = {
+                Text(stringResource(if (channel) Res.string.edit_chat_delete_channel_body else Res.string.edit_chat_delete_group_body))
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmDeleteChat = false
+                    viewModel.deleteChatForAll()
+                }) {
+                    Text(
+                        stringResource(if (channel) Res.string.edit_chat_delete_channel else Res.string.edit_chat_delete_group),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmDeleteChat = false }) { Text(stringResource(Res.string.common_cancel)) }
+            },
+        )
+    }
+
+    val settings = viewModel.settings
+    if (showSlowMode) {
+        settings.slowModeDelay?.let { current ->
+            SlowModeSheet(
+                current = current,
+                onSelect = { seconds ->
+                    showSlowMode = false
+                    viewModel.setSlowMode(seconds)
+                },
+                onDismiss = { showSlowMode = false },
+            )
+        }
+    }
+    if (showReactions) {
+        settings.reactions?.let { current ->
+            val choices by viewModel.reactionChoices.collectAsStateWithLifecycle()
+            ChatReactionsSheet(
+                current = current,
+                choices = choices,
+                onSave = { reactions ->
+                    showReactions = false
+                    viewModel.setReactions(reactions)
+                },
+                onDismiss = { showReactions = false },
+            )
+        }
     }
 
     val chat = viewModel.original
@@ -405,6 +477,17 @@ fun EditChatScreen(
                     PermissionsGroup(permissions, viewModel::setPermission)
                 }
 
+                // Pomalý režim, reakce a přepínače — jen co dovolí práva (`groupSettingsOffer`).
+                if (settings.any) {
+                    GroupSettingsCard(
+                        channel = chat.isChannel,
+                        settings = settings,
+                        onOpenSlowMode = { showSlowMode = true },
+                        onOpenReactions = { showReactions = true },
+                        onToggle = viewModel::setToggle,
+                    )
+                }
+
                 // Pozvánky: vlastník a správce s právem zvát (`ChatEditRights.canManageInvites`).
                 if (chat.rights.canManageInvites) {
                     val pending by viewModel.pendingJoinRequests.collectAsStateWithLifecycle()
@@ -413,6 +496,33 @@ fun EditChatScreen(
 
                 // Omezení a vyhození: supergroup a kanál, vlastník a správce s právem omezovat.
                 chat.moderation?.let { ModerationGroup(it, onOpenRemoved) }
+
+                // Nevratné, proto poslední a v chybové barvě, s potvrzením — jako oficiální klienti.
+                if (chat.canDeleteForAll) {
+                    Card(Modifier.fillMaxWidth()) {
+                        ListItem(
+                            colors = ListItemDefaults.colors(
+                                containerColor = Color.Transparent,
+                                headlineColor = MaterialTheme.colorScheme.error,
+                                leadingIconColor = MaterialTheme.colorScheme.error,
+                            ),
+                            headlineContent = {
+                                Text(
+                                    stringResource(
+                                        if (chat.isChannel) Res.string.edit_chat_delete_channel else Res.string.edit_chat_delete_group,
+                                    ),
+                                )
+                            },
+                            leadingContent = { Icon(painterResource(Res.drawable.delete_24dp), contentDescription = null) },
+                            trailingContent = if (viewModel.deleting) {
+                                { LoadingIndicator(Modifier.size(32.dp)) }
+                            } else {
+                                null
+                            },
+                            modifier = Modifier.clickable(enabled = !viewModel.deleting) { confirmDeleteChat = true },
+                        )
+                    }
+                }
             }
         }
         PhotoCropOverlay(

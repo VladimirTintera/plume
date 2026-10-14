@@ -8,6 +8,13 @@ import dev.g000sha256.tdl.dto.Chat
 import dev.g000sha256.tdl.dto.ChatAdministratorRights
 import dev.g000sha256.tdl.dto.ChatMember
 import dev.g000sha256.tdl.dto.ChatMemberStatus
+import dev.g000sha256.tdl.dto.SupergroupFullInfo
+import dev.g000sha256.tdl.dto.Supergroup
+import dev.g000sha256.tdl.dto.ReactionTypeCustomEmoji
+import dev.g000sha256.tdl.dto.ReactionTypeEmoji
+import dev.g000sha256.tdl.dto.ChatAvailableReactionsSome
+import dev.g000sha256.tdl.dto.ChatAvailableReactionsAll
+import dev.g000sha256.tdl.dto.ChatAvailableReactions
 import dev.g000sha256.tdl.dto.ChatMemberStatusMember
 import dev.g000sha256.tdl.dto.ChatMemberStatusRestricted
 import kotlinx.coroutines.flow.Flow
@@ -255,6 +262,10 @@ class TdlProfileRepository(
             canSetDiscussion = isChannel && rights.canChangeInfo,
             stickerSet = stickerSet,
             canSetStickerSet = !isChannel && supergroupInfo?.canSetStickerSet == true,
+            canDeleteForAll = chat.canBeDeletedForAllUsers,
+            settings = chat.memberGroupKind()?.let { kind ->
+                groupSettings(chat, kind, own, supergroup, supergroupInfo)
+            } ?: GroupSettings(),
             moderation = (chat.type as? ChatTypeSupergroup)?.takeIf { own.canModerate() }?.let { type ->
                 MemberModeration(
                     restrictedCount = if (isChannel) null else removedCount(type.supergroupId, MemberFilter.Restricted),
@@ -276,6 +287,109 @@ class TdlProfileRepository(
             offset = 0,
             limit = 1,
         ).toResult().getOrNull()?.totalCount ?: 0
+
+    /** Současné nastavení, zúžené na to, co [groupSettingsOffer] nabídne. */
+    private fun groupSettings(
+        chat: Chat,
+        kind: MemberGroupKind,
+        own: OwnMemberStatus?,
+        supergroup: Supergroup?,
+        info: SupergroupFullInfo?,
+    ): GroupSettings {
+        val offer = groupSettingsOffer(
+            kind = kind,
+            own = own,
+            isPublic = supergroup?.usernames?.activeUsernames?.any { it.isNotEmpty() } == true,
+            hasLinkedChat = supergroup?.hasLinkedChat == true,
+            joinToSendMessages = supergroup?.joinToSendMessages == true,
+            canHideMembers = info?.canHideMembers == true,
+            canToggleAntiSpam = info?.canToggleAggressiveAntiSpam == true,
+        )
+        fun value(toggle: GroupToggle): Boolean = when (toggle) {
+            GroupToggle.AllHistory -> info?.isAllHistoryAvailable == true
+            GroupToggle.JoinToSend -> supergroup?.joinToSendMessages == true
+            GroupToggle.JoinByRequest -> supergroup?.joinByRequest == true
+            GroupToggle.HiddenMembers -> info?.hasHiddenMembers == true
+            GroupToggle.AggressiveAntiSpam -> info?.hasAggressiveAntiSpamEnabled == true
+            GroupToggle.SignMessages -> supergroup?.signMessages == true
+            GroupToggle.ShowMessageSender -> supergroup?.showMessageSender == true
+            GroupToggle.ProtectedContent -> chat.hasProtectedContent
+        }
+        return GroupSettings(
+            slowModeDelay = info?.slowModeDelay?.takeIf { offer.slowMode },
+            toggles = offer.toggles.associateWith(::value),
+            reactions = chat.availableReactions.toChatReactions().takeIf { offer.reactions },
+        )
+    }
+
+    private fun ChatAvailableReactions.toChatReactions(): ChatReactions = when (this) {
+        is ChatAvailableReactionsAll -> ChatReactions(all = true)
+        is ChatAvailableReactionsSome -> ChatReactions(
+            all = false,
+            emojis = reactions.mapNotNull { (it as? ReactionTypeEmoji)?.emoji },
+        )
+    }
+
+    override suspend fun deleteChatForAll(chatId: Long): Result<Unit> =
+        client.deleteChat(chatId = chatId).toResult().map { }
+
+    override suspend fun setSlowMode(chatId: Long, seconds: Int): Result<Unit> =
+        client.setChatSlowModeDelay(chatId = chatId, slowModeDelay = seconds).toResult().map { }
+
+    override suspend fun setGroupToggle(chatId: Long, toggle: GroupToggle, value: Boolean): Result<Unit> = runCatching {
+        if (toggle == GroupToggle.ProtectedContent) {
+            client.toggleChatHasProtectedContent(chatId = chatId, hasProtectedContent = value).toResult().getOrThrow()
+            return@runCatching
+        }
+        val type = client.getChat(chatId = chatId).toResult().getOrThrow().type as? ChatTypeSupergroup
+            ?: error("Chat $chatId není supergroup ani kanál.")
+        val id = type.supergroupId
+        val result = when (toggle) {
+            GroupToggle.AllHistory -> client.toggleSupergroupIsAllHistoryAvailable(supergroupId = id, isAllHistoryAvailable = value)
+            GroupToggle.JoinToSend -> client.toggleSupergroupJoinToSendMessages(supergroupId = id, joinToSendMessages = value)
+            // Bez strážního bota a bez zásahu do existujících pozvánek — ty mají schvalování vlastní.
+            GroupToggle.JoinByRequest -> client.toggleSupergroupJoinByRequest(
+                supergroupId = id,
+                joinByRequest = value,
+                guardBotUserId = 0,
+                applyToInviteLinks = false,
+            )
+            GroupToggle.HiddenMembers -> client.toggleSupergroupHasHiddenMembers(supergroupId = id, hasHiddenMembers = value)
+            GroupToggle.AggressiveAntiSpam ->
+                client.toggleSupergroupHasAggressiveAntiSpamEnabled(supergroupId = id, hasAggressiveAntiSpamEnabled = value)
+            GroupToggle.SignMessages, GroupToggle.ShowMessageSender -> {
+                val current = client.getSupergroup(supergroupId = id).toResult().getOrThrow()
+                val sign = if (toggle == GroupToggle.SignMessages) value else current.signMessages
+                // Profily autorů bez podpisů nedávají smysl; vypnuté podpisy je vypnou taky.
+                val show = sign && (if (toggle == GroupToggle.ShowMessageSender) value else current.showMessageSender)
+                client.toggleSupergroupSignMessages(supergroupId = id, signMessages = sign, showMessageSender = show)
+            }
+            GroupToggle.ProtectedContent -> error("vyřízeno výš")
+        }
+        result.toResult().getOrThrow()
+        Unit
+    }
+
+    override suspend fun setReactions(chatId: Long, reactions: ChatReactions): Result<Unit> = runCatching {
+        val current = client.getChat(chatId = chatId).toResult().getOrThrow().availableReactions
+        val available = if (reactions.all) {
+            ChatAvailableReactionsAll(maxReactionCount = current.maxReactionCount())
+        } else {
+            // Vlastní emoji reakce aplikace vybrat neumí, takže je nesmí ani smazat.
+            val custom = (current as? ChatAvailableReactionsSome)?.reactions?.filterIsInstance<ReactionTypeCustomEmoji>().orEmpty()
+            ChatAvailableReactionsSome(
+                reactions = (reactions.emojis.map { ReactionTypeEmoji(emoji = it) } + custom).toTypedArray(),
+                maxReactionCount = current.maxReactionCount(),
+            )
+        }
+        client.setChatAvailableReactions(chatId = chatId, availableReactions = available).toResult().getOrThrow()
+        Unit
+    }
+
+    private fun ChatAvailableReactions.maxReactionCount(): Int = when (this) {
+        is ChatAvailableReactionsAll -> maxReactionCount
+        is ChatAvailableReactionsSome -> maxReactionCount
+    }
 
     /** Smí číst a rušit omezení a vyhození — stejné právo, jaké chce `banChatMember`. */
     private fun OwnMemberStatus?.canModerate(): Boolean = when (this) {

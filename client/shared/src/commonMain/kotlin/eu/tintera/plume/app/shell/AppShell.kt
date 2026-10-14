@@ -926,6 +926,7 @@ private fun shellEntryProvider(
             onOpenInviteLinks = { chatsStack.addOnce(InviteLinksRoute(route.chatId)) },
             onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
             onOpenRemoved = { banned -> chatsStack.addOnce(RemovedMembersRoute(route.chatId, banned)) },
+            onDeleted = { chatsStack.closeChat(route.chatId) },
             onUpgraded = { old, new -> chatsStack.replaceUpgradedChat(old, new) },
         )
     }
@@ -937,6 +938,7 @@ private fun shellEntryProvider(
             onOpenInviteLinks = { chatsStack.addOnce(ArchiveInviteLinksRoute(route.chatId)) },
             onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
             onOpenRemoved = { banned -> chatsStack.addOnce(ArchiveRemovedMembersRoute(route.chatId, banned)) },
+            onDeleted = { chatsStack.closeChat(route.chatId) },
             onUpgraded = { old, new -> chatsStack.replaceUpgradedChat(old, new) },
         )
     }
