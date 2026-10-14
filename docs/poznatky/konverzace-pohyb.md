@@ -485,9 +485,13 @@ data jediné místo, kde se dá přečíst.
   `input swipe` se screencapem uprostřed tahu (`input swipe … 1500 & sleep 1; screencap`).
 - **Posun se čte až při kreslení** (`graphicsLayer { translationX = -reveal() }`, lambda, ne
   hodnota). Jinak by každý snímek gesta přeskládal celou konverzaci.
-- **Čas čeká za pravým okrajem** a přijíždí s posunem; seznam ořezává na svoje hranice, takže
-  dokud se netáhne, není ho vidět. Sloupec má pevnou šířku a posun se o ni zastropuje — gumové
-  tahání dál by jen mátlo.
+- **Čas čeká za pravým okrajem** a přijíždí s posunem. Sloupec má pevnou šířku a posun se o ni
+  zastropuje — gumové tahání dál by jen mátlo.
+- **Ořezává ho jeho VLASTNÍ pruh, ne seznam** (`RevealingTime`). Spoléhalo se na ořez seznamu,
+  jenže na široké ploše je položka jen sloupec 840 dp uprostřed seznamu (okraj
+  v `contentPadding`, `ConversationColumn`): čas „za okrajem" ležel v okraji vedle sloupce
+  a byl vidět pořád, a když byl okraj užší než pruh časů, useknutý (konverzace vedle profilu,
+  okno ~1700 px). Ověřeno na desktopu (Windows) při různých šířkách okna.
 - **Předěly dne se neposouvají.** Jsou to nadpisy nad blokem, ne zprávy, a čas u nich nedává smysl.
 - **Čtečka obrazovky se tahem nikam nedostane**, takže čas je i v nabídce nad zprávou, prvním
   řádkem (den a hodina). Není to položka nabídky, nedá se na ni ťuknout. **Výška nabídky se
