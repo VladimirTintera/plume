@@ -18,6 +18,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
@@ -50,20 +51,30 @@ internal fun RevealingTime(
     Box(modifier.fillMaxWidth()) {
         Box(Modifier.graphicsLayer { translationX = -reveal() }) { content() }
 
-        Text(
-            text = timestamp.asTimeOfDay(),
-            // Časy stojí ve sloupci pod sebou; proporční číslice by je rozházely.
-            style = MaterialTheme.typography.labelSmall.tabularNumbers(),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            modifier = Modifier
+        /*
+         * Čas čeká za pravým okrajem položky a přijíždí s posunem. Ořezává ho jeho vlastní pruh,
+         * ne seznam: na široké ploše je položka jen sloupec uprostřed seznamu (okraj
+         * v `contentPadding`, viz ConversationColumn), takže čas „za okrajem" ležel v okraji
+         * vedle sloupce a byl vidět pořád — při okraji užším než pruh useknutý.
+         */
+        Box(
+            Modifier
                 .align(Alignment.CenterEnd)
                 .width(TIME_COLUMN_WIDTH)
-                // Čas čeká za pravým okrajem a přijíždí s posunem. Seznam ořezává na svoje
-                // hranice, takže dokud se netáhne, není ho vidět.
-                .graphicsLayer { translationX = TIME_COLUMN_WIDTH.toPx() - reveal() },
-        )
+                .clipToBounds(),
+        ) {
+            Text(
+                text = timestamp.asTimeOfDay(),
+                // Časy stojí ve sloupci pod sebou; proporční číslice by je rozházely.
+                style = MaterialTheme.typography.labelSmall.tabularNumbers(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer { translationX = TIME_COLUMN_WIDTH.toPx() - reveal() },
+            )
+        }
     }
 }
 
