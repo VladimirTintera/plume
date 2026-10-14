@@ -10,7 +10,6 @@ import eu.tintera.plume.core.telegram.platformLanguageCode
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.translation.OnDeviceTranslator
 import eu.tintera.plume.core.translation.deviceTranslationCode
-import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.server_summary_copied
@@ -41,7 +40,9 @@ internal class ConversationTranslation(
     /** Překlad v telefonu; bez něj (iOS) přepínač v sheetu není. */
     private val onDeviceTranslator: OnDeviceTranslator?,
     private val languageDetector: LanguageDetector,
-    private val clipboard: TextClipboard,
+    private val copyToClipboard: suspend (String) -> Unit,
+    /** Potvrdí zkopírování sám systém (`TextClipboard.confirmsCopy`)? Pak hláška od nás není. */
+    private val clipboardConfirmsCopy: Boolean,
     private val logger: Logger,
 ) {
     /**
@@ -233,8 +234,8 @@ internal class ConversationTranslation(
     fun copyTranslation() {
         val open = state.value.translation?.takeIf { it.canCopy } ?: return
         val text = open.body?.text ?: return
-        scope.launch { clipboard.copy(text) }
+        scope.launch { copyToClipboard(text) }
         val notice = if (open.summary) Res.string.server_summary_copied else Res.string.translation_copied
-        state.update { it.copy(translation = null, notice = if (clipboard.confirmsCopy) it.notice else UiText(notice)) }
+        state.update { it.copy(translation = null, notice = if (clipboardConfirmsCopy) it.notice else UiText(notice)) }
     }
 }
