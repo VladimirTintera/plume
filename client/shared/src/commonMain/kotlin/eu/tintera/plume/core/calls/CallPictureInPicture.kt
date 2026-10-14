@@ -25,7 +25,8 @@ interface CallPictureInPicture {
 /**
  * Okénko pro probíhající hovor. Do okénka se jde samo při odchodu z aplikace, jen když je
  * [enabled] (hovor běží a je v něm obraz). [aspectRatio] je poměr stran obrazu (šířka / výška),
- * akce v okénku jsou ztlumit / zapnout mikrofon ([muted]) a zavěsit.
+ * akce v okénku jsou ztlumit / zapnout mikrofon ([muted]) a zavěsit. [onDismissed] = uživatel
+ * okénko zavřel (tahem dolů); hovor běží dál na pozadí.
  */
 @Composable
 expect fun rememberCallPictureInPicture(
@@ -34,4 +35,5 @@ expect fun rememberCallPictureInPicture(
     muted: Boolean,
     onToggleMute: () -> Unit,
     onHangUp: () -> Unit,
+    onDismissed: () -> Unit,
 ): CallPictureInPicture
