@@ -261,8 +261,10 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
     val corner = CallVideoSource.Local.takeIf { full == CallVideoSource.Remote && call.camera }
     // Na obrazu by text i popisky splynuly; stojí proto na průsvitné ploše.
     val veil = if (full != null) MaterialTheme.colorScheme.surface.copy(alpha = VEIL_ALPHA) else Color.Transparent
+    // Přes obraz spojeného hovoru ovládání po chvíli zmizí a ťuknutí ho vrátí (viz [rememberCallControls]).
+    val controls = rememberCallControls(autoHide = full != null && call.phase == CallPhase.Active && !call.held)
     Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().then(controls.modifier)) {
             full?.let { source ->
                 CallVideo(
                     source,
@@ -275,30 +277,32 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    FilledTonalIconButton(onClick = onMinimize, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.keyboard_arrow_down_24dp), contentDescription = stringResource(Res.string.call_minimize))
-                    }
-                    Spacer(Modifier.weight(1f))
-                    // Sdílení obrazovky jen ve spojeném hovoru: posílá se místo kamery.
-                    if (screenShare != null && call.phase == CallPhase.Active) {
-                        FilledTonalIconToggleButton(
-                            checked = call.screenSharing,
-                            onCheckedChange = { on ->
-                                if (!on) {
-                                    calls.setScreenSharing(false)
-                                } else {
-                                    screenShare.request { granted -> if (granted) calls.setScreenSharing(true) }
-                                }
-                            },
-                            shapes = IconButtonDefaults.toggleableShapes(),
-                        ) {
-                            Icon(painterResource(Res.drawable.screen_share_24dp), contentDescription = stringResource(Res.string.call_share_screen))
+                CallControlsVisibility(controls.visible) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        FilledTonalIconButton(onClick = onMinimize, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.keyboard_arrow_down_24dp), contentDescription = stringResource(Res.string.call_minimize))
                         }
-                    }
-                    if (ongoing && call.camera && calls.canSwitchCamera) {
-                        FilledTonalIconButton(onClick = calls::switchCamera, shapes = IconButtonDefaults.shapes()) {
-                            Icon(painterResource(Res.drawable.cameraswitch_24dp), contentDescription = stringResource(Res.string.call_switch_camera))
+                        Spacer(Modifier.weight(1f))
+                        // Sdílení obrazovky jen ve spojeném hovoru: posílá se místo kamery.
+                        if (screenShare != null && call.phase == CallPhase.Active) {
+                            FilledTonalIconToggleButton(
+                                checked = call.screenSharing,
+                                onCheckedChange = { on ->
+                                    if (!on) {
+                                        calls.setScreenSharing(false)
+                                    } else {
+                                        screenShare.request { granted -> if (granted) calls.setScreenSharing(true) }
+                                    }
+                                },
+                                shapes = IconButtonDefaults.toggleableShapes(),
+                            ) {
+                                Icon(painterResource(Res.drawable.screen_share_24dp), contentDescription = stringResource(Res.string.call_share_screen))
+                            }
+                        }
+                        if (ongoing && call.camera && calls.canSwitchCamera) {
+                            FilledTonalIconButton(onClick = calls::switchCamera, shapes = IconButtonDefaults.shapes()) {
+                                Icon(painterResource(Res.drawable.cameraswitch_24dp), contentDescription = stringResource(Res.string.call_switch_camera))
+                            }
                         }
                     }
                 }
@@ -309,10 +313,11 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
                     CallHeadline(call, name)
                     Spacer(Modifier.weight(1f))
                 } else {
-                    Spacer(Modifier.height(16.dp))
-                    Surface(color = veil, shape = MaterialTheme.shapes.extraLarge) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
-                            CallHeadline(call, name, compact = true)
+                    CallControlsVisibility(controls.visible) {
+                        Surface(color = veil, shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.padding(top = 16.dp)) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                                CallHeadline(call, name, compact = true)
+                            }
                         }
                     }
                     Spacer(Modifier.weight(1f))
@@ -336,61 +341,63 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
                         Text(stringResource(Res.string.call_resume))
                     }
                 }
-                Surface(color = veil, shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.fillMaxWidth()) {
-                    when {
-                        call.phase == CallPhase.Ringing -> Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-                            LabeledButton(stringResource(Res.string.notification_call_decline)) {
-                                HangUpButton(stringResource(Res.string.notification_call_decline)) { scope.launch { calls.hangUp() } }
-                            }
-                            LabeledButton(stringResource(Res.string.call_answer)) {
-                                FilledIconButton(
-                                    onClick = { accept(call) },
-                                    shapes = IconButtonDefaults.shapes(),
-                                    modifier = Modifier.size(IconButtonDefaults.largeContainerSize()),
-                                ) {
-                                    Icon(
-                                        painterResource(if (call.isVideo) Res.drawable.videocam_24dp else Res.drawable.call_24dp),
-                                        contentDescription = stringResource(Res.string.call_answer),
-                                        modifier = Modifier.size(IconButtonDefaults.largeIconSize),
-                                    )
+                CallControlsVisibility(controls.visible) {
+                    Surface(color = veil, shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.fillMaxWidth()) {
+                        when {
+                            call.phase == CallPhase.Ringing -> Row(horizontalArrangement = Arrangement.SpaceEvenly, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+                                LabeledButton(stringResource(Res.string.notification_call_decline)) {
+                                    HangUpButton(stringResource(Res.string.notification_call_decline)) { scope.launch { calls.hangUp() } }
+                                }
+                                LabeledButton(stringResource(Res.string.call_answer)) {
+                                    FilledIconButton(
+                                        onClick = { accept(call) },
+                                        shapes = IconButtonDefaults.shapes(),
+                                        modifier = Modifier.size(IconButtonDefaults.largeContainerSize()),
+                                    ) {
+                                        Icon(
+                                            painterResource(if (call.isVideo) Res.drawable.videocam_24dp else Res.drawable.call_24dp),
+                                            contentDescription = stringResource(Res.string.call_answer),
+                                            modifier = Modifier.size(IconButtonDefaults.largeIconSize),
+                                        )
+                                    }
                                 }
                             }
+                            ongoing -> Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+                                // Jediný výstup (desktop: vybírá systém) není co přepínat.
+                                if (call.outputs.size > 1) AudioOutputButton(call, calls, Modifier.weight(1f))
+                                if (calls.supportsVideo) LabeledButton(stringResource(Res.string.call_camera), Modifier.weight(1f)) {
+                                    FilledIconToggleButton(
+                                        checked = call.camera,
+                                        onCheckedChange = { on ->
+                                            if (!on) {
+                                                calls.setCamera(false)
+                                            } else {
+                                                cameraPermission.request { granted -> if (granted) calls.setCamera(true) }
+                                            }
+                                        },
+                                        shapes = IconButtonDefaults.toggleableShapes(),
+                                        modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
+                                    ) {
+                                        Icon(painterResource(Res.drawable.videocam_24dp), contentDescription = stringResource(Res.string.call_camera), modifier = Modifier.size(IconButtonDefaults.mediumIconSize))
+                                    }
+                                }
+                                LabeledButton(stringResource(Res.string.call_mute), Modifier.weight(1f)) {
+                                    FilledIconToggleButton(
+                                        checked = call.muted,
+                                        onCheckedChange = calls::setMuted,
+                                        shapes = IconButtonDefaults.toggleableShapes(),
+                                        modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
+                                    ) {
+                                        Icon(painterResource(Res.drawable.mic_24dp), contentDescription = stringResource(Res.string.call_mute), modifier = Modifier.size(IconButtonDefaults.mediumIconSize))
+                                    }
+                                }
+                                LabeledButton(stringResource(Res.string.call_hang_up), Modifier.weight(1f)) {
+                                    HangUpButton(stringResource(Res.string.call_hang_up), large = false) { scope.launch { calls.hangUp() } }
+                                }
+                            }
+                            // Konec: ovládání zmizí, plocha pod ním taky.
+                            else -> Unit
                         }
-                        ongoing -> Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-                            // Jediný výstup (desktop: vybírá systém) není co přepínat.
-                            if (call.outputs.size > 1) AudioOutputButton(call, calls, Modifier.weight(1f))
-                            if (calls.supportsVideo) LabeledButton(stringResource(Res.string.call_camera), Modifier.weight(1f)) {
-                                FilledIconToggleButton(
-                                    checked = call.camera,
-                                    onCheckedChange = { on ->
-                                        if (!on) {
-                                            calls.setCamera(false)
-                                        } else {
-                                            cameraPermission.request { granted -> if (granted) calls.setCamera(true) }
-                                        }
-                                    },
-                                    shapes = IconButtonDefaults.toggleableShapes(),
-                                    modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
-                                ) {
-                                    Icon(painterResource(Res.drawable.videocam_24dp), contentDescription = stringResource(Res.string.call_camera), modifier = Modifier.size(IconButtonDefaults.mediumIconSize))
-                                }
-                            }
-                            LabeledButton(stringResource(Res.string.call_mute), Modifier.weight(1f)) {
-                                FilledIconToggleButton(
-                                    checked = call.muted,
-                                    onCheckedChange = calls::setMuted,
-                                    shapes = IconButtonDefaults.toggleableShapes(),
-                                    modifier = Modifier.size(IconButtonDefaults.mediumContainerSize()),
-                                ) {
-                                    Icon(painterResource(Res.drawable.mic_24dp), contentDescription = stringResource(Res.string.call_mute), modifier = Modifier.size(IconButtonDefaults.mediumIconSize))
-                                }
-                            }
-                            LabeledButton(stringResource(Res.string.call_hang_up), Modifier.weight(1f)) {
-                                HangUpButton(stringResource(Res.string.call_hang_up), large = false) { scope.launch { calls.hangUp() } }
-                            }
-                        }
-                        // Konec: ovládání zmizí, plocha pod ním taky.
-                        else -> Unit
                     }
                 }
                 Spacer(Modifier.height(8.dp))
