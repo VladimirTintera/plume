@@ -13,11 +13,15 @@ import eu.tintera.plume.di.startKoin
  * ní pole nebere vlastní položky (`appendTextContextMenuComponents`) a „Vložit GIF / obrázek" by
  * se neukázalo — viz `KeyboardContentReceiver`. Nabídku kreslí dál systém (`UIEditMenuInteraction`),
  * vlastní položky se jen přidají jako její akce. Příznak se čte při skládání pole, proto dřív.
+ *
+ * Compose controller je obalený [StatusBarHostViewController], který řídí ikony stavové lišty.
  */
 @OptIn(ExperimentalFoundationApi::class)
 fun MainViewController(): UIViewController {
     ComposeFoundationFlags.isNewContextMenuEnabled = true
-    return ComposeUIViewController { App() }
+    val host = StatusBarHostViewController(ComposeUIViewController { App() })
+    StatusBarHost.controller = host
+    return host
 }
 
 /**

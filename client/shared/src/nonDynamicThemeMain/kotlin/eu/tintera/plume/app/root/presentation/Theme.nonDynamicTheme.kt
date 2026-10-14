@@ -14,6 +14,3 @@ actual val supportsDynamicColor: Boolean = false
 @Composable
 actual fun colorScheme(isDark: Boolean, dynamic: Boolean, seed: Color): ColorScheme =
     expressiveColorScheme(isDark, seed)
-
-@Composable
-actual fun SystemBarsAppearance(isDark: Boolean) = Unit

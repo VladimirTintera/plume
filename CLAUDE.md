@@ -770,6 +770,9 @@ vkus toho, kdo zrovna píše obrazovku.
   (v Debug je kód v `.debug.dylib`, ne v hlavní binárce). Sestavení aplikace bez podpisu:
   `xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -sdk iphonesimulator
   -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`.
+  **Takhle sestavená aplikace ale v simulátoru hned spadne** na „Klíč se nepodařilo uložit do
+  Keychainu (-34018)" (bez podpisu nemá oprávnění ke Klíčence). Ke spuštění podepsat místně:
+  `CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER=`.
 - **Release link iOS frameworku trvá desítky minut.** Kotlin/Native pouští LTO nad celou statickou
   TDLib; naměřeno 15+ minut na M-series. Debug link je ~5 minut. Do CI to patří jako samostatný,
   cachovaný krok — ne do smyčky, kterou čeká vývojář.
