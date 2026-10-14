@@ -552,7 +552,13 @@ fun ChatListScreen(
                             onMessageClick(chatId, messageId, topicId)
                         },
                         onLoadMoreMessages = viewModel.search::loadMoreMessages,
-                        onClearRecent = viewModel.search::clearRecent,
+                        suggestionActions = remember(viewModel.search) {
+                            SuggestionActions(
+                                onClear = viewModel.search::clearRecent,
+                                onRemoveRecent = viewModel.search::removeRecent,
+                                onRemoveTop = viewModel.search::removeTop,
+                            )
+                        },
                         onFilterChange = viewModel.search::setFilter,
                         aiSearch = viewModel::parseSearch.takeIf { naturalSearchAvailable },
                         request = searchRequest,

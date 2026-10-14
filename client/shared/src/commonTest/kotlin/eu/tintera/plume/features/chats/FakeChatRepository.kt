@@ -83,6 +83,10 @@ open class FakeChatRepository(
 
     override suspend fun clearRecentlyFound(): Result<Unit> = Result.success(Unit)
 
+    override suspend fun removeRecentlyFound(chatId: Long): Result<Unit> = Result.success(Unit)
+
+    override suspend fun removeTopChat(chatId: Long): Result<Unit> = Result.success(Unit)
+
     override suspend fun topChats(): Result<List<ChatSummary>> = Result.success(emptyList())
 
     override val archiveUnread: StateFlow<ArchiveUnread> = MutableStateFlow(ArchiveUnread())

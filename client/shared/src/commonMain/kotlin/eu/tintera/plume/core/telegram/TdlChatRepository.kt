@@ -1402,6 +1402,12 @@ class TdlChatRepository(
     override suspend fun clearRecentlyFound(): Result<Unit> =
         client.clearRecentlyFoundChats().toResult().map { }
 
+    override suspend fun removeRecentlyFound(chatId: Long): Result<Unit> =
+        client.removeRecentlyFoundChat(chatId = chatId).toResult().map { }
+
+    override suspend fun removeTopChat(chatId: Long): Result<Unit> =
+        client.removeTopChat(category = TopChatCategoryUsers(), chatId = chatId).toResult().map { }
+
     override suspend fun topChats(): Result<List<ChatSummary>> =
         when (val result = client.getTopChats(category = TopChatCategoryUsers(), limit = TOP_CHATS_LIMIT)) {
             is TdlResult.Success -> Result.success(summariesFor(result.result.chatIds))

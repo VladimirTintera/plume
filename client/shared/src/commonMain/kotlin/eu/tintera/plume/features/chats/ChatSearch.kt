@@ -202,6 +202,22 @@ class ChatSearch(
         scope.launch { repository.addRecentlyFound(chatId).logged("addRecentlyFound") }
     }
 
+    /** Jeden chat z historie hledání pryč; návrhy se pak přečtou znovu. */
+    fun removeRecent(chatId: Long) {
+        scope.launch {
+            repository.removeRecentlyFound(chatId).logged("removeRecentlyFound")
+            suggestionsVersion.value++
+        }
+    }
+
+    /** Člověk z nejčastějších pryč (podržení v řádku „Lidé"); návrhy se pak přečtou znovu. */
+    fun removeTop(chatId: Long) {
+        scope.launch {
+            repository.removeTopChat(chatId).logged("removeTopChat")
+            suggestionsVersion.value++
+        }
+    }
+
     fun clearRecent() {
         scope.launch {
             repository.clearRecentlyFound().logged("clearRecentlyFound")

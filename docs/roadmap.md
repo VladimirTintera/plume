@@ -393,8 +393,8 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - Ankety: smazat možnost (`deletePollOption`), statistika hlasů (`getPollVoteStatistics`).
 - ~~Označit celou složku jako přečtenou (`readChatList`)~~ — hotovo (podržení složky v liště).
   Zbývá archiv (`ChatListArchive`), který lištu složek nemá.
-- Odebrat jednu položku z nedávného hledání a z nejčastějších lidí (`removeRecentlyFoundChat`,
-  `removeTopChat`).
+- ~~Odebrat jednu položku z nedávného hledání a z nejčastějších lidí (`removeRecentlyFoundChat`,
+  `removeTopChat`)~~ — hotovo (křížek v historii, podržení člověka v Lidech).
 - ~~Záložky profilu, které chybí: společné skupiny (`getGroupsInCommon`), podobné kanály
   (`getChatSimilarChats`), GIFy a kolečka~~ — hotovo (`docs/poznatky/profil-chatu.md`,
   „Sdílená média v profilu"). Zbývá ověřit podobné kanály a posuvnou řadu záložek; hlasovky
