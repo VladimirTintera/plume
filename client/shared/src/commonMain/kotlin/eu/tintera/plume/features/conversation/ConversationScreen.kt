@@ -3,16 +3,7 @@ package eu.tintera.plume.features.conversation
 import androidx.compose.ui.input.key.key
 import eu.tintera.plume.core.telegram.MessageMedia
 import androidx.compose.ui.geometry.Offset
-import eu.tintera.plume.core.ui.SwipeDirection
-import eu.tintera.plume.core.ui.detectHorizontalSwipe
-import eu.tintera.plume.core.telegram.VideoChatInfo
-import eu.tintera.plume.core.telegram.PendingJoinRequests
-import dev.chrisbanes.haze.HazeInput
-import dev.chrisbanes.haze.blur.hazeBlur
-import eu.tintera.plume.core.ui.sharedElementClipArea
 import eu.tintera.plume.core.ui.rememberSharedElementClip
-import eu.tintera.plume.core.ui.LocalSharedElementClip
-import androidx.compose.material3.FilledTonalButton
 import eu.tintera.plume.resources.summary_me
 import org.koin.compose.viewmodel.koinViewModel
 import androidx.navigationevent.compose.rememberNavigationEventState
@@ -22,43 +13,29 @@ import eu.tintera.plume.core.ui.chatTitle
 import androidx.compose.animation.animateColorAsState
 import eu.tintera.plume.features.conversation.items.SoundingVideoNote
 import eu.tintera.plume.features.conversation.items.rememberSoundingVideoNote
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import eu.tintera.plume.core.ui.rememberShownConnection
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import eu.tintera.plume.core.files.rememberSaveAs
 import androidx.compose.material3.FabPosition
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.derivedStateOf
@@ -67,7 +44,6 @@ import androidx.compose.runtime.collectAsState
 import org.koin.compose.koinInject
 import eu.tintera.plume.core.telegram.SelfDestructTimers
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -76,58 +52,30 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.structuralEqualityPolicy
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
-import eu.tintera.plume.core.settings.GestureHint
-import eu.tintera.plume.core.telegram.ChatMessage
-import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.startOfLocalDay
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.core.ui.rememberEmbeddedMediaSelection
-import eu.tintera.plume.core.ui.resolve
-import eu.tintera.plume.features.conversation.items.FloatingDayBadge
-import eu.tintera.plume.features.conversation.items.ConversationItemContent
-import eu.tintera.plume.features.conversation.items.MESSAGE_SPACING
 import eu.tintera.plume.features.conversation.items.MenuAnchor
 import eu.tintera.plume.features.conversation.items.MessageAction
-import eu.tintera.plume.features.conversation.items.mapUrl
 import kotlin.math.abs
 import eu.tintera.plume.features.conversation.items.MessageItem
-import eu.tintera.plume.features.conversation.items.TIME_COLUMN_WIDTH
 import eu.tintera.plume.features.conversation.items.ConversationItem
 import eu.tintera.plume.features.conversation.items.conversationItems
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.conversation_chat_sensitive_show
-import eu.tintera.plume.resources.conversation_chat_sensitive_text
-import eu.tintera.plume.resources.conversation_chat_sensitive_title
-import eu.tintera.plume.resources.visibility_off_24dp
-import eu.tintera.plume.resources.conversation_chat_restricted
-import eu.tintera.plume.resources.block_24dp
-import eu.tintera.plume.core.ui.IntroEmptyState
-import eu.tintera.plume.resources.conversation_empty
 import eu.tintera.plume.resources.conversation_fallback_title
 import kotlinx.coroutines.flow.collectLatest
-import eu.tintera.plume.core.telegram.SpamBar
-import eu.tintera.plume.core.telegram.ChatBar
-import eu.tintera.plume.core.telegram.InviteMembersBar
-import eu.tintera.plume.core.telegram.JoinRequestBar
-import eu.tintera.plume.core.telegram.SharePhoneBar
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
@@ -180,7 +128,6 @@ fun ConversationScreen(
     val voicePlayback = viewModel.voicePlayback.collectAsStateWithLifecycle()
     val voiceSpeed = viewModel.voiceSpeed.collectAsStateWithLifecycle()
     val transcribeContext = viewModel.transcribeContext.collectAsStateWithLifecycle()
-    val connection by viewModel.connection.collectAsStateWithLifecycle()
     // Hlasovka a kolečko: stav, gesto, oprávnění a kamera — viz `ConversationRecording`.
     val recording = rememberConversationRecording(viewModel)
     // Nový náhled (i hotový po mezistavu) začíná potichu, jako kolečko v bublině.
@@ -197,47 +144,6 @@ fun ConversationScreen(
     val jumpTransition = remember { JumpTransition() }
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val chatBar by viewModel.chatBar.collectAsStateWithLifecycle()
-    val videoChat by viewModel.videoChat.collectAsStateWithLifecycle()
-    val joinRequests by viewModel.joinRequests.collectAsStateWithLifecycle()
-    // ✕ schová pruh do té doby, než přibude další žádost — pamatuje se počet, u kterého se
-    // schoval. Napořád by správce o nové žádosti nevěděl; při každém otevření chatu by zase
-    // otravoval tím, co už viděl.
-    var joinRequestsHiddenAt by rememberSaveable(viewModel.chatId) { mutableIntStateOf(0) }
-    val spamBar = chatBar as? SpamBar
-    var confirmSharePhone by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(chatBar) { if (chatBar !is SharePhoneBar) confirmSharePhone = false }
-    if (confirmSharePhone) {
-        ContactSharePhoneDialog(
-            name = state.info?.title.orEmpty(),
-            onConfirm = {
-                confirmSharePhone = false
-                viewModel.sharePhoneNumber()
-            },
-            onDismiss = { confirmSharePhone = false },
-        )
-    }
-    /** Otevřený sheet z pruhu proti spamu; `null` = zavřený. */
-    var spamBarAction by rememberSaveable { mutableStateOf<SpamBarAction?>(null) }
-
-
-
-    // Pruh mezitím zmizel (přidán kontakt, zavřeno jinde) — sheet nemá čeho se týkat.
-    LaunchedEffect(spamBar) { if (spamBar == null) spamBarAction = null }
-    val openSpamBar = spamBar
-    val openSpamAction = spamBarAction
-    if (openSpamBar != null && openSpamAction != null) {
-        SpamBarSheet(
-            action = openSpamAction,
-            bar = openSpamBar,
-            title = state.info?.let { chatTitle(it.id, it.title) }.orEmpty(),
-            onConfirm = { cleanup ->
-                spamBarAction = null
-                viewModel.resolveSpamBar(cleanup)
-            },
-            onDismiss = { spamBarAction = null },
-        )
-    }
     // Co je otevřené nad konverzací po ťuknutí v obrazovce (výběry, dialogy), viz `ConversationSheets`.
     val sheets = rememberConversationSheets()
 
@@ -297,8 +203,6 @@ fun ConversationScreen(
      * každý snímek gesta překreslil celou konverzaci.
      */
     val timeReveal = remember { Animatable(0f) }
-    val revealMax = with(LocalDensity.current) { TIME_COLUMN_WIDTH.toPx() }
-    val revealSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
 
     ConversationSnackbars(state, viewModel, snackbarHostState)
 
@@ -700,341 +604,43 @@ fun ConversationScreen(
                 )
                 .onGloballyPositioned { contentTop.value = it.boundsInWindow().top },
         ) {
-            when {
-                /*
-                 * Omezený celý chat: místo zpráv jen důvod od serveru. Stojí PŘED načítáním —
-                 * historie se sice načte, ale ukazovat se nesmí, a točící se indikátor by
-                 * sliboval, že přijde.
-                 */
-                state.info?.restriction != null -> IntroEmptyState(
-                    icon = Res.drawable.block_24dp,
-                    title = stringResource(Res.string.conversation_chat_restricted),
-                    text = state.info?.restriction.orEmpty(),
-                    modifier = Modifier.fillMaxSize(),
-                )
+            ConversationContent(
+                state = state,
+                viewModel = viewModel,
+                items = items,
+                itemScope = itemScope,
+                listState = listState,
+                jumpTransition = jumpTransition,
+                gestureHints = gestureHints,
+                timeReveal = timeReveal,
+                listHaze = listHaze,
+                listClip = listClip,
+                sensitiveWarning = sensitiveWarning,
+                onShowSensitive = { sensitiveAccepted = true },
+                topPadding = pinnedHeight,
+                bottomPadding = padding.calculateBottomPadding(),
+                floatingDay = floatingDay,
+            )
 
-                // Citlivý chat: napřed varování, obsah až po výslovném „přesto zobrazit".
-                sensitiveWarning -> IntroEmptyState(
-                    icon = Res.drawable.visibility_off_24dp,
-                    title = stringResource(Res.string.conversation_chat_sensitive_title),
-                    text = stringResource(Res.string.conversation_chat_sensitive_text),
-                    modifier = Modifier.fillMaxSize(),
-                    action = {
-                        FilledTonalButton(onClick = { sensitiveAccepted = true }) {
-                            Text(stringResource(Res.string.conversation_chat_sensitive_show))
-                        }
-                    },
-                )
 
-                state.messages.isEmpty() && state.loading ->
-                    LoadingIndicator(Modifier.align(Alignment.Center))
-
-                showsBotIntro(state) -> {
-                    val shownConnection = rememberShownConnection(connection)
-                    BotIntroPage(
-                        intro = state.botIntro ?: return@Box,
-                        chatId = viewModel.chatId,
-                        title = state.info?.title.orEmpty(),
-                        avatarFileId = state.info?.avatarFileId,
-                        connection = shownConnection,
-                        connectionLabel = shownConnection?.label()?.let { stringResource(it) },
-                        online = state.presence is Presence.Online,
-                        onAction = { itemScope.onAction(0L, it) },
-                    )
-                }
-
-                state.messages.isEmpty() -> Text(
-                    text = state.error?.resolve() ?: stringResource(Res.string.conversation_empty),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.align(Alignment.Center).padding(24.dp),
-                )
-
-                /*
-                 * Gesto patří SEZNAMU, ne položce.
-                 *
-                 * Bublina si bere jen tah doprava (odpověď) a doleva nic nespotřebuje, takže
-                 * gesto propadne sem. Svislý scroll má přednost: seznam je potomek, dostane
-                 * události dřív a jeho spotřebování tenhle detektor zruší — a detektor se
-                 * rozhoduje až po delším a výrazně vodorovném pohybu (`detectHorizontalSwipe`).
-                 */
-                else -> Box(
-                    Modifier
-                        .fillMaxSize()
-                        /*
-                         * `LazyColumn` ořezává jen ve směru scrollu, tedy svisle. Sloupec časů
-                         * čekající za pravým okrajem byl schovaný jen proto, že seznam končil
-                         * u okraje obrazovky; s bočním insetem (výřez vpravo) prosvítal. Ořez
-                         * drží i odtaženou bublinu v jejím panelu.
-                         */
-                        .clipToBounds()
-                        // Kam ořezává seznam, tam se ořezává i fotka letící z prohlížeče zpátky
-                        // (viz `SharedElementClip`) — jinak by na konci letu ležela přes hlavičku.
-                        .sharedElementClipArea(listClip)
-                        .hazeSource(listHaze)
-                        .pointerInput(revealMax) {
-                            detectHorizontalSwipe(
-                                direction = SwipeDirection.Left,
-                                onEnd = {
-                                    gestureHints.used(GestureHint.RevealTimes)
-                                    scope.launch { timeReveal.animateTo(0f, revealSpec) }
-                                },
-                            ) { delta ->
-                                scope.launch {
-                                    // Jen doleva a jen po šířku sloupce s časy; dál už není co
-                                    // odkrývat a gumové tahání by jen mátlo.
-                                    timeReveal.snapTo((timeReveal.value - delta).coerceIn(0f, revealMax))
-                                }
-                            }
-                        },
-                ) {
-                  CompositionLocalProvider(LocalSharedElementClip provides listClip) {
-                  // Na široké ploše zprávy ve sloupci uprostřed; scroll zůstává přes celou plochu.
-                  ConversationColumn { inset ->
-                  LazyColumn(
-                    state = listState,
-                    reverseLayout = true,
-                    // Odjezd při přechodu na vzdálenou zprávu; čte se až ve vrstvě.
-                    modifier = Modifier.fillMaxSize().graphicsLayer {
-                        alpha = jumpTransition.listAlpha
-                        translationY = jumpTransition.listShift
-                    },
-                    // Dole se odsazuje o výšku `bottomBar` (vstupního pole), aby nejnovější
-                    // zpráva v klidu nekončila pod ním. Při scrollu obsah pod pole zajede.
-                    contentPadding = PaddingValues(
-                        start = 12.dp + inset,
-                        end = 12.dp + inset,
-                        top = 8.dp + pinnedHeight,
-                        bottom = 8.dp + padding.calculateBottomPadding(),
-                    ),
-                    // Rozestup UVNITŘ skupiny zpráv od jednoho odesílatele. Mezera mezi skupinami
-                    // se přidává až v bublině — tady na to není informace o sousedech.
-                    verticalArrangement = Arrangement.spacedBy(MESSAGE_SPACING),
-                ) {
-                    items(items, key = { it.key }, contentType = { it.contentType }) { item ->
-                        ConversationItemContent(item, itemScope)
-                    }
-                }
-                  }
-                  }
-                  // Nápověda k odkrývání časů ukazuje k pravému okraji, odkud časy přijedou.
-                  RevealTimesHintAnchor(gestureHints, Modifier.align(Alignment.CenterEnd))
-                }
-            }
-
-            /*
-             * Plovoucí datum.
-             *
-             * Ukáže se jen při scrollu a zase zmizí. V dlouhé historii je předěl často mimo
-             * obrazovku a bez tohohle by se při hledání starší zprávy nedalo poznat, kde zrovna
-             * jsem. Je to overlay, ne `stickyHeader`: ten se v obráceném seznamu lepí na jeho
-             * začátek, tedy dolů, což je přesně naopak.
-             */
-            AnimatedVisibility(
-                visible = listState.isScrollInProgress && floatingDay.isNotEmpty(),
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier.align(Alignment.TopCenter),
-            ) {
-                FloatingDayBadge(
-                    text = floatingDay,
-                    glass = Modifier.hazeBlur(
-                        input = HazeInput.Sources(listHaze),
-                        style = glassStyle(
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                            alpha = GLASS_TEXT_TINT_ALPHA,
-                            fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                        ),
-                    ),
-                    modifier = Modifier.padding(top = 8.dp + pinnedHeight),
-                )
-            }
-
-            /*
-             * Připnuté zprávy.
-             *
-             * Plavou nad seznamem jako vstupní pole, ne v hlavičce Scaffoldu: seznam pod nimi zajíždí
-             * a odsazuje se o jejich ZMĚŘENOU výšku. Kdyby byly součástí `topBar`, ukusovaly by místo
-             * i ve chvíli, kdy odjíždějí, a obsah by pod nimi na konci animace poskočil.
-             *
-             * Ukazuje se jedna zpráva (viz `PinnedMessagesBar`), a **která, rozhoduje scroll**
-             * (`pinnedForScroll`): ta, kterou uživatel právě míjí. Pruh tím slouží i jako
-             * orientace v historii. Nedrží se proto žádný stav — odvozuje se z klíče nejvyšší
-             * viditelné položky, takže nová připnutá zpráva výběr nerozhodí.
-             */
-
-            val density = LocalDensity.current
-            /*
-             * Pruh proti spamu a připnuté zprávy plavou nad seznamem spolu a měří se spolu: seznam
-             * se odsazuje o výšku obou. Spam stojí nahoře — je důležitější než připnutá zpráva.
-             */
-            Column(
-                Modifier
-                    .align(Alignment.TopCenter)
-                    .onSizeChanged { pinnedHeight = with(density) { it.height.toDp() } },
-            ) {
-                Column(Modifier.onSizeChanged { barsHeight = with(density) { it.height.toDp() } }) {
-                    // Při odjezdu se musí dál kreslit poslední pruh, ne nic (stejně jako u připnutých).
-                    // Při odjezdu se kreslí poslední pruh — stav je v tu chvíli už prázdný.
-                    val lastChatBar = remember { arrayOf<ChatBar?>(null) }
-                    if (chatBar != null) lastChatBar[0] = chatBar
-                    AnimatedVisibility(
-                        visible = chatBar != null,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut(),
-                    ) {
-                        when (val bar = lastChatBar[0]) {
-                            is SpamBar -> SpamBarCard(
-                                bar = bar,
-                                onBlock = { spamBarAction = SpamBarAction.Block },
-                                onReport = { spamBarAction = SpamBarAction.Report },
-                                onAddContact = viewModel::addSpamBarContact,
-                                onUnarchive = viewModel::unarchiveFromSpamBar,
-                                onDismiss = viewModel::dismissChatBar,
-                            )
-                            SharePhoneBar, InviteMembersBar, is JoinRequestBar -> ChatNoticeBarCard(
-                                bar = bar,
-                                onSharePhone = { confirmSharePhone = true },
-                                onInviteMembers = navigation.onAddMembers,
-                                onDismiss = viewModel::dismissChatBar,
-                            )
-                            null -> Unit
-                        }
-                    }
-                    // Žádosti o vstup hned pod spamem: čekají na rozhodnutí, jako on.
-                    val shownJoinRequests = joinRequests?.takeIf { it.count > joinRequestsHiddenAt }
-                    val lastJoinRequests = remember { arrayOf<PendingJoinRequests?>(null) }
-                    if (shownJoinRequests != null) lastJoinRequests[0] = shownJoinRequests
-                    AnimatedVisibility(
-                        visible = shownJoinRequests != null && !chatHidden,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut(),
-                    ) {
-                        lastJoinRequests[0]?.let { requests ->
-                            JoinRequestsBar(
-                                requests = requests,
-                                onClick = navigation.onOpenJoinRequests,
-                                onHide = { joinRequestsHiddenAt = requests.count },
-                                glass = Modifier.hazeBlur(
-                                    input = HazeInput.Sources(listHaze),
-                                    style = glassStyle(
-                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        alpha = GLASS_TEXT_TINT_ALPHA,
-                                        fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                                    ),
-                                ),
-                            )
-                        }
-                    }
-                    // Videochat mezi spamem a připnutými: o dění v chatu, ne o obsahu.
-                    val lastVideoChat = remember { arrayOf<VideoChatInfo?>(null) }
-                    if (videoChat != null) lastVideoChat[0] = videoChat
-                    AnimatedVisibility(
-                        visible = videoChat != null && !chatHidden,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut(),
-                    ) {
-                        lastVideoChat[0]?.let { info ->
-                            VideoChatBar(
-                                info = info,
-                                onClick = viewModel::explainVideoChat,
-                                glass = Modifier.hazeBlur(
-                                    input = HazeInput.Sources(listHaze),
-                                    style = glassStyle(
-                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        alpha = GLASS_TEXT_TINT_ALPHA,
-                                        fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                                    ),
-                                ),
-                            )
-                        }
-                    }
-                    AnimatedVisibility(
-                        // Omezený chat: připnutá zpráva by ukázala obsah, který se ukázat nesmí.
-                        visible = state.pinned.isNotEmpty() && !chatHidden,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut(),
-                    ) {
-                        // Při odjezdu se musí dál kreslit poslední zpráva, ne prázdný pruh.
-                        val last = remember { arrayOf(emptyList<ChatMessage>()) }
-                        if (state.pinned.isNotEmpty()) last[0] = state.pinned
-                        val pinned = last[0]
-
-                        PinnedMessagesBar(
-                            messages = pinned,
-                            index = pinnedIndex(pinned, pinnedForScroll(pinned, topVisibleKey)),
-                            canUnpin = state.canUnpin,
-                            // Ťuknutí skočí na ukázanou zprávu, a to KOTVOU NAHORU: zpráva pak stojí nad
-                            // viditelnou částí, takže pruh přejde na předchozí připnutou a další ťuknutí
-                            // vede o krok zpět. Se středem se nad cílem odkryje kus historie a pruh
-                            // přeskočí rovnou k nejstarší.
-                            onOpen = { message -> viewModel.jumpToMessage(message.id, anchor = ScrollAnchor.Top) },
-                            onUnpin = viewModel::unpin,
-                            onShowAll = { sheets.allPinned = true },
-                            glass = Modifier.hazeBlur(
-                                input = HazeInput.Sources(listHaze),
-                                style = glassStyle(
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    alpha = GLASS_TEXT_TINT_ALPHA,
-                                    fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                                ),
-                            ),
-                        )
-                    }
-                }
-
-                /*
-                 * Dock živé polohy: poslední řádek pod pruhy, vysouvá se tím, jak zpráva s polohou
-                 * odjíždí z obrazovky. Ve vlákně komentářů polohy nejsou (`liveLocations` prázdné).
-                 */
-                if (!chatHidden && shownDocked.isNotEmpty()) {
-                    LiveLocationDockBar(
-                        locations = shownDocked,
-                        reveal = { dockReveal.value },
-                        expanded = dockExpanded,
-                        onToggle = { dockExpanded = !dockExpanded },
-                        chatTitle = state.info?.title.orEmpty(),
-                        onOpenMap = { message ->
-                            (message.media as? MessageMedia.Location)?.let {
-                                viewModel.onAction(message.id, MessageAction.OpenLink(it.mapUrl))
-                            }
-                        },
-                        onShowMessage = { message ->
-                            dockExpanded = false
-                            viewModel.jumpToMessage(message.id)
-                        },
-                        onStop = { message -> viewModel.onAction(message.id, MessageAction.StopLiveLocation) },
-                        onProximityAlert = { message -> viewModel.onAction(message.id, MessageAction.SetProximityAlert) },
-                        glass = Modifier.hazeBlur(
-                            input = HazeInput.Sources(listHaze),
-                            style = glassStyle(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                alpha = GLASS_TEXT_TINT_ALPHA,
-                                fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                            ),
-                        ),
-                    )
-                }
-
-                // Skladbu z jiného chatu ukazuje i omezený chat — neprozradí z něj nic a zastavit ji jinde nejde.
-                ConversationPlayerDock(
-                    dock = playerDock,
-                    chatHidden = chatHidden,
-                    viewModel = viewModel,
-                    voicePlayback = voicePlayback,
-                    soundingVideoNote = soundingVideoNote,
-                    onOpenChat = navigation.onOpenChat,
-                    glass = Modifier.hazeBlur(
-                        input = HazeInput.Sources(listHaze),
-                        style = glassStyle(
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            alpha = GLASS_TEXT_TINT_ALPHA,
-                            fallbackAlpha = GLASS_FALLBACK_ALPHA,
-                        ),
-                    ),
-                )
-            }
+            ConversationBars(
+                state = state,
+                viewModel = viewModel,
+                navigation = navigation,
+                sheets = sheets,
+                chatHidden = chatHidden,
+                listHaze = listHaze,
+                topVisibleKey = { topVisibleKey },
+                liveLocations = shownDocked,
+                dockReveal = { dockReveal.value },
+                dockExpanded = dockExpanded,
+                onDockExpandedChange = { dockExpanded = it },
+                playerDock = playerDock,
+                voicePlayback = voicePlayback,
+                soundingVideoNote = soundingVideoNote,
+                onPinnedHeight = { pinnedHeight = it },
+                onBarsHeight = { barsHeight = it },
+            )
 
             // Akce u zprávy (ikonka u termínu, účtu, zásilky); stav si čte sám.
             MessageContextHost(viewModel)
