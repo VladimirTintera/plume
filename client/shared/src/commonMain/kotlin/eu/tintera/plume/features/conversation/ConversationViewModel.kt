@@ -37,31 +37,12 @@ import eu.tintera.plume.core.telegram.ComposedText
 import eu.tintera.plume.core.telegram.composedFormatsOf
 import eu.tintera.plume.core.telegram.within
 import eu.tintera.plume.core.telegram.UnreadMarkKind
-import eu.tintera.plume.resources.bot_location_unavailable
 import eu.tintera.plume.core.telegram.VideoChatInfo
 import eu.tintera.plume.core.telegram.InviteLinkRepository
 import eu.tintera.plume.core.url.UrlCleaner
 import eu.tintera.plume.core.telegram.PendingJoinRequests
 import eu.tintera.plume.core.telegram.ChatReplyMarkup
-import eu.tintera.plume.core.telegram.ReplyKeyboardButtonKind
-import eu.tintera.plume.core.telegram.UnsupportedKeyboardButton
-import eu.tintera.plume.resources.poll_add_option_failed
-import eu.tintera.plume.resources.bot_unsupported_managed_bot
 import eu.tintera.plume.core.telegram.BotButtonKind
-import eu.tintera.plume.core.telegram.SwitchInlineTarget
-import eu.tintera.plume.core.telegram.UnsupportedBotButton
-import eu.tintera.plume.resources.bot_answer
-import eu.tintera.plume.resources.bot_button_failed
-import eu.tintera.plume.resources.poll_retract_failed
-import eu.tintera.plume.resources.poll_stop_failed
-import eu.tintera.plume.resources.poll_vote_failed
-import eu.tintera.plume.resources.bot_text_copied
-import eu.tintera.plume.resources.bot_login_failed
-import eu.tintera.plume.core.telegram.LoginUrlPrompt
-import eu.tintera.plume.resources.bot_unsupported_switch_inline
-import eu.tintera.plume.resources.bot_unsupported_buy
-import eu.tintera.plume.resources.bot_unsupported_game
-import eu.tintera.plume.resources.bot_unsupported_password
 import eu.tintera.plume.core.telegram.SenderInfo
 import eu.tintera.plume.core.language.LanguageDetector
 import eu.tintera.plume.core.telegram.MentionCandidate
@@ -91,7 +72,6 @@ import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.telegram.diceEmojiFor
 import eu.tintera.plume.core.navigation.InstantViewRequests
 import eu.tintera.plume.core.navigation.BotStartRequests
-import eu.tintera.plume.resources.conversation_bot_start_failed
 import eu.tintera.plume.core.telegram.MessageSchedule
 import eu.tintera.plume.core.telegram.MessageEffect
 import eu.tintera.plume.core.telegram.SendOptions
@@ -354,9 +334,6 @@ class ConversationViewModel(
     /** Proxy z odkazu `t.me/proxy` — přidá se až po potvrzení v dialogu. */
     val proxyLinkFlow = ProxyLinkFlow(viewModelScope, proxies)
 
-    /** Vynucené odpovědi, na které se pole už přepnulo — jednou na zprávu. */
-    private val forceReplied = mutableSetOf<Long>()
-
     private val logger = Logger.withTag("Conversation")
 
     /** Skok na zprávu pro části, které ho potřebují (hledání, odkazy…) — viz [jumpToMessage]. */
@@ -611,6 +588,46 @@ class ConversationViewModel(
     fun dismissLoginWarning() = links.dismissLoginWarning()
     fun consumeAddBotToGroup() = links.consumeAddBotToGroup()
     fun consumeSwitchInline() = links.consumeSwitchInline()
+
+    /** Boti: tlačítka, klávesnice, příkazy, ankety, přihlášení — viz [ConversationBots]. */
+    private val bots = ConversationBots(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        repository = repository,
+        chatRepository = chatRepository,
+        settings = settings,
+        urlOpener = urlOpener,
+        clipboard = clipboard,
+        botStartRequests = botStartRequests,
+        links = links,
+        suggestions = suggestions,
+        replyTo = { replyTo(it) },
+        logger = logger,
+    )
+    fun startBot() = bots.startBot()
+    fun confirmLogin(allowWriteAccess: Boolean) = bots.confirmLogin(allowWriteAccess)
+    fun dismissLogin() = bots.dismissLogin()
+    fun dismissBotAlert() = bots.dismissBotAlert()
+    fun cancelStopPoll() = bots.cancelStopPoll()
+    fun confirmStopPoll() = bots.confirmStopPoll()
+    fun consumeOpenBotShare() = bots.consumeOpenBotShare()
+    fun consumeOpenPollComposer() = bots.consumeOpenPollComposer()
+    fun dismissPollVoters() = bots.dismissPollVoters()
+    fun dismissGiveaway() = bots.dismissGiveaway()
+    fun copyGiftCode(code: String) = bots.copyGiftCode(code)
+    fun openPollVoter(senderId: Long) = bots.openPollVoter(senderId)
+    fun pressReplyKeyboardButton(row: Int, column: Int) = bots.pressReplyKeyboardButton(row, column)
+    fun openBotMenuApp() = bots.openBotMenuApp()
+    fun toggleCommands() = bots.toggleCommands()
+    fun closeCommands() = bots.closeCommands()
+    fun sendCommand(command: String) = bots.sendCommand(command)
+    fun sharePhone() = bots.sharePhone()
+    fun dismissSharePhone() = bots.dismissSharePhone()
+    fun dismissShareLocation() = bots.dismissShareLocation()
+    fun sendKeyboardLocation(point: GeoPoint?) = bots.sendKeyboardLocation(point)
+    fun addPollOption(text: String, media: PollDraftMedia?) = bots.addPollOption(text, media)
+    fun dismissAddPollOption() = bots.dismissAddPollOption()
 
     /** Serializuje stránkování — bez toho by dva rychlé scrolly načetly tutéž stránku dvakrát. */
     private val loadMutex = Mutex()
@@ -1323,7 +1340,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             repository.replyMarkup(chatId).collect { markup ->
                 _state.update { it.copy(replyMarkup = markup) }
-                if (markup is ChatReplyMarkup.ForceReply) applyForceReply(markup.messageId)
+                if (markup is ChatReplyMarkup.ForceReply) bots.applyForceReply(markup.messageId)
             }
         }
 
@@ -2422,359 +2439,6 @@ class ConversationViewModel(
         }
     }
 
-    /** Tlačítko Start: pošle „/start" s parametrem z odkazu, bez odkazu prázdný. */
-    fun startBot() {
-        if (_state.value.startingBot) return
-        val parameter = _state.value.botStartParameter.orEmpty()
-        _state.update { it.copy(startingBot = true) }
-        viewModelScope.launch {
-            repository.startBot(chatId, parameter)
-                .onSuccess { pending ->
-                    botStartRequests.consume(chatId)
-                    _state.update { it.withMessage(pending).copy(startingBot = false) }
-                }
-                .onFailure { failure ->
-                    _state.update {
-                        it.copy(startingBot = false, error = failure.reported(logger, Res.string.conversation_bot_start_failed))
-                    }
-                }
-        }
-    }
-
-    /**
-     * Tlačítko „přihlásit na web" (`getLoginUrlInfo`).
-     *
-     * - **Web se dozví jméno, uživatelské jméno a fotku účtu**, takže se přihlášení potvrzuje
-     *   dialogem s doménou ([LoginRequest]) — tlačítko popisuje bot a vést může kamkoli.
-     * - Když server řekne „otevřít rovnou", jde to cestou obyčejného odkazu, i s potvrzením
-     *   adresy, pokud ho server nevypne (`skipConfirmation`).
-     * - **Chyba = obyčejný odkaz** (tak to předepisuje TDLib): tlačítko nezůstane mrtvé.
-     */
-    private fun loginWithButton(messageId: Long, button: BotButtonKind.LoginUrl) {
-        viewModelScope.launch {
-            repository.loginUrlInfo(chatId, messageId, button.buttonId)
-                .onSuccess { prompt ->
-                    when (prompt) {
-                        is LoginUrlPrompt.Open ->
-                            if (prompt.skipConfirmation) urlOpener.open(prompt.url) else links.openLink(prompt.url, confirmExternal = true)
-                        is LoginUrlPrompt.Confirm ->
-                            _state.update { it.copy(loginRequest = LoginRequest(messageId, button.buttonId, prompt)) }
-                    }
-                }
-                .onFailure { links.openLink(button.url, confirmExternal = true) }
-        }
-    }
-
-    /** Přihlášení potvrzené v dialogu; [allowWriteAccess] = bot smí uživateli psát. */
-    fun confirmLogin(allowWriteAccess: Boolean) {
-        val request = _state.value.loginRequest ?: return
-        _state.update { it.copy(loginRequest = null) }
-        viewModelScope.launch {
-            repository.loginUrl(chatId, request.messageId, request.buttonId, allowWriteAccess)
-                .onSuccess(urlOpener::open)
-                // Přihlásit se nepovedlo, ale web uživatel chtěl — otevře se bez přihlášení a řekne se proč.
-                .onFailure {
-                    _state.update { it.copy(notice = UiText(Res.string.bot_login_failed)) }
-                    urlOpener.open(request.prompt.url)
-                }
-        }
-    }
-
-    fun dismissLogin() = _state.update { it.copy(loginRequest = null) }
-
-    fun dismissBotAlert() = _state.update { it.copy(botAlert = null) }
-
-    /**
-     * Tlačítko bota pod zprávou.
-     *
-     * - **Odkaz mimo Telegram se napřed potvrzuje.** U odkazu v textu uživatel adresu vidí,
-     *   na tlačítku ne — popisek píše bot a „Ověřit účet" může vést kamkoli.
-     * - **Na odpověď bota se čeká jen u jednoho tlačítka naráz.** Druhé ťuknutí během čekání by
-     *   poslalo zpětné volání podruhé a u kontrolní otázky s jedním pokusem spálilo odpověď.
-     * - Co Plume neumí, se VYSVĚTLÍ, tlačítko nezmizí (viz [BotButtonKind.Unsupported]).
-     */
-    private fun pressBotButton(messageId: Long, row: Int, column: Int) {
-        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        val button = message.keyboard?.rows?.getOrNull(row)?.getOrNull(column) ?: return
-        when (val kind = button.kind) {
-            BotButtonKind.Callback -> askBot(messageId, row, column, button.text)
-            is BotButtonKind.Url -> links.openLink(kind.url, confirmExternal = true)
-            is BotButtonKind.CopyText -> viewModelScope.launch {
-                clipboard.copy(kind.text)
-                if (!clipboard.confirmsCopy) _state.update { it.copy(notice = UiText(Res.string.bot_text_copied)) }
-            }
-            is BotButtonKind.User -> links.openMentioned { chatRepository.privateChat(kind.userId) }
-            is BotButtonKind.WebApp -> links.requestWebApp(
-                WebAppRequest(botOf(message), kind.url, launch = true),
-            )
-            BotButtonKind.Disabled -> Unit
-            is BotButtonKind.LoginUrl -> loginWithButton(messageId, kind)
-            is BotButtonKind.SwitchInline -> when (val target = kind.target) {
-                SwitchInlineTarget.Current -> suggestions.useInlineBot(kind.bot, kind.query)
-                is SwitchInlineTarget.Chosen ->
-                    _state.update { it.copy(switchInline = SwitchInlinePick(kind.bot, kind.query, target)) }
-            }
-            is BotButtonKind.Unsupported -> _state.update { it.copy(notice = UiText(kind.feature.explanation())) }
-        }
-    }
-
-    private fun askBot(messageId: Long, row: Int, column: Int, text: String) {
-        if (_state.value.pressingBotButton != null) return
-        _state.update { it.copy(pressingBotButton = BotButtonRef(messageId, row, column)) }
-        viewModelScope.launch {
-            repository.pressBotButton(chatId, messageId, row, column, text)
-                .onSuccess { answer ->
-                    _state.update { state ->
-                        when {
-                            answer.text.isEmpty() -> state
-                            answer.alert -> state.copy(botAlert = answer.text)
-                            else -> state.copy(notice = UiText(Res.string.bot_answer, answer.text))
-                        }
-                    }
-                    // Hra nebo start jiného bota; odkaz od bota je stejně skrytý jako na tlačítku.
-                    if (answer.url.isNotEmpty()) links.openLink(answer.url, confirmExternal = true)
-                }
-                .onFailure { failure ->
-                    val message = failure.reported(logger, Res.string.bot_button_failed)
-                    _state.update { it.copy(error = message) }
-                }
-            _state.update { it.copy(pressingBotButton = null) }
-        }
-    }
-
-    /**
-     * Hlas v anketě; prázdný seznam hlas zruší („Zrušit hlas" v nabídce).
-     *
-     * Nic se lokálně nepřepisuje: TDLib po `setPollAnswer` sám změní obsah zprávy — napřed
-     * s `isBeingChosen` (u odpovědi se točí indikátor), po potvrzení se skutečnými počty.
-     * Obojí dorazí přes [ConversationRepository.editedMessages] jako každá úprava.
-     */
-    private fun vote(messageId: Long, answerIndexes: List<Int>) {
-        val poll = _state.value.messages.firstOrNull { it.id == messageId }?.poll ?: return
-        // Hlas, který by server odmítl, se neposílá: uzavřená anketa, druhý hlas bez zrušení.
-        val allowed = if (answerIndexes.isEmpty()) poll.canRetract else poll.canVote
-        if (!allowed) return
-        viewModelScope.launch {
-            repository.vote(chatId, messageId, answerIndexes).onFailure { failure ->
-                val message = failure.reported(logger, 
-                    if (answerIndexes.isEmpty()) Res.string.poll_retract_failed else Res.string.poll_vote_failed,
-                )
-                _state.update { it.copy(error = message) }
-            }
-        }
-    }
-
-    fun cancelStopPoll() {
-        _state.update { it.copy(pendingStopPoll = null) }
-    }
-
-    /** Uzavření ankety se ukáže samo — TDLib změní obsah zprávy a výsledky se odkryjí. */
-    fun confirmStopPoll() {
-        val messageId = _state.value.pendingStopPoll ?: return
-        _state.update { it.copy(pendingStopPoll = null) }
-        viewModelScope.launch {
-            repository.stopPoll(chatId, messageId).onFailure { failure ->
-                _state.update { it.copy(error = failure.reported(logger, Res.string.poll_stop_failed)) }
-            }
-        }
-    }
-
-    /** Bot, kterému zpráva s tlačítkem patří: odesílatel (kladné id = uživatel), jinak chat s botem. */
-    private fun botOf(message: ChatMessage?): Long = message?.senderId?.takeIf { it > 0 } ?: chatId
-
-    fun consumeOpenBotShare() = _state.update { it.copy(openBotShare = null) }
-
-    fun consumeOpenPollComposer() {
-        _state.update { it.copy(openPollComposer = null) }
-    }
-
-    fun dismissPollVoters() {
-        _state.update { it.copy(pollVoters = null) }
-    }
-
-    /**
-     * Stav účasti v soutěži. Sheet se otevře hned a stav dorazí ze serveru (`getGiveawayInfo`);
-     * kdyby se čekalo s otevřením, ťuknutí by na chvíli vypadalo, že nic neudělalo.
-     */
-    private fun showGiveaway(messageId: Long) {
-        _state.update { it.copy(giveaway = GiveawaySheet(messageId), messageMenu = null) }
-        viewModelScope.launch {
-            val result = repository.giveawayStatus(chatId, messageId)
-                .onFailure { logger.w(it) { "Stav soutěže $messageId se nepodařilo zjistit" } }
-            _state.update { state ->
-                val sheet = state.giveaway?.takeIf { it.messageId == messageId } ?: return@update state
-                state.copy(giveaway = sheet.copy(status = result.getOrNull(), failed = result.isFailure))
-            }
-        }
-    }
-
-    fun dismissGiveaway() {
-        _state.update { it.copy(giveaway = null) }
-    }
-
-    /** Dárkový kód Premium do schránky; potvrzení ukáže sheet sám — snackbar by byl pod ním. */
-    fun copyGiftCode(code: String) {
-        viewModelScope.launch { clipboard.copy(code) }
-        _state.update { state -> state.copy(giveaway = state.giveaway?.copy(codeCopied = true)) }
-    }
-
-    /**
-     * Ťuknutí na hlasujícího: uživatel otevře soukromý chat, chat (anonymní správce, kanál)
-     * sám sebe. Id drží konvenci odesílatele — kladné uživatel, záporné chat.
-     */
-    fun openPollVoter(senderId: Long) {
-        _state.update { it.copy(pollVoters = null) }
-        if (senderId > 0) {
-            links.openMentioned { chatRepository.privateChat(senderId) }
-        } else if (senderId != chatId) {
-            links.openTarget(ChatTarget(senderId))
-        }
-    }
-
-    /**
-     * Vynucená odpověď: pole se samo přepne na odpověď na zprávu bota — jednou na zprávu, a jen
-     * když se zrovna neupravuje ani neodpovídá na něco jiného. Rozepsanou odpověď by jinak
-     * přepsala pod rukama.
-     *
-     * Zpráva bota do seznamu dorazí `newMessages`, klidně až po tomhle updatu, takže se na ni
-     * chvíli počká.
-     */
-    private fun applyForceReply(messageId: Long) {
-        if (!forceReplied.add(messageId)) return
-        viewModelScope.launch {
-            withTimeoutOrNull(FORCE_REPLY_WAIT) { _state.first { state -> state.messages.any { it.id == messageId } } }
-                ?: return@launch
-            val state = _state.value
-            if (state.editing == null && state.replyingTo == null) replyTo(messageId)
-        }
-    }
-
-    /**
-     * Tlačítko vlastní klávesnice bota.
-     *
-     * Ve skupině jde text jako ODPOVĚĎ na zprávu s klávesnicí — tak to dělá oficiální klient
-     * a bot mezi desítkami zpráv pozná, že patří jemu. V soukromém chatu je citace šum.
-     */
-    fun pressReplyKeyboardButton(row: Int, column: Int) {
-        val keyboard = _state.value.replyMarkup as? ChatReplyMarkup.Keyboard ?: return
-        val button = keyboard.rows.getOrNull(row)?.getOrNull(column) ?: return
-        when (val kind = button.kind) {
-            ReplyKeyboardButtonKind.Text -> viewModelScope.launch {
-                repository.sendKeyboardText(chatId, button.text, keyboard.replyTarget())
-                    .onSuccess { keyboardUsed(keyboard) }
-                    .onFailure { failure ->
-                        _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_send_failed)) }
-                    }
-            }
-            // Číslo je údaj o uživateli; odejde až po potvrzení.
-            ReplyKeyboardButtonKind.PhoneNumber -> _state.update { it.copy(confirmSharePhone = true) }
-            // Poloha taky; zjišťuje ji až obrazovka po potvrzení (oprávnění a GPS jsou její).
-            ReplyKeyboardButtonKind.Location -> _state.update { it.copy(confirmShareLocation = true) }
-            // Výběr lidí a chatu je obrazovka nad konverzací; tlačítko patří zprávě s klávesnicí.
-            is ReplyKeyboardButtonKind.Users ->
-                _state.update { it.copy(openBotShare = BotShareRequest(keyboard.messageId, users = kind.request)) }
-            is ReplyKeyboardButtonKind.Chat ->
-                _state.update { it.copy(openBotShare = BotShareRequest(keyboard.messageId, chat = kind.request)) }
-            // Formulář je obrazovka nad konverzací; otevírá ho obrazovka, ViewModel jen řekne jaký.
-            is ReplyKeyboardButtonKind.Poll -> _state.update { it.copy(openPollComposer = kind.mode) }
-            is ReplyKeyboardButtonKind.WebApp -> {
-                val owner = _state.value.messages.firstOrNull { it.id == keyboard.messageId }
-                links.requestWebApp(
-                    WebAppRequest(botOf(owner), kind.url, launch = false, keyboardButtonText = button.text),
-                )
-            }
-            is ReplyKeyboardButtonKind.Unsupported ->
-                _state.update { it.copy(notice = UiText(kind.feature.explanation())) }
-        }
-    }
-
-    /**
-     * Tlačítko nabídky bota: mini aplikace přes `openWebApp`, jako z tlačítka pod zprávou —
-     * TDLib bere adresu z `botMenuButton` právě tam. Soukromý chat s botem má id bota.
-     */
-    fun openBotMenuApp() {
-        val app = _state.value.botMenuApp ?: return
-        closeCommands()
-        // Odkaz `t.me/bot/app` se zpracuje jako odkaz (TDLib to u tlačítka nabídky předepisuje).
-        if (app.isLink) links.openLink(app.url) else links.requestWebApp(WebAppRequest(chatId, app.url, launch = true))
-    }
-
-    /** Tlačítko příkazů u pole: otevře seznam, druhé ťuknutí ho zavře. */
-    fun toggleCommands() = _state.update { it.copy(commandsOpen = !it.commandsOpen) }
-
-    fun closeCommands() = _state.update { it.copy(commandsOpen = false) }
-
-    /**
-     * `/příkaz` ťuknutý v textu zprávy. Jde jako samostatná zpráva a **rozepsaný koncept nechá
-     * být** (`sendKeyboardText`, jako tlačítko vlastní klávesnice) — ťuknutí na příkaz v historii
-     * není odeslání toho, co je v poli. Kam se psát nesmí, tam se nepošle nic; příkaz se tam ani
-     * neukazuje jako klikatelný.
-     */
-    fun sendCommand(command: String) = sendBotCommand(command)
-
-    private fun sendBotCommand(command: String) {
-        if (!_state.value.canWrite) return
-        viewModelScope.launch {
-            repository.sendKeyboardText(chatId, command, replyToMessageId = null).onFailure { failure ->
-                _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_send_failed)) }
-            }
-        }
-    }
-
-    fun sharePhone() {
-        val keyboard = _state.value.replyMarkup as? ChatReplyMarkup.Keyboard
-        _state.update { it.copy(confirmSharePhone = false) }
-        viewModelScope.launch {
-            repository.shareOwnPhone(chatId, keyboard?.replyTarget())
-                .onSuccess { keyboard?.let(::keyboardUsed) }
-                .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_send_failed)) }
-                }
-        }
-    }
-
-    fun dismissSharePhone() = _state.update { it.copy(confirmSharePhone = false) }
-
-    fun dismissShareLocation() = _state.update { it.copy(confirmShareLocation = false) }
-
-    /**
-     * Poloha z tlačítka klávesnice bota, už zjištěná obrazovkou. `null` = uživatel nedovolil
-     * polohu, nebo ji zařízení nezjistilo — to musí být vidět, jinak by ťuknutí vypadalo, že nic
-     * neudělalo. Jako odpověď ve skupině, stejně jako text tlačítka.
-     */
-    fun sendKeyboardLocation(point: GeoPoint?) {
-        _state.update { it.copy(confirmShareLocation = false) }
-        if (point == null) {
-            _state.update { it.copy(notice = UiText(Res.string.bot_location_unavailable)) }
-            return
-        }
-        val keyboard = _state.value.replyMarkup as? ChatReplyMarkup.Keyboard
-        viewModelScope.launch {
-            repository.sendLocation(chatId, Place("", "", point.latitude, point.longitude), keyboard?.replyTarget(), quote = null)
-                .onSuccess { keyboard?.let(::keyboardUsed) }
-                .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_location_send_failed)) }
-                }
-        }
-    }
-
-    private fun ChatReplyMarkup.replyTarget(): Long? = messageId.takeIf { _state.value.info?.isGroup == true }
-
-    /**
-     * Jednorázová klávesnice se po použití ohlásí TDLib (`deleteChatReplyMarkup`) — chce to po
-     * klientovi výslovně. Klávesnice tím NEZMIZÍ: podle Bot API se jen schová a zůstává
-     * dostupná, což dělá obrazovka sbalením panelu.
-     */
-    private fun keyboardUsed(keyboard: ChatReplyMarkup.Keyboard) {
-        if (!keyboard.oneTime) return
-        settings.markOneTimeKeyboardUsed(chatId, keyboard.messageId)
-        viewModelScope.launch {
-            repository.dismissReplyMarkup(chatId, keyboard.messageId).onFailure { failure ->
-                logger.w(failure) { "Jednorázovou klávesnici bota se nepodařilo odebrat." }
-            }
-        }
-    }
-
     /**
      * Nastaví zprávu, na kterou se odpovídá, případně jen její úryvek ([quote]). Zobrazí se nad
      * vstupním polem.
@@ -2804,23 +2468,6 @@ class ConversationViewModel(
                 if (draft.text.isNotBlank()) scheduleDraftSave()
             }
         }
-    }
-
-    /** Přidá do ankety odpověď z dialogu. Nová odpověď přijde úpravou obsahu zprávy. */
-    fun addPollOption(text: String, media: PollDraftMedia?) {
-        val messageId = _state.value.addingPollOption ?: return
-        val trimmed = text.trim()
-        _state.update { it.copy(addingPollOption = null) }
-        if (trimmed.isEmpty()) return
-        viewModelScope.launch {
-            repository.addPollOption(chatId, messageId, trimmed, media).onFailure { failure ->
-                _state.update { it.copy(error = failure.reported(logger, Res.string.poll_add_option_failed)) }
-            }
-        }
-    }
-
-    fun dismissAddPollOption() {
-        _state.update { it.copy(addingPollOption = null) }
     }
 
     /**
@@ -3141,13 +2788,13 @@ class ConversationViewModel(
             // U alba na fotku, na které stisk začal, ne na zprávu s popiskem, které patří blok.
             MessageMenuAction.Reply -> replyTo(_state.value.messageMenu?.takeIf { it.messageId == messageId }?.replyTarget ?: messageId)
             is MessageAction.JumpTo -> jumpToMessage(action.messageId)
-            is MessageAction.PressBotButton -> pressBotButton(messageId, action.row, action.column)
-            is MessageAction.Vote -> vote(messageId, action.answerIndexes)
+            is MessageAction.PressBotButton -> bots.pressBotButton(messageId, action.row, action.column)
+            is MessageAction.Vote -> bots.vote(messageId, action.answerIndexes)
             MessageAction.ShowPollVoters -> _state.update { it.copy(pollVoters = messageId) }
             MessageAction.AddPollOption -> _state.update { it.copy(addingPollOption = messageId) }
             MessageMenuAction.RetractVote -> {
                 closeMenus()
-                vote(messageId, emptyList())
+                bots.vote(messageId, emptyList())
             }
             MessageMenuAction.StopPoll -> _state.update { it.copy(messageMenu = null, pendingStopPoll = messageId) }
             is MessageAction.OpenLink -> links.openLink(action.url)
@@ -3159,8 +2806,8 @@ class ConversationViewModel(
             MessageAction.StopLiveLocation -> stopLiveLocation(messageId)
             MessageAction.SetProximityAlert -> openProximityAlert(messageId)
             is MessageAction.OpenChat -> links.openMentioned { Result.success(action.chatId) }
-            MessageAction.ShowGiveaway -> showGiveaway(messageId)
-            is MessageAction.SendBotCommand -> sendBotCommand(action.command)
+            MessageAction.ShowGiveaway -> bots.showGiveaway(messageId)
+            is MessageAction.SendBotCommand -> bots.sendBotCommand(action.command)
             is MessageAction.UseInlineBot -> suggestions.useInlineBot(action.username)
             is MessageAction.OpenSenderProfile -> links.openSenderProfile(action.userId)
             is MessageAction.OpenForwardOrigin -> links.openForwardOrigin(action.origin)
@@ -3924,20 +3571,6 @@ internal const val MAX_SELECTED_MESSAGES = 100
 
 /** Mezi zprávami ve schránce zůstane prázdný řádek — jinak by dlouhé zprávy splynuly v jednu. */
 private const val SELECTION_COPY_SEPARATOR = "\n\n"
-
-private fun UnsupportedBotButton.explanation(): StringResource = when (this) {
-    UnsupportedBotButton.SwitchInline -> Res.string.bot_unsupported_switch_inline
-    UnsupportedBotButton.Buy -> Res.string.bot_unsupported_buy
-    UnsupportedBotButton.Game -> Res.string.bot_unsupported_game
-    UnsupportedBotButton.Password -> Res.string.bot_unsupported_password
-}
-
-private fun UnsupportedKeyboardButton.explanation(): StringResource = when (this) {
-    UnsupportedKeyboardButton.ManagedBot -> Res.string.bot_unsupported_managed_bot
-}
-
-/** Jak dlouho se po vynucené odpovědi čeká, než zpráva bota dorazí do seznamu. */
-private const val FORCE_REPLY_WAIT = 3_000L
 
 /** Náhled odkazu konceptu, odložený po dobu úpravy zprávy ([ConversationViewModel]). */
 private data class LinkPreviewStash(
