@@ -1026,7 +1026,7 @@ private fun ZoomableImage(
         onEngage = onEngage,
         zoomable = !hidden,
         modifier = modifier,
-        cardModifier = Modifier.sharedNavElement(photoKey(messageId), inTwoPane = true),
+        cardModifier = Modifier.sharedNavElement(photoKey(messageId), besidePanes = true),
         captionAlpha = captionAlpha,
         cardBias = cardBias,
     ) {

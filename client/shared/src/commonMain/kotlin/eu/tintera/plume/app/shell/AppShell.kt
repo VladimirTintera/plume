@@ -143,7 +143,7 @@ import eu.tintera.plume.core.navigation.SettingsRoute
 import eu.tintera.plume.core.navigation.SettingsSection
 import eu.tintera.plume.core.navigation.SettingsSectionRoute
 import eu.tintera.plume.core.navigation.TopLevelRoute
-import eu.tintera.plume.core.ui.LocalTwoPane
+import eu.tintera.plume.core.ui.LocalPanesSideBySide
 import eu.tintera.plume.core.ui.ChatContainer
 import eu.tintera.plume.app.root.presentation.theme.ChatColorTheme
 import eu.tintera.plume.core.telegram.ChatFolder
@@ -325,11 +325,11 @@ private fun ShellContent(
         ShellShortcuts(navigation = navigation, chatsStack = chatsStack, twoPane = twoPane)
 
         // Dvoupanelový stav se hlásí dolů: obrazovky podle něj poznají, že se nevyměňují,
-        // a sdílený prvek nezaloží — viz LocalTwoPane.
+        // a sdílený prvek nezaloží — viz LocalPanesSideBySide.
         // Id Uložených zpráv pro všechno, co kreslí chat (název, záložka místo fotky).
         val savedMessagesChatId by chatRepository.savedMessagesChatId.collectAsStateWithLifecycle()
 
-        CompositionLocalProvider(LocalTwoPane provides wide, LocalSavedMessagesChatId provides savedMessagesChatId) {
+        CompositionLocalProvider(LocalPanesSideBySide provides wide, LocalSavedMessagesChatId provides savedMessagesChatId) {
             /*
              * Zavření výběru pro sdílení vrací do aplikace, ze které se sdílelo, ne do Plume.
              * Návrat do seznamu chatů by vypadal, že se sdílený obsah ztratil — a ztratil by se,

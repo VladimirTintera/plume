@@ -23,8 +23,10 @@ import androidx.window.core.layout.computeWindowSizeClass
 @Composable
 fun contentPaneScaffoldDirective(width: Dp, height: Dp): PaneScaffoldDirective {
     // Z okna se bere jen posture (pant); velikostní třída se počítá z content-oblasti níž.
+    // V2 zná i Large a Extra-large: s V1 by i okno přes dva monitory bylo jen Expanded a dostalo
+    // výchozí šířku panelu pro tablet.
     val windowInfo = currentWindowAdaptiveInfoV2()
-    val contentSizeClass = WindowSizeClass.BREAKPOINTS_V1
+    val contentSizeClass = WindowSizeClass.BREAKPOINTS_V2
         .computeWindowSizeClass(widthDp = width.value, heightDp = height.value)
     return calculatePaneScaffoldDirective(
         WindowAdaptiveInfo(contentSizeClass, windowInfo.windowPosture),
@@ -48,8 +50,37 @@ fun PaneScaffoldDirective.singlePane(): PaneScaffoldDirective = withHorizontalPa
  */
 fun PaneScaffoldDirective.twoPane(): PaneScaffoldDirective = withHorizontalPartitions(2)
 
-/** Od téhle šířky content-oblasti má smysl ukázat seznam a konverzaci vedle sebe. */
-val TWO_PANE_MIN_WIDTH = 720.dp
+/**
+ * Directive vynucená na **tři** horizontální panely (seznam, konverzace a profil vedle sebe).
+ *
+ * Jen když je co dát do třetího panelu: scaffold se třemi oddíly rozbalí třetí panel vždycky,
+ * i prázdný (`tertiaryPane ?: {}` v `ThreePaneScaffold`), a vzal by konverzaci místo.
+ */
+fun PaneScaffoldDirective.threePane(): PaneScaffoldDirective = withHorizontalPartitions(3)
+
+/** Šířka seznamu chatů vedle konverzace — výchozí šířka panelu v M3. */
+val LIST_PANE_WIDTH = 360.dp
+
+/** Nejužší konverzace, ve které se ještě dá číst a psát. */
+val MIN_CONVERSATION_WIDTH = 360.dp
+
+/**
+ * Od téhle šířky content-oblasti má smysl ukázat seznam a konverzaci vedle sebe.
+ *
+ * Není to standardní práh M3 (dva panely dává až Expanded, od 840 dp), ale seznam plus nejužší
+ * konverzace — dva panely tak dostane i vnitřní displej Foldu (Medium). Standardní dvoupanel
+ * už od Medium (600 dp) by konverzaci nechal 240 dp.
+ */
+val TWO_PANE_MIN_WIDTH = LIST_PANE_WIDTH + MIN_CONVERSATION_WIDTH
+
+/**
+ * Od téhle šířky se profil otevírá jako třetí panel vedle seznamu a konverzace. Pod ní se seznam
+ * při otevřeném profilu schová a vedle sebe zůstane konverzace s profilem.
+ *
+ * Standardní práh M3 pro tři panely (Large), a sedí i na obsah: seznam a profil po 360 dp,
+ * konverzaci zbyde 480 dp.
+ */
+val THREE_PANE_MIN_WIDTH = WindowSizeClass.WIDTH_DP_LARGE_LOWER_BOUND.dp
 
 private fun PaneScaffoldDirective.withHorizontalPartitions(n: Int): PaneScaffoldDirective =
     PaneScaffoldDirective(

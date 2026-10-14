@@ -78,14 +78,17 @@ internal val flightSpec = spring<Rect>(
 )
 
 /**
- * Je právě vidět dvoupanelové rozvržení?
+ * Stojí panely vedle sebe (dva nebo tři), místo aby se obrazovky vyměňovaly?
  *
- * Sdílený prvek má smysl jen tam, kde se obrazovky **vyměňují**. V dvoupanelovém rozvržení zůstává
- * seznam vedle konverzace, takže obě strany páru existují naráz — avatar by odletěl z položky,
- * která je pořád vidět, a navíc by se o jeden klíč přetahovaly dva prvky. Shell tenhle příznak
- * poskytuje, aby o něm obrazovky nemusely nic vědět.
+ * Sdílený prvek má smysl jen tam, kde se obrazovky **vyměňují**. Vedle sebe zůstává seznam
+ * u konverzace a konverzace u profilu, takže obě strany páru existují naráz — avatar by odletěl
+ * z položky, která je pořád vidět, a navíc by se o jeden klíč přetahovaly dva prvky. Shell tenhle
+ * příznak poskytuje, aby o něm obrazovky nemusely nic vědět.
+ *
+ * Je to příznak široké plochy, ne počtu panelů: platí i tam, kde scéna na široké ploše dočasně
+ * ukazuje jeden panel (prázdný seznam bez placeholderu vedle).
  */
-val LocalTwoPane = compositionLocalOf { false }
+val LocalPanesSideBySide = compositionLocalOf { false }
 
 /**
  * Plocha, ve které se sdílený prvek letící do téhle obrazovky smí kreslit.
@@ -224,14 +227,14 @@ fun Modifier.sharedNavElement(
     /** Zaoblení druhé strany páru, ze kterého se rohy přelévají do [shape]. */
     flightFromCorner: Dp = MEDIA_CARD_CORNER,
     /**
-     * Letět i v dvoupanelovém rozvržení. Smí jen pár, jehož druhá strana dvoupanel NAHRADÍ —
+     * Letět i tam, kde panely stojí vedle sebe. Smí jen pár, jehož druhá strana panely NAHRADÍ —
      * prohlížeč médií jde přes celou plochu, takže fotka z bubliny nemá s kým se přetahovat
-     * (seznam vlevo klíč fotky nenese). Avatar a název chatu letět nesmí, viz [LocalTwoPane].
+     * (seznam vlevo klíč fotky nenese). Avatar a název chatu letět nesmí, viz [LocalPanesSideBySide].
      */
-    inTwoPane: Boolean = false,
+    besidePanes: Boolean = false,
 ): Modifier {
     val shared = LocalSharedTransitionScope.current ?: return this
-    if (LocalTwoPane.current && !inTwoPane) return this
+    if (LocalPanesSideBySide.current && !besidePanes) return this
     val scope = LocalNavAnimatedContentScope.current
     val area = LocalSharedElementClip.current
 
@@ -381,7 +384,7 @@ internal fun sharedElementClipRect(content: Rect, bounds: Rect, settled: Float):
 @Composable
 fun Modifier.sharedNavText(key: String): Modifier {
     val shared = LocalSharedTransitionScope.current ?: return this
-    if (LocalTwoPane.current) return this
+    if (LocalPanesSideBySide.current) return this
 
     return with(shared) {
         this@sharedNavText.sharedBounds(
