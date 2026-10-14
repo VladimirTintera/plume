@@ -7,6 +7,7 @@ import eu.tintera.plume.core.navigation.ArchiveEditChatRoute
 import eu.tintera.plume.core.navigation.ArchiveRoute
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
+import eu.tintera.plume.core.navigation.EventLogRoute
 import eu.tintera.plume.core.navigation.MemberRightsRoute
 import eu.tintera.plume.core.navigation.RemovedMembersRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
@@ -413,6 +414,7 @@ class ChatsStackTest {
             EditChatRoute(chatId = 1),
             RemovedMembersRoute(chatId = 1, banned = true),
             MemberRightsRoute(chatId = 1, userId = 5, admin = false),
+            EventLogRoute(chatId = 1),
         )
 
         stack.closeChat(1)

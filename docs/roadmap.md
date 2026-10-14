@@ -344,8 +344,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - ~~Odepnout všechny zprávy (`unpinAllChatMessages`, `unpinAllForumTopicMessages`)~~ — hotovo
   (sheet připnutých → „Odepnout vše"). Zbývá ověřit v tématu skupiny.
 - ~~Smazat skupinu nebo kanál pro všechny (`deleteChat`)~~ — hotovo (konec úpravy skupiny).
-- Záznam posledních akcí (`getChatEventLog`) a statistiky kanálu a příspěvku
-  (`getChatStatistics`, `getMessageStatistics`, `getMessagePublicForwards`).
+- ~~Záznam posledních akcí (`getChatEventLog`)~~ — hotovo (úprava skupiny → Poslední akce;
+  `docs/poznatky/profil-chatu.md`). Zbývají filtry a hledání v záznamu a statistiky kanálu
+  a příspěvku (`getChatStatistics`, `getMessageStatistics`, `getMessagePublicForwards`).
 - Psaní jménem kanálu ve skupině (`getChatAvailableMessageSenders`, `setChatMessageSender`).
 - Přímé zprávy kanálu (monoforum: `loadDirectMessagesChatTopics` a spol.) a navrhované příspěvky
   (`approveSuggestedPost`).

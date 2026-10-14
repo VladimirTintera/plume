@@ -1,5 +1,6 @@
 package eu.tintera.plume.di
 
+import eu.tintera.plume.features.profile.EventLogViewModel
 import eu.tintera.plume.features.settings.ChangePhoneViewModel
 import eu.tintera.plume.features.instantview.InstantViewViewModel
 import eu.tintera.plume.features.settings.AutosaveViewModel
@@ -677,6 +678,10 @@ fun appModule() = module {
 
     viewModel { parameters ->
         JoinRequestsViewModel(chatId = parameters.get(), repository = get())
+    }
+
+    viewModel { parameters ->
+        EventLogViewModel(chatId = parameters.get(), repository = get())
     }
 
     viewModel { parameters ->

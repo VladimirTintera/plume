@@ -1,5 +1,8 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.features.profile.EventLogScreen
+import eu.tintera.plume.core.navigation.ArchiveEventLogRoute
+import eu.tintera.plume.core.navigation.EventLogRoute
 import eu.tintera.plume.features.forward.ShareContactScreen
 import eu.tintera.plume.core.navigation.ShareContactRoute
 import eu.tintera.plume.core.navigation.AddMembersRoute
@@ -926,6 +929,7 @@ private fun shellEntryProvider(
             onOpenInviteLinks = { chatsStack.addOnce(InviteLinksRoute(route.chatId)) },
             onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
             onOpenRemoved = { banned -> chatsStack.addOnce(RemovedMembersRoute(route.chatId, banned)) },
+            onOpenEventLog = { chatsStack.addOnce(EventLogRoute(route.chatId)) },
             onDeleted = { chatsStack.closeChat(route.chatId) },
             onUpgraded = { old, new -> chatsStack.replaceUpgradedChat(old, new) },
         )
@@ -938,6 +942,7 @@ private fun shellEntryProvider(
             onOpenInviteLinks = { chatsStack.addOnce(ArchiveInviteLinksRoute(route.chatId)) },
             onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
             onOpenRemoved = { banned -> chatsStack.addOnce(ArchiveRemovedMembersRoute(route.chatId, banned)) },
+            onOpenEventLog = { chatsStack.addOnce(ArchiveEventLogRoute(route.chatId)) },
             onDeleted = { chatsStack.closeChat(route.chatId) },
             onUpgraded = { old, new -> chatsStack.replaceUpgradedChat(old, new) },
         )
@@ -968,6 +973,20 @@ private fun shellEntryProvider(
     entry<ArchiveJoinRequestsRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
         JoinRequestsScreen(
             viewModel = koinViewModel(key = "join-requests-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+        )
+    }
+
+    entry<EventLogRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        EventLogScreen(
+            viewModel = koinViewModel(key = "event-log-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+            onBack = { chatsStack.pop(route) },
+        )
+    }
+
+    entry<ArchiveEventLogRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        EventLogScreen(
+            viewModel = koinViewModel(key = "event-log-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
         )
     }

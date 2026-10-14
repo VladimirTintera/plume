@@ -1,5 +1,7 @@
 package eu.tintera.plume.app.shell
 
+import eu.tintera.plume.core.navigation.ArchiveEventLogRoute
+import eu.tintera.plume.core.navigation.EventLogRoute
 import eu.tintera.plume.core.navigation.JoinRequestsRoute
 import eu.tintera.plume.core.navigation.RemovedMembersRoute
 import eu.tintera.plume.core.navigation.InviteLinksRoute
@@ -108,12 +110,12 @@ internal fun MutableList<NavKey>.moveConversationToMain(chatId: Long) {
             // Celá archivní větev, i úpravy a práva členů nad profilem.
             is ArchiveRoute, is ArchiveConversationRoute, is ArchiveForumTopicsRoute, is ArchiveChatProfileRoute,
             is ArchiveEditChatRoute, is ArchiveMemberRightsRoute, is ArchiveInviteLinksRoute, is ArchiveJoinRequestsRoute,
-            is ArchiveRemovedMembersRoute,
+            is ArchiveRemovedMembersRoute, is ArchiveEventLogRoute,
             -> true
             // Detail hlavního seznamu patřil jinému chatu; nový chat ho nahradí celý, jinak by
             // zpět z něj vedlo do profilu toho předchozího.
             is ConversationRoute, is ForumTopicsRoute, is SavedTopicsRoute, is ChatProfileRoute, is EditChatRoute, is MemberRightsRoute,
-            is InviteLinksRoute, is JoinRequestsRoute, is RemovedMembersRoute -> true
+            is InviteLinksRoute, is JoinRequestsRoute, is RemovedMembersRoute, is EventLogRoute -> true
             else -> false
         }
     }
@@ -146,6 +148,8 @@ internal fun MutableList<NavKey>.closeChat(chatId: Long) {
             is ArchiveJoinRequestsRoute -> it.chatId == chatId
             is RemovedMembersRoute -> it.chatId == chatId
             is ArchiveRemovedMembersRoute -> it.chatId == chatId
+            is EventLogRoute -> it.chatId == chatId
+            is ArchiveEventLogRoute -> it.chatId == chatId
             else -> false
         }
     }
@@ -172,6 +176,8 @@ internal fun MutableList<NavKey>.replaceUpgradedChat(old: Long, new: Long) {
             is ArchiveJoinRequestsRoute -> it.chatId == old
             is RemovedMembersRoute -> it.chatId == old
             is ArchiveRemovedMembersRoute -> it.chatId == old
+            is EventLogRoute -> it.chatId == old
+            is ArchiveEventLogRoute -> it.chatId == old
             else -> false
         }
     }

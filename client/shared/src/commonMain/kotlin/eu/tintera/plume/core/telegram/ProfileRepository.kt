@@ -134,6 +134,12 @@ interface ProfileRepository {
      */
     suspend fun deleteChatForAll(chatId: Long): Result<Unit>
 
+    /**
+     * Poslední akce ve skupině nebo kanálu (`getChatEventLog`), od nejnovější, stránkované
+     * po [CHAT_LOG_PAGE]. Jen pro správce; Telegram je drží 48 hodin.
+     */
+    suspend fun eventLog(chatId: Long, fromEventId: Long = 0): Result<ChatLogPage>
+
     /** Pomalý režim; jen hodnoty z [SLOW_MODE_DELAYS], 0 = vypnout. */
     suspend fun setSlowMode(chatId: Long, seconds: Int): Result<Unit>
 
@@ -306,6 +312,8 @@ data class EditableChat(
     val settings: GroupSettings = GroupSettings(),
     /** Chat jde smazat pro všechny (`Chat.canBeDeletedForAllUsers`) — vlastník skupiny nebo kanálu. */
     val canDeleteForAll: Boolean = false,
+    /** Poslední akce ([ProfileRepository.eventLog]): supergroup a kanál, vlastník a správce. */
+    val canViewEventLog: Boolean = false,
 )
 
 /**
