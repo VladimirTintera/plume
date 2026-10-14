@@ -1325,6 +1325,8 @@
     <string name="chat_folders_recommended">Recommended</string>
     <string name="chat_folders_add">Add</string>
     <string name="chat_folders_add_folder">Add folder</string>
+    <string name="chat_folders_read_all">Mark all in “%1$s” as read</string>
+    <string name="chat_folders_read_all_main">Mark all chats as read</string>
     <string name="chat_folders_manage">Manage folders</string>
     <string name="chat_folders_suggestions_help">Folders sync with Telegram on all your devices.</string>
     <string name="chats_folder_empty_title">Nothing here</string>

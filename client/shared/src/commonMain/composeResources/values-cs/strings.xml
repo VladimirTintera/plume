@@ -1356,6 +1356,8 @@
     <string name="chat_folders_recommended">Doporučené</string>
     <string name="chat_folders_add">Přidat</string>
     <string name="chat_folders_add_folder">Přidat složku</string>
+    <string name="chat_folders_read_all">Označit vše v „%1$s“ jako přečtené</string>
+    <string name="chat_folders_read_all_main">Označit všechny chaty jako přečtené</string>
     <string name="chat_folders_manage">Spravovat složky</string>
     <string name="chat_folders_suggestions_help">Složky se synchronizují s Telegramem na všech tvých zařízeních.</string>
     <string name="chats_folder_empty_title">Nic tu není</string>

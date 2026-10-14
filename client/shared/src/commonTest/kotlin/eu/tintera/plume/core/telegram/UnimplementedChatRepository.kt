@@ -45,6 +45,7 @@ open class UnimplementedChatRepository : ChatRepository {
     override suspend fun setArchiveSettings(settings: ArchiveSettings) : Result<Unit> = error("setArchiveSettings")
     override suspend fun loadMore(folder: ChatFolder): Unit = error("loadMore")
     override suspend fun setPinned(chatId: Long, folder: ChatFolder, pinned: Boolean) : Result<Unit> = error("setPinned")
+    override suspend fun readAll(folder: ChatFolder) : Result<Unit> = error("readAll")
     override suspend fun setPinnedOrder(folder: ChatFolder, chatIds: List<Long>) : Result<Unit> = error("setPinnedOrder")
     override suspend fun setArchived(chatId: Long, archived: Boolean) : Result<Unit> = error("setArchived")
     override fun muted(chatId: Long) : Flow<Boolean?> = error("muted")
