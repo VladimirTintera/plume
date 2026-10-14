@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.foundation.ContextMenuDataProvider
+import androidx.compose.foundation.ContextMenuItem
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -37,6 +39,8 @@ import eu.tintera.plume.core.telegram.OutgoingAnimation
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.attachment_prepare_failed
+import eu.tintera.plume.resources.paste_as_attachment
+import eu.tintera.plume.resources.paste_image
 import java.awt.Color
 import java.awt.Image
 import java.awt.RenderingHints
@@ -54,6 +58,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.stringResource
 
 private val logger = Logger.withTag("KeyboardContent")
 
@@ -80,8 +85,7 @@ private val LocalContentTargetSlot = staticCompositionLocalOf<ContentTargetSlot?
  * Průzkumník) jako přílohy a OBRÁZEK ze schránky (snímek obrazovky, „Kopírovat obrázek"
  * v prohlížeči) jako fotku. Text ve schránce vkládá pole samo — klávesa se pak propustí dál.
  *
- * Kontextová nabídka pole položku „Vložit obrázek" jako na Androidu nemá: desktop ve výchozím
- * stavu kreslí starou nabídku Compose, která vlastní položky nebere.
+ * Totéž nabídne kontextová nabídka pole: „Vložit obrázek", u souborů „Vložit jako přílohu".
  *
  * Přetažení přijímá [ContentDropArea] kolem; pole se u ní jen přihlásí se svými právy.
  */
@@ -101,13 +105,35 @@ actual fun KeyboardContentReceiver(
         slot?.target = target
         onDispose { if (slot != null && slot.target === target) slot.target = null }
     }
-    Box(
-        Modifier.onPreviewKeyEvent { event ->
-            event.type == KeyEventType.KeyDown && event.isPaste() && pasteFromClipboard(scope, target.value)
+    val pasteImage = stringResource(Res.string.paste_image)
+    val pasteAsAttachment = stringResource(Res.string.paste_as_attachment)
+    /*
+     * Položka v kontextové nabídce pole, jen když schránka nese, co pole přijme. Stará nabídka
+     * Compose (desktop novou nemá zapnutou) bere položky z `ContextMenuDataProvider` nad polem
+     * a seznam si skládá až při otevření — schránka se tak čte v tu chvíli, ne při skládání.
+     */
+    ContextMenuDataProvider(
+        items = {
+            val current = target.value
+            when (val paste = clipboardPaste(current)) {
+                null -> emptyList()
+                is ClipboardPaste.Files -> listOf(ContextMenuItem(pasteAsAttachment) { paste(scope, paste, current) })
+                is ClipboardPaste.Picture -> listOf(ContextMenuItem(pasteImage) { paste(scope, paste, current) })
+            }
         },
-        propagateMinConstraints = true,
     ) {
-        content()
+        Box(
+            Modifier.onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown || !event.isPaste()) return@onPreviewKeyEvent false
+                val current = target.value
+                val paste = clipboardPaste(current) ?: return@onPreviewKeyEvent false
+                paste(scope, paste, current)
+                true
+            },
+            propagateMinConstraints = true,
+        ) {
+            content()
+        }
     }
 }
 
@@ -169,35 +195,44 @@ private fun KeyEvent.isPaste(): Boolean = when {
     else -> (isCtrlPressed && key == Key.V) || (isShiftPressed && key == Key.Insert)
 }
 
+/** Co ze schránky vloží pole místo textu. */
+private sealed interface ClipboardPaste {
+    data class Files(val files: List<File>) : ClipboardPaste
+
+    /** Obrázek se ze schránky čte až při vložení — pro nabídku stačí vědět, že tam je. */
+    data class Picture(val clip: Transferable) : ClipboardPaste
+}
+
 /**
- * Vloží soubory nebo obrázek ze schránky; vrací, jestli klávesu spotřeboval. Pořadí: soubory
+ * Co ze schránky vložit místo textu, nebo `null` — pak vkládá pole samo. Pořadí: soubory
  * (Finder k nim přidává i jméno jako text), pak obrázek — ale jen BEZ textu vedle. Excel
  * a Word dávají k buňkám a odstavcům i jejich obrázek a vložit se má text, kdežto snímek
  * obrazovky nebo „Kopírovat obrázek" text nenesou.
  */
-private fun pasteFromClipboard(scope: CoroutineScope, target: ContentTarget): Boolean {
+private fun clipboardPaste(target: ContentTarget): ClipboardPaste? {
     val clip = runCatching { Toolkit.getDefaultToolkit().systemClipboard.getContents(null) }
         .onFailure { logger.w(it) { "Schránka nejde přečíst." } }
-        .getOrNull() ?: return false
-    clip.files()?.let { files ->
-        if (!target.acceptsAny) return false
-        receiveFiles(scope, files, target)
-        return true
+        .getOrNull() ?: return null
+    clip.files()?.let { files -> return if (target.acceptsAny) ClipboardPaste.Files(files) else null }
+    if (!target.acceptImages || clip.isDataFlavorSupported(DataFlavor.stringFlavor)) return null
+    if (!clip.isDataFlavorSupported(DataFlavor.imageFlavor)) return null
+    return ClipboardPaste.Picture(clip)
+}
+
+private fun paste(scope: CoroutineScope, paste: ClipboardPaste, target: ContentTarget) {
+    when (paste) {
+        is ClipboardPaste.Files -> receiveFiles(scope, paste.files, target)
+        is ClipboardPaste.Picture -> scope.launch {
+            // Ze schránky se čte na vlákně UI, jako vždy v AWT; mimo něj jde jen zmenšení a zápis.
+            val image = runCatching { paste.clip.getTransferData(DataFlavor.imageFlavor) as Image }
+            image.mapCatching { withContext(Dispatchers.IO) { preparePastedImage(it) } }
+                .onSuccess { target.onContent(KeyboardContent.Image(it)) }
+                .onFailure {
+                    logger.w(it) { "Obrázek ze schránky se nepodařilo připravit." }
+                    target.onError(UiText(Res.string.attachment_prepare_failed))
+                }
+        }
     }
-    if (!target.acceptImages || clip.isDataFlavorSupported(DataFlavor.stringFlavor)) return false
-    if (!clip.isDataFlavorSupported(DataFlavor.imageFlavor)) return false
-    val image = runCatching { clip.getTransferData(DataFlavor.imageFlavor) as Image }
-        .onFailure { logger.w(it) { "Obrázek ze schránky nejde přečíst." } }
-        .getOrNull() ?: return false
-    scope.launch {
-        withContext(Dispatchers.IO) { runCatching { preparePastedImage(image) } }
-            .onSuccess { target.onContent(KeyboardContent.Image(it)) }
-            .onFailure {
-                logger.w(it) { "Obrázek ze schránky se nepodařilo připravit." }
-                target.onError(UiText(Res.string.attachment_prepare_failed))
-            }
-    }
-    return true
 }
 
 private fun Transferable.files(): List<File>? {

@@ -106,7 +106,7 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
   s právy jen pro vlastníka vedle databáze.
 - ~~**Vkládání obrázků ze schránky a přetažení souboru do okna**~~ — hotovo
   (`docs/poznatky/desktop.md`, „Vložení ze schránky a přetažení souborů"). Zbývá obrázek
-  tažený z prohlížeče (přichází bez souboru) a položka „Vložit obrázek" v kontextové nabídce.
+  tažený z prohlížeče (přichází bez souboru).
 - **Release pro macOS a Linux** (Windows MSI už je, `desktop-release.yml`): job na
   `macos-latest` s Homebrew `openssl@3` (DMG) a na Ubuntu (DEB). macOS chce verzi od 1.0.0.
 - **Podpis instalátorů**: Windows (certifikát pro podepisování kódu, jinak SmartScreen),

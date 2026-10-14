@@ -1147,6 +1147,7 @@
     <string name="format_clear">Bez formátování</string>
     <string name="paste_gif">Vložit GIF</string>
     <string name="paste_image">Vložit obrázek</string>
+    <string name="paste_as_attachment">Vložit jako přílohu</string>
     <string name="drop_files_here">Pusťte soubory sem a připojí se ke zprávě</string>
     <string name="gifs_search">Hledat GIFy</string>
     <string name="gifs_section_saved">Uložené</string>
