@@ -701,7 +701,7 @@ celou aplikaci a rozdělený na dvě místa by se rozešel. Zbývá:
 ## Velká plocha (adaptivní rozvržení)
 
 Rozbor z října 2026. Hotové: šířkové třídy V2 a odvozené prahy, profil jako třetí panel
-(`feat/tri-panely`), panely jako karty, táhlo s kotvami, sbalený seznam a šipka
+(`feat/tri-panely`), seznam na ploše okna a konverzace s profilem jako jedna karta, táhlo s kotvami, sbalený seznam a šipka
 zpět, která vedle seznamu konverzaci zavře (`feat/kotvy-panelu`), profil, který zůstane
 otevřený při přepnutí chatu (`feat/profil-zustava`). Co platí a jak se chová knihovna, je
 v `docs/poznatky/navigace.md`, „Šířkové třídy, tři panely a kotvy" a „Táhlo, kotvy a sbalený

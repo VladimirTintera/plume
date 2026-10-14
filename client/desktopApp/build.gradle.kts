@@ -32,6 +32,8 @@ dependencies {
     // systém neumí, takže macOS balíček vzniká na Macu, Windows na Windows.
     implementation(compose.desktop.currentOs)
     implementation(libs.kotlinx.coroutines.swing)
+    // Vzhled titulku okna na macOS podle systému (`setMacOsAdaptiveTitleBar`).
+    implementation(libs.platformtools.darkmodedetector)
     // `startKoin` vrací KoinApplication; `implementation` závislosti sdíleného modulu tranzitivní nejsou.
     implementation(project.dependencies.platform(libs.koin.bom))
     implementation(libs.koin.core)

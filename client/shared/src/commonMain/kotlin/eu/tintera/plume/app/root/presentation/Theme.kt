@@ -33,6 +33,13 @@ expect val supportsDynamicColor: Boolean
 @Composable
 expect fun SystemBarsAppearance(isDark: Boolean)
 
+/**
+ * Titulek okna v barvách motivu: plocha [background], text [content]. Reálně jen desktop
+ * (Windows), jinde no-op.
+ */
+@Composable
+expect fun WindowTitleBarAppearance(isDark: Boolean, background: Color, content: Color)
+
 /** Schéma aplikace: barvy z tapety ([dynamic]), jinak paleta dopočítaná ze [seed]. */
 @Composable
 expect fun colorScheme(isDark: Boolean, dynamic: Boolean, seed: Color): ColorScheme
@@ -84,6 +91,9 @@ fun AppTheme(
 
     val darkSystemBars = remember { DarkSystemBarsRequests() }
     SystemBarsAppearance(isDark || darkSystemBars.active)
+    // Plocha okna, na které leží seznam (AppShell); cílové schéma, ne prolínané — titulek
+    // přebarvuje systém a volat ho v každém snímku přechodu nemá smysl.
+    WindowTitleBarAppearance(isDark, background = target.surfaceContainer, content = target.onSurface)
 
     MaterialExpressiveTheme(
         colorScheme = colorScheme,
