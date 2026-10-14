@@ -64,7 +64,7 @@ internal object DesktopTray {
     private val quitItem = MenuItem()
 
     fun add(onOpen: () -> Unit, onQuit: () -> Unit): TrayIcon? = runCatching {
-        val image = DesktopTray::class.java.getResourceAsStream("/plume-icon.png")?.use(ImageIO::read)
+        val image = DesktopTray::class.java.getResourceAsStream("/plume-icon.png")?.use(ImageIO::read)?.let(DesktopDevMark::icon)
             ?: BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)
         openItem.addActionListener { onOpen() }
         quitItem.addActionListener { onQuit() }
@@ -73,7 +73,7 @@ internal object DesktopTray {
             addSeparator()
             add(quitItem)
         }
-        TrayIcon(image, APP_NAME, menu).apply {
+        TrayIcon(image, DesktopDevMark.name(APP_NAME), menu).apply {
             isImageAutoSize = true
             addMouseListener(object : MouseAdapter() {
                 override fun mouseClicked(event: MouseEvent) {
