@@ -703,15 +703,11 @@ celou aplikaci a rozdělený na dvě místa by se rozešel. Zbývá:
 Rozbor z října 2026. Hotové: šířkové třídy V2 a odvozené prahy, profil jako třetí panel
 (`feat/tri-panely`), seznam na ploše okna a konverzace s profilem jako jedna karta, táhlo s kotvami, sbalený seznam a šipka
 zpět, která vedle seznamu konverzaci zavře (`feat/kotvy-panelu`), profil, který zůstane
-otevřený při přepnutí chatu (`feat/profil-zustava`). Co platí a jak se chová knihovna, je
+otevřený při přepnutí chatu (`feat/profil-zustava`), Nastavení na tři panely (`feat/nastaveni-tri-panely`). Co platí a jak se chová knihovna, je
 v `docs/poznatky/navigace.md`, „Šířkové třídy, tři panely a kotvy" a „Táhlo, kotvy a sbalený
 seznam". Zbývá:
 
-1. **Nastavení na tři panely — samostatný PR.** Seznam sekcí | sekce
-   | podstránka (Soukromí → Blokovaní). Sekce jsou od října 2026 přeskupené, viz [Nastavení](#nastavení),
-   „Přeskupení sekcí".
-
-2. **Drobnosti.**
+1. **Drobnosti.**
    - Sbalený seznam nemá karty nad seznamem (aktualizace, nové přihlášení), FAB ani výběr víc
      chatů. Kdyby chyběly, stačí ve sloupci ukázat aspoň tečku, že nahoře něco čeká.
    - Šířka panelu profilu je výchozí z direktivy; táhlo mezi konverzací a profilem není.

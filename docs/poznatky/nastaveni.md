@@ -123,6 +123,13 @@ a úložiště leželo ve sběrné sekci Obecné (asi 25 řádků). Rozvrh a roz
   sekce (karta je vybraná, `accountSelected`). Sekce i karta jdou přes `replaceSettingsDetail`:
   NAHRADÍ, co je nad seznamem otevřené. V dvoupanelu nemá úprava šipku zpět a po uložení
   zůstane otevřená; na telefonu se po uložení zavře jako dřív.
+- **Podstránky sekcí jsou třetí panel** (`Panes.extra(SETTINGS_SCENE)`): od Large seznam |
+  sekce | podstránka, pod ním sekce s podstránkou a seznam se schová — stejně jako konverzace
+  s profilem, včetně jedné karty sekce s podstránkou (`PaneCard`). Shell zapíná třetí oddíl
+  podle zásobníku VYBRANÉ sekce aplikace (`shownStack`), ne jen Chatů. Úprava profilu je
+  detail (stojí na místě sekce), změna čísla nad ní podstránka. Podstránky nesou šipku zpět
+  i ve třetím panelu: vrší se nad sebou (Soukromí účtu → jedno nastavení) a zpět vede po
+  nich; poslední zpět panel zavře.
 - **AI v zařízení se v seznamu ukazuje jen se dostupným modelem** — stejný tok
   (`OnDeviceAi.availability()`) jako uvnitř sekce, ať se rozhodnutí nerozejde.
 - **Co je nového je pořád `SettingsSection`** (otevírá se jako sekce vedle seznamu), jen řádek
