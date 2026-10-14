@@ -66,7 +66,8 @@ internal class ConversationAttachments(
     private val chatRepository: ChatRepository,
     private val settings: AppSettings,
     private val shareRequests: ShareRequests,
-    private val shareTargets: ShareTargets,
+    /** Do chatu se něco poslalo (`ShareTargets.reportUsed`); funkce kvůli testu, jako u psaní. */
+    private val reportUsed: (chatId: Long) -> Unit,
     private val liveLocations: LiveLocationRepository,
     /** Kreslení do fotky před odesláním; bez něj se „Upravit" nenabízí. */
     private val photoMarkup: PhotoMarkupRenderer?,
@@ -434,7 +435,7 @@ internal class ConversationAttachments(
         scope.launch {
             repository.sendAttachments(chatId, attachments, caption.text, replyTo, quote, options, mentions, caption.formats)
                 .onSuccess { pending ->
-                    shareTargets.reportUsed(chatId)
+                    reportUsed(chatId)
                     if (options.schedule != null) {
                         state.update { it.copy(notice = UiText(Res.string.conversation_scheduled_notice)) }
                         repository.saveDraft(chatId, "", null)

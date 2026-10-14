@@ -1,9 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.ProxyConfig
 import co.touchlab.kermit.Logger
-import eu.tintera.plume.core.audio.MusicQueue
-import eu.tintera.plume.core.audio.VoiceKey
-import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.core.navigation.BotStartRequests
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.ShareTarget
@@ -14,7 +12,6 @@ import eu.tintera.plume.core.telegram.ForwardOrigin
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.InviteJoinResult
 import eu.tintera.plume.core.telegram.LinkUserNotFoundException
-import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.UnsupportedProxyException
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
@@ -36,7 +33,6 @@ import eu.tintera.plume.resources.invite_request_sent
 import eu.tintera.plume.resources.proxy_unsupported
 import eu.tintera.plume.resources.story_live_unsupported
 import eu.tintera.plume.resources.story_unavailable
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -46,7 +42,7 @@ import kotlinx.coroutines.launch
 /**
  * Kam vede odkaz nebo ťuknutí ve zprávě: odkaz (i `t.me` a `tg://` uvnitř aplikace, s potvrzením
  * cizího webu), zmínka, chat, zpráva, komentáře, původ přeposlání, profil odesílatele, příběh,
- * čas v médiu, pozvánka do chatu a do složky, start bota z odkazu a mini aplikace. Navigaci
+ * pozvánka do chatu a do složky, start bota z odkazu a mini aplikace. Navigaci
  * dělá obrazovka — sem patří rozhodnutí a jednorázová událost ve stavu, kterou si vyzvedne.
  *
  * Část [ConversationViewModel] — ten na ni deleguje.
@@ -61,14 +57,12 @@ internal class ConversationLinks(
     private val scope: CoroutineScope,
     private val repository: ConversationRepository,
     private val chatRepository: ChatRepository,
-    private val urlOpener: UrlOpener,
+    /** Odkaz ven (prohlížeč); `UrlOpener` je `expect class`, v testu ho nahradit nejde. */
+    private val openUrl: (url: String) -> Unit,
     private val shareRequests: ShareRequests,
     private val botStartRequests: BotStartRequests,
-    private val voicePlayer: VoicePlayer,
-    private val musicQueue: MusicQueue,
-    /** Čas v hlasovce pouští přehrávání od daného místa. */
-    private val playback: ConversationPlayback,
-    private val proxyLinkFlow: ProxyLinkFlow,
+    /** Odkaz `t.me/proxy`: dialog přidání proxy (`ProxyLinkFlow.open`). */
+    private val openProxy: (ProxyConfig) -> Unit,
     private val jumper: MessageJumper,
     private val logger: Logger,
 ) {
@@ -92,7 +86,7 @@ internal class ConversationLinks(
                         null -> if (confirmExternal) {
                             state.update { it.copy(confirmLink = url) }
                         } else {
-                            urlOpener.open(url)
+                            openUrl(url)
                         }
                         is InternalLink.Chat -> openChatLink(link)
                         // Výběr chatu otevře shell sám — sdílení bez vybraného chatu (viz ShareRequests).
@@ -111,7 +105,7 @@ internal class ConversationLinks(
                             it.copy(folderInvite = FolderInviteSheetState(link.link, link.preview))
                         }
                         is InternalLink.StickerSet -> state.update { it.copy(openStickerSet = link.setId) }
-                        is InternalLink.Proxy -> proxyLinkFlow.open(link.config)
+                        is InternalLink.Proxy -> openProxy(link.config)
                         is InternalLink.BotStart -> openBotStart(link)
                         // Skupinu vybírá obrazovka výběru; přidání se potvrzuje až tam.
                         is InternalLink.BotStartInGroup -> state.update { it.copy(addBotToGroup = link) }
@@ -183,7 +177,7 @@ internal class ConversationLinks(
     fun openConfirmedLink() {
         val url = state.value.confirmLink ?: return
         state.update { it.copy(confirmLink = null) }
-        urlOpener.open(url)
+        openUrl(url)
     }
 
     fun dismissLink() = state.update { it.copy(confirmLink = null) }
@@ -363,41 +357,6 @@ internal class ConversationLinks(
     /** Obrazovka profil otevřela; jednorázová událost jako [consumeOpenChat]. */
     fun consumeOpenProfile() {
         state.update { it.copy(openProfile = null) }
-    }
-
-    /** Obrazovka chat otevřela. Bez toho by se po otočení displeje otevřel znovu. */
-    /**
-     * Čas v médiu („1:23"). Médium je v téže zprávě, nebo ve zprávě, na kterou odpovídá
-     * (`hasTimestampedMedia`) — tak to definuje TDLib. Video se otevře v prohlížeči od toho
-     * místa (navigace je věc obrazovky, proto stav [ConversationState.openMediaAt]); hlasovka,
-     * skladba a kolečko hrají v chatu, jako po ťuknutí na ně; video z náhledu odkazu se otevře na
-     * webu od toho místa.
-     */
-    fun playMediaAt(messageId: Long, seconds: Int) {
-        val current = state.value
-        val message = current.messages.firstOrNull { it.id == messageId } ?: return
-        val target = timestampTarget(message, current.messages, current.quotes) ?: return
-        val startMs = seconds * 1000L
-        when (val media = target.media) {
-            is MessageMedia.Video -> state.update { it.copy(openMediaAt = MediaAt(target.id, seconds)) }
-            is MessageMedia.VoiceNote -> {
-                state.update { it.copy(soundingVideoNote = null) }
-                voicePlayer.play(VoiceKey(chatId, target.id), startMs = startMs) { playback.voicePath(media) }
-                if (!target.isOutgoing && !media.isListened) playback.reportListened(target.id)
-            }
-            is MessageMedia.Audio -> {
-                state.update { it.copy(soundingVideoNote = null) }
-                musicQueue.play(chatId, target.id, media, startMs)
-            }
-            is MessageMedia.VideoNote -> {
-                voicePlayer.stop()
-                state.update { it.copy(soundingVideoNote = target.id, soundingVideoNoteFromMs = startMs) }
-                if (!target.isOutgoing && !media.isViewed) playback.reportListened(target.id)
-            }
-            // Video v náhledu odkazu (YouTube…) v aplikaci nepřehráváme: otevře se jeho web
-            // od toho místa, kde to adresa umí (`videoLinkAt`).
-            else -> target.linkPreview?.takeIf { it.isVideo }?.let { openLink(videoLinkAt(it.url, seconds)) }
-        }
     }
 
     fun consumeOpenMediaAt() {
