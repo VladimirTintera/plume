@@ -463,7 +463,7 @@ private fun DeviceDetailSheet(
 
             // Odhlášení hned pod hlavičkou, ne až za údaji: je to to, kvůli čemu se sem chodí,
             // a na menším telefonu by pod údaji a přepínači skončilo pod okrajem.
-            // Jen u CIZÍHO zařízení — odhlášení tohoto je v Obecných (maže lokální data).
+            // Jen u CIZÍHO zařízení — odhlášení tohoto je dole v seznamu Nastavení (maže lokální data).
             if (!device.isCurrent) {
                 Button(
                     onClick = onTerminate,

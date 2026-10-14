@@ -1278,15 +1278,11 @@ private fun shellEntryProvider(
     entry<SettingsRoute>(metadata = Panes.list(SETTINGS_SCENE)) {
         SettingsScreen(
             selectedSection = selectedSettingsSection,
+            accountSelected = settingsStack.getOrNull(1) == EditProfileRoute,
             // Otevření jiné sekce ji NAHRADÍ, nevrší se zásobník — stejně jako
-            // u konverzací.
-            onSectionClick = { section ->
-                // I s obrazovkami, které se vrší nad sekci — jinak by zůstaly pod novou sekcí.
-                settingsStack.removeAll {
-                    it is SettingsSectionRoute || it.isOverSettingsSection()
-                }
-                settingsStack.add(SettingsSectionRoute(section))
-            },
+            // u konverzací. Úprava profilu z karty účtu stojí na místě sekce, stejně tak.
+            onSectionClick = { section -> settingsStack.replaceSettingsDetail(SettingsSectionRoute(section)) },
+            onEditProfile = { settingsStack.replaceSettingsDetail(EditProfileRoute) },
             // Sem se chodí z menu účtu na každé šířce, takže šipka zpět do Chatů je vždycky.
             // Zavírá Nastavení celá — v dvoupanelu je sekce otevřená pořád, viz `closeSettings`.
             onBack = navigation::closeSettings,
@@ -1304,8 +1300,7 @@ private fun shellEntryProvider(
 
         SettingsSectionScreen(
             section = route.section,
-            onBack = if (wide) null else popSection,
-            onEditProfile = { if (settingsStack.lastOrNull() != EditProfileRoute) settingsStack.add(EditProfileRoute) },
+            onBack = popSection.takeUnless { LocalPanesSideBySide.current },
             onOpenBlocked = { if (settingsStack.lastOrNull() != BlockedSendersRoute) settingsStack.add(BlockedSendersRoute) },
             onOpenFolders = { if (settingsStack.lastOrNull() != ChatFoldersRoute) settingsStack.add(ChatFoldersRoute) },
             onOpenStickerSets = { if (settingsStack.lastOrNull() != StickerSetsRoute) settingsStack.add(StickerSetsRoute) },
@@ -1320,7 +1315,7 @@ private fun shellEntryProvider(
         )
     }
 
-    // Soukromí účtu nad sekcí Obecné, jedno nastavení s výjimkami nad ním.
+    // Soukromí účtu nad sekcí Soukromí, jedno nastavení s výjimkami nad ním.
     entry<AccountPrivacyRoute>(
         metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
@@ -1353,7 +1348,7 @@ private fun shellEntryProvider(
         ProxySettingsScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
-    // Složky chatů nad sekcí Obecné, jako seznam blokovaných; editor složky nad nimi.
+    // Složky chatů nad sekcí Chaty; editor složky nad nimi.
     entry<ChatFoldersRoute>(
         metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
@@ -1364,7 +1359,7 @@ private fun shellEntryProvider(
         )
     }
 
-    // Sady samolepek nad sekcí Obecné, jako složky chatů.
+    // Sady samolepek nad sekcí Chaty, jako složky chatů.
     entry<StickerSetsRoute>(
         metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
@@ -1395,7 +1390,7 @@ private fun shellEntryProvider(
         )
     }
 
-    // Seznam blokovaných nad sekcí Obecné, jako úprava profilu.
+    // Seznam blokovaných nad sekcí Soukromí.
     entry<BlockedSendersRoute>(
         metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
@@ -1406,14 +1401,14 @@ private fun shellEntryProvider(
         )
     }
 
-    // Dvoufázové ověření nad sekcí Obecné, jako seznam blokovaných.
+    // Dvoufázové ověření nad sekcí Soukromí, jako seznam blokovaných.
     entry<TwoStepRoute>(
         metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         TwoStepScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
-    // Přihlašovací e-mail nad sekcí Obecné, jako dvoufázové ověření.
+    // Přihlašovací e-mail nad sekcí Soukromí, jako dvoufázové ověření.
     entry<LoginEmailRoute>(
         metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
@@ -1427,14 +1422,14 @@ private fun shellEntryProvider(
         NetworkUsageScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
-    // Přístupové klíče nad sekcí Obecné, jako dvoufázové ověření.
+    // Přístupové klíče nad sekcí Soukromí, jako dvoufázové ověření.
     entry<PasskeysRoute>(
         metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         PasskeysScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
-    // Zámek aplikace nad sekcí Obecné, jako dvoufázové ověření.
+    // Zámek aplikace nad sekcí Soukromí, jako dvoufázové ověření.
     entry<AppLockRoute>(
         metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
@@ -1451,13 +1446,14 @@ private fun shellEntryProvider(
         )
     }
 
-    // Úprava profilu nad sekcí Obecné; šipka zpět je i v dvoupanelu, vede zpátky do sekce.
+    // Úprava profilu z karty účtu, místo sekce. V dvoupanelu bez šipky zpět (seznam je vedle), na telefonu se z ní chodí zpět.
     entry<EditProfileRoute>(
         metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
+        val close: () -> Unit = { settingsStack.pop(route) }
         EditProfileScreen(
             viewModel = koinViewModel(),
-            onBack = { settingsStack.pop(route) },
+            onBack = close.takeUnless { LocalPanesSideBySide.current },
             // Prohlížeč se vrší nad Nastavení; zavírá se z toho zásobníku, ve kterém leží.
             onOpenPhotos = { userId -> settingsStack.add(MediaRoute(userId, messageId = 0L, profilePhotos = true)) },
             onChangePhone = { if (settingsStack.lastOrNull() != ChangePhoneRoute) settingsStack.add(ChangePhoneRoute) },
@@ -1641,4 +1637,15 @@ private fun NavKey?.isOverSettingsSection(): Boolean =
 @Composable
 private fun ColoredChatContainer(chatId: Long, fromList: Boolean, content: @Composable () -> Unit) {
     ChatContainer(chatId, fromList) { ChatColorTheme(chatId, content) }
+}
+
+/**
+ * Výběr v seznamu Nastavení: sekce, nebo úprava profilu z karty účtu. NAHRADÍ, co je otevřené
+ * nad seznamem, i s obrazovkami, které se vrší nad sekci — jinak by zůstaly pod novou sekcí.
+ * Opětovné ťuknutí na otevřené nic nemění.
+ */
+private fun MutableList<NavKey>.replaceSettingsDetail(detail: NavKey) {
+    if (getOrNull(1) == detail && size == 2) return
+    removeAll { it is SettingsSectionRoute || it.isOverSettingsSection() }
+    add(detail)
 }

@@ -7,7 +7,7 @@ import eu.tintera.plume.core.settings.ChatSwipeActions
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Akce tahu v seznamu chatů (Obecné → Chaty). Zápis běží v rozsahu [AppSettings], ne ve
+ * Akce tahu v seznamu chatů (Chaty). Zápis běží v rozsahu [AppSettings], ne ve
  * `viewModelScope` — volba těsně před odchodem z obrazovky se tak neztratí (viz [AppearanceViewModel]).
  */
 class ChatSwipeSettingsViewModel(

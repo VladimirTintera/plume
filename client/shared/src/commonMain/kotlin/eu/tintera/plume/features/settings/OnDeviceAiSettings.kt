@@ -81,6 +81,7 @@ import eu.tintera.plume.resources.settings_on_device_ai_unsupported
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -146,17 +147,7 @@ class OnDeviceAiSettingsViewModel(
      * důvodu je to samostatný tok a ne odvozenina z [model] — ten se při každé změně varianty
      * vrací na `Checking` a sekce by problikávala.
      */
-    val availability: StateFlow<AiAvailability?> = flow {
-        emit(
-            AiAvailability(
-                providers = AiProvider.entries.filter { ai.status(ModelVariant(provider = it)) != OnDeviceAiStatus.Unsupported },
-                gemmaModels = GemmaModel.entries.filter {
-                    ai.status(ModelVariant(provider = AiProvider.Gemma, gemma = it)) != OnDeviceAiStatus.Unsupported
-                },
-            ),
-        )
-    }
-        .catch { emit(AiAvailability(emptyList(), emptyList())) }
+    val availability: StateFlow<AiAvailability?> = ai.availability()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private var download: Job? = null
@@ -286,6 +277,24 @@ class OnDeviceAiSettingsViewModel(
 }
 
 /**
+ * Co zařízení umí: kteří poskytovatelé a které modely Gemma. Ptá se ho ViewModel sekce i seznam
+ * sekcí Nastavení, který sekci AI v zařízení bez modelu vůbec nenabízí.
+ *
+ * U Gemini Nano se ptá na VÝCHOZÍ variantu, ne na tu zvolenou: preview nebo rychlá může chybět
+ * zvlášť, a kvůli tomu by celá sekce zmizela uživateli, který model má.
+ */
+fun OnDeviceAi.availability(): Flow<AiAvailability> = flow {
+    emit(
+        AiAvailability(
+            providers = AiProvider.entries.filter { status(ModelVariant(provider = it)) != OnDeviceAiStatus.Unsupported },
+            gemmaModels = GemmaModel.entries.filter {
+                status(ModelVariant(provider = AiProvider.Gemma, gemma = it)) != OnDeviceAiStatus.Unsupported
+            },
+        ),
+    )
+}.catch { emit(AiAvailability(emptyList(), emptyList())) }
+
+/**
  * Vrací preview varianta tentýž model jako stabilní?
  *
  * Preview se nechová jako nedostupná funkce: `checkStatus` vrátí `AVAILABLE` (ne
@@ -322,7 +331,7 @@ fun supportedVariant(current: ModelVariant, available: AiAvailability): ModelVar
 }
 
 /**
- * Skupina „AI v zařízení" v sekci Obecné. Stav modelu se ukazuje, jen když je volba zapnutá —
+ * Obsah sekce „AI v zařízení". Stav modelu se ukazuje, jen když je volba zapnutá —
  * kdo o funkci nestojí, nemá co řešit.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

@@ -1946,7 +1946,7 @@ private fun SettingsSection?.toAppScreen(): AppScreen = when (this) {
     null -> AppScreen.Settings
     is SettingsSectionEditProfile -> AppScreen.EditProfile
     // Podsekce „passkey" a „passkey/create" vedou na seznam klíčů; přidat klíč Plume neumí.
-    is SettingsSectionPrivacyAndSecurity -> if (subsection.startsWith("passkey")) AppScreen.Passkeys else AppScreen.General
+    is SettingsSectionPrivacyAndSecurity -> if (subsection.startsWith("passkey")) AppScreen.Passkeys else AppScreen.Privacy
     is SettingsSectionNotifications -> AppScreen.Notifications
     is SettingsSectionAppearance -> AppScreen.Appearance
     is SettingsSectionDevices, is SettingsSectionQrCode -> AppScreen.Devices

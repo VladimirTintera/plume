@@ -109,16 +109,16 @@ enum class AppScreen {
     /** Nastavení na kořeni — i pro sekce, které Plume nemá (jazyk, Premium…). */
     Settings,
     EditProfile,
-    /** Dvoufázové ověření (Obecné → Soukromí). Jen z doporučené akce, odkaz `tg://` na něj Plume nemá. */
+    /** Dvoufázové ověření (Soukromí). Jen z doporučené akce, odkaz `tg://` na něj Plume nemá. */
     TwoStepVerification,
-    /** Přihlašovací e-mail (Obecné → Soukromí). Jen z doporučené akce. */
+    /** Přihlašovací e-mail (Soukromí). Jen z doporučené akce. */
     LoginEmail,
-    /** Přístupové klíče (Obecné → Soukromí), i z `tg://settings/privacy/passkey`. */
+    /** Přístupové klíče (Soukromí), i z `tg://settings/privacy/passkey`. */
     Passkeys,
     /** Změna telefonního čísla (úprava profilu). Jen z doporučené akce. */
     ChangePhone,
-    /** Soukromí je v Obecných, samostatná sekce není. */
-    General,
+    /** Sekce Soukromí (`tg://settings/privacy`). */
+    Privacy,
     Notifications,
     Appearance,
     Devices,

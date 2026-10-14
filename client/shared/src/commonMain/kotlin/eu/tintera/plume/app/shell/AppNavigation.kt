@@ -80,10 +80,10 @@ class AppNavigation internal constructor(
     }
 
     /**
-     * Nastavení proxy zvenčí (nabídka nad chatem od provozovatele proxy): Nastavení → Obecné →
+     * Nastavení proxy zvenčí (nabídka nad chatem od provozovatele proxy): Nastavení → Úložiště →
      * Proxy, takže zpět vede po krocích, kudy by se tam uživatel proklikal sám.
      */
-    fun openProxySettings() = openSettingsAt(SettingsSection.General, ProxySettingsRoute)
+    fun openProxySettings() = openSettingsAt(SettingsSection.Storage, ProxySettingsRoute)
 
     /**
      * Odkaz na obrazovku aplikace (`tg://settings/devices`, `tg://newgroup`…). Do Nastavení se
@@ -94,19 +94,17 @@ class AppNavigation internal constructor(
     fun openScreen(screen: AppScreen, twoPane: Boolean) {
         when (screen) {
             AppScreen.Settings -> openSettings()
-            AppScreen.General -> openSettingsAt(SettingsSection.General)
+            AppScreen.Privacy -> openSettingsAt(SettingsSection.Privacy)
             AppScreen.Notifications -> openSettingsAt(SettingsSection.Notifications)
             AppScreen.Appearance -> openSettingsAt(SettingsSection.Appearance)
             AppScreen.Devices -> openSettingsAt(SettingsSection.Devices)
             AppScreen.Storage -> openSettingsAt(SettingsSection.Storage)
-            AppScreen.EditProfile -> openSettingsAt(SettingsSection.General, EditProfileRoute)
-            AppScreen.TwoStepVerification -> openSettingsAt(SettingsSection.General, TwoStepRoute)
-            AppScreen.LoginEmail -> openSettingsAt(SettingsSection.General, LoginEmailRoute)
-            AppScreen.Passkeys -> openSettingsAt(SettingsSection.General, PasskeysRoute)
-            AppScreen.ChangePhone -> {
-                openSettingsAt(SettingsSection.General, EditProfileRoute)
-                stack(SettingsRoute).add(ChangePhoneRoute)
-            }
+            // Úprava profilu je pod kartou účtu v seznamu sekcí, ne v sekci.
+            AppScreen.EditProfile -> openSettingsWith(EditProfileRoute)
+            AppScreen.TwoStepVerification -> openSettingsAt(SettingsSection.Privacy, TwoStepRoute)
+            AppScreen.LoginEmail -> openSettingsAt(SettingsSection.Privacy, LoginEmailRoute)
+            AppScreen.Passkeys -> openSettingsAt(SettingsSection.Privacy, PasskeysRoute)
+            AppScreen.ChangePhone -> openSettingsWith(EditProfileRoute, ChangePhoneRoute)
             AppScreen.ChatFolders -> openChatFolders()
             AppScreen.NewChat -> openInChats(NewChatRoute)
             AppScreen.NewGroup -> openInChats(NewGroupMembersRoute)
@@ -115,11 +113,13 @@ class AppNavigation internal constructor(
         }
     }
 
-    private fun openSettingsAt(section: SettingsSection, screen: NavKey? = null) {
+    private fun openSettingsAt(section: SettingsSection, screen: NavKey? = null) =
+        openSettingsWith(*listOfNotNull(SettingsSectionRoute(section), screen).toTypedArray())
+
+    /** Nastavení na kořeni a nad ním [screens] po řadě — kudy by se tam uživatel proklikal sám. */
+    private fun openSettingsWith(vararg screens: NavKey) {
         openSettings()
-        val settings = stack(SettingsRoute)
-        settings.add(SettingsSectionRoute(section))
-        if (screen != null) settings.add(screen)
+        stack(SettingsRoute).addAll(screens)
     }
 
     private fun openInChats(route: NavKey) {
@@ -128,11 +128,11 @@ class AppNavigation internal constructor(
     }
 
     /**
-     * Složky chatů zvenčí („+" v řádku složek nad seznamem chatů): Nastavení → Obecné → Složky
+     * Složky chatů zvenčí („+" v řádku složek nad seznamem chatů): Nastavení → Chaty → Složky
      * chatů, s [create] rovnou i editor nové složky. Zpět vede po krocích, jako u proxy.
      */
     fun openChatFolders(create: Boolean = false) {
-        openSettingsAt(SettingsSection.General, ChatFoldersRoute)
+        openSettingsAt(SettingsSection.Chats, ChatFoldersRoute)
         if (create) stack(SettingsRoute).add(ChatFolderEditRoute(0))
     }
 

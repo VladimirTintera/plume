@@ -52,7 +52,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Sekce „Vzhled": motiv, barva aplikace, písmo zpráv a podoba seznamu chatů.
+ * Sekce „Vzhled": motiv, barva aplikace a písmo zpráv. Řazení seznamu chatů je v sekci Chaty.
  *
  * Obsah do sloupce sekce, ne celá obrazovka — hlavičku a scrollování drží [SettingsSectionScreen].
  */
@@ -62,7 +62,6 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
     val storedTheme by viewModel.themeMode.collectAsStateWithLifecycle()
     val storedDynamic by viewModel.dynamicColor.collectAsStateWithLifecycle()
     val storedColor by viewModel.themeColor.collectAsStateWithLifecycle()
-    val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
     val messageTextSize by viewModel.messageTextSize.collectAsStateWithLifecycle()
 
     // Dokud si uživatel nevybral, je vybraná ta možnost, podle které se aplikace opravdu kreslí —
@@ -132,33 +131,43 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
         MessageTextSizeSetting(stored = messageTextSize, onChange = viewModel::setMessageTextSize)
     }
 
-    SettingsGroup(Res.string.settings_chats) {
-        ListItem(
-            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-            headlineContent = { Text(stringResource(Res.string.settings_separate_unread)) },
-            supportingContent = { Text(stringResource(Res.string.settings_separate_unread_summary)) },
-            trailingContent = { IconSwitch(checked = separateUnread, onCheckedChange = null) },
-            modifier = Modifier.toggleable(
-                value = separateUnread,
-                role = Role.Switch,
-                onValueChange = { on ->
-                    haptics.toggle(on)
-                    viewModel.setSeparateUnreadChats(on)
-                },
-            ),
-        )
-        // Widget s chaty na ploše: umístí ho launcher po potvrzení v jeho dialogu.
-        if (viewModel.canPinWidget) {
-            HorizontalDivider(Modifier.padding(horizontal = 16.dp))
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                leadingContent = { Icon(painterResource(Res.drawable.widgets_24dp), contentDescription = null) },
-                headlineContent = { Text(stringResource(Res.string.settings_chats_widget)) },
-                supportingContent = { Text(stringResource(Res.string.settings_chats_widget_summary)) },
-                modifier = Modifier.clickable(onClick = viewModel::pinChatsWidget),
-            )
-        }
-    }
+}
+
+/**
+ * Nepřečtené ve vlastním bloku. Řádek skupiny „Seznam chatů" v sekci Chaty — mění, jak se
+ * seznam řadí, ne jak vypadá; volba žije v [AppearanceViewModel] kvůli `AppSettings`.
+ */
+@Composable
+internal fun SeparateUnreadRow(viewModel: AppearanceViewModel) {
+    val haptics = LocalHapticFeedback.current
+    val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        headlineContent = { Text(stringResource(Res.string.settings_separate_unread)) },
+        supportingContent = { Text(stringResource(Res.string.settings_separate_unread_summary)) },
+        trailingContent = { IconSwitch(checked = separateUnread, onCheckedChange = null) },
+        modifier = Modifier.toggleable(
+            value = separateUnread,
+            role = Role.Switch,
+            onValueChange = { on ->
+                haptics.toggle(on)
+                viewModel.setSeparateUnreadChats(on)
+            },
+        ),
+    )
+}
+
+/** Widget s chaty na ploše: umístí ho launcher po potvrzení v jeho dialogu. Jen kde to launcher umí. */
+@Composable
+internal fun ChatsWidgetRow(viewModel: AppearanceViewModel) {
+    if (!viewModel.canPinWidget) return
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        leadingContent = { Icon(painterResource(Res.drawable.widgets_24dp), contentDescription = null) },
+        headlineContent = { Text(stringResource(Res.string.settings_chats_widget)) },
+        supportingContent = { Text(stringResource(Res.string.settings_chats_widget_summary)) },
+        modifier = Modifier.clickable(onClick = viewModel::pinChatsWidget),
+    )
 }
 
 private val ThemeMode.label: StringResource

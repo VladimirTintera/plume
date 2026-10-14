@@ -201,7 +201,7 @@ internal fun privacyRowShown(setting: PrivacySetting, choices: Map<PrivacySettin
 
 /**
  * „Soukromí účtu": seznam nastavení se stavem, ťuknutí otevře detail ([PrivacySettingScreen]).
- * Vrší se nad sekci Obecné jako seznam blokovaných.
+ * Vrší se nad sekci Soukromí jako seznam blokovaných.
  */
 @Composable
 fun AccountPrivacyScreen(

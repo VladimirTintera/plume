@@ -220,10 +220,16 @@
     <string name="settings_sign_out_title">Odhlásit se?</string>
     <string name="settings_sign_out_body">Zprávy a stažené soubory se z tohohle zařízení smažou. Účet i chaty na ostatních zařízeních zůstanou beze změny.</string>
     <string name="settings_sign_out_confirm">Odhlásit</string>
-    <string name="settings_section_general">Obecné</string>
-    <string name="settings_section_general_summary">Účet, profil, blokovaní, odhlášení</string>
+    <string name="settings_section_privacy">Soukromí</string>
+    <string name="settings_section_privacy_summary">Kdo co vidí, blokovaní, hesla, zámek aplikace</string>
+    <string name="settings_section_chats">Chaty</string>
+    <string name="settings_section_chats_summary">Složky, akce tahem, reakce, odkazy</string>
+    <string name="settings_section_ai">AI v zařízení</string>
+    <string name="settings_section_ai_summary">Návrhy odpovědí, varování před podvodem, model</string>
+    <string name="settings_discretion">Diskrétnost</string>
+    <string name="settings_security">Zabezpečení</string>
     <string name="settings_section_appearance">Vzhled</string>
-    <string name="settings_section_appearance_summary">Motiv, seznam chatů</string>
+    <string name="settings_section_appearance_summary">Motiv, barva, velikost písma</string>
     <string name="settings_theme">Motiv</string>
     <string name="settings_theme_system">Podle systému</string>
     <string name="settings_theme_light">Světlý</string>
@@ -1285,7 +1291,7 @@
         <item quantity="other">%1$d dní</item>
     </plurals>
     <string name="chat_folders_all">Všechny chaty</string>
-    <string name="settings_chat_folders_group">Chaty</string>
+    <string name="settings_links">Odkazy</string>
     <string name="settings_open_links_in_app">Otevírat odkazy v aplikaci</string>
     <string name="settings_open_links_in_app_summary">Webové stránky se otevřou uvnitř Plume, ne v prohlížeči. Odkaz, který umí jiná aplikace, jde dál do ní.</string>
     <string name="settings_quick_reaction">Rychlá reakce</string>
@@ -1687,7 +1693,7 @@
     </plurals>
     <string name="summary_me">Já</string>
     <string name="summary_preparing">Čtu konverzaci…</string>
-    <string name="summary_model_missing">Model ještě není stažený. Stáhneš ho v Nastavení → Obecné.</string>
+    <string name="summary_model_missing">Model ještě není stažený. Stáhneš ho v Nastavení → AI v zařízení.</string>
     <string name="summary_nothing">Tady není co shrnout.</string>
     <string name="summary_failed">Shrnutí se nepovedlo.</string>
     <string name="summary_disclaimer">Vytvořeno v zařízení. Může být nepřesné.</string>
@@ -1701,9 +1707,9 @@
     <string name="ai_failure_no_space">V telefonu není pro model dost místa.</string>
     <string name="ai_failure_needs_update">Model potřebuje novější verzi systému nebo aplikace AICore.</string>
     <string name="ai_failure_unavailable">Model v telefonu teď není k dispozici.</string>
-    <string name="ai_failure_nano">Gemini Nano v telefonu selhal. Pomůže vymazat úložiště aplikace AICore v Nastavení systému, nebo přepnout na Gemmu v Nastavení → Obecné → AI v zařízení.</string>
-    <string name="ai_failure_nano_code">Gemini Nano v telefonu selhal (AICore, kód %1$s). Pomůže vymazat úložiště aplikace AICore v Nastavení systému, nebo přepnout na Gemmu v Nastavení → Obecné → AI v zařízení.</string>
-    <string name="ai_failure_gemma">Model Gemma selhal. Když to nepomůže znovu, smaž model v Nastavení → Obecné → AI v zařízení a stáhni ho znovu.</string>
+    <string name="ai_failure_nano">Gemini Nano v telefonu selhal. Pomůže vymazat úložiště aplikace AICore v Nastavení systému, nebo přepnout na Gemmu v Nastavení → AI v zařízení.</string>
+    <string name="ai_failure_nano_code">Gemini Nano v telefonu selhal (AICore, kód %1$s). Pomůže vymazat úložiště aplikace AICore v Nastavení systému, nebo přepnout na Gemmu v Nastavení → AI v zařízení.</string>
+    <string name="ai_failure_gemma">Model Gemma selhal. Když to nepomůže znovu, smaž model v Nastavení → AI v zařízení a stáhni ho znovu.</string>
     <string name="ai_failure_empty">Model nenapsal žádný text.</string>
     <string name="settings_on_device_ai_preview">Preview verze modelu</string>
     <string name="settings_on_device_ai_preview_summary">Nejnovější verze před stabilním vydáním. Pro tohle zařízení nemusí být a stahuje se zvlášť.</string>
@@ -2712,7 +2718,7 @@
     <string name="settings_discreet_reading_summary">Otevřený chat nehlásí, že ho čteš, posloucháš hlasovky ani píšeš. Přečtení odejde, až odpovíš nebo ťukneš na Označit jako přečtené.</string>
     <string name="conversation_mark_read">Označit jako přečtené</string>
     <string name="settings_section_storage">Úložiště</string>
-    <string name="settings_section_storage_summary">Zabrané místo, mazání a automatické stahování</string>
+    <string name="settings_section_storage_summary">Zabrané místo, automatické stahování, proxy</string>
     <string name="auto_download_title">Automatické stahování</string>
     <string name="auto_download_wifi">Na Wi-Fi</string>
     <string name="auto_download_mobile">Na mobilních datech</string>

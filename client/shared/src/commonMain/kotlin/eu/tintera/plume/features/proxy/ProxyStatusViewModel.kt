@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** Co ukazuje řádek Proxy v Obecných. */
+/** Co ukazuje řádek Proxy v Úložišti. */
 sealed interface ProxyStatus {
     /** Žádná proxy není zapnutá. */
     data object Direct : ProxyStatus
@@ -28,7 +28,7 @@ fun proxyStatus(proxies: List<SavedProxy>): ProxyStatus =
     proxies.firstOrNull { it.enabled }?.let { ProxyStatus.Via(it.config) } ?: ProxyStatus.Direct
 
 /**
- * Řádek Proxy v Obecných. Odezvu NEMĚŘÍ — měření je dotaz přes každou uloženou proxy, a ten
+ * Řádek Proxy v Úložišti. Odezvu NEMĚŘÍ — měření je dotaz přes každou uloženou proxy, a ten
  * patří až na obrazovku proxy, ne ke každému otevření Nastavení.
  *
  * TDLib o změně proxy update nepošle, takže se stav čte znovu při každém návratu na obrazovku
