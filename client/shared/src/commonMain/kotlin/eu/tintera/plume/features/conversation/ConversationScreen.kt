@@ -2,7 +2,6 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.adaptive.ContentWidth
 import eu.tintera.plume.core.adaptive.centeredColumn
-import eu.tintera.plume.resources.remind_time
 import androidx.compose.ui.input.key.key
 import eu.tintera.plume.resources.saved_topic_read_only
 import eu.tintera.plume.resources.saved_topic_open_chat
@@ -23,19 +22,12 @@ import eu.tintera.plume.core.ui.SwipeDirection
 import eu.tintera.plume.core.ui.detectHorizontalSwipe
 import androidx.compose.ui.text.intl.Locale
 import eu.tintera.plume.resources.conversation_bot_start
-import eu.tintera.plume.resources.conversation_schedule_time
-import eu.tintera.plume.resources.conversation_schedule_past
-import kotlinx.datetime.TimeZone
 import androidx.compose.ui.composed
 import eu.tintera.plume.core.ui.AutoDeleteBadge
 import eu.tintera.plume.core.telegram.VideoChatInfo
 import eu.tintera.plume.core.telegram.PendingJoinRequests
 import eu.tintera.plume.core.telegram.AppScreen
 import eu.tintera.plume.core.telegram.InternalLink
-import eu.tintera.plume.core.telegram.SendOptions
-import eu.tintera.plume.core.telegram.MessageSchedule
-import eu.tintera.plume.core.telegram.GifItem
-import eu.tintera.plume.core.telegram.StickerItem
 import eu.tintera.plume.core.ui.SecretChatLock
 import eu.tintera.plume.core.ui.SecureScreen
 import eu.tintera.plume.core.ui.VerificationBadge
@@ -124,7 +116,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import eu.tintera.plume.core.files.rememberSaveAs
 import androidx.compose.material3.FabPosition
 import eu.tintera.plume.core.telegram.commandSuggestions
-import eu.tintera.plume.core.location.liveLocationSharingSupported
 import eu.tintera.plume.core.location.rememberDeviceLocation
 import eu.tintera.plume.core.telegram.inlineQueryOf
 import eu.tintera.plume.core.telegram.mentionInsertion
@@ -220,14 +211,12 @@ import eu.tintera.plume.resources.visibility_off_24dp
 import eu.tintera.plume.resources.conversation_chat_restricted
 import eu.tintera.plume.resources.block_24dp
 import eu.tintera.plume.core.ui.IntroEmptyState
-import eu.tintera.plume.resources.conversation_location_title
 import eu.tintera.plume.resources.conversation_empty
 import eu.tintera.plume.resources.conversation_fallback_title
 import eu.tintera.plume.resources.conversation_microphone_permission
 import eu.tintera.plume.resources.conversation_undo
 import eu.tintera.plume.resources.conversation_unpinned
 import eu.tintera.plume.resources.spam_bar_contact_added
-import kotlin.time.Clock
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import eu.tintera.plume.core.telegram.SpamBar
@@ -319,8 +308,6 @@ fun ConversationScreen(
     // podle chatu — stejná pojistka jako u konverzace samotné.
     val summary: ChatSummaryViewModel = koinViewModel(key = "summary-${viewModel.chatId}")
     val summaryAvailable by summary.available.collectAsStateWithLifecycle()
-    val summaryState by summary.state.collectAsStateWithLifecycle()
-    val summarySourceState by summary.source.collectAsStateWithLifecycle()
     val summaryMe = stringResource(Res.string.summary_me)
     val summaryTitle = state.info?.let { chatTitle(it.id, it.title) }
         ?: stringResource(Res.string.conversation_fallback_title)
@@ -443,10 +430,8 @@ fun ConversationScreen(
             onDismiss = { spamBarAction = null },
         )
     }
-    var stickerPickerOpen by rememberSaveable { mutableStateOf(false) }
-    var previewAttachmentIndex by rememberSaveable { mutableStateOf<Int?>(null) }
-    var locationPickerOpen by rememberSaveable { mutableStateOf(false) }
-    var livePeriodOpen by rememberSaveable { mutableStateOf(false) }
+    // Co je otevřené nad konverzací po ťuknutí v obrazovce (výběry, dialogy), viz `ConversationSheets`.
+    val sheets = rememberConversationSheets()
 
     // Snackbar o odepnutí se skládá v efektu, kde `stringResource` volat nejde — text se proto
     // přečte tady v kompozici.
@@ -467,7 +452,6 @@ fun ConversationScreen(
      * stejná.
      */
     val embeddedMediaPicker = embeddedMediaPickerAvailable()
-    var mediaPickerOpen by rememberSaveable { mutableStateOf(false) }
     // Paměť toho, co už je v galerii vybrané. Patří obrazovce: panel se zavřením zahodí, takže
     // by se při dalším otevření dala tatáž fotka vybrat podruhé.
     val mediaSelection = rememberEmbeddedMediaSelection()
@@ -482,14 +466,10 @@ fun ConversationScreen(
      */
     val composer = rememberComposerDraft()
     var draft by composer
-    // Plánování: napřed den, pak čas. Cíl je rozepsaná zpráva, nebo naplánovaná k přeplánování.
-    var scheduleTarget by remember { mutableStateOf<ScheduleTarget?>(null) }
-    var effectPickerOpen by remember { mutableStateOf(false) }
-    var scheduleDay by remember { mutableStateOf<Long?>(null) }
     // Nápovědy gest napoprvé. Podmínky se čtou až v `snapshotFlow`, obrazovka se kvůli nim neskládá.
     val gestureHints = rememberConversationGestureHints(viewModel, stateHolder) {
-        stickerPickerOpen || mediaPickerOpen || locationPickerOpen || livePeriodOpen || effectPickerOpen ||
-            scheduleTarget != null || previewAttachmentIndex != null || isRecording ||
+        sheets.stickerPicker || sheets.mediaPicker || sheets.locationPicker || sheets.livePeriod || sheets.effectPicker ||
+            sheets.scheduleTarget != null || sheets.previewAttachmentIndex != null || isRecording ||
             voicePreview != null || videoNotePreview != null ||
             (stateHolder.value.info?.sensitive == true && !sensitiveAccepted)
     }
@@ -518,8 +498,6 @@ fun ConversationScreen(
 
     /** Poslední otevřená část výběru — uložená v nastavení, takže platí i po restartu aplikace. */
     val expressionMode by viewModel.expressionMode.collectAsStateWithLifecycle()
-    /** Sada otevřená ťuknutím na samolepku v konverzaci. */
-    var openStickerSetId by rememberSaveable { mutableStateOf<Long?>(null) }
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
 
@@ -748,7 +726,7 @@ fun ConversationScreen(
             onOpenMedia = { currentOnOpenMedia(it) },
             onOpenPollMedia = { messageId, index -> currentOnOpenPollMedia(messageId, index) },
             onOpenArticleMedia = { messageId, index -> currentOnOpenArticleMedia(messageId, index) },
-            onOpenStickerSet = { openStickerSetId = it },
+            onOpenStickerSet = { sheets.openStickerSetId = it },
             onSearch = { currentOnSearch(it) },
             // Výběr umístění je aktivita systému, takže ho má obrazovka; ViewModel jen stáhne.
             onSaveFileAs = { messageId -> currentSaveAs?.let { viewModel.saveDocumentAs(messageId, it) } },
@@ -1130,8 +1108,8 @@ fun ConversationScreen(
     )
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
-        isBackEnabled = previewAttachmentIndex != null,
-        onBackCompleted = { previewAttachmentIndex = null },
+        isBackEnabled = sheets.previewAttachmentIndex != null,
+        onBackCompleted = { sheets.previewAttachmentIndex = null },
     )
 
     /*
@@ -1730,10 +1708,10 @@ fun ConversationScreen(
                     viewModel.send(text, options)
                 },
                 sendMenu = sendMenuOffer(state),
-                onSchedule = { scheduleTarget = ScheduleTarget.Draft },
+                onSchedule = { sheets.scheduleTarget = ScheduleTarget.Draft },
                 onPickEffect = {
                     viewModel.loadEffects()
-                    effectPickerOpen = true
+                    sheets.effectPicker = true
                 },
                 onOpenScheduled = viewModel::openScheduled.takeIf { state.hasScheduledMessages },
                 onDraftChanged = viewModel::onDraftChanged,
@@ -1751,8 +1729,8 @@ fun ConversationScreen(
                 onLinkPreviewOptions = viewModel::setLinkPreviewOptions,
                 inputFill = state.inputFill,
                 onInputFilled = viewModel::consumeInputFill,
-                onOpenStickers = { stickerPickerOpen = true },
-                onPickMedia = { if (embeddedMediaPicker) mediaPickerOpen = true else attachmentPicker.pickMedia() },
+                onOpenStickers = { sheets.stickerPicker = true },
+                onPickMedia = { if (embeddedMediaPicker) sheets.mediaPicker = true else attachmentPicker.pickMedia() },
                 isRecording = isRecording,
                 recording = { voiceRecordingState.value ?: videoRecordingState.value },
                 recordMode = recordMode,
@@ -1825,14 +1803,14 @@ fun ConversationScreen(
                 },
                 // Nabídka nad hlasovkou nahrávání pozastaví, zavření bez volby ho obnoví.
                 onVoiceMenu = { open -> if (open) viewModel.pauseRecording() else viewModel.resumeRecording() },
-                onScheduleRecording = { scheduleTarget = ScheduleTarget.Voice },
+                onScheduleRecording = { sheets.scheduleTarget = ScheduleTarget.Voice },
                 onPickDocument = attachmentPicker::pickDocument,
                 // Anketa jde jen tam, kde to dovolí právo i druh chatu (`ContentAccess.polls`).
                 onCreatePoll = {
                     onCreatePoll(PollComposerRequest(PollComposerMode.Any, state.replyingTo?.id, state.replyQuote))
                 }.takeIf { state.content.polls },
                 // Poloha je „základní zpráva" jako text: smí se všude, kde je vstupní pole.
-                onSendLocation = { locationPickerOpen = true },
+                onSendLocation = { sheets.locationPicker = true },
                 // Kontakt je taky „základní zpráva" (TDLib ho řadí k textu), jako poloha.
                 onShareContact = viewModel::openContactPicker,
                 onToggleCommands = viewModel::toggleCommands.takeIf { state.botCommands.isNotEmpty() },
@@ -1842,11 +1820,11 @@ fun ConversationScreen(
                 // Vykreslovaná úprava fotky blokuje odeslání stejně jako kopírování z galerie.
                 attachmentsPreparing = mediaSelection.preparing || state.markupBusy,
                 onRemoveAttachment = viewModel::removeAttachment,
-                onOpenAttachment = { index -> previewAttachmentIndex = index },
+                onOpenAttachment = { index -> sheets.previewAttachmentIndex = index },
                 onSetAttachmentMode = viewModel::setAttachmentMode,
                 content = state.content,
                 selfDestructAllowed = state.canSelfDestruct(attachmentCount = 1),
-                previewAttachmentIndex = previewAttachmentIndex,
+                previewAttachmentIndex = sheets.previewAttachmentIndex,
                 expressionMode = expressionMode,
                 composer = composer,
                 onKeyboardContent = { received ->
@@ -1925,285 +1903,15 @@ fun ConversationScreen(
     ) { padding ->
         // Nabídka nad zprávou se kreslí až v bublině — viz `MessageMenuOverlay`.
 
-        if (mediaPickerOpen) {
-            MediaPickerSheet(
-                selection = mediaSelection,
-                pickedPaths = state.attachments.map { state.galleryPath(it.path) },
-                allowPhotos = state.content.photos,
-                allowVideos = state.content.videos,
-                onPicked = viewModel::addAttachments,
-                onUnpicked = viewModel::removeAttachments,
-                onError = viewModel::reportError,
-                onDismiss = { mediaPickerOpen = false },
-            )
-        }
-
-        state.contactPicker?.let { picker ->
-            ContactPickerSheet(
-                picker = picker,
-                onQueryChange = viewModel::searchContacts,
-                onPick = viewModel::pickContact,
-                onDismiss = viewModel::dismissContactPicker,
-            )
-        }
-
-        state.pendingContact?.let { contact ->
-            ContactConfirmDialog(
-                contact = contact,
-                onConfirm = {
-                    haptics.confirm()
-                    viewModel.confirmContact()
-                },
-                onDismiss = viewModel::cancelContact,
-            )
-        }
-
-        if (locationPickerOpen) {
-            PlacePickerHost(
-                searcher = viewModel.places,
-                title = stringResource(Res.string.conversation_location_title),
-                onPick = { place ->
-                    locationPickerOpen = false
-                    haptics.confirm()
-                    viewModel.sendLocation(place)
-                },
-                onDismiss = { locationPickerOpen = false },
-                autoFocusSearch = false,
-                // Živou polohu jen tam, kde ji platforma umí posouvat, a ne v kanálu — příspěvek
-                // kanálu s polohou, která se hýbe, oficiální klienti nenabízejí.
-                onShareLive = {
-                    locationPickerOpen = false
-                    livePeriodOpen = true
-                }.takeIf { liveLocationSharingSupported && state.info?.isChannel != true },
-            )
-        }
-
-        // Přesná: živá poloha se sleduje na mapě, kilometrová přesnost by z ní udělala šum.
-        val liveLocation = rememberDeviceLocation(precise = true)
-        state.proximityAlert?.let { prompt ->
-            ProximityAlertDialog(
-                currentRadius = prompt.currentRadius,
-                onPick = viewModel::setProximityAlert,
-                onDismiss = viewModel::dismissProximityAlert,
-            )
-        }
-        if (livePeriodOpen) {
-            LiveLocationPeriodDialog(
-                onPick = { period ->
-                    livePeriodOpen = false
-                    haptics.confirm()
-                    liveLocation.request { point -> viewModel.shareLiveLocation(point, period) }
-                },
-                onDismiss = { livePeriodOpen = false },
-            )
-        }
-
-        if (stickerPickerOpen) {
-            StickerPickerSheet(
-                mode = expressionMode,
-                onModeChange = viewModel::setExpressionMode,
-                // Při úpravě zprávy jen emoji: samolepku do upravované zprávy vložit nejde.
-                stickersAvailable = state.editing == null && state.content.stickers,
-                draft = draft,
-                // Úprava z výběru emoji je psaní jako každé jiné: ukládá koncept i hlásí „píše…".
-                onDraftEdit = {
-                    draft = it
-                    viewModel.onDraftChanged(composer.composed)
-                },
-                draftFormats = composer.formats,
-                onCustomEmoji = {
-                    composer.insertCustomEmoji(it.emoji, it.id)
-                    viewModel.onDraftChanged(composer.composed)
-                },
-                onPick = { sticker ->
-                    stickerPickerOpen = false
-                    haptics.confirm()
-                    viewModel.sendSticker(sticker)
-                },
-                sendMenu = sendMenuOffer(state).copy(effects = false),
-                onPickWith = { sticker, choice ->
-                    stickerPickerOpen = false
-                    when (choice) {
-                        SendMenuChoice.Silent -> {
-                            haptics.confirm()
-                            viewModel.sendSticker(sticker, SendOptions(silent = true))
-                        }
-                        SendMenuChoice.WhenOnline -> {
-                            haptics.confirm()
-                            viewModel.sendSticker(sticker, SendOptions(schedule = MessageSchedule.WhenOnline))
-                        }
-                        SendMenuChoice.Schedule -> scheduleTarget = ScheduleTarget.Sticker(sticker)
-                    }
-                },
-                chatId = viewModel.chatId,
-                onPickGif = { gif ->
-                    stickerPickerOpen = false
-                    haptics.confirm()
-                    viewModel.sendGif(gif)
-                },
-                onPickGifWith = { gif, choice ->
-                    stickerPickerOpen = false
-                    when (choice) {
-                        SendMenuChoice.Silent -> {
-                            haptics.confirm()
-                            viewModel.sendGif(gif, SendOptions(silent = true))
-                        }
-                        SendMenuChoice.WhenOnline -> {
-                            haptics.confirm()
-                            viewModel.sendGif(gif, SendOptions(schedule = MessageSchedule.WhenOnline))
-                        }
-                        SendMenuChoice.Schedule -> scheduleTarget = ScheduleTarget.Gif(gif)
-                    }
-                },
-                onDismiss = { stickerPickerOpen = false },
-            )
-        }
-
-        // Sada z odkazu `t.me/addstickers/…` otevře týž sheet jako ťuknutí na samolepku.
-        LaunchedEffect(state.openStickerSet) {
-            val setId = state.openStickerSet ?: return@LaunchedEffect
-            viewModel.consumeOpenStickerSet()
-            openStickerSetId = setId
-        }
-
-        state.memberPicker?.let { picker ->
-            MemberPickerSheet(
-                picker = picker,
-                onQueryChange = viewModel::onMemberQuery,
-                onPick = viewModel::setSearchSender,
-                onDismiss = viewModel::closeMemberPicker,
-            )
-        }
-
-        state.invite?.let { invite ->
-            InviteSheet(invite = invite, onJoin = viewModel::joinInvite, onDismiss = viewModel::dismissInvite)
-        }
-
-        state.folderInvite?.let { invite ->
-            FolderInviteSheet(
-                invite = invite,
-                onToggle = viewModel::toggleFolderInviteChat,
-                onAdd = viewModel::addFolderInvite,
-                onDismiss = viewModel::dismissFolderInvite,
-            )
-        }
-
-        state.loginRequest?.let { request ->
-            LoginUrlDialog(prompt = request.prompt, onConfirm = viewModel::confirmLogin, onDismiss = viewModel::dismissLogin)
-        }
-        state.confirmLink?.let { url ->
-            OpenLinkDialog(url = url, onOpen = viewModel::openConfirmedLink, onDismiss = viewModel::dismissLink)
-        }
-
-        state.loginWarning?.let { kind ->
-            LoginLinkWarningDialog(kind = kind, onDismiss = viewModel::dismissLoginWarning)
-        }
-
-        state.botAlert?.let { text ->
-            BotAlertDialog(text = text, onDismiss = viewModel::dismissBotAlert)
-        }
-
-        if (state.confirmSharePhone) {
-            SharePhoneDialog(onShare = viewModel::sharePhone, onDismiss = viewModel::dismissSharePhone)
-        }
-        // Přesná: bot polohou volá taxi nebo kurýra, kilometrová přesnost tam nic neřekne.
-        val keyboardLocation = rememberDeviceLocation(precise = true)
-        if (state.confirmShareLocation) {
-            ShareLocationDialog(
-                onShare = {
-                    viewModel.dismissShareLocation()
-                    keyboardLocation.request(viewModel::sendKeyboardLocation)
-                },
-                onDismiss = viewModel::dismissShareLocation,
-            )
-        }
-
-        openStickerSetId?.let { setId ->
-            StickerSetSheet(
-                setId = setId,
-                onPick = { sticker ->
-                    openStickerSetId = null
-                    haptics.confirm()
-                    viewModel.sendSticker(sticker)
-                },
-                onDismiss = { openStickerSetId = null },
-            )
-        }
-
-        if (summaryState != ChatSummaryState.Idle) {
-            ChatSummarySheet(
-                state = summaryState,
-                source = summarySourceState,
-                onRetry = { summary.retry(startSummary) },
-                onDismiss = summary::dismiss,
-            )
-        }
-
-        state.messageInfo?.let { sheet ->
-            MessageInfoSheet(
-                sheet = sheet,
-                onCopyLink = viewModel::copyMessageLink,
-                onDismiss = viewModel::dismissMessageInfo,
-            )
-        }
-
-        state.translation?.let { sheet ->
-            TranslationSheet(
-                sheet = sheet,
-                onCopy = viewModel::copyTranslation,
-                onLanguageChange = viewModel::changeTranslationLanguage,
-                onDismiss = viewModel::dismissTranslation,
-                onOnDeviceChange = viewModel::setTranslateOnDevice,
-                onDownload = viewModel::downloadTranslationModels,
-                onServer = viewModel::translateOnServer,
-            )
-        }
-
-        state.selectingText?.let { message ->
-            SelectTextSheet(message = message, onDismiss = viewModel::dismissTextSelection)
-        }
-
-        state.reactionDetails?.let { details ->
-            ReactionDetailsSheet(
-                details = details,
-                onFilter = viewModel::filterReactionDetails,
-                onDismiss = viewModel::dismissReactionDetails,
-            )
-        }
-
-        if (state.addingPollOption != null) {
-            AddPollOptionDialog(
-                chatId = viewModel.chatId,
-                places = viewModel.places,
-                onConfirm = viewModel::addPollOption,
-                onError = viewModel::reportError,
-                onDismiss = viewModel::dismissAddPollOption,
-            )
-        }
-
-        state.giveaway?.let { sheet ->
-            GiveawayStatusSheet(
-                sheet = sheet,
-                onCopyCode = viewModel::copyGiftCode,
-                onDismiss = viewModel::dismissGiveaway,
-            )
-        }
-
-        state.pollVoters?.let { messageId ->
-            state.messages.firstOrNull { it.id == messageId }?.poll?.let { poll ->
-                PollVotersSheet(
-                    chatId = viewModel.chatId,
-                    messageId = messageId,
-                    poll = poll,
-                    onOpenVoter = viewModel::openPollVoter,
-                    onDismiss = viewModel::dismissPollVoters,
-                )
-            }
-        }
-
-        if (state.pendingStopPoll != null) {
-            StopPollDialog(onConfirm = viewModel::confirmStopPoll, onDismiss = viewModel::cancelStopPoll)
-        }
+        ConversationDialogs(
+            state = state,
+            viewModel = viewModel,
+            sheets = sheets,
+            composer = composer,
+            mediaSelection = mediaSelection,
+            summary = summary,
+            startSummary = startSummary,
+        )
 
         // Jednorázová událost od tlačítka bota. Navigace je synchronní, takže vynulování potom
         // efekt nezruší uprostřed (past „Vrátit" v docs/poznatky/konverzace-pohyb.md se týká práce, která teprve běží).
@@ -2224,24 +1932,6 @@ fun ConversationScreen(
                 viewModel.consumeOpenWebApp()
                 onOpenWebApp(request)
             }
-        }
-
-        state.pendingPin?.let { pending ->
-            PinMessageDialog(
-                pending = pending,
-                partnerName = state.info?.title,
-                onConfirm = viewModel::confirmPin,
-                onDismiss = viewModel::cancelPin,
-            )
-        }
-
-        state.pendingDelete?.let { pending ->
-            MessageDeleteDialog(
-                pending = pending,
-                partnerName = state.info?.title,
-                onConfirm = viewModel::confirmDelete,
-                onDismiss = viewModel::cancelDelete,
-            )
         }
 
         val layoutDirection = LocalLayoutDirection.current
@@ -2427,7 +2117,6 @@ fun ConversationScreen(
              * orientace v historii. Nedrží se proto žádný stav — odvozuje se z klíče nejvyšší
              * viditelné položky, takže nová připnutá zpráva výběr nerozhodí.
              */
-            var allPinnedOpen by rememberSaveable { mutableStateOf(false) }
 
             val density = LocalDensity.current
             /*
@@ -2536,7 +2225,7 @@ fun ConversationScreen(
                             // přeskočí rovnou k nejstarší.
                             onOpen = { message -> viewModel.jumpToMessage(message.id, anchor = ScrollAnchor.Top) },
                             onUnpin = viewModel::unpin,
-                            onShowAll = { allPinnedOpen = true },
+                            onShowAll = { sheets.allPinned = true },
                             glass = Modifier.hazeBlur(
                                 input = HazeInput.Sources(listHaze),
                                 style = glassStyle(
@@ -2601,126 +2290,9 @@ fun ConversationScreen(
                 )
             }
 
-            state.scheduledMessages?.let { scheduled ->
-                ScheduledMessagesSheet(
-                    messages = scheduled,
-                    onSendNow = { message -> viewModel.reschedule(message.id, null) },
-                    onReschedule = { message -> scheduleTarget = ScheduleTarget.Existing(message.id) },
-                    onDelete = { message -> viewModel.deleteScheduled(message.id) },
-                    onDismiss = viewModel::closeScheduled,
-                )
-            }
-
             // Akce u zprávy (ikonka u termínu, účtu, zásilky); stav si čte sám.
             MessageContextHost(viewModel)
 
-            state.remindRequest?.let { request ->
-                val messageId = request.messageId
-                RemindSheet(
-                    suggested = request.suggestedAt,
-                    suggesting = request.suggesting,
-                    fromModel = request.fromModel,
-                    onRemind = { at ->
-                        haptics.confirm()
-                        viewModel.remind(messageId, at)
-                    },
-                    // Přesný čas jde týmiž dialogy jako plánování zprávy.
-                    onPickTime = {
-                        viewModel.closeRemind()
-                        scheduleTarget = ScheduleTarget.Reminder(messageId)
-                    },
-                    onDismiss = viewModel::closeRemind,
-                )
-            }
-
-            if (scheduleTarget != null && scheduleDay == null) {
-                FutureDayDialog(
-                    now = Clock.System.now().epochSeconds,
-                    maxAheadSeconds = MAX_SCHEDULE_AHEAD_SECONDS,
-                    onPick = { day -> scheduleDay = day },
-                    onDismiss = {
-                        // Hlasovka čekala pozastavená; bez času se nahrává dál.
-                        if (scheduleTarget == ScheduleTarget.Voice) viewModel.resumeRecording()
-                        scheduleTarget = null
-                    },
-                )
-            }
-            val target = scheduleTarget
-            val day = scheduleDay
-            if (target != null && day != null) {
-                TimeOfDayDialog(
-                    title = stringResource(
-                        if (target is ScheduleTarget.Reminder) Res.string.remind_time else Res.string.conversation_schedule_time,
-                    ),
-                    // Nabídne se za hodinu od teď — nejčastěji se plánuje „na později dnes".
-                    initial = Clock.System.now().epochSeconds + SCHEDULE_DEFAULT_AHEAD_SECONDS,
-                    onPick = { hour, minute ->
-                        scheduleTarget = null
-                        scheduleDay = null
-                        val at = closeDateOf(day, hour, minute, TimeZone.currentSystemDefault())
-                        if (!scheduleValid(at, Clock.System.now().epochSeconds)) {
-                            haptics.reject()
-                            viewModel.reportError(UiText(Res.string.conversation_schedule_past))
-                            if (target == ScheduleTarget.Voice) viewModel.resumeRecording()
-                            return@TimeOfDayDialog
-                        }
-                        val schedule = MessageSchedule.At(at)
-                        when (target) {
-                            ScheduleTarget.Draft -> {
-                                haptics.confirm()
-                                viewModel.send(composer.composed, SendOptions(schedule = schedule))
-                                draft = TextFieldValue()
-                            }
-                            ScheduleTarget.Voice -> {
-                                haptics.confirm()
-                                viewModel.sendRecording(SendOptions(schedule = schedule))
-                            }
-                            is ScheduleTarget.Existing -> viewModel.reschedule(target.messageId, schedule)
-                            is ScheduleTarget.Reminder -> {
-                                haptics.confirm()
-                                viewModel.remind(target.messageId, at)
-                            }
-                            is ScheduleTarget.Sticker -> {
-                                haptics.confirm()
-                                viewModel.sendSticker(target.sticker, SendOptions(schedule = schedule))
-                            }
-                            is ScheduleTarget.Gif -> {
-                                haptics.confirm()
-                                viewModel.sendGif(target.gif, SendOptions(schedule = schedule))
-                            }
-                        }
-                    },
-                    onDismiss = {
-                        if (scheduleTarget == ScheduleTarget.Voice) viewModel.resumeRecording()
-                        scheduleTarget = null
-                        scheduleDay = null
-                    },
-                )
-            }
-
-            if (effectPickerOpen) {
-                val effects by viewModel.effectChoices.collectAsStateWithLifecycle()
-                EffectPickerSheet(
-                    effects = effects,
-                    onPick = { effect ->
-                        effectPickerOpen = false
-                        haptics.confirm()
-                        viewModel.send(composer.composed, SendOptions(effectId = effect.id))
-                        draft = TextFieldValue()
-                    },
-                    onDismiss = { effectPickerOpen = false },
-                )
-            }
-
-            if (allPinnedOpen && state.pinned.isNotEmpty()) {
-                PinnedMessagesSheet(
-                    messages = state.pinned,
-                    canUnpin = state.canUnpin,
-                    onOpen = { message -> viewModel.jumpToMessage(message.id, anchor = ScrollAnchor.Top) },
-                    onUnpin = viewModel::unpin,
-                    onDismiss = { allPinnedOpen = false },
-                )
-            }
 
             // Nad seznamem, pod vstupním polem: odeslání i koš zůstávají ovladatelné.
             VideoNoteRecordingOverlay(
@@ -2757,8 +2329,8 @@ fun ConversationScreen(
     StagedAttachmentPreviewHost(
         state = state,
         viewModel = viewModel,
-        index = previewAttachmentIndex,
-        onIndexChange = { previewAttachmentIndex = it },
+        index = sheets.previewAttachmentIndex,
+        onIndexChange = { sheets.previewAttachmentIndex = it },
     )
     }
 }
@@ -2774,27 +2346,6 @@ private val HEADER_RING_ROOM = (HEADER_AVATAR_GROWN + RING_STROKE - HEADER_AVATA
 
 /** Tečka dostupnosti na 36dp avataru — v seznamu chatů je 14 dp na 52dp. */
 private val HEADER_ONLINE_DOT = 11.dp
-
-/** Co se plánuje: rozepsaná zpráva z pole, nebo už naplánovaná, které se mění čas. */
-private sealed interface ScheduleTarget {
-    data object Draft : ScheduleTarget
-
-    /** Nahrávaná hlasovka, po dobu výběru času pozastavená. */
-    data object Voice : ScheduleTarget
-    data class Existing(val messageId: Long) : ScheduleTarget
-
-    /** Připomínka zprávy (`RemindSheet` → „Vybrat datum a čas"). */
-    data class Reminder(val messageId: Long) : ScheduleTarget
-
-    /** Samolepka z výběru, naplánovaná z nabídky u podržené samolepky. */
-    data class Sticker(val sticker: StickerItem) : ScheduleTarget
-
-    /** GIF z výběru, naplánovaný z nabídky u podrženého GIFu. */
-    data class Gif(val gif: GifItem) : ScheduleTarget
-}
-
-/** Výchozí čas ve výběru hodiny při plánování: za hodinu od teď. */
-private const val SCHEDULE_DEFAULT_AHEAD_SECONDS = 60L * 60
 
 /**
  * Naposledy zpracovaná nejnovější zpráva, pro ukotvení seznamu dole.
