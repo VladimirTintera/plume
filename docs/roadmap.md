@@ -698,6 +698,61 @@ celou aplikaci a rozdělený na dvě místa by se rozešel. Zbývá:
 - **Vlastní přepínač v Nastavení** zatím ne — vypnout odezvu jde v systému. Přidat, až o něj
   někdo řekne.
 
+## Velká plocha (adaptivní rozvržení)
+
+Rozbor z října 2026, zatím nikdo nezačal; čeká na zkoušení u velkého displeje. Co dnes platí
+a co knihovna umí (ověřené v bajtkódu), je v `docs/poznatky/navigace.md`, „Šířkové třídy,
+tři panely a kotvy". Doporučené pořadí jsou tři samostatné PR:
+
+1. **Standardní šířkové třídy a odvozený práh — beze změny chování.**
+   - `contentPaneScaffoldDirective` počítat z `WindowSizeClass.BREAKPOINTS_V2` (zná Large
+     ≥ 1200 dp a Extra-large ≥ 1600 dp), ne z `BREAKPOINTS_V1`.
+   - Počet panelů podle plochy: Compact a Medium pod 720 dp = 1, od 720 dp po Expanded = 2,
+     Large a XL = 3 (jen když je co dát do třetího, viz bod 2).
+   - **Práh 720 dp zůstává, ale ne jako magické číslo**: je to seznam (360 dp) + nejužší
+     použitelná konverzace (360 dp) a dává dva panely i vnitřnímu displeji Foldu. Standardní
+     Medium (od 600 dp, `calculatePaneScaffoldDirectiveWithTwoPanesOnMediumWidth`) by
+     konverzaci nechal 240 dp. V kódu ho tedy vyjádřit jako součet dvou pojmenovaných šířek.
+   - `LocalTwoPane: Boolean` nahradit popisem rozvržení: počet panelů a role panelu, ve kterém
+     obrazovka stojí (seznam / detail / třetí). Body 2 a 4 to potřebují.
+
+2. **Profil jako třetí panel (`ListDetailSceneStrategy.extraPane()`).**
+   - Large a XL: seznam | konverzace | profil vedle sebe. Expanded: konverzace | profil
+     (seznam se schová — výchozí chování `ThreePaneScaffold`, stejně jako Telegram Desktop).
+     Telefon beze změny.
+   - Do třetího panelu patří i to, co se otevírá z profilu: `EditChatRoute`,
+     `MemberRightsRoute`, `InviteLinksRoute`, `JoinRequestsRoute` (a jejich `Archive…`
+     varianty). Jako `detailPane` by nahradily konverzaci uprostřed.
+   - **Neověřené a první k vyzkoušení**: jak strategie skládá víc položek s rolí `extraPane`
+     nad sebou a co pak dělá zpět (`BackNavigationBehavior.PopUntilContentChange` v Chatech).
+   - Profil ve třetím panelu má ✕ místo šipky zpět; ťuknutí na hlavičku konverzace ho
+     otevírá i zavírá (dnes jen přidá `ChatProfileRoute`).
+   - Sdílené prvky a container transform dnes vypíná `LocalTwoPane`; u třetího panelu
+     platí totéž (avatar by letěl z hlavičky, která zůstává vidět).
+
+3. **Šířky panelů, táhlo a kotvy.**
+   - Seznamu a profilu dát šířku metadaty `ListDetailSceneStrategy.preferredPaneSize`
+     (360 dp, na XL širší výchozí šířka knihovny); konverzace bere zbytek.
+   - Táhlo mezi panely: `rememberListDetailSceneStrategy(paneExpansionState = …,
+     paneExpansionDragHandle = …)` s `VerticalDragHandle` z material3 a kotvami
+     (`PaneExpansionAnchor`): seznam 360 dp, polovina plochy, seznam sbalený na úzký sloupec.
+     Zvolenou kotvu pamatovat v `AppSettings`.
+   - Táhlo potřebuje mezeru mezi panely — dnes je záměrně 0 dp (`withHorizontalPartitions`).
+     Tedy přechod na vzhled panelů M3 Expressive: panely jako zaoblené plochy na
+     `surfaceContainer`, mezera 24 dp. Viditelná změna vzhledu, proto až tady.
+
+4. **Drobnosti k tomu.**
+   - Konverzace ve dvoupanelu nemá mít šipku zpět (`ChatSwitcherBackButton`) — seznam je
+     vedle. Podržení pro rychlý přepínač chatů na velké ploše asi taky ztrácí smysl.
+   - Obsah Nastavení (detail sekce) a profilu omezit čitelnou maximální šířkou; na XL by se
+     řádky natáhly přes 1000 dp. Bubliny mají strop 560 dp už dnes.
+
+**Jak ověřovat:** desktop změnou velikosti okna (nejrychlejší cesta k Large a XL), emulátor
+tabletu, Fold (`adb emu fold` / `unfold` v cyklu — viz Gotchas o insetech v `CLAUDE.md`, změna
+scény při rozložení už jednou shazovala aplikaci) a obě rotace naležato kvůli výřezu.
+
+---
+
 ## Vzhled (Material 3 Expressive)
 
 Nápady na doladění vzhledu; nic z toho zatím nikdo nezačal. Navazují na slovník, který
