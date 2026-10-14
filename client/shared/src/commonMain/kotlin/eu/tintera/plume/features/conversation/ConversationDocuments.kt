@@ -3,8 +3,6 @@ package eu.tintera.plume.features.conversation
 import androidx.lifecycle.ViewModel
 import co.touchlab.kermit.Logger
 import kotlin.time.Duration.Companion.seconds
-import eu.tintera.plume.core.files.FileOpener
-import eu.tintera.plume.core.files.MediaSharer
 import eu.tintera.plume.core.files.SaveAsLauncher
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.FileState
@@ -35,8 +33,10 @@ internal class ConversationDocuments(
     private val state: MutableStateFlow<ConversationState>,
     private val scope: CoroutineScope,
     private val fileRepository: FileRepository,
-    private val fileOpener: FileOpener,
-    private val sharer: MediaSharer,
+    /** Předá stažený soubor systému (`FileOpener.open`); `false` = nic ho neotevře. */
+    private val openFile: (path: String, mimeType: String) -> Boolean,
+    /** Systémový dialog sdílení (`MediaSharer.share`); `false` = nepovedlo se. */
+    private val share: suspend (path: String, fileName: String) -> Boolean,
     /** Položka nabídky nad zprávou zavírá nabídku sama, než začne stahovat. */
     private val closeMenus: () -> Unit,
     private val logger: Logger,
@@ -46,7 +46,7 @@ internal class ConversationDocuments(
 
     /** Stáhne soubor a předá ho systému. */
     fun openDocument(messageId: Long) = withDocument(messageId) { path, document ->
-        if (!fileOpener.open(path, document.mimeType)) {
+        if (!openFile(path, document.mimeType)) {
             state.update { it.copy(notice = UiText(Res.string.document_open_failed)) }
         }
     }
@@ -55,7 +55,7 @@ internal class ConversationDocuments(
     fun openArticleDocument(messageId: Long, index: Int) {
         val document = state.value.articleMedia(messageId, index) as? MessageMedia.Document ?: return
         withDocument(document) { path, _ ->
-            if (!fileOpener.open(path, document.mimeType)) {
+            if (!openFile(path, document.mimeType)) {
                 state.update { it.copy(notice = UiText(Res.string.document_open_failed)) }
             }
         }
@@ -73,7 +73,7 @@ internal class ConversationDocuments(
     }
 
     private fun shareDownloaded(messageId: Long) = withDocument(messageId) { path, document ->
-        if (!sharer.share(path, document.fileName)) {
+        if (!share(path, document.fileName)) {
             state.update { it.copy(notice = UiText(Res.string.media_share_failed)) }
         }
     }

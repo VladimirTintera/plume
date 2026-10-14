@@ -3,21 +3,15 @@ package eu.tintera.plume.features.conversation
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.ScamKind
 import eu.tintera.plume.core.calendar.CalendarEvent
-import eu.tintera.plume.core.calendar.CalendarEvents
-import eu.tintera.plume.core.contacts.ContactSaver
 import eu.tintera.plume.core.contacts.NewContact
-import eu.tintera.plume.core.currency.ExchangeRates
-import eu.tintera.plume.core.currency.HomeRegion
+import eu.tintera.plume.core.currency.RateTable
 import eu.tintera.plume.core.location.mapsSearchUrl
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.platformLanguageCode
-import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.ui.UiText
-import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.core.wifi.WifiJoin
-import eu.tintera.plume.core.wifi.WifiJoiner
 import eu.tintera.plume.features.conversation.items.ContextVerb
 import eu.tintera.plume.features.conversation.items.MessageMenuAction
 import eu.tintera.plume.resources.Res
@@ -58,16 +52,26 @@ internal class ConversationMessageContext(
     private val state: MutableStateFlow<ConversationState>,
     private val scope: CoroutineScope,
     private val settings: AppSettings,
-    private val urlOpener: UrlOpener,
-    private val clipboard: TextClipboard,
+    private val openUrl: (String) -> Unit,
+    private val copyToClipboard: suspend (String) -> Unit,
+    /** Potvrdí zkopírování sám systém (`TextClipboard.confirmsCopy`)? Pak hláška od nás není. */
+    private val clipboardConfirmsCopy: Boolean,
     private val scamWarnings: ScamWarnings?,
     private val messageContexts: MessageContexts?,
-    private val calendarEvents: CalendarEvents?,
-    private val contactSaver: ContactSaver?,
-    private val wifiJoiner: WifiJoiner?,
-    private val exchangeRates: ExchangeRates?,
-    /** Měna a jednotky uživatele podle regionu telefonu. */
-    currency: HomeRegion?,
+    /** Událost do editoru kalendáře (`CalendarEvents.add`); `false` = kalendář chybí. Bez něj se nenabízí. */
+    private val addCalendarEvent: ((CalendarEvent) -> Boolean)?,
+    /** Kontakt do editoru kontaktů (`ContactSaver.save`); `false` = aplikace kontaktů chybí. */
+    private val saveNewContact: ((NewContact) -> Boolean)?,
+    /** Připojení k Wi-Fi (`WifiJoiner.join`). */
+    private val joinWifiNetwork: ((ssid: String, password: String) -> WifiJoin)?,
+    /** Umí telefon nabídnout připojení k Wi-Fi ze zprávy? Na iOS ne (viz `WifiJoiner`). */
+    val canJoinWifi: Boolean,
+    /** Kurzovní lístek (`ExchangeRates.table`); `null` = převod měny bez kurzu. */
+    private val loadRates: (suspend () -> RateTable?)?,
+    /** Měna uživatele podle regionu telefonu; částky v ní se v akcích u zprávy nepřevádějí. */
+    val homeCurrency: String?,
+    /** Používá uživatel metrické jednotky? Převádějí se jen jednotky té druhé soustavy. */
+    val metricUnits: Boolean,
     private val closeMenus: () -> Unit,
     /** Odkaz z akce (sledování zásilky) — jde touž cestou jako odkaz ve zprávě. */
     private val openLink: (url: String) -> Unit,
@@ -105,24 +109,17 @@ internal class ConversationMessageContext(
 
     private val _contextSheet = MutableStateFlow<ContextSheet?>(null)
 
-    /** Měna uživatele podle regionu telefonu; částky v ní se v akcích u zprávy nepřevádějí. */
-    val homeCurrency: String? = currency?.code
-
-    /** Používá uživatel metrické jednotky? Převádějí se jen jednotky té druhé soustavy. */
-    val metricUnits: Boolean = currency?.metric ?: true
-
     /** Otevřený sheet akcí u zprávy (`MessageContextSheet`); `null` = zavřený. */
     val contextSheet: StateFlow<ContextSheet?> = _contextSheet.asStateFlow()
 
-    /** Uživatel skryl varování před podvodem u zprávy. */
     /** Ťuknutí na ikonku akcí u zprávy: sheet s tím, co se ve zprávě našlo. */
     fun openMessageContext(messageId: Long, findings: List<ContextFinding>) {
         if (findings.isEmpty()) return
-        val rates = exchangeRates?.takeIf { findings.any { it is ContextFinding.Money } }
+        val rates = loadRates?.takeIf { findings.any { it is ContextFinding.Money } }
         _contextSheet.value = ContextSheet(messageId, findings, homeCurrency, if (rates != null) RatesState.Loading else null)
         rates ?: return
         scope.launch {
-            val table = rates.table()
+            val table = rates()
             _contextSheet.update { open ->
                 // Sheet mezitím mohl zavřít nebo otevřít jiný; kurz patří jen tomu, kdo o něj žádal.
                 if (open?.messageId != messageId) open else open.copy(rates = table?.let(RatesState::Loaded) ?: RatesState.Failed)
@@ -183,8 +180,8 @@ internal class ConversationMessageContext(
 
     /** Událost do kalendáře; editor kalendáře ji ukáže a uloží až uživatel. */
     fun addToCalendar(event: ContextFinding.Event) {
-        val calendar = calendarEvents ?: return
-        val added = calendar.add(
+        val calendar = addCalendarEvent ?: return
+        val added = calendar(
             CalendarEvent(
                 title = event.title,
                 description = event.description,
@@ -206,28 +203,14 @@ internal class ConversationMessageContext(
      * v popisu, kde bývá i kód rezervace.
      */
     fun addFlightToCalendar(messageId: Long, flight: ContextFinding.Flight) {
-        val calendar = calendarEvents ?: return
-        val start = flight.at ?: return
-        val text = state.value.messages.firstOrNull { it.id == messageId }?.text?.trim().orEmpty()
-        val schedule = flight.schedule(TimeZone.currentSystemDefault())
-        // Místo je letiště, odkud se letí (u příletu kam); trasa jde na začátek popisu.
-        val airport = (if (flight.arrival) flight.to else flight.from)?.let(AIRPORTS::get)
-        val route = listOfNotNull(flight.from, flight.to).takeIf { it.size == 2 }?.joinToString(" \u2192 ")
-        val description = listOfNotNull(route, text.takeIf { it.isNotEmpty() }).joinToString("\n\n")
+        val calendar = addCalendarEvent ?: return
+        if (flight.at == null) return
+        val text = state.value.messages.firstOrNull { it.id == messageId }?.text.orEmpty()
         scope.launch {
             val name = "${flight.airline} ${flight.number}"
             val title = readString(if (flight.arrival) Res.string.message_context_flight_arrival_title else Res.string.message_context_flight_title, name)
-            val added = calendar.add(
-                CalendarEvent(
-                    title = title,
-                    description = description,
-                    place = airport?.label,
-                    start = start,
-                    allDay = flight.allDay,
-                    begin = schedule?.start,
-                    end = schedule?.end,
-                ),
-            )
+            val event = flight.calendarEvent(title, text, TimeZone.currentSystemDefault()) ?: return@launch
+            val added = calendar(event)
             if (added) {
                 closeMessageContext()
             } else {
@@ -239,8 +222,8 @@ internal class ConversationMessageContext(
     /** Údaj z akcí u zprávy (číslo účtu, částka, číslo zásilky) do schránky. */
     fun copyFromContext(text: String) {
         scope.launch {
-            clipboard.copy(text)
-            if (!clipboard.confirmsCopy) state.update { it.copy(notice = UiText(Res.string.bot_text_copied)) }
+            copyToClipboard(text)
+            if (!clipboardConfirmsCopy) state.update { it.copy(notice = UiText(Res.string.bot_text_copied)) }
         }
     }
 
@@ -250,21 +233,18 @@ internal class ConversationMessageContext(
         openLink(url)
     }
 
-    /** Umí telefon nabídnout připojení k Wi-Fi ze zprávy? Na iOS ne (viz `WifiJoiner`). */
-    val canJoinWifi: Boolean get() = wifiJoiner?.canJoin == true
-
     /**
      * Připojení k Wi-Fi ze zprávy. Kde systém dialog „Uložit síť?" nemá a otevře se jen nastavení,
      * heslo jde do schránky — v nastavení se pak jen vloží.
      */
     fun joinWifi(wifi: ContextFinding.Wifi) {
-        val joiner = wifiJoiner ?: return
-        when (joiner.join(wifi.ssid, wifi.password)) {
+        val join = joinWifiNetwork ?: return
+        when (join(wifi.ssid, wifi.password)) {
             WifiJoin.Dialog -> closeMessageContext()
             WifiJoin.Settings -> {
                 closeMessageContext()
                 scope.launch {
-                    clipboard.copy(wifi.password)
+                    copyToClipboard(wifi.password)
                     state.update { it.copy(notice = UiText(Res.string.message_context_wifi_settings, wifi.ssid)) }
                 }
             }
@@ -274,8 +254,8 @@ internal class ConversationMessageContext(
 
     /** Kontakt ze zprávy do systémového editoru kontaktů; uloží ho až uživatel. */
     fun saveContact(contact: ContextFinding.Contact) {
-        val saver = contactSaver ?: return
-        if (saver.save(NewContact(name = contact.name, phone = contact.phone, email = contact.email))) {
+        val save = saveNewContact ?: return
+        if (save(NewContact(name = contact.name, phone = contact.phone, email = contact.email))) {
             closeMessageContext()
         } else {
             state.update { it.copy(notice = UiText(Res.string.message_context_no_contacts)) }
@@ -285,7 +265,7 @@ internal class ConversationMessageContext(
     /** Adresa nebo místo z akcí u zprávy v mapách platformy (hledání textem). */
     fun openMaps(query: String) {
         closeMessageContext()
-        urlOpener.open(mapsSearchUrl(query))
+        openUrl(mapsSearchUrl(query))
     }
 
     /** „Připomenout…" z akcí u termínu — tentýž sheet jako z nabídky nad zprávou. */
@@ -294,7 +274,34 @@ internal class ConversationMessageContext(
         requestRemind(messageId)
     }
 
+    /** Uživatel skryl varování před podvodem u zprávy. */
     fun dismissScamWarning(messageId: Long) {
         scamWarnings?.dismiss(chatId, messageId)
     }
+}
+
+/**
+ * Let jako událost kalendáře: čas ze zprávy v pásmu letiště, konec podle přistání (nebo odhadu
+ * z trasy), místem letiště, odkud se letí (u příletu kam), a v popisu trasa a pod ní text
+ * zprávy, kde bývá i kód rezervace. Bez času letu `null`.
+ *
+ * Mimo [ConversationMessageContext.addFlightToCalendar], aby šla otestovat bez názvu z prostředků
+ * (`readString` na JVM v testech nejde, `Resources` tam nejsou).
+ */
+internal fun ContextFinding.Flight.calendarEvent(title: String, messageText: String, zone: TimeZone): CalendarEvent? {
+    val start = at ?: return null
+    val schedule = schedule(zone)
+    val airport = (if (arrival) to else from)?.let(AIRPORTS::get)
+    val route = listOfNotNull(from, to).takeIf { it.size == 2 }?.joinToString(" \u2192 ")
+    val text = messageText.trim()
+    val description = listOfNotNull(route, text.takeIf { it.isNotEmpty() }).joinToString("\n\n")
+    return CalendarEvent(
+        title = title,
+        description = description,
+        place = airport?.label,
+        start = start,
+        allDay = allDay,
+        begin = schedule?.start,
+        end = schedule?.end,
+    )
 }
