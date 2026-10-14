@@ -20,6 +20,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,6 +53,20 @@ import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_search
 import eu.tintera.plume.resources.search_24dp
+import eu.tintera.plume.resources.cake_24dp
+import eu.tintera.plume.resources.error_24dp
+import eu.tintera.plume.resources.folder_24dp
+import eu.tintera.plume.resources.lightbulb_24dp
+import eu.tintera.plume.resources.shield_person_24dp
+import eu.tintera.plume.resources.system_update_24dp
+import eu.tintera.plume.resources.chats_pending_freeze
+import eu.tintera.plume.resources.chats_pending_login
+import eu.tintera.plume.resources.chats_pending_birthdays
+import eu.tintera.plume.resources.chats_pending_suggestion
+import eu.tintera.plume.resources.chats_pending_folder_chats
+import eu.tintera.plume.resources.chats_pending_update
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -65,8 +81,11 @@ import org.jetbrains.compose.resources.stringResource
  *   a výsledky by v něm byly nečitelné.
  * - **Jméno chatu ukáže bublina po najetí myší** ([WithTooltip], ne holý `TooltipBox`; na dotykové
  *   ploše podržení); čtečka ho dostane jako popis.
- * - Karty nad seznamem (aktualizace, nové přihlášení), FAB a výběr víc chatů tu nejsou:
- *   potřebují šířku a po rozbalení jsou zpátky.
+ * - **Karty nad seznamem** (aktualizace, nové přihlášení, narozeniny…) se do sloupce nevejdou.
+ *   Že nějaká čeká, ukazuje tlačítko s tečkou pod lupou ([pendingCard]); ťuknutí seznam
+ *   rozbalí a odjede nahoru na ni. Bez něj by se o nepotvrzeném přihlášení člověk se sbaleným
+ *   seznamem nedozvěděl, dokud ho nerozbalí.
+ * - FAB a výběr víc chatů tu nejsou: potřebují šířku a po rozbalení jsou zpátky.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,6 +96,10 @@ internal fun CollapsedChatList(
     onForumClick: (Long) -> Unit,
     onSearch: () -> Unit,
     account: @Composable () -> Unit,
+    /** Nejdůležitější karta, která v plném seznamu nahoře čeká; `null` = žádná. */
+    pendingCard: PendingCard?,
+    /** Rozbalit seznam a ukázat karty nahoře. */
+    onShowCards: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -99,6 +122,7 @@ internal fun CollapsedChatList(
             IconButton(onClick = onSearch, shapes = IconButtonDefaults.shapes()) {
                 Icon(painterResource(Res.drawable.search_24dp), contentDescription = stringResource(Res.string.chats_search))
             }
+            pendingCard?.let { PendingCardButton(it, onClick = onShowCards) }
         }
 
         when (val current = state) {
@@ -173,6 +197,48 @@ private fun CollapsedChat(chat: ChatSummary, selected: Boolean, onClick: () -> U
                         RollingNumber(chat.unreadCount, style = LocalTextStyle.current.tabularNumbers())
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Karta nahoře v plném seznamu chatů, kterou sbalený sloupec nemá kam dát. Pořadí je pořadí
+ * karet v seznamu — první čekající je ta nejdůležitější. [urgent] karty (zmrazený účet, cizí
+ * přihlášení) jsou v chybové barvě: týkají se bezpečnosti účtu, ne pohodlí.
+ */
+internal enum class PendingCard(val icon: DrawableResource, val label: StringResource, val urgent: Boolean) {
+    Freeze(Res.drawable.error_24dp, Res.string.chats_pending_freeze, urgent = true),
+    Login(Res.drawable.shield_person_24dp, Res.string.chats_pending_login, urgent = true),
+    Birthdays(Res.drawable.cake_24dp, Res.string.chats_pending_birthdays, urgent = false),
+    Suggestion(Res.drawable.lightbulb_24dp, Res.string.chats_pending_suggestion, urgent = false),
+    FolderChats(Res.drawable.folder_24dp, Res.string.chats_pending_folder_chats, urgent = false),
+    Update(Res.drawable.system_update_24dp, Res.string.chats_pending_update, urgent = false),
+}
+
+/**
+ * Tlačítko s tečkou: že nahoře v seznamu čeká [card]. Ikona a bublina říkají která, tečka
+ * jen to, že něco — stejný odznak jako nepřečtené. Bublina přes [WithTooltip] (viz výš).
+ */
+@Composable
+private fun PendingCardButton(card: PendingCard, onClick: () -> Unit) {
+    val label = stringResource(card.label)
+    val colors = if (card.urgent) {
+        IconButtonDefaults.filledTonalIconButtonColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+        )
+    } else {
+        IconButtonDefaults.filledTonalIconButtonColors()
+    }
+    WithTooltip(label = label, position = TooltipAnchorPosition.Right) {
+        BadgedBox(
+            badge = {
+                Badge(containerColor = if (card.urgent) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary)
+            },
+        ) {
+            FilledTonalIconButton(onClick = onClick, colors = colors, shapes = IconButtonDefaults.shapes()) {
+                Icon(painterResource(card.icon), contentDescription = label)
             }
         }
     }

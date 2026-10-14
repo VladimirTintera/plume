@@ -93,6 +93,12 @@
     <string name="saved_messages">Saved Messages</string>
     <string name="chats_menu">More options</string>
     <string name="chats_search">Search chats</string>
+    <string name="chats_pending_freeze">Your account is frozen</string>
+    <string name="chats_pending_login">New sign-in to your account</string>
+    <string name="chats_pending_birthdays">Birthdays</string>
+    <string name="chats_pending_suggestion">A suggestion from Telegram</string>
+    <string name="chats_pending_folder_chats">New chats in a folder</string>
+    <string name="chats_pending_update">App update</string>
     <string name="chats_search_clear">Clear search</string>
     <string name="chats_search_ai">Search with AI</string>
     <string name="chats_search_empty">Nothing found</string>
