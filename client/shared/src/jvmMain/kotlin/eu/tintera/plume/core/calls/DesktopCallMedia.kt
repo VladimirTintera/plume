@@ -7,6 +7,8 @@ import com.sun.jna.Pointer
 import java.io.File
 import com.sun.jna.ptr.ByteByReference
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import kotlin.time.Duration
 
 /**
  * Přenos hovoru na desktopu: ntgcalls přes C API ([NtgNative]), stejné pořadí volání jako na
@@ -227,6 +229,19 @@ class DesktopCallMedia : CallMedia {
             video.clearAll()
             stopNow()
         }
+    }
+
+    /**
+     * Synchronně zastaví náhled i knihovnu (ukončení aplikace, [DesktopCallShutdown]). Jde
+     * frontou pracovního vlákna, takže počká i na `stop`, který zavěšení zařadilo před ním.
+     */
+    internal fun shutdown(timeout: Duration) {
+        runCatching {
+            worker.submit {
+                stopPreview()
+                stopNow()
+            }.get(timeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
+        }.onFailure { logger.w(it) { "Knihovna hovoru se při ukončení nezastavila včas." } }
     }
 
     private fun startPreview() {
