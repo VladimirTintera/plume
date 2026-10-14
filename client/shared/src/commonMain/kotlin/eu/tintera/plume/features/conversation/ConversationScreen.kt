@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.adaptive.ContentWidth
+import eu.tintera.plume.core.adaptive.centeredColumn
 import eu.tintera.plume.resources.conversation_mark_read
 import eu.tintera.plume.resources.edit_note_24dp
 import eu.tintera.plume.resources.conversation_send_rewrite
@@ -1632,7 +1634,12 @@ fun ConversationScreen(
          */
         bottomBar = {
             // Horní hrana pole je spodní mez pro nabídku nad zprávou (viz `contentBottom`).
-            Box(Modifier.onGloballyPositioned { contentBottom.value = it.boundsInWindow().top }) {
+            // Na široké ploše ve sloupci uprostřed, stejně jako zprávy nad ním.
+            Box(
+                Modifier
+                    .centeredColumn(ContentWidth.Conversation)
+                    .onGloballyPositioned { contentBottom.value = it.boundsInWindow().top },
+            ) {
             /*
              * Lišty místo pole (Přidat se, Start, Ztlumit, věta „nejde psát") mají pod sebou
              * TENTÝŽ pás skla jako pole. Seznam zpráv pod spodní lištu zajíždí (spodek je
@@ -2563,6 +2570,8 @@ fun ConversationScreen(
                         },
                 ) {
                   CompositionLocalProvider(LocalSharedElementClip provides listClip) {
+                  // Na široké ploše zprávy ve sloupci uprostřed; scroll zůstává přes celou plochu.
+                  ConversationColumn { inset ->
                   LazyColumn(
                     state = listState,
                     reverseLayout = true,
@@ -2574,8 +2583,8 @@ fun ConversationScreen(
                     // Dole se odsazuje o výšku `bottomBar` (vstupního pole), aby nejnovější
                     // zpráva v klidu nekončila pod ním. Při scrollu obsah pod pole zajede.
                     contentPadding = PaddingValues(
-                        start = 12.dp,
-                        end = 12.dp,
+                        start = 12.dp + inset,
+                        end = 12.dp + inset,
                         top = 8.dp + pinnedHeight,
                         bottom = 8.dp + padding.calculateBottomPadding(),
                     ),
@@ -2587,6 +2596,7 @@ fun ConversationScreen(
                         ConversationItemContent(item, itemScope)
                     }
                 }
+                  }
                   }
                   // Nápověda k odkrývání časů ukazuje k pravému okraji, odkud časy přijedou.
                   RevealTimesHintAnchor(gestureHints, Modifier.align(Alignment.CenterEnd))

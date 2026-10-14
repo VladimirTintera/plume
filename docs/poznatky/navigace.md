@@ -293,6 +293,27 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   telefonu je šipka obyčejné zpět. Téma nad seznamem témat se vrací do něj (rodič, ne historie).
   **Šipku neschovávat**: bez ní nešla otevřená konverzace zavřít vůbec (zkusilo se, vrátilo se).
 
+### Standardní šířky
+
+Na okně přes dva monitory (snímek ~2000 dp) se konverzace roztáhla přes celou šířku: přijaté zprávy
+u levého okraje, odeslané u pravého, vstupní pole přes 1600 dp. Šířky se proto berou ze
+škály `ContentWidth` (`core/adaptive/ContentWidth.kt`) opřené o M3 a dřívější konstanty po
+obrazovkách (420 přihlášení, 560 bublina, 680 článek) jsou z ní.
+
+- **Konverzace je sloupec 840 dp uprostřed** (`ContentWidth.Conversation`, hranice Expanded),
+  hlavička zůstává přes celý panel — šipka a akce u okrajů, kde je hledá myš. Pozadí konverzace
+  jde přes celou šířku.
+- **Seznam zpráv se do sloupce stahuje okrajem v `contentPadding`** (`ConversationColumn`,
+  `columnInset`), ne zúžením seznamu: scroll kolečkem i tahem tak funguje kdekoli v panelu.
+  Vstupní pole má `Modifier.centeredColumn` přímo na obsahu slotu `bottomBar`.
+- **Nastavení má strop 720 dp na úrovni panelu** (`Panes.contentWidth`, uplatní ho
+  `PaneCard`), ne v obrazovkách — sekcí je přes deset a každá má vlastní seznam. Zúží se
+  i velký nadpis, takže lícuje s obsahem; scroll je jen nad sloupcem.
+- **Profil strop nepotřebuje**: na široké ploše je vždycky panel o výchozí šířce.
+- **`ConversationScreen` a registry**: logika sloupce je ve vlastní funkci, změna počet
+  registrů v dexu nezvedla. Main ale stál na 274 (z 268 ho zvedly tooltipy v #684), viz
+  Gotchas v `CLAUDE.md`.
+
 ### Zásobník pro každou sekci
 
 Každá sekce aplikace (Chaty, Nastavení) má **vlastní zásobník** a všechny drží jeden stav,

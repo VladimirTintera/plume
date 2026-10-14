@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.adaptive.ContentWidth
 import eu.tintera.plume.core.ui.messageTextStyle
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.SwipeDirection
@@ -994,7 +995,7 @@ internal fun MessageBox(
             Modifier
                 .padding(bottom = overhang.coerceAtLeast(0.dp))
                 .maxWidthFraction(maxWidthFraction)
-                .widthIn(max = 560.dp)
+                .widthIn(max = ContentWidth.Bubble)
                 .then(beforeClip)
                 /*
                  * Vrstva ořezává tvarem BUBLINY, vlnky jsou jen ořez při kreslení.

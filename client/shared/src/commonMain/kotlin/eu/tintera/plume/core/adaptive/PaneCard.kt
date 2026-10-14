@@ -44,6 +44,13 @@ fun PaneCard(content: @Composable () -> Unit) {
 @Composable
 fun rememberPaneCardDecorator(): NavEntryDecorator<NavKey> = remember {
     NavEntryDecorator { entry ->
-        if (entry.paneInfo != null) PaneCard { entry.Content() } else entry.Content()
+        if (entry.paneInfo == null) {
+            entry.Content()
+            return@NavEntryDecorator
+        }
+        PaneCard {
+            val maxWidth = entry.contentMaxWidth
+            if (maxWidth == null) entry.Content() else Box(Modifier.centeredColumn(maxWidth)) { entry.Content() }
+        }
     }
 }

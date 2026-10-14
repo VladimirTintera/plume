@@ -62,7 +62,7 @@ fun PaneScaffoldDirective.threePane(): PaneScaffoldDirective = withHorizontalPar
 val PANE_SPACING = 24.dp
 
 /** Šířka seznamu chatů vedle konverzace — výchozí šířka panelu v M3. */
-val LIST_PANE_WIDTH = 360.dp
+val LIST_PANE_WIDTH = ContentWidth.Pane
 
 /** Nejužší konverzace, ve které se ještě dá číst a psát. */
 val MIN_CONVERSATION_WIDTH = 360.dp

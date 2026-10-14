@@ -89,6 +89,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.Modifier
 import androidx.compose.material3.adaptive.navigation.BackNavigationBehavior
 import eu.tintera.plume.core.adaptive.Panes
+import eu.tintera.plume.core.adaptive.ContentWidth
 import eu.tintera.plume.core.adaptive.PANE_SPACING
 import eu.tintera.plume.core.adaptive.PaneCard
 import eu.tintera.plume.core.adaptive.listWidthBesideProfile
@@ -1275,7 +1276,7 @@ private fun shellEntryProvider(
     }
 
     entry<SettingsSectionRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         // V dvoupanelu je seznam sekcí pořád vidět vedle, takže šipka zpět nemá
         // kam vést; na telefonu je sekce samostatná obrazovka a zpět se z ní chodí.
@@ -1301,7 +1302,7 @@ private fun shellEntryProvider(
 
     // Soukromí účtu nad sekcí Obecné, jedno nastavení s výjimkami nad ním.
     entry<AccountPrivacyRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         AccountPrivacyScreen(
             viewModel = koinViewModel(),
@@ -1312,13 +1313,13 @@ private fun shellEntryProvider(
     }
 
     entry<DeleteAccountRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         DeleteAccountScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     entry<PrivacySettingRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         PrivacySettingScreen(
             viewModel = koinViewModel(key = "privacy-${route.setting}", parameters = { parametersOf(route.setting) }),
@@ -1327,14 +1328,14 @@ private fun shellEntryProvider(
     }
 
     entry<ProxySettingsRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         ProxySettingsScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Složky chatů nad sekcí Obecné, jako seznam blokovaných; editor složky nad nimi.
     entry<ChatFoldersRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         ChatFoldersScreen(
             viewModel = koinViewModel(),
@@ -1345,7 +1346,7 @@ private fun shellEntryProvider(
 
     // Sady samolepek nad sekcí Obecné, jako složky chatů.
     entry<StickerSetsRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         StickerSetsScreen(
             kind = StickerSetKind.Stickers,
@@ -1356,7 +1357,7 @@ private fun shellEntryProvider(
 
     // Sady vlastních emoji: táž obrazovka, jiný seznam.
     entry<EmojiSetsRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         StickerSetsScreen(
             kind = StickerSetKind.Emoji,
@@ -1366,7 +1367,7 @@ private fun shellEntryProvider(
     }
 
     entry<ChatFolderEditRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         ChatFolderEditScreen(
             viewModel = koinViewModel(key = "chat-folder-${route.folderId}", parameters = { parametersOf(route.folderId) }),
@@ -1376,7 +1377,7 @@ private fun shellEntryProvider(
 
     // Seznam blokovaných nad sekcí Obecné, jako úprava profilu.
     entry<BlockedSendersRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         BlockedSendersScreen(
             viewModel = koinViewModel(),
@@ -1387,42 +1388,42 @@ private fun shellEntryProvider(
 
     // Dvoufázové ověření nad sekcí Obecné, jako seznam blokovaných.
     entry<TwoStepRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         TwoStepScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Přihlašovací e-mail nad sekcí Obecné, jako dvoufázové ověření.
     entry<LoginEmailRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         LoginEmailScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Přenesená data nad sekcí Úložiště.
     entry<NetworkUsageRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         NetworkUsageScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Přístupové klíče nad sekcí Obecné, jako dvoufázové ověření.
     entry<PasskeysRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         PasskeysScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Zámek aplikace nad sekcí Obecné, jako dvoufázové ověření.
     entry<AppLockRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         AppLockScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }
 
     // Výběr k zablokování nad seznamem blokovaných; po zablokování se vrací do něj.
     entry<BlockSenderRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         BlockSenderScreen(
             viewModel = koinViewModel(),
@@ -1432,7 +1433,7 @@ private fun shellEntryProvider(
 
     // Úprava profilu nad sekcí Obecné; šipka zpět je i v dvoupanelu, vede zpátky do sekce.
     entry<EditProfileRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         EditProfileScreen(
             viewModel = koinViewModel(),
@@ -1445,7 +1446,7 @@ private fun shellEntryProvider(
 
     // Změna čísla nad úpravou profilu.
     entry<ChangePhoneRoute>(
-        metadata = Panes.detail(SETTINGS_SCENE),
+        metadata = Panes.detail(SETTINGS_SCENE) + Panes.contentWidth(ContentWidth.Reading),
     ) { route ->
         ChangePhoneScreen(viewModel = koinViewModel(), onBack = { settingsStack.pop(route) })
     }

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.auth
 
+import eu.tintera.plume.core.adaptive.ContentWidth
 import eu.tintera.plume.core.ui.BlockTextField
 import eu.tintera.plume.core.ui.PasswordField
 import androidx.compose.animation.AnimatedContent
@@ -1089,7 +1090,7 @@ private fun PhoneForm(
     }
 }
 
-private val CONTENT_MAX_WIDTH = 420.dp
+private val CONTENT_MAX_WIDTH = ContentWidth.Form
 private val QR_MAX_WIDTH = 280.dp
 private val BUTTON_HEIGHT = 56.dp
 private const val PHASE_SLIDE_FRACTION = 4

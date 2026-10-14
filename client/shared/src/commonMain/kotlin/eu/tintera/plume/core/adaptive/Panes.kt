@@ -36,6 +36,13 @@ object Panes {
     fun width(width: Dp?): Map<String, Any> =
         if (width == null) emptyMap() else ListDetailSceneStrategy.preferredPaneSize(width = width)
 
+    /**
+     * Obsah panelu nejvýš [maxWidth] široký, na širším panelu vycentrovaný (`PaneCard`). Pro
+     * obrazovky, které si strop samy nehlídají — sekce Nastavení jich mají přes deset, každá
+     * s vlastním seznamem. Zúží se i jejich hlavička, takže nadpis lícuje s obsahem.
+     */
+    fun contentWidth(maxWidth: Dp): Map<String, Any> = mapOf(CONTENT_MAX_WIDTH_KEY to maxWidth)
+
     private fun info(role: PaneRole, sceneKey: Any): Map<String, Any> = mapOf(PANE_INFO_KEY to PaneInfo(role, sceneKey))
 }
 
@@ -43,6 +50,11 @@ private const val PANE_INFO_KEY = "eu.tintera.plume.paneInfo"
 
 /** Role položky podle metadat z [Panes]; obrazovka přes celou plochu (prohlížeč) žádnou nemá. */
 val NavEntry<*>.paneInfo: PaneInfo? get() = metadata[PANE_INFO_KEY] as? PaneInfo
+
+private const val CONTENT_MAX_WIDTH_KEY = "eu.tintera.plume.contentMaxWidth"
+
+/** Strop šířky obsahu z [Panes.contentWidth]; `null` = obsah přes celý panel. */
+val NavEntry<*>.contentMaxWidth: Dp? get() = metadata[CONTENT_MAX_WIDTH_KEY] as? Dp
 
 /**
  * Indexy extra položek, nad kterými v téže scéně leží detail — profil, nad který se otevřela

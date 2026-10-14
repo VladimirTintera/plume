@@ -712,8 +712,6 @@ seznam". Zbývá:
    sekce Obecné je sběrná a nesedí (připomínka uživatele z října 2026).
 
 2. **Drobnosti.**
-   - Obsah Nastavení (detail sekce) a profilu omezit čitelnou maximální šířkou; na XL by se
-     řádky natáhly přes 1000 dp. Bubliny mají strop 560 dp už dnes.
    - Sbalený seznam nemá karty nad seznamem (aktualizace, nové přihlášení), FAB ani výběr víc
      chatů. Kdyby chyběly, stačí ve sloupci ukázat aspoň tečku, že nahoře něco čeká.
    - Šířka panelu profilu je výchozí z direktivy; táhlo mezi konverzací a profilem není.
