@@ -90,7 +90,8 @@ navzájem (`MediaSender`, `MessageJumper`, `Throwable.reported`).
 - **Části se testují samy, bez ViewModelu** (`ConversationSearchTest`, `ConversationSelectionTest`,
   `ConversationReactionsTest`, `ConversationScheduledTest`, `ConversationComposerTest`,
   `ConversationMessageActionsTest`, `ConversationAttachmentsTest`, `ConversationLinksTest`,
-  `ConversationBotsTest`, `ConversationSuggestionsTest`):
+  `ConversationBotsTest`, `ConversationSuggestionsTest`, `ConversationPlaybackTest`,
+  `ConversationRecorderTest`):
   stav je obyčejný `MutableStateFlow`, repository
   `UnimplementedConversationRepository`, `UnimplementedChatRepository` a nastavení
   `UnimplementedAppSettings` (v testech; každé nepřepsané volání vyhodí
@@ -109,6 +110,16 @@ navzájem (`MediaSender`, `MessageJumper`, `Throwable.reported`).
   a souborech) a odkazy `openUrl` a `openProxy` místo `UrlOpener` (`expect class`)
   a `ProxyLinkFlow`. Boti dostávají `openUrl`, `copyToClipboard` a `clipboardConfirmsCopy`
   (hodnota `TextClipboard.confirmsCopy`, na platformě neměnná).
+- **Přehrávač a fronta hudby jsou pro části rozhraní** (`VoicePlayerControl`,
+  `MusicQueueControl` v `core/audio`), mikrofon `MediaCapture`. `VoicePlayer` stojí na
+  platformních `AudioEngine` a `EarSensor` a v testu sestavit nejde; části z něj stejně používají
+  jen pár metod. Výchozí hodnoty parametrů jsou v rozhraní — třída je při přepsání opakovat nesmí.
+- **Část s nekonečným odběrem dostane v testu `detachedScope()`** (fixtures): přehrávání drží
+  `transcribeContext` přes `stateIn(…, Eagerly)` a na dítě rozsahu testu by `runTest` čekal
+  donekonečna. Rozsah je na plánovači testu, ale mimo jeho strom, a zruší se s jeho koncem.
+- **Nahrávání se testuje v reálném čase** (`runBlocking`, `ConversationRecorderTest`):
+  `VoiceRecorder` měří délku monotónními hodinami, takže virtuální čas testu na „příliš krátkou
+  nahrávku" nedosáhne. Mikrofon je podvržený a „nahraje" platný Ogg.
 - **Čas v médiu („1:23" v textu) je přehrávání, ne odkaz** (`ConversationPlayback.playMediaAt`).
   Dokud ležel v odkazech, táhly kvůli němu odkazy za sebou přehrávač, frontu hudby i celou
   část přehrávání — a v testu nešly sestavit. Odkazům z něj zbylo jen video z náhledu odkazu,

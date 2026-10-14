@@ -1,10 +1,10 @@
 package eu.tintera.plume.features.conversation
 
 import co.touchlab.kermit.Logger
-import eu.tintera.plume.core.audio.AudioRecorder
+import eu.tintera.plume.core.audio.MediaCapture
 import eu.tintera.plume.core.audio.MIN_DURATION_MS
 import eu.tintera.plume.core.audio.RecordedVoice
-import eu.tintera.plume.core.audio.VoicePlayer
+import eu.tintera.plume.core.audio.VoicePlayerControl
 import eu.tintera.plume.core.audio.VoiceRecorder
 import eu.tintera.plume.core.audio.VoiceRecording
 import eu.tintera.plume.core.camera.CaptureSlot
@@ -51,8 +51,9 @@ internal class ConversationRecorder(
     private val appScope: CoroutineScope,
     private val repository: ConversationRepository,
     private val settings: AppSettings,
-    private val voicePlayer: VoicePlayer,
-    audioRecorder: AudioRecorder,
+    private val voicePlayer: VoicePlayerControl,
+    /** Mikrofon (`AudioRecorder`); rozhraní, aby šel v testu podvrhnout. */
+    audioRecorder: MediaCapture,
     private val media: MediaSender,
     /** Vlastní zpráva přečte konverzaci až k sobě (viz `ConversationViewModel.readAfterOwnMessage`). */
     private val readAfterOwnMessage: () -> Unit,
