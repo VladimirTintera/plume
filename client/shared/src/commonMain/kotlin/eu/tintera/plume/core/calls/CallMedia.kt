@@ -22,6 +22,15 @@ interface CallMedia {
     /** Náhled kamery běží už při vytáčení; desktop ho má až od spojení (kameru drží knihovna). */
     val previewsBeforeConnect: Boolean get() = true
 
+    /** Umí poslat obrazovku místo kamery (Android přes MediaProjection). */
+    val supportsScreenSharing: Boolean get() = false
+
+    /**
+     * Posílá obrazovku místo kamery (v hovoru ve dvou se nemíchají). Souhlas uživatele
+     * a služba v popředí jsou věc platformy a musí být vyřízené dřív.
+     */
+    fun setScreenSharing(on: Boolean) = Unit
+
     /**
      * Zvuková relace hovoru: režim hovoru a výstup (sluchátko, reproduktor, Bluetooth).
      * Spouští se UŽ PŘI VYTÁČENÍ A PŘIJETÍ, ne až se spojením — tón protistrany potřebuje
@@ -108,6 +117,9 @@ interface CallMediaEvents {
 
     /** Protistrana zapnula ([active]), nebo vypnula / pozastavila kameru. */
     fun onRemoteVideo(active: Boolean)
+
+    /** Sdílení obrazovky ukončil systém (tlačítko „Zastavit sdílení" ve stavovém řádku). */
+    fun onScreenSharingStopped() = Unit
 }
 
 /** Který obraz hovoru se kreslí: náš z kamery (náhled), nebo protistrany. */

@@ -100,16 +100,18 @@ class CallService : Service(), KoinComponent {
         return START_NOT_STICKY
     }
 
-    private fun foregroundTypes(camera: Boolean = false): Int = when {
+    private fun foregroundTypes(camera: Boolean = false, screen: Boolean = false): Int = when {
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.R ->
             ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or
-                (if (camera) ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA else 0)
+                (if (camera) ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA else 0) or
+                (if (screen) ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION else 0)
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL
         else -> 0
     }
 
-    /** Typ služby, se kterým běží — kamera se přidá a ubere s kamerou hovoru. */
+    /** Typ služby, se kterým běží — kamera a obrazovka se přidají a uberou s hovorem. */
     private var runningWithCamera = false
+    private var runningWithScreen = false
 
     /**
      * Kamera na pozadí: Android ji aplikaci mimo popředí odebere, ledaže běží služba typu
@@ -117,12 +119,19 @@ class CallService : Service(), KoinComponent {
      * tedy z popředí, jak Android chce) a ubere s vypnutím.
      */
     private suspend fun updateCamera(call: ActiveCall) {
-        val wanted = call.camera && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+        val camera = call.camera && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-        if (wanted == runningWithCamera) return
-        runCatching { ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(call), foregroundTypes(camera = wanted)) }
-            .onSuccess { runningWithCamera = wanted }
-            .onFailure { logger.w(it) { "Typ služby hovoru (kamera: $wanted) nejde změnit." } }
+        // Sdílení obrazovky: typ `mediaProjection` musí běžet dřív, než knihovna zavolá
+        // `getMediaProjection` (Android 14+), proto se teprve po něm hlásí `ScreenCapture.serviceReady`.
+        val screen = call.screenSharing && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+        if (camera == runningWithCamera && screen == runningWithScreen) return
+        runCatching { ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(call), foregroundTypes(camera = camera, screen = screen)) }
+            .onSuccess {
+                runningWithCamera = camera
+                runningWithScreen = screen
+            }
+            .onFailure { logger.w(it) { "Typ služby hovoru (kamera: $camera, obrazovka: $screen) nejde změnit." } }
+        ScreenCapture.serviceReady.value = runningWithScreen
     }
 
     private suspend fun notification(call: ActiveCall): Notification {
@@ -175,12 +184,14 @@ class CallService : Service(), KoinComponent {
     }
 
     private fun stop() {
+        ScreenCapture.serviceReady.value = false
         proximity?.takeIf { it.isHeld }?.release()
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
     override fun onDestroy() {
+        ScreenCapture.serviceReady.value = false
         proximity?.takeIf { it.isHeld }?.release()
         scope.cancel()
         super.onDestroy()

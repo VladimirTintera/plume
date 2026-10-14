@@ -21,6 +21,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -56,13 +57,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import eu.tintera.plume.resources.call_camera
 import eu.tintera.plume.resources.call_switch_camera
+import eu.tintera.plume.resources.call_share_screen
 import eu.tintera.plume.resources.cameraswitch_24dp
+import eu.tintera.plume.resources.screen_share_24dp
 import eu.tintera.plume.resources.videocam_24dp
 import eu.tintera.plume.resources.video_call_incoming
 import eu.tintera.plume.core.calls.CallRequests
 import eu.tintera.plume.core.calls.rememberCallCameraGranted
 import eu.tintera.plume.core.calls.rememberCallCameraPermission
 import eu.tintera.plume.core.calls.rememberCallMicrophonePermission
+import eu.tintera.plume.core.calls.rememberScreenSharePermission
 import org.jetbrains.compose.resources.DrawableResource
 import eu.tintera.plume.resources.call_output_bluetooth
 import eu.tintera.plume.resources.call_output_headset
@@ -236,6 +240,7 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
     val scope = rememberCoroutineScope()
     val accept = rememberAcceptCall(calls)
     val cameraPermission = rememberCallCameraPermission()
+    val screenShare = rememberScreenSharePermission()?.takeIf { calls.supportsScreenSharing }
     val (name, avatarFileId) = rememberPeer(call.userId)
     // Zpět hovor neukončí, jen ho zmenší — jako u telefonu.
     NavigationBackHandler(
@@ -275,6 +280,22 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
                         Icon(painterResource(Res.drawable.keyboard_arrow_down_24dp), contentDescription = stringResource(Res.string.call_minimize))
                     }
                     Spacer(Modifier.weight(1f))
+                    // Sdílení obrazovky jen ve spojeném hovoru: posílá se místo kamery.
+                    if (screenShare != null && call.phase == CallPhase.Active) {
+                        FilledTonalIconToggleButton(
+                            checked = call.screenSharing,
+                            onCheckedChange = { on ->
+                                if (!on) {
+                                    calls.setScreenSharing(false)
+                                } else {
+                                    screenShare.request { granted -> if (granted) calls.setScreenSharing(true) }
+                                }
+                            },
+                            shapes = IconButtonDefaults.toggleableShapes(),
+                        ) {
+                            Icon(painterResource(Res.drawable.screen_share_24dp), contentDescription = stringResource(Res.string.call_share_screen))
+                        }
+                    }
                     if (ongoing && call.camera && calls.canSwitchCamera) {
                         FilledTonalIconButton(onClick = calls::switchCamera, shapes = IconButtonDefaults.shapes()) {
                             Icon(painterResource(Res.drawable.cameraswitch_24dp), contentDescription = stringResource(Res.string.call_switch_camera))

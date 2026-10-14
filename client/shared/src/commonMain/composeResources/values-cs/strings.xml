@@ -847,6 +847,7 @@
     <string name="call_start_video">Videohovor</string>
     <string name="call_camera">Kamera</string>
     <string name="call_switch_camera">Přepnout kameru</string>
+    <string name="call_share_screen">Sdílet obrazovku</string>
     <string name="call_unmute">Zapnout mikrofon</string>
     <string name="call_back">Zavolat zpět</string>
     <string name="call_unavailable">Tomuto člověku nejde zavolat</string>

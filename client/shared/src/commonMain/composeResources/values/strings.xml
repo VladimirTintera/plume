@@ -834,6 +834,7 @@
     <string name="call_start_video">Video call</string>
     <string name="call_camera">Camera</string>
     <string name="call_switch_camera">Switch camera</string>
+    <string name="call_share_screen">Share screen</string>
     <string name="call_unmute">Unmute microphone</string>
     <string name="call_back">Call back</string>
     <string name="call_unavailable">This person can't be called</string>
