@@ -73,7 +73,7 @@ internal class ConversationSearch(
      * výsledek — kdo hledá, chce vidět, kde to je, ne seznam.
      */
     fun onSearchQuery(text: String) {
-        state.update { state -> state.search?.let { state.copy(search = it.copy(query = text)) } ?: state }
+        state.update { current -> current.search?.let { current.copy(search = it.copy(query = text)) } ?: current }
         restartSearch(debounce = true)
     }
 
@@ -83,8 +83,8 @@ internal class ConversationSearch(
      * všechny jeho zprávy.
      */
     fun setSearchSender(sender: SenderInfo?) {
-        state.update { state ->
-            state.search?.let { state.copy(search = it.copy(sender = sender), memberPicker = null) } ?: state
+        state.update { current ->
+            current.search?.let { current.copy(search = it.copy(sender = sender), memberPicker = null) } ?: current
         }
         restartSearch(debounce = false)
     }
@@ -94,25 +94,25 @@ internal class ConversationSearch(
         searchJob?.cancel()
         val search = state.value.search ?: return
         if (!search.hasCriteria) {
-            state.update { state -> state.search?.let { state.copy(search = it.cleared()) } ?: state }
+            state.update { current -> current.search?.let { current.copy(search = it.cleared()) } ?: current }
             return
         }
         val query = search.query.trim()
         val senderId = search.sender?.id
         searchJob = scope.launch {
             if (debounce) delay(SEARCH_DEBOUNCE_MS)
-            state.update { state -> state.search?.let { state.copy(search = it.copy(loading = true)) } ?: state }
+            state.update { current -> current.search?.let { current.copy(search = it.copy(loading = true)) } ?: current }
             repository.searchInChat(chatId, query, senderUserId = senderId)
                 .onSuccess { page ->
-                    state.update { state ->
-                        state.search?.let { state.copy(search = it.withFirstPage(query, page, senderId)) } ?: state
+                    state.update { current ->
+                        current.search?.let { current.copy(search = it.withFirstPage(query, page, senderId)) } ?: current
                     }
                     state.value.search?.current?.let { jumper.jumpToMessage(it, fromSearch = true) }
                 }
                 .onFailure { failure ->
                     val message = failure.reported(logger, Res.string.conversation_search_failed)
-                    state.update { state ->
-                        state.copy(error = message, search = state.search?.copy(loading = false))
+                    state.update { current ->
+                        current.copy(error = message, search = current.search?.copy(loading = false))
                     }
                 }
         }
@@ -131,20 +131,20 @@ internal class ConversationSearch(
 
     /** Hledání člena podle jména, s krátkou pauzou v psaní; prázdné = první členové skupiny. */
     fun onMemberQuery(text: String) {
-        state.update { state -> state.memberPicker?.let { state.copy(memberPicker = it.copy(query = text, loading = true)) } ?: state }
+        state.update { current -> current.memberPicker?.let { current.copy(memberPicker = it.copy(query = text, loading = true)) } ?: current }
         memberJob?.cancel()
         memberJob = scope.launch {
             if (text.isNotEmpty()) delay(SEARCH_DEBOUNCE_MS)
             repository.searchMembers(chatId, text.trim())
                 .onSuccess { members ->
-                    state.update { state ->
-                        state.memberPicker?.let { state.copy(memberPicker = it.copy(members = members, loading = false)) } ?: state
+                    state.update { current ->
+                        current.memberPicker?.let { current.copy(memberPicker = it.copy(members = members, loading = false)) } ?: current
                     }
                 }
                 .onFailure { failure ->
                     logger.w(failure) { "Členy chatu se nepodařilo načíst." }
-                    state.update { state ->
-                        state.memberPicker?.let { state.copy(memberPicker = it.copy(members = emptyList(), loading = false)) } ?: state
+                    state.update { current ->
+                        current.memberPicker?.let { current.copy(memberPicker = it.copy(members = emptyList(), loading = false)) } ?: current
                     }
                 }
         }
@@ -161,18 +161,18 @@ internal class ConversationSearch(
         val from = search.nextFromMessageId ?: return
         if (search.loading) return
         searchJob = scope.launch {
-            state.update { state -> state.search?.let { state.copy(search = it.copy(loading = true)) } ?: state }
+            state.update { current -> current.search?.let { current.copy(search = it.copy(loading = true)) } ?: current }
             repository.searchInChat(chatId, search.resultsQuery, fromMessageId = from, senderUserId = search.resultsSenderId)
                 .onSuccess { page ->
-                    state.update { state ->
-                        val loaded = state.search?.withNextPage(search.resultsQuery, page, search.resultsSenderId)
-                        state.copy(search = loaded?.older() ?: loaded)
+                    state.update { current ->
+                        val loaded = current.search?.withNextPage(search.resultsQuery, page, search.resultsSenderId)
+                        current.copy(search = loaded?.older() ?: loaded)
                     }
                     state.value.search?.current?.takeIf { it != search.current }?.let { jumper.jumpToMessage(it, fromSearch = true) }
                 }
                 .onFailure { failure ->
                     val message = failure.reported(logger, Res.string.conversation_search_failed)
-                    state.update { state -> state.copy(error = message, search = state.search?.copy(loading = false)) }
+                    state.update { current -> current.copy(error = message, search = current.search?.copy(loading = false)) }
                 }
         }
     }

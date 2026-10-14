@@ -254,8 +254,8 @@ internal class ConversationComposer(
                     // Let se uklidí až po doběhnutí animace. Kdyby se zrušil dřív, zmizel by
                     // klíč sdíleného prvku uprostřed přechodu a text by skokem zmizel.
                     delay(FLIGHT_DURATION_MS)
-                    state.update { state ->
-                        state.copy(flight = state.flight?.takeIf { it.id != flight.id })
+                    state.update { current ->
+                        current.copy(flight = current.flight?.takeIf { it.id != flight.id })
                     }
                 }
                 .onFailure { failure ->

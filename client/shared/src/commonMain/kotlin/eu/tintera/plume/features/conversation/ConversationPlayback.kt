@@ -320,9 +320,9 @@ internal class ConversationPlayback(
         }
 
     fun markListened(messageId: Long) {
-        state.update { state ->
-            state.copy(
-                messages = state.messages.map { message ->
+        state.update { current ->
+            current.copy(
+                messages = current.messages.map { message ->
                     if (message.id != messageId) return@map message
                     when (val media = message.media) {
                         is MessageMedia.VoiceNote ->

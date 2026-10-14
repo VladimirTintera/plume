@@ -227,10 +227,10 @@ internal class ConversationLinks(
     }
 
     fun toggleFolderInviteChat(chatId: Long) {
-        state.update { state ->
-            val invite = state.folderInvite?.takeUnless { it.adding } ?: return@update state
+        state.update { current ->
+            val invite = current.folderInvite?.takeUnless { it.adding } ?: return@update current
             val selected = if (chatId in invite.selected) invite.selected - chatId else invite.selected + chatId
-            state.copy(folderInvite = invite.copy(selected = selected))
+            current.copy(folderInvite = invite.copy(selected = selected))
         }
     }
 

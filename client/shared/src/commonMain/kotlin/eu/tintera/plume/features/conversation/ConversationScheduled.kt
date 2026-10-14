@@ -47,9 +47,9 @@ internal class ConversationScheduled(
             repository.scheduledMessages(chatId)
                 .onSuccess { list ->
                     // Zavřený mezitím zůstane zavřený; prázdný se zavře sám.
-                    state.update { state ->
-                        if (state.scheduledMessages == null) state
-                        else state.copy(scheduledMessages = list.takeIf { it.isNotEmpty() })
+                    state.update { current ->
+                        if (current.scheduledMessages == null) current
+                        else current.copy(scheduledMessages = list.takeIf { it.isNotEmpty() })
                     }
                 }
                 .onFailure { failure ->

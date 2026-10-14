@@ -176,11 +176,11 @@ internal class ConversationBots(
         scope.launch {
             repository.pressBotButton(chatId, messageId, row, column, text)
                 .onSuccess { answer ->
-                    state.update { state ->
+                    state.update { current ->
                         when {
-                            answer.text.isEmpty() -> state
-                            answer.alert -> state.copy(botAlert = answer.text)
-                            else -> state.copy(notice = UiText(Res.string.bot_answer, answer.text))
+                            answer.text.isEmpty() -> current
+                            answer.alert -> current.copy(botAlert = answer.text)
+                            else -> current.copy(notice = UiText(Res.string.bot_answer, answer.text))
                         }
                     }
                     // Hra nebo start jiného bota; odkaz od bota je stejně skrytý jako na tlačítku.
@@ -253,9 +253,9 @@ internal class ConversationBots(
         scope.launch {
             val result = repository.giveawayStatus(chatId, messageId)
                 .onFailure { logger.w(it) { "Stav soutěže $messageId se nepodařilo zjistit" } }
-            state.update { state ->
-                val sheet = state.giveaway?.takeIf { it.messageId == messageId } ?: return@update state
-                state.copy(giveaway = sheet.copy(status = result.getOrNull(), failed = result.isFailure))
+            state.update { current ->
+                val sheet = current.giveaway?.takeIf { it.messageId == messageId } ?: return@update current
+                current.copy(giveaway = sheet.copy(status = result.getOrNull(), failed = result.isFailure))
             }
         }
     }
@@ -267,7 +267,7 @@ internal class ConversationBots(
     /** Dárkový kód Premium do schránky; potvrzení ukáže sheet sám — snackbar by byl pod ním. */
     fun copyGiftCode(code: String) {
         scope.launch { clipboard.copy(code) }
-        state.update { state -> state.copy(giveaway = state.giveaway?.copy(codeCopied = true)) }
+        state.update { current -> current.copy(giveaway = current.giveaway?.copy(codeCopied = true)) }
     }
 
     /**
@@ -294,10 +294,10 @@ internal class ConversationBots(
     fun applyForceReply(messageId: Long) {
         if (!forceReplied.add(messageId)) return
         scope.launch {
-            withTimeoutOrNull(FORCE_REPLY_WAIT) { state.first { state -> state.messages.any { it.id == messageId } } }
+            withTimeoutOrNull(FORCE_REPLY_WAIT) { state.first { current -> current.messages.any { it.id == messageId } } }
                 ?: return@launch
-            val state = state.value
-            if (state.editing == null && state.replyingTo == null) replyTo(messageId)
+            val current = state.value
+            if (current.editing == null && current.replyingTo == null) replyTo(messageId)
         }
     }
 

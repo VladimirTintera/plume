@@ -123,12 +123,12 @@ internal class ConversationTranslation(
             } else {
                 repository.translateMessage(chatId, message.id, language)
             }
-            state.update { state ->
+            state.update { current ->
                 // Mezitím mohl uživatel sheet zavřít, otevřít u jiné zprávy nebo vybrat jiný jazyk.
-                val open = state.translation
+                val open = current.translation
                     ?.takeIf { it.message.id == message.id && it.languageCode == language && it.summary == summary && it.onDevice != true }
-                    ?: return@update state
-                state.copy(
+                    ?: return@update current
+                current.copy(
                     translation = result.fold(
                         onSuccess = { open.copy(body = it) },
                         onFailure = { failure ->
@@ -183,11 +183,11 @@ internal class ConversationTranslation(
      */
     private fun translateOnDevice(message: ChatMessage, language: String, download: Boolean) {
         val translator = onDeviceTranslator ?: return
-        fun update(change: (TranslationSheet) -> TranslationSheet) = state.update { state ->
-            val open = state.translation
+        fun update(change: (TranslationSheet) -> TranslationSheet) = state.update { current ->
+            val open = current.translation
                 ?.takeIf { it.message.id == message.id && it.languageCode == language && it.onDevice == true }
-                ?: return@update state
-            state.copy(translation = change(open))
+                ?: return@update current
+            current.copy(translation = change(open))
         }
         update { it.copy(body = null, error = null, needsDownload = false, downloading = download) }
 

@@ -138,9 +138,9 @@ internal class ConversationSuggestions(
                 state.update { it.copy(inline = null) }
                 return@launch
             }
-            state.update { state ->
-                val current = state.inline?.takeIf { it.bot.userId == bot.userId }
-                state.copy(inline = current?.withQuery(draft.query) ?: InlineQueryState(bot, draft.query))
+            state.update { latest ->
+                val current = latest.inline?.takeIf { it.bot.userId == bot.userId }
+                latest.copy(inline = current?.withQuery(draft.query) ?: InlineQueryState(bot, draft.query))
             }
             // Polohu zjišťuje obrazovka (podle `inline.bot.needLocation`) a dotaz pošle
             // [setInlineLocation], až ji má — nebo ví, že nebude.
@@ -179,8 +179,8 @@ internal class ConversationSuggestions(
         val location = inlineLocation.takeIf { bot.needLocation }
         repository.inlineResults(bot.userId, chatId, query, offset, location)
             .onSuccess { page ->
-                state.update { state ->
-                    state.copy(inline = state.inline?.withPage(query, page, append = offset.isNotEmpty()))
+                state.update { current ->
+                    current.copy(inline = current.inline?.withPage(query, page, append = offset.isNotEmpty()))
                 }
             }
             .onFailure { failure ->
@@ -189,9 +189,9 @@ internal class ConversationSuggestions(
                 logger.i { "Inline dotaz na @${bot.username} selhal: ${failure.message}" }
                 // Jediné znění, podle kterého jde „neumím" poznat (ověřeno `strings libtdjsonjava.so`).
                 if (failure.message?.contains("doesn't support inline queries") == true) notInlineBots += bot.userId
-                state.update { state ->
-                    val inline = state.inline ?: return@update state
-                    if (inline.resultsQuery == null) state.copy(inline = null) else state.copy(inline = inline.withFailure(query))
+                state.update { current ->
+                    val inline = current.inline ?: return@update current
+                    if (inline.resultsQuery == null) current.copy(inline = null) else current.copy(inline = inline.withFailure(query))
                 }
             }
     }

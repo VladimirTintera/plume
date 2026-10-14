@@ -23,18 +23,13 @@ import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import eu.tintera.plume.core.snooze.ChatSnoozes
 import eu.tintera.plume.core.ui.PhotoMarkup
 import eu.tintera.plume.core.ui.PhotoMarkupRenderer
-import eu.tintera.plume.resources.markup_failed
 import eu.tintera.plume.core.telegram.QuickReaction
 import eu.tintera.plume.resources.conversation_bookmark_removed
 import eu.tintera.plume.resources.conversation_bookmark_added
 import eu.tintera.plume.resources.summary_me
-import eu.tintera.plume.resources.conversation_contact_send_failed
-import eu.tintera.plume.resources.conversation_contact_no_phone
-import eu.tintera.plume.resources.conversation_contact_load_failed
 import eu.tintera.plume.core.telegram.PollDraftMedia
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.telegram.ComposedText
-import eu.tintera.plume.core.telegram.within
 import eu.tintera.plume.core.telegram.UnreadMarkKind
 import eu.tintera.plume.core.telegram.VideoChatInfo
 import eu.tintera.plume.core.telegram.InviteLinkRepository
@@ -60,7 +55,6 @@ import eu.tintera.plume.core.files.FileOpener
 import eu.tintera.plume.core.files.MediaSharer
 import eu.tintera.plume.core.files.SaveAsLauncher
 import eu.tintera.plume.core.share.ShareRequests
-import eu.tintera.plume.core.share.SharedContent
 import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.settings.ExpressionMode
@@ -73,7 +67,6 @@ import eu.tintera.plume.core.telegram.MessageSchedule
 import eu.tintera.plume.core.telegram.MessageEffect
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.SpeechTrial
-import eu.tintera.plume.resources.conversation_scheduled_notice
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.LinkPreviewOptions
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -88,11 +81,7 @@ import eu.tintera.plume.core.telegram.MessageReaction
 import eu.tintera.plume.core.telegram.GifItem
 import eu.tintera.plume.core.telegram.OutgoingAnimation
 import eu.tintera.plume.core.telegram.Place
-import eu.tintera.plume.resources.location_live_stop_failed
-import eu.tintera.plume.resources.location_proximity_failed
-import eu.tintera.plume.resources.location_live_unavailable
 import eu.tintera.plume.core.telegram.LiveLocationRepository
-import eu.tintera.plume.core.telegram.LiveFix
 import eu.tintera.plume.core.telegram.PlaceRepository
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.AttachmentMode
@@ -114,12 +103,6 @@ import eu.tintera.plume.resources.conversation_send_failed_unknown
 import eu.tintera.plume.resources.paid_media_unsupported
 import eu.tintera.plume.resources.story_live_unsupported
 import eu.tintera.plume.resources.conversation_selection_limit
-import eu.tintera.plume.resources.conversation_attachments_limit
-import eu.tintera.plume.resources.conversation_content_not_allowed
-import eu.tintera.plume.resources.conversation_gif_send_failed
-import eu.tintera.plume.resources.conversation_location_send_failed
-import eu.tintera.plume.resources.conversation_self_destruct_album
-import eu.tintera.plume.resources.conversation_attachments_send_failed
 import eu.tintera.plume.resources.conversation_cancel_send_failed
 import eu.tintera.plume.resources.conversation_delete_failed
 import eu.tintera.plume.resources.conversation_favorite_added
@@ -131,13 +114,11 @@ import eu.tintera.plume.resources.conversation_message_deleted
 import eu.tintera.plume.resources.conversation_quote_deleted
 import eu.tintera.plume.resources.conversation_reaction_failed
 import eu.tintera.plume.resources.conversation_repin_failed
-import eu.tintera.plume.resources.conversation_sticker_send_failed
 import eu.tintera.plume.resources.contact_add_failed
 import eu.tintera.plume.resources.call_unavailable
 import eu.tintera.plume.resources.contact_remove_failed
 import eu.tintera.plume.resources.conversation_unpin_failed
 import eu.tintera.plume.resources.conversation_unread_mark_failed
-import eu.tintera.plume.resources.share_failed_files
 import eu.tintera.plume.resources.message_info_failed
 import eu.tintera.plume.resources.message_info_link_copied
 import kotlin.time.Duration.Companion.seconds
@@ -643,7 +624,7 @@ class ConversationViewModel(
         shareTargets = shareTargets,
         suggestions = suggestions,
         readAfterOwnMessage = { readAfterOwnMessage() },
-        sendAttachments = { caption, attachments, options -> sendAttachments(caption, attachments, options) },
+        sendAttachments = { caption, files, options -> attachments.sendAttachments(caption, files, options) },
         logger = logger,
     )
     val effectChoices: StateFlow<List<MessageEffect>?> get() = composer.effectChoices
@@ -654,6 +635,47 @@ class ConversationViewModel(
     fun consumeInputFill(fill: InputFill) = composer.consumeInputFill(fill)
     fun cancelEdit() = composer.cancelEdit()
     fun clearReply() = composer.clearReply()
+
+    /** Přílohy a co se posílá mimo text: samolepky, GIFy, poloha, kontakt, soubory — viz [ConversationAttachments]. */
+    private val attachments: ConversationAttachments = ConversationAttachments(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        appScope = appScope,
+        repository = repository,
+        chatRepository = chatRepository,
+        settings = settings,
+        shareRequests = shareRequests,
+        shareTargets = shareTargets,
+        liveLocations = liveLocations,
+        photoMarkup = photoMarkup,
+        composer = composer,
+        suggestions = suggestions,
+        logger = logger,
+    )
+    val expressionMode: StateFlow<ExpressionMode> get() = attachments.expressionMode
+    fun setExpressionMode(mode: ExpressionMode) = attachments.setExpressionMode(mode)
+    fun sendSticker(sticker: StickerItem, options: SendOptions = SendOptions()) = attachments.sendSticker(sticker, options)
+    fun sendGif(gif: GifItem, options: SendOptions = SendOptions()) = attachments.sendGif(gif, options)
+    fun sendLocation(place: Place) = attachments.sendLocation(place)
+    fun shareLiveLocation(point: GeoPoint?, livePeriod: Int) = attachments.shareLiveLocation(point, livePeriod)
+    fun dismissProximityAlert() = attachments.dismissProximityAlert()
+    fun setProximityAlert(radiusMeters: Int) = attachments.setProximityAlert(radiusMeters)
+    fun openContactPicker() = attachments.openContactPicker()
+    fun searchContacts(query: String) = attachments.searchContacts(query)
+    fun dismissContactPicker() = attachments.dismissContactPicker()
+    fun pickContact(userId: Long) = attachments.pickContact(userId)
+    fun cancelContact() = attachments.cancelContact()
+    fun confirmContact() = attachments.confirmContact()
+    fun sendAnimation(animation: OutgoingAnimation) = attachments.sendAnimation(animation)
+    fun addAttachments(picked: List<OutgoingAttachment>) = attachments.addAttachments(picked)
+    fun removeAttachment(index: Int) = attachments.removeAttachment(index)
+    fun removeAttachments(paths: List<String>) = attachments.removeAttachments(paths)
+    val canMarkupPhotos: Boolean get() = attachments.canMarkupPhotos
+    fun applyPhotoMarkup(path: String, markup: PhotoMarkup) = attachments.applyPhotoMarkup(path, markup)
+    fun setAttachmentMode(index: Int, mode: AttachmentMode) = attachments.setAttachmentMode(index, mode)
+    fun toggleAttachmentSpoiler(index: Int) = attachments.toggleAttachmentSpoiler(index)
+    fun setAttachmentSelfDestruct(index: Int, type: SelfDestructType?) = attachments.setAttachmentSelfDestruct(index, type)
 
     /** Serializuje stránkování — bez toho by dva rychlé scrolly načetly tutéž stránku dvakrát. */
     private val loadMutex = Mutex()
@@ -875,7 +897,7 @@ class ConversationViewModel(
             // být otevřený pod výběrem a vybraný až potom.
             shareRequests.deliveries(chatId).collect { content ->
                 composer.draftRestored.await()
-                receiveShared(content)
+                attachments.receiveShared(content)
             }
         }
 
@@ -1512,389 +1534,6 @@ class ConversationViewModel(
         }
     }
 
-    /** Poslední otevřená část výběru emoji/samolepek; řídí ikonu ve vstupním poli. */
-    val expressionMode: StateFlow<ExpressionMode> = settings.expressionMode
-
-    /**
-     * Uloží, která část výběru byla otevřená. Zápis běží v `appScope`: přepnutí těsně před odchodem
-     * z chatu se musí uložit, i když se `viewModelScope` mezitím zruší.
-     */
-    fun setExpressionMode(mode: ExpressionMode) {
-        appScope.launch { settings.setExpressionMode(mode) }
-    }
-
-    /**
-     * Odešle samolepku z výběru.
-     *
-     * Bez letu ze vstupního pole — samolepka z pole nevyletěla, přišla ze sheetu, který se právě
-     * zavírá. Rozepsaný text zůstává: samolepka ho nenahrazuje, jen se odeslala mezi tím.
-     * Citace se spotřebuje stejně jako u textu.
-     */
-    fun sendSticker(sticker: StickerItem, options: SendOptions = SendOptions()) {
-        // Výběr samolepek se bez práva neotevře, ale sada jde otevřít i ťuknutím na samolepku
-        // v historii — a z ní se posílá taky. Hláška je lepší než chyba od serveru.
-        if (!_state.value.content.stickers) {
-            _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
-            return
-        }
-        composer.sendMedia(Res.string.conversation_sticker_send_failed, scheduled = options.schedule != null) { replyTo, quote ->
-            repository.sendSticker(chatId, sticker, replyTo, quote, options)
-        }
-    }
-
-    /** Odešle GIF z výběru. Stejné právo a stejné chování jako [sendSticker]. */
-    fun sendGif(gif: GifItem, options: SendOptions = SendOptions()) {
-        if (!_state.value.content.stickers) {
-            _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
-            return
-        }
-        composer.sendMedia(Res.string.conversation_gif_send_failed, scheduled = options.schedule != null) { replyTo, quote ->
-            repository.sendGif(chatId, gif, replyTo, quote, options)
-        }
-    }
-
-    /**
-     * Odešle polohu (sponka → Poloha): vlastní polohu, nebo místo z hledání. Hned, bez čekání nad
-     * polem, jako samolepku — rozepsaný text zůstává a citace se spotřebuje. Poloha je v TDLib
-     * „základní zpráva" (`canSendBasicMessages`), takže platí totéž právo jako pro psaní.
-     */
-    fun sendLocation(place: Place) {
-        if (!_state.value.canWrite || _state.value.editing != null) return
-        composer.sendMedia(Res.string.conversation_location_send_failed) { replyTo, quote ->
-            repository.sendLocation(chatId, place, replyTo, quote)
-        }
-    }
-
-    /**
-     * Začne sdílet živou polohu na [livePeriod] sekund (nebo „dokud nevypnu"), z polohy [point],
-     * kterou už zjistila obrazovka. Další polohy posílá platforma ([LiveLocationRepository]
-     * zprávu uvidí v seznamu aktivních a služba se spustí). `null` = poloha nedovolená nebo
-     * nezjištěná — musí to být vidět, jinak by volba vypadala, že nic neudělala.
-     */
-    fun shareLiveLocation(point: GeoPoint?, livePeriod: Int) {
-        if (!_state.value.canWrite || _state.value.editing != null) return
-        if (point == null) {
-            _state.update { it.copy(notice = UiText(Res.string.location_live_unavailable)) }
-            return
-        }
-        composer.sendMedia(Res.string.conversation_location_send_failed) { replyTo, quote ->
-            repository.sendLiveLocation(chatId, LiveFix(point.latitude, point.longitude), livePeriod, replyTo, quote)
-        }
-    }
-
-    /** „Zastavit sdílení" pod vlastní živou polohou. Potvrzení přijde úpravou zprávy. */
-    private fun stopLiveLocation(messageId: Long) {
-        viewModelScope.launch {
-            liveLocations.stop(chatId, messageId).onFailure { failure ->
-                _state.update { it.copy(error = failure.reported(logger, Res.string.location_live_stop_failed)) }
-            }
-        }
-    }
-
-    /** „Upozornit na blízkost" pod vlastní živou polohou: dialog se vzdálenostmi. */
-    private fun openProximityAlert(messageId: Long) {
-        // Z docku jde i u zprávy, která v načtené historii není.
-        val message = _state.value.messages.firstOrNull { it.id == messageId }
-            ?: _state.value.liveLocations.firstOrNull { it.id == messageId }
-        val radius = (message?.media as? MessageMedia.Location)?.proximityAlertRadius ?: return
-        _state.update { it.copy(proximityAlert = ProximityAlertPrompt(messageId, radius)) }
-    }
-
-    fun dismissProximityAlert() {
-        _state.update { it.copy(proximityAlert = null) }
-    }
-
-    /**
-     * Nastaví upozornění na blízkost ([radiusMeters] 0 ho vypne). Výsledek přijde úpravou zprávy
-     * jako každý posun polohy, takže se tady nic lokálně nepřepisuje.
-     */
-    fun setProximityAlert(radiusMeters: Int) {
-        val prompt = _state.value.proximityAlert ?: return
-        _state.update { it.copy(proximityAlert = null) }
-        viewModelScope.launch {
-            liveLocations.setProximityAlert(chatId, prompt.messageId, radiusMeters).onFailure { failure ->
-                _state.update { it.copy(error = failure.reported(logger, Res.string.location_proximity_failed)) }
-            }
-        }
-    }
-
-    /**
-     * Sponka → Kontakt: sheet se seznamem kontaktů. Kontakty se čtou při otevření — sheet se
-     * otevírá jednou za čas a seznam by jinak ležel v paměti každé konverzace.
-     */
-    fun openContactPicker() {
-        _state.update { it.copy(contactPicker = ContactPicker(loading = true)) }
-        viewModelScope.launch {
-            // Vlastní účet: Uložené zprávy jsou chat s ním, id chatu je id uživatele. Kdo nemá
-            // číslo vidět (nikdy by nemělo nastat), řádek nedostane.
-            val me = chatRepository.savedMessagesChatId.value
-                ?.let { repository.contactCard(it).getOrNull() }
-                ?.takeIf { it.phone.isNotBlank() }
-            chatRepository.contacts()
-                .onSuccess { contacts ->
-                    _state.update { state ->
-                        state.copy(contactPicker = state.contactPicker?.copy(loading = false, contacts = contacts, me = me))
-                    }
-                }
-                .onFailure { failure ->
-                    _state.update {
-                        it.copy(contactPicker = null, error = failure.reported(logger, Res.string.conversation_contact_load_failed))
-                    }
-                }
-        }
-    }
-
-    fun searchContacts(query: String) {
-        _state.update { state -> state.copy(contactPicker = state.contactPicker?.copy(query = query)) }
-    }
-
-    fun dismissContactPicker() {
-        _state.update { it.copy(contactPicker = null) }
-    }
-
-    /**
-     * Vybraný kontakt se neposílá hned: dialog ukáže jméno a ČÍSLO, které odejde. Posílá se cizí
-     * telefonní číslo a uživatel má vidět přesně co. Kontakt se skrytým číslem poslat nejde.
-     */
-    fun pickContact(userId: Long) {
-        _state.update { it.copy(contactPicker = null) }
-        viewModelScope.launch {
-            repository.contactCard(userId)
-                .onSuccess { card ->
-                    _state.update {
-                        if (card.phone.isBlank()) {
-                            it.copy(notice = UiText(Res.string.conversation_contact_no_phone))
-                        } else {
-                            it.copy(pendingContact = card)
-                        }
-                    }
-                }
-                .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_contact_send_failed)) }
-                }
-        }
-    }
-
-    fun cancelContact() {
-        _state.update { it.copy(pendingContact = null) }
-    }
-
-    /** Kontakt odchází hned, jako poloha: citaci spotřebuje, rozepsaný text nechá. */
-    fun confirmContact() {
-        val userId = _state.value.pendingContact?.userId ?: return
-        _state.update { it.copy(pendingContact = null) }
-        if (!_state.value.canWrite || _state.value.editing != null) return
-        composer.sendMedia(Res.string.conversation_contact_send_failed) { replyTo, quote ->
-            repository.sendContact(chatId, userId, replyTo, quote)
-        }
-    }
-
-    /**
-     * Odešle GIF vložený z klávesnice — hned, bez čekání nad polem, jako samolepku. Rozepsaný text
-     * zůstává a citace se spotřebuje. GIFy vede TDLib pod týmž právem jako samolepky
-     * (`canSendOtherMessages`); klávesnici se bez něj GIF nenabízí, ale pojistka patří i sem.
-     */
-    fun sendAnimation(animation: OutgoingAnimation) {
-        if (!_state.value.content.stickers || _state.value.editing != null) {
-            _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
-            return
-        }
-        composer.sendMedia(Res.string.conversation_gif_send_failed) { replyTo, quote ->
-            repository.sendAnimation(chatId, animation, replyTo, quote)
-        }
-    }
-
-    /**
-     * Přílohy z výběru se **neposílají hned**, ale čekají nad vstupním polem: uživatel k nim napíše
-     * popisek, některou odebere nebo přidá další, a teprve odeslání je pošle (jednu jako zprávu,
-     * víc jako album). Pravidla skládání viz [stageAttachments].
-     */
-    fun addAttachments(picked: List<OutgoingAttachment>) {
-        // Výběr fotek vydá fotky i videa najednou; co chat nepřijme, se sem nedostane.
-        val allowed = allowedByContent(picked, _state.value.content)
-        val forbidden = allowed.size < picked.size
-        val staged = stageAttachments(_state.value.attachments, allowed)
-        // Z jedné mizející fotky se přidáním další stává album, a v něm mizení není dovolené.
-        val dropped = dropForbiddenSelfDestruct(
-            staged.attachments,
-            allowed = _state.value.canSelfDestruct(staged.attachments.size),
-        )
-        _state.update {
-            it.copy(
-                attachments = dropped ?: staged.attachments,
-                notice = when {
-                    forbidden -> UiText(Res.string.conversation_content_not_allowed)
-                    staged.overflow -> UiText(Res.string.conversation_attachments_limit, MAX_ATTACHMENTS)
-                    dropped != null -> UiText(Res.string.conversation_self_destruct_album)
-                    else -> it.notice
-                },
-            )
-        }
-    }
-
-    /**
-     * Obsah sdílený ze systému: soubory k připraveným přílohám nad polem, text do pole.
-     *
-     * Nic se neposílá — uživatel má vidět, co odejde, a k souborům napsat popisek. Rozepsaný
-     * koncept se **doplní, nepřepíše**: kdo sdílí odkaz do chatu, kde má něco rozepsaného,
-     * nechce o to přijít.
-     */
-    private fun receiveShared(content: SharedContent) {
-        shareRequests.consume(content.id)
-        content.attachments?.takeIf { it.isNotEmpty() }?.let(::addAttachments)
-        content.text?.let { shared ->
-            val text = if (composer.draft.text.isBlank()) shared else composer.draft.text.trimEnd() + "\n" + shared
-            // Formátování konceptu platí dál — sdílený text se připojuje až za něj.
-            val formats = if (composer.draft.text.isBlank()) emptyList() else composer.draft.formats.within(text.length)
-            _state.update { it.copy(inputFill = InputFill(text, onlyIfEmpty = false, formats = formats)) }
-            /*
-             * Pole se vyplní bez `onDraftChanged`, takže se text zapisuje sám: jinak by ho
-             * ViewModel neznal a první uložení konceptu (třeba po změně volby náhledu) by
-             * zapsalo prázdný koncept — sdílený text by po odchodu z chatu zmizel.
-             */
-            composer.draft = ComposedText(text, formats)
-            composer.scheduleDraftSave()
-            // Sdílený odkaz je přitom typický případ náhledu.
-            composer.refreshLinkPreview(text)
-        }
-        if (content.failed > 0) {
-            _state.update { it.copy(notice = UiText(Res.string.share_failed_files)) }
-        }
-    }
-
-    fun removeAttachment(index: Int) {
-        _state.update { state ->
-            state.copy(attachments = state.attachments.filterIndexed { i, _ -> i != index })
-        }
-    }
-
-    /**
-     * Odebere přílohy podle CESTY — to je jediné, co o nich ví vestavěná galerie: odznačenou
-     * fotku hlásí jako soubor, ne jako pořadí nad polem (viz `EmbeddedMediaPicker`). Upravená
-     * fotka má cestu novou, galerie ale zná tu původní ([galleryPath]).
-     */
-    fun removeAttachments(paths: List<String>) {
-        if (paths.isEmpty()) return
-        val removed = paths.toSet()
-        _state.update { state ->
-            state.copy(attachments = state.attachments.filterNot { state.galleryPath(it.path) in removed })
-        }
-    }
-
-    /** Nabízí se úprava fotky? */
-    val canMarkupPhotos: Boolean get() = photoMarkup != null
-
-    /**
-     * Uloží úpravu fotky nad polem: tahy, otočení a ořez se vykreslí do NOVÉ kopie originálu
-     * a příloha dostane její cestu i rozměry. Prázdná úprava vrátí originál. Fotka se hledá
-     * podle cesty, ne pořadí — mezitím mohla ubýt jiná příloha.
-     */
-    fun applyPhotoMarkup(path: String, markup: PhotoMarkup) {
-        val renderer = photoMarkup ?: return
-        val state = _state.value
-        val photo = state.attachments.firstOrNull { it.path == path } as? OutgoingAttachment.Photo ?: return
-        val edit = state.photoEdits[path]
-        if (markup == edit.markupOrEmpty) return
-        if (markup.isEmpty) {
-            replacePhoto(path, revertedPhoto(photo, edit))
-            return
-        }
-        _state.update { it.copy(markupBusy = true) }
-        viewModelScope.launch {
-            runCatching { renderer.renderEdit(photo, edit, markup) }
-                .onSuccess { edited -> replacePhoto(path, edited) }
-                .onFailure { failure ->
-                    logger.w(failure) { "Úpravu fotky $path se nepodařilo vykreslit." }
-                    _state.update { it.copy(notice = UiText(Res.string.markup_failed)) }
-                }
-            _state.update { it.copy(markupBusy = false) }
-        }
-    }
-
-    private fun replacePhoto(path: String, edited: EditedPhoto) {
-        _state.update { state ->
-            state.copy(
-                attachments = state.attachments.withEditedPhoto(path, edited),
-                photoEdits = state.photoEdits.withEditedPhoto(path, edited),
-            )
-        }
-    }
-
-    fun setAttachmentMode(index: Int, mode: AttachmentMode) {
-        val selfDestruct = mode is AttachmentMode.ViewOnce || mode is AttachmentMode.Timer
-        // Volba se nenabízí tam, kde neprojde; kdyby sem přesto došla, zpráva by skončila chybou.
-        if (selfDestruct && !_state.value.canSelfDestruct()) return
-        _state.update { state ->
-            val updated = state.attachments.mapIndexed { i, attachment ->
-                if (i == index) {
-                    when (attachment) {
-                        is OutgoingAttachment.Photo -> attachment.copy(mode = mode)
-                        is OutgoingAttachment.Video -> attachment.copy(mode = mode)
-                        is OutgoingAttachment.Document -> attachment
-                    }
-                } else {
-                    attachment
-                }
-            }
-            state.copy(attachments = updated)
-        }
-    }
-
-    fun toggleAttachmentSpoiler(index: Int) {
-        val current = _state.value.attachments.getOrNull(index) ?: return
-        val newMode = if (current.mode is AttachmentMode.Spoiler) AttachmentMode.Standard else AttachmentMode.Spoiler
-        setAttachmentMode(index, newMode)
-    }
-
-    fun setAttachmentSelfDestruct(index: Int, type: SelfDestructType?) {
-        val newMode = when (type) {
-            is SelfDestructType.Immediately -> AttachmentMode.ViewOnce
-            is SelfDestructType.Timer -> AttachmentMode.Timer(type.seconds)
-            null -> AttachmentMode.Standard
-        }
-        setAttachmentMode(index, newMode)
-    }
-
-    private fun sendAttachments(caption: ComposedText, attachments: List<OutgoingAttachment>, options: SendOptions) {
-        composer.typingSentAt = null
-        composer.draftSave?.cancel()
-        composer.draftSave = null
-        composer.draft = ComposedText("")
-        composer.resetLinkPreview()
-
-        val replyTo = _state.value.replyingTo?.id
-        val quote = _state.value.replyQuote
-        val mentions = suggestions.takeNameMentions()
-        composer.clearReply()
-        _state.update { it.copy(attachments = emptyList()) }
-
-        viewModelScope.launch {
-            repository.sendAttachments(chatId, attachments, caption.text, replyTo, quote, options, mentions, caption.formats)
-                .onSuccess { pending ->
-                    shareTargets.reportUsed(chatId)
-                    if (options.schedule != null) {
-                        _state.update { it.copy(notice = UiText(Res.string.conversation_scheduled_notice)) }
-                        repository.saveDraft(chatId, "", null)
-                        return@onSuccess
-                    }
-                    _state.update { state ->
-                        // Potvrzení mohlo dorazit dřív než výsledek — viz `send`.
-                        val fresh = pending.filterNot { it.id in state.itemKeys.values }
-                        state.copy(messages = merge(state.messages, fresh))
-                    }
-                    repository.saveDraft(chatId, "", null)
-                }
-                .onFailure { failure ->
-                    _state.update {
-                        it.copy(
-                            error = failure.reported(logger, Res.string.conversation_attachments_send_failed),
-                            attachments = it.attachments.ifEmpty { attachments },
-                        )
-                    }
-                }
-        }
-    }
-
     /** Hláška z platformy (výběr souboru selhal) do snackbaru. */
     fun reportError(message: UiText) {
         _state.update { it.copy(error = message) }
@@ -2235,8 +1874,8 @@ class ConversationViewModel(
             is MessageAction.OpenUser -> links.openMentioned { chatRepository.privateChat(action.userId) }
             MessageAction.AddContact -> addSharedContact(messageId)
             MessageAction.CallBack -> callBack(messageId)
-            MessageAction.StopLiveLocation -> stopLiveLocation(messageId)
-            MessageAction.SetProximityAlert -> openProximityAlert(messageId)
+            MessageAction.StopLiveLocation -> attachments.stopLiveLocation(messageId)
+            MessageAction.SetProximityAlert -> attachments.openProximityAlert(messageId)
             is MessageAction.OpenChat -> links.openMentioned { Result.success(action.chatId) }
             MessageAction.ShowGiveaway -> bots.showGiveaway(messageId)
             is MessageAction.SendBotCommand -> bots.sendBotCommand(action.command)
