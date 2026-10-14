@@ -28,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -59,6 +60,7 @@ import eu.tintera.plume.resources.cameraswitch_24dp
 import eu.tintera.plume.resources.videocam_24dp
 import eu.tintera.plume.resources.video_call_incoming
 import eu.tintera.plume.core.calls.CallRequests
+import eu.tintera.plume.core.calls.rememberCallCameraGranted
 import eu.tintera.plume.core.calls.rememberCallCameraPermission
 import eu.tintera.plume.core.calls.rememberCallMicrophonePermission
 import org.jetbrains.compose.resources.DrawableResource
@@ -132,6 +134,16 @@ fun CallOverlay(modifier: Modifier = Modifier) {
     val show by requests.show.collectAsStateWithLifecycle()
     val accept = rememberAcceptCall(calls)
     val scope = rememberCoroutineScope()
+
+    // Zvonící videohovor: náhled vlastní kamery, jen když už je povolená — kvůli zvonění se
+    // systém na kameru neptá, dotaz přijde až s „Přijmout". Zastaví ho repository (přijetí bez
+    // kamery, odmítnutí, konec) a odchod obrazovky hovoru z kompozice.
+    val cameraGranted = rememberCallCameraGranted()
+    val ringingVideo = call?.takeIf { it.phase == CallPhase.Ringing && it.isVideo }?.id
+    DisposableEffect(ringingVideo, cameraGranted) {
+        if (ringingVideo != null && cameraGranted) calls.previewCamera(true)
+        onDispose { if (ringingVideo != null) calls.previewCamera(false) }
+    }
 
     LaunchedEffect(answer, call?.id, call?.phase) {
         val callId = answer ?: return@LaunchedEffect
@@ -234,6 +246,8 @@ private fun CallScreen(call: ActiveCall, calls: CallRepository, onMinimize: () -
         ongoing && call.remoteVideo -> CallVideoSource.Remote
         // Bez náhledu před spojením (desktop) by místo fotky zbyla prázdná plocha.
         ongoing && call.camera && (calls.previewsBeforeConnect || call.connectedAt != null) -> CallVideoSource.Local
+        // Zvonící videohovor: náhled vlastní kamery za tlačítky Přijmout / Odmítnout.
+        call.phase == CallPhase.Ringing && call.preview -> CallVideoSource.Local
         else -> null
     }
     val corner = CallVideoSource.Local.takeIf { full == CallVideoSource.Remote && call.camera }

@@ -546,8 +546,27 @@ desktopu" níž).
   (potvrdil uživatel), náhled v rohu jako zrcadlo, vypnutí a zapnutí kamery za hovoru.
   Náhled při vytáčení z Macu a jeho plynulý přechod do rohu po spojení potvrdil uživatel.
   Zrušené vytáčení snímání zastaví (`AVCaptureSession … running -> 0` v systémovém logu).
-  **Neověřeno**: Windows a Linux (modul WebRTC), externí kamera, otočení telefonu za hovoru,
-  náhled při zvonění příchozího videohovoru.
+  **Neověřeno**: Windows a Linux (modul WebRTC), externí kamera, otočení telefonu za hovoru.
+
+### Náhled kamery u zvonícího videohovoru
+
+Příchozí videohovor ukazuje za Přijmout / Odmítnout náhled vlastní kamery, jako oficiální
+klienti: člověk vidí, jak bude vypadat, než zvedne. Android i macOS.
+
+- **`CallRepository.previewCamera`, stav `ActiveCall.preview`**, ne `camera`: obraz nejde ven
+  (přenos ještě neběží) a zvuk se nepřepíná na reproduktor jako u zapnuté kamery. Pod tím je
+  `CallMedia.setCamera` před startem přenosu, tedy tentýž náhled jako při vytáčení
+  (`SharedCamera` na Androidu, `MacCamera` na macOS).
+- **Jen s už povolenou kamerou** (`rememberCallCameraGranted`): kvůli zvonění se systém
+  neptá, dotaz přijde až s „Přijmout". Kontrola se čte při každém složení, ne `remember`:
+  povolení typicky přibude za běhu (dotaz u prvního hovoru) a zapamatovaná odpověď z doby
+  před ním náhled nepustila. Na tom to při prvním pokusu na Macu selhalo.
+- **Kdo náhled zastaví**: přijetí s kamerou ho převezme (náhled → zdroj knihovny), přijetí
+  bez kamery a odmítnutí ho vypnou, konec hovoru (volající to vzdal, přijato jinde) jde přes
+  `finish` → `CallMedia.stop`. Odchod obrazovky hovoru z kompozice ho vypne taky.
+- **Ověřeno**: Mac (náhled při zvonění, přijetí s plynulým přechodem, potvrdil uživatel),
+  Pixel 7 Pro (kamera otevřená při zvonění podle `dumpsys media.camera`, přijetí spojilo
+  s obrazem na druhé straně; po skončení i po přijetí na Macu se kamera uvolnila).
 - **Oficiální Telegram na témže účtu na telefonu může zvonit dál**, i když hovor přijal
   Plume a hovor mezitím skončil. Notifikace `incoming_calls…` s vibrací (usage RINGTONE)
   běžela minuty po zavěšení. Že hovor přijala jiná relace, má oficiální aplikaci oznámit

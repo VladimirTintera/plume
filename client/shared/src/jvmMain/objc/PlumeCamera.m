@@ -76,6 +76,13 @@ Java_eu_tintera_plume_core_calls_MacCamera_nativeInit(JNIEnv *env, jclass cls) {
     return cameraOnFrame != NULL ? JNI_TRUE : JNI_FALSE;
 }
 
+// Je oprávnění kamery (video = true) nebo mikrofonu už udělené? Bez dotazu.
+JNIEXPORT jboolean JNICALL
+Java_eu_tintera_plume_core_calls_MacCamera_nativeHasAccess(JNIEnv *env, jclass cls, jboolean video) {
+    AVMediaType type = video ? AVMediaTypeVideo : AVMediaTypeAudio;
+    return [AVCaptureDevice authorizationStatusForMediaType:type] == AVAuthorizationStatusAuthorized ? JNI_TRUE : JNI_FALSE;
+}
+
 // Oprávnění kamery (video = true) nebo mikrofonu. Nerozhodnuté se zeptá systémovým dotazem
 // a čeká na odpověď — volá se mimo hlavní vlákno a mimo AWT.
 JNIEXPORT jboolean JNICALL

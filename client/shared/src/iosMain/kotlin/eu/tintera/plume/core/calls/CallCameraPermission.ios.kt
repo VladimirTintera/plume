@@ -10,3 +10,7 @@ actual fun rememberCallCameraPermission(): RecordPermission = rememberVideoNoteP
 
 @Composable
 actual fun rememberCallMicrophonePermission(): RecordPermission = rememberRecordPermission()
+
+/** iOS hovory zatím nemá. */
+@Composable
+actual fun rememberCallCameraGranted(): Boolean = false

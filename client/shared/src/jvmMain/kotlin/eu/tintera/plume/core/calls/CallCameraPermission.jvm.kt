@@ -34,3 +34,11 @@ private class MacPermission(private val video: Boolean) : RecordPermission {
         }, "call-permission").apply { isDaemon = true }.start()
     }
 }
+
+/**
+ * Jen macOS má náhled před spojením ([MacCamera]); jinde na odpovědi nezáleží. Čte se při
+ * každém složení, ne `remember`: povolení přijde typicky až za běhu (dotaz u prvního hovoru)
+ * a zapamatovaná odpověď z doby před ním by náhled nepustila.
+ */
+@Composable
+actual fun rememberCallCameraGranted(): Boolean = MacCamera.hasAccess(video = true)
