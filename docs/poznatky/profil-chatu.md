@@ -302,6 +302,44 @@ testy `MemberManagementTest`).
   místě STARÝ soubor**, takže další `cat` vypíše předchozí obrazovku a nová verze aplikace se
   tváří, že se nezměnila. Před každým dumpem proto `rm -f /sdcard/ui.xml`.
 
+### Nastavení skupiny a kanálu
+
+Úprava skupiny má pod právy členů kartu **Nastavení skupiny** / **Nastavení kanálu**
+(`GroupSettingsCard`): pomalý režim a reakce jako řádky s výběrem, pod nimi přepínače —
+historie pro nové členy, psát jen členové, schvalovat nové členy, skrýt členy, agresivní
+antispam, podpisy a profily autorů v kanálu, zakázat ukládání obsahu. Na konci úpravy je
+**Smazat skupinu / kanál** pro všechny.
+
+- **Co se nabídne, je čistá funkce** `groupSettingsOffer` (`core/telegram/GroupSettings.kt`, testy
+  `GroupSettingsTest`). Meze jsou z dokumentace TDLib: pomalý režim, schvalování a „psát jen
+  členové" chtějí právo omezovat, historie, reakce a podpisy právo měnit údaje, ochrana obsahu
+  vlastníka. Přepínače supergroupy se základní skupině nenabízejí (musela by se převést), reakce
+  a ochrana obsahu ano.
+- **Historie jen v soukromé skupině bez kanálu, „psát jen členové" jen v diskusi kanálu,
+  schvalování ve veřejné skupině nebo v diskusi s „psát jen členové".** Jinde je volba buď
+  pevná, nebo nemá smysl — oficiální klienti ji tam taky neukazují. **Skrýt členy a antispam
+  rozhoduje server** (`canHideMembers`, `canToggleAggressiveAntiSpam`): malá skupina je nemá.
+- **Ukládá se hned a při selhání se přepínač vrátí**, jako práva členů. Reakce jsou výjimka:
+  výběr „Jen vybrané" se ukládá tlačítkem, po jednom ťuknutí na každé emoji by šla na server
+  řada změn.
+- **Výběr reakcí jsou `updateActiveEmojiReactions`** (`QuickReaction.choices`, tytéž emoji jako
+  rychlá reakce). Vlastní emoji reakce kanálu aplikace vybrat neumí, a proto je při uložení
+  přenese beze změny — stejně jako strop počtu reakcí na zprávu.
+- **Tlačítko Uložit u reakcí stojí MIMO posouvaný obsah.** Emoji je přes sedmdesát a tlačítko
+  na konci seznamu šlo najít jen dlouhým rolováním. Oba listy (reakce, pomalý režim) jsou celé
+  rozbalené: napůl otevřený list schoval delší doby pomalého režimu pod spodní hranu.
+- **Podpisy a profily autorů jsou v TDLib jedno volání** (`toggleSupergroupSignMessages`);
+  repository druhou hodnotu dočte a vypnuté podpisy vypnou i profily. Profily se bez podpisů
+  ani neukazují.
+- **Smazání pro všechny (`deleteChat`) jen s `Chat.canBeDeletedForAllUsers`** (vlastník). Po
+  smazání zavře `closeChat` i úpravu a všechno nad ní (práva člena, pozvánky, žádosti, omezení),
+  ne jen konverzaci a profil — maže se právě z úpravy (test v `ChatsStackTest`).
+- **Ověřeno na emulátoru** (14. 10. 2026, „Plume test moderace", vlastník …527): pomalý režim
+  10 s, reakce „Jen vybrané" bez tří emoji, ochrana obsahu i historie tam a zpět — po novém
+  otevření úpravy drželo všechno server; pak vráceno. Smazání pro všechny na jednorázové skupině
+  „Plume test smazani": aplikace se vrátila do seznamu a skupina z něj zmizela. Kanál, veřejná
+  skupina, diskuse kanálu, skrytí členů a antispam ověřené NEJSOU (testovací účet takové nemá).
+
 ### Omezení a vyhození
 
 Úprava skupiny má kartu **Členové** s řádky Omezení a Vyhození (v kanálu jen Vyhození), každý

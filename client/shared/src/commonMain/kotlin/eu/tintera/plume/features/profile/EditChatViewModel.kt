@@ -30,6 +30,12 @@ import eu.tintera.plume.resources.edit_chat_discussion_unlinked
 import eu.tintera.plume.core.telegram.GroupPermissions
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.ProfileRepository
+import eu.tintera.plume.resources.edit_chat_delete_failed
+import eu.tintera.plume.resources.edit_chat_setting_failed
+import eu.tintera.plume.core.telegram.QuickReaction
+import eu.tintera.plume.core.telegram.ChatReactions
+import eu.tintera.plume.core.telegram.GroupToggle
+import eu.tintera.plume.core.telegram.GroupSettings
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.CropRegion
 import eu.tintera.plume.core.ui.ProfilePhotoCrop
@@ -71,6 +77,7 @@ class EditChatViewModel(
     private val forums: ForumRepository,
     private val chats: ChatRepository,
     private val stickers: StickerRepository,
+    quickReaction: QuickReaction,
 ) : ViewModel() {
 
     /**
@@ -154,6 +161,16 @@ class EditChatViewModel(
     var permissions by mutableStateOf<GroupPermissions?>(null)
         private set
 
+    /**
+     * Pomalý režim, reakce a přepínače, jak je ukazuje obrazovka. Pohnou se hned a při selhání
+     * se vrátí, stejně jako [permissions].
+     */
+    var settings by mutableStateOf(GroupSettings())
+        private set
+
+    /** Emoji, která jdou jako reakce povolit (`updateActiveEmojiReactions`), v pořadí od serveru. */
+    val reactionChoices: StateFlow<List<String>> = quickReaction.choices
+
     var saving by mutableStateOf(false)
         private set
     var photoBusy by mutableStateOf(false)
@@ -161,6 +178,14 @@ class EditChatViewModel(
 
     /** Jednorázová hláška pro snackbar; obrazovka ji po zobrazení vynuluje. */
     var notice by mutableStateOf<UiText?>(null)
+
+    /** Smazání pro všechny právě běží. */
+    var deleting by mutableStateOf(false)
+        private set
+
+    /** Jednorázová událost: chat je smazaný pro všechny, navigace zavře všechno, co ho ukazuje. */
+    var deleted by mutableStateOf(false)
+        private set
 
     /** Jednorázová událost: uloženo, obrazovka se zavře. */
     var saved by mutableStateOf(false)
@@ -174,6 +199,7 @@ class EditChatViewModel(
                     title = chat.title
                     description = chat.description
                     permissions = chat.permissions
+                    settings = chat.settings
                     isForum = chat.isForum
                     linkedChat = chat.linkedChat
                     stickerSet = chat.stickerSet
@@ -360,6 +386,62 @@ class EditChatViewModel(
                 logger.w(failure) { "Práva skupiny $chatId se nepodařilo uložit." }
                 permissions = previous
                 notice = failure.reported(Res.string.edit_chat_permissions_failed)
+            }
+        }
+    }
+
+    fun deleteChatForAll() {
+        if (deleting || original?.canDeleteForAll != true) return
+        deleting = true
+        viewModelScope.launch {
+            repository.deleteChatForAll(chatId)
+                .onSuccess { deleted = true }
+                .onFailure { notice = it.reported(Res.string.edit_chat_delete_failed) }
+            deleting = false
+        }
+    }
+
+    fun setSlowMode(seconds: Int) {
+        val previous = settings
+        if (previous.slowModeDelay == null || previous.slowModeDelay == seconds) return
+        settings = previous.copy(slowModeDelay = seconds)
+        viewModelScope.launch {
+            repository.setSlowMode(chatId, seconds).onFailure { failure ->
+                settings = settings.copy(slowModeDelay = previous.slowModeDelay)
+                notice = failure.reported(Res.string.edit_chat_setting_failed)
+            }
+        }
+    }
+
+    fun setToggle(toggle: GroupToggle, value: Boolean) {
+        val previous = settings.toggles[toggle] ?: return
+        if (previous == value) return
+        val before = settings.toggles
+        // Vypnuté podpisy vypnou i profily autorů — tak to uloží i repository.
+        settings = settings.copy(
+            toggles = before + (toggle to value) +
+                if (toggle == GroupToggle.SignMessages && !value && GroupToggle.ShowMessageSender in before) {
+                    mapOf(GroupToggle.ShowMessageSender to false)
+                } else {
+                    emptyMap()
+                },
+        )
+        viewModelScope.launch {
+            repository.setGroupToggle(chatId, toggle, value).onFailure { failure ->
+                settings = settings.copy(toggles = before)
+                notice = failure.reported(Res.string.edit_chat_setting_failed)
+            }
+        }
+    }
+
+    fun setReactions(reactions: ChatReactions) {
+        val previous = settings.reactions ?: return
+        if (previous == reactions) return
+        settings = settings.copy(reactions = reactions)
+        viewModelScope.launch {
+            repository.setReactions(chatId, reactions).onFailure { failure ->
+                settings = settings.copy(reactions = previous)
+                notice = failure.reported(Res.string.edit_chat_setting_failed)
             }
         }
     }

@@ -665,6 +665,7 @@ fun appModule() = module {
             forums = get(),
             chats = get(),
             stickers = get(),
+            quickReaction = get(),
         )
     }
 

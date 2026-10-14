@@ -331,19 +331,18 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 
 **Správa skupin a kanálů** (nad rámec názvu, popisu, fotky, práv a pozvánek):
 
-- Pomalý režim (`setChatSlowModeDelay`), povolené reakce (`setChatAvailableReactions`),
-  ochrana obsahu (`toggleChatHasProtectedContent`).
-- Přepínače supergroupy: vstup na žádost, psát až po vstupu, podpisy autorů, skrytí členů,
-  historie pro nové členy, agresivní antispam, automatický překlad
-  (`toggleSupergroupJoinByRequest`, `…JoinToSendMessages`, `…SignMessages`, `…HasHiddenMembers`,
-  `…IsAllHistoryAvailable`, `…HasAggressiveAntiSpamEnabled`, `…HasAutomaticTranslation`).
+- ~~Pomalý režim, povolené reakce, ochrana obsahu a přepínače supergroupy~~ — hotovo (úprava
+  skupiny → Nastavení skupiny / kanálu; `docs/poznatky/profil-chatu.md`, „Nastavení skupiny
+  a kanálu"). Zbývá automatický překlad kanálu (`toggleSupergroupHasAutomaticTranslation`, chce
+  úroveň boostů), strážní bot u schvalování (`guardBotUserId`) a ověřit kanál, veřejnou skupinu,
+  diskusi kanálu, skrytí členů a antispam.
 - ~~Seznamy vyhozených a omezených členů~~ — hotovo (úprava skupiny → Členové;
   `docs/poznatky/profil-chatu.md`, „Omezení a vyhození"). Zbývá ověřit kanál.
 - ~~Při mazání zprávy člena „smazat vše od něj" a „nahlásit spam"~~ — hotovo i s vyhozením
   (`docs/poznatky/konverzace-akce.md`, „Smazání cizích zpráv správcem"). Zbývá smazat reakce
   člena (`deleteAllRecentMessageReactionsFromSender`) a ověřit nahlášení spamu.
 - Odepnout všechny zprávy (`unpinAllChatMessages`, `unpinAllForumTopicMessages`).
-- Smazat skupinu nebo kanál pro všechny (`deleteChat`) — dnes jen opustit.
+- ~~Smazat skupinu nebo kanál pro všechny (`deleteChat`)~~ — hotovo (konec úpravy skupiny).
 - Záznam posledních akcí (`getChatEventLog`) a statistiky kanálu a příspěvku
   (`getChatStatistics`, `getMessageStatistics`, `getMessagePublicForwards`).
 - Psaní jménem kanálu ve skupině (`getChatAvailableMessageSenders`, `setChatMessageSender`).

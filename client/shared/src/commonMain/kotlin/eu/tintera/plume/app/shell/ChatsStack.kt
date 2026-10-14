@@ -135,6 +135,17 @@ internal fun MutableList<NavKey>.closeChat(chatId: Long) {
             is ChatProfileRoute -> it.chatId == chatId
             is ArchiveChatProfileRoute -> it.chatId == chatId
             is MediaRoute -> it.chatId == chatId
+            // Úprava a všechno nad ní — chat smazaný pro všechny se maže právě z úpravy.
+            is EditChatRoute -> it.chatId == chatId
+            is ArchiveEditChatRoute -> it.chatId == chatId
+            is MemberRightsRoute -> it.chatId == chatId
+            is ArchiveMemberRightsRoute -> it.chatId == chatId
+            is InviteLinksRoute -> it.chatId == chatId
+            is ArchiveInviteLinksRoute -> it.chatId == chatId
+            is JoinRequestsRoute -> it.chatId == chatId
+            is ArchiveJoinRequestsRoute -> it.chatId == chatId
+            is RemovedMembersRoute -> it.chatId == chatId
+            is ArchiveRemovedMembersRoute -> it.chatId == chatId
             else -> false
         }
     }

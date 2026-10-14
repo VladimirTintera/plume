@@ -7,6 +7,8 @@ import eu.tintera.plume.core.navigation.ArchiveEditChatRoute
 import eu.tintera.plume.core.navigation.ArchiveRoute
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.navigation.ChatsRoute
+import eu.tintera.plume.core.navigation.MemberRightsRoute
+import eu.tintera.plume.core.navigation.RemovedMembersRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.EditChatRoute
 import eu.tintera.plume.core.navigation.InviteLinksRoute
@@ -399,5 +401,22 @@ class ChatsStackTest {
     fun odebranaPolozkaNeleziNaSeznamu() {
         assertFalse(listOf<NavKey>(ChatsRoute).liesOnChatList(ConversationRoute(chatId = 1)))
         assertFalse(listOf<NavKey>(ConversationRoute(chatId = 1)).liesOnChatList(ConversationRoute(chatId = 1)))
+    }
+
+    /** Skupina smazaná pro všechny se maže z úpravy — zmizet musí i ta a všechno nad ní. */
+    @Test
+    fun smazanyChatZavreIUpravuAObrazovkyNadNi() {
+        val stack = mutableListOf<NavKey>(
+            ChatsRoute,
+            ConversationRoute(chatId = 1),
+            ChatProfileRoute(chatId = 1),
+            EditChatRoute(chatId = 1),
+            RemovedMembersRoute(chatId = 1, banned = true),
+            MemberRightsRoute(chatId = 1, userId = 5, admin = false),
+        )
+
+        stack.closeChat(1)
+
+        assertEquals(listOf<NavKey>(ChatsRoute), stack)
     }
 }
