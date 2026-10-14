@@ -104,8 +104,9 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
   otevírá v aplikaci systému.
 - **Trezor tajemství na Windows a Linuxu** (DPAPI, Secret Service / libsecret). Dnes soubor
   s právy jen pro vlastníka vedle databáze.
-- **Vkládání obrázků ze schránky a přetažení souboru do okna** (`KeyboardContentReceiver`,
-  AWT drag & drop).
+- ~~**Vkládání obrázků ze schránky a přetažení souboru do okna**~~ — hotovo
+  (`docs/poznatky/desktop.md`, „Vložení ze schránky a přetažení souborů"). Zbývá obrázek
+  tažený z prohlížeče (přichází bez souboru) a položka „Vložit obrázek" v kontextové nabídce.
 - **Release pro macOS a Linux** (Windows MSI už je, `desktop-release.yml`): job na
   `macos-latest` s Homebrew `openssl@3` (DMG) a na Ubuntu (DEB). macOS chce verzi od 1.0.0.
 - **Podpis instalátorů**: Windows (certifikát pro podepisování kódu, jinak SmartScreen),
@@ -775,7 +776,8 @@ Nápady z října 2026, nic z toho zatím nikdo nezačal.
 - **Fold a klávesnice.** ~~Klávesové zkratky (Ctrl+K hledání, Alt+↑/↓ mezi chaty, Esc zavře
   konverzaci nebo hledání)~~ a ~~Enter odesílá~~ — hotovo (`docs/poznatky/navigace.md`, „Klávesové
   zkratky"; na iOS jen Enter). ~~Přetažení obrázku či souboru z jiné aplikace na vstupní pole~~
-  — hotovo na Androidu (`docs/poznatky/konverzace-psani.md`, „Přetažení z jiné aplikace");
+  — hotovo na Androidu (`docs/poznatky/konverzace-psani.md`, „Přetažení z jiné aplikace")
+  i na desktopu (`docs/poznatky/desktop.md`, „Vložení ze schránky a přetažení souborů");
   zbývá iOS (`UIDropInteraction`). ~~Seznam zkratek v systémovém přehledu (Meta+/)~~ — hotovo.
 - ~~**Přehled rozepsaných konceptů**~~ — hotovo (menu účtu → Koncepty;
   `docs/poznatky/seznam-chatu.md`, „Přehled konceptů"). ~~Smazání konceptu přímo z přehledu~~ —

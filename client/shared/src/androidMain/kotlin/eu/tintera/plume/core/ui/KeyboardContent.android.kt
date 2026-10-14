@@ -18,6 +18,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Build
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.text.contextmenu.builder.item
 import androidx.compose.foundation.text.contextmenu.modifier.appendTextContextMenuComponents
 import androidx.compose.runtime.Composable
@@ -316,3 +317,8 @@ private fun prepare(
             }
     }
 }
+
+/** Android bere přetažení přímo na pole ([KeyboardContentReceiver]); plocha kolem jen skládá obsah. */
+@Composable
+actual fun ContentDropArea(modifier: Modifier, content: @Composable BoxScope.() -> Unit) =
+    Box(modifier, content = content)

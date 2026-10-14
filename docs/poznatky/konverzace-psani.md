@@ -258,7 +258,9 @@ sebou drží přetahovaný obsah tónem `primary` (ne rámečkem, který by měn
   nepřijaly.
 - **Typ položky se bere z `contentResolver.getType`**, ne jen z popisu klipu — víc položek může
   mít různé typy. Víc položek naráz (víc fotek) přibude nad polem všechny.
-- **Jen Android.** Na iOS by to chtělo `UIDropInteraction` nad polem; zatím nic.
+- **Android na pole, desktop na celou konverzaci** (`ContentDropArea`, viz „Vložení ze schránky
+  a přetažení souborů" v `docs/poznatky/desktop.md`). Na iOS by to chtělo `UIDropInteraction`
+  nad polem; zatím nic.
 - **Ověření na emulátoru (Fold rozložený):** rozdělená obrazovka jde přes přehled aplikací
   (`input keyevent 187`, ikona dlaždice → Split screen → druhá aplikace); `am start
   --windowingMode 6` ani příznak `FLAG_ACTIVITY_LAUNCH_ADJACENT` ji nevyrobily. V aplikaci

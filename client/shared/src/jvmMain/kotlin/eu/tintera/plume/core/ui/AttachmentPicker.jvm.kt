@@ -48,7 +48,7 @@ actual fun rememberAttachmentPicker(
                 if (files.isEmpty()) return
                 scope.launch {
                     val results = withContext(Dispatchers.IO) {
-                        files.map { file -> async { runCatching { prepare(file, media) } } }.awaitAll()
+                        files.map { file -> async { runCatching { prepareAttachment(file, media) } } }.awaitAll()
                     }
                     results.forEach { result ->
                         result.exceptionOrNull()?.let { Logger.withTag("AttachmentPicker").w(it) { "Příloha nejde připravit." } }
@@ -74,7 +74,7 @@ private fun chooseFiles(media: Boolean): List<File> {
     return dialog.files.orEmpty().toList().take(PICK_LIMIT)
 }
 
-private fun prepare(file: File, media: Boolean): OutgoingAttachment {
+internal fun prepareAttachment(file: File, media: Boolean): OutgoingAttachment {
     require(file.isFile) { "Není soubor: ${file.path}" }
     if (media && file.extension.lowercase() in PHOTO_EXTENSIONS) {
         val image = ImageIO.read(file)
@@ -83,5 +83,5 @@ private fun prepare(file: File, media: Boolean): OutgoingAttachment {
     return OutgoingAttachment.Document(path = file.path)
 }
 
-private val PHOTO_EXTENSIONS = setOf("jpg", "jpeg", "png", "bmp", "webp")
+internal val PHOTO_EXTENSIONS = setOf("jpg", "jpeg", "png", "bmp", "webp")
 private val MEDIA_EXTENSIONS = PHOTO_EXTENSIONS + setOf("gif", "mp4", "mov", "m4v", "webm", "mkv")

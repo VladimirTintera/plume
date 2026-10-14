@@ -3,6 +3,7 @@ package eu.tintera.plume.features.conversation
 import androidx.compose.ui.input.key.key
 import eu.tintera.plume.core.telegram.MessageMedia
 import androidx.compose.ui.geometry.Offset
+import eu.tintera.plume.core.ui.ContentDropArea
 import eu.tintera.plume.core.ui.rememberSharedElementClip
 import eu.tintera.plume.resources.summary_me
 import org.koin.compose.viewmodel.koinViewModel
@@ -435,7 +436,8 @@ fun ConversationScreen(
     // Plocha, do které se v překryvu ořezává sdílený prvek letící sem z prohlížeče médií.
     // Tvary, pod které zajede, hlásí vstupní pole — proto už tady, nad Scaffoldem.
     val listClip = rememberSharedElementClip()
-    Box(modifier) {
+    // Na desktopu přijme soubory přetažené kamkoli do konverzace, ne jen na pole (viz [ContentDropArea]).
+    ContentDropArea(modifier) {
         // Zpět hledání zavře, z chatu se odchází až dalším. `NavigationBackHandler`, ne
         // `BackHandler` — ten by zabil predictive back.
         NavigationBackHandler(

@@ -462,6 +462,38 @@ mechanismus i řešení jsou převzaté z KMPMlog, kde se na tutéž chybu při�
   v Compose Multiplatform 1.12: **až začne padat, upstream ji opravil** a obal i kontrola můžou
   pryč. Popup (menu) přes kořen vykreslit nejde — polohuje se k rodiči.
 
+## Vložení ze schránky a přetažení souborů
+
+Cmd+V (macOS), Ctrl+V a Shift+Insert ve vstupním poli vloží snímek obrazovky nebo zkopírované
+soubory; soubory z Finderu či Průzkumníka jde pustit kamkoli do konverzace
+(`KeyboardContent.jvm.kt`, testy `DroppedFilesTest`).
+
+- **Přetažení přijímá celá konverzace, ne pole** (`ContentDropArea` kolem obrazovky). Myší přes
+  velké okno se do jednoho řádku trefuje špatně a Telegram Desktop to má stejně. Během tažení je
+  přes konverzaci výzva (`ContentDropOverlay`). **O právech ale rozhoduje pole**: přihlásí se
+  u plochy (`LocalContentTargetSlot`), dokud je složené, se svými `accept*`. Bez pole (kanál jen
+  ke čtení, výběr zpráv, úprava zprávy nic nepřijímá) plocha tažení odmítne — podmínky, kdy se pole
+  ukazuje, se tak nemusely opisovat do obrazovky.
+- **Soubory jdou jedním kusem** (`KeyboardContent.Attachments`), ne po jednom jako na Androidu:
+  `stageAttachments` druhy nemíchá a další příloha jiného druhu by předchozí nahradila. Jsou-li
+  VŠECHNY fotky (přípona, kterou čte ImageIO), jde album fotek, jinak všechno jako soubory. Jeden
+  GIF odchází hned jako animace (jako na Androidu). Adresáře se přeskočí.
+- **Klávesa se zachytí `onPreviewKeyEvent` nad polem** a propustí dál, když ve schránce není
+  soubor ani obrázek — text vkládá pole samo. Kontextová nabídka vlastní položku nemá: desktop
+  kreslí starou nabídku Compose (`ComposeFoundationFlags.isNewContextMenuEnabled` je tu `false`),
+  která `appendTextContextMenuComponents` nečte.
+- **Pořadí ve schránce: soubory, pak obrázek, ale jen BEZ textu.** Finder ke zkopírovanému
+  souboru přidá jméno jako text, takže soubory mají přednost. Excel a Word dávají k buňkám
+  a odstavcům i obrázek a vložit se má text; snímek obrazovky (`«class PNGf»`, Java ho vidí jen
+  jako `imageFlavor`) text nenese.
+- **Obrázek ze schránky se zmenší na 2560 px a uloží jako JPEG** do dočasného adresáře, jako
+  fotka z výběru na mobilu: výřez z Retiny má přes 5 000 px a TDLib bere fotku do 10 MB.
+  Průhlednost se podloží bílou. Ze `MultiResolutionImage` se bere největší varianta.
+- **Ověřeno** na macOS testem nad skutečnou systémovou schránkou (PNG nastavené přes
+  `osascript … as «class PNGf»`, text, seznam souborů); test se do repa nedostal, protože
+  přepisuje schránku. **Přetažení z Finderu ověřené rukou není** — tah z jiné aplikace se z testu
+  vyvolat nedá.
+
 ## Co platforma (zatím) neumí
 
 **Hovory jen se zvukem** přes ntgcalls (`docs/poznatky/hovory.md`, „Desktop").
@@ -475,6 +507,7 @@ spustit"), video má `isFailed = true` a otevírá se v aplikaci systému
 - **Výběr příloh je AWT `FileDialog`** (na macOS nativní panel). Soubor se nekopíruje — na
   rozdíl od mobilů tu žádný dočasný adresář výběru není. Fotka (co přečte ImageIO) jde jako
   fotka, ostatní včetně videa jako soubor.
+- **Vložení ze schránky a přetažení souborů** mají vlastní oddíl výš.
 - **`Desktop.browse`/`open` na Linuxu bez GNOME knihoven nefungují**, náhradou je `xdg-open`.
 - **Mini aplikace se hlásí jako `tdesktop`** (`webAppPlatform`), WebView ale není.
 - **Test `DocumentKindTest` tvrdil, že MP4 otevře prohlížeč na každé platformě.** Na desktopu

@@ -561,6 +561,7 @@ internal fun ConversationBottomBar(
                 is KeyboardContent.Animation -> viewModel.sendAnimation(received.animation)
                 is KeyboardContent.Image -> viewModel.addAttachments(listOf(received.photo))
                 is KeyboardContent.File -> viewModel.addAttachments(listOf(received.document))
+                is KeyboardContent.Attachments -> viewModel.addAttachments(received.attachments)
             }
         },
         onKeyboardContentFailed = viewModel::reportError,

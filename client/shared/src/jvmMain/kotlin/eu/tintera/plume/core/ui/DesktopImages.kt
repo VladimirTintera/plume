@@ -28,7 +28,7 @@ class DesktopSquarePhoto : SquarePhoto {
     }
 }
 
-private fun writeJpeg(image: BufferedImage, file: File) {
+internal fun writeJpeg(image: BufferedImage, file: File) {
     val writer = ImageIO.getImageWritersByFormatName("jpeg").next()
     val parameters = writer.defaultWriteParam.apply {
         compressionMode = ImageWriteParam.MODE_EXPLICIT
