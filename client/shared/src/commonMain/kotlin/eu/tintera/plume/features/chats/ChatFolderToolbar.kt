@@ -60,6 +60,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_24dp
 import eu.tintera.plume.resources.chat_folders_add_folder
 import eu.tintera.plume.resources.chat_folders_all
+import eu.tintera.plume.resources.chat_folders_all_short
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -249,7 +250,9 @@ private fun FolderTooltip(label: String, enabled: Boolean, content: @Composable 
 @Composable
 private fun FolderTitle(tab: FolderTab, color: Color, modifier: Modifier = Modifier) {
     if (tab.id == null) {
-        Text(stringResource(Res.string.chat_folders_all), color = color, style = MaterialTheme.typography.labelLarge, maxLines = 1, modifier = modifier)
+        // Popisek krátce, na celé „Všechny chaty" by v kompaktní liště padla skoro polovina místa.
+        // Čtečka obrazovky a bublina dostávají celý název (`plainTitle`).
+        Text(stringResource(Res.string.chat_folders_all_short), color = color, style = MaterialTheme.typography.labelLarge, maxLines = 1, modifier = modifier)
         return
     }
     val (text, emojiIds) = remember(tab.title, tab.titleEntities) {

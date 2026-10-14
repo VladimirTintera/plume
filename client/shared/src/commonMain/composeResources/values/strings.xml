@@ -1270,6 +1270,7 @@
         <item quantity="other">%1$d days</item>
     </plurals>
     <string name="chat_folders_all">All chats</string>
+    <string name="chat_folders_all_short">All</string>
     <string name="settings_links">Links</string>
     <string name="settings_open_links_in_app">Open links in the app</string>
     <string name="settings_open_links_in_app_summary">Web pages open inside Plume, not in the browser. Links an app can handle still go to that app.</string>

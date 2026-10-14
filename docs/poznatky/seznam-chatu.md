@@ -107,7 +107,9 @@ testy `ChatFolderTabsTest`). Bez složek se lišta nekreslí vůbec (viz „Slo�
   (`SubcomposeLayout`: napřed se nanečisto změří verze se všemi popisky), ne počet složek —
   tři dlouhé názvy se na telefon nevejdou, pět krátkých na desktop ano. Co se nevejde ani jako
   ikony, posouvá se do strany. Ikona je ta od TDLib (zvolená, jinak výchozí podle obsahu),
-  „Všechny chaty" mají ikonu „All". Bez popisku nese název bublina (podržení / najetí myší)
+  „Všechny chaty" mají ikonu „All" a v liště popisek „Vše" (`chat_folders_all_short`): celý
+  název zabral v kompaktní liště skoro polovinu místa a „+" se kvůli němu posunul za okraj.
+  Čtečka obrazovky a bublina dostávají celý název, Nastavení ho mají taky celý. Bez popisku nese název bublina (podržení / najetí myší)
   a čtečka obrazovky, počet nepřečtených je v odznaku na ikoně.
 - **Bublina se u položky s popiskem VYPÍNÁ, neodpojuje** (`RootTooltipBox(enableUserInput =
   false)`). S obalem přidávaným jen bez popisku se položka při změně výběru skládala znovu
