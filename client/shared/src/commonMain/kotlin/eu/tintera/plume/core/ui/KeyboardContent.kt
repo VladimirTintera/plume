@@ -1,6 +1,8 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import eu.tintera.plume.core.telegram.OutgoingAnimation
 import eu.tintera.plume.core.telegram.OutgoingAttachment
 
@@ -14,6 +16,12 @@ sealed interface KeyboardContent {
 
     /** Soubor přetažený z jiné aplikace — čeká nad polem jako soubor z výběru. */
     data class File(val document: OutgoingAttachment.Document) : KeyboardContent
+
+    /**
+     * Víc příloh naráz (přetažené nebo zkopírované soubory na desktopu) — čekají nad polem
+     * jako z výběru. Jedním kusem, ne po jedné: další příloha jiného druhu by předchozí nahradila.
+     */
+    data class Attachments(val attachments: List<OutgoingAttachment>) : KeyboardContent
 }
 
 /**
@@ -34,7 +42,10 @@ sealed interface KeyboardContent {
  *
  * **Totéž přijme přetažením** z jiné aplikace (rozdělená obrazovka na Foldu nebo tabletu):
  * obrázek a GIF stejnou cestou jako ze schránky, s [acceptFiles] i jiný soubor jako přílohu.
- * Jen Android; na iOS zatím nic.
+ * Na iOS zatím nic.
+ *
+ * **Desktop** klávesnici obsahu nemá: Cmd/Ctrl+V v poli vloží obrázek ze schránky (snímek
+ * obrazovky) nebo zkopírované soubory, a přetažené soubory přijme celá [ContentDropArea] kolem.
  */
 @Composable
 expect fun KeyboardContentReceiver(
@@ -44,6 +55,22 @@ expect fun KeyboardContentReceiver(
     onContent: (KeyboardContent) -> Unit,
     onError: (UiText) -> Unit,
     content: @Composable () -> Unit,
+)
+
+/**
+ * Plocha, na kterou jde pustit soubory pro pole uvnitř ([KeyboardContentReceiver]) — na desktopu
+ * celá konverzace, ne jen pole: z Finderu nebo Průzkumníka se táhne myší přes velké okno a trefovat
+ * se do jednoho řádku by bylo pracné. Přijímá jen, dokud je pole složené, a podle JEHO práv; bez
+ * pole (kanál jen ke čtení, výběr zpráv) přetažení odmítne. Během tažení kreslí výzvu přes celou
+ * plochu ([ContentDropOverlay]).
+ *
+ * Android a iOS jen skládají obsah: Android bere přetažení přímo na pole (na mobilu se táhne
+ * prstem z vedlejší aplikace a pole je cíl dost velký), iOS zatím nic.
+ */
+@Composable
+expect fun ContentDropArea(
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit,
 )
 
 /** Co leží ve schránce — podle toho se návrh vložení popíše. */

@@ -2,6 +2,7 @@ package eu.tintera.plume.core.ui
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.text.contextmenu.builder.item
 import androidx.compose.foundation.text.contextmenu.modifier.appendTextContextMenuComponents
 import androidx.compose.foundation.layout.size
@@ -316,3 +317,8 @@ private const val PASTE_BUTTON_MIN_HEIGHT = 36.0
 
 private fun Color.toUIColor(): UIColor =
     UIColor.colorWithRed(red.toDouble(), green = green.toDouble(), blue = blue.toDouble(), alpha = alpha.toDouble())
+
+/** Přetažení iOS zatím nepřijímá (chtělo by to `UIDropInteraction`); plocha jen skládá obsah. */
+@Composable
+actual fun ContentDropArea(modifier: Modifier, content: @Composable BoxScope.() -> Unit) =
+    Box(modifier, content = content)
