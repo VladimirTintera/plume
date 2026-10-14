@@ -139,6 +139,11 @@ testy `ChatFolderTabsTest`). Bez složek se lišta nekreslí vůbec (viz „Slo�
     po dvou zprávách bota; po „Označit vše…" skupina i odznak přečtené, chat Telegramu mimo
     složku zůstal nepřečtený. Testovací složka se pak smazala. Na „Vše" se to nezkoušelo —
     přečetlo by to i chaty skutečných lidí a poslalo jim potvrzení o přečtení.
+  - **Archiv lištu složek nemá**, takže „Označit archiv jako přečtený" je ikona v jeho liště
+    vedle nastavení (`ChatsViewModel.readArchive`). Jen když je v archivu něco nepřečteného
+    (`archiveUnread.chats`), jinak by slibovala akci, která nic neudělá. Ověřeno: ztlumená
+    a archivovaná testovací skupina se dvěma zprávami bota, po ťuknutí přečtená a ikona zmizela.
+    Neztlumený chat by se novou zprávou z archivu vrátil sám — proto napřed ztlumit.
 - **Složka je další `ChatFolder` (`Custom(id)`), ne nový druh seznamu.** Repository drží pozice
   chatu ve VŠECH seznamech, které TDLib hlásí (`positions`), takže seznam složky se skládá
   stejným `publish` jako hlavní a archiv. Seznamy se ale publikují jen pro složky, o které si

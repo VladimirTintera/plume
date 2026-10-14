@@ -155,6 +155,7 @@
     <string name="chats_archive_empty_title">Archive is empty</string>
     <string name="chats_archive_empty">Swipe a chat aside, or archive it from its long-press menu, and it moves here.</string>
     <string name="chats_archive_settings">Archive settings</string>
+    <string name="chats_archive_read_all">Mark archive as read</string>
     <string name="chats_archive_unknown">Archive chats from unknown senders</string>
     <string name="chats_archive_unknown_summary">New chats from people outside your contacts go straight here, muted.</string>
     <string name="chats_archive_keep">Keep chats archived</string>

@@ -266,10 +266,15 @@ class ChatsViewModel(
      * Podržení složky v liště → „Označit vše jako přečtené" (`readChatList`). [id] `null` je
      * hlavní seznam. Odznaky se přepočítají samy updaty; hláška jde jen při selhání.
      */
-    fun readFolder(id: Int?) {
+    fun readFolder(id: Int?) = readAll(if (id == null) ChatFolder.Main else ChatFolder.Custom(id))
+
+    /** Archiv jako přečtený — ikona v liště archivu, ten lištu složek nemá. */
+    fun readArchive() = readAll(ChatFolder.Archive)
+
+    private fun readAll(folder: ChatFolder) {
         viewModelScope.launch {
-            repository.readAll(if (id == null) ChatFolder.Main else ChatFolder.Custom(id)).onFailure { failure ->
-                logger.w(failure) { "Složku $id se nepodařilo označit jako přečtenou." }
+            repository.readAll(folder).onFailure { failure ->
+                logger.w(failure) { "Seznam $folder se nepodařilo označit jako přečtený." }
                 _actions.update { it.copy(error = failure.userMessage(Res.string.chats_action_failed)) }
             }
         }
