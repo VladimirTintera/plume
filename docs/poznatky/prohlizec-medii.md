@@ -144,6 +144,15 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   Totéž se stalo při změně motivu během prohlížení (aktivita má `configChanges="uiMode"`, takže se
   znovu nezakládá), protože se vrátil stav ze starého motivu. **Uložit a vrátit funguje jen
   tehdy, když se obrazovky překrývají v pořadí LIFO, a přechody v Navigation3 to nezaručují.**
+- **Na iOS řídí `SystemBarsAppearance` ikony stavové lišty přes rodiče Compose controlleru**
+  (`StatusBarHostViewController`, `preferredStatusBarStyle`). Do té doby se ikony řídily
+  systémovým vzhledem: s tmavým motivem ve světlém systému byly tmavé ikony na tmavé ploše.
+  **`overrideUserInterfaceStyle` NE**: Compose čte `isSystemInDarkTheme` z `traitCollection`
+  controlleru, takže by motiv „podle systému" četl sám sebe a tmavý prohlížeč by přebarvil
+  aplikaci pod sebou. Rodič místo `ComposeUIViewControllerDelegate`, který je zastaralý. Plocha
+  pod lištou nic nepotřebuje — obsah je přes celou obrazovku a lišta průhledná. SwiftUI
+  (`UIViewControllerRepresentable`) styl od controlleru převezme; ověřeno na simulátoru iOS 26.5
+  v obou kombinacích (světlý systém + tmavý motiv a naopak).
 - **Uložení do galerie je v horní liště prohlížeče** (`MediaSaver`, `expect`/`actual`). Ukládá
   se KOPIE ostré verze (`fullFileId`, u souboru soubor sám) — soubor TDLib je v soukromém
   adresáři a s odhlášením zmizí. Android od verze 10 přes `MediaStore` do `Pictures/Plume`

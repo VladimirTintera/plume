@@ -14,6 +14,10 @@ import com.sun.jna.ptr.IntByReference
 import eu.tintera.plume.core.platform.DesktopWindow
 import io.github.kdroidfilter.platformtools.darkmodedetector.windows.setWindowsAdaptiveTitleBar
 
+/** Systémové lišty s ikonami má jen telefon; na desktopu je jejich obdobou titulek okna. */
+@Composable
+actual fun SystemBarsAppearance(isDark: Boolean) = Unit
+
 /**
  * Titulek okna Windows ve zvoleném motivu, ne v systémovém: bílý systémový titulek nad tmavou
  * aplikací byl nejrušivější prvek okna.

@@ -28,7 +28,7 @@ expect val supportsDynamicColor: Boolean
 /**
  * Sladí vzhled systémových lišt (barvu ikon status/nav baru) s tím, co pod nimi leží: [isDark] je
  * tmavý motiv NEBO trvající `DarkSystemBars`. Jediné místo, které ikony lišt okna activity mění.
- * Reálně jen Android; jinde no-op.
+ * Android (ikony status i nav baru) a iOS (ikony stavové lišty); na desktopu no-op.
  */
 @Composable
 expect fun SystemBarsAppearance(isDark: Boolean)
