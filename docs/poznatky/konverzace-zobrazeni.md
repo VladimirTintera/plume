@@ -91,7 +91,8 @@ navzájem (`MediaSender`, `MessageJumper`, `Throwable.reported`).
   `ConversationReactionsTest`, `ConversationScheduledTest`, `ConversationComposerTest`,
   `ConversationMessageActionsTest`, `ConversationAttachmentsTest`, `ConversationLinksTest`,
   `ConversationBotsTest`, `ConversationSuggestionsTest`, `ConversationPlaybackTest`,
-  `ConversationRecorderTest`):
+  `ConversationRecorderTest`, `ConversationDocumentsTest`, `ConversationTranslationTest`,
+  `ConversationMessageContextTest`):
   stav je obyčejný `MutableStateFlow`, repository
   `UnimplementedConversationRepository`, `UnimplementedChatRepository` a nastavení
   `UnimplementedAppSettings` (v testech; každé nepřepsané volání vyhodí
@@ -109,7 +110,15 @@ navzájem (`MediaSender`, `MessageJumper`, `Throwable.reported`).
   i přílohy dostávají `reportUsed` místo `ShareTargets` (třída se závislostmi na systému
   a souborech) a odkazy `openUrl` a `openProxy` místo `UrlOpener` (`expect class`)
   a `ProxyLinkFlow`. Boti dostávají `openUrl`, `copyToClipboard` a `clipboardConfirmsCopy`
-  (hodnota `TextClipboard.confirmsCopy`, na platformě neměnná).
+  (hodnota `TextClipboard.confirmsCopy`, na platformě neměnná), stejně jako překlad a akce
+  u zprávy. Dokumenty dostávají `openFile` a `share` místo `FileOpener` a `MediaSharer`, akce
+  u zprávy `addCalendarEvent`, `saveNewContact`, `joinWifiNetwork` a `loadRates` místo
+  `CalendarEvents`, `ContactSaver`, `WifiJoiner` a `ExchangeRates` (jejich `null` znamená totéž
+  co dřív chybějící třída) a místo `HomeRegion` rovnou měnu a jednotky.
+- **`readString` v testech na JVM nejde** — `Resources.getSystem()` tam Android nemá („not
+  mocked"). Co text z prostředků teprve skládá, se z části vytáhne do čisté funkce a testuje se
+  ta: událost letu v kalendáři (`Flight.calendarEvent`) dostane název hotový. Výjimka spadne
+  v korutině části a test pak jen nevidí výsledek, takže se to hledá špatně.
 - **Přehrávač a fronta hudby jsou pro části rozhraní** (`VoicePlayerControl`,
   `MusicQueueControl` v `core/audio`), mikrofon `MediaCapture`. `VoicePlayer` stojí na
   platformních `AudioEngine` a `EarSensor` a v testu sestavit nejde; části z něj stejně používají
