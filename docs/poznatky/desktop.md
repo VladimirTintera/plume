@@ -534,6 +534,18 @@ spustit"), video má `isFailed = true` a otevírá se v aplikaci systému
   fotka, ostatní včetně videa jako soubor.
 - **Vložení ze schránky a přetažení souborů** mají vlastní oddíl výš.
 - **`Desktop.browse`/`open` na Linuxu bez GNOME knihoven nefungují**, náhradou je `xdg-open`.
+- **Titulek okna na Linuxu se motivem neřídí** (`WindowTitleBarAppearance` tam nedělá nic).
+  Kreslí ho správce oken a AWT běží přes X11 (na Waylandu XWayland). Zvažované cesty, nic
+  z toho neověřené, protože Linux na zkoušku není:
+  - **Tmavý titulek podle motivu na GNOME**: vlastnost okna `_GTK_THEME_VARIANT = "dark"`
+    přes JNA (`Native.getComponentID` + `XChangeProperty` z libX11), přepnutelná za běhu.
+    Nejisté je, jestli ji respektuje i `mutter-x11-frames`, který od GNOME 44 kreslí titulky
+    X11 oken. Barvu titulku tak nastavit nejde.
+  - **Barva titulku jen na KDE**: KWin čte `_KDE_NET_WM_COLOR_SCHEME` (cesta k souboru
+    barevného schématu, `.colors`) a Breeze podle něj barví titulek; soubor by se generoval
+    z palety. Na GNOME nic nedělá.
+  - **Vlastní titulek v Compose** (okno bez rámu) by šel všude, ale tahání, dvojklik,
+    přichytávání a změnu velikosti by bylo nutné dodělat ručně — za tu cenu nestojí.
 - **Mini aplikace se hlásí jako `tdesktop`** (`webAppPlatform`), WebView ale není.
 - **Test `DocumentKindTest` tvrdil, že MP4 otevře prohlížeč na každé platformě.** Na desktopu
   to neplatí; commonTest teď běží i na JVM (`jvmTest`), takže takové „všude" předpoklady
