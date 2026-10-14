@@ -34,12 +34,10 @@ import eu.tintera.plume.resources.conversation_contact_load_failed
 import eu.tintera.plume.core.telegram.PollDraftMedia
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.telegram.ComposedText
-import eu.tintera.plume.core.telegram.composedFormatsOf
 import eu.tintera.plume.core.telegram.within
 import eu.tintera.plume.core.telegram.UnreadMarkKind
 import eu.tintera.plume.core.telegram.VideoChatInfo
 import eu.tintera.plume.core.telegram.InviteLinkRepository
-import eu.tintera.plume.core.url.UrlCleaner
 import eu.tintera.plume.core.telegram.PendingJoinRequests
 import eu.tintera.plume.core.telegram.ChatReplyMarkup
 import eu.tintera.plume.core.telegram.BotButtonKind
@@ -69,17 +67,14 @@ import eu.tintera.plume.core.settings.ExpressionMode
 import eu.tintera.plume.core.settings.GestureHint
 import eu.tintera.plume.core.settings.RecordMode
 import eu.tintera.plume.core.telegram.ChatInfo
-import eu.tintera.plume.core.telegram.diceEmojiFor
 import eu.tintera.plume.core.navigation.InstantViewRequests
 import eu.tintera.plume.core.navigation.BotStartRequests
 import eu.tintera.plume.core.telegram.MessageSchedule
 import eu.tintera.plume.core.telegram.MessageEffect
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.telegram.SpeechTrial
-import eu.tintera.plume.resources.conversation_schedule_failed
 import eu.tintera.plume.resources.conversation_scheduled_notice
 import eu.tintera.plume.core.telegram.ChatMessage
-import eu.tintera.plume.core.telegram.LinkPreview
 import eu.tintera.plume.core.telegram.LinkPreviewOptions
 import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionRepository
@@ -127,7 +122,6 @@ import eu.tintera.plume.resources.conversation_self_destruct_album
 import eu.tintera.plume.resources.conversation_attachments_send_failed
 import eu.tintera.plume.resources.conversation_cancel_send_failed
 import eu.tintera.plume.resources.conversation_delete_failed
-import eu.tintera.plume.resources.conversation_edit_failed
 import eu.tintera.plume.resources.conversation_favorite_added
 import eu.tintera.plume.resources.conversation_favorite_failed
 import eu.tintera.plume.resources.conversation_favorite_removed
@@ -137,7 +131,6 @@ import eu.tintera.plume.resources.conversation_message_deleted
 import eu.tintera.plume.resources.conversation_quote_deleted
 import eu.tintera.plume.resources.conversation_reaction_failed
 import eu.tintera.plume.resources.conversation_repin_failed
-import eu.tintera.plume.resources.conversation_send_failed
 import eu.tintera.plume.resources.conversation_sticker_send_failed
 import eu.tintera.plume.resources.contact_add_failed
 import eu.tintera.plume.resources.call_unavailable
@@ -148,9 +141,6 @@ import eu.tintera.plume.resources.share_failed_files
 import eu.tintera.plume.resources.message_info_failed
 import eu.tintera.plume.resources.message_info_link_copied
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.TimeMark
-import kotlin.time.TimeSource
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
@@ -347,11 +337,11 @@ class ConversationViewModel(
             failureMessage: StringResource,
             scheduled: Boolean,
             send: suspend (replyTo: Long?, quote: ReplyQuote?) -> Result<ChatMessage>,
-        ) = this@ConversationViewModel.sendMedia(failureMessage, scheduled, send)
+        ) = composer.sendMedia(failureMessage, scheduled, send)
     }
 
     /** Nahrávání hlasovky a kolečka — viz [ConversationRecorder]. */
-    private val recorder = ConversationRecorder(
+    private val recorder: ConversationRecorder = ConversationRecorder(
         chatId = chatId,
         state = _state,
         scope = viewModelScope,
@@ -386,7 +376,7 @@ class ConversationViewModel(
     fun discardVideoNotePreview() = recorder.discardVideoNotePreview()
 
     /** Přehrávání hlasovek, koleček a hudby a přepis řeči — viz [ConversationPlayback]. */
-    private val playback = ConversationPlayback(
+    private val playback: ConversationPlayback = ConversationPlayback(
         chatId = chatId,
         state = _state,
         scope = viewModelScope,
@@ -413,7 +403,7 @@ class ConversationViewModel(
     val transcribeContext: StateFlow<TranscribeContext> get() = playback.transcribeContext
 
     /** Soubory ve zprávách: stažení a otevření, sdílení, uložení — viz [ConversationDocuments]. */
-    private val documents = ConversationDocuments(
+    private val documents: ConversationDocuments = ConversationDocuments(
         state = _state,
         scope = viewModelScope,
         fileRepository = fileRepository,
@@ -425,7 +415,7 @@ class ConversationViewModel(
     fun saveDocumentAs(messageId: Long, launcher: SaveAsLauncher) = documents.saveDocumentAs(messageId, launcher)
 
     /** Překlad a shrnutí zprávy — viz [ConversationTranslation]. */
-    private val translation = ConversationTranslation(
+    private val translation: ConversationTranslation = ConversationTranslation(
         chatId = chatId,
         state = _state,
         scope = viewModelScope,
@@ -444,7 +434,7 @@ class ConversationViewModel(
     fun copyTranslation() = translation.copyTranslation()
 
     /** Akce u zprávy a posudky modelu (termíny, podvod) — viz [ConversationMessageContext]. */
-    private val messageContext = ConversationMessageContext(
+    private val messageContext: ConversationMessageContext = ConversationMessageContext(
         chatId = chatId,
         state = _state,
         scope = viewModelScope,
@@ -482,7 +472,7 @@ class ConversationViewModel(
     fun dismissScamWarning(messageId: Long) = messageContext.dismissScamWarning(messageId)
 
     /** Hledání v chatu a výběr člena pro filtr — viz [ConversationSearch]. */
-    private val search = ConversationSearch(
+    private val search: ConversationSearch = ConversationSearch(
         chatId = chatId,
         state = _state,
         scope = viewModelScope,
@@ -502,7 +492,7 @@ class ConversationViewModel(
     fun searchNewer() = search.searchNewer()
 
     /** Chat jako celek: pruhy nad konverzací, vstup, ztlumení, smazání — viz [ConversationChatActions]. */
-    private val chatActions = ConversationChatActions(
+    private val chatActions: ConversationChatActions = ConversationChatActions(
         chatId = chatId,
         threadRootId = threadRootId,
         state = _state,
@@ -531,14 +521,14 @@ class ConversationViewModel(
     fun closeSecretChat() = chatActions.closeSecretChat()
 
     /** Napovídání při psaní: zmínky a inline boti — viz [ConversationSuggestions]. */
-    private val suggestions = ConversationSuggestions(
+    private val suggestions: ConversationSuggestions = ConversationSuggestions(
         chatId = chatId,
         state = _state,
         scope = viewModelScope,
         repository = repository,
         media = mediaSender,
-        composedDraft = { draft },
-        onDraftChanged = ::onDraftChanged,
+        composedDraft = { composer.draft },
+        onDraftChanged = { composer.onDraftChanged(it) },
         openBotStart = { links.openBotStart(it) },
         requestWebApp = { links.requestWebApp(it) },
         logger = logger,
@@ -552,7 +542,7 @@ class ConversationViewModel(
     fun pressInlineButton() = suggestions.pressInlineButton()
 
     /** Kam vedou odkazy a ťuknutí: chaty, zprávy, příběhy, pozvánky, mini aplikace — viz [ConversationLinks]. */
-    private val links = ConversationLinks(
+    private val links: ConversationLinks = ConversationLinks(
         chatId = chatId,
         forumTopicId = forumTopicId,
         savedTopicId = savedTopicId,
@@ -589,7 +579,7 @@ class ConversationViewModel(
     fun consumeSwitchInline() = links.consumeSwitchInline()
 
     /** Boti: tlačítka, klávesnice, příkazy, ankety, přihlášení — viz [ConversationBots]. */
-    private val bots = ConversationBots(
+    private val bots: ConversationBots = ConversationBots(
         chatId = chatId,
         state = _state,
         scope = viewModelScope,
@@ -601,7 +591,7 @@ class ConversationViewModel(
         botStartRequests = botStartRequests,
         links = links,
         suggestions = suggestions,
-        replyTo = { replyTo(it) },
+        replyTo = { composer.replyTo(it) },
         logger = logger,
     )
     fun startBot() = bots.startBot()
@@ -629,7 +619,7 @@ class ConversationViewModel(
     fun dismissAddPollOption() = bots.dismissAddPollOption()
 
     /** Naplánované zprávy — viz [ConversationScheduled]. */
-    private val scheduled = ConversationScheduled(
+    private val scheduled: ConversationScheduled = ConversationScheduled(
         chatId = chatId,
         state = _state,
         scope = viewModelScope,
@@ -641,50 +631,32 @@ class ConversationViewModel(
     fun reschedule(messageId: Long, schedule: MessageSchedule?) = scheduled.reschedule(messageId, schedule)
     fun deleteScheduled(messageId: Long) = scheduled.deleteScheduled(messageId)
 
+    /** Psaní: koncept, odpověď, úprava, náhled odkazu, odeslání — viz [ConversationComposer]. */
+    private val composer: ConversationComposer = ConversationComposer(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        appScope = appScope,
+        repository = repository,
+        chatRepository = chatRepository,
+        settings = settings,
+        shareTargets = shareTargets,
+        suggestions = suggestions,
+        readAfterOwnMessage = { readAfterOwnMessage() },
+        sendAttachments = { caption, attachments, options -> sendAttachments(caption, attachments, options) },
+        logger = logger,
+    )
+    val effectChoices: StateFlow<List<MessageEffect>?> get() = composer.effectChoices
+    fun loadEffects() = composer.loadEffects()
+    fun send(text: ComposedText, options: SendOptions = SendOptions()) = composer.send(text, options)
+    fun onDraftChanged(text: ComposedText) = composer.onDraftChanged(text)
+    fun setLinkPreviewOptions(options: LinkPreviewOptions) = composer.setLinkPreviewOptions(options)
+    fun consumeInputFill(fill: InputFill) = composer.consumeInputFill(fill)
+    fun cancelEdit() = composer.cancelEdit()
+    fun clearReply() = composer.clearReply()
+
     /** Serializuje stránkování — bez toho by dva rychlé scrolly načetly tutéž stránku dvakrát. */
     private val loadMutex = Mutex()
-
-    /** Rozlišuje jednotlivé lety textu do bubliny, když uživatel odešle dvě zprávy rychle po sobě. */
-    private var flightCounter = 0L
-
-    /**
-     * Kdy naposledy odešlo „píšu". `null`, když protějšek o psaní neví (nic neodešlo, nebo se
-     * mezitím zrušilo či odeslalo).
-     */
-    private var typingSentAt: TimeMark? = null
-
-    /**
-     * Poslední text z pole i s ručním formátováním, jak ho hlásí obrazovka. Kvůli ukládání
-     * konceptu.
-     */
-    private var draft = ComposedText("")
-
-    /**
-     * Koncept z TDLib je vyřízený (vrácený do pole, nebo žádný není). Sdílený text se vkládá až
-     * po něm: koncept jde jen do prázdného pole, takže sdílení před ním by ho z pole vytlačilo.
-     */
-    private val draftRestored = CompletableDeferred<Unit>()
-
-    /** Koncept odložený po dobu úpravy zprávy; po ní se vrátí do pole i s formátováním. */
-    private var draftBeforeEdit = ComposedText("")
-
-    /**
-     * Náhled odkazu konceptu, odložený s ním. Úprava má vlastní náhled a volbu (z upravované
-     * zprávy), a kdyby je nepřepsala, odešla by upravená zpráva s volbou rozepsaného konceptu.
-     */
-    private var linkPreviewBeforeEdit = LinkPreviewStash()
-
-    /** Odložené uložení konceptu; každá další úprava ho posune. */
-    private var draftSave: Job? = null
-
-    /** Odložené zjištění náhledu odkazu v rozepsaném textu; každý úhoz ho posune. */
-    private var linkPreviewJob: Job? = null
-
-    /**
-     * Text, ke kterému se náhled naposledy zjišťoval. Nemusí být [draft]: pole vyplněné
-     * sdílením nebo konceptem `onDraftChanged` nevolá, a výběr odkazu se ptá právě k tomuhle.
-     */
-    private var linkPreviewText = ""
 
     /** Už nahlášená zhlédnutí reklam — každé se hlásí jen jednou. */
     private val reportedSponsoredViews = mutableSetOf<Long>()
@@ -804,7 +776,7 @@ class ConversationViewModel(
             replyRequests.request.collect { request ->
                 if (request?.chatId == chatId) {
                     replyRequests.consume(chatId)
-                    replyFromViewer(request.messageId)
+                    composer.replyFromViewer(request.messageId)
                 }
             }
         }
@@ -815,7 +787,7 @@ class ConversationViewModel(
             replyRequests.sent.collect { sent ->
                 if (sent?.chatId == chatId) {
                     replyRequests.consumeSent(chatId)
-                    if (_state.value.replyConsumedBy(sent)) clearReply()
+                    if (_state.value.replyConsumedBy(sent)) composer.clearReply()
                 }
             }
         }
@@ -871,10 +843,10 @@ class ConversationViewModel(
                     )
                 }
                 info.draftText?.let {
-                    draft = ComposedText(it, info.draftFormats)
-                    refreshLinkPreview(it)
+                    composer.draft = ComposedText(it, info.draftFormats)
+                    composer.refreshLinkPreview(it)
                 }
-                info.draftReplyToMessageId?.let { restoreDraftReply(it, info.draftReplyQuote) }
+                info.draftReplyToMessageId?.let { composer.restoreDraftReply(it, info.draftReplyQuote) }
                 // Nalezená zpráva má přednost před nepřečtenými — kvůli ní chat otevřel.
                 if (initialMessageId != null) {
                     releaseReads(jumped = false)
@@ -883,7 +855,7 @@ class ConversationViewModel(
                     releaseReads(jumped = loadUntilUnread())
                 }
             }.onFailure { releaseReads(jumped = false) }
-            draftRestored.complete(Unit)
+            composer.draftRestored.complete(Unit)
         }
 
         viewModelScope.launch {
@@ -891,7 +863,7 @@ class ConversationViewModel(
             // Až po konceptu: ten jde do prázdného pole a dotaz by jinak vytlačil.
             inlineQueryRequests.request.collect { request ->
                 if (request?.chatId == chatId) {
-                    draftRestored.await()
+                    composer.draftRestored.await()
                     inlineQueryRequests.consume(chatId)
                     suggestions.useInlineBot(request.bot, request.query)
                 }
@@ -902,7 +874,7 @@ class ConversationViewModel(
             // Sdílení ze systému do tohohle chatu. Odběr trvá po celou dobu konverzace: chat mohl
             // být otevřený pod výběrem a vybraný až potom.
             shareRequests.deliveries(chatId).collect { content ->
-                draftRestored.await()
+                composer.draftRestored.await()
                 receiveShared(content)
             }
         }
@@ -1535,7 +1507,7 @@ class ConversationViewModel(
                 // Smazaná připnutá zpráva: nejnovější připnutá je teď jiná (nebo žádná).
                 if (_state.value.pinned.any { it.id in removed }) refreshPinned()
                 // Upravovaná zpráva zmizela (smazaná jinde) — není co upravovat.
-                if (_state.value.editing?.id in removed) cancelEdit()
+                if (_state.value.editing?.id in removed) composer.cancelEdit()
             }
         }
     }
@@ -1565,7 +1537,7 @@ class ConversationViewModel(
             _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
             return
         }
-        sendMedia(Res.string.conversation_sticker_send_failed, scheduled = options.schedule != null) { replyTo, quote ->
+        composer.sendMedia(Res.string.conversation_sticker_send_failed, scheduled = options.schedule != null) { replyTo, quote ->
             repository.sendSticker(chatId, sticker, replyTo, quote, options)
         }
     }
@@ -1576,7 +1548,7 @@ class ConversationViewModel(
             _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
             return
         }
-        sendMedia(Res.string.conversation_gif_send_failed, scheduled = options.schedule != null) { replyTo, quote ->
+        composer.sendMedia(Res.string.conversation_gif_send_failed, scheduled = options.schedule != null) { replyTo, quote ->
             repository.sendGif(chatId, gif, replyTo, quote, options)
         }
     }
@@ -1588,7 +1560,7 @@ class ConversationViewModel(
      */
     fun sendLocation(place: Place) {
         if (!_state.value.canWrite || _state.value.editing != null) return
-        sendMedia(Res.string.conversation_location_send_failed) { replyTo, quote ->
+        composer.sendMedia(Res.string.conversation_location_send_failed) { replyTo, quote ->
             repository.sendLocation(chatId, place, replyTo, quote)
         }
     }
@@ -1605,7 +1577,7 @@ class ConversationViewModel(
             _state.update { it.copy(notice = UiText(Res.string.location_live_unavailable)) }
             return
         }
-        sendMedia(Res.string.conversation_location_send_failed) { replyTo, quote ->
+        composer.sendMedia(Res.string.conversation_location_send_failed) { replyTo, quote ->
             repository.sendLiveLocation(chatId, LiveFix(point.latitude, point.longitude), livePeriod, replyTo, quote)
         }
     }
@@ -1712,7 +1684,7 @@ class ConversationViewModel(
         val userId = _state.value.pendingContact?.userId ?: return
         _state.update { it.copy(pendingContact = null) }
         if (!_state.value.canWrite || _state.value.editing != null) return
-        sendMedia(Res.string.conversation_contact_send_failed) { replyTo, quote ->
+        composer.sendMedia(Res.string.conversation_contact_send_failed) { replyTo, quote ->
             repository.sendContact(chatId, userId, replyTo, quote)
         }
     }
@@ -1727,7 +1699,7 @@ class ConversationViewModel(
             _state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
             return
         }
-        sendMedia(Res.string.conversation_gif_send_failed) { replyTo, quote ->
+        composer.sendMedia(Res.string.conversation_gif_send_failed) { replyTo, quote ->
             repository.sendAnimation(chatId, animation, replyTo, quote)
         }
     }
@@ -1771,19 +1743,19 @@ class ConversationViewModel(
         shareRequests.consume(content.id)
         content.attachments?.takeIf { it.isNotEmpty() }?.let(::addAttachments)
         content.text?.let { shared ->
-            val text = if (draft.text.isBlank()) shared else draft.text.trimEnd() + "\n" + shared
+            val text = if (composer.draft.text.isBlank()) shared else composer.draft.text.trimEnd() + "\n" + shared
             // Formátování konceptu platí dál — sdílený text se připojuje až za něj.
-            val formats = if (draft.text.isBlank()) emptyList() else draft.formats.within(text.length)
+            val formats = if (composer.draft.text.isBlank()) emptyList() else composer.draft.formats.within(text.length)
             _state.update { it.copy(inputFill = InputFill(text, onlyIfEmpty = false, formats = formats)) }
             /*
              * Pole se vyplní bez `onDraftChanged`, takže se text zapisuje sám: jinak by ho
              * ViewModel neznal a první uložení konceptu (třeba po změně volby náhledu) by
              * zapsalo prázdný koncept — sdílený text by po odchodu z chatu zmizel.
              */
-            draft = ComposedText(text, formats)
-            scheduleDraftSave()
+            composer.draft = ComposedText(text, formats)
+            composer.scheduleDraftSave()
             // Sdílený odkaz je přitom typický případ náhledu.
-            refreshLinkPreview(text)
+            composer.refreshLinkPreview(text)
         }
         if (content.failed > 0) {
             _state.update { it.copy(notice = UiText(Res.string.share_failed_files)) }
@@ -1884,16 +1856,16 @@ class ConversationViewModel(
     }
 
     private fun sendAttachments(caption: ComposedText, attachments: List<OutgoingAttachment>, options: SendOptions) {
-        typingSentAt = null
-        draftSave?.cancel()
-        draftSave = null
-        draft = ComposedText("")
-        resetLinkPreview()
+        composer.typingSentAt = null
+        composer.draftSave?.cancel()
+        composer.draftSave = null
+        composer.draft = ComposedText("")
+        composer.resetLinkPreview()
 
         val replyTo = _state.value.replyingTo?.id
         val quote = _state.value.replyQuote
         val mentions = suggestions.takeNameMentions()
-        clearReply()
+        composer.clearReply()
         _state.update { it.copy(attachments = emptyList()) }
 
         viewModelScope.launch {
@@ -1928,427 +1900,6 @@ class ConversationViewModel(
         _state.update { it.copy(error = message) }
     }
 
-    private fun sendMedia(
-        failureMessage: StringResource,
-        scheduled: Boolean = false,
-        send: suspend (replyTo: Long?, quote: ReplyQuote?) -> Result<ChatMessage>,
-    ) {
-        val replyTo = _state.value.replyingTo?.id
-        val quote = _state.value.replyQuote
-        clearReply()
-
-        viewModelScope.launch {
-            send(replyTo, quote)
-                .onSuccess { pending ->
-                    shareTargets.reportUsed(chatId)
-                    // Naplánovaná do konverzace nepatří, jen se ohlásí — jako naplánovaný text.
-                    if (scheduled) {
-                        _state.update { it.copy(notice = UiText(Res.string.conversation_scheduled_notice)) }
-                        return@onSuccess
-                    }
-                    // Potvrzení mohlo dorazit dřív než výsledek; `withMessage` to ošetří.
-                    _state.update { it.withMessage(pending) }
-                }
-                .onFailure { failure ->
-                    _state.update {
-                        it.copy(error = failure.reported(logger, if (scheduled) Res.string.conversation_schedule_failed else failureMessage))
-                    }
-                }
-        }
-    }
-
-    private val _effectChoices = MutableStateFlow<List<MessageEffect>?>(null)
-
-    /**
-     * Efekty nabídnuté ve výběru „Odeslat s efektem"; `null`, dokud se nenačtou. Čtou se až při
-     * otevření výběru ([loadEffects]) — každý efekt je dotaz a většina odeslání efekt nechce.
-     */
-    val effectChoices: StateFlow<List<MessageEffect>?> = _effectChoices.asStateFlow()
-
-    fun loadEffects() {
-        if (_effectChoices.value != null) return
-        viewModelScope.launch {
-            _effectChoices.value = repository.sendableEffects(chatRepository.availableEffectIds.value)
-        }
-    }
-
-    /**
-     * Odešle obsah pole. [options] přichází z nabídky nad odesílacím tlačítkem (bez zvuku,
-     * naplánovat, s efektem); obyčejné ťuknutí posílá výchozí.
-     */
-    fun send(text: ComposedText, options: SendOptions = SendOptions()) {
-        val sanitized = if (settings.stripTrackingParameters.value) UrlCleaner.cleanComposedText(text) else text
-        val composed = sanitized.trimmed()
-        val trimmed = composed.text
-
-        // S přílohami je text popisek a smí být prázdný. Úprava zprávy přílohy nemá.
-        val attachments = _state.value.attachments
-        if (attachments.isNotEmpty() && _state.value.editing == null) {
-            // Dokud se úprava fotky vykresluje, příloha má ještě cestu k NEUPRAVENÉ fotce —
-            // odeslala by se i s tím, co měl uživatel začerněné. Tlačítko je mezitím vypnuté;
-            // tohle je pojistka pro Enter z klávesnice.
-            if (_state.value.markupBusy) return
-            readAfterOwnMessage()
-            sendAttachments(composed, attachments, options)
-            return
-        }
-
-        // Úprava se řeší dřív než prázdné pole: prázdný POPISEK je platná úprava (odebere ho),
-        // takže o tom rozhoduje `sendEdit` podle toho, co se vlastně upravuje.
-        _state.value.editing?.let { target ->
-            sendEdit(target, composed)
-            return
-        }
-
-        if (trimmed.isEmpty()) return
-        readAfterOwnMessage()
-
-        // Odeslaná zpráva psaní ukončí sama; další úhoz má „píšu" ohlásit hned, ne až za pět vteřin.
-        typingSentAt = null
-
-        // Koncept smaže TDLib sám (`clearDraft` při odeslání). Čekající uložení by ho vrátilo zpátky
-        // se starým textem, takže se musí zahodit; obrazovka pole vyprázdní bez `onDraftChanged`.
-        draftSave?.cancel()
-        draftSave = null
-        draft = ComposedText("")
-
-        // Samotné 🎲 (🎯, 🏀, ⚽, 🎳, 🎰 — seznam posílá server) odejde jako hod, jako
-        // u oficiálních klientů. Hod je v právech „ostatní zprávy", tedy totéž co samolepka;
-        // kde se smí jen text, odejde emoji jako text. Neletí z pole — jako samolepka.
-        val dice = diceEmojiFor(trimmed, chatRepository.diceEmojis.value).takeIf { options == SendOptions() }
-        if (dice != null && _state.value.content.stickers) {
-            resetLinkPreview()
-            sendMedia(Res.string.conversation_send_failed) { replyTo, quote ->
-                repository.sendDice(chatId, dice, replyTo, quote)
-            }
-            return
-        }
-
-        val linkPreview = _state.value.linkPreviewOptions.forSending(shown = _state.value.linkPreview)
-        resetLinkPreview()
-
-        val replyTo = _state.value.replyingTo?.id
-        val quote = _state.value.replyQuote
-        // Rozepsaná odpověď se zruší hned, ne až po potvrzení — jinak by při pomalé síti šlo
-        // odeslat druhou zprávu se stejnou citací.
-        clearReply()
-        val mentions = suggestions.takeNameMentions()
-
-        // Naplánovaná zpráva do konverzace nepatří: neletí, nepřidává se, jen se ohlásí.
-        if (options.schedule != null) {
-            viewModelScope.launch {
-                repository.send(chatId, trimmed, replyTo, linkPreview, quote, options, mentions, composed.formats)
-                    .onSuccess { _state.update { it.copy(notice = UiText(Res.string.conversation_scheduled_notice)) } }
-                    .onFailure { failure ->
-                        _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_schedule_failed)) }
-                    }
-            }
-            return
-        }
-
-        // Text „vyletí" ze vstupního pole do bubliny. Musí se zapamatovat hned při odeslání,
-        // protože pole se vyprázdní dřív, než dorazí zpráva — a bez toho by nebylo co animovat.
-        val flight = MessageFlight(id = ++flightCounter, text = trimmed, itemKey = null)
-        _state.update { it.copy(flight = flight) }
-
-        viewModelScope.launch {
-            repository.send(chatId, trimmed, replyTo, linkPreview, quote, options, mentions, composed.formats)
-                // TDLib vrací rozepsanou zprávu okamžitě, takže bublina naskočí bez čekání
-                // na server. Skutečné id dorazí potvrzením a zprávu v seznamu nahradí.
-                .onSuccess { pending ->
-                    shareTargets.reportUsed(chatId)
-                    // Na vynucenou odpověď se odpovědělo; TDLib ji po klientovi chce odebrat.
-                    val force = _state.value.replyMarkup as? ChatReplyMarkup.ForceReply
-                    if (force != null && force.messageId == replyTo) {
-                        repository.dismissReplyMarkup(chatId, force.messageId)
-                    }
-                    _state.update {
-                        // Mezitím ji už mohlo dorazit i potvrzení — pak se dočasná verze do
-                        // seznamu vracet nesmí (`withMessage`).
-                        it.withMessage(pending).copy(
-                            // Většinou už let navázal `newMessages`; tohle je záloha pro opačné
-                            // pořadí. Cizí let (další rychle odeslaná zpráva) se nechává být.
-                            flight = it.flight?.let { f ->
-                                if (f.id == flight.id && f.itemKey == null) f.copy(itemKey = pending.id) else f
-                            },
-                        )
-                    }
-
-                    // Let se uklidí až po doběhnutí animace. Kdyby se zrušil dřív, zmizel by
-                    // klíč sdíleného prvku uprostřed přechodu a text by skokem zmizel.
-                    delay(FLIGHT_DURATION_MS)
-                    _state.update { state ->
-                        state.copy(flight = state.flight?.takeIf { it.id != flight.id })
-                    }
-                }
-                .onFailure { failure ->
-                    _state.update {
-                        it.copy(
-                            error = failure.reported(logger, Res.string.conversation_send_failed),
-                            flight = it.flight?.takeIf { f -> f.id != flight.id },
-                        )
-                    }
-                }
-        }
-    }
-
-    /**
-     * Obrazovka hlásí změnu rozepsaného textu; podle ní se protějšku ohlašuje „píše…".
-     *
-     * Server činnost zhasne sám asi po šesti vteřinách, takže se při psaní **opakuje** — ale
-     * nejvýš jednou za [TYPING_REPEAT], ne na každý úhoz. Vymazání celého textu psaní výslovně
-     * ukončí: kdo si to rozmyslel, nemá protějšku ještě pět vteřin „psát".
-     */
-    fun onDraftChanged(text: ComposedText) {
-        // Při úpravě v poli není koncept, ale text staré zprávy. Uložit ho jako koncept by přepsalo
-        // ten odložený, a ohlašovat „píše…" kvůli opravě překlepu by protějšek mátlo.
-        _state.value.editing?.let { editing ->
-            // Náhled odkazu ale patří i k úpravě textu: upravená zpráva odejde s ním.
-            if (editing.composerEdit() == ComposerEdit.Text) refreshLinkPreview(text.text)
-            return
-        }
-        // Psaní zavře seznam příkazů otevřený tlačítkem; napovídání „/…" se řídí textem samo.
-        if (_state.value.commandsOpen) _state.update { it.copy(commandsOpen = false) }
-
-        val textChanged = text.text != draft.text
-        draft = text
-        // Vyprázdněné pole = zpráva, ke které zmínky patřily, je pryč.
-        if (text.text.isBlank()) suggestions.nameMentions.clear()
-        scheduleDraftSave()
-        // Změna jen formátování („Tučné" nad výběrem) není psaní: náhled ani „píše…" se nemění.
-        if (!textChanged) return
-        refreshLinkPreview(text.text)
-
-        if (text.text.isBlank()) {
-            if (typingSentAt == null) return
-            typingSentAt = null
-            reportTyping(false)
-            return
-        }
-
-        val last = typingSentAt
-        if (last != null && last.elapsedNow() < TYPING_REPEAT) return
-        typingSentAt = TimeSource.Monotonic.markNow()
-        reportTyping(true)
-    }
-
-    /**
-     * Uloží koncept s odstupem od poslední úpravy.
-     *
-     * Ne na každý úhoz: `setChatDraftMessage` se propisuje na server a do ostatních zařízení.
-     * Hodnoty se berou **teď**, na hlavním vlákně — úloha běží v `appScope` mimo něj.
-     */
-    private fun scheduleDraftSave() {
-        val text = draft
-        val replyTo = _state.value.replyingTo?.id
-        val quote = _state.value.replyQuote
-        val linkPreview = _state.value.linkPreviewOptions
-
-        draftSave?.cancel()
-        draftSave = appScope.launch {
-            delay(DRAFT_SAVE_DELAY_MS)
-            saveDraft(text, replyTo, linkPreview, quote)
-        }
-    }
-
-    private suspend fun saveDraft(
-        text: ComposedText,
-        replyTo: Long?,
-        linkPreview: LinkPreviewOptions? = null,
-        quote: ReplyQuote? = null,
-    ) {
-        repository.saveDraft(chatId, text.text, replyTo, linkPreview, quote, text.formats).onFailure { failure ->
-            logger.w(failure) { "Koncept se nepodařilo uložit." }
-        }
-    }
-
-    /**
-     * Doplní citaci konceptu. Zprávu hledá v načtené historii, jinak si ji vyžádá — koncept
-     * může odpovídat na cokoli.
-     */
-    private fun restoreDraftReply(messageId: Long, quote: ReplyQuote?) {
-        viewModelScope.launch {
-            val message = _state.value.messages.firstOrNull { it.id == messageId }
-                ?: repository.message(chatId, messageId).getOrNull()
-                ?: return@launch
-            // Mezitím mohl uživatel začít odpovídat na něco jiného; to má přednost.
-            _state.update { if (it.replyingTo == null) it.copy(replyingTo = message, replyQuote = quote) else it }
-        }
-    }
-
-    /**
-     * Zjistí náhled odkazu v rozepsaném textu, s pauzou po posledním úhozu
-     * ([LINK_PREVIEW_DELAY_MS]) — `getLinkPreview` jde na síť a TDLib ho žádá nevolat často.
-     *
-     * Prázdné pole zahodí náhled i volbu (i vypnutí): je to nová zpráva. Vypnutý náhled se
-     * nezjišťuje vůbec, dokud se pole nevyprázdní.
-     */
-    private fun refreshLinkPreview(text: String, delayMs: Long = LINK_PREVIEW_DELAY_MS) {
-        linkPreviewJob?.cancel()
-        linkPreviewText = text
-        if (text.isBlank()) {
-            // Vymazaný text úpravy není nová zpráva: volba upravované zprávy platí dál.
-            if (_state.value.editing != null) {
-                _state.update { it.copy(linkPreview = null, linkPreviewLinks = emptyList()) }
-            } else {
-                resetLinkPreview()
-            }
-            return
-        }
-        if (_state.value.linkPreviewOptions.disabled) return
-        linkPreviewJob = viewModelScope.launch {
-            delay(delayMs)
-            val result = repository.linkPreview(text, _state.value.linkPreviewOptions.url).getOrElse { failure ->
-                // Bez náhledu se dá psát i poslat dál; server si ho k odeslané zprávě vyrobí sám.
-                logger.w(failure) { "Náhled odkazu se nepodařilo zjistit." }
-                return@launch
-            }
-            _state.update {
-                it.copy(
-                    linkPreview = result.preview,
-                    linkPreviewLinks = result.links,
-                    linkPreviewOptions = it.linkPreviewOptions.forPreview(
-                        previous = it.linkPreview,
-                        next = result.preview,
-                        links = result.links,
-                    ),
-                )
-            }
-        }
-    }
-
-    private fun resetLinkPreview() {
-        linkPreviewJob?.cancel()
-        linkPreviewJob = null
-        _state.update {
-            it.copy(linkPreview = null, linkPreviewLinks = emptyList(), linkPreviewOptions = LinkPreviewOptions())
-        }
-    }
-
-    /**
-     * Uživatel změnil volbu náhledu (odkaz, velikost, poloha, ✕). Patří ke konceptu, ukládá se
-     * s ním. Jiný odkaz chce nový náhled hned — ťuknutí není psaní, na pauzu se nečeká.
-     */
-    fun setLinkPreviewOptions(options: LinkPreviewOptions) {
-        val linkChanged = options.url != _state.value.linkPreviewOptions.url
-        _state.update { it.copy(linkPreviewOptions = options) }
-        // Při úpravě volba patří upravované zprávě, ne konceptu.
-        if (_state.value.editing == null) scheduleDraftSave()
-        if (linkChanged) refreshLinkPreview(linkPreviewText, delayMs = 0)
-    }
-
-    /**
-     * Obrazovka text [fill] do pole vložila. Bez toho by se po otočení vložil znovu, i smazaný.
-     *
-     * **Nuluje se jen TEN text, který obrazovka vložila**, ne jakýkoli. Při otevření chatu jdou
-     * dva hned po sobě — koncept z TDLib a za ním sdílený odkaz — a obrazovka vyřizuje ten první,
-     * zatímco ve stavu už čeká druhý. Bezpodmínečné vynulování ho smazalo dřív, než ho obrazovka
-     * uviděla: pole zůstalo prázdné, ViewModel přitom text vedl jako koncept, uložil ho do TDLib
-     * a další sdílení ho připojilo k novému — odkaz se objevil až napodruhé, a to dvakrát.
-     * Porovnává se instance: dvě vložení téhož textu jsou pořád dvě vložení.
-     */
-    fun consumeInputFill(fill: InputFill) {
-        _state.update { if (it.inputFill === fill) it.copy(inputFill = null) else it }
-    }
-
-    /**
-     * Přepne vstupní pole do úpravy zprávy.
-     *
-     * Rozepsaný text se **odloží a po skončení úpravy vrátí**. Úprava je vsuvka — kdo si
-     * uprostřed psaní všimne překlepu v minulé zprávě, nechce kvůli tomu přijít o rozepsanou.
-     */
-    private fun startEdit(messageId: Long) {
-        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        val formats = composedFormatsOf(message.text, message.entities) ?: return
-        enterEdit(message, ComposedText(message.text, formats), message.linkPreviewOptions ?: LinkPreviewOptions())
-    }
-
-    /**
-     * Pole v úpravě [target] s textem [text] a volbou náhledu [linkOptions]. Náhled se zjistí
-     * hned — text se do pole vkládá bez `onDraftChanged` a na pauzu v psaní není proč čekat.
-     */
-    private fun enterEdit(target: ChatMessage, text: ComposedText, linkOptions: LinkPreviewOptions) {
-        // Přepnutí z jedné úpravy do druhé nesmí přepsat odložený koncept textem první úpravy.
-        if (_state.value.editing == null) {
-            draftBeforeEdit = draft
-            linkPreviewBeforeEdit = _state.value.let {
-                LinkPreviewStash(it.linkPreview, it.linkPreviewLinks, it.linkPreviewOptions)
-            }
-        }
-        linkPreviewJob?.cancel()
-        _state.update {
-            it.copy(
-                editing = target,
-                messageMenu = null,
-                inputFill = InputFill(text.text, onlyIfEmpty = false, formats = text.formats),
-                linkPreview = null,
-                linkPreviewLinks = emptyList(),
-                linkPreviewOptions = linkOptions,
-            )
-        }
-        if (target.composerEdit() == ComposerEdit.Text) refreshLinkPreview(text.text, delayMs = 0)
-    }
-
-    /** Zruší úpravu a vrátí do pole odložený koncept. */
-    fun cancelEdit() {
-        if (_state.value.editing == null) return
-        leaveEdit()
-    }
-
-    private fun leaveEdit() {
-        draft = draftBeforeEdit
-        linkPreviewJob?.cancel()
-        linkPreviewText = draftBeforeEdit.text
-        val stash = linkPreviewBeforeEdit
-        _state.update {
-            it.copy(
-                editing = null,
-                inputFill = InputFill(draftBeforeEdit.text, onlyIfEmpty = false, formats = draftBeforeEdit.formats),
-                linkPreview = stash.preview,
-                linkPreviewLinks = stash.links,
-                linkPreviewOptions = stash.options,
-            )
-        }
-    }
-
-    /**
-     * Odešle úpravu.
-     *
-     * Z úprav se odchází **hned**, ne až po odpovědi serveru — výsledek dorazí updatem jako každá
-     * jiná úprava a čekat na něj s rozepsaným polem by působilo zaseknutě. Když úprava selže,
-     * vrátí se do pole i s textem, jinak by o něj uživatel přišel.
-     *
-     * **Popisek přílohy je jiné volání než text zprávy** (`editMessageCaption`): úprava textu by
-     * popisek nezměnila. Prázdný popisek se tím odebere, kdežto prázdný text by zprávu jen nechal,
-     * jak je — server ji odmítne a uživatel by o obsah přišel.
-     */
-    private fun sendEdit(target: ChatMessage, text: ComposedText) {
-        val kind = target.composerEdit() ?: return
-        val sanitized = if (settings.stripTrackingParameters.value) UrlCleaner.cleanComposedText(text) else text
-        if (kind == ComposerEdit.Text && sanitized.text.isEmpty()) return
-
-        val linkOptions = _state.value.linkPreviewOptions
-        val linkPreview = linkOptions.forEdit(sanitized.text, shown = _state.value.linkPreview)
-        leaveEdit()
-        // Beze změny není co posílat; server by vrátil chybu „zpráva se nezměnila". Změna jen
-        // formátování (tučné slovo) je ale změna.
-        val optionsChanged = kind == ComposerEdit.Text &&
-            linkOptions != (target.linkPreviewOptions ?: LinkPreviewOptions())
-        val original = ComposedText(target.text, composedFormatsOf(target.text, target.entities).orEmpty()).trimmed()
-        if (sanitized == original && !optionsChanged) return
-
-        viewModelScope.launch {
-            val edited = when (kind) {
-                ComposerEdit.Text -> repository.editText(chatId, target.id, sanitized.text, linkPreview, sanitized.formats)
-                ComposerEdit.Caption -> repository.editCaption(chatId, target.id, sanitized.text, sanitized.formats)
-            }
-            edited.onFailure { failure ->
-                _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_edit_failed)) }
-                enterEdit(target, text, linkOptions)
-            }
-        }
-    }
-
     /**
      * Odchod z chatu: čekající uložení konceptu odejde hned, ne až po odpočtu.
      *
@@ -2366,80 +1917,7 @@ class ConversationViewModel(
         // Hudba hraje dál — ovládá se z notifikace a zamykací obrazovky (MusicQueue).
         voicePlayer.stop(chatId, keepMusic = true)
         recorder.clear()
-
-        val pending = draftSave ?: return
-        if (!pending.isActive) return
-        pending.cancel()
-
-        val text = draft
-        val replyTo = _state.value.replyingTo?.id
-        val quote = _state.value.replyQuote
-        val linkPreview = _state.value.linkPreviewOptions
-        appScope.launch { saveDraft(text, replyTo, linkPreview, quote) }
-    }
-
-    private fun reportTyping(typing: Boolean) {
-        // Diskrétní čtení skrývá i psaní. Ukončení psaní projde — nic neprozradí a zhasne
-        // „píše…" ohlášené ještě před zapnutím volby.
-        if (typing && settings.discreetReading.value) {
-            logger.d { "Diskrétní čtení: psaní se nehlásí" }
-            return
-        }
-        viewModelScope.launch {
-            repository.sendTyping(chatId, typing).onFailure { failure ->
-                // Třeba kanál, kam uživatel psát nesmí. Chyba kvůli „píše…" by jen obtěžovala.
-                logger.d(failure) { "Činnost v chatu se nepodařilo ohlásit." }
-            }
-        }
-    }
-
-    /**
-     * Nastaví zprávu, na kterou se odpovídá, případně jen její úryvek ([quote]). Zobrazí se nad
-     * vstupním polem.
-     */
-    private fun replyTo(messageId: Long, quote: ReplyQuote? = null) {
-        // Swipe na odpověď se nabízí u každé zprávy; kde se psát nesmí, není kam odpovědět.
-        if (!_state.value.canWrite) return
-        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        _state.update { it.copy(replyingTo = message, replyQuote = quote, messageMenu = null) }
-        // Citace je součást konceptu — jen když už se něco píše, jinak není co ukládat.
-        if (draft.text.isNotBlank()) scheduleDraftSave()
-    }
-
-    /**
-     * Odpověď z prohlížeče médií. Prohlížeč listuje fotkami celého chatu, takže zpráva nemusí být
-     * v načtené historii konverzace — pak se dočte (lokálně), citace ji nepotřebuje mít v seznamu.
-     */
-    private fun replyFromViewer(messageId: Long) {
-        if (!_state.value.canWrite) return
-        if (_state.value.messages.any { it.id == messageId }) {
-            replyTo(messageId)
-            return
-        }
-        viewModelScope.launch {
-            repository.message(chatId, messageId).onSuccess { message ->
-                _state.update { it.copy(replyingTo = message, replyQuote = null, messageMenu = null) }
-                if (draft.text.isNotBlank()) scheduleDraftSave()
-            }
-        }
-    }
-
-    /**
-     * „Citovat" z nabídky nad zprávou s označeným textem: odpověď jen na úryvek.
-     *
-     * Místo úryvku se hledá v textu zprávy; TDLib ho bere jen jako odhad a repository si přesné
-     * místo i formátování dohledá. Úryvek, který v textu není (nabídka ho neměla pustit), znamená
-     * obyčejnou odpověď na celou zprávu.
-     */
-    private fun quoteReply(messageId: Long, text: String) {
-        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        val position = message.text.indexOf(text)
-        replyTo(messageId, quote = ReplyQuote(text, position).takeIf { position >= 0 })
-    }
-
-    fun clearReply() {
-        _state.update { it.copy(replyingTo = null, replyQuote = null) }
-        if (draft.text.isNotBlank()) scheduleDraftSave()
+        composer.saveOnLeave()
     }
 
     /**
@@ -2738,9 +2216,9 @@ class ConversationViewModel(
             MessageAction.QuickReact -> quickReact(messageId)
             MessageAction.ShowReactions -> showReactionDetails(messageId)
             MessageAction.ToggleReadReceipt -> toggleReadReceipt(messageId)
-            MessageAction.SwipeReply -> replyTo(messageId)
+            MessageAction.SwipeReply -> composer.replyTo(messageId)
             // U alba na fotku, na které stisk začal, ne na zprávu s popiskem, které patří blok.
-            MessageMenuAction.Reply -> replyTo(_state.value.messageMenu?.takeIf { it.messageId == messageId }?.replyTarget ?: messageId)
+            MessageMenuAction.Reply -> composer.replyTo(_state.value.messageMenu?.takeIf { it.messageId == messageId }?.replyTarget ?: messageId)
             is MessageAction.JumpTo -> jumpToMessage(action.messageId)
             is MessageAction.PressBotButton -> bots.pressBotButton(messageId, action.row, action.column)
             is MessageAction.Vote -> bots.vote(messageId, action.answerIndexes)
@@ -2785,9 +2263,9 @@ class ConversationViewModel(
             MessageAction.CycleVoiceSpeed -> voicePlayer.cycleSpeed()
             MessageAction.Transcribe -> playback.transcribe(messageId)
             is MessageAction.SeekVoice -> playback.seekVoice(messageId, action.fraction)
-            MessageMenuAction.Edit -> startEdit(messageId)
+            MessageMenuAction.Edit -> composer.startEdit(messageId)
             MessageMenuAction.Copy -> copyMessage(messageId)
-            is MessageAction.QuoteReply -> quoteReply(messageId, action.text)
+            is MessageAction.QuoteReply -> composer.quoteReply(messageId, action.text)
             is MessageAction.CopyText -> copyText(action.text)
             MessageMenuAction.ToggleFavoriteSticker -> toggleFavoriteSticker(messageId)
             MessageMenuAction.ToggleBookmark -> toggleBookmark(messageId)
@@ -3462,28 +2940,6 @@ internal fun List<MessageReaction>.toggled(emoji: String, add: Boolean): List<Me
     }
 }
 
-/**
- * Jak často se při psaní opakuje „píšu".
- *
- * Telegram činnost zhasíná zhruba po šesti vteřinách; pět nechává rezervu na zpoždění sítě,
- * aby „píše…" u protějšku při souvislém psaní neproblikávalo.
- */
-private val TYPING_REPEAT = 5.seconds
-
-/**
- * Odstup ukládání konceptu od poslední úpravy.
- *
- * Koncept se propisuje na server a do ostatních zařízení, takže ne na každý úhoz. Při odchodu
- * z chatu se čekání přeskočí (`onCleared`), takže delší odstup nic neriskuje.
- */
-private const val DRAFT_SAVE_DELAY_MS = 1500L
-
-/**
- * Pauza v psaní, po které se zjišťuje náhled odkazu. Kratší než ukládání konceptu: náhled má
- * naskočit, než uživatel dopíše větu za odkazem, ale ne na každý znak adresy.
- */
-private const val LINK_PREVIEW_DELAY_MS = 700L
-
 /** Doba, po kterou se drží klíč sdíleného prvku po přistání v bublině. */
 internal const val FLIGHT_DURATION_MS = 450L
 
@@ -3525,13 +2981,6 @@ internal const val MAX_SELECTED_MESSAGES = 100
 
 /** Mezi zprávami ve schránce zůstane prázdný řádek — jinak by dlouhé zprávy splynuly v jednu. */
 private const val SELECTION_COPY_SEPARATOR = "\n\n"
-
-/** Náhled odkazu konceptu, odložený po dobu úpravy zprávy ([ConversationViewModel]). */
-private data class LinkPreviewStash(
-    val preview: LinkPreview? = null,
-    val links: List<String> = emptyList(),
-    val options: LinkPreviewOptions = LinkPreviewOptions(),
-)
 
 /**
  * Strop pro rozpoznání jazyka při otevírání nabídky nad zprávou. Rychlé je v řádu milisekund,
