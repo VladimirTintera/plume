@@ -38,18 +38,6 @@ import okio.Path.Companion.toPath
 import org.jetbrains.compose.resources.StringResource
 
 /**
- * Odeslání média s citací a hlášením chyby (viz `ConversationViewModel.sendMedia`): spotřebuje
- * rozepsanou citaci, nahlásí chat jako použitý a naplánované ohlásí místo vložení do konverzace.
- */
-internal fun interface MediaSender {
-    fun sendMedia(
-        failureMessage: StringResource,
-        scheduled: Boolean,
-        send: suspend (replyTo: Long?, quote: ReplyQuote?) -> Result<ChatMessage>,
-    )
-}
-
-/**
  * Nahrávání hlasovky a kolečka v konverzaci: start a konec, pozastavení po dobu nabídky,
  * náhled před odesláním s možností nahrávat dál a odeslání.
  *

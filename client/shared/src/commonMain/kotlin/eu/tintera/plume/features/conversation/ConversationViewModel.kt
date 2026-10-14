@@ -12,8 +12,6 @@ import eu.tintera.plume.features.conversation.items.contextMenuItems
 import eu.tintera.plume.core.currency.ExchangeRates
 import eu.tintera.plume.core.currency.HomeRegion
 import eu.tintera.plume.core.wifi.WifiJoiner
-import eu.tintera.plume.resources.conversation_jump_date_failed
-import eu.tintera.plume.resources.conversation_jump_date_empty
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.TimeZone
@@ -183,7 +181,6 @@ import eu.tintera.plume.resources.conversation_pin_failed
 import eu.tintera.plume.resources.conversation_join_failed
 import eu.tintera.plume.resources.conversation_mention_not_found
 import eu.tintera.plume.resources.comments_unavailable
-import eu.tintera.plume.resources.conversation_search_failed
 import eu.tintera.plume.resources.conversation_message_deleted
 import eu.tintera.plume.resources.conversation_quote_deleted
 import eu.tintera.plume.resources.conversation_reaction_failed
@@ -454,6 +451,12 @@ class ConversationViewModel(
 
     private val logger = Logger.withTag("Conversation")
 
+    /** Skok na zprávu pro části, které ho potřebují (hledání, odkazy…) — viz [jumpToMessage]. */
+    private val jumper = object : MessageJumper {
+        override fun jumpToMessage(messageId: Long, fromSearch: Boolean, anchor: ScrollAnchor) =
+            this@ConversationViewModel.jumpToMessage(messageId, fromSearch, anchor)
+    }
+
     /** Nahrávání hlasovky a kolečka — viz [ConversationRecorder]. */
     private val recorder = ConversationRecorder(
         chatId = chatId,
@@ -584,6 +587,26 @@ class ConversationViewModel(
     fun openMaps(query: String) = messageContext.openMaps(query)
     fun remindFromContext(messageId: Long) = messageContext.remindFromContext(messageId)
     fun dismissScamWarning(messageId: Long) = messageContext.dismissScamWarning(messageId)
+
+    /** Hledání v chatu a výběr člena pro filtr — viz [ConversationSearch]. */
+    private val search = ConversationSearch(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        repository = repository,
+        jumper = jumper,
+        logger = logger,
+    )
+    fun openSearch() = search.openSearch()
+    fun closeSearch() = search.closeSearch()
+    fun jumpToDate(epochSeconds: Int) = search.jumpToDate(epochSeconds)
+    fun onSearchQuery(text: String) = search.onSearchQuery(text)
+    fun setSearchSender(sender: SenderInfo?) = search.setSearchSender(sender)
+    fun openMemberPicker() = search.openMemberPicker()
+    fun closeMemberPicker() = search.closeMemberPicker()
+    fun onMemberQuery(text: String) = search.onMemberQuery(text)
+    fun searchOlder() = search.searchOlder()
+    fun searchNewer() = search.searchNewer()
 
     /** Serializuje stránkování — bez toho by dva rychlé scrolly načetly tutéž stránku dvakrát. */
     private val loadMutex = Mutex()
@@ -814,7 +837,7 @@ class ConversationViewModel(
             searchRequests.chatId.collect { requested ->
                 if (requested == chatId) {
                     searchRequests.consume(chatId)
-                    openSearch()
+                    search.openSearch()
                 }
             }
         }
@@ -981,7 +1004,7 @@ class ConversationViewModel(
             repository.unpin(chatId, message.id)
                 .onSuccess { _state.update { it.copy(unpinned = message) } }
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(Res.string.conversation_unpin_failed)) }
+                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_unpin_failed)) }
                     refreshPinned()
                 }
         }
@@ -991,7 +1014,7 @@ class ConversationViewModel(
     fun undoUnpin(message: ChatMessage) {
         viewModelScope.launch {
             repository.pin(chatId, message.id).onFailure { failure ->
-                _state.update { it.copy(error = failure.reported(Res.string.conversation_repin_failed)) }
+                _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_repin_failed)) }
             }
         }
     }
@@ -1059,27 +1082,10 @@ class ConversationViewModel(
                 }
                 .onFailure { failure ->
                     _state.update {
-                        it.copy(loading = false, error = failure.reported(Res.string.conversation_history_failed))
+                        it.copy(loading = false, error = failure.reported(logger, Res.string.conversation_history_failed))
                     }
                 }
         }
-    }
-
-    /** Běžící hledání v chatu (dotaz s pauzou, dotažení stránky); nový dotaz ho ruší. */
-    private var searchJob: Job? = null
-
-    /** Běžící hledání členů pro filtr podle odesílatele. */
-    private var memberJob: Job? = null
-
-    /** Lupa v hlavičce: hledání v chatu. */
-    fun openSearch() {
-        if (_state.value.search == null) _state.update { it.copy(search = InChatSearch()) }
-    }
-
-    fun closeSearch() {
-        searchJob?.cancel()
-        memberJob?.cancel()
-        _state.update { it.copy(search = null, memberPicker = null) }
     }
 
     /**
@@ -1087,143 +1093,6 @@ class ConversationViewModel(
      * komentářů nebo v tématu by trefil zprávu mimo něj.
      */
     val canJumpToDate: Boolean get() = threadRootId == null && forumTopicId == null && savedTopicId == null
-
-    /**
-     * Skok na první zprávu od začátku dne [epochSeconds]. Hledání se zavře — kalendář je jeho
-     * součást, ale cíl je konverzace — a skočí se jako na citaci, s kotvou nahoře. Po výměně
-     * okna stojí cíl s předělem dne zhruba v půlce obrazovky a nad ním poslední zpráva před
-     * vybraným dnem (ověřeno na emulátoru) — je vidět, kde den začíná.
-     */
-    fun jumpToDate(epochSeconds: Int) {
-        viewModelScope.launch {
-            repository.firstMessageFrom(chatId, epochSeconds)
-                .onSuccess { messageId ->
-                    if (messageId == null) {
-                        _state.update { it.copy(error = UiText(Res.string.conversation_jump_date_empty)) }
-                    } else {
-                        closeSearch()
-                        jumpToMessage(messageId, anchor = ScrollAnchor.Top)
-                    }
-                }
-                .onFailure { failure -> _state.update { it.copy(error = failure.userMessage(Res.string.conversation_jump_date_failed)) } }
-        }
-    }
-
-    /**
-     * Dotaz v hledání. Hledá se po krátké pauze v psaní a rovnou se skočí na nejnovější
-     * výsledek — kdo hledá, chce vidět, kde to je, ne seznam.
-     */
-    fun onSearchQuery(text: String) {
-        _state.update { state -> state.search?.let { state.copy(search = it.copy(query = text)) } ?: state }
-        restartSearch(debounce = true)
-    }
-
-    /**
-     * Hledání jen ve zprávách jednoho člena skupiny (`null` = filtr pryč). Hledá se hned, bez pauzy
-     * — výběr je hotové rozhodnutí, ne psaní. S odesílatelem stačí prázdný dotaz: výsledkem jsou
-     * všechny jeho zprávy.
-     */
-    fun setSearchSender(sender: SenderInfo?) {
-        _state.update { state ->
-            state.search?.let { state.copy(search = it.copy(sender = sender), memberPicker = null) } ?: state
-        }
-        restartSearch(debounce = false)
-    }
-
-    /** Spustí hledání pro současný text a odesílatele; rozběhnuté předchozí zruší. */
-    private fun restartSearch(debounce: Boolean) {
-        searchJob?.cancel()
-        val search = _state.value.search ?: return
-        if (!search.hasCriteria) {
-            _state.update { state -> state.search?.let { state.copy(search = it.cleared()) } ?: state }
-            return
-        }
-        val query = search.query.trim()
-        val senderId = search.sender?.id
-        searchJob = viewModelScope.launch {
-            if (debounce) delay(SEARCH_DEBOUNCE_MS)
-            _state.update { state -> state.search?.let { state.copy(search = it.copy(loading = true)) } ?: state }
-            repository.searchInChat(chatId, query, senderUserId = senderId)
-                .onSuccess { page ->
-                    _state.update { state ->
-                        state.search?.let { state.copy(search = it.withFirstPage(query, page, senderId)) } ?: state
-                    }
-                    _state.value.search?.current?.let { jumpToMessage(it, fromSearch = true) }
-                }
-                .onFailure { failure ->
-                    val message = failure.reported(Res.string.conversation_search_failed)
-                    _state.update { state ->
-                        state.copy(error = message, search = state.search?.copy(loading = false))
-                    }
-                }
-        }
-    }
-
-    /** Výběr člena pro hledání podle odesílatele. */
-    fun openMemberPicker() {
-        _state.update { it.copy(memberPicker = MemberPicker()) }
-        onMemberQuery("")
-    }
-
-    fun closeMemberPicker() {
-        memberJob?.cancel()
-        _state.update { it.copy(memberPicker = null) }
-    }
-
-    /** Hledání člena podle jména, s krátkou pauzou v psaní; prázdné = první členové skupiny. */
-    fun onMemberQuery(text: String) {
-        _state.update { state -> state.memberPicker?.let { state.copy(memberPicker = it.copy(query = text, loading = true)) } ?: state }
-        memberJob?.cancel()
-        memberJob = viewModelScope.launch {
-            if (text.isNotEmpty()) delay(SEARCH_DEBOUNCE_MS)
-            repository.searchMembers(chatId, text.trim())
-                .onSuccess { members ->
-                    _state.update { state ->
-                        state.memberPicker?.let { state.copy(memberPicker = it.copy(members = members, loading = false)) } ?: state
-                    }
-                }
-                .onFailure { failure ->
-                    logger.w(failure) { "Členy chatu se nepodařilo načíst." }
-                    _state.update { state ->
-                        state.memberPicker?.let { state.copy(memberPicker = it.copy(members = emptyList(), loading = false)) } ?: state
-                    }
-                }
-        }
-    }
-
-    /** Šipka nahoru: starší výsledek. Na konci načtených se dotáhne další stránka. */
-    fun searchOlder() {
-        val search = _state.value.search ?: return
-        search.older()?.let { moved ->
-            _state.update { it.copy(search = moved) }
-            moved.current?.let { jumpToMessage(it, fromSearch = true) }
-            return
-        }
-        val from = search.nextFromMessageId ?: return
-        if (search.loading) return
-        searchJob = viewModelScope.launch {
-            _state.update { state -> state.search?.let { state.copy(search = it.copy(loading = true)) } ?: state }
-            repository.searchInChat(chatId, search.resultsQuery, fromMessageId = from, senderUserId = search.resultsSenderId)
-                .onSuccess { page ->
-                    _state.update { state ->
-                        val loaded = state.search?.withNextPage(search.resultsQuery, page, search.resultsSenderId)
-                        state.copy(search = loaded?.older() ?: loaded)
-                    }
-                    _state.value.search?.current?.takeIf { it != search.current }?.let { jumpToMessage(it, fromSearch = true) }
-                }
-                .onFailure { failure ->
-                    val message = failure.reported(Res.string.conversation_search_failed)
-                    _state.update { state -> state.copy(error = message, search = state.search?.copy(loading = false)) }
-                }
-        }
-    }
-
-    /** Šipka dolů: novější výsledek. */
-    fun searchNewer() {
-        val moved = _state.value.search?.newer() ?: return
-        _state.update { it.copy(search = moved) }
-        moved.current?.let { jumpToMessage(it, fromSearch = true) }
-    }
 
     /**
      * Stránka směrem k PŘÍTOMNOSTI — jen když je načtené okno v historii ([ConversationState.reachedEnd]
@@ -1245,7 +1114,7 @@ class ConversationViewModel(
                     }
                     .onFailure { failure ->
                         _state.update {
-                            it.copy(loading = false, error = failure.reported(Res.string.conversation_history_failed))
+                            it.copy(loading = false, error = failure.reported(logger, Res.string.conversation_history_failed))
                         }
                     }
             }
@@ -1271,7 +1140,7 @@ class ConversationViewModel(
                 },
                 onFailure = { failure ->
                     _state.update {
-                        it.copy(loading = false, error = failure.reported(Res.string.conversation_history_failed))
+                        it.copy(loading = false, error = failure.reported(logger, Res.string.conversation_history_failed))
                     }
                     false
                 },
@@ -1316,7 +1185,7 @@ class ConversationViewModel(
                     if (!settings.discreetReading.value) repository.markRead(chatId, listOf(messageId))
                 },
                 onFailure = { failure ->
-                    _state.update { it.copy(error = failure.reported(Res.string.conversation_unread_mark_failed)) }
+                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_unread_mark_failed)) }
                 },
             )
         }
@@ -1326,7 +1195,7 @@ class ConversationViewModel(
     fun readAllMarks(kind: UnreadMarkKind) {
         viewModelScope.launch {
             repository.readAllMarks(chatId, kind).onFailure { failure ->
-                _state.update { it.copy(error = failure.reported(Res.string.conversation_unread_mark_failed)) }
+                _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_unread_mark_failed)) }
             }
         }
     }
@@ -1743,7 +1612,7 @@ class ConversationViewModel(
     private fun stopLiveLocation(messageId: Long) {
         viewModelScope.launch {
             liveLocations.stop(chatId, messageId).onFailure { failure ->
-                _state.update { it.copy(error = failure.reported(Res.string.location_live_stop_failed)) }
+                _state.update { it.copy(error = failure.reported(logger, Res.string.location_live_stop_failed)) }
             }
         }
     }
@@ -1770,7 +1639,7 @@ class ConversationViewModel(
         _state.update { it.copy(proximityAlert = null) }
         viewModelScope.launch {
             liveLocations.setProximityAlert(chatId, prompt.messageId, radiusMeters).onFailure { failure ->
-                _state.update { it.copy(error = failure.reported(Res.string.location_proximity_failed)) }
+                _state.update { it.copy(error = failure.reported(logger, Res.string.location_proximity_failed)) }
             }
         }
     }
@@ -1795,7 +1664,7 @@ class ConversationViewModel(
                 }
                 .onFailure { failure ->
                     _state.update {
-                        it.copy(contactPicker = null, error = failure.reported(Res.string.conversation_contact_load_failed))
+                        it.copy(contactPicker = null, error = failure.reported(logger, Res.string.conversation_contact_load_failed))
                     }
                 }
         }
@@ -1827,7 +1696,7 @@ class ConversationViewModel(
                     }
                 }
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(Res.string.conversation_contact_send_failed)) }
+                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_contact_send_failed)) }
                 }
         }
     }
@@ -2041,7 +1910,7 @@ class ConversationViewModel(
                     }
                 }
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(Res.string.conversation_scheduled_load_failed)) }
+                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_scheduled_load_failed)) }
                 }
         }
     }
@@ -2055,7 +1924,7 @@ class ConversationViewModel(
             repository.reschedule(chatId, messageId, schedule)
                 .onSuccess { loadScheduled() }
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(Res.string.conversation_schedule_failed)) }
+                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_schedule_failed)) }
                 }
         }
     }
@@ -2065,7 +1934,7 @@ class ConversationViewModel(
             repository.deleteMessages(chatId, listOf(messageId), revoke = true)
                 .onSuccess { loadScheduled() }
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(Res.string.conversation_delete_failed)) }
+                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_delete_failed)) }
                 }
         }
     }
@@ -2102,7 +1971,7 @@ class ConversationViewModel(
                 .onFailure { failure ->
                     _state.update {
                         it.copy(
-                            error = failure.reported(Res.string.conversation_attachments_send_failed),
+                            error = failure.reported(logger, Res.string.conversation_attachments_send_failed),
                             attachments = it.attachments.ifEmpty { attachments },
                         )
                     }
@@ -2118,11 +1987,6 @@ class ConversationViewModel(
      * `MESSAGE_EDIT_TIME_EXPIRED`, viz [userMessage]. `w` je tu správná závažnost: server řekl
      * ne, což je očekávané selhání, ne chyba, kolem které by se měl v konzoli zakládat problém.
      */
-    private fun Throwable.reported(message: StringResource): UiText {
-        logger.w(this) { message.key }
-        return userMessage(message)
-    }
-
     /**
      * Přidat se ke skupině nebo kanálu z globálního hledání. Po úspěchu se místo tlačítka
      * vrátí vstupní pole (v kanálu ho server stejně nepustí, ale to platí pro každý kanál).
@@ -2134,7 +1998,7 @@ class ConversationViewModel(
             repository.joinChat(chatId)
                 .onSuccess { _state.update { it.copy(info = it.info?.copy(canJoin = false)) } }
                 .onFailure { failure ->
-                    val message = failure.reported(Res.string.conversation_join_failed)
+                    val message = failure.reported(logger, Res.string.conversation_join_failed)
                     _state.update { it.copy(error = message) }
                 }
             _state.update { it.copy(joining = false) }
@@ -2169,7 +2033,7 @@ class ConversationViewModel(
                 }
                 .onFailure { failure ->
                     _state.update {
-                        it.copy(error = failure.reported(if (scheduled) Res.string.conversation_schedule_failed else failureMessage))
+                        it.copy(error = failure.reported(logger, if (scheduled) Res.string.conversation_schedule_failed else failureMessage))
                     }
                 }
         }
@@ -2258,7 +2122,7 @@ class ConversationViewModel(
                 repository.send(chatId, trimmed, replyTo, linkPreview, quote, options, mentions, composed.formats)
                     .onSuccess { _state.update { it.copy(notice = UiText(Res.string.conversation_scheduled_notice)) } }
                     .onFailure { failure ->
-                        _state.update { it.copy(error = failure.reported(Res.string.conversation_schedule_failed)) }
+                        _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_schedule_failed)) }
                     }
             }
             return
@@ -2302,7 +2166,7 @@ class ConversationViewModel(
                 .onFailure { failure ->
                     _state.update {
                         it.copy(
-                            error = failure.reported(Res.string.conversation_send_failed),
+                            error = failure.reported(logger, Res.string.conversation_send_failed),
                             flight = it.flight?.takeIf { f -> f.id != flight.id },
                         )
                     }
@@ -2561,7 +2425,7 @@ class ConversationViewModel(
                 ComposerEdit.Caption -> repository.editCaption(chatId, target.id, sanitized.text, sanitized.formats)
             }
             edited.onFailure { failure ->
-                _state.update { it.copy(error = failure.reported(Res.string.conversation_edit_failed)) }
+                _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_edit_failed)) }
                 enterEdit(target, text, linkOptions)
             }
         }
@@ -2676,7 +2540,7 @@ class ConversationViewModel(
                         is LinkUserNotFoundException -> UiText(Res.string.conversation_link_user_not_found)
                         is ContactLinkExpiredException -> UiText(Res.string.contact_link_expired)
                         is UnsupportedProxyException -> UiText(Res.string.proxy_unsupported)
-                        else -> failure.reported(Res.string.conversation_link_failed)
+                        else -> failure.reported(logger, Res.string.conversation_link_failed)
                     }
                     _state.update { it.copy(error = message) }
                 }
@@ -2709,7 +2573,7 @@ class ConversationViewModel(
         if (link.autostart) {
             viewModelScope.launch {
                 repository.startBot(link.chatId, link.parameter).onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(Res.string.conversation_bot_start_failed)) }
+                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_bot_start_failed)) }
                 }
             }
         } else {
@@ -2731,7 +2595,7 @@ class ConversationViewModel(
                 }
                 .onFailure { failure ->
                     _state.update {
-                        it.copy(startingBot = false, error = failure.reported(Res.string.conversation_bot_start_failed))
+                        it.copy(startingBot = false, error = failure.reported(logger, Res.string.conversation_bot_start_failed))
                     }
                 }
         }
@@ -2840,7 +2704,7 @@ class ConversationViewModel(
                     if (answer.url.isNotEmpty()) openLink(answer.url, confirmExternal = true)
                 }
                 .onFailure { failure ->
-                    val message = failure.reported(Res.string.bot_button_failed)
+                    val message = failure.reported(logger, Res.string.bot_button_failed)
                     _state.update { it.copy(error = message) }
                 }
             _state.update { it.copy(pressingBotButton = null) }
@@ -2861,7 +2725,7 @@ class ConversationViewModel(
         if (!allowed) return
         viewModelScope.launch {
             repository.vote(chatId, messageId, answerIndexes).onFailure { failure ->
-                val message = failure.reported(
+                val message = failure.reported(logger, 
                     if (answerIndexes.isEmpty()) Res.string.poll_retract_failed else Res.string.poll_vote_failed,
                 )
                 _state.update { it.copy(error = message) }
@@ -2879,7 +2743,7 @@ class ConversationViewModel(
         _state.update { it.copy(pendingStopPoll = null) }
         viewModelScope.launch {
             repository.stopPoll(chatId, messageId).onFailure { failure ->
-                _state.update { it.copy(error = failure.reported(Res.string.poll_stop_failed)) }
+                _state.update { it.copy(error = failure.reported(logger, Res.string.poll_stop_failed)) }
             }
         }
     }
@@ -2964,7 +2828,7 @@ class ConversationViewModel(
                     }
                 }
                 .onFailure { failure ->
-                    val message = failure.reported(Res.string.conversation_join_failed)
+                    val message = failure.reported(logger, Res.string.conversation_join_failed)
                     _state.update { it.copy(invite = it.invite?.copy(joining = false), error = message) }
                 }
         }
@@ -2997,7 +2861,7 @@ class ConversationViewModel(
                     _state.update { it.copy(folderInvite = null, notice = UiText(done, invite.preview.title)) }
                 }
                 .onFailure { failure ->
-                    val message = failure.reported(Res.string.folder_invite_failed)
+                    val message = failure.reported(logger, Res.string.folder_invite_failed)
                     _state.update { it.copy(folderInvite = it.folderInvite?.copy(adding = false), error = message) }
                 }
         }
@@ -3021,7 +2885,7 @@ class ConversationViewModel(
             resolve()
                 .onSuccess { target -> if (target != chatId) openTarget(ChatTarget(target)) }
                 .onFailure { failure ->
-                    val message = failure.reported(Res.string.conversation_mention_not_found)
+                    val message = failure.reported(logger, Res.string.conversation_mention_not_found)
                     _state.update { it.copy(error = message) }
                 }
         }
@@ -3077,7 +2941,7 @@ class ConversationViewModel(
                     _state.update { it.copy(openChat = ChatTarget(thread.chatId, threadId = thread.rootMessageId)) }
                 }
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(Res.string.comments_unavailable)) }
+                    _state.update { it.copy(error = failure.reported(logger, Res.string.comments_unavailable)) }
                 }
         }
     }
@@ -3103,7 +2967,7 @@ class ConversationViewModel(
             chatRepository.privateChat(userId)
                 .onSuccess { target -> _state.update { it.copy(openProfile = target) } }
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(Res.string.conversation_mention_not_found)) }
+                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_mention_not_found)) }
                 }
         }
     }
@@ -3222,7 +3086,7 @@ class ConversationViewModel(
                 repository.sendKeyboardText(chatId, button.text, keyboard.replyTarget())
                     .onSuccess { keyboardUsed(keyboard) }
                     .onFailure { failure ->
-                        _state.update { it.copy(error = failure.reported(Res.string.conversation_send_failed)) }
+                        _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_send_failed)) }
                     }
             }
             // Číslo je údaj o uživateli; odejde až po potvrzení.
@@ -3275,7 +3139,7 @@ class ConversationViewModel(
         if (!_state.value.canWrite) return
         viewModelScope.launch {
             repository.sendKeyboardText(chatId, command, replyToMessageId = null).onFailure { failure ->
-                _state.update { it.copy(error = failure.reported(Res.string.conversation_send_failed)) }
+                _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_send_failed)) }
             }
         }
     }
@@ -3452,7 +3316,7 @@ class ConversationViewModel(
             repository.shareOwnPhone(chatId, keyboard?.replyTarget())
                 .onSuccess { keyboard?.let(::keyboardUsed) }
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(Res.string.conversation_send_failed)) }
+                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_send_failed)) }
                 }
         }
     }
@@ -3477,7 +3341,7 @@ class ConversationViewModel(
             repository.sendLocation(chatId, Place("", "", point.latitude, point.longitude), keyboard?.replyTarget(), quote = null)
                 .onSuccess { keyboard?.let(::keyboardUsed) }
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(Res.string.conversation_location_send_failed)) }
+                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_location_send_failed)) }
                 }
         }
     }
@@ -3538,7 +3402,7 @@ class ConversationViewModel(
         if (trimmed.isEmpty()) return
         viewModelScope.launch {
             repository.addPollOption(chatId, messageId, trimmed, media).onFailure { failure ->
-                _state.update { it.copy(error = failure.reported(Res.string.poll_add_option_failed)) }
+                _state.update { it.copy(error = failure.reported(logger, Res.string.poll_add_option_failed)) }
             }
         }
     }
@@ -3552,7 +3416,7 @@ class ConversationViewModel(
         val muted = _state.value.muted ?: return
         viewModelScope.launch {
             chatRepository.setMuted(chatId, !muted).onFailure { failure ->
-                _state.update { it.copy(error = failure.reported(Res.string.profile_mute_failed)) }
+                _state.update { it.copy(error = failure.reported(logger, Res.string.profile_mute_failed)) }
             }
         }
     }
@@ -3642,7 +3506,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             repository.setReaction(chatId, messageId, emoji, add).onFailure { failure ->
                 applyReactions(messageId, before)
-                _state.update { it.copy(error = failure.reported(Res.string.conversation_reaction_failed)) }
+                _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_reaction_failed)) }
             }
         }
         closeMenus()
@@ -3712,7 +3576,7 @@ class ConversationViewModel(
                     _state.update {
                         it.copy(
                             messageInfo = null,
-                            error = failure.reported(Res.string.message_info_failed),
+                            error = failure.reported(logger, Res.string.message_info_failed),
                         )
                     }
                 }
@@ -3825,7 +3689,7 @@ class ConversationViewModel(
                     _state.update {
                         it.copy(
                             reactionDetails = null,
-                            error = failure.reported(Res.string.conversation_reaction_failed),
+                            error = failure.reported(logger, Res.string.conversation_reaction_failed),
                         )
                     }
                 }
@@ -4080,7 +3944,7 @@ class ConversationViewModel(
                     }
                 }
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(Res.string.conversation_favorite_failed)) }
+                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_favorite_failed)) }
                 }
         }
     }
@@ -4184,7 +4048,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             repository.pin(chatId, messageId, notify = notify, onlyForSelf = onlyForSelf)
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(Res.string.conversation_pin_failed)) }
+                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_pin_failed)) }
                 }
         }
     }
@@ -4397,7 +4261,7 @@ class ConversationViewModel(
                 delete = { chatRepository.deleteOrLeave(chatId) },
             )
                 .onSuccess { _chatGone.value = true }
-                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.profile_action_failed)) } }
+                .onFailure { failure -> _state.update { it.copy(error = failure.reported(logger, Res.string.profile_action_failed)) } }
         }
     }
 
@@ -4409,7 +4273,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             chatRepository.closeSecretChat(chatId)
                 .onSuccess { _state.update { it.copy(notice = UiText(Res.string.secret_chat_closed)) } }
-                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.secret_chat_close_failed)) } }
+                .onFailure { failure -> _state.update { it.copy(error = failure.reported(logger, Res.string.secret_chat_close_failed)) } }
         }
     }
 
@@ -4641,7 +4505,7 @@ class ConversationViewModel(
             repository.deleteMessages(chatId, pending.messageIds, revoke)
                 .onFailure { failure ->
                     _state.update {
-                        it.copy(error = failure.reported(Res.string.conversation_delete_failed))
+                        it.copy(error = failure.reported(logger, Res.string.conversation_delete_failed))
                     }
                 }
         }
@@ -4657,7 +4521,7 @@ class ConversationViewModel(
         viewModelScope.launch {
             repository.deleteMessages(chatId, listOf(messageId), revoke = true)
                 .onFailure { failure ->
-                    _state.update { it.copy(error = failure.reported(Res.string.conversation_cancel_send_failed)) }
+                    _state.update { it.copy(error = failure.reported(logger, Res.string.conversation_cancel_send_failed)) }
                 }
         }
     }
@@ -4766,9 +4630,6 @@ private const val CONTEXT_RECENT_MESSAGES = 20
 
 /** Kolik stránek nejvýš dotáhne [ConversationViewModel.loadForSummary]. */
 private const val MAX_SUMMARY_PAGES = 4
-
-/** Pauza v psaní, po které se v chatu hledá. Každý dotaz jde na server. */
-private const val SEARCH_DEBOUNCE_MS = 300L
 
 /** Jak dlouho zůstane zpráva po skoku zvýrazněná. */
 private const val HIGHLIGHT_DURATION_MS = 2500L
