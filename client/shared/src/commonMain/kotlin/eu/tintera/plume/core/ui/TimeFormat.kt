@@ -98,6 +98,10 @@ fun Int.asRelativeTime(): String {
  * proč je pořadí dne a měsíce formátovací řetězec, ne slepenec.
  *
  * Starší než týden dostane datum bez času: hodina u něčeho, co bylo před měsícem, nic neříká.
+ *
+ * Telegram dostupnost **záměrně rozmazává**: kdo si to v soukromí vypne, je vidět jen jako
+ * „naposledy nedávno" a přesný čas nedostaneme. Proto se nikde nedopočítává nic přesnějšího,
+ * než co server dal — vymyslet minutu, kterou neznáme, by bylo horší než neurčitost.
  */
 @Composable
 fun Int.asLastSeen(): String {
