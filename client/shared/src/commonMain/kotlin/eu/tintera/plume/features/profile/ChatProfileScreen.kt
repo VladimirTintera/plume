@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.profile_tab_voice
+import eu.tintera.plume.resources.mic_24dp
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.layout.Layout
 import androidx.compose.foundation.horizontalScroll
@@ -864,6 +866,19 @@ private fun TabContent(
                     onLoadMore = { viewModel.loadMoreShared(tab.kind) },
                 )
 
+                SharedMediaKind.Voice -> {
+                    val playback by viewModel.playback.collectAsStateWithLifecycle()
+                    SharedVoiceList(
+                        messages = messages,
+                        loading = loading,
+                        playback = playback,
+                        chatId = state.profile?.chatId ?: 0L,
+                        contentPadding = contentPadding,
+                        onToggle = viewModel::toggleVoice,
+                        onLoadMore = { viewModel.loadMoreShared(tab.kind) },
+                    )
+                }
+
                 SharedMediaKind.Gifs, SharedMediaKind.VideoNotes -> SharedClipsGrid(
                     messages = messages,
                     loading = loading,
@@ -878,7 +893,8 @@ private fun TabContent(
 
 /** Nápověda v poli hledání záložky; média hledání nemají (viz [offersSharedSearch]). */
 private fun SharedMediaKind.searchPlaceholder(): StringResource = when (this) {
-    SharedMediaKind.Media, SharedMediaKind.Files, SharedMediaKind.Gifs, SharedMediaKind.VideoNotes -> Res.string.profile_search_files
+    SharedMediaKind.Media, SharedMediaKind.Files, SharedMediaKind.Gifs, SharedMediaKind.VideoNotes, SharedMediaKind.Voice ->
+        Res.string.profile_search_files
     SharedMediaKind.Music -> Res.string.profile_search_music
     SharedMediaKind.Links -> Res.string.profile_search_links
 }
@@ -902,6 +918,7 @@ private fun ProfileTab.icon(): DrawableResource = when (this) {
         SharedMediaKind.Links -> Res.drawable.link_24dp
         SharedMediaKind.Gifs -> Res.drawable.gif_box_24dp
         SharedMediaKind.VideoNotes -> Res.drawable.videocam_24dp
+        SharedMediaKind.Voice -> Res.drawable.mic_24dp
     }
     ProfileTab.CommonGroups -> Res.drawable.group_filled_24dp
     ProfileTab.SimilarChannels -> Res.drawable.campaign_24dp
@@ -925,6 +942,7 @@ private fun ProfileTab.label(): StringResource = when (this) {
         SharedMediaKind.Links -> Res.string.profile_tab_links
         SharedMediaKind.Gifs -> Res.string.profile_tab_gifs
         SharedMediaKind.VideoNotes -> Res.string.profile_tab_video_notes
+        SharedMediaKind.Voice -> Res.string.profile_tab_voice
     }
     ProfileTab.CommonGroups -> Res.string.profile_tab_common_groups
     ProfileTab.SimilarChannels -> Res.string.profile_tab_similar_channels
