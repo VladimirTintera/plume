@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.SenderModeration
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.currency.RateTable
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
@@ -361,6 +362,11 @@ data class PendingDelete(
      * Není to `messageIds.size`: album je v bublině jedna věc, i když je to pět zpráv.
      */
     val count: Int = 1,
+    /**
+     * Správce maže cizí zprávy jednoho člena: co s ním smí udělat navíc (nahlásit spam, smazat
+     * všechno od něj, vyhodit). Dočítá se až po otevření dialogu; `null` = nic navíc.
+     */
+    val moderation: SenderModeration? = null,
 )
 
 /** Na co míří „Odpovědět" z nabídky: na fotku pod prstem, jinak na zprávu bloku. */

@@ -37,7 +37,9 @@ import dev.g000sha256.tdl.dto.InputMessageText
 import dev.g000sha256.tdl.dto.InputChatPhotoPrevious
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.SupergroupMembersFilterAdministrators
+import dev.g000sha256.tdl.dto.SupergroupMembersFilterBanned
 import dev.g000sha256.tdl.dto.SupergroupMembersFilterRecent
+import dev.g000sha256.tdl.dto.SupergroupMembersFilterRestricted
 import dev.g000sha256.tdl.dto.SupergroupMembersFilterSearch
 import dev.g000sha256.tdl.dto.UserTypeBot
 import dev.g000sha256.tdl.toResult
@@ -228,11 +230,11 @@ class TdlProfileRepository(
         val isBasicGroup = chat.type is ChatTypeBasicGroup
         // Převedená základní skupina (`isActive == false`) se hlásí jako opuštěná, takže `owner`
         // u ní vyjde `false` — upravuje se už ta nová.
-        val owner = (supergroup != null || isBasicGroup) &&
-            (client.ownMemberStatus(chat) as? OwnMemberStatus.Creator)?.isMember == true
+        val own = client.ownMemberStatus(chat)
+        val owner = (supergroup != null || isBasicGroup) && (own as? OwnMemberStatus.Creator)?.isMember == true
         val rights = chatEditRights(
             isChannel = isChannel,
-            status = client.ownMemberStatus(chat),
+            status = own,
             membersCanChangeInfo = chat.permissions.canChangeInfo,
         )
         EditableChat(
@@ -253,7 +255,33 @@ class TdlProfileRepository(
             canSetDiscussion = isChannel && rights.canChangeInfo,
             stickerSet = stickerSet,
             canSetStickerSet = !isChannel && supergroupInfo?.canSetStickerSet == true,
+            moderation = (chat.type as? ChatTypeSupergroup)?.takeIf { own.canModerate() }?.let { type ->
+                MemberModeration(
+                    restrictedCount = if (isChannel) null else removedCount(type.supergroupId, MemberFilter.Restricted),
+                    bannedCount = removedCount(type.supergroupId, MemberFilter.Banned),
+                )
+            },
         )
+    }
+
+    /**
+     * Kolik je omezených / vyhozených — `totalCount` téhož dotazu, jakým se čte seznam.
+     * **`SupergroupFullInfo.restrictedCount` / `bannedCount` NE**: TDLib ho drží v keši
+     * a po omezení člena ukazoval „Nikdo" ještě minutu, zatímco seznam už člověka měl.
+     */
+    private suspend fun removedCount(supergroupId: Long, filter: MemberFilter): Int =
+        client.getSupergroupMembers(
+            supergroupId = supergroupId,
+            filter = if (filter == MemberFilter.Banned) SupergroupMembersFilterBanned(query = "") else SupergroupMembersFilterRestricted(query = ""),
+            offset = 0,
+            limit = 1,
+        ).toResult().getOrNull()?.totalCount ?: 0
+
+    /** Smí číst a rušit omezení a vyhození — stejné právo, jaké chce `banChatMember`. */
+    private fun OwnMemberStatus?.canModerate(): Boolean = when (this) {
+        is OwnMemberStatus.Creator -> isMember
+        is OwnMemberStatus.Admin -> canRestrictMembers
+        else -> false
     }
 
     override suspend fun setStickerSet(chatId: Long, setId: Long?): Result<Unit> = runCatching {
@@ -421,11 +449,22 @@ class TdlProfileRepository(
         return ProfilePhoto(id = id, addedDate = addedDate, media = media)
     }
 
-    override suspend fun members(chatId: Long, query: String, offset: Int, limit: Int): Result<MemberPage> =
+    override suspend fun members(
+        chatId: Long,
+        query: String,
+        offset: Int,
+        limit: Int,
+        filter: MemberFilter,
+    ): Result<MemberPage> =
         runCatching {
             val search = query.trim()
             val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
             val type = chat.type
+            if (filter != MemberFilter.Recent) {
+                // Základní skupina vyhozené ani omezené nevede; prázdný seznam je pravda.
+                if (type !is ChatTypeSupergroup) return@runCatching MemberPage(emptyList(), nextOffset = null)
+                return@runCatching removedMembers(type.supergroupId, filter, search, offset, limit)
+            }
             if (type !is ChatTypeSupergroup) {
                 // Základní skupina vydá všechny naráz; stránkovat se nemá co.
                 val found = client.searchChatMembers(
@@ -474,6 +513,52 @@ class TdlProfileRepository(
                 nextOffset = nextOffset,
             )
         }
+
+    /**
+     * Stránka omezených nebo vyhozených. Filtr `Banned` / `Restricted` bere dotaz rovnou (hledá
+     * se jen mezi nimi), takže samostatné hledání jako u běžných členů potřeba není.
+     */
+    private suspend fun removedMembers(
+        supergroupId: Long,
+        filter: MemberFilter,
+        query: String,
+        offset: Int,
+        limit: Int,
+    ): MemberPage {
+        val page = client.getSupergroupMembers(
+            supergroupId = supergroupId,
+            filter = if (filter == MemberFilter.Banned) {
+                SupergroupMembersFilterBanned(query = query)
+            } else {
+                SupergroupMembersFilterRestricted(query = query)
+            },
+            offset = offset,
+            limit = limit.coerceIn(1, MAX_MEMBERS_REQUEST),
+        ).toResult().getOrThrow()
+        val raw = page.members.filterNotNull()
+        val next = offset + raw.size
+        val members = raw.mapNotNull { member ->
+            val userId = (member.memberId as? MessageSenderUser)?.userId ?: return@mapNotNull null
+            val until = when (val status = member.status) {
+                is ChatMemberStatusBanned -> status.bannedUntilDate
+                is ChatMemberStatusRestricted -> status.restrictedUntilDate
+                // Mezitím ho někdo vpustil zpátky nebo omezení zrušil.
+                else -> return@mapNotNull null
+            }
+            member(userId)?.let { (sender, isBot) ->
+                ProfileMember(
+                    sender = sender,
+                    role = MemberRole.Member,
+                    isBot = isBot,
+                    until = until.takeIf { it != FOREVER },
+                )
+            }
+        }
+        return MemberPage(
+            members = members.distinctBy { it.sender.id },
+            nextOffset = next.takeIf { raw.isNotEmpty() && it < page.totalCount },
+        )
+    }
 
     private suspend fun List<ChatMember>.toProfileMembers(): List<ProfileMember> = mapNotNull { member ->
         val userId = (member.memberId as? MessageSenderUser)?.userId ?: return@mapNotNull null
@@ -662,6 +747,14 @@ class TdlProfileRepository(
             revokeMessages = false,
         ).toResult().map { }
 
+    /** Zpět na „opustil": vyhození přestane platit, ale do skupiny se tím nikdo nepřidá. */
+    override suspend fun unbanMember(chatId: Long, userId: Long): Result<Unit> =
+        client.setChatMemberStatus(
+            chatId = chatId,
+            memberId = MessageSenderUser(userId = userId),
+            status = ChatMemberStatusLeft(),
+        ).toResult().map { }
+
     override suspend fun setMemberTag(chatId: Long, userId: Long, tag: String): Result<Unit> =
         client.setChatMemberTag(chatId = chatId, userId = userId, tag = tag).toResult().map { }
 
@@ -730,7 +823,7 @@ class TdlProfileRepository(
 }
 
 /** Role z postavení člena; `when` bez `else`, takže nový stav v TDLib rozbije překlad. */
-private fun ChatMemberStatus.role(): MemberRole = when (this) {
+internal fun ChatMemberStatus.role(): MemberRole = when (this) {
     is ChatMemberStatusCreator -> MemberRole.Owner
     is ChatMemberStatusAdministrator -> MemberRole.Admin
     is ChatMemberStatusMember, is ChatMemberStatusRestricted -> MemberRole.Member

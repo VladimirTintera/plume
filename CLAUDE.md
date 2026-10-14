@@ -48,14 +48,14 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Konverzace: zobrazení zpráv](docs/poznatky/konverzace-zobrazeni.md) — skladba obrazovky a ViewModelu (který soubor nese kterou část), bloky seznamu, bublina a její tvar, média bez bubliny, alba, předěly, doručení, vzhled a sklo, barva konverzace, text s entitami a odkazy, přeposlání, soubory, reklamy
 - [Konverzace: pohyb v historii](docs/poznatky/konverzace-pohyb.md) — otevřený chat, skok na nepřečtené / citaci / zmínky / datum, připnuté, hledání, okno v historii, hlášení přečtení, gesta tahem do strany, rychlý přepínač chatů
 - [Konverzace: psaní a odesílání](docs/poznatky/konverzace-psani.md) — vstupní pole, přílohy a galerie, úprava fotky, práva psát, „píše…“, plánování, úprava, formátování, náhled odkazu, koncept, napovídání, odpovědi, let odeslané zprávy
-- [Konverzace: akce nad zprávami](docs/poznatky/konverzace-akce.md) — nabídka nad zprávou a citace z ní, překlad, shrnutí od serveru, automatické mazání, výběr víc zpráv, informace o zprávě, připomenutí, přeposílání
+- [Konverzace: akce nad zprávami](docs/poznatky/konverzace-akce.md) — nabídka nad zprávou a citace z ní, smazání cizích zpráv správcem (spam, vše od autora, vyhodit), překlad, shrnutí od serveru, automatické mazání, výběr víc zpráv, informace o zprávě, připomenutí, přeposílání
 - [Boti a mini aplikace](docs/poznatky/boti.md) — tlačítka pod zprávou, vlastní klávesnice, příkazy, Start, inline boti, mini aplikace (WebView most)
 - [Ankety a kvízy](docs/poznatky/ankety.md) — hlasování, výsledky, zakládání, média v anketě, místa a poloha
 - [Hledání a zakládání chatů](docs/poznatky/hledani-a-zakladani-chatu.md) — hledání chatů a zpráv s filtry i přirozeným jazykem, nová konverzace, kontakty, Můj QR kód a odkazy zvenčí, založení skupiny a kanálu, ChatPicker
 - [Spam, nahlášení a blokování](docs/poznatky/spam-a-blokovani.md) — průvodce nahlášením, úklid spamu, pruh nad konverzací (ChatActionBar), seznam blokovaných
 - [Seznam chatů](docs/poznatky/seznam-chatu.md) — skupiny řádků, složky a FAB menu, ověření, hlavička s pilulkou, Uložené zprávy, přehled konceptů, archiv a tah do archivu, akce, odložení a výběr víc chatů, widget na ploše
 - [Navigace](docs/poznatky/navigace.md) — Navigation3, list-detail scény, insety, přechody a predictive back, zásobník pro každou sekci
-- [Profil chatu](docs/poznatky/profil-chatu.md) — profil, členové a jejich správa, úprava skupiny, pozvánky, témata, sdílená média, historie fotek
+- [Profil chatu](docs/poznatky/profil-chatu.md) — profil, členové a jejich správa, omezení a vyhození, úprava skupiny, pozvánky, témata, sdílená média, historie fotek
 - [Prohlížeč médií a média](docs/poznatky/prohlizec-medii.md) — prohlížeč, video a PiP, GIFy, kolečka a jejich nahrávání, automatické ukládání do galerie, poloha a mapy, spoilery, mizející a citlivý obsah, text z fotky, FileRepository
 - [Hlasovky a hudba](docs/poznatky/zvuk.md) — přehrávání, u ucha, nahrávání a náhled hlasovky, hudba na pozadí a dock přehrávače
 - [Typy zpráv](docs/poznatky/typy-zprav.md) — popisy a servisní zprávy, články a Instant View, počty a komentáře, témata ve skupinách, placená média, dárky, příběhy, kontakt, hovor

@@ -200,6 +200,32 @@ na iOS. Dlouhý stisk v SEZNAMU dál otevírá nabídku — o gesto se nedělí,
   už zpracovává; předběhnout server by znamenalo riskovat, že zpráva zmizí z obrazovky a na
   serveru zůstane.
 
+## Smazání cizích zpráv správcem
+
+Správce supergroupy, který maže zprávy jednoho člena (z nabídky i z výběru), dostane
+v potvrzení pod textem volby navíc jako u oficiálních klientů: **Nahlásit spam**, **Smazat všechny
+zprávy autora ve skupině** a **Vyhodit autora ze skupiny** (`PendingDelete.moderation`,
+`MessageDeleteDialog`). Kombinují se zaškrtnutím, potvrzuje se tlačítkem Smazat.
+
+- **Co se nabídne, je čistá funkce** `senderModerationRights` (`MemberManagement.kt`, testy
+  v `MemberManagementTest`): smazat vše chce právo mazat cizí zprávy (TDLib: „requires
+  canDeleteMessages"), vyhodit totéž pravidlo jako „Vyhodit" nad členem (`memberActions`),
+  spam rozhoduje server (`MessageProperties.canReportSupergroupSpam` u všech zpráv).
+- **Jen u běžného člena a jen u zpráv JEDNOHO autora.** Na vlastníka a správce volby nemíří
+  (spammer správcem nebývá a omyl by bolel víc); výběr zpráv od víc lidí je jen mazání.
+- **Dočítá se až po otevření dialogu** (`loadSenderModeration`, repository `senderModeration`
+  čte zprávy, člena a vlastnosti zpráv) a jen když jde mazat všem — jinak nejde o cizí zprávy
+  ve skupině, kde je uživatel správce. Volby proto do dialogu přibudou se zpožděním
+  (`animateContentSize`). Prohlížeč médií je nedočítá.
+- **Pořadí kroků** (`deleteAsModerator`): nahlášení napřed (zprávy musí ještě existovat), pak
+  vyhození (navždy, `revokeMessages = false`), nakonec smazání — všeho od autora
+  (`deleteChatMessagesBySender`), nebo jen vybraných zpráv. Selhání jednoho kroku další nezastaví.
+- **Ověřeno na emulátoru** (14. 10. 2026, „Plume test moderace", zprávy bota Notifikátor poslané
+  přes Bot API): dialog ukázal všechny tři volby, „smazat vše" a „vyhodit" smazaly obě zprávy bota
+  a bota vyhodily („Odebral(a) jsi Notifikator"). **Nahlášení spamu se nezkoušelo** — nahlásilo by
+  testovacího bota doopravdy. Smazání z výběru jde touž cestou (`deleteSelection` dočte volby),
+  na zařízení ověřené není.
+
 ## Překlad zprávy
 
 „Přeložit" v nabídce nad zprávou otevře sheet s překladem do jazyka aplikace

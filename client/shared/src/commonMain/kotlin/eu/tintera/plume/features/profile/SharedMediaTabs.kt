@@ -850,7 +850,7 @@ private fun TabLoading() {
  * hned, takže vada byla vidět jen na mřížce). Klíč `count` pustí efekt jednou za stránku.
  */
 @Composable
-private fun LoadMoreAtEnd(index: Int, count: Int, onLoadMore: () -> Unit) {
+internal fun LoadMoreAtEnd(index: Int, count: Int, onLoadMore: () -> Unit) {
     if (index < count - LOAD_MORE_THRESHOLD) return
     val current by rememberUpdatedState(onLoadMore)
     LaunchedEffect(count) { current() }

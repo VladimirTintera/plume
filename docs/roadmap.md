@@ -337,10 +337,11 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   historie pro nové členy, agresivní antispam, automatický překlad
   (`toggleSupergroupJoinByRequest`, `…JoinToSendMessages`, `…SignMessages`, `…HasHiddenMembers`,
   `…IsAllHistoryAvailable`, `…HasAggressiveAntiSpamEnabled`, `…HasAutomaticTranslation`).
-- Seznamy vyhozených a omezených členů — `SupergroupMembersFilterBanned` / `…Restricted` se
-  nepoužívají, takže zrušit vyhození jde jen tomu, koho má správce zrovna před sebou.
-- Při mazání zprávy člena „smazat vše od něj" a „nahlásit spam" (`deleteChatMessagesBySender`,
-  `reportSupergroupSpam`, `deleteAllRecentMessageReactionsFromSender`).
+- ~~Seznamy vyhozených a omezených členů~~ — hotovo (úprava skupiny → Členové;
+  `docs/poznatky/profil-chatu.md`, „Omezení a vyhození"). Zbývá ověřit kanál.
+- ~~Při mazání zprávy člena „smazat vše od něj" a „nahlásit spam"~~ — hotovo i s vyhozením
+  (`docs/poznatky/konverzace-akce.md`, „Smazání cizích zpráv správcem"). Zbývá smazat reakce
+  člena (`deleteAllRecentMessageReactionsFromSender`) a ověřit nahlášení spamu a mazání z výběru.
 - Odepnout všechny zprávy (`unpinAllChatMessages`, `unpinAllForumTopicMessages`).
 - Smazat skupinu nebo kanál pro všechny (`deleteChat`) — dnes jen opustit.
 - Záznam posledních akcí (`getChatEventLog`) a statistiky kanálu a příspěvku

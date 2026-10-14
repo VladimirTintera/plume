@@ -53,12 +53,16 @@ interface ProfileRepository {
      *
      * Stránkuje se jen supergroup (`getSupergroupMembers` s posunem). Základní skupina má nejvýš
      * pár set členů a vydá je naráz, takže [MemberPage.nextOffset] je u ní vždycky `null`.
+     *
+     * [filter] omezení a vyhození vydá jen supergroup (a kanál) a jen správci, který smí omezovat
+     * — základní skupina vyhozené nevede, vyhození je v ní jen odebrání. Správci napřed tam nejsou.
      */
     suspend fun members(
         chatId: Long,
         query: String = "",
         offset: Int = 0,
         limit: Int = MEMBERS_PAGE_SIZE,
+        filter: MemberFilter = MemberFilter.Recent,
     ): Result<MemberPage>
 
     /**
@@ -173,6 +177,12 @@ interface ProfileRepository {
      */
     suspend fun banMember(chatId: Long, userId: Long, duration: Duration?): Result<Unit>
 
+    /**
+     * Zrušit vyhození. Člověk se tím do skupiny NEVRÁTÍ, jen se do ní smí znovu přidat sám
+     * (odkazem) nebo ho někdo přidá — tak to dělají i oficiální klienti.
+     */
+    suspend fun unbanMember(chatId: Long, userId: Long): Result<Unit>
+
     /** Vlastní štítek člena; prázdný řetězec ho odebere. */
     suspend fun setMemberTag(chatId: Long, userId: Long, tag: String): Result<Unit>
 
@@ -257,6 +267,18 @@ data class EditableChat(
      * nabízí taky, uložení ji ale napřed převede na supergroupu ([isBasicGroup]).
      */
     val canChangeUsername: Boolean = false,
+    /** Seznamy omezených a vyhozených; `null` = nenabízí se (viz [MemberModeration]). */
+    val moderation: MemberModeration? = null,
+)
+
+/**
+ * Kolik členů má správce omezených a vyhozených. Jen supergroup a kanál, a jen pro vlastníka nebo správce s právem omezovat:
+ * nikomu jinému server seznamy nevydá. Základní skupina je nevede vůbec.
+ */
+data class MemberModeration(
+    /** Omezení; `null` v kanálu — nikdo do něj nepíše, takže se tam jen vyhazuje. */
+    val restrictedCount: Int?,
+    val bannedCount: Int,
 )
 
 /** Propojený chat — diskusní skupina kanálu, nebo kanál, ke kterému skupina patří. */
@@ -372,9 +394,26 @@ data class ProfileMember(
      */
     val tag: String? = null,
     val isBot: Boolean = false,
+    /**
+     * Do kdy platí omezení nebo vyhození (unix). Jen v seznamech [MemberFilter.Restricted]
+     * a [MemberFilter.Banned]; `null` = navždy, u běžných členů se nenastavuje.
+     */
+    val until: Int? = null,
 )
 
 enum class MemberRole { Owner, Admin, Member }
+
+/** Které členy číst: běžný seznam, nebo ty, kterým správce něco zakázal. */
+enum class MemberFilter {
+    /** Nedávní členové, na první stránce s vlastníkem a správci napřed. */
+    Recent,
+
+    /** Omezení — mají vlastní práva místo výchozích. Jen supergroup. */
+    Restricted,
+
+    /** Vyhození — dokud vyhození platí, sami se nevrátí. Supergroup i kanál. */
+    Banned,
+}
 
 /**
  * Stránka členů. [nextOffset] je posun pro další stránku; `null` = konec.

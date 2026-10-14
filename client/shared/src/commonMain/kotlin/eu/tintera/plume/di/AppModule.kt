@@ -26,6 +26,7 @@ import eu.tintera.plume.features.forward.BotShareViewModel
 import eu.tintera.plume.core.telegram.BotChatRequest
 import eu.tintera.plume.core.telegram.BotUsersRequest
 import eu.tintera.plume.features.profile.JoinRequestsViewModel
+import eu.tintera.plume.features.profile.RemovedMembersViewModel
 import eu.tintera.plume.features.profile.InviteLinksViewModel
 import eu.tintera.plume.features.settings.EditProfileViewModel
 import eu.tintera.plume.core.ui.ProfilePhotoCrop
@@ -673,6 +674,14 @@ fun appModule() = module {
 
     viewModel { parameters ->
         JoinRequestsViewModel(chatId = parameters.get(), repository = get())
+    }
+
+    viewModel { parameters ->
+        RemovedMembersViewModel(
+            chatId = parameters.values[0] as Long,
+            banned = parameters.values[1] as Boolean,
+            repository = get(),
+        )
     }
 
     /*

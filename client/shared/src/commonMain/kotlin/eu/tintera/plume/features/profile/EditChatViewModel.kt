@@ -49,6 +49,7 @@ import eu.tintera.plume.core.ui.USERNAME_CHECK_DELAY_MS
 import eu.tintera.plume.core.ui.UsernameStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -184,6 +185,36 @@ class EditChatViewModel(
                     notice = failure.reported(Res.string.edit_chat_load_failed)
                 }
         }
+    }
+
+    /*
+     * Počty omezených a vyhozených v podtitulech se drží živě, když je mění jiný správce.
+     * Přepíše se jen `moderation` — rozepsané texty zůstanou.
+     */
+    init {
+        viewModelScope.launch {
+            repository.memberUpdates(chatId).conflate().collect { refreshModeration() }
+        }
+    }
+
+    private var composedOnce = false
+
+    /**
+     * Návrat ze seznamu omezených nebo vyhozených: počty se čtou znovu. Update o změně člena
+     * na to nestačí — přijde dřív, než server nový stav vydá, a čtení v tu chvíli vrátilo
+     * ještě starý počet (ověřeno: po zrušení omezení zůstalo „1 člověk"). Poprvé nic, první
+     * načtení dělá `init`.
+     */
+    fun refreshOnReturn() {
+        if (!composedOnce) {
+            composedOnce = true
+            return
+        }
+        viewModelScope.launch { refreshModeration() }
+    }
+
+    private suspend fun refreshModeration() {
+        repository.editableChat(chatId).onSuccess { fresh -> original = original?.copy(moderation = fresh.moderation) }
     }
 
     init {

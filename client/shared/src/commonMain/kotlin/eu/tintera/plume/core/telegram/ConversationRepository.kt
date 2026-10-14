@@ -296,6 +296,25 @@ interface ConversationRepository {
     suspend fun deleteMessages(chatId: Long, messageIds: List<Long>, revoke: Boolean): Result<Unit>
 
     /**
+     * Co smí správce supergroupy při smazání [messageIds] udělat s jejich autorem navíc
+     * ([senderModerationRights]). `null` = nic: zprávy od víc lidí nebo vlastní, soukromý chat,
+     * kanál, základní skupina, chybějící práva.
+     */
+    suspend fun senderModeration(chatId: Long, messageIds: List<Long>): Result<SenderModeration?>
+
+    /**
+     * Smaže cizí zprávy a s jejich autorem udělá, co si správce zaškrtl. Pořadí: napřed
+     * nahlášení (zprávy musí ještě existovat), pak vyhození, nakonec mazání — buď všeho od
+     * autora, nebo jen [messageIds]. Selhání jednoho kroku další nezastaví; vrátí se první chyba.
+     */
+    suspend fun deleteAsModerator(
+        chatId: Long,
+        messageIds: List<Long>,
+        userId: Long,
+        choice: ModerationChoice,
+    ): Result<Unit>
+
+    /**
      * Pošle znovu zprávy, které neodešly ([SendState.Failed] s [SendFailure.canRetry]).
      *
      * **Neodeslaná zpráva se nahradí novou, s jiným id**: TDLib starou smaže (`deletedMessages`)

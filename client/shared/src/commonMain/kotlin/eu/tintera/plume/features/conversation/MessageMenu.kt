@@ -1,5 +1,13 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
+import eu.tintera.plume.core.telegram.ModerationChoice
+import eu.tintera.plume.resources.delete_moderation_sender
+import eu.tintera.plume.resources.delete_moderation_report_spam
+import eu.tintera.plume.resources.delete_moderation_delete_all
+import eu.tintera.plume.resources.delete_moderation_ban
 import eu.tintera.plume.core.telegram.customEmojiIdOf
 import eu.tintera.plume.core.ui.CustomEmojiIcon
 import androidx.compose.animation.core.Animatable
@@ -938,12 +946,17 @@ private fun ActionMenu(items: List<MenuItem>, timestamp: Int, delivery: Delivery
  * a ne dvěma tlačítky vedle sebe, u kterých se dá přehlédnout, na které se ťuklo.
  *
  * Když server dovoluje jen jednu z nich, volba se nenabízí a text rovnou říká, co se stane.
+ *
+ * **Správce, který maže cizí zprávy jednoho člena**, dostane pod textem volby navíc
+ * ([PendingDelete.moderation]): nahlásit spam, smazat všechny zprávy autora a vyhodit ho. Jsou
+ * zaškrtávátka, ne další tlačítka — kombinují se, jako u oficiálních klientů. Dočítají se až
+ * po otevření dialogu, takže do něj přibudou se zpožděním (`animateContentSize`).
  */
 @Composable
 fun MessageDeleteDialog(
     pending: PendingDelete,
     partnerName: String?,
-    onConfirm: (revoke: Boolean) -> Unit,
+    onConfirm: (revoke: Boolean, choice: ModerationChoice) -> Unit,
     onDismiss: () -> Unit,
 ) {
     // Ve skupinách a kanálech je smazání u všech jediná možnost, takže se zaškrtávátko
@@ -951,6 +964,10 @@ fun MessageDeleteDialog(
     val choice = pending.canDeleteForAll && pending.canDeleteForSelf
     var forEveryone by rememberSaveable { mutableStateOf(false) }
     val revoke = if (choice) forEveryone else pending.canDeleteForAll
+    var reportSpam by rememberSaveable { mutableStateOf(false) }
+    var deleteAll by rememberSaveable { mutableStateOf(false) }
+    var ban by rememberSaveable { mutableStateOf(false) }
+    val rights = pending.moderation?.rights
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -965,7 +982,7 @@ fun MessageDeleteDialog(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 // Vyjmenované varianty místo plurálů: čeština i angličtina mění v těch větách
                 // víc než jedno slovo, takže „%1$d zpráv" by z nich udělalo kostrbatinu.
                 val many = pending.count > 1
@@ -998,10 +1015,42 @@ fun MessageDeleteDialog(
                         )
                     }
                 }
+
+                val moderation = pending.moderation
+                if (moderation != null && rights != null) {
+                    Column {
+                        Text(
+                            stringResource(Res.string.delete_moderation_sender, moderation.name),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                        )
+                        if (rights.canReportSpam) {
+                            CheckRow(stringResource(Res.string.delete_moderation_report_spam), reportSpam) { reportSpam = it }
+                        }
+                        if (rights.canDeleteAll) {
+                            CheckRow(stringResource(Res.string.delete_moderation_delete_all), deleteAll) { deleteAll = it }
+                        }
+                        if (rights.canBan) {
+                            CheckRow(stringResource(Res.string.delete_moderation_ban), ban) { ban = it }
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(revoke) }) {
+            TextButton(onClick = {
+                val picked = if (rights == null) {
+                    ModerationChoice()
+                } else {
+                    ModerationChoice(
+                        deleteAll = deleteAll && rights.canDeleteAll,
+                        reportSpam = reportSpam && rights.canReportSpam,
+                        ban = ban && rights.canBan,
+                    )
+                }
+                onConfirm(revoke, picked)
+            }) {
                 Text(text = stringResource(Res.string.menu_delete), color = MaterialTheme.colorScheme.error)
             }
         },
@@ -1009,6 +1058,21 @@ fun MessageDeleteDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
+}
+
+/** Řádek se zaškrtávátkem; ťuká se na celý řádek, ne jen na čtvereček. */
+@Composable
+private fun CheckRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, role = Role.Checkbox, onValueChange = onChange),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Checkbox(checked = checked, onCheckedChange = null)
+        Text(label, style = MaterialTheme.typography.bodyMedium)
+    }
 }
 
 private data class MenuItem(
