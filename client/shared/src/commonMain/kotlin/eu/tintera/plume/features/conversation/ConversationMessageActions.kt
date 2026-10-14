@@ -7,6 +7,7 @@ import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.ForwardOptions
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.MessageSchedule
+import eu.tintera.plume.core.telegram.ModerationChoice
 import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.features.report.ReportFlow
@@ -16,6 +17,8 @@ import eu.tintera.plume.resources.contact_add_failed
 import eu.tintera.plume.resources.contact_remove_failed
 import eu.tintera.plume.resources.conversation_cancel_send_failed
 import eu.tintera.plume.resources.conversation_delete_failed
+import eu.tintera.plume.resources.conversation_moderation_failed
+import eu.tintera.plume.resources.member_banned
 import eu.tintera.plume.resources.conversation_pin_failed
 import eu.tintera.plume.resources.conversation_remind_failed
 import eu.tintera.plume.resources.conversation_remind_set
@@ -161,6 +164,26 @@ internal class ConversationMessageActions(
                 ),
             )
         }
+        loadSenderModeration()
+    }
+
+    /**
+     * Dočte do otevřeného potvrzení smazání, co smí správce udělat s autorem zpráv navíc
+     * ([PendingDelete.moderation]). Jen u zpráv, které jdou smazat všem — jinak nejde o cizí
+     * zprávy ve skupině, kde je uživatel správce, a dotaz by byl zbytečný.
+     */
+    fun loadSenderModeration() {
+        val pending = state.value.pendingDelete?.takeIf { it.canDeleteForAll } ?: return
+        scope.launch {
+            val found = repository.senderModeration(chatId, pending.messageIds)
+                .onFailure { logger.w(it) { "Moderování autora zpráv ${pending.messageIds} se nepodařilo zjistit." } }
+                .getOrNull() ?: return@launch
+            state.update { current ->
+                // Dialog mezitím mohl zmizet, nebo se otevřít nad jinými zprávami.
+                val open = current.pendingDelete?.takeIf { it.messageIds == pending.messageIds } ?: return@update current
+                current.copy(pendingDelete = open.copy(moderation = found))
+            }
+        }
     }
 
     /**
@@ -304,16 +327,27 @@ internal class ConversationMessageActions(
      * zpracovává. Předběhnout server by znamenalo riskovat, že zpráva zmizí z obrazovky
      * a na serveru zůstane.
      */
-    fun confirmDelete(revoke: Boolean) {
+    fun confirmDelete(revoke: Boolean, choice: ModerationChoice = ModerationChoice()) {
         val pending = state.value.pendingDelete ?: return
         state.update { it.copy(pendingDelete = null) }
+        val moderation = pending.moderation?.takeIf { choice.any }
 
         scope.launch {
-            repository.deleteMessages(chatId, pending.messageIds, revoke)
-                .onFailure { failure ->
-                    state.update {
-                        it.copy(error = failure.reported(logger, Res.string.conversation_delete_failed))
+            if (moderation == null) {
+                repository.deleteMessages(chatId, pending.messageIds, revoke)
+                    .onFailure { failure ->
+                        state.update {
+                            it.copy(error = failure.reported(logger, Res.string.conversation_delete_failed))
+                        }
                     }
+                return@launch
+            }
+            repository.deleteAsModerator(chatId, pending.messageIds, moderation.userId, choice)
+                .onSuccess {
+                    if (choice.ban) state.update { it.copy(notice = UiText(Res.string.member_banned, moderation.name)) }
+                }
+                .onFailure { failure ->
+                    state.update { it.copy(error = failure.reported(logger, Res.string.conversation_moderation_failed)) }
                 }
         }
     }

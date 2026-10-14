@@ -315,7 +315,8 @@ fun MediaViewerScreen(
         MessageDeleteDialog(
             pending = pending,
             partnerName = state.chatTitle,
-            onConfirm = viewModel::confirmDelete,
+            // Prohlížeč moderování autora nedočítá (`PendingDelete.moderation` je `null`).
+            onConfirm = { revoke, _ -> viewModel.confirmDelete(revoke) },
             onDismiss = viewModel::dismissDelete,
         )
     }

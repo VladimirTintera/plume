@@ -197,6 +197,67 @@ internal fun memberActions(
 }
 
 /**
+ * Co smí správce supergroupy při mazání cizích zpráv udělat s jejich autorem navíc — jako
+ * oficiální klienti: nahlásit zprávy jako spam, smazat všechno, co ve skupině napsal, a vyhodit ho.
+ */
+data class SenderModerationRights(
+    /** `deleteChatMessagesBySender` — chce právo mazat cizí zprávy. */
+    val canDeleteAll: Boolean = false,
+    /** `reportSupergroupSpam` — dovoluje server zprávu po zprávě (`canReportSupergroupSpam`). */
+    val canReportSpam: Boolean = false,
+    /** Vyhodit autora — stejné pravidlo jako „Vyhodit" v nabídce nad členem ([memberActions]). */
+    val canBan: Boolean = false,
+) {
+    val any: Boolean get() = canDeleteAll || canReportSpam || canBan
+}
+
+/** Autor mazaných zpráv a co s ním správce smí (viz [SenderModerationRights]). */
+data class SenderModeration(
+    val userId: Long,
+    val name: String,
+    val rights: SenderModerationRights,
+)
+
+/** Co si správce v potvrzení smazání zaškrtl. */
+data class ModerationChoice(
+    val deleteAll: Boolean = false,
+    val reportSpam: Boolean = false,
+    val ban: Boolean = false,
+) {
+    val any: Boolean get() = deleteAll || reportSpam || ban
+}
+
+/**
+ * Pravidlo pro volby navíc v potvrzení smazání cizích zpráv. Čistá funkce kvůli testům, stejně
+ * jako [memberActions], ze kterého bere vyhození.
+ *
+ * - **Jen u běžného člena.** Zprávy vlastníka nebo správce mazat jde, ale „smazat všechno od
+ *   něj" a „vyhodit" na ně nemíří — spammer správcem nebývá, a omylem by to bolelo víc.
+ * - **Smazat všechno chce právo mazat cizí zprávy**: TDLib „requires canDeleteMessages
+ *   administrator right"; vlastník ho má vždycky.
+ * - **Nahlášení spamu rozhoduje server** ([spamReportable] z `canReportSupergroupSpam` všech
+ *   zpráv), jen tam, kde je uživatel správce — běžnému členovi ho server nedovolí stejně.
+ */
+internal fun senderModerationRights(
+    own: OwnMemberStatus?,
+    target: TargetMember,
+    spamReportable: Boolean,
+): SenderModerationRights {
+    if (target.isSelf || target.role != MemberRole.Member) return SenderModerationRights()
+    val canDeleteMessages = when (own) {
+        // Vlastník, který ze skupiny odešel, nespravuje nic — jako v [memberActions].
+        is OwnMemberStatus.Creator -> if (own.isMember) true else return SenderModerationRights()
+        is OwnMemberStatus.Admin -> own.canDeleteMessages
+        else -> return SenderModerationRights()
+    }
+    return SenderModerationRights(
+        canDeleteAll = canDeleteMessages,
+        canReportSpam = spamReportable,
+        canBan = memberActions(own, target, MemberGroupKind.Supergroup).canBan,
+    )
+}
+
+/**
  * Okamžik, kdy omezení nebo vyhození skončí, jak ho chce TDLib: unix čas, nebo **0 = navždy**.
  *
  * Jde o tentýž údaj pro `restrictedUntilDate` i `bannedUntilDate`. TDLib bere všechno delší než

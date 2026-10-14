@@ -302,6 +302,34 @@ testy `MemberManagementTest`).
   místě STARÝ soubor**, takže další `cat` vypíše předchozí obrazovku a nová verze aplikace se
   tváří, že se nezměnila. Před každým dumpem proto `rm -f /sdcard/ui.xml`.
 
+### Omezení a vyhození
+
+Úprava skupiny má kartu **Členové** s řádky Omezení a Vyhození (v kanálu jen Vyhození), každý
+s počtem v podtitulu. Řádek otevře seznam (`RemovedMembersScreen`, `RemovedMembersViewModel`,
+routy `RemovedMembersRoute` / `ArchiveRemovedMembersRoute` s příznakem `banned`): kdo, do kdy,
+a tlačítko Zrušit omezení / Povolit návrat. Ťuknutí na omezeného otevře jeho omezení
+(`MemberRightsRoute`), aby šlo změnit, co smí, ne jen omezení zrušit.
+
+- **Dřív šlo zrušit vyhození jen tomu, koho měl správce zrovna před sebou** — vyhozený
+  v seznamu členů není, takže na něj nebylo kde dlouze stisknout.
+- **Seznamy jsou `getSupergroupMembers` s filtrem `Banned` / `Restricted`** (`ProfileRepository.members`
+  s `MemberFilter`), stránkované a s hledáním jako záložka Členové — filtr bere dotaz, takže se
+  hledá jen mezi omezenými / vyhozenými. Hledání se ukáže, až se seznam nevejde na stránku.
+- **Jen supergroup a kanál, jen vlastník a správce s právem omezovat** (`EditableChat.moderation`).
+  Základní skupina vyhozené nevede: vyhození je v ní jen odebrání.
+- **Počty se čtou TÍMŽ dotazem (`totalCount` s `limit = 1`), ne z `SupergroupFullInfo`.**
+  `restrictedCount` z plných údajů TDLib drží v keši: po omezení člena ukazoval „Nikdo", zatímco
+  seznam už člověka měl. A **update o změně člena na obnovení počtu nestačí**: přijde dřív, než
+  server nový stav vydá, a čtení v tu chvíli vrátilo starý počet (po zrušení omezení zůstalo
+  „1 člověk"). Úprava proto počty čte znovu i po návratu ze seznamu (`refreshOnReturn`, jako profil);
+  odběr `memberUpdates` zůstává na změny od jiného správce.
+- **Zrušit vyhození = `setChatMemberStatus(ChatMemberStatusLeft)`.** Do skupiny se tím nikdo
+  nepřidá, jen se smí vrátit sám nebo ho někdo přidá — hláška to říká („… se může znovu přidat").
+- **Zrušení se nepotvrzuje**: obojí jde vzít zpátky (omezit a vyhodit znovu) a nikomu nic nezmizí.
+- **Ověřeno na emulátoru** (14. 10. 2026, účet …527, skupina „Plume test moderace" s „Pixel 7 Pro"
+  a botem Notifikátor): omezení na den v seznamu („Omezeno do zítra 19:28"), zrušení ze seznamu,
+  vyhozený bot s „Povolit návrat", počty v úpravě po návratu. Kanál ověřený NENÍ.
+
 ### Historie profilových fotek
 
 Ťuknutí na velkou fotku v profilu chatu otevře prohlížeč médií se všemi profilovkami chatu

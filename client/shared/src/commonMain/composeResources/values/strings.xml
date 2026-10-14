@@ -691,6 +691,11 @@
     <string name="delete_message_for_all">The message will disappear for everyone in the chat. There's no undo.</string>
     <string name="delete_message_for_self">The message will be deleted only for you. Others keep it.</string>
     <string name="delete_message_for_partner_named">Delete for %1$s too</string>
+    <string name="delete_moderation_sender">Sent by %1$s</string>
+    <string name="delete_moderation_report_spam">Report spam</string>
+    <string name="delete_moderation_delete_all">Delete all their messages in the group</string>
+    <string name="delete_moderation_ban">Remove them from the group</string>
+    <string name="conversation_moderation_failed">Not everything went through. Check the group and try again.</string>
     <string name="delete_message_for_partner">Delete for the other side too</string>
     <string name="delete_messages_choice">The messages will be deleted for you. The other side keeps them unless you tick deleting for both.</string>
     <string name="delete_messages_for_all">The messages will disappear for everyone in the chat. There's no undo.</string>
@@ -2183,6 +2188,14 @@
         <item quantity="one">%1$s person waiting</item>
         <item quantity="other">%1$s people waiting</item>
     </plurals>
+    <string name="edit_chat_moderation">Members</string>
+    <string name="edit_chat_restricted">Restricted</string>
+    <string name="edit_chat_removed">Removed</string>
+    <string name="edit_chat_nobody">Nobody</string>
+    <plurals name="edit_chat_people_count">
+        <item quantity="one">%1$s person</item>
+        <item quantity="other">%1$s people</item>
+    </plurals>
     <string name="invite_links_title">Invite links</string>
     <string name="invite_links_primary">Primary link</string>
     <string name="invite_links_primary_help">Anyone with the link can join.</string>
@@ -2278,6 +2291,15 @@
     <string name="join_requests_declined">Request dismissed.</string>
     <string name="join_requests_failed">Couldn't process the request.</string>
     <string name="join_requests_load_failed">Couldn't load the join requests.</string>
+    <string name="restricted_members_empty">Nobody is restricted</string>
+    <string name="restricted_members_empty_help">To restrict a member, long-press them in the group's member list.</string>
+    <string name="removed_members_empty">Nobody is removed</string>
+    <string name="removed_members_empty_help">Removed members can't come back on their own until you allow it.</string>
+    <string name="removed_members_forever">Removed with no end</string>
+    <string name="removed_members_until">Removed until %1$s</string>
+    <string name="removed_members_unban">Allow back</string>
+    <string name="removed_members_unbanned">%1$s can join again.</string>
+    <string name="moderation_load_failed">Couldn't load the list.</string>
     <string name="invite_links_others">Other admins' links</string>
     <plurals name="invite_links_admin_active">
         <item quantity="one">%1$s link</item>

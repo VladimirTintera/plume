@@ -701,6 +701,11 @@
     <string name="delete_message_for_all">Zpráva zmizí všem v chatu. Vrátit to nejde.</string>
     <string name="delete_message_for_self">Zpráva se smaže jen u tebe. Ostatním zůstane.</string>
     <string name="delete_message_for_partner_named">Smazat i u %1$s</string>
+    <string name="delete_moderation_sender">Autor zpráv: %1$s</string>
+    <string name="delete_moderation_report_spam">Nahlásit spam</string>
+    <string name="delete_moderation_delete_all">Smazat všechny zprávy autora ve skupině</string>
+    <string name="delete_moderation_ban">Vyhodit autora ze skupiny</string>
+    <string name="conversation_moderation_failed">Ne všechno se povedlo. Zkontroluj skupinu a zkus to znovu.</string>
     <string name="delete_message_for_partner">Smazat i u protějšku</string>
     <string name="delete_messages_choice">Zprávy se smažou u tebe. Protějšku zůstanou, dokud nezaškrtneš smazání u obou.</string>
     <string name="delete_messages_for_all">Zprávy zmizí všem v chatu. Vrátit to nejde.</string>
@@ -2246,6 +2251,15 @@
         <item quantity="few">Čekají %1$s lidé</item>
         <item quantity="other">Čeká %1$s lidí</item>
     </plurals>
+    <string name="edit_chat_moderation">Členové</string>
+    <string name="edit_chat_restricted">Omezení</string>
+    <string name="edit_chat_removed">Vyhození</string>
+    <string name="edit_chat_nobody">Nikdo</string>
+    <plurals name="edit_chat_people_count">
+        <item quantity="one">%1$s člověk</item>
+        <item quantity="few">%1$s lidé</item>
+        <item quantity="other">%1$s lidí</item>
+    </plurals>
     <string name="invite_links_title">Pozvánky</string>
     <string name="invite_links_primary">Hlavní odkaz</string>
     <string name="invite_links_primary_help">Kdo má odkaz, může se přidat.</string>
@@ -2344,6 +2358,15 @@
     <string name="join_requests_declined">Žádost odmítnuta.</string>
     <string name="join_requests_failed">Žádost se nepodařilo vyřídit.</string>
     <string name="join_requests_load_failed">Žádosti se nepodařilo načíst.</string>
+    <string name="restricted_members_empty">Nikdo není omezený</string>
+    <string name="restricted_members_empty_help">Člena omezíš v seznamu členů skupiny: podrž na něm prst.</string>
+    <string name="removed_members_empty">Nikdo není vyhozený</string>
+    <string name="removed_members_empty_help">Vyhozený se sám nevrátí, dokud mu to nepovolíš.</string>
+    <string name="removed_members_forever">Vyhození bez konce</string>
+    <string name="removed_members_until">Vyhození do %1$s</string>
+    <string name="removed_members_unban">Povolit návrat</string>
+    <string name="removed_members_unbanned">%1$s se může znovu přidat.</string>
+    <string name="moderation_load_failed">Seznam se nepodařilo načíst.</string>
     <string name="invite_links_others">Odkazy ostatních správců</string>
     <plurals name="invite_links_admin_active">
         <item quantity="one">%1$s odkaz</item>

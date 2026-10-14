@@ -198,6 +198,10 @@ data class ArchiveInviteLinksRoute(val chatId: Long) : Route
 @Serializable
 data class ArchiveJoinRequestsRoute(val chatId: Long) : Route
 
+/** Omezení nebo vyhození členové otevření z úpravy skupiny v archivní větvi. */
+@Serializable
+data class ArchiveRemovedMembersRoute(val chatId: Long, val banned: Boolean) : Route
+
 /**
  * Konverzace. V list-detail rozvržení je to detail panel vedle seznamu.
  *
@@ -268,6 +272,13 @@ data class InviteLinksRoute(val chatId: Long) : Route
 /** Žádosti o vstup. Vrší se nad úpravu, taky jako detailový panel. */
 @Serializable
 data class JoinRequestsRoute(val chatId: Long) : Route
+
+/**
+ * Omezení ([banned] `false`), nebo vyhození členové. Vrší se nad úpravu, taky jako detailový
+ * panel; ťuknutí na omezeného nad ně vrší [MemberRightsRoute].
+ */
+@Serializable
+data class RemovedMembersRoute(val chatId: Long, val banned: Boolean) : Route
 
 /**
  * Prohlížeč média přes celou obrazovku.
@@ -511,6 +522,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ArchiveMemberRightsRoute::class, ArchiveMemberRightsRoute.serializer())
             subclass(ArchiveInviteLinksRoute::class, ArchiveInviteLinksRoute.serializer())
             subclass(ArchiveJoinRequestsRoute::class, ArchiveJoinRequestsRoute.serializer())
+            subclass(ArchiveRemovedMembersRoute::class, ArchiveRemovedMembersRoute.serializer())
             subclass(ConversationRoute::class, ConversationRoute.serializer())
             subclass(ChatProfileRoute::class, ChatProfileRoute.serializer())
             subclass(InstantViewRoute::class, InstantViewRoute.serializer())
@@ -518,6 +530,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(MemberRightsRoute::class, MemberRightsRoute.serializer())
             subclass(InviteLinksRoute::class, InviteLinksRoute.serializer())
             subclass(JoinRequestsRoute::class, JoinRequestsRoute.serializer())
+            subclass(RemovedMembersRoute::class, RemovedMembersRoute.serializer())
             subclass(MediaRoute::class, MediaRoute.serializer())
             subclass(ForwardRoute::class, ForwardRoute.serializer())
             subclass(ShareContactRoute::class, ShareContactRoute.serializer())

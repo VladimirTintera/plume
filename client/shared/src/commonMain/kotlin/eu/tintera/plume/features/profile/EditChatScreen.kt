@@ -83,6 +83,14 @@ import eu.tintera.plume.core.ui.PhotoCropOverlay
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.toggle
+import eu.tintera.plume.core.telegram.MemberModeration
+import eu.tintera.plume.resources.edit_chat_moderation
+import eu.tintera.plume.resources.edit_chat_restricted
+import eu.tintera.plume.resources.edit_chat_removed
+import eu.tintera.plume.resources.edit_chat_nobody
+import eu.tintera.plume.resources.edit_chat_people_count
+import eu.tintera.plume.resources.lock_24dp
+import eu.tintera.plume.resources.person_remove_24dp
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.edit_chat_upgrade_confirm
 import eu.tintera.plume.resources.edit_chat_upgrade_topics
@@ -134,6 +142,8 @@ fun EditChatScreen(
     onBack: () -> Unit,
     onOpenInviteLinks: () -> Unit,
     onOpenJoinRequests: () -> Unit,
+    /** Seznam vyhozených ([banned] `true`), nebo omezených členů. */
+    onOpenRemoved: (banned: Boolean) -> Unit,
     /** Základní skupina se převedla na supergroupu: (staré id, nové id). */
     onUpgraded: (Long, Long) -> Unit,
     modifier: Modifier = Modifier,
@@ -145,6 +155,8 @@ fun EditChatScreen(
     var showDiscussion by rememberSaveable { mutableStateOf(false) }
     var showStickerSet by rememberSaveable { mutableStateOf(false) }
 
+    // Návrat ze seznamu omezených / vyhozených: obrazovka se skládá znovu a počty se přečtou.
+    LaunchedEffect(Unit) { viewModel.refreshOnReturn() }
     val notice = viewModel.notice
     val noticeText = notice?.resolve()
     // Snackbar mimo tělo efektu: vynulování hlášky mění klíč a zrušilo by ho (viz „Vrátit").
@@ -398,6 +410,9 @@ fun EditChatScreen(
                     val pending by viewModel.pendingJoinRequests.collectAsStateWithLifecycle()
                     InvitesGroup(pending = pending, onOpenInviteLinks = onOpenInviteLinks, onOpenJoinRequests = onOpenJoinRequests)
                 }
+
+                // Omezení a vyhození: supergroup a kanál, vlastník a správce s právem omezovat.
+                chat.moderation?.let { ModerationGroup(it, onOpenRemoved) }
             }
         }
         PhotoCropOverlay(
@@ -582,6 +597,48 @@ private fun InvitesGroup(pending: Int, onOpenInviteLinks: () -> Unit, onOpenJoin
                     },
                     leadingContent = { Icon(painterResource(Res.drawable.how_to_reg_24dp), contentDescription = null) },
                     modifier = Modifier.clickable(onClick = onOpenJoinRequests),
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Omezení a vyhození členové — každý řádek na vlastní seznam, v podtitulu kolik jich je. Kanál
+ * má jen vyhozené: nikdo do něj nepíše, takže není co omezovat.
+ */
+@Composable
+private fun ModerationGroup(moderation: MemberModeration, onOpen: (banned: Boolean) -> Unit) {
+    @Composable
+    fun count(value: Int): String = if (value > 0) {
+        pluralStringResource(Res.plurals.edit_chat_people_count, value, value.grouped())
+    } else {
+        stringResource(Res.string.edit_chat_nobody)
+    }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            stringResource(Res.string.edit_chat_moderation),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
+        )
+        Card(Modifier.fillMaxWidth()) {
+            Column {
+                moderation.restrictedCount?.let { restricted ->
+                    ListItem(
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        headlineContent = { Text(stringResource(Res.string.edit_chat_restricted)) },
+                        supportingContent = { Text(count(restricted)) },
+                        leadingContent = { Icon(painterResource(Res.drawable.lock_24dp), contentDescription = null) },
+                        modifier = Modifier.clickable { onOpen(false) },
+                    )
+                }
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    headlineContent = { Text(stringResource(Res.string.edit_chat_removed)) },
+                    supportingContent = { Text(count(moderation.bannedCount)) },
+                    leadingContent = { Icon(painterResource(Res.drawable.person_remove_24dp), contentDescription = null) },
+                    modifier = Modifier.clickable { onOpen(true) },
                 )
             }
         }

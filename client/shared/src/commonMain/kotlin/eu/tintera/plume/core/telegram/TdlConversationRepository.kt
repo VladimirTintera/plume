@@ -664,6 +664,68 @@ class TdlConversationRepository(
             .toResult()
             .map { }
 
+    override suspend fun senderModeration(chatId: Long, messageIds: List<Long>): Result<SenderModeration?> =
+        runCatching {
+            val chat = client.getChat(chatId = chatId).toResult().getOrThrow()
+            // Smazat všechno od autora i nahlásit spam umí TDLib jen v supergroupě; v kanálu nikdo nepíše.
+            val type = chat.type as? ChatTypeSupergroup
+            if (type == null || type.isChannel || messageIds.isEmpty()) return@runCatching null
+            val messages = client.getMessages(chatId = chatId, messageIds = messageIds.toLongArray())
+                .toResult().getOrThrow().messages.filterNotNull()
+            if (messages.size != messageIds.size || messages.any { it.isOutgoing }) return@runCatching null
+            // Volby míří na JEDNOHO člověka; výběr zpráv od víc lidí je jen mazání.
+            val userId = messages.map { (it.senderId as? MessageSenderUser)?.userId }.distinct().singleOrNull()
+                ?: return@runCatching null
+            val user = client.getUser(userId = userId).toResult().getOrThrow()
+            val status = client.getChatMember(chatId = chatId, memberId = MessageSenderUser(userId = userId))
+                .toResult().getOrThrow().status
+            val spamReportable = messages.all { message ->
+                client.getMessageProperties(chatId = chatId, messageId = message.id).toResult().getOrNull()
+                    ?.canReportSupergroupSpam == true
+            }
+            val rights = senderModerationRights(
+                own = client.ownMemberStatus(chat),
+                target = TargetMember(
+                    role = status.role(),
+                    canBeEdited = (status as? ChatMemberStatusAdministrator)?.canBeEdited == true,
+                    isSelf = userId == client.getMe().toResult().getOrNull()?.id,
+                    isBot = user.type is UserTypeBot,
+                ),
+                spamReportable = spamReportable,
+            )
+            val name = listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" ")
+            rights.takeIf { it.any && name.isNotBlank() }?.let { SenderModeration(userId = userId, name = name, rights = it) }
+        }
+
+    override suspend fun deleteAsModerator(
+        chatId: Long,
+        messageIds: List<Long>,
+        userId: Long,
+        choice: ModerationChoice,
+    ): Result<Unit> {
+        val sender = MessageSenderUser(userId = userId)
+        val failures = mutableListOf<Throwable>()
+        fun Result<*>.collect() = onFailure { failures += it }
+
+        if (choice.reportSpam) {
+            val supergroupId = (client.getChat(chatId = chatId).toResult().getOrNull()?.type as? ChatTypeSupergroup)?.supergroupId
+            if (supergroupId != null) {
+                client.reportSupergroupSpam(supergroupId = supergroupId, messageIds = messageIds.toLongArray()).toResult().collect()
+            }
+        }
+        if (choice.ban) {
+            // Navždy a bez mazání: zprávy řeší krok níž podle toho, co si správce zaškrtl.
+            client.banChatMember(chatId = chatId, memberId = sender, bannedUntilDate = FOREVER, revokeMessages = false)
+                .toResult().collect()
+        }
+        if (choice.deleteAll) {
+            client.deleteChatMessagesBySender(chatId = chatId, senderId = sender).toResult().collect()
+        } else {
+            client.deleteMessages(chatId = chatId, messageIds = messageIds.toLongArray(), revoke = true).toResult().collect()
+        }
+        return failures.firstOrNull()?.let { Result.failure(it) } ?: Result.success(Unit)
+    }
+
     /**
      * Připnuté zprávy přes vyhledávání s filtrem, ne `getChatPinnedMessage` — to vrací jen nejnovější.
      *

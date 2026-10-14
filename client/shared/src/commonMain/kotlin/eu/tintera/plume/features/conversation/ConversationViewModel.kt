@@ -17,6 +17,7 @@ import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import eu.tintera.plume.core.snooze.ChatSnoozes
 import eu.tintera.plume.core.ui.PhotoMarkup
 import eu.tintera.plume.core.ui.PhotoMarkupRenderer
+import eu.tintera.plume.core.telegram.ModerationChoice
 import eu.tintera.plume.core.telegram.QuickReaction
 import eu.tintera.plume.core.telegram.PollDraftMedia
 import eu.tintera.plume.core.telegram.ReplyQuote
@@ -712,7 +713,7 @@ class ConversationViewModel(
     fun remind(messageId: Long, at: Long) = messageActions.remind(messageId, at)
     fun consumeForwardRequest() = messageActions.consumeForwardRequest()
     fun cancelDelete() = messageActions.cancelDelete()
-    fun confirmDelete(revoke: Boolean) = messageActions.confirmDelete(revoke)
+    fun confirmDelete(revoke: Boolean, choice: ModerationChoice) = messageActions.confirmDelete(revoke, choice)
 
     /** Výběr víc zpráv — viz [ConversationSelection]. */
     private val selection: ConversationSelection = ConversationSelection(
@@ -730,7 +731,10 @@ class ConversationViewModel(
     fun copySelectionAsMarkdown() = selection.copySelectionAsMarkdown()
     fun forwardSelection() = selection.forwardSelection()
     fun reportSelection() = selection.reportSelection()
-    fun deleteSelection() = selection.deleteSelection()
+    fun deleteSelection() {
+        selection.deleteSelection()
+        messageActions.loadSenderModeration()
+    }
 
     /** Serializuje stránkování — bez toho by dva rychlé scrolly načetly tutéž stránku dvakrát. */
     private val loadMutex = Mutex()

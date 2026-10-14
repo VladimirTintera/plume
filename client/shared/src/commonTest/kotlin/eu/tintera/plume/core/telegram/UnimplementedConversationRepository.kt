@@ -45,6 +45,8 @@ open class UnimplementedConversationRepository : ConversationRepository {
     override suspend fun forward(fromChatId: Long, messageIds: List<Long>, toChatId: Long, options: ForwardOptions) : Result<Unit> = error("forward")
     override suspend fun forwardCapabilities(chatId: Long, messageIds: List<Long>) : ForwardCapabilities = error("forwardCapabilities")
     override suspend fun deleteMessages(chatId: Long, messageIds: List<Long>, revoke: Boolean) : Result<Unit> = error("deleteMessages")
+    override suspend fun senderModeration(chatId: Long, messageIds: List<Long>) : Result<SenderModeration?> = error("senderModeration")
+    override suspend fun deleteAsModerator(chatId: Long, messageIds: List<Long>, userId: Long, choice: ModerationChoice) : Result<Unit> = error("deleteAsModerator")
     override suspend fun resend(chatId: Long, messageIds: List<Long>) : Result<Unit> = error("resend")
     override suspend fun pinnedMessages(chatId: Long) : Result<PinnedMessages> = error("pinnedMessages")
     override suspend fun unpin(chatId: Long, messageId: Long) : Result<Unit> = error("unpin")

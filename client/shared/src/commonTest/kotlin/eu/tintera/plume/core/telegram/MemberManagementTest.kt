@@ -181,4 +181,38 @@ class MemberManagementTest {
         assertEquals((now + MIN_RESTRICTION_SECONDS + 1).toInt(), kept)
         assertTrue(kept != FOREVER)
     }
+
+    @Test
+    fun vlastnikSmiUAutoraCiziZpravyVsechno() {
+        val rights = senderModerationRights(owner, member, spamReportable = true)
+        assertEquals(SenderModerationRights(canDeleteAll = true, canReportSpam = true, canBan = true), rights)
+    }
+
+    /** Smazat všechno od autora chce právo mazat cizí zprávy, vyhodit právo omezovat. */
+    @Test
+    fun spravceDostaneJenVolbyPodleSvychPrav() {
+        val deleter = OwnMemberStatus.Admin(canPostMessages = true, canDeleteMessages = true)
+        assertEquals(
+            SenderModerationRights(canDeleteAll = true, canReportSpam = true, canBan = false),
+            senderModerationRights(deleter, member, spamReportable = true),
+        )
+        val banner = OwnMemberStatus.Admin(canPostMessages = true, canRestrictMembers = true)
+        assertEquals(
+            SenderModerationRights(canDeleteAll = false, canReportSpam = false, canBan = true),
+            senderModerationRights(banner, member, spamReportable = false),
+        )
+    }
+
+    @Test
+    fun naSpravceAVlastnikaSeVolbyNavicNenabizeji() {
+        assertFalse(senderModerationRights(owner, TargetMember(role = MemberRole.Admin, canBeEdited = true), spamReportable = true).any)
+        assertFalse(senderModerationRights(owner, TargetMember(role = MemberRole.Owner), spamReportable = true).any)
+        assertFalse(senderModerationRights(owner, TargetMember(role = MemberRole.Member, isSelf = true), spamReportable = true).any)
+    }
+
+    @Test
+    fun beznyClenAniVlastnikMimoSkupinuVolbyNavicNemaji() {
+        assertFalse(senderModerationRights(OwnMemberStatus.Member, member, spamReportable = true).any)
+        assertFalse(senderModerationRights(OwnMemberStatus.Creator(isMember = false), member, spamReportable = true).any)
+    }
 }

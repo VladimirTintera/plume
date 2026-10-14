@@ -4,6 +4,9 @@ import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ForwardOptions
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageSchedule
+import eu.tintera.plume.core.telegram.ModerationChoice
+import eu.tintera.plume.core.telegram.SenderModeration
+import eu.tintera.plume.core.telegram.SenderModerationRights
 import eu.tintera.plume.core.telegram.UnimplementedChatRepository
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
 import eu.tintera.plume.features.report.ReportFlow
@@ -48,6 +51,22 @@ class ConversationMessageActionsTest {
         }
 
         override suspend fun addSharedContact(chatId: Long, messageId: Long): Result<Long> = Result.success(77L)
+
+        var moderation: SenderModeration? = null
+        val moderated = mutableListOf<Pair<List<Long>, ModerationChoice>>()
+
+        override suspend fun senderModeration(chatId: Long, messageIds: List<Long>): Result<SenderModeration?> =
+            Result.success(moderation)
+
+        override suspend fun deleteAsModerator(
+            chatId: Long,
+            messageIds: List<Long>,
+            userId: Long,
+            choice: ModerationChoice,
+        ): Result<Unit> {
+            moderated += messageIds to choice
+            return Result.success(Unit)
+        }
     }
 
     private class FakeChats(savedMessages: Long? = SAVED) : UnimplementedChatRepository() {
@@ -265,5 +284,72 @@ class ConversationMessageActionsTest {
 
     private companion object {
         const val SAVED = 500L
+    }
+
+    private val spammer = SenderModeration(
+        userId = 42,
+        name = "Spammer",
+        rights = SenderModerationRights(canDeleteAll = true, canReportSpam = true, canBan = true),
+    )
+
+    @Test
+    fun spravciSeDoPotvrzeniSmazaniDoctouVolbyNavic() = runTest {
+        repository.moderation = spammer
+        val state = stateWith(null, testMessage(1))
+        state.value = state.value.copy(messageMenu = menu(1, MessageActions.Fallback.copy(canDeleteForAll = true)))
+        val actions = actions(state)
+
+        actions.requestDelete(1)
+        advanceUntilIdle()
+
+        assertEquals(spammer, state.value.pendingDelete?.moderation)
+    }
+
+    /** Smazat jde jen u sebe = vlastní zpráva nebo soukromý chat; na server se kvůli tomu neptá. */
+    @Test
+    fun bezMazaniProVsechnySeVolbyNavicNehledaji() = runTest {
+        repository.moderation = spammer
+        val state = stateWith(null, testMessage(1))
+        state.value = state.value.copy(messageMenu = menu(1, MessageActions.Fallback.copy(canDeleteForSelf = true)))
+        val actions = actions(state)
+
+        actions.requestDelete(1)
+        advanceUntilIdle()
+
+        assertNull(state.value.pendingDelete?.moderation)
+    }
+
+    @Test
+    fun zaskrtnuteVolbyOdejdouSpolecneSeSmazanim() = runTest {
+        repository.moderation = spammer
+        val state = stateWith(null, testMessage(1))
+        state.value = state.value.copy(messageMenu = menu(1, MessageActions.Fallback.copy(canDeleteForAll = true)))
+        val actions = actions(state)
+        actions.requestDelete(1)
+        advanceUntilIdle()
+
+        val choice = ModerationChoice(reportSpam = true, ban = true)
+        actions.confirmDelete(revoke = true, choice = choice)
+        advanceUntilIdle()
+
+        assertEquals(listOf(listOf(1L) to choice), repository.moderated)
+        assertTrue(repository.deleted.isEmpty())
+        assertNotNull(state.value.notice)
+    }
+
+    @Test
+    fun bezZaskrtnuteVolbyJeToObycejneSmazani() = runTest {
+        repository.moderation = spammer
+        val state = stateWith(null, testMessage(1))
+        state.value = state.value.copy(messageMenu = menu(1, MessageActions.Fallback.copy(canDeleteForAll = true)))
+        val actions = actions(state)
+        actions.requestDelete(1)
+        advanceUntilIdle()
+
+        actions.confirmDelete(revoke = true)
+        advanceUntilIdle()
+
+        assertEquals(listOf(listOf(1L) to true), repository.deleted)
+        assertTrue(repository.moderated.isEmpty())
     }
 }

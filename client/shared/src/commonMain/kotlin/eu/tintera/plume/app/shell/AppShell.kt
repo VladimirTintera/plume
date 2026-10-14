@@ -7,8 +7,10 @@ import eu.tintera.plume.features.profile.AddMembersScreen
 import eu.tintera.plume.features.profile.JoinRequestsScreen
 import eu.tintera.plume.features.profile.InviteLinksScreen
 import eu.tintera.plume.core.navigation.JoinRequestsRoute
+import eu.tintera.plume.core.navigation.RemovedMembersRoute
 import eu.tintera.plume.core.navigation.InviteLinksRoute
 import eu.tintera.plume.core.navigation.ArchiveJoinRequestsRoute
+import eu.tintera.plume.core.navigation.ArchiveRemovedMembersRoute
 import eu.tintera.plume.core.navigation.ArchiveInviteLinksRoute
 import eu.tintera.plume.features.settings.EditProfileScreen
 import eu.tintera.plume.core.navigation.AddBotToGroupRoute
@@ -61,6 +63,7 @@ import eu.tintera.plume.features.conversation.SwitchInlinePickerScreen
 import eu.tintera.plume.features.conversation.ConversationSearchRequests
 import eu.tintera.plume.features.profile.ChatProfileScreen
 import eu.tintera.plume.features.profile.EditChatScreen
+import eu.tintera.plume.features.profile.RemovedMembersScreen
 import eu.tintera.plume.features.profile.MemberRightsScreen
 import eu.tintera.plume.core.navigation.ChatProfileRoute
 import eu.tintera.plume.core.ui.LocalSavedMessagesChatId
@@ -922,6 +925,7 @@ private fun shellEntryProvider(
             onBack = { chatsStack.pop(route) },
             onOpenInviteLinks = { chatsStack.addOnce(InviteLinksRoute(route.chatId)) },
             onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
+            onOpenRemoved = { banned -> chatsStack.addOnce(RemovedMembersRoute(route.chatId, banned)) },
             onUpgraded = { old, new -> chatsStack.replaceUpgradedChat(old, new) },
         )
     }
@@ -932,6 +936,7 @@ private fun shellEntryProvider(
             onBack = { chatsStack.pop(route) },
             onOpenInviteLinks = { chatsStack.addOnce(ArchiveInviteLinksRoute(route.chatId)) },
             onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
+            onOpenRemoved = { banned -> chatsStack.addOnce(ArchiveRemovedMembersRoute(route.chatId, banned)) },
             onUpgraded = { old, new -> chatsStack.replaceUpgradedChat(old, new) },
         )
     }
@@ -962,6 +967,32 @@ private fun shellEntryProvider(
         JoinRequestsScreen(
             viewModel = koinViewModel(key = "join-requests-${route.chatId}", parameters = { parametersOf(route.chatId) }),
             onBack = { chatsStack.pop(route) },
+        )
+    }
+
+    /*
+     * Omezení a vyhození se vrší nad úpravu. Klíč nese i druh seznamu: ViewModel se cachuje
+     * podle klíče a Koin u cachované instance ignoruje nové parametry.
+     */
+    entry<RemovedMembersRoute>(metadata = Panes.extra() + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        RemovedMembersScreen(
+            viewModel = koinViewModel(
+                key = "removed-members-${route.chatId}-${route.banned}",
+                parameters = { parametersOf(route.chatId, route.banned) },
+            ),
+            onBack = { chatsStack.pop(route) },
+            onOpenRestriction = { userId -> chatsStack.addOnce(MemberRightsRoute(route.chatId, userId, admin = false)) },
+        )
+    }
+
+    entry<ArchiveRemovedMembersRoute>(metadata = Panes.extra(ARCHIVE_SCENE) + Panes.width(profilePaneWidth) + Panes.instantBounds(instantPaneBounds)) { route ->
+        RemovedMembersScreen(
+            viewModel = koinViewModel(
+                key = "removed-members-${route.chatId}-${route.banned}",
+                parameters = { parametersOf(route.chatId, route.banned) },
+            ),
+            onBack = { chatsStack.pop(route) },
+            onOpenRestriction = { userId -> chatsStack.addOnce(ArchiveMemberRightsRoute(route.chatId, userId, admin = false)) },
         )
     }
 

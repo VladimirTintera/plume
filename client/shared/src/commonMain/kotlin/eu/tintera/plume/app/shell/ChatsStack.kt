@@ -1,8 +1,10 @@
 package eu.tintera.plume.app.shell
 
 import eu.tintera.plume.core.navigation.JoinRequestsRoute
+import eu.tintera.plume.core.navigation.RemovedMembersRoute
 import eu.tintera.plume.core.navigation.InviteLinksRoute
 import eu.tintera.plume.core.navigation.ArchiveJoinRequestsRoute
+import eu.tintera.plume.core.navigation.ArchiveRemovedMembersRoute
 import eu.tintera.plume.core.navigation.ArchiveInviteLinksRoute
 import eu.tintera.plume.core.navigation.MediaRoute
 import eu.tintera.plume.core.navigation.ChatProfileRoute
@@ -105,11 +107,13 @@ internal fun MutableList<NavKey>.moveConversationToMain(chatId: Long) {
         when (it) {
             // Celá archivní větev, i úpravy a práva členů nad profilem.
             is ArchiveRoute, is ArchiveConversationRoute, is ArchiveForumTopicsRoute, is ArchiveChatProfileRoute,
-            is ArchiveEditChatRoute, is ArchiveMemberRightsRoute, is ArchiveInviteLinksRoute, is ArchiveJoinRequestsRoute -> true
+            is ArchiveEditChatRoute, is ArchiveMemberRightsRoute, is ArchiveInviteLinksRoute, is ArchiveJoinRequestsRoute,
+            is ArchiveRemovedMembersRoute,
+            -> true
             // Detail hlavního seznamu patřil jinému chatu; nový chat ho nahradí celý, jinak by
             // zpět z něj vedlo do profilu toho předchozího.
             is ConversationRoute, is ForumTopicsRoute, is SavedTopicsRoute, is ChatProfileRoute, is EditChatRoute, is MemberRightsRoute,
-            is InviteLinksRoute, is JoinRequestsRoute -> true
+            is InviteLinksRoute, is JoinRequestsRoute, is RemovedMembersRoute -> true
             else -> false
         }
     }
@@ -155,6 +159,8 @@ internal fun MutableList<NavKey>.replaceUpgradedChat(old: Long, new: Long) {
             is ArchiveInviteLinksRoute -> it.chatId == old
             is JoinRequestsRoute -> it.chatId == old
             is ArchiveJoinRequestsRoute -> it.chatId == old
+            is RemovedMembersRoute -> it.chatId == old
+            is ArchiveRemovedMembersRoute -> it.chatId == old
             else -> false
         }
     }
