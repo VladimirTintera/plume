@@ -6,35 +6,17 @@ import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.ScamKind
 import eu.tintera.plume.core.ai.OnDeviceAi
 import kotlin.time.Instant
-import eu.tintera.plume.core.calendar.CalendarEvent
-import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.core.calendar.CalendarEvents
 import eu.tintera.plume.core.contacts.ContactSaver
-import eu.tintera.plume.core.telegram.platformLanguageCode
-import eu.tintera.plume.features.conversation.items.ContextVerb
 import eu.tintera.plume.features.conversation.items.contextMenuItems
 import eu.tintera.plume.core.currency.ExchangeRates
 import eu.tintera.plume.core.currency.HomeRegion
-import eu.tintera.plume.core.wifi.WifiJoin
 import eu.tintera.plume.core.wifi.WifiJoiner
 import eu.tintera.plume.resources.conversation_jump_date_failed
 import eu.tintera.plume.resources.conversation_jump_date_empty
-import eu.tintera.plume.resources.message_context_wifi_failed
-import eu.tintera.plume.resources.message_context_wifi_settings
-import eu.tintera.plume.core.contacts.NewContact
-import eu.tintera.plume.resources.message_context_no_contacts
-import eu.tintera.plume.core.location.mapsSearchUrl
-import eu.tintera.plume.resources.message_context_no_calendar
-import eu.tintera.plume.resources.message_context_flight_title
-import eu.tintera.plume.resources.message_context_flight_arrival_title
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.TimeZone
-import eu.tintera.plume.resources.translation_device_download_failed
-import eu.tintera.plume.resources.translation_device_same
-import eu.tintera.plume.resources.translation_device_unsupported
-import eu.tintera.plume.resources.translation_device_unknown
-import eu.tintera.plume.core.translation.deviceTranslationCode
 import eu.tintera.plume.core.translation.OnDeviceTranslator
 import eu.tintera.plume.resources.conversation_remind_failed
 import eu.tintera.plume.resources.conversation_remind_set
@@ -93,9 +75,7 @@ import eu.tintera.plume.resources.contact_link_expired
 import eu.tintera.plume.resources.conversation_link_user_not_found
 import eu.tintera.plume.core.telegram.InviteJoinResult
 import eu.tintera.plume.core.telegram.InternalLink
-import eu.tintera.plume.core.telegram.platformLanguageCode
 import eu.tintera.plume.core.language.LanguageDetector
-import eu.tintera.plume.core.telegram.MessageBody
 import eu.tintera.plume.core.telegram.NameMention
 import eu.tintera.plume.core.telegram.MentionCandidate
 import androidx.lifecycle.ViewModel
@@ -270,10 +250,6 @@ import eu.tintera.plume.core.location.GeoPoint
 import kotlin.time.Duration.Companion.milliseconds
 import eu.tintera.plume.core.telegram.inlineQueryOf
 import eu.tintera.plume.resources.conversation_via_bot_draft_busy
-import eu.tintera.plume.resources.translation_copied
-import eu.tintera.plume.resources.server_summary_copied
-import eu.tintera.plume.resources.translation_failed
-import eu.tintera.plume.resources.server_summary_failed
 
 /**
  * Stav a stránkování jedné konverzace.
@@ -417,45 +393,6 @@ class ConversationViewModel(
     val state: StateFlow<ConversationState> = _state.asStateFlow()
 
     /**
-     * Zprávy tohohle chatu, u kterých se varuje před podvodem, podle id. Samostatný tok, ne
-     * součást [ConversationState]: přibývá zřídka, nezávisle na zprávách, a čte se až v položce,
-     * ne v `ConversationScreen` (ten je v dexu na hraně).
-     */
-    val scamVerdicts: StateFlow<Map<Long, ScamKind>> = (
-        scamWarnings?.verdicts?.combine(settings.scamWarningsEnabled) { all, on ->
-            if (on) all.filterKeys { it.first == chatId }.mapKeys { it.key.second } else emptyMap()
-        } ?: flowOf(emptyMap())
-        ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
-
-    /**
-     * Posudky termínů modelem pro zprávy tohohle chatu podle (zpráva, otisk textu), nebo `null`,
-     * když se akce u zpráv nenabízejí (vypnuté v nastavení, chat s chráněným obsahem — z něj
-     * nesmí nic ven, ani do kalendáře). Samostatný tok ze stejného důvodu jako [scamVerdicts].
-     */
-    val contextVerdicts: StateFlow<Map<Pair<Long, Int>, EventVerdict>?> = combine(
-        messageContexts?.verdicts ?: flowOf(emptyMap()),
-        settings.messageContextEnabled,
-        _state.map { it.info?.protectsContent == true }.distinctUntilChanged(),
-    ) { all, on, protected ->
-        if (!on || protected) {
-            null
-        } else {
-            all.filterKeys { it.chatId == chatId }.mapKeys { (key, _) -> key.messageId to key.textHash }
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    private val _contextSheet = MutableStateFlow<ContextSheet?>(null)
-
-    /** Měna uživatele podle regionu telefonu; částky v ní se v akcích u zprávy nepřevádějí. */
-    val homeCurrency: String? = currency?.code
-
-    /** Používá uživatel metrické jednotky? Převádějí se jen jednotky té druhé soustavy. */
-    val metricUnits: Boolean = currency?.metric ?: true
-
-    /** Otevřený sheet akcí u zprávy (`MessageContextSheet`); `null` = zavřený. */
-    val contextSheet: StateFlow<ContextSheet?> = _contextSheet.asStateFlow()
-
-    /**
      * Pruh nad konverzací (spam od neznámého, nasdílení čísla, žádost o vstup). Samostatný tok
      * ze stejného důvodu jako [connection]: mění se zřídka a nezávisle na zprávách.
      */
@@ -590,6 +527,63 @@ class ConversationViewModel(
         logger = logger,
     )
     fun saveDocumentAs(messageId: Long, launcher: SaveAsLauncher) = documents.saveDocumentAs(messageId, launcher)
+
+    /** Překlad a shrnutí zprávy — viz [ConversationTranslation]. */
+    private val translation = ConversationTranslation(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        repository = repository,
+        settings = settings,
+        onDeviceTranslator = onDeviceTranslator,
+        languageDetector = languageDetector,
+        clipboard = clipboard,
+        logger = logger,
+    )
+    fun changeTranslationLanguage(code: String) = translation.changeTranslationLanguage(code)
+    fun dismissTranslation() = translation.dismissTranslation()
+    fun setTranslateOnDevice(onDevice: Boolean) = translation.setTranslateOnDevice(onDevice)
+    fun downloadTranslationModels() = translation.downloadTranslationModels()
+    fun translateOnServer() = translation.translateOnServer()
+    fun copyTranslation() = translation.copyTranslation()
+
+    /** Akce u zprávy a posudky modelu (termíny, podvod) — viz [ConversationMessageContext]. */
+    private val messageContext = ConversationMessageContext(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        settings = settings,
+        urlOpener = urlOpener,
+        clipboard = clipboard,
+        scamWarnings = scamWarnings,
+        messageContexts = messageContexts,
+        calendarEvents = calendarEvents,
+        contactSaver = contactSaver,
+        wifiJoiner = wifiJoiner,
+        exchangeRates = exchangeRates,
+        currency = currency,
+        closeMenus = ::closeMenus,
+        openLink = { openLink(it) },
+        requestRemind = ::requestRemind,
+        logger = logger,
+    )
+    val scamVerdicts: StateFlow<Map<Long, ScamKind>> get() = messageContext.scamVerdicts
+    val contextVerdicts: StateFlow<Map<Pair<Long, Int>, EventVerdict>?> get() = messageContext.contextVerdicts
+    val homeCurrency: String? get() = messageContext.homeCurrency
+    val metricUnits: Boolean get() = messageContext.metricUnits
+    val contextSheet: StateFlow<ContextSheet?> get() = messageContext.contextSheet
+    fun openMessageContext(messageId: Long, findings: List<ContextFinding>) = messageContext.openMessageContext(messageId, findings)
+    fun closeMessageContext() = messageContext.closeMessageContext()
+    fun addToCalendar(event: ContextFinding.Event) = messageContext.addToCalendar(event)
+    fun addFlightToCalendar(messageId: Long, flight: ContextFinding.Flight) = messageContext.addFlightToCalendar(messageId, flight)
+    fun copyFromContext(text: String) = messageContext.copyFromContext(text)
+    fun trackParcel(url: String) = messageContext.trackParcel(url)
+    val canJoinWifi: Boolean get() = messageContext.canJoinWifi
+    fun joinWifi(wifi: ContextFinding.Wifi) = messageContext.joinWifi(wifi)
+    fun saveContact(contact: ContextFinding.Contact) = messageContext.saveContact(contact)
+    fun openMaps(query: String) = messageContext.openMaps(query)
+    fun remindFromContext(messageId: Long) = messageContext.remindFromContext(messageId)
+    fun dismissScamWarning(messageId: Long) = messageContext.dismissScamWarning(messageId)
 
     /** Serializuje stránkování — bez toho by dva rychlé scrolly načetly tutéž stránku dvakrát. */
     private val loadMutex = Mutex()
@@ -733,7 +727,7 @@ class ConversationViewModel(
                         val events = withContext(Dispatchers.Default) {
                             fresh.mapNotNull { message ->
                                 val sentAt = Instant.fromEpochSeconds(message.timestamp.toLong()).toLocalDateTime(zone)
-                                val event = findMessageContext(message.text, message.entities, sentAt, zone, homeCurrency, metricUnits).event
+                                val event = findMessageContext(message.text, message.entities, sentAt, zone, messageContext.homeCurrency, messageContext.metricUnits).event
                                 event?.let { Triple(message, sentAt, it.start) }
                             }
                         }
@@ -3730,107 +3724,6 @@ class ConversationViewModel(
     }
 
     /**
-     * Přeloží text zprávy do zvoleného jazyka ([AppSettings.translationLanguage], jinak jazyk
-     * aplikace, [platformLanguageCode]) a ukáže ho v sheetu.
-     *
-     * Sheet se otevře hned s načítáním — překlad jde přes server a trvá. Selhání zůstane v sheetu
-     * jako věta, ne snackbar: pod modálním sheetem by snackbar nebyl vidět.
-     */
-    private fun showTranslation(messageId: Long) {
-        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        _state.update { it.copy(messageMenu = null) }
-        translate(message, translationTarget())
-    }
-
-    /** Jazyk překladu: zvolený v nastavení, jinak jazyk aplikace. */
-    private fun translationTarget(): String =
-        settings.translationLanguage.value ?: normalizedLanguageCode(platformLanguageCode)
-
-    /**
-     * Shrnutí zprávy od serveru (`summarizeMessage`) v témž sheetu jako překlad a ve stejném
-     * jazyce — kdo si překlady nastavil do češtiny, chce v ní i shrnutí. Nabízí se jen u zprávy,
-     * u které ho server dovolí ([ChatMessage.summaryLanguage]).
-     */
-    private fun showSummary(messageId: Long) {
-        val message = _state.value.messages.firstOrNull { it.id == messageId } ?: return
-        val canCopy = _state.value.messageMenu?.actions?.canCopy ?: false
-        _state.update { it.copy(messageMenu = null) }
-        translate(
-            message,
-            translationTarget(),
-            summary = true,
-            canCopy = canCopy,
-        )
-    }
-
-    /**
-     * Přeloží otevřenou zprávu do jiného jazyka a jazyk si zapamatuje pro další překlady. Jazyk
-     * aplikace se neukládá jako kód, ale jako „výchozí" (`null`) — po změně jazyka aplikace se
-     * pak překládá do nového.
-     */
-    fun changeTranslationLanguage(code: String) {
-        val open = _state.value.translation ?: return
-        settings.setTranslationLanguage(code.takeUnless { it == normalizedLanguageCode(platformLanguageCode) })
-        translate(open.message, code, open.summary, open.canCopy)
-    }
-
-    private fun translate(
-        message: ChatMessage,
-        language: String,
-        summary: Boolean = false,
-        canCopy: Boolean = true,
-        forceServer: Boolean = false,
-    ) {
-        // Shrnutí dělá jen server; překlad v telefonu, když si ho uživatel zapnul.
-        val translator = onDeviceTranslator?.takeUnless { summary }
-        val onDevice = translator != null && settings.translateOnDevice.value && !forceServer
-        _state.update {
-            it.copy(
-                translation = TranslationSheet(
-                    message,
-                    language,
-                    summary = summary,
-                    canCopy = canCopy,
-                    onDevice = if (translator != null) onDevice else null,
-                ),
-            )
-        }
-        if (onDevice) {
-            translateOnDevice(message, language, download = false)
-            return
-        }
-
-        viewModelScope.launch {
-            val result = if (summary) {
-                // Ve vlastním jazyce zprávy se shrnutí nepřekládá — server by překládal sám do sebe.
-                val target = language.takeUnless { it == message.summaryLanguage?.let(::normalizedLanguageCode) }
-                repository.summarizeMessage(chatId, message.id, target)
-            } else {
-                repository.translateMessage(chatId, message.id, language)
-            }
-            _state.update { state ->
-                // Mezitím mohl uživatel sheet zavřít, otevřít u jiné zprávy nebo vybrat jiný jazyk.
-                val open = state.translation
-                    ?.takeIf { it.message.id == message.id && it.languageCode == language && it.summary == summary && it.onDevice != true }
-                    ?: return@update state
-                state.copy(
-                    translation = result.fold(
-                        onSuccess = { open.copy(body = it) },
-                        onFailure = { failure ->
-                            logger.w(failure) { if (summary) "Zprávu se nepodařilo shrnout." else "Zprávu se nepodařilo přeložit." }
-                            open.copy(
-                                error = failure.userMessage(
-                                    if (summary) Res.string.server_summary_failed else Res.string.translation_failed,
-                                ),
-                            )
-                        },
-                    ),
-                )
-            }
-        }
-    }
-
-    /**
      * Diskrétní čtení: vlastní zpráva v chatu prozradí, že uživatel chat četl, takže se přečte
      * celý — protějšek by jinak viděl odpověď na zprávu, kterou „nečetl". Bez diskrétního čtení
      * nic: přečtení hlásí seznam sám, jak se zprávy ukazují.
@@ -3857,283 +3750,6 @@ class ConversationViewModel(
                 }
             }
         }
-    }
-
-    /** Uživatel skryl varování před podvodem u zprávy. */
-    /** Ťuknutí na ikonku akcí u zprávy: sheet s tím, co se ve zprávě našlo. */
-    fun openMessageContext(messageId: Long, findings: List<ContextFinding>) {
-        if (findings.isEmpty()) return
-        val rates = exchangeRates?.takeIf { findings.any { it is ContextFinding.Money } }
-        _contextSheet.value = ContextSheet(messageId, findings, homeCurrency, if (rates != null) RatesState.Loading else null)
-        rates ?: return
-        viewModelScope.launch {
-            val table = rates.table()
-            _contextSheet.update { open ->
-                // Sheet mezitím mohl zavřít nebo otevřít jiný; kurz patří jen tomu, kdo o něj žádal.
-                if (open?.messageId != messageId) open else open.copy(rates = table?.let(RatesState::Loaded) ?: RatesState.Failed)
-            }
-        }
-    }
-
-    /**
-     * Položka akce v nabídce nad zprávou: co nic neukazuje, se provede rovnou, převody a QR platba
-     * otevřou sheet (tentýž jako ikonka).
-     */
-    private fun runContextItem(messageId: Long, item: MessageMenuAction.ContextItem) {
-        val findings = _state.value.messageMenu?.takeIf { it.messageId == messageId }?.contextFindings.orEmpty()
-        val finding = findings.getOrNull(item.index)
-        closeMenus()
-        when (item.verb) {
-            ContextVerb.Calendar -> (finding as? ContextFinding.Event)?.let(::addToCalendar)
-            ContextVerb.FlightCalendar, ContextVerb.ArrivalCalendar ->
-                (finding as? ContextFinding.Flight)?.let { addFlightToCalendar(messageId, it) }
-            ContextVerb.FlightStatus -> (finding as? ContextFinding.Flight)?.let { trackParcel(it.trackingUrl()) }
-            ContextVerb.Maps -> (finding as? ContextFinding.Address)?.let { openMaps(it.text) }
-            ContextVerb.SaveContact -> (finding as? ContextFinding.Contact)?.let(::saveContact)
-            ContextVerb.JoinWifi -> (finding as? ContextFinding.Wifi)?.let(::joinWifi)
-            ContextVerb.CopyCode -> (finding as? ContextFinding.Code)?.let { copyFromContext(it.value) }
-            ContextVerb.CopyBooking -> (finding as? ContextFinding.Booking)?.let { copyFromContext(it.value) }
-            ContextVerb.TrackParcel -> (finding as? ContextFinding.Parcel)?.let { trackParcel(it.trackingUrl(platformLanguageCode)) }
-            ContextVerb.Payment, ContextVerb.Money, ContextVerb.Units, ContextVerb.Wifi -> openMessageContext(messageId, findings)
-        }
-    }
-
-    /** „Akce ze zprávy…" v nabídce nad zprávou: tentýž sheet jako ikonka. */
-    private fun openContextFromMenu(messageId: Long) {
-        val findings = _state.value.messageMenu?.takeIf { it.messageId == messageId }?.contextFindings.orEmpty()
-        closeMenus()
-        openMessageContext(messageId, findings)
-    }
-
-    /**
-     * Akce z textu zprávy pro nabídku nad ní — totéž, co ukazuje ikonka (`messageContext`
-     * v položce), jen bez ohledu na vypínač ikonky. Termín, který model posoudil, se bere
-     * podle jeho posudku; nejistý bez posudku se nenabízí.
-     */
-    private fun contextFindingsOf(message: ChatMessage): List<ContextFinding> {
-        if (!message.offersContext() || _state.value.info?.protectsContent == true) return emptyList()
-        // U zprávy s varováním před podvodem ne — QR platba k podvodu je to, co podvodník chce.
-        if (scamVerdicts.value.containsKey(message.id)) return emptyList()
-        val zone = TimeZone.currentSystemDefault()
-        val sentAt = Instant.fromEpochSeconds(message.timestamp.toLong()).toLocalDateTime(zone)
-        val found = findMessageContext(message.text, message.entities, sentAt, zone, homeCurrency, metricUnits)
-        if (found.isEmpty) return emptyList()
-        val verdict = messageContexts?.verdicts?.value?.get(MessageContexts.Key(chatId, message.id, message.text.hashCode()))
-        return found.contextFindings(message.text, verdict, Clock.System.now().toLocalDateTime(zone))
-    }
-
-    fun closeMessageContext() {
-        _contextSheet.value = null
-    }
-
-    /** Událost do kalendáře; editor kalendáře ji ukáže a uloží až uživatel. */
-    fun addToCalendar(event: ContextFinding.Event) {
-        val calendar = calendarEvents ?: return
-        val added = calendar.add(
-            CalendarEvent(
-                title = event.title,
-                description = event.description,
-                place = event.place,
-                start = event.start,
-                allDay = event.allDay,
-            ),
-        )
-        if (added) {
-            closeMessageContext()
-        } else {
-            _state.update { it.copy(notice = UiText(Res.string.message_context_no_calendar)) }
-        }
-    }
-
-    /**
-     * Let do kalendáře: „Let OK 123" (nebo „Přílet OK 123") s časem ze zprávy v pásmu letiště,
-     * koncem podle přistání (nebo odhadu z trasy), letištěm jako místem a trasou a zprávou
-     * v popisu, kde bývá i kód rezervace.
-     */
-    fun addFlightToCalendar(messageId: Long, flight: ContextFinding.Flight) {
-        val calendar = calendarEvents ?: return
-        val start = flight.at ?: return
-        val text = _state.value.messages.firstOrNull { it.id == messageId }?.text?.trim().orEmpty()
-        val schedule = flight.schedule(TimeZone.currentSystemDefault())
-        // Místo je letiště, odkud se letí (u příletu kam); trasa jde na začátek popisu.
-        val airport = (if (flight.arrival) flight.to else flight.from)?.let(AIRPORTS::get)
-        val route = listOfNotNull(flight.from, flight.to).takeIf { it.size == 2 }?.joinToString(" \u2192 ")
-        val description = listOfNotNull(route, text.takeIf { it.isNotEmpty() }).joinToString("\n\n")
-        viewModelScope.launch {
-            val name = "${flight.airline} ${flight.number}"
-            val title = readString(if (flight.arrival) Res.string.message_context_flight_arrival_title else Res.string.message_context_flight_title, name)
-            val added = calendar.add(
-                CalendarEvent(
-                    title = title,
-                    description = description,
-                    place = airport?.label,
-                    start = start,
-                    allDay = flight.allDay,
-                    begin = schedule?.start,
-                    end = schedule?.end,
-                ),
-            )
-            if (added) {
-                closeMessageContext()
-            } else {
-                _state.update { it.copy(notice = UiText(Res.string.message_context_no_calendar)) }
-            }
-        }
-    }
-
-    /** Údaj z akcí u zprávy (číslo účtu, částka, číslo zásilky) do schránky. */
-    fun copyFromContext(text: String) {
-        viewModelScope.launch {
-            clipboard.copy(text)
-            if (!clipboard.confirmsCopy) _state.update { it.copy(notice = UiText(Res.string.bot_text_copied)) }
-        }
-    }
-
-    /** Sledování zásilky u dopravce nebo stav letu. Adresu skládáme sami, takže se na odkaz neptá. */
-    fun trackParcel(url: String) {
-        closeMessageContext()
-        openLink(url, confirmExternal = false)
-    }
-
-    /** Umí telefon nabídnout připojení k Wi-Fi ze zprávy? Na iOS ne (viz `WifiJoiner`). */
-    val canJoinWifi: Boolean get() = wifiJoiner?.canJoin == true
-
-    /**
-     * Připojení k Wi-Fi ze zprávy. Kde systém dialog „Uložit síť?" nemá a otevře se jen nastavení,
-     * heslo jde do schránky — v nastavení se pak jen vloží.
-     */
-    fun joinWifi(wifi: ContextFinding.Wifi) {
-        val joiner = wifiJoiner ?: return
-        when (joiner.join(wifi.ssid, wifi.password)) {
-            WifiJoin.Dialog -> closeMessageContext()
-            WifiJoin.Settings -> {
-                closeMessageContext()
-                viewModelScope.launch {
-                    clipboard.copy(wifi.password)
-                    _state.update { it.copy(notice = UiText(Res.string.message_context_wifi_settings, wifi.ssid)) }
-                }
-            }
-            WifiJoin.Failed -> _state.update { it.copy(notice = UiText(Res.string.message_context_wifi_failed)) }
-        }
-    }
-
-    /** Kontakt ze zprávy do systémového editoru kontaktů; uloží ho až uživatel. */
-    fun saveContact(contact: ContextFinding.Contact) {
-        val saver = contactSaver ?: return
-        if (saver.save(NewContact(name = contact.name, phone = contact.phone, email = contact.email))) {
-            closeMessageContext()
-        } else {
-            _state.update { it.copy(notice = UiText(Res.string.message_context_no_contacts)) }
-        }
-    }
-
-    /** Adresa nebo místo z akcí u zprávy v mapách platformy (hledání textem). */
-    fun openMaps(query: String) {
-        closeMessageContext()
-        urlOpener.open(mapsSearchUrl(query))
-    }
-
-    /** „Připomenout…" z akcí u termínu — tentýž sheet jako z nabídky nad zprávou. */
-    fun remindFromContext(messageId: Long) {
-        closeMessageContext()
-        requestRemind(messageId)
-    }
-
-    fun dismissScamWarning(messageId: Long) {
-        scamWarnings?.dismiss(chatId, messageId)
-    }
-
-    fun dismissTranslation() {
-        _state.update { it.copy(translation = null) }
-    }
-
-    /**
-     * Přepínač „Překládat v telefonu" v sheetu: zapamatuje se pro další překlady a otevřená
-     * zpráva se přeloží znovu tou cestou, kterou si uživatel právě vybral.
-     */
-    fun setTranslateOnDevice(onDevice: Boolean) {
-        settings.setTranslateOnDevice(onDevice)
-        val open = _state.value.translation ?: return
-        if (onDevice) {
-            _state.update { it.copy(translation = open.copy(body = null, error = null, onDevice = true, needsDownload = false)) }
-            translateOnDevice(open.message, open.languageCode, download = false)
-        } else {
-            translate(open.message, open.languageCode, open.summary, open.canCopy, forceServer = true)
-        }
-    }
-
-    /** Uživatel potvrdil stažení jazykových balíčků. */
-    fun downloadTranslationModels() {
-        val open = _state.value.translation?.takeIf { it.needsDownload } ?: return
-        translateOnDevice(open.message, open.languageCode, download = true)
-    }
-
-    /** Překlad v telefonu nejde (neznámý jazyk, nepodporovaný pár) — jednou přes server. */
-    fun translateOnServer() {
-        val open = _state.value.translation ?: return
-        translate(open.message, open.languageCode, open.summary, open.canCopy, forceServer = true)
-    }
-
-    /**
-     * Překlad v telefonu. Jazyk zprávy rozpozná zařízení ([languageDetector]) — nic se kvůli
-     * tomu neposílá. Chybějící jazykové balíčky se nestahují samy: sheet se zeptá
-     * ([TranslationSheet.needsDownload]) a teprve [download] je stáhne.
-     */
-    private fun translateOnDevice(message: ChatMessage, language: String, download: Boolean) {
-        val translator = onDeviceTranslator ?: return
-        fun update(change: (TranslationSheet) -> TranslationSheet) = _state.update { state ->
-            val open = state.translation
-                ?.takeIf { it.message.id == message.id && it.languageCode == language && it.onDevice == true }
-                ?: return@update state
-            state.copy(translation = change(open))
-        }
-        update { it.copy(body = null, error = null, needsDownload = false, downloading = download) }
-
-        viewModelScope.launch {
-            val text = message.text
-            val source = languageDetector.detect(text)?.let(::deviceTranslationCode)
-            val target = deviceTranslationCode(language)
-            val problem = when {
-                source == null -> Res.string.translation_device_unknown
-                target == null || !translator.supports(source) || !translator.supports(target) ->
-                    Res.string.translation_device_unsupported
-                source == target -> Res.string.translation_device_same
-                else -> null
-            }
-            if (problem != null || source == null || target == null) {
-                update { it.copy(error = UiText(problem ?: Res.string.translation_failed), downloading = false) }
-                return@launch
-            }
-            if (!translator.hasModels(source, target)) {
-                if (!download) {
-                    update { it.copy(needsDownload = true) }
-                    return@launch
-                }
-                if (translator.download(source, target).isFailure) {
-                    update { it.copy(error = UiText(Res.string.translation_device_download_failed), downloading = false) }
-                    return@launch
-                }
-            }
-            val result = translator.translate(text, source, target)
-            update { open ->
-                result.fold(
-                    onSuccess = { open.copy(body = MessageBody(it), downloading = false) },
-                    onFailure = { open.copy(error = UiText(Res.string.translation_failed), downloading = false) },
-                )
-            }
-        }
-    }
-
-    /**
-     * Zkopíruje překlad a sheet zavře. Potvrzení jde snackbarem až po zavření — pod modálním
-     * sheetem by vidět nebylo (stejně jako u odkazu v „Informace").
-     */
-    fun copyTranslation() {
-        val open = _state.value.translation?.takeIf { it.canCopy } ?: return
-        val text = open.body?.text ?: return
-        viewModelScope.launch { clipboard.copy(text) }
-        val notice = if (open.summary) Res.string.server_summary_copied else Res.string.translation_copied
-        _state.update { it.copy(translation = null, notice = if (clipboard.confirmsCopy) it.notice else UiText(notice)) }
     }
 
     /**
@@ -4311,12 +3927,12 @@ class ConversationViewModel(
             MessageMenuAction.Forward -> requestForward(messageId)
             MessageMenuAction.Remind -> requestRemind(messageId)
             MessageMenuAction.Info -> showMessageInfo(messageId)
-            MessageMenuAction.Translate -> showTranslation(messageId)
-            MessageMenuAction.Summarize -> showSummary(messageId)
+            MessageMenuAction.Translate -> translation.showTranslation(messageId)
+            MessageMenuAction.Summarize -> translation.showSummary(messageId)
             // Vysvětlení pouští obrazovka (sheet shrnutí); tady se jen zavře nabídka.
             MessageMenuAction.Explain -> _state.update { it.copy(messageMenu = null) }
-            MessageMenuAction.ContextActions -> openContextFromMenu(messageId)
-            is MessageMenuAction.ContextItem -> runContextItem(messageId, action)
+            MessageMenuAction.ContextActions -> messageContext.openContextFromMenu(messageId)
+            is MessageMenuAction.ContextItem -> messageContext.runContextItem(messageId, action)
             MessageMenuAction.SelectText -> selectText(messageId)
             MessageMenuAction.Pin -> requestPin(messageId)
             MessageMenuAction.Unpin -> unpinFromMenu(messageId)
@@ -4366,7 +3982,7 @@ class ConversationViewModel(
                     val text = languageDetectionText(message.text)
                     if (MessageMenuAction.Translate !in items || text == null) return@async false
                     val detected = withTimeoutOrNull(LANGUAGE_DETECTION_TIMEOUT_MS) { languageDetector.detect(text) }
-                    alreadyInLanguage(detected, translationTarget())
+                    alreadyInLanguage(detected, translation.translationTarget())
                 }
                 MenuLoad(
                     emojiTask.await().getOrDefault(emptyList()),
@@ -4380,10 +3996,10 @@ class ConversationViewModel(
             }
 
             val explainAvailable = MessageMenuAction.Explain in items && explainAvailable()
-            val contextFindings = if (MessageMenuAction.ContextActions in items) contextFindingsOf(message) else emptyList()
+            val contextFindings = if (MessageMenuAction.ContextActions in items) messageContext.contextFindingsOf(message) else emptyList()
             // Kandidát na akce z textu se rozbalí na položky jednotlivých akcí.
             val shownItems = items.flatMap { item ->
-                if (item == MessageMenuAction.ContextActions) contextMenuItems(contextFindings, canJoinWifi) else listOf(item)
+                if (item == MessageMenuAction.ContextActions) contextMenuItems(contextFindings, messageContext.canJoinWifi) else listOf(item)
             }
             _state.update {
                 it.copy(
@@ -5165,7 +4781,6 @@ internal const val MAX_SELECTED_MESSAGES = 100
 
 /** Mezi zprávami ve schránce zůstane prázdný řádek — jinak by dlouhé zprávy splynuly v jednu. */
 private const val SELECTION_COPY_SEPARATOR = "\n\n"
-
 
 private fun UnsupportedBotButton.explanation(): StringResource = when (this) {
     UnsupportedBotButton.SwitchInline -> Res.string.bot_unsupported_switch_inline
