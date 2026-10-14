@@ -194,6 +194,23 @@ uprostřed hlasového hovoru, vypnutá a znovu zapnutá, přepnutí kamery, kame
   později ho nezmění — na chování to vliv nemá.
 - **Přijetí videohovoru** se ptá na kameru i mikrofon (`rememberVideoNotePermission`);
   kdo kameru nepovolí, přijme bez ní — protistranu vidí, ona jeho ne.
+- **Ovládání přes obraz se schovává** (`rememberCallControls`, `CallControls.kt`): ve
+  spojeném videohovoru s obrazem přes celou plochu zmizí horní lišta, jméno s časem
+  i spodní tlačítka po 4 s bez dotyku a ťuknutí do obrazu je vrátí (další je schová).
+  Náhled vlastní kamery v rohu zůstává a sjede dolů. Při zvonění, v hlasovém a podrženém
+  hovoru je ovládání vidět pořád.
+  - **Každý dotyk odpočet obnoví**, i na tlačítko: `pointerInput` v `PointerEventPass.Initial`
+    nad celou plochou nic nespotřebuje a tlačítka si ťuknutí dál berou sama. Přepnutí dělá
+    `clickable` na ploše, takže ho dostane jen ťuknutí mimo tlačítka.
+  - **Myš (desktop) ovládání ukáže pohybem.** Pohyb prstu ne: předchází každému ťuknutí,
+    ovládání by se ukázalo a `clickable` ho hned zase přepnulo pryč.
+  - **Doba podle přístupnosti** (`calculateRecommendedTimeoutMillis`): kdo má v systému delší
+    čas na reakci, dostane ho; „nikdy" ovládání neschová vůbec.
+  - **Obraz (TextureView) ťuknutí nebere** (renderer nemá posluchače), takže dotyk do obrazu
+    dojde ke Compose ploše pod ním.
+  - Ověřeno na Pixelu 7 Pro (videohovor s Pixelem 5, výpis `uiautomator`): po 9 s žádné
+    tlačítko, ťuknutí je vrátí a další schová, ťuknutí na Ztlumit ve 3. vteřině drží
+    ovládání i v 5,5. vteřině. Vzhled potvrdil uživatel. Desktop (myš) neověřený.
 - **Obraz v obraze** (`rememberCallPictureInPicture` v `core/calls`): po odchodu z aplikace
   jde videohovor do okénka sám, **jen dokud je v hovoru obraz** (naše kamera, nebo
   protistrany) — hlasovému hovoru stačí notifikace. V okénku je jen obraz protistrany (bez ní
