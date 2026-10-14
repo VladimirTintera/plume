@@ -462,8 +462,10 @@ Dá se to rozdělit na dva kroky, které na sobě nezávisí:
    za hovoru", „Systémový telefon"). Videohovory taky (`docs/poznatky/hovory.md`,
    „Videohovory"). **Desktop: hlasové hovory na macOS** (`docs/poznatky/hovory.md`,
    „Desktop"). Zbývá:
-   - **Desktop: Windows a Linux ověřit** (knihovna se stáhne a přibalí, nespuštěné), zvonění
-     a oznámení příchozího hovoru (dnes jen obrazovka hovoru v otevřené aplikaci), video.
+   - **Desktop: Windows a Linux ověřit** (knihovna se stáhne a přibalí, nespuštěné; toast
+     hovoru s Přijmout / Odmítnout a okénko příchozího hovoru tam nikdo neviděl), Odmítnout
+     z okénka a z oznámení na macOS, video. Zvonění a okénko příchozího hovoru hotové
+     (`docs/poznatky/hovory.md`, „Zvonění a příchozí hovor na desktopu").
    - **Desktop: zabalená aplikace** — ověřit, že JNA najde `libntgcalls` v jaru i po jpackage
      (MSI, později DMG), a že macOS u balíčku chce `NSMicrophoneUsageDescription`. JNA dnes
      35 MB knihovnu při každém spuštění vybaluje do dočasné složky; šlo by ji vybalit jednou

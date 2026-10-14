@@ -23,6 +23,7 @@ import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.platform.desktopClosesToTray
 import eu.tintera.plume.core.telegram.preloadTdlibNativeDependencies
 import eu.tintera.plume.di.startKoin
+import eu.tintera.plume.features.calls.IncomingCallWindow
 import io.github.kdroidfilter.platformtools.darkmodedetector.mac.setMacOsAdaptiveTitleBar
 import java.awt.Desktop
 import java.awt.desktop.AppReopenedListener
@@ -73,6 +74,9 @@ fun main(args: Array<String>) {
 
         // Windows: ikona v oznamovací oblasti, kam se okno schovává (viz `onCloseRequest`).
         DesktopTrayIcon(onOpen = DesktopWindow::activate, onQuit = { exitApplication() })
+
+        // Příchozí hovor, když hlavní okno není vpředu: okénko navrchu s Přijmout / Odmítnout.
+        IncomingCallWindow()
 
         Window(
             // Na macOS a Windows zavření okna aplikaci neukončí, jen okno schová — jako
