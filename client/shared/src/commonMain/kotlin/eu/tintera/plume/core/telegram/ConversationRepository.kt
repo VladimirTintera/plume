@@ -2124,7 +2124,26 @@ sealed interface MessageMedia {
         val startSeconds: Int = 0,
         /** Náhledy snímků nad posuvníkem (`MessageVideo.storyboards`); jen u delších videí. */
         val storyboard: VideoStoryboard? = null,
-    ) : MessageMedia
+        /** Velikost souboru na serveru (`expectedSize`); nula, když ji TDLib nezná. */
+        val sizeBytes: Long = 0,
+        /**
+         * Kvality, které server z videa sám přepočítal (`MessageVideo.alternativeVideos`) — menší
+         * soubory pro mobilní data. Prázdné u krátkých videí a u čerstvě poslaných, kde server
+         * ještě nepřepočítal. Vybírá se v přehrávači (`pickVideoQuality` v `core/video`).
+         */
+        val alternatives: List<VideoQuality> = emptyList(),
+    ) : MessageMedia {
+        /** Soubor od odesílatele jako jedna z kvalit, vedle [alternatives]. */
+        val original: VideoQuality
+            get() = VideoQuality(
+                fileId = fileId,
+                width = width,
+                height = height,
+                codec = null,
+                sizeBytes = sizeBytes,
+                isOriginal = true,
+            )
+    }
 
     /**
      * GIF — v Telegramu je to MP4 bez zvuku (`MessageAnimation`), ne skutečný GIF.

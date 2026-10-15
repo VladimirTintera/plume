@@ -1,6 +1,14 @@
 package eu.tintera.plume.features.media
 
+import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.VideoStoryboard
+import eu.tintera.plume.core.telegram.VideoQuality
+import eu.tintera.plume.core.ui.LocalAutoDownload
+import eu.tintera.plume.core.video.VideoQualityChoice
+import eu.tintera.plume.core.video.pickVideoQuality
+import eu.tintera.plume.core.video.videoDecoder
+import eu.tintera.plume.core.video.videoQualities
+import kotlinx.coroutines.flow.first
 import eu.tintera.plume.core.ui.longPress
 import eu.tintera.plume.resources.media_seek_back
 import eu.tintera.plume.resources.media_seek_forward
@@ -8,6 +16,7 @@ import eu.tintera.plume.resources.media_speed_boost
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.key
 import eu.tintera.plume.core.video.VideoPositions
 import eu.tintera.plume.resources.media_video_from_start
 import eu.tintera.plume.resources.media_video_resumed
@@ -213,9 +222,54 @@ internal fun VideoPage(
      * neotevře) a tajný chat ne — po tajném chatu nemá v zařízení zůstat stopa.
      */
     rememberPosition: Boolean = false,
+    /** Zvolená kvalita; drží ji prohlížeč, aby platila i pro další videa (jako ztlumení). */
+    qualityChoice: VideoQualityChoice = VideoQualityChoice.Auto,
+    /** Volba kvality v liště; `null` = bez nabídky (hraje se, co vybere automatika). */
+    onQualityChoice: ((VideoQualityChoice) -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val repository = koinInject<FileRepository>()
+
+    /*
+     * Kvalita: původní soubor, nebo kvalita, kterou server přepočítal (`alternativeVideos`).
+     * Mizející video jen původní — odpočet běží nad tím souborem a stream se u něj nepouští.
+     */
+    val qualities = remember(video, streaming) {
+        if (!streaming) {
+            listOf(video.original)
+        } else {
+            videoQualities(video.original, video.alternatives) { videoDecoder(it.codec.orEmpty(), it.width, it.height) }
+        }
+    }
+    // Už stažený původní soubor vyhrává automatiku: nic nestojí. Jen sleduje, nic nestahuje.
+    val originalReady by produceState(false, video.fileId, qualities.size) {
+        if (qualities.size > 1) repository.observe(video.fileId).collect { value = it is FileState.Ready }
+    }
+    // Strop podle sítě a nastavení automatického stahování; mění se i za běhu (Wi-Fi → data).
+    val autoMaxLines = LocalAutoDownload.current.maxVideoLines
+    val autoPick = pickVideoQuality(qualities, VideoQualityChoice.Auto, autoMaxLines, originalReady)
+    val chosen = pickVideoQuality(qualities, qualityChoice, autoMaxLines, originalReady)
+    val chosenId = chosen.fileId
+    // Co se hraje a proč — jen u zobrazené stránky, prohlížeč skládá i sousedy.
+    LaunchedEffect(chosenId, isCurrent) {
+        if (qualities.size > 1 && isCurrent) {
+            val offered = qualities.joinToString { it.logLabel() }
+            val sent = video.alternatives.joinToString { it.logLabel() }
+            logger.d { "Video ${video.fileId}: hraje ${chosen.logLabel()}, volba $qualityChoice, strop $autoMaxLines, nabídka $offered, od serveru $sent" }
+        }
+    }
+    /*
+     * Opuštěná kvalita se přestane stahovat — o to při volbě menší kvality jde. Jen rozstahovaná:
+     * hotový soubor zůstává a o soubor, který se nestahoval, se TDLib žádat nemusí.
+     */
+    var previousId by remember { mutableStateOf(chosenId) }
+    LaunchedEffect(chosenId) {
+        val abandoned = previousId
+        previousId = chosenId
+        if (abandoned != chosenId && repository.observe(abandoned).first() is FileState.Downloading) {
+            repository.cancelDownload(abandoned)
+        }
+    }
     val positions = koinInject<VideoPositions>()
     val positionKey = video.fileKey?.takeIf { rememberPosition && !video.isSecret }
     // Čte se jednou: během sledování se pozice zapisuje a začátek se tím měnit nemá.
@@ -251,19 +305,38 @@ internal fun VideoPage(
         onTap = onTap,
         onEngage = onEngage,
         source = { started ->
-            produceState<FileState>(FileState.Pending, video.fileId, started) {
-                if (started) repository.file(video.fileId).collect { value = it }
-            }.value
+            /*
+             * `key`, ne jen klíč `produceState`: ten restartuje producenta, ale stav si pamatuje
+             * BEZ klíče, takže po výběru jiné kvality vracel ještě pár snímků stav STARÉHO souboru.
+             * Stránka pak založila zdroj streamu s cestou a velikostí starého souboru a se
+             * stahováním nového — přehrávač četl cizí soubor (ověřeno: nová kvalita se žádala na
+             * offsetu za koncem svého souboru, kde končil `mdat` původního).
+             */
+            key(chosenId) {
+                produceState<FileState>(FileState.Pending, chosenId, started) {
+                    if (started) repository.file(chosenId).collect { value = it }
+                }.value
+            }
+        },
+        sourceKey = chosenId,
+        quality = onQualityChoice?.takeIf { qualities.size > 1 }?.let { onChoose ->
+            VideoQualityMenu(
+                options = qualities,
+                choice = qualityChoice,
+                playing = chosen,
+                autoPick = autoPick,
+                onChoose = onChoose,
+            )
         },
         /*
          * Streamování: přehrát rozestavěný soubor, místo aby se čekalo na celý. Jde to, jen když
          * má video index na začátku (`supportsStreaming` od serveru) a když to platforma umí —
-         * na iOS zatím ne.
+         * na iOS zatím ne. Přepočítané kvality vyrábí server pro streamování, takže vždycky.
          */
-        streamable = streaming && videoStreamingSupported && video.supportsStreaming,
+        streamable = streaming && videoStreamingSupported && (video.supportsStreaming || !chosen.isOriginal),
         // Přehrávač si řekne o `moov` atom na konci souboru; bez přesunu stahování by na něj
-        // čekal marně.
-        requestFrom = { offset -> scope.launch { repository.downloadFrom(video.fileId, offset) } },
+        // čekal marně. Lambda nese `fileId` té kvality, pro kterou zdroj vznikl.
+        requestFrom = { offset -> scope.launch { repository.downloadFrom(chosenId, offset) } },
         hasSpoiler = hasSpoiler,
         sensitive = video.isSensitive,
         revealed = revealed,
@@ -364,6 +437,14 @@ internal fun VideoPage(
     onProgress: ((positionMs: Long, durationMs: Long) -> Unit)? = null,
     /** Náhledy snímků nad posuvníkem; `null` = bez nich (krátké video, sdílení). */
     storyboard: VideoStoryboard? = null,
+    /**
+     * Který soubor [source] právě dodává (u zprávy `fileId` zvolené kvality). Když se změní
+     * u načteného videa, přehrávač vymění zdroj **na téže pozici** a hraje dál — viz „Výměna
+     * kvality" níž.
+     */
+    sourceKey: Any? = null,
+    /** Čip kvality v liště s nabídkou; `null` = bez něj (jediná kvalita, sdílení). */
+    quality: VideoQualityMenu? = null,
 ) {
     val scope = rememberCoroutineScope()
     val voicePlayer = koinInject<VoicePlayer>()
@@ -384,9 +465,13 @@ internal fun VideoPage(
     val path = (file as? FileState.Ready)?.path
 
     val downloading = file as? FileState.Downloading
-    // Souvisle stažený úsek a cesta se čtou z vlákna přehrávače, proto `MutableStateFlow`, ne Compose stav.
-    val downloadedRange = remember { MutableStateFlow(LongRange.EMPTY) }
-    val currentPath = remember { MutableStateFlow("") }
+    /*
+     * Souvisle stažený úsek a cesta se čtou z vlákna přehrávače, proto `MutableStateFlow`, ne
+     * Compose stav. Každý zdroj má svoje: po výběru jiné kvality dohrává stará do výměny ze
+     * svých hodnot a nová by jí je jinak přepsala cestou a úsekem úplně jiného souboru.
+     */
+    val downloadedRange = remember(sourceKey) { MutableStateFlow(LongRange.EMPTY) }
+    val currentPath = remember(sourceKey) { MutableStateFlow("") }
     /*
      * Stream musí přežít DOKONČENÍ stahování. TDLib hotový soubor přesune z `temp/` na konečnou
      * cestu a `FileState.Downloading` vystřídá `Ready` — bez `downloaded` i bez dočasné cesty.
@@ -424,34 +509,48 @@ internal fun VideoPage(
     var downloadExpanded by remember { mutableStateOf(false) }
     // Během tažení posuvníku se ukazuje místo pod prstem, ne kde přehrávač zrovna je.
     var seekingFraction by remember { mutableStateOf<Float?>(null) }
+    // Který zdroj ([sourceKey]) přehrávač právě má; jiný = čeká se na výměnu kvality.
+    var loadedKey by remember { mutableStateOf<Any?>(null) }
+    // Po výměně kvality hrající video čeká na data nového souboru: točí se průběh uprostřed.
+    var swapping by remember { mutableStateOf(false) }
 
-    // `load` hlasitost i rychlost přenastaví, takže se obojí zapisuje až PO načtení (klíč `loaded`).
-    LaunchedEffect(loaded, speed) { if (loaded) player.setSpeed(speed.rate) }
-    LaunchedEffect(loaded, muted) { if (loaded) player.setMuted(muted) }
+    // `load` hlasitost i rychlost přenastaví, takže se obojí zapisuje až PO načtení — i po
+    // výměně kvality (klíč `loadedKey`).
+    LaunchedEffect(loaded, loadedKey, speed) { if (loaded) player.setSpeed(speed.rate) }
+    LaunchedEffect(loaded, loadedKey, muted) { if (loaded) player.setMuted(muted) }
 
-    LaunchedEffect(path, streamPath) {
-        if (loaded) return@LaunchedEffect
+    /*
+     * Výměna kvality: dokud nový soubor nemá na disku nic, hraje dál ten starý (bez čekání na
+     * černé obrazovce); pak přehrávač dostane nový zdroj, skočí na pozici, kde starý zrovna byl,
+     * a pokud hrál, hraje dál. Přehrávač ani povrch se nezakládají znovu, takže zůstává obraz
+     * v obraze, rychlost i ztlumení.
+     */
+    LaunchedEffect(sourceKey, path, streamPath) {
+        if (loaded && loadedKey == sourceKey) return@LaunchedEffect
+        val swap = loaded
+        val wasPlaying = swap && player.isPlaying
+        val resumeAt = if (swap) player.positionMs else startMs
         when {
             // Hotový soubor má přednost: jednodušší cesta a nic se na něj nečeká.
-            path != null -> {
-                player.load(path)
-                if (startMs > 0) player.seekTo(startMs)
-                loaded = true
-            }
+            path != null -> player.load(path)
             // Streamovat se dá, teprve až je na disku začátek souboru s indexem.
-            streamPath != null && streamTotal > 0 -> {
-                player.loadStreaming(
-                    StreamingSource(
-                        path = { currentPath.value },
-                        totalSize = streamTotal,
-                        downloaded = { downloadedRange.value },
-                        requestFrom = requestFrom,
-                    ),
-                )
-                if (startMs > 0) player.seekTo(startMs)
-                loaded = true
-            }
+            streamPath != null && streamTotal > 0 -> player.loadStreaming(
+                StreamingSource(
+                    path = { currentPath.value },
+                    totalSize = streamTotal,
+                    downloaded = { downloadedRange.value },
+                    requestFrom = requestFrom,
+                ),
+            )
+            else -> return@LaunchedEffect
         }
+        if (resumeAt > 0) player.seekTo(resumeAt)
+        if (wasPlaying) {
+            player.play()
+            swapping = true
+        }
+        loadedKey = sourceKey
+        loaded = true
     }
 
     /*
@@ -506,12 +605,15 @@ internal fun VideoPage(
             // Optimistické `playing = true` z tlačítka by jinak po chybě viselo do dalšího tiknutí.
             if (failed) playing = false
             if (playing) hasPlayed = true
+            if (playing || failed) swapping = false
             delay(POSITION_TICK_MS)
         }
     }
 
-    LaunchedEffect(controlsVisible, playing) {
-        if (controlsVisible && playing) {
+    // Otevřená nabídka kvality drží ovládání na očích — se schovanou lištou by zmizela i ona.
+    var qualityMenuOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(controlsVisible, playing, qualityMenuOpen) {
+        if (controlsVisible && playing && !qualityMenuOpen) {
             delay(CONTROLS_HIDE_MS)
             controlsVisible = false
         }
@@ -732,7 +834,7 @@ internal fun VideoPage(
              * (hraje se dávno před 100 %), proto se po načtení točí neurčitě. Jakmile video hraje,
              * stav stahování převezme nerušivý [VideoDownloadIndicator] a uprostřed je ovládání.
              */
-            if (immersive && started && !hasPlayed && !failed && file !is FileState.Failed) {
+            if (immersive && started && (!hasPlayed || swapping) && !failed && file !is FileState.Failed) {
                 val progress = (file as? FileState.Downloading)?.progress?.takeIf { !loaded && it > 0f }
                 Box(
                     Modifier
@@ -867,7 +969,7 @@ internal fun VideoPage(
             }
 
             AnimatedVisibility(
-                visible = immersive && loaded && (hasPlayed || failed) && controlsVisible && !inPip && !locked,
+                visible = immersive && loaded && (hasPlayed || failed) && !swapping && controlsVisible && !inPip && !locked,
                 enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 modifier = Modifier.align(Alignment.Center),
@@ -990,6 +1092,16 @@ internal fun VideoPage(
                         )
                     }
                     val extras: @Composable RowScope.() -> Unit = {
+                        quality?.let { menu ->
+                            VideoQualityChip(
+                                menu = menu,
+                                expanded = qualityMenuOpen,
+                                onExpandedChange = { open ->
+                                    qualityMenuOpen = open
+                                    controlsVisible = true
+                                },
+                            )
+                        }
                         // Rychlost a zvuk za časem, jako u hlasovky; bílé na tmavém přechodu karty.
                         SpeedChip(
                             speed = speed,
@@ -1233,3 +1345,8 @@ private const val VIDEO_SEEK_STEPS = 20
  * obraz v obraze a zvuk zaberou kolem 320 dp; posuvníku má zbýt aspoň půlka telefonu.
  */
 private val VIDEO_CONTROLS_ONE_LINE_WIDTH = 480.dp
+
+private val logger = Logger.withTag("VideoQuality")
+
+/** Kvalita do logu: `fileId=šířka×výška/kodek/bajty`. */
+private fun VideoQuality.logLabel(): String = "$fileId=${width}x$height/${codec ?: "orig"}/$sizeBytes"

@@ -29,19 +29,25 @@ data class AutoDownloadSettings(
  * [photos]: fotka ve zprávě (i v albu a v náhledu odkazu). [maxVideoBytes]: GIF a kolečko
  * se samy přehrají jen do téhle velikosti. [maxFileBytes]: obrázek poslaný jako soubor se kvůli
  * ostrému náhledu stáhne celý jen do téhle velikosti. Nula = nic.
+ *
+ * [maxVideoLines] je strop automatické kvality videa v prohlížeči (kratší strana, „720p",
+ * `pickVideoQuality` v `core/video`); [Int.MAX_VALUE] = původní soubor. Video se sice samo
+ * nestahuje, ale puštěné na mobilních datech nemá sníst stovky megabajtů, když server nabízí
+ * menší kvalitu.
  */
 data class AutoDownloadLimits(
     val photos: Boolean,
     val maxVideoBytes: Long,
     val maxFileBytes: Long,
+    val maxVideoLines: Int,
 )
 
 val AutoDownloadLevel.limits: AutoDownloadLimits
     get() = when (this) {
-        AutoDownloadLevel.Off -> AutoDownloadLimits(photos = false, maxVideoBytes = 0, maxFileBytes = 0)
-        AutoDownloadLevel.Low -> AutoDownloadLimits(photos = true, maxVideoBytes = LOW_VIDEO_BYTES, maxFileBytes = 0)
-        AutoDownloadLevel.Medium -> AutoDownloadLimits(photos = true, maxVideoBytes = MEDIUM_BYTES, maxFileBytes = MEDIUM_BYTES)
-        AutoDownloadLevel.High -> AutoDownloadLimits(photos = true, maxVideoBytes = HIGH_BYTES, maxFileBytes = HIGH_BYTES)
+        AutoDownloadLevel.Off -> AutoDownloadLimits(photos = false, maxVideoBytes = 0, maxFileBytes = 0, maxVideoLines = OFF_VIDEO_LINES)
+        AutoDownloadLevel.Low -> AutoDownloadLimits(photos = true, maxVideoBytes = LOW_VIDEO_BYTES, maxFileBytes = 0, maxVideoLines = LOW_VIDEO_LINES)
+        AutoDownloadLevel.Medium -> AutoDownloadLimits(photos = true, maxVideoBytes = MEDIUM_BYTES, maxFileBytes = MEDIUM_BYTES, maxVideoLines = MEDIUM_VIDEO_LINES)
+        AutoDownloadLevel.High -> AutoDownloadLimits(photos = true, maxVideoBytes = HIGH_BYTES, maxFileBytes = HIGH_BYTES, maxVideoLines = Int.MAX_VALUE)
     }
 
 /**
@@ -74,3 +80,12 @@ const val MEDIUM_BYTES: Long = 5L * 1024 * 1024
 
 /** Strop na úrovni [AutoDownloadLevel.High]. */
 const val HIGH_BYTES: Long = 20L * 1024 * 1024
+
+/**
+ * Stropy automatické kvality videa. „Vypnuto" neznamená, že se video nepustí — uživatel ho pustil
+ * sám —, jen že se bere nejmenší rozumná kvalita. „Naplno" (výchozí na Wi-Fi) hraje původní
+ * soubor, jako aplikace dřív všude.
+ */
+const val OFF_VIDEO_LINES: Int = 360
+const val LOW_VIDEO_LINES: Int = 480
+const val MEDIUM_VIDEO_LINES: Int = 720

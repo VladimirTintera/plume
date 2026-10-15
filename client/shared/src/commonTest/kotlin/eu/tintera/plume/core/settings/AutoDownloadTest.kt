@@ -49,13 +49,15 @@ class AutoDownloadTest {
         assertEquals(levels.map { it.maxVideoBytes }.sorted(), levels.map { it.maxVideoBytes })
         assertEquals(levels.map { it.maxFileBytes }.sorted(), levels.map { it.maxFileBytes })
         assertEquals(0L, AutoDownloadLevel.Off.limits.maxVideoBytes)
+        assertEquals(levels.map { it.maxVideoLines }.sorted(), levels.map { it.maxVideoLines })
+        assertEquals(Int.MAX_VALUE, AutoDownloadLevel.High.limits.maxVideoLines)
     }
 
     /** „Běžně" je to, co aplikace dělala na všech sítích, než šlo vybírat. */
     @Test
     fun bezneJeDosavadniChovani() {
         assertEquals(
-            AutoDownloadLimits(photos = true, maxVideoBytes = 5L * 1024 * 1024, maxFileBytes = 5L * 1024 * 1024),
+            AutoDownloadLimits(photos = true, maxVideoBytes = 5L * 1024 * 1024, maxFileBytes = 5L * 1024 * 1024, maxVideoLines = 720),
             AutoDownloadLevel.Medium.limits,
         )
     }
