@@ -5,12 +5,13 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
-/** Klávesová zkratka z fyzické klávesnice (Fold, tablet, Chromebook). */
+/** Klávesová zkratka z fyzické klávesnice (desktop, Fold, tablet, Chromebook). */
 enum class KeyboardShortcut { SearchChats, SearchInChat, NextChat, PreviousChat }
 
 /**
  * Zkratky z klávesnice jako události. Chytá je platforma DŘÍV, než klávesu dostane Compose
- * (Android `MainActivity.dispatchKeyEvent`): v Compose dorazí klávesa jen k zaostřenému prvku,
+ * (Android `MainActivity.dispatchKeyEvent`, desktop `onPreviewKeyEvent` okna, viz
+ * `rememberDesktopShortcutHandler`): v Compose dorazí klávesa jen k zaostřenému prvku,
  * a když není zaostřené nic (seznam chatů po spuštění), nedorazí nikam. A vstupní pole by
  * Alt+šipku spolklo jako pohyb kurzoru.
  *
@@ -37,17 +38,28 @@ class KeyboardShortcuts {
  * - Alt+↓ / Alt+↑ a Ctrl+Tab / Ctrl+Shift+Tab další a předchozí chat (jako Telegram Desktop).
  *
  * S klávesou Meta (Windows, ⌘) nic: tu si bere systém (Meta+/ seznam zkratek, Meta+Tab).
+ *
+ * **Výjimka je macOS ([commandIsMeta])**: tam je příkazová klávesa ⌘, ne Ctrl, takže hledání je
+ * ⌘K a ⌘F a Ctrl+K / Ctrl+F nic nedělají (Ctrl+K maže v textovém poli do konce řádku).
+ * Přepínání chatů zůstává Ctrl+Tab a ⌥+šipka — ⌘Tab si bere systém.
  */
-fun keyboardShortcut(key: Key, ctrl: Boolean, alt: Boolean, shift: Boolean, meta: Boolean): KeyboardShortcut? {
-    if (meta) return null
-    val ctrlOnly = ctrl && !alt && !shift
-    val altOnly = alt && !ctrl && !shift
+fun keyboardShortcut(
+    key: Key,
+    ctrl: Boolean,
+    alt: Boolean,
+    shift: Boolean,
+    meta: Boolean,
+    commandIsMeta: Boolean = false,
+): KeyboardShortcut? {
+    val command = if (commandIsMeta) meta && !ctrl else ctrl && !meta
+    val commandOnly = command && !alt && !shift
+    val altOnly = alt && !ctrl && !shift && !meta
     return when {
-        ctrlOnly && key == Key.K -> KeyboardShortcut.SearchChats
-        ctrlOnly && key == Key.F -> KeyboardShortcut.SearchInChat
+        commandOnly && key == Key.K -> KeyboardShortcut.SearchChats
+        commandOnly && key == Key.F -> KeyboardShortcut.SearchInChat
         altOnly && key == Key.DirectionDown -> KeyboardShortcut.NextChat
         altOnly && key == Key.DirectionUp -> KeyboardShortcut.PreviousChat
-        ctrl && !alt && key == Key.Tab -> if (shift) KeyboardShortcut.PreviousChat else KeyboardShortcut.NextChat
+        ctrl && !alt && !meta && key == Key.Tab -> if (shift) KeyboardShortcut.PreviousChat else KeyboardShortcut.NextChat
         else -> null
     }
 }

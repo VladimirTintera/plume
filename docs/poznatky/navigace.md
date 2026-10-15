@@ -419,7 +419,7 @@ Dřív byl zásobník jeden pro celou aplikaci a přepnutí ho srovnalo na koře
 
 ### Klávesové zkratky
 
-Fold, tablet nebo Chromebook s fyzickou klávesnicí: **Ctrl+K** hledání chatů, **Ctrl+F** hledání
+Desktop, Fold, tablet nebo Chromebook s fyzickou klávesnicí: **Ctrl+K** hledání chatů, **Ctrl+F** hledání
 v otevřené konverzaci, **Alt+↓ / Alt+↑** a **Ctrl+Tab / Ctrl+Shift+Tab** další a předchozí chat,
 **Esc** zpět (zavře hledání, konverzaci). Pravidla jsou čisté funkce (`keyboardShortcut`,
 `neighbourChat`, testy `KeyboardShortcutsTest`). Enter ve vstupním poli viz
@@ -444,6 +444,19 @@ v otevřené konverzaci, **Alt+↓ / Alt+↑** a **Ctrl+Tab / Ctrl+Shift+Tab** d
   kláves systému sice Esc převede na Zpět, ale jen když klávesu nikdo nezpracuje — a zaostřené
   vstupní pole ji spolkne: z konverzace s kurzorem v poli Esc nedělal nic. Zpět se volá až při
   uvolnění klávesy, stisk se jen spolkne.
+- **Desktop je chytá v `onPreviewKeyEvent` okna** (`rememberDesktopShortcutHandler` v jvmMain,
+  předává ho `Main.kt`). Dřív na desktopu nefungovala ŽÁDNÁ zkratka: `KeyboardShortcuts`
+  spouštěla jen activity a okno obsluhu kláves nemělo. `onPreviewKeyEvent` okna jde před scénou
+  (`ComposeSceneMediator.onKeyEvent`: náhled okna → scéna se zaostřeným prvkem → `onKeyEvent`
+  okna → Esc jako Zpět), takže chytá i nad zaostřeným polem a bez fokusu.
+  - **Na macOS je příkazová klávesa ⌘** (`commandIsMeta`): ⌘K a ⌘F, Ctrl+K a Ctrl+F nic
+    (Ctrl+K maže v poli do konce řádku). Přepínání chatů zůstává Ctrl+Tab a ⌥+šipka — ⌘Tab si
+    bere systém.
+  - **Esc = Zpět dělá na desktopu Compose sám** (`BackNavigationEventInput`), ale až když
+    klávesu nikdo nespotřebuje — tatáž past jako na Androidu.
+  - Přehled zkratek desktop nemá (nabídka okna, `docs/roadmap.md`).
+  - **Ověřeno na Windows 11** (ladicí běh, uživatel): Ctrl+K, Ctrl+F, Alt+šipky, Ctrl+Tab
+    a Esc i s kurzorem v poli zprávy. macOS (⌘) jen testy, za běhu neověřené.
 - **iOS zkratky nemá** — chybí obdoba `dispatchKeyEvent` (`UIKeyCommand`); Enter ve vstupním
   poli tam funguje, protože ho řeší pole samo.
 - **Fyzická klávesnice na emulátoru:** `input keyevent` / `keycombination` posílá z virtuálního

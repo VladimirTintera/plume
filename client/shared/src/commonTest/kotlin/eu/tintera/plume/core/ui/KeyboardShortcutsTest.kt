@@ -60,6 +60,29 @@ class KeyboardShortcutsTest {
         assertNull(shortcut(Key.Tab, meta = true))
     }
 
+    private fun macShortcut(key: Key, ctrl: Boolean = false, alt: Boolean = false, shift: Boolean = false, meta: Boolean = false) =
+        keyboardShortcut(key, ctrl, alt, shift, meta, commandIsMeta = true)
+
+    /** macOS: hledání je ⌘K a ⌘F, Ctrl+K a Ctrl+F nic (Ctrl+K maže v poli do konce řádku). */
+    @Test
+    fun macHledaniPresCmd() {
+        assertEquals(KeyboardShortcut.SearchChats, macShortcut(Key.K, meta = true))
+        assertEquals(KeyboardShortcut.SearchInChat, macShortcut(Key.F, meta = true))
+        assertNull(macShortcut(Key.K, ctrl = true))
+        assertNull(macShortcut(Key.F, ctrl = true))
+        assertNull(macShortcut(Key.K, ctrl = true, meta = true))
+    }
+
+    /** macOS: přepínání chatů zůstává Ctrl+Tab a ⌥+šipka; s ⌘ nic. */
+    @Test
+    fun macPrepinaniChatu() {
+        assertEquals(KeyboardShortcut.NextChat, macShortcut(Key.Tab, ctrl = true))
+        assertEquals(KeyboardShortcut.PreviousChat, macShortcut(Key.Tab, ctrl = true, shift = true))
+        assertEquals(KeyboardShortcut.NextChat, macShortcut(Key.DirectionDown, alt = true))
+        assertNull(macShortcut(Key.DirectionDown, alt = true, meta = true))
+        assertNull(macShortcut(Key.Tab, meta = true))
+    }
+
     @Test
     fun sousedniChat() {
         val ids = listOf(1L, 2L, 3L)
