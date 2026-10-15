@@ -138,10 +138,18 @@ interface ChatRepository {
     suspend fun closeSecretChat(chatId: Long): Result<Unit> = Result.failure(UnsupportedOperationException())
 
     /**
-     * Je chat skupina s tématy? Otevírá se pak seznamem témat, ne konverzací. Lokální dotaz;
+     * Otevírá se chat seznamem témat, ne konverzací (viz [opensAsTopics])? Lokální dotaz;
      * chat, který TDLib nezná, fórum není. Výchozí `false` pro podvrhy v testech.
      */
-    suspend fun isForum(chatId: Long): Boolean = false
+    suspend fun opensAsTopics(chatId: Long): Boolean = false
+
+    /**
+     * Skupina s tématy jako seznam témat ([viewAsTopics] `true`), nebo jako jeden proud zpráv
+     * (`toggleChatViewAsTopics`). Volba se ukládá na serveru, takže platí i na ostatních
+     * zařízeních; potvrzení chodí updatem do [ChatSummary.viewAsTopics].
+     */
+    suspend fun setViewAsTopics(chatId: Long, viewAsTopics: Boolean): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
 
     /**
      * Skupiny, které jde připojit ke kanálu jako diskusi (`getSuitableDiscussionChats`): kde je
@@ -645,6 +653,13 @@ data class ChatSummary(
      */
     val isForum: Boolean = false,
     /**
+     * Skupina s tématy se má otevírat seznamem témat (`Chat.viewAsTopics`), ne jedním proudem
+     * zpráv. Volba „Zobrazit jako zprávy / jako témata" patří účtu, ne zařízení: drží ji server
+     * a mění se updatem i z jiného klienta. Sama o sobě nic neříká — rozhoduje [opensAsTopics].
+     * Výchozí `true`, aby se fórum z položky, která to neví, otevíralo jako dřív.
+     */
+    val viewAsTopics: Boolean = true,
+    /**
      * Proč je v seznamu chat, do kterého uživatel nevstoupil (viz [ChatSponsor]); `null` u běžného
      * chatu. Patří POZICI ve složce, ne chatu — TDLib ho posílá jen v hlavním seznamu.
      */
@@ -673,6 +688,12 @@ sealed interface ChatSponsor {
  * a kanálu odchod. Jsou to dvě různé věci a nabídnout je pod jedním popiskem by lhalo.
  */
 val ChatSummary.isPrivate: Boolean get() = kind == ChatKind.Private
+
+/**
+ * Otevřít chat seznamem témat místo konverzace: skupina s tématy, kterou si uživatel (na kterémkoli
+ * zařízení) nepřepnul na „Zobrazit jako zprávy".
+ */
+val ChatSummary.opensAsTopics: Boolean get() = isForum && viewAsTopics
 
 /** Rozepsaná zpráva chatu, jak ji drží TDLib (a s ním i ostatní zařízení). */
 data class ChatDraft(

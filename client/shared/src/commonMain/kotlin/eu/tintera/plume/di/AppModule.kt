@@ -37,6 +37,7 @@ import eu.tintera.plume.core.telegram.TdlProxyRepository
 import eu.tintera.plume.core.telegram.ProxyRepository
 import eu.tintera.plume.core.telegram.AccountRepository
 import eu.tintera.plume.features.profile.ChatProfileViewModel
+import eu.tintera.plume.features.profile.ChatAutosaveViewModel
 import eu.tintera.plume.features.forum.ForumTopicsViewModel
 import eu.tintera.plume.features.saved.SavedTopicsViewModel
 import eu.tintera.plume.features.webapp.WebAppViewModel
@@ -631,6 +632,7 @@ fun appModule() = module {
             forums = get(),
             conversations = get(),
             notifications = get(),
+            chats = get(),
             inviteLinks = get(),
         )
     }
@@ -677,6 +679,8 @@ fun appModule() = module {
             contactOffers = get(),
         )
     }
+
+    viewModel { parameters -> ChatAutosaveViewModel(chatId = parameters.get(), autosave = get()) }
 
     viewModel { parameters ->
         EditChatViewModel(

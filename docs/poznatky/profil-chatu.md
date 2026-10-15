@@ -75,6 +75,9 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
 - **Členové jen tam, kde je server vydá** (`canListMembers`: malá skupina vždy, supergroup podle
   `canGetMembers`, kanál ne). Smazané účty (bez jména) a kdo odešel se vynechají. Ťuknutí na
   člena otevře soukromý chat.
+- **Ukládání do galerie pro tenhle chat** je řádek mezi upozorněními a barvou konverzace, s vlastním
+  ViewModelem (`ChatAutosaveViewModel`), ať profil nenese další závislost. Pravidla v
+  `docs/poznatky/prohlizec-medii.md`, „Automatické ukládání do galerie".
 
 ### Osobní kanál a datum narození
 
@@ -362,8 +365,37 @@ antispam, podpisy a profily autorů v kanálu, zakázat ukládání obsahu. Na k
   skupina záznam nemá. Živě se neobnovuje, TDLib na něj update nemá.
 - Ověřeno na emulátoru (14. 10. 2026, „Plume test moderace"): celý den testů — přidání členů,
   smazané zprávy s textem, vyhození, povolení návratu, omezení a jeho zrušení, přepínače
-  nastavení, změna reakcí, připnutí a odepnutí. Kanál a hledání / filtry záznamu (TDLib je
-  umí) ověřené nejsou; filtry aplikace zatím nenabízí.
+  nastavení, změna reakcí, připnutí a odepnutí. Kanál ověřený není.
+
+#### Hledání a filtry záznamu
+
+Nad záznamem je vyhledávací pilulka a řádek čipů: **kdo** (čip s nabídkou správců) a **druh
+akce** (Zprávy, Členové, Správci, Omezení, Informace o skupině, Pozvánky, Videochaty, Témata).
+
+- **Filtruje server, ne načtené stránky** (`getChatEventLog` s `query`, `filters`, `userIds`;
+  `ChatLogFilter` → `toTdlFilters`, testy `ChatLogFilterTest`). Záznam se stránkuje po stovce
+  a filtr nad první stránkou by tvrdil „nic", i když starší akce odpovídá.
+- **Žádný vybraný druh = `filters = null`**, ne objekt se samými `false` — ten by ze serveru
+  nevrátil nic. Čipy jsou hrubší než 15 příznaků TDLib (Zprávy = úpravy, smazání i připnutí;
+  Informace o skupině = `infoChanges` + `settingChanges`; Pozvánky nesou i prodloužení
+  předplatného), rozdělení podle oficiálních klientů.
+- **Druhy jsou `FilterChip`, ne connected button group** jako druh chatu v hledání zpráv: tam
+  se volí nejvýš jedna ze tří, tady libovolně mnoho z osmi, a to je úloha filtračního čipu.
+  Vybraný má fajfku, stav nese i tvar.
+- **Kdo = správci z `SupergroupMembersFilterAdministrators`** (vlastník první), jen lidé — autor
+  akce v záznamu je vždycky vlastník nebo správce (člen je autorem jen svého příchodu
+  a odchodu). Nabídka se po výběru NEZAVÍRÁ, vybírá se víc lidí; „Kdokoli" výběr zruší a zavře
+  ji. Když se správci nenačtou, čip se neukáže.
+- **Změna filtru zruší rozběhnuté načítání i další stránku** (`loadJob`): jejich výsledek patří
+  ke starému filtru a vložil by do seznamu akce, které novému neodpovídají. Hledání čeká 400 ms
+  po posledním písmenu.
+- **Prázdný výsledek s filtrem má vlastní stav** („Nic neodpovídá" + Zrušit filtry), jinak by
+  tvrdil „za 48 hodin nic". Zrušení vymaže i text v pilulce — ten drží pole samo, proto se
+  založí znovu (`key(searchGeneration)`).
+- Ověřeno na emulátoru (15. 10. 2026, „Plume test moderace"): hledání „Neprectena" najde
+  připnutí a odepnutí, s čipem Členové nic a „Zrušit filtry" vrátí celý záznam; čip Zprávy
+  nechá jen zprávy; nabídka Kdo s vlastníkem (jediný správce — že filtr podle autora
+  vyřadí cizí akce, ověřit nešlo, všechny akce jsou jeho).
 
 ### Omezení a vyhození
 

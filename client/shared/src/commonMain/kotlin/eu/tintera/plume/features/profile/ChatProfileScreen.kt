@@ -302,6 +302,10 @@ fun ChatProfileScreen(
     val sounds = rememberChatSounds(viewModel.chatId)
     val tones by sounds.tones.collectAsStateWithLifecycle()
     var showSound by rememberSaveable { mutableStateOf(false) }
+    // Ukládání do galerie pro tenhle chat — vlastní ViewModel, ať profil nenese další závislost.
+    val autosaveViewModel = rememberChatAutosaveViewModel(viewModel.chatId)
+    val autosaveState = autosaveViewModel?.state?.collectAsStateWithLifecycle()?.value
+    var showAutosave by rememberSaveable { mutableStateOf(false) }
     // Návrat z úpravy chatu (název, popis, veřejný odkaz): profil se tu skládá znovu, ale
     // ViewModel přežil a jinak by ukazoval, co přečetl při otevření.
     LaunchedEffect(Unit) { viewModel.refreshOnReturn() }
@@ -460,9 +464,12 @@ fun ChatProfileScreen(
                 )
                 val notifications = state.notifications
                 val showsAutoDelete = profile.canSetAutoDelete || profile.autoDeleteTime > 0
+                val chatAutosave = autosaveChatType(profile.kind, profile.isSecretChat)
+                    ?.let { type -> autosaveState?.settings?.chatAutosave(profile.chatId, type) }
                 if (profile.usernames.isNotEmpty() || profile.phone != null || profile.birthdate != null || profile.about.isNotBlank() ||
                     profile.personalChannel != null ||
                     notifications != null || showsAutoDelete || profile.linkedChat != null || bookmarks.isNotEmpty() ||
+                    chatAutosave != null ||
                     profile.secretChatKey != null ||
                     viewModel.supportsChatColor
                 ) {
@@ -475,6 +482,8 @@ fun ChatProfileScreen(
                         onOpenLinkedChat = viewModel::openLinkedChat,
                         onOpenPersonalChannel = viewModel::openPersonalChannel,
                         onOpenNotifications = viewModel::openNotificationSheet,
+                        autosave = chatAutosave,
+                        onOpenAutosave = { showAutosave = true },
                         onOpenAutoDelete = viewModel::openAutoDeleteSheet.takeIf { profile.canSetAutoDelete },
                         onOpenSecretKey = { showSecretKey = true },
                         chatColor = chatColor,
@@ -482,6 +491,18 @@ fun ChatProfileScreen(
                     )
                 }
             }
+        }
+
+        val autosaveType = autosaveChatType(profile.kind, profile.isSecretChat)
+        autosaveViewModel?.let {
+            ChatAutosaveHost(
+                viewModel = it,
+                chatId = profile.chatId,
+                type = autosaveType,
+                open = showAutosave,
+                onClose = { showAutosave = false },
+                snackbarHostState = snackbarHostState,
+            )
         }
 
         val secretKey = profile.secretChatKey
@@ -1299,6 +1320,9 @@ private fun ProfileInfo(
     onOpenLinkedChat: () -> Unit,
     onOpenPersonalChannel: () -> Unit,
     onOpenNotifications: () -> Unit,
+    /** Ukládání do galerie v tomhle chatu; `null` = řádek se neukazuje (desktop, tajný chat, Uložené). */
+    autosave: ChatAutosave?,
+    onOpenAutosave: () -> Unit,
     /** `null` = mazání měnit nesmí; řádek se pak jen ukáže, když je zapnuté. */
     onOpenAutoDelete: (() -> Unit)?,
     onOpenSecretKey: () -> Unit,
@@ -1452,6 +1476,15 @@ private fun ProfileInfo(
                     onClick = onOpenNotifications,
                 ) {
                     Text(prefs.summary(), style = MaterialTheme.typography.bodyLarge)
+                }
+            }
+        }
+        // Ukládání do galerie je nastavení účtu pro tenhle chat — vedle upozornění. Ťuknutí
+        // výjimku založí, upraví nebo odebere (v Úložišti jde jen upravit a odebrat).
+        autosave?.let { current ->
+            add { shape ->
+                InfoRow(label = chatAutosaveLabel(), shape = shape, onClick = onOpenAutosave) {
+                    Text(chatAutosaveText(current), style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }

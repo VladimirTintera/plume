@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.conversation
 
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.ai.reminderTimeOf
+import eu.tintera.plume.core.ai.generateAnswer
+import eu.tintera.plume.core.ai.ReminderAnswer
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.parseReminderTime
@@ -34,10 +37,13 @@ class ReminderTimeModel(private val ai: OnDeviceAi, private val settings: AppSet
         if (text.isBlank() || !available()) return null
         return try {
             withTimeoutOrNull(TIMEOUT_MS) {
-                var last = ""
-                ai.generate(settings.onDeviceAiVariant.value, reminderPrompt(text, sentAt)).collect { last = it.text }
-                logger.d { "Model odpověděl: $last" }
-                parseReminderTime(last, sentAt)
+                ai.generateAnswer(
+                    settings.onDeviceAiVariant.value,
+                    ReminderAnswer::class,
+                    prompt = { structured -> reminderPrompt(text, sentAt, structured) },
+                    fromStructured = { reminderTimeOf(it, sentAt) },
+                    fromText = { parseReminderTime(it, sentAt) },
+                )
             }
         } catch (e: CancellationException) {
             throw e

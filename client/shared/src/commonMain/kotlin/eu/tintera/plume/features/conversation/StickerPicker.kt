@@ -255,16 +255,25 @@ class StickerPickerViewModel(
     private val settings: AppSettings,
 ) : ViewModel() {
 
-    /** Nedávno vybraná emoji, jen ta z katalogu (uložené mohlo zůstat z jiné verze aplikace). */
-    val recentEmojis: StateFlow<List<String>> = settings.recentEmojis
-        .map { list -> list.mapNotNull(::catalogEmoji) }
+    /**
+     * Nedávno vybraná emoji, obyčejná i vlastní, v pořadí použití ([parseRecentEmoji]: obyčejná
+     * jen z katalogu, uložené mohlo zůstat z jiné verze aplikace). Vlastní emoji ukazuje výběr
+     * jen tam, kde je uživatel smí použít.
+     */
+    val recentEmojis: StateFlow<List<EmojiEntry>> = settings.recentEmojis
+        .map { list -> list.mapNotNull(::parseRecentEmoji) }
         .stateIn(
             viewModelScope,
             SharingStarted.Eagerly,
-            settings.recentEmojis.value.mapNotNull(::catalogEmoji),
+            settings.recentEmojis.value.mapNotNull(::parseRecentEmoji),
         )
 
     fun recordEmoji(emoji: String) = settings.recordRecentEmoji(emoji)
+
+    /** Vlastní emoji do nedávných, mezi obyčejná (viz [recentKey]). */
+    fun recordCustomEmoji(item: CustomEmojiItem) {
+        if (item.emoji.isNotEmpty()) settings.recordRecentEmoji(item.recentKey())
+    }
 
     /** Zvolené odstíny pleti: základ → varianta. */
     val skinTones: StateFlow<Map<String, String>> = settings.emojiSkinTones
@@ -349,8 +358,15 @@ class StickerPickerViewModel(
                 return@transformLatest
             }
             emit(EmojiSearchState.Searching)
-            val found = emojiRepository.searchEmojis(text, request.languageCodes).mapNotNull(::catalogEmoji)
-            emit(EmojiSearchState.Results(found.distinct()))
+            val found = emojiRepository.searchEmojis(text, request.languageCodes).mapNotNull(::catalogEmoji).distinct()
+            // Vlastní emoji z nainstalovaných sad jen tam, kde je smí uživatel poslat.
+            val chatId = customEmojiChatId
+            val custom = if (_customEmojiAllowed.value && chatId != null) {
+                repository.searchCustomEmoji(text, found, chatId)
+            } else {
+                emptyList()
+            }
+            emit(EmojiSearchState.Results(found, custom))
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), EmojiSearchState.Idle)
 
@@ -543,7 +559,7 @@ private const val MAX_SEARCH_EMOJI = 10
 sealed interface EmojiSearchState {
     data object Idle : EmojiSearchState
     data object Searching : EmojiSearchState
-    data class Results(val emojis: List<String>) : EmojiSearchState
+    data class Results(val emojis: List<String>, val custom: List<CustomEmojiItem> = emptyList()) : EmojiSearchState
 }
 
 sealed interface StickerSearchState {

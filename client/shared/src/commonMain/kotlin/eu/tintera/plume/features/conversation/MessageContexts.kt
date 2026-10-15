@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.conversation
 
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.ai.eventDetailsOf
+import eu.tintera.plume.core.ai.generateAnswer
+import eu.tintera.plume.core.ai.EventAnswer
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.eventPrompt
@@ -93,10 +96,13 @@ class MessageContexts(
         }
         val verdict = try {
             withTimeoutOrNull(TIMEOUT_MS) {
-                var last = ""
-                ai.generate(variant, eventPrompt(request.text, request.sentAt, request.start)).collect { last = it.text }
-                logger.d { "Model u zprávy ${request.key.messageId} odpověděl: $last" }
-                parseEventDetails(last, request.text)
+                ai.generateAnswer(
+                    variant,
+                    EventAnswer::class,
+                    prompt = { structured -> eventPrompt(request.text, request.sentAt, request.start, structured) },
+                    fromStructured = { eventDetailsOf(it, request.text) },
+                    fromText = { parseEventDetails(it, request.text) },
+                )
             }
         } catch (e: CancellationException) {
             throw e

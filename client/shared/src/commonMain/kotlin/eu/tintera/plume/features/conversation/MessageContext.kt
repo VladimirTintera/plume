@@ -118,6 +118,12 @@ enum class ParcelCarrier {
     /** Zásilkovna (Packeta): `Z` a deset číslic. */
     Packeta,
 
+    /** PPL: jedenáct číslic, jen se slovem „PPL" poblíž (holé číslo od telefonu nerozeznáš). */
+    Ppl,
+
+    /** DPD: čtrnáct číslic, jen se slovem „DPD" poblíž. */
+    Dpd,
+
     /** S10 z jiné země; sleduje se přes 17TRACK, který zná pošty celého světa. */
     International,
 }
@@ -184,7 +190,9 @@ data class MessageContext(
  * - **Jednotky** jen té soustavy, kterou uživatel NEpoužívá ([metric]): metrickému míle, stopy,
  *   palce, libry, unce, galony, °F a mph; americkému km, m, cm, kg, g, litry, °C a km/h.
  * - **Zásilka** jen ve formátu, který dopravce jednoznačně určí: S10 s kontrolní číslicí
- *   a Zásilkovna. Holá čísla PPL nebo DPD od telefonu nerozeznáš.
+ *   a Zásilkovna. Holá čísla PPL (11 číslic) a DPD (14) kontrolní součet nemají a od telefonu
+ *   nebo čísla objednávky je nerozeznáš — berou se jen se jménem dopravce poblíž
+ *   ([CARRIER_WINDOW] znaků), napsaným velkými písmeny („ppl" je v angličtině „people").
  */
 fun findMessageContext(
     text: String,
@@ -319,6 +327,13 @@ fun ContextFinding.Parcel.trackingUrl(language: String): String = when (carrier)
     ParcelCarrier.CzechPost -> "https://www.postaonline.cz/trackandtrace/-/zasilka/cislo?parcelNumbers=$number"
     ParcelCarrier.Packeta -> "https://tracking.packeta.com/${if (language == "cs") "cs" else "en"}/$number"
     ParcelCarrier.International -> "https://t.17track.net/en#nums=$number"
+    // Adresy z vlastních stránek dopravců: PPL `tntSearchUrlCs/En` na ppl.cz s parametrem
+    // `shipmentId`, DPD z vyhledávacího pole na dpd.com/cz (`lang=cz`, ne `cs`).
+    ParcelCarrier.Ppl ->
+        if (language == "cs") "https://www.ppl.cz/vyhledat-zasilku?shipmentId=$number"
+        else "https://www.ppl.cz/en/track-a-shipment?shipmentId=$number"
+    ParcelCarrier.Dpd ->
+        "https://www.dpdgroup.com/cz/mydpd/my-parcels/search?lang=${if (language == "cs") "cz" else "en"}&parcelNumber=$number"
 }
 
 /**
@@ -897,6 +912,18 @@ private fun parcels(text: String): List<ContextFinding.Parcel> = buildList {
     PACKETA.findAll(text).forEach { match ->
         add(ContextFinding.Parcel(ParcelCarrier.Packeta, "Z" + match.groupValues.drop(1).joinToString("")))
     }
+    // PPL a DPD jsou holé číslice bez kontrolní číslice — jen se jménem dopravce poblíž.
+    CARRIER_NUMBER.findAll(text).forEach { match ->
+        val (carrier, name) = when (match.value.length) {
+            PPL_DIGITS -> ParcelCarrier.Ppl to PPL
+            DPD_DIGITS -> ParcelCarrier.Dpd to DPD
+            else -> return@forEach
+        }
+        val near = name.findAll(text).any { word ->
+            word.range.first - match.range.last <= CARRIER_WINDOW && match.range.first - word.range.last <= CARRIER_WINDOW
+        }
+        if (near) add(ContextFinding.Parcel(carrier, match.value))
+    }
 }.distinctBy { it.number }.take(MAX_PARCELS)
 
 /** Kontrolní číslice S10 (UPU): váhy 8 6 4 2 3 5 9 7, 11 − zbytek; 10 → 0, 11 → 5. */
@@ -914,6 +941,11 @@ internal fun s10Valid(digits: String): Boolean {
 private const val MAX_TITLE_CHARS = 60
 private const val MAX_ACCOUNTS = 2
 private const val MAX_PARCELS = 3
+private const val PPL_DIGITS = 11
+private const val DPD_DIGITS = 14
+
+/** Jak daleko (ve znacích) od čísla smí stát jméno dopravce, aby se číslo bralo jako zásilka. */
+private const val CARRIER_WINDOW = 80
 private const val MAX_ADDRESSES = 2
 private const val MAX_CONTACTS = 2
 private const val MAX_FLIGHTS = 2
@@ -1228,6 +1260,15 @@ private val UNIT_WORDS: Map<String, MeasureUnit> = buildMap {
 }
 
 private val S10 = Regex("(?<![A-Za-z0-9])([A-Z]{2})(\\d{9})([A-Z]{2})(?![A-Za-z0-9])")
+/**
+ * Jedenáct (PPL) nebo čtrnáct (DPD) číslic v kuse. Nesmí být kusem delšího čísla, účtu
+ * („…/0800", „19-…"), kódu s písmeny ani desetinného čísla.
+ */
+private val CARRIER_NUMBER = Regex("(?<![\\p{L}\\d+/\\-])(?:\\d{14}|\\d{11})(?![\\p{L}\\d/]|[.,]\\d)")
+
+/** Jméno dopravce jako samostatné slovo, velkými písmeny. */
+private val PPL = Regex("(?<![\\p{L}\\d])PPL(?![\\p{L}\\d])")
+private val DPD = Regex("(?<![\\p{L}\\d])DPD(?![\\p{L}\\d])")
 private val PACKETA = Regex("(?<![A-Za-z0-9])Z ?(\\d{3}) ?(\\d{4}) ?(\\d{3})(?![\\d])")
 
 /**

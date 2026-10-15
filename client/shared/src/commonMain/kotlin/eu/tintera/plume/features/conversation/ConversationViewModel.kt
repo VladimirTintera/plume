@@ -433,7 +433,7 @@ class ConversationViewModel(
     fun closeMessageContext() = messageContext.closeMessageContext()
     fun addToCalendar(event: ContextFinding.Event) = messageContext.addToCalendar(event)
     fun addFlightToCalendar(messageId: Long, flight: ContextFinding.Flight) = messageContext.addFlightToCalendar(messageId, flight)
-    fun copyFromContext(text: String) = messageContext.copyFromContext(text)
+    fun copyInSheet(text: String) = messageContext.copyInSheet(text)
     fun trackParcel(url: String) = messageContext.trackParcel(url)
     val canJoinWifi: Boolean get() = messageContext.canJoinWifi
     fun joinWifi(wifi: ContextFinding.Wifi) = messageContext.joinWifi(wifi)
@@ -490,6 +490,7 @@ class ConversationViewModel(
     fun reportChat() = chatActions.reportChat()
     fun deleteOrLeave(cleanup: SpamCleanup) = chatActions.deleteOrLeave(cleanup)
     fun closeSecretChat() = chatActions.closeSecretChat()
+    fun viewAsTopics(onDone: () -> Unit) = chatActions.viewAsTopics(onDone)
 
     /** Napovídání při psaní: zmínky a inline boti — viz [ConversationSuggestions]. */
     private val suggestions: ConversationSuggestions = ConversationSuggestions(

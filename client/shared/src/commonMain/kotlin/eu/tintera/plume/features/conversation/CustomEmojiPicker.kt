@@ -85,20 +85,27 @@ internal fun CustomEmojiPage(
                 contentPadding = sheetListPadding(horizontal = 12.dp, vertical = 4.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
-                items(items, key = { it.id }) { item ->
-                    Box(
-                        Modifier
-                            .size(CUSTOM_EMOJI_CELL)
-                            .clip(CircleShape)
-                            .clickable { onPick(item) }
-                            .semantics { contentDescription = item.emoji },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        CustomEmojiImage(id = item.id, fallback = item.emoji, modifier = Modifier.size(CUSTOM_EMOJI_SIZE))
-                    }
-                }
+                items(items, key = { it.id }) { item -> CustomEmojiCell(item, onPick) }
             }
         }
+    }
+}
+
+/**
+ * Buňka vlastního emoji: obrázek, ťuknutí vloží. Tatáž v sadě, v nedávných i ve výsledcích
+ * hledání (`MixedEmojiGrid`), ať se mřížky neliší.
+ */
+@Composable
+internal fun CustomEmojiCell(item: CustomEmojiItem, onPick: (CustomEmojiItem) -> Unit) {
+    Box(
+        Modifier
+            .size(CUSTOM_EMOJI_CELL)
+            .clip(CircleShape)
+            .clickable { onPick(item) }
+            .semantics { contentDescription = item.emoji },
+        contentAlignment = Alignment.Center,
+    ) {
+        CustomEmojiImage(id = item.id, fallback = item.emoji, modifier = Modifier.size(CUSTOM_EMOJI_SIZE))
     }
 }
 

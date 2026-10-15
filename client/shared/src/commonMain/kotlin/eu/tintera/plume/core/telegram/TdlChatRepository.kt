@@ -478,6 +478,17 @@ class TdlChatRepository(
         }
 
         /*
+         * „Zobrazit jako zprávy / jako témata" u skupiny s tématy. Drží ji server, takže update
+         * přijde i po přepnutí na jiném zařízení — a taky když správce témata vypne nebo zapne
+         * (TDLib hodnotu skládá z volby a z toho, jestli je chat fórum).
+         */
+        scope.launch {
+            holder.updates { chatViewAsTopicsUpdates }.collect { update ->
+                edit(update.chatId) { it.copy(viewAsTopics = update.viewAsTopics) }
+            }
+        }
+
+        /*
          * Dostupnost protějšku.
          *
          * V soukromém chatu je `chatId` shodné s `userId`, takže se update mapuje přímo na
@@ -991,10 +1002,15 @@ class TdlChatRepository(
         Unit
     }
 
-    override suspend fun isForum(chatId: Long): Boolean =
-        mutex.withLock { known[chatId]?.isForum }
-            ?: client.getChat(chatId = chatId).toResult().getOrNull()?.let { client.isForum(it) }
+    override suspend fun opensAsTopics(chatId: Long): Boolean =
+        mutex.withLock { known[chatId]?.opensAsTopics }
+            ?: client.getChat(chatId = chatId).toResult().getOrNull()?.let { it.viewAsTopics && client.isForum(it) }
             ?: false
+
+    override suspend fun setViewAsTopics(chatId: Long, viewAsTopics: Boolean): Result<Unit> =
+        client.toggleChatViewAsTopics(chatId = chatId, viewAsTopics = viewAsTopics)
+            .toResult()
+            .map { }
 
     override suspend fun groupsForBot(asAdmin: Boolean): List<ChatSummary> {
         // Pořadí jako v seznamu chatů: hlavní seznam, pak archiv.
@@ -1788,6 +1804,7 @@ private suspend fun Chat.toSummary(): ChatSummary {
         activity = null,
         draft = draftMessage?.toChatDraft(),
         emojiStatus = emojiStatus.statusEmojiId(),
+        viewAsTopics = viewAsTopics,
     )
 }
 

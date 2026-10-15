@@ -294,6 +294,29 @@ téma pak jako konverzace (`ConversationRoute(topicId)`). Hranice: `ForumReposit
 (`TdlForumRepository`) a `TdlConversationRepository(forumTopicId)`; pravidla seznamu jsou čisté
 funkce v `ForumTopics.kt` (testy `ForumTopicsTest`).
 
+- **„Zobrazit jako zprávy / jako témata" je volba ÚČTU, ne zařízení** (`toggleChatViewAsTopics`,
+  `Chat.viewAsTopics`, `UpdateChatViewAsTopics` → `ChatSummary.viewAsTopics`). Dřív to byla jen
+  navigace (konverzace NAD seznamem témat) a příště se skupina otevřela zase tématy; teď si ji
+  server pamatuje a přijde updatem i z jiného klienta. Kam ťuknutí vede, říká
+  `ChatSummary.opensAsTopics` (`isForum && viewAsTopics`) — seznam chatů, archiv, hledání,
+  rychlý přepínač i odkazy (`ChatRepository.opensAsTopics`). Seznam témat nabízí „Zobrazit jako
+  zprávy", celá skupina otevřená jako zprávy „Zobrazit jako témata" (`ChatInfo.isForum`); obojí
+  obrazovku NAHRADÍ, jako u Uložených zpráv, takže zpět vede do seznamu chatů.
+- **`viewAsTopics` už v sobě fórum NESE**: TDLib ho skládá jako `!view_as_messages && is_forum
+  && !is_forum_tabs` (`MessagesManager::get_dialog_view_as_topics`) a update pošle i po zapnutí
+  či vypnutí témat. Fórum se záložkami (`Supergroup.hasForumTabs`, oficiální klienti ho kreslí
+  jako proud zpráv se záložkami témat) má proto `viewAsTopics = false` vždycky a otevře se
+  zprávami; „Zobrazit jako témata" ho převede na seznam jen pro tu chvíli. U Uložených zpráv
+  TDLib touž hodnotu na server NEPOSÍLÁ (jen lokálně), takže Plume tam drží vlastní
+  `AppSettings.savedMessagesAsChats` a `opensAsTopics` je jen pro fórum.
+- **Navigace až po odpovědi TDLib** (`viewAsMessages(onDone)`, `viewAsTopics(onDone)`): s výměnou
+  obrazovky zmizí ViewModel a jeho korutiny, a volání zrušené uprostřed by volbu nemuselo uložit.
+  Čeká se jen na lokální zápis — na server ji TDLib pošle sám (`toggle_dialog_view_as_messages_on_server`).
+- **Ověřeno na emulátoru** (15. 10. 2026, „Plume test soukromi" s tématy): z hledání otevřený
+  seznam témat → „Zobrazit jako zprávy" → zpět a znovu z hledání otevře konverzaci → „Zobrazit
+  jako témata" vrátí seznam témat. **Synchronizace s jiným zařízením ověřená NENÍ** — opírá se
+  o zdroj TDLib (server ukládá `view_forum_as_messages`, druhé zařízení dostane update).
+
 - **Zúžení na téma je PARAMETR repository, ne obal** jako u vlákna komentářů
   (`ConversationRepository.inForumTopic`). Téma se TDLib předává v každém odeslání, konceptu,
   „píše…", hledání i připnutých (`topicId = MessageTopicForum`); obal by musel přepsat přes dvacet

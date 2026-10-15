@@ -136,9 +136,16 @@ interface ProfileRepository {
 
     /**
      * Poslední akce ve skupině nebo kanálu (`getChatEventLog`), od nejnovější, stránkované
-     * po [CHAT_LOG_PAGE]. Jen pro správce; Telegram je drží 48 hodin.
+     * po [CHAT_LOG_PAGE]. Jen pro správce; Telegram je drží 48 hodin. [filter] zužuje hledáním,
+     * druhem akce a autory.
      */
-    suspend fun eventLog(chatId: Long, fromEventId: Long = 0): Result<ChatLogPage>
+    suspend fun eventLog(chatId: Long, fromEventId: Long = 0, filter: ChatLogFilter = ChatLogFilter()): Result<ChatLogPage>
+
+    /**
+     * Vlastník a správci skupiny nebo kanálu — kdo může v záznamu akcí figurovat jako autor
+     * (filtr podle autora). Jen lidé; smazané účty vynechané.
+     */
+    suspend fun administrators(chatId: Long): Result<List<SenderInfo>>
 
     /** Pomalý režim; jen hodnoty z [SLOW_MODE_DELAYS], 0 = vypnout. */
     suspend fun setSlowMode(chatId: Long, seconds: Int): Result<Unit>
