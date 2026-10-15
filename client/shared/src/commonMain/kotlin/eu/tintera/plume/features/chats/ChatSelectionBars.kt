@@ -20,6 +20,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.VerticalFloatingToolbar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -96,6 +97,11 @@ internal fun ChatSelectionToolbar(
     onMute: () -> Unit,
     onRead: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Svislá lišta pro sbalený seznam (`CollapsedChatList`): vodorovná se do sloupce 96 dp
+     * nevejde. Tytéž akce i barvy, jen `VerticalFloatingToolbar`.
+     */
+    vertical: Boolean = false,
 ) {
     // Při odjezdu kreslí lišta poslední akce — v tu chvíli je výběr už pryč.
     val last = remember { arrayOfNulls<ChatSelectionActions>(1) }
@@ -112,34 +118,56 @@ internal fun ChatSelectionToolbar(
         // Ikony se musí vystředit samy: obsah dostane toolbar ve vnořeném `Row` bez
         // `verticalAlignment` (viz docs/poznatky/konverzace-pohyb.md, „Hledání v konverzaci").
         // Odstup uvnitř animace: skrytá lišta nesmí nechat 24 dp prázdna nad FAB.
-        HorizontalFloatingToolbar(
-            modifier = Modifier.padding(bottom = TOOLBAR_CLEARANCE),
-            expanded = true,
-            colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
-        ) {
-            SelectionAction(
-                icon = if (shown.archive) Res.drawable.archive_24dp else Res.drawable.unarchive_24dp,
-                label = if (shown.archive) Res.string.chats_action_archive else Res.string.chats_action_unarchive,
-                enabled = shown.canArchive,
-                onClick = onArchive,
-                modifier = Modifier.align(Alignment.CenterVertically),
-            )
-            SelectionAction(
-                icon = if (shown.mute) Res.drawable.notifications_off_24dp else Res.drawable.notifications_24dp,
-                label = if (shown.mute) Res.string.chats_action_mute else Res.string.chats_action_unmute,
-                enabled = true,
-                onClick = onMute,
-                modifier = Modifier.align(Alignment.CenterVertically),
-            )
-            SelectionAction(
-                icon = if (shown.read) Res.drawable.done_all_24dp else Res.drawable.mark_chat_unread_24dp,
-                label = if (shown.read) Res.string.chats_action_mark_read else Res.string.chats_action_mark_unread,
-                enabled = true,
-                onClick = onRead,
-                modifier = Modifier.align(Alignment.CenterVertically),
-            )
+        if (vertical) {
+            VerticalFloatingToolbar(
+                modifier = Modifier.padding(bottom = VERTICAL_TOOLBAR_CLEARANCE),
+                expanded = true,
+                colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
+            ) {
+                SelectionActions(shown, onArchive, onMute, onRead, Modifier.align(Alignment.CenterHorizontally))
+            }
+        } else {
+            HorizontalFloatingToolbar(
+                modifier = Modifier.padding(bottom = TOOLBAR_CLEARANCE),
+                expanded = true,
+                colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
+            ) {
+                SelectionActions(shown, onArchive, onMute, onRead, Modifier.align(Alignment.CenterVertically))
+            }
         }
     }
+}
+
+/** Archivovat, ztlumit, přečíst — tytéž ve vodorovné i svislé liště; [itemModifier] je vystředí. */
+@Composable
+private fun SelectionActions(
+    shown: ChatSelectionActions,
+    onArchive: () -> Unit,
+    onMute: () -> Unit,
+    onRead: () -> Unit,
+    itemModifier: Modifier,
+) {
+    SelectionAction(
+        icon = if (shown.archive) Res.drawable.archive_24dp else Res.drawable.unarchive_24dp,
+        label = if (shown.archive) Res.string.chats_action_archive else Res.string.chats_action_unarchive,
+        enabled = shown.canArchive,
+        onClick = onArchive,
+        modifier = itemModifier,
+    )
+    SelectionAction(
+        icon = if (shown.mute) Res.drawable.notifications_off_24dp else Res.drawable.notifications_24dp,
+        label = if (shown.mute) Res.string.chats_action_mute else Res.string.chats_action_unmute,
+        enabled = true,
+        onClick = onMute,
+        modifier = itemModifier,
+    )
+    SelectionAction(
+        icon = if (shown.read) Res.drawable.done_all_24dp else Res.drawable.mark_chat_unread_24dp,
+        label = if (shown.read) Res.string.chats_action_mark_read else Res.string.chats_action_mark_unread,
+        enabled = true,
+        onClick = onRead,
+        modifier = itemModifier,
+    )
 }
 
 /** Zašednutí se prolíná, aby lišta při změně výběru neproblikla. */
@@ -195,3 +223,6 @@ private val MARK_RIM: Dp = 2.dp
 
 /** Odstup lišty od spodku, stejný jako u lišty výběru zpráv v konverzaci. */
 private val TOOLBAR_CLEARANCE = 24.dp
+
+/** Svislá lišta ve sbaleném sloupci stojí níž — nad ní je seznam avatarů, ne FAB. */
+private val VERTICAL_TOOLBAR_CLEARANCE = 16.dp

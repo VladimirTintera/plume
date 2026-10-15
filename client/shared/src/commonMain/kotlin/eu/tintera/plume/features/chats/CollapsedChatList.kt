@@ -30,6 +30,14 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
+import androidx.compose.runtime.rememberCoroutineScope
+import eu.tintera.plume.core.ui.RootTooltipBox
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -66,6 +74,36 @@ import eu.tintera.plume.resources.chats_pending_birthdays
 import eu.tintera.plume.resources.chats_pending_suggestion
 import eu.tintera.plume.resources.chats_pending_folder_chats
 import eu.tintera.plume.resources.chats_pending_update
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.MenuAnchorPosition
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
+import eu.tintera.plume.core.adaptive.ContentWidth
+import eu.tintera.plume.core.ui.ExpressiveMenu
+import eu.tintera.plume.core.ui.MenuAction
+import eu.tintera.plume.core.ui.RootOverlay
+import eu.tintera.plume.resources.campaign_24dp
+import eu.tintera.plume.resources.chats_create
+import eu.tintera.plume.resources.chats_new
+import eu.tintera.plume.resources.chats_selection_close
+import eu.tintera.plume.resources.chats_selection_count
+import eu.tintera.plume.resources.close_24dp
+import eu.tintera.plume.resources.edit_24dp
+import eu.tintera.plume.resources.group_24dp
+import eu.tintera.plume.resources.new_chat_new_channel
+import eu.tintera.plume.resources.new_chat_new_group
+import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
@@ -73,8 +111,8 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * Seznam chatů sbalený táhlem na úzký sloupec (`ListPaneAnchor.Collapsed`): jen avatary
- * s počtem nepřečtených, nahoře účet a hledání. Jako sbalený seznam v Telegram Desktop —
- * konverzace dostane skoro celou plochu a přepínat chaty jde dál jedním ťuknutím.
+ * s počtem nepřečtených, nahoře účet, „Vytvořit" a hledání. Jako sbalený seznam v Telegram
+ * Desktop — konverzace dostane skoro celou plochu a přepínat chaty jde dál jedním ťuknutím.
  *
  * - **Pořadí a skupiny jsou tytéž jako v plném seznamu** ([chatGroups]), jen bez předělů:
  *   rozbalením se nic nepřeskládá.
@@ -86,7 +124,15 @@ import org.jetbrains.compose.resources.stringResource
  *   Že nějaká čeká, ukazuje tlačítko s tečkou pod lupou ([pendingCard]); ťuknutí seznam
  *   rozbalí a odjede nahoru na ni. Bez něj by se o nepotvrzeném přihlášení člověk se sbaleným
  *   seznamem nedozvěděl, dokud ho nerozbalí.
- * - FAB a výběr víc chatů tu nejsou: potřebují šířku a po rozbalení jsou zpátky.
+ * - **„Vytvořit" je FAB nahoře pod účtem**, jako FAB v navigačním railu M3 (sloupec má šířku
+ *   railu). FAB menu plného seznamu vyjíždí s popisky nad FAB a do sloupce by se nevešlo, takže
+ *   tu tytéž tři položky nabídne nabídka vedle tlačítka ([CreateButton]).
+ * - **Výběr víc chatů jde i tady**: podržení (pravé tlačítko) otevře nabídku nad chatem
+ *   s „Vybrat", jako v plném seznamu. Ve výběru je nahoře ✕ s počtem, u avatarů značka výběru
+ *   a dole svislá plovoucí lišta s akcemi (vodorovná se do sloupce nevejde). Výběr je stav
+ *   ViewModelu, takže přežije rozbalení i sbalení táhlem.
+ * - **Snackbar (archivace s „Vrátit") stojí z kořene okna vlevo dole** ([CollapsedSnackbar]):
+ *   do sloupce se nevejde a hostitel plného seznamu tu není.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,6 +142,10 @@ internal fun CollapsedChatList(
     onChatClick: (Long) -> Unit,
     onForumClick: (Long) -> Unit,
     onSearch: () -> Unit,
+    onNewChat: () -> Unit,
+    onNewGroup: () -> Unit,
+    onNewChannel: () -> Unit,
+    snackbarHostState: SnackbarHostState,
     account: @Composable () -> Unit,
     /** Nejdůležitější karta, která v plném seznamu nahoře čeká; `null` = žádná. */
     pendingCard: PendingCard?,
@@ -107,6 +157,14 @@ internal fun CollapsedChatList(
     val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
     val hiddenSavedMessagesChatId by viewModel.hiddenSavedMessagesChatId.collectAsStateWithLifecycle()
     val snoozes by viewModel.snoozeState.collectAsStateWithLifecycle()
+    val selection by viewModel.selection.collectAsStateWithLifecycle()
+    val selectionActions by viewModel.selectionActions.collectAsStateWithLifecycle()
+    // Zpět výběr ukončí, jako v plném seznamu (tam ho hlídá `ChatListContent`, který tu není).
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = selection != null,
+        onBackCompleted = viewModel::closeSelection,
+    )
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -119,11 +177,17 @@ internal fun CollapsedChatList(
             verticalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.padding(vertical = 12.dp),
         ) {
-            account()
-            IconButton(onClick = onSearch, shapes = IconButtonDefaults.shapes()) {
-                Icon(painterResource(Res.drawable.search_24dp), contentDescription = stringResource(Res.string.chats_search))
+            val current = selection
+            if (current != null) {
+                SelectionHeader(count = current.count, onClose = viewModel::closeSelection)
+            } else {
+                account()
+                CreateButton(onNewChat = onNewChat, onNewGroup = onNewGroup, onNewChannel = onNewChannel)
+                IconButton(onClick = onSearch, shapes = IconButtonDefaults.shapes()) {
+                    Icon(painterResource(Res.drawable.search_24dp), contentDescription = stringResource(Res.string.chats_search))
+                }
+                pendingCard?.let { PendingCardButton(it, onClick = onShowCards) }
             }
-            pendingCard?.let { PendingCardButton(it, onClick = onShowCards) }
         }
 
         when (val current = state) {
@@ -131,22 +195,54 @@ internal fun CollapsedChatList(
                 val chats = remember(current.chats, separateUnread, hiddenSavedMessagesChatId, snoozes.due) {
                     chatGroups(current.chats, separateUnread, hiddenSavedMessagesChatId, snoozes.due).flatten()
                 }
-                LazyColumn(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    contentPadding = PaddingValues(bottom = 16.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
-                ) {
-                    items(chats, key = { it.id }) { chat ->
-                        CollapsedChat(
-                            chat = chat,
-                            selected = chat.id == selectedChatId,
-                            onClick = { if (chat.opensAsTopics) onForumClick(chat.id) else onChatClick(chat.id) },
-                            modifier = Modifier.animateItem(),
-                        )
+                val picked = selection?.ids
+                Box(Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        // Ve výběru se poslední chat musí dát odscrollovat nad lištu akcí.
+                        contentPadding = PaddingValues(bottom = if (picked != null) SELECTION_TOOLBAR_CLEARANCE else 16.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
+                    ) {
+                        items(chats, key = { it.id }) { chat ->
+                            val selecting = picked != null
+                            val mark = picked?.contains(chat.id)?.takeIf { chat.isSelectable() }
+                            CollapsedChat(
+                                chat = chat,
+                                // Ve výběru zvýrazňuje výběr, ne chat otevřený vedle (jako plný seznam).
+                                selected = if (selecting) mark == true else chat.id == selectedChatId,
+                                selectionMark = mark,
+                                onClick = {
+                                    when {
+                                        selecting -> if (chat.isSelectable()) viewModel.toggleSelected(chat)
+                                        chat.opensAsTopics -> onForumClick(chat.id)
+                                        else -> onChatClick(chat.id)
+                                    }
+                                },
+                                // Ve výběru i podržení jen přepíná — nabídka nad jedním chatem by z výběru vytrhla.
+                                onLongClick = {
+                                    if (selecting) {
+                                        if (chat.isSelectable()) viewModel.toggleSelected(chat)
+                                    } else {
+                                        viewModel.showActions(chat)
+                                    }
+                                },
+                                modifier = Modifier.animateItem(),
+                            )
+                        }
                     }
+                    ChatSelectionToolbar(
+                        actions = selectionActions,
+                        onArchive = viewModel::archiveSelected,
+                        onMute = viewModel::muteSelected,
+                        onRead = viewModel::readSelected,
+                        vertical = true,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)),
+                    )
                 }
             }
             ChatListState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
@@ -154,26 +250,141 @@ internal fun CollapsedChatList(
             is ChatListState.Failed -> Unit
         }
     }
+
+    CollapsedSnackbar(snackbarHostState)
+}
+
+/**
+ * „Vytvořit" ve sbaleném sloupci: FAB, jako v navigačním railu, a vedle něj nabídka se stejnými
+ * položkami jako FAB menu plného seznamu. Nabídka je okno, takže ji ořez panelu neusekne.
+ */
+@Composable
+private fun CreateButton(onNewChat: () -> Unit, onNewGroup: () -> Unit, onNewChannel: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    val label = stringResource(Res.string.chats_create)
+    Box(Modifier.padding(vertical = 4.dp)) {
+        WithTooltip(label = label, position = TooltipAnchorPosition.Right) {
+            FloatingActionButton(onClick = { expanded = true }) {
+                Icon(painterResource(Res.drawable.edit_24dp), contentDescription = label)
+            }
+        }
+        // Nová zpráva nahoře, nejblíž tlačítku — nejčastější, jako u palce ve FAB menu.
+        ExpressiveMenu(
+            expanded = expanded,
+            onDismiss = { expanded = false },
+            popupPositionProvider = MenuDefaults.rememberDropdownMenuPopupPositionProvider(MenuAnchorPosition.End),
+            groups = listOf(
+                listOf(
+                    MenuAction(stringResource(Res.string.chats_new), Res.drawable.edit_24dp, onClick = onNewChat),
+                    MenuAction(stringResource(Res.string.new_chat_new_group), Res.drawable.group_24dp, onClick = onNewGroup),
+                    MenuAction(stringResource(Res.string.new_chat_new_channel), Res.drawable.campaign_24dp, onClick = onNewChannel),
+                ),
+            ),
+        )
+    }
+}
+
+/**
+ * Hlavička sloupce ve výběru: ✕ a pod ním počet vybraných. Čtečce jde počet celou větou
+ * („3 vybrané chaty"), samotné číslo by nic neřeklo.
+ */
+@Composable
+private fun SelectionHeader(count: Int, onClose: () -> Unit) {
+    val closeLabel = stringResource(Res.string.chats_selection_close)
+    WithTooltip(label = closeLabel, position = TooltipAnchorPosition.Right) {
+        IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
+            Icon(painterResource(Res.drawable.close_24dp), contentDescription = closeLabel)
+        }
+    }
+    val countLabel = pluralStringResource(Res.plurals.chats_selection_count, count, count)
+    RollingNumber(
+        count,
+        style = MaterialTheme.typography.titleLarge.tabularNumbers(),
+        modifier = Modifier.clearAndSetSemantics { contentDescription = countLabel },
+    )
+}
+
+/**
+ * Snackbar sbaleného seznamu z kořene okna, vlevo dole: přes sloupec i konverzaci vedle. Do
+ * sloupce 96 dp se nevejde a ořez panelu by ho usekl, proto okno ([Popup]) — a to z kořene
+ * kompozice ([RootOverlay]): sloupec mizí UPROSTŘED měření, když tah táhlem přepne na plný
+ * seznam, a okno ukotvené v něm by na desktopu shodilo vykreslování (viz [WithTooltip]).
+ * Kreslí se jen s hláškou, prázdné okno by tam viselo zbytečně.
+ */
+@Composable
+private fun CollapsedSnackbar(state: SnackbarHostState) {
+    if (state.currentSnackbarData == null) return
+    // Insety se čtou tady, v okně aplikace; okno snackbaru je samo nemá.
+    val insets = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom + WindowInsetsSides.Start).asPaddingValues()
+    RootOverlay {
+        // Zpět ani ťuknutí vedle okno nezavírá: zpět patří navigaci (jinak by ho okno na čtyři
+        // vteřiny spolklo) a snackbar mizí sám.
+        Popup(
+            alignment = Alignment.BottomStart,
+            properties = PopupProperties(focusable = false, dismissOnBackPress = false, dismissOnClickOutside = false),
+        ) {
+            SnackbarHost(
+                state,
+                Modifier
+                    .padding(insets)
+                    .padding(12.dp)
+                    .widthIn(max = ContentWidth.Pane),
+            )
+        }
+    }
 }
 
 /**
  * Avatar chatu ve sbaleném seznamu. Vybraný chat má pod avatarem plochu `secondaryContainer`,
- * stejnou roli jako vybraný řádek plného seznamu (navigační stav, ne zvýraznění).
+ * stejnou roli jako vybraný řádek plného seznamu (navigační stav, ne zvýraznění). Ve výběru
+ * víc chatů nese roh avataru značku výběru ([selectionMark]), jako v plném seznamu.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CollapsedChat(chat: ChatSummary, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun CollapsedChat(
+    chat: ChatSummary,
+    selected: Boolean,
+    selectionMark: Boolean?,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val title = chatTitle(chat.id, chat.title)
-    // Ne holý TooltipBox: tah táhlem přepne sloupec na plný seznam uprostřed měření a bublina,
-    // která nad avatarem ještě visí, by na desktopu shodila vykreslování (viz WithTooltip).
-    WithTooltip(label = title, position = TooltipAnchorPosition.Right, modifier = modifier) {
+    val container = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface
+    val content = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+    /*
+     * Ne holý TooltipBox: tah táhlem přepne sloupec na plný seznam uprostřed měření a bublina,
+     * která nad avatarem ještě visí, by na desktopu shodila vykreslování (viz WithTooltip).
+     * `RootTooltipBox` místo `WithTooltip` kvůli stavu: na dotyku bublinu ukáže i podržení,
+     * a to teď otevírá nabídku nad chatem — bublina se jménem by pak nad sloupcem visela,
+     * dokud se uživatel nedotkne jinde (ověřeno na emulátoru). Jméno nese titulek nabídky.
+     */
+    val tooltipState = rememberTooltipState()
+    val scope = rememberCoroutineScope()
+    RootTooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Right),
+        tooltip = { PlainTooltip { Text(title) } },
+        state = tooltipState,
+        modifier = modifier,
+    ) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .size(COLLAPSED_ITEM_SIZE)
                 .clip(COLLAPSED_ITEM_SHAPE)
-                .then(if (selected) Modifier.background(MaterialTheme.colorScheme.secondaryContainer) else Modifier)
-                .contextClickable(onClick = onClick)
+                .then(if (selected) Modifier.background(container) else Modifier)
+                .contextClickable(
+                    onClick = onClick,
+                    onLongClick = {
+                        onLongClick()
+                        // Bublinu ukazuje kotva na týž dlouhý stisk; pořadí obou obsluh není
+                        // dané, proto zavřít až po ní.
+                        scope.launch {
+                            delay(TOOLTIP_AFTER_LONG_PRESS_MS)
+                            tooltipState.dismiss()
+                        }
+                    },
+                )
                 .semantics {
                     contentDescription = title
                     this.selected = selected
@@ -197,6 +408,14 @@ private fun CollapsedChat(chat: ChatSummary, selected: Boolean, onClick: () -> U
                     ) {
                         RollingNumber(chat.unreadCount, style = LocalTextStyle.current.tabularNumbers())
                     }
+                }
+                if (selectionMark != null) {
+                    SelectionMark(
+                        selected = selectionMark,
+                        rim = container,
+                        contentColor = content,
+                        modifier = Modifier.align(Alignment.BottomEnd).offset(x = 4.dp, y = 4.dp),
+                    )
                 }
             }
         }
@@ -248,3 +467,9 @@ private fun PendingCardButton(card: PendingCard, onClick: () -> Unit) {
 private val COLLAPSED_AVATAR_SIZE = 52.dp
 private val COLLAPSED_ITEM_SIZE = 72.dp
 private val COLLAPSED_ITEM_SHAPE = RoundedCornerShape(20.dp)
+
+/** Za jak dlouho po podržení zavřít bublinu, kterou ukázala kotva (viz [CollapsedChat]). */
+private const val TOOLTIP_AFTER_LONG_PRESS_MS = 100L
+
+/** Svislá lišta výběru: tři tlačítka, odsazení lišty a odstup od spodku. */
+private val SELECTION_TOOLBAR_CLEARANCE = 216.dp

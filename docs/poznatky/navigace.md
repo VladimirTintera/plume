@@ -312,6 +312,29 @@ zdrojových jarů v gradle keši — `ThreePaneScaffoldScene.kt`, `ThreePaneScaf
   nejdůležitější, zmrazený účet a cizí přihlášení v chybové barvě). Ťuknutí seznam rozbalí
   a `requestScrollToItem(0)` ho pošle na vršek — `scrollToItem` by čekal na rozložení seznamu,
   který se v tu chvíli teprve skládá.
+- **„Vytvořit" a výběr víc chatů má i sbalený sloupec.** FAB je nahoře pod účtem jako FAB
+  v navigačním railu (sloupec má jeho šířku); FAB menu plného seznamu vyjíždí s popisky nad
+  FAB a do 96 dp by se nevešlo, takže tytéž tři položky nabídne `ExpressiveMenu` vpravo od
+  tlačítka (okno, ořez panelu ho neusekne). Výběr se zapíná podržením avataru (nabídka nad
+  chatem s „Vybrat", táž jako v plném seznamu); ve výběru je nahoře ✕ s přetáčeným počtem,
+  u avatarů `SelectionMark` a dole svislá plovoucí lišta (`ChatSelectionToolbar(vertical = true)`
+  nad `VerticalFloatingToolbar`). Výběr je stav ViewModelu, takže přežije rozbalení táhlem
+  i složení Foldu; zpět ho ukončí i ve sloupci (vlastní `NavigationBackHandler` — ten
+  v `ChatListContent` se ve sloupci neskládá).
+- **Snackbar sbaleného sloupce stojí z kořene okna** (`CollapsedSnackbar`: `RootOverlay`
+  + `Popup` vlevo dole, jen když nějaká hláška je). `SnackbarHost` plného seznamu se ve
+  sloupci neskládá a do 96 dp by se nevešel, takže archivace výběrem byla bez „Vrátit".
+  Okno z kořene, ne ukotvené ve sloupci, ze stejného důvodu jako bubliny: sloupec mizí
+  uprostřed měření. Okno nezavírá zpět ani ťuknutí vedle (`dismissOnBackPress = false`) —
+  jinak by na čtyři vteřiny spolklo systémové zpět.
+- **Podržení avataru na dotyku ukazovalo i bublinu se jménem** (kotva `TooltipBox` reaguje na
+  týž dlouhý stisk) a ta po otevření nabídky nad chatem visela nad sloupcem, dokud se uživatel
+  nedotkl jinde. Avatar proto má `RootTooltipBox` s vlastním stavem a podržení bublinu po
+  100 ms zavře (pořadí obou obsluh dlouhého stisku není dané).
+- Ověřeno na emulátoru Fold (česky): FAB s nabídkou a „Nová zpráva", podržení → „Vybrat",
+  výběr dvou chatů s přetočeným počtem a lištou, archivace se snackbarem a „Vrátit" (chat se
+  vrátil), zpět ukončí výběr, výběr přežije čtyři cykly `adb emu fold` / `unfold` bez pádu.
+  **Desktop jen přeložený**, změna šířky okna se sbaleným sloupcem a snackbarem neověřená.
 - **Bublina se jménem u avataru přes `WithTooltip`, ne holý `TooltipBox`.** Najetí na avatar
   a hned tah táhlem shodilo desktop na `RootNodeOwner is already disposed`: `BoxWithConstraints`
   přepnul sloupec na plný seznam uprostřed měření, kotva viditelné bubliny zmizela a skiko pak

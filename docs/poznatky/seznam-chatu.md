@@ -958,6 +958,8 @@ Pravidla jsou čisté funkce v `ChatSelection.kt` (testy `ChatSelectionTest`).
   vybírat i další. Ve výběru barvu řádku nese výběr, ne chat otevřený v detailu vedle.
 - **Tah do archivu je ve výběru vypnutý**, zpět výběr ukončí (`NavigationBackHandler`),
   přepnutí složky taky. Chat, který ze seznamu odejde, z výběru vypadne (`within`).
+- **Ve sbaleném sloupci vedle konverzace výběr jde taky** — svislou lištou místo vodorovné;
+  viz „Táhlo, kotvy a sbalený seznam" v `docs/poznatky/navigace.md`.
 - **„Označit jako přečtené" shazovalo jen ruční příznak** (`toggleChatIsMarkedAsUnread(false)`)
   a chat s nepřečtenými zprávami zůstal nepřečtený — i z nabídky nad jedním chatem. Teď jde přes
   `ChatRepository.readChat`: nejnovější zpráva `viewMessages` se zdrojem `MessageSourceChatList`
