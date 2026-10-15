@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.ChecklistDraft
 import eu.tintera.plume.core.telegram.ChecklistItem
+import eu.tintera.plume.core.telegram.resolvedTaskIds
 import eu.tintera.plume.core.telegram.ChecklistLimits
 import eu.tintera.plume.core.telegram.PendingChecklistMark
 import eu.tintera.plume.core.telegram.PollChatKind
@@ -77,6 +79,26 @@ class ChecklistComposerTest {
         assertNull(draft(tasks = listOf("x".repeat(11))))
         assertNull(draft(tasks = listOf("A", "B", "C", "D")))
         assertNotNull(draft(title = "x".repeat(20), tasks = listOf("x".repeat(10), "B", "C")))
+    }
+
+    // --- Úprava seznamu ---
+
+    @Test
+    fun idUkoluJdouSTextem() {
+        // Prázdné pole uprostřed se vynechá a jeho id s ním — zbylé úkoly si nechají svá.
+        val draft = assertNotNull(
+            checklistDraftOf("Nákup", listOf("Mléko", "", "Vejce", "Nový", ""), true, true, limits.copy(maxTasks = 5), ids = listOf(4, 7, 9, 0, 0)),
+        )
+        assertEquals(listOf("Mléko", "Vejce", "Nový"), draft.tasks)
+        assertEquals(listOf(4, 9, 0), draft.taskIds)
+    }
+
+    @Test
+    fun novyUkolDostaneIdZaNejvyssim() {
+        val edited = ChecklistDraft("Nákup", listOf("Mléko", "Nový", "Vejce", "Další"), true, true, taskIds = listOf(4, 0, 9, 0))
+        assertEquals(listOf(4, 10, 9, 11), edited.resolvedTaskIds())
+        // Nový seznam čísluje od jedničky.
+        assertEquals(listOf(1, 2), ChecklistDraft("Nákup", listOf("A", "B"), true, true).resolvedTaskIds())
     }
 
     // --- Odškrtnutí, které čeká na server ---

@@ -591,6 +591,7 @@ class ConversationViewModel(
     )
 
     fun addChecklistTask(text: String) = checklists.addTask(text)
+    fun consumeOpenChecklistEditor() = checklists.consumeOpenEditor()
     fun dismissAddChecklistTask() = checklists.dismissAddTask()
 
     /** Naplánované zprávy — viz [ConversationScheduled]. */
@@ -1777,6 +1778,10 @@ class ConversationViewModel(
                 bots.vote(messageId, emptyList())
             }
             MessageMenuAction.StopPoll -> _state.update { it.copy(messageMenu = null, pendingStopPoll = messageId) }
+            MessageMenuAction.EditChecklist -> {
+                menu.closeMenus()
+                checklists.openEditor(messageId)
+            }
             is MessageAction.OpenLink -> links.openLink(action.url)
             is MessageAction.OpenInstantView -> instantViewRequests?.request(action.url) ?: links.openLink(action.url)
             is MessageAction.OpenMention -> links.openMentioned { chatRepository.chatByUsername(action.username) }

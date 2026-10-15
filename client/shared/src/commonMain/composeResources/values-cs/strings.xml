@@ -3307,4 +3307,51 @@
     <string name="checklist_compose_others_add">Ostatní můžou přidávat úkoly</string>
     <string name="checklist_compose_others_mark">Ostatní můžou odškrtávat úkoly</string>
     <string name="checklist_compose_send_failed">Seznam úkolů se nepodařilo odeslat.</string>
+    <string name="checklist_compose_title_edit">Upravit seznam úkolů</string>
+    <string name="checklist_compose_save">Uložit</string>
+    <string name="checklist_compose_save_failed">Seznam úkolů se nepodařilo uložit.</string>
+    <string name="checklist_compose_load_failed">Seznam úkolů se nepodařilo načíst.</string>
+    <string name="checklist_edit_premium">Upravovat seznamy úkolů můžou jen uživatelé Telegram Premium.</string>
+    <string name="service_checklist_done_one">%1$s odškrtl(a) „%2$s“</string>
+    <string name="service_checklist_you_done_one">Odškrtl(a) jsi „%1$s“</string>
+    <string name="service_checklist_undone_one">%1$s zrušil(a) odškrtnutí „%2$s“</string>
+    <string name="service_checklist_you_undone_one">Zrušil(a) jsi odškrtnutí „%1$s“</string>
+    <plurals name="service_checklist_done_many">
+        <item quantity="one">%1$s odškrtl(a) %2$d úkol</item>
+        <item quantity="few">%1$s odškrtl(a) %2$d úkoly</item>
+        <item quantity="many">%1$s odškrtl(a) %2$d úkolu</item>
+        <item quantity="other">%1$s odškrtl(a) %2$d úkolů</item>
+    </plurals>
+    <plurals name="service_checklist_you_done_many">
+        <item quantity="one">Odškrtl(a) jsi %1$d úkol</item>
+        <item quantity="few">Odškrtl(a) jsi %1$d úkoly</item>
+        <item quantity="many">Odškrtl(a) jsi %1$d úkolu</item>
+        <item quantity="other">Odškrtl(a) jsi %1$d úkolů</item>
+    </plurals>
+    <plurals name="service_checklist_changed_many">
+        <item quantity="one">%1$s změnil(a) stav %2$d úkolu</item>
+        <item quantity="few">%1$s změnil(a) stav %2$d úkolů</item>
+        <item quantity="many">%1$s změnil(a) stav %2$d úkolu</item>
+        <item quantity="other">%1$s změnil(a) stav %2$d úkolů</item>
+    </plurals>
+    <plurals name="service_checklist_you_changed_many">
+        <item quantity="one">Změnil(a) jsi stav %1$d úkolu</item>
+        <item quantity="few">Změnil(a) jsi stav %1$d úkolů</item>
+        <item quantity="many">Změnil(a) jsi stav %1$d úkolu</item>
+        <item quantity="other">Změnil(a) jsi stav %1$d úkolů</item>
+    </plurals>
+    <string name="service_checklist_added_one">%1$s přidal(a) do seznamu „%2$s“</string>
+    <string name="service_checklist_you_added_one">Přidal(a) jsi do seznamu „%1$s“</string>
+    <plurals name="service_checklist_added_many">
+        <item quantity="one">%1$s přidal(a) do seznamu %2$d úkol</item>
+        <item quantity="few">%1$s přidal(a) do seznamu %2$d úkoly</item>
+        <item quantity="many">%1$s přidal(a) do seznamu %2$d úkolu</item>
+        <item quantity="other">%1$s přidal(a) do seznamu %2$d úkolů</item>
+    </plurals>
+    <plurals name="service_checklist_you_added_many">
+        <item quantity="one">Přidal(a) jsi do seznamu %1$d úkol</item>
+        <item quantity="few">Přidal(a) jsi do seznamu %1$d úkoly</item>
+        <item quantity="many">Přidal(a) jsi do seznamu %1$d úkolu</item>
+        <item quantity="other">Přidal(a) jsi do seznamu %1$d úkolů</item>
+    </plurals>
 </resources>

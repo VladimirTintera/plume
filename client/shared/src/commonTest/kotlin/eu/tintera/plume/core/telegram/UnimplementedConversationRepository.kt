@@ -29,6 +29,7 @@ open class UnimplementedConversationRepository : ConversationRepository {
     override suspend fun addChecklistTasks(chatId: Long, messageId: Long, tasks: List<String>) : Result<Unit> = error("addChecklistTasks")
     override suspend fun sendChecklist(chatId: Long, checklist: ChecklistDraft, replyToMessageId: Long?, quote: ReplyQuote?, options: SendOptions) : Result<ChatMessage> = error("sendChecklist")
     override suspend fun checklistLimits() : ChecklistLimits = error("checklistLimits")
+    override suspend fun editChecklist(chatId: Long, messageId: Long, checklist: ChecklistDraft) : Result<Unit> = error("editChecklist")
     override suspend fun shareOwnPhone(chatId: Long, replyToMessageId: Long?) : Result<ChatMessage> = error("shareOwnPhone")
     override suspend fun loginUrlInfo(chatId: Long, messageId: Long, buttonId: Long) : Result<LoginUrlPrompt> = error("loginUrlInfo")
     override suspend fun loginUrl(chatId: Long, messageId: Long, buttonId: Long, allowWriteAccess: Boolean) : Result<String> = error("loginUrl")

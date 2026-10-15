@@ -498,6 +498,7 @@ fun appModule() = module {
             replyQuote = parameters.values.getOrNull(2) as? ReplyQuote,
             repository = get(),
             replyRequests = get(),
+            editMessageId = parameters.values.getOrNull(3) as? Long,
         )
     }
     // Dvě `Long` za sebou: parametry se čtou INDEXEM, podle typu by se chatId s messageId zaměnily.

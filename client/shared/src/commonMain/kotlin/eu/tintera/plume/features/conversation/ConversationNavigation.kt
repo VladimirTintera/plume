@@ -154,6 +154,13 @@ internal fun ConversationEvents(
             viewModel.consumeOpenPollComposer()
         }
     }
+    // „Upravit" nad seznamem úkolů: týž formulář jako nový seznam, předvyplněný.
+    state.openChecklistEditor?.let { messageId ->
+        LaunchedEffect(messageId) {
+            nav.onCreateChecklist(ChecklistComposerRequest(replyToMessageId = null, quote = null, editMessageId = messageId))
+            viewModel.consumeOpenChecklistEditor()
+        }
+    }
     state.openBotShare?.let { request ->
         LaunchedEffect(request) {
             viewModel.consumeOpenBotShare()
