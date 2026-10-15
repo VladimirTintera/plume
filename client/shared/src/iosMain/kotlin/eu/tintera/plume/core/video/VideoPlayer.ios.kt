@@ -80,31 +80,38 @@ actual class VideoPlayer {
     /** `play()` rychlost vrací na 1×, takže se drží tady a zapisuje po každém spuštění. */
     private var speed = 1f
 
-    /**
-     * Zdroj streamu, který právě hraje. `AVAssetResourceLoader` si delegáta drží slabě, takže
-     * silnou referenci musí mít přehrávač — jinak by zmizel uprostřed videa.
-     */
-    private var streamLoader: StreamingResourceLoader? = null
+    /** Stream, který právě hraje (rozestavěný soubor), nebo `null` u hotového souboru. */
+    private var stream: ActiveStream? = null
 
     actual fun load(path: String, loop: Boolean, muted: Boolean) {
-        replaceItem(AVPlayerItem(uRL = NSURL.fileURLWithPath(path)), loop, muted, loader = null)
+        replaceItem(AVPlayerItem(uRL = NSURL.fileURLWithPath(path)), loop, muted, stream = null)
     }
 
     /**
-     * Streamování: AVPlayer dostane URL s vlastním schématem a o data si říká
-     * [StreamingResourceLoader], který čte rozestavěný soubor TDLib a na chybějící kus počká.
+     * Streamování. Progresivní MP4: AVPlayer dostane URL s vlastním schématem a o data si říká
+     * [StreamingResourceLoader]. Přepočítaná kvalita (fragmentované MP4) s HLS seznamem: místní
+     * HTTP server ([HlsServer]) — přes vlastní schéma ji AVPlayer neumí. Oba čtou rozestavěný
+     * soubor TDLib a na chybějící kus počkají ([StreamingReader]).
      */
     actual fun loadStreaming(source: StreamingSource, loop: Boolean, muted: Boolean) {
-        val loader = StreamingResourceLoader(source)
+        val reader = StreamingReader(source)
+        val hls = source.hlsPlaylist?.let { HlsServer.register(reader, it) }
+        val hlsUrl = hls?.url()
+        if (hlsUrl != null) {
+            replaceItem(AVPlayerItem(uRL = hlsUrl), loop, muted, ActiveStream(reader, loader = null, hls = hls))
+            return
+        }
+        hls?.close()
+        val loader = StreamingResourceLoader(reader)
         val asset = AVURLAsset(uRL = streamingUrl, options = null)
         asset.resourceLoader.setDelegate(loader, queue = loader.queue)
-        replaceItem(AVPlayerItem(asset = asset), loop, muted, loader)
+        replaceItem(AVPlayerItem(asset = asset), loop, muted, ActiveStream(reader, loader, hls = null))
     }
 
-    private fun replaceItem(item: AVPlayerItem, loop: Boolean, muted: Boolean, loader: StreamingResourceLoader?) {
+    private fun replaceItem(item: AVPlayerItem, loop: Boolean, muted: Boolean, stream: ActiveStream?) {
         // Opuštěný zdroj streamu pustí čekající požadavky — jinak by vlákna čekala do limitu.
-        streamLoader?.released = true
-        streamLoader = loader
+        this.stream?.release()
+        this.stream = stream
         this.muted = muted
         player.muted = muted
         looping = loop
@@ -135,8 +142,8 @@ actual class VideoPlayer {
     internal fun release() {
         endObserver?.let { NSNotificationCenter.defaultCenter.removeObserver(it) }
         endObserver = null
-        streamLoader?.released = true
-        streamLoader = null
+        stream?.release()
+        stream = null
         player.pause()
     }
 
@@ -147,10 +154,15 @@ actual class VideoPlayer {
             AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayback, error = null)
             AVAudioSession.sharedInstance().setActive(true, error = null)
         }
-        // Selhaná položka se sama nevzpamatuje; připraví se znovu ze stejného souboru.
+        // Selhaná položka se sama nevzpamatuje; připraví se znovu ze stejného souboru. U HLS
+        // s novou adresou: server mohl o soket přijít (uspaná aplikace) a naslouchat jinde.
         if (isFailed) {
-            player.currentItem?.asset?.let { asset ->
-                val item = AVPlayerItem(asset = asset)
+            val hlsUrl = stream?.hls?.url()
+            val item = when {
+                hlsUrl != null -> AVPlayerItem(uRL = hlsUrl)
+                else -> player.currentItem?.asset?.let { AVPlayerItem(asset = it) }
+            }
+            if (item != null) {
                 player.replaceCurrentItemWithPlayerItem(item)
                 observeEnd(item)
             }
@@ -192,6 +204,22 @@ actual class VideoPlayer {
         get() = player.currentItem?.status == AVPlayerItemStatusFailed
 
     private fun seconds(value: Double): Long = if (value.isNaN() || value.isInfinite()) 0 else (value * 1000).toLong()
+}
+
+/**
+ * Stream, který přehrávač právě hraje. `AVAssetResourceLoader` si delegáta ([loader]) drží slabě,
+ * takže silnou referenci musí mít přehrávač — jinak by zmizel uprostřed videa. [hls] je registrace
+ * u místního serveru, odhlásí se s opuštěním streamu.
+ */
+private class ActiveStream(
+    val reader: StreamingReader,
+    val loader: StreamingResourceLoader?,
+    val hls: HlsServer.Registration?,
+) {
+    fun release() {
+        reader.released = true
+        hls?.close()
+    }
 }
 
 @Composable
@@ -249,14 +277,15 @@ private class PlayerLayerView(player: AVPlayer) : UIView(frame = CGRectMake(0.0,
 actual val videoStreamingSupported: Boolean = true
 
 /**
- * Fragmentované MP4 (přepočítané kvality) AVPlayer přes vlastní zdroj streamovat neumí: `mehd`
- * nečte, délku skládá z přečtených fragmentů (hodinové video hlásilo 0:45, rostla s přehráváním)
- * a skok za ně skončí koncem videa. Doplnění délek do `mvhd`/`tkhd`/`mdhd` hlavičky délku
- * změnilo, ale neseděla (o 2 min víc) a skok se ověřit nepodařilo. Pořádné řešení je HLS
- * (`AlternativeVideo.hlsFile`) — jenže segmenty HLS AVPlayer přes vlastní schéma nebere, chtělo
- * by to místní HTTP server. Do té doby se přepočítaná kvalita na iOS stahuje celá.
+ * Fragmentované MP4 (přepočítané kvality) streamuje iOS jako HLS přes místní server ([HlsServer]).
+ * Přes vlastní zdroj ([StreamingResourceLoader]) to nešlo: AVPlayer `mehd` nečte, délku skládá
+ * z přečtených fragmentů (hodinové video hlásilo 0:45, rostla s přehráváním) a skok za ně skončí
+ * koncem videa.
  */
-actual val videoFragmentedStreamingSupported: Boolean = false
+actual val videoFragmentedStreamingSupported: Boolean = true
+
+/** AVPlayer přepočítanou kvalitu přehraje jen jako HLS, viz [videoFragmentedStreamingSupported]. */
+actual val videoFragmentedStreamingNeedsHls: Boolean = true
 
 /**
  * AVPlayer umí h264 a HEVC na každém podporovaném iPhonu; AV1 jen od čipu A17 Pro / M3, a zjistit

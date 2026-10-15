@@ -47,6 +47,8 @@ actual val videoStreamingSupported: Boolean = false
 
 actual val videoFragmentedStreamingSupported: Boolean = false
 
+actual val videoFragmentedStreamingNeedsHls: Boolean = false
+
 private object NoPictureInPicture : PictureInPicture {
     override val supported = false
     override val active = false

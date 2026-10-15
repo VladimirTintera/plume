@@ -60,7 +60,7 @@ fun videoQualities(
  *   nahrál: 655MB video s indexem na konci a zvukem daleko od obrazu se rozbíhalo přes minutu.
  *   Rozdíl v obraze je při stejném rozlišení nepostřehnutelný; nižší rozlišení se na Wi-Fi
  *   nebere, to už by vidět bylo. Původní zůstává v nabídce. **Jen kde přepočítaná jde streamovat**
- *   ([convertedStreams], na iOS ne): jinak by se na ni čekalo celou, kdežto původní hraje hned.
+ *   ([convertedStreams]; iOS přes HLS, desktop ne): jinak by se na ni čekalo celou.
  * - **Už stažený původní soubor vyhrává** v automatice vždycky: nic nestojí a je nejlepší.
  * - **Při shodě rozměrů přepočítaná před původní**: na stropu se šetří data a přepočítaná bývá
  *   menší (původní bývá z telefonu s vysokým datovým tokem).

@@ -90,6 +90,9 @@ expect fun VideoSurface(player: VideoPlayer, modifier: Modifier = Modifier)
  * začátku řekne o `moov` atom, a ten u většiny videí leží na KONCI souboru — příznak
  * `supportsStreaming` od serveru říká jen to, co tvrdí odesílatel, ne kde index doopravdy je.
  *
+ * [hlsPlaylist] je HLS seznam přepočítané kvality (text souboru `alternativeVideo.hlsFile`), kde
+ * ho platforma potřebuje ([videoFragmentedStreamingNeedsHls]); jinak `null`.
+ *
  * Obě funkce se volají z vlákna přehrávače, ne z kompozice.
  */
 class StreamingSource(
@@ -97,6 +100,7 @@ class StreamingSource(
     val totalSize: Long,
     val downloaded: () -> LongRange,
     val requestFrom: (Long) -> Unit,
+    val hlsPlaylist: String? = null,
 )
 
 /**
@@ -110,10 +114,18 @@ expect val videoStreamingSupported: Boolean
 /**
  * Umí platforma streamovat i FRAGMENTOVANÉ MP4 — přepočítané kvality videa
  * (`MessageMedia.Video.alternatives`, server je dělá pro HLS)? Android ano (ExoPlayer čte
- * `mehd` i `sidx`), iOS ne: tam se přepočítaná kvalita stahuje celá a automatika na síti bez
- * stropu dá přednost původnímu souboru, který streamovat jde.
+ * `mehd` i `sidx`), iOS přes HLS ([videoFragmentedStreamingNeedsHls]). Kde ne (desktop), stahuje
+ * se přepočítaná kvalita celá a automatika na síti bez stropu dá přednost původnímu souboru.
  */
 expect val videoFragmentedStreamingSupported: Boolean
+
+/**
+ * Streamuje platforma přepočítanou kvalitu jen jako HLS ([StreamingSource.hlsPlaylist])? iOS
+ * ano: AVPlayer přes vlastní zdroj fragmentované MP4 nezvládne (délku skládá z přečtených
+ * fragmentů, skok za ně skončí koncem videa), HLS seznam s rozsahy bajtů ano. Seznam se před
+ * streamováním stáhne; Android ho nepotřebuje a nestahuje.
+ */
+expect val videoFragmentedStreamingNeedsHls: Boolean
 
 /**
  * Čím zařízení dekóduje video v kodeku [codec] (`h264`, `h265`, `av01`… jak ho jmenuje TDLib

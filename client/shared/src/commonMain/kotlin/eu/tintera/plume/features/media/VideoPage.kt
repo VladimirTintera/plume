@@ -8,8 +8,13 @@ import eu.tintera.plume.core.video.VideoQualityChoice
 import eu.tintera.plume.core.video.pickVideoQuality
 import eu.tintera.plume.core.video.videoDecoder
 import eu.tintera.plume.core.video.videoQualities
+import eu.tintera.plume.core.video.videoFragmentedStreamingNeedsHls
 import eu.tintera.plume.core.video.videoFragmentedStreamingSupported
 import kotlinx.coroutines.flow.first
+import okio.Path.Companion.toPath
+import okio.FileSystem
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import eu.tintera.plume.core.ui.longPress
 import eu.tintera.plume.resources.media_seek_back
 import eu.tintera.plume.resources.media_seek_forward
@@ -248,11 +253,13 @@ internal fun VideoPage(
     }
     // Strop podle sítě a nastavení automatického stahování; mění se i za běhu (Wi-Fi → data).
     val autoMaxLines = LocalAutoDownload.current.maxVideoLines
-    // Přepočítané kvality jsou fragmentované MP4; to iOS streamovat neumí a čekalo by se na celé.
+    // Přepočítané kvality jsou fragmentované MP4; kde je platforma streamovat neumí (desktop), čekalo by se na celé.
     val convertedStreams = videoStreamingSupported && videoFragmentedStreamingSupported
     val autoPick = pickVideoQuality(qualities, VideoQualityChoice.Auto, autoMaxLines, originalReady, convertedStreams)
     val chosen = pickVideoQuality(qualities, qualityChoice, autoMaxLines, originalReady, convertedStreams)
     val chosenId = chosen.fileId
+    // iOS streamuje přepočítanou kvalitu jen jako HLS — potřebuje její seznam.
+    val playlistId = chosen.hlsFileId?.takeIf { !chosen.isOriginal && videoFragmentedStreamingNeedsHls }
     // Co se hraje a proč — jen u zobrazené stránky, prohlížeč skládá i sousedy.
     LaunchedEffect(chosenId, isCurrent) {
         if (qualities.size > 1 && isCurrent) {
@@ -316,6 +323,10 @@ internal fun VideoPage(
              * offsetu za koncem svého souboru, kde končil `mdat` původního).
              */
             key(chosenId) {
+                // HLS seznam se stahuje souběžně s videem: až bude stream čekat jen na něj, je už na disku.
+                if (started && playlistId != null) {
+                    LaunchedEffect(playlistId) { repository.file(playlistId).first { it is FileState.Ready || it is FileState.Failed } }
+                }
                 produceState<FileState>(FileState.Pending, chosenId, started) {
                     if (started) repository.file(chosenId).collect { value = it }
                 }.value
@@ -335,13 +346,14 @@ internal fun VideoPage(
          * Streamování: přehrát rozestavěný soubor, místo aby se čekalo na celý. Původní soubor
          * jen s `supportsStreaming` od serveru. Přepočítané kvality vyrábí server pro streamování
          * (fragmentované MP4), takže vždycky — kde je platforma umí
-         * ([videoFragmentedStreamingSupported], iOS ne).
+         * ([videoFragmentedStreamingSupported]; iOS přes HLS, desktop ne).
          */
         streamable = streaming && videoStreamingSupported &&
             if (chosen.isOriginal) video.supportsStreaming else videoFragmentedStreamingSupported,
         // Přehrávač si řekne o `moov` atom na konci souboru; bez přesunu stahování by na něj
         // čekal marně. Lambda nese `fileId` té kvality, pro kterou zdroj vznikl.
         requestFrom = { offset -> scope.launch { repository.downloadFrom(chosenId, offset) } },
+        hlsPlaylist = playlistId?.let { id -> suspend { repository.readText(id) } },
         hasSpoiler = hasSpoiler,
         sensitive = video.isSensitive,
         revealed = revealed,
@@ -399,6 +411,12 @@ internal fun VideoPage(
     streamable: Boolean,
     /** Stahovat od daného bajtu — přehrávač chce index na konci souboru. */
     requestFrom: (offset: Long) -> Unit,
+    /**
+     * Stáhne a přečte HLS seznam, bez kterého se rozestavěný soubor streamovat nedá
+     * ([videoFragmentedStreamingNeedsHls]); `null` = seznam není potřeba. Vrátí-li `null`, čeká
+     * se na celý soubor.
+     */
+    hlsPlaylist: (suspend () -> String?)? = null,
     /** Náhled přes celou kartu, dokud se video nepřehrává. */
     thumbnail: @Composable () -> Unit,
     hasSpoiler: Boolean = false,
@@ -539,14 +557,19 @@ internal fun VideoPage(
             // Hotový soubor má přednost: jednodušší cesta a nic se na něj nečeká.
             path != null -> player.load(path)
             // Streamovat se dá, teprve až je na disku začátek souboru s indexem.
-            streamPath != null && streamTotal > 0 -> player.loadStreaming(
-                StreamingSource(
-                    path = { currentPath.value },
-                    totalSize = streamTotal,
-                    downloaded = { downloadedRange.value },
-                    requestFrom = requestFrom,
-                ),
-            )
+            streamPath != null && streamTotal > 0 -> {
+                // Bez seznamu (nestáhl se) zbývá počkat na celý soubor: efekt se znovu spustí s `path`.
+                val playlist = if (hlsPlaylist != null) hlsPlaylist() ?: return@LaunchedEffect else null
+                player.loadStreaming(
+                    StreamingSource(
+                        path = { currentPath.value },
+                        totalSize = streamTotal,
+                        downloaded = { downloadedRange.value },
+                        requestFrom = requestFrom,
+                        hlsPlaylist = playlist,
+                    ),
+                )
+            }
             else -> return@LaunchedEffect
         }
         if (resumeAt > 0) player.seekTo(resumeAt)
@@ -1355,3 +1378,17 @@ private val logger = Logger.withTag("VideoQuality")
 
 /** Kvalita do logu: `fileId=šířka×výška/kodek/bajty`. */
 private fun VideoQuality.logLabel(): String = "$fileId=${width}x$height/${codec ?: "orig"}/$sizeBytes"
+
+/**
+ * Stáhne malý textový soubor (HLS seznam) a přečte ho; `null`, když se stáhnout nebo přečíst
+ * nepodařil.
+ */
+private suspend fun FileRepository.readText(fileId: Int): String? {
+    val ready = file(fileId).first { it is FileState.Ready || it is FileState.Failed } as? FileState.Ready
+        ?: return null
+    return withContext(Dispatchers.Default) {
+        runCatching { FileSystem.SYSTEM.read(ready.path.toPath()) { readUtf8() } }
+            .onFailure { logger.w(it) { "Seznam HLS $fileId nejde přečíst." } }
+            .getOrNull()
+    }
+}
