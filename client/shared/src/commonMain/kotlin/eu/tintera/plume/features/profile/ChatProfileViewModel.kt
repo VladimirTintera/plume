@@ -93,7 +93,7 @@ import org.jetbrains.compose.resources.StringResource
  * Členové skupiny se dotahují až po profilu — jen když je server vydá.
  */
 class ChatProfileViewModel(
-    private val chatId: Long,
+    val chatId: Long,
     private val profiles: ProfileRepository,
     private val chats: ChatRepository,
     private val conversations: ConversationRepository,
@@ -659,7 +659,7 @@ class ChatProfileViewModel(
     fun openConversationSettings() {
         val prefs = _state.value.notifications ?: return
         val title = _state.value.profile?.title ?: return
-        notificationPermission.openConversationSettings(chatId, title, prefs.scope.channel)
+        notificationPermission.openConversationSettings(chatId, title, prefs.scope.channel, prefs.soundId)
     }
 
     /** Odkaz na chat (veřejné jméno, jinak pozvánka) do schránky. */

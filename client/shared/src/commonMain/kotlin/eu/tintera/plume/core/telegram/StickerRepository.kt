@@ -98,6 +98,13 @@ interface StickerRepository {
     suspend fun customEmojiSet(setId: Long): Result<List<CustomEmojiItem>>
 
     /**
+     * Vlastní emoji k hledanému textu: podle klíčových slov samolepek ([text]) i podle emoji, na
+     * která se text převedl ([emojis] — tatáž jako výsledky hledání obyčejných emoji). Prochází
+     * nainstalované sady; [chatId] proto, že dostupná vlastní emoji se mezi chaty liší.
+     */
+    suspend fun searchCustomEmoji(text: String, emojis: List<String>, chatId: Long): List<CustomEmojiItem>
+
+    /**
      * Populární sady vlastních emoji k přidání — výběr je nabídne, když uživatel žádnou nemá.
      * Živý tok: po přidání se přepočítá ([CustomEmojiSetSample.isInstalled]).
      */

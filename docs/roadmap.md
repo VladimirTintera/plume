@@ -268,8 +268,10 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   - ~~**Kontaktní odkaz otevřít profilem s viditelným „Přidat do kontaktů"**~~ — hotovo
     (`docs/poznatky/hledani-a-zakladani-chatu.md`, „Kontaktní odkaz do profilu"). Skutečný
     `t.me/contact/…` od jiného účtu zbývá ověřit.
-  - **iOS: odkazy zvenčí** (`CFBundleURLTypes` pro `tg`, předání z `onOpenURL` do
-    `LinkOpenRequests`). QR kód a čtečka tam jsou.
+  - ~~**iOS: odkazy zvenčí** (`CFBundleURLTypes` pro `tg`, předání z `onOpenURL` do
+    `LinkOpenRequests`)~~ — hotovo pro `tg://`; `t.me` jako Universal Link nejde (doménu vydává
+    Telegram), viz `docs/poznatky/hledani-a-zakladani-chatu.md`. Ověřit ze Safari přes stránku
+    `t.me` na zařízení.
 - **Ochrana před spamem.** ~~Zablokovat z nabídky nad chatem a při mazání rovnou zablokovat
   i nahlásit~~, ~~průvodce nahlášením s volbou důvodu~~ (i zprávy z nabídky nad zprávou),
   ~~pruh nad konverzací u chatu od neznámého~~ — hotovo (`docs/poznatky/spam-a-blokovani.md`, „Blokování a nahlášení
@@ -373,14 +375,17 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   (sheet připnutých → „Odepnout vše"). Zbývá ověřit v tématu skupiny.
 - ~~Smazat skupinu nebo kanál pro všechny (`deleteChat`)~~ — hotovo (konec úpravy skupiny).
 - ~~Záznam posledních akcí (`getChatEventLog`)~~ — hotovo (úprava skupiny → Poslední akce;
-  `docs/poznatky/profil-chatu.md`). Zbývají filtry a hledání v záznamu a statistiky kanálu
-  a příspěvku (`getChatStatistics`, `getMessageStatistics`, `getMessagePublicForwards`).
+  `docs/poznatky/profil-chatu.md`). ~~Filtry a hledání v záznamu~~ — hotovo (tamtéž, „Hledání
+  a filtry záznamu"; filtr podle autora ověřit ve skupině s víc správci). Zbývají statistiky
+  kanálu a příspěvku (`getChatStatistics`, `getMessageStatistics`, `getMessagePublicForwards`).
 - ~~Psaní jménem kanálu ve skupině (`getChatAvailableMessageSenders`, `setChatMessageSender`)~~ —
   hotovo (`docs/poznatky/konverzace-psani.md`, „Psaní jménem kanálu nebo skupiny"). Zbývá ověřit
   na zařízení s kanálem nebo anonymním správcem a prémiovou volbu.
 - Přímé zprávy kanálu (monoforum: `loadDirectMessagesChatTopics` a spol.) a navrhované příspěvky
   (`approveSuggestedPost`).
-- Zobrazení fóra jako jednoho seznamu zpráv (`toggleChatViewAsTopics`).
+- ~~Zobrazení fóra jako jednoho seznamu zpráv (`toggleChatViewAsTopics`)~~ — hotovo, volba se
+  ukládá na serveru (`docs/poznatky/typy-zprav.md`, „Témata ve skupinách"). Zbývá ověřit
+  synchronizaci s druhým zařízením.
 
 **Účet a nastavení:**
 
@@ -398,10 +403,10 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   jmen"); kanály, skupiny a boti zbývají.
 - ~~Statistika přenesených dat~~ — hotovo (Úložiště → Přenesená data; `docs/poznatky/nastaveni.md`,
   „Přenesená data"). ~~Automatické ukládání do galerie~~ — hotovo (Úložiště → Ukládání do
-  galerie; `docs/poznatky/prohlizec-medii.md`, „Automatické ukládání do galerie"). Zbývá
-  zakládání výjimek z profilu chatu (dnes jen úprava a odebrání).
-- ~~Zvuky notifikací z Telegramu~~ — hotovo pro rozsahy (`docs/poznatky/notifikace.md`, „Zvuky
-  z Telegramu"); zbývá výběr zvuku jednoho chatu v profilu. **Notifikace reakcí NEJDOU**: TDLib je
+  galerie; `docs/poznatky/prohlizec-medii.md`, „Automatické ukládání do galerie"), ~~včetně
+  zakládání výjimek z profilu chatu~~ — hotovo (řádek „Ukládání do galerie" v profilu).
+- ~~Zvuky notifikací z Telegramu~~ — hotovo pro rozsahy i ~~jeden chat v profilu~~
+  (`docs/poznatky/notifikace.md`, „Zvuky z Telegramu"); zbývá téma ve skupině. **Notifikace reakcí NEJDOU**: TDLib je
   neumí (push `REACT_*` odmítne, kód je zakomentovaný) a zašifrovaný push si Plume nepřečte.
 - ~~Podpora — „Zeptat se"~~ — hotovo (Nastavení → Pomoc, i časté dotazy; `docs/poznatky/nastaveni.md`).
 
@@ -622,8 +627,10 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
   - ~~**ověřit na telefonu s Gemini Nano**~~ — ověřeno na Foldu (jede na featuře 648 „Fast Mode
     (Structured Output)", návrhy nevyšly horší než text; tamtéž). Zbývá porovnat na větším
     vzorku zpráv,
-  - **další typy**: termín (`EventPrompt`), připomínka, podvod a tón (ano/ne se skóre) a hledání
-    přirozeným jazykem (filtry) — každý = provider, řádek ve services a keep pravidlo.
+  - ~~**další typy**~~ — hotovo: podvod, tón, připomínka, termín do kalendáře a hledání
+    přirozeným jazykem (`generateAnswer`; `docs/poznatky/ai-v-zarizeni.md`, „Strukturovaný
+    výstup"), ověřené na Foldu. Zbývá: model občas spočítá datum špatně („den před Silvestrem"
+    → 24. 12.) — zvážit kontrolu pravidly nebo napovědět příklady relativních dat.
 - ~~**Detekce podvodných zpráv.**~~ — hotovo: karta „Možný podvod" pod zprávou, předfiltr
   pravidly a posouzení modelem (`docs/poznatky/ai-v-zarizeni.md`, „Varování před podvodem").
   Původní zadání: „Naskenuj tenhle QR a ověř si účet", falešná výhra, odkaz na
@@ -636,7 +643,7 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
   připomínka, číslo účtu → QR platba a kopírování, adresa → mapy, telefon a e-mail → uložit do
   kontaktů, číslo letu → stav letu a let do kalendáře, Wi-Fi s heslem → připojit a QR kód sítě, kód → zkopírovat,
   cizí měna → převod kurzem ČNB, jednotky druhé soustavy → převod, kód rezervace → zkopírovat,
-  číslo zásilky (Česká pošta / S10, Zásilkovna) → sledování, z ikonky i z nabídky nad zprávou; model termín potvrzuje a doplní název a místo (`docs/poznatky/ai-v-zarizeni.md`,
+  číslo zásilky (Česká pošta / S10, Zásilkovna, PPL a DPD se jménem dopravce) → sledování, z ikonky i z nabídky nad zprávou; model termín potvrzuje a doplní název a místo (`docs/poznatky/ai-v-zarizeni.md`,
   „Akce ze zpráv"). Zbývá:
   - **ověřit na telefonu**: editor události v kalendáři (emulátor bez účtu Google chce
     přihlášení), načtení QR platby bankovní aplikací, Gemini Nano místo Gemmy, iOS (jen přeložené),
@@ -649,9 +656,8 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
     správa rezervace u dopravce chce adresu pro každou společnost zvlášť,
   - **Wi-Fi na iOS** jen s kopírováním hesla a QR kódem — připojení chce entitlement Hotspot
     Configuration v profilu aplikace; víceslovný název sítě jen v uvozovkách,
-  - **snackbar „Zkopírováno" leží pod sheetem** a vidět není (na Androidu 13+ se neukazuje
-    vůbec, potvrdí to systémový náhled schránky; na iOS a starších Androidech nic),
-  - **čísla PPL a DPD**: holé číslo od telefonu nerozeznáš, chtělo by to slovo dopravce vedle,
+  - ~~**snackbar „Zkopírováno" leží pod sheetem**~~ — hotovo (fajfka v řádku, `fix/akce-ze-zprav-drobnosti`),
+  - ~~**čísla PPL a DPD**~~ — hotovo, jen se jménem dopravce poblíž (`fix/akce-ze-zprav-drobnosti`),
   - **místo od modelu bývá vágní** („letišti", „Kotvy") a mapy s ním neporadí — chtělo by to
     nabízet mapy jen u místa, které vypadá jako adresa nebo název,
   - **QR platbu sdílet jako obrázek** — ve stejném telefonu se z obrazovky nenaskenuje, část
@@ -965,8 +971,8 @@ Odhlásit se dole v seznamu sekcí, ne v úpravě profilu; Proxy do Úložiště
   ověřit spořič dat a roaming na telefonu a případně přednačítání videí (dnes se nepřednačítá nic).
 - ~~**Úložiště.**~~ — hotovo (Nastavení → Úložiště: zabrané místo po druzích a chatech, mazání
   všude i v chatu, „Uchovávat média", model Gemmy; `docs/poznatky/nastaveni.md`, „Úložiště").
-  Zbývá **strop velikosti mezipaměti** (mazat nejstarší nad N GB) a ověřit automatický úklid
-  po dni na zařízení.
+  ~~**Strop velikosti mezipaměti**~~ — hotovo (1 / 2 / 5 / 10 GB; `docs/poznatky/nastaveni.md`,
+  „Úložiště"). Zbývá ověřit automatický úklid po dni (a se stropem po šesti hodinách) na zařízení.
 - ~~**Akce tahem v seznamu chatů pro každou stranu zvlášť**~~ — hotovo (Obecné → Chaty:
   archivovat, přečteno, ztlumit, připnout, nic; `docs/poznatky/seznam-chatu.md`, „Akce tahem").
 - ~~**Menší přepínače**~~ — hotovo: rychlá reakce dvojitým ťuknutím, Enter odesílá (fyzická
@@ -1012,7 +1018,8 @@ Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení
     zmínky, obnovení, zvuk přes kanál konverzace) a doby ztlumení i v nabídce chatu v seznamu.
   - **Stories** (`muteStories`, `showStoryPoster`), až budou stories.
   - ~~**Zvuk z Telegramu**~~ — hotovo: kanál podle zvuku (výchozí kanál zůstává), výběr pro
-    rozsahy a tóny účtu. Zbývá výběr pro jeden chat v profilu.
+    rozsahy a tóny účtu, ~~výběr pro jeden chat v profilu~~ (sheet Upozornění → Zvuk). Zbývá
+    výběr pro téma ve skupině.
   - **iOS** kanály nemá; obdobou je `threadIdentifier` a `interruptionLevel` (zmínky jako
     `timeSensitive`). Přijde na řadu s notifikacemi na iOS vůbec.
 - **Rychlé akce z notifikace.** Odpověď, označení za přečtené a ztlumení na hodinu jsou na

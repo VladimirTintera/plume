@@ -1,1 +1,6 @@
 eu.tintera.plume.core.ai.ReplySuggestionsOutputProvider
+eu.tintera.plume.core.ai.ScamAnswerProvider
+eu.tintera.plume.core.ai.ToneAnswerProvider
+eu.tintera.plume.core.ai.ReminderAnswerProvider
+eu.tintera.plume.core.ai.EventAnswerProvider
+eu.tintera.plume.core.ai.SearchAnswerProvider

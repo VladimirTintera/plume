@@ -25,8 +25,10 @@ const val MAX_REMINDER_MESSAGE_CHARS = 1_000
  * - **Den a datum odeslání jdou do promptu výslovně** i s jménem dne: „v pátek" a „za týden"
  *   se počítají od nich a model kalendář nezná.
  * - Instrukce anglicky ze stejného důvodu jako u [summaryPrompt].
+ * - [structured] = odpověď přijde jako [ReminderAnswer] (`generateAnswer`); prompt pak o formátu
+ *   mlčí, tvar dá modelu schéma.
  */
-fun reminderPrompt(text: String, sentAt: LocalDateTime): String = buildString {
+fun reminderPrompt(text: String, sentAt: LocalDateTime, structured: Boolean = false): String = buildString {
     val day = sentAt.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
     appendLine("You find the moment a chat message refers to, so the user can be reminded of it.")
     appendLine("The message was sent on $day ${sentAt.date} at ${twoDigits(sentAt.hour)}:${twoDigits(sentAt.minute)}.")
@@ -43,8 +45,8 @@ fun reminderPrompt(text: String, sentAt: LocalDateTime): String = buildString {
     appendLine("Turn parts of the day into times: morning 08:00, before lunch 11:00, lunch 12:00, after lunch 13:00,")
     appendLine("afternoon 15:00, evening 19:00, night 21:00 (also in other languages, e.g. Czech \"po obědě\" is after lunch).")
     appendLine("If only a day is mentioned and no part of the day, use 08:00. If the message mentions no such moment, answer NONE.")
-    append("Answer with the date and time or NONE only, nothing else.")
-}
+    if (!structured) append("Answer with the date and time or NONE only, nothing else.")
+}.trimEnd()
 
 /**
  * Termín z výstupu modelu, nebo `null`. Tolerantní k formátu (model přidá větu, uvozovky,
@@ -65,3 +67,7 @@ fun parseReminderTime(output: String, sentAt: LocalDateTime): LocalDateTime? {
 private val DATE_TIME = Regex("(\\d{4})-(\\d{1,2})-(\\d{1,2})[ T]+(\\d{1,2}):(\\d{2})")
 
 private fun twoDigits(value: Int) = value.toString().padStart(2, '0')
+
+/** Okamžik ze strukturované odpovědi — týmiž pravidly jako z textu ([parseReminderTime]). */
+fun reminderTimeOf(answer: ReminderAnswer, sentAt: LocalDateTime): LocalDateTime? =
+    parseReminderTime(answer.moment.orEmpty(), sentAt)

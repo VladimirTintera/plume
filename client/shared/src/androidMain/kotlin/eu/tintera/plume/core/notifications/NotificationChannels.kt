@@ -113,14 +113,14 @@ suspend fun createNotificationChannels(context: Context) {
  *
  * Vrací id zkratky, které se předá do nastavení; `null` pod Androidem 11.
  */
-fun ensureConversationChannel(context: Context, parent: NotificationChannelKind, chatId: Long, title: String): String? {
+fun ensureConversationChannel(context: Context, parent: String, chatId: Long, title: String): String? {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
     val manager = context.getSystemService(NotificationManager::class.java)
     val conversationId = shortcutId(chatId)
     // Pozor: bez kanálu konverzace vrátí tohle volání NADŘAZENÝ kanál, ne `null`.
-    if (manager.getNotificationChannel(parent.channelId, conversationId)?.conversationId == conversationId) return conversationId
-    val source = manager.getNotificationChannel(parent.channelId) ?: return null
-    val channel = NotificationChannel("${parent.channelId}_$conversationId", title, source.importance).apply {
+    if (manager.getNotificationChannel(parent, conversationId)?.conversationId == conversationId) return conversationId
+    val source = manager.getNotificationChannel(parent) ?: return null
+    val channel = NotificationChannel("${parent}_$conversationId", title, source.importance).apply {
         description = source.description
         setSound(source.sound, source.audioAttributes)
         enableVibration(source.shouldVibrate())
@@ -130,7 +130,7 @@ fun ensureConversationChannel(context: Context, parent: NotificationChannelKind,
         setShowBadge(source.canShowBadge())
         lockscreenVisibility = source.lockscreenVisibility
         setBypassDnd(source.canBypassDnd())
-        setConversationId(parent.channelId, conversationId)
+        setConversationId(parent, conversationId)
     }
     manager.createNotificationChannel(channel)
     return conversationId
@@ -214,7 +214,14 @@ private fun toneUri(context: Context, tone: NotificationSoundChoice.Tone): Uri? 
 /** Kanály tónu [soundId] (všechny druhy chatů) a jeho kopie pryč — tón už účet nemá. */
 fun deleteToneChannels(context: Context, soundId: Long) {
     val manager = context.getSystemService(NotificationManager::class.java)
-    NotificationChannelKind.entries.forEach { kind -> manager.deleteNotificationChannel(soundChannelKey(kind.channelId, soundId)) }
+    val keys = NotificationChannelKind.entries.map { kind -> soundChannelKey(kind.channelId, soundId) }
+    // S ním i kanály konverzací, které pod ním visí (zvuk jednoho chatu z profilu).
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        manager.notificationChannels
+            .filter { it.conversationId != null && it.parentChannelId in keys }
+            .forEach { manager.deleteNotificationChannel(it.id) }
+    }
+    keys.forEach { manager.deleteNotificationChannel(it) }
     File(context.filesDir, SOUNDS_DIRECTORY).listFiles()?.filter { it.nameWithoutExtension == soundId.toString() }?.forEach { it.delete() }
 }
 

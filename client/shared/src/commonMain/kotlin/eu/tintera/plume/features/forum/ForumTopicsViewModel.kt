@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ChatInfo
+import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ChatNotificationOption
 import eu.tintera.plume.core.telegram.ChatNotificationPrefs
 import eu.tintera.plume.core.telegram.ConversationRepository
@@ -27,6 +28,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.forum_topic_action_failed
 import eu.tintera.plume.resources.forum_topic_create_failed
 import eu.tintera.plume.resources.forum_topics_load_failed
+import eu.tintera.plume.resources.forum_view_mode_failed
 import eu.tintera.plume.resources.settings_notif_error
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -107,6 +109,8 @@ class ForumTopicsViewModel(
     private val forums: ForumRepository,
     private val conversations: ConversationRepository,
     private val notifications: NotificationSettingsRepository,
+    /** Jen kvůli volbě „Zobrazit jako zprávy", kterou drží chat (`toggleChatViewAsTopics`). */
+    private val chats: ChatRepository,
     /** Jen kvůli pruhu s čekajícími žádostmi o vstup — skupina s tématy nemá jednu konverzaci. */
     inviteLinks: InviteLinkRepository,
 ) : ViewModel() {
@@ -327,6 +331,23 @@ class ForumTopicsViewModel(
                     )
                 }
             }
+        }
+    }
+
+    /**
+     * Skupina jako jeden proud zpráv. Volba se ukládá na serveru, takže se skupina tak otevře
+     * i příště a na ostatních zařízeních; [onDone] převede obrazovku, až ji TDLib přijme (zapíše
+     * ji lokálně a na server ji pošle sám). Navigace až po odpovědi — se seznamem témat zmizí
+     * i tenhle ViewModel a jeho korutiny.
+     */
+    fun viewAsMessages(onDone: () -> Unit) {
+        viewModelScope.launch {
+            chats.setViewAsTopics(chatId, viewAsTopics = false)
+                .onSuccess { onDone() }
+                .onFailure { failure ->
+                    logger.w(failure) { "Přepnutí skupiny $chatId na zobrazení jako zprávy selhalo." }
+                    _state.update { it.copy(notice = failure.userMessage(Res.string.forum_view_mode_failed)) }
+                }
         }
     }
 

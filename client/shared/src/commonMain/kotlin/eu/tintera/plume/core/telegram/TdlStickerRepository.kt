@@ -274,6 +274,31 @@ class TdlStickerRepository(
             .toResult()
             .map { set -> set.stickers.filterNotNull().mapNotNull { it.toCustomEmojiItem() } }
 
+    /**
+     * `getStickers` s typem vlastních emoji, dvakrát jako u samolepek: jednou textem (klíčová
+     * slova samolepek, prefix), jednou emoji, na která se převedl. Bez veřejného
+     * `searchStickers` — veřejná vlastní emoji z cizích sad by bez Premium poslat nešla.
+     */
+    override suspend fun searchCustomEmoji(text: String, emojis: List<String>, chatId: Long): List<CustomEmojiItem> =
+        listOf(text.trim(), emojis.joinToString(" "))
+            .filter { it.isNotBlank() }
+            .distinct()
+            .flatMap { query ->
+                client.getStickers(
+                    stickerType = StickerTypeCustomEmoji(),
+                    query = query,
+                    limit = SEARCH_LIMIT,
+                    chatId = chatId,
+                )
+                    .toResult()
+                    .map { result -> result.stickers.filterNotNull().mapNotNull { it.toCustomEmojiItem() } }
+                    .getOrElse { failure ->
+                        logger.w(failure) { "Hledání vlastních emoji selhalo." }
+                        emptyList()
+                    }
+            }
+            .distinctBy { it.id }
+
     override fun trendingCustomEmojiSets(): Flow<List<CustomEmojiSetSample>> =
         merge(
             holder.updates { trendingStickerSetsUpdates }.filter { it.stickerType is StickerTypeCustomEmoji }.map { },

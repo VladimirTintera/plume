@@ -223,6 +223,7 @@ import eu.tintera.plume.core.ui.sharedNavElement
 import eu.tintera.plume.core.ui.sharedNavText
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.core.telegram.ArchiveUnread
+import eu.tintera.plume.core.telegram.opensAsTopics
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_sponsor_announcement
 import eu.tintera.plume.resources.chats_sponsor_proxy
@@ -411,7 +412,7 @@ fun ChatListScreen(
                 val topic = item.topic
                 when {
                     topic != null -> onTopicClick(item.chat.id, topic.id)
-                    item.chat.isForum -> onForumClick(item.chat.id)
+                    item.chat.opensAsTopics -> onForumClick(item.chat.id)
                     else -> onChatClick(item.chat.id)
                 }
             },
@@ -550,8 +551,8 @@ fun ChatListScreen(
                         onChatClick = { chatId ->
                             viewModel.search.recordFound(chatId)
                             scrollToChat = chatId
-                            // Výsledky hledání jsou položky seznamu, takže vědí, jestli je chat fórum.
-                            val forum = with(search) { results + top + recent + global }.any { it.id == chatId && it.isForum }
+                            // Výsledky hledání jsou položky seznamu, takže vědí, jestli se chat otevírá tématy.
+                            val forum = with(search) { results + top + recent + global }.any { it.id == chatId && it.opensAsTopics }
                             if (forum) onForumClick(chatId) else onChatClick(chatId)
                         },
                         onMessageClick = { chatId, messageId, topicId ->
@@ -1320,7 +1321,7 @@ internal fun ChatListContent(
         selectedChatId = selectedChatId,
         onOpen = { chat ->
             shortcutTarget = chat.id
-            if (chat.isForum) onForumClick(chat.id) else onChatClick(chat.id)
+            if (chat.opensAsTopics) onForumClick(chat.id) else onChatClick(chat.id)
         },
     )
 
@@ -1476,7 +1477,7 @@ internal fun ChatListContent(
                                     if (!selecting) viewModel.opened(chat.id)
                                     when {
                                         selecting -> viewModel.toggleSelected(chat)
-                                        chat.isForum -> onForumClick(chat.id)
+                                        chat.opensAsTopics -> onForumClick(chat.id)
                                         else -> onChatClick(chat.id)
                                     }
                                 },

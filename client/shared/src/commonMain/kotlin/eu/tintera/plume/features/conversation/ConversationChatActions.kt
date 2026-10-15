@@ -14,6 +14,7 @@ import eu.tintera.plume.features.chats.SpamCleanup
 import eu.tintera.plume.features.chats.cleanUpSpam
 import eu.tintera.plume.features.report.ReportFlow
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.forum_view_mode_failed
 import eu.tintera.plume.resources.chat_bar_phone_shared
 import eu.tintera.plume.resources.chats_blocked
 import eu.tintera.plume.resources.chats_unarchived
@@ -240,6 +241,20 @@ internal class ConversationChatActions(
      * Ukončí tajný chat z nabídky ⋮. Historie zůstane, psát do něj už nepůjde ani protějšku —
      * místo pole se ukáže věta o ukončeném chatu, až to ohlásí `accessUpdates`.
      */
+    /**
+     * Celá skupina s tématy → seznam témat. Volba se ukládá na serveru (platí i na ostatních
+     * zařízeních); [onDone] převede obrazovku, až ji TDLib přijme — ten ji zapíše lokálně a na
+     * server ji pošle sám, takže se nečeká na síť. Navigace až po odpovědi, protože s konverzací
+     * zmizí i ViewModel a jeho korutiny.
+     */
+    fun viewAsTopics(onDone: () -> Unit) {
+        scope.launch {
+            chatRepository.setViewAsTopics(chatId, viewAsTopics = true)
+                .onSuccess { onDone() }
+                .onFailure { failure -> state.update { it.copy(error = failure.reported(logger, Res.string.forum_view_mode_failed)) } }
+        }
+    }
+
     fun closeSecretChat() {
         scope.launch {
             chatRepository.closeSecretChat(chatId)

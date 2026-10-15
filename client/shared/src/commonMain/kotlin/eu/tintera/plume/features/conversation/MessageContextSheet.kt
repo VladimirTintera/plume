@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -20,10 +21,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -34,6 +43,8 @@ import eu.tintera.plume.core.ui.asUpcomingTime
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auto_awesome_24dp
+import eu.tintera.plume.resources.bot_text_copied
+import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.content_copy_24dp
 import eu.tintera.plume.resources.event_24dp
 import eu.tintera.plume.resources.local_shipping_24dp
@@ -86,6 +97,8 @@ import eu.tintera.plume.resources.message_context_amount
 import eu.tintera.plume.resources.message_context_carrier_czech_post
 import eu.tintera.plume.resources.message_context_carrier_international
 import eu.tintera.plume.resources.message_context_carrier_packeta
+import eu.tintera.plume.resources.message_context_carrier_ppl
+import eu.tintera.plume.resources.message_context_carrier_dpd
 import eu.tintera.plume.resources.message_context_event
 import eu.tintera.plume.resources.message_context_from_model
 import eu.tintera.plume.resources.message_context_parcel
@@ -96,6 +109,7 @@ import eu.tintera.plume.resources.message_context_variable_symbol
 import eu.tintera.plume.resources.notifications_24dp
 import eu.tintera.plume.resources.open_in_new_24dp
 import eu.tintera.plume.resources.payments_24dp
+import kotlinx.coroutines.delay
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import org.jetbrains.compose.resources.DrawableResource
@@ -117,7 +131,7 @@ internal fun MessageContextHost(viewModel: ConversationViewModel) {
         rates = open.rates,
         onAddToCalendar = viewModel::addToCalendar,
         onRemind = { viewModel.remindFromContext(open.messageId) },
-        onCopy = viewModel::copyFromContext,
+        onCopy = viewModel::copyInSheet,
         onTrack = viewModel::trackParcel,
         onAddFlight = { flight -> viewModel.addFlightToCalendar(open.messageId, flight) },
         onOpenMaps = viewModel::openMaps,
@@ -156,52 +170,67 @@ internal fun MessageContextSheet(
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    // Potvrzení zkopírování nese řádek sám (fajfka místo ikony kopírování): snackbar obrazovky
+    // leží POD sheetem a vidět není, a na iOS a Androidu do 12 to nepotvrdí ani systém.
+    var justCopied by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(justCopied) {
+        if (justCopied != null) {
+            delay(COPIED_MILLIS)
+            justCopied = null
+        }
+    }
+    val copy: (String) -> Unit = { value ->
+        onCopy(value)
+        justCopied = value
+    }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(
-            Modifier.verticalScroll(rememberScrollState()).padding(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = stringResource(Res.string.message_context_title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-            )
-            findings.forEach { finding ->
-                Column(
-                    Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(SECTION_GAP),
-                ) {
-                    when (finding) {
-                        is ContextFinding.Event -> EventSection(
-                            finding,
-                            onAdd = { onAddToCalendar(finding) },
-                            onRemind = onRemind,
-                            onOpenMaps = onOpenMaps,
-                        )
-                        is ContextFinding.Address -> AddressSection(finding, onCopy = onCopy, onOpenMaps = onOpenMaps)
-                        is ContextFinding.Contact -> ContactSection(finding, onCopy = onCopy, onSave = { onSaveContact(finding) })
-                        is ContextFinding.Flight -> FlightSection(finding, onCopy = onCopy, onTrack = onTrack, onAdd = { onAddFlight(finding) })
-                        is ContextFinding.Money -> MoneySection(finding, homeCurrency, rates)
-                        is ContextFinding.Measure -> MeasureSection(finding)
-                        is ContextFinding.Booking -> CopyRow(
-                            label = null,
-                            title = stringResource(Res.string.message_context_booking),
-                            value = finding.value,
-                            copied = finding.value,
-                            onCopy = onCopy,
-                            icon = Res.drawable.confirmation_number_24dp,
-                        )
-                        is ContextFinding.Code -> CopyRow(
-                            label = null,
-                            title = stringResource(Res.string.message_context_code),
-                            value = finding.value,
-                            copied = finding.value,
-                            onCopy = onCopy,
-                            icon = Res.drawable.redeem_24dp,
-                        )
-                        is ContextFinding.Wifi -> WifiSection(finding, onCopy = onCopy, onJoin = onJoinWifi?.let { join -> { join(finding) } })
-                        is ContextFinding.Payment -> PaymentSection(finding, onCopy = onCopy)
-                        is ContextFinding.Parcel -> ParcelSection(finding, onCopy = onCopy, onTrack = onTrack)
+        CompositionLocalProvider(LocalJustCopied provides justCopied) {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()).padding(bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = stringResource(Res.string.message_context_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                )
+                findings.forEach { finding ->
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(SECTION_GAP),
+                    ) {
+                        when (finding) {
+                            is ContextFinding.Event -> EventSection(
+                                finding,
+                                onAdd = { onAddToCalendar(finding) },
+                                onRemind = onRemind,
+                                onOpenMaps = onOpenMaps,
+                            )
+                            is ContextFinding.Address -> AddressSection(finding, onCopy = copy, onOpenMaps = onOpenMaps)
+                            is ContextFinding.Contact -> ContactSection(finding, onCopy = copy, onSave = { onSaveContact(finding) })
+                            is ContextFinding.Flight -> FlightSection(finding, onCopy = copy, onTrack = onTrack, onAdd = { onAddFlight(finding) })
+                            is ContextFinding.Money -> MoneySection(finding, homeCurrency, rates)
+                            is ContextFinding.Measure -> MeasureSection(finding)
+                            is ContextFinding.Booking -> CopyRow(
+                                label = null,
+                                title = stringResource(Res.string.message_context_booking),
+                                value = finding.value,
+                                copied = finding.value,
+                                onCopy = copy,
+                                icon = Res.drawable.confirmation_number_24dp,
+                            )
+                            is ContextFinding.Code -> CopyRow(
+                                label = null,
+                                title = stringResource(Res.string.message_context_code),
+                                value = finding.value,
+                                copied = finding.value,
+                                onCopy = copy,
+                                icon = Res.drawable.redeem_24dp,
+                            )
+                            is ContextFinding.Wifi -> WifiSection(finding, onCopy = copy, onJoin = onJoinWifi?.let { join -> { join(finding) } })
+                            is ContextFinding.Payment -> PaymentSection(finding, onCopy = copy)
+                            is ContextFinding.Parcel -> ParcelSection(finding, onCopy = copy, onTrack = onTrack)
+                        }
                     }
                 }
             }
@@ -562,6 +591,8 @@ private fun ParcelSection(parcel: ContextFinding.Parcel, onCopy: (String) -> Uni
             ParcelCarrier.CzechPost -> Res.string.message_context_carrier_czech_post
             ParcelCarrier.Packeta -> Res.string.message_context_carrier_packeta
             ParcelCarrier.International -> Res.string.message_context_carrier_international
+            ParcelCarrier.Ppl -> Res.string.message_context_carrier_ppl
+            ParcelCarrier.Dpd -> Res.string.message_context_carrier_dpd
         },
     )
     val language = Locale.current.language
@@ -612,6 +643,7 @@ private fun CopyRow(
     icon: DrawableResource?,
 ) {
     val copyLabel = stringResource(Res.string.menu_copy)
+    val copiedLabel = stringResource(Res.string.bot_text_copied)
     Surface(
         onClick = { onCopy(copied) },
         shape = RoundedCornerShape(ROW_CORNER),
@@ -632,15 +664,25 @@ private fun CopyRow(
                 )
                 Text(value, style = MaterialTheme.typography.bodyLarge.tabularNumbers())
             }
-            Icon(
-                painterResource(Res.drawable.content_copy_24dp),
-                contentDescription = copyLabel,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
+            // Fajfka po ťuknutí je jediné potvrzení, které je nad sheetem vidět; čtečce ho
+            // oznámí živá oblast.
+            Crossfade(LocalJustCopied.current == copied, label = "copied") { done ->
+                Icon(
+                    painterResource(if (done) Res.drawable.check_24dp else Res.drawable.content_copy_24dp),
+                    contentDescription = if (done) copiedLabel else copyLabel,
+                    tint = if (done) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp).semantics { liveRegion = LiveRegionMode.Polite },
+                )
+            }
         }
     }
 }
+
+/** Hodnota, kterou sheet právě zkopíroval; její řádek ukáže fajfku (viz [MessageContextSheet]). */
+private val LocalJustCopied = compositionLocalOf<String?> { null }
+
+/** Jak dlouho řádek po zkopírování ukazuje fajfku. */
+private const val COPIED_MILLIS = 2_000L
 
 private val ROW_CORNER = 20.dp
 private val SECTION_GAP = 8.dp

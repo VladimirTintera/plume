@@ -33,8 +33,10 @@ enum class ScamKind {
  *   žádné (roadmapa), takže model dostane cestu, jak se vyjádřit, aniž by varoval.
  * - Instrukce anglicky ze stejného důvodu jako u [summaryPrompt]: malé modely je drží líp,
  *   a zpráva sama může být v jakémkoli jazyce.
+ * - [structured] = odpověď přijde jako [ScamAnswer] (`generateAnswer`); prompt pak o formátu
+ *   mlčí a povolené hodnoty dá modelu schéma.
  */
-fun scamPrompt(text: String): String = buildString {
+fun scamPrompt(text: String, structured: Boolean = false): String = buildString {
     appendLine("You protect a user of a chat app from scams. Classify the incoming message below.")
     appendLine()
     appendLine("Message:")
@@ -42,15 +44,15 @@ fun scamPrompt(text: String): String = buildString {
     appendLine(text.take(MAX_SCAM_MESSAGE_CHARS))
     appendLine("\"\"\"")
     appendLine()
-    appendLine("Answer with exactly one word:")
+    appendLine(if (structured) "Choose the verdict:" else "Answer with exactly one word:")
     appendLine("PHISHING - it asks the user to log in, verify or unlock an account, scan a QR code, or send a code or password")
     appendLine("PRIZE - it claims the user won something or gets a free gift they must claim, pay for, or log in for")
     appendLine("MONEY - it pushes an investment, crypto, a fee for a parcel or delivery, or an urgent payment to a stranger")
     appendLine("SAFE - an ordinary message, including real notices, friends talking about money, codes or links")
     appendLine("UNSURE - anything you are not sure about")
     appendLine("Only answer PHISHING, PRIZE or MONEY when the message is clearly a scam. When in doubt, answer UNSURE.")
-    append("Answer:")
-}
+    if (!structured) append("Answer:")
+}.trimEnd()
 
 /**
  * Verdikt z výstupu modelu, nebo `null` — tedy mlčet. Tolerantní k obalu (model přidá tečku,
@@ -65,3 +67,6 @@ fun parseScamVerdict(output: String): ScamKind? {
 }
 
 private val WORD = Regex("[A-Z]+")
+
+/** Verdikt ze strukturované odpovědi — týmiž pravidly jako z textu ([parseScamVerdict]). */
+fun scamVerdictOf(answer: ScamAnswer): ScamKind? = parseScamVerdict(answer.verdict.orEmpty())

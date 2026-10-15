@@ -672,6 +672,23 @@ a pole viz „Formátování při psaní" v konverzace-psani.md).
   Duck Emoji, vložení dvou emoji (náhled i pole s obrázky), odeslání (bublina s obrázky),
   koncept s vlastním emoji po ukončení aplikace; v Notifikátoru se sady nenabízejí.
   S Premium ověřené NENÍ.
+- **Hledání najde i vlastní emoji** (`searchCustomEmoji`, `EmojiSearchState.Results.custom`):
+  `getStickers` s typem vlastních emoji a chatem, dvakrát jako u samolepek — jednou hledaným
+  textem (klíčová slova samolepek), jednou emoji, na která se text převedl. Jen nainstalované
+  sady, veřejné `searchStickers` ne: vlastní emoji z cizí sady by bez Premium poslat nešlo.
+  Ve výsledcích jsou za obyčejnými emoji, v jedné mřížce (`MixedEmojiGrid`), a jen kde je
+  uživatel smí poslat.
+- **Nedávná vlastní emoji jsou v TÉMŽE seznamu jako obyčejná** (`EmojiEntry`, `recentKey`,
+  `parseRecentEmoji`, testy `EmojiEntryTest`): klíč `custom:<id>:<náhradní znak>`. Dva seznamy
+  by šly jen za sebou a pořadí použití by se ztratilo. Náhradní znak se ukládá s id, protože
+  bez něj by se emoji nedalo vložit do textu (entita leží nad ním) ani nakreslit, než dorazí
+  obrázek. Do nedávných jde vlastní emoji ze sady, z hledání i z nedávných samotných; tam, kde
+  ho uživatel poslat nesmí (bez Premium mimo Uložené zprávy), se v nedávných vynechá. TDLib
+  vlastní seznam nedávných vlastních emoji nemá (`getRecentStickers` je jen pro samolepky).
+- **Ověřeno na emulátoru** (česky, účet bez Premium, Duck Emoji): v Uložených zprávách „duck"
+  najde 🦆 a za ním kachny ze sady, ťuknutí je vloží do náhledu; po novém otevření výběru jsou
+  v Nedávných před obyčejnými a ťuknutí z nich vloží emoji znovu. V Notifikátoru nedávná ani
+  hledání vlastní emoji neukážou. Koncept smazán, nic se neodeslalo. S Premium ověřené NENÍ.
 
 ## Výběr emoji
 

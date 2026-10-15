@@ -32,6 +32,7 @@ import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.asUpcomingTime
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.notif_sound_row
 import eu.tintera.plume.resources.open_in_new_24dp
 import eu.tintera.plume.resources.profile_notif_default
 import eu.tintera.plume.resources.profile_notif_default_group
@@ -97,6 +98,9 @@ internal fun ChatNotificationSheet(
     onOpenConversationSettings: () -> Unit,
     onReset: () -> Unit,
     onDismiss: () -> Unit,
+    /** Zvuk z Telegramu („Výchozí", název tónu…); `null` = výběr se nenabízí (téma). */
+    soundLabel: String? = null,
+    onPickSound: () -> Unit = {},
 ) {
     // Celý, bez napůl rozbaleného stavu: přepínače a obnovení by jinak zůstaly pod okrajem.
     val sheetState = rememberBottomSheetState(
@@ -145,7 +149,18 @@ internal fun ChatNotificationSheet(
                     onChange = { onOption(ChatNotificationOption.Mentions, it) },
                 )
             }
-            // Zvuk jednoho chatu nastavuje systém (kanál konverzace), aplikace ho nepřepíše.
+            // Zvuk z Telegramu — nastavení účtu, platí i v oficiálních aplikacích (jako u rozsahu
+            // v Nastavení). Na Androidu vybírá kanál, kterým chat zní.
+            soundLabel?.let { label ->
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    headlineContent = { Text(stringResource(Res.string.notif_sound_row)) },
+                    supportingContent = { Text(label) },
+                    modifier = Modifier.clickable(onClick = onPickSound),
+                )
+            }
+            // Vibrace, důležitost a systémový zvuk jednoho chatu nastavuje systém (kanál
+            // konverzace), aplikace je nepřepíše.
             if (supportsConversationSettings) {
                 ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),

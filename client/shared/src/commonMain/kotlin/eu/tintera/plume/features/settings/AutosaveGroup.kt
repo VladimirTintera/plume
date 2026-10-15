@@ -76,8 +76,8 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * „Ukládání do galerie" v Úložišti: výchozí pravidla pro soukromé chaty, skupiny a kanály
- * a výjimky pro jednotlivé chaty (zakládají se zatím v oficiálních aplikacích, tady se dají
- * upravit a odebrat). Změna jde hned na server — je to nastavení účtu.
+ * a výjimky pro jednotlivé chaty (zakládají se v profilu chatu, tady se dají upravit
+ * a odebrat). Změna jde hned na server — je to nastavení účtu.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -127,7 +127,7 @@ internal fun AutosaveGroup(viewModel: AutosaveViewModel, snackbarHostState: Snac
                             )
                         },
                         headlineContent = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        supportingContent = { Text(summary(exception.settings)) },
+                        supportingContent = { Text(autosaveSummary(exception.settings)) },
                         modifier = Modifier.clickable { editing = AutosaveScope.Chat(exception.chatId) },
                     )
                 }
@@ -189,14 +189,14 @@ private fun ScopeRow(title: StringResource, icon: DrawableResource, settings: Au
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { Icon(painterResource(icon), contentDescription = null) },
         headlineContent = { Text(stringResource(title)) },
-        supportingContent = { Text(summary(settings)) },
+        supportingContent = { Text(autosaveSummary(settings)) },
         modifier = Modifier.clickable(onClick = onClick),
     )
 }
 
 /** „Vypnuto", „Fotky", „Videa do 100 MB", „Fotky a videa do 100 MB". */
 @Composable
-private fun summary(settings: AutosaveScopeSettings): String {
+internal fun autosaveSummary(settings: AutosaveScopeSettings): String {
     val size = fileSizeText(settings.maxVideoBytes)
     return when {
         settings.photos && settings.videos -> stringResource(Res.string.autosave_photos_videos_up_to, size)
@@ -208,16 +208,19 @@ private fun summary(settings: AutosaveScopeSettings): String {
 
 /**
  * Úprava jednoho pravidla: fotky, videa a největší video. Změna se pošle až „Hotovo" — tři
- * volání za sebou při každém ťuknutí by se na serveru předbíhala.
+ * volání za sebou při každém ťuknutí by se na serveru předbíhala. Volá ho i profil chatu.
+ *
+ * @param hint věta nad volbami (v profilu: že jde o výjimku pro tenhle chat).
  */
 @Composable
-private fun AutosaveScopeDialog(
+internal fun AutosaveScopeDialog(
     title: String,
     initial: AutosaveScopeSettings,
     canRemove: Boolean,
     onConfirm: (AutosaveScopeSettings) -> Unit,
     onRemove: () -> Unit,
     onDismiss: () -> Unit,
+    hint: String? = null,
 ) {
     var photos by rememberSaveable { mutableStateOf(initial.photos) }
     var videos by rememberSaveable { mutableStateOf(initial.videos) }
@@ -233,6 +236,14 @@ private fun AutosaveScopeDialog(
         title = { Text(title) },
         text = {
             Column(Modifier.heightIn(max = DIALOG_MAX).verticalScroll(rememberScrollState())) {
+                hint?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
                 SwitchRow(title = Res.string.autosave_photos_switch, checked = photos, onChange = { photos = it })
                 SwitchRow(
                     title = Res.string.autosave_videos_switch,

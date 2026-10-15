@@ -52,6 +52,21 @@ class NotificationSoundsViewModelTest {
         assertEquals(listOf(NotificationScope.Groups to 77L), settings.sounds)
     }
 
+    /** Zvuk jednoho chatu z profilu; `null` = zpátky podle výchozího nastavení rozsahu. */
+    @Test
+    fun zvukChatuSeZapiseDoChatu() = runTest {
+        val settings = SoundSettings()
+        val viewModel = NotificationSoundsViewModel(FakeTones(), settings)
+        advanceUntilIdle()
+
+        viewModel.selectForChat(5, 77)
+        viewModel.selectForChat(5, null)
+        advanceUntilIdle()
+
+        assertEquals(listOf<Pair<Long, Long?>>(5L to 77L, 5L to null), settings.chatSounds)
+        assertEquals(emptyList(), settings.sounds)
+    }
+
     @Test
     fun neuspesneNahraniPripomeneStrop() = runTest {
         val tones = FakeTones(addResult = Result.failure(IllegalStateException("RINGTONE_INVALID")))
@@ -82,6 +97,11 @@ private class FakeTones(private val addResult: Result<NotificationTone> = Result
 
 private class SoundSettings : NotificationSettingsRepository {
     val sounds = mutableListOf<Pair<NotificationScope, Long>>()
+    val chatSounds = mutableListOf<Pair<Long, Long?>>()
+    override suspend fun setChatSound(chatId: Long, soundId: Long?): Result<Unit> {
+        chatSounds += chatId to soundId
+        return Result.success(Unit)
+    }
     override suspend fun setScopeSound(scope: NotificationScope, soundId: Long): Result<Unit> {
         sounds += scope to soundId
         return Result.success(Unit)

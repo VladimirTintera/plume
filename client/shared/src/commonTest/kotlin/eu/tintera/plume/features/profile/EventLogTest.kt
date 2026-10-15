@@ -14,4 +14,11 @@ class EventLogTest {
         )
         assertEquals(emptyList(), emptyList<Int>().groupConsecutive { a, b -> a == b })
     }
+
+    /** Čip filtru: druhé ťuknutí volbu vypne. */
+    @Test
+    fun cipSePrepinaTamAZpet() {
+        assertEquals(setOf(1, 2), setOf(1).toggled(2))
+        assertEquals(setOf(1), setOf(1, 2).toggled(2))
+    }
 }

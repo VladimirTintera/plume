@@ -495,7 +495,7 @@ private fun ExceptionsSheet(
     }
 }
 
-private val NotificationScope.title: StringResource
+internal val NotificationScope.title: StringResource
     get() = when (this) {
         NotificationScope.Private -> Res.string.notification_channel_private
         NotificationScope.Groups -> Res.string.notification_channel_groups
@@ -511,7 +511,7 @@ private val ExceptionState.label: StringResource
 
 /** „Výchozí", „Bez zvuku", název tónu — a tón, který účet nemá, jako „Vlastní zvuk". */
 @Composable
-private fun soundLabel(soundId: Long?, tones: List<NotificationTone>): String = when {
+internal fun soundLabel(soundId: Long?, tones: List<NotificationTone>): String = when {
     soundId == null || soundId == DEFAULT_SOUND_ID -> stringResource(Res.string.notif_sound_default)
     soundId == NO_SOUND_ID -> stringResource(Res.string.notif_sound_none)
     else -> tones.firstOrNull { it.id == soundId }?.title ?: stringResource(Res.string.notif_sound_unknown)

@@ -50,6 +50,7 @@ import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.notif_sound_default
 import eu.tintera.plume.resources.notif_sound_default_summary
+import eu.tintera.plume.resources.notif_sound_follow_default
 import eu.tintera.plume.resources.notif_sound_delete
 import eu.tintera.plume.resources.notif_sound_delete_confirm
 import eu.tintera.plume.resources.notif_sound_delete_text
@@ -89,6 +90,11 @@ internal fun NotificationSoundSheet(
     tonePath: suspend (Long) -> String?,
     onError: (eu.tintera.plume.core.ui.UiText) -> Unit,
     onDismiss: () -> Unit,
+    /**
+     * Popisek volby „Podle výchozího nastavení" (u jednoho chatu: co zní v jeho rozsahu);
+     * `null` = volba se nenabízí (rozsah sám). Vybraná je, když [selected] je [FOLLOW_DEFAULT_SOUND_ID].
+     */
+    followDefault: String? = null,
 ) {
     val sheetState = rememberBottomSheetState(
         initialValue = SheetValue.Hidden,
@@ -121,6 +127,14 @@ internal fun NotificationSoundSheet(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 headlineContent = { Text(stringResource(title), style = MaterialTheme.typography.titleLarge) },
             )
+            if (followDefault != null) {
+                SoundOption(
+                    label = stringResource(Res.string.notif_sound_follow_default),
+                    summary = followDefault,
+                    selected = selected == FOLLOW_DEFAULT_SOUND_ID,
+                    onClick = { onSelect(FOLLOW_DEFAULT_SOUND_ID) },
+                )
+            }
             SoundOption(
                 label = stringResource(Res.string.notif_sound_default),
                 summary = stringResource(Res.string.notif_sound_default_summary),
@@ -186,6 +200,12 @@ internal fun NotificationSoundSheet(
         }
     }
 }
+
+/**
+ * Volba „podle výchozího nastavení" ve výběru zvuku jednoho chatu — chat vlastní zvuk nemá.
+ * Do TDLib nejde nikdy, je to jen značka výběru (TDLib zná −1, 0 a kladná id tónů).
+ */
+internal const val FOLLOW_DEFAULT_SOUND_ID: Long = Long.MIN_VALUE
 
 /** Řádek nese klikání celý, kolečko má `onClick = null` (viz „Obrazovka nastavení"). */
 @Composable

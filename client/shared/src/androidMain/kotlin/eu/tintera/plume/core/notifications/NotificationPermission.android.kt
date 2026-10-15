@@ -49,11 +49,17 @@ actual class NotificationPermission(private val context: Context) {
 
     actual fun forgetTone(soundId: Long) = deleteToneChannels(context, soundId)
 
-    actual fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind) {
-        val conversationId = ensureConversationChannel(context, channel, chatId, title)
+    /**
+     * Konverzace visí pod kanálem, kterým chat opravdu zní: chat s tónem z Telegramu jde kanálem
+     * toho tónu, a kanál konverzace pod výchozím kanálem by ho minul. Kanál tónu ale vzniká až
+     * s první notifikací — dokud není, nezbývá než výchozí.
+     */
+    actual fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind, soundId: Long) {
+        val parent = existingSoundChannelId(context, channel, soundId)
+        val conversationId = ensureConversationChannel(context, parent, chatId, title)
         val intent = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
             .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-            .putExtra(Settings.EXTRA_CHANNEL_ID, channel.channelId)
+            .putExtra(Settings.EXTRA_CHANNEL_ID, parent)
             .apply { if (conversationId != null) putExtra(Settings.EXTRA_CONVERSATION_ID, conversationId) }
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 

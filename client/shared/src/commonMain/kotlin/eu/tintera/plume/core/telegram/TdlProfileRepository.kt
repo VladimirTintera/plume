@@ -333,14 +333,14 @@ class TdlProfileRepository(
         )
     }
 
-    override suspend fun eventLog(chatId: Long, fromEventId: Long): Result<ChatLogPage> = runCatching {
+    override suspend fun eventLog(chatId: Long, fromEventId: Long, filter: ChatLogFilter): Result<ChatLogPage> = runCatching {
         val events = client.getChatEventLog(
             chatId = chatId,
-            query = "",
+            query = filter.query.trim(),
             fromEventId = fromEventId,
             limit = CHAT_LOG_PAGE,
-            filters = null,
-            userIds = longArrayOf(),
+            filters = filter.categories.toTdlFilters(),
+            userIds = filter.userIds.toLongArray(),
         ).toResult().getOrThrow().events.filterNotNull()
         // Jména se čtou jednou za stránku: jeden správce bývá autorem desítek událostí.
         val senders = mutableMapOf<Long, SenderInfo>()
@@ -368,6 +368,21 @@ class TdlProfileRepository(
             // Plná stránka = možná je další; pokračuje se od nejstarší vrácené (TDLib ji vynechá).
             nextFromEventId = events.lastOrNull()?.id?.takeIf { events.size == CHAT_LOG_PAGE },
         )
+    }
+
+    override suspend fun administrators(chatId: Long): Result<List<SenderInfo>> = runCatching {
+        val type = client.getChat(chatId = chatId).toResult().getOrThrow().type as? ChatTypeSupergroup
+            ?: return@runCatching emptyList()
+        client.getSupergroupMembers(
+            supergroupId = type.supergroupId,
+            filter = SupergroupMembersFilterAdministrators(),
+            offset = 0,
+            limit = MAX_MEMBERS_REQUEST,
+        ).toResult().getOrThrow().members.filterNotNull()
+            // Vlastník napřed, pak ostatní správci v pořadí od serveru.
+            .sortedBy { if (it.status is ChatMemberStatusCreator) 0 else 1 }
+            .mapNotNull { member -> (member.memberId as? MessageSenderUser)?.userId?.let { member(it)?.first } }
+            .distinctBy { it.id }
     }
 
     override suspend fun deleteChatForAll(chatId: Long): Result<Unit> =

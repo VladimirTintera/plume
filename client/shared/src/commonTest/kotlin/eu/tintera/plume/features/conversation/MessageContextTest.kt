@@ -160,6 +160,41 @@ class MessageContextTest {
     }
 
     @Test
+    fun zasilkyPplADpdJenSeJmenemDopravce() {
+        val ppl = context("PPL: Vaše zásilka 40012345678 bude doručena dnes mezi 9 a 12").parcels.single()
+        assertEquals(ParcelCarrier.Ppl, ppl.carrier)
+        assertEquals("40012345678", ppl.number)
+        assertEquals("https://www.ppl.cz/vyhledat-zasilku?shipmentId=40012345678", ppl.trackingUrl("cs"))
+        assertEquals("https://www.ppl.cz/en/track-a-shipment?shipmentId=40012345678", ppl.trackingUrl("en"))
+        // Jméno dopravce smí stát i za číslem.
+        assertEquals(ParcelCarrier.Ppl, context("Balík 40012345678 veze PPL.").parcels.single().carrier)
+
+        val dpd = context("Číslo zásilky DPD: 01234567890123").parcels.single()
+        assertEquals(ParcelCarrier.Dpd, dpd.carrier)
+        assertEquals("01234567890123", dpd.number)
+        assertEquals("https://www.dpdgroup.com/cz/mydpd/my-parcels/search?lang=cz&parcelNumber=01234567890123", dpd.trackingUrl("cs"))
+        assertEquals("https://www.dpdgroup.com/cz/mydpd/my-parcels/search?lang=en&parcelNumber=01234567890123", dpd.trackingUrl("de"))
+
+        // Bez jména dopravce je to jen číslo — objednávka, telefon, cokoli.
+        assertTrue(context("Objednávka 40012345678 je zaplacená").parcels.isEmpty())
+        assertTrue(context("Číslo zásilky: 01234567890123").parcels.isEmpty())
+        // „ppl" malými je v angličtině „people", ne dopravce.
+        assertTrue(context("ppl can text me at 12025550123").parcels.isEmpty())
+        // Délka musí sedět k dopravci: 11 číslic s DPD ani 14 s PPL nic není.
+        assertTrue(context("DPD 40012345678").parcels.isEmpty())
+        assertTrue(context("PPL 01234567890123").parcels.isEmpty())
+        // Kus delšího čísla, účtu nebo desetinného čísla zásilkou není.
+        assertTrue(context("PPL 400123456789").parcels.isEmpty())
+        assertTrue(context("PPL platba na 19-40012345678/0800").parcels.isEmpty())
+        assertTrue(context("PPL 40012345678,50 Kč").parcels.isEmpty())
+        // Jméno dopravce daleko od čísla nestačí.
+        val far = "PPL " + "a".repeat(100) + " 40012345678"
+        assertTrue(context(far).parcels.isEmpty())
+        // Číslo zásilky není telefon.
+        assertTrue(context("PPL: Vaše zásilka 40012345678").contacts.isEmpty())
+    }
+
+    @Test
     fun s10KontrolniCislice() {
         assertTrue(s10Valid("123456785"))
         assertFalse(s10Valid("123456789"))

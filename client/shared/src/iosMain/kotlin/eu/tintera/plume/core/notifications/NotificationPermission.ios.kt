@@ -69,7 +69,7 @@ actual class NotificationPermission {
     actual fun openChannelSettings(channel: NotificationChannelKind, soundId: Long) = Unit
 
     actual fun forgetTone(soundId: Long) = Unit
-    actual fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind) = Unit
+    actual fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind, soundId: Long) = Unit
 
     private fun refresh() {
         UNUserNotificationCenter.currentNotificationCenter().getNotificationSettingsWithCompletionHandler { settings ->

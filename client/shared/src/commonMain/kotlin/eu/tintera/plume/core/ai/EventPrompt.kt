@@ -35,8 +35,10 @@ data class EventDetails(val isEvent: Boolean, val title: String?, val place: Str
  *   model dostane cestu odmítnout všechno, co není jasně domluvený termín.
  * - Instrukce anglicky ze stejného důvodu jako u [summaryPrompt]; název v jazyce zprávy, protože
  *   ho uživatel uvidí ve vlastním kalendáři vedle zpráv, ze kterých vznikl.
+ * - [structured] = odpověď přijde jako [EventAnswer] (`generateAnswer`); prompt pak o formátu
+ *   mlčí, tvar dá modelu schéma.
  */
-fun eventPrompt(text: String, sentAt: LocalDateTime, start: LocalDateTime): String = buildString {
+fun eventPrompt(text: String, sentAt: LocalDateTime, start: LocalDateTime, structured: Boolean = false): String = buildString {
     val sentDay = sentAt.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
     val startDay = start.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
     appendLine("You help a chat app user put plans from messages into their calendar.")
@@ -59,13 +61,13 @@ fun eventPrompt(text: String, sentAt: LocalDateTime, start: LocalDateTime): Stri
     appendLine("\"I called you at 9:30 but you didn't answer\" -> WHEN: PAST / EVENT: NO")
     appendLine("\"Sraz v 18:00 u kina Aero\" -> WHEN: FUTURE / EVENT: YES / TITLE: Sraz u kina / PLACE: kino Aero")
     appendLine()
-    appendLine("Answer in exactly four lines:")
+    appendLine(if (structured) "Fill in these four fields:" else "Answer in exactly four lines:")
     appendLine("WHEN: PAST or FUTURE")
     appendLine("EVENT: YES or NO")
     appendLine("TITLE: a short name for the calendar event in the language of the message, at most 5 words")
     appendLine("PLACE: the place or address exactly as written in the message, or NONE")
-    append("WHEN:")
-}
+    if (!structured) append("WHEN:")
+}.trimEnd()
 
 /**
  * Posudek z výstupu modelu, nebo `null`, když se z něj nedá nic vyčíst (pak platí pravidla).
@@ -88,11 +90,29 @@ fun parseEventDetails(output: String, text: String): EventDetails? {
 
     // Prompt končí „WHEN:", takže první řádek bez klíče je odpověď na WHEN.
     val whenAnswer = value("WHEN") ?: lines.first().takeIf { KEY_LINE.find(it) == null }
+    return eventDetailsFrom(whenAnswer, value("EVENT"), value("TITLE"), value("PLACE"), text)
+}
+
+/** Posudek ze strukturované odpovědi — týmiž pravidly jako z textu ([parseEventDetails]). */
+fun eventDetailsOf(answer: EventAnswer, text: String): EventDetails? =
+    eventDetailsFrom(answer.`when`, answer.event, answer.title, answer.place, text)
+
+/**
+ * Společné jádro obou cest: z odpovědí na WHEN, EVENT, TITLE a PLACE (jakkoli získaných)
+ * udělá posudek, nebo `null`, když odpověď není jednoznačná.
+ */
+private fun eventDetailsFrom(
+    whenAnswer: String?,
+    eventAnswer: String?,
+    titleAnswer: String?,
+    placeAnswer: String?,
+    text: String,
+): EventDetails? {
     val tense = whenAnswer?.uppercase()?.let { answer -> ANSWER_WORD.findAll(answer).map { it.value }.toSet() }.orEmpty()
     // Minulost rozhoduje sama: do kalendáře nepatří, ať model o schůzce tvrdí cokoli.
     if ("PAST" in tense && "FUTURE" !in tense) return EventDetails(isEvent = false, title = null, place = null)
 
-    val answer = value("EVENT")?.uppercase() ?: return null
+    val answer = eventAnswer?.uppercase() ?: return null
     val words = ANSWER_WORD.findAll(answer).map { it.value }.toSet()
     val yes = "YES" in words
     val no = "NO" in words
@@ -101,8 +121,8 @@ fun parseEventDetails(output: String, text: String): EventDetails? {
     // Budoucnost musí zaznít výslovně; „EVENT: YES" bez ní je půlka odpovědi.
     if ("FUTURE" !in tense) return null
 
-    val title = value("TITLE")?.let(::cleanValue)?.takeIf { it.length <= MAX_EVENT_TITLE_CHARS }
-    val place = value("PLACE")?.let(::cleanValue)?.takeIf { placeInText(it, text) }
+    val title = titleAnswer?.let(::cleanValue)?.takeIf { it.length <= MAX_EVENT_TITLE_CHARS }
+    val place = placeAnswer?.let(::cleanValue)?.takeIf { placeInText(it, text) }
     return EventDetails(isEvent = true, title = title, place = place)
 }
 

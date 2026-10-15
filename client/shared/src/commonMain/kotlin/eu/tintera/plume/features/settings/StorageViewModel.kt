@@ -11,6 +11,7 @@ import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.settings.CacheLimit
 import eu.tintera.plume.core.settings.KeepMedia
 import eu.tintera.plume.core.storage.StorageCleaner
 import eu.tintera.plume.core.telegram.StorageCategory
@@ -86,6 +87,8 @@ class StorageViewModel(
 
     val keepMedia: StateFlow<KeepMedia> = settings.keepMedia
 
+    val cacheLimit: StateFlow<CacheLimit> = settings.cacheLimit
+
     private var loading: Job? = null
 
     // Načítá se z obrazovky při každém návratu (`LifecycleResumeEffect`), tedy i poprvé.
@@ -135,7 +138,21 @@ class StorageViewModel(
         if (keep.seconds == null) return
         viewModelScope.launch {
             _state.update { it.copy(clearing = true) }
-            finishClearing(cleaner.runNow(keep))
+            finishClearing(cleaner.runNow(keep, cacheLimit.value))
+        }
+    }
+
+    /**
+     * Uloží strop mezipaměti a hned podle něj uklidí — stejně jako u doby uchování. Zrušení
+     * stropu nemaže nic.
+     */
+    fun setCacheLimit(limit: CacheLimit) {
+        if (limit == cacheLimit.value) return
+        settings.setCacheLimit(limit)
+        if (limit.bytes == null) return
+        viewModelScope.launch {
+            _state.update { it.copy(clearing = true) }
+            finishClearing(cleaner.runNow(keepMedia.value, limit))
         }
     }
 
