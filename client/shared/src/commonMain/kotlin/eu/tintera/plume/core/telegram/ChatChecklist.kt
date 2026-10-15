@@ -69,7 +69,8 @@ data class ChecklistDraft(
 
 /**
  * Meze seznamu od serveru (`checklist_title_length_max`, `checklist_task_count_max`,
- * `checklist_task_text_length_max`). Kdyby je server nevydal, platí hodnoty, které posílá dnes.
+ * `checklist_task_text_length_max`). Kdyby je server nevydal, platí hodnoty, které posílá dnes
+ * (ověřeno na emulátoru 15. 10. 2026: 255, 30 a 200).
  */
 data class ChecklistLimits(
     val maxTitle: Int = DEFAULT_CHECKLIST_TITLE_MAX,
@@ -79,4 +80,4 @@ data class ChecklistLimits(
 
 const val DEFAULT_CHECKLIST_TITLE_MAX = 255
 const val DEFAULT_CHECKLIST_TASK_COUNT_MAX = 30
-const val DEFAULT_CHECKLIST_TASK_TEXT_MAX = 100
+const val DEFAULT_CHECKLIST_TASK_TEXT_MAX = 200
