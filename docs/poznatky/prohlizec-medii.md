@@ -1042,10 +1042,23 @@ v `core/video` (testy `VideoQualitiesTest`), čip a nabídka `VideoQualityChip`.
   nenabízí vůbec. Původní soubor se nefiltruje (kodek o něm TDLib neříká).
 - **„720p" je kratší strana** (`VideoQuality.lines`): video na výšku 720 × 1280 je 720p.
 - **Automatika = strop podle úrovně automatického stahování** (`AutoDownloadLimits.maxVideoLines`:
-  Vypnuto 360p, Úsporně 480p, Běžně 720p, Naplno původní). Výchozí tedy: Wi-Fi původní soubor
-  (jako dřív), mobilní data 720p, roaming a spořič dat 480p. Pod stropem nejlepší kvalita, při
-  shodě rozměrů přepočítaná před původní; nevejde-li se nic, nejmenší. **Už stažený původní
+  Vypnuto 360p, Úsporně 480p, Běžně 720p, Naplno bez stropu). Výchozí tedy: Wi-Fi rozlišení
+  původního souboru, mobilní data 720p, roaming a spořič dat 480p. Pod stropem nejlepší kvalita,
+  při shodě rozměrů přepočítaná před původní; nevejde-li se nic, nejmenší. **Už stažený původní
   soubor vyhrává vždycky** — nic nestojí (`FileRepository.observe`, nic nestahuje).
+- **Bez stropu (Wi-Fi) hraje přepočítaná ve stejném rozlišení jako původní**, a jen když taková
+  není, původní soubor. Server přepočítané dělá pro streamování a rozbíhají se hned; původní
+  soubor je, jak ho odesílatel nahrál, a některé se streamují špatně (viz níž, 655MB video
+  přes minutu). Rozdíl v obraze je při stejném rozlišení nepostřehnutelný, oficiální klienti
+  streamují přepočítané taky. **Nižší rozlišení se na Wi-Fi nebere** (původní 1080p a přepočítané
+  nejvýš 720p = hraje původní) — to už by vidět bylo. Původní zůstává v nabídce na ruční volbu.
+  Daň: přepočítaná h264 bývá větší než původní; na Wi-Fi to nevadí. Dřív (#740) hrála na Wi-Fi
+  vždycky původní. **Než `observe` odpoví, jestli je původní stažený, vybere automatika na
+  okamžik přepočítanou** i u staženého videa (v logu `VideoQuality` dva řádky po sobě). Stahovat
+  se nezačne, dokud stránka nehraje na celé obrazovce, takže to nic nestojí; kdyby video hrálo
+  dřív, než odpověď dorazí, přepne se na původní a rozstahovaná kvalita se zruší.
+  Ověřeno na emulátoru (Wi-Fi): nestažená videa hrají 720p AV1 a 901MB video se rozběhlo do pár
+  vteřin, stažená (40 MB, 438 MB, 655 MB) hrají původní.
 - **Automatika se přepočítá i za běhu**: Wi-Fi → mobilní data uprostřed videa přepne na menší
   kvalitu a naopak. Opuštěná kvalita se PŘESTANE STAHOVAT (`cancelDownload`, jen je-li
   rozstahovaná) — jinak by přepnutí na mobilních datech nic neušetřilo, TDLib stahuje dál,

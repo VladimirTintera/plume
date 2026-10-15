@@ -53,8 +53,13 @@ fun videoQualities(
  * Který soubor přehrát.
  *
  * - **Automaticky** se bere nejlepší kvalita do [autoMaxLines] (strop podle úrovně automatického
- *   stahování na právě používané síti, `AutoDownloadLimits.maxVideoLines`). Bez stropu původní soubor — tak se
- *   video přehrávalo vždycky. Když se do stropu nevejde nic, nejmenší, jaká je.
+ *   stahování na právě používané síti, `AutoDownloadLimits.maxVideoLines`). Když se do stropu
+ *   nevejde nic, nejmenší, jaká je.
+ * - **Bez stropu (Wi-Fi) přepočítaná ve STEJNÉM rozlišení jako původní**, jinak původní. Server
+ *   ji dělá pro streamování a rozbíhá se hned, kdežto původní soubor je, jak ho odesílatel
+ *   nahrál: 655MB video s indexem na konci a zvukem daleko od obrazu se rozbíhalo přes minutu.
+ *   Rozdíl v obraze je při stejném rozlišení nepostřehnutelný; nižší rozlišení se na Wi-Fi
+ *   nebere, to už by vidět bylo. Původní zůstává v nabídce.
  * - **Už stažený původní soubor vyhrává** v automatice vždycky: nic nestojí a je nejlepší.
  * - **Při shodě rozměrů přepočítaná před původní**: na stropu se šetří data a přepočítaná bývá
  *   menší (původní bývá z telefonu s vysokým datovým tokem).
@@ -73,7 +78,8 @@ fun pickVideoQuality(
     return when (choice) {
         VideoQualityChoice.Original -> original
         VideoQualityChoice.Auto -> when {
-            originalDownloaded || autoMaxLines == Int.MAX_VALUE -> original
+            originalDownloaded -> original
+            autoMaxLines == Int.MAX_VALUE -> qualities.firstOrNull { !it.isOriginal && it.lines == original.lines } ?: original
             else -> bestUpTo(qualities, autoMaxLines)
         }
         is VideoQualityChoice.Lines -> qualities
