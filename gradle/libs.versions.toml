@@ -85,6 +85,9 @@ mlkitTranslate = "17.0.3"
 # Gemini Nano v zařízení (AICore) přes ML Kit Prompt API — viz core/ai. Beta, API se může měnit.
 # Verze je převzatá z oficiální ukázky googlesamples/mlkit (android/genai).
 mlkitGenaiPrompt = "1.0.0-beta4"
+# Anotace a popis tvaru pro strukturovaný výstup Prompt API (`GenerableProvider`). Procesor KSP
+# (`genai-schema-compiler`) se nepoužívá — providery jsou psané ručně, viz core/ai.
+mlkitGenaiSchema = "1.0.0-alpha1"
 # Gemma v zařízení přes LiteRT-LM — druhý poskytovatel vedle Gemini Nano, viz core/ai.
 # Verze je převzatá z Google AI Edge Gallery (Android/src/gradle/libs.versions.toml); tagy na
 # GitHubu (v0.9.0) s verzemi na Google Maven nesedí, takže se neberou odtud.
@@ -173,6 +176,7 @@ firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
 play-app-update = { module = "com.google.android.play:app-update", version.ref = "playAppUpdate" }
 litertlm-android = { module = "com.google.ai.edge.litertlm:litertlm-android", version.ref = "litertlm" }
 mlkit-genai-prompt = { module = "com.google.mlkit:genai-prompt", version.ref = "mlkitGenaiPrompt" }
+mlkit-genai-schema = { module = "com.google.mlkit:genai-schema", version.ref = "mlkitGenaiSchema" }
 play-code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version.ref = "playCodeScanner" }
 play-text-recognition = { module = "com.google.android.gms:play-services-mlkit-text-recognition", version.ref = "playTextRecognition" }
 mlkit-translate = { module = "com.google.mlkit:translate", version.ref = "mlkitTranslate" }

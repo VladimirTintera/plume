@@ -543,6 +543,47 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   **Neověřené**: načtení QR bankovní aplikací, editor
   události, Gemini Nano, iOS.
 
+### Strukturovaný výstup
+
+Gemini Nano umí vrátit odpověď rovnou jako typ (`OnDeviceAi.generateStructured`, ML Kit
+`GenerateTypedContentRequest`): tvar drží model, ne náš parser. Dnes ho používají **návrhy
+odpovědí** (`ReplySuggestionsOutput`); kde ho model nemá, jde všechno dál textem.
+
+- **Jen Gemini Nano.** Gemma přes LiteRT-LM 0.11.0 typovaný výstup nemá
+  (`supportsStructuredOutput` = `false`) a AICore ho hlásí zvlášť
+  (`isStructuredOutputFeatureAvailable`) — ani každé Nano ho mít nemusí. **Textová cesta proto
+  zůstává plnohodnotná**, ne jako náhradní řešení na odchodu.
+- **Popis tvaru je `GenerableProvider` a ML Kit ho hledá přes `ServiceLoader`** — ověřeno
+  v bajtkódu `genai-prompt` 1.0.0-beta4 (`ServiceLoader.load(GenerableProvider…)` → mapa
+  `targetClass` → provider). Anotace a rozhraní jsou ve zvláštním artefaktu `genai-schema`
+  (1.0.0-alpha1); KSP procesor `genai-schema-compiler` by je generoval z `@Generable`/`@Guide`.
+- **Providery jsou psané RUČNĚ, KSP v projektu není** (`StructuredOutputProviders.kt`
+  v `androidMain`). Typy odpovědí leží v `commonMain`, protože je čte ViewModel, a anotace ML Kitu
+  tam být nemůžou. Provider je pár řádků podle vzoru, který procesor generuje (šablona je čitelná
+  přímo v jeho jaru); seznam na `List::class` s `isList = true` a `listItemType`.
+- **Nový typ = tři místa**: provider, řádek v `src/androidMain/resources/META-INF/services/
+  com.google.mlkit.genai.schema.guided.GenerableProvider` a keep pravidlo na pole. Bez řádku ve
+  services ML Kit typ nezná a generování selže; soubor se do APK dostane (ověřeno `unzip -l`).
+- **Objekt staví Gson (přibalený v ML Kitu) reflexí podle JMEN polí**, bez konstruktoru. Pole,
+  které model vynechá, je proto `null` i v nenullable typu — `ReplySuggestionsOutput.replies` je
+  vědomě nullable. **Pole drží keep pravidlo s konstruktorem**
+  (`proguard-rules.pro`): s pouhým `-keepclassmembers … { <fields>; }` R8 v plném režimu pole
+  ZAHODIL (ověřeno v dexu release buildu a v `usage.txt`) — instanci staví jen Gson, takže třídu
+  bral jako nikdy nevytvořenou a getter z ní udělal abstraktní. **Provider pravidlo nepotřebuje:**
+  R8 sloučil rozhraní `GenerableProvider` s jedinou implementací a soubor ve `services`
+  přejmenoval souhlasně (`META-INF/services/pkb` → `pkb`), takže ho `ServiceLoader` najde.
+- **Špatný tvar není rozbitý model.** ML Kit ho hlásí kódy `STRUCTURED_OUTPUT_REQUEST_ERROR`,
+  `…_RESPONSE_ERROR` a `…_MAX_TOKENS_ERROR`; ty se převádějí na `StructuredOutputException`
+  a návrhy pak zkusí text. Do Crashlytics jako problém nejdou — tam patří jen `OnDeviceAiException`
+  rozbitého modelu, a ten se textem nezkouší podruhé (selhal by stejně). Na text se jde i tehdy,
+  když po úklidu (`cleanReplySuggestions`: délka, prázdné, zdvojené) nezbyde nic.
+- **Prompt o formátu mlčí** (`replyPrompt(structured = true)`): odrážky a závěrečné „Replies:"
+  by se praly se schématem, které ML Kit do promptu přidá sám (`includeSchemaInPrompt`).
+  Obsahové pokyny (celá věta, jazyk konverzace, tykání) zůstávají — schéma říká, jak odpověď
+  vypadá, ne co v ní má být.
+- **Ověřit jde jen na telefonu s Gemini Nano** (emulátor AICore nemá a Gemma typy neumí). Testy
+  (`ReplySuggestionsViewModelTest`) hlídají volbu cesty a náhradu textem s podstrčeným modelem.
+
 ### Návrhy odpovědí
 
 Přijde zpráva, pole je prázdné → nad polem se ukážou až tři čipy s krátkou odpovědí. Ťuknutí ji
@@ -578,6 +619,7 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
 - **Výstup modelu se parsuje tolerantně** (`parseReplySuggestions`, testy `ReplyPromptTest`):
   model odrážky nedrží, očísluje je, obalí uvozovkami nebo přidá úvodní větu s dvojtečkou.
   Nikdy nevrátí prázdno kvůli formátu — když řádky rozpoznat nejdou, je návrhem celý text.
+  Kde Gemini Nano umí strukturovaný výstup, parser se nepouští vůbec (viz „Strukturovaný výstup").
 - **Na zařízení bez AICore se nesmí nic stát a nestane.** Ověřeno na TŘECH systémech —
   Android 16, Android 9 (API 28, Play služby 21.45.15) a **Android 8 (API 26, tedy `minSdk`
   projektu)** —, všude bez balíčku `com.google.android.aicore`. Pokaždé stejně: `status` vrátí

@@ -485,6 +485,9 @@ kotlin {
             implementation(libs.mlkit.translate)
             // Gemini Nano v zařízení. Jediné místo v projektu, kde smí být ML Kit GenAI — viz core/ai.
             implementation(libs.mlkit.genai.prompt)
+            // Strukturovaný výstup Gemini Nano (`GenerableProvider` pro typy odpovědí). Jen popis
+            // tvaru, KSP procesor ne — providery jsou ručně v core/ai.
+            implementation(libs.mlkit.genai.schema)
             // Gemma v zařízení (LiteRT-LM). Taky jen v core/ai.
             implementation(libs.litertlm.android)
             // androidContext() v platformModule — Koin na Androidu potřebuje Context pro cestu k DB.
