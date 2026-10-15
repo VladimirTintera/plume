@@ -6,7 +6,7 @@ import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.ui.LocalArticleMediaFlight
 import eu.tintera.plume.core.ui.resolve
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -201,7 +201,7 @@ private fun AlbumTile(
             val revealed = !media.hasSpoiler || messageId in revealedIds
             val spoilerStyle = rememberSpoilerBlurStyle()
             Box(
-                modifier = modifier.combinedClickable(
+                modifier = modifier.contextClickable(
                     onClick = {
                         if (media.hasSpoiler && !revealed) {
                             revealedSpoilers.reveal(messageId)
@@ -249,7 +249,7 @@ private fun AlbumTile(
                 onCancelUpload = onCancelUpload,
                 revealed = revealed,
                 shape = shape,
-                modifier = modifier.combinedClickable(
+                modifier = modifier.contextClickable(
                     onClick = {
                         if (media.hasSpoiler && !revealed) {
                             revealedSpoilers.reveal(messageId)
@@ -262,7 +262,7 @@ private fun AlbumTile(
             )
         }
 
-        is MessageMedia.Attachment -> Box(modifier.combinedClickable(onClick = {}, onLongClick = onRequestMenu)) {
+        is MessageMedia.Attachment -> Box(modifier.contextClickable(onClick = {}, onLongClick = onRequestMenu)) {
             val uploadingFile = media.fileId?.takeIf { uploading }
             media.thumbnailFileId?.let { thumbnail ->
                 RemoteImage(

@@ -2,7 +2,7 @@ package eu.tintera.plume.features.conversation.items
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -70,7 +70,7 @@ internal fun StoryPreview(
             .clip(shape)
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             // Ťuknutí u živého vysílání vysvětlí, proč se nic neotevře; dlouhý stisk se opakuje.
-            .combinedClickable(onClick = onOpen, onLongClick = onRequestMenu),
+            .contextClickable(onClick = onOpen, onLongClick = onRequestMenu),
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,

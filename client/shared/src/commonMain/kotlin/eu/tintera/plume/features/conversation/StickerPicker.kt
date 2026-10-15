@@ -8,7 +8,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -1176,7 +1176,7 @@ internal fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Mo
             Modifier
                 .matchParentSize()
                 .clip(STICKER_TOUCH_SHAPE)
-                .combinedClickable(
+                .contextClickable(
                     onClick = { cells.onPick(sticker) },
                     // Podržení samolepku neposílá — jen otevře náhled. Po puštění
                     // `combinedClickable` klik nevyvolá, takže nic neodejde omylem.

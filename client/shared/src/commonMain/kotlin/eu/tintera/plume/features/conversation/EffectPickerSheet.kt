@@ -1,7 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -149,7 +149,7 @@ private fun EffectCell(effect: MessageEffect, onClick: () -> Unit, onPreview: (L
             .padding(4.dp)
             .onPlaced { coordinates = it }
             .clip(CircleShape)
-            .combinedClickable(
+            .contextClickable(
                 onClick = onClick,
                 onLongClickLabel = playLabel,
                 onLongClick = if (effect.animationFileId != null) {

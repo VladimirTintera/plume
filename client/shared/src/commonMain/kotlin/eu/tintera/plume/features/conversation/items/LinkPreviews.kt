@@ -4,7 +4,7 @@ import eu.tintera.plume.core.ui.LocalAutoDownload
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -60,7 +60,7 @@ internal fun LinkPreviewCard(
             .fillMaxWidth()
             .clip(shape)
             .background(accent.copy(alpha = QUOTE_CONTAINER_ALPHA))
-            .combinedClickable(onClick = onOpen, onLongClick = onLongClick)
+            .contextClickable(onClick = onOpen, onLongClick = onLongClick)
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {

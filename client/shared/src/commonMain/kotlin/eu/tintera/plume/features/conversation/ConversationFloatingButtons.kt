@@ -10,7 +10,7 @@ import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -229,7 +229,7 @@ internal fun UnreadMarkButton(
                     Box(
                         Modifier
                             .size(SCROLL_DOWN_BUTTON_SIZE)
-                            .combinedClickable(
+                            .contextClickable(
                                 onClickLabel = label,
                                 onLongClickLabel = readAllLabel,
                                 onLongClick = { menuOpen = true },

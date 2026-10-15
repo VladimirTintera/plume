@@ -9,7 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.shape.CircleShape
@@ -99,7 +99,7 @@ internal fun QuotedMessage(
     quoteText: String? = null,
 ) {
     val clickable = if (onClick != null) {
-        Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+        Modifier.contextClickable(onClick = onClick, onLongClick = onLongClick)
     } else {
         Modifier
     }

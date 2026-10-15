@@ -1,7 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -212,7 +212,7 @@ internal data class LinkPreviewMessageItem(
      * ho plocha spolkla a nad zprávou by nešla otevřít nabídka.
      */
     @OptIn(ExperimentalFoundationApi::class)
-    private fun MessageBodyScope.openLink(): Modifier = Modifier.combinedClickable(
+    private fun MessageBodyScope.openLink(): Modifier = Modifier.contextClickable(
         onClick = { act(preview.openAction()) },
         onLongClick = ::requestMenu,
     )

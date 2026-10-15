@@ -2,7 +2,7 @@ package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -359,7 +359,7 @@ internal fun GifCell(
             .fillMaxWidth()
             .height(GIF_CELL_HEIGHT)
             .clip(RoundedCornerShape(GIF_CELL_CORNER))
-            .combinedClickable(
+            .contextClickable(
                 onClick = { onPick(gif) },
                 onLongClickLabel = onPreview?.let { stringResource(Res.string.stickers_preview) },
                 onLongClick = onPreview,

@@ -553,6 +553,30 @@ soubory; soubory z Finderu či Průzkumníka jde pustit kamkoli do konverzace
   přepisuje schránku. **Přetažení z Finderu ověřené rukou není** — tah z jiné aplikace se z testu
   vyvolat nedá.
 
+## Pravé tlačítko myši = podržení
+
+Podržení (`onLongClick`) otevírá v aplikaci nabídky — zpráva, chat, složka, téma, samolepka,
+možnosti odeslání, přepínač chatů. Na desktopu je dlouhý stisk myši věc, na kterou nikdo
+nepřijde, a pravé tlačítko dřív nedělalo NIC: `combinedClickable` i `awaitFirstDown` na myši
+berou jen levé tlačítko. Teď pravé tlačítko udělá totéž co podržení.
+
+- **Obal `contextClickable`** (`core/ui/ContextClickable.kt`) zrcadlí parametry i přetížení
+  `combinedClickable` a přidá `onSecondaryClick(onLongClick)`. Výměna byla jen jméno a import
+  (31 souborů). **Holé `combinedClickable` hlídá `verifyContextClickable` na `check`** —
+  ověřeno sondou (import i volání chytí, zmínku v komentáři ne).
+- **Vlastní gesta podržení mají `onSecondaryClick` zvlášť**: odkaz v textu (`RichText`, jen nad
+  odkazem přes `accepts`, jinde patří bublině), odesílací tlačítko (`longPressInstead`)
+  a šipka zpět s přepínačem chatů (`ChatSwitcherButton`).
+- **Jen myš, spouští se puštěním** (jako ve Windows), stisk se spotřebuje; puštění mimo prvek
+  nic nespustí. **Vnořený prvek má přednost**: hlavní průchod jde od listů, takže pravé tlačítko
+  na příloze v bublině otevře nabídku přílohy a bublina už spotřebovanou událost nechá být.
+- Nabídka se otevře tam, kde po podržení (u prvku), ne u kurzoru.
+- **Ctrl+klik na macOS** (tamní pravé tlačítko z jednotlačítkové myši) se zatím nepřevádí —
+  přijde jako levé tlačítko s Ctrl.
+- Platí i pro Android s myší (Chromebook, DeX).
+- **Ověřeno na Windows 11** (ladicí běh, uživatel): pravé tlačítko otevírá nabídky jako
+  podržení. macOS a Android s myší neověřené.
+
 ## Co platforma (zatím) neumí
 
 **Hovory** přes ntgcalls (`docs/poznatky/hovory.md`, „Desktop"), se zvukem i videem, bez

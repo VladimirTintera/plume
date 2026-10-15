@@ -25,7 +25,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.LoadingIndicator
 import eu.tintera.plume.resources.article_read_more
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -259,7 +259,7 @@ internal data class BubbleMessageItem(
                 .padding(top = MESSAGE_PADDING_V)
                 .offset(x = -EXPANDER_TOUCH_H)
                 .clip(RoundedCornerShape(QUOTE_EXPANDER_CORNER))
-                .combinedClickable(
+                .contextClickable(
                     enabled = !loading,
                     onLongClick = ::requestMenu,
                     onClick = { act(MessageAction.ReadFullArticle) },
@@ -331,7 +331,7 @@ internal data class BubbleMessageItem(
                 if (!overflowed) {
                     Modifier
                 } else {
-                    Modifier.combinedClickable(
+                    Modifier.contextClickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onLongClick = ::requestMenu,
@@ -413,7 +413,7 @@ private fun MessageBodyScope.QuoteExpander(expanded: Boolean, onClick: () -> Uni
             // Dotyková plocha je větší než text, ale popisek musí zůstat v jeho sloupci.
             .offset(x = -EXPANDER_TOUCH_H)
             .clip(RoundedCornerShape(QUOTE_EXPANDER_CORNER))
-            .combinedClickable(onLongClick = ::requestMenu, onClick = onClick)
+            .contextClickable(onLongClick = ::requestMenu, onClick = onClick)
             .padding(horizontal = EXPANDER_TOUCH_H, vertical = EXPANDER_TOUCH_V),
     ) {
         Text(

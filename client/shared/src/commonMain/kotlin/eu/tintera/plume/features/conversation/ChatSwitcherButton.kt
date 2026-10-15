@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.ui.onSecondaryClick
 import eu.tintera.plume.core.ui.RollingNumber
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.chatTitle
@@ -110,7 +111,10 @@ internal fun ChatSwitcherBackButton(
             shapes = IconButtonDefaults.shapes(),
             interactionSource = interactions,
             modifier = if (canSwitch) {
-                Modifier.semantics { onLongClick(label = switchLabel) { expanded = true; true } }
+                Modifier
+                    .semantics { onLongClick(label = switchLabel) { expanded = true; true } }
+                    // Pravé tlačítko myši = podržení; tlačítko samo bere jen levé.
+                    .onSecondaryClick { expanded = true }
             } else {
                 Modifier
             },

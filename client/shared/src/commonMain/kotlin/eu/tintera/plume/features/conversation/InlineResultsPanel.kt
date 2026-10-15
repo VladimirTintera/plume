@@ -1,7 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -201,7 +201,7 @@ private fun InlineResultItem(result: InlineResult, onPick: (InlineResult) -> Uni
                 .height(CELL_HEIGHT)
                 .clip(RoundedCornerShape(CELL_CORNER))
                 // Podržení si haptiku dělá `combinedClickable` samo — viz `Haptics`.
-                .combinedClickable(
+                .contextClickable(
                     onClick = { onPick(result) },
                     onLongClickLabel = stringResource(Res.string.stickers_preview),
                     onLongClick = onPreview,

@@ -2,7 +2,7 @@ package eu.tintera.plume.features.conversation.items
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -112,7 +112,7 @@ private fun MessageBodyScope.AttachmentLine(
             .fillMaxWidth()
             .clip(RoundedCornerShape(ATTACHMENT_CORNER))
             // Dlouhý stisk se opakuje — řádek má vlastní klikání a nabídku zprávy by spolkl.
-            .combinedClickable(onClick = onClick, onLongClick = ::requestMenu)
+            .contextClickable(onClick = onClick, onLongClick = ::requestMenu)
             .padding(vertical = 4.dp),
     ) {
         Box(
@@ -174,7 +174,7 @@ internal fun MessageBodyScope.AnswerMedia(attachment: PollAttachment, index: Int
                 .background(if (media is MessageMedia.Sticker) Color.Transparent else onBubbleColor.copy(alpha = TILE_ALPHA))
                 .then(
                     if (action != null) {
-                        Modifier.combinedClickable(onClick = { act(action) }, onLongClick = ::requestMenu)
+                        Modifier.contextClickable(onClick = { act(action) }, onLongClick = ::requestMenu)
                     } else {
                         Modifier
                     },

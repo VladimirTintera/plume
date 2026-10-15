@@ -1,7 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -100,7 +100,7 @@ internal fun VideoNoteBubble(
             .clip(CircleShape)
             .semantics { contentDescription = description }
             // Dlouhý stisk se opakuje — potomek s vlastním klikáním ho k bublině nepustí.
-            .combinedClickable(
+            .contextClickable(
                 onClick = {
                     requested = true
                     if (paused) shared?.toggle() else handlers.onToggleSound()
