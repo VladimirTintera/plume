@@ -26,6 +26,7 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.call_bar_calling
+import eu.tintera.plume.resources.call_bar_ringing
 import eu.tintera.plume.resources.call_bar_connecting
 import eu.tintera.plume.resources.call_notification_ongoing
 import eu.tintera.plume.resources.call_waiting_for_network
@@ -156,7 +157,13 @@ class CallService : Service(), KoinComponent {
                 .setContentText(readString(Res.string.call_notification_ongoing))
         } else {
             builder.setContentText(
-                readString(if (call.phase == CallPhase.Calling) Res.string.call_bar_calling else Res.string.call_bar_connecting),
+                readString(
+                    when {
+                        call.phase != CallPhase.Calling -> Res.string.call_bar_connecting
+                        call.received -> Res.string.call_bar_ringing
+                        else -> Res.string.call_bar_calling
+                    },
+                ),
             )
         }
         return builder.build()

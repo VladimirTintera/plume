@@ -2,6 +2,7 @@ package eu.tintera.plume.core.calls
 
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.platform.DesktopTaskbar
+import eu.tintera.plume.core.telegram.ActiveCall
 import eu.tintera.plume.core.telegram.CallPhase
 import eu.tintera.plume.core.telegram.CallRepository
 import java.nio.ByteBuffer
@@ -19,7 +20,8 @@ import kotlinx.coroutines.launch
  * - **Příchozí hovor zvoní ve smyčce** ([CallTones.ringtone]), dokud se nepřijme, neodmítne
  *   nebo nezruší — i s aktivním oknem, kde oznámení nepřijde. Oznámení hovoru je proto tiché.
  *   Tlačítko okna k tomu bliká (v Docku poskakuje ikona), když okno není vpředu.
- * - **Odchozí hovor má tón protistrany** ([CallTones.ringback]), dokud protějšek nezvedne.
+ * - **Odchozí hovor má tón protistrany** ([CallTones.ringback]) od chvíle, kdy hovor protějšku
+ *   došel ([ActiveCall.received]), dokud nezvedne.
  * - **Přehrává Java Sound do výchozího výstupu systému**, nezávisle na ntgcalls: ta se rozjede
  *   až se spojováním, kdy už tón dávno utichl.
  * - Tiché hodiny aplikace zvonění neberou (stejně jako na Androidu); kdo nechce být rušen,
@@ -37,7 +39,8 @@ class DesktopCallRinger(
     fun start() {
         scope.launch {
             calls.active
-                .map { call -> call?.phase?.takeIf { it == CallPhase.Ringing || it == CallPhase.Calling } }
+                // Tón protistrany až ve chvíli, kdy hovor protějšku opravdu zvoní (`received`).
+                .map { call -> call?.phase?.takeIf { it == CallPhase.Ringing || it == CallPhase.Calling && call.received } }
                 .distinctUntilChanged()
                 .collect { phase ->
                     player?.stop()

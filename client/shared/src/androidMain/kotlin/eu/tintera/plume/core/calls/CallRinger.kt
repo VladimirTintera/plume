@@ -13,6 +13,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.Settings
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.telegram.ActiveCall
 import eu.tintera.plume.core.telegram.CallPhase
 import eu.tintera.plume.core.telegram.CallRepository
 import kotlinx.coroutines.CoroutineScope
@@ -30,7 +31,8 @@ import kotlinx.coroutines.launch
  *   když je v systému zapnutá „Vibrace při vyzvánění"). **Režim Nerušit** (jiný filtr než
  *   „vše") zvonění vypne — o výjimkách pro volající rozhoduje systém u notifikace, a ta zůstává.
  * - **Odchozí hovor má vyzváněcí tón protistrany** („tůů") ve sluchátku, dokud protějšek
- *   nezvedne — bez něj nebylo poznat, že se vůbec vytáčí.
+ *   nezvedne — bez něj nebylo poznat, že se vůbec vytáčí. **Začíná až tím, že hovor protějšku
+ *   došel** ([ActiveCall.received]); do té doby je ticho, jako u oficiálního klienta.
  */
 class CallRinger(
     private val context: Context,
@@ -46,7 +48,8 @@ class CallRinger(
     fun start() {
         scope.launch {
             calls.active
-                .map { call -> call?.phase?.takeIf { it == CallPhase.Ringing || it == CallPhase.Calling } }
+                // Tón protistrany až ve chvíli, kdy hovor protějšku opravdu zvoní (`received`).
+                .map { call -> call?.phase?.takeIf { it == CallPhase.Ringing || it == CallPhase.Calling && call.received } }
                 .distinctUntilChanged()
                 .collect { phase ->
                     stopAll()

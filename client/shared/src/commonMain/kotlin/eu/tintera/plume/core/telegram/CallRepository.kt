@@ -94,6 +94,12 @@ data class ActiveCall(
     val userId: Long,
     val isOutgoing: Boolean,
     val phase: CallPhase,
+    /**
+     * Odchozí hovor došel na zařízení protějšku a tam zvoní (TDLib `CallStatePending.isReceived`).
+     * Do té doby se jen vytáčí — protějšek je offline nebo jeho telefon ještě nedostal push —
+     * a tón protistrany nehraje, jinak by nešlo poznat, jestli to na druhé straně opravdu zvoní.
+     */
+    val received: Boolean = false,
     /** Čtyři emoji k ověření; stejné na obou stranách = nikdo mezi nimi nesedí. Prázdné do `Ready`. */
     val emojis: List<String> = emptyList(),
     /** Kdy se spojil přenos (epoch ms); `null`, dokud se nespojil. Od něj běží délka hovoru. */

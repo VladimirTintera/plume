@@ -483,7 +483,16 @@ vlastníka režimu. U hovoru přes `CallsManager` (Jetpack core-telecom) Telecom
   (ověřeno: s `setSilent` zůstal zhasnutý telefon zhasnutý a jen zvonil). Zvuk kanálu po
   založení změnit nejde, proto nový kanál bez zvuku a vibrací.
 - **Odchozí hovor má tón protistrany** (`ToneGenerator.TONE_SUP_RINGTONE` na
-  `STREAM_VOICE_CALL`) do zvednutí. **Jen v režimu hovoru**: mimo něj ho systém pustí jako
+  `STREAM_VOICE_CALL`) do zvednutí — **ale až od chvíle, kdy hovor protějšku došel**
+  (`CallStatePending.isReceived` → `ActiveCall.received`; obrazovka i notifikace „Vytáčím…"
+  → „Vyzvání…"). `Pending` chodí víckrát: napřed jen založený, pak doručený. Dřív tón hrál od
+  prvního `Pending`, takže u nedostupného protějšku (offline, telefon bez pushe) zněl celou
+  dobu, než hovor po 20 s vypršel, a nešlo poznat, jestli na druhé straně opravdu zvoní.
+  Oficiální klient dělá totéž („Waiting…" bez tónu, „Ringing…" s tónem). Ověřeno na
+  emulátoru proti Pixelu 7 Pro: s dostupným protějškem přijde `isReceived` za 0,2–0,7 s;
+  s Plume i Telegramem na protějšku zastaveným (`am force-stop`) 20 s ticho, a po spuštění
+  Plume na protějšku tón naskočil do 2 s. Tón se pozná jako stopa aplikace
+  v `dumpsys media.audio_flinger` (`yes <pid>/`). **Jen v režimu hovoru**: mimo něj ho systém pustí jako
   DTMF a telefon na vibracích ho ztlumí úplně (stopa v `dumpsys media.audio_flinger` měla
   `-inf` dB, v režimu hovoru −29 dB).
 - **Zvuková relace (režim hovoru + výstup) začíná už vytáčením / přijetím**
@@ -675,7 +684,8 @@ klienti: člověk vidí, jak bude vypadat, než zvedne. Android i macOS.
 
 - **Zvoní `DesktopCallRinger`** (protějšek `CallRinger` z Androidu): příchozí hovor ve smyčce,
   i s aktivním oknem; odchozí má tón protistrany (425 Hz, vteřinu zní a čtyři ne, jako
-  `TONE_SUP_RINGTONE`). Desktop nemá systémový vyzváněcí tón, který by šel přehrát, takže
+  `TONE_SUP_RINGTONE`), stejně jako na Androidu až po doručení hovoru protějšku
+  (`ActiveCall.received`). Desktop nemá systémový vyzváněcí tón, který by šel přehrát, takže
   se oba tóny **počítají v kódu** (`CallTones`: stoupající trojzvuk C6–E6–G6 s doznívajícím
   úderem). Hraje je Java Sound (`SourceDataLine`) do výchozího výstupu, nezávisle na
   ntgcalls; po kouscích po desetině vteřiny, aby konec zvonění nečekal na konec periody.

@@ -363,13 +363,15 @@ internal class TdlCallRepository(
         // Druhý hovor během hovoru neřešíme — server ho druhé straně ohlásí jako obsazeno.
         if (current != null && current.id != call.id && current.phase !in ENDED) return
         when (val state = call.state) {
-            // `Pending` chodí víckrát (vytvořen, doručen) — stav téhož hovoru se nezakládá znovu.
-            is CallStatePending -> _active.value = current?.takeIf { it.id == call.id }
+            // `Pending` chodí víckrát (vytvořen, doručen) — stav téhož hovoru se nezakládá znovu,
+            // jen se z něj převezme, jestli už hovor došel protějšku (`isReceived` = tam zvoní).
+            is CallStatePending -> _active.value = current?.takeIf { it.id == call.id }?.copy(received = state.isReceived)
                 ?: ActiveCall(
                     id = call.id,
                     userId = call.userId,
                     isOutgoing = call.isOutgoing,
                     phase = if (call.isOutgoing) CallPhase.Calling else CallPhase.Ringing,
+                    received = state.isReceived,
                     networkLost = networkLost,
                     isVideo = call.isVideo,
                     camera = call.isOutgoing && outgoingCamera,
