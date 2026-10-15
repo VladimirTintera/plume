@@ -696,7 +696,14 @@ snackbar s „Vrátit".
   mimo složky, z notifikací a odkazů) a limit by se nafukoval.
 - **Archivace je `addChatToList(ChatListArchive)`, vrácení `addChatToList(ChatListMain)`.**
   Složky se vylučují, odebrání z té druhé pošle TDLib samo updatem pozice s nulovým `order`.
-  Uložené zprávy archivovat nejdou, nabídka je u nich nemá.
+  **Do archivu nejdou dva chaty: Uložené zprávy a chat služby Telegramu** (id 777000 —
+  přihlašovací kódy, upozornění na přihlášení). Pravidlo je napevno v TDLib
+  (`MessagesManager::add_dialog_to_list`, „Chat can't be archived"), příznak v API na to není
+  (`canBeArchived` mají jen příběhy), takže ho drží `ChatSummary.canBeArchived` v `core/telegram`
+  a ptají se ho nabídka, tah i výběr víc chatů. Dřív se hlídaly jen Uložené zprávy: výběr
+  s chatem Telegram archivaci nabídl a skončil obecnou hláškou „Akci se nepodařilo provést".
+  **Vrácení z archivu TDLib nebrání**, takže chat Telegramu archivovaný dřív (jiným klientem)
+  jde vrátit — pravidlo se ptá jen u přesunu DO archivu.
 - **Připnutí patří pozici ve složce.** Archiv má vlastní připnuté (a vlastní limit
   `pinned_archived_chat_count_max`), proto `setPinned` bere složku.
 - **Archiv se začne načítat až při otevření** (`ChatsViewModel` s parametrem `ChatFolder.Archive`).
@@ -754,7 +761,8 @@ snackbar s „Vrátit".
 - **Co tah udělá, volí uživatel zvlášť pro každou stranu** — viz „Akce tahem" níž. Výchozí je
   archivace na obou stranách: dokud jiná akce nebyla, musel by si uživatel pamatovat směr pro
   nic. Archivace se nepotvrzuje — snackbar „Vrátit" je tentýž jako u archivace z nabídky.
-  Uložené zprávy archivovat tahem nejdou, stejně jako nemají položku v nabídce.
+  Uložené zprávy a chat Telegramu archivovat tahem nejdou, stejně jako nemají položku v nabídce
+  (viz „Archiv", `canBeArchived`).
 - **`SwipeToDismissBox` se na tohle NEHODÍ a je pryč** (prah v `ChatSwipeGesture.kt`,
   testy `ChatSwipeGestureTest`). Byl „hodně moc citlivý": při scrollování seznamu odlétaly
   chaty do archivu. Dvě příčiny, ani jedna se zvenku vypnout nedá:
@@ -951,7 +959,8 @@ Pravidla jsou čisté funkce v `ChatSelection.kt` (testy `ChatSelectionTest`).
 - **Po akci výběr končí** a archivace má tentýž snackbar s „Vrátit" jako u jednoho chatu
   (`ArchiveChange` nese seznam chatů, plurál „2 chaty jsou v archivu") a zavře jejich otevřené
   konverzace. Chaty jdou postupně a selhání jednoho ostatní nezastaví.
-- **Uložené zprávy ve výběru archivaci zšednou, nezmizí** (archivovat je nejde); sponzorovaný
+- **Uložené zprávy a chat Telegramu ve výběru archivaci zšednou, nezmizí** (archivovat je nejde,
+  `canBeArchived`; vracení z archivu zůstává); sponzorovaný
   chat vybrat nejde vůbec — není uživatelův a má vlastní nabídku.
 - **Značka výběru je u KAŽDÉHO chatu** (prázdné kolečko / fajfka v rohu avataru, místo tečky
   „online"), ne jen barva vybraného řádku: u jediného vybraného by barva neřekla, že jdou

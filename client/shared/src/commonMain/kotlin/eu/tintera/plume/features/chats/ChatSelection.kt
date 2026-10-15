@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.telegram.canBeArchived
 import eu.tintera.plume.core.telegram.ChatSummary
 
 /**
@@ -40,7 +41,10 @@ fun ChatSummary.isSelectable(): Boolean = sponsor == null
 data class ChatSelectionActions(
     /** `true` = do archivu, `false` = zpátky mezi chaty. */
     val archive: Boolean,
-    /** Uložené zprávy archivovat nejdou (TDLib to odmítne), takže s nimi ve výběru akce zšedne. */
+    /**
+     * Uložené zprávy a chat Telegramu archivovat nejdou (TDLib to odmítne, viz `canBeArchived`),
+     * takže s nimi ve výběru archivace zšedne. Vracení z archivu zůstává.
+     */
     val canArchive: Boolean,
     /** `true` = ztlumit, `false` = zrušit ztlumení. */
     val mute: Boolean,
@@ -51,7 +55,8 @@ data class ChatSelectionActions(
 fun chatSelectionActions(selected: List<ChatSummary>, savedMessagesChatId: Long?): ChatSelectionActions =
     ChatSelectionActions(
         archive = !selected.all { it.isArchived },
-        canArchive = selected.isNotEmpty() && selected.none { it.id == savedMessagesChatId },
+        canArchive = selected.isNotEmpty() &&
+            (selected.all { it.isArchived } || selected.all { it.canBeArchived(savedMessagesChatId) }),
         mute = !selected.all { it.isMuted },
         read = selected.any { it.hasUnread },
     )

@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.settings.ChatSwipeAction
+import eu.tintera.plume.core.telegram.canBeArchived
 import eu.tintera.plume.core.telegram.ChatSummary
 import kotlin.math.min
 
@@ -48,8 +49,8 @@ internal enum class ChatSwipeEffect(
 /**
  * Co udělá tah s akcí [action] s chatem [chat]; `null` = na té straně se tah nechytne.
  *
- * Uložené zprávy archivovat nejdou (nabídka nad chatem archivaci u nich taky nemá) — tah, po
- * kterém přijde chyba, je horší než tah, který se nechytne. Sponzorovaný chat není uživatelův
+ * Uložené zprávy a chat Telegramu archivovat nejdou (`canBeArchived`; nabídka nad chatem
+ * archivaci u nich taky nemá) — tah, po kterém přijde chyba, je horší než tah, který se nechytne. Sponzorovaný chat není uživatelův
  * a TDLib ho v seznamu drží sám, takže s ním tah nedělá nic.
  */
 internal fun chatSwipeEffect(
@@ -63,8 +64,8 @@ internal fun chatSwipeEffect(
     return when (action) {
         ChatSwipeAction.None -> null
         ChatSwipeAction.Archive -> when {
-            chat.id == savedMessagesChatId -> null
             chat.isArchived -> ChatSwipeEffect.Unarchive
+            !chat.canBeArchived(savedMessagesChatId) -> null
             else -> ChatSwipeEffect.Archive
         }
         ChatSwipeAction.Read -> if (chat.hasUnread) ChatSwipeEffect.MarkRead else ChatSwipeEffect.MarkUnread

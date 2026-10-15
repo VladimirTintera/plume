@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.TELEGRAM_SERVICE_NOTIFICATIONS_ID
 import eu.tintera.plume.core.telegram.MessageSenderChoice
 import eu.tintera.plume.core.telegram.MediaReplacement
 import eu.tintera.plume.core.telegram.SenderModeration
@@ -230,7 +231,7 @@ sealed interface RatesState {
  * jako chráněný obsah), zprávy omezené serverem a zprávy služby Telegramu.
  */
 internal fun ChatMessage.offersContext(): Boolean =
-    !isService && !isRestricted && selfDestructType == null && text.isNotBlank() && senderId != TELEGRAM_SERVICE_ID
+    !isService && !isRestricted && selfDestructType == null && text.isNotBlank() && senderId != TELEGRAM_SERVICE_NOTIFICATIONS_ID
 
 data class RemindRequest(
     val messageId: Long,
@@ -995,12 +996,6 @@ internal fun merge(current: List<ChatMessage>, incoming: List<ChatMessage>): Lis
 
     return byId.values.sortedByDescending { it.id }
 }
-
-/**
- * Služba Telegramu (přihlašovací kódy, upozornění na nové přihlášení). Její zprávy akce nemají:
- * kód k přihlášení se nikam nekopíruje a nic jiného, s čím by šlo něco udělat, v nich není.
- */
-private const val TELEGRAM_SERVICE_ID = 777000L
 
 /**
  * Kolik emoji se vejde do rychlého řádku.
