@@ -472,7 +472,8 @@ kreslí tentýž prvek — pilulka `surfaceContainerHigh` s ikonou, polem a ✕ 
 
 Tah doleva posune celou plochu zpráv a vpravo odkryje čas u každé z nich; po puštění se plocha
 vrátí. V bublině čas není (viz „Čas a stav doručení"), takže tohle je vedle předělu dne a plovoucího
-data jediné místo, kde se dá přečíst.
+data jediné místo, kde se dá přečíst. S myší ukáže čas u zprávy i najetí (viz „Akce po najetí myší"
+v `konverzace-akce.md`).
 
 - **Je to gesto nad SEZNAMEM, ne nad položkou.** Čas u jedné zprávy neřekne, kdy přišly ty okolo,
   a u jediné bubliny by to vypadalo jako druhá polovina swipu na odpověď. Jede proto všechno

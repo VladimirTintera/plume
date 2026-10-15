@@ -210,6 +210,9 @@ internal interface ConversationItemScope {
     /** Přidá dvojité ťuknutí na zprávu rychlou reakci (Nastavení → Chaty)? */
     fun doubleTapReaction(): Boolean = false
 
+    /** Jde na zprávu odpovědět — smí se do chatu psát? Tlačítko Odpovědět po najetí myší jen tehdy. */
+    fun canReply(): Boolean = false
+
     /** Tlačítko bota u zprávy, na jehož odpověď se čeká (řádek, sloupec); `null` = žádné. */
     fun pressingBotButton(messageId: Long): Pair<Int, Int>? = null
 

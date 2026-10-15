@@ -587,6 +587,7 @@
     <string name="conversation_edit_new_file">New file: %1$s</string>
     <string name="conversation_cancel_edit">Cancel the edit</string>
     <string name="conversation_reply">Reply</string>
+    <string name="conversation_message_options">Message options</string>
     <string name="conversation_voice_message">Voice message</string>
     <string name="conversation_unread_divider">Unread messages</string>
     <string name="conversation_delivery_sending">Sending</string>
