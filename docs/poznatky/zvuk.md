@@ -76,7 +76,11 @@ ji vrátí zpátky. Sleduje se jen po dobu, kdy se HRAJE (`EarSensor`, startuje 
   zvuk, kdežto médium by hrálo dál z reproduktoru. S `MediaPlayer` se kvůli tomu přehrávač
   stavěl znovu (atributy jen před `prepare()`); ExoPlayer je mění za běhu
   (`setAudioAttributes`) a zvukovou stopu si postaví sám. **Po přechodu na ExoPlayer ověřené
-  u ucha NENÍ** (emulátor nemá sluchátko, viz „Jak to ověřit").
+  na Pixelu 7 Pro** (Android 16, 15. 10. 2026): uživatel slyšel u ucha sluchátko a po odtažení
+  zase reproduktor a přehrávání šlo dál. V logu `Applying proximity: Positive` a hned nato
+  `setCommunicationRouteForClient … type:earpiece`. V historii `dumpsys audio` je při každém
+  přepnutí nová `AudioTrack` (`new player … started` → `device updated deviceIds:[2]/[3]`),
+  takže stopu za běhu přestavuje ExoPlayer sám a ručně se nic přestavovat nemusí.
 - **iOS přehrávač nepřestavuje**, stačí kategorie `AVAudioSession` — `AVAudioPlayer` se za relací
   přesměruje sám. Změna kategorie ale RESETUJE `rate`, takže se rychlost zapisuje znovu.
 - **Do sluchátka vede na iOS jedině `playAndRecord`**, a ta sahá na mikrofon. Přepne se proto jen
