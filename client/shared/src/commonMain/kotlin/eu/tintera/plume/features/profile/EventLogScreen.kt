@@ -49,6 +49,52 @@ import eu.tintera.plume.resources.event_log_empty
 import eu.tintera.plume.resources.event_log_empty_help
 import eu.tintera.plume.resources.event_log_title
 import eu.tintera.plume.resources.history_24dp
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.DropdownMenuGroup
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenuPopup
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
+import eu.tintera.plume.core.telegram.ChatLogCategory
+import eu.tintera.plume.core.telegram.ChatLogFilter
+import eu.tintera.plume.core.telegram.SenderInfo
+import eu.tintera.plume.core.ui.MenuPopupProperties
+import eu.tintera.plume.core.ui.SearchPill
+import eu.tintera.plume.core.ui.horizontalScrollWithWheel
+import eu.tintera.plume.resources.chats_search_clear
+import eu.tintera.plume.resources.check_24dp
+import eu.tintera.plume.resources.event_log_clear_filters
+import eu.tintera.plume.resources.event_log_filter_admins
+import eu.tintera.plume.resources.event_log_filter_anyone
+import eu.tintera.plume.resources.event_log_filter_authors
+import eu.tintera.plume.resources.event_log_filter_choose_author
+import eu.tintera.plume.resources.event_log_filter_invites
+import eu.tintera.plume.resources.event_log_filter_members
+import eu.tintera.plume.resources.event_log_filter_messages
+import eu.tintera.plume.resources.event_log_filter_restrictions
+import eu.tintera.plume.resources.event_log_filter_settings
+import eu.tintera.plume.resources.event_log_filter_topics
+import eu.tintera.plume.resources.event_log_filter_video_chats
+import eu.tintera.plume.resources.event_log_nothing_found
+import eu.tintera.plume.resources.event_log_nothing_found_help
+import eu.tintera.plume.resources.event_log_search
+import eu.tintera.plume.resources.expand_more_24dp
+import eu.tintera.plume.resources.person_24dp
+import eu.tintera.plume.resources.search_24dp
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.pluralStringResource
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -88,20 +134,180 @@ fun EventLogScreen(viewModel: EventLogViewModel, onBack: () -> Unit, modifier: M
             )
         },
     ) { padding ->
-        when {
-            events == null -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                if (!viewModel.loadFailed) LoadingIndicator()
+        // „Zrušit filtry" vymaže i hledaný text; ten drží pole samo, proto se založí znovu.
+        var searchGeneration by remember { mutableIntStateOf(0) }
+        Column(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
+            key(searchGeneration) {
+                SearchPill(
+                    initialQuery = viewModel.filter.query,
+                    onQueryChange = viewModel::setQuery,
+                    placeholder = stringResource(Res.string.event_log_search),
+                    clearDescription = stringResource(Res.string.chats_search_clear),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                )
             }
-            events.isEmpty() -> IntroEmptyState(
-                icon = Res.drawable.history_24dp,
-                title = stringResource(Res.string.event_log_empty),
-                text = stringResource(Res.string.event_log_empty_help),
-                modifier = Modifier.fillMaxSize().padding(padding),
+            EventLogFilters(
+                filter = viewModel.filter,
+                admins = viewModel.admins,
+                onToggleCategory = viewModel::toggleCategory,
+                onToggleAuthor = viewModel::toggleAuthor,
+                onAnyAuthor = viewModel::clearAuthors,
             )
-            else -> EventList(events, viewModel, padding)
+            val bottom = PaddingValues(bottom = padding.calculateBottomPadding())
+            when {
+                events == null -> Box(Modifier.fillMaxSize().padding(bottom), contentAlignment = Alignment.Center) {
+                    if (!viewModel.loadFailed) LoadingIndicator()
+                }
+                // Prázdno kvůli filtru je jiná zpráva než prázdný záznam: radí, co s tím.
+                events.isEmpty() && viewModel.filter.isActive -> IntroEmptyState(
+                    icon = Res.drawable.search_24dp,
+                    title = stringResource(Res.string.event_log_nothing_found),
+                    text = stringResource(Res.string.event_log_nothing_found_help),
+                    modifier = Modifier.fillMaxSize().padding(bottom),
+                    action = {
+                        TextButton(onClick = {
+                            viewModel.clearFilters()
+                            searchGeneration++
+                        }) { Text(stringResource(Res.string.event_log_clear_filters)) }
+                    },
+                )
+                events.isEmpty() -> IntroEmptyState(
+                    icon = Res.drawable.history_24dp,
+                    title = stringResource(Res.string.event_log_empty),
+                    text = stringResource(Res.string.event_log_empty_help),
+                    modifier = Modifier.fillMaxSize().padding(bottom),
+                )
+                else -> EventList(events, viewModel, bottom)
+            }
         }
     }
 }
+
+/**
+ * Filtry záznamu: kdo (správce) a druh akce. Řádek jde posouvat do strany, na telefon se
+ * všechny čipy nevejdou.
+ *
+ * - **Druhy jsou `FilterChip`**, ne connected button group jako druh chatu v hledání zpráv:
+ *   tam se vybírá nejvýš jedna volba ze tří, tady libovolně mnoho z osmi — a to je přesně
+ *   úloha filtračního čipu v M3. Vybraný má fajfku, takže stav nese i tvar, ne jen barva.
+ * - **Kdo je čip s nabídkou** (šipka), protože správců bývá víc, než by se vešlo do řádku.
+ *   Nabídka se po výběru NEZAVÍRÁ — vybírá se víc lidí naráz; „Kdokoli" výběr zruší a zavře ji.
+ *   Bez načtených správců se čip neukazuje (nebylo by co nabídnout).
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun EventLogFilters(
+    filter: ChatLogFilter,
+    admins: List<SenderInfo>,
+    onToggleCategory: (ChatLogCategory) -> Unit,
+    onToggleAuthor: (Long) -> Unit,
+    onAnyAuthor: () -> Unit,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().horizontalScrollWithWheel().padding(horizontal = 16.dp),
+    ) {
+        if (admins.isNotEmpty()) AuthorChip(filter, admins, onToggleAuthor, onAnyAuthor)
+        CATEGORIES.forEach { (category, label) ->
+            val selected = category in filter.categories
+            FilterChip(
+                selected = selected,
+                onClick = { onToggleCategory(category) },
+                label = { Text(stringResource(label)) },
+                leadingIcon = if (selected) {
+                    { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+                } else {
+                    null
+                },
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun AuthorChip(
+    filter: ChatLogFilter,
+    admins: List<SenderInfo>,
+    onToggleAuthor: (Long) -> Unit,
+    onAnyAuthor: () -> Unit,
+) {
+    var menu by remember { mutableStateOf(false) }
+    val chosen = filter.userIds
+    val rotation by animateFloatAsState(if (menu) 180f else 0f, label = "author-chevron")
+    Box {
+        FilterChip(
+            selected = chosen.isNotEmpty(),
+            onClick = { menu = true },
+            label = {
+                Text(
+                    when (chosen.size) {
+                        0 -> stringResource(Res.string.event_log_filter_anyone)
+                        // Jeden člověk jménem; vybraný mezitím přestat být správcem nemusí být v seznamu.
+                        1 -> admins.firstOrNull { it.id in chosen }?.title
+                            ?: pluralStringResource(Res.plurals.event_log_filter_authors, 1, 1)
+                        else -> pluralStringResource(Res.plurals.event_log_filter_authors, chosen.size, chosen.size)
+                    },
+                    maxLines = 1,
+                )
+            },
+            leadingIcon = {
+                Icon(
+                    painterResource(if (chosen.isEmpty()) Res.drawable.person_24dp else Res.drawable.check_24dp),
+                    contentDescription = null,
+                    modifier = Modifier.size(FilterChipDefaults.IconSize),
+                )
+            },
+            trailingIcon = {
+                Icon(
+                    painterResource(Res.drawable.expand_more_24dp),
+                    contentDescription = stringResource(Res.string.event_log_filter_choose_author),
+                    modifier = Modifier.size(FilterChipDefaults.IconSize).graphicsLayer { rotationZ = rotation },
+                )
+            },
+        )
+        DropdownMenuPopup(expanded = menu, onDismissRequest = { menu = false }, properties = MenuPopupProperties) {
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
+                DropdownMenuItem(
+                    checked = chosen.isEmpty(),
+                    onCheckedChange = {
+                        menu = false
+                        onAnyAuthor()
+                    },
+                    text = { Text(stringResource(Res.string.event_log_filter_anyone)) },
+                    shapes = MenuDefaults.itemShape(0, 1),
+                    checkedLeadingIcon = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) },
+                )
+            }
+            Spacer(Modifier.height(MenuDefaults.GroupSpacing))
+            DropdownMenuGroup(shapes = MenuDefaults.groupShape(1, 2)) {
+                admins.forEachIndexed { index, admin ->
+                    DropdownMenuItem(
+                        checked = admin.id in chosen,
+                        onCheckedChange = { onToggleAuthor(admin.id) },
+                        text = { Text(admin.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        shapes = MenuDefaults.itemShape(index, admins.size),
+                        // Fotka říká kdo, fajfka na jejím místě, že je vybraný.
+                        leadingIcon = { Avatar(chatId = admin.id, title = admin.title, avatarFileId = admin.avatarFileId, size = 24.dp) },
+                        checkedLeadingIcon = { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+private val CATEGORIES: List<Pair<ChatLogCategory, StringResource>> = listOf(
+    ChatLogCategory.Messages to Res.string.event_log_filter_messages,
+    ChatLogCategory.Members to Res.string.event_log_filter_members,
+    ChatLogCategory.Admins to Res.string.event_log_filter_admins,
+    ChatLogCategory.Restrictions to Res.string.event_log_filter_restrictions,
+    ChatLogCategory.Settings to Res.string.event_log_filter_settings,
+    ChatLogCategory.InviteLinks to Res.string.event_log_filter_invites,
+    ChatLogCategory.VideoChats to Res.string.event_log_filter_video_chats,
+    ChatLogCategory.Topics to Res.string.event_log_filter_topics,
+)
 
 @Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -112,7 +318,7 @@ private fun EventList(events: List<ChatLogEvent>, viewModel: EventLogViewModel, 
         contentPadding = PaddingValues(
             start = 16.dp,
             end = 16.dp,
-            top = padding.calculateTopPadding() + 8.dp,
+            top = 8.dp,
             bottom = padding.calculateBottomPadding() + 24.dp,
         ),
         verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),

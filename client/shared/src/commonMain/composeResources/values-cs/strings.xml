@@ -3280,6 +3280,25 @@
     <string name="event_log_empty">Za posledních 48 hodin nic</string>
     <string name="event_log_empty_help">Telegram uchovává poslední akce dva dny.</string>
     <string name="event_log_failed">Poslední akce se nepodařilo načíst.</string>
+    <string name="event_log_search">Hledat v akcích</string>
+    <string name="event_log_filter_messages">Zprávy</string>
+    <string name="event_log_filter_members">Členové</string>
+    <string name="event_log_filter_admins">Správci</string>
+    <string name="event_log_filter_restrictions">Omezení</string>
+    <string name="event_log_filter_settings">Informace o skupině</string>
+    <string name="event_log_filter_invites">Pozvánky</string>
+    <string name="event_log_filter_video_chats">Videochaty</string>
+    <string name="event_log_filter_topics">Témata</string>
+    <string name="event_log_filter_anyone">Kdokoli</string>
+    <string name="event_log_filter_choose_author">Vybrat, kdo</string>
+    <plurals name="event_log_filter_authors">
+        <item quantity="one">%1$d člověk</item>
+        <item quantity="few">%1$d lidé</item>
+        <item quantity="other">%1$d lidí</item>
+    </plurals>
+    <string name="event_log_nothing_found">Nic neodpovídá</string>
+    <string name="event_log_nothing_found_help">Zkus jiné hledání nebo vypni některé filtry.</string>
+    <string name="event_log_clear_filters">Zrušit filtry</string>
     <string name="event_on">zapnuto</string>
     <string name="event_off">vypnuto</string>
     <string name="event_closed">uzavřeno</string>

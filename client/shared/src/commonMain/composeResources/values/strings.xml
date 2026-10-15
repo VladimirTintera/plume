@@ -3190,6 +3190,24 @@
     <string name="event_log_empty">Nothing in the last 48 hours</string>
     <string name="event_log_empty_help">Telegram keeps recent actions for two days.</string>
     <string name="event_log_failed">Couldn't load recent actions.</string>
+    <string name="event_log_search">Search actions</string>
+    <string name="event_log_filter_messages">Messages</string>
+    <string name="event_log_filter_members">Members</string>
+    <string name="event_log_filter_admins">Admins</string>
+    <string name="event_log_filter_restrictions">Restrictions</string>
+    <string name="event_log_filter_settings">Group info</string>
+    <string name="event_log_filter_invites">Invite links</string>
+    <string name="event_log_filter_video_chats">Video chats</string>
+    <string name="event_log_filter_topics">Topics</string>
+    <string name="event_log_filter_anyone">By anyone</string>
+    <string name="event_log_filter_choose_author">Choose who</string>
+    <plurals name="event_log_filter_authors">
+        <item quantity="one">%1$d person</item>
+        <item quantity="other">%1$d people</item>
+    </plurals>
+    <string name="event_log_nothing_found">No matching actions</string>
+    <string name="event_log_nothing_found_help">Try a different search or turn off some filters.</string>
+    <string name="event_log_clear_filters">Clear filters</string>
     <string name="event_on">on</string>
     <string name="event_off">off</string>
     <string name="event_closed">closed</string>
