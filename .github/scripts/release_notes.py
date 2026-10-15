@@ -11,13 +11,24 @@ Každý PR přidá do `release-notes/` jeden soubor (název podle větve, `/` �
 `type` je `feat` (novinka), `fix` (oprava) nebo `internal` (uživatel nic nepozná — dokumentace,
 CI, refaktoring). U `internal` se `cs`/`en` nepíšou.
 
+Volitelné `units:` říká, které platformy změnu vydají (`android`, `ios`, `desktop`, zkratky
+`all`/`client` = všechny; víc oddělit čárkou nebo mezerou):
+
+    type: fix
+    units: android
+    cs: Sdílení obrazovky v hovoru
+    en: Screen sharing in calls
+
+Bez `units:` platí poznámka pro všechny platformy — tak se psaly všechny poznámky před zavedením
+pole a tak zůstávají.
+
 Release bere soubory PŘIDANÉ mezi předchozím a aktuálním tagem a čte je z tagu, takže jsou
 poznámky z tagu reprodukovatelné stejně jako verze.
 
     release_notes.py check <soubor>...                   – ověří formát a délku (PR check)
     release_notes.py exempt <změněný soubor>...          – 0, když PR mění jen komunitní překlady (bez poznámky)
     release_notes.py play <prev-tag|""> <tag> <adresář>  – whatsnew-<locale> pro Google Play (PLAY_LANGS)
-    release_notes.py markdown <prev-tag|""> <tag>        – sekce do popisu GitHub Release
+    release_notes.py markdown <prev-tag|""> <tag> [kanál] – sekce do popisu GitHub Release
     release_notes.py bundle <soubor.kt>                  – historie vydání do aplikace (Co je nového)
 """
 
@@ -29,6 +40,12 @@ from pathlib import Path
 
 NOTES_DIR = "release-notes"
 TYPES = ("feat", "fix", "internal")
+KEYS = ("type", "units", "cs", "en")
+
+# Platformy, které změnu vydávají. `android` a `desktop` jsou kanály vydání (`CHANNELS` níž),
+# `ios` se zatím nevydává — poznámka jen pro iOS proto dnes nejde nikam.
+UNITS = ("android", "ios", "desktop")
+UNIT_ALIASES = {"all": UNITS, "client": UNITS}
 MAX_NOTE = 100    # jedna věta; 4–5 poznámek se tak vejde do limitu Play
 PLAY_LIMIT = 500  # limit Play na text „Co je nového" v jednom jazyce
 
@@ -63,6 +80,22 @@ def community_translation(path):
     return False
 
 
+def parse_units(value, name):
+    units = []
+    for token in value.replace(",", " ").split():
+        for unit in UNIT_ALIASES.get(token, (token,)):
+            if unit not in UNITS:
+                raise ValueError(
+                    f"{name}: neznámá platforma „{token}“ v „units:“ — čekám "
+                    f"{', '.join(UNITS)} nebo {', '.join(UNIT_ALIASES)}"
+                )
+            if unit not in units:
+                units.append(unit)
+    if not units:
+        raise ValueError(f"{name}: „units:“ je prázdné — bez řádku platí poznámka pro všechny")
+    return tuple(units)
+
+
 def parse(text, name):
     fields = {}
     for number, line in enumerate(text.splitlines(), 1):
@@ -70,8 +103,8 @@ def parse(text, name):
             continue
         key, sep, value = line.partition(":")
         key, value = key.strip(), value.strip()
-        if not sep or key not in ("type", "cs", "en"):
-            raise ValueError(f"{name}:{number}: čekám „type:“, „cs:“ nebo „en:“, je tu „{line}“")
+        if not sep or key not in KEYS:
+            raise ValueError(f"{name}:{number}: čekám „{'“, „'.join(KEYS)}“, je tu „{line}“")
         if key in fields:
             raise ValueError(f"{name}:{number}: „{key}“ je tu podruhé")
         fields[key] = value
@@ -80,9 +113,16 @@ def parse(text, name):
     if kind not in TYPES:
         raise ValueError(f"{name}: type musí být jedno z {', '.join(TYPES)}, je „{kind}“")
     if kind == "internal":
-        if "cs" in fields or "en" in fields:
-            raise ValueError(f"{name}: type internal nemá text — uživatel nic nepozná")
+        extra = [key for key in ("units", "cs", "en") if key in fields]
+        if extra:
+            raise ValueError(
+                f"{name}: type internal nemá „{'“, „'.join(extra)}“ — uživatel nic nepozná"
+            )
+        fields["units"] = ()
         return fields
+
+    # Bez pole = všechny platformy: přes 600 poznámek vzniklo dřív než pole a musí platit dál.
+    fields["units"] = parse_units(fields["units"], name) if "units" in fields else UNITS
     for lang in LOCALES:
         value = fields.get(lang, "")
         if not value:
@@ -98,8 +138,11 @@ def git(*args):
     return subprocess.run(["git", *args], check=True, capture_output=True, encoding="utf-8").stdout
 
 
-def notes_between(prev, tag):
-    """Poznámky přidané v rozsahu, v pořadí přidání; novinky před opravami."""
+def notes_between(prev, tag, unit=None):
+    """Poznámky přidané v rozsahu, v pořadí přidání; novinky před opravami.
+
+    S `unit` jen ty, které ta platforma vydává (poznámka bez `units:` platí pro všechny).
+    """
     if prev:
         log = git("log", "--reverse", "--diff-filter=A", "--format=", "--name-only",
                   f"{prev}..{tag}", "--", NOTES_DIR)
@@ -114,8 +157,11 @@ def notes_between(prev, tag):
         except subprocess.CalledProcessError:
             continue  # přidaný a v rozsahu zase smazaný
         fields = parse(content, path)
-        if fields["type"] != "internal":
-            notes.append(fields)
+        if fields["type"] == "internal":
+            continue
+        if unit and unit not in fields["units"]:
+            continue
+        notes.append(fields)
     return sorted(notes, key=lambda n: TYPES.index(n["type"]))
 
 
@@ -144,6 +190,8 @@ CHANNELS = {
     # desktop-X.Y.Z, bez čísla buildu (MSI pozná aktualizaci jen podle verze).
     "desktop": re.compile(r"^(\d+(?:\.\d+)*)()$"),
 }
+# Kanál bez jednotky by v `bundle` nedostal žádnou poznámku a nic by to nenahlásilo.
+assert set(CHANNELS) <= set(UNITS), "každý kanál vydání musí být i v UNITS"
 
 
 def release_tags(channel):
@@ -178,7 +226,7 @@ def release_entries(channel):
         # patří vydáním Androidu, ne do první verze pro počítač.
         if not index:
             continue
-        notes = notes_between(tags[index - 1][0], tag)
+        notes = notes_between(tags[index - 1][0], tag, channel)
         if not notes:
             continue
         seconds = git("log", "-1", "--format=%ct", tag).strip()
@@ -259,7 +307,8 @@ def main(argv):
         return 1
 
     if command == "play" and len(argv) == 5:
-        notes = notes_between(argv[2], argv[3])
+        # Play = Android: poznámka jen pro desktop nebo iOS tam nepatří.
+        notes = notes_between(argv[2], argv[3], "android")
         out = Path(argv[4])
         out.mkdir(parents=True, exist_ok=True)
         for lang in PLAY_LANGS:
@@ -269,8 +318,13 @@ def main(argv):
             print(f"--- whatsnew-{locale} ({len(text)}/{PLAY_LIMIT}) ---\n{text}")
         return 0
 
-    if command == "markdown" and len(argv) == 4:
-        notes = notes_between(argv[2], argv[3])
+    if command == "markdown" and len(argv) in (4, 5):
+        # Kanál vydání (`android`, `desktop`) vybere poznámky jeho platformy; bez něj všechny.
+        channel = argv[4] if len(argv) == 5 else None
+        if channel and channel not in CHANNELS:
+            print(f"neznámý kanál „{channel}“ — čekám {', '.join(CHANNELS)}", file=sys.stderr)
+            return 2
+        notes = notes_between(argv[2], argv[3], channel)
         # Do GitHub Release jde celý seznam, bez ořezu na limit Play.
         for lang, title in (("cs", "Co je nového"), ("en", "What's new")):
             print(f"### {title}\n")

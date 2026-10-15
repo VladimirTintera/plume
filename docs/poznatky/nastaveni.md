@@ -693,9 +693,14 @@ Po aktualizaci nic nevyskakuje — novinky jsou tam, kdo je hledá (převzato z 
   začátku" by u desktopu, který přišel až po stovkách PR, vysypal celou historii projektu (418
   poznámek u `desktop-0.3.0`). Android tím nepřišel o nic — v jeho prvním tagu poznámky ještě
   nebyly.
-- **Poznámky nevědí, které platformy se týkají.** Desktop proto ukazuje i čistě androidí změny
-  („Sdílení obrazovky v hovoru (Android)") a Android desktopové; mlog to řeší polem `units`
-  v poznámce.
+- **Platformu nese poznámka v poli `units:`** (`notes_between(prev, tag, unit)`, převzato
+  z mlogu): kanál vydání bere jen poznámky své platformy, takže desktop neukazuje čistě androidí
+  změny („Sdílení obrazovky v hovoru (Android)") a Android desktopové. **Pole je volitelné
+  a chybějící = všechny platformy** — jinak by přes 600 starých poznámek bez něj zmizelo, nebo
+  by se musely přepsat. Přepisovat staré stejně nemá smysl: vydání se čtou z tagu (`git show
+  <tag>:…`), takže dopsané `units:` u vydané poznámky na už vydaných verzích nic nezmění.
+  Ověřeno porovnáním `bundle`, `play` i `markdown` se skriptem před změnou (shodné bajt po bajtu)
+  a v kopii repa se zkušebními tagy a poznámkami pro jednotlivé platformy.
 - **Task je schválně nikdy up-to-date** (vstupem jsou i tagy) a trvá asi 2 s; překlad se přeskočí,
   když vyjde stejný obsah. **Bez pythonu nebo gitu build nespadne**: zapíše se prázdný seznam
   (sekce pak řekne, že sestava novinky nemá) a důvod se zaloguje. CI klonuje s `fetch-depth: 0`,

@@ -116,6 +116,14 @@ en: Search in the chat list
 `type` je `feat`, `fix`, nebo `internal` (dokumentace, CI, refaktoring — pak bez `cs`/`en`).
 Formát, ořez i skládání jsou v `.github/scripts/release_notes.py`.
 
+**Změna jen pro některé platformy přidá řádek `units:`** (`android`, `ios`, `desktop`; víc čárkou,
+zkratka `all`/`client` = všechny), třeba `units: android` u sdílení obrazovky v hovoru. Bez řádku
+platí poznámka pro všechny — tak vzniklo přes 600 starých poznámek a musí platit dál, proto je
+pole volitelné (v mlogu povinné). Podle něj se filtruje „Co je nového" v aplikaci (každý kanál
+vydání jen své), Play (jen `android`) i GitHub Release (workflow předá kanál `markdown`).
+Neznámou platformu, prázdné `units:` a `units:` u `internal` zamítne `check`. Poznámka jen
+pro `ios` dnes nejde nikam: iOS se nevydává a ukazuje vydání Androidu.
+
 **Chybějící poznámku hlídá `pre-push` hook, ne až CI** (`.githooks/pre-push`, zapíná se jednou
 na klon: `git config core.hooksPath "$(git rev-parse --show-toplevel)/.githooks"`; obejít jde
 `git push --no-verify`).

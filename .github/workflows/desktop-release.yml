@@ -155,6 +155,8 @@ jobs:
             echo "Instalátor není podepsaný: Windows SmartScreen ho při prvním spuštění zastaví, projde se přes"
             echo "„Další informace\" → „Přesto spustit\". Instaluje se jen pro přihlášeného uživatele, bez oprávnění správce."
             echo
+            # Poznámky pro uživatele jen s platformou desktop (`units:` v poznámce, bez něj všechny).
+            python3 .github/scripts/release_notes.py markdown "$PREV" "$TAG" desktop
             bash .github/scripts/release-notes.sh "$PREV" "$TAG" "targetu"
           } > release-notes.md
 
