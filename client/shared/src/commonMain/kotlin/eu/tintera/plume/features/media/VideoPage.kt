@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.core.telegram.VideoStoryboard
+import eu.tintera.plume.core.ui.longPress
+import eu.tintera.plume.resources.media_seek_back
+import eu.tintera.plume.resources.media_seek_forward
+import eu.tintera.plume.resources.media_speed_boost
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.DisposableEffect
@@ -227,6 +232,7 @@ internal fun VideoPage(
             else -> video.startSeconds * 1000L
         },
         resumedFromMs = resumed,
+        storyboard = video.storyboard,
         onProgress = positionKey?.let { key -> { position, duration -> positions.record(key, position, duration) } },
         fullscreen = fullscreen,
         muted = muted,
@@ -356,6 +362,8 @@ internal fun VideoPage(
      * dohrání a průběžně během hraní. `null` = nepamatuje se.
      */
     onProgress: ((positionMs: Long, durationMs: Long) -> Unit)? = null,
+    /** Náhledy snímků nad posuvníkem; `null` = bez nich (krátké video, sdílení). */
+    storyboard: VideoStoryboard? = null,
 ) {
     val scope = rememberCoroutineScope()
     val voicePlayer = koinInject<VoicePlayer>()
@@ -584,6 +592,49 @@ internal fun VideoPage(
         HideSystemBars(hidden = locked || !controlsVisible)
     }
 
+    /*
+     * Gesta přehrávače: dvojí ťuknutí do levé / pravé půlky skočí o [SEEK_STEP_MS] zpět / vpřed
+     * (víc ťuknutí rychle za sebou se sčítá), podržení pustí video dvojnásobnou rychlostí, dokud
+     * prst leží. Zamčené video je nemá — zámek je právě proti náhodným dotykům.
+     */
+    val playerGestures = active && loaded && !locked && !inPip && !failed
+    val pageHaptics = LocalHapticFeedback.current
+    // Kolik se naskákalo a kterým směrem; ukazuje se u okraje, na který se ťuklo.
+    var seekShown by remember { mutableLongStateOf(0L) }
+    var seekRun by remember { mutableIntStateOf(0) }
+    LaunchedEffect(seekRun) {
+        if (seekRun > 0) {
+            delay(SEEK_HINT_MS)
+            seekShown = 0L
+        }
+    }
+    fun seekBy(delta: Long) {
+        // Opačný směr nebo pauza mezi dvojťuky začne počítat znovu.
+        seekShown = if (seekShown != 0L && (seekShown > 0) == (delta > 0)) seekShown + delta else delta
+        seekRun++
+        val target = (player.positionMs + delta).coerceIn(0L, durationMs.coerceAtLeast(0L))
+        player.seekTo(target)
+        positionMs = target
+        ended = false
+        pageHaptics.tick()
+    }
+    var boosting by remember { mutableStateOf(false) }
+    fun startBoost() {
+        if (!playing) return
+        boosting = true
+        controlsVisible = false
+        player.setSpeed(BOOST_RATE)
+        pageHaptics.longPress()
+    }
+    fun stopBoost() {
+        if (!boosting) return
+        boosting = false
+        player.setSpeed(speed.rate)
+    }
+
+    // Storyboard se stahuje, až video na celé obrazovce opravdu hraje — sousedé a galerie ne.
+    val board = rememberStoryboard(storyboard, load = active && hasPlayed)
+
     // Stahování, které dobíhá pod už hrajícím videem.
     val downloadVisible = immersive && hasPlayed && file is FileState.Downloading && !inPip
 
@@ -628,8 +679,8 @@ internal fun VideoPage(
                     }
                 }
             }
-            .pointerInput(hasSpoiler, revealed) {
-                detectTapGestures(onTap = {
+            .pointerInput(hasSpoiler, revealed, playerGestures) {
+                val onTapPage: (Offset) -> Unit = {
                     if (hasSpoiler && !revealed) {
                         onReveal()
                     } else if (currentLocked) {
@@ -639,7 +690,25 @@ internal fun VideoPage(
                     } else {
                         currentTap()
                     }
-                })
+                }
+                /*
+                 * Dvojí ťuknutí a podržení jen u hrajícího videa na celé obrazovce. Detektor
+                 * s dvojím ťuknutím čeká s jednoduchým, jestli nepřijde druhé — v galerii by tak
+                 * přepnutí na celou obrazovku zbytečně zdrželo.
+                 */
+                if (!playerGestures) {
+                    detectTapGestures(onTap = onTapPage)
+                } else {
+                    detectTapGestures(
+                        onTap = onTapPage,
+                        onDoubleTap = { offset -> seekBy(if (offset.x < size.width / 2) -SEEK_STEP_MS else SEEK_STEP_MS) },
+                        onLongPress = { startBoost() },
+                        onPress = {
+                            tryAwaitRelease()
+                            stopBoost()
+                        },
+                    )
+                }
             }
             /*
              * Posun přes `offset`, ne `graphicsLayer`: nativní view s videem (UIKit na iOS)
@@ -697,6 +766,38 @@ internal fun VideoPage(
                         .padding(top = IconButtonDefaults.largeContainerSize().height + 48.dp)
                         .padding(horizontal = 24.dp),
                 )
+            }
+
+            // Skok dvojím ťuknutím: u okraje, na který se ťuklo, kolik se celkem přeskočilo.
+            AnimatedVisibility(
+                visible = seekShown != 0L && !inPip,
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                modifier = Modifier
+                    .align(if (seekShown < 0) Alignment.CenterStart else Alignment.CenterEnd)
+                    .padding(horizontal = 32.dp),
+            ) {
+                // Poslední směr drží i během mizení, kdy už je `seekShown` nula.
+                var lastSeek by remember { mutableLongStateOf(0L) }
+                if (seekShown != 0L) lastSeek = seekShown
+                VideoHintPill(
+                    text = stringResource(
+                        if (lastSeek < 0) Res.string.media_seek_back else Res.string.media_seek_forward,
+                        (abs(lastSeek) / 1000).toInt(),
+                    ),
+                )
+            }
+            // Podržení: dokud prst leží, hraje se rychleji — a je to vidět.
+            AnimatedVisibility(
+                visible = boosting,
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Top))
+                    .padding(top = 24.dp),
+            ) {
+                VideoHintPill(text = stringResource(Res.string.media_speed_boost))
             }
 
             // Pokračuje se z pamatované pozice: říct to a nabídnout začátek (`resumedFromMs`).
@@ -933,13 +1034,30 @@ internal fun VideoPage(
                      * nulu. Pak má vlastní řádek přes celou šířku a tlačítka jdou pod něj doprava.
                      */
                     val spacing = Arrangement.spacedBy(12.dp)
-                    if (maxWidth >= VIDEO_CONTROLS_ONE_LINE_WIDTH) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = spacing) {
-                            seekBar()
-                            extras()
+                    val width = maxWidth
+                    Column {
+                        /*
+                         * Při tahu po posuvníku snímek z místa pod prstem (storyboard od serveru).
+                         * Jede nad posuvníkem s prstem a u okrajů se zastaví, aby nevyjel z karty.
+                         */
+                        val seeking = seekingFraction
+                        if (board != null && seeking != null) {
+                            val thumbWidth = STORYBOARD_THUMB_WIDTH.coerceAtMost(width)
+                            StoryboardThumb(
+                                storyboard = board,
+                                positionMs = (seeking * durationMs).toLong(),
+                                modifier = Modifier
+                                    .padding(bottom = 8.dp)
+                                    .offset(x = (width - thumbWidth) * seeking)
+                                    .size(thumbWidth, thumbWidth * board.tileHeight / board.tileWidth),
+                            )
                         }
-                    } else {
-                        Column {
+                        if (width >= VIDEO_CONTROLS_ONE_LINE_WIDTH) {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = spacing) {
+                                seekBar()
+                                extras()
+                            }
+                        } else {
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = spacing) { seekBar() }
                             Row(
                                 Modifier.fillMaxWidth(),
@@ -1081,11 +1199,30 @@ private fun BoxScope.VideoTopControls(
     }
 }
 
+/** Krátká hláška přes video (skok, zrychlení): bílý text na tmavé pilulce. */
+@Composable
+private fun VideoHintPill(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge.tabularNumbers(),
+        color = Color.White,
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f), CircleCornerShape)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    )
+}
+
 private val CircleCornerShape = androidx.compose.foundation.shape.CircleShape
 
 private const val POSITION_TICK_MS = 200L
 private const val PROGRESS_SAVE_MS = 10_000L
 private const val RESUME_HINT_MS = 6_000L
+private const val SEEK_STEP_MS = 10_000L
+private const val SEEK_HINT_MS = 800L
+private const val BOOST_RATE = 2f
+
+/** Šířka náhledu snímku nad posuvníkem; výška podle dlaždice. */
+private val STORYBOARD_THUMB_WIDTH = 160.dp
 private const val CONTROLS_HIDE_MS = 3000L
 
 /** Na kolik dílků se posuvník videa dělí, když tiká haptika (po pětinách procenta by bzučel). */

@@ -804,7 +804,18 @@ internal suspend fun Message.messageMedia(
         isSensitive = hideSensitive,
         isSecret = content.isSecret,
         selfDestructType = selfDestructType?.toSelfDestructType(),
-    ).copy(startSeconds = content.startTimestamp)
+    ).copy(
+        startSeconds = content.startTimestamp,
+        // Server jich posílá víc velikostí; větší dlaždice je ostřejší a pořád jde o jeden JPEG.
+        storyboard = content.storyboards.maxByOrNull { it.width }?.let { board ->
+            VideoStoryboard(
+                imageFileId = board.storyboardFile.id,
+                mapFileId = board.mapFile.id,
+                tileWidth = board.width,
+                tileHeight = board.height,
+            )
+        },
+    )
 
     is MessageAnimation -> content.animation.toMedia().copy(
         hasSpoiler = content.hasSpoiler || hideSensitive,

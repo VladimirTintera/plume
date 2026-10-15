@@ -2116,6 +2116,8 @@ sealed interface MessageMedia {
          * přeposlání „od 1:23"). Nula = od začátku.
          */
         val startSeconds: Int = 0,
+        /** Náhledy snímků nad posuvníkem (`MessageVideo.storyboards`); jen u delších videí. */
+        val storyboard: VideoStoryboard? = null,
     ) : MessageMedia
 
     /**
