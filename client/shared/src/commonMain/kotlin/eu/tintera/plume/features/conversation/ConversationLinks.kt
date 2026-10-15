@@ -3,6 +3,7 @@ package eu.tintera.plume.features.conversation
 import eu.tintera.plume.core.telegram.ProxyConfig
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.navigation.BotStartRequests
+import eu.tintera.plume.core.navigation.ContactOffers
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.ShareTarget
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -61,6 +62,8 @@ internal class ConversationLinks(
     private val openUrl: (url: String) -> Unit,
     private val shareRequests: ShareRequests,
     private val botStartRequests: BotStartRequests,
+    /** Kontaktní odkaz: profil, ve kterém je „Přidat do kontaktů" hlavní akcí. */
+    private val contactOffers: ContactOffers,
     /** Odkaz `t.me/proxy`: dialog přidání proxy (`ProxyLinkFlow.open`). */
     private val openProxy: (ProxyConfig) -> Unit,
     private val jumper: MessageJumper,
@@ -145,6 +148,7 @@ internal class ConversationLinks(
      * až obnoví vlastní koncept, a v tomhle chatu ho vyzvedne rovnou.
      */
     private fun openChatLink(link: InternalLink.Chat) {
+        if (link.offerContact) contactOffers.offer(link.chatId)
         if (link.openProfile) {
             state.update { it.copy(openProfile = link.chatId) }
             return

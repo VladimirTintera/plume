@@ -157,7 +157,11 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import eu.tintera.plume.core.ui.confirm
 import eu.tintera.plume.resources.description_filled_24dp
 import eu.tintera.plume.resources.group_filled_24dp
 import eu.tintera.plume.resources.link_24dp
@@ -441,6 +445,9 @@ fun ChatProfileScreen(
                     onTitlePlaced = { titleBottom = it },
                     onOpenPhotos = onOpenPhotos,
                 )
+                if (state.offerContact && profile.kind == ProfileKind.User && profile.userId != null && !profile.isContact) {
+                    AddContactButton(onClick = { viewModel.setContact(true) })
+                }
                 ProfileActions(
                     muted = state.muted,
                     onToggleMute = viewModel::toggleMute,
@@ -1110,6 +1117,29 @@ private fun ProfileVerification(verification: Verification, botVerification: Bot
                 textAlign = TextAlign.Center,
             )
         }
+    }
+}
+
+/**
+ * „Přidat do kontaktů" jako HLAVNÍ akce profilu otevřeného z kontaktního odkazu nebo QR kódu
+ * (`ChatProfileState.offerContact`). Kvůli tomu si lidé kód ukazují; v ⋮ by ho nikdo nehledal.
+ * Plné tlačítko přes celou šířku, ne další dlaždice: dlaždice jsou pro to, co se v profilu dělá
+ * pořád, a do třetiny šířky by se „Přidat do kontaktů" nevešlo. Po přidání zmizí (snackbar ho
+ * potvrdí); odebrat jde dál v ⋮.
+ */
+@Composable
+private fun AddContactButton(onClick: () -> Unit) {
+    val haptics = LocalHapticFeedback.current
+    Button(
+        onClick = {
+            haptics.confirm()
+            onClick()
+        },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Icon(painterResource(Res.drawable.person_add_24dp), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+        Text(stringResource(Res.string.contact_add))
     }
 }
 

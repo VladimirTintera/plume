@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.links
 
+import eu.tintera.plume.core.navigation.ContactOffers
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
@@ -63,6 +64,8 @@ class ExternalLinkViewModel(
     private val botStartRequests: BotStartRequests,
     private val urlOpener: UrlOpener,
     proxies: ProxyRepository,
+    /** Kontaktní odkaz (QR kód): profil s „Přidat do kontaktů" jako hlavní akcí. */
+    private val contactOffers: ContactOffers,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("ExternalLink")
@@ -93,6 +96,7 @@ class ExternalLinkViewModel(
                         link.draftText?.let { text ->
                             shareRequests.start(text, hasFiles = false, target = ShareTarget(link.chatId, confirm = false))
                         }
+                        if (link.offerContact) contactOffers.offer(link.chatId)
                         navigate(ExternalDestination.Chat(chatTarget(link.chatId), profile = link.openProfile))
                     }
                     is InternalLink.Message ->

@@ -81,6 +81,7 @@ import eu.tintera.plume.core.telegram.InstantViewRepository
 import eu.tintera.plume.core.telegram.TdlInstantViewRepository
 import eu.tintera.plume.core.navigation.NO_STORY
 import eu.tintera.plume.core.navigation.BotStartRequests
+import eu.tintera.plume.core.navigation.ContactOffers
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.ShareTargets
 import eu.tintera.plume.core.telegram.ChatFolder
@@ -388,6 +389,7 @@ fun appModule() = module {
     single { InstantViewRequests() }
     single<InstantViewRepository> { TdlInstantViewRepository(holder = get()) }
     single { BotStartRequests() }
+    single { ContactOffers() }
     single { ConversationSearchRequests() }
     single { ConversationJumpRequests() }
     single { LocalTranscripts(settings = get(), chats = get()) }
@@ -595,6 +597,7 @@ fun appModule() = module {
             searchRequests = get(),
             placeRepository = get(),
             botStartRequests = get(),
+            contactOffers = get(),
             replyRequests = get(),
             inlineQueryRequests = get(),
             inviteLinks = get(),
@@ -670,6 +673,7 @@ fun appModule() = module {
             musicQueue = get(),
             bookmarks = get(),
             chatColors = get(),
+            contactOffers = get(),
         )
     }
 

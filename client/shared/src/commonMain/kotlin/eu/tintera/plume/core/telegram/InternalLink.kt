@@ -13,11 +13,15 @@ sealed interface InternalLink {
      * - [draftText] je text, který odkaz předvyplní do pole (`?text=…`). Jen se VLOŽÍ, neodešle —
      *   napsal ho autor odkazu, ne uživatel.
      * - [openProfile] = odkaz chce profil, ne konverzaci (`?profile`).
+     * - [offerContact] = kontaktní odkaz na člověka, který v kontaktech ještě NENÍ: otevře se
+     *   profil (s [openProfile]) a „Přidat do kontaktů" je v něm hlavní akce — kvůli tomu si
+     *   lidé kontaktní odkaz / QR kód vyměňují.
      */
     data class Chat(
         val chatId: Long,
         val draftText: String? = null,
         val openProfile: Boolean = false,
+        val offerContact: Boolean = false,
     ) : InternalLink
 
     /**

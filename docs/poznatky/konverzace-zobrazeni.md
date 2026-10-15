@@ -933,7 +933,9 @@ všechny podoby (`t.me`, `telegram.me`, `tg://`) a my jen vybíráme, co umíme 
   TDLib chat neznal). Neexistující číslo vrátí `404 Not Found` a má vlastní větu
   (`LinkUserNotFoundException`), ne obecné „odkaz nejde otevřít": uživatel z ní pozná, že
   odkaz je v pořádku a jen ten člověk na Telegramu není (nebo číslo skrývá).
-  Prošlý kontaktní odkaz má větu vlastní (`ContactLinkExpiredException`). Tentýž odkaz
+  Prošlý kontaktní odkaz má větu vlastní (`ContactLinkExpiredException`). Kontaktní odkaz na
+  člověka mimo kontakty otevře profil s „Přidat do kontaktů" (viz „Kontaktní odkaz do profilu"
+  v `hledani-a-zakladani-chatu.md`). Tentýž odkaz
   z jiné aplikace nebo z čtečky QR kódů otevírá shell, ne konverzace — viz „Odkazy z jiných
   aplikací (`LinkOpenRequests`)" v `hledani-a-zakladani-chatu.md`.
 - **`?text=…` u chatu se jen VLOŽÍ do pole, nic se neodesílá** — text napsal autor odkazu. Jde

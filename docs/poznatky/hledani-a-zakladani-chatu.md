@@ -292,9 +292,8 @@ přihlašovacím odkazem), kreslí host sám, i s vlastním snackbarem.
   výběru, nebo kód naskenovaný ve vlastní čtečce.
 - **Odkaz se z intentu po předání maže** (`MainActivity.receiveLink`), jinak by ho otočení
   displeje otevřelo podruhé; studený start ho čte jen bez `savedInstanceState`.
-- **Kontaktní odkaz otevře CHAT, ne profil** (beze změny proti odkazu ve zprávě). Přidat do
-  kontaktů jde z pruhu nad konverzací, pokud ho server pošle (`ChatActionBarAddContact`), nebo
-  z ⋮ profilu.
+- **Kontaktní odkaz otevře PROFIL s „Přidat do kontaktů" jako hlavní akcí**, ne chat — viz
+  „Kontaktní odkaz do profilu" níž. Platí zvenčí i ze zprávy.
 - **iOS odkazy zvenčí nepřijímá** (chybí `CFBundleURLTypes` pro `tg` a asociované domény);
   QR kód, sdílení i čtečka tam fungují, jsou ve společném kódu.
 - **NEOVĚŘENO na zařízení ani emulátoru** — přeložené a otestované jen jednotkovými testy.
@@ -303,6 +302,36 @@ přihlašovacím odkazem), kreslí host sám, i s vlastním snackbarem.
   přes stránku `t.me`), řádek v Nastavení po přepnutí v systému, prošlý kód (věta), Wi-Fi kód
   (věta), `adb shell am start -a android.intent.action.VIEW -d "tg://resolve?domain=…"`
   a `-d "https://t.me/…"` za běhu i za studena, otočení displeje po otevření odkazu.
+
+### Kontaktní odkaz do profilu
+
+Kontaktní odkaz (`t.me/contact/<token>`, i naskenovaný z „Můj QR kód" druhého telefonu) na
+člověka, který v kontaktech NENÍ, otevře jeho profil nad chatem a nad dlaždicemi je plné tlačítko
+„Přidat do kontaktů" (`AddContactButton`). Kvůli tomu si lidé kód ukazují — dřív se otevřel chat
+a přidat šlo jen z ⋮ profilu, nebo z pruhu nad chatem, a ten server posílá jen někdy.
+
+- **Kdy profil a kdy chat, rozhoduje `contactOffer`** (`TdlChatRepository`, testy
+  `ContactOfferTest`): profil jen u člověka mimo kontakty. **Kontakt dostane chat jako dřív**:
+  přidávat není co a kdo si vyměnil kód s někým, koho už má, chce psát. Vlastní odkaz vede do
+  Uložených zpráv (ty profil nemají), bot do kontaktů nepatří. Odkaz `t.me/jméno` a `t.me/+420…`
+  zůstávají beze změny — to nejsou odkazy na výměnu kontaktu.
+- **Nabídka jde přes `ContactOffers`, ne přes routu profilu** — stav jako `BotStartRequests`:
+  nastaví ji místo, které odkaz rozpoznalo (`ConversationLinks`, `ExternalLinkViewModel`),
+  a profil si ji při vzniku vyzvedne (`ChatProfileState.offerContact`) jednou. Routa je klíč
+  zásobníku (přepínání profilu, výměna id po převodu skupiny) a profil otevřený z hlavičky by
+  s jiným příznakem byl jiná položka. Proto taky profil otevřený příště z hlavičky tlačítko nemá
+  — přidat jde dál z ⋮.
+- **Pod profilem je chat** (`openExternal` / `openProfile` nad konverzací), takže zpět vede rovnou
+  do konverzace s tím člověkem.
+- **Plné tlačítko přes celou šířku, ne další dlaždice.** Dlaždice nesou to, co se v profilu dělá
+  pořád, a „Přidat do kontaktů" by se do třetiny šířky nevešlo. Po přidání tlačítko zmizí
+  (`isContact`) a snackbar „Přidáno do kontaktů" to potvrdí; haptika `confirm` při ťuknutí.
+- **Ověřeno na emulátoru sondou** (dočasně stejná nabídka pro `t.me/<testovací bot>` a tlačítko
+  i pro bota): odkaz zvenčí (`am start -a VIEW -d https://t.me/…`) otevřel profil nad chatem
+  s tlačítkem nad dlaždicemi, ťuknutí ukázalo „Added to contacts", tlačítko zmizelo, haptika 16.
+  Bota server do kontaktů reálně nezapíše (po znovuotevření je `isContact` dál `false`).
+  **Skutečný `t.me/contact/…` od jiného účtu ověřený NENÍ** (chce token druhého účtu), cesta
+  ze zprávy jen jednotkovým testem (`ConversationLinksTest`).
 
 ## Založení skupiny a kanálu
 
