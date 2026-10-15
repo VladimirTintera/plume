@@ -500,11 +500,16 @@ private fun ViewerContent(
 
     /*
      * Myš a klávesnice (desktop, Android s klávesnicí): ←/→ a šipky po stranách listují, +/−/0
-     * přibližují (viz `ViewerControls.kt`). Listuje se jen tam, kam by šel i tah — zamčené video
-     * ne. Fokus si prohlížeč bere hned, jinak by klávesa nedošla nikam: v Compose ji dostane jen
-     * zaostřený prvek a jeho předci.
+     * přibližují (viz `ViewerControls.kt`). Listuje se jen tam, kam by šel i tah. Fokus si
+     * prohlížeč bere hned, jinak by klávesa nedošla nikam: v Compose ji dostane jen zaostřený
+     * prvek a jeho předci.
+     *
+     * Video na celé obrazovce se NElistuje (zamčené ani odemčené): je to přehrávač, ne galerie.
+     * Vodorovný tah při sledování je skoro vždycky nechtěný — sjetý svislý tah jasu, posun
+     * palcem po posuvníku vedle — a odlistování by video uprostřed zastavilo. Do galerie
+     * a dál se jde ťuknutím. Fotky na celé obrazovce se listují dál.
      */
-    val pagerScroll = !(controlsLocked && current?.media is MessageMedia.Video)
+    val pagerScroll = !(immersive && current?.media is MessageMedia.Video)
     val scope = rememberCoroutineScope()
     val goToPage = { target: Int ->
         if (pagerScroll && target in 0 until pagerState.pageCount) scope.launch { pagerState.animateScrollToPage(target) }
@@ -550,7 +555,7 @@ private fun ViewerContent(
             modifier = Modifier.fillMaxSize(),
             // Otevřená fotka je vidět hned, sousedé se dotahují až pod ní — nesmí naskočit.
             animateArrivals = true,
-            // Zamčené video se nesmí odlistovat; zámek drží jen stránka s videem.
+            // Video na celé obrazovce se neodlistuje (viz `pagerScroll`).
             userScrollEnabled = pagerScroll,
             // Pozadí bere malý náhled, ne ostrou verzi: pod rozostřením detail nic nepřidá
             // a náhled je na disku skoro vždycky, protože ho kreslila konverzace.
