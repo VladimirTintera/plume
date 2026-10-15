@@ -633,6 +633,8 @@
     <string name="emoji_recent_empty">Emoji you pick will show up here.</string>
     <string name="notification_new_message">New message</string>
     <string name="menu_sent_at">%1$s, %2$s</string>
+    <string name="menu_more">More</string>
+    <string name="menu_select_messages">Select messages</string>
     <string name="menu_info">Info</string>
     <string name="message_info_title">Message info</string>
     <string name="message_info_failed">Could not load the message info</string>

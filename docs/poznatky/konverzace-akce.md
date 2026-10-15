@@ -106,7 +106,7 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
 - **Výšky obou kusů jsou konstanty, ne měření.** Kreslíme si je sami, takže je známe předem —
   ušetří se tím snímek, ve kterém by nabídka poskočila na správné místo.
 - **Výška nabídky se počítá z UKÁZANÝCH položek, ne z kandidátů.** Blok nabízí kandidáty a server
-  z nich část zakáže; s počtem kandidátů visela nabídka nad zprávou o 48 dp výš za každého
+  z nich část zakáže; s počtem kandidátů visela nabídka nad zprávou o řádek výš za každého
   zakázaného. Položky se proto sestaví jednou a z nich se počítá výška i kreslí nabídka.
 - **Nabídka se zarovnává k hraně BUBLINY, pruh reakcí ke kraji obrazovky.** Nabídka má pevnou
   šířku, takže může vyrůstat od zprávy; pruh se šesti emoji je tak široký, že by se k bublině
@@ -130,6 +130,49 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   v kopii v nabídce zůstávají pro dotyk.
 - **„Vybrat text" stojí na stejném právu jako „Kopírovat"** (`canCopy`). Chráněný obsah nesmí
   ven ani po kouskách a bez textu není co vybírat; obojí hlídá test.
+
+### Skupiny a „Další"
+
+Nabídka byla jeden plochý seznam a u běžné cizí zprávy ve skupině měla i 17 řádků (přes 800 dp),
+víc, než se pod zprávu vešlo. Teď jsou položky ve **skupinách M3 Expressive** (`DropdownMenuGroup`,
+stejný vzhled jako `ExpressiveMenu`) ve **dvou úrovních**: nahoře, kvůli čemu se nabídka u zprávy
+otevírá, zbytek pod „Další". Návrh i varianty prošly náčrtem s uživatelem.
+
+- **Kam položka patří, říká `MessageMenuAction.slot`** (`MenuSlot`, exhaustivní `when`): nová akce
+  bez místa se nepřeloží. Pořadí skupin dává pořadí `MenuSlot`, uvnitř skupiny pořadí kandidátů
+  z `menuActions`. Rozdělení dělá čistá funkce `arrangeMenu` (testy `MessageMenuLevelsTest`).
+- **Nahoře:** hlavička, hlavní akce (Upravit u vlastní, Odpovědět, Kopírovat, Přeposlat, Přeložit
+  u cizojazyčné, Sdílet a Uložit jako… u souboru, Do oblíbených u samolepky), akce ankety, nálezy
+  v textu (nejvýš tři řádky), „Další" a Smazat. **Pod „Další":** Vybrat text, Shrnout, Vysvětlit;
+  Záložka, Připomenout, Připnout; Vybrat víc zpráv; Nahlásit.
+- **Pevná pravidla, ne pořadí podle četnosti.** Přeskládávání podle používání by rozbilo svalovou
+  paměť; co je nahoře, se řídí jen druhem zprávy a právy od serveru.
+- **Informace jsou hlavička**, ne řádek: ikona Informací, čas a stav doručení, ťuknutím sheet
+  Informace. Podrobnosti o doručení člověk hledá právě u času. Ušetří to řádek.
+- **Ikona VPŘEDU, ne šipka vzadu.** Text v řádku `DropdownMenuItem` nemá váhu: dlouhé datum
+  („9. října 2025, 8:53 · Přečteno") srazilo koncovou šipku na nulovou šířku a zmizela (viděno
+  na snímku z `runComposeUiTest`). Ikona vpředu má místo vždycky.
+- **Nevratné akce zůstávají nahoře** ve vlastní skupině, i Smazat odpověď ankety — mazání se nehledá.
+- **Jediná položka pod „Další" jde nahoru.** „Další" a pak zpět kvůli jedné položce jsou dva kroky
+  navíc a nahoře zabere tentýž řádek.
+- **Telefon: „Další" vymění obsah na místě** (`AnimatedContent`, posun do strany a prolnutí),
+  první řádek je šipka zpět. Systémové zpět vede z „Další" o úroveň výš, ne pryč. Kaskáda do
+  strany na telefonu nejde: vedle nabídky široké 220 dp místo není a material3 by ji položil přes ni.
+- **Desktop: „Další" se otevře do strany** po najetí myší nebo kliknutím (`submenusCascade`).
+  Material3 1.12.0-alpha03 na to nemá komponentu, jen vzor (`MenuWithCascadingMenusSample`, KDoc
+  `DropdownMenuPopup` na něj odkazuje): vnořený `DropdownMenuPopup` s `MenuAnchorPosition.End`
+  v `Box` s položkou, `PopupProperties(focusable = false)` a TENTÝŽ `interactionSource` pro řádek
+  i skupiny podnabídky, takže cesta myší k podnabídce ji nezavře. Hlavní nabídka zůstává ve vrstvě.
+- **Nabídka dostane výšku VYŠŠÍ z obou úrovní**, ne té, která je vidět. Přepnutí úrovně by jinak
+  nabídku natáhlo pod prstem a s ní by poskočila i zpráva, která jí uvolňuje místo. Obsah se drží
+  strany u zprávy (nad zprávou dole, pod ní nahoře) a roste od ní pryč; prázdný zbytek rezervy
+  dotyky nechytá, ťuknutí do něj zavře nabídku jako ťuknutí do závoje.
+- **Výška položky je PEVNÁ (44 dp), svislé odsazení obsahu nulové.** `DropdownMenuItem` má jinak
+  odsazení 12 dp nahoře i dole kolem textu, takže výška roste s velikostí písma — a nabídka se
+  rozmisťuje z konstant (`menuLevelHeight`), ne z měření. Hodnoty skupin jsou z material3
+  (odsazení 2 dp, mezera 2 dp); `DropdownMenuGroupVerticalPadding` je interní, proto vlastní konstanta.
+- **Pozor při bumpu material3:** v alpha03 má `DropdownMenuItem` šipku v parametru `trailingIcon`,
+  novější androidx ho přejmenoval na `trailingContent`.
 
 ### Citace z nabídky
 

@@ -102,13 +102,13 @@ class MessageActionTest {
         assertEquals(
             listOf(
                 MessageMenuAction.Resend,
-                MessageMenuAction.Reply,
                 MessageMenuAction.Edit,
+                MessageMenuAction.Reply,
                 MessageMenuAction.Copy,
-                MessageMenuAction.SelectText,
+                MessageMenuAction.Forward,
                 MessageMenuAction.Translate,
                 MessageMenuAction.ContextActions,
-                MessageMenuAction.Forward,
+                MessageMenuAction.SelectText,
                 MessageMenuAction.Info,
                 MessageMenuAction.ToggleBookmark,
                 MessageMenuAction.Remind,
@@ -157,9 +157,9 @@ class MessageActionTest {
             listOf("Z1234567890", "Z0000000000"),
             contextMenuItems(listOf(parcel, second), canJoinWifi = true).map { (it as MessageMenuAction.ContextItem).value },
         )
-        // Víc než čtyři: tři a „Akce ze zprávy…".
+        // Víc než tři: dvě a „Akce ze zprávy…" — skupina na první úrovni nabídky má nejvýš tři řádky.
         val many = contextMenuItems(listOf(parcel, payment, code, ContextFinding.Booking("XKQ7ZT"), ContextFinding.Code("ABCD12")), canJoinWifi = true)
-        assertEquals(4, many.size)
+        assertEquals(3, many.size)
         assertEquals(MessageMenuAction.ContextActions, many.last())
         // Wi-Fi bez možnosti připojit (iOS) otevře sheet s heslem.
         assertEquals(
@@ -331,8 +331,8 @@ class MessageActionTest {
             listOf(
                 MessageMenuAction.Reply,
                 MessageMenuAction.Copy,
-                MessageMenuAction.SelectText,
                 MessageMenuAction.Translate,
+                MessageMenuAction.SelectText,
                 MessageMenuAction.Info,
                 MessageMenuAction.Select,
             ),

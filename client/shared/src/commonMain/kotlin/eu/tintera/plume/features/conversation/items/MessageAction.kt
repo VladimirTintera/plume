@@ -69,7 +69,7 @@ import eu.tintera.plume.resources.menu_pin
 import eu.tintera.plume.resources.menu_quote
 import eu.tintera.plume.resources.menu_reply
 import eu.tintera.plume.resources.menu_report
-import eu.tintera.plume.resources.menu_select
+import eu.tintera.plume.resources.menu_select_messages
 import eu.tintera.plume.resources.menu_select_text
 import eu.tintera.plume.resources.menu_unpin
 import eu.tintera.plume.resources.push_pin_24dp
@@ -316,6 +316,9 @@ sealed interface MessageAction {
  * Nabídka ukáže kandidáty, pro které [presentation] něco vrátí — akce tak sama řekne, jestli
  * ji server dovolil a jak vypadá. Co server nedovolí, se nenabízí: položka, která skončí chybou,
  * je horší než položka, která tam není.
+ *
+ * **Kam položka v nabídce patří, říká [slot]** — skupina a úroveň (nahoře, nebo pod „Další").
+ * Nová akce tam musí dostat místo, jinak se nepřeloží.
  */
 sealed interface MessageMenuAction : MessageAction {
     /** Jak položka vypadá; `null`, když se v otevřené nabídce [menu] nabízet nemá. */
@@ -537,7 +540,8 @@ sealed interface MessageMenuAction : MessageAction {
     /**
      * „Informace" se nabízí VŽDY. Nestojí na právu od serveru: čas odeslání a úpravy má konverzace
      * sama, takže sheet má co ukázat i u zprávy, u které server odkaz, zhlédnutí ani čas přečtení
-     * nevydá.
+     * nevydá. **Není to řádek nabídky, ale její hlavička** s časem a stavem doručení
+     * ([MenuSlot.Header]) — podrobnosti o doručení se hledají právě tam.
      */
     data object Info : MessageMenuAction {
         override fun presentation(menu: MessageMenu) = MenuPresentation(Res.drawable.info_24dp, Res.string.menu_info)
@@ -577,7 +581,7 @@ sealed interface MessageMenuAction : MessageAction {
      */
     data object Select : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
-            MenuPresentation(Res.drawable.select_check_box_24dp, Res.string.menu_select)
+            MenuPresentation(Res.drawable.select_check_box_24dp, Res.string.menu_select_messages)
     }
 
     /**
@@ -617,9 +621,9 @@ enum class ContextVerb {
 }
 
 /**
- * Položky nabídky nad zprávou pro akce z jejího textu, v pořadí sheetu. Nejvýš [MAX_CONTEXT_ITEMS];
- * když jich je víc, zbytek schová „Akce ze zprávy…" ([MessageMenuAction.ContextActions]), jinak by
- * nabídka u zprávy s pěti nálezy přerostla obrazovku. Dvě akce stejného druhu nesou hodnotu,
+ * Položky nabídky nad zprávou pro akce z jejího textu, v pořadí sheetu. Nejvýš [MAX_CONTEXT_ITEMS]
+ * řádky; když jich je víc, zbytek schová „Akce ze zprávy…" ([MessageMenuAction.ContextActions]).
+ * Jsou na první úrovni nabídky ve vlastní skupině, takže víc řádků by ji natáhlo pod zprávou. Dvě akce stejného druhu nesou hodnotu,
  * aby se daly rozlišit. [canJoinWifi] = telefon umí síť přidat sám (na iOS ne, tam sheet s heslem).
  */
 internal fun contextMenuItems(findings: List<ContextFinding>, canJoinWifi: Boolean): List<MessageMenuAction> {
@@ -652,4 +656,56 @@ internal fun contextMenuItems(findings: List<ContextFinding>, canJoinWifi: Boole
     }
 }
 
-private const val MAX_CONTEXT_ITEMS = 4
+private const val MAX_CONTEXT_ITEMS = 3
+
+/**
+ * Skupina položky v nabídce nad zprávou. **Pořadí hodnot je pořadí skupin**; uvnitř skupiny platí
+ * pořadí kandidátů z bloku (`menuActions`).
+ *
+ * Nahoře je, kvůli čemu se nabídka u zprávy otevírá: odpověď, kopírování, přeposlání a akce,
+ * které má jen tenhle druh zprávy (úprava vlastní zprávy, soubor ven, samolepka do oblíbených,
+ * akce ankety a nálezy v textu). Zbytek je pod „Další" ([inMore]) — dřív byl všechno jeden
+ * seznam a u běžné cizí zprávy měl i sedmnáct řádků, víc, než se vešlo pod zprávu.
+ * Rozvržení obou úrovní: `arrangeMenu`.
+ */
+enum class MenuSlot(val inMore: Boolean = false) {
+    /** Hlavička s časem a stavem doručení — ťuknutím otevře Informace. Není to řádek. */
+    Header,
+    Primary,
+    Poll,
+    /** Akce z textu zprávy (termín, zásilka…), nejvýš tři řádky. */
+    Context,
+    /** Práce s textem: vybrat, shrnout, vysvětlit. */
+    Text(inMore = true),
+    /** Na později: záložka, připomenutí, připnutí. */
+    Later(inMore = true),
+    Selection(inMore = true),
+    /** Nahlášení zvlášť — není nevratné, ale nemá se plést s ostatním. */
+    Report(inMore = true),
+    /** Nevratné akce mají skupinu vlastní a zůstávají nahoře, aby se nehledaly. */
+    Destructive,
+}
+
+/** Kam položka v nabídce patří (viz [MenuSlot]). */
+val MessageMenuAction.slot: MenuSlot
+    get() = when (this) {
+        MessageMenuAction.Info -> MenuSlot.Header
+        MessageMenuAction.Resend,
+        MessageMenuAction.Edit,
+        MessageMenuAction.EditChecklist,
+        MessageMenuAction.Reply,
+        MessageMenuAction.Copy,
+        MessageMenuAction.Forward,
+        MessageMenuAction.Translate,
+        MessageMenuAction.ToggleFavoriteSticker,
+        MessageMenuAction.ShareFile,
+        MessageMenuAction.SaveFileAs,
+        -> MenuSlot.Primary
+        MessageMenuAction.RetractVote, MessageMenuAction.StopPoll -> MenuSlot.Poll
+        MessageMenuAction.ContextActions, is MessageMenuAction.ContextItem -> MenuSlot.Context
+        MessageMenuAction.SelectText, MessageMenuAction.Summarize, MessageMenuAction.Explain -> MenuSlot.Text
+        MessageMenuAction.ToggleBookmark, MessageMenuAction.Remind, MessageMenuAction.Pin, MessageMenuAction.Unpin -> MenuSlot.Later
+        MessageMenuAction.Select -> MenuSlot.Selection
+        MessageMenuAction.Report -> MenuSlot.Report
+        MessageMenuAction.DeletePollOption, MessageMenuAction.Delete -> MenuSlot.Destructive
+    }
