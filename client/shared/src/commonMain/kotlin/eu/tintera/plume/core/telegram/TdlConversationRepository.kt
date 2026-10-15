@@ -985,6 +985,7 @@ class TdlConversationRepository(
         kind: SharedMediaKind,
         fromMessageId: Long,
         query: String,
+        offset: Int,
     ): Result<SharedMediaPage> {
         val isGroup = isGroup(chatId)
         return client.searchChatMessages(
@@ -993,8 +994,9 @@ class TdlConversationRepository(
             query = query,
             senderId = null,
             fromMessageId = fromMessageId,
-            offset = 0,
-            limit = SHARED_MEDIA_PAGE,
+            offset = offset,
+            // Limit musí být větší než -offset, jinak by TDLib nevrátil nic staršího.
+            limit = maxOf(SHARED_MEDIA_PAGE, 1 - offset),
             filter = kind.toFilter(),
         )
             .toResult()
@@ -1016,6 +1018,25 @@ class TdlConversationRepository(
                 )
             }
     }
+
+    override suspend fun sharedMediaPositions(chatId: Long, kind: SharedMediaKind): Result<SharedMediaPositions> =
+        client.getChatSparseMessagePositions(
+            chatId = chatId,
+            filter = kind.toFilter(),
+            // Od nejnovější zprávy; pozice jsou počítané od ní.
+            fromMessageId = 0,
+            limit = SPARSE_POSITIONS_LIMIT,
+            savedMessagesTopicId = 0,
+        )
+            .toResult()
+            .map { found ->
+                SharedMediaPositions(
+                    totalCount = found.totalCount,
+                    positions = found.positions
+                        .map { MediaPosition(position = it.position, messageId = it.messageId, timestamp = it.date) }
+                        .sortedBy { it.position },
+                )
+            }
 
     override suspend fun mediaCalendar(chatId: Long, fromMessageId: Long): Result<MediaCalendarPage> {
         val isGroup = isGroup(chatId)
@@ -3574,6 +3595,9 @@ private fun ChatMemberStatus.toOwn(): OwnMemberStatus = when (this) {
 }
 
 /** Zpráv na stránku sdíleného obsahu. Mřížka jich na obrazovku vezme pár desítek. */
+/** Kolik řídkých pozic chtít; víc server nevydá (`getChatSparseMessagePositions`: 50–2000). */
+private const val SPARSE_POSITIONS_LIMIT = 2000
+
 private const val SHARED_MEDIA_PAGE = 50
 
 /** Kolik hlasujících se načte naráz; víc TDLib nevydá (strop je 50). */

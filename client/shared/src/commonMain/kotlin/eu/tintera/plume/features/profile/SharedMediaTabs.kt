@@ -1,5 +1,16 @@
 package eu.tintera.plume.features.profile
 
+import androidx.compose.runtime.remember
+import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import kotlinx.coroutines.flow.first
+import eu.tintera.plume.core.telegram.MediaPosition
+import eu.tintera.plume.core.telegram.SharedMediaPositions
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import eu.tintera.plume.resources.profile_calendar
 import eu.tintera.plume.resources.event_24dp
 import androidx.compose.foundation.layout.Spacer
@@ -146,6 +157,9 @@ import org.jetbrains.compose.resources.stringResource
 /** Dlaždic mřížky médií na šířku. Tři jsou kompromis mezi přehledem a velikostí náhledu. */
 private const val MEDIA_COLUMNS = 3
 
+/** Kolik dlaždic od začátku okna po skoku spustí dotažení novějších. */
+private const val LOAD_NEWER_THRESHOLD = 6
+
 /** Kolik položek před koncem spustí dotažení další stránky. */
 private const val LOAD_MORE_THRESHOLD = 6
 
@@ -158,7 +172,44 @@ internal fun SharedMediaGrid(
     onOpen: (messageId: Long, articleMedia: Int) -> Unit,
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Řídké pozice pro rychlé rolování; `null` = úchyt není (málo médií). */
+    positions: SharedMediaPositions? = null,
+    /** Skok úchytem na zprávu z řídkých pozic. */
+    onJump: (MediaPosition) -> Unit = {},
+    /** Zpráva, na kterou má mřížka po skoku dorolovat ([SharedMediaTab.scrollTo]). */
+    scrollTo: Long? = null,
+    onScrolledTo: () -> Unit = {},
+    /** Novější zprávy nad oknem po skoku; mřížka je chce, když se doroluje k jeho začátku. */
+    onLoadNewer: () -> Unit = {},
+    /** Jde dotáhnout novější ([SharedMediaTab.canLoadNewer])? */
+    canLoadNewer: Boolean = false,
 ) {
+    val gridState = rememberLazyGridState()
+    val tiles = sharedMediaTiles(messages)
+    val currentTiles by rememberUpdatedState(tiles)
+    // Po skoku dorolovat na zprávu, na kterou se skočilo — okno ji má uprostřed, ne nahoře.
+    LaunchedEffect(scrollTo) {
+        val target = scrollTo ?: return@LaunchedEffect
+        val index = currentTiles.indexOfFirst { it.message.id == target }
+        if (index >= 0) gridState.scrollToItem(index)
+        onScrolledTo()
+    }
+    /*
+     * V okně po skoku dotáhnout novější, když se k jeho začátku doroluje. Nahoře přidané dlaždice
+     * pozici nerozhodí: mřížka drží první viditelnou podle klíče.
+     *
+     * Efekt se zakládá znovu s KAŽDOU novou stránkou a s koncem načítání ([canLoadNewer]) a hned
+     * se zeptá, jestli je mřížka pořád u začátku. Dokud hlídal jen ZMĚNU „u začátku", zůstala po
+     * rychlém rolování mřížka nahoře i po dotažení, změna nepřišla a další stránka se nenačetla —
+     * zbytek tahu pak rozbalil hlavičku profilu nad oknem, které k nejnovější nesahalo.
+     */
+    val loadNewer by rememberUpdatedState(onLoadNewer)
+    val currentCanLoadNewer by rememberUpdatedState(canLoadNewer)
+    LaunchedEffect(gridState, canLoadNewer, tiles.firstOrNull()?.key) {
+        if (!canLoadNewer) return@LaunchedEffect
+        snapshotFlow { gridState.firstVisibleItemIndex < LOAD_NEWER_THRESHOLD }.first { it }
+        loadNewer()
+    }
     /*
      * Mřížka je zároveň hranicí, do které se ořezává fotka letící z prohlížeče zpátky (viz
      * [SharedElementClip]) — bez toho by se dlaždice u horního okraje na konci letu nakreslila
@@ -170,14 +221,30 @@ internal fun SharedMediaGrid(
         LocalSharedMediaFlight provides true,
         LocalSharedElementClip provides clip,
     ) {
+        /*
+         * Dokud okno po skoku k nejnovější nesahá, nechá si mřížka zbytek tahu i hodu nahoru —
+         * jinak by u začátku okna (než novější dorazí) rozbalil hlavičku profilu a další tahy by
+         * šly po ní, ne po mřížce. Ověřeno na emulátoru: bez toho se dotahování zastavilo
+         * uprostřed historie s rozbalenou hlavičkou.
+         */
+        val holdUntilNewest = remember {
+            object : NestedScrollConnection {
+                override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset =
+                    if (available.y > 0f && currentCanLoadNewer) Offset(0f, available.y) else Offset.Zero
+
+                override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity =
+                    if (available.y > 0f && currentCanLoadNewer) Velocity(0f, available.y) else Velocity.Zero
+            }
+        }
+        Box(modifier.fillMaxSize().nestedScroll(holdUntilNewest)) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(MEDIA_COLUMNS),
+            state = gridState,
             contentPadding = contentPadding,
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = modifier.fillMaxSize().sharedElementClipArea(clip),
+            modifier = Modifier.fillMaxSize().sharedElementClipArea(clip),
         ) {
-            val tiles = sharedMediaTiles(messages)
             itemsIndexed(tiles, key = { _, tile -> tile.key }) { index, tile ->
                 LoadMoreAtEnd(index, tiles.size, onLoadMore)
                 // Článek nese víc médií pod jedním id zprávy; klíč letu je odliší (viz `photoKey`).
@@ -195,6 +262,16 @@ internal fun SharedMediaGrid(
                     TabLoading()
                 }
             }
+        }
+        if (positions != null) {
+            MediaFastScroller(
+                positions = positions,
+                gridState = gridState,
+                firstVisibleMessageId = { currentTiles.getOrNull(gridState.firstVisibleItemIndex)?.message?.id },
+                contentPadding = contentPadding,
+                onJump = onJump,
+            )
+        }
         }
     }
 }

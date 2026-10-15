@@ -434,13 +434,24 @@ interface ConversationRepository {
      * [fromMessageId] `0` začíná u nejnovější, jinak se pokračuje od poslední načtené (ta sama
      * ve výsledku není). Konec se pozná prázdnou stránkou. [query] zúží výsledky na zprávy,
      * v jejichž textu, popisku, názvu souboru nebo skladby slovo je — hledá server.
+     *
+     * Záporný [offset] vrátí [fromMessageId] SAMOTNOU a nad ní až tolik NOVĚJŠÍCH — okno kolem
+     * zprávy, na kterou se skáče rychlým rolováním, a dotahování k novějším.
      */
     suspend fun sharedMedia(
         chatId: Long,
         kind: SharedMediaKind,
         fromMessageId: Long = 0,
         query: String = "",
+        offset: Int = 0,
     ): Result<SharedMediaPage>
+
+    /**
+     * Řídké pozice sdíleného obsahu (`getChatSparseMessagePositions`): kolik ho je a u vybraných
+     * zpráv, kolikátá od nejnovější je a kdy přišla. Pro rychlé rolování — podle nich se ukazuje
+     * datum pod prstem a skáče se, aniž by se celá historie načetla.
+     */
+    suspend fun sharedMediaPositions(chatId: Long, kind: SharedMediaKind): Result<SharedMediaPositions>
 
     /** Počty pro všechny druhy naráz; profil podle nich schová prázdné řádky. */
     suspend fun sharedMediaCounts(chatId: Long): Result<SharedMediaCounts>
