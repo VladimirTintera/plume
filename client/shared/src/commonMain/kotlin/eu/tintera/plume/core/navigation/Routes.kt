@@ -421,6 +421,20 @@ data class PollComposerRoute(
 ) : Route
 
 /**
+ * Nový seznam úkolů do chatu. Jako formulář ankety: bez metadat scény, přes celou plochu
+ * z hlavního seznamu i z archivu, po odeslání odejde.
+ */
+@Serializable
+data class ChecklistComposerRoute(
+    val chatId: Long,
+    /** Seznam odejde jako odpověď na tuhle zprávu (rozepsaná odpověď v konverzaci). */
+    val replyToMessageId: Long? = null,
+    /** Citovaný úryvek té odpovědi; `null` = celá zpráva. */
+    val quoteText: String? = null,
+    val quotePosition: Int = 0,
+) : Route
+
+/**
  * Mini aplikace bota přes celou obrazovku. Bez metadat scény, jako formulář ankety: jde z hlavního
  * seznamu i z archivu ([archive] říká, kam vést odkaz na chat, který mini aplikace otevře).
  * Po zabití procesu se spustí znovu — stav stránky si drží mini aplikace sama.
@@ -547,6 +561,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(AddMembersRoute::class, AddMembersRoute.serializer())
             subclass(BotShareRoute::class, BotShareRoute.serializer())
             subclass(PollComposerRoute::class, PollComposerRoute.serializer())
+            subclass(ChecklistComposerRoute::class, ChecklistComposerRoute.serializer())
             subclass(WebAppRoute::class, WebAppRoute.serializer())
             subclass(AddBotToGroupRoute::class, AddBotToGroupRoute.serializer())
             subclass(SwitchInlineRoute::class, SwitchInlineRoute.serializer())

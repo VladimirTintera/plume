@@ -234,7 +234,8 @@ internal enum class ComposerEdit {
 internal fun ChatMessage.composerEdit(): ComposerEdit? {
     // Text ankety je náš popis, ne obsah zprávy — a `canBeEdited` u ankety znamená „jde
     // ukončit" (viz `stopPoll`), takže by „Upravit" slibovalo úpravu, kterou server odmítne.
-    if (isService || poll != null) return null
+    // Seznam úkolů se upravuje celý (`editMessageChecklist`), ne textem v poli.
+    if (isService || poll != null || checklist != null) return null
     if (composedFormatsOf(text, entities) == null) return null
 
     val media = media ?: return ComposerEdit.Text.takeIf { text.isNotBlank() }

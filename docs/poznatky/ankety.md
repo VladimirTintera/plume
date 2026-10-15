@@ -205,3 +205,44 @@ Otázka i každá odpověď mohou nést přílohu (TDLib 15 `PollMedia`, doména
   a „Moje poloha" u odpovědi; dotaz na přibližnou polohu se ukáže až při „Místo". Mapa u otázky
   i u odpovědi otevře Google Mapy a ťuknutí na ni nehlasuje. **Ťuknutí na odkaz (otevření webu)
   ověřené není** — jde toutéž cestou jako odkaz v textu.
+
+## Seznamy úkolů
+
+Seznam úkolů (`MessageChecklist`, doména `ChatChecklist`, převod `toChatChecklist`
+v `MessageContent.kt`) se kreslí jako vlastní blok `ChecklistMessageItem`: název, podtitul
+„Seznam úkolů · Hotovo 1 z 3" (u seznamu, kde odškrtávají i ostatní, „Skupinový seznam"),
+úkoly se zaškrtávátky a pod nimi „Přidat úkol". Akce jsou ve vlastní části ViewModelu
+`ConversationChecklists`, formulář je `ChecklistComposerRoute` (sponka → Seznam úkolů), pravidla
+a testy `ChecklistComposerTest`.
+
+- **Všechno kromě zobrazení je jen pro Premium**, a příznaky od serveru to NEŘÍKAJÍ:
+  `Checklist.canMarkTasksAsDone` / `canAddTasks` znamenají „smí, MÁ-LI Premium" (dokumentace
+  TDLib). Rozhoduje proto ViewModel podle `ChatRepository.isPremium`: bez Premium se požadavek
+  neposílá a snackbar řekne proč — tiché nic by vypadalo jako nefunkční ťuknutí. Sponka seznam
+  bez Premium nenabízí vůbec (jako prémiové efekty).
+- **Právo je společné s anketou, druh chatu ne.** `canSendPolls` je „polls and checklists",
+  ale seznam jde i do soukromého chatu s člověkem a do kanálu ani tajného chatu ne
+  (`checklistsAllowedIn`, `ContentAccess.checklists`). V tématu a ve vlákně se nenabízí ze
+  stejného důvodu jako anketa: formulář o tématu neví.
+- **Odškrtnutí se ukáže hned** (`PendingChecklistMark` v `ConversationState.pendingChecklistMarks`)
+  a po odpovědi serveru — i po chybě — zmizí; nový stav přinese úprava obsahu zprávy jako hlas
+  v anketě. Odebírá se jen TEN záznam, na který přišla odpověď: novější ťuknutí na týž úkol dál
+  čeká na svou.
+- **Kdo úkol odškrtl, se ukazuje jen ve skupinovém seznamu** (`othersCanMarkTasksAsDone`) —
+  jinak je to vždycky autor. Jméno dohledává repository z keše odesílatelů, jako tváře
+  hlasujících.
+- **Id úkolu volí klient** (kladné, v seznamu jedinečné): nový seznam čísluje od 1, doplněný
+  úkol dostane číslo za nejvyšším ve zprávě.
+- **Úkol nesmí mít konec řádku** (TDLib „without line feeds"); vložený text ho dostane jako
+  mezeru (`checklistTaskText`), aby se slova neslepila.
+- **Meze posílá server**: `checklist_title_length_max` 255, `checklist_task_count_max` 30,
+  `checklist_task_text_length_max` 200 (emulátor, 15. 10. 2026).
+- **„Upravit" ani „Kopírovat" se nenabízí** — text zprávy je jen náš popis a celý seznam by se
+  upravoval `editMessageChecklist`, který zatím není.
+- **Ověřeno na emulátoru sondou** (necommituje se): zpráva s textem `#checklist-sonda` se
+  vykreslila jako seznam a Premium se podstrčilo. Bublina ve světlém i tmavém motivu, dlouhý
+  úkol zalomený, „Odškrtnuto: …", nabídka nad úkolem. Odškrtnutí i přidání úkolu server odmítl
+  (zpráva není seznam) a ukázala se naše věta. **Skutečný `MessageChecklist` z TDLib se vykreslil
+  taky**: formulář seznam odeslal, TDLib ho přijal lokálně a teprve server odmítl účet bez
+  Premium („Neodesláno"). **Akce na skutečném seznamu s Premium ověřené nejsou.**
+

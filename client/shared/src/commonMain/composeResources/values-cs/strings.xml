@@ -3281,4 +3281,30 @@
     <string name="event_video_chat_muted">Ztlumení ve videochatu: %1$s</string>
     <string name="event_video_chat_unmuted">Zrušení ztlumení ve videochatu: %1$s</string>
     <string name="event_video_chat_volume">Změna hlasitosti ve videochatu: %1$s</string>
+    <string name="checklist_kind">Seznam úkolů</string>
+    <string name="checklist_kind_group">Skupinový seznam úkolů</string>
+    <string name="checklist_progress">Hotovo %1$d z %2$d</string>
+    <string name="checklist_add_task">Přidat úkol</string>
+    <string name="checklist_add_task_title">Nový úkol</string>
+    <string name="checklist_add_task_confirm">Přidat</string>
+    <string name="checklist_add_task_failed">Úkol se nepodařilo přidat.</string>
+    <string name="checklist_mark_failed">Úkol se nepodařilo změnit.</string>
+    <string name="checklist_mark_premium">Odškrtávat úkoly můžou jen uživatelé Telegram Premium.</string>
+    <string name="checklist_add_premium">Přidávat úkoly můžou jen uživatelé Telegram Premium.</string>
+    <string name="checklist_task_done_by">Odškrtnuto: %1$s</string>
+    <string name="conversation_attach_checklist">Seznam úkolů</string>
+    <string name="checklist_compose_title">Nový seznam úkolů</string>
+    <string name="checklist_compose_name">Název seznamu</string>
+    <string name="checklist_compose_tasks">Úkoly</string>
+    <string name="checklist_compose_task">Úkol %1$d</string>
+    <string name="checklist_compose_remove_task">Odebrat úkol</string>
+    <plurals name="checklist_compose_add_task">
+        <item quantity="one">Přidat můžeš ještě %1$d úkol</item>
+        <item quantity="few">Přidat můžeš ještě %1$d úkoly</item>
+        <item quantity="other">Přidat můžeš ještě %1$d úkolů</item>
+    </plurals>
+    <string name="checklist_compose_too_many">Seznam může mít nejvýš %1$d úkolů</string>
+    <string name="checklist_compose_others_add">Ostatní můžou přidávat úkoly</string>
+    <string name="checklist_compose_others_mark">Ostatní můžou odškrtávat úkoly</string>
+    <string name="checklist_compose_send_failed">Seznam úkolů se nepodařilo odeslat.</string>
 </resources>

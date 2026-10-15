@@ -144,6 +144,7 @@ import eu.tintera.plume.features.forum.ForumTopicsScreen
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import eu.tintera.plume.core.navigation.ForwardRoute
 import eu.tintera.plume.core.navigation.PollComposerRoute
+import eu.tintera.plume.core.navigation.ChecklistComposerRoute
 import eu.tintera.plume.features.conversation.WebAppRequest
 import eu.tintera.plume.features.webapp.WebAppScreen
 import eu.tintera.plume.core.navigation.WebAppRoute
@@ -154,6 +155,8 @@ import eu.tintera.plume.features.forward.BotShareScreen
 import eu.tintera.plume.core.navigation.BotShareRoute
 import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.features.conversation.PollComposerScreen
+import eu.tintera.plume.features.conversation.ChecklistComposerScreen
+import eu.tintera.plume.features.conversation.ChecklistComposerRequest
 import eu.tintera.plume.features.conversation.PollComposerRequest
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.navigation.ShareRoute
@@ -787,6 +790,7 @@ private fun shellEntryProvider(
                     onOpenProfile = { chatsStack.toggleProfile(route, ChatProfileRoute(route.chatId), sideBySide = wide) },
                     onOpenUserProfile = { chatId -> chatsStack.add(ChatProfileRoute(chatId)) },
                     onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
+                    onCreateChecklist = { request -> chatsStack.add(checklistComposerRoute(route.chatId, request)) },
                     onOpenWebApp = { request -> chatsStack.add(webAppRoute(route.chatId, request, archive = false)) },
                     onOpenBotShare = { request -> chatsStack.add(botShareRoute(route.chatId, request)) },
                     onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
@@ -1077,6 +1081,7 @@ private fun shellEntryProvider(
                     onOpenUserProfile = { chatId -> chatsStack.add(ArchiveChatProfileRoute(chatId)) },
                     onUnarchived = { chatsStack.moveConversationToMain(route.chatId) },
                     onCreatePoll = { request -> chatsStack.add(pollComposerRoute(route.chatId, request)) },
+                    onCreateChecklist = { request -> chatsStack.add(checklistComposerRoute(route.chatId, request)) },
                     onOpenWebApp = { request -> chatsStack.add(webAppRoute(route.chatId, request, archive = true)) },
                     onOpenBotShare = { request -> chatsStack.add(botShareRoute(route.chatId, request)) },
                     onAddBotToGroup = { link -> chatsStack.add(AddBotToGroupRoute(link.url, link.botChatId, link.asAdmin)) },
@@ -1224,6 +1229,23 @@ private fun shellEntryProvider(
                     parametersOf(
                         route.chatId,
                         mode,
+                        route.replyToMessageId,
+                        route.quoteText?.let { ReplyQuote(text = it, position = route.quotePosition) },
+                    )
+                },
+            ),
+            onClose = { chatsStack.pop(route) },
+        )
+    }
+
+    // Nový seznam úkolů. Po odeslání odejde, jako formulář ankety.
+    entry<ChecklistComposerRoute> { route ->
+        ChecklistComposerScreen(
+            viewModel = koinViewModel(
+                key = "checklist-composer-${route.chatId}-${route.replyToMessageId}",
+                parameters = {
+                    parametersOf(
+                        route.chatId,
                         route.replyToMessageId,
                         route.quoteText?.let { ReplyQuote(text = it, position = route.quotePosition) },
                     )
@@ -1696,6 +1718,13 @@ private fun SwitchInlinePick.toRoute() = SwitchInlineRoute(
     bots = target.bots,
     groups = target.groups,
     channels = target.channels,
+)
+
+private fun checklistComposerRoute(chatId: Long, request: ChecklistComposerRequest) = ChecklistComposerRoute(
+    chatId = chatId,
+    replyToMessageId = request.replyToMessageId,
+    quoteText = request.quote?.text,
+    quotePosition = request.quote?.position ?: 0,
 )
 
 private fun pollComposerRoute(chatId: Long, request: PollComposerRequest) = PollComposerRoute(

@@ -26,7 +26,7 @@ internal val Message.restrictionText: String?
 
 /**
  * Zpráva, jejíž obsah server nedovolí ukázat: místo textu důvod, bez přílohy, náhledu odkazu,
- * ankety, tlačítek a kontroly faktů — cokoli z toho by obsah prozradilo nebo nabízelo akci nad
+ * ankety, seznamu úkolů, tlačítek a kontroly faktů — cokoli z toho by obsah prozradilo nebo nabízelo akci nad
  * ním. Reakce, čas a odesílatel zůstávají.
  */
 internal fun ChatMessage.restricted(reason: String): ChatMessage = copy(
@@ -35,6 +35,7 @@ internal fun ChatMessage.restricted(reason: String): ChatMessage = copy(
     media = null,
     linkPreview = null,
     poll = null,
+    checklist = null,
     keyboard = null,
     factCheck = null,
     isRestricted = true,

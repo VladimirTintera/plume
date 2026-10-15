@@ -1174,7 +1174,7 @@ private fun ValueRow(label: String, value: String, shape: Shape, onClick: () -> 
 }
 
 @Composable
-private fun SectionTitle(text: String) {
+internal fun SectionTitle(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.titleSmall,
@@ -1190,7 +1190,7 @@ private fun SectionTitle(text: String) {
  * vložit delší text a zkrátit ho, a odeslání je do té doby zašedlé.
  */
 @Composable
-private fun BlockField(
+internal fun BlockField(
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
@@ -1504,7 +1504,7 @@ private fun PollLinkDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
 
 /** Přepínač, který nese celý řádek (viz „Obrazovka nastavení"). */
 @Composable
-private fun SwitchRow(label: String, checked: Boolean, shape: Shape, onChange: (Boolean) -> Unit) {
+internal fun SwitchRow(label: String, checked: Boolean, shape: Shape, onChange: (Boolean) -> Unit) {
     Surface(shape = shape, color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1526,7 +1526,7 @@ private const val DEFAULT_MAX_ANSWERS = 10
 private fun currentEpochSeconds(): Long = Clock.System.now().epochSeconds
 
 /** O kolik se text smí dostat přes strop, než ho pole utne — aby šlo vložit a zkrátit. */
-private const val ANSWER_OVERFLOW_ALLOWANCE = 50
+internal const val ANSWER_OVERFLOW_ALLOWANCE = 50
 
 /** Počítadlo se ukáže, až zbývá tolik znaků. */
 private const val COUNTER_FROM = 20
@@ -1543,7 +1543,7 @@ private const val CLOSE_DATE_TICK_MS = 15_000L
  * v terciární ploše (cizí obsah). Křížek odpověď zahodí; anketa pak odejde samostatně.
  */
 @Composable
-private fun ReplyHeader(message: ChatMessage, partnerName: String?, quoteText: String?, onDrop: () -> Unit) {
+internal fun ReplyHeader(message: ChatMessage, partnerName: String?, quoteText: String?, onDrop: () -> Unit) {
     Surface(
         shape = groupItemShape(0, 1),
         color = MaterialTheme.colorScheme.tertiaryContainer,

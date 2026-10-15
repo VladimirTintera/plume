@@ -580,6 +580,19 @@ class ConversationViewModel(
     fun addPollOption(text: String, media: PollDraftMedia?) = bots.addPollOption(text, media)
     fun dismissAddPollOption() = bots.dismissAddPollOption()
 
+    /** Seznamy úkolů: odškrtnutí a doplnění úkolu — viz [ConversationChecklists]. */
+    private val checklists: ConversationChecklists = ConversationChecklists(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        repository = repository,
+        isPremium = { chatRepository.isPremium.value },
+        logger = logger,
+    )
+
+    fun addChecklistTask(text: String) = checklists.addTask(text)
+    fun dismissAddChecklistTask() = checklists.dismissAddTask()
+
     /** Naplánované zprávy — viz [ConversationScheduled]. */
     private val scheduled: ConversationScheduled = ConversationScheduled(
         chatId = chatId,
@@ -1757,6 +1770,8 @@ class ConversationViewModel(
             is MessageAction.Vote -> bots.vote(messageId, action.answerIndexes)
             MessageAction.ShowPollVoters -> _state.update { it.copy(pollVoters = messageId) }
             MessageAction.AddPollOption -> _state.update { it.copy(addingPollOption = messageId) }
+            is MessageAction.MarkChecklistTask -> checklists.mark(messageId, action.taskId, action.done)
+            MessageAction.AddChecklistTask -> checklists.openAddTask(messageId)
             MessageMenuAction.RetractVote -> {
                 menu.closeMenus()
                 bots.vote(messageId, emptyList())

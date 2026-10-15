@@ -162,6 +162,27 @@ interface ConversationRepository {
      */
     suspend fun addPollOption(chatId: Long, messageId: Long, text: String, media: PollDraftMedia? = null): Result<Unit>
 
+    /**
+     * Odškrtne úkoly [done] a zruší odškrtnutí u [notDone] v seznamu úkolů ([ChatChecklist]).
+     * Jen s Premium; nový stav přinese úprava obsahu zprávy (`editedMessages`), jako hlas v anketě.
+     */
+    suspend fun markChecklistTasks(chatId: Long, messageId: Long, done: List<Int>, notDone: List<Int>): Result<Unit>
+
+    /** Doplní do seznamu úkoly [tasks] ([ChatChecklist.canAddTasks], jen s Premium). */
+    suspend fun addChecklistTasks(chatId: Long, messageId: Long, tasks: List<String>): Result<Unit>
+
+    /** Odešle seznam úkolů. Jen s Premium a ne do kanálu ani tajného chatu (viz [ContentAccess.checklists]). */
+    suspend fun sendChecklist(
+        chatId: Long,
+        checklist: ChecklistDraft,
+        replyToMessageId: Long?,
+        quote: ReplyQuote? = null,
+        options: SendOptions = SendOptions(),
+    ): Result<ChatMessage>
+
+    /** Meze nového seznamu úkolů od serveru. */
+    suspend fun checklistLimits(): ChecklistLimits
+
     /** Kdo hlasoval pro odpověď s [answerIndex] (v původním pořadí). */
     suspend fun pollVoters(chatId: Long, messageId: Long, answerIndex: Int, offset: Int): Result<PollVotersPage>
 
@@ -1328,6 +1349,8 @@ data class ChatMessage(
     val keyboard: BotKeyboard? = null,
     /** Anketa nebo kvíz; [text] pak nese jen „Anketa: otázka" pro místa, kde se kreslit nedá. */
     val poll: ChatPoll? = null,
+    /** Seznam úkolů; popis „Seznam úkolů: název" nese [description] pro místa, kde se kreslit nedá. */
+    val checklist: ChatChecklist? = null,
     /**
      * Obsah server tady nedovolí ukázat (omezení podle země nebo platformy); [text] pak nese
      * důvod od serveru a příloha ani náhled nejsou. Viz `restricted`.

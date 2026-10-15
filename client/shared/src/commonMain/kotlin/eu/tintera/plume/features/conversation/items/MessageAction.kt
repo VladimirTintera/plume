@@ -167,6 +167,12 @@ sealed interface MessageAction {
 
     /** „Přidat odpověď" pod anketou — dialog s polem. */
     data object AddPollOption : MessageAction
+
+    /** Ťuknutí na úkol v seznamu: odškrtnout ([done]), nebo odškrtnutí zrušit. */
+    data class MarkChecklistTask(val taskId: Int, val done: Boolean) : MessageAction
+
+    /** „Přidat úkol" pod seznamem — dialog s polem. */
+    data object AddChecklistTask : MessageAction
     data class OpenLink(val url: String) : MessageAction
 
     /** Rychlé zobrazení stránky z náhledu odkazu (Instant View). */

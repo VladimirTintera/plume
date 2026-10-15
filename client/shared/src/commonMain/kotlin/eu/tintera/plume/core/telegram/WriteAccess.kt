@@ -155,9 +155,15 @@ data class ContentAccess(
      * [pollsAllowedIn]; do soukromého chatu s člověkem anketa nejde.
      */
     val polls: Boolean,
+    /**
+     * Seznamy úkolů. Právo je totéž jako u anket (`canSendPolls` — „polls and checklists"), druh
+     * chatu ale jiný: do soukromého chatu s člověkem seznam jde, do kanálu ne — viz
+     * [checklistsAllowedIn]. Že je seznam jen pro Premium, se tu neřeší: to není právo v chatu.
+     */
+    val checklists: Boolean,
 ) {
     /** Sponka má co nabídnout. Bez jediného dovoleného druhu se nekreslí vůbec. */
-    val anyAttachment: Boolean get() = photos || videos || documents || polls
+    val anyAttachment: Boolean get() = photos || videos || documents || polls || checklists
 
     companion object {
         /** Nic se neomezuje: soukromý chat, správce, vlastník i neznámé postavení. */
@@ -170,6 +176,7 @@ data class ContentAccess(
             videoNotes = true,
             stickers = true,
             polls = true,
+            checklists = true,
         )
     }
 }
@@ -248,7 +255,7 @@ internal fun chatEditRights(
     OwnMemberStatus.Left, OwnMemberStatus.Banned -> ChatEditRights()
 }
 
-/** Druh chatu z pohledu anket — viz [pollsAllowedIn]. */
+/** Druh chatu z pohledu anket a seznamů úkolů — viz [pollsAllowedIn] a [checklistsAllowedIn]. */
 enum class PollChatKind { Group, Channel, Bot, SavedMessages, Private, Secret }
 
 /**
@@ -260,6 +267,16 @@ enum class PollChatKind { Group, Channel, Bot, SavedMessages, Private, Secret }
 fun pollsAllowedIn(kind: PollChatKind): Boolean = when (kind) {
     PollChatKind.Group, PollChatKind.Channel, PollChatKind.Bot, PollChatKind.SavedMessages -> true
     PollChatKind.Private, PollChatKind.Secret -> false
+}
+
+/**
+ * Smí do chatu seznam úkolů? TDLib: *„Checklists can't be sent to secret chats, channel chats and
+ * channel direct messages chats."* Na rozdíl od ankety jde i do soukromého chatu s člověkem —
+ * seznam na nákup je přesně ten případ.
+ */
+fun checklistsAllowedIn(kind: PollChatKind): Boolean = when (kind) {
+    PollChatKind.Group, PollChatKind.Bot, PollChatKind.SavedMessages, PollChatKind.Private -> true
+    PollChatKind.Channel, PollChatKind.Secret -> false
 }
 
 /**

@@ -155,6 +155,7 @@ import eu.tintera.plume.features.conversation.StickerSetViewModel
 import eu.tintera.plume.features.conversation.StickerSuggestionsViewModel
 import eu.tintera.plume.features.conversation.PollVotersViewModel
 import eu.tintera.plume.features.conversation.PollComposerViewModel
+import eu.tintera.plume.features.conversation.ChecklistComposerViewModel
 import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
 import eu.tintera.plume.core.telegram.PollComposerMode
@@ -486,6 +487,16 @@ fun appModule() = module {
             repository = get(),
             session = get(),
             placeRepository = get(),
+            replyRequests = get(),
+        )
+    }
+    viewModel { parameters ->
+        // Indexem: odpověď (`Long?`) by se podle typu zaměnila s chatId.
+        ChecklistComposerViewModel(
+            chatId = parameters.values[0] as Long,
+            replyToMessageId = parameters.values.getOrNull(1) as? Long,
+            replyQuote = parameters.values.getOrNull(2) as? ReplyQuote,
+            repository = get(),
             replyRequests = get(),
         )
     }
