@@ -155,7 +155,13 @@ internal class ConversationMessageMenu(
     }
 
     /** Nabídka s kandidáty, které nabídl blok; co z nich server dovolí, se zjistí tady. */
-    fun showMessageMenu(messageId: Long, items: List<MessageMenuAction>, pressed: Long? = null, pollOptionId: String? = null) {
+    fun showMessageMenu(
+        messageId: Long,
+        items: List<MessageMenuAction>,
+        pressed: Long? = null,
+        pollOptionId: String? = null,
+        selection: String? = null,
+    ) {
         val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
 
         scope.launch {
@@ -209,6 +215,7 @@ internal class ConversationMessageMenu(
                         bookmarked = bookmarks?.isBookmarked(chatId, messageId),
                         pressedMessageId = pressed?.takeIf { it != messageId },
                         pressedPollOptionId = pollOptionId?.takeIf { id -> message.poll?.options?.any { it.id == id && it.canDelete } == true },
+                        bubbleSelection = selection,
                         inTranslationLanguage = inTranslationLanguage,
                         explainAvailable = explainAvailable,
                         contextFindings = contextFindings,

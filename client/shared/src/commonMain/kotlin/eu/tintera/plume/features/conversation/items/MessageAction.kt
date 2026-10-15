@@ -109,6 +109,8 @@ sealed interface MessageAction {
         val pressed: Long? = null,
         /** Odpověď ankety pod prstem ([eu.tintera.plume.core.telegram.PollAnswer.id]) — nabídka pak umí smazat ji. */
         val pollOptionId: String? = null,
+        /** Úryvek vybraný myší v bublině (desktop) — nabídka ho Kopíruje a Cituje. */
+        val selection: String? = null,
     ) : MessageAction
 
     /** Zavřít nabídku (zpět, ťuknutí mimo). */

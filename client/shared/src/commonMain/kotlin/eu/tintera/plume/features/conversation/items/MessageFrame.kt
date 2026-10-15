@@ -1,5 +1,11 @@
 package eu.tintera.plume.features.conversation.items
 
+import androidx.compose.foundation.LocalIndication
+import eu.tintera.plume.core.ui.bubbleTextSelectable
+import eu.tintera.plume.features.conversation.quoteSelection
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.foundation.text.selection.SelectionState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.hoverable
@@ -294,6 +300,8 @@ internal class MessageBodyScope(
     private val contentBottomState: State<Dp>,
     /** Kde zpráva v okně právě je; nabídka z toho místa vyjede. U kopie v nabídce prázdná. */
     private val anchor: MenuAnchor,
+    /** Co je v bublině vybrané myší (desktop); nabídka to dostane s sebou, viz [MessageText]. */
+    val textSelection: BubbleTextSelection = BubbleTextSelection(),
 ) {
     /**
      * Kolik místa si obsah nechá dole. Čip reakce leží PŘES dolní nároží a odznak počtu ještě
@@ -315,7 +323,7 @@ internal class MessageBodyScope(
      */
     fun requestMenu() {
         items.onMenuAnchor(anchor)
-        act(MessageAction.ShowMenu(frame.menuActions))
+        act(MessageAction.ShowMenu(frame.menuActions, selection = textSelection.current()))
     }
 
     /** Dlouhý stisk na odpovědi ankety, kterou jde smazat — nabídka pak nabídne i to. */
@@ -485,8 +493,11 @@ internal fun rememberMessageBodyScope(
         label = "reaction-content-bottom",
     )
 
+    // Mimo klíče: scope se při změně barev skládá znovu, výběr v bublině má přežít.
+    val textSelection = remember { BubbleTextSelection() }
     return remember(scope, frame, shape, bubbleColor, onBubbleColor, accent, insetColor, selectionColors, contentBottom) {
         MessageBodyScope(
+            textSelection = textSelection,
             items = scope,
             frame = frame,
             shape = shape,
@@ -499,6 +510,17 @@ internal fun rememberMessageBodyScope(
             anchor = anchor,
         )
     }
+}
+
+/**
+ * Výběr textu myší v bublině (desktop): kolik toho je vybrané v [MessageText] téhle zprávy.
+ * Text může mít zpráva ve víc kusech (článek mezi médii), takže čtenářů je víc a platí první
+ * neprázdný. Čte se jen při otevření nabídky — proto obyčejné pole, ne stav.
+ */
+internal class BubbleTextSelection {
+    val readers = mutableListOf<() -> String?>()
+
+    fun current(): String? = readers.firstNotNullOfOrNull { it() }
 }
 
 /**
@@ -643,6 +665,8 @@ private fun MessageFrame(
             .pointerInput(Unit) {
                 detectHorizontalSwipe(
                     direction = SwipeDirection.Right,
+                    // Na desktopu patří tah myší výběru textu; odpověď nese pilulka po najetí.
+                    mouse = !bubbleTextSelectable,
                     onDrag = { delta ->
                         coroutineScope.launch {
                             // Za prahem klade tah odpor — jinak by šla bublina odtáhnout přes půl
@@ -809,14 +833,25 @@ private fun MessageFrame(
                  * a potvrzení u ťuknutí, po kterém se nic nestane, by lhalo. Odezvu nese
                  * výbuch za přidanou reakcí.
                  */
+                /*
+                 * Na desktopu ťuknutí na zprávu nic nedělá a stisk nemá vlnku: patří výběru textu
+                 * myší (`bubbleTextSelectable`). Odznak přečtení by zprávu při každém kliknutí
+                 * posunul a výběr pak ujel; stav doručení nese pilulka po najetí myší. Ani pravé
+                 * tlačítko na bublině nabídku nad zprávou neotevírá — nad textem patří běžné
+                 * textové nabídce (Kopírovat, Vybrat vše), do nabídky nad zprávou vede ⋮ v pilulce.
+                 * Přílohy (fotka, soubor) mají pravé tlačítko vlastní a to zůstává.
+                 */
                 afterClip = Modifier.contextClickable(
+                    interactionSource = null,
+                    indication = if (bubbleTextSelectable) null else LocalIndication.current,
+                    rightClick = !bubbleTextSelectable,
                     onLongClick = bodyScope::requestMenu,
                     onDoubleClick = if (scope.doubleTapReaction()) {
                         { bodyScope.act(MessageAction.QuickReact) }
                     } else {
                         null
                     },
-                    onClick = { frame.onTap?.let(bodyScope::act) },
+                    onClick = { if (!bubbleTextSelectable) frame.onTap?.let(bodyScope::act) },
                 ),
                 onReactionClick = if (frame.reactionsOpenable) {
                     { bodyScope.act(MessageAction.ShowReactions) }
@@ -870,6 +905,7 @@ private fun MessageFrame(
                 MessageHoverActions(
                     visible = hovered && frame.selected == null && !scope.isInMenu(frame.key),
                     timestamp = message.timestamp,
+                    delivery = frame.delivery,
                     onReply = if (scope.canReply()) {
                         { scope.onAction(currentMessageId, MessageAction.SwipeReply) }
                     } else {
@@ -1501,44 +1537,68 @@ internal fun MessageBodyScope.MessageText(
     val description = message.description?.takeIf { message.text.isBlank() && segment == null }?.resolve()
     val text = segment?.text ?: description ?: message.text
     val highlights = remember(text, query) { query?.let { highlightRanges(text, it) }.orEmpty() }
-    RichText(
-        highlights = highlights,
-        highlightColor = bubbleColor,
-        highlightBackground = onBubbleColor,
-        // Citace v textu se tónuje Z INKOUSTU, ne container rolí: `tertiaryContainer` uvnitř
-        // bubliny byla druhá karta v kartě (a na odchozí `primary` bublině cizí barva). Stejná
-        // úvaha jako u podkladu kódu v `RichText`.
-        quoteBackground = onBubbleColor.copy(alpha = QUOTE_TINT_ALPHA),
-        quoteBleedTop = bleedTop,
-        quoteBleedBottom = bleedBottom,
-        quoteBleed = MESSAGE_PADDING_H,
-        quotePadding = MESSAGE_PADDING_V,
-        maxLines = maxLines,
-        onOverflow = onOverflow,
-        quoteIndentAsPadding = wholeTextQuote,
-        text = text,
-        entities = when {
-            segment != null -> segment.entities
-            description != null -> emptyList()
-            else -> message.entities
-        },
-        style = style,
-        linkColor = linkColor,
-        onLinkClick = { act(MessageAction.OpenLink(it)) },
-        onEntityClick = { type ->
-            when (type) {
-                is MessageEntityType.Mention -> act(MessageAction.OpenMention(type.username))
-                is MessageEntityType.MentionUser -> act(MessageAction.OpenUser(type.userId))
-                is MessageEntityType.Hashtag -> act(MessageAction.SearchHashtag(type.tag))
-                is MessageEntityType.BotCommand -> act(MessageAction.SendBotCommand(type.command))
-                is MessageEntityType.MediaTimestamp -> act(MessageAction.PlayMediaAt(type.seconds))
-                else -> Unit
-            }
-        },
-        commandsClickable = items.canSendCommands(),
-        timestampsClickable = true,
-        onLongClick = ::requestMenu,
-    )
+    val selectable = description == null && items.selectableText()
+    val richText = @Composable {
+        RichText(
+            highlights = highlights,
+            highlightColor = bubbleColor,
+            highlightBackground = onBubbleColor,
+            // Citace v textu se tónuje Z INKOUSTU, ne container rolí: `tertiaryContainer` uvnitř
+            // bubliny byla druhá karta v kartě (a na odchozí `primary` bublině cizí barva). Stejná
+            // úvaha jako u podkladu kódu v `RichText`.
+            quoteBackground = onBubbleColor.copy(alpha = QUOTE_TINT_ALPHA),
+            quoteBleedTop = bleedTop,
+            quoteBleedBottom = bleedBottom,
+            quoteBleed = MESSAGE_PADDING_H,
+            quotePadding = MESSAGE_PADDING_V,
+            maxLines = maxLines,
+            onOverflow = onOverflow,
+            quoteIndentAsPadding = wholeTextQuote,
+            text = text,
+            entities = when {
+                segment != null -> segment.entities
+                description != null -> emptyList()
+                else -> message.entities
+            },
+            style = style,
+            linkColor = linkColor,
+            onLinkClick = { act(MessageAction.OpenLink(it)) },
+            onEntityClick = { type ->
+                when (type) {
+                    is MessageEntityType.Mention -> act(MessageAction.OpenMention(type.username))
+                    is MessageEntityType.MentionUser -> act(MessageAction.OpenUser(type.userId))
+                    is MessageEntityType.Hashtag -> act(MessageAction.SearchHashtag(type.tag))
+                    is MessageEntityType.BotCommand -> act(MessageAction.SendBotCommand(type.command))
+                    is MessageEntityType.MediaTimestamp -> act(MessageAction.PlayMediaAt(type.seconds))
+                    else -> Unit
+                }
+            },
+            commandsClickable = items.canSendCommands(),
+            timestampsClickable = true,
+            // S výběrem myší (desktop) nemá odkaz vlastní podržení ani pravé tlačítko: pravé
+            // tlačítko na odkazu ukáže tutéž textovou nabídku jako zbytek textu.
+            onLongClick = if (selectable) null else ::requestMenu,
+        )
+    }
+    /*
+     * Na desktopu jde text vybrat myší přímo v bublině (tažení, dvojklik, trojklik, Ctrl+C), viz
+     * `bubbleTextSelectable`. Náš popis (anketa) vybírat nejde — není to text zprávy. Pravé
+     * tlačítko nad textem ukáže běžnou textovou nabídku platformy (Kopírovat, Vybrat vše); do
+     * nabídky nad zprávou se jde přes ⋮ v pilulce po najetí a ta dostane vybraný úryvek
+     * ([BubbleTextSelection]) — „Kopírovat" ho zkopíruje, „Odpovědět" je „Citovat".
+     */
+    if (selectable) {
+        val selectionState = remember { SelectionState() }
+        val messageText = message.text
+        DisposableEffect(textSelection, selectionState, messageText) {
+            val reader = { quoteSelection(selectionState.selectedTexts, messageText) }
+            textSelection.readers += reader
+            onDispose { textSelection.readers -= reader }
+        }
+        SelectionContainer(state = selectionState) { richText() }
+    } else {
+        richText()
+    }
 }
 
 /**

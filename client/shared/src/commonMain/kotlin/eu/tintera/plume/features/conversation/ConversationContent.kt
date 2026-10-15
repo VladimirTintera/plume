@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.bubbleTextSelectable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
@@ -173,6 +174,8 @@ internal fun BoxScope.ConversationContent(
                 .pointerInput(revealMax) {
                     detectHorizontalSwipe(
                         direction = SwipeDirection.Left,
+                        // Na desktopu patří tah myší výběru textu; čas ukáže najetí na zprávu.
+                        mouse = !bubbleTextSelectable,
                         onEnd = {
                             gestureHints.used(GestureHint.RevealTimes)
                             scope.launch { timeReveal.animateTo(0f, revealSpec) }

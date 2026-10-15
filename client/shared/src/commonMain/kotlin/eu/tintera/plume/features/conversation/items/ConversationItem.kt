@@ -213,6 +213,13 @@ internal interface ConversationItemScope {
     /** Jde na zprávu odpovědět — smí se do chatu psát? Tlačítko Odpovědět po najetí myší jen tehdy. */
     fun canReply(): Boolean = false
 
+    /**
+     * Vybírá se text zprávy přímo v bublině myší (`bubbleTextSelectable`, desktop)? Ne v kopii
+     * v nabídce — ta má výběr vlastní — a ne v chatu s chráněným obsahem, odkud se nesmí
+     * kopírovat.
+     */
+    fun selectableText(): Boolean = false
+
     /** Tlačítko bota u zprávy, na jehož odpověď se čeká (řádek, sloupec); `null` = žádné. */
     fun pressingBotButton(messageId: Long): Pair<Int, Int>? = null
 

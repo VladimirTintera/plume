@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.bubbleTextSelectable
 import eu.tintera.plume.core.ai.ScamKind
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.telegram.PendingChecklistMark
@@ -82,6 +83,8 @@ internal class ScreenItemScope(
 
     // Odpovědět i poslat příkaz jde jen tam, kam se smí psát — tentýž stav (`canWrite`).
     override fun canReply(): Boolean = canSendCommands.value
+
+    override fun selectableText(): Boolean = bubbleTextSelectable && state.value.info?.protectsContent != true
 
     override fun gatherShift(key: Any): Float = jumpTransition.shiftOf(key)
 

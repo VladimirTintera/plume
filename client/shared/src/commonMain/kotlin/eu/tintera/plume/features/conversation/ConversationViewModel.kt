@@ -1748,7 +1748,7 @@ class ConversationViewModel(
      */
     fun onAction(messageId: Long, action: MessageAction) {
         when (action) {
-            is MessageAction.ShowMenu -> menu.showMessageMenu(messageId, action.items, action.pressed, action.pollOptionId)
+            is MessageAction.ShowMenu -> menu.showMessageMenu(messageId, action.items, action.pressed, action.pollOptionId, action.selection)
             MessageAction.CloseMenu -> menu.closeMenus()
             MessageAction.ShowNoticeMenu -> menu.showNoticeMenu(messageId)
             is MessageAction.DeleteNotice -> _state.update {

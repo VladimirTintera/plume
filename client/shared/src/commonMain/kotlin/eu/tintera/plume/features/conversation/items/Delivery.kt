@@ -156,26 +156,30 @@ private fun DeliveryIcon(delivery: Delivery) {
         contentAlignment = Alignment.Center,
         label = "delivery",
     ) { current ->
-        val (icon, description) = when (current) {
-            Delivery.Sending -> Res.drawable.schedule_24dp to Res.string.conversation_delivery_sending
-            Delivery.Sent -> Res.drawable.check_24dp to Res.string.conversation_delivery_sent
-            Delivery.Read -> Res.drawable.done_all_24dp to Res.string.conversation_delivery_read
-            Delivery.Failed -> Res.drawable.error_24dp to Res.string.conversation_delivery_failed
-        }
-
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = stringResource(description),
-            // Selhání je jediný stav, který uživatel musí zaregistrovat — dostane chybovou barvu.
-            // Počítá se z `current`, ne z cílového stavu: odcházející ikona si barvu drží.
-            tint = if (current == Delivery.Failed) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-            modifier = Modifier.size(DELIVERY_ICON_SIZE),
-        )
+        // Barva se počítá z `current`, ne z cílového stavu: odcházející ikona si barvu drží.
+        DeliveryStateIcon(current)
     }
+}
+
+/**
+ * Ikona jednoho stavu doručení — pod bublinou ([DeliveryBadge]) i v pilulce po najetí myší
+ * (`MessageHoverActions`). Selhání je jediný stav, který uživatel musí zaregistrovat, dostane
+ * chybovou barvu.
+ */
+@Composable
+internal fun DeliveryStateIcon(delivery: Delivery, modifier: Modifier = Modifier) {
+    val (icon, description) = when (delivery) {
+        Delivery.Sending -> Res.drawable.schedule_24dp to Res.string.conversation_delivery_sending
+        Delivery.Sent -> Res.drawable.check_24dp to Res.string.conversation_delivery_sent
+        Delivery.Read -> Res.drawable.done_all_24dp to Res.string.conversation_delivery_read
+        Delivery.Failed -> Res.drawable.error_24dp to Res.string.conversation_delivery_failed
+    }
+    Icon(
+        painter = painterResource(icon),
+        contentDescription = stringResource(description),
+        tint = if (delivery == Delivery.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.size(DELIVERY_ICON_SIZE),
+    )
 }
 
 /** Mezera mezi vykřičníkem a větou u neodeslané zprávy. */

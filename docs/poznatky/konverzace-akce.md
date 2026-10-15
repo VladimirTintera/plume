@@ -126,6 +126,8 @@ které se týkal, a unesl jen pár položek — akcí bude postupně deset.
   Text v sheetu je holý (`copyableText`), ne `RichText`: odkazy mají vlastní klikání a se
   `SelectionContainer` by se o gesta praly. Kopírování obstará systémová nabídka nad výběrem,
   vlastní tlačítko by jen zdvojovalo, co platforma umí sama.
+- **Na desktopu se vybírá přímo v bublině** (viz „Výběr textu myší v bublině"); sheet a výběr
+  v kopii v nabídce zůstávají pro dotyk.
 - **„Vybrat text" stojí na stejném právu jako „Kopírovat"** (`canCopy`). Chráněný obsah nesmí
   ven ani po kouskách a bez textu není co vybírat; obojí hlídá test.
 
@@ -232,6 +234,45 @@ neposouvá; časy u všech dál ukáže tah doleva.
   po konci skriptu kurzor zmizí a najetí skončí. Pilulka u odchozí ankety (posunutá dovnitř),
   klik na Odpovědět připravil odpověď.
 - **Ověřeno na Windows 11** (ladicí běh, skutečná myš, uživatel). macOS neověřený.
+
+## Výběr textu myší v bublině
+
+Na desktopu (`bubbleTextSelectable`, jen JVM) je text zprávy v `SelectionContainer` přímo
+v bublině (`MessageText`): tažení vybírá, dvojklik slovo, trojklik odstavec, Ctrl+C kopíruje
+a pravé tlačítko nad textem ukáže běžnou textovou nabídku Compose (Kopírovat, Vybrat vše). Jako
+v Telegram Desktop. Na dotyku to nejde: výběr tam začíná dlouhým stiskem a ten patří nabídce
+nad zprávou (viz „Nabídka nad zprávou").
+
+Aby se výběr nepral s ostatním, se na desktopu v konverzaci vzdalo několik věcí — všechno, co
+dřív dělaly, má pilulka po najetí myší (viz „Akce po najetí myší"):
+
+- **Tah myší nezakládá odpověď ani neodkrývá časy** (`detectHorizontalSwipe(mouse = false)`).
+  Detektor sám končí, když událost spotřebuje výběr, jenže mimo text (okraj bubliny, prázdný
+  řádek) by tah myší dál jel.
+- **Ťuknutí na zprávu nic nedělá a stisk nemá vlnku.** Ťuknutí na vlastní zprávu jinak ukáže
+  odznak „přečteno" POD bublinou, ten přidá řádek, zpráva poskočí a rozjetý výběr ujede
+  (nahlásil uživatel). Stav doručení proto nese pilulka (`DeliveryStateIcon`, tytéž ikony jako
+  odznak). Vlnka by blikla přes celou bublinu při každém začátku výběru.
+- **Pravé tlačítko na bublině nabídku nad zprávou NEotvírá** (`contextClickable(rightClick =
+  false)`) a odkaz v textu nemá vlastní podržení: nad textem patří pravé tlačítko běžné textové
+  nabídce, ne naší (přání uživatele — do nabídky nad zprávou vede ⋮ v pilulce). Přílohy, fotky,
+  samolepky, ankety a seznamy úkolů pravé tlačítko na nabídku nad zprávou mají dál — výběr
+  v nich není.
+- **Dvojklik na text vybere slovo**, ne rychlou reakci.
+- **⋮ v pilulce dostane vybraný úryvek** (`BubbleTextSelection` → `ShowMenu(selection)` →
+  `MessageMenu.bubbleSelection`): „Kopírovat" zkopíruje úryvek, „Odpovědět" je „Citovat",
+  stejně jako výběr v kopii v nabídce. Klik na ⋮ výběr nezruší (tlačítko si fokus nebere).
+  Stejné právo jako výběr v kopii (`canCopy`); v chatu s chráněným obsahem
+  (`protectsContent`) výběr v bublině vůbec není.
+- **Jen text zprávy**, ne náš popis (anketa) a ne kopie v nabídce (`selectableText()` vrací
+  `false` pro `InertItemScope`); výběr vždy v jedné zprávě. Text článku po kusech má víc
+  `SelectionContainer` a platí první neprázdný.
+- **Nabídka Compose pro výběr textu má na desktopu dvě cesty** (`ComposeFoundationFlags
+  .isNewContextMenuEnabled`, v 1.12 na desktopu vypnutá → `LocalTextContextMenu.current.Area`).
+  Kdyby ji bylo potřeba vypnout, stačí podat `TextContextMenu`, jehož `Area` jen vykreslí obsah.
+- Na Androidu ověřeno, že se nic nezměnilo (výběr v bublině není, tah na odpověď funguje).
+- **Ověřeno na Windows 11** (ladicí běh, skutečná myš, uživatel): výběr tažením, Ctrl+C,
+  textová nabídka na pravém tlačítku, ⋮ s úryvkem. macOS neověřený.
 
 ## Smazání cizích zpráv správcem
 

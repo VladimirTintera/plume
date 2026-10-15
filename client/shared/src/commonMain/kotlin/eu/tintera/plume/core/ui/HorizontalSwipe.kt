@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.geometry.Offset
@@ -61,15 +62,20 @@ private const val SWIPE_SLOP_MULTIPLIER = 2f
  * svislým scrollem, položka vlastním tahem —, gesto je jeho a tady se končí. Spotřebování se
  * kontroluje i ve fázi `Final`: položka seznamu dostává události DŘÍV než seznam, takže ve
  * fázi `Main` by rozjetý scroll neviděla (stejně to dělá `awaitTouchSlopOrCancellation`).
+ *
+ * [mouse] `false` = tah myší se nebere. V konverzaci na desktopu patří tah myší výběru textu
+ * (`bubbleTextSelectable`); mimo text by jinak dál zakládal odpověď nebo odkrýval časy.
  */
 internal suspend fun PointerInputScope.detectHorizontalSwipe(
     direction: SwipeDirection,
     onEnd: (released: Boolean) -> Unit,
+    mouse: Boolean = true,
     onDrag: (Float) -> Unit,
 ) {
     val slop = viewConfiguration.touchSlop * SWIPE_SLOP_MULTIPLIER
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false)
+        if (!mouse && down.type == PointerType.Mouse) return@awaitEachGesture
         var total = Offset.Zero
         // Fáze rozhodování: jen se sleduje.
         while (true) {
