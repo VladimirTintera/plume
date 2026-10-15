@@ -105,5 +105,5 @@ private class UsageStorage(
     override suspend fun databaseBytes(): Result<Long> = Result.success(0)
     override suspend fun usage(): Result<StorageUsage> = Result.failure(UnsupportedOperationException())
     override suspend fun clear(categories: Set<StorageCategory>, chatId: Long?): Result<Long> = Result.success(0)
-    override suspend fun clearOlderThan(olderThanSeconds: Int): Result<Long> = Result.success(0)
+    override suspend fun cleanUp(olderThanSeconds: Int?, maxBytes: Long?): Result<Long> = Result.success(0)
 }

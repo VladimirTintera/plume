@@ -392,6 +392,15 @@ interface AppSettings {
     fun setKeepMedia(keep: KeepMedia)
 
     /**
+     * Strop velikosti stažených médií (Nastavení → Úložiště). Výchozí [CacheLimit.None] —
+     * aplikace bez výslovného přání nic nemaže.
+     */
+    val cacheLimit: StateFlow<CacheLimit>
+
+    /** Uloží strop mezipaměti. Neblokuje. */
+    fun setCacheLimit(limit: CacheLimit)
+
+    /**
      * Kdy naposledy proběhl automatický úklid médií (sekundy od epochy), `null` = nikdy.
      * Úklid podle [keepMedia] stačí jednou denně, ne při každém startu.
      */
@@ -990,6 +999,16 @@ class DataStoreAppSettings(
         }
     }
 
+    override val cacheLimit: StateFlow<CacheLimit> = value(CacheLimit.None) { preferences ->
+        CacheLimit.entries.firstOrNull { it.name == preferences[CACHE_LIMIT] } ?: CacheLimit.None
+    }
+
+    override fun setCacheLimit(limit: CacheLimit) {
+        scope.launch {
+            edit { preferences -> preferences[CACHE_LIMIT] = limit.name }
+        }
+    }
+
     override val lastStorageCleanup: StateFlow<Long?> = value(null) { preferences ->
         preferences[LAST_STORAGE_CLEANUP]
     }
@@ -1101,6 +1120,7 @@ class DataStoreAppSettings(
         val STRIP_TRACKING_PARAMETERS = booleanPreferencesKey("strip_tracking_parameters")
         val DISCREET_READING = booleanPreferencesKey("discreet_reading")
         val KEEP_MEDIA = stringPreferencesKey("keep_media")
+        val CACHE_LIMIT = stringPreferencesKey("cache_limit")
         val LAST_STORAGE_CLEANUP = longPreferencesKey("last_storage_cleanup")
         val MESSAGE_TEXT_SIZE = intPreferencesKey("message_text_size")
         val OPEN_LINKS_IN_APP = booleanPreferencesKey("open_links_in_app")

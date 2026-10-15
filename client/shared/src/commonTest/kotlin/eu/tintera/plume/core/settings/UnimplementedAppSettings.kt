@@ -114,6 +114,8 @@ open class UnimplementedAppSettings : AppSettings {
     override fun setStripTrackingParameters(enabled: Boolean): Unit = error("setStripTrackingParameters")
     override val keepMedia: StateFlow<KeepMedia> get() = error("keepMedia")
     override fun setKeepMedia(keep: KeepMedia): Unit = error("setKeepMedia")
+    override val cacheLimit: StateFlow<CacheLimit> get() = error("cacheLimit")
+    override fun setCacheLimit(limit: CacheLimit): Unit = error("setCacheLimit")
     override val lastStorageCleanup: StateFlow<Long?> get() = error("lastStorageCleanup")
     override fun setLastStorageCleanup(epochSeconds: Long): Unit = error("setLastStorageCleanup")
     override val messageTextSize: StateFlow<Int> get() = error("messageTextSize")

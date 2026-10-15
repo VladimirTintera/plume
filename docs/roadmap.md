@@ -964,8 +964,8 @@ Odhlásit se dole v seznamu sekcí, ne v úpravě profilu; Proxy do Úložiště
   ověřit spořič dat a roaming na telefonu a případně přednačítání videí (dnes se nepřednačítá nic).
 - ~~**Úložiště.**~~ — hotovo (Nastavení → Úložiště: zabrané místo po druzích a chatech, mazání
   všude i v chatu, „Uchovávat média", model Gemmy; `docs/poznatky/nastaveni.md`, „Úložiště").
-  Zbývá **strop velikosti mezipaměti** (mazat nejstarší nad N GB) a ověřit automatický úklid
-  po dni na zařízení.
+  ~~**Strop velikosti mezipaměti**~~ — hotovo (1 / 2 / 5 / 10 GB; `docs/poznatky/nastaveni.md`,
+  „Úložiště"). Zbývá ověřit automatický úklid po dni (a se stropem po šesti hodinách) na zařízení.
 - ~~**Akce tahem v seznamu chatů pro každou stranu zvlášť**~~ — hotovo (Obecné → Chaty:
   archivovat, přečteno, ztlumit, připnout, nic; `docs/poznatky/seznam-chatu.md`, „Akce tahem").
 - ~~**Menší přepínače**~~ — hotovo: rychlá reakce dvojitým ťuknutím, Enter odesílá (fyzická
