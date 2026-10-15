@@ -889,6 +889,20 @@ v `ConversationSuggestions` (`hashtagQuery`, `mentionQuery(…, atStart)`, testy
   „GIF Search @gif" a ťuknutí ukázalo výsledky bota. Text do pole přes sdílení (`SEND`
   s `EXTRA_SHORTCUT_ID`), `@` na začátek až do PRÁZDNÉHO pole — sdílení text připojí za
   rozepsaný. **Neověřeno**: boti před členy ve skupině, iOS (jen přeložené).
+- **Hashtag jde z historie odebrat podržením** v panelu („Odebrat z historie",
+  `removeRecentHashtag`, `ConversationSuggestions.removeHashtag`) — stejně jako člověk
+  z nejčastějších v hledání chatů: nabídka bez potvrzení a bez „Vrátit", hashtag se do historie
+  vrátí sám, jakmile ho uživatel zase pošle. Panel se pak přečte znovu (`searchHashtags`), nic
+  se nepřepisuje lokálně. Odebrání běží mimo `hashtagJob`, jinak by ho další napsané písmeno
+  zrušilo. TDLib hashtag bere bez `#` (tak ho i vrací); `#` se pro jistotu odstřihne.
+- **Nabídka nad panelem si nebere klávesnici** (`ExpressiveMenu`), takže pole s rozepsaným `#`
+  zůstane otevřené a panel jen zkrátí. Nad klávesnicí se nabídka otevře NAD řádkem (dole není
+  místo) a zakryje řádek nad ním — vadí to málo, nabídka je jednopoložková.
+- **Ověřeno na emulátoru** (15. 10. 2026, „Plume test moderace"): odeslaná zpráva
+  s `#plumeodebrat #plumezustat`, pak `#plume` → oba, podržení `#plumeodebrat` → „Odebrat
+  z historie" → v panelu zbyl `#plumezustat`, klávesnice zůstala; samotné `#` znovu napsané
+  nabídlo už jen `#plumezustat` (tedy smazané v TDLib, ne jen v panelu). Desktop (pravé
+  tlačítko) a iOS neověřené.
 
 ## Odpovědi (reply)
 

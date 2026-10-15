@@ -749,6 +749,7 @@
     <string name="delete_moderation_sender">Autor zpráv: %1$s</string>
     <string name="delete_moderation_report_spam">Nahlásit spam</string>
     <string name="delete_moderation_delete_all">Smazat všechny zprávy autora ve skupině</string>
+    <string name="delete_moderation_delete_reactions">Smazat nedávné reakce autora</string>
     <string name="delete_moderation_ban">Vyhodit autora ze skupiny</string>
     <string name="conversation_moderation_failed">Ne všechno se povedlo. Zkontroluj skupinu a zkus to znovu.</string>
     <string name="delete_message_for_partner">Smazat i u protějšku</string>

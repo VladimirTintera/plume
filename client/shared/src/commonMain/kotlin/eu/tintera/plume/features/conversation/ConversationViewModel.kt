@@ -501,6 +501,7 @@ class ConversationViewModel(
     fun mentionQuery(query: String?, atStart: Boolean) = suggestions.mentionQuery(query, atStart)
     fun hashtagQuery(query: String?) = suggestions.hashtagQuery(query)
     fun hashtagPicked() = suggestions.hashtagPicked()
+    fun removeHashtag(hashtag: String) = suggestions.removeHashtag(hashtag)
     fun mentionPicked(candidate: MentionCandidate) = suggestions.mentionPicked(candidate)
     fun inlineQuery(draft: InlineQueryDraft?) = suggestions.inlineQuery(draft)
     fun loadMoreInline() = suggestions.loadMoreInline()

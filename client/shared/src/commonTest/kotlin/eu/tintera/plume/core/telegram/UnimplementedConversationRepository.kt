@@ -117,6 +117,7 @@ open class UnimplementedConversationRepository : ConversationRepository {
     override suspend fun mentionCandidates(chatId: Long, query: String) : Result<List<MentionCandidate>> = error("mentionCandidates")
     override suspend fun recentInlineBots() : Result<List<MentionCandidate>> = error("recentInlineBots")
     override suspend fun recentHashtags(prefix: String) : Result<List<String>> = error("recentHashtags")
+    override suspend fun removeRecentHashtag(hashtag: String) : Result<Unit> = error("removeRecentHashtag")
     override suspend fun summarizeMessage(chatId: Long, messageId: Long, languageCode: String?) : Result<MessageBody> = error("summarizeMessage")
     override suspend fun translateMessage(chatId: Long, messageId: Long, languageCode: String) : Result<MessageBody> = error("translateMessage")
     override suspend fun sender(senderId: Long) : Result<SenderInfo> = error("sender")

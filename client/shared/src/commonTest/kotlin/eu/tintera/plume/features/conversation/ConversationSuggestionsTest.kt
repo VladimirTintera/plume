@@ -55,9 +55,16 @@ class ConversationSuggestionsTest {
 
         override suspend fun recentInlineBots(): Result<List<MentionCandidate>> = Result.success(recentBots)
 
+        val hashtagHistory = mutableListOf("plume", "plumeapp", "plumetest", "telegram")
+
         override suspend fun recentHashtags(prefix: String): Result<List<String>> {
             hashtagQueries += prefix
-            return Result.success(listOf("plume", "plumeapp", "telegram").filter { it.startsWith(prefix) })
+            return Result.success(hashtagHistory.filter { it.startsWith(prefix) })
+        }
+
+        override suspend fun removeRecentHashtag(hashtag: String): Result<Unit> {
+            hashtagHistory -= hashtag
+            return Result.success(Unit)
         }
 
         override suspend fun inlineBot(username: String): Result<InlineBotInfo?> = Result.success(bots[username])
@@ -340,10 +347,26 @@ class ConversationSuggestionsTest {
 
         assertEquals(listOf("plume"), repository.hashtagQueries)
         // Celý napsaný hashtag se nenabízí, delší ano.
-        assertEquals(listOf("plumeapp"), state.value.hashtagSuggestions?.hashtags)
+        assertEquals(listOf("plumeapp", "plumetest"), state.value.hashtagSuggestions?.hashtags)
 
         suggestions.hashtagPicked()
         assertNull(state.value.hashtagSuggestions)
+    }
+
+    /** Podržení v panelu: hashtag zmizí z historie a panel se přečte znovu se zbytkem. */
+    @Test
+    fun odebranyHashtagZmiziZNapovidani() = runTest {
+        val state = MutableStateFlow(ConversationState(info = testChatInfo()))
+        val suggestions = suggestions(state)
+        suggestions.hashtagQuery("plume")
+        advanceUntilIdle()
+
+        suggestions.removeHashtag("plumeapp")
+        advanceUntilIdle()
+
+        assertEquals(listOf("plume", "plumetest", "telegram"), repository.hashtagHistory)
+        assertEquals(listOf("plumetest"), state.value.hashtagSuggestions?.hashtags)
+        assertEquals(listOf("plume", "plume"), repository.hashtagQueries)
     }
 
     @Test

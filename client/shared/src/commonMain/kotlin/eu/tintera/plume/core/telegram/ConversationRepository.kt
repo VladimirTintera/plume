@@ -354,8 +354,8 @@ interface ConversationRepository {
 
     /**
      * Smaže cizí zprávy a s jejich autorem udělá, co si správce zaškrtl. Pořadí: napřed
-     * nahlášení (zprávy musí ještě existovat), pak vyhození, nakonec mazání — buď všeho od
-     * autora, nebo jen [messageIds]. Selhání jednoho kroku další nezastaví; vrátí se první chyba.
+     * nahlášení (zprávy musí ještě existovat), pak smazání jeho nedávných reakcí, vyhození,
+     * nakonec mazání — buď všeho od autora, nebo jen [messageIds]. Selhání jednoho kroku další nezastaví; vrátí se první chyba.
      */
     suspend fun deleteAsModerator(
         chatId: Long,
@@ -929,6 +929,9 @@ interface ConversationRepository {
      * Vrací je bez `#`. Lokální — TDLib si je pamatuje z odeslaných zpráv a hledání.
      */
     suspend fun recentHashtags(prefix: String): Result<List<String>>
+
+    /** Odebere [hashtag] (bez `#`) z historie, ze které čte [recentHashtags] (`removeRecentHashtag`). */
+    suspend fun removeRecentHashtag(hashtag: String): Result<Unit>
 
     /**
      * Shrnutí zprávy od serveru, jen u zprávy s [ChatMessage.summaryLanguage]. [languageCode]
