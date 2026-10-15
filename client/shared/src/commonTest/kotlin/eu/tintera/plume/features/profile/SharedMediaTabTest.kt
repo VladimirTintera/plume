@@ -121,4 +121,50 @@ class SharedMediaTabTest {
     fun rozepsaneHledaniSeNeschova() {
         assertTrue(offersSharedSearch(SharedMediaKind.Files, count = 2, query = "fak"))
     }
+
+    @Test
+    fun oknoPoSkokuNahradiSeznamAKNejnovejsiNesaha() {
+        val tab = SharedMediaTab().withFirstPage("", page(100, 99, 98))
+
+        val window = tab.withWindow(target = 50, page(55, 52, 50, 48, 45))
+
+        assertEquals(listOf(55L, 52L, 50L, 48L, 45L), window.messages.map { it.id })
+        assertFalse(window.reachedNewest)
+        assertTrue(window.canLoadNewer)
+        assertEquals(50L, window.scrollTo)
+        // Ke starším se pokračuje jako vždy, od posledního vráceného.
+        assertEquals(45L, window.nextFromMessageId)
+    }
+
+    @Test
+    fun novejsiSePridajiNadOkno() {
+        val window = SharedMediaTab().withWindow(target = 50, page(55, 50, 45))
+
+        // Stránka čtená od nejnovější načtené obsahuje i ji samotnou.
+        val grown = window.copy(loadingNewer = true).withNewerPage(fromMessageId = 55, page(70, 60, 55))
+
+        assertEquals(listOf(70L, 60L, 55L, 50L, 45L), grown.messages.map { it.id })
+        assertFalse(grown.loadingNewer)
+        assertFalse(grown.reachedNewest)
+    }
+
+    @Test
+    fun stranaBezNovejsichZnamenaNejnovejsi() {
+        val window = SharedMediaTab().withWindow(target = 50, page(55, 50))
+
+        val top = window.withNewerPage(fromMessageId = 55, page(55))
+
+        assertTrue(top.reachedNewest)
+        assertFalse(top.canLoadNewer)
+    }
+
+    @Test
+    fun novejsiZJinehoOknaSeZahodi() {
+        val window = SharedMediaTab().withWindow(target = 50, page(55, 50))
+
+        // Mezitím se skočilo jinam; stránka patřila oknu začínajícímu zprávou 80.
+        val same = window.withNewerPage(fromMessageId = 80, page(90, 80))
+
+        assertEquals(window, same)
+    }
 }

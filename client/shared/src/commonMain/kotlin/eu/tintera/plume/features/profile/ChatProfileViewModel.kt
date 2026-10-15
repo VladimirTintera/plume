@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.telegram.SharedMediaPositions
 import eu.tintera.plume.core.telegram.mergeCalendarDays
 import eu.tintera.plume.core.telegram.MediaCalendarPage
 import eu.tintera.plume.core.telegram.CalendarDayMedia
@@ -206,6 +207,92 @@ class ChatProfileViewModel(
     fun loadShared(kind: SharedMediaKind) {
         if (_state.value.shared[kind] != null) return
         loadFirstShared(kind, query = "")
+        if (kind == SharedMediaKind.Media && offersFastScroll(_state.value.counts?.media ?: 0)) loadMediaPositions()
+    }
+
+    /**
+     * Řídké pozice Médií pro rychlé rolování; čtou se jednou s první stránkou. Bez nich se úchyt
+     * neukáže — mřížka se dál roluje prstem, nic se nerozbije.
+     */
+    private fun loadMediaPositions() {
+        viewModelScope.launch {
+            conversations.sharedMediaPositions(chatId, SharedMediaKind.Media)
+                .onSuccess { positions -> _state.update { it.copy(mediaPositions = positions) } }
+                .onFailure { failure -> logger.w(failure) { "Pozice médií pro rychlé rolování se nepodařilo načíst." } }
+        }
+    }
+
+    /**
+     * Skok rychlým rolováním na zprávu [messageId] na pozici [position] (od nejnovější).
+     *
+     * Blízko začátku se načte seznam od nejnovější jako vždy a mřížka na zprávu jen doroluje.
+     * Dál se načte OKNO kolem ní ([SharedMediaTab.withWindow]) — pár novějších nad ní, zbytek
+     * stránky starších pod ní — a nahradí celý seznam, jako skok na zprávu v konverzaci.
+     * Načítat stovky stránek, než se k ní dojde, by trvalo a stálo data.
+     */
+    fun jumpShared(kind: SharedMediaKind, messageId: Long, position: Int) {
+        val tab = _state.value.shared[kind] ?: return
+        if (tab.messages.any { it.id == messageId }) {
+            _state.update { it.copy(shared = it.shared + (kind to tab.copy(scrollTo = messageId))) }
+            return
+        }
+        moreSharedJobs[kind]?.cancel()
+        sharedJobs[kind]?.cancel()
+        sharedJobs[kind] = viewModelScope.launch {
+            val nearNewest = position < JUMP_WINDOW_NEWER
+            val result = if (nearNewest) {
+                conversations.sharedMedia(chatId, kind)
+            } else {
+                conversations.sharedMedia(chatId, kind, fromMessageId = messageId, offset = -JUMP_WINDOW_NEWER)
+            }
+            ensureActive()
+            result
+                .onSuccess { page ->
+                    _state.update { state ->
+                        val current = state.shared[kind] ?: SharedMediaTab()
+                        val next = if (nearNewest) {
+                            current.withFirstPage(query = "", page).copy(scrollTo = messageId)
+                        } else {
+                            current.withWindow(messageId, page)
+                        }
+                        state.copy(shared = state.shared + (kind to next))
+                    }
+                }
+                .onFailure { failure -> sharedFailed(kind, query = "", failure) }
+        }
+    }
+
+    /** Novější zprávy nad oknem po skoku; spouští je mřížka, když se dorolovalo k jeho začátku. */
+    fun loadNewerShared(kind: SharedMediaKind) {
+        val tab = _state.value.shared[kind] ?: return
+        if (!tab.canLoadNewer) return
+        val from = tab.messages.first().id
+        _state.update { it.copy(shared = it.shared + (kind to tab.copy(loadingNewer = true))) }
+        viewModelScope.launch {
+            conversations.sharedMedia(chatId, kind, fromMessageId = from, offset = -SHARED_NEWER_PAGE)
+                .onSuccess { page ->
+                    _state.update { state ->
+                        val current = state.shared[kind] ?: return@update state
+                        state.copy(shared = state.shared + (kind to current.withNewerPage(from, page)))
+                    }
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Novější média se nepodařilo načíst." }
+                    // Jako by okno k nejnovější došlo: nezkoušet to s každým scrollem znovu.
+                    _state.update { state ->
+                        val current = state.shared[kind] ?: return@update state
+                        state.copy(shared = state.shared + (kind to current.copy(loadingNewer = false, reachedNewest = true)))
+                    }
+                }
+        }
+    }
+
+    /** Mřížka na zprávu po skoku dorolovala. */
+    fun consumeSharedScroll(kind: SharedMediaKind) {
+        _state.update { state ->
+            val current = state.shared[kind] ?: return@update state
+            state.copy(shared = state.shared + (kind to current.copy(scrollTo = null)))
+        }
     }
 
     /**
@@ -893,6 +980,12 @@ class ChatProfileViewModel(
     }
 }
 
+/** Kolik novějších zpráv načte okno nad tou, na kterou se skočilo — kus nad ní je vidět. */
+private const val JUMP_WINDOW_NEWER = 15
+
+/** Kolik novějších zpráv dotáhne rolování nahoru v okně. */
+private const val SHARED_NEWER_PAGE = 30
+
 /** Kalendář médií: načtené dny od nejnovějšího a kde pokračovat ke starším. */
 data class MediaCalendarState(
     val days: List<CalendarDayMedia> = emptyList(),
@@ -944,6 +1037,8 @@ data class ChatProfileState(
     val openChat: Long? = null,
     /** Jednorázová událost: otevřít prohlížeč médií na této zprávě (u článku na jeho médiu). */
     val openMedia: MediaTarget? = null,
+    /** Řídké pozice Médií pro rychlé rolování; `null` = nejsou (málo médií, nenačtené). */
+    val mediaPositions: SharedMediaPositions? = null,
     /** Otevřený kalendář médií po dnech; `null` = zavřený. */
     val mediaCalendar: MediaCalendarState? = null,
     /** Člen s otevřenou nabídkou akcí; `null` = nabídka není. */

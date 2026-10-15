@@ -379,8 +379,10 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 
 - ~~Skok na datum~~ — hotovo (kalendář v hledání v konverzaci; `docs/poznatky/konverzace-pohyb.md`,
   „Skok na datum"). ~~Kalendář médií ve sdílených médiích (`getChatMessageCalendar`)~~ — hotovo
-  (`docs/poznatky/profil-chatu.md`, „Kalendář médií"). Zbývá rychlé rolování po pozicích
-  (`getChatSparseMessagePositions`) a ověřit dotahování starších měsíců v chatu s delší historií.
+  (`docs/poznatky/profil-chatu.md`, „Kalendář médií"). ~~Rychlé rolování po pozicích
+  (`getChatSparseMessagePositions`)~~ — hotovo v Médiích (`docs/poznatky/profil-chatu.md`,
+  „Rychlé rolování v Médiích"). Zbývá ověřit dotahování starších měsíců kalendáře a tik
+  rychlého rolování v chatu s delší historií; v konverzaci API nejde (prázdný filtr nebere).
 - ~~Instant View článků~~ — hotovo (čtečka v aplikaci; `docs/poznatky/typy-zprav.md`, „Instant View").
   Zbývá přehrávání videa ze stránky a vložený obsah (mapy, embedy, propojené stránky).
 - ~~Checklisty: zobrazit, vytvořit, doplnit, odškrtnout a upravit, servisní zprávy se jménem~~ —

@@ -837,6 +837,12 @@ private fun TabContent(
                     contentPadding = contentPadding,
                     onOpen = viewModel::openMedia,
                     onLoadMore = { viewModel.loadMoreShared(tab.kind) },
+                    positions = state.mediaPositions,
+                    onJump = { target -> viewModel.jumpShared(tab.kind, target.messageId, target.position) },
+                    scrollTo = data?.scrollTo,
+                    onScrolledTo = { viewModel.consumeSharedScroll(tab.kind) },
+                    onLoadNewer = { viewModel.loadNewerShared(tab.kind) },
+                    canLoadNewer = data?.canLoadNewer == true,
                 )
 
                 SharedMediaKind.Files -> SharedFilesList(

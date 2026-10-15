@@ -808,3 +808,43 @@ zavře kalendář a otevře na ní prohlížeč, ve kterém se listuje dál jako
 - **Ověřeno na emulátoru** v chatu s Notifikátorem (67 médií od 20. 9.): říjen a září s náhledy,
   ťuknutí na 10. 10. otevřelo prohlížeč na fotce „sobota 19:21 · 66 z 67". **Dotahování starších
   měsíců ověřené NENÍ** — celá historie se vešla do první stránky.
+
+#### Rychlé rolování v Médiích
+
+U víc než 90 médií (`offersFastScroll`) má mřížka Médií u pravého okraje úchyt
+(`MediaFastScroller`): tahem jde dojet kamkoli do historie, bublina ukazuje měsíc pod prstem
+a puštění na to místo skočí. Pozice dává `getChatSparseMessagePositions` (`sharedMediaPositions`,
+`SharedMediaPositions`, testy `SharedMediaPositionsTest`), skok načte okno
+(`SharedMediaTab.withWindow`, testy v `SharedMediaTabTest`).
+
+- **Jen pro sdílený obsah, ne pro konverzaci.** API nebere prázdný filtr
+  (`searchMessagesFilterEmpty` je výslovně nepodporovaný) — je stavěné pro „Shared Media scroll".
+- **Pozice jsou ŘÍDKÉ**: server vydá nejvýš 2000 bodů po celé historii (pořadí od nejnovější,
+  id, datum). Úchyt i bublina z nich čtou bez načítání; puštění skočí na nejbližší bod. Poloha
+  úchytu při běžném rolování je odhad — mezi body se interpoluje podle id
+  (`estimatePosition`), id zpráv rostou s časem.
+- **Poloha je podíl v CELÉ historii** (`totalCount`), ne v načteném seznamu — ten je jen malý
+  kus a úchyt by s každou stránkou poskočil.
+- **Skok načte okno, jako skok na zprávu v konverzaci**: `searchChatMessages` se záporným
+  `offset` vrátí cílovou zprávu, 15 novějších nad ní a zbytek stránky starších. Seznam se tím
+  NAHRADÍ; ke starším se pokračuje jako vždy, k novějším dotahováním při rolování nahoru
+  (`withNewerPage`, konec = stránka bez novějších). Blízko začátku (pozice < 15) se jen načte
+  seznam od nejnovější. Limit stránky musí být větší než `-offset`, jinak by TDLib nevrátil
+  nic staršího.
+- **Dotahování novějších se zakládá znovu s každou stránkou** (`LaunchedEffect` klíčovaný
+  první dlaždicí a `canLoadNewer`) a hned se ptá, jestli je mřížka pořád u začátku. Dokud hlídal
+  jen ZMĚNU „u začátku", zůstala mřížka po rychlém rolování nahoře i po dotažení a další stránka
+  se nenačetla (první pokus na emulátoru).
+- **Dokud okno k nejnovější nesahá, mřížka si nechá zbytek tahu i hodu nahoru**
+  (`NestedScrollConnection` kolem mřížky). Jinak u začátku okna, než novější dorazí, rozbalil
+  hlavičku profilu, další tahy šly po ní a dotahování se zastavilo uprostřed historie (druhý
+  pokus na emulátoru). Hlavička se rozbalí až nad nejnovější fotkou.
+- **Dotyk bere jen úchyt**, ne pruh přes celou výšku: překrývající se sourozenci si dotyk
+  nedělí, takže pruh by u pravého okraje mřížku přestal rolovat i ťukat. **Úchyt je vidět jen
+  při rolování a tažení** (a 1,5 s po něm); trvale by ležel přes pravý sloupec.
+- **Při tažení tiká s každým novým měsícem** (`tick`, procházení po dílcích).
+- **Ověřeno na emulátoru** v kanálu se 181 médii: úchyt při rolování, bublina „September 2026"
+  při tažení, skok doprostřed (prohlížeč pak ukázal „62 of 181" z 1. října), skok na konec
+  (neúplná poslední řada se zaobleným rohem) a rolování odtud nahoru přes celou historii až
+  k nejnovějším. **Neověřeno**: tik při změně měsíce (kanál má média z jediného měsíce)
+  a dlouhá historie přes roky; iOS jen přeložené.
