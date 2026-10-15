@@ -60,6 +60,10 @@ class VideoQualitiesTest {
         assertEquals(p720, pickVideoQuality(qualities, VideoQualityChoice.Auto, Int.MAX_VALUE, originalDownloaded = false))
         // Stažený původní soubor pořád vyhrává — nic nestojí.
         assertEquals(original720, pickVideoQuality(qualities, VideoQualityChoice.Auto, Int.MAX_VALUE, originalDownloaded = true))
+        // Kde přepočítaná streamovat nejde (iOS), hraje na Wi-Fi původní — ten se rozběhne hned.
+        assertEquals(original720, pickVideoQuality(qualities, VideoQualityChoice.Auto, Int.MAX_VALUE, originalDownloaded = false, convertedStreams = false))
+        // Strop podle sítě ale platí i tam: na datech je menší soubor důležitější než rozběhnutí.
+        assertEquals(p480, pickVideoQuality(qualities, VideoQualityChoice.Auto, 480, originalDownloaded = false, convertedStreams = false))
         // Ruční volba původního platí dál.
         assertEquals(original720, pickVideoQuality(qualities, VideoQualityChoice.Original, Int.MAX_VALUE, originalDownloaded = false))
     }

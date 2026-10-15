@@ -45,6 +45,8 @@ actual fun VideoSurface(player: VideoPlayer, modifier: Modifier) = Unit
 
 actual val videoStreamingSupported: Boolean = false
 
+actual val videoFragmentedStreamingSupported: Boolean = false
+
 private object NoPictureInPicture : PictureInPicture {
     override val supported = false
     override val active = false

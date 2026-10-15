@@ -59,7 +59,8 @@ fun videoQualities(
  *   ji dělá pro streamování a rozbíhá se hned, kdežto původní soubor je, jak ho odesílatel
  *   nahrál: 655MB video s indexem na konci a zvukem daleko od obrazu se rozbíhalo přes minutu.
  *   Rozdíl v obraze je při stejném rozlišení nepostřehnutelný; nižší rozlišení se na Wi-Fi
- *   nebere, to už by vidět bylo. Původní zůstává v nabídce.
+ *   nebere, to už by vidět bylo. Původní zůstává v nabídce. **Jen kde přepočítaná jde streamovat**
+ *   ([convertedStreams], na iOS ne): jinak by se na ni čekalo celou, kdežto původní hraje hned.
  * - **Už stažený původní soubor vyhrává** v automatice vždycky: nic nestojí a je nejlepší.
  * - **Při shodě rozměrů přepočítaná před původní**: na stropu se šetří data a přepočítaná bývá
  *   menší (původní bývá z telefonu s vysokým datovým tokem).
@@ -73,13 +74,16 @@ fun pickVideoQuality(
     choice: VideoQualityChoice,
     autoMaxLines: Int,
     originalDownloaded: Boolean,
+    convertedStreams: Boolean = true,
 ): VideoQuality {
     val original = qualities.first { it.isOriginal }
     return when (choice) {
         VideoQualityChoice.Original -> original
         VideoQualityChoice.Auto -> when {
             originalDownloaded -> original
-            autoMaxLines == Int.MAX_VALUE -> qualities.firstOrNull { !it.isOriginal && it.lines == original.lines } ?: original
+            autoMaxLines == Int.MAX_VALUE -> qualities
+                .firstOrNull { convertedStreams && !it.isOriginal && it.lines == original.lines }
+                ?: original
             else -> bestUpTo(qualities, autoMaxLines)
         }
         is VideoQualityChoice.Lines -> qualities

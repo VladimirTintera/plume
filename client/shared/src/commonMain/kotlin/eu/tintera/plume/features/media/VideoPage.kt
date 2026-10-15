@@ -8,6 +8,7 @@ import eu.tintera.plume.core.video.VideoQualityChoice
 import eu.tintera.plume.core.video.pickVideoQuality
 import eu.tintera.plume.core.video.videoDecoder
 import eu.tintera.plume.core.video.videoQualities
+import eu.tintera.plume.core.video.videoFragmentedStreamingSupported
 import kotlinx.coroutines.flow.first
 import eu.tintera.plume.core.ui.longPress
 import eu.tintera.plume.resources.media_seek_back
@@ -247,8 +248,10 @@ internal fun VideoPage(
     }
     // Strop podle sítě a nastavení automatického stahování; mění se i za běhu (Wi-Fi → data).
     val autoMaxLines = LocalAutoDownload.current.maxVideoLines
-    val autoPick = pickVideoQuality(qualities, VideoQualityChoice.Auto, autoMaxLines, originalReady)
-    val chosen = pickVideoQuality(qualities, qualityChoice, autoMaxLines, originalReady)
+    // Přepočítané kvality jsou fragmentované MP4; to iOS streamovat neumí a čekalo by se na celé.
+    val convertedStreams = videoStreamingSupported && videoFragmentedStreamingSupported
+    val autoPick = pickVideoQuality(qualities, VideoQualityChoice.Auto, autoMaxLines, originalReady, convertedStreams)
+    val chosen = pickVideoQuality(qualities, qualityChoice, autoMaxLines, originalReady, convertedStreams)
     val chosenId = chosen.fileId
     // Co se hraje a proč — jen u zobrazené stránky, prohlížeč skládá i sousedy.
     LaunchedEffect(chosenId, isCurrent) {
@@ -329,11 +332,13 @@ internal fun VideoPage(
             )
         },
         /*
-         * Streamování: přehrát rozestavěný soubor, místo aby se čekalo na celý. Jde to, jen když
-         * má video index na začátku (`supportsStreaming` od serveru) a když to platforma umí —
-         * na iOS zatím ne. Přepočítané kvality vyrábí server pro streamování, takže vždycky.
+         * Streamování: přehrát rozestavěný soubor, místo aby se čekalo na celý. Původní soubor
+         * jen s `supportsStreaming` od serveru. Přepočítané kvality vyrábí server pro streamování
+         * (fragmentované MP4), takže vždycky — kde je platforma umí
+         * ([videoFragmentedStreamingSupported], iOS ne).
          */
-        streamable = streaming && videoStreamingSupported && (video.supportsStreaming || !chosen.isOriginal),
+        streamable = streaming && videoStreamingSupported &&
+            if (chosen.isOriginal) video.supportsStreaming else videoFragmentedStreamingSupported,
         // Přehrávač si řekne o `moov` atom na konci souboru; bez přesunu stahování by na něj
         // čekal marně. Lambda nese `fileId` té kvality, pro kterou zdroj vznikl.
         requestFrom = { offset -> scope.launch { repository.downloadFrom(chosenId, offset) } },

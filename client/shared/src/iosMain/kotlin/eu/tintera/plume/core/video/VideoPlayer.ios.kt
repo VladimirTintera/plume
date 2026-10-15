@@ -17,6 +17,8 @@ import platform.AVFoundation.AVLayerVideoGravityResizeAspect
 import platform.AVFoundation.AVPlayer
 import platform.AVFoundation.AVPlayerItem
 import platform.AVFoundation.AVPlayerItemStatusFailed
+import platform.AVFoundation.AVURLAsset
+import platform.AVFoundation.resourceLoader
 import platform.AVFoundation.asset
 import platform.AVFoundation.status
 import platform.AVFoundation.AVPlayerLayer
@@ -58,51 +60,84 @@ actual class VideoPlayer {
     private var muted = false
 
     /**
-     * Pozorovatel konce přehrávání pro smyčku.
+     * Pozorovatel konce přehrávání: smyčka (GIF) a [isEnded].
      *
      * `AVPlayer` opakování neumí sám a `AVPlayerLooper` by znamenal `AVQueuePlayer`. Drží se
      * silnou referencí a odhlašuje v [release]: `NSNotificationCenter` si pozorovatele nedrží.
      */
-    private var loopObserver: Any? = null
+    private var endObserver: Any? = null
+
+    /**
+     * Položka dohrála (`AVPlayerItemDidPlayToEndTime`). Dřív se konec odhadoval z pozice u délky,
+     * jenže délku AVPlayer u streamu zjistí až z indexu, který dorazí později: do té doby by
+     * pozastavení u „konce" vypadalo jako dohrání a `play()` by skočil na začátek.
+     */
+    private var reachedEnd = false
+
+    /** Dohrané se pustí znovu (GIF); pamatuje se kvůli obnově položky po chybě v [play]. */
+    private var looping = false
 
     /** `play()` rychlost vrací na 1×, takže se drží tady a zapisuje po každém spuštění. */
     private var speed = 1f
 
+    /**
+     * Zdroj streamu, který právě hraje. `AVAssetResourceLoader` si delegáta drží slabě, takže
+     * silnou referenci musí mít přehrávač — jinak by zmizel uprostřed videa.
+     */
+    private var streamLoader: StreamingResourceLoader? = null
+
     actual fun load(path: String, loop: Boolean, muted: Boolean) {
-        this.muted = muted
-        player.muted = muted
-        player.replaceCurrentItemWithPlayerItem(AVPlayerItem(uRL = NSURL.fileURLWithPath(path)))
-        setLooping(loop)
-    }
-
-    private fun setLooping(loop: Boolean) {
-        loopObserver?.let { NSNotificationCenter.defaultCenter.removeObserver(it) }
-        loopObserver = null
-        if (!loop) return
-        loopObserver = NSNotificationCenter.defaultCenter.addObserverForName(
-            name = AVPlayerItemDidPlayToEndTimeNotification,
-            `object` = player.currentItem,
-            queue = NSOperationQueue.mainQueue,
-        ) { _ ->
-            player.seekToTime(CMTimeMakeWithSeconds(0.0, preferredTimescale = 600))
-            player.play()
-        }
-    }
-
-    /** Odhlásí pozorovatele smyčky. Volá se při uvolnění přehrávače z kompozice. */
-    internal fun release() {
-        loopObserver?.let { NSNotificationCenter.defaultCenter.removeObserver(it) }
-        loopObserver = null
-        player.pause()
+        replaceItem(AVPlayerItem(uRL = NSURL.fileURLWithPath(path)), loop, muted, loader = null)
     }
 
     /**
-     * iOS streamování zatím neumí ([videoStreamingSupported] je `false`), takže se sem volání
-     * nedostane. Kdyby se přesto dostalo, přehraje se, co je na disku — to je pořád lepší než
-     * pád, ale u rozestavěného souboru to skončí dřív.
+     * Streamování: AVPlayer dostane URL s vlastním schématem a o data si říká
+     * [StreamingResourceLoader], který čte rozestavěný soubor TDLib a na chybějící kus počká.
      */
     actual fun loadStreaming(source: StreamingSource, loop: Boolean, muted: Boolean) {
-        load(source.path(), loop = loop, muted = muted)
+        val loader = StreamingResourceLoader(source)
+        val asset = AVURLAsset(uRL = streamingUrl, options = null)
+        asset.resourceLoader.setDelegate(loader, queue = loader.queue)
+        replaceItem(AVPlayerItem(asset = asset), loop, muted, loader)
+    }
+
+    private fun replaceItem(item: AVPlayerItem, loop: Boolean, muted: Boolean, loader: StreamingResourceLoader?) {
+        // Opuštěný zdroj streamu pustí čekající požadavky — jinak by vlákna čekala do limitu.
+        streamLoader?.released = true
+        streamLoader = loader
+        this.muted = muted
+        player.muted = muted
+        looping = loop
+        player.replaceCurrentItemWithPlayerItem(item)
+        observeEnd(item)
+    }
+
+    /** Konec se hlídá na KONKRÉTNÍ položce — nová (jiné video, obnova po chybě) chce nového pozorovatele. */
+    private fun observeEnd(item: AVPlayerItem) {
+        val loop = looping
+        endObserver?.let { NSNotificationCenter.defaultCenter.removeObserver(it) }
+        reachedEnd = false
+        endObserver = NSNotificationCenter.defaultCenter.addObserverForName(
+            name = AVPlayerItemDidPlayToEndTimeNotification,
+            `object` = item,
+            queue = NSOperationQueue.mainQueue,
+        ) { _ ->
+            if (loop) {
+                player.seekToTime(CMTimeMakeWithSeconds(0.0, preferredTimescale = 600))
+                player.play()
+            } else {
+                reachedEnd = true
+            }
+        }
+    }
+
+    /** Odhlásí pozorovatele konce. Volá se při uvolnění přehrávače z kompozice. */
+    internal fun release() {
+        endObserver?.let { NSNotificationCenter.defaultCenter.removeObserver(it) }
+        endObserver = null
+        streamLoader?.released = true
+        streamLoader = null
+        player.pause()
     }
 
     actual fun play() {
@@ -113,7 +148,13 @@ actual class VideoPlayer {
             AVAudioSession.sharedInstance().setActive(true, error = null)
         }
         // Selhaná položka se sama nevzpamatuje; připraví se znovu ze stejného souboru.
-        if (isFailed) player.currentItem?.asset?.let { player.replaceCurrentItemWithPlayerItem(AVPlayerItem(asset = it)) }
+        if (isFailed) {
+            player.currentItem?.asset?.let { asset ->
+                val item = AVPlayerItem(asset = asset)
+                player.replaceCurrentItemWithPlayerItem(item)
+                observeEnd(item)
+            }
+        }
         if (isEnded) seekTo(0)
         player.play()
         if (speed != 1f) player.rate = speed
@@ -122,6 +163,7 @@ actual class VideoPlayer {
     actual fun pause() = player.pause()
 
     actual fun seekTo(positionMs: Long) {
+        reachedEnd = false
         player.seekToTime(CMTimeMakeWithSeconds(positionMs / 1000.0, preferredTimescale = 600))
     }
 
@@ -142,9 +184,9 @@ actual class VideoPlayer {
 
     actual val isPlaying: Boolean get() = player.rate != 0f
 
-    /** AVPlayer „dohráno" nehlásí stavem; pozná se podle pozice u konce při zastaveném přehrávání. */
+    /** AVPlayer „dohráno" nehlásí stavem — nese ho oznámení o konci položky ([reachedEnd]). */
     actual val isEnded: Boolean
-        get() = !isPlaying && durationMs > 0 && positionMs >= durationMs - END_TOLERANCE_MS
+        get() = reachedEnd && !isPlaying
 
     actual val isFailed: Boolean
         get() = player.currentItem?.status == AVPlayerItemStatusFailed
@@ -203,16 +245,18 @@ private class PlayerLayerView(player: AVPlayer) : UIView(frame = CGRectMake(0.0,
     }
 }
 
-private const val END_TOLERANCE_MS = 100L
+/** iOS streamuje přes `AVAssetResourceLoaderDelegate` ([StreamingResourceLoader]). */
+actual val videoStreamingSupported: Boolean = true
 
 /**
- * iOS zatím rozestavěný soubor přehrát neumí.
- *
- * `AVPlayer` by na to potřeboval `AVAssetResourceLoaderDelegate` — vlastní zdroj dat, který
- * odpovídá na požadavky na rozsahy bajtů. Je to samostatný kus práce; do té doby se na iOS
- * čeká na celý soubor jako dosud.
+ * Fragmentované MP4 (přepočítané kvality) AVPlayer přes vlastní zdroj streamovat neumí: `mehd`
+ * nečte, délku skládá z přečtených fragmentů (hodinové video hlásilo 0:45, rostla s přehráváním)
+ * a skok za ně skončí koncem videa. Doplnění délek do `mvhd`/`tkhd`/`mdhd` hlavičky délku
+ * změnilo, ale neseděla (o 2 min víc) a skok se ověřit nepodařilo. Pořádné řešení je HLS
+ * (`AlternativeVideo.hlsFile`) — jenže segmenty HLS AVPlayer přes vlastní schéma nebere, chtělo
+ * by to místní HTTP server. Do té doby se přepočítaná kvalita na iOS stahuje celá.
  */
-actual val videoStreamingSupported: Boolean = false
+actual val videoFragmentedStreamingSupported: Boolean = false
 
 /**
  * AVPlayer umí h264 a HEVC na každém podporovaném iPhonu; AV1 jen od čipu A17 Pro / M3, a zjistit
