@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.GifItem
+import eu.tintera.plume.core.telegram.MediaReplacement
 import eu.tintera.plume.resources.conversation_content_not_allowed
 import androidx.lifecycle.ViewModel
 import co.touchlab.kermit.Logger
@@ -462,7 +464,21 @@ internal class ConversationComposer(
             state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
             return
         }
-        state.update { it.copy(editReplacement = allowed) }
+        state.update { it.copy(editReplacement = MediaReplacement.File(allowed)) }
+    }
+
+    /**
+     * GIF z výběru jako náhrada GIFu ve zprávě. Jen u zprávy s GIFem ([ReplaceMedia.Gif]) a kde
+     * chat GIFy přijme (TDLib je vede s samolepkami pod „ostatními zprávami") — jinak by to
+     * server odmítl až při uložení.
+     */
+    fun replaceEditGif(gif: GifItem) {
+        if (state.value.editReplace != ReplaceMedia.Gif) return
+        if (!state.value.content.stickers) {
+            state.update { it.copy(notice = UiText(Res.string.conversation_content_not_allowed)) }
+            return
+        }
+        state.update { it.copy(editReplacement = MediaReplacement.Gif(gif)) }
     }
 
     /** Ponechat původní přílohu — výměna se zahodí, úprava popisku běží dál. */
@@ -479,7 +495,7 @@ internal class ConversationComposer(
         text: ComposedText,
         linkOptions: LinkPreviewOptions,
         replace: ReplaceMedia? = null,
-        replacement: OutgoingAttachment? = null,
+        replacement: MediaReplacement? = null,
     ) {
         // Přepnutí z jedné úpravy do druhé nesmí přepsat odložený koncept textem první úpravy.
         if (state.value.editing == null) {

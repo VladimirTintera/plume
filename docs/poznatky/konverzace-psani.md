@@ -499,8 +499,8 @@ text, tlačítko je fajfka a potvrzení volá `editMessageText`.
   Nová příloha se v hlavičce ukáže („Nová fotka", „Nový soubor: …") a vymění se až uložením,
   i s popiskem z pole; šipka zpět ji zahodí a úprava popisku běží dál.
   - **Nabízí se jen tam, kde to server dovolí** (`MessageProperties.canEditMedia` →
-    `MessageActions.canEditMedia`, čte se s nabídkou nad zprávou) a jen u fotky, videa, souboru
-    a skladby (`replaceableMedia`). Mizející zprávu server vyměnit nedovolí.
+    `MessageActions.canEditMedia`, čte se s nabídkou nad zprávou) a jen u fotky, videa, souboru,
+    skladby a GIFu (`replaceableMedia`). Mizející zprávu server vyměnit nedovolí.
   - **Fotka a video se mění jen fotkou nebo videem, soubor souborem** (`ReplaceMedia.accepts`):
     v albu server dovolí právě záměnu fotky za video, a sponka podle druhu otevře správný výběr.
     Co nesedí nebo co chat nepřijme, se neuloží a ohlásí.
@@ -520,6 +520,15 @@ text, tlačítko je fajfka a potvrzení volá `editMessageText`.
   - Ověřeno na emulátoru (API 37): Upravit → sponka → galerie v sheetu nad úpravou, ťuknutí
     na fotku zavřelo sheet a v hlavičce stálo „Nová fotka", po uložení byla ve zprávě nová
     fotka s „upraveno". Soubor a skladba jdou dál systémovým výběrem.
+  - **GIF se mění GIFem z výběru GIFů** (`ReplaceMedia.Gif` → sheet výběru jen s GIFy,
+    `modes = listOf(Gifs)` jako ve formuláři ankety). Náhrada proto není jen soubor z telefonu:
+    `MediaReplacement` je buď `File` (nahraje se), nebo `Gif` — ten na serveru už je a do
+    `editMessageMedia` jde jen jeho id (`InputFileId`), stejně jako při odeslání z výběru.
+    Soubor z telefonu GIF nenahradí (`ReplaceMedia.Gif.accepts` = `false`) a GIF jde jen tam,
+    kde chat přijme „ostatní zprávy" (`ContentAccess.stickers`).
+  - Ověřeno na emulátoru: GIF poslaný z výběru → Upravit → sponka → výběr GIFů, ťuknutí na jiný
+    → „Nový GIF" v hlavičce, po uložení nový GIF s „upraveno". **GIF poslaný přes inline bota
+    (`via @gif`) ověřený není** — jestli u něj server výměnu dovolí, rozhoduje `canEditMedia`.
 - **Po „Upravit" se pole samo nefokusuje.** Že se něco stalo, ukazuje karta s původním textem
   a fajfka místo odeslání; klávesnici si uživatel vyvolá ťuknutím do pole. Dřív si pole fokus
   a klávesnici vyžádalo samo (uživatel si to nepřál).

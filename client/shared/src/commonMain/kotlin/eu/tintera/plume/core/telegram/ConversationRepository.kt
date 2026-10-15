@@ -768,13 +768,13 @@ interface ConversationRepository {
     ): Result<Unit>
 
     /**
-     * Vymění přílohu zprávy za [attachment] a s ní uloží popisek (`editMessageMedia`) — popisek
+     * Vymění přílohu zprávy za [replacement] a s ní uloží popisek (`editMessageMedia`) — popisek
      * je součást nového obsahu, prázdný ho odebere. Jen u zprávy s [MessageActions.canEditMedia].
      */
     suspend fun editMedia(
         chatId: Long,
         messageId: Long,
-        attachment: OutgoingAttachment,
+        replacement: MediaReplacement,
         caption: String,
         formats: List<FormatSpan> = emptyList(),
     ): Result<Unit>
@@ -1002,6 +1002,16 @@ sealed interface AttachmentMode {
 
     /** Odeslat jako nekomprimovaný soubor (v plné kvalitě a bez úprav). */
     data object AsFile : AttachmentMode
+}
+
+/**
+ * Čím se při úpravě zprávy vymění její příloha: soubor z telefonu, který se nahraje, nebo GIF
+ * z výběru, který na serveru už je (posílá se jen jeho id, jako při odeslání z výběru).
+ */
+sealed interface MediaReplacement {
+    data class File(val attachment: OutgoingAttachment) : MediaReplacement
+
+    data class Gif(val gif: GifItem) : MediaReplacement
 }
 
 sealed interface OutgoingAttachment {

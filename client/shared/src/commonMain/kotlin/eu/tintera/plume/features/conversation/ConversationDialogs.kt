@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.menu_select
+import eu.tintera.plume.core.settings.ExpressionMode
+import eu.tintera.plume.core.telegram.MediaReplacement
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -52,6 +55,9 @@ internal class ConversationSheets {
 
     /** Galerie pro výměnu fotky nebo videa při úpravě zprávy (jen kde je vestavěná). */
     var replacementPicker by mutableStateOf(false)
+
+    /** Výběr GIFů pro výměnu GIFu při úpravě zprávy. */
+    var gifReplacement by mutableStateOf(false)
     var locationPicker by mutableStateOf(false)
     var livePeriod by mutableStateOf(false)
 
@@ -125,7 +131,7 @@ internal fun ConversationDialogs(
     if (sheets.replacementPicker) {
         MediaPickerSheet(
             selection = replacementSelection,
-            pickedPaths = listOfNotNull(state.editReplacement?.path),
+            pickedPaths = listOfNotNull((state.editReplacement as? MediaReplacement.File)?.attachment?.path),
             allowPhotos = state.content.photos,
             allowVideos = state.content.videos,
             onPicked = viewModel::replaceEditMedia,
@@ -207,6 +213,27 @@ internal fun ConversationDialogs(
                 liveLocation.request { point -> viewModel.shareLiveLocation(point, period) }
             },
             onDismiss = { sheets.livePeriod = false },
+        )
+    }
+
+    if (sheets.gifReplacement) {
+        // Tentýž výběr jako při psaní, jen s GIFy: GIF se vyměňuje zase GIFem.
+        StickerPickerSheet(
+            mode = ExpressionMode.Gifs,
+            onModeChange = {},
+            stickersAvailable = true,
+            draft = TextFieldValue(),
+            onDraftEdit = {},
+            onPick = {},
+            chatId = viewModel.chatId,
+            onPickGif = { gif ->
+                sheets.gifReplacement = false
+                viewModel.replaceEditGif(gif)
+            },
+            onDismiss = { sheets.gifReplacement = false },
+            modes = listOf(ExpressionMode.Gifs),
+            // GIF se tu vybírá, neposílá — odejde až s uložením úpravy.
+            pickLabel = Res.string.menu_select,
         )
     }
 

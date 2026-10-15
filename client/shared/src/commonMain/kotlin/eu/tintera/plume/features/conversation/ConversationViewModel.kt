@@ -636,6 +636,7 @@ class ConversationViewModel(
     fun cancelEdit() = composer.cancelEdit()
     fun replaceEditMedia(picked: List<OutgoingAttachment>) = composer.replaceEditMedia(picked)
     fun keepEditMedia() = composer.keepEditMedia()
+    fun replaceEditGif(gif: GifItem) = composer.replaceEditGif(gif)
     fun clearReply() = composer.clearReply()
 
     /** Přílohy a co se posílá mimo text: samolepky, GIFy, poloha, kontakt, soubory — viz [ConversationAttachments]. */

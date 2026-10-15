@@ -486,6 +486,7 @@ internal fun ConversationBottomBar(
                         ReplaceMedia.Visual ->
                             if (embeddedMediaPicker) sheets.replacementPicker = true else replacementPicker.pickMedia()
                         ReplaceMedia.File -> replacementPicker.pickDocument()
+                        ReplaceMedia.Gif -> sheets.gifReplacement = true
                     }
                 },
                 onKeep = viewModel::keepEditMedia,

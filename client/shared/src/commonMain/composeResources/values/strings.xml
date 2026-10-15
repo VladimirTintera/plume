@@ -584,6 +584,7 @@
     <string name="conversation_edit_keep_media">Keep the original attachment</string>
     <string name="conversation_edit_new_photo">New photo</string>
     <string name="conversation_edit_new_video">New video</string>
+    <string name="conversation_edit_new_gif">New GIF</string>
     <string name="conversation_edit_new_audio">New track: %1$s</string>
     <string name="conversation_edit_new_file">New file: %1$s</string>
     <string name="conversation_cancel_edit">Cancel the edit</string>

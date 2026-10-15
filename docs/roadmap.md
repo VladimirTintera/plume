@@ -387,8 +387,8 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   hotovo (`docs/poznatky/ankety.md`, „Seznamy úkolů"). Zbývá **ověřit akce s účtem s Premium** —
   testovací účet ho nemá, ověřené je to sondou — a ťuknutím na servisní zprávu skočit na seznam.
 - ~~Výměna média při úpravě zprávy (`editMessageMedia`)~~ — hotovo (`docs/poznatky/konverzace-psani.md`,
-  „Úprava zprávy"). ~~Výměna z vestavěné galerie~~ — hotovo (sheet s jednou položkou). Zbývá
-  výměna GIFu.
+  „Úprava zprávy"). ~~Výměna z vestavěné galerie~~ — hotovo (sheet s jednou položkou).
+  ~~Výměna GIFu~~ — hotovo (GIFem z výběru).
 - ~~Hudba se posílá jako soubor~~ — hotovo (`docs/poznatky/konverzace-psani.md`, „Posílání příloh
   a alb"). Zbývá desktop (JVM značky MP3 nepřečte) a ověřit iOS na zařízení.
 - ~~Ťuknutí na velké animované emoji s efektem pro oba (`clickAnimatedEmojiMessage`,
