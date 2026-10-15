@@ -300,13 +300,20 @@ a `addCall` pro každý hovor, jakmile vytáčí nebo zvoní. Pod Androidem 14 k
 `ConnectionService`, od 14 přes transakční API; obojí `self_mng` účet (`MANAGE_OWN_CALLS`).
 
 - **Stav se zrcadlí z `CallRepository`**: spojení → `setActive` (odchozí) / `answer`
-  (příchozí přijatý v aplikaci), konec → `disconnect` (`LOCAL`, u selhání `ERROR`).
+  (příchozí přijatý v aplikaci), konec → `disconnect` (`LOCAL`, u selhání `REMOTE`).
   Opačně: `onAnswer` (auto, hodinky) → `accept`, `onDisconnect` → `hangUp`,
   `onSetInactive` / `onSetActive` → `setHeld`.
 - **GSM hovor hovor Plume podrží** (`ACTIVE → ON_HOLD`, `onSetInactive` → mikrofon i přehrávání
   ntgcalls stojí, „Podrženo"). **Po GSM hovoru ho systém sám NEVRÁTÍ** — zůstal by viset
   podržený. Vrací ho uživatel tlačítkem „Pokračovat v hovoru" → `CallControlScope.setActive`
   (`CallRepository.resume` přes `setResumeHandler`), jako u systémového telefonu.
+- **`disconnect` bere jen `LOCAL`, `REMOTE`, `REJECTED` a `MISSED`** (`CallControl.disconnect`),
+  s jinou příčinou vyhodí — a `runCatching` kolem to dřív tiše spolkl. Selhání se odhlašovalo
+  jako `ERROR`, takže hovor, který vypršel (protějšek nedostupný, `CallStateError` „Call
+  timeout expired" po 20 s), zůstal v Telecomu `DIALING`. Další hovor systém odmítl
+  („Cannot place a call as there is already another call connecting", `CallSequencingController`
+  v logu) a Plume jel bez Telecomu. Viset zůstane v `dumpsys telecom` pod `mCalls:`.
+  Ověřeno na emulátoru (API 36): po opravě je `mCalls` po vypršení prázdné a další hovor projde.
 - **Výstupy a volbu vede Telecom** (`TelecomAudioRoutes`: `availableEndpoints`,
   `currentCallEndpoint`, `requestEndpointChange`), **systému ji ale říká Plume** — viz
   „Kdo říká systému, kam jde zvuk". `CallAudioRouter` zůstává jako záloha, když Telecom
