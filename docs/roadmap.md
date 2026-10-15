@@ -375,8 +375,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - ~~Seznamy vyhozených a omezených členů~~ — hotovo (úprava skupiny → Členové;
   `docs/poznatky/profil-chatu.md`, „Omezení a vyhození"). Zbývá ověřit kanál.
 - ~~Při mazání zprávy člena „smazat vše od něj" a „nahlásit spam"~~ — hotovo i s vyhozením
-  (`docs/poznatky/konverzace-akce.md`, „Smazání cizích zpráv správcem"). Zbývá smazat reakce
-  člena (`deleteAllRecentMessageReactionsFromSender`) a ověřit nahlášení spamu.
+  (`docs/poznatky/konverzace-akce.md`, „Smazání cizích zpráv správcem"). ~~Smazat reakce
+  člena (`deleteAllRecentMessageReactionsFromSender`)~~ — hotovo (tamtéž). Zbývá ověřit
+  nahlášení spamu.
 - ~~Odepnout všechny zprávy (`unpinAllChatMessages`, `unpinAllForumTopicMessages`)~~ — hotovo
   (sheet připnutých → „Odepnout vše"). Zbývá ověřit v tématu skupiny.
 - ~~Smazat skupinu nebo kanál pro všechny (`deleteChat`)~~ — hotovo (konec úpravy skupiny).
@@ -435,8 +436,8 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   efekt od protějšku a „sleduje animaci…" druhým účtem a zvuk emoji (`AnimatedEmoji.sound`).
 - ~~Napovídání hashtagů a nedávných inline botů (`searchHashtags`, `getRecentInlineBots`)~~ —
   hotovo (`docs/poznatky/konverzace-psani.md`, „Napovídání hashtagů a nedávných inline botů").
-  Zbývá odebrat hashtag z historie (`removeRecentHashtag`, podržením v panelu) a ověřit boty
-  ve skupině (před členy).
+  ~~Odebrat hashtag z historie (`removeRecentHashtag`, podržením v panelu)~~ — hotovo (tamtéž).
+  Zbývá ověřit boty ve skupině (před členy).
 - ~~Ankety: smazat možnost (`deletePollOption`)~~ — hotovo i s přidáváním odpovědí ve formuláři
   (`docs/poznatky/ankety.md`). Statistika hlasů (`getPollVoteStatistics`) zbývá — vydá ji jen
   server u větších anket a je to tentýž graf (`StatisticalGraph`) jako statistiky kanálu níž,

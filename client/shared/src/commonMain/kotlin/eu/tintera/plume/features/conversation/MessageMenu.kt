@@ -8,6 +8,7 @@ import eu.tintera.plume.core.telegram.ModerationChoice
 import eu.tintera.plume.resources.delete_moderation_sender
 import eu.tintera.plume.resources.delete_moderation_report_spam
 import eu.tintera.plume.resources.delete_moderation_delete_all
+import eu.tintera.plume.resources.delete_moderation_delete_reactions
 import eu.tintera.plume.resources.delete_moderation_ban
 import eu.tintera.plume.core.telegram.customEmojiIdOf
 import eu.tintera.plume.core.ui.CustomEmojiIcon
@@ -874,7 +875,8 @@ private val CUSTOM_REACTION_OPTION_SIZE = 28.dp
  * Když server dovoluje jen jednu z nich, volba se nenabízí a text rovnou říká, co se stane.
  *
  * **Správce, který maže cizí zprávy jednoho člena**, dostane pod textem volby navíc
- * ([PendingDelete.moderation]): nahlásit spam, smazat všechny zprávy autora a vyhodit ho. Jsou
+ * ([PendingDelete.moderation]): nahlásit spam, smazat všechny zprávy autora, smazat jeho nedávné
+ * reakce a vyhodit ho. Jsou
  * zaškrtávátka, ne další tlačítka — kombinují se, jako u oficiálních klientů. Dočítají se až
  * po otevření dialogu, takže do něj přibudou se zpožděním (`animateContentSize`).
  */
@@ -892,6 +894,7 @@ fun MessageDeleteDialog(
     val revoke = if (choice) forEveryone else pending.canDeleteForAll
     var reportSpam by rememberSaveable { mutableStateOf(false) }
     var deleteAll by rememberSaveable { mutableStateOf(false) }
+    var deleteReactions by rememberSaveable { mutableStateOf(false) }
     var ban by rememberSaveable { mutableStateOf(false) }
     val rights = pending.moderation?.rights
 
@@ -957,6 +960,11 @@ fun MessageDeleteDialog(
                         if (rights.canDeleteAll) {
                             CheckRow(stringResource(Res.string.delete_moderation_delete_all), deleteAll) { deleteAll = it }
                         }
+                        if (rights.canDeleteReactions) {
+                            CheckRow(stringResource(Res.string.delete_moderation_delete_reactions), deleteReactions) {
+                                deleteReactions = it
+                            }
+                        }
                         if (rights.canBan) {
                             CheckRow(stringResource(Res.string.delete_moderation_ban), ban) { ban = it }
                         }
@@ -971,6 +979,7 @@ fun MessageDeleteDialog(
                 } else {
                     ModerationChoice(
                         deleteAll = deleteAll && rights.canDeleteAll,
+                        deleteReactions = deleteReactions && rights.canDeleteReactions,
                         reportSpam = reportSpam && rights.canReportSpam,
                         ban = ban && rights.canBan,
                     )
