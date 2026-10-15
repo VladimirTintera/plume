@@ -884,6 +884,7 @@
     <string name="content_paid">Placený obsah</string>
     <string name="call_start">Zavolat</string>
     <string name="call_bar_calling">Vytáčím…</string>
+    <string name="call_bar_ringing">Vyzvání…</string>
     <string name="call_bar_connecting">Spojuji…</string>
     <string name="call_bar_ended">Hovor skončil</string>
     <string name="call_bar_dropped">Hovor se přerušil</string>

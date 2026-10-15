@@ -300,13 +300,20 @@ a `addCall` pro každý hovor, jakmile vytáčí nebo zvoní. Pod Androidem 14 k
 `ConnectionService`, od 14 přes transakční API; obojí `self_mng` účet (`MANAGE_OWN_CALLS`).
 
 - **Stav se zrcadlí z `CallRepository`**: spojení → `setActive` (odchozí) / `answer`
-  (příchozí přijatý v aplikaci), konec → `disconnect` (`LOCAL`, u selhání `ERROR`).
+  (příchozí přijatý v aplikaci), konec → `disconnect` (`LOCAL`, u selhání `REMOTE`).
   Opačně: `onAnswer` (auto, hodinky) → `accept`, `onDisconnect` → `hangUp`,
   `onSetInactive` / `onSetActive` → `setHeld`.
 - **GSM hovor hovor Plume podrží** (`ACTIVE → ON_HOLD`, `onSetInactive` → mikrofon i přehrávání
   ntgcalls stojí, „Podrženo"). **Po GSM hovoru ho systém sám NEVRÁTÍ** — zůstal by viset
   podržený. Vrací ho uživatel tlačítkem „Pokračovat v hovoru" → `CallControlScope.setActive`
   (`CallRepository.resume` přes `setResumeHandler`), jako u systémového telefonu.
+- **`disconnect` bere jen `LOCAL`, `REMOTE`, `REJECTED` a `MISSED`** (`CallControl.disconnect`),
+  s jinou příčinou vyhodí — a `runCatching` kolem to dřív tiše spolkl. Selhání se odhlašovalo
+  jako `ERROR`, takže hovor, který vypršel (protějšek nedostupný, `CallStateError` „Call
+  timeout expired" po 20 s), zůstal v Telecomu `DIALING`. Další hovor systém odmítl
+  („Cannot place a call as there is already another call connecting", `CallSequencingController`
+  v logu) a Plume jel bez Telecomu. Viset zůstane v `dumpsys telecom` pod `mCalls:`.
+  Ověřeno na emulátoru (API 36): po opravě je `mCalls` po vypršení prázdné a další hovor projde.
 - **Výstupy a volbu vede Telecom** (`TelecomAudioRoutes`: `availableEndpoints`,
   `currentCallEndpoint`, `requestEndpointChange`), **systému ji ale říká Plume** — viz
   „Kdo říká systému, kam jde zvuk". `CallAudioRouter` zůstává jako záloha, když Telecom
@@ -483,7 +490,16 @@ vlastníka režimu. U hovoru přes `CallsManager` (Jetpack core-telecom) Telecom
   (ověřeno: s `setSilent` zůstal zhasnutý telefon zhasnutý a jen zvonil). Zvuk kanálu po
   založení změnit nejde, proto nový kanál bez zvuku a vibrací.
 - **Odchozí hovor má tón protistrany** (`ToneGenerator.TONE_SUP_RINGTONE` na
-  `STREAM_VOICE_CALL`) do zvednutí. **Jen v režimu hovoru**: mimo něj ho systém pustí jako
+  `STREAM_VOICE_CALL`) do zvednutí — **ale až od chvíle, kdy hovor protějšku došel**
+  (`CallStatePending.isReceived` → `ActiveCall.received`; obrazovka i notifikace „Vytáčím…"
+  → „Vyzvání…"). `Pending` chodí víckrát: napřed jen založený, pak doručený. Dřív tón hrál od
+  prvního `Pending`, takže u nedostupného protějšku (offline, telefon bez pushe) zněl celou
+  dobu, než hovor po 20 s vypršel, a nešlo poznat, jestli na druhé straně opravdu zvoní.
+  Oficiální klient dělá totéž („Waiting…" bez tónu, „Ringing…" s tónem). Ověřeno na
+  emulátoru proti Pixelu 7 Pro: s dostupným protějškem přijde `isReceived` za 0,2–0,7 s;
+  s Plume i Telegramem na protějšku zastaveným (`am force-stop`) 20 s ticho, a po spuštění
+  Plume na protějšku tón naskočil do 2 s. Tón se pozná jako stopa aplikace
+  v `dumpsys media.audio_flinger` (`yes <pid>/`). **Jen v režimu hovoru**: mimo něj ho systém pustí jako
   DTMF a telefon na vibracích ho ztlumí úplně (stopa v `dumpsys media.audio_flinger` měla
   `-inf` dB, v režimu hovoru −29 dB).
 - **Zvuková relace (režim hovoru + výstup) začíná už vytáčením / přijetím**
@@ -675,7 +691,8 @@ klienti: člověk vidí, jak bude vypadat, než zvedne. Android i macOS.
 
 - **Zvoní `DesktopCallRinger`** (protějšek `CallRinger` z Androidu): příchozí hovor ve smyčce,
   i s aktivním oknem; odchozí má tón protistrany (425 Hz, vteřinu zní a čtyři ne, jako
-  `TONE_SUP_RINGTONE`). Desktop nemá systémový vyzváněcí tón, který by šel přehrát, takže
+  `TONE_SUP_RINGTONE`), stejně jako na Androidu až po doručení hovoru protějšku
+  (`ActiveCall.received`). Desktop nemá systémový vyzváněcí tón, který by šel přehrát, takže
   se oba tóny **počítají v kódu** (`CallTones`: stoupající trojzvuk C6–E6–G6 s doznívajícím
   úderem). Hraje je Java Sound (`SourceDataLine`) do výchozího výstupu, nezávisle na
   ntgcalls; po kouscích po desetině vteřiny, aby konec zvonění nečekal na konec periody.

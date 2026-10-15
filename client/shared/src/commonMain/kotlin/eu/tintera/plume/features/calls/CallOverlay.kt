@@ -97,6 +97,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.call_24dp
 import eu.tintera.plume.resources.call_answer
 import eu.tintera.plume.resources.call_bar_calling
+import eu.tintera.plume.resources.call_bar_ringing
 import eu.tintera.plume.resources.call_bar_connecting
 import eu.tintera.plume.resources.call_on_hold
 import eu.tintera.plume.resources.call_resume
@@ -229,7 +230,7 @@ internal fun callStatus(call: ActiveCall): String {
     call.failure?.let { return it.resolve() }
     return when (call.phase) {
         CallPhase.Ringing -> stringResource(if (call.isVideo) Res.string.video_call_incoming else Res.string.call_incoming)
-        CallPhase.Calling -> stringResource(Res.string.call_bar_calling)
+        CallPhase.Calling -> stringResource(if (call.received) Res.string.call_bar_ringing else Res.string.call_bar_calling)
         CallPhase.Connecting, CallPhase.Active -> when {
             // Systém dal přednost jinému hovoru (GSM) — zvuk neteče.
             call.held -> stringResource(Res.string.call_on_hold)

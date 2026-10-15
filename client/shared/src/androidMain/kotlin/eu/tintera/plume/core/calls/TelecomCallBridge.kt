@@ -120,8 +120,12 @@ class TelecomCallBridge(
         calls.active.first { current ->
             val ours = current?.takeIf { it.id == call.id }
             if (ours == null || ours.phase in ENDED) {
-                val cause = if (ours?.phase == CallPhase.Failed) DisconnectCause.ERROR else DisconnectCause.LOCAL
+                // Telecom bere jen LOCAL, REMOTE, REJECTED a MISSED, s jinou příčinou `disconnect`
+                // vyhodí. Dřív tu bylo ERROR: hovor, který vypršel (protějšek nedostupný), tak
+                // v Telecomu zůstal viset jako vytáčený a další hovor systém odmítl.
+                val cause = if (ours?.phase == CallPhase.Failed) DisconnectCause.REMOTE else DisconnectCause.LOCAL
                 runCatching { disconnect(DisconnectCause(cause)) }
+                    .onFailure { logger.w(it) { "Telecom hovor ${call.id} neukončil." } }
                 return@first true
             }
             if (!reported && ours.phase in CONNECTED) {
