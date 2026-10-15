@@ -441,7 +441,7 @@ class ChatProfileViewModel(
      */
     fun toggleMusic(messageId: Long) {
         val audio = _state.value.sharedMessage(messageId)?.media as? MessageMedia.Audio ?: return
-        musicQueue.toggle(chatId, messageId, audio)
+        musicQueue.toggle(chatId, messageId, audio, rememberPosition = _state.value.profile?.isSecretChat != true)
     }
 
     /**
@@ -450,7 +450,9 @@ class ChatProfileViewModel(
      */
     fun toggleVoice(messageId: Long) {
         val voice = _state.value.sharedMessage(messageId)?.media as? MessageMedia.VoiceNote ?: return
-        voicePlayer.toggle(VoiceKey(chatId, messageId)) {
+        // Pozice v dlouhé hlasovce se pamatuje jako v konverzaci, v tajném chatu ne.
+        val secret = _state.value.profile?.isSecretChat == true
+        voicePlayer.toggle(VoiceKey(chatId, messageId), resumeKey = voice.fileKey.takeUnless { secret }) {
             when (val file = files.file(voice.fileId).first { it is FileState.Ready || it is FileState.Failed }) {
                 is FileState.Ready -> file.path
                 is FileState.Failed -> error(file.message)

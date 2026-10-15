@@ -32,6 +32,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -77,6 +80,47 @@ internal class ConversationPlayback(
 
     /** Hrající skladba (i z jiného chatu) pro mini přehrávač v docku: název, interpret, další. */
     val nowPlaying: StateFlow<NowPlaying?> = musicQueue.nowPlaying
+
+    /** Dlouhé nahrávky, u kterých už „Pokračuje od…" zaznělo — po pauze a znovu se neopakuje. */
+    private val announcedResumes = HashSet<ResumedAudio>()
+
+    /**
+     * Hlasovka nebo skladba z TOHOTO chatu se rozehrála z pamatované pozice (viz `audioStart`):
+     * obrazovka ukáže „Pokračuje od 12:34" s „Od začátku". Bez toho by nahrávka hrála uprostřed
+     * bez vysvětlení — stejná úvaha jako u videa.
+     *
+     * Jen na začátku poslechu ([RESUME_NOTICE_WINDOW_MS]): kdo se do chatu vrátí k nahrávce, která
+     * hraje už pět minut, nepotřebuje slyšet, odkud začala.
+     */
+    val resumes = voicePlayer.state
+        .map { playback ->
+            val from = playback?.resumedFromMs ?: return@map null
+            if (playback.key.chatId != chatId || playback.loading) return@map null
+            // Mimo okno i PŘED ním: po „Od začátku" (nebo posunu zpět) nahrávka hraje před pozicí,
+            // od které se pokračovalo, a návrat do chatu by hlášení ukázal znovu.
+            if (playback.positionMs !in from..from + RESUME_NOTICE_WINDOW_MS) return@map null
+            ResumedAudio(playback.key.messageId, from)
+        }
+        .distinctUntilChanged()
+        .filterNotNull()
+        .filter { announcedResumes.add(it) }
+
+    /** „Od začátku" ze snackbaru: tatáž nahrávka hraje dál, jen od nuly. */
+    fun restartAudio(messageId: Long) {
+        voicePlayer.seek(VoiceKey(chatId, messageId), 0f)
+    }
+
+    /**
+     * Pamatovat pozici v nahrávce této zprávy? V tajném chatu ne (po něm nemá v zařízení zůstat
+     * stopa) a u mizející zprávy ne — stejně jako u videa.
+     */
+    private fun remembersPosition(messageId: Long): Boolean {
+        if (state.value.info?.isSecret == true) return false
+        val message = state.value.messages.firstOrNull { it.id == messageId } ?: return false
+        return message.selfDestructType == null
+    }
+
+    private fun resumeKey(messageId: Long, fileKey: String?): String? = fileKey?.takeIf { remembersPosition(messageId) }
 
     /** Pauza / přehrát z mini přehrávače v docku — týká se toho, co právě hraje, ať je to cokoli. */
     fun togglePlaying() {
@@ -143,14 +187,14 @@ internal class ConversationPlayback(
         val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
         (message.media as? MessageMedia.Audio)?.let { audio ->
             state.update { it.copy(soundingVideoNote = null) }
-            musicQueue.toggle(chatId, messageId, audio)
+            musicQueue.toggle(chatId, messageId, audio, rememberPosition = remembersPosition(messageId))
             return
         }
         val voice = message.media as? MessageMedia.VoiceNote ?: return
 
         // Zvuk hraje vždycky jen jeden: hlasovka umlčí kolečko a naopak.
         state.update { it.copy(soundingVideoNote = null) }
-        voicePlayer.toggle(VoiceKey(chatId, messageId)) { voicePath(voice) }
+        voicePlayer.toggle(VoiceKey(chatId, messageId), resumeKey = resumeKey(messageId, voice.fileKey)) { voicePath(voice) }
         if (!message.isOutgoing && !voice.isListened) reportListened(messageId)
     }
 
@@ -306,7 +350,7 @@ internal class ConversationPlayback(
         val voice = next.media as? MessageMedia.VoiceNote ?: return
         if (next.isOutgoing || voice.isListened) return
 
-        voicePlayer.play(VoiceKey(chatId, next.id)) { voicePath(voice) }
+        voicePlayer.play(VoiceKey(chatId, next.id), resumeKey = resumeKey(next.id, voice.fileKey)) { voicePath(voice) }
         reportListened(next.id)
     }
 
@@ -355,12 +399,14 @@ internal class ConversationPlayback(
             is MessageMedia.Video -> state.update { it.copy(openMediaAt = MediaAt(target.id, seconds)) }
             is MessageMedia.VoiceNote -> {
                 state.update { it.copy(soundingVideoNote = null) }
-                voicePlayer.play(VoiceKey(chatId, target.id), startMs = startMs) { voicePath(media) }
+                voicePlayer.play(VoiceKey(chatId, target.id), startMs = startMs, resumeKey = resumeKey(target.id, media.fileKey)) {
+                    voicePath(media)
+                }
                 if (!target.isOutgoing && !media.isListened) reportListened(target.id)
             }
             is MessageMedia.Audio -> {
                 state.update { it.copy(soundingVideoNote = null) }
-                musicQueue.play(chatId, target.id, media, startMs)
+                musicQueue.play(chatId, target.id, media, startMs, rememberPosition = remembersPosition(target.id))
             }
             is MessageMedia.VideoNote -> {
                 voicePlayer.stop()
@@ -373,3 +419,9 @@ internal class ConversationPlayback(
         }
     }
 }
+
+/** Nahrávka ([messageId]), která se rozehrála z pamatované pozice [fromMs]. */
+data class ResumedAudio(val messageId: Long, val fromMs: Long)
+
+/** Jak dlouho od začátku poslechu má smysl hlásit, odkud se pokračuje. */
+private const val RESUME_NOTICE_WINDOW_MS = 6_000L

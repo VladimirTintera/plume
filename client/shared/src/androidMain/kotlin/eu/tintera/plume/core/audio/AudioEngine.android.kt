@@ -4,42 +4,48 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
 import android.media.AudioFocusRequest
 import android.media.AudioManager
-import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlayer
 import co.touchlab.kermit.Logger
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import java.io.File
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 /**
- * Android: `MediaPlayer`. Hlasovky Telegramu jsou Ogg/Opus, a ten Android přehraje sám.
+ * Android: Media3 ExoPlayer. Hlasovky Telegramu jsou Ogg/Opus a ExoPlayer je přehraje sám
+ * (Ogg rozebere, Opus dekóduje systémový kodek).
  *
- * `prepare()` čte hlavičku souboru z disku, proto mimo hlavní vlákno. Atributy říkají systému, že
- * jde o řeč — hlasitost se řídí médii, ne vyzváněním.
+ * Dřív `MediaPlayer`; ExoPlayer je tu kvůli přeskakování ticha (`skipSilenceEnabled`), které
+ * `MediaPlayer` nemá. Atributy říkají systému, že jde o řeč — hlasitost se řídí médii, ne
+ * vyzváněním.
  */
 actual class AudioEngine(private val context: Context) {
 
     private val audioManager = context.getSystemService<AudioManager>()
     private val logger = Logger.withTag("AudioEngine")
 
-    private var player: MediaPlayer? = null
+    private var player: ExoPlayer? = null
 
-    /** Cesta k souboru; drží se kvůli přestavbě přehrávače při přepnutí do sluchátka. */
+    /** Cesta k přehrávanému souboru. */
     private var path: String? = null
 
-    /**
-     * Rychlost se drží tady a nastavuje se až při [start].
-     *
-     * `MediaPlayer.playbackParams` na PŘIPRAVENÉM, ale nespuštěném přehrávači přehrávání ROZJEDE —
-     * je to zdokumentované chování, ne chyba. Kdyby se rychlost nastavovala hned při přepnutí
-     * čipu, rozehrála by pozastavenou hlasovku.
-     */
+    /** Rychlost; drží se i bez přehrávače, aby platila od prvního [start]. */
     private var speed = 1f
+
+    /** Přeskakovat ticho ([setSkipSilence]); drží se, aby platilo i pro přehrávač z [load]. */
+    private var skipSilence = false
 
     /** Hraje se do sluchátka u ucha místo do reproduktoru? */
     private var earpiece = false
@@ -53,7 +59,7 @@ actual class AudioEngine(private val context: Context) {
      */
     private var routeApplied = false
 
-    /** Poslední známá pozice; po dobu přestavby přehrávače není koho se zeptat. */
+    /** Poslední známá pozice; po uvolnění přehrávače není koho se zeptat. */
     private var lastPosition = 0L
 
     /** Hudba, ne hlasovka — jiné atributy, jiný audio focus a pauza po vytažení sluchátek. */
@@ -96,7 +102,8 @@ actual class AudioEngine(private val context: Context) {
     private var noisyRegistered = false
 
     private fun interrupt() {
-        player?.takeIf { it.isPlaying }?.let {
+        // `playWhenReady`, ne `isPlaying`: ten je `false` i ve chvíli, kdy přehrávač jen čeká na data.
+        player?.takeIf { it.playWhenReady }?.let {
             it.pause()
             abandonFocus()
             onInterrupted?.invoke()
@@ -109,26 +116,25 @@ actual class AudioEngine(private val context: Context) {
         focusRequest = AudioFocusRequest.Builder(
             if (music) AudioManager.AUDIOFOCUS_GAIN else AudioManager.AUDIOFOCUS_GAIN_TRANSIENT,
         )
-            .setAudioAttributes(attributesFor(earpiece = false, music = music))
+            .setAudioAttributes(platformAttributesFor(earpiece = false, music = music))
             .setOnAudioFocusChangeListener(focusListener)
             .build()
         val created = buildPlayer(path)
         player = created
-        return created.duration.toLong()
+        return created.duration.takeIf { it != C.TIME_UNSET }?.coerceAtLeast(0L) ?: 0L
     }
 
     actual fun start() {
         requestFocus()
         applyRoute()
         val current = player ?: return
-        // Nastavení rychlosti přehrávání zároveň spustí; `start()` na běžícím přehrávači nevadí.
-        current.playbackParams = current.playbackParams.setSpeed(speed)
-        current.start()
+        current.setPlaybackSpeed(speed)
+        current.play()
     }
 
     actual fun pause() {
         player?.let {
-            lastPosition = it.currentPosition.toLong()
+            lastPosition = it.currentPosition
             it.pause()
         }
         abandonFocus()
@@ -136,57 +142,43 @@ actual class AudioEngine(private val context: Context) {
 
     actual fun seekTo(positionMs: Long) {
         lastPosition = positionMs
-        player?.seekTo(positionMs.toInt())
-    }
-
-    actual fun setSpeed(speed: Float) {
-        this.speed = speed
-        // Jen za běhu: na pozastaveném přehrávači by zápis `playbackParams` rozjel přehrávání.
-        player?.takeIf { it.isPlaying }?.let { it.playbackParams = it.playbackParams.setSpeed(speed) }
+        player?.seekTo(positionMs)
     }
 
     /**
-     * Přepne mezi reproduktorem a sluchátkem u ucha — a **postaví přehrávač znovu**.
+     * Rychlost jde na ExoPlayer rovnou, i na pozastavený: na rozdíl od `MediaPlayer.playbackParams`
+     * přehrávání nerozjede.
+     */
+    actual fun setSpeed(speed: Float) {
+        this.speed = speed
+        player?.setPlaybackSpeed(speed)
+    }
+
+    /**
+     * Přeskakování ticha (`skipSilenceEnabled` v Media3): pauzy se zkrátí, řeč zůstane, jak byla —
+     * nezrychluje se, jen se vynechává ticho. Platí hned, i uprostřed nahrávky.
+     */
+    actual fun setSkipSilence(enabled: Boolean) {
+        skipSilence = enabled
+        player?.skipSilenceEnabled = enabled
+    }
+
+    /**
+     * Přepne mezi reproduktorem a sluchátkem u ucha.
      *
-     * Jinak to nejde: do sluchátka se na Androidu dostane jen zvuk s `USAGE_VOICE_COMMUNICATION`,
-     * a `MediaPlayer.setAudioAttributes` se smí volat jen PŘED `prepare()`. Samotné
-     * `setCommunicationDevice` nestačí — to řídí jen komunikační zvuk, kdežto médium by hrálo
-     * dál z reproduktoru.
-     *
-     * Pozice i to, jestli se zrovna hraje, se přenesou, takže přepnutí je slyšet jako krátké
-     * zaváhání, ne jako skok na začátek. Soubor je lokální, takže `prepare()` je otázka
-     * milisekund — přesto běží mimo hlavní vlákno, jako v [load].
+     * Do sluchátka se na Androidu dostane jen zvuk s `USAGE_VOICE_COMMUNICATION`. `MediaPlayer`
+     * to uměl jen přestavbou (atributy se mu nastavují před `prepare()`); ExoPlayer atributy mění
+     * za běhu — zvukovou stopu si postaví znovu sám, pozice ani rychlost se nemění. Samotné
+     * `setCommunicationDevice` nestačí: řídí jen komunikační zvuk, médium by hrálo dál
+     * z reproduktoru.
      */
     actual suspend fun setEarpiece(enabled: Boolean) {
         if (enabled == earpiece) return
-        val source = path ?: return
+        val current = player ?: return
         earpiece = enabled
-
-        val previous = player
-        val resume = previous?.isPlaying == true
-        val position = previous?.currentPosition?.toLong() ?: lastPosition
-        lastPosition = position
-        player = null
-        previous?.setOnCompletionListener(null)
-        previous?.release()
-
-        val rebuilt = try {
-            buildPlayer(source)
-        } catch (failure: Throwable) {
-            logger.w(failure) { "Přehrávač po přepnutí výstupu nejde postavit." }
-            // Bez přehrávače by hlasovka tiše umřela; vrátí se výstup a stav se promítne ven.
-            earpiece = false
-            clearRoute()
-            onInterrupted?.invoke()
-            return
-        }
-        player = rebuilt
+        lastPosition = current.currentPosition
+        current.setAudioAttributes(attributesFor(earpiece = enabled, music = music), /* handleAudioFocus = */ false)
         applyRoute()
-        rebuilt.seekTo(position.toInt())
-        if (resume) {
-            rebuilt.playbackParams = rebuilt.playbackParams.setSpeed(speed)
-            rebuilt.start()
-        }
     }
 
     /**
@@ -200,7 +192,7 @@ actual class AudioEngine(private val context: Context) {
             ?.any { it.type in HEADPHONE_TYPES }
             ?: false
 
-    actual val positionMs: Long get() = player?.currentPosition?.toLong() ?: lastPosition
+    actual val positionMs: Long get() = player?.currentPosition ?: lastPosition
 
     actual var onCompleted: (() -> Unit)? = null
 
@@ -216,22 +208,65 @@ actual class AudioEngine(private val context: Context) {
         path = null
     }
 
-    private suspend fun buildPlayer(source: String): MediaPlayer {
-        val created = MediaPlayer().apply { setAudioAttributes(attributesFor(earpiece, music)) }
+    /**
+     * Připraví ExoPlayer a počká, až zná délku (`STATE_READY`), nebo selže.
+     *
+     * Na hlavním vlákně (`VoicePlayer` běží na `Dispatchers.Main`): ExoPlayer se ovládá z vlákna,
+     * na kterém vznikl, a čtení souboru si dělá na svém. Audio focus řešíme sami
+     * (`handleAudioFocus = false`) — hlasovka chce jiný než hudba a přerušení se musí promítnout
+     * do stavu ([onInterrupted]), což by vestavěná obsluha neudělala.
+     */
+    private suspend fun buildPlayer(source: String): ExoPlayer {
+        val created = ExoPlayer.Builder(context.applicationContext)
+            .setAudioAttributes(attributesFor(earpiece, music), /* handleAudioFocus = */ false)
+            // Hudba hraje se zhasnutým displejem ze služby; vlákno přehrávače nesmí usnout.
+            .setWakeMode(if (music) C.WAKE_MODE_LOCAL else C.WAKE_MODE_NONE)
+            .build()
+        created.skipSilenceEnabled = skipSilence
+        created.setMediaItem(MediaItem.fromUri(Uri.fromFile(File(source))))
         try {
-            withContext(Dispatchers.IO) {
-                created.setDataSource(source)
+            suspendCancellableCoroutine<Unit> { continuation ->
+                val listener = object : Player.Listener {
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        if (playbackState == Player.STATE_READY && continuation.isActive) {
+                            created.removeListener(this)
+                            continuation.resume(Unit)
+                        }
+                    }
+
+                    override fun onPlayerError(error: PlaybackException) {
+                        created.removeListener(this)
+                        if (continuation.isActive) continuation.resumeWithException(error)
+                    }
+                }
+                created.addListener(listener)
                 created.prepare()
+                continuation.invokeOnCancellation { created.removeListener(listener) }
             }
         } catch (failure: Throwable) {
             created.release()
             throw failure
         }
-        created.setOnCompletionListener {
-            abandonFocus()
-            clearRoute()
-            onCompleted?.invoke()
-        }
+        created.addListener(
+            object : Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState != Player.STATE_ENDED || player !== created) return
+                    abandonFocus()
+                    clearRoute()
+                    onCompleted?.invoke()
+                }
+
+                /** Chyba uprostřed přehrávání (vadný konec souboru): zastavit a promítnout do stavu. */
+                override fun onPlayerError(error: PlaybackException) {
+                    if (player !== created) return
+                    logger.w(error) { "Přehrávání zvuku selhalo." }
+                    lastPosition = created.currentPosition
+                    abandonFocus()
+                    clearRoute()
+                    onInterrupted?.invoke()
+                }
+            },
+        )
         return created
     }
 
@@ -298,9 +333,21 @@ actual class AudioEngine(private val context: Context) {
  * když si telefon přiloží k uchu.
  */
 private fun attributesFor(earpiece: Boolean, music: Boolean): AudioAttributes = AudioAttributes.Builder()
-    .setUsage(if (earpiece) AudioAttributes.USAGE_VOICE_COMMUNICATION else AudioAttributes.USAGE_MEDIA)
-    .setContentType(if (music) AudioAttributes.CONTENT_TYPE_MUSIC else AudioAttributes.CONTENT_TYPE_SPEECH)
+    .setUsage(if (earpiece) C.USAGE_VOICE_COMMUNICATION else C.USAGE_MEDIA)
+    .setContentType(if (music) C.AUDIO_CONTENT_TYPE_MUSIC else C.AUDIO_CONTENT_TYPE_SPEECH)
     .build()
+
+/** Tytéž atributy pro audio focus, který chce systémové `android.media.AudioAttributes`. */
+private fun platformAttributesFor(earpiece: Boolean, music: Boolean): android.media.AudioAttributes =
+    android.media.AudioAttributes.Builder()
+        .setUsage(if (earpiece) android.media.AudioAttributes.USAGE_VOICE_COMMUNICATION else android.media.AudioAttributes.USAGE_MEDIA)
+        .setContentType(
+            if (music) android.media.AudioAttributes.CONTENT_TYPE_MUSIC else android.media.AudioAttributes.CONTENT_TYPE_SPEECH,
+        )
+        .build()
+
+/** Přehrávání ticha se dá přeskakovat jen tady — Media3 to umí, AVAudioPlayer ani desktop ne. */
+actual val skipSilenceSupported: Boolean = true
 
 /** Výstupy, u kterých nemá smysl přepínat do sluchátka telefonu. */
 private val HEADPHONE_TYPES = setOf(

@@ -94,6 +94,8 @@ open class UnimplementedAppSettings : AppSettings {
     override fun setVoiceSpeed(speed: VoiceSpeed): Unit = error("setVoiceSpeed")
     override val videoSpeed: StateFlow<VoiceSpeed> get() = error("videoSpeed")
     override fun setVideoSpeed(speed: VoiceSpeed): Unit = error("setVideoSpeed")
+    override val skipSilence: StateFlow<Boolean> get() = error("skipSilence")
+    override fun setSkipSilence(enabled: Boolean): Unit = error("setSkipSilence")
     override val dismissedUpdateVersionCode: StateFlow<Int?> get() = error("dismissedUpdateVersionCode")
     override fun dismissUpdate(versionCode: Int): Unit = error("dismissUpdate")
     override val confirmedWebAppBots: StateFlow<Set<Long>> get() = error("confirmedWebAppBots")

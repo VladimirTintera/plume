@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,6 +44,8 @@ import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.core.ui.ShapeMorphs
 import eu.tintera.plume.core.ui.animateMorph
 import eu.tintera.plume.core.ui.tabularNumbers
+import eu.tintera.plume.core.video.VideoPosition
+import eu.tintera.plume.core.video.VideoPositions
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_audio_progress
 import eu.tintera.plume.resources.conversation_play_audio
@@ -51,6 +54,7 @@ import eu.tintera.plume.resources.pause_24dp
 import eu.tintera.plume.resources.play_arrow_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 
 /**
  * Skladba v bublině: obal alba s tlačítkem, název, interpret, lišta průběhu a čas.
@@ -62,6 +66,9 @@ import org.jetbrains.compose.resources.stringResource
  *
  * **Obal alba JE tlačítko** (ořezaný do téhož tvaru, se závojem pod ikonou), bez obalu je
  * tlačítko plné v barvě akcentu jako u hlasovky.
+ *
+ * **Dlouhá nahrávka s pamatovanou pozicí** ([rememberedAudioPosition]) ukazuje lištu a čas tam,
+ * kde uživatel přestal — odtud se po ťuknutí pokračuje. Jako proužek zhlédnutého u videa.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -77,6 +84,7 @@ fun AudioContent(
     modifier: Modifier = Modifier,
 ) {
     val current = playback()
+    val remembered = rememberedAudioPosition(audio.fileKey).takeIf { current == null }
     Row(
         modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -119,7 +127,7 @@ fun AudioContent(
             val active = current != null && !current.loading
             val progressLabel = stringResource(Res.string.conversation_audio_progress)
             var dragFraction by remember { mutableStateOf<Float?>(null) }
-            val progress = dragFraction ?: current?.progress ?: 0f
+            val progress = dragFraction ?: current?.progress ?: remembered?.fraction ?: 0f
 
             Text(
                 text = audio.title,
@@ -161,6 +169,8 @@ fun AudioContent(
                         val position = ((dragFraction?.let { it * current.durationMs } ?: current.positionMs.toFloat()) / 1000).toInt()
                         "${formatDuration(position)} / ${formatDuration(total)}"
                     }
+                    remembered != null ->
+                        "${formatDuration((remembered.positionMs / 1000).toInt())} / ${formatDuration((remembered.durationMs / 1000).toInt())}"
                     total > 0 -> formatDuration(total)
                     else -> ""
                 }
@@ -172,6 +182,18 @@ fun AudioContent(
             }
         }
     }
+}
+
+/**
+ * Kde uživatel přestal poslouchat dlouhou nahrávku ([VideoPositions], klíč je soubor); `null` =
+ * nic pamatovaného. Čte se z téhož seznamu, do kterého zapisuje přehrávač, takže se bublina po
+ * zastavení hned přepíše.
+ */
+@Composable
+internal fun rememberedAudioPosition(fileKey: String?): VideoPosition? {
+    val positions = koinInject<VideoPositions>()
+    val all by positions.all.collectAsState()
+    return remember(all, fileKey) { fileKey?.let { key -> all.firstOrNull { it.key == key } } }
 }
 
 @Composable

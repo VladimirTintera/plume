@@ -28,6 +28,7 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.reject
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.features.conversation.items.ConversationItem
@@ -39,6 +40,8 @@ import eu.tintera.plume.features.report.ReportHost
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_undo
 import eu.tintera.plume.resources.conversation_unpinned
+import eu.tintera.plume.resources.media_video_from_start
+import eu.tintera.plume.resources.media_video_resumed
 import eu.tintera.plume.resources.spam_bar_contact_added
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
@@ -63,6 +66,7 @@ internal fun ConversationSnackbars(
     val unpinnedMessage = stringResource(Res.string.conversation_unpinned)
     val contactAddedMessage = stringResource(Res.string.spam_bar_contact_added)
     val undoLabel = stringResource(Res.string.conversation_undo)
+    val fromStartLabel = stringResource(Res.string.media_video_from_start)
 
     // Chyby se dřív zahazovaly: `state.error` se vykreslovalo jen u prázdné konverzace, takže
     // neúspěšná reakce nebo odeslání zmizely bez jediné stopy.
@@ -102,6 +106,22 @@ internal fun ConversationSnackbars(
                 duration = SnackbarDuration.Short,
             )
             if (result == SnackbarResult.ActionPerformed) viewModel.undoUnpin(unpinned)
+        }
+    }
+
+    // Dlouhá nahrávka pokračuje z pamatované pozice; „Od začátku" ji vrátí na nulu. Stejný vzor
+    // jako odepnutí — vynulovat hned, snackbar mimo efekt.
+    LaunchedEffect(state.resumedAudio) {
+        val resumed = state.resumedAudio ?: return@LaunchedEffect
+        viewModel.consumeResumedAudio()
+        snackbarScope.launch {
+            val text = UiText(Res.string.media_video_resumed, formatDuration((resumed.fromMs / 1000).toInt())).resolveNow()
+            val result = snackbarHostState.showSnackbar(
+                message = text,
+                actionLabel = fromStartLabel,
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) viewModel.restartAudio(resumed.messageId)
         }
     }
 

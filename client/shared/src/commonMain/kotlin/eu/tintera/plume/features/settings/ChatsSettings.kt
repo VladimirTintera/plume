@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.platform.LocalHapticFeedback
+import eu.tintera.plume.core.audio.skipSilenceSupported
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.core.ui.rememberTelegramLinkHandling
@@ -21,6 +22,9 @@ import eu.tintera.plume.resources.settings_message_context
 import eu.tintera.plume.resources.settings_message_context_summary
 import eu.tintera.plume.resources.settings_open_links_in_app
 import eu.tintera.plume.resources.settings_open_links_in_app_summary
+import eu.tintera.plume.resources.headphones_24dp
+import eu.tintera.plume.resources.settings_skip_silence
+import eu.tintera.plume.resources.settings_skip_silence_summary
 import org.koin.compose.koinInject
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.RadioButton
@@ -123,6 +127,7 @@ internal fun ChatsSettings(
     SettingsGroup(Res.string.settings_messages) {
         QuickReactionSettings(quickReaction)
         MessageContextRow()
+        if (skipSilenceSupported) SkipSilenceRow()
         ListItem(
             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             leadingContent = { Icon(painterResource(Res.drawable.sticker_24dp), contentDescription = null) },
@@ -233,6 +238,34 @@ private fun MessageContextRow() {
             onValueChange = { on ->
                 haptics.toggle(on)
                 settings.setMessageContextEnabled(on)
+            },
+        ),
+    )
+}
+
+/**
+ * Přeskakování ticha v hlasovkách a audiu (`AppSettings.skipSilence`). V Nastavení, ne u čipu
+ * rychlosti v bublině: volí se jednou a platí pro všechno, jako rychlost — a čip je jen u hrající
+ * hlasovky, takže druhý prvek vedle něj by v bublině jen překážel. Jen kde to platforma umí
+ * ([skipSilenceSupported]); na iOS a desktopu řádek chybí.
+ */
+@Composable
+private fun SkipSilenceRow() {
+    val settings = koinInject<AppSettings>()
+    val haptics = LocalHapticFeedback.current
+    val enabled by settings.skipSilence.collectAsStateWithLifecycle()
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        leadingContent = { Icon(painterResource(Res.drawable.headphones_24dp), contentDescription = null) },
+        headlineContent = { Text(stringResource(Res.string.settings_skip_silence)) },
+        supportingContent = { Text(stringResource(Res.string.settings_skip_silence_summary)) },
+        trailingContent = { IconSwitch(checked = enabled, onCheckedChange = null) },
+        modifier = Modifier.toggleable(
+            value = enabled,
+            role = Role.Switch,
+            onValueChange = { on ->
+                haptics.toggle(on)
+                settings.setSkipSilence(on)
             },
         ),
     )

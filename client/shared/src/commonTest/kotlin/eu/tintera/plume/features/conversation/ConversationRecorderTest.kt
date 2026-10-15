@@ -90,8 +90,15 @@ class ConversationRecorderTest {
         override val state = MutableStateFlow<VoicePlayback?>(null)
         override val speed: StateFlow<VoiceSpeed> = MutableStateFlow(VoiceSpeed.entries.first())
         var stops = 0
-        override fun toggle(key: VoiceKey, music: Boolean, path: suspend () -> String) = Unit
-        override fun play(key: VoiceKey, music: Boolean, startMs: Long, onFinished: (() -> Unit)?, path: suspend () -> String) = Unit
+        override fun toggle(key: VoiceKey, music: Boolean, resumeKey: String?, path: suspend () -> String) = Unit
+        override fun play(
+            key: VoiceKey,
+            music: Boolean,
+            startMs: Long,
+            resumeKey: String?,
+            onFinished: (() -> Unit)?,
+            path: suspend () -> String,
+        ) = Unit
         override fun seek(key: VoiceKey, fraction: Float) = Unit
         override fun stop(chatId: Long?, keepMusic: Boolean) {
             stops++
