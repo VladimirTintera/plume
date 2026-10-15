@@ -425,7 +425,9 @@ postaví MSI (`packageMsi -PdesktopVersion=…`), na Ubuntu založí GitHub Rele
 - **Na Windows bývá jen `python`, ne `python3`** — `generateChangelog` zkouší obojí, jinak by
   „Co je nového" v aplikaci tiše zůstalo prázdné. **A konzole je v cp1252**: skript vypisuje
   češtinu a bez `PYTHONIOENCODING=utf-8` padal na `UnicodeEncodeError` — se stejným tichým
-  následkem.
+  následkem. **A job `windows` musí klonovat s `fetch-depth: 0`**: mělký klon nad
+  tagem nemá ostatní tagy, skript nenajde žádné vydání a seznam je prázdný bez jediné hlášky.
+  Desktop má vlastní kanál vydání (tagy `desktop-…`), viz „Co je nového" v `nastaveni.md`.
 - **WiX bere jen znaky z cp1252.** „ě" ve jméně dodavatele shodilo `light.exe` kódem 311
   (LGHT0311) a jpackage z toho udělal holé „exit code 1"; Compose ukáže jen cestu k logu na
   runneru. Workflow proto při chybě logy jpackage vypisuje (krok „jpackage logs") a metadata

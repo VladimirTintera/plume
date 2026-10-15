@@ -72,7 +72,7 @@ val generateChangelog = tasks.register("generateChangelog") {
                 // Fallback: build neměl python nebo git, poznámky se nezapekly.
                 package eu.tintera.plume.core.changelog
 
-                internal val GENERATED_CHANGELOG: List<ChangelogRelease> = emptyList()
+                internal val GENERATED_CHANGELOG: Map<String, List<ChangelogRelease>> = emptyMap()
                 """.trimIndent() + "\n"
             )
         }

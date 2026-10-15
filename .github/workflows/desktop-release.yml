@@ -61,7 +61,12 @@ jobs:
           fi
           echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
 
+      # Celá historie + tagy kvůli „Co je nového" zapečenému do aplikace (`generateChangelog`).
+      # Mělký klon nad tagem stáhne jen ten jeden tag: build pak projde, ale seznam vydání v MSI
+      # je prázdný a nic to nenahlásí.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       # Verze musí odpovídat `jvmToolchain(17)` v modulech — s jinou by ji Gradle přes foojay
       # resolver stahoval znovu při každém běhu. jpackage (MSI) je v JDK od 14.

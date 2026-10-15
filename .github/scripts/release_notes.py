@@ -135,23 +135,30 @@ def play_text(notes, lang):
     return "\n".join(kept + [rest])
 
 
-TAG_PREFIX = "android-"
-# android-<versionName>-<versionCode>, u ručně vydané verze ještě `-manual`.
-TAG_VERSION = re.compile(r"^(\d+(?:\.\d+)*)-(\d+)(?:-.+)?$")
+# Kanály vydání = předpony tagů. Staví se z téhož kódu, ale vydávají se zvlášť a v jiném rytmu,
+# takže každý má v aplikaci vlastní „Co je nového" (desktop ukazuje vydání desktopu, ne Androidu).
+# Hodnota je zbytek tagu za předponou: (verze, číslo buildu nebo nic).
+CHANNELS = {
+    # android-<versionName>-<versionCode>, u ručně vydané verze ještě `-manual`.
+    "android": re.compile(r"^(\d+(?:\.\d+)*)-(\d+)(?:-.+)?$"),
+    # desktop-X.Y.Z, bez čísla buildu (MSI pozná aktualizaci jen podle verze).
+    "desktop": re.compile(r"^(\d+(?:\.\d+)*)()$"),
+}
 
 
-def release_tags():
-    """Tagy vydání dosažitelné z HEAD, od nejstaršího.
+def release_tags(channel):
+    """Tagy vydání kanálu dosažitelné z HEAD, od nejstaršího.
 
     Jen `--merged HEAD`: build ze starší větve nesmí slibovat verze, které v něm nejsou. Release
     se staví přímo z tagu, takže aktuální vydání v seznamu je i se svými poznámkami.
     """
+    prefix = f"{channel}-"
     tags = []
-    for tag in git("tag", "--merged", "HEAD", "-l", f"{TAG_PREFIX}*").splitlines():
-        match = TAG_VERSION.match(tag[len(TAG_PREFIX):])
+    for tag in git("tag", "--merged", "HEAD", "-l", f"{prefix}*").splitlines():
+        match = CHANNELS[channel].match(tag[len(prefix):])
         if match:
-            version = match.group(1)
-            tags.append((tag, version, [int(part) for part in version.split(".")] + [int(match.group(2))]))
+            version, build = match.groups()
+            tags.append((tag, version, [int(part) for part in version.split(".")] + [int(build or 0)]))
     # Podle verze, ne abecedně (0.3.10 je po 0.3.9) — stejně jako `--sort=v:refname` v release.
     return [(tag, version) for tag, version, _ in sorted(tags, key=lambda t: t[2])]
 
@@ -161,33 +168,52 @@ def kotlin_string(value):
     return f'"{escaped}"'
 
 
-def bundle(out_path):
-    """Kotlin se seznamem vydání od nejnovějšího — „Co je nového" v Nastavení.
-
-    Kotlin, ne resource: hodnota je dostupná synchronně na obou platformách a chyba v generátoru
-    spadne při překladu, ne za běhu. Vydání bez poznámek pro uživatele (jen `internal`) se vynechá.
-    """
-    tags = release_tags()
+def release_entries(channel):
+    """Vydání kanálu jako Kotlin `ChangelogRelease(...)`, od nejnovějšího."""
+    tags = release_tags(channel)
     releases = []
     for index, (tag, version) in enumerate(tags):
-        prev = tags[index - 1][0] if index else ""
-        notes = notes_between(prev, tag)
+        # První vydání kanálu nemá s čím porovnat. Rozsah „od začátku" by u desktopu, který přišel
+        # až po stovkách PR, vysypal celou historii projektu (418 poznámek u desktop-0.3.0) — ta
+        # patří vydáním Androidu, ne do první verze pro počítač.
+        if not index:
+            continue
+        notes = notes_between(tags[index - 1][0], tag)
         if not notes:
             continue
         seconds = git("log", "-1", "--format=%ct", tag).strip()
         items = ",\n".join(
-            "            ChangelogNote(ChangelogNoteType.{}, cs = {}, en = {})".format(
+            "                ChangelogNote(ChangelogNoteType.{}, cs = {}, en = {})".format(
                 note["type"].upper(), kotlin_string(note["cs"]), kotlin_string(note["en"])
             )
             for note in notes
         )
         releases.append(
-            "    ChangelogRelease(\n"
-            f"        version = {kotlin_string(version)},\n"
-            f"        date = {seconds},\n"
-            f"        notes = listOf(\n{items},\n        ),\n"
-            "    ),"
+            "        ChangelogRelease(\n"
+            f"            version = {kotlin_string(version)},\n"
+            f"            date = {seconds},\n"
+            f"            notes = listOf(\n{items},\n            ),\n"
+            "        ),"
         )
+    return list(reversed(releases))  # nejnovější vydání první
+
+
+def bundle(out_path):
+    """Kotlin se seznamem vydání každého kanálu od nejnovějšího — „Co je nového" v Nastavení.
+
+    Kotlin, ne resource: hodnota je dostupná synchronně na všech platformách a chyba v generátoru
+    spadne při překladu, ne za běhu. Vydání bez poznámek pro uživatele (jen `internal`) se vynechá.
+    Do sestavy jdou všechny kanály naráz — `commonMain` je jeden, kanál si vybere platforma
+    (`changelogChannel`).
+    """
+    lines = []
+    counts = []
+    for channel in CHANNELS:
+        releases = release_entries(channel)
+        counts.append(f"{channel} {len(releases)}")
+        lines.append(f"    {kotlin_string(channel)} to listOf(")
+        lines.extend(releases)
+        lines.append("    ),")
 
     out = Path(out_path)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -195,12 +221,12 @@ def bundle(out_path):
         "// Generováno .github/scripts/release_notes.py z release-notes/ — needituj ručně.\n"
         "package eu.tintera.plume.core.changelog\n"
         "\n"
-        "internal val GENERATED_CHANGELOG: List<ChangelogRelease> = listOf(\n"
-        + "\n".join(reversed(releases))  # nejnovější vydání první
+        "internal val GENERATED_CHANGELOG: Map<String, List<ChangelogRelease>> = mapOf(\n"
+        + "\n".join(lines)
         + "\n)\n",
         encoding="utf-8",
     )
-    print(f"bundle: {out} ({len(releases)} vydání z {len(tags)} tagů)")
+    print(f"bundle: {out} (vydání: {', '.join(counts)})")
     return 0
 
 

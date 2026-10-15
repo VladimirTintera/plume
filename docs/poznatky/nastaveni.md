@@ -684,10 +684,23 @@ Po aktualizaci nic nevyskakuje — novinky jsou tam, kdo je hledá (převzato z 
 - **Jen tagy `--merged HEAD`**: build ze starší větve nesmí ukazovat verze, které v něm nejsou.
   Release se staví z tagu, takže aktuální vydání v seznamu je; tagy se řadí podle verze a `-manual`
   projde. Vydání jen s `internal` poznámkami se vynechá.
+- **Každá platforma má vlastní kanál vydání** (`CHANNELS` ve skriptu, `changelogChannel` jako
+  `expect`): Android jde po tazích `android-X.Y.Z-B`, desktop po `desktop-X.Y.Z`. Desktop se
+  vydává v jiném rytmu a s jinými čísly, takže androidí seznam by mu lhal, ve které verzi co
+  přibylo. Do sestavy se zapečou všechny kanály naráz (`commonMain` je jeden) a platforma si
+  vybere svůj. iOS se zatím nevydává a ukazuje vydání Androidu.
+- **První vydání kanálu se vynechá**: bez předchozího tagu není s čím porovnat a rozsah „od
+  začátku" by u desktopu, který přišel až po stovkách PR, vysypal celou historii projektu (418
+  poznámek u `desktop-0.3.0`). Android tím nepřišel o nic — v jeho prvním tagu poznámky ještě
+  nebyly.
+- **Poznámky nevědí, které platformy se týkají.** Desktop proto ukazuje i čistě androidí změny
+  („Sdílení obrazovky v hovoru (Android)") a Android desktopové; mlog to řeší polem `units`
+  v poznámce.
 - **Task je schválně nikdy up-to-date** (vstupem jsou i tagy) a trvá asi 2 s; překlad se přeskočí,
   když vyjde stejný obsah. **Bez pythonu nebo gitu build nespadne**: zapíše se prázdný seznam
   (sekce pak řekne, že sestava novinky nemá) a důvod se zaloguje. CI klonuje s `fetch-depth: 0`,
-  bez tagů by seznam byl prázdný.
+  bez tagů by seznam byl prázdný — **a to TIŠE**: skript projde, jen nenajde žádný tag. Tak
+  vycházela MSI pro Windows do `desktop-0.3.6` (job `windows` klonoval mělce, jen svůj tag).
 - **Jazyk poznámky se bere z prostředků** (`changelog_note_language` = `cs`/`en`), ne z locale.
   Poznámka tak vždycky sedí s jazykem, který Compose vybral pro zbytek obrazovky, i s jazykem
   nastaveným jen pro aplikaci — a funguje stejně na iOS, kde `NSLocale.currentLocale` jde za
