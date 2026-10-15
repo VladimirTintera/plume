@@ -3218,4 +3218,39 @@
     <string name="checklist_compose_others_add">Others can add tasks</string>
     <string name="checklist_compose_others_mark">Others can check off tasks</string>
     <string name="checklist_compose_send_failed">Couldn't send the checklist.</string>
+    <string name="checklist_compose_title_edit">Edit checklist</string>
+    <string name="checklist_compose_save">Save</string>
+    <string name="checklist_compose_save_failed">Couldn't save the checklist.</string>
+    <string name="checklist_compose_load_failed">Couldn't load the checklist.</string>
+    <string name="checklist_edit_premium">Only Telegram Premium users can edit checklists.</string>
+    <string name="service_checklist_done_one">%1$s checked off “%2$s”</string>
+    <string name="service_checklist_you_done_one">You checked off “%1$s”</string>
+    <string name="service_checklist_undone_one">%1$s unchecked “%2$s”</string>
+    <string name="service_checklist_you_undone_one">You unchecked “%1$s”</string>
+    <plurals name="service_checklist_done_many">
+        <item quantity="one">%1$s checked off %2$d task</item>
+        <item quantity="other">%1$s checked off %2$d tasks</item>
+    </plurals>
+    <plurals name="service_checklist_you_done_many">
+        <item quantity="one">You checked off %1$d task</item>
+        <item quantity="other">You checked off %1$d tasks</item>
+    </plurals>
+    <plurals name="service_checklist_changed_many">
+        <item quantity="one">%1$s updated %2$d task</item>
+        <item quantity="other">%1$s updated %2$d tasks</item>
+    </plurals>
+    <plurals name="service_checklist_you_changed_many">
+        <item quantity="one">You updated %1$d task</item>
+        <item quantity="other">You updated %1$d tasks</item>
+    </plurals>
+    <string name="service_checklist_added_one">%1$s added “%2$s” to the checklist</string>
+    <string name="service_checklist_you_added_one">You added “%1$s” to the checklist</string>
+    <plurals name="service_checklist_added_many">
+        <item quantity="one">%1$s added %2$d task to the checklist</item>
+        <item quantity="other">%1$s added %2$d tasks to the checklist</item>
+    </plurals>
+    <plurals name="service_checklist_you_added_many">
+        <item quantity="one">You added %1$d task to the checklist</item>
+        <item quantity="other">You added %1$d tasks to the checklist</item>
+    </plurals>
 </resources>

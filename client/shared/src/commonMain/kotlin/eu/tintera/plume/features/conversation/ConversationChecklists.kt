@@ -7,6 +7,7 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.checklist_add_premium
 import eu.tintera.plume.resources.checklist_add_task_failed
+import eu.tintera.plume.resources.checklist_edit_premium
 import eu.tintera.plume.resources.checklist_mark_failed
 import eu.tintera.plume.resources.checklist_mark_premium
 import kotlinx.coroutines.CoroutineScope
@@ -87,6 +88,20 @@ internal class ConversationChecklists(
                 state.update { it.copy(error = failure.reported(logger, Res.string.checklist_add_task_failed)) }
             }
         }
+    }
+
+    /** „Upravit" nad vlastním seznamem: bez Premium vysvětlení, jinak formulář s ním. */
+    fun openEditor(messageId: Long) {
+        if (state.value.messages.none { it.id == messageId && it.checklist != null }) return
+        if (!isPremium()) {
+            state.update { it.copy(notice = UiText(Res.string.checklist_edit_premium)) }
+            return
+        }
+        state.update { it.copy(openChecklistEditor = messageId) }
+    }
+
+    fun consumeOpenEditor() {
+        state.update { it.copy(openChecklistEditor = null) }
     }
 
     fun dismissAddTask() {

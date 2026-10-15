@@ -25,6 +25,7 @@ import dev.g000sha256.tdl.dto.RichMessage
 import dev.g000sha256.tdl.dto.MessageContent
 import dev.g000sha256.tdl.dto.MessagePoll
 import dev.g000sha256.tdl.dto.MessageChecklist
+import dev.g000sha256.tdl.dto.Checklist
 import dev.g000sha256.tdl.dto.InputChecklist
 import dev.g000sha256.tdl.dto.InputChecklistTask
 import dev.g000sha256.tdl.dto.InputMessageChecklist
@@ -2390,7 +2391,13 @@ class TdlConversationRepository(
             entities = body.entities,
             // Zpráva o členech se jmény („Pixel 5 opustil(a) skupinu"); bez jmen zůstane
             // bezejmenná věta z `serviceText`.
+            // Totéž u úkolů v seznamu („Jana odškrtl(a) „Mléko"").
             description = namedMemberServiceText(myUserId = { myId() }) { resolveSender(it)?.title }
+                ?: namedChecklistServiceText(
+                    myUserId = { myId() },
+                    nameOf = { resolveSender(it)?.title },
+                    taskTexts = { checklistMessageId -> client.checklistTaskTexts(chatId, checklistMessageId) },
+                )
                 ?: body.description,
             media = messageMedia(
                 hideSensitive = hideSensitive,
@@ -2748,16 +2755,38 @@ class TdlConversationRepository(
             replyTo = replyInput(chatId, replyToMessageId, quote),
             options = options.toTdl(),
             replyMarkup = null,
-            inputMessageContent = InputMessageChecklist(
-                checklist = InputChecklist(
-                    title = FormattedText(text = checklist.title, entities = emptyArray()),
-                    // Id úkolů volí klient: kladná a v seznamu jedinečná.
-                    tasks = checklist.tasks.mapIndexed { index, text -> checklistTask(index + 1, text) }.toTypedArray(),
-                    othersCanAddTasks = checklist.othersCanAddTasks,
-                    othersCanMarkTasksAsDone = checklist.othersCanMarkTasksAsDone,
-                ),
-            ),
+            inputMessageContent = InputMessageChecklist(checklist = checklist.toInput()),
         ).toResult().getOrThrow().toChatMessage(isGroup(chatId))
+    }
+
+    override suspend fun editChecklist(chatId: Long, messageId: Long, checklist: ChecklistDraft): Result<Unit> = runCatching {
+        // Formulář nese jen holý text. Co uživatel nezměnil, si podrží formátování ze zprávy —
+        // úprava jednoho úkolu nesmí potichu smazat tučné písmo u ostatních.
+        val current = (client.getMessage(chatId = chatId, messageId = messageId).toResult().getOrNull()?.content as? MessageChecklist)?.list
+        client.editMessageChecklist(
+            chatId = chatId,
+            messageId = messageId,
+            replyMarkup = null,
+            checklist = checklist.toInput(current),
+        ).toResult().getOrThrow()
+    }
+
+    /**
+     * Id úkolů volí klient: kladná a v seznamu jedinečná ([resolvedTaskIds]). Text, který se
+     * oproti [current] nezměnil, jde i s jeho entitami.
+     */
+    private fun ChecklistDraft.toInput(current: Checklist? = null): InputChecklist {
+        val ids = resolvedTaskIds()
+        val currentTasks = current?.tasks?.associateBy { it.id }.orEmpty()
+        return InputChecklist(
+            title = current?.title?.takeIf { it.text == title } ?: FormattedText(text = title, entities = emptyArray()),
+            tasks = tasks.mapIndexed { index, text ->
+                val kept = currentTasks[ids[index]]?.text?.takeIf { it.text == text }
+                if (kept != null) InputChecklistTask(id = ids[index], text = kept) else checklistTask(ids[index], text)
+            }.toTypedArray(),
+            othersCanAddTasks = othersCanAddTasks,
+            othersCanMarkTasksAsDone = othersCanMarkTasksAsDone,
+        )
     }
 
     private fun checklistTask(id: Int, text: String) =
@@ -3286,6 +3315,15 @@ private const val REACTION_ROW_SIZE = 8
  */
 
 /** `MessageSender` je buď uživatel, nebo chat; pro naše účely stačí číselné id. */
+/**
+ * Texty úkolů ze zprávy se seznamem podle id, jen z lokální databáze (`getMessageLocally`):
+ * servisní věta se skládá při převodu každé zprávy a kvůli ní se nemá čekat na server. Když
+ * seznam lokálně není, věta úkol jen spočítá.
+ */
+internal suspend fun TdlClient.checklistTaskTexts(chatId: Long, messageId: Long): Map<Int, String>? =
+    (getMessageLocally(chatId = chatId, messageId = messageId).toResult().getOrNull()?.content as? MessageChecklist)
+        ?.list?.tasks?.associate { it.id to it.text.text }
+
 internal fun MessageSender.plainId(): Long = when (this) {
     is MessageSenderUser -> userId
     is MessageSenderChat -> chatId

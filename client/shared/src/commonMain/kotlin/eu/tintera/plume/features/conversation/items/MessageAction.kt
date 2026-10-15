@@ -368,6 +368,16 @@ sealed interface MessageMenuAction : MessageAction {
             MenuPresentation(Res.drawable.stop_circle_24dp, Res.string.menu_poll_stop).takeIf { menu.actions.canEdit }
     }
 
+    /**
+     * Upravit vlastní seznam úkolů — formulářem, ne polem (`editMessageChecklist`). Kandidát
+     * u každého seznamu; smí ten, komu server zprávu dovolí upravit (`canBeEdited` u seznamu
+     * znamená právě tohle).
+     */
+    data object EditChecklist : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.edit_24dp, Res.string.menu_edit).takeIf { menu.actions.canEdit }
+    }
+
     /** Kandidát jen tam, kde vstupní pole text nebo popisek upraví bez ztráty formátování. */
     data object Edit : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =

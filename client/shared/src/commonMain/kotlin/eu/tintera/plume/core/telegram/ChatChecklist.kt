@@ -65,7 +65,23 @@ data class ChecklistDraft(
     val tasks: List<String>,
     val othersCanAddTasks: Boolean,
     val othersCanMarkTasksAsDone: Boolean,
+    /**
+     * Id úkolů při úpravě seznamu, ve stejném pořadí jako [tasks]; `0` = nový úkol. Prázdné
+     * u nového seznamu. Stávající úkol si id NESMÍ změnit — podle id TDLib pozná úkol, kterému
+     * má zachovat odškrtnutí.
+     */
+    val taskIds: List<Int> = emptyList(),
 )
+
+/**
+ * Id úkolů k odeslání: stávající si nechají své, nové dostanou čísla za nejvyšším — kladná
+ * a v seznamu jedinečná, jak TDLib chce. U nového seznamu ([ChecklistDraft.taskIds] prázdné)
+ * je to prostě 1, 2, 3…
+ */
+fun ChecklistDraft.resolvedTaskIds(): List<Int> {
+    var next = (taskIds.maxOrNull() ?: 0).coerceAtLeast(0)
+    return tasks.indices.map { index -> taskIds.getOrNull(index)?.takeIf { it > 0 } ?: ++next }
+}
 
 /**
  * Meze seznamu od serveru (`checklist_title_length_max`, `checklist_task_count_max`,

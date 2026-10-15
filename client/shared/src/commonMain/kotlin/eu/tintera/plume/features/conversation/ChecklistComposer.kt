@@ -65,6 +65,10 @@ import eu.tintera.plume.resources.checklist_compose_send_failed
 import eu.tintera.plume.resources.checklist_compose_task
 import eu.tintera.plume.resources.checklist_compose_tasks
 import eu.tintera.plume.resources.checklist_compose_title
+import eu.tintera.plume.resources.checklist_compose_title_edit
+import eu.tintera.plume.resources.checklist_compose_save
+import eu.tintera.plume.resources.checklist_compose_save_failed
+import eu.tintera.plume.resources.checklist_compose_load_failed
 import eu.tintera.plume.resources.checklist_compose_too_many
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.common_close
@@ -125,23 +129,33 @@ internal fun checklistDraftOf(
     othersCanAddTasks: Boolean,
     othersCanMarkTasksAsDone: Boolean,
     limits: ChecklistLimits,
+    /**
+     * Id úkolů při úpravě, ve stejném pořadí jako [tasks] (`0` = nový úkol); u nového seznamu
+     * prázdné. Vynechá se s prázdným polem, takže zůstanou u svého TEXTU.
+     */
+    ids: List<Int> = emptyList(),
 ): ChecklistDraft? {
     val name = title.trim()
     if (name.isEmpty() || name.length > limits.maxTitle) return null
-    val filled = tasks.map { checklistTaskText(it).trim() }.filter { it.isNotEmpty() }
+    val filled = tasks.mapIndexedNotNull { index, task ->
+        checklistTaskText(task).trim().takeIf { it.isNotEmpty() }?.let { text -> text to (ids.getOrNull(index) ?: 0) }
+    }
     if (filled.size !in 1..limits.maxTasks) return null
-    if (filled.any { it.length > limits.maxTaskText }) return null
+    if (filled.any { (text, _) -> text.length > limits.maxTaskText }) return null
     return ChecklistDraft(
         title = name,
-        tasks = filled,
+        tasks = filled.map { it.first },
         othersCanAddTasks = othersCanAddTasks,
         othersCanMarkTasksAsDone = othersCanMarkTasksAsDone,
+        taskIds = if (ids.isEmpty()) emptyList() else filled.map { it.second },
     )
 }
 
 /** Stav odesílání formuláře; text polí je Compose stav přímo ve ViewModelu. */
 data class ChecklistComposerStatus(
     val limits: ChecklistLimits = ChecklistLimits(),
+    /** Úprava stávajícího seznamu se ještě načítá — formulář je do té doby prázdný a neodešle se. */
+    val loading: Boolean = false,
     /** V Uložených zprávách nejsou „ostatní" — volby o nich se nekreslí, a „bez zvuku" taky ne. */
     val isSavedMessages: Boolean = false,
     /** Citovaná zpráva, když se seznamem odpovídá; `null`, dokud se nenačte, nebo bez odpovědi. */
@@ -154,8 +168,8 @@ data class ChecklistComposerStatus(
 )
 
 /**
- * Formulář nového seznamu úkolů. Nabízí se jen s Premium (sponka bez něj položku nemá), takže
- * Premium tu už neřeší.
+ * Formulář nového seznamu úkolů, nebo úpravy vlastního ([editMessageId]). Nabízí se jen
+ * s Premium (sponka i „Upravit" bez něj nevedou sem), takže Premium tu už neřeší.
  *
  * **Text polí je Compose stav, ne `StateFlow`**, a ve ViewModelu, ne v obrazovce — z týchž
  * důvodů jako u formuláře ankety ([PollComposerViewModel]).
@@ -167,7 +181,11 @@ class ChecklistComposerViewModel(
     private val replyQuote: ReplyQuote?,
     private val repository: ConversationRepository,
     private val replyRequests: ConversationReplyRequests,
+    /** Zpráva se seznamem, který se upravuje; `null` = nový seznam. */
+    val editMessageId: Long? = null,
 ) : ViewModel() {
+
+    val isEditing: Boolean get() = editMessageId != null
 
     /** Odpověď, se kterou seznam odejde; `null` = bez odpovědi (nebo ji uživatel zahodil). */
     var replyToMessageId by mutableStateOf(replyToMessageId)
@@ -176,6 +194,13 @@ class ChecklistComposerViewModel(
     var title by mutableStateOf("")
     val tasks = mutableStateListOf("")
 
+    /**
+     * Id úkolů při úpravě, souběžně s [tasks] (`0` = nový úkol). U nového seznamu zůstává prázdné.
+     * Jde s polem při odebrání i doplnění prázdného pole na konci — stávající úkol nesmí dostat
+     * cizí id, jinak by si odškrtnutí odnesl jiný úkol.
+     */
+    private val taskIds = mutableStateListOf<Int>()
+
     /*
      * Výchozí je seznam, do kterého smí psát a odškrtávat všichni: nákup ve dvou nebo úkoly ve
      * skupině jsou ten častý případ, seznam jen pro sebe se pozná tím, že je v Uložených zprávách.
@@ -183,10 +208,29 @@ class ChecklistComposerViewModel(
     var othersCanAddTasks by mutableStateOf(true)
     var othersCanMarkTasksAsDone by mutableStateOf(true)
 
-    private val _status = MutableStateFlow(ChecklistComposerStatus())
+    private val _status = MutableStateFlow(ChecklistComposerStatus(loading = editMessageId != null))
     val status: StateFlow<ChecklistComposerStatus> = _status.asStateFlow()
 
     init {
+        editMessageId?.let { id ->
+            viewModelScope.launch {
+                val checklist = repository.message(chatId, id).getOrNull()?.checklist
+                if (checklist == null) {
+                    logger.w { "Seznam úkolů k úpravě se nepodařilo načíst." }
+                    _status.update { it.copy(loading = false, error = UiText(Res.string.checklist_compose_load_failed)) }
+                    return@launch
+                }
+                title = checklist.title
+                tasks.clear()
+                tasks.addAll(checklist.tasks.map { it.text })
+                taskIds.clear()
+                taskIds.addAll(checklist.tasks.map { it.id })
+                othersCanAddTasks = checklist.othersCanAddTasks
+                othersCanMarkTasksAsDone = checklist.othersCanMarkTasksAsDone
+                _status.update { it.copy(loading = false) }
+                normalize()
+            }
+        }
         viewModelScope.launch {
             val info = repository.chatInfo(chatId).getOrNull()
             val limits = repository.checklistLimits()
@@ -213,7 +257,8 @@ class ChecklistComposerViewModel(
                 othersCanAddTasks = othersCanAddTasks && !alone,
                 othersCanMarkTasksAsDone = othersCanMarkTasksAsDone && !alone,
                 limits = _status.value.limits,
-            )
+                ids = taskIds,
+            ).takeUnless { _status.value.loading }
         }
 
     fun setTask(index: Int, text: String) {
@@ -225,6 +270,7 @@ class ChecklistComposerViewModel(
     fun removeTask(index: Int) {
         if (index !in tasks.indices) return
         tasks.removeAt(index)
+        if (index in taskIds.indices) taskIds.removeAt(index)
         normalize()
     }
 
@@ -246,6 +292,17 @@ class ChecklistComposerViewModel(
         val draft = draft ?: return
         if (_status.value.sending) return
         _status.update { it.copy(sending = true, error = null) }
+        editMessageId?.let { id ->
+            viewModelScope.launch {
+                repository.editChecklist(chatId, id, draft)
+                    .onSuccess { _status.update { it.copy(sending = false, sent = true) } }
+                    .onFailure { failure ->
+                        logger.w(failure) { "Seznam úkolů se nepodařilo uložit." }
+                        _status.update { it.copy(sending = false, error = failure.userMessage(Res.string.checklist_compose_save_failed)) }
+                    }
+            }
+            return
+        }
         viewModelScope.launch {
             val replyTo = replyToMessageId
             repository.sendChecklist(chatId, draft, replyToMessageId = replyTo, quote = replyQuote.takeIf { replyTo != null }, options = options)
@@ -266,6 +323,11 @@ class ChecklistComposerViewModel(
         if (normalized != tasks.toList()) {
             tasks.clear()
             tasks.addAll(normalized)
+        }
+        // Normalizace mění jen prázdná pole na konci, takže id stačí zkrátit nebo doplnit nulou.
+        if (isEditing) {
+            while (taskIds.size > tasks.size) taskIds.removeAt(taskIds.lastIndex)
+            while (taskIds.size < tasks.size) taskIds.add(0)
         }
     }
 
@@ -299,14 +361,17 @@ fun ChecklistComposerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(Res.string.checklist_compose_title)) },
+                title = {
+                    Text(stringResource(if (viewModel.isEditing) Res.string.checklist_compose_title_edit else Res.string.checklist_compose_title))
+                },
                 navigationIcon = {
                     IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
                     }
                 },
                 actions = {
-                    if (status.sending) {
+                    // Načítání upravovaného seznamu i odesílání: na místě Odeslat se čeká.
+                    if (status.sending || status.loading) {
                         LoadingIndicator(Modifier.padding(end = 16.dp).size(32.dp))
                     } else {
                         Box {
@@ -316,10 +381,13 @@ fun ChecklistComposerScreen(
                                     viewModel.send()
                                 },
                                 enabled = canSend,
+                                // Uložená úprava se neplánuje ani neposílá bez zvuku — nabídka jen u nového.
                                 modifier = Modifier
                                     .padding(end = 12.dp)
-                                    .longPressInstead(enabled = canSend) { sendMenuOpen = true },
-                            ) { Text(stringResource(Res.string.poll_compose_send)) }
+                                    .longPressInstead(enabled = canSend && !viewModel.isEditing) { sendMenuOpen = true },
+                            ) {
+                                Text(stringResource(if (viewModel.isEditing) Res.string.checklist_compose_save else Res.string.poll_compose_send))
+                            }
                             ExpressiveMenu(
                                 expanded = sendMenuOpen,
                                 onDismiss = { sendMenuOpen = false },
@@ -488,4 +556,6 @@ fun ChecklistComposerScreen(
 data class ChecklistComposerRequest(
     val replyToMessageId: Long?,
     val quote: ReplyQuote?,
+    /** Upravit vlastní seznam v téhle zprávě místo založení nového. */
+    val editMessageId: Long? = null,
 )

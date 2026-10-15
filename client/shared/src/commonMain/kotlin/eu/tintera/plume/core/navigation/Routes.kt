@@ -432,6 +432,8 @@ data class ChecklistComposerRoute(
     /** Citovaný úryvek té odpovědi; `null` = celá zpráva. */
     val quoteText: String? = null,
     val quotePosition: Int = 0,
+    /** Upravit vlastní seznam v téhle zprávě; `null` = nový seznam. */
+    val editMessageId: Long? = null,
 ) : Route
 
 /**

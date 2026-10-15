@@ -382,10 +382,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   rolování po pozicích (`getChatSparseMessagePositions`).
 - ~~Instant View článků~~ — hotovo (čtečka v aplikaci; `docs/poznatky/typy-zprav.md`, „Instant View").
   Zbývá přehrávání videa ze stránky a vložený obsah (mapy, embedy, propojené stránky).
-- ~~Checklisty: zobrazit, vytvořit, doplnit a odškrtnout~~ — hotovo (`docs/poznatky/ankety.md`,
-  „Seznamy úkolů"). Zbývá úprava vlastního seznamu (`editMessageChecklist`), servisní zprávy
-  „X odškrtl Y" místo obecné věty a **ověřit akce s účtem s Premium** — testovací účet ho nemá,
-  ověřené je to sondou.
+- ~~Checklisty: zobrazit, vytvořit, doplnit, odškrtnout a upravit, servisní zprávy se jménem~~ —
+  hotovo (`docs/poznatky/ankety.md`, „Seznamy úkolů"). Zbývá **ověřit akce s účtem s Premium** —
+  testovací účet ho nemá, ověřené je to sondou — a ťuknutím na servisní zprávu skočit na seznam.
 - ~~Výměna média při úpravě zprávy (`editMessageMedia`)~~ — hotovo (`docs/poznatky/konverzace-psani.md`,
   „Úprava zprávy"). Zbývá GIF a výměna z vestavěné galerie (dnes systémový výběr).
 - ~~Hudba se posílá jako soubor~~ — hotovo (`docs/poznatky/konverzace-psani.md`, „Posílání příloh

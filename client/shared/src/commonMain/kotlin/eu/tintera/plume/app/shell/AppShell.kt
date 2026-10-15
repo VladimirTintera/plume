@@ -1242,12 +1242,13 @@ private fun shellEntryProvider(
     entry<ChecklistComposerRoute> { route ->
         ChecklistComposerScreen(
             viewModel = koinViewModel(
-                key = "checklist-composer-${route.chatId}-${route.replyToMessageId}",
+                key = "checklist-composer-${route.chatId}-${route.replyToMessageId}-${route.editMessageId}",
                 parameters = {
                     parametersOf(
                         route.chatId,
                         route.replyToMessageId,
                         route.quoteText?.let { ReplyQuote(text = it, position = route.quotePosition) },
+                        route.editMessageId,
                     )
                 },
             ),
@@ -1725,6 +1726,7 @@ private fun checklistComposerRoute(chatId: Long, request: ChecklistComposerReque
     replyToMessageId = request.replyToMessageId,
     quoteText = request.quote?.text,
     quotePosition = request.quote?.position ?: 0,
+    editMessageId = request.editMessageId,
 )
 
 private fun pollComposerRoute(chatId: Long, request: PollComposerRequest) = PollComposerRoute(

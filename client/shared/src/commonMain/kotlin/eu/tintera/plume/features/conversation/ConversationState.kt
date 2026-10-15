@@ -693,6 +693,8 @@ data class ConversationState(
     val pendingContact: MessageMedia.Contact? = null,
     /** Jednorázová událost: tlačítko bota chce formulář nové ankety (v tomhle režimu). */
     val openPollComposer: PollComposerMode? = null,
+    /** Jednorázová událost: „Upravit" nad seznamem úkolů v téhle zprávě chce formulář. */
+    val openChecklistEditor: Long? = null,
     /** Jednorázová událost: tlačítko bota chce výběr lidí nebo chatu. */
     val openBotShare: BotShareRequest? = null,
     /** Mini aplikace k otevření — obrazovka ji otevře a událost vynuluje. */

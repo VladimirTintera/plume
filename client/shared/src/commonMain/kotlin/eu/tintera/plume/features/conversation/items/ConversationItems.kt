@@ -269,6 +269,7 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageM
     val poll = message.poll
     if (poll?.canRetract == true) add(MessageMenuAction.RetractVote)
     if (message.composerEdit() != null) add(MessageMenuAction.Edit)
+    if (message.checklist != null) add(MessageMenuAction.EditChecklist)
     // Bez textu není co kopírovat, i kdyby to server dovolil. Text ankety je jen náš popis
     // („Anketa: otázka") pro citace a náhledy, ne obsah, který by stálo za to kopírovat.
     if (poll == null && message.copyableText().isNotBlank()) {

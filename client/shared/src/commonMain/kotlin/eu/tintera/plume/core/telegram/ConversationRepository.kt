@@ -180,6 +180,12 @@ interface ConversationRepository {
         options: SendOptions = SendOptions(),
     ): Result<ChatMessage>
 
+    /**
+     * Uloží upravený seznam úkolů ([ChatChecklist], vlastní zpráva s `canBeEdited`). Úkoly se
+     * stávajícím id ([ChecklistDraft.taskIds]) si podrží odškrtnutí. Jen s Premium.
+     */
+    suspend fun editChecklist(chatId: Long, messageId: Long, checklist: ChecklistDraft): Result<Unit>
+
     /** Meze nového seznamu úkolů od serveru. */
     suspend fun checklistLimits(): ChecklistLimits
 
