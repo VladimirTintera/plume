@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.conversation_edit_new_gif
+import eu.tintera.plume.core.telegram.MediaReplacement
 import eu.tintera.plume.resources.conversation_edit_new_file
 import eu.tintera.plume.resources.conversation_edit_new_audio
 import eu.tintera.plume.resources.conversation_edit_new_video
@@ -1551,19 +1553,24 @@ private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit, media: Edi
  * [onReplace] otevře výběr, [onKeep] výměnu zahodí. Jeden objekt místo tří parametrů pole.
  */
 class EditMediaControls(
-    val replacement: OutgoingAttachment?,
+    val replacement: MediaReplacement?,
     val onReplace: () -> Unit,
     val onKeep: () -> Unit,
 )
 
-/** Řádek v hlavičce úpravy: čím se příloha nahradí. Rod podle druhu, proto čtyři věty. */
+/** Řádek v hlavičce úpravy: čím se příloha nahradí. Rod podle druhu, proto pět vět. */
 @Composable
-private fun OutgoingAttachment.replacementLabel(): String = when (this) {
-    is OutgoingAttachment.Photo -> stringResource(Res.string.conversation_edit_new_photo)
-    is OutgoingAttachment.Video -> stringResource(Res.string.conversation_edit_new_video)
-    is OutgoingAttachment.Audio -> stringResource(
-        Res.string.conversation_edit_new_audio,
-        title?.let { listOfNotNull(it, performer).joinToString(" – ") } ?: path.substringAfterLast('/'),
-    )
-    is OutgoingAttachment.Document -> stringResource(Res.string.conversation_edit_new_file, path.substringAfterLast('/'))
+private fun MediaReplacement.replacementLabel(): String = when (this) {
+    is MediaReplacement.Gif -> stringResource(Res.string.conversation_edit_new_gif)
+    is MediaReplacement.File -> when (val attachment = attachment) {
+        is OutgoingAttachment.Photo -> stringResource(Res.string.conversation_edit_new_photo)
+        is OutgoingAttachment.Video -> stringResource(Res.string.conversation_edit_new_video)
+        is OutgoingAttachment.Audio -> stringResource(
+            Res.string.conversation_edit_new_audio,
+            attachment.title?.let { listOfNotNull(it, attachment.performer).joinToString(" – ") }
+                ?: attachment.path.substringAfterLast('/'),
+        )
+        is OutgoingAttachment.Document ->
+            stringResource(Res.string.conversation_edit_new_file, attachment.path.substringAfterLast('/'))
+    }
 }

@@ -1864,17 +1864,34 @@ class TdlConversationRepository(
     override suspend fun editMedia(
         chatId: Long,
         messageId: Long,
-        attachment: OutgoingAttachment,
+        replacement: MediaReplacement,
         caption: String,
         formats: List<FormatSpan>,
     ): Result<Unit> {
         val formatted = caption.takeIf { it.isNotBlank() }
             ?.let { FormattedText(text = it, entities = detectEntities(it, formats = formats)) }
+        val content = when (replacement) {
+            is MediaReplacement.File -> replacement.attachment.toInputContent(caption = formatted)
+            // GIF z výběru na serveru už je i s náhledem, jako při odeslání (`sendGif`).
+            is MediaReplacement.Gif -> InputMessageAnimation(
+                animation = InputAnimation(
+                    animation = InputFileId(id = replacement.gif.animation.fileId),
+                    thumbnail = null,
+                    addedStickerFileIds = intArrayOf(),
+                    duration = 0,
+                    width = replacement.gif.animation.width,
+                    height = replacement.gif.animation.height,
+                ),
+                caption = formatted,
+                showCaptionAboveMedia = false,
+                hasSpoiler = false,
+            )
+        }
         return client.editMessageMedia(
             chatId = chatId,
             messageId = messageId,
             replyMarkup = null,
-            inputMessageContent = attachment.toInputContent(caption = formatted),
+            inputMessageContent = content,
         )
             .toResult()
             .map { }

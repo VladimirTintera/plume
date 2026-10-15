@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.GifItem
+import eu.tintera.plume.core.telegram.MediaReplacement
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.settings.UnimplementedAppSettings
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -92,16 +94,16 @@ class ConversationComposerTest {
             return editResult
         }
 
-        val mediaEdits = mutableListOf<Triple<Long, OutgoingAttachment, String>>()
+        val mediaEdits = mutableListOf<Triple<Long, MediaReplacement, String>>()
 
         override suspend fun editMedia(
             chatId: Long,
             messageId: Long,
-            attachment: OutgoingAttachment,
+            replacement: MediaReplacement,
             caption: String,
             formats: List<FormatSpan>,
         ): Result<Unit> {
-            mediaEdits += Triple(messageId, attachment, caption)
+            mediaEdits += Triple(messageId, replacement, caption)
             return Result.success(Unit)
         }
 
@@ -430,7 +432,7 @@ class ConversationComposerTest {
         composer.send(ComposedText("popisek"))
         advanceUntilIdle()
 
-        assertEquals(listOf(Triple(5L, novaFotka as OutgoingAttachment, "popisek")), repository.mediaEdits)
+        assertEquals(listOf(Triple(5L, MediaReplacement.File(novaFotka) as MediaReplacement, "popisek")), repository.mediaEdits)
         assertNull(state.value.editing)
         assertNull(state.value.editReplacement)
     }
@@ -461,4 +463,39 @@ class ConversationComposerTest {
 
         assertTrue(repository.mediaEdits.isEmpty())
     }
+
+    @Test
+    fun gifSeVymeniGifemZVyberu() = runTest {
+        val state = testState(gifMessage(6))
+        val composer = composer(state)
+        composer.startEdit(6, canEditMedia = true)
+        assertEquals(ReplaceMedia.Gif, state.value.editReplace)
+
+        // Soubor z telefonu GIF nenahradí, jen GIF z výběru.
+        composer.replaceEditMedia(listOf(novaFotka))
+        assertNull(state.value.editReplacement)
+
+        composer.replaceEditGif(novyGif)
+        composer.send(ComposedText(""))
+        advanceUntilIdle()
+
+        assertEquals(listOf(Triple(6L, MediaReplacement.Gif(novyGif) as MediaReplacement, "")), repository.mediaEdits)
+    }
+
+    @Test
+    fun gifNeNahradiFotku() = runTest {
+        val state = testState(photoMessage(5))
+        val composer = composer(state)
+        composer.startEdit(5, canEditMedia = true)
+
+        composer.replaceEditGif(novyGif)
+
+        assertNull(state.value.editReplacement)
+    }
+
+    private fun gifMessage(id: Long) = testMessage(id, "").copy(
+        media = MessageMedia.Animation(fileId = 2, thumbnailFileId = null, width = 10, height = 10, sizeBytes = 100),
+    )
+
+    private val novyGif = GifItem(MessageMedia.Animation(fileId = 77, thumbnailFileId = null, width = 320, height = 240, sizeBytes = 1000))
 }

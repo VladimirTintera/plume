@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.MediaReplacement
 import eu.tintera.plume.core.telegram.SenderModeration
 import eu.tintera.plume.core.telegram.PendingChecklistMark
 import eu.tintera.plume.core.telegram.DEFAULT_CHECKLIST_TASK_TEXT_MAX
@@ -596,7 +597,7 @@ data class ConversationState(
     /** Čím jde při úpravě vyměnit přílohu; `null` = výměna se nenabízí (viz [replaceableMedia]). */
     val editReplace: ReplaceMedia? = null,
     /** Nová příloha, která při uložení úpravy nahradí tu původní; `null` = příloha zůstává. */
-    val editReplacement: OutgoingAttachment? = null,
+    val editReplacement: MediaReplacement? = null,
     /** Náhled odkazu v rozepsaném textu, jak ho vrátil server; `null`, když text odkaz nemá. */
     val linkPreview: LinkPreview? = null,
     /** Odkazy v rozepsaném textu, jak stojí za sebou; víc než jeden = jde vybrat, ke kterému náhled. */
@@ -1004,13 +1005,13 @@ private const val MAX_QUICK_REACTIONS = 6
 internal fun ConversationState.articleMedia(messageId: Long, index: Int): MessageMedia? =
     messages.firstOrNull { it.id == messageId }?.article?.media?.firstOrNull { it.index == index }?.media
 
-/** Ze kterého výběru se bere nová příloha při úpravě: fotky a videa, nebo soubory. */
-enum class ReplaceMedia { Visual, File }
+/** Ze kterého výběru se bere nová příloha při úpravě: fotky a videa, soubory, nebo GIFy. */
+enum class ReplaceMedia { Visual, File, Gif }
 
 /**
  * Čím jde přílohu zprávy vyměnit. Fotka a video jen fotkou nebo videem (v albu server dovolí
- * právě tuhle záměnu), soubor a skladba souborem; ostatní (GIF, hlasovka, samolepka) se při
- * úpravě nevyměňují. Rozhoduje i server ([canEditMedia] z `MessageProperties`): mizející zprávu
+ * právě tuhle záměnu), soubor a skladba souborem, GIF GIFem z výběru; ostatní (hlasovka,
+ * kolečko, samolepka) se při úpravě nevyměňují. Rozhoduje i server ([canEditMedia] z `MessageProperties`): mizející zprávu
  * vyměnit nedovolí.
  */
 internal fun replaceableMedia(message: ChatMessage, canEditMedia: Boolean): ReplaceMedia? {
@@ -1018,6 +1019,7 @@ internal fun replaceableMedia(message: ChatMessage, canEditMedia: Boolean): Repl
     return when (message.media) {
         is MessageMedia.Photo, is MessageMedia.Video -> ReplaceMedia.Visual
         is MessageMedia.Document, is MessageMedia.Audio -> ReplaceMedia.File
+        is MessageMedia.Animation -> ReplaceMedia.Gif
         else -> null
     }
 }
@@ -1026,6 +1028,8 @@ internal fun replaceableMedia(message: ChatMessage, canEditMedia: Boolean): Repl
 internal fun ReplaceMedia.accepts(attachment: OutgoingAttachment): Boolean = when (this) {
     ReplaceMedia.Visual -> attachment is OutgoingAttachment.Photo || attachment is OutgoingAttachment.Video
     ReplaceMedia.File -> attachment is OutgoingAttachment.Document || attachment is OutgoingAttachment.Audio
+    // GIF se bere z výběru GIFů ([MediaReplacement.Gif]), ne jako soubor z telefonu.
+    ReplaceMedia.Gif -> false
 }
 
 /** Odpověď [optionId] ankety ve zprávě [messageId] čeká na potvrzení smazání; [text] ji v dialogu pojmenuje. */
