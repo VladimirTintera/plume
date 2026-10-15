@@ -44,6 +44,12 @@ actual class VideoPlayer(internal val exo: ExoPlayer) {
          * Přesně tak se GIF v bublině nehýbal. Ztlumený GIF navíc nemá co ztišit hudbu uživatele.
          */
         exo.setAudioAttributes(audioAttributes, /* handleAudioFocus = */ !muted)
+        /*
+         * Vytažená sluchátka video POZASTAVÍ (`ACTION_AUDIO_BECOMING_NOISY`), jinak by hrálo dál
+         * nahlas z reproduktoru. Ztlumený obsah ne: GIF v bublině by se po vytažení sluchátek
+         * zastavil, přestože žádný zvuk nemá.
+         */
+        exo.setHandleAudioBecomingNoisy(!muted)
         exo.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(File(path))))
         exo.prepare()
     }
@@ -59,6 +65,7 @@ actual class VideoPlayer(internal val exo: ExoPlayer) {
         exo.repeatMode = if (loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
         exo.volume = if (muted) 0f else 1f
         exo.setAudioAttributes(audioAttributes, /* handleAudioFocus = */ !muted)
+        exo.setHandleAudioBecomingNoisy(!muted)
         val factory = DataSource.Factory { PartialFileDataSource(source) }
         exo.setMediaSource(
             ProgressiveMediaSource.Factory(factory)

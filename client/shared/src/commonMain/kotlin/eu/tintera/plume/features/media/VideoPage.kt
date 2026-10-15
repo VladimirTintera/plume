@@ -1,5 +1,26 @@
 package eu.tintera.plume.features.media
 
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.material3.IconToggleButton
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
+import eu.tintera.plume.core.ui.HideSystemBars
+import eu.tintera.plume.core.ui.KeepScreenOn
+import eu.tintera.plume.core.ui.statusBarArea
+import eu.tintera.plume.core.ui.toggle
+import eu.tintera.plume.resources.lock_24dp
+import eu.tintera.plume.resources.lock_open_24dp
+import eu.tintera.plume.resources.media_lock_controls
+import eu.tintera.plume.resources.media_rotate_screen
+import eu.tintera.plume.resources.media_unlock_controls
+import eu.tintera.plume.resources.screen_rotation_24dp
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -171,11 +192,14 @@ internal fun VideoPage(
     onToggleMute: (() -> Unit)? = null,
     /** Smí video do obrazu v obraze (mizející médium ne — mělo by zůstat v aplikaci). */
     pictureInPicture: Boolean = false,
+    /** Ovládání celé obrazovky jako v přehrávači (lišty, zámek, otočení); `null` = bez něj. */
+    fullscreen: VideoFullscreen? = null,
 ) {
     val scope = rememberCoroutineScope()
     val repository = koinInject<FileRepository>()
     VideoPage(
         startMs = startMs,
+        fullscreen = fullscreen,
         muted = muted,
         onToggleMute = onToggleMute,
         pictureInPicture = pictureInPicture,
@@ -288,6 +312,11 @@ internal fun VideoPage(
      * hraje. Jen v prohlížeči médií — náhled při sdílení a nad polem je chvilková kontrola.
      */
     pictureInPicture: Boolean = false,
+    /**
+     * Celá obrazovka jako v přehrávači: systémové lišty se schovávají spolu s ovládáním, zámek
+     * proti dotykům a ruční otočení. Jen v prohlížeči médií; `null` = bez toho (náhledy).
+     */
+    fullscreen: VideoFullscreen? = null,
 ) {
     val scope = rememberCoroutineScope()
     val voicePlayer = koinInject<VoicePlayer>()
@@ -441,6 +470,43 @@ internal fun VideoPage(
     // Zavřené okénko i odchod na pozadí bez okénka video pozastaví (proces pod ním žije dál).
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { player.pause() }
 
+    // Hrající video nenechá displej zhasnout, ani v okénku obrazu v obraze.
+    if (active && playing) KeepScreenOn()
+
+    /*
+     * Zámek proti dotykům: video hraje dál, ale tah nezavírá, ťuknutí nepřepíná a ovládání se
+     * neukáže — ťuknutí jen vytáhne zamčený zámek, kterým se odemyká. Listování vypíná prohlížeč.
+     */
+    val locked = fullscreen?.locked == true && active
+    val currentLocked by rememberUpdatedState(locked)
+    var lockHint by remember { mutableStateOf(false) }
+    // Po zamčení se zámek na chvíli ukáže — je vidět, co se stalo a čím se to vrací.
+    LaunchedEffect(locked) { lockHint = locked }
+    LaunchedEffect(lockHint) {
+        if (lockHint) {
+            delay(CONTROLS_HIDE_MS)
+            lockHint = false
+        }
+    }
+    /*
+     * Zpět za zamčení nezavírá, jen ukáže zámek: zámek je proti nechtěným dotykům a tah od okraje
+     * je ten nejčastější. `NavigationBackHandler`, ne `BackHandler` — ten by zabil predictive
+     * back i odemčenému prohlížeči. Odemčený handler je vypnutý a gesto bere `NavDisplay`.
+     */
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = locked,
+        onBackCompleted = { lockHint = true },
+    )
+
+    /*
+     * Systémové lišty jdou pryč spolu s ovládáním a vracejí se s ním (jako YouTube); zamčené
+     * video je nechá schované. Tah od okraje je ukáže jen na chvíli.
+     */
+    if (fullscreen != null && active && loaded && !inPip) {
+        HideSystemBars(hidden = locked || !controlsVisible)
+    }
+
     // Stahování, které dobíhá pod už hrajícím videem.
     val downloadVisible = immersive && hasPlayed && file is FileState.Downloading && !inPip
 
@@ -466,7 +532,7 @@ internal fun VideoPage(
                         if (vertical == null) {
                             travel += delta
                             if (travel.getDistance() > viewConfiguration.touchSlop) {
-                                vertical = currentDismiss != null && abs(travel.y) > abs(travel.x) && event.changes.size == 1
+                                vertical = !currentLocked && currentDismiss != null && abs(travel.y) > abs(travel.x) && event.changes.size == 1
                             }
                         }
                         if (vertical == true) {
@@ -489,6 +555,8 @@ internal fun VideoPage(
                 detectTapGestures(onTap = {
                     if (hasSpoiler && !revealed) {
                         onReveal()
+                    } else if (currentLocked) {
+                        lockHint = !lockHint
                     } else if (currentImmersive && !controlsVisible) {
                         controlsVisible = true
                     } else {
@@ -588,7 +656,7 @@ internal fun VideoPage(
             }
 
             AnimatedVisibility(
-                visible = immersive && loaded && (hasPlayed || failed) && controlsVisible && !inPip,
+                visible = immersive && loaded && (hasPlayed || failed) && controlsVisible && !inPip && !locked,
                 enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 modifier = Modifier.align(Alignment.Center),
@@ -628,7 +696,7 @@ internal fun VideoPage(
             // Posuvník leží na spodku karty s přechodem do tmava — na světlém záběru by bílý
             // posuvník jinak zmizel.
             AnimatedVisibility(
-                visible = immersive && loaded && controlsVisible && !inPip,
+                visible = immersive && loaded && controlsVisible && !inPip && !locked,
                 enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 modifier = Modifier.align(Alignment.BottomCenter),
@@ -750,6 +818,19 @@ internal fun VideoPage(
                 }
             }
 
+            if (fullscreen != null) {
+                VideoTopControls(
+                    visible = immersive && loaded && !inPip && if (locked) lockHint else controlsVisible,
+                    locked = locked,
+                    onLockChange = { on ->
+                        fullscreen.onLockChange(on)
+                        // Odemčení vrací ovládání hned; zamčení ho schová (podmínka `!locked`).
+                        if (!on) controlsVisible = true
+                    },
+                    onRotate = fullscreen.onRotate,
+                )
+            }
+
             VideoDownloadIndicator(
                 progress = (file as? FileState.Downloading)?.progress ?: 1f, // dostaženo: plný, než zmizí
                 visible = downloadVisible,
@@ -758,6 +839,111 @@ internal fun VideoPage(
             )
 
             if (!inPip) overlay()
+        }
+    }
+}
+
+/**
+ * Ovládání celé obrazovky, které drží prohlížeč, ne stránka: zámek musí vypnout i listování
+ * a vynucená orientace má platit i pro další video.
+ */
+internal class VideoFullscreen(
+    val locked: Boolean,
+    val onLockChange: (Boolean) -> Unit,
+    /** Otočí obrazovku do druhé orientace; `null`, kde ji platforma vynutit neumí. */
+    val onRotate: (() -> Unit)?,
+)
+
+/**
+ * Zámek a otočení v horním rohu karty, naproti kroužku stahování ([VideoDownloadIndicator]).
+ *
+ * - **Dole místo není**: čas, posuvník, rychlost, obraz v obraze a zvuk. S dalšími dvěma
+ *   tlačítky by posuvníku na telefonu na výšku zbyl palec.
+ * - **Zamčené video ukazuje jen zámek**, vyplněný: ťuknutí kamkoli ho vytáhne, ťuknutí na něj
+ *   odemkne. Stav nese výplň, ne jen tvar ikony.
+ * - **Roh ustupuje stavové liště a výřezu, jen kam karta opravdu sahá** — jako kroužek stahování.
+ *   Bere se místo lišty i schované ([statusBarArea]): vrací se spolu s ovládáním a tlačítka by
+ *   jinak během jejího vyjetí poskočila.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun BoxScope.VideoTopControls(
+    visible: Boolean,
+    locked: Boolean,
+    onLockChange: (Boolean) -> Unit,
+    onRotate: (() -> Unit)?,
+) {
+    val density = LocalDensity.current
+    val ltr = LocalLayoutDirection.current == LayoutDirection.Ltr
+    val safe = statusBarArea()
+        .union(WindowInsets.displayCutout)
+        .union(WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal))
+    var insetTop by remember { mutableFloatStateOf(0f) }
+    var insetStart by remember { mutableFloatStateOf(0f) }
+    val haptics = LocalHapticFeedback.current
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        modifier = Modifier
+            .align(Alignment.TopStart)
+            .fillMaxWidth()
+            .onGloballyPositioned { coordinates ->
+                val bounds = coordinates.boundsInWindow()
+                val windowWidth = coordinates.findRootCoordinates().size.width
+                insetTop = (safe.getTop(density) - bounds.top).coerceAtLeast(0f)
+                insetStart = if (ltr) {
+                    safe.getLeft(density, LayoutDirection.Ltr) - bounds.left
+                } else {
+                    safe.getRight(density, LayoutDirection.Rtl) - (windowWidth - bounds.right)
+                }.coerceAtLeast(0f)
+            },
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f), Color.Transparent),
+                    ),
+                )
+                .padding(
+                    start = with(density) { insetStart.toDp() },
+                    top = with(density) { insetTop.toDp() },
+                )
+                .padding(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconToggleButton(
+                checked = locked,
+                onCheckedChange = { on ->
+                    haptics.toggle(on)
+                    onLockChange(on)
+                },
+                colors = IconButtonDefaults.iconToggleButtonColors(
+                    contentColor = Color.White,
+                    checkedContainerColor = Color.White,
+                    checkedContentColor = Color.Black,
+                ),
+                shapes = IconButtonDefaults.toggleableShapes(),
+            ) {
+                Icon(
+                    painterResource(if (locked) Res.drawable.lock_24dp else Res.drawable.lock_open_24dp),
+                    contentDescription = stringResource(if (locked) Res.string.media_unlock_controls else Res.string.media_lock_controls),
+                )
+            }
+            if (onRotate != null && !locked) {
+                IconButton(
+                    onClick = onRotate,
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                    shapes = IconButtonDefaults.shapes(),
+                ) {
+                    Icon(
+                        painterResource(Res.drawable.screen_rotation_24dp),
+                        contentDescription = stringResource(Res.string.media_rotate_screen),
+                    )
+                }
+            }
         }
     }
 }

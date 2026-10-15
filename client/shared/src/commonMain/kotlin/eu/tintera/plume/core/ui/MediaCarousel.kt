@@ -80,6 +80,8 @@ fun MediaCarousel(
     /** Modifikátor jen pro pozadí — prohlížeč ho s ním zprůhledňuje při zavíracím tahu. */
     backdropModifier: Modifier = Modifier,
     animateArrivals: Boolean = false,
+    /** Listovat tahem; prohlížeč ho vypíná, když je video zamčené proti dotykům. */
+    userScrollEnabled: Boolean = true,
     /** Pozadí stránky přes celou plochu (malý náhled stačí), nebo nic. */
     backdrop: @Composable (index: Int) -> Unit,
     page: @Composable (MediaCarouselPage) -> Unit,
@@ -122,6 +124,7 @@ fun MediaCarousel(
             pageSpacing = pageGap,
             // Soused se skládá dopředu, ať při listování naskočí hned i s už staženým náhledem.
             beyondViewportPageCount = 1,
+            userScrollEnabled = userScrollEnabled,
             modifier = Modifier.fillMaxSize(),
         ) { index ->
             val arrival = remember {

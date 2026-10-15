@@ -49,7 +49,13 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    (~~vložení bez dotazu „Povolit vložení?"~~ — hotovo, `UIPasteControl` nad polem). ~~Streamování~~ — hotovo na Androidu (`docs/poznatky/prohlizec-medii.md`,
    „Video"); iOS čeká na `AVAssetResourceLoaderDelegate`. ~~Rychlost a ztlumení~~ — hotovo
    (`docs/poznatky/prohlizec-medii.md`, „Video"; přehrávání samo na emulátoru neověřené). ~~Obraz v obraze~~ — hotovo
-   (Android ověřený, iOS jen přeložený; akce v okénku neověřená).
+   (Android ověřený, iOS jen přeložený; akce v okénku neověřená). ~~Displej nezhasíná, pauza po
+   vytažení sluchátek, lišty schované s ovládáním, zámek proti dotykům, ruční otočení~~ — hotovo
+   (`docs/poznatky/prohlizec-medii.md`, „Video"; otočení na iOS chybí, chce delegáta aplikace).
+   Zbývá: **pamatovat si, kde přehrávání skončilo** (delší videa, proužek zhlédnutého v bublině),
+   **náhledy snímků nad posuvníkem** (`MessageVideo.storyboards`, TDLib je posílá hotové),
+   **volba kvality** (`alternativeVideos`), start od `startTimestamp` přeposlaného videa,
+   dvojí ťuknutí ±10 s a podržení pro 2×.
 3. ~~**Přeposílání zpráv**~~ — hotovo (položka v nabídce, výběr chatu, album celé,
    ~~víc cílů najednou~~ i ~~výběr víc zpráv~~). ~~Kopie bez odesílatele~~ (i bez popisků) — hotovo.
 4. ~~**Otevírání dokumentů**~~ — hotovo (stažení s průběhem, `ACTION_VIEW` / `UIDocumentInteractionController`).

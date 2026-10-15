@@ -119,9 +119,10 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   průhlednost pozadí. Pružina přestřelí, takže se ořezává do 0..1 — záporné odsazení nebo
   zaoblení layout odmítne. Místo pro lišty se čte až při měření stránky, odsazení pageru
   v kompozici (bere jen hodnotu), takže přechod rekomponuje, ale jen po dobu animace.
-- **Systémové lišty na celé obrazovce zůstávají** (čas, notifikace), jen se pod nimi
+- **Systémové lišty na celé obrazovce u FOTKY zůstávají** (čas, notifikace), jen se pod nimi
   ztmaví přechodem do průhledna. Přes vysoký nebo přiblížený snímek by jinak světlé ikony
-  nebyly vidět.
+  nebyly vidět. **Video je schovává spolu s ovládáním** (viz „Video", „Celá obrazovka jako
+  v přehrávači").
 - **Lišty leží NAD kartou, ne přes ni.** Stránka jde přes celou výšku (přiblížená fotka má kam
   růst), ale karta se vepisuje do místa mezi lištami. Rozvržení stránky je vlastní `Layout`
   (`MediaPageLayout`): nejdřív se změří popisek, snímek se vepíše do zbytku (`fitInto`, testy
@@ -933,6 +934,41 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   - **Na emulátoru ověřené jen ovládání**: čip přepíná a rychlost vydrží zavření prohlížeče,
     ztlumení ne. Přehrávání samo emulátor nepustil (`queueInputBuffer error: 14` u všech videí,
     viz „GIFy") — **že video opravdu hraje rychleji a potichu, ověřené NENÍ**.
+
+- **Displej při přehrávání nezhasíná** (`KeepScreenOn` v `core/ui`, jen dokud video hraje,
+  i v okénku PiP). Dřív ho nedržel nikdo: `PlayerView` z Media3 to dělá sám, jenže ten kreslí do
+  `SurfaceView` (viz výš) a my máme `TextureView`. Na samotný povrch to dát nejde — `VideoSurface`
+  kreslí i GIFy v bublinách, které hrají pořád, a displej by nezhasl nad otevřeným chatem.
+  Požadavky se sčítají (ne uložit a vrátit), stejně jako u `DarkSystemBars`. iOS:
+  `idleTimerDisabled` (`AVPlayerLayer` ho na rozdíl od `AVPlayerViewController` nenastaví).
+- **Vytažená sluchátka video pozastaví** (`setHandleAudioBecomingNoisy` v `load`, Android).
+  Jen se zvukem: ztlumený GIF v bublině by se jinak po vytažení sluchátek zastavil. Na iOS to
+  `AVPlayer` dělá sám.
+- **Celá obrazovka jako v přehrávači** (`VideoFullscreen`, drží ho prohlížeč, ne stránka):
+  - **Systémové lišty jdou pryč spolu s ovládáním** a vracejí se s ním (`HideSystemBars`), jako
+    YouTube; pozastavené video má ovládání na očích, a tedy i lišty. Tah od okraje lištu ukáže
+    jen na chvíli. Horní roh se odsazuje podle místa lišty i schované (`statusBarArea`): lišta
+    se vrací spolu s ovládáním a tlačítka by během jejího vyjetí poskočila. iOS schová stavovou
+    lištu přes hostitele controlleru (`prefersStatusBarHidden`); ukazatel plochy NE —
+    `prefersHomeIndicatorAutoHidden` je v kategorii UIKit a Kotlin/Native ji přepsat nedovolí
+    („overrides nothing").
+  - **Zámek proti dotykům** (zámek vlevo nahoře): tah nezavírá, ťuknutí nepřepíná, ovládání
+    se neukáže a listování je vypnuté (`MediaCarousel(userScrollEnabled)`). Ťuknutí kamkoli
+    vytáhne vyplněný zámek, kterým se odemyká; po zamčení se na chvíli ukáže sám. **Zpět
+    za zamčení nezavírá**, jen ukáže zámek — tah od okraje je ten nejčastější nechtěný dotyk.
+    Jde to přes `NavigationBackHandler` zapnutý jen za zamčení; `BackHandler` by zabil predictive
+    back i odemčenému prohlížeči.
+  - **Ruční otočení** (vedle zámku): do té druhé orientace, než v jaké okno právě je, i se
+    systémovým automatickým otáčením vypnutým (`SENSOR_LANDSCAPE` / `PORTRAIT`). Platí jen na
+    celé obrazovce a pro další videa taky; návrat do galerie orientaci pustí. Požadavky jsou
+    zásobník (`LockScreenOrientation`), ne uložit a vrátit — past z `DarkSystemBars`.
+    **Na velkém displeji (nejmenší šířka od 600 dp) se tlačítko neukazuje**: Android 16+
+    s `targetSdk` 37 tam orientaci aplikace ignoruje. **iOS ho nemá**: kořen je SwiftUI
+    `UIHostingController`, který podporuje všechny orientace z Info.plist, takže
+    `requestGeometryUpdate` by telefon otočil jen do prvního pohybu; zamknout by to šlo jen
+    přes `supportedInterfaceOrientationsFor` v delegátu aplikace.
+  - **Dole místo není**, proto zámek a otočení leží nahoře: s dalšími dvěma tlačítky by
+    posuvníku na telefonu na výšku zbyl palec.
 
 ### Text z fotky
 
