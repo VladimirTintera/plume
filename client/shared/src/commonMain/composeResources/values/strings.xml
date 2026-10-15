@@ -562,6 +562,7 @@
     <string name="activity_sending_video">sending a video…</string>
     <string name="activity_sending_file">sending a file…</string>
     <string name="activity_choosing_sticker">choosing a sticker…</string>
+    <string name="activity_watching_animation">watching the animation…</string>
     <string name="activity_other">up to something…</string>
     <string name="conversation_empty">No messages here yet.</string>
     <string name="conversation_pinned_message">Pinned message</string>
@@ -2122,6 +2123,7 @@
     <string name="verification_fake">FAKE</string>
     <string name="verification_scam_warning">Telegram has flagged this account as a scam. Be careful with money and personal details.</string>
     <string name="verification_fake_warning">Telegram has flagged this account as fake. It may be impersonating someone else.</string>
+    <string name="animated_emoji_play">Play the effect</string>
     <string name="message_effect">Message effect %1$s</string>
     <string name="message_effect_play">Play the effect again</string>
     <string name="date_numeric">%1$d/%2$d/%3$d</string>

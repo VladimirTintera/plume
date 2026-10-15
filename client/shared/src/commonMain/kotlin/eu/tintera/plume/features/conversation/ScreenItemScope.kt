@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.features.conversation.items.EmojiBurst
+import eu.tintera.plume.features.conversation.items.EmojiBursts
 import eu.tintera.plume.core.ui.bubbleTextSelectable
 import eu.tintera.plume.core.ai.ScamKind
 import eu.tintera.plume.core.telegram.SpeechTranscript
@@ -184,6 +186,20 @@ internal class ScreenItemScope(
     private val unreadBoundaryState = derivedStateOf { state.value.unreadBoundaryId }
 
     override fun unreadBoundary(): Long? = unreadBoundaryState.value
+
+    private val emojiBursts = object : EmojiBursts {
+        @Composable
+        override fun burst(messageId: Long): EmojiBurst? {
+            val waiting by viewModel.emojiBursts.collectAsStateWithLifecycle()
+            return waiting[messageId]
+        }
+
+        override fun tap(messageId: Long) = viewModel.tapAnimatedEmoji(messageId)
+
+        override fun shown(burst: EmojiBurst) = viewModel.emojiBurstShown(burst)
+    }
+
+    override fun emojiBursts(): EmojiBursts = emojiBursts
 
     /**
      * Navigace, sheet nad obrazovkou a systémový výběr umístění jsou věc obrazovky; všechno

@@ -10,6 +10,7 @@ import eu.tintera.plume.resources.activity_sending_file
 import eu.tintera.plume.resources.activity_sending_photo
 import eu.tintera.plume.resources.activity_sending_video
 import eu.tintera.plume.resources.activity_typing
+import eu.tintera.plume.resources.activity_watching_animation
 import org.jetbrains.compose.resources.StringResource
 
 /**
@@ -26,5 +27,6 @@ fun ChatActivity.label(): StringResource = when (this) {
     ChatActivity.SendingVideo -> Res.string.activity_sending_video
     ChatActivity.SendingFile -> Res.string.activity_sending_file
     ChatActivity.ChoosingSticker -> Res.string.activity_choosing_sticker
+    ChatActivity.WatchingAnimation -> Res.string.activity_watching_animation
     ChatActivity.Other -> Res.string.activity_other
 }

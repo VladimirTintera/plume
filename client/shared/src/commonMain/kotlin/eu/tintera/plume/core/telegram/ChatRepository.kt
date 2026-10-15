@@ -726,6 +726,9 @@ enum class ChatActivity {
     SendingVideo,
     SendingFile,
     ChoosingSticker,
+
+    /** Sleduje efekt animovaného emoji, na které jsme ťukli (`chatActionWatchingAnimations`). */
+    WatchingAnimation,
     Other,
 }
 

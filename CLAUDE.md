@@ -598,11 +598,12 @@ barev", ale má vlastní konzistentní paletu.
 
 ## Haptika
 
-Hmatová odezva má **jeden slovník v `core/ui/Haptics.kt`** — pět pojmenovaných rolí místo
+Hmatová odezva má **jeden slovník v `core/ui/Haptics.kt`** — šest pojmenovaných rolí místo
 `HapticFeedbackType` rozsetého po obrazovkách: `threshold()` (gesto překročilo práh),
-`confirm()` (akce se povedla), `reject()` (nepovedla), `toggle(on)` (přepnutý stav) a `tick()`
-(procházení po dílcích). Stejná úvaha jako u `ShapeMorphs` a `AppMotion`: význam má nést typ, ne
-vkus toho, kdo zrovna píše obrazovku.
+`confirm()` (akce se povedla), `reject()` (nepovedla), `toggle(on)` (přepnutý stav), `tick()`
+(procházení po dílcích) a `pulse()` (tep, dva údery — efekt animovaného emoji pro oba). Stejná
+úvaha jako u `ShapeMorphs` a `AppMotion`: význam má nést typ, ne vkus toho, kdo zrovna píše
+obrazovku.
 
 - **Dlouhý stisk si `combinedClickable` dělá SÁM.** Ruční volání navíc odezvu ZDVOJÍ — změřeno
   na emulátoru: dvě vibrace 9 ms po sobě, obě `constant=0`. Takhle to bylo na čtyřech místech
@@ -611,6 +612,8 @@ vkus toho, kdo zrovna píše obrazovku.
 - **Odezva patří k akci UŽIVATELE, ne k události od serveru.** Příchozí zpráva, dotažená stránka
   historie ani změna stavu spojení nevibrují; od upozornění na cizí akci jsou notifikace. Výjimka
   potvrzuje pravidlo: chyba se hlásí `reject()`, protože přišla po akci, kterou uživatel udělal.
+  Druhá výjimka je vědomá: efekt animovaného emoji od protějšku tepe (`pulse()`), protože je to
+  gesto člověka mířené na nás a přehrává se před očima (`docs/poznatky/emoji-samolepky-reakce.md`).
 - **Jakmile vibruje všechno, přestane cokoli znamenat** — totéž pravidlo jako u tvarů. Proto
   **odkrývání časů tahem haptiku NEMÁ**: na rozdíl od archivace a odpovědi tahem tam žádný práh
   „při puštění se něco stane" není, odkrytí je vidět hned a buzení při každém nahlédnutí by byl

@@ -2,6 +2,7 @@ package eu.tintera.plume.core.ui
 
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import kotlinx.coroutines.delay
 
 /**
  * Slovník hmatové odezvy pro celou aplikaci.
@@ -57,3 +58,24 @@ fun HapticFeedback.tick() = performHapticFeedback(HapticFeedbackType.SegmentTick
  * U `combinedClickable` se nevolá — ten ho dělá sám a odezva by byla dvakrát.
  */
 fun HapticFeedback.longPress() = performHapticFeedback(HapticFeedbackType.LongPress)
+
+/**
+ * Tep: dva silné údery krátce po sobě. Doprovází efekt animovaného emoji, který vidí obě strany —
+ * ťuknutí na emoji i efekt od protějšku, když se přehraje před očima.
+ *
+ * Výjimka z pravidla „cizí akce nevibruje" je vědomá: efekt od protějšku není událost serveru,
+ * ale gesto člověka mířené na nás, a hmatová ozvěna je jeho půlka — proto ho Telegram posílá.
+ * Přijde jen s viditelnou zprávou v otevřeném chatu, nikdy na pozadí.
+ *
+ * Úder je [HapticFeedbackType.LongPress] (na Androidu `HEAVY_CLICK`, na iOS medium impact): je
+ * na všech verzích od `minSdk`, kdežto jemnější typy pod API 30/34 nahrazuje compat jinými.
+ * Mezera mezi údery je delší než nejkratší, kterou ruka rozliší, aby se dva údery neslily v jeden.
+ */
+suspend fun HapticFeedback.pulse() {
+    performHapticFeedback(HapticFeedbackType.LongPress)
+    delay(PULSE_GAP_MILLIS)
+    performHapticFeedback(HapticFeedbackType.LongPress)
+}
+
+/** Mezera mezi dvěma údery tepu. */
+private const val PULSE_GAP_MILLIS = 140L
