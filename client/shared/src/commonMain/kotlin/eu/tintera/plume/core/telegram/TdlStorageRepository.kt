@@ -81,17 +81,19 @@ class TdlStorageRepository(private val holder: TelegramClientHolder) : StorageRe
         )
     }
 
-    override suspend fun clearOlderThan(olderThanSeconds: Int): Result<Long> = optimize(
+    override suspend fun cleanUp(olderThanSeconds: Int?, maxBytes: Long?): Result<Long> = optimize(
         /*
-         * Meze velikosti a počtu VÝSLOVNĚ bez omezení. S -1 by TDLib vzal výchozí hodnoty
-         * z voleb `storage_max_files_size` / `storage_max_file_count`, a úklid podle stáří by pak
-         * mazal i podle velikosti — tedy víc, než uživatel volbou „Uchovávat média" řekl.
+         * Mez, kterou uživatel nezvolil, VÝSLOVNĚ bez omezení. S -1 by TDLib vzal výchozí hodnoty
+         * voleb (`FileGcParameters`): `storage_max_files_size` 100 MB, `storage_max_time_from_last_access`
+         * 23 h, `storage_max_file_count` 40 000 — úklid podle stáří by pak mazal i nad 100 MB.
+         * TDLib maže napřed podle stáří, pak nejdéle nepoužité (atime), dokud zbytek nepřesahuje
+         * `size` (`FileGcWorker`).
          */
-        size = Long.MAX_VALUE,
-        ttl = olderThanSeconds,
+        size = maxBytes ?: Long.MAX_VALUE,
+        ttl = olderThanSeconds ?: Int.MAX_VALUE,
         count = Int.MAX_VALUE,
-        // Výchozí doba, po kterou je čerstvý soubor nedotknutelný — automatický úklid nemá
-        // smazat obrázek, který se právě stáhl.
+        // Výchozí doba (`storage_immunity_delay`, hodina), po kterou je čerstvý soubor
+        // nedotknutelný — úklid nemá smazat obrázek, který se právě stáhl. Do stropu se nepočítá.
         immunityDelay = -1,
         // Prázdné = výchozí výběr TDLib: všechno kromě náhledů, avatarů, samolepek a tapet.
         fileTypes = emptyList(),

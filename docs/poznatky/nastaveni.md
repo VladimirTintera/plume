@@ -880,10 +880,36 @@ a `optimizeStorage`), pravidla jsou čisté funkce v `core/telegram/Storage.kt` 
   přehledu se proto bere jen databáze (ta sedí), součet souborů až z podrobného, který prochází
   celý adresář (na emulátoru ~5 s). Mezitím je v kartě „Počítám soubory…".
 - **Úklid podle stáří volá `optimizeStorage` aplikace sama** (`StorageCleaner`, ze `startKoin`,
-  nejvýš jednou denně při návratu do popředí a hned po změně volby). TDLib by uměl uklízet sám
+  nejvýš jednou denně při návratu do popředí a hned po změně volby; se stropem mezipaměti
+  častěji, viz níž). TDLib by uměl uklízet sám
   (`use_storage_optimizer`), ale meze bere z voleb `storage_max_files_size` / `storage_max_file_count`
   s nepopsanými výchozími hodnotami — úklid podle stáří by pak mohl mazat i podle velikosti. Proto
   `size = Long.MAX_VALUE`, `count = Int.MAX_VALUE` výslovně; s `-1` by platily ty volby.
+- **Strop mezipaměti** (`CacheLimit`: 1 / 2 / 5 / 10 GB, výchozí bez stropu, ukládá se názvem
+  a neznámý spadne na „bez stropu") jde do TÉHOŽ volání `optimizeStorage` jako „Uchovávat média"
+  (`StorageRepository.cleanUp(olderThanSeconds, maxBytes)`): TDLib (`FileGcWorker`) maže napřed
+  podle stáří, pak soubory seřazené podle posledního přístupu (atime), dokud zbytek nepřesahuje
+  `size`. Dvě volání za sebou by nedávala smysl — souběžné `optimizeStorage` TDLib ruší
+  (`StorageManager::run_gc` zavře rozběhnutý úklid), stejně jako ho přeruší čtení přehledu.
+  - **Mez, kterou uživatel nezvolil, se posílá jako „bez omezení", NIKDY `-1`.** Výchozí hodnoty
+    voleb (`FileGcParameters.cpp`) jsou `storage_max_files_size` **100 MB**,
+    `storage_max_time_from_last_access` 23 h, `storage_max_file_count` 40 000
+    a `storage_immunity_delay` hodina — `-1` u velikosti by smazalo všechno nad 100 MB.
+  - **Co se nesmaže ani nepočítá:** výchozí výběr typů (prázdný `fileTypes`) nechává být
+    samolepky, profilové fotky, náhledy, tapety, pozadí a zvuky notifikací — a strop se počítá
+    jen ze souborů, které smazat jde. Soubory mladší než `immunityDelay` (hodina od stažení,
+    podle `mtime`) jsou nedotknutelné a do stropu se taky nepočítají; strop tedy může být
+    krátce přesažený čerstvými stahy. Databáze zpráv se nemaže nikdy.
+  - **Se stropem se uklízí po šesti hodinách** (`LIMIT_CLEANUP_INTERVAL_SECONDS`, při návratu
+    do popředí), podle stáří dál jednou denně. Za den se dá strop přerůst o celé stahování,
+    ale při každém návratu do popředí by úklid procházel všechny soubory zbytečně. Změna volby
+    uklidí hned (`runNow` dostává obě hodnoty — uložení do DataStore je asynchronní).
+  - **Ověřeno na emulátoru** (anglicky): volba 1 GB nad 5,7 MB mezipaměti uvolnila 0 B (log
+    „Úklid podle voleb Forever / OneGb"), **se sondou** (necommituje se: „2 GB" = 2 MB) uvolnila
+    3,2 MB — z chatu s botem zmizela hudba a starší fotky, profilové fotky a samolepky zůstaly
+    a fotka stažená před méně než hodinou taky. Volba pak vrácená na „bez stropu". iOS ani
+    desktop vyzkoušené nejsou (desktop jen přeložený), automatický úklid po šesti hodinách taky
+    ne — jen `StorageCleanerTest`.
 - **Ruční mazání posílá druhy souborů VŽDY výslovně.** Prázdný `fileTypes` znamená pro TDLib
   „výchozí výběr" (všechno kromě náhledů, avatarů, samolepek a tapet) — mazalo by i to, co uživatel
   odškrtl. Nuly u `size`, `ttl`, `count` a `immunityDelay` = smazat všechno z výběru bez ohledu

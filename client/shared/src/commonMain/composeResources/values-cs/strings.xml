@@ -2920,6 +2920,9 @@
     <string name="storage_keep_week">1 týden</string>
     <string name="storage_keep_month">1 měsíc</string>
     <string name="storage_keep_forever">Navždy</string>
+    <string name="storage_cache_limit">Strop mezipaměti</string>
+    <string name="storage_cache_limit_body">Když stažená média přerostou strop, smažou se z tohoto zařízení ta, která jste nejdéle neotevřeli — hned a pak po několika hodinách. Samolepky, profilové fotky a soubory z poslední hodiny zůstanou a nepočítají se.</string>
+    <string name="storage_cache_limit_off">Bez stropu</string>
     <string name="storage_chats">Chaty</string>
     <string name="storage_other_chats">Ostatní chaty a soubory</string>
     <string name="storage_ai_models">AI v zařízení</string>

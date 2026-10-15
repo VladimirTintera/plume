@@ -26,10 +26,12 @@ interface StorageRepository {
     suspend fun clear(categories: Set<StorageCategory>, chatId: Long? = null): Result<Long>
 
     /**
-     * Smaže soubory, na které se nesáhlo déle než [olderThanSeconds]. Úklid podle „Uchovávat
-     * média"; samolepky, avatary a náhledy nechá být (výchozí výběr TDLib). Vrací uvolněné bajty.
+     * Automatický úklid: smaže soubory, na které se nesáhlo déle než [olderThanSeconds], a pak
+     * nejdéle nepoužité, dokud zbytek nepřesahuje [maxBytes]. `null` = tahle mez neplatí.
+     * Samolepky, avatary, náhledy, tapety a zvuky notifikací nechá být (výchozí výběr TDLib)
+     * a do stropu je nepočítá; soubor mladší než hodina je nedotknutelný. Vrací uvolněné bajty.
      */
-    suspend fun clearOlderThan(olderThanSeconds: Int): Result<Long>
+    suspend fun cleanUp(olderThanSeconds: Int?, maxBytes: Long?): Result<Long>
 
     /** Přenesená data od instalace nebo od vynulování (`getNetworkStatistics`). Jen lokální čtení. */
     suspend fun networkUsage(): Result<NetworkUsage> = Result.failure(UnsupportedOperationException())

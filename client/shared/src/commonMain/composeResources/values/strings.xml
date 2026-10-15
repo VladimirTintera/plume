@@ -2835,6 +2835,9 @@
     <string name="storage_keep_week">1 week</string>
     <string name="storage_keep_month">1 month</string>
     <string name="storage_keep_forever">Forever</string>
+    <string name="storage_cache_limit">Maximum cache size</string>
+    <string name="storage_cache_limit_body">When downloaded media grow past the limit, the ones you haven’t opened for the longest are deleted from this device — now and then every few hours. Stickers, profile photos and files from the last hour stay and don’t count.</string>
+    <string name="storage_cache_limit_off">No limit</string>
     <string name="storage_chats">Chats</string>
     <string name="storage_other_chats">Other chats and files</string>
     <string name="storage_ai_models">On-device AI</string>

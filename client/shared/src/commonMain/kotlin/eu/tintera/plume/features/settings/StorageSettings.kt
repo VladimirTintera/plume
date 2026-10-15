@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.ai.GemmaModel
+import eu.tintera.plume.core.settings.CacheLimit
 import eu.tintera.plume.core.settings.KeepMedia
 import eu.tintera.plume.core.telegram.CategoryUsage
 import eu.tintera.plume.core.telegram.ChatStorage
@@ -111,6 +112,9 @@ import eu.tintera.plume.resources.storage_delete_model_title
 import eu.tintera.plume.resources.storage_error_load
 import eu.tintera.plume.resources.storage_freed
 import eu.tintera.plume.resources.storage_keep_media
+import eu.tintera.plume.resources.storage_cache_limit
+import eu.tintera.plume.resources.storage_cache_limit_body
+import eu.tintera.plume.resources.storage_cache_limit_off
 import eu.tintera.plume.resources.storage_keep_media_body
 import eu.tintera.plume.resources.storage_keep_media_title
 import eu.tintera.plume.resources.storage_keep_month
@@ -138,6 +142,8 @@ import org.jetbrains.compose.resources.stringResource
 fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHostState, onOpenNetworkUsage: () -> Unit) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val keepMedia by viewModel.keepMedia.collectAsStateWithLifecycle()
+    val cacheLimit by viewModel.cacheLimit.collectAsStateWithLifecycle()
+    var pickLimit by rememberSaveable { mutableStateOf(false) }
 
     // Dialog mazání nese chat (`OTHER_CHATS`-ne, `null` = všude); obsah se bere ze stavu.
     var clearAll by rememberSaveable { mutableStateOf(false) }
@@ -250,6 +256,12 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
                     supportingContent = { Text(stringResource(keepMedia.label)) },
                     modifier = Modifier.clickable(enabled = !state.clearing) { pickKeep = true },
                 )
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    headlineContent = { Text(stringResource(Res.string.storage_cache_limit)) },
+                    supportingContent = { Text(cacheLimit.label()) },
+                    modifier = Modifier.clickable(enabled = !state.clearing) { pickLimit = true },
+                )
             }
 
             // Chaty jen s podrobným přehledem a jen když v nich něco je.
@@ -347,13 +359,32 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
     }
 
     if (pickKeep) {
-        KeepMediaDialog(
+        ChoiceDialog(
+            title = Res.string.storage_keep_media,
+            body = Res.string.storage_keep_media_body,
+            options = KeepMedia.entries,
+            label = { stringResource(it.label) },
             selected = keepMedia,
             onSelect = { keep ->
                 pickKeep = false
                 viewModel.setKeepMedia(keep)
             },
             onDismiss = { pickKeep = false },
+        )
+    }
+
+    if (pickLimit) {
+        ChoiceDialog(
+            title = Res.string.storage_cache_limit,
+            body = Res.string.storage_cache_limit_body,
+            options = CacheLimit.entries,
+            label = { it.label() },
+            selected = cacheLimit,
+            onSelect = { limit ->
+                pickLimit = false
+                viewModel.setCacheLimit(limit)
+            },
+            onDismiss = { pickLimit = false },
         )
     }
 
@@ -559,24 +590,33 @@ private fun ClearDialog(
     )
 }
 
+/** Výběr jedné volby (doba uchování, strop mezipaměti): věta o tom, co volba dělá, a kolečka. */
 @Composable
-private fun KeepMediaDialog(selected: KeepMedia, onSelect: (KeepMedia) -> Unit, onDismiss: () -> Unit) {
+private fun <T> ChoiceDialog(
+    title: StringResource,
+    body: StringResource,
+    options: List<T>,
+    label: @Composable (T) -> String,
+    selected: T,
+    onSelect: (T) -> Unit,
+    onDismiss: () -> Unit,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.storage_keep_media)) },
+        title = { Text(stringResource(title)) },
         text = {
             Column {
-                Text(stringResource(Res.string.storage_keep_media_body), modifier = Modifier.padding(bottom = 8.dp))
-                KeepMedia.entries.forEach { keep ->
+                Text(stringResource(body), modifier = Modifier.padding(bottom = 8.dp))
+                options.forEach { option ->
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .selectable(selected = keep == selected, role = Role.RadioButton, onClick = { onSelect(keep) })
+                            .selectable(selected = option == selected, role = Role.RadioButton, onClick = { onSelect(option) })
                             .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        RadioButton(selected = keep == selected, onClick = null)
-                        Text(stringResource(keep.label), modifier = Modifier.padding(start = 12.dp))
+                        RadioButton(selected = option == selected, onClick = null)
+                        Text(label(option), modifier = Modifier.padding(start = 12.dp))
                     }
                 }
             }
@@ -587,6 +627,10 @@ private fun KeepMediaDialog(selected: KeepMedia, onSelect: (KeepMedia) -> Unit, 
         },
     )
 }
+
+/** „1 GB" … „Bez stropu". */
+@Composable
+private fun CacheLimit.label(): String = bytes?.let { fileSizeText(it) } ?: stringResource(Res.string.storage_cache_limit_off)
 
 private val KeepMedia.label: StringResource
     get() = when (this) {
