@@ -7,6 +7,9 @@ import eu.tintera.plume.resources.tone_fine
 import eu.tintera.plume.resources.tone_checking
 import eu.tintera.plume.resources.mood_24dp
 import eu.tintera.plume.resources.info_24dp
+import eu.tintera.plume.core.ai.toneVerdictOf
+import eu.tintera.plume.core.ai.generateAnswer
+import eu.tintera.plume.core.ai.ToneAnswer
 import eu.tintera.plume.core.ai.tonePrompt
 import eu.tintera.plume.core.ai.parseTone
 import eu.tintera.plume.core.ai.ToneVerdict
@@ -171,10 +174,13 @@ class DraftRewriteViewModel(
                 return@launch
             }
             val verdict = try {
-                var last = ""
-                ai.generate(variant, tonePrompt(text)).collect { last = it.text }
-                logger.d { "Tón: $last" }
-                parseTone(last)
+                ai.generateAnswer(
+                    variant,
+                    ToneAnswer::class,
+                    prompt = { structured -> tonePrompt(text, structured) },
+                    fromStructured = ::toneVerdictOf,
+                    fromText = ::parseTone,
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

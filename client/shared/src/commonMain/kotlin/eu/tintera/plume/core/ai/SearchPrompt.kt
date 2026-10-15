@@ -22,8 +22,10 @@ const val MAX_SEARCH_QUERY_CHARS = 300
  * - **Slova k hledání v podobě, jak je uživatel napsal**: TDLib hledá podle začátku slova,
  *   a model by „dovolené" rád převedl na „dovolená" — to by zprávu „z dovolené" nenašlo.
  * - Instrukce anglicky ze stejného důvodu jako u [summaryPrompt]; dotaz bývá česky.
+ * - [structured] = odpověď přijde jako [SearchAnswer] (`generateAnswer`); prompt pak o formátu
+ *   mlčí, tvar dá modelu schéma.
  */
-fun searchPrompt(query: String, today: LocalDate): String = buildString {
+fun searchPrompt(query: String, today: LocalDate, structured: Boolean = false): String = buildString {
     val day = today.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }
     appendLine("You turn a search request in a chat app into search filters. Today is $day $today.")
     appendLine()
@@ -32,7 +34,7 @@ fun searchPrompt(query: String, today: LocalDate): String = buildString {
     appendLine(query.take(MAX_SEARCH_QUERY_CHARS))
     appendLine("\"\"\"")
     appendLine()
-    appendLine("Answer with exactly these five lines:")
+    appendLine(if (structured) "Fill in these five fields:" else "Answer with exactly these five lines:")
     appendLine("TEXT: only the topic words to look for inside the messages, copied as the user wrote them; empty if there is no topic")
     appendLine("CHATS: PRIVATE, GROUPS, CHANNELS or ANY")
     appendLine("CONTENT: PHOTOS, VIDEOS, FILES, LINKS, VOICE, MUSIC or ANY")
@@ -77,3 +79,16 @@ fun searchFields(output: String): Map<String, String> = buildMap {
 }
 
 private val FIELD = Regex("^[\\s*\\-•`]*(TEXT|CHATS|CONTENT|FROM|TO)[*`]*\\s*:\\s*(.*)$", RegexOption.IGNORE_CASE)
+
+/**
+ * Pole ze strukturované odpovědi ve tvaru, jaký vrací [searchFields] z textu — dál jde
+ * všechno stejnou cestou. Prázdná a chybějící pole vynechá; `TEXT` smí být prázdný (nic
+ * k hledání), proto se u něj nechává.
+ */
+fun searchFieldsOf(answer: SearchAnswer): Map<String, String> = buildMap {
+    answer.text?.let { put("TEXT", it.trim()) }
+    answer.chats?.trim()?.takeIf { it.isNotEmpty() }?.let { put("CHATS", it) }
+    answer.content?.trim()?.takeIf { it.isNotEmpty() }?.let { put("CONTENT", it) }
+    answer.from?.trim()?.takeIf { it.isNotEmpty() }?.let { put("FROM", it) }
+    answer.to?.trim()?.takeIf { it.isNotEmpty() }?.let { put("TO", it) }
+}

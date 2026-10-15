@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.conversation
 
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.ai.scamVerdictOf
+import eu.tintera.plume.core.ai.generateAnswer
+import eu.tintera.plume.core.ai.ScamAnswer
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.ScamKind
@@ -120,10 +123,13 @@ class ScamWarnings(
         }
         val kind = try {
             withTimeoutOrNull(TIMEOUT_MS) {
-                var last = ""
-                ai.generate(variant, scamPrompt(request.text)).collect { last = it.text }
-                logger.d { "Model u zprávy ${request.messageId} odpověděl: $last" }
-                parseScamVerdict(last)
+                ai.generateAnswer(
+                    variant,
+                    ScamAnswer::class,
+                    prompt = { structured -> scamPrompt(request.text, structured) },
+                    fromStructured = ::scamVerdictOf,
+                    fromText = ::parseScamVerdict,
+                )
             }
         } catch (e: CancellationException) {
             throw e
