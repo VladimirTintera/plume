@@ -1976,6 +1976,51 @@ class TdlConversationRepository(
             }
             .distinctUntilChanged()
 
+    override fun messageSender(chatId: Long): Flow<Long?> =
+        holder.updates { chatMessageSenderUpdates }
+            .filter { it.chatId == chatId }
+            .map { it.messageSenderId?.plainId() }
+            // Odběr stojí dřív než první čtení, aby se změna mezi nimi neztratila.
+            .onStart {
+                client.getChat(chatId = chatId).toResult().getOrNull()?.let { emit(it.messageSenderId?.plainId()) }
+            }
+            .distinctUntilChanged()
+
+    override suspend fun availableMessageSenders(chatId: Long): Result<List<MessageSenderOption>> = runCatching {
+        val senders = client.getChatAvailableMessageSenders(chatId = chatId).toResult().getOrThrow().senders.filterNotNull()
+        // Na Premium se ptá, jen když je co zamknout — `getMe` je lokální, předplatné se ale mění.
+        val isPremium = senders.none { it.needsPremium } || client.getMe().toResult().getOrNull()?.isPremium == true
+        senders.mapNotNull { option ->
+            val locked = option.needsPremium && !isPremium
+            when (val sender = option.sender) {
+                is MessageSenderUser -> {
+                    val user = client.getUser(userId = sender.userId).toResult().getOrNull() ?: return@mapNotNull null
+                    MessageSenderOption(
+                        id = sender.userId,
+                        title = listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" "),
+                        avatarFileId = user.profilePhoto?.small?.id,
+                        kind = ChatKind.Private,
+                        locked = locked,
+                    )
+                }
+                is MessageSenderChat -> {
+                    val chat = client.getChat(chatId = sender.chatId).toResult().getOrNull() ?: return@mapNotNull null
+                    MessageSenderOption(
+                        id = sender.chatId,
+                        title = chat.title,
+                        avatarFileId = chat.photo?.small?.id,
+                        kind = chat.type.chatKind(),
+                        locked = locked,
+                        isChat = sender.chatId == chatId,
+                    )
+                }
+            }
+        }
+    }
+
+    override suspend fun setMessageSender(chatId: Long, senderId: Long): Result<Unit> =
+        client.setChatMessageSender(chatId = chatId, messageSenderId = senderId.toMessageSender()).toResult().map { }
+
     override fun hasScheduledMessages(chatId: Long): Flow<Boolean> =
         // Naplánované zprávy patří celé skupině; v tématu by se míchaly cizí (jako ve vlákně).
         if (forumTopicId != null) flowOf(false) else holder.updates { chatHasScheduledMessagesUpdates }

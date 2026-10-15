@@ -384,7 +384,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - ~~Záznam posledních akcí (`getChatEventLog`)~~ — hotovo (úprava skupiny → Poslední akce;
   `docs/poznatky/profil-chatu.md`). Zbývají filtry a hledání v záznamu a statistiky kanálu
   a příspěvku (`getChatStatistics`, `getMessageStatistics`, `getMessagePublicForwards`).
-- Psaní jménem kanálu ve skupině (`getChatAvailableMessageSenders`, `setChatMessageSender`).
+- ~~Psaní jménem kanálu ve skupině (`getChatAvailableMessageSenders`, `setChatMessageSender`)~~ —
+  hotovo (`docs/poznatky/konverzace-psani.md`, „Psaní jménem kanálu nebo skupiny"). Zbývá ověřit
+  na zařízení s kanálem nebo anonymním správcem a prémiovou volbu.
 - Přímé zprávy kanálu (monoforum: `loadDirectMessagesChatTopics` a spol.) a navrhované příspěvky
   (`approveSuggestedPost`).
 - Zobrazení fóra jako jednoho seznamu zpráv (`toggleChatViewAsTopics`).

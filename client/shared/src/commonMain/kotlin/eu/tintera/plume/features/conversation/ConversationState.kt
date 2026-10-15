@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.telegram.MessageSenderChoice
 import eu.tintera.plume.core.telegram.MediaReplacement
 import eu.tintera.plume.core.telegram.SenderModeration
 import eu.tintera.plume.core.telegram.PendingChecklistMark
@@ -647,6 +648,11 @@ data class ConversationState(
     /** Napovídání zmínky (`@ja`): členové k dotazu u kurzoru; `null` = nic se nenapovídá. */
     val mentionSuggestions: MentionSuggestions? = null,
     val hashtagSuggestions: HashtagSuggestions? = null,
+    /**
+     * Kým se do skupiny píše a kým by šlo (vlastní účet, spravovaný kanál, skupina jako anonymní
+     * správce); `null` = výběr se u pole neukazuje. Viz [ConversationSendAs].
+     */
+    val messageSender: MessageSenderChoice? = null,
     /** Tlačítko bota chce sdílet telefonní číslo a čeká se na potvrzení. */
     val confirmSharePhone: Boolean = false,
     /** Tlačítko bota chce polohu; po potvrzení ji zjistí obrazovka. */
