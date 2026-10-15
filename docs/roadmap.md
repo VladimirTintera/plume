@@ -398,8 +398,8 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   jmen"); kanály, skupiny a boti zbývají.
 - ~~Statistika přenesených dat~~ — hotovo (Úložiště → Přenesená data; `docs/poznatky/nastaveni.md`,
   „Přenesená data"). ~~Automatické ukládání do galerie~~ — hotovo (Úložiště → Ukládání do
-  galerie; `docs/poznatky/prohlizec-medii.md`, „Automatické ukládání do galerie"). Zbývá
-  zakládání výjimek z profilu chatu (dnes jen úprava a odebrání).
+  galerie; `docs/poznatky/prohlizec-medii.md`, „Automatické ukládání do galerie"), ~~včetně
+  zakládání výjimek z profilu chatu~~ — hotovo (řádek „Ukládání do galerie" v profilu).
 - ~~Zvuky notifikací z Telegramu~~ — hotovo pro rozsahy (`docs/poznatky/notifikace.md`, „Zvuky
   z Telegramu"); zbývá výběr zvuku jednoho chatu v profilu. **Notifikace reakcí NEJDOU**: TDLib je
   neumí (push `REACT_*` odmítne, kód je zakomentovaný) a zašifrovaný push si Plume nepřečte.

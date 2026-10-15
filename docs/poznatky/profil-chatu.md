@@ -75,6 +75,9 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
 - **Členové jen tam, kde je server vydá** (`canListMembers`: malá skupina vždy, supergroup podle
   `canGetMembers`, kanál ne). Smazané účty (bez jména) a kdo odešel se vynechají. Ťuknutí na
   člena otevře soukromý chat.
+- **Ukládání do galerie pro tenhle chat** je řádek mezi upozorněními a barvou konverzace, s vlastním
+  ViewModelem (`ChatAutosaveViewModel`), ať profil nenese další závislost. Pravidla v
+  `docs/poznatky/prohlizec-medii.md`, „Automatické ukládání do galerie".
 
 ### Osobní kanál a datum narození
 
