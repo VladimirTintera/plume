@@ -3225,6 +3225,8 @@
     <string name="notif_sound_default">Výchozí</string>
     <string name="notif_sound_default_summary">Podle systémového kanálu</string>
     <string name="notif_sound_none">Bez zvuku</string>
+    <string name="notif_sound_follow_default">Podle výchozího nastavení</string>
+    <string name="notif_sound_scope_value">%1$s: %2$s</string>
     <string name="notif_sound_unknown">Vlastní zvuk</string>
     <string name="notif_sound_tones">Tvoje zvuky</string>
     <string name="notif_sound_upload">Nahrát zvuk</string>

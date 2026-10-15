@@ -81,4 +81,46 @@ class NotificationPrefsTest {
         assertTrue(own.useDefaultMuteFor)
         assertTrue(own.useDefaultDisableMentionNotifications)
     }
+
+    /** Zvuk: chat bez vlastního zní rozsahem, s vlastním svým — a „Obnovit" pak má smysl. */
+    @Test
+    fun zvukChatuMaPrednostPredRozsahem() {
+        val scope = groups.let {
+            ScopeNotificationSettings(
+                muteFor = it.muteFor, soundId = 42L, showPreview = it.showPreview,
+                useDefaultMuteStories = it.useDefaultMuteStories, muteStories = it.muteStories,
+                storySoundId = it.storySoundId, showStoryPoster = it.showStoryPoster,
+                disablePinnedMessageNotifications = it.disablePinnedMessageNotifications,
+                disableMentionNotifications = it.disableMentionNotifications,
+            )
+        }
+        val inheritingPrefs = notificationPrefs(inheriting, null, scope, NotificationScope.Groups, now)
+        assertEquals(42L, inheritingPrefs.soundId)
+        assertEquals(42L, inheritingPrefs.defaultSoundId)
+        assertTrue(inheritingPrefs.soundIsDefault)
+
+        val own = notificationPrefs(inheriting.withSound(NO_SOUND_ID), null, scope, NotificationScope.Groups, now)
+        assertEquals(NO_SOUND_ID, own.soundId)
+        assertEquals(42L, own.defaultSoundId)
+        assertFalse(own.soundIsDefault)
+        assertFalse(own.isDefault)
+        // Ostatní volby se zvukem nezměnily.
+        assertTrue(own.muteIsDefault)
+    }
+
+    /** Návrat k výchozímu zvuku zapne jen `useDefaultSound`, zbytek zůstane. */
+    @Test
+    fun zvukPodleRozsahuNechaOstatni() {
+        val own = inheriting.withMuteFor(0).withSound(7L).withSound(null)
+        assertTrue(own.useDefaultSound)
+        assertFalse(own.useDefaultMuteFor)
+    }
+
+    /** U tématu zvuk „Obnovit" nespouští — vybrat ho tam nejde. */
+    @Test
+    fun zvukTematuNeniDuvodemKObnoveni() {
+        val prefs = topic(own = inheriting.withSound(7L), group = inheriting)
+        assertTrue(prefs.isDefault)
+        assertEquals(7L, prefs.soundId)
+    }
 }

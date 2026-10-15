@@ -41,12 +41,17 @@ internal fun notificationPrefs(
             { it.disableMentionNotifications },
             scopeDefaults.disableMentionNotifications,
         ),
-        // Zvuk a stories se nepočítají: nastavit je tu nejde, takže by „Obnovit" slibovalo
-        // změnu, kterou uživatel nevidí. Obnovení je vrátí taky, to ano.
+        // Stories se nepočítají: nastavit je tu nejde, takže by „Obnovit" slibovalo změnu, kterou
+        // uživatel nevidí. Zvuk jen u chatu — v profilu se vybírá, u tématu (zatím) ne.
+        // Obnovení vrátí obojí taky, to ano.
         isDefault = own.useDefaultMuteFor && own.useDefaultShowPreview &&
-            own.useDefaultDisablePinnedMessageNotifications && own.useDefaultDisableMentionNotifications,
+            own.useDefaultDisablePinnedMessageNotifications && own.useDefaultDisableMentionNotifications &&
+            (inherited != null || own.useDefaultSound),
         scope = scope,
         defaults = if (inherited == null) NotificationDefaults.Scope else NotificationDefaults.Chat,
+        soundId = pick({ it.useDefaultSound }, { it.soundId }, scopeDefaults.soundId),
+        soundIsDefault = own.useDefaultSound,
+        defaultSoundId = inherited?.takeIf { !it.useDefaultSound }?.soundId ?: scopeDefaults.soundId,
     )
 }
 
@@ -87,6 +92,29 @@ internal fun ChatNotificationSettings.withMuteFor(seconds: Int) = ChatNotificati
     muteFor = seconds,
     useDefaultSound = useDefaultSound,
     soundId = soundId,
+    useDefaultShowPreview = useDefaultShowPreview,
+    showPreview = showPreview,
+    useDefaultMuteStories = useDefaultMuteStories,
+    muteStories = muteStories,
+    useDefaultStorySound = useDefaultStorySound,
+    storySoundId = storySoundId,
+    useDefaultShowStoryPoster = useDefaultShowStoryPoster,
+    showStoryPoster = showStoryPoster,
+    useDefaultDisablePinnedMessageNotifications = useDefaultDisablePinnedMessageNotifications,
+    disablePinnedMessageNotifications = disablePinnedMessageNotifications,
+    useDefaultDisableMentionNotifications = useDefaultDisableMentionNotifications,
+    disableMentionNotifications = disableMentionNotifications,
+)
+
+/**
+ * Nastavení s vlastním zvukem [soundId], nebo (`null`) se zvukem podle vrstvy níž. Zbytek se
+ * přenese — zapisuje se celým objektem, jako u ostatních voleb.
+ */
+internal fun ChatNotificationSettings.withSound(soundId: Long?) = ChatNotificationSettings(
+    useDefaultMuteFor = useDefaultMuteFor,
+    muteFor = muteFor,
+    useDefaultSound = soundId == null,
+    soundId = soundId ?: this.soundId,
     useDefaultShowPreview = useDefaultShowPreview,
     showPreview = showPreview,
     useDefaultMuteStories = useDefaultMuteStories,

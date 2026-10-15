@@ -152,6 +152,14 @@ class TdlNotificationSettingsRepository(
             .onFailure { logger.w(it) { "Nastavení chatu $chatId se nepodařilo uložit." } }
     }
 
+    override suspend fun setChatSound(chatId: Long, soundId: Long?): Result<Unit> {
+        val current = client.getChat(chatId).toResult().getOrElse { return Result.failure(it) }.notificationSettings
+        return client.setChatNotificationSettings(chatId = chatId, notificationSettings = current.withSound(soundId))
+            .toResult()
+            .map { }
+            .onFailure { logger.w(it) { "Zvuk chatu $chatId se nepodařilo uložit." } }
+    }
+
     /**
      * Téma se mění se sebou, se skupinou i s výchozím nastavením skupin — každá z těch vrstev
      * může rozhodnout o volbě, kterou téma nemá vlastní ([notificationPrefs]).

@@ -3137,6 +3137,8 @@
     <string name="notif_sound_default">Default</string>
     <string name="notif_sound_default_summary">As set in the system channel</string>
     <string name="notif_sound_none">No sound</string>
+    <string name="notif_sound_follow_default">Same as default settings</string>
+    <string name="notif_sound_scope_value">%1$s: %2$s</string>
     <string name="notif_sound_unknown">Custom sound</string>
     <string name="notif_sound_tones">Your sounds</string>
     <string name="notif_sound_upload">Upload a sound</string>

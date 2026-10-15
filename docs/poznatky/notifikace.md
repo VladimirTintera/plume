@@ -375,9 +375,32 @@ aplikacích, a tóny jsou na serveru.
   cokoli, zůstává nedotčený. Nový kanál převezme z výchozího, co jde přečíst (důležitost,
   vibrace, světlo, odznak, zamykací obrazovka, Nerušit). Existující kanál se nechá být.
 - **Kanál se volí podle `notificationSoundId` z TDLib**, který už je výsledkem chatu, tématu
-  i rozsahu. Proto fungují i zvuky jednotlivých chatů nastavené v oficiální aplikaci, přestože
-  výběr pro jeden chat Plume zatím nemá. Mezery: kanál konverzace (`ensureConversationChannel`)
-  visí pod výchozím kanálem rozsahu, takže chat s vlastním tónem ho obejde.
+  i rozsahu. Proto fungují i zvuky jednotlivých chatů nastavené v oficiální aplikaci.
+- **Zvuk jednoho chatu se vybírá v profilu** (Upozornění → Zvuk, `ChatSoundHost`, týž
+  `NotificationSoundSheet` i `NotificationSoundsViewModel` jako u rozsahu, `setChatSound`).
+  - **Volby jsou o jednu víc než u rozsahu: „Podle výchozího nastavení"** (`useDefaultSound =
+    true`, v sheetu značka `FOLLOW_DEFAULT_SOUND_ID`, do TDLib nejde) s popiskem, co v rozsahu
+    zní („Soukromé chaty: Výchozí"). „Výchozí" je tu VLASTNÍ volba chatu (−1, systémový kanál)
+    — chat se pak už nemění se zvukem rozsahu. Bez té volby by se ke „zvuku podle rozsahu"
+    nedalo vrátit jinak než „Obnovit", které by vrátilo i ztlumení a náhled.
+  - **`ChatNotificationPrefs` nese účinný zvuk** (`soundId`), jestli je převzatý
+    (`soundIsDefault`) a co by chat měl bez vlastního (`defaultSoundId`). Vlastní zvuk chatu
+    počítá do „Obnovit"; u tématu ne — tam se vybrat nedá, „Obnovit" by slibovalo změnu,
+    kterou uživatel nevidí.
+  - **Sheety se nevrství**: ťuknutí na Zvuk zavře Upozornění a otevře výběr.
+  - **Kanál konverzace visí pod kanálem, kterým chat OPRAVDU zní** (`openConversationSettings`
+    dostává `soundId`, rodič = `existingSoundChannelId`). Dřív visel vždycky pod výchozím
+    kanálem rozsahu, a chat s vlastním tónem ho obcházel — „Zvuk a vibrace" v profilu pak
+    nastavoval kanál, kterým nic nechodí. Kanál tónu ale vzniká až první notifikací; do té
+    doby nezbývá než výchozí. Smazání tónu (`deleteToneChannels`) bere i kanály konverzací
+    pod ním (`parentChannelId`).
+  - **Ověřeno na emulátoru** (anglicky, chat s botem): výběr „No sound" se zapsal (radio se
+    přepnulo až po updatu z TDLib, řádek „No sound" bez „výchozí"), „Sound and vibration"
+    otevřel systémové nastavení konverzace a vznikl kanál `private_silent_chat_8875105705`
+    s rodičem `private_silent`; návrat na „Same as default settings". **Notifikaci tichým
+    kanálem z TEHLE změny vidět nešlo**: zprávy od bota TDLib odložila a pak zrušila (přečtené
+    jinde — účet běží i v jiných sessions); tichý kanál sám už ověřený je (výš, sonda). Výběr
+    tónu účtu nevyzkoušen — účet žádný nemá. iOS vyzkoušené není (ani link frameworku se nespouštěl).
 - **Tón jako `content://` z kopie, ne ze souboru TDLib** (`files/notification_sounds/<id>.<ext>`,
   tentýž `FileProvider` jako fotky v notifikacích, `notification_images.xml`) s právem čtení pro
   `com.android.systemui` a `android` — zvuk kanálu přehrává System UI a čte ho z URI při každé

@@ -59,7 +59,7 @@ actual class NotificationPermission internal constructor(private val notifier: D
 
     actual fun forgetTone(soundId: Long) = Unit
 
-    actual fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind) = Unit
+    actual fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind, soundId: Long) = Unit
 
     internal fun undecided(): Boolean = notifier.available && notifier.isGranted() == null
 
