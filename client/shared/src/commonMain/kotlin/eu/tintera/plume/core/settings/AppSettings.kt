@@ -301,6 +301,16 @@ interface AppSettings {
     fun setVideoSpeed(speed: VoiceSpeed)
 
     /**
+     * Přeskakovat ticho v hlasovkách a audiu (Media3 `skipSilenceEnabled`): pauzy se zkrátí, hlas
+     * se nezrychlí ani nezkreslí. Volba uživatele, ne automatika — výchozí `false`. Jen tam, kde
+     * to platforma umí (`skipSilenceSupported`).
+     */
+    val skipSilence: StateFlow<Boolean>
+
+    /** Zapne nebo vypne přeskakování ticha. Neblokuje. */
+    fun setSkipSilence(enabled: Boolean)
+
+    /**
      * `versionCode` aktualizace, jejíž kartu uživatel v seznamu chatů zavřel. Tatáž verze se
      * znovu nenabízí, další vydaná ano — `versionCode` se zvedá při každém releasu.
      */
@@ -851,6 +861,16 @@ class DataStoreAppSettings(
         }
     }
 
+    override val skipSilence: StateFlow<Boolean> = value(false) { preferences ->
+        preferences[SKIP_SILENCE] ?: false
+    }
+
+    override fun setSkipSilence(enabled: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[SKIP_SILENCE] = enabled }
+        }
+    }
+
     override val dismissedUpdateVersionCode: StateFlow<Int?> = value(null) { preferences ->
         preferences[DISMISSED_UPDATE_VERSION_CODE]
     }
@@ -1072,6 +1092,7 @@ class DataStoreAppSettings(
         val ON_DEVICE_AI_GEMMA = stringPreferencesKey("on_device_ai_gemma")
         val VOICE_SPEED = stringPreferencesKey("voice_speed")
         val VIDEO_SPEED = stringPreferencesKey("video_speed")
+        val SKIP_SILENCE = booleanPreferencesKey("skip_silence")
         val DISMISSED_UPDATE_VERSION_CODE = intPreferencesKey("dismissed_update_version_code")
         val CONFIRMED_WEB_APP_BOTS = stringPreferencesKey("confirmed_web_app_bots")
         val TRANSLATION_LANGUAGE = stringPreferencesKey("translation_language")

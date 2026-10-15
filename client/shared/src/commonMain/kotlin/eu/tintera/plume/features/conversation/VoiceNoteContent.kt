@@ -121,6 +121,8 @@ private fun VoiceRow(
     transcript: TranscriptState?,
 ) {
     val current = playback()
+    // Dlouhá hlasovka, kterou uživatel nedoposlouchal: průběh a čas tam, kde přestal.
+    val remembered = rememberedAudioPosition(voice.fileKey).takeIf { current == null }
     val bars = remember(voice.waveform) { resampleWaveform(voice.waveform, VOICE_BARS) }
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -148,7 +150,7 @@ private fun VoiceRow(
             val progressLabel = stringResource(Res.string.conversation_voice_progress)
             // Během tažení se ukazuje místo, kam prst míří, ne kde přehrávač zrovna je.
             var dragFraction by remember { mutableStateOf<Float?>(null) }
-            val progress = dragFraction ?: current?.progress ?: 0f
+            val progress = dragFraction ?: current?.progress ?: remembered?.fraction ?: 0f
 
             Waveform(
                 bars = bars,
@@ -172,13 +174,15 @@ private fun VoiceRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                val seconds = if (active) {
-                    ((dragFraction?.let { it * current.durationMs } ?: current.positionMs.toFloat()) / 1000).toInt()
-                } else {
-                    voice.durationSeconds
+                val text = when {
+                    active ->
+                        formatDuration(((dragFraction?.let { it * current.durationMs } ?: current.positionMs.toFloat()) / 1000).toInt())
+                    remembered != null ->
+                        "${formatDuration((remembered.positionMs / 1000).toInt())} / ${formatDuration(voice.durationSeconds)}"
+                    else -> formatDuration(voice.durationSeconds)
                 }
                 Text(
-                    text = formatDuration(seconds),
+                    text = text,
                     style = MaterialTheme.typography.labelMedium.tabularNumbers(),
                 )
                 if (!voice.isListened) {

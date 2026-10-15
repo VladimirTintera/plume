@@ -10,6 +10,7 @@ import eu.tintera.plume.core.audio.VoiceSpeed
 import eu.tintera.plume.core.settings.UnimplementedAppSettings
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.SelfDestructType
 import eu.tintera.plume.core.telegram.SpeechTrial
 import eu.tintera.plume.core.telegram.UnimplementedChatRepository
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
@@ -17,6 +18,7 @@ import eu.tintera.plume.core.telegram.UnimplementedFileRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -35,12 +37,24 @@ class ConversationPlaybackTest {
         override val speed: StateFlow<VoiceSpeed> = MutableStateFlow(VoiceSpeed.entries.first())
         val calls = mutableListOf<String>()
 
-        override fun toggle(key: VoiceKey, music: Boolean, path: suspend () -> String) {
+        /** Klíč pamatované pozice, se kterým se hlasovka pouštěla; `null` = nepamatovat. */
+        val resumeKeys = mutableListOf<String?>()
+
+        override fun toggle(key: VoiceKey, music: Boolean, resumeKey: String?, path: suspend () -> String) {
             calls += "toggle ${key.messageId}"
+            resumeKeys += resumeKey
         }
 
-        override fun play(key: VoiceKey, music: Boolean, startMs: Long, onFinished: (() -> Unit)?, path: suspend () -> String) {
+        override fun play(
+            key: VoiceKey,
+            music: Boolean,
+            startMs: Long,
+            resumeKey: String?,
+            onFinished: (() -> Unit)?,
+            path: suspend () -> String,
+        ) {
             calls += "play ${key.messageId} od $startMs"
+            resumeKeys += resumeKey
         }
 
         override fun seek(key: VoiceKey, fraction: Float) {
@@ -63,11 +77,14 @@ class ConversationPlaybackTest {
     private class FakeMusic : MusicQueueControl {
         override val nowPlaying = MutableStateFlow<NowPlaying?>(null)
         val calls = mutableListOf<String>()
-        override fun toggle(chatId: Long, messageId: Long, audio: MessageMedia.Audio) {
+        val remember = mutableListOf<Boolean>()
+        override fun toggle(chatId: Long, messageId: Long, audio: MessageMedia.Audio, rememberPosition: Boolean) {
             calls += "toggle $messageId"
+            remember += rememberPosition
         }
-        override fun play(chatId: Long, messageId: Long, audio: MessageMedia.Audio, startMs: Long) {
+        override fun play(chatId: Long, messageId: Long, audio: MessageMedia.Audio, startMs: Long, rememberPosition: Boolean) {
             calls += "play $messageId od $startMs"
+            remember += rememberPosition
         }
         override fun stop() {
             calls += "stop"
@@ -193,6 +210,80 @@ class ConversationPlaybackTest {
         advanceUntilIdle()
 
         assertTrue(repository.opened.isEmpty())
+    }
+
+    @Test
+    fun hlasovkaSePoustiSKlicemPamatovanePozice() = runTest {
+        val message = voice(1).let { it.copy(media = (it.media as MessageMedia.VoiceNote).copy(fileKey = "soubor-1")) }
+        playback(testState(message)).toggleVoice(1)
+
+        assertEquals(listOf<String?>("soubor-1"), player.resumeKeys)
+    }
+
+    @Test
+    fun vTajnemChatuSePoziceNepamatuje() = runTest {
+        val message = voice(1).let { it.copy(media = (it.media as MessageMedia.VoiceNote).copy(fileKey = "soubor-1")) }
+        val state = testState(message, audio(2))
+        state.value = state.value.copy(info = testChatInfo().copy(isSecret = true))
+        val playback = playback(state)
+
+        playback.toggleVoice(1)
+        playback.toggleVoice(2)
+
+        assertEquals(listOf<String?>(null), player.resumeKeys, "hlasovka bez klíče")
+        assertEquals(listOf(false), music.remember, "skladba bez paměti pozice")
+    }
+
+    @Test
+    fun mizejiciHlasovkaSiPoziciNepamatuje() = runTest {
+        val message = voice(1).let {
+            it.copy(media = (it.media as MessageMedia.VoiceNote).copy(fileKey = "soubor-1"), selfDestructType = SelfDestructType.Immediately)
+        }
+        playback(testState(message)).toggleVoice(1)
+
+        assertEquals(listOf<String?>(null), player.resumeKeys)
+    }
+
+    @Test
+    fun pokracovaniZPamatovanePoziceSeOhlasiJednou() = runTest {
+        val state = testState(voice(1))
+        val playback = playback(state)
+        val announced = mutableListOf<ResumedAudio>()
+        val collector = detachedScope().launch { playback.resumes.collect { announced += it } }
+
+        val resumed = VoicePlayback(VoiceKey(TEST_CHAT, 1), loading = false, positionMs = 754_000, durationMs = 1_800_000, resumedFromMs = 754_000)
+        player.state.value = resumed
+        advanceUntilIdle()
+        // Pauza a znovu: hlášení se neopakuje.
+        player.state.value = resumed.copy(playing = false)
+        player.state.value = resumed.copy(playing = true, positionMs = 755_000)
+        advanceUntilIdle()
+        // Jiný chat se netýká.
+        player.state.value = resumed.copy(key = VoiceKey(TEST_CHAT + 1, 1))
+        advanceUntilIdle()
+
+        assertEquals(listOf(ResumedAudio(1, 754_000)), announced)
+        collector.cancel()
+    }
+
+    @Test
+    fun nahravkaPustenaOdZacatkuSePoNavratuDoChatuNehlasi() = runTest {
+        // Nahrávka pokračovala od 12:34, uživatel ji pustil od začátku a vrátil se do chatu.
+        player.state.value = VoicePlayback(VoiceKey(TEST_CHAT, 1), loading = false, positionMs = 60_000, durationMs = 1_800_000, resumedFromMs = 754_000)
+        val playback = playback(testState(voice(1)))
+        val announced = mutableListOf<ResumedAudio>()
+        val collector = detachedScope().launch { playback.resumes.collect { announced += it } }
+        advanceUntilIdle()
+
+        assertTrue(announced.isEmpty())
+        collector.cancel()
+    }
+
+    @Test
+    fun odZacatkuVratiNahravkuNaNulu() = runTest {
+        playback(testState(voice(1))).restartAudio(1)
+
+        assertEquals(listOf("seek 1 0.0"), player.calls)
     }
 
     @Test

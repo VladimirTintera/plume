@@ -18,6 +18,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.video.MIN_RESUME_AUDIO_DURATION_MS
+import eu.tintera.plume.core.video.VideoPositions
+import kotlin.time.TimeSource
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.voice_playback_failed
 
@@ -48,11 +51,17 @@ expect class AudioEngine {
     fun setSpeed(speed: Float)
 
     /**
+     * Přeskakovat ticho: pauzy v řeči se zkrátí, hlas se nezrychlí ani nezkreslí. Platí hned.
+     * Kde to platforma neumí ([skipSilenceSupported] `false`), nedělá nic.
+     */
+    fun setSkipSilence(enabled: Boolean)
+
+    /**
      * Přepne zvuk do sluchátka u ucha (`true`), nebo zpátky do reproduktoru.
      *
-     * `suspend`, protože Android kvůli tomu musí postavit `MediaPlayer` znovu — do sluchátka se
-     * dostane jen zvuk s `USAGE_VOICE_COMMUNICATION` a atributy jdou nastavit jen před `prepare()`.
-     * Na iOS stačí přepnout kategorii `AVAudioSession`, tam je to okamžité.
+     * `suspend` z doby, kdy Android kvůli tomu stavěl `MediaPlayer` znovu (atributy šly nastavit
+     * jen před `prepare()`); ExoPlayer je mění za běhu, iOS přepne kategorii `AVAudioSession`.
+     * Volání přesto drží zámek ([VoicePlayer] `routeMutex`), dvě změny výstupu se nesmí potkat.
      */
     suspend fun setEarpiece(enabled: Boolean)
 
@@ -72,6 +81,12 @@ expect class AudioEngine {
 
     fun release()
 }
+
+/**
+ * Umí platforma přeskakovat ticho ([AudioEngine.setSkipSilence])? Android ano (Media3
+ * `skipSilenceEnabled`); iOS (`AVAudioPlayer`) ani desktop ne — tam se volba v Nastavení neukazuje.
+ */
+expect val skipSilenceSupported: Boolean
 
 /**
  * Rychlost přehrávání hlasovky. Tři hodnoty, ne posuvník — mezi 1,25 a 1,3 nikdo nerozhoduje
@@ -108,6 +123,12 @@ data class VoicePlayback(
     val playing: Boolean = false,
     val positionMs: Long = 0,
     val durationMs: Long = 0,
+    /**
+     * Pokračuje se z pamatované pozice (dlouhá nahrávka, viz [audioStart]); od kdy. Obrazovka
+     * podle toho ukáže „Pokračuje od 12:34" s nabídkou začít znovu. `null` = od začátku nebo od
+     * výslovného času.
+     */
+    val resumedFromMs: Long? = null,
 ) {
     val progress: Float get() = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
 }
@@ -121,13 +142,14 @@ interface VoicePlayerControl {
     val speed: StateFlow<VoiceSpeed>
 
     /** Viz [VoicePlayer.toggle]. */
-    fun toggle(key: VoiceKey, music: Boolean = false, path: suspend () -> String)
+    fun toggle(key: VoiceKey, music: Boolean = false, resumeKey: String? = null, path: suspend () -> String)
 
     /** Viz [VoicePlayer.play]. */
     fun play(
         key: VoiceKey,
         music: Boolean = false,
         startMs: Long = 0L,
+        resumeKey: String? = null,
         onFinished: (() -> Unit)? = null,
         path: suspend () -> String,
     )
@@ -162,12 +184,20 @@ interface VoicePlayerControl {
  *
  * **Hudbu sem posílá [MusicQueue], ne obrazovka** — ta drží frontu a systémové ovládání, protože
  * skladba hraje dál i po odchodu z konverzace.
+ *
+ * **Pozici v dlouhé nahrávce si pamatuje** ([positions], tentýž seznam jako u videa): kdo zvuk
+ * pouští, podá `resumeKey` (trvalé id souboru), a od [MIN_RESUME_AUDIO_DURATION_MS] se pozice
+ * ukládá při pauze, zastavení a každých [AUDIO_POSITION_SAVE_INTERVAL_MS] za přehrávání; dohraná
+ * se zapomene. Příště se pokračuje odtamtud ([audioStart]).
+ *
+ * **Přeskakování ticha** je volba v [AppSettings.skipSilence] a platí i pro hrající zvuk.
  */
 class VoicePlayer(
     private val scope: CoroutineScope,
     private val newEngine: () -> AudioEngine,
     private val settings: AppSettings,
     private val earSensor: EarSensor,
+    private val positions: VideoPositions,
 ) : VoicePlayerControl {
 
     private val _state = MutableStateFlow<VoicePlayback?>(null)
@@ -189,6 +219,9 @@ class VoicePlayer(
     override val speed: StateFlow<VoiceSpeed> = settings.voiceSpeed
 
     private var engine: AudioEngine? = null
+
+    /** Klíč pamatované pozice hrajícího zvuku (`RemoteFile.uniqueId`); `null` = nepamatovat. */
+    private var resumeKey: String? = null
     private var raiseToEar = true
     private var loadJob: Job? = null
     private var tickJob: Job? = null
@@ -206,7 +239,7 @@ class VoicePlayer(
      * Pustí hlasovku, nebo u té, která už je vybraná, přepne pauzu. [path] se volá jen při novém
      * spuštění — stahování souboru tedy začne až tady.
      */
-    override fun toggle(key: VoiceKey, music: Boolean, path: suspend () -> String) {
+    override fun toggle(key: VoiceKey, music: Boolean, resumeKey: String?, path: suspend () -> String) {
         val current = _state.value
         if (current?.key == key) {
             when {
@@ -216,17 +249,26 @@ class VoicePlayer(
             }
             return
         }
-        play(key, music, path = path)
+        play(key, music, resumeKey = resumeKey, path = path)
+    }
+
+    init {
+        // Přepnutí v Nastavení platí i pro to, co právě hraje.
+        scope.launch { settings.skipSilence.collect { enabled -> engine?.setSkipSilence(enabled) } }
     }
 
     /**
      * Pustí hlasovku od začátku (nebo od [startMs] — čas v médiu), ať byla vybraná, nebo ne.
      * Tudy jde řetězení neposlechnutých.
+     *
+     * [resumeKey] (trvalé id souboru) zapne paměť pozice: bez [startMs] se pokračuje, kde
+     * uživatel minule přestal, a během poslechu se pozice ukládá — viz [audioStart].
      */
     override fun play(
         key: VoiceKey,
         music: Boolean,
         startMs: Long,
+        resumeKey: String?,
         /**
          * Zavolá se po dohrání, SYNCHRONNĚ a ještě před vynulováním stavu — na rozdíl od
          * [completions], které doběhnou až v korutině. [MusicQueue] tak ví, že přehrávání končí
@@ -249,6 +291,9 @@ class VoicePlayer(
                     throw failure
                 }
                 prepared.onCompleted = {
+                    // Dohraná nahrávka se zapomene (konec se nepamatuje, viz `resumePosition`).
+                    _state.value?.let { savePosition(it.durationMs) }
+                    this@VoicePlayer.resumeKey = null
                     // Dohráno není zastaveno: stav se uklidí jako vždy, ale ještě se to ohlásí ven.
                     onFinished?.invoke()
                     stop()
@@ -257,11 +302,19 @@ class VoicePlayer(
                 // Hovor nebo budík hlasovku zastaví; přehrávač o tom sám neví, musí to jít do stavu.
                 prepared.onInterrupted = { pause() }
                 prepared.setSpeed(speed.value.rate)
-                // Čas za koncem (překlep v „1:23" u krátké hlasovky) by přehrávač zastavil hned.
-                val start = startMs.takeIf { it in 1 until duration } ?: 0L
-                if (start > 0) prepared.seekTo(start)
+                prepared.setSkipSilence(settings.skipSilence.value)
+                val start = audioStart(startMs, resumeKey?.let { positions.of(it)?.positionMs }, duration)
+                if (start.startMs > 0) prepared.seekTo(start.startMs)
                 engine = prepared
-                _state.value = VoicePlayback(key, music = music, loading = false, durationMs = duration, positionMs = start)
+                this@VoicePlayer.resumeKey = resumeKey
+                _state.value = VoicePlayback(
+                    key,
+                    music = music,
+                    loading = false,
+                    durationMs = duration,
+                    positionMs = start.startMs,
+                    resumedFromMs = start.resumedFromMs,
+                )
                 resume()
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -285,7 +338,10 @@ class VoicePlayer(
         val engine = engine ?: return
         val position = positionMs.coerceIn(0L, current.durationMs)
         engine.seekTo(position)
-        _state.value = current.copy(positionMs = position)
+        // Posunem si uživatel místo vybral sám — „pokračuje od…" už neplatí.
+        _state.value = current.copy(positionMs = position, resumedFromMs = null)
+        // Posun u pozastavené nahrávky se jinak uloží až zastavením — zabitý proces by ho ztratil.
+        if (!current.playing) savePosition(position)
     }
 
     /** Přepne rychlost na další v pořadí. Platí hned, i uprostřed hrající hlasovky. */
@@ -305,6 +361,9 @@ class VoicePlayer(
     override fun stop(chatId: Long?, keepMusic: Boolean) {
         if (chatId != null && _state.value?.key?.chatId != chatId) return
         if (keepMusic && _state.value?.music == true) return
+        // Jen u načteného zvuku: zastavení během stahování by zapsalo nulu a pozici tím smazalo.
+        engine?.let { savePosition(it.positionMs) }
+        resumeKey = null
         // Výstup vracet netřeba: `release()` níž systému komunikační režim sundá sám.
         stopListeningForEar(returnToSpeaker = false)
         loadJob?.cancel()
@@ -359,6 +418,17 @@ class VoicePlayer(
         engine?.pause()
         tickJob?.cancel()
         _state.update { it?.copy(playing = false, positionMs = engine?.positionMs ?: it.positionMs) }
+        engine?.let { savePosition(it.positionMs) }
+    }
+
+    /**
+     * Uloží pozici hrajícího zvuku ([resumeKey]), nebo ji zapomene (začátek, konec, krátká
+     * nahrávka — rozhoduje [eu.tintera.plume.core.video.resumePosition] s prahem pro zvuk).
+     */
+    private fun savePosition(positionMs: Long) {
+        val key = resumeKey ?: return
+        val duration = _state.value?.takeIf { !it.loading }?.durationMs ?: return
+        positions.record(key, positionMs, duration, MIN_RESUME_AUDIO_DURATION_MS)
     }
 
     override fun resume() {
@@ -368,8 +438,14 @@ class VoicePlayer(
         _state.update { it?.copy(playing = true) }
         tickJob?.cancel()
         tickJob = scope.launch {
+            var savedAt = TimeSource.Monotonic.markNow()
             while (isActive) {
-                _state.update { it?.copy(positionMs = engine.positionMs) }
+                val position = engine.positionMs
+                _state.update { it?.copy(positionMs = position) }
+                if (resumeKey != null && savedAt.elapsedNow().inWholeMilliseconds >= AUDIO_POSITION_SAVE_INTERVAL_MS) {
+                    savePosition(position)
+                    savedAt = TimeSource.Monotonic.markNow()
+                }
                 delay(POSITION_TICK_MS)
             }
         }

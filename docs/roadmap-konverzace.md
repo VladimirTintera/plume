@@ -464,9 +464,9 @@ snadno na to uživatel narazí.
   v profilu (záložka Hudba)~~ — hotovo. ~~Ovládání z notifikace / zamykací obrazovky, přehrávání
   na pozadí~~ — hotovo (`MusicQueue`, Media3 MediaSession, na iOS Now Playing). Zbývá ověřit
   iOS a zamykací obrazovku na telefonu. Hlasovky se na pozadí nepřehrávají, s odchodem
-  z konverzace dál končí. Dále zbývá: **přeskakování ticha** (`skipSilenceEnabled` v Media3 pro
-  hlasovky i audio zkrátí pauzy o 20–30 % bez deformace hlasu) a **paměť pozice pro dlouhé nahrávky
-  a podcasty** (nad 10 minut lokálně uložit pozici a nabídnout pokračování).
+  z konverzace dál končí. ~~**Přeskakování ticha**~~ — hotovo na Androidu (`docs/poznatky/zvuk.md`,
+  „Přeskakování ticha"; iOS `AVAudioPlayer` to neumí). ~~**Paměť pozice pro dlouhé nahrávky
+  a podcasty**~~ — hotovo (tamtéž, „Paměť pozice v dlouhé nahrávce").
 - ~~**Poloha, živá poloha a místo**~~ — hotovo: statická mapa od Telegramu, ťuknutí do map
   platformy, u živé polohy do kdy se sdílí, odeslání polohy nebo místa ze sponky.
   ~~Sdílení živé polohy~~ — hotovo na Androidu (služba v popředí, zastavení z notifikace

@@ -137,15 +137,18 @@ actual class AudioEngine {
         player?.currentTime = positionMs / 1000.0
     }
 
+    /** `AVAudioPlayer` ticho přeskakovat neumí; volba se na iOS neukazuje ([skipSilenceSupported]). */
+    actual fun setSkipSilence(enabled: Boolean) = Unit
+
     actual fun setSpeed(speed: Float) {
         this.speed = speed
-        // Na pozastaveném přehrávači zápis `rate` přehrávání nerozjede (na rozdíl od Androidu).
+        // Na pozastaveném přehrávači zápis `rate` přehrávání nerozjede.
         player?.rate = speed
     }
 
     /**
      * Přepnutí do sluchátka u ucha je na iOS **jen změna kategorie** — `AVAudioPlayer` se za
-     * relací přesměruje sám, takže se na rozdíl od Androidu nic nepřestavuje a nic neposkočí.
+     * relací přesměruje sám, takže se nic nepřestavuje a nic neposkočí.
      *
      * **Do sluchátka vede jedině `playAndRecord`**, jiná kategorie na iOS výstup na sluchátko
      * nemá. Ta ale sahá na mikrofon, takže by aktivace relace mohla vyvolat systémový dotaz na
@@ -251,3 +254,5 @@ internal fun ByteArray.toNSData(): NSData = usePinned { pinned ->
     NSData.create(bytes = pinned.addressOf(0), length = size.convert())
 }
 
+/** `AVAudioPlayer` ticho přeskakovat neumí. */
+actual val skipSilenceSupported: Boolean = false

@@ -1126,6 +1126,8 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   přeposlané video je týž soubor a pokračuje se v něm odkudkoli.
   - **Jen delší videa** (od 2 min), ne prvních 10 s a ne posledních 15 s; dohrané se zapomene.
     Nejvýš 200 záznamů, nejstarší odpadají.
+  - **Tentýž seznam nese i dlouhé hlasovky a audio** (od 10 min, `minDurationMs`), viz
+    „Paměť pozice v dlouhé nahrávce" v `zvuk.md`. Druhý mechanismus by byl táž věc podruhé.
   - **Zapisuje se při odlistování, odchodu z kompozice, `ON_STOP`, dohrání a každých 10 s**
     během hraní (zabitý proces). Jen u videa, které opravdu hrálo (`hasPlayed`): otevření
     a zavření bez puštění by zapsalo nulu, a tím pamatovanou pozici smazalo. Pozice se bere

@@ -2305,6 +2305,11 @@ sealed interface MessageMedia {
         val sizeBytes: Long,
         val coverFileId: Int? = null,
         val coverMinithumbnail: Minithumbnail? = null,
+        /**
+         * Trvalé id souboru na serveru (`RemoteFile.uniqueId`) — klíč pamatované pozice
+         * v dlouhé nahrávce (`VideoPositions`, jako u videa). `null`, dokud soubor na serveru není.
+         */
+        val fileKey: String? = null,
     ) : MessageMedia {
         /** Jako soubor — sdílení a „Uložit jako…" jdou stejnou cestou jako u dokumentu. */
         fun asDocument(): Document = Document(
@@ -2376,6 +2381,8 @@ sealed interface MessageMedia {
         val isListened: Boolean,
         /** Přepis řeči, když si o něj někdo řekl (`recognizeSpeech`); jinak `null`. */
         val transcript: SpeechTranscript? = null,
+        /** Klíč pamatované pozice v dlouhé hlasovce — viz [Audio.fileKey]. */
+        val fileKey: String? = null,
     ) : MessageMedia
 
     /**
