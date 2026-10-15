@@ -576,6 +576,9 @@ berou jen levé tlačítko. Teď pravé tlačítko udělá totéž co podržení
 - **Ctrl+klik na macOS** (tamní pravé tlačítko z jednotlačítkové myši) se zatím nepřevádí —
   přijde jako levé tlačítko s Ctrl.
 - Platí i pro Android s myší (Chromebook, DeX).
+- **Výjimka: bublina s textem na desktopu** (`contextClickable(rightClick = false)`): nad textem
+  patří pravé tlačítko běžné textové nabídce, protože text jde vybírat myší (viz „Výběr textu
+  myší v bublině" v `konverzace-akce.md`). Nabídka nad zprávou je za ⋮ v pilulce po najetí.
 - **Ověřeno na Windows 11** (ladicí běh, uživatel): pravé tlačítko otevírá nabídky jako
   podržení. macOS a Android s myší neověřené.
 

@@ -39,8 +39,8 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Pilulka u zprávy pod kurzorem myši: čas, Odpovědět a ⋮ (nabídka nad zprávou, totéž co podržení
- * nebo pravé tlačítko). Na desktopu se čas ani odpověď jinak nedaly najít — obojí je tah
+ * Pilulka u zprávy pod kurzorem myši: čas, u vlastní zprávy stav doručení, Odpovědět a ⋮
+ * (nabídka nad zprávou, totéž co podržení nebo pravé tlačítko). Na desktopu se čas ani odpověď jinak nedaly najít — obojí je tah
  * (odkrývání časů doleva, odpověď doprava), na který myší nikdo nepřijde.
  *
  * - **Jen u zprávy pod kurzorem**, ne časy u všech: konverzace při přejíždění myší nebliká
@@ -48,6 +48,9 @@ import org.jetbrains.compose.resources.stringResource
  * - **Na volné straně bubliny** (u příchozí vpravo, u odchozí vlevo), za značkami efektu
  *   a kontextu. Do layoutu nezasahuje ([outsideBubble]), takže se zpráva při najetí nepřeskládá.
  * - **Odpovědět jen tam, kam se smí psát** ([onReply] `null` = nekreslí se).
+ * - **Stav doručení ([delivery]) je tu kvůli desktopu**: na dotyku si odznak „přečteno" u starší
+ *   zprávy vyžádá ťuknutí, jenže na desktopu ťuknutí patří výběru textu a odznak pod bublinou
+ *   by ji při každém kliknutí posunul (výběr pak ujel).
  * - **Bez minimální dotykové plochy 48 dp**: ukazuje se jen při najetí myší (a perem), takže by
  *   ji jen zbytečně nafoukla nad výšku jednořádkové bubliny.
  */
@@ -56,6 +59,8 @@ import org.jetbrains.compose.resources.stringResource
 internal fun MessageHoverActions(
     visible: Boolean,
     timestamp: Int,
+    /** Stav doručení vlastní zprávy; `null` u příchozí. */
+    delivery: Delivery?,
     onReply: (() -> Unit)?,
     onOptions: () -> Unit,
     modifier: Modifier = Modifier,
@@ -80,6 +85,7 @@ internal fun MessageHoverActions(
                         style = MaterialTheme.typography.labelMedium.tabularNumbers(),
                         modifier = Modifier.padding(end = 4.dp),
                     )
+                    delivery?.let { DeliveryStateIcon(it, Modifier.padding(end = 2.dp)) }
                     if (onReply != null) HoverActionButton(Res.drawable.reply_24dp, stringResource(Res.string.menu_reply), onReply)
                     HoverActionButton(Res.drawable.more_vert_24dp, stringResource(Res.string.conversation_message_options), onOptions)
                 }

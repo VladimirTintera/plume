@@ -315,8 +315,11 @@ internal fun MessageMenuLayer(
         val message = shown.item.frame.message
         val selectable = shown.menu.actions.canCopy && message.text.isNotBlank()
         val selectionState = remember(shown.menu.messageId) { SelectionState() }
-        val selection by remember(selectionState, message.text) {
-            derivedStateOf { quoteSelection(selectionState.selectedTexts, message.text) }
+        // Úryvek vybraný myší v bublině (desktop) platí, dokud se nevybere něco v kopii. Stejné
+        // právo jako výběr v kopii: chráněný obsah ven nesmí.
+        val bubbleSelection = shown.menu.bubbleSelection?.takeIf { shown.menu.actions.canCopy }
+        val selection by remember(selectionState, message.text, bubbleSelection) {
+            derivedStateOf { quoteSelection(selectionState.selectedTexts, message.text) ?: bubbleSelection }
         }
         // Zavřená nabídka výběr zahodí, jinak by úchyty doletěly se zprávou zpátky do seznamu.
         LaunchedEffect(open) { if (!open) selectionState.clear() }

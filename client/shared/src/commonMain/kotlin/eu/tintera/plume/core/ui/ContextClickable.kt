@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.IntSize
  * pravé dřív nedělalo nic. Platí i pro Android s myší (Chromebook, DeX).
  *
  * Parametry i přetížení zrcadlí `combinedClickable`; výměna je tedy jen jméno a import.
+ * [rightClick] `false` pravé tlačítko vypne tam, kde patří něčemu jinému (bublina s textem na
+ * desktopu: nad textem běžná textová nabídka, viz `bubbleTextSelectable`).
  */
 fun Modifier.contextClickable(
     enabled: Boolean = true,
@@ -35,9 +37,10 @@ fun Modifier.contextClickable(
     onLongClick: (() -> Unit)? = null,
     onDoubleClick: (() -> Unit)? = null,
     hapticFeedbackEnabled: Boolean = true,
+    rightClick: Boolean = true,
     onClick: () -> Unit,
 ): Modifier = this
-    .onSecondaryClick(onClick = onLongClick.takeIf { enabled })
+    .onSecondaryClick(onClick = onLongClick.takeIf { enabled && rightClick })
     .combinedClickable(
         enabled = enabled,
         onClickLabel = onClickLabel,
@@ -60,9 +63,10 @@ fun Modifier.contextClickable(
     onLongClick: (() -> Unit)? = null,
     onDoubleClick: (() -> Unit)? = null,
     hapticFeedbackEnabled: Boolean = true,
+    rightClick: Boolean = true,
     onClick: () -> Unit,
 ): Modifier = this
-    .onSecondaryClick(onClick = onLongClick.takeIf { enabled })
+    .onSecondaryClick(onClick = onLongClick.takeIf { enabled && rightClick })
     .combinedClickable(
         interactionSource = interactionSource,
         indication = indication,

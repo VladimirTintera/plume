@@ -324,6 +324,11 @@ data class MessageMenu(
     /** Odpověď ankety pod prstem (její id), když jde smazat — viz `MessageMenuAction.DeletePollOption`. */
     val pressedPollOptionId: String? = null,
     /**
+     * Úryvek vybraný myší přímo v bublině (desktop, `bubbleTextSelectable`). Nabídka s ním jedná
+     * jako s výběrem ve své kopii: „Kopírovat" vezme úryvek, „Odpovědět" je „Citovat".
+     */
+    val bubbleSelection: String? = null,
+    /**
      * Text zprávy je už v jazyce překladu (rozpoznáno v zařízení, [alreadyInLanguage]) —
      * „Přeložit" se nenabízí. Nerozpoznaný jazyk je `false`: položka navíc nevadí, chybějící ano.
      */
