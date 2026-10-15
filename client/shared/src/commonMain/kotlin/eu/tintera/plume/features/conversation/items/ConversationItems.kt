@@ -262,47 +262,55 @@ private fun messageItem(
  * voláním, než kterým se ukládá.
  */
 internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageMenuAction> = buildList {
+    // Pořadí je pořadí UVNITŘ skupin; do skupin a úrovní je rozdělí `MessageMenuAction.slot`.
+    //
     // Neodeslaná zpráva má jedinou akci, která ji spraví, a ta jde první. Kandidát je u každé:
     // u alba nese neodeslanou fotku jiná zpráva než ta, na které nabídka visí.
     add(MessageMenuAction.Resend)
-    add(MessageMenuAction.Reply)
-    val poll = message.poll
-    if (poll?.canRetract == true) add(MessageMenuAction.RetractVote)
+    // Úprava jen u vlastní zprávy, a tam je to důvod, proč se nabídka otevírá — proto před odpovědí.
     if (message.composerEdit() != null) add(MessageMenuAction.Edit)
     if (message.checklist != null) add(MessageMenuAction.EditChecklist)
+    add(MessageMenuAction.Reply)
+    val poll = message.poll
     // Bez textu není co kopírovat, i kdyby to server dovolil. Text ankety je jen náš popis
     // („Anketa: otázka") pro citace a náhledy, ne obsah, který by stálo za to kopírovat.
-    if (poll == null && message.copyableText().isNotBlank()) {
-        add(MessageMenuAction.Copy)
-        add(MessageMenuAction.SelectText)
+    val hasText = poll == null && message.copyableText().isNotBlank()
+    if (hasText) add(MessageMenuAction.Copy)
+    add(MessageMenuAction.Forward)
+    if (hasText) {
         // Překládá server text ZPRÁVY (`translateMessageText`); přepis hlasovky textem zprávy není.
+        // Zpráva v jazyce překladu ho nenabídne (`MessageMenu.inTranslationLanguage`), takže nahoře
+        // je jen u cizojazyčné zprávy.
         if (message.media !is MessageMedia.VoiceNote && message.media !is MessageMedia.VideoNote) {
             add(MessageMenuAction.Translate)
         }
-        if (message.summaryLanguage != null) add(MessageMenuAction.Summarize)
-        // Vysvětlit jen DLOUHOU CIZÍ zprávu: vlastní zprávu člověk zná a krátkou přečte
-        // rychleji, než model odpoví.
-        if (!message.isOutgoing && message.text.length >= EXPLAIN_MIN_CHARS) add(MessageMenuAction.Explain)
-        // Akce z textu (termín, účet, zásilka): jestli v něm něco je, zjistí ViewModel při
-        // otevření nabídky — tady by se pravidla pouštěla u každé zprávy v seznamu.
-        add(MessageMenuAction.ContextActions)
     }
     if (message.media is MessageMedia.Sticker) add(MessageMenuAction.ToggleFavoriteSticker)
-    add(MessageMenuAction.Forward)
     // Soubor, který není obrázek ani video, se do prohlížeče nedostane; ven jde odsud. Skladba
     // je taky soubor — v bublině se jen přehrává.
     if (message.media is MessageMedia.Document || message.media is MessageMedia.Audio) {
         add(MessageMenuAction.ShareFile)
         if (saveAsSupported) add(MessageMenuAction.SaveFileAs)
     }
+    if (poll?.canRetract == true) add(MessageMenuAction.RetractVote)
+    if (poll != null && !poll.isClosed) add(MessageMenuAction.StopPoll)
+    if (hasText) {
+        // Akce z textu (termín, účet, zásilka): jestli v něm něco je, zjistí ViewModel při
+        // otevření nabídky — tady by se pravidla pouštěla u každé zprávy v seznamu.
+        add(MessageMenuAction.ContextActions)
+        add(MessageMenuAction.SelectText)
+        if (message.summaryLanguage != null) add(MessageMenuAction.Summarize)
+        // Vysvětlit jen DLOUHOU CIZÍ zprávu: vlastní zprávu člověk zná a krátkou přečte
+        // rychleji, než model odpoví.
+        if (!message.isOutgoing && message.text.length >= EXPLAIN_MIN_CHARS) add(MessageMenuAction.Explain)
+    }
     add(MessageMenuAction.Info)
     add(MessageMenuAction.ToggleBookmark)
     add(MessageMenuAction.Remind)
     add(if (isPinned) MessageMenuAction.Unpin else MessageMenuAction.Pin)
-    if (poll != null && !poll.isClosed) add(MessageMenuAction.StopPoll)
-    if (poll?.options?.any { it.canDelete } == true) add(MessageMenuAction.DeletePollOption)
     add(MessageMenuAction.Select)
     add(MessageMenuAction.Report)
+    if (poll?.options?.any { it.canDelete } == true) add(MessageMenuAction.DeletePollOption)
     add(MessageMenuAction.Delete)
 }
 

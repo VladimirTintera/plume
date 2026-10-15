@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -39,13 +38,11 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.selection.SelectionState
 import androidx.compose.foundation.text.selection.TextSelectionColors
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -92,7 +89,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -107,14 +103,13 @@ import eu.tintera.plume.core.ui.LocalBackgroundBlurAllowed
 import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.hazeBlur
 import eu.tintera.plume.core.ui.strayTapGuard
-import eu.tintera.plume.core.ui.asDayLabel
-import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.distinctOnBoth
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.features.conversation.items.ConversationItemScope
 import eu.tintera.plume.features.conversation.items.bubbleColorFor
-import eu.tintera.plume.features.conversation.items.Delivery
 import eu.tintera.plume.features.conversation.items.MenuAnchor
+import eu.tintera.plume.features.conversation.items.slot
+import eu.tintera.plume.core.ui.submenusCascade
 import eu.tintera.plume.features.conversation.items.MenuCopy
 import eu.tintera.plume.features.conversation.items.MessageAction
 import eu.tintera.plume.features.conversation.items.MessageItem
@@ -123,10 +118,6 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_reaction_24dp
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.conversation_delete_selected_title
-import eu.tintera.plume.resources.conversation_delivery_failed
-import eu.tintera.plume.resources.conversation_delivery_read
-import eu.tintera.plume.resources.conversation_delivery_sending
-import eu.tintera.plume.resources.conversation_delivery_sent
 import eu.tintera.plume.resources.delete_message_choice
 import eu.tintera.plume.resources.delete_message_for_all
 import eu.tintera.plume.resources.delete_message_for_partner
@@ -139,8 +130,6 @@ import eu.tintera.plume.resources.delete_messages_for_self
 import eu.tintera.plume.resources.menu_delete
 import eu.tintera.plume.resources.menu_more_reactions
 import eu.tintera.plume.resources.menu_pin
-import eu.tintera.plume.resources.menu_sent_at
-import eu.tintera.plume.resources.menu_sent_at_delivery
 import eu.tintera.plume.resources.pin_message_title
 import eu.tintera.plume.resources.pin_option_notify_channel
 import eu.tintera.plume.resources.pin_option_notify_group
@@ -150,7 +139,6 @@ import eu.tintera.plume.resources.pin_scope_channel
 import eu.tintera.plume.resources.pin_scope_group
 import eu.tintera.plume.resources.pin_scope_private
 import kotlin.math.roundToInt
-import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
@@ -249,12 +237,15 @@ internal fun MessageMenuLayer(
 
     val close = { shown?.let { itemScope.onAction(it.menu.messageId, MessageAction.CloseMenu) } }
     var expanded by remember(shown?.menu?.messageId) { mutableStateOf(false) }
+    // Druhá úroveň nabídky („Další"). Nová nabídka začíná vždycky nahoře.
+    var showMore by remember(shown?.menu?.messageId) { mutableStateOf(false) }
 
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
         // Rozbalený výběr je sheet a zpět si obslouží sám.
         isBackEnabled = open && !expanded,
-        onBackCompleted = { close() },
+        // Z „Další" vede zpět o úroveň výš, ne rovnou pryč — jako šipka v nabídce.
+        onBackCompleted = { if (showMore) showMore = false else close() },
     )
 
     val scrimAlpha by animateFloatAsState(
@@ -338,17 +329,25 @@ internal fun MessageMenuLayer(
 
         // Položky, které se opravdu ukážou: kandidáti od bloku, které dovolil server. Z nich, ne
         // z kandidátů, se počítá i výška nabídky — dokud se brali kandidáti, visela nabídka nad
-        // zprávou o položku (48 dp) výš za každého kandidáta, kterého server nedovolil.
+        // zprávou o položku výš za každého kandidáta, kterého server nedovolil.
         val menuItems = shown.menu.items.mapNotNull { action ->
             action.presentation(shown.menu, selection)?.let { look ->
                 // Hodnota MÍSTO popisku, ne za ním: výška nabídky se počítá na jeden řádek na položku
                 // a „Sledovat zásilku · RR123456785CZ" by se zalomilo a konec nabídky usekl.
-                MenuItem(look.icon, look.labelArg ?: stringResource(look.label), look.destructive) {
+                MenuItem(look.icon, look.labelArg ?: stringResource(look.label), look.destructive, action.slot) {
                     itemScope.onAction(shown.menu.messageId, action.withSelection(selection))
                 }
             }
         }
-        val menuHeight = MENU_PADDING * 2 + MENU_HEADER_HEIGHT + MENU_ITEM_HEIGHT * menuItems.size
+        val levels = arrangeMenu(menuItems) { it.slot }
+        /*
+         * Výška VYŠŠÍ z obou úrovní, ne té, která je zrovna vidět: přepnutí na „Další" by jinak
+         * nabídku natáhlo pod prstem a s ní by poskočila i zpráva, která jí uvolňuje místo. Na
+         * desktopu je „Další" vedle (kaskáda), takže stačí první úroveň.
+         */
+        val topHeight = menuLevelHeight(levels.topGroupSizes, header = true)
+        val moreHeight = if (submenusCascade) 0.dp else menuLevelHeight(levels.moreGroupSizes, header = false)
+        val menuHeight = maxOf(topHeight, moreHeight)
 
         // Kam zpráva DOJEDE a jak velká bude. Z toho se odvozuje i rozvržení nabídky, takže se
         // o umístění pruhu reakcí rozhodne jednou a nic během animace nepřeskakuje.
@@ -627,11 +626,18 @@ internal fun MessageMenuLayer(
                     },
             ) {
                 ActionMenu(
-                    maxHeight = shownMenuHeight,
-                    items = menuItems,
+                    levels = levels,
                     timestamp = shown.menu.timestamp,
                     // Do nabídky jde SKUTEČNÝ stav, ne to, co zrovna ukazuje odznak.
                     delivery = shown.item.frame.delivery,
+                    showMore = showMore,
+                    onShowMore = { showMore = it },
+                    cascade = submenusCascade,
+                    open = open,
+                    height = shownMenuHeight,
+                    // Nabídka nad zprávou (dole nebylo místo) se drží spodní hrany, ať úroveň
+                    // s méně řádky nevisí nad zprávou s mezerou.
+                    alignBottom = layout.menuY < top,
                 )
             }
         }
@@ -858,93 +864,6 @@ private fun ReactionOption(reaction: String) {
 /** Vlastní emoji v pruhu a výběru reakcí — velké jako glyf 24sp emoji i s jeho okrajem. */
 private val CUSTOM_REACTION_OPTION_SIZE = 28.dp
 
-/** Nabídka akcí. Položky přibývají, jak je postupně umíme — mrtvé se sem nedávají. */
-@Composable
-private fun ActionMenu(items: List<MenuItem>, timestamp: Int, delivery: Delivery?, maxHeight: Dp) {
-    Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shadowElevation = 3.dp,
-        modifier = Modifier.width(MENU_WIDTH).heightIn(max = maxHeight),
-    ) {
-        Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = MENU_PADDING)) {
-            /*
-             * Kdy zpráva přišla.
-             *
-             * V bublině čas není a tahem doleva se k němu čtečka obrazovky nedostane, takže
-             * tohle je jediná cesta, která funguje pro každého. Není to položka nabídky —
-             * nedá se na ni ťuknout a nic nedělá.
-             */
-            /*
-             * Kdy zpráva přišla a jak dopadla.
-             *
-             * Odznak doručení je pod bublinou jen u některých zpráv (viz `readBadgeRows`)
-             * a odkrýt ho ťuknutím čtečka obrazovky neumí — tady ho tedy má vždycky.
-             */
-            val deliveryLabel = when (delivery) {
-                Delivery.Sending -> stringResource(Res.string.conversation_delivery_sending)
-                Delivery.Sent -> stringResource(Res.string.conversation_delivery_sent)
-                Delivery.Read -> stringResource(Res.string.conversation_delivery_read)
-                Delivery.Failed -> stringResource(Res.string.conversation_delivery_failed)
-                null -> null
-            }
-
-            Text(
-                text = if (deliveryLabel == null) {
-                    stringResource(Res.string.menu_sent_at, timestamp.asDayLabel(), timestamp.asTimeOfDay())
-                } else {
-                    stringResource(
-                        Res.string.menu_sent_at_delivery,
-                        timestamp.asDayLabel(),
-                        timestamp.asTimeOfDay(),
-                        deliveryLabel,
-                    )
-                },
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .height(MENU_HEADER_HEIGHT)
-                    .padding(horizontal = 20.dp)
-                    .wrapContentHeight(),
-            )
-
-            items.forEach { item ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(MENU_ITEM_HEIGHT)
-                        .clickable(onClick = item.onClick)
-                        .padding(horizontal = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    // Jediná nevratná položka dostane chybovou barvu, aby se nespletla
-                    // s ostatními — stejně jako v nabídce nad chatem.
-                    val color = if (item.destructive) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    }
-
-                    Icon(
-                        painterResource(item.icon),
-                        contentDescription = null,
-                        tint = color,
-                        modifier = Modifier.size(20.dp),
-                    )
-                    Text(
-                        text = item.label,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = color,
-                    )
-                }
-            }
-        }
-    }
-}
-
 /**
  * Potvrzení smazání zprávy.
  *
@@ -1081,13 +1000,6 @@ private fun CheckRow(label: String, checked: Boolean, onChange: (Boolean) -> Uni
         Text(label, style = MaterialTheme.typography.bodyMedium)
     }
 }
-
-private data class MenuItem(
-    val icon: DrawableResource,
-    val label: String,
-    val destructive: Boolean = false,
-    val onClick: () -> Unit,
-)
 
 /** Kam a jak velká se zpráva v nabídce nakreslí. [visibleHeight] je už po zmenšení. */
 internal data class MenuMessagePlacement(val top: Dp, val scale: Float, val visibleHeight: Dp) {
@@ -1273,18 +1185,12 @@ internal const val MIN_MESSAGE_SCALE = 0.6f
 /** Kolik ze zprávy zůstane v nabídce vidět, i když se nic dalšího nevejde. */
 internal val MIN_MESSAGE_VISIBLE = 72.dp
 
-/** Nabídka se nezmenší pod tři položky; pod tím by posouvání nemělo smysl. */
+/** Nabídka se nezmenší pod tři řádky; pod tím by posouvání nemělo smysl. */
 private val MENU_MIN_HEIGHT = 160.dp
 
 /** Výška vyblednutí dole u oříznuté zprávy. */
 private val TALL_MESSAGE_FADE = 48.dp
 private val SCREEN_MARGIN = 12.dp
-private val MENU_WIDTH = 220.dp
-private val MENU_ITEM_HEIGHT = 48.dp
-
-/** Řádek s časem odeslání nad položkami. Nižší než položka — nedá se na něj ťuknout. */
-private val MENU_HEADER_HEIGHT = 32.dp
-private val MENU_PADDING = 8.dp
 private val QUICK_ROW_HEIGHT = 52.dp
 private val QUICK_EMOJI_SIZE = 40.dp
 
