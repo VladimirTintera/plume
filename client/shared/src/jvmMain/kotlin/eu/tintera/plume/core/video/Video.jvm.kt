@@ -59,3 +59,6 @@ actual fun rememberPictureInPicture(
     playing: Boolean,
     onTogglePlay: () -> Unit,
 ): PictureInPicture = NoPictureInPicture
+
+/** Desktop video nepřehrává (viz [VideoPlayer]); kvalitu stejně nikdo nevybírá. */
+actual fun videoDecoder(codec: String, width: Int, height: Int): VideoDecoder = VideoDecoder.None

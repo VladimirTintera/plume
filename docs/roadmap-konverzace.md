@@ -53,8 +53,8 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    vytažení sluchátek, lišty schované s ovládáním, zámek proti dotykům, ruční otočení~~ — hotovo
    (`docs/poznatky/prohlizec-medii.md`, „Video"; otočení na iOS chybí, chce delegáta aplikace).
    ~~Pamatovaná pozice, proužek zhlédnutého, `startTimestamp`, dvojí ťuknutí ±10 s, podržení
-   pro 2×, náhledy snímků nad posuvníkem~~ — hotovo (tamtéž). Zbývá **volba kvality**
-   (`alternativeVideos`).
+   pro 2×, náhledy snímků nad posuvníkem~~ — hotovo (tamtéž). ~~Volba kvality
+   (`alternativeVideos`)~~ — hotovo na Androidu (tamtéž, „Kvalita videa"; iOS jen přeložený).
 3. ~~**Přeposílání zpráv**~~ — hotovo (položka v nabídce, výběr chatu, album celé,
    ~~víc cílů najednou~~ i ~~výběr víc zpráv~~). ~~Kopie bez odesílatele~~ (i bez popisků) — hotovo.
 4. ~~**Otevírání dokumentů**~~ — hotovo (stažení s průběhem, `ACTION_VIEW` / `UIDocumentInteractionController`).

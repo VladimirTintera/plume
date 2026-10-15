@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.core.video.VideoQualityChoice
 import eu.tintera.plume.resources.text_select_24dp
 import eu.tintera.plume.resources.media_text_hide
 import eu.tintera.plume.resources.media_text
@@ -415,6 +416,10 @@ private fun ViewerContent(
     // Ztlumení platí pro všechna videa, dokud je prohlížeč otevřený; po odlistování by jinak
     // další video zase hrálo nahlas. Neukládá se: příště se začíná se zvukem.
     var videoMuted by rememberSaveable { mutableStateOf(false) }
+    // Kvalita videa stejně: platí pro další videa, dokud je prohlížeč otevřený; příště automaticky.
+    var videoQuality by rememberSaveable(stateSaver = VideoQualityChoiceSaver) {
+        mutableStateOf<VideoQualityChoice>(VideoQualityChoice.Auto)
+    }
     var immersive by rememberSaveable(state.isSelfDestruct) {
         mutableStateOf(state.isSelfDestruct || startSeconds != NO_START)
     }
@@ -551,6 +556,8 @@ private fun ViewerContent(
                     cardBias = cardBias,
                     muted = videoMuted,
                     onToggleMute = { videoMuted = !videoMuted },
+                    qualityChoice = videoQuality,
+                    onQualityChoice = { videoQuality = it },
                     fullscreen = videoFullscreen,
                     rememberPosition = !state.isSelfDestruct,
                 )

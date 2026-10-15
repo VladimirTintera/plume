@@ -271,20 +271,42 @@ internal fun SpeedChip(speed: VoiceSpeed, accent: Color, onAccent: Color, onClic
             VoiceSpeed.Double -> Res.string.voice_speed_double
         },
     )
+    LabelChip(
+        label = label,
+        accent = accent,
+        onAccent = onAccent,
+        onClick = {
+            // Přepnutí stavu, tedy `toggle` — jenže hodnoty jsou tři a „zapnuto" mezi nimi není.
+            haptics.tick()
+            onClick()
+        },
+    )
+}
+
+/**
+ * Tónovaný čip s krátkým popiskem — vzhled [SpeedChip], sdílený s čipem kvality videa, aby
+ * v liště přehrávače vypadaly jako jedna rodina. [description] je pro čtečku, když popisek sám
+ * nestačí („720p" → „Kvalita videa: 720p").
+ */
+@Composable
+internal fun LabelChip(
+    label: String,
+    accent: Color,
+    onAccent: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    description: String = label,
+) {
     Text(
         text = label,
         style = MaterialTheme.typography.labelMedium.tabularNumbers(),
         color = onAccent,
-        modifier = Modifier
+        modifier = modifier
             .clip(SPEED_CHIP_SHAPE)
             .background(accent.copy(alpha = SPEED_CHIP_ALPHA))
-            .clickable {
-                // Přepnutí stavu, tedy `toggle` — jenže hodnoty jsou tři a „zapnuto" mezi nimi není.
-                haptics.tick()
-                onClick()
-            }
+            .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 2.dp)
-            .semantics { contentDescription = label },
+            .semantics { contentDescription = description },
     )
 }
 

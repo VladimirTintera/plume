@@ -1023,6 +1023,66 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   na telefonu, začít logem v `saveProgress`.
   Že podržení opravdu zrychlí přehrávání, je vidět jen okem (ExoPlayer rychlost nehlásí).
 
+#### Kvalita videa
+
+Server k delším videím sám vyrábí menší kvality (`MessageVideo.alternativeVideos`, TDLib
+`alternativeVideo`: rozměry, kodek, soubor s videem a HLS seznam). Doména je nese jako
+`MessageMedia.Video.alternatives` (`VideoQuality`), výběr je čistá funkce `pickVideoQuality`
+v `core/video` (testy `VideoQualitiesTest`), čip a nabídka `VideoQualityChip`.
+
+- **Každá kvalita je samostatný soubor s vlastním `fileId`** a hraje se stejnou cestou jako
+  původní: stahování + streamování z rozestavěného souboru. **HLS seznam se nečte** — přehrává se
+  celý soubor zvolené kvality; přepínání podle propustnosti by chtělo HLS proxy nad TDLib.
+- **Server posílá každou velikost DVAKRÁT, v AV1 (`av01`) a v h264.** Změřeno na kanálu:
+  720p AV1 720 MB, 720p h264 975 MB, původní 901 MB — **h264 bývá větší i než původní**.
+  Nabídka nechá z každé velikosti jednu: napřed tu s HARDWAROVÝM dekodérem, pak menší soubor
+  (`videoDecoder`: Android `MediaCodecList` + `isHardwareAccelerated`, starší systém podle jména
+  `OMX.google.` / `c2.android.`; iOS pevná tabulka h264/h265; desktop nic). Softwarové AV1 by
+  na telefonu bez podpory v čipu hodinu videa táhlo z baterie. Nedekódovatelná kvalita se
+  nenabízí vůbec. Původní soubor se nefiltruje (kodek o něm TDLib neříká).
+- **„720p" je kratší strana** (`VideoQuality.lines`): video na výšku 720 × 1280 je 720p.
+- **Automatika = strop podle úrovně automatického stahování** (`AutoDownloadLimits.maxVideoLines`:
+  Vypnuto 360p, Úsporně 480p, Běžně 720p, Naplno původní). Výchozí tedy: Wi-Fi původní soubor
+  (jako dřív), mobilní data 720p, roaming a spořič dat 480p. Pod stropem nejlepší kvalita, při
+  shodě rozměrů přepočítaná před původní; nevejde-li se nic, nejmenší. **Už stažený původní
+  soubor vyhrává vždycky** — nic nestojí (`FileRepository.observe`, nic nestahuje).
+- **Automatika se přepočítá i za běhu**: Wi-Fi → mobilní data uprostřed videa přepne na menší
+  kvalitu a naopak. Opuštěná kvalita se PŘESTANE STAHOVAT (`cancelDownload`, jen je-li
+  rozstahovaná) — jinak by přepnutí na mobilních datech nic neušetřilo, TDLib stahuje dál,
+  i když odběr skončil.
+- **Ruční volbu drží prohlížeč, ne stránka** (jako ztlumení, `rememberSaveable` se
+  `VideoQualityChoiceSaver`): platí pro další videa, dokud je prohlížeč otevřený, a neukládá se.
+  Je to POPIS kvality (Automaticky / Původní / „480p"), ne soubor — jiné video má jiné soubory;
+  chybí-li 480p, bere se nejbližší nižší.
+- **Výměna uprostřed přehrávání** (`sourceKey` u `VideoPage`): dokud nový soubor nemá na disku
+  nic, hraje dál starý; pak tentýž přehrávač dostane nový zdroj, skočí na pozici, kde starý
+  zrovna byl, a hrál-li, hraje dál (pozastavené zůstane stát). Přehrávač ani povrch se
+  nezakládají znovu, takže zůstane obraz v obraze, rychlost i ztlumení (zapisují se po každé
+  výměně, klíč `loadedKey`). Do rozběhnutí se točí průběh uprostřed místo tlačítka.
+- **Past: `produceState` si stav pamatuje BEZ klíče.** Klíč restartuje jen producenta, takže po
+  výběru jiné kvality vracel ještě pár snímků stav STARÉHO souboru. Stránka tak založila zdroj
+  streamu s cestou a velikostí starého souboru a stahováním nového: nová kvalita se žádala na
+  offsetu za koncem svého souboru (653 MB u 452MB souboru = konec `mdat` původního) a po
+  výměně opačným směrem procházel přehrávač fragmenty AV1 jako původní soubor. Zdroj je proto
+  obalený `key(chosenId)`. Kdo stav souboru klíčuje, ať klíčuje celou skupinu, ne `produceState`.
+  Na to, který soubor se čte, přišla hlavička `run-as … dd if=files/tdlib-files/temp/<n>`
+  (`ftyp … avc1` a délka `mdat`) proti logu `Files` („se přesouvá na …").
+- **Otevřená nabídka drží ovládání na očích** — schovaná lišta by ji vzala s sebou.
+- **Některé původní soubory se streamují špatně** a s kvalitou to nesouvisí: 655MB video mělo
+  `mdat` napřed, `moov` na konci a zvuk daleko od obrazu, takže TDLib přeskakoval mezi začátkem
+  a 560 MB a rozběhnutí trvalo přes minutu (i při čerstvém otevření, bez výměny). Přepočítané
+  kvality server dělá pro streamování (fragmentované MP4) a rozbíhají se hned.
+- **Ověřeno na emulátoru** (Pixel 9, Android 17, software dekodér, kanál s hodinovými videi):
+  čip „720p" v liště, nabídka (Automaticky · Podle sítě: 720p, Původní · 418 MB, 720p 260 MB,
+  480p 124 MB), přepnutí hrajícího videa na 480p a zpět bez ztráty pozice (31:51 → hraje dál),
+  přepnutí pozastaveného (zůstane na 1:36), Wi-Fi vypnutá (`svc wifi disable`) → automatika
+  vybrala 720p AV1 místo 655MB původního, Wi-Fi zapnutá za běhu → přepnutí na původní
+  a „Ruším stahování" u 720p v logu `Files`. Emulátor bez hardwarového dekodéru má AV1 i h264
+  softwarově, takže tam vyhrává menší AV1; **přednost hardwarového dekodéru je ověřená jen
+  testy**. **iOS jen přeložený** (bez streamování se tam nová kvalita stahuje celá, než se
+  vymění). Emulátor při softwarovém dekódování 720p sypal systémová ANR („Process system isn't
+  responding") — přetížený hostitel, ne aplikace.
+
 ### Text z fotky
 
 ⋮ → „Text z fotky" rozpozná text v otevřené fotce, celé v telefonu: ML Kit z Play služeb na
@@ -1358,7 +1418,8 @@ dělala na všech sítích dřív (5 MB); výchozí je Wi-Fi Naplno, mobilní da
 
 - **Úrovně, ne přepínače po druzích.** Plume samo stahuje jen tři věci, takže šest voleb na síť
   by nastavovalo rozdíly, které uživatel nepozná. Video samo se nepřednačítá vůbec (proud až
-  v prohlížeči), hlasovky se stahují až přehráním — proto v nabídce nejsou.
+  v prohlížeči), hlasovky se stahují až přehráním — proto v nabídce nejsou. Úroveň ale určuje
+  strop automatické KVALITY puštěného videa (`maxVideoLines`, viz „Kvalita videa").
 - **Co platí teď, počítá `AutoDownloadPolicy`** (nastavení + `NetworkMonitor.status` +
   `saveData`) a dává to UI přes `LocalAutoDownload` z kořene přihlášené části. Bubliny
   nesahají do Koinu ani nesledují síť samy.

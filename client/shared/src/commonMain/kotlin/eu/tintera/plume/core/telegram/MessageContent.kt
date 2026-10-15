@@ -24,6 +24,7 @@ import dev.g000sha256.tdl.dto.PollMediaPhoto
 import dev.g000sha256.tdl.dto.PollMediaSticker
 import dev.g000sha256.tdl.dto.PollMediaVenue
 import dev.g000sha256.tdl.dto.PollMediaVideo
+import dev.g000sha256.tdl.dto.AlternativeVideo
 import dev.g000sha256.tdl.dto.Video
 import dev.g000sha256.tdl.dto.MessageAnimatedEmoji
 import dev.g000sha256.tdl.dto.MessageAnimation
@@ -806,6 +807,7 @@ internal suspend fun Message.messageMedia(
         selfDestructType = selfDestructType?.toSelfDestructType(),
     ).copy(
         startSeconds = content.startTimestamp,
+        alternatives = content.alternativeVideos.toQualities(),
         // Server jich posílá víc velikostí; větší dlaždice je ostřejší a pořád jde o jeden JPEG.
         storyboard = content.storyboards.maxByOrNull { it.width }?.let { board ->
             VideoStoryboard(
@@ -950,7 +952,20 @@ internal fun Video.toMedia(
     supportsStreaming = supportsStreaming,
     minithumbnail = minithumbnail?.toDomain(),
     fileKey = video.remote.uniqueId.ifBlank { null },
+    sizeBytes = video.expectedSize,
 )
+
+/** Přepočítané kvality videa (zpráva i anketa); HLS seznam se nečte, viz [VideoQuality]. */
+internal fun Array<AlternativeVideo>.toQualities(): List<VideoQuality> = map { alternative ->
+    VideoQuality(
+        fileId = alternative.video.id,
+        width = alternative.width,
+        height = alternative.height,
+        codec = alternative.codec.lowercase(),
+        sizeBytes = alternative.video.expectedSize,
+        isOriginal = false,
+    )
+}
 
 /** Skladba; [fallbackName] je název, když soubor nemá ani titul, ani jméno. Zpráva i článek. */
 internal fun Audio.toMedia(fallbackName: String) = MessageMedia.Audio(
@@ -994,7 +1009,7 @@ internal fun Document.toMedia(fileName: String = this.fileName) = MessageMedia.D
  */
 internal fun PollMedia.toAttachment(): PollAttachment? = when (this) {
     is PollMediaPhoto -> photo.toMedia()?.let { PollAttachment.Media(it) }
-    is PollMediaVideo -> PollAttachment.Media(video.toMedia())
+    is PollMediaVideo -> PollAttachment.Media(video.toMedia().copy(alternatives = alternativeVideos.toQualities()))
     is PollMediaAnimation -> PollAttachment.Media(animation.toMedia())
     is PollMediaSticker -> PollAttachment.Media(sticker.toMedia())
     is PollMediaDocument -> PollAttachment.Media(document.toMedia())

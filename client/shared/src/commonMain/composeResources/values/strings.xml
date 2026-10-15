@@ -344,6 +344,12 @@
     <string name="media_seek_back">−%1$d s</string>
     <string name="media_seek_forward">+%1$d s</string>
     <string name="media_speed_boost">2× speed</string>
+    <string name="media_quality_lines">%1$dp</string>
+    <string name="media_quality_description">Video quality: %1$s</string>
+    <string name="media_quality_auto">Auto</string>
+    <string name="media_quality_auto_hint">By network: %1$s</string>
+    <string name="media_quality_original">Original</string>
+    <string name="media_quality_with_size">%1$s · %2$s</string>
     <string name="media_unmute">Unmute</string>
     <string name="voice_speed_normal">1×</string>
     <string name="voice_speed_fast">1.5×</string>

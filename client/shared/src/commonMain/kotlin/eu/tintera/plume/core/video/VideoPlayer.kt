@@ -107,3 +107,17 @@ class StreamingSource(
  * jako dosud.
  */
 expect val videoStreamingSupported: Boolean
+
+/**
+ * Čím zařízení dekóduje video v kodeku [codec] (`h264`, `h265`, `av01`… jak ho jmenuje TDLib
+ * u přepočítané kvality) a v rozměrech [width] × [height].
+ *
+ * Server přepočítává každou velikost do h264 i AV1; kvalitu, kterou telefon nepřehraje, nabízet
+ * nemá, a softwarové dekódování (AV1 na telefonu bez podpory v čipu) pálí baterii. Na Androidu
+ * se ptá `MediaCodecList`, na iOS je to pevná tabulka (AVPlayer se zeptat nedá) a desktop video
+ * nepřehrává vůbec.
+ */
+expect fun videoDecoder(codec: String, width: Int, height: Int): VideoDecoder
+
+/** Výsledek [videoDecoder]; pořadí je pořadí přednosti. */
+enum class VideoDecoder { None, Software, Hardware }

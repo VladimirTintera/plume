@@ -213,3 +213,12 @@ private const val END_TOLERANCE_MS = 100L
  * čeká na celý soubor jako dosud.
  */
 actual val videoStreamingSupported: Boolean = false
+
+/**
+ * AVPlayer umí h264 a HEVC na každém podporovaném iPhonu; AV1 jen od čipu A17 Pro / M3, a zjistit
+ * se to dá jen přes VideoToolbox — přepočítaná AV1 se proto nenabízí vůbec.
+ */
+actual fun videoDecoder(codec: String, width: Int, height: Int): VideoDecoder = when (codec) {
+    "h264", "avc", "h265", "hevc" -> VideoDecoder.Hardware
+    else -> VideoDecoder.None
+}
