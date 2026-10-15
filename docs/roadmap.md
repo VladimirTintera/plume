@@ -78,6 +78,12 @@ Android je napřed; tohle je, čím se to dorovnává.
 - **Hlášení pádů.** `NoopCrashReporter`. Implementace musí přijít ze Swiftu — `FirebaseCrashlytics`
   je ObjC knihovna, kterou Kotlin/Native nevidí, a Kotlin výjimka nese jen adresy stack trace.
   Vzor je `IosCrashlyticsLogger` v projektu com.profilog.telemetry.android.
+- **Vydání: nejspíš App Store** (zatím nerozhodnuté, testování přes TestFlight). Chce placený
+  Apple Developer Program (99 USD ročně, odpuštění jen pro neziskovky a školy). Tentýž účet dá
+  i Developer ID a notarizaci pro DMG na macOS. Zvážené a odložené: alternativní obchody v EU
+  (AltStore PAL) chtějí stejný účet i notarizaci, takže nic neušetří; stažení z webu je jen pro
+  vývojáře s milionem instalací. Bez poplatku by šla nepodepsaná IPA instalovaná přes
+  SideStore / AltStore (podpis uživatelovým Apple ID na 7 dní), ovšem bez push notifikací.
 - **Release link do CI jako samostatný cachovaný krok.** Kotlin/Native pouští LTO nad celou
   statickou TDLib a naměřeno je 15+ minut na M-series; do smyčky, kterou čeká vývojář, to nepatří.
 
