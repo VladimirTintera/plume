@@ -10,7 +10,7 @@ import eu.tintera.plume.features.conversation.showsLargePreview
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -157,7 +157,7 @@ internal fun MessageAttachment(
                 ExpiredMediaRow(
                     isVideo = false,
                     accent = accent,
-                    modifier = Modifier.combinedClickable(
+                    modifier = Modifier.contextClickable(
                         onClick = {},
                         onLongClick = onRequestMenu,
                     ),
@@ -184,7 +184,7 @@ internal fun MessageAttachment(
                              * Dlouhý stisk se musí zopakovat tady: potomek s vlastním klikáním ho
                              * nepustí k rodiči, takže by nad fotkou nešla otevřít nabídka.
                              */
-                            .combinedClickable(
+                            .contextClickable(
                                 onClick = {
                                     if (isSelfDestruct) {
                                         onOpen()
@@ -236,7 +236,7 @@ internal fun MessageAttachment(
             media = media,
             shape = pictureShape,
             fillWidth = fillWidth,
-            modifier = Modifier.combinedClickable(onClick = onOpen, onLongClick = onRequestMenu),
+            modifier = Modifier.contextClickable(onClick = onOpen, onLongClick = onRequestMenu),
         )
 
         is MessageMedia.Attachment -> Row(
@@ -293,7 +293,7 @@ internal fun MessageAttachment(
              * vlnka přes něj by vypadala jako chyba. Dlouhý stisk se musí zopakovat — potomek
              * s vlastním klikáním ho k bublině nepustí (stejná past jako u fotky).
              */
-            modifier = Modifier.combinedClickable(
+            modifier = Modifier.contextClickable(
                 interactionSource = null,
                 indication = null,
                 onClick = onOpen,
@@ -334,7 +334,7 @@ internal fun MessageAttachment(
                 ExpiredMediaRow(
                     isVideo = true,
                     accent = accent,
-                    modifier = Modifier.combinedClickable(
+                    modifier = Modifier.contextClickable(
                         onClick = {},
                         onLongClick = onRequestMenu,
                     ),
@@ -358,7 +358,7 @@ internal fun MessageAttachment(
                             .size(frame)
                             .clip(pictureShape)
                             // Dlouhý stisk se opakuje — potomek s vlastním klikáním ho k bublině nepustí.
-                            .combinedClickable(
+                            .contextClickable(
                                 onClick = {
                                     if (isSelfDestruct) {
                                         onOpen()
@@ -796,7 +796,7 @@ private fun DocumentContent(
     Row(
         Modifier
             .clip(RoundedCornerShape(12.dp))
-            .combinedClickable(
+            .contextClickable(
                 enabled = !uploading,
                 onClick = onOpen,
                 onLongClick = onRequestMenu,
@@ -877,7 +877,7 @@ private fun LargeDocumentPreview(
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                 // Z náhledu vyroste prohlížeč, stejně jako z fotky; co jde systému, neletí nikam.
                 .then(if (inViewer) Modifier.sharedNavElement(photoKey(messageId), shape = shape, besidePanes = true) else Modifier)
-                .combinedClickable(
+                .contextClickable(
                     enabled = !uploading,
                     onClick = onOpen,
                     onLongClick = onRequestMenu,

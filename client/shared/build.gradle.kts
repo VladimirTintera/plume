@@ -824,6 +824,45 @@ val verifyTooltipsThroughRoot = tasks.register("verifyTooltipsThroughRoot") {
 
 tasks.named("check") { dependsOn(verifyTooltipsThroughRoot) }
 
+// Podržení (`onLongClick`) otevírá v aplikaci nabídky a na desktopu ho má zastoupit pravé tlačítko
+// myši. Umí to jen obal `contextClickable` (core/ui/ContextClickable.kt); holé `combinedClickable`
+// pravé tlačítko nebere, takže by se nabídka na desktopu zase dala otevřít jen dlouhým stiskem.
+val verifyContextClickable = tasks.register("verifyContextClickable") {
+    group = "verification"
+    description = "Ověří, že se podržení zapojuje přes contextClickable (s pravým tlačítkem), ne holým combinedClickable."
+
+    val sources = listOf(
+        layout.projectDirectory.dir("src/commonMain/kotlin"),
+        layout.projectDirectory.dir("src/androidMain/kotlin"),
+        layout.projectDirectory.dir("src/iosMain/kotlin"),
+        layout.projectDirectory.dir("src/jvmMain/kotlin"),
+    )
+    sources.forEach { inputs.dir(it) }
+    val roots = sources.map { it.asFile }
+    val projectDir = layout.projectDirectory.asFile
+
+    doLast {
+        // Volání, ne zmínka v komentáři („`combinedClickable` si haptiku dělá sám").
+        val rawCombined = Regex("""^import androidx\.compose\.foundation\.combinedClickable\b|(?<!`)\bcombinedClickable\(""")
+        val offenders = roots
+            .flatMap { it.walkTopDown().filter { f -> f.extension == "kt" && f.name != "ContextClickable.kt" } }
+            .flatMap { file ->
+                file.readLines().mapIndexedNotNull { index, line ->
+                    val code = line.trim()
+                    "${file.relativeTo(projectDir)}:${index + 1}: $line".takeIf {
+                        !code.startsWith("//") && !code.startsWith("*") && rawCombined.containsMatchIn(code)
+                    }
+                }
+            }
+        check(offenders.isEmpty()) {
+            "Podržení se zapojuje přes contextClickable (core/ui/ContextClickable.kt) — pravé tlačítko myši " +
+                "pak udělá totéž. Holé combinedClickable:\n" + offenders.joinToString("\n")
+        }
+    }
+}
+
+tasks.named("check") { dependsOn(verifyContextClickable) }
+
 // api_id/api_hash z my.telegram.org. Čtou se z local.properties (gitignorovaný), aby se pár
 // nikdy nedostal do repozitáře. Bez nich se projekt přeloží, ale přihlášení skončí chybou
 // od serveru — hlásí se to srozumitelně místo pádu (viz sendTdlibParameters v TdlTelegramSession).

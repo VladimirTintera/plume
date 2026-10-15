@@ -4,7 +4,7 @@ import eu.tintera.plume.resources.chats_search_remove_recent
 import eu.tintera.plume.resources.chats_search_remove_top
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import eu.tintera.plume.resources.chats_search_ai
 import eu.tintera.plume.resources.auto_awesome_24dp
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -784,7 +784,7 @@ private fun TopChat(chat: ChatSummary, onClick: () -> Unit, onRemove: () -> Unit
                 .width(TOP_CHAT_WIDTH)
                 .clip(MaterialTheme.shapes.medium)
                 // Odezvu na podržení dělá `combinedClickable` sám.
-                .combinedClickable(onClick = onClick, onLongClick = { menuOpen = true })
+                .contextClickable(onClick = onClick, onLongClick = { menuOpen = true })
                 .padding(vertical = 8.dp),
         ) {
             Avatar(

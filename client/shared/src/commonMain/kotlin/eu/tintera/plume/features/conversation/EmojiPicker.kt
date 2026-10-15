@@ -3,7 +3,7 @@ package eu.tintera.plume.features.conversation
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
@@ -375,7 +375,7 @@ private fun EmojiCell(emoji: String, cells: EmojiCells) {
         Modifier
             .size(EMOJI_CELL)
             .clip(RoundedCornerShape(8.dp))
-            .combinedClickable(
+            .contextClickable(
                 onClick = { cells.onPick(emoji) },
                 // Haptiku u dlouhého stisku dělá `combinedClickable` samo — viz `Haptics`.
                 onLongClick = variants?.let { { choosing = true } },

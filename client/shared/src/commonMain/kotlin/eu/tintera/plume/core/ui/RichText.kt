@@ -315,7 +315,15 @@ fun RichText(
                             longClickHandler?.invoke()
                         }
                     }
-                }
+                }.onSecondaryClick(
+                    // Pravé tlačítko myši nad odkazem = podržení nad odkazem; mimo odkaz ho
+                    // dostane bublina (`contextClickable`). Odkaz sám bere jen levé tlačítko.
+                    accepts = { position ->
+                        val offset = layout?.getOffsetForPosition(position)
+                        offset != null && annotated.getLinkAnnotations(offset, offset + 1).isNotEmpty()
+                    },
+                    onClick = { longClickHandler?.invoke() },
+                )
             },
         ),
     )

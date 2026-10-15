@@ -487,6 +487,10 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   nikdy holý `TooltipBox` — hlídá to `verifyTooltipsThroughRoot`. Holý na desktopu shodí
   vykreslování, když kotva s viditelnou bublinou zmizí během měření (změna šířky okna). Viz
   „Bubliny (tooltip) z kořene kompozice" v `docs/poznatky/desktop.md`.
+- **Podržení jen přes `contextClickable`** (`core/ui/ContextClickable.kt`), nikdy holé
+  `combinedClickable` — hlídá to `verifyContextClickable`. Obal přidá pravé tlačítko myši jako
+  podržení; vlastní gesto podržení dostane `onSecondaryClick`. Viz „Pravé tlačítko myši
+  = podržení" v `docs/poznatky/desktop.md`.
 - **Hláška „Zkopírováno" jen tam, kde zkopírování nepotvrdí systém** (`TextClipboard.confirmsCopy`,
   Android 13+): systém sám ukáže okénko s obsahem schránky vlevo dole a vlastní snackbar se
   s ním zdvojil a překryl (ověřeno na emulátoru). Kdo přidává kopírování, podmíní hlášku

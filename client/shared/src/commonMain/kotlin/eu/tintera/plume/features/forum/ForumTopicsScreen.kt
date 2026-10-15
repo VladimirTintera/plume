@@ -18,7 +18,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -471,7 +471,7 @@ private fun TopicRow(
         shape = shape,
         color = containerColor,
         // Podržení otevře nabídku nad tématem, jako podržení chatu v seznamu chatů.
-        modifier = modifier.fillMaxWidth().clip(shape).combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        modifier = modifier.fillMaxWidth().clip(shape).contextClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         Row(
             Modifier.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),

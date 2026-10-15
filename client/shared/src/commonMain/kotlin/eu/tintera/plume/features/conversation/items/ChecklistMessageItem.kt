@@ -1,7 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
 import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -175,7 +175,7 @@ private fun MessageBodyScope.TaskRow(
             .fillMaxWidth()
             .heightIn(min = TASK_MIN_HEIGHT)
             .clip(RoundedCornerShape(TASK_CORNER))
-            .combinedClickable(
+            .contextClickable(
                 interactionSource = null,
                 indication = if (enabled) ripple() else null,
                 onLongClick = ::requestMenu,

@@ -1,7 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -172,7 +172,7 @@ private fun CollapsedChat(chat: ChatSummary, selected: Boolean, onClick: () -> U
                 .size(COLLAPSED_ITEM_SIZE)
                 .clip(COLLAPSED_ITEM_SHAPE)
                 .then(if (selected) Modifier.background(MaterialTheme.colorScheme.secondaryContainer) else Modifier)
-                .combinedClickable(onClick = onClick)
+                .contextClickable(onClick = onClick)
                 .semantics {
                     contentDescription = title
                     this.selected = selected

@@ -1,7 +1,7 @@
 package eu.tintera.plume.features.saved
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -264,7 +264,7 @@ private fun SavedTopicRow(
     Surface(
         shape = shape,
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
-        modifier = modifier.fillMaxWidth().clip(shape).combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        modifier = modifier.fillMaxWidth().clip(shape).contextClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         Row(
             Modifier.padding(horizontal = 16.dp, vertical = 12.dp).fillMaxWidth(),

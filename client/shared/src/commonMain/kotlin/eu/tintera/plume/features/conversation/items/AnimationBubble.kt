@@ -1,6 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -79,7 +79,7 @@ internal fun AnimationBubble(
         modifier = modifier
             .clip(shape)
             // Dlouhý stisk se opakuje — potomek s vlastním klikáním ho k bublině nepustí.
-            .combinedClickable(
+            .contextClickable(
                 onClick = {
                     when {
                         hidden -> onReveal()

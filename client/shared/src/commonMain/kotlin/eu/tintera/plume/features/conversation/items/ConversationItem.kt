@@ -5,7 +5,7 @@ import eu.tintera.plume.core.telegram.PendingChecklistMark
 import eu.tintera.plume.core.ai.ScamKind
 import eu.tintera.plume.features.conversation.ContextFinding
 import eu.tintera.plume.core.telegram.SpeechTranscript
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.features.conversation.NoticeMenu
@@ -304,7 +304,7 @@ internal data class ServiceMessageItem(
                         // seznamu, a dlouhý stisk vedle textu nic nedělá. Dárek šířku má sám
                         // (a intrinsické míry by v kartě nemusely projít).
                         .then(if (gift == null) Modifier.width(IntrinsicSize.Max) else Modifier)
-                        .combinedClickable(
+                        .contextClickable(
                             interactionSource = null,
                             indication = null,
                             onClick = {},

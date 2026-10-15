@@ -1,6 +1,6 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -145,7 +145,7 @@ internal fun StickerSuggestionsPanel(
                         .size(STICKER_SUGGESTION_CELL)
                         .clip(RoundedCornerShape(CELL_CORNER))
                         // Podržení si haptiku dělá `combinedClickable` samo — viz `Haptics`.
-                        .combinedClickable(
+                        .contextClickable(
                             onClick = { onPick(sticker) },
                             onLongClickLabel = stringResource(Res.string.stickers_preview),
                             onLongClick = { preview = sticker },

@@ -13,7 +13,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.expandHorizontally
@@ -347,7 +347,7 @@ private fun FolderItem(tab: FolderTab, label: Boolean, placed: Boolean, focusabl
                 .clip(CircleShape)
                 .background(container)
                 .focusProperties { canFocus = focusable }
-                .combinedClickable(
+                .contextClickable(
                     role = Role.Tab,
                     onClick = onClick,
                     // Odezvu na podržení dělá `combinedClickable` sám; ruční by ji zdvojila.

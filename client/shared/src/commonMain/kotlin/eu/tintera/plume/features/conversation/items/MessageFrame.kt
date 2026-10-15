@@ -29,7 +29,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -793,7 +793,7 @@ private fun MessageFrame(
                  * a potvrzení u ťuknutí, po kterém se nic nestane, by lhalo. Odezvu nese
                  * výbuch za přidanou reakcí.
                  */
-                afterClip = Modifier.combinedClickable(
+                afterClip = Modifier.contextClickable(
                     onLongClick = bodyScope::requestMenu,
                     onDoubleClick = if (scope.doubleTapReaction()) {
                         { bodyScope.act(MessageAction.QuickReact) }
@@ -897,7 +897,7 @@ private fun MessageFrame(
             Box(
                 Modifier
                     .matchParentSize()
-                    .combinedClickable(
+                    .contextClickable(
                         onClickLabel = label,
                         onLongClickLabel = label,
                         /*
@@ -1328,7 +1328,7 @@ private fun MessageBodyScope.ForwardLabel(origin: ForwardOrigin) {
         modifier = Modifier
             .then(
                 if (clickable) {
-                    Modifier.combinedClickable(
+                    Modifier.contextClickable(
                         onClick = { act(MessageAction.OpenForwardOrigin(origin)) },
                         onLongClick = ::requestMenu,
                     )
@@ -1377,7 +1377,7 @@ private fun MessageBodyScope.ViaBotLabel(username: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .combinedClickable(
+            .contextClickable(
                 onClick = { act(MessageAction.UseInlineBot(username)) },
                 onLongClick = ::requestMenu,
             )

@@ -26,7 +26,7 @@ import eu.tintera.plume.core.telegram.RevealedSpoilers
 import androidx.compose.runtime.collectAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -949,7 +949,7 @@ private fun MemberRows(
                      * akce nad chatem v seznamu. Kdyby ťuknutí otevíralo nabídku, zmizela by
                      * nejčastější cesta „napsat tomuhle člověku".
                      */
-                    .combinedClickable(
+                    .contextClickable(
                         onClick = { onOpen(member.sender.id) },
                         onLongClick = { onManage(member.sender.id) },
                     ),

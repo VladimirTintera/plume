@@ -7,7 +7,7 @@ import eu.tintera.plume.resources.add_24dp
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -306,7 +306,7 @@ private fun MessageBodyScope.VoteRow(
             .clip(RoundedCornerShape(ANSWER_CORNER))
             // Zakázaný řádek NESMÍ být `enabled = false`: vzal by s sebou i dlouhý stisk a nad
             // odpovědí v anketě, kde se hlasovat nedá, by nešla otevřít nabídka zprávy.
-            .combinedClickable(
+            .contextClickable(
                 interactionSource = null,
                 indication = if (enabled) ripple() else null,
                 onLongClick = { answerMenu(answer) },
@@ -380,7 +380,7 @@ private fun MessageBodyScope.ResultRow(poll: ChatPoll, answer: PollAnswer, anima
             .fillMaxWidth()
             .clip(RoundedCornerShape(ANSWER_CORNER))
             // Ťuknutí nic nedělá, ale nabídka zprávy nad výsledkem otevřít jít musí.
-            .combinedClickable(onLongClick = { answerMenu(answer) }, onClick = {})
+            .contextClickable(onLongClick = { answerMenu(answer) }, onClick = {})
             .padding(vertical = 4.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

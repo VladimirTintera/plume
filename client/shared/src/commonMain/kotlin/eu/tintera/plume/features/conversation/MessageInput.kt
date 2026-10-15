@@ -11,6 +11,7 @@ import eu.tintera.plume.resources.undo_24dp
 import eu.tintera.plume.resources.edit_note_24dp
 import eu.tintera.plume.resources.conversation_send_rewrite
 import eu.tintera.plume.core.ui.isFromHardwareKeyboard
+import eu.tintera.plume.core.ui.onSecondaryClick
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.key
@@ -1328,6 +1329,7 @@ internal fun Modifier.longPressInstead(enabled: Boolean, onLongPress: () -> Unit
     if (!enabled) {
         this
     } else {
+        // Pravé tlačítko myši (`onSecondaryClick` na konci) = podržení; tlačítko samo bere jen levé.
         pointerInput(Unit) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
@@ -1349,7 +1351,7 @@ internal fun Modifier.longPressInstead(enabled: Boolean, onLongPress: () -> Unit
                     if (event.changes.none { it.pressed }) break
                 }
             }
-        }
+        }.onSecondaryClick { action() }
     }
 }
 

@@ -30,7 +30,7 @@ import eu.tintera.plume.resources.call_made_24dp
 import eu.tintera.plume.resources.call_missed_24dp
 import eu.tintera.plume.resources.call_missed_outgoing_24dp
 import eu.tintera.plume.resources.call_received_24dp
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import eu.tintera.plume.resources.call_back
 import org.jetbrains.compose.resources.painterResource
@@ -69,7 +69,7 @@ internal fun CallRow(call: MessageMedia.Call, accent: Color, onCallBack: (() -> 
                 if (onCallBack != null) {
                     Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .combinedClickable(onClick = onCallBack, onLongClick = onRequestMenu, onClickLabel = callBackLabel)
+                        .contextClickable(onClick = onCallBack, onLongClick = onRequestMenu, onClickLabel = callBackLabel)
                 } else {
                     Modifier
                 },

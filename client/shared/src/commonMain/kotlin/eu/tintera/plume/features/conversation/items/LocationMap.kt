@@ -1,7 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -85,7 +85,7 @@ internal fun LocationMap(
                 .size(width, width * MAP_ASPECT)
                 .clip(shape)
                 // Dlouhý stisk se opakuje — mapa má vlastní klikání a nabídku zprávy by spolkla.
-                .combinedClickable(onClick = onOpen, onLongClick = onRequestMenu),
+                .contextClickable(onClick = onOpen, onLongClick = onRequestMenu),
         )
     }
 }

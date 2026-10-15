@@ -15,7 +15,7 @@ import org.koin.compose.koinInject
 import eu.tintera.plume.core.telegram.RevealedSpoilers
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
-import androidx.compose.foundation.combinedClickable
+import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -149,7 +149,7 @@ internal fun SensitiveBox(
             Box(
                 Modifier
                     .matchParentSize()
-                    .combinedClickable(
+                    .contextClickable(
                         interactionSource = null,
                         indication = null,
                         onLongClick = onLongClick,
