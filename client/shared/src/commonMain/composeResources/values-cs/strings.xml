@@ -2329,6 +2329,8 @@
     <string name="forum_topics_subtitle">Témata</string>
     <string name="forum_topics_load_failed">Témata se nepodařilo načíst.</string>
     <string name="forum_view_as_messages">Zobrazit jako zprávy</string>
+    <string name="forum_view_as_topics">Zobrazit jako témata</string>
+    <string name="forum_view_mode_failed">Zobrazení skupiny se nepodařilo změnit.</string>
     <string name="forum_topics_empty_title">Zatím žádná témata</string>
     <string name="forum_topics_empty">V téhle skupině ještě nikdo téma nezaložil.</string>
     <string name="forum_topic_closed">Uzavřené</string>

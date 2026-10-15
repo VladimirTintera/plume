@@ -2264,6 +2264,8 @@
     <string name="forum_topics_subtitle">Topics</string>
     <string name="forum_topics_load_failed">Couldn't load the topics.</string>
     <string name="forum_view_as_messages">View as messages</string>
+    <string name="forum_view_as_topics">View as topics</string>
+    <string name="forum_view_mode_failed">Couldn't change how the group is shown.</string>
     <string name="forum_topics_empty_title">No topics yet</string>
     <string name="forum_topics_empty">Nobody has started a topic in this group yet.</string>
     <string name="forum_topic_closed">Closed</string>

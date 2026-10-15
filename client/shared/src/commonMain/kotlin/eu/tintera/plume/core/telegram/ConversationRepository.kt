@@ -1246,6 +1246,8 @@ data class ChatInfo(
     val callUserId: Long? = null,
     /** Protějšek přijímá i videohovory (`supportsVideoCalls`). */
     val callSupportsVideo: Boolean = false,
+    /** Skupina s tématy — celou skupinu otevřenou jako zprávy jde přepnout na seznam témat. */
+    val isForum: Boolean = false,
 )
 
 /**

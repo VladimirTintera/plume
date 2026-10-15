@@ -631,6 +631,7 @@ fun appModule() = module {
             forums = get(),
             conversations = get(),
             notifications = get(),
+            chats = get(),
             inviteLinks = get(),
         )
     }

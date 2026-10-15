@@ -73,6 +73,11 @@ data class ConversationNavigation(
      */
     val onViewAsChats: (() -> Unit)? = null,
     /**
+     * Skupina s tématy jako seznam témat (volba se uloží na serveru, viz
+     * [ConversationViewModel.viewAsTopics]). `null` = nenabízet.
+     */
+    val onViewAsTopics: (() -> Unit)? = null,
+    /**
      * Rychlý přepínač (podržení šipky zpět): vybraný chat místo téhle konverzace. `null` =
      * nenabízet (bublina konverzace).
      */

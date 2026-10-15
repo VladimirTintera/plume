@@ -273,7 +273,7 @@ fun ForumTopicsScreen(
                                         Res.drawable.format_list_bulleted_24dp,
                                         onClick = {
                                             expanded = false
-                                            onViewAsMessages()
+                                            viewModel.viewAsMessages(onViewAsMessages)
                                         },
                                     ),
                                     // Skryté obecné téma v seznamu není, takže se vrací odsud.

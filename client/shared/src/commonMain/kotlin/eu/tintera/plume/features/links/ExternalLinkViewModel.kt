@@ -147,7 +147,7 @@ class ExternalLinkViewModel(
     }
 
     /** Skupina s tématy bez určeného tématu se otevře seznamem témat, jako ze seznamu chatů. */
-    private suspend fun chatTarget(chatId: Long) = ChatTarget(chatId, forum = chats.isForum(chatId))
+    private suspend fun chatTarget(chatId: Long) = ChatTarget(chatId, forum = chats.opensAsTopics(chatId))
 
     private fun navigate(destination: ExternalDestination) {
         _state.update { it.copy(destination = destination) }

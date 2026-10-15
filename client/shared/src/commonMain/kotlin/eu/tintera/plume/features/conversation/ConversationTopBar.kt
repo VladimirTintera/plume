@@ -312,6 +312,8 @@ internal fun ConversationTopBar(
                 onSummary = onSummary,
                 // Uložené zprávy podle zdrojového chatu: jen u celých Uložených zpráv, ne v tématu.
                 onViewAsChats = navigation.onViewAsChats?.takeIf { state.info?.isSavedMessages == true && !state.narrowed },
+                // Skupina s tématy otevřená jako zprávy: zpátky na seznam témat, jen z celé skupiny.
+                onViewAsTopics = navigation.onViewAsTopics?.takeIf { state.info?.isForum == true && !state.narrowed },
             )
         },
     )
