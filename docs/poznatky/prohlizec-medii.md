@@ -1635,8 +1635,23 @@ z prohlížeče.
   ukládání pak v logu hlásí „NEULOŽENO".
 - **Desktop automatické ukládání nemá** (`autosavesToGallery = false`): galerii nemá a ruční
   „Do galerie" tam ukládá do Stažených, které by automatika zahltila.
-- **Výjimky se zatím jen upravují a odebírají**, zakládá se v oficiálních aplikacích (Plume
-  nemá v profilu chatu kam je dát) — viz `docs/roadmap.md`.
+- **Výjimka se zakládá z profilu chatu** (řádek „Ukládání do galerie" mezi upozorněními a barvou
+  konverzace; `ChatAutosaveViewModel`, dialog je tentýž `AutosaveScopeDialog` jako v Úložišti
+  s větou, že jde o výjimku). V Úložišti se výjimky jen upravují a odebírají — výběr chatu tam
+  není a profil je místo, kde člověk nastavení „pro tenhle chat" hledá (stejně jako upozornění).
+  - **Řádek ukazuje, co v chatu PLATÍ**, i bez výjimky — s dovětkem „(výchozí)", aby bylo
+    poznat, že jde o pravidlo druhu chatů.
+  - **Výjimka vzniká, jen když se volba liší od výchozího pravidla** (`withChatException`).
+    „Hotovo" nad nezměněným dialogem by jinak chat tiše odpojilo od výchozího nastavení a pozdější
+    změna pravidla pro skupiny by se ho už netýkala. Existující výjimka se upraví i na hodnotu
+    shodnou s výchozí — uživatel ji výslovně chtěl, odebírá se tlačítkem.
+  - **Řádek není u tajného chatu, Uložených zpráv a na desktopu**: z tajného chatu se neukládá
+    nikdy, v Uložených jsou samé vlastní zprávy (ty se neukládají) a desktop automatické ukládání
+    nemá. Nenačtené nastavení řádek taky skryje — profil je k užitku i bez něj.
+  - **Ověřeno na emulátoru**: chat s botem, výchozí „Vypnuto (výchozí)" → Fotky → výjimka na
+    serveru, fotka poslaná botem se hned uložila do `Pictures/Plume` (log „Do galerie uloženo"),
+    pak „Odebrat výjimku" vrátilo „Vypnuto (výchozí)". iOS vyzkoušené není (ani link
+    frameworku se nespouštěl).
 - **Ověřeno**: `AutosaveTest` (výjimka přebije druh, kdy stahovat fotku a video), `AutosaveWorkerTest`
   (stáhne a uloží, skupina se neukládá, bez automatického stahování se čeká na cizí stažení,
   nestažené se neuloží); na emulátoru skutečné nastavení účtu a dialog (zavřený přes Zrušit),

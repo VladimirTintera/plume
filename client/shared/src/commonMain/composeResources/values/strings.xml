@@ -3131,6 +3131,8 @@
     <string name="autosave_load_failed">Couldn't load save-to-gallery settings.</string>
     <string name="autosave_save_failed">Couldn't change save-to-gallery settings.</string>
     <string name="autosave_retry">Try again</string>
+    <string name="autosave_chat_default">%1$s (default)</string>
+    <string name="autosave_chat_hint">Applies only to this chat and overrides the default in Storage. The setting is shared by all devices of your account.</string>
     <string name="notification_channel_silent">no sound</string>
     <string name="notification_channel_with_sound">%1$s · %2$s</string>
     <string name="notif_sound_row">Sound</string>

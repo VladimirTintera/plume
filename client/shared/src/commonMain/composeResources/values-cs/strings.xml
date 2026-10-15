@@ -3219,6 +3219,8 @@
     <string name="autosave_load_failed">Nastavení ukládání do galerie se nepodařilo načíst.</string>
     <string name="autosave_save_failed">Nastavení ukládání do galerie se nepodařilo změnit.</string>
     <string name="autosave_retry">Zkusit znovu</string>
+    <string name="autosave_chat_default">%1$s (výchozí)</string>
+    <string name="autosave_chat_hint">Platí jen pro tento chat a přebije výchozí nastavení v Úložišti. Nastavení je společné pro všechna zařízení účtu.</string>
     <string name="notification_channel_silent">bez zvuku</string>
     <string name="notification_channel_with_sound">%1$s · %2$s</string>
     <string name="notif_sound_row">Zvuk</string>
