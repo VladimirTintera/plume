@@ -151,7 +151,27 @@ testy `ChatFolderTabsTest`). Bez složek se lišta nekreslí vůbec (viz „Slo�
   - **Řádek lišty se posouvá do strany (`horizontalScroll` uvnitř M3), takže obsah horní mez
     šířky nedostane.** Kolik místa zbývá vedle FAB, se měří `BoxWithConstraints` nad lištou
     (minus FAB 56 dp, mezera 8 dp a vnitřní odsazení lišty) a intrinsická šířka obsahu se na ni
-    ořízne — jinak by lišta i s FAB přetekla za okraj a FAB by zmizel z obrazovky.
+    ořízne — jinak by lišta i s FAB přetekla za okraj a FAB by zmizel z obrazovky. Na tu šířku
+    se položky i ořezávají (`widthIn`) a posouvají se VLASTNÍM `horizontalScroll`, ne tím
+    v M3 — viz kolečko níž.
+- **Svislé kolečko myši nad lištou ji posouvá do strany** (`wheelScrollsHorizontally`). Na
+  desktopu je seznam chatů úzký (panel 360 dp, na složky vedle FAB zbývá ~250 dp), takže
+  složky za okraj přetékají běžně — a myší se k nim nedalo dostat:
+  - **Compose u vodorovného posunu svislé kolečko ZAHODÍ** (`toSingleAxisDeltaFromAngle` vrátí
+    pro převážně svislý pohyb 0). Vodorovně posouvá jen Shift + kolečko (desktop ho převede na
+    vodorovný pohyb, `ComposeSceneMediator`), kolečko s náklonem a touchpad do strany.
+  - **Tah myší posun nebere vůbec** (`CanDragCalculation` u `scrollable` vynechává
+    `PointerType.Mouse`), jen dotyk.
+  - **Posun řádku lišty je uvnitř M3 a zvenku na něj nejde sáhnout**, proto má obsah lišty
+    vlastní `horizontalScroll` a řádek M3 už nikdy nepřeteče (posouvá se jen při sbalování).
+  - Převádí se jen převážně svislý pohyb a jen když je kam posouvat; událost se pak spotřebuje,
+    jinak propadne dál. `scrollDelta` je v zubech kolečka (desktop i Android), krok je 64 dp
+    na zub a posun dojede animací k cíli, který se při rychlém točení sčítá.
+  - Totéž platí na Androidu s myší (Chromebook, DeX). Ověřeno na emulátoru
+    `adb shell input mouse scroll X Y --axis VSCROLL,-1` (záporné = dolů = doprava): zub dolů
+    dojede na konec s „+", další zuby lištu nepřetočí, nahoru zpět na začátek, kolečko nad
+    seznamem dál posouvá seznam a lištu sbalí. Na desktopu (Windows 11, ladicí běh) kolečko
+    skutečnou myší vyzkoušel a potvrdil uživatel. macOS a Linux neověřené.
 - **Při scrollu dolů se lišta sbalí do FAB, při scrollu nahoru (a na vršku) vyjede** — jako
   pilulka nahoře, aby nezakrývala čtené chaty. Směr se dál bere z polohy seznamu
   (`snapshotFlow`), ne z `floatingToolbarVerticalNestedScroll`: ten slyší jen scroll prstem,
