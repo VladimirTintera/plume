@@ -38,6 +38,7 @@ import eu.tintera.plume.resources.profile_more
 import eu.tintera.plume.resources.profile_mute
 import eu.tintera.plume.resources.profile_unmute
 import eu.tintera.plume.resources.saved_view_as_chats
+import eu.tintera.plume.resources.forum_view_as_topics
 import eu.tintera.plume.resources.search_24dp
 import eu.tintera.plume.resources.secret_chat_close
 import eu.tintera.plume.resources.secret_chat_close_text
@@ -70,6 +71,8 @@ internal fun ConversationMenu(
     onSummary: (() -> Unit)?,
     /** Uložené zprávy po zdrojových chatech; `null` mimo celé Uložené zprávy. */
     onViewAsChats: (() -> Unit)?,
+    /** Skupina s tématy jako seznam témat; `null` mimo celou skupinu s tématy. */
+    onViewAsTopics: (() -> Unit)?,
 ) {
     val info = state.info
     val wholeChat = info != null && !state.narrowed && !info.isSavedMessages
@@ -97,6 +100,7 @@ internal fun ConversationMenu(
                 null
             },
             onViewAsChats?.let { MenuAction(stringResource(Res.string.saved_view_as_chats), Res.drawable.forum_24dp, onClick = it) },
+            onViewAsTopics?.let { MenuAction(stringResource(Res.string.forum_view_as_topics), Res.drawable.forum_24dp, onClick = { viewModel.viewAsTopics(it) }) },
             muted?.let {
                 MenuAction(
                     stringResource(if (it) Res.string.profile_unmute else Res.string.profile_mute),

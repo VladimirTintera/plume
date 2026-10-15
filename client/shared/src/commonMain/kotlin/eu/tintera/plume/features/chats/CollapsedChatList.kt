@@ -50,6 +50,7 @@ import eu.tintera.plume.core.ui.isSavedMessages
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.core.ui.WithTooltip
 import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.telegram.opensAsTopics
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_search
 import eu.tintera.plume.resources.search_24dp
@@ -142,7 +143,7 @@ internal fun CollapsedChatList(
                         CollapsedChat(
                             chat = chat,
                             selected = chat.id == selectedChatId,
-                            onClick = { if (chat.isForum) onForumClick(chat.id) else onChatClick(chat.id) },
+                            onClick = { if (chat.opensAsTopics) onForumClick(chat.id) else onChatClick(chat.id) },
                             modifier = Modifier.animateItem(),
                         )
                     }

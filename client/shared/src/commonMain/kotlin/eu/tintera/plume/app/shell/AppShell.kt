@@ -49,6 +49,7 @@ import eu.tintera.plume.core.navigation.ChatFoldersRoute
 import eu.tintera.plume.core.navigation.StickerSetsRoute
 import eu.tintera.plume.core.navigation.EmojiSetsRoute
 import eu.tintera.plume.core.telegram.StickerSetKind
+import eu.tintera.plume.core.telegram.opensAsTopics
 import eu.tintera.plume.core.navigation.ProxySettingsRoute
 import eu.tintera.plume.features.proxy.ProxySettingsScreen
 import eu.tintera.plume.features.settings.ChatFolderEditScreen
@@ -853,6 +854,8 @@ private fun shellEntryProvider(
                         settings.setSavedMessagesAsChats(true)
                         chatsStack.openSavedTopics(route.chatId)
                     },
+                    // Skupina s tématy otevřená jako zprávy: volbu uloží ViewModel, seznam témat nahradí konverzaci.
+                    onViewAsTopics = { chatsStack.openForum(route.chatId) },
                     onSwitchChat = rememberSwitchChat(navigation),
                 ),
             )
@@ -893,7 +896,8 @@ private fun shellEntryProvider(
                     }
                 },
                 onOpenProfile = { chatsStack.toggleProfile(route, ChatProfileRoute(route.chatId), sideBySide = wide) },
-                onViewAsMessages = { chatsStack.add(ConversationRoute(route.chatId)) },
+                // Volba se pamatuje (na serveru) a konverzace seznam témat nahradí, jako u Uložených zpráv.
+                onViewAsMessages = { chatsStack.openConversation(route.chatId) },
                 onOpenJoinRequests = { chatsStack.addOnce(JoinRequestsRoute(route.chatId)) },
             )
         }
@@ -910,7 +914,7 @@ private fun shellEntryProvider(
                     }
                 },
                 onOpenProfile = { chatsStack.toggleProfile(route, ArchiveChatProfileRoute(route.chatId), sideBySide = wide) },
-                onViewAsMessages = { chatsStack.add(ArchiveConversationRoute(route.chatId)) },
+                onViewAsMessages = { chatsStack.openArchiveConversation(route.chatId) },
                 onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
             )
         }
@@ -1139,6 +1143,7 @@ private fun shellEntryProvider(
                     onSwitchInline = { pick -> chatsStack.add(pick.toRoute()) },
                     onAddMembers = { chatsStack.addOnce(AddMembersRoute(route.chatId)) },
                     onOpenJoinRequests = { chatsStack.addOnce(ArchiveJoinRequestsRoute(route.chatId)) },
+                    onViewAsTopics = { chatsStack.openArchiveForum(route.chatId) },
                     onSwitchChat = rememberSwitchChat(navigation),
                 ),
             )
@@ -1642,7 +1647,7 @@ private fun rememberSwitchChat(navigation: AppNavigation): (ChatSummary) -> Unit
         { chat ->
             navigation.switchChat(
                 chatId = chat.id,
-                forum = chat.isForum,
+                forum = chat.opensAsTopics,
                 savedTopics = chat.id == savedMessagesChatId && settings.savedMessagesAsChats.value,
             )
         }

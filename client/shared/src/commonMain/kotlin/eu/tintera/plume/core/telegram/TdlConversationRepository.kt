@@ -2192,6 +2192,7 @@ class TdlConversationRepository(
                     savedTopic = savedTopic?.header,
                     callUserId = calls?.first,
                     callSupportsVideo = calls?.second == true,
+                    isForum = client.isForum(chat),
                 )
             }
 

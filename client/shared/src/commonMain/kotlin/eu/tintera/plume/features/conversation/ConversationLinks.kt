@@ -285,7 +285,7 @@ internal class ConversationLinks(
     fun openTarget(target: ChatTarget) {
         scope.launch {
             val forum = target.messageId == null && target.threadId == null && target.topicId == null &&
-                chatRepository.isForum(target.chatId)
+                chatRepository.opensAsTopics(target.chatId)
             state.update { it.copy(openChat = target.copy(forum = forum)) }
         }
     }

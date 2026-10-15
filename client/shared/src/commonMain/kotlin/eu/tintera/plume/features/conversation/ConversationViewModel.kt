@@ -490,6 +490,7 @@ class ConversationViewModel(
     fun reportChat() = chatActions.reportChat()
     fun deleteOrLeave(cleanup: SpamCleanup) = chatActions.deleteOrLeave(cleanup)
     fun closeSecretChat() = chatActions.closeSecretChat()
+    fun viewAsTopics(onDone: () -> Unit) = chatActions.viewAsTopics(onDone)
 
     /** Napovídání při psaní: zmínky a inline boti — viz [ConversationSuggestions]. */
     private val suggestions: ConversationSuggestions = ConversationSuggestions(
