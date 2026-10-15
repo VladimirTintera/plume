@@ -43,6 +43,11 @@ import eu.tintera.plume.core.files.MediaSharer
 import eu.tintera.plume.core.share.AndroidShareTargetPublisher
 import eu.tintera.plume.core.share.ShareIntake
 import eu.tintera.plume.core.share.ShareTargetPublisher
+import eu.tintera.plume.core.share.ShareStore
+import eu.tintera.plume.core.share.FileShareStore
+import eu.tintera.plume.core.ui.OUTGOING_DIRECTORY
+import okio.Path.Companion.toPath
+import java.io.File
 import eu.tintera.plume.core.connectivity.AppForeground
 import eu.tintera.plume.core.connectivity.NetworkMonitor
 import eu.tintera.plume.core.notifications.NotificationPermission
@@ -110,6 +115,10 @@ actual fun Module.platformModule() {
         ShareIntake(androidContext(), requests = get(), chatOpenRequests = get(), scope = get(named(APP_SCOPE)))
     }
     single<ShareTargetPublisher> { AndroidShareTargetPublisher(androidContext()) }
+    // Manifest sdílení na čipu vedle kopií souborů, které `ShareIntake` dělá do `cache/outgoing`.
+    single<ShareStore> {
+        FileShareStore(directory = File(androidContext().cacheDir, OUTGOING_DIRECTORY).absolutePath.toPath())
+    }
     single { NetworkMonitor(androidContext()) }
     single { AppForeground(androidContext()) }
     single { AppUpdates(androidContext()) }

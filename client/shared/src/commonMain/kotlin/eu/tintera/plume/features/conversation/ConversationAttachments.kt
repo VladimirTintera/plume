@@ -304,7 +304,9 @@ internal class ConversationAttachments(
      * nechce o to přijít.
      */
     fun receiveShared(content: SharedContent) {
-        shareRequests.consume(content.id)
+        // Tentýž chat může být v zásobníku dvakrát (zmínka tam a zpátky) a obě konverzace
+        // odebírají totéž doručení — vloží ho jen ta, která si ho vyzvedla první.
+        if (!shareRequests.consume(content.id)) return
         content.attachments?.takeIf { it.isNotEmpty() }?.let(::addAttachments)
         content.text?.let { shared ->
             val text = if (composer.draft.text.isBlank()) shared else composer.draft.text.trimEnd() + "\n" + shared

@@ -6,8 +6,9 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 ## Sdílení do aplikace
 
 Plume je v systémové nabídce „Sdílet" (Android): text, odkaz, jeden i víc souborů. Otevře se
-výběr chatu (`ShareRoute`), po výběru chat a obsah čeká nad vstupním polem — nic se neposílá
-samo, k souborům se píše popisek a uživatel vidí, co odejde.
+obyčejný seznam chatů a nahoře visí čip „Sdílíte: …" (viz „Čip místo výběru chatu" níž); v otevřené
+konverzaci se obsah ťuknutím na „Vložit sem" ukotví nad vstupním polem — nic se neposílá samo,
+k souborům se píše popisek a uživatel vidí, co odejde.
 
 - **`MainActivity` je `singleTask`, ne `singleTop`.** Výběr z nabídky „Sdílet" spouští activity
   v úloze VOLAJÍCÍ aplikace; se `singleTop` tak vznikla druhá instance Plume v úloze Fotek
@@ -18,7 +19,7 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   zmenší, z videa se přečte náhled). Oprávnění k `content://` URI je dočasné; až uživatel vybere
   chat, nemuselo by platit. Kopíruje se v `appScope`, ne v rozsahu aktivity.
 - **Požadavek je STAV** (`ShareRequests`), jako `ChatOpenRequests`: sdílet jde i do aplikace,
-  která neběží nebo visí na přihlášení. Výběr chatu se ukáže hned, soubory dobíhají
+  která neběží nebo visí na přihlášení. Čip se ukáže hned, soubory dobíhají
   (`attachments == null` = „Připravuji soubory…") a konverzace si obsah vyzvedne, až je hotový.
 - **Fotky a videa jdou jako média, jen když jsou médii všechny.** Telegram fotky se soubory do
   alba nesloží; smíšené sdílení (fotka + PDF) odejde celé jako soubory, ať se nic neztratí.
@@ -39,21 +40,21 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   (systém ho do `ClipData` jen zrcadlí) a typ intentu pak není `text/*`. **`adb shell am start`
   `ClipData` nastavit neumí**, takže sdílení ze skutečného Chrome se ověřuje v Chrome (menu →
   Share…); v logu je vidět `clip={text/uri-list … {U(content)}}` u `START … act=SEND`.
-- **Odchod výběru bez volby chatu sdílení zahodí**, a to v `onDispose` obrazovky, ne na šipce.
-  Systémové gesto zpět jde přes `NavDisplay`, ne přes obrazovku; se zahazováním jen na šipce
-  zůstalo po gestu sdílení viset a výběr by se po obnově aktivity otevřel znovu. `abandon()`
-  nezahazuje obsah s vybraným chatem — i po výběru výběr odchází (nahradí ho konverzace).
-- **Opakované sdílení** (nové sdílení, zatímco výběr chatu nebo obrazovka „Komu: …" ještě
-  visí) dřív obrazovku zavřelo a nové sdílení se neukázalo vůbec. Příčiny byly tři a každá
-  stačila sama:
+- **Odchod obrazovky „Komu: …" bez odeslání sdílení zahodí**, a to v `onDispose` obrazovky, ne
+  na šipce. Systémové gesto zpět jde přes `NavDisplay`, ne přes obrazovku; se zahazováním jen na
+  šipce zůstalo po gestu sdílení viset. (Dřív totéž platilo pro výběr chatu `ShareRoute`, který
+  nahradil čip — ten se zahazuje jen ✕.)
+- **Opakované sdílení** (nové sdílení, zatímco čip nebo obrazovka „Komu: …" ještě visí) dřív
+  obrazovku zavřelo a nové sdílení se neukázalo vůbec. Příčiny byly tři a každá stačila sama
+  (popsané ještě s výběrem chatu, který dnes nahradil čip):
   - **Mezistav bez chatu.** Obsah vznikal `start` a chat dostával až dalším voláním
-    (`confirm` / `choose`). Otevřená obrazovka „Komu: …" mezitím viděla obsah bez chatu, vzala
+    (`confirm`). Otevřená obrazovka „Komu: …" mezitím viděla obsah bez chatu, vzala
     ho jako „obsah zmizel" a odešla přes `moveTaskToBack`. **Cíl se proto zakládá spolu
     s obsahem** (`ShareRequests.start(target = ShareTarget(…))`) — na Androidu i v iOS rozšíření.
   - **Odchod zahazoval cizí sdílení.** Kvůli novému sdílení shell starou obrazovku nahrazuje
     (`popToRoot`), a její `onDispose` volal `abandon()` nad AKTUÁLNÍM obsahem — tedy nad tím
-    novým. **`abandon(id)` zahazuje jen sdílení, které obrazovka ukazovala**; výběr chatu si
-    pamatuje poslední sdílení bez chatu, „Komu: …" to svoje (`ShareToChatState.contentId`).
+    novým. **`abandon(id)` zahazuje jen sdílení, které obrazovka ukazovala**; „Komu: …" si
+    pamatuje to svoje (`ShareToChatState.contentId`). Stejně ✕ na čipu (`discard(id)`).
   - **Nové sdílení do TÉHOŽ chatu se nepropsalo.** Shell obrazovku nechává (tatáž routa)
     a ViewModel přebíral přílohy jen jednou (`if (attachments == null)`). Teď se s novým `id`
     přenastaví celý stav a obsah obrazovky se skládá znovu (`key(state.contentId)`), jinak by
@@ -61,8 +62,8 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   - Obrazovka „Komu: …" proto odchází sama (`gone`) už **jen když obsah zmizel úplně**; sdílení
     jinam ji nechá být, nahradí ji shell.
   - **Ověřeno na emulátoru** dvojicí `am start SEND` po sobě: tentýž chat (obrazovka zůstane,
-    ukáže nový snímek), jiný chat (Uložené zprávy), sdílení bez chatu nad „Komu: …" (výběr
-    chatu s novým obsahem), Direct Share nad výběrem chatu; pak odeslání a ✕ s návratem.
+    ukáže nový snímek), jiný chat (Uložené zprávy), sdílení bez chatu nad „Komu: …" (tehdy výběr
+    chatu s novým obsahem, dnes čip), Direct Share nad výběrem chatu; pak odeslání a ✕ s návratem.
   - **Na iOS simulátoru** sdílení po sobě do Notifikátora, Uložených zpráv a znovu Notifikátora
     (pokaždé rovnou správný chat s novou fotkou a popiskem), ze studeného startu a odeslání.
     **Ověřuje se zápisem do inboxu App Group, ne ťukáním v rozšíření**: složka
@@ -75,13 +76,11 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
     čekala nad polem. Proto zápis do inboxu, ne ťukání.
 - **Uložené zprávy v hlavičce „Komu: …" mají vlastní název**, ne jméno účtu, pod kterým je
   vede TDLib — tatáž past jako u `chatTitle` jinde.
-- **Výběr má ✕, ne šipku zpět, a ✕ i gesto zpět vrací do aplikace, ze které se sdílelo**
-  (`rememberReturnToCaller` → `moveTaskToBack`, `closeShare` v `AppShell`). Šipka slibovala
-  návrat do Plume, kde by sdílený obsah zmizel bez stopy — bez volby chatu nemá kam jít.
+- **Obrazovka „Komu: …" má ✕, ne šipku zpět, a ✕ i gesto zpět vrací do aplikace, ze které se
+  sdílelo** (`rememberReturnToCaller` → `moveTaskToBack`, `closeShare` v `AppShell`).
   `singleTask` drží Plume ve vlastní úloze, takže pod ní je právě aplikace, ze které se sdílelo.
-  Výběr se napřed odebere ze zásobníku, aby příští otevření Plume nezačínalo ve výběru.
-- **Otevřený výběr se při dalším sdílení NEvyměňuje** (`openShare`). Odebrat a vrátit by ho
-  zlikvidovalo a jeho `onDispose` by zahodil právě to nové sdílení.
+  Obrazovka se napřed odebere ze zásobníku, aby příští otevření Plume nezačínalo v ní. **Pro čip
+  to NEPLATÍ**: obsah se zpět neztrácí, takže zpět je tam obyčejná navigace po Plume.
 - **Direct Share (chaty přímo v nabídce „Sdílet") stojí na zkratkách konverzací**, týchž, které
   zakládají notifikace (`conversationShortcut`). Podmínky jsou tři a chybějící se neprojeví
   chybou, jen se nic neukáže: kategorie `SHARE_CATEGORY` u zkratky, `share-target` se stejnou
@@ -112,15 +111,81 @@ samo, k souborům se píše popisek a uživatel vidí, co odejde.
   kolečko — ve sdílení i ve velkém kruhu notifikace. Barvy ze systémové palety Material You
   (`system_accent1_100/900`): zkratka se kreslí mimo aplikaci, téma aplikace tam není. Paleta je
   od Androidu 12, na starším zůstane ikona prázdná.
-- **Seznam s hledáním je společný s přeposíláním i novou konverzací** (`ChatPicker` v `core/ui`,
-  viz „Jeden výběr chatu"). Co se sdílí, jde do jeho slotu `header` — tentýž, ve kterém má
-  přeposílání volby; `ChatPicker` sám žádný podtitul nezná.
-- **Co se sdílí, je KARTA, ne řádek textu na pozadí** (`SharedContentCard`). Jako holý text to byl
-  jediný prvek obrazovky, který nestál na ploše — a přitom je to to, podle čeho uživatel pozná,
-  že posílá správnou věc. Role je `tertiaryContainer`: je to cizí vložený obsah, tedy totéž co
-  citace nad vstupním polem nebo popis webu u náhledu odkazu. **Ikona říká druh** (sponka
-  u souborů, řetěz u odkazu, stránka u textu), a dokud se soubory připravují, je místo ní
-  indikátor — „Připravuji soubory…" je průběh, ne popis.
+- **Co se sdílí, je PLOCHA, ne řádek textu na pozadí** — dřív karta ve výběru chatu, dnes čip.
+  Role je `tertiaryContainer`: je to cizí vložený obsah, tedy totéž co citace nad vstupním polem
+  nebo popis webu u náhledu odkazu. **Náhled nebo ikona říká druh** (první fotka nebo náhled
+  videa, sponka u souborů, řetěz u odkazu, stránka u textu), a dokud se soubory připravují, je
+  místo nich indikátor — „Připravuji soubory…" je průběh, ne popis.
+
+### Čip místo výběru chatu
+
+Sdílení BEZ předem vybraného chatu (nabídka „Sdílet", odkaz `t.me/share`, „Poslat do chatu"
+u sady samolepek) neotevře zvláštní výběr, ale **obyčejnou aplikaci se seznamem chatů** —
+s hledáním, archivem i složkami. Nahoře visí čip „Sdílíte: …" (`SharedContentStrip`
+v `features/share`, náhled, popis, ✕), který se s uživatelem nese po aplikaci. Výběr chatu
+(`ShareRoute`, `ShareScreen`, `ShareViewModel`) je pryč — nic jiného ho nepoužívalo.
+
+- **Do konverzace se obsah dostane AŽ ťuknutím na „Vložit sem"** (`ShareRequests.choose`, dál
+  stará cesta přes `deliveries`). Samotné otevření chatu nic nevkládá — uživatel se má moct
+  porozhlédnout, než se rozhodne. Mimo konverzaci čip jen připomíná, co se sdílí.
+- **Pruh zabírá vlastní místo, nic nepřekrývá.** Leží pod stavovou lištou a obrazovkám pod ním
+  shell zkonzumuje horní inset (`consumeWindowInsets(safeDrawing.only(Top))` na obalu
+  `NavDisplay`). Dole by se pral s plovoucí lištou složek a se vstupním polem, přes hlavičku by
+  zakryl pilulku s hledáním. Ve dvoupanelu je jeden přes celou šířku (se stropem
+  `ContentWidth.Sheet`), ne dva v obou panelech.
+- **Místo pod stavovou lištou (`Spacer`) drží pruh po celou dobu, kdy je ve stromu, i během
+  animace** (`MutableTransitionState`, `chipPresent = currentState || targetState`). Jinak by
+  obrazovka pod pruhem na začátku nebo na konci animace poskočila o výšku stavové lišty:
+  inset by se buď konzumoval, nebo ne, a pruh by byl teprve nulový.
+- **Kde čip visí a kam vkládá, jsou čisté funkce** (`showsShareChip`, `shareInsertChat`
+  v `ChatsStack.kt`, testy `ShareChipPlacementTest`): jen nad položkou panelu (seznam, archiv,
+  konverzace, profil), ne nad obrazovkou přes celou plochu (prohlížeč, „Komu: …") ani
+  v Nastavení. „Vložit sem" jen do konverzace, která je VIDĚT — na telefonu navrchu, vedle
+  seznamu i pod profilem; seznam navrchu (archiv nad konverzací hlavního seznamu) znamená
+  placeholder.
+- **Seznam chatů se ukáže JEDNOU za sdílení** (`ShareRequests.arrival` → `showChatList`,
+  `arrivalShown`). S klíčem efektu jen podle id obsahu by obnova aktivity (otočení, rozložení
+  Foldu) zavřela, co uživatel mezitím otevřel. Sdílení obnovené po zabití procesu se neohlašuje
+  vůbec — zásobník se obnovil s ním.
+- **✕ obsah zahodí i s kopiemi souborů** (`discard(id)`, jen to sdílení, které čip ukazoval).
+  **Zpět je obyčejná navigace**, obsah se tím neztrácí.
+- **Opakované sdílení čip nahradí** a kopie souborů nahrazeného obsahu smaže — nikdo je už
+  nepošle. Totéž, když příprava souborů doběhne pro sdílení, které mezitím zmizelo.
+- **Čip nezmizí hned po „Vložit sem"** (`carried` zůstává i s vybraným chatem), až když si obsah
+  konverzace vyzvedne. Vkládat jde jen hotový obsah (soubory připravené), jinak by čip zmizel
+  a obsah by tiše čekal.
+- **Vloží ho jen jedna konverzace** (`consume` vrací `true` jen prvnímu). Tentýž chat může být
+  v zásobníku dvakrát (zmínka tam a zpátky) a obě konverzace odebírají `deliveries` téhož chatu
+  — `StateFlow` doručí oběma a dřív by se obsah vložil do obou.
+- **Přežije zabití procesu, nejdéle 24 hodin** (`ShareStore`, `FileShareStore`, testy
+  v `ShareRequestsTest`). Manifest `shared-content.json` (kotlinx.serialization) leží v
+  `cache/outgoing` vedle kopií, které `ShareIntake` dělá hned při příjmu — obdoba inboxu iOS
+  rozšíření. Načte se synchronně při vzniku `ShareRequests`, zapisuje se na pozadí po jednom
+  (`limitedParallelism(1)`) a **stav se čte až při zápisu**, takže pozdější zápis nese poslední
+  stav, i když se změny potkaly ve dvou vláknech (příprava souborů běží na `Dispatchers.Default`).
+  - **Ukládá se jen čip s připravenými soubory.** Rozpracovaná příprava se dokončit nedá
+    (oprávnění k `content://` zabití procesu nepřežije) a sdílení s chatem vybraným předem
+    (Direct Share, iOS) čeká na obrazovce, kterou obnova stejně zavře.
+  - **Obnovené sdílení je vždycky zase na čipu**, i když ho uživatel těsně před zabitím vkládal
+    — cíl se neukládá. **Spotřebované (`consume`) se neobnoví**: vyzvednutí manifest smaže,
+    soubory ale nechá (převzala je konverzace).
+  - **Po 24 hodinách zmizí i s kopiemi** — při startu (obnova) a při návratu aplikace do popředí
+    (`dropExpired` z `LifecycleStartEffect` v shellu); `delay` by v hlubokém spánku neběžel.
+  - **Ztracená kopie** (cache smí systém vyčistit) se při obnově počítá jako soubor, který
+    nevyšel; chybějící náhled videa video nezahodí. Poškozený manifest se smaže.
+  - **Maže se jen uvnitř `cache/outgoing`** (podsložka každé kopie), ať chyba v záznamu nestojí
+    cizí soubor.
+  - **iOS a desktop úložiště nemají** (`ShareStore` jen v Koin modulu Androidu): iOS rozšíření
+    vybírá chat samo, čip tam nesou jen sdílení zevnitř aplikace (odkaz `t.me/share`, sada
+    samolepek), a ta žijí v paměti.
+- **Ověřeno na emulátoru (Pixel Fold, rozložený i složený)**: text i fotka ze `am start SEND`,
+  čip nad seznamem i konverzací ve dvoupanelu a na telefonu, otevření chatu nic nevloží,
+  „Vložit sem" a odeslání do chatu s botem, ✕ smaže manifest i kopii, dvě sdílení po sobě
+  (druhé nahradí první a seznam se srovná), zpět z konverzace čip nechá, `force-stop`
+  i `am kill` na pozadí čip obnoví (i fotku, která pak odešla), tři cykly rozložení a složení
+  bez pádu, Direct Share („Komu: …", ✕ vrací do launcheru) beze změny a bez manifestu.
+  **Neověřeno:** vypršení po 24 h (jen testy), sdílení víc souborů, tmavý motiv a paleta se
+  zvýšeným kontrastem (tlačítko `tertiary` na `tertiaryContainer`).
 
 ### Direct Share: obrazovka „Komu: …"
 

@@ -682,7 +682,6 @@
     <string name="menu_forward">Forward</string>
     <string name="forward_title">Forward to</string>
     <string name="forward_send">Forward (%1$d)</string>
-    <string name="share_title">Share to</string>
     <string name="share_preparing">Preparing files…</string>
     <string name="share_failed_files">Some shared files couldn't be prepared</string>
     <string name="share_access_denied_title">Android didn't hand the screenshot over</string>
@@ -694,6 +693,10 @@
     <string name="share_to_add_media">Add photos or videos</string>
     <string name="share_to_collapse_gallery">Collapse gallery</string>
     <string name="share_to_expand_gallery">Expand gallery</string>
+    <string name="share_chip_label">Sharing</string>
+    <string name="share_chip_insert">Insert here</string>
+    <string name="share_chip_discard">Discard shared content</string>
+    <string name="share_chip_failed">The shared files couldn't be read</string>
     <string name="forward_search">Search chats</string>
     <string name="forward_empty">No chat matches the search.</string>
     <string name="forward_failed">The message could not be forwarded.</string>

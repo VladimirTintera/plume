@@ -350,3 +350,37 @@ private fun NavKey.profileRoute(): NavKey? = when (this) {
     is ArchiveForumTopicsRoute -> ArchiveChatProfileRoute(chatId)
     else -> null
 }
+
+/**
+ * Patří nad tuhle obrazovku čip sdíleného obsahu? Jen nad položku panelu (seznam, archiv,
+ * konverzace, profil), ne nad obrazovku přes celou plochu bez role (prohlížeč médií, „Komu: …").
+ */
+internal fun List<NavKey>.showsShareChip(paneOf: (NavKey) -> PaneInfo?): Boolean =
+    lastOrNull()?.let(paneOf) != null
+
+/**
+ * Chat konverzace, která je zrovna vidět — tam jde sdílený obsah z čipu vložit; jinde `null`.
+ *
+ * Na telefonu musí být konverzace navrchu. Vedle seznamu ([sideBySide]) může nad ní ležet
+ * profil (třetí panel, konverzace zůstává vidět); seznam navrchu naopak znamená, že vpravo je
+ * placeholder, nebo konverzace jiné větve (hlavní seznam pod archivem), která vidět není.
+ */
+internal fun List<NavKey>.shareInsertChat(paneOf: (NavKey) -> PaneInfo?, sideBySide: Boolean): Long? {
+    val top = lastOrNull() ?: return null
+    if (!sideBySide) return top.conversationChatId()
+    if (paneOf(top) == null) return null
+    for (key in asReversed()) {
+        when (paneOf(key)?.role) {
+            PaneRole.Extra -> continue
+            PaneRole.Detail -> return key.conversationChatId()
+            else -> return null
+        }
+    }
+    return null
+}
+
+private fun NavKey.conversationChatId(): Long? = when (this) {
+    is ConversationRoute -> chatId
+    is ArchiveConversationRoute -> chatId
+    else -> null
+}

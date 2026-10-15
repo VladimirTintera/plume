@@ -163,7 +163,6 @@ import eu.tintera.plume.core.telegram.PollComposerMode
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.features.media.MediaViewerViewModel
 import eu.tintera.plume.features.share.ShareToChatViewModel
-import eu.tintera.plume.features.share.ShareViewModel
 import eu.tintera.plume.features.settings.AppearanceViewModel
 import eu.tintera.plume.features.settings.AutoDownloadViewModel
 import eu.tintera.plume.core.connectivity.AutoDownloadPolicy
@@ -439,7 +438,8 @@ fun appModule() = module {
     single<DeviceRepository>(createdAtStart = true) {
         TdlDeviceRepository(holder = get(), scope = get(named(APP_SCOPE)))
     }
-    single { ShareRequests() }
+    // Na Androidu s úložištěm (`ShareStore`): sdílení na čipu přežije zabití procesu.
+    single { ShareRequests(store = getOrNull(), scope = get(named(APP_SCOPE))) }
     // Eager: po přihlášení zaregistruje Uložené zprávy jako cíl sdílení (viz init).
     single(createdAtStart = true) {
         ShareTargets(repository = get(), chats = get(), files = get(), publisher = get(), scope = get(named(APP_SCOPE)))
@@ -720,7 +720,6 @@ fun appModule() = module {
         )
     }
 
-    viewModel { ShareViewModel(requests = get(), chatRepository = get()) }
 
     // Potvrzení sdílení do jednoho chatu (Direct Share): chatId je z routy, tedy runtime parametr.
     viewModel { parameters ->

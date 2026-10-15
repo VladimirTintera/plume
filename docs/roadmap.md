@@ -264,7 +264,7 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   expressive přestavba, ~~zpět z kódu a hesla k číslu~~, ~~text polí v Compose stavu místo
   `StateFlow`~~; `docs/poznatky/prihlaseni.md`, „Přihlašovací obrazovka").
 - **Sdílení ze systému do aplikace.** ~~Android~~ — hotovo (text, odkaz, jeden i víc
-  souborů; výběr chatu, obsah čeká nad vstupním polem). Poučení v `docs/poznatky/sdileni.md`, „Sdílení do
+  souborů; čip „Sdílíte: …", obsah čeká nad vstupním polem). Poučení v `docs/poznatky/sdileni.md`, „Sdílení do
   aplikace". Zbývá:
   - ~~**Direct Share**~~ — hotovo, i na iOS (darování `INSendMessageIntent`, řádek návrhů
     v systémové nabídce). **Na skutečném iPhonu řádek návrhů ověřený není** — simulátor ho
@@ -273,25 +273,16 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
     vzniká rovnou s chatem, obrazovka zahazuje jen své sdílení; `docs/poznatky/sdileni.md`, „Opakované sdílení").
   - ~~**iOS: Share Extension**~~ — hotovo (výběr chatu v rozšíření, App Group). Zbývá
     ověřit na zařízení (App Group v Developer účtu).
-  - **Sdílení jako kontext místo samostatného výběru** (nápad k rozmyšlení, nahradil by
-    `ShareScreen`). Po sdílení se neotevře zvláštní výběr, ale **normální aplikace se seznamem
-    chatů** — s plnohodnotným hledáním, archivem a vším ostatním. Nahoře visí **čip „Sdílíte:
-    fotka.jpg"** (s náhledem a ✕), který se s uživatelem nese po aplikaci. V otevřené konverzaci
-    jde obsah jedním ťuknutím na čip **ukotvit nad vstupní pole** a poslat jako každou přílohu.
-    - **Přináší druhý případ užití:** kdo sdílení nedokončí hned (vrátí se do Plume, přepne
-      jinam), o obsah nepřijde — čip zůstane, dokud ho nepošle nebo ✕ nezahodí.
-    - **Oprávnění k souboru tomu nebrání.** `ShareIntake` soubory kopíruje do cache hned při
-      přijetí (oprávnění k `content://` je dočasné); kopie vydrží, jak dlouho je potřeba. Na iOS
-      jsou soubory v inboxu App Group a přesunou se do `outgoing` stejně.
-    - **Stav už existuje:** `ShareRequests` drží obsah do vyzvednutí (`SharedContent`); chybí
-      jen `targetChatId` nahradit volbou v konverzaci a čip v shellu (nad seznamem i konverzací,
-      na compactu i v dvoupanelu).
-    - **Rozmyslet:** co ✕ na čipu vs. zpět (dnes zpět vrací do původní aplikace — s čipem by
-      zpět mohl zůstat normální navigací, protože obsah se neztratí); jak dlouho kopii držet
-      (po restartu procesu? `ShareRequests` je jen v paměti — trvalejší by chtělo soubor
-      s manifestem jako na iOS); co s Direct Share (tam je chat vybraný předem, čip nepotřebuje);
-      a iOS rozšíření, které dnes chat vybírá samo — mohlo by jen předat obsah a výběr nechat
-      aplikaci, pak by na obou platformách fungovalo sdílení stejně.
+  - ~~**Sdílení jako kontext místo samostatného výběru**~~ — hotovo na Androidu: místo výběru
+    chatu seznam chatů s čipem „Sdílíte: …", vložení ťuknutím v otevřené konverzaci, ✕ zahodí,
+    přežije zabití procesu (nejdéle 24 h); `docs/poznatky/sdileni.md`, „Čip místo výběru chatu".
+    Zbývá:
+    - **iOS rozšíření** dál vybírá chat samo. Mohlo by jen předat obsah (inbox bez `chatId`)
+      a výběr nechat aplikaci — pak by na obou platformách fungovalo sdílení stejně. Na iOS by
+      k tomu chyběla i perzistence čipu (`ShareStore` je jen na Androidu).
+    - **Ověřit na zařízení** vypršení po 24 h, sdílení víc souborů z Fotek, tmavý motiv
+      a paletu se zvýšeným kontrastem (tlačítko „Vložit sem" je `tertiary` na
+      `tertiaryContainer`).
 
 ## Mezery proti API TDLib
 
