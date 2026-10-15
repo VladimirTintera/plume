@@ -593,6 +593,14 @@ odpovědí** (`ReplySuggestionsOutput`); kde ho model nemá, jde všechno dál t
   jen při `StructuredOutputException`. Druhý pokus by stál dvojnásob a přebil by opatrnost, kvůli
   které klasifikace raději mlčí. (U návrhů odpovědí je to jinak: tam prázdno po úklidu text zkusí,
   protože prázdný seznam nic neznamená.)
+- **Ověřeno na Foldu všech pět** (15. 10. 2026, featura 648 „Fast Mode (Structured Output)",
+  bez jediného pádu na text): podvodná zpráva `ScamAnswer(verdict=PHISHING)` → karta „Možný
+  podvod"; hrubý koncept `ToneAnswer(verdict=RUDE)` → „Může vyznít příkře."; „dáš si zítra kafe?"
+  `EventAnswer(when=FUTURE, event=YES, title=kafe zítra odpoledne, place=NONE)`; „odkazy z kanalu
+  za posledni tyden" `SearchAnswer(text=odkazy, chats=CHANNELS, content=LINKS, from=…, to=…)` →
+  čipy Kanály a Odkazy (filtrové slovo v `text` odstraní `refineNaturalSearch`, jako u textu).
+  **Obsah zůstává strop modelu**: „den před Silvestrem" vyšel `ReminderAnswer(moment=2026-12-24
+  08:00)` místo 30. 12. — tvar je správně, datum ne; uživatel ho v sheetu vidí a může zvolit jiné.
 - **Rozhraní `GenerableProvider` se s víc implementacemi nesloučí**, takže v release buildu je
   soubor `META-INF/services/<rozhraní>` se všemi šesti providery (ověřeno `unzip -p` nad APK),
   a pole všech typů drží jedno keep pravidlo se seznamem tříd (ověřeno `dexdump`).
