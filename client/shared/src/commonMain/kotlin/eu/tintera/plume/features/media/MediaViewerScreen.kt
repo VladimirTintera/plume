@@ -93,6 +93,10 @@ import eu.tintera.plume.core.files.rememberSavePermission
 import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.telegram.SelfDestructType
 import eu.tintera.plume.core.ui.DarkSystemBars
+import eu.tintera.plume.core.ui.LockScreenOrientation
+import eu.tintera.plume.core.ui.ScreenOrientation
+import eu.tintera.plume.core.ui.screenOrientationLockSupported
+import androidx.compose.ui.platform.LocalWindowInfo
 import eu.tintera.plume.core.ui.SecureScreen
 import eu.tintera.plume.core.ui.RemoteImage
 import eu.tintera.plume.features.conversation.items.SpoilerOverlay
@@ -424,6 +428,35 @@ private fun ViewerContent(
     )
     // Pružina přestřelí; záporné odsazení nebo zaoblení by layout odmítl.
     val immersion = { immersionState.value.coerceIn(0f, 1f) }
+    /*
+     * Zámek proti dotykům a ručně vynucená orientace patří prohlížeči, ne stránce: zámek vypíná
+     * i listování a otočení na šířku má platit i pro další video. Obojí platí jen na celé
+     * obrazovce — návrat do galerie orientaci pustí (jako YouTube). Zamčené video do galerie
+     * nepustí, takže se tam zámek ruší jen pro jistotu (smazaná zpráva, mizející médium).
+     */
+    var controlsLocked by rememberSaveable { mutableStateOf(false) }
+    var forcedOrientation by rememberSaveable { mutableStateOf<ScreenOrientation?>(null) }
+    LaunchedEffect(immersive) {
+        if (!immersive) {
+            controlsLocked = false
+            forcedOrientation = null
+        }
+    }
+    LockScreenOrientation(forcedOrientation.takeIf { immersive })
+    val windowSize = LocalWindowInfo.current.containerSize
+    // Otočit = do té druhé, než v jaké okno právě je (i když ji zvolil senzor, ne tlačítko).
+    val rotate: (() -> Unit)? = if (screenOrientationLockSupported()) {
+        {
+            forcedOrientation = if (windowSize.width > windowSize.height) ScreenOrientation.Portrait else ScreenOrientation.Landscape
+        }
+    } else {
+        null
+    }
+    val videoFullscreen = VideoFullscreen(
+        locked = controlsLocked,
+        onLockChange = { controlsLocked = it },
+        onRotate = rotate,
+    )
     val enterImmersive = { immersive = true }
     val toggleImmersive = { if (!state.isSelfDestruct) immersive = !immersive }
 
@@ -453,6 +486,8 @@ private fun ViewerContent(
             modifier = Modifier.fillMaxSize(),
             // Otevřená fotka je vidět hned, sousedé se dotahují až pod ní — nesmí naskočit.
             animateArrivals = true,
+            // Zamčené video se nesmí odlistovat; zámek drží jen stránka s videem.
+            userScrollEnabled = !(controlsLocked && current?.media is MessageMedia.Video),
             // Pozadí bere malý náhled, ne ostrou verzi: pod rozostřením detail nic nepřidá
             // a náhled je na disku skoro vždycky, protože ho kreslila konverzace.
             backdrop = { index ->
@@ -516,6 +551,7 @@ private fun ViewerContent(
                     cardBias = cardBias,
                     muted = videoMuted,
                     onToggleMute = { videoMuted = !videoMuted },
+                    fullscreen = videoFullscreen,
                 )
 
                 is MessageMedia.Photo -> ZoomableImage(

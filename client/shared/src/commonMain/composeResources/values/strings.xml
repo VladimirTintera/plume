@@ -336,6 +336,9 @@
     <string name="file_unavailable">The file isn't available.</string>
     <string name="voice_playback_failed">Couldn't play the voice message.</string>
     <string name="media_mute">Mute</string>
+    <string name="media_rotate_screen">Rotate screen</string>
+    <string name="media_lock_controls">Lock controls</string>
+    <string name="media_unlock_controls">Unlock controls</string>
     <string name="media_unmute">Unmute</string>
     <string name="voice_speed_normal">1×</string>
     <string name="voice_speed_fast">1.5×</string>

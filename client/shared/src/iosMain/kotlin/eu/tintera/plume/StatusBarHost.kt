@@ -34,6 +34,19 @@ internal class StatusBarHostViewController(
             setNeedsStatusBarAppearanceUpdate()
         }
 
+    /**
+     * Celá obrazovka bez stavové lišty (video, `HideSystemBars`).
+     *
+     * Ukazatel plochy zůstává: `prefersHomeIndicatorAutoHidden` je v UIKit deklarovaný
+     * v kategorii, a tu Kotlin/Native přepsat nedovolí (překlad hlásí „overrides nothing").
+     */
+    var barsHidden: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            setNeedsStatusBarAppearanceUpdate()
+        }
+
     override fun viewDidLoad() {
         super.viewDidLoad()
         addChildViewController(content)
@@ -45,9 +58,18 @@ internal class StatusBarHostViewController(
 
     override fun preferredStatusBarStyle(): UIStatusBarStyle =
         if (isDark) UIStatusBarStyleLightContent else UIStatusBarStyleDarkContent
+
+    override fun prefersStatusBarHidden(): Boolean = barsHidden
 }
 
 /** Kudy `SystemBarsAppearance` dosáhne na hostitele lišty; controller je jeden na proces. */
 internal object StatusBarHost {
     var controller: StatusBarHostViewController? = null
+
+    /** Kolik obrazovek chce lišty schované; sčítá se, ze stejného důvodu jako `DarkSystemBars`. */
+    var hideRequests: Int = 0
+        set(value) {
+            field = value
+            controller?.barsHidden = value > 0
+        }
 }

@@ -341,6 +341,9 @@
     <string name="file_unavailable">Soubor není dostupný.</string>
     <string name="voice_playback_failed">Hlasovku se nepodařilo přehrát.</string>
     <string name="media_mute">Ztlumit</string>
+    <string name="media_rotate_screen">Otočit obrazovku</string>
+    <string name="media_lock_controls">Zamknout ovládání</string>
+    <string name="media_unlock_controls">Odemknout ovládání</string>
     <string name="media_unmute">Zapnout zvuk</string>
     <string name="voice_speed_normal">1×</string>
     <string name="voice_speed_fast">1,5×</string>
