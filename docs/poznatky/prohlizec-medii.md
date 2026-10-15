@@ -291,6 +291,21 @@ dva prsty, takže myš měla jen dvojklik na 2,5×. Teď:
 - Platí jen pro fotky; video na desktopu prohlížeč nepřehrává (otevírá ho systémová aplikace).
 - **Ověřeno na Windows 11** (ladicí běh, uživatel): listování šipkami a tlačítky, Ctrl+kolečko,
   +/−/0 a Esc. macOS, Android s myší a štípnutí na touchpadu ve Windows neověřené.
+- **Štípnutí a dvojité ťuknutí prstem po sloučení výpočtu ověřené na emulátoru** (skutečná
+  fotka, celá obrazovka) MĚŘENÍM ze snímků, ne okem: bod Q fotky musí po přiblížení k× kolem
+  P ležet na P + k·(Q − P). Dvojité ťuknutí 2,5×: šest bodů, rozdíl barev 0–9 (ze 765), druhé
+  dvojité ťuknutí vrátí snímek přesně do původního stavu. Štípnutí 200 → 600 px: střed na
+  místě, odhadnutý faktor 3,04; tah jedním prstem pak posune o 200 px do strany, svisle nic
+  (při 3× fotka výšku nevyplní, posun je záměrně nulový). Ťukat do svislého středu — jinde se
+  svislý posun ořízne a bod pod prstem se legitimně pohne.
+- **Štípnutí na emulátoru přes `uinput`** (`adb shell uinput <soubor>`, `input` umí jen jeden
+  prst a dvojité ťuknutí nestihne, každé volání startuje proces): `register` s
+  `UI_SET_EVBIT` [1, 3], `UI_SET_KEYBIT` [330] (BTN_TOUCH), `UI_SET_ABSBIT` [0, 1, 47, 53, 54, 57]
+  (X, Y, MT_SLOT, MT_POSITION_X/Y, MT_TRACKING_ID), `UI_SET_PROPBIT` [1] (INPUT_PROP_DIRECT —
+  bez něj to není dotyková obrazovka), `abs_info` s rozsahy v pixelech displeje; pak `delay`
+  1500 ms (systém zařízení nastavuje) a `inject` po snímcích: pro každý prst `3,47,slot`,
+  při položení `3,57,id`, `3,53,x, 3,54,y`, na začátku `1,330,1`, každý snímek `0,0,0`;
+  zvednutí `3,57,-1` a `1,330,0`. Mezi snímky `delay` 16 ms.
 
 ### Poloha a mapy
 
