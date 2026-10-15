@@ -264,6 +264,9 @@ actual val videoStreamingSupported: Boolean = true
 /** ExoPlayer fragmentované MP4 přehraje i rozestavěné (délku má z `mehd`). */
 actual val videoFragmentedStreamingSupported: Boolean = true
 
+/** ExoPlayer čte fragmentované MP4 sám, HLS seznam nepotřebuje. */
+actual val videoFragmentedStreamingNeedsHls: Boolean = false
+
 /**
  * Ptá se `MediaCodecList` na dekodér pro MIME typ kodeku i na rozměry — softwarový dekodér
  * na slabším telefonu může mít strop nižší než 1080p. Neznámý kodek = žádný.

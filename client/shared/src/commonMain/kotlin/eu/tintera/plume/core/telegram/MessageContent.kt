@@ -955,7 +955,7 @@ internal fun Video.toMedia(
     sizeBytes = video.expectedSize,
 )
 
-/** Přepočítané kvality videa (zpráva i anketa); HLS seznam se nečte, viz [VideoQuality]. */
+/** Přepočítané kvality videa (zpráva i anketa) i s HLS seznamem, viz [VideoQuality]. */
 internal fun Array<AlternativeVideo>.toQualities(): List<VideoQuality> = map { alternative ->
     VideoQuality(
         fileId = alternative.video.id,
@@ -964,6 +964,7 @@ internal fun Array<AlternativeVideo>.toQualities(): List<VideoQuality> = map { a
         codec = alternative.codec.lowercase(),
         sizeBytes = alternative.video.expectedSize,
         isOriginal = false,
+        hlsFileId = alternative.hlsFile.id,
     )
 }
 
