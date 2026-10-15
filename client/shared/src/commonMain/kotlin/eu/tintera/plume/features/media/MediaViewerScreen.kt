@@ -456,6 +456,8 @@ private fun ViewerContent(
      * nepustí, takže se tam zámek ruší jen pro jistotu (smazaná zpráva, mizející médium).
      */
     var controlsLocked by rememberSaveable { mutableStateOf(false) }
+    // Které video právě hraje (id zprávy); hlásí ho vybraná stránka.
+    var playingVideo by remember { mutableStateOf<Long?>(null) }
     var forcedOrientation by rememberSaveable { mutableStateOf<ScreenOrientation?>(null) }
     LaunchedEffect(immersive) {
         if (!immersive) {
@@ -500,11 +502,19 @@ private fun ViewerContent(
 
     /*
      * Myš a klávesnice (desktop, Android s klávesnicí): ←/→ a šipky po stranách listují, +/−/0
-     * přibližují (viz `ViewerControls.kt`). Listuje se jen tam, kam by šel i tah — zamčené video
-     * ne. Fokus si prohlížeč bere hned, jinak by klávesa nedošla nikam: v Compose ji dostane jen
-     * zaostřený prvek a jeho předci.
+     * přibližují (viz `ViewerControls.kt`). Listuje se jen tam, kam by šel i tah. Fokus si
+     * prohlížeč bere hned, jinak by klávesa nedošla nikam: v Compose ji dostane jen zaostřený
+     * prvek a jeho předci.
+     *
+     * HRAJÍCÍ video na celé obrazovce se nelistuje: vodorovný tah při sledování je skoro vždycky
+     * nechtěný — sjetý svislý tah jasu, palec vedle posuvníku — a odlistování by video uprostřed
+     * zastavilo. Pozastavené a dohrané ano, zamčené nikdy. Klíčem je id zprávy, ne příznak:
+     * hlášení od stránky, která už vybraná není, tak nic nezablokuje.
      */
-    val pagerScroll = !(controlsLocked && current?.media is MessageMedia.Video)
+    val pagerScroll = !(
+        immersive && current?.media is MessageMedia.Video &&
+            (controlsLocked || current.messageId == playingVideo)
+        )
     val scope = rememberCoroutineScope()
     val goToPage = { target: Int ->
         if (pagerScroll && target in 0 until pagerState.pageCount) scope.launch { pagerState.animateScrollToPage(target) }
@@ -550,7 +560,7 @@ private fun ViewerContent(
             modifier = Modifier.fillMaxSize(),
             // Otevřená fotka je vidět hned, sousedé se dotahují až pod ní — nesmí naskočit.
             animateArrivals = true,
-            // Zamčené video se nesmí odlistovat; zámek drží jen stránka s videem.
+            // Video na celé obrazovce se neodlistuje (viz `pagerScroll`).
             userScrollEnabled = pagerScroll,
             // Pozadí bere malý náhled, ne ostrou verzi: pod rozostřením detail nic nepřidá
             // a náhled je na disku skoro vždycky, protože ho kreslila konverzace.
@@ -618,6 +628,13 @@ private fun ViewerContent(
                     qualityChoice = videoQuality,
                     onQualityChoice = { videoQuality = it },
                     fullscreen = videoFullscreen,
+                    onPlayingChange = { playing ->
+                        if (playing) {
+                            playingVideo = item.messageId
+                        } else if (playingVideo == item.messageId) {
+                            playingVideo = null
+                        }
+                    },
                     rememberPosition = !state.isSelfDestruct,
                 )
 

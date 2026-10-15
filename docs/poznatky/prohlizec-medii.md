@@ -997,22 +997,70 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   `isPlaying`), ne dokud se stahuje. U streamovaného videa je soubor „načtený" hned, ale
   přehrávač ještě čeká na data — procento staženého souboru by tam lhalo (hraje se dávno před
   100 %), proto se po načtení točí neurčitě. Tlačítko play/pauza se do té doby neukazuje.
-- **Stahování pod hrajícím videem je kroužek v pravém horním rohu** (`VideoDownloadIndicator`);
-  ťuknutí ho roztáhne do čáry přes horní okraj karty, další ho svine. Nahoře, protože kroužek tam
-  už je a jen se roztáhne do šířky; dole by se čára přetahovala o místo s posuvníkem.
-- **Jsou to běžné `CircularWavyProgressIndicator` / `LinearWavyProgressIndicator`** a přechod je
-  obyčejné `AnimatedContent` se `SizeTransform`, rostoucí z rohu (`contentAlignment = TopEnd`).
-  První verze kreslila na `Canvas` oblouk, který se rozvine do čáry — vymyšlený prvek, který
-  nikde jinde není; uživatel chtěl standardní vzhled. Ukazuje se proto celkový `progress`, ne
-  souvislý stažený úsek: obě komponenty kreslí průběh od nuly.
-- **Podklad pilulky nese kontejner `AnimatedContent`, ne obsah.** Velikost se animuje na
-  kontejneru; podklad na obsahu `SizeTransform` ořízne a pilulka roste s hranatým okrajem.
+- **Stažený úsek je na dráze posuvníku** (`VideoSeekTrack`, `bufferedSpan`, testy
+  `BufferedSpanTest`), světlejší barvou mezi přehranou částí a nestaženou dráhou, jako na YouTube.
+  Dřív to byl zvláštní kroužek v rohu karty, který se ťuknutím rozvinul do čáry přes horní okraj —
+  dvě čáry přes video, které říkaly skoro totéž; uživatel chtěl sloučit.
+  - **Bere se SOUVISLÝ úsek, odkud TDLib zrovna stahuje** (`FileState.Downloading.downloaded`), ne
+    celkový `progress`: po skoku dopředu je na disku i začátek, ale přehrávač teď čte jinde.
+    Hotový soubor = celá dráha.
+  - **Bajty nejsou čas.** U souboru s `moov` na konci je posledních pár procent index; na začátku
+    streamu tak na okamžik svítí kousek u konce dráhy. Pro odhad „kam to dojede bez čekání" to
+    stačí a přesněji to nedělají ani jiné přehrávače.
+  - **Úsek se kreslí PŘES dráhu indikátoru** (`drawWithContent`): průhledná bílá přes průhlednou
+    bílou zesvětlí a přes plnou bílou přehrané části nic nezmění. Začíná až za mezerou u přehrané
+    části — geometrie je opsaná z `LinearWavyProgressModifiers` v material3 (dráha začíná
+    `hlava + mezera + 2 × poloměr zakončení`), jinak by mezeru zalil. **Při bumpu material3 ověřit
+    okem**, jestli mezera pořád sedí.
+  - **Ověřeno na emulátoru podstrčeným úsekem** (`Ready` → 20–60 %, jako u karty aktualizace):
+    světlejší úsek začíná za mezerou u palce a končí na 60 %. Skutečné stahování emulátor nezpomalí
+    (viz níž), takže pozvolné prodlužování úseku vidět nebylo.
 - **Na emulátoru se stahování zpomalit NEDÁ**: `adb emu network speed edge`/`gprs` odpoví OK,
-  a 2,5MB video se přesto stáhne za vteřinu. Vzhled indikátoru se proto ověřuje podstrčeným
-  stavem (`downloadVisible` bez podmínky na `Downloading`, pevný `progress`), jako karta aktualizace.
-  **Přechod jde prohlédnout jen zpomaleně**: `adb shell settings put global
+  a 2,5MB video se přesto stáhne za vteřinu. Vzhled se proto ověřuje podstrčeným stavem.
+  **Přechody jdou prohlédnout jen zpomaleně**: `adb shell settings put global
   animator_duration_scale 10` (Compose ho respektuje) a série `screencap` — v normální
   rychlosti ho snímky minou.
+- **HRAJÍCÍ video na celé obrazovce se nelistuje** (`pagerScroll` v `MediaViewerScreen`);
+  pozastavené a dohrané ano, zamčené nikdy, fotky vždycky. Vodorovný tah při sledování bývá
+  nechtěný (sjetý tah jasu, palec vedle posuvníku) a odlistování by video uprostřed zastavilo.
+  Šipky na klávesnici a po stranách se řídí týmž příznakem.
+  - **První verze blokovala každé video na celé obrazovce** a uživatel ji odmítl: k dalšímu médiu
+    se pak muselo napřed ťuknutím do galerie.
+  - **Stav hlásí stránka (`onPlayingChange`), prohlížeč si drží ID ZPRÁVY, která hraje**, ne
+    příznak. Hlášení stránky, která už vybraná není, tak listování nezablokuje; po odlistování na
+    další video na celé obrazovce se to rozehraje samo a listování se zase zamkne.
+  - Ověřeno na emulátoru: hrající video tah ignoruje, po pozastavení tlačítkem tentýž tah přejde
+    na sousední fotku.
+  - **Past: tah do strany se pak změnil v ťuknutí** a video přeskočilo do galerie.
+    `detectTapGestures` ruší ťuknutí jen u SPOTŘEBOVANÉHO pohybu, ne podle vzdálenosti; dokud tah
+    bral pager, platilo to samo. Stránka videa proto spotřebuje každý tah přes `touchSlop` ve fázi
+    `Final` — pager (předek) i posuvník (potomek) ho mají za sebou ve fázi `Main`, a ťuknutí,
+    které leží v řetězu modifikátorů pod tím, ho najde zrušené.
+- **Jas tahem** (`rememberScreenBrightness` v `core/ui`): svislý tah v LEVÉ půlce videa na celé
+  obrazovce mění jas (nahoru jasněji, celý rozsah na 60 % výšky stránky), u horního okraje karty
+  se ukáže pilulka se sluncem a úrovní. Levá i v RTL — je to zvyk přehrávačů (MX Player, VLC),
+  ne směr čtení. **V pravé půlce svislý tah dál zavírá**, jinak by z videa na celé obrazovce
+  nevedlo žádné gesto ven. Jen tam, kde fungují gesta přehrávače (ne zamčené, ne v PiP, ne po
+  chybě) a ne během zrychlení podržením.
+  - **Jas platí jen na celé obrazovce**: návrat do galerie, odlistování, PiP i zavření ho vrátí
+    (jako YouTube). Drží ho podmíněné složení v `VideoPage` — s odchodem z kompozice se vrací.
+  - **Android: `WindowManager.LayoutParams.screenBrightness`**, jen pro okno, bez `WRITE_SETTINGS`.
+    Výchozí úroveň se čte ze `SCREEN_BRIGHTNESS` (0–255); s adaptivním jasem je to poslední ruční
+    hodnota, takže první pohyb může o kus skočit. Okno bere jas lineárně, proto se úroveň umocní
+    (oko vnímá zhruba odmocninu) a nula se nepouští (`BRIGHTNESS_OVERRIDE_OFF` by displej zhasl).
+  - **iOS: `UIScreen.brightness` je SYSTÉMOVÝ jas** a iOS ho po odchodu z aplikace sám nevrátí.
+    Původní hodnota se proto vrací s odchodem z kompozice i na `ON_STOP` a po `ON_START` se jas
+    z gesta nastaví znovu. Jen přeložené.
+  - **Desktop nic** (video tam nehraje).
+  - **Ověřeno na emulátoru** (Pixel 7, API 36): tah nahoru v levé půlce → pilulka a `sbrt=0.998`
+    v `dumpsys window windows`, dolů → `sbrt=0.356`, krátký tah v pravé půlce jas nemění (zavírací
+    tah pod prahem), ťuknutí do galerie → `sbrt` z okna zmizí (jas podle systému). Jak tah sedí pod
+    prstem a jestli první pohyb s adaptivním jasem skáče, se pozná jen na telefonu.
+- **Ověřování na emulátoru, který jsem si nespustil sám, je nespolehlivé**: 2026-10-15 na
+  `emulator-5594` ťukala zároveň jiná session (`uiautomator dump`, vynucené zastavení aplikace,
+  otevřený cizí chat) a tahy určené prohlížeči skončily v seznamu chatů jako archivace. Při
+  nevysvětlitelné změně obrazovky se napřed podívat do logcatu po `AccessibilityNodeInfoDumper`
+  a `Force stopping eu.tintera.plume`.
 - **Obraz v obraze** (`rememberPictureInPicture` v `core/video`): tlačítko v liště videa
   a samočinný přechod při odchodu z aplikace, **jen dokud video hraje** — pozastavené okénko
   nepotřebuje. Jen v prohlížeči médií a jen pro stránku, která hraje na celé obrazovce;
@@ -1094,7 +1142,7 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
     `prefersHomeIndicatorAutoHidden` je v kategorii UIKit a Kotlin/Native ji přepsat nedovolí
     („overrides nothing").
   - **Zámek proti dotykům** (zámek vlevo nahoře): tah nezavírá, ťuknutí nepřepíná, ovládání
-    se neukáže a listování je vypnuté (`MediaCarousel(userScrollEnabled)`). Ťuknutí kamkoli
+    se neukáže a listování je vypnuté i u pozastaveného videa. Ťuknutí kamkoli
     vytáhne vyplněný zámek, kterým se odemyká; po zamčení se na chvíli ukáže sám. **Zpět
     za zamčení nezavírá**, jen ukáže zámek — tah od okraje je ten nejčastější nechtěný dotyk.
     Jde to přes `NavigationBackHandler` zapnutý jen za zamčení; `BackHandler` by zabil predictive
@@ -1110,10 +1158,18 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
     přes `supportedInterfaceOrientationsFor` v delegátu aplikace.
   - **Dole místo není**, proto zámek a otočení leží nahoře: s dalšími dvěma tlačítky by
     posuvníku na telefonu na výšku zbyl palec.
-  - **Na úzké kartě má posuvník vlastní řádek** (pod 480 dp, `VIDEO_CONTROLS_ONE_LINE_WIDTH`),
-    tlačítka jdou pod něj doprava. Video na výšku otočené na šířku má kartu široká asi 400 dp
-    a v jednom řádku s časy a tlačítky posuvník stlačilo na nulu; na telefonu na výšku mu
-    zbývalo kolem 100 dp. Rozhoduje šířka KARTY (`BoxWithConstraints`), ne okna.
+  - **Ovládání leží u okrajů STRÁNKY, ne na kartě s videem** (slot `chrome` v `MediaPageLayout`):
+    posuvník u spodního, zámek a otočení u horního okraje obrazovky, jako VLC, YouTube nebo Fotky
+    Google. Dokud bylo v kartě, viselo u videa na výšku nebo čtvercového přes obraz uprostřed
+    displeje, zatímco černé pruhy nad a pod ním zůstaly prázdné. Na kartě zůstalo jen to, co patří
+    k obrazu: tlačítko přehrát, průběh rozběhu, hlášky uprostřed a skok o 10 s. Pilulky zrychlení
+    a jasu jsou nahoře na stránce pod místem stavové lišty (`statusBarArea`). Lišta dole bere
+    i boční insety (navigační lišta a výřez na šířku), protože jde přes celou šířku stránky.
+    Ověřeno na emulátoru na výšku (čtvercové video, ovládání v pruzích) i na šířku.
+  - **Na úzké stránce má posuvník vlastní řádek** (pod 480 dp, `VIDEO_CONTROLS_ONE_LINE_WIDTH`),
+    tlačítka jdou pod něj doprava; na telefonu na výšku by mu v jednom řádku s časy a tlačítky
+    zbylo kolem 100 dp. Rozhoduje šířka stránky (`BoxWithConstraints`). Dřív to byla šířka karty
+    a video na výšku otočené na šířku (karta asi 400 dp) stlačilo posuvník na nulu.
   - **Ověřeno na emulátoru** (Pixel 9, Android 17, software dekodér, viz „GIFy"): příznak
     `KEEP_SCREEN_ON` na okně jen během přehrávání (`dumpsys window windows`), lišty schované
     s ovládáním (`statusBars visible=false`), zámek vydrží tah dolů, do strany, klávesu i gesto

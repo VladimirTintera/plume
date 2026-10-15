@@ -301,7 +301,6 @@
     <string name="media_profile_photo_failed">Couldn't change the profile photos</string>
     <string name="media_video_download_failed">Couldn't download the video.</string>
     <string name="media_video_playback_failed">Couldn't play the video. Try again.</string>
-    <string name="media_download_progress">Download progress</string>
     <string name="media_play">Play</string>
     <string name="media_pause">Pause</string>
     <string name="media_picture_in_picture">Picture in picture</string>
@@ -346,6 +345,7 @@
     <string name="media_seek_back">−%1$d s</string>
     <string name="media_seek_forward">+%1$d s</string>
     <string name="media_speed_boost">2× speed</string>
+    <string name="media_brightness">Brightness</string>
     <string name="media_quality_lines">%1$dp</string>
     <string name="media_quality_description">Video quality: %1$s</string>
     <string name="media_quality_auto">Auto</string>
