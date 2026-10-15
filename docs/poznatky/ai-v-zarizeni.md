@@ -583,6 +583,18 @@ odpovědí** (`ReplySuggestionsOutput`); kde ho model nemá, jde všechno dál t
   vypadá, ne co v ní má být.
 - **Ověřit jde jen na telefonu s Gemini Nano** (emulátor AICore nemá a Gemma typy neumí). Testy
   (`ReplySuggestionsViewModelTest`) hlídají volbu cesty a náhradu textem s podstrčeným modelem.
+- **Ověřeno na Pixelu 11 Pro Foldu** (Android 17, AICore `thirdpartyexperimental`, 15. 10. 2026):
+  AICore strukturovaný výstup hlásí a návrhy chodí z něj, bez pádu na text, za ~2 s.
+- **Strukturovaný výstup počítá JINÁ featura AICore než text.** V logu AICore
+  (`InferenceTask: run`) je typovaný dotaz `648 - SAPI Open Prompt Stable Fast Mode (Structured
+  Output)`, textový `636 - SAPI Open Prompt (Regenerative Mode)` — obojí při tomtéž `ModelConfig`
+  (STABLE, FULL). Strukturovaný výstup tedy jede na RYCHLÉ variantě a volba „Rychlejší varianta"
+  ho nijak neovlivní.
+- **Kvalita přesto nevyšla horší, spíš naopak.** Na stejných dvou zprávách (dočasný build se
+  strukturovaným výstupem vypnutým, necommitnutý): u „dáš si zítra kafe?" typy „Zítra odpoledne mi
+  vyhovuje." / „Kde bys chtěl si sednout?", text „Jsem rád, pak se dojde." / „Žádně, zítra mi
+  nebudí."; u faktury typy tři návrhy (jeden zkomolený „Jasně, poslať ti dam."), text jen dva. Vzorek
+  je malý a strop modelu (sloh) platí dál — ale tvar je jistý a návrhy jsou vždy tři.
 
 ### Návrhy odpovědí
 

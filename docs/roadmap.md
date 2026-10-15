@@ -589,8 +589,9 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
 - ~~**Strukturovaný výstup jako první krok.**~~ — hotovo pro návrhy odpovědí na Gemini Nano
   (`OnDeviceAi.generateStructured`, ručně psaný `GenerableProvider` bez KSP, náhrada textem;
   `docs/poznatky/ai-v-zarizeni.md`, „Strukturovaný výstup"). Gemma ho nemá, jde dál textem. Zbývá:
-  - **ověřit na telefonu s Gemini Nano** (Fold) — emulátor AICore nemá; jestli AICore
-    strukturovaný výstup hlásí, jak se drží čeština a jestli se návrhy zlepšily,
+  - ~~**ověřit na telefonu s Gemini Nano**~~ — ověřeno na Foldu (jede na featuře 648 „Fast Mode
+    (Structured Output)", návrhy nevyšly horší než text; tamtéž). Zbývá porovnat na větším
+    vzorku zpráv,
   - **další typy**: termín (`EventPrompt`), připomínka, podvod a tón (ano/ne se skóre) a hledání
     přirozeným jazykem (filtry) — každý = provider, řádek ve services a keep pravidlo.
 - ~~**Detekce podvodných zpráv.**~~ — hotovo: karta „Možný podvod" pod zprávou, předfiltr
