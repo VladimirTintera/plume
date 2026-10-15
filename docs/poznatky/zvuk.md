@@ -76,7 +76,7 @@ ji vrátí zpátky. Sleduje se jen po dobu, kdy se HRAJE (`EarSensor`, startuje 
   zvuk, kdežto médium by hrálo dál z reproduktoru. S `MediaPlayer` se kvůli tomu přehrávač
   stavěl znovu (atributy jen před `prepare()`); ExoPlayer je mění za běhu
   (`setAudioAttributes`) a zvukovou stopu si postaví sám. **Po přechodu na ExoPlayer ověřené
-  na Pixelu 7 Pro** (Android 16, 15. 10. 2026): uživatel slyšel u ucha sluchátko a po odtažení
+  na Pixelu 7 Pro** (Android 17, 15. 10. 2026): uživatel slyšel u ucha sluchátko a po odtažení
   zase reproduktor a přehrávání šlo dál. V logu `Applying proximity: Positive` a hned nato
   `setCommunicationRouteForClient … type:earpiece`. V historii `dumpsys audio` je při každém
   přepnutí nová `AudioTrack` (`new player … started` → `device updated deviceIds:[2]/[3]`),
