@@ -552,6 +552,7 @@ private fun ViewerContent(
                     muted = videoMuted,
                     onToggleMute = { videoMuted = !videoMuted },
                     fullscreen = videoFullscreen,
+                    rememberPosition = !state.isSelfDestruct,
                 )
 
                 is MessageMedia.Photo -> ZoomableImage(

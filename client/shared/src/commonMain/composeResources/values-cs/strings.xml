@@ -344,6 +344,11 @@
     <string name="media_rotate_screen">Otočit obrazovku</string>
     <string name="media_lock_controls">Zamknout ovládání</string>
     <string name="media_unlock_controls">Odemknout ovládání</string>
+    <string name="media_video_resumed">Pokračuje od %1$s</string>
+    <string name="media_video_from_start">Od začátku</string>
+    <string name="media_seek_back">−%1$d s</string>
+    <string name="media_seek_forward">+%1$d s</string>
+    <string name="media_speed_boost">Rychlost 2×</string>
     <string name="media_unmute">Zapnout zvuk</string>
     <string name="voice_speed_normal">1×</string>
     <string name="voice_speed_fast">1,5×</string>

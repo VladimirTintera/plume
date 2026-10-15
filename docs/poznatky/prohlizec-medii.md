@@ -983,6 +983,46 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
     otočení `SENSOR_LANDSCAPE` ↔ `PORTRAIT` a návrat do galerie vrátí `UNSPECIFIED`. **Pauza po
     vytažení sluchátek ověřená NENÍ** (emulátor sluchátka nemá), iOS jen přeložené.
 
+- **Pozice přehrávání se pamatuje** (`VideoPositions` v `core/video`, uložené v `AppSettings`
+  jako seznam, testy `VideoPositionsTest`). Klíč je `RemoteFile.uniqueId`, ne id zprávy:
+  přeposlané video je týž soubor a pokračuje se v něm odkudkoli.
+  - **Jen delší videa** (od 2 min), ne prvních 10 s a ne posledních 15 s; dohrané se zapomene.
+    Nejvýš 200 záznamů, nejstarší odpadají.
+  - **Zapisuje se při odlistování, odchodu z kompozice, `ON_STOP`, dohrání a každých 10 s**
+    během hraní (zabitý proces). Jen u videa, které opravdu hrálo (`hasPlayed`): otevření
+    a zavření bez puštění by zapsalo nulu, a tím pamatovanou pozici smazalo. Pozice se bere
+    z posledního tiknutí, ne z přehrávače — při odchodu z kompozice už může být uvolněný.
+  - **Odkud začít**: čas z odkazu ve zprávě > pamatovaná pozice > `MessageVideo.startTimestamp`
+    (přeposlání „od 1:23", dřív se nečetl). Pamatovaná pozice se čte jednou, při složení
+    stránky — během sledování se přepisuje.
+  - **Po rozběhnutí z pamatované pozice** se na 6 s ukáže „Pokračuje od 12:34" s tlačítkem Od
+    začátku. Bez toho by video hrálo uprostřed bez vysvětlení.
+  - **Bublina má proužek zhlédnutého** přes spodek náhledu (`WatchedBar`), bílý na tmavé dráze
+    jako posuvník — leží na libovolném obrázku.
+  - **Mizející médium a tajný chat se nepamatují**: první se podruhé neotevře, po druhém nemá
+    v zařízení zůstat stopa.
+- **Dvojí ťuknutí do levé / pravé půlky skočí o 10 s** (víc ťuknutí rychle za sebou se sčítá,
+  u okraje se ukáže „−20 s"), **podržení pustí video 2×**, dokud prst leží (pilulka „Rychlost 2×"
+  nahoře, uložená rychlost se po puštění vrátí). Jen u hrajícího videa na celé obrazovce
+  a ne zamčeného. Detektor s dvojím ťuknutím čeká s jednoduchým, jestli nepřijde druhé — proto
+  se zapíná jen tam, v galerii by zdržel přepnutí na celou obrazovku.
+- **Náhled snímku nad posuvníkem** při tahu (`StoryboardThumb`, testy `StoryboardTest`) ze
+  storyboardu, který server sám vyrábí k delším videím (`MessageVideo.storyboards`: JPEG
+  s dlaždicemi a mapa). **Formát mapy není nikde popsaný** — převzatý z oficiálního klienta pro
+  Android (`VideoSeekPreviewImage.parseStoryBoardMap`): řádky `file=mtproto:…`,
+  `frame_width=`, `frame_height=` a pak `čas,x,y` (čas v sekundách s desetinnou částí).
+  Stahuje se, až video na celé obrazovce hraje. Kreslí se celý obrázek posunutý a ořezaný na
+  dlaždici (Coil v původní velikosti — zmenšený by posunul souřadnice z mapy).
+- **Ověřeno na emulátoru** (Pixel 9, Android 17, software dekodér, hodinové video v kanálu):
+  „Pokračuje od 1:38 · Od začátku" po znovuotevření, zápis každých 10 s i při zavření (pozice
+  ~29 min po skoku posuvníkem, `app_settings.preferences_pb` přes `run-as`), proužek v bublině
+  na polovině, náhled dlaždice nad posuvníkem jede s prstem, dvojí ťuknutí vpravo „+10 s"
+  (haptika 26), podržení „Rychlost 2×" (haptika 0). Krátké video (89 s) se nezapsalo, jak má.
+  **Jednou se ale pozice po skoku posuvníkem neuložila** (zůstala ta před skokem) a znovu se
+  to vyvolat nepodařilo; byl to přetížený emulátor uprostřed sledu gest. Kdyby se to ukázalo
+  na telefonu, začít logem v `saveProgress`.
+  Že podržení opravdu zrychlí přehrávání, je vidět jen okem (ExoPlayer rychlost nehlásí).
+
 ### Text z fotky
 
 ⋮ → „Text z fotky" rozpozná text v otevřené fotce, celé v telefonu: ML Kit z Play služeb na

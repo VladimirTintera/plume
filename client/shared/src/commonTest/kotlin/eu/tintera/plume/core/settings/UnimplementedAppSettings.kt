@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.settings
 
+import eu.tintera.plume.core.video.VideoPosition
 import eu.tintera.plume.features.conversation.StoredTranscript
 import kotlinx.serialization.json.Json
 import eu.tintera.plume.core.bookmarks.MessageBookmark
@@ -70,6 +71,8 @@ open class UnimplementedAppSettings : AppSettings {
     override val messageBookmarks: StateFlow<List<MessageBookmark>> get() = error("messageBookmarks")
     override fun setMessageBookmarks(bookmarks: List<MessageBookmark>): Unit = error("setMessageBookmarks")
     override val chatSnoozes: StateFlow<List<ChatSnooze>> get() = error("chatSnoozes")
+    override val videoPositions: StateFlow<List<VideoPosition>> get() = error("videoPositions")
+    override fun updateVideoPositions(transform: (List<VideoPosition>) -> List<VideoPosition>): Unit = error("updateVideoPositions")
     override fun setChatSnoozes(snoozes: List<ChatSnooze>): Unit = error("setChatSnoozes")
     override val chatColors: StateFlow<List<StoredChatColor>> get() = error("chatColors")
     override fun setChatColors(colors: List<StoredChatColor>): Unit = error("setChatColors")

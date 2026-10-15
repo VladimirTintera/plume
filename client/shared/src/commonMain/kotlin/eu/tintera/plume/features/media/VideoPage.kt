@@ -1,5 +1,16 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.core.telegram.VideoStoryboard
+import eu.tintera.plume.core.ui.longPress
+import eu.tintera.plume.resources.media_seek_back
+import eu.tintera.plume.resources.media_seek_forward
+import eu.tintera.plume.resources.media_speed_boost
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.DisposableEffect
+import eu.tintera.plume.core.video.VideoPositions
+import eu.tintera.plume.resources.media_video_from_start
+import eu.tintera.plume.resources.media_video_resumed
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
@@ -197,11 +208,32 @@ internal fun VideoPage(
     pictureInPicture: Boolean = false,
     /** Ovládání celé obrazovky jako v přehrávači (lišty, zámek, otočení); `null` = bez něj. */
     fullscreen: VideoFullscreen? = null,
+    /**
+     * Pamatovat si, kde se přestalo sledovat ([VideoPositions]). Mizející médium ne (podruhé se
+     * neotevře) a tajný chat ne — po tajném chatu nemá v zařízení zůstat stopa.
+     */
+    rememberPosition: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     val repository = koinInject<FileRepository>()
+    val positions = koinInject<VideoPositions>()
+    val positionKey = video.fileKey?.takeIf { rememberPosition && !video.isSecret }
+    // Čte se jednou: během sledování se pozice zapisuje a začátek se tím měnit nemá.
+    val resumeMs = remember(positionKey) { positionKey?.let(positions::of)?.positionMs }
+    /*
+     * Odkud začít: čas z odkazu ve zprávě (výslovná žádost) > kde uživatel sám přestal > odkud
+     * video pustil odesílatel (přeposlání „od 1:23").
+     */
+    val resumed = resumeMs?.takeIf { startMs <= 0L }
     VideoPage(
-        startMs = startMs,
+        startMs = when {
+            startMs > 0L -> startMs
+            resumed != null -> resumed
+            else -> video.startSeconds * 1000L
+        },
+        resumedFromMs = resumed,
+        storyboard = video.storyboard,
+        onProgress = positionKey?.let { key -> { position, duration -> positions.record(key, position, duration) } },
         fullscreen = fullscreen,
         muted = muted,
         onToggleMute = onToggleMute,
@@ -320,6 +352,18 @@ internal fun VideoPage(
      * proti dotykům a ruční otočení. Jen v prohlížeči médií; `null` = bez toho (náhledy).
      */
     fullscreen: VideoFullscreen? = null,
+    /**
+     * [startMs] je pamatovaná pozice, ne žádost: po rozběhnutí se na chvíli ukáže „Pokračuje od…"
+     * s tlačítkem Od začátku. Bez něj by video hrálo uprostřed a nebylo by jasné proč.
+     */
+    resumedFromMs: Long? = null,
+    /**
+     * Kde se sledování zastavilo (pozice, délka v ms) — při pozastavení stránkou, odchodu,
+     * dohrání a průběžně během hraní. `null` = nepamatuje se.
+     */
+    onProgress: ((positionMs: Long, durationMs: Long) -> Unit)? = null,
+    /** Náhledy snímků nad posuvníkem; `null` = bez nich (krátké video, sdílení). */
+    storyboard: VideoStoryboard? = null,
 ) {
     val scope = rememberCoroutineScope()
     val voicePlayer = koinInject<VoicePlayer>()
@@ -410,6 +454,16 @@ internal fun VideoPage(
         }
     }
 
+    /*
+     * Pozice se zapisuje jen u videa, které opravdu hrálo — jinak by otevření a zavření bez
+     * puštění zapsalo nulu, a tím pamatovanou pozici smazalo. Čte se z posledního tiknutí
+     * (`positionMs`), ne z přehrávače: při odchodu z kompozice už může být uvolněný.
+     */
+    val currentProgress by rememberUpdatedState(onProgress)
+    fun saveProgress(at: Long = positionMs) {
+        if (hasPlayed) currentProgress?.invoke(at, durationMs)
+    }
+
     LaunchedEffect(loaded, active) {
         if (!loaded) return@LaunchedEffect
         if (active) {
@@ -418,6 +472,25 @@ internal fun VideoPage(
             player.play()
         } else {
             player.pause()
+            saveProgress()
+        }
+    }
+    // Průběžně, ať pozici nevezme ani zabitý proces; zápis do DataStore jednou za pár vteřin.
+    LaunchedEffect(playing) {
+        while (playing) {
+            delay(PROGRESS_SAVE_MS)
+            saveProgress()
+        }
+    }
+    DisposableEffect(Unit) { onDispose { saveProgress() } }
+
+    // „Pokračuje od…" po rozběhnutí na chvíli; pak už je jasné, co se děje.
+    var resumeHint by remember { mutableStateOf(false) }
+    LaunchedEffect(hasPlayed) {
+        if (hasPlayed && resumedFromMs != null) {
+            resumeHint = true
+            delay(RESUME_HINT_MS)
+            resumeHint = false
         }
     }
 
@@ -445,7 +518,13 @@ internal fun VideoPage(
     }
 
     // Po dohrání se ovládání vrátí, ať je vidět tlačítko na opakování.
-    LaunchedEffect(ended) { if (ended) controlsVisible = true }
+    LaunchedEffect(ended) {
+        if (ended) {
+            controlsVisible = true
+            // Dokoukané video se zapomene (konec se nepamatuje, viz `resumePosition`).
+            saveProgress(at = durationMs)
+        }
+    }
     // Po chybě taky: tlačítko přehrání přehrávač připraví znovu.
     LaunchedEffect(failed) { if (failed) controlsVisible = true }
     // Na celou obrazovku se přichází s ovládáním na očích; během přehrávání se samo schová.
@@ -471,7 +550,10 @@ internal fun VideoPage(
     }
     val inPip = pip?.active == true
     // Zavřené okénko i odchod na pozadí bez okénka video pozastaví (proces pod ním žije dál).
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { player.pause() }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        player.pause()
+        saveProgress()
+    }
 
     // Hrající video nenechá displej zhasnout, ani v okénku obrazu v obraze.
     if (active && playing) KeepScreenOn()
@@ -509,6 +591,49 @@ internal fun VideoPage(
     if (fullscreen != null && active && loaded && !inPip) {
         HideSystemBars(hidden = locked || !controlsVisible)
     }
+
+    /*
+     * Gesta přehrávače: dvojí ťuknutí do levé / pravé půlky skočí o [SEEK_STEP_MS] zpět / vpřed
+     * (víc ťuknutí rychle za sebou se sčítá), podržení pustí video dvojnásobnou rychlostí, dokud
+     * prst leží. Zamčené video je nemá — zámek je právě proti náhodným dotykům.
+     */
+    val playerGestures = active && loaded && !locked && !inPip && !failed
+    val pageHaptics = LocalHapticFeedback.current
+    // Kolik se naskákalo a kterým směrem; ukazuje se u okraje, na který se ťuklo.
+    var seekShown by remember { mutableLongStateOf(0L) }
+    var seekRun by remember { mutableIntStateOf(0) }
+    LaunchedEffect(seekRun) {
+        if (seekRun > 0) {
+            delay(SEEK_HINT_MS)
+            seekShown = 0L
+        }
+    }
+    fun seekBy(delta: Long) {
+        // Opačný směr nebo pauza mezi dvojťuky začne počítat znovu.
+        seekShown = if (seekShown != 0L && (seekShown > 0) == (delta > 0)) seekShown + delta else delta
+        seekRun++
+        val target = (player.positionMs + delta).coerceIn(0L, durationMs.coerceAtLeast(0L))
+        player.seekTo(target)
+        positionMs = target
+        ended = false
+        pageHaptics.tick()
+    }
+    var boosting by remember { mutableStateOf(false) }
+    fun startBoost() {
+        if (!playing) return
+        boosting = true
+        controlsVisible = false
+        player.setSpeed(BOOST_RATE)
+        pageHaptics.longPress()
+    }
+    fun stopBoost() {
+        if (!boosting) return
+        boosting = false
+        player.setSpeed(speed.rate)
+    }
+
+    // Storyboard se stahuje, až video na celé obrazovce opravdu hraje — sousedé a galerie ne.
+    val board = rememberStoryboard(storyboard, load = active && hasPlayed)
 
     // Stahování, které dobíhá pod už hrajícím videem.
     val downloadVisible = immersive && hasPlayed && file is FileState.Downloading && !inPip
@@ -554,8 +679,8 @@ internal fun VideoPage(
                     }
                 }
             }
-            .pointerInput(hasSpoiler, revealed) {
-                detectTapGestures(onTap = {
+            .pointerInput(hasSpoiler, revealed, playerGestures) {
+                val onTapPage: (Offset) -> Unit = {
                     if (hasSpoiler && !revealed) {
                         onReveal()
                     } else if (currentLocked) {
@@ -565,7 +690,25 @@ internal fun VideoPage(
                     } else {
                         currentTap()
                     }
-                })
+                }
+                /*
+                 * Dvojí ťuknutí a podržení jen u hrajícího videa na celé obrazovce. Detektor
+                 * s dvojím ťuknutím čeká s jednoduchým, jestli nepřijde druhé — v galerii by tak
+                 * přepnutí na celou obrazovku zbytečně zdrželo.
+                 */
+                if (!playerGestures) {
+                    detectTapGestures(onTap = onTapPage)
+                } else {
+                    detectTapGestures(
+                        onTap = onTapPage,
+                        onDoubleTap = { offset -> seekBy(if (offset.x < size.width / 2) -SEEK_STEP_MS else SEEK_STEP_MS) },
+                        onLongPress = { startBoost() },
+                        onPress = {
+                            tryAwaitRelease()
+                            stopBoost()
+                        },
+                    )
+                }
             }
             /*
              * Posun přes `offset`, ne `graphicsLayer`: nativní view s videem (UIKit na iOS)
@@ -623,6 +766,71 @@ internal fun VideoPage(
                         .padding(top = IconButtonDefaults.largeContainerSize().height + 48.dp)
                         .padding(horizontal = 24.dp),
                 )
+            }
+
+            // Skok dvojím ťuknutím: u okraje, na který se ťuklo, kolik se celkem přeskočilo.
+            AnimatedVisibility(
+                visible = seekShown != 0L && !inPip,
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                modifier = Modifier
+                    .align(if (seekShown < 0) Alignment.CenterStart else Alignment.CenterEnd)
+                    .padding(horizontal = 32.dp),
+            ) {
+                // Poslední směr drží i během mizení, kdy už je `seekShown` nula.
+                var lastSeek by remember { mutableLongStateOf(0L) }
+                if (seekShown != 0L) lastSeek = seekShown
+                VideoHintPill(
+                    text = stringResource(
+                        if (lastSeek < 0) Res.string.media_seek_back else Res.string.media_seek_forward,
+                        (abs(lastSeek) / 1000).toInt(),
+                    ),
+                )
+            }
+            // Podržení: dokud prst leží, hraje se rychleji — a je to vidět.
+            AnimatedVisibility(
+                visible = boosting,
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Top))
+                    .padding(top = 24.dp),
+            ) {
+                VideoHintPill(text = stringResource(Res.string.media_speed_boost))
+            }
+
+            // Pokračuje se z pamatované pozice: říct to a nabídnout začátek (`resumedFromMs`).
+            AnimatedVisibility(
+                visible = resumeHint && immersive && !inPip && !locked,
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(top = IconButtonDefaults.largeContainerSize().height + 72.dp),
+            ) {
+                Row(
+                    Modifier
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f), CircleCornerShape)
+                        .padding(start = 16.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(Res.string.media_video_resumed, formatDuration(((resumedFromMs ?: 0L) / 1000).toInt())),
+                        style = MaterialTheme.typography.labelLarge.tabularNumbers(),
+                        color = Color.White,
+                    )
+                    TextButton(
+                        onClick = {
+                            player.seekTo(0)
+                            ended = false
+                            resumeHint = false
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+                    ) {
+                        Text(stringResource(Res.string.media_video_from_start))
+                    }
+                }
             }
 
             // Tlačítko přehrání v galerii: jen přepne na celou obrazovku, video se spustí tam.
@@ -826,13 +1034,30 @@ internal fun VideoPage(
                      * nulu. Pak má vlastní řádek přes celou šířku a tlačítka jdou pod něj doprava.
                      */
                     val spacing = Arrangement.spacedBy(12.dp)
-                    if (maxWidth >= VIDEO_CONTROLS_ONE_LINE_WIDTH) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = spacing) {
-                            seekBar()
-                            extras()
+                    val width = maxWidth
+                    Column {
+                        /*
+                         * Při tahu po posuvníku snímek z místa pod prstem (storyboard od serveru).
+                         * Jede nad posuvníkem s prstem a u okrajů se zastaví, aby nevyjel z karty.
+                         */
+                        val seeking = seekingFraction
+                        if (board != null && seeking != null) {
+                            val thumbWidth = STORYBOARD_THUMB_WIDTH.coerceAtMost(width)
+                            StoryboardThumb(
+                                storyboard = board,
+                                positionMs = (seeking * durationMs).toLong(),
+                                modifier = Modifier
+                                    .padding(bottom = 8.dp)
+                                    .offset(x = (width - thumbWidth) * seeking)
+                                    .size(thumbWidth, thumbWidth * board.tileHeight / board.tileWidth),
+                            )
                         }
-                    } else {
-                        Column {
+                        if (width >= VIDEO_CONTROLS_ONE_LINE_WIDTH) {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = spacing) {
+                                seekBar()
+                                extras()
+                            }
+                        } else {
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = spacing) { seekBar() }
                             Row(
                                 Modifier.fillMaxWidth(),
@@ -974,9 +1199,30 @@ private fun BoxScope.VideoTopControls(
     }
 }
 
+/** Krátká hláška přes video (skok, zrychlení): bílý text na tmavé pilulce. */
+@Composable
+private fun VideoHintPill(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge.tabularNumbers(),
+        color = Color.White,
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f), CircleCornerShape)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+    )
+}
+
 private val CircleCornerShape = androidx.compose.foundation.shape.CircleShape
 
 private const val POSITION_TICK_MS = 200L
+private const val PROGRESS_SAVE_MS = 10_000L
+private const val RESUME_HINT_MS = 6_000L
+private const val SEEK_STEP_MS = 10_000L
+private const val SEEK_HINT_MS = 800L
+private const val BOOST_RATE = 2f
+
+/** Šířka náhledu snímku nad posuvníkem; výška podle dlaždice. */
+private val STORYBOARD_THUMB_WIDTH = 160.dp
 private const val CONTROLS_HIDE_MS = 3000L
 
 /** Na kolik dílků se posuvník videa dělí, když tiká haptika (po pětinách procenta by bzučel). */

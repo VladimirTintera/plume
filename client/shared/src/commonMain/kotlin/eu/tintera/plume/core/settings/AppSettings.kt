@@ -4,6 +4,7 @@ import eu.tintera.plume.features.conversation.StoredTranscript
 import kotlinx.serialization.json.Json
 import eu.tintera.plume.core.bookmarks.MessageBookmark
 import eu.tintera.plume.core.snooze.ChatSnooze
+import eu.tintera.plume.core.video.VideoPosition
 import eu.tintera.plume.core.chatcolor.StoredChatColor
 import eu.tintera.plume.core.ai.AiProvider
 import eu.tintera.plume.core.ai.GemmaModel
@@ -197,6 +198,16 @@ interface AppSettings {
 
     /** Uloží odložené chaty. Neblokuje. */
     fun setChatSnoozes(snoozes: List<ChatSnooze>)
+
+    /** Kde se přestalo sledovat delší videa; spravuje je [eu.tintera.plume.core.video.VideoPositions]. */
+    val videoPositions: StateFlow<List<VideoPosition>>
+
+    /**
+     * Upraví pozice videí. Neblokuje. Úprava běží nad ULOŽENÝM stavem (uvnitř `edit`), ne nad
+     * [videoPositions] — zápisy přicházejí rychle za sebou (odlistování, zavření prohlížeče)
+     * a ze zastaralé kopie by se navzájem přepsaly.
+     */
+    fun updateVideoPositions(transform: (List<VideoPosition>) -> List<VideoPosition>)
 
     /** Barvy konverzací všech účtů; filtruje a spravuje je [eu.tintera.plume.core.chatcolor.ChatColors]. */
     val chatColors: StateFlow<List<StoredChatColor>>
@@ -699,6 +710,23 @@ class DataStoreAppSettings(
         }
     }
 
+    override val videoPositions: StateFlow<List<VideoPosition>> = value(emptyList()) { preferences ->
+        preferences.videoPositions()
+    }
+
+    override fun updateVideoPositions(transform: (List<VideoPosition>) -> List<VideoPosition>) {
+        scope.launch {
+            edit { preferences ->
+                val updated = transform(preferences.videoPositions())
+                if (updated.isEmpty()) preferences.remove(VIDEO_POSITIONS) else preferences[VIDEO_POSITIONS] = storedListJson.encodeToString(updated)
+            }
+        }
+    }
+
+    private fun Preferences.videoPositions(): List<VideoPosition> = this[VIDEO_POSITIONS]?.let { stored ->
+        runCatching { storedListJson.decodeFromString<List<VideoPosition>>(stored) }.getOrNull()
+    }.orEmpty()
+
     override val chatColors: StateFlow<List<StoredChatColor>> = value(emptyList()) { preferences ->
         preferences[CHAT_COLORS]?.let { stored ->
             runCatching { storedListJson.decodeFromString<List<StoredChatColor>>(stored) }.getOrNull()
@@ -1029,6 +1057,7 @@ class DataStoreAppSettings(
         val QUIET_HOURS_ENABLED = booleanPreferencesKey("quiet_hours_enabled")
         val MESSAGE_BOOKMARKS = stringPreferencesKey("message_bookmarks")
         val CHAT_SNOOZES = stringPreferencesKey("chat_snoozes")
+        val VIDEO_POSITIONS = stringPreferencesKey("video_positions")
         val CHAT_COLORS = stringPreferencesKey("chat_colors")
         val STORED_TRANSCRIPTS = stringPreferencesKey("stored_transcripts")
         val QUIET_HOURS_START = intPreferencesKey("quiet_hours_start")
