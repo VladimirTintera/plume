@@ -108,8 +108,9 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
 - ~~**Vkládání obrázků ze schránky a přetažení souboru do okna**~~ — hotovo
   (`docs/poznatky/desktop.md`, „Vložení ze schránky a přetažení souborů"). Zbývá obrázek
   tažený z prohlížeče (přichází bez souboru).
-- **Release pro macOS a Linux** (Windows MSI už je, `desktop-release.yml`): job na
-  `macos-latest` s Homebrew `openssl@3` (DMG) a na Ubuntu (DEB). macOS chce verzi od 1.0.0.
+- **Release pro Linux a Intel Mac** (Windows MSI a DMG pro Apple Silicon už jsou,
+  `desktop-release.yml`): job na Ubuntu (DEB, glibc 2.38+) a na Intel runneru (`macos-15-intel`,
+  DMG pro macOS 15+). Ani jedno zatím nikdo nezkoušel spustit.
 - **Podpis instalátorů**: Windows (certifikát pro podepisování kódu, jinak SmartScreen),
   macOS podpis Developer ID a notarizace. Bez nich systém instalátor při prvním spuštění zastaví.
 - **Aktualizace desktopu**: aplikace o nové verzi neví; šlo by to přes GitHub Releases API.

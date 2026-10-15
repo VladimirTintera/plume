@@ -7,9 +7,9 @@
 #
 # Targety a jejich tagy:
 #   android-X.Y.Z-B   versionCode (B) se zvyšuje vždy, i při bumpu `build`.
-#   desktop-X.Y.Z     bez čísla buildu: MSI pozná aktualizaci jen podle X.Y.Z (X a Y do 255,
-#                     Z do 65535), takže bump `build` tu nejde a explicitní verze musí být vyšší
-#                     než poslední. Viz docs/poznatky/desktop.md, „Release (Windows)".
+#   desktop-X.Y.Z     bez čísla buildu: MSI pozná aktualizaci jen podle X.Y.Z (X od 1 kvůli
+#                     macOS, X a Y do 255, Z do 65535), takže bump `build` tu nejde a explicitní
+#                     verze musí být vyšší než poslední. Viz docs/poznatky/desktop.md, „Release".
 #
 # Android: první tag je potřeba vytvořit ručně podle aktuálně publikované verze. Když AAB
 # nahraješ do Play ručně, zaznamenej to suffixem -manual (release tím nespustíš):
@@ -111,7 +111,7 @@ jobs:
               if [ -n "$VERSION_OVERRIDE" ]; then
                 VERSION="$VERSION_OVERRIDE"
               elif [ -z "$LAST" ]; then
-                echo "::error::Nenalezen žádný tag 'desktop-*'. První desktop release spusť s vyplněnou Version, např. 0.3.0."
+                echo "::error::Nenalezen žádný tag 'desktop-*'. První desktop release spusť s vyplněnou Version, např. 1.0.0."
                 exit 1
               else
                 if [[ ! "$LAST" =~ ^desktop-([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
@@ -133,6 +133,11 @@ jobs:
               if [[ "$VERSION" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] \
                 && (( BASH_REMATCH[1] > 255 || BASH_REMATCH[2] > 255 || BASH_REMATCH[3] > 65535 )); then
                 echo "::error::Verze ${VERSION} je mimo rozsah MSI (X a Y do 255, Z do 65535)."
+                exit 1
+              fi
+              # macOS (jpackage) verzi s nulou na začátku nepřijme — a release staví MSI i DMG.
+              if [[ "$VERSION" =~ ^0\. ]]; then
+                echo "::error::Verze ${VERSION} začíná nulou, kterou macOS nepřijme. Z 0.x se přechází bumpem major (→ 1.0.0)."
                 exit 1
               fi
               # Nižší nebo stejnou verzi MSI přes vyšší nenainstaluje.
