@@ -188,8 +188,8 @@ import org.koin.compose.koinInject
  *   se k posuvníku u hrajícího videa nedalo dostat.
  * - **Tah dolů/nahoru zavírá** jako u fotky; vodorovný tah nechává pageru. U videa na celé
  *   obrazovce mění svislý tah v levé půlce jas (viz „Jas tahem").
- * - **Karta jako u fotky** ([MediaPageLayout]): video se zaoblením, posuvník na jejím spodku,
- *   popisek pod ní.
+ * - **Karta jako u fotky** ([MediaPageLayout]): video se zaoblením, popisek pod ní. Ovládání
+ *   přehrávače (posuvník, zámek) leží u okrajů stránky, ne na kartě.
  */
 @Composable
 internal fun VideoPage(
@@ -912,6 +912,234 @@ internal fun VideoPage(
              * nic nerekomponuje.
              */
             .offset { IntOffset(0, dismissDrag.value.roundToInt()) },
+        /*
+         * Ovládání přehrávače patří STRÁNCE, ne kartě: posuvník u spodního a zámek u horního okraje
+         * obrazovky, jako VLC, YouTube nebo Fotky Google. Video na výšku nebo čtvercové leží na
+         * celé obrazovce uprostřed s černými pruhy a ovládání v kartě viselo přes obraz uprostřed
+         * displeje; v pruzích obraz nezakrývá. Na kartě zůstává jen to, co patří k obrazu
+         * (tlačítko přehrání, průběh, hlášky uprostřed).
+         */
+        chrome = {
+            Box(Modifier.fillMaxSize()) {
+                // Podržení: dokud prst leží, hraje se rychleji — a je to vidět.
+                AnimatedVisibility(
+                    visible = boosting,
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .windowInsetsPadding(statusBarArea().union(WindowInsets.displayCutout).only(WindowInsetsSides.Top))
+                        .padding(top = 24.dp),
+                ) {
+                    VideoHintPill(text = stringResource(Res.string.media_speed_boost))
+                }
+
+                // Jas tahem: kolik teď je, u horního okraje jako zrychlení podržením.
+                AnimatedVisibility(
+                    visible = brightnessShown && brightness != null,
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .windowInsetsPadding(statusBarArea().union(WindowInsets.displayCutout).only(WindowInsetsSides.Top))
+                        .padding(top = 24.dp),
+                ) {
+                    // Úroveň drží i během mizení, kdy už jas může být vrácený.
+                    var lastLevel by remember { mutableFloatStateOf(0f) }
+                    brightness?.let { lastLevel = it.level }
+                    BrightnessPill(level = { lastLevel })
+                }
+
+                // Posuvník leží u spodního okraje stránky s přechodem do tmava — na světlém záběru
+                // by bílý posuvník jinak zmizel.
+                AnimatedVisibility(
+                    visible = immersive && loaded && controlsVisible && !inPip && !locked,
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                ) {
+                    BoxWithConstraints(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(Color.Transparent, MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f)),
+                                ),
+                            )
+                            /*
+                             * Ovládání se ukazuje jen na celé obrazovce, kde karta sahá až ke spodní
+                             * hraně displeje. Bez odsazení ležel posuvník v POVINNÉ zóně systémových
+                             * gest (na emulátoru Pixel 9 posledních 84 px) a vodorovný tah po něm
+                             * přepnul aplikace, místo aby posunul video. Přechod do tmava jde dál
+                             * až ke hraně, odsadí se jen obsah.
+                             */
+                            .windowInsetsPadding(
+                                WindowInsets.navigationBars.union(WindowInsets.mandatorySystemGestures)
+                                    .only(WindowInsetsSides.Bottom)
+                                    // Na šířku leží navigační lišta nebo výřez po straně — lišta jde přes celou šířku stránky.
+                                    .union(WindowInsets.navigationBars.union(WindowInsets.displayCutout).only(WindowInsetsSides.Horizontal)),
+                            )
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                    ) {
+                        val fraction = seekingFraction
+                            ?: if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+                        // Kolik je staženo — dřív zvláštní kroužek v rohu karty, teď na dráze posuvníku.
+                        val buffered = bufferedSpan(file)
+                        val haptics = LocalHapticFeedback.current
+                        // Tahem se tiká po dílcích, ne po pixelech — jako po sloupcích waveformu hlasovky.
+                        var tickedStep by remember { mutableIntStateOf(-1) }
+                        val seekBar: @Composable RowScope.() -> Unit = {
+                            Text(
+                                text = formatDuration(((fraction * durationMs) / 1000).toInt()),
+                                style = MaterialTheme.typography.labelMedium.tabularNumbers(),
+                                color = Color.White,
+                            )
+                            Slider(
+                                value = fraction,
+                                onValueChange = {
+                                    seekingFraction = it
+                                    controlsVisible = true
+                                    val step = (it * VIDEO_SEEK_STEPS).toInt().coerceIn(0, VIDEO_SEEK_STEPS - 1)
+                                    if (step != tickedStep) {
+                                        if (tickedStep >= 0) haptics.tick()
+                                        tickedStep = step
+                                    }
+                                },
+                                onValueChangeFinished = {
+                                    seekingFraction?.let { player.seekTo((it * durationMs).toLong()) }
+                                    seekingFraction = null
+                                    ended = false
+                                    tickedStep = -1
+                                },
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color.White,
+                                    activeTrackColor = Color.White,
+                                    inactiveTrackColor = Color.White.copy(alpha = 0.35f),
+                                ),
+                                /*
+                                 * Dráha se vlní, dokud video hraje, a po pozastavení i během tahu se
+                                 * narovná — tentýž význam jako vlnka hrající hlasovky („teď zní", viz
+                                 * `docs/poznatky/prohlizec-medii.md`, „Video"). Přechod amplitudy animuje indikátor sám.
+                                 */
+                                track = { sliderState ->
+                                    VideoSeekTrack(
+                                        progress = { sliderState.value },
+                                        buffered = buffered,
+                                        wavy = playing && seekingFraction == null,
+                                    )
+                                },
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                text = formatDuration((durationMs / 1000).toInt()),
+                                style = MaterialTheme.typography.labelMedium.tabularNumbers(),
+                                color = Color.White,
+                            )
+                        }
+                        val extras: @Composable RowScope.() -> Unit = {
+                            quality?.let { menu ->
+                                VideoQualityChip(
+                                    menu = menu,
+                                    expanded = qualityMenuOpen,
+                                    onExpandedChange = { open ->
+                                        qualityMenuOpen = open
+                                        controlsVisible = true
+                                    },
+                                )
+                            }
+                            // Rychlost a zvuk za časem, jako u hlasovky; bílé na tmavém přechodu karty.
+                            SpeedChip(
+                                speed = speed,
+                                accent = Color.White,
+                                onAccent = Color.Black,
+                                onClick = {
+                                    settings.setVideoSpeed(speed.next())
+                                    controlsVisible = true
+                                },
+                            )
+                            if (pip?.supported == true) {
+                                IconButton(
+                                    onClick = pip::enter,
+                                    colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                                    shapes = IconButtonDefaults.shapes(),
+                                ) {
+                                    Icon(
+                                        painterResource(Res.drawable.picture_in_picture_alt_24dp),
+                                        contentDescription = stringResource(Res.string.media_picture_in_picture),
+                                    )
+                                }
+                            }
+                            onToggleMute?.let { toggle ->
+                                IconButton(
+                                    onClick = {
+                                        toggle()
+                                        controlsVisible = true
+                                    },
+                                    colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                                    shapes = IconButtonDefaults.shapes(),
+                                ) {
+                                    Icon(
+                                        painterResource(if (muted) Res.drawable.volume_off_24dp else Res.drawable.volume_up_24dp),
+                                        contentDescription = stringResource(if (muted) Res.string.media_unmute else Res.string.media_mute),
+                                    )
+                                }
+                            }
+                        }
+                        /*
+                         * Na úzké stránce (telefon na výšku) se do jednoho řádku s časy a tlačítky
+                         * posuvník nevejde — zbyl by mu palec. Pak má vlastní řádek přes celou šířku
+                         * a tlačítka jdou pod něj doprava.
+                         */
+                        val spacing = Arrangement.spacedBy(12.dp)
+                        val width = maxWidth
+                        Column {
+                            /*
+                             * Při tahu po posuvníku snímek z místa pod prstem (storyboard od serveru).
+                             * Jede nad posuvníkem s prstem a u okrajů se zastaví, aby nevyjel z karty.
+                             */
+                            val seeking = seekingFraction
+                            if (board != null && seeking != null) {
+                                val thumbWidth = STORYBOARD_THUMB_WIDTH.coerceAtMost(width)
+                                StoryboardThumb(
+                                    storyboard = board,
+                                    positionMs = (seeking * durationMs).toLong(),
+                                    modifier = Modifier
+                                        .padding(bottom = 8.dp)
+                                        .offset(x = (width - thumbWidth) * seeking)
+                                        .size(thumbWidth, thumbWidth * board.tileHeight / board.tileWidth),
+                                )
+                            }
+                            if (width >= VIDEO_CONTROLS_ONE_LINE_WIDTH) {
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = spacing) {
+                                    seekBar()
+                                    extras()
+                                }
+                            } else {
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = spacing) { seekBar() }
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+                                ) { extras() }
+                            }
+                        }
+                    }
+                }
+
+                if (fullscreen != null) {
+                    VideoTopControls(
+                        visible = immersive && loaded && !inPip && if (locked) lockHint else controlsVisible,
+                        locked = locked,
+                        onLockChange = { on ->
+                            fullscreen.onLockChange(on)
+                            // Odemčení vrací ovládání hned; zamčení ho schová (podmínka `!locked`).
+                            if (!on) controlsVisible = true
+                        },
+                        onRotate = fullscreen.onRotate,
+                    )
+                }
+            }
+        },
     ) {
         // Zaoblení se ořezává v layoutu, ne ve vrstvě: nativní view s videem (UIKit) ořez
         // vrstvy nedostane. Na celé obrazovce je nulové, takže přechod se kreslí jen nad náhledem.
@@ -983,35 +1211,6 @@ internal fun VideoPage(
                     ),
                 )
             }
-            // Podržení: dokud prst leží, hraje se rychleji — a je to vidět.
-            AnimatedVisibility(
-                visible = boosting,
-                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
-                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Top))
-                    .padding(top = 24.dp),
-            ) {
-                VideoHintPill(text = stringResource(Res.string.media_speed_boost))
-            }
-
-            // Jas tahem: kolik teď je, u horního okraje jako zrychlení podržením.
-            AnimatedVisibility(
-                visible = brightnessShown && brightness != null,
-                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
-                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Top))
-                    .padding(top = 24.dp),
-            ) {
-                // Úroveň drží i během mizení, kdy už jas může být vrácený.
-                var lastLevel by remember { mutableFloatStateOf(0f) }
-                brightness?.let { lastLevel = it.level }
-                BrightnessPill(level = { lastLevel })
-            }
-
             // Pokračuje se z pamatované pozice: říct to a nabídnout začátek (`resumedFromMs`).
             AnimatedVisibility(
                 visible = resumeHint && immersive && !inPip && !locked,
@@ -1116,193 +1315,6 @@ internal fun VideoPage(
                 }
             }
 
-            // Posuvník leží na spodku karty s přechodem do tmava — na světlém záběru by bílý
-            // posuvník jinak zmizel.
-            AnimatedVisibility(
-                visible = immersive && loaded && controlsVisible && !inPip && !locked,
-                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
-                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
-                modifier = Modifier.align(Alignment.BottomCenter),
-            ) {
-                BoxWithConstraints(
-                    Modifier
-                        .fillMaxWidth()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color.Transparent, MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f)),
-                            ),
-                        )
-                        /*
-                         * Ovládání se ukazuje jen na celé obrazovce, kde karta sahá až ke spodní
-                         * hraně displeje. Bez odsazení ležel posuvník v POVINNÉ zóně systémových
-                         * gest (na emulátoru Pixel 9 posledních 84 px) a vodorovný tah po něm
-                         * přepnul aplikace, místo aby posunul video. Přechod do tmava jde dál
-                         * až ke hraně, odsadí se jen obsah.
-                         */
-                        .windowInsetsPadding(
-                            WindowInsets.navigationBars.union(WindowInsets.mandatorySystemGestures)
-                                .only(WindowInsetsSides.Bottom),
-                        )
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                ) {
-                    val fraction = seekingFraction
-                        ?: if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
-                    // Kolik je staženo — dřív zvláštní kroužek v rohu karty, teď na dráze posuvníku.
-                    val buffered = bufferedSpan(file)
-                    val haptics = LocalHapticFeedback.current
-                    // Tahem se tiká po dílcích, ne po pixelech — jako po sloupcích waveformu hlasovky.
-                    var tickedStep by remember { mutableIntStateOf(-1) }
-                    val seekBar: @Composable RowScope.() -> Unit = {
-                        Text(
-                            text = formatDuration(((fraction * durationMs) / 1000).toInt()),
-                            style = MaterialTheme.typography.labelMedium.tabularNumbers(),
-                            color = Color.White,
-                        )
-                        Slider(
-                            value = fraction,
-                            onValueChange = {
-                                seekingFraction = it
-                                controlsVisible = true
-                                val step = (it * VIDEO_SEEK_STEPS).toInt().coerceIn(0, VIDEO_SEEK_STEPS - 1)
-                                if (step != tickedStep) {
-                                    if (tickedStep >= 0) haptics.tick()
-                                    tickedStep = step
-                                }
-                            },
-                            onValueChangeFinished = {
-                                seekingFraction?.let { player.seekTo((it * durationMs).toLong()) }
-                                seekingFraction = null
-                                ended = false
-                                tickedStep = -1
-                            },
-                            colors = SliderDefaults.colors(
-                                thumbColor = Color.White,
-                                activeTrackColor = Color.White,
-                                inactiveTrackColor = Color.White.copy(alpha = 0.35f),
-                            ),
-                            /*
-                             * Dráha se vlní, dokud video hraje, a po pozastavení i během tahu se
-                             * narovná — tentýž význam jako vlnka hrající hlasovky („teď zní", viz
-                             * `docs/poznatky/prohlizec-medii.md`, „Video"). Přechod amplitudy animuje indikátor sám.
-                             */
-                            track = { sliderState ->
-                                VideoSeekTrack(
-                                    progress = { sliderState.value },
-                                    buffered = buffered,
-                                    wavy = playing && seekingFraction == null,
-                                )
-                            },
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            text = formatDuration((durationMs / 1000).toInt()),
-                            style = MaterialTheme.typography.labelMedium.tabularNumbers(),
-                            color = Color.White,
-                        )
-                    }
-                    val extras: @Composable RowScope.() -> Unit = {
-                        quality?.let { menu ->
-                            VideoQualityChip(
-                                menu = menu,
-                                expanded = qualityMenuOpen,
-                                onExpandedChange = { open ->
-                                    qualityMenuOpen = open
-                                    controlsVisible = true
-                                },
-                            )
-                        }
-                        // Rychlost a zvuk za časem, jako u hlasovky; bílé na tmavém přechodu karty.
-                        SpeedChip(
-                            speed = speed,
-                            accent = Color.White,
-                            onAccent = Color.Black,
-                            onClick = {
-                                settings.setVideoSpeed(speed.next())
-                                controlsVisible = true
-                            },
-                        )
-                        if (pip?.supported == true) {
-                            IconButton(
-                                onClick = pip::enter,
-                                colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
-                                shapes = IconButtonDefaults.shapes(),
-                            ) {
-                                Icon(
-                                    painterResource(Res.drawable.picture_in_picture_alt_24dp),
-                                    contentDescription = stringResource(Res.string.media_picture_in_picture),
-                                )
-                            }
-                        }
-                        onToggleMute?.let { toggle ->
-                            IconButton(
-                                onClick = {
-                                    toggle()
-                                    controlsVisible = true
-                                },
-                                colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
-                                shapes = IconButtonDefaults.shapes(),
-                            ) {
-                                Icon(
-                                    painterResource(if (muted) Res.drawable.volume_off_24dp else Res.drawable.volume_up_24dp),
-                                    contentDescription = stringResource(if (muted) Res.string.media_unmute else Res.string.media_mute),
-                                )
-                            }
-                        }
-                    }
-                    /*
-                     * Na úzké kartě (telefon na výšku, video na výšku otočené na šířku) se do
-                     * jednoho řádku s časy a tlačítky posuvník nevejde — na šířku ho stlačilo na
-                     * nulu. Pak má vlastní řádek přes celou šířku a tlačítka jdou pod něj doprava.
-                     */
-                    val spacing = Arrangement.spacedBy(12.dp)
-                    val width = maxWidth
-                    Column {
-                        /*
-                         * Při tahu po posuvníku snímek z místa pod prstem (storyboard od serveru).
-                         * Jede nad posuvníkem s prstem a u okrajů se zastaví, aby nevyjel z karty.
-                         */
-                        val seeking = seekingFraction
-                        if (board != null && seeking != null) {
-                            val thumbWidth = STORYBOARD_THUMB_WIDTH.coerceAtMost(width)
-                            StoryboardThumb(
-                                storyboard = board,
-                                positionMs = (seeking * durationMs).toLong(),
-                                modifier = Modifier
-                                    .padding(bottom = 8.dp)
-                                    .offset(x = (width - thumbWidth) * seeking)
-                                    .size(thumbWidth, thumbWidth * board.tileHeight / board.tileWidth),
-                            )
-                        }
-                        if (width >= VIDEO_CONTROLS_ONE_LINE_WIDTH) {
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = spacing) {
-                                seekBar()
-                                extras()
-                            }
-                        } else {
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = spacing) { seekBar() }
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
-                            ) { extras() }
-                        }
-                    }
-                }
-            }
-
-            if (fullscreen != null) {
-                VideoTopControls(
-                    visible = immersive && loaded && !inPip && if (locked) lockHint else controlsVisible,
-                    locked = locked,
-                    onLockChange = { on ->
-                        fullscreen.onLockChange(on)
-                        // Odemčení vrací ovládání hned; zamčení ho schová (podmínka `!locked`).
-                        if (!on) controlsVisible = true
-                    },
-                    onRotate = fullscreen.onRotate,
-                )
-            }
-
             if (!inPip) overlay()
         }
     }
@@ -1320,14 +1332,14 @@ internal class VideoFullscreen(
 )
 
 /**
- * Zámek a otočení v levém horním rohu karty.
+ * Zámek a otočení v levém horním rohu stránky.
  *
  * - **Dole místo není**: čas, posuvník, rychlost, obraz v obraze a zvuk. S dalšími dvěma
  *   tlačítky by posuvníku na telefonu na výšku zbyl palec.
  * - **Zamčené video ukazuje jen zámek**, vyplněný: ťuknutí kamkoli ho vytáhne, ťuknutí na něj
  *   odemkne. Stav nese výplň, ne jen tvar ikony.
- * - **Roh ustupuje stavové liště a výřezu, jen kam karta opravdu sahá** (insety samy nevědí,
- *   kde prvek leží, takže se porovnávají s polohou karty v okně).
+ * - **Roh ustupuje stavové liště a výřezu, jen kam stránka opravdu sahá** (insety samy nevědí,
+ *   kde prvek leží, takže se porovnávají s polohou v okně).
  *   Bere se místo lišty i schované ([statusBarArea]): vrací se spolu s ovládáním a tlačítka by
  *   jinak během jejího vyjetí poskočila.
  */
@@ -1473,7 +1485,7 @@ private const val CONTROLS_HIDE_MS = 3000L
 private const val VIDEO_SEEK_STEPS = 20
 
 /**
- * Od jaké šířky karty se posuvník vejde do jednoho řádku s časy a tlačítky. Časy, rychlost,
+ * Od jaké šířky stránky se posuvník vejde do jednoho řádku s časy a tlačítky. Časy, rychlost,
  * obraz v obraze a zvuk zaberou kolem 320 dp; posuvníku má zbýt aspoň půlka telefonu.
  */
 private val VIDEO_CONTROLS_ONE_LINE_WIDTH = 480.dp

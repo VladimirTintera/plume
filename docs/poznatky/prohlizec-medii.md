@@ -1158,10 +1158,18 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
     přes `supportedInterfaceOrientationsFor` v delegátu aplikace.
   - **Dole místo není**, proto zámek a otočení leží nahoře: s dalšími dvěma tlačítky by
     posuvníku na telefonu na výšku zbyl palec.
-  - **Na úzké kartě má posuvník vlastní řádek** (pod 480 dp, `VIDEO_CONTROLS_ONE_LINE_WIDTH`),
-    tlačítka jdou pod něj doprava. Video na výšku otočené na šířku má kartu široká asi 400 dp
-    a v jednom řádku s časy a tlačítky posuvník stlačilo na nulu; na telefonu na výšku mu
-    zbývalo kolem 100 dp. Rozhoduje šířka KARTY (`BoxWithConstraints`), ne okna.
+  - **Ovládání leží u okrajů STRÁNKY, ne na kartě s videem** (slot `chrome` v `MediaPageLayout`):
+    posuvník u spodního, zámek a otočení u horního okraje obrazovky, jako VLC, YouTube nebo Fotky
+    Google. Dokud bylo v kartě, viselo u videa na výšku nebo čtvercového přes obraz uprostřed
+    displeje, zatímco černé pruhy nad a pod ním zůstaly prázdné. Na kartě zůstalo jen to, co patří
+    k obrazu: tlačítko přehrát, průběh rozběhu, hlášky uprostřed a skok o 10 s. Pilulky zrychlení
+    a jasu jsou nahoře na stránce pod místem stavové lišty (`statusBarArea`). Lišta dole bere
+    i boční insety (navigační lišta a výřez na šířku), protože jde přes celou šířku stránky.
+    Ověřeno na emulátoru na výšku (čtvercové video, ovládání v pruzích) i na šířku.
+  - **Na úzké stránce má posuvník vlastní řádek** (pod 480 dp, `VIDEO_CONTROLS_ONE_LINE_WIDTH`),
+    tlačítka jdou pod něj doprava; na telefonu na výšku by mu v jednom řádku s časy a tlačítky
+    zbylo kolem 100 dp. Rozhoduje šířka stránky (`BoxWithConstraints`). Dřív to byla šířka karty
+    a video na výšku otočené na šířku (karta asi 400 dp) stlačilo posuvník na nulu.
   - **Ověřeno na emulátoru** (Pixel 9, Android 17, software dekodér, viz „GIFy"): příznak
     `KEEP_SCREEN_ON` na okně jen během přehrávání (`dumpsys window windows`), lišty schované
     s ovládáním (`statusBars visible=false`), zámek vydrží tah dolů, do strany, klávesu i gesto

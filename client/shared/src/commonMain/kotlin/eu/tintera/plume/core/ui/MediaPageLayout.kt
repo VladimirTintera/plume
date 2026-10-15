@@ -51,6 +51,11 @@ fun MediaPageLayout(
      * umístění, takže posun pageru nic nerekomponuje.
      */
     cardBias: () -> Float = { 0f },
+    /**
+     * Vrstva přes CELOU stránku nad kartou a popiskem — ovládání, které patří k okrajům
+     * obrazovky, ne ke snímku (posuvník videa). Dostane přesnou velikost stránky.
+     */
+    chrome: @Composable () -> Unit = {},
     card: @Composable () -> Unit,
 ) {
     Layout(
@@ -70,9 +75,10 @@ fun MediaPageLayout(
                     )
                 }
             },
+            chrome,
         ),
         modifier = modifier,
-    ) { (cardMeasurables, captionMeasurables), constraints ->
+    ) { (cardMeasurables, captionMeasurables, chromeMeasurables), constraints ->
         val width = constraints.maxWidth
         val height = constraints.maxHeight
         val caption = captionMeasurables.firstOrNull()?.measure(Constraints(maxWidth = width))
@@ -87,6 +93,7 @@ fun MediaPageLayout(
             aspectRatio = aspectRatio,
         )
         val card = cardMeasurables.first().measure(Constraints.fixed(frame.width, frame.height))
+        val chrome = chromeMeasurables.map { it.measure(Constraints.fixed(width, height)) }
 
         layout(width, height) {
             val left = ((width - frame.width) / 2f * (1f + cardBias().coerceIn(-1f, 1f))).roundToInt()
@@ -95,6 +102,7 @@ fun MediaPageLayout(
             caption?.place(
                 IntOffset(left.coerceAtMost(width - caption.width), frame.bottom + (CAPTION_GAP.roundToPx() * gallery).roundToInt()),
             )
+            chrome.forEach { it.place(0, 0) }
         }
     }
 }
