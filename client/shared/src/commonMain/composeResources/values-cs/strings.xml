@@ -274,6 +274,8 @@
     <string name="media_self_destruct_video">Mizející video</string>
     <string name="media_download">Stáhnout</string>
     <string name="media_position">%1$d z %2$d</string>
+    <string name="media_previous">Předchozí</string>
+    <string name="media_next">Další</string>
     <string name="media_unsupported">Tenhle typ přílohy zatím neumíme otevřít.</string>
     <string name="media_save">Uložit do galerie</string>
     <string name="media_saved">Uloženo do galerie</string>

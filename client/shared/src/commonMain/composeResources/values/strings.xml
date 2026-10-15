@@ -269,6 +269,8 @@
     <string name="media_self_destruct_video">Self-destructing video</string>
     <string name="media_download">Download</string>
     <string name="media_position">%1$d of %2$d</string>
+    <string name="media_previous">Previous</string>
+    <string name="media_next">Next</string>
     <string name="media_unsupported">We can't open this kind of attachment yet.</string>
     <string name="media_save">Save to gallery</string>
     <string name="media_saved">Saved to gallery</string>

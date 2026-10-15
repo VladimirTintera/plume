@@ -25,17 +25,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isCtrlPressed
+import androidx.compose.ui.input.pointer.isMetaPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.ui.MEDIA_CARD_CORNER
 import eu.tintera.plume.core.ui.MediaPageLayout
 import eu.tintera.plume.core.ui.threshold
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.pow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 /**
@@ -59,6 +67,15 @@ import kotlinx.coroutines.launch
  *
  * Posun i přiblížení se čtou **až v `graphicsLayer`**, takže se při gestu nic nerekomponuje;
  * překresluje se jen vrstva s obrázkem.
+ *
+ * **Myš a klávesnice** (desktop, Android s myší): štípnutí potřebuje dva prsty, takže myš by
+ * uměla jen dvojklik na 2,5×. Proto:
+ * - **Ctrl + kolečko přibližuje kolem kurzoru** (s ⌘ taky). Na Windows posílá štípnutí na
+ *   touchpadu systém právě jako Ctrl + kolečko, takže tatáž obsluha pokryje i touchpad.
+ *   Události štípnutí, které Compose zná (`ScaleChange`), desktopová vrstva neposílá vůbec.
+ * - **Kolečko bez Ctrl posouvá přiblíženou fotku** (Shift do strany). Nepřiblížené nechá být —
+ *   pager pak dostane Shift + kolečko a touchpad do strany jako dřív.
+ * - **Klávesy +/−/0** posílá obrazovka jako [zoomSteps]; přibližuje se kolem středu stránky.
  */
 @Composable
 internal fun ZoomableMediaPage(
@@ -83,6 +100,8 @@ internal fun ZoomableMediaPage(
     onEngage: () -> Unit,
     /** Přiblížit jde jen odkrytý snímek; zakrytý spoilerem dvojité ťuknutí jen ťukne. */
     zoomable: Boolean = true,
+    /** Přiblížení z klávesnice (+/−/0); bere si ho jen stránka, na které pager stojí. */
+    zoomSteps: Flow<ZoomStep>? = null,
     modifier: Modifier = Modifier,
     /** Modifikátor karty se snímkem, pod přiblížením (sdílený prvek z bubliny). */
     cardModifier: Modifier = Modifier,
@@ -117,6 +136,37 @@ internal fun ZoomableMediaPage(
         }
     }
 
+    /** Přiblížení na [target] s animací; bod [focus] zůstane na místě (kromě návratu na 1×). */
+    suspend fun animateZoom(target: Float, focus: Offset) {
+        val destination = if (target == 1f) Offset.Zero else card.zoomedOffset(focus, Offset(offsetX, offsetY), scale, target)
+        val fromScale = scale
+        val fromX = offsetX
+        val fromY = offsetY
+        // Jedna animace řídí všechny tři hodnoty, aby se posun nerozešel s přiblížením a fotka
+        // po cestě neuhýbala.
+        animate(0f, 1f) { progress, _ ->
+            scale = fromScale + (target - fromScale) * progress
+            offsetX = fromX + (destination.x - fromX) * progress
+            offsetY = fromY + (destination.y - fromY) * progress
+        }
+    }
+
+    // Klávesy +/−/0 z obrazovky. Kroky se zpracují postupně, rychlé mačkání se nesloučí.
+    LaunchedEffect(isCurrent, zoomSteps) {
+        if (!isCurrent || zoomSteps == null) return@LaunchedEffect
+        zoomSteps.collect { step ->
+            if (!currentZoomable) return@collect
+            val target = when (step) {
+                ZoomStep.In -> (scale * KEY_ZOOM_STEP).coerceAtMost(MAX_SCALE)
+                ZoomStep.Out -> (scale / KEY_ZOOM_STEP).coerceAtLeast(1f)
+                ZoomStep.Reset -> 1f
+            }
+            if (target == scale) return@collect
+            if (target > 1f) currentEngage()
+            animateZoom(target, Offset(card.page.width / 2f, card.page.height / 2f))
+        }
+    }
+
     // Galerie přiblížení nezná: fotka dosedne zpátky spolu s tím, jak se karta zmenšuje.
     LaunchedEffect(immersive) {
         if (!immersive && scale != 1f) {
@@ -140,14 +190,48 @@ internal fun ZoomableMediaPage(
         captionAlpha = captionAlpha,
         cardBias = cardBias,
         modifier = modifier
+            .onSizeChanged { card.page = it }
+            // Kolečko myši: s Ctrl (⌘) přibližuje kolem kurzoru, bez něj posouvá přiblíženou fotku.
             .pointerInput(Unit) {
-                /** Meze posunu: přiblížená fotka nesmí odjet tak, aby kraj stránky zůstal prázdný. */
-                fun clampOffset(x: Float, y: Float, forScale: Float): Offset {
-                    val maxX = max(0f, (card.bounds.width * forScale - size.width) / 2f)
-                    val maxY = max(0f, (card.bounds.height * forScale - size.height) / 2f)
-                    return Offset(x.coerceIn(-maxX, maxX), y.coerceIn(-maxY, maxY))
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        if (event.type != PointerEventType.Scroll) continue
+                        val change = event.changes.firstOrNull() ?: continue
+                        if (change.isConsumed) continue
+                        val delta = event.changes.fold(Offset.Zero) { sum, it -> sum + it.scrollDelta }
+                        val zoomKey = event.keyboardModifiers.isCtrlPressed || event.keyboardModifiers.isMetaPressed
+                        when {
+                            zoomKey && currentZoomable -> {
+                                // `scrollDelta` je v zubech kolečka (touchpad posílá zlomky),
+                                // takže zub = jeden násobek kroku a štípnutí je plynulé.
+                                val target = (scale * WHEEL_ZOOM_STEP.pow(-delta.y)).coerceIn(1f, MAX_SCALE)
+                                if (target != scale) {
+                                    if (target > 1f) currentEngage()
+                                    val destination = if (target == 1f) {
+                                        Offset.Zero
+                                    } else {
+                                        card.zoomedOffset(change.position, Offset(offsetX, offsetY), scale, target)
+                                    }
+                                    scale = target
+                                    offsetX = destination.x
+                                    offsetY = destination.y
+                                }
+                                // I na krajích (1×, 5×): okno ani pager Ctrl + kolečko dostat nemají.
+                                change.consume()
+                            }
+                            scale > 1f -> {
+                                val step = WHEEL_PAN_STEP.toPx()
+                                val moved = card.clamp(offsetX - delta.x * step, offsetY - delta.y * step, scale)
+                                offsetX = moved.x
+                                offsetY = moved.y
+                                change.consume()
+                            }
+                        }
+                    }
                 }
-
+            }
+            .pointerInput(Unit) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
                     var gesture = Gesture.Undecided
@@ -193,7 +277,7 @@ internal fun ZoomableMediaPage(
                                     val relativeY = centroid.y - card.bounds.center.y
                                     val factor = next / scale
 
-                                    val clamped = clampOffset(
+                                    val clamped = card.clamp(
                                         x = relativeX - (relativeX - offsetX) * factor + pan.x,
                                         y = relativeY - (relativeY - offsetY) * factor + pan.y,
                                         forScale = next,
@@ -244,34 +328,7 @@ internal fun ZoomableMediaPage(
                         }
                         currentEngage()
                         val target = if (scale > 1f) 1f else DOUBLE_TAP_SCALE
-                        val relativeX = tap.x - card.bounds.center.x
-                        val relativeY = tap.y - card.bounds.center.y
-                        val factor = target / scale
-
-                        val destination = if (target == 1f) {
-                            Offset.Zero
-                        } else {
-                            val maxX = max(0f, (card.bounds.width * target - size.width) / 2f)
-                            val maxY = max(0f, (card.bounds.height * target - size.height) / 2f)
-                            Offset(
-                                (relativeX - (relativeX - offsetX) * factor).coerceIn(-maxX, maxX),
-                                (relativeY - (relativeY - offsetY) * factor).coerceIn(-maxY, maxY),
-                            )
-                        }
-
-                        val fromScale = scale
-                        val fromX = offsetX
-                        val fromY = offsetY
-
-                        scope.launch {
-                            // Jedna animace řídí všechny tři hodnoty, aby se posun
-                            // nerozešel s přiblížením a fotka po cestě neuhýbala.
-                            animate(0f, 1f) { progress, _ ->
-                                scale = fromScale + (target - fromScale) * progress
-                                offsetX = fromX + (destination.x - fromX) * progress
-                                offsetY = fromY + (destination.y - fromY) * progress
-                            }
-                        }
+                        scope.launch { animateZoom(target, tap) }
                     },
                 )
             }
@@ -310,7 +367,29 @@ internal fun ZoomableMediaPage(
 /** Kde leží karta se snímkem ve stránce. Mění se při layoutu, čte se jen v gestech — proto ne stav. */
 private class CardGeometry {
     var bounds: Rect = Rect.Zero
+    var page: IntSize = IntSize.Zero
+
+    /** Meze posunu: přiblížená fotka nesmí odjet tak, aby kraj stránky zůstal prázdný. */
+    fun clamp(x: Float, y: Float, forScale: Float): Offset {
+        val maxX = max(0f, (bounds.width * forScale - page.width) / 2f)
+        val maxY = max(0f, (bounds.height * forScale - page.height) / 2f)
+        return Offset(x.coerceIn(-maxX, maxX), y.coerceIn(-maxY, maxY))
+    }
+
+    /**
+     * Posun po přiblížení z [fromScale] na [toScale] tak, aby bod [focus] (souřadnice stránky)
+     * zůstal na místě — přibližuje se kolem kurzoru nebo ťuknutí, ne kolem středu.
+     */
+    fun zoomedOffset(focus: Offset, from: Offset, fromScale: Float, toScale: Float): Offset {
+        val relativeX = focus.x - bounds.center.x
+        val relativeY = focus.y - bounds.center.y
+        val factor = toScale / fromScale
+        return clamp(relativeX - (relativeX - from.x) * factor, relativeY - (relativeY - from.y) * factor, toScale)
+    }
 }
+
+/** Krok přiblížení z klávesnice. */
+internal enum class ZoomStep { In, Out, Reset }
 
 /** Co právě dělá prst na fotce. Rozhoduje se jednou za gesto, po překročení slopu. */
 private enum class Gesture { Undecided, Transform, Dismiss, Page }
@@ -320,3 +399,12 @@ private const val MAX_SCALE = 5f
 
 /** Kam skočí dvojité ťuknutí. */
 private const val DOUBLE_TAP_SCALE = 2.5f
+
+/** Přiblížení na jeden zub kolečka s Ctrl. */
+private const val WHEEL_ZOOM_STEP = 1.25f
+
+/** Přiblížení na jedno stisknutí +/−. */
+private const val KEY_ZOOM_STEP = 1.5f
+
+/** Posun přiblížené fotky na jeden zub kolečka. */
+private val WHEEL_PAN_STEP = 64.dp

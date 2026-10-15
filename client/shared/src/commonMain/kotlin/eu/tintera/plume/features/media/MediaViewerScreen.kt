@@ -1,5 +1,21 @@
 package eu.tintera.plume.features.media
 
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.utf16CodePoint
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import eu.tintera.plume.core.video.VideoQualityChoice
 import eu.tintera.plume.resources.text_select_24dp
 import eu.tintera.plume.resources.media_text_hide
@@ -482,7 +498,50 @@ private fun ViewerContent(
     val topInset = with(density) { WindowInsets.statusBars.getTop(this).toDp() } + TOP_BAR_HEIGHT
     val bottomInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() } + BOTTOM_BAR_HEIGHT
 
-    Box(Modifier.fillMaxSize()) {
+    /*
+     * Myš a klávesnice (desktop, Android s klávesnicí): ←/→ a šipky po stranách listují, +/−/0
+     * přibližují (viz `ViewerControls.kt`). Listuje se jen tam, kam by šel i tah — zamčené video
+     * ne. Fokus si prohlížeč bere hned, jinak by klávesa nedošla nikam: v Compose ji dostane jen
+     * zaostřený prvek a jeho předci.
+     */
+    val pagerScroll = !(controlsLocked && current?.media is MessageMedia.Video)
+    val scope = rememberCoroutineScope()
+    val goToPage = { target: Int ->
+        if (pagerScroll && target in 0 until pagerState.pageCount) scope.launch { pagerState.animateScrollToPage(target) }
+    }
+    val zoomSteps = remember { MutableSharedFlow<ZoomStep>(extraBufferCapacity = 4) }
+    val mouse = remember { MouseActivity() }
+    val keyFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { keyFocus.requestFocus() }
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                val action = viewerKey(
+                    key = event.key,
+                    char = event.utf16CodePoint.takeIf { it > 0 }?.toChar(),
+                    ctrl = event.isCtrlPressed,
+                    alt = event.isAltPressed,
+                    shift = event.isShiftPressed,
+                    meta = event.isMetaPressed,
+                    rtl = rtl,
+                ) ?: return@onPreviewKeyEvent false
+                when (action) {
+                    ViewerKey.Previous -> goToPage(pagerState.currentPage - 1)
+                    ViewerKey.Next -> goToPage(pagerState.currentPage + 1)
+                    ViewerKey.ZoomIn -> zoomSteps.tryEmit(ZoomStep.In)
+                    ViewerKey.ZoomOut -> zoomSteps.tryEmit(ZoomStep.Out)
+                    ViewerKey.ZoomReset -> zoomSteps.tryEmit(ZoomStep.Reset)
+                }
+                true
+            }
+            .focusRequester(keyFocus)
+            .focusable()
+            .trackMouse(mouse),
+    ) {
         MediaCarousel(
             pagerState = pagerState,
             pageKey = { latestItems[it].messageId },
@@ -492,7 +551,7 @@ private fun ViewerContent(
             // Otevřená fotka je vidět hned, sousedé se dotahují až pod ní — nesmí naskočit.
             animateArrivals = true,
             // Zamčené video se nesmí odlistovat; zámek drží jen stránka s videem.
-            userScrollEnabled = !(controlsLocked && current?.media is MessageMedia.Video),
+            userScrollEnabled = pagerScroll,
             // Pozadí bere malý náhled, ne ostrou verzi: pod rozostřením detail nic nepřidá
             // a náhled je na disku skoro vždycky, protože ho kreslila konverzace.
             backdrop = { index ->
@@ -584,6 +643,7 @@ private fun ViewerContent(
                     modifier = pageModifier,
                     captionAlpha = captionAlpha,
                     cardBias = cardBias,
+                    zoomSteps = zoomSteps,
                 )
 
                 else -> Unit
@@ -591,6 +651,15 @@ private fun ViewerContent(
         }
 
         SystemBarShades(immersion, fadeWithDismiss)
+
+        PageArrows(
+            activity = mouse,
+            hasPrevious = pagerScroll && pagerState.currentPage > 0,
+            hasNext = pagerScroll && pagerState.currentPage < pagerState.pageCount - 1,
+            onPrevious = { goToPage(pagerState.currentPage - 1) },
+            onNext = { goToPage(pagerState.currentPage + 1) },
+            modifier = fadeWithDismiss,
+        )
 
         val chromeEnter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec())
         val chromeExit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec())
@@ -1055,6 +1124,8 @@ private fun ZoomableImage(
     modifier: Modifier = Modifier,
     captionAlpha: () -> Float = { 1f },
     cardBias: () -> Float = { 0f },
+    /** Přiblížení z klávesnice (+/−/0), viz [ZoomableMediaPage]. */
+    zoomSteps: Flow<ZoomStep>? = null,
 ) {
     val hidden = hasSpoiler && !revealed
     ZoomableMediaPage(
@@ -1070,6 +1141,7 @@ private fun ZoomableImage(
         onTap = { if (hidden) onReveal() else onTap() },
         onEngage = onEngage,
         zoomable = !hidden,
+        zoomSteps = zoomSteps,
         modifier = modifier,
         cardModifier = Modifier.sharedNavElement(photoKey(messageId), besidePanes = true),
         captionAlpha = captionAlpha,

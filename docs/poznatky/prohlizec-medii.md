@@ -261,6 +261,52 @@ v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
   `EnterExitState`), ne z bounds prvku: `OverlayClip.getClipPath` dostane jen AKTUÁLNÍ hranice,
   ne cílové, takže z nich není jak poznat, jak daleko let došel.
 
+### Myš a klávesnice
+
+Na desktopu (a na Androidu s myší či klávesnicí) se prohlížeč ovládal jen tím, co umí prst:
+pager tah myší ani svislé kolečko nebere (`scrollable` myš vynechává) a přiblížení potřebovalo
+dva prsty, takže myš měla jen dvojklik na 2,5×. Teď:
+
+- **←/→ listují** (v RTL obráceně), **šipky po stranách** (`PageArrows`) taky. Šipky se ukážou
+  pohybem myši a po 2 s klidu zmizí, nad šipkou zůstávají (`MouseActivity`, vzor ovládání
+  hovoru); dotyk je nevidí. Na kraji galerie šipka do prázdna není a zamčené video se
+  nelistuje ani klávesou.
+- **Ctrl (⌘) + kolečko přibližuje kolem kurzoru**, krok 1,25× na zub (`scrollDelta` je v zubech,
+  touchpad posílá zlomky, takže je to plynulé). **Štípnutí na touchpadu ve Windows chodí jako
+  Ctrl + kolečko**, takže ho pokryje tatáž obsluha. Události štípnutí, které Compose zná
+  (`ScaleStart/Change/End`, `Pan*`), desktopová vrstva NEPOSÍLÁ vůbec (ověřeno ve zdrojích
+  `ui-desktop` 1.12); macOS AWT štípnutí nepředá vůbec, šlo by jen přes `com.apple.eawt.event`.
+- **Kolečko bez Ctrl posouvá přiblíženou fotku** (Shift do strany); nepřiblíženou nechá být,
+  takže pager dál dostane Shift + kolečko a touchpad do strany.
+- **+/−/0 přibližují kolem středu** (×1,5, zpět na 1×), i s Ctrl jako ve webovém prohlížeči.
+  Plus a minus se poznají i podle znaku: na české klávesnici je „+" na klávese anglické „1".
+  Pravidlo je čistá funkce `viewerKey` (testy `ViewerKeyTest`).
+- **Esc zavírá prohlížeč** jako Zpět — prohlížeč klávesu nespotřebuje a na desktopu ji převede
+  Compose (`BackNavigationEventInput`), na Androidu `MainActivity`.
+- **Fokus si prohlížeč bere hned** (`focusRequester` + `focusable` na kořeni): v Compose dostane
+  klávesu jen zaostřený prvek a jeho předci; bez fokusu by šipky nedošly nikam.
+- **Kroky z klávesnice jdou do stránky jako `Flow<ZoomStep>`**, bere si je jen stránka, na
+  které pager stojí. Štípnutí, dvojité ťuknutí, kolečko i klávesy počítají posun ze stejné
+  `CardGeometry.zoomedOffset` (bod pod kurzorem/prsty zůstane na místě) a `clamp`.
+- Platí jen pro fotky; video na desktopu prohlížeč nepřehrává (otevírá ho systémová aplikace).
+- **Ověřeno na Windows 11** (ladicí běh, uživatel): listování šipkami a tlačítky, Ctrl+kolečko,
+  +/−/0 a Esc. macOS, Android s myší a štípnutí na touchpadu ve Windows neověřené.
+- **Štípnutí a dvojité ťuknutí prstem po sloučení výpočtu ověřené na emulátoru** (skutečná
+  fotka, celá obrazovka) MĚŘENÍM ze snímků, ne okem: bod Q fotky musí po přiblížení k× kolem
+  P ležet na P + k·(Q − P). Dvojité ťuknutí 2,5×: šest bodů, rozdíl barev 0–9 (ze 765), druhé
+  dvojité ťuknutí vrátí snímek přesně do původního stavu. Štípnutí 200 → 600 px: střed na
+  místě, odhadnutý faktor 3,04; tah jedním prstem pak posune o 200 px do strany, svisle nic
+  (při 3× fotka výšku nevyplní, posun je záměrně nulový). Ťukat do svislého středu — jinde se
+  svislý posun ořízne a bod pod prstem se legitimně pohne.
+- **Štípnutí na emulátoru přes `uinput`** (`adb shell uinput <soubor>`, `input` umí jen jeden
+  prst a dvojité ťuknutí nestihne, každé volání startuje proces): `register` s
+  `UI_SET_EVBIT` [1, 3], `UI_SET_KEYBIT` [330] (BTN_TOUCH), `UI_SET_ABSBIT` [0, 1, 47, 53, 54, 57]
+  (X, Y, MT_SLOT, MT_POSITION_X/Y, MT_TRACKING_ID), `UI_SET_PROPBIT` [1] (INPUT_PROP_DIRECT —
+  bez něj to není dotyková obrazovka), `abs_info` s rozsahy v pixelech displeje; pak `delay`
+  1500 ms (systém zařízení nastavuje) a `inject` po snímcích: pro každý prst `3,47,slot`,
+  při položení `3,57,id`, `3,53,x, 3,54,y`, na začátku `1,330,1`, každý snímek `0,0,0`;
+  zvednutí `3,57,-1` a `1,330,0`. Mezi snímky `delay` 16 ms.
+
 ### Poloha a mapy
 
 Zpráva s polohou, místem (`MessageVenue`) a živou polohou je `MessageMedia.Location` a kreslí se
