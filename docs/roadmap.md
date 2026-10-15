@@ -268,8 +268,10 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   - ~~**Kontaktní odkaz otevřít profilem s viditelným „Přidat do kontaktů"**~~ — hotovo
     (`docs/poznatky/hledani-a-zakladani-chatu.md`, „Kontaktní odkaz do profilu"). Skutečný
     `t.me/contact/…` od jiného účtu zbývá ověřit.
-  - **iOS: odkazy zvenčí** (`CFBundleURLTypes` pro `tg`, předání z `onOpenURL` do
-    `LinkOpenRequests`). QR kód a čtečka tam jsou.
+  - ~~**iOS: odkazy zvenčí** (`CFBundleURLTypes` pro `tg`, předání z `onOpenURL` do
+    `LinkOpenRequests`)~~ — hotovo pro `tg://`; `t.me` jako Universal Link nejde (doménu vydává
+    Telegram), viz `docs/poznatky/hledani-a-zakladani-chatu.md`. Ověřit ze Safari přes stránku
+    `t.me` na zařízení.
 - **Ochrana před spamem.** ~~Zablokovat z nabídky nad chatem a při mazání rovnou zablokovat
   i nahlásit~~, ~~průvodce nahlášením s volbou důvodu~~ (i zprávy z nabídky nad zprávou),
   ~~pruh nad konverzací u chatu od neznámého~~ — hotovo (`docs/poznatky/spam-a-blokovani.md`, „Blokování a nahlášení

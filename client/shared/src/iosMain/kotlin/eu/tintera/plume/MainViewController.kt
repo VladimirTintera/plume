@@ -6,6 +6,7 @@ import androidx.compose.ui.window.ComposeUIViewController
 import platform.UIKit.UIViewController
 import eu.tintera.plume.core.notifications.IosNotificationCenter
 import eu.tintera.plume.core.notifications.IosPush
+import eu.tintera.plume.core.navigation.IosLinks
 import eu.tintera.plume.di.startKoin
 
 /**
@@ -33,4 +34,5 @@ fun initKoin() {
     val koin = startKoin { }.koin
     IosNotificationCenter.install(koin)
     IosPush.start(koin)
+    IosLinks.start(koin)
 }

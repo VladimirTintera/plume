@@ -294,8 +294,25 @@ přihlašovacím odkazem), kreslí host sám, i s vlastním snackbarem.
   displeje otevřelo podruhé; studený start ho čte jen bez `savedInstanceState`.
 - **Kontaktní odkaz otevře PROFIL s „Přidat do kontaktů" jako hlavní akcí**, ne chat — viz
   „Kontaktní odkaz do profilu" níž. Platí zvenčí i ze zprávy.
-- **iOS odkazy zvenčí nepřijímá** (chybí `CFBundleURLTypes` pro `tg` a asociované domény);
-  QR kód, sdílení i čtečka tam fungují, jsou ve společném kódu.
+- **iOS přijímá `tg://`, ne `https://t.me`** (`CFBundleURLTypes` se schématem `tg` vedle
+  `eu.tintera.plume` pro rozšíření sdílení; SwiftUI `onOpenURL` v `ContentView.swift` →
+  `IosLinks.open` → `LinkOpenRequests`). Webový odkaz by iOS aplikaci předal jen jako Universal
+  Link a ten se ověřuje souborem `apple-app-site-association` na doméně — `t.me` ho vydává
+  Telegram, takže asociovaná doména by nikdy neprošla (totéž co `assetlinks.json` na Androidu,
+  jen bez možnosti povolit odkaz ručně). `t.me` proto otevře Safari a jeho „Otevřít
+  v Telegramu" pošle `tg://`. Schéma `eu.tintera.plume://share` jde do téhož `onOpenURL`
+  a projde bez akce (`isTelegramLink`), sdílení si dál vyzvedne `IosShareInbox` při návratu
+  do popředí.
+  - **Se dvěma aplikacemi pro `tg` (Plume i oficiální klient) iOS nezaručuje, která odkaz
+    dostane** — Apple pořadí nedefinuje a výběr nenabízí. Ověřovat na zařízení bez oficiálního
+    klienta, nebo počítat s tím, že vyhraje on.
+  - **`onOpenURL` chodí i za studena**: SwiftUI odkaz podrží, než scéna naběhne, a `initKoin`
+    běží v `init` aplikace, takže `LinkOpenRequests` už existuje. Na přihlášení počká jako na
+    Androidu (stav, ne událost).
+  - **Ověřeno v simulátoru** (iPhone 17 Pro, iOS 26, přihlášený účet): `xcrun simctl openurl
+    booted "tg://resolve?domain=NoTiBoBoBot"` za běhu i po `simctl terminate` otevře chat s botem
+    (bez automatického Startu), `eu.tintera.plume://share` nic neotevře. Odkaz ze Safari přes
+    stránku `t.me` a soupeření s oficiálním klientem ověřené nejsou.
 - **NEOVĚŘENO na zařízení ani emulátoru** — přeložené a otestované jen jednotkovými testy.
   Ověřit: kód z menu účtu a z Nastavení (světlý i tmavý motiv), obnova prošlého tokenu,
   naskenování kódu druhým telefonem (čtečkou v Plume, fotoaparátem s povolenými odkazy i bez nich
