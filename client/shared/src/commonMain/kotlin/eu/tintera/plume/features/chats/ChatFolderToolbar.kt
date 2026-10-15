@@ -22,7 +22,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -31,7 +30,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Badge
@@ -55,7 +53,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.IntrinsicMeasurable
+import androidx.compose.ui.layout.IntrinsicMeasureScope
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.Measurable
+import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
+import androidx.compose.ui.layout.MultiContentMeasurePolicy
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -79,9 +89,13 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Složky Telegramu v plovoucí liště dole, vedle FAB: „Všechny chaty · Práce 3 · Rodina…".
+ * Složky Telegramu v plovoucí liště dole, s FAB na konci: „Všechny chaty · Práce 3 · Rodina…".
  * Nahradila řádek přepínacích tlačítek pod pilulkou hledání.
  *
+ * - **Lišta M3 Expressive s FAB** (`HorizontalFloatingToolbar(expanded, floatingActionButton)`):
+ *   sbalená ([expanded] `false`) zajede do FAB a FAB naroste z 56 na 80 dp, rozbalená vyjede
+ *   a FAB se zmenší zpátky. Animaci, stín i velikost FAB řídí lišta; [floatingActionButton] musí
+ *   vyplnit slot, který dostane.
  * - **Popisky, když se vejdou; jinak jen ikony a popisek nese vybraná.** Rozhoduje změřená šířka
  *   ([FolderItems]), ne počet složek: tři dlouhé názvy se na telefon nevejdou, pět krátkých na
  *   desktop ano. Ikona složky bez vlastní volby je ta, kterou by zvolil Telegram podle obsahu.
@@ -95,69 +109,120 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun ChatFolderToolbar(
     tabs: List<FolderTab>,
+    expanded: Boolean,
     onSelect: (Int?) -> Unit,
     onAdd: () -> Unit,
     /** Podržení složky → „Označit vše jako přečtené"; `null` = hlavní seznam. */
     onReadAll: (Int?) -> Unit,
+    floatingActionButton: @Composable () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    HorizontalFloatingToolbar(
-        expanded = true,
-        colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
-        // Lišta leží nad kartami chatů; bez stínu (výchozí pro samotnou lištu) by se s nimi slévala.
-        expandedShadowElevation = FloatingToolbarDefaults.ContainerExpandedElevationWithFab,
-        modifier = modifier,
-    ) {
-        // Toolbar dává obsah do `Row` bez `verticalAlignment` (viz ChatSelectionToolbar).
-        FolderItems(tabs, onSelect, onAdd, onReadAll, Modifier.align(Alignment.CenterVertically))
+    /*
+     * Lišta se ptá obsahu na šířku, ale její řádek se posouvá do strany, takže obsah žádnou
+     * horní mez nedostane. Kolik místa zbývá vedle FAB, se proto měří tady, nad lištou.
+     */
+    BoxWithConstraints(modifier) {
+        val padding = FloatingToolbarDefaults.ContentPadding
+        val layoutDirection = LocalLayoutDirection.current
+        val contentWidth = maxWidth - TOOLBAR_FAB_SIZE - TOOLBAR_TO_FAB_GAP -
+            padding.calculateStartPadding(layoutDirection) - padding.calculateEndPadding(layoutDirection)
+        HorizontalFloatingToolbar(
+            expanded = expanded,
+            floatingActionButton = floatingActionButton,
+            colors = FloatingToolbarDefaults.standardFloatingToolbarColors(),
+        ) {
+            FolderItems(tabs, expanded, contentWidth, onSelect, onAdd, onReadAll)
+        }
     }
 }
 
 /**
- * Položky lišty. Napřed se nanečisto změří verze se všemi popisky; když se vejde, kreslí se ona,
- * jinak kompaktní. Měření jde přes [SubcomposeLayout], protože o popiscích se rozhoduje dřív, než
- * se skutečné položky složí — a s nimi i animace popisku při změně výběru.
+ * Položky lišty. Složené jsou DVĚ řady — se všemi popisky a kompaktní — a při měření se vybere
+ * ta, která se vejde do [maxWidth]; druhá se změří, ale nepostaví (nekreslí se, nedostane dotyk).
+ *
+ * Dřív to rozhodoval `SubcomposeLayout` (verze s popisky nanečisto, pak skutečná řada). Lišta
+ * s FAB se ale obsahu ptá na intrinsickou šířku — z ní počítá, jak daleko zajede — a
+ * `SubcomposeLayout` intrinsické míry neumí, aplikace by spadla. Dvě složené řady je umí.
+ * Která je vidět, se dozví i kompozice (`labels`), kvůli čtečce, fokusu a dojetí na vybranou.
  */
 @Composable
 private fun FolderItems(
     tabs: List<FolderTab>,
+    expanded: Boolean,
+    maxWidth: Dp,
     onSelect: (Int?) -> Unit,
     onAdd: () -> Unit,
     onReadAll: (Int?) -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    val scroll = rememberScrollState()
-    SubcomposeLayout(modifier) { constraints ->
-        val probe = subcompose(PROBE) { FolderRow(tabs, labels = true, onSelect = {}, onAdd = {}, onReadAll = {}) }
-            .map { it.measure(Constraints()) }
-        val labels = probe.sumOf { it.width } <= constraints.maxWidth
-        val content = subcompose(CONTENT) {
-            FolderRow(tabs, labels = labels, onSelect = onSelect, onAdd = onAdd, onReadAll = onReadAll, modifier = Modifier.horizontalScroll(scroll))
-        }.map { it.measure(constraints.copy(minWidth = 0)) }
-        val width = content.maxOf { it.width }
-        val height = content.maxOf { it.height }
-        layout(width, height) { content.forEach { it.placeRelative(0, (height - it.height) / 2) } }
-    }
+    var labels by remember { mutableStateOf(true) }
+    Layout(
+        contents = listOf(
+            { FolderRow(tabs, labels = true, placed = labels, expanded = expanded, onSelect, onAdd, onReadAll) },
+            { FolderRow(tabs, labels = false, placed = !labels, expanded = expanded, onSelect, onAdd, onReadAll) },
+        ),
+        measurePolicy = remember(maxWidth) { FolderItemsMeasurePolicy(maxWidth) { labels = it } },
+    )
 }
 
+/** Vybírá mezi řadou s popisky (první obsah) a kompaktní (druhý); viz [FolderItems]. */
+private class FolderItemsMeasurePolicy(
+    private val maxWidth: Dp,
+    private val onLabels: (Boolean) -> Unit,
+) : MultiContentMeasurePolicy {
+    override fun MeasureScope.measure(measurables: List<List<Measurable>>, constraints: Constraints): MeasureResult {
+        val full = measurables[0].map { it.measure(Constraints()) }
+        val labels = full.sumOf { it.width } <= maxWidth.roundToPx()
+        onLabels(labels)
+        val shown = if (labels) full else measurables[1].map { it.measure(constraints.copy(minWidth = 0)) }
+        val width = shown.maxOf { it.width }
+        val height = shown.maxOf { it.height }
+        return layout(width, height) { shown.forEach { it.placeRelative(0, (height - it.height) / 2) } }
+    }
+
+    /** Šířka ukazované řady, nanejvýš [maxWidth] — víc lišta nedostane, zbytek se posouvá. */
+    override fun IntrinsicMeasureScope.maxIntrinsicWidth(measurables: List<List<IntrinsicMeasurable>>, height: Int): Int {
+        val limit = maxWidth.roundToPx()
+        val full = measurables[0].sumOf { it.maxIntrinsicWidth(height) }
+        return if (full <= limit) full else minOf(measurables[1].sumOf { it.maxIntrinsicWidth(height) }, limit)
+    }
+
+    override fun IntrinsicMeasureScope.minIntrinsicWidth(measurables: List<List<IntrinsicMeasurable>>, height: Int): Int =
+        maxIntrinsicWidth(measurables, height)
+
+    override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurables: List<List<IntrinsicMeasurable>>, width: Int): Int =
+        measurables.flatten().maxOf { it.maxIntrinsicHeight(width) }
+
+    override fun IntrinsicMeasureScope.minIntrinsicHeight(measurables: List<List<IntrinsicMeasurable>>, width: Int): Int =
+        measurables.flatten().maxOf { it.minIntrinsicHeight(width) }
+}
+
+/**
+ * Jedna řada položek. [placed] říká, jestli je to řada, kterou lišta ukazuje: ta druhá se jen
+ * měří, takže nesmí do čtečky, nedostane fokus a nedojíždí na vybranou složku. Ve sbalené liště
+ * ([expanded] `false`) fokus nedostane ani ukazovaná, jako v ukázce M3.
+ */
 @Composable
 private fun FolderRow(
     tabs: List<FolderTab>,
     labels: Boolean,
+    placed: Boolean,
+    expanded: Boolean,
     onSelect: (Int?) -> Unit,
     onAdd: () -> Unit,
     onReadAll: (Int?) -> Unit,
-    modifier: Modifier = Modifier,
 ) {
+    val focusable = placed && expanded
     Row(
         horizontalArrangement = Arrangement.spacedBy(ITEM_SPACING),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier,
+        modifier = if (placed) Modifier else Modifier.clearAndSetSemantics {},
     ) {
         tabs.forEach { tab ->
             FolderItem(
                 tab,
                 label = labels || tab.selected,
+                placed = placed,
+                focusable = focusable,
                 onClick = { if (!tab.selected) onSelect(tab.id) },
                 onReadAll = { onReadAll(tab.id) },
             )
@@ -174,6 +239,7 @@ private fun FolderRow(
                 modifier = Modifier
                     .size(ITEM_HEIGHT)
                     .clip(CircleShape)
+                    .focusProperties { canFocus = focusable }
                     .clickable(role = Role.Button, onClick = onAdd)
                     .semantics { contentDescription = addLabel },
             ) {
@@ -190,7 +256,7 @@ private fun FolderRow(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FolderItem(tab: FolderTab, label: Boolean, onClick: () -> Unit, onReadAll: () -> Unit) {
+private fun FolderItem(tab: FolderTab, label: Boolean, placed: Boolean, focusable: Boolean, onClick: () -> Unit, onReadAll: () -> Unit) {
     val title = tab.plainTitle()
     var menuOpen by remember { mutableStateOf(false) }
     val container by animateColorAsState(
@@ -205,10 +271,11 @@ private fun FolderItem(tab: FolderTab, label: Boolean, onClick: () -> Unit, onRe
     )
     /*
      * Vybraná složka musí být vidět: po přidání doporučené složky z „+" se vybere ta nová, a ta
-     * stojí na konci lišty — za okrajem, kde by výběr nebyl poznat.
+     * stojí na konci lišty — za okrajem, kde by výběr nebyl poznat. Jen v ukazované řadě: ta
+     * druhá se nestaví a posunula by lištu jinam.
      */
     val bringIntoView = remember { BringIntoViewRequester() }
-    LaunchedEffect(tab.selected) { if (tab.selected) bringIntoView.bringIntoView() }
+    LaunchedEffect(tab.selected, placed) { if (tab.selected && placed) bringIntoView.bringIntoView() }
     /*
      * Podržení otevře nabídku složky. Bublina s názvem, kterou ikona bez popisku dřív na podržení
      * ukazovala, tu proto není — pustily by se obě naráz. Název nese položka nabídky a čtečka.
@@ -221,6 +288,7 @@ private fun FolderItem(tab: FolderTab, label: Boolean, onClick: () -> Unit, onRe
                 .height(ITEM_HEIGHT)
                 .clip(CircleShape)
                 .background(container)
+                .focusProperties { canFocus = focusable }
                 .combinedClickable(
                     role = Role.Tab,
                     onClick = onClick,
@@ -334,8 +402,9 @@ private fun FolderTab.plainTitle(): String = if (id == null) stringResource(Res.
 /** „Všechny chaty" mají ikonu, kterou jim dává Telegram („All"). */
 private fun FolderTab.icon() = folderIcon(if (id == null) "All" else iconName)
 
-private const val PROBE = "probe"
-private const val CONTENT = "content"
+/** Velikost FAB v rozbalené liště a mezera k němu — `FloatingToolbarDefaults` je mají interní. */
+private val TOOLBAR_FAB_SIZE = 56.dp
+private val TOOLBAR_TO_FAB_GAP = 8.dp
 
 /** Jako icon button: 48 dp na výšku, s 12 dp po stranách je samotná ikona taky 48 dp široká. */
 private val ITEM_HEIGHT = 48.dp

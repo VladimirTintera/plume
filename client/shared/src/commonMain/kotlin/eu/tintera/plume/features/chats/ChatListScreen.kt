@@ -44,7 +44,12 @@ import androidx.compose.material3.FloatingActionButtonMenu
 import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ToggleFloatingActionButton
+import androidx.compose.material3.ToggleFloatingActionButtonDefaults
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -97,9 +102,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -576,7 +579,8 @@ fun ChatListScreen(
             // Poslední chat se musí dát odscrollovat nad FAB, jinak by pod ním zůstal schovaný.
             val padding = PaddingValues(
                 top = scaffoldPadding.calculateTopPadding(),
-                bottom = scaffoldPadding.calculateBottomPadding() + FAB_CLEARANCE +
+                bottom = scaffoldPadding.calculateBottomPadding() +
+                    (if (folderTabs.isEmpty()) FAB_CLEARANCE else FAB_CLEARANCE_WITH_FOLDERS) +
                     with(LocalDensity.current) { playerHeight.toDp() },
             )
             Box(Modifier.fillMaxSize()) {
@@ -766,24 +770,21 @@ fun ChatListScreen(
                         modifier = Modifier.align(Alignment.CenterHorizontally),
                     )
                     /*
-                     * Složky v plovoucí liště vedle FAB (viz `docs/poznatky/seznam-chatu.md`, „Složky
-                     * chatů"). Lišta leží VEDLE FAB menu v `Box`, ne s ním v `Row`: rozbalené menu je
-                     * široké jako nejdelší položka a v řádku by lištu odstrčilo. Odstup zprava je
-                     * šířka FAB s okraji menu, zespodu tak, aby lišta (64 dp) a FAB (56 dp) měly
-                     * společnou osu.
+                     * Složky v plovoucí liště s FAB (viz `docs/poznatky/seznam-chatu.md`, „Složky
+                     * chatů"). Celá lišta je „tlačítko" FAB menu a přepínací FAB sedí v jejím slotu:
+                     * položky menu tak vyjedou nad lištou a FAB je pořád jeden. Při scrollu dolů
+                     * a při otevřeném menu se lišta sbalí do FAB.
                      */
-                    if (reorder == null && selection == null) Box(contentAlignment = Alignment.BottomEnd) {
-                        // Nescopovaná varianta: `Box` stojí v `Column` a jeho rozsah by se nabízel taky.
-                        androidx.compose.animation.AnimatedVisibility(
-                            visible = folderTabs.isNotEmpty() && !fabMenuExpanded && !folderToolbarHidden,
-                            enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
-                                expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec(), expandFrom = Alignment.End),
-                            exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()) +
-                                shrinkHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec(), shrinkTowards = Alignment.End),
-                            modifier = Modifier.padding(start = FAB_MARGIN, end = FOLDER_TOOLBAR_END, bottom = FOLDER_TOOLBAR_BOTTOM),
-                        ) {
+                    if (reorder == null && selection == null) NewChatFabMenu(
+                        expanded = fabMenuExpanded,
+                        onExpandedChange = { fabMenuExpanded = it },
+                        onNewChat = onNewChat,
+                        onNewGroup = onNewGroup,
+                        onNewChannel = onNewChannel,
+                        toolbar = if (folderTabs.isEmpty()) null else { fab ->
                             ChatFolderToolbar(
                                 tabs = folderTabs,
+                                expanded = !fabMenuExpanded && !folderToolbarHidden,
                                 onSelect = { id ->
                                     viewModel.selectFolder(id)
                                     /*
@@ -795,16 +796,10 @@ fun ChatListScreen(
                                 },
                                 onAdd = viewModel::openFolderSuggestions,
                                 onReadAll = viewModel::readFolder,
+                                floatingActionButton = fab,
                             )
-                        }
-                        NewChatFabMenu(
-                            expanded = fabMenuExpanded,
-                            onExpandedChange = { fabMenuExpanded = it },
-                            onNewChat = onNewChat,
-                            onNewGroup = onNewGroup,
-                            onNewChannel = onNewChannel,
-                        )
-                    }
+                        },
+                    )
                     /*
                      * Pod FAB, u palce, jako u hudebních aplikací — a hlavně mimo lištu hledání, která
                      * při scrollu odjíždí. Seznam se odsazuje o jeho výšku, poslední chat je nad ním.
@@ -868,6 +863,9 @@ private fun FabMenuScrim(visible: Boolean, onDismiss: () -> Unit, modifier: Modi
  * Popisek nesou položky, přepínač je jen ikona — tak to M3 u FAB menu chce.
  *
  * Položka menu nejdřív menu zavře, teprve pak naviguje: po návratu do seznamu má být zavřené.
+ *
+ * Se složkami je přepínač ve slotu lišty ([toolbar] dostane FAB a postaví kolem něj
+ * `ChatFolderToolbar`) a „tlačítkem" menu je celá lišta, takže položky vyjedou nad ní.
  */
 @Composable
 private fun NewChatFabMenu(
@@ -876,6 +874,7 @@ private fun NewChatFabMenu(
     onNewChat: () -> Unit,
     onNewGroup: () -> Unit,
     onNewChannel: () -> Unit,
+    toolbar: (@Composable (fab: @Composable () -> Unit) -> Unit)? = null,
 ) {
     val createLabel = stringResource(Res.string.chats_create)
     val closeLabel = stringResource(Res.string.common_close)
@@ -885,25 +884,29 @@ private fun NewChatFabMenu(
         Triple(Res.drawable.group_24dp, Res.string.new_chat_new_group, onNewGroup),
         Triple(Res.drawable.edit_24dp, Res.string.chats_new, onNewChat),
     )
+    val fab = @Composable { containerSize: (Float) -> Dp ->
+        ToggleFloatingActionButton(
+            checked = expanded,
+            onCheckedChange = onExpandedChange,
+            containerSize = containerSize,
+            modifier = Modifier.semantics {
+                // Přepínač je v pořadí čtečky PŘED položkami nad ním, jako v ukázce M3.
+                traversalIndex = -1f
+                contentDescription = if (expanded) closeLabel else createLabel
+            },
+        ) {
+            val close by remember { derivedStateOf { checkedProgress > 0.5f } }
+            Icon(
+                painterResource(if (close) Res.drawable.close_24dp else Res.drawable.edit_24dp),
+                contentDescription = null,
+                modifier = Modifier.animateIcon({ checkedProgress }),
+            )
+        }
+    }
     FloatingActionButtonMenu(
         expanded = expanded,
         button = {
-            ToggleFloatingActionButton(
-                checked = expanded,
-                onCheckedChange = onExpandedChange,
-                modifier = Modifier.semantics {
-                    // Přepínač je v pořadí čtečky PŘED položkami nad ním, jako v ukázce M3.
-                    traversalIndex = -1f
-                    contentDescription = if (expanded) closeLabel else createLabel
-                },
-            ) {
-                val close by remember { derivedStateOf { checkedProgress > 0.5f } }
-                Icon(
-                    painterResource(if (close) Res.drawable.close_24dp else Res.drawable.edit_24dp),
-                    contentDescription = null,
-                    modifier = Modifier.animateIcon({ checkedProgress }),
-                )
-            }
+            if (toolbar == null) fab(ToggleFloatingActionButtonDefaults.containerSize()) else toolbar { ToolbarSlotFab(fab) }
         },
     ) {
         items.forEachIndexed { index, (icon, label, onClick) ->
@@ -921,6 +924,36 @@ private fun NewChatFabMenu(
                 },
             )
         }
+    }
+}
+
+/**
+ * Přepínací FAB ve slotu lišty složek. Velikost slotu určuje lišta (56 dp rozbalená, 80 dp
+ * sbalená) a FAB ji musí vyplnit; přepínač má ale velikost vlastní, z níž se při otevření menu
+ * morfuje do kruhu „Zavřít". Výchozí velikost proto začíná na velikosti slotu: zavřený FAB
+ * slot vyplní, otevřený se zmenší na zavírací kruh.
+ *
+ * Slot se čte z omezení při měření a do lambdy jde obyčejnou proměnnou, ne stavem: přepínač
+ * velikost čte v měření a lišta mění slot právě přeměřením, takže změna dojde i bez stavu.
+ */
+@Composable
+private fun ToolbarSlotFab(fab: @Composable (containerSize: (Float) -> Dp) -> Unit) {
+    val slot = remember { floatArrayOf(TOOLBAR_FAB_EXPANDED_SIZE.value) }
+    val closeSize = ToggleFloatingActionButtonDefaults.containerSize()(1f)
+    Box(
+        Modifier.layout { measurable, constraints ->
+            slot[0] = constraints.maxWidth.toDp().value
+            val placeable = measurable.measure(Constraints.fixed(constraints.maxWidth, constraints.maxHeight))
+            layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+        },
+        /*
+         * Pevně na celý slot, jako `fillMaxSize` u FAB z ukázek M3. Lišta i `Box` dávají dětem
+         * minimum 0, přepínač by si pak vzal svých 56 dp a v nafouknutém slotu by se jen
+         * přilepil do rohu (ověřeno na emulátoru).
+         */
+        propagateMinConstraints = true,
+    ) {
+        fab { progress -> lerp(slot[0].dp, closeSize, progress) }
     }
 }
 
@@ -2125,11 +2158,15 @@ private const val FAB_MENU_SCRIM_ALPHA = 0.8f
  */
 private val FAB_CLEARANCE = 56.dp + FAB_MARGIN + 8.dp
 
-/** Lišta složek končí před FAB: jeho šířka (56 dp), okraj FAB menu a mezera mezi lištou a FAB. */
-private val FOLDER_TOOLBAR_END = 56.dp + FAB_MARGIN + 8.dp
+/** FAB v rozbalené liště složek (standardní) a ve sbalené (střední) — hodnoty `FloatingToolbar`. */
+private val TOOLBAR_FAB_EXPANDED_SIZE = 56.dp
+private val TOOLBAR_FAB_COLLAPSED_SIZE = 80.dp
 
-/** Osa lišty (64 dp) na ose FAB, který má pod sebou 16 dp: 16 + 56 / 2 − 64 / 2. */
-private val FOLDER_TOOLBAR_BOTTOM = 12.dp
+/**
+ * Totéž s lištou složek: lišta s FAB je vysoká jako sbalený FAB (80 dp), aby při jeho
+ * nafouknutí neposkočila.
+ */
+private val FAB_CLEARANCE_WITH_FOLDERS = TOOLBAR_FAB_COLLAPSED_SIZE + FAB_MARGIN + 8.dp
 
 /**
  * Alt+↓ / Alt+↑ (a Ctrl+Tab) z klávesnice: další a předchozí chat v pořadí, jak je vidět —
