@@ -804,7 +804,7 @@ internal suspend fun Message.messageMedia(
         isSensitive = hideSensitive,
         isSecret = content.isSecret,
         selfDestructType = selfDestructType?.toSelfDestructType(),
-    )
+    ).copy(startSeconds = content.startTimestamp)
 
     is MessageAnimation -> content.animation.toMedia().copy(
         hasSpoiler = content.hasSpoiler || hideSensitive,
@@ -938,6 +938,7 @@ internal fun Video.toMedia(
     selfDestructType = selfDestructType,
     supportsStreaming = supportsStreaming,
     minithumbnail = minithumbnail?.toDomain(),
+    fileKey = video.remote.uniqueId.ifBlank { null },
 )
 
 /** Skladba; [fallbackName] je název, když soubor nemá ani titul, ani jméno. Zpráva i článek. */

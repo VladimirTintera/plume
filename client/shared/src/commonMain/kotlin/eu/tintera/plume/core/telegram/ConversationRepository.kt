@@ -2106,6 +2106,16 @@ sealed interface MessageMedia {
          */
         val supportsStreaming: Boolean = false,
         val minithumbnail: Minithumbnail? = null,
+        /**
+         * Trvalé id souboru na serveru (`RemoteFile.uniqueId`) — klíč pamatované pozice
+         * přehrávání (`VideoPositions`). `null`, dokud soubor na serveru není (odesílané video).
+         */
+        val fileKey: String? = null,
+        /**
+         * Odkud video pustit (s), jak ho odesílatel poslal (`MessageVideo.startTimestamp`,
+         * přeposlání „od 1:23"). Nula = od začátku.
+         */
+        val startSeconds: Int = 0,
     ) : MessageMedia
 
     /**

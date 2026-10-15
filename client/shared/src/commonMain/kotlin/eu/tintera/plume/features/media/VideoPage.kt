@@ -1,5 +1,11 @@
 package eu.tintera.plume.features.media
 
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.DisposableEffect
+import eu.tintera.plume.core.video.VideoPositions
+import eu.tintera.plume.resources.media_video_from_start
+import eu.tintera.plume.resources.media_video_resumed
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.RowScope
@@ -197,11 +203,31 @@ internal fun VideoPage(
     pictureInPicture: Boolean = false,
     /** Ovládání celé obrazovky jako v přehrávači (lišty, zámek, otočení); `null` = bez něj. */
     fullscreen: VideoFullscreen? = null,
+    /**
+     * Pamatovat si, kde se přestalo sledovat ([VideoPositions]). Mizející médium ne (podruhé se
+     * neotevře) a tajný chat ne — po tajném chatu nemá v zařízení zůstat stopa.
+     */
+    rememberPosition: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     val repository = koinInject<FileRepository>()
+    val positions = koinInject<VideoPositions>()
+    val positionKey = video.fileKey?.takeIf { rememberPosition && !video.isSecret }
+    // Čte se jednou: během sledování se pozice zapisuje a začátek se tím měnit nemá.
+    val resumeMs = remember(positionKey) { positionKey?.let(positions::of)?.positionMs }
+    /*
+     * Odkud začít: čas z odkazu ve zprávě (výslovná žádost) > kde uživatel sám přestal > odkud
+     * video pustil odesílatel (přeposlání „od 1:23").
+     */
+    val resumed = resumeMs?.takeIf { startMs <= 0L }
     VideoPage(
-        startMs = startMs,
+        startMs = when {
+            startMs > 0L -> startMs
+            resumed != null -> resumed
+            else -> video.startSeconds * 1000L
+        },
+        resumedFromMs = resumed,
+        onProgress = positionKey?.let { key -> { position, duration -> positions.record(key, position, duration) } },
         fullscreen = fullscreen,
         muted = muted,
         onToggleMute = onToggleMute,
@@ -320,6 +346,16 @@ internal fun VideoPage(
      * proti dotykům a ruční otočení. Jen v prohlížeči médií; `null` = bez toho (náhledy).
      */
     fullscreen: VideoFullscreen? = null,
+    /**
+     * [startMs] je pamatovaná pozice, ne žádost: po rozběhnutí se na chvíli ukáže „Pokračuje od…"
+     * s tlačítkem Od začátku. Bez něj by video hrálo uprostřed a nebylo by jasné proč.
+     */
+    resumedFromMs: Long? = null,
+    /**
+     * Kde se sledování zastavilo (pozice, délka v ms) — při pozastavení stránkou, odchodu,
+     * dohrání a průběžně během hraní. `null` = nepamatuje se.
+     */
+    onProgress: ((positionMs: Long, durationMs: Long) -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val voicePlayer = koinInject<VoicePlayer>()
@@ -410,6 +446,16 @@ internal fun VideoPage(
         }
     }
 
+    /*
+     * Pozice se zapisuje jen u videa, které opravdu hrálo — jinak by otevření a zavření bez
+     * puštění zapsalo nulu, a tím pamatovanou pozici smazalo. Čte se z posledního tiknutí
+     * (`positionMs`), ne z přehrávače: při odchodu z kompozice už může být uvolněný.
+     */
+    val currentProgress by rememberUpdatedState(onProgress)
+    fun saveProgress(at: Long = positionMs) {
+        if (hasPlayed) currentProgress?.invoke(at, durationMs)
+    }
+
     LaunchedEffect(loaded, active) {
         if (!loaded) return@LaunchedEffect
         if (active) {
@@ -418,6 +464,25 @@ internal fun VideoPage(
             player.play()
         } else {
             player.pause()
+            saveProgress()
+        }
+    }
+    // Průběžně, ať pozici nevezme ani zabitý proces; zápis do DataStore jednou za pár vteřin.
+    LaunchedEffect(playing) {
+        while (playing) {
+            delay(PROGRESS_SAVE_MS)
+            saveProgress()
+        }
+    }
+    DisposableEffect(Unit) { onDispose { saveProgress() } }
+
+    // „Pokračuje od…" po rozběhnutí na chvíli; pak už je jasné, co se děje.
+    var resumeHint by remember { mutableStateOf(false) }
+    LaunchedEffect(hasPlayed) {
+        if (hasPlayed && resumedFromMs != null) {
+            resumeHint = true
+            delay(RESUME_HINT_MS)
+            resumeHint = false
         }
     }
 
@@ -445,7 +510,13 @@ internal fun VideoPage(
     }
 
     // Po dohrání se ovládání vrátí, ať je vidět tlačítko na opakování.
-    LaunchedEffect(ended) { if (ended) controlsVisible = true }
+    LaunchedEffect(ended) {
+        if (ended) {
+            controlsVisible = true
+            // Dokoukané video se zapomene (konec se nepamatuje, viz `resumePosition`).
+            saveProgress(at = durationMs)
+        }
+    }
     // Po chybě taky: tlačítko přehrání přehrávač připraví znovu.
     LaunchedEffect(failed) { if (failed) controlsVisible = true }
     // Na celou obrazovku se přichází s ovládáním na očích; během přehrávání se samo schová.
@@ -471,7 +542,10 @@ internal fun VideoPage(
     }
     val inPip = pip?.active == true
     // Zavřené okénko i odchod na pozadí bez okénka video pozastaví (proces pod ním žije dál).
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { player.pause() }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        player.pause()
+        saveProgress()
+    }
 
     // Hrající video nenechá displej zhasnout, ani v okénku obrazu v obraze.
     if (active && playing) KeepScreenOn()
@@ -623,6 +697,39 @@ internal fun VideoPage(
                         .padding(top = IconButtonDefaults.largeContainerSize().height + 48.dp)
                         .padding(horizontal = 24.dp),
                 )
+            }
+
+            // Pokračuje se z pamatované pozice: říct to a nabídnout začátek (`resumedFromMs`).
+            AnimatedVisibility(
+                visible = resumeHint && immersive && !inPip && !locked,
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(top = IconButtonDefaults.largeContainerSize().height + 72.dp),
+            ) {
+                Row(
+                    Modifier
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f), CircleCornerShape)
+                        .padding(start = 16.dp, end = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(Res.string.media_video_resumed, formatDuration(((resumedFromMs ?: 0L) / 1000).toInt())),
+                        style = MaterialTheme.typography.labelLarge.tabularNumbers(),
+                        color = Color.White,
+                    )
+                    TextButton(
+                        onClick = {
+                            player.seekTo(0)
+                            ended = false
+                            resumeHint = false
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+                    ) {
+                        Text(stringResource(Res.string.media_video_from_start))
+                    }
+                }
             }
 
             // Tlačítko přehrání v galerii: jen přepne na celou obrazovku, video se spustí tam.
@@ -977,6 +1084,8 @@ private fun BoxScope.VideoTopControls(
 private val CircleCornerShape = androidx.compose.foundation.shape.CircleShape
 
 private const val POSITION_TICK_MS = 200L
+private const val PROGRESS_SAVE_MS = 10_000L
+private const val RESUME_HINT_MS = 6_000L
 private const val CONTROLS_HIDE_MS = 3000L
 
 /** Na kolik dílků se posuvník videa dělí, když tiká haptika (po pětinách procenta by bzučel). */

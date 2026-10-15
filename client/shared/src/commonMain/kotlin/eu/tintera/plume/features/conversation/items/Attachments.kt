@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation.items
 
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import eu.tintera.plume.core.video.VideoPositions
 import eu.tintera.plume.core.ui.LocalAutoDownload
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.features.conversation.loadsOriginalPreview
@@ -720,6 +723,9 @@ internal fun VideoThumbnail(
         if (!isSelfDestruct && video.hasSpoiler) {
             SpoilerOverlay(visible = !revealed, sensitive = video.isSensitive)
         }
+        if (!isSelfDestruct && revealed && !video.isSecret) {
+            WatchedBar(video, Modifier.align(Alignment.BottomStart))
+        }
         if (!isSelfDestruct && revealed) {
             Surface(
                 shape = RoundedCornerShape(8.dp),
@@ -736,6 +742,29 @@ internal fun VideoThumbnail(
         }
     }
 }
+
+/**
+ * Proužek přes spodek náhledu: kam až uživatel video dokoukal ([VideoPositions]), jako na
+ * YouTube. Bílý na tmavé dráze jako posuvník v přehrávači — leží na libovolném obrázku a barva
+ * z motivu by na něm nebyla čitelná. Jen u videí s pamatovanou pozicí, ostatní ho nemají vůbec.
+ */
+@Composable
+private fun WatchedBar(video: MessageMedia.Video, modifier: Modifier = Modifier) {
+    val key = video.fileKey ?: return
+    val positions = koinInject<VideoPositions>()
+    val all by positions.all.collectAsState()
+    val fraction = remember(all, key) { all.firstOrNull { it.key == key }?.fraction } ?: return
+    Box(
+        modifier
+            .fillMaxWidth()
+            .height(WATCHED_BAR_HEIGHT)
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f)),
+    ) {
+        Box(Modifier.fillMaxWidth(fraction).fillMaxHeight().background(Color.White))
+    }
+}
+
+private val WATCHED_BAR_HEIGHT = 3.dp
 
 /**
  * Soubor v bublině: ikona (nebo náhled), název a velikost. Ťuknutí ho stáhne a otevře systémem.
