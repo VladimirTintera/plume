@@ -36,12 +36,18 @@ const val MAX_REPLY_TRANSCRIPT_CHARS = 1_500
  * vstup odpověděl polsky).
  *
  * [lines] jsou chronologicky, nejstarší první.
+ *
+ * [structured] = odpověď přijde jako [ReplySuggestionsOutput] ([OnDeviceAi.generateStructured]),
+ * takže prompt o FORMÁTU mlčí: řádky s odrážkou a závěrečné „Replies:" by se pralo se schématem,
+ * které ML Kit do promptu přidá sám. Obsahové pokyny (celá věta, jazyk, tykání) zůstávají —
+ * schéma říká, jak odpověď vypadá, ne co v ní má být.
  */
 fun replyPrompt(
     chatTitle: String,
     lines: List<TranscriptLine>,
     languageCode: String,
     maxChars: Int = MAX_REPLY_TRANSCRIPT_CHARS,
+    structured: Boolean = false,
 ): String {
     val last = lines.lastOrNull()
     val earlier = fitTranscript(lines.dropLast(1), maxChars)
@@ -60,16 +66,18 @@ fun replyPrompt(
         appendLine("${last?.author ?: ""}: ${last?.text ?: ""}")
         appendLine()
         appendLine("Suggest $MAX_REPLY_SUGGESTIONS different replies the user could send now:")
-        appendLine("- one per line, each starting with \"- \"")
+        if (!structured) appendLine("- one per line, each starting with \"- \"")
         appendLine("- each must be a COMPLETE sentence that answers the message above")
         appendLine("- at most 8 words each, no explanation")
         appendLine("- make them genuinely different: e.g. agree, decline, ask something back")
         appendLine("- write them as the user, in first person")
         appendLine("- ${replyLanguageInstruction(languageCode)}")
         appendLine("- ${formalityInstruction(languageCode)}")
-        appendLine()
-        append("Replies:")
-    }
+        if (!structured) {
+            appendLine()
+            append("Replies:")
+        }
+    }.trimEnd()
 }
 
 /**
@@ -128,6 +136,30 @@ fun parseReplySuggestions(text: String): List<String> {
     val whole = cleanSuggestion(text.replace('\n', ' '))
     return if (whole.isNotBlank() && whole.length <= MAX_REPLY_CHARS) listOf(whole) else emptyList()
 }
+
+/**
+ * Návrhy odpovědi jako typ: tvar strukturovaného výstupu ([OnDeviceAi.generateStructured]).
+ *
+ * **Jméno pole je součást schématu**, které vidí model, a Gson ML Kitu podle něj plní objekt
+ * (reflexí). Popis tvaru je na Androidu v `ReplySuggestionsOutputProvider` a pole drží keep
+ * pravidlo před přejmenováním R8; přejmenovat znamená změnit obojí.
+ *
+ * Nullable schválně: Gson objekt staví bez konstruktoru, takže pole, které model vynechá,
+ * zůstane `null` navzdory typu — a nenullable seznam by spadl až u čtenáře.
+ */
+data class ReplySuggestionsOutput(val replies: List<String>? = null)
+
+/**
+ * Návrhy ze strukturovaného výstupu. Tvar drží model, obsah ne: návrh může být pořád dlouhý,
+ * prázdný, zdvojený nebo v uvozovkách — platí tatáž pravidla jako u textu
+ * ([parseReplySuggestions]), jen bez hledání řádků.
+ */
+fun cleanReplySuggestions(output: ReplySuggestionsOutput): List<String> =
+    output.replies.orEmpty()
+        .map { cleanSuggestion(it) }
+        .filter { it.isNotBlank() && it.length <= MAX_REPLY_CHARS }
+        .distinct()
+        .take(MAX_REPLY_SUGGESTIONS)
 
 /** Sundá odrážku, číslování a uvozovky, které model kolem návrhu občas nechá. */
 private fun cleanSuggestion(raw: String): String {

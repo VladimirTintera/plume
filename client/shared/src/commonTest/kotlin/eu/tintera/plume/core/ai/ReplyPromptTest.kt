@@ -2,6 +2,7 @@ package eu.tintera.plume.core.ai
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /** Překlad výstupu modelu na návrhy, které uvidí uživatel. */
@@ -92,5 +93,39 @@ class ReplyPromptTest {
         val lastAt = prompt.indexOf("Šlo by to přesunout")
         assertTrue(prompt.contains("Reply to THIS message"), "chybí zdůraznění poslední zprávy")
         assertTrue(contextAt in 1..<lastAt, "poslední zpráva musí stát AŽ ZA kontextem")
+    }
+
+    @Test
+    fun strukturovanyPromptOFormatuMlci() {
+        val lines = listOf(TranscriptLine("Jana", "Dáš si kafe?"))
+        val prompt = replyPrompt("Jana", lines, "cs", structured = true)
+        // Odrážky a „Replies:" by se praly se schématem, které do promptu přidá ML Kit.
+        assertFalse(prompt.contains("starting with"), "strukturovaný prompt nesmí chtít odrážky")
+        assertFalse(prompt.trimEnd().endsWith("Replies:"), "strukturovaný prompt nesmí končit výzvou k řádkům")
+        // Obsahové pokyny zůstávají.
+        assertTrue(prompt.contains("Dáš si kafe?"))
+        assertTrue(prompt.contains("tykání"))
+        assertTrue(prompt.contains("COMPLETE sentence"))
+    }
+
+    @Test
+    fun textovyPromptKonciVyzvouKRadkum() {
+        val prompt = replyPrompt("Jana", listOf(TranscriptLine("Jana", "Dáš si kafe?")), "cs")
+        assertTrue(prompt.contains("starting with"))
+        assertTrue(prompt.endsWith("Replies:"))
+    }
+
+    @Test
+    fun strukturovaneNavrhyProjdouStejnymSitem() {
+        val output = ReplySuggestionsOutput(
+            listOf("\"Jasně, rád\"", "  ", "Jasně, rád", "b".repeat(MAX_REPLY_CHARS + 1), "- Nemůžu", "Dej vědět", "Navíc"),
+        )
+        assertEquals(listOf("Jasně, rád", "Nemůžu", "Dej vědět"), cleanReplySuggestions(output))
+    }
+
+    @Test
+    fun chybejiciPoleJePrazdnySeznam() {
+        // Gson staví objekt bez konstruktoru: pole, které model vynechá, je null.
+        assertTrue(cleanReplySuggestions(ReplySuggestionsOutput(null)).isEmpty())
     }
 }

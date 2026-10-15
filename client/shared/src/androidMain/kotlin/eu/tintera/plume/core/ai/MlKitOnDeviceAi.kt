@@ -11,9 +11,11 @@ import com.google.mlkit.genai.prompt.ModelPreference
 import com.google.mlkit.genai.prompt.ModelReleaseStage
 import com.google.mlkit.genai.prompt.TextPart
 import com.google.mlkit.genai.prompt.generateContentRequest
+import com.google.mlkit.genai.prompt.generateTypedContentRequest
 import com.google.mlkit.genai.prompt.generationConfig
 import com.google.mlkit.genai.prompt.modelConfig
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.reflect.KClass
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
@@ -120,6 +122,32 @@ class MlKitOnDeviceAi : OnDeviceAi {
         throw if (e is Exception) e.toAiFailure() else e
     }
 
+    override suspend fun supportsStructuredOutput(variant: ModelVariant): Boolean =
+        status(variant) == OnDeviceAiStatus.Ready &&
+            quietly("structured output") { client(variant).isStructuredOutputFeatureAvailable() } == true
+
+    /**
+     * Typ jde do ML Kitu jako `KClass` a ML Kit si k němu najde popis tvaru (`GenerableProvider`)
+     * přes `ServiceLoader` — providery jsou v [StructuredOutputProviders] a v
+     * `META-INF/services`. Výsledek staví Gson reflexí podle JMEN polí.
+     *
+     * Selhání tvaru (`STRUCTURED_OUTPUT_…`: JSON nesedí do typu, strop výstupu uprostřed objektu)
+     * je [StructuredOutputException], ne [OnDeviceAiException]: model funguje, jen nedodal tvar,
+     * a volající má jít textem.
+     */
+    override suspend fun <T : Any> generateStructured(variant: ModelVariant, prompt: String, type: KClass<T>): T {
+        val response = try {
+            client(variant).generateContent(generateTypedContentRequest(request(prompt), type))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: GenAiException) {
+            throw if (e.errorCode in STRUCTURED_OUTPUT_ERRORS) StructuredOutputException(e.errorCode, e) else e.toAiFailure()
+        } catch (e: Exception) {
+            throw e.toAiFailure()
+        }
+        return response.candidates.firstOrNull()?.response ?: throw StructuredOutputException(code = null)
+    }
+
     private fun request(prompt: String) = generateContentRequest(TextPart(prompt)) {
         // Shrnutí má držet fakta, ne vymýšlet — nízká teplota.
         temperature = 0.2f
@@ -173,5 +201,12 @@ class MlKitOnDeviceAi : OnDeviceAi {
          * tím líp"; co se přesto nevejde, ohlásí [Generated.truncated].
          */
         const val MAX_OUTPUT_TOKENS = 800
+
+        /** Kódy, kterými ML Kit hlásí, že model nedodal tvar — ne že je rozbitý. */
+        val STRUCTURED_OUTPUT_ERRORS = setOf(
+            GenAiException.ErrorCode.STRUCTURED_OUTPUT_REQUEST_ERROR,
+            GenAiException.ErrorCode.STRUCTURED_OUTPUT_RESPONSE_ERROR,
+            GenAiException.ErrorCode.STRUCTURED_OUTPUT_MAX_TOKENS_ERROR,
+        )
     }
 }

@@ -623,12 +623,14 @@ se kterou se musí počítat předem: inferenci pustí AICore jen aplikaci v POP
 ani z úlohy na pozadí tedy nic z toho běžet nemůže — featura, která má vyhodnotit zprávu
 v okamžiku, kdy přijde, narazí na tohle, ne na model.
 
-- **Strukturovaný výstup jako první krok.** Prompt API umí vrátit rovnou instanci Kotlin třídy
-  (`GenerateTypedContentRequest<T>` s `outputClass`, `TypedCandidate<T>.response`), ne text.
-  Tím padá celá třída problémů, se kterou se dnes pereme: `parseReplySuggestions` je tolerantní
-  parser právě proto, že model nedrží formát odrážek. **A každá featura z té silné kategorie
-  na tom stojí** — datum, štítek i skóre chceme jako typ, ne jako větu. Zlepší tedy i to, co už
-  máme, takže má smysl začít tady.
+- ~~**Strukturovaný výstup jako první krok.**~~ — hotovo pro návrhy odpovědí na Gemini Nano
+  (`OnDeviceAi.generateStructured`, ručně psaný `GenerableProvider` bez KSP, náhrada textem;
+  `docs/poznatky/ai-v-zarizeni.md`, „Strukturovaný výstup"). Gemma ho nemá, jde dál textem. Zbývá:
+  - ~~**ověřit na telefonu s Gemini Nano**~~ — ověřeno na Foldu (jede na featuře 648 „Fast Mode
+    (Structured Output)", návrhy nevyšly horší než text; tamtéž). Zbývá porovnat na větším
+    vzorku zpráv,
+  - **další typy**: termín (`EventPrompt`), připomínka, podvod a tón (ano/ne se skóre) a hledání
+    přirozeným jazykem (filtry) — každý = provider, řádek ve services a keep pravidlo.
 - ~~**Detekce podvodných zpráv.**~~ — hotovo: karta „Možný podvod" pod zprávou, předfiltr
   pravidly a posouzení modelem (`docs/poznatky/ai-v-zarizeni.md`, „Varování před podvodem").
   Původní zadání: „Naskenuj tenhle QR a ověř si účet", falešná výhra, odkaz na

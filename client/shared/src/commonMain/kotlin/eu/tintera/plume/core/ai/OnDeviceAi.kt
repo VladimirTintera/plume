@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.ai
 
+import kotlin.reflect.KClass
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
@@ -51,6 +52,23 @@ interface OnDeviceAi {
      * nic skládat.
      */
     fun generate(variant: ModelVariant, prompt: String): Flow<Generated>
+
+    /**
+     * Umí model vrátit odpověď rovnou jako typ ([generateStructured]), ne jako text? Jen
+     * PŘIPRAVENÝ Gemini Nano, jehož AICore strukturovaný výstup hlásí; Gemma přes LiteRT-LM ho
+     * nemá. Kdo dostane `false`, pokračuje textem a vlastním parserem.
+     */
+    suspend fun supportsStructuredOutput(variant: ModelVariant): Boolean = false
+
+    /**
+     * Vygeneruje odpověď na [prompt] rovnou jako instanci [type] — tvar drží model, ne parser.
+     *
+     * **Typ musí mít v platformě popis tvaru** (na Androidu `GenerableProvider` v `core/ai`
+     * a řádek v `META-INF/services`); neznámý typ selže. Nestreamuje se: polovina objektu
+     * nic neznamená. Kde strukturovaný výstup není ([supportsStructuredOutput] `false`), selže.
+     */
+    suspend fun <T : Any> generateStructured(variant: ModelVariant, prompt: String, type: KClass<T>): T =
+        throw OnDeviceAiException(AiFailureReason.Unavailable, variant.provider)
 
     /**
      * Umí model přepsat řeč ze zvuku ([transcribe])? Jen PŘIPRAVENÝ model se zvukovým vstupem
@@ -141,6 +159,17 @@ enum class GemmaModel(
     val downloadUrl: String
         get() = "https://huggingface.co/$repository/resolve/$commit/$fileName?download=true"
 }
+
+/**
+ * Model odpověděl, ale ne v požadovaném tvaru ([OnDeviceAi.generateStructured]): JSON, který
+ * do typu nesedí, nebo useknutý strop výstupu. **Není to rozbitý model** ([OnDeviceAiException]
+ * by šel do Crashlytics jako problém) — volající má jít textem, jako by strukturovaný výstup
+ * nebyl.
+ *
+ * @property code kód runtime (ML Kit `STRUCTURED_OUTPUT_…`), když nějaký je.
+ */
+class StructuredOutputException(val code: Int?, cause: Throwable? = null) :
+    Exception("Structured output failed" + (code?.let { " (code $it)" } ?: ""), cause)
 
 /**
  * Na model není v telefonu dost místa. Hlásí se ZVLÁŠŤ, ne jako obecné selhání stahování:

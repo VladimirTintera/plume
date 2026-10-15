@@ -3,11 +3,16 @@ package eu.tintera.plume.features.conversation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.ai.ModelVariant
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiException
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.isReportable
 import eu.tintera.plume.core.ai.REPLY_CONTEXT_MESSAGES
+import eu.tintera.plume.core.ai.ReplySuggestionsOutput
+import eu.tintera.plume.core.ai.StructuredOutputException
+import eu.tintera.plume.core.ai.TranscriptLine
+import eu.tintera.plume.core.ai.cleanReplySuggestions
 import eu.tintera.plume.core.ai.parseReplySuggestions
 import eu.tintera.plume.core.ai.replyPrompt
 import eu.tintera.plume.core.settings.AppSettings
@@ -106,12 +111,8 @@ class ReplySuggestionsViewModel(
             val variant = settings.onDeviceAiVariant.value
             if (ai.status(variant) != OnDeviceAiStatus.Ready) return@launch
             try {
-                val prompt = replyPrompt(chatTitle, lines, platformLanguageCode)
-                // Bere se až hotový text: čipy, které se přestavují během psaní modelu, by pod
-                // prstem měnily šířku i obsah. Generování je krátké (na Pixelu zlomek vteřiny).
-                var last = ""
-                ai.generate(variant, prompt).collect { last = it.text }
-                _suggestions.value = parseReplySuggestions(last)
+                _suggestions.value = structuredSuggestions(variant, chatTitle, lines)
+                    ?: textSuggestions(variant, chatTitle, lines)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -127,6 +128,47 @@ class ReplySuggestionsViewModel(
                 _suggestions.value = emptyList()
             }
         }
+    }
+
+    /**
+     * Návrhy ze strukturovaného výstupu, kde ho model má; `null` = jít textem.
+     *
+     * **Špatný tvar není konec** ([StructuredOutputException]): strukturovaný výstup je alfa
+     * (`genai-schema`) a model může vrátit JSON, který do typu nesedí. Pak se zkusí text — jako
+     * by strukturovaný výstup nebyl. Dvakrát se tak platí jen na zařízení, kde typy selhávají,
+     * a to se v logu ukáže. Totéž, když po úklidu nezbyde žádný návrh. Rozbitý model
+     * ([OnDeviceAiException]) se ale nezkouší podruhé: text by selhal stejně a hlášení by šlo
+     * pryč.
+     */
+    private suspend fun structuredSuggestions(
+        variant: ModelVariant,
+        chatTitle: String,
+        lines: List<TranscriptLine>,
+    ): List<String>? {
+        if (!ai.supportsStructuredOutput(variant)) return null
+        return try {
+            val prompt = replyPrompt(chatTitle, lines, platformLanguageCode, structured = true)
+            cleanReplySuggestions(ai.generateStructured(variant, prompt, ReplySuggestionsOutput::class))
+                // Nic použitelného (samé dlouhé či prázdné návrhy) je pro uživatele totéž co
+                // špatný tvar — a text je za zlomek vteřiny.
+                .ifEmpty { null }
+        } catch (e: StructuredOutputException) {
+            logger.w(e) { "Strukturované návrhy odpovědi se nepovedly, zkouším text" }
+            null
+        }
+    }
+
+    private suspend fun textSuggestions(
+        variant: ModelVariant,
+        chatTitle: String,
+        lines: List<TranscriptLine>,
+    ): List<String> {
+        val prompt = replyPrompt(chatTitle, lines, platformLanguageCode)
+        // Bere se až hotový text: čipy, které se přestavují během psaní modelu, by pod
+        // prstem měnily šířku i obsah. Generování je krátké (na Pixelu zlomek vteřiny).
+        var last = ""
+        ai.generate(variant, prompt).collect { last = it.text }
+        return parseReplySuggestions(last)
     }
 
     /** Uživatel začal psát, odešel, nebo se cíl změnil na „nenabízet". */

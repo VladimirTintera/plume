@@ -23,3 +23,14 @@
 # `ClassNotFoundException`). Celý balíček, ne výčet tříd — JNI hranici určuje knihovna, ne my,
 # a výčet by se při bumpu tiše rozešel. Až knihovna pravidla přibalí, tohle jde pryč.
 -keep class com.google.ai.edge.litertlm.** { *; }
+
+# Strukturovaný výstup Gemini Nano (core/ai, `OnDeviceAi.generateStructured`): odpověď do typu
+# plní Gson přibalený v ML Kitu REFLEXÍ podle jmen polí, která jsou zároveň schématem pro model.
+# Ověřeno v dexu release buildu: bez tohohle pole `replies` v `ReplySuggestionsOutput` zmizí úplně
+# a návrhy by vyšly prázdné. **`-keepclassmembers … { <fields>; }` NESTAČÍ**: instanci staví jen
+# Gson (bez konstruktoru), R8 v plném režimu třídu bere jako nikdy nevytvořenou, getter udělá
+# abstraktní a pole zahodí i přes pravidlo (`usage.txt`). Drží se proto i konstruktor — tím je
+# třída „vytvořitelná" a pole zůstane pod svým jménem. Provider samotný pravidlo nepotřebuje:
+# R8 ho drží přes `META-INF/services` a soubor přejmenuje spolu s rozhraním. Nový typ odpovědi
+# = další řádek tady (viz `StructuredOutputProviders.kt`).
+-keep class eu.tintera.plume.core.ai.ReplySuggestionsOutput { <init>(...); <fields>; }
