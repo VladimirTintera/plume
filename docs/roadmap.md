@@ -78,6 +78,12 @@ Android je napřed; tohle je, čím se to dorovnává.
 - **Hlášení pádů.** `NoopCrashReporter`. Implementace musí přijít ze Swiftu — `FirebaseCrashlytics`
   je ObjC knihovna, kterou Kotlin/Native nevidí, a Kotlin výjimka nese jen adresy stack trace.
   Vzor je `IosCrashlyticsLogger` v projektu com.profilog.telemetry.android.
+- **Vydání: nejspíš App Store** (zatím nerozhodnuté, testování přes TestFlight). Chce placený
+  Apple Developer Program (99 USD ročně, odpuštění jen pro neziskovky a školy). Tentýž účet dá
+  i Developer ID a notarizaci pro DMG na macOS. Zvážené a odložené: alternativní obchody v EU
+  (AltStore PAL) chtějí stejný účet i notarizaci, takže nic neušetří; stažení z webu je jen pro
+  vývojáře s milionem instalací. Bez poplatku by šla nepodepsaná IPA instalovaná přes
+  SideStore / AltStore (podpis uživatelovým Apple ID na 7 dní), ovšem bez push notifikací.
 - **Release link do CI jako samostatný cachovaný krok.** Kotlin/Native pouští LTO nad celou
   statickou TDLib a naměřeno je 15+ minut na M-series; do smyčky, kterou čeká vývojář, to nepatří.
 
@@ -108,8 +114,9 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
 - ~~**Vkládání obrázků ze schránky a přetažení souboru do okna**~~ — hotovo
   (`docs/poznatky/desktop.md`, „Vložení ze schránky a přetažení souborů"). Zbývá obrázek
   tažený z prohlížeče (přichází bez souboru).
-- **Release pro macOS a Linux** (Windows MSI už je, `desktop-release.yml`): job na
-  `macos-latest` s Homebrew `openssl@3` (DMG) a na Ubuntu (DEB). macOS chce verzi od 1.0.0.
+- **Release pro Linux a Intel Mac** (Windows MSI a DMG pro Apple Silicon už jsou,
+  `desktop-release.yml`): job na Ubuntu (DEB, glibc 2.38+) a na Intel runneru (`macos-15-intel`,
+  DMG pro macOS 15+). Ani jedno zatím nikdo nezkoušel spustit.
 - **Podpis instalátorů**: Windows (certifikát pro podepisování kódu, jinak SmartScreen),
   macOS podpis Developer ID a notarizace. Bez nich systém instalátor při prvním spuštění zastaví.
 - **Aktualizace desktopu**: aplikace o nové verzi neví; šlo by to přes GitHub Releases API.

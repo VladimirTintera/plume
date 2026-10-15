@@ -3,7 +3,7 @@
 Poznatky k jedné oblasti aplikace. Obecná pravidla projektu a rejstřík ostatních souborů jsou
 v [CLAUDE.md](../../CLAUDE.md); poučení z opravy v téhle oblasti patří sem.
 
-Desktop (Windows MSI, `desktop-release.yml`) má vlastní oddíl v `desktop.md`, „Release (Windows)".
+Desktop (Windows MSI a macOS DMG, `desktop-release.yml`) má vlastní oddíl v `desktop.md`, „Release".
 
 ## Release do Play
 
