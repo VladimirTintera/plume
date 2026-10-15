@@ -80,6 +80,9 @@ internal class ScreenItemScope(
 
     override fun doubleTapReaction(): Boolean = state.value.doubleTapReaction
 
+    // Odpovědět i poslat příkaz jde jen tam, kam se smí psát — tentýž stav (`canWrite`).
+    override fun canReply(): Boolean = canSendCommands.value
+
     override fun gatherShift(key: Any): Float = jumpTransition.shiftOf(key)
 
     override fun gatherAlpha(key: Any): Float = jumpTransition.alphaOf(key)

@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation.items
 
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.hoverable
 import eu.tintera.plume.core.adaptive.ContentWidth
 import eu.tintera.plume.core.ui.messageTextStyle
 import eu.tintera.plume.core.ui.resolve
@@ -600,10 +603,23 @@ private fun MessageFrame(
         label = "selection-tint",
     )
 
+    /*
+     * Najetí myší na ŘÁDEK (ne jen na bublinu) ukáže u zprávy čas, Odpovědět a ⋮
+     * ([MessageHoverActions]). Řádek jde přes celou šířku, takže pilulka na volné straně v něm
+     * leží a přejetí kurzorem k ní ji neschová. Dotyk najetí nemá.
+     */
+    val hover = remember { MutableInteractionSource() }
+    val hovered by hover.collectIsHoveredAsState()
+    // Řádek, ze kterého pilulka nesmí vyjet ([outsideBubble]); souřadnice, ne stav — čtou se až
+    // při pokládání.
+    val rowCoordinates = remember { arrayOfNulls<LayoutCoordinates>(1) }
+
     Box(Modifier.fillMaxWidth().background(selectionTint)) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .hoverable(hover)
+            .onGloballyPositioned { rowCoordinates[0] = it }
             // Zprávy od jednoho odesílatele drží u sebe, nová skupina se oddělí. Tvar bublin
             // to už rozlišuje staženým nárožím, mezera tomu jen dává prostor.
             .padding(top = if (frame.continuesAbove) 0.dp else GROUP_SPACING)
@@ -849,6 +865,27 @@ private fun MessageFrame(
                             ),
                     )
                 }
+
+                // Čas, Odpovědět a ⋮ po najetí myší, na volné straně za značkami efektu a kontextu.
+                MessageHoverActions(
+                    visible = hovered && frame.selected == null && !scope.isInMenu(frame.key),
+                    timestamp = message.timestamp,
+                    onReply = if (scope.canReply()) {
+                        { scope.onAction(currentMessageId, MessageAction.SwipeReply) }
+                    } else {
+                        null
+                    },
+                    onOptions = bodyScope::requestMenu,
+                    modifier = Modifier
+                        .align(if (message.isOutgoing) Alignment.BottomStart else Alignment.BottomEnd)
+                        .outsideBubble(
+                            row = { rowCoordinates[0] },
+                            isOutgoing = message.isOutgoing,
+                            gap = EFFECT_MARK_GAP +
+                                (if (message.effect != null) EFFECT_MARK_SIZE + EFFECT_MARK_GAP else 0.dp) +
+                                (if (context.isNotEmpty()) CONTEXT_MARK_SIZE + EFFECT_MARK_GAP else 0.dp),
+                        ),
+                )
             }
             }
 

@@ -200,6 +200,39 @@ na iOS. Dlouhý stisk v SEZNAMU dál otevírá nabídku — o gesto se nedělí,
   už zpracovává; předběhnout server by znamenalo riskovat, že zpráva zmizí z obrazovky a na
   serveru zůstane.
 
+## Akce po najetí myší
+
+Na zprávě pod kurzorem se na volné straně bubliny ukáže pilulka s časem, Odpovědět a ⋮
+(`MessageHoverActions`). ⋮ otevře tutéž nabídku jako podržení nebo pravé tlačítko. Na desktopu
+se čas ani odpověď jinak nedaly najít: v bublině čas není a obojí je tah (časy doleva, odpověď
+doprava), na který myší nikdo nepřijde. Vybraná varianta ze dvou (náčrt s uživatelem): jen
+zpráva pod kurzorem, ne časy u všech — konverzace při přejíždění myší nebliká a nic se
+neposouvá; časy u všech dál ukáže tah doleva.
+
+- **Najetí se hlídá na ŘÁDKU, ne na bublině** (`hoverable` na `Row` v `MessageFrame`). Řádek jde
+  přes celou šířku, takže pilulka na volné straně v něm leží a cesta kurzoru k ní ji neschová.
+  Dotyk najetí nemá; pero ano (ukáže ji při vznášení, nevadí).
+- **Do layoutu nezasahuje** (`outsideBubble`): v `Box` bubliny zabere šířku 0 u spodního rohu
+  volné strany a obsah se položí ven, za značky efektu a kontextu. Jinak by se zpráva při
+  najetí přeskládala.
+- **Z řádku nevyjede.** Široká bublina na úzkém displeji nechá volné straně méně místa, než
+  pilulka potřebuje — na emulátoru přetekla za okraj a z času zbylo „12". Při pokládání se
+  proto posune dovnitř řádku a kus bubliny překryje; stín (`shadowElevation` 2 dp) ji od bubliny
+  oddělí. Souřadnice řádku se čtou až při pokládání (pole, ne stav), takže nic nerekomponuje.
+- **Odpovědět jen tam, kam se smí psát** (`ConversationItemScope.canReply`, tentýž `canWrite`
+  jako příkazy); `replyTo` by jinde nic neudělal. Akce je `SwipeReply`, tatáž jako u tahu.
+- **Ve výběru víc zpráv a u zprávy s otevřenou nabídkou se neukazuje.**
+- **Bez minimální dotykové plochy** (`LocalMinimumInteractiveComponentSize` = `Unspecified`)
+  a extra malá tlačítka M3 (32 dp): pilulka je jen pro myš a s plochou 48 dp by byla vyšší než
+  jednořádková bublina.
+- **Ověřeno na emulátoru virtuální myší přes `uinput`** (`EV_REL` + `BTN_LEFT`; `adb input`
+  pohyb bez kliknutí neumí). Pozor na zrychlení ukazatele: velké skoky ujedou, kurzor se napřed
+  zarazí do rohu (velké záporné posuny) a pak jde po malých krocích (zisk ~3,4 na krok 2–5).
+  Snímek se musí udělat, DOKUD zařízení existuje (`uinput … & sleep N; screencap; wait`) —
+  po konci skriptu kurzor zmizí a najetí skončí. Pilulka u odchozí ankety (posunutá dovnitř),
+  klik na Odpovědět připravil odpověď.
+- **Ověřeno na Windows 11** (ladicí běh, skutečná myš, uživatel). macOS neověřený.
+
 ## Smazání cizích zpráv správcem
 
 Správce supergroupy, který maže zprávy jednoho člena (z nabídky i z výběru), dostane
