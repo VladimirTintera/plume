@@ -508,6 +508,18 @@ text, tlačítko je fajfka a potvrzení volá `editMessageText`.
     by se beze změny nic neposlalo.
   - Ověřeno na emulátoru: fotka vyměněná za jinou („upraveno" u zprávy), u skladby sponka
     otevřela výběr souborů.
+  - **Fotka a video se vybírají z vestavěné galerie v sheetu**, kde je (viz „Vestavěná galerie
+    (Android)"), jinde ze systémového výběru jako dřív. Galerie je v režimu jedné položky
+    (`EmbeddedMediaPicker(single = true)` → `setMaxSelectionLimit(1)`) a **sheet se po výběru
+    zavře sám** — není co dál vybírat a „Hotovo" by byl krok navíc. Odznačení vrátí původní
+    přílohu (`keepEditMedia`).
+  - **Výměna má VLASTNÍ paměť výběru** (`rememberEmbeddedMediaSelection` v `ConversationDialogs`),
+    ne tu od příloh nad polem: se společnou by v galerii byly zaškrtnuté přílohy rozepsané
+    zprávy a vybraná náhrada by se tvářila jako příloha. Zaškrtnutí se obnovuje průnikem
+    s aktuální náhradou (`editReplacement`), takže po uložení nebo zrušení úpravy zmizí samo.
+  - Ověřeno na emulátoru (API 37): Upravit → sponka → galerie v sheetu nad úpravou, ťuknutí
+    na fotku zavřelo sheet a v hlavičce stálo „Nová fotka", po uložení byla ve zprávě nová
+    fotka s „upraveno". Soubor a skladba jdou dál systémovým výběrem.
 - **Po „Upravit" se pole samo nefokusuje.** Že se něco stalo, ukazuje karta s původním textem
   a fajfka místo odeslání; klávesnici si uživatel vyvolá ťuknutím do pole. Dřív si pole fokus
   a klávesnici vyžádalo samo (uživatel si to nepřál).

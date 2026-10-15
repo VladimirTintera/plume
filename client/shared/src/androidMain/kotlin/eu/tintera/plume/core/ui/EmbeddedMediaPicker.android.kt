@@ -86,6 +86,7 @@ actual fun EmbeddedMediaPicker(
     allowPhotos: Boolean,
     allowVideos: Boolean,
     expanded: Boolean,
+    single: Boolean,
     onPicked: (List<OutgoingAttachment>) -> Unit,
     onUnpicked: (List<String>) -> Unit,
     onError: (UiText) -> Unit,
@@ -219,9 +220,10 @@ actual fun EmbeddedMediaPicker(
     val colors = MaterialTheme.colorScheme
     val dark = colors.surface.luminance() < 0.5f
     val accent = colors.primary
-    val info = remember(accent, dark, allowPhotos, allowVideos) {
+    val info = remember(accent, dark, allowPhotos, allowVideos, single) {
         EmbeddedPhotoPickerFeatureInfo.Builder()
-            .setMaxSelectionLimit(PICK_LIMIT)
+            // Výměna přílohy bere jednu položku; picker pak druhou zaškrtnout nedovolí.
+            .setMaxSelectionLimit(if (single) 1 else PICK_LIMIT)
             /*
              * Co chat nepřijme, se ani nenabídne — jinak by skupina jen pro fotky nechala
              * uživatele vybrat video a chyba by přišla až od serveru (totéž pravidlo jako

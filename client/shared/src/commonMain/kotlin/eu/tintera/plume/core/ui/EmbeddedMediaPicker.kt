@@ -87,6 +87,11 @@ expect fun EmbeddedMediaPicker(
      * kde je galerie celá vidět (sheet v konverzaci), musí být rozbalená.
      */
     expanded: Boolean,
+    /**
+     * Vybrat jde jen jednu položku — výměna přílohy při úpravě zprávy. Jinak album až do limitu
+     * pickeru.
+     */
+    single: Boolean = false,
     onPicked: (List<OutgoingAttachment>) -> Unit,
     onUnpicked: (List<String>) -> Unit,
     onError: (UiText) -> Unit,

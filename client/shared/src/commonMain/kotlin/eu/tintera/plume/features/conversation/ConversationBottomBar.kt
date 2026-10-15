@@ -482,7 +482,9 @@ internal fun ConversationBottomBar(
                 replacement = state.editReplacement,
                 onReplace = {
                     when (replace) {
-                        ReplaceMedia.Visual -> replacementPicker.pickMedia()
+                        // Fotka a video jdou z téže galerie v sheetu jako přílohy, kde je.
+                        ReplaceMedia.Visual ->
+                            if (embeddedMediaPicker) sheets.replacementPicker = true else replacementPicker.pickMedia()
                         ReplaceMedia.File -> replacementPicker.pickDocument()
                     }
                 },
