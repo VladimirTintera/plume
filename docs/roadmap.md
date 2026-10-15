@@ -373,8 +373,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   (sheet připnutých → „Odepnout vše"). Zbývá ověřit v tématu skupiny.
 - ~~Smazat skupinu nebo kanál pro všechny (`deleteChat`)~~ — hotovo (konec úpravy skupiny).
 - ~~Záznam posledních akcí (`getChatEventLog`)~~ — hotovo (úprava skupiny → Poslední akce;
-  `docs/poznatky/profil-chatu.md`). Zbývají filtry a hledání v záznamu a statistiky kanálu
-  a příspěvku (`getChatStatistics`, `getMessageStatistics`, `getMessagePublicForwards`).
+  `docs/poznatky/profil-chatu.md`). ~~Filtry a hledání v záznamu~~ — hotovo (tamtéž, „Hledání
+  a filtry záznamu"; filtr podle autora ověřit ve skupině s víc správci). Zbývají statistiky
+  kanálu a příspěvku (`getChatStatistics`, `getMessageStatistics`, `getMessagePublicForwards`).
 - ~~Psaní jménem kanálu ve skupině (`getChatAvailableMessageSenders`, `setChatMessageSender`)~~ —
   hotovo (`docs/poznatky/konverzace-psani.md`, „Psaní jménem kanálu nebo skupiny"). Zbývá ověřit
   na zařízení s kanálem nebo anonymním správcem a prémiovou volbu.

@@ -24,6 +24,7 @@ import dev.g000sha256.tdl.dto.ChatEventInvitesToggled
 import dev.g000sha256.tdl.dto.ChatEventIsAllHistoryAvailableToggled
 import dev.g000sha256.tdl.dto.ChatEventIsForumToggled
 import dev.g000sha256.tdl.dto.ChatEventLinkedChatChanged
+import dev.g000sha256.tdl.dto.ChatEventLogFilters
 import dev.g000sha256.tdl.dto.ChatEventLocationChanged
 import dev.g000sha256.tdl.dto.ChatEventMemberInvited
 import dev.g000sha256.tdl.dto.ChatEventMemberJoined
@@ -152,6 +153,76 @@ data class ChatLogPage(val events: List<ChatLogEvent>, val nextFromEventId: Long
 
 /** Kolik událostí na stránku — víc TDLib nevydá. */
 const val CHAT_LOG_PAGE = 100
+
+/**
+ * Druh akcí v záznamu — čip filtru. Hrubší než `ChatEventLogFilters` (15 příznaků): uživatel
+ * hledá „co se dělo se zprávami", ne rozdíl mezi úpravou a připnutím. Rozdělení odpovídá
+ * filtrům oficiálních klientů, jen informace a nastavení skupiny jsou jeden čip.
+ */
+enum class ChatLogCategory {
+    /** Úpravy, smazání, připnutí a odepnutí zpráv. */
+    Messages,
+
+    /** Příchody, odchody a pozvání. */
+    Members,
+
+    /** Povýšení, sesazení a úprava práv správců, štítky členů. */
+    Admins,
+
+    /** Omezení, vyhození a jejich zrušení. */
+    Restrictions,
+
+    /** Název, fotka, popis, odkaz i nastavení skupiny. */
+    Settings,
+
+    /** Pozvánky a prodloužení předplatného přes ně. */
+    InviteLinks,
+
+    VideoChats,
+
+    Topics,
+}
+
+/**
+ * Co ze záznamu ukázat: [query] hledá v textu událostí (TDLib `query`), [categories] zužuje druh,
+ * [userIds] autory (správce). Prázdné = bez omezení.
+ */
+data class ChatLogFilter(
+    val query: String = "",
+    val categories: Set<ChatLogCategory> = emptySet(),
+    val userIds: Set<Long> = emptySet(),
+) {
+    val isActive: Boolean get() = query.isNotBlank() || categories.isNotEmpty() || userIds.isNotEmpty()
+}
+
+/**
+ * Příznaky pro `getChatEventLog`; `null` = všechny druhy. Prázdná množina NESMÍ jít jako objekt
+ * se samými `false` — server by nevrátil nic.
+ */
+internal fun Set<ChatLogCategory>.toTdlFilters(): ChatEventLogFilters? {
+    if (isEmpty()) return null
+    val messages = ChatLogCategory.Messages in this
+    val members = ChatLogCategory.Members in this
+    val admins = ChatLogCategory.Admins in this
+    val links = ChatLogCategory.InviteLinks in this
+    return ChatEventLogFilters(
+        messageEdits = messages,
+        messageDeletions = messages,
+        messagePins = messages,
+        memberJoins = members,
+        memberLeaves = members,
+        memberInvites = members,
+        memberPromotions = admins,
+        memberRestrictions = ChatLogCategory.Restrictions in this,
+        memberTagChanges = admins,
+        infoChanges = ChatLogCategory.Settings in this,
+        settingChanges = ChatLogCategory.Settings in this,
+        inviteLinkChanges = links,
+        videoChatChanges = ChatLogCategory.VideoChats in this,
+        forumChanges = ChatLogCategory.Topics in this,
+        subscriptionExtensions = links,
+    )
+}
 
 /** Popis události: co se stalo a případně podrobnost. */
 internal data class EventText(val description: UiText, val detail: UiText? = null)
