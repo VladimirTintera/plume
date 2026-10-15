@@ -1,5 +1,10 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.profile_calendar
+import eu.tintera.plume.resources.event_24dp
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import org.jetbrains.compose.resources.pluralStringResource
 import eu.tintera.plume.resources.invite_subscribers
 import eu.tintera.plume.resources.invite_members
@@ -781,10 +786,32 @@ internal fun SharedTabFrame(
     nothingFound: Boolean,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
+    /** Kalendář médií po dnech (jen záložka Média); `null` = tlačítko není. */
+    onOpenCalendar: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     val layoutDirection = LocalLayoutDirection.current
     Column(modifier.fillMaxSize()) {
+        if (onOpenCalendar != null) {
+            // Stojí tam, kde jiné záložky mají pole hledání: média se hledají podle data.
+            FilledTonalButton(
+                onClick = onOpenCalendar,
+                shapes = ButtonDefaults.shapes(),
+                modifier = Modifier.padding(
+                    start = contentPadding.calculateStartPadding(layoutDirection),
+                    top = contentPadding.calculateTopPadding(),
+                    bottom = 8.dp,
+                ),
+            ) {
+                Icon(
+                    painterResource(Res.drawable.event_24dp),
+                    contentDescription = null,
+                    modifier = Modifier.size(ButtonDefaults.IconSize),
+                )
+                Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                Text(stringResource(Res.string.profile_calendar))
+            }
+        }
         if (search != null) {
             SearchPill(
                 initialQuery = search.query,

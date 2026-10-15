@@ -1,5 +1,19 @@
 package eu.tintera.plume.core.ui
 
+import eu.tintera.plume.resources.month_standalone_12
+import eu.tintera.plume.resources.month_standalone_11
+import eu.tintera.plume.resources.month_standalone_10
+import eu.tintera.plume.resources.month_standalone_9
+import eu.tintera.plume.resources.month_standalone_8
+import eu.tintera.plume.resources.month_standalone_7
+import eu.tintera.plume.resources.month_standalone_6
+import eu.tintera.plume.resources.month_standalone_5
+import eu.tintera.plume.resources.month_standalone_4
+import eu.tintera.plume.resources.month_standalone_3
+import eu.tintera.plume.resources.month_standalone_2
+import eu.tintera.plume.resources.month_standalone_1
+import eu.tintera.plume.resources.calendar_month_year
+import kotlinx.datetime.YearMonth
 import androidx.compose.runtime.Composable
 import eu.tintera.plume.core.telegram.Birthdate
 import eu.tintera.plume.resources.Res
@@ -160,7 +174,8 @@ fun Int.asTimeOfDay(zone: TimeZone = TimeZone.currentSystemDefault()): String {
 
 private fun Int.pad(): String = toString().padStart(2, '0')
 
-private fun DayOfWeek.shortName(): StringResource = when (this) {
+/** Zkratka dne v týdnu („po", „Mon") — v hlavičce kalendáře a u data v textu. */
+internal fun DayOfWeek.shortName(): StringResource = when (this) {
     DayOfWeek.MONDAY -> Res.string.day_short_1
     DayOfWeek.TUESDAY -> Res.string.day_short_2
     DayOfWeek.WEDNESDAY -> Res.string.day_short_3
@@ -314,4 +329,27 @@ fun Birthdate.label(): String {
     val monthName = stringResource(Month(month).name())
     return year?.let { stringResource(Res.string.date_day_month_year, day, monthName, it) }
         ?: stringResource(Res.string.date_day_month, day, monthName)
+}
+
+/**
+ * Měsíc a rok jako nadpis („říjen 2026", „October 2026"). Název měsíce je tu v základním tvaru,
+ * ne ve 2. pádu jako za dnem ([name]) — čeština nadpis „října 2026" nepoužívá.
+ */
+@Composable
+fun monthTitle(month: YearMonth): String =
+    stringResource(Res.string.calendar_month_year, stringResource(month.month.standaloneName()), month.year)
+
+private fun Month.standaloneName(): StringResource = when (this) {
+    Month.JANUARY -> Res.string.month_standalone_1
+    Month.FEBRUARY -> Res.string.month_standalone_2
+    Month.MARCH -> Res.string.month_standalone_3
+    Month.APRIL -> Res.string.month_standalone_4
+    Month.MAY -> Res.string.month_standalone_5
+    Month.JUNE -> Res.string.month_standalone_6
+    Month.JULY -> Res.string.month_standalone_7
+    Month.AUGUST -> Res.string.month_standalone_8
+    Month.SEPTEMBER -> Res.string.month_standalone_9
+    Month.OCTOBER -> Res.string.month_standalone_10
+    Month.NOVEMBER -> Res.string.month_standalone_11
+    else -> Res.string.month_standalone_12
 }

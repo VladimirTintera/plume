@@ -783,3 +783,28 @@ obsahu bývá zlomek zpráv.
 - **`mailto:` se v adrese neukazuje** (`displayUrl`, testy `SharedMediaTest`). Filtr odkazů bere
   i e-maily a schéma u nich nic neříká; `https` od `tg` odlišit potřeba je, takže se zahazuje
   jen ono.
+
+#### Kalendář médií
+
+Nad mřížkou Médií je tlačítko **Kalendář** (`SharedTabFrame.onOpenCalendar`, od stejného počtu
+jako hledání v jiných záložkách — `offersMediaCalendar`). Otevře sheet s měsíci od nejnovějšího
+(`MediaCalendarSheet`); den s fotkou nebo videem je kruh s náhledem první fotky dne, ťuknutí
+zavře kalendář a otevře na ní prohlížeč, ve kterém se listuje dál jako z mřížky. Data
+`getChatMessageCalendar` (`mediaCalendar`), logika `core/telegram/MediaCalendar.kt`
+(`mergeCalendarDays`, `calendarMonths`, testy `MediaCalendarTest`).
+
+- **Každý den nese PRVNÍ zprávu dne**, ne poslední, a dny jdou od nejnovějšího. Další stránka se
+  proto čte od zprávy posledního (nejstaršího) dne.
+- **Poslední den stránky bývá neúplný** a na další stránce přijde znovu se zbytkem — počty se
+  sečtou a první zprávou zůstane ta starší.
+- **Den se počítá místně** z času zprávy. TDLib dělí dny podle volby `utc_time_offset`, kterou
+  Plume nenastavuje, takže dva jeho dny můžou být jeden místní; sečtou se.
+- **Měsíce bez médií se vynechávají** — chat s fotkami jednou za čas by jinak byl hlavně prázdné
+  stránky. **Týden začíná pondělím** v obou jazycích (angličtina v aplikaci není americká).
+- **Nadpis měsíce chce v češtině 1. pád** („říjen 2026"), ne 2. pád za dnem (`month_N`, „října") —
+  proto vlastní řada `month_standalone_N` a `monthTitle`.
+- **Skryté médium (spoiler) náhled v kalendáři neukáže**, kruh zůstane tónovaný; odkryje se až
+  v prohlížeči, jako z dlaždice. Kruh bez náhledu mají i videa, ke kterým server náhled nedal.
+- **Ověřeno na emulátoru** v chatu s Notifikátorem (67 médií od 20. 9.): říjen a září s náhledy,
+  ťuknutí na 10. 10. otevřelo prohlížeč na fotce „sobota 19:21 · 66 z 67". **Dotahování starších
+  měsíců ověřené NENÍ** — celá historie se vešla do první stránky.

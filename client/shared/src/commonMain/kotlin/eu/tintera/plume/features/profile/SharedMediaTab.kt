@@ -64,6 +64,12 @@ data class SharedMediaTab(
 fun offersSharedSearch(kind: SharedMediaKind, count: Int, query: String): Boolean =
     kind in SEARCHABLE_KINDS && (count > SHARED_SEARCH_MIN_COUNT || query.isNotEmpty())
 
+/**
+ * Nabízí se nad Médii kalendář po dnech? Od stejného počtu jako hledání v jiných záložkách —
+ * u pár fotek je celá mřížka vidět naráz a kalendář by jen ubíral místo.
+ */
+fun offersMediaCalendar(count: Int): Boolean = count > SHARED_SEARCH_MIN_COUNT
+
 /** Druhy, ve kterých je podle čeho hledat — název souboru, skladby, text s odkazem. GIF a kolečko ne. */
 private val SEARCHABLE_KINDS = setOf(SharedMediaKind.Files, SharedMediaKind.Music, SharedMediaKind.Links)
 

@@ -318,6 +318,15 @@ fun ChatProfileScreen(
         currentOnMemberRights(target.userId, target.admin)
     }
 
+    state.mediaCalendar?.let { calendar ->
+        MediaCalendarSheet(
+            calendar = calendar,
+            onPick = viewModel::pickCalendarDay,
+            onLoadMore = viewModel::loadMoreCalendar,
+            onDismiss = viewModel::closeMediaCalendar,
+        )
+    }
+
     state.memberSheet?.let { member ->
         MemberActionsSheet(
             member = member,
@@ -814,6 +823,9 @@ private fun TabContent(
             },
             nothingFound = state.shared[tab.kind]?.let { it.query.isNotEmpty() && it.messages.isEmpty() && !it.loading } == true,
             contentPadding = contentPadding,
+            onOpenCalendar = viewModel::openMediaCalendar.takeIf {
+                tab.kind == SharedMediaKind.Media && offersMediaCalendar(state.counts?.media ?: 0)
+            },
         ) {
             val data = state.shared[tab.kind]
             val messages = data?.messages.orEmpty()
