@@ -25,6 +25,7 @@ open class UnimplementedStickerRepository : StickerRepository {
     override suspend fun canUseCustomEmoji(chatId: Long) : Boolean = error("canUseCustomEmoji")
     override fun customEmojiSets() : Flow<List<CustomEmojiSet>> = error("customEmojiSets")
     override suspend fun customEmojiSet(setId: Long) : Result<List<CustomEmojiItem>> = error("customEmojiSet")
+    override suspend fun searchCustomEmoji(text: String, emojis: List<String>, chatId: Long) : List<CustomEmojiItem> = error("searchCustomEmoji")
     override fun trendingCustomEmojiSets() : Flow<List<CustomEmojiSetSample>> = error("trendingCustomEmojiSets")
     override suspend fun stickerSet(setId: Long) : Result<List<StickerItem>> = error("stickerSet")
     override suspend fun search(query: StickerQuery) : StickerSearchResult = error("search")
