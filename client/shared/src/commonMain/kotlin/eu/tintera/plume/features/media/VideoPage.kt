@@ -238,6 +238,8 @@ internal fun VideoPage(
     qualityChoice: VideoQualityChoice = VideoQualityChoice.Auto,
     /** Volba kvality v liště; `null` = bez nabídky (hraje se, co vybere automatika). */
     onQualityChoice: ((VideoQualityChoice) -> Unit)? = null,
+    /** Hraje-li vybraná stránka (viz druhé [VideoPage]); prohlížeč podle toho vypíná listování. */
+    onPlayingChange: ((Boolean) -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val repository = koinInject<FileRepository>()
@@ -339,6 +341,7 @@ internal fun VideoPage(
             }
         },
         sourceKey = chosenId,
+        onPlayingChange = onPlayingChange,
         quality = onQualityChoice?.takeIf { qualities.size > 1 }?.let { onChoose ->
             VideoQualityMenu(
                 options = qualities,
@@ -474,6 +477,11 @@ internal fun VideoPage(
     sourceKey: Any? = null,
     /** Čip kvality v liště s nabídkou; `null` = bez něj (jediná kvalita, sdílení). */
     quality: VideoQualityMenu? = null,
+    /**
+     * Ozve se, když vybraná stránka začne nebo přestane hrát. Prohlížeč podle toho vypíná
+     * listování — hrající video se nesmí odlistovat nechtěným tahem, pozastavené ano.
+     */
+    onPlayingChange: ((Boolean) -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val voicePlayer = koinInject<VoicePlayer>()
@@ -624,6 +632,9 @@ internal fun VideoPage(
             resumeHint = false
         }
     }
+
+    val currentPlayingChange by rememberUpdatedState(onPlayingChange)
+    LaunchedEffect(playing, isCurrent) { if (isCurrent) currentPlayingChange?.invoke(playing) }
 
     // Přehrávač stav nehlásí; čte se po kouskách, jen dokud je stránka vybraná.
     LaunchedEffect(loaded, active) {

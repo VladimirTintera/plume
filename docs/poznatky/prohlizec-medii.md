@@ -1020,10 +1020,17 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   **Přechody jdou prohlédnout jen zpomaleně**: `adb shell settings put global
   animator_duration_scale 10` (Compose ho respektuje) a série `screencap` — v normální
   rychlosti ho snímky minou.
-- **Video na celé obrazovce se nelistuje** (`pagerScroll` v `MediaViewerScreen`), zamčené ani
-  odemčené; fotky na celé obrazovce ano. Je to přehrávač, ne galerie: vodorovný tah při sledování
-  bývá nechtěný (sjetý tah jasu, palec vedle posuvníku) a odlistování by video uprostřed zastavilo.
-  Do galerie a dál se jde ťuknutím. Šipky na klávesnici a po stranách se řídí týmž příznakem.
+- **HRAJÍCÍ video na celé obrazovce se nelistuje** (`pagerScroll` v `MediaViewerScreen`);
+  pozastavené a dohrané ano, zamčené nikdy, fotky vždycky. Vodorovný tah při sledování bývá
+  nechtěný (sjetý tah jasu, palec vedle posuvníku) a odlistování by video uprostřed zastavilo.
+  Šipky na klávesnici a po stranách se řídí týmž příznakem.
+  - **První verze blokovala každé video na celé obrazovce** a uživatel ji odmítl: k dalšímu médiu
+    se pak muselo napřed ťuknutím do galerie.
+  - **Stav hlásí stránka (`onPlayingChange`), prohlížeč si drží ID ZPRÁVY, která hraje**, ne
+    příznak. Hlášení stránky, která už vybraná není, tak listování nezablokuje; po odlistování na
+    další video na celé obrazovce se to rozehraje samo a listování se zase zamkne.
+  - Ověřeno na emulátoru: hrající video tah ignoruje, po pozastavení tlačítkem tentýž tah přejde
+    na sousední fotku.
   - **Past: tah do strany se pak změnil v ťuknutí** a video přeskočilo do galerie.
     `detectTapGestures` ruší ťuknutí jen u SPOTŘEBOVANÉHO pohybu, ne podle vzdálenosti; dokud tah
     bral pager, platilo to samo. Stránka videa proto spotřebuje každý tah přes `touchSlop` ve fázi
@@ -1135,7 +1142,7 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
     `prefersHomeIndicatorAutoHidden` je v kategorii UIKit a Kotlin/Native ji přepsat nedovolí
     („overrides nothing").
   - **Zámek proti dotykům** (zámek vlevo nahoře): tah nezavírá, ťuknutí nepřepíná, ovládání
-    se neukáže a listování je vypnuté (jako u každého videa na celé obrazovce, viz výš). Ťuknutí kamkoli
+    se neukáže a listování je vypnuté i u pozastaveného videa. Ťuknutí kamkoli
     vytáhne vyplněný zámek, kterým se odemyká; po zamčení se na chvíli ukáže sám. **Zpět
     za zamčení nezavírá**, jen ukáže zámek — tah od okraje je ten nejčastější nechtěný dotyk.
     Jde to přes `NavigationBackHandler` zapnutý jen za zamčení; `BackHandler` by zabil predictive
