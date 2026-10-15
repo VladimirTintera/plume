@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.telegram.mergeCalendarDays
+import eu.tintera.plume.core.telegram.MediaCalendarPage
+import eu.tintera.plume.core.telegram.CalendarDayMedia
 import eu.tintera.plume.core.audio.VoiceKey
 import eu.tintera.plume.core.telegram.RelatedChat
 import eu.tintera.plume.core.chatcolor.ChatColors
@@ -282,6 +285,63 @@ class ChatProfileViewModel(
 
     fun consumeOpenMedia() {
         _state.update { it.copy(openMedia = null) }
+    }
+
+    /** Běžící čtení stránky kalendáře médií; zavření kalendáře ho zruší. */
+    private var calendarJob: Job? = null
+
+    /**
+     * Kalendář fotek a videí po dnech (`getChatMessageCalendar`). Otevírá se pokaždé od
+     * nejnovějšího dne — co přibylo od minula, má v něm být.
+     */
+    fun openMediaCalendar() {
+        calendarJob?.cancel()
+        _state.update { it.copy(mediaCalendar = MediaCalendarState(loading = true)) }
+        loadCalendarPage(fromMessageId = 0)
+    }
+
+    /** Další (starší) stránka dnů; dotáhne ji kalendář, když dojede ke konci. */
+    fun loadMoreCalendar() {
+        val calendar = _state.value.mediaCalendar ?: return
+        if (calendar.loading || calendar.reachedEnd) return
+        _state.update { it.copy(mediaCalendar = calendar.copy(loading = true)) }
+        loadCalendarPage(calendar.nextFromMessageId)
+    }
+
+    private fun loadCalendarPage(fromMessageId: Long) {
+        calendarJob = viewModelScope.launch {
+            val result = conversations.mediaCalendar(chatId, fromMessageId)
+            ensureActive()
+            result
+                .onSuccess { page ->
+                    _state.update { state ->
+                        val calendar = state.mediaCalendar ?: return@update state
+                        state.copy(mediaCalendar = calendar.withPage(page))
+                    }
+                }
+                .onFailure { failure ->
+                    logger.w(failure) { "Kalendář médií se nepodařilo načíst." }
+                    _state.update { state ->
+                        val calendar = state.mediaCalendar ?: return@update state
+                        // Konec, ať se neptá znovu s každým složením posledního měsíce.
+                        state.copy(
+                            mediaCalendar = calendar.copy(loading = false, reachedEnd = true),
+                            error = failure.reported(Res.string.profile_shared_failed),
+                        )
+                    }
+                }
+        }
+    }
+
+    /** Den v kalendáři: kalendář se zavře a prohlížeč se otevře na první fotce dne. */
+    fun pickCalendarDay(messageId: Long) {
+        closeMediaCalendar()
+        openMedia(messageId)
+    }
+
+    fun closeMediaCalendar() {
+        calendarJob?.cancel()
+        _state.update { it.copy(mediaCalendar = null) }
     }
 
     /** Co právě hraje — tentýž přehrávač jako v konverzaci, zvuk je v aplikaci jen jeden. */
@@ -833,6 +893,25 @@ class ChatProfileViewModel(
     }
 }
 
+/** Kalendář médií: načtené dny od nejnovějšího a kde pokračovat ke starším. */
+data class MediaCalendarState(
+    val days: List<CalendarDayMedia> = emptyList(),
+    val loading: Boolean = false,
+    val reachedEnd: Boolean = false,
+    val nextFromMessageId: Long = 0,
+) {
+    /**
+     * Stránka od serveru přidaná k načteným dnům ([mergeCalendarDays]). Konec je prázdná
+     * stránka — a pro jistotu i stránka, po které by se pokračovalo od téže zprávy znovu.
+     */
+    fun withPage(page: MediaCalendarPage): MediaCalendarState = copy(
+        days = mergeCalendarDays(days, page.days),
+        loading = false,
+        reachedEnd = page.reachedEnd || page.nextFromMessageId == nextFromMessageId,
+        nextFromMessageId = page.nextFromMessageId,
+    )
+}
+
 data class ChatProfileState(
     val profile: ChatProfile? = null,
     val loading: Boolean = true,
@@ -865,6 +944,8 @@ data class ChatProfileState(
     val openChat: Long? = null,
     /** Jednorázová událost: otevřít prohlížeč médií na této zprávě (u článku na jeho médiu). */
     val openMedia: MediaTarget? = null,
+    /** Otevřený kalendář médií po dnech; `null` = zavřený. */
+    val mediaCalendar: MediaCalendarState? = null,
     /** Člen s otevřenou nabídkou akcí; `null` = nabídka není. */
     val memberSheet: MemberDetail? = null,
     /** Člen, u kterého se potvrzuje vyhození. */

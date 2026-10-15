@@ -1085,6 +1085,27 @@
     <string name="month_10">října</string>
     <string name="month_11">listopadu</string>
     <string name="month_12">prosince</string>
+    <string name="month_standalone_1">leden</string>
+    <string name="month_standalone_2">únor</string>
+    <string name="month_standalone_3">březen</string>
+    <string name="month_standalone_4">duben</string>
+    <string name="month_standalone_5">květen</string>
+    <string name="month_standalone_6">červen</string>
+    <string name="month_standalone_7">červenec</string>
+    <string name="month_standalone_8">srpen</string>
+    <string name="month_standalone_9">září</string>
+    <string name="month_standalone_10">říjen</string>
+    <string name="month_standalone_11">listopad</string>
+    <string name="month_standalone_12">prosinec</string>
+    <string name="calendar_month_year">%1$s %2$d</string>
+    <string name="profile_calendar">Kalendář</string>
+    <string name="profile_calendar_day">%1$s: %2$s</string>
+    <plurals name="profile_calendar_day_items">
+        <item quantity="one">%1$d fotka nebo video</item>
+        <item quantity="few">%1$d fotky nebo videa</item>
+        <item quantity="many">%1$d fotky nebo videa</item>
+        <item quantity="other">%1$d fotek nebo videí</item>
+    </plurals>
     <string name="day_short_1">po</string>
     <string name="day_short_2">út</string>
     <string name="day_short_3">st</string>

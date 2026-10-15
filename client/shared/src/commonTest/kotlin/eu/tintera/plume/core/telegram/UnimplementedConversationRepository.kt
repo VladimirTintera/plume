@@ -66,6 +66,7 @@ open class UnimplementedConversationRepository : ConversationRepository {
     override suspend fun visualMediaPosition(chatId: Long, messageId: Long) : Result<PhotoPosition?> = error("visualMediaPosition")
     override suspend fun sharedMedia(chatId: Long, kind: SharedMediaKind, fromMessageId: Long, query: String) : Result<SharedMediaPage> = error("sharedMedia")
     override suspend fun sharedMediaCounts(chatId: Long) : Result<SharedMediaCounts> = error("sharedMediaCounts")
+    override suspend fun mediaCalendar(chatId: Long, fromMessageId: Long) : Result<MediaCalendarPage> = error("mediaCalendar")
     override suspend fun message(chatId: Long, messageId: Long) : Result<ChatMessage> = error("message")
     override suspend fun story(posterChatId: Long, storyId: Int) : MessageMedia.Story = error("story")
     override suspend fun musicNeighbors(chatId: Long, messageId: Long) : Result<MusicNeighbors> = error("musicNeighbors")

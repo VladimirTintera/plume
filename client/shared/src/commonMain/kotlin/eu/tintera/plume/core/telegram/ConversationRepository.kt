@@ -445,6 +445,14 @@ interface ConversationRepository {
     /** Počty pro všechny druhy naráz; profil podle nich schová prázdné řádky. */
     suspend fun sharedMediaCounts(chatId: Long): Result<SharedMediaCounts>
 
+    /**
+     * Fotky a videa chatu po dnech, od nejnovějšího dne (`getChatMessageCalendar`) — pro kalendář
+     * ve sdílených médiích. [fromMessageId] `0` začíná u nejnovější zprávy, jinak se pokračuje
+     * od [MediaCalendarPage.nextFromMessageId]. Poslední den stránky bývá neúplný a na další
+     * stránce se objeví znovu; skládá je [mergeCalendarDays].
+     */
+    suspend fun mediaCalendar(chatId: Long, fromMessageId: Long = 0): Result<MediaCalendarPage>
+
     suspend fun message(chatId: Long, messageId: Long): Result<ChatMessage>
 
     /**
@@ -2559,6 +2567,19 @@ sealed interface MessageMedia {
 }
 
 /** Přístup k chatu, jak se mění za běhu — viz [ConversationRepository.accessUpdates]. */
+/**
+ * Den v kalendáři sdílených médií: kolik fotek a videí ten den přišlo a PRVNÍ z nich (náhled
+ * dne a kam ťuknutí vede).
+ */
+data class MediaCalendarDay(val count: Int, val message: ChatMessage)
+
+/** Stránka kalendáře médií; konec se pozná prázdnou stránkou ([reachedEnd]). */
+data class MediaCalendarPage(
+    val days: List<MediaCalendarDay>,
+    val nextFromMessageId: Long,
+    val reachedEnd: Boolean,
+)
+
 /**
  * Druh sdíleného obsahu v profilu chatu. Každý je vlastní filtr `searchChatMessages` — hledání
  * s filtrem, ne procházení historie: sdíleného obsahu bývá zlomek zpráv.

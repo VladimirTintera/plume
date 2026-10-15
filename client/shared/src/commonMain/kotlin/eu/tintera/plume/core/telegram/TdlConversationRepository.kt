@@ -1017,6 +1017,27 @@ class TdlConversationRepository(
             }
     }
 
+    override suspend fun mediaCalendar(chatId: Long, fromMessageId: Long): Result<MediaCalendarPage> {
+        val isGroup = isGroup(chatId)
+        return client.getChatMessageCalendar(
+            chatId = chatId,
+            topicId = null,
+            filter = SharedMediaKind.Media.toFilter(),
+            fromMessageId = fromMessageId,
+        )
+            .toResult()
+            .map { calendar ->
+                val days = calendar.days.toList()
+                MediaCalendarPage(
+                    days = days.map { MediaCalendarDay(count = it.totalCount, message = it.message.toChatMessage(isGroup)) },
+                    // Dny jdou od nejnovějšího a každý nese svou PRVNÍ zprávu, takže nejstarší
+                    // zpráva stránky je u posledního dne — od ní se pokračuje k starším.
+                    nextFromMessageId = days.lastOrNull()?.message?.id ?: 0,
+                    reachedEnd = days.isEmpty(),
+                )
+            }
+    }
+
     /**
      * Počty se ptají naráz, ne jeden po druhém — jsou to tři nezávislé dotazy na server a profil
      * podle nich teprve vykreslí řádky. Druh, na který server neodpoví, má nulu: řádek se
