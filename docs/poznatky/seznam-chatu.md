@@ -95,8 +95,8 @@ skupina a Nová zpráva.
 
 ### Složky chatů
 
-Složky Telegramu (`ChatListFolder`) jsou plovoucí lišta dole vedle FAB (`ChatFolderToolbar`,
-`HorizontalFloatingToolbar`; pravidla `folderTabs` a `selectedFolderId` v `ChatFolderTabs.kt`,
+Složky Telegramu (`ChatListFolder`) jsou plovoucí lišta dole s FAB na konci (`ChatFolderToolbar`,
+`HorizontalFloatingToolbar` ve variantě s FAB; pravidla `folderTabs` a `selectedFolderId` v `ChatFolderTabs.kt`,
 testy `ChatFolderTabsTest`). Bez složek se lišta nekreslí vůbec (viz „Složky místo filtrů a FAB").
 
 - **Dřív to byl řádek přepínacích tlačítek pod pilulkou** (connected button group s fajfkou
@@ -104,7 +104,7 @@ testy `ChatFolderTabsTest`). Bez složek se lišta nekreslí vůbec (viz „Slo�
   na obrazovce, nevybraná vypadala jako holý text a „+" byl vyšší než zbytek řádku. Lišta dole
   je u palce a nahoře zbyla jen pilulka.
 - **Popisky, když se vejdou; jinak ikony a popisek jen u vybrané.** Rozhoduje ZMĚŘENÁ šířka
-  (`SubcomposeLayout`: napřed se nanečisto změří verze se všemi popisky), ne počet složek —
+  (složené jsou dvě řady, se všemi popisky a kompaktní, a postaví se ta, která se vejde), ne počet složek —
   tři dlouhé názvy se na telefon nevejdou, pět krátkých na desktop ano. Co se nevejde ani jako
   ikony, posouvá se do strany. Ikona je ta od TDLib (zvolená, jinak výchozí podle obsahu),
   „Všechny chaty" mají ikonu „All" a v liště popisek „Vše" (`chat_folders_all_short`): celý
@@ -119,12 +119,50 @@ testy `ChatFolderTabsTest`). Bez složek se lišta nekreslí vůbec (viz „Slo�
   nich vyvažuje svislé odsazení (`minimumInteractiveBalancedPadding`). V posouvaném řádku se
   čára „+" počítá od jeho polohy v řádku — stovky pixelů — a lišta narostla přes půl obrazovky.
   Položky jsou proto vlastní 48dp plochy (`selectable` s rolí Tab, „+" `clickable`).
-- **Lišta leží VEDLE FAB menu v `Box`, ne s ním v `Row`.** Rozbalené FAB menu je široké jako
-  nejdelší položka a v řádku by lištu odstrčilo; při otevřeném menu se lišta schová. Osa lišty
-  (64 dp) je na ose FAB (56 dp nad 16 dp okrajem menu), proto odstup zespodu 12 dp.
-- **Při scrollu dolů lišta zajede do FAB, při scrollu nahoru (a na vršku) vyjede** — jako
-  pilulka nahoře, aby nezakrývala čtené chaty. Samotná lišta má výchozí elevaci 0; nad kartami
-  chatů by se slévala, takže dostává elevaci jako lišta s FAB.
+- **Lišta M3 s FAB, ne lišta vedle FAB.** Dřív stála samotná lišta (bez FAB) v `Box` vedle FAB
+  menu a schovávala se vlastním `AnimatedVisibility` (zúžení a prolnutí) — chyběla tak animace,
+  kterou má M3 Expressive: sbalená lišta zajede DO FAB a FAB se nafoukne z 56 na 80 dp (střední
+  FAB), rozbalená vyjede a FAB splaskne. Tu dělá jen `HorizontalFloatingToolbar(expanded,
+  floatingActionButton)`, takže lišta a FAB jsou teď jedna komponenta. Uživatel si toho všiml
+  podle chybějící animace při scrollu.
+- **Celá lišta je `button` FAB menu, přepínací FAB je v jejím slotu** (`NewChatFabMenu(toolbar
+  = …)`, `ToolbarSlotFab`). Položky menu tak vyjedou nad lištou a FAB je pořád jeden. Bez složek
+  je to holé FAB menu jako dřív.
+  - **Velikost FAB určuje lišta** (pevné omezení 56–80 dp), ale `ToggleFloatingActionButton` si
+    velikost kreslí sám (`containerSize(progress)`, vnitřní `layout`) — výchozí přepínač by
+    zůstal 56 dp a nenafoukl se. `ToolbarSlotFab` proto čte velikost slotu z omezení při měření
+    a dává přepínači `containerSize = lerp(slot, 56 dp, progress)`: zavřený vyplní slot, otevřený
+    se morfuje do zavíracího kruhu. Obyčejná proměnná, ne stav — slot se mění přeměřením
+    a přepínač velikost čte v měření, takže změna dojde i tak.
+  - **Při otevřeném menu se lišta sbalí** (`expanded = false`): obsah zajede do FAB a přepínač se
+    z nafouknutého slotu morfuje do kruhu „Zavřít" v jeho horním rohu (zarovnání přepínače
+    `TopEnd`, výchozí M3, stejně jako u středního FAB menu).
+  - **Lišta s FAB je vysoká 80 dp** (`defaultMinSize` na velikost sbaleného FAB), aby při
+    nafouknutí neposkočila. FAB je proto o 12 dp výš než bez složek a seznam má dole větší rezervu
+    (`FAB_CLEARANCE_WITH_FOLDERS`).
+  - S čtečkou obrazovky se lišta nesbaluje vůbec (M3 to dělá sama), ani při otevřeném menu.
+- **`SubcomposeLayout` v obsahu lišty s FAB SPADNE.** Lišta se ptá obsahu na intrinsickou šířku
+  (`maxIntrinsicWidth`, z ní počítá, kam zajede) a `SubcomposeLayout` intrinsické míry neumí.
+  Proto se o popiscích nerozhoduje měřením nanečisto v subkompozici, ale `FolderItems` složí
+  obě řady (s popisky i kompaktní) do `Layout` s vlastní `MultiContentMeasurePolicy`: změří
+  řadu s popisky, a když se nevejde, postaví kompaktní. Nepostavená řada nekreslí ani nebere
+  dotyk; čtečce, fokusu a dojetí na vybranou složku se to říká stavem (`placed`), který měření
+  zapíše.
+  - **Řádek lišty se posouvá do strany (`horizontalScroll` uvnitř M3), takže obsah horní mez
+    šířky nedostane.** Kolik místa zbývá vedle FAB, se měří `BoxWithConstraints` nad lištou
+    (minus FAB 56 dp, mezera 8 dp a vnitřní odsazení lišty) a intrinsická šířka obsahu se na ni
+    ořízne — jinak by lišta i s FAB přetekla za okraj a FAB by zmizel z obrazovky.
+- **Při scrollu dolů se lišta sbalí do FAB, při scrollu nahoru (a na vršku) vyjede** — jako
+  pilulka nahoře, aby nezakrývala čtené chaty. Směr se dál bere z polohy seznamu
+  (`snapshotFlow`), ne z `floatingToolbarVerticalNestedScroll`: ten slyší jen scroll prstem,
+  ne programový posun, a vršek seznamu nepozná.
+- **Lišta s FAB ověřená na emulátoru** (15. 10. 2026, anglicky, světlý motiv, účet se šesti
+  složkami, tedy kompaktní režim) sérií snímků se zpomalenými animacemi
+  (`animator_duration_scale 10`): sbalení při scrollu dolů (FAB 80 dp), vyjetí s překmitem
+  pružiny a splasknutí FAB na 56 dp, otevření FAB menu (lišta zajede, FAB se morfne do kruhu,
+  položky nad ním) a zavření, výběr složky s popiskem, tah lištou k „+", ve výpisu
+  `uiautomator` každá položka jednou. **Neověřené:** účet bez složek (holé FAB menu), režim se
+  všemi popisky, tmavý motiv, TalkBack, desktop (jen přeložený) a iOS.
 
 - **Podržení složky otevře nabídku „Označit vše jako přečtené"** (`readChatList`, `ChatRepository.readAll`,
   `ChatsViewModel.readFolder`). U „Vše" to vezme hlavní seznam. Odznaky se přepočítají samy
