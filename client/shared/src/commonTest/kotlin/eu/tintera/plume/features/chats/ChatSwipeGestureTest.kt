@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.telegram.TELEGRAM_SERVICE_NOTIFICATIONS_ID
 import eu.tintera.plume.core.settings.ChatSwipeAction
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatKind
@@ -56,6 +57,16 @@ class ChatSwipeGestureTest {
         val saved = chat(id = SAVED)
         assertNull(chatSwipeEffect(ChatSwipeAction.Archive, saved, SAVED))
         assertEquals(ChatSwipeEffect.Pin, chatSwipeEffect(ChatSwipeAction.Pin, saved, SAVED))
+    }
+
+    /** Chat služby Telegramu TDLib do archivu nepustí; z archivu ho ale vrátit jde. */
+    @Test
+    fun chatTelegramuSeNearchivuje() {
+        assertNull(chatSwipeEffect(ChatSwipeAction.Archive, chat(id = TELEGRAM_SERVICE_NOTIFICATIONS_ID), SAVED))
+        assertEquals(
+            ChatSwipeEffect.Unarchive,
+            chatSwipeEffect(ChatSwipeAction.Archive, chat(id = TELEGRAM_SERVICE_NOTIFICATIONS_ID, archived = true), SAVED),
+        )
     }
 
     @Test

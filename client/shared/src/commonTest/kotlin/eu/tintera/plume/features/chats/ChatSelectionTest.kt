@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.telegram.TELEGRAM_SERVICE_NOTIFICATIONS_ID
 import eu.tintera.plume.core.telegram.ChatFolder
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.ChatSponsor
@@ -54,6 +55,17 @@ class ChatSelectionTest {
         val actions = chatSelectionActions(listOf(chat(1), chat(99)), savedMessagesChatId = 99)
         assertFalse(actions.canArchive)
         assertTrue(chatSelectionActions(listOf(chat(1)), savedMessagesChatId = 99).canArchive)
+    }
+
+    /** Chat Telegramu archivovat nejde (TDLib), vrátit z archivu ano. */
+    @Test
+    fun chatTelegramuArchivaciZasedi() {
+        val telegram = chat(TELEGRAM_SERVICE_NOTIFICATIONS_ID)
+        assertFalse(chatSelectionActions(listOf(chat(1), telegram), savedMessagesChatId = 99).canArchive)
+        val archivedTelegram = chat(TELEGRAM_SERVICE_NOTIFICATIONS_ID, archived = true)
+        val unarchive = chatSelectionActions(listOf(archivedTelegram, chat(2, archived = true)), savedMessagesChatId = 99)
+        assertFalse(unarchive.archive)
+        assertTrue(unarchive.canArchive, "vrácení z archivu TDLib nebrání")
     }
 
     @Test

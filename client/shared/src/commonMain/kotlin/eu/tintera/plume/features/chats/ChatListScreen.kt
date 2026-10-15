@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.telegram.canBeArchived
 import eu.tintera.plume.core.telegram.AppScreen
 import eu.tintera.plume.core.telegram.SuggestedAction
 import eu.tintera.plume.features.notices.BirthdaysCard
@@ -1216,8 +1217,8 @@ internal fun ChatActionsHost(
             } else null,
             onUnsnooze = { viewModel.unsnooze(chat) },
             onToggleUnread = { viewModel.toggleUnread(chat) },
-            // Uložené zprávy archivovat nejdou — TDLib by to odmítl.
-            onToggleArchived = if (chat.id == savedMessagesChatId) null else {
+            // Uložené zprávy a chat Telegramu archivovat nejdou — TDLib by to odmítl (`canBeArchived`).
+            onToggleArchived = if (!chat.isArchived && !chat.canBeArchived(savedMessagesChatId)) null else {
                 { viewModel.toggleArchived(chat) }
             },
             folders = folderChoices,
