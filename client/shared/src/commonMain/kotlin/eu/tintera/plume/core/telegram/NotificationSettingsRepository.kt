@@ -40,6 +40,12 @@ interface NotificationSettingsRepository {
     suspend fun setChatOption(chatId: Long, option: ChatNotificationOption, value: Boolean): Result<Unit>
 
     /**
+     * Zvuk chatu: [DEFAULT_SOUND_ID], [NO_SOUND_ID], id tónu účtu, nebo `null` = podle výchozího
+     * nastavení rozsahu. Ostatní volby chatu zůstanou.
+     */
+    suspend fun setChatSound(chatId: Long, soundId: Long?): Result<Unit> = Result.failure(UnsupportedOperationException())
+
+    /**
      * Upozornění tématu ve skupině, živě. Co téma nemá vlastní, přebírá ze SKUPINY (a ta
      * případně z výchozího nastavení skupin) — viz [ChatNotificationPrefs.defaults].
      */
@@ -70,6 +76,12 @@ data class ChatNotificationPrefs(
     val scope: NotificationScope,
     /** Odkud se berou hodnoty, které chat (téma) nemá vlastní. */
     val defaults: NotificationDefaults = NotificationDefaults.Scope,
+    /** Zvuk, kterým chat opravdu zní: [DEFAULT_SOUND_ID], [NO_SOUND_ID], nebo id tónu účtu. */
+    val soundId: Long = DEFAULT_SOUND_ID,
+    /** Zvuk nemá chat (téma) vlastní, bere ho odjinud — viz [defaults]. */
+    val soundIsDefault: Boolean = true,
+    /** Zvuk, který by chat (téma) měl bez vlastního — co nabízí volba „podle výchozího nastavení". */
+    val defaultSoundId: Long = DEFAULT_SOUND_ID,
 )
 
 enum class NotificationDefaults {

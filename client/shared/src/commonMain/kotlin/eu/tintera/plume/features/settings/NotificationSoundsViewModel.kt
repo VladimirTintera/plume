@@ -66,6 +66,15 @@ class NotificationSoundsViewModel(
         }
     }
 
+    /** Zvuk jednoho chatu (profil); `null` = podle výchozího nastavení jeho rozsahu. */
+    fun selectForChat(chatId: Long, soundId: Long?) {
+        viewModelScope.launch {
+            settings.setChatSound(chatId, soundId).onFailure { failure ->
+                _state.update { it.copy(error = failure.userMessage(Res.string.notif_sound_save_failed)) }
+            }
+        }
+    }
+
     /** Nahraje zvukový soubor; strop hlídá server, hláška ho připomene. */
     fun upload(path: String) {
         if (_state.value.uploading) return

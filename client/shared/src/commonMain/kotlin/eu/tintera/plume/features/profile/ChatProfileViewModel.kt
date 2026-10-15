@@ -659,7 +659,7 @@ class ChatProfileViewModel(
     fun openConversationSettings() {
         val prefs = _state.value.notifications ?: return
         val title = _state.value.profile?.title ?: return
-        notificationPermission.openConversationSettings(chatId, title, prefs.scope.channel)
+        notificationPermission.openConversationSettings(chatId, title, prefs.scope.channel, prefs.soundId)
     }
 
     /** Odkaz na chat (veřejné jméno, jinak pozvánka) do schránky. */

@@ -47,9 +47,10 @@ expect class NotificationPermission {
 
     /**
      * Otevře systémové nastavení jedné konverzace (zvuk, prioritní, tichá). Kde to platforma
-     * neumí (Android do 10), otevře kanál [channel], pod který konverzace patří.
+     * neumí (Android do 10), otevře kanál [channel], pod který konverzace patří. [soundId] je
+     * zvuk z Telegramu, kterým chat zní — s tónem visí konverzace pod kanálem toho tónu.
      */
-    fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind)
+    fun openConversationSettings(chatId: Long, title: String, channel: NotificationChannelKind, soundId: Long = DEFAULT_SOUND_ID)
 }
 
 /**

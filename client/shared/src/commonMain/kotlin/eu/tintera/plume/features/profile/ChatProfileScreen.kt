@@ -298,6 +298,10 @@ fun ChatProfileScreen(
     val chatColor by viewModel.chatColor.collectAsStateWithLifecycle()
     var showChatColor by rememberSaveable { mutableStateOf(false) }
     var showSecretKey by rememberSaveable { mutableStateOf(false) }
+    // Zvuk z Telegramu pro tenhle chat: tóny účtu a zápis má ViewModel zvuků z Nastavení.
+    val sounds = rememberChatSounds(viewModel.chatId)
+    val tones by sounds.tones.collectAsStateWithLifecycle()
+    var showSound by rememberSaveable { mutableStateOf(false) }
     // Ukládání do galerie pro tenhle chat — vlastní ViewModel, ať profil nenese další závislost.
     val autosaveViewModel = rememberChatAutosaveViewModel(viewModel.chatId)
     val autosaveState = autosaveViewModel?.state?.collectAsStateWithLifecycle()?.value
@@ -545,8 +549,22 @@ fun ChatProfileScreen(
                 onOpenConversationSettings = viewModel::openConversationSettings,
                 onReset = viewModel::resetNotifications,
                 onDismiss = viewModel::closeNotificationSheet,
+                soundLabel = chatSoundLabel(notifications, tones),
+                onPickSound = {
+                    // Dva sheety přes sebe ne: upozornění se zavře, výběr zvuku otevře.
+                    viewModel.closeNotificationSheet()
+                    showSound = true
+                },
             )
         }
+        ChatSoundHost(
+            viewModel = sounds,
+            chatId = profile.chatId,
+            prefs = notifications,
+            open = showSound,
+            onClose = { showSound = false },
+            snackbarHostState = snackbarHostState,
+        )
 
         val tabs = state.tabs
         if (tabs.isEmpty()) {
