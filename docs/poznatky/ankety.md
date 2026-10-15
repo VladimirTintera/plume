@@ -237,12 +237,34 @@ a testy `ChecklistComposerTest`.
   mezeru (`checklistTaskText`), aby se slova neslepila.
 - **Meze posílá server**: `checklist_title_length_max` 255, `checklist_task_count_max` 30,
   `checklist_task_text_length_max` 200 (emulátor, 15. 10. 2026).
-- **„Upravit" ani „Kopírovat" se nenabízí** — text zprávy je jen náš popis a celý seznam by se
-  upravoval `editMessageChecklist`, který zatím není.
+- **„Kopírovat" se nenabízí a „Upravit" vede do formuláře, ne do pole** — text zprávy je jen náš
+  popis, seznam se upravuje celý (`editMessageChecklist`, `MessageMenuAction.EditChecklist`,
+  `ChecklistComposerRoute.editMessageId`). `canBeEdited` u seznamu znamená právě tohle, takže
+  rozhoduje server; Premium hlídá ViewModel jako u ostatních akcí.
+- **Stávající úkol si při úpravě MUSÍ nechat id** (`ChecklistDraft.taskIds`, `resolvedTaskIds`):
+  podle id TDLib pozná úkol, kterému zachová odškrtnutí — s cizím id by si odškrtnutí odnesl
+  jiný úkol. Id jdou ve formuláři souběžně s poli (odebrání, prázdné pole na konci = nový úkol
+  s `0`) a nové úkoly dostanou čísla za nejvyšším.
+- **Formulář nese holý text, ale úprava formátování nesmaže**: repository před uložením přečte
+  seznam ze zprávy a u názvu a úkolů, jejichž text se nezměnil, pošle původní `FormattedText`
+  i s entitami. Smazat tučné písmo u ostatních úkolů kvůli opravě jednoho by bylo horší než
+  „Upravit" vůbec nenabídnout (stejná zásada jako u úpravy textu, `composerEdit`).
+- **Zprávy o úkolech mají jméno a úkol** (`checklistServiceText`, `namedChecklistServiceText`
+  v `ChecklistServiceText.kt`, testy `ChecklistServiceTextTest`), jako zprávy o členech:
+  „Jana odškrtl(a) „Mléko"", „Přidal(a) jsi do seznamu 3 úkoly". Úkol se jmenuje jen jeden
+  a delší se zkrátí na 40 znaků; víc úkolů se spočítá, smíšené odškrtnutí a zrušení je
+  „změnil(a) stav N úkolů". Text odškrtnutého úkolu se čte ze zprávy se seznamem jen
+  **lokálně** (`getMessageLocally`) — věta se skládá při převodu každé zprávy a kvůli ní se
+  nemá čekat na server; bez něj se úkol jen spočítá. Totéž platí pro náhled v seznamu chatů.
 - **Ověřeno na emulátoru sondou** (necommituje se): zpráva s textem `#checklist-sonda` se
   vykreslila jako seznam a Premium se podstrčilo. Bublina ve světlém i tmavém motivu, dlouhý
   úkol zalomený, „Odškrtnuto: …", nabídka nad úkolem. Odškrtnutí i přidání úkolu server odmítl
   (zpráva není seznam) a ukázala se naše věta. **Skutečný `MessageChecklist` z TDLib se vykreslil
   taky**: formulář seznam odeslal, TDLib ho přijal lokálně a teprve server odmítl účet bez
   Premium („Neodesláno"). **Akce na skutečném seznamu s Premium ověřené nejsou.**
+- **Úprava a servisní věta ověřené sondou** (15. 10. 2026): „Upravit" v nabídce nad seznamem,
+  předvyplněný formulář s „Uložit" (v Uložených zprávách bez voleb pro ostatní), odebrání úkolu
+  a uložení — TDLib odmítl („There is no checklist in the message to edit", zpráva seznam není)
+  a ukázala se naše věta. Servisní věta s podstrčenou `MessageChecklistTasksDone` jako řádek
+  uprostřed konverzace se zkráceným úkolem.
 
