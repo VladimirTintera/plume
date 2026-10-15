@@ -126,7 +126,7 @@ class MainActivity : ComponentActivity() {
 
     /**
      * Sdílení z jiné aplikace. Soubory se musí zkopírovat hned, dokud platí oprávnění k jejich
-     * URI — to dělá [ShareIntake]; výběr chatu pak ukáže shell.
+     * URI — to dělá [ShareIntake]; co se sdílí, pak nese čip v shellu.
      */
     private fun receiveShare(intent: Intent) {
         if (shareIntake.handle(intent)) intent.action = null

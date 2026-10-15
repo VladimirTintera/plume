@@ -133,7 +133,7 @@ class StickerSetViewModel(
     }
 
     /**
-     * Poslat odkaz do chatu v Plume: tentýž výběr „Komu: …" jako sdílení z jiné aplikace
+     * Poslat odkaz do chatu v Plume: tentýž čip „Sdílíte: …" jako sdílení z jiné aplikace
      * (`ShareRequests`). Odkaz u příjemce v Telegramu otevře náhled sady.
      */
     fun sendLinkToChat() {

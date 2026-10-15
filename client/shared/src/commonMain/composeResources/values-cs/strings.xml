@@ -692,7 +692,6 @@
     <string name="menu_forward">Přeposlat</string>
     <string name="forward_title">Přeposlat do</string>
     <string name="forward_send">Přeposlat (%1$d)</string>
-    <string name="share_title">Sdílet do</string>
     <string name="share_preparing">Připravuji soubory…</string>
     <string name="share_failed_files">Některé sdílené soubory se nepodařilo připravit</string>
     <string name="share_access_denied_title">Android snímek nepředal</string>
@@ -704,6 +703,10 @@
     <string name="share_to_add_media">Přidat fotky nebo videa</string>
     <string name="share_to_collapse_gallery">Sbalit galerii</string>
     <string name="share_to_expand_gallery">Rozbalit galerii</string>
+    <string name="share_chip_label">Sdílíte</string>
+    <string name="share_chip_insert">Vložit sem</string>
+    <string name="share_chip_discard">Zahodit sdílený obsah</string>
+    <string name="share_chip_failed">Sdílené soubory se nepodařilo načíst</string>
     <string name="forward_search">Hledat chat</string>
     <string name="forward_empty">Hledání neodpovídá žádný chat.</string>
     <string name="forward_failed">Zprávu se nepodařilo přeposlat.</string>

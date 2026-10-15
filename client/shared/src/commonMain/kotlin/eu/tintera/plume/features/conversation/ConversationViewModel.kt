@@ -1014,8 +1014,8 @@ class ConversationViewModel(
         }
 
         viewModelScope.launch {
-            // Sdílení ze systému do tohohle chatu. Odběr trvá po celou dobu konverzace: chat mohl
-            // být otevřený pod výběrem a vybraný až potom.
+            // Sdílení do tohohle chatu. Odběr trvá po celou dobu konverzace: obsah z čipu
+            // v shellu přijde, až uživatel v otevřené konverzaci ťukne na „Vložit sem".
             shareRequests.deliveries(chatId).collect { content ->
                 composer.draftRestored.await()
                 attachments.receiveShared(content)

@@ -82,6 +82,11 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Column
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -159,7 +164,6 @@ import eu.tintera.plume.features.conversation.ChecklistComposerScreen
 import eu.tintera.plume.features.conversation.ChecklistComposerRequest
 import eu.tintera.plume.features.conversation.PollComposerRequest
 import eu.tintera.plume.core.telegram.ReplyQuote
-import eu.tintera.plume.core.navigation.ShareRoute
 import eu.tintera.plume.core.navigation.ShareToChatRoute
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.share.rememberReturnToCaller
@@ -188,7 +192,8 @@ import eu.tintera.plume.features.conversation.ConversationPlaceholder
 import eu.tintera.plume.features.conversation.ConversationNavigation
 import eu.tintera.plume.features.conversation.ConversationScreen
 import eu.tintera.plume.features.forward.ForwardScreen
-import eu.tintera.plume.features.share.ShareScreen
+import eu.tintera.plume.features.share.SharedContentStrip
+import eu.tintera.plume.core.share.SharedContent
 import eu.tintera.plume.features.share.ShareToChatScreen
 import eu.tintera.plume.features.media.MediaViewerScreen
 import org.koin.core.parameter.parametersOf
@@ -245,17 +250,26 @@ fun AppShell(modifier: Modifier = Modifier) {
     }
 
     /*
-     * Sdílení ze systému (nabídka „Sdílet" v jiné aplikaci). Stav, ne událost — viz
-     * [ShareRequests]: sdílet jde i do aplikace, která teprve naběhla nebo visela na přihlášení.
-     * Klíčem je id sdílení, ne celý obsah: průběh přípravy souborů výběr znovu otevírat nemá.
-     * Výběr se otevírá jen pro sdílení bez vybraného chatu — to s vybraným už čeká v konverzaci.
+     * Sdílení bez vybraného chatu (nabídka „Sdílet" v jiné aplikaci, odkaz `t.me/share`). Stav,
+     * ne událost — viz [ShareRequests]: sdílet jde i do aplikace, která teprve naběhla nebo
+     * visela na přihlášení. Výběr chatu NENÍ: ukáže se obyčejný seznam chatů a obsah nese čip
+     * nahoře ([SharedContentStrip] v `ShellContent`). Jen jednou za sdílení (`arrivalShown`),
+     * jinak by obnova aktivity zavřela, co uživatel mezitím otevřel.
      */
     val shareRequests = koinInject<ShareRequests>()
     val incomingShare by shareRequests.incoming.collectAsStateWithLifecycle()
-    val pendingShareId = incomingShare?.takeIf { it.targetChatId == null }?.id
+    val shareArrival by shareRequests.arrival.collectAsStateWithLifecycle()
 
-    LaunchedEffect(pendingShareId) {
-        if (pendingShareId != null) navigation.openShare()
+    LaunchedEffect(shareArrival) {
+        val id = shareArrival ?: return@LaunchedEffect
+        navigation.showChatList()
+        shareRequests.arrivalShown(id)
+    }
+
+    // Sdílení na čipu vydrží den; aplikace v popředí může běžet déle, než se proces restartuje.
+    LifecycleStartEffect(shareRequests) {
+        shareRequests.dropExpired()
+        onStopOrDispose { }
     }
 
     /*
@@ -275,6 +289,8 @@ fun AppShell(modifier: Modifier = Modifier) {
         ShellContent(
             navigation = navigation,
             entryDecorators = entryDecorators,
+            sharedContent = incomingShare?.takeIf { it.carried },
+            shareRequests = shareRequests,
             modifier = Modifier.fillMaxSize(),
         )
         // Probíhající hovor nad vším — přes celou obrazovku, nebo zmenšený do pruhu nahoře.
@@ -292,6 +308,9 @@ fun AppShell(modifier: Modifier = Modifier) {
 private fun ShellContent(
     navigation: AppNavigation,
     entryDecorators: List<NavEntryDecorator<NavKey>>,
+    /** Sdílení bez vybraného chatu, které nese čip nahoře; `null`, když žádné není. */
+    sharedContent: SharedContent?,
+    shareRequests: ShareRequests,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier) {
@@ -352,14 +371,13 @@ private fun ShellContent(
         val twoPane = wide && !nothingToPick
 
         /*
-         * Zavření výběru pro sdílení vrací do aplikace, ze které se sdílelo, ne do Plume.
-         * Návrat do seznamu chatů by vypadal, že se sdílený obsah ztratil — a ztratil by se,
-         * protože bez volby chatu nemá kam jít. Výběr se napřed odebere, aby příští
-         * otevření Plume začalo tam, kde bylo před sdílením.
+         * Zavření obrazovky „Komu: …" (Direct Share) vrací do aplikace, ze které se sdílelo, ne
+         * do Plume: chat byl vybraný už v systémové nabídce, takže tu uživatel nic jiného
+         * nedělal. Obrazovka se napřed odebere, aby příští otevření Plume začalo tam, kde bylo
+         * před sdílením. Sdílení bez chatu (čip) tohle nemá — zpět je tam obyčejná navigace.
          */
         val returnToCaller = rememberReturnToCaller()
         val closeShare = {
-            chatsStack.remove(ShareRoute)
             chatsStack.removeAll { it is ShareToChatRoute }
             returnToCaller()
         }
@@ -476,87 +494,119 @@ private fun ShellContent(
         // Plocha okna: leží na ní seznam a vedle něj karta (`PaneCard`).
         if (wide) Box(Modifier.matchParentSize().background(MaterialTheme.colorScheme.surfaceContainer))
 
-        CompositionLocalProvider(
-            LocalPanesSideBySide provides wide,
-            LocalPaneNeighbours provides paneNeighbours,
-            LocalSavedMessagesChatId provides savedMessagesChatId,
-            // I ve třech panelech: zvolená kotva tam určuje šířku seznamu, takže rozbalení zabere i bez táhla.
-            LocalExpandListPane provides listExpansion.expand.takeIf { twoPane && mainListShown },
-            LocalProfilePaneResize provides profileResize.resize.takeIf { profileBeside },
-            LocalListPaneResize provides listResizeShown,
-        ) {
-            val paneCard = rememberPaneCardDecorator()
-            val decorators = remember(entryDecorators, paneCard) { entryDecorators + paneCard }
-            /*
-             * Položky Chatů se staví samy, ne přes `rememberDecoratedNavEntries(zásobník, …)`:
-             * ta si je pamatuje jen podle klíčů, a šířka seznamu ve třech panelech je v jeho
-             * METADATECH — po změně kotvy by zůstala stará.
-             */
-            /*
-             * Zavřený třetí panel (profil, podstránka Nastavení) ještě chvíli ve scéně, ať odjede
-             * animací, místo aby problikl — viz `rememberWithLeavingExtras`. Jen pro kreslení
-             * a jen s panely vedle sebe: na telefonu je to celá obrazovka s vlastním přechodem.
-             */
-            val chatsWithLeaving = rememberWithLeavingExtras(chatsDisplayed, paneOf)
-            val settingsWithLeaving = rememberWithLeavingExtras(settingsDisplayed, paneOf)
-            val chatsDrawn = if (twoPane) chatsWithLeaving else chatsDisplayed
-            val settingsDrawn = if (twoPane) settingsWithLeaving else settingsDisplayed
-            val chatsEntries = remember(chatsDrawn.toList(), listPaneWidth, profilePaneWidth, instantPaneBounds) { chatsDrawn.map(entryProvider) }
-            /*
-             * Položky se dekorují pro KAŽDOU sekci, i tu, která není vidět. Zásobník, který se
-             * zrovna nedekoruje, by pro Nav3 vypadal jako odebraný a jeho ViewModely by se zrušily.
-             */
-            val entriesBySection = mapOf<TopLevelRoute, List<NavEntry<NavKey>>>(
-                ChatsRoute to rememberDecoratedNavEntries(chatsEntries, decorators),
-                SettingsRoute to rememberDecoratedNavEntries(settingsDrawn, decorators, entryProvider),
-            )
+        /*
+         * Čip „Sdílíte: …" nahoře: nad seznamem, archivem, konverzací i profilem, ne nad
+         * obrazovkou přes celou plochu (prohlížeč) ani v Nastavení. „Vložit sem" jen tam, kde je
+         * vidět konverzace. Pruh zabírá vlastní místo a obsahu pod ním se horní inset zkonzumuje
+         * — po celou dobu, kdy je pruh ve stromu, i během animace (viz [SharedContentStrip]).
+         */
+        val chipShown = sharedContent != null &&
+            navigation.section == ChatsRoute &&
+            chatsDisplayed.showsShareChip(paneOf)
+        val chipState = remember { MutableTransitionState(false) }
+        chipState.targetState = chipShown
+        val chipPresent = chipState.currentState || chipState.targetState
+        val topInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
 
-            val transitions = rememberNavTransitions(chatContainer = !wide)
-            NavDisplay(
-                entries = navigation.visibleSections.flatMap { entriesBySection.getValue(it) },
-                transitionSpec = transitions.forward(),
-                popTransitionSpec = transitions.pop(),
-                predictivePopTransitionSpec = transitions.predictivePop(),
-                sceneDecoratorStrategies = remember { listOf(PredictiveBackCorners()) },
-                // Zpět z výběru pro sdílení je totéž co ✕ — vrátit uživatele, odkud sdílel.
-                onBack = {
-                    // Zpět ze sdílení je totéž co ✕ — vrátit uživatele tam, odkud sdílel.
-                    val share = chatsStack.lastOrNull().let { it == ShareRoute || it is ShareToChatRoute }
-                    if (share) closeShare() else navigation.goBack()
-                },
-                sceneStrategies = listOf(
-                    // `shouldHandleSinglePaneLayout = wide`: na široké ploše nechá i jednopanelový stav
-                    // řešit scaffold, takže „jen seznam" a „seznam + konverzace" jsou TÁŽ scéna a přechod
-                    // mezi nimi je plynulý. Na compactu vrací null → standardní swap obrazovek.
-                    rememberListDetailSceneStrategy(
-                        shouldHandleSinglePaneLayout = wide,
-                        /*
-                         * Zpět v Chatech zavře konverzaci a vrátí placeholder. Výchozí
-                         * `PopUntilScaffoldValueChange` přeskakuje položky, které nemění
-                         * rozložení panelů — a „seznam + placeholder" i „seznam + chat" jsou
-                         * oba dvoupanel, takže zpět z konverzace odešel rovnou z aplikace.
-                         * V Nastavení je výchozí chování správné: sekce je v dvoupanelu
-                         * otevřená vždycky, takže zpět vede ze Nastavení pryč, do Chatů.
-                         * Výjimka je úprava profilu a seznam blokovaných nad sekcí: dvoupanel
-                         * zůstává dvoupanelem, takže by zpět přeskočilo i sekci pod ní a odešlo
-                         * z Nastavení.
-                         */
-                        backNavigationBehavior = if (
-                            navigation.section == ChatsRoute ||
-                            settingsStack.lastOrNull().isOverSettingsSection()
-                        ) {
-                            BackNavigationBehavior.PopUntilContentChange
-                        } else {
-                            BackNavigationBehavior.PopUntilScaffoldValueChange
+        Column(Modifier.fillMaxSize()) {
+            if (chipPresent) {
+                SharedContentStrip(
+                    visibleState = chipState,
+                    content = sharedContent,
+                    insertChatId = chatsDisplayed.shareInsertChat(paneOf, sideBySide = twoPane),
+                    onInsert = shareRequests::choose,
+                    onDiscard = shareRequests::discard,
+                    // Na široké ploše leží pruh na ploše okna, na telefonu nad obrazovkou jako lišta.
+                    background = if (wide) Color.Transparent else MaterialTheme.colorScheme.surfaceContainer,
+                )
+            }
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .then(if (chipPresent) Modifier.consumeWindowInsets(topInsets) else Modifier),
+            ) {
+                CompositionLocalProvider(
+                    LocalPanesSideBySide provides wide,
+                    LocalPaneNeighbours provides paneNeighbours,
+                    LocalSavedMessagesChatId provides savedMessagesChatId,
+                    // I ve třech panelech: zvolená kotva tam určuje šířku seznamu, takže rozbalení zabere i bez táhla.
+                    LocalExpandListPane provides listExpansion.expand.takeIf { twoPane && mainListShown },
+                    LocalProfilePaneResize provides profileResize.resize.takeIf { profileBeside },
+                    LocalListPaneResize provides listResizeShown,
+                ) {
+                    val paneCard = rememberPaneCardDecorator()
+                    val decorators = remember(entryDecorators, paneCard) { entryDecorators + paneCard }
+                    /*
+                     * Položky Chatů se staví samy, ne přes `rememberDecoratedNavEntries(zásobník, …)`:
+                     * ta si je pamatuje jen podle klíčů, a šířka seznamu ve třech panelech je v jeho
+                     * METADATECH — po změně kotvy by zůstala stará.
+                     */
+                    /*
+                     * Zavřený třetí panel (profil, podstránka Nastavení) ještě chvíli ve scéně, ať odjede
+                     * animací, místo aby problikl — viz `rememberWithLeavingExtras`. Jen pro kreslení
+                     * a jen s panely vedle sebe: na telefonu je to celá obrazovka s vlastním přechodem.
+                     */
+                    val chatsWithLeaving = rememberWithLeavingExtras(chatsDisplayed, paneOf)
+                    val settingsWithLeaving = rememberWithLeavingExtras(settingsDisplayed, paneOf)
+                    val chatsDrawn = if (twoPane) chatsWithLeaving else chatsDisplayed
+                    val settingsDrawn = if (twoPane) settingsWithLeaving else settingsDisplayed
+                    val chatsEntries = remember(chatsDrawn.toList(), listPaneWidth, profilePaneWidth, instantPaneBounds) { chatsDrawn.map(entryProvider) }
+                    /*
+                     * Položky se dekorují pro KAŽDOU sekci, i tu, která není vidět. Zásobník, který se
+                     * zrovna nedekoruje, by pro Nav3 vypadal jako odebraný a jeho ViewModely by se zrušily.
+                     */
+                    val entriesBySection = mapOf<TopLevelRoute, List<NavEntry<NavKey>>>(
+                        ChatsRoute to rememberDecoratedNavEntries(chatsEntries, decorators),
+                        SettingsRoute to rememberDecoratedNavEntries(settingsDrawn, decorators, entryProvider),
+                    )
+
+                    val transitions = rememberNavTransitions(chatContainer = !wide)
+                    NavDisplay(
+                        entries = navigation.visibleSections.flatMap { entriesBySection.getValue(it) },
+                        transitionSpec = transitions.forward(),
+                        popTransitionSpec = transitions.pop(),
+                        predictivePopTransitionSpec = transitions.predictivePop(),
+                        sceneDecoratorStrategies = remember { listOf(PredictiveBackCorners()) },
+                        onBack = {
+                            // Zpět z „Komu: …" je totéž co ✕ — vrátit uživatele tam, odkud sdílel.
+                            if (chatsStack.lastOrNull() is ShareToChatRoute) closeShare() else navigation.goBack()
                         },
-                        directive = directive,
-                        paneExpansionDragHandle = ListPaneDragHandle.takeIf { draggable },
-                        paneExpansionState = listExpansion.state.takeIf { draggable },
-                    ),
-                ),
-            )
-            // Vlastní táhla nad panely (seznam ve třech panelech, profil) — viz `PaneResize`.
-            PaneHandleOverlay(listOfNotNull(listResizeShown, profileResize.resize.takeIf { profileBeside }))
+                        sceneStrategies = listOf(
+                            // `shouldHandleSinglePaneLayout = wide`: na široké ploše nechá i jednopanelový stav
+                            // řešit scaffold, takže „jen seznam" a „seznam + konverzace" jsou TÁŽ scéna a přechod
+                            // mezi nimi je plynulý. Na compactu vrací null → standardní swap obrazovek.
+                            rememberListDetailSceneStrategy(
+                                shouldHandleSinglePaneLayout = wide,
+                                /*
+                                 * Zpět v Chatech zavře konverzaci a vrátí placeholder. Výchozí
+                                 * `PopUntilScaffoldValueChange` přeskakuje položky, které nemění
+                                 * rozložení panelů — a „seznam + placeholder" i „seznam + chat" jsou
+                                 * oba dvoupanel, takže zpět z konverzace odešel rovnou z aplikace.
+                                 * V Nastavení je výchozí chování správné: sekce je v dvoupanelu
+                                 * otevřená vždycky, takže zpět vede ze Nastavení pryč, do Chatů.
+                                 * Výjimka je úprava profilu a seznam blokovaných nad sekcí: dvoupanel
+                                 * zůstává dvoupanelem, takže by zpět přeskočilo i sekci pod ní a odešlo
+                                 * z Nastavení.
+                                 */
+                                backNavigationBehavior = if (
+                                    navigation.section == ChatsRoute ||
+                                    settingsStack.lastOrNull().isOverSettingsSection()
+                                ) {
+                                    BackNavigationBehavior.PopUntilContentChange
+                                } else {
+                                    BackNavigationBehavior.PopUntilScaffoldValueChange
+                                },
+                                directive = directive,
+                                paneExpansionDragHandle = ListPaneDragHandle.takeIf { draggable },
+                                paneExpansionState = listExpansion.state.takeIf { draggable },
+                            ),
+                        ),
+                    )
+                    // Vlastní táhla nad panely (seznam ve třech panelech, profil) — viz `PaneResize`.
+                    PaneHandleOverlay(listOfNotNull(listResizeShown, profileResize.resize.takeIf { profileBeside }))
+                }
+            }
         }
 
         /*
@@ -1354,10 +1404,6 @@ private fun shellEntryProvider(
     }
 
     /*
-     * Výběr chatu pro obsah sdílený ze systému. Po výběru ho nahradí vybraný chat a obsah čeká
-     * nad vstupním polem; ✕ i zpět sdílení zahodí a vrátí uživatele do aplikace, ze které sdílel.
-     */
-    /*
      * Potvrzení sdílení do chatu vybraného v systémové nabídce (Direct Share). Po odeslání ho
      * nahradí ta konverzace — je tím vidět, že zpráva dorazila, jako u přeposílání.
      */
@@ -1373,18 +1419,6 @@ private fun shellEntryProvider(
                 if (!chatsStack.isOpenConversation(route.chatId)) {
                     chatsStack.add(ConversationRoute(route.chatId))
                 }
-            },
-        )
-    }
-
-    entry<ShareRoute> {
-        ShareScreen(
-            viewModel = koinViewModel(),
-            onClose = closeShare,
-            // Vybraný chat výběr NAHRADÍ — zpět z něj vede na seznam, ne do výběru.
-            onChosen = { chatId ->
-                chatsStack.remove(ShareRoute)
-                if (!chatsStack.isOpenConversation(chatId)) chatsStack.add(ConversationRoute(chatId))
             },
         )
     }

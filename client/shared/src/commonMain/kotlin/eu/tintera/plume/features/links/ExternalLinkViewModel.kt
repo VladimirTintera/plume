@@ -101,7 +101,7 @@ class ExternalLinkViewModel(
                     }
                     is InternalLink.Message ->
                         navigate(ExternalDestination.Chat(ChatTarget(link.chatId, link.messageId, topicId = link.topicId)))
-                    // Výběr chatu otevře shell sám — sdílení bez vybraného chatu (viz ShareRequests).
+                    // Sdílení bez vybraného chatu: obsah nese čip v shellu (viz ShareRequests).
                     is InternalLink.ShareText -> shareRequests.start(link.text, hasFiles = false)
                     is InternalLink.Proxy -> proxyLinkFlow.open(link.config)
                     is InternalLink.Invite -> _state.update { it.copy(invite = InviteSheetState(link.link, link.preview)) }

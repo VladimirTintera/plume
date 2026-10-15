@@ -92,7 +92,7 @@ internal class ConversationLinks(
                             openUrl(url)
                         }
                         is InternalLink.Chat -> openChatLink(link)
-                        // Výběr chatu otevře shell sám — sdílení bez vybraného chatu (viz ShareRequests).
+                        // Sdílení bez vybraného chatu: obsah nese čip v shellu (viz ShareRequests).
                         is InternalLink.ShareText -> shareRequests.start(link.text, hasFiles = false)
                         is InternalLink.Message -> when {
                             // Tentýž chat, a v tématu jen totéž téma — zpráva z jiného tématu

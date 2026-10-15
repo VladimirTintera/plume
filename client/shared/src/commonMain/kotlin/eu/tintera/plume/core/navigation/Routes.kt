@@ -460,19 +460,11 @@ data class WebAppRoute(
 ) : Route
 
 /**
- * Výběr chatu pro obsah sdílený do aplikace ze systému.
- *
- * Nenese nic — sdílený obsah (soubory v cache) je v `ShareRequests`, ne v zásobníku. Po zabití
- * procesu se routa obnoví, ale obsah ne; obrazovka pak sama odejde.
- */
-@Serializable
-data object ShareRoute : Route
-
-/**
  * Potvrzení sdílení do JEDNOHO chatu, vybraného už v systémové nabídce (Direct Share).
  *
- * Nese jen id chatu, sdílený obsah je jako u [ShareRoute] v `ShareRequests` — po zabití procesu
- * se routa obnoví, obsah ne a obrazovka sama odejde.
+ * Nese jen id chatu, sdílený obsah (soubory v cache) je v `ShareRequests`, ne v zásobníku. Po
+ * zabití procesu se routa obnoví, obsah ne (sdílení s vybraným chatem se neukládá) a obrazovka
+ * sama odejde. Sdílení BEZ vybraného chatu obrazovku nemá — nese ho čip v shellu.
  */
 @Serializable
 data class ShareToChatRoute(val chatId: Long) : Route
@@ -567,7 +559,6 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(WebAppRoute::class, WebAppRoute.serializer())
             subclass(AddBotToGroupRoute::class, AddBotToGroupRoute.serializer())
             subclass(SwitchInlineRoute::class, SwitchInlineRoute.serializer())
-            subclass(ShareRoute::class, ShareRoute.serializer())
             subclass(ShareToChatRoute::class, ShareToChatRoute.serializer())
             subclass(NewChatRoute::class, NewChatRoute.serializer())
             subclass(NewContactRoute::class, NewContactRoute.serializer())
