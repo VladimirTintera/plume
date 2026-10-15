@@ -26,6 +26,14 @@
 				<string>eu.tintera.plume</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>eu.tintera.plume.telegram</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>tg</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>
