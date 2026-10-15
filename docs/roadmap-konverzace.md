@@ -47,7 +47,8 @@ Aplikace má nastavení přes DataStore (`AppSettings`) a první testy (`commonT
    (uložené, populární, hledání přes `@gif`; `docs/poznatky/emoji-samolepky-reakce.md`, „Výběr GIFů"). ~~Vložení ze schránky~~ — hotovo
    na Androidu i iOS (položka kontextové nabídky pole). Na iOS chybí GIFy ověřené na zařízení
    (~~vložení bez dotazu „Povolit vložení?"~~ — hotovo, `UIPasteControl` nad polem). ~~Streamování~~ — hotovo na Androidu (`docs/poznatky/prohlizec-medii.md`,
-   „Video"); iOS čeká na `AVAssetResourceLoaderDelegate`. ~~Rychlost a ztlumení~~ — hotovo
+   „Video"); ~~iOS~~ — hotovo pro původní soubory (`AVAssetResourceLoaderDelegate`, tamtéž, „Streamování na
+   iOS"); přepočítané kvality (fragmentované MP4) tam chtějí HLS přes místní HTTP server. ~~Rychlost a ztlumení~~ — hotovo
    (`docs/poznatky/prohlizec-medii.md`, „Video"; přehrávání samo na emulátoru neověřené). ~~Obraz v obraze~~ — hotovo
    (Android ověřený, iOS jen přeložený; akce v okénku neověřená). ~~Displej nezhasíná, pauza po
    vytažení sluchátek, lišty schované s ovládáním, zámek proti dotykům, ruční otočení~~ — hotovo

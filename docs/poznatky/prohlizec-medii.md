@@ -898,9 +898,53 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
 - **Streamovací cestu ověří jen video, které TDLib ještě NEMÁ**: stažené jde přes `load(path)`
   a chyba se neukáže. Každý pokus proto chce nový soubor — k MP4 stačí připojit box `free`
   s náhodnými bajty (jinak TDLib soubory se stejným obsahem sloučí).
-- **iOS zatím streamovat neumí** (`videoStreamingSupported = false`). `AVPlayer` by potřeboval
-  `AVAssetResourceLoaderDelegate` — vlastní zdroj odpovídající na požadavky na rozsahy bajtů;
-  do té doby se tam čeká na celý soubor.
+- **iOS streamuje přes `AVAssetResourceLoaderDelegate`** (`StreamingResourceLoader`, nad týmž
+  `StreamingSource`): AVPlayer dostane URL s vlastním schématem (`plume-stream://`), které sám
+  neotevře, a o data si říká po rozsazích bajtů. Viz „Streamování na iOS".
+- **Streamování na iOS** (`StreamingResourceLoader` v `iosMain/core/video`):
+  - **Každý požadavek se obslouží na vlastním vlákně** (globální fronta GCD), čekání na data
+    blokuje. Na frontě delegáta by zablokovalo i rušení ostatních požadavků — AVPlayer jich
+    posílá víc najednou: hned po startu dva bajty s `contentInformationRequest`, pak „od 0 do
+    konce" a zároveň konec souboru.
+  - **Přesun stahování nestačí jednou** jako na Androidu: souběžné požadavky (začátek a konec)
+    si TDLib přetahují, protože stahuje jen od jednoho místa. Kdo čeká a stahování jde jinam, řekne
+    si o něj znovu po vteřině; kdo leží těsně za staženým úsekem, jen čeká.
+  - **Data po kusech po 256 kB**: požadavek bývá „až do konce" a AVPlayer ho zruší, jakmile má
+    dost; mezi kusy se kontroluje `isCancelled`. Opuštěný zdroj (jiná kvalita, jiné video)
+    pustí čekající vlákna (`released`).
+  - **`AVAssetResourceLoader` drží delegáta SLABĚ** — silnou referenci má `VideoPlayer`.
+  - **Delegát nesmí nic chtít po hlavním vlákně a hlavní vlákno nesmí sahat na blokující API
+    AVFoundation.** Stažený úsek se do zdroje zapisuje z kompozice (hlavní vlákno). Dočasný
+    ladicí log četl `AVAsset.duration` — to je BLOKUJÍCÍ (synchronně načte klíč „duration", tedy
+    čeká na data od delegáta) — a hlavní vlákno viselo 18 s: delegát čekal na úsek, který se
+    zapisuje z hlavního vlákna, a to čekalo na delegáta. TDLib přitom měl staženo 169 MB.
+    Na `AVPlayerItem.duration`, `currentTime` a `rate` blokující nejsou.
+  - **Jen progresivní MP4 (původní soubory), přepočítané kvality ne**
+    (`videoFragmentedStreamingSupported = false`). Přepočítané kvality Telegramu jsou
+    fragmentované MP4 (`moov` s `mvex`/`mehd`, `mvhd`/`tkhd`/`mdhd` s délkou 0, `sidx`, stovky
+    dvojic `moof`/`mdat`) a AVPlayer přes vlastní zdroj `mehd` nečte: délku skládá z přečtených
+    fragmentů (hodinové video hlásilo 0:45 a rostla, jak hrálo) a skok posuvníkem za ně skončil
+    `AVPlayerItemDidPlayToEndTime` v 0:35. Hotový soubor přes `file://` hlásí správně (1:00:27).
+    **Zkoušeno a NEPOUŽITO:** při čtení přepsat nulové délky v hlavičce hodnotou z `mehd`. Jen
+    `mvhd` nepomohlo vůbec (pořád 25 s); s `tkhd` a `mdhd` hlásil AVPlayer 1:24:12 místo
+    1:22:12 — vypadá to, že k délce z hlavičky PŘIČÍTÁ přečtené fragmenty — a skok se ověřit
+    nepodařilo. Pořádná cesta je HLS (`AlternativeVideo.hlsFile`), jenže segmenty HLS AVPlayer
+    přes vlastní schéma nebere, chtělo by to místní HTTP server. Do té doby se přepočítaná kvalita
+    na iOS stahuje celá a automatika na síti bez stropu (Wi-Fi) tam dá přednost původnímu
+    souboru (`pickVideoQuality(convertedStreams = false)`), který se rozběhne hned.
+  - **Dohrání se na iOS pozná z `AVPlayerItemDidPlayToEndTime`**, ne z pozice u délky: délku
+    AVPlayer u streamu zná až z indexu, který dorazí později, a pozastavení u dočasného „konce"
+    by vypadalo jako dohrání — `play()` by pak skočil na začátek.
+  - **Ověřeno v simulátoru** (iPhone 17, iOS 26.5, kanál s hodinovými videi): nestažený původní
+    soubor (387 MB, `moov` na konci) se rozběhl do pár vteřin; jiný původní (248 MB) hrál
+    z rozestavěného souboru a AVPlayer si bral data po ~2 MB podle potřeby; 891MB video, které
+    má i přepočítanou 720p, na Wi-Fi zůstalo u původního souboru a hrálo do 4 s. **Skok posuvníkem do nestažené části původního souboru ověřený NENÍ** (tah po
+    posuvníku přes `touch_path` simulátor nepředal) a na skutečném iPhonu se to nezkoušelo.
+  - **Kermit na iOS jde do systémového logu až od Info**; `logger.d` v `log show` není vidět.
+    Ladí se `xcrun simctl spawn <udid> log show --last 1m --info --style json --predicate
+    'process == "Plume"'` a výběrem záznamů bez `subsystem`.
+  - **Síť simulátoru stáhne 400 MB za minutu**, takže streamovací okno je krátké a každý pokus
+    chce video, které aplikace ještě nemá (nová instalace nebo jiné video).
 - **Velký průběh uprostřed jen do ROZBĚHNUTÍ videa** (`hasPlayed` = přehrávač poprvé hlásí
   `isPlaying`), ne dokud se stahuje. U streamovaného videa je soubor „načtený" hned, ale
   přehrávač ještě čeká na data — procento staženého souboru by tam lhalo (hraje se dávno před
@@ -1138,8 +1182,8 @@ v `core/video` (testy `VideoQualitiesTest`), čip a nabídka `VideoQualityChip`.
   vybrala 720p AV1 místo 655MB původního, Wi-Fi zapnutá za běhu → přepnutí na původní
   a „Ruším stahování" u 720p v logu `Files`. Emulátor bez hardwarového dekodéru má AV1 i h264
   softwarově, takže tam vyhrává menší AV1; **přednost hardwarového dekodéru je ověřená jen
-  testy**. **iOS jen přeložený** (bez streamování se tam nová kvalita stahuje celá, než se
-  vymění). Emulátor při softwarovém dekódování 720p sypal systémová ANR („Process system isn't
+  testy**. **Na iOS** se nabízí jen h264 (AV1 se tam nedekóduje) a přepočítaná kvalita se
+  stahuje celá (viz „Streamování na iOS"). Emulátor při softwarovém dekódování 720p sypal systémová ANR („Process system isn't
   responding") — přetížený hostitel, ne aplikace.
 
 ### Text z fotky

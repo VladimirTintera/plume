@@ -102,11 +102,18 @@ class StreamingSource(
 /**
  * Umí tahle platforma přehrát rozestavěný soubor?
  *
- * Android ano (vlastní `DataSource` nad souborem TDLib). iOS zatím ne — `AVPlayer` by chtěl
- * `AVAssetResourceLoaderDelegate`, což je samostatný kus práce; tam se čeká na celý soubor
- * jako dosud.
+ * Android i iOS ano: vlastní zdroj nad souborem TDLib (`PartialFileDataSource` pro ExoPlayer,
+ * `StreamingResourceLoader` pro AVPlayer). Desktop video nepřehrává vůbec.
  */
 expect val videoStreamingSupported: Boolean
+
+/**
+ * Umí platforma streamovat i FRAGMENTOVANÉ MP4 — přepočítané kvality videa
+ * (`MessageMedia.Video.alternatives`, server je dělá pro HLS)? Android ano (ExoPlayer čte
+ * `mehd` i `sidx`), iOS ne: tam se přepočítaná kvalita stahuje celá a automatika na síti bez
+ * stropu dá přednost původnímu souboru, který streamovat jde.
+ */
+expect val videoFragmentedStreamingSupported: Boolean
 
 /**
  * Čím zařízení dekóduje video v kodeku [codec] (`h264`, `h265`, `av01`… jak ho jmenuje TDLib
