@@ -7,7 +7,7 @@ enum class ChangelogNoteType { FEAT, FIX }
 data class ChangelogNote(val type: ChangelogNoteType, val cs: String, val en: String)
 
 data class ChangelogRelease(
-    /** `versionName` z tagu (`android-0.3.37-73` → `0.3.37`). */
+    /** Verze z tagu svého kanálu (`android-0.3.37-73` → `0.3.37`, `desktop-0.3.6` → `0.3.6`). */
     val version: String,
     /** Čas commitu, na kterém tag leží, v sekundách — jako časy zpráv, ať jde přes tentýž formát. */
     val date: Int,
@@ -22,7 +22,14 @@ data class ChangelogRelease(
  * Z buildu, ne ze serveru ani z Google Play: poznámky patří k verzi, kterou uživatel právě má,
  * a jdou číst i offline. Seznam končí vydáním, ze kterého je build — novější verze by lhaly.
  * Prázdný je u sestavy bez pythonu nebo gitu (cizí stroj, mělký klon).
+ *
+ * Vydání jsou po kanálech ([changelogChannel]): desktop se vydává vlastními tagy v jiném rytmu
+ * a s jinými čísly verzí než Android, takže androidí seznam by mu lhal o tom, co v které verzi
+ * přibylo.
  */
 object Changelog {
-    val releases: List<ChangelogRelease> get() = GENERATED_CHANGELOG
+    val releases: List<ChangelogRelease> get() = GENERATED_CHANGELOG[changelogChannel].orEmpty()
 }
+
+/** Předpona tagů, kterými se platforma vydává (`android-…`, `desktop-…`). */
+internal expect val changelogChannel: String
