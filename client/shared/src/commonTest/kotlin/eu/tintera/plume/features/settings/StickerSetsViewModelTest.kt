@@ -85,6 +85,7 @@ class StickerSetsViewModelTest {
         override suspend fun canUseCustomEmoji(chatId: Long) = false
         override fun customEmojiSets(): Flow<List<CustomEmojiSet>> = flowOf(emptyList())
         override suspend fun customEmojiSet(setId: Long) = Result.success(emptyList<CustomEmojiItem>())
+        override suspend fun searchCustomEmoji(text: String, emojis: List<String>, chatId: Long) = emptyList<CustomEmojiItem>()
         override fun trendingCustomEmojiSets(): Flow<List<CustomEmojiSetSample>> = emptyFlow()
     }
 

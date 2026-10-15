@@ -64,7 +64,11 @@ interface AppSettings {
     /** Zapamatuje záložku. Neblokuje, jako [recordRecentEmoji]. */
     fun setLastStickerTab(key: String)
 
-    /** Emoji naposledy vybraná ve výběru, od nejnovějšího. Bez duplicit, nejvýš [MAX_RECENT_EMOJIS]. */
+    /**
+     * Emoji naposledy vybraná ve výběru, od nejnovějšího. Bez duplicit, nejvýš [MAX_RECENT_EMOJIS].
+     * Vlastní emoji jsou v témž seznamu jako klíč se značkou (`recentKey` ve výběru emoji), ať se
+     * s obyčejnými řadí podle toho, kdy je uživatel použil.
+     */
     val recentEmojis: StateFlow<List<String>>
 
     /**

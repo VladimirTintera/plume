@@ -113,13 +113,22 @@ internal fun EmojiPanel(
         onDraftEdit(draft.inserting(emoji))
         viewModel.recordEmoji(emoji)
     }
+    // Vlastní emoji jdou mezi nedávná stejně jako obyčejná — ze sady, z hledání i z nedávných.
+    val pickCustom: ((CustomEmojiItem) -> Unit)? = onCustomEmoji?.let { pick ->
+        { item ->
+            pick(item)
+            viewModel.recordCustomEmoji(item)
+        }
+    }
 
     /*
      * Nedávná emoji ZMRAŽENÁ na stav při otevření výběru. Každé ťuknutí emoji přesune na začátek;
      * kdyby se seznam měnil živě, mřížka by se přeskládala pod prstem a druhé ťuknutí by trefilo
      * jiné emoji. Nové pořadí se ukáže při dalším otevření — stejně to dělá Telegram.
      */
-    val recent = remember { viewModel.recentEmojis.value }
+    val recent = remember(pickCustom != null) {
+        viewModel.recentEmojis.value.filter { it is EmojiEntry.Plain || pickCustom != null }
+    }
 
     /*
      * Emoji se kreslí a vkládá ve zvolené podobě: kdo si jednou vybral 👍🏽, dostane ho příště
@@ -158,8 +167,10 @@ internal fun EmojiPanel(
         ) {
             when (val current = search) {
                 EmojiSearchState.Idle, EmojiSearchState.Searching -> LoadingIndicator()
-                is EmojiSearchState.Results ->
-                    if (current.emojis.isEmpty()) {
+                is EmojiSearchState.Results -> {
+                    // Vlastní emoji za obyčejnými, a jen kde je smí uživatel poslat.
+                    val custom = if (pickCustom != null) current.custom else emptyList()
+                    if (current.emojis.isEmpty() && custom.isEmpty()) {
                         Text(
                             text = stringResource(Res.string.emoji_none_found),
                             style = MaterialTheme.typography.bodyLarge,
@@ -168,8 +179,12 @@ internal fun EmojiPanel(
                             modifier = Modifier.padding(24.dp),
                         )
                     } else {
-                        EmojiGrid(current.emojis, cells)
+                        val entries = remember(current, custom) {
+                            current.emojis.map(EmojiEntry::Plain) + custom.map(EmojiEntry::Custom)
+                        }
+                        MixedEmojiGrid(entries, cells, onCustom = pickCustom)
                     }
+                }
             }
         }
         return
@@ -255,14 +270,14 @@ internal fun EmojiPanel(
         if (page >= firstCustomPage && onCustomEmoji != null) {
             val set = customSets.getOrNull(page - firstCustomPage)
             if (set != null) {
-                CustomEmojiPage(set, viewModel, onPick = onCustomEmoji)
+                CustomEmojiPage(set, viewModel, onPick = pickCustom ?: onCustomEmoji)
             } else {
                 CustomEmojiTrendingPage(viewModel)
             }
         } else if (page > 0) {
             EmojiGrid(EMOJI_GROUPS[page - 1].emojis, cells)
         } else if (recent.isNotEmpty()) {
-            EmojiGrid(recent, cells)
+            MixedEmojiGrid(recent, cells, onCustom = pickCustom)
         } else {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
@@ -357,6 +372,43 @@ private fun EmojiGrid(emojis: List<String>, cells: EmojiCells) {
         modifier = Modifier.fillMaxSize(),
     ) {
         items(shown, key = { it }) { emoji -> EmojiCell(emoji, cells) }
+    }
+}
+
+/**
+ * Mřížka, ve které se potkají obyčejná a vlastní emoji: nedávná a výsledky hledání. Vlastní
+ * emoji se kreslí obrázkem a vkládá přes [onCustom]; bez něj se vynechají.
+ */
+@Composable
+private fun MixedEmojiGrid(entries: List<EmojiEntry>, cells: EmojiCells, onCustom: ((CustomEmojiItem) -> Unit)?) {
+    // Po převodu na zvolené odstíny se v nedávných můžou sejít dvě podoby téhož emoji; klíče mřížky
+    // musí být jedinečné. Vlastní emoji mají klíč podle id, s obyčejnými se nepotkají.
+    val shown = entries.mapNotNull { entry ->
+        when (entry) {
+            is EmojiEntry.Plain -> EmojiEntry.Plain(cells.display(entry.emoji))
+            is EmojiEntry.Custom -> entry.takeIf { onCustom != null }
+        }
+    }.distinct()
+
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(EMOJI_CELL),
+        contentPadding = sheetListPadding(horizontal = 12.dp, vertical = 4.dp),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        items(
+            shown,
+            key = { entry ->
+                when (entry) {
+                    is EmojiEntry.Plain -> entry.emoji
+                    is EmojiEntry.Custom -> "custom-${entry.item.id}"
+                }
+            },
+        ) { entry ->
+            when (entry) {
+                is EmojiEntry.Plain -> EmojiCell(entry.emoji, cells)
+                is EmojiEntry.Custom -> onCustom?.let { pick -> CustomEmojiCell(entry.item, onPick = pick) }
+            }
+        }
     }
 }
 
