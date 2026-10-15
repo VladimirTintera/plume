@@ -94,6 +94,9 @@ internal fun MessageFlight?.landingOn(message: ChatMessage): MessageFlight? = wh
 /** Členové napovídaní ke zmínce, a ke kterému dotazu patří. */
 data class MentionSuggestions(val query: String, val candidates: List<MentionCandidate>)
 
+/** Dříve použité hashtagy (bez `#`) napovídané k rozepsanému `#…`, a ke kterému dotazu patří. */
+data class HashtagSuggestions(val query: String, val hashtags: List<String>)
+
 /**
  * Text, který má obrazovka vložit do vstupního pole.
  *
@@ -640,6 +643,7 @@ data class ConversationState(
     val inline: InlineQueryState? = null,
     /** Napovídání zmínky (`@ja`): členové k dotazu u kurzoru; `null` = nic se nenapovídá. */
     val mentionSuggestions: MentionSuggestions? = null,
+    val hashtagSuggestions: HashtagSuggestions? = null,
     /** Tlačítko bota chce sdílet telefonní číslo a čeká se na potvrzení. */
     val confirmSharePhone: Boolean = false,
     /** Tlačítko bota chce polohu; po potvrzení ji zjistí obrazovka. */

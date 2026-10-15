@@ -773,7 +773,7 @@ v seznamu chatů („Koncept: …") a na ostatních zařízeních.
 
 ## Plovoucí napovídání nad polem
 
-Emoji ke slovu, samolepky k emoji, příkazy bota, zmínky a výsledky inline bota PLAVOU nad vstupním polem
+Emoji ke slovu, samolepky k emoji, příkazy bota, zmínky, hashtagy a výsledky inline bota PLAVOU nad vstupním polem
 (`FloatingSuggestion`, `floatAbove`) na skle v inverzní roli jako snackbar, a místo v rozvržení
 nezabírají.
 
@@ -840,6 +840,34 @@ vloží `@jmeno`, nebo u člena bez veřejného jména jeho křestní jméno se 
 - **Id veřejné skupiny zjistí Bot API** (`getChat?chat_id=@jmeno`, bot nemusí být členem)
   a otevře ji `am start … --el eu.tintera.plume.extra.CHAT_ID <id>` — bez ťukání v seznamu
   chatů se skutečnými lidmi.
+
+## Napovídání hashtagů a nedávných inline botů
+
+Po `#` u kurzoru nabídne nad polem dříve použité hashtagy (`HashtagSuggestionsPanel`, doména
+`Hashtags.kt`: `hashtagQueryAt`, `hashtagInsertion`, testy `HashtagsTest`), po `@` na začátku
+zprávy nedávné inline boty (v `MentionSuggestionsPanel`, před členy skupiny). Logika je
+v `ConversationSuggestions` (`hashtagQuery`, `mentionQuery(…, atStart)`, testy
+`ConversationSuggestionsTest`).
+
+- **Hashtagy si pamatuje TDLib sám** z odeslaných zpráv (`searchHashtags`, lokálně, bez serveru):
+  hashtag z čerstvě odeslané zprávy se hned nabízí. Vrací je bez `#`; pro jistotu se mřížka
+  i tak odstřihne. Prefix jde taky bez `#`.
+- **Pravidla jako u zmínky**: `#` na začátku nebo po mezeře („C#" hashtag není), pak jen písmena,
+  číslice a podtržítko; samotné `#` nabídne poslední hashtagy. Hashtag celý napsaný v poli se
+  nenabízí — ťuknutím by se nic nezměnilo. Ťuknutí nahradí úsek od `#` po kurzor a přidá mezeru.
+- **Hashtagy i při úpravě zprávy** (na rozdíl od zmínek): je to holý text a nic z něj nezmizí.
+- **Nedávní inline boti jen na ZAČÁTKU zprávy a bez příloh** — jen tam se z `@bot ` stane dotaz
+  na bota (`inlineQueryOf`); uprostřed věty by to byla obyčejná zmínka. Nabízejí se v KAŽDÉM
+  chatu, kam se smí psát, i v soukromém, kde se členové nenapovídají. Filtrují se u nás
+  (`matchesMention`: uživatelské jméno nebo slovo jména začíná dotazem), server je nehledá.
+- **TDLib si bota zapamatuje až po ODESLÁNÍ jeho výsledku**, ne po dotazu — na čerstvém účtu je
+  seznam prázdný a po `@` se nic neukáže, i když všechno funguje (první pokus na emulátoru).
+- **Ťuknutí na bota rovnou zapne inline režim**: vloží `@bot ` a s mezerou je to dotaz.
+- **Ověřeno na emulátoru** v chatu s testovacím botem: odeslaná zpráva s `#plume`, pak `#pl` →
+  panel s `#plume`, ťuknutí vložilo `#plume `; po odeslání GIFu přes `@gif` nabídlo samotné `@`
+  „GIF Search @gif" a ťuknutí ukázalo výsledky bota. Text do pole přes sdílení (`SEND`
+  s `EXTRA_SHORTCUT_ID`), `@` na začátek až do PRÁZDNÉHO pole — sdílení text připojí za
+  rozepsaný. **Neověřeno**: boti před členy ve skupině, iOS (jen přeložené).
 
 ## Odpovědi (reply)
 

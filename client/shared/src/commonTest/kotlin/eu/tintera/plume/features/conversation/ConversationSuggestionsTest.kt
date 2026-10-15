@@ -12,6 +12,7 @@ import eu.tintera.plume.core.telegram.InlineRowKind
 import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.MentionCandidate
 import eu.tintera.plume.core.telegram.NameMention
+import eu.tintera.plume.core.telegram.OutgoingAttachment
 import eu.tintera.plume.core.telegram.ReplyQuote
 import eu.tintera.plume.core.telegram.UnimplementedConversationRepository
 import kotlinx.coroutines.CoroutineScope
@@ -47,6 +48,16 @@ class ConversationSuggestionsTest {
         override suspend fun mentionCandidates(chatId: Long, query: String): Result<List<MentionCandidate>> {
             mentionQueries += query
             return Result.success(listOf(candidate(1, "Eva", "eva"), candidate(2, "Jan", null)))
+        }
+
+        val hashtagQueries = mutableListOf<String>()
+        var recentBots = listOf(candidate(10, "GIF Search", "gif"), candidate(11, "Wikipedia", "wiki"))
+
+        override suspend fun recentInlineBots(): Result<List<MentionCandidate>> = Result.success(recentBots)
+
+        override suspend fun recentHashtags(prefix: String): Result<List<String>> {
+            hashtagQueries += prefix
+            return Result.success(listOf("plume", "plumeapp", "telegram").filter { it.startsWith(prefix) })
         }
 
         override suspend fun inlineBot(username: String): Result<InlineBotInfo?> = Result.success(bots[username])
@@ -277,6 +288,72 @@ class ConversationSuggestionsTest {
         assertNull(state.value.inputFill)
         assertNotNull(state.value.notice)
         assertTrue(draftChanges.isEmpty())
+    }
+
+    @Test
+    fun naZacatkuZpravyNabidneNedavneInlineBotyIVSoukromemChatu() = runTest {
+        val state = MutableStateFlow(ConversationState(info = testChatInfo()))
+        suggestions(state).mentionQuery("gi", atStart = true)
+        advanceUntilIdle()
+
+        // Členy v soukromém chatu nehledá, boty filtruje podle jména.
+        assertTrue(repository.mentionQueries.isEmpty())
+        assertEquals(listOf(10L), state.value.mentionSuggestions?.candidates?.map { it.userId })
+    }
+
+    @Test
+    fun uprostredVetyInlineBotyNenabizi() = runTest {
+        val state = MutableStateFlow(ConversationState(info = testChatInfo()))
+        suggestions(state).mentionQuery("gi", atStart = false)
+        advanceUntilIdle()
+
+        assertNull(state.value.mentionSuggestions)
+    }
+
+    @Test
+    fun veSkupineJdouBotyPredCleny() = runTest {
+        val state = groupState()
+        suggestions(state).mentionQuery("", atStart = true)
+        advanceUntilIdle()
+
+        assertEquals(listOf(10L, 11L, 1L, 2L), state.value.mentionSuggestions?.candidates?.map { it.userId })
+    }
+
+    @Test
+    fun sPrilohouInlineBotyNenabizi() = runTest {
+        val state = MutableStateFlow(
+            ConversationState(info = testChatInfo(), attachments = listOf(OutgoingAttachment.Document("soubor.pdf"))),
+        )
+        suggestions(state).mentionQuery("", atStart = true)
+        advanceUntilIdle()
+
+        assertNull(state.value.mentionSuggestions)
+    }
+
+    @Test
+    fun hashtagyPodlePrefixuBezPraveNapsaneho() = runTest {
+        val state = MutableStateFlow(ConversationState(info = testChatInfo()))
+        val suggestions = suggestions(state)
+
+        suggestions.hashtagQuery("plume")
+        advanceUntilIdle()
+
+        assertEquals(listOf("plume"), repository.hashtagQueries)
+        // Celý napsaný hashtag se nenabízí, delší ano.
+        assertEquals(listOf("plumeapp"), state.value.hashtagSuggestions?.hashtags)
+
+        suggestions.hashtagPicked()
+        assertNull(state.value.hashtagSuggestions)
+    }
+
+    @Test
+    fun hashtagyKdeSeNesmiPsatNenapovida() = runTest {
+        val state = MutableStateFlow(ConversationState(info = testChatInfo(canJoin = true)))
+        suggestions(state).hashtagQuery("")
+        advanceUntilIdle()
+
+        assertTrue(repository.hashtagQueries.isEmpty())
+        assertNull(state.value.hashtagSuggestions)
     }
 
     private companion object {
