@@ -2,6 +2,7 @@ package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ai.ScamKind
 import eu.tintera.plume.core.telegram.SpeechTranscript
+import eu.tintera.plume.core.telegram.PendingChecklistMark
 import androidx.compose.ui.input.key.key
 import eu.tintera.plume.core.telegram.TranscribeOffer
 import kotlinx.datetime.TimeZone
@@ -69,6 +70,9 @@ internal class ScreenItemScope(
 
     override fun pressingBotButton(messageId: Long): Pair<Int, Int>? =
         state.value.pressingBotButton?.takeIf { it.messageId == messageId }?.let { it.row to it.column }
+
+    override fun pendingChecklistMarks(messageId: Long): List<PendingChecklistMark> =
+        state.value.pendingChecklistMarks[messageId].orEmpty()
 
     override fun searchHighlight(): String? = searchHighlight.value
 

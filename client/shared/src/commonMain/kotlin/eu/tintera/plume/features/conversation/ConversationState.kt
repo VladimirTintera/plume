@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.telegram.SenderModeration
+import eu.tintera.plume.core.telegram.PendingChecklistMark
+import eu.tintera.plume.core.telegram.DEFAULT_CHECKLIST_TASK_TEXT_MAX
 import eu.tintera.plume.core.telegram.SpeechTranscript
 import eu.tintera.plume.core.currency.RateTable
 import eu.tintera.plume.core.bookmarks.MessageBookmarks
@@ -665,6 +667,15 @@ data class ConversationState(
     val giveaway: GiveawaySheet? = null,
     /** Zpráva s anketou, do které se přidává odpověď (dialog); `null` = zavřený. */
     val addingPollOption: Long? = null,
+    /** Zpráva se seznamem úkolů, do kterého se přidává úkol (dialog); `null` = zavřený. */
+    val addingChecklistTask: Long? = null,
+    /** Strop délky úkolu od serveru pro dialog „Přidat úkol". */
+    val checklistTaskMax: Int = DEFAULT_CHECKLIST_TASK_TEXT_MAX,
+    /**
+     * Odškrtnutí úkolů, která odešla a server je ještě nepotvrdil, podle id zprávy. Bublina je
+     * kreslí hned; po odpovědi serveru (i po chybě) zmizí a platí stav ze zprávy.
+     */
+    val pendingChecklistMarks: Map<Long, List<PendingChecklistMark>> = emptyMap(),
     /** Anketa, kterou uživatel chce ukončit a čeká se na potvrzení; `null` = žádná. */
     val pendingStopPoll: Long? = null,
     /** Useknuté články, které se právě dočítají („Číst dál"). */

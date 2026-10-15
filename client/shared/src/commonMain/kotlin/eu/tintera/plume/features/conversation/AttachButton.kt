@@ -27,6 +27,8 @@ import eu.tintera.plume.resources.attach_file_24dp
 import eu.tintera.plume.resources.conversation_attach
 import eu.tintera.plume.resources.conversation_attach_file
 import eu.tintera.plume.resources.conversation_attach_poll
+import eu.tintera.plume.resources.conversation_attach_checklist
+import eu.tintera.plume.resources.checklist_24dp
 import eu.tintera.plume.resources.conversation_attach_location
 import eu.tintera.plume.resources.location_on_24dp
 import eu.tintera.plume.resources.ballot_24dp
@@ -65,6 +67,8 @@ internal fun AttachButton(
     canPickDocument: Boolean = true,
     /** Založit anketu; `null`, kde anketa nejde (soukromý chat s člověkem, zakázané právo). */
     onCreatePoll: (() -> Unit)? = null,
+    /** Založit seznam úkolů; `null`, kde nejde (kanál, tajný chat, účet bez Premium). */
+    onCreateChecklist: (() -> Unit)? = null,
     /** Poslat polohu; `null`, kde nejde. */
     onSendLocation: (() -> Unit)? = null,
     /** Poslat kontakt; `null`, kde nejde. */
@@ -99,6 +103,9 @@ internal fun AttachButton(
                         .takeIf { canPickDocument },
                     onCreatePoll?.let { create ->
                         MenuAction(stringResource(Res.string.conversation_attach_poll), Res.drawable.ballot_24dp) { pick(create) }
+                    },
+                    onCreateChecklist?.let { create ->
+                        MenuAction(stringResource(Res.string.conversation_attach_checklist), Res.drawable.checklist_24dp) { pick(create) }
                     },
                     onSendLocation?.let { send ->
                         MenuAction(stringResource(Res.string.conversation_attach_location), Res.drawable.location_on_24dp) { pick(send) }

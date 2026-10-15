@@ -24,6 +24,10 @@ import dev.g000sha256.tdl.dto.MessageRichMessage
 import dev.g000sha256.tdl.dto.RichMessage
 import dev.g000sha256.tdl.dto.MessageContent
 import dev.g000sha256.tdl.dto.MessagePoll
+import dev.g000sha256.tdl.dto.MessageChecklist
+import dev.g000sha256.tdl.dto.InputChecklist
+import dev.g000sha256.tdl.dto.InputChecklistTask
+import dev.g000sha256.tdl.dto.InputMessageChecklist
 import dev.g000sha256.tdl.dto.MessageContact
 import dev.g000sha256.tdl.dto.ChatTypeSecret
 import dev.g000sha256.tdl.dto.SecretChatStatePending
@@ -2229,9 +2233,14 @@ class TdlConversationRepository(
             canJoin = supergroup != null && status == OwnMemberStatus.Left && !nonMembersCanSend,
             writeAccess = secret ?: topicWriteAccess(chatWrite, status, topicClosed = forumTopic?.info?.isClosed == true),
             content = contentAccess(status = status, groupDefaults = chat.permissions.toContentAccess()).let {
-                // Právo skupiny nestačí: do soukromého chatu s člověkem anketa nejde vůbec.
-                // V tématu anketa nejde: zakládá ji obrazovka, která o tématu neví.
-                it.copy(polls = it.polls && forumTopicId == null && pollsAllowedIn(pollChatKind(chat)))
+                // Právo skupiny nestačí: do soukromého chatu s člověkem anketa nejde vůbec,
+                // seznam úkolů zase ne do kanálu. V tématu ani jedno: zakládá je obrazovka,
+                // která o tématu neví.
+                val kind = pollChatKind(chat)
+                it.copy(
+                    polls = it.polls && forumTopicId == null && pollsAllowedIn(kind),
+                    checklists = it.checklists && forumTopicId == null && checklistsAllowedIn(kind),
+                )
             },
         )
     }
@@ -2456,6 +2465,13 @@ class TdlConversationRepository(
                 poll.toChatPoll().copy(
                     recentVoters = poll.poll.recentVoterIds.take(MAX_RECENT_VOTERS)
                         .mapNotNull { resolveSender(it.plainId()) },
+                )
+            },
+            checklist = (content as? MessageChecklist)?.toChatChecklist()?.let { checklist ->
+                checklist.copy(
+                    tasks = checklist.tasks.map { task ->
+                        if (task.doneById == 0L) task else task.copy(doneBy = resolveSender(task.doneById))
+                    },
                 )
             },
             externalReply = externalReply(replyTo, chatId),
@@ -2699,6 +2715,65 @@ class TdlConversationRepository(
             messageId = messageId,
             option = InputPollOption(text = FormattedText(text = text, entities = emptyArray()), media = media?.toPollMedia()),
         ).toResult().map { }
+
+    override suspend fun markChecklistTasks(chatId: Long, messageId: Long, done: List<Int>, notDone: List<Int>): Result<Unit> =
+        client.markChecklistTasksAsDone(
+            chatId = chatId,
+            messageId = messageId,
+            markedAsDoneTaskIds = done.toIntArray(),
+            markedAsNotDoneTaskIds = notDone.toIntArray(),
+        ).toResult().map { }
+
+    override suspend fun addChecklistTasks(chatId: Long, messageId: Long, tasks: List<String>): Result<Unit> = runCatching {
+        // Id nového úkolu volí klient a musí být v seznamu jedinečné; bere se za nejvyšším.
+        val message = client.getMessage(chatId = chatId, messageId = messageId).toResult().getOrThrow()
+        val existing = (message.content as? MessageChecklist)?.list?.tasks?.maxOfOrNull { it.id } ?: 0
+        client.addChecklistTasks(
+            chatId = chatId,
+            messageId = messageId,
+            tasks = tasks.mapIndexed { index, text -> checklistTask(existing + index + 1, text) }.toTypedArray(),
+        ).toResult().getOrThrow()
+    }
+
+    override suspend fun sendChecklist(
+        chatId: Long,
+        checklist: ChecklistDraft,
+        replyToMessageId: Long?,
+        quote: ReplyQuote?,
+        options: SendOptions,
+    ): Result<ChatMessage> = runCatching {
+        client.sendMessage(
+            chatId = chatId,
+            topicId = topic,
+            replyTo = replyInput(chatId, replyToMessageId, quote),
+            options = options.toTdl(),
+            replyMarkup = null,
+            inputMessageContent = InputMessageChecklist(
+                checklist = InputChecklist(
+                    title = FormattedText(text = checklist.title, entities = emptyArray()),
+                    // Id úkolů volí klient: kladná a v seznamu jedinečná.
+                    tasks = checklist.tasks.mapIndexed { index, text -> checklistTask(index + 1, text) }.toTypedArray(),
+                    othersCanAddTasks = checklist.othersCanAddTasks,
+                    othersCanMarkTasksAsDone = checklist.othersCanMarkTasksAsDone,
+                ),
+            ),
+        ).toResult().getOrThrow().toChatMessage(isGroup(chatId))
+    }
+
+    private fun checklistTask(id: Int, text: String) =
+        InputChecklistTask(id = id, text = FormattedText(text = text, entities = emptyArray()))
+
+    override suspend fun checklistLimits(): ChecklistLimits {
+        suspend fun option(name: String) =
+            (client.getOption(name = name).toResult().getOrNull() as? OptionValueInteger)?.value?.toInt()?.takeIf { it > 0 }
+        val limits = ChecklistLimits(
+            maxTitle = option("checklist_title_length_max") ?: DEFAULT_CHECKLIST_TITLE_MAX,
+            maxTasks = option("checklist_task_count_max") ?: DEFAULT_CHECKLIST_TASK_COUNT_MAX,
+            maxTaskText = option("checklist_task_text_length_max") ?: DEFAULT_CHECKLIST_TASK_TEXT_MAX,
+        )
+        logger.d { "Meze seznamu úkolů od serveru: $limits" }
+        return limits
+    }
 
     override suspend fun pollVoters(
         chatId: Long,
@@ -3211,7 +3286,7 @@ private const val REACTION_ROW_SIZE = 8
  */
 
 /** `MessageSender` je buď uživatel, nebo chat; pro naše účely stačí číselné id. */
-private fun MessageSender.plainId(): Long = when (this) {
+internal fun MessageSender.plainId(): Long = when (this) {
     is MessageSenderUser -> userId
     is MessageSenderChat -> chatId
 }
@@ -3321,6 +3396,8 @@ private fun ChatPermissions.toContentAccess(): ContentAccess = ContentAccess(
     videoNotes = canSendVideoNotes,
     stickers = canSendOtherMessages,
     polls = canSendPolls,
+    // „True, if the user can send polls and checklists" — jedno právo pro obojí.
+    checklists = canSendPolls,
 )
 
 /**

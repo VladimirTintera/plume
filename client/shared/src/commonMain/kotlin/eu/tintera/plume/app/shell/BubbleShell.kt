@@ -66,6 +66,7 @@ fun BubbleShell(chatId: Long, onOpenInApp: (chatId: Long) -> Unit, onClose: () -
                         onOpenProfile = { onOpenInApp(route.chatId) },
                         onOpenUserProfile = { userChatId -> onOpenInApp(userChatId) },
                         onCreatePoll = { onOpenInApp(route.chatId) },
+                        onCreateChecklist = { onOpenInApp(route.chatId) },
                         onOpenWebApp = { onOpenInApp(route.chatId) },
                         onOpenBotShare = { onOpenInApp(route.chatId) },
                         onAddBotToGroup = { onOpenInApp(route.chatId) },

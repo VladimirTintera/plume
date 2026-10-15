@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.telegram.PendingChecklistMark
+
 import eu.tintera.plume.core.ai.ScamKind
 import eu.tintera.plume.features.conversation.ContextFinding
 import eu.tintera.plume.core.telegram.SpeechTranscript
@@ -210,6 +212,9 @@ internal interface ConversationItemScope {
 
     /** Tlačítko bota u zprávy, na jehož odpověď se čeká (řádek, sloupec); `null` = žádné. */
     fun pressingBotButton(messageId: Long): Pair<Int, Int>? = null
+
+    /** Odškrtnutí úkolů v seznamu zprávy, která čekají na server (viz `PendingChecklistMark`). */
+    fun pendingChecklistMarks(messageId: Long): List<PendingChecklistMark> = emptyList()
 
     /** Svislý posun položky při příjezdu po přeskoku (viz `JumpTransition`); čte se až při kreslení. */
     fun gatherShift(key: Any): Float = 0f

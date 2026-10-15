@@ -53,6 +53,7 @@ class WriteAccessTest {
         videoNotes = false,
         stickers = false,
         polls = false,
+        checklists = false,
     )
 
     @Test
@@ -165,6 +166,8 @@ class WriteAccessTest {
         assertEquals(true, jenText.copy(photos = true).anyAttachment)
         // Anketa se zakládá ze sponky taky — sama ji oživí.
         assertEquals(true, jenText.copy(polls = true).anyAttachment)
+        // Seznam úkolů taky.
+        assertEquals(true, jenText.copy(checklists = true).anyAttachment)
     }
 }
 

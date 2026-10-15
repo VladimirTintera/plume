@@ -51,6 +51,8 @@ data class ConversationNavigation(
     val onChatGone: () -> Unit = onBack,
     /** Sponka → Anketa (a tlačítko bota „vytvořit anketu"): formulář nové ankety nad konverzací. */
     val onCreatePoll: (PollComposerRequest) -> Unit = {},
+    /** Sponka → Seznam úkolů: formulář nového seznamu nad konverzací. */
+    val onCreateChecklist: (ChecklistComposerRequest) -> Unit = {},
     /** Mini aplikace bota — obrazovka přes celou plochu nad konverzací. */
     val onOpenWebApp: (WebAppRequest) -> Unit = {},
     /** Tlačítko bota „vyber lidi / chat": výběr nad konverzací. */

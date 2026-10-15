@@ -369,6 +369,14 @@ internal fun ConversationDialogs(
         )
     }
 
+    if (state.addingChecklistTask != null) {
+        AddChecklistTaskDialog(
+            maxLength = state.checklistTaskMax,
+            onConfirm = viewModel::addChecklistTask,
+            onDismiss = viewModel::dismissAddChecklistTask,
+        )
+    }
+
     state.giveaway?.let { sheet ->
         GiveawayStatusSheet(
             sheet = sheet,

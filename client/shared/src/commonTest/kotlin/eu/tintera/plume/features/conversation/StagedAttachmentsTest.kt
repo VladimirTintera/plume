@@ -103,6 +103,7 @@ class StagedAttachmentsTest {
         videoNotes = false,
         stickers = false,
         polls = false,
+        checklists = false,
     )
 
     @Test

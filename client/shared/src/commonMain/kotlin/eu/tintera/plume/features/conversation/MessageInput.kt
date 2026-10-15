@@ -252,6 +252,8 @@ internal fun MessageInput(
     onPickDocument: () -> Unit,
     /** Založit anketu; `null`, kde anketa nejde. */
     onCreatePoll: (() -> Unit)?,
+    /** Založit seznam úkolů; `null`, kde nejde. */
+    onCreateChecklist: (() -> Unit)?,
     /** Poslat polohu; `null`, kde nejde. */
     onSendLocation: (() -> Unit)?,
     onShareContact: (() -> Unit)?,
@@ -678,6 +680,7 @@ internal fun MessageInput(
                             canPickMedia = content.photos || content.videos,
                             canPickDocument = content.documents,
                             onCreatePoll = onCreatePoll,
+                            onCreateChecklist = onCreateChecklist,
                             onSendLocation = onSendLocation,
                             onShareContact = onShareContact,
                             contentColor = attachColor,

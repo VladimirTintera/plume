@@ -108,6 +108,8 @@ internal fun ConversationBottomBar(
     val emojiLanguages = remember { listOf(Locale.current.language, "en").distinct() }
     /** Poslední otevřená část výběru — uložená v nastavení, takže platí i po restartu aplikace. */
     val expressionMode by viewModel.expressionMode.collectAsStateWithLifecycle()
+    // Seznam úkolů smí založit jen účet s Premium; bez něj ho sponka nenabízí (jako prémiové efekty).
+    val isPremium by viewModel.isPremium.collectAsStateWithLifecycle()
     val recordMode = recording.mode(state.content)
 
     // Vybrané soubory jsou už zkopírované v cache aplikace; čekají nad polem na popisek a odeslání.
@@ -554,6 +556,10 @@ internal fun ConversationBottomBar(
         onCreatePoll = {
             navigation.onCreatePoll(PollComposerRequest(PollComposerMode.Any, state.replyingTo?.id, state.replyQuote))
         }.takeIf { state.content.polls },
+        // Seznam úkolů jde tam, kde to dovolí právo i druh chatu (`ContentAccess.checklists`), a jen s Premium.
+        onCreateChecklist = {
+            navigation.onCreateChecklist(ChecklistComposerRequest(state.replyingTo?.id, state.replyQuote))
+        }.takeIf { state.content.checklists && isPremium },
         // Poloha je „základní zpráva" jako text: smí se všude, kde je vstupní pole.
         onSendLocation = { sheets.locationPicker = true },
         // Kontakt je taky „základní zpráva" (TDLib ho řadí k textu), jako poloha.

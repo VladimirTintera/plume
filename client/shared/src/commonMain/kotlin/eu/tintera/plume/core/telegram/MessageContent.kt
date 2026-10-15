@@ -1062,6 +1062,32 @@ internal fun MessagePoll.toChatPoll(): ChatPoll {
     )
 }
 
+/**
+ * Seznam úkolů do domény. Kdo úkol odškrtl, je tu jen id ([ChecklistItem.doneById]); jméno
+ * a fotku dohledá repository z keše odesílatelů, jako u tváří hlasujících v anketě.
+ */
+internal fun MessageChecklist.toChatChecklist(): ChatChecklist {
+    val title = list.title.toBody()
+    return ChatChecklist(
+        title = title.text,
+        titleEntities = title.entities,
+        tasks = list.tasks.map { task ->
+            val text = task.text.toBody()
+            ChecklistItem(
+                id = task.id,
+                text = text.text,
+                entities = text.entities,
+                doneAt = task.completionDate,
+                doneById = task.completedBy?.plainId() ?: 0,
+            )
+        },
+        othersCanAddTasks = list.othersCanAddTasks,
+        othersCanMarkTasksAsDone = list.othersCanMarkTasksAsDone,
+        canAddTasks = list.canAddTasks,
+        canMarkTasksAsDone = list.canMarkTasksAsDone,
+    )
+}
+
 /** `when` bez `else`: nový důvod v novější TDLib rozbije překlad, místo aby tiše zmizel. */
 private fun PollVoteRestrictionReason.toRestriction(): PollRestriction = when (this) {
     is PollVoteRestrictionReasonClosed -> PollRestriction.Closed

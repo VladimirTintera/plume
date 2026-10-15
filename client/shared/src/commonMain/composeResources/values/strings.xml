@@ -3193,4 +3193,29 @@
     <string name="event_video_chat_muted">Muted in video chat: %1$s</string>
     <string name="event_video_chat_unmuted">Unmuted in video chat: %1$s</string>
     <string name="event_video_chat_volume">Changed volume in video chat: %1$s</string>
+    <string name="checklist_kind">Checklist</string>
+    <string name="checklist_kind_group">Group checklist</string>
+    <string name="checklist_progress">%1$d of %2$d done</string>
+    <string name="checklist_add_task">Add a task</string>
+    <string name="checklist_add_task_title">New task</string>
+    <string name="checklist_add_task_confirm">Add</string>
+    <string name="checklist_add_task_failed">Couldn't add the task.</string>
+    <string name="checklist_mark_failed">Couldn't update the task.</string>
+    <string name="checklist_mark_premium">Only Telegram Premium users can check off tasks.</string>
+    <string name="checklist_add_premium">Only Telegram Premium users can add tasks.</string>
+    <string name="checklist_task_done_by">Checked off by %1$s</string>
+    <string name="conversation_attach_checklist">Checklist</string>
+    <string name="checklist_compose_title">New checklist</string>
+    <string name="checklist_compose_name">Checklist title</string>
+    <string name="checklist_compose_tasks">Tasks</string>
+    <string name="checklist_compose_task">Task %1$d</string>
+    <string name="checklist_compose_remove_task">Remove task</string>
+    <plurals name="checklist_compose_add_task">
+        <item quantity="one">You can add %1$d more task</item>
+        <item quantity="other">You can add %1$d more tasks</item>
+    </plurals>
+    <string name="checklist_compose_too_many">A checklist can have at most %1$d tasks</string>
+    <string name="checklist_compose_others_add">Others can add tasks</string>
+    <string name="checklist_compose_others_mark">Others can check off tasks</string>
+    <string name="checklist_compose_send_failed">Couldn't send the checklist.</string>
 </resources>

@@ -92,10 +92,10 @@ class ThreadConversationRepository(
         delegate.accessUpdates(chatId).map { it.copy(content = it.content.withoutPolls()) }
 
     /**
-     * Anketu zakládá samostatná obrazovka, která o vláknu neví, takže by skončila v hlavním chatu
-     * skupiny. Ve vlákně se proto nenabízí.
+     * Anketu i seznam úkolů zakládá samostatná obrazovka, která o vláknu neví, takže by skončily
+     * v hlavním chatu skupiny. Ve vlákně se proto nenabízejí.
      */
-    private fun ContentAccess.withoutPolls() = copy(polls = false)
+    private fun ContentAccess.withoutPolls() = copy(polls = false, checklists = false)
 
     override suspend fun saveDraft(
         chatId: Long,

@@ -239,8 +239,10 @@ private fun messageItem(
     }
     val preview = message.linkPreview
     val poll = message.poll
+    val checklist = message.checklist
     return when {
         poll != null -> PollMessageItem(frame, poll = poll, quoted = quoted, partnerName = partnerName)
+        checklist != null -> ChecklistMessageItem(frame, checklist = checklist, quoted = quoted, partnerName = partnerName)
         emojiCount > 0 -> LargeEmojiMessageItem(frame, emojiCount)
         showsBareMedia(message, album) -> MediaMessageItem(frame, album)
         preview != null && showsLinkPreviewCard(message) -> LinkPreviewMessageItem(frame, preview)
