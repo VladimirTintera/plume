@@ -315,6 +315,12 @@ internal class MessageBodyScope(
         act(MessageAction.ShowMenu(frame.menuActions))
     }
 
+    /** Dlouhý stisk na odpovědi ankety, kterou jde smazat — nabídka pak nabídne i to. */
+    fun requestMenuForPollOption(optionId: String) {
+        items.onMenuAnchor(anchor)
+        act(MessageAction.ShowMenu(frame.menuActions, pollOptionId = optionId))
+    }
+
     /** Dlouhý stisk na KONKRÉTNÍ zprávě bloku (fotka alba) — odpověď pak míří na ni. */
     fun requestMenuFor(pressed: Long) {
         items.onMenuAnchor(anchor)

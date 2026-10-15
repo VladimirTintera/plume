@@ -89,6 +89,16 @@ data class PollAnswer(
     val isBeingChosen: Boolean = false,
     /** Příloha odpovědi — v řádku malý náhled. */
     val media: PollAttachment? = null,
+    /**
+     * Jedinečné id odpovědi (TDLib 15 `PollOption.id`); prázdné, dokud ho server nepřidělí.
+     * Bere ho mazání odpovědi — hlasuje se dál [index].
+     */
+    val id: String = "",
+    /**
+     * Smí uživatel odpověď smazat (`PollOptionProperties.canBeDeleted`). Dohledává ho repository
+     * (offline dotaz), `toChatPoll` ho nechává `false`.
+     */
+    val canDelete: Boolean = false,
 )
 
 /**
@@ -217,6 +227,11 @@ data class PollDraft(
     val media: PollDraftMedia? = null,
     /** Přílohy odpovědí, ve stejném pořadí jako [answers]; `null` = bez přílohy. */
     val answerMedia: List<PollDraftMedia?> = emptyList(),
+    /**
+     * Ostatní smějí do ankety přidávat odpovědi (`allowAddingOptions`). TDLib to bere jen u běžné
+     * neanonymní ankety mimo kanál; formulář to hlídá, tohle už je hotové rozhodnutí.
+     */
+    val allowAddingOptions: Boolean = false,
 )
 
 /**

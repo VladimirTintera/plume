@@ -24,6 +24,7 @@ open class UnimplementedConversationRepository : ConversationRepository {
     override suspend fun pollLimits() : PollLimits = error("pollLimits")
     override suspend fun stopPoll(chatId: Long, messageId: Long) : Result<Unit> = error("stopPoll")
     override suspend fun addPollOption(chatId: Long, messageId: Long, text: String, media: PollDraftMedia?) : Result<Unit> = error("addPollOption")
+    override suspend fun deletePollOption(chatId: Long, messageId: Long, optionId: String) : Result<Unit> = error("deletePollOption")
     override suspend fun pollVoters(chatId: Long, messageId: Long, answerIndex: Int, offset: Int) : Result<PollVotersPage> = error("pollVoters")
     override suspend fun markChecklistTasks(chatId: Long, messageId: Long, done: List<Int>, notDone: List<Int>) : Result<Unit> = error("markChecklistTasks")
     override suspend fun addChecklistTasks(chatId: Long, messageId: Long, tasks: List<String>) : Result<Unit> = error("addChecklistTasks")

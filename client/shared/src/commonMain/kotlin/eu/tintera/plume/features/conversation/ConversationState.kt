@@ -321,6 +321,8 @@ data class MessageMenu(
      * uživatel podržel. Ostatní položky (reakce, přeposlání, smazání) jdou dál na celý blok.
      */
     val pressedMessageId: Long? = null,
+    /** Odpověď ankety pod prstem (její id), když jde smazat — viz `MessageMenuAction.DeletePollOption`. */
+    val pressedPollOptionId: String? = null,
     /**
      * Text zprávy je už v jazyce překladu (rozpoznáno v zařízení, [alreadyInLanguage]) —
      * „Přeložit" se nenabízí. Nerozpoznaný jazyk je `false`: položka navíc nevadí, chybějící ano.
@@ -676,6 +678,8 @@ data class ConversationState(
      * kreslí hned; po odpovědi serveru (i po chybě) zmizí a platí stav ze zprávy.
      */
     val pendingChecklistMarks: Map<Long, List<PendingChecklistMark>> = emptyMap(),
+    /** Odpověď ankety, kterou uživatel chce smazat a čeká se na potvrzení; `null` = žádná. */
+    val pendingDeletePollOption: PendingPollOptionDelete? = null,
     /** Anketa, kterou uživatel chce ukončit a čeká se na potvrzení; `null` = žádná. */
     val pendingStopPoll: Long? = null,
     /** Useknuté články, které se právě dočítají („Číst dál"). */
@@ -1014,3 +1018,6 @@ internal fun ReplaceMedia.accepts(attachment: OutgoingAttachment): Boolean = whe
     ReplaceMedia.Visual -> attachment is OutgoingAttachment.Photo || attachment is OutgoingAttachment.Video
     ReplaceMedia.File -> attachment is OutgoingAttachment.Document || attachment is OutgoingAttachment.Audio
 }
+
+/** Odpověď [optionId] ankety ve zprávě [messageId] čeká na potvrzení smazání; [text] ji v dialogu pojmenuje. */
+data class PendingPollOptionDelete(val messageId: Long, val optionId: String, val text: String)

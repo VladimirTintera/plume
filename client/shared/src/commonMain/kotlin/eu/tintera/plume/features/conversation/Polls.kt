@@ -47,6 +47,9 @@ import eu.tintera.plume.resources.poll_subtitle_joined
 import eu.tintera.plume.resources.poll_stop_confirm
 import eu.tintera.plume.resources.poll_stop_text
 import eu.tintera.plume.resources.poll_stop_title
+import eu.tintera.plume.resources.poll_delete_option_title
+import eu.tintera.plume.resources.poll_delete_option_text
+import eu.tintera.plume.resources.poll_delete_option_confirm
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.poll_voters_failed
 import eu.tintera.plume.resources.poll_voters_more
@@ -285,6 +288,23 @@ internal fun StopPollDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
                 onClick = onConfirm,
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
             ) { Text(stringResource(Res.string.poll_stop_confirm)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+    )
+}
+
+/** Smazat odpověď z ankety: nevratné, hlasy pro ni zmizí s ní — proto s potvrzením a barvou chyby. */
+@Composable
+internal fun DeletePollOptionDialog(text: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(Res.string.poll_delete_option_title)) },
+        text = { Text(stringResource(Res.string.poll_delete_option_text, text)) },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) { Text(stringResource(Res.string.poll_delete_option_confirm)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
     )

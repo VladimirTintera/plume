@@ -300,6 +300,7 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageM
     add(MessageMenuAction.Remind)
     add(if (isPinned) MessageMenuAction.Unpin else MessageMenuAction.Pin)
     if (poll != null && !poll.isClosed) add(MessageMenuAction.StopPoll)
+    if (poll?.options?.any { it.canDelete } == true) add(MessageMenuAction.DeletePollOption)
     add(MessageMenuAction.Select)
     add(MessageMenuAction.Report)
     add(MessageMenuAction.Delete)

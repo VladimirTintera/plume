@@ -1029,6 +1029,7 @@ internal fun MessagePoll.toChatPoll(): ChatPoll {
             isChosen = option.isChosen,
             isBeingChosen = option.isBeingChosen,
             media = option.media?.toAttachment(),
+            id = option.id,
         )
     }
     val order = poll.optionOrder.filter { it in all.indices }.distinct()

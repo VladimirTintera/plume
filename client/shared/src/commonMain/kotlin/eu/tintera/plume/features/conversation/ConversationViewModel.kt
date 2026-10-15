@@ -579,6 +579,8 @@ class ConversationViewModel(
     fun sendKeyboardLocation(point: GeoPoint?) = bots.sendKeyboardLocation(point)
     fun addPollOption(text: String, media: PollDraftMedia?) = bots.addPollOption(text, media)
     fun dismissAddPollOption() = bots.dismissAddPollOption()
+    fun confirmDeletePollOption() = bots.confirmDeletePollOption()
+    fun cancelDeletePollOption() = bots.cancelDeletePollOption()
 
     /** Seznamy úkolů: odškrtnutí a doplnění úkolu — viz [ConversationChecklists]. */
     private val checklists: ConversationChecklists = ConversationChecklists(
@@ -1746,7 +1748,7 @@ class ConversationViewModel(
      */
     fun onAction(messageId: Long, action: MessageAction) {
         when (action) {
-            is MessageAction.ShowMenu -> menu.showMessageMenu(messageId, action.items, action.pressed)
+            is MessageAction.ShowMenu -> menu.showMessageMenu(messageId, action.items, action.pressed, action.pollOptionId)
             MessageAction.CloseMenu -> menu.closeMenus()
             MessageAction.ShowNoticeMenu -> menu.showNoticeMenu(messageId)
             is MessageAction.DeleteNotice -> _state.update {
@@ -1778,6 +1780,7 @@ class ConversationViewModel(
                 bots.vote(messageId, emptyList())
             }
             MessageMenuAction.StopPoll -> _state.update { it.copy(messageMenu = null, pendingStopPoll = messageId) }
+            MessageMenuAction.DeletePollOption -> bots.requestDeletePollOption(messageId)
             MessageMenuAction.EditChecklist -> {
                 menu.closeMenus()
                 checklists.openEditor(messageId)
