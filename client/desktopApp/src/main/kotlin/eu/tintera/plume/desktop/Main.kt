@@ -22,6 +22,7 @@ import eu.tintera.plume.core.platform.DesktopWindow
 import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.platform.desktopClosesToTray
 import eu.tintera.plume.core.telegram.preloadTdlibNativeDependencies
+import eu.tintera.plume.core.ui.rememberDesktopShortcutHandler
 import eu.tintera.plume.di.startKoin
 import eu.tintera.plume.features.calls.IncomingCallWindow
 import io.github.kdroidfilter.platformtools.darkmodedetector.mac.setMacOsAdaptiveTitleBar
@@ -78,7 +79,11 @@ fun main(args: Array<String>) {
         // Příchozí hovor, když hlavní okno není vpředu: okénko navrchu s Přijmout / Odmítnout.
         IncomingCallWindow()
 
+        // Klávesové zkratky (Ctrl/⌘+K, Alt+šipky…) dřív, než klávesu dostane zaostřený prvek.
+        val shortcuts = rememberDesktopShortcutHandler()
+
         Window(
+            onPreviewKeyEvent = shortcuts,
             // Na macOS a Windows zavření okna aplikaci neukončí, jen okno schová — jako
             // Telegram nebo Zprávy. TDLib běží dál a oznámení chodí. Vrací ho Dock, ikona
             // v oznamovací oblasti, klik na oznámení nebo další spuštění; ukončuje se Cmd+Q,
