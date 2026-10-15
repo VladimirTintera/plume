@@ -264,6 +264,11 @@ internal fun MessageInput(
     onToggleCommands: (() -> Unit)?,
     /** Tlačítko nabídky bota s mini aplikací; když je, stojí místo tlačítka příkazů. */
     menuApp: BotMenuApp? = null,
+    /**
+     * Avatar toho, kým se do skupiny píše ([SendAsButton]), úplně vlevo; `null` = nic. Slot,
+     * ne data: výběr i jeho sheet žijí v `SendAsPicker.kt`, pole jen drží místo.
+     */
+    senderSlot: (@Composable (Modifier) -> Unit)? = null,
     onOpenMenuApp: () -> Unit = {},
     isRecording: Boolean,
     /** Čte se až v pruhu nahrávání — čas a úrovně se mění dvacetkrát za vteřinu. */
@@ -649,6 +654,9 @@ internal fun MessageInput(
             // Poloha jde všude, kde se smí psát, takže sponka zůstává i ve skupině bez příloh.
             // Příkazy bota: v chatu s botem je to hlavní ovládání, jako „Menu" u oficiálních klientů.
             // Bot s mini aplikací v nabídce ji má na tom místě místo příkazů (ty dál napovídá „/").
+            // Kým se píše, při úpravě ne — upravená zpráva odesílatele nemění.
+            val sender = senderSlot?.takeIf { editing == null }
+            sender?.invoke(Modifier.padding(start = 4.dp, bottom = 4.dp))
             val botButton = editing == null && (menuApp != null || onToggleCommands != null)
             if (editing == null && menuApp != null) {
                 BotMenuAppButton(
@@ -656,13 +664,13 @@ internal fun MessageInput(
                     compact = draft.text.isNotBlank() || attachments.isNotEmpty(),
                     iconColor = inputIconColor(),
                     onClick = onOpenMenuApp,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                    modifier = Modifier.padding(start = if (sender != null) 0.dp else 4.dp, bottom = 4.dp),
                 )
             } else if (editing == null && onToggleCommands != null) {
                 IconButton(
                     onClick = onToggleCommands,
                     colors = IconButtonDefaults.iconButtonColors(contentColor = inputIconColor()),
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                    modifier = Modifier.padding(start = if (sender != null) 0.dp else 4.dp, bottom = 4.dp),
                     shapes = IconButtonDefaults.shapes(),
                 ) {
                     Icon(
@@ -705,7 +713,7 @@ internal fun MessageInput(
                 fieldHeight = fieldHeight,
                 contentColor = attachColor,
                 // Za tlačítkem příkazů bez odsazení: glyfy mají kolem sebe vzduch samy.
-                modifier = Modifier.padding(start = if (botButton) 0.dp else 4.dp, bottom = 4.dp),
+                modifier = Modifier.padding(start = if (botButton || sender != null) 0.dp else 4.dp, bottom = 4.dp),
             )
             // Výška pole říká levému místu, jestli se ikony vejdou pod sebe.
             Box(Modifier.weight(1f).onSizeChanged { fieldHeight = with(density) { it.height.toDp() } }) {

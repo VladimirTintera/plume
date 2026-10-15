@@ -1863,7 +1863,7 @@ private fun Chat.chatBar(): ChatBar? = when (val bar = actionBar) {
 }
 
 /** Kladné id je uživatel, záporné chat — konvence [BlockedSender.id] a [SenderInfo.id]. */
-private fun Long.toMessageSender(): MessageSender =
+internal fun Long.toMessageSender(): MessageSender =
     if (this > 0) MessageSenderUser(userId = this) else MessageSenderChat(chatId = this)
 
 private fun ChatPosition.toFolderPosition() =

@@ -750,6 +750,15 @@
     <string name="delete_moderation_report_spam">Nahlásit spam</string>
     <string name="delete_moderation_delete_all">Smazat všechny zprávy autora ve skupině</string>
     <string name="delete_moderation_ban">Vyhodit autora ze skupiny</string>
+    <string name="send_as_title">Psát jako</string>
+    <string name="send_as_current">Píšeš jako %1$s. Změnit</string>
+    <string name="send_as_account">Tvůj účet</string>
+    <string name="send_as_channel">Kanál</string>
+    <string name="send_as_group">Skupina</string>
+    <string name="send_as_anonymous">Anonymně jménem skupiny</string>
+    <string name="send_as_locked">Chce Telegram Premium</string>
+    <string name="send_as_premium">Psaní jménem tohoto kanálu chce Telegram Premium.</string>
+    <string name="send_as_failed">Nepodařilo se změnit, kým píšeš.</string>
     <string name="conversation_moderation_failed">Ne všechno se povedlo. Zkontroluj skupinu a zkus to znovu.</string>
     <string name="delete_message_for_partner">Smazat i u protějšku</string>
     <string name="delete_messages_choice">Zprávy se smažou u tebe. Protějšku zůstanou, dokud nezaškrtneš smazání u obou.</string>

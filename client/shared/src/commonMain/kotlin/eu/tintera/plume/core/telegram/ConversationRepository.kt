@@ -543,6 +543,19 @@ interface ConversationRepository {
     fun hasScheduledMessages(chatId: Long): Flow<Boolean>
 
     /**
+     * Id toho, kým se do chatu právě píše (`Chat.messageSenderId`, konvence [SenderInfo.id]);
+     * `null` = odesílatele tu měnit nejde. Živé přes `UpdateChatMessageSender` — mění se
+     * i z jiného zařízení.
+     */
+    fun messageSender(chatId: Long): Flow<Long?>
+
+    /** Kým jde do chatu psát (`getChatAvailableMessageSenders`), v pořadí od serveru. */
+    suspend fun availableMessageSenders(chatId: Long): Result<List<MessageSenderOption>>
+
+    /** Vybere, kým se do chatu bude psát (`setChatMessageSender`); [senderId] jako v [messageSender]. */
+    suspend fun setMessageSender(chatId: Long, senderId: Long): Result<Unit>
+
+    /**
      * Co bot o sobě říká v prázdném chatu („Co tento bot umí?"). `null`, když chat není
      * soukromý chat s botem — podle toho obrazovka pozná, že má nabízet tlačítko Start.
      */

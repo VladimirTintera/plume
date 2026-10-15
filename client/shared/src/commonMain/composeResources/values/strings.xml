@@ -739,6 +739,15 @@
     <string name="delete_moderation_report_spam">Report spam</string>
     <string name="delete_moderation_delete_all">Delete all their messages in the group</string>
     <string name="delete_moderation_ban">Remove them from the group</string>
+    <string name="send_as_title">Send messages as</string>
+    <string name="send_as_current">Sending as %1$s. Change</string>
+    <string name="send_as_account">Your account</string>
+    <string name="send_as_channel">Channel</string>
+    <string name="send_as_group">Group</string>
+    <string name="send_as_anonymous">Anonymously, on behalf of the group</string>
+    <string name="send_as_locked">Requires Telegram Premium</string>
+    <string name="send_as_premium">Sending as this channel requires Telegram Premium.</string>
+    <string name="send_as_failed">Couldn't change who you send messages as.</string>
     <string name="conversation_moderation_failed">Not everything went through. Check the group and try again.</string>
     <string name="delete_message_for_partner">Delete for the other side too</string>
     <string name="delete_messages_choice">The messages will be deleted for you. The other side keeps them unless you tick deleting for both.</string>

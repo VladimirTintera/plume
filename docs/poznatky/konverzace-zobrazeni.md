@@ -51,6 +51,7 @@ z bubliny (`onAction`). Ostatní dělají části v `features/conversation/`:
 | `ConversationComposer` | koncept, „píše…", odpověď a citace, úprava, náhled odkazu, efekty, odeslání (`sendMedia`) |
 | `ConversationAttachments` | samolepky, GIFy, poloha, kontakt, přílohy nad polem a jejich odeslání, sdílený obsah |
 | `ConversationSuggestions` | zmínky a inline boti nad polem |
+| `ConversationSendAs` | kým se do skupiny píše (vlastní účet, kanál, anonymní správce) |
 | `ConversationLinks` | kam vede odkaz nebo ťuknutí: chat, zpráva, příběh, pozvánka, start bota, mini aplikace |
 | `ConversationBots` | tlačítka a klávesnice bota, příkazy, ankety, přihlášení, soutěž |
 | `ConversationMessageMenu` | nabídka nad zprávou, kopírování, informace, záložky |

@@ -446,6 +446,16 @@ internal fun ConversationBottomBar(
     CompositionLocalProvider(LocalSharedElementOcclusion provides listClip) {
     MessageInput(
         gestureHints = gestureHints,
+        senderSlot = state.messageSender?.let { choice ->
+            { modifier ->
+                SendAsButton(
+                    choice = choice,
+                    onOpen = viewModel::refreshMessageSenders,
+                    onChoose = viewModel::chooseMessageSender,
+                    modifier = modifier,
+                )
+            }
+        },
         glass = Modifier.sharedElementOcclusionBand().hazeBlur(
             input = HazeInput.Sources(listHaze),
             style = glassStyle(

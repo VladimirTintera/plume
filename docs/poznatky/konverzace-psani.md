@@ -342,6 +342,44 @@ Ztlumit / Zapnout zvuk, omezená skupina a chat, ve kterém uživatel není, vě
   — vypnuté hlasovky nechávaly kolečko, protože je to v TDLib vlastní právo; dnes je mají
   výchozí práva skupiny i omezení člena (`GroupPermissions.sendVideoNotes`, `sendPolls`).
 
+## Psaní jménem kanálu nebo skupiny
+
+Kde TDLib nabízí víc odesílatelů (uživatel spravuje kanál, nebo je ve skupině anonymní
+správce), stojí úplně vlevo u vstupního pole avatar toho, kým se právě píše; ťuknutí otevře
+sheet „Psát jako" s vlastním účtem, kanály a skupinou jako anonymním správcem
+(`SendAsButton` / `SendAsSheet` v `SendAsPicker.kt`, logika `ConversationSendAs`, doména
+`MessageSenders.kt`, testy `ConversationSendAsTest`).
+
+- **Kdo je vybraný, nese chat** (`Chat.messageSenderId`, živě `UpdateChatMessageSender` →
+  `ConversationRepository.messageSender`). `null` = tady odesílatele měnit nejde (soukromý chat,
+  kanál, skupina bez téhle možnosti) — pak se nabídka (`getChatAvailableMessageSenders`) ani
+  nečte. Vybraný, kterého nabídka nezná (změna z jiného zařízení), nabídku přečte znovu; při
+  otevření sheetu se čte taky (kanál mohl přibýt).
+- **Výběr s jedinou volbou se neukazuje** (`messageSenderChoice`), stejně jako vybraný, který
+  v nabídce chybí: avatar u pole by tvrdil něco jiného, než kým zpráva odejde.
+- **Volba se ukáže hned** (`setChatMessageSender`), server ji potvrdí updatem; když selže,
+  vrátí se předchozí a přijde hláška (`send_as_failed`, ne text od TDLib).
+- **Prémiová volba** (`ChatMessageSender.needsPremium`) se zamyká, jen když účet Premium
+  NEMÁ (`MessageSenderOption.locked`, `getMe().isPremium` — stejně jako u reakcí a efektů).
+  V sheetu je vidět s ikonou zámku a větou „Chce Telegram Premium", vybrat nejde; ViewModel
+  ji odmítne i sám (pojistka) a ohlásí proč.
+- **Avatar bez `IconButtonDefaults.shapes()`** — výjimka jako fotka účtu v pilulce: obsahem je
+  avatar ve vlastním tvaru (kruh člověka, mnohoúhelník kanálu) a měnící se vlnka by kolem něj
+  trčela. Při úpravě zprávy se neukazuje (upravená zpráva odesílatele nemění).
+- **`MessageInput` dostal jediný parametr, slot** (`senderSlot`), ne data a callbacky — výběr
+  i jeho sheet žijí v `SendAsPicker.kt` a pole jen drží místo. `ConversationScreen` se nemění.
+- **Test části: `advanceUntilIdle` nepohne `backgroundScope`** (čeká jen na práci v popředí),
+  takže trvalý odběr v testu stojí a stav zůstane prázdný. Odběr updatů v testu běží
+  v `backgroundScope` (jinak by `runTest` čekal věčně) a posouvá se `runCurrent`.
+- **Ověřeno jen částečně.** Testovací účet …527 žádný kanál nespravuje a ve vlastní skupině
+  není anonymní — avatar se tam správně NEUKÁŽE (ověřeno na emulátoru, „Plume test
+  moderace"; jestli proto, že TDLib `messageSenderId` nedá, nebo že nabídka má jedinou volbu,
+  se nerozlišovalo). S podstrčeným stavem (dočasná úprava, necommitnutá)
+  se avatar u pole ukázal (iniciály, vlevo před tlačítkem příkazů). **Sheet, výběr na serveru,
+  zamčená volba a skutečný anonymní správce nebo kanál na zařízení ověřené NEJSOU** — chce
+  to účet, který kanál spravuje, nebo zapnuté „Vystupovat anonymně" ve vlastní skupině.
+  Desktop a iOS jen přeložené.
+
 ## „Píše…" v konverzaci
 
 Činnost protějšku (ve skupině kohokoli) se kreslí **v seznamu zpráv tam, kam zpráva naskočí**:

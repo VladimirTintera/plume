@@ -18,6 +18,7 @@ import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import eu.tintera.plume.core.snooze.ChatSnoozes
 import eu.tintera.plume.core.ui.PhotoMarkup
 import eu.tintera.plume.core.ui.PhotoMarkupRenderer
+import eu.tintera.plume.core.telegram.MessageSenderOption
 import eu.tintera.plume.core.telegram.ModerationChoice
 import eu.tintera.plume.core.telegram.QuickReaction
 import eu.tintera.plume.core.telegram.PollDraftMedia
@@ -599,6 +600,17 @@ class ConversationViewModel(
     fun consumeOpenChecklistEditor() = checklists.consumeOpenEditor()
     fun dismissAddChecklistTask() = checklists.dismissAddTask()
 
+    /** Kým se do skupiny píše — viz [ConversationSendAs]. */
+    private val sendAs: ConversationSendAs = ConversationSendAs(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        repository = repository,
+        logger = logger,
+    )
+    fun refreshMessageSenders() = sendAs.refresh()
+    fun chooseMessageSender(option: MessageSenderOption) = sendAs.choose(option)
+
     /** Naplánované zprávy — viz [ConversationScheduled]. */
     private val scheduled: ConversationScheduled = ConversationScheduled(
         chatId = chatId,
@@ -871,6 +883,9 @@ class ConversationViewModel(
         viewModelScope.launch {
             repository.botMenuApp(chatId).onSuccess { app -> _state.update { it.copy(botMenuApp = app) } }
         }
+
+        // Kým se do skupiny píše; mění se i z jiného zařízení.
+        sendAs.observe()
 
         // Automatické mazání se ukazuje v hlavičce; mění se i z jiného zařízení nebo od protějšku.
         viewModelScope.launch {
