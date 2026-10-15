@@ -640,7 +640,7 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
   připomínka, číslo účtu → QR platba a kopírování, adresa → mapy, telefon a e-mail → uložit do
   kontaktů, číslo letu → stav letu a let do kalendáře, Wi-Fi s heslem → připojit a QR kód sítě, kód → zkopírovat,
   cizí měna → převod kurzem ČNB, jednotky druhé soustavy → převod, kód rezervace → zkopírovat,
-  číslo zásilky (Česká pošta / S10, Zásilkovna) → sledování, z ikonky i z nabídky nad zprávou; model termín potvrzuje a doplní název a místo (`docs/poznatky/ai-v-zarizeni.md`,
+  číslo zásilky (Česká pošta / S10, Zásilkovna, PPL a DPD se jménem dopravce) → sledování, z ikonky i z nabídky nad zprávou; model termín potvrzuje a doplní název a místo (`docs/poznatky/ai-v-zarizeni.md`,
   „Akce ze zpráv"). Zbývá:
   - **ověřit na telefonu**: editor události v kalendáři (emulátor bez účtu Google chce
     přihlášení), načtení QR platby bankovní aplikací, Gemini Nano místo Gemmy, iOS (jen přeložené),
@@ -653,9 +653,8 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
     správa rezervace u dopravce chce adresu pro každou společnost zvlášť,
   - **Wi-Fi na iOS** jen s kopírováním hesla a QR kódem — připojení chce entitlement Hotspot
     Configuration v profilu aplikace; víceslovný název sítě jen v uvozovkách,
-  - **snackbar „Zkopírováno" leží pod sheetem** a vidět není (na Androidu 13+ se neukazuje
-    vůbec, potvrdí to systémový náhled schránky; na iOS a starších Androidech nic),
-  - **čísla PPL a DPD**: holé číslo od telefonu nerozeznáš, chtělo by to slovo dopravce vedle,
+  - ~~**snackbar „Zkopírováno" leží pod sheetem**~~ — hotovo (fajfka v řádku, `fix/akce-ze-zprav-drobnosti`),
+  - ~~**čísla PPL a DPD**~~ — hotovo, jen se jménem dopravce poblíž (`fix/akce-ze-zprav-drobnosti`),
   - **místo od modelu bývá vágní** („letišti", „Kotvy") a mapy s ním neporadí — chtělo by to
     nabízet mapy jen u místa, které vypadá jako adresa nebo název,
   - **QR platbu sdílet jako obrázek** — ve stejném telefonu se z obrazovky nenaskenuje, část

@@ -219,12 +219,24 @@ internal class ConversationMessageContext(
         }
     }
 
-    /** Údaj z akcí u zprávy (číslo účtu, částka, číslo zásilky) do schránky. */
+    /**
+     * Údaj z akce v nabídce nad zprávou (kód, rezervace) do schránky. Nabídka se zavře, takže
+     * snackbar je vidět — kde zkopírování nepotvrdí systém, hlásí ho on.
+     */
     fun copyFromContext(text: String) {
         scope.launch {
             copyToClipboard(text)
             if (!clipboardConfirmsCopy) state.update { it.copy(notice = UiText(Res.string.bot_text_copied)) }
         }
+    }
+
+    /**
+     * Údaj ze sheetu akcí (číslo účtu, částka, číslo zásilky) do schránky, BEZ snackbaru: ten
+     * leží pod sheetem a vidět by nebyl. Potvrzení ukáže řádek sám (fajfka místo ikony
+     * kopírování, `MessageContextSheet`).
+     */
+    fun copyInSheet(text: String) {
+        scope.launch { copyToClipboard(text) }
     }
 
     /** Sledování zásilky u dopravce nebo stav letu. Adresu skládáme sami, takže se na odkaz neptá. */

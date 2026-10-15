@@ -2903,6 +2903,8 @@
     <string name="message_context_carrier_czech_post">Czech Post</string>
     <string name="message_context_carrier_packeta">Packeta</string>
     <string name="message_context_carrier_international">International parcel</string>
+    <string name="message_context_carrier_ppl">PPL</string>
+    <string name="message_context_carrier_dpd">DPD</string>
     <string name="message_context_no_calendar">There is no calendar app to add the event to</string>
     <string name="settings_message_context">Actions from messages</string>
     <string name="settings_message_context_summary">An icon next to a message with a date, bank account or parcel number offers your calendar, a QR payment or tracking. Recognized on your phone; when off, the actions stay in the message menu.</string>

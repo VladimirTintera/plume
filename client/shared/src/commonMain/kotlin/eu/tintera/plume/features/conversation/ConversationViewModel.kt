@@ -433,7 +433,7 @@ class ConversationViewModel(
     fun closeMessageContext() = messageContext.closeMessageContext()
     fun addToCalendar(event: ContextFinding.Event) = messageContext.addToCalendar(event)
     fun addFlightToCalendar(messageId: Long, flight: ContextFinding.Flight) = messageContext.addFlightToCalendar(messageId, flight)
-    fun copyFromContext(text: String) = messageContext.copyFromContext(text)
+    fun copyInSheet(text: String) = messageContext.copyInSheet(text)
     fun trackParcel(url: String) = messageContext.trackParcel(url)
     val canJoinWifi: Boolean get() = messageContext.canJoinWifi
     fun joinWifi(wifi: ContextFinding.Wifi) = messageContext.joinWifi(wifi)
