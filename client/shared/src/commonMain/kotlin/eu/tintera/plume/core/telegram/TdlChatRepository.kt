@@ -781,13 +781,16 @@ class TdlChatRepository(
                     openProfile = type.openProfile,
                 )
 
-            // Kontaktní odkaz (`t.me/contact/…`), který si člověk vyrobil ve svém profilu.
+            // Kontaktní odkaz (`t.me/contact/…`), který si člověk vyrobil ve svém profilu (i z QR
+            // kódu). Kdo v kontaktech ještě není, dostane profil s „Přidat do kontaktů" jako hlavní
+            // akcí (`contactOffer`); kontakt a vlastní odkaz (Uložené zprávy) otevřou chat jako dřív.
             is InternalLinkTypeUserToken ->
                 privateChatLink(
                     client.searchUserByToken(token = type.token),
                     draftText = "",
                     openProfile = false,
                     notFound = ::ContactLinkExpiredException,
+                    offerContact = true,
                 )
 
             // `t.me/share/url?url=…&text=…`. TDLib adresu i text složí do jednoho textu sám.
@@ -923,6 +926,8 @@ class TdlChatRepository(
         draftText: String,
         openProfile: Boolean,
         notFound: () -> Throwable = ::LinkUserNotFoundException,
+        /** Kontaktní odkaz: nabídnout přidání do kontaktů, když to má smysl ([contactOffer]). */
+        offerContact: Boolean = false,
     ): Result<InternalLink?> =
         when (user) {
             is TdlResult.Failure ->
@@ -934,7 +939,17 @@ class TdlChatRepository(
                 }
             is TdlResult.Success ->
                 client.createPrivateChat(userId = user.result.id, force = false).toResult().map { chat ->
-                    InternalLink.Chat(chat.id, draftText = draftText.ifBlank { null }, openProfile = openProfile)
+                    val offer = offerContact && contactOffer(
+                        isContact = user.result.isContact,
+                        isBot = user.result.type is UserTypeBot,
+                        isSelf = chat.id == savedMessagesChatId.value,
+                    )
+                    InternalLink.Chat(
+                        chat.id,
+                        draftText = draftText.ifBlank { null },
+                        openProfile = openProfile || offer,
+                        offerContact = offer,
+                    )
                 }
         }
 
@@ -1983,3 +1998,13 @@ private fun SecretChatState.preview(): UiText = UiText(
         is SecretChatStateClosed -> Res.string.secret_chat_state_closed
     },
 )
+
+/**
+ * Nabídnout u kontaktního odkazu „Přidat do kontaktů" (a otevřít proto profil, ne chat)?
+ *
+ * Jen u člověka, který v kontaktech NENÍ. Kontakt se otevře chatem jako dřív — přidávat není co
+ * a kdo si vyměnil odkaz s někým, koho už má, chce psát. Vlastní odkaz vede do Uložených zpráv,
+ * které profil nemají, a bota do kontaktů nikdo nepřidává.
+ */
+internal fun contactOffer(isContact: Boolean, isBot: Boolean, isSelf: Boolean): Boolean =
+    !isContact && !isBot && !isSelf

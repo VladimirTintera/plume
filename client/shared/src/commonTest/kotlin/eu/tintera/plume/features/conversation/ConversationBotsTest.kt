@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.navigation.BotStartRequests
+import eu.tintera.plume.core.navigation.ContactOffers
 import eu.tintera.plume.core.settings.UnimplementedAppSettings
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.telegram.BotAnswer
@@ -95,6 +96,7 @@ class ConversationBotsTest {
     private val repository = FakeRepository()
     private val settings = FakeSettings()
     private val botStarts = BotStartRequests()
+    private val contactOffers = ContactOffers()
     private val copied = mutableListOf<String>()
     private val opened = mutableListOf<String>()
     private val replies = mutableListOf<Long>()
@@ -115,6 +117,7 @@ class ConversationBotsTest {
             openUrl = { opened += it },
             shareRequests = ShareRequests(),
             botStartRequests = botStarts,
+            contactOffers = contactOffers,
             openProxy = {},
             jumper = jumper,
             logger = testLogger,

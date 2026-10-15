@@ -57,6 +57,7 @@ import eu.tintera.plume.core.settings.RecordMode
 import eu.tintera.plume.core.telegram.ChatInfo
 import eu.tintera.plume.core.navigation.InstantViewRequests
 import eu.tintera.plume.core.navigation.BotStartRequests
+import eu.tintera.plume.core.navigation.ContactOffers
 import eu.tintera.plume.core.telegram.MessageSchedule
 import eu.tintera.plume.core.telegram.MessageEffect
 import eu.tintera.plume.core.telegram.SendOptions
@@ -204,6 +205,8 @@ class ConversationViewModel(
     placeRepository: PlaceRepository,
     /** Parametr ze startovacího odkazu bota, který čeká na tlačítko Start. */
     private val botStartRequests: BotStartRequests,
+    /** Kontaktní odkaz ze zprávy: profil s „Přidat do kontaktů" jako hlavní akcí. */
+    private val contactOffers: ContactOffers,
     /** „Odpovědět" z prohlížeče médií. */
     private val replyRequests: ConversationReplyRequests,
     /** Inline dotaz z tlačítka bota v jiném chatu ([BotButtonKind.SwitchInline]). */
@@ -524,6 +527,7 @@ class ConversationViewModel(
         openUrl = urlOpener::open,
         shareRequests = shareRequests,
         botStartRequests = botStartRequests,
+        contactOffers = contactOffers,
         openProxy = proxyLinkFlow::open,
         jumper = jumper,
         logger = logger,

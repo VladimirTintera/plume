@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.navigation.ContactOffers
 import eu.tintera.plume.core.telegram.SharedMediaPositions
 import eu.tintera.plume.core.telegram.mergeCalendarDays
 import eu.tintera.plume.core.telegram.MediaCalendarPage
@@ -108,6 +109,8 @@ class ChatProfileViewModel(
     private val bookmarks: MessageBookmarks? = null,
     /** Barva konverzace; bez ní se řádek „Barva konverzace" neukazuje. */
     private val chatColors: ChatColors? = null,
+    /** Profil otevřený z kontaktního odkazu: „Přidat do kontaktů" jako hlavní akce. */
+    contactOffers: ContactOffers? = null,
 ) : ViewModel() {
 
     /** Barva, kterou uživatel konverzaci dal; `null` = barvy aplikace. */
@@ -147,7 +150,9 @@ class ChatProfileViewModel(
     /** Rozběhnuté dotahování další stránky po záložkách; nové hledání ho zruší taky. */
     private val moreSharedJobs = mutableMapOf<SharedMediaKind, Job>()
 
-    private val _state = MutableStateFlow(ChatProfileState())
+    // Nabídka z kontaktního odkazu se vyzvedne hned, jednou: platí pro TENTO profil, a profil
+    // otevřený příště z hlavičky už „Přidat do kontaktů" jako hlavní akci nemá (je v ⋮).
+    private val _state = MutableStateFlow(ChatProfileState(offerContact = contactOffers?.consume(chatId) == true))
     val state: StateFlow<ChatProfileState> = _state.asStateFlow()
 
     init {
@@ -1037,6 +1042,11 @@ data class ChatProfileState(
     val error: UiText? = null,
     /** Jednorázová událost: otevřít chat (člen skupiny). */
     val openChat: Long? = null,
+    /**
+     * Profil otevřený z kontaktního odkazu (`t.me/contact/…`, QR kód): „Přidat do kontaktů" je
+     * hlavní akce nad dlaždicemi, dokud člověk v kontaktech není. Viz `ContactOffers`.
+     */
+    val offerContact: Boolean = false,
     /** Jednorázová událost: otevřít prohlížeč médií na této zprávě (u článku na jeho médiu). */
     val openMedia: MediaTarget? = null,
     /** Řídké pozice Médií pro rychlé rolování; `null` = nejsou (málo médií, nenačtené). */

@@ -265,9 +265,9 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
     Veřejné API pro aplikace dohledané není, takže cesta je nabídka Sdílet: „Sdílet" v sheetu
     QR kódu posílá odkaz textem — ověřit, že dorazí dotykem, a zvážit vizitku (`.vcf` se
     jménem, číslem jen se souhlasem a odkazem `t.me`), kterou si druhý uloží i bez Plume.
-  - **Kontaktní odkaz otevřít profilem s viditelným „Přidat do kontaktů"**, ne jen chatem —
-    jde-li o rychlé přidání, je to hlavní akce, a dnes je v ⋮ profilu nebo v pruhu nad chatem,
-    jen když ho server pošle.
+  - ~~**Kontaktní odkaz otevřít profilem s viditelným „Přidat do kontaktů"**~~ — hotovo
+    (`docs/poznatky/hledani-a-zakladani-chatu.md`, „Kontaktní odkaz do profilu"). Skutečný
+    `t.me/contact/…` od jiného účtu zbývá ověřit.
   - **iOS: odkazy zvenčí** (`CFBundleURLTypes` pro `tg`, předání z `onOpenURL` do
     `LinkOpenRequests`). QR kód a čtečka tam jsou.
 - **Ochrana před spamem.** ~~Zablokovat z nabídky nad chatem a při mazání rovnou zablokovat

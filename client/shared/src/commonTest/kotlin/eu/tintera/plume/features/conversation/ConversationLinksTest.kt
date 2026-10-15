@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.navigation.BotStartRequests
+import eu.tintera.plume.core.navigation.ContactOffers
 import eu.tintera.plume.core.share.ShareRequests
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.CommentThread
@@ -20,6 +21,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
@@ -64,6 +66,7 @@ class ConversationLinksTest {
     private val proxies = mutableListOf<ProxyConfig>()
     private val shares = ShareRequests()
     private val botStarts = BotStartRequests()
+    private val contactOffers = ContactOffers()
 
     private fun TestScope.links(
         state: MutableStateFlow<ConversationState>,
@@ -80,6 +83,7 @@ class ConversationLinksTest {
         openUrl = { opened += it },
         shareRequests = shares,
         botStartRequests = botStarts,
+        contactOffers = contactOffers,
         openProxy = { proxies += it },
         jumper = jumper,
         logger = testLogger,
@@ -162,6 +166,30 @@ class ConversationLinksTest {
 
         assertEquals(OTHER, state.value.openProfile)
         assertNull(state.value.openChat)
+    }
+
+    @Test
+    fun kontaktniOdkazNaNekontaktOtevreProfilSNabidkou() = runTest {
+        val state = testState()
+        val url = "t.me/contact/abc"
+        links(state, links(url, InternalLink.Chat(OTHER, openProfile = true, offerContact = true))).openLink(url)
+        advanceUntilIdle()
+
+        assertEquals(OTHER, state.value.openProfile)
+        assertNull(state.value.openChat)
+        assertTrue(contactOffers.consume(OTHER), "profil si nabídku vyzvedne")
+        assertFalse(contactOffers.consume(OTHER), "a jen jednou")
+    }
+
+    @Test
+    fun kontaktniOdkazNaKontaktOtevreChatBezNabidky() = runTest {
+        val state = testState()
+        val url = "t.me/contact/abc"
+        links(state, links(url, InternalLink.Chat(OTHER))).openLink(url)
+        advanceUntilIdle()
+
+        assertEquals(ChatTarget(OTHER), state.value.openChat)
+        assertFalse(contactOffers.consume(OTHER))
     }
 
     @Test
