@@ -44,6 +44,19 @@ class PollComposerTest {
     )
 
     @Test
+    fun pridavaniOdpovediJenUNeanonymniAnkety() {
+        fun allow(anonymous: Boolean, quiz: Boolean) = pollDraftOf(
+            question = "Kam?", answers = listOf("A", "B"), anonymous = anonymous, multipleAnswers = false,
+            shuffle = false, quiz = quiz, correct = if (quiz) setOf(0) else emptySet(), explanation = "",
+            maxAnswers = 10, allowAddingOptions = true,
+        )?.allowAddingOptions
+        assertEquals(true, allow(anonymous = false, quiz = false))
+        // TDLib: „not supported … for anonymous polls"; kvíz volbu vůbec nemá.
+        assertEquals(false, allow(anonymous = true, quiz = false))
+        assertEquals(false, allow(anonymous = false, quiz = true))
+    }
+
+    @Test
     fun naKonciJeVzdyckyJednoPrazdnePole() {
         assertEquals(listOf("A", "B", ""), normalizedAnswers(listOf("A", "B"), max = 10))
         // Dvě prázdná na konci — jedno zmizí.

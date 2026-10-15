@@ -100,6 +100,7 @@ import eu.tintera.plume.resources.poll_compose_add_answer
 import eu.tintera.plume.resources.poll_compose_answer
 import eu.tintera.plume.resources.poll_compose_answers
 import eu.tintera.plume.resources.poll_compose_anonymous
+import eu.tintera.plume.resources.poll_compose_allow_adding
 import eu.tintera.plume.resources.poll_compose_anonymous_channel
 import eu.tintera.plume.resources.poll_compose_counter
 import eu.tintera.plume.resources.poll_compose_explanation
@@ -297,6 +298,8 @@ internal fun pollDraftOf(
     answerMedia: Map<Int, PollDraftMedia> = emptyMap(),
     /** Příloha vysvětlení; bere se jen u kvízu, jako vysvětlení samo. */
     explanationMedia: PollDraftMedia? = null,
+    /** Ostatní smějí přidávat odpovědi; bere se jen u běžné neanonymní ankety. */
+    allowAddingOptions: Boolean = false,
 ): PollDraft? {
     val text = question.trim()
     if (text.isEmpty() || text.length > POLL_QUESTION_MAX) return null
@@ -352,6 +355,7 @@ internal fun pollDraftOf(
         media = media,
         // Příloha prázdného pole neodejde: pole bez textu se vynechává, a s ním i ona.
         answerMedia = filled.map { (field, _) -> answerMedia[field] }.takeIf { list -> list.any { it != null } }.orEmpty(),
+        allowAddingOptions = allowAddingOptions && !quiz && !anonymous,
     )
 }
 
@@ -472,6 +476,9 @@ class PollComposerViewModel(
     var shuffle by mutableStateOf(false)
     var quiz by mutableStateOf(mode == PollComposerMode.QuizOnly)
 
+    /** Ostatní smějí přidávat odpovědi — jen u běžné neanonymní ankety mimo kanál. */
+    var allowAddingOptions by mutableStateOf(false)
+
     /** Správné odpovědi kvízu jako indexy POLÍ v [answers]. */
     var correct by mutableStateOf(emptySet<Int>())
     var explanation by mutableStateOf("")
@@ -571,6 +578,7 @@ class PollComposerViewModel(
             media = questionMedia,
             answerMedia = answerMedia,
             explanationMedia = explanationMedia,
+            allowAddingOptions = allowAddingOptions && !_status.value.isChannel,
             membersOnly = membersOnly && _status.value.isChannel,
             countryCodes = countryCodes.takeIf { _status.value.isChannel }.orEmpty(),
             maxCountries = _status.value.maxCountries,
@@ -942,6 +950,9 @@ fun PollComposerScreen(
             }
             val settings = buildList {
                 if (!status.isChannel) add(SettingRow.Anonymous)
+                // Přidávat odpovědi TDLib dovolí jen u neanonymní ankety mimo kanál a ne u kvízu;
+                // řádek se ukáže, až to platí, a ne jako zašedlý přepínač s nejasným důvodem.
+                if (!status.isChannel && !viewModel.anonymous && !viewModel.quiz) add(SettingRow.AllowAdding)
                 add(SettingRow.Multiple)
                 if (viewModel.mode == PollComposerMode.Any) add(SettingRow.Quiz)
                 add(SettingRow.Shuffle)
@@ -955,6 +966,10 @@ fun PollComposerScreen(
                     SettingRow.Anonymous -> SwitchRow(stringResource(Res.string.poll_compose_anonymous), viewModel.anonymous, shape) {
                         haptics.toggle(it)
                         viewModel.anonymous = it
+                    }
+                    SettingRow.AllowAdding -> SwitchRow(stringResource(Res.string.poll_compose_allow_adding), viewModel.allowAddingOptions, shape) {
+                        haptics.toggle(it)
+                        viewModel.allowAddingOptions = it
                     }
                     SettingRow.Multiple -> SwitchRow(stringResource(Res.string.poll_compose_multiple), viewModel.multipleAnswers, shape) {
                         haptics.toggle(it)
@@ -1139,7 +1154,7 @@ fun PollComposerScreen(
     }
 }
 
-private enum class SettingRow { Anonymous, Multiple, Quiz, Shuffle, Duration, HideResults }
+private enum class SettingRow { Anonymous, AllowAdding, Multiple, Quiz, Shuffle, Duration, HideResults }
 
 private enum class VoterRow { MembersOnly, Countries }
 

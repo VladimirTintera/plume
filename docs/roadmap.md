@@ -392,7 +392,10 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - Ťuknutí na velké animované emoji s efektem pro oba (`clickAnimatedEmojiMessage`,
   `animatedEmojiMessageClickedUpdates`).
 - Napovídání hashtagů a nedávných inline botů (`searchHashtags`, `getRecentInlineBots`).
-- Ankety: smazat možnost (`deletePollOption`), statistika hlasů (`getPollVoteStatistics`).
+- ~~Ankety: smazat možnost (`deletePollOption`)~~ — hotovo i s přidáváním odpovědí ve formuláři
+  (`docs/poznatky/ankety.md`). Statistika hlasů (`getPollVoteStatistics`) zbývá — vydá ji jen
+  server u větších anket a je to tentýž graf (`StatisticalGraph`) jako statistiky kanálu níž,
+  takže se má dělat s nimi.
 - ~~Označit celou složku jako přečtenou (`readChatList`)~~ — hotovo (podržení složky v liště,
   archiv ikonou v jeho liště).
 - ~~Odebrat jednu položku z nedávného hledání a z nejčastějších lidí (`removeRecentlyFoundChat`,

@@ -3359,4 +3359,5 @@
     <string name="poll_delete_option_text">„%1$s“ zmizí z ankety i s hlasy pro ni.</string>
     <string name="poll_delete_option_confirm">Smazat</string>
     <string name="poll_delete_option_failed">Odpověď se nepodařilo smazat.</string>
+    <string name="poll_compose_allow_adding">Ostatní můžou přidávat odpovědi</string>
 </resources>

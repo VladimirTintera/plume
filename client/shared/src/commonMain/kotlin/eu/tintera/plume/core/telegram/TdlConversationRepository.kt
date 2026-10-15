@@ -2687,7 +2687,9 @@ class TdlConversationRepository(
                 shuffleOptions = poll.shuffle,
                 hideResultsUntilCloses = poll.hideResultsUntilClose && (poll.openPeriodSeconds > 0 || poll.closeDate > 0),
                 type = if (correct == null) {
-                    InputPollTypeRegular(allowAddingOptions = false)
+                    // Přidávat odpovědi jde jen do neanonymní ankety mimo kanál („not supported in
+                    // channel chats and for anonymous polls").
+                    InputPollTypeRegular(allowAddingOptions = poll.allowAddingOptions && !poll.anonymous && !isChannel)
                 } else {
                     InputPollTypeQuiz(
                         // TDLib chce rostoucí seznam.

@@ -51,6 +51,34 @@ v zápatí „Kdo hlasoval" (`PollVotersSheet`, `getPollVoters` po stránkách, 
   zprávy jako hlas, a server k ní pošle servisní zprávu. Strop délky je týž jako ve formuláři
   (`POLL_ANSWER_MAX`). Ověřuje se `sendPoll` botem s `allow_adding_options=true`
   a `is_anonymous=false`; `getUpdates` pak ukáže `added_by_user` a `poll_option_added`.
+- **Smazat jde jen PŘIDANOU odpověď** (`deletePollOption`, podle textového `PollOption.id`, ne
+  indexu). Pravidlo je v TDLib (`PollManager::can_delete_poll_option`): anketa otevřená
+  a s přidáváním odpovědí, odpověď s autorem (`added_by`); autor ankety smaže kteroukoli
+  přidanou, kdo odpověď přidal, smaže svou jen do `poll_answer_delete_period` od přidání (číslo
+  posílá server). Aplikace to nedopočítává: `PollAnswer.canDelete` je `canBeDeleted`
+  z `getPollOptionProperties` (offline dotaz) a repository se ptá u každé odpovědi otevřené
+  ankety při převodu zprávy.
+- **Mazání visí na dlouhém stisku TÉ odpovědi**, ne na nabídce zprávy obecně: nabídka je jedna
+  na zprávu a bez odpovědi pod prstem by se nevědělo, kterou smazat. Řádek s mazatelnou odpovědí
+  otevře nabídku přes `requestMenuForPollOption` (`MessageMenu.pressedPollOptionId`) a položka
+  „Smazat odpověď" (`MessageMenuAction.DeletePollOption`) se ukáže jen s ní; potvrzuje se
+  dialogem s textem odpovědi, protože hlasy pro ni zmizí s ní.
+- **V praxi maže autor ankety.** Ověřeno na emulátoru 15. 10. 2026 (log z `getPollOptionProperties`):
+  odpověď přidaná do CIZÍ ankety (bot) neměla `canBeDeleted` ani hned po přidání — lhůtu
+  `poll_answer_delete_period` server tomu účtu nedal. Ve VLASTNÍ anketě s přidáváním odpovědí
+  přidaná „Kebab" `canBeDeleted` měla, nabídka nad ní nabídla „Smazat odpověď", po potvrzení
+  zmizela a server přidal servisní „Z ankety ubyla možnost". Původní odpovědi smazat nejde nikdy.
+- **Formulář proto umí „Ostatní můžou přidávat odpovědi"** (`PollDraft.allowAddingOptions`
+  → `InputPollTypeRegular.allowAddingOptions`) — bez něj by vlastní anketa přidané odpovědi
+  nikdy neměla a autor by neměl co mazat. TDLib: *„not supported in channel chats and for
+  anonymous polls"*, kvíz volbu nemá vůbec; řádek se proto ukáže až po vypnutí anonymity,
+  mimo kanál a mimo kvíz (ne jako zašedlý přepínač bez vysvětlení) a `pollDraftOf`
+  i repository ji jinde zahodí.
+- **Statistika hlasů (`getPollVoteStatistics`) zatím není.** Jestli ji anketa má, rozhoduje jen
+  server (`pollResults.can_view_stats` → `MessageProperties.canGetPollVoteStatistics`, TDLib nic
+  nedopočítává); vlastní anketa v malém testovacím kanálu ji nedostala. Výsledek je
+  `StatisticalGraph` — JSON grafu ve formátu Telegramu, tentýž jako u statistik kanálu, takže
+  vykreslení grafu patří udělat jednou pro oboje.
 - **Přidaná odpověď smí nést přílohu** — tatáž ikona a nabídka jako u odpovědi ve formuláři
   (`MediaSlot`, výběr GIFu, samolepky, odkazu a místa je společný `PollMediaChooser`), TDLib
   u `addPollOption` bere tytéž druhy. Příloha žije jen v dialogu (přežít otočení nemusí).

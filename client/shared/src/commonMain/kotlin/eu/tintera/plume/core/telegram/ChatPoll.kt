@@ -227,6 +227,11 @@ data class PollDraft(
     val media: PollDraftMedia? = null,
     /** Přílohy odpovědí, ve stejném pořadí jako [answers]; `null` = bez přílohy. */
     val answerMedia: List<PollDraftMedia?> = emptyList(),
+    /**
+     * Ostatní smějí do ankety přidávat odpovědi (`allowAddingOptions`). TDLib to bere jen u běžné
+     * neanonymní ankety mimo kanál; formulář to hlídá, tohle už je hotové rozhodnutí.
+     */
+    val allowAddingOptions: Boolean = false,
 )
 
 /**
