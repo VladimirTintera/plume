@@ -321,12 +321,14 @@ dřív dělaly, má pilulka po najetí myší (viz „Akce po najetí myší"):
 
 Správce supergroupy, který maže zprávy jednoho člena (z nabídky i z výběru), dostane
 v potvrzení pod textem volby navíc jako u oficiálních klientů: **Nahlásit spam**, **Smazat všechny
-zprávy autora ve skupině** a **Vyhodit autora ze skupiny** (`PendingDelete.moderation`,
-`MessageDeleteDialog`). Kombinují se zaškrtnutím, potvrzuje se tlačítkem Smazat.
+zprávy autora ve skupině**, **Smazat nedávné reakce autora** a **Vyhodit autora ze skupiny**
+(`PendingDelete.moderation`, `MessageDeleteDialog`). Kombinují se zaškrtnutím, potvrzuje se tlačítkem Smazat.
 
 - **Co se nabídne, je čistá funkce** `senderModerationRights` (`MemberManagement.kt`, testy
   v `MemberManagementTest`): smazat vše chce právo mazat cizí zprávy (TDLib: „requires
-  canDeleteMessages"), vyhodit totéž pravidlo jako „Vyhodit" nad členem (`memberActions`),
+  canDeleteMessages"), smazat reakce TOTÉŽ právo (`deleteAllRecentMessageReactionsFromSender`:
+  „requires canDeleteMessages administrator right"), vyhodit totéž pravidlo jako „Vyhodit" nad
+  členem (`memberActions`),
   spam rozhoduje server (`MessageProperties.canReportSupergroupSpam` u všech zpráv).
 - **Jen u běžného člena a jen u zpráv JEDNOHO autora.** Na vlastníka a správce volby nemíří
   (spammer správcem nebývá a omyl by bolel víc); výběr zpráv od víc lidí je jen mazání.
@@ -335,7 +337,8 @@ zprávy autora ve skupině** a **Vyhodit autora ze skupiny** (`PendingDelete.mod
   ve skupině, kde je uživatel správce. Volby proto do dialogu přibudou se zpožděním
   (`animateContentSize`). Prohlížeč médií je nedočítá.
 - **Pořadí kroků** (`deleteAsModerator`): nahlášení napřed (zprávy musí ještě existovat), pak
-  vyhození (navždy, `revokeMessages = false`), nakonec smazání — všeho od autora
+  smazání reakcí (ještě před vyhozením — dokumentace neříká, jestli server maže reakce i tomu,
+  kdo už ve skupině není), vyhození (navždy, `revokeMessages = false`), nakonec smazání — všeho od autora
   (`deleteChatMessagesBySender`), nebo jen vybraných zpráv. Selhání jednoho kroku další nezastaví.
 - **Ověřeno na emulátoru** (14. 10. 2026, „Plume test moderace", zprávy bota Notifikátor poslané
   přes Bot API): dialog ukázal všechny tři volby, „smazat vše" a „vyhodit" smazaly obě zprávy bota
@@ -345,6 +348,12 @@ zprávy autora ve skupině** a **Vyhodit autora ze skupiny** (`PendingDelete.mod
   zprávy bota → „Smazat 3 zprávy?“ s „Autor zpráv: Notifikator“ a všemi třemi volbami; jen se
   zaškrtnutým „Vyhodit“ zmizely právě vybrané zprávy (`deleteMessages`, ne `…BySender`) a bot byl
   vyhozený. Volby dočte `deleteSelection` ve ViewModelu (`loadSenderModeration`), ne výběr sám.
+- **Smazání reakcí ověřené** (15. 10. 2026, „Plume test moderace"): bot přes Bot API
+  (`setMessageReaction`) dal 👍 na svou zprávu, pak se smazala jiná jeho zpráva jen se
+  zaškrtnutým „Smazat nedávné reakce autora". **Reakce nezmizí hned, ale za pár vteřin**: update
+  o reakcích přijde až s obnovou zobrazených zpráv, ne jako odpověď na volání. Kdo to bude ověřovat
+  znovu, ať počká, než usoudí, že to nefunguje. Funguje jen v supergroupě — dialog volby navíc
+  v základní skupině nenabízí vůbec, i když TDLib smazání reakcí umí i tam.
 
 ## Překlad zprávy
 

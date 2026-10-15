@@ -37,11 +37,11 @@ tečka u neposlechnuté a u hrající čip rychlosti.
 - **Čip rychlosti je jen u hrající hlasovky.** V každé bublině by z něj byl další ovládací prvek,
   a přitom se rychlost mění jednou za čas. Řádek s časem má šířku waveformu, takže se bublina
   objevením čipu nepřeskládá.
-- **`MediaPlayer.playbackParams` na PAUZNUTÉM přehrávači přehrávání ROZJEDE.** Je to zdokumentované
-  chování, ne chyba. Rychlost se proto drží v poli a zapisuje se buď v `start()`, nebo za běhu —
-  jinak by přepnutí čipu u pozastavené hlasovky spustilo zvuk. Na iOS to neplatí, tam `rate` na
-  pauznutém přehrávači nic nespustí; zato se `enableRate` MUSÍ nastavit PŘED `prepareToPlay()`
-  a `play()` rychlost resetuje na 1, takže se zapisuje znovu hned po něm.
+- **Dokud Android hrál přes `MediaPlayer`, `playbackParams` na PAUZNUTÉM přehrávači přehrávání
+  ROZJEL** (zdokumentované chování). ExoPlayer (`setPlaybackSpeed`) to nedělá, rychlost se mu
+  zapisuje rovnou. Na iOS `rate` na pauznutém přehrávači taky nic nespustí; zato se `enableRate`
+  MUSÍ nastavit PŘED `prepareToPlay()` a `play()` rychlost resetuje na 1, takže se zapisuje znovu
+  hned po něm.
 - **Po dohrání se pustí DALŠÍ neposlechnutá** (`VoicePlayer.completions` → `playNextUnlistened`).
   Bere se jen nejbližší novější hlasovka, a jen když je příchozí a neposlechnutá: řetězí se tím
   dávka hlasovek poslaná za sebou, což je ten případ, kvůli kterému to existuje. Přeskakovat
@@ -71,11 +71,16 @@ ji vrátí zpátky. Sleduje se jen po dobu, kdy se HRAJE (`EarSensor`, startuje 
   ztratilo.
 - **Se sluchátky se nepřepíná vůbec**, a čte se to při KAŽDÉ změně senzorů, ne jednou na začátku —
   drát i Bluetooth se dají připojit uprostřed hlasovky.
-- **Na Androidu se kvůli tomu PŘESTAVUJE PŘEHRÁVAČ.** Do sluchátka se dostane jen zvuk
-  s `USAGE_VOICE_COMMUNICATION` a `MediaPlayer.setAudioAttributes` se smí volat jen PŘED
-  `prepare()`. Samotné `setCommunicationDevice` nestačí — to řídí komunikační zvuk, kdežto médium
-  by hrálo dál z reproduktoru. Přenáší se pozice i to, jestli se hraje, takže je to slyšet jako
-  zaváhání, ne jako skok na začátek.
+- **Na Androidu se kvůli tomu mění atributy zvuku.** Do sluchátka se dostane jen zvuk
+  s `USAGE_VOICE_COMMUNICATION`. Samotné `setCommunicationDevice` nestačí — to řídí komunikační
+  zvuk, kdežto médium by hrálo dál z reproduktoru. S `MediaPlayer` se kvůli tomu přehrávač
+  stavěl znovu (atributy jen před `prepare()`); ExoPlayer je mění za běhu
+  (`setAudioAttributes`) a zvukovou stopu si postaví sám. **Po přechodu na ExoPlayer ověřené
+  na Pixelu 7 Pro** (Android 17, 15. 10. 2026): uživatel slyšel u ucha sluchátko a po odtažení
+  zase reproduktor a přehrávání šlo dál. V logu `Applying proximity: Positive` a hned nato
+  `setCommunicationRouteForClient … type:earpiece`. V historii `dumpsys audio` je při každém
+  přepnutí nová `AudioTrack` (`new player … started` → `device updated deviceIds:[2]/[3]`),
+  takže stopu za běhu přestavuje ExoPlayer sám a ručně se nic přestavovat nemusí.
 - **iOS přehrávač nepřestavuje**, stačí kategorie `AVAudioSession` — `AVAudioPlayer` se za relací
   přesměruje sám. Změna kategorie ale RESETUJE `rate`, takže se rychlost zapisuje znovu.
 - **Do sluchátka vede na iOS jedině `playAndRecord`**, a ta sahá na mikrofon. Přepne se proto jen
@@ -129,7 +134,8 @@ nevyplatí.
 - **Poslechnuto = `openMessageContent`.** Ukáže se hned lokálně, potvrzení a poslechnutí našich
   odchozích protějškem chodí `UpdateMessageContentOpened` (`contentOpenedUpdates`). Ověřeno se
   dvěma účty (12. 10. 2026): po přehrání u příjemce zmizela tečka u odesílatele.
-- **Android přehraje Ogg/Opus sám** (`MediaPlayer`, atributy řeč/média).
+- **Android přehraje Ogg/Opus sám** (Media3 ExoPlayer: Ogg rozebere, Opus dekóduje systémový
+  kodek; atributy řeč/média). Dřív `MediaPlayer` — viz „Přeskakování ticha".
 - **iOS Ogg NEPŘEHRAJE** — AVFoundation zná Opus jen v CAF. Dekodér Opusu ale systém má: pakety
   se z Oggu vytáhnou v Kotlinu (`parseOggOpus`, commonMain), `AVAudioConverter` je dekóduje do PCM
   a uloží se WAV (dočasný adresář, jednou na soubor), který hraje `AVAudioPlayer`.
@@ -245,7 +251,7 @@ jako tlačítko, název, interpret, lišta průběhu s posunem, čas a čip rych
 - **Hraje TENTÝŽ přehrávač jako hlasovky** (`VoicePlayer`, klíč `VoiceKey`, akce
   `ToggleVoice`/`SeekVoice`). Zvuk je v aplikaci vždycky nejvýš jeden — skladba zastaví
   hlasovku i kolečko se zvukem a naopak — a druhý přehrávač by to musel hlídat zvlášť.
-  `AudioEngine` hraje cokoli, co ne-Ogg: Android `MediaPlayer`, iOS `AVAudioPlayer` rovnou
+  `AudioEngine` hraje cokoli, co ne-Ogg: Android ExoPlayer, iOS `AVAudioPlayer` rovnou
   (dekódování do WAV je jen pro Ogg/Opus).
 - **Hudba u ucha nepřepíná do sluchátka** (`VoicePlayer.play(music = true)`): senzory se vůbec
   nezapnou (ověřeno `dumpsys sensorservice`), jinak by telefon v ruce při poslechu zhasínal displej.
@@ -337,3 +343,70 @@ obrazovky, sluchátek a hodinek. Na Androidu přes Media3 MediaSession, na iOS p
   vyrobí `say -o x.aiff "…"` a `afconvert -f m4af -d aac`. Ověřeno na emulátoru: obal i bez
   obalu, přehrání s průběhem a čipem, navázání druhé skladby, sdílení, náhled v seznamu.
   **Neověřeno**: iOS (jen přeložené), přerušení hovorem u hudby.
+
+## Přeskakování ticha
+
+Volba v Nastavení → Chaty → Zprávy („Přeskakovat ticho", `AppSettings.skipSilence`, výchozí
+vypnuto): v hlasovkách i audiu se zkrátí pauzy, hlas se nezrychlí ani nezkreslí. Media3
+`skipSilenceEnabled`, platí hned i pro to, co právě hraje (`VoicePlayer` sleduje nastavení).
+
+- **Kvůli tomu Android přešel z `MediaPlayer` na ExoPlayer** (`AudioEngine.android.kt`).
+  `MediaPlayer` ticho přeskakovat neumí a vlastní zpracování zvuku by znamenalo vlastní
+  dekodér. Přehrávač zůstává JEDEN (`VoicePlayer`), vyměnil se jen engine pod ním — systémové
+  ovládání hudby (`MusicSessionPlayer`) se nezměnilo.
+  - **ExoPlayer se ovládá z vlákna, na kterém vznikl**, a hlídá to výjimkou. `VoicePlayer` běží
+    na `Dispatchers.Main`, takže engine vzniká i žije na hlavním vlákně; soubor si ExoPlayer
+    čte na svém.
+  - **`load` čeká na `STATE_READY`** (`suspendCancellableCoroutine`), teprve pak je známá délka.
+    Chyba přípravy (`onPlayerError`) vyletí jako výjimka a `VoicePlayer` ukáže „nepodařilo se
+    přehrát", jako dřív.
+  - **Audio focus dál řešíme sami** (`handleAudioFocus = false`): hlasovka chce jiný focus než
+    hudba a přerušení se musí promítnout do stavu (`onInterrupted`).
+  - **Přerušení se pozná podle `playWhenReady`, ne `isPlaying`** — ten je `false` i ve chvíli,
+    kdy přehrávač jen čeká na data.
+  - **Hudba má `WAKE_MODE_LOCAL`**: hraje se zhasnutým displejem ze služby a vlákno přehrávače
+    nesmí usnout (oprávnění `WAKE_LOCK` aplikace už má kvůli uchu).
+- **Volba je v Nastavení, ne u čipu rychlosti.** Volí se jednou a platí pro všechno, stejně jako
+  rychlost; čip je jen u hrající hlasovky a druhý prvek vedle něj by bublinu přeplnil.
+- **Jen Android** (`skipSilenceSupported`): `AVAudioPlayer` na iOS to neumí a desktop zvuk nemá;
+  řádek v Nastavení tam chybí.
+- **Posuvník při přeskakování poskakuje** — pozice je čas v nahrávce, ne čas poslechu, takže přes
+  zkrácenou pauzu přeskočí. Je to správně: délka i pozice dál odpovídají souboru.
+- **Ověřeno na emulátoru** (Android 17, 11minutová skladba od bota: 2 s tónu, 3 s ticha
+  dokola): bez volby 21 s nahrávky za ~21 s, s volbou 40 s nahrávky za 20 s. Přepnutí za běhu
+  zabralo bez restartu přehrávání. **Neověřeno**: skutečná řeč (zkrácení přirozených pauz),
+  hlasovka v Ogg/Opus přes ExoPlayer na Androidu 9 a starším (M4A), u ucha.
+
+## Paměť pozice v dlouhé nahrávce
+
+Hlasovka nebo audio od 10 minut (`MIN_RESUME_AUDIO_DURATION_MS`) si pamatuje, kde uživatel
+přestal, a příště pokračuje odtamtud. **Tentýž mechanismus jako u videa** (`VideoPositions`,
+viz „Video" v `prohlizec-medii.md`): jeden seznam v `AppSettings`, klíč je trvalé id souboru
+(`MessageMedia.Audio.fileKey` / `VoiceNote.fileKey` = `RemoteFile.uniqueId`), stejné okraje
+(ne prvních 10 s, ne posledních 15 s, dohraná se zapomene), nejvýš 200 záznamů.
+
+- **Práh je delší než u videa** (10 min proti 2): dvouminutová hlasovka se pustí znovu celá,
+  k přednášce nebo podcastu se člověk vrací. Seznam je společný, proto se pamatovaná pozice při
+  spuštění ověřuje znovu s prahem pro zvuk (`audioStart`, testy `AudioResumeTest`).
+- **Zapisuje přehrávač, ne obrazovka** (`VoicePlayer`, parametr `resumeKey`): při pauze,
+  zastavení (i přepnutí na jiný zvuk), posunu pozastavené nahrávky a každých 10 s za přehrávání
+  (zabitý proces). Jen u načteného zvuku — zastavení během stahování by zapsalo nulu a pozici
+  smazalo. Hudba hraje i bez konverzace, takže jinde to být nemůže.
+- **Odkud začít**: výslovný čas („1:23" v textu) > pamatovaná pozice > začátek — pořadí jako
+  u videa.
+- **„Pokračuje od 12:34 · Od začátku"** je snackbar v konverzaci (`ConversationPlayback.resumes`,
+  `VoicePlayback.resumedFromMs`), u videa je to pilulka v přehrávači. Bez něj by nahrávka hrála
+  uprostřed bez vysvětlení. Hlásí se jen v prvních 6 s poslechu a jednou za ViewModel;
+  **posun (i „Od začátku") `resumedFromMs` maže** — dokud ne, návrat do chatu ukázal hlášení
+  znovu, protože pozice před bodem pokračování prošla podmínkou „ještě v okně".
+- **Bublina ukazuje pamatované místo i bez přehrávání**: lišta (u hlasovky waveform) a čas
+  „7:27 / 11:20" (`rememberedAudioPosition`). Obdoba proužku zhlédnutého u videa.
+- **Tajný chat a mizející zprávy si pozici nepamatují** (`remembersPosition`, v profilu
+  `isSecretChat`); u hudby to nese `MusicQueue` i na navazující skladby. Zvuk v článku taky ne
+  (nemá klíč).
+- **Ověřeno na emulátoru** (11minutová skladba): po posunu na půlku a pozastavení bublina
+  ukázala 5:42 / 11:20 i po `force-stop`; ťuknutí pokračovalo s „Resuming from 5:42 · From the
+  start" a akce vrátila nahrávku na 0:01; pozice zapsaná desetivteřinovým tikem přežila
+  přeinstalaci uprostřed hraní; dohraná nahrávka se zapomněla (bublina zase jen „11:20").
+  **Neověřeno**: dlouhá hlasovka (Ogg/Opus přes Bot API nevyrobíme bez kodéru), iOS (jen
+  přeložené).

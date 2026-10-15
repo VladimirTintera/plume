@@ -979,6 +979,7 @@ internal fun Audio.toMedia(fallbackName: String) = MessageMedia.Audio(
     sizeBytes = audio.expectedSize,
     coverFileId = albumCoverThumbnail.picture()?.file?.id,
     coverMinithumbnail = albumCoverMinithumbnail?.toDomain(),
+    fileKey = audio.remote.uniqueId.ifBlank { null },
 )
 
 /** Hlasovka. V článku se poslech nehlásí, takže je tam vždycky „poslechnutá". */
@@ -988,6 +989,7 @@ internal fun VoiceNote.toMedia(isListened: Boolean = true) = MessageMedia.VoiceN
     waveform = decodeWaveform(waveform),
     isListened = isListened,
     transcript = speechRecognitionResult?.toTranscript(),
+    fileKey = voice.remote.uniqueId.ifBlank { null },
 )
 
 /** Soubor; [fileName] podává volající, prázdný název se nahrazuje jinde podle místa. */

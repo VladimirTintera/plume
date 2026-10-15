@@ -144,12 +144,34 @@ internal class ConversationSuggestions(
         }
         hashtagJob = scope.launch {
             if (query.isNotEmpty()) delay(MENTION_QUERY_DELAY)
-            repository.recentHashtags(query)
-                .onSuccess { found ->
-                    val hashtags = found.filter { it != query }
-                    state.update { it.copy(hashtagSuggestions = HashtagSuggestions(query, hashtags)) }
+            loadHashtags(query)
+        }
+    }
+
+    private suspend fun loadHashtags(query: String) {
+        repository.recentHashtags(query)
+            .onSuccess { found ->
+                val hashtags = found.filter { it != query }
+                state.update { it.copy(hashtagSuggestions = HashtagSuggestions(query, hashtags)) }
+            }
+            .onFailure { failure -> logger.i { "Hashtagy se nepodařilo najít: ${failure.message}" } }
+    }
+
+    /**
+     * Hashtag pryč z historie napovídání (podržení v panelu, `removeRecentHashtag`). Panel se pak
+     * přečte znovu, nic se nepřepisuje lokálně — stejně jako odebrání z historie hledání chatů.
+     * Odebrání nejde přes [hashtagJob]: další napsané písmeno by ho jinak mohlo zrušit.
+     */
+    fun removeHashtag(hashtag: String) {
+        scope.launch {
+            repository.removeRecentHashtag(hashtag)
+                .onFailure { failure ->
+                    logger.i { "Hashtag se nepodařilo odebrat z historie: ${failure.message}" }
+                    return@launch
                 }
-                .onFailure { failure -> logger.i { "Hashtagy se nepodařilo najít: ${failure.message}" } }
+            // Mezitím se mohlo psát dál nebo panel zavřít; čte se, co je zrovna rozepsané.
+            val query = state.value.hashtagSuggestions?.query ?: return@launch
+            loadHashtags(query)
         }
     }
 

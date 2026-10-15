@@ -400,6 +400,7 @@ internal fun ConversationBottomBar(
                 viewModel.hashtagPicked()
                 viewModel.onDraftChanged(composer.composed)
             },
+            onRemove = viewModel::removeHashtag,
             glass = suggestionGlass,
         )
         EmojiSuggestionsPanel(

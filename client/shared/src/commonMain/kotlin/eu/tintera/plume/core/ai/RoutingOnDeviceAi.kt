@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.ai
 
+import kotlin.reflect.KClass
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -47,6 +48,17 @@ class RoutingOnDeviceAi(
 
     override fun generate(variant: ModelVariant, prompt: String): Flow<Generated> =
         route(variant) { generate(it, prompt) }
+
+    override suspend fun supportsStructuredOutput(variant: ModelVariant): Boolean = when (variant.provider) {
+        AiProvider.GeminiNano -> geminiNano.supportsStructuredOutput(variant.forGeminiNano())
+        AiProvider.Gemma -> gemma.supportsStructuredOutput(variant.forGemma())
+    }
+
+    override suspend fun <T : Any> generateStructured(variant: ModelVariant, prompt: String, type: KClass<T>): T =
+        when (variant.provider) {
+            AiProvider.GeminiNano -> geminiNano.generateStructured(variant.forGeminiNano(), prompt, type)
+            AiProvider.Gemma -> gemma.generateStructured(variant.forGemma(), prompt, type)
+        }
 
     override suspend fun canTranscribe(variant: ModelVariant): Boolean = when (variant.provider) {
         AiProvider.GeminiNano -> geminiNano.canTranscribe(variant.forGeminiNano())

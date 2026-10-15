@@ -103,6 +103,13 @@ compose.desktop {
             macOS {
                 bundleID = "eu.tintera.plume"
                 iconFile.set(project.file("icons/plume.icns"))
+                appCategory = "public.app-category.social-networking"
+                // Podle `minos` TDLib z wrapperu (`vtool -show-build`): arm64 26.0, x64 15.0.
+                // Bez toho je v Info.plist 10.13 a na starším systému by aplikace naběhla
+                // a spadla až při nahrání TDLib; takhle ji Finder rovnou odmítne s vysvětlením.
+                // Balí se jen pro architekturu JDK, které staví (jako `tdlibPlatform` níž).
+                val arm64 = System.getProperty("os.arch").lowercase().let { "aarch64" in it || "arm64" in it }
+                minimumSystemVersion = if (arm64) "26.0" else "15.0"
                 // Hovory: podpis s hardened runtime potřebuje oprávnění ke kameře a mikrofonu,
                 // jinak TCC dotaz neukáže a AVFoundation tiše nedává nic. Soubor nahrazuje
                 // výchozí oprávnění Compose, proto je opakuje.

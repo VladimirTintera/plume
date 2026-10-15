@@ -185,15 +185,18 @@ class MemberManagementTest {
     @Test
     fun vlastnikSmiUAutoraCiziZpravyVsechno() {
         val rights = senderModerationRights(owner, member, spamReportable = true)
-        assertEquals(SenderModerationRights(canDeleteAll = true, canReportSpam = true, canBan = true), rights)
+        assertEquals(
+            SenderModerationRights(canDeleteAll = true, canDeleteReactions = true, canReportSpam = true, canBan = true),
+            rights,
+        )
     }
 
-    /** Smazat všechno od autora chce právo mazat cizí zprávy, vyhodit právo omezovat. */
+    /** Smazat všechno od autora i jeho reakce chce právo mazat cizí zprávy, vyhodit právo omezovat. */
     @Test
     fun spravceDostaneJenVolbyPodleSvychPrav() {
         val deleter = OwnMemberStatus.Admin(canPostMessages = true, canDeleteMessages = true)
         assertEquals(
-            SenderModerationRights(canDeleteAll = true, canReportSpam = true, canBan = false),
+            SenderModerationRights(canDeleteAll = true, canDeleteReactions = true, canReportSpam = true, canBan = false),
             senderModerationRights(deleter, member, spamReportable = true),
         )
         val banner = OwnMemberStatus.Admin(canPostMessages = true, canRestrictMembers = true)

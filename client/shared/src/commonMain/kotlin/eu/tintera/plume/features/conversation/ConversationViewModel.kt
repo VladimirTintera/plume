@@ -360,6 +360,8 @@ class ConversationViewModel(
     fun togglePlaying() = playback.togglePlaying()
     fun skipToNextTrack() = playback.skipToNextTrack()
     fun stopPlaying() = playback.stopPlaying()
+    fun restartAudio(messageId: Long) = playback.restartAudio(messageId)
+    fun consumeResumedAudio() = _state.update { it.copy(resumedAudio = null) }
     val isPremium: StateFlow<Boolean> get() = playback.isPremium
     val speechTrial: StateFlow<SpeechTrial?> get() = playback.speechTrial
     val transcribeContext: StateFlow<TranscribeContext> get() = playback.transcribeContext
@@ -502,6 +504,7 @@ class ConversationViewModel(
     fun mentionQuery(query: String?, atStart: Boolean) = suggestions.mentionQuery(query, atStart)
     fun hashtagQuery(query: String?) = suggestions.hashtagQuery(query)
     fun hashtagPicked() = suggestions.hashtagPicked()
+    fun removeHashtag(hashtag: String) = suggestions.removeHashtag(hashtag)
     fun mentionPicked(candidate: MentionCandidate) = suggestions.mentionPicked(candidate)
     fun inlineQuery(draft: InlineQueryDraft?) = suggestions.inlineQuery(draft)
     fun loadMoreInline() = suggestions.loadMoreInline()
@@ -890,6 +893,11 @@ class ConversationViewModel(
         // Automatické mazání se ukazuje v hlavičce; mění se i z jiného zařízení nebo od protějšku.
         viewModelScope.launch {
             repository.autoDeleteTime(chatId).collect { seconds -> _state.update { it.copy(autoDeleteTime = seconds) } }
+        }
+
+        // Dlouhá nahrávka pokračuje, kde uživatel minule přestal — obrazovka to řekne snackbarem.
+        viewModelScope.launch {
+            playback.resumes.collect { resumed -> _state.update { it.copy(resumedAudio = resumed) } }
         }
 
         // Dohraná hlasovka pustí další neposlechnutou; která to je, ví jedině konverzace.

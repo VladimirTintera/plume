@@ -368,6 +368,7 @@ fun appModule() = module {
             newEngine = { get() },
             settings = get(),
             earSensor = get(),
+            positions = get(),
         )
     }
 

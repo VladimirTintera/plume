@@ -289,7 +289,7 @@ class ConversationMessageActionsTest {
     private val spammer = SenderModeration(
         userId = 42,
         name = "Spammer",
-        rights = SenderModerationRights(canDeleteAll = true, canReportSpam = true, canBan = true),
+        rights = SenderModerationRights(canDeleteAll = true, canDeleteReactions = true, canReportSpam = true, canBan = true),
     )
 
     @Test
@@ -351,5 +351,25 @@ class ConversationMessageActionsTest {
 
         assertEquals(listOf(listOf(1L) to true), repository.deleted)
         assertTrue(repository.moderated.isEmpty())
+    }
+
+    /** Jen smazání reakcí je taky volba správce: jde přes `deleteAsModerator`, ne holé mazání. */
+    @Test
+    fun samotneSmazaniReakciJdeJakoModerovani() = runTest {
+        repository.moderation = spammer
+        val state = stateWith(null, testMessage(1))
+        state.value = state.value.copy(messageMenu = menu(1, MessageActions.Fallback.copy(canDeleteForAll = true)))
+        val actions = actions(state)
+        actions.requestDelete(1)
+        advanceUntilIdle()
+
+        val choice = ModerationChoice(deleteReactions = true)
+        actions.confirmDelete(revoke = true, choice = choice)
+        advanceUntilIdle()
+
+        assertEquals(listOf(listOf(1L) to choice), repository.moderated)
+        assertTrue(repository.deleted.isEmpty())
+        // Nikdo nebyl vyhozený, takže ani hláška o vyhození.
+        assertNull(state.value.notice)
     }
 }

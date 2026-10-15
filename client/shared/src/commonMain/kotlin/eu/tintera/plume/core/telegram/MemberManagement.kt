@@ -198,17 +198,20 @@ internal fun memberActions(
 
 /**
  * Co smí správce supergroupy při mazání cizích zpráv udělat s jejich autorem navíc — jako
- * oficiální klienti: nahlásit zprávy jako spam, smazat všechno, co ve skupině napsal, a vyhodit ho.
+ * oficiální klienti: nahlásit zprávy jako spam, smazat všechno, co ve skupině napsal, smazat jeho
+ * nedávné reakce a vyhodit ho.
  */
 data class SenderModerationRights(
     /** `deleteChatMessagesBySender` — chce právo mazat cizí zprávy. */
     val canDeleteAll: Boolean = false,
+    /** `deleteAllRecentMessageReactionsFromSender` — chce totéž právo mazat cizí zprávy. */
+    val canDeleteReactions: Boolean = false,
     /** `reportSupergroupSpam` — dovoluje server zprávu po zprávě (`canReportSupergroupSpam`). */
     val canReportSpam: Boolean = false,
     /** Vyhodit autora — stejné pravidlo jako „Vyhodit" v nabídce nad členem ([memberActions]). */
     val canBan: Boolean = false,
 ) {
-    val any: Boolean get() = canDeleteAll || canReportSpam || canBan
+    val any: Boolean get() = canDeleteAll || canDeleteReactions || canReportSpam || canBan
 }
 
 /** Autor mazaných zpráv a co s ním správce smí (viz [SenderModerationRights]). */
@@ -221,10 +224,11 @@ data class SenderModeration(
 /** Co si správce v potvrzení smazání zaškrtl. */
 data class ModerationChoice(
     val deleteAll: Boolean = false,
+    val deleteReactions: Boolean = false,
     val reportSpam: Boolean = false,
     val ban: Boolean = false,
 ) {
-    val any: Boolean get() = deleteAll || reportSpam || ban
+    val any: Boolean get() = deleteAll || deleteReactions || reportSpam || ban
 }
 
 /**
@@ -234,7 +238,8 @@ data class ModerationChoice(
  * - **Jen u běžného člena.** Zprávy vlastníka nebo správce mazat jde, ale „smazat všechno od
  *   něj" a „vyhodit" na ně nemíří — spammer správcem nebývá, a omylem by to bolelo víc.
  * - **Smazat všechno chce právo mazat cizí zprávy**: TDLib „requires canDeleteMessages
- *   administrator right"; vlastník ho má vždycky.
+ *   administrator right"; vlastník ho má vždycky. **Smazání nedávných reakcí chce totéž**
+ *   (dokumentace `deleteAllRecentMessageReactionsFromSender` doslova stejnou větou).
  * - **Nahlášení spamu rozhoduje server** ([spamReportable] z `canReportSupergroupSpam` všech
  *   zpráv), jen tam, kde je uživatel správce — běžnému členovi ho server nedovolí stejně.
  */
@@ -252,6 +257,7 @@ internal fun senderModerationRights(
     }
     return SenderModerationRights(
         canDeleteAll = canDeleteMessages,
+        canDeleteReactions = canDeleteMessages,
         canReportSpam = spamReportable,
         canBan = memberActions(own, target, MemberGroupKind.Supergroup).canBan,
     )

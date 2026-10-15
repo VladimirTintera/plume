@@ -591,6 +591,8 @@ data class ConversationState(
     val unpinned: ChatMessage? = null,
     /** Uživatel, kterého karta kontaktu právě přidala — obrazovka ukáže snackbar s „Vrátit". */
     val addedContact: Long? = null,
+    /** Dlouhá nahrávka pokračuje z pamatované pozice — snackbar „Pokračuje od…" s „Od začátku". */
+    val resumedAudio: ResumedAudio? = null,
     /** Zavolat zpátky (ťuknutí na zprávu o hovoru); vyřídí ho tlačítko hovoru v hlavičce. */
     val callRequest: CallRequest? = null,
     /** Zpráva, jejíž text se právě upravuje ve vstupním poli; `null` při běžném psaní. */

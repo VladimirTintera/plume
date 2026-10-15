@@ -749,6 +749,11 @@ class TdlConversationRepository(
                 client.reportSupergroupSpam(supergroupId = supergroupId, messageIds = messageIds.toLongArray()).toResult().collect()
             }
         }
+        if (choice.deleteReactions) {
+            // Ještě před vyhozením, dokud je autor členem: dokumentace neříká, jestli server
+            // maže reakce i někomu, kdo už ve skupině není.
+            client.deleteAllRecentMessageReactionsFromSender(chatId = chatId, senderId = sender).toResult().collect()
+        }
         if (choice.ban) {
             // Navždy a bez mazání: zprávy řeší krok níž podle toho, co si správce zaškrtl.
             client.banChatMember(chatId = chatId, memberId = sender, bannedUntilDate = FOREVER, revokeMessages = false)
@@ -3383,6 +3388,9 @@ class TdlConversationRepository(
             .toResult()
             // Bez `#` jako prefix, a pro jistotu i ve výsledku — vkládá se s ním obrazovka.
             .map { found -> found.hashtags.map { it.removePrefix("#") }.filter { it.isNotEmpty() }.distinct() }
+
+    override suspend fun removeRecentHashtag(hashtag: String): Result<Unit> =
+        client.removeRecentHashtag(hashtag = hashtag.removePrefix("#")).toResult().map { }
 
     /** Uživatel jako kandidát zmínky; smazaný účet (bez jména) `null`. */
     private suspend fun mentionCandidate(userId: Long): MentionCandidate? {

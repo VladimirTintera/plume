@@ -398,12 +398,13 @@ přihlášení" (`LaunchAtLogin`, na mobilech a zatím na macOS a Linuxu `suppor
   spuštění jeho příkazem otevřelo Plume se schovaným oknem (`IsWindowVisible = false`).
   **Neověřeno**: skutečné přihlášení do Windows, instalace z MSI.
 
-## Release (Windows)
+## Release
 
 Actions → „Release — bump & tag" → target **desktop** (`create-release-tag.yml`) založí tag
 `desktop-X.Y.Z` a spustí `.github/workflows/desktop-release.yml` nad ním: na `windows-latest`
-postaví MSI (`packageMsi -PdesktopVersion=…`), na Ubuntu založí GitHub Release s MSI v příloze
-(verze 0.x jako pre-release). Secrets stejné jako Android (`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`).
+postaví MSI (`packageMsi -PdesktopVersion=…`), na `macos-latest` DMG pro Apple Silicon
+(`packageDmg`, příloha `Plume-X.Y.Z-macos-arm64.dmg`) a na Ubuntu založí GitHub Release s obojím
+v příloze. Secrets stejné jako Android (`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`).
 
 - **Tag je `desktop-X.Y.Z`, bez čísla buildu** (Android má `android-X.Y.Z-B`). MSI pozná
   aktualizaci jen podle X.Y.Z (X a Y do 255, Z do 65535) a podle `upgradeUuid`
@@ -413,7 +414,9 @@ postaví MSI (`packageMsi -PdesktopVersion=…`), na Ubuntu založí GitHub Rele
 - **První desktop release** se spouští s vyplněnou Version — bez předchozího tagu není co
   bumpovat. Verze se bere z tagu, ne z commitu, takže build je z tagu reprodukovatelný.
 - **macOS nepřijme verzi s MAJOR 0** („The first number in an app-version cannot be zero") —
-  MSI ano. Až přibude macOS release, chce desktop verzi od 1.0.0.
+  MSI ano. Do 0.3.7 se proto vydávalo jen MSI a s DMG se přešlo na 1.0.0 (bump major). Nulu
+  odmítne už bump (`create-release-tag.yml`) i rozbor tagu ve vlastním jobu `version`
+  release workflow — jinak by MSI prošlo a release skončil napůl.
 - **Instalace jen pro uživatele** (`perUserInstall`, `%LOCALAPPDATA%`): bez správce, což
   u nepodepsaného instalátoru ušetří další dotaz. Data aplikace jsou dál v `%APPDATA%\Plume`.
 - **Nepodepsané.** SmartScreen při prvním spuštění zastaví instalátor („Další informace" →
@@ -436,6 +439,22 @@ postaví MSI (`packageMsi -PdesktopVersion=…`), na Ubuntu založí GitHub Rele
   `play/tools/icon.py desktop` z téže geometrie pírka jako ostatní platformy: zaoblený čtverec
   s průhlednými rohy podle mřížky ikon macOS (824/1024, poloměr 185). ICO nese velikosti
   16–256, Windows si vybírá podle místa (hlavní panel, Start, Průzkumník).
+
+### macOS (DMG)
+
+- **Jen Apple Silicon.** jpackage balí pro architekturu JDK, které staví, a `macos-latest` je
+  arm64 (job to na začátku ověří `uname -m`). TDLib z wrapperu tam chce macOS 26, proto
+  `minimumSystemVersion` v `build.gradle.kts` (arm64 26.0, x64 15.0) — dřív bylo v `Info.plist`
+  výchozí 10.13 a aplikace by na starším systému naběhla a spadla až při nahrání TDLib.
+- **Homebrew `openssl@3` na runneru** kvůli přepisu jaru TDLib (výš, „TDLib na desktopu").
+  Přibalené OpenSSL je z bottle runneru; jeho `minos` je pod 26, takže nevadí.
+- **Podpis je jen ad hoc** (jpackage s hardened runtime, `entitlements.plist`), bez Developer ID
+  a notarizace. Gatekeeper aplikaci staženou z internetu napoprvé neotevře; povolí se
+  v Nastavení systému → Soukromí a zabezpečení → „Přesto otevřít" (od macOS 15 už nejde obejít
+  přes Ctrl+klik → Otevřít). Návod je v textu releasu. Podpis Developer ID chce placený účet
+  Apple Developer (roadmapa).
+- **Lokálně** stačí `./gradlew :client:desktopApp:packageDmg` (s Homebrew `openssl@3`);
+  balíček je v `client/desktopApp/build/compose/binaries/main/dmg/`.
 
 ## Cesty k souborům na Windows
 

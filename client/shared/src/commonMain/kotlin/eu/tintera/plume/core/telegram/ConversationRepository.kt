@@ -354,8 +354,8 @@ interface ConversationRepository {
 
     /**
      * Smaže cizí zprávy a s jejich autorem udělá, co si správce zaškrtl. Pořadí: napřed
-     * nahlášení (zprávy musí ještě existovat), pak vyhození, nakonec mazání — buď všeho od
-     * autora, nebo jen [messageIds]. Selhání jednoho kroku další nezastaví; vrátí se první chyba.
+     * nahlášení (zprávy musí ještě existovat), pak smazání jeho nedávných reakcí, vyhození,
+     * nakonec mazání — buď všeho od autora, nebo jen [messageIds]. Selhání jednoho kroku další nezastaví; vrátí se první chyba.
      */
     suspend fun deleteAsModerator(
         chatId: Long,
@@ -942,6 +942,9 @@ interface ConversationRepository {
      * Vrací je bez `#`. Lokální — TDLib si je pamatuje z odeslaných zpráv a hledání.
      */
     suspend fun recentHashtags(prefix: String): Result<List<String>>
+
+    /** Odebere [hashtag] (bez `#`) z historie, ze které čte [recentHashtags] (`removeRecentHashtag`). */
+    suspend fun removeRecentHashtag(hashtag: String): Result<Unit>
 
     /**
      * Shrnutí zprávy od serveru, jen u zprávy s [ChatMessage.summaryLanguage]. [languageCode]
@@ -2318,6 +2321,11 @@ sealed interface MessageMedia {
         val sizeBytes: Long,
         val coverFileId: Int? = null,
         val coverMinithumbnail: Minithumbnail? = null,
+        /**
+         * Trvalé id souboru na serveru (`RemoteFile.uniqueId`) — klíč pamatované pozice
+         * v dlouhé nahrávce (`VideoPositions`, jako u videa). `null`, dokud soubor na serveru není.
+         */
+        val fileKey: String? = null,
     ) : MessageMedia {
         /** Jako soubor — sdílení a „Uložit jako…" jdou stejnou cestou jako u dokumentu. */
         fun asDocument(): Document = Document(
@@ -2389,6 +2397,8 @@ sealed interface MessageMedia {
         val isListened: Boolean,
         /** Přepis řeči, když si o něj někdo řekl (`recognizeSpeech`); jinak `null`. */
         val transcript: SpeechTranscript? = null,
+        /** Klíč pamatované pozice v dlouhé hlasovce — viz [Audio.fileKey]. */
+        val fileKey: String? = null,
     ) : MessageMedia
 
     /**

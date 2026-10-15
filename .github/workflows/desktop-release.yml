@@ -4,23 +4,25 @@
 # Tag zakládá „Release — bump & tag" (create-release-tag.yml, target desktop) a tenhle workflow
 # rovnou spustí. Jde to i ručně: pushnout tag, nebo Run workflow nad existujícím tagem.
 # Bez čísla buildu: MSI pozná aktualizaci jen podle X.Y.Z, takže každý release potřebuje
-# vyšší verzi (X a Y do 255, Z do 65535).
+# vyšší verzi (X od 1 — macOS nulu nepřijme —, X a Y do 255, Z do 65535).
 #
 # Co workflow udělá:
-#   1. z tagu vytáhne verzi a na Windows postaví instalátor MSI (`packageMsi -PdesktopVersion`),
-#   2. založí GitHub Release s MSI v příloze a changelogem od předchozího desktop tagu.
-#      Verze 0.x jde jako pre-release.
+#   1. z tagu vytáhne verzi,
+#   2. na Windows postaví instalátor MSI (`packageMsi -PdesktopVersion`),
+#   3. na macOS (Apple Silicon) postaví DMG (`packageDmg -PdesktopVersion`),
+#   4. založí GitHub Release s oběma v příloze a changelogem od předchozího desktop tagu.
 #
-# Zatím jen Windows. macOS a Linux se staví stejně (`packageDmg`, `packageDeb`), jen na svém
-# systému — jpackage cizí systém zabalit neumí — a macOS navíc chce verzi s MAJOR ≥ 1 a kvůli
-# TDLib Homebrew `openssl@3` (docs/poznatky/desktop.md).
+# Linux se staví stejně (`packageDeb`), jen na svém systému — jpackage cizí systém zabalit
+# neumí. Do releasu zatím nejde, nikdo ho nezkoušel.
 #
-# MSI jde do PŘÍLOHY RELEASU, ne jen do artefaktu běhu: přílohy releasů se do kvóty Actions
-# nepočítají, artefakty ano (proto tu žije jen den, než ho převezme release).
+# Balíčky jdou do PŘÍLOHY RELEASU, ne jen do artefaktu běhu: přílohy releasů se do kvóty Actions
+# nepočítají, artefakty ano (proto tu žijí jen den, než je převezme release).
 #
-# Instalátor NENÍ PODEPSANÝ. Windows SmartScreen ho při prvním spuštění zastaví („Systém Windows
-# ochránil váš počítač") — projde se přes „Další informace" → „Přesto spustit". Podpis chce
-# certifikát pro podepisování kódu (roadmapa).
+# Nic NENÍ PODEPSANÉ. Windows SmartScreen MSI při prvním spuštění zastaví („Systém Windows
+# ochránil váš počítač") — projde se přes „Další informace" → „Přesto spustit". macOS Gatekeeper
+# aplikaci stažené z internetu napoprvé neotevře — povolí se v Nastavení systému → Soukromí
+# a zabezpečení → „Přesto otevřít". Podpis chce certifikát pro podepisování kódu, na macOS
+# Developer ID a notarizaci (roadmapa).
 #
 # Potřebné secrets (stejné jako u Androidu):
 #   TELEGRAM_API_ID             – api_id z my.telegram.org; bez něj se zapeče 0 a přihlášení selže
@@ -39,12 +41,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  windows:
-    runs-on: windows-latest
-    timeout-minutes: 60
-    defaults:
-      run:
-        shell: bash
+  # Verze z tagu pro oba buildy. Kontroluje se tady, ne až v jpackage: MSI by 0.x prošlo
+  # a release by skončil napůl (Windows hotové, macOS ne).
+  version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
 
     outputs:
       version: ${{ steps.tag.outputs.version }}
@@ -55,12 +56,21 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME}"
           if [[ "$GITHUB_REF_TYPE" != "tag" || ! "$TAG" =~ ^desktop-(([0-9]+)\.([0-9]+)\.([0-9]+))$ ]] \
-            || (( BASH_REMATCH[2] > 255 || BASH_REMATCH[3] > 255 || BASH_REMATCH[4] > 65535 )); then
-            echo "::error::Workflow musí běžet nad tagem desktop-X.Y.Z (X a Y do 255, Z do 65535), např. desktop-0.3.0; běží nad '$TAG'."
+            || (( BASH_REMATCH[2] < 1 || BASH_REMATCH[2] > 255 || BASH_REMATCH[3] > 255 || BASH_REMATCH[4] > 65535 )); then
+            echo "::error::Workflow musí běžet nad tagem desktop-X.Y.Z (X od 1 do 255 — macOS verzi s nulou na začátku nepřijme —, Y do 255, Z do 65535), např. desktop-1.0.0; běží nad '$TAG'."
             exit 1
           fi
           echo "version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
 
+  windows:
+    needs: version
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+
+    steps:
       # Celá historie + tagy kvůli „Co je nového" zapečenému do aplikace (`generateChangelog`).
       # Mělký klon nad tagem stáhne jen ten jeden tag: build pak projde, ale seznam vydání v MSI
       # je prázdný a nic to nenahlásí.
@@ -105,7 +115,7 @@ jobs:
           TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
           TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
         run: |
-          ./gradlew :client:desktopApp:packageMsi -PdesktopVersion=${{ steps.tag.outputs.version }}
+          ./gradlew :client:desktopApp:packageMsi -PdesktopVersion=${{ needs.version.outputs.version }}
           ls -la client/desktopApp/build/compose/binaries/main/msi/
 
       # Compose u selhání jpackage ukáže jen cestu k logu na runneru; hláška je v něm.
@@ -126,8 +136,89 @@ jobs:
           retention-days: 1
           if-no-files-found: error
 
+  # Jen Apple Silicon: `macos-latest` je arm64 a jpackage balí pro architekturu JDK, které staví.
+  # TDLib z wrapperu tam chce macOS 26 (`minimumSystemVersion` v build.gradle.kts).
+  macos:
+    needs: version
+    runs-on: macos-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Check architecture
+        run: |
+          if [ "$(uname -m)" != "arm64" ]; then
+            echo "::error::Runner není Apple Silicon ($(uname -m)) — DMG by vyšel pro jinou architekturu, než slibuje release."
+            exit 1
+          fi
+
+      # Viz job windows: bez celé historie by „Co je nového" v aplikaci bylo prázdné.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - name: Limit Gradle memory for CI
+        run: |
+          mkdir -p ~/.gradle
+          {
+            echo 'org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8 -XX:+UseParallelGC'
+            echo 'kotlin.daemon.jvmargs=-Xmx2g'
+            echo 'org.gradle.workers.max=2'
+          } >> ~/.gradle/gradle.properties
+
+      # Přibaluje se k TDLib, jejíž macOS knihovna systémové OpenSSL nenajde
+      # (tdl-coroutines#163, docs/poznatky/desktop.md). Na runneru bývá, jistota nic nestojí.
+      - name: Install OpenSSL 3
+        run: brew list openssl@3 > /dev/null 2>&1 || brew install openssl@3
+
+      - name: Check Telegram API credentials
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: |
+          if [ -z "$TELEGRAM_API_ID" ] || [ -z "$TELEGRAM_API_HASH" ]; then
+            echo "::error::Chybí secrets TELEGRAM_API_ID / TELEGRAM_API_HASH — build by se přeložil, ale přihlášení by skončilo chybou od serveru."
+            exit 1
+          fi
+
+      # Bez ProGuardu, stejně jako MSI. Podpis zůstává ad hoc (jpackage), bez notarizace.
+      # Jméno s architekturou, ať v příloze releasu nikdo nehádá, pro který Mac je.
+      - name: Build DMG
+        env:
+          TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+        run: |
+          VERSION="${{ needs.version.outputs.version }}"
+          ./gradlew :client:desktopApp:packageDmg -PdesktopVersion="$VERSION"
+          mkdir -p dist
+          mv client/desktopApp/build/compose/binaries/main/dmg/Plume-"$VERSION".dmg dist/Plume-"$VERSION"-macos-arm64.dmg
+          ls -la dist/
+
+      - name: jpackage logs
+        if: failure()
+        run: |
+          for f in client/desktopApp/build/compose/logs/*/*.txt; do
+            [ -s "$f" ] || continue
+            echo "::group::$f"
+            cat "$f"
+            echo "::endgroup::"
+          done
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dmg
+          path: dist/*.dmg
+          retention-days: 1
+          if-no-files-found: error
+
   release:
-    needs: windows
+    needs: [version, windows, macos]
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -136,24 +227,29 @@ jobs:
         with:
           fetch-depth: 0   # celá historie + tagy kvůli changelogu od předchozí verze
 
+      # Bez jména stáhne všechny artefakty běhu (msi a dmg), `merge-multiple` je dá do jedné složky.
       - uses: actions/download-artifact@v8
         with:
-          name: msi
+          merge-multiple: true
           path: dist
 
       - name: Generate changelog
         id: notes
         run: |
           TAG="${GITHUB_REF_NAME}"
-          VERSION="${{ needs.windows.outputs.version }}"
+          VERSION="${{ needs.version.outputs.version }}"
           PREV=$(git tag -l 'desktop-*' --sort=-v:refname | grep -vx "$TAG" | head -1 || true)
           # 0.x = ještě ne stabilní, na stránce releasů jako pre-release
           if [[ "$VERSION" == 0.* ]]; then echo "prerelease=--prerelease" >> "$GITHUB_OUTPUT"; fi
           {
-            echo "**Desktop** ${VERSION} — Windows (MSI)"
+            echo "**Desktop** ${VERSION} — Windows (MSI), macOS 26+ na Apple Silicon (DMG)"
             echo
-            echo "Instalátor není podepsaný: Windows SmartScreen ho při prvním spuštění zastaví, projde se přes"
-            echo "„Další informace\" → „Přesto spustit\". Instaluje se jen pro přihlášeného uživatele, bez oprávnění správce."
+            echo "Balíčky nejsou podepsané:"
+            echo
+            echo "- **Windows**: SmartScreen instalátor při prvním spuštění zastaví, projde se přes"
+            echo "  „Další informace\" → „Přesto spustit\". Instaluje se jen pro přihlášeného uživatele, bez oprávnění správce."
+            echo "- **macOS**: Plume přetáhni do Aplikací. Při prvním otevření ho systém zastaví — v Nastavení systému"
+            echo "  → Soukromí a zabezpečení dole klikni na „Přesto otevřít\"."
             echo
             # Poznámky pro uživatele jen s platformou desktop (`units:` v poznámce, bez něj všechny).
             python3 .github/scripts/release_notes.py markdown "$PREV" "$TAG" desktop
@@ -167,10 +263,10 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           if gh release view "$TAG" > /dev/null 2>&1; then
             # re-run: release už existuje, jen vyměníme MSI a poznámky
-            gh release upload "$TAG" dist/*.msi --clobber
+            gh release upload "$TAG" dist/*.msi dist/*.dmg --clobber
             gh release edit "$TAG" --notes-file release-notes.md
           else
-            gh release create "$TAG" dist/*.msi \
+            gh release create "$TAG" dist/*.msi dist/*.dmg \
               --title "$TAG" \
               --notes-file release-notes.md \
               ${{ steps.notes.outputs.prerelease }}

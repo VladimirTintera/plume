@@ -52,9 +52,9 @@ data class NowPlaying(
 interface MusicQueueControl {
     val nowPlaying: StateFlow<NowPlaying?>
 
-    fun toggle(chatId: Long, messageId: Long, audio: MessageMedia.Audio)
+    fun toggle(chatId: Long, messageId: Long, audio: MessageMedia.Audio, rememberPosition: Boolean = true)
 
-    fun play(chatId: Long, messageId: Long, audio: MessageMedia.Audio, startMs: Long = 0L)
+    fun play(chatId: Long, messageId: Long, audio: MessageMedia.Audio, startMs: Long = 0L, rememberPosition: Boolean = true)
 
     fun stop()
 
@@ -91,6 +91,8 @@ class MusicQueue(
         val track: TrackInfo,
         val neighbors: MusicNeighbors? = null,
         val advancing: Boolean = false,
+        /** Pamatovat pozici (ne v tajném chatu); platí i pro skladby, které po této navážou. */
+        val rememberPosition: Boolean = true,
     )
 
     private val current = MutableStateFlow<Current?>(null)
@@ -135,8 +137,14 @@ class MusicQueue(
         }
     }
 
-    /** Skladba z bubliny nebo ze záložky Hudba: pustí ji, nebo u té vybrané přepne pauzu. */
-    override fun toggle(chatId: Long, messageId: Long, audio: MessageMedia.Audio) {
+    /**
+     * Skladba z bubliny nebo ze záložky Hudba: pustí ji, nebo u té vybrané přepne pauzu.
+     *
+     * Pozice se pamatuje u každé skladby, která má [MessageMedia.Audio.fileKey] — uložit ji ale
+     * přehrávač nechá jen u dlouhé (podcast, přednáška), viz [VoicePlayer]. Tajný chat stopu
+     * nechávat nemá, proto [rememberPosition].
+     */
+    override fun toggle(chatId: Long, messageId: Long, audio: MessageMedia.Audio, rememberPosition: Boolean) {
         val key = VoiceKey(chatId, messageId)
         val playback = player.state.value
         if (playback?.key == key) {
@@ -147,12 +155,12 @@ class MusicQueue(
             }
             return
         }
-        play(key, audio)
+        play(key, audio, rememberPosition = rememberPosition)
     }
 
     /** Pustí skladbu od začátku, nebo od [startMs] (čas v médiu, „1:23"). */
-    override fun play(chatId: Long, messageId: Long, audio: MessageMedia.Audio, startMs: Long) =
-        play(VoiceKey(chatId, messageId), audio, startMs)
+    override fun play(chatId: Long, messageId: Long, audio: MessageMedia.Audio, startMs: Long, rememberPosition: Boolean) =
+        play(VoiceKey(chatId, messageId), audio, startMs, rememberPosition)
 
     fun pause() = player.pause()
 
@@ -174,7 +182,7 @@ class MusicQueue(
         val chatId = current.value?.key?.chatId ?: return
         val previous = current.value?.neighbors?.previous ?: return
         val audio = previous.media as? MessageMedia.Audio ?: return
-        play(VoiceKey(chatId, previous.id), audio)
+        play(VoiceKey(chatId, previous.id), audio, rememberPosition = current.value?.rememberPosition ?: true)
     }
 
     /**
@@ -198,11 +206,11 @@ class MusicQueue(
                 if (finishedKey != null) current.value = null
                 return@launch
             }
-            play(VoiceKey(playing.key.chatId, next.id), audio)
+            play(VoiceKey(playing.key.chatId, next.id), audio, rememberPosition = playing.rememberPosition)
         }
     }
 
-    private fun play(key: VoiceKey, audio: MessageMedia.Audio, startMs: Long = 0L) {
+    private fun play(key: VoiceKey, audio: MessageMedia.Audio, startMs: Long = 0L, rememberPosition: Boolean = true) {
         val track = TrackInfo(
             title = audio.title.ifBlank { audio.fileName },
             performer = audio.performer?.ifBlank { null },
@@ -210,8 +218,14 @@ class MusicQueue(
         )
         // `advancing` přes `player.play`: to napřed zastaví předchozí zvuk a stav je na chvíli
         // prázdný — bez příznaku by ho sběr stavu vzal jako konec hudby.
-        current.value = Current(key, track, advancing = true)
-        player.play(key, music = true, startMs = startMs, onFinished = { skipToNext(finishedKey = key) }) {
+        current.value = Current(key, track, advancing = true, rememberPosition = rememberPosition)
+        player.play(
+            key,
+            music = true,
+            startMs = startMs,
+            resumeKey = audio.fileKey?.takeIf { rememberPosition },
+            onFinished = { skipToNext(finishedKey = key) },
+        ) {
             path(audio.fileId)
         }
         loadDetails(key, audio)
@@ -226,14 +240,14 @@ class MusicQueue(
         detailsJob = scope.launch {
             launch {
                 conversations.musicNeighbors(key.chatId, key.messageId)
-                    .onSuccess { neighbors -> current.update { if (it?.key == key) Current(key, it.track, neighbors) else it } }
+                    .onSuccess { neighbors -> current.update { if (it?.key == key) it.copy(neighbors = neighbors, advancing = false) else it } }
                     .onFailure { logger.w(it) { "Sousední skladby nejde najít." } }
             }
             launch {
                 val cover = audio.coverFileId ?: return@launch
                 val path = withTimeoutOrNull(ARTWORK_TIMEOUT_MS) { runCatching { path(cover) }.getOrNull() } ?: return@launch
                 current.update {
-                    if (it?.key == key) Current(key, it.track.copy(artworkPath = path), it.neighbors) else it
+                    if (it?.key == key) it.copy(track = it.track.copy(artworkPath = path), advancing = false) else it
                 }
             }
         }

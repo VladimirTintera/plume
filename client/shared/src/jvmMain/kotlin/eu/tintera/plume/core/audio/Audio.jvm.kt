@@ -20,6 +20,8 @@ actual class AudioEngine {
 
     actual fun setSpeed(speed: Float) = Unit
 
+    actual fun setSkipSilence(enabled: Boolean) = Unit
+
     actual suspend fun setEarpiece(enabled: Boolean) = Unit
 
     actual val headphonesConnected: Boolean = false
@@ -32,6 +34,9 @@ actual class AudioEngine {
 
     actual fun release() = Unit
 }
+
+/** Zvuk na desktopu není, a s ním ani přeskakování ticha. */
+actual val skipSilenceSupported: Boolean = false
 
 actual class AudioRecorder : MediaCapture {
 

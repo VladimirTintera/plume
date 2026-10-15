@@ -31,6 +31,35 @@ Teď je prázdné.
 - ~~**`isShrinkResources` není zapnuté.**~~ — hotovo (release proklikaný na emulátoru;
   `docs/poznatky/release.md`, „R8").
 
+## Zveřejnění zdrojáků
+
+Rozhodnuto: **jedno veřejné repo i s `CLAUDE.md` a `docs/poznatky`**, žádné soukromé dev repo
+se zrcadlem. Zrcadlo se stejnou historií nejde zbavit souborů (vyřazení přepíše commity) a se
+snímky by se cizí PR i změny z Weblate musely přenášet ručně. Poznatky jsou vývojářská
+dokumentace, ne tajemství. Osobní paměť agenta (`~/.claude/…/memory`) v repu není a nebude.
+
+Postup, až nastane čas (ideálně bez rozpracovaných větví — všechny dostanou nová SHA):
+
+- **Projít celou historii gitleaks** a nálezy přidat do přepisu.
+- **Nové repo s přepsanou historií** (`git filter-repo` nad kopií), ne force-push do
+  stávajícího: GitHub drží `refs/pull/N/head` a staré commity by v něm zůstaly dostupné.
+  Stávající repo zůstane soukromé jako archiv. Přepis:
+  - `--path client/androidApp/google-services.json --invert-paths` (v historii jediný commit).
+    Build bez něj funguje (plugin se aplikuje jen se souborem); release workflow ho dostane ze
+    secretu. Tajemství to není — klíč je v každém APK, chrání ho omezení na balíček a SHA-1
+    v Google Cloud konzoli —, jen do veřejného repa nepatří.
+  - `--replace-text` na osobní údaje i ve starých verzích souborů: telefonní číslo
+    +420 601 234 567 (`nastaveni.md`, `systemova-oznameni.md`), „…029" testovacího účtu
+    (`hledani-a-zakladani-chatu.md`) a co najde gitleaks.
+  - `--mailmap`: e-maily autorů sjednotit na GitHub noreply (dnes i `@magicware.cz` a gmail).
+- **Odkazy na čísla PR** v commitech a poznatcích (#650, #80–#87…) budou v novém repu mířit
+  jinam. Přepsat na odkaz do archivu, nebo nechat jako historické.
+- **Zmínky o mlogu a KMPMlog** v komentářích (odkud je kód převzatý) a název „MGram" výš —
+  rozhodnout, jestli zůstanou.
+- **Po přechodu**: secrets do nového repa (Telegram API, Play, `google-services.json`),
+  `core.hooksPath` a remote na všech strojích, workflow nesmí používat `pull_request_target`
+  (secrets pro cizí PR). Actions jsou ve veřejném repu zdarma, i macOS runnery.
+
 ## Komunitní překlad
 
 Až bude repo veřejné. Volba: **Hosted Weblate, plán Libre** (zdarma pro veřejné projekty
@@ -78,6 +107,12 @@ Android je napřed; tohle je, čím se to dorovnává.
 - **Hlášení pádů.** `NoopCrashReporter`. Implementace musí přijít ze Swiftu — `FirebaseCrashlytics`
   je ObjC knihovna, kterou Kotlin/Native nevidí, a Kotlin výjimka nese jen adresy stack trace.
   Vzor je `IosCrashlyticsLogger` v projektu com.profilog.telemetry.android.
+- **Vydání: nejspíš App Store** (zatím nerozhodnuté, testování přes TestFlight). Chce placený
+  Apple Developer Program (99 USD ročně, odpuštění jen pro neziskovky a školy). Tentýž účet dá
+  i Developer ID a notarizaci pro DMG na macOS. Zvážené a odložené: alternativní obchody v EU
+  (AltStore PAL) chtějí stejný účet i notarizaci, takže nic neušetří; stažení z webu je jen pro
+  vývojáře s milionem instalací. Bez poplatku by šla nepodepsaná IPA instalovaná přes
+  SideStore / AltStore (podpis uživatelovým Apple ID na 7 dní), ovšem bez push notifikací.
 - **Release link do CI jako samostatný cachovaný krok.** Kotlin/Native pouští LTO nad celou
   statickou TDLib a naměřeno je 15+ minut na M-series; do smyčky, kterou čeká vývojář, to nepatří.
 
@@ -108,8 +143,9 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
 - ~~**Vkládání obrázků ze schránky a přetažení souboru do okna**~~ — hotovo
   (`docs/poznatky/desktop.md`, „Vložení ze schránky a přetažení souborů"). Zbývá obrázek
   tažený z prohlížeče (přichází bez souboru).
-- **Release pro macOS a Linux** (Windows MSI už je, `desktop-release.yml`): job na
-  `macos-latest` s Homebrew `openssl@3` (DMG) a na Ubuntu (DEB). macOS chce verzi od 1.0.0.
+- **Release pro Linux a Intel Mac** (Windows MSI a DMG pro Apple Silicon už jsou,
+  `desktop-release.yml`): job na Ubuntu (DEB, glibc 2.38+) a na Intel runneru (`macos-15-intel`,
+  DMG pro macOS 15+). Ani jedno zatím nikdo nezkoušel spustit.
 - **Podpis instalátorů**: Windows (certifikát pro podepisování kódu, jinak SmartScreen),
   macOS podpis Developer ID a notarizace. Bez nich systém instalátor při prvním spuštění zastaví.
 - **Aktualizace desktopu**: aplikace o nové verzi neví; šlo by to přes GitHub Releases API.
@@ -339,8 +375,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - ~~Seznamy vyhozených a omezených členů~~ — hotovo (úprava skupiny → Členové;
   `docs/poznatky/profil-chatu.md`, „Omezení a vyhození"). Zbývá ověřit kanál.
 - ~~Při mazání zprávy člena „smazat vše od něj" a „nahlásit spam"~~ — hotovo i s vyhozením
-  (`docs/poznatky/konverzace-akce.md`, „Smazání cizích zpráv správcem"). Zbývá smazat reakce
-  člena (`deleteAllRecentMessageReactionsFromSender`) a ověřit nahlášení spamu.
+  (`docs/poznatky/konverzace-akce.md`, „Smazání cizích zpráv správcem"). ~~Smazat reakce
+  člena (`deleteAllRecentMessageReactionsFromSender`)~~ — hotovo (tamtéž). Zbývá ověřit
+  nahlášení spamu.
 - ~~Odepnout všechny zprávy (`unpinAllChatMessages`, `unpinAllForumTopicMessages`)~~ — hotovo
   (sheet připnutých → „Odepnout vše"). Zbývá ověřit v tématu skupiny.
 - ~~Smazat skupinu nebo kanál pro všechny (`deleteChat`)~~ — hotovo (konec úpravy skupiny).
@@ -401,8 +438,8 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   efekt od protějšku a „sleduje animaci…" druhým účtem a zvuk emoji (`AnimatedEmoji.sound`).
 - ~~Napovídání hashtagů a nedávných inline botů (`searchHashtags`, `getRecentInlineBots`)~~ —
   hotovo (`docs/poznatky/konverzace-psani.md`, „Napovídání hashtagů a nedávných inline botů").
-  Zbývá odebrat hashtag z historie (`removeRecentHashtag`, podržením v panelu) a ověřit boty
-  ve skupině (před členy).
+  ~~Odebrat hashtag z historie (`removeRecentHashtag`, podržením v panelu)~~ — hotovo (tamtéž).
+  Zbývá ověřit boty ve skupině (před členy).
 - ~~Ankety: smazat možnost (`deletePollOption`)~~ — hotovo i s přidáváním odpovědí ve formuláři
   (`docs/poznatky/ankety.md`). Statistika hlasů (`getPollVoteStatistics`) zbývá — vydá ji jen
   server u větších anket a je to tentýž graf (`StatisticalGraph`) jako statistiky kanálu níž,
@@ -588,12 +625,14 @@ se kterou se musí počítat předem: inferenci pustí AICore jen aplikaci v POP
 ani z úlohy na pozadí tedy nic z toho běžet nemůže — featura, která má vyhodnotit zprávu
 v okamžiku, kdy přijde, narazí na tohle, ne na model.
 
-- **Strukturovaný výstup jako první krok.** Prompt API umí vrátit rovnou instanci Kotlin třídy
-  (`GenerateTypedContentRequest<T>` s `outputClass`, `TypedCandidate<T>.response`), ne text.
-  Tím padá celá třída problémů, se kterou se dnes pereme: `parseReplySuggestions` je tolerantní
-  parser právě proto, že model nedrží formát odrážek. **A každá featura z té silné kategorie
-  na tom stojí** — datum, štítek i skóre chceme jako typ, ne jako větu. Zlepší tedy i to, co už
-  máme, takže má smysl začít tady.
+- ~~**Strukturovaný výstup jako první krok.**~~ — hotovo pro návrhy odpovědí na Gemini Nano
+  (`OnDeviceAi.generateStructured`, ručně psaný `GenerableProvider` bez KSP, náhrada textem;
+  `docs/poznatky/ai-v-zarizeni.md`, „Strukturovaný výstup"). Gemma ho nemá, jde dál textem. Zbývá:
+  - ~~**ověřit na telefonu s Gemini Nano**~~ — ověřeno na Foldu (jede na featuře 648 „Fast Mode
+    (Structured Output)", návrhy nevyšly horší než text; tamtéž). Zbývá porovnat na větším
+    vzorku zpráv,
+  - **další typy**: termín (`EventPrompt`), připomínka, podvod a tón (ano/ne se skóre) a hledání
+    přirozeným jazykem (filtry) — každý = provider, řádek ve services a keep pravidlo.
 - ~~**Detekce podvodných zpráv.**~~ — hotovo: karta „Možný podvod" pod zprávou, předfiltr
   pravidly a posouzení modelem (`docs/poznatky/ai-v-zarizeni.md`, „Varování před podvodem").
   Původní zadání: „Naskenuj tenhle QR a ověř si účet", falešná výhra, odkaz na

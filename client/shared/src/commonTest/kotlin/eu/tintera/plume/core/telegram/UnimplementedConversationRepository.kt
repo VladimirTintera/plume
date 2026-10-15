@@ -120,6 +120,7 @@ open class UnimplementedConversationRepository : ConversationRepository {
     override fun messageSender(chatId: Long) : Flow<Long?> = error("messageSender")
     override suspend fun availableMessageSenders(chatId: Long) : Result<List<MessageSenderOption>> = error("availableMessageSenders")
     override suspend fun setMessageSender(chatId: Long, senderId: Long) : Result<Unit> = error("setMessageSender")
+    override suspend fun removeRecentHashtag(hashtag: String) : Result<Unit> = error("removeRecentHashtag")
     override suspend fun summarizeMessage(chatId: Long, messageId: Long, languageCode: String?) : Result<MessageBody> = error("summarizeMessage")
     override suspend fun translateMessage(chatId: Long, messageId: Long, languageCode: String) : Result<MessageBody> = error("translateMessage")
     override suspend fun sender(senderId: Long) : Result<SenderInfo> = error("sender")
