@@ -3,6 +3,9 @@ package eu.tintera.plume.features.chats
 import kotlinx.datetime.minus
 import kotlinx.datetime.DateTimeUnit
 import co.touchlab.kermit.Logger
+import eu.tintera.plume.core.ai.searchFieldsOf
+import eu.tintera.plume.core.ai.generateAnswer
+import eu.tintera.plume.core.ai.SearchAnswer
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiStatus
 import eu.tintera.plume.core.ai.searchFields
@@ -196,10 +199,14 @@ class NaturalSearchModel(private val ai: OnDeviceAi, private val settings: AppSe
         if (query.isBlank()) return null
         return try {
             withTimeoutOrNull(TIMEOUT_MS) {
-                var last = ""
-                ai.generate(settings.onDeviceAiVariant.value, searchPrompt(query, today)).collect { last = it.text }
-                logger.d { "Model odpověděl: $last" }
-                refineNaturalSearch(naturalSearchFrom(searchFields(last), today, timeZone), query, today, timeZone)
+                val fields = ai.generateAnswer(
+                    settings.onDeviceAiVariant.value,
+                    SearchAnswer::class,
+                    prompt = { structured -> searchPrompt(query, today, structured) },
+                    fromStructured = ::searchFieldsOf,
+                    fromText = ::searchFields,
+                ) ?: return@withTimeoutOrNull null
+                refineNaturalSearch(naturalSearchFrom(fields, today, timeZone), query, today, timeZone)
             }
         } catch (e: CancellationException) {
             throw e

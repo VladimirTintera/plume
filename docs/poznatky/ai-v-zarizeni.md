@@ -581,6 +581,21 @@ odpovědí** (`ReplySuggestionsOutput`); kde ho model nemá, jde všechno dál t
   by se praly se schématem, které ML Kit do promptu přidá sám (`includeSchemaInPrompt`).
   Obsahové pokyny (celá věta, jazyk konverzace, tykání) zůstávají — schéma říká, jak odpověď
   vypadá, ne co v ní má být.
+- **Klasifikace a výtahy jdou přes `generateAnswer`** (`StructuredAnswers.kt`): podvod
+  (`ScamAnswer`), tón (`ToneAnswer`), termín připomínky (`ReminderAnswer`), termín do kalendáře
+  (`EventAnswer`) a hledání přirozeným jazykem (`SearchAnswer`). **Typ zrcadlí řádky textového
+  promptu a typovaná odpověď jde přes TENTÝŽ parser jako text** (`scamVerdictOf` →
+  `parseScamVerdict`, `eventDetailsOf` → společné jádro `eventDetailsFrom` …). Ověření obsahu
+  (místo musí být ve zprávě, termín v budoucnu, verdikt jen jednoznačný) tak zůstává na jednom
+  místě a strukturovaný výstup jistí jen tvar. Výčty (PHISHING/SAFE/UNSURE, PAST/FUTURE…) dostane
+  model jako `enumValues` ve schématu.
+- **„Nevím" není důvod zkoušet text.** U klasifikace je `null` platná odpověď; na text se jde
+  jen při `StructuredOutputException`. Druhý pokus by stál dvojnásob a přebil by opatrnost, kvůli
+  které klasifikace raději mlčí. (U návrhů odpovědí je to jinak: tam prázdno po úklidu text zkusí,
+  protože prázdný seznam nic neznamená.)
+- **Rozhraní `GenerableProvider` se s víc implementacemi nesloučí**, takže v release buildu je
+  soubor `META-INF/services/<rozhraní>` se všemi šesti providery (ověřeno `unzip -p` nad APK),
+  a pole všech typů drží jedno keep pravidlo se seznamem tříd (ověřeno `dexdump`).
 - **Ověřit jde jen na telefonu s Gemini Nano** (emulátor AICore nemá a Gemma typy neumí). Testy
   (`ReplySuggestionsViewModelTest`) hlídají volbu cesty a náhradu textem s podstrčeným modelem.
 - **Ověřeno na Pixelu 11 Pro Foldu** (Android 17, AICore `thirdpartyexperimental`, 15. 10. 2026):

@@ -37,8 +37,10 @@ sealed interface ToneVerdict {
  *   a `UNSURE` je výslovná možnost. Zbytečné varování u věcné zprávy otravuje víc, než pomůže.
  * - Instrukce anglicky ze stejného důvodu jako u [summaryPrompt]; zpráva může být v jakémkoli
  *   jazyce.
+ * - [structured] = odpověď přijde jako [ToneAnswer] (`generateAnswer`); prompt pak o formátu
+ *   mlčí a povolené hodnoty dá modelu schéma.
  */
-fun tonePrompt(text: String): String = buildString {
+fun tonePrompt(text: String, structured: Boolean = false): String = buildString {
     appendLine("The user is about to send the chat message below. Judge how it may come across to the person who reads it.")
     appendLine()
     appendLine("Message:")
@@ -46,7 +48,7 @@ fun tonePrompt(text: String): String = buildString {
     appendLine(text.take(MAX_REWRITE_CHARS))
     appendLine("\"\"\"")
     appendLine()
-    appendLine("Answer with exactly one word:")
+    appendLine(if (structured) "Choose the verdict:" else "Answer with exactly one word:")
     appendLine("FINE - it reads as friendly or neutral")
     appendLine("IRRITATED - it sounds annoyed or angry")
     appendLine("RUDE - it sounds disrespectful, insulting or bossy")
@@ -55,8 +57,8 @@ fun tonePrompt(text: String): String = buildString {
     // nestihnu." jako pasivně agresivní (ověřeno na emulátoru).
     appendLine("These are FINE: asking for something with a deadline, explaining why, saying no, being short or direct.")
     appendLine("Only answer IRRITATED or RUDE when the wording is clearly hostile or insulting.")
-    append("Answer:")
-}
+    if (!structured) append("Answer:")
+}.trimEnd()
 
 /**
  * Verdikt z výstupu modelu, nebo `null` — mlčet. Tolerantní k obalu (tečka, malá písmena),
@@ -74,3 +76,6 @@ fun parseTone(output: String): ToneVerdict? {
 }
 
 private val TONE_WORD = Regex("[A-Z]+")
+
+/** Verdikt ze strukturované odpovědi — týmiž pravidly jako z textu ([parseTone]). */
+fun toneVerdictOf(answer: ToneAnswer): ToneVerdict? = parseTone(answer.verdict.orEmpty())

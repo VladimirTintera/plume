@@ -622,8 +622,9 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
   - ~~**ověřit na telefonu s Gemini Nano**~~ — ověřeno na Foldu (jede na featuře 648 „Fast Mode
     (Structured Output)", návrhy nevyšly horší než text; tamtéž). Zbývá porovnat na větším
     vzorku zpráv,
-  - **další typy**: termín (`EventPrompt`), připomínka, podvod a tón (ano/ne se skóre) a hledání
-    přirozeným jazykem (filtry) — každý = provider, řádek ve services a keep pravidlo.
+  - ~~**další typy**~~ — hotovo: podvod, tón, připomínka, termín do kalendáře a hledání
+    přirozeným jazykem (`generateAnswer`; `docs/poznatky/ai-v-zarizeni.md`, „Strukturovaný
+    výstup"). **Na zařízení ověřené NENÍ** — vývojové telefony Gemini Nano nemají, zbývá Fold.
 - ~~**Detekce podvodných zpráv.**~~ — hotovo: karta „Možný podvod" pod zprávou, předfiltr
   pravidly a posouzení modelem (`docs/poznatky/ai-v-zarizeni.md`, „Varování před podvodem").
   Původní zadání: „Naskenuj tenhle QR a ověř si účet", falešná výhra, odkaz na

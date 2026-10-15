@@ -32,5 +32,10 @@
 # abstraktní a pole zahodí i přes pravidlo (`usage.txt`). Drží se proto i konstruktor — tím je
 # třída „vytvořitelná" a pole zůstane pod svým jménem. Provider samotný pravidlo nepotřebuje:
 # R8 ho drží přes `META-INF/services` a soubor přejmenuje spolu s rozhraním. Nový typ odpovědi
-# = další řádek tady (viz `StructuredOutputProviders.kt`).
--keep class eu.tintera.plume.core.ai.ReplySuggestionsOutput { <init>(...); <fields>; }
+# = další jméno v seznamu (viz `StructuredOutputProviders.kt`).
+-keep class eu.tintera.plume.core.ai.ReplySuggestionsOutput,
+            eu.tintera.plume.core.ai.ScamAnswer,
+            eu.tintera.plume.core.ai.ToneAnswer,
+            eu.tintera.plume.core.ai.ReminderAnswer,
+            eu.tintera.plume.core.ai.EventAnswer,
+            eu.tintera.plume.core.ai.SearchAnswer { <init>(...); <fields>; }

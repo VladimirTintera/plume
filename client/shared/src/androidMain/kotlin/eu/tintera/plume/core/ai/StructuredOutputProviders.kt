@@ -48,3 +48,106 @@ class ReplySuggestionsOutputProvider : GenerableProvider {
         )
     }
 }
+
+/** Textové pole schématu; [values] = povolené hodnoty, které model nesmí opustit. */
+private fun stringField(name: String, description: String, values: List<String>? = null) =
+    GenerableDetail.GuideDetail(
+        name = name,
+        type = String::class,
+        nullable = false,
+        isList = false,
+        listItemType = null,
+        description = description,
+        maxItems = null,
+        minItems = null,
+        maximum = null,
+        minimum = null,
+        enumValues = values?.toTypedArray(),
+    )
+
+/** Tvar [ScamAnswer]: jeden verdikt z výčtu (význam hodnot říká prompt). */
+class ScamAnswerProvider : GenerableProvider {
+    override val targetClass: KClass<*> = ScamAnswer::class
+
+    override fun getGenerableDetail(): GenerableDetail<*> = DETAIL
+
+    private companion object {
+        val DETAIL = GenerableDetail<ScamAnswer>(
+            description = "Verdict on whether the message is a scam",
+            guideDetails = listOf(
+                stringField("verdict", "One verdict as described above", listOf("PHISHING", "PRIZE", "MONEY", "SAFE", "UNSURE")),
+            ),
+        )
+    }
+}
+
+/** Tvar [ToneAnswer]: jeden verdikt z výčtu. */
+class ToneAnswerProvider : GenerableProvider {
+    override val targetClass: KClass<*> = ToneAnswer::class
+
+    override fun getGenerableDetail(): GenerableDetail<*> = DETAIL
+
+    private companion object {
+        val DETAIL = GenerableDetail<ToneAnswer>(
+            description = "How the message may come across to the reader",
+            guideDetails = listOf(
+                stringField("verdict", "One verdict as described above", listOf("FINE", "IRRITATED", "RUDE", "UNSURE")),
+            ),
+        )
+    }
+}
+
+/** Tvar [ReminderAnswer]: okamžik, nebo NONE. */
+class ReminderAnswerProvider : GenerableProvider {
+    override val targetClass: KClass<*> = ReminderAnswer::class
+
+    override fun getGenerableDetail(): GenerableDetail<*> = DETAIL
+
+    private companion object {
+        val DETAIL = GenerableDetail<ReminderAnswer>(
+            description = "The moment the message refers to",
+            guideDetails = listOf(
+                stringField("moment", "The moment as YYYY-MM-DD HH:MM in 24-hour time, or NONE"),
+            ),
+        )
+    }
+}
+
+/** Tvar [EventAnswer]: čas, rozhodnutí, název a místo. */
+class EventAnswerProvider : GenerableProvider {
+    override val targetClass: KClass<*> = EventAnswer::class
+
+    override fun getGenerableDetail(): GenerableDetail<*> = DETAIL
+
+    private companion object {
+        val DETAIL = GenerableDetail<EventAnswer>(
+            description = "Whether the message plans an event for the calendar",
+            guideDetails = listOf(
+                stringField("when", "Whether that time is before (PAST) or after (FUTURE) the message was sent", listOf("PAST", "FUTURE")),
+                stringField("event", "YES if the message plans a meeting, appointment, deadline or event at that time", listOf("YES", "NO")),
+                stringField("title", "A short name for the calendar event in the language of the message, at most 5 words"),
+                stringField("place", "The place or address exactly as written in the message, or NONE"),
+            ),
+        )
+    }
+}
+
+/** Tvar [SearchAnswer]: tytéž pole jako textové řádky. */
+class SearchAnswerProvider : GenerableProvider {
+    override val targetClass: KClass<*> = SearchAnswer::class
+
+    override fun getGenerableDetail(): GenerableDetail<*> = DETAIL
+
+    private companion object {
+        val DETAIL = GenerableDetail<SearchAnswer>(
+            description = "Search filters for a chat app",
+            guideDetails = listOf(
+                stringField("text", "Only the topic words to look for inside the messages, copied as the user wrote them; empty if there is no topic"),
+                stringField("chats", "Which chats to search", listOf("PRIVATE", "GROUPS", "CHANNELS", "ANY")),
+                stringField("content", "Which content to search", listOf("PHOTOS", "VIDEOS", "FILES", "LINKS", "VOICE", "MUSIC", "ANY")),
+                stringField("from", "The first day as YYYY-MM-DD, or NONE"),
+                stringField("to", "The last day as YYYY-MM-DD, or NONE"),
+            ),
+        )
+    }
+}
