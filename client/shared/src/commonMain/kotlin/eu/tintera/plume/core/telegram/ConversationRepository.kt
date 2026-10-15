@@ -228,6 +228,23 @@ interface ConversationRepository {
     suspend fun openContent(chatId: Long, messageId: Long): Result<Unit>
 
     /**
+     * Ťuknutí na animované emoji (`clickAnimatedEmojiMessage`). V soukromém chatu ho TDLib pošle
+     * protějšku, který uvidí tentýž efekt ([emojiInteractions]), a vrátí velkou animaci, která se
+     * přehraje kolem emoji: `fileId` `.tgs`, nebo `null`, když emoji vlastní efekt nemá (404)
+     * a stačí odezva emoji samotného.
+     */
+    suspend fun clickAnimatedEmoji(chatId: Long, messageId: Long): Result<Int?>
+
+    /**
+     * Protějšek ťukl na animované emoji (`updateAnimatedEmojiMessageClicked`). Přehrát se má, jen
+     * když je zpráva vidět, a pak to nahlásit [sendWatchingAnimation].
+     */
+    fun emojiInteractions(chatId: Long): Flow<EmojiInteraction>
+
+    /** Protějšek uvidí „sleduje animaci" (`chatActionWatchingAnimations`) — jeho efekt jsme viděli. */
+    suspend fun sendWatchingAnimation(chatId: Long, emoji: String): Result<Unit>
+
+    /**
      * Požádá server o přepis hlasovky nebo kolečka. Výsledek nevrací — přijde úpravou obsahu
      * zprávy ([editedMessages]): napřed [SpeechTranscript.Pending], pak text nebo chyba.
      * Selhání tady znamená, že server přepis vůbec nepřijal (Premium, zpráva to neumí).
@@ -1939,6 +1956,15 @@ sealed interface MessageReadState {
 const val REACTION_DETAIL_LIMIT = 50
 
 /** Kompletní sada reakcí jedné zprávy, jak dorazila updatem. */
+/**
+ * Protějšek ťukl na animované emoji ve zprávě [messageId]; kolem něj se přehraje velká animace
+ * [animationFileId] (`.tgs`).
+ */
+data class EmojiInteraction(
+    val messageId: Long,
+    val animationFileId: Int,
+)
+
 /**
  * Co se u zprávy mění samo, bez úpravy obsahu: reakce a počty příspěvku. TDLib obojí posílá
  * jedním updatem (`UpdateMessageInteractionInfo`), proto jeden typ.

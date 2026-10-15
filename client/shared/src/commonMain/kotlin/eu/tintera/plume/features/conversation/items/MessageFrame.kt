@@ -99,6 +99,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
@@ -1069,7 +1070,9 @@ internal fun MessageBox(
         label = "emphasis-wave",
     )
     val wavePhase = rememberWavePhase(running = waving)
-    Box(modifier) {
+    // Co z obsahu přesahuje zprávu (efekt animovaného emoji), se kreslí tady, mimo ořez obsahu.
+    val overlay = remember { MessageOverlay() }
+    Box(modifier.onPlaced(overlay::hostPlaced)) {
         Box(
             Modifier
                 .padding(bottom = overhang.coerceAtLeast(0.dp))
@@ -1105,7 +1108,10 @@ internal fun MessageBox(
         ) {
             // Bez bubliny se kreslí na plochu konverzace, takže výchozí barva popředí patří
             // k NÍ. Bublina (`Bubble`) si ji přepíše svou.
-            CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+            CompositionLocalProvider(
+                LocalContentColor provides MaterialTheme.colorScheme.onSurface,
+                LocalMessageOverlay provides overlay,
+            ) {
                 bodyScope.body()
             }
         }
@@ -1134,6 +1140,9 @@ internal fun MessageBox(
         )
 
         extra()
+
+        // Nad vším ostatním ve zprávě, i nad čipy reakcí — efekt letí přes ně.
+        overlay.Content()
     }
 }
 
@@ -1662,6 +1671,8 @@ internal fun MessageBodyScope.Attachment(
         ),
         transcript = (media as? MessageMedia.VoiceNote)?.let { rememberTranscript(it.transcript, it.durationSeconds) },
         onAction = { action -> act(action) },
+        emojiBursts = items.emojiBursts(),
+        isOutgoing = message.isOutgoing,
     )
 }
 

@@ -98,6 +98,8 @@ import dev.g000sha256.tdl.dto.ButtonStyleDanger
 import dev.g000sha256.tdl.dto.CallbackQueryPayloadData
 import dev.g000sha256.tdl.dto.ChatActionCancel
 import dev.g000sha256.tdl.dto.ChatActionTyping
+import dev.g000sha256.tdl.dto.ChatActionWatchingAnimations
+import dev.g000sha256.tdl.dto.StickerFormatTgs
 import dev.g000sha256.tdl.dto.BotCommands
 import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypePrivate
@@ -445,6 +447,29 @@ class TdlConversationRepository(
 
     override suspend fun recognizeSpeech(chatId: Long, messageId: Long): Result<Unit> =
         client.recognizeSpeech(chatId = chatId, messageId = messageId).toResult().map { }
+
+    override suspend fun clickAnimatedEmoji(chatId: Long, messageId: Long): Result<Int?> =
+        client.clickAnimatedEmojiMessage(chatId = chatId, messageId = messageId)
+            .toResult()
+            // Jiný formát než `.tgs` přehrát neumíme; emoji pak odpoví jen samo, jako bez efektu.
+            .map { sticker -> sticker.takeIf { it.format is StickerFormatTgs }?.sticker?.id }
+            // 404 = emoji vlastní efekt nemá, není to chyba.
+            .recoverCatching { failure -> if (failure is TdlThrowable && failure.code == NOT_FOUND) null else throw failure }
+
+    override fun emojiInteractions(chatId: Long): Flow<EmojiInteraction> =
+        holder.updates { animatedEmojiMessageClickedUpdates }
+            .filter { it.chatId == chatId && it.sticker.format is StickerFormatTgs }
+            .map { EmojiInteraction(messageId = it.messageId, animationFileId = it.sticker.sticker.id) }
+
+    override suspend fun sendWatchingAnimation(chatId: Long, emoji: String): Result<Unit> =
+        client.sendChatAction(
+            chatId = chatId,
+            topicId = topic,
+            businessConnectionId = "",
+            action = ChatActionWatchingAnimations(emoji = emoji),
+        )
+            .toResult()
+            .map { }
 
     override fun editedMessages(chatId: Long): Flow<ChatMessage> =
         merge(

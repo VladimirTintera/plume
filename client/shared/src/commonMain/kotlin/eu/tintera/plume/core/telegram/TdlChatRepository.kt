@@ -85,6 +85,7 @@ import dev.g000sha256.tdl.dto.ChatTypeBasicGroup
 import dev.g000sha256.tdl.dto.ChatTypePrivate
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.ChatAction
+import dev.g000sha256.tdl.dto.ChatActionWatchingAnimations
 import dev.g000sha256.tdl.dto.ChatActionCancel
 import dev.g000sha256.tdl.dto.ChatActionChoosingSticker
 import dev.g000sha256.tdl.dto.ChatActionRecordingVideo
@@ -1938,6 +1939,7 @@ internal fun ChatAction.toActivity(): ChatActivity? = when (this) {
     is ChatActionUploadingVideo, is ChatActionUploadingVideoNote -> ChatActivity.SendingVideo
     is ChatActionUploadingDocument, is ChatActionUploadingVoiceNote -> ChatActivity.SendingFile
     is ChatActionChoosingSticker -> ChatActivity.ChoosingSticker
+    is ChatActionWatchingAnimations -> ChatActivity.WatchingAnimation
     else -> ChatActivity.Other
 }
 

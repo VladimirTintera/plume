@@ -389,8 +389,10 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   „Úprava zprávy"). Zbývá GIF a výměna z vestavěné galerie (dnes systémový výběr).
 - ~~Hudba se posílá jako soubor~~ — hotovo (`docs/poznatky/konverzace-psani.md`, „Posílání příloh
   a alb"). Zbývá desktop (JVM značky MP3 nepřečte) a ověřit iOS na zařízení.
-- Ťuknutí na velké animované emoji s efektem pro oba (`clickAnimatedEmojiMessage`,
-  `animatedEmojiMessageClickedUpdates`).
+- ~~Ťuknutí na velké animované emoji s efektem pro oba (`clickAnimatedEmojiMessage`,
+  `animatedEmojiMessageClickedUpdates`)~~ — hotovo i s hmatovým tepem
+  (`docs/poznatky/emoji-samolepky-reakce.md`, „Efekt animovaného emoji pro oba"). Zbývá ověřit
+  efekt od protějšku a „sleduje animaci…" druhým účtem a zvuk emoji (`AnimatedEmoji.sound`).
 - Napovídání hashtagů a nedávných inline botů (`searchHashtags`, `getRecentInlineBots`).
 - ~~Ankety: smazat možnost (`deletePollOption`)~~ — hotovo i s přidáváním odpovědí ve formuláři
   (`docs/poznatky/ankety.md`). Statistika hlasů (`getPollVoteStatistics`) zbývá — vydá ji jen

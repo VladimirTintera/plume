@@ -210,6 +210,41 @@ tolerance jako hod kostkou) nebo je NEPŘEČTENÁ, a znovu po ťuknutí na znač
   vylétají konfety doleva do volného pruhu (zrcadlení sedí). **Neověřeno**: efekt prémiové
   samolepky (testovací účet Premium nemá) a iOS (jen přeložené).
 
+### Efekt animovaného emoji pro oba
+
+Ťuknutí na animované emoji (`MessageMedia.AnimatedEmoji`) přehraje kolem něj velký efekt
+a v soukromém chatu ho uvidí i protějšek; jeho ťuknutí se zase přehraje u nás. Část ViewModelu
+`ConversationEmojiBursts` (testy `ConversationEmojiBurstsTest`), kreslení `AnimatedEmojiImage`
+v `items/AnimatedEmoji.kt`.
+
+- **Posílá TDLib sám**: `clickAnimatedEmojiMessage` interakci odešle protějšku a vrátí samolepku
+  efektu; 404 znamená, že emoji efekt nemá (pak jen poskočí). Protějškovo ťuknutí chodí jako
+  `updateAnimatedEmojiMessageClicked` a má se přehrát, JEN když je zpráva vidět — a pak poslat
+  `chatActionWatchingAnimations` s emoji. Protějšek to vidí jako „sleduje animaci…"
+  (`ChatActivity.WatchingAnimation`), u nás totéž, když sleduje on.
+- **Efekt čeká na zprávu jen chvíli** (`FRESH_MILLIS`, 1,5 s): vyzvedne si ho položka na
+  obrazovce (`EmojiBursts.shown`) a teprve tím se hlásí „sleduje". Zpráva mimo obrazovku ho
+  nevyzvedne, a na kterou se odscrolluje až potom, ta už nevybuchne — efekt patří k okamžiku
+  ťuknutí. Nové ťuknutí nahradí starší (`run` složí animaci znovu).
+- **Odezva gesta je hned, efekt až s odpovědí TDLib**: emoji při ťuknutí poskočí a ozve se tep
+  (`pulse()`, viz „Haptika" v CLAUDE.md); samolepka efektu se napoprvé stahuje, takže první
+  efekt může přijít se zpožděním (na emulátoru se první ťuknutí nestihlo zachytit vůbec).
+- **Efekt od protějšku tepe taky** — vědomá výjimka z pravidla, že cizí akce nevibruje: je to
+  gesto člověka mířené na nás, přehrané před očima, a hmatová ozvěna je jeho půlka.
+- **Plátno je 3× emoji, emoji leží u kraje** (jako v Telegram Desktop): u odchozí zprávy pravým
+  krajem, výbuch letí doleva; u příchozí levým a zrcadlí se. Ověřeno: srdce z odchozí zprávy
+  rozletí srdíčka doleva přes starší zprávy.
+- **Obsah zprávy je ořezaný obrysem i bez bubliny** (`graphicsLayer { clip = true }` v `MessageBox`)
+  a efekt nakreslený na místě se uřízl na hranici zprávy (první pokus na emulátoru). Kreslí se
+  proto do `MessageOverlay` — vrstvy rámu mimo ořez, kam obsah předá kresbu a kotvu (střed emoji
+  v souřadnicích rámu, `localPositionOf`). Kotva se počítá až při přehrání: pořadí `onPlaced`
+  rámu a emoji zaručené není. Položka se po dobu efektu zvedne (`LocalRaiseItem`).
+- **Kopie v nabídce na ťuknutí nereaguje** (`InertItemScope.emojiBursts() = null`).
+- **Ověřeno na emulátoru** v chatu s testovacím botem (❤️ přes sdílení): poskočení, efekt mimo
+  ořez, tep (`dumpsys vibrator_manager`: dva `constant=0` 142 ms po sobě). **Neověřeno**: efekt
+  od protějšku a „sleduje animaci…" — bot interakci poslat neumí, chce to druhý účet. iOS jen
+  přeložené.
+
 ### Vlastní emoji v textu
 
 Vlastní emoji (`TextEntityTypeCustomEmoji`) je samolepka, která v textu stojí místo náhradního

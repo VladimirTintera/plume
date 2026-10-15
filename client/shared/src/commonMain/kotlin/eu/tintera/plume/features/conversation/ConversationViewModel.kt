@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.features.conversation.items.EmojiBurst
 import kotlinx.coroutines.flow.filterNotNull
 import eu.tintera.plume.core.speech.SpeechToText
 import eu.tintera.plume.core.ai.ScamKind
@@ -709,6 +710,18 @@ class ConversationViewModel(
     )
     fun filterReactionDetails(emoji: String?) = reactions.filterReactionDetails(emoji)
     fun dismissReactionDetails() = reactions.dismissReactionDetails()
+
+    /** Efekty animovaných emoji, které vidí obě strany — viz [ConversationEmojiBursts]. */
+    private val emojiBurstsPart: ConversationEmojiBursts = ConversationEmojiBursts(
+        chatId = chatId,
+        state = _state,
+        scope = viewModelScope,
+        repository = repository,
+        logger = logger,
+    )
+    internal val emojiBursts: StateFlow<Map<Long, EmojiBurst>> get() = emojiBurstsPart.bursts
+    internal fun tapAnimatedEmoji(messageId: Long) = emojiBurstsPart.tap(messageId)
+    internal fun emojiBurstShown(burst: EmojiBurst) = emojiBurstsPart.shown(burst)
 
     /** Akce se zprávou: připnutí, smazání, přeposlání, připomínka, nahlášení — viz [ConversationMessageActions]. */
     private val messageActions: ConversationMessageActions = ConversationMessageActions(

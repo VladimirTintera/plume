@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.features.conversation.items.EmojiBursts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.Role
@@ -679,6 +680,9 @@ private class InertItemScope(scope: ConversationItemScope) : ConversationItemSco
     override fun videoNoteSounding(messageId: Long): Boolean = false
 
     override fun soundingVideoNote(messageId: Long): SoundingVideoNote? = null
+
+    // Ťuknutí na emoji v kopii efekt neposílá (akce kopie nikam nevedou) a efekt vybuchne v seznamu.
+    override fun emojiBursts(): EmojiBursts? = null
 }
 
 /**

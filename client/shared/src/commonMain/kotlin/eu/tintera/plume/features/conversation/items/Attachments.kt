@@ -140,6 +140,10 @@ internal fun MessageAttachment(
     transcript: TranscriptState? = null,
     /** Akce z karty s vlastními prvky (soutěž: kanály, výherci, podrobnosti). */
     onAction: (MessageAction) -> Unit = {},
+    /** Efekty animovaného emoji, které vidí obě strany; `null` = emoji na ťuknutí nereaguje. */
+    emojiBursts: EmojiBursts? = null,
+    /** Odchozí zpráva — efekt animovaného emoji letí od ní na druhou stranu. */
+    isOutgoing: Boolean = false,
 ) {
     val shape = RoundedCornerShape(12.dp)
     // Náhled souboru zůstává malý čtvereček bez ohledu na tvar bubliny — velké zaoblení bubliny
@@ -300,7 +304,13 @@ internal fun MessageAttachment(
                 onLongClick = onRequestMenu,
             ),
         )
-        is MessageMedia.AnimatedEmoji -> AnimatedEmojiImage(media)
+        is MessageMedia.AnimatedEmoji -> AnimatedEmojiImage(
+            emoji = media,
+            messageId = messageId,
+            bursts = emojiBursts,
+            isOutgoing = isOutgoing,
+            onRequestMenu = onRequestMenu,
+        )
         is MessageMedia.Dice -> DiceImage(media, throwNow = diceThrow, celebrate = diceCelebrate, seed = messageId)
         is MessageMedia.Location -> LocationMap(
             location = media,
@@ -564,25 +574,6 @@ private fun StickerImage(
             Box(size.then(blur)) { still() }
         }
     }
-}
-
-/**
- * Animované emoji.
- *
- * Než se animace načte (a když se načíst nepodaří), stojí na jejím místě tentýž znak velkým písmem,
- * jak se emoji kreslilo dřív — přechod na animaci je tak výměna obrázku za obrázek, ne naskočení
- * z prázdna. Velikost místa je pevná, aby se bublina při výměně nepřeskládala.
- */
-@Composable
-private fun AnimatedEmojiImage(emoji: MessageMedia.AnimatedEmoji) {
-    AnimatedSticker(
-        fileId = emoji.animationFileId,
-        contentDescription = emoji.emoji,
-        modifier = Modifier.size(ANIMATED_EMOJI_SIZE),
-        placeholder = {
-            Text(text = emoji.emoji, style = MaterialTheme.typography.displayLarge)
-        },
-    )
 }
 
 /**
@@ -1025,7 +1016,6 @@ private val UPLOAD_INDICATOR_SIZE = 48.dp
  * Animované emoji. Menší než samolepka — je to pořád „jedno emoji", ne obrázek — ale větší než
  * znak v `displayLarge`, protože animace má kolem kresby vlastní vzduch.
  */
-private val ANIMATED_EMOJI_SIZE = 112.dp
 
 /** Hod je samolepka od Telegramu a kreslí se stejně velký jako ona. */
 private val DICE_SIZE = 160.dp

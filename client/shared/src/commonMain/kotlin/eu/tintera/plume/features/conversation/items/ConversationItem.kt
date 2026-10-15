@@ -182,6 +182,12 @@ internal interface ConversationItemScope {
      */
     fun unreadBoundary(): Long? = null
 
+    /**
+     * Efekty animovaných emoji, které vidí obě strany (ťuknutí, efekt od protějšku); `null` =
+     * emoji na ťuknutí nereaguje — kopie v nabídce nad zprávou, kde se nic neposílá.
+     */
+    fun emojiBursts(): EmojiBursts? = null
+
     /** Jediná cesta akcí ze zprávy ven (viz [MessageAction]). */
     fun onAction(messageId: Long, action: MessageAction)
 
