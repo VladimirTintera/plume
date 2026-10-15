@@ -31,6 +31,35 @@ Teď je prázdné.
 - ~~**`isShrinkResources` není zapnuté.**~~ — hotovo (release proklikaný na emulátoru;
   `docs/poznatky/release.md`, „R8").
 
+## Zveřejnění zdrojáků
+
+Rozhodnuto: **jedno veřejné repo i s `CLAUDE.md` a `docs/poznatky`**, žádné soukromé dev repo
+se zrcadlem. Zrcadlo se stejnou historií nejde zbavit souborů (vyřazení přepíše commity) a se
+snímky by se cizí PR i změny z Weblate musely přenášet ručně. Poznatky jsou vývojářská
+dokumentace, ne tajemství. Osobní paměť agenta (`~/.claude/…/memory`) v repu není a nebude.
+
+Postup, až nastane čas (ideálně bez rozpracovaných větví — všechny dostanou nová SHA):
+
+- **Projít celou historii gitleaks** a nálezy přidat do přepisu.
+- **Nové repo s přepsanou historií** (`git filter-repo` nad kopií), ne force-push do
+  stávajícího: GitHub drží `refs/pull/N/head` a staré commity by v něm zůstaly dostupné.
+  Stávající repo zůstane soukromé jako archiv. Přepis:
+  - `--path client/androidApp/google-services.json --invert-paths` (v historii jediný commit).
+    Build bez něj funguje (plugin se aplikuje jen se souborem); release workflow ho dostane ze
+    secretu. Tajemství to není — klíč je v každém APK, chrání ho omezení na balíček a SHA-1
+    v Google Cloud konzoli —, jen do veřejného repa nepatří.
+  - `--replace-text` na osobní údaje i ve starých verzích souborů: telefonní číslo
+    +420 601 234 567 (`nastaveni.md`, `systemova-oznameni.md`), „…029" testovacího účtu
+    (`hledani-a-zakladani-chatu.md`) a co najde gitleaks.
+  - `--mailmap`: e-maily autorů sjednotit na GitHub noreply (dnes i `@magicware.cz` a gmail).
+- **Odkazy na čísla PR** v commitech a poznatcích (#650, #80–#87…) budou v novém repu mířit
+  jinam. Přepsat na odkaz do archivu, nebo nechat jako historické.
+- **Zmínky o mlogu a KMPMlog** v komentářích (odkud je kód převzatý) a název „MGram" výš —
+  rozhodnout, jestli zůstanou.
+- **Po přechodu**: secrets do nového repa (Telegram API, Play, `google-services.json`),
+  `core.hooksPath` a remote na všech strojích, workflow nesmí používat `pull_request_target`
+  (secrets pro cizí PR). Actions jsou ve veřejném repu zdarma, i macOS runnery.
+
 ## Komunitní překlad
 
 Až bude repo veřejné. Volba: **Hosted Weblate, plán Libre** (zdarma pro veřejné projekty
