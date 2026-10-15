@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.rememberScrollState
+import eu.tintera.plume.core.ui.wheelScrollsHorizontally
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -188,11 +190,13 @@ internal fun EmojiPanel(
         pageCount = { EMOJI_GROUPS.size + 1 + customPages },
     )
 
+    val tabScroll = rememberScrollState()
     PrimaryScrollableTabRow(
         selectedTabIndex = pagerState.currentPage,
+        scrollState = tabScroll,
         edgePadding = 8.dp,
         containerColor = Color.Transparent,
-        modifier = Modifier.height(STICKER_TAB_ROW_HEIGHT),
+        modifier = Modifier.height(STICKER_TAB_ROW_HEIGHT).wheelScrollsHorizontally(tabScroll),
     ) {
         Tab(
             selected = pagerState.currentPage == 0,

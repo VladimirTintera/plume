@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import eu.tintera.plume.core.ui.wheelScrollsHorizontally
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -828,12 +831,14 @@ private fun StickerTabsPager(
             .collect(viewModel::rememberTab)
     }
 
+        val tabScroll = rememberScrollState()
         PrimaryScrollableTabRow(
             // `currentPage` se přepne v půlce swipu, takže indikátor jde s prstem, ne až po dojetí.
             selectedTabIndex = pagerState.currentPage.coerceIn(0, state.tabs.lastIndex),
+            scrollState = tabScroll,
             edgePadding = 8.dp,
             containerColor = Color.Transparent,
-            modifier = Modifier.height(STICKER_TAB_ROW_HEIGHT),
+            modifier = Modifier.height(STICKER_TAB_ROW_HEIGHT).wheelScrollsHorizontally(tabScroll),
         ) {
             state.tabs.forEachIndexed { index, tab ->
                 Tab(
@@ -1448,10 +1453,12 @@ private fun StickerCategoryRow(
         exit = shrinkVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) +
             fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
     ) {
+        val categoryRow = rememberLazyListState()
         LazyRow(
+            state = categoryRow,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(horizontal = 16.dp),
-            modifier = Modifier.fillMaxWidth().height(CATEGORY_ROW_HEIGHT),
+            modifier = Modifier.fillMaxWidth().height(CATEGORY_ROW_HEIGHT).wheelScrollsHorizontally(categoryRow),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             items(categories, key = { it.name }) { category ->

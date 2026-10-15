@@ -154,7 +154,8 @@ testy `ChatFolderTabsTest`). Bez složek se lišta nekreslí vůbec (viz „Slo�
     ořízne — jinak by lišta i s FAB přetekla za okraj a FAB by zmizel z obrazovky. Na tu šířku
     se položky i ořezávají (`widthIn`) a posouvají se VLASTNÍM `horizontalScroll`, ne tím
     v M3 — viz kolečko níž.
-- **Svislé kolečko myši nad lištou ji posouvá do strany** (`wheelScrollsHorizontally`). Na
+- **Svislé kolečko myši nad lištou ji posouvá do strany** (`wheelScrollsHorizontally`, sdílený
+  v `core/ui/WheelScroll.kt`, viz „Kolečko u vodorovných řad" v `desktop.md`). Na
   desktopu je seznam chatů úzký (panel 360 dp, na složky vedle FAB zbývá ~250 dp), takže
   složky za okraj přetékají běžně — a myší se k nim nedalo dostat:
   - **Compose u vodorovného posunu svislé kolečko ZAHODÍ** (`toSingleAxisDeltaFromAngle` vrátí

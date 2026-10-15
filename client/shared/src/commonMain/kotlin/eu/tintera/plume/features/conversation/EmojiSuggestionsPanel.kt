@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.lazy.rememberLazyListState
+import eu.tintera.plume.core.ui.wheelScrollsHorizontally
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,7 +50,10 @@ internal fun EmojiSuggestionsPanel(
         // Vyroste z rohu u pole, kde se píše.
         origin = TransformOrigin(0f, 1f),
     ) {
+        val rowState = rememberLazyListState()
         LazyRow(
+            state = rowState,
+            modifier = Modifier.wheelScrollsHorizontally(rowState),
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {

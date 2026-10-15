@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.horizontalScrollWithWheel
 import eu.tintera.plume.resources.unfold_less_24dp
 import eu.tintera.plume.resources.format_quote_expandable
 import eu.tintera.plume.resources.format_code_language_hint
@@ -28,11 +29,9 @@ import eu.tintera.plume.resources.format_link_hint
 import eu.tintera.plume.resources.format_link_remove
 import eu.tintera.plume.resources.format_link_save
 import eu.tintera.plume.resources.link_24dp
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -100,7 +99,7 @@ internal fun FormattingBar(
 ) {
     val haptics = LocalHapticFeedback.current
     Row(
-        modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp),
+        modifier.fillMaxWidth().horizontalScrollWithWheel().padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Odkaz hned za písmem: na úzkém displeji se řada posouvá, a odkaz se hledá častěji
