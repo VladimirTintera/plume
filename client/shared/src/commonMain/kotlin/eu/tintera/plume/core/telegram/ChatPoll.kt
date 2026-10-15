@@ -89,6 +89,16 @@ data class PollAnswer(
     val isBeingChosen: Boolean = false,
     /** Příloha odpovědi — v řádku malý náhled. */
     val media: PollAttachment? = null,
+    /**
+     * Jedinečné id odpovědi (TDLib 15 `PollOption.id`); prázdné, dokud ho server nepřidělí.
+     * Bere ho mazání odpovědi — hlasuje se dál [index].
+     */
+    val id: String = "",
+    /**
+     * Smí uživatel odpověď smazat (`PollOptionProperties.canBeDeleted`). Dohledává ho repository
+     * (offline dotaz), `toChatPoll` ho nechává `false`.
+     */
+    val canDelete: Boolean = false,
 )
 
 /**

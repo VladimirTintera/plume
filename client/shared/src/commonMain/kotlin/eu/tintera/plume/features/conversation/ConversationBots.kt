@@ -35,6 +35,7 @@ import eu.tintera.plume.resources.conversation_send_failed
 import eu.tintera.plume.resources.poll_add_option_failed
 import eu.tintera.plume.resources.poll_retract_failed
 import eu.tintera.plume.resources.poll_stop_failed
+import eu.tintera.plume.resources.poll_delete_option_failed
 import eu.tintera.plume.resources.poll_vote_failed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -216,6 +217,37 @@ internal class ConversationBots(
                 state.update { it.copy(error = message) }
             }
         }
+    }
+
+    /**
+     * „Smazat odpověď" z nabídky: odpověď pod prstem ([MessageMenu.pressedPollOptionId]) čeká
+     * na potvrzení. Text si dialog vezme hned, ať se odpověď pojmenuje, i kdyby se anketa mezitím
+     * změnila.
+     */
+    fun requestDeletePollOption(messageId: Long) {
+        val optionId = state.value.messageMenu?.takeIf { it.messageId == messageId }?.pressedPollOptionId
+        val answer = state.value.messages.firstOrNull { it.id == messageId }?.poll?.options?.firstOrNull { it.id == optionId }
+        state.update {
+            it.copy(
+                messageMenu = null,
+                pendingDeletePollOption = answer?.let { a -> PendingPollOptionDelete(messageId, a.id, a.text) },
+            )
+        }
+    }
+
+    /** Smazaná odpověď zmizí sama — TDLib změní obsah zprávy, jako po přidání odpovědi. */
+    fun confirmDeletePollOption() {
+        val pending = state.value.pendingDeletePollOption ?: return
+        state.update { it.copy(pendingDeletePollOption = null) }
+        scope.launch {
+            repository.deletePollOption(chatId, pending.messageId, pending.optionId).onFailure { failure ->
+                state.update { it.copy(error = failure.reported(logger, Res.string.poll_delete_option_failed)) }
+            }
+        }
+    }
+
+    fun cancelDeletePollOption() {
+        state.update { it.copy(pendingDeletePollOption = null) }
     }
 
     fun cancelStopPoll() {

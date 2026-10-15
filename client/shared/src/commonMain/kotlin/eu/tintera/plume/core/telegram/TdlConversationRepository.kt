@@ -2469,10 +2469,15 @@ class TdlConversationRepository(
                 markup.toBotKeyboard(inlineBot?.let { botUsername(it) })
             },
             poll = (content as? MessagePoll)?.let { poll ->
-                poll.toChatPoll().copy(
-                    recentVoters = poll.poll.recentVoterIds.take(MAX_RECENT_VOTERS)
-                        .mapNotNull { resolveSender(it.plainId()) },
-                )
+                poll.toChatPoll().let { chatPoll ->
+                    chatPoll.copy(
+                        recentVoters = poll.poll.recentVoterIds.take(MAX_RECENT_VOTERS)
+                            .mapNotNull { resolveSender(it.plainId()) },
+                        options = if (chatPoll.isClosed) chatPoll.options else chatPoll.options.map { answer ->
+                            answer.copy(canDelete = pollOptionDeletable(chatId, id, answer.id))
+                        },
+                    )
+                }
             },
             checklist = (content as? MessageChecklist)?.toChatChecklist()?.let { checklist ->
                 checklist.copy(
@@ -2712,6 +2717,19 @@ class TdlConversationRepository(
         logger.d { "Meze ankety od serveru: $limits" }
         return limits
     }
+
+    /**
+     * Smí uživatel odpověď smazat? `getPollOptionProperties` je offline dotaz, takže se ptá
+     * u každé odpovědi otevřené ankety při převodu zprávy. Odpověď bez id (server ho ještě
+     * nepřidělil) smazat nejde.
+     */
+    private suspend fun pollOptionDeletable(chatId: Long, messageId: Long, optionId: String): Boolean =
+        optionId.isNotEmpty() &&
+            client.getPollOptionProperties(chatId = chatId, messageId = messageId, pollOptionId = optionId)
+                .toResult().getOrNull()?.canBeDeleted == true
+
+    override suspend fun deletePollOption(chatId: Long, messageId: Long, optionId: String): Result<Unit> =
+        client.deletePollOption(chatId = chatId, messageId = messageId, optionId = optionId).toResult().map { }
 
     override suspend fun stopPoll(chatId: Long, messageId: Long): Result<Unit> =
         client.stopPoll(chatId = chatId, messageId = messageId, replyMarkup = null).toResult().map { }

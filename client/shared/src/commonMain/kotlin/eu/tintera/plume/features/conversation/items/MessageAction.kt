@@ -57,6 +57,7 @@ import eu.tintera.plume.resources.menu_copy
 import eu.tintera.plume.resources.undo_24dp
 import eu.tintera.plume.resources.stop_circle_24dp
 import eu.tintera.plume.resources.menu_poll_stop
+import eu.tintera.plume.resources.menu_poll_delete_option
 import eu.tintera.plume.resources.menu_poll_retract
 import eu.tintera.plume.resources.menu_delete
 import eu.tintera.plume.resources.menu_edit
@@ -103,7 +104,12 @@ sealed interface MessageAction {
      * [pressed] je zpráva pod prstem, když se liší od bloku: fotka uprostřed alba. Odpověď míří
      * na ni (viz [MessageMenu.replyTarget]), zbytek nabídky na celý blok.
      */
-    data class ShowMenu(val items: List<MessageMenuAction>, val pressed: Long? = null) : MessageAction
+    data class ShowMenu(
+        val items: List<MessageMenuAction>,
+        val pressed: Long? = null,
+        /** Odpověď ankety pod prstem ([eu.tintera.plume.core.telegram.PollAnswer.id]) — nabídka pak umí smazat ji. */
+        val pollOptionId: String? = null,
+    ) : MessageAction
 
     /** Zavřít nabídku (zpět, ťuknutí mimo). */
     data object CloseMenu : MessageAction
@@ -376,6 +382,17 @@ sealed interface MessageMenuAction : MessageAction {
     data object EditChecklist : MessageMenuAction {
         override fun presentation(menu: MessageMenu) =
             MenuPresentation(Res.drawable.edit_24dp, Res.string.menu_edit).takeIf { menu.actions.canEdit }
+    }
+
+    /**
+     * Smazat odpověď ankety, na které uživatel podržel. Kandidát u ankety, kde nějakou odpověď
+     * smazat jde; ukáže se jen tehdy, když stisk byl NA té odpovědi ([MessageMenu.pressedPollOptionId]).
+     * Nevratné, takže s potvrzením a barvou chyby.
+     */
+    data object DeletePollOption : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) =
+            MenuPresentation(Res.drawable.delete_24dp, Res.string.menu_poll_delete_option, destructive = true)
+                .takeIf { menu.pressedPollOptionId != null }
     }
 
     /** Kandidát jen tam, kde vstupní pole text nebo popisek upraví bez ztráty formátování. */

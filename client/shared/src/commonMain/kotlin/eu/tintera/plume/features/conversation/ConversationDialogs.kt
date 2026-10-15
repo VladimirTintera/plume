@@ -401,6 +401,10 @@ internal fun ConversationDialogs(
         StopPollDialog(onConfirm = viewModel::confirmStopPoll, onDismiss = viewModel::cancelStopPoll)
     }
 
+    state.pendingDeletePollOption?.let { pending ->
+        DeletePollOptionDialog(text = pending.text, onConfirm = viewModel::confirmDeletePollOption, onDismiss = viewModel::cancelDeletePollOption)
+    }
+
 
     state.pendingPin?.let { pending ->
         PinMessageDialog(

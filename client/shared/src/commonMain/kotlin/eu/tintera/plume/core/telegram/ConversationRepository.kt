@@ -189,6 +189,12 @@ interface ConversationRepository {
     /** Meze nového seznamu úkolů od serveru. */
     suspend fun checklistLimits(): ChecklistLimits
 
+    /**
+     * Smaže odpověď z ankety ([PollAnswer.canDelete], id [PollAnswer.id]). Bez odpovědi přijde
+     * úprava obsahu zprávy, jako po přidání.
+     */
+    suspend fun deletePollOption(chatId: Long, messageId: Long, optionId: String): Result<Unit>
+
     /** Kdo hlasoval pro odpověď s [answerIndex] (v původním pořadí). */
     suspend fun pollVoters(chatId: Long, messageId: Long, answerIndex: Int, offset: Int): Result<PollVotersPage>
 

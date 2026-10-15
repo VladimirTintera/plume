@@ -3253,4 +3253,9 @@
         <item quantity="one">You added %1$d task to the checklist</item>
         <item quantity="other">You added %1$d tasks to the checklist</item>
     </plurals>
+    <string name="menu_poll_delete_option">Delete answer</string>
+    <string name="poll_delete_option_title">Delete answer?</string>
+    <string name="poll_delete_option_text">“%1$s” will be removed from the poll together with its votes.</string>
+    <string name="poll_delete_option_confirm">Delete</string>
+    <string name="poll_delete_option_failed">Couldn't delete the answer.</string>
 </resources>

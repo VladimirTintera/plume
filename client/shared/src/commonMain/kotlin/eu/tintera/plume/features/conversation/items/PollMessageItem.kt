@@ -309,7 +309,7 @@ private fun MessageBodyScope.VoteRow(
             .combinedClickable(
                 interactionSource = null,
                 indication = if (enabled) ripple() else null,
-                onLongClick = ::requestMenu,
+                onLongClick = { answerMenu(answer) },
                 onClick = { if (enabled) onClick() },
             )
             .semantics {
@@ -380,7 +380,7 @@ private fun MessageBodyScope.ResultRow(poll: ChatPoll, answer: PollAnswer, anima
             .fillMaxWidth()
             .clip(RoundedCornerShape(ANSWER_CORNER))
             // Ťuknutí nic nedělá, ale nabídka zprávy nad výsledkem otevřít jít musí.
-            .combinedClickable(onLongClick = ::requestMenu, onClick = {})
+            .combinedClickable(onLongClick = { answerMenu(answer) }, onClick = {})
             .padding(vertical = 4.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -543,6 +543,14 @@ private fun MessageBodyScope.Footer(poll: ChatPoll, muted: Color) {
             }
         }
     }
+}
+
+/**
+ * Dlouhý stisk na odpovědi: nabídka zprávy, a když jde odpověď smazat, i „Smazat odpověď" pro
+ * TU odpověď. Jinde by se nevědělo, kterou z odpovědí mazat.
+ */
+private fun MessageBodyScope.answerMenu(answer: PollAnswer) {
+    if (answer.canDelete) requestMenuForPollOption(answer.id) else requestMenu()
 }
 
 private fun ChatPoll.restrictionText(): StringResource? = when (restriction) {
