@@ -64,19 +64,10 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.animation.core.AnimationSpec
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.pointerInput
-import kotlin.math.abs
-import kotlin.math.roundToInt
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
+import eu.tintera.plume.core.ui.wheelScrollsHorizontally
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.ui.semantics.Role
@@ -159,7 +150,7 @@ internal fun ChatFolderToolbar(
  * Která je vidět, se dozví i kompozice (`labels`), kvůli čtečce, fokusu a dojetí na vybranou.
  *
  * **Co se nevejde, posouvá se VLASTNÍM posunem**, ne tím, který má řádek lišty v M3: k tomu se
- * zvenku nedostaneme a kolečko myši na něj převést nejde (viz [wheelScrollsHorizontally]).
+ * zvenku nedostaneme a kolečko myši na něj převést nejde (viz `wheelScrollsHorizontally`).
  * Položky jsou proto oříznuté na [maxWidth] a řádek lišty nikdy nepřeteče.
  */
 @Composable
@@ -173,8 +164,6 @@ private fun FolderItems(
 ) {
     var labels by remember { mutableStateOf(true) }
     val scroll = rememberScrollState()
-    val scope = rememberCoroutineScope()
-    val wheelSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     Layout(
         contents = listOf(
             { FolderRow(tabs, labels = true, placed = labels, expanded = expanded, onSelect, onAdd, onReadAll) },
@@ -184,42 +173,9 @@ private fun FolderItems(
             .widthIn(max = maxWidth)
             .horizontalScroll(scroll)
             // Až za posunem: kolečko se tak zpracuje dřív než v něm a posun ho už nedostane.
-            .wheelScrollsHorizontally(scroll, scope, wheelSpec),
+            .wheelScrollsHorizontally(scroll),
         measurePolicy = remember(maxWidth) { FolderItemsMeasurePolicy(maxWidth) { labels = it } },
     )
-}
-
-/**
- * Svislé kolečko myši nad lištou ji posouvá do strany. Vodorovný posun (`horizontalScroll`)
- * bere jen vodorovné kolečko, Shift + kolečko a tah touchpadem do strany; svislý pohyb kolečka
- * Compose u vodorovného posunu zahodí (`toSingleAxisDeltaFromAngle`) a tah myší posun nebere
- * vůbec (`CanDragCalculation` vynechává myš). Na desktopu, kde je seznam chatů úzký (360 dp)
- * a složky za okraj přetékají běžně, by se k nim myší bez Shiftu nedalo dostat.
- *
- * - **Jen převážně svislý pohyb** — vodorovný (touchpad do strany, Shift) obslouží posun sám.
- * - **Jen když je kam posouvat** — jinak událost propadne dál, jako dřív.
- * - **Krok je jedno [WHEEL_STEP] na zub kolečka** (`scrollDelta` je v zubech, ne v pixelech,
- *   na desktopu i na Androidu) a posun dojede animací k cíli, který se při rychlém točení
- *   sčítá, jako u kolečka nad seznamem.
- */
-private fun Modifier.wheelScrollsHorizontally(
-    state: ScrollState,
-    scope: CoroutineScope,
-    spec: AnimationSpec<Float>,
-): Modifier = pointerInput(state) {
-    var target = 0f
-    awaitPointerEventScope {
-        while (true) {
-            val event = awaitPointerEvent()
-            if (event.type != PointerEventType.Scroll || state.maxValue == 0) continue
-            val delta = event.changes.fold(Offset.Zero) { sum, change -> sum + change.scrollDelta }
-            if (delta.y == 0f || abs(delta.y) <= abs(delta.x)) continue
-            if (!state.isScrollInProgress) target = state.value.toFloat()
-            target = (target + delta.y * WHEEL_STEP.toPx()).coerceIn(0f, state.maxValue.toFloat())
-            scope.launch { state.animateScrollTo(target.roundToInt(), spec) }
-            event.changes.forEach { it.consume() }
-        }
-    }
 }
 
 /** Vybírá mezi řadou s popisky (první obsah) a kompaktní (druhý); viz [FolderItems]. */
@@ -464,8 +420,6 @@ private fun FolderTab.icon() = folderIcon(if (id == null) "All" else iconName)
 private val TOOLBAR_FAB_SIZE = 56.dp
 private val TOOLBAR_TO_FAB_GAP = 8.dp
 
-/** Posun lišty na jeden zub kolečka myši — o kus víc než jedna složka (48 dp a mezera). */
-private val WHEEL_STEP = 64.dp
 
 /** Jako icon button: 48 dp na výšku, s 12 dp po stranách je samotná ikona taky 48 dp široká. */
 private val ITEM_HEIGHT = 48.dp

@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.lazy.rememberLazyListState
+import eu.tintera.plume.core.ui.wheelScrollsHorizontally
 import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -133,7 +135,10 @@ internal fun StickerSuggestionsPanel(
         // Vyroste z rohu u pole, kde je emoji napsané.
         origin = TransformOrigin(0f, 1f),
     ) {
+        val rowState = rememberLazyListState()
         LazyRow(
+            state = rowState,
+            modifier = Modifier.wheelScrollsHorizontally(rowState),
             contentPadding = PaddingValues(horizontal = 6.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {

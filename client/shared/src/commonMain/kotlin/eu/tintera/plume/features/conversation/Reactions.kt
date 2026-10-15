@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.horizontalScrollWithWheel
 import androidx.compose.animation.AnimatedVisibility
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.drawscope.withTransform
@@ -634,7 +635,8 @@ private fun ReactionFilter(counts: List<MessageReaction>, filter: String?, onFil
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
+            // Filtr leží nad seznamem lidí, ne v něm, takže kolečko nad ním seznam nezastaví.
+            .horizontalScrollWithWheel()
             .padding(horizontal = 16.dp, vertical = 8.dp),
     ) {
         options.forEachIndexed { index, reaction ->

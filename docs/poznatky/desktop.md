@@ -579,6 +579,28 @@ berou jen levé tlačítko. Teď pravé tlačítko udělá totéž co podržení
 - **Ověřeno na Windows 11** (ladicí běh, uživatel): pravé tlačítko otevírá nabídky jako
   podržení. macOS a Android s myší neověřené.
 
+## Kolečko u vodorovných řad
+
+Řada, která se posouvá do strany, myší bez Shiftu nešla posunout: Compose u vodorovného posunu
+svislé kolečko zahodí (`toSingleAxisDeltaFromAngle`) a tah myší posun nebere (`CanDragCalculation`
+vynechává myš). `wheelScrollsHorizontally` (`core/ui/WheelScroll.kt`) převede převážně svislé
+kolečko na posun do strany, jen když je v tom směru kam; jinak událost propadne dál.
+`horizontalScrollWithWheel()` je `horizontalScroll` i s ním.
+
+- **Má ho:** lišta složek, filtry hledání zpráv, lišta formátování, návrhy odpovědí, filtr
+  v detailu reakcí, návrhy emoji a samolepek nad polem, řada kategorií a záložky ve výběru
+  samolepek a emoji (`PrimaryScrollableTabRow` bere vlastní `scrollState`).
+- **NEMÁ ho řada uvnitř svislého seznamu**: čipy reakcí pod zprávou, řádek lidí v hledání chatů
+  (`LazyRow` v `LazyColumn`), záložky profilu (ve `verticalScroll` profilu). Kolečko by si je
+  bralo, kdykoli přes ně kurzor při posouvání seznamu přejede, a seznam by se zastavil.
+- **Kam ho dát:** u `horizontalScroll` ZA posun (blíž obsahu), aby kolečko dostal dřív; u `LazyRow`
+  a tab row zvenku — posun uvnitř svislé kolečko nespotřebuje, takže dojde i tam.
+- Krok 64 dp na zub (`scrollDelta` je v zubech), animace `defaultEffectsSpec`, rychlé točení se
+  sčítá. Platí i pro Android s myší.
+- **Ověřeno na emulátoru** (`adb shell input mouse scroll X Y --axis VSCROLL,±N`): lišta složek
+  a záložky kategorií ve výběru emoji se posouvají tam i zpět, kolečko nad mřížkou emoji ji dál
+  posouvá svisle a řada zůstane. Desktop za běhu neověřený.
+
 ## Co platforma (zatím) neumí
 
 **Hovory** přes ntgcalls (`docs/poznatky/hovory.md`, „Desktop"), se zvukem i videem, bez
