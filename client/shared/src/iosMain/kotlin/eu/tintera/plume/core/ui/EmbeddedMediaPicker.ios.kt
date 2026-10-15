@@ -31,6 +31,7 @@ actual fun EmbeddedMediaPicker(
     allowPhotos: Boolean,
     allowVideos: Boolean,
     expanded: Boolean,
+    single: Boolean,
     onPicked: (List<OutgoingAttachment>) -> Unit,
     onUnpicked: (List<String>) -> Unit,
     onError: (UiText) -> Unit,

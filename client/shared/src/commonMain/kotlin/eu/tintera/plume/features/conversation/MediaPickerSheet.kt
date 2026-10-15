@@ -47,6 +47,11 @@ internal fun MediaPickerSheet(
     onUnpicked: (List<String>) -> Unit,
     onError: (UiText) -> Unit,
     onDismiss: () -> Unit,
+    /**
+     * Výměna přílohy při úpravě zprávy: vybrat jde jedna položka a sheet se po ní sám zavře —
+     * není co dál vybírat a „Hotovo" by byl krok navíc.
+     */
+    single: Boolean = false,
 ) {
     /*
      * Rovnou celý, bez napůl rozbaleného stavu — jako výběr samolepek: galerie je vyšší než
@@ -97,7 +102,11 @@ internal fun MediaPickerSheet(
                     allowVideos = allowVideos,
                     // Sheet je celý rozbalený, takže galerie taky — sbalená by nešla posouvat.
                     expanded = true,
-                    onPicked = onPicked,
+                    single = single,
+                    onPicked = { picked ->
+                        onPicked(picked)
+                        if (single) close()
+                    },
                     onUnpicked = onUnpicked,
                     onError = onError,
                     onDone = ::close,

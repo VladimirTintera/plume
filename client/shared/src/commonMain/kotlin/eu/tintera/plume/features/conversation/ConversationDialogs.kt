@@ -18,6 +18,7 @@ import eu.tintera.plume.core.location.rememberDeviceLocation
 import eu.tintera.plume.core.telegram.MessageSchedule
 import eu.tintera.plume.core.telegram.SendOptions
 import eu.tintera.plume.core.ui.EmbeddedMediaSelection
+import eu.tintera.plume.core.ui.rememberEmbeddedMediaSelection
 import eu.tintera.plume.core.telegram.GifItem
 import eu.tintera.plume.core.telegram.StickerItem
 import eu.tintera.plume.core.ui.UiText
@@ -48,6 +49,9 @@ import org.jetbrains.compose.resources.stringResource
 internal class ConversationSheets {
     var stickerPicker by mutableStateOf(false)
     var mediaPicker by mutableStateOf(false)
+
+    /** Galerie pro výměnu fotky nebo videa při úpravě zprávy (jen kde je vestavěná). */
+    var replacementPicker by mutableStateOf(false)
     var locationPicker by mutableStateOf(false)
     var livePeriod by mutableStateOf(false)
 
@@ -112,6 +116,26 @@ internal fun ConversationDialogs(
     val expressionMode by viewModel.expressionMode.collectAsStateWithLifecycle()
     val summaryState by summary.state.collectAsStateWithLifecycle()
     val summarySourceState by summary.source.collectAsStateWithLifecycle()
+
+    /*
+     * Výměna přílohy má VLASTNÍ paměť výběru: zaškrtnutí patří vyměňované fotce, ne přílohám nad
+     * polem — se společnou by se v galerii ukázaly zaškrtnuté přílohy rozepsané zprávy.
+     */
+    val replacementSelection = rememberEmbeddedMediaSelection()
+    if (sheets.replacementPicker) {
+        MediaPickerSheet(
+            selection = replacementSelection,
+            pickedPaths = listOfNotNull(state.editReplacement?.path),
+            allowPhotos = state.content.photos,
+            allowVideos = state.content.videos,
+            onPicked = viewModel::replaceEditMedia,
+            // Odznačená nová příloha = zpátky k původní.
+            onUnpicked = { viewModel.keepEditMedia() },
+            onError = viewModel::reportError,
+            onDismiss = { sheets.replacementPicker = false },
+            single = true,
+        )
+    }
 
     if (sheets.mediaPicker) {
         MediaPickerSheet(
