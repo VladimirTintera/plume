@@ -517,6 +517,9 @@ týmž přehrávačem jako video (`MessageMedia.Animation`, `AnimationBubble`).
   selže na `queueInputBuffer error: 14` a ExoPlayer uvízne ve `STATE_BUFFERING` (délka souboru
   je přitom známá). Pozná se to podle toho, že **stejně selže i video v prohlížeči médií** —
   tedy cesta, která s GIFy nesouvisí. Ověřit jde vzhled, značka a přepínání pauzy.
+  **Obejít to jde emulátorem bez hardwarového dekodéru**: `emulator -avd … -feature
+  -HardwareDecoder`. Systém pak nabídne softwarový `c2.android.avc.decoder` a video hraje
+  (ověřeno 15. 10. 2026 na hodinovém videu 720p v prohlížeči).
 
 ### Video kolečka
 
@@ -969,6 +972,16 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
     přes `supportedInterfaceOrientationsFor` v delegátu aplikace.
   - **Dole místo není**, proto zámek a otočení leží nahoře: s dalšími dvěma tlačítky by
     posuvníku na telefonu na výšku zbyl palec.
+  - **Na úzké kartě má posuvník vlastní řádek** (pod 480 dp, `VIDEO_CONTROLS_ONE_LINE_WIDTH`),
+    tlačítka jdou pod něj doprava. Video na výšku otočené na šířku má kartu široká asi 400 dp
+    a v jednom řádku s časy a tlačítky posuvník stlačilo na nulu; na telefonu na výšku mu
+    zbývalo kolem 100 dp. Rozhoduje šířka KARTY (`BoxWithConstraints`), ne okna.
+  - **Ověřeno na emulátoru** (Pixel 9, Android 17, software dekodér, viz „GIFy"): příznak
+    `KEEP_SCREEN_ON` na okně jen během přehrávání (`dumpsys window windows`), lišty schované
+    s ovládáním (`statusBars visible=false`), zámek vydrží tah dolů, do strany, klávesu i gesto
+    zpět (první tah od okraje jen vytáhne systémové lišty, druhý ukáže zámek), haptika 21 / 22,
+    otočení `SENSOR_LANDSCAPE` ↔ `PORTRAIT` a návrat do galerie vrátí `UNSPECIFIED`. **Pauza po
+    vytažení sluchátek ověřená NENÍ** (emulátor sluchátka nemá), iOS jen přeložené.
 
 ### Text z fotky
 

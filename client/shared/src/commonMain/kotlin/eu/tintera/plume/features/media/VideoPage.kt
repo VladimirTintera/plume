@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.media
 
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.ui.layout.boundsInWindow
@@ -701,7 +704,7 @@ internal fun VideoPage(
                 exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
                 modifier = Modifier.align(Alignment.BottomCenter),
             ) {
-                Row(
+                BoxWithConstraints(
                     Modifier
                         .fillMaxWidth()
                         .background(
@@ -721,98 +724,121 @@ internal fun VideoPage(
                                 .only(WindowInsetsSides.Bottom),
                         )
                         .padding(horizontal = 12.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     val fraction = seekingFraction
                         ?: if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
-                    Text(
-                        text = formatDuration(((fraction * durationMs) / 1000).toInt()),
-                        style = MaterialTheme.typography.labelMedium.tabularNumbers(),
-                        color = Color.White,
-                    )
                     val haptics = LocalHapticFeedback.current
                     // Tahem se tiká po dílcích, ne po pixelech — jako po sloupcích waveformu hlasovky.
                     var tickedStep by remember { mutableIntStateOf(-1) }
-                    Slider(
-                        value = fraction,
-                        onValueChange = {
-                            seekingFraction = it
-                            controlsVisible = true
-                            val step = (it * VIDEO_SEEK_STEPS).toInt().coerceIn(0, VIDEO_SEEK_STEPS - 1)
-                            if (step != tickedStep) {
-                                if (tickedStep >= 0) haptics.tick()
-                                tickedStep = step
-                            }
-                        },
-                        onValueChangeFinished = {
-                            seekingFraction?.let { player.seekTo((it * durationMs).toLong()) }
-                            seekingFraction = null
-                            ended = false
-                            tickedStep = -1
-                        },
-                        colors = SliderDefaults.colors(
-                            thumbColor = Color.White,
-                            activeTrackColor = Color.White,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.35f),
-                        ),
-                        /*
-                         * Dráha se vlní, dokud video hraje, a po pozastavení i během tahu se
-                         * narovná — tentýž význam jako vlnka hrající hlasovky („teď zní", viz
-                         * `docs/poznatky/prohlizec-medii.md`, „Video"). Přechod amplitudy animuje indikátor sám.
-                         */
-                        track = { sliderState ->
-                            val wavy = playing && seekingFraction == null
-                            LinearWavyProgressIndicator(
-                                progress = { sliderState.value },
-                                color = Color.White,
-                                trackColor = Color.White.copy(alpha = 0.35f),
-                                amplitude = { if (wavy) 1f else 0f },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        },
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        text = formatDuration((durationMs / 1000).toInt()),
-                        style = MaterialTheme.typography.labelMedium.tabularNumbers(),
-                        color = Color.White,
-                    )
-                    // Rychlost a zvuk za časem, jako u hlasovky; bílé na tmavém přechodu karty.
-                    SpeedChip(
-                        speed = speed,
-                        accent = Color.White,
-                        onAccent = Color.Black,
-                        onClick = {
-                            settings.setVideoSpeed(speed.next())
-                            controlsVisible = true
-                        },
-                    )
-                    if (pip?.supported == true) {
-                        IconButton(
-                            onClick = pip::enter,
-                            colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
-                            shapes = IconButtonDefaults.shapes(),
-                        ) {
-                            Icon(
-                                painterResource(Res.drawable.picture_in_picture_alt_24dp),
-                                contentDescription = stringResource(Res.string.media_picture_in_picture),
-                            )
-                        }
+                    val seekBar: @Composable RowScope.() -> Unit = {
+                        Text(
+                            text = formatDuration(((fraction * durationMs) / 1000).toInt()),
+                            style = MaterialTheme.typography.labelMedium.tabularNumbers(),
+                            color = Color.White,
+                        )
+                        Slider(
+                            value = fraction,
+                            onValueChange = {
+                                seekingFraction = it
+                                controlsVisible = true
+                                val step = (it * VIDEO_SEEK_STEPS).toInt().coerceIn(0, VIDEO_SEEK_STEPS - 1)
+                                if (step != tickedStep) {
+                                    if (tickedStep >= 0) haptics.tick()
+                                    tickedStep = step
+                                }
+                            },
+                            onValueChangeFinished = {
+                                seekingFraction?.let { player.seekTo((it * durationMs).toLong()) }
+                                seekingFraction = null
+                                ended = false
+                                tickedStep = -1
+                            },
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color.White,
+                                activeTrackColor = Color.White,
+                                inactiveTrackColor = Color.White.copy(alpha = 0.35f),
+                            ),
+                            /*
+                             * Dráha se vlní, dokud video hraje, a po pozastavení i během tahu se
+                             * narovná — tentýž význam jako vlnka hrající hlasovky („teď zní", viz
+                             * `docs/poznatky/prohlizec-medii.md`, „Video"). Přechod amplitudy animuje indikátor sám.
+                             */
+                            track = { sliderState ->
+                                val wavy = playing && seekingFraction == null
+                                LinearWavyProgressIndicator(
+                                    progress = { sliderState.value },
+                                    color = Color.White,
+                                    trackColor = Color.White.copy(alpha = 0.35f),
+                                    amplitude = { if (wavy) 1f else 0f },
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            },
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text = formatDuration((durationMs / 1000).toInt()),
+                            style = MaterialTheme.typography.labelMedium.tabularNumbers(),
+                            color = Color.White,
+                        )
                     }
-                    onToggleMute?.let { toggle ->
-                        IconButton(
+                    val extras: @Composable RowScope.() -> Unit = {
+                        // Rychlost a zvuk za časem, jako u hlasovky; bílé na tmavém přechodu karty.
+                        SpeedChip(
+                            speed = speed,
+                            accent = Color.White,
+                            onAccent = Color.Black,
                             onClick = {
-                                toggle()
+                                settings.setVideoSpeed(speed.next())
                                 controlsVisible = true
                             },
-                            colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
-                            shapes = IconButtonDefaults.shapes(),
-                        ) {
-                            Icon(
-                                painterResource(if (muted) Res.drawable.volume_off_24dp else Res.drawable.volume_up_24dp),
-                                contentDescription = stringResource(if (muted) Res.string.media_unmute else Res.string.media_mute),
-                            )
+                        )
+                        if (pip?.supported == true) {
+                            IconButton(
+                                onClick = pip::enter,
+                                colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                                shapes = IconButtonDefaults.shapes(),
+                            ) {
+                                Icon(
+                                    painterResource(Res.drawable.picture_in_picture_alt_24dp),
+                                    contentDescription = stringResource(Res.string.media_picture_in_picture),
+                                )
+                            }
+                        }
+                        onToggleMute?.let { toggle ->
+                            IconButton(
+                                onClick = {
+                                    toggle()
+                                    controlsVisible = true
+                                },
+                                colors = IconButtonDefaults.iconButtonColors(contentColor = Color.White),
+                                shapes = IconButtonDefaults.shapes(),
+                            ) {
+                                Icon(
+                                    painterResource(if (muted) Res.drawable.volume_off_24dp else Res.drawable.volume_up_24dp),
+                                    contentDescription = stringResource(if (muted) Res.string.media_unmute else Res.string.media_mute),
+                                )
+                            }
+                        }
+                    }
+                    /*
+                     * Na úzké kartě (telefon na výšku, video na výšku otočené na šířku) se do
+                     * jednoho řádku s časy a tlačítky posuvník nevejde — na šířku ho stlačilo na
+                     * nulu. Pak má vlastní řádek přes celou šířku a tlačítka jdou pod něj doprava.
+                     */
+                    val spacing = Arrangement.spacedBy(12.dp)
+                    if (maxWidth >= VIDEO_CONTROLS_ONE_LINE_WIDTH) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = spacing) {
+                            seekBar()
+                            extras()
+                        }
+                    } else {
+                        Column {
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = spacing) { seekBar() }
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+                            ) { extras() }
                         }
                     }
                 }
@@ -955,3 +981,9 @@ private const val CONTROLS_HIDE_MS = 3000L
 
 /** Na kolik dílků se posuvník videa dělí, když tiká haptika (po pětinách procenta by bzučel). */
 private const val VIDEO_SEEK_STEPS = 20
+
+/**
+ * Od jaké šířky karty se posuvník vejde do jednoho řádku s časy a tlačítky. Časy, rychlost,
+ * obraz v obraze a zvuk zaberou kolem 320 dp; posuvníku má zbýt aspoň půlka telefonu.
+ */
+private val VIDEO_CONTROLS_ONE_LINE_WIDTH = 480.dp
