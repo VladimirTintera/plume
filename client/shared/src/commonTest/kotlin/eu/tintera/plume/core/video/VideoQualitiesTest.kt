@@ -48,8 +48,20 @@ class VideoQualitiesTest {
     }
 
     @Test
-    fun automatikaBezStropuHrajePuvodni() {
+    fun automatikaBezStropuNesnizujeRozliseni() {
+        // Přepočítané jsou jen 720p a menší, původní 1080p — na Wi-Fi se rozlišení nesnižuje.
         assertEquals(original, pickVideoQuality(all, VideoQualityChoice.Auto, Int.MAX_VALUE, originalDownloaded = false))
+    }
+
+    @Test
+    fun automatikaBezStropuBerePrepocitanouVeStejnemRozliseni() {
+        val original720 = VideoQuality(1, 1280, 720, codec = null, sizeBytes = 655_000_000, isOriginal = true)
+        val qualities = videoQualities(original720, listOf(p720, p480), hardware)
+        assertEquals(p720, pickVideoQuality(qualities, VideoQualityChoice.Auto, Int.MAX_VALUE, originalDownloaded = false))
+        // Stažený původní soubor pořád vyhrává — nic nestojí.
+        assertEquals(original720, pickVideoQuality(qualities, VideoQualityChoice.Auto, Int.MAX_VALUE, originalDownloaded = true))
+        // Ruční volba původního platí dál.
+        assertEquals(original720, pickVideoQuality(qualities, VideoQualityChoice.Original, Int.MAX_VALUE, originalDownloaded = false))
     }
 
     @Test

@@ -31,7 +31,8 @@ data class AutoDownloadSettings(
  * ostrému náhledu stáhne celý jen do téhle velikosti. Nula = nic.
  *
  * [maxVideoLines] je strop automatické kvality videa v prohlížeči (kratší strana, „720p",
- * `pickVideoQuality` v `core/video`); [Int.MAX_VALUE] = původní soubor. Video se sice samo
+ * `pickVideoQuality` v `core/video`); [Int.MAX_VALUE] = bez stropu, tedy rozlišení původního
+ * souboru. Video se sice samo
  * nestahuje, ale puštěné na mobilních datech nemá sníst stovky megabajtů, když server nabízí
  * menší kvalitu.
  */
@@ -83,8 +84,8 @@ const val HIGH_BYTES: Long = 20L * 1024 * 1024
 
 /**
  * Stropy automatické kvality videa. „Vypnuto" neznamená, že se video nepustí — uživatel ho pustil
- * sám —, jen že se bere nejmenší rozumná kvalita. „Naplno" (výchozí na Wi-Fi) hraje původní
- * soubor, jako aplikace dřív všude.
+ * sám —, jen že se bere nejmenší rozumná kvalita. „Naplno" (výchozí na Wi-Fi) hraje rozlišení
+ * původního souboru.
  */
 const val OFF_VIDEO_LINES: Int = 360
 const val LOW_VIDEO_LINES: Int = 480
