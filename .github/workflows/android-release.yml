@@ -190,7 +190,7 @@ jobs:
           {
             echo "**Android** ${{ steps.tag.outputs.versionName }} (${{ steps.tag.outputs.versionCode }}) → Play internal track"
             echo
-            python3 .github/scripts/release_notes.py markdown "$PREV" "$TAG"
+            python3 .github/scripts/release_notes.py markdown "$PREV" "$TAG" android
             bash .github/scripts/release-notes.sh "$PREV" "$TAG" "targetu"
           } > release-notes.md
 
