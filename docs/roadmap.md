@@ -775,7 +775,8 @@ v `docs/poznatky/navigace.md`, „Šířkové třídy, tři panely a kotvy" a �
 seznam". Zbývá:
 
 1. **Drobnosti.**
-   - Sbalený seznam nemá FAB ani výběr víc chatů (karty nad seznamem hlásí tlačítko s tečkou).
+   - ~~Sbalený seznam nemá FAB ani výběr víc chatů~~ — hotovo (`feat/sbaleny-seznam-fab-vyber`;
+     karty nad seznamem hlásí tlačítko s tečkou).
 
 **Jak ověřovat:** desktop změnou velikosti okna (nejrychlejší cesta k Large a XL), emulátor
 tabletu, Fold (`adb emu fold` / `unfold` v cyklu — viz Gotchas o insetech v `CLAUDE.md`, změna

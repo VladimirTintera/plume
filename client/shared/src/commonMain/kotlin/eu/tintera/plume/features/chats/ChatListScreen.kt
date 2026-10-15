@@ -494,6 +494,10 @@ fun ChatListScreen(
                     expandListPane?.invoke()
                     onOpenSearch()
                 },
+                onNewChat = onNewChat,
+                onNewGroup = onNewGroup,
+                onNewChannel = onNewChannel,
+                snackbarHostState = snackbarHostState,
                 account = accountMenu,
                 // V pořadí karet nad seznamem (níž, `header`): první čekající je nejdůležitější.
                 pendingCard = when {
