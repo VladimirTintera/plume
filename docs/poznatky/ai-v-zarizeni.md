@@ -353,8 +353,21 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   naskočí o snímek později, nic se neposune.
 - **Pravidla napřed, protože jdou ověřit kontrolním součtem.** Český účet mod 11 a kód banky
   ze seznamu ČNB (bez seznamu by „č. j. 1234/2025" prošlo jednou z jedenácti), IBAN mod 97,
-  zásilka S10 kontrolní číslicí. Model by tu jen hádal, co už víme jistě. Holá čísla PPL a DPD
-  od telefonu nerozeznáš, proto zatím nejsou.
+  zásilka S10 kontrolní číslicí. Model by tu jen hádal, co už víme jistě.
+- **PPL a DPD jen se jménem dopravce do 80 znaků od čísla** (`CARRIER_NUMBER`, `CARRIER_WINDOW`).
+  Jejich čísla jsou holé číslice bez kontrolního součtu — PPL 11 („11-digit shipment number",
+  ppl.cz → Customer service), DPD 14 („14místné číslo zásilky", dpd.com/cz → Nejčastější
+  dotazy) — a samotné se od čísla objednávky nebo telefonu bez předvolby nerozeznají. Délka
+  musí sedět k dopravci (11 s „DPD" nic není), jméno jen VELKÝMI písmeny: „ppl" je
+  v angličtině „people" a „ppl can text me at 12025550123" je americký telefon o 11 číslicích.
+  Číslo nesmí být kusem delšího čísla, účtu („19-…/0800") ani desetinného čísla. **Adresy
+  sledování jsou z webů dopravců**, ne z agregátorů: PPL `ppl.cz/vyhledat-zasilku?shipmentId=`
+  (anglicky `/en/track-a-shipment`; cesty z `tntSearchUrlCs/En` ve zdroji ppl.cz), DPD
+  `dpdgroup.com/cz/mydpd/my-parcels/search?lang=cz&parcelNumber=` z vyhledávacího pole na
+  dpd.com/cz — čeština je tam `lang=cz`, ne `cs`. curl na myDPD dostane 403 (ochrana proti
+  robotům), v prohlížeči se otevře. Ověřeno na emulátoru (zprávy od bota Notifikátor): „PPL:
+  Vaše zásilka 40012345678…" i „Číslo zásilky DPD: 01234567890123…" mají ikonku a sheet
+  s dopravcem, „Objednávka 40012345678…" ikonku nemá; „Sledovat zásilku" u PPL otevře ppl.cz.
 - **Adresa jen s jasnou stavbou**: ulice, číslo, čárka, město — a k tomu PSČ, nebo ulice, která
   jako ulice vypadá (koncovka „-ská", „-ova", „-ního"…, klíčové slovo „nám.", předložka „Na").
   Ulice je JEDNO slovo: víc slov by spolklo i slovo před ní („Sraz Vinohradská 12"), takže
@@ -515,6 +528,14 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
     s textem a bez nálezu se rozvine na nic. Právo jako u kopírování (`canCopy`).
   - Ověřeno na emulátoru: zpráva s letem a rezervací ukáže tři položky, „Kopírovat rezervaci"
     zkopíruje kód a zavře nabídku.
+- **Zkopírování v sheetu potvrzuje řádek, ne snackbar** (`copyInSheet`, `LocalJustCopied`
+  v `MessageContextSheet`): ikona kopírování se na dvě vteřiny prolne do fajfky v barvě
+  `primary` a čtečce ji oznámí živá oblast. Snackbar obrazovky leží POD modálním sheetem
+  a vidět nebyl — na iOS a Androidu do 12 tak kopírování nepotvrdilo nic. Kopírování z NABÍDKY
+  nad zprávou („Kopírovat rezervaci") snackbar dál má: nabídka se zavře a hláška je vidět.
+  Na Androidu 13+ se fajfka potká se systémovým náhledem schránky; je to stav ovládacího
+  prvku, ne druhé oznámení (viz „Hláška Zkopírováno" v `CLAUDE.md`). Ověřeno na emulátoru
+  (Android 17): fajfka naskočí, po dvou vteřinách se vrátí ikona kopírování.
 - **Ikonka i sheet jsou mimo `ConversationScreen`** (v dexu na hraně): posudky sbírá položka
   (`ConversationItemScope.messageContext`), sheet si stav čte sám (`MessageContextHost`, jediné
   volání). `ConversationScreen` zůstal na 271 registrech.
