@@ -1013,6 +1013,15 @@ i videi spolu (`SearchMessagesFilterPhotoAndVideo`).
   `frame_width=`, `frame_height=` a pak `čas,x,y` (čas v sekundách s desetinnou částí).
   Stahuje se, až video na celé obrazovce hraje. Kreslí se celý obrázek posunutý a ořezaný na
   dlaždici (Coil v původní velikosti — zmenšený by posunul souřadnice z mapy).
+- **Ověřeno na emulátoru** (Pixel 9, Android 17, software dekodér, hodinové video v kanálu):
+  „Pokračuje od 1:38 · Od začátku" po znovuotevření, zápis každých 10 s i při zavření (pozice
+  ~29 min po skoku posuvníkem, `app_settings.preferences_pb` přes `run-as`), proužek v bublině
+  na polovině, náhled dlaždice nad posuvníkem jede s prstem, dvojí ťuknutí vpravo „+10 s"
+  (haptika 26), podržení „Rychlost 2×" (haptika 0). Krátké video (89 s) se nezapsalo, jak má.
+  **Jednou se ale pozice po skoku posuvníkem neuložila** (zůstala ta před skokem) a znovu se
+  to vyvolat nepodařilo; byl to přetížený emulátor uprostřed sledu gest. Kdyby se to ukázalo
+  na telefonu, začít logem v `saveProgress`.
+  Že podržení opravdu zrychlí přehrávání, je vidět jen okem (ExoPlayer rychlost nehlásí).
 
 ### Text z fotky
 
