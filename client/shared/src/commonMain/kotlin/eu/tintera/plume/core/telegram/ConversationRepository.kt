@@ -900,6 +900,18 @@ interface ConversationRepository {
     suspend fun mentionCandidates(chatId: Long, query: String): Result<List<MentionCandidate>>
 
     /**
+     * Nedávno použití inline boti (`getRecentInlineBots`, nejvýš 20, od posledního) jako kandidáti
+     * do napovídání po `@`. Lokální, bez serveru.
+     */
+    suspend fun recentInlineBots(): Result<List<MentionCandidate>>
+
+    /**
+     * Dříve použité hashtagy začínající [prefix] (bez `#`), od nejčastějších (`searchHashtags`).
+     * Vrací je bez `#`. Lokální — TDLib si je pamatuje z odeslaných zpráv a hledání.
+     */
+    suspend fun recentHashtags(prefix: String): Result<List<String>>
+
+    /**
      * Shrnutí zprávy od serveru, jen u zprávy s [ChatMessage.summaryLanguage]. [languageCode]
      * = jazyk, do kterého se shrnutí přeloží; `null` = v jazyce zprávy.
      */

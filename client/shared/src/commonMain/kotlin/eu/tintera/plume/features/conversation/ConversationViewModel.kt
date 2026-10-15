@@ -498,7 +498,9 @@ class ConversationViewModel(
         requestWebApp = { links.requestWebApp(it) },
         logger = logger,
     )
-    fun mentionQuery(query: String?) = suggestions.mentionQuery(query)
+    fun mentionQuery(query: String?, atStart: Boolean) = suggestions.mentionQuery(query, atStart)
+    fun hashtagQuery(query: String?) = suggestions.hashtagQuery(query)
+    fun hashtagPicked() = suggestions.hashtagPicked()
     fun mentionPicked(candidate: MentionCandidate) = suggestions.mentionPicked(candidate)
     fun inlineQuery(draft: InlineQueryDraft?) = suggestions.inlineQuery(draft)
     fun loadMoreInline() = suggestions.loadMoreInline()

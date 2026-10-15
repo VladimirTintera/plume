@@ -107,5 +107,15 @@ fun mentionInsertion(text: String, cursor: Int, query: MentionQuery, candidate: 
     return result to query.start + inserted.length + 1
 }
 
+/**
+ * Hodí se kandidát k rozepsanému `@…`? Uživatelské jméno nebo některé slovo jména začíná
+ * dotazem, bez ohledu na velikost písmen — tak hledá i server u členů. Pro nedávné inline boty,
+ * které se filtrují u nás.
+ */
+fun MentionCandidate.matchesMention(query: String): Boolean =
+    query.isEmpty() ||
+        username?.startsWith(query, ignoreCase = true) == true ||
+        name.split(' ').any { it.startsWith(query, ignoreCase = true) }
+
 /** `@jmeno` — zmínka uživatelským jménem, jak se vkládá do pole i ukazuje v napovídání. */
 fun usernameMention(username: String): String = "@$username"

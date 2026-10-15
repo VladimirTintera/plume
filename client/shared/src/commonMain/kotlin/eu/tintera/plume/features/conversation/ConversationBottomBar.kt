@@ -40,6 +40,8 @@ import eu.tintera.plume.core.telegram.SavedTopicKind
 import eu.tintera.plume.core.telegram.WriteAccess
 import eu.tintera.plume.core.telegram.commandSuggestions
 import eu.tintera.plume.core.telegram.inlineQueryOf
+import eu.tintera.plume.core.telegram.hashtagInsertion
+import eu.tintera.plume.core.telegram.hashtagQueryAt
 import eu.tintera.plume.core.telegram.mentionInsertion
 import eu.tintera.plume.core.telegram.mentionQueryAt
 import eu.tintera.plume.core.ui.EmbeddedMediaSelection
@@ -300,12 +302,22 @@ internal fun ConversationBottomBar(
         draft.takeIf { inlineDraft == null && it.selection.collapsed }
             ?.let { mentionQueryAt(it.text, it.selection.start) }
     }
-    LaunchedEffect(mentionQuery?.query) { viewModel.mentionQuery(mentionQuery?.query) }
+    // Na začátku zprávy se napovídají i nedávní inline boti — jen tam z `@bot ` vznikne dotaz.
+    LaunchedEffect(mentionQuery?.query, mentionQuery?.start == 0) {
+        viewModel.mentionQuery(mentionQuery?.query, atStart = mentionQuery?.start == 0)
+    }
+    // Hashtag (`#pl` u kurzoru): dříve použité hashtagy nad polem.
+    val hashtagQuery = remember(draft, inlineDraft) {
+        draft.takeIf { inlineDraft == null && it.selection.collapsed }
+            ?.let { hashtagQueryAt(it.text, it.selection.start) }
+    }
+    LaunchedEffect(hashtagQuery?.query) { viewModel.hashtagQuery(hashtagQuery?.query) }
     // Emoji ke slovu u kurzoru. Ne vedle jiného napovídání — dotaz na inline bota a zmínka
     // mají nad polem přednost a emoji plovoucí přes jejich panel by ho zakryla.
-    val emojiWord = remember(draft, inlineDraft, mentionQuery, typedCommands) {
+    val emojiWord = remember(draft, inlineDraft, mentionQuery, hashtagQuery, typedCommands) {
         draft.takeIf {
-            inlineDraft == null && mentionQuery == null && typedCommands == null && it.selection.collapsed
+            inlineDraft == null && mentionQuery == null && hashtagQuery == null && typedCommands == null &&
+                it.selection.collapsed
         }?.let { emojiWordAt(it.text, it.selection.start) }
     }
     LaunchedEffect(emojiWord?.word) { emojiWords.lookup(emojiWord?.word, emojiLanguages) }
@@ -345,6 +357,7 @@ internal fun ConversationBottomBar(
     // mezitím schovají, jinak by visely přes seznam příkazů nebo přes emoji.
     val floatingShown = (commandsShown && state.botCommands.isNotEmpty()) ||
         (mentionQuery != null && state.mentionSuggestions?.candidates.orEmpty().isNotEmpty()) ||
+        (hashtagQuery != null && state.hashtagSuggestions?.hashtags.orEmpty().isNotEmpty()) ||
         (emojiWord != null && shownEmojis.isNotEmpty()) ||
         (stickerEmoji != null && shownStickers.isNotEmpty()) ||
         inlineDraft != null
@@ -373,6 +386,18 @@ internal fun ConversationBottomBar(
                 val (text, cursor) = mentionInsertion(draft.text, draft.selection.start, query, candidate)
                 draft = TextFieldValue(text, selection = TextRange(cursor))
                 viewModel.mentionPicked(candidate)
+                viewModel.onDraftChanged(composer.composed)
+            },
+            glass = suggestionGlass,
+        )
+        HashtagSuggestionsPanel(
+            hashtags = state.hashtagSuggestions?.hashtags.orEmpty(),
+            visible = hashtagQuery != null,
+            onPick = { hashtag ->
+                val query = hashtagQuery ?: return@HashtagSuggestionsPanel
+                val (text, cursor) = hashtagInsertion(draft.text, draft.selection.start, query, hashtag)
+                draft = TextFieldValue(text, selection = TextRange(cursor))
+                viewModel.hashtagPicked()
                 viewModel.onDraftChanged(composer.composed)
             },
             glass = suggestionGlass,

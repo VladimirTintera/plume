@@ -3265,20 +3265,34 @@ class TdlConversationRepository(
                     .mapNotNull { (it.memberId as? MessageSenderUser)?.userId }
                     .distinct()
                     .filter { it != me }
-                    .mapNotNull { userId ->
-                        val user = client.getUser(userId = userId).toResult().getOrNull() ?: return@mapNotNull null
-                        val name = listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" ")
-                        // Smazaný účet jméno nemá a zmínit ho nemá smysl.
-                        if (name.isBlank()) return@mapNotNull null
-                        MentionCandidate(
-                            userId = userId,
-                            name = name,
-                            firstName = user.firstName.ifBlank { name },
-                            username = user.usernames?.publicName(),
-                            avatarFileId = user.profilePhoto?.small?.id,
-                        )
-                    }
+                    .mapNotNull { userId -> mentionCandidate(userId) }
             }
+    }
+
+    override suspend fun recentInlineBots(): Result<List<MentionCandidate>> =
+        client.getRecentInlineBots()
+            .toResult()
+            .map { users -> users.userIds.toList().mapNotNull { userId -> mentionCandidate(userId) }.filter { it.username != null } }
+
+    override suspend fun recentHashtags(prefix: String): Result<List<String>> =
+        client.searchHashtags(prefix = prefix, limit = HASHTAG_LIMIT)
+            .toResult()
+            // Bez `#` jako prefix, a pro jistotu i ve výsledku — vkládá se s ním obrazovka.
+            .map { found -> found.hashtags.map { it.removePrefix("#") }.filter { it.isNotEmpty() }.distinct() }
+
+    /** Uživatel jako kandidát zmínky; smazaný účet (bez jména) `null`. */
+    private suspend fun mentionCandidate(userId: Long): MentionCandidate? {
+        val user = client.getUser(userId = userId).toResult().getOrNull() ?: return null
+        val name = listOf(user.firstName, user.lastName).filter { it.isNotBlank() }.joinToString(" ")
+        // Smazaný účet jméno nemá a zmínit ho nemá smysl.
+        if (name.isBlank()) return null
+        return MentionCandidate(
+            userId = userId,
+            name = name,
+            firstName = user.firstName.ifBlank { name },
+            username = user.usernames?.publicName(),
+            avatarFileId = user.profilePhoto?.small?.id,
+        )
     }
 
     override suspend fun searchMembers(chatId: Long, query: String): Result<List<SenderInfo>> =
@@ -3561,6 +3575,9 @@ private val ChatMessage.isLastingVisualMedia: Boolean
     }
 
 /** `getLinkPreview` na text, ke kterému server náhled nemá. */
+/** Kolik dříve použitých hashtagů se napoví; víc se nad polem stejně nevejde. */
+private const val HASHTAG_LIMIT = 20
+
 private const val NOT_FOUND = 404
 
 /** Odpovědi serveru, které říkají „takový příběh není" — na rozdíl od výpadku spojení. */

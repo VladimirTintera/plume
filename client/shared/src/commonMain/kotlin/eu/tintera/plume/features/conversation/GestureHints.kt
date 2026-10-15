@@ -266,6 +266,7 @@ internal fun conversationHintContext(state: ConversationState, hints: GestureHin
         state.contactPicker == null &&
         state.inline == null &&
         state.mentionSuggestions == null &&
+        state.hashtagSuggestions == null &&
         !state.commandsOpen,
     sendOptions = hints.sendOptions,
     recording = hints.recording,

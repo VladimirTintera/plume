@@ -13,6 +13,7 @@ import eu.tintera.plume.core.telegram.InternalLink
 import eu.tintera.plume.core.telegram.MentionCandidate
 import eu.tintera.plume.core.telegram.NameMention
 import eu.tintera.plume.core.telegram.inlineQueryOf
+import eu.tintera.plume.core.telegram.matchesMention
 import eu.tintera.plume.core.telegram.inlineQueryText
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
@@ -27,9 +28,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * Napovídání nad vstupním polem: zmínky členů (i jménem, bez uživatelského jména) a inline
- * boti (`@gif kočka`) s výsledky po stránkách, polohou pro boty, kteří o ni stojí, a tlačítkem
- * nad výsledky.
+ * Napovídání nad vstupním polem: zmínky členů (i jménem, bez uživatelského jména), nedávní
+ * inline boti, dříve použité hashtagy a inline boti (`@gif kočka`) s výsledky po stránkách,
+ * polohou pro boty, kteří o ni stojí, a tlačítkem nad výsledky.
  *
  * Část [ConversationViewModel] — ten na ni deleguje.
  */
@@ -51,6 +52,9 @@ internal class ConversationSuggestions(
 
     /** Běžící hledání členů ke zmínce; další úhoz ho zruší. */
     private var mentionJob: Job? = null
+
+    /** Běžící hledání hashtagů; další úhoz ho zruší. */
+    private var hashtagJob: Job? = null
 
     /**
      * Zmínky jménem vložené z napovídání a čekající na odeslání (viz [NameMention]). Pole je holý
@@ -80,24 +84,79 @@ internal class ConversationSuggestions(
     /**
      * Rozepsaná zmínka u kurzoru ([mentionQueryAt]); `null` = u kurzoru se zmínka nepíše.
      *
-     * Jen ve skupině (v soukromém chatu je koho zmínit jen jeden, v kanálu nikdo nepíše) a mimo
-     * úpravu zprávy — úprava posílá holý text a zmínka jménem by z ní zmizela. Hledá se po krátké
-     * pauze a dalším písmenem se zahodí; dosavadní návrhy mezitím zůstávají, panel neproblikne.
+     * Členy napovídá jen ve skupině (v soukromém chatu je koho zmínit jen jeden, v kanálu nikdo
+     * nepíše) a mimo úpravu zprávy — úprava posílá holý text a zmínka jménem by z ní zmizela.
+     *
+     * **Nedávné inline boty napovídá kdekoli, ale jen na ZAČÁTKU zprávy** ([atStart]) a bez
+     * příloh: jen tam se z `@bot ` stane dotaz na bota ([inlineQueryOf]), uprostřed věty by to
+     * byla obyčejná zmínka. Jdou před členy, jako u oficiálních klientů.
+     *
+     * Hledá se po krátké pauze a dalším písmenem se zahodí; dosavadní návrhy mezitím zůstávají,
+     * panel neproblikne.
      */
-    fun mentionQuery(query: String?) {
+    fun mentionQuery(query: String?, atStart: Boolean = false) {
         mentionJob?.cancel()
-        val info = state.value.info
-        val allowed = info != null && info.isGroup && !info.isChannel && state.value.canWrite && state.value.editing == null
-        if (query == null || !allowed) {
-            if (state.value.mentionSuggestions != null) state.update { it.copy(mentionSuggestions = null) }
+        val current = state.value
+        val info = current.info
+        val canPost = current.canWrite && current.editing == null
+        val members = canPost && info != null && info.isGroup && !info.isChannel
+        val bots = canPost && atStart && current.attachments.isEmpty()
+        if (query == null || (!members && !bots)) {
+            if (current.mentionSuggestions != null) state.update { it.copy(mentionSuggestions = null) }
             return
         }
         mentionJob = scope.launch {
             if (query.isNotEmpty()) delay(MENTION_QUERY_DELAY)
-            repository.mentionCandidates(chatId, query)
-                .onSuccess { found -> state.update { it.copy(mentionSuggestions = MentionSuggestions(query, found)) } }
-                .onFailure { failure -> logger.i { "Členy ke zmínce se nepodařilo najít: ${failure.message}" } }
+            val inlineBots = if (bots) {
+                repository.recentInlineBots()
+                    .onFailure { failure -> logger.i { "Nedávné inline boty se nepodařilo načíst: ${failure.message}" } }
+                    .getOrDefault(emptyList())
+                    .filter { it.matchesMention(query) }
+            } else {
+                emptyList()
+            }
+            val found = if (members) {
+                repository.mentionCandidates(chatId, query)
+                    .onFailure { failure -> logger.i { "Členy ke zmínce se nepodařilo najít: ${failure.message}" } }
+                    .getOrNull()
+                    // Bez členů nemá smysl ukazovat ani boty — panel by se po chybě rozjel napůl.
+                    ?: return@launch
+            } else {
+                emptyList()
+            }
+            val candidates = (inlineBots + found).distinctBy { it.userId }
+            state.update { it.copy(mentionSuggestions = MentionSuggestions(query, candidates)) }
         }
+    }
+
+    /**
+     * Rozepsaný hashtag u kurzoru ([hashtagQueryAt]); `null` = u kurzoru se hashtag nepíše.
+     *
+     * Napovídá dříve použité hashtagy (TDLib si je pamatuje z odeslaných zpráv), kdekoli se smí
+     * psát — i při úpravě zprávy: hashtag je obyčejný text a nic z něj nezmizí. Hashtag, který
+     * je v poli celý napsaný, se nenabízí; ťuknutím by se nic nezměnilo.
+     */
+    fun hashtagQuery(query: String?) {
+        hashtagJob?.cancel()
+        if (query == null || !state.value.canWrite) {
+            if (state.value.hashtagSuggestions != null) state.update { it.copy(hashtagSuggestions = null) }
+            return
+        }
+        hashtagJob = scope.launch {
+            if (query.isNotEmpty()) delay(MENTION_QUERY_DELAY)
+            repository.recentHashtags(query)
+                .onSuccess { found ->
+                    val hashtags = found.filter { it != query }
+                    state.update { it.copy(hashtagSuggestions = HashtagSuggestions(query, hashtags)) }
+                }
+                .onFailure { failure -> logger.i { "Hashtagy se nepodařilo najít: ${failure.message}" } }
+        }
+    }
+
+    /** Vybraný hashtag z napovídání; pole přepisuje obrazovka ([hashtagInsertion]). */
+    fun hashtagPicked() {
+        hashtagJob?.cancel()
+        state.update { it.copy(hashtagSuggestions = null) }
     }
 
     /**
