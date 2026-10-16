@@ -417,8 +417,25 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
     a sheet vyjel na 6–7 snímcích, teď 23–25 ms a 23–33 snímků. **`gfxinfo` ukazoval opak**
     (zaseknutých 17 % před, 30 % po): procenta se počítají z vykreslených snímků a původní
     verze jich vykreslila zlomek. Plynulost se proto porovnává Perfettem, ne procenty z `gfxinfo`.
-  - **Zbývá první snímek sheetu (~480 ms na emulátoru)**: `PrimaryScrollableTabRow` skládá
-    a měří záložky VŠECH sad naráz (32 záložek ~106 ms jen skládání), mřížka dalších ~87 ms.
+- **Řádek záložek je líný** (`StickerTabRow`: M3 `Tab`y v `LazyRow`), ne `PrimaryScrollableTabRow`.
+  Ten skládá a měří záložky VŠECH sad naráz a záložka sady nese obálku (`RemoteImage`): s 32
+  sadami to bylo ~106 ms jen skládání v prvním snímku sheetu, tedy zdržení, než se sheet pohne.
+  Zbytek řádku je napodobený podle M3 (zdroje material3 1.12): záložka aspoň
+  `ScrollableTabRowMinTabWidth` (90 dp), oddělovač, indikátor 24 dp × 3 dp v `primary` (M3 bere
+  šířku obsahu bez 2 × 16 dp odsazení textu a nejméně 24 dp) a vybraná záložka posunutá doprostřed;
+  posun i jízda indikátoru `defaultSpatialSpec`, jako v M3.
+  - **Indikátor se kreslí přes řádek a polohu záložek čte z `layoutInfo` až při kreslení**, jako
+    index se zlomkem (`Animatable`) — mezi záložkami jede plynule a s posunem řádku jde bez
+    rekompozice. Záložka mimo obrazovku se dopočítá od nejbližší viditelné (záložky jsou stejně
+    široké). `LazyListItemInfo.offset` se počítá od začátku obsahu, ne kontejneru: poloha
+    v řádku je `beforeContentPadding + offset`.
+  - **Vystředění čeká na první rozměření** (`snapshotFlow { visibleItemsInfo.isNotEmpty() }`):
+    v prvním snímku `layoutInfo` nic nezná a výběr otevřený na poslední sadě by ji nechal u kraje.
+    Napoprvé skokem, potom animací.
+  - Změřeno Perfettem (emulátor, debug build, 32 sad): první snímek sheetu 456–642 ms → 388–439 ms,
+    skladba obsahu sheetu ~127 → ~43 ms. Zbytek je obsah, který vidět JE (~20 buněk mřížky
+    ~41 ms, viditelné záložky a kategorie), a měření a kreslení nového okna; odložit ho by znamenalo
+    skládat během pohybu, tedy zpátky to, čemu se tu předešlo.
 - **Kde je vedle sebe víc sad, samolepky dál NEHRAJÍ** (`StickerPreview(playing = false)`):
   obálky v řádku záložek a ukázky v trendech. Bere se nejlevnější podoba: rastrový náhled,
   statická `.webp`, a teprve bez nich první snímek `.tgs`.

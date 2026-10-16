@@ -1,6 +1,5 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import eu.tintera.plume.core.ui.wheelScrollsHorizontally
 import androidx.compose.animation.AnimatedVisibility
@@ -55,14 +54,12 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -854,23 +851,13 @@ private fun StickerTabsPager(
             .collect(viewModel::rememberTab)
     }
 
-        val tabScroll = rememberScrollState()
-        PrimaryScrollableTabRow(
+        StickerTabRow(
+            tabs = state.tabs,
             // `currentPage` se přepne v půlce swipu, takže indikátor jde s prstem, ne až po dojetí.
-            selectedTabIndex = pagerState.currentPage.coerceIn(0, state.tabs.lastIndex),
-            scrollState = tabScroll,
-            edgePadding = 8.dp,
-            containerColor = Color.Transparent,
-            modifier = Modifier.height(STICKER_TAB_ROW_HEIGHT).wheelScrollsHorizontally(tabScroll),
-        ) {
-            state.tabs.forEachIndexed { index, tab ->
-                Tab(
-                    selected = index == pagerState.currentPage,
-                    onClick = { scope.launch { pagerState.animateScrollToPage(index) } },
-                    icon = { StickerTabIcon(tab) },
-                )
-            }
-        }
+            selectedIndex = pagerState.currentPage.coerceIn(0, state.tabs.lastIndex),
+            onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } },
+            modifier = Modifier.height(STICKER_TAB_ROW_HEIGHT),
+        )
 
         HorizontalPager(
             state = pagerState,
@@ -1579,7 +1566,7 @@ private val CATEGORY_ICON_SIZE = 20.dp
 private val CATEGORY_ROW_HEIGHT = 44.dp
 
 @Composable
-private fun StickerTabIcon(tab: StickerTab) {
+internal fun StickerTabIcon(tab: StickerTab) {
     when (tab) {
         StickerTab.Recent -> Icon(painterResource(Res.drawable.schedule_24dp), contentDescription = stringResource(Res.string.stickers_tab_recent))
         StickerTab.Favorites -> Icon(painterResource(Res.drawable.star_24dp), contentDescription = stringResource(Res.string.stickers_tab_favorites))
