@@ -93,7 +93,7 @@ internal fun CallRow(call: MessageMedia.Call, accent: Color, onCallBack: (() -> 
         }
         Column {
             Text(
-                text = stringResource(call.outcome.title(call.isVideo)),
+                text = stringResource(call.outcome.title(call.isVideo, call.isGroup, call.isActive)),
                 style = MaterialTheme.typography.bodyMedium,
             )
             if (call.durationSeconds > 0) {

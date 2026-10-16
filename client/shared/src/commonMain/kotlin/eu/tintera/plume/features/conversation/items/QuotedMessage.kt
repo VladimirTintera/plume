@@ -313,7 +313,7 @@ internal fun MessageMedia?.describeText(): UiText = when (this) {
     is MessageMedia.Document -> UiText.Raw(fileName)
     is MessageMedia.Location -> title?.let(UiText::Raw)
         ?: UiText(if (isLive) Res.string.content_live_location else Res.string.content_location)
-    is MessageMedia.Call -> UiText(outcome.title(isVideo))
+    is MessageMedia.Call -> UiText(outcome.title(isVideo, isGroup, isActive))
     is MessageMedia.Contact -> UiText(Res.string.content_contact, name.ifBlank { phone })
     is MessageMedia.PaidMedia -> UiText(Res.string.content_paid)
     is MessageMedia.Giveaway -> UiText(

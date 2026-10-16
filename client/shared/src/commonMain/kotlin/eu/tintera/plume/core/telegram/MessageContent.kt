@@ -140,6 +140,9 @@ import dev.g000sha256.tdl.dto.PushMessageContentChecklist
 import dev.g000sha256.tdl.dto.PushMessageContentContact
 import dev.g000sha256.tdl.dto.PushMessageContentDocument
 import dev.g000sha256.tdl.dto.PushMessageContentGame
+import dev.g000sha256.tdl.dto.PushMessageContentGameScore
+import dev.g000sha256.tdl.dto.PushMessageContentHidden
+import dev.g000sha256.tdl.dto.PushMessageContentInvoice
 import dev.g000sha256.tdl.dto.PushMessageContentLocation
 import dev.g000sha256.tdl.dto.PushMessageContentPaidMedia
 import dev.g000sha256.tdl.dto.PushMessageContentPhoto
@@ -196,7 +199,6 @@ import eu.tintera.plume.resources.content_audio
 import eu.tintera.plume.resources.content_gift
 import eu.tintera.plume.resources.content_giveaway
 import eu.tintera.plume.resources.content_giveaway_winners
-import eu.tintera.plume.resources.content_group_call
 import eu.tintera.plume.resources.content_rich_message
 import eu.tintera.plume.resources.content_shared_chat
 import eu.tintera.plume.resources.content_stake_dice
@@ -224,6 +226,8 @@ import eu.tintera.plume.resources.media_self_destruct_video
 import eu.tintera.plume.resources.media_sticker
 import eu.tintera.plume.resources.media_video
 import eu.tintera.plume.resources.notification_new_message
+import eu.tintera.plume.resources.notification_pinned
+import eu.tintera.plume.resources.service_message_pinned
 import co.touchlab.kermit.Logger
 import kotlin.concurrent.Volatile
 
@@ -294,6 +298,7 @@ internal fun MessageContent.previewTextOrNull(
     is MessageDice -> UiText.Raw(content.diceText())
     // Směr a zmeškání zná jen zpráva (`isOutgoing`), obsah sám ne — proto tady, ne v `describe`.
     is MessageCall -> UiText(content.outcome(isOutgoing).title(content.isVideo))
+    is MessageGroupCall -> UiText(content.outcome(isOutgoing).title(content.isVideo, isGroup = true, isActive = content.isActive))
     else -> content.describe(isChannelPost)
 }
 
@@ -330,7 +335,47 @@ internal fun MessageContent.previewEntities(selfDestructs: Boolean = false): Lis
  * přišla. Co push nepopisuje nijak užitečně (servisní události), dostane obecné
  * „Nová zpráva" — pravdivé a bez doslovného názvu typu.
  */
-internal fun PushMessageContent.previewText(): UiText = when (this) {
+internal fun PushMessageContent.previewText(): UiText {
+    val content = contentText()
+    return when {
+        !isPinned() -> content ?: UiText(Res.string.notification_new_message)
+        content != null -> UiText(Res.string.notification_pinned, content)
+        else -> UiText(Res.string.service_message_pinned)
+    }
+}
+
+/**
+ * Připnutí zprávy chodí v pushi jako TENTÝŽ typ obsahu, jen s `isPinned` — „Alice připnula
+ * Fotku" je `PushMessageContentPhoto(isPinned = true)`. Dokud se příznak nečetl, ukázala
+ * notifikace připnutou zprávu jako novou, i se starým textem. Příznak nese jen dvacet typů,
+ * proto výčet: ostatní připnout nejde.
+ */
+private fun PushMessageContent.isPinned(): Boolean = when (this) {
+    is PushMessageContentText -> isPinned
+    is PushMessageContentPhoto -> isPinned
+    is PushMessageContentVideo -> isPinned
+    is PushMessageContentAnimation -> isPinned
+    is PushMessageContentDocument -> isPinned
+    is PushMessageContentAudio -> isPinned
+    is PushMessageContentVoiceNote -> isPinned
+    is PushMessageContentVideoNote -> isPinned
+    is PushMessageContentSticker -> isPinned
+    is PushMessageContentPoll -> isPinned
+    is PushMessageContentChecklist -> isPinned
+    is PushMessageContentLocation -> isPinned
+    is PushMessageContentContact -> isPinned
+    is PushMessageContentGame -> isPinned
+    is PushMessageContentGameScore -> isPinned
+    is PushMessageContentInvoice -> isPinned
+    is PushMessageContentStory -> isPinned
+    is PushMessageContentPaidMedia -> isPinned
+    is PushMessageContentGiveaway -> isPinned
+    is PushMessageContentHidden -> isPinned
+    else -> false
+}
+
+/** Popis obsahu z pushe, nebo `null`, když ho popsat neumíme. */
+private fun PushMessageContent.contentText(): UiText? = when (this) {
     is PushMessageContentText -> UiText.Raw(text)
     // `isSecret` je v pushi mizející médium; slova jako u zprávy ([previewTextOrNull]).
     is PushMessageContentPhoto -> if (isSecret) UiText(Res.string.media_self_destruct_photo) else caption.orText(Res.string.media_photo)
@@ -353,7 +398,7 @@ internal fun PushMessageContent.previewText(): UiText = when (this) {
     is PushMessageContentGift, is PushMessageContentUpgradedGift, is PushMessageContentPremiumGiftCode ->
         UiText(Res.string.content_gift)
     is PushMessageContentGiveaway -> UiText(Res.string.content_giveaway)
-    else -> UiText(Res.string.notification_new_message)
+    else -> null
 }
 
 /**
@@ -378,7 +423,6 @@ private fun MessageContent.describe(isChannelPost: Boolean): UiText? = when (thi
     is MessageInvoice -> UiText(Res.string.content_invoice, productInfo.title)
     is MessageStory -> UiText(Res.string.content_story)
     is MessagePaidMedia -> caption.text.orText(Res.string.content_paid)
-    is MessageGroupCall -> UiText(Res.string.content_group_call)
     is MessageGiveaway -> UiText(Res.string.content_giveaway)
     is MessageGiveawayWinners -> UiText(Res.string.content_giveaway_winners)
     is MessageSuggestProfilePhoto -> UiText(Res.string.content_suggested_photo)
@@ -524,7 +568,7 @@ internal suspend fun Message.captionBody(
     // Soutěž je karta s výhrou a podmínkami; „Soutěž" jako text by ji jen pojmenovala podruhé.
     is MessageGiveaway, is MessageGiveawayWinners -> MessageBody.Empty
     // Hovor je řádek s ikonou a názvem; text by ho zdvojil.
-    is MessageCall -> MessageBody.Empty
+    is MessageCall, is MessageGroupCall -> MessageBody.Empty
     // Kontakt je karta se jménem a číslem; „Kontakt: Jana" by ho zdvojil.
     is MessageContact -> MessageBody.Empty
     // Mapa s názvem místa pod sebou; „Poloha" jako text by ji jen popisovala podruhé.
@@ -880,6 +924,16 @@ internal suspend fun Message.messageMedia(
         durationSeconds = content.duration,
     )
 
+    // Skupinový hovor mimo chat (TDLib 15, i v soukromém chatu). Dřív bublina se slovem
+    // „Skupinový hovor" — bez směru, zmeškání a délky, které má hovor ve dvou.
+    is MessageGroupCall -> MessageMedia.Call(
+        outcome = content.outcome(isOutgoing),
+        isVideo = content.isVideo,
+        durationSeconds = content.duration,
+        isGroup = true,
+        isActive = content.isActive,
+    )
+
     is MessageContact -> MessageMedia.Contact(
         name = "${content.contact.firstName} ${content.contact.lastName}".trim(),
         phone = contactPhone(content.contact.phoneNumber),
@@ -921,6 +975,10 @@ internal suspend fun Message.messageMedia(
  */
 private fun MessageCall.outcome(isOutgoing: Boolean): CallOutcome =
     callOutcome(isOutgoing = isOutgoing, end = discardReason.toCallEnd())
+
+/** `wasMissed` u skupinového hovoru je „nevzal ani odmítl" — z pohledu volajícího totéž. */
+private fun MessageGroupCall.outcome(isOutgoing: Boolean): CallOutcome =
+    callOutcome(isOutgoing = isOutgoing, end = if (wasMissed) CallEnd.Missed else CallEnd.HungUp)
 
 private fun CallDiscardReason.toCallEnd(): CallEnd = when (this) {
     is CallDiscardReasonMissed -> CallEnd.Missed

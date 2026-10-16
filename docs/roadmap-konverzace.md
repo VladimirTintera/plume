@@ -426,6 +426,44 @@ sada skupiny jako záložka; správa sad v Nastavení (pořadí, archiv); sdíle
 - ~~**Servisní zprávy o členech jsou bez jmen**~~ — hotovo (`docs/poznatky/typy-zprav.md`,
   „Zprávy o členech mají jména").
 
+## Servisní zprávy a typy obsahu (audit říjen 2026)
+
+Druhé kolo nad všemi 105 typy `MessageContent`: ne jestli typ má popis (má každý), ale jestli
+ho popisuje správně. Co říkalo nepravdu, je opravené (`docs/poznatky/typy-zprav.md`: kanál,
+odchod vlastníka, motiv, skupinový hovor; `docs/poznatky/notifikace.md`: připnutí v pushi).
+Zbývá to, co je pravda, ale bez podstatného údaje, který TDLib posílá:
+
+**Kdo to udělal.** Jména mají jen zprávy o členech (`memberServiceText`) a seznamy úkolů
+(`checklistServiceText`). Aktér (odesílatel servisní zprávy) chybí u připnutí, změny názvu
+a fotky, snímku obrazovky, témat, boostu, skóre ve hře, „Kontakt se připojil k Telegramu"
+a „Někdo se připojil z komunity". Stavět na `namedMemberServiceText` — dohledat jen jméno
+aktéra, bez jména zůstat u dnešní věty.
+
+**Údaje v servisní zprávě:**
+
+- **Připnutí** (`MessagePinMessage.messageId`): text připnuté zprávy („připnul(a) „Sraz v 8"")
+  a ťuknutím skok na ni. Totéž v notifikaci bez pushe (`NotificationTypeNewMessage`), kde je
+  dnes jen „Připnuta zpráva".
+- **Skóre ve hře** (`score`, `gameMessageId`), **boost** (`boostCount`), **platba**
+  (`totalAmount`, `currency`, opakovaná platba).
+- **Videochat**: délka u konce (`duration`), čas u naplánovaného (`startDate`), jména pozvaných
+  (`MessageInviteVideoChatParticipants.userIds`).
+- **Upravené téma**: nový název a ikona (`MessageForumTopicEdited.name`, `iconCustomEmojiId`).
+- **Možnost v anketě přidaná / smazaná**: její text (`text`) a skok na anketu (`pollMessageId`).
+- **Soutěž skončila**: počet výherců a nerozdaných cen (`winnerCount`, `unclaimedPrizeCount`).
+- **Bot smí psát**: důvod (`reason` — mini aplikace, nabídka příloh, propojení webu).
+- **Push**: „N přeposlaných zpráv" (`PushMessageContentMessageForwards.totalCount`), změna
+  názvu, přidání členů, skóre a další servisní typy pushe dostanou jen „Nová zpráva".
+
+**Obsah, který je jen řádkem textu:**
+
+- **Sdílený chat a sdílení uživatelé** (`MessageChatShared`, `MessageUsersShared`, odpověď na
+  tlačítko bota): jména a fotky jsou ve zprávě, ukazuje se jen „Sdílený chat".
+- **Návrh profilové fotky** (`MessageSuggestProfilePhoto`): fotka a „Nastavit".
+- **Návrh data narození** (`MessageSuggestBirthdate`) — viz roadmap.md, „Účet a nastavení".
+- **Kostka se sázkou** (`MessageStakeDice`): animace hodu jako u `MessageDice` (`initialState`,
+  `finalState`), hodnota, vklad a výhra v TON.
+
 ## Co TDLib umí a Plume zatím ne (audit září 2026)
 
 Prošlo se všech 105 podtypů `MessageContent` v `tdl-coroutines 15.0.0`, pole `Message`,

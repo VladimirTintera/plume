@@ -2521,8 +2521,12 @@ sealed interface MessageMedia {
     data class Call(
         val outcome: CallOutcome,
         val isVideo: Boolean,
-        /** Nula u hovoru, ve kterém se nemluvilo (zmeškaný, zrušený). */
+        /** Nula u hovoru, ve kterém se nemluvilo (zmeškaný, zrušený), i u probíhajícího. */
         val durationSeconds: Int,
+        /** Skupinový hovor (`MessageGroupCall`). Zpátky se z něj nevolá — skupinové hovory Plume neumí. */
+        val isGroup: Boolean = false,
+        /** Skupinový hovor ještě běží. */
+        val isActive: Boolean = false,
     ) : MessageMedia
 
     /**

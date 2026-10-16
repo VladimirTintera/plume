@@ -155,6 +155,15 @@ import eu.tintera.plume.resources.service_topic_edited
 import eu.tintera.plume.resources.service_video_chat_ended
 import eu.tintera.plume.resources.service_video_chat_scheduled
 import eu.tintera.plume.resources.service_video_chat_started
+import eu.tintera.plume.resources.service_channel_photo_changed
+import eu.tintera.plume.resources.service_channel_photo_removed
+import eu.tintera.plume.resources.service_theme_reset
+import eu.tintera.plume.resources.service_live_stream_started
+import eu.tintera.plume.resources.service_live_stream_ended
+import eu.tintera.plume.resources.service_live_stream_scheduled
+import eu.tintera.plume.resources.service_live_stream_invite
+import eu.tintera.plume.resources.service_owner_left
+import eu.tintera.plume.resources.service_owner_left_successor
 import org.jetbrains.compose.resources.PluralStringResource
 import org.jetbrains.compose.resources.StringResource
 
@@ -183,9 +192,15 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
     is MessageChatDeleteMember -> UiText(Res.string.service_member_left)
 
     is MessageChatChangeTitle -> UiText(Res.string.service_title_changed, title)
-    is MessageChatChangePhoto -> UiText(Res.string.service_photo_changed)
-    is MessageChatDeletePhoto -> UiText(Res.string.service_photo_removed)
-    is MessageChatSetTheme -> UiText(Res.string.service_theme_changed)
+    // Fotku mění skupina i kanál a obsah to neříká — rozliší to až zpráva, jako u založení.
+    is MessageChatChangePhoto -> UiText(
+        if (isChannelPost) Res.string.service_channel_photo_changed else Res.string.service_photo_changed,
+    )
+    is MessageChatDeletePhoto -> UiText(
+        if (isChannelPost) Res.string.service_channel_photo_removed else Res.string.service_photo_removed,
+    )
+    // Bez motivu = vrácení na výchozí, ne změna.
+    is MessageChatSetTheme -> UiText(if (theme == null) Res.string.service_theme_reset else Res.string.service_theme_changed)
     is MessageChatSetBackground -> UiText(Res.string.service_background_changed)
 
     // S délkou: „Zprávy se budou samy mazat" neřeklo, za jak dlouho.
@@ -206,9 +221,16 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
     is MessageContactRegistered -> UiText(Res.string.service_contact_joined)
     is MessageProximityAlertTriggered -> UiText(Res.string.service_nearby, distanceUiText(distance))
 
-    is MessageVideoChatStarted -> UiText(Res.string.service_video_chat_started)
-    is MessageVideoChatEnded -> UiText(Res.string.service_video_chat_ended)
-    is MessageVideoChatScheduled -> UiText(Res.string.service_video_chat_scheduled)
+    // Videochat kanálu je živé vysílání — tak ho jmenuje i pruh nad konverzací.
+    is MessageVideoChatStarted -> UiText(
+        if (isChannelPost) Res.string.service_live_stream_started else Res.string.service_video_chat_started,
+    )
+    is MessageVideoChatEnded -> UiText(
+        if (isChannelPost) Res.string.service_live_stream_ended else Res.string.service_video_chat_ended,
+    )
+    is MessageVideoChatScheduled -> UiText(
+        if (isChannelPost) Res.string.service_live_stream_scheduled else Res.string.service_video_chat_scheduled,
+    )
 
     is MessageForumTopicCreated -> UiText(Res.string.service_topic_created, name)
     is MessageForumTopicEdited -> UiText(Res.string.service_topic_edited)
@@ -221,8 +243,15 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
 
     is MessageGameScore -> UiText(Res.string.service_game_score)
 
-    is MessageInviteVideoChatParticipants -> UiText(Res.string.service_video_chat_invite)
-    is MessageChatOwnerChanged, is MessageChatOwnerLeft -> UiText(Res.string.service_owner_changed)
+    is MessageInviteVideoChatParticipants -> UiText(
+        if (isChannelPost) Res.string.service_live_stream_invite else Res.string.service_video_chat_invite,
+    )
+    is MessageChatOwnerChanged -> UiText(Res.string.service_owner_changed)
+    // Vlastník jen odešel: nástupce chat převezme, teprve když se nevrátí, a nemusí žádný být.
+    // „Chat má nového vlastníka" tu tvrdilo něco, co se možná nikdy nestane.
+    is MessageChatOwnerLeft -> UiText(
+        if (newOwnerUserId == 0L) Res.string.service_owner_left else Res.string.service_owner_left_successor,
+    )
     is MessageChatHasProtectedContentToggled -> UiText(
         if (newHasProtectedContent) Res.string.service_protected_content_on else Res.string.service_protected_content_off,
     )

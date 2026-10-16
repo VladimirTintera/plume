@@ -1,5 +1,10 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.call_missed
+import eu.tintera.plume.resources.group_call_active
+import eu.tintera.plume.resources.group_call_missed
+import eu.tintera.plume.resources.group_video_call_cancelled
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -36,5 +41,18 @@ class CallOutcomeTest {
         assertFalse(CallOutcome.Cancelled.isFailure)
         assertFalse(CallOutcome.Outgoing.isFailure)
         assertFalse(CallOutcome.Incoming.isFailure)
+    }
+
+    @Test
+    fun skupinovyHovorMaVlastniNazev() {
+        // Dřív bublina „Skupinový hovor" bez směru a zmeškání; teď jako hovor ve dvou.
+        assertEquals(Res.string.call_missed, CallOutcome.Missed.title(isVideo = false))
+        assertEquals(Res.string.group_call_missed, CallOutcome.Missed.title(isVideo = false, isGroup = true))
+        assertEquals(Res.string.group_video_call_cancelled, CallOutcome.Cancelled.title(isVideo = true, isGroup = true))
+    }
+
+    @Test
+    fun probihajiciSkupinovyHovorNehlasiVysledek() {
+        assertEquals(Res.string.group_call_active, CallOutcome.Incoming.title(isVideo = false, isGroup = true, isActive = true))
     }
 }

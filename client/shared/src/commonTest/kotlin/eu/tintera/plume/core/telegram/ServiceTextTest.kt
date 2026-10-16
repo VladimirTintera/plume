@@ -1,6 +1,12 @@
 package eu.tintera.plume.core.telegram
 
+import dev.g000sha256.tdl.dto.MessageChatDeletePhoto
+import dev.g000sha256.tdl.dto.MessageChatOwnerChanged
+import dev.g000sha256.tdl.dto.MessageChatOwnerLeft
 import dev.g000sha256.tdl.dto.MessageChatSetMessageAutoDeleteTime
+import dev.g000sha256.tdl.dto.MessageChatSetTheme
+import dev.g000sha256.tdl.dto.MessageVideoChatEnded
+import dev.g000sha256.tdl.dto.MessageVideoChatStarted
 import dev.g000sha256.tdl.dto.MessageChatUpgradeFrom
 import dev.g000sha256.tdl.dto.MessageChatUpgradeTo
 import dev.g000sha256.tdl.dto.MessageCustomServiceAction
@@ -14,7 +20,16 @@ import eu.tintera.plume.resources.content_expired_photo
 import eu.tintera.plume.resources.content_expired_voice_note
 import eu.tintera.plume.resources.duration_days
 import eu.tintera.plume.resources.service_auto_delete_off
+import eu.tintera.plume.resources.service_channel_photo_removed
 import eu.tintera.plume.resources.service_group_created
+import eu.tintera.plume.resources.service_live_stream_ended
+import eu.tintera.plume.resources.service_live_stream_started
+import eu.tintera.plume.resources.service_owner_changed
+import eu.tintera.plume.resources.service_owner_left
+import eu.tintera.plume.resources.service_owner_left_successor
+import eu.tintera.plume.resources.service_photo_removed
+import eu.tintera.plume.resources.service_theme_reset
+import eu.tintera.plume.resources.service_video_chat_started
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -71,5 +86,34 @@ class ServiceTextTest {
             MessageChatUpgradeTo(supergroupId = 42L).upgradeLink(),
         )
         assertNull(MessageSupergroupChatCreate(title = "Plume").upgradeLink())
+    }
+
+    @Test
+    fun odchodVlastnikaNeniNovyVlastnik() {
+        // Nástupce chat převezme, jen když se vlastník nevrátí — a nemusí žádný být.
+        assertEquals(UiText(Res.string.service_owner_left), MessageChatOwnerLeft(newOwnerUserId = 0L).serviceText(isChannelPost = false))
+        assertEquals(
+            UiText(Res.string.service_owner_left_successor),
+            MessageChatOwnerLeft(newOwnerUserId = 7L).serviceText(isChannelPost = false),
+        )
+        assertEquals(UiText(Res.string.service_owner_changed), MessageChatOwnerChanged(newOwnerUserId = 7L).serviceText(isChannelPost = false))
+    }
+
+    @Test
+    fun videochatKanaluJeZiveVysilani() {
+        assertEquals(UiText(Res.string.service_live_stream_started), MessageVideoChatStarted(groupCallId = 1).serviceText(isChannelPost = true))
+        assertEquals(UiText(Res.string.service_live_stream_ended), MessageVideoChatEnded(duration = 60).serviceText(isChannelPost = true))
+        assertEquals(UiText(Res.string.service_video_chat_started), MessageVideoChatStarted(groupCallId = 1).serviceText(isChannelPost = false))
+    }
+
+    @Test
+    fun fotkaKanaluNeniFotkaSkupiny() {
+        assertEquals(UiText(Res.string.service_channel_photo_removed), MessageChatDeletePhoto().serviceText(isChannelPost = true))
+        assertEquals(UiText(Res.string.service_photo_removed), MessageChatDeletePhoto().serviceText(isChannelPost = false))
+    }
+
+    @Test
+    fun motivBezMotivuJeVraceni() {
+        assertEquals(UiText(Res.string.service_theme_reset), MessageChatSetTheme(theme = null).serviceText(isChannelPost = false))
     }
 }
