@@ -413,7 +413,7 @@ internal fun MessageAttachment(
         is MessageMedia.Call -> CallRow(
             call = media,
             accent = accent,
-            onCallBack = if (koinInject<CallRepository>().supported) { { onAction(MessageAction.CallBack) } } else null,
+            onCallBack = if (koinInject<CallRepository>().supported && !media.isGroup) { { onAction(MessageAction.CallBack) } } else null,
             onRequestMenu = onRequestMenu,
         )
 

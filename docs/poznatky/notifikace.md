@@ -86,6 +86,12 @@ a odložené rušení prázdné notifikace.
   rozšifrovaný přímo z pushe, protože zprávu samotnou TDLib bez spojení nemá. Dokud se
   zobrazoval jen `NewMessage`, push se zpracoval a notifikace se tiše zahodila — to byl hlavní
   důvod, proč z pozadí „prakticky nechodily". Text skládá `PushMessageContent.previewText()`.
+- **Připnutí chodí v pushi jako TENTÝŽ typ obsahu s `isPinned`**, žádný vlastní typ to není:
+  „Alice připnula fotku" je `PushMessageContentPhoto(isPinned = true)`. Dokud se příznak
+  nečetl, ukázala notifikace připnutou zprávu jako novou, i se starým textem. Teď „Připnuto:
+  Fotka"; u obsahu, který popsat neumíme (skrytý, skóre), holé „Připnuta zpráva". Příznak nese
+  dvacet typů a společného předka nemají, proto výčet v `isPinned()` — **při bumpu TDLib ho
+  projít** spolu s typy obsahu (testy `PushPreviewTextTest`).
 - **Náhrada dočasné notifikace skutečnou se zobrazuje POTICHU.** TDLib dočasnou odebere a přidá
   novou k téže zprávě; pro systém je to nová zpráva a telefon upozornil dvakrát. Presenter
   si proto pamatuje nedávno odebrané řádky (minutu) a přidání téže zprávy je tiché. **Porovnává

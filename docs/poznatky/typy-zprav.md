@@ -45,6 +45,14 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
   parametrem BEZ výchozí hodnoty. Citace z jiného chatu zprávu nemá, bere ho z `origin`
   (`MessageOriginChannel`). Ověřeno sondou nad první zprávou (id `1 shl 20`) třinácti supergroup
   na emulátoru: `isChannelPost` sedělo s `ChatTypeSupergroup.isChannel` pokaždé.
+- **Kanál potřebuje vlastní větu i u fotky a videochatu**, nejen u založení: „Změněna fotka
+  skupiny" a „Videohovor začal" stály dřív i v kanálu. Videochat kanálu je živé vysílání (tak
+  ho jmenuje i pruh nad konverzací) a ve skupině je to videochat, ne videohovor — hovor je věc
+  dvou lidí. Rozhoduje totéž `isChannelPost` (testy `ServiceTextTest`).
+- **`MessageChatOwnerLeft` neříká, že chat má nového vlastníka.** Vlastník jen odešel; nástupce
+  (`newOwnerUserId`) chat převezme, teprve když se nevrátí, a nula znamená, že žádný není.
+  Sdílená věta s `MessageChatOwnerChanged` tvrdila něco, co se možná nikdy nestane.
+- **`MessageChatSetTheme` s `theme = null` je vrácení na výchozí motiv**, ne jeho změna.
 - **`MessageUnsupported` znamená, že klient je starší než server.** Doslovný název typu by
   uživateli neřekl nic, takže dostane stejnou větu jako ostatní neznámé typy.
 - **Notifikace „neumíme zobrazit" neříká nikdy** (`notificationText`): typ, který neumíme
@@ -739,6 +747,12 @@ nese náhled v seznamu chatů, citace i notifikace. Pravidlo je čistá funkce `
   videem, když ho protějšek přijímá; dlouhý stisk otevře nabídku nad zprávou. Kde hovory nejsou
   (iOS, desktop), ťuknutí i dlouhý stisk dostane bublina. Viz `docs/poznatky/hovory.md`,
   „Hovor z konverzace".
+- **Skupinový hovor (`MessageGroupCall`, TDLib 15) je týž řádek** s vlastními názvy
+  („Zmeškaný skupinový hovor", „Probíhá skupinový hovor"). Dřív bublina se slovem „Skupinový
+  hovor" bez směru, zmeškání a délky. TDLib nerozlišuje zmeškaný a odmítnutý (`wasMissed` je
+  obojí), takže odchozí je „zrušený" a příchozí „zmeškaný" — stejné pravidlo `callOutcome`.
+  **Ťuknutí nevolá zpátky**: vytočil by se hovor ve dvou a skupinové hovory Plume neumí.
+  Ověřené jen testem (`CallOutcomeTest`); skutečný skupinový hovor nikdo neviděl.
 - **Ověřuje se sondou**: skutečné hovory jsou jen v chatech se skutečnými lidmi (otevření by
   jim označilo zprávy jako přečtené) a bot volat neumí. Dočasně v `messageMedia` převést text
   `#call:<CallOutcome>:video:<sekundy>` na `MessageMedia.Call` (a v `captionBody` na prázdný
