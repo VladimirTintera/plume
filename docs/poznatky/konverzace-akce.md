@@ -267,6 +267,10 @@ neposouvá; časy u všech dál ukáže tah doleva.
 - **Odpovědět jen tam, kam se smí psát** (`ConversationItemScope.canReply`, tentýž `canWrite`
   jako příkazy); `replyTo` by jinde nic neudělal. Akce je `SwipeReply`, tatáž jako u tahu.
 - **Ve výběru víc zpráv a u zprávy s otevřenou nabídkou se neukazuje.**
+- **Plocha je `secondaryContainer`, ne `surfaceContainerHigh`.** Tu má příchozí bublina, takže
+  pilulka vedle ní (a přes ni, když se posune dovnitř) splývala — uživatel ji na desktopu
+  nerozeznal. Ikona doručení dostává barvu popředí pilulky a chyba jde přes `accentOn`
+  (v paletě se zvýšeným kontrastem je container světlý, viz „Akcent na tónované ploše").
 - **Bez minimální dotykové plochy** (`LocalMinimumInteractiveComponentSize` = `Unspecified`)
   a extra malá tlačítka M3 (32 dp): pilulka je jen pro myš a s plochou 48 dp by byla vyšší než
   jednořádková bublina.

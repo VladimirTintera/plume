@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.SendFailure
@@ -164,10 +165,15 @@ private fun DeliveryIcon(delivery: Delivery) {
 /**
  * Ikona jednoho stavu doručení — pod bublinou ([DeliveryBadge]) i v pilulce po najetí myší
  * (`MessageHoverActions`). Selhání je jediný stav, který uživatel musí zaregistrovat, dostane
- * chybovou barvu.
+ * chybovou barvu. Barvy jsou pro plochu konverzace; jiná plocha (pilulka) si předá vlastní.
  */
 @Composable
-internal fun DeliveryStateIcon(delivery: Delivery, modifier: Modifier = Modifier) {
+internal fun DeliveryStateIcon(
+    delivery: Delivery,
+    modifier: Modifier = Modifier,
+    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    failedTint: Color = MaterialTheme.colorScheme.error,
+) {
     val (icon, description) = when (delivery) {
         Delivery.Sending -> Res.drawable.schedule_24dp to Res.string.conversation_delivery_sending
         Delivery.Sent -> Res.drawable.check_24dp to Res.string.conversation_delivery_sent
@@ -177,7 +183,7 @@ internal fun DeliveryStateIcon(delivery: Delivery, modifier: Modifier = Modifier
     Icon(
         painter = painterResource(icon),
         contentDescription = stringResource(description),
-        tint = if (delivery == Delivery.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+        tint = if (delivery == Delivery.Failed) failedTint else tint,
         modifier = modifier.size(DELIVERY_ICON_SIZE),
     )
 }

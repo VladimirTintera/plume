@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.ui.WithTooltip
+import eu.tintera.plume.core.ui.accentOn
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
@@ -71,10 +72,14 @@ internal fun MessageHoverActions(
         exit = fadeOut(MaterialTheme.motionScheme.defaultEffectsSpec()),
         modifier = modifier,
     ) {
+        // Tónovaná plocha, ne `surfaceContainerHigh`: tu má příchozí bublina, takže pilulka u ní
+        // (a hlavně přes ni, když se na volnou stranu nevejde) splývala.
+        val container = MaterialTheme.colorScheme.secondaryContainer
+        val content = MaterialTheme.colorScheme.onSecondaryContainer
         Surface(
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = container,
+            contentColor = content,
             // Kde se na volnou stranu nevejde, překryje kus bubliny — stín ji od ní oddělí.
             shadowElevation = 2.dp,
         ) {
@@ -85,7 +90,14 @@ internal fun MessageHoverActions(
                         style = MaterialTheme.typography.labelMedium.tabularNumbers(),
                         modifier = Modifier.padding(end = 4.dp),
                     )
-                    delivery?.let { DeliveryStateIcon(it, Modifier.padding(end = 2.dp)) }
+                    delivery?.let {
+                        DeliveryStateIcon(
+                            delivery = it,
+                            modifier = Modifier.padding(end = 2.dp),
+                            tint = content,
+                            failedTint = accentOn(container, MaterialTheme.colorScheme.error, content),
+                        )
+                    }
                     if (onReply != null) HoverActionButton(Res.drawable.reply_24dp, stringResource(Res.string.menu_reply), onReply)
                     HoverActionButton(Res.drawable.more_vert_24dp, stringResource(Res.string.conversation_message_options), onOptions)
                 }
