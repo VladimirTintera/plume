@@ -399,6 +399,26 @@ a nainstalované sady, pod nimi mřížka. Ťuknutí samolepku pošle (i jako od
   vidět dvě; přijíždějící sada by uprostřed tahu rozbalovala a parsovala desítky animací naráz.
   Rozběhne se po dosednutí ze statického náhledu, který odpovídá prvnímu snímku, takže to není
   skok. Odjíždějící stránka hraje, dokud nezmizí.
+- **Mřížka se rozhýbe až ve VYSUNUTÉM sheetu a při zasouvání zamrzne** (`SheetStickerMotion`,
+  `rememberSheetStickerMotion`; výběr i sheet sady). Usazená stránka pageru je usazená hned při
+  otevření, takže se dřív pár desítek `.tgs` rozbalovalo a parsovalo a pak každý snímek kreslilo
+  na hlavním vlákně právě ve chvíli, kdy sheet vyjížděl — a vytažení drhlo. Do prvního dojetí
+  (`currentValue == targetValue == Expanded`) stojí mřížka na statických náhledech a animace se
+  ani nenačítají. Jakmile sheet míří dolů (`targetValue` se přepne hned na začátku zasouvání:
+  ťuknutí vedle, tah přes práh, odeslání), samolepky ZAMRZNOU na snímku (`paused`), nevrací se
+  na náhled — výměna obsahu by uprostřed zasouvání byla zase práce navíc. Smyčka má
+  `restartOnPlay = false`, takže sheet vrácený tahem zpátky ji pustí odtamtud, kde stála.
+  - **Zadržení (`held`) drží TUTÉŽ skladbu jako hrající samolepka**, jen animaci nenačítá
+    (`AnimatedSticker(load = false)`). První verze přepínala `playing` a buňka tak po dojetí
+    přeskočila z větve s náhledem do větve s animací: náhled (`RemoteImage`) se složil znovu
+    jinde ve stromu, u všech buněk naráz. Totéž teď platí pro nedosednutou stránku pageru.
+  - **Změřeno Perfettem** (emulátor, debug build, sada s 25 samolepkami): původně měl snímek
+    během vyjíždění 110–117 ms (z toho 60–90 ms `Record View#draw()` hrajících samolepek)
+    a sheet vyjel na 6–7 snímcích, teď 23–25 ms a 23–33 snímků. **`gfxinfo` ukazoval opak**
+    (zaseknutých 17 % před, 30 % po): procenta se počítají z vykreslených snímků a původní
+    verze jich vykreslila zlomek. Plynulost se proto porovnává Perfettem, ne procenty z `gfxinfo`.
+  - **Zbývá první snímek sheetu (~480 ms na emulátoru)**: `PrimaryScrollableTabRow` skládá
+    a měří záložky VŠECH sad naráz (32 záložek ~106 ms jen skládání), mřížka dalších ~87 ms.
 - **Kde je vedle sebe víc sad, samolepky dál NEHRAJÍ** (`StickerPreview(playing = false)`):
   obálky v řádku záložek a ukázky v trendech. Bere se nejlevnější podoba: rastrový náhled,
   statická `.webp`, a teprve bez nich první snímek `.tgs`.

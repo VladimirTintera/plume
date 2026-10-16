@@ -58,6 +58,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.PrimaryScrollableTabRow
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
@@ -69,6 +70,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -579,7 +581,7 @@ sealed interface StickerSearchState {
  * a pager sdílejí jeden stav — swipe přepne záložku, ťuknutí na záložku posune pager.
  *
  * Stránky mají **pevnou výšku**, aby se sheet při přepínání nenatahoval a nesmršťoval podle počtu
- * samolepek. Samolepky v nich **nehrají** (viz [StickerPreview]).
+ * samolepek. Samolepky usazené stránky hrají, ale až ve vysunutém sheetu (viz [SheetStickerMotion]).
  */
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
@@ -644,6 +646,7 @@ internal fun StickerPickerSheet(
     )
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
+    val motion = rememberSheetStickerMotion(sheetState)
 
     /*
      * Samolepka otevřená podržením ve velkém náhledu (s hvězdičkou oblíbených a volbami odeslání).
@@ -681,6 +684,10 @@ internal fun StickerPickerSheet(
         onToggleFavorite = toggleFavorite,
         sendMenu = sendMenu,
         onPickWith = pickWith,
+        // Mřížka hraje až ve vysunutém sheetu a při zasouvání stojí.
+        playing = true,
+        held = !motion.started,
+        paused = !motion.settled,
     )
 
     TrendingSetSheetHost(setId = openSetId, onClose = { openSetId = null }, pick = pick)
@@ -787,7 +794,7 @@ internal fun StickerPickerSheet(
                 StickerSearchResults(
                     search = search,
                     // Výsledky jsou jediná mřížka na obrazovce, hrají celé.
-                    cells = cells.copy(playing = true),
+                    cells = cells,
                     installedSetIds = state.installedSetIds,
                     onOpenSet = { openSetId = it },
                     onInstallSet = viewModel::installSet,
@@ -893,7 +900,7 @@ private fun StickerTabsPager(
                      * se uprostřed tahu rozbalovala a parsovala desítky animací a tah by zadrhával.
                      * Rozběhne se po dosednutí, z náhledu, který odpovídá prvnímu snímku.
                      */
-                    playing = page == pagerState.settledPage,
+                    held = cells.held || page != pagerState.settledPage,
                 ),
             )
         }
@@ -1149,7 +1156,43 @@ internal data class StickerCells(
      * a `LazyVerticalGrid` skládá jen viditelné buňky.
      */
     val playing: Boolean = false,
+    /**
+     * Hrající mřížka animace zatím nenačítá a drží náhledy: sheet ještě nevyjel (viz
+     * [SheetStickerMotion]), nebo stránka pageru nedosedla.
+     */
+    val held: Boolean = false,
+    /** Rozhýbané samolepky stojí na místě — sheet se zasouvá (viz [SheetStickerMotion]). */
+    val paused: Boolean = false,
 )
+
+/**
+ * Kdy se samolepky v mřížce sheetu smějí hýbat.
+ *
+ * Rozbalit a rozparsovat pár desítek `.tgs` a pak je každý snímek kreslit na hlavním vlákně
+ * stojí tolik, že vyjíždějící sheet drhnul — mřížka se rozhýbala hned v prvním snímku, ne až
+ * po dojetí. Proto:
+ * - [started]: sheet aspoň jednou dojel do rozbaleného stavu. Do té doby mřížka stojí na
+ *   statických náhledech a animace se ani nenačítají ([StickerCells.held]). Rozběhne se
+ *   z náhledu, který odpovídá prvnímu snímku, takže to není skok (stejně jako po dosednutí
+ *   stránky v pageru).
+ * - [settled]: sheet stojí rozbalený a nikam nemíří. Jakmile míří dolů (ťuknutí vedle, tah přes
+ *   práh, odeslání samolepky), samolepky ZAMRZNOU na místě. Výměna za náhled by uprostřed
+ *   zasouvání znamenala skládat obsah znovu, a to je přesně ta práce, které se tu šetří.
+ */
+internal data class SheetStickerMotion(val started: Boolean, val settled: Boolean)
+
+@Composable
+internal fun rememberSheetStickerMotion(sheetState: SheetState): SheetStickerMotion {
+    // `targetValue` se přepne hned na začátku zasouvání, `currentValue` až po dojetí.
+    val settled by remember(sheetState) {
+        derivedStateOf {
+            sheetState.currentValue == SheetValue.Expanded && sheetState.targetValue == SheetValue.Expanded
+        }
+    }
+    var started by remember(sheetState) { mutableStateOf(false) }
+    LaunchedEffect(settled) { if (settled) started = true }
+    return SheetStickerMotion(started = started, settled = settled)
+}
 
 /**
  * Jedna samolepka v mřížce: ťuknutí pošle, podržení otevře velký náhled ([StickerPreviewDialog]).
@@ -1212,7 +1255,13 @@ internal fun StickerCell(sticker: StickerItem, cells: StickerCells, modifier: Mo
         if (customEmoji != null) {
             CustomEmojiImage(id = customEmoji, fallback = sticker.preview.emoji, modifier = Modifier.fillMaxSize().padding(14.dp))
         } else {
-            StickerPreview(sticker.preview, playing = active || cells.playing, modifier = Modifier.fillMaxSize().padding(6.dp))
+            StickerPreview(
+                sticker.preview,
+                playing = active || cells.playing,
+                held = cells.held && !active,
+                paused = cells.paused,
+                modifier = Modifier.fillMaxSize().padding(6.dp),
+            )
         }
     }
 }
@@ -1574,12 +1623,19 @@ private fun StickerTabIcon(tab: StickerTab) {
  * tentýž statický náhled, takže se samolepka rozběhne na místě, bez probliknutí. Statická `.webp`
  * nemá co přehrát a zůstane stát. Videosamolepka `.webm` hraje přes [VideoSticker] (na iOS
  * zůstane náhledem).
+ *
+ * [held] animaci zatím nenačítá a drží náhled, ale skladba zůstává táž jako u hrající samolepky:
+ * po uvolnění se vymění jen náhled za animaci. Přepnutí [playing] by naopak náhled složilo znovu
+ * na jiném místě stromu — u celé mřížky naráz. [paused] rozhýbanou samolepku zmrazí na právě
+ * kresleném snímku a animaci si nechá.
  */
 @Composable
 internal fun StickerPreview(
     sticker: MessageMedia.Sticker,
     playing: Boolean,
     modifier: Modifier = Modifier,
+    held: Boolean = false,
+    paused: Boolean = false,
 ) {
     val still = sticker.thumbnailFileId ?: sticker.fileId
     val description = sticker.emoji.ifBlank { stringResource(Res.string.media_sticker) }
@@ -1604,7 +1660,9 @@ internal fun StickerPreview(
         animation != null && playing -> AnimatedSticker(
             fileId = animation,
             contentDescription = description,
-            isPlaying = true,
+            isPlaying = !paused && !held,
+            // Bez náhledu je první snímek pořád lepší než emoji, takže se načte i zadržená.
+            load = !held || still == null,
             modifier = modifier,
             placeholder = stillImage,
         )
@@ -1613,6 +1671,8 @@ internal fun StickerPreview(
         video != null && playing -> VideoSticker(
             fileId = video,
             contentDescription = description,
+            playing = !paused,
+            load = !held,
             modifier = modifier,
             placeholder = stillImage,
         )

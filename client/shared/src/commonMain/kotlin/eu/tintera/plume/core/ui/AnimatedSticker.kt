@@ -50,6 +50,12 @@ fun AnimatedSticker(
      * v trendech), by hrající samolepky stály víc, než přinesou; hraje se až tam, kde má smysl.
      */
     isPlaying: Boolean = true,
+    /**
+     * `false` = animaci zatím nenačítat, kreslit jen [placeholder]. Na rozdíl od vynechání celé
+     * samolepky zůstává kompozice táž: až se načítání povolí, vymění se jen placeholder za animaci
+     * a náhled pod ním se nestaví znovu.
+     */
+    load: Boolean = true,
     /** Jak animace běží; výchozí je smyčka (viz [StickerPlayback]). */
     playback: StickerPlayback = StickerPlayback.Loop,
     /** Doběhla animace hraná jednou ([StickerPlayback.Once]). */
@@ -66,7 +72,7 @@ fun AnimatedSticker(
 
     // Spec se skládá i bez cesty, ať je struktura kompozice pořád stejná; bez ní se nic nenačítá.
     val composition = rememberLottieComposition(
-        spec = TgsSpec(path),
+        spec = TgsSpec(path.takeIf { load }),
         cache = stickerCompositions,
     ).value
 
@@ -79,6 +85,9 @@ fun AnimatedSticker(
                     StickerPlayback.Loop -> rememberLottiePainter(
                         composition = composition,
                         isPlaying = isPlaying,
+                        // Zastavená smyčka se rozběhne tam, kde stála, ne od začátku: výběr
+                        // samolepek je při zasouvání zmrazí a zpátky vytažený sheet je pustí dál.
+                        restartOnPlay = false,
                         iterations = Compottie.IterateForever,
                     )
                     StickerPlayback.Once -> {
