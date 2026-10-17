@@ -1,6 +1,5 @@
 package eu.tintera.plume.core.telegram
 
-import dev.g000sha256.tdl.dto.PushMessageContentGameScore
 import dev.g000sha256.tdl.dto.PushMessageContentHidden
 import dev.g000sha256.tdl.dto.PushMessageContentText
 import eu.tintera.plume.core.ui.UiText
@@ -28,12 +27,8 @@ class PushPreviewTextTest {
 
     @Test
     fun pripnutiBezPopisuJeHolaVeta() {
-        // Skrytý obsah ani skóre popsat neumíme; „Připnuto: Nová zpráva" by nedávalo smysl.
+        // Skrytý obsah popsat neumíme; „Připnuto: Nová zpráva" by nedávalo smysl.
         assertEquals(UiText(Res.string.service_message_pinned), PushMessageContentHidden(isPinned = true).previewText())
-        assertEquals(
-            UiText(Res.string.service_message_pinned),
-            PushMessageContentGameScore(title = "Hra", score = 10, isPinned = true).previewText(),
-        )
         assertEquals(UiText(Res.string.notification_new_message), PushMessageContentHidden(isPinned = false).previewText())
     }
 }

@@ -2,6 +2,58 @@ package eu.tintera.plume.core.telegram
 
 import eu.tintera.plume.core.ui.orText
 import eu.tintera.plume.core.ui.UiText
+import dev.g000sha256.tdl.dto.PushMessageContentBasicGroupChatCreate
+import dev.g000sha256.tdl.dto.PushMessageContentChatChangeTitle
+import dev.g000sha256.tdl.dto.PushMessageContentChatChangePhoto
+import dev.g000sha256.tdl.dto.PushMessageContentChatAddMembers
+import dev.g000sha256.tdl.dto.PushMessageContentChatDeleteMember
+import dev.g000sha256.tdl.dto.PushMessageContentChatJoinByLink
+import dev.g000sha256.tdl.dto.PushMessageContentChatJoinByRequest
+import dev.g000sha256.tdl.dto.PushMessageContentChatSetBackground
+import dev.g000sha256.tdl.dto.PushMessageContentChatSetTheme
+import dev.g000sha256.tdl.dto.PushMessageContentChecklistTasksAdded
+import dev.g000sha256.tdl.dto.PushMessageContentChecklistTasksDone
+import dev.g000sha256.tdl.dto.PushMessageContentContactRegistered
+import dev.g000sha256.tdl.dto.PushMessageContentInviteVideoChatParticipants
+import dev.g000sha256.tdl.dto.PushMessageContentMessageForwards
+import dev.g000sha256.tdl.dto.PushMessageContentPollOptionAdded
+import dev.g000sha256.tdl.dto.PushMessageContentProximityAlertTriggered
+import dev.g000sha256.tdl.dto.PushMessageContentRecurringPayment
+import dev.g000sha256.tdl.dto.PushMessageContentScreenshotTaken
+import dev.g000sha256.tdl.dto.PushMessageContentSuggestProfilePhoto
+import dev.g000sha256.tdl.dto.PushMessageContentSuggestBirthdate
+import dev.g000sha256.tdl.dto.PushMessageContentVideoChatStarted
+import dev.g000sha256.tdl.dto.PushMessageContentVideoChatEnded
+import eu.tintera.plume.resources.push_group_created
+import eu.tintera.plume.resources.push_title_changed
+import eu.tintera.plume.resources.push_photo_changed
+import eu.tintera.plume.resources.push_member_returned
+import eu.tintera.plume.resources.push_added_you
+import eu.tintera.plume.resources.push_member_added
+import eu.tintera.plume.resources.push_member_left
+import eu.tintera.plume.resources.push_removed_you
+import eu.tintera.plume.resources.push_member_removed
+import eu.tintera.plume.resources.push_joined_by_link
+import eu.tintera.plume.resources.push_joined_by_request
+import eu.tintera.plume.resources.push_contact_joined
+import eu.tintera.plume.resources.push_video_chat_invited_you
+import eu.tintera.plume.resources.push_forwarded_messages
+import eu.tintera.plume.resources.push_recurring_payment
+import eu.tintera.plume.resources.push_screenshot
+import eu.tintera.plume.resources.push_game_score
+import eu.tintera.plume.resources.service_background_changed
+import eu.tintera.plume.resources.service_theme_reset
+import eu.tintera.plume.resources.service_theme_changed
+import eu.tintera.plume.resources.service_checklist_tasks_added
+import eu.tintera.plume.resources.service_checklist_tasks_done
+import eu.tintera.plume.resources.service_video_chat_invite
+import eu.tintera.plume.resources.service_poll_option_added_named
+import eu.tintera.plume.resources.service_poll_option_added
+import eu.tintera.plume.resources.service_nearby
+import eu.tintera.plume.resources.service_video_chat_started
+import eu.tintera.plume.resources.service_video_chat_ended
+import eu.tintera.plume.core.ui.grouped
+import eu.tintera.plume.core.ui.distanceUiText
 import dev.g000sha256.tdl.dto.File
 import dev.g000sha256.tdl.dto.FormattedText
 import dev.g000sha256.tdl.dto.LinkPreview as TdlLinkPreview
@@ -398,6 +450,50 @@ private fun PushMessageContent.contentText(): UiText? = when (this) {
     is PushMessageContentGift, is PushMessageContentUpgradedGift, is PushMessageContentPremiumGiftCode ->
         UiText(Res.string.content_gift)
     is PushMessageContentGiveaway -> UiText(Res.string.content_giveaway)
+    else -> pushServiceText()
+}
+
+/**
+ * Servisní událost z pushe. Věta nemá podmět: řádek notifikace už nese jméno odesílatele
+ * („Jana: Změnil(a) název na „Výlet""), a to je u těchhle událostí právě ten, kdo je udělal.
+ * Dřív dostaly všechny „Nová zpráva", i když push nese, co se stalo.
+ */
+private fun PushMessageContent.pushServiceText(): UiText? = when (this) {
+    is PushMessageContentBasicGroupChatCreate -> UiText(Res.string.push_group_created)
+    is PushMessageContentChatChangeTitle -> UiText(Res.string.push_title_changed, title)
+    is PushMessageContentChatChangePhoto -> UiText(Res.string.push_photo_changed)
+    is PushMessageContentChatAddMembers -> when {
+        isReturned -> UiText(Res.string.push_member_returned)
+        isCurrentUser -> UiText(Res.string.push_added_you)
+        else -> UiText(Res.string.push_member_added, memberName)
+    }
+    is PushMessageContentChatDeleteMember -> when {
+        isLeft -> UiText(Res.string.push_member_left)
+        isCurrentUser -> UiText(Res.string.push_removed_you)
+        else -> UiText(Res.string.push_member_removed, memberName)
+    }
+    is PushMessageContentChatJoinByLink -> UiText(Res.string.push_joined_by_link)
+    is PushMessageContentChatJoinByRequest -> UiText(Res.string.push_joined_by_request)
+    is PushMessageContentChatSetBackground -> UiText(Res.string.service_background_changed)
+    is PushMessageContentChatSetTheme -> UiText(if (name.isBlank()) Res.string.service_theme_reset else Res.string.service_theme_changed)
+    is PushMessageContentChecklistTasksAdded -> UiText(Res.string.service_checklist_tasks_added)
+    is PushMessageContentChecklistTasksDone -> UiText(Res.string.service_checklist_tasks_done)
+    is PushMessageContentContactRegistered -> UiText(Res.string.push_contact_joined)
+    is PushMessageContentInviteVideoChatParticipants ->
+        UiText(if (isCurrentUser) Res.string.push_video_chat_invited_you else Res.string.service_video_chat_invite)
+    is PushMessageContentMessageForwards -> UiText(Res.plurals.push_forwarded_messages, totalCount, totalCount)
+    is PushMessageContentPollOptionAdded ->
+        text.ifBlank { null }?.let { UiText(Res.string.service_poll_option_added_named, quotedTask(it)) }
+            ?: UiText(Res.string.service_poll_option_added)
+    is PushMessageContentProximityAlertTriggered -> UiText(Res.string.service_nearby, distanceUiText(distance))
+    // Částku posílá push už naformátovanou („$5"), přeložit ji není co.
+    is PushMessageContentRecurringPayment -> UiText(Res.string.push_recurring_payment, amount)
+    is PushMessageContentScreenshotTaken -> UiText(Res.string.push_screenshot)
+    is PushMessageContentSuggestProfilePhoto -> UiText(Res.string.content_suggested_photo)
+    is PushMessageContentSuggestBirthdate -> UiText(Res.string.content_suggested_birthdate)
+    is PushMessageContentVideoChatStarted -> UiText(Res.string.service_video_chat_started)
+    is PushMessageContentVideoChatEnded -> UiText(Res.string.service_video_chat_ended)
+    is PushMessageContentGameScore -> UiText(Res.string.push_game_score, score.grouped(), title)
     else -> null
 }
 

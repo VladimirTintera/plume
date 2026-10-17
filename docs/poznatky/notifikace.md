@@ -89,9 +89,23 @@ a odložené rušení prázdné notifikace.
 - **Připnutí chodí v pushi jako TENTÝŽ typ obsahu s `isPinned`**, žádný vlastní typ to není:
   „Alice připnula fotku" je `PushMessageContentPhoto(isPinned = true)`. Dokud se příznak
   nečetl, ukázala notifikace připnutou zprávu jako novou, i se starým textem. Teď „Připnuto:
-  Fotka"; u obsahu, který popsat neumíme (skrytý, skóre), holé „Připnuta zpráva". Příznak nese
+  Fotka"; u obsahu, který popsat neumíme (skrytý), holé „Připnuta zpráva". Příznak nese
   dvacet typů a společného předka nemají, proto výčet v `isPinned()` — **při bumpu TDLib ho
   projít** spolu s typy obsahu (testy `PushPreviewTextTest`).
+- **Připnutí bez pushe (`NotificationTypeNewMessage`) říká, co se připnulo**: „Připnuto: „Kupit
+  chleba a mléko"" (`detailedNotificationText`, věta `pinServiceText` bez jména). Text připnuté
+  zprávy se bere z lokální databáze (`localMessageText`); když tam není, zůstane „Připnuta zpráva".
+- **Servisní události z pushe mají větu bez podmětu** (`pushServiceText`, testy
+  `PushServiceTextTest`): „Změnil(a) název na „Výlet"", „Přidal(a) Boba", „Přidal(a) tě do
+  skupiny", „5 přeposlaných zpráv". Jméno nese řádek notifikace (`MessagingStyle`, „Jana: …"),
+  a u těchhle událostí je odesílatel právě ten, kdo je udělal — věta se jménem by ho zdvojila.
+  Dřív dostaly všechny „Nová zpráva", i když push nese, co se stalo. Částku opakované platby
+  posílá push hotovou („$5"), takže se nepřekládá.
+- **Ověřeno na emulátoru Fold**: bot Notifikátor připnul zprávu, aplikace v pozadí ukázala
+  v notifikaci „Připnuto: „Kupit chleba a mléko"". Notifikace přišla až po ~30 s: účet byl
+  zároveň aktivní jinde a TDLib v tom případě upozornění zdržuje (`notification_cloud_delay_ms`).
+  **Servisní typy z pushe ověřené na zařízení NEJSOU** — push chodí jen se zabitým procesem
+  a skutečnou změnou ve skupině; jen testy.
 - **Náhrada dočasné notifikace skutečnou se zobrazuje POTICHU.** TDLib dočasnou odebere a přidá
   novou k téže zprávě; pro systém je to nová zpráva a telefon upozornil dvakrát. Presenter
   si proto pamatuje nedávno odebrané řádky (minutu) a přidání téže zprávy je tiché. **Porovnává

@@ -1104,6 +1104,29 @@
     <string name="service_video_chat_invited">%1$s pozval(a) do videochatu %2$s</string>
     <string name="service_video_chat_invited_you">%1$s tě pozval(a) do videochatu</string>
     <string name="service_you_video_chat_invited">Pozval(a) jsi do videochatu %1$s</string>
+    <!-- Servisní události z pushe. Bez podmětu: jméno odesílatele nese řádek notifikace. -->
+    <string name="push_group_created">Vytvořil(a) skupinu</string>
+    <string name="push_title_changed">Změnil(a) název na „%1$s“</string>
+    <string name="push_photo_changed">Změnil(a) fotku skupiny</string>
+    <string name="push_member_returned">Vrátil(a) se do skupiny</string>
+    <string name="push_added_you">Přidal(a) tě do skupiny</string>
+    <string name="push_member_added">Přidal(a) %1$s</string>
+    <string name="push_member_left">Opustil(a) skupinu</string>
+    <string name="push_removed_you">Odebral(a) tě ze skupiny</string>
+    <string name="push_member_removed">Odebral(a) %1$s</string>
+    <string name="push_joined_by_link">Připojil(a) se přes odkaz</string>
+    <string name="push_joined_by_request">Připojil(a) se po schválení žádosti</string>
+    <string name="push_contact_joined">Je teď na Telegramu</string>
+    <string name="push_video_chat_invited_you">Pozval(a) tě do videochatu</string>
+    <plurals name="push_forwarded_messages">
+        <item quantity="one">%1$d přeposlaná zpráva</item>
+        <item quantity="few">%1$d přeposlané zprávy</item>
+        <item quantity="many">%1$d přeposlané zprávy</item>
+        <item quantity="other">%1$d přeposlaných zpráv</item>
+    </plurals>
+    <string name="push_recurring_payment">Opakovaná platba %1$s</string>
+    <string name="push_screenshot">Pořídil(a) snímek obrazovky</string>
+    <string name="push_game_score">Dosáhl(a) skóre %1$s ve hře „%2$s“</string>
     <string name="service_giveaway_created">Začala soutěž</string>
     <string name="service_owner_changed">Chat má nového vlastníka</string>
     <string name="service_owner_left">Vlastník chat opustil</string>
