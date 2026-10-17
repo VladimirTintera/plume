@@ -53,6 +53,11 @@ import dev.g000sha256.tdl.dto.SupergroupMembersFilterSearch
 import dev.g000sha256.tdl.dto.UserTypeBot
 import dev.g000sha256.tdl.toResult
 import dev.g000sha256.tdl.dto.BotVerification
+import eu.tintera.plume.resources.content_audio
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.core.ui.readString
+import dev.g000sha256.tdl.dto.InputFileId
+import dev.g000sha256.tdl.dto.InputAudio
 
 /**
  * [ProfileRepository] nad TDLib: `getChat` + podrobnosti podle druhu chatu (`getUserFullInfo`,
@@ -198,8 +203,34 @@ class TdlProfileRepository(
             verification = user.verificationStatus.toVerification(),
             botVerification = botVerificationNote(full?.botVerification),
             hasMainWebApp = (user.type as? UserTypeBot)?.hasMainWebApp == true,
+            firstProfileAudio = full?.firstProfileAudio?.toMedia(fallbackName = readString(Res.string.content_audio)),
         )
     }
+
+    override suspend fun profileAudios(userId: Long): Result<List<MessageMedia.Audio>> {
+        val fallback = readString(Res.string.content_audio)
+        return client.getUserProfileAudios(userId = userId, offset = 0, limit = PROFILE_AUDIO_LIMIT)
+            .toResult()
+            .map { audios -> audios.audios.map { it.toMedia(fallback) } }
+    }
+
+    override suspend fun addProfileAudio(audio: MessageMedia.Audio): Result<Unit> =
+        client.addProfileAudio(
+            audio = InputAudio(
+                // Soubor už na serveru je (skladba ze zprávy), TDLib ho podle id nenahrává znovu.
+                audio = InputFileId(id = audio.fileId),
+                albumCoverThumbnail = null,
+                duration = audio.durationSeconds,
+                title = audio.title,
+                performer = audio.performer.orEmpty(),
+            ),
+        ).toResult().map { }
+
+    override suspend fun removeProfileAudio(fileId: Int): Result<Unit> =
+        client.removeProfileAudio(fileId = fileId).toResult().map { }
+
+    override suspend fun isProfileAudio(fileId: Int): Boolean =
+        client.isProfileAudio(fileId = fileId).toResult().isSuccess
 
     /** Ověření od bota pro profil; jméno bota je lokální dotaz (TDLib ho zná s plnými údaji). */
     private suspend fun botVerificationNote(verification: BotVerification?): BotVerificationNote? {

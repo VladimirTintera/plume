@@ -294,6 +294,7 @@ fun EditProfileScreen(
                     onChange = { viewModel.personalChannel = it },
                 )
                 PhoneNumberRow(onClick = onChangePhone)
+                OwnProfileMusicSection(onNotice = { viewModel.notice = it })
             }
         }
         PhotoCropOverlay(

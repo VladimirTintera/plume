@@ -1879,6 +1879,20 @@
         <item quantity="one">and %1$d more chat in the list below</item>
         <item quantity="other">and %1$d more chats in the list below</item>
     </plurals>
+    <string name="profile_music">Music in profile</string>
+    <string name="privacy_profile_audio">Music in profile</string>
+    <string name="profile_music_empty">Long-press a song in a chat and choose “Add to profile”.</string>
+    <string name="profile_music_remove">Remove from profile</string>
+    <string name="profile_music_remove_failed">Couldn't remove the song from your profile.</string>
+    <plurals name="profile_music_show_all">
+        <item quantity="one">Show %1$d song</item>
+        <item quantity="other">Show all %1$d songs</item>
+    </plurals>
+    <string name="menu_profile_audio_add">Add to profile</string>
+    <string name="menu_profile_audio_remove">Remove from profile</string>
+    <string name="conversation_profile_audio_added">Song added to your profile</string>
+    <string name="conversation_profile_audio_removed">Song removed from your profile</string>
+    <string name="conversation_profile_audio_failed">Couldn't change the music in your profile.</string>
     <string name="settings_chat_triage">Awaiting reply</string>
     <string name="settings_chat_triage_summary">The model on your phone marks unread private chats where someone is waiting for your answer. Messages are not sent anywhere.</string>
     <string name="settings_scam_warnings_summary">Incoming messages with links or phrases typical of scams are checked by the model on your phone. They are not sent anywhere.</string>

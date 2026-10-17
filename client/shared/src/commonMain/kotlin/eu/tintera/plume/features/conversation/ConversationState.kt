@@ -322,6 +322,11 @@ data class MessageMenu(
     /** Je zpráva v záložkách (`MessageBookmarks`)? `null` = záložky nejsou k dispozici, položka se nenabízí. */
     val bookmarked: Boolean? = null,
     /**
+     * Je skladba zprávy v hudbě vlastního profilu? `null`, když zpráva skladba není (nebo to
+     * zjistit nejde) — pak se položka nenabízí.
+     */
+    val profileAudio: Boolean? = null,
+    /**
      * Zpráva pod prstem, když se liší od [messageId]: fotka uprostřed alba. Blok alba patří zprávě
      * s popiskem (nebo nejstarší), takže bez tohohle odpověď citovala tu, ne fotku, na kterou
      * uživatel podržel. Ostatní položky (reakce, přeposlání, smazání) jdou dál na celý blok.

@@ -248,6 +248,15 @@ jméno, příjmení, uživatelské jméno a bio.
   „durov", volné), odchod bez uložení a zpět v dvoupanelu. Uložení a změna fotky mění skutečný
   profil, proto se zkouší jen se souhlasem.
 
+### Hudba ve vlastním profilu
+
+Sekce **Hudba v profilu** na konci úpravy profilu (`OwnProfileMusicSection`, vlastní
+`OwnProfileMusicViewModel`, ať úprava profilu nenese frontu hudby a přehrávač): skladby
+z `getUserProfileAudios` pro vlastní id, přehrání a odebrání křížkem (`removeProfileAudio`,
+hned, ne tlačítkem Uložit — jako uživatelská jména). Přidává se z nabídky nad zprávou se
+skladbou, prázdná sekce to říká větou („Podrž skladbu v chatu a vyber „Přidat do profilu“").
+Pořadí (`setProfileAudioPosition`) zatím ne. Viz `docs/poznatky/profil-chatu.md`, „Hudba v profilu".
+
 ### Ořez profilové fotky
 
 Vybraná fotka (vlastní profil, úprava skupiny i založení skupiny nebo kanálu) se napřed otevře

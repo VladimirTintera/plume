@@ -9,6 +9,7 @@ import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.MessageActions
 import eu.tintera.plume.core.telegram.MessageMedia
+import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.StickerRepository
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.resolveNow
@@ -20,6 +21,9 @@ import eu.tintera.plume.resources.conversation_bookmark_removed
 import eu.tintera.plume.resources.conversation_favorite_added
 import eu.tintera.plume.resources.conversation_favorite_failed
 import eu.tintera.plume.resources.conversation_favorite_removed
+import eu.tintera.plume.resources.conversation_profile_audio_added
+import eu.tintera.plume.resources.conversation_profile_audio_failed
+import eu.tintera.plume.resources.conversation_profile_audio_removed
 import eu.tintera.plume.resources.message_info_failed
 import eu.tintera.plume.resources.message_info_link_copied
 import kotlinx.coroutines.CoroutineScope
@@ -52,6 +56,8 @@ internal class ConversationMessageMenu(
     private val onDeviceAi: OnDeviceAi?,
     private val bookmarks: MessageBookmarks?,
     private val stickerRepository: StickerRepository,
+    /** Hudba ve vlastním profilu; bez ní se „Přidat do profilu" nenabízí. */
+    private val profiles: ProfileRepository? = null,
     /** Nabídka nabízí „Akce u zprávy", když v ní model něco našel. */
     private val messageContext: ConversationMessageContext,
     /** „Přeložit" se nenabízí u zprávy, která už je v jazyce překladu. */
@@ -167,6 +173,15 @@ internal class ConversationMessageMenu(
         scope.launch {
             val sticker = message.media as? MessageMedia.Sticker
 
+            val audio = message.media as? MessageMedia.Audio
+            // Tajný chat ne: jeho soubor na serveru pro profil není.
+            val profileAudioTask = scope.async {
+                if (audio == null || profiles == null || MessageMenuAction.ToggleProfileAudio !in items || state.value.info?.isSecret == true) {
+                    null
+                } else {
+                    profiles.isProfileAudio(audio.fileId)
+                }
+            }
             val (emoji, actions, favorite, inTranslationLanguage) = coroutineScope {
                 val emojiTask = async { repository.availableReactions(chatId, messageId) }
                 val actionsTask = async { repository.messageActions(chatId, messageId) }
@@ -213,6 +228,7 @@ internal class ConversationMessageMenu(
                         items = shownItems,
                         favoriteSticker = favorite,
                         bookmarked = bookmarks?.isBookmarked(chatId, messageId),
+                        profileAudio = profileAudioTask.await(),
                         pressedMessageId = pressed?.takeIf { it != messageId },
                         pressedPollOptionId = pollOptionId?.takeIf { id -> message.poll?.options?.any { it.id == id && it.canDelete } == true },
                         bubbleSelection = selection,
@@ -283,6 +299,31 @@ internal class ConversationMessageMenu(
                 }
                 .onFailure { failure ->
                     state.update { it.copy(error = failure.reported(logger, Res.string.conversation_favorite_failed)) }
+                }
+        }
+    }
+
+    /**
+     * Přidá skladbu ze zprávy do hudby ve vlastním profilu, nebo ji z ní odebere. V konverzaci
+     * se nic nezmění, takže výsledek hlásí snackbar, jako u oblíbené samolepky.
+     */
+    fun toggleProfileAudio(messageId: Long) {
+        val profiles = profiles ?: return
+        val menu = state.value.messageMenu?.takeIf { it.messageId == messageId } ?: return
+        val inProfile = menu.profileAudio ?: return
+        val audio = state.value.messages.firstOrNull { it.id == messageId }?.media as? MessageMedia.Audio ?: return
+        closeMenus()
+
+        scope.launch {
+            val result = if (inProfile) profiles.removeProfileAudio(audio.fileId) else profiles.addProfileAudio(audio)
+            result
+                .onSuccess {
+                    state.update {
+                        it.copy(notice = UiText(if (inProfile) Res.string.conversation_profile_audio_removed else Res.string.conversation_profile_audio_added))
+                    }
+                }
+                .onFailure { failure ->
+                    state.update { it.copy(error = failure.reported(logger, Res.string.conversation_profile_audio_failed)) }
                 }
         }
     }

@@ -138,13 +138,14 @@ private fun UserPrivacySetting.toDomain(): PrivacySetting? = when (this) {
     is UserPrivacySettingShowProfilePhoto -> PrivacySetting.ProfilePhoto
     is UserPrivacySettingShowBio -> PrivacySetting.Bio
     is UserPrivacySettingShowBirthdate -> PrivacySetting.Birthdate
+    is UserPrivacySettingShowProfileAudio -> PrivacySetting.ProfileAudio
     is UserPrivacySettingShowLinkInForwardedMessages -> PrivacySetting.ForwardLink
     is UserPrivacySettingAllowCalls -> PrivacySetting.Calls
     is UserPrivacySettingAllowPeerToPeerCalls -> PrivacySetting.PeerToPeer
     is UserPrivacySettingAllowChatInvites -> PrivacySetting.ChatInvites
     is UserPrivacySettingAllowPrivateVoiceAndVideoNoteMessages -> PrivacySetting.VoiceMessages
-    // Aplikace je zatím nenabízí (hudba v profilu, placené zprávy, ukládání dárků).
-    is UserPrivacySettingShowProfileAudio, is UserPrivacySettingAllowUnpaidMessages, is UserPrivacySettingAutosaveGifts -> null
+    // Aplikace je zatím nenabízí (placené zprávy, ukládání dárků).
+    is UserPrivacySettingAllowUnpaidMessages, is UserPrivacySettingAutosaveGifts -> null
 }
 
 private fun PrivacySetting.toTdl(): UserPrivacySetting = when (this) {
@@ -154,6 +155,7 @@ private fun PrivacySetting.toTdl(): UserPrivacySetting = when (this) {
     PrivacySetting.ProfilePhoto -> UserPrivacySettingShowProfilePhoto()
     PrivacySetting.Bio -> UserPrivacySettingShowBio()
     PrivacySetting.Birthdate -> UserPrivacySettingShowBirthdate()
+    PrivacySetting.ProfileAudio -> UserPrivacySettingShowProfileAudio()
     PrivacySetting.ForwardLink -> UserPrivacySettingShowLinkInForwardedMessages()
     PrivacySetting.Calls -> UserPrivacySettingAllowCalls()
     PrivacySetting.PeerToPeer -> UserPrivacySettingAllowPeerToPeerCalls()

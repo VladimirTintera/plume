@@ -270,6 +270,10 @@ obrazovky, sluchátek a hodinek. Na Androidu přes Media3 MediaSession, na iOS p
   `SearchMessagesFilterAudio`), ne v načtené historii. Konverzace i záložka Hudba v profilu
   pouštějí skladby přes ni. `onCleared` konverzace zastavuje jen hlasovku
   (`stop(chatId, keepMusic = true)`).
+- **Fronta umí i vlastní seznam skladeb** (`togglePlaylist`, hudba v profilu): sousedé jsou
+  `QueueTrack` (id + skladba) a u seznamu jsou známí hned (`Current.neighborsKnown`), v chatu je
+  dohledá `musicNeighbors`. Id ve vlastním seznamu nesmí potkat id zprávy v chatu klíče — hudba
+  v profilu proto bere záporné id souboru (`docs/poznatky/profil-chatu.md`, „Hudba v profilu").
 - **`searchChatMessages` s `offset = -1` novější zprávu NEVRÁTÍ, jen tu samotnou.** Ověřeno
   logem od téže zprávy: `-1` vrátilo [skladba, starší, starší], `-2` vrátilo
   [novější, skladba, starší, starší]. Novější soused tak chyběl, v notifikaci nebylo „další"

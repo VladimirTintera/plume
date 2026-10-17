@@ -29,6 +29,7 @@ import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.audio.VoicePlayback
 import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.core.audio.MusicQueue
+import eu.tintera.plume.core.audio.QueueTrack
 import eu.tintera.plume.resources.contact_add_failed
 import eu.tintera.plume.resources.contact_remove_failed
 import eu.tintera.plume.resources.contact_removed
@@ -172,6 +173,7 @@ class ChatProfileViewModel(
             profiles.profile(chatId)
                 .onSuccess { profile ->
                     _state.update { it.copy(profile = profile, loading = false) }
+                    syncProfileAudios(profile)
                     if (profile.canListMembers) loadMembers(query = "")
                     if (profile.kind == ProfileKind.User) observePresence()
                     loadRelatedChats(profile)
@@ -1026,7 +1028,47 @@ class ChatProfileViewModel(
 
     /** Jen profil, bez členů. Selhání se nehlásí — na obrazovce zůstane, co tam bylo. */
     private suspend fun refreshProfile() {
-        profiles.profile(chatId).onSuccess { profile -> _state.update { it.copy(profile = profile) } }
+        profiles.profile(chatId).onSuccess { profile ->
+            _state.update { it.copy(profile = profile) }
+            syncProfileAudios(profile)
+        }
+    }
+
+    /** Soubor první skladby, ke kterému je načtený [ChatProfileState.profileAudios]. */
+    private var profileAudiosFor: Int? = null
+
+    /**
+     * Hudba v profilu: celý seznam se dočte, až když profil nějakou má, a znovu, když se změní
+     * první skladba (přidaná, odebraná, přeřazená — `UserFullInfo` přijde updatem). Do té doby
+     * se ukazuje aspoň ta první, kterou profil nese sám.
+     */
+    private fun syncProfileAudios(profile: ChatProfile) {
+        val first = profile.firstProfileAudio
+        val userId = profile.userId
+        if (first == null || userId == null) {
+            profileAudiosFor = null
+            _state.update { it.copy(profileAudios = null) }
+            return
+        }
+        if (profileAudiosFor == first.fileId) return
+        profileAudiosFor = first.fileId
+        _state.update { it.copy(profileAudios = it.profileAudios ?: listOf(first)) }
+        viewModelScope.launch {
+            profiles.profileAudios(userId)
+                .onSuccess { audios -> if (audios.isNotEmpty()) _state.update { it.copy(profileAudios = audios) } }
+                .onFailure { failure -> logger.w(failure) { "Hudbu v profilu se nepodařilo načíst." } }
+        }
+    }
+
+    /**
+     * Skladba z hudby v profilu: pustí ji, nebo pozastaví. Hraje fronta hudby se seznamem
+     * z profilu, takže po dohrání naváže další skladba profilu a notifikace má „další"
+     * i „předchozí". Id skladby ve frontě je záporné id souboru ([profileAudioKey]) — skladba
+     * v profilu není zpráva a s id zpráv chatu se potkat nesmí.
+     */
+    fun toggleProfileAudio(index: Int) {
+        val audios = _state.value.profileAudios ?: return
+        musicQueue.togglePlaylist(chatId, audios.map { QueueTrack(profileAudioKey(it.fileId), it) }, index)
     }
 
     fun openLink(url: String) {
@@ -1072,8 +1114,13 @@ data class MediaCalendarState(
     )
 }
 
+/** Id skladby z hudby v profilu ve frontě hudby: záporné, ať se nepotká s id zpráv chatu. */
+fun profileAudioKey(fileId: Int): Long = -fileId.toLong()
+
 data class ChatProfileState(
     val profile: ChatProfile? = null,
+    /** Hudba v profilu; `null` = žádná (nebo ji uživatel skrývá). */
+    val profileAudios: List<MessageMedia.Audio>? = null,
     val loading: Boolean = true,
     /** Načtení členové; prázdné = nejsou, nenašli se, nebo je server nevydal. */
     val members: MemberList = MemberList(),

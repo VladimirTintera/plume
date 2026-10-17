@@ -286,6 +286,8 @@ internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageM
         }
     }
     if (message.media is MessageMedia.Sticker) add(MessageMenuAction.ToggleFavoriteSticker)
+    // Skladba jde do hudby ve vlastním profilu — v tajném chatu ne, soubor je jen tam.
+    if (message.media is MessageMedia.Audio) add(MessageMenuAction.ToggleProfileAudio)
     // Soubor, který není obrázek ani video, se do prohlížeče nedostane; ven jde odsud. Skladba
     // je taky soubor — v bublině se jen přehrává.
     if (message.media is MessageMedia.Document || message.media is MessageMedia.Audio) {

@@ -881,6 +881,36 @@ a puštění na to místo skočí. Pozice dává `getChatSparseMessagePositions`
   k nejnovějším. **Neověřeno**: tik při změně měsíce (kanál má média z jediného měsíce)
   a dlouhá historie přes roky; iOS jen přeložené.
 
+### Hudba v profilu
+
+Skladby, které si člověk dal do profilu (`getUserProfileAudios`), jsou v jeho profilu jako blok
+**Hudba v profilu** pod údaji (`ProfileMusic`). První skladbu nese `UserFullInfo.firstProfileAudio`
+a ukáže se hned (`ChatProfile.firstProfileAudio`), celý seznam (nejvýš 100) se dočte zvlášť.
+Nejvýš tři řádky, pak „Zobrazit všech N skladeb".
+
+- **Přehrává fronta hudby se SEZNAMEM z profilu** (`MusicQueue.togglePlaylist`): skladba
+  v profilu není zpráva, takže sousedé se nehledají v chatu (`musicNeighbors`), ale berou se ze
+  seznamu. Po dohrání naváže další skladba profilu, notifikace má „další" i „předchozí"
+  a ťuknutí na ni otevře chat s tím člověkem. Klíč skladby je `VoiceKey(chat, -fileId)`
+  (`profileAudioKey`) — záporný, aby se nepotkal s id zprávy v tomtéž chatu.
+- **Seznam se dočte znovu, když se změní první skladba** (`syncProfileAudios`, podle souboru).
+  **Otevřený profil cizího člověka se ale po změně jeho hudby NEaktualizuje sám** — TDLib
+  update `UserFullInfo` nepošle (ověřeno: …527 skladbu odebral, profil na …029 ji ukazoval dál,
+  po znovuotevření zmizela).
+- **Profil je jen ke čtení.** Vlastní profil se v aplikaci neotevírá (Uložené zprávy profil
+  nemají), takže vlastní hudba se spravuje v úpravě profilu (`docs/poznatky/nastaveni.md`,
+  „Hudba ve vlastním profilu") a přidává z nabídky nad zprávou se skladbou („Přidat do profilu",
+  `MessageMenuAction.ToggleProfileAudio`; jestli už v profilu je, zjistí `isProfileAudio` při
+  otevření nabídky). V tajném chatu se nenabízí. `addProfileAudio` bere `InputFileId` — soubor
+  už na serveru je, TDLib ho nenahrává znovu.
+- **Kdo hudbu vidí**, řídí Soukromí účtu → „Hudba v profilu" (`PrivacySetting.ProfileAudio`).
+- **Ověřeno na dvou emulátorech s testovacími účty** (`Plume_Barvy` = …527, `Plume_A11` = …029):
+  M4A poslaná do Uložených odešla jako skladba, „Přidat do profilu" → snackbar, nabídka pak
+  nabízí „Odebrat z profilu"; v úpravě profilu skladba hraje (0:01 / 0:06); na druhém účtu
+  v profilu „Pixel 5" blok „Music in profile", skladba hraje s přehrávačem MediaStyle
+  v notifikaci; odebrání křížkem v úpravě profilu ukáže prázdnou sekci s radou. **Neověřené:**
+  víc skladeb (navazování, „předchozí"), obal alba, iOS.
+
 ### Návrh profilové fotky
 
 Člověku jde z profilu navrhnout profilovku (⋮ → „Navrhnout profilovou fotku",

@@ -503,6 +503,19 @@ fun ChatProfileScreen(
                             onOpenChatColor = { showChatColor = true }.takeIf { viewModel.supportsChatColor },
                         )
                     }
+                    // Hudba patří k člověku jako bio, ale je to seznam, ne údaj — vlastní blok
+                    // pod údaji, před záložkami.
+                    state.profileAudios?.takeIf { it.isNotEmpty() }?.let { audios ->
+                        val playback by viewModel.playback.collectAsStateWithLifecycle()
+                        ProfileMusic(
+                            audios = audios,
+                            chatId = profile.chatId,
+                            playback = playback,
+                            onToggle = viewModel::toggleProfileAudio,
+                            // Vlastní hudba se spravuje v úpravě profilu; vlastní profil se tu neotevírá.
+                            onRemove = null,
+                        )
+                    }
                 }
             }
 
