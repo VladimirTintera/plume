@@ -556,4 +556,28 @@ class MessageContextTest {
         assertTrue(context("Ahoj, jak se máš?").isEmpty)
         assertTrue(context("").isEmpty)
     }
+
+    @Test
+    fun mapySeNabidnouJenUMistaKtereVypadaJakoAdresa() {
+        fun query(place: String?) = ContextFinding.Event(
+            start = LocalDateTime(2026, 10, 20, 18, 0),
+            allDay = false,
+            title = "Sraz",
+            place = place,
+            description = "",
+            fromModel = true,
+        ).mapsQuery()
+        assertEquals("Vinohradská 12", query("Vinohradská 12"))
+        assertEquals("na Černém Mostě u kina", query("na Černém Mostě u kina"))
+        assertEquals("U Fleků", query("U Fleků"))
+        assertEquals("Café Louvre", query(" Café Louvre "))
+        assertEquals("120 00 Praha", query("120 00 Praha"))
+        // Vágní místa: mapy by ukázaly něco náhodného v okolí.
+        assertNull(query("letišti"))
+        assertNull(query("Kotvy"))
+        assertNull(query("u kina"))
+        assertNull(query("Na letišti"))
+        assertNull(query(" "))
+        assertNull(query(null))
+    }
 }

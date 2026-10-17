@@ -662,8 +662,8 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
     Configuration v profilu aplikace; víceslovný název sítě jen v uvozovkách,
   - ~~**snackbar „Zkopírováno" leží pod sheetem**~~ — hotovo (fajfka v řádku, `fix/akce-ze-zprav-drobnosti`),
   - ~~**čísla PPL a DPD**~~ — hotovo, jen se jménem dopravce poblíž (`fix/akce-ze-zprav-drobnosti`),
-  - **místo od modelu bývá vágní** („letišti", „Kotvy") a mapy s ním neporadí — chtělo by to
-    nabízet mapy jen u místa, které vypadá jako adresa nebo název,
+  - ~~**místo od modelu bývá vágní** („letišti", „Kotvy") a mapy s ním neporadí~~ — hotovo:
+    mapy jen u místa s číslem nebo vlastním jménem (`mapsQuery`),
   - ~~**QR platbu sdílet jako obrázek**~~ — hotovo („Sdílet QR kód"; načtení bankovní aplikací
     zbývá ověřit na telefonu),
   - **`TextClassifier` / ML Kit Entity Extraction / `NSDataDetector`** místo vlastních pravidel —
