@@ -141,6 +141,17 @@ testy `ChatFolderTabsTest`). Bez složek se lišta nekreslí vůbec (viz „Slo�
     nafouknutí neposkočila. FAB je proto o 12 dp výš než bez složek a seznam má dole větší rezervu
     (`FAB_CLEARANCE_WITH_FOLDERS`).
   - S čtečkou obrazovky se lišta nesbaluje vůbec (M3 to dělá sama), ani při otevřeném menu.
+- **Ikona FAB po rozložení Foldu**: přepínač kreslil po rozložení jen plochu bez tužky
+  a ikona se vrátila až po otevření a zavření menu. Za to může `animateIcon` z M3: ikonu
+  nahraje do vrstvy v `drawWithCache`, kterou Compose při přesunu seznamu do jiné scény
+  uvolní a mezipaměť nechá platnou (mechanismus v „Obsah přesouvaný mezi scénami"
+  v `navigace.md`). Scroll ikonu nevrátí: velikost mění FAB, ne ikona (pořád 24 dp), takže
+  se mezipaměť ikony nezneplatní. Otevření menu ano, protože se mění barva čtená v bloku.
+  Proto má ikona vlastní `toggleFabIcon` (velikost v `layout`, barva přes `colorFilter`
+  v `graphicsLayer`) se stejnými výchozími hodnotami M3. Ověřeno na emulátoru Fold (česky,
+  světlý motiv): bez opravy ikona chyběla hned po prvním `adb emu unfold`, s opravou zůstala
+  ve čtyřech rozloženích a třech složeních po sobě a ✕ v otevřeném menu má dál barvu
+  `onPrimary`.
 - **`SubcomposeLayout` v obsahu lišty s FAB SPADNE.** Lišta se ptá obsahu na intrinsickou šířku
   (`maxIntrinsicWidth`, z ní počítá, kam zajede) a `SubcomposeLayout` intrinsické míry neumí.
   Proto se o popiscích nerozhoduje měřením nanečisto v subkompozici, ale `FolderItems` složí
