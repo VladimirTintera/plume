@@ -165,6 +165,30 @@ class ReplyPromptTest {
     }
 
     @Test
+    fun anglickaZpravaVCeskeAplikaciDostaneAnglickeOdpovedi() {
+        // Nápověda „most likely Czech" přebila anglickou zprávu (ověřeno s Gemmou).
+        val lines = listOf(TranscriptLine("John", "Hi, are you coming to the meeting tomorrow?"))
+        val prompt = replyPrompt("John", lines, "cs")
+        assertTrue(prompt.contains("the message is in English"))
+        assertFalse(prompt.contains("most likely Czech"))
+        // České ukázky by ji táhly zpátky do češtiny.
+        assertFalse(prompt.contains("Jasně, půjdu."))
+    }
+
+    @Test
+    fun jazykZpravyPoznaKod() {
+        assertTrue(looksEnglish("Hi, are you coming to the meeting tomorrow?"))
+        assertTrue(looksEnglish("Can you send me the photos?"))
+        // Diakritika rozhoduje hned, i s anglickým slovem uvnitř.
+        assertFalse(looksEnglish("Babička je v nemocnici, is it ok?"))
+        // Čeština bez háčků není angličtina.
+        assertFalse(looksEnglish("Pujdes zitra na pivo?"))
+        // Jedno slovo je málo — „ok", „to" i „do" jsou i v češtině.
+        assertFalse(looksEnglish("Ok, to je dobry"))
+        assertFalse(looksEnglish(""))
+    }
+
+    @Test
     fun strukturovanyPromptOFormatuMlci() {
         val lines = listOf(TranscriptLine("Jana", "Dáš si kafe?"))
         val prompt = replyPrompt("Jana", lines, "cs", structured = true)
