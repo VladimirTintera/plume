@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.core.telegram.ServiceOpen
+
 import eu.tintera.plume.core.telegram.PendingChecklistMark
 
 import eu.tintera.plume.core.ai.ScamKind
@@ -336,6 +338,15 @@ internal data class ServiceMessageItem(
                             message,
                             onOpenChat = { scope.onAction(message.id, MessageAction.OpenChat(it)) },
                             onJumpTo = { scope.onAction(message.id, MessageAction.JumpTo(it)) },
+                            onOpen = { open ->
+                                scope.onAction(
+                                    message.id,
+                                    when (open) {
+                                        is ServiceOpen.Chat -> MessageAction.OpenChat(open.chatId)
+                                        is ServiceOpen.User -> MessageAction.OpenUser(open.userId)
+                                    },
+                                )
+                            },
                         )
                     }
                     ExpressiveMenu(

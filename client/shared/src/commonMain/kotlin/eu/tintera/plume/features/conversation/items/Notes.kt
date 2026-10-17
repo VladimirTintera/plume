@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
+import eu.tintera.plume.core.telegram.ServiceOpen
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.tabularNumbers
@@ -101,12 +102,24 @@ internal fun ServiceMessage(
     modifier: Modifier = Modifier,
     onOpenChat: (Long) -> Unit = {},
     onJumpTo: (Long) -> Unit = {},
+    onOpen: (ServiceOpen) -> Unit = {},
 ) {
     // Text oznámení je [ChatMessage.description] a překládá se až tady — převedená zpráva
     // žije v paměti déle než jazyk aplikace.
     val text = message.description?.resolve() ?: message.text
     val link = message.upgradeLink
     val target = message.serviceTargetMessageId
+    val open = message.serviceOpen
+    if (link == null && target == null && open != null) {
+        // Sdílený chat nebo člověk: ťuknutí ho otevře, jako zmínka v textu.
+        CenteredNote(
+            text = text,
+            modifier = modifier
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(role = Role.Button) { onOpen(open) },
+        )
+        return
+    }
     if (link == null && target != null) {
         // Připnutí, změna ankety, konec soutěže, skóre: ťuknutí skočí na zprávu, o které
         // oznámení mluví. Odkaz pod textem by tu byl navíc — věta sama říká, o co jde.

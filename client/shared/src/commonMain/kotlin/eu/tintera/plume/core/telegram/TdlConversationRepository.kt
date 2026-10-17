@@ -2535,6 +2535,8 @@ class TdlConversationRepository(
                 )
                 // A u ostatních oznámení, která někdo udělal („Jana změnil(a) název…").
                 ?: namedActorServiceText(myUserId = { myId() }) { resolveSender(it)?.title }
+                // A u sdílení s botem („Sdílel(a) jsi s botem „Výlet"").
+                ?: content.namedSharedWithBotText { resolveSender(it)?.title }
                 // A u připnutí („Jana připnul(a) „Sraz v 8"").
                 ?: namedPinServiceText(
                     myUserId = { myId() },
@@ -2580,6 +2582,7 @@ class TdlConversationRepository(
             isService = content.serviceText(isChannelPost) != null,
             upgradeLink = content.upgradeLink(),
             serviceTargetMessageId = content.serviceTargetMessageId(),
+            serviceOpen = content.serviceOpenTarget(),
             timestamp = date,
             isEdited = editDate > 0,
             mediaAlbumId = mediaAlbumId,

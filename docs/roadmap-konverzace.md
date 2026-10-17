@@ -458,8 +458,9 @@ seznam témat, kde jsou oznámení dál bezejmenná.
 
 **Obsah, který je jen řádkem textu:**
 
-- **Sdílený chat a sdílení uživatelé** (`MessageChatShared`, `MessageUsersShared`, odpověď na
-  tlačítko bota): jména a fotky jsou ve zprávě, ukazuje se jen „Sdílený chat".
+- ~~**Sdílený chat a sdílení uživatelé**~~ — hotovo: oznámení se jmény („Sdílel(a) jsi s botem
+  „Výlet""), ťuknutí otevře chat nebo člověka (`docs/poznatky/typy-zprav.md`, „Typy zpráv").
+  Fotky sdílených se nekreslí — uživatelskému účtu je TDLib ve zprávě neposílá (jen botům).
 - **Návrh profilové fotky** (`MessageSuggestProfilePhoto`): fotka a „Nastavit".
 - **Návrh data narození** (`MessageSuggestBirthdate`) — viz roadmap.md, „Účet a nastavení".
 - **Kostka se sázkou** (`MessageStakeDice`): animace hodu jako u `MessageDice` (`initialState`,

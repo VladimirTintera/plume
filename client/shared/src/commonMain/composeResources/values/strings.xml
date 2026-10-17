@@ -1101,6 +1101,8 @@
     <string name="push_recurring_payment">Recurring payment of %1$s</string>
     <string name="push_screenshot">Took a screenshot</string>
     <string name="push_game_score">Scored %1$s in “%2$s”</string>
+    <string name="service_shared_chat">You shared “%1$s” with the bot</string>
+    <string name="service_shared_users">You shared %1$s with the bot</string>
     <string name="service_giveaway_created">A giveaway started</string>
     <string name="service_owner_changed">The chat has a new owner</string>
     <string name="service_owner_left">The owner left the chat</string>

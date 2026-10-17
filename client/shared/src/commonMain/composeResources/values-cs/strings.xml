@@ -1127,6 +1127,8 @@
     <string name="push_recurring_payment">Opakovaná platba %1$s</string>
     <string name="push_screenshot">Pořídil(a) snímek obrazovky</string>
     <string name="push_game_score">Dosáhl(a) skóre %1$s ve hře „%2$s“</string>
+    <string name="service_shared_chat">Sdílel(a) jsi s botem „%1$s“</string>
+    <string name="service_shared_users">Sdílel(a) jsi s botem %1$s</string>
     <string name="service_giveaway_created">Začala soutěž</string>
     <string name="service_owner_changed">Chat má nového vlastníka</string>
     <string name="service_owner_left">Vlastník chat opustil</string>
