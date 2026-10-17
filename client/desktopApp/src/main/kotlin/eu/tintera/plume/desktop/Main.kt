@@ -1,6 +1,17 @@
 package eu.tintera.plume.desktop
 
 import androidx.compose.runtime.DisposableEffect
+import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.FlowPreview
+import eu.tintera.plume.core.platform.SavedWindowBounds
+import eu.tintera.plume.core.platform.DesktopWindowBounds
+import androidx.compose.ui.window.WindowState
+import androidx.compose.ui.window.WindowPosition
+import androidx.compose.ui.window.WindowPlacement
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,7 +70,18 @@ fun main(args: Array<String>) {
 
     application {
         var visible by remember { mutableStateOf(!startHidden) }
-        val state = rememberWindowState(width = 1200.dp, height = 800.dp)
+        // Okno se otevře, kde a jak velké bylo naposledy (DesktopWindowBounds).
+        val saved = remember { DesktopWindowBounds.restore() }
+        val state = rememberWindowState(
+            placement = if (saved?.maximized == true) WindowPlacement.Maximized else WindowPlacement.Floating,
+            position = if (saved?.x != null && saved.y != null) {
+                WindowPosition(saved.x!!.dp, saved.y!!.dp)
+            } else {
+                WindowPosition.PlatformDefault
+            },
+            size = DpSize((saved?.width ?: DEFAULT_WIDTH).dp, (saved?.height ?: DEFAULT_HEIGHT).dp),
+        )
+        RememberWindowBounds(state, saved)
 
         // Ťuknutí na ikonu v Docku vrátí schované okno (viz `onCloseRequest`).
         LaunchedEffect(Unit) {
@@ -124,6 +146,40 @@ fun main(args: Array<String>) {
         }
     }
 }
+
+/**
+ * Ukládá polohu a velikost okna po každé změně (s krátkým zpožděním — tah oknem jich pošle
+ * desítky). U maximalizovaného okna se pamatuje i velikost PŘED maximalizací, ať se na ni po
+ * dalším spuštění dá vrátit; minimalizované okno nemění nic.
+ */
+@OptIn(FlowPreview::class)
+@Composable
+private fun RememberWindowBounds(state: WindowState, saved: SavedWindowBounds?) {
+    LaunchedEffect(state) {
+        var floating = saved
+        snapshotFlow { Triple(state.placement, state.position, state.size) to state.isMinimized }
+            .filter { (_, minimized) -> !minimized }
+            .debounce(WINDOW_SAVE_DELAY_MS)
+            .collect { (window, _) ->
+                val (placement, position, size) = window
+                if (placement == WindowPlacement.Floating && position is WindowPosition.Absolute) {
+                    floating = SavedWindowBounds(
+                        x = position.x.value.roundToInt(),
+                        y = position.y.value.roundToInt(),
+                        width = size.width.value.roundToInt(),
+                        height = size.height.value.roundToInt(),
+                        maximized = false,
+                    )
+                }
+                val bounds = floating ?: return@collect
+                DesktopWindowBounds.save(bounds.copy(maximized = placement != WindowPlacement.Floating))
+            }
+    }
+}
+
+private const val DEFAULT_WIDTH = 1200
+private const val DEFAULT_HEIGHT = 800
+private const val WINDOW_SAVE_DELAY_MS = 500L
 
 /** Jméno aplikace, ne text k překladu — stejné v každém jazyce. */
 private const val APP_NAME = "Plume"

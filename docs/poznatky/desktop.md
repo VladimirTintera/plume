@@ -360,6 +360,26 @@ Na Windows zavření okna schová aplikaci do oznamovací oblasti (`DesktopTrayI
   spuštění skončí za pár sekund a okno první instance je vidět a v popředí, návrat do popředí
   v logu. **Neověřeno**: macOS (popředí podle schovaného okna), instalace z MSI.
 
+## Poloha a velikost okna
+
+Hlavní okno se otevře, kde a jak velké bylo naposledy (`DesktopWindowBounds`,
+`window.properties` v datech aplikace vedle `instance.lock`; testy `DesktopWindowBoundsTest`).
+Dřív to bylo pokaždé 1200 × 800 tam, kam ho dal systém.
+
+- **Uložená poloha se ověří proti dnešním monitorům** (`fitted`): okno zůstane, když z něj
+  je na některém monitoru vidět aspoň 100 × 100 bodů; jinak polohu vybere systém. Velikost se
+  vejde do pracovní plochy monitoru (bez hlavního panelu a Docku) a přečnívající okno se posune
+  dovnitř. Okno uložené na odpojeném druhém monitoru by se jinak otevřelo mimo dosah.
+- **Maximalizované okno si pamatuje velikost PŘED maximalizací** a příznak; po spuštění se
+  maximalizuje a zmenšení ho vrátí tam, kde bylo. Minimalizace se neukládá.
+- **Ukládá se se zpožděním půl vteřiny** (`debounce`): tah oknem pošle desítky změn.
+- **Souřadnice jsou logické body AWT**, tedy `dp` v Compose; na Retině se nepřepočítávají.
+- **Ověřeno na macOS** (ladicí běh, `.desktop-data/window.properties`): poloha a velikost ze
+  souboru se po startu skutečně použily (`CGWindowListCopyWindowInfo`, okno 900 × 888 na
+  53 / 103 i po restartu), změna okna se uložila, poloha `x = 5000` (mimo monitor) skončila na
+  místě od systému a `maximized = true` otevřelo okno přes celou plochu se zachovanou původní
+  velikostí v souboru. **Neověřeno**: Windows, Linux a víc monitorů naživo (jen testy).
+
 ## Spouštění po přihlášení (Windows)
 
 Push na desktopu není, oznámení chodí jen tehdy, když Plume běží — po restartu počítače by
