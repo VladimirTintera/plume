@@ -1,6 +1,10 @@
 package eu.tintera.plume
 
 import android.os.Bundle
+import kotlinx.coroutines.launch
+import androidx.lifecycle.lifecycleScope
+import eu.tintera.plume.core.locale.LegacyAppLanguage
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -18,9 +22,17 @@ import eu.tintera.plume.core.notifications.NotificationIntents
  */
 class BubbleActivity : ComponentActivity() {
 
+    // Jazyk aplikace do Androidu 12 (od 13 ho aktivitě dává systém). Viz LegacyAppLanguage.
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(newBase)
+        LegacyAppLanguage.overrideConfiguration(newBase)?.let(::applyOverrideConfiguration)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        // Změna jazyka do Androidu 12: přeloží se až nově vytvořená aktivita (od 13 to dělá systém).
+        lifecycleScope.launch { LegacyAppLanguage.changes.collect { recreate() } }
 
         val chatId = intent.getLongExtra(NotificationIntents.EXTRA_CHAT_ID, 0L).takeIf { it != 0L }
             ?: intent.data?.lastPathSegment?.toLongOrNull()

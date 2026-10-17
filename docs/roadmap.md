@@ -980,8 +980,8 @@ Odhlásit se dole v seznamu sekcí, ne v úpravě profilu; Proxy do Úložiště
 - ~~**Menší přepínače**~~ — hotovo: rychlá reakce dvojitým ťuknutím, Enter odesílá (fyzická
   klávesnice), velikost písma zpráv, odkazy v aplikaci (Custom Tabs / Safari) a jazyk aplikace
   (`docs/poznatky/nastaveni.md`, „Menší přepínače"). Zbývá:
-  - **Jazyk aplikace na Androidu do 12** — systém jazyk pro jednu aplikaci nezná a řádek se tam
-    neukazuje. Šlo by to jen přes AppCompat a vlastní uložení.
+  - ~~**Jazyk aplikace na Androidu do 12**~~ — hotovo bez AppCompatu (`LegacyAppLanguage`;
+    `docs/poznatky/nastaveni.md`, „Jazyk aplikace").
   - **iOS ověřit na simulátoru** — Safari v aplikaci, otevření systémového Nastavení z řádku
     jazyka, dvojité ťuknutí.
 - **Synchronizace nastavení mezi zařízeními** (barva motivu, vyčlenění nepřečtených, rychlost

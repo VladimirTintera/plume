@@ -1070,8 +1070,33 @@ zkratky" v `navigace.md`).
     i `iosApp/ShareExtension` (a region v Xcode).
   - Ověřeno sondou s dočasným `values-de` (úplná kopie: v seznamu, v `locales_config.xml`
     a varování iOS; jeden klíč: venku) a v APK `aapt2 dump xmltree` nad `locales_config.xml`.
-- **Do Androidu 12 se skupina nezobrazuje**: systém jazyk pro jednu aplikaci nezná a obchvat by
-  chtěl AppCompat. Na iOS řádek jen otevře Nastavení — z aplikace to změnit nejde.
+- **Do Androidu 12 drží jazyk aplikace sama** (`LegacyAppLanguage`): systém jazyk pro jednu
+  aplikaci nezná. Volba je v `SharedPreferences` (synchronně, čte se dřív než cokoli jiného)
+  a platí na třech místech, protože Compose Resources berou jazyk z výchozího `Locale` procesu
+  (v kompozici `Locale.current`, mimo ni `getSystemResourceEnvironment`) a kalendář M3 z konfigurace
+  aktivity:
+  - **kontext aplikace** (`MainApplication.attachBaseContext` → `wrapApplication`). Bez něj
+    to nešlo: framework výchozí `Locale` při změnách konfigurace (i při spuštění aktivity)
+    nastavuje znovu podle jazyka kontextu aplikace (`updateLocaleListFromAppContext`), a kanály
+    notifikací zakládané při startu tak vycházely pokaždé jinak napůl česky a napůl anglicky
+    (ověřeno na emulátoru s Androidem 11). Změna za běhu jde do konfigurace prostředků
+    aplikace přímo (`updateConfiguration`), obalit kontext podruhé nejde;
+  - **výchozí `Locale`** (`applyToProcess`, i v `MainApplication.onCreate` kvůli pushi bez aktivity);
+  - **konfigurace aktivity** (`attachBaseContext` → `applyOverrideConfiguration`) v `MainActivity`
+    i `BubbleActivity`.
+  - **Vždy jen přírůstek s jazykem, nikdy celá konfigurace.** Aktivity si rozměry, motiv
+    a hustotu obsluhují samy (`configChanges`); celá konfigurace by v nich ty hodnoty zmrazila
+    (rozložený Fold by měřil jako složený). Prázdná `Configuration` s jazykem se přičítá a Android
+    ji přenese i do `onConfigurationChanged`.
+  - **Po změně se aktivita znovu vytvoří** (`LegacyAppLanguage.changes` → `recreate()`), proces
+    zůstává týž. AppCompat (`AppCompatDelegate.setApplicationLocales`) by to uměl taky, jenže jen
+    s `AppCompatActivity` a motivem AppCompat.
+  - **Ověřeno na emulátoru s Androidem 11** (systém anglicky): volba češtiny přeložila Nastavení
+    hned (týž pid), studený start i otočení obrazovky zůstaly česky, kanály notifikací ve třech
+    startech po sobě česky; návrat na „Podle systému" vrátil angličtinu i kanály. Notifikace
+    samotná se neověřila (zprávu hned přečetlo druhé zařízení téhož účtu). Android 13+ jde dál
+    přes `LocaleManager`, `LegacyAppLanguage` tam nedělá nic.
+- **Na iOS řádek jen otevře Nastavení** — z aplikace to změnit nejde.
 - **Názvy jazyků jsou ve vlastním jazyce** („Čeština" i v anglické aplikaci), aby se dalo vrátit
   z jazyka, kterému člověk nerozumí.
 - **Ověřeno na emulátoru (Android 16)**: přepnutí na češtinu přeložilo obrazovku hned, proces
