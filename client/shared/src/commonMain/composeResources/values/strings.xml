@@ -563,6 +563,7 @@
     <string name="activity_sending_file">sending a file…</string>
     <string name="activity_choosing_sticker">choosing a sticker…</string>
     <string name="activity_watching_animation">watching the animation…</string>
+    <string name="activity_watching_emoji">watching %1$s…</string>
     <string name="activity_other">up to something…</string>
     <string name="conversation_empty">No messages here yet.</string>
     <string name="conversation_pinned_message">Pinned message</string>

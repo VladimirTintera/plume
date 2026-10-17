@@ -1,3 +1,3 @@
 type: fix
-cs: Když protějšek sleduje animaci emoji, ukáže se oko místo teček, jako by psal
-en: When the other person watches an emoji animation, an eye shows instead of typing dots
+cs: Činnost protějšku má vlastní ikonku místo teček psaní a „sleduje" ukáže i emoji
+en: The other person's activity has its own icon instead of typing dots, “watching” shows the emoji
