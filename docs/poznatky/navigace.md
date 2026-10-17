@@ -382,6 +382,23 @@ knihovny ve dvou panelech).
   proto ji nese i seznam.
 - Jen Chaty; podstránky Nastavení ve třetím panelu mají výchozí šířku.
 
+### Obsah přesouvaný mezi scénami
+
+Při rozložení a složení Foldu (jeden panel ↔ list-detail) NavDisplay obsah položky do jiné
+scény PŘESOUVÁ: uzly se odpojí a znovu připojí, nevznikají znovu. Co si nese stav navázaný
+na připojení, se tím může rozbít, a to bez chyby v logu.
+
+- **`drawWithCache` s `obtainGraphicsLayer` po přesunu kreslí prázdnou vrstvu.** Compose UI
+  1.12 (`CacheDrawModifierNodeImpl`) vrstvy při `onDetach` uvolní, ale mezipaměť nechá platnou
+  (zneplatní ji jen `onReset`, změna velikosti uzlu nebo změna stavu čteného v bloku). Kreslí
+  se pak nahraná, už uvolněná vrstva. Tak mizela ikona z FAB „Vytvořit" (`animateIcon` z M3,
+  bod „Ikona FAB po rozložení Foldu" v `seznam-chatu.md`). Vrstva z modifikátoru `graphicsLayer`
+  tímhle netrpí, vlastní ji uzel a po připojení ji nahraje znovu.
+- Viz také „Modifikátor insetů … při rozložení nebo složení Foldu" v Gotchas v CLAUDE.md:
+  tamtéž přesunutí, jen u insetů padá aplikace.
+- **Ověřuje se na emulátoru Fold**: aplikace spuštěná složená, pak `adb emu unfold`. Ikona
+  chyběla hned při prvním rozložení.
+
 ### Standardní šířky
 
 Na okně přes dva monitory (snímek ~2000 dp) se konverzace roztáhla přes celou šířku: přijaté zprávy

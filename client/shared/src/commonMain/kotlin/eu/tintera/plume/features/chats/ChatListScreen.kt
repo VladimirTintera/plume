@@ -46,7 +46,8 @@ import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ToggleFloatingActionButton
 import androidx.compose.material3.ToggleFloatingActionButtonDefaults
-import androidx.compose.material3.ToggleFloatingActionButtonDefaults.animateIcon
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -905,7 +906,7 @@ private fun NewChatFabMenu(
             Icon(
                 painterResource(if (close) Res.drawable.close_24dp else Res.drawable.edit_24dp),
                 contentDescription = null,
-                modifier = Modifier.animateIcon({ checkedProgress }),
+                modifier = Modifier.toggleFabIcon({ checkedProgress }, ToggleFloatingActionButtonDefaults.iconColor()),
             )
         }
     }
@@ -932,6 +933,30 @@ private fun NewChatFabMenu(
         }
     }
 }
+
+/**
+ * Barva a velikost ikony přepínacího FAB podle průběhu otevření, náhrada `animateIcon` z M3.
+ *
+ * `animateIcon` nahraje ikonu do grafické vrstvy v `drawWithCache` a dál kreslí jen tu nahranou
+ * vrstvu. Compose UI 1.12 ale vrstvy z `drawWithCache` při odpojení uzlu uvolní, a mezipaměť
+ * přitom nechá platnou (`CacheDrawModifierNodeImpl.onDetach` zneplatňuje jen `onReset`). Po
+ * rozložení Foldu NavDisplay přesune seznam do jiné scény, uzel se odpojí a znovu připojí
+ * a kreslí uvolněnou, prázdnou vrstvu: FAB bez ikony, dokud menu někdo neotevře (barva se
+ * čte v mezipaměti, takže ji změna průběhu zneplatní). Vrstvu z `graphicsLayer` vlastní
+ * uzel a po připojení ji nahraje znovu. Barva i velikost se čtou při kreslení a měření,
+ * takže se během přechodu nic nerekomponuje.
+ */
+private fun Modifier.toggleFabIcon(
+    checkedProgress: () -> Float,
+    color: (Float) -> Color,
+    size: (Float) -> Dp = ToggleFloatingActionButtonDefaults.iconSize(),
+): Modifier = this
+    .layout { measurable, _ ->
+        val sizePx = size(checkedProgress()).roundToPx()
+        val placeable = measurable.measure(Constraints.fixed(sizePx, sizePx))
+        layout(sizePx, sizePx) { placeable.place(0, 0) }
+    }
+    .graphicsLayer { colorFilter = ColorFilter.tint(color(checkedProgress())) }
 
 /**
  * Přepínací FAB ve slotu lišty složek. Velikost slotu určuje lišta (56 dp rozbalená, 80 dp
