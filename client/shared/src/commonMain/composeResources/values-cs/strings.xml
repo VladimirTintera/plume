@@ -1936,6 +1936,13 @@
     </plurals>
     <string name="summary_me">Já</string>
     <string name="summary_preparing">Čtu konverzaci…</string>
+    <string name="summary_reading_part">Čtu část %1$d z %2$d…</string>
+    <plurals name="summary_details_parts">
+        <item quantity="one">Shrnuto po %1$d části</item>
+        <item quantity="few">Shrnuto po %1$d částech</item>
+        <item quantity="many">Shrnuto po %1$d části</item>
+        <item quantity="other">Shrnuto po %1$d částech</item>
+    </plurals>
     <string name="summary_model_missing">Model ještě není stažený. Stáhneš ho v Nastavení → AI v zařízení.</string>
     <string name="summary_nothing">Tady není co shrnout.</string>
     <string name="summary_failed">Shrnutí se nepovedlo.</string>

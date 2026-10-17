@@ -1887,6 +1887,11 @@
     </plurals>
     <string name="summary_me">Me</string>
     <string name="summary_preparing">Reading the conversation…</string>
+    <string name="summary_reading_part">Reading part %1$d of %2$d…</string>
+    <plurals name="summary_details_parts">
+        <item quantity="one">Summarized in %1$d part</item>
+        <item quantity="other">Summarized in %1$d parts</item>
+    </plurals>
     <string name="summary_model_missing">The model is not downloaded yet. Download it in Settings → On-device AI.</string>
     <string name="summary_nothing">There is nothing to summarize here.</string>
     <string name="summary_failed">The summary could not be created.</string>

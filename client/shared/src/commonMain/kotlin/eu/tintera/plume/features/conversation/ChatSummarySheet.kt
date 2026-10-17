@@ -40,6 +40,8 @@ import eu.tintera.plume.resources.summary_failed
 import eu.tintera.plume.resources.summary_model_missing
 import eu.tintera.plume.resources.summary_nothing
 import eu.tintera.plume.resources.summary_preparing
+import eu.tintera.plume.resources.summary_reading_part
+import eu.tintera.plume.resources.summary_details_parts
 import eu.tintera.plume.resources.summary_retry
 import eu.tintera.plume.resources.summary_truncated
 import eu.tintera.plume.resources.summary_title_recent
@@ -108,6 +110,18 @@ fun ChatSummarySheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                is ChatSummaryState.ReadingParts -> Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) {
+                    LoadingIndicator(Modifier.size(40.dp))
+                    Text(
+                        stringResource(Res.string.summary_reading_part, state.part, state.parts),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 is ChatSummaryState.Text -> {
                     SelectionContainer {
                         Text(state.text.trim(), style = MaterialTheme.typography.bodyLarge)
@@ -161,6 +175,9 @@ private fun SummaryDetailsLine(details: SummaryDetails) {
                     ?.let { stringResource(Res.string.summary_details_tokens, tokens.grouped(), it.grouped()) }
                     ?: stringResource(Res.string.summary_details_tokens_no_limit, tokens.grouped()),
             )
+        }
+        if (details.parts > 1) {
+            add(pluralStringResource(Res.plurals.summary_details_parts, details.parts, details.parts))
         }
         if (details.keptLines < details.totalLines) {
             add(stringResource(Res.string.summary_details_trimmed, details.keptLines, details.totalLines))

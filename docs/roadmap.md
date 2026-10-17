@@ -607,12 +607,14 @@ Z toho plyne pořadí, ve kterém se vyplatí featury stavět:
 - **Kešování kontextu a `warmup()` nejsou využité.** Prompt API je nabízí (`Caches`,
   `CachedContext`, `isCachingFeatureAvailable`) a u opakovaného shrnování téhož chatu by mohly
   ušetřit čas. Zatím netestované.
-- **Shrnutí bere jen to, co se vejde do jednoho promptu.** U chatu s tisíci nepřečtenými se
-  zkrátí na limit vstupu (8 192 tokenů) a zbytek se zahodí. Postupné shrnování po částech
-  („map-reduce") zatím není.
-- **Strop výstupu je kompromis.** `MAX_OUTPUT_TOKENS = 800` stačí na shrnutí několika desítek
-  zpráv; delší konverzace se useknou a UI to sice přizná, ale lépe by bylo shrnutí zkrátit
-  instrukcí než ho nechat uříznout uprostřed.
+- ~~**Shrnutí bere jen to, co se vejde do jednoho promptu.**~~ — hotovo: dlouhá konverzace se
+  shrnuje po nejvýš třech částech a z poznámek se složí jedno shrnutí
+  (`docs/poznatky/ai-v-zarizeni.md`, bod „Shrnutí po částech"). Zbývá **ověřit s Gemini Nano na
+  telefonu** (limit 8 192 tokenů, části tam nastanou dřív než u Gemmy) a kvalitu složeného
+  shrnutí na skutečné konverzaci; co se nevejde ani do tří částí, dál odpadne.
+- ~~**Strop výstupu je kompromis.**~~ — zmírněno: odrážky mají instrukcí nejvýš 20 slov
+  a useknutý text končí poslední celou odrážkou (`completeLines`). Jestli to na Nano stačí,
+  aby shrnutí dvanácti zpráv nekončilo u šesté, se ukáže až na telefonu.
 
 ### Co by šlo postavit
 

@@ -79,4 +79,55 @@ class SummaryPromptTest {
         assertEquals(3, keptLineCount(lines, maxChars = 40))
         assertEquals(0, keptLineCount(emptyList(), maxChars = 40))
     }
+
+    @Test
+    fun castiJdouOdNejnovejsichAJsouChronologicky() {
+        // „A: zpravaN" má 10–11 znaků + konec řádku; do 25 znaků se vejdou dvě.
+        val lines = (1..6).map { TranscriptLine("A", "zprava$it") }
+        val parts = summaryParts(lines, maxChars = 25, maxParts = 3)
+        assertEquals(listOf(listOf("zprava1", "zprava2"), listOf("zprava3", "zprava4"), listOf("zprava5", "zprava6")), parts.map { p -> p.map { it.text } })
+    }
+
+    @Test
+    fun nadPocetCastiOdpadnouNejstarsi() {
+        val lines = (1..10).map { TranscriptLine("A", "zprava$it") }
+        val parts = summaryParts(lines, maxChars = 25, maxParts = 2)
+        assertEquals(listOf("zprava7", "zprava8", "zprava9", "zprava10"), parts.flatten().map { it.text })
+        assertEquals(2, parts.size)
+    }
+
+    @Test
+    fun kratkyPrepisJeJednaCast() {
+        val lines = listOf(TranscriptLine("A", "ahoj"), TranscriptLine("B", " "), TranscriptLine("B", "čau"))
+        assertEquals(listOf(listOf("ahoj", "čau")), summaryParts(lines, maxChars = 1_000).map { p -> p.map { it.text } })
+    }
+
+    @Test
+    fun dlouhaZpravaMaVlastniCast() {
+        val lines = listOf(TranscriptLine("A", "x".repeat(50)), TranscriptLine("A", "y"))
+        assertEquals(2, summaryParts(lines, maxChars = 20).size)
+    }
+
+    @Test
+    fun slozenyPromptNesePoznamkyPoCastech() {
+        val prompt = combinedSummaryPrompt("Chat", listOf("- Jana přijde", "- Petr ne"), "cs")
+        assertTrue("Notes on part 1:\n- Jana přijde" in prompt, prompt)
+        assertTrue("Notes on part 2:\n- Petr ne" in prompt, prompt)
+        assertTrue("in Czech" in prompt)
+        assertTrue(prompt.endsWith("Summary:"))
+    }
+
+    @Test
+    fun promptCastiRikaKteraToJe() {
+        val prompt = partSummaryPrompt("Chat", listOf(TranscriptLine("Jana", "Ahoj")), 2, 3, "en")
+        assertTrue("part 2 of 3" in prompt, prompt)
+        assertTrue("Jana: Ahoj" in prompt, prompt)
+    }
+
+    @Test
+    fun useknutyTextKonciPosledniCelouOdrazkou() {
+        assertEquals("- Jana přijde\n- Petr ne", completeLines("- Jana přijde\n- Petr ne\n- Karel ř"))
+        // Bez celého řádku zůstane, co je.
+        assertEquals("- Jana při", completeLines("- Jana při"))
+    }
 }
