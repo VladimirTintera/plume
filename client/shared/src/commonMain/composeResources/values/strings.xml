@@ -1080,6 +1080,27 @@
     <string name="service_video_chat_invited">%1$s invited %2$s to the video chat</string>
     <string name="service_video_chat_invited_you">%1$s invited you to the video chat</string>
     <string name="service_you_video_chat_invited">You invited %1$s to the video chat</string>
+    <!-- Servisní události z pushe. Bez podmětu: jméno odesílatele nese řádek notifikace. -->
+    <string name="push_group_created">Created the group</string>
+    <string name="push_title_changed">Changed the name to “%1$s”</string>
+    <string name="push_photo_changed">Changed the group photo</string>
+    <string name="push_member_returned">Returned to the group</string>
+    <string name="push_added_you">Added you to the group</string>
+    <string name="push_member_added">Added %1$s</string>
+    <string name="push_member_left">Left the group</string>
+    <string name="push_removed_you">Removed you from the group</string>
+    <string name="push_member_removed">Removed %1$s</string>
+    <string name="push_joined_by_link">Joined via invite link</string>
+    <string name="push_joined_by_request">Joined after the request was approved</string>
+    <string name="push_contact_joined">Joined Telegram</string>
+    <string name="push_video_chat_invited_you">Invited you to the video chat</string>
+    <plurals name="push_forwarded_messages">
+        <item quantity="one">%1$d forwarded message</item>
+        <item quantity="other">%1$d forwarded messages</item>
+    </plurals>
+    <string name="push_recurring_payment">Recurring payment of %1$s</string>
+    <string name="push_screenshot">Took a screenshot</string>
+    <string name="push_game_score">Scored %1$s in “%2$s”</string>
     <string name="service_giveaway_created">A giveaway started</string>
     <string name="service_owner_changed">The chat has a new owner</string>
     <string name="service_owner_left">The owner left the chat</string>

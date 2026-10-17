@@ -1,5 +1,11 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.ui.UiText
+
+import dev.g000sha256.tdl.dto.Message
+
+import dev.g000sha256.tdl.dto.MessagePinMessage
+
 import eu.tintera.plume.core.ui.readString
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.resources.saved_messages
@@ -235,6 +241,17 @@ class TdlNotificationRepository(
     }
 
     /**
+     * [notificationText], jen připnutí řekne CO se připnulo („Připnuto: „Sraz v 8""). Jméno
+     * toho, kdo připnul, nese řádek notifikace, proto věta bez něj. Text se bere z lokální
+     * databáze; zpráva, která v ní není, dostane „Připnuta zpráva" jako dřív.
+     */
+    private suspend fun Message.detailedNotificationText(): UiText {
+        val pin = content as? MessagePinMessage ?: return notificationText()
+        val pinnedText = pin.messageId.takeIf { it != 0L }?.let { client.localMessageText(chatId, it) }
+        return pinServiceText(actor = null, pinnedText = pinnedText)
+    }
+
+    /**
      * Odesílatel a text notifikace, nebo `null` u typu, který nezobrazujeme.
      *
      * **Dva typy, ne jeden.** `NotificationTypeNewMessage` vzniká, když TDLib zprávu má.
@@ -262,7 +279,7 @@ class TdlNotificationRepository(
                     senderPhoto = sender?.photo,
                     // `showPreview = false` znamená, že si uživatel nepřeje vidět obsah
                     // na zamykací obrazovce. Musíme to respektovat — i u obrázku.
-                    text = if (type.showPreview) message.notificationText().resolveNow() else readString(Res.string.notification_new_message),
+                    text = if (type.showPreview) message.detailedNotificationText().resolveNow() else readString(Res.string.notification_new_message),
                     image = shownPhoto?.photo?.notificationImage(),
                     imageCaption = shownPhoto?.caption?.text?.takeIf { it.isNotBlank() },
                     topicId = (message.topicId as? MessageTopicForum)?.forumTopicId,

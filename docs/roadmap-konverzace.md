@@ -436,13 +436,14 @@ Zbývá to, co je pravda, ale bez podstatného údaje, který TDLib posílá:
 ~~**Kdo to udělal.**~~ — hotovo: jméno aktéra mají zprávy o členech, úkoly, připnutí a nově
 změna názvu a fotky, snímek obrazovky, témata, boost, skóre ve hře, „X je teď na Telegramu"
 a připojení z komunity (`actorServiceText`; `docs/poznatky/typy-zprav.md`, „Typy zpráv").
-Zbývají notifikace a seznam témat, kde jsou oznámení dál bezejmenná.
+V notifikacích jméno nese řádek („Jana: Změnil(a) název…"), věta ho proto nemá. Zbývá
+seznam témat, kde jsou oznámení dál bezejmenná.
 
 **Údaje v servisní zprávě:**
 
 - ~~**Připnutí**: text připnuté zprávy a ťuknutím skok na ni~~ — hotovo, i se jménem
-  (`docs/poznatky/typy-zprav.md`, „Typy zpráv"). Zbývá totéž v notifikaci bez pushe
-  (`NotificationTypeNewMessage`), kde je dál jen „Připnuta zpráva".
+  (`docs/poznatky/typy-zprav.md`, „Typy zpráv") a v notifikaci bez pushe („Připnuto: „…"",
+  `docs/poznatky/notifikace.md`).
 - ~~**Skóre ve hře**~~ (číslo a skok na hru), ~~**boost**~~ (počet) a ~~**platba**~~ (částka,
   název faktury, opakovaná platba, vrácená platba) — hotovo.
 - ~~**Videochat**: délka u konce, čas u naplánovaného a jména pozvaných~~ — hotovo.
@@ -451,8 +452,9 @@ Zbývají notifikace a seznam témat, kde jsou oznámení dál bezejmenná.
 - ~~**Možnost v anketě přidaná / smazaná**: její text a skok na anketu~~ — hotovo.
 - ~~**Soutěž skončila**: počet výherců a nerozdaných cen~~ — hotovo, i se skokem na soutěž.
 - ~~**Bot smí psát**: důvod~~ — hotovo.
-- **Push**: „N přeposlaných zpráv" (`PushMessageContentMessageForwards.totalCount`), změna
-  názvu, přidání členů, skóre a další servisní typy pushe dostanou jen „Nová zpráva".
+- ~~**Push**: „N přeposlaných zpráv", změna názvu, přidání členů, skóre a další servisní typy~~
+  — hotovo (věty bez podmětu, jméno nese řádek notifikace; `docs/poznatky/notifikace.md`).
+  Ověřené jen testy.
 
 **Obsah, který je jen řádkem textu:**
 
