@@ -462,7 +462,7 @@ témat má věty se jmény jako seznam chatů (bez předpony „Jana:").
   „Výlet""), ťuknutí otevře chat nebo člověka (`docs/poznatky/typy-zprav.md`, „Typy zpráv").
   Fotky sdílených se nekreslí — uživatelskému účtu je TDLib ve zprávě neposílá (jen botům).
 - **Návrh profilové fotky** (`MessageSuggestProfilePhoto`): fotka a „Nastavit".
-- **Návrh data narození** (`MessageSuggestBirthdate`) — viz roadmap.md, „Účet a nastavení".
+- ~~**Návrh data narození**~~ — hotovo (`docs/poznatky/nastaveni.md`, „Narozeniny").
 - **Kostka se sázkou** (`MessageStakeDice`): animace hodu jako u `MessageDice` (`initialState`,
   `finalState`), hodnota, vklad a výhra v TON.
 

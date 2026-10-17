@@ -470,6 +470,18 @@ v profilu druhého uživatele (`ChatProfile.birthdate`, řádek „Datum narozen
   i v ostatních klientech. Kartu pak odebere až update od TDLib.
 - **Karta stojí nad doporučenou akcí**: platí jen dnes, rada počká. Doporučená akce „Přidej datum
   narození" (`SuggestedAction.SetBirthdate`) se teď nabízí a vede do úpravy profilu.
+- **Návrh data narození** (`suggestUserBirthdate`, `MessageSuggestBirthdate`). Odeslání: profil
+  člověka → ⋮ → „Navrhnout datum narození" (tentýž kalendář, `BirthdatePickerDialog`
+  s popiskem „Navrhnout"); nabízí se jen tomu, jehož datum neznáme — když ho vidíme, není co
+  navrhovat. Přijetí: oznámení „Jana navrhuje datum narození 12. října 1990" a pod ním
+  „Nastavit" (`ChatMessage.suggestedBirthdate`, jen u příchozí zprávy), které datum uloží až
+  po potvrzení v dialogu — je to údaj profilu, který vidí i ostatní, a ťuknutí do konverzace
+  ho měnit nemá. Uloží se přesně navržené datum i s rokem (`acceptSuggestedBirthdate` čte
+  zprávu znovu, UI datum nenese zpět). Odesílatel vidí „Navrhl(a) jsi datum narození …".
+  **Ověřeno mezi telefony** (Pixel 7 → Pixel 5): návrh odešel z profilu, Pixel 5 (anglicky)
+  ukázal „Pixel 7 Pro suggests the birthday 12 October 1990" v konverzaci i seznamu chatů,
+  „Set" s potvrzením uložil datum a profil na Pixelu 7 pak ukázal „12. října 1990 (36 let)"
+  a návrh už nenabídl. Testovacímu účtu …527 datum zůstalo nastavené.
 - **Ověřeno**: `BirthdateTest` (věk, 29. únor, dnes/zítra/včera přes Nový rok, kolik slaví),
   `EditProfileBirthdateTest` (rok se schová a vrátí, uloží se bez roku, odebrání); na emulátoru
   výběr data a volba roku v úpravě profilu (**neuloženo**), a **se sondou** (podstrčené

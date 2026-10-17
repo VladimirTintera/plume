@@ -3298,6 +3298,18 @@
     <string name="birthdate_privacy_hint">Kdo datum uvidí, nastavíš v Soukromí účtu.</string>
     <string name="birthdate_remove">Odebrat</string>
     <string name="birthdate_done">Hotovo</string>
+    <!-- Návrh data narození: oznámení v konverzaci, nastavení z něj a odeslání z profilu. -->
+    <string name="service_suggested_birthdate">Návrh data narození: %1$s</string>
+    <string name="service_actor_suggested_birthdate">%1$s navrhuje datum narození %2$s</string>
+    <string name="service_you_suggested_birthdate">Navrhl(a) jsi datum narození %1$s</string>
+    <string name="birthdate_suggestion_set">Nastavit</string>
+    <string name="birthdate_suggestion_confirm_title">Nastavit datum narození na %1$s?</string>
+    <string name="birthdate_suggestion_saved">Datum narození uloženo</string>
+    <string name="birthdate_suggestion_failed">Datum narození se nepodařilo uložit</string>
+    <string name="birthdate_suggest">Navrhnout datum narození</string>
+    <string name="birthdate_suggest_confirm">Navrhnout</string>
+    <string name="birthdate_suggest_sent">Návrh data narození odeslán</string>
+    <string name="birthdate_suggest_failed">Návrh se nepodařilo odeslat</string>
     <string name="birthdate_with_age">%1$s (%2$s)</string>
     <plurals name="birthdate_age">
         <item quantity="one">%1$d rok</item>

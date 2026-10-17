@@ -1,5 +1,13 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.cake_24dp
+
+import eu.tintera.plume.resources.birthdate_suggest_confirm
+
+import eu.tintera.plume.resources.birthdate_suggest
+
+import eu.tintera.plume.features.settings.BirthdatePickerDialog
+
 import eu.tintera.plume.resources.profile_tab_voice
 import eu.tintera.plume.resources.mic_24dp
 import androidx.compose.ui.unit.Constraints
@@ -424,6 +432,7 @@ fun ChatProfileScreen(
                             onSetBlocked = viewModel::setBlocked,
                             onSetContact = viewModel::setContact,
                             onStartSecretChat = viewModel::startSecretChat,
+                            onSuggestBirthdate = viewModel::suggestBirthdate,
                             onCall = rememberStartCall(profile.userId),
                         )
                     }
@@ -1567,6 +1576,8 @@ private fun ProfileMenu(
     onSetBlocked: (Boolean) -> Unit,
     onSetContact: (Boolean) -> Unit,
     onStartSecretChat: () -> Unit,
+    /** Navrhnout člověku datum narození (`suggestUserBirthdate`). */
+    onSuggestBirthdate: (Birthdate) -> Unit,
     /** Zavolat (`null` = hovory tu nejsou, viz `CallRepository.supported`). */
     onCall: ((video: Boolean) -> Unit)?,
 ) {
@@ -1574,6 +1585,7 @@ private fun ProfileMenu(
     var expanded by remember { mutableStateOf(false) }
     var confirmBlock by rememberSaveable { mutableStateOf(false) }
     var confirmRemoveContact by rememberSaveable { mutableStateOf(false) }
+    var pickBirthdate by rememberSaveable { mutableStateOf(false) }
     val canBlock = profile.userId != null
     // Úprava se nabízí, jen když je aspoň jedno z práv — co uvnitř ukáže, rozhoduje obrazovka.
     val canEdit = profile.editRights.any
@@ -1637,6 +1649,12 @@ private fun ProfileMenu(
                     } else {
                         null
                     },
+                    // Návrh data narození dostane jen člověk; vlastní datum je v úpravě profilu.
+                    if (canStartSecret && profile.birthdate == null) {
+                        MenuAction(stringResource(Res.string.birthdate_suggest), Res.drawable.cake_24dp, onClick = { pickBirthdate = true })
+                    } else {
+                        null
+                    },
                     if (canManageContact) {
                         if (profile.isContact) {
                             // Odebrání smaže jméno uložené v kontaktech na všech zařízeních — s potvrzením.
@@ -1680,6 +1698,17 @@ private fun ProfileMenu(
                 }) { Text(stringResource(Res.string.profile_block), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { confirmBlock = false }) { Text(stringResource(Res.string.common_cancel)) } },
+        )
+    }
+    if (pickBirthdate) {
+        BirthdatePickerDialog(
+            initial = null,
+            onConfirm = { picked ->
+                pickBirthdate = false
+                picked?.let(onSuggestBirthdate)
+            },
+            onDismiss = { pickBirthdate = false },
+            confirmLabel = Res.string.birthdate_suggest_confirm,
         )
     }
     if (confirmRemoveContact) {

@@ -11,6 +11,13 @@ import dev.g000sha256.tdl.dto.MessageScreenshotTaken
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.month_2
+import eu.tintera.plume.resources.month_10
+import eu.tintera.plume.resources.date_day_month
+import eu.tintera.plume.resources.date_day_month_year
+import eu.tintera.plume.resources.service_suggested_birthdate
+import eu.tintera.plume.resources.service_you_suggested_birthdate
+import eu.tintera.plume.resources.service_actor_suggested_birthdate
 import eu.tintera.plume.resources.service_actor_boost
 import eu.tintera.plume.resources.service_actor_boost_count
 import eu.tintera.plume.resources.service_actor_contact_joined
@@ -85,5 +92,20 @@ class ActorServiceTextTest {
     fun pripnutiMaVlastniFunkci() {
         assertFalse(MessagePinMessage(messageId = 1L).hasActorServiceText)
         assertNull(MessagePinMessage(messageId = 1L).actorServiceText(jana))
+    }
+
+    @Test
+    fun navrhDataNarozeni() {
+        val content = dev.g000sha256.tdl.dto.MessageSuggestBirthdate(dev.g000sha256.tdl.dto.Birthdate(day = 12, month = 10, year = 1990))
+        val date = UiText(Res.string.date_day_month_year, 12, UiText(Res.string.month_10), 1990)
+        assertEquals(UiText(Res.string.service_actor_suggested_birthdate, "Jana", date), content.actorServiceText(jana))
+        assertEquals(UiText(Res.string.service_you_suggested_birthdate, date), content.actorServiceText(me))
+        // Bez jména zůstane datum v obecné větě.
+        assertEquals(UiText(Res.string.service_suggested_birthdate, date), content.serviceText(isChannelPost = false))
+        // Bez roku jen den a měsíc.
+        assertEquals(
+            UiText(Res.string.service_suggested_birthdate, UiText(Res.string.date_day_month, 1, UiText(Res.string.month_2))),
+            dev.g000sha256.tdl.dto.MessageSuggestBirthdate(dev.g000sha256.tdl.dto.Birthdate(day = 1, month = 2, year = 0)).serviceText(false),
+        )
     }
 }

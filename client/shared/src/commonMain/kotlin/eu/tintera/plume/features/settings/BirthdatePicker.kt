@@ -42,6 +42,7 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -121,7 +122,13 @@ internal fun BirthdateRows(
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BirthdatePickerDialog(initial: Birthdate?, onConfirm: (Birthdate?) -> Unit, onDismiss: () -> Unit) {
+internal fun BirthdatePickerDialog(
+    initial: Birthdate?,
+    onConfirm: (Birthdate?) -> Unit,
+    onDismiss: () -> Unit,
+    /** Popisek potvrzení; „Hotovo" ve vlastním profilu, „Navrhnout" u návrhu kontaktu. */
+    confirmLabel: StringResource = Res.string.birthdate_done,
+) {
     val today = remember { Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date }
     val state = rememberDatePickerState(
         initialSelectedDateMillis = initial?.let { it.inYear(it.year ?: today.year).utcMillis() },
@@ -142,7 +149,7 @@ private fun BirthdatePickerDialog(initial: Birthdate?, onConfirm: (Birthdate?) -
                     onConfirm(Birthdate.of(Instant.fromEpochMilliseconds(millis).toLocalDateTime(TimeZone.UTC).date, withYear = true))
                 },
                 enabled = state.selectedDateMillis != null,
-            ) { Text(stringResource(Res.string.birthdate_done)) }
+            ) { Text(stringResource(confirmLabel)) }
         },
         dismissButton = {
             Row {

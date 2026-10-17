@@ -201,6 +201,9 @@ sealed interface MessageAction {
     /** „Přidat do kontaktů" na kartě sdíleného kontaktu. */
     data object AddContact : MessageAction
 
+    /** „Nastavit" u návrhu data narození od protějšku (po potvrzení v dialogu). */
+    data object AcceptSuggestedBirthdate : MessageAction
+
     /** Ťuknutí na zprávu o hovoru: zavolat zpátky, stejně (hlas / video) jako tehdy. */
     data object CallBack : MessageAction
 

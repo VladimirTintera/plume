@@ -3197,6 +3197,18 @@
     <string name="birthdate_privacy_hint">Who sees your birthday is set in Account privacy.</string>
     <string name="birthdate_remove">Remove</string>
     <string name="birthdate_done">Done</string>
+    <!-- Návrh data narození: oznámení v konverzaci, nastavení z něj a odeslání z profilu. -->
+    <string name="service_suggested_birthdate">Suggested birthday: %1$s</string>
+    <string name="service_actor_suggested_birthdate">%1$s suggests the birthday %2$s</string>
+    <string name="service_you_suggested_birthdate">You suggested the birthday %1$s</string>
+    <string name="birthdate_suggestion_set">Set</string>
+    <string name="birthdate_suggestion_confirm_title">Set your birthday to %1$s?</string>
+    <string name="birthdate_suggestion_saved">Birthday saved</string>
+    <string name="birthdate_suggestion_failed">Couldn't save the birthday</string>
+    <string name="birthdate_suggest">Suggest birthday</string>
+    <string name="birthdate_suggest_confirm">Suggest</string>
+    <string name="birthdate_suggest_sent">Birthday suggestion sent</string>
+    <string name="birthdate_suggest_failed">Couldn't send the suggestion</string>
     <string name="birthdate_with_age">%1$s (%2$s)</string>
     <plurals name="birthdate_age">
         <item quantity="one">%1$d year old</item>

@@ -12,6 +12,8 @@ import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.features.report.ReportFlow
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.birthdate_suggestion_failed
+import eu.tintera.plume.resources.birthdate_suggestion_saved
 import eu.tintera.plume.resources.call_unavailable
 import eu.tintera.plume.resources.contact_add_failed
 import eu.tintera.plume.resources.contact_remove_failed
@@ -210,6 +212,18 @@ internal class ConversationMessageActions(
                 .onFailure { failure ->
                     logger.w(failure) { "Přidání kontaktu ze zprávy $messageId selhalo." }
                     state.update { it.copy(error = failure.userMessage(Res.string.contact_add_failed)) }
+                }
+        }
+    }
+
+    /** Nastaví vlastní datum narození na to, které protějšek navrhl zprávou [messageId]. */
+    fun acceptSuggestedBirthdate(messageId: Long) {
+        scope.launch {
+            repository.acceptSuggestedBirthdate(chatId, messageId)
+                .onSuccess { state.update { it.copy(error = UiText(Res.string.birthdate_suggestion_saved)) } }
+                .onFailure { failure ->
+                    logger.w(failure) { "Nastavení navrženého data narození ze zprávy $messageId selhalo." }
+                    state.update { it.copy(error = failure.userMessage(Res.string.birthdate_suggestion_failed)) }
                 }
         }
     }

@@ -64,6 +64,13 @@ interface ProfileRepository {
     suspend fun commonGroups(userId: Long): Result<List<RelatedChat>>
 
     /**
+     * Navrhne uživateli [userId] datum narození (`suggestUserBirthdate`). Přijde mu jako zpráva
+     * s „Nastavit"; server to dovolí jen s někým, s kým má účet společné zprávy.
+     */
+    suspend fun suggestBirthdate(userId: Long, birthdate: Birthdate): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
      * Kanály podobné kanálu [chatId] (`getChatSimilarChats`). Bez Premium jich server vydá
      * jen pár, a to stačí.
      */

@@ -25,6 +25,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ServiceOpen
+import eu.tintera.plume.core.telegram.Birthdate
+import eu.tintera.plume.core.ui.label
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import eu.tintera.plume.resources.birthdate_suggestion_set
+import eu.tintera.plume.resources.birthdate_suggestion_confirm_title
+import eu.tintera.plume.resources.birthdate_privacy_hint
+import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.asTimeOfDay
 import eu.tintera.plume.core.ui.tabularNumbers
@@ -103,6 +115,7 @@ internal fun ServiceMessage(
     onOpenChat: (Long) -> Unit = {},
     onJumpTo: (Long) -> Unit = {},
     onOpen: (ServiceOpen) -> Unit = {},
+    onAcceptBirthdate: () -> Unit = {},
 ) {
     // Text oznámení je [ChatMessage.description] a překládá se až tady — převedená zpráva
     // žije v paměti déle než jazyk aplikace.
@@ -110,6 +123,11 @@ internal fun ServiceMessage(
     val link = message.upgradeLink
     val target = message.serviceTargetMessageId
     val open = message.serviceOpen
+    val birthdate = message.suggestedBirthdate
+    if (birthdate != null) {
+        SuggestedBirthdateNote(text, birthdate, modifier, onAcceptBirthdate)
+        return
+    }
     if (link == null && target == null && open != null) {
         // Sdílený chat nebo člověk: ťuknutí ho otevře, jako zmínka v textu.
         CenteredNote(
@@ -153,6 +171,47 @@ internal fun ServiceMessage(
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
             textAlign = TextAlign.Center,
+        )
+    }
+}
+
+/**
+ * Návrh data narození od protějšku: věta a pod ní „Nastavit". Datum se mění až po potvrzení —
+ * je to údaj profilu, který vidí i ostatní (podle soukromí), a jedno ťuknutí do konverzace
+ * ho měnit nemá.
+ */
+@Composable
+private fun SuggestedBirthdateNote(text: String, birthdate: Birthdate, modifier: Modifier, onAccept: () -> Unit) {
+    var confirm by rememberSaveable { mutableStateOf(false) }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(role = Role.Button) { confirm = true }
+            .padding(vertical = 4.dp),
+    ) {
+        CenteredNote(text = text)
+        Text(
+            text = stringResource(Res.string.birthdate_suggestion_set),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center,
+        )
+    }
+    if (confirm) {
+        AlertDialog(
+            onDismissRequest = { confirm = false },
+            title = { Text(stringResource(Res.string.birthdate_suggestion_confirm_title, birthdate.label())) },
+            text = { Text(stringResource(Res.string.birthdate_privacy_hint)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirm = false
+                    onAccept()
+                }) { Text(stringResource(Res.string.birthdate_suggestion_set)) }
+            },
+            dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
 }
