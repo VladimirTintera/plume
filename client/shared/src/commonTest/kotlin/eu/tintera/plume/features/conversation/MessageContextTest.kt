@@ -580,4 +580,19 @@ class MessageContextTest {
         assertNull(query(" "))
         assertNull(query(null))
     }
+
+    @Test
+    fun dvouslovnaUliceSPsc() {
+        assertEquals(listOf("Karla Engliše 3, 150 00 Praha 5"), addresses("Sídlo: Karla Engliše 3, 150 00 Praha 5."))
+        assertEquals(listOf("Boženy Němcové 12, 602 00 Brno"), addresses("Kancelář Boženy Němcové 12, 602 00 Brno"))
+        assertEquals(listOf("Kpt. Jaroše 7, 602 00 Brno"), addresses("Přijďte na Kpt. Jaroše 7, 602 00 Brno"))
+        // Slovo před jednoslovnou ulicí se nespolkne.
+        assertEquals(listOf("Vinohradská 12, 120 00 Praha"), addresses("Sraz Vinohradská 12, 120 00 Praha"))
+        assertEquals(listOf("Vinohradská 12, 120 00 Praha"), addresses("Adresa Vinohradská 12, 120 00 Praha"))
+        // Bez PSČ je to moc nejisté — dvě slova velkým písmenem před číslem jsou skoro cokoli.
+        assertEquals(emptyList(), addresses("Karla Engliše 3, Praha"))
+        // První slovo nevypadá jako jméno ve 2. pádě: „Hotel" se k ulici nepřilepí (zbytek
+        // s PSČ najde jednoslovné pravidlo jako dřív).
+        assertEquals(listOf("Praha 3, 150 00 Praha"), addresses("Hotel Praha 3, 150 00 Praha"))
+    }
 }
