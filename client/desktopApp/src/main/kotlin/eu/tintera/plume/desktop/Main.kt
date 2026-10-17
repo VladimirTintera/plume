@@ -34,6 +34,7 @@ import eu.tintera.plume.core.platform.LaunchAtLogin
 import eu.tintera.plume.core.platform.desktopClosesToTray
 import eu.tintera.plume.core.telegram.preloadTdlibNativeDependencies
 import eu.tintera.plume.core.ui.rememberDesktopShortcutHandler
+import eu.tintera.plume.core.ui.DesktopMenuBar
 import eu.tintera.plume.di.startKoin
 import eu.tintera.plume.features.calls.IncomingCallWindow
 import io.github.kdroidfilter.platformtools.darkmodedetector.mac.setMacOsAdaptiveTitleBar
@@ -142,6 +143,8 @@ fun main(args: Array<String>) {
                     DesktopWindow.attach(null)
                 }
             }
+            // macOS: nabídka „Chaty" v liště se zkratkami (jinde nic, viz DesktopMenuBar).
+            DesktopMenuBar()
             App()
         }
     }

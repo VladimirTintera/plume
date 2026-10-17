@@ -106,4 +106,21 @@ class KeyboardShortcutsTest {
     fun bezPosluchaceZkratkaPropadne() {
         assertFalse(KeyboardShortcuts().trigger(KeyboardShortcut.SearchChats))
     }
+
+    @Test
+    fun nabidkaOknaSlibujeKlavesyKtereFunguji() {
+        // Nabídka na macOS ukazuje ⌘K a ⌘F a sama je chytá: musí to být klávesy, které pravidlo
+        // na Macu opravdu rozpozná — a Ctrl+Tab tam zůstat Ctrl+Tab.
+        listOf(true, false).forEach { mac ->
+            SHORTCUT_BINDINGS.forEach { binding ->
+                val keys = binding.menuKeys(commandIsMeta = mac)
+                assertEquals(
+                    binding.shortcut,
+                    keyboardShortcut(keys.key, ctrl = keys.ctrl, alt = keys.alt, shift = keys.shift, meta = keys.meta, commandIsMeta = mac),
+                    "$binding na ${if (mac) "macOS" else "Windows"}",
+                )
+            }
+        }
+        assertEquals(MenuKeys(Key.K, meta = true), SHORTCUT_BINDINGS.first().menuKeys(commandIsMeta = true))
+    }
 }

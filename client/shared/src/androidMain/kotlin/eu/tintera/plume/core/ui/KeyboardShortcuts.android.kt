@@ -6,10 +6,6 @@ import androidx.compose.ui.input.key.nativeKeyCode
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.shortcut_back
 import eu.tintera.plume.resources.shortcut_new_line
-import eu.tintera.plume.resources.shortcut_next_chat
-import eu.tintera.plume.resources.shortcut_previous_chat
-import eu.tintera.plume.resources.shortcut_search_chats
-import eu.tintera.plume.resources.shortcut_search_in_chat
 import eu.tintera.plume.resources.shortcut_send
 import eu.tintera.plume.resources.shortcuts_group_chats
 import eu.tintera.plume.resources.shortcuts_group_writing
@@ -89,11 +85,3 @@ class KeyboardShortcutOverview private constructor(private val texts: Map<String
         }
     }
 }
-
-private val KeyboardShortcut.label: StringResource
-    get() = when (this) {
-        KeyboardShortcut.SearchChats -> Res.string.shortcut_search_chats
-        KeyboardShortcut.SearchInChat -> Res.string.shortcut_search_in_chat
-        KeyboardShortcut.NextChat -> Res.string.shortcut_next_chat
-        KeyboardShortcut.PreviousChat -> Res.string.shortcut_previous_chat
-    }

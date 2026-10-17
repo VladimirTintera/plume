@@ -494,7 +494,20 @@ v otevřené konverzaci, **Alt+↓ / Alt+↑** a **Ctrl+Tab / Ctrl+Shift+Tab** d
     bere systém.
   - **Esc = Zpět dělá na desktopu Compose sám** (`BackNavigationEventInput`), ale až když
     klávesu nikdo nespotřebuje — tatáž past jako na Androidu.
-  - Přehled zkratek desktop nemá (nabídka okna, `docs/roadmap.md`).
+  - **Na macOS je nabídka „Chaty" v liště** (`DesktopMenuBar`): Hledat v chatech ⌘K, Hledat
+    v konverzaci ⌘F, Další / Předchozí chat ⌥↓ / ⌥↑ — na Macu se zkratky hledají v nabídkách.
+    Popisky i klávesy jdou ze `SHORTCUT_BINDINGS` (`menuKeys` mění Ctrl hledání na ⌘, Ctrl+Tab
+    nechá) a `KeyboardShortcutsTest` hlídá, že nabídka slibuje klávesy, které pravidlo opravdu
+    rozpozná. Na Windows a Linuxu nabídka není — `MenuBar` by tam přidal pruh dovnitř okna.
+  - **Akce se nespustí dvakrát, i když klávesu má okno i nabídka.** Okno ji chytá první
+    (`onPreviewKeyEvent`) a spotřebovaná klávesa už do nabídky nedojde; nabídka ji dostane, jen
+    když okno nevyřídí (zkratku nikdo neposlouchá — přihlašovací obrazovka) a pak nic nespustí
+    ani ona. **Pozor na falešnou stopu**: na přihlašovací obrazovce sonda ukázala volání z okna
+    i z nabídky, jenže to bylo právě tím, že okno klávesu nespotřebovalo. Spolknout ji v okně
+    „aby to nespustila nabídka" klávesu zabije úplně (vyzkoušeno: ⌘K pak nedělal nic).
+  - **Ověřeno na macOS** (ladicí běh, sonda v logu): v liště „Plume" a „Chaty" se čtyřmi
+    položkami; ⌘K nad seznamem chatů otevřel hledání jednou (jen z okna), položka nabídky
+    taky jednou. Ostatní zkratky z nabídky jen testy — ⌥↓ by otevřel chat skutečného člověka.
   - **Ověřeno na Windows 11** (ladicí běh, uživatel): Ctrl+K, Ctrl+F, Alt+šipky, Ctrl+Tab
     a Esc i s kurzorem v poli zprávy. macOS (⌘) jen testy, za běhu neověřené.
 - **iOS zkratky nemá** — chybí obdoba `dispatchKeyEvent` (`UIKeyCommand`); Enter ve vstupním
