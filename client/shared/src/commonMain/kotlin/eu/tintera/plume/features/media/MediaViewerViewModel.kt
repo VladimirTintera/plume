@@ -21,6 +21,13 @@ import eu.tintera.plume.core.telegram.MessageMedia
 import eu.tintera.plume.core.navigation.NO_STORY
 import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
 import eu.tintera.plume.core.telegram.NO_POLL_MEDIA
+import eu.tintera.plume.core.ai.OnDeviceAi
+import eu.tintera.plume.core.ai.OnDeviceAiException
+import eu.tintera.plume.core.ai.emptyOutputMessage
+import eu.tintera.plume.core.ai.isReportable
+import eu.tintera.plume.core.ai.userMessage
+import eu.tintera.plume.core.settings.AppSettings
+import eu.tintera.plume.core.telegram.platformLanguageCode
 import eu.tintera.plume.core.telegram.POLL_EXPLANATION_MEDIA
 import eu.tintera.plume.core.telegram.POLL_QUESTION_MEDIA
 import eu.tintera.plume.core.telegram.PollAttachment
@@ -37,6 +44,7 @@ import eu.tintera.plume.features.conversation.toggled
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_delete_failed
 import eu.tintera.plume.resources.conversation_reaction_failed
+import eu.tintera.plume.resources.media_describe_failed
 import eu.tintera.plume.resources.media_photo_load_failed
 import eu.tintera.plume.resources.media_text_copied
 import eu.tintera.plume.resources.media_text_failed
@@ -52,10 +60,12 @@ import eu.tintera.plume.resources.media_saved
 import eu.tintera.plume.resources.media_unsupported
 import eu.tintera.plume.resources.story_unavailable
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.TimeZone
 import kotlinx.coroutines.flow.update
@@ -102,6 +112,9 @@ class MediaViewerViewModel(
     private val textRecognizer: TextRecognizer? = null,
     /** Text z fotky do schránky. */
     private val clipboard: TextClipboard? = null,
+    /** Popis fotky modelem v telefonu; bez něj (nebo bez [settings]) se nenabízí. */
+    private val onDeviceAi: OnDeviceAi? = null,
+    private val settings: AppSettings? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("MediaViewer")
@@ -144,7 +157,11 @@ class MediaViewerViewModel(
 
     private val notMessages: Boolean get() = isPollMedia || isArticleMedia || profilePhotos || isStory
 
+    /** Běžící popis fotky ([describePhoto]); zavření panelu nebo odlistování ho zruší. */
+    private var describeJob: Job? = null
+
     init {
+        watchPhotoDescription()
         viewModelScope.launch {
             when {
                 profilePhotos -> loadProfilePhotos()
@@ -533,6 +550,7 @@ class MediaViewerViewModel(
         items.getOrNull(index)?.let { loadDetails(it.messageId) }
         // Zvýrazněný text patří fotce, ze které se odlistovalo; po návratu by překvapil.
         if (_state.value.recognizedText?.messageId != items.getOrNull(index)?.messageId) closeRecognizedText()
+        if (_state.value.photoDescription?.messageId != items.getOrNull(index)?.messageId) closePhotoDescription()
         if (index <= PRELOAD_DISTANCE) loadOlder()
         if (index >= items.lastIndex - PRELOAD_DISTANCE) loadNewer()
     }
@@ -713,6 +731,8 @@ class MediaViewerViewModel(
                 text.isEmpty -> finish(messageId, Res.string.media_text_none)
                 else -> {
                     finish(messageId, null)
+                    // Oba panely leží na témže místě dole; nový nahradí starý.
+                    closePhotoDescription()
                     _state.update { it.copy(recognizedText = PhotoText(messageId, text)) }
                 }
             }
@@ -739,6 +759,82 @@ class MediaViewerViewModel(
     /** Vybrané řádky, nebo celý rozpoznaný text, do schránky; potvrzení snackbarem, kde ho nedá systém. */
     fun copyRecognizedText() {
         val text = _state.value.recognizedText?.shownText ?: return
+        val clipboard = clipboard ?: return
+        viewModelScope.launch { clipboard.copy(text) }
+        if (!clipboard.confirmsCopy) _state.update { it.copy(notice = UiText(Res.string.media_text_copied)) }
+    }
+
+    /**
+     * Nabízet popis fotky? Jen se zapnutou AI v zařízení a modelem, který obraz bere (dnes Gemma 4,
+     * `OnDeviceAi.canDescribeImage`). Sleduje se, protože model se může dostahovat, zatímco je
+     * prohlížeč otevřený.
+     */
+    private fun watchPhotoDescription() {
+        val ai = onDeviceAi ?: return
+        val settings = settings ?: return
+        viewModelScope.launch {
+            combine(settings.onDeviceAiEnabled, settings.onDeviceAiVariant) { enabled, variant ->
+                enabled && runCatching { ai.canDescribeImage(variant) }.getOrDefault(false)
+            }.collect { can -> _state.update { it.copy(canDescribePhoto = can) } }
+        }
+    }
+
+    /**
+     * Popis fotky [messageId] modelem v telefonu ([MediaViewerState.photoDescription]) — pro
+     * toho, kdo fotku nevidí, nebo kdo chce vědět, co na ní je. Druhé ťuknutí panel zavře.
+     *
+     * Ostrá verze jako u textu z fotky; stahování točí na místě ⋮ ([MediaTask.Describe]), psaní
+     * modelu už ukazuje panel. Fotka telefon neopouští.
+     */
+    fun describePhoto(messageId: Long) {
+        val ai = onDeviceAi ?: return
+        val settings = settings ?: return
+        if (_state.value.photoDescription?.messageId == messageId) {
+            closePhotoDescription()
+            return
+        }
+        describeJob?.cancel()
+        describeJob = viewModelScope.launch {
+            val file = prepare(messageId, MediaTask.Describe, failure = Res.string.media_describe_failed) ?: return@launch
+            finish(messageId, null)
+            closeRecognizedText()
+            _state.update { it.copy(photoDescription = PhotoDescription(messageId)) }
+            try {
+                var text = ""
+                ai.describeImage(settings.onDeviceAiVariant.value, file.path, platformLanguageCode).collect { generated ->
+                    text = generated.text
+                    updateDescription(messageId) { it.copy(text = text) }
+                }
+                updateDescription(messageId) {
+                    if (text.isBlank()) it.copy(error = emptyOutputMessage) else it.copy(text = text.trim(), done = true)
+                }
+            } catch (e: OnDeviceAiException) {
+                if (e.isReportable) logger.e(e) { "Popis fotky se nepovedl" } else logger.w(e) { "Popis fotky se nepovedl" }
+                updateDescription(messageId) { it.copy(error = e.userMessage()) }
+            }
+        }
+    }
+
+    private inline fun updateDescription(messageId: Long, crossinline change: (PhotoDescription) -> PhotoDescription) {
+        _state.update { state ->
+            val description = state.photoDescription?.takeIf { it.messageId == messageId } ?: return@update state
+            state.copy(photoDescription = change(description))
+        }
+    }
+
+    fun closePhotoDescription() {
+        describeJob?.cancel()
+        describeJob = null
+        _state.update { state ->
+            // Zrušené stahování by jinak nechalo ⋮ točit navždy (`prepare` busy nesundá).
+            val stuck = state.busy.filterValues { it == MediaTask.Describe }.keys
+            state.copy(photoDescription = null, busy = state.busy - stuck)
+        }
+    }
+
+    /** Hotový popis do schránky; potvrzení snackbarem, kde ho nedá systém. */
+    fun copyPhotoDescription() {
+        val text = _state.value.photoDescription?.takeIf { it.done }?.text ?: return
         val clipboard = clipboard ?: return
         viewModelScope.launch { clipboard.copy(text) }
         if (!clipboard.confirmsCopy) _state.update { it.copy(notice = UiText(Res.string.media_text_copied)) }
@@ -992,7 +1088,7 @@ internal fun MessageMedia.Document.asViewerMedia(): MessageMedia? {
 }
 
 /** Co s médiem právě běží; podle toho se točí to tlačítko, na které uživatel ťukl. */
-enum class MediaTask { Gallery, Share, SaveAs, Text }
+enum class MediaTask { Gallery, Share, SaveAs, Text, Describe }
 
 /**
  * Text rozpoznaný na fotce [messageId] — zvýrazní se jen na ní, jinde ne. [selected] jsou řádky
@@ -1002,6 +1098,17 @@ data class PhotoText(val messageId: Long, val text: RecognizedText, val selected
     /** Co ukáže panel a co se zkopíruje: vybrané řádky, jinak všechno. */
     val shownText: String get() = text.text(selected)
 }
+
+/**
+ * Popis fotky [messageId] od modelu v telefonu. [text] roste, jak model píše; [done] = dopsáno,
+ * [error] = nepovedlo se (text pak nic neznamená).
+ */
+data class PhotoDescription(
+    val messageId: Long,
+    val text: String = "",
+    val done: Boolean = false,
+    val error: UiText? = null,
+)
 
 /** Stažený soubor připravený k uložení nebo sdílení, se jménem, pod kterým se má objevit. */
 data class PreparedMedia(val path: String, val fileName: String, val isVideo: Boolean)
@@ -1056,6 +1163,10 @@ data class MediaViewerState(
     val notice: UiText? = null,
     /** Text z fotky, zvýrazněný na ní; `null` = žádný. */
     val recognizedText: PhotoText? = null,
+    /** Nabídnout popis fotky modelem v telefonu ([MediaViewerViewModel.describePhoto]). */
+    val canDescribePhoto: Boolean = false,
+    /** Popis fotky od modelu v telefonu; `null` = žádný. */
+    val photoDescription: PhotoDescription? = null,
     /** Zmizela poslední fotka (smazaná odsud nebo odjinud) — prohlížeč se zavře. */
     val closed: Boolean = false,
     val reachedOldest: Boolean = false,

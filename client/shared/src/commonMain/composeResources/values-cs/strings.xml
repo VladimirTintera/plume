@@ -290,6 +290,12 @@
     <string name="media_text_copied">Text zkopírován</string>
     <string name="media_text_none">Na fotce není žádný text</string>
     <string name="media_text_failed">Text se nepodařilo rozpoznat. Zkus to za chvíli.</string>
+    <string name="media_describe">Popsat fotku</string>
+    <string name="media_describe_hide">Skrýt popis</string>
+    <string name="media_describe_title">Popis fotky</string>
+    <string name="media_describe_progress">Prohlížím fotku…</string>
+    <string name="media_describe_disclaimer">Napsal model v telefonu. Může se mýlit.</string>
+    <string name="media_describe_failed">Fotku se nepodařilo popsat. Zkus to za chvíli.</string>
     <string name="media_save_denied">Plume nemá oprávnění ukládat do galerie</string>
     <string name="media_share">Sdílet</string>
     <string name="media_more">Další možnosti</string>

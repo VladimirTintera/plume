@@ -1356,6 +1356,27 @@ panel pak ukazuje a „Kopírovat výběr" kopíruje jen je (`PhotoText.selected
   přeložené.** Rámeček řádku od ML Kitu občas ukrojí první znak („K", „4") — přepočet
   souřadnic to podle všeho není (obrázek se nezmenšoval), ale ověřené to není.
 
+### Popis fotky
+
+⋮ → „Popsat fotku" napíše model v telefonu (Gemma 4, `OnDeviceAi.describeImage`) dvě až čtyři
+věty o tom, co je na fotce — pro toho, kdo ji nevidí. Panel (`PhotoDescriptionPanel`) vyjede na
+místě pruhu reakcí stejně jako text z fotky; oba naráz nejsou, nový zavře starý. Jádro
+(obrazový vstup, prompt) je v `ai-v-zarizeni.md`, „Popis fotky (obrazový vstup Gemmy)".
+
+- **Nabízí se jen se zapnutou AI v zařízení a připravenou Gemmou** (`canDescribePhoto` ve stavu,
+  sleduje se — model se může dostahovat, zatímco je prohlížeč otevřený). Gemini Nano přes ML Kit
+  obraz nebere. Jen u fotky, a jen když jde uložit — stejné omezení jako text z fotky, popis by
+  obešel zákaz ukládání.
+- **Ostrá verze fotky** tímtéž `prepare` jako uložení; po dobu stahování točí ⋮
+  (`MediaTask.Describe`), psaní modelu už ukazuje panel („Prohlížím fotku…" a pak přibývající
+  text). Zavření panelu nebo odlistování popis ZRUŠÍ (`describeJob`) — a sundá i točení ⋮, které
+  `prepare` při zrušeném stahování nechá viset.
+- **Dopsaný popis čte čtečka sama** (`liveRegion` až po dopsání, ne během psaní — přírůstky by
+  ji přerušovaly).
+- **Ověřeno na emulátoru Fold** (Gemma 4 E2B, CPU): tapeta s krajinou popsaná za ~13 s i
+  s přenačtením enginu s obrazem, snímek obrazovky s už načteným enginem rychleji; kopírování,
+  zavření a zavření při přelistování. Čtečka obrazovky neověřená.
+
 ## Spoilery a mizející média
 
 Dva různé mechanismy TDLib. **Spoiler** (`hasSpoiler`) je jen rozmazání, fotka v historii zůstává

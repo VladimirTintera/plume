@@ -28,6 +28,22 @@ class RoutingOnDeviceAiTest {
         override suspend fun stopDownload(variant: ModelVariant) {
             seen += variant
         }
+        override fun describeImage(variant: ModelVariant, imagePath: String, languageCode: String): Flow<Generated> =
+            flowOf(Generated("$imagePath $languageCode")).also { seen += variant }
+    }
+
+    /** Gemini Nano přes ML Kit obraz nebere (výchozí `false`); popis jde jen Gemmě. */
+    @Test
+    fun popisFotkyJdeGemme() = runTest {
+        val nano = Recorder(OnDeviceAiStatus.Ready)
+        val gemma = Recorder(OnDeviceAiStatus.Ready)
+        val ai = RoutingOnDeviceAi(nano, gemma)
+
+        assertEquals(false, ai.canDescribeImage(ModelVariant(provider = AiProvider.GeminiNano)))
+        val text = ai.describeImage(ModelVariant(provider = AiProvider.Gemma, fast = true), "/fotka.jpg", "cs").toList()
+
+        assertEquals(listOf(Generated("/fotka.jpg cs")), text)
+        assertEquals(listOf(ModelVariant(provider = AiProvider.Gemma)), gemma.seen)
     }
 
     @Test

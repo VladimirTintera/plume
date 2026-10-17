@@ -85,6 +85,20 @@ interface OnDeviceAi {
         flow { throw OnDeviceAiException(AiFailureReason.Unavailable, variant.provider) }
 
     /**
+     * Umí model popsat obrázek ([describeImage])? Jen PŘIPRAVENÝ model s obrazovým vstupem
+     * (dnes Gemma 4; Gemini Nano přes Prompt API bere jen text). Levný dotaz, nic nenačítá.
+     */
+    suspend fun canDescribeImage(variant: ModelVariant): Boolean = false
+
+    /**
+     * Popíše fotku ze souboru [imagePath] několika větami v jazyce [languageCode] — pro toho,
+     * kdo ji nevidí. Vydává celý dosavadní text jako [generate]. Kde popis není
+     * ([canDescribeImage] `false`), selže.
+     */
+    fun describeImage(variant: ModelVariant, imagePath: String, languageCode: String): Flow<Generated> =
+        flow { throw OnDeviceAiException(AiFailureReason.Unavailable, variant.provider) }
+
+    /**
      * Smaže stažený model a uvolní místo. Jen tam, kde model stahuje aplikace sama
      * ([ModelVariant.appManaged]); systémový model (AICore) spravuje telefon a tohle je u něj
      * no-op.
