@@ -12,6 +12,8 @@ import eu.tintera.plume.core.telegram.userMessage
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.features.report.ReportFlow
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.photo_suggestion_failed
+import eu.tintera.plume.resources.photo_suggestion_saved
 import eu.tintera.plume.resources.birthdate_suggestion_failed
 import eu.tintera.plume.resources.birthdate_suggestion_saved
 import eu.tintera.plume.resources.call_unavailable
@@ -224,6 +226,18 @@ internal class ConversationMessageActions(
                 .onFailure { failure ->
                     logger.w(failure) { "Nastavení navrženého data narození ze zprávy $messageId selhalo." }
                     state.update { it.copy(error = failure.userMessage(Res.string.birthdate_suggestion_failed)) }
+                }
+        }
+    }
+
+    /** Nastaví jako profilovku fotku, kterou protějšek navrhl zprávou [messageId]. */
+    fun acceptSuggestedPhoto(messageId: Long) {
+        scope.launch {
+            repository.acceptSuggestedPhoto(chatId, messageId)
+                .onSuccess { state.update { it.copy(error = UiText(Res.string.photo_suggestion_saved)) } }
+                .onFailure { failure ->
+                    logger.w(failure) { "Nastavení navržené profilovky ze zprávy $messageId selhalo." }
+                    state.update { it.copy(error = failure.userMessage(Res.string.photo_suggestion_failed)) }
                 }
         }
     }

@@ -70,6 +70,10 @@ interface ProfileRepository {
     suspend fun suggestBirthdate(userId: Long, birthdate: Birthdate): Result<Unit> =
         Result.failure(UnsupportedOperationException())
 
+    /** Navrhne uživateli [userId] profilovou fotku (`suggestUserProfilePhoto`), oříznutou jako vlastní. */
+    suspend fun suggestPhoto(userId: Long, photo: ProfilePhotoFile): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
     /**
      * Kanály podobné kanálu [chatId] (`getChatSimilarChats`). Bez Premium jich server vydá
      * jen pár, a to stačí.

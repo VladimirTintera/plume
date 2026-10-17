@@ -3209,6 +3209,16 @@
     <string name="birthdate_suggest_confirm">Suggest</string>
     <string name="birthdate_suggest_sent">Birthday suggestion sent</string>
     <string name="birthdate_suggest_failed">Couldn't send the suggestion</string>
+    <!-- Návrh profilové fotky: oznámení v konverzaci, nastavení z něj a odeslání z profilu. -->
+    <string name="service_actor_suggested_photo">%1$s suggests a profile photo</string>
+    <string name="service_you_suggested_photo">You suggested a profile photo</string>
+    <string name="photo_suggestion_confirm_title">Set as your profile photo?</string>
+    <string name="photo_suggestion_confirm_body">Who sees it is set in Account privacy.</string>
+    <string name="photo_suggestion_saved">Profile photo set</string>
+    <string name="photo_suggestion_failed">Couldn't set the profile photo</string>
+    <string name="photo_suggest">Suggest profile photo</string>
+    <string name="photo_suggest_sent">Photo suggestion sent</string>
+    <string name="photo_suggest_failed">Couldn't send the photo suggestion</string>
     <string name="birthdate_with_age">%1$s (%2$s)</string>
     <plurals name="birthdate_age">
         <item quantity="one">%1$d year old</item>

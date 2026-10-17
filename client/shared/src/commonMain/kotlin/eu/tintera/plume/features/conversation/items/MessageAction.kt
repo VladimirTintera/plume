@@ -204,6 +204,9 @@ sealed interface MessageAction {
     /** „Nastavit" u návrhu data narození od protějšku (po potvrzení v dialogu). */
     data object AcceptSuggestedBirthdate : MessageAction
 
+    /** „Nastavit" u návrhu profilové fotky od protějšku (po potvrzení v dialogu). */
+    data object AcceptSuggestedPhoto : MessageAction
+
     /** Ťuknutí na zprávu o hovoru: zavolat zpátky, stejně (hlas / video) jako tehdy. */
     data object CallBack : MessageAction
 

@@ -1835,6 +1835,7 @@ class ConversationViewModel(
             is MessageAction.OpenUser -> links.openMentioned { chatRepository.privateChat(action.userId) }
             MessageAction.AddContact -> messageActions.addSharedContact(messageId)
             MessageAction.AcceptSuggestedBirthdate -> messageActions.acceptSuggestedBirthdate(messageId)
+            MessageAction.AcceptSuggestedPhoto -> messageActions.acceptSuggestedPhoto(messageId)
             MessageAction.CallBack -> messageActions.callBack(messageId)
             MessageAction.StopLiveLocation -> attachments.stopLiveLocation(messageId)
             MessageAction.SetProximityAlert -> attachments.openProximityAlert(messageId)

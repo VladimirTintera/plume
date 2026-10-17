@@ -68,6 +68,9 @@ class TdlProfileRepository(
     override suspend fun suggestBirthdate(userId: Long, birthdate: Birthdate): Result<Unit> =
         client.suggestUserBirthdate(userId = userId, birthdate = birthdate.toTdl()).toResult().map { }
 
+    override suspend fun suggestPhoto(userId: Long, photo: ProfilePhotoFile): Result<Unit> =
+        client.suggestUserProfilePhoto(userId = userId, photo = photo.toInputChatPhoto()).toResult().map { }
+
     override suspend fun setAutoDeleteTime(chatId: Long, seconds: Int): Result<Unit> =
         client.setChatMessageAutoDeleteTime(chatId = chatId, messageAutoDeleteTime = seconds)
             .toResult()

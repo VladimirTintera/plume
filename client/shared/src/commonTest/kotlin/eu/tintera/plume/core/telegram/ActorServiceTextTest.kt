@@ -11,6 +11,9 @@ import dev.g000sha256.tdl.dto.MessageScreenshotTaken
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.content_suggested_photo
+import eu.tintera.plume.resources.service_you_suggested_photo
+import eu.tintera.plume.resources.service_actor_suggested_photo
 import eu.tintera.plume.resources.month_2
 import eu.tintera.plume.resources.month_10
 import eu.tintera.plume.resources.date_day_month
@@ -107,5 +110,16 @@ class ActorServiceTextTest {
             UiText(Res.string.service_suggested_birthdate, UiText(Res.string.date_day_month, 1, UiText(Res.string.month_2))),
             dev.g000sha256.tdl.dto.MessageSuggestBirthdate(dev.g000sha256.tdl.dto.Birthdate(day = 1, month = 2, year = 0)).serviceText(false),
         )
+    }
+
+    @Test
+    fun navrhFotky() {
+        val content = dev.g000sha256.tdl.dto.MessageSuggestProfilePhoto(
+            dev.g000sha256.tdl.dto.ChatPhoto(id = 1L, addedDate = 0, minithumbnail = null, sizes = emptyArray(), animation = null, smallAnimation = null, sticker = null),
+        )
+        assertEquals(UiText(Res.string.service_actor_suggested_photo, "Jana"), content.actorServiceText(jana))
+        assertEquals(UiText(Res.string.service_you_suggested_photo), content.actorServiceText(me))
+        // Je to oznámení na středu, ne bublina.
+        assertEquals(UiText(Res.string.content_suggested_photo), content.serviceText(isChannelPost = false))
     }
 }
