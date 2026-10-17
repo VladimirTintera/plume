@@ -490,14 +490,26 @@ private fun variableSymbol(text: String): String? =
  */
 private fun addresses(text: String): List<ContextFinding.Address> {
     val folded = foldDiacritics(text)
-    val czech = CZECH_ADDRESS.findAll(folded).filter { match ->
+    // Jednoslovná ulice: se znakem ulice (koncovka, klíčové slovo, předložka) je „silná",
+    // jen s PSČ „slabá" — tu přebije dvouslovná ulice, které je kusem („Karla [Englise 3, …]").
+    val czech = CZECH_ADDRESS.findAll(folded).mapNotNull { match ->
         val hasPostal = match.groups[POSTAL_GROUP] != null
         val keyword = match.groups[KEYWORD_GROUP] != null || match.groups[PREPOSITION_GROUP] != null
         val street = match.groups[STREET_GROUP]?.value.orEmpty().lowercase()
-        hasPostal || keyword || STREET_SUFFIXES.any { street.endsWith(it) }
-    }
+        val strong = keyword || STREET_SUFFIXES.any { street.endsWith(it) }
+        match.takeIf { strong || hasPostal }?.let { it to strong }
+    }.toList()
+    // Dvouslovná ulice („Karla Englise 3") jen s PSČ a se jménem ve 2. pádě vpředu; silná
+    // jednoslovná adresa ve stejném místě („Sraz Vinohradska 12, …") má přednost.
+    val twoWords = CZECH_ADDRESS_TWO_WORDS.findAll(folded).filter { match ->
+        val first = match.groups[FIRST_WORD_GROUP]?.value.orEmpty().lowercase()
+        (first.endsWith('.') || first.last() in GENITIVE_ENDINGS) &&
+            czech.none { (single, strong) -> strong && single.range.overlaps(match.range) }
+    }.toList()
+    val singles = czech.filter { (single, strong) -> strong || twoWords.none { it.range.overlaps(single.range) } }
+        .map { it.first }
     val english = ENGLISH_ADDRESS.findAll(folded)
-    return (czech + english)
+    return (singles + twoWords + english)
         .map { ContextFinding.Address(text.substring(it.range).trimEnd(',', '.', ' ')) }
         .distinctBy { it.text }
         .take(MAX_ADDRESSES)
@@ -1030,6 +1042,25 @@ private val CZECH_ADDRESS = Regex(
         "(?<street>$CAP_WORD)\\s+\\d{1,5}(?:/\\d{1,5})?[a-zA-Z]?,\\s*" +
         "(?:(?<postal>\\d{3}\\s?\\d{2})\\s+)?$CITY",
 )
+
+/**
+ * Česká adresa s DVOUSLOVNOU ulicí („Karla Englise 3, 150 00 Praha 5", „Kpt. Jarose 7, 602 00
+ * Brno"). Jen s PSČ — bez něj by dvě slova velkým písmenem před číslem byla skoro cokoli —
+ * a první slovo musí vypadat jako jméno ve 2. pádě nebo zkratka s tečkou (viz [addresses]).
+ * Tři a víc slov („Dr. Zikmunda Wintra") se nehledá: spolklo by i slovo před ulicí.
+ */
+private val CZECH_ADDRESS_TWO_WORDS = Regex(
+    "(?<![\\p{L}\\d.])" +
+        "(?<first>$CAP_WORD|\\p{Lu}\\p{Ll}{1,3}\\.)\\s+$CAP_WORD\\s+\\d{1,5}(?:/\\d{1,5})?[a-zA-Z]?,\\s*" +
+        "\\d{3}\\s?\\d{2}\\s+$CITY",
+)
+
+private const val FIRST_WORD_GROUP = "first"
+
+private fun IntRange.overlaps(other: IntRange): Boolean = first <= other.last && other.first <= last
+
+/** Koncovky jména ve 2. pádě, kterým začíná víceslovná ulice (Karla, Boženy, Marie, Jiri…). */
+private val GENITIVE_ENDINGS = setOf('a', 'y', 'e', 'i')
 
 private const val KEYWORD_GROUP = "keyword"
 private const val PREPOSITION_GROUP = "preposition"

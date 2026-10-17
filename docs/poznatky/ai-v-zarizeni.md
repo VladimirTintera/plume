@@ -398,8 +398,15 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   s dopravcem, „Objednávka 40012345678…" ikonku nemá; „Sledovat zásilku" u PPL otevře ppl.cz.
 - **Adresa jen s jasnou stavbou**: ulice, číslo, čárka, město — a k tomu PSČ, nebo ulice, která
   jako ulice vypadá (koncovka „-ská", „-ova", „-ního"…, klíčové slovo „nám.", předložka „Na").
-  Ulice je JEDNO slovo: víc slov by spolklo i slovo před ní („Sraz Vinohradská 12"), takže
-  „Karla Engliše 3" se nenajde. „Kapitola 12, Praha" adresou není. Anglicky číslo, název a druh
+  Ulice je JEDNO slovo: víc slov by spolklo i slovo před ní („Sraz Vinohradská 12").
+  **Dvouslovná ulice jen s PSČ** (`CZECH_ADDRESS_TWO_WORDS`): „Karla Engliše 3, 150 00 Praha 5",
+  „Kpt. Jaroše 7, 602 00 Brno" — první slovo musí vypadat jako jméno ve 2. pádě (končí na
+  -a, -y, -e, -i) nebo zkratka s tečkou. Jednoslovná ulice se znakem ulice (koncovka,
+  „nám.", předložka) má přednost („Adresa Vinohradská 12, 120 00 Praha" zůstane bez
+  „Adresa"); jednoslovnou, kterou drží jen PSČ („[Karla] Engliše 3, …"), dvouslovná přebije.
+  Bez PSČ („Karla Engliše 3, Praha") se víceslovná ulice nenajde dál a tři slova („Dr. Zikmunda
+  Wintra") taky ne. Ověřeno na emulátoru: zpráva od bota → adresa celá, s kopírováním
+  a mapami. „Kapitola 12, Praha" adresou není. Anglicky číslo, název a druh
   ulice („221B Baker Street"). Hledá se v textu bez diakritiky (`foldDiacritics` nemění délku
   ani velikost písmen), ven jde úsek původního textu. Vložené příznaky regexů (`(?i:…)`) nejsou
   na všech platformách stejné, velikost písmen je proto ručně (`[Nn]a`).

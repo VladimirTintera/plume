@@ -651,9 +651,9 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
   „Akce ze zpráv"). Zbývá:
   - **ověřit na telefonu**: editor události v kalendáři (emulátor bez účtu Google chce
     přihlášení), načtení QR platby bankovní aplikací, Gemini Nano místo Gemmy, iOS (jen přeložené),
-  - **adresa bez jasné stavby** („sraz na Vinohradské 12", víceslovné ulice jako „Karla Engliše
-    3") a místo bez termínu („u Kotvy") — pravidla je vědomě nechávají, chtělo by to předfiltr
-    a model, jako u termínu,
+  - **adresa bez jasné stavby** („sraz na Vinohradské 12") a místo bez termínu („u Kotvy") —
+    pravidla je vědomě nechávají, chtělo by to předfiltr a model, jako u termínu. ~~Víceslovné
+    ulice~~ s PSČ hotové („Karla Engliše 3, 150 00 Praha 5"); bez PSČ a tři slova dál ne,
   - **jméno u kontaktu** jen z jasné stavby („Jan Novák: 602…"); jinak by ho uměl model,
   - **letiště mimo tabulku** (~110 nejběžnějších) a měst mimo seznam českých a anglických
     názvů; u města s víc letišti se bere hlavní (Londýn → Heathrow), pokud zpráva nemá kód;
