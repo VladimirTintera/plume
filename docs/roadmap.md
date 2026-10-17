@@ -633,8 +633,9 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
     vzorku zpráv,
   - ~~**další typy**~~ — hotovo: podvod, tón, připomínka, termín do kalendáře a hledání
     přirozeným jazykem (`generateAnswer`; `docs/poznatky/ai-v-zarizeni.md`, „Strukturovaný
-    výstup"), ověřené na Foldu. Zbývá: model občas spočítá datum špatně („den před Silvestrem"
-    → 24. 12.) — zvážit kontrolu pravidly nebo napovědět příklady relativních dat.
+    výstup"), ověřené na Foldu. ~~Model spočítal špatně „den před Silvestrem"~~ — svátky
+    s pevným datem teď poznají pravidla; jiná relativní data („třetí pátek v měsíci") zůstávají
+    na modelu.
 - ~~**Detekce podvodných zpráv.**~~ — hotovo: karta „Možný podvod" pod zprávou, předfiltr
   pravidly a posouzení modelem (`docs/poznatky/ai-v-zarizeni.md`, „Varování před podvodem").
   Původní zadání: „Naskenuj tenhle QR a ověř si účet", falešná výhra, odkaz na

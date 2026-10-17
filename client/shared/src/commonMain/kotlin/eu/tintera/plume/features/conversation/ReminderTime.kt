@@ -61,6 +61,16 @@ internal fun textTime(text: String, sentAt: LocalDateTime): TextTime? {
         }
         if (date != null) rest = rest.replaceRange(match.range, " ")
     }
+    // Svátek s pevným datem („na Silvestra", „den před Štědrým dnem", „on Christmas Eve") —
+    // model z něj datum počítal špatně (viz [holidayDate]). Platí až po vztažném slovu a dni
+    // v týdnu (níž): „Silvestr" je i jméno, a „zítra" řekne den jistěji.
+    var holiday: LocalDate? = null
+    if (date == null) {
+        holidayDate(rest, sentAt.date)?.let { (found, range) ->
+            holiday = found
+            rest = rest.replaceRange(range, " ")
+        }
+    }
 
     val time = explicitTime(rest)
     val part = PARTS.entries.firstOrNull { (words, _) -> words.any { word(rest, it) } }?.value
@@ -73,6 +83,7 @@ internal fun textTime(text: String, sentAt: LocalDateTime): TextTime? {
     val day: LocalDate? = date
         ?: offset?.let { sentAt.date.plus(DatePeriod(days = it)) }
         ?: weekday?.let { nextWeekday(sentAt, it, hour) }
+        ?: holiday
 
     if (day == null) {
         // Bez dne jen s časem; samotná část dne („ráno") je moc vágní na připomínku.
@@ -89,6 +100,48 @@ internal fun textTime(text: String, sentAt: LocalDateTime): TextTime? {
         hasPart = part != null,
     )
 }
+
+/**
+ * Svátek s pevným datem v textu (bez diakritiky, malými písmeny) a úsek, který zabírá — i s „den
+ * před" / „den po" před ním. Datum je nejbližší výskyt od dne odeslání [sentOn] (dnešek platí).
+ *
+ * Kvůli tomu, že to model počítal špatně: „den před Silvestrem" mu vyšlo 24. 12. místo 30. 12.
+ * Pravidla mají před modelem přednost, takže co poznají tady, model nepočítá vůbec.
+ * Pohyblivé svátky (Velikonoce) a obecné „o Vánocích" (několik dní) se nehledají.
+ */
+internal fun holidayDate(text: String, sentOn: LocalDate): Pair<LocalDate, IntRange>? {
+    for ((pattern, monthDay) in HOLIDAYS) {
+        val match = pattern.find(text) ?: continue
+        val (month, day) = monthDay
+        val thisYear = LocalDate(sentOn.year, month, day)
+        var date = if (thisYear >= sentOn) thisYear else LocalDate(sentOn.year + 1, month, day)
+        var range = match.range
+        RELATIVE_DAY.findAll(text.substring(0, match.range.first)).lastOrNull()
+            ?.takeIf { it.range.last == match.range.first - 1 }
+            ?.let { relative ->
+                date = date.plus(DatePeriod(days = if (relative.groupValues[1].let { it == "pred" || it == "before" }) -1 else 1))
+                range = relative.range.first..match.range.last
+            }
+        return date to range
+    }
+    return null
+}
+
+/** „den před " / „den po " / „the day before " / „day after " těsně před svátkem. */
+private val RELATIVE_DAY = Regex("(?<![\\p{L}])(?:the\\s+)?(?:den|day)\\s+(pred|po|before|after)\\s+")
+
+/** Svátky s pevným datem, česky (ve všech pádech) a anglicky. */
+private val HOLIDAYS: List<Pair<Regex, Pair<Int, Int>>> = listOf(
+    holiday("silvestr\\p{L}*|new year['’]?s eve") to (12 to 31),
+    holiday("stedr\\p{L}*\\s+(?:den|dne|dnem|dni)|stedrej\\s+den|christmas eve") to (12 to 24),
+    holiday("boz\\p{L}*\\s+hod\\p{L}*|christmas day") to (12 to 25),
+    holiday("(?:na\\s+)?novy\\s+rok|noveho\\s+roku|new year['’]?s day") to (1 to 1),
+    // „Valentýn" je i jméno („Valentýn přijde"), proto česky jen se „svatého".
+    holiday("(?:sv\\.|svateho)\\s+valentyn\\p{L}*|valentine['’]?s day") to (2 to 14),
+    holiday("halloween\\p{L}*") to (10 to 31),
+)
+
+private fun holiday(alternatives: String) = Regex("(?<![\\p{L}])(?:$alternatives)(?![\\p{L}])")
 
 /**
  * Čas „3pm", „15:00", „v 9.30" (tečka jen s předložkou — „verze 5.10" čas není), „v 15".
