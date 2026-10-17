@@ -145,6 +145,50 @@ class ReplyPromptTest {
     }
 
     @Test
+    fun ceskyPromptVedeKBezrodymTvarumAUkazce() {
+        val prompt = replyPrompt("Jana", listOf(TranscriptLine("Jana", "Dáš si kafe?")), "cs")
+        // Rod uživatele neznáme — „Rád přijdu." by ženě musel přepisovat.
+        assertTrue(prompt.contains("gender is unknown"), "chybí pokyn k bezrodým tvarům")
+        assertTrue(prompt.contains("Jasně, půjdu."), "chybí ukázka slohu")
+        // Ukázka je podmíněná, aby netáhla do češtiny anglickou konverzaci.
+        assertTrue(prompt.contains("if you write in Czech"))
+        assertTrue(prompt.contains("received the message", ignoreCase = true), "chybí perspektiva uživatele")
+    }
+
+    @Test
+    fun anglickyPromptCeskouUkazkuNema() {
+        val prompt = replyPrompt("Jane", listOf(TranscriptLine("Jane", "Coffee?")), "en")
+        assertFalse(prompt.contains("Czech"))
+        assertFalse(prompt.contains("Jasně"))
+        // Perspektiva platí pro každý jazyk.
+        assertTrue(prompt.contains("received the message", ignoreCase = true))
+    }
+
+    @Test
+    fun anglickaZpravaVCeskeAplikaciDostaneAnglickeOdpovedi() {
+        // Nápověda „most likely Czech" přebila anglickou zprávu (ověřeno s Gemmou).
+        val lines = listOf(TranscriptLine("John", "Hi, are you coming to the meeting tomorrow?"))
+        val prompt = replyPrompt("John", lines, "cs")
+        assertTrue(prompt.contains("the message is in English"))
+        assertFalse(prompt.contains("most likely Czech"))
+        // České ukázky by ji táhly zpátky do češtiny.
+        assertFalse(prompt.contains("Jasně, půjdu."))
+    }
+
+    @Test
+    fun jazykZpravyPoznaKod() {
+        assertTrue(looksEnglish("Hi, are you coming to the meeting tomorrow?"))
+        assertTrue(looksEnglish("Can you send me the photos?"))
+        // Diakritika rozhoduje hned, i s anglickým slovem uvnitř.
+        assertFalse(looksEnglish("Babička je v nemocnici, is it ok?"))
+        // Čeština bez háčků není angličtina.
+        assertFalse(looksEnglish("Pujdes zitra na pivo?"))
+        // Jedno slovo je málo — „ok", „to" i „do" jsou i v češtině.
+        assertFalse(looksEnglish("Ok, to je dobry"))
+        assertFalse(looksEnglish(""))
+    }
+
+    @Test
     fun strukturovanyPromptOFormatuMlci() {
         val lines = listOf(TranscriptLine("Jana", "Dáš si kafe?"))
         val prompt = replyPrompt("Jana", lines, "cs", structured = true)

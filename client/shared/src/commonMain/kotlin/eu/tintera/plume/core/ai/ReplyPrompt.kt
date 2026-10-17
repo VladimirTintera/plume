@@ -77,6 +77,7 @@ fun replyPrompt(
     val block = fitTranscript(lines.takeLast(blockSize), MAX_REPLY_BLOCK_CHARS)
     val earlier = fitTranscript(lines.dropLast(blockSize).takeLast(REPLY_EARLIER_MESSAGES), maxChars)
     val several = blockSize > 1
+    val english = looksEnglish(lines.takeLast(blockSize).joinToString(" ") { it.text })
     return buildString {
         appendLine("You help the user reply in the messaging app Telegram.")
         appendLine("Chat name: $chatTitle")
@@ -102,10 +103,21 @@ fun replyPrompt(
             appendLine("- each must be a COMPLETE sentence that answers the message above")
         }
         appendLine("- at most 8 words each, no explanation")
-        appendLine("- make them genuinely different: e.g. agree, decline, ask something back")
+        // Bez „where that fits" model odmítal i tam, kde to nedává smysl: na „Babička je
+        // v nemocnici" nabídl „Je nebezpečné, nebudu."
+        appendLine("- make them genuinely different: e.g. agree, decline, ask something back,")
+        appendLine("  where that fits; to sad news reply with sympathy, never decline")
         appendLine("- write them as the user, in first person")
-        appendLine("- ${replyLanguageInstruction(languageCode)}")
+        // „Jsem v sobotu, rád přijdeš." — model si spletl, kdo koho zve, a odpověď psal za
+        // protějšek. Ukázka obrácení perspektivy to říká líp než samotné „first person".
+        appendLine("- the user RECEIVED the message: answer from the user's side")
+        appendLine("  (asked \"Will you come?\" → \"Yes, I'll come.\", never \"You'll come.\")")
+        // Malý model píše česky s chybami a s doslovnými překlady z angličtiny; pokyn je
+        // nevyřeší (viz „Sloh návrhů" v poznatcích), ale ubírá jich.
+        appendLine("- use simple everyday words, the way people really text; no literal translations")
+        appendLine("- ${replyLanguageInstruction(languageCode, english)}")
         appendLine("- ${formalityInstruction(languageCode)}")
+        if (!english) styleInstructions(languageCode).forEach { appendLine("- $it") }
         if (!structured) {
             appendLine()
             append("Replies:")
@@ -129,10 +141,62 @@ internal fun replyBlockSize(lines: List<TranscriptLine>): Int {
  * k jinému slovanskému jazyku. Uvedení pravděpodobného jazyka ho ukotví, aniž by přebilo
  * konverzaci vedenou jinak.
  */
-private fun replyLanguageInstruction(languageCode: String): String = when (languageCode) {
-    "cs" -> "write in the same language as the conversation, most likely Czech"
-    "en" -> "write in the same language as the conversation, most likely English"
+private fun replyLanguageInstruction(languageCode: String, english: Boolean): String = when {
+    english -> "the message is in English, so write the replies in English"
+    languageCode == "cs" -> "write in the same language as the conversation, most likely Czech"
+    languageCode == "en" -> "write in the same language as the conversation, most likely English"
     else -> "write in the same language as the conversation"
+}
+
+/**
+ * Je zpráva anglicky? Hrubý odhad: žádná česká diakritika a aspoň dvě běžná anglická slova.
+ *
+ * Nápověda „most likely Czech" podle jazyka aplikace přebila anglickou zprávu: na „Hi, are you
+ * coming to the meeting tomorrow?" model nabídl české odpovědi. Říct to modelu obecně („piš
+ * jazykem zprávy, anglická zpráva → anglické odpovědi") nešlo — samotná zmínka angličtiny
+ * stáhla do angličtiny i českou zprávu o babičce v nemocnici. Jazyk proto pozná kód a model
+ * dostane jen výsledek. Chybný odhad vrátí původní chování, nic horšího.
+ */
+internal fun looksEnglish(text: String): Boolean {
+    if (text.any { it.lowercaseChar() in CZECH_LETTERS }) return false
+    val words = Regex("[a-z']+").findAll(text.lowercase()).map { it.value }.toSet()
+    return words.count { it in ENGLISH_WORDS } >= 2
+}
+
+private const val CZECH_LETTERS = "áčďéěíňóřšťúůýž"
+
+private val ENGLISH_WORDS = setOf(
+    "the", "you", "are", "is", "to", "and", "i", "what", "how", "do", "can", "will", "have",
+    "it", "for", "of", "in", "on", "with", "your", "we", "this", "that", "be", "not", "my",
+)
+
+/**
+ * Pokyny ke slohu pro konkrétní jazyk; prázdné, kde žádné nemáme.
+ *
+ * **Rod uživatele neznáme** (Telegram ho nenese), a čeština ho prozradí v každém „rád/ráda"
+ * a „šel/šla". Návrh v cizím rodě je horší než žádný — uživatel ho musí přepsat —, proto se
+ * model vede k bezrodým tvarům („Jasně, přijdu." místo „Rád přijdu.").
+ *
+ * Pokyn rod nevynutí — „Jsem rád, že jsem pomohl" model napíše dál —, jen ho ubere.
+ *
+ * **Ukázky jsou TŘI na různá témata.** S jedinou model opisoval její obsah: „Nemůžu zítra, co
+ * v sobotu?" vyšlo u pozvání na pivo i u poděkování za stěhování. Se třemi bere spíš tvar
+ * (souhlas / odmítnutí s protinávrhem / doplňující otázka) a obsah prosákne jen tam, kde sedí.
+ *
+ * **Ukázky jdou až PODMÍNĚNĚ („if you write in Czech")** a u zprávy, kterou kód pozná jako
+ * anglickou ([looksEnglish]), vůbec: jazyk aplikace je jen nápověda a české ukázky by táhly do
+ * češtiny i konverzaci vedenou anglicky.
+ */
+private fun styleInstructions(languageCode: String): List<String> = when (languageCode) {
+    "cs" -> listOf(
+        "if you write in Czech: the user's gender is unknown, so avoid forms that show it " +
+            "(rád/ráda, byl/byla, šel/šla) — write \"Jasně, přijdu.\", not \"Rád přijdu.\"",
+        "if you write in Czech, replies should sound like these (other chats, do not copy them): " +
+            "\"Nepůjdeme zítra do kina?\" → \"Jasně, půjdu.\" / \"Zítra nemůžu, co v pátek?\" / \"Na jaký film?\"; " +
+            "\"Pošleš mi číslo na instalatéra?\" → \"Jasně, hned ti ho pošlu.\" / \"Teď ho nemám u sebe.\" / \"Na kterého?\"; " +
+            "\"Ztratila se nám kočka.\" → \"To je mi líto, už se našla?\" / \"Můžu pomoct hledat?\" / \"Držím palce, ať se najde.\"",
+    )
+    else -> emptyList()
 }
 
 /**

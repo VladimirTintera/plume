@@ -831,6 +831,24 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
   takže hlásí jen první selhání za běh procesu.
 - **Sloh je pořád slabina.** Tykání i věcnost sedí, ale mezi třemi návrhy bývá jeden nesmysl
   („Ne, zítra mi je zajímavé."). To je limit modelu, ne promptu.
+- **Sloh návrhů: co prompt umí a co ne** (17. 10. 2026, Gemma 4 E2B na emulátoru, devět
+  konverzací přehraných přes testovacího bota, každá varianta promptu zvlášť):
+  - **Pomohlo:** výslovně „zprávu DOSTAL uživatel" s ukázkou obrácení („Will you come?" →
+    „Yes, I'll come.", nikdy „You'll come."); u smutné zprávy „odpověz s účastí, neodmítej"
+    (dřív na „Babička je v nemocnici" přišlo „Je nebezpečné, nebudu.", teď „Je mi tak líto,
+    držím palce."); TŘI české ukázky na různá témata — s jedinou model opisoval obsah („Nemůžu
+    zítra, co v sobotu?" i u poděkování za stěhování).
+  - **Jazyk zprávy pozná kód** (`looksEnglish`): nápověda „most likely Czech" podle jazyka
+    aplikace přebila anglickou zprávu a „Hi, are you coming…?" dostalo české odpovědi. Obecný
+    pokyn „anglická zpráva → anglické odpovědi" nešel — samotná zmínka angličtiny stáhla do
+    angličtiny i zprávu o babičce. Modelu se proto říká jen výsledek.
+  - **Nepomohlo, nezkoušet znovu:** pokyny celé ČESKY (horší — „Jsem zajímavý, co bys řekl?",
+    míň návrhů, angličtina zase česky); odpovědi 2–6 slov místo 8 (kratší, ne správnější —
+    „Vracím se v délce."); vypuštění „in first person".
+  - **Strop modelu zůstává:** zlozvyk začínat „Jsem…" (doslovný překlad „I'm…": „Jsem tam,
+    přijdu.", „Jsem v sobotu s námi.") je ve všech variantách, i bez „first person"; tvary
+    („Poslím") a rod („Jsem rád, že jsem pomohl") pokyn jen ubere. Další krok by byl větší model
+    (E4B, Gemini Nano), ne další ladění promptu. **Gemini Nano neověřené.**
 
 - **Fakta model drží, sloh ne.** Na připraveném testu (ceny, číslo účtu, datum, jména) nevymyslel
   nic — ale na skutečné konverzaci komolí tvary („telefon nebudou mít vibrace“), plete si, kdo co
