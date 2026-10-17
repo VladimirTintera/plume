@@ -12,16 +12,33 @@ const val MAX_REPLY_SUGGESTIONS = 3
 const val MAX_REPLY_CHARS = 60
 
 /**
- * Kolik posledních zpráv jde modelu jako kontext.
+ * Kolik zpráv PŘED odpovídaným blokem jde modelu jako kontext.
  *
  * Málo schválně: s deseti zprávami se poslední otázka ZTRATÍ a model odpovídá na rozhovor jako
  * celek. Ověřeno na zařízení — do chatu plného zpráv o výletu přišlo „Dáme v sobotu kafe?"
  * a model navrhl „Jsem připraven." a „Dobré, pak se."
  */
-const val REPLY_CONTEXT_MESSAGES = 6
+const val REPLY_EARLIER_MESSAGES = 5
+
+/**
+ * Kolik posledních zpráv od téhož autora se odpovídá jako jedné (viz [replyPrompt]).
+ *
+ * Strop je tu kvůli tomu, kdo píše po slovech: deset zpráv za sebou by vytlačilo kontext
+ * a z bloku by se stal zase celý rozhovor.
+ */
+const val MAX_REPLY_BLOCK_MESSAGES = 4
+
+/** Kolik zpráv se z konverzace pro návrh vybere; [replyPrompt] z nich složí blok a kontext. */
+const val REPLY_CONTEXT_MESSAGES = REPLY_EARLIER_MESSAGES + MAX_REPLY_BLOCK_MESSAGES
 
 /** Přepis kontextu pro návrh odpovědi je kratší než u shrnutí — odpovídá se na konec hovoru. */
 const val MAX_REPLY_TRANSCRIPT_CHARS = 1_500
+
+/**
+ * Kolik smí zabrat odpovídaný blok. Poslední zpráva se do něj dostane vždycky (oříznutá jako
+ * každý řádek přepisu na [MAX_LINE_CHARS]), starší z bloku jen dokud se vejdou.
+ */
+const val MAX_REPLY_BLOCK_CHARS = 1_000
 
 /**
  * Prompt pro návrhy odpovědi.
@@ -37,6 +54,13 @@ const val MAX_REPLY_TRANSCRIPT_CHARS = 1_500
  *
  * [lines] jsou chronologicky, nejstarší první.
  *
+ * **Odpovídá se na celý blok posledních zpráv od téhož autora**, ne jen na úplně poslední.
+ * Lidé píšou po kouscích („Ahoj" / „mám dotaz" / „půjdeš v sobotu?") a otázka tak často
+ * není v poslední zprávě — poslední bývá „?" nebo smajlík. S jedinou zprávou zůstávají pokyny
+ * tytéž jako dřív, s víc zprávami dostane model blok jako celek a pokyn odpovědět na něj najednou.
+ * Autor se pozná podle jména v [TranscriptLine]; dva stejně pojmenovaní lidé ve skupině by se
+ * slili do jednoho bloku, což u návrhu odpovědi nevadí.
+ *
  * [structured] = odpověď přijde jako [ReplySuggestionsOutput] ([OnDeviceAi.generateStructured]),
  * takže prompt o FORMÁTU mlčí: řádky s odrážkou a závěrečné „Replies:" by se pralo se schématem,
  * které ML Kit do promptu přidá sám. Obsahové pokyny (celá věta, jazyk, tykání) zůstávají —
@@ -49,8 +73,10 @@ fun replyPrompt(
     maxChars: Int = MAX_REPLY_TRANSCRIPT_CHARS,
     structured: Boolean = false,
 ): String {
-    val last = lines.lastOrNull()
-    val earlier = fitTranscript(lines.dropLast(1), maxChars)
+    val blockSize = replyBlockSize(lines)
+    val block = fitTranscript(lines.takeLast(blockSize), MAX_REPLY_BLOCK_CHARS)
+    val earlier = fitTranscript(lines.dropLast(blockSize).takeLast(REPLY_EARLIER_MESSAGES), maxChars)
+    val several = blockSize > 1
     return buildString {
         appendLine("You help the user reply in the messaging app Telegram.")
         appendLine("Chat name: $chatTitle")
@@ -62,12 +88,19 @@ fun replyPrompt(
         }
         // Poslední zpráva stojí ZVLÁŠŤ a až za kontextem. V jednom slepeném přepisu se ztratí
         // a model pak odpovídá na rozhovor jako celek místo na otázku, která právě přišla.
-        appendLine("Reply to THIS message:")
-        appendLine("${last?.author ?: ""}: ${last?.text ?: ""}")
+        // Víc zpráv za sebou je JEDNA promluva: model na ni má odpovědět celou, jinak by
+        // odpověděl na „Ahoj" na začátku nebo na smajlík na konci, a otázku mezi nimi minul.
+        appendLine(if (several) "Reply to THESE messages, sent one after another:" else "Reply to THIS message:")
+        appendLine(block)
         appendLine()
         appendLine("Suggest $MAX_REPLY_SUGGESTIONS different replies the user could send now:")
         if (!structured) appendLine("- one per line, each starting with \"- \"")
-        appendLine("- each must be a COMPLETE sentence that answers the message above")
+        if (several) {
+            appendLine("- each must be a COMPLETE sentence that answers the messages above as a whole,")
+            appendLine("  above all any question or request in them")
+        } else {
+            appendLine("- each must be a COMPLETE sentence that answers the message above")
+        }
         appendLine("- at most 8 words each, no explanation")
         appendLine("- make them genuinely different: e.g. agree, decline, ask something back")
         appendLine("- write them as the user, in first person")
@@ -78,6 +111,15 @@ fun replyPrompt(
             append("Replies:")
         }
     }.trimEnd()
+}
+
+/**
+ * Kolik posledních řádků tvoří blok, na který se odpovídá: souvislá řada od autora poslední
+ * zprávy, nejvýš [MAX_REPLY_BLOCK_MESSAGES]. Prázdný přepis = 0.
+ */
+internal fun replyBlockSize(lines: List<TranscriptLine>): Int {
+    val author = lines.lastOrNull()?.author ?: return 0
+    return lines.asReversed().takeWhile { it.author == author }.size.coerceAtMost(MAX_REPLY_BLOCK_MESSAGES)
 }
 
 /**
