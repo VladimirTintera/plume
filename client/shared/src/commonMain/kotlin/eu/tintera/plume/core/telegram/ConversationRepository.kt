@@ -1378,6 +1378,8 @@ data class ChatMessage(
      * soutěž, hra); ťuknutí na oznámení na ni skočí.
      */
     val serviceTargetMessageId: Long? = null,
+    /** Kam servisní oznámení vede ťuknutím mimo tenhle chat (sdílený chat nebo člověk). */
+    val serviceOpen: ServiceOpen? = null,
     /** Unixový čas v sekundách, jak ho dává TDLib. */
     val timestamp: Int,
     val isEdited: Boolean,
@@ -2751,6 +2753,12 @@ data class MusicNeighbors(val previous: ChatMessage?, val next: ChatMessage?)
 
 /** Druhá strana převodu skupiny: [chatId] je stará základní skupina, nebo ([toNewGroup]) ta nová. */
 data class GroupUpgradeLink(val chatId: Long, val toNewGroup: Boolean)
+
+/** Kam vede ťuknutí na servisní oznámení mimo konverzaci: do chatu, nebo k člověku. */
+sealed interface ServiceOpen {
+    data class Chat(val chatId: Long) : ServiceOpen
+    data class User(val userId: Long) : ServiceOpen
+}
 
 /**
  * Přílohy tak, jak smějí odejít jedním albem. Skladby jdou do alba jen se skladbami a soubory

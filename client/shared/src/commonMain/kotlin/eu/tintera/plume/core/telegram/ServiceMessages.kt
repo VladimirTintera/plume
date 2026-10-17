@@ -2,6 +2,8 @@ package eu.tintera.plume.core.telegram
 
 import dev.g000sha256.tdl.dto.MessageBasicGroupChatCreate
 import dev.g000sha256.tdl.dto.MessageBotWriteAccessAllowed
+import dev.g000sha256.tdl.dto.MessageChatShared
+import dev.g000sha256.tdl.dto.MessageUsersShared
 import dev.g000sha256.tdl.dto.BotWriteAccessAllowReasonAcceptedRequest
 import dev.g000sha256.tdl.dto.BotWriteAccessAllowReasonAddedToAttachmentMenu
 import dev.g000sha256.tdl.dto.BotWriteAccessAllowReasonConnectedWebsite
@@ -381,6 +383,12 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
     is MessageSuggestedPostApprovalFailed -> UiText(Res.string.service_suggested_post_failed)
 
     // Proč bot smí psát: bez důvodu to vypadalo, jako by si to bot povolil sám.
+    // Co účet sdílel s botem (odpověď na tlačítko klávesnice). Jména a název jsou ve zprávě
+    // jen pro boty; uživatelský účet je dohledá podle id (`namedSharedWithBotText`), tohle je
+    // věta pro případ, že nic dohledat nejde.
+    is MessageChatShared -> sharedChatText(chat.title)
+    is MessageUsersShared -> sharedUsersText(users.map { it.ownName() })
+
     is MessageBotWriteAccessAllowed -> when (val why = reason) {
         is BotWriteAccessAllowReasonConnectedWebsite -> UiText(Res.string.service_bot_write_access_website, why.domainName)
         is BotWriteAccessAllowReasonAddedToAttachmentMenu -> UiText(Res.string.service_bot_write_access_attachment_menu)
@@ -434,6 +442,16 @@ internal fun paymentText(price: Price, invoiceName: String, isRecurring: Boolean
         UiText(Res.string.service_payment_amount_for, price.asUiText(), invoiceName)
     }
     return if (isRecurring) UiText(Res.string.service_payment_recurring, sentence) else sentence
+}
+
+/**
+ * Kam oznámení vede ťuknutím mimo tenhle chat: sdílený chat, nebo jediný sdílený člověk.
+ * U víc lidí nevede nikam — nebylo by jasné, ke komu.
+ */
+internal fun MessageContent.serviceOpenTarget(): ServiceOpen? = when (this) {
+    is MessageChatShared -> chat.chatId.takeIf { it != 0L }?.let(ServiceOpen::Chat)
+    is MessageUsersShared -> users.singleOrNull()?.userId?.takeIf { it != 0L }?.let(ServiceOpen::User)
+    else -> null
 }
 
 /**

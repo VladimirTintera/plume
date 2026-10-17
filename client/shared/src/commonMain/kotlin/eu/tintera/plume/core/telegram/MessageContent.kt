@@ -129,7 +129,6 @@ import dev.g000sha256.tdl.dto.MessageVideoNote
 import dev.g000sha256.tdl.dto.MessageVoiceNote
 import dev.g000sha256.tdl.dto.Photo
 import dev.g000sha256.tdl.dto.PhotoSize
-import dev.g000sha256.tdl.dto.MessageChatShared
 import dev.g000sha256.tdl.dto.MessageGiveaway
 import dev.g000sha256.tdl.dto.MessageGiveawayWinners
 import dev.g000sha256.tdl.dto.MessageGift
@@ -145,7 +144,6 @@ import dev.g000sha256.tdl.dto.MessageRichMessage
 import dev.g000sha256.tdl.dto.RichMessage
 import dev.g000sha256.tdl.dto.MessageSuggestBirthdate
 import dev.g000sha256.tdl.dto.MessageSuggestProfilePhoto
-import dev.g000sha256.tdl.dto.MessageUsersShared
 import dev.g000sha256.tdl.dto.PageBlock
 import dev.g000sha256.tdl.dto.PageBlockHeader
 import dev.g000sha256.tdl.dto.PageBlockKicker
@@ -252,9 +250,7 @@ import eu.tintera.plume.resources.content_gift
 import eu.tintera.plume.resources.content_giveaway
 import eu.tintera.plume.resources.content_giveaway_winners
 import eu.tintera.plume.resources.content_rich_message
-import eu.tintera.plume.resources.content_shared_chat
 import eu.tintera.plume.resources.content_stake_dice
-import eu.tintera.plume.resources.content_shared_users
 import eu.tintera.plume.resources.content_suggested_birthdate
 import eu.tintera.plume.resources.content_suggested_photo
 import eu.tintera.plume.resources.content_checklist
@@ -523,8 +519,6 @@ private fun MessageContent.describe(isChannelPost: Boolean): UiText? = when (thi
     is MessageGiveawayWinners -> UiText(Res.string.content_giveaway_winners)
     is MessageSuggestProfilePhoto -> UiText(Res.string.content_suggested_photo)
     is MessageSuggestBirthdate -> UiText(Res.string.content_suggested_birthdate)
-    is MessageChatShared -> UiText(Res.string.content_shared_chat)
-    is MessageUsersShared -> UiText(Res.string.content_shared_users)
     // Článek složený z bloků (TDLib 15). Kreslit ho neumíme, jeho text ano — prázdný je jen
     // článek ze samých obrázků.
     is MessageRichMessage -> message.blocks.plainText().orText(Res.string.content_rich_message)

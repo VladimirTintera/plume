@@ -63,6 +63,15 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
   nový název tématu, text změněné možnosti ankety, počet výherců a nerozdaných cen, počet
   boostů a důvod, proč bot smí psát. Dřív stálo „Téma upraveno" i „Soutěž skončila" bez
   jediného údaje, ačkoli je TDLib posílá.
+- **Sdílení s botem je oznámení, ne bublina** (`MessageChatShared`, `MessageUsersShared`;
+  `SharedWithBotText.kt`, testy `SharedWithBotTextTest`): „Sdílel(a) jsi s botem „Plume test
+  pozvánek"", „… Notifikator". **Jména a název ve zprávě TDLib vyplňuje jen botům** (`SharedUser`
+  i `SharedChat` „for bots only") — uživatelský účet dostane prázdné řetězce a jen id, takže se
+  jména dohledávají (`resolveSender` v konverzaci, `getUser` / `getChat` v seznamu chatů).
+  Bez dohledání stálo „Sdílení uživatelé" (ověřeno na emulátoru, než se doplnilo). Ťuknutí
+  otevře sdílený chat (`ServiceOpen.Chat`) nebo jediného sdíleného člověka (`ServiceOpen.User`);
+  u víc lidí nevede nikam. Ověřeno na emulátoru tlačítky od testovacího bota (bot, vlastní
+  skupina; ťuknutí otevřelo skupinu).
 - **Datum a částka ve větě jsou taky `UiText`** (`dateUiText`, `Price.asUiText`), ne hotový
   řetězec: naplánovaný videochat („Videochat naplánován na 5. října v 15:22"), platba
   („Platba 12,50 EUR za „Káva" proběhla", hvězdy plurálem) a vrácená platba. Měsíc i desetinná
