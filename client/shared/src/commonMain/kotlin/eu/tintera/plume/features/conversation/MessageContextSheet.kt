@@ -109,6 +109,8 @@ import eu.tintera.plume.resources.message_context_variable_symbol
 import eu.tintera.plume.resources.notifications_24dp
 import eu.tintera.plume.resources.open_in_new_24dp
 import eu.tintera.plume.resources.payments_24dp
+import eu.tintera.plume.resources.share_24dp
+import eu.tintera.plume.resources.message_context_payment_share
 import kotlinx.coroutines.delay
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
@@ -137,6 +139,7 @@ internal fun MessageContextHost(viewModel: ConversationViewModel) {
         onOpenMaps = viewModel::openMaps,
         onSaveContact = viewModel::saveContact,
         onJoinWifi = viewModel::joinWifi.takeIf { viewModel.canJoinWifi },
+        onSharePaymentQr = viewModel::sharePaymentQr.takeIf { viewModel.canSharePaymentQr },
         onDismiss = viewModel::closeMessageContext,
     )
 }
@@ -167,6 +170,8 @@ internal fun MessageContextSheet(
     onSaveContact: (ContextFinding.Contact) -> Unit,
     /** `null`, když se k Wi-Fi z aplikace připojit nedá (iOS) — zbude heslo a QR kód. */
     onJoinWifi: ((ContextFinding.Wifi) -> Unit)?,
+    /** `null`, když sdílet soubor nejde — QR kód pak jen na obrazovce. */
+    onSharePaymentQr: ((ContextFinding.Payment) -> Unit)?,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
@@ -228,7 +233,7 @@ internal fun MessageContextSheet(
                                 icon = Res.drawable.redeem_24dp,
                             )
                             is ContextFinding.Wifi -> WifiSection(finding, onCopy = copy, onJoin = onJoinWifi?.let { join -> { join(finding) } })
-                            is ContextFinding.Payment -> PaymentSection(finding, onCopy = copy)
+                            is ContextFinding.Payment -> PaymentSection(finding, onCopy = copy, onShareQr = onSharePaymentQr)
                             is ContextFinding.Parcel -> ParcelSection(finding, onCopy = copy, onTrack = onTrack)
                         }
                     }
@@ -561,7 +566,11 @@ private fun AddressSection(address: ContextFinding.Address, onCopy: (String) -> 
 }
 
 @Composable
-private fun ColumnScope.PaymentSection(payment: ContextFinding.Payment, onCopy: (String) -> Unit) {
+private fun ColumnScope.PaymentSection(
+    payment: ContextFinding.Payment,
+    onCopy: (String) -> Unit,
+    onShareQr: ((ContextFinding.Payment) -> Unit)?,
+) {
     val qrLabel = stringResource(Res.string.message_context_payment)
     DetailCard(icon = Res.drawable.payments_24dp) {
         Text(qrLabel, style = MaterialTheme.typography.titleMedium)
@@ -576,6 +585,15 @@ private fun ColumnScope.PaymentSection(payment: ContextFinding.Payment, onCopy: 
         contentDescription = qrLabel,
         modifier = Modifier.align(Alignment.CenterHorizontally).width(QR_SIZE),
     )
+    // Z obrazovky telefonu QR týž telefon nenaskenuje; bankovní aplikace ho přečte z obrázku.
+    onShareQr?.let { share ->
+        SheetActionRow(
+            icon = Res.drawable.share_24dp,
+            label = stringResource(Res.string.message_context_payment_share),
+            shape = RoundedCornerShape(ROW_CORNER),
+            onClick = { share(payment) },
+        )
+    }
     CopyRow(Res.string.message_context_account, payment.account, copied = payment.account.filterNot { it == ' ' }, onCopy)
     payment.amount?.let { amount ->
         val shown = listOfNotNull(amount, payment.currency).joinToString(" ")

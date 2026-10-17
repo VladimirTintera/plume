@@ -3030,6 +3030,8 @@
     <string name="message_context_all_day">%1$s, all day</string>
     <string name="message_context_from_model">Name and place suggested by the model on your phone</string>
     <string name="message_context_payment_scan">Scan the code with your banking app, or copy the details.</string>
+    <string name="message_context_payment_share">Share QR code</string>
+    <string name="message_context_payment_share_failed">Couldn't share the QR code</string>
     <string name="message_context_account">Account</string>
     <string name="message_context_amount">Amount</string>
     <string name="message_context_variable_symbol">Variable symbol</string>

@@ -416,6 +416,7 @@ class ConversationViewModel(
         saveNewContact = contactSaver?.let { it::save },
         joinWifiNetwork = wifiJoiner?.let { it::join },
         canJoinWifi = wifiJoiner?.canJoin == true,
+        shareFile = sharer::share,
         loadRates = exchangeRates?.let { it::table },
         homeCurrency = currency?.code,
         metricUnits = currency?.metric ?: true,
@@ -437,6 +438,8 @@ class ConversationViewModel(
     fun trackParcel(url: String) = messageContext.trackParcel(url)
     val canJoinWifi: Boolean get() = messageContext.canJoinWifi
     fun joinWifi(wifi: ContextFinding.Wifi) = messageContext.joinWifi(wifi)
+    val canSharePaymentQr: Boolean get() = messageContext.canSharePaymentQr
+    fun sharePaymentQr(payment: ContextFinding.Payment) = messageContext.sharePaymentQr(payment)
     fun saveContact(contact: ContextFinding.Contact) = messageContext.saveContact(contact)
     fun openMaps(query: String) = messageContext.openMaps(query)
     fun remindFromContext(messageId: Long) = messageContext.remindFromContext(messageId)
