@@ -639,6 +639,20 @@ v `ai-v-zarizeni.md`, „Triáž chatů".
 - **Odznak patří poslední zprávě** (`ChatSummary.lastMessageId`): nová zpráva ho schová, než se
   posoudí znovu, přečtení chatu ho schová hned. Vypnutí volby schová všechny naráz.
 
+**Karta „Čeká na tvou odpověď"** („Co jsem zmeškal", `AwaitingReplyCard`) nahoře v hlavním
+seznamu, za narozeninami: tytéž chaty pohromadě, nejvýš čtyři a „a další N v seznamu níž".
+Mezi desítkami nepřečtených se odznak ztratí; karta je ukáže hned po otevření aplikace.
+
+- **Jen v hlavním seznamu bez vybrané složky** — ve složce a v archivu si uživatel vybral, co
+  chce vidět, a karta by to přebíjela.
+- **Křížek schová DVOJICE (chat, zpráva), ne kartu** (`awaitingReplyChats`, testy
+  `ChatTriageTest`): přibude-li chat, který na kartě nebyl, vrátí se karta celá, i se schovanými.
+  Chat, který mezitím uživatel přečetl, z ní zmizí. Schované drží proces; natrvalo se karta
+  vypíná volbou v AI v zařízení.
+- **Ťuknutí otevře chat** stejně jako řádek v seznamu (`opened` + fórum jako témata).
+- **Ověřeno na emulátoru Fold**: karta s chatem od skutečného kontaktu a s otázkou od bota,
+  křížek ji schová, další otázka ji vrátí, otevření chatu z karty ho přečte a z karty zmizí.
+
 ### Přehled konceptů
 
 Menu účtu → Koncepty (`DraftsSheet`): chaty s rozepsanou zprávou napříč složkami, nejčerstvější

@@ -43,6 +43,23 @@ fun isTriageCandidate(chat: ChatSummary, savedMessagesChatId: Long?): Boolean =
         chat.verification !is Verification.Verified
 
 /**
+ * Chaty na kartu „Čeká na tvou odpověď", v pořadí seznamu: nepřečtené, u kterých triáž řekla
+ * „čeká" nad jejich DNEŠNÍ poslední zprávou ([awaiting] = chat → id posouzené zprávy).
+ * Prázdné, když jsou všechny mezi [hidden] (křížek na kartě) — přibude-li chat, který tam není,
+ * karta se vrátí celá.
+ */
+fun awaitingReplyChats(
+    chats: List<ChatSummary>,
+    awaiting: Map<Long, Long>,
+    hidden: Set<Pair<Long, Long>>,
+): List<ChatSummary> {
+    val waiting = chats.filter { chat ->
+        chat.unreadCount > 0 && chat.lastMessageId != null && awaiting[chat.id] == chat.lastMessageId
+    }
+    return if (waiting.all { (it.id to it.lastMessageId) in hidden }) emptyList() else waiting
+}
+
+/**
  * Triáž chatů: které nepřečtené soukromé chaty čekají na odpověď uživatele — posouzení modelem
  * v zařízení. V seznamu chatů z toho je odznak.
  *

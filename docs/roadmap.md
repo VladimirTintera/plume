@@ -710,9 +710,10 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
   („nezní to podrážděně?"). Klasifikace vlastního konceptu,
   nic se nepřepisuje a varování jde přejít. Stejná opatrnost jako u podvodných zpráv: radši
   mlčet než varovat zbytečně. Spouštět jen na vyžádání nebo u delších zpráv, ne na každý úhoz.
-- **„Co jsem zmeškal".** Po otevření aplikace přehled nepřečtených chatů seřazený podle toho,
-  co čeká na odpověď (rozšíření triáže chatů výš o souhrnnou obrazovku). Běží v popředí, takže
-  omezení AICore nevadí; výsledek kešovat podle id poslední zprávy.
+- ~~**„Co jsem zmeškal".**~~ — hotovo jako karta „Čeká na tvou odpověď" nahoře v hlavním
+  seznamu (`docs/poznatky/seznam-chatu.md`, „Čeká na odpověď"). Zbývá totéž co u triáže:
+  skupiny a výsledky přes restart; případně i „jen informace" (shrnutí ostatních nepřečtených
+  jednou větou) — to by ale chtělo model nad každým chatem, ne jen ano/ne.
 - **Popis obrázků** — ~~ověřit, jestli Gemma přes LiteRT-LM 0.11.0 přijímá obrázky~~ přijímá;
   ~~„Popsat fotku" v prohlížeči~~ hotovo (`docs/poznatky/prohlizec-medii.md`, „Popis fotky").
   Zbývá **popis jako `contentDescription` fotky v bublině** (čtečka by ho přečetla bez otevření

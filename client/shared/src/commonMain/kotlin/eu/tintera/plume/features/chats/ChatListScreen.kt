@@ -323,6 +323,7 @@ fun ChatListScreen(
     val freeze by viewModel.freeze.collectAsStateWithLifecycle()
     val suggestion by viewModel.suggestion.collectAsStateWithLifecycle()
     val birthdays by viewModel.birthdays.collectAsStateWithLifecycle()
+    val awaitingCard by viewModel.awaitingReplyCard.collectAsStateWithLifecycle()
     val accountPhone by viewModel.accountPhone.collectAsStateWithLifecycle()
     val openNoticeLink = rememberNoticeLinkOpener()
     val unconfirmedLogin by viewModel.unconfirmedLogin.collectAsStateWithLifecycle()
@@ -604,7 +605,15 @@ fun ChatListScreen(
                         onScrolledToChat = { scrollToChat = null },
                         listState = listState,
                         // Položky hlavičky: nové přihlášení a karta s aktualizací.
-                        headerItemCount = listOfNotNull(freeze, unconfirmedLogin, birthdays.takeIf { it.isNotEmpty() }, suggestion, updateCard, newFolderChats).size,
+                        headerItemCount = listOfNotNull(
+                            freeze,
+                            unconfirmedLogin,
+                            birthdays.takeIf { it.isNotEmpty() },
+                            awaitingCard.takeIf { it.isNotEmpty() },
+                            suggestion,
+                            updateCard,
+                            newFolderChats,
+                        ).size,
                         empty = {
                             /*
                              * Prázdná SLOŽKA je jiný stav než prázdný účet: chaty jsou, jen ne tyhle (třeba
@@ -659,6 +668,20 @@ fun ChatListScreen(
                                     birthdays = birthdays,
                                     onOpen = { userId -> viewModel.openPrivateChat(userId, onChatClick) },
                                     onHide = viewModel::hideBirthdays,
+                                    modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
+                                )
+                            }
+                        }
+                        // Za narozeninami: ty platí jen dnes, odpověď počká o kus níž.
+                        if (awaitingCard.isNotEmpty()) {
+                            item(key = AWAITING_REPLY_KEY, contentType = AWAITING_REPLY_KEY) {
+                                AwaitingReplyCard(
+                                    chats = awaitingCard,
+                                    onOpen = { chat ->
+                                        viewModel.opened(chat.id)
+                                        if (chat.opensAsTopics) onForumClick(chat.id) else onChatClick(chat.id)
+                                    },
+                                    onHide = viewModel::hideAwaitingReply,
                                     modifier = Modifier.animateItem().padding(bottom = GROUP_SPACING),
                                 )
                             }
@@ -2176,6 +2199,7 @@ private const val UPDATE_CARD_KEY = "update-card"
 private const val FROZEN_ACCOUNT_KEY = "frozen-account"
 private const val SUGGESTION_KEY = "suggested-action"
 private const val BIRTHDAYS_KEY = "close-birthdays"
+private const val AWAITING_REPLY_KEY = "awaiting-reply"
 private const val NEW_FOLDER_CHATS_KEY = "new-folder-chats"
 private const val UNCONFIRMED_LOGIN_KEY = "unconfirmed-login"
 
