@@ -694,6 +694,14 @@ s `schedulingState`).
   - **Čas bez dne** je den odeslání, a když tehdy už minul, další den („v 8" večer = ráno).
     **Den bez času** dostane ráno 8:00 nebo část dne ze zprávy („v pátek večer" → 19:00).
     **Týž den v týdnu** jen s časem, který ještě nebyl; bez času příští týden.
+  - **Svátky s pevným datem** (`holidayDate`): Silvestr, Štědrý den, Boží hod, Nový rok,
+    svatý Valentýn, Halloween a anglické Christmas Eve, New Year's Eve…, ve všech pádech,
+    i s „den před / den po" („den před Silvestrem" → 30. 12.). Model to počítal špatně (24. 12.)
+    a pravidla mají přednost, takže k modelu se to nedostane. Svátek je nejbližší výskyt od
+    odeslání a platí až PO vztažném slovu a dni v týdnu — „Silvestr" i „Valentýn" jsou jména
+    („Valentýn přijde zítra" = zítra), česky se proto Valentýn hledá jen se „svatého".
+    Pohyblivé svátky (Velikonoce) a „o Vánocích" (víc dní) se nehledají. Ověřeno na emulátoru:
+    „Připomeň mi to den před Silvestrem" → „Podle zprávy · 30. prosince 08:00".
   - **Radši nic než nesmysl**: čas chce dvojtečku, am/pm, nebo předložku („v 9.30", „v 15") —
     „Verze 5.10", „Skóre 3:1" ani „přijde 5 lidí" termín nejsou. Datum chce tečku i za měsícem
     („12. 10."), takže „5.10" je číslo. Samotná část dne („ráno super") termín není.

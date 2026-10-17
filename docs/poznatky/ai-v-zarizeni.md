@@ -673,6 +673,8 @@ odpovědí** (`ReplySuggestionsOutput`); kde ho model nemá, jde všechno dál t
   čipy Kanály a Odkazy (filtrové slovo v `text` odstraní `refineNaturalSearch`, jako u textu).
   **Obsah zůstává strop modelu**: „den před Silvestrem" vyšel `ReminderAnswer(moment=2026-12-24
   08:00)` místo 30. 12. — tvar je správně, datum ne; uživatel ho v sheetu vidí a může zvolit jiné.
+  Svátky s pevným datem teď poznají pravidla (`holidayDate`, `konverzace-akce.md`, „Připomenutí
+  zprávy"), takže k modelu se tenhle případ už nedostane.
 - **Rozhraní `GenerableProvider` se s víc implementacemi nesloučí**, takže v release buildu je
   soubor `META-INF/services/<rozhraní>` se všemi šesti providery (ověřeno `unzip -p` nad APK),
   a pole všech typů drží jedno keep pravidlo se seznamem tříd (ověřeno `dexdump`).
