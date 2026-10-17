@@ -152,9 +152,9 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
 - **Jazyk aplikace jen pro aplikaci** (dnes jde za jazykem systému).
 - **Úprava fotky, profilové video, mini aplikace (WebView), poloha, QR čtečka, kalendář,
   kontakty** — vše `actual`, které dnes říká „neumí".
-- **Desktopové chování**: zkratky z nabídky okna (nabídková lišta macOS). ~~Pamatovaná velikost
-  okna~~, ~~ikona v oznamovací oblasti~~ a ~~jedna instance~~ — hotovo (`docs/poznatky/desktop.md`,
-  „Poloha a velikost okna" a „Oznamovací oblast a jediná instance").
+- ~~**Desktopové chování**~~ — hotovo: nabídka „Chaty" se zkratkami v liště macOS
+  (`docs/poznatky/navigace.md`, „Klávesové zkratky"), pamatovaná velikost okna, ikona
+  v oznamovací oblasti a jedna instance (`docs/poznatky/desktop.md`).
 
 ## Obrazovky a sekce, které nejsou
 

@@ -1,5 +1,11 @@
 package eu.tintera.plume.core.ui
 
+import eu.tintera.plume.resources.shortcut_previous_chat
+import eu.tintera.plume.resources.shortcut_next_chat
+import eu.tintera.plume.resources.shortcut_search_in_chat
+import eu.tintera.plume.resources.shortcut_search_chats
+import eu.tintera.plume.resources.Res
+import org.jetbrains.compose.resources.StringResource
 import androidx.compose.ui.input.key.Key
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -98,3 +104,37 @@ val SHORTCUT_BINDINGS: List<ShortcutBinding> = listOf(
     ShortcutBinding(KeyboardShortcut.NextChat, Key.Tab, ctrl = true),
     ShortcutBinding(KeyboardShortcut.PreviousChat, Key.Tab, ctrl = true, shift = true),
 )
+
+/** Popis zkratky v přehledu (Android Meta+/) a v nabídce okna (macOS). */
+internal val KeyboardShortcut.label: StringResource
+    get() = when (this) {
+        KeyboardShortcut.SearchChats -> Res.string.shortcut_search_chats
+        KeyboardShortcut.SearchInChat -> Res.string.shortcut_search_in_chat
+        KeyboardShortcut.NextChat -> Res.string.shortcut_next_chat
+        KeyboardShortcut.PreviousChat -> Res.string.shortcut_previous_chat
+    }
+
+/** Klávesy zkratky i s ⌘ (Meta) — pro nabídku okna, která klávesu ukazuje a sama ji chytá. */
+data class MenuKeys(
+    val key: Key,
+    val meta: Boolean = false,
+    val ctrl: Boolean = false,
+    val alt: Boolean = false,
+    val shift: Boolean = false,
+)
+
+/**
+ * Klávesy [this] pro platformu, kde je příkazová klávesa ⌘ ([commandIsMeta], macOS): Ctrl
+ * u hledání se tam mění na ⌘, Ctrl+Tab přepínání chatů zůstává (⌘Tab si bere systém) —
+ * stejně jako v [keyboardShortcut]. Že nabídka slibuje to, co pravidlo opravdu dělá, hlídá test.
+ */
+fun ShortcutBinding.menuKeys(commandIsMeta: Boolean): MenuKeys {
+    val command = ctrl && key != Key.Tab
+    return MenuKeys(
+        key = key,
+        meta = commandIsMeta && command,
+        ctrl = ctrl && !(commandIsMeta && command),
+        alt = alt,
+        shift = shift,
+    )
+}
