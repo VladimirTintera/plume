@@ -102,7 +102,7 @@ class ServiceTextTest {
     @Test
     fun videochatKanaluJeZiveVysilani() {
         assertEquals(UiText(Res.string.service_live_stream_started), MessageVideoChatStarted(groupCallId = 1).serviceText(isChannelPost = true))
-        assertEquals(UiText(Res.string.service_live_stream_ended), MessageVideoChatEnded(duration = 60).serviceText(isChannelPost = true))
+        assertEquals(UiText(Res.string.service_live_stream_ended), MessageVideoChatEnded(duration = 0).serviceText(isChannelPost = true))
         assertEquals(UiText(Res.string.service_video_chat_started), MessageVideoChatStarted(groupCallId = 1).serviceText(isChannelPost = false))
     }
 

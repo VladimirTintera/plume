@@ -433,25 +433,26 @@ ho popisuje správně. Co říkalo nepravdu, je opravené (`docs/poznatky/typy-z
 odchod vlastníka, motiv, skupinový hovor; `docs/poznatky/notifikace.md`: připnutí v pushi).
 Zbývá to, co je pravda, ale bez podstatného údaje, který TDLib posílá:
 
-**Kdo to udělal.** Jména mají jen zprávy o členech (`memberServiceText`) a seznamy úkolů
-(`checklistServiceText`). Aktér (odesílatel servisní zprávy) chybí u připnutí, změny názvu
+**Kdo to udělal.** Jména mají zprávy o členech (`memberServiceText`), seznamy úkolů
+(`checklistServiceText`) a ~~připnutí~~ (`pinServiceText`). Aktér (odesílatel servisní zprávy) chybí u změny názvu
 a fotky, snímku obrazovky, témat, boostu, skóre ve hře, „Kontakt se připojil k Telegramu"
 a „Někdo se připojil z komunity". Stavět na `namedMemberServiceText` — dohledat jen jméno
 aktéra, bez jména zůstat u dnešní věty.
 
 **Údaje v servisní zprávě:**
 
-- **Připnutí** (`MessagePinMessage.messageId`): text připnuté zprávy („připnul(a) „Sraz v 8"")
-  a ťuknutím skok na ni. Totéž v notifikaci bez pushe (`NotificationTypeNewMessage`), kde je
-  dnes jen „Připnuta zpráva".
-- **Skóre ve hře** (`score`, `gameMessageId`), **boost** (`boostCount`), **platba**
-  (`totalAmount`, `currency`, opakovaná platba).
-- **Videochat**: délka u konce (`duration`), čas u naplánovaného (`startDate`), jména pozvaných
-  (`MessageInviteVideoChatParticipants.userIds`).
-- **Upravené téma**: nový název a ikona (`MessageForumTopicEdited.name`, `iconCustomEmojiId`).
-- **Možnost v anketě přidaná / smazaná**: její text (`text`) a skok na anketu (`pollMessageId`).
-- **Soutěž skončila**: počet výherců a nerozdaných cen (`winnerCount`, `unclaimedPrizeCount`).
-- **Bot smí psát**: důvod (`reason` — mini aplikace, nabídka příloh, propojení webu).
+- ~~**Připnutí**: text připnuté zprávy a ťuknutím skok na ni~~ — hotovo, i se jménem
+  (`docs/poznatky/typy-zprav.md`, „Typy zpráv"). Zbývá totéž v notifikaci bez pushe
+  (`NotificationTypeNewMessage`), kde je dál jen „Připnuta zpráva".
+- ~~**Skóre ve hře**~~ (číslo a skok na hru) a ~~**boost**~~ (počet) — hotovo; **platba**
+  (`totalAmount`, `currency`, opakovaná platba) zbývá.
+- **Videochat**: ~~délka u konce~~ — hotovo; čas u naplánovaného (`startDate`) a jména
+  pozvaných (`MessageInviteVideoChatParticipants.userIds`) zbývají.
+- ~~**Upravené téma**: nový název a ikona~~ — hotovo (název, změněná / odebraná ikona; ikonu
+  samotnou věta nekreslí).
+- ~~**Možnost v anketě přidaná / smazaná**: její text a skok na anketu~~ — hotovo.
+- ~~**Soutěž skončila**: počet výherců a nerozdaných cen~~ — hotovo, i se skokem na soutěž.
+- ~~**Bot smí psát**: důvod~~ — hotovo.
 - **Push**: „N přeposlaných zpráv" (`PushMessageContentMessageForwards.totalCount`), změna
   názvu, přidání členů, skóre a další servisní typy pushe dostanou jen „Nová zpráva".
 

@@ -2533,6 +2533,12 @@ class TdlConversationRepository(
                     nameOf = { resolveSender(it)?.title },
                     taskTexts = { checklistMessageId -> client.checklistTaskTexts(chatId, checklistMessageId) },
                 )
+                // A u připnutí („Jana připnul(a) „Sraz v 8"").
+                ?: namedPinServiceText(
+                    myUserId = { myId() },
+                    nameOf = { resolveSender(it)?.title },
+                    pinnedText = { pinnedId -> client.localMessageText(chatId, pinnedId) },
+                )
                 ?: body.description,
             media = messageMedia(
                 hideSensitive = hideSensitive,
@@ -2571,6 +2577,7 @@ class TdlConversationRepository(
                 ?.takeIf { it.isNotEmpty() },
             isService = content.serviceText(isChannelPost) != null,
             upgradeLink = content.upgradeLink(),
+            serviceTargetMessageId = content.serviceTargetMessageId(),
             timestamp = date,
             isEdited = editDate > 0,
             mediaAlbumId = mediaAlbumId,
@@ -3558,7 +3565,7 @@ internal fun quoteInput(original: FormattedText, quote: ReplyQuote): InputTextQu
  * Text zprávy, ze kterého jde citovat, i s formátováním — text nebo popisek přílohy. U druhů bez
  * vlastního textu `null`: nabídka tam citaci nenabídne, protože kopie nemá co označit.
  */
-private fun MessageContent.quotableText(): FormattedText? = when (this) {
+internal fun MessageContent.quotableText(): FormattedText? = when (this) {
     is MessageText -> text
     is MessagePhoto -> caption
     is MessageVideo -> caption

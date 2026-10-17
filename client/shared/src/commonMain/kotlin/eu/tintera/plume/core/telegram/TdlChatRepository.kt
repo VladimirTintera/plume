@@ -1646,6 +1646,11 @@ class TdlChatRepository(
                 nameOf = nameOf,
                 taskTexts = { checklistMessageId -> client.checklistTaskTexts(chatId, checklistMessageId) },
             )
+            ?: namedPinServiceText(
+                myUserId = { myUserId },
+                nameOf = nameOf,
+                pinnedText = { pinnedId -> client.localMessageText(chatId, pinnedId) },
+            )
     }
 
     private fun ChatSummary.keepingLiveState(previous: ChatSummary?): ChatSummary =
