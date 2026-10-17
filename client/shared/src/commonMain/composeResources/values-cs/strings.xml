@@ -3310,6 +3310,16 @@
     <string name="birthdate_suggest_confirm">Navrhnout</string>
     <string name="birthdate_suggest_sent">Návrh data narození odeslán</string>
     <string name="birthdate_suggest_failed">Návrh se nepodařilo odeslat</string>
+    <!-- Návrh profilové fotky: oznámení v konverzaci, nastavení z něj a odeslání z profilu. -->
+    <string name="service_actor_suggested_photo">%1$s navrhuje profilovou fotku</string>
+    <string name="service_you_suggested_photo">Navrhl(a) jsi profilovou fotku</string>
+    <string name="photo_suggestion_confirm_title">Nastavit jako profilovou fotku?</string>
+    <string name="photo_suggestion_confirm_body">Kdo ji uvidí, nastavíš v Soukromí účtu.</string>
+    <string name="photo_suggestion_saved">Profilová fotka nastavena</string>
+    <string name="photo_suggestion_failed">Profilovou fotku se nepodařilo nastavit</string>
+    <string name="photo_suggest">Navrhnout profilovou fotku</string>
+    <string name="photo_suggest_sent">Návrh fotky odeslán</string>
+    <string name="photo_suggest_failed">Návrh fotky se nepodařilo odeslat</string>
     <string name="birthdate_with_age">%1$s (%2$s)</string>
     <plurals name="birthdate_age">
         <item quantity="one">%1$d rok</item>

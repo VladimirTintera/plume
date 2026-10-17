@@ -16,6 +16,9 @@ import dev.g000sha256.tdl.dto.MessageGameScore
 import dev.g000sha256.tdl.dto.MessageScreenshotTaken
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.MessageSuggestBirthdate
+import dev.g000sha256.tdl.dto.MessageSuggestProfilePhoto
+import eu.tintera.plume.resources.service_actor_suggested_photo
+import eu.tintera.plume.resources.service_you_suggested_photo
 import eu.tintera.plume.core.ui.labelUiText
 import eu.tintera.plume.resources.service_actor_suggested_birthdate
 import eu.tintera.plume.resources.service_you_suggested_birthdate
@@ -95,6 +98,7 @@ internal fun MessageContent.actorServiceText(actor: ServicePerson): UiText? = wh
     // „Ty ses připojil(a) k Telegramu" nemá kdy přijít — oznámení dostávají kontakty.
     is MessageContactRegistered -> if (actor.isMe) null else UiText(Res.string.service_actor_contact_joined, actor.name)
     is MessageChatJoinFromCommunity -> actor.say(Res.string.service_you_community_joined, Res.string.service_actor_community_joined)
+    is MessageSuggestProfilePhoto -> actor.say(Res.string.service_you_suggested_photo, Res.string.service_actor_suggested_photo)
     is MessageSuggestBirthdate -> birthdate.toDomain().labelUiText().let { date ->
         actor.say(Res.string.service_you_suggested_birthdate, Res.string.service_actor_suggested_birthdate, date)
     }
@@ -107,7 +111,8 @@ internal val MessageContent.hasActorServiceText: Boolean
         this is MessageScreenshotTaken || this is MessageForumTopicCreated || this is MessageForumTopicEdited ||
         this is MessageForumTopicIsClosedToggled || this is MessageForumTopicIsHiddenToggled ||
         this is MessageChatBoost || this is MessageGameScore || this is MessageContactRegistered ||
-        this is MessageChatJoinFromCommunity || this is MessageSuggestBirthdate
+        this is MessageChatJoinFromCommunity || this is MessageSuggestBirthdate ||
+        this is MessageSuggestProfilePhoto
 
 /**
  * [actorServiceText] i s dohledáním jména. Aktér musí být uživatel: oznámení od chatu

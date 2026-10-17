@@ -640,6 +640,13 @@ interface ConversationRepository {
         Result.failure(UnsupportedOperationException())
 
     /**
+     * Nastaví jako vlastní profilovku fotku, kterou protějšek navrhl zprávou [messageId]
+     * (`MessageSuggestProfilePhoto`). Fotka se stáhne a nahraje znovu — je to cizí soubor.
+     */
+    suspend fun acceptSuggestedPhoto(chatId: Long, messageId: Long): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
      * Pošle kontakt [userId] (`InputMessageContact`): jméno a číslo z účtu, s id uživatele, takže
      * u příjemce jde rovnou „Napsat zprávu". Vrací rozepsanou zprávu hned jako [send].
      */
@@ -1389,6 +1396,8 @@ data class ChatMessage(
     val serviceOpen: ServiceOpen? = null,
     /** Datum narození, které protějšek navrhuje (`MessageSuggestBirthdate`); u vlastního návrhu `null`. */
     val suggestedBirthdate: Birthdate? = null,
+    /** Profilová fotka navržená zprávou (`MessageSuggestProfilePhoto`), oběma směry. */
+    val suggestedPhoto: SuggestedPhoto? = null,
     /** Unixový čas v sekundách, jak ho dává TDLib. */
     val timestamp: Int,
     val isEdited: Boolean,
@@ -2764,6 +2773,12 @@ data class MusicNeighbors(val previous: ChatMessage?, val next: ChatMessage?)
 data class GroupUpgradeLink(val chatId: Long, val toNewGroup: Boolean)
 
 /** Kam vede ťuknutí na servisní oznámení mimo konverzaci: do chatu, nebo k člověku. */
+/**
+ * Navržená profilová fotka: [fileId] menší velikosti na ukázku, [canSet] = návrh přišel od
+ * protějšku, takže ji jde nastavit (vlastní návrh jen ukazuje, co odešlo).
+ */
+data class SuggestedPhoto(val fileId: Int, val canSet: Boolean)
+
 sealed interface ServiceOpen {
     data class Chat(val chatId: Long) : ServiceOpen
     data class User(val userId: Long) : ServiceOpen

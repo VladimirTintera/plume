@@ -1,13 +1,9 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.resources.cake_24dp
-
 import eu.tintera.plume.resources.birthdate_suggest_confirm
-
 import eu.tintera.plume.resources.birthdate_suggest
-
 import eu.tintera.plume.features.settings.BirthdatePickerDialog
-
 import eu.tintera.plume.resources.profile_tab_voice
 import eu.tintera.plume.resources.mic_24dp
 import androidx.compose.ui.unit.Constraints
@@ -22,6 +18,10 @@ import eu.tintera.plume.resources.gif_box_24dp
 import eu.tintera.plume.resources.profile_personal_channel
 import eu.tintera.plume.resources.profile_personal_channel_subscribers
 import eu.tintera.plume.core.telegram.Birthdate
+import eu.tintera.plume.resources.add_photo_alternate_24dp
+import eu.tintera.plume.resources.photo_suggest
+import eu.tintera.plume.core.ui.PhotoCropOverlay
+import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.resources.birthdate_age
 import eu.tintera.plume.resources.birthdate_row
@@ -393,212 +393,223 @@ fun ChatProfileScreen(
     val scrollState = rememberScrollState()
     var titleBottom by remember { mutableIntStateOf(Int.MAX_VALUE) }
     val titleInBar by remember { derivedStateOf { scrollState.value > titleBottom } }
+    val photoPicker = rememberAttachmentPicker(onPicked = viewModel::suggestPhotoFrom, onError = viewModel::reportError)
 
-    Scaffold(
-        modifier = modifier,
-        contentWindowInsets = ScaffoldDefaults.contentWindowInsets
-            .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {
-                    AnimatedVisibility(
-                        visible = titleInBar && state.profile != null,
-                        enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()) +
-                            slideInVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it / 2 },
-                        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) +
-                            slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it / 2 },
-                    ) {
-                        Text(state.profile?.title.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        if (closeIcon) {
-                            Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
-                        } else {
-                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+    // Box kvůli ořezu navrhované fotky: překryv přes celou obrazovku leží nad profilem.
+    Box(Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = modifier,
+            contentWindowInsets = ScaffoldDefaults.contentWindowInsets
+                .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = {
+                TopAppBar(
+                    title = {
+                        AnimatedVisibility(
+                            visible = titleInBar && state.profile != null,
+                            enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()) +
+                                slideInVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it / 2 },
+                            exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) +
+                                slideOutVertically(MaterialTheme.motionScheme.fastSpatialSpec()) { it / 2 },
+                        ) {
+                            Text(state.profile?.title.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
+                            if (closeIcon) {
+                                Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.common_close))
+                            } else {
+                                Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
+                            }
+                        }
+                    },
+                    actions = {
+                        state.profile?.let { profile ->
+                            ProfileMenu(
+                                profile = profile,
+                                onCopyLink = viewModel::copyLink,
+                                onEdit = onEdit,
+                                onShareContact = { profile.userId?.let(onShareContact) },
+                                onAddMembers = onAddMembers,
+                                onSetBlocked = viewModel::setBlocked,
+                                onSetContact = viewModel::setContact,
+                                onStartSecretChat = viewModel::startSecretChat,
+                                onSuggestBirthdate = viewModel::suggestBirthdate,
+                                onSuggestPhoto = if (viewModel.canSuggestPhoto) photoPicker::pickMedia else null,
+                                onCall = rememberStartCall(profile.userId),
+                            )
+                        }
+                    },
+                )
+            },
+        ) { padding ->
+            val profile = state.profile
+            if (profile == null) {
+                Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                    if (state.loading) LoadingIndicator()
+                }
+                return@Scaffold
+            }
+
+            // Spodek (navigační lišta) jde do obsahu: poslední položka se nad ni doroluje.
+            val bottom = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues().calculateBottomPadding()
+            val header: @Composable () -> Unit = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 20.dp),
+                ) {
+                    ProfileHeader(
+                        state = state,
+                        profile = profile,
+                        scroll = { scrollState.value },
+                        onTitlePlaced = { titleBottom = it },
+                        onOpenPhotos = onOpenPhotos,
+                    )
+                    if (state.offerContact && profile.kind == ProfileKind.User && profile.userId != null && !profile.isContact) {
+                        AddContactButton(onClick = { viewModel.setContact(true) })
                     }
-                },
-                actions = {
-                    state.profile?.let { profile ->
-                        ProfileMenu(
-                            profile = profile,
-                            onCopyLink = viewModel::copyLink,
-                            onEdit = onEdit,
-                            onShareContact = { profile.userId?.let(onShareContact) },
-                            onAddMembers = onAddMembers,
-                            onSetBlocked = viewModel::setBlocked,
-                            onSetContact = viewModel::setContact,
-                            onStartSecretChat = viewModel::startSecretChat,
-                            onSuggestBirthdate = viewModel::suggestBirthdate,
-                            onCall = rememberStartCall(profile.userId),
+                    ProfileActions(
+                        muted = state.muted,
+                        onToggleMute = viewModel::toggleMute,
+                        onSearch = onSearch,
+                        onOpenApp = onOpenMainWebApp.takeIf { profile.hasMainWebApp },
+                    )
+                    val notifications = state.notifications
+                    val showsAutoDelete = profile.canSetAutoDelete || profile.autoDeleteTime > 0
+                    val chatAutosave = autosaveChatType(profile.kind, profile.isSecretChat)
+                        ?.let { type -> autosaveState?.settings?.chatAutosave(profile.chatId, type) }
+                    if (profile.usernames.isNotEmpty() || profile.phone != null || profile.birthdate != null || profile.about.isNotBlank() ||
+                        profile.personalChannel != null ||
+                        notifications != null || showsAutoDelete || profile.linkedChat != null || bookmarks.isNotEmpty() ||
+                        chatAutosave != null ||
+                        profile.secretChatKey != null ||
+                        viewModel.supportsChatColor
+                    ) {
+                        ProfileInfo(
+                            profile,
+                            notifications = notifications,
+                            bookmarkCount = bookmarks.size,
+                            onOpenBookmarks = { showBookmarks = true },
+                            onLinkClick = viewModel::openLink,
+                            onOpenLinkedChat = viewModel::openLinkedChat,
+                            onOpenPersonalChannel = viewModel::openPersonalChannel,
+                            onOpenNotifications = viewModel::openNotificationSheet,
+                            autosave = chatAutosave,
+                            onOpenAutosave = { showAutosave = true },
+                            onOpenAutoDelete = viewModel::openAutoDeleteSheet.takeIf { profile.canSetAutoDelete },
+                            onOpenSecretKey = { showSecretKey = true },
+                            chatColor = chatColor,
+                            onOpenChatColor = { showChatColor = true }.takeIf { viewModel.supportsChatColor },
                         )
                     }
-                },
-            )
-        },
-    ) { padding ->
-        val profile = state.profile
-        if (profile == null) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                if (state.loading) LoadingIndicator()
-            }
-            return@Scaffold
-        }
-
-        // Spodek (navigační lišta) jde do obsahu: poslední položka se nad ni doroluje.
-        val bottom = WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).asPaddingValues().calculateBottomPadding()
-        val header: @Composable () -> Unit = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(20.dp),
-                modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 20.dp),
-            ) {
-                ProfileHeader(
-                    state = state,
-                    profile = profile,
-                    scroll = { scrollState.value },
-                    onTitlePlaced = { titleBottom = it },
-                    onOpenPhotos = onOpenPhotos,
-                )
-                if (state.offerContact && profile.kind == ProfileKind.User && profile.userId != null && !profile.isContact) {
-                    AddContactButton(onClick = { viewModel.setContact(true) })
-                }
-                ProfileActions(
-                    muted = state.muted,
-                    onToggleMute = viewModel::toggleMute,
-                    onSearch = onSearch,
-                    onOpenApp = onOpenMainWebApp.takeIf { profile.hasMainWebApp },
-                )
-                val notifications = state.notifications
-                val showsAutoDelete = profile.canSetAutoDelete || profile.autoDeleteTime > 0
-                val chatAutosave = autosaveChatType(profile.kind, profile.isSecretChat)
-                    ?.let { type -> autosaveState?.settings?.chatAutosave(profile.chatId, type) }
-                if (profile.usernames.isNotEmpty() || profile.phone != null || profile.birthdate != null || profile.about.isNotBlank() ||
-                    profile.personalChannel != null ||
-                    notifications != null || showsAutoDelete || profile.linkedChat != null || bookmarks.isNotEmpty() ||
-                    chatAutosave != null ||
-                    profile.secretChatKey != null ||
-                    viewModel.supportsChatColor
-                ) {
-                    ProfileInfo(
-                        profile,
-                        notifications = notifications,
-                        bookmarkCount = bookmarks.size,
-                        onOpenBookmarks = { showBookmarks = true },
-                        onLinkClick = viewModel::openLink,
-                        onOpenLinkedChat = viewModel::openLinkedChat,
-                        onOpenPersonalChannel = viewModel::openPersonalChannel,
-                        onOpenNotifications = viewModel::openNotificationSheet,
-                        autosave = chatAutosave,
-                        onOpenAutosave = { showAutosave = true },
-                        onOpenAutoDelete = viewModel::openAutoDeleteSheet.takeIf { profile.canSetAutoDelete },
-                        onOpenSecretKey = { showSecretKey = true },
-                        chatColor = chatColor,
-                        onOpenChatColor = { showChatColor = true }.takeIf { viewModel.supportsChatColor },
-                    )
                 }
             }
-        }
 
-        val autosaveType = autosaveChatType(profile.kind, profile.isSecretChat)
-        autosaveViewModel?.let {
-            ChatAutosaveHost(
-                viewModel = it,
+            val autosaveType = autosaveChatType(profile.kind, profile.isSecretChat)
+            autosaveViewModel?.let {
+                ChatAutosaveHost(
+                    viewModel = it,
+                    chatId = profile.chatId,
+                    type = autosaveType,
+                    open = showAutosave,
+                    onClose = { showAutosave = false },
+                    snackbarHostState = snackbarHostState,
+                )
+            }
+
+            val secretKey = profile.secretChatKey
+            if (showSecretKey && secretKey != null) {
+                SecretChatKeySheet(key = secretKey, partnerName = profile.title, onDismiss = { showSecretKey = false })
+            }
+
+            if (state.autoDeleteSheet) {
+                AutoDeleteSheet(
+                    current = profile.autoDeleteTime,
+                    secret = profile.isSecretChat,
+                    onSelect = viewModel::setAutoDelete,
+                    onDismiss = viewModel::closeAutoDeleteSheet,
+                )
+            }
+
+            if (showChatColor) {
+                ChatColorSheet(
+                    current = chatColor,
+                    onSelect = viewModel::setChatColor,
+                    onDismiss = { showChatColor = false },
+                )
+            }
+
+            val notifications = state.notifications
+            if (showBookmarks && bookmarks.isNotEmpty()) {
+                BookmarksSheet(
+                    bookmarks = bookmarks,
+                    onOpen = { messageId ->
+                        showBookmarks = false
+                        onOpenMessage(messageId)
+                    },
+                    onRemove = viewModel::removeBookmark,
+                    onDismiss = { showBookmarks = false },
+                )
+            }
+            if (state.notificationSheet && notifications != null) {
+                ChatNotificationSheet(
+                    prefs = notifications,
+                    supportsConversationSettings = viewModel.supportsConversationSettings,
+                    onMute = viewModel::mute,
+                    onUnmute = viewModel::unmute,
+                    onOption = viewModel::setNotificationOption,
+                    onOpenConversationSettings = viewModel::openConversationSettings,
+                    onReset = viewModel::resetNotifications,
+                    onDismiss = viewModel::closeNotificationSheet,
+                    soundLabel = chatSoundLabel(notifications, tones),
+                    onPickSound = {
+                        // Dva sheety přes sebe ne: upozornění se zavře, výběr zvuku otevře.
+                        viewModel.closeNotificationSheet()
+                        showSound = true
+                    },
+                )
+            }
+            ChatSoundHost(
+                viewModel = sounds,
                 chatId = profile.chatId,
-                type = autosaveType,
-                open = showAutosave,
-                onClose = { showAutosave = false },
+                prefs = notifications,
+                open = showSound,
+                onClose = { showSound = false },
                 snackbarHostState = snackbarHostState,
             )
-        }
 
-        val secretKey = profile.secretChatKey
-        if (showSecretKey && secretKey != null) {
-            SecretChatKeySheet(key = secretKey, partnerName = profile.title, onDismiss = { showSecretKey = false })
-        }
-
-        if (state.autoDeleteSheet) {
-            AutoDeleteSheet(
-                current = profile.autoDeleteTime,
-                secret = profile.isSecretChat,
-                onSelect = viewModel::setAutoDelete,
-                onDismiss = viewModel::closeAutoDeleteSheet,
-            )
-        }
-
-        if (showChatColor) {
-            ChatColorSheet(
-                current = chatColor,
-                onSelect = viewModel::setChatColor,
-                onDismiss = { showChatColor = false },
-            )
-        }
-
-        val notifications = state.notifications
-        if (showBookmarks && bookmarks.isNotEmpty()) {
-            BookmarksSheet(
-                bookmarks = bookmarks,
-                onOpen = { messageId ->
-                    showBookmarks = false
-                    onOpenMessage(messageId)
-                },
-                onRemove = viewModel::removeBookmark,
-                onDismiss = { showBookmarks = false },
-            )
-        }
-        if (state.notificationSheet && notifications != null) {
-            ChatNotificationSheet(
-                prefs = notifications,
-                supportsConversationSettings = viewModel.supportsConversationSettings,
-                onMute = viewModel::mute,
-                onUnmute = viewModel::unmute,
-                onOption = viewModel::setNotificationOption,
-                onOpenConversationSettings = viewModel::openConversationSettings,
-                onReset = viewModel::resetNotifications,
-                onDismiss = viewModel::closeNotificationSheet,
-                soundLabel = chatSoundLabel(notifications, tones),
-                onPickSound = {
-                    // Dva sheety přes sebe ne: upozornění se zavře, výběr zvuku otevře.
-                    viewModel.closeNotificationSheet()
-                    showSound = true
-                },
-            )
-        }
-        ChatSoundHost(
-            viewModel = sounds,
-            chatId = profile.chatId,
-            prefs = notifications,
-            open = showSound,
-            onClose = { showSound = false },
-            snackbarHostState = snackbarHostState,
-        )
-
-        val tabs = state.tabs
-        if (tabs.isEmpty()) {
-            // Chat bez sdíleného obsahu a bez seznamu členů: žádné záložky, jen údaje.
-            // Prázdná záložka by slibovala něco, co v chatu není.
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(scrollState)
-                    .padding(top = padding.calculateTopPadding(), bottom = 24.dp + bottom),
-            ) {
-                header()
+            val tabs = state.tabs
+            if (tabs.isEmpty()) {
+                // Chat bez sdíleného obsahu a bez seznamu členů: žádné záložky, jen údaje.
+                // Prázdná záložka by slibovala něco, co v chatu není.
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(scrollState)
+                        .padding(top = padding.calculateTopPadding(), bottom = 24.dp + bottom),
+                ) {
+                    header()
+                }
+            } else {
+                ProfileTabs(
+                    state = state,
+                    tabs = tabs,
+                    viewModel = viewModel,
+                    scrollState = scrollState,
+                    header = header,
+                    topPadding = padding.calculateTopPadding(),
+                    bottomPadding = 24.dp + bottom,
+                    onOpenMessage = onOpenMessage,
+                )
             }
-        } else {
-            ProfileTabs(
-                state = state,
-                tabs = tabs,
-                viewModel = viewModel,
-                scrollState = scrollState,
-                header = header,
-                topPadding = padding.calculateTopPadding(),
-                bottomPadding = 24.dp + bottom,
-                onOpenMessage = onOpenMessage,
-            )
         }
+        PhotoCropOverlay(
+            path = viewModel.suggestCropping,
+            onCancel = viewModel::cancelSuggestCrop,
+            onConfirm = viewModel::suggestCroppedPhoto,
+            video = viewModel.suggestCroppingVideo,
+        )
     }
 }
 
@@ -1578,6 +1589,8 @@ private fun ProfileMenu(
     onStartSecretChat: () -> Unit,
     /** Navrhnout člověku datum narození (`suggestUserBirthdate`). */
     onSuggestBirthdate: (Birthdate) -> Unit,
+    /** Navrhnout člověku profilovou fotku: výběr fotky, pak ořez (`null` = nejde). */
+    onSuggestPhoto: (() -> Unit)?,
     /** Zavolat (`null` = hovory tu nejsou, viz `CallRepository.supported`). */
     onCall: ((video: Boolean) -> Unit)?,
 ) {
@@ -1646,6 +1659,12 @@ private fun ProfileMenu(
                     },
                     if (canStartSecret) {
                         MenuAction(stringResource(Res.string.secret_chat_start), Res.drawable.lock_24dp, onClick = onStartSecretChat)
+                    } else {
+                        null
+                    },
+                    // Návrh fotky dostane jen člověk; vlastní fotka je v úpravě profilu.
+                    if (canStartSecret && onSuggestPhoto != null) {
+                        MenuAction(stringResource(Res.string.photo_suggest), Res.drawable.add_photo_alternate_24dp, onClick = onSuggestPhoto)
                     } else {
                         null
                     },

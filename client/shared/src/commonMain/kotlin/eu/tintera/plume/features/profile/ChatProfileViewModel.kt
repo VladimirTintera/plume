@@ -1,11 +1,15 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.resources.birthdate_suggest_failed
-
 import eu.tintera.plume.resources.birthdate_suggest_sent
-
 import eu.tintera.plume.core.telegram.Birthdate
-
+import eu.tintera.plume.resources.edit_profile_not_photo
+import eu.tintera.plume.resources.photo_suggest_failed
+import eu.tintera.plume.resources.photo_suggest_sent
+import eu.tintera.plume.core.telegram.OutgoingAttachment
+import eu.tintera.plume.core.ui.CropRegion
+import eu.tintera.plume.core.ui.VideoCropControl
+import eu.tintera.plume.core.ui.ProfilePhotoCrop
 import eu.tintera.plume.core.navigation.ContactOffers
 import eu.tintera.plume.core.telegram.SharedMediaPositions
 import eu.tintera.plume.core.telegram.mergeCalendarDays
@@ -117,6 +121,8 @@ class ChatProfileViewModel(
     private val chatColors: ChatColors? = null,
     /** Profil otevřený z kontaktního odkazu: „Přidat do kontaktů" jako hlavní akce. */
     contactOffers: ContactOffers? = null,
+    /** Ořez navrhované profilovky; bez něj se „Navrhnout fotku" nenabízí. */
+    private val photoCrop: ProfilePhotoCrop? = null,
 ) : ViewModel() {
 
     /** Barva, kterou uživatel konverzaci dal; `null` = barvy aplikace. */
@@ -684,6 +690,44 @@ class ChatProfileViewModel(
      * Blokování vede přes [ChatRepository], ne přes profil: je to tatáž akce jako v nabídce nad
      * chatem v seznamu a dvě cesty k `setMessageSenderBlockList` by se dřív nebo později rozešly.
      */
+    /** „Navrhnout profilovou fotku" je k dispozici (je čím ořezat). */
+    val canSuggestPhoto: Boolean get() = photoCrop != null
+
+    /** Obrázek navrhované fotky v ořezu; `null` = ořez zavřený. */
+    val suggestCropping: String? get() = photoCrop?.image
+
+    val suggestCroppingVideo: VideoCropControl? get() = photoCrop?.video
+
+    /** Z výběru příloh: první fotka nebo video jde do ořezu, jako u vlastní profilovky. */
+    fun suggestPhotoFrom(attachments: List<OutgoingAttachment>) {
+        val crop = photoCrop ?: return
+        viewModelScope.launch {
+            runCatching { crop.open(attachments) }
+                .onSuccess { opened -> if (!opened) reportError(UiText(Res.string.edit_profile_not_photo)) }
+                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.photo_suggest_failed)) } }
+        }
+    }
+
+    fun cancelSuggestCrop() {
+        photoCrop?.cancel()
+    }
+
+    /** Ořízne a pošle návrh; přijde mu jako zpráva s fotkou a „Nastavit". */
+    fun suggestCroppedPhoto(region: CropRegion) {
+        val crop = photoCrop ?: return
+        val userId = _state.value.profile?.userId ?: return
+        viewModelScope.launch {
+            runCatching { crop.crop(region) }
+                .mapCatching { prepared -> prepared?.let { profiles.suggestPhoto(userId, it.file).getOrThrow() } }
+                .onSuccess { _state.update { it.copy(error = UiText(Res.string.photo_suggest_sent)) } }
+                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.photo_suggest_failed)) } }
+        }
+    }
+
+    fun reportError(text: UiText) {
+        _state.update { it.copy(error = text) }
+    }
+
     /** Navrhne člověku datum narození; přijde mu jako zpráva s „Nastavit". */
     fun suggestBirthdate(birthdate: Birthdate) {
         val userId = _state.value.profile?.userId ?: return

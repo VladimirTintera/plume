@@ -1,7 +1,11 @@
 package eu.tintera.plume.core.telegram
 
 import dev.g000sha256.tdl.dto.MessageSuggestBirthdate
-
+import dev.g000sha256.tdl.dto.PhotoSize
+import dev.g000sha256.tdl.dto.ChatPhoto
+import dev.g000sha256.tdl.dto.InputChatPhotoStatic
+import dev.g000sha256.tdl.dto.InputChatPhotoAnimation
+import dev.g000sha256.tdl.dto.MessageSuggestProfilePhoto
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_send_failed_unknown
 import co.touchlab.kermit.Logger
@@ -1597,6 +1601,30 @@ class TdlConversationRepository(
         client.setBirthdate(birthdate = suggested.birthdate).toResult().getOrThrow()
     }
 
+    override suspend fun acceptSuggestedPhoto(chatId: Long, messageId: Long): Result<Unit> = runCatching {
+        val message = client.getMessage(chatId = chatId, messageId = messageId).toResult().getOrThrow()
+        val photo = (message.content as? MessageSuggestProfilePhoto)?.photo
+            ?: error("Zpráva $messageId nenese návrh profilové fotky.")
+        // Animovaná profilovka se nahraje jako video se snímkem pro statickou podobu, jinak
+        // největší velikost fotky. Stahuje se synchronně — bez souboru není co nahrát.
+        val animation = photo.animation
+        val input = if (animation != null) {
+            InputChatPhotoAnimation(
+                animation = InputFileLocal(path = downloadedPath(animation.file.id)),
+                mainFrameTimestamp = animation.mainFrameTimestamp,
+            )
+        } else {
+            val biggest = photo.sizes.maxByOrNull { it.width * it.height } ?: error("Navržená fotka nemá velikost.")
+            InputChatPhotoStatic(photo = InputFileLocal(path = downloadedPath(biggest.photo.id)))
+        }
+        client.setProfilePhoto(photo = input, isPublic = false).toResult().getOrThrow()
+    }
+
+    private suspend fun downloadedPath(fileId: Int): String =
+        client.downloadFile(fileId = fileId, priority = 32, offset = 0, limit = 0, synchronous = true)
+            .toResult().getOrThrow().local.path.takeIf { it.isNotBlank() }
+            ?: error("Soubor $fileId se nestáhl.")
+
     override suspend fun contactCard(userId: Long): Result<MessageMedia.Contact> = runCatching {
         val user = client.getUser(userId = userId).toResult().getOrThrow()
         MessageMedia.Contact(
@@ -2592,6 +2620,8 @@ class TdlConversationRepository(
             serviceTargetMessageId = content.serviceTargetMessageId(),
             serviceOpen = content.serviceOpenTarget(),
             suggestedBirthdate = (content as? MessageSuggestBirthdate)?.takeIf { !outgoing }?.birthdate?.toDomain(),
+            suggestedPhoto = (content as? MessageSuggestProfilePhoto)?.photo?.previewSize()
+                ?.let { SuggestedPhoto(fileId = it.photo.id, canSet = !outgoing) },
             timestamp = date,
             isEdited = editDate > 0,
             mediaAlbumId = mediaAlbumId,
@@ -3939,3 +3969,12 @@ private const val NEWER_ATTEMPTS = 3
 
 /** Id první zprávy na serveru (`ServerMessageId(1) << 20`) — od něj se čte historie od začátku. */
 private const val FIRST_SERVER_MESSAGE_ID = 1L shl 20
+
+/**
+ * Velikost navržené fotky na ukázku v konverzaci: nejmenší aspoň [SUGGESTED_PHOTO_PREVIEW_PX]
+ * široká (ostrá i v kruhu 96 dp), jinak největší, kterou fotka má.
+ */
+private fun ChatPhoto.previewSize(): PhotoSize? =
+    sizes.filter { it.width >= SUGGESTED_PHOTO_PREVIEW_PX }.minByOrNull { it.width } ?: sizes.maxByOrNull { it.width }
+
+private const val SUGGESTED_PHOTO_PREVIEW_PX = 320

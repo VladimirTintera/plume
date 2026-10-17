@@ -25,6 +25,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ServiceOpen
+import eu.tintera.plume.resources.photo_suggestion_confirm_body
+import eu.tintera.plume.resources.photo_suggestion_confirm_title
+import eu.tintera.plume.core.ui.Avatar
+import eu.tintera.plume.core.telegram.SuggestedPhoto
 import eu.tintera.plume.core.telegram.Birthdate
 import eu.tintera.plume.core.ui.label
 import androidx.compose.material3.AlertDialog
@@ -116,6 +120,7 @@ internal fun ServiceMessage(
     onJumpTo: (Long) -> Unit = {},
     onOpen: (ServiceOpen) -> Unit = {},
     onAcceptBirthdate: () -> Unit = {},
+    onAcceptPhoto: () -> Unit = {},
 ) {
     // Text oznámení je [ChatMessage.description] a překládá se až tady — převedená zpráva
     // žije v paměti déle než jazyk aplikace.
@@ -124,6 +129,11 @@ internal fun ServiceMessage(
     val target = message.serviceTargetMessageId
     val open = message.serviceOpen
     val birthdate = message.suggestedBirthdate
+    val photo = message.suggestedPhoto
+    if (photo != null) {
+        SuggestedPhotoNote(text, photo, message, modifier, onAcceptPhoto)
+        return
+    }
     if (birthdate != null) {
         SuggestedBirthdateNote(text, birthdate, modifier, onAcceptBirthdate)
         return
@@ -174,6 +184,62 @@ internal fun ServiceMessage(
         )
     }
 }
+
+/**
+ * Navržená profilová fotka: fotka v kruhu (tak, jak by vypadala jako profilovka), věta a u návrhu
+ * od protějšku „Nastavit". Nastavuje se až po potvrzení — profilovku vidí i ostatní.
+ */
+@Composable
+private fun SuggestedPhotoNote(
+    text: String,
+    photo: SuggestedPhoto,
+    message: ChatMessage,
+    modifier: Modifier,
+    onAccept: () -> Unit,
+) {
+    var confirm by rememberSaveable { mutableStateOf(false) }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .then(if (photo.canSet) Modifier.clickable(role = Role.Button) { confirm = true } else Modifier)
+            .padding(vertical = 8.dp),
+    ) {
+        Avatar(
+            chatId = message.senderId,
+            title = message.senderName.orEmpty(),
+            avatarFileId = photo.fileId,
+            size = SUGGESTED_PHOTO_SIZE,
+        )
+        CenteredNote(text = text)
+        if (photo.canSet) {
+            Text(
+                text = stringResource(Res.string.birthdate_suggestion_set),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+    if (confirm) {
+        AlertDialog(
+            onDismissRequest = { confirm = false },
+            title = { Text(stringResource(Res.string.photo_suggestion_confirm_title)) },
+            text = { Text(stringResource(Res.string.photo_suggestion_confirm_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirm = false
+                    onAccept()
+                }) { Text(stringResource(Res.string.birthdate_suggestion_set)) }
+            },
+            dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(Res.string.common_cancel)) } },
+        )
+    }
+}
+
+private val SUGGESTED_PHOTO_SIZE = 96.dp
 
 /**
  * Návrh data narození od protějšku: věta a pod ní „Nastavit". Datum se mění až po potvrzení —

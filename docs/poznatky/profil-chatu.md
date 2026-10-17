@@ -880,3 +880,26 @@ a puštění na to místo skočí. Pozice dává `getChatSparseMessagePositions`
   (neúplná poslední řada se zaobleným rohem) a rolování odtud nahoru přes celou historii až
   k nejnovějším. **Neověřeno**: tik při změně měsíce (kanál má média z jediného měsíce)
   a dlouhá historie přes roky; iOS jen přeložené.
+
+### Návrh profilové fotky
+
+Člověku jde z profilu navrhnout profilovku (⋮ → „Navrhnout profilovou fotku",
+`suggestUserProfilePhoto`) a návrh od protějšku jde v konverzaci nastavit. Obdoba návrhu data
+narození (`docs/poznatky/nastaveni.md`, „Narozeniny").
+
+- **Odeslání jde stejným výběrem a ořezem jako vlastní profilovka** (`ProfilePhotoCrop`,
+  `PhotoCropOverlay`, i video jako animovaná profilovka). Ořez je překryv přes celou obrazovku,
+  takže profil kolem `Scaffold` dostal `Box`. Nabízí se jen člověku (ne botovi a ne sobě).
+- **Přijetí je oznámení s fotkou v kruhu** (`ChatMessage.suggestedPhoto`, `SuggestedPhotoNote`):
+  „Jana navrhuje profilovou fotku" a „Nastavit" — tak, jak by fotka jako profilovka vypadala.
+  Vlastní návrh ukazuje fotku bez „Nastavit". Na ukázku se bere nejmenší velikost aspoň 320 px.
+- **Nastavení stáhne fotku a nahraje ji znovu** (`acceptSuggestedPhoto`): je to cizí soubor,
+  `InputChatPhotoPrevious` bere jen fotky vlastního účtu. Animovaná se nahraje jako video se
+  snímkem pro statickou podobu (`mainFrameTimestamp` z návrhu), jinak největší velikost.
+  Mění se až po potvrzení v dialogu — profilovku vidí i ostatní.
+- **Ověřeno mezi telefony** (Pixel 7 → Pixel 5): výběr fotky, ořez, „Návrh fotky odeslán";
+  Pixel 5 (anglicky) ukázal fotku v kruhu s „Pixel 7 Pro suggests a profile photo" a „Set",
+  po potvrzení „Profile photo set" a profil na Pixelu 7 pak ukázal novou fotku. Odesílatel
+  vidí „Navrhl(a) jsi profilovou fotku" bez „Nastavit". **Animovaná profilovka jako návrh
+  ověřená není.** Testovací účet …527 má od té doby tuhle fotku (výhled na město).
+

@@ -677,6 +677,7 @@ fun appModule() = module {
             bookmarks = get(),
             chatColors = get(),
             contactOffers = get(),
+            photoCrop = get(),
         )
     }
 

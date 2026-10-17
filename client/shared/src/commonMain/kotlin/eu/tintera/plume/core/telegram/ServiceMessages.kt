@@ -3,6 +3,8 @@ package eu.tintera.plume.core.telegram
 import dev.g000sha256.tdl.dto.MessageBasicGroupChatCreate
 import dev.g000sha256.tdl.dto.MessageBotWriteAccessAllowed
 import dev.g000sha256.tdl.dto.MessageSuggestBirthdate
+import dev.g000sha256.tdl.dto.MessageSuggestProfilePhoto
+import eu.tintera.plume.resources.content_suggested_photo
 import eu.tintera.plume.core.ui.labelUiText
 import eu.tintera.plume.resources.service_suggested_birthdate
 import dev.g000sha256.tdl.dto.MessageChatShared
@@ -392,6 +394,8 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
     is MessageChatShared -> sharedChatText(chat.title)
     is MessageUsersShared -> sharedUsersText(users.map { it.ownName() })
 
+    // Fotku samotnou a „Nastavit" kreslí konverzace (`ChatMessage.suggestedPhoto`).
+    is MessageSuggestProfilePhoto -> UiText(Res.string.content_suggested_photo)
     // Datum je obsah návrhu. Jméno (kdo navrhuje) a „Nastavit" přidává konverzace.
     is MessageSuggestBirthdate -> UiText(Res.string.service_suggested_birthdate, birthdate.toDomain().labelUiText())
 
