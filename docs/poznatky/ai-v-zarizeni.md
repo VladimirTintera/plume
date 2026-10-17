@@ -373,6 +373,36 @@ ze stejného důvodu jako návrhy odpovědí: model běží sám, bez ťuknutí.
   kartu schová, tmavý motiv čitelný (akcent ustoupí `onErrorContainer`, viz `accentOn`).
   **Gemini Nano na skutečném zařízení neověřené.**
 
+### Triáž chatů
+
+Odznak „čeká na odpověď" v seznamu chatů (`ChatTriage`, prompt `TriagePrompt.kt`, odznak
+v `UnreadBadges`, `seznam-chatu.md`, „Čeká na odpověď"). Vlastní vypínač v Nastavení → AI
+v zařízení, výchozí vypnuto — model běží sám, bez ťuknutí, jako u varování před podvodem.
+
+- **Jen nepřečtené soukromé chaty, kde poslední zprávu poslal protějšek** (`isTriageCandidate`):
+  ne skupiny (z nepřečtených se nepozná, koho se otázka týká; zmínku nese „@"), ne Uložené,
+  ztlumené, ověřené účty ani sponzorované chaty. Boti ano — jsou to soukromé chaty a model
+  jejich oznámení pozná jako `INFO`.
+- **Model dostane nejvýš šest posledních nepřečtených příchozích zpráv** (`history` od nejnovější,
+  do první vlastní), od nejstarší; fotka bez popisku jako „Fotka". Rozhoduje konec rozhovoru,
+  delší vstup se ořízne od začátku.
+- **Výsledek patří poslední zprávě**: chat → id zprávy, nad kterou to model řekl. Klíč (chat,
+  zpráva) se posuzuje jednou za běh procesu, frontou po jednom v `appScope`.
+- **Seznam předbíhá historii**: počet nepřečtených (`UpdateChatReadInbox`) dorazí dřív než nová
+  poslední zpráva, takže první kandidát nese STAROU poslední zprávu a historie vrátí novou.
+  Takový dotaz se zahodí a vyřadí ze „viděných" — správný přijde s další změnou seznamu.
+- **Po startu triáž čeká i na volbu modelu**: z DataStore se načte až po prvním seznamu a model
+  do té doby „není připravený" (výchozí varianta je Gemini Nano). ViewModel proto spouští
+  `check` i při změně volby, ne jen seznamu — jinak se po restartu neposoudilo nic.
+- **„Jak se máš?" Gemma 4 E2B brala jako pozdrav** (`INFO`), dokud pokyn zněl „otázka… nebo
+  samotný pozdrav = INFO", i s příkladem „how are you" u `REPLY`. Pomohlo obrátit důraz:
+  `REPLY` = „poslední zprávy obsahují otázku na uživatele, i small talk", `INFO` = „žádná otázka
+  ani prosba", a věta „otázka na uživatele odpověď potřebuje vždy".
+- **Ověřeno na emulátoru Fold** (Gemma 4 E2B, CPU, ~10 s na chat; ve frontě za rozpoznáváním
+  termínů otevřené konverzace): žádost o prezentaci a „Ahoj, jak se máš?" od bota → odznak,
+  poděkování a oznámení o vodě → bez odznaku, skutečné chaty („Nehoda pri teste hahaha") bez
+  odznaku. Přečtení chatu odznak schová. **Gemini Nano neověřené.**
+
 ### Akce ze zpráv
 
 Ikonka se sparkle (`auto_awesome`) na volné straně zprávy, ve které je termín, adresa, telefon

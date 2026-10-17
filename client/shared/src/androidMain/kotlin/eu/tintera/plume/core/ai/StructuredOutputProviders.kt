@@ -81,6 +81,22 @@ class ScamAnswerProvider : GenerableProvider {
     }
 }
 
+/** Tvar [TriageAnswer]: jeden verdikt z výčtu. */
+class TriageAnswerProvider : GenerableProvider {
+    override val targetClass: KClass<*> = TriageAnswer::class
+
+    override fun getGenerableDetail(): GenerableDetail<*> = DETAIL
+
+    private companion object {
+        val DETAIL = GenerableDetail<TriageAnswer>(
+            description = "Whether the chat waits for the user's answer",
+            guideDetails = listOf(
+                stringField("verdict", "One verdict as described above", listOf("REPLY", "INFO", "UNSURE")),
+            ),
+        )
+    }
+}
+
 /** Tvar [ToneAnswer]: jeden verdikt z výčtu. */
 class ToneAnswerProvider : GenerableProvider {
     override val targetClass: KClass<*> = ToneAnswer::class

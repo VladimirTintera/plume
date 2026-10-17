@@ -267,6 +267,16 @@ interface AppSettings {
     fun setScamWarningsEnabled(enabled: Boolean)
 
     /**
+     * Odznak „čeká na odpověď" v seznamu chatů (posouzení modelem v zařízení, viz `ChatTriage`).
+     * Vlastní volba ze stejného důvodu jako [scamWarningsEnabled]: model běží sám, bez ťuknutí.
+     * Výchozí `false`.
+     */
+    val chatTriageEnabled: StateFlow<Boolean>
+
+    /** Zapne/vypne odznak „čeká na odpověď". Neblokuje, jako [recordRecentEmoji]. */
+    fun setChatTriageEnabled(enabled: Boolean)
+
+    /**
      * Ikonka u zprávy, ve které je termín, číslo účtu nebo zásilky, a sheet s akcemi
      * (`findMessageContext`). Na rozdíl od [scamWarningsEnabled] výchozí `true`: rozpoznávají
      * pravidla v telefonu, nic se nestahuje ani neposílá a model se přidá, jen když si AI
@@ -817,6 +827,16 @@ class DataStoreAppSettings(
         }
     }
 
+    override val chatTriageEnabled: StateFlow<Boolean> = value(false) { preferences ->
+        preferences[CHAT_TRIAGE_ENABLED] ?: false
+    }
+
+    override fun setChatTriageEnabled(enabled: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[CHAT_TRIAGE_ENABLED] = enabled }
+        }
+    }
+
     override val messageContextEnabled: StateFlow<Boolean> = value(true) { preferences ->
         preferences[MESSAGE_CONTEXT_ENABLED] ?: true
     }
@@ -1108,6 +1128,7 @@ class DataStoreAppSettings(
         val ON_DEVICE_AI_ENABLED = booleanPreferencesKey("on_device_ai_enabled")
         val REPLY_SUGGESTIONS_ENABLED = booleanPreferencesKey("reply_suggestions_enabled")
         val SCAM_WARNINGS_ENABLED = booleanPreferencesKey("scam_warnings_enabled")
+        val CHAT_TRIAGE_ENABLED = booleanPreferencesKey("chat_triage_enabled")
         val MESSAGE_CONTEXT_ENABLED = booleanPreferencesKey("message_context_enabled")
         val ON_DEVICE_AI_PREVIEW = booleanPreferencesKey("on_device_ai_preview")
         val ON_DEVICE_AI_FAST = booleanPreferencesKey("on_device_ai_fast")

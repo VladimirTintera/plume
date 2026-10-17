@@ -1,0 +1,61 @@
+package eu.tintera.plume.features.chats
+
+import eu.tintera.plume.core.telegram.ChatKind
+import eu.tintera.plume.core.telegram.ChatSponsor
+import eu.tintera.plume.core.telegram.ChatSummary
+import eu.tintera.plume.core.telegram.Verification
+import kotlin.test.Test
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+/** Které chaty triáž vůbec posuzuje ([isTriageCandidate]). */
+class ChatTriageTest {
+
+    private fun chat(
+        id: Long = 1,
+        kind: ChatKind = ChatKind.Private,
+        unread: Int = 2,
+        lastMessageId: Long? = 10,
+        outgoing: Boolean = false,
+        muted: Boolean = false,
+    ) = ChatSummary(
+        id = id,
+        title = "Jana",
+        unreadCount = unread,
+        lastMessagePreview = null,
+        isPinned = false,
+        order = id,
+        avatarFileId = null,
+        isMuted = muted,
+        isMarkedAsUnread = false,
+        kind = kind,
+        lastMessageTimestamp = 0,
+        lastMessageId = lastMessageId,
+        lastMessageOutgoing = outgoing,
+        presence = null,
+        activity = null,
+        draft = null,
+    )
+
+    @Test
+    fun nepreceteneSoukromeSPrichoziZpravou() {
+        assertTrue(isTriageCandidate(chat(), savedMessagesChatId = 99))
+    }
+
+    @Test
+    fun skupinyKanalyAPrecteneNe() {
+        assertFalse(isTriageCandidate(chat(kind = ChatKind.Group), null))
+        assertFalse(isTriageCandidate(chat(kind = ChatKind.Channel), null))
+        assertFalse(isTriageCandidate(chat(unread = 0), null))
+        assertFalse(isTriageCandidate(chat(lastMessageId = null), null))
+    }
+
+    @Test
+    fun posledniVlastniZpravaUlozeneZtlumeneAOvereneNe() {
+        assertFalse(isTriageCandidate(chat(outgoing = true), null))
+        assertFalse(isTriageCandidate(chat(id = 99), savedMessagesChatId = 99))
+        assertFalse(isTriageCandidate(chat(muted = true), null))
+        assertFalse(isTriageCandidate(chat().copy(verification = Verification.Verified()), null))
+        assertFalse(isTriageCandidate(chat().copy(sponsor = ChatSponsor.Proxy), null))
+    }
+}

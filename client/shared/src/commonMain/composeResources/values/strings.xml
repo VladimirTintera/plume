@@ -1873,6 +1873,9 @@
     <string name="settings_reply_suggestions">Reply suggestions</string>
     <string name="settings_reply_suggestions_summary">Short replies are offered above the input field when a message arrives and you have not started typing.</string>
     <string name="settings_scam_warnings">Scam warnings</string>
+    <string name="chats_awaiting_reply">Awaiting your reply</string>
+    <string name="settings_chat_triage">Awaiting reply</string>
+    <string name="settings_chat_triage_summary">The model on your phone marks unread private chats where someone is waiting for your answer. Messages are not sent anywhere.</string>
     <string name="settings_scam_warnings_summary">Incoming messages with links or phrases typical of scams are checked by the model on your phone. They are not sent anywhere.</string>
     <string name="settings_on_device_ai_checking">Checking the model…</string>
     <string name="settings_on_device_ai_unsupported">This device does not have the selected model.</string>
