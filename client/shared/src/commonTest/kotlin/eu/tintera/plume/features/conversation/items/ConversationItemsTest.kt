@@ -21,6 +21,7 @@ import eu.tintera.plume.core.telegram.SendState
 import eu.tintera.plume.core.telegram.SponsoredMessage
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -265,6 +266,24 @@ class ConversationItemsTest {
         assertEquals(0f, dotLift(0.8f, 0))
         assertEquals(0f, dotLift(0.8f, 1))
         assertEquals(0f, dotLift(0.8f, 2))
+    }
+
+    @Test
+    fun trojteckuMaJenPsaniANeznamaCinnost() {
+        // Trojtečka znamená „píše"; kdo nahrává nebo kouká, má ikonku.
+        assertNull(activityIcon(ChatActivity.Typing))
+        assertNull(activityIcon(ChatActivity.Other))
+        assertNotNull(activityIcon(ChatActivity.RecordingVoice))
+        assertNotNull(activityIcon(ChatActivity.ChoosingSticker))
+        assertNotNull(activityIcon(ChatActivity.WatchingAnimation("🎉")))
+    }
+
+    @Test
+    fun okoKoukaAMrkneJenNaKonciPeriody() {
+        assertEquals(0f, eyeClosure(0f))
+        assertEquals(0f, eyeClosure(0.85f))
+        assertEquals(1f, eyeClosure(0.95f), 0.001f)
+        assertEquals(0f, eyeClosure(1f), 0.001f)
     }
 
     @Test

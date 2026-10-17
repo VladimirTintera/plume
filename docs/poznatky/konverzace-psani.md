@@ -403,9 +403,20 @@ naopak vidí, že píšeme my.
 - **Při objevení se seznam ukotví dolů** (`requestScrollToItem(0)`), když je uživatel dole —
   seznam drží pozici podle první viditelné položky (nejnovější zprávy), takže by se indikátor
   vložil pod spodní hranu. Kdo čte historii, toho nevytrhne.
-- **Trojtečka stačí jen u psaní.** Ostatní činnosti (nahrává hlasovku, vybírá samolepku) doplní
-  slovy vedle teček. Tečky skáčou jen v části periody (`dotLift`, testy `ConversationItemsTest`),
-  zbytek stojí — bez pauzy by vlnily neklidně. Fáze se čte až v `graphicsLayer`.
+- **Trojtečka patří jen psaní.** Ostatní činnosti mají vlastní ikonku (`activityIcon`, testy
+  `ConversationItemsTest`): mikrofon, kamera (natáčí i posílá video), obrázek, dokument,
+  samolepka, a u „sleduje" oko. Dřív skákaly tečky vedle tváře u všeho, takže protějšek, který
+  nahrával hlasovku nebo jen koukal na náš efekt animovaného emoji, vypadal, že píše. Slova
+  zůstávají — ikonka napoví, text upřesní. Trojtečku má dál i neznámá činnost („něco chystá…"),
+  pro tu žádný obrázek není.
+- **Ikonka dýchá průhledností, oko mrká** (`BreathingIcon`, `BlinkingEye`, `eyeClosure`), obojí
+  čtené až v `graphicsLayer` jako tečky. Neposkakuje, aby se nepletla s psaním. Ikonka má 16 dp
+  jako řádek popisku a slot nejmíň výšku teček s výskokem, takže výměna činnosti řádkem nepohne.
+- **Tečky skáčou jen v části periody** (`dotLift`), zbytek stojí — bez pauzy by vlnily neklidně.
+- **„Sleduje" nese emoji** (`ChatActivity.WatchingAnimation(emoji)` z
+  `chatActionWatchingAnimations.emoji`, text „sleduje 🎉…" v seznamu chatů i v konverzaci).
+  Proto je `ChatActivity` sealed rozhraní, ne výčet, a `label()` je composable, která vrací
+  hotový text. Prázdné emoji spadne na „sleduje animaci…".
 - **Vlastní „píšu" se opakuje nejvýš jednou za 5 s** (`TYPING_REPEAT`). Server činnost zhasíná
   asi po šesti vteřinách; posílat ji na každý úhoz by byl dotaz na znak.
 - **Vymazání textu psaní výslovně ukončí** (`ChatActionCancel`), odeslání ne — to ukončí server

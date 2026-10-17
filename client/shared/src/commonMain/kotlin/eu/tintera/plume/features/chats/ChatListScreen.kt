@@ -1986,7 +1986,7 @@ private fun ChatRow(
                 val customEmoji = mutableSetOf<Long>()
                 val sleepingUntil = (snooze as? RowSnooze.Sleeping)?.let { (it.until / 1000).asUpcomingTime() }
                 val subtitle: AnnotatedString? = sleepingUntil?.let { AnnotatedString(stringResource(Res.string.chats_snoozed_until, it)) }
-                    ?: chat.activity?.label()?.let { AnnotatedString(stringResource(it)) }
+                    ?: chat.activity?.let { AnnotatedString(it.label()) }
                     ?: chat.draft?.let { draft ->
                         buildAnnotatedString {
                             // Štítek jinou barvou než „píše…" (primary) — jde o náš text, ne o dění.

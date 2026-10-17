@@ -739,18 +739,21 @@ data class ChatTyping(val activity: ChatActivity, val senderId: Long, val topicI
  * Neznámé a exotické druhy spadnou do [Other] — hlásit „něco dělá" je pořád lepší než mlčet,
  * protože uživatele zajímá hlavně to, že protějšek je u telefonu.
  */
-enum class ChatActivity {
-    Typing,
-    RecordingVoice,
-    RecordingVideo,
-    SendingPhoto,
-    SendingVideo,
-    SendingFile,
-    ChoosingSticker,
+sealed interface ChatActivity {
+    data object Typing : ChatActivity
+    data object RecordingVoice : ChatActivity
+    data object RecordingVideo : ChatActivity
+    data object SendingPhoto : ChatActivity
+    data object SendingVideo : ChatActivity
+    data object SendingFile : ChatActivity
+    data object ChoosingSticker : ChatActivity
 
-    /** Sleduje efekt animovaného emoji, na které jsme ťukli (`chatActionWatchingAnimations`). */
-    WatchingAnimation,
-    Other,
+    /**
+     * Sleduje efekt animovaného emoji, na které jsme ťukli (`chatActionWatchingAnimations`).
+     * [emoji] je to emoji („sleduje 🎉…"), prázdné, když ho TDLib nepošle.
+     */
+    data class WatchingAnimation(val emoji: String) : ChatActivity
+    data object Other : ChatActivity
 }
 
 /** Vrácení smazaného konceptu ([ChatRepository.deleteDraft]). */

@@ -220,8 +220,9 @@ v `items/AnimatedEmoji.kt`.
 - **Posílá TDLib sám**: `clickAnimatedEmojiMessage` interakci odešle protějšku a vrátí samolepku
   efektu; 404 znamená, že emoji efekt nemá (pak jen poskočí). Protějškovo ťuknutí chodí jako
   `updateAnimatedEmojiMessageClicked` a má se přehrát, JEN když je zpráva vidět — a pak poslat
-  `chatActionWatchingAnimations` s emoji. Protějšek to vidí jako „sleduje animaci…"
-  (`ChatActivity.WatchingAnimation`), u nás totéž, když sleduje on.
+  `chatActionWatchingAnimations` s emoji. Protějšek to vidí jako „sleduje 🎉…" s okem
+  (`ChatActivity.WatchingAnimation`, viz „„Píše…" v konverzaci" v `konverzace-psani.md`), u nás
+  totéž, když sleduje on.
 - **Efekt čeká na zprávu jen chvíli** (`FRESH_MILLIS`, 1,5 s): vyzvedne si ho položka na
   obrazovce (`EmojiBursts.shown`) a teprve tím se hlásí „sleduje". Zpráva mimo obrazovku ho
   nevyzvedne, a na kterou se odscrolluje až potom, ta už nevybuchne — efekt patří k okamžiku

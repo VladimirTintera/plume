@@ -1971,7 +1971,7 @@ internal fun ChatAction.toActivity(): ChatActivity? = when (this) {
     is ChatActionUploadingVideo, is ChatActionUploadingVideoNote -> ChatActivity.SendingVideo
     is ChatActionUploadingDocument, is ChatActionUploadingVoiceNote -> ChatActivity.SendingFile
     is ChatActionChoosingSticker -> ChatActivity.ChoosingSticker
-    is ChatActionWatchingAnimations -> ChatActivity.WatchingAnimation
+    is ChatActionWatchingAnimations -> ChatActivity.WatchingAnimation(emoji)
     else -> ChatActivity.Other
 }
 

@@ -573,6 +573,7 @@
     <string name="activity_sending_file">posílá soubor…</string>
     <string name="activity_choosing_sticker">vybírá samolepku…</string>
     <string name="activity_watching_animation">sleduje animaci…</string>
+    <string name="activity_watching_emoji">sleduje %1$s…</string>
     <string name="activity_other">něco chystá…</string>
     <string name="conversation_empty">Zatím tu nejsou žádné zprávy.</string>
     <string name="conversation_pinned_message">Připnutá zpráva</string>
