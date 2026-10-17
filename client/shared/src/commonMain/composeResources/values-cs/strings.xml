@@ -3130,6 +3130,8 @@
     <string name="message_context_all_day">%1$s, celý den</string>
     <string name="message_context_from_model">Název a místo navrhl model v telefonu</string>
     <string name="message_context_payment_scan">Kód načte bankovní aplikace, nebo si údaje zkopírujte.</string>
+    <string name="message_context_payment_share">Sdílet QR kód</string>
+    <string name="message_context_payment_share_failed">QR kód se nepodařilo sdílet</string>
     <string name="message_context_account">Účet</string>
     <string name="message_context_amount">Částka</string>
     <string name="message_context_variable_symbol">Variabilní symbol</string>

@@ -591,6 +591,15 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   Paříže, odlet 9:40, přílet 11:25" ukáže „PRG → CDG · 1 h 45 min".
   **Neověřené**: načtení QR bankovní aplikací, editor
   události, Gemini Nano, iOS.
+- **QR platbu jde sdílet jako obrázek** („Sdílet QR kód" pod kódem, `sharePaymentQr`, PNG
+  `qrPng`, testy `QrPngTest`). QR na obrazovce telefonu týž telefon nenaskenuje; bankovní
+  aplikace ho přečte ze sdílení nebo z galerie. PNG se zapisuje vlastním kódem bez komprese
+  (černobílý obrázek 1 bit na pixel, uložené bloky deflate): ve společném kódu kodér obrázků
+  ani deflate na všech platformách není. Že je obrázek platný, ověřuje test čtením přes
+  `ImageIO` a celou cestu (text platby → QR → PNG → čtečka zxing) taky. Ověřeno na emulátoru
+  Fold: zpráva s účtem 2000145399/0800 od testovacího bota → „Sdílet QR kód" → systémový dialog
+  „Sharing image" s náhledem QR. **Pozor na číslo účtu ve zkouškách**: neplatné (nesplní
+  kontrolu modulo 11, třeba 123456789/0800) se za účet nepovažuje a nabídne se jako telefon.
 
 ### Strukturovaný výstup
 

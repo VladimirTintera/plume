@@ -664,8 +664,8 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
   - ~~**čísla PPL a DPD**~~ — hotovo, jen se jménem dopravce poblíž (`fix/akce-ze-zprav-drobnosti`),
   - **místo od modelu bývá vágní** („letišti", „Kotvy") a mapy s ním neporadí — chtělo by to
     nabízet mapy jen u místa, které vypadá jako adresa nebo název,
-  - **QR platbu sdílet jako obrázek** — ve stejném telefonu se z obrazovky nenaskenuje, část
-    bankovních aplikací ale umí QR z galerie,
+  - ~~**QR platbu sdílet jako obrázek**~~ — hotovo („Sdílet QR kód"; načtení bankovní aplikací
+    zbývá ověřit na telefonu),
   - **`TextClassifier` / ML Kit Entity Extraction / `NSDataDetector`** místo vlastních pravidel —
     ověřit češtinu (ML Kit Entity Extraction ji v seznamu jazyků podle všeho nemá).
 - **Triáž chatů.** Odznak „čeká na odpověď" vs. „jen informace" v seznamu chatů. Rozhodnutí

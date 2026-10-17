@@ -1,5 +1,11 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.message_context_payment_share_failed
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import okio.FileSystem
+import eu.tintera.plume.core.ui.qrPng
+import eu.tintera.plume.core.ui.encodeQrCode
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.ai.ScamKind
 import eu.tintera.plume.core.calendar.CalendarEvent
@@ -66,6 +72,8 @@ internal class ConversationMessageContext(
     private val joinWifiNetwork: ((ssid: String, password: String) -> WifiJoin)?,
     /** Umí telefon nabídnout připojení k Wi-Fi ze zprávy? Na iOS ne (viz `WifiJoiner`). */
     val canJoinWifi: Boolean,
+    /** Sdílení souboru (`MediaSharer.share`); bez něj se QR platba jako obrázek nenabízí. */
+    private val shareFile: (suspend (path: String, fileName: String) -> Boolean)? = null,
     /** Kurzovní lístek (`ExchangeRates.table`); `null` = převod měny bez kurzu. */
     private val loadRates: (suspend () -> RateTable?)?,
     /** Měna uživatele podle regionu telefonu; částky v ní se v akcích u zprávy nepřevádějí. */
@@ -264,6 +272,27 @@ internal class ConversationMessageContext(
         }
     }
 
+    /** Jde QR platbu sdílet jako obrázek? */
+    val canSharePaymentQr: Boolean get() = shareFile != null
+
+    /**
+     * QR platba jako obrázek do dialogu sdílení: z obrazovky telefonu ji týž telefon nenaskenuje,
+     * ale řada bankovních aplikací umí QR z obrázku (sdílením nebo z galerie). Soubor je
+     * v dočasném adresáři a při dalším sdílení se přepíše.
+     */
+    fun sharePaymentQr(payment: ContextFinding.Payment) {
+        val share = shareFile ?: return
+        scope.launch {
+            val shared = runCatching {
+                val qr = encodeQrCode(payment.spayd()) ?: error("QR kód platby se nepodařilo zakódovat.")
+                val path = FileSystem.SYSTEM_TEMPORARY_DIRECTORY / PAYMENT_QR_FILE
+                withContext(Dispatchers.Default) { FileSystem.SYSTEM.write(path) { write(qrPng(qr)) } }
+                share(path.toString(), PAYMENT_QR_FILE)
+            }.onFailure { logger.w(it) { "QR platbu se nepodařilo sdílet." } }.getOrDefault(false)
+            if (!shared) state.update { it.copy(notice = UiText(Res.string.message_context_payment_share_failed)) }
+        }
+    }
+
     /** Kontakt ze zprávy do systémového editoru kontaktů; uloží ho až uživatel. */
     fun saveContact(contact: ContextFinding.Contact) {
         val save = saveNewContact ?: return
@@ -317,3 +346,6 @@ internal fun ContextFinding.Flight.calendarEvent(title: String, messageText: Str
         end = schedule?.end,
     )
 }
+
+/** Jméno sdíleného obrázku s QR platbou — příjemce ho uvidí jako název souboru. */
+private const val PAYMENT_QR_FILE = "qr-platba.png"
