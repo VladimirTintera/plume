@@ -260,6 +260,24 @@ Pro tuhle oblast podstatné: **engine se zvukem je jiný engine** (`EngineConfig
 `withEngine(audio = true)` ho načte a pak slouží všemu; bez zvuku se kvůli přepisu přenačte.
 Na emulátoru (CPU) 7,5 s řeči za 11 s i s načtením.
 
+### Popis fotky (obrazový vstup Gemmy)
+
+Gemma 4 umí i obraz (`OnDeviceAi.describeImage`, prompt `ImagePrompt.kt`); v aplikaci ho
+používá prohlížeč (`prohlizec-medii.md`, „Popis fotky"). LiteRT-LM 0.11.0 bere
+`Content.ImageBytes` / `Content.ImageFile` vedle textu v jedné zprávě, stejně jako zvuk.
+
+- **Engine s obrazem je zase jiný engine** (`EngineConfig.visionBackend`, `maxNumImages = 1`).
+  Obraz počítá týž backend jako text (Gallery: GPU, když jde) a s CPU zálohou spadne spolu
+  s ním. **Přenačtený engine si nechá, co uměl** (`withEngine`: zvuk i obraz se sčítají), jinak
+  by se přepis hlasovky a popis fotky střídaly přenačítáním po deseti vteřinách.
+- **Obrázek dekóduje systém a zmenší na 1024 px** (`ImageInput`, PNG jako v Gallery). Kodér
+  si ho zmenší sám (v logu `vision_280` — signatura kodéru), plný originál by jen držel desítky MB.
+- **E2B píše česky s chybami** („malownicý kraj", „limevé barvy") — obsah sedí, sloh ne.
+  U snímku obrazovky s pokynem „řekni, o čem text je, neopisuj ho celý" vyjmenovala všechny
+  popisky v uvozovkách; „jen druh textu (účtenka, cedule, obrazovka aplikace), necituj" výčet
+  zkrátila na pár položek. Úplně se ho nezbaví.
+- **Čas na emulátoru (CPU)**: první popis i s přenačtením enginu ~13 s.
+
 ### Kontrola tónu
 
 Sheet „Zkontrolovat a přepsat…" (viz „Přepis před odesláním") se po otevření sám zeptá, jak

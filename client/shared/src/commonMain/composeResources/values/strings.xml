@@ -285,6 +285,12 @@
     <string name="media_text_copied">Text copied</string>
     <string name="media_text_none">No text found in the photo</string>
     <string name="media_text_failed">Couldn't recognize text. Try again in a moment.</string>
+    <string name="media_describe">Describe photo</string>
+    <string name="media_describe_hide">Hide description</string>
+    <string name="media_describe_title">Photo description</string>
+    <string name="media_describe_progress">Looking at the photo…</string>
+    <string name="media_describe_disclaimer">Written by the model on your phone. It may be wrong.</string>
+    <string name="media_describe_failed">Couldn't describe the photo. Try again in a moment.</string>
     <string name="media_save_denied">Plume isn't allowed to save to the gallery</string>
     <string name="media_share">Share</string>
     <string name="media_more">More options</string>

@@ -791,6 +791,8 @@ fun appModule() = module {
             appScope = get(named(APP_SCOPE)),
             textRecognizer = getOrNull(),
             clipboard = get(),
+            onDeviceAi = getOrNull(),
+            settings = get(),
         )
     }
 

@@ -292,6 +292,54 @@ class LiteRtOnDeviceAi(
             }
         }
 
+    /** Gemma 4 (E2B i E4B) obrázky umí, stejně jako zvuk; stačí připravený model. */
+    override suspend fun canDescribeImage(variant: ModelVariant): Boolean = status(variant) == OnDeviceAiStatus.Ready
+
+    /**
+     * Popis fotky: obrázek zmenšený na [MAX_IMAGE_SIDE] ([ImageInput]) a pokyn vedle něj, jedna
+     * konverzace. Engine musí mít obrazový backend (`visionBackend`), proto se načte s ním;
+     * pak poslouží i textovým funkcím.
+     */
+    override fun describeImage(variant: ModelVariant, imagePath: String, languageCode: String): Flow<Generated> = flow {
+        val image = withContext(Dispatchers.IO) { ImageInput.png(imagePath, MAX_IMAGE_SIDE) }
+            ?: throw IOException("Image $imagePath cannot be decoded")
+        withEngine(variant.gemma, vision = true) { engine ->
+            val conversation = engine.createConversation(
+                ConversationConfig(samplerConfig = SamplerConfig(topK = 40, topP = 0.95, temperature = 0.2)),
+            )
+            var finished = false
+            try {
+                val text = StringBuilder()
+                try {
+                    conversation.sendMessageAsync(
+                        Contents.of(Content.ImageBytes(image), Content.Text(imageDescriptionPrompt(languageCode))),
+                        extraContext = mapOf("enable_thinking" to false),
+                    ).collect { message ->
+                        text.append(message.toString())
+                        if (text.length >= MAX_OUTPUT_CHARS) {
+                            emit(Generated(text.substring(0, MAX_OUTPUT_CHARS), truncated = true))
+                            throw OutputLimitReached
+                        }
+                        emit(Generated(text.toString().trimStart()))
+                    }
+                    finished = true
+                } catch (e: OutputLimitReached) {
+                    // Useknutí je platný výsledek, ne chyba — `truncated` už odešlo.
+                }
+            } finally {
+                if (!finished) quietly { conversation.cancelProcess() }
+                quietly { conversation.close() }
+            }
+        }
+    }.flowOn(Dispatchers.Default)
+        .catch { e ->
+            throw if (e is Exception && e !is OnDeviceAiException) {
+                OnDeviceAiException(AiFailureReason.ModelError, AiProvider.Gemma, cause = e)
+            } else {
+                e
+            }
+        }
+
     private fun joinTranscript(done: StringBuilder, part: StringBuilder): String =
         if (done.isEmpty()) part.toString().trimStart() else "$done ${part.toString().trimStart()}"
 
@@ -313,13 +361,23 @@ class LiteRtOnDeviceAi(
      * Engine pro [model]: načtený se použije, jiný se nejdřív zavře (dva by se do paměti
      * nevešly). Po doběhnutí se naplánuje uvolnění — příští použití ho zase zruší.
      */
-    private suspend fun <T> withEngine(model: GemmaModel, audio: Boolean = false, block: suspend (Engine) -> T): T = engineLock.withLock {
+    private suspend fun <T> withEngine(
+        model: GemmaModel,
+        audio: Boolean = false,
+        vision: Boolean = false,
+        block: suspend (Engine) -> T,
+    ): T = engineLock.withLock {
         idleUnload?.cancel()
-        // Engine se zvukem poslouží i textu; bez zvuku se pro přepis musí načíst znovu.
-        val engine = loaded?.takeIf { it.model == model && (it.audio || !audio) }?.engine ?: run {
+        // Engine se zvukem (obrazem) poslouží i textu; bez něj se pro přepis (popis) musí načíst
+        // znovu. Při přenačtení si nechá i to, co uměl dosud, ať se přepis a popis nestřídají
+        // přenačítáním.
+        val current = loaded?.takeIf { it.model == model }
+        val engine = current?.takeIf { (it.audio || !audio) && (it.vision || !vision) }?.engine ?: run {
+            val withAudio = audio || current?.audio == true
+            val withVision = vision || current?.vision == true
             unloadLocked()
             if (!model.file().exists()) throw IOException("Model ${model.displayName} is not downloaded")
-            createEngine(model, audio).also { loaded = LoadedEngine(model, audio, it) }
+            createEngine(model, withAudio, withVision).also { loaded = LoadedEngine(model, withAudio, withVision, it) }
         }
         try {
             block(engine)
@@ -342,12 +400,16 @@ class LiteRtOnDeviceAi(
      * funguje. `LinkageError` se chytá kvůli nativní knihovně, stejně jako u ML Kitu: na zařízení,
      * kde se nenačte, nesmí aplikace spadnout jen proto, že si někdo zapnul volitelnou funkci.
      */
-    private suspend fun createEngine(model: GemmaModel, audio: Boolean): Engine = withContext(Dispatchers.Default) {
+    private suspend fun createEngine(model: GemmaModel, audio: Boolean, vision: Boolean): Engine = withContext(Dispatchers.Default) {
         fun start(backend: Backend) = Engine(
             EngineConfig(
                 modelPath = model.file().absolutePath,
                 backend = backend,
+                // Obraz počítá týž backend jako text (Gallery: GPU, když jde) — na CPU se
+                // spadne spolu s ním.
+                visionBackend = if (vision) backend else null,
                 audioBackend = if (audio) Backend.CPU() else null,
+                maxNumImages = if (vision) 1 else null,
                 maxNumTokens = MAX_NUM_TOKENS,
                 // Keš zkompilovaného modelu zrychlí druhé načtení; do `cacheDir`, ať ji systém
                 // smí uklidit — soubor modelu vedle ní je drahý, keš ne.
@@ -533,6 +595,9 @@ class LiteRtOnDeviceAi(
 
         const val IDLE_UNLOAD_MS = 120_000L
 
+        /** Delší strana obrázku pro model. Kodér si ho zmenší sám; větší jen zdrží dekódování. */
+        const val MAX_IMAGE_SIDE = 1_024
+
         /** Pokusy o navázání, během kterých nepřibyl ani bajt; pak se stahování vzdá. */
         const val MAX_RETRIES_WITHOUT_PROGRESS = 5
 
@@ -554,4 +619,4 @@ class LiteRtOnDeviceAi(
 }
 
 /** Načtený engine: který model a jestli má zvukový backend (jen ten umí přepis). */
-private class LoadedEngine(val model: GemmaModel, val audio: Boolean, val engine: Engine)
+private class LoadedEngine(val model: GemmaModel, val audio: Boolean, val vision: Boolean, val engine: Engine)

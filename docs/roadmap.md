@@ -712,8 +712,12 @@ stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v
 - **„Co jsem zmeškal".** Po otevření aplikace přehled nepřečtených chatů seřazený podle toho,
   co čeká na odpověď (rozšíření triáže chatů výš o souhrnnou obrazovku). Běží v popředí, takže
   omezení AICore nevadí; výsledek kešovat podle id poslední zprávy.
-- **Popis obrázků** pro čtečku obrazovky a hledání fotek podle obsahu. **Ověřit napřed**, jestli
-  Gemma přes LiteRT-LM 0.11.0 přijímá obrázky — Gemini Nano přes Prompt API zatím jen text.
+- **Popis obrázků** — ~~ověřit, jestli Gemma přes LiteRT-LM 0.11.0 přijímá obrázky~~ přijímá;
+  ~~„Popsat fotku" v prohlížeči~~ hotovo (`docs/poznatky/prohlizec-medii.md`, „Popis fotky").
+  Zbývá **popis jako `contentDescription` fotky v bublině** (čtečka by ho přečetla bez otevření
+  prohlížeče — chce keš popisů, model se nedá pouštět na každou fotku v seznamu) a **hledání
+  fotek podle obsahu** (popisy předem v pozadí, tedy jen na nabíječce a s limitem). Gemini Nano
+  přes Prompt API zatím jen text.
 - ~~**Offline překlad přes ML Kit Translation**~~ — hotovo na Androidu (přepínač „Překládat
   v telefonu" v sheetu překladu; `docs/poznatky/konverzace-akce.md`, „Překlad v telefonu").
   ~~Správa stažených balíčků~~ hotovo (Nastavení → Úložiště → Balíčky pro překlad).

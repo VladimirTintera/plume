@@ -19,6 +19,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import eu.tintera.plume.core.video.VideoQualityChoice
 import eu.tintera.plume.resources.text_select_24dp
 import eu.tintera.plume.resources.media_text_hide
+import eu.tintera.plume.resources.auto_awesome_24dp
+import eu.tintera.plume.resources.media_describe
+import eu.tintera.plume.resources.media_describe_hide
 import eu.tintera.plume.resources.media_text
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.material3.IconButtonDefaults
@@ -280,6 +283,9 @@ fun MediaViewerScreen(
                 onClearTextSelection = viewModel::clearTextSelection,
                 onCopyText = viewModel::copyRecognizedText,
                 onCloseText = viewModel::closeRecognizedText,
+                onDescribePhoto = if (state.canDescribePhoto) viewModel::describePhoto else null,
+                onCopyDescription = viewModel::copyPhotoDescription,
+                onCloseDescription = viewModel::closePhotoDescription,
                 onFocusShown = viewModel::focusShown,
                 onDismiss = {
                     viewModel.onDismiss()
@@ -370,6 +376,10 @@ private fun ViewerContent(
     onClearTextSelection: () -> Unit,
     onCopyText: () -> Unit,
     onCloseText: () -> Unit,
+    /** Popis fotky modelem v telefonu; `null` = AI v zařízení vypnutá nebo model obraz nebere. */
+    onDescribePhoto: ((messageId: Long) -> Unit)?,
+    onCopyDescription: () -> Unit,
+    onCloseDescription: () -> Unit,
     onFocusShown: () -> Unit,
     onDismiss: () -> Unit,
     startSeconds: Int,
@@ -705,6 +715,10 @@ private fun ViewerContent(
                     onRecognizeText = onRecognizeText
                         ?.takeIf { current.media is MessageMedia.Photo }
                         ?.let { recognize -> { recognize(current.messageId) } },
+                    // Totéž omezení jako text z fotky: popis by obešel zákaz ukládání.
+                    onDescribePhoto = onDescribePhoto
+                        ?.takeIf { current.media is MessageMedia.Photo }
+                        ?.let { describe -> { describe(current.messageId) } },
                 )
             }
         }
@@ -741,8 +755,9 @@ private fun ViewerContent(
         // Odpovědět jde, jen když je kam (konverzace pod prohlížečem) a server to u zprávy dovolí.
         val canReply = onReply != null && current != null && state.actions[current.messageId]?.canReply == true
         val photoText = state.recognizedText?.takeIf { it.messageId == current?.messageId }
+        val photoDescription = state.photoDescription?.takeIf { it.messageId == current?.messageId }
         val reactionsVisible = settled && !immersive && current != null && (emoji.isNotEmpty() || canReply) &&
-            !state.isSelfDestruct && photoText == null
+            !state.isSelfDestruct && photoText == null && photoDescription == null
         var reactionsArrived by remember { mutableStateOf(false) }
         LaunchedEffect(reactionsVisible) { if (reactionsVisible) reactionsArrived = true }
         val reactionsEnter = if (reactionsArrived) {
@@ -781,6 +796,20 @@ private fun ViewerContent(
         ) {
             lastPhotoText?.let { shown ->
                 PhotoTextPanel(text = shown, onCopy = onCopyText, onClearSelection = onClearTextSelection, onClose = onCloseText)
+            }
+        }
+
+        // Popis fotky na témže místě; oba panely naráz nejsou (ViewModel jeden zavře druhým).
+        var lastDescription by remember { mutableStateOf(photoDescription) }
+        if (photoDescription != null) lastDescription = photoDescription
+        AnimatedVisibility(
+            visible = photoDescription != null && !immersive,
+            enter = slideInVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it } + chromeEnter,
+            exit = slideOutVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) { it } + chromeExit,
+            modifier = Modifier.align(Alignment.BottomCenter).then(fadeWithDismiss),
+        ) {
+            lastDescription?.let { shown ->
+                PhotoDescriptionPanel(description = shown, onCopy = onCopyDescription, onClose = onCloseDescription)
             }
         }
     }
@@ -888,6 +917,7 @@ private fun TopBar(
     onSetMainProfilePhoto: () -> Unit,
     onDeleteProfilePhoto: () -> Unit,
     onRecognizeText: (() -> Unit)?,
+    onDescribePhoto: (() -> Unit)?,
 ) {
     val actions = state.actions[item.messageId]
 
@@ -957,13 +987,15 @@ private fun TopBar(
         val saveAs = onSaveAs?.takeIf { canSave }
         val recognizeText = onRecognizeText?.takeIf { canSave }
         val textShown = state.recognizedText?.messageId == item.messageId
+        val describePhoto = onDescribePhoto?.takeIf { canSave }
+        val descriptionShown = state.photoDescription?.messageId == item.messageId
         // Vlastní profilovky: starší jde nastavit zase jako hlavní (ta nejnovější hlavní je)
         // a každou smazat. Cizí profilovky a fotky skupin tohle nemají — TDLib to neumí.
         val own = state.ownProfilePhotos
         val canSetMain = own && item.messageId != state.items.lastOrNull()?.messageId
-        if (canForward || canDelete || saveAs != null || own || recognizeText != null) {
+        if (canForward || canDelete || saveAs != null || own || recognizeText != null || describePhoto != null) {
             var menuOpen by remember { mutableStateOf(false) }
-            BusyOr(busy == MediaTask.SaveAs || busy == MediaTask.Text) {
+            BusyOr(busy == MediaTask.SaveAs || busy == MediaTask.Text || busy == MediaTask.Describe) {
                 Box {
                     ChromeIcon(Res.drawable.more_vert_24dp, stringResource(Res.string.media_more)) { menuOpen = true }
                     ExpressiveMenu(
@@ -975,6 +1007,13 @@ private fun TopBar(
                                     MenuAction(
                                         stringResource(if (textShown) Res.string.media_text_hide else Res.string.media_text),
                                         Res.drawable.text_select_24dp,
+                                        onClick = it,
+                                    )
+                                },
+                                describePhoto?.let {
+                                    MenuAction(
+                                        stringResource(if (descriptionShown) Res.string.media_describe_hide else Res.string.media_describe),
+                                        Res.drawable.auto_awesome_24dp,
                                         onClick = it,
                                     )
                                 },
