@@ -1646,6 +1646,7 @@ class TdlChatRepository(
                 nameOf = nameOf,
                 taskTexts = { checklistMessageId -> client.checklistTaskTexts(chatId, checklistMessageId) },
             )
+            ?: namedActorServiceText(myUserId = { myUserId }, nameOf = nameOf)
             ?: namedPinServiceText(
                 myUserId = { myUserId },
                 nameOf = nameOf,

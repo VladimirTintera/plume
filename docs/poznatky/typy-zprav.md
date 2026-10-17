@@ -26,8 +26,8 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
     id dalších lidí (`memberUserIds`, `userId`). Kdo je „ty", rozhoduje vlastní id (u aktéra
     i `isOutgoing`).
   - **Jména se dohledávají jen u zpráv o členech a jen ta, která věta použije** — u hromadného
-    přidání první dvě, zbytek je „a 4 další". Z ostatních servisních zpráv má jméno jen
-    připnutí a seznam úkolů.
+    přidání první dvě, zbytek je „a 4 další". Ostatní oznámení mají jméno jen
+    aktéra (viz níž), ostatní lidi v nich nejsou.
   - **Bez jména zůstane bezejmenná věta** (`serviceText`): kdo se ze skupiny dávno ztratil
     a TDLib ho nezná, nedostane prázdné místo ani „null".
   - **Čeština rod nezná, proto „(a)"**, stejně jako oficiální klient. Předmět („přidal(a)
@@ -45,6 +45,15 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
   lokálně není, nebo médium bez popisku dostane „připnul(a) zprávu". Delší text se zkrátí
   na 40 znaků (`quotedTask`). Připnul-li zprávu chat (anonymní správce, kanál), jméno se
   nevypisuje: byl by to název téhož chatu.
+- **Jméno aktéra mají i ostatní oznámení, která někdo udělal** (`actorServiceText`, testy
+  `ActorServiceTextTest`): změna názvu a fotky, snímek obrazovky, témata (vytvoření,
+  přejmenování, ikona, uzavření, skrytí), boost, skóre ve hře, „Jana je teď na Telegramu"
+  a připojení z komunity. Aktér je odesílatel oznámení, takže se dohledává jediné jméno,
+  stejně jako u připnutí. Oznámení od chatu (kanál, anonymní správce) jméno nedostane
+  a zůstane u bezejmenné věty — u kanálu je to tak správně, oznámení posílá kanál sám.
+  „Ty ses připojil(a) k Telegramu" nemá kdy přijít, vlastní zpráva o registraci zůstane
+  bezejmenná. Ověřeno na emulátoru: bot přejmenoval testovací skupinu tam a zpět („Notifikator
+  změnil(a) název na …") a starší oznámení o tématu se ukázala jako „Uzavřel(a) jsi téma".
 - **Oznámení, které mluví o jiné zprávě, na ni ťuknutím skočí** (`serviceTargetMessageId`:
   připnutí, změna možnosti ankety, konec soutěže, skóre ve hře). Skok je tentýž jako u citace
   (`MessageAction.JumpTo`), takže cílová zpráva se zvlněně zvýrazní. Odkaz pod textem tu
