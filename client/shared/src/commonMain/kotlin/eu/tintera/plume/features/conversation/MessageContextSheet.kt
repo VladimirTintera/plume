@@ -297,8 +297,8 @@ private fun EventSection(
         onClick = onRemind,
     )
     // Místo od modelu je ze zprávy, jak stálo („na Černém Mostě u kina") — mapy si s tvarem
-    // poradí, hledání nemusí být v prvním pádu.
-    event.place?.let { place ->
+    // poradí, hledání nemusí být v prvním pádu. Vágní místo („letišti") mapy nedostane.
+    event.mapsQuery()?.let { place ->
         SheetActionRow(
             icon = Res.drawable.map_24dp,
             label = stringResource(Res.string.message_context_maps),

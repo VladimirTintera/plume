@@ -591,6 +591,13 @@ od podvodu se kvůli tomu nic nestahuje a model se přidá, jen když si AI v za
   Paříže, odlet 9:40, přílet 11:25" ukáže „PRG → CDG · 1 h 45 min".
   **Neověřené**: načtení QR bankovní aplikací, editor
   události, Gemini Nano, iOS.
+- **Mapy jen u místa, se kterým si poradí** (`ContextFinding.Event.mapsQuery`, testy
+  `MessageContextTest`). Model bere místo ze zprávy, jak stálo, a bývá vágní („letišti",
+  „u kina", samotné „Kotvy") — mapy pak ukázaly něco náhodného v okolí. „Otevřít v mapách"
+  se nabízí jen u místa s číslem („Vinohradské 12", PSČ) nebo s vlastním jménem dál než na
+  začátku („na Černém Mostě u kina", „U Fleků"); velké první slovo nestačí, model ho píše
+  i u „Na letišti". Místo samo se v kartě ukazuje dál. Ověřeno s Gemmou na emulátoru Fold:
+  „Sraz zítra v 18:00 na letišti" → místo „letišti" bez map, „… na Vinohradské 12" → mapy.
 - **QR platbu jde sdílet jako obrázek** („Sdílet QR kód" pod kódem, `sharePaymentQr`, PNG
   `qrPng`, testy `QrPngTest`). QR na obrazovce telefonu týž telefon nenaskenuje; bankovní
   aplikace ho přečte ze sdílení nebo z galerie. PNG se zapisuje vlastním kódem bez komprese

@@ -303,6 +303,22 @@ sealed interface EventVerdict {
 
 /** Odkaz na sledování zásilky; [language] je jazyk aplikace (Zásilkovna má stránku česky i anglicky). */
 /**
+ * Místo události pro mapy, nebo `null`, když s ním mapy neporadí. Model ho bere ze zprávy, jak
+ * stálo, a bývá vágní („letišti", „u kina", samotné „Kotvy") — mapy pak ukážou něco náhodného
+ * v okolí. Nabízí se jen místo, které vypadá jako adresa nebo vlastní jméno: s číslem („Vinohradská
+ * 12", PSČ) nebo víc slov s vlastním jménem dál než na začátku („na Černém Mostě u kina",
+ * „Café Louvre", „U Fleků"). Samotné místo se v kartě ukazuje dál — jen tlačítko map ne.
+ */
+fun ContextFinding.Event.mapsQuery(): String? {
+    val text = place?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    if (text.any { it.isDigit() }) return text
+    val words = text.split(' ', ',').filter { it.isNotBlank() }
+    // Velké písmeno až od druhého slova: první může být velké jen proto, že model začal větou
+    // („Na letišti"), kdežto „U Fleků" nebo „Náměstí Míru" mají vlastní jméno dál.
+    return text.takeIf { words.drop(1).any { it.first().isUpperCase() } }
+}
+
+/**
  * Stav letu na FlightAware. Bere kód IATA („BA117") a sám ho převede na ICAO; ověřeno curlem
  * (Flightradar24 robotům vrací 403, takže se ověřit nedal).
  */
