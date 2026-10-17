@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.telegram
 
+import dev.g000sha256.tdl.dto.MessageSuggestBirthdate
+
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.conversation_send_failed_unknown
 import co.touchlab.kermit.Logger
@@ -1589,6 +1591,12 @@ class TdlConversationRepository(
         contact.userId
     }
 
+    override suspend fun acceptSuggestedBirthdate(chatId: Long, messageId: Long): Result<Unit> = runCatching {
+        val message = client.getMessage(chatId = chatId, messageId = messageId).toResult().getOrThrow()
+        val suggested = message.content as? MessageSuggestBirthdate ?: error("Zpráva $messageId nenese návrh data narození.")
+        client.setBirthdate(birthdate = suggested.birthdate).toResult().getOrThrow()
+    }
+
     override suspend fun contactCard(userId: Long): Result<MessageMedia.Contact> = runCatching {
         val user = client.getUser(userId = userId).toResult().getOrThrow()
         MessageMedia.Contact(
@@ -2583,6 +2591,7 @@ class TdlConversationRepository(
             upgradeLink = content.upgradeLink(),
             serviceTargetMessageId = content.serviceTargetMessageId(),
             serviceOpen = content.serviceOpenTarget(),
+            suggestedBirthdate = (content as? MessageSuggestBirthdate)?.takeIf { !outgoing }?.birthdate?.toDomain(),
             timestamp = date,
             isEdited = editDate > 0,
             mediaAlbumId = mediaAlbumId,

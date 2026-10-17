@@ -633,6 +633,13 @@ interface ConversationRepository {
     suspend fun addSharedContact(chatId: Long, messageId: Long): Result<Long>
 
     /**
+     * Nastaví vlastní datum narození na to, které protějšek navrhl zprávou [messageId]
+     * (`MessageSuggestBirthdate`). Kdo datum uvidí, řídí dál soukromí účtu.
+     */
+    suspend fun acceptSuggestedBirthdate(chatId: Long, messageId: Long): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
      * Pošle kontakt [userId] (`InputMessageContact`): jméno a číslo z účtu, s id uživatele, takže
      * u příjemce jde rovnou „Napsat zprávu". Vrací rozepsanou zprávu hned jako [send].
      */
@@ -1380,6 +1387,8 @@ data class ChatMessage(
     val serviceTargetMessageId: Long? = null,
     /** Kam servisní oznámení vede ťuknutím mimo tenhle chat (sdílený chat nebo člověk). */
     val serviceOpen: ServiceOpen? = null,
+    /** Datum narození, které protějšek navrhuje (`MessageSuggestBirthdate`); u vlastního návrhu `null`. */
+    val suggestedBirthdate: Birthdate? = null,
     /** Unixový čas v sekundách, jak ho dává TDLib. */
     val timestamp: Int,
     val isEdited: Boolean,

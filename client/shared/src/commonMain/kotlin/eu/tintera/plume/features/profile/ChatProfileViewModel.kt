@@ -1,5 +1,11 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.birthdate_suggest_failed
+
+import eu.tintera.plume.resources.birthdate_suggest_sent
+
+import eu.tintera.plume.core.telegram.Birthdate
+
 import eu.tintera.plume.core.navigation.ContactOffers
 import eu.tintera.plume.core.telegram.SharedMediaPositions
 import eu.tintera.plume.core.telegram.mergeCalendarDays
@@ -678,6 +684,16 @@ class ChatProfileViewModel(
      * Blokování vede přes [ChatRepository], ne přes profil: je to tatáž akce jako v nabídce nad
      * chatem v seznamu a dvě cesty k `setMessageSenderBlockList` by se dřív nebo později rozešly.
      */
+    /** Navrhne člověku datum narození; přijde mu jako zpráva s „Nastavit". */
+    fun suggestBirthdate(birthdate: Birthdate) {
+        val userId = _state.value.profile?.userId ?: return
+        viewModelScope.launch {
+            profiles.suggestBirthdate(userId, birthdate)
+                .onSuccess { _state.update { it.copy(error = UiText(Res.string.birthdate_suggest_sent)) } }
+                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.birthdate_suggest_failed)) } }
+        }
+    }
+
     fun setBlocked(blocked: Boolean) {
         val profile = _state.value.profile ?: return
         // Koho blokovat, si repository zjistí z chatu; tady jen hlídáme, že tenhle chat někoho má.

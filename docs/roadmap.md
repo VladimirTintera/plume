@@ -396,8 +396,8 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   Soukromí); přidat klíč ani se jím přihlásit cizí klient NEMŮŽE (`docs/poznatky/nastaveni.md`,
   „Přístupové klíče").
 - ~~Narozeniny~~ — hotovo: vlastní datum v úpravě profilu, datum v profilu kontaktu, karta
-  s narozeninami kontaktů (`docs/poznatky/nastaveni.md`, „Narozeniny"). Zbývá návrh data
-  narození od kontaktu (`MessageSuggestBirthdate`), dnes jen popis zprávy.
+  s narozeninami kontaktů (`docs/poznatky/nastaveni.md`, „Narozeniny") ~~a návrh data narození
+  od kontaktu~~ (odeslání z profilu, přijetí s „Nastavit"; tamtéž).
 - ~~Osobní kanál v profilu~~ — hotovo (`docs/poznatky/nastaveni.md`, „Osobní kanál"). ~~Víc
   uživatelských jmen~~ — hotovo pro vlastní účet (`docs/poznatky/nastaveni.md`, „Víc uživatelských
   jmen"); kanály, skupiny a boti zbývají.

@@ -2,6 +2,9 @@ package eu.tintera.plume.core.telegram
 
 import dev.g000sha256.tdl.dto.MessageBasicGroupChatCreate
 import dev.g000sha256.tdl.dto.MessageBotWriteAccessAllowed
+import dev.g000sha256.tdl.dto.MessageSuggestBirthdate
+import eu.tintera.plume.core.ui.labelUiText
+import eu.tintera.plume.resources.service_suggested_birthdate
 import dev.g000sha256.tdl.dto.MessageChatShared
 import dev.g000sha256.tdl.dto.MessageUsersShared
 import dev.g000sha256.tdl.dto.BotWriteAccessAllowReasonAcceptedRequest
@@ -388,6 +391,9 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
     // věta pro případ, že nic dohledat nejde.
     is MessageChatShared -> sharedChatText(chat.title)
     is MessageUsersShared -> sharedUsersText(users.map { it.ownName() })
+
+    // Datum je obsah návrhu. Jméno (kdo navrhuje) a „Nastavit" přidává konverzace.
+    is MessageSuggestBirthdate -> UiText(Res.string.service_suggested_birthdate, birthdate.toDomain().labelUiText())
 
     is MessageBotWriteAccessAllowed -> when (val why = reason) {
         is BotWriteAccessAllowReasonConnectedWebsite -> UiText(Res.string.service_bot_write_access_website, why.domainName)

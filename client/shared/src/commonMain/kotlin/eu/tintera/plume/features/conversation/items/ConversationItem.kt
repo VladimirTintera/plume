@@ -338,6 +338,7 @@ internal data class ServiceMessageItem(
                             message,
                             onOpenChat = { scope.onAction(message.id, MessageAction.OpenChat(it)) },
                             onJumpTo = { scope.onAction(message.id, MessageAction.JumpTo(it)) },
+                            onAcceptBirthdate = { scope.onAction(message.id, MessageAction.AcceptSuggestedBirthdate) },
                             onOpen = { open ->
                                 scope.onAction(
                                     message.id,

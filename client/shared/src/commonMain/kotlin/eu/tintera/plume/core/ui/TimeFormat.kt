@@ -337,6 +337,13 @@ fun Int.dateUiText(): UiText {
     }
 }
 
+/** Datum narození jako [UiText] („12. října 1990", bez roku „12. října") — pro věty mimo kompozici. */
+fun Birthdate.labelUiText(): UiText {
+    val monthName = UiText(Month(month).name())
+    return year?.let { UiText(Res.string.date_day_month_year, day, monthName, it) }
+        ?: UiText(Res.string.date_day_month, day, monthName)
+}
+
 /** Datum narození: „12. října 1990", bez roku „12. října". */
 @Composable
 fun Birthdate.label(): String {

@@ -142,7 +142,6 @@ import dev.g000sha256.tdl.dto.MessageGiftedGrams
 import dev.g000sha256.tdl.dto.MessageGroupCall
 import dev.g000sha256.tdl.dto.MessageRichMessage
 import dev.g000sha256.tdl.dto.RichMessage
-import dev.g000sha256.tdl.dto.MessageSuggestBirthdate
 import dev.g000sha256.tdl.dto.MessageSuggestProfilePhoto
 import dev.g000sha256.tdl.dto.PageBlock
 import dev.g000sha256.tdl.dto.PageBlockHeader
@@ -518,7 +517,6 @@ private fun MessageContent.describe(isChannelPost: Boolean): UiText? = when (thi
     is MessageGiveaway -> UiText(Res.string.content_giveaway)
     is MessageGiveawayWinners -> UiText(Res.string.content_giveaway_winners)
     is MessageSuggestProfilePhoto -> UiText(Res.string.content_suggested_photo)
-    is MessageSuggestBirthdate -> UiText(Res.string.content_suggested_birthdate)
     // Článek složený z bloků (TDLib 15). Kreslit ho neumíme, jeho text ano — prázdný je jen
     // článek ze samých obrázků.
     is MessageRichMessage -> message.blocks.plainText().orText(Res.string.content_rich_message)
