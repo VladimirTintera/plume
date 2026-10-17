@@ -669,9 +669,10 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
     zbývá ověřit na telefonu),
   - **`TextClassifier` / ML Kit Entity Extraction / `NSDataDetector`** místo vlastních pravidel —
     ověřit češtinu (ML Kit Entity Extraction ji v seznamu jazyků podle všeho nemá).
-- **Triáž chatů.** Odznak „čeká na odpověď" vs. „jen informace" v seznamu chatů. Rozhodnutí
-  ano/ne nad krátkým textem je rychlé (0,2–0,4 s), ale **počítá se pro každý chat zvlášť**,
-  takže musí běžet nad načteným seznamem a výsledek se musí kešovat podle id zprávy.
+- ~~**Triáž chatů.**~~ — hotovo pro soukromé chaty (odznak „čeká na odpověď" u nepřečtených,
+  vypínač v AI v zařízení; `docs/poznatky/ai-v-zarizeni.md`, „Triáž chatů"). Zbývá: **skupiny**
+  (otázka mířená na uživatele — odpověď na jeho zprávu nebo jméno v textu), **keš přes restart**
+  (dnes se po startu posoudí všechny nepřečtené znovu), **Gemini Nano** ověřit na telefonu.
 - **Štítky Uložených zpráv.** Témata Uložených zpráv (dělení podle chatu) už jsou, štítky od
   Telegramu (`SavedMessagesTag`, jen s Premium) ne; automatické zatřídění by je nahradilo bez
   serverové podpory a je to zase klasifikace.

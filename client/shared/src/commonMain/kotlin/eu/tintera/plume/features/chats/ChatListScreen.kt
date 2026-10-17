@@ -95,6 +95,8 @@ import eu.tintera.plume.resources.chats_unread_reaction
 import eu.tintera.plume.resources.ballot_24dp
 import eu.tintera.plume.resources.chats_unread_poll_vote
 import eu.tintera.plume.resources.chats_unread_mention
+import eu.tintera.plume.resources.chats_awaiting_reply
+import eu.tintera.plume.resources.reply_24dp
 import eu.tintera.plume.core.ui.isSavedMessages
 import eu.tintera.plume.core.ui.chatTitle
 import androidx.compose.runtime.getValue
@@ -1326,6 +1328,7 @@ internal fun ChatListContent(
 
     val snoozes by viewModel.snoozeState.collectAsStateWithLifecycle()
     val chatColors by viewModel.chatColors.collectAsStateWithLifecycle()
+    val awaitingReply by viewModel.awaitingReply.collectAsStateWithLifecycle()
     val chatAccents = rememberChatAccents(chatColors.values.toSet())
     val groups = (state as? ChatListState.Ready)?.chats?.let { chats ->
         remember(chats, separateUnread, hiddenSavedMessagesChatId, snoozes.due) {
@@ -1499,6 +1502,10 @@ internal fun ChatListContent(
                                 },
                                 shape = shape,
                                 accent = chatColors[chat.id]?.let(chatAccents::get),
+                                // Odznak patří poslední zprávě, nad kterou to model řekl; nová
+                                // zpráva ho schová, dokud se neposoudí znovu.
+                                awaitingReply = chat.unreadCount > 0 &&
+                                    chat.lastMessageId != null && awaitingReply[chat.id] == chat.lastMessageId,
                                 onClick = {
                                     if (!selecting) viewModel.opened(chat.id)
                                     when {
@@ -1808,6 +1815,8 @@ private fun ChatRow(
     shape: RoundedCornerShape,
     /** Paleta z barvy konverzace (odznaky nepřečtených); `null` = barvy aplikace. */
     accent: ColorScheme?,
+    /** Model v zařízení usoudil, že chat čeká na odpověď (`ChatTriage`). */
+    awaitingReply: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -2048,7 +2057,7 @@ private fun ChatRow(
                 }
             }
 
-            UnreadBadges(chat, quiet = sleeping, accent = accent)
+            UnreadBadges(chat, quiet = sleeping, accent = accent, awaitingReply = awaitingReply)
         }
     }
 }
@@ -2065,6 +2074,10 @@ private sealed interface RowSnooze {
  * Zmínka a reakce mají vlastní odznak, protože se v počtu ztratí: „@" ve skupině se stovkou
  * nepřečtených je to jediné, kvůli čemu ji uživatel otevře. Číslo nenesou (kolik jich je, řekne
  * tlačítko v konverzaci) — jde o to, ŽE nějaké jsou.
+ *
+ * Odznak „čeká na odpověď" ([awaitingReply], šipka odpovědi) je stejného druhu a stojí hned
+ * u počtu: týká se právě těch nepřečtených zpráv. Tvar ikonového odznaku, ne štítek s textem —
+ * řádek nemá kam růst a slovní štítek by se pral s časem i náhledem.
  */
 @Composable
 private fun UnreadBadges(
@@ -2073,6 +2086,7 @@ private fun UnreadBadges(
     quiet: Boolean = false,
     /** Paleta z barvy konverzace; odznak je pak jediné místo v řádku, které ji nese. */
     accent: ColorScheme? = null,
+    awaitingReply: Boolean = false,
 ) {
     val scheme = accent ?: MaterialTheme.colorScheme
     val container = if (quiet) MaterialTheme.colorScheme.surfaceContainerHighest else scheme.primary
@@ -2090,6 +2104,9 @@ private fun UnreadBadges(
         }
         if (chat.unreadMentionCount > 0) {
             IconBadge(Res.drawable.alternate_email_24dp, stringResource(Res.string.chats_unread_mention), container, content)
+        }
+        if (awaitingReply) {
+            IconBadge(Res.drawable.reply_24dp, stringResource(Res.string.chats_awaiting_reply), container, content)
         }
         if (chat.unreadCount > 0) {
             // `Badge` je ve výchozím stavu chybově červený. Nepřečtená zpráva ale není

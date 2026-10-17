@@ -626,6 +626,19 @@ v ⋮ vrátí jednu konverzaci. Hranice je `SavedTopicsRepository` (`TdlSavedTop
   „naposledy nedávno" a přesný čas nedostaneme. Proto je `Presence` několik pojmenovaných stupňů,
   ne čas — dopočítávat minutu, kterou neznáme, by bylo horší než neurčitost.
 
+### Čeká na odpověď
+
+Nepřečtený soukromý chat, ve kterém na uživatele čeká otázka nebo prosba, má vedle počtu
+nepřečtených kulatý odznak se šipkou odpovědi („Čeká na tvou odpověď" pro čtečku). Posuzuje
+model v telefonu (`ChatTriage`), jen se zapnutou volbou v Nastavení → AI v zařízení; jádro
+v `ai-v-zarizeni.md`, „Triáž chatů".
+
+- **Ikonový odznak, ne štítek s textem** — stejného druhu jako „@" a reakce a stojí hned u počtu,
+  protože se týká právě těch nepřečtených zpráv. Řádek nemá kam růst a slovní štítek by se pral
+  s časem i náhledem.
+- **Odznak patří poslední zprávě** (`ChatSummary.lastMessageId`): nová zpráva ho schová, než se
+  posoudí znovu, přečtení chatu ho schová hned. Vypnutí volby schová všechny naráz.
+
 ### Přehled konceptů
 
 Menu účtu → Koncepty (`DraftsSheet`): chaty s rozepsanou zprávou napříč složkami, nejčerstvější

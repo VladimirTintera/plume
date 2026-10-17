@@ -99,6 +99,8 @@ class ChatsViewModel(
     private val accountNotices: AccountNotices? = null,
     /** Formát telefonního čísla v doporučené akci; bez něj číslo zůstane bez mezer. */
     private val session: TelegramSession? = null,
+    /** Odznak „čeká na odpověď" (model v zařízení); bez něj se nepočítá. */
+    private val triage: ChatTriage? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -148,6 +150,18 @@ class ChatsViewModel(
         .flatMapLatest { repository.chats(it) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, repository.chats(shownFolder.value).value)
 
+    /**
+     * Chaty čekající na odpověď (chat → id poslední zprávy, nad kterou to model řekl; viz
+     * [ChatTriage]). Odznak patří řádku, jen když id sedí s jeho poslední zprávou a chat je
+     * nepřečtený. Vypnutá volba schová všechny hned, ne až s další zprávou.
+     */
+    val awaitingReply: StateFlow<Map<Long, Long>> =
+        triage?.let { triage ->
+            combine(triage.awaiting, settings.chatTriageEnabled, settings.onDeviceAiEnabled) { awaiting, on, ai ->
+                if (on && ai) awaiting else emptyMap()
+            }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+        } ?: MutableStateFlow(emptyMap())
+
     private val _newFolderChats = MutableStateFlow<NewFolderChats?>(null)
 
     /**
@@ -158,6 +172,22 @@ class ChatsViewModel(
     val newFolderChats: StateFlow<NewFolderChats?> = _newFolderChats.asStateFlow()
 
     init {
+        // Triáž běží nad tím, co seznam ukazuje: s každou změnou (nová zpráva, přečtení) se
+        // zařadí nové kandidáty. Zapnutí volby i volba modelu se projeví hned — po startu se
+        // model z nastavení načte až po prvním seznamu a do té doby triáž nemá na čem běžet.
+        if (triage != null) {
+            viewModelScope.launch {
+                combine(
+                    state,
+                    repository.savedMessagesChatId,
+                    settings.chatTriageEnabled,
+                    settings.onDeviceAiEnabled,
+                    settings.onDeviceAiVariant,
+                ) { list, savedId, _, _, _ ->
+                    (list as? ChatListState.Ready)?.chats.orEmpty() to savedId
+                }.collect { (chats, savedId) -> triage.check(chats, savedId) }
+            }
+        }
         if (folder == ChatFolder.Main && folderRepository != null) {
             viewModelScope.launch {
                 combine(_selectedFolderId, repository.chatFolders) { selected, folders ->

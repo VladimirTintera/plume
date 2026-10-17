@@ -53,7 +53,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Ankety a kvízy](docs/poznatky/ankety.md) — hlasování, výsledky, zakládání, média v anketě, místa a poloha, seznamy úkolů
 - [Hledání a zakládání chatů](docs/poznatky/hledani-a-zakladani-chatu.md) — hledání chatů a zpráv s filtry i přirozeným jazykem, nová konverzace, kontakty, Můj QR kód a odkazy zvenčí, založení skupiny a kanálu, ChatPicker
 - [Spam, nahlášení a blokování](docs/poznatky/spam-a-blokovani.md) — průvodce nahlášením, úklid spamu, pruh nad konverzací (ChatActionBar), seznam blokovaných
-- [Seznam chatů](docs/poznatky/seznam-chatu.md) — skupiny řádků, složky a FAB menu, ověření, hlavička s pilulkou, Uložené zprávy, přehled konceptů, archiv a tah do archivu, akce, odložení a výběr víc chatů, widget na ploše
+- [Seznam chatů](docs/poznatky/seznam-chatu.md) — skupiny řádků, složky a FAB menu, ověření, hlavička s pilulkou, Uložené zprávy, přehled konceptů, archiv a tah do archivu, akce, odložení a výběr víc chatů, čeká na odpověď, widget na ploše
 - [Navigace](docs/poznatky/navigace.md) — Navigation3, list-detail scény, insety, přechody a predictive back, zásobník pro každou sekci
 - [Profil chatu](docs/poznatky/profil-chatu.md) — profil, členové a jejich správa, společné skupiny a podobné kanály, omezení a vyhození, poslední akce správců, nastavení skupiny a kanálu (pomalý režim, reakce, přepínače, smazání pro všechny), úprava skupiny, pozvánky, témata, sdílená média, historie fotek, návrh profilové fotky
 - [Prohlížeč médií a média](docs/poznatky/prohlizec-medii.md) — prohlížeč, video a PiP, kvalita videa, GIFy, kolečka a jejich nahrávání, automatické ukládání do galerie, poloha a mapy, spoilery, mizející a citlivý obsah, text z fotky, popis fotky, FileRepository
@@ -67,7 +67,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Systémová oznámení od Telegramu](docs/poznatky/systemova-oznameni.md) — oznámení od služby, nové podmínky služby, zmrazený účet, doporučené akce; proč se odebírají eagerně
 - [Nastavení](docs/poznatky/nastaveni.md) — AppSettings (DataStore), obrazovka nastavení, pomoc (Zeptat se), soukromí, úprava profilu a ořez fotky, narozeniny, osobní kanál, víc uživatelských jmen, dvoufázové ověření, přihlašovací e-mail, přístupové klíče, změna čísla, smazání účtu, diskrétní čtení, zařízení, úložiště a přenesená data, „Co je nového“, synchronizace bez backendu (WebApp CloudStorage)
 - [Zámek aplikace](docs/poznatky/zamek-aplikace.md) — PIN a biometrie, záznam v Keystore / Keychainu, kdy se zamyká, brzda pokusů, co zámek nechrání
-- [AI v zařízení](docs/poznatky/ai-v-zarizeni.md) — Gemini Nano a Gemma, stahování modelu, shrnutí a návrhy odpovědí, varování před podvodem, přepis a kontrola tónu před odesláním, vysvětlení zprávy, popis fotky
+- [AI v zařízení](docs/poznatky/ai-v-zarizeni.md) — Gemini Nano a Gemma, stahování modelu, shrnutí a návrhy odpovědí, varování před podvodem, triáž chatů, přepis a kontrola tónu před odesláním, vysvětlení zprávy, popis fotky
 - [Release, R8 a hlášení pádů](docs/poznatky/release.md) — vydání do Play, R8 a keep pravidla, Crashlytics, aktualizace z obchodu
 - [Výkon a paměť](docs/poznatky/vykon.md) — reporty Compose kompilátoru, LeakCanary, heap dumpy, composition tracing, start a plynulost
 - [Tajné chaty](docs/poznatky/tajne-chaty.md) — přijetí a založení (`useSecretChats`), id není id uživatele, stav jako právo psát, časovač po přečtení, notifikace, zákaz snímků

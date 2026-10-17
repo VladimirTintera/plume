@@ -19,6 +19,9 @@ import kotlin.reflect.KClass
 /** Odpověď na [scamPrompt]: PHISHING, PRIZE, MONEY, SAFE nebo UNSURE. */
 data class ScamAnswer(val verdict: String? = null)
 
+/** Odpověď na [triagePrompt]: REPLY, INFO nebo UNSURE. */
+data class TriageAnswer(val verdict: String? = null)
+
 /** Odpověď na [tonePrompt]: FINE, IRRITATED, RUDE nebo UNSURE. */
 data class ToneAnswer(val verdict: String? = null)
 

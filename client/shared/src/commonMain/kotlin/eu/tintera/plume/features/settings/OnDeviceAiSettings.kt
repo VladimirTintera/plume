@@ -71,6 +71,8 @@ import eu.tintera.plume.resources.settings_on_device_ai_preview
 import eu.tintera.plume.resources.settings_on_device_ai_preview_same
 import eu.tintera.plume.resources.settings_reply_suggestions
 import eu.tintera.plume.resources.settings_reply_suggestions_summary
+import eu.tintera.plume.resources.settings_chat_triage
+import eu.tintera.plume.resources.settings_chat_triage_summary
 import eu.tintera.plume.resources.settings_scam_warnings
 import eu.tintera.plume.resources.settings_scam_warnings_summary
 import eu.tintera.plume.resources.settings_on_device_ai_preview_summary
@@ -175,6 +177,10 @@ class OnDeviceAiSettingsViewModel(
     val scamWarnings: StateFlow<Boolean> = settings.scamWarningsEnabled
 
     fun setScamWarnings(on: Boolean) = settings.setScamWarningsEnabled(on)
+
+    val chatTriage: StateFlow<Boolean> = settings.chatTriageEnabled
+
+    fun setChatTriage(on: Boolean) = settings.setChatTriageEnabled(on)
 
     fun setPreview(on: Boolean) = settings.setOnDeviceAiVariant(variant.value.copy(preview = on))
 
@@ -344,6 +350,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
     val previewIsStable by viewModel.previewIsStable.collectAsStateWithLifecycle()
     val replySuggestions by viewModel.replySuggestions.collectAsStateWithLifecycle()
     val scamWarnings by viewModel.scamWarnings.collectAsStateWithLifecycle()
+    val chatTriage by viewModel.chatTriage.collectAsStateWithLifecycle()
     val availability by viewModel.availability.collectAsStateWithLifecycle()
 
     /*
@@ -397,6 +404,16 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                 onChange = { on ->
                     haptics.toggle(on)
                     viewModel.setScamWarnings(on)
+                },
+            )
+            // Odznak „čeká na odpověď" taky: model posuzuje nepřečtené chaty sám.
+            VariantSwitch(
+                title = Res.string.settings_chat_triage,
+                summary = Res.string.settings_chat_triage_summary,
+                checked = chatTriage,
+                onChange = { on ->
+                    haptics.toggle(on)
+                    viewModel.setChatTriage(on)
                 },
             )
             /*

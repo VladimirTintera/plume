@@ -36,6 +36,7 @@
 -keep class eu.tintera.plume.core.ai.ReplySuggestionsOutput,
             eu.tintera.plume.core.ai.ScamAnswer,
             eu.tintera.plume.core.ai.ToneAnswer,
+            eu.tintera.plume.core.ai.TriageAnswer,
             eu.tintera.plume.core.ai.ReminderAnswer,
             eu.tintera.plume.core.ai.EventAnswer,
             eu.tintera.plume.core.ai.SearchAnswer { <init>(...); <fields>; }

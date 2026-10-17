@@ -405,6 +405,8 @@ class TdlChatRepository(
                         lastMessagePreview = preview,
                         lastMessagePreviewEntities = update.lastMessage?.previewEntities().orEmpty(),
                         lastMessageTimestamp = update.lastMessage?.date,
+                        lastMessageId = update.lastMessage?.id,
+                        lastMessageOutgoing = update.lastMessage?.isOutgoing == true,
                     )
                 }
             }
@@ -1790,6 +1792,8 @@ private suspend fun Chat.toSummary(): ChatSummary {
         isSecret = type is ChatTypeSecret,
         avatarColorId = (type as? ChatTypeSecret)?.userId ?: id,
         lastMessageTimestamp = lastMessage?.date,
+        lastMessageId = lastMessage?.id,
+        lastMessageOutgoing = lastMessage?.isOutgoing == true,
         // Dostupnost `Chat` nenese — dorazí updatem. Do té doby je `null`, což UI kreslí
         // prostě bez tečky.
         presence = null,

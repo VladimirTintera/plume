@@ -618,6 +618,10 @@ data class ChatSummary(
     val kind: ChatKind,
     /** Unixový čas poslední zprávy, nebo `null` u prázdného chatu. */
     val lastMessageTimestamp: Int?,
+    /** Id poslední zprávy, nebo `null` u prázdného chatu — klíč pro výsledky nad ní (`ChatTriage`). */
+    val lastMessageId: Long? = null,
+    /** Poslední zprávu poslal uživatel sám — pak na odpověď nečeká nikdo jiný než on. */
+    val lastMessageOutgoing: Boolean = false,
     /** Dostupnost protějšku. `null` u skupin a kanálů — ty žádnou nemají. */
     val presence: Presence?,
     /**
