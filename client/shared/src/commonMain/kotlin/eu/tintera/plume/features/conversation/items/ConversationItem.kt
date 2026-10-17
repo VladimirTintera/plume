@@ -332,7 +332,11 @@ internal data class ServiceMessageItem(
                             GiftCard(gift, onAction = { scope.onAction(message.id, it) })
                         }
                     } else {
-                        ServiceMessage(message, onOpenChat = { scope.onAction(message.id, MessageAction.OpenChat(it)) })
+                        ServiceMessage(
+                            message,
+                            onOpenChat = { scope.onAction(message.id, MessageAction.OpenChat(it)) },
+                            onJumpTo = { scope.onAction(message.id, MessageAction.JumpTo(it)) },
+                        )
                     }
                     ExpressiveMenu(
                         expanded = menu != null,

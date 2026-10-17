@@ -1373,6 +1373,11 @@ data class ChatMessage(
      * zůstaly ve staré skupině a nová je neukazuje. `null` u všech ostatních zpráv.
      */
     val upgradeLink: GroupUpgradeLink? = null,
+    /**
+     * Zpráva v témže chatu, na kterou servisní oznámení ukazuje (připnutá zpráva, anketa,
+     * soutěž, hra); ťuknutí na oznámení na ni skočí.
+     */
+    val serviceTargetMessageId: Long? = null,
     /** Unixový čas v sekundách, jak ho dává TDLib. */
     val timestamp: Int,
     val isEdited: Boolean,

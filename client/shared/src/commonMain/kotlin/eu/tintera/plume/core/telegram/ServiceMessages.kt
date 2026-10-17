@@ -2,6 +2,10 @@ package eu.tintera.plume.core.telegram
 
 import dev.g000sha256.tdl.dto.MessageBasicGroupChatCreate
 import dev.g000sha256.tdl.dto.MessageBotWriteAccessAllowed
+import dev.g000sha256.tdl.dto.BotWriteAccessAllowReasonAcceptedRequest
+import dev.g000sha256.tdl.dto.BotWriteAccessAllowReasonAddedToAttachmentMenu
+import dev.g000sha256.tdl.dto.BotWriteAccessAllowReasonConnectedWebsite
+import dev.g000sha256.tdl.dto.BotWriteAccessAllowReasonLaunchedWebApp
 import dev.g000sha256.tdl.dto.MessageChatAddedToCommunity
 import dev.g000sha256.tdl.dto.MessageChatBoost
 import dev.g000sha256.tdl.dto.MessageChatHasProtectedContentDisableRequested
@@ -81,7 +85,6 @@ import eu.tintera.plume.resources.content_expired_video
 import eu.tintera.plume.resources.content_expired_video_note
 import eu.tintera.plume.resources.content_expired_voice_note
 import eu.tintera.plume.resources.service_bot_created
-import eu.tintera.plume.resources.service_bot_write_access
 import eu.tintera.plume.resources.service_community_added
 import eu.tintera.plume.resources.service_community_joined
 import eu.tintera.plume.resources.service_community_removed
@@ -136,7 +139,6 @@ import eu.tintera.plume.resources.auto_delete_summary
 import eu.tintera.plume.resources.service_background_changed
 import eu.tintera.plume.resources.service_channel_created
 import eu.tintera.plume.resources.service_contact_joined
-import eu.tintera.plume.resources.service_game_score
 import eu.tintera.plume.resources.service_group_created
 import eu.tintera.plume.resources.service_group_upgraded
 import eu.tintera.plume.resources.service_join_approved
@@ -164,6 +166,22 @@ import eu.tintera.plume.resources.service_live_stream_scheduled
 import eu.tintera.plume.resources.service_live_stream_invite
 import eu.tintera.plume.resources.service_owner_left
 import eu.tintera.plume.resources.service_owner_left_successor
+import eu.tintera.plume.resources.service_live_stream_ended_after
+import eu.tintera.plume.resources.service_video_chat_ended_after
+import eu.tintera.plume.resources.service_topic_renamed
+import eu.tintera.plume.resources.service_topic_icon_removed
+import eu.tintera.plume.resources.service_topic_icon_changed
+import eu.tintera.plume.resources.service_game_score_value
+import eu.tintera.plume.resources.service_boost_count
+import eu.tintera.plume.resources.service_poll_option_added_named
+import eu.tintera.plume.resources.service_poll_option_deleted_named
+import eu.tintera.plume.resources.service_giveaway_completed_winners
+import eu.tintera.plume.resources.service_giveaway_completed_unclaimed
+import eu.tintera.plume.resources.giveaway_unclaimed_prizes
+import eu.tintera.plume.resources.service_bot_write_access_website
+import eu.tintera.plume.resources.service_bot_write_access_attachment_menu
+import eu.tintera.plume.resources.service_bot_write_access_web_app
+import eu.tintera.plume.resources.service_bot_write_access_accepted
 import org.jetbrains.compose.resources.PluralStringResource
 import org.jetbrains.compose.resources.StringResource
 
@@ -225,15 +243,26 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
     is MessageVideoChatStarted -> UiText(
         if (isChannelPost) Res.string.service_live_stream_started else Res.string.service_video_chat_started,
     )
-    is MessageVideoChatEnded -> UiText(
-        if (isChannelPost) Res.string.service_live_stream_ended else Res.string.service_video_chat_ended,
-    )
+    // S délkou v závorce: „Videochat skončil" neřeklo, jestli trval minutu, nebo dvě hodiny.
+    is MessageVideoChatEnded -> when {
+        duration <= 0 -> UiText(if (isChannelPost) Res.string.service_live_stream_ended else Res.string.service_video_chat_ended)
+        else -> UiText(
+            if (isChannelPost) Res.string.service_live_stream_ended_after else Res.string.service_video_chat_ended_after,
+            durationUiText(duration),
+        )
+    }
     is MessageVideoChatScheduled -> UiText(
         if (isChannelPost) Res.string.service_live_stream_scheduled else Res.string.service_video_chat_scheduled,
     )
 
     is MessageForumTopicCreated -> UiText(Res.string.service_topic_created, name)
-    is MessageForumTopicEdited -> UiText(Res.string.service_topic_edited)
+    // Nový název nese zpráva sama; bez něj se měnila jen ikona (`editIconCustomEmojiId`).
+    is MessageForumTopicEdited -> when {
+        name.isNotBlank() -> UiText(Res.string.service_topic_renamed, name)
+        editIconCustomEmojiId && iconCustomEmojiId == 0L -> UiText(Res.string.service_topic_icon_removed)
+        editIconCustomEmojiId -> UiText(Res.string.service_topic_icon_changed)
+        else -> UiText(Res.string.service_topic_edited)
+    }
     is MessageForumTopicIsClosedToggled -> UiText(
         if (isClosed) Res.string.service_topic_closed else Res.string.service_topic_reopened,
     )
@@ -241,7 +270,7 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
         if (isHidden) Res.string.service_topic_hidden else Res.string.service_topic_unhidden,
     )
 
-    is MessageGameScore -> UiText(Res.string.service_game_score)
+    is MessageGameScore -> UiText(Res.string.service_game_score_value, score.grouped())
 
     is MessageInviteVideoChatParticipants -> UiText(
         if (isChannelPost) Res.string.service_live_stream_invite else Res.string.service_video_chat_invite,
@@ -261,9 +290,16 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
         if (isExpired) Res.string.service_protected_content_disable_expired
         else Res.string.service_protected_content_disable_requested,
     )
-    is MessageChatBoost -> UiText(Res.string.service_boost)
-    is MessagePollOptionAdded -> UiText(Res.string.service_poll_option_added)
-    is MessagePollOptionDeleted -> UiText(Res.string.service_poll_option_deleted)
+    is MessageChatBoost ->
+        if (boostCount <= 1) UiText(Res.string.service_boost)
+        else UiText(Res.plurals.service_boost_count, boostCount, boostCount)
+    // Text možnosti nese zpráva sama; ťuknutím se skočí na anketu (`serviceTargetMessageId`).
+    is MessagePollOptionAdded -> text.text.ifBlank { null }
+        ?.let { UiText(Res.string.service_poll_option_added_named, quotedTask(it)) }
+        ?: UiText(Res.string.service_poll_option_added)
+    is MessagePollOptionDeleted -> text.text.ifBlank { null }
+        ?.let { UiText(Res.string.service_poll_option_deleted_named, quotedTask(it)) }
+        ?: UiText(Res.string.service_poll_option_deleted)
     is MessageChecklistTasksAdded -> UiText(Res.string.service_checklist_tasks_added)
     is MessageChecklistTasksDone -> UiText(Res.string.service_checklist_tasks_done)
     is MessagePaymentSuccessful -> UiText(Res.string.service_payment)
@@ -283,7 +319,17 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
         if (wasExpired) Res.string.service_gift_offer_expired else Res.string.service_gift_offer_rejected,
     )
     is MessageGiveawayCreated -> UiText(Res.string.service_giveaway_created)
-    is MessageGiveawayCompleted -> UiText(Res.string.service_giveaway_completed)
+    // Počet výherců (a nerozdaných cen) je to, co se z oznámení chce vědět. Jména výherců
+    // nese až `MessageGiveawayWinners`, tahle zpráva jen počty.
+    is MessageGiveawayCompleted -> when {
+        winnerCount <= 0 -> UiText(Res.string.service_giveaway_completed)
+        unclaimedPrizeCount <= 0 -> UiText(Res.plurals.service_giveaway_completed_winners, winnerCount, winnerCount)
+        else -> UiText(
+            Res.string.service_giveaway_completed_unclaimed,
+            UiText(Res.plurals.service_giveaway_completed_winners, winnerCount, winnerCount),
+            UiText(Res.plurals.giveaway_unclaimed_prizes, unclaimedPrizeCount, unclaimedPrizeCount),
+        )
+    }
 
     // Komunity (TDLib 15). Název komunity se nevypisuje ze stejného důvodu jako jména: znamenal
     // by dotaz navíc u každé takové zprávy, a věta je pravdivá i bez něj.
@@ -317,7 +363,16 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
     is MessageSuggestedPostRefunded -> UiText(Res.string.service_suggested_post_refunded)
     is MessageSuggestedPostApprovalFailed -> UiText(Res.string.service_suggested_post_failed)
 
-    is MessageBotWriteAccessAllowed -> UiText(Res.string.service_bot_write_access)
+    // Proč bot smí psát: bez důvodu to vypadalo, jako by si to bot povolil sám.
+    is MessageBotWriteAccessAllowed -> when (val why = reason) {
+        is BotWriteAccessAllowReasonConnectedWebsite -> UiText(Res.string.service_bot_write_access_website, why.domainName)
+        is BotWriteAccessAllowReasonAddedToAttachmentMenu -> UiText(Res.string.service_bot_write_access_attachment_menu)
+        is BotWriteAccessAllowReasonLaunchedWebApp -> UiText(
+            Res.string.service_bot_write_access_web_app,
+            why.webApp.title.ifBlank { why.webApp.shortName },
+        )
+        is BotWriteAccessAllowReasonAcceptedRequest -> UiText(Res.string.service_bot_write_access_accepted)
+    }
     is MessageManagedBotCreated -> UiText(Res.string.service_bot_created)
     is MessageWebAppDataSent -> UiText(Res.string.service_web_app_data)
     is MessagePassportDataSent -> UiText(Res.string.service_passport_data)
@@ -347,6 +402,19 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
      */
     else -> null
 }
+
+/**
+ * Zpráva v témže chatu, na kterou servisní oznámení ukazuje: připnutá zpráva, anketa se změněnou
+ * možností, soutěž a hra. Ťuknutí na oznámení na ni skočí; `null` = oznámení nikam nevede.
+ */
+internal fun MessageContent.serviceTargetMessageId(): Long? = when (this) {
+    is MessagePinMessage -> messageId
+    is MessagePollOptionAdded -> pollMessageId
+    is MessagePollOptionDeleted -> pollMessageId
+    is MessageGiveawayCompleted -> giveawayMessageId
+    is MessageGameScore -> gameMessageId
+    else -> null
+}.takeIf { it != 0L }
 
 /**
  * Věta o založení supergroupy — tedy skupiny, NEBO kanálu.

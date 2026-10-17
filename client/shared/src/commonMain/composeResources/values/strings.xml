@@ -851,7 +851,6 @@
     <string name="service_live_stream_scheduled">A live stream was scheduled</string>
     <string name="service_topic_created">Topic “%1$s” created</string>
     <string name="service_topic_edited">A topic was edited</string>
-    <string name="service_game_score">A new game score</string>
     <string name="content_gif">GIF</string>
     <string name="content_file">File</string>
     <string name="content_audio">Audio</string>
@@ -998,6 +997,38 @@
     <string name="service_checklist_tasks_done">Checklist tasks were updated</string>
     <string name="service_gift">A gift was sent</string>
     <string name="service_giveaway_completed">The giveaway ended</string>
+    <!-- Servisní zprávy s údaji, které TDLib posílá (délka, název, počty, důvod). -->
+    <string name="service_video_chat_ended_after">The video chat ended (%1$s)</string>
+    <string name="service_live_stream_ended_after">The live stream ended (%1$s)</string>
+    <string name="service_topic_renamed">Topic renamed to “%1$s”</string>
+    <string name="service_topic_icon_changed">The topic icon was changed</string>
+    <string name="service_topic_icon_removed">The topic icon was removed</string>
+    <string name="service_game_score_value">New game score: %1$s</string>
+    <plurals name="service_boost_count">
+        <item quantity="one">The chat got %1$d boost</item>
+        <item quantity="other">The chat got %1$d boosts</item>
+    </plurals>
+    <string name="service_poll_option_added_named">Option “%1$s” was added to the poll</string>
+    <string name="service_poll_option_deleted_named">Option “%1$s” was removed from the poll</string>
+    <plurals name="service_giveaway_completed_winners">
+        <item quantity="one">The giveaway ended: %1$d winner</item>
+        <item quantity="other">The giveaway ended: %1$d winners</item>
+    </plurals>
+    <string name="service_giveaway_completed_unclaimed">%1$s, %2$s</string>
+    <plurals name="giveaway_unclaimed_prizes">
+        <item quantity="one">%1$d unclaimed prize</item>
+        <item quantity="other">%1$d unclaimed prizes</item>
+    </plurals>
+    <string name="service_bot_write_access_accepted">You allowed this bot to message you</string>
+    <string name="service_bot_write_access_website">You allowed this bot to message you when you logged in on %1$s</string>
+    <string name="service_bot_write_access_attachment_menu">You allowed this bot to message you when you added it to the attachment menu</string>
+    <string name="service_bot_write_access_web_app">You allowed this bot to message you when you opened “%1$s”</string>
+    <!-- Připnutí se jménem a textem připnuté zprávy. -->
+    <string name="service_pinned_named">%1$s pinned “%2$s”</string>
+    <string name="service_pinned_you">You pinned “%1$s”</string>
+    <string name="service_pinned_quote">Pinned “%1$s”</string>
+    <string name="service_pinned_named_message">%1$s pinned a message</string>
+    <string name="service_pinned_you_message">You pinned a message</string>
     <string name="service_giveaway_created">A giveaway started</string>
     <string name="service_owner_changed">The chat has a new owner</string>
     <string name="service_owner_left">The owner left the chat</string>
@@ -1064,7 +1095,6 @@
     <string name="service_gift_offer">An offer to buy a gift</string>
     <string name="service_gift_offer_rejected">An offer to buy a gift was rejected</string>
     <string name="service_gift_offer_expired">An offer to buy a gift expired</string>
-    <string name="service_bot_write_access">The bot is allowed to send messages</string>
     <string name="service_bot_created">A new bot was created</string>
     <string name="service_web_app_data">Data was sent to the bot</string>
     <string name="service_passport_data">Telegram Passport data was sent</string>

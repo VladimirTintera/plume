@@ -96,11 +96,29 @@ internal fun UnreadDivider(modifier: Modifier = Modifier) {
  * Čas se u něj nevypisuje: u „někdo se připojil" je minuta k ničemu a řádek by jen zdvojnásobil.
  */
 @Composable
-internal fun ServiceMessage(message: ChatMessage, modifier: Modifier = Modifier, onOpenChat: (Long) -> Unit = {}) {
+internal fun ServiceMessage(
+    message: ChatMessage,
+    modifier: Modifier = Modifier,
+    onOpenChat: (Long) -> Unit = {},
+    onJumpTo: (Long) -> Unit = {},
+) {
     // Text oznámení je [ChatMessage.description] a překládá se až tady — převedená zpráva
     // žije v paměti déle než jazyk aplikace.
     val text = message.description?.resolve() ?: message.text
     val link = message.upgradeLink
+    val target = message.serviceTargetMessageId
+    if (link == null && target != null) {
+        // Připnutí, změna ankety, konec soutěže, skóre: ťuknutí skočí na zprávu, o které
+        // oznámení mluví. Odkaz pod textem by tu byl navíc — věta sama říká, o co jde.
+        CenteredNote(
+            text = text,
+            // Odsazení dává poznámka sama, takže stojí přesně jako oznámení bez ťuknutí.
+            modifier = modifier
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(role = Role.Button) { onJumpTo(target) },
+        )
+        return
+    }
     if (link == null) {
         CenteredNote(text = text, modifier = modifier)
         return

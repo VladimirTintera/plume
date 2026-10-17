@@ -864,7 +864,6 @@
     <string name="service_live_stream_scheduled">Živé vysílání naplánováno</string>
     <string name="service_topic_created">Téma „%1$s“ vytvořeno</string>
     <string name="service_topic_edited">Téma upraveno</string>
-    <string name="service_game_score">Nové skóre ve hře</string>
     <string name="content_gif">GIF</string>
     <string name="content_file">Soubor</string>
     <string name="content_audio">Audio</string>
@@ -1012,6 +1011,44 @@
     <string name="service_checklist_tasks_done">Úkoly v seznamu změnily stav</string>
     <string name="service_gift">Byl poslán dárek</string>
     <string name="service_giveaway_completed">Soutěž skončila</string>
+    <!-- Servisní zprávy s údaji, které TDLib posílá (délka, název, počty, důvod). -->
+    <string name="service_video_chat_ended_after">Videochat skončil (%1$s)</string>
+    <string name="service_live_stream_ended_after">Živé vysílání skončilo (%1$s)</string>
+    <string name="service_topic_renamed">Téma přejmenováno na „%1$s“</string>
+    <string name="service_topic_icon_changed">Ikona tématu změněna</string>
+    <string name="service_topic_icon_removed">Ikona tématu odebrána</string>
+    <string name="service_game_score_value">Nové skóre ve hře: %1$s</string>
+    <plurals name="service_boost_count">
+        <item quantity="one">Chat dostal %1$d boost</item>
+        <item quantity="few">Chat dostal %1$d boosty</item>
+        <item quantity="many">Chat dostal %1$d boostu</item>
+        <item quantity="other">Chat dostal %1$d boostů</item>
+    </plurals>
+    <string name="service_poll_option_added_named">V anketě přibyla možnost „%1$s“</string>
+    <string name="service_poll_option_deleted_named">Z ankety ubyla možnost „%1$s“</string>
+    <plurals name="service_giveaway_completed_winners">
+        <item quantity="one">Soutěž skončila: %1$d výherce</item>
+        <item quantity="few">Soutěž skončila: %1$d výherci</item>
+        <item quantity="many">Soutěž skončila: %1$d výherce</item>
+        <item quantity="other">Soutěž skončila: %1$d výherců</item>
+    </plurals>
+    <string name="service_giveaway_completed_unclaimed">%1$s, %2$s</string>
+    <plurals name="giveaway_unclaimed_prizes">
+        <item quantity="one">%1$d nerozdaná cena</item>
+        <item quantity="few">%1$d nerozdané ceny</item>
+        <item quantity="many">%1$d nerozdané ceny</item>
+        <item quantity="other">%1$d nerozdaných cen</item>
+    </plurals>
+    <string name="service_bot_write_access_accepted">Povolil(a) jsi botovi, aby ti psal</string>
+    <string name="service_bot_write_access_website">Povolil(a) jsi botovi, aby ti psal, při přihlášení na %1$s</string>
+    <string name="service_bot_write_access_attachment_menu">Povolil(a) jsi botovi, aby ti psal, když jsi ho přidal(a) do nabídky příloh</string>
+    <string name="service_bot_write_access_web_app">Povolil(a) jsi botovi, aby ti psal, když jsi otevřel(a) „%1$s“</string>
+    <!-- Připnutí se jménem a textem připnuté zprávy. -->
+    <string name="service_pinned_named">%1$s připnul(a) „%2$s“</string>
+    <string name="service_pinned_you">Připnul(a) jsi „%1$s“</string>
+    <string name="service_pinned_quote">Připnuto: „%1$s“</string>
+    <string name="service_pinned_named_message">%1$s připnul(a) zprávu</string>
+    <string name="service_pinned_you_message">Připnul(a) jsi zprávu</string>
     <string name="service_giveaway_created">Začala soutěž</string>
     <string name="service_owner_changed">Chat má nového vlastníka</string>
     <string name="service_owner_left">Vlastník chat opustil</string>
@@ -1082,7 +1119,6 @@
     <string name="service_gift_offer">Nabídka na koupi dárku</string>
     <string name="service_gift_offer_rejected">Nabídka na koupi dárku byla odmítnuta</string>
     <string name="service_gift_offer_expired">Nabídka na koupi dárku vypršela</string>
-    <string name="service_bot_write_access">Bot smí posílat zprávy</string>
     <string name="service_bot_created">Vznikl nový bot</string>
     <string name="service_web_app_data">Botovi se odeslala data</string>
     <string name="service_passport_data">Odeslaly se údaje z Telegram Passportu</string>

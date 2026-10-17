@@ -26,7 +26,8 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
     id dalších lidí (`memberUserIds`, `userId`). Kdo je „ty", rozhoduje vlastní id (u aktéra
     i `isOutgoing`).
   - **Jména se dohledávají jen u zpráv o členech a jen ta, která věta použije** — u hromadného
-    přidání první dvě, zbytek je „a 4 další". Ostatní servisní zprávy jména dál nemají.
+    přidání první dvě, zbytek je „a 4 další". Z ostatních servisních zpráv má jméno jen
+    připnutí a seznam úkolů.
   - **Bez jména zůstane bezejmenná věta** (`serviceText`): kdo se ze skupiny dávno ztratil
     a TDLib ho nezná, nedostane prázdné místo ani „null".
   - **Čeština rod nezná, proto „(a)"**, stejně jako oficiální klient. Předmět („přidal(a)
@@ -38,6 +39,25 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
     z pohledu správce („Přidal(a) jsi Pixel 5") i člena („Your request to join was approved",
     „You left the group"). „X tě odebral(a)" jen testem — vyhozený člen supergroup chat
     nevidí vůbec.
+- **Připnutí má jméno a text připnuté zprávy** („Jana připnul(a) „Sraz v 8"", `pinServiceText`,
+  testy `PinServiceTextTest`) v konverzaci i v seznamu chatů. Text se bere z lokální databáze
+  (`getMessageLocally`, jako texty úkolů) — kvůli větě se na server nečeká; zpráva, která
+  lokálně není, nebo médium bez popisku dostane „připnul(a) zprávu". Delší text se zkrátí
+  na 40 znaků (`quotedTask`). Připnul-li zprávu chat (anonymní správce, kanál), jméno se
+  nevypisuje: byl by to název téhož chatu.
+- **Oznámení, které mluví o jiné zprávě, na ni ťuknutím skočí** (`serviceTargetMessageId`:
+  připnutí, změna možnosti ankety, konec soutěže, skóre ve hře). Skok je tentýž jako u citace
+  (`MessageAction.JumpTo`), takže cílová zpráva se zvlněně zvýrazní. Odkaz pod textem tu
+  není, na rozdíl od převodu skupiny: věta sama říká, o co jde.
+- **Údaje, které zpráva nese, patří do věty** (`ServiceDetailsTest`): délka skončeného
+  videochatu v závorce (1. pád, „(90 minut)" — „trval 1 hodina" by se skloňovat muselo),
+  nový název tématu, text změněné možnosti ankety, počet výherců a nerozdaných cen, počet
+  boostů a důvod, proč bot smí psát. Dřív stálo „Téma upraveno" i „Soutěž skončila" bez
+  jediného údaje, ačkoli je TDLib posílá.
+- **Ověřeno na emulátoru Fold** (česky): bot Notifikátor připnul zprávu přes Bot API —
+  v konverzaci „Notifikator připnul(a) „Sraz v 8 u kašny…"", ťuknutí doskočilo na zprávu
+  a zvýraznilo ji, náhled v seznamu chatů nese tutéž větu. Téma, anketa, soutěž, boost
+  a bot jen testy — testovací účet je na zařízení vyvolat neumí.
 - **`MessageSupergroupChatCreate` chodí pro skupinu I kanál** („a newly created supergroup or
   channel") a obsah druh nenese — dokud tam natvrdo stál kanál, hlásila každá nová skupina
   „Kanál „X“ vytvořen". Rozlišuje `Message.isChannelPost` (`supergroupCreatedText`, testy
