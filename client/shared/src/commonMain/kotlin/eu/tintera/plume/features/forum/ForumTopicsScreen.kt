@@ -546,7 +546,11 @@ private fun TopicPreview(topic: ForumTopic, containerColor: androidx.compose.ui.
     } ?: topic.lastMessage?.let { message ->
         val messageText = message.text.resolve()
         buildAnnotatedString {
-            val sender = if (message.isOutgoing) you else message.senderName
+            val sender = when {
+                !message.showsSender -> null
+                message.isOutgoing -> you
+                else -> message.senderName
+            }
             sender?.let { withStyle(SpanStyle(color = contentColor)) { append("$it: ") } }
             customEmoji += appendWithCustomEmoji(messageText.replace('\n', ' '), message.entities)
         }

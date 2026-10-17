@@ -176,13 +176,21 @@ class TdlForumRepository(private val holder: TelegramClientHolder) : ForumReposi
         isOwn = info.isOutgoing,
     )
 
-    private suspend fun Message.toTopicPreview() = TopicMessagePreview(
-        text = previewText(),
-        entities = previewEntities(),
-        senderName = if (isOutgoing) null else senderName(senderId, chatId),
-        isOutgoing = isOutgoing,
-        timestamp = date,
-    )
+    /**
+     * Oznámení se jménem („Jana uzavřel(a) téma") nese jméno ve větě, takže řádek předponu
+     * „Jana:" nedostane — byla by tam dvakrát. Bez jména zůstane bezejmenná věta s předponou.
+     */
+    private suspend fun Message.toTopicPreview(): TopicMessagePreview {
+        val named = namedServicePreview(client) { client.getMe().toResult().getOrNull()?.id }
+        return TopicMessagePreview(
+            text = named ?: previewText(),
+            entities = if (named != null) emptyList() else previewEntities(),
+            senderName = if (isOutgoing || named != null) null else senderName(senderId, chatId),
+            isOutgoing = isOutgoing,
+            timestamp = date,
+            showsSender = named == null,
+        )
+    }
 
     /**
      * Jméno odesílatele, jen křestní — řádek je krátký a jméno je tu jen proto, aby bylo poznat,

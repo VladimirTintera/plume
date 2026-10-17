@@ -436,8 +436,8 @@ Zbývá to, co je pravda, ale bez podstatného údaje, který TDLib posílá:
 ~~**Kdo to udělal.**~~ — hotovo: jméno aktéra mají zprávy o členech, úkoly, připnutí a nově
 změna názvu a fotky, snímek obrazovky, témata, boost, skóre ve hře, „X je teď na Telegramu"
 a připojení z komunity (`actorServiceText`; `docs/poznatky/typy-zprav.md`, „Typy zpráv").
-V notifikacích jméno nese řádek („Jana: Změnil(a) název…"), věta ho proto nemá. Zbývá
-seznam témat, kde jsou oznámení dál bezejmenná.
+V notifikacích jméno nese řádek („Jana: Změnil(a) název…"), věta ho proto nemá. Seznam
+témat má věty se jmény jako seznam chatů (bez předpony „Jana:").
 
 **Údaje v servisní zprávě:**
 
