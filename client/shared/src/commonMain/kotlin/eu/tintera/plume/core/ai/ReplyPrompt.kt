@@ -104,8 +104,16 @@ fun replyPrompt(
         appendLine("- at most 8 words each, no explanation")
         appendLine("- make them genuinely different: e.g. agree, decline, ask something back")
         appendLine("- write them as the user, in first person")
+        // „Jsem v sobotu, rád přijdeš." — model si spletl, kdo koho zve, a odpověď psal za
+        // protějšek. Ukázka obrácení perspektivy to říká líp než samotné „first person".
+        appendLine("- the user RECEIVED the message: answer from the user's side")
+        appendLine("  (asked \"Will you come?\" → \"Yes, I'll come.\", never \"You'll come.\")")
+        // Malý model píše česky s chybami hlavně tam, kde skládá složitější větu; krátká běžná
+        // fráze se mu zkomolí méně často.
+        appendLine("- use simple everyday words, the way people really text; no literal translations")
         appendLine("- ${replyLanguageInstruction(languageCode)}")
         appendLine("- ${formalityInstruction(languageCode)}")
+        styleInstructions(languageCode).forEach { appendLine("- $it") }
         if (!structured) {
             appendLine()
             append("Replies:")
@@ -133,6 +141,28 @@ private fun replyLanguageInstruction(languageCode: String): String = when (langu
     "cs" -> "write in the same language as the conversation, most likely Czech"
     "en" -> "write in the same language as the conversation, most likely English"
     else -> "write in the same language as the conversation"
+}
+
+/**
+ * Pokyny ke slohu pro konkrétní jazyk; prázdné, kde žádné nemáme.
+ *
+ * **Rod uživatele neznáme** (Telegram ho nenese), a čeština ho prozradí v každém „rád/ráda"
+ * a „šel/šla". Návrh v cizím rodě je horší než žádný — uživatel ho musí přepsat —, proto se
+ * model vede k bezrodým tvarům („Jasně, přijdu." místo „Rád přijdu.").
+ *
+ * **Ukázka jde až PODMÍNĚNĚ („if you write in Czech")**: jazyk aplikace je jen nápověda
+ * (viz [replyLanguageInstruction]) a česká ukázka by jinak táhla do češtiny i konverzaci vedenou
+ * anglicky. Téma ukázky je jiné než běžné dotazy, aby ji model neopsal; říká to i pokyn.
+ */
+private fun styleInstructions(languageCode: String): List<String> = when (languageCode) {
+    "cs" -> listOf(
+        "if you write in Czech: the user's gender is unknown, so avoid forms that show it " +
+            "(rád/ráda, byl/byla, šel/šla) — write \"Jasně, přijdu.\", not \"Rád přijdu.\"",
+        "if you write in Czech, natural replies look like this (to \"Nepůjdeme zítra do kina?\"): " +
+            "\"Jasně, půjdu.\" / \"Zítra nemůžu, co v sobotu?\" / \"Na jaký film?\" — " +
+            "this only shows the style, do not copy it",
+    )
+    else -> emptyList()
 }
 
 /**

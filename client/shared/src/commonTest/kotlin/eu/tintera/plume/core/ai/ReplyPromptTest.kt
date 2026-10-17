@@ -145,6 +145,26 @@ class ReplyPromptTest {
     }
 
     @Test
+    fun ceskyPromptVedeKBezrodymTvarumAUkazce() {
+        val prompt = replyPrompt("Jana", listOf(TranscriptLine("Jana", "Dáš si kafe?")), "cs")
+        // Rod uživatele neznáme — „Rád přijdu." by ženě musel přepisovat.
+        assertTrue(prompt.contains("gender is unknown"), "chybí pokyn k bezrodým tvarům")
+        assertTrue(prompt.contains("Jasně, půjdu."), "chybí ukázka slohu")
+        // Ukázka je podmíněná, aby netáhla do češtiny anglickou konverzaci.
+        assertTrue(prompt.contains("if you write in Czech"))
+        assertTrue(prompt.contains("received the message", ignoreCase = true), "chybí perspektiva uživatele")
+    }
+
+    @Test
+    fun anglickyPromptCeskouUkazkuNema() {
+        val prompt = replyPrompt("Jane", listOf(TranscriptLine("Jane", "Coffee?")), "en")
+        assertFalse(prompt.contains("Czech"))
+        assertFalse(prompt.contains("Jasně"))
+        // Perspektiva platí pro každý jazyk.
+        assertTrue(prompt.contains("received the message", ignoreCase = true))
+    }
+
+    @Test
     fun strukturovanyPromptOFormatuMlci() {
         val lines = listOf(TranscriptLine("Jana", "Dáš si kafe?"))
         val prompt = replyPrompt("Jana", lines, "cs", structured = true)
