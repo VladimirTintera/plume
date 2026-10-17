@@ -757,6 +757,16 @@ v Nastavení (shrnutí ho nemá — otevírá se vědomě ťuknutím, kdežto n�
   a model odpovídá na rozhovor jako celek: do chatu plného zpráv o výletu přišlo „Dáme v sobotu
   kafe?" a návrhy zněly „Jsem připraven." a „Dobré, pak se." Se zdůrazněnou poslední zprávou
   („Reply to THIS message") a kontextem zkráceným z 10 na 6 zpráv přišlo „Neděle mi vyhovuje."
+- **„Poslední zpráva" je celý BLOK posledních zpráv od téhož autora** (`replyBlockSize`, nejvýš
+  `MAX_REPLY_BLOCK_MESSAGES` = 4, testy `ReplyPromptTest`). Lidé píšou po kouscích („Ahoj" /
+  „půjdeš v sobotu?" / „?") a otázka pak není v poslední zprávě; model odpovídal na „?" nebo
+  smajlík. Blok jde pod „Reply to THESE messages" s pokynem odpovědět na něj jako celek. Kontext
+  PŘED blokem zůstává 5 zpráv (`REPLY_EARLIER_MESSAGES`), takže blok kontext neprodlouží
+  a nevrátí past s deseti zprávami; z konverzace se proto bere 5 + 4 a rozdělí je až prompt.
+  S jedinou zprávou jsou pokyny tytéž jako dřív. Autor se pozná podle jména v přepisu.
+  Ověřeno s Gemmou 4 E2B na emulátoru, tatáž konverzace („Ahoj 👋" / „Půjdeš v sobotu s námi
+  na oběd?" / „?"): s jedinou zprávou model nabídl „Co máš na mysli?", „Co ti potřebuji říct?",
+  „Co je to?", s blokem „Nemůžu, mám jiný plán." a „Jsem v sobotu, rád přijdeš." (sloh viz níž).
 - **Tykání/vykání se musí říct výslovně.** Bez instrukce model kamarádovi VYKAL („Co byste
   předpokládali?"). Instrukce jmenuje „tykání" i „vykání" česky — samotné „be informal" model do
   správného tvaru slovesa nepřeloží. Když z konverzace poznat nejde, tyká se: v Telegramu si lidé

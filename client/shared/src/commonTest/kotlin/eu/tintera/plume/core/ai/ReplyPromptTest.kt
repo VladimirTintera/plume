@@ -85,7 +85,7 @@ class ReplyPromptTest {
         // Kontext nesmí poslední otázku pohltit — kvůli tomu model odpovídal na rozhovor
         // jako celek místo na to, co právě přišlo.
         val lines = listOf(
-            TranscriptLine("Jana", "Zítra beru děti k doktorovi"),
+            TranscriptLine("Já", "Zítra beru děti k doktorovi"),
             TranscriptLine("Jana", "Šlo by to přesunout na neděli?"),
         )
         val prompt = replyPrompt("Jana", lines, "cs")
@@ -93,6 +93,55 @@ class ReplyPromptTest {
         val lastAt = prompt.indexOf("Šlo by to přesunout")
         assertTrue(prompt.contains("Reply to THIS message"), "chybí zdůraznění poslední zprávy")
         assertTrue(contextAt in 1..<lastAt, "poslední zpráva musí stát AŽ ZA kontextem")
+    }
+
+    @Test
+    fun blokZpravOdTehozAutoraSeOdpovidaCely() {
+        // Otázka je v předposlední zprávě, poslední je jen „?" — model ji nesmí minout.
+        val lines = listOf(
+            TranscriptLine("Já", "Dorazím kolem šesté"),
+            TranscriptLine("Jana", "Ahoj"),
+            TranscriptLine("Jana", "Půjdeš v sobotu na výlet?"),
+            TranscriptLine("Jana", "?"),
+        )
+        val prompt = replyPrompt("Jana", lines, "cs")
+        val blockAt = prompt.indexOf("Reply to THESE messages")
+        assertTrue(blockAt > 0, "víc zpráv za sebou musí jít jako blok")
+        assertFalse(prompt.contains("Reply to THIS message"))
+        // Celý blok stojí ZA nadpisem, vlastní zpráva před ním zůstává kontextem.
+        assertTrue(prompt.indexOf("Jana: Ahoj") > blockAt)
+        assertTrue(prompt.indexOf("Jana: Půjdeš v sobotu") > blockAt)
+        assertTrue(prompt.indexOf("Dorazím kolem šesté") in 1..<blockAt)
+        assertTrue(prompt.contains("as a whole"), "chybí pokyn odpovědět na blok najednou")
+    }
+
+    @Test
+    fun jedinaZpravaMaPuvodniPokyny() {
+        val lines = listOf(TranscriptLine("Já", "Ahoj"), TranscriptLine("Jana", "Dáš si kafe?"))
+        val prompt = replyPrompt("Jana", lines, "cs")
+        assertTrue(prompt.contains("Reply to THIS message:\nJana: Dáš si kafe?"))
+        assertTrue(prompt.contains("answers the message above"))
+        assertFalse(prompt.contains("as a whole"))
+    }
+
+    @Test
+    fun blokKonciUJinehoAutoraAMaStrop() {
+        assertEquals(0, replyBlockSize(emptyList()))
+        val group = listOf(TranscriptLine("Petr", "a"), TranscriptLine("Jana", "b"), TranscriptLine("Jana", "c"))
+        assertEquals(2, replyBlockSize(group))
+        val chatty = (1..10).map { TranscriptLine("Jana", "slovo$it") }
+        assertEquals(MAX_REPLY_BLOCK_MESSAGES, replyBlockSize(chatty))
+    }
+
+    @Test
+    fun kontextPredBlokemMaStalePetZprav() {
+        // Blok nesmí kontext prodloužit — s deseti zprávami se otázka ztrácela.
+        val earlier = (1..8).map { TranscriptLine(if (it % 2 == 0) "Já" else "Jana", "kontext$it") }
+        val lines = earlier + TranscriptLine("Petr", "otázka")
+        val prompt = replyPrompt("Skupina", lines, "cs")
+        assertFalse(prompt.contains("kontext3"))
+        assertTrue(prompt.contains("kontext4"))
+        assertTrue(prompt.contains("kontext8"))
     }
 
     @Test
