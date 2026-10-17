@@ -32,6 +32,7 @@ import eu.tintera.plume.features.profile.JoinRequestsViewModel
 import eu.tintera.plume.features.profile.RemovedMembersViewModel
 import eu.tintera.plume.features.profile.InviteLinksViewModel
 import eu.tintera.plume.features.settings.EditProfileViewModel
+import eu.tintera.plume.features.settings.OwnProfileMusicViewModel
 import eu.tintera.plume.core.ui.ProfilePhotoCrop
 import eu.tintera.plume.core.telegram.TdlAccountRepository
 import eu.tintera.plume.core.telegram.TdlProxyRepository
@@ -554,6 +555,7 @@ fun appModule() = module {
     viewModelOf(::AutoDownloadViewModel)
     viewModelOf(::NotificationSettingsViewModel)
     viewModelOf(::EditProfileViewModel)
+    viewModelOf(::OwnProfileMusicViewModel)
     // Model v zařízení (core/ai). Stahování modelu běží v aplikačním rozsahu — trvá minuty.
     viewModel { OnDeviceAiSettingsViewModel(settings = get(), ai = get(), appScope = get(named(APP_SCOPE))) }
     viewModelOf(::ChatSummaryViewModel)
@@ -610,6 +612,7 @@ fun appModule() = module {
             liveLocations = get(),
             quickReaction = get(),
             bookmarks = get(),
+            profiles = get(),
             jumpRequests = get(),
             snoozes = get(),
             photoMarkup = get(),

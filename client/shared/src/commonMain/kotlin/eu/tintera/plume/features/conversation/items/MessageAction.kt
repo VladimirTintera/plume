@@ -41,6 +41,9 @@ import eu.tintera.plume.resources.notifications_24dp
 import eu.tintera.plume.resources.bookmark_filled_24dp
 import eu.tintera.plume.resources.bookmark_24dp
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.menu_profile_audio_remove
+import eu.tintera.plume.resources.menu_profile_audio_add
+import eu.tintera.plume.resources.music_note_24dp
 import eu.tintera.plume.resources.content_copy_24dp
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.description_24dp
@@ -518,6 +521,19 @@ sealed interface MessageMenuAction : MessageAction {
     }
 
     /**
+     * Skladba do hudby ve vlastním profilu, nebo z ní ven (`addProfileAudio` / `removeProfileAudio`).
+     * Kandidát jen u skladby; jestli už v profilu je, se zjistí při otevření nabídky
+     * ([MessageMenu.profileAudio]).
+     */
+    data object ToggleProfileAudio : MessageMenuAction {
+        override fun presentation(menu: MessageMenu) = when (menu.profileAudio) {
+            true -> MenuPresentation(Res.drawable.music_note_24dp, Res.string.menu_profile_audio_remove)
+            false -> MenuPresentation(Res.drawable.music_note_24dp, Res.string.menu_profile_audio_add)
+            null -> null
+        }
+    }
+
+    /**
      * Záložka jen pro uživatele (`MessageBookmarks`), v zařízení. Nabízí se u každé zprávy;
      * jestli už v záložkách je, se zjistí při otevření nabídky ([MessageMenu.bookmarked]).
      */
@@ -704,6 +720,7 @@ val MessageMenuAction.slot: MenuSlot
         MessageMenuAction.Forward,
         MessageMenuAction.Translate,
         MessageMenuAction.ToggleFavoriteSticker,
+        MessageMenuAction.ToggleProfileAudio,
         MessageMenuAction.ShareFile,
         MessageMenuAction.SaveFileAs,
         -> MenuSlot.Primary

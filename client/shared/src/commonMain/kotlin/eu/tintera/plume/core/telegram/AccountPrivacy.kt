@@ -62,6 +62,8 @@ enum class PrivacySetting(
     ProfilePhoto,
     Bio,
     Birthdate,
+    /** Kdo vidí hudbu v profilu (`UserPrivacySettingShowProfileAudio`). */
+    ProfileAudio,
     ForwardLink,
     Calls,
     PeerToPeer,

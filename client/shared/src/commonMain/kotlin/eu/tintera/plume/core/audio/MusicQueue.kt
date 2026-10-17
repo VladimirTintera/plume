@@ -46,6 +46,12 @@ data class NowPlaying(
 )
 
 /**
+ * Skladba, kterou fronta umí pustit: [id] v jejím zdroji (zpráva v chatu, nebo pořadí ve vlastním
+ * seznamu, viz [MusicQueue.togglePlaylist]) a co hrát.
+ */
+data class QueueTrack(val id: Long, val audio: MessageMedia.Audio)
+
+/**
  * Co z fronty hudby potřebuje konverzace ([MusicQueue]); rozhraní kvůli testům, jako
  * [VoicePlayerControl].
  */
@@ -89,10 +95,15 @@ class MusicQueue(
     private data class Current(
         val key: VoiceKey,
         val track: TrackInfo,
-        val neighbors: MusicNeighbors? = null,
+        /** Sousedi jsou známí ([previous] a [next] platí, i když jsou `null` = není). */
+        val neighborsKnown: Boolean = false,
+        val previous: QueueTrack? = null,
+        val next: QueueTrack? = null,
         val advancing: Boolean = false,
         /** Pamatovat pozici (ne v tajném chatu); platí i pro skladby, které po této navážou. */
         val rememberPosition: Boolean = true,
+        /** Vlastní seznam skladeb (hudba v profilu); `null` = sousedi se hledají v chatu. */
+        val playlist: List<QueueTrack>? = null,
     )
 
     private val current = MutableStateFlow<Current?>(null)
@@ -111,8 +122,8 @@ class MusicQueue(
             playing = own?.playing ?: false,
             durationMs = own?.durationMs ?: 0L,
             speed = speed.rate,
-            previous = current.neighbors?.previous?.id?.let { VoiceKey(current.key.chatId, it) },
-            next = current.neighbors?.next?.id?.let { VoiceKey(current.key.chatId, it) },
+            previous = current.previous?.id?.let { VoiceKey(current.key.chatId, it) },
+            next = current.next?.id?.let { VoiceKey(current.key.chatId, it) },
         )
     }
         // Pozice se mění dvacetkrát za vteřinu, a ta v tomhle stavu není — beze změny nic dál.
@@ -158,6 +169,27 @@ class MusicQueue(
         play(key, audio, rememberPosition = rememberPosition)
     }
 
+    /**
+     * Skladba z vlastního seznamu [tracks] (hudba v profilu): pustí [index], nebo u hrající přepne
+     * pauzu. Sousedé se berou ze seznamu, ne z chatu — skladby v profilu nejsou zprávy. Klíč je
+     * `VoiceKey(chatId, track.id)`; [chatId] je chat, který otevře ťuknutí na přehrávač
+     * v notifikaci, a id skladeb se nesmí potkat s id zpráv v něm (proto záporná).
+     */
+    fun togglePlaylist(chatId: Long, tracks: List<QueueTrack>, index: Int) {
+        val track = tracks.getOrNull(index) ?: return
+        val key = VoiceKey(chatId, track.id)
+        val playback = player.state.value
+        if (playback?.key == key) {
+            when {
+                playback.loading -> Unit
+                playback.playing -> player.pause()
+                else -> player.resume()
+            }
+            return
+        }
+        play(key, track.audio, playlist = tracks)
+    }
+
     /** Pustí skladbu od začátku, nebo od [startMs] (čas v médiu, „1:23"). */
     override fun play(chatId: Long, messageId: Long, audio: MessageMedia.Audio, startMs: Long, rememberPosition: Boolean) =
         play(VoiceKey(chatId, messageId), audio, startMs, rememberPosition)
@@ -179,10 +211,9 @@ class MusicQueue(
     override fun skipToNext() = skipToNext(finishedKey = null)
 
     fun skipToPrevious() {
-        val chatId = current.value?.key?.chatId ?: return
-        val previous = current.value?.neighbors?.previous ?: return
-        val audio = previous.media as? MessageMedia.Audio ?: return
-        play(VoiceKey(chatId, previous.id), audio, rememberPosition = current.value?.rememberPosition ?: true)
+        val playing = current.value ?: return
+        val previous = playing.previous ?: return
+        play(VoiceKey(playing.key.chatId, previous.id), previous.audio, rememberPosition = playing.rememberPosition, playlist = playing.playlist)
     }
 
     /**
@@ -193,24 +224,34 @@ class MusicQueue(
         val playing = current.value ?: return
         if (finishedKey != null) current.value = playing.copy(advancing = true)
         scope.launch {
-            val neighbors = playing.neighbors ?: conversations.musicNeighbors(playing.key.chatId, playing.key.messageId)
-                .onFailure { logger.w(it) { "Další skladbu nejde najít." } }
-                .getOrNull()
+            val next = if (playing.neighborsKnown) {
+                playing.next
+            } else {
+                conversations.musicNeighbors(playing.key.chatId, playing.key.messageId)
+                    .onFailure { logger.w(it) { "Další skladbu nejde najít." } }
+                    .getOrNull()
+                    ?.queueTracks()
+                    ?.second
+            }
             // Mezitím mohl uživatel pustit něco jiného.
             if (current.value?.key != playing.key) return@launch
             if (finishedKey == null && player.state.value?.key != playing.key) return@launch
-            val next = neighbors?.next
-            val audio = next?.media as? MessageMedia.Audio
-            if (next == null || audio == null) {
+            if (next == null) {
                 // Po dohrání poslední skladby není co navázat; hudba skončila.
                 if (finishedKey != null) current.value = null
                 return@launch
             }
-            play(VoiceKey(playing.key.chatId, next.id), audio, rememberPosition = playing.rememberPosition)
+            play(VoiceKey(playing.key.chatId, next.id), next.audio, rememberPosition = playing.rememberPosition, playlist = playing.playlist)
         }
     }
 
-    private fun play(key: VoiceKey, audio: MessageMedia.Audio, startMs: Long = 0L, rememberPosition: Boolean = true) {
+    private fun play(
+        key: VoiceKey,
+        audio: MessageMedia.Audio,
+        startMs: Long = 0L,
+        rememberPosition: Boolean = true,
+        playlist: List<QueueTrack>? = null,
+    ) {
         val track = TrackInfo(
             title = audio.title.ifBlank { audio.fileName },
             performer = audio.performer?.ifBlank { null },
@@ -218,7 +259,18 @@ class MusicQueue(
         )
         // `advancing` přes `player.play`: to napřed zastaví předchozí zvuk a stav je na chvíli
         // prázdný — bez příznaku by ho sběr stavu vzal jako konec hudby.
-        current.value = Current(key, track, advancing = true, rememberPosition = rememberPosition)
+        // Ve vlastním seznamu jsou sousedi známí hned; v chatu je dohledá [loadDetails].
+        val index = playlist?.indexOfFirst { it.id == key.messageId } ?: -1
+        current.value = Current(
+            key,
+            track,
+            neighborsKnown = playlist != null,
+            previous = playlist?.getOrNull(index - 1)?.takeIf { index > 0 },
+            next = playlist?.getOrNull(index + 1)?.takeIf { index >= 0 },
+            advancing = true,
+            rememberPosition = rememberPosition,
+            playlist = playlist,
+        )
         player.play(
             key,
             music = true,
@@ -228,19 +280,28 @@ class MusicQueue(
         ) {
             path(audio.fileId)
         }
-        loadDetails(key, audio)
+        loadDetails(key, audio, findNeighbors = playlist == null)
     }
 
     /**
      * Sousedi a obal alba — obojí dorazí až po chvíli a systémové ovládání se podle toho
      * překreslí. Do té doby notifikace ukazuje skladbu bez obalu a bez tlačítka „další".
      */
-    private fun loadDetails(key: VoiceKey, audio: MessageMedia.Audio) {
+    private fun loadDetails(key: VoiceKey, audio: MessageMedia.Audio, findNeighbors: Boolean) {
         detailsJob?.cancel()
         detailsJob = scope.launch {
-            launch {
+            if (findNeighbors) launch {
                 conversations.musicNeighbors(key.chatId, key.messageId)
-                    .onSuccess { neighbors -> current.update { if (it?.key == key) it.copy(neighbors = neighbors, advancing = false) else it } }
+                    .onSuccess { neighbors ->
+                        val (previous, next) = neighbors.queueTracks()
+                        current.update {
+                            if (it?.key == key) {
+                                it.copy(neighborsKnown = true, previous = previous, next = next, advancing = false)
+                            } else {
+                                it
+                            }
+                        }
+                    }
                     .onFailure { logger.w(it) { "Sousední skladby nejde najít." } }
             }
             launch {
@@ -261,5 +322,10 @@ class MusicQueue(
             else -> error("Nedosažitelné")
         }
 }
+
+/** Sousední zprávy chatu jako skladby fronty (předchozí, další); zpráva bez skladby = žádná. */
+private fun MusicNeighbors.queueTracks(): Pair<QueueTrack?, QueueTrack?> =
+    previous?.let { message -> (message.media as? MessageMedia.Audio)?.let { QueueTrack(message.id, it) } } to
+        next?.let { message -> (message.media as? MessageMedia.Audio)?.let { QueueTrack(message.id, it) } }
 
 private const val ARTWORK_TIMEOUT_MS = 10_000L

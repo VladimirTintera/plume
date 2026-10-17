@@ -27,6 +27,21 @@ interface ProfileRepository {
     suspend fun isOwnAccount(chatId: Long): Boolean
 
     /**
+     * Hudba v profilu uživatele [userId] (`getUserProfileAudios`), v pořadí, které si nastavil,
+     * nejvýš [PROFILE_AUDIO_LIMIT] skladeb. Prázdné = žádná, nebo ji uživatel soukromím skrývá.
+     */
+    suspend fun profileAudios(userId: Long): Result<List<MessageMedia.Audio>>
+
+    /** Přidá skladbu na ZAČÁTEK hudby ve vlastním profilu (`addProfileAudio`). */
+    suspend fun addProfileAudio(audio: MessageMedia.Audio): Result<Unit>
+
+    /** Odebere skladbu [fileId] z hudby ve vlastním profilu (`removeProfileAudio`). */
+    suspend fun removeProfileAudio(fileId: Int): Result<Unit>
+
+    /** Je skladba [fileId] v hudbě vlastního profilu? (`isProfileAudio`; 404 = není). */
+    suspend fun isProfileAudio(fileId: Int): Boolean
+
+    /**
      * Starší vlastní profilovka [photoId] bude zase hlavní (`setProfilePhoto` s
      * `InputChatPhotoPrevious`). Jen pro vlastní účet — u skupiny TDLib starší fotku znovu
      * použít neumí.
@@ -437,6 +452,12 @@ data class ChatProfile(
     val hasMainWebApp: Boolean = false,
     /** Diskusní skupina kanálu, u skupiny kanál, ke kterému patří; `null` = žádný. */
     val linkedChat: LinkedChat? = null,
+    /**
+     * První skladba hudby v profilu uživatele (`UserFullInfo.firstProfileAudio`), nebo `null`.
+     * Celý seznam se dočítá zvlášť ([ProfileRepository.profileAudios]); podle souboru téhle
+     * skladby se pozná, že se seznam změnil.
+     */
+    val firstProfileAudio: MessageMedia.Audio? = null,
 ) {
     /** Odkaz ke sdílení: veřejné jméno, jinak pozvánka; `null` = není co sdílet. */
     val link: String?
@@ -519,3 +540,6 @@ data class BotVerificationNote(val description: String?, val botName: String)
  * náhledem); [addedDate] je, kdy si ji chat nastavil.
  */
 data class ProfilePhoto(val id: Long, val addedDate: Int, val media: MessageMedia)
+
+/** Kolik skladeb hudby v profilu se načte; víc jich TDLib naráz nevydá. */
+const val PROFILE_AUDIO_LIMIT = 100

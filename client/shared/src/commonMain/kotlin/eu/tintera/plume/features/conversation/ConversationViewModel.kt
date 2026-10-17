@@ -68,6 +68,7 @@ import eu.tintera.plume.core.telegram.ChatRepository
 import eu.tintera.plume.core.telegram.ConnectionRepository
 import eu.tintera.plume.core.telegram.ConnectionState
 import eu.tintera.plume.core.telegram.ConversationRepository
+import eu.tintera.plume.core.telegram.ProfileRepository
 import eu.tintera.plume.core.telegram.ThreadConversationRepository
 import eu.tintera.plume.core.telegram.FileRepository
 import eu.tintera.plume.core.telegram.MessageReaction
@@ -220,6 +221,8 @@ class ConversationViewModel(
     private val quickReaction: QuickReaction,
     /** Záložky zpráv; bez nich se „Přidat do záložek" nenabízí. */
     private val bookmarks: MessageBookmarks? = null,
+    /** Hudba ve vlastním profilu; bez ní se u skladby „Přidat do profilu" nenabízí. */
+    private val profiles: ProfileRepository? = null,
     /** Skok na zprávu ze záložky v profilu; bez něj se nečeká. */
     private val jumpRequests: ConversationJumpRequests? = null,
     /** Odložené chaty: otevřený chat z bloku připomínek v seznamu zmizí. */
@@ -716,6 +719,7 @@ class ConversationViewModel(
         onDeviceAi = onDeviceAi,
         bookmarks = bookmarks,
         stickerRepository = stickerRepository,
+        profiles = profiles,
         messageContext = messageContext,
         translation = translation,
         logger = logger,
@@ -1877,6 +1881,7 @@ class ConversationViewModel(
             is MessageAction.QuoteReply -> composer.quoteReply(messageId, action.text)
             is MessageAction.CopyText -> menu.copyText(action.text)
             MessageMenuAction.ToggleFavoriteSticker -> menu.toggleFavoriteSticker(messageId)
+            MessageMenuAction.ToggleProfileAudio -> menu.toggleProfileAudio(messageId)
             MessageMenuAction.ToggleBookmark -> menu.toggleBookmark(messageId)
             MessageMenuAction.Forward -> messageActions.requestForward(messageId)
             MessageMenuAction.Remind -> messageActions.requestRemind(messageId)

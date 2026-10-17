@@ -452,8 +452,11 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   (vlastní záložka s přehráváním).
 
 **Novinky TDLib, na které se zatím nesáhlo:** AI úpravy textu od serveru
-(`composeTextWithAi`, `fixTextWithAi`, styly psaní), komunity (`createCommunity`), hudba
-v profilu (`getUserProfileAudios`), mizející zprávy (`sendEphemeralMessage`), živé příběhy.
+(`composeTextWithAi`, `fixTextWithAi`, styly psaní), komunity (`createCommunity`), mizející
+zprávy (`sendEphemeralMessage`), živé příběhy. ~~Hudba v profilu (`getUserProfileAudios`)~~ —
+hotovo (profil, úprava profilu, „Přidat do profilu" nad zprávou, soukromí;
+`docs/poznatky/profil-chatu.md`, „Hudba v profilu"); zbývá pořadí skladeb
+(`setProfileAudioPosition`), přidání skladby ze souboru v telefonu a ověřit víc skladeb a iOS.
 
 ## Tajné chaty
 

@@ -46,6 +46,8 @@ import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.core.ui.toggle
 import androidx.compose.ui.platform.LocalHapticFeedback
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.music_note_24dp
+import eu.tintera.plume.resources.privacy_profile_audio
 import eu.tintera.plume.resources.add_24dp
 import eu.tintera.plume.resources.cake_24dp
 import eu.tintera.plume.resources.call_24dp
@@ -134,6 +136,7 @@ internal val PrivacySetting.title: StringResource
         PrivacySetting.ProfilePhoto -> Res.string.privacy_profile_photo
         PrivacySetting.Bio -> Res.string.privacy_bio
         PrivacySetting.Birthdate -> Res.string.privacy_birthdate
+        PrivacySetting.ProfileAudio -> Res.string.privacy_profile_audio
         PrivacySetting.ForwardLink -> Res.string.privacy_forward_link
         PrivacySetting.Calls -> Res.string.privacy_calls
         PrivacySetting.PeerToPeer -> Res.string.privacy_peer_to_peer
@@ -149,6 +152,7 @@ private val PrivacySetting.icon: DrawableResource
         PrivacySetting.ProfilePhoto -> Res.drawable.add_photo_alternate_24dp
         PrivacySetting.Bio -> Res.drawable.info_24dp
         PrivacySetting.Birthdate -> Res.drawable.cake_24dp
+        PrivacySetting.ProfileAudio -> Res.drawable.music_note_24dp
         PrivacySetting.ForwardLink -> Res.drawable.forward_24dp
         PrivacySetting.Calls -> Res.drawable.call_24dp
         PrivacySetting.PeerToPeer -> Res.drawable.lan_24dp
@@ -182,6 +186,7 @@ private val SEEN = listOf(
     PrivacySetting.ProfilePhoto,
     PrivacySetting.Bio,
     PrivacySetting.Birthdate,
+    PrivacySetting.ProfileAudio,
     PrivacySetting.ForwardLink,
 )
 private val ALLOWED = listOf(
