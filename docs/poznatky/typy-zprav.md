@@ -63,10 +63,20 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
   nový název tématu, text změněné možnosti ankety, počet výherců a nerozdaných cen, počet
   boostů a důvod, proč bot smí psát. Dřív stálo „Téma upraveno" i „Soutěž skončila" bez
   jediného údaje, ačkoli je TDLib posílá.
+- **Datum a částka ve větě jsou taky `UiText`** (`dateUiText`, `Price.asUiText`), ne hotový
+  řetězec: naplánovaný videochat („Videochat naplánován na 5. října v 15:22"), platba
+  („Platba 12,50 EUR za „Káva" proběhla", hvězdy plurálem) a vrácená platba. Měsíc i desetinná
+  čárka patří jazyku a převedená zpráva přežije změnu jazyka. Výjimkou je čas („15:22") —
+  ve 24hodinovém zápisu se mezi jazyky nemění. Platba se píše neosobně: oznámení dostává
+  plátce, ale u firemních účtů to nemusí být on. Testy `ServiceVideoChatPaymentTest`.
+- **Pozvaní do videochatu jsou zpráva o členech** (`memberServiceUserIds`): „Alice pozval(a)
+  do videochatu Boba a Cyrila", „Alice tě pozval(a) do videochatu". Jména se dohledávají
+  stejně jako u přidaných členů (první dva, zbytek „a N další").
 - **Ověřeno na emulátoru Fold** (česky): bot Notifikátor připnul zprávu přes Bot API —
   v konverzaci „Notifikator připnul(a) „Sraz v 8 u kašny…"", ťuknutí doskočilo na zprávu
   a zvýraznilo ji, náhled v seznamu chatů nese tutéž větu. Téma, anketa, soutěž, boost
-  a bot jen testy — testovací účet je na zařízení vyvolat neumí.
+  a bot jen testy — testovací účet je na zařízení vyvolat neumí. Naplánovaný videochat ověřený
+  na starším oznámení v testovací skupině; platba a pozvánka do videochatu jen testy.
 - **`MessageSupergroupChatCreate` chodí pro skupinu I kanál** („a newly created supergroup or
   channel") a obsah druh nenese — dokud tam natvrdo stál kanál, hlásila každá nová skupina
   „Kanál „X“ vytvořen". Rozlišuje `Message.isChannelPost` (`supergroupCreatedText`, testy

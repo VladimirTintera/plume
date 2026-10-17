@@ -1071,6 +1071,15 @@
     <string name="service_actor_contact_joined">%1$s joined Telegram</string>
     <string name="service_actor_community_joined">%1$s joined from the community</string>
     <string name="service_you_community_joined">You joined from the community</string>
+    <string name="service_video_chat_scheduled_at">Video chat scheduled for %1$s at %2$s</string>
+    <string name="service_live_stream_scheduled_at">Live stream scheduled for %1$s at %2$s</string>
+    <string name="service_payment_amount">Payment of %1$s completed</string>
+    <string name="service_payment_amount_for">Payment of %1$s for “%2$s” completed</string>
+    <string name="service_payment_recurring">%1$s (recurring payment)</string>
+    <string name="service_payment_refunded_amount">Payment of %1$s was refunded</string>
+    <string name="service_video_chat_invited">%1$s invited %2$s to the video chat</string>
+    <string name="service_video_chat_invited_you">%1$s invited you to the video chat</string>
+    <string name="service_you_video_chat_invited">You invited %1$s to the video chat</string>
     <string name="service_giveaway_created">A giveaway started</string>
     <string name="service_owner_changed">The chat has a new owner</string>
     <string name="service_owner_left">The owner left the chat</string>
