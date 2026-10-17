@@ -268,6 +268,14 @@ class ConversationItemsTest {
     }
 
     @Test
+    fun okoKoukaAMrkneJenNaKonciPeriody() {
+        assertEquals(0f, eyeClosure(0f))
+        assertEquals(0f, eyeClosure(0.85f))
+        assertEquals(1f, eyeClosure(0.95f), 0.001f)
+        assertEquals(0f, eyeClosure(1f), 0.001f)
+    }
+
+    @Test
     fun spotrebovaneMiziciMediumJeHnedOznameni() {
         // Spotřebovanou mizející fotku TDLib vymění za `MessageExpiredPhoto` až za chvíli;
         // do té doby nesmí v seznamu stát bublina, která pak skočí na oznámení.

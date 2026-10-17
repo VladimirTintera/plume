@@ -406,6 +406,10 @@ naopak vidí, že píšeme my.
 - **Trojtečka stačí jen u psaní.** Ostatní činnosti (nahrává hlasovku, vybírá samolepku) doplní
   slovy vedle teček. Tečky skáčou jen v části periody (`dotLift`, testy `ConversationItemsTest`),
   zbytek stojí — bez pauzy by vlnily neklidně. Fáze se čte až v `graphicsLayer`.
+- **„Sleduje animaci" trojtečku nemá, má oko** (`BlinkingEye`, `eyeClosure`). Protějšek, který
+  jen kouká na náš efekt animovaného emoji, nic nepíše, a skákající tečky vedle tváře to tvrdily.
+  Oko jednou za 2,4 s mrkne (stažení na výšku ve vrstvě, ne nová kresba), řádek má stejnou výšku
+  jako tečky, takže výměna činnosti indikátorem nepohne.
 - **Vlastní „píšu" se opakuje nejvýš jednou za 5 s** (`TYPING_REPEAT`). Server činnost zhasíná
   asi po šesti vteřinách; posílat ji na každý úhoz by byl dotaz na znak.
 - **Vymazání textu psaní výslovně ukončí** (`ChatActionCancel`), odeslání ne — to ukončí server
