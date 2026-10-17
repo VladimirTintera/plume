@@ -149,7 +149,8 @@ Poznatky v `docs/poznatky/desktop.md`. Co chybí, zhruba podle důležitosti:
 - **Podpis instalátorů**: Windows (certifikát pro podepisování kódu, jinak SmartScreen),
   macOS podpis Developer ID a notarizace. Bez nich systém instalátor při prvním spuštění zastaví.
 - **Aktualizace desktopu**: aplikace o nové verzi neví; šlo by to přes GitHub Releases API.
-- **Jazyk aplikace jen pro aplikaci** (dnes jde za jazykem systému).
+- ~~**Jazyk aplikace jen pro aplikaci**~~ — hotovo (`DesktopAppLanguage`; `docs/poznatky/desktop.md`,
+  „Jazyk aplikace").
 - **Úprava fotky, profilové video, mini aplikace (WebView), poloha, QR čtečka, kalendář,
   kontakty** — vše `actual`, které dnes říká „neumí".
 - ~~**Desktopové chování**~~ — hotovo: nabídka „Chaty" se zkratkami v liště macOS
