@@ -5,14 +5,15 @@ package eu.tintera.plume.core.locale
  *
  * **Nastavení si drží systém, ne aplikace.** Android (od 13) ho ukládá u balíčku a aplikuje ještě
  * před startem aplikace, iOS ho má v Nastavení u aplikace. Kopie v `AppSettings` by se s ním
- * rozešla — změna v systémovém nastavení by o ní nevěděla.
+ * rozešla — změna v systémovém nastavení by o ní nevěděla. Výjimka je Android do 12, kde systém
+ * jazyk pro jednu aplikaci nezná a drží ho aplikace sama (`LegacyAppLanguage`).
  */
 expect class AppLanguage {
 
     /** Dá se jazyk vybrat přímo v aplikaci? Jinak zbývá jen [openSystemSettings]. */
     val canChooseInApp: Boolean
 
-    /** Nabízí systém jazyk pro jednu aplikaci vůbec? Kde ne (Android do 12), volba nemá smysl. */
+    /** Jde jazyk aplikace vůbec zvolit? (Všude, kde je Plume; do Androidu 12 ho drží aplikace sama.) */
     val isSupported: Boolean
 
     /** Zvolený jazyk (kód z [APP_LANGUAGES]), `null` = podle systému. */

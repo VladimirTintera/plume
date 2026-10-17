@@ -4,6 +4,8 @@ import android.content.Intent
 import android.os.Build
 import android.view.WindowManager
 import android.os.Bundle
+import eu.tintera.plume.core.locale.LegacyAppLanguage
+import android.content.Context
 import android.view.KeyEvent
 import android.view.KeyboardShortcutGroup
 import android.view.Menu
@@ -38,10 +40,18 @@ class MainActivity : ComponentActivity() {
     /** Texty pro systémový přehled zkratek; do načtení přehled Plume neukáže nic. */
     private var shortcutOverview: KeyboardShortcutOverview? = null
 
+    // Jazyk aplikace do Androidu 12 (od 13 ho aktivitě dává systém). Viz LegacyAppLanguage.
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(newBase)
+        LegacyAppLanguage.overrideConfiguration(newBase)?.let(::applyOverrideConfiguration)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // Edge-to-edge je M3 default; insety si nanáší ten, kdo kreslí chrome (viz konvence v mlogu).
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        // Změna jazyka do Androidu 12: přeloží se až nově vytvořená aktivita (od 13 to dělá systém).
+        lifecycleScope.launch { LegacyAppLanguage.changes.collect { recreate() } }
 
         // Studený start z notifikace: chatId přijde v intentu, kterým se activity zakládá.
         openChatFrom(intent)
