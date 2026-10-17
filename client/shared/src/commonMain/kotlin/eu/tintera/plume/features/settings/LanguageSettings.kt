@@ -42,8 +42,9 @@ import org.koin.compose.koinInject
  * Řádek „Jazyk" v seznamu Nastavení: jazyk aplikace nezávisle na systému. Samostatný řádek, ne
  * sekce — hledá ho i ten, kdo vzhled neřeší, a sekce s jedinou volbou by byla navíc.
  *
- * Kde ho systém pro jednu aplikaci nezná (Android do 12, desktop), se řádek neukáže vůbec. Na iOS
- * jen otevře systémové Nastavení — změnit ho z aplikace tam nejde (viz [AppLanguage]).
+ * Na Androidu do 12 a na desktopu, kde systém jazyk pro jednu aplikaci nezná, ho drží aplikace
+ * sama. Na iOS řádek jen otevře systémové Nastavení — změnit ho z aplikace tam nejde
+ * (viz [AppLanguage]).
  */
 @Composable
 internal fun LanguageRow(language: AppLanguage = koinInject()) {

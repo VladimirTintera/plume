@@ -1,6 +1,9 @@
 package eu.tintera.plume.desktop
 
 import androidx.compose.runtime.DisposableEffect
+import eu.tintera.plume.core.locale.DesktopAppLanguage
+import androidx.compose.runtime.key
+import androidx.compose.runtime.collectAsState
 import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.debounce
@@ -55,6 +58,8 @@ import javax.imageio.ImageIO
 fun main(args: Array<String>) {
     // Plume už běží (třeba schovaná v oznamovací oblasti): ta vytáhne okno, tahle končí.
     if (!DesktopInstance.acquire()) return
+    // Jazyk aplikace, jestli si ho uživatel zvolil — dřív, než se přečte první text.
+    DesktopAppLanguage.applyAtStartup()
     preloadTdlibNativeDependencies()
     // macOS: titulek podle systémového vzhledu do chvíle, než ho `WindowTitleBarAppearance`
     // přebarví podle motivu aplikace (jinak by do té doby svítil bílý). Musí být před vznikem okna.
@@ -71,6 +76,8 @@ fun main(args: Array<String>) {
 
     application {
         var visible by remember { mutableStateOf(!startHidden) }
+        // Změna jazyka aplikace složí obsah okna a ikonu v oznamovací oblasti znovu (DesktopAppLanguage).
+        val language by DesktopAppLanguage.changes.collectAsState()
         // Okno se otevře, kde a jak velké bylo naposledy (DesktopWindowBounds).
         val saved = remember { DesktopWindowBounds.restore() }
         val state = rememberWindowState(
@@ -97,7 +104,7 @@ fun main(args: Array<String>) {
         }
 
         // Windows: ikona v oznamovací oblasti, kam se okno schovává (viz `onCloseRequest`).
-        DesktopTrayIcon(onOpen = DesktopWindow::activate, onQuit = { exitApplication() })
+        key(language) { DesktopTrayIcon(onOpen = DesktopWindow::activate, onQuit = { exitApplication() }) }
 
         // Příchozí hovor, když hlavní okno není vpředu: okénko navrchu s Přijmout / Odmítnout.
         IncomingCallWindow()
@@ -144,8 +151,10 @@ fun main(args: Array<String>) {
                 }
             }
             // macOS: nabídka „Chaty" v liště se zkratkami (jinde nic, viz DesktopMenuBar).
-            DesktopMenuBar()
-            App()
+            key(language) {
+                DesktopMenuBar()
+                App()
+            }
         }
     }
 }

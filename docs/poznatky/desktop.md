@@ -380,6 +380,26 @@ Dřív to bylo pokaždé 1200 × 800 tam, kam ho dal systém.
   místě od systému a `maximized = true` otevřelo okno přes celou plochu se zachovanou původní
   velikostí v souboru. **Neověřeno**: Windows, Linux a víc monitorů naživo (jen testy).
 
+## Jazyk aplikace
+
+Desktop systémový výběr jazyka pro jednu aplikaci nemá, a tak ho drží aplikace sama
+(`DesktopAppLanguage`, řádek Jazyk v Nastavení jako na Androidu). Volba je v souboru `language`
+v datech aplikace a v `main` se nastaví jako výchozí `Locale` JVM dřív, než se přečte první text
+— z něj čtou Compose Resources v kompozici (`Locale.current`) i mimo ni (oznámení, ikona
+v oznamovací oblasti, nabídka v liště macOS).
+
+- **Po změně se obsah okna skládá znovu** (`key` nad `DesktopAppLanguage.changes` v `Main.kt`,
+  kolem `App`, nabídky v liště a ikony v oznamovací oblasti). Jazyk se v kompozici čte jen při
+  skládání a prostředí prostředků (`LocalComposeEnvironment`) je interní, zvenku nejde přepsat.
+  Nová kompozice přijde o stav obrazovek — aplikace skončí na seznamu chatů, ne v Nastavení.
+  U volby, která se mění jednou za čas, je to přijatelné; okno samo zůstává (poloha, velikost).
+- **Jazyk systému se zachytí dřív, než ho volba přepíše** (`systemLocale`), aby „Podle systému"
+  šlo vrátit bez restartu.
+- **Ověřeno na macOS** (ladicí běh, systém česky): uložená angličtina platila od startu
+  (seznam chatů, prázdný panel i nabídka „Chats" v liště), „Podle systému" v Nastavení přeložilo
+  okno i lištu zpátky do češtiny hned a soubor s volbou smazalo. **Neověřeno**: Windows
+  a Linux, oznámení v jiném jazyce, než má systém.
+
 ## Spouštění po přihlášení (Windows)
 
 Push na desktopu není, oznámení chodí jen tehdy, když Plume běží — po restartu počítače by
