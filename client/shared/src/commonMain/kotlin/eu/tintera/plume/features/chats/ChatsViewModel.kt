@@ -162,6 +162,35 @@ class ChatsViewModel(
             }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
         } ?: MutableStateFlow(emptyMap())
 
+    /** Chaty z karty „Čeká na tvou odpověď", které uživatel křížkem schoval: (chat, poslední zpráva). */
+    private val hiddenAwaiting = MutableStateFlow<Set<Pair<Long, Long>>>(emptySet())
+
+    /**
+     * Karta „Čeká na tvou odpověď" nahoře v hlavním seznamu (`AwaitingReplyCard`): nepřečtené
+     * chaty, nad jejichž poslední zprávou triáž řekla „čeká na odpověď", v pořadí seznamu.
+     * Prázdná = karta není. Jen v hlavním seznamu bez vybrané složky — ve složce i v archivu
+     * má uživatel výběr, o který si řekl, a karta by ho přebíjela.
+     *
+     * **Schovaná karta se vrátí, až přibude chat, který na ní nebyl** (nová otázka): schovávají
+     * se dvojice (chat, zpráva), ne karta. Drží se v paměti procesu; po restartu se karta ukáže
+     * znovu, stejně jako se znovu posoudí chaty.
+     */
+    val awaitingReplyCard: StateFlow<List<ChatSummary>> =
+        if (folder != ChatFolder.Main) {
+            MutableStateFlow(emptyList())
+        } else {
+            combine(state, awaitingReply, hiddenAwaiting, _selectedFolderId) { list, awaiting, hidden, selectedFolder ->
+                if (selectedFolder != null) return@combine emptyList()
+                awaitingReplyChats((list as? ChatListState.Ready)?.chats.orEmpty(), awaiting, hidden)
+            }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        }
+
+    /** Křížek na kartě „Čeká na tvou odpověď": schovat, dokud nepřibude další chat. */
+    fun hideAwaitingReply() {
+        val shown = awaitingReplyCard.value.mapNotNull { chat -> chat.lastMessageId?.let { chat.id to it } }
+        hiddenAwaiting.update { it + shown }
+    }
+
     private val _newFolderChats = MutableStateFlow<NewFolderChats?>(null)
 
     /**
