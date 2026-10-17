@@ -1638,22 +1638,7 @@ class TdlChatRepository(
     /** Náhled poslední zprávy; zpráva o členech se jmény („Pixel 5 opustil(a) skupinu"). */
     private suspend fun Message.listPreview(): UiText = namedMemberPreview() ?: previewText()
 
-    private suspend fun Message.namedMemberPreview(): UiText? {
-        val nameOf: suspend (Long) -> String? = { id -> client.getUser(userId = id).toResult().getOrNull()?.fullName()?.ifBlank { null } }
-        return namedMemberServiceText(myUserId = { myUserId }, nameOf = nameOf)
-            ?: namedChecklistServiceText(
-                myUserId = { myUserId },
-                nameOf = nameOf,
-                taskTexts = { checklistMessageId -> client.checklistTaskTexts(chatId, checklistMessageId) },
-            )
-            ?: namedActorServiceText(myUserId = { myUserId }, nameOf = nameOf)
-            ?: content.namedSharedWithBotText { id -> nameOf(id) ?: client.getChat(chatId = id).toResult().getOrNull()?.title }
-            ?: namedPinServiceText(
-                myUserId = { myUserId },
-                nameOf = nameOf,
-                pinnedText = { pinnedId -> client.localMessageText(chatId, pinnedId) },
-            )
-    }
+    private suspend fun Message.namedMemberPreview(): UiText? = namedServicePreview(client) { myUserId }
 
     private fun ChatSummary.keepingLiveState(previous: ChatSummary?): ChatSummary =
         if (previous == null) this else copy(

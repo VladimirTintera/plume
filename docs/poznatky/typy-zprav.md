@@ -32,9 +32,13 @@ pravdivý popis, protože jinak se uživateli tváří jako chyba načítání.
     a TDLib ho nezná, nedostane prázdné místo ani „null".
   - **Čeština rod nezná, proto „(a)"**, stejně jako oficiální klient. Předmět („přidal(a)
     Pixel 5") se neskloňuje — jméno je jen řetězec.
-  - **Konverzace i seznam chatů** (`TdlConversationRepository` přes `resolveSender`,
-    `TdlChatRepository.listPreview` přes `getUser`) i nalezené zprávy. Notifikace a témata
-    zůstávají bezejmenné — zprávy o členech tam skoro nechodí.
+  - **Konverzace, seznam chatů i seznam témat** (`TdlConversationRepository` přes
+    `resolveSender`, seznamy přes společné `namedServicePreview` nad `getUser` / `getChat`)
+    i nalezené zprávy. **Řádek tématu u oznámení se jménem předponu „Jana:" nemá**
+    (`TopicMessagePreview.showsSender`): „Jana: Jana uzavřel(a) téma" by jméno zdvojilo; bez
+    dohledaného jména zůstane předpona s bezejmennou větou. Ověřeno na emulátoru (téma General
+    testovací skupiny: „Notifikator změnil(a) název na …"). Notifikace mají věty bez podmětu,
+    jméno nese řádek (`docs/poznatky/notifikace.md`).
   - **Ověřeno dvěma účty** (česky i anglicky): přijatá žádost, odchod, přidání a vyhození
     z pohledu správce („Přidal(a) jsi Pixel 5") i člena („Your request to join was approved",
     „You left the group"). „X tě odebral(a)" jen testem — vyhozený člen supergroup chat

@@ -49,6 +49,8 @@ data class TopicMessagePreview(
     val senderName: String?,
     val isOutgoing: Boolean,
     val timestamp: Int,
+    /** `false` u oznámení se jménem ve větě: předpona „Jana:" / „Vy:" by ho zdvojila. */
+    val showsSender: Boolean = true,
 )
 
 /** Kde pokračuje další stránka témat — TDLib ji určuje trojicí z poslední stránky. */
