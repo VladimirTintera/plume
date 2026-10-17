@@ -323,6 +323,20 @@ internal fun Month.name(): StringResource = when (this) {
     else -> Res.string.month_12
 }
 
+/**
+ * Samotné datum jako [UiText] — pro věty skládané mimo kompozici (servisní zprávy): „5. února",
+ * s rokem, jen když nesedí s letoškem. Přeloží se až v UI, takže změnu jazyka přežije.
+ */
+fun Int.dateUiText(): UiText {
+    val date = localDate()
+    val month = UiText(date.month.name())
+    return if (date.year == localNowYear()) {
+        UiText(Res.string.date_day_month, date.day, month)
+    } else {
+        UiText(Res.string.date_day_month_year, date.day, month, date.year)
+    }
+}
+
 /** Datum narození: „12. října 1990", bez roku „12. října". */
 @Composable
 fun Birthdate.label(): String {

@@ -443,10 +443,9 @@ Zbývají notifikace a seznam témat, kde jsou oznámení dál bezejmenná.
 - ~~**Připnutí**: text připnuté zprávy a ťuknutím skok na ni~~ — hotovo, i se jménem
   (`docs/poznatky/typy-zprav.md`, „Typy zpráv"). Zbývá totéž v notifikaci bez pushe
   (`NotificationTypeNewMessage`), kde je dál jen „Připnuta zpráva".
-- ~~**Skóre ve hře**~~ (číslo a skok na hru) a ~~**boost**~~ (počet) — hotovo; **platba**
-  (`totalAmount`, `currency`, opakovaná platba) zbývá.
-- **Videochat**: ~~délka u konce~~ — hotovo; čas u naplánovaného (`startDate`) a jména
-  pozvaných (`MessageInviteVideoChatParticipants.userIds`) zbývají.
+- ~~**Skóre ve hře**~~ (číslo a skok na hru), ~~**boost**~~ (počet) a ~~**platba**~~ (částka,
+  název faktury, opakovaná platba, vrácená platba) — hotovo.
+- ~~**Videochat**: délka u konce, čas u naplánovaného a jména pozvaných~~ — hotovo.
 - ~~**Upravené téma**: nový název a ikona~~ — hotovo (název, změněná / odebraná ikona; ikonu
   samotnou věta nekreslí).
 - ~~**Možnost v anketě přidaná / smazaná**: její text a skok na anketu~~ — hotovo.

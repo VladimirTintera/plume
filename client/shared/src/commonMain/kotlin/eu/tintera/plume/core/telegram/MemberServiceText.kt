@@ -6,6 +6,7 @@ import dev.g000sha256.tdl.dto.MessageChatDeleteMember
 import dev.g000sha256.tdl.dto.MessageChatJoinByLink
 import dev.g000sha256.tdl.dto.MessageChatJoinByRequest
 import dev.g000sha256.tdl.dto.MessageContent
+import dev.g000sha256.tdl.dto.MessageInviteVideoChatParticipants
 import dev.g000sha256.tdl.dto.MessageSenderUser
 import dev.g000sha256.tdl.dto.User
 import eu.tintera.plume.core.ui.UiText
@@ -27,6 +28,9 @@ import eu.tintera.plume.resources.service_you_joined_by_link
 import eu.tintera.plume.resources.service_you_left
 import eu.tintera.plume.resources.service_you_object
 import eu.tintera.plume.resources.service_you_removed
+import eu.tintera.plume.resources.service_video_chat_invited
+import eu.tintera.plume.resources.service_video_chat_invited_you
+import eu.tintera.plume.resources.service_you_video_chat_invited
 
 /**
  * Člověk ve zprávě o členech skupiny: jméno, nebo „ty" ([isMe] — pak se [name] nečte).
@@ -41,6 +45,8 @@ internal fun MessageContent.memberServiceUserIds(): List<Long>? = when (this) {
     is MessageChatAddMembers -> memberUserIds.toList()
     is MessageChatDeleteMember -> listOf(userId)
     is MessageChatJoinByLink, is MessageChatJoinByRequest -> emptyList()
+    // Pozvaní do videochatu jsou taky „lidi z oznámení": aktér pozval, ve zprávě jsou id pozvaných.
+    is MessageInviteVideoChatParticipants -> userIds.toList()
     else -> null
 }
 
@@ -84,6 +90,21 @@ internal fun MessageContent.memberServiceText(actorId: Long, people: Map<Long, S
             UiText(Res.string.service_you_accepted)
         } else {
             UiText(Res.string.service_member_accepted, actor.name)
+        }
+        is MessageInviteVideoChatParticipants -> {
+            val invited = userIds.toList()
+            when {
+                invited.size == 1 && people[invited[0]]?.isMe == true && !actor.isMe ->
+                    UiText(Res.string.service_video_chat_invited_you, actor.name)
+                else -> {
+                    val names = nameList(invited, people) ?: return null
+                    if (actor.isMe) {
+                        UiText(Res.string.service_you_video_chat_invited, names)
+                    } else {
+                        UiText(Res.string.service_video_chat_invited, actor.name, names)
+                    }
+                }
+            }
         }
         is MessageChatDeleteMember -> {
             val member = people[userId] ?: return null

@@ -1095,6 +1095,15 @@
     <string name="service_actor_contact_joined">%1$s je teď na Telegramu</string>
     <string name="service_actor_community_joined">%1$s se připojil(a) z komunity</string>
     <string name="service_you_community_joined">Připojil(a) ses z komunity</string>
+    <string name="service_video_chat_scheduled_at">Videochat naplánován na %1$s v %2$s</string>
+    <string name="service_live_stream_scheduled_at">Živé vysílání naplánováno na %1$s v %2$s</string>
+    <string name="service_payment_amount">Platba %1$s proběhla</string>
+    <string name="service_payment_amount_for">Platba %1$s za „%2$s“ proběhla</string>
+    <string name="service_payment_recurring">%1$s (opakovaná platba)</string>
+    <string name="service_payment_refunded_amount">Platba %1$s byla vrácena</string>
+    <string name="service_video_chat_invited">%1$s pozval(a) do videochatu %2$s</string>
+    <string name="service_video_chat_invited_you">%1$s tě pozval(a) do videochatu</string>
+    <string name="service_you_video_chat_invited">Pozval(a) jsi do videochatu %1$s</string>
     <string name="service_giveaway_created">Začala soutěž</string>
     <string name="service_owner_changed">Chat má nového vlastníka</string>
     <string name="service_owner_left">Vlastník chat opustil</string>

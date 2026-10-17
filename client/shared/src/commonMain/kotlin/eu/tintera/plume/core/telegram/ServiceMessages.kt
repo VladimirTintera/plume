@@ -182,6 +182,14 @@ import eu.tintera.plume.resources.service_bot_write_access_website
 import eu.tintera.plume.resources.service_bot_write_access_attachment_menu
 import eu.tintera.plume.resources.service_bot_write_access_web_app
 import eu.tintera.plume.resources.service_bot_write_access_accepted
+import eu.tintera.plume.core.ui.asTimeOfDay
+import eu.tintera.plume.core.ui.dateUiText
+import eu.tintera.plume.resources.service_video_chat_scheduled_at
+import eu.tintera.plume.resources.service_live_stream_scheduled_at
+import eu.tintera.plume.resources.service_payment_amount
+import eu.tintera.plume.resources.service_payment_amount_for
+import eu.tintera.plume.resources.service_payment_recurring
+import eu.tintera.plume.resources.service_payment_refunded_amount
 import org.jetbrains.compose.resources.PluralStringResource
 import org.jetbrains.compose.resources.StringResource
 
@@ -251,9 +259,17 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
             durationUiText(duration),
         )
     }
-    is MessageVideoChatScheduled -> UiText(
-        if (isChannelPost) Res.string.service_live_stream_scheduled else Res.string.service_video_chat_scheduled,
-    )
+    // S časem začátku: „naplánován" bez data neřeklo, kdy se připojit.
+    is MessageVideoChatScheduled -> when {
+        startDate <= 0 -> UiText(
+            if (isChannelPost) Res.string.service_live_stream_scheduled else Res.string.service_video_chat_scheduled,
+        )
+        else -> UiText(
+            if (isChannelPost) Res.string.service_live_stream_scheduled_at else Res.string.service_video_chat_scheduled_at,
+            startDate.dateUiText(),
+            startDate.asTimeOfDay(),
+        )
+    }
 
     is MessageForumTopicCreated -> UiText(Res.string.service_topic_created, name)
     // Nový název nese zpráva sama; bez něj se měnila jen ikona (`editIconCustomEmojiId`).
@@ -302,7 +318,8 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
         ?: UiText(Res.string.service_poll_option_deleted)
     is MessageChecklistTasksAdded -> UiText(Res.string.service_checklist_tasks_added)
     is MessageChecklistTasksDone -> UiText(Res.string.service_checklist_tasks_done)
-    is MessagePaymentSuccessful -> UiText(Res.string.service_payment)
+    // Částka (a za co) je to, co se z oznámení o platbě chce vědět.
+    is MessagePaymentSuccessful -> paymentText(Price(totalAmount, currency), invoiceName, isRecurring)
 
     // Dárky kreslí oficiální klient jako oznámení, ne jako zprávu od někoho. V konverzaci je
     // z nich karta (`MessageMedia.Gift`); tahle věta jde do seznamu chatů, citace a notifikace,
@@ -376,7 +393,9 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
     is MessageManagedBotCreated -> UiText(Res.string.service_bot_created)
     is MessageWebAppDataSent -> UiText(Res.string.service_web_app_data)
     is MessagePassportDataSent -> UiText(Res.string.service_passport_data)
-    is MessagePaymentRefunded -> UiText(Res.string.service_payment_refunded)
+    is MessagePaymentRefunded ->
+        if (totalAmount <= 0) UiText(Res.string.service_payment_refunded)
+        else UiText(Res.string.service_payment_refunded_amount, Price(totalAmount, currency).asUiText())
 
     // Tenhle typ nese hotový text od serveru; překládat ho není co.
     is MessageCustomServiceAction -> UiText.Raw(text)
@@ -401,6 +420,20 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
      * mezi neznámé a zapíšou se do logu — a podle logu tabulka roste, ne podle fantazie.
      */
     else -> null
+}
+
+/**
+ * Věta o zaplacené faktuře: částka, a když ji faktura má, i za co. Opakovaná platba
+ * (předplatné) to říká v závorce — jinak by vypadala jako jednorázová.
+ */
+internal fun paymentText(price: Price, invoiceName: String, isRecurring: Boolean): UiText {
+    if (price.amount <= 0) return UiText(Res.string.service_payment)
+    val sentence = if (invoiceName.isBlank()) {
+        UiText(Res.string.service_payment_amount, price.asUiText())
+    } else {
+        UiText(Res.string.service_payment_amount_for, price.asUiText(), invoiceName)
+    }
+    return if (isRecurring) UiText(Res.string.service_payment_recurring, sentence) else sentence
 }
 
 /**

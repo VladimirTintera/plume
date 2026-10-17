@@ -1,5 +1,12 @@
 package eu.tintera.plume.core.telegram
 
+import eu.tintera.plume.core.ui.UiText
+import eu.tintera.plume.core.ui.grouped
+import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.decimal_number
+import eu.tintera.plume.resources.product_price
+import eu.tintera.plume.resources.product_price_stars
+
 /** Co nese karta od bota: fakturu, nebo hru. */
 enum class ProductKind { Invoice, Game }
 
@@ -40,6 +47,21 @@ internal fun currencyExponent(currency: String): Int = when (currency.uppercase(
     -> 0
     "BHD", "IQD", "JOD", "KWD", "LYD", "OMR", "TND" -> 3
     else -> 2
+}
+
+/**
+ * Částka jako [UiText] pro větu skládanou mimo kompozici („12,50 EUR", „150 hvězd"). Desetinný
+ * oddělovač patří jazyku (`decimal_number`), stejně jako na kartě faktury.
+ */
+internal fun Price.asUiText(): UiText {
+    val parts = parts()
+    val number = parts.fraction?.let { UiText(Res.string.decimal_number, parts.whole.grouped(), it) }
+        ?: UiText.Raw(parts.whole.grouped())
+    return if (isStars) {
+        UiText(Res.plurals.product_price_stars, parts.whole.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(), number)
+    } else {
+        UiText(Res.string.product_price, number, currency)
+    }
 }
 
 private const val STARS_CURRENCY = "XTR"
