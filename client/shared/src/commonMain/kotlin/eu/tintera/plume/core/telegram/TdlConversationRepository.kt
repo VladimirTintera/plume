@@ -2533,6 +2533,8 @@ class TdlConversationRepository(
                     nameOf = { resolveSender(it)?.title },
                     taskTexts = { checklistMessageId -> client.checklistTaskTexts(chatId, checklistMessageId) },
                 )
+                // A u ostatních oznámení, která někdo udělal („Jana změnil(a) název…").
+                ?: namedActorServiceText(myUserId = { myId() }) { resolveSender(it)?.title }
                 // A u připnutí („Jana připnul(a) „Sraz v 8"").
                 ?: namedPinServiceText(
                     myUserId = { myId() },

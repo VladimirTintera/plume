@@ -433,11 +433,10 @@ ho popisuje správně. Co říkalo nepravdu, je opravené (`docs/poznatky/typy-z
 odchod vlastníka, motiv, skupinový hovor; `docs/poznatky/notifikace.md`: připnutí v pushi).
 Zbývá to, co je pravda, ale bez podstatného údaje, který TDLib posílá:
 
-**Kdo to udělal.** Jména mají zprávy o členech (`memberServiceText`), seznamy úkolů
-(`checklistServiceText`) a ~~připnutí~~ (`pinServiceText`). Aktér (odesílatel servisní zprávy) chybí u změny názvu
-a fotky, snímku obrazovky, témat, boostu, skóre ve hře, „Kontakt se připojil k Telegramu"
-a „Někdo se připojil z komunity". Stavět na `namedMemberServiceText` — dohledat jen jméno
-aktéra, bez jména zůstat u dnešní věty.
+~~**Kdo to udělal.**~~ — hotovo: jméno aktéra mají zprávy o členech, úkoly, připnutí a nově
+změna názvu a fotky, snímek obrazovky, témata, boost, skóre ve hře, „X je teď na Telegramu"
+a připojení z komunity (`actorServiceText`; `docs/poznatky/typy-zprav.md`, „Typy zpráv").
+Zbývají notifikace a seznam témat, kde jsou oznámení dál bezejmenná.
 
 **Údaje v servisní zprávě:**
 
