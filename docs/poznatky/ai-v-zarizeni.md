@@ -153,6 +153,34 @@ tedy o poskytovatelích nemusí vědět nic.
   strop je v TOKENECH, takže kam text dosáhne, je pokaždé jinde. Kus streamu bez textu nese jen
   `finishReason`, takže se nesmí přeskočit — jinak se useknutí ztratí právě na té zprávě, která
   ho hlásí.
+- **Shrnutí po částech** (`summaryParts`, `partSummaryPrompt`, `combinedSummaryPrompt`, testy
+  `SummaryPromptTest`). Když se přepis nevejde do jednoho promptu (`keptLineCount` < počet
+  zpráv), rozdělí se na části o délce, která se do limitu vešla, plněné od nejnovějších zpráv;
+  každá dostane krátké poznámky a z nich se složí shrnutí celku. Dřív se u chatu s tisíci
+  nepřečtenými shrnul jen konec a zbytek tiše odpadl — patička sice napsala „vešlo se 80
+  z 2 000", ale text se tvářil jako shrnutí všeho.
+  - **Nejvýš tři části** (`MAX_SUMMARY_PARTS`): každá je celé generování navíc. Co se nevejde
+    ani do nich, odpadne jako dřív (nejstarší) a patička to řekne.
+  - **Části se znovu nepočítají na tokeny** — mají délku přepisu, který se do limitu ověřeně
+    vešel, a instrukce jsou podobně dlouhé. Poznámky jsou krátké, složený prompt je menší než
+    kterákoli část.
+  - **Poznámky jsou už v jazyce odpovědi**, jména a fakta se tak nepřekládají dvakrát.
+  - **Sheet ukazuje průběh** („Čtu část 1 z 2…", `ChatSummaryState.ReadingParts`) a patička
+    „Shrnuto po 2 částech" — jinak by dlouho jen „připravoval".
+  - **U Gemmy na emulátoru nastanou části až nad ~24 000 znaků** (strop přepisu
+    `MAX_TRANSCRIPT_CHARS_CAP`, Gemma hlásí velký limit a tokeny nepočítá). 48 zpráv
+    (~12 000 znaků) se shrnulo jedním promptem, 108 zpráv (~27 000) ve dvou částech: „Čtu
+    část 1 z 2…" ~25 s, část 2 ~55 s, složení ~30 s, pět celých odrážek.
+  - **Mechanika funguje, kvalita E2B ne zcela** (ověřeno na emulátoru Fold, zkušební plánování
+    výletu od testovacího bota): fakta ze starší části drží, ale spletla si den („posunuli na
+    pátek") a novější změny (jiná chata, jiný sraz) skoro vynechala, přestože instrukce říká,
+    že novější události mají přednost. Části se plní od nejnovějších, takže starší část bývá
+    malá a nová velká — model se v ní ztrácí stejně jako v jednom dlouhém promptu. Jestli to
+    E4B nebo Nano zvládnou líp, se ukáže až na telefonu.
+- **Odrážka má nejvýš 20 slov a useknutý text končí poslední celou odrážkou**
+  (`completeLines`). Bez délky v instrukci psal model u delšího přepisu odrážku skoro ke každé
+  zprávě a narazil na strop uprostřed věty; useknutá věta vypadala jako chyba modelu. Že je
+  shrnutí neúplné, říká sheet dál zvlášť (`truncated`).
 - **Čeština spotřebuje víc tokenů než angličtina**, na kterou jsou výchozí hodnoty laděné; proto
   `MAX_OUTPUT_TOKENS = 800`, ne 400. Není to „čím víc, tím líp" — platí se delším generováním
   (na Foldu 12–35 s).

@@ -16,6 +16,11 @@ import eu.tintera.plume.core.ai.isReportable
 import eu.tintera.plume.core.ai.keptLineCount
 import eu.tintera.plume.core.ai.shrunkTranscriptChars
 import eu.tintera.plume.core.ai.summaryPrompt
+import eu.tintera.plume.core.ai.MAX_SUMMARY_PARTS
+import eu.tintera.plume.core.ai.combinedSummaryPrompt
+import eu.tintera.plume.core.ai.completeLines
+import eu.tintera.plume.core.ai.partSummaryPrompt
+import eu.tintera.plume.core.ai.summaryParts
 import eu.tintera.plume.core.ai.transcriptCharsFor
 import eu.tintera.plume.core.ai.userMessage
 import eu.tintera.plume.core.settings.AppSettings
@@ -34,6 +39,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.lastOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -114,6 +120,8 @@ data class SummaryDetails(
     /** Kolik zpráv z přepisu se do promptu vešlo; méně než celek znamená zkrácení. */
     val keptLines: Int,
     val totalLines: Int,
+    /** Po kolika částech se shrnovalo; 1 = jeden prompt (viz [summaryParts]). */
+    val parts: Int = 1,
 )
 
 sealed interface ChatSummaryState {
@@ -121,6 +129,12 @@ sealed interface ChatSummaryState {
 
     /** Čeká se na první slovo — model se v AICore při prvním požadavku teprve načítá. */
     data object Preparing : ChatSummaryState
+
+    /**
+     * Dlouhá konverzace se čte po částech ([part] z [parts], od 1) a teprve pak se skládá
+     * shrnutí. Každá část je celé generování, takže bez průběhu by sheet dlouho jen „připravoval".
+     */
+    data class ReadingParts(val part: Int, val parts: Int) : ChatSummaryState
 
     /**
      * [done] = model domluvil; do té doby text přibývá. [truncated] = nedomluvil, došel mu
@@ -226,17 +240,78 @@ class ChatSummaryViewModel(
                 prompt = summaryPrompt(chatTitle, lines, platformLanguageCode, maxChars)
                 tokens = ai.countTokens(variant, prompt)
             }
+            val kept = keptLineCount(lines, maxChars)
+            if (kept < lines.size) {
+                summarizeInParts(variant, chatTitle, lines, maxChars, info?.name, tokens, limit)
+                return@launch
+            }
             val details = SummaryDetails(
                 modelName = info?.name,
                 promptTokens = tokens,
                 tokenLimit = limit,
-                keptLines = keptLineCount(lines, maxChars),
+                keptLines = kept,
                 totalLines = lines.size,
             )
 
             generateInto(variant, prompt, details)
         }
     }
+
+    /**
+     * Konverzace, která se do jednoho promptu nevejde: každá část ([summaryParts], nejvýš
+     * [MAX_SUMMARY_PARTS]) dostane krátké poznámky a z nich se složí jedno shrnutí. Dřív se
+     * u chatu s tisíci nepřečtenými shrnul jen konec a zbytek tiše odpadl — patička sice
+     * řekla „vešlo se 80 z 2 000 zpráv", ale shrnutí se tvářilo jako shrnutí všeho.
+     *
+     * Části mají stejnou délku jako jeden prompt, který se do limitu vešel ([maxChars]), takže
+     * se znovu nepočítají; poznámky jsou krátké a složený prompt je menší než kterákoli část.
+     */
+    private suspend fun summarizeInParts(
+        variant: ModelVariant,
+        chatTitle: String,
+        lines: List<TranscriptLine>,
+        maxChars: Int,
+        modelName: String?,
+        promptTokens: Int?,
+        limit: Int?,
+    ) {
+        val parts = summaryParts(lines, maxChars)
+        val details = SummaryDetails(
+            modelName = modelName,
+            promptTokens = promptTokens,
+            tokenLimit = limit,
+            keptLines = parts.sumOf { it.size },
+            totalLines = lines.size,
+            parts = parts.size,
+        )
+        val notes = mutableListOf<String>()
+        parts.forEachIndexed { index, part ->
+            _state.value = ChatSummaryState.ReadingParts(part = index + 1, parts = parts.size)
+            val prompt = partSummaryPrompt(chatTitle, part, index + 1, parts.size, platformLanguageCode)
+            val note = runAi { ai.generate(variant, prompt).lastOrNull()?.text } ?: return
+            if (note.isNotBlank()) notes += note
+        }
+        if (notes.isEmpty()) {
+            logger.w { "Model shrnutí nenapsal k žádné části nic" }
+            _state.value = ChatSummaryState.Failed(emptyOutputMessage)
+            return
+        }
+        generateInto(variant, combinedSummaryPrompt(chatTitle, notes, platformLanguageCode), details)
+    }
+
+    /**
+     * Generování části, s týmiž chybovými stavy jako [generateInto]. `null` = selhalo a stav
+     * už je [ChatSummaryState.Failed] (prázdná poznámka je text `""`, ne `null`).
+     */
+    private suspend fun runAi(block: suspend () -> String?): String? =
+        try {
+            block().orEmpty()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            fail(e)
+            null
+        }
 
     /**
      * Vysvětlení JEDNÉ dlouhé zprávy („o co jde", `MessageMenuAction.Explain`). Tentýž sheet
@@ -292,7 +367,8 @@ class ChatSummaryViewModel(
             } else {
                 if (last.truncated) logger.i { "Model shrnutí nedopsal, došel mu strop výstupu" }
                 ChatSummaryState.Text(
-                    text = last.text,
+                    // Useknutá věta by vypadala jako chyba modelu; celé odrážky ne.
+                    text = if (last.truncated) completeLines(last.text) else last.text,
                     done = true,
                     details = details,
                     truncated = last.truncated,
@@ -300,11 +376,17 @@ class ChatSummaryViewModel(
             }
         } catch (e: CancellationException) {
             throw e
-        } catch (e: OnDeviceAiException) {
+        } catch (e: Exception) {
+            fail(e)
+        }
+    }
+
+    private fun fail(e: Exception) {
+        if (e is OnDeviceAiException) {
             // Rozbitý model je problém pro Crashlytics (`e` s výjimkou), vytížený ne.
             if (e.isReportable) logger.e(e) { "Shrnutí se nepovedlo" } else logger.w(e) { "Shrnutí se nepovedlo" }
             _state.value = ChatSummaryState.Failed(e.userMessage())
-        } catch (e: Exception) {
+        } else {
             logger.e(e) { "Shrnutí se nepovedlo" }
             _state.value = ChatSummaryState.Failed(UiText(Res.string.summary_failed))
         }
