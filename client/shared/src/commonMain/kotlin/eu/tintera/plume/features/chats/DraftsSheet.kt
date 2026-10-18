@@ -44,7 +44,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.ui.Avatar
@@ -255,8 +254,7 @@ private fun DraftRow(item: DraftItem, enabled: Boolean, onClick: () -> Unit, onD
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     chatTitle(chat.id, chat.title),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMediumEmphasized,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),

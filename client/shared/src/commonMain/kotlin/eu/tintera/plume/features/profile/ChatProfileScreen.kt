@@ -1119,7 +1119,7 @@ private fun ProfileHeader(
         ) {
             Text(
                 text = profile.title,
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.headlineMediumEmphasized,
                 textAlign = TextAlign.Center,
                 // Váha bez vyplnění: dlouhé jméno se zalomí, status za ním zůstane vidět.
                 modifier = Modifier.weight(1f, fill = false).sharedNavText(chatTitleKey(profile.chatId)),

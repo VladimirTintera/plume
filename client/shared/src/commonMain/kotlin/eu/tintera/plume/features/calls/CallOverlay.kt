@@ -490,7 +490,7 @@ private fun CallScreen(
 private fun CallHeadline(call: ActiveCall, name: String, compact: Boolean = false) {
     Text(
         name,
-        style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
+        style = if (compact) MaterialTheme.typography.titleLargeEmphasized else MaterialTheme.typography.headlineMediumEmphasized,
         maxLines = 2,
         overflow = TextOverflow.Ellipsis,
         textAlign = TextAlign.Center,

@@ -16,7 +16,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.Verification
@@ -73,8 +72,7 @@ fun VerificationBadge(
                 text = stringResource(
                     if (verification == Verification.Scam) Res.string.verification_scam else Res.string.verification_fake,
                 ),
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.labelSmallEmphasized,
                 color = color,
                 maxLines = 1,
                 modifier = modifier

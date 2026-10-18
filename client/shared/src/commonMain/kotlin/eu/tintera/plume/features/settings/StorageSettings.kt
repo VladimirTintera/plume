@@ -442,7 +442,7 @@ private fun UsageHeader(filesBytes: Long) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
         Text(
             fileSizeText(filesBytes),
-            style = MaterialTheme.typography.headlineMedium.tabularNumbers(),
+            style = MaterialTheme.typography.headlineMediumEmphasized.tabularNumbers(),
         )
         Text(
             stringResource(Res.string.storage_total_summary),

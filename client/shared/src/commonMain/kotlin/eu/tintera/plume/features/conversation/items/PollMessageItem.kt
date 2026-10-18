@@ -54,7 +54,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ChatMessage
@@ -161,7 +160,7 @@ private fun MessageBodyScope.PollContent(poll: ChatPoll) {
         poll.media?.let { PollQuestionMedia(it) }
         Text(
             text = poll.question,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleMediumEmphasized,
         )
         Text(
             text = pollSubtitle(poll),
@@ -387,8 +386,7 @@ private fun MessageBodyScope.ResultRow(poll: ChatPoll, answer: PollAnswer, anima
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = stringResource(Res.string.poll_percent, answer.percentage),
-                style = MaterialTheme.typography.labelLarge.tabularNumbers(),
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.labelLargeEmphasized.tabularNumbers(),
                 textAlign = TextAlign.End,
                 modifier = Modifier.width(PERCENT_WIDTH),
             )
