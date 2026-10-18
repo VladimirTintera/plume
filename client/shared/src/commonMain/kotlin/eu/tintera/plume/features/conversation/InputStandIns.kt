@@ -1,6 +1,10 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.layout.Spacer
+import eu.tintera.plume.core.ui.MediumButtonHeight
+import androidx.compose.material3.ProvideTextStyle
+import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.TonalToggleButton
 import eu.tintera.plume.core.ui.ButtonEmphasis
 import eu.tintera.plume.core.ui.MediumButtonIcon
 import eu.tintera.plume.core.ui.MediumButton
@@ -88,14 +92,20 @@ internal fun MuteBar(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        MediumButton(
-            onClick = onToggle,
+        // Ztlumení je stav, ne jednorázová akce: přepínací tlačítko (M3 Expressive), které se
+        // ve ztlumeném kanálu vyplní a zakulatí. Popisek říká, co ťuknutí udělá.
+        TonalToggleButton(
+            checked = muted == true,
+            onCheckedChange = { onToggle() },
             enabled = muted != null,
-            emphasis = ButtonEmphasis.Tonal,
-            modifier = Modifier.weight(1f),
+            shapes = ToggleButtonDefaults.shapesFor(MediumButtonHeight),
+            contentPadding = ButtonDefaults.contentPaddingFor(MediumButtonHeight),
+            modifier = Modifier.weight(1f).heightIn(min = MediumButtonHeight),
         ) {
-            MediumButtonIcon(if (muted == true) Res.drawable.notifications_24dp else Res.drawable.notifications_off_24dp)
-            Text(stringResource(if (muted == true) Res.string.profile_unmute else Res.string.profile_mute))
+            ProvideTextStyle(ButtonDefaults.textStyleFor(MediumButtonHeight)) {
+                MediumButtonIcon(if (muted == true) Res.drawable.notifications_off_24dp else Res.drawable.notifications_24dp)
+                Text(stringResource(if (muted == true) Res.string.profile_unmute else Res.string.profile_mute))
+            }
         }
         if (onMessage != null) {
             MediumButton(onClick = onMessage, emphasis = ButtonEmphasis.Tonal, modifier = Modifier.weight(1f)) {
