@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.forum
 
 import androidx.compose.foundation.layout.width
+import eu.tintera.plume.resources.search_off_24dp
+import eu.tintera.plume.core.ui.GroupEmptyRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.IconButtonDefaults
 import kotlinx.coroutines.launch
@@ -383,12 +385,7 @@ fun ForumTopicsScreen(
                 val shown = state.searchResults ?: state.topics
                 if (state.searchResults?.isEmpty() == true) {
                     item(key = "nothing") {
-                        Text(
-                            stringResource(Res.string.forum_topics_nothing_found),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        )
+                        GroupEmptyRow(stringResource(Res.string.forum_topics_nothing_found), icon = Res.drawable.search_off_24dp)
                     }
                 }
                 itemsIndexed(shown, key = { _, topic -> topic.id }) { index, topic ->

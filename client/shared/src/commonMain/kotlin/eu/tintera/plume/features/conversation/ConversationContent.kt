@@ -1,6 +1,10 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.features.media.LocalPhotoDescriptions
+import eu.tintera.plume.resources.chat_bubble_24dp
+import eu.tintera.plume.resources.error_24dp
+import eu.tintera.plume.resources.empty_state_error_title
+import eu.tintera.plume.resources.conversation_empty_text
 import eu.tintera.plume.core.ui.bubbleTextSelectable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -144,13 +148,16 @@ internal fun BoxScope.ConversationContent(
             )
         }
 
-        state.messages.isEmpty() -> Text(
-            text = state.error?.resolve() ?: stringResource(Res.string.conversation_empty),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.align(Alignment.Center).padding(24.dp),
-        )
+        // Prázdná konverzace a chyba bez zpráv: tentýž stav jako omezený nebo citlivý chat výš.
+        state.messages.isEmpty() -> {
+            val error = state.error
+            IntroEmptyState(
+                icon = if (error != null) Res.drawable.error_24dp else Res.drawable.chat_bubble_24dp,
+                title = stringResource(if (error != null) Res.string.empty_state_error_title else Res.string.conversation_empty),
+                text = error?.resolve() ?: stringResource(Res.string.conversation_empty_text),
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
 
         /*
          * Gesto patří SEZNAMU, ne položce.

@@ -1,6 +1,11 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.telegram.canBeArchived
+import androidx.compose.material3.FilledTonalButton
+import eu.tintera.plume.resources.error_24dp
+import eu.tintera.plume.resources.chat_24dp
+import eu.tintera.plume.resources.empty_state_error_title
+import eu.tintera.plume.resources.chats_empty_title
 import eu.tintera.plume.core.telegram.AppScreen
 import eu.tintera.plume.core.telegram.SuggestedAction
 import eu.tintera.plume.features.notices.BirthdaysCard
@@ -631,12 +636,12 @@ fun ChatListScreen(
                                     )
                                 }
                             } else {
-                                Text(
-                                    stringResource(Res.string.chats_empty),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.align(Alignment.Center).padding(24.dp),
+                                // Prázdný účet (čerstvě založený): tentýž stav, s cestou dál — tlačítkem
+                                // Nová zpráva v rohu.
+                                IntroEmptyState(
+                                    icon = Res.drawable.chat_24dp,
+                                    title = stringResource(Res.string.chats_empty_title),
+                                    text = stringResource(Res.string.chats_empty),
                                 )
                             }
                         },
@@ -1402,15 +1407,17 @@ internal fun ChatListContent(
             LoadingIndicator()
         }
 
-        is ChatListState.Failed -> Box(
-            Modifier.fillMaxSize().padding(padding).padding(24.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(current.message.resolve(), style = MaterialTheme.typography.bodyLarge)
-                TextButton(onClick = viewModel::loadMore, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_try_again)) }
-            }
-        }
+        is ChatListState.Failed -> IntroEmptyState(
+            icon = Res.drawable.error_24dp,
+            title = stringResource(Res.string.empty_state_error_title),
+            text = current.message.resolve(),
+            modifier = Modifier.padding(padding),
+            action = {
+                FilledTonalButton(onClick = viewModel::loadMore, shapes = ButtonDefaults.shapes()) {
+                    Text(stringResource(Res.string.common_try_again))
+                }
+            },
+        )
 
         is ChatListState.Ready -> if (current.chats.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(padding), content = empty)

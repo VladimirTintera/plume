@@ -1,6 +1,16 @@
 package eu.tintera.plume.core.ui
 
 import androidx.compose.foundation.layout.Spacer
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.DrawableResource
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.Text
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -137,6 +147,29 @@ fun GroupedColumn(
 @Composable
 fun GroupBreak() {
     Spacer(Modifier.layoutId(GroupBreakId))
+}
+
+/**
+ * Prázdný blok: „tady zatím nic není" uprostřed obrazovky, kde by stál blok zaoblených řádků
+ * (žádné pozvánky, žádné vlastní sady samolepek, hledání bez výsledku). Jeden řádek v týchž
+ * barvách a tvaru jako blok, takže prázdný seznam vypadá jako seznam, jen bez položek — holý
+ * šedý text pod nadpisem sekce působil jako nedodělek. Celou obrazovku má [IntroEmptyState].
+ */
+@Composable
+fun GroupEmptyRow(text: String, modifier: Modifier = Modifier, icon: DrawableResource? = null) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceContainerLowest, groupItemShape(0, 1))
+            .padding(horizontal = 16.dp, vertical = 20.dp),
+    ) {
+        if (icon != null) {
+            Icon(painterResource(icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
 }
 
 private object GroupBreakId

@@ -31,8 +31,10 @@ import org.jetbrains.compose.resources.DrawableResource
  * ním. Běží při každém zobrazení a pak se nic nehýbe — prázdný stav, který pořád pulzuje,
  * by táhl pozornost od toho, co se na obrazovce dá dělat.
  *
- * Sdílí ho placeholder detailu konverzace a prázdný archiv — jeden vzhled pro „tady nic není",
- * ať se dva prázdné stavy vedle sebe nepřou. Samotný tvar sdílí i přihlášení.
+ * Sdílí ho placeholder detailu konverzace, prázdný archiv, prázdný účet, prázdná konverzace
+ * i chybové stavy celé obrazovky (seznam chatů, Instant View) — jeden vzhled pro „tady nic není",
+ * ať se dva prázdné stavy vedle sebe nepřou. Samotný tvar sdílí i přihlášení. Prázdný
+ * PODSEZNAM uprostřed obrazovky (pozvánky, moje samolepky) je [GroupEmptyRow], ne tohle.
  *
  * Plocha je `surface` jako konverzace i seznam, takže výměna za obsah nemění pozadí.
  */
@@ -79,7 +81,8 @@ fun IntroEmptyState(
                 ) {
                     Text(
                         title,
-                        style = MaterialTheme.typography.headlineSmall,
+                        // Zvýrazněný řez: nadpis je to jediné, co se na prázdné ploše čte napřed.
+                        style = MaterialTheme.typography.headlineSmallEmphasized,
                         color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center,
                     )
