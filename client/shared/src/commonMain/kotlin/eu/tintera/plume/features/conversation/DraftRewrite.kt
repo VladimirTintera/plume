@@ -176,8 +176,8 @@ sealed interface RewriteState {
     data class Working(val choice: RewriteChoice, val text: String) : RewriteState
 
     /**
-     * Hotovo. [text] je očištěný výstup ([cleanRewrite]); u opravy na serveru navíc [diff] —
-     * tentýž text i se smazanými kusy a vyznačenými změnami.
+     * Hotovo. [text] je očištěný výstup ([cleanRewrite]); u opravy chyb navíc [diff] — tentýž
+     * text i se smazanými kusy a vyznačenými změnami (od serveru, u opravy v telefonu z [draftDiff]).
      */
     data class Done(val choice: RewriteChoice, val text: String, val diff: DraftDiff? = null) : RewriteState
 
@@ -393,7 +393,11 @@ class DraftRewriteViewModel(
                 logger.w { "Model přepisu nenapsal žádný text" }
                 RewriteState.Failed(choice, UiText(Res.string.rewrite_failed))
             } else {
-                RewriteState.Done(choice, result)
+                // Oprava překlepů ukazuje, co se změnilo, jako oprava od serveru — rozdíl spočítá
+                // aplikace ([draftDiff]); u „Kratší" a „Zdvořileji" se mění celé věty a zvýraznění
+                // by bylo jen šum.
+                val diff = if (style == RewriteStyle.Fix) draftDiff(text.trim(), result).takeIf { it.changes.isNotEmpty() } else null
+                RewriteState.Done(choice, result, diff)
             }
         } catch (e: CancellationException) {
             throw e
