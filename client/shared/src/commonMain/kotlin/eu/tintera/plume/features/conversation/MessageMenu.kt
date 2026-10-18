@@ -1,12 +1,12 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.push_pin_24dp
+import eu.tintera.plume.core.ui.DialogCheckRow
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.features.conversation.items.EmojiBursts
 import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.ui.semantics.Role
 import eu.tintera.plume.core.telegram.ModerationChoice
 import eu.tintera.plume.resources.delete_moderation_sender
 import eu.tintera.plume.resources.delete_moderation_report_spam
@@ -18,7 +18,6 @@ import eu.tintera.plume.core.ui.CustomEmojiIcon
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -47,15 +46,11 @@ import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.selection.SelectionState
 import androidx.compose.foundation.text.selection.TextSelectionColors
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -119,7 +114,6 @@ import eu.tintera.plume.features.conversation.items.MessageItem
 import eu.tintera.plume.features.conversation.items.SoundingVideoNote
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_reaction_24dp
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.conversation_delete_selected_title
 import eu.tintera.plume.resources.delete_message_choice
 import eu.tintera.plume.resources.delete_message_for_all
@@ -941,20 +935,12 @@ fun MessageDeleteDialog(
             )
 
             if (choice) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable { forEveryone = !forEveryone },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Checkbox(checked = forEveryone, onCheckedChange = { forEveryone = it })
-                    Text(
-                        text = partnerName?.let { stringResource(Res.string.delete_message_for_partner_named, it) }
-                            ?: stringResource(Res.string.delete_message_for_partner),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
+                DialogCheckRow(
+                    label = partnerName?.let { stringResource(Res.string.delete_message_for_partner_named, it) }
+                        ?: stringResource(Res.string.delete_message_for_partner),
+                    checked = forEveryone,
+                    onChange = { forEveryone = it },
+                )
             }
 
             val moderation = pending.moderation
@@ -967,37 +953,22 @@ fun MessageDeleteDialog(
                         modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                     )
                     if (rights.canReportSpam) {
-                        CheckRow(stringResource(Res.string.delete_moderation_report_spam), reportSpam) { reportSpam = it }
+                        DialogCheckRow(stringResource(Res.string.delete_moderation_report_spam), reportSpam) { reportSpam = it }
                     }
                     if (rights.canDeleteAll) {
-                        CheckRow(stringResource(Res.string.delete_moderation_delete_all), deleteAll) { deleteAll = it }
+                        DialogCheckRow(stringResource(Res.string.delete_moderation_delete_all), deleteAll) { deleteAll = it }
                     }
                     if (rights.canDeleteReactions) {
-                        CheckRow(stringResource(Res.string.delete_moderation_delete_reactions), deleteReactions) {
+                        DialogCheckRow(stringResource(Res.string.delete_moderation_delete_reactions), deleteReactions) {
                             deleteReactions = it
                         }
                     }
                     if (rights.canBan) {
-                        CheckRow(stringResource(Res.string.delete_moderation_ban), ban) { ban = it }
+                        DialogCheckRow(stringResource(Res.string.delete_moderation_ban), ban) { ban = it }
                     }
                 }
             }
         }
-    }
-}
-
-/** Řádek se zaškrtávátkem; ťuká se na celý řádek, ne jen na čtvereček. */
-@Composable
-private fun CheckRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .toggleable(value = checked, role = Role.Checkbox, onValueChange = onChange),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Checkbox(checked = checked, onCheckedChange = null)
-        Text(label, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -1232,29 +1203,14 @@ fun PinMessageDialog(
             stringResource(Res.string.pin_scope_channel) to stringResource(Res.string.pin_option_notify_channel)
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.pin_message_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(description)
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable { option = !option },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Checkbox(checked = option, onCheckedChange = { option = it })
-                    Text(text = optionLabel, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(option) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.menu_pin)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-        },
-    )
+    ConfirmDialog(
+        title = stringResource(Res.string.pin_message_title),
+        text = description,
+        confirmLabel = stringResource(Res.string.menu_pin),
+        onConfirm = { onConfirm(option) },
+        onDismiss = onDismiss,
+        icon = Res.drawable.push_pin_24dp,
+    ) {
+        DialogCheckRow(label = optionLabel, checked = option, onChange = { option = it })
+    }
 }

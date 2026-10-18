@@ -6,6 +6,12 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.Alignment
+import androidx.compose.material3.Checkbox
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -35,6 +41,9 @@ import org.jetbrains.compose.resources.stringResource
  * - **[content]** pod větou nese volbu, bez které se akce nedá potvrdit: „smazat i pro ostatní",
  *   délku vyhození, heslo k předání vlastnictví, chaty k opuštění se složkou. Obsah se posouvá,
  *   když je dlouhý; volba pod textem patří k otázce, proto není dialog jiného druhu.
+ *   Zaškrtávací volba je [DialogCheckRow].
+ * - **[iconContent]** místo [icon], když to, čeho se akce týká, nese obrázek (fotka kontaktu
+ *   při jeho posílání). Má přednost před [icon].
  */
 @Composable
 fun ConfirmDialog(
@@ -47,12 +56,15 @@ fun ConfirmDialog(
     destructive: Boolean = false,
     confirmEnabled: Boolean = true,
     dismissLabel: String = stringResource(Res.string.common_cancel),
+    /** Zrušit jde, i když potvrzení zrovna běží? `false` drží dialog otevřený do konce akce. */
+    dismissEnabled: Boolean = true,
+    iconContent: (@Composable () -> Unit)? = null,
     content: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val accent = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
     AlertDialog(
         onDismissRequest = onDismiss,
-        icon = icon?.let { { Icon(painterResource(it), contentDescription = null, tint = accent) } },
+        icon = iconContent ?: icon?.let { { Icon(painterResource(it), contentDescription = null, tint = accent) } },
         title = { Text(title) },
         text = if (content == null) {
             text?.let { { Text(it) } }
@@ -76,7 +88,32 @@ fun ConfirmDialog(
             ) { Text(confirmLabel) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(dismissLabel) }
+            TextButton(onClick = onDismiss, enabled = dismissEnabled, shapes = ButtonDefaults.shapes()) { Text(dismissLabel) }
         },
     )
+}
+
+/**
+ * Zaškrtávací volba v [ConfirmDialog] („připnout i pro ostatní", „povolit botovi psát").
+ * Ťuká se na celý řádek, ne jen na čtvereček; [trailing] nese údaj k volbě (velikost kategorie
+ * při mazání mezipaměti).
+ */
+@Composable
+fun DialogCheckRow(
+    label: String,
+    checked: Boolean,
+    trailing: (@Composable () -> Unit)? = null,
+    onChange: (Boolean) -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, role = Role.Checkbox, onValueChange = onChange),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Checkbox(checked = checked, onCheckedChange = null)
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        trailing?.invoke()
+    }
 }

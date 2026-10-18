@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.auth
 
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.adaptive.ContentWidth
 import androidx.compose.material3.MotionScheme
 import eu.tintera.plume.core.ui.BlockTextField
@@ -102,7 +103,6 @@ import eu.tintera.plume.resources.auth_input_email
 import eu.tintera.plume.resources.auth_support_email_address
 import eu.tintera.plume.resources.auth_support_email_code
 import eu.tintera.plume.resources.auth_support_email_code_unknown
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.auth_code_app_only_hint
 import eu.tintera.plume.resources.auth_continue
 import eu.tintera.plume.resources.auth_forgot_password
@@ -896,24 +896,17 @@ private fun EmailCodeForm(
 /** Potvrzení žádosti o reset přihlašovacího e-mailu; říká, za jak dlouho proběhne. */
 @Composable
 private fun EmailResetDialog(waitSeconds: Int, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.auth_email_reset_title)) },
-        text = {
-            Text(
-                if (waitSeconds > 0) {
-                    UiText(Res.string.auth_email_reset_text_wait, waitUiText(waitSeconds)).resolve()
-                } else {
-                    stringResource(Res.string.auth_email_reset_text_now)
-                },
-            )
+    ConfirmDialog(
+        title = stringResource(Res.string.auth_email_reset_title),
+        text = if (waitSeconds > 0) {
+            UiText(Res.string.auth_email_reset_text_wait, waitUiText(waitSeconds)).resolve()
+        } else {
+            stringResource(Res.string.auth_email_reset_text_now)
         },
-        confirmButton = {
-            TextButton(onClick = onConfirm, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.auth_email_reset_confirm)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-        },
+        confirmLabel = stringResource(Res.string.auth_email_reset_confirm),
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        icon = Res.drawable.mail_24dp,
     )
 }
 

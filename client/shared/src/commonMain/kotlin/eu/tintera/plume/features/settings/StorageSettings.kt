@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.DialogCheckRow
+import eu.tintera.plume.resources.delete_sweep_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.resources.data_usage_24dp
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
@@ -23,17 +26,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,7 +52,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -77,7 +73,6 @@ import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.auto_awesome_24dp
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.common_delete
 import eu.tintera.plume.resources.common_try_again
 import eu.tintera.plume.resources.database_24dp
@@ -363,36 +358,32 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
 
     deletePack?.let { language ->
         val name = localizedLanguageName(language) ?: language
-        AlertDialog(
-            onDismissRequest = { deletePack = null },
-            title = { Text(stringResource(Res.string.storage_delete_pack_title, name)) },
-            text = { Text(stringResource(Res.string.storage_delete_pack_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    deletePack = null
-                    viewModel.deleteTranslationPack(language)
-                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_delete)) }
+        ConfirmDialog(
+            title = stringResource(Res.string.storage_delete_pack_title, name),
+            text = stringResource(Res.string.storage_delete_pack_body),
+            confirmLabel = stringResource(Res.string.common_delete),
+            onConfirm = {
+                deletePack = null
+                viewModel.deleteTranslationPack(language)
             },
-            dismissButton = {
-                TextButton(onClick = { deletePack = null }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-            },
+            onDismiss = { deletePack = null },
+            icon = Res.drawable.delete_24dp,
+            destructive = true,
         )
     }
 
     deleteModel?.let { model ->
-        AlertDialog(
-            onDismissRequest = { deleteModel = null },
-            title = { Text(stringResource(Res.string.storage_delete_model_title, model.displayName)) },
-            text = { Text(stringResource(Res.string.storage_delete_model_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    deleteModel = null
-                    viewModel.deleteModel(model)
-                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_delete)) }
+        ConfirmDialog(
+            title = stringResource(Res.string.storage_delete_model_title, model.displayName),
+            text = stringResource(Res.string.storage_delete_model_body),
+            confirmLabel = stringResource(Res.string.common_delete),
+            onConfirm = {
+                deleteModel = null
+                viewModel.deleteModel(model)
             },
-            dismissButton = {
-                TextButton(onClick = { deleteModel = null }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-            },
+            onDismiss = { deleteModel = null },
+            icon = Res.drawable.delete_24dp,
+            destructive = true,
         )
     }
 }
@@ -525,42 +516,25 @@ private fun ClearDialog(
         mutableStateOf(categories.map { it.category }.filter { it in DEFAULT_CLEAR_CATEGORIES }.toSet())
     }
     val selectedBytes = categories.filter { it.category in selected }.sumOf { it.bytes }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
-                Text(stringResource(Res.string.storage_clear_body), modifier = Modifier.padding(bottom = 8.dp))
-                categories.forEach { part ->
-                    val checked = part.category in selected
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .toggleable(value = checked, role = Role.Checkbox, onValueChange = { on ->
-                                selected = if (on) selected + part.category else selected - part.category
-                            })
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Checkbox(checked = checked, onCheckedChange = null)
-                        Text(
-                            stringResource(part.category.label),
-                            modifier = Modifier.weight(1f).padding(start = 12.dp),
-                        )
-                        Text(fileSizeText(part.bytes), style = MaterialTheme.typography.labelLarge.tabularNumbers())
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(selected) }, enabled = selected.isNotEmpty(), shapes = ButtonDefaults.shapes()) {
-                Text(stringResource(Res.string.storage_clear_confirm, fileSizeText(selectedBytes)))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-        },
-    )
+    ConfirmDialog(
+        title = title,
+        text = stringResource(Res.string.storage_clear_body),
+        confirmLabel = stringResource(Res.string.storage_clear_confirm, fileSizeText(selectedBytes)),
+        onConfirm = { onConfirm(selected) },
+        onDismiss = onDismiss,
+        icon = Res.drawable.delete_sweep_24dp,
+        destructive = true,
+        confirmEnabled = selected.isNotEmpty(),
+    ) {
+        categories.forEach { part ->
+            DialogCheckRow(
+                label = stringResource(part.category.label),
+                checked = part.category in selected,
+                trailing = { Text(fileSizeText(part.bytes), style = MaterialTheme.typography.labelLarge.tabularNumbers()) },
+                onChange = { on -> selected = if (on) selected + part.category else selected - part.category },
+            )
+        }
+    }
 }
 
 /** „1 GB" … „Bez stropu". */

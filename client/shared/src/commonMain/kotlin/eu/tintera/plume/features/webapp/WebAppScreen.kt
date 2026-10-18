@@ -1,16 +1,16 @@
 package eu.tintera.plume.features.webapp
 
+import eu.tintera.plume.core.ui.DialogCheckRow
+import eu.tintera.plume.resources.apps_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.height
 import eu.tintera.plume.core.ui.MediumButtonHeight
 import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.material3.IconButtonDefaults
 import eu.tintera.plume.resources.bot_login_write_access
-import androidx.compose.ui.semantics.Role
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.material3.Checkbox
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
@@ -230,12 +230,13 @@ fun WebAppScreen(
         WebAppPopupDialog(popup, onClose = viewModel::popupClosed)
     }
     if (state.closeDialog) {
-        AlertDialog(
-            onDismissRequest = viewModel::dismissCloseDialog,
-            title = { Text(stringResource(Res.string.webapp_close_confirm_title)) },
-            text = { Text(stringResource(Res.string.webapp_close_confirm_text)) },
-            confirmButton = { TextButton(onClick = viewModel::confirmClose, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_close)) } },
-            dismissButton = { TextButton(onClick = viewModel::dismissCloseDialog, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+        ConfirmDialog(
+            title = stringResource(Res.string.webapp_close_confirm_title),
+            text = stringResource(Res.string.webapp_close_confirm_text),
+            confirmLabel = stringResource(Res.string.common_close),
+            onConfirm = viewModel::confirmClose,
+            onDismiss = viewModel::dismissCloseDialog,
+            icon = Res.drawable.close_24dp,
         )
     }
 }
@@ -253,32 +254,24 @@ internal fun WebAppConsentDialog(
     onDismiss: () -> Unit,
 ) {
     var allowWrite by rememberSaveable { mutableStateOf(true) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.webapp_consent_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(Res.string.webapp_consent_text, botName))
-                if (writeAccess) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .toggleable(value = allowWrite, role = Role.Checkbox, onValueChange = { allowWrite = it }),
-                    ) {
-                        Checkbox(checked = allowWrite, onCheckedChange = null)
-                        Text(
-                            stringResource(Res.string.bot_login_write_access, botName),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                }
+    ConfirmDialog(
+        title = stringResource(Res.string.webapp_consent_title),
+        text = stringResource(Res.string.webapp_consent_text, botName),
+        confirmLabel = stringResource(Res.string.webapp_consent_open),
+        onConfirm = { onOpen(writeAccess && allowWrite) },
+        onDismiss = onDismiss,
+        icon = Res.drawable.apps_24dp,
+        content = if (writeAccess) {
+            {
+                DialogCheckRow(
+                    label = stringResource(Res.string.bot_login_write_access, botName),
+                    checked = allowWrite,
+                    onChange = { allowWrite = it },
+                )
             }
+        } else {
+            null
         },
-        confirmButton = {
-            TextButton(onClick = { onOpen(writeAccess && allowWrite) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.webapp_consent_open)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 

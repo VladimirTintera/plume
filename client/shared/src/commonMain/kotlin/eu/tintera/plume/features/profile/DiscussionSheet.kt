@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.resources.forum_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Box
@@ -11,8 +13,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
@@ -20,7 +20,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,7 +36,6 @@ import eu.tintera.plume.core.telegram.LinkedChat
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.edit_chat_discussion
 import eu.tintera.plume.resources.edit_chat_discussion_confirm
 import eu.tintera.plume.resources.edit_chat_discussion_confirm_text
@@ -114,19 +112,16 @@ internal fun DiscussionSheet(
     }
 
     confirming?.let { group ->
-        AlertDialog(
-            onDismissRequest = { confirming = null },
-            title = { Text(stringResource(Res.string.edit_chat_discussion_confirm_title)) },
-            text = { Text(stringResource(Res.string.edit_chat_discussion_confirm_text, group.title)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirming = null
-                    onSelect(group)
-                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.edit_chat_discussion_confirm)) }
+        ConfirmDialog(
+            title = stringResource(Res.string.edit_chat_discussion_confirm_title),
+            text = stringResource(Res.string.edit_chat_discussion_confirm_text, group.title),
+            confirmLabel = stringResource(Res.string.edit_chat_discussion_confirm),
+            onConfirm = {
+                confirming = null
+                onSelect(group)
             },
-            dismissButton = {
-                TextButton(onClick = { confirming = null }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-            },
+            onDismiss = { confirming = null },
+            icon = Res.drawable.forum_24dp,
         )
     }
 }
