@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.features.conversation.items.EmojiBursts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.selection.toggleable
@@ -895,101 +897,93 @@ fun MessageDeleteDialog(
     var ban by rememberSaveable { mutableStateOf(false) }
     val rights = pending.moderation?.rights
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            // U výběru se počet do titulku vypíše, u jedné zprávy (i u alba) zůstává věta beze změny.
-            Text(
-                if (pending.count > 1) {
-                    pluralStringResource(Res.plurals.conversation_delete_selected_title, pending.count, pending.count)
-                } else {
-                    stringResource(Res.string.delete_message_title)
-                },
-            )
+    ConfirmDialog(
+        title = if (pending.count > 1) {
+            pluralStringResource(Res.plurals.conversation_delete_selected_title, pending.count, pending.count)
+        } else {
+            stringResource(Res.string.delete_message_title)
         },
-        text = {
-            Column(Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Vyjmenované varianty místo plurálů: čeština i angličtina mění v těch větách
-                // víc než jedno slovo, takže „%1$d zpráv" by z nich udělalo kostrbatinu.
-                val many = pending.count > 1
-                Text(
-                    stringResource(
-                        when {
-                            choice && many -> Res.string.delete_messages_choice
-                            choice -> Res.string.delete_message_choice
-                            pending.canDeleteForAll && many -> Res.string.delete_messages_for_all
-                            pending.canDeleteForAll -> Res.string.delete_message_for_all
-                            many -> Res.string.delete_messages_for_self
-                            else -> Res.string.delete_message_for_self
-                        },
-                    ),
+        text = null,
+        confirmLabel = stringResource(Res.string.menu_delete),
+        onConfirm = {
+            val picked = if (rights == null) {
+                ModerationChoice()
+            } else {
+                ModerationChoice(
+                    deleteAll = deleteAll && rights.canDeleteAll,
+                    deleteReactions = deleteReactions && rights.canDeleteReactions,
+                    reportSpam = reportSpam && rights.canReportSpam,
+                    ban = ban && rights.canBan,
                 )
-
-                if (choice) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .clickable { forEveryone = !forEveryone },
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Checkbox(checked = forEveryone, onCheckedChange = { forEveryone = it })
-                        Text(
-                            text = partnerName?.let { stringResource(Res.string.delete_message_for_partner_named, it) }
-                                ?: stringResource(Res.string.delete_message_for_partner),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                }
-
-                val moderation = pending.moderation
-                if (moderation != null && rights != null) {
-                    Column {
-                        Text(
-                            stringResource(Res.string.delete_moderation_sender, moderation.name),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
-                        )
-                        if (rights.canReportSpam) {
-                            CheckRow(stringResource(Res.string.delete_moderation_report_spam), reportSpam) { reportSpam = it }
-                        }
-                        if (rights.canDeleteAll) {
-                            CheckRow(stringResource(Res.string.delete_moderation_delete_all), deleteAll) { deleteAll = it }
-                        }
-                        if (rights.canDeleteReactions) {
-                            CheckRow(stringResource(Res.string.delete_moderation_delete_reactions), deleteReactions) {
-                                deleteReactions = it
-                            }
-                        }
-                        if (rights.canBan) {
-                            CheckRow(stringResource(Res.string.delete_moderation_ban), ban) { ban = it }
-                        }
-                    }
-                }
             }
+            onConfirm(revoke, picked)
         },
-        confirmButton = {
-            TextButton(onClick = {
-                val picked = if (rights == null) {
-                    ModerationChoice()
-                } else {
-                    ModerationChoice(
-                        deleteAll = deleteAll && rights.canDeleteAll,
-                        deleteReactions = deleteReactions && rights.canDeleteReactions,
-                        reportSpam = reportSpam && rights.canReportSpam,
-                        ban = ban && rights.canBan,
+        onDismiss = onDismiss,
+        icon = Res.drawable.delete_24dp,
+        destructive = true,
+    ) {
+        // Věta i volby v jednom sloupci, který se při rozbalení moderace plynule natáhne.
+        Column(Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Vyjmenované varianty místo plurálů: čeština i angličtina mění v těch větách
+            // víc než jedno slovo, takže „%1$d zpráv" by z nich udělalo kostrbatinu.
+            val many = pending.count > 1
+            Text(
+                stringResource(
+                    when {
+                        choice && many -> Res.string.delete_messages_choice
+                        choice -> Res.string.delete_message_choice
+                        pending.canDeleteForAll && many -> Res.string.delete_messages_for_all
+                        pending.canDeleteForAll -> Res.string.delete_message_for_all
+                        many -> Res.string.delete_messages_for_self
+                        else -> Res.string.delete_message_for_self
+                    },
+                ),
+            )
+
+            if (choice) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clickable { forEveryone = !forEveryone },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Checkbox(checked = forEveryone, onCheckedChange = { forEveryone = it })
+                    Text(
+                        text = partnerName?.let { stringResource(Res.string.delete_message_for_partner_named, it) }
+                            ?: stringResource(Res.string.delete_message_for_partner),
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                 }
-                onConfirm(revoke, picked)
-            }, shapes = ButtonDefaults.shapes()) {
-                Text(text = stringResource(Res.string.menu_delete), color = MaterialTheme.colorScheme.error)
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-        },
-    )
+
+            val moderation = pending.moderation
+            if (moderation != null && rights != null) {
+                Column {
+                    Text(
+                        stringResource(Res.string.delete_moderation_sender, moderation.name),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                    )
+                    if (rights.canReportSpam) {
+                        CheckRow(stringResource(Res.string.delete_moderation_report_spam), reportSpam) { reportSpam = it }
+                    }
+                    if (rights.canDeleteAll) {
+                        CheckRow(stringResource(Res.string.delete_moderation_delete_all), deleteAll) { deleteAll = it }
+                    }
+                    if (rights.canDeleteReactions) {
+                        CheckRow(stringResource(Res.string.delete_moderation_delete_reactions), deleteReactions) {
+                            deleteReactions = it
+                        }
+                    }
+                    if (rights.canBan) {
+                        CheckRow(stringResource(Res.string.delete_moderation_ban), ban) { ban = it }
+                    }
+                }
+            }
+        }
+    }
 }
 
 /** Řádek se zaškrtávátkem; ťuká se na celý řádek, ne jen na čtvereček. */

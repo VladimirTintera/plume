@@ -38,7 +38,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -119,7 +118,6 @@ import eu.tintera.plume.resources.chat_folder_title_missing
 import eu.tintera.plume.resources.chat_folder_title_too_long
 import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.close_24dp
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.done_all_24dp
 import eu.tintera.plume.resources.group_24dp
@@ -653,33 +651,25 @@ private fun FolderDeleteDialog(
     onDismiss: () -> Unit,
 ) {
     val chats = request.chats.orEmpty()
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.chat_folder_delete_title)) },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-            ) {
-                Text(stringResource(if (chats.isEmpty()) Res.string.chat_folder_delete_body else Res.string.chat_folder_delete_body_leave))
-                if (chats.isNotEmpty()) {
-                    Text(
-                        stringResource(Res.string.chat_folder_delete_leave),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 8.dp),
-                    )
-                    CheckableChatRows(chats = chats, selected = request.leave, onToggle = onToggle)
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm, shapes = ButtonDefaults.shapes()) {
-                Text(stringResource(Res.string.chat_folder_delete), color = MaterialTheme.colorScheme.error)
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
-    )
+    ConfirmDialog(
+        title = stringResource(Res.string.chat_folder_delete_title),
+        text = stringResource(if (chats.isEmpty()) Res.string.chat_folder_delete_body else Res.string.chat_folder_delete_body_leave),
+        confirmLabel = stringResource(Res.string.chat_folder_delete),
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        icon = Res.drawable.delete_24dp,
+        destructive = true,
+    ) {
+        if (chats.isNotEmpty()) {
+            Text(
+                stringResource(Res.string.chat_folder_delete_leave),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            CheckableChatRows(chats = chats, selected = request.leave, onToggle = onToggle)
+        }
+    }
 }
 
 /**

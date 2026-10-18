@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.profile
 
 import androidx.compose.foundation.layout.Arrangement
+import eu.tintera.plume.resources.person_remove_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -48,7 +49,6 @@ import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.profile_more
 import eu.tintera.plume.resources.how_to_reg_24dp
 import eu.tintera.plume.resources.join_requests_approve
@@ -199,28 +199,18 @@ fun JoinRequestsScreen(viewModel: JoinRequestsViewModel, onBack: () -> Unit, mod
     }
 
     confirmAll?.let { approve ->
-        AlertDialog(
-            onDismissRequest = { confirmAll = null },
-            title = {
-                Text(stringResource(if (approve) Res.string.join_requests_approve_all_title else Res.string.join_requests_decline_all_title))
+        // Schválit všechny není nevratná ztráta, odmítnout ano — barvu a ikonu nese, co se stane.
+        ConfirmDialog(
+            title = stringResource(if (approve) Res.string.join_requests_approve_all_title else Res.string.join_requests_decline_all_title),
+            text = stringResource(if (approve) Res.string.join_requests_approve_all_body else Res.string.join_requests_decline_all_body),
+            confirmLabel = stringResource(if (approve) Res.string.join_requests_approve_all else Res.string.join_requests_decline_all),
+            onConfirm = {
+                confirmAll = null
+                viewModel.processAll(approve)
             },
-            text = {
-                Text(stringResource(if (approve) Res.string.join_requests_approve_all_body else Res.string.join_requests_decline_all_body))
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmAll = null
-                    viewModel.processAll(approve)
-                }, shapes = ButtonDefaults.shapes()) {
-                    Text(
-                        stringResource(if (approve) Res.string.join_requests_approve_all else Res.string.join_requests_decline_all),
-                        color = if (approve) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmAll = null }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-            },
+            onDismiss = { confirmAll = null },
+            icon = if (approve) Res.drawable.how_to_reg_24dp else Res.drawable.person_remove_24dp,
+            destructive = !approve,
         )
     }
 }

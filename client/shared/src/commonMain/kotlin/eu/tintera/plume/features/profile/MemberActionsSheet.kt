@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.resources.crown_24dp
+import eu.tintera.plume.resources.person_remove_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -262,43 +265,30 @@ fun MemberBanDialog(
 ) {
     var duration by rememberSaveable { mutableStateOf<Duration?>(null) }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.member_ban_title, member.name)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    stringResource(
-                        if (member.kind == MemberGroupKind.BasicGroup) {
-                            Res.string.member_ban_body_basic
-                        } else {
-                            Res.string.member_ban_body
-                        },
-                    ),
-                )
-                Text(
-                    stringResource(Res.string.member_ban_duration),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                MEMBER_DURATIONS.forEach { (label, value) ->
-                    DurationRow(
-                        label = stringResource(label),
-                        selected = duration == value,
-                        onSelect = { duration = value },
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(duration) }, shapes = ButtonDefaults.shapes()) {
-                Text(stringResource(Res.string.member_ban_confirm), color = MaterialTheme.colorScheme.error)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-        },
-    )
+    ConfirmDialog(
+        title = stringResource(Res.string.member_ban_title, member.name),
+        text = stringResource(
+            if (member.kind == MemberGroupKind.BasicGroup) Res.string.member_ban_body_basic else Res.string.member_ban_body,
+        ),
+        confirmLabel = stringResource(Res.string.member_ban_confirm),
+        onConfirm = { onConfirm(duration) },
+        onDismiss = onDismiss,
+        icon = Res.drawable.person_remove_24dp,
+        destructive = true,
+    ) {
+        Text(
+            stringResource(Res.string.member_ban_duration),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        MEMBER_DURATIONS.forEach { (label, value) ->
+            DurationRow(
+                label = stringResource(label),
+                selected = duration == value,
+                onSelect = { duration = value },
+            )
+        }
+    }
 }
 
 /**
@@ -318,33 +308,27 @@ fun TransferOwnershipDialog(
     // Heslo vědomě NENÍ `rememberSaveable`: uložený stav se serializuje a přežil by i na disk.
     var password by remember { mutableStateOf("") }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.member_transfer_title)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(Res.string.member_transfer_body, member.name))
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text(stringResource(Res.string.member_transfer_password)) },
-                    supportingText = { Text(stringResource(Res.string.member_transfer_password_help)) },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(password) }, enabled = password.isNotEmpty() && !busy, shapes = ButtonDefaults.shapes()) {
-                Text(stringResource(Res.string.member_transfer_confirm), color = MaterialTheme.colorScheme.error)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-        },
-    )
+    ConfirmDialog(
+        title = stringResource(Res.string.member_transfer_title),
+        text = stringResource(Res.string.member_transfer_body, member.name),
+        confirmLabel = stringResource(Res.string.member_transfer_confirm),
+        onConfirm = { onConfirm(password) },
+        onDismiss = onDismiss,
+        icon = Res.drawable.crown_24dp,
+        destructive = true,
+        confirmEnabled = password.isNotEmpty() && !busy,
+    ) {
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text(stringResource(Res.string.member_transfer_password)) },
+            supportingText = { Text(stringResource(Res.string.member_transfer_password_help)) },
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
 }
 
 /**
