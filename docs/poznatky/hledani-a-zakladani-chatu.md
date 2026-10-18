@@ -228,9 +228,8 @@ konverzace a z Chatů se odebere formulář i „Nová zpráva" — zpět vede d
   `ChatPicker` — `features/chats` nemá záviset na `features/auth`.
 - **Pod polem je, kam kontakt jde**: do účtu Telegramu, ne do telefonu, a protějšek naše číslo
   neuvidí. U „přidat kontakt" se to jinak čeká od telefonu. Synchronizace adresáře z telefonu
-  (jako oficiální aplikace) vědomě NENÍ — oprávnění ke kontaktům a nahrávání adresáře na server
-  je samostatné rozhodnutí; prázdný seznam proto radí „přidej nový kontakt podle čísla", ne
-  „přidej kontakt v telefonu".
+  je samostatná VOLBA, výchozí vypnutá (viz „Synchronizace kontaktů z telefonu"); prázdný
+  seznam proto dál radí „přidej nový kontakt podle čísla", ne „přidej kontakt v telefonu".
 - **Ověřeno na Pixelu 7 Pro** (česky, testovací účet …029): servisní číslo +420 111 111 111
   ukázalo větu o nenalezeném čísle (a `performHapticFeedback(constant=17)`), druhé testovací
   číslo …527 se přidalo jako „Test", otevřel se prázdný chat, zpět vedlo do seznamu a kontakt
@@ -239,6 +238,36 @@ konverzace a z Chatů se odebere formulář i „Nová zpráva" — zpět vede d
   dobře; tamtéž po přesunu `PhoneInput` do `core/ui` přihlašovací obrazovka — země z odhadu
   podle IP, formátování čísla, odeslání a přihlášení kódem. **Neověřeno**: iOS (jen
   přeložené), číslo se zakázaným hledáním (chce cizí účet).
+
+## Synchronizace kontaktů z telefonu
+
+Nastavení → Soukromí → „Synchronizovat kontakty" (`ContactSyncer` v `core/contacts`,
+`AndroidPhoneContacts`, `ContactSync` v `core/telegram`). Nahrává čísla z adresáře telefonu
+na server Telegramu, aby byli vidět lidé, kterým uživatel ještě nepsal — proto **výchozí
+vypnuto** a rozhodl o tom uživatel (dřív to bylo vědomě odložené jako rozhodnutí o soukromí).
+
+- **Oprávnění `READ_CONTACTS` se žádá až zapnutím přepínače**, ne při startu. Odmítnutí nechá
+  volbu vypnutou a věta pod řádkem (chybovou barvou) řekne proč a kde ho povolit.
+- **`changeImportedContacts`, ne `importContacts`**: TDLib si pamatuje minule poslaný adresář
+  a server dostane jen rozdíl — přidaná i SMAZANÁ čísla. Volat smí jen jedno naráz (`Mutex`).
+- **Kdy**: po přihlášení a při návratu do popředí (`AppForeground`), nejvýš jednou za 30 min.
+  Zapnutí přepínače synchronizaci spustí přes tok nastavení, ne přímým voláním — přímé by se
+  předběhlo s asynchronním zápisem DataStore a nenahrálo nic.
+- **Vypnutí = `clearImportedContacts`**: smaže nahraná čísla ze serveru, **kontakty, které už
+  v Telegramu vznikly, ale zůstanou** (tak to TDLib dělá). Věta u přepínače to říká předem.
+- **Číslo z adresáře se bere celé, jméno jako zobrazované** (`DISPLAY_NAME_PRIMARY`, celé jako
+  křestní): rozdělit jméno a příjmení spolehlivě nejde. Čísla se slučují bez mezer a pomlček,
+  kratší než 6 číslic (zkrácené volby, služby) se neposílají.
+- **Play**: oprávnění ke kontaktům patří mezi citlivá data; věta u přepínače je výslovné
+  upozornění před žádostí o oprávnění. Do deklarace dat v Play Console přibývají kontakty
+  (sdílené s Telegramem, jen se souhlasem).
+- **Jen Android.** iOS (Contacts framework) a desktop přepínač nemají (`rememberContactsPermission`
+  vrací `null`).
+- **Ověřeno na emulátoru `Plume_Barvy`** (testovací účet …527, adresář se dvěma čísly — účet …029
+  pod stejným jménem, jaké má v Telegramu, a vymyšlené číslo): odmítnuté oprávnění → věta pod
+  řádkem a přepínač vypnutý; povolené → „Adresář synchronizován: 2 čísel, 1 s Telegramem";
+  po zabití a startu aplikace se synchronizace pustila sama; vypnutí → „Nahraná čísla smazána
+  ze serveru". **Neověřeno**: velký adresář na skutečném telefonu, iOS.
 
 ## Můj QR kód a odkazy zvenčí
 

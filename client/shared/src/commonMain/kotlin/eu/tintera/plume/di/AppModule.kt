@@ -116,6 +116,8 @@ import eu.tintera.plume.core.telegram.AutoDownloadPresets
 import eu.tintera.plume.core.telegram.TdlAutoDownloadPresets
 import eu.tintera.plume.core.telegram.TdlStickerRepository
 import eu.tintera.plume.core.telegram.AiTextRepository
+import eu.tintera.plume.core.telegram.ContactSync
+import eu.tintera.plume.core.telegram.TdlContactSync
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.TdlAiTextRepository
 import eu.tintera.plume.core.telegram.RevealedSpoilers
@@ -256,6 +258,7 @@ fun appModule() = module {
     // stihne to o stovky milisekund později než `AuthorizationStateReady` a první dávku
     // `UpdateNewChat` by TDLib rozeslal do prázdna.
     // Eagerně: styly psaní chodí jen updatem po přihlášení (viz `TdlAiTextRepository`).
+    single<ContactSync> { TdlContactSync(holder = get()) }
     single<AiTextRepository>(createdAtStart = true) { TdlAiTextRepository(holder = get(), scope = get(named(APP_SCOPE))) }
     single<ChatRepository>(createdAtStart = true) {
         TdlChatRepository(

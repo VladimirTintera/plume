@@ -259,8 +259,9 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
   který přidávání zakazuje~~ — ověřeno se dvěma účty. ~~Veřejná základní skupina~~ — hotovo
   (převod na supergroupu, `docs/poznatky/profil-chatu.md`, „Převod základní skupiny").
   ~~**Přidat kontakt podle telefonního čísla**~~ — hotovo („Nový kontakt" v Nové zprávě,
-  `docs/poznatky/hledani-a-zakladani-chatu.md`, „Nový kontakt podle čísla"). Zbývá zvážit
-  synchronizaci kontaktů z telefonu (oprávnění ke kontaktům, nahrávání adresáře na server).
+  `docs/poznatky/hledani-a-zakladani-chatu.md`, „Nový kontakt podle čísla"). ~~Synchronizace
+  kontaktů z telefonu~~ — hotovo jako volba (Nastavení → Soukromí, výchozí vypnuto; tamtéž,
+  „Synchronizace kontaktů z telefonu"). Zbývá iOS a deklarace kontaktů v Play Console.
   ~~**Můj QR kód a odkazy zvenčí**~~ — hotovo, NEOVĚŘENO na zařízení (menu účtu, Nastavení →
   Obecné, „Naskenovat QR kód" v Nové zprávě, `t.me` / `tg://` z jiných aplikací;
   `docs/poznatky/hledani-a-zakladani-chatu.md`, „Můj QR kód a odkazy zvenčí"). Zbývá:

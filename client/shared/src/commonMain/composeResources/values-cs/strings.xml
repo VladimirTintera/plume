@@ -1948,6 +1948,9 @@
     <string name="conversation_profile_audio_added">Skladba je v tvém profilu</string>
     <string name="conversation_profile_audio_removed">Skladba je z profilu pryč</string>
     <string name="conversation_profile_audio_failed">Hudbu v profilu se nepodařilo změnit.</string>
+    <string name="settings_contact_sync">Synchronizovat kontakty</string>
+    <string name="settings_contact_sync_summary">Čísla z kontaktů v telefonu se nahrají do Telegramu, abys viděl, kdo z nich ho používá. Vypnutím se nahraná čísla smažou; kontakty, které už v Telegramu jsou, zůstanou.</string>
+    <string name="settings_contact_sync_denied">Bez přístupu ke kontaktům není co synchronizovat. Povol ho v nastavení systému.</string>
     <string name="settings_chat_triage">Čeká na odpověď</string>
     <string name="settings_chat_triage_summary">Model v telefonu označí nepřečtené soukromé chaty, ve kterých na tvou odpověď někdo čeká. Zprávy se nikam neposílají.</string>
     <string name="settings_scam_warnings_summary">Příchozí zprávy s odkazy nebo frázemi typickými pro podvody posoudí model v telefonu. Nikam se neposílají.</string>

@@ -27,6 +27,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import eu.tintera.plume.core.ui.reject
+import eu.tintera.plume.core.ui.toggle
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
+import eu.tintera.plume.resources.settings_contact_sync_summary
+import eu.tintera.plume.resources.settings_contact_sync_denied
+import eu.tintera.plume.resources.settings_contact_sync
+import eu.tintera.plume.resources.contact_page_24dp
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -118,6 +127,7 @@ internal fun PrivacySettings(
     SettingsGroup(Res.string.settings_privacy) {
         AccountPrivacyRow(onOpenAccountPrivacy)
         BlockedRow(blocked, onOpenBlocked)
+        ContactSyncRow()
         DefaultAutoDeleteRow(autoDelete)
         SensitiveContentRow(sensitive)
     }
@@ -131,6 +141,51 @@ internal fun PrivacySettings(
         PasskeysRow(onOpenPasskeys)
         AppLockRow(onOpenAppLock)
     }
+}
+
+/**
+ * Synchronizace adresáře telefonu (`ContactSyncer`). Jen tam, kde ji platforma umí (Android).
+ * Zapnutí se nejdřív zeptá na oprávnění ke kontaktům; bez něj zůstane vypnuté a řádek řekne
+ * proč. Vypnutí smaže nahraná čísla ze serveru — věta pod řádkem to říká předem, i to, že
+ * kontakty v Telegramu zůstanou.
+ */
+@Composable
+private fun ContactSyncRow() {
+    val syncer = org.koin.compose.getKoin().getOrNull<eu.tintera.plume.core.contacts.ContactSyncer>() ?: return
+    val permission = eu.tintera.plume.core.contacts.rememberContactsPermission() ?: return
+    val settings = org.koin.compose.koinInject<eu.tintera.plume.core.settings.AppSettings>()
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val enabled by settings.contactSyncEnabled.collectAsStateWithLifecycle()
+    var denied by remember { androidx.compose.runtime.mutableStateOf(false) }
+    val toggle: (Boolean) -> Unit = { on ->
+        if (on) {
+            permission.request { granted ->
+                denied = !granted
+                if (granted) {
+                    haptics.toggle(true)
+                    syncer.enable()
+                } else {
+                    haptics.reject()
+                }
+            }
+        } else {
+            haptics.toggle(false)
+            syncer.disable()
+        }
+    }
+    ListItem(
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        leadingContent = { Icon(painterResource(Res.drawable.contact_page_24dp), contentDescription = null) },
+        headlineContent = { Text(stringResource(Res.string.settings_contact_sync)) },
+        supportingContent = {
+            Text(
+                stringResource(if (denied && !enabled) Res.string.settings_contact_sync_denied else Res.string.settings_contact_sync_summary),
+                color = if (denied && !enabled) MaterialTheme.colorScheme.error else Color.Unspecified,
+            )
+        },
+        trailingContent = { eu.tintera.plume.core.ui.IconSwitch(checked = enabled, onCheckedChange = null) },
+        modifier = Modifier.toggleable(value = enabled, role = Role.Switch, onValueChange = toggle),
+    )
 }
 
 /** Diskrétní čtení (`AppSettings.discreetReading`): bez hlášení přečtení a „píše…". */
