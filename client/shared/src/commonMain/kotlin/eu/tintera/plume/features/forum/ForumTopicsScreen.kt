@@ -89,6 +89,9 @@ import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.forum_topics_reorder_title
 import eu.tintera.plume.resources.forum_topics_reorder_hint
 import eu.tintera.plume.features.profile.ChatNotificationSheet
+import eu.tintera.plume.features.profile.rememberChatSounds
+import eu.tintera.plume.features.profile.chatSoundLabel
+import eu.tintera.plume.features.profile.ChatSoundHost
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.ForumTopicIcon
@@ -420,6 +423,11 @@ fun ForumTopicsScreen(
             onDelete = { deleteTarget = topic },
         )
     }
+    // Zvuk tématu: tentýž výběr jako u chatu v profilu. Téma, kterému se vybírá, si drží
+    // obrazovka — sheet upozornění se při výběru zvuku zavře (dva sheety přes sebe ne).
+    val sounds = rememberChatSounds(viewModel.chatId)
+    val tones by sounds.tones.collectAsStateWithLifecycle()
+    var soundFor by remember { mutableStateOf<ForumTopic?>(null) }
     state.notificationsFor?.let { topic ->
         state.topicNotifications?.let { prefs ->
             ChatNotificationSheet(
@@ -433,8 +441,25 @@ fun ForumTopicsScreen(
                 onOpenConversationSettings = {},
                 onReset = viewModel::resetTopicNotifications,
                 onDismiss = viewModel::closeNotifications,
+                soundLabel = chatSoundLabel(prefs, tones),
+                onPickSound = {
+                    soundFor = topic
+                    viewModel.closeNotifications()
+                },
             )
         }
+    }
+    soundFor?.let { topic ->
+        val prefs by remember(topic.id) { viewModel.topicSettings(topic.id) }.collectAsStateWithLifecycle(null)
+        ChatSoundHost(
+            viewModel = sounds,
+            chatId = viewModel.chatId,
+            prefs = prefs,
+            topicId = topic.id,
+            open = true,
+            onClose = { soundFor = null },
+            snackbarHostState = snackbarHostState,
+        )
     }
     deleteTarget?.let { topic ->
         DeleteTopicDialog(

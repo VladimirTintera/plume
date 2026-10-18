@@ -195,6 +195,9 @@ class TdlNotificationSettingsRepository(
     override suspend fun setTopicOption(chatId: Long, topicId: Int, option: ChatNotificationOption, value: Boolean): Result<Unit> =
         updateTopic(chatId, topicId) { it.withOption(option, value) }
 
+    override suspend fun setTopicSound(chatId: Long, topicId: Int, soundId: Long?): Result<Unit> =
+        updateTopic(chatId, topicId) { it.withSound(soundId) }
+
     /** Všechna `useDefault*` zapnutá: téma jede celé podle skupiny, včetně zvuku. */
     override suspend fun resetTopic(chatId: Long, topicId: Int): Result<Unit> =
         updateTopic(chatId, topicId) { defaultChatNotificationSettings() }

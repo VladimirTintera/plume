@@ -405,8 +405,19 @@ aplikacích, a tóny jsou na serveru.
     nedalo vrátit jinak než „Obnovit", které by vrátilo i ztlumení a náhled.
   - **`ChatNotificationPrefs` nese účinný zvuk** (`soundId`), jestli je převzatý
     (`soundIsDefault`) a co by chat měl bez vlastního (`defaultSoundId`). Vlastní zvuk chatu
-    počítá do „Obnovit"; u tématu ne — tam se vybrat nedá, „Obnovit" by slibovalo změnu,
-    kterou uživatel nevidí.
+    i tématu počítá do „Obnovit".
+- **Zvuk tématu ve skupině se vybírá v sheetu upozornění tématu** (seznam témat → podržet →
+  Upozornění → Zvuk; `setTopicSound`, `ChatSoundHost` s `topicId`). „Podle výchozího
+  nastavení" tu znamená zvuk SKUPINY, ne rozsahu, a popisek to říká („Výchozí · jako ve
+  skupině"); `defaultSoundId` tématu je zvuk skupiny, má-li vlastní, jinak rozsahu.
+  - **Téma, kterému se zvuk vybírá, drží obrazovka** a stav čte živě z `topicSettings` — sheet
+    upozornění se při výběru zavře (dva sheety přes sebe ne) a ViewModel s ním zapomene, o jaké
+    téma šlo.
+  - Do notifikace se zvuk tématu dostane sám: kanál se volí podle `notificationSoundId` od TDLib,
+    který už je výsledkem tématu, chatu i rozsahu (viz výš).
+  - **Ověřeno na emulátoru** (…527, „Plume test soukromi"): výběr „Bez zvuku" se zapsal, sheet
+    upozornění pak ukázal „Bez zvuku" a „Vrátit nastavení skupiny", které zvuk vrátilo na
+    „Výchozí · jako ve skupině". **Skutečná notifikace z tématu se zvukem tématu neověřená.**
   - **Sheety se nevrství**: ťuknutí na Zvuk zavře Upozornění a otevře výběr.
   - **Kanál konverzace visí pod kanálem, kterým chat OPRAVDU zní** (`openConversationSettings`
     dostává `soundId`, rodič = `existingSoundChannelId`). Dřív visel vždycky pod výchozím

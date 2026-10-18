@@ -36,6 +36,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.transformLatest
 import org.jetbrains.compose.resources.StringResource
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -249,6 +250,9 @@ class ForumTopicsViewModel(
             }
         }
     }
+
+    /** Upozornění jednoho tématu živě — pro výběr zvuku, který zůstává otevřený po zavření sheetu. */
+    fun topicSettings(topicId: Int): Flow<ChatNotificationPrefs?> = notifications.topicSettings(chatId, topicId)
 
     fun closeNotifications() {
         notificationsJob?.cancel()

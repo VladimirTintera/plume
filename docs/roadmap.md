@@ -1042,8 +1042,8 @@ Karta v seznamu chatů a Play In-App Updates na Androidu jsou hotové (poučení
     zmínky, obnovení, zvuk přes kanál konverzace) a doby ztlumení i v nabídce chatu v seznamu.
   - **Stories** (`muteStories`, `showStoryPoster`), až budou stories.
   - ~~**Zvuk z Telegramu**~~ — hotovo: kanál podle zvuku (výchozí kanál zůstává), výběr pro
-    rozsahy a tóny účtu, ~~výběr pro jeden chat v profilu~~ (sheet Upozornění → Zvuk). Zbývá
-    výběr pro téma ve skupině.
+    rozsahy a tóny účtu, ~~výběr pro jeden chat v profilu~~ (sheet Upozornění → Zvuk), ~~výběr pro téma ve skupině~~
+    (sheet upozornění tématu). Zbývá ověřit notifikaci z tématu skutečnou zprávou.
   - **iOS** kanály nemá; obdobou je `threadIdentifier` a `interruptionLevel` (zmínky jako
     `timeSensitive`). Přijde na řadu s notifikacemi na iOS vůbec.
 - **Rychlé akce z notifikace.** Odpověď, označení za přečtené a ztlumení na hodinu jsou na
