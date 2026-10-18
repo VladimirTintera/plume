@@ -1,6 +1,10 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.foundation.lazy.itemsIndexed
+import eu.tintera.plume.resources.search_off_24dp
+import eu.tintera.plume.core.ui.GroupEmptyRow
+import eu.tintera.plume.core.ui.groupedItem
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -295,21 +299,23 @@ internal fun MemberPickerSheet(
         Box(Modifier.fillMaxWidth().height(MEMBER_LIST_HEIGHT).padding(top = 8.dp)) {
             when {
                 picker.loading && picker.members.isEmpty() -> LoadingIndicator(Modifier.align(Alignment.Center))
-                picker.members.isEmpty() -> Text(
+                picker.members.isEmpty() -> GroupEmptyRow(
                     stringResource(Res.string.conversation_search_members_none),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.Center),
+                    icon = Res.drawable.search_off_24dp,
+                    modifier = Modifier.padding(horizontal = 16.dp),
                 )
+                // Členové jsou blok zaoblených řádků jako výběr cíle jinde v aplikaci.
                 else -> LazyColumn {
-                    items(picker.members, key = { it.id }) { member ->
+                    itemsIndexed(picker.members, key = { _, member -> member.id }) { index, member ->
                         ListItem(
                             headlineContent = { Text(member.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             leadingContent = {
                                 Avatar(chatId = member.id, title = member.title, avatarFileId = member.avatarFileId, size = 40.dp)
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                            modifier = Modifier.clickable { onPick(member) },
+                            modifier = Modifier
+                                .groupedItem(index, picker.members.size, MaterialTheme.colorScheme.surfaceContainerLowest)
+                                .clickable { onPick(member) },
                         )
                     }
                 }

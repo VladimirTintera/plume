@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.groupItemShape
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Arrangement
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -106,7 +106,7 @@ fun LinkPreviewOptionsSheet(
                             description = link,
                             icon = Res.drawable.link_24dp,
                             selected = link == selected,
-                            shape = groupShape(index, links.size),
+                            shape = groupItemShape(index, links.size, selected = link == selected),
                             onClick = { onChange(options.copy(url = link)) },
                         )
                     }
@@ -120,7 +120,7 @@ fun LinkPreviewOptionsSheet(
                         description = stringResource(Res.string.link_preview_large_desc),
                         icon = Res.drawable.image_24dp,
                         selected = large,
-                        shape = GroupTop,
+                        shape = groupItemShape(0, 2, selected = large),
                         onClick = { onChange(options.copy(largeMedia = true)) },
                     )
                     ModeOptionRow(
@@ -128,7 +128,7 @@ fun LinkPreviewOptionsSheet(
                         description = stringResource(Res.string.link_preview_small_desc),
                         icon = Res.drawable.link_24dp,
                         selected = !large,
-                        shape = GroupBottom,
+                        shape = groupItemShape(1, 2, selected = !large),
                         onClick = { onChange(options.copy(largeMedia = false)) },
                     )
                 }
@@ -140,7 +140,7 @@ fun LinkPreviewOptionsSheet(
                     description = stringResource(Res.string.link_preview_below_desc),
                     icon = Res.drawable.keyboard_arrow_down_24dp,
                     selected = !options.aboveText,
-                    shape = GroupTop,
+                    shape = groupItemShape(0, 2, selected = !options.aboveText),
                     onClick = { onChange(options.copy(aboveText = false)) },
                 )
                 ModeOptionRow(
@@ -148,7 +148,7 @@ fun LinkPreviewOptionsSheet(
                     description = stringResource(Res.string.link_preview_above_desc),
                     icon = Res.drawable.keyboard_arrow_up_24dp,
                     selected = options.aboveText,
-                    shape = GroupBottom,
+                    shape = groupItemShape(1, 2, selected = options.aboveText),
                     onClick = { onChange(options.copy(aboveText = true)) },
                 )
             }
@@ -187,12 +187,3 @@ private fun Section(title: StringResource, content: @Composable () -> Unit) {
     Spacer(Modifier.height(16.dp))
 }
 
-/** Tvar řádku ve skupině: velké zaoblení jen na krajích bloku, jako [GroupTop] a [GroupBottom]. */
-private fun groupShape(index: Int, count: Int): RoundedCornerShape {
-    val top = if (index == 0) 20.dp else 4.dp
-    val bottom = if (index == count - 1) 20.dp else 4.dp
-    return RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)
-}
-
-private val GroupTop = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp)
-private val GroupBottom = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)

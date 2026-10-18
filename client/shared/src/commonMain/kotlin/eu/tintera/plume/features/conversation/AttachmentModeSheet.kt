@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.groupItemShape
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.animation.AnimatedVisibility
@@ -22,7 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -147,12 +147,14 @@ fun AttachmentModeSheet(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 // 1. Standard
+                val modeCount = if (selfDestructAllowed) 4 else 2
                 ModeOptionRow(
                     title = stringResource(if (isVideo) Res.string.attachment_mode_standard_video else Res.string.attachment_mode_standard_photo),
                     description = stringResource(Res.string.attachment_mode_standard_desc),
                     icon = if (isVideo) Res.drawable.play_arrow_24dp else Res.drawable.image_24dp,
                     selected = currentMode is AttachmentMode.Standard,
-                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 4.dp, bottomEnd = 4.dp),
+                    // Tvar podle pozice ve skupině; vybraná volba se z bloku vyčlení i tvarem.
+                    shape = groupItemShape(0, modeCount, selected = currentMode is AttachmentMode.Standard),
                     onClick = {
                         onSelectMode(AttachmentMode.Standard)
                         onDismiss()
@@ -165,12 +167,8 @@ fun AttachmentModeSheet(
                     description = stringResource(Res.string.attachment_mode_spoiler_desc),
                     icon = Res.drawable.visibility_off_24dp,
                     selected = currentMode is AttachmentMode.Spoiler,
-                    // Bez mizejících médií je spoiler poslední položkou skupiny.
-                    shape = if (selfDestructAllowed) {
-                        ShapeDefaults.ExtraSmall
-                    } else {
-                        RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
-                    },
+                    // Bez mizejících médií je spoiler poslední položkou skupiny (`modeCount`).
+                    shape = groupItemShape(1, modeCount, selected = currentMode is AttachmentMode.Spoiler),
                     onClick = {
                         onSelectMode(AttachmentMode.Spoiler)
                         onDismiss()
@@ -183,7 +181,7 @@ fun AttachmentModeSheet(
                     description = stringResource(Res.string.attachment_mode_view_once_desc),
                     icon = Res.drawable.schedule_24dp,
                     selected = currentMode is AttachmentMode.ViewOnce,
-                    shape = ShapeDefaults.ExtraSmall,
+                    shape = groupItemShape(2, modeCount, selected = currentMode is AttachmentMode.ViewOnce),
                     onClick = {
                         onSelectMode(AttachmentMode.ViewOnce)
                         onDismiss()
@@ -196,7 +194,7 @@ fun AttachmentModeSheet(
                 if (selfDestructAllowed) Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp))
+                        .clip(groupItemShape(3, modeCount, selected = isTimerSelected))
                         .background(
                             if (isTimerSelected) MaterialTheme.colorScheme.primaryContainer
                             else MaterialTheme.colorScheme.surfaceContainerHigh,

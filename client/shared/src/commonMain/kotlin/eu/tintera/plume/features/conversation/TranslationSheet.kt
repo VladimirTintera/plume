@@ -1,6 +1,10 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.foundation.lazy.itemsIndexed
+import eu.tintera.plume.resources.search_off_24dp
+import eu.tintera.plume.core.ui.GroupEmptyRow
+import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.resources.translation_device_downloading
 import eu.tintera.plume.resources.translation_device_download_text
@@ -295,17 +299,30 @@ internal fun TranslationLanguageSheet(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             )
             if (options.isEmpty()) {
-                Box(Modifier.fillMaxWidth().height(LANGUAGE_LIST_HEIGHT), contentAlignment = Alignment.Center) {
-                    Text(
+                Box(Modifier.fillMaxWidth().height(LANGUAGE_LIST_HEIGHT)) {
+                    GroupEmptyRow(
                         stringResource(Res.string.chats_search_empty),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        icon = Res.drawable.search_off_24dp,
+                        modifier = Modifier.padding(horizontal = 16.dp),
                     )
                 }
             } else {
                 LazyColumn(Modifier.fillMaxWidth().height(LANGUAGE_LIST_HEIGHT)) {
-                    items(options, key = { it.code }) { language ->
-                        LanguageRow(language, isSelected = language.code == selected, onClick = { onPick(language.code) })
+                    // Jazyky jsou blok zaoblených řádků; vybraný se z něj vyčlení tvarem i barvou,
+                    // jako země při přihlášení.
+                    itemsIndexed(options, key = { _, language -> language.code }) { index, language ->
+                        val isSelected = language.code == selected
+                        LanguageRow(
+                            language,
+                            isSelected = isSelected,
+                            onClick = { onPick(language.code) },
+                            modifier = Modifier.groupedItem(
+                                index = index,
+                                count = options.size,
+                                color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest,
+                                selected = isSelected,
+                            ),
+                        )
                     }
                 }
             }
@@ -314,7 +331,7 @@ internal fun TranslationLanguageSheet(
 }
 
 @Composable
-private fun LanguageRow(language: TranslationLanguage, isSelected: Boolean, onClick: () -> Unit) {
+private fun LanguageRow(language: TranslationLanguage, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     ListItem(
         headlineContent = { Text(language.name) },
         trailingContent = {
@@ -323,10 +340,10 @@ private fun LanguageRow(language: TranslationLanguage, isSelected: Boolean, onCl
         // Popředí vybraného řádku se předává i ListItem — sám barví text `onSurface`, což na
         // světlém `secondaryContainer` v paletě se zvýšeným kontrastem není vidět.
         colors = ListItemDefaults.colors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+            containerColor = Color.Transparent,
             contentColor = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
         ),
-        modifier = Modifier.fillMaxWidth().selectable(selected = isSelected, role = Role.RadioButton, onClick = onClick),
+        modifier = modifier.fillMaxWidth().selectable(selected = isSelected, role = Role.RadioButton, onClick = onClick),
     )
 }
 

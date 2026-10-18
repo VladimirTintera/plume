@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.GroupedColumn
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -114,44 +115,47 @@ private fun SendAsSheet(
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp),
         ) {
-            SheetTitle(stringResource(Res.string.send_as_title), modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp))
-            choice.options.forEach { option ->
-                val selected = option.id == choice.current.id
-                ListItem(
-                    // Plochu nese sheet; řádek vlastní nekreslí.
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    leadingContent = {
-                        Avatar(
-                            chatId = option.id,
-                            title = option.title,
-                            avatarFileId = option.avatarFileId,
-                            size = 40.dp,
-                            shape = option.kind.avatarShape(),
-                            modifier = Modifier.alpha(if (option.locked) DISABLED_ALPHA else 1f),
-                        )
-                    },
-                    headlineContent = { Text(option.title, maxLines = 1) },
-                    supportingContent = { Text(option.supportingText()) },
-                    trailingContent = when {
-                        selected -> {
-                            { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) }
-                        }
-                        option.locked -> {
-                            { Icon(painterResource(Res.drawable.lock_24dp), contentDescription = null) }
-                        }
-                        else -> null
-                    },
-                    modifier = Modifier
-                        .selectable(
-                            selected = selected,
-                            enabled = !option.locked,
-                            role = Role.RadioButton,
-                            onClick = {
-                                // Sheet nejdřív odjede, pak se zavře — jako ostatní výběry.
-                                scope.launch { sheetState.hide() }.invokeOnCompletion { onChoose(option) }
-                            },
-                        ),
-                )
+            SheetTitle(stringResource(Res.string.send_as_title), modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 16.dp))
+            // Volby jsou blok zaoblených řádků jako výběr cíle jinde v aplikaci.
+            GroupedColumn(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                choice.options.forEach { option ->
+                    val selected = option.id == choice.current.id
+                    ListItem(
+                        // Plochu nese blok kolem; řádek vlastní nekreslí.
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        leadingContent = {
+                            Avatar(
+                                chatId = option.id,
+                                title = option.title,
+                                avatarFileId = option.avatarFileId,
+                                size = 40.dp,
+                                shape = option.kind.avatarShape(),
+                                modifier = Modifier.alpha(if (option.locked) DISABLED_ALPHA else 1f),
+                            )
+                        },
+                        headlineContent = { Text(option.title, maxLines = 1) },
+                        supportingContent = { Text(option.supportingText()) },
+                        trailingContent = when {
+                            selected -> {
+                                { Icon(painterResource(Res.drawable.check_24dp), contentDescription = null) }
+                            }
+                            option.locked -> {
+                                { Icon(painterResource(Res.drawable.lock_24dp), contentDescription = null) }
+                            }
+                            else -> null
+                        },
+                        modifier = Modifier
+                            .selectable(
+                                selected = selected,
+                                enabled = !option.locked,
+                                role = Role.RadioButton,
+                                onClick = {
+                                    // Sheet nejdřív odjede, pak se zavře — jako ostatní výběry.
+                                    scope.launch { sheetState.hide() }.invokeOnCompletion { onChoose(option) }
+                                },
+                            ),
+                    )
+                }
             }
         }
     }

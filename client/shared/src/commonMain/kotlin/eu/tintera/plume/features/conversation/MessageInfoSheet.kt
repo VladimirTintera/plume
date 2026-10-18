@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.foundation.lazy.itemsIndexed
+import eu.tintera.plume.core.ui.groupedItem
+import eu.tintera.plume.core.ui.GroupedColumn
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -13,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -82,60 +84,67 @@ fun MessageInfoSheet(
             return@ModalBottomSheet
         }
 
-        Column(Modifier.padding(top = 12.dp, bottom = 8.dp)) {
-            InfoRow(stringResource(Res.string.message_info_sent), info.sentAt.fullTime())
+        // Údaje jsou blok zaoblených řádků a diváci druhý blok pod vlastním nadpisem — jako
+        // skupiny v Nastavení, ne řádky na holé ploše oddělené čarou.
+        Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp)) {
+            GroupedColumn(Modifier.fillMaxWidth()) {
+                InfoRow(stringResource(Res.string.message_info_sent), info.sentAt.fullTime())
 
-            info.editedAt?.let { edited ->
-                InfoRow(stringResource(Res.string.message_info_edited), edited.fullTime())
-            }
+                info.editedAt?.let { edited ->
+                    InfoRow(stringResource(Res.string.message_info_edited), edited.fullTime())
+                }
 
-            // Kdy zprávu smaže automatické mazání chatu — jinak zmizí bez varování.
-            sheet.message.autoDeleteAt?.let { at ->
-                InfoRow(stringResource(Res.string.message_info_auto_delete), at.asUpcomingTime())
-            }
+                // Kdy zprávu smaže automatické mazání chatu — jinak zmizí bez varování.
+                sheet.message.autoDeleteAt?.let { at ->
+                    InfoRow(stringResource(Res.string.message_info_auto_delete), at.asUpcomingTime())
+                }
 
-            /*
-             * Čas přečtení má tolik podob, kolik má Telegram důvodů ho nevydat. Každá z nich je
-             * vlastní věta — „—" by uživateli neřeklo, jestli zprávu nikdo nepřečetl, nebo jestli
-             * je čas jen skrytý.
-             */
-            when (val read = info.readState) {
-                is MessageReadState.Read ->
-                    InfoRow(stringResource(Res.string.message_info_read), read.date.fullTime())
-                MessageReadState.Unread ->
-                    InfoRow(stringResource(Res.string.message_info_read), stringResource(Res.string.message_info_unread))
-                MessageReadState.TooOld ->
-                    InfoRow(stringResource(Res.string.message_info_read), stringResource(Res.string.message_info_read_too_old))
-                MessageReadState.HiddenByOther ->
-                    InfoRow(stringResource(Res.string.message_info_read), stringResource(Res.string.message_info_read_hidden_by_other))
-                MessageReadState.HiddenByMe ->
-                    InfoRow(stringResource(Res.string.message_info_read), stringResource(Res.string.message_info_read_hidden_by_me))
-                MessageReadState.Unavailable -> Unit
-            }
+                /*
+                 * Čas přečtení má tolik podob, kolik má Telegram důvodů ho nevydat. Každá z nich je
+                 * vlastní věta — „—" by uživateli neřeklo, jestli zprávu nikdo nepřečetl, nebo jestli
+                 * je čas jen skrytý.
+                 */
+                when (val read = info.readState) {
+                    is MessageReadState.Read ->
+                        InfoRow(stringResource(Res.string.message_info_read), read.date.fullTime())
+                    MessageReadState.Unread ->
+                        InfoRow(stringResource(Res.string.message_info_read), stringResource(Res.string.message_info_unread))
+                    MessageReadState.TooOld ->
+                        InfoRow(stringResource(Res.string.message_info_read), stringResource(Res.string.message_info_read_too_old))
+                    MessageReadState.HiddenByOther ->
+                        InfoRow(stringResource(Res.string.message_info_read), stringResource(Res.string.message_info_read_hidden_by_other))
+                    MessageReadState.HiddenByMe ->
+                        InfoRow(stringResource(Res.string.message_info_read), stringResource(Res.string.message_info_read_hidden_by_me))
+                    MessageReadState.Unavailable -> Unit
+                }
 
-            info.link?.let { link ->
-                // Ťuknutí kopíruje; otevírat odkaz na zprávu, u které uživatel stojí, nedává smysl.
-                InfoRow(
-                    label = stringResource(Res.string.message_info_link),
-                    value = link,
-                    onClick = { onCopyLink(link) },
-                )
+                info.link?.let { link ->
+                    // Ťuknutí kopíruje; otevírat odkaz na zprávu, u které uživatel stojí, nedává smysl.
+                    InfoRow(
+                        label = stringResource(Res.string.message_info_link),
+                        value = link,
+                        onClick = { onCopyLink(link) },
+                    )
+                }
             }
 
             if (info.viewers.isNotEmpty()) {
-                HorizontalDivider(Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
-
                 Text(
                     text = stringResource(Res.string.message_info_viewers),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp),
                 )
 
+                val rowColor = MaterialTheme.colorScheme.surfaceContainerLowest
                 LazyColumn(Modifier.heightIn(max = VIEWERS_MAX_HEIGHT)) {
-                    items(info.viewers, key = { it.sender.id }) { viewer ->
+                    itemsIndexed(info.viewers, key = { _, viewer -> viewer.sender.id }) { index, viewer ->
                         Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+                            Modifier
+                                // Bez vlastního okraje: sloupec sheetu ho už má.
+                                .groupedItem(index, info.viewers.size, rowColor, edge = 0.dp)
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
@@ -172,7 +181,7 @@ private fun InfoRow(label: String, value: String, onClick: (() -> Unit)? = null)
         Modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 24.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Text(
             text = label,
