@@ -1829,6 +1829,7 @@ class ConversationViewModel(
             MessageAction.CloseMenu -> menu.closeMenus()
             MessageAction.ApproveSuggestedPost -> messageActions.approveSuggestedPost(messageId)
             MessageAction.DeclineSuggestedPost -> messageActions.askDeclineSuggestedPost(messageId)
+            MessageAction.ShowOriginalContent -> messageActions.showOriginalContent(messageId)
             MessageAction.ShowNoticeMenu -> menu.showNoticeMenu(messageId)
             is MessageAction.DeleteNotice -> _state.update {
                 it.copy(

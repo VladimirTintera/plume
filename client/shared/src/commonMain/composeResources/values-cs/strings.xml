@@ -1180,6 +1180,11 @@
     <string name="suggested_post_decline_text">Autor uvidí, že byl příspěvek odmítnut, i s tvým komentářem.</string>
     <string name="suggested_post_decline_comment">Komentář pro autora (nepovinný)</string>
     <string name="suggested_post_action_failed">Návrh příspěvku se nepodařilo změnit</string>
+    <string name="ephemeral_only_you">Vidíš to jen ty</string>
+    <string name="ephemeral_only_receiver">Vidí to jen %1$s</string>
+    <string name="ephemeral_only_bot">Vidí to jen bot</string>
+    <string name="ephemeral_show_original">Zobrazit původní</string>
+    <string name="ephemeral_show_original_failed">Původní zprávu se nepodařilo zobrazit</string>
     <string name="suggested_post_send">Navrhnout jako příspěvek</string>
     <plurals name="suggested_post_price_stars">
         <item quantity="one">Cena: %1$d hvězda</item>

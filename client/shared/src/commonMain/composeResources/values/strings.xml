@@ -1154,6 +1154,11 @@
     <string name="suggested_post_decline_text">The author will see that the post was declined, along with your comment.</string>
     <string name="suggested_post_decline_comment">Comment for the author (optional)</string>
     <string name="suggested_post_action_failed">Couldn't change the suggested post</string>
+    <string name="ephemeral_only_you">Only you can see this</string>
+    <string name="ephemeral_only_receiver">Only %1$s can see this</string>
+    <string name="ephemeral_only_bot">Only the bot can see this</string>
+    <string name="ephemeral_show_original">Show original</string>
+    <string name="ephemeral_show_original_failed">Couldn't show the original message</string>
     <string name="suggested_post_send">Suggest as a post</string>
     <plurals name="suggested_post_price_stars">
         <item quantity="one">Price: %1$d star</item>

@@ -125,6 +125,9 @@ sealed interface MessageAction {
     /** Odmítnout navrhovaný příspěvek — napřed dialog s nepovinným komentářem pro autora. */
     data object DeclineSuggestedPost : MessageAction
 
+    /** Vrátit zprávě původní obsah, který jí bot nahradil mizejícím jen pro uživatele. */
+    data object ShowOriginalContent : MessageAction
+
     /**
      * Dlouhý stisk na systémovém oznámení. Nabídka nad zprávou se pro něj nehodí (kreslí kopii
      * BUBLINY a nabízí reakce a odpověď), takže oznámení má vlastní malou nabídku jen se

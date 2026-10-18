@@ -456,8 +456,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   „Sdílená média v profilu"). Zbývá ověřit podobné kanály. Hlasovky jsou taky
   (vlastní záložka s přehráváním).
 
-**Novinky TDLib, na které se zatím nesáhlo:** komunity (`createCommunity`), mizející
-zprávy (`sendEphemeralMessage`), živé příběhy. ~~AI úpravy textu od serveru
+**Novinky TDLib, na které se zatím nesáhlo:** komunity (`createCommunity`), ~~mizející
+zprávy botů (`sendEphemeralMessage`, `ephemeralContent`)~~ (hotovo, `docs/poznatky/boti.md`,
+„Mizející zprávy botů"; zbývá ověřit média, téma skupiny a iOS), živé příběhy. ~~AI úpravy textu od serveru
 (`composeTextWithAi`, `fixTextWithAi`, styly psaní)~~ — hotovo v sheetu „Zkontrolovat
 a přepsat…" (`docs/poznatky/ai-v-zarizeni.md`, „Úpravy textu od Telegramu"); ~~překlad
 a emoji z `composeTextWithAi`~~ (hotovo, čipy „Přeložit…" a „Přidat emoji"); zbývají vlastní styly (`isCustom`, odkazy na styl), oprava formátované
