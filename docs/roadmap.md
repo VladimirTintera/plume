@@ -903,7 +903,7 @@ poměru přínosu a práce; každý bod je samostatný PR.
   `docs/poznatky/nastaveni.md`). Ukládání do galerie zůstalo dialogem (víc hodnot najednou).
 - ~~**Holé `ListItem`y bez bloku**~~ — hotovo: výsledky hledání a nedávná hledání, koncepty,
   nastavení archivu, výběr země (s hledací pilulkou místo obrysového pole a bez dělicí čáry);
-  řádek v lazy seznamu přes `Modifier.groupedItem` (`core/ui/GroupedList.kt`). **`PhoneField`
+  řádek v lazy seznamu přes `Modifier.groupedItem` (`core/ui/GroupedList.kt`, VladimirTintera/telegram#836). **`PhoneField`
   zůstal jedním blokem s čárou** — obrys při psaní zvýrazní celé pole (země i číslo); dva bloky by
   ho rozdělily a přihlášení nešlo na přihlášených telefonech ověřit.
 - **Dvojí vstupní pole.** Přihlášení (`AuthFields`), úprava profilu, úprava skupiny, proxy, úprava
