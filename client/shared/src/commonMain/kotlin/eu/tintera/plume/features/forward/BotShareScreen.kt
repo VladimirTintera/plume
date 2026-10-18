@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -86,8 +87,8 @@ fun BotShareScreen(
             onDismissRequest = viewModel::dismissChat,
             title = { Text(stringResource(Res.string.bot_share_confirm_title, pending.title)) },
             text = { Text(chatConsequences(chat)) },
-            confirmButton = { TextButton(onClick = { viewModel.share(onShared) }) { Text(stringResource(Res.string.bot_share_confirm)) } },
-            dismissButton = { TextButton(onClick = viewModel::dismissChat) { Text(stringResource(Res.string.common_cancel)) } },
+            confirmButton = { TextButton(onClick = { viewModel.share(onShared) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.bot_share_confirm)) } },
+            dismissButton = { TextButton(onClick = viewModel::dismissChat, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
 }

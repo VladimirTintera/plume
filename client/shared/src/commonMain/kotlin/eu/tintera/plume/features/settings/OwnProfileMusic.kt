@@ -257,13 +257,13 @@ internal fun OwnProfileMusicSection(onNotice: (UiText) -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.padding(start = 4.dp, top = 4.dp),
         ) {
-            TextButton(onClick = picker::pickAudio, enabled = !busy) {
+            TextButton(onClick = picker::pickAudio, enabled = !busy, shapes = ButtonDefaults.shapes()) {
                 Icon(painterResource(Res.drawable.add_24dp), contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
                 Spacer(Modifier.width(ButtonDefaults.IconSpacing))
                 Text(stringResource(Res.string.profile_music_add))
             }
             if (list.size > 1) {
-                TextButton(onClick = { reordering = true }, enabled = !busy) {
+                TextButton(onClick = { reordering = true }, enabled = !busy, shapes = ButtonDefaults.shapes()) {
                     Icon(
                         painterResource(Res.drawable.drag_indicator_24dp),
                         contentDescription = null,
@@ -323,7 +323,7 @@ private fun ProfileMusicReorderSheet(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(onClick = { onDone(order.map { it.fileId }) }) { Text(stringResource(Res.string.reorder_done)) }
+                TextButton(onClick = { onDone(order.map { it.fileId }) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.reorder_done)) }
             }
             LazyColumn(
                 state = listState,

@@ -11,6 +11,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
@@ -124,10 +125,10 @@ internal fun DiscussionSheet(
                 TextButton(onClick = {
                     confirming = null
                     onSelect(group)
-                }) { Text(stringResource(Res.string.edit_chat_discussion_confirm)) }
+                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.edit_chat_discussion_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirming = null }) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = { confirming = null }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }

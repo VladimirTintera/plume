@@ -71,10 +71,10 @@ internal fun ContactCard(contact: MessageMedia.Contact, accent: Color, onWrite: 
                 modifier = Modifier.padding(start = CONTACT_AVATAR_SIZE - 2.dp),
             ) {
                 if (canWrite) {
-                    TextButton(onClick = onWrite, colors = colors) { Text(stringResource(Res.string.contact_write)) }
+                    TextButton(onClick = onWrite, colors = colors, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.contact_write)) }
                 }
                 if (contact.canAddToContacts) {
-                    TextButton(onClick = onAddContact, colors = colors) { Text(stringResource(Res.string.contact_add)) }
+                    TextButton(onClick = onAddContact, colors = colors, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.contact_add)) }
                 }
             }
         }

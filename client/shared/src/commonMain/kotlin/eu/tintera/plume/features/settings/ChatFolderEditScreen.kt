@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.foundation.layout.height
+import eu.tintera.plume.core.ui.MediumButtonHeight
+import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.clickable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -10,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import eu.tintera.plume.core.ui.TextFieldSlot
@@ -365,11 +369,11 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
                 TextButton(onClick = {
                     linkToDelete = null
                     state.links?.firstOrNull { it.url == url }?.let(viewModel::deleteLink)
-                }) {
+                }, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.chat_folder_share_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = { linkToDelete = null }) { Text(stringResource(Res.string.common_cancel)) } },
+            dismissButton = { TextButton(onClick = { linkToDelete = null }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
 
@@ -671,11 +675,11 @@ private fun FolderDeleteDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            TextButton(onClick = onConfirm, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.chat_folder_delete), color = MaterialTheme.colorScheme.error)
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 
@@ -784,13 +788,13 @@ private fun FolderLinkSheet(
                     modifier = Modifier.padding(top = 8.dp, start = 16.dp, end = 16.dp),
                 )
             }
-            Button(
+            MediumButton(
                 onClick = onSave,
                 enabled = editor.canSave && !editor.saving,
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp).heightIn(min = 56.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp).height(MediumButtonHeight),
             ) {
                 if (editor.saving) {
-                    LoadingIndicator(color = LocalContentColor.current)
+                    LoadingIndicator(Modifier.size(ButtonDefaults.iconSizeFor(MediumButtonHeight)), color = LocalContentColor.current)
                 } else {
                     Text(stringResource(Res.string.chat_folder_save))
                 }
@@ -799,6 +803,7 @@ private fun FolderLinkSheet(
                 onClick = onDelete,
                 enabled = !busy && !editor.saving,
                 modifier = Modifier.align(Alignment.CenterHorizontally),
+                shapes = ButtonDefaults.shapes(),
             ) {
                 Text(stringResource(Res.string.chat_folder_share_delete), color = MaterialTheme.colorScheme.error)
             }

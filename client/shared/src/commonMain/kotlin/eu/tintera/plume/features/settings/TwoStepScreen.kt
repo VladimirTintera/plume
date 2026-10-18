@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import androidx.compose.animation.AnimatedContent
+import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Button
 import eu.tintera.plume.core.ui.GroupBreak
 import eu.tintera.plume.core.ui.GroupedColumn
@@ -249,7 +251,7 @@ fun TwoStepScreen(viewModel: TwoStepViewModel, onBack: () -> Unit, modifier: Mod
 @Composable
 private fun LoadFailed(onRetry: () -> Unit) {
     Text(stringResource(Res.string.settings_two_step_load_failed), style = MaterialTheme.typography.bodyLarge)
-    OutlinedButton(onClick = onRetry) { Text(stringResource(Res.string.common_try_again)) }
+    OutlinedButton(onClick = onRetry, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_try_again)) }
 }
 
 /** Stav ověření a co s ním jde dělat. */
@@ -268,13 +270,13 @@ private fun ColumnScope.StatusContent(viewModel: TwoStepViewModel, state: TwoSte
             icon = Res.drawable.mail_24dp,
             text = stringResource(Res.string.settings_two_step_pending_email, pending.pattern),
         ) {
-            Button(onClick = { viewModel.start(TwoStepAction.ConfirmEmail) }, enabled = !state.busy) {
+            Button(onClick = { viewModel.start(TwoStepAction.ConfirmEmail) }, enabled = !state.busy, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.settings_two_step_enter_code))
             }
-            TextButton(onClick = viewModel::resendEmailCode, enabled = !state.busy) {
+            TextButton(onClick = viewModel::resendEmailCode, enabled = !state.busy, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.auth_recovery_resend))
             }
-            TextButton(onClick = viewModel::askCancelEmail, enabled = !state.busy) {
+            TextButton(onClick = viewModel::askCancelEmail, enabled = !state.busy, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.settings_two_step_cancel_email))
             }
         }
@@ -286,7 +288,7 @@ private fun ColumnScope.StatusContent(viewModel: TwoStepViewModel, state: TwoSte
             icon = Res.drawable.schedule_24dp,
             text = stringResource(Res.string.settings_two_step_reset_waiting, progress.at.asUpcomingTime()),
         ) {
-            TextButton(onClick = viewModel::askCancelReset, enabled = !state.busy) {
+            TextButton(onClick = viewModel::askCancelReset, enabled = !state.busy, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.settings_two_step_reset_cancel))
             }
         }
@@ -294,10 +296,10 @@ private fun ColumnScope.StatusContent(viewModel: TwoStepViewModel, state: TwoSte
             icon = Res.drawable.schedule_24dp,
             text = stringResource(Res.string.settings_two_step_reset_ready),
         ) {
-            Button(onClick = viewModel::askResetNow, enabled = !state.busy) {
+            Button(onClick = viewModel::askResetNow, enabled = !state.busy, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.settings_two_step_reset_now))
             }
-            TextButton(onClick = viewModel::askCancelReset, enabled = !state.busy) {
+            TextButton(onClick = viewModel::askCancelReset, enabled = !state.busy, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.settings_two_step_reset_cancel))
             }
         }
@@ -306,7 +308,7 @@ private fun ColumnScope.StatusContent(viewModel: TwoStepViewModel, state: TwoSte
     if (!status.hasPassword) {
         // S čekajícím potvrzením e-mailu se nezapíná znovu — nový pokus by čekající změnu přepsal.
         if (status.pendingEmail == null) {
-            Button(
+            MediumButton(
                 onClick = { viewModel.start(TwoStepAction.Enable) },
                 enabled = !state.busy,
                 modifier = Modifier.fillMaxWidth(),
@@ -340,7 +342,7 @@ private fun ColumnScope.StatusContent(viewModel: TwoStepViewModel, state: TwoSte
     }
     // Reset už běží — druhý „Zapomenuté heslo" by nic nového nenabídl.
     if (status.resetDate <= 0) {
-        TextButton(onClick = { viewModel.start(TwoStepAction.Recover) }, enabled = !state.busy) {
+        TextButton(onClick = { viewModel.start(TwoStepAction.Recover) }, enabled = !state.busy, shapes = ButtonDefaults.shapes()) {
             Text(stringResource(Res.string.settings_two_step_forgot))
         }
     }
@@ -511,7 +513,7 @@ private fun ColumnScope.FlowStep(viewModel: TwoStepViewModel, state: TwoStepStat
     state.error?.let { Text(it.resolve(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
 
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Button(onClick = submit, enabled = !state.busy) {
+        Button(onClick = submit, enabled = !state.busy, shapes = ButtonDefaults.shapes()) {
             if (state.busy) {
                 LoadingIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
             } else {
@@ -524,11 +526,11 @@ private fun ColumnScope.FlowStep(viewModel: TwoStepViewModel, state: TwoStepStat
         when (flow.step) {
             // Zapnutí jde i bez e-mailu; „Přeskočit" vede na potvrzení s následkem.
             TwoStepStep.Email -> if (flow.action == TwoStepAction.Enable) {
-                TextButton(onClick = { viewModel.onEmailChange(""); submit() }, enabled = !state.busy) {
+                TextButton(onClick = { viewModel.onEmailChange(""); submit() }, enabled = !state.busy, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.settings_two_step_skip))
                 }
             }
-            TwoStepStep.EmailCode -> TextButton(onClick = viewModel::resendEmailCode, enabled = !state.busy) {
+            TwoStepStep.EmailCode -> TextButton(onClick = viewModel::resendEmailCode, enabled = !state.busy, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.auth_recovery_resend))
             }
             else -> Unit
@@ -610,13 +612,13 @@ private fun TwoStepDialogHost(dialog: TwoStepDialog, status: TwoStepStatus?, vie
         title = { Text(stringResource(title)) },
         text = { Text(text) },
         confirmButton = {
-            TextButton(onClick = viewModel::confirmDialog) {
+            TextButton(onClick = viewModel::confirmDialog, shapes = ButtonDefaults.shapes()) {
                 Text(
                     stringResource(confirm),
                     color = if (destructive) MaterialTheme.colorScheme.error else Color.Unspecified,
                 )
             }
         },
-        dismissButton = { TextButton(onClick = viewModel::dismissDialog) { Text(stringResource(dismiss)) } },
+        dismissButton = { TextButton(onClick = viewModel::dismissDialog, shapes = ButtonDefaults.shapes()) { Text(stringResource(dismiss)) } },
     )
 }

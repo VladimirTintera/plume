@@ -5,6 +5,7 @@ import eu.tintera.plume.resources.change_phone_row
 import eu.tintera.plume.resources.call_24dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ListItem
 import androidx.compose.runtime.produceState
 import eu.tintera.plume.core.ui.GroupedColumn
@@ -134,12 +135,12 @@ fun EditProfileScreen(
                 TextButton(onClick = {
                     confirmDeletePhoto = false
                     viewModel.deletePhoto()
-                }) {
+                }, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.edit_profile_delete_photo_confirm), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmDeletePhoto = false }) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = { confirmDeletePhoto = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }
@@ -200,12 +201,12 @@ fun EditProfileScreen(
                     if (viewModel.photoBusy) CircularWavyProgressIndicator(Modifier.size(AVATAR_SIZE))
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = picker::pickMedia, enabled = !viewModel.photoBusy) {
+                    TextButton(onClick = picker::pickMedia, enabled = !viewModel.photoBusy, shapes = ButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.photo_camera_24dp), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                         Text(stringResource(Res.string.edit_profile_change_photo))
                     }
                     if (profile.photoFileId != null) {
-                        TextButton(onClick = { confirmDeletePhoto = true }, enabled = !viewModel.photoBusy) {
+                        TextButton(onClick = { confirmDeletePhoto = true }, enabled = !viewModel.photoBusy, shapes = ButtonDefaults.shapes()) {
                             Text(stringResource(Res.string.edit_profile_delete_photo))
                         }
                     }

@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.notifications
 
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -30,10 +31,10 @@ internal fun NotificationRationaleDialog(onEnable: () -> Unit, onDismiss: () -> 
         text = { Text(stringResource(Res.string.notification_permission_body)) },
         confirmButton = {
             // Afirmativní akce = filled Button (konvence M3).
-            Button(onClick = onEnable) { Text(stringResource(Res.string.notification_permission_enable)) }
+            Button(onClick = onEnable, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.notification_permission_enable)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.notification_permission_later)) }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.notification_permission_later)) }
         },
     )
 }

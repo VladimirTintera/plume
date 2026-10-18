@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import eu.tintera.plume.resources.add_members_refused_invite
 import eu.tintera.plume.resources.add_members_refused_text
 import eu.tintera.plume.resources.add_members_refused_text_no_link
@@ -150,7 +151,7 @@ fun CreateChatScreen(
                         if (viewModel.creating) {
                             LoadingIndicator(Modifier.padding(end = 12.dp).size(40.dp))
                         } else {
-                            TextButton(onClick = viewModel::create, enabled = viewModel.canCreate) {
+                            TextButton(onClick = viewModel::create, enabled = viewModel.canCreate, shapes = ButtonDefaults.shapes()) {
                                 Text(stringResource(Res.string.create_chat_create))
                             }
                         }
@@ -176,7 +177,7 @@ fun CreateChatScreen(
                     onPick = picker::pickMedia,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = picker::pickMedia, enabled = !viewModel.photoBusy && !viewModel.creating) {
+                    TextButton(onClick = picker::pickMedia, enabled = !viewModel.photoBusy && !viewModel.creating, shapes = ButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.photo_camera_24dp), contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                         Text(
                             stringResource(
@@ -185,7 +186,7 @@ fun CreateChatScreen(
                         )
                     }
                     if (viewModel.photo != null) {
-                        TextButton(onClick = viewModel::removePhoto, enabled = !viewModel.creating) {
+                        TextButton(onClick = viewModel::removePhoto, enabled = !viewModel.creating, shapes = ButtonDefaults.shapes()) {
                             Text(stringResource(Res.string.edit_chat_delete_photo))
                         }
                     }
@@ -359,15 +360,15 @@ private fun CreatedReportDialog(
         },
         confirmButton = {
             if (canInvite) {
-                TextButton(onClick = onSendInvites, enabled = !sending) {
+                TextButton(onClick = onSendInvites, enabled = !sending, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.add_members_refused_invite))
                 }
             } else {
-                TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_close)) }
+                TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_close)) }
             }
         },
         dismissButton = if (canInvite) {
-            { TextButton(onClick = onDismiss, enabled = !sending) { Text(stringResource(Res.string.common_close)) } }
+            { TextButton(onClick = onDismiss, enabled = !sending, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_close)) } }
         } else {
             null
         },

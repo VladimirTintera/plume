@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -137,6 +138,7 @@ internal fun InlineResultsPanel(
                         FilledTonalButton(
                             onClick = onButton,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 2.dp),
+                            shapes = ButtonDefaults.shapes(),
                         ) {
                             Text(button.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }

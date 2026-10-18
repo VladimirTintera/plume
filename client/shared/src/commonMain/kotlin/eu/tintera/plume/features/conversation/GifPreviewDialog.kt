@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
@@ -114,7 +115,7 @@ internal fun GifPreviewDialog(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         // Poslat zavírá i sheet, náhled se proto neanimuje — odjede s ním.
-                        Button(onClick = onPick) { Text(pickLabel) }
+                        Button(onClick = onPick, shapes = ButtonDefaults.shapes()) { Text(pickLabel) }
                         // Uložení náhled nezavírá, jako hvězdička u samolepky: stav potvrdí update.
                         if (onToggleSaved != null) FilledTonalIconToggleButton(
                             checked = saved,

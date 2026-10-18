@@ -112,7 +112,7 @@ fun NetworkUsageScreen(viewModel: NetworkUsageViewModel, onBack: () -> Unit, mod
             when {
                 usage == null && state.loadFailed -> Column(Modifier.padding(horizontal = 16.dp)) {
                     Text(stringResource(Res.string.network_usage_load_failed), color = MaterialTheme.colorScheme.error)
-                    TextButton(onClick = viewModel::load) { Text(stringResource(Res.string.network_usage_retry)) }
+                    TextButton(onClick = viewModel::load, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.network_usage_retry)) }
                 }
                 usage == null -> Box(Modifier.padding(horizontal = 16.dp)) { LoadingIndicator() }
                 else -> {
@@ -142,6 +142,7 @@ fun NetworkUsageScreen(viewModel: NetworkUsageViewModel, onBack: () -> Unit, mod
                     TextButton(
                         onClick = viewModel::requestReset,
                         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        shapes = ButtonDefaults.shapes(),
                     ) { Text(stringResource(Res.string.network_usage_reset)) }
                 }
             }
@@ -154,11 +155,11 @@ fun NetworkUsageScreen(viewModel: NetworkUsageViewModel, onBack: () -> Unit, mod
             title = { Text(stringResource(Res.string.network_usage_reset_title)) },
             text = { Text(stringResource(Res.string.network_usage_reset_text)) },
             confirmButton = {
-                TextButton(onClick = viewModel::confirmReset) {
+                TextButton(onClick = viewModel::confirmReset, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.network_usage_reset_confirm), color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = viewModel::dismissReset) { Text(stringResource(Res.string.common_cancel)) } },
+            dismissButton = { TextButton(onClick = viewModel::dismissReset, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
 }

@@ -12,6 +12,7 @@ import eu.tintera.plume.core.ui.TextFieldSlot
 import eu.tintera.plume.core.ui.reject
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.sender_you
 import androidx.compose.ui.text.withStyle
@@ -629,7 +630,7 @@ private fun SearchResults(
 @Composable
 private fun ExpandToggle(count: Int, expanded: Boolean, onChange: (Boolean) -> Unit) {
     if (count <= COLLAPSED_ROWS) return
-    TextButton(onClick = { onChange(!expanded) }) {
+    TextButton(onClick = { onChange(!expanded) }, shapes = ButtonDefaults.shapes()) {
         Text(stringResource(if (expanded) Res.string.chats_search_show_less else Res.string.chats_search_show_all))
     }
 }
@@ -733,7 +734,7 @@ private fun Suggestions(
         if (search.recent.isNotEmpty()) {
             item(key = "recent-header") {
                 SectionHeader(stringResource(Res.string.chats_search_recent)) {
-                    TextButton(onClick = actions.onClear) { Text(stringResource(Res.string.chats_search_clear_recent)) }
+                    TextButton(onClick = actions.onClear, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.chats_search_clear_recent)) }
                 }
             }
             items(search.recent, key = { "recent-${it.id}" }) { chat ->

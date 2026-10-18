@@ -128,10 +128,11 @@ fun UpdateCard(
                     TextButton(
                         onClick = { onDismiss(state.versionCode) },
                         colors = ButtonDefaults.textButtonColors(contentColor = accent),
+                        shapes = ButtonDefaults.shapes(),
                     ) {
                         Text(stringResource(Res.string.update_action_later))
                     }
-                    Button(onClick = onUpdate, colors = buttonColors) { Text(stringResource(Res.string.update_action_update)) }
+                    Button(onClick = onUpdate, colors = buttonColors, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.update_action_update)) }
                 }
 
                 // Průběh místo tlačítek: stahování nejde z karty zrušit (to umí jen obchod)
@@ -150,7 +151,7 @@ fun UpdateCard(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    Button(onClick = onRestart, colors = buttonColors) { Text(stringResource(Res.string.update_action_restart)) }
+                    Button(onClick = onRestart, colors = buttonColors, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.update_action_restart)) }
                 }
 
                 AppUpdateState.None -> Unit

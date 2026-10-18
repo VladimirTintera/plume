@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
@@ -115,7 +116,7 @@ internal fun StickerPreviewDialog(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         // Poslat zavírá i sheet, náhled se proto neanimuje — odjede s ním.
-                        pickLabel?.let { Button(onClick = onPick) { Text(it) } }
+                        pickLabel?.let { Button(onClick = onPick, shapes = ButtonDefaults.shapes()) { Text(it) } }
                         if (onToggleFavorite != null) FilledTonalIconToggleButton(
                             checked = favorite,
                             onCheckedChange = { onToggleFavorite() },

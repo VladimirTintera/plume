@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -175,7 +176,7 @@ fun LoginEmailScreen(viewModel: LoginEmailViewModel, onBack: () -> Unit, modifie
                         Text(it.resolve(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
                     }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = if (pending == null) viewModel::submitEmail else viewModel::submitCode, enabled = !state.busy) {
+                        Button(onClick = if (pending == null) viewModel::submitEmail else viewModel::submitCode, enabled = !state.busy, shapes = ButtonDefaults.shapes()) {
                             if (state.busy) {
                                 LoadingIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                             } else {
@@ -183,10 +184,10 @@ fun LoginEmailScreen(viewModel: LoginEmailViewModel, onBack: () -> Unit, modifie
                             }
                         }
                         if (pending != null) {
-                            TextButton(onClick = viewModel::resendCode, enabled = !state.busy) {
+                            TextButton(onClick = viewModel::resendCode, enabled = !state.busy, shapes = ButtonDefaults.shapes()) {
                                 Text(stringResource(Res.string.auth_recovery_resend))
                             }
-                            TextButton(onClick = viewModel::changeEmail, enabled = !state.busy) {
+                            TextButton(onClick = viewModel::changeEmail, enabled = !state.busy, shapes = ButtonDefaults.shapes()) {
                                 Text(stringResource(Res.string.auth_email_change))
                             }
                         }

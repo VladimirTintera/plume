@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ListItem
@@ -203,7 +204,7 @@ private fun RemovedMemberRow(
             Avatar(chatId = member.sender.id, title = member.sender.title, avatarFileId = member.sender.avatarFileId)
         },
         trailingContent = {
-            TextButton(onClick = onRelease) {
+            TextButton(onClick = onRelease, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(if (banned) Res.string.removed_members_unban else Res.string.member_action_unrestrict))
             }
         },

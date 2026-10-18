@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.resources.data_usage_24dp
+import eu.tintera.plume.core.ui.MediumButtonIcon
+import eu.tintera.plume.core.ui.ButtonEmphasis
+import eu.tintera.plume.core.ui.MediumButton
 import eu.tintera.plume.resources.network_usage_group
 import eu.tintera.plume.resources.network_usage_summary
 import eu.tintera.plume.resources.network_usage_title
@@ -180,7 +183,7 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(stringResource(Res.string.storage_error_load), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TextButton(onClick = viewModel::refresh) { Text(stringResource(Res.string.common_try_again)) }
+            TextButton(onClick = viewModel::refresh, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_try_again)) }
         }
 
         usage == null && state.databaseBytes == null -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
@@ -209,19 +212,16 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
 
             // Hlavní akce sekce, proto tlačítko a ne řádek. Tonální: maže, ale nic nenávratného —
             // soubory zůstávají na serveru.
-            FilledTonalButton(
+            MediumButton(
                 onClick = { clearAll = true },
                 enabled = usage != null && usage.categories.isNotEmpty() && !state.clearing,
                 modifier = Modifier.fillMaxWidth(),
+                emphasis = ButtonEmphasis.Tonal,
             ) {
                 if (state.clearing) {
                     LoadingIndicator(Modifier.padding(end = 8.dp).size(24.dp))
                 } else {
-                    Icon(
-                        painterResource(Res.drawable.delete_24dp),
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = 8.dp).size(ButtonDefaults.IconSize),
-                    )
+                    MediumButtonIcon(Res.drawable.delete_24dp)
                 }
                 Text(stringResource(Res.string.storage_clear))
             }
@@ -398,10 +398,10 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
                 TextButton(onClick = {
                     deletePack = null
                     viewModel.deleteTranslationPack(language)
-                }) { Text(stringResource(Res.string.common_delete)) }
+                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { deletePack = null }) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = { deletePack = null }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }
@@ -415,10 +415,10 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
                 TextButton(onClick = {
                     deleteModel = null
                     viewModel.deleteModel(model)
-                }) { Text(stringResource(Res.string.common_delete)) }
+                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_delete)) }
             },
             dismissButton = {
-                TextButton(onClick = { deleteModel = null }) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = { deleteModel = null }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }
@@ -580,12 +580,12 @@ private fun ClearDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(selected) }, enabled = selected.isNotEmpty()) {
+            TextButton(onClick = { onConfirm(selected) }, enabled = selected.isNotEmpty(), shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.storage_clear_confirm, fileSizeText(selectedBytes)))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
 }
@@ -623,7 +623,7 @@ private fun <T> ChoiceDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
 }

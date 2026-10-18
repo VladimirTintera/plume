@@ -1238,6 +1238,7 @@ internal fun VideoPage(
                             resumeHint = false
                         },
                         colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
+                        shapes = ButtonDefaults.shapes(),
                     ) {
                         Text(stringResource(Res.string.media_video_from_start))
                     }

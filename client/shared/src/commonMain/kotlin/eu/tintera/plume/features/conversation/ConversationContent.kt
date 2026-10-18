@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -118,7 +119,7 @@ internal fun BoxScope.ConversationContent(
             text = stringResource(Res.string.conversation_chat_sensitive_text),
             modifier = Modifier.fillMaxSize(),
             action = {
-                FilledTonalButton(onClick = onShowSensitive) {
+                FilledTonalButton(onClick = onShowSensitive, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.conversation_chat_sensitive_show))
                 }
             },

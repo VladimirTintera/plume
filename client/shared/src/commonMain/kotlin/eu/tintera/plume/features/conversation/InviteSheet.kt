@@ -1,12 +1,17 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import eu.tintera.plume.core.ui.MediumButtonHeight
+import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
@@ -85,13 +90,13 @@ fun InviteSheet(
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
-            Button(
+            MediumButton(
                 onClick = onJoin,
                 enabled = !invite.joining,
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp).heightIn(min = 56.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp).height(MediumButtonHeight),
             ) {
                 if (invite.joining) {
-                    LoadingIndicator(color = LocalContentColor.current)
+                    LoadingIndicator(Modifier.size(ButtonDefaults.iconSizeFor(MediumButtonHeight)), color = LocalContentColor.current)
                 } else {
                     Text(stringResource(if (preview.createsJoinRequest) Res.string.invite_request else Res.string.conversation_join))
                 }

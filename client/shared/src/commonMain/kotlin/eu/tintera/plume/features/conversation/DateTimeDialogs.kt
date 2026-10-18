@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SelectableDates
@@ -59,9 +60,10 @@ internal fun FutureDayDialog(now: Long, maxAheadSeconds: Long, onPick: (Long) ->
             TextButton(
                 enabled = state.selectedDateMillis != null,
                 onClick = { state.selectedDateMillis?.let(onPick) },
+                shapes = ButtonDefaults.shapes(),
             ) { Text(stringResource(Res.string.search_filter_apply)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     ) {
         DatePicker(state = state)
     }
@@ -84,9 +86,9 @@ internal fun TimeOfDayDialog(title: String, hour: Int, minute: Int, onPick: (hou
         onDismissRequest = onDismiss,
         title = { Text(title) },
         confirmButton = {
-            TextButton(onClick = { onPick(state.hour, state.minute) }) { Text(stringResource(Res.string.search_filter_apply)) }
+            TextButton(onClick = { onPick(state.hour, state.minute) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.search_filter_apply)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     ) {
         TimePicker(state = state)
     }

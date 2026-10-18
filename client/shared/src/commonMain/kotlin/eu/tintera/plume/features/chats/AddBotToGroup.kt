@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -168,10 +169,10 @@ fun AddBotToGroupScreen(
                 )
             },
             confirmButton = {
-                TextButton(onClick = { viewModel.add(onAdded) }) { Text(stringResource(Res.string.bot_add_group_confirm)) }
+                TextButton(onClick = { viewModel.add(onAdded) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.bot_add_group_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = viewModel::dismissConfirm) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = viewModel::dismissConfirm, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }

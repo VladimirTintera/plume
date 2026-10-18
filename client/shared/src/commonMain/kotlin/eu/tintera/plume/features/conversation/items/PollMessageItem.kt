@@ -216,6 +216,7 @@ private fun MessageBodyScope.PollContent(poll: ChatPoll) {
                 colors = ButtonDefaults.textButtonColors(contentColor = accent),
                 contentPadding = PaddingValues(horizontal = 4.dp),
                 modifier = Modifier.padding(top = 4.dp),
+                shapes = ButtonDefaults.shapes(),
             ) {
                 Icon(
                     painterResource(Res.drawable.add_24dp),
@@ -453,6 +454,7 @@ private fun MessageBodyScope.VoteButton(enabled: Boolean, haptics: HapticFeedbac
             disabledContentColor = onBubbleColor.copy(alpha = MUTED_ALPHA),
         ),
         modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+        shapes = ButtonDefaults.shapes(),
     ) {
         Text(stringResource(Res.string.poll_vote_button))
     }
@@ -538,6 +540,7 @@ private fun MessageBodyScope.Footer(poll: ChatPoll, muted: Color) {
             TextButton(
                 onClick = { act(MessageAction.ShowPollVoters) },
                 colors = ButtonDefaults.textButtonColors(contentColor = accent),
+                shapes = ButtonDefaults.shapes(),
             ) {
                 Text(stringResource(Res.string.poll_show_voters))
             }

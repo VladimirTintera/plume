@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.devices
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.MediumButtonIcon
+import eu.tintera.plume.core.ui.ButtonEmphasis
+import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -176,16 +179,13 @@ fun DevicesSettings(viewModel: DevicesViewModel, snackbarHostState: SnackbarHost
     }
 
     // Hlavní akce sekce, proto tlačítko a ne řádek v seznamu. Tonální: je častá, ale nic nemaže.
-    FilledTonalButton(
+    MediumButton(
         onClick = startScan,
         enabled = !state.busy,
         modifier = Modifier.fillMaxWidth(),
+        emphasis = ButtonEmphasis.Tonal,
     ) {
-        Icon(
-            painterResource(Res.drawable.qr_code_scanner_24dp),
-            contentDescription = null,
-            modifier = Modifier.padding(end = 8.dp).size(ButtonDefaults.IconSize),
-        )
+        MediumButtonIcon(Res.drawable.qr_code_scanner_24dp)
         Text(stringResource(Res.string.devices_link))
     }
 
@@ -197,7 +197,7 @@ fun DevicesSettings(viewModel: DevicesViewModel, snackbarHostState: SnackbarHost
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(stringResource(Res.string.devices_error_load), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TextButton(onClick = viewModel::refresh) { Text(stringResource(Res.string.common_try_again)) }
+            TextButton(onClick = viewModel::refresh, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_try_again)) }
         }
 
         devices == null -> Box(Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
@@ -461,7 +461,7 @@ private fun DeviceDetailSheet(
             // a na menším telefonu by pod údaji a přepínači skončilo pod okrajem.
             // Jen u CIZÍHO zařízení — odhlášení tohoto je dole v seznamu Nastavení (maže lokální data).
             if (!device.isCurrent) {
-                Button(
+                MediumButton(
                     onClick = onTerminate,
                     enabled = !busy,
                     colors = ButtonDefaults.buttonColors(
@@ -569,7 +569,7 @@ private fun TtlDialog(selected: Int, onSelect: (Int) -> Unit, onDismiss: () -> U
             }
         },
         confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 
@@ -587,8 +587,8 @@ private fun ConfirmDialog(
         title = { Text(title) },
         text = { Text(text) },
         confirmButton = {
-            TextButton(onClick = onConfirm) { Text(confirm, color = MaterialTheme.colorScheme.error) }
+            TextButton(onClick = onConfirm, shapes = ButtonDefaults.shapes()) { Text(confirm, color = MaterialTheme.colorScheme.error) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }

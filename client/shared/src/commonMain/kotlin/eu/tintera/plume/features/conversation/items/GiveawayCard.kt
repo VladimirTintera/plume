@@ -291,6 +291,7 @@ private fun CardButton(label: String, accent: Color, modifier: Modifier, onClick
         modifier = modifier,
         colors = ButtonDefaults.outlinedButtonColors(contentColor = accent),
         border = ButtonDefaults.outlinedButtonBorder(enabled = true).copy(brush = SolidColor(accent.copy(alpha = BORDER_ALPHA))),
+        shapes = ButtonDefaults.shapes(),
     ) {
         Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }

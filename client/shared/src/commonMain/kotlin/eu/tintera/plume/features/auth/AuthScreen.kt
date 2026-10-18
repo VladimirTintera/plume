@@ -2,6 +2,8 @@ package eu.tintera.plume.features.auth
 
 import eu.tintera.plume.core.adaptive.ContentWidth
 import eu.tintera.plume.core.ui.BlockTextField
+import eu.tintera.plume.core.ui.MediumButton
+import eu.tintera.plume.core.ui.MediumButtonHeight
 import eu.tintera.plume.core.ui.PasswordField
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -30,7 +32,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -398,7 +400,7 @@ fun AuthScreen(
                 }
 
                 if (stage.offersProxy()) {
-                    TextButton(onClick = { showingProxy = true }) {
+                    TextButton(onClick = { showingProxy = true }, shapes = ButtonDefaults.shapes()) {
                         Icon(
                             painterResource(Res.drawable.vpn_lock_24dp),
                             contentDescription = null,
@@ -584,14 +586,19 @@ internal fun CodeDelivery.resendLabel(): StringResource = when (this) {
 /** Tlačítko „dál" je ve všech fázích stejné, takže jen jedno místo, kde se mění stav. */
 @Composable
 internal fun ContinueButton(enabled: Boolean, busy: Boolean, onClick: () -> Unit) {
-    Button(
+    MediumButton(
         onClick = onClick,
         enabled = enabled && !busy,
-        modifier = Modifier.fillMaxWidth().height(BUTTON_HEIGHT),
+        // Pevná výška: indikátor místo popisku nesmí tlačítko natáhnout.
+        modifier = Modifier.fillMaxWidth().height(MediumButtonHeight),
     ) {
         // M3 Expressive LoadingIndicator místo popisku — na rozdíl od CircularProgressIndicator
         // je to tvarově morfující indikátor z expressive sady.
-        if (busy) LoadingIndicator() else Text(stringResource(Res.string.auth_continue))
+        if (busy) {
+            LoadingIndicator(Modifier.size(ButtonDefaults.iconSizeFor(MediumButtonHeight)))
+        } else {
+            Text(stringResource(Res.string.auth_continue))
+        }
     }
 }
 
@@ -634,7 +641,7 @@ private fun QrForm(
          * ani `requestQrCodeAuthentication`, takže kdo nemá čím kód naskenovat, musel by aplikaci
          * odinstalovat. Uvnitř to znamená zavřít klienta a začít znovu — proto to chvíli trvá.
          */
-        TextButton(onClick = onUsePhoneNumber, enabled = !busy) {
+        TextButton(onClick = onUsePhoneNumber, enabled = !busy, shapes = ButtonDefaults.shapes()) {
             Text(stringResource(Res.string.auth_use_phone_number))
         }
     }
@@ -718,7 +725,7 @@ private fun CodeForm(
              */
             if (next != null) {
                 val label = stringResource(next.resendLabel())
-                TextButton(onClick = onResend, enabled = !busy && resendIn == 0) {
+                TextButton(onClick = onResend, enabled = !busy && resendIn == 0, shapes = ButtonDefaults.shapes()) {
                     Text(
                         text = if (resendIn > 0) {
                             stringResource(Res.string.auth_resend_wait, label, formatDuration(resendIn))
@@ -733,11 +740,11 @@ private fun CodeForm(
             // TDLib QR pustí i z čekání na kód. Druhé zařízení je potřeba tak jako tak, a QR
             // je z něj rychlejší než opisovat kód ze zprávy.
             if (appOnly) {
-                TextButton(onClick = onQrLogin, enabled = !busy) {
+                TextButton(onClick = onQrLogin, enabled = !busy, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.auth_sign_in_with_qr))
                 }
             }
-            TextButton(onClick = onChangeNumber, enabled = !busy) {
+            TextButton(onClick = onChangeNumber, enabled = !busy, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.auth_change_number))
             }
         }
@@ -776,11 +783,11 @@ private fun EmailAddressForm(
         ContinueButton(enabled = value.isNotBlank(), busy = busy, onClick = onSubmit)
         SecondaryActions {
             if (onBackToCode != null) {
-                TextButton(onClick = onBackToCode, enabled = !busy) {
+                TextButton(onClick = onBackToCode, enabled = !busy, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.auth_email_back_to_code))
                 }
             }
-            TextButton(onClick = onChangeNumber, enabled = !busy) {
+            TextButton(onClick = onChangeNumber, enabled = !busy, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.auth_change_number))
             }
         }
@@ -858,25 +865,25 @@ private fun EmailCodeForm(
 
         SecondaryActions {
             when (stage.reset) {
-                is EmailReset.Available -> TextButton(onClick = onReset, enabled = !busy) {
+                is EmailReset.Available -> TextButton(onClick = onReset, enabled = !busy, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.auth_email_reset))
                 }
                 is EmailReset.Pending -> if (resetIn == 0) {
-                    TextButton(onClick = onFinishReset, enabled = !busy) {
+                    TextButton(onClick = onFinishReset, enabled = !busy, shapes = ButtonDefaults.shapes()) {
                         Text(stringResource(Res.string.auth_email_reset_finish))
                     }
                 }
                 null -> Unit
             }
             if (stage.isSetup) {
-                TextButton(onClick = onResend, enabled = !busy) {
+                TextButton(onClick = onResend, enabled = !busy, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.auth_recovery_resend))
                 }
-                TextButton(onClick = onChangeEmail, enabled = !busy) {
+                TextButton(onClick = onChangeEmail, enabled = !busy, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.auth_email_change))
                 }
             }
-            TextButton(onClick = onChangeNumber, enabled = !busy) {
+            TextButton(onClick = onChangeNumber, enabled = !busy, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.auth_change_number))
             }
         }
@@ -899,10 +906,10 @@ private fun EmailResetDialog(waitSeconds: Int, onConfirm: () -> Unit, onDismiss:
             )
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) { Text(stringResource(Res.string.auth_email_reset_confirm)) }
+            TextButton(onClick = onConfirm, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.auth_email_reset_confirm)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
 }
@@ -936,10 +943,10 @@ private fun PasswordForm(
          * u části účtů nekreslilo, by nechalo uživatele hledat cestu, která není.
          */
         SecondaryActions {
-            TextButton(onClick = onForgot, enabled = !busy) {
+            TextButton(onClick = onForgot, enabled = !busy, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.auth_forgot_password))
             }
-            TextButton(onClick = onChangeNumber, enabled = !busy) {
+            TextButton(onClick = onChangeNumber, enabled = !busy, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.auth_change_number))
             }
         }
@@ -977,10 +984,10 @@ private fun RecoveryCodeForm(
         FormError(error)
         ContinueButton(enabled = value.isNotBlank(), busy = busy, onClick = onSubmit)
         SecondaryActions {
-            TextButton(onClick = onResend, enabled = !busy) {
+            TextButton(onClick = onResend, enabled = !busy, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.auth_recovery_resend))
             }
-            TextButton(onClick = onBack, enabled = !busy) {
+            TextButton(onClick = onBack, enabled = !busy, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.auth_back_to_password))
             }
         }
@@ -1043,7 +1050,7 @@ private fun RecoveryUnavailableDialog(onDismiss: () -> Unit) {
         title = { Text(stringResource(Res.string.auth_recovery_unavailable_title)) },
         text = { Text(stringResource(Res.string.auth_recovery_unavailable_text)) },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.auth_recovery_unavailable_ok)) }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.auth_recovery_unavailable_ok)) }
         },
     )
 }
@@ -1087,7 +1094,7 @@ private fun PhoneForm(
         ContinueButton(enabled = phone.isComplete, busy = busy, onClick = onSubmit)
 
         Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
-            TextButton(onClick = onQrLogin, enabled = !busy) {
+            TextButton(onClick = onQrLogin, enabled = !busy, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.auth_sign_in_with_qr))
             }
         }
@@ -1096,5 +1103,4 @@ private fun PhoneForm(
 
 private val CONTENT_MAX_WIDTH = ContentWidth.Form
 private val QR_MAX_WIDTH = 280.dp
-private val BUTTON_HEIGHT = 56.dp
 private const val PHASE_SLIDE_FRACTION = 4

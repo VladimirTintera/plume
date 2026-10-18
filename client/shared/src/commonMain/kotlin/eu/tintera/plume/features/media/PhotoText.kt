@@ -20,6 +20,7 @@ import androidx.compose.foundation.text.selection.LocalTextSelectionColors
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -255,11 +256,11 @@ internal fun PhotoTextPanel(
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
             ) {
                 if (hasSelection) {
-                    TextButton(onClick = onClearSelection) {
+                    TextButton(onClick = onClearSelection, shapes = ButtonDefaults.shapes()) {
                         Text(stringResource(Res.string.media_text_clear_selection))
                     }
                 }
-                FilledTonalButton(onClick = onCopy) {
+                FilledTonalButton(onClick = onCopy, shapes = ButtonDefaults.shapes()) {
                     Icon(painterResource(Res.drawable.content_copy_24dp), contentDescription = null)
                     Spacer(Modifier.padding(start = 8.dp))
                     Text(stringResource(if (hasSelection) Res.string.media_text_copy_selection else Res.string.media_text_copy))

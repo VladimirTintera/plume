@@ -25,6 +25,7 @@ import eu.tintera.plume.resources.media_describe_hide
 import eu.tintera.plume.resources.media_text
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import eu.tintera.plume.core.ui.readString
@@ -328,12 +329,12 @@ fun MediaViewerScreen(
             title = { Text(stringResource(Res.string.media_profile_photo_delete_title)) },
             text = { Text(stringResource(Res.string.media_profile_photo_delete_text)) },
             confirmButton = {
-                TextButton(onClick = viewModel::confirmDeleteProfilePhoto) {
+                TextButton(onClick = viewModel::confirmDeleteProfilePhoto, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.menu_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = viewModel::dismissDeleteProfilePhoto) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = viewModel::dismissDeleteProfilePhoto, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }

@@ -257,11 +257,11 @@ fun ProxySettingsScreen(
             title = { Text(stringResource(Res.string.proxy_delete_title)) },
             text = { Text(stringResource(Res.string.proxy_delete_body, proxy.config.server)) },
             confirmButton = {
-                TextButton(onClick = viewModel::confirmRemove) {
+                TextButton(onClick = viewModel::confirmRemove, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.proxy_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = viewModel::dismissRemove) { Text(stringResource(Res.string.common_cancel)) } },
+            dismissButton = { TextButton(onClick = viewModel::dismissRemove, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
 }
@@ -525,6 +525,7 @@ private fun ProxyEditorSheet(
                 onClick = { onSave(config) },
                 enabled = problem == null && !saving,
                 modifier = Modifier.align(Alignment.End),
+                shapes = ButtonDefaults.shapes(),
             ) {
                 Text(stringResource(Res.string.proxy_save))
             }

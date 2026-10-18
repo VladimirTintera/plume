@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -96,7 +97,7 @@ internal fun ProfileMusic(
             }
         }
         if (audios.size > shown.size) {
-            TextButton(onClick = { expanded = true }, modifier = Modifier.padding(start = 4.dp)) {
+            TextButton(onClick = { expanded = true }, modifier = Modifier.padding(start = 4.dp), shapes = ButtonDefaults.shapes()) {
                 Text(pluralStringResource(Res.plurals.profile_music_show_all, audios.size, audios.size))
             }
         }

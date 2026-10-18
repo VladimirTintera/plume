@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.semantics.Role
@@ -70,7 +71,7 @@ internal fun LiveLocationPeriodDialog(onPick: (Int) -> Unit, onDismiss: () -> Un
             }
         },
         confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 
@@ -109,9 +110,9 @@ internal fun ProximityAlertDialog(currentRadius: Int, onPick: (Int) -> Unit, onD
         },
         confirmButton = {
             if (currentRadius > 0) {
-                TextButton(onClick = { onPick(0) }) { Text(stringResource(Res.string.location_proximity_off)) }
+                TextButton(onClick = { onPick(0) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.location_proximity_off)) }
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }

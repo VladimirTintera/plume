@@ -879,14 +879,9 @@ poměru přínosu a práce; každý bod je samostatný PR.
 - ~~**Nastavení: segmentované bloky, motiv jako skupina tlačítek, jednotné hlavičky**~~ — hotovo
   (`GroupedColumn` v `core/ui/GroupedList.kt`, VladimirTintera/telegram#825; `docs/poznatky/nastaveni.md`, „Skupiny jsou
   bloky zaoblených řádků").
-- **Tvary textových tlačítek při stisku.** Ikonová tlačítka je mají (171 volání), `TextButton`,
-  `Button`, `FilledTonalButton` a `OutlinedButton` jen dvě z ~350. V jednom sheetu tak jedno
-  tlačítko morfuje a druhé ne. Doplnit skriptem jako u ikonových (`shapes = ButtonDefaults.shapes()`)
-  a rozšířit pravidlo v `CLAUDE.md`. K tomu **velká hlavní tlačítka** z ručního
-  `heightIn(min = 56.dp)` (13×: `AuthScreen` `ContinueButton`, `InputStandIns` JoinBar,
-  `InviteSheet`, `FolderChatsSheet`, `ChatFolderEditScreen`…) na `ButtonDefaults.MediumContainerHeight`
-  + `contentPaddingFor` / `textStyleFor` / `shapesFor` — teď je to malé písmo v 56dp pilulce.
-  Totéž `WebAppBottomButton` (výchozích 40 dp, přitom hlavní akce mini aplikace).
+- ~~**Tvary textových tlačítek při stisku a velká hlavní tlačítka**~~ — hotovo (všech ~350
+  volání, `verifyButtonShapes`; hlavní akce přes `MediumButton`, `CLAUDE.md` u ikonových tlačítek;
+  VladimirTintera/telegram#827).
 - **Prázdné a chybové stavy jako `IntroEmptyState`** (už je na 17 místech): prázdný a chybový
   seznam chatů (`ChatListScreen` ~632 a ~1403), chyba v Instant View, prázdné pozvánky
   (`InviteLinksScreen`), passkeys, samolepky „Moje", „Nic nenalezeno" v tématech fóra,

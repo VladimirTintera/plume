@@ -14,6 +14,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -293,6 +294,7 @@ internal fun ChatReactionsSheet(
                 )
             },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 16.dp),
+            shapes = ButtonDefaults.shapes(),
         ) {
             Text(stringResource(Res.string.edit_chat_reactions_save))
         }

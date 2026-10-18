@@ -80,11 +80,13 @@ fun NewFolderChatsCard(
                     onClick = onHide,
                     enabled = !state.busy,
                     colors = ButtonDefaults.textButtonColors(contentColor = accent),
+                    shapes = ButtonDefaults.shapes(),
                 ) { Text(stringResource(Res.string.folder_new_chats_hide)) }
                 Button(
                     onClick = onShow,
                     enabled = !state.busy,
                     colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = onAccent),
+                    shapes = ButtonDefaults.shapes(),
                 ) { Text(stringResource(Res.string.folder_new_chats_show)) }
             }
         }

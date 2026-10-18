@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -82,12 +83,12 @@ fun ProxyLinkDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onConnect, enabled = !connecting) {
+            TextButton(onClick = onConnect, enabled = !connecting, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.proxy_link_connect))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) }
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
         },
     )
 }

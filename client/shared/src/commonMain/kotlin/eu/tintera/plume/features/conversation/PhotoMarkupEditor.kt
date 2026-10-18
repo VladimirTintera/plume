@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilledTonalIconToggleButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -175,7 +176,7 @@ internal fun PhotoMarkupEditor(
                     tint = if (strokes.isNotEmpty()) Color.White else Color.White.copy(alpha = DISABLED_ALPHA),
                 )
             }
-            TextButton(onClick = { onDone(markup) }) {
+            TextButton(onClick = { onDone(markup) }, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.attachment_done), color = Color.White, style = MaterialTheme.typography.labelLarge)
             }
         }
@@ -256,7 +257,7 @@ internal fun PhotoMarkupEditor(
                         TextButton(onClick = {
                             quarterTurns = normalizedTurns(quarterTurns + 1)
                             crop = crop.rotated(1)
-                        }) {
+                        }, shapes = ButtonDefaults.shapes()) {
                             Icon(painterResource(Res.drawable.rotate_right_24dp), contentDescription = null, tint = Color.White)
                             Text(
                                 stringResource(Res.string.markup_rotate),
@@ -270,6 +271,7 @@ internal fun PhotoMarkupEditor(
                                 crop = CropBox.Full
                             },
                             enabled = quarterTurns != 0 || crop != CropBox.Full,
+                            shapes = ButtonDefaults.shapes(),
                         ) {
                             Text(
                                 stringResource(Res.string.markup_reset),

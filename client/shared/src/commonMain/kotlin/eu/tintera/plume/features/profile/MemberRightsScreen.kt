@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -134,7 +135,7 @@ fun MemberRightsScreen(viewModel: MemberRightsViewModel, onBack: () -> Unit, mod
                     }
                 },
                 actions = {
-                    TextButton(onClick = viewModel::save, enabled = viewModel.canSave) {
+                    TextButton(onClick = viewModel::save, enabled = viewModel.canSave, shapes = ButtonDefaults.shapes()) {
                         Text(stringResource(Res.string.edit_profile_save))
                     }
                 },

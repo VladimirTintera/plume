@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
@@ -479,7 +480,7 @@ private fun ExceptionsSheet(
                         headlineContent = { Text(exception.title, maxLines = 1) },
                         supportingContent = { Text(stringResource(exception.state.label)) },
                         trailingContent = {
-                            TextButton(onClick = { onReset(exception.chatId) }) {
+                            TextButton(onClick = { onReset(exception.chatId) }, shapes = ButtonDefaults.shapes()) {
                                 Text(stringResource(Res.string.settings_notif_reset))
                             }
                         },

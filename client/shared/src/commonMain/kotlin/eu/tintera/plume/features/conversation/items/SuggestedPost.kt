@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -99,14 +100,14 @@ internal fun SuggestedPostCard(
                     modifier = Modifier.padding(top = 4.dp),
                 ) {
                     if (post.canDecline) {
-                        OutlinedButton(onClick = onDecline, modifier = Modifier.weight(1f)) {
+                        OutlinedButton(onClick = onDecline, modifier = Modifier.weight(1f), shapes = ButtonDefaults.shapes()) {
                             Text(stringResource(Res.string.suggested_post_decline))
                         }
                     }
                     if (post.canApprove) {
                         // Plné tlačítko, ne tónové: tónové má barvu `secondaryContainer` — tutéž
                         // jako karta — a splynulo s ní (ověřeno na emulátoru).
-                        Button(onClick = onApprove, modifier = Modifier.weight(1f)) {
+                        Button(onClick = onApprove, modifier = Modifier.weight(1f), shapes = ButtonDefaults.shapes()) {
                             Text(stringResource(Res.string.suggested_post_approve))
                         }
                     }

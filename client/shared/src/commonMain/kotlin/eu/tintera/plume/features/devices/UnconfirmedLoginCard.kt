@@ -98,6 +98,7 @@ fun UnconfirmedLoginCard(
                     onClick = onTerminate,
                     enabled = enabled,
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onTertiaryContainer),
+                    shapes = ButtonDefaults.shapes(),
                 ) {
                     Text(stringResource(Res.string.devices_unconfirmed_no))
                 }
@@ -108,6 +109,7 @@ fun UnconfirmedLoginCard(
                         containerColor = MaterialTheme.colorScheme.tertiary,
                         contentColor = MaterialTheme.colorScheme.onTertiary,
                     ),
+                    shapes = ButtonDefaults.shapes(),
                 ) {
                     Text(stringResource(Res.string.devices_unconfirmed_yes))
                 }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -154,6 +155,7 @@ private fun ColumnScope.TextStep(step: ReportStep.EnterText, enabled: Boolean, o
         onClick = { onSubmit(text) },
         enabled = enabled && (step.optional || text.isNotBlank()),
         modifier = Modifier.align(Alignment.End).padding(top = 16.dp),
+        shapes = ButtonDefaults.shapes(),
     ) {
         Text(stringResource(Res.string.report_send))
     }
@@ -171,7 +173,7 @@ private fun ColumnScope.MessagesStep(onDismiss: () -> Unit) {
         style = MaterialTheme.typography.bodyLarge,
         modifier = Modifier.padding(horizontal = 8.dp),
     )
-    Button(onClick = onDismiss, modifier = Modifier.align(Alignment.End).padding(top = 16.dp)) {
+    Button(onClick = onDismiss, modifier = Modifier.align(Alignment.End).padding(top = 16.dp), shapes = ButtonDefaults.shapes()) {
         Text(stringResource(Res.string.common_close))
     }
 }

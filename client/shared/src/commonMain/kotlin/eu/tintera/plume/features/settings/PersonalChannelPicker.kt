@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -168,7 +169,7 @@ private fun PersonalChannelDialog(
                             color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.padding(top = 8.dp),
                         )
-                        TextButton(onClick = onRetry) { Text(stringResource(Res.string.personal_channel_retry)) }
+                        TextButton(onClick = onRetry, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.personal_channel_retry)) }
                     }
                     else -> {
                         selected?.let { option(it) }
@@ -178,7 +179,7 @@ private fun PersonalChannelDialog(
             }
         },
         confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 

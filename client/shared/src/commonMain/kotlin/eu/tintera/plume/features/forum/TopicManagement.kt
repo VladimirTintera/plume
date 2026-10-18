@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.forum
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -252,7 +254,7 @@ internal fun TopicEditorSheet(
                     }
                 }
             }
-            Button(onClick = onSave, enabled = editor.canSave && !busy, modifier = Modifier.fillMaxWidth()) {
+            MediumButton(onClick = onSave, enabled = editor.canSave && !busy, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(if (editor.isNew) Res.string.forum_topic_create else Res.string.edit_profile_save))
             }
         }
@@ -296,11 +298,11 @@ internal fun DeleteTopicDialog(topic: ForumTopic, onConfirm: () -> Unit, onDismi
         title = { Text(stringResource(Res.string.forum_topic_delete_title, topic.name)) },
         text = { Text(stringResource(Res.string.forum_topic_delete_body)) },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            TextButton(onClick = onConfirm, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.forum_topic_delete), color = MaterialTheme.colorScheme.error)
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 

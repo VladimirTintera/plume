@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -155,7 +156,7 @@ fun InstantViewScreen(viewModel: InstantViewViewModel, onBack: () -> Unit, modif
                         }
                         if (page.isPartial) {
                             item {
-                                FilledTonalButton(onClick = viewModel::openInBrowser) { Text(stringResource(Res.string.instant_view_full_page)) }
+                                FilledTonalButton(onClick = viewModel::openInBrowser, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.instant_view_full_page)) }
                             }
                         }
                     }
@@ -167,8 +168,8 @@ fun InstantViewScreen(viewModel: InstantViewViewModel, onBack: () -> Unit, modif
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(stringResource(Res.string.instant_view_failed), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                TextButton(onClick = viewModel::load) { Text(stringResource(Res.string.instant_view_retry)) }
-                TextButton(onClick = viewModel::openInBrowser) { Text(stringResource(Res.string.instant_view_open_browser)) }
+                TextButton(onClick = viewModel::load, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.instant_view_retry)) }
+                TextButton(onClick = viewModel::openInBrowser, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.instant_view_open_browser)) }
             }
             else -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { LoadingIndicator() }
         }

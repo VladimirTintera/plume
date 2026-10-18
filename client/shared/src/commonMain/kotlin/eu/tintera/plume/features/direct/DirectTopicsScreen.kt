@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Badge
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -215,11 +216,11 @@ fun DirectTopicsScreen(
                 TextButton(onClick = {
                     deleteTarget = null
                     viewModel.delete(topic)
-                }) {
+                }, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.direct_topic_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text(stringResource(Res.string.common_cancel)) } },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
         )
     }
 }

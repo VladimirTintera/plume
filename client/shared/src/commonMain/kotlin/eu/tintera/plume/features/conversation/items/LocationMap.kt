@@ -220,6 +220,7 @@ internal fun DetailsAction(icon: DrawableResource, label: String, color: Color, 
         onClick = onClick,
         colors = ButtonDefaults.textButtonColors(contentColor = color),
         contentPadding = PaddingValues(horizontal = 0.dp),
+        shapes = ButtonDefaults.shapes(),
     ) {
         Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(18.dp))
         Text(label, modifier = Modifier.padding(start = 8.dp))

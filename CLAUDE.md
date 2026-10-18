@@ -452,6 +452,14 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   (odesílací tlačítko, přehrát u videa a hlasovky, náhled přílohy), a fotka účtu v pilulce —
   obsahem je kulatá fotka a hranatá vlnka by kolem ní trčela. Doplnilo se skriptem do všech
   ~100 volání naráz; ověřeno na emulátoru (šipka zpět podržená přes `input motionevent DOWN`).
+- **Textová tlačítka taky** (`shapes = ButtonDefaults.shapes()` u `TextButton`, `Button`,
+  `FilledTonalButton`, `OutlinedButton`, `ElevatedButton`), i v dialozích. Ikonová to měla
+  dávno a textová ze ~350 jen dvě, takže v jednom dialogu jedno tlačítko morfovalo a druhé ne.
+  Hlídá to `verifyButtonShapes` na `check`. **Hlavní akce přes celou šířku je `MediumButton`**
+  (`core/ui`, velikost M3E „medium" 56 dp; ikona přes `MediumButtonIcon`), ne
+  `heightIn(min = 56.dp)`: tak vznikla 56dp pilulka s písmem, odsazením a tvarem 40dp tlačítka.
+  S indikátorem místo popisku pevná výška (`height(MediumButtonHeight)`), jinak tlačítko při
+  čekání poskočí.
 - **Přepínače mají v jezdci ikonu** (`IconSwitch` v `core/ui`): fajfka zapnutý, křížek
   vypnutý. Stav tak nese i tvar, ne jen barva — pozná ho barvoslepý i v paletě se zvýšeným
   kontrastem. **Holý `Switch` se nepoužívá**; kdo přidává přepínač, sáhne po `IconSwitch`,

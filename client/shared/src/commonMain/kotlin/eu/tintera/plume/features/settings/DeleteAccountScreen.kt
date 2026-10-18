@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -113,7 +114,7 @@ fun DeleteAccountScreen(viewModel: DeleteAccountViewModel, onBack: () -> Unit, m
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.error,
                     )
-                    TextButton(onClick = viewModel::loadStatus) { Text(stringResource(Res.string.delete_account_retry)) }
+                    TextButton(onClick = viewModel::loadStatus, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.delete_account_retry)) }
                 } else {
                     LoadingIndicator()
                 }
@@ -124,7 +125,7 @@ fun DeleteAccountScreen(viewModel: DeleteAccountViewModel, onBack: () -> Unit, m
             }
 
             // Nevratná akce: chybová role a potvrzení s následkem, jako odhlášení.
-            Button(
+            MediumButton(
                 onClick = {
                     focusManager.clearFocus()
                     viewModel.requestDelete()
@@ -151,12 +152,12 @@ fun DeleteAccountScreen(viewModel: DeleteAccountViewModel, onBack: () -> Unit, m
             title = { Text(stringResource(Res.string.delete_account_confirm_title)) },
             text = { Text(stringResource(Res.string.delete_account_confirm_text)) },
             confirmButton = {
-                TextButton(onClick = viewModel::confirmDelete) {
+                TextButton(onClick = viewModel::confirmDelete, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.delete_account_confirm), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = viewModel::dismissConfirm) { Text(stringResource(Res.string.common_cancel)) }
+                TextButton(onClick = viewModel::dismissConfirm, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
             },
         )
     }

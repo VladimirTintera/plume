@@ -46,6 +46,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -971,7 +972,7 @@ private fun StickerPage(
             if (tab == StickerTab.Recent && stickers.isNotEmpty()) {
                 item(key = "clear-recent", span = { GridItemSpan(maxLineSpan) }) {
                     Box(Modifier.animateItem(), contentAlignment = Alignment.CenterEnd) {
-                        TextButton(onClick = { confirmClear = true }) {
+                        TextButton(onClick = { confirmClear = true }, shapes = ButtonDefaults.shapes()) {
                             Text(stringResource(Res.string.stickers_recent_clear))
                         }
                     }
@@ -1014,11 +1015,11 @@ private fun ClearRecentDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
         title = { Text(stringResource(Res.string.stickers_recent_clear_title)) },
         text = { Text(stringResource(Res.string.stickers_recent_clear_text)) },
         confirmButton = {
-            TextButton(onClick = onConfirm) {
+            TextButton(onClick = onConfirm, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.stickers_recent_clear_confirm), color = MaterialTheme.colorScheme.error)
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 
@@ -1099,7 +1100,7 @@ private fun StickerSetRow(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
-                FilledTonalButton(onClick = onInstall) { Text(stringResource(Res.string.stickers_add)) }
+                FilledTonalButton(onClick = onInstall, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.stickers_add)) }
             }
         }
         Row(
@@ -1415,7 +1416,7 @@ private fun StickerSearchResults(
                     )
                     if (!setsExpanded && result.sets.size > SETS_COLLAPSED) {
                         item(key = "sets-more", span = { GridItemSpan(maxLineSpan) }) {
-                            TextButton(onClick = { setsExpanded = true }) {
+                            TextButton(onClick = { setsExpanded = true }, shapes = ButtonDefaults.shapes()) {
                                 Text(stringResource(Res.string.stickers_sets_show_all))
                             }
                         }

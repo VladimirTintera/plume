@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -150,8 +151,8 @@ internal fun ContactConfirmDialog(contact: MessageMedia.Contact, onConfirm: () -
         icon = { Avatar(chatId = contact.userId ?: 0L, title = contact.name, avatarFileId = contact.photoFileId, size = 48.dp) },
         title = { Text(stringResource(Res.string.conversation_contact_confirm_title)) },
         text = { Text(stringResource(Res.string.conversation_contact_confirm_body, contact.name, contact.phone)) },
-        confirmButton = { TextButton(onClick = onConfirm) { Text(stringResource(Res.string.conversation_contact_send)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        confirmButton = { TextButton(onClick = onConfirm, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.conversation_contact_send)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 

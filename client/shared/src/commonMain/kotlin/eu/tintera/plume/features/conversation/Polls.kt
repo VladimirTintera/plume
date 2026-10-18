@@ -210,7 +210,7 @@ fun PollVotersSheet(
                             color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
                         )
-                        loaded.hasMore -> TextButton(onClick = { viewModel.loadMore(answer.index) }) {
+                        loaded.hasMore -> TextButton(onClick = { viewModel.loadMore(answer.index) }, shapes = ButtonDefaults.shapes()) {
                             Text(stringResource(Res.string.poll_voters_more))
                         }
                     }
@@ -286,9 +286,10 @@ internal fun StopPollDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
             TextButton(
                 onClick = onConfirm,
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                shapes = ButtonDefaults.shapes(),
             ) { Text(stringResource(Res.string.poll_stop_confirm)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }
 
@@ -303,8 +304,9 @@ internal fun DeletePollOptionDialog(text: String, onConfirm: () -> Unit, onDismi
             TextButton(
                 onClick = onConfirm,
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                shapes = ButtonDefaults.shapes(),
             ) { Text(stringResource(Res.string.poll_delete_option_confirm)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(Res.string.common_cancel)) } },
+        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
     )
 }

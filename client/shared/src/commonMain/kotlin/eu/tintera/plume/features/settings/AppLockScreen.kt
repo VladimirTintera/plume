@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.resources.app_lock_biometrics_revoked
+import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -212,7 +213,7 @@ private fun AppLockIntroContent(onEnable: () -> Unit) {
 
         Spacer(Modifier.height(36.dp))
 
-        Button(
+        MediumButton(
             onClick = onEnable,
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -365,7 +366,7 @@ private fun PinSetupContent(
                 modifier = Modifier.padding(bottom = 16.dp),
             )
 
-            TextButton(onClick = onCancel) {
+            TextButton(onClick = onCancel, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.common_cancel))
             }
         }
@@ -409,6 +410,7 @@ private fun AppLockManageContent(
                         showDisableConfirm = false
                         onDisable()
                     },
+                    shapes = ButtonDefaults.shapes(),
                 ) {
                     Text(
                         stringResource(Res.string.settings_app_lock_disable),
@@ -417,7 +419,7 @@ private fun AppLockManageContent(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDisableConfirm = false }) {
+                TextButton(onClick = { showDisableConfirm = false }, shapes = ButtonDefaults.shapes()) {
                     Text(stringResource(Res.string.common_cancel))
                 }
             },
@@ -475,7 +477,7 @@ private fun AppLockManageContent(
         }
 
         // Tlačítko Vypnout zámek
-        Button(
+        MediumButton(
             onClick = { showDisableConfirm = true },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
@@ -522,7 +524,7 @@ private fun TimeoutChooserDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) {
                 Text(stringResource(Res.string.common_cancel))
             }
         },

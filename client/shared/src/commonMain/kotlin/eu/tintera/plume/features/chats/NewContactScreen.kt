@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
@@ -89,7 +90,7 @@ fun NewContactScreen(
                     if (viewModel.adding) {
                         LoadingIndicator(Modifier.padding(end = 12.dp).size(40.dp))
                     } else {
-                        TextButton(onClick = viewModel::add, enabled = viewModel.canAdd) {
+                        TextButton(onClick = viewModel::add, enabled = viewModel.canAdd, shapes = ButtonDefaults.shapes()) {
                             Text(stringResource(Res.string.new_contact_add))
                         }
                     }

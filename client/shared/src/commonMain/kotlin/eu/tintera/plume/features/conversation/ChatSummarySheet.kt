@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -145,7 +146,7 @@ fun ChatSummarySheet(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    FilledTonalButton(onClick = onRetry) { Text(stringResource(Res.string.summary_retry)) }
+                    FilledTonalButton(onClick = onRetry, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.summary_retry)) }
                 }
             }
 

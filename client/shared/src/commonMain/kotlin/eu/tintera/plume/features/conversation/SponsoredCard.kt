@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -79,6 +80,7 @@ fun SponsoredCard(
             Button(
                 onClick = onClick,
                 modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
+                shapes = ButtonDefaults.shapes(),
             ) {
                 // Popisek dodává Telegram — vlastní text by byl zásah do reklamy.
                 Text(sponsored.buttonText.ifBlank { stringResource(Res.string.sponsored_open) })

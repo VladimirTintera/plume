@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -326,7 +327,7 @@ internal fun StagedAttachmentPreview(
 
                 Spacer(Modifier.weight(1f))
 
-                TextButton(onClick = onDismiss) {
+                TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) {
                     Text(
                         text = stringResource(Res.string.attachment_done),
                         color = Color.White,

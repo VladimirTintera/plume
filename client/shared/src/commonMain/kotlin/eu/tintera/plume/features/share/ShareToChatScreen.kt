@@ -45,6 +45,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -830,7 +831,7 @@ private fun AccessDenied(inGallery: Boolean, onPick: () -> Unit, modifier: Modif
             textAlign = TextAlign.Center,
         )
         if (!inGallery) {
-            FilledTonalButton(onClick = onPick) { Text(stringResource(Res.string.share_access_denied_pick)) }
+            FilledTonalButton(onClick = onPick, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.share_access_denied_pick)) }
         }
     }
 }
