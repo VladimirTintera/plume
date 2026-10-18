@@ -1927,6 +1927,12 @@
         <item quantity="few">a %1$d další chaty v seznamu níž</item>
         <item quantity="other">a %1$d dalších chatů v seznamu níž</item>
     </plurals>
+    <string name="rewrite_on_device">V telefonu</string>
+    <string name="rewrite_on_server">Telegram AI</string>
+    <string name="rewrite_server_fix">Opravit chyby</string>
+    <string name="rewrite_server_disclaimer">Text upravuje Telegram na svých serverech. Před odesláním si ho přečti.</string>
+    <string name="rewrite_server_failed">Telegram text upravit nedokázal. Zkus to za chvíli.</string>
+    <string name="error_ai_compose_premium">Bezplatné AI úpravy jsou vyčerpané. Další nabízí Telegram Premium.</string>
     <string name="profile_music">Hudba v profilu</string>
     <string name="privacy_profile_audio">Hudba v profilu</string>
     <string name="profile_music_empty">Podrž skladbu v chatu a vyber „Přidat do profilu“.</string>
