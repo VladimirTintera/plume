@@ -449,10 +449,18 @@ Odznak „čeká na odpověď" v seznamu chatů (`ChatTriage`, prompt `TriagePro
 v `UnreadBadges`, `seznam-chatu.md`, „Čeká na odpověď"). Vlastní vypínač v Nastavení → AI
 v zařízení, výchozí vypnuto — model běží sám, bez ťuknutí, jako u varování před podvodem.
 
-- **Jen nepřečtené soukromé chaty, kde poslední zprávu poslal protějšek** (`isTriageCandidate`):
-  ne skupiny (z nepřečtených se nepozná, koho se otázka týká; zmínku nese „@"), ne Uložené,
-  ztlumené, ověřené účty ani sponzorované chaty. Boti ano — jsou to soukromé chaty a model
-  jejich oznámení pozná jako `INFO`.
+- **Nepřečtené soukromé chaty, kde poslední zprávu poslal protějšek** (`isTriageCandidate`; ne
+  ztlumené), **a skupiny s nepřečtenou zmínkou nebo odpovědí na vlastní zprávu**
+  (`unreadMentionCount`, i ztlumené — zmínky Telegram hlásí i z nich). Ne Uložené, kanály,
+  ověřené účty ani sponzorované chaty. Boti ano — model jejich oznámení pozná jako `INFO`.
+- **Ve skupině model vidí jen zmínky** (`ConversationRepository.unreadMentions`,
+  `SearchMessagesFilterUnreadMention`, nejvýš šest) se jménem odesílatele („Jana: …"), ne
+  ostatní provoz. **Posudek patří nejnovější zmínce**, ne poslední zprávě: běžná zpráva ve
+  skupině model znovu nepustí (uložený posudek té zmínky se jen přenese na novou poslední
+  zprávu), nová zmínka ano.
+- **Posudky se ukládají** (`StoredTriageVerdict` v `AppSettings`, po účtech podle id Uložených,
+  nejvýš 300, jeden na chat): po restartu se použijí bez modelu. Chyba modelu se neukládá —
+  zkusí se znovu.
 - **Model dostane nejvýš šest posledních nepřečtených příchozích zpráv** (`history` od nejnovější,
   do první vlastní), od nejstarší; fotka bez popisku jako „Fotka". Rozhoduje konec rozhovoru,
   delší vstup se ořízne od začátku.
@@ -468,6 +476,11 @@ v zařízení, výchozí vypnuto — model běží sám, bez ťuknutí, jako u v
   samotný pozdrav = INFO", i s příkladem „how are you" u `REPLY`. Pomohlo obrátit důraz:
   `REPLY` = „poslední zprávy obsahují otázku na uživatele, i small talk", `INFO` = „žádná otázka
   ani prosba", a věta „otázka na uživatele odpověď potřebuje vždy".
+- **Skupina ověřena na emulátoru Fold** (testovací skupina „Plume test triaze" s botem, zmínka
+  přes `text_mention`): „Vladimíre, můžeš prosím zajistit jízdenky?" → odznak „@" i šipka
+  a karta; další zpráva bez zmínky model nepustila a odznak zůstal; po `force-stop` a startu se
+  karta i odznaky vrátily bez jediného dotazu na model; po přečtení „Díky, Vladimíre, jízdenky
+  už mám" → `INFO`, z karty zmizela.
 - **Ověřeno na emulátoru Fold** (Gemma 4 E2B, CPU, ~10 s na chat; ve frontě za rozpoznáváním
   termínů otevřené konverzace): žádost o prezentaci a „Ahoj, jak se máš?" od bota → odznak,
   poděkování a oznámení o vodě → bez odznaku, skutečné chaty („Nehoda pri teste hahaha") bez

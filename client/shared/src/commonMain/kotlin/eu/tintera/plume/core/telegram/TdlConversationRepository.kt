@@ -579,6 +579,22 @@ class TdlConversationRepository(
             .toResult()
             .map { found -> oldestOf(found.messages.filterNotNull().map { it.id }) }
 
+    override suspend fun unreadMentions(chatId: Long, limit: Int): Result<List<ChatMessage>> {
+        val isGroup = isGroup(chatId)
+        return client.searchChatMessages(
+            chatId = chatId,
+            topicId = readTopic,
+            query = "",
+            senderId = null,
+            fromMessageId = 0L,
+            offset = 0,
+            limit = limit,
+            filter = SearchMessagesFilterUnreadMention(),
+        )
+            .toResult()
+            .map { found -> found.messages.filterNotNull().map { it.toChatMessage(isGroup) } }
+    }
+
     override suspend fun readAllMarks(chatId: Long, kind: UnreadMarkKind): Result<Unit> =
         if (forumTopicId != null) {
             when (kind) {

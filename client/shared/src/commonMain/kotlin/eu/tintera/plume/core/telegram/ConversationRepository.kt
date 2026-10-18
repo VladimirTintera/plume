@@ -276,6 +276,12 @@ interface ConversationRepository {
     suspend fun readAllMarks(chatId: Long, kind: UnreadMarkKind): Result<Unit>
 
     /**
+     * Nepřečtené zmínky uživatele a odpovědi na jeho zprávy (`SearchMessagesFilterUnreadMention`),
+     * od NEJNOVĚJŠÍ, nejvýš [limit]. Nečte je (přečtení hlásí až otevřená konverzace).
+     */
+    suspend fun unreadMentions(chatId: Long, limit: Int): Result<List<ChatMessage>> = Result.success(emptyList())
+
+    /**
      * Přidá nebo odebere reakci. TDLib má na to dvě samostatná volání, protože „přepnutí"
      * na jeho úrovni neexistuje — stav si musí pamatovat klient.
      */

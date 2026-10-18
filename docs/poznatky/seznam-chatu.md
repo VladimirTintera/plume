@@ -628,7 +628,7 @@ v ⋮ vrátí jednu konverzaci. Hranice je `SavedTopicsRepository` (`TdlSavedTop
 
 ### Čeká na odpověď
 
-Nepřečtený soukromý chat, ve kterém na uživatele čeká otázka nebo prosba, má vedle počtu
+Nepřečtený soukromý chat (nebo skupina se zmínkou), ve kterém na uživatele čeká otázka nebo prosba, má vedle počtu
 nepřečtených kulatý odznak se šipkou odpovědi („Čeká na tvou odpověď" pro čtečku). Posuzuje
 model v telefonu (`ChatTriage`), jen se zapnutou volbou v Nastavení → AI v zařízení; jádro
 v `ai-v-zarizeni.md`, „Triáž chatů".
