@@ -462,6 +462,9 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   (odesílací tlačítko, přehrát u videa a hlasovky, náhled přílohy), a fotka účtu v pilulce —
   obsahem je kulatá fotka a hranatá vlnka by kolem ní trčela. Doplnilo se skriptem do všech
   ~100 volání naráz; ověřeno na emulátoru (šipka zpět podržená přes `input motionevent DOWN`).
+- **Řádky bloku taky** — stisknutý se zaoblí na 16 dp. Dělá to `GroupedColumn`, `groupedItem`
+  a `animatedGroupItemShape(…, pressed)` samy; kdo staví blok ručně přes `groupItemShape`,
+  o odezvu přijde. Viz `docs/poznatky/nastaveni.md`, „Stisknutý řádek se z bloku vyčlení".
 - **Textová tlačítka taky** (`shapes = ButtonDefaults.shapes()` u `TextButton`, `Button`,
   `FilledTonalButton`, `OutlinedButton`, `ElevatedButton`), i v dialozích. Ikonová to měla
   dávno a textová ze ~350 jen dvě, takže v jednom dialogu jedno tlačítko morfovalo a druhé ne.

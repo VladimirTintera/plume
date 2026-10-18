@@ -835,6 +835,10 @@ snackbar s „Vrátit".
 - **Tvar bloku se počítá mimo řádek** (`groupItemShape`): tentýž tvar musí mít i podklad
   odkrývaný tahem, jinak pod zaoblenou položkou vykukují jeho hranaté rohy. `animateItem` zůstává
   na kořeni položky, tedy na tahu, ne na řádku uvnitř.
+  - **Stisk mění tvar i podkladu tahu** (`animatedGroupItemShape(…, pressed)`, říjen 2026):
+    stisknutý chat se zaoblí na 16 dp. Stisk se čte z `interactionSource`, který položka předá
+    `contextClickable` v řádku, a tvar se spočítá jednou nad oběma — se dvěma by se podklad
+    zaobloval jinak než řádek nad ním.
 - **Bez tahu se podklad nekreslí VŮBEC, ani jeho plocha.** Stejný tvar nestačí: vyhlazené hrany
   řádku jsou poloprůhledné a barevný podklad pod nimi prosvítal jako světlý lem kolem každého
   chatu, v tmavém tématu na skoro černém `surfaceContainerLowest` do očí bijící. Na emulátoru

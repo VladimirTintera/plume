@@ -1,6 +1,10 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.resources.chats_bookmarks_count
+import androidx.compose.material3.ripple
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import eu.tintera.plume.core.ui.animatedGroupItemShape
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.INNER_CORNER
 import eu.tintera.plume.core.ui.GROUP_CORNER
@@ -1557,11 +1561,16 @@ internal fun ChatListContent(
                         val selecting = selection != null
                         val picked = selection?.ids?.contains(chat.id) == true
                         val highlighted = if (selecting) picked else chat.id == selectedChatId
-                        // Krajní položky skupiny nesou její zaoblení, prostřední se drží u sebe.
-                        val shape = groupItemShape(
-                            firstInGroup = index == 0,
-                            lastInGroup = index == group.lastIndex,
+                        // Krajní položky skupiny nesou její zaoblení, prostřední se drží u sebe;
+                        // stisknutý řádek se z bloku vyčlení (M3 Expressive). Stisk hlásí klikání
+                        // řádku, v posouvaném seznamu se zpožděním, takže scroll tvar nemění.
+                        val interaction = remember { MutableInteractionSource() }
+                        val pressed by interaction.collectIsPressedAsState()
+                        val shape = animatedGroupItemShape(
+                            first = index == 0,
+                            last = index == group.lastIndex,
                             selected = highlighted,
+                            pressed = pressed,
                         )
                         SwipeableChat(
                             // Ve výběru tah nejde: akce jdou lištou a tah by mířil jen na jeden chat.
@@ -1589,6 +1598,7 @@ internal fun ChatListContent(
                                     else -> snoozes.sleeping[chat.id]?.let(RowSnooze::Sleeping)
                                 },
                                 shape = shape,
+                                interactionSource = interaction,
                                 accent = chatColors[chat.id]?.let(chatAccents::get),
                                 // Odznak patří poslední zprávě, nad kterou to model řekl; nová
                                 // zpráva ho schová, dokud se neposoudí znovu.
@@ -1614,35 +1624,6 @@ internal fun ChatListContent(
             }
         }
     }
-}
-
-/**
- * Zaoblení položky v bloku: velké nahoře u první, velké dole u poslední, malé mezi nimi.
- * Animuje se, protože skupiny se přeskládávají za běhu — přečtený chat přeskočí z nepřečtených
- * mezi ostatní a tvary sousedů se tím mění.
- *
- * Počítá se mimo [ChatRow], protože tentýž tvar musí mít i podklad, který se odkrývá tahem —
- * jinak by pod zaoblenou položkou vykukovaly jeho hranaté rohy.
- */
-@Composable
-private fun groupItemShape(firstInGroup: Boolean, lastInGroup: Boolean, selected: Boolean): RoundedCornerShape {
-    val topCorner by animateDpAsState(
-        // Vybraná položka se z bloku vyčlení: zaoblená celá, jako skupina sama (M3 Expressive).
-        targetValue = if (firstInGroup || selected) GROUP_CORNER else INNER_CORNER,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "chat-corner-top",
-    )
-    val bottomCorner by animateDpAsState(
-        targetValue = if (lastInGroup || selected) GROUP_CORNER else INNER_CORNER,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "chat-corner-bottom",
-    )
-    return RoundedCornerShape(
-        topStart = topCorner,
-        topEnd = topCorner,
-        bottomStart = bottomCorner,
-        bottomEnd = bottomCorner,
-    )
 }
 
 /**
@@ -1899,8 +1880,10 @@ private fun ChatRow(
     selectionMark: Boolean?,
     /** Odložení chatu; `null` = neodložený. */
     snooze: RowSnooze?,
-    /** Tvar bloku — počítá ho [groupItemShape] vedle, protože ho potřebuje i podklad pod tahem. */
+    /** Tvar bloku — počítá ho [animatedGroupItemShape] vedle, protože ho potřebuje i podklad pod tahem. */
     shape: RoundedCornerShape,
+    /** Stisk řádku; tvar bloku z něj počítá volající (stisknutý řádek se vyčlení). */
+    interactionSource: MutableInteractionSource,
     /** Paleta z barvy konverzace (odznaky nepřečtených); `null` = barvy aplikace. */
     accent: ColorScheme?,
     /** Model v zařízení usoudil, že chat čeká na odpověď (`ChatTriage`). */
@@ -1958,7 +1941,12 @@ private fun ChatRow(
             .then(containerSource.container)
             .fillMaxWidth()
             .clip(shape)
-            .contextClickable(onClick = onClick, onLongClick = onLongClick)
+            .contextClickable(
+                interactionSource = interactionSource,
+                indication = ripple(),
+                onClick = onClick,
+                onLongClick = onLongClick,
+            )
             .then(if (selectionMark != null) Modifier.semantics { this.selected = selectionMark } else Modifier),
     ) {
         Row(

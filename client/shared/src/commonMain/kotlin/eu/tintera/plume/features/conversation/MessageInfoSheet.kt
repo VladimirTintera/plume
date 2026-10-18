@@ -142,7 +142,7 @@ fun MessageInfoSheet(
                         Row(
                             Modifier
                                 // Bez vlastního okraje: sloupec sheetu ho už má.
-                                .groupedItem(index, info.viewers.size, rowColor, edge = 0.dp)
+                                .groupedItem(index, info.viewers.size, rowColor, edge = 0.dp, pressable = false)
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,

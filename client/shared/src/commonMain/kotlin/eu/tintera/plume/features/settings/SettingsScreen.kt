@@ -1,6 +1,10 @@
 package eu.tintera.plume.features.settings
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.material3.ripple
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import eu.tintera.plume.core.ui.animatedGroupItemShape
 import eu.tintera.plume.resources.logout_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.MediumButton
@@ -286,17 +290,10 @@ internal fun SettingsListRow(
     // `onSurfaceVariant`, ten je počítaný na jinou plochu.
     val supportingColor = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
 
-    val topCorner by animateDpAsState(
-        targetValue = if (first || selected) GROUP_CORNER else INNER_CORNER,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "settings-corner-top",
-    )
-    val bottomCorner by animateDpAsState(
-        targetValue = if (last || selected) GROUP_CORNER else INNER_CORNER,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "settings-corner-bottom",
-    )
-    val shape = RoundedCornerShape(topStart = topCorner, topEnd = topCorner, bottomStart = bottomCorner, bottomEnd = bottomCorner)
+    // Stisknutý řádek se z bloku vyčlení, vybraný (sekce otevřená vedle) zaoblí celý.
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val shape = animatedGroupItemShape(first = first, last = last, selected = selected, pressed = pressed)
 
     ListItem(
         colors = ListItemDefaults.colors(
@@ -312,7 +309,7 @@ internal fun SettingsListRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .clickable(onClick = onClick),
+            .clickable(interactionSource = interaction, indication = ripple(), onClick = onClick),
     )
 }
 
