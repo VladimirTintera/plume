@@ -901,10 +901,11 @@ poměru přínosu a práce; každý bod je samostatný PR.
   s volbou opustit chaty, žádosti o vstup…) — obal by potřeboval slot na obsah.
 - ~~**Výběr hodnoty v Nastavení jako nabídka u řádku**~~ — hotovo (`ChoiceRow`, šest výběrů, VladimirTintera/telegram#834;
   `docs/poznatky/nastaveni.md`). Ukládání do galerie zůstalo dialogem (víc hodnot najednou).
-- **Holé `ListItem`y bez bloku** tam, kde stejný seznam jinde blok má: výsledky globálního
-  hledání (`ChatSearchBar` ~670, ~836), koncepty (`DraftsSheet`), nastavení archivu
-  (`ArchiveSettingsSheet`), výběr země (`CountryPickerSheet` — navíc dělicí čára a obrysové pole;
-  první dojem při přihlášení). Na blok jde i `PhoneField` (dělicí čára uvnitř bloku).
+- ~~**Holé `ListItem`y bez bloku**~~ — hotovo: výsledky hledání a nedávná hledání, koncepty,
+  nastavení archivu, výběr země (s hledací pilulkou místo obrysového pole a bez dělicí čáry);
+  řádek v lazy seznamu přes `Modifier.groupedItem` (`core/ui/GroupedList.kt`, VladimirTintera/telegram#836). **`PhoneField`
+  zůstal jedním blokem s čárou** — obrys při psaní zvýrazní celé pole (země i číslo); dva bloky by
+  ho rozdělily a přihlášení nešlo na přihlášených telefonech ověřit.
 - **Dvojí vstupní pole.** Přihlášení (`AuthFields`), úprava profilu, úprava skupiny, proxy, úprava
   složky a pozvánky mají `OutlinedTextField`, zbytek aplikace tónovaný `BlockTextField`
   (`core/ui/BlockField.kt` sám říká, že na jedné obrazovce nemají být dvě pojetí).

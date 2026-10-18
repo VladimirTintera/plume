@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -44,6 +45,18 @@ fun groupItemShape(index: Int, count: Int, selected: Boolean = false): Shape {
     val bottom = if (index == count - 1 || selected) GROUP_CORNER else INNER_CORNER
     return RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)
 }
+
+/**
+ * Řádek bloku v lazy seznamu (výsledky hledání, koncepty, výběr země): okraj, spára nad ním,
+ * tvar podle pozice, podklad a ořez — vlnka po ťuknutí nepřeteče přes zaoblení. Klikání patří
+ * ZA tenhle modifikátor. V obyčejném sloupci je na to [GroupedColumn], který pozici spočítá sám;
+ * lazy seznam ji zná až v `itemsIndexed`.
+ */
+fun Modifier.groupedItem(index: Int, count: Int, color: Color, selected: Boolean = false): Modifier = this
+    .padding(horizontal = 16.dp)
+    .padding(top = if (index > 0) GROUP_ITEM_SPACING else 0.dp)
+    .clip(groupItemShape(index, count, selected))
+    .background(color)
 
 /** Zaoblení na krajích skupiny. */
 val GROUP_CORNER = 20.dp

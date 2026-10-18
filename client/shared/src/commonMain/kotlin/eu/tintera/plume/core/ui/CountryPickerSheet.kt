@@ -1,6 +1,9 @@
 package eu.tintera.plume.core.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.lazy.itemsIndexed
+import eu.tintera.plume.resources.search_off_24dp
+import eu.tintera.plume.resources.chats_search_clear
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,14 +12,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -29,8 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.Country
 import eu.tintera.plume.resources.Res
@@ -38,7 +36,6 @@ import eu.tintera.plume.resources.auth_country_choose
 import eu.tintera.plume.resources.auth_country_empty
 import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.auth_country_search
-import eu.tintera.plume.resources.search_24dp
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -86,35 +83,27 @@ fun CountryPickerSheet(
                 )
             }
 
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                label = { Text(stringResource(Res.string.auth_country_search)) },
-                leadingIcon = { Icon(painterResource(Res.drawable.search_24dp), contentDescription = null) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Words,
-                    imeAction = ImeAction.Search,
-                ),
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
+            // Hledací pilulka jako všude jinde v aplikaci, ne obrysové pole s plovoucím popiskem.
+            SearchPill(
+                initialQuery = query,
+                onQueryChange = { query = it },
+                placeholder = stringResource(Res.string.auth_country_search),
+                clearDescription = stringResource(Res.string.chats_search_clear),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp),
             )
 
-            HorizontalDivider()
-
             if (matches.isEmpty()) {
-                Box(
-                    Modifier.fillMaxWidth().height(LIST_HEIGHT),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
+                Box(Modifier.fillMaxWidth().height(LIST_HEIGHT)) {
+                    GroupEmptyRow(
                         stringResource(Res.string.auth_country_empty),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        icon = Res.drawable.search_off_24dp,
+                        modifier = Modifier.padding(horizontal = 16.dp),
                     )
                 }
             } else {
                 LazyColumn(Modifier.fillMaxWidth().height(LIST_HEIGHT)) {
-                    items(matches, key = { it.code }) { country ->
+                    // Země jsou blok zaoblených řádků; vybraná se z něj vyčlení tvarem i barvou.
+                    itemsIndexed(matches, key = { _, country -> country.code }) { index, country ->
                         val isSelected = country.code in selectedCodes
                         CountryRow(
                             country = country,
@@ -122,6 +111,16 @@ fun CountryPickerSheet(
                             multiSelect = multiSelect,
                             enabled = isSelected || canPick(country),
                             onClick = { onPick(country) },
+                            modifier = Modifier.groupedItem(
+                                index = index,
+                                count = matches.size,
+                                color = if (isSelected) {
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainerLowest
+                                },
+                                selected = isSelected,
+                            ),
                         )
                     }
                 }
@@ -131,7 +130,14 @@ fun CountryPickerSheet(
 }
 
 @Composable
-private fun CountryRow(country: Country, isSelected: Boolean, multiSelect: Boolean, enabled: Boolean, onClick: () -> Unit) {
+private fun CountryRow(
+    country: Country,
+    isSelected: Boolean,
+    multiSelect: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val contentColor = when {
         isSelected -> MaterialTheme.colorScheme.onSecondaryContainer
         enabled -> MaterialTheme.colorScheme.onSurface
@@ -160,12 +166,12 @@ private fun CountryRow(country: Country, isSelected: Boolean, multiSelect: Boole
         // Popředí vybraného řádku se musí předat i ListItem — sám barví text `onSurface`, což
         // v tmavém tématu se zvýšeným kontrastem (světlý `secondaryContainer`) není vidět.
         colors = ListItemDefaults.colors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+            containerColor = Color.Transparent,
             contentColor = contentColor,
         ),
         // Klikání nese celý řádek, ne jen text — stejně jako řádky v Nastavení. Čtečka obrazovky
         // pozná výběr: jedna země jako přepínač, víc zemí jako zaškrtávátka.
-        modifier = Modifier.fillMaxWidth().selectable(
+        modifier = modifier.fillMaxWidth().selectable(
             selected = isSelected,
             enabled = enabled,
             role = if (multiSelect) Role.Checkbox else Role.RadioButton,

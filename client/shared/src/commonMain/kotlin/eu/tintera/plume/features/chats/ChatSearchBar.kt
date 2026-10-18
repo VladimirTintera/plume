@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.resources.chats_search_remove_recent
+import androidx.compose.foundation.lazy.itemsIndexed
+import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.resources.chats_search_remove_top
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
@@ -531,6 +533,7 @@ private fun SearchResults(
 
         val highlight = SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
 
+        val rowColor = MaterialTheme.colorScheme.surfaceContainerLowest
         LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = resultsPadding()) {
             val chatCount = chats.size + if (showSaved) 1 else 0
             /*
@@ -545,6 +548,14 @@ private fun SearchResults(
                     }
                 }
             }
+            val shownChats = if (chatsExpanded || global.isEmpty() && messages.isEmpty()) {
+                chats
+            } else {
+                chats.take((COLLAPSED_ROWS - if (showSaved) 1 else 0).coerceAtLeast(0))
+            }
+            // Sekce je blok zaoblených řádků jako seznam chatů; Uložené zprávy jsou jeho první řádek.
+            val savedRows = if (showSaved && savedMessagesChatId != null) 1 else 0
+            val chatRows = shownChats.size + savedRows
             savedMessagesChatId?.takeIf { showSaved }?.let { savedId ->
                 item(key = savedId) {
                     ChatResultRow(
@@ -553,16 +564,11 @@ private fun SearchResults(
                         avatarFileId = null,
                         archived = false,
                         onClick = { onPickLatest(savedId) },
-                        modifier = Modifier.animateItem(),
+                        modifier = Modifier.animateItem().groupedItem(0, chatRows, rowColor),
                     )
                 }
             }
-            val shownChats = if (chatsExpanded || global.isEmpty() && messages.isEmpty()) {
-                chats
-            } else {
-                chats.take((COLLAPSED_ROWS - if (showSaved) 1 else 0).coerceAtLeast(0))
-            }
-            items(shownChats, key = { it.id }) { chat ->
+            itemsIndexed(shownChats, key = { _, chat -> chat.id }) { index, chat ->
                 ChatResultRow(
                     chatId = chat.id,
                     title = chat.title,
@@ -570,7 +576,7 @@ private fun SearchResults(
                     archived = chat.isArchived,
                     onClick = { onPickLatest(chat.id) },
                     // Serverové výsledky přibývají za lokálními — plynule, ne skokem.
-                    modifier = Modifier.animateItem(),
+                    modifier = Modifier.animateItem().groupedItem(index + savedRows, chatRows, rowColor),
                     avatarShape = chat.kind.avatarShape(),
                     avatarColorId = chat.avatarColorId,
                     secret = chat.isSecret,
@@ -583,14 +589,15 @@ private fun SearchResults(
                         ExpandToggle(global.size, globalExpanded) { globalExpanded = it }
                     }
                 }
-                items(if (globalExpanded) global else global.take(COLLAPSED_ROWS), key = { "global-${it.id}" }) { chat ->
+                val shownGlobal = if (globalExpanded) global else global.take(COLLAPSED_ROWS)
+                itemsIndexed(shownGlobal, key = { _, chat -> "global-${chat.id}" }) { index, chat ->
                     ChatResultRow(
                         chatId = chat.id,
                         title = chat.title,
                         avatarFileId = chat.avatarFileId,
                         archived = false,
                         onClick = { onPickLatest(chat.id) },
-                        modifier = Modifier.animateItem(),
+                        modifier = Modifier.animateItem().groupedItem(index, shownGlobal.size, rowColor),
                         avatarShape = chat.kind.avatarShape(),
                         avatarColorId = chat.avatarColorId,
                         secret = chat.isSecret,
@@ -606,12 +613,13 @@ private fun SearchResults(
                         ),
                     )
                 }
-                items(messages, key = { "message-${it.chat.id}-${it.messageId}" }) { found ->
+                itemsIndexed(messages, key = { _, found -> "message-${found.chat.id}-${found.messageId}" }) { index, found ->
                     MessageResultRow(
                         found = found,
                         query = trimmed,
                         highlight = highlight,
                         onClick = { onMessageClickLatest(found.chat.id, found.messageId, found.topicId) },
+                        modifier = Modifier.groupedItem(index, messages.size, rowColor),
                     )
                 }
             }
@@ -645,6 +653,7 @@ private fun MessageResultRow(
     query: String,
     highlight: SpanStyle,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     // Kdo zprávu napsal, jako v seznamu zpráv oficiálních klientů: ve skupině jméno, u vlastní
     // zprávy „Vy". Kanál ani soukromý chat jméno nepotřebují — odesílatele říká název chatu.
@@ -705,7 +714,7 @@ private fun MessageResultRow(
             )
         },
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = modifier.clickable(onClick = onClick),
     )
 }
 
@@ -737,14 +746,14 @@ private fun Suggestions(
                     TextButton(onClick = actions.onClear, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.chats_search_clear_recent)) }
                 }
             }
-            items(search.recent, key = { "recent-${it.id}" }) { chat ->
+            itemsIndexed(search.recent, key = { _, chat -> "recent-${chat.id}" }) { index, chat ->
                 ChatResultRow(
                     chatId = chat.id,
                     title = chatTitle(chat.id, chat.title),
                     avatarFileId = chat.avatarFileId,
                     archived = chat.isArchived,
                     onClick = { onPick(chat.id) },
-                    modifier = Modifier.animateItem(),
+                    modifier = Modifier.animateItem().groupedItem(index, search.recent.size, MaterialTheme.colorScheme.surfaceContainerLowest),
                     avatarShape = chat.kind.avatarShape(),
                     onRemove = { actions.onRemoveRecent(chat.id) },
                 )
@@ -757,7 +766,9 @@ private fun Suggestions(
 private fun SectionHeader(title: String, action: @Composable () -> Unit = {}) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(start = 16.dp, end = 8.dp),
+        // Nadpis lícuje s obsahem řádků v bloku (okraj bloku 16 + odsazení řádku 16), tlačítko
+        // s okrajem bloku.
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(start = 32.dp, end = 8.dp),
     ) {
         Text(
             title,
