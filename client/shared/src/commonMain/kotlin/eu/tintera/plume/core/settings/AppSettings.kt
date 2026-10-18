@@ -287,6 +287,15 @@ interface AppSettings {
     fun setChatTriageEnabled(enabled: Boolean)
 
     /**
+     * Synchronizovat adresář telefonu s Telegramem (`ContactSyncer`). Nahrává čísla na server,
+     * proto výchozí `false` a zapíná se vědomě (s oprávněním ke kontaktům).
+     */
+    val contactSyncEnabled: StateFlow<Boolean>
+
+    /** Zapne/vypne synchronizaci adresáře. Neblokuje. */
+    fun setContactSyncEnabled(enabled: Boolean)
+
+    /**
      * Ikonka u zprávy, ve které je termín, číslo účtu nebo zásilky, a sheet s akcemi
      * (`findMessageContext`). Na rozdíl od [scamWarningsEnabled] výchozí `true`: rozpoznávají
      * pravidla v telefonu, nic se nestahuje ani neposílá a model se přidá, jen když si AI
@@ -855,6 +864,16 @@ class DataStoreAppSettings(
         }
     }
 
+    override val contactSyncEnabled: StateFlow<Boolean> = value(false) { preferences ->
+        preferences[CONTACT_SYNC_ENABLED] ?: false
+    }
+
+    override fun setContactSyncEnabled(enabled: Boolean) {
+        scope.launch {
+            edit { preferences -> preferences[CONTACT_SYNC_ENABLED] = enabled }
+        }
+    }
+
     override val chatTriageEnabled: StateFlow<Boolean> = value(false) { preferences ->
         preferences[CHAT_TRIAGE_ENABLED] ?: false
     }
@@ -1158,6 +1177,7 @@ class DataStoreAppSettings(
         val REPLY_SUGGESTIONS_ENABLED = booleanPreferencesKey("reply_suggestions_enabled")
         val SCAM_WARNINGS_ENABLED = booleanPreferencesKey("scam_warnings_enabled")
         val CHAT_TRIAGE_ENABLED = booleanPreferencesKey("chat_triage_enabled")
+        val CONTACT_SYNC_ENABLED = booleanPreferencesKey("contact_sync_enabled")
         val MESSAGE_CONTEXT_ENABLED = booleanPreferencesKey("message_context_enabled")
         val ON_DEVICE_AI_PREVIEW = booleanPreferencesKey("on_device_ai_preview")
         val ON_DEVICE_AI_FAST = booleanPreferencesKey("on_device_ai_fast")

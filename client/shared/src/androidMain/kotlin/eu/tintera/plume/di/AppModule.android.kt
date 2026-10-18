@@ -64,7 +64,10 @@ import eu.tintera.plume.core.ui.UrlOpener
 import eu.tintera.plume.core.locale.AppLanguage
 import eu.tintera.plume.core.ui.TextClipboard
 import eu.tintera.plume.core.calendar.CalendarEvents
+import eu.tintera.plume.core.contacts.AndroidPhoneContacts
 import eu.tintera.plume.core.contacts.ContactSaver
+import eu.tintera.plume.core.contacts.ContactSyncer
+import eu.tintera.plume.core.contacts.PhoneContacts
 import eu.tintera.plume.core.wifi.WifiJoiner
 import eu.tintera.plume.core.currency.HomeRegion
 import eu.tintera.plume.core.language.LanguageDetector
@@ -125,6 +128,19 @@ actual fun Module.platformModule() {
     single { TextClipboard(androidContext()) }
     single { CalendarEvents(androidContext()) }
     single { ContactSaver(androidContext()) }
+    single<PhoneContacts> { AndroidPhoneContacts(androidContext()) }
+    // Eagerně: synchronizace se má rozběhnout po přihlášení a návratu do popředí sama,
+    // ne až s první obrazovkou, která si ji vyžádá.
+    single(createdAtStart = true) {
+        ContactSyncer(
+            settings = get(),
+            contacts = get(),
+            sync = get(),
+            session = get(),
+            foreground = get(),
+            scope = get(named(APP_SCOPE)),
+        )
+    }
     single { WifiJoiner(androidContext()) }
     single { HomeRegion(androidContext()) }
     single<LanguageDetector> { AndroidLanguageDetector(androidContext()) }
