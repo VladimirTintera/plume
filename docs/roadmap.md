@@ -904,9 +904,8 @@ poměru přínosu a práce; každý bod je samostatný PR.
   VladimirTintera/telegram#827).
 - ~~**Prázdné a chybové stavy jako `IntroEmptyState`**~~ — hotovo pro prázdný účet a chybu seznamu
   chatů, prázdnou konverzaci, chybu Instant View; podseznamy (pozvánky, moje samolepky, hledání
-  témat) mají `GroupEmptyRow` (VladimirTintera/telegram#829). Zbývá: chyba načtení passkeys (text a `TextButton` pod nadpisem
-  sekce) a odepřený přístup ve sdílení (`ShareToChatScreen` AccessDenied — leží nad galerií,
-  takže celoobrazovkový stav se tam nehodí, jen nadpis a tlačítko).
+  témat) mají `GroupEmptyRow` (VladimirTintera/telegram#829). Chyba načtení passkeys a odepřený přístup ve sdílení
+  doběhly v druhém kole (bod níž).
 - ~~**Emphasized typografie**~~ — hotovo pro jméno v profilu a hovoru, nadpis přihlášení
   a prázdného stavu, kartu účtu, velká čísla v Úložišti a Využití sítě, počet vybraných, vybranou
   složku a otázku ankety; ruční SemiBold k rolím `title*`/`label*` převedený (`CLAUDE.md`,
@@ -987,8 +986,10 @@ jsou zase na okrajích — sheety a dialogy, které předchozí kola minula. Se�
   v nahlášení fotky a pole v nahlášení (dřív napodobenina bloku bez rámečku při psaní) přes
   `FormTextField`. `OutlinedTextField` zůstal jen v `AlertDialog`ech, blok možností ankety
   (`BlockField` v `PollComposer`) je záměrně vlastní (skupinové tvary).
-- **Zbývá z prvního kola**: chyba načtení přístupových klíčů a odepřený přístup ve sdílení
-  (bod „Prázdné a chybové stavy" výš).
+- ~~**Zbývá z prvního kola**~~ — hotovo (VladimirTintera/telegram#PR): chyba načtení přístupových klíčů je řádek
+  v bloku sekce s ikonou a tónovým „Zkusit znovu"; odepřený přístup ve sdílení má zmenšený
+  úvodní tvar (`IntroShape`, 96 dp) a zvýrazněný nadpis — celoobrazovkový stav se mezi
+  hlavičku a galerii nevejde.
 - **Ke zvážení, ne chyba:** formuláře na celou obrazovku (nový kontakt, nová skupina, tvorba
   ankety a seznamu úkolů) mají malý `TopAppBar`, kdežto podstránky profilu `MediumFlexibleTopAppBar`.
   M3 malý bar u formuláře na celou obrazovku připouští; sjednotit, jen pokud to bude vadit.

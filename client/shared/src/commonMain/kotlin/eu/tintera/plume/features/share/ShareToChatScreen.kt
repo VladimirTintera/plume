@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.share
 
+import eu.tintera.plume.resources.image_24dp
+import eu.tintera.plume.core.ui.IntroShape
 import eu.tintera.plume.features.conversation.PhotoMarkupOverlay
 import eu.tintera.plume.features.conversation.galleryPath
 import eu.tintera.plume.resources.attachment_edit
@@ -818,9 +820,19 @@ private fun AccessDenied(inGallery: Boolean, onPick: () -> Unit, modifier: Modif
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        // Úvodní tvar prázdných stavů, jen menší: celoobrazovkový `IntroEmptyState` se mezi
+        // hlavičku a galerii nevejde, ale bez tvaru byl stav holý text na černé ploše.
+        IntroShape(shapeSize = ACCESS_DENIED_SHAPE, modifier = Modifier.padding(bottom = 12.dp)) {
+            Icon(
+                painterResource(Res.drawable.image_24dp),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(ACCESS_DENIED_SHAPE / 3),
+            )
+        }
         Text(
             stringResource(Res.string.share_access_denied_title),
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleLargeEmphasized,
             textAlign = TextAlign.Center,
         )
         Text(
@@ -835,6 +847,8 @@ private fun AccessDenied(inGallery: Boolean, onPick: () -> Unit, modifier: Modif
         }
     }
 }
+
+private val ACCESS_DENIED_SHAPE = 96.dp
 
 /**
  * Popisek a odeslání.
