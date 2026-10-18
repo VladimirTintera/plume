@@ -40,6 +40,8 @@ import eu.tintera.plume.resources.profile_bookmarks_count
 import eu.tintera.plume.resources.profile_bookmarks
 import eu.tintera.plume.resources.share_24dp
 import eu.tintera.plume.resources.contact_add
+import eu.tintera.plume.resources.contact_edit
+import eu.tintera.plume.resources.contact_note
 import eu.tintera.plume.resources.person_remove_24dp
 import eu.tintera.plume.resources.profile_remove_contact
 import eu.tintera.plume.resources.profile_remove_contact_body
@@ -397,6 +399,19 @@ fun ChatProfileScreen(
     var titleBottom by remember { mutableIntStateOf(Int.MAX_VALUE) }
     val titleInBar by remember { derivedStateOf { scrollState.value > titleBottom } }
     val photoPicker = rememberAttachmentPicker(onPicked = viewModel::suggestPhotoFrom, onError = viewModel::reportError)
+    val personalPhotoPicker = rememberAttachmentPicker(onPicked = viewModel::personalPhotoFrom, onError = viewModel::reportError)
+    var editContact by rememberSaveable { mutableStateOf(false) }
+    val contact = state.profile?.contact
+    if (editContact && contact != null) {
+        EditContactSheet(
+            contact = contact,
+            name = contact.firstName,
+            onSave = viewModel::saveContact,
+            onSetPhoto = if (viewModel.canSuggestPhoto) personalPhotoPicker::pickMedia else null,
+            onRemovePhoto = viewModel::removePersonalPhoto,
+            onDismiss = { editContact = false },
+        )
+    }
 
     // Box kvůli ořezu navrhované fotky: překryv přes celou obrazovku leží nad profilem.
     Box(Modifier.fillMaxSize()) {
@@ -440,6 +455,7 @@ fun ChatProfileScreen(
                                 onStartSecretChat = viewModel::startSecretChat,
                                 onSuggestBirthdate = viewModel::suggestBirthdate,
                                 onSuggestPhoto = if (viewModel.canSuggestPhoto) photoPicker::pickMedia else null,
+                                onEditContact = { editContact = true },
                                 onCall = rememberStartCall(profile.userId),
                             )
                         }
@@ -485,7 +501,7 @@ fun ChatProfileScreen(
                     val chatAutosave = autosaveChatType(profile.kind, profile.isSecretChat)
                         ?.let { type -> autosaveState?.settings?.chatAutosave(profile.chatId, type) }
                     if (profile.usernames.isNotEmpty() || profile.phone != null || profile.birthdate != null || profile.about.isNotBlank() ||
-                        profile.personalChannel != null ||
+                        profile.personalChannel != null || profile.contact?.note?.isNotBlank() == true ||
                         notifications != null || showsAutoDelete || profile.linkedChat != null || bookmarks.isNotEmpty() ||
                         chatAutosave != null ||
                         profile.secretChatKey != null ||
@@ -625,7 +641,7 @@ fun ChatProfileScreen(
         PhotoCropOverlay(
             path = viewModel.suggestCropping,
             onCancel = viewModel::cancelSuggestCrop,
-            onConfirm = viewModel::suggestCroppedPhoto,
+            onConfirm = viewModel::confirmCrop,
             video = viewModel.suggestCroppingVideo,
         )
     }
@@ -1436,6 +1452,19 @@ private fun ProfileInfo(
                 }
             }
         }
+        // Poznámka ke kontaktu (vidí ji jen uživatel) patří k člověku jako bio — hned za ním.
+        profile.contact?.takeIf { it.note.isNotBlank() }?.let { contact ->
+            add { shape ->
+                InfoRow(label = stringResource(Res.string.contact_note), shape = shape) {
+                    RichText(
+                        text = contact.note,
+                        entities = contact.noteEntities,
+                        style = MaterialTheme.typography.bodyLarge,
+                        onLinkClick = onLinkClick,
+                    )
+                }
+            }
+        }
         // Osobní kanál patří k člověku jako bio — hned za ním. Ťuknutí kanál otevře.
         profile.personalChannel?.let { channel ->
             add { shape ->
@@ -1623,6 +1652,8 @@ private fun ProfileMenu(
     onSuggestBirthdate: (Birthdate) -> Unit,
     /** Navrhnout člověku profilovou fotku: výběr fotky, pak ořez (`null` = nejde). */
     onSuggestPhoto: (() -> Unit)?,
+    /** Upravit kontakt: jméno, poznámka, vlastní fotka. Nabízí se jen u kontaktu. */
+    onEditContact: () -> Unit,
     /** Zavolat (`null` = hovory tu nejsou, viz `CallRepository.supported`). */
     onCall: ((video: Boolean) -> Unit)?,
 ) {
@@ -1703,6 +1734,11 @@ private fun ProfileMenu(
                     // Návrh data narození dostane jen člověk; vlastní datum je v úpravě profilu.
                     if (canStartSecret && profile.birthdate == null) {
                         MenuAction(stringResource(Res.string.birthdate_suggest), Res.drawable.cake_24dp, onClick = { pickBirthdate = true })
+                    } else {
+                        null
+                    },
+                    if (canManageContact && profile.contact != null) {
+                        MenuAction(stringResource(Res.string.contact_edit), Res.drawable.edit_24dp, onClick = onEditContact)
                     } else {
                         null
                     },

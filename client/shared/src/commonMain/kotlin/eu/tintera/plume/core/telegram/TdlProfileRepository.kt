@@ -40,6 +40,9 @@ import dev.g000sha256.tdl.dto.ChatTypeSecret
 import dev.g000sha256.tdl.dto.SecretChatStateClosed
 import dev.g000sha256.tdl.dto.ChatTypeSupergroup
 import dev.g000sha256.tdl.dto.FormattedText
+import dev.g000sha256.tdl.dto.UserFullInfo
+import dev.g000sha256.tdl.dto.ImportedContact
+import dev.g000sha256.tdl.dto.OptionValueInteger
 import dev.g000sha256.tdl.dto.InputMessageText
 import dev.g000sha256.tdl.dto.InputChatPhotoPrevious
 import dev.g000sha256.tdl.dto.MessageSenderUser
@@ -211,8 +214,40 @@ class TdlProfileRepository(
             botVerification = botVerificationNote(full?.botVerification),
             hasMainWebApp = (user.type as? UserTypeBot)?.hasMainWebApp == true,
             firstProfileAudio = full?.firstProfileAudio?.toMedia(fallbackName = readString(Res.string.content_audio)),
+            contact = if (user.isContact && userId != me) contactDetails(user.firstName, user.lastName, full) else null,
         )
     }
+
+    /** Jméno uložené v kontaktech je u kontaktu přímo `User.firstName` / `lastName`. */
+    private suspend fun contactDetails(firstName: String, lastName: String, full: UserFullInfo?): ContactDetails {
+        val note = full?.note?.toBody() ?: MessageBody.Empty
+        val maxLength = (client.getOption(name = "user_note_text_length_max").toResult().getOrNull() as? OptionValueInteger)
+            ?.value?.toInt() ?: 0
+        return ContactDetails(
+            firstName = firstName,
+            lastName = lastName,
+            note = note.text,
+            noteEntities = note.entities,
+            noteMaxLength = maxLength,
+            hasPersonalPhoto = full?.personalPhoto != null,
+        )
+    }
+
+    override suspend fun editContact(userId: Long, firstName: String, lastName: String, note: String?): Result<Unit> =
+        client.addContact(
+            userId = userId,
+            // Číslo stačí prázdné: kontakt se upravuje podle id.
+            contact = ImportedContact(
+                phoneNumber = "",
+                firstName = firstName,
+                lastName = lastName,
+                note = note?.let { FormattedText(text = it, entities = emptyArray()) },
+            ),
+            sharePhoneNumber = false,
+        ).toResult().map { }
+
+    override suspend fun setPersonalPhoto(userId: Long, photo: ProfilePhotoFile?): Result<Unit> =
+        client.setUserPersonalProfilePhoto(userId = userId, photo = photo?.toInputChatPhoto()).toResult().map { }
 
     override suspend fun profileAudios(userId: Long): Result<List<MessageMedia.Audio>> {
         val fallback = readString(Res.string.content_audio)
