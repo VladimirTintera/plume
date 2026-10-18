@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.GroupActionText
 import eu.tintera.plume.core.ui.GroupAction
 import eu.tintera.plume.core.ui.ActionButtonGroup
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
@@ -447,12 +448,12 @@ private fun PrimaryLinkCard(
                                 contentDescription = null,
                                 modifier = Modifier.padding(end = ButtonDefaults.IconSpacing).size(ButtonDefaults.IconSize),
                             )
-                            Text(share, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            GroupActionText(share)
                         }
                     },
                     GroupAction(replace, onReplace, !busy, weight = 1f) { modifier, source ->
                         FilledTonalButton(onClick = onReplace, modifier = modifier, enabled = !busy, interactionSource = source, shapes = ButtonDefaults.shapes()) {
-                            Text(replace, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            GroupActionText(replace)
                         }
                     },
                     // Ikonové tlačítko se smrskne jen o kus kolem ikony, ne o odsazení textového.

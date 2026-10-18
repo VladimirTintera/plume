@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.GroupActionText
 import eu.tintera.plume.core.ui.GroupAction
 import eu.tintera.plume.core.ui.ActionButtonGroup
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
@@ -176,13 +177,13 @@ fun MyQrCodeSheet(onDismiss: () -> Unit, viewModel: MyQrCodeViewModel = koinView
                     GroupAction(share, viewModel::share, ready, weight = 1f) { modifier, source ->
                         OutlinedButton(onClick = viewModel::share, modifier = modifier, enabled = ready, interactionSource = source, shapes = ButtonDefaults.shapes()) {
                             ButtonIcon(Res.drawable.share_24dp)
-                            Text(share)
+                            GroupActionText(share)
                         }
                     },
                     GroupAction(copy, viewModel::copy, ready, weight = 1f) { modifier, source ->
                         OutlinedButton(onClick = viewModel::copy, modifier = modifier, enabled = ready, interactionSource = source, shapes = ButtonDefaults.shapes()) {
                             ButtonIcon(if (state.copied) Res.drawable.check_24dp else Res.drawable.content_copy_24dp)
-                            Text(copy)
+                            GroupActionText(copy)
                         }
                     },
                 ),

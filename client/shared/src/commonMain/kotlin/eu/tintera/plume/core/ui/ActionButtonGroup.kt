@@ -1,5 +1,7 @@
 package eu.tintera.plume.core.ui
 
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -24,7 +26,7 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * Jedno tlačítko [ActionButtonGroup]. [button] dostane modifikátor a zdroj interakcí, které MUSÍ
- * předat svému tlačítku — podle nich skupina pozná stisk. Vzhled (`TextButton`, `Button`,
+ * předat svému tlačítku — podle nich skupina pozná stisk. Popisek patří do [GroupActionText]. Vzhled (`TextButton`, `Button`,
  * barvy karty) si nese volající. [label], [onClick] a [enabled] jsou pro položku nabídky, kam
  * tlačítko spadne, když se řada nevejde (velké písmo, úzký displej).
  */
@@ -34,7 +36,11 @@ class GroupAction(
     val enabled: Boolean = true,
     /** Podíl na šířce řady, jako `Modifier.weight`; `NaN` = přirozená šířka. */
     val weight: Float = Float.NaN,
-    /** Kolik se tlačítko smí smrsknout, když se stiskne soused (výchozí odsazení `Button`). */
+    /**
+     * Kolik se tlačítko smí smrsknout, když se stiskne soused — jeho vodorovné odsazení
+     * (výchozí `Button`; `TextButton` předává `ButtonDefaults.TextButtonContentPadding`, má ho
+     * poloviční). Popisek se pak na okamžik stisku vejde jen přes okraj ([GroupActionText]).
+     */
     val compressionLimit: PaddingValues = ButtonDefaults.ContentPadding,
     val button: @Composable (modifier: Modifier, interactionSource: MutableInteractionSource) -> Unit,
 )
@@ -91,4 +97,15 @@ fun ActionButtonGroup(
             )
         }
     }
+}
+
+/**
+ * Popisek tlačítka v [ActionButtonGroup]. Když se stiskne soused, tlačítko se smrskne o svoje
+ * odsazení a popisek by se zalomil na dva řádky — řada by poskočila (ověřeno v úpravě fotky,
+ * „Celá fotka" při stisku „Otočit"). Proto jeden řádek, který smí na okamžik stisku přesáhnout
+ * do okraje tlačítka; tak to dělá i `ButtonGroup.clickableItem` v material3.
+ */
+@Composable
+fun GroupActionText(text: String, modifier: Modifier = Modifier, color: Color = Color.Unspecified) {
+    Text(text, modifier = modifier, color = color, maxLines = 1, softWrap = false, overflow = TextOverflow.Visible)
 }

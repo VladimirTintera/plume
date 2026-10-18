@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.GroupActionText
+import androidx.compose.foundation.layout.fillMaxWidth
+import eu.tintera.plume.core.ui.GroupAction
+import eu.tintera.plume.core.ui.ActionButtonGroup
 import androidx.compose.foundation.layout.Arrangement
 import eu.tintera.plume.resources.person_remove_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
@@ -179,18 +183,27 @@ fun JoinRequestsScreen(viewModel: JoinRequestsViewModel, onBack: () -> Unit, mod
                                 },
                                 colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
                             )
-                            Row(
+                            val approve = stringResource(Res.string.join_requests_approve)
+                            val decline = stringResource(Res.string.join_requests_decline)
+                            val onApprove = { viewModel.process(request, approve = true) }
+                            val onDecline = { viewModel.process(request, approve = false) }
+                            ActionButtonGroup(
+                                listOf(
+                                    GroupAction(approve, onApprove) { modifier, source ->
+                                        FilledTonalButton(onClick = onApprove, modifier = modifier, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                                            GroupActionText(approve)
+                                        }
+                                    },
+                                    GroupAction(decline, onDecline, compressionLimit = ButtonDefaults.TextButtonContentPadding) { modifier, source ->
+                                        TextButton(onClick = onDecline, modifier = modifier, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                                            GroupActionText(decline)
+                                        }
+                                    },
+                                ),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 // Tlačítka lícují s textem, ne s avatarem (16 + 48 + 16 dp).
-                                modifier = Modifier.padding(start = 80.dp, end = 16.dp, bottom = 12.dp),
-                            ) {
-                                FilledTonalButton(onClick = { viewModel.process(request, approve = true) }, shapes = ButtonDefaults.shapes()) {
-                                    Text(stringResource(Res.string.join_requests_approve))
-                                }
-                                TextButton(onClick = { viewModel.process(request, approve = false) }, shapes = ButtonDefaults.shapes()) {
-                                    Text(stringResource(Res.string.join_requests_decline))
-                                }
-                            }
+                                modifier = Modifier.fillMaxWidth().padding(start = 80.dp, end = 16.dp, bottom = 12.dp),
+                            )
                         }
                     }
                 }

@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.GroupActionText
+import eu.tintera.plume.core.ui.GroupAction
+import eu.tintera.plume.core.ui.ActionButtonGroup
 import androidx.compose.foundation.Canvas
 import androidx.compose.material3.Button
 import androidx.compose.foundation.background
@@ -255,32 +258,33 @@ internal fun PhotoMarkupEditor(
                     }
                 }
                 if (cropping) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = {
-                            quarterTurns = normalizedTurns(quarterTurns + 1)
-                            crop = crop.rotated(1)
-                        }, shapes = ButtonDefaults.shapes()) {
-                            Icon(painterResource(Res.drawable.rotate_right_24dp), contentDescription = null, tint = Color.White)
-                            Text(
-                                stringResource(Res.string.markup_rotate),
-                                color = Color.White,
-                                modifier = Modifier.padding(start = 8.dp),
-                            )
-                        }
-                        TextButton(
-                            onClick = {
-                                quarterTurns = 0
-                                crop = CropBox.Full
-                            },
-                            enabled = quarterTurns != 0 || crop != CropBox.Full,
-                            shapes = ButtonDefaults.shapes(),
-                        ) {
-                            Text(
-                                stringResource(Res.string.markup_reset),
-                                color = if (quarterTurns != 0 || crop != CropBox.Full) Color.White else Color.White.copy(alpha = DISABLED_ALPHA),
-                            )
-                        }
+                    val rotateLabel = stringResource(Res.string.markup_rotate)
+                    val resetLabel = stringResource(Res.string.markup_reset)
+                    val changed = quarterTurns != 0 || crop != CropBox.Full
+                    val rotate = {
+                        quarterTurns = normalizedTurns(quarterTurns + 1)
+                        crop = crop.rotated(1)
                     }
+                    val reset = {
+                        quarterTurns = 0
+                        crop = CropBox.Full
+                    }
+                    ActionButtonGroup(
+                        listOf(
+                            GroupAction(rotateLabel, rotate, compressionLimit = ButtonDefaults.TextButtonContentPadding) { modifier, source ->
+                                TextButton(onClick = rotate, modifier = modifier, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                                    Icon(painterResource(Res.drawable.rotate_right_24dp), contentDescription = null, tint = Color.White)
+                                    GroupActionText(rotateLabel, color = Color.White, modifier = Modifier.padding(start = 8.dp))
+                                }
+                            },
+                            GroupAction(resetLabel, reset, enabled = changed, compressionLimit = ButtonDefaults.TextButtonContentPadding) { modifier, source ->
+                                TextButton(onClick = reset, modifier = modifier, enabled = changed, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                                    GroupActionText(resetLabel, color = if (changed) Color.White else Color.White.copy(alpha = DISABLED_ALPHA))
+                                }
+                            },
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    )
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {

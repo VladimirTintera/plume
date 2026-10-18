@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.GroupActionText
 import eu.tintera.plume.core.ui.GroupAction
 import eu.tintera.plume.core.ui.ActionButtonGroup
 import androidx.compose.animation.animateContentSize
@@ -131,14 +132,14 @@ fun UpdateCard(
                     val dismiss = { onDismiss(state.versionCode) }
                     ActionButtonGroup(
                         listOf(
-                            GroupAction(later, dismiss) { modifier, source ->
+                            GroupAction(later, dismiss, compressionLimit = ButtonDefaults.TextButtonContentPadding) { modifier, source ->
                                 TextButton(onClick = dismiss, modifier = modifier, colors = laterColors, interactionSource = source, shapes = ButtonDefaults.shapes()) {
-                                    Text(later)
+                                    GroupActionText(later)
                                 }
                             },
                             GroupAction(update, onUpdate) { modifier, source ->
                                 Button(onClick = onUpdate, modifier = modifier, colors = buttonColors, interactionSource = source, shapes = ButtonDefaults.shapes()) {
-                                    Text(update)
+                                    GroupActionText(update)
                                 }
                             },
                         ),
