@@ -999,6 +999,32 @@ jsou zase na okrajích — sheety a dialogy, které předchozí kola minula. Se�
   polem (mention, hashtag, příkazy, inline) jako prostý seznam v plovoucím panelu, karta účtu
   v Nastavení (`Card` s barvou bloku).
 
+#### Třetí kolo (18. října 2026)
+
+Po #858–#863 znovu kódem, tentokrát po jednotlivých funkcích sheetů (předchozí sken hledal
+po souborech, a soubor, který měl bloky aspoň někde, propadl). Hlavní plochy i dialogy jsou čisté;
+zbývají sheety, které se otevírají z podstránek.
+
+- **Sheety s holými řádky s kolečky**: pomalý režim (`SlowModeSheet`) a reakce skupiny
+  (`ChatReactionsSheet`, „Všechny / Jen vybrané / Žádné") v `GroupSettingsCard.kt` — tentýž vzor
+  jako automatické mazání, patří na `ChoiceListItem`.
+- **Sheety s holými seznamy**: detail zařízení (`DeviceDetailSheet`: údaje jako holé řádky
+  s nadpisem v `ListItem`u, přepínače bez bloku), výjimky upozornění (`ExceptionsSheet`: chaty
+  s `TextButton` „Obnovit" v řádku), záložky (`BookmarksSheet`), kdo reagoval
+  (`ReactionDetailsSheet`; „Kdo zprávu viděl" v informacích o zprávě už blok má). Patří do bloků
+  zaoblených řádků (`groupedItem` v lazy seznamu, `GroupedColumn` jinde).
+- **Tlačítka vedle sebe v `Row` místo `ActionButtonGroup`**: schválit / odmítnout žádost o vstup
+  (`JoinRequestsScreen`), stáhnout balíček / přeložit na serveru (`TranslationSheet`), přepis
+  zprávy (`DraftRewrite`), tlačítka v úpravě fotky (`PhotoMarkupEditor`).
+- **Ke zvážení, ne chyba:** kolečka v blocích na obrazovkách (Všichni / Kontakty / Nikdo
+  v soukromí, nastavení skupiny, práva člena, poskytovatel AI, rozsah vymazání historie) jsou
+  platný M3 seznam; v sheetech je výběr fajfkou (`ChoiceListItem`), na obrazovkách kolečkem.
+  Sjednotit, jen pokud to bude vadit.
+- **Prověřeno a v pořádku:** zbylé `AlertDialog`y jsou informační (jen „OK"), žádosti
+  o oprávnění nebo dialogy s polem; ruční `SemiBold` je jen u rolí `body*` (pravidlo
+  typografie); řádky bez bloku v `BirthdatePicker`, `LoginEmailScreen`, `UsernamesSection`
+  a v rychlé reakci leží v bloku obrazovky, která je skládá.
+
 ## Vychytávky
 
 Nápady z října 2026, nic z toho zatím nikdo nezačal.
