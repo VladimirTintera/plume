@@ -42,17 +42,17 @@ import org.jetbrains.compose.resources.painterResource
 
 /**
  * Vyhledávací pilulka — **jeden prvek pro hledání v celé aplikaci**: hlavička seznamu chatů,
- * hledání v konverzaci i výběr chatu (přeposlání, sdílení). Tři různě vypadající pole by
- * znamenala, že uživatel u každé obrazovky poznává hledání znovu.
+ * hledání v konverzaci, výběr chatu (přeposlání, sdílení) i hledání emoji, samolepek a GIFů.
+ * Různě vypadající pole by znamenala, že uživatel u každé obrazovky poznává hledání znovu.
  *
  * **Text drží pole samo** ([initialQuery] je jen výchozí hodnota). Hodnota vrácená zvenku přes
- * `StateFlow` by se do pole dostala o dispatch později a kurzor by poskakoval.
+ * `StateFlow` by se do pole dostala o dispatch později a kurzor by poskakoval. Kde se text mění
+ * i zvenku, je řízená varianta [ControlledSearchPill].
  *
  * **Uvnitř je `BasicTextField` s dekorací, ne `TextField`.** Ten si bere minimální výšku 56 dp
  * a vnitřní odsazení 16 dp napevno, takže by se vedle ikony do pilulky nevešel a text by od ní
  * začínal skoro 30 dp daleko. Kontejner nese pilulka, pole samo nekreslí nic.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchPill(
     initialQuery: String,
@@ -66,17 +66,44 @@ fun SearchPill(
      * Začátek pilulky: výchozí je lupa, hledání v konverzaci tam má zpět. Odsazení si nese
      * slot sám — tlačítko má kolem glyfu svoje, holá ikona ne.
      */
-    leading: @Composable () -> Unit = {
-        Icon(
-            painterResource(Res.drawable.search_24dp),
-            contentDescription = null,
-            modifier = Modifier.padding(start = 16.dp, end = 4.dp),
-        )
-    },
+    leading: @Composable () -> Unit = { SearchPillIcon() },
     /** Mezi začátkem a polem — čip vybraného člena při hledání v konverzaci. */
     prefix: @Composable () -> Unit = {},
 ) {
     var query by rememberSaveable { mutableStateOf(initialQuery) }
+    ControlledSearchPill(
+        query = query,
+        onQueryChange = {
+            query = it
+            onQueryChange(it)
+        },
+        placeholder = placeholder,
+        clearDescription = clearDescription,
+        modifier = modifier,
+        autoFocus = autoFocus,
+        leading = leading,
+        prefix = prefix,
+    )
+}
+
+/**
+ * **Řízená** pilulka: text drží volající ([query]). Pro hledání, které se mění i zvenku — výběr
+ * kategorie samolepek pole vymaže. Hodnota musí být Compose stav na obrazovce, ne `StateFlow`
+ * z ViewModelu: ten by do pole dorazil o dispatch později a kurzor by poskakoval (proto má
+ * běžná varianta text u sebe).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ControlledSearchPill(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    placeholder: String,
+    clearDescription: String,
+    modifier: Modifier = Modifier,
+    autoFocus: Boolean = false,
+    leading: @Composable () -> Unit = { SearchPillIcon() },
+    prefix: @Composable () -> Unit = {},
+) {
     val focus = remember { FocusRequester() }
     val interaction = remember { MutableInteractionSource() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -93,10 +120,7 @@ fun SearchPill(
             prefix()
             BasicTextField(
                 value = query,
-                onValueChange = {
-                    query = it
-                    onQueryChange(it)
-                },
+                onValueChange = onQueryChange,
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyLarge
                     .copy(color = MaterialTheme.colorScheme.onSurface),
@@ -129,7 +153,6 @@ fun SearchPill(
             )
             if (query.isNotEmpty()) {
                 IconButton(shapes = IconButtonDefaults.shapes(), onClick = {
-                    query = ""
                     onQueryChange("")
                     focus.requestFocus()
                 }) {
@@ -138,6 +161,16 @@ fun SearchPill(
             }
         }
     }
+}
+
+/** Výchozí začátek pilulky: lupa s odsazením od kraje. */
+@Composable
+private fun SearchPillIcon() {
+    Icon(
+        painterResource(Res.drawable.search_24dp),
+        contentDescription = null,
+        modifier = Modifier.padding(start = 16.dp, end = 4.dp),
+    )
 }
 
 /** Jako vstupní pole M3 hledání. */

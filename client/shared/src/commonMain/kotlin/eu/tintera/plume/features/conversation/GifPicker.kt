@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import eu.tintera.plume.resources.stickers_clear_search
+import eu.tintera.plume.core.ui.ControlledSearchPill
 import androidx.compose.foundation.border
 import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Box
@@ -243,14 +245,15 @@ internal fun GifPanel(
 
     LaunchedEffect(Unit) { viewModel.search(searchText) }
 
-    StickerSearchField(
-        text = searchText,
+    ControlledSearchPill(
+        query = searchText,
         placeholder = stringResource(Res.string.gifs_search),
-        onTextChange = {
+        clearDescription = stringResource(Res.string.stickers_clear_search),
+        onQueryChange = {
             searchText = it
             viewModel.search(it)
         },
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
     )
 
     val searching = searchText.isNotBlank()

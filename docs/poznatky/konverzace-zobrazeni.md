@@ -895,6 +895,12 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   `toggleableShapes`, malé široké), ne obrysové `FilterChip`y: výběr jedné ikony z řady je v M3
   Expressive přepínač, který se vybraný vyplní a zaoblí — jako formátování a hovor.
 
+- **Hledání emoji, samolepek a GIFů je `ControlledSearchPill`** (`core/ui/SearchPill.kt`),
+  tatáž pilulka jako hledání v celé aplikaci, jen řízená zvenku: výběr kategorie samolepek pole
+  vymaže. Text drží Compose stav obrazovky (`rememberSaveable`), ne `StateFlow` z ViewModelu —
+  s ním by kurzor poskakoval (proto má běžná `SearchPill` text u sebe). Vlastní
+  `StickerSearchField` (TextField v Surface) zmizel.
+
 ## Barva konverzace
 
 Profil chatu → Barva konverzace: „Podle aplikace" a tytéž vzorky jako barva aplikace

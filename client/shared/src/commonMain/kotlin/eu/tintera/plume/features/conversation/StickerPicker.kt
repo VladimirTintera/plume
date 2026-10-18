@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.ControlledSearchPill
 import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.animation.core.animateFloatAsState
 import eu.tintera.plume.resources.check_24dp
@@ -52,8 +53,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -68,8 +67,6 @@ import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -86,7 +83,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.draw.drawBehind
-import eu.tintera.plume.core.ui.TextFieldSlot
 import eu.tintera.plume.core.ui.animateMorph
 import eu.tintera.plume.core.ui.ShapeMorphs
 import eu.tintera.plume.core.ui.MorphShape
@@ -98,7 +94,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.style.TextAlign
@@ -137,12 +132,10 @@ import eu.tintera.plume.core.ui.emojiClusterCount
 import eu.tintera.plume.core.ui.tinted
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.media_sticker
 import eu.tintera.plume.resources.conversation_send
 import eu.tintera.plume.resources.stickers_preview
 import eu.tintera.plume.resources.schedule_24dp
-import eu.tintera.plume.resources.search_24dp
 import eu.tintera.plume.resources.star_24dp
 import eu.tintera.plume.resources.conversation_send_when_online
 import eu.tintera.plume.resources.conversation_send_schedule
@@ -776,16 +769,17 @@ internal fun StickerPickerSheet(
             return@ModalBottomSheet
         }
 
-        StickerSearchField(
-            text = searchText,
+        ControlledSearchPill(
+            query = searchText,
             placeholder = stringResource(Res.string.stickers_search),
-            onTextChange = {
+            clearDescription = stringResource(Res.string.stickers_clear_search),
+            onQueryChange = {
                 searchText = it
                 // Psaní kategorii zruší: hledá se buď text, nebo kategorie.
                 categoryName = null
                 viewModel.search(it, languageCodes)
             },
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
         )
 
         StickerCategoryRow(
@@ -1331,57 +1325,6 @@ internal fun LazyGridItemScope.animateStickerItem(): Modifier = Modifier.animate
     placementSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
     fadeOutSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
 )
-
-/**
- * Pole hledání nad záložkami.
- *
- * Kontejner nese [Surface], pole samo je průhledné — stejně jako vstupní pole konverzace, ať
- * nevznikají dvě zaoblené plochy v sobě.
- */
-@Composable
-internal fun StickerSearchField(
-    text: String,
-    placeholder: String,
-    onTextChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val keyboard = LocalSoftwareKeyboardController.current
-
-    Surface(
-        shape = ShapeDefaults.ExtraLarge,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        TextField(
-            value = text,
-            onValueChange = onTextChange,
-            placeholder = { Text(placeholder) },
-            singleLine = true,
-            leadingIcon = { Icon(painterResource(Res.drawable.search_24dp), contentDescription = null) },
-            trailingIcon = if (text.isNotEmpty()) {
-                {
-                    TextFieldSlot {
-                        IconButton(onClick = { onTextChange("") }, shapes = IconButtonDefaults.shapes()) {
-                            Icon(painterResource(Res.drawable.close_24dp), contentDescription = stringResource(Res.string.stickers_clear_search))
-                        }
-                    }
-                }
-            } else {
-                null
-            },
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-            ),
-            // Hledá se průběžně; tlačítko na klávesnici jen uklidí klávesnici z výsledků.
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { keyboard?.hide() }),
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
 
 /**
  * Výsledky hledání, každá skupina pod svým nadpisem: sady podle názvu, samolepky z vlastních sad
