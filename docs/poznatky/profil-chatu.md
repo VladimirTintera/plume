@@ -37,6 +37,13 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
   požadavek hledání je stav podle chatu a čekal by na chat, který není vidět.
 - **Člen ze seznamu letí do hlavičky konverzace** (avatar i jméno, klíče jako ze seznamu chatů),
   kromě vlastního účtu — ten vede do Uložených zpráv se záložkou místo fotky.
+- **Podstránky profilu mají střední flexibilní hlavičku s názvem chatu v podtitulku**
+  (`ProfileSubpageTopBar`: pozvánky, žádosti o vstup, poslední akce, omezení a vyhození, práva
+  člena; úprava skupiny bez podtitulku — název je hned pod ní v poli). Malý bar jen s názvem
+  obrazovky neřekl, čeho se týká. Název se čte z místního přehledu (`rememberChatTitle`);
+  **dokud nedorazí, je to prázdný řetězec, ne `null`** — bar s podtitulkem je vyšší a po načtení
+  by poskočil. Sbaluje se jako Nastavení (na jednom panelu ano, v dvoupanelu ne). „Uložit" je
+  plné tlačítko (`SaveActionButton`, z Nastavení přesunuté do `core/ui`).
 - **Úprava skupiny a práva člena jsou bloky zaoblených řádků taky** (`GroupedColumn`, říjen 2026):
   práva členů, nastavení skupiny (`GroupSettingsCard`), pozvánky, omezení a vyhození, poslední
   akce, smazání (blok vlastní), práva správce, omezení člena a délka omezení. Dřív to byly karty

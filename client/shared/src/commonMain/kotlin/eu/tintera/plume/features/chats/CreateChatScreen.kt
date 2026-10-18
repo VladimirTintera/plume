@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import androidx.compose.material3.IconButtonDefaults
+import eu.tintera.plume.core.ui.SaveActionButton
 import eu.tintera.plume.core.ui.FormTextField
 import androidx.compose.material3.ButtonDefaults
 import eu.tintera.plume.resources.add_members_refused_invite
@@ -151,7 +152,7 @@ fun CreateChatScreen(
                         if (viewModel.creating) {
                             LoadingIndicator(Modifier.padding(end = 12.dp).size(40.dp))
                         } else {
-                            TextButton(onClick = viewModel::create, enabled = viewModel.canCreate, shapes = ButtonDefaults.shapes()) {
+                            SaveActionButton(onClick = viewModel::create, enabled = viewModel.canCreate) {
                                 Text(stringResource(Res.string.create_chat_create))
                             }
                         }

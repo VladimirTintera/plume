@@ -36,7 +36,7 @@ import kotlin.time.Duration.Companion.milliseconds
  *   podruhé, jako u žádostí o vstup.
  */
 class RemovedMembersViewModel(
-    private val chatId: Long,
+    val chatId: Long,
     val banned: Boolean,
     private val repository: ProfileRepository,
 ) : ViewModel() {

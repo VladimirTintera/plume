@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.resources.history_24dp
+import eu.tintera.plume.core.ui.SaveActionButton
 import eu.tintera.plume.core.ui.GroupedColumn
 import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.core.ui.ConfirmDialog
@@ -49,7 +50,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -108,8 +108,6 @@ import eu.tintera.plume.resources.edit_chat_upgrade_confirm
 import eu.tintera.plume.resources.edit_chat_upgrade_topics
 import eu.tintera.plume.resources.edit_chat_upgrade_link
 import eu.tintera.plume.resources.edit_chat_upgrade_title
-import eu.tintera.plume.resources.arrow_back_24dp
-import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.edit_chat_delete_photo
 import eu.tintera.plume.resources.edit_chat_delete_photo_body
@@ -313,27 +311,20 @@ fun EditChatScreen(
 
     // Ořez fotky leží přes celou obrazovku, nad Scaffoldem.
     Box(Modifier.fillMaxSize()) {
+        val subpageScroll = profileSubpageScrollBehavior()
         Scaffold(
-            modifier = modifier,
+            modifier = modifier.profileSubpageScroll(subpageScroll),
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            stringResource(
-                                if (chat?.isChannel == true) Res.string.edit_chat_title_channel else Res.string.edit_chat_title,
-                            ),
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
-                        }
-                    },
+                ProfileSubpageTopBar(
+                    title = stringResource(if (chat?.isChannel == true) Res.string.edit_chat_title_channel else Res.string.edit_chat_title),
+                    subtitle = null,
+                    onBack = onBack,
+                    scrollBehavior = subpageScroll,
                     actions = {
                         // Uložit se nabízí, jen když je co ukládat — fotka a práva jdou na server hned.
                         if (chat?.rights?.canChangeInfo == true) {
-                            TextButton(onClick = viewModel::save, enabled = viewModel.canSave, shapes = ButtonDefaults.shapes()) {
+                            SaveActionButton(onClick = viewModel::save, enabled = viewModel.canSave) {
                                 Text(stringResource(Res.string.edit_profile_save))
                             }
                         }

@@ -926,11 +926,9 @@ poměru přínosu a práce; každý bod je samostatný PR.
   v `AlertDialog`u zůstala obrysová (odkaz ve formátování, možnost ankety, štítek člena…).
 - ~~**Ruční `Card` bloky v profilu**~~ — hotovo (úprava skupiny, `GroupSettingsCard`, práva
   a omezení člena přes `GroupedColumn`, VladimirTintera/telegram#839).
-- **Hlavičky podstránek profilu** (`InviteLinksScreen`, `MemberRightsScreen`, `EditChatScreen`,
-  `EventLogScreen`, `JoinRequestsScreen`, `RemovedMembersScreen`) jako `MediumFlexibleTopAppBar`
-  s podtitulkem = název chatu nebo jméno člena; dnes z hlavičky není poznat, čeho se týká.
-  „Uložit" / „Přidat" / „Vytvořit" / „Hotovo" jako `TextButton` v liště (`EditChatScreen`,
-  `MemberRightsScreen`, `NewContactScreen`, `CreateChatScreen`, `ReorderRow`) → `SaveActionButton`.
+- ~~**Hlavičky podstránek profilu**~~ — hotovo (`ProfileSubpageTopBar` s názvem chatu v podtitulku;
+  „Uložit", „Přidat", „Vytvořit", „Hotovo" jako `SaveActionButton` i v novém kontaktu, nové skupině
+  a řazení; VladimirTintera/telegram#840).
 - **Obrazovka hovoru** (`CallOverlay`): ztlumení a kamera nemění ikonu (chybí `mic_off`,
   `videocam_off`), zavěšení je stejně velké jako přepínače (M3E: široké
   `IconButtonDefaults.IconButtonWidthOption.Wide`), avatar při zvonění stojí (`ShapeMorphs.Live`

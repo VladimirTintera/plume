@@ -48,7 +48,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -94,9 +93,7 @@ import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_24dp
-import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.check_24dp
-import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.content_copy_24dp
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.edit_24dp
@@ -180,17 +177,17 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
     var confirmDeleteAll by rememberSaveable { mutableStateOf(false) }
     var confirmDeleteAdminRevoked by remember { mutableStateOf<AdminInviteLinks?>(null) }
 
+    val subpageScroll = profileSubpageScrollBehavior()
+
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.profileSubpageScroll(subpageScroll),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(Res.string.invite_links_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
-                    }
-                },
+            ProfileSubpageTopBar(
+                title = stringResource(Res.string.invite_links_title),
+                subtitle = rememberChatTitle(viewModel.chatId),
+                onBack = onBack,
+                scrollBehavior = subpageScroll,
             )
         },
     ) { padding ->

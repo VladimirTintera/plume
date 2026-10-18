@@ -27,7 +27,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,8 +48,6 @@ import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.arrow_back_24dp
-import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.profile_more
 import eu.tintera.plume.resources.how_to_reg_24dp
@@ -97,17 +94,17 @@ fun JoinRequestsScreen(viewModel: JoinRequestsViewModel, onBack: () -> Unit, mod
     var confirmAll by rememberSaveable { mutableStateOf<Boolean?>(null) }
     val shown = viewModel.shown
 
+    val subpageScroll = profileSubpageScrollBehavior()
+
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.profileSubpageScroll(subpageScroll),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(Res.string.join_requests_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
-                    }
-                },
+            ProfileSubpageTopBar(
+                title = stringResource(Res.string.join_requests_title),
+                subtitle = rememberChatTitle(viewModel.chatId),
+                onBack = onBack,
+                scrollBehavior = subpageScroll,
                 actions = {
                     if (!shown.isNullOrEmpty()) {
                         Box {

@@ -23,7 +23,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -44,8 +43,6 @@ import eu.tintera.plume.core.ui.isSameDayAs
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.arrow_back_24dp
-import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.event_log_empty
 import eu.tintera.plume.resources.event_log_empty_help
 import eu.tintera.plume.resources.event_log_title
@@ -121,17 +118,17 @@ fun EventLogScreen(viewModel: EventLogViewModel, onBack: () -> Unit, modifier: M
     }
     val events = viewModel.events
 
+    val subpageScroll = profileSubpageScrollBehavior()
+
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.profileSubpageScroll(subpageScroll),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(Res.string.event_log_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
-                    }
-                },
+            ProfileSubpageTopBar(
+                title = stringResource(Res.string.event_log_title),
+                subtitle = rememberChatTitle(viewModel.chatId),
+                onBack = onBack,
+                scrollBehavior = subpageScroll,
             )
         },
     ) { padding ->
