@@ -509,6 +509,8 @@ data class ConversationState(
     val savedTopicId: Long? = null,
     /** Vlákno přímých zpráv kanálu; `null` u běžné konverzace. */
     val directTopicId: Long? = null,
+    /** Navrhovaný příspěvek, jehož odmítnutí čeká na komentář v dialogu; `null` = dialog zavřený. */
+    val decliningSuggestedPost: Long? = null,
     /**
      * Nepřečtené zmínky a reakce v chatu — tlačítka „@" a „❤" nad tlačítkem dolů. Ve vlákně
      * komentářů zůstávají nulové: počty patří celé diskusní skupině.

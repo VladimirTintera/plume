@@ -174,6 +174,12 @@ import dev.g000sha256.tdl.dto.MessageStory
 import dev.g000sha256.tdl.dto.MessageTopicThread
 import dev.g000sha256.tdl.dto.MessageTopic
 import dev.g000sha256.tdl.dto.MessageTopicForum
+import dev.g000sha256.tdl.dto.SuggestedPostPriceGram
+import dev.g000sha256.tdl.dto.SuggestedPostPriceStar
+import dev.g000sha256.tdl.dto.SuggestedPostStateDeclined
+import dev.g000sha256.tdl.dto.SuggestedPostStateApproved
+import dev.g000sha256.tdl.dto.SuggestedPostStatePending
+import dev.g000sha256.tdl.dto.SuggestedPostInfo
 import dev.g000sha256.tdl.dto.MessageTopicSavedMessages
 import dev.g000sha256.tdl.dto.MessageTopicDirectMessages
 import dev.g000sha256.tdl.dto.MessageSourceDirectMessagesChatTopicHistory
@@ -514,6 +520,14 @@ class TdlConversationRepository(
             .toResult()
             .map { }
 
+    override suspend fun approveSuggestedPost(chatId: Long, messageId: Long): Result<Unit> =
+        // 0 = termín, který si návrh nese; bez něj se zveřejní hned.
+        client.approveSuggestedPost(chatId = chatId, messageId = messageId, sendDate = 0).toResult().map { }
+
+    override suspend fun declineSuggestedPost(chatId: Long, messageId: Long, comment: String): Result<Unit> =
+        client.declineSuggestedPost(chatId = chatId, messageId = messageId, comment = comment.take(DECLINE_COMMENT_MAX))
+            .toResult().map { }
+
     override fun editedMessages(chatId: Long): Flow<ChatMessage> =
         merge(
             holder.updates { messageContentUpdates }.filter { it.chatId == chatId }.map { it.messageId },
@@ -521,6 +535,8 @@ class TdlConversationRepository(
             holder.updates { messageEditedUpdates }.filter { it.chatId == chatId }.map { it.messageId },
             // Kontrolu faktů server přidává (a mění) až po zveřejnění — a přijde jen tenhle update.
             holder.updates { messageFactCheckUpdates }.filter { it.chatId == chatId }.map { it.messageId },
+            // Schválený nebo odmítnutý návrh příspěvku: mění se jen stav, obsah ne.
+            holder.updates { messageSuggestedPostInfoUpdates }.filter { it.chatId == chatId }.map { it.messageId },
         )
             .map { messageId ->
                 // Update nese jen nový obsah, ne celou zprávu — zbytek se musí dočíst.
@@ -2727,6 +2743,7 @@ class TdlConversationRepository(
             senderBoostCount = senderBoostCount.takeIf { sender != null } ?: 0,
             effect = effectId.takeIf { it != 0L }?.let { messageEffect(it) },
             summaryLanguage = summaryLanguageCode.ifBlank { null },
+            suggestedPost = suggestedPostInfo?.toDomain(),
             factCheck = factCheck?.let { check ->
                 val body = check.text.toBody()
                 FactCheck(body.text, body.entities, check.countryCode.ifBlank { null })
@@ -4065,3 +4082,20 @@ private fun ChatPhoto.previewSize(): PhotoSize? =
     sizes.filter { it.width >= SUGGESTED_PHOTO_PREVIEW_PX }.minByOrNull { it.width } ?: sizes.maxByOrNull { it.width }
 
 private const val SUGGESTED_PHOTO_PREVIEW_PX = 320
+
+/** `when` bez `else`: nový stav návrhu v novější TDLib rozbije překlad, místo aby tiše čekal. */
+private fun SuggestedPostInfo.toDomain() = SuggestedPost(
+    state = when (state) {
+        is SuggestedPostStatePending -> SuggestedPostState.Pending
+        is SuggestedPostStateApproved -> SuggestedPostState.Approved
+        is SuggestedPostStateDeclined -> SuggestedPostState.Declined
+    },
+    stars = (price as? SuggestedPostPriceStar)?.starCount,
+    tonCents = (price as? SuggestedPostPriceGram)?.gramCentCount,
+    sendDate = sendDate,
+    canApprove = canBeApproved,
+    canDecline = canBeDeclined,
+)
+
+/** Strop komentáře k odmítnutí (`declineSuggestedPost`). */
+private const val DECLINE_COMMENT_MAX = 128

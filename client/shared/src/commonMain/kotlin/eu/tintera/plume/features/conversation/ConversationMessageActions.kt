@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.suggested_post_action_failed
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -117,6 +118,30 @@ internal class ConversationMessageActions(
                 .onFailure { failure ->
                     state.update { it.copy(error = failure.reported(logger, Res.string.conversation_pin_failed)) }
                 }
+        }
+    }
+
+    /** „Schválit" na kartě navrhovaného příspěvku; nový stav přinese update zprávy. */
+    fun approveSuggestedPost(messageId: Long) {
+        scope.launch {
+            repository.approveSuggestedPost(chatId, messageId).onFailure { failure ->
+                state.update { it.copy(error = failure.reported(logger, Res.string.suggested_post_action_failed)) }
+            }
+        }
+    }
+
+    /** „Odmítnout" otevře dialog s komentářem; odmítá se až jeho potvrzením. */
+    fun askDeclineSuggestedPost(messageId: Long) = state.update { it.copy(decliningSuggestedPost = messageId) }
+
+    fun cancelDeclineSuggestedPost() = state.update { it.copy(decliningSuggestedPost = null) }
+
+    fun declineSuggestedPost(comment: String) {
+        val messageId = state.value.decliningSuggestedPost ?: return
+        state.update { it.copy(decliningSuggestedPost = null) }
+        scope.launch {
+            repository.declineSuggestedPost(chatId, messageId, comment).onFailure { failure ->
+                state.update { it.copy(error = failure.reported(logger, Res.string.suggested_post_action_failed)) }
+            }
         }
     }
 

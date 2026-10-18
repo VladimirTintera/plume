@@ -22,8 +22,13 @@ internal data class SendMenuOffer(
      * zprávách ho nemá kdo vidět a ve vlákně komentářů jde o skupinu.
      */
     val effects: Boolean = false,
+    /**
+     * Navrhnout jako příspěvek — jen odběratel v přímých zprávách kanálu (`suggestedPostInfo`
+     * jde jen do chatu přímých zpráv). Správce kanálu publikuje sám, návrh nepotřebuje.
+     */
+    val suggestPost: Boolean = false,
 ) {
-    val any: Boolean get() = silent || schedule || whenOnline || effects
+    val any: Boolean get() = silent || schedule || whenOnline || effects || suggestPost
 }
 
 /** Volba z nabídky odeslání mimo vstupní pole (podržená samolepka ve výběru). */
@@ -41,6 +46,7 @@ internal fun sendMenuOffer(state: ConversationState): SendMenuOffer {
         schedule = schedule,
         whenOnline = schedule && privateChat && state.presence is Presence.Offline,
         effects = schedule && privateChat,
+        suggestPost = info?.isDirectMessages == true && !info.isDirectMessagesAdmin,
     )
 }
 

@@ -763,7 +763,8 @@ private fun MessageFrame(
             // podvodník chce. V režimu výběru ťuknutí patří výběru.
             val context = if (scam == null && frame.selected == null) scope.messageContext(message) else emptyList()
             WithBelowMessage(
-                hasBelow = message.keyboard != null || message.factCheck != null || scam != null,
+                hasBelow = message.keyboard != null || message.factCheck != null || scam != null ||
+                    message.suggestedPost != null,
                 isOutgoing = message.isOutgoing,
                 maxWidthFraction = maxWidthFraction,
                 below = {
@@ -772,6 +773,13 @@ private fun MessageFrame(
                         // před čím varuje.
                         scam?.let { kind ->
                             ScamWarningCard(kind = kind, onDismiss = { scope.dismissScamWarning(message.id) })
+                        }
+                        message.suggestedPost?.let { post ->
+                            SuggestedPostCard(
+                                post = post,
+                                onApprove = { bodyScope.act(MessageAction.ApproveSuggestedPost) },
+                                onDecline = { bodyScope.act(MessageAction.DeclineSuggestedPost) },
+                            )
                         }
                         message.factCheck?.let { check ->
                             FactCheckCard(

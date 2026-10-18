@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.campaign_24dp
+import eu.tintera.plume.resources.suggested_post_send
 import eu.tintera.plume.resources.conversation_edit_new_gif
 import eu.tintera.plume.core.telegram.MediaReplacement
 import eu.tintera.plume.resources.conversation_edit_new_file
@@ -1257,6 +1259,11 @@ internal fun MessageInput(
                                 sendMenuOpen = false
                                 afterKeyboardHidden(onPickEffect)
                             }.takeIf { sendMenu.effects },
+                            MenuAction(stringResource(Res.string.suggested_post_send), Res.drawable.campaign_24dp) {
+                                sendMenuOpen = false
+                                onSend(composer.composed, SendOptions(suggestPost = true))
+                                draft = TextFieldValue()
+                            }.takeIf { sendMenu.suggestPost },
                             MenuAction(stringResource(Res.string.conversation_send_rewrite), Res.drawable.edit_note_24dp) {
                                 sendMenuOpen = false
                                 val text = draft.text

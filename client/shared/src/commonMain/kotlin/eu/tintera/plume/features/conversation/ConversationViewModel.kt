@@ -776,6 +776,8 @@ class ConversationViewModel(
         logger = logger,
     )
     fun cancelPin() = messageActions.cancelPin()
+    fun declineSuggestedPost(comment: String) = messageActions.declineSuggestedPost(comment)
+    fun cancelDeclineSuggestedPost() = messageActions.cancelDeclineSuggestedPost()
     fun confirmPin(option: Boolean) = messageActions.confirmPin(option)
     fun consumeCallRequest() = messageActions.consumeCallRequest()
     fun undoAddContact(userId: Long) = messageActions.undoAddContact(userId)
@@ -1817,6 +1819,8 @@ class ConversationViewModel(
         when (action) {
             is MessageAction.ShowMenu -> menu.showMessageMenu(messageId, action.items, action.pressed, action.pollOptionId, action.selection)
             MessageAction.CloseMenu -> menu.closeMenus()
+            MessageAction.ApproveSuggestedPost -> messageActions.approveSuggestedPost(messageId)
+            MessageAction.DeclineSuggestedPost -> messageActions.askDeclineSuggestedPost(messageId)
             MessageAction.ShowNoticeMenu -> menu.showNoticeMenu(messageId)
             is MessageAction.DeleteNotice -> _state.update {
                 it.copy(
