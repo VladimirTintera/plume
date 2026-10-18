@@ -3,6 +3,7 @@ package eu.tintera.plume.core.telegram
 import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_action_failed
+import eu.tintera.plume.resources.error_ai_compose_premium
 import eu.tintera.plume.resources.error_call_outdated
 import eu.tintera.plume.resources.error_call_privacy
 import eu.tintera.plume.resources.error_flood_wait_minutes
@@ -49,6 +50,15 @@ class TelegramErrorsTest {
         assertEquals(
             UiText(Res.string.error_verification_failed),
             IllegalStateException("VERIFICATION_FAILED").userMessage(fallback),
+        )
+    }
+
+    @Test
+    fun `vycerpane ai upravy odkazou na premium`() {
+        // `composeTextWithAi` / `fixTextWithAi` bez Premium po vyčerpání bezplatných dotazů.
+        assertEquals(
+            UiText(Res.string.error_ai_compose_premium),
+            IllegalStateException("AICOMPOSE_FLOOD_PREMIUM").userMessage(fallback),
         )
     }
 

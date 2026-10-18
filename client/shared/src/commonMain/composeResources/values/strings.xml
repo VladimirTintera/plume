@@ -1879,6 +1879,12 @@
         <item quantity="one">and %1$d more chat in the list below</item>
         <item quantity="other">and %1$d more chats in the list below</item>
     </plurals>
+    <string name="rewrite_on_device">On this phone</string>
+    <string name="rewrite_on_server">Telegram AI</string>
+    <string name="rewrite_server_fix">Fix mistakes</string>
+    <string name="rewrite_server_disclaimer">Telegram edits the text on its servers. Read it before sending.</string>
+    <string name="rewrite_server_failed">Telegram couldn't edit the text. Try again in a moment.</string>
+    <string name="error_ai_compose_premium">You've used up your free AI edits. More are available with Telegram Premium.</string>
     <string name="profile_music">Music in profile</string>
     <string name="privacy_profile_audio">Music in profile</string>
     <string name="profile_music_empty">Long-press a song in a chat and choose “Add to profile”.</string>

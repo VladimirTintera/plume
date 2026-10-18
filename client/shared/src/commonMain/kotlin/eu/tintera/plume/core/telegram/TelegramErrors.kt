@@ -33,6 +33,7 @@ import eu.tintera.plume.resources.error_phone_number_invalid
 import eu.tintera.plume.resources.error_phone_number_occupied
 import eu.tintera.plume.resources.error_phone_number_banned
 import eu.tintera.plume.resources.error_fresh_change_phone
+import eu.tintera.plume.resources.error_ai_compose_premium
 import eu.tintera.plume.resources.error_pin_limit
 import eu.tintera.plume.resources.error_recovery_code_expired
 import eu.tintera.plume.resources.error_recovery_code_invalid
@@ -130,6 +131,9 @@ internal fun errorText(raw: String?, fallback: StringResource): UiText {
 
         // Konstanty od serveru. TDLib je nepřekládá, posílá je dál, jak přišly.
         "PINNED_DIALOGS_TOO_MUCH" -> Res.string.error_pin_limit
+        // AI úpravy textu od serveru: bezplatné dotazy došly, další jsou s Premium
+        // (dokumentace `composeTextWithAi` / `fixTextWithAi`).
+        "AICOMPOSE_FLOOD_PREMIUM" -> Res.string.error_ai_compose_premium
         "CHAT_ADMIN_REQUIRED" -> Res.string.error_admin_required
         "PHONE_NUMBER_INVALID" -> Res.string.error_phone_number_invalid
         // Změna čísla (dokumentace `account.sendChangePhoneCode` a `account.changePhone`).

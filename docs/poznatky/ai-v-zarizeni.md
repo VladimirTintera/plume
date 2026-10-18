@@ -345,6 +345,36 @@ funkce liší od návrhů odpovědí: sloh drhne, ale chybu uživatel VIDÍ dř�
 - **Barva výsledku výslovně `onSurface`**: zděděná vyšla v sheetu šedá jako původní text nad
   kartou a výsledek vypadal potlačeně.
 
+### Úpravy textu od Telegramu (server)
+
+Týž sheet „Zkontrolovat a přepsat…" má vedle modelu v zařízení řadu **Telegram AI**: „Opravit
+chyby" (`fixTextWithAi`) a styly psaní od serveru (`composeTextWithAi`; `AiTextRepository`,
+`TdlAiTextRepository`). Text tu na rozdíl od zbytku téhle oblasti ODCHÁZÍ na server.
+
+- **Dvě řady s nadpisy „V telefonu" / „Telegram AI"** — liší se tím podstatným, kam text jde.
+  Nadpisy jen když jsou řady dvě. Poznámka pod výsledkem se řídí volbou: „Text upravuje
+  Telegram na svých serverech…", nebo dosavadní „Přepisuje model v telefonu…".
+- **Sheet se teď nabízí i bez AI v zařízení** (jen serverová řada), a **v tajném chatu jen
+  s modelem v zařízení** — dokumentace obou metod tajný chat zakazuje (`serverAiAllowed`
+  z `ConversationBottomBar` do `MessageInput`).
+- **Styly chodí jen updatem** (`updateTextCompositionStyles`), dotaz na ně TDLib nemá —
+  repository je proto eager (`createdAtStart`). Názvy jsou od serveru a **anglicky** (Formal,
+  Short, Tribal, Corp, Biblical, Viking, Zen): server je posílá v jazyce jazykového balíčku
+  a ten Plume TDLib nenastavuje.
+- **Oprava vrací i rozdíl** (`DiffText`: vložené, smazané, nahrazené; rozsahy v UTF-16).
+  Výsledek ukazuje text rozdílu se změnami na podkladu `primaryContainer` a smazanými kusy
+  přeškrtnutými chybovou barvou; „Použít" vloží čistý opravený text.
+- **Bez Premium je počet dotazů omezený**; po vyčerpání `AICOMPOSE_FLOOD_PREMIUM` → věta
+  o Premium (`errorText`, test `TelegramErrorsTest`).
+- **Text bez diakritiky server čte jako slovenštinu**: „ahoj prijdu pozdejc, protoze mam hodne
+  prace" opravil na „prídem neskôr, pretože mám veľa práce" a styl Viking psal slovensky.
+  Jazyk se serveru předat nedá (parametr je jen pro překlad), takže to platí, dokud v textu
+  nejsou háčky; výsledek se proto vždy jen nabízí.
+- **Ověřeno na emulátoru `Plume_Barvy`** (testovací účet …527, bez AI v zařízení): sheet jen se
+  serverovou řadou, styly dorazily, oprava se zvýrazněním, styl, „Použít" nahradil koncept.
+  Na Foldu (s Gemmou) obě řady a kontrola tónu; serverové volby tam nezkoušené (skutečný účet).
+  **Neověřeno:** limit bez Premium, tajný chat, iOS.
+
 ### Varování před podvodem
 
 Karta „Možný podvod" pod příchozí zprávou (`ScamWarnings`, prompt `ScamPrompt.kt`, karta

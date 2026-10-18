@@ -55,6 +55,21 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
+import eu.tintera.plume.core.telegram.AiTextRepository
+import eu.tintera.plume.core.telegram.DraftChange
+import eu.tintera.plume.core.telegram.DraftDiff
+import eu.tintera.plume.core.telegram.TextStyleOption
+import eu.tintera.plume.core.telegram.userMessage
+import eu.tintera.plume.resources.rewrite_on_device
+import eu.tintera.plume.resources.rewrite_on_server
+import eu.tintera.plume.resources.rewrite_server_disclaimer
+import eu.tintera.plume.resources.rewrite_server_failed
+import eu.tintera.plume.resources.rewrite_server_fix
+import org.jetbrains.compose.resources.StringResource
 import eu.tintera.plume.core.ai.MAX_REWRITE_CHARS
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAiException
@@ -107,20 +122,38 @@ sealed interface ToneState {
     data class Known(val verdict: ToneVerdict) : ToneState
 }
 
+/**
+ * Čím se přepisuje: modelem v zařízení ([Local]), nebo na serveru Telegramu — opravou chyb
+ * ([ServerFix], `fixTextWithAi`) či jeho stylem psaní ([ServerStyle], `composeTextWithAi`).
+ */
+sealed interface RewriteChoice {
+    data class Local(val style: RewriteStyle) : RewriteChoice
+
+    data object ServerFix : RewriteChoice
+
+    data class ServerStyle(val style: TextStyleOption) : RewriteChoice
+
+    /** Text odchází na server Telegramu (sheet to pod výsledkem říká). */
+    val onServer: Boolean get() = this !is Local
+}
+
 /** Stav přepisu rozepsané zprávy. */
 sealed interface RewriteState {
     /** Nic neběží; sheet čeká na výběr stylu. */
     data object Idle : RewriteState
 
     /** Model píše; [text] je zatím napsaný kus (může být prázdný). */
-    data class Working(val style: RewriteStyle, val text: String) : RewriteState
+    data class Working(val choice: RewriteChoice, val text: String) : RewriteState
 
-    /** Hotovo. [text] je očištěný výstup ([cleanRewrite]). */
-    data class Done(val style: RewriteStyle, val text: String) : RewriteState
+    /**
+     * Hotovo. [text] je očištěný výstup ([cleanRewrite]); u opravy na serveru navíc [diff] —
+     * tentýž text i se smazanými kusy a vyznačenými změnami.
+     */
+    data class Done(val choice: RewriteChoice, val text: String, val diff: DraftDiff? = null) : RewriteState
 
     data object ModelMissing : RewriteState
 
-    data class Failed(val style: RewriteStyle, val reason: UiText) : RewriteState
+    data class Failed(val choice: RewriteChoice, val reason: UiText) : RewriteState
 }
 
 /**
@@ -134,10 +167,14 @@ sealed interface RewriteState {
 class DraftRewriteViewModel(
     private val ai: OnDeviceAi,
     private val settings: AppSettings,
+    private val aiText: AiTextRepository,
 ) : ViewModel() {
     private val logger = Logger.withTag("DraftRewrite")
 
-    /** Nabídnout „Přepsat…" jen se zapnutou AI a na zařízení, které model má nebo mít může. */
+    /** Styly psaní od serveru Telegramu; prázdné = nabízí se jen oprava chyb. */
+    val serverStyles: StateFlow<List<TextStyleOption>> = aiText.styles
+
+    /** Přepis modelem v zařízení: jen se zapnutou AI a na zařízení, které model má nebo mít může. */
     val available: StateFlow<Boolean> = combine(
         settings.onDeviceAiEnabled,
         settings.onDeviceAiVariant.flatMapLatest { variant ->
@@ -191,42 +228,69 @@ class DraftRewriteViewModel(
         }
     }
 
-    /** Přepíše [text] stylem [style]. Vždy z PŮVODNÍHO textu, ne z předchozího přepisu. */
-    fun rewrite(text: String, style: RewriteStyle) {
+    /** Přepíše [text] volbou [choice]. Vždy z PŮVODNÍHO textu, ne z předchozího přepisu. */
+    fun rewrite(text: String, choice: RewriteChoice) {
         job?.cancel()
         if (_tone.value == ToneState.Checking) {
             toneJob?.cancel()
             _tone.value = ToneState.Unknown
         }
-        _state.value = RewriteState.Working(style, "")
+        _state.value = RewriteState.Working(choice, "")
         job = viewModelScope.launch {
-            val variant = settings.onDeviceAiVariant.value
-            if (ai.status(variant) != OnDeviceAiStatus.Ready) {
-                _state.value = RewriteState.ModelMissing
-                return@launch
+            when (choice) {
+                is RewriteChoice.Local -> rewriteLocally(text, choice)
+                RewriteChoice.ServerFix -> aiText.fix(text).fold(
+                    onSuccess = { fixed -> _state.value = RewriteState.Done(choice, fixed.text.trim(), fixed.diff) },
+                    onFailure = { failure -> serverFailed(choice, failure) },
+                )
+                is RewriteChoice.ServerStyle -> aiText.compose(text, choice.style.name).fold(
+                    onSuccess = { result ->
+                        _state.value = if (result.isBlank()) {
+                            RewriteState.Failed(choice, UiText(Res.string.rewrite_failed))
+                        } else {
+                            RewriteState.Done(choice, result.trim())
+                        }
+                    },
+                    onFailure = { failure -> serverFailed(choice, failure) },
+                )
             }
-            try {
-                var last = ""
-                ai.generate(variant, rewritePrompt(text, style)).collect { chunk ->
-                    last = chunk.text
-                    _state.value = RewriteState.Working(style, cleanRewrite(chunk.text))
-                }
-                val result = cleanRewrite(last)
-                _state.value = if (result.isBlank()) {
-                    logger.w { "Model přepisu nenapsal žádný text" }
-                    RewriteState.Failed(style, UiText(Res.string.rewrite_failed))
-                } else {
-                    RewriteState.Done(style, result)
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: OnDeviceAiException) {
-                if (e.isReportable) logger.e(e) { "Přepis se nepovedl" } else logger.w(e) { "Přepis se nepovedl" }
-                _state.value = RewriteState.Failed(style, e.userMessage())
-            } catch (e: Exception) {
-                logger.e(e) { "Přepis se nepovedl" }
-                _state.value = RewriteState.Failed(style, UiText(Res.string.rewrite_failed))
+        }
+    }
+
+    /** Selhání serveru: věta pro uživatele (`AICOMPOSE_FLOOD_PREMIUM` = došly bezplatné úpravy). */
+    private fun serverFailed(choice: RewriteChoice, failure: Throwable) {
+        logger.w(failure) { "Úprava textu na serveru se nepovedla" }
+        _state.value = RewriteState.Failed(choice, failure.userMessage(Res.string.rewrite_server_failed))
+    }
+
+    private suspend fun rewriteLocally(text: String, choice: RewriteChoice.Local) {
+        val style = choice.style
+        val variant = settings.onDeviceAiVariant.value
+        if (ai.status(variant) != OnDeviceAiStatus.Ready) {
+            _state.value = RewriteState.ModelMissing
+            return
+        }
+        try {
+            var last = ""
+            ai.generate(variant, rewritePrompt(text, style)).collect { chunk ->
+                last = chunk.text
+                _state.value = RewriteState.Working(choice, cleanRewrite(chunk.text))
             }
+            val result = cleanRewrite(last)
+            _state.value = if (result.isBlank()) {
+                logger.w { "Model přepisu nenapsal žádný text" }
+                RewriteState.Failed(choice, UiText(Res.string.rewrite_failed))
+            } else {
+                RewriteState.Done(choice, result)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: OnDeviceAiException) {
+            if (e.isReportable) logger.e(e) { "Přepis se nepovedl" } else logger.w(e) { "Přepis se nepovedl" }
+            _state.value = RewriteState.Failed(choice, e.userMessage())
+        } catch (e: Exception) {
+            logger.e(e) { "Přepis se nepovedl" }
+            _state.value = RewriteState.Failed(choice, UiText(Res.string.rewrite_failed))
         }
     }
 
@@ -256,8 +320,19 @@ internal class DraftRewrite(
     var source by mutableStateOf<String?>(null)
         private set
 
-    /** Nabídnout „Přepsat…"? Jestli je v poli co přepsat ([rewritable]), rozhoduje pole samo. */
-    val offered: Boolean get() = available.value
+    /** Smí text na server Telegramu? Ne v tajném chatu; nastavuje vstupní pole. */
+    var serverAllowed by mutableStateOf(true)
+        internal set
+
+    /** Přepis modelem v zařízení se nabízí (zapnutá AI, podporované zařízení). */
+    val localAvailable: Boolean get() = available.value
+
+    /**
+     * Nabídnout „Zkontrolovat a přepsat…"? Model v zařízení, nebo server — úpravy od serveru
+     * tak má i telefon bez AI v zařízení. Jestli je v poli co přepsat ([rewritable]), rozhoduje
+     * pole samo.
+     */
+    val offered: Boolean get() = available.value || serverAllowed
 
     fun open(text: String) {
         source = text
@@ -274,10 +349,10 @@ internal class DraftRewrite(
  * „Zásobník pro každou sekci"), a stav nese jen otevřený sheet, ne nic z chatu.
  */
 @Composable
-internal fun rememberDraftRewrite(): DraftRewrite {
+internal fun rememberDraftRewrite(serverAllowed: Boolean): DraftRewrite {
     val viewModel: DraftRewriteViewModel = koinViewModel(key = "draft-rewrite")
     val available = viewModel.available.collectAsStateWithLifecycle()
-    return remember(viewModel) { DraftRewrite(viewModel, available) }
+    return remember(viewModel) { DraftRewrite(viewModel, available) }.also { it.serverAllowed = serverAllowed }
 }
 
 /**
@@ -293,11 +368,12 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
     // Tón se zjišťuje sám po otevření: je to dotaz „jak to zní", který si uživatel otevřením
     // sheetu položil. Jednou na text, ne při každém složení.
     LaunchedEffect(source) { rewrite.viewModel.checkTone(source) }
+    val serverStyles by rewrite.viewModel.serverStyles.collectAsStateWithLifecycle()
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
-    val style = when (val s = state) {
-        is RewriteState.Working -> s.style
-        is RewriteState.Done -> s.style
-        is RewriteState.Failed -> s.style
+    val choice = when (val s = state) {
+        is RewriteState.Working -> s.choice
+        is RewriteState.Done -> s.choice
+        is RewriteState.Failed -> s.choice
         else -> null
     }
 
@@ -319,13 +395,39 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
                 maxLines = 6,
             )
             ToneLine(tone)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                RewriteStyle.entries.forEach { option ->
+            /*
+             * Dvě řady: model v zařízení a server Telegramu. Odděleně a s nadpisem, protože se
+             * liší tím podstatným — kam text odchází. Kdo AI v zařízení nemá, vidí jen server;
+             * v tajném chatu jen zařízení.
+             */
+            val local = rewrite.localAvailable
+            if (local) {
+                ChoiceRow(title = Res.string.rewrite_on_device.takeIf { rewrite.serverAllowed }) {
+                    RewriteStyle.entries.forEach { option ->
+                        val option = RewriteChoice.Local(option)
+                        FilterChip(
+                            selected = option == choice,
+                            onClick = { rewrite.viewModel.rewrite(source, option) },
+                            label = { Text(stringResource(option.style.label)) },
+                        )
+                    }
+                }
+            }
+            if (rewrite.serverAllowed) {
+                ChoiceRow(title = Res.string.rewrite_on_server.takeIf { local }) {
                     FilterChip(
-                        selected = option == style,
-                        onClick = { rewrite.viewModel.rewrite(source, option) },
-                        label = { Text(stringResource(option.label)) },
+                        selected = choice == RewriteChoice.ServerFix,
+                        onClick = { rewrite.viewModel.rewrite(source, RewriteChoice.ServerFix) },
+                        label = { Text(stringResource(Res.string.rewrite_server_fix)) },
                     )
+                    serverStyles.forEach { style ->
+                        val option = RewriteChoice.ServerStyle(style)
+                        FilterChip(
+                            selected = option == choice,
+                            onClick = { rewrite.viewModel.rewrite(source, option) },
+                            label = { Text(style.title) },
+                        )
+                    }
                 }
             }
 
@@ -337,7 +439,7 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
                 )
                 is RewriteState.Working -> RewriteResult(s.text, working = true)
                 is RewriteState.Done -> {
-                    RewriteResult(s.text, working = false)
+                    RewriteResult(s.text, working = false, diff = s.diff)
                     if (s.text == source.trim()) {
                         Text(
                             stringResource(Res.string.rewrite_unchanged),
@@ -375,8 +477,11 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
                 ) { Text(stringResource(Res.string.rewrite_use)) }
             }
 
+            // Kam text šel, podle toho, čím se přepisovalo; před první volbou podle toho, co
+            // sheet nabízí (bez AI v zařízení jen server).
+            val onServer = choice?.onServer ?: !local
             Text(
-                stringResource(Res.string.rewrite_disclaimer),
+                stringResource(if (onServer) Res.string.rewrite_server_disclaimer else Res.string.rewrite_disclaimer),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -384,9 +489,48 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
     }
 }
 
+/** Řada voleb přepisu, nad ní případně nadpis (jen když jsou řady dvě). */
+@Composable
+private fun ChoiceRow(title: StringResource?, chips: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        title?.let {
+            Text(
+                stringResource(it),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { chips() }
+    }
+}
+
+/**
+ * Změny z opravy na serveru přímo v textu: vložené a nahrazené na podkladu `primaryContainer`,
+ * smazané přeškrtnuté chybovou barvou. Rozsahy jsou v UTF-16 jako u entit; mimo text se oříznou.
+ */
+@Composable
+private fun diffText(diff: DraftDiff): AnnotatedString {
+    val added = SpanStyle(
+        background = MaterialTheme.colorScheme.primaryContainer,
+        color = MaterialTheme.colorScheme.onPrimaryContainer,
+    )
+    val removed = SpanStyle(
+        color = MaterialTheme.colorScheme.error,
+        textDecoration = TextDecoration.LineThrough,
+    )
+    return buildAnnotatedString {
+        append(diff.text)
+        diff.changes.forEach { change ->
+            val start = change.offset.coerceIn(0, diff.text.length)
+            val end = (change.offset + change.length).coerceIn(start, diff.text.length)
+            addStyle(if (change.kind == DraftChange.Kind.Delete) removed else added, start, end)
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun RewriteResult(text: String, working: Boolean) {
+private fun RewriteResult(text: String, working: Boolean, diff: DraftDiff? = null) {
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -400,7 +544,11 @@ private fun RewriteResult(text: String, working: Boolean) {
                 // Barva výslovně: zděděná vyšla v sheetu šedá jako původní text nad kartou
                 // (ověřeno na emulátoru) a výsledek, o kterém se rozhoduje, nesmí vypadat potlačeně.
                 SelectionContainer {
-                    Text(text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                    if (diff != null && diff.changes.isNotEmpty()) {
+                        Text(diffText(diff), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                    } else {
+                        Text(text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+                    }
                 }
             }
             if (working) LoadingIndicator(Modifier.size(32.dp))

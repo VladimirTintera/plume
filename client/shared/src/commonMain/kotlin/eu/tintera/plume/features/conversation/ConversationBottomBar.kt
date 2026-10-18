@@ -447,6 +447,8 @@ internal fun ConversationBottomBar(
     CompositionLocalProvider(LocalSharedElementOcclusion provides listClip) {
     MessageInput(
         gestureHints = gestureHints,
+        // AI úpravy od serveru tajný chat nesmí (dokumentace `composeTextWithAi`).
+        serverAiAllowed = state.info?.isSecret != true,
         senderSlot = state.messageSender?.let { choice ->
             { modifier ->
                 SendAsButton(

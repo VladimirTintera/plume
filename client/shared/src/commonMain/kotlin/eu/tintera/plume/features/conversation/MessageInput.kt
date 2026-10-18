@@ -214,6 +214,8 @@ import org.jetbrains.compose.resources.stringResource
 internal fun MessageInput(
     /** Mléčné sklo nad seznamem: pás je průhledný, barvu i rozostření nese sklo. */
     glass: Modifier,
+    /** Smí koncept na server Telegramu k AI úpravám? Ne v tajném chatu. */
+    serverAiAllowed: Boolean = true,
     replyingTo: ChatMessage?,
     /** Citovaný úryvek [replyingTo], nebo `null` (odpověď na celou zprávu). */
     replyQuote: String?,
@@ -350,7 +352,7 @@ internal fun MessageInput(
      * text se jen VLOŽÍ do pole, jako návrh odpovědi; formátování konceptu se zahodí — model
      * vrací holý text a rozsahy by na něm ujely.
      */
-    val rewrite = rememberDraftRewrite()
+    val rewrite = rememberDraftRewrite(serverAllowed = serverAiAllowed)
     DraftRewriteSheet(rewrite) { text ->
         composer.fill(text, emptyList())
         onDraftChanged(composer.composed)
