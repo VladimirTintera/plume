@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.media
 
 import androidx.compose.foundation.focusable
+import eu.tintera.plume.core.ui.ConfirmDialog
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.KeyEventType
@@ -25,7 +26,6 @@ import eu.tintera.plume.resources.media_describe_hide
 import eu.tintera.plume.resources.media_text
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import eu.tintera.plume.core.ui.readString
@@ -154,9 +154,6 @@ import eu.tintera.plume.resources.media_profile_photo_delete_title
 import eu.tintera.plume.resources.media_profile_photo_delete
 import eu.tintera.plume.resources.media_profile_photo_set_main
 import eu.tintera.plume.resources.person_24dp
-import eu.tintera.plume.resources.common_cancel
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.AlertDialog
 import eu.tintera.plume.resources.media_share
 import eu.tintera.plume.resources.more_vert_24dp
 import eu.tintera.plume.resources.schedule_24dp
@@ -324,18 +321,14 @@ fun MediaViewerScreen(
     }
 
     if (state.pendingProfilePhotoDelete != null) {
-        AlertDialog(
-            onDismissRequest = viewModel::dismissDeleteProfilePhoto,
-            title = { Text(stringResource(Res.string.media_profile_photo_delete_title)) },
-            text = { Text(stringResource(Res.string.media_profile_photo_delete_text)) },
-            confirmButton = {
-                TextButton(onClick = viewModel::confirmDeleteProfilePhoto, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.menu_delete), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = viewModel::dismissDeleteProfilePhoto, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-            },
+        ConfirmDialog(
+            title = stringResource(Res.string.media_profile_photo_delete_title),
+            text = stringResource(Res.string.media_profile_photo_delete_text),
+            confirmLabel = stringResource(Res.string.menu_delete),
+            onConfirm = viewModel::confirmDeleteProfilePhoto,
+            onDismiss = viewModel::dismissDeleteProfilePhoto,
+            icon = Res.drawable.delete_24dp,
+            destructive = true,
         )
     }
 

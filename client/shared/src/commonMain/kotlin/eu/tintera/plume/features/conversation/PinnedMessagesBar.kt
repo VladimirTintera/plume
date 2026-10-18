@@ -1,8 +1,9 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.resources.keep_off_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.conversation_unpin_all_body
 import eu.tintera.plume.resources.conversation_unpin_all_title
 import eu.tintera.plume.resources.conversation_unpin_all
@@ -11,7 +12,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.AlertDialog
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -310,21 +310,17 @@ internal fun PinnedMessagesSheet(
 
     // „Vrátit" by muselo připnout každou zprávu zvlášť, proto se ptá předem — na rozdíl od jedné.
     if (confirmUnpinAll) {
-        AlertDialog(
-            onDismissRequest = { confirmUnpinAll = false },
-            title = { Text(pluralStringResource(Res.plurals.conversation_unpin_all_title, messages.size, messages.size)) },
-            text = { Text(stringResource(Res.string.conversation_unpin_all_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmUnpinAll = false
-                    hideThen(onUnpinAll)
-                }, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.conversation_unpin_all), color = MaterialTheme.colorScheme.error)
-                }
+        ConfirmDialog(
+            title = pluralStringResource(Res.plurals.conversation_unpin_all_title, messages.size, messages.size),
+            text = stringResource(Res.string.conversation_unpin_all_body),
+            confirmLabel = stringResource(Res.string.conversation_unpin_all),
+            onConfirm = {
+                confirmUnpinAll = false
+                hideThen(onUnpinAll)
             },
-            dismissButton = {
-                TextButton(onClick = { confirmUnpinAll = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-            },
+            onDismiss = { confirmUnpinAll = false },
+            icon = Res.drawable.keep_off_24dp,
+            destructive = true,
         )
     }
 }

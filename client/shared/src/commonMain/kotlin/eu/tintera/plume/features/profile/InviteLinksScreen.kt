@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.core.ui.GroupEmptyRow
 import eu.tintera.plume.core.ui.MediumButton
@@ -26,7 +27,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
@@ -97,7 +97,6 @@ import eu.tintera.plume.resources.add_24dp
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.common_back
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.content_copy_24dp
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.edit_24dp
@@ -308,49 +307,35 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
     }
 
     confirmRevoke?.let { link ->
-        AlertDialog(
-            onDismissRequest = { confirmRevoke = null },
-            title = { Text(stringResource(Res.string.invite_links_revoke_title)) },
-            text = {
-                Text(
-                    stringResource(
-                        if (link.isPrimary) Res.string.invite_links_revoke_primary_body else Res.string.invite_links_revoke_body,
-                    ),
-                )
+        ConfirmDialog(
+            title = stringResource(Res.string.invite_links_revoke_title),
+            text = stringResource(
+                if (link.isPrimary) Res.string.invite_links_revoke_primary_body else Res.string.invite_links_revoke_body,
+            ),
+            confirmLabel = stringResource(if (link.isPrimary) Res.string.invite_links_replace_primary else Res.string.invite_links_revoke),
+            onConfirm = {
+                confirmRevoke = null
+                viewModel.revoke(link)
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmRevoke = null
-                    viewModel.revoke(link)
-                }, shapes = ButtonDefaults.shapes()) {
-                    Text(
-                        stringResource(if (link.isPrimary) Res.string.invite_links_replace_primary else Res.string.invite_links_revoke),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmRevoke = null }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.invite_links_keep)) }
-            },
+            onDismiss = { confirmRevoke = null },
+            dismissLabel = stringResource(Res.string.invite_links_keep),
+            icon = Res.drawable.link_off_24dp,
+            destructive = true,
         )
     }
 
     if (confirmDeleteAll) {
-        AlertDialog(
-            onDismissRequest = { confirmDeleteAll = false },
-            title = { Text(stringResource(Res.string.invite_links_delete_all_title)) },
-            text = { Text(stringResource(Res.string.invite_links_delete_all_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmDeleteAll = false
-                    viewModel.deleteAllRevoked()
-                }, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.invite_links_delete_all), color = MaterialTheme.colorScheme.error)
-                }
+        ConfirmDialog(
+            title = stringResource(Res.string.invite_links_delete_all_title),
+            text = stringResource(Res.string.invite_links_delete_all_body),
+            confirmLabel = stringResource(Res.string.invite_links_delete_all),
+            onConfirm = {
+                confirmDeleteAll = false
+                viewModel.deleteAllRevoked()
             },
-            dismissButton = {
-                TextButton(onClick = { confirmDeleteAll = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-            },
+            onDismiss = { confirmDeleteAll = false },
+            icon = Res.drawable.delete_24dp,
+            destructive = true,
         )
     }
 
@@ -372,21 +357,17 @@ fun InviteLinksScreen(viewModel: InviteLinksViewModel, onBack: () -> Unit, modif
     }
 
     confirmDeleteAdminRevoked?.let { admin ->
-        AlertDialog(
-            onDismissRequest = { confirmDeleteAdminRevoked = null },
-            title = { Text(stringResource(Res.string.invite_links_delete_all_title)) },
-            text = { Text(stringResource(Res.string.invite_links_delete_all_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmDeleteAdminRevoked = null
-                    viewModel.deleteAllRevoked(admin)
-                }, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.invite_links_delete_all), color = MaterialTheme.colorScheme.error)
-                }
+        ConfirmDialog(
+            title = stringResource(Res.string.invite_links_delete_all_title),
+            text = stringResource(Res.string.invite_links_delete_all_body),
+            confirmLabel = stringResource(Res.string.invite_links_delete_all),
+            onConfirm = {
+                confirmDeleteAdminRevoked = null
+                viewModel.deleteAllRevoked(admin)
             },
-            dismissButton = {
-                TextButton(onClick = { confirmDeleteAdminRevoked = null }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-            },
+            onDismiss = { confirmDeleteAdminRevoked = null },
+            icon = Res.drawable.delete_24dp,
+            destructive = true,
         )
     }
 

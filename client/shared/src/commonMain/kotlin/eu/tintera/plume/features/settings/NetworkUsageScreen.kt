@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import eu.tintera.plume.resources.history_toggle_off_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,7 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -50,7 +51,6 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.call_24dp
 import eu.tintera.plume.resources.chat_bubble_24dp
 import eu.tintera.plume.resources.check_24dp
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.network_usage_calls
 import eu.tintera.plume.resources.network_usage_calls_summary
 import eu.tintera.plume.resources.network_usage_empty
@@ -150,16 +150,14 @@ fun NetworkUsageScreen(viewModel: NetworkUsageViewModel, onBack: () -> Unit, mod
     }
 
     if (state.confirmingReset) {
-        AlertDialog(
-            onDismissRequest = viewModel::dismissReset,
-            title = { Text(stringResource(Res.string.network_usage_reset_title)) },
-            text = { Text(stringResource(Res.string.network_usage_reset_text)) },
-            confirmButton = {
-                TextButton(onClick = viewModel::confirmReset, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.network_usage_reset_confirm), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = { TextButton(onClick = viewModel::dismissReset, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+        ConfirmDialog(
+            title = stringResource(Res.string.network_usage_reset_title),
+            text = stringResource(Res.string.network_usage_reset_text),
+            confirmLabel = stringResource(Res.string.network_usage_reset_confirm),
+            onConfirm = viewModel::confirmReset,
+            onDismiss = viewModel::dismissReset,
+            icon = Res.drawable.history_toggle_off_24dp,
+            destructive = true,
         )
     }
 }

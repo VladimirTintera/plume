@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.resources.settings_discreet_reading_summary
 import eu.tintera.plume.resources.settings_discreet_reading
@@ -11,8 +12,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -23,7 +22,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -76,7 +74,6 @@ import eu.tintera.plume.resources.settings_app_lock_on
 import eu.tintera.plume.resources.settings_strip_tracking_params
 import eu.tintera.plume.resources.settings_strip_tracking_params_summary
 import eu.tintera.plume.resources.chats_search_section_chats
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.new_chat_contacts
 import eu.tintera.plume.resources.new_chat_empty
 import eu.tintera.plume.resources.person_24dp
@@ -485,16 +482,14 @@ fun BlockSenderScreen(
     )
 
     state.pending?.let { chat ->
-        AlertDialog(
-            onDismissRequest = viewModel::cancel,
-            title = { Text(stringResource(Res.string.profile_block_title, chat.title)) },
-            text = { Text(stringResource(Res.string.settings_block_body)) },
-            confirmButton = {
-                TextButton(onClick = viewModel::confirm, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.profile_block), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = { TextButton(onClick = viewModel::cancel, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+        ConfirmDialog(
+            title = stringResource(Res.string.profile_block_title, chat.title),
+            text = stringResource(Res.string.settings_block_body),
+            confirmLabel = stringResource(Res.string.profile_block),
+            onConfirm = viewModel::confirm,
+            onDismiss = viewModel::cancel,
+            icon = Res.drawable.block_24dp,
+            destructive = true,
         )
     }
 }

@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.forum
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.border
@@ -15,8 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -27,7 +26,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,7 +49,6 @@ import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.check_24dp
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.edit_profile_save
@@ -293,16 +290,14 @@ private fun ColorChoice(rgb: Int, name: String, selected: Boolean, onClick: () -
 /** Smazání tématu: nevratné a pro všechny, i se zprávami — to musí věta říct. */
 @Composable
 internal fun DeleteTopicDialog(topic: ForumTopic, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.forum_topic_delete_title, topic.name)) },
-        text = { Text(stringResource(Res.string.forum_topic_delete_body)) },
-        confirmButton = {
-            TextButton(onClick = onConfirm, shapes = ButtonDefaults.shapes()) {
-                Text(stringResource(Res.string.forum_topic_delete), color = MaterialTheme.colorScheme.error)
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+    ConfirmDialog(
+        title = stringResource(Res.string.forum_topic_delete_title, topic.name),
+        text = stringResource(Res.string.forum_topic_delete_body),
+        confirmLabel = stringResource(Res.string.forum_topic_delete),
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        icon = Res.drawable.delete_24dp,
+        destructive = true,
     )
 }
 

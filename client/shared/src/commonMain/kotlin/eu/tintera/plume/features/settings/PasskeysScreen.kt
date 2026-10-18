@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import androidx.compose.foundation.clickable
+import eu.tintera.plume.core.ui.ConfirmDialog
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -42,7 +42,6 @@ import eu.tintera.plume.core.ui.CustomEmojiIcon
 import eu.tintera.plume.core.ui.asDayLabel
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.passkey_24dp
 import eu.tintera.plume.resources.passkey_added
@@ -171,18 +170,14 @@ fun PasskeysScreen(viewModel: PasskeysViewModel, onBack: () -> Unit, modifier: M
     }
 
     state.confirming?.let { passkey ->
-        AlertDialog(
-            onDismissRequest = viewModel::dismissRemove,
-            title = { Text(stringResource(Res.string.passkey_remove_title, passkey.displayName())) },
-            text = { Text(stringResource(Res.string.passkey_remove_text)) },
-            confirmButton = {
-                TextButton(onClick = viewModel::confirmRemove, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.passkey_remove_confirm), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = viewModel::dismissRemove, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-            },
+        ConfirmDialog(
+            title = stringResource(Res.string.passkey_remove_title, passkey.displayName()),
+            text = stringResource(Res.string.passkey_remove_text),
+            confirmLabel = stringResource(Res.string.passkey_remove_confirm),
+            onConfirm = viewModel::confirmRemove,
+            onDismiss = viewModel::dismissRemove,
+            icon = Res.drawable.delete_24dp,
+            destructive = true,
         )
     }
 }

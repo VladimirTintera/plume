@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.resources.cake_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.MediumButtonIcon
 import eu.tintera.plume.core.ui.MediumButton
 import eu.tintera.plume.resources.birthdate_suggest_confirm
@@ -64,7 +65,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.core.ui.ExpressiveMenu
 import eu.tintera.plume.core.ui.toggle
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.common_delete
 import eu.tintera.plume.resources.chats_leave_body
 import eu.tintera.plume.resources.chats_leave_title
@@ -84,8 +84,6 @@ import eu.tintera.plume.resources.block_24dp
 import eu.tintera.plume.resources.more_vert_24dp
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.AlertDialog
 import androidx.compose.foundation.clickable
 import eu.tintera.plume.resources.profile_notif_title
 import eu.tintera.plume.core.telegram.ChatNotificationPrefs
@@ -1738,19 +1736,17 @@ private fun ProfileMenu(
     }
 
     if (confirmBlock) {
-        AlertDialog(
-            onDismissRequest = { confirmBlock = false },
-            title = { Text(stringResource(Res.string.profile_block_title, profile.title)) },
-            text = {
-                Text(stringResource(if (profile.kind == ProfileKind.Bot) Res.string.profile_block_bot_body else Res.string.profile_block_body))
+        ConfirmDialog(
+            title = stringResource(Res.string.profile_block_title, profile.title),
+            text = stringResource(if (profile.kind == ProfileKind.Bot) Res.string.profile_block_bot_body else Res.string.profile_block_body),
+            confirmLabel = stringResource(Res.string.profile_block),
+            onConfirm = {
+                confirmBlock = false
+                onSetBlocked(true)
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmBlock = false
-                    onSetBlocked(true)
-                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.profile_block), color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = { TextButton(onClick = { confirmBlock = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+            onDismiss = { confirmBlock = false },
+            icon = Res.drawable.block_24dp,
+            destructive = true,
         )
     }
     if (pickBirthdate) {
@@ -1765,17 +1761,17 @@ private fun ProfileMenu(
         )
     }
     if (confirmRemoveContact) {
-        AlertDialog(
-            onDismissRequest = { confirmRemoveContact = false },
-            title = { Text(stringResource(Res.string.profile_remove_contact_title, profile.title)) },
-            text = { Text(stringResource(Res.string.profile_remove_contact_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmRemoveContact = false
-                    onSetContact(false)
-                }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.profile_remove_contact), color = MaterialTheme.colorScheme.error) }
+        ConfirmDialog(
+            title = stringResource(Res.string.profile_remove_contact_title, profile.title),
+            text = stringResource(Res.string.profile_remove_contact_body),
+            confirmLabel = stringResource(Res.string.profile_remove_contact),
+            onConfirm = {
+                confirmRemoveContact = false
+                onSetContact(false)
             },
-            dismissButton = { TextButton(onClick = { confirmRemoveContact = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+            onDismiss = { confirmRemoveContact = false },
+            icon = Res.drawable.person_remove_24dp,
+            destructive = true,
         )
     }
 }

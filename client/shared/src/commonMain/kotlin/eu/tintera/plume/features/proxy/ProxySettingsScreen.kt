@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.proxy
 
 import eu.tintera.plume.features.settings.SettingsTopBar
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.features.settings.settingsScroll
 import eu.tintera.plume.features.settings.settingsScrollBehavior
@@ -22,7 +23,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
@@ -43,7 +43,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -79,7 +78,6 @@ import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_24dp
 import eu.tintera.plume.resources.check_24dp
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.content_copy_24dp
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.edit_24dp
@@ -253,16 +251,14 @@ fun ProxySettingsScreen(
     }
 
     state.pendingRemove?.let { proxy ->
-        AlertDialog(
-            onDismissRequest = viewModel::dismissRemove,
-            title = { Text(stringResource(Res.string.proxy_delete_title)) },
-            text = { Text(stringResource(Res.string.proxy_delete_body, proxy.config.server)) },
-            confirmButton = {
-                TextButton(onClick = viewModel::confirmRemove, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.proxy_delete), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = { TextButton(onClick = viewModel::dismissRemove, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+        ConfirmDialog(
+            title = stringResource(Res.string.proxy_delete_title),
+            text = stringResource(Res.string.proxy_delete_body, proxy.config.server),
+            confirmLabel = stringResource(Res.string.proxy_delete),
+            onConfirm = viewModel::confirmRemove,
+            onDismiss = viewModel::dismissRemove,
+            icon = Res.drawable.delete_24dp,
+            destructive = true,
         )
     }
 }

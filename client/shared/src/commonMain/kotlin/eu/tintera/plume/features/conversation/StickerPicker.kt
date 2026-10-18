@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import androidx.compose.foundation.lazy.rememberLazyListState
 import eu.tintera.plume.core.ui.wheelScrollsHorizontally
 import androidx.compose.animation.AnimatedVisibility
@@ -45,7 +47,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
@@ -153,7 +154,6 @@ import eu.tintera.plume.resources.stickers_added
 import eu.tintera.plume.resources.stickers_clear_search
 import eu.tintera.plume.resources.stickers_favorites_empty
 import eu.tintera.plume.resources.stickers_none_found
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.stickers_recent_clear
 import eu.tintera.plume.resources.stickers_recent_clear_confirm
 import eu.tintera.plume.resources.stickers_recent_clear_text
@@ -1010,16 +1010,14 @@ private fun StickerPage(
  */
 @Composable
 private fun ClearRecentDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.stickers_recent_clear_title)) },
-        text = { Text(stringResource(Res.string.stickers_recent_clear_text)) },
-        confirmButton = {
-            TextButton(onClick = onConfirm, shapes = ButtonDefaults.shapes()) {
-                Text(stringResource(Res.string.stickers_recent_clear_confirm), color = MaterialTheme.colorScheme.error)
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+    ConfirmDialog(
+        title = stringResource(Res.string.stickers_recent_clear_title),
+        text = stringResource(Res.string.stickers_recent_clear_text),
+        confirmLabel = stringResource(Res.string.stickers_recent_clear_confirm),
+        onConfirm = onConfirm,
+        onDismiss = onDismiss,
+        icon = Res.drawable.delete_24dp,
+        destructive = true,
     )
 }
 

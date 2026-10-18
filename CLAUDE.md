@@ -509,6 +509,10 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
 - **Nadpis modálního sheetu je `SheetTitle`** (`core/ui`, `titleLargeEmphasized`), ne `Text`
   s vlastní rolí: dřív měla polovina sheetů `titleLarge` a polovina `titleMedium`. Odsazení
   si dává sheet. Výjimka jsou sheety, kde velký text JE obsah (náhled pozvánky, Můj QR kód).
+- **Potvrzení akce je `ConfirmDialog`** (`core/ui`): ikona, otázka, věta s následkem, Zrušit
+  a potvrzení. Nevratná akce `destructive = true` — ikona i potvrzení v chybové barvě přes barvy
+  tlačítka. Ikona říká, CO se stane (koš, odchod, blokování), ne „pozor". Dialog s volbou nebo
+  polem zůstává `AlertDialog`.
 - **Tlačítko ve slotu textového pole patří do `TextFieldSlot`** (`core/ui`): `leadingIcon` /
   `trailingIcon` s `IconButton`, avatarem a podobně. `BasicTextField` dává textový kurzor celému
   boxu i s dekorací a ikony ho dědí — na desktopu se nad avatarem účtu v hledání ukazoval

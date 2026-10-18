@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.settings
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.resources.delete_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.resources.change_phone_row
 import eu.tintera.plume.resources.call_24dp
 import androidx.compose.ui.graphics.Color
@@ -31,12 +33,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -63,7 +63,6 @@ import eu.tintera.plume.core.ui.PhotoCropOverlay
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.edit_profile_bio
 import eu.tintera.plume.resources.edit_profile_bio_help
 import eu.tintera.plume.resources.edit_profile_bio_count
@@ -127,21 +126,17 @@ fun EditProfileScreen(
     val picker = rememberAttachmentPicker(onPicked = viewModel::setPhoto, onError = viewModel::reportError)
 
     if (confirmDeletePhoto) {
-        AlertDialog(
-            onDismissRequest = { confirmDeletePhoto = false },
-            title = { Text(stringResource(Res.string.edit_profile_delete_photo)) },
-            text = { Text(stringResource(Res.string.edit_profile_delete_photo_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmDeletePhoto = false
-                    viewModel.deletePhoto()
-                }, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.edit_profile_delete_photo_confirm), color = MaterialTheme.colorScheme.error)
-                }
+        ConfirmDialog(
+            title = stringResource(Res.string.edit_profile_delete_photo),
+            text = stringResource(Res.string.edit_profile_delete_photo_body),
+            confirmLabel = stringResource(Res.string.edit_profile_delete_photo_confirm),
+            onConfirm = {
+                confirmDeletePhoto = false
+                viewModel.deletePhoto()
             },
-            dismissButton = {
-                TextButton(onClick = { confirmDeletePhoto = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-            },
+            onDismiss = { confirmDeletePhoto = false },
+            icon = Res.drawable.delete_24dp,
+            destructive = true,
         )
     }
 

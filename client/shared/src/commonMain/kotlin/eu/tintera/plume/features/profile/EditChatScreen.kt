@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.resources.history_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.resources.event_log_row_help
 import eu.tintera.plume.resources.event_log_row
 import androidx.compose.material3.IconButtonDefaults
@@ -225,21 +226,17 @@ fun EditChatScreen(
     val picker = rememberAttachmentPicker(onPicked = viewModel::setPhoto, onError = viewModel::reportError)
 
     if (confirmDeletePhoto) {
-        AlertDialog(
-            onDismissRequest = { confirmDeletePhoto = false },
-            title = { Text(stringResource(Res.string.edit_chat_delete_photo)) },
-            text = { Text(stringResource(Res.string.edit_chat_delete_photo_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmDeletePhoto = false
-                    viewModel.deletePhoto()
-                }, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.edit_profile_delete_photo_confirm), color = MaterialTheme.colorScheme.error)
-                }
+        ConfirmDialog(
+            title = stringResource(Res.string.edit_chat_delete_photo),
+            text = stringResource(Res.string.edit_chat_delete_photo_body),
+            confirmLabel = stringResource(Res.string.edit_profile_delete_photo_confirm),
+            onConfirm = {
+                confirmDeletePhoto = false
+                viewModel.deletePhoto()
             },
-            dismissButton = {
-                TextButton(onClick = { confirmDeletePhoto = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-            },
+            onDismiss = { confirmDeletePhoto = false },
+            icon = Res.drawable.delete_24dp,
+            destructive = true,
         )
     }
 
@@ -270,28 +267,17 @@ fun EditChatScreen(
     val editable = viewModel.original
     if (confirmDeleteChat && editable != null) {
         val channel = editable.isChannel
-        AlertDialog(
-            onDismissRequest = { confirmDeleteChat = false },
-            title = {
-                Text(stringResource(if (channel) Res.string.edit_chat_delete_channel_title else Res.string.edit_chat_delete_group_title))
+        ConfirmDialog(
+            title = stringResource(if (channel) Res.string.edit_chat_delete_channel_title else Res.string.edit_chat_delete_group_title),
+            text = stringResource(if (channel) Res.string.edit_chat_delete_channel_body else Res.string.edit_chat_delete_group_body),
+            confirmLabel = stringResource(if (channel) Res.string.edit_chat_delete_channel else Res.string.edit_chat_delete_group),
+            onConfirm = {
+                confirmDeleteChat = false
+                viewModel.deleteChatForAll()
             },
-            text = {
-                Text(stringResource(if (channel) Res.string.edit_chat_delete_channel_body else Res.string.edit_chat_delete_group_body))
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmDeleteChat = false
-                    viewModel.deleteChatForAll()
-                }, shapes = ButtonDefaults.shapes()) {
-                    Text(
-                        stringResource(if (channel) Res.string.edit_chat_delete_channel else Res.string.edit_chat_delete_group),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmDeleteChat = false }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-            },
+            onDismiss = { confirmDeleteChat = false },
+            icon = Res.drawable.delete_24dp,
+            destructive = true,
         )
     }
 

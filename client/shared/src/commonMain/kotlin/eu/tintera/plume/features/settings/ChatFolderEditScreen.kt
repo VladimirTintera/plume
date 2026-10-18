@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.resources.link_off_24dp
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.height
 import eu.tintera.plume.core.ui.MediumButtonHeight
@@ -362,19 +364,17 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
     }
 
     linkToDelete?.let { url ->
-        AlertDialog(
-            onDismissRequest = { linkToDelete = null },
-            title = { Text(stringResource(Res.string.chat_folder_share_delete_title)) },
-            text = { Text(stringResource(Res.string.chat_folder_share_delete_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    linkToDelete = null
-                    state.links?.firstOrNull { it.url == url }?.let(viewModel::deleteLink)
-                }, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.chat_folder_share_delete), color = MaterialTheme.colorScheme.error)
-                }
+        ConfirmDialog(
+            title = stringResource(Res.string.chat_folder_share_delete_title),
+            text = stringResource(Res.string.chat_folder_share_delete_body),
+            confirmLabel = stringResource(Res.string.chat_folder_share_delete),
+            onConfirm = {
+                linkToDelete = null
+                state.links?.firstOrNull { it.url == url }?.let(viewModel::deleteLink)
             },
-            dismissButton = { TextButton(onClick = { linkToDelete = null }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+            onDismiss = { linkToDelete = null },
+            icon = Res.drawable.link_off_24dp,
+            destructive = true,
         )
     }
 

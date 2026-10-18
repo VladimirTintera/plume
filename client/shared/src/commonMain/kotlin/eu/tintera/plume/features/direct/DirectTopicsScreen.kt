@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.direct
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -18,8 +19,6 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Badge
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -37,7 +36,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -77,7 +75,6 @@ import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.chats_action_mark_read
 import eu.tintera.plume.resources.chats_action_mark_unread
 import eu.tintera.plume.resources.common_back
-import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.direct_topic_delete
 import eu.tintera.plume.resources.direct_topic_delete_body
@@ -209,19 +206,17 @@ fun DirectTopicsScreen(
         )
     }
     deleteTarget?.let { topic ->
-        AlertDialog(
-            onDismissRequest = { deleteTarget = null },
-            title = { Text(stringResource(Res.string.direct_topic_delete_title, topicTitle(topic))) },
-            text = { Text(stringResource(Res.string.direct_topic_delete_body)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    deleteTarget = null
-                    viewModel.delete(topic)
-                }, shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.direct_topic_delete), color = MaterialTheme.colorScheme.error)
-                }
+        ConfirmDialog(
+            title = stringResource(Res.string.direct_topic_delete_title, topicTitle(topic)),
+            text = stringResource(Res.string.direct_topic_delete_body),
+            confirmLabel = stringResource(Res.string.direct_topic_delete),
+            onConfirm = {
+                deleteTarget = null
+                viewModel.delete(topic)
             },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) } },
+            onDismiss = { deleteTarget = null },
+            icon = Res.drawable.delete_24dp,
+            destructive = true,
         )
     }
 }
