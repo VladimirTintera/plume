@@ -917,7 +917,7 @@ poměru přínosu a práce; každý bod je samostatný PR.
 - ~~**Společný `ConfirmDialog`**~~ — hotovo pro 25 potvrzení (VladimirTintera/telegram#832)
   a dalších 9 s volbou nebo polem přes slot `content` (smazání zprávy s „i pro ostatní" a moderací,
   vyhození s délkou, předání vlastnictví s heslem, smazání složky s opuštěním chatů, ukončení ankety,
-  odmítnutí příspěvku, žádosti o vstup, dvoufázové ověření; PR_DIALOGY). `AlertDialog` zůstal
+  odmítnutí příspěvku, žádosti o vstup, dvoufázové ověření; VladimirTintera/telegram#854). `AlertDialog` zůstal
   u podmínek služby, popupu mini aplikace, informací o proxy, dotazu na podporu, výběru osobního
   kanálu a editoru ukládání do galerie — nejsou to potvrzení akce.
 - ~~**Výběr hodnoty v Nastavení jako nabídka u řádku**~~ — hotovo (`ChoiceRow`, šest výběrů, VladimirTintera/telegram#834;
