@@ -1938,9 +1938,15 @@
     <string name="error_ai_compose_premium">Bezplatné AI úpravy jsou vyčerpané. Další nabízí Telegram Premium.</string>
     <string name="profile_music">Hudba v profilu</string>
     <string name="privacy_profile_audio">Hudba v profilu</string>
-    <string name="profile_music_empty">Podrž skladbu v chatu a vyber „Přidat do profilu“.</string>
+    <string name="profile_music_empty">Přidej skladbu ze souboru, nebo podrž skladbu v chatu a vyber „Přidat do profilu“.</string>
     <string name="profile_music_remove">Odebrat z profilu</string>
     <string name="profile_music_remove_failed">Skladbu se z profilu nepodařilo odebrat.</string>
+    <string name="profile_music_add">Přidat skladbu</string>
+    <string name="profile_music_reorder">Uspořádat</string>
+    <string name="profile_music_reorder_title">Pořadí skladeb</string>
+    <string name="profile_music_not_audio">Vybraný soubor není skladba</string>
+    <string name="profile_music_add_failed">Skladbu se do profilu nepodařilo přidat</string>
+    <string name="profile_music_reorder_failed">Pořadí skladeb se nepodařilo uložit</string>
     <plurals name="profile_music_show_all">
         <item quantity="one">Zobrazit %1$d skladbu</item>
         <item quantity="few">Zobrazit všechny %1$d skladby</item>

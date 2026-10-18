@@ -79,6 +79,7 @@ import platform.UIKit.UIImageJPEGRepresentation
 import platform.UIKit.UIViewController
 import platform.UniformTypeIdentifiers.UTTypeImage
 import platform.UniformTypeIdentifiers.UTTypeItem
+import platform.UniformTypeIdentifiers.UTTypeAudio
 import platform.UniformTypeIdentifiers.UTTypeMovie
 import platform.darwin.NSObject
 
@@ -164,9 +165,13 @@ private class IosAttachmentPicker(
         present(picker)
     }
 
-    override fun pickDocument() {
+    override fun pickDocument() = pickFiles(UTTypeItem)
+
+    override fun pickAudio() = pickFiles(UTTypeAudio)
+
+    private fun pickFiles(type: UTType) {
         // `asCopy`: soubor dostaneme jako kopii v prostoru aplikace, bez security-scoped přístupu.
-        val picker = UIDocumentPickerViewController(forOpeningContentTypes = listOf(UTTypeItem), asCopy = true)
+        val picker = UIDocumentPickerViewController(forOpeningContentTypes = listOf(type), asCopy = true)
         picker.allowsMultipleSelection = true
         picker.delegate = documentDelegate
         present(picker)

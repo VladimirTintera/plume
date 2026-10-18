@@ -463,8 +463,10 @@ a přepsat…" (`docs/poznatky/ai-v-zarizeni.md`, „Úpravy textu od Telegramu"
 a emoji z `composeTextWithAi`~~ (hotovo, čipy „Přeložit…" a „Přidat emoji"); zbývají vlastní styly (`isCustom`, odkazy na styl), oprava formátované
 zprávy (`fixRichMessageWithAi`) a jazykový balíček, aby názvy stylů byly česky. ~~Hudba v profilu (`getUserProfileAudios`)~~ —
 hotovo (profil, úprava profilu, „Přidat do profilu" nad zprávou, soukromí;
-`docs/poznatky/profil-chatu.md`, „Hudba v profilu"); zbývá pořadí skladeb
-(`setProfileAudioPosition`), přidání skladby ze souboru v telefonu a ověřit víc skladeb a iOS.
+`docs/poznatky/profil-chatu.md`, „Hudba v profilu"); ~~pořadí skladeb
+(`setProfileAudioPosition`), přidání skladby ze souboru v telefonu~~ (hotovo, úprava profilu;
+`docs/poznatky/nastaveni.md`, „Hudba ve vlastním profilu"); zbývá ověřit iOS a navazování skladeb
+v cizím profilu.
 
 ## Tajné chaty
 

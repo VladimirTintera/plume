@@ -58,6 +58,8 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.core.ui.readString
 import dev.g000sha256.tdl.dto.InputFileId
 import dev.g000sha256.tdl.dto.InputAudio
+import dev.g000sha256.tdl.dto.InputThumbnail
+import dev.g000sha256.tdl.dto.InputFileLocal
 
 /**
  * [ProfileRepository] nad TDLib: `getChat` + podrobnosti podle druhu chatu (`getUserFullInfo`,
@@ -230,6 +232,23 @@ class TdlProfileRepository(
                 performer = audio.performer.orEmpty(),
             ),
         ).toResult().map { }
+
+    override suspend fun addProfileAudioFile(file: OutgoingAttachment.Audio): Result<Unit> =
+        client.addProfileAudio(
+            audio = InputAudio(
+                audio = InputFileLocal(path = file.path),
+                albumCoverThumbnail = file.cover?.let {
+                    InputThumbnail(thumbnail = InputFileLocal(path = it.path), width = it.width, height = it.height)
+                },
+                duration = file.durationSeconds,
+                // Bez značky název souboru — prázdný název by profil ukázal jako „Audio".
+                title = file.title ?: file.path.substringAfterLast('/').substringBeforeLast('.'),
+                performer = file.performer.orEmpty(),
+            ),
+        ).toResult().map { }
+
+    override suspend fun moveProfileAudio(fileId: Int, afterFileId: Int): Result<Unit> =
+        client.setProfileAudioPosition(fileId = fileId, afterFileId = afterFileId).toResult().map { }
 
     override suspend fun removeProfileAudio(fileId: Int): Result<Unit> =
         client.removeProfileAudio(fileId = fileId).toResult().map { }

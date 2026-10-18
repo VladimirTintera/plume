@@ -1,6 +1,8 @@
 package eu.tintera.plume.core.ui
 
 import android.content.Context
+import android.content.Intent
+import android.provider.DocumentsContract
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -78,15 +80,34 @@ actual fun rememberAttachmentPicker(
     val documentLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         prepare(uris.take(PICK_LIMIT), ::prepareFile)
     }
+    val audioLauncher = rememberLauncherForActivityResult(OpenAudio()) { uri ->
+        uri?.let { prepare(listOf(it), ::prepareFile) }
+    }
 
-    return remember(photoLauncher, documentLauncher) {
+    return remember(photoLauncher, documentLauncher, audioLauncher) {
         object : AttachmentPicker {
             override fun pickMedia() =
                 photoLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
 
             override fun pickDocument() = documentLauncher.launch(arrayOf("*/*"))
+
+            override fun pickAudio() = audioLauncher.launch(arrayOf("audio/*"))
         }
     }
+}
+
+/**
+ * Výběr jedné skladby. S filtrem na zvukové typy ukazuje systémový výběr v úvodních „Nedávných"
+ * prázdno (ověřeno na emulátoru, Android 16) a ke skladbám by se muselo bočním menu; otevře se
+ * proto rovnou v kořeni Audio poskytovatele médií (`EXTRA_INITIAL_URI`). Kde ho systém nemá,
+ * extra ignoruje a začne, kde je zvyklý.
+ */
+private class OpenAudio : ActivityResultContracts.OpenDocument() {
+    override fun createIntent(context: Context, input: Array<String>): Intent =
+        super.createIntent(context, input).putExtra(
+            DocumentsContract.EXTRA_INITIAL_URI,
+            DocumentsContract.buildRootUri("com.android.providers.media.documents", "audio_root"),
+        )
 }
 
 /** Photo Picker vrací fotky i videa pomíchané; rozhoduje typ obsahu. */
