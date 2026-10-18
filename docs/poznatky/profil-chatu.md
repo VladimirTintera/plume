@@ -37,6 +37,11 @@ a jméno, podtitul (dostupnost / počet členů / „Bot"), dlaždice Ztlumit a 
   požadavek hledání je stav podle chatu a čekal by na chat, který není vidět.
 - **Člen ze seznamu letí do hlavičky konverzace** (avatar i jméno, klíče jako ze seznamu chatů),
   kromě vlastního účtu — ten vede do Uložených zpráv se záložkou místo fotky.
+- **Úprava skupiny a práva člena jsou bloky zaoblených řádků taky** (`GroupedColumn`, říjen 2026):
+  práva členů, nastavení skupiny (`GroupSettingsCard`), pozvánky, omezení a vyhození, poslední
+  akce, smazání (blok vlastní), práva správce, omezení člena a délka omezení. Dřív to byly karty
+  `Card { Column { … } }` jako stará podoba Nastavení. **Přepínač Témata a nápověda pod ním
+  zůstaly jedním řádkem bloku** (`Column` uvnitř), nápověda mluví o přepínači nad ní.
 - **Údaje i obsah záložek jsou bloky zaoblených řádků** (`groupItemShape`, `surfaceContainerLowest`,
   spára 2 dp), stejný jazyk jako seznam chatů. Dřív byly údaje karta `SettingsGroup`
   (`surfaceContainerHighest`) a záložky holé řádky — v jednom profilu dva vzhledy pro „seznam věcí".

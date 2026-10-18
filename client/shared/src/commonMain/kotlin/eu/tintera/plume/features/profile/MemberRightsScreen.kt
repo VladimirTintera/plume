@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import androidx.compose.foundation.layout.Arrangement
+import eu.tintera.plume.core.ui.GroupedColumn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -219,59 +219,57 @@ private fun AdminRightsCard(
     onChange: ((AdminRights) -> AdminRights) -> Unit,
 ) {
     val channel = kind == MemberGroupKind.Channel
-    Card(Modifier.fillMaxWidth()) {
-        Column {
-            SwitchRow(
-                if (channel) Res.string.member_right_change_info_channel else Res.string.member_right_change_info,
-                rights.changeInfo,
-            ) { value -> onChange { it.copy(changeInfo = value) } }
+    GroupedColumn(Modifier.fillMaxWidth()) {
+        SwitchRow(
+            if (channel) Res.string.member_right_change_info_channel else Res.string.member_right_change_info,
+            rights.changeInfo,
+        ) { value -> onChange { it.copy(changeInfo = value) } }
 
-            if (channel) {
-                SwitchRow(Res.string.member_right_post, rights.postMessages) { value ->
-                    onChange { it.copy(postMessages = value) }
-                }
-                SwitchRow(Res.string.member_right_edit, rights.editMessages) { value ->
-                    onChange { it.copy(editMessages = value) }
-                }
+        if (channel) {
+            SwitchRow(Res.string.member_right_post, rights.postMessages) { value ->
+                onChange { it.copy(postMessages = value) }
             }
-
-            SwitchRow(Res.string.member_right_delete, rights.deleteMessages) { value ->
-                onChange { it.copy(deleteMessages = value) }
+            SwitchRow(Res.string.member_right_edit, rights.editMessages) { value ->
+                onChange { it.copy(editMessages = value) }
             }
+        }
 
-            if (!channel) {
-                SwitchRow(Res.string.member_right_restrict, rights.restrictMembers) { value ->
-                    onChange { it.copy(restrictMembers = value) }
-                }
+        SwitchRow(Res.string.member_right_delete, rights.deleteMessages) { value ->
+            onChange { it.copy(deleteMessages = value) }
+        }
+
+        if (!channel) {
+            SwitchRow(Res.string.member_right_restrict, rights.restrictMembers) { value ->
+                onChange { it.copy(restrictMembers = value) }
             }
+        }
 
-            SwitchRow(
-                if (channel) Res.string.member_right_invite_channel else Res.string.member_right_invite,
-                rights.inviteUsers,
-            ) { value -> onChange { it.copy(inviteUsers = value) } }
+        SwitchRow(
+            if (channel) Res.string.member_right_invite_channel else Res.string.member_right_invite,
+            rights.inviteUsers,
+        ) { value -> onChange { it.copy(inviteUsers = value) } }
 
-            if (!channel) {
-                SwitchRow(Res.string.member_right_pin, rights.pinMessages) { value ->
-                    onChange { it.copy(pinMessages = value) }
-                }
+        if (!channel) {
+            SwitchRow(Res.string.member_right_pin, rights.pinMessages) { value ->
+                onChange { it.copy(pinMessages = value) }
             }
+        }
 
-            // Jen ve skupině s tématy: jinde by přepínač sliboval vliv, který nemá.
-            if (isForum) {
-                SwitchRow(Res.string.member_right_manage_topics, rights.manageTopics) { value ->
-                    onChange { it.copy(manageTopics = value) }
-                }
+        // Jen ve skupině s tématy: jinde by přepínač sliboval vliv, který nemá.
+        if (isForum) {
+            SwitchRow(Res.string.member_right_manage_topics, rights.manageTopics) { value ->
+                onChange { it.copy(manageTopics = value) }
             }
+        }
 
-            SwitchRow(Res.string.member_right_promote, rights.promoteMembers) { value ->
-                onChange { it.copy(promoteMembers = value) }
-            }
+        SwitchRow(Res.string.member_right_promote, rights.promoteMembers) { value ->
+            onChange { it.copy(promoteMembers = value) }
+        }
 
-            // Anonymitu má jen supergroup; v základní skupině ani v kanálu se nenabízí.
-            if (kind == MemberGroupKind.Supergroup) {
-                SwitchRow(Res.string.member_right_anonymous, rights.anonymous) { value ->
-                    onChange { it.copy(anonymous = value) }
-                }
+        // Anonymitu má jen supergroup; v základní skupině ani v kanálu se nenabízí.
+        if (kind == MemberGroupKind.Supergroup) {
+            SwitchRow(Res.string.member_right_anonymous, rights.anonymous) { value ->
+                onChange { it.copy(anonymous = value) }
             }
         }
     }
@@ -286,44 +284,42 @@ private fun RestrictionsCard(
     permissions: GroupPermissions,
     onChange: ((GroupPermissions) -> GroupPermissions) -> Unit,
 ) {
-    Card(Modifier.fillMaxWidth()) {
-        Column {
-            SwitchRow(Res.string.edit_chat_perm_send_messages, permissions.sendMessages) { value ->
-                onChange { it.copy(sendMessages = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_send_photos, permissions.sendPhotos) { value ->
-                onChange { it.copy(sendPhotos = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_send_videos, permissions.sendVideos) { value ->
-                onChange { it.copy(sendVideos = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_send_documents, permissions.sendDocuments) { value ->
-                onChange { it.copy(sendDocuments = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_send_voice, permissions.sendVoiceNotes) { value ->
-                onChange { it.copy(sendVoiceNotes = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_send_video_notes, permissions.sendVideoNotes) { value ->
-                onChange { it.copy(sendVideoNotes = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_send_stickers, permissions.sendStickers) { value ->
-                onChange { it.copy(sendStickers = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_send_polls, permissions.sendPolls) { value ->
-                onChange { it.copy(sendPolls = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_react, permissions.react) { value ->
-                onChange { it.copy(react = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_invite, permissions.inviteUsers) { value ->
-                onChange { it.copy(inviteUsers = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_pin, permissions.pinMessages) { value ->
-                onChange { it.copy(pinMessages = value) }
-            }
-            SwitchRow(Res.string.edit_chat_perm_change_info, permissions.changeInfo) { value ->
-                onChange { it.copy(changeInfo = value) }
-            }
+    GroupedColumn(Modifier.fillMaxWidth()) {
+        SwitchRow(Res.string.edit_chat_perm_send_messages, permissions.sendMessages) { value ->
+            onChange { it.copy(sendMessages = value) }
+        }
+        SwitchRow(Res.string.edit_chat_perm_send_photos, permissions.sendPhotos) { value ->
+            onChange { it.copy(sendPhotos = value) }
+        }
+        SwitchRow(Res.string.edit_chat_perm_send_videos, permissions.sendVideos) { value ->
+            onChange { it.copy(sendVideos = value) }
+        }
+        SwitchRow(Res.string.edit_chat_perm_send_documents, permissions.sendDocuments) { value ->
+            onChange { it.copy(sendDocuments = value) }
+        }
+        SwitchRow(Res.string.edit_chat_perm_send_voice, permissions.sendVoiceNotes) { value ->
+            onChange { it.copy(sendVoiceNotes = value) }
+        }
+        SwitchRow(Res.string.edit_chat_perm_send_video_notes, permissions.sendVideoNotes) { value ->
+            onChange { it.copy(sendVideoNotes = value) }
+        }
+        SwitchRow(Res.string.edit_chat_perm_send_stickers, permissions.sendStickers) { value ->
+            onChange { it.copy(sendStickers = value) }
+        }
+        SwitchRow(Res.string.edit_chat_perm_send_polls, permissions.sendPolls) { value ->
+            onChange { it.copy(sendPolls = value) }
+        }
+        SwitchRow(Res.string.edit_chat_perm_react, permissions.react) { value ->
+            onChange { it.copy(react = value) }
+        }
+        SwitchRow(Res.string.edit_chat_perm_invite, permissions.inviteUsers) { value ->
+            onChange { it.copy(inviteUsers = value) }
+        }
+        SwitchRow(Res.string.edit_chat_perm_pin, permissions.pinMessages) { value ->
+            onChange { it.copy(pinMessages = value) }
+        }
+        SwitchRow(Res.string.edit_chat_perm_change_info, permissions.changeInfo) { value ->
+            onChange { it.copy(changeInfo = value) }
         }
     }
 }
@@ -351,7 +347,7 @@ private fun DurationCard(
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
         )
-        Card(Modifier.fillMaxWidth()) {
+        GroupedColumn(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(vertical = 8.dp)) {
                 if (restrictedUntil != null) {
                     DurationOption(
