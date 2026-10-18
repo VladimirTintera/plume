@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -801,18 +800,19 @@ fun PollComposerScreen(
                         LoadingIndicator(Modifier.padding(end = 16.dp).size(32.dp))
                     } else {
                         Box {
-                            Button(
-                                onClick = {
+                            // Odeslat bez zvuku a naplánovat nabízí šipka vedle, jako split button.
+                            SendSplitButton(
+                                label = stringResource(Res.string.poll_compose_send),
+                                enabled = canSend,
+                                menuAvailable = true,
+                                menuOpen = sendMenuOpen,
+                                onMenuOpenChange = { sendMenuOpen = it },
+                                onSend = {
                                     haptics.confirm()
                                     viewModel.send()
                                 },
-                                enabled = canSend,
-                                // Podržení nabídne odeslat bez zvuku a naplánovat, jako u zprávy.
-                                modifier = Modifier
-                                    .padding(end = 12.dp)
-                                    .longPressInstead(enabled = canSend) { sendMenuOpen = true },
-                                shapes = ButtonDefaults.shapes(),
-                            ) { Text(stringResource(Res.string.poll_compose_send)) }
+                                modifier = Modifier.padding(end = 12.dp),
+                            )
                             ExpressiveMenu(
                                 expanded = sendMenuOpen,
                                 onDismiss = { sendMenuOpen = false },
