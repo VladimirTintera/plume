@@ -410,20 +410,24 @@ fun insertCustomEmoji(
  *
  * Co se při odeslání dohledá znovu (odkaz psaný v textu, zmínka `@jméno`, hashtag, příkaz bota,
  * čas v médiu), pole nést nemusí. Odkaz s vlastním popiskem nese pole samo ([TextFormat.Link]),
- * stejně jako jazyk bloku kódu ([FormatSpan.language]). Zmínka jménem, vlastní emoji a datum
- * ale z textu poznat nejdou.
+ * stejně jako jazyk bloku kódu ([FormatSpan.language]). Zmínka jménem a datum ale z textu
+ * poznat nejdou.
+ *
+ * **Vlastní emoji pole nese, ale jen kde ho uživatel smí poslat** ([customEmoji]: s Premium
+ * všude, bez něj v Uložených zprávách — `StickerRepository.canUseCustomEmoji`). Jinde by ho
+ * server při úpravě tiše zahodil, proto se taková zpráva upravit nenabídne.
  */
-fun composedFormatsOf(text: String, entities: List<MessageEntity>): List<FormatSpan>? =
-    formatsOf(text, entities, strict = true)
+fun composedFormatsOf(text: String, entities: List<MessageEntity>, customEmoji: Boolean = false): List<FormatSpan>? =
+    formatsOf(text, entities, strict = true, customEmoji = customEmoji)
 
 /**
  * Ruční formátování konceptu. Na rozdíl od [composedFormatsOf] se nevzdává: koncept z jiného
  * klienta s vlastním emoji vrátí do pole aspoň text a tučné, nic se tím nesmaže na serveru.
  */
 fun draftFormatsOf(text: String, entities: List<MessageEntity>): List<FormatSpan> =
-    formatsOf(text, entities, strict = false).orEmpty()
+    formatsOf(text, entities, strict = false, customEmoji = true).orEmpty()
 
-private fun formatsOf(text: String, entities: List<MessageEntity>, strict: Boolean): List<FormatSpan>? {
+private fun formatsOf(text: String, entities: List<MessageEntity>, strict: Boolean, customEmoji: Boolean): List<FormatSpan>? {
     val spans = mutableListOf<FormatSpan>()
     for (entity in entities) {
         val start = entity.offset.coerceIn(0, text.length)
@@ -457,10 +461,10 @@ private fun formatsOf(text: String, entities: List<MessageEntity>, strict: Boole
             is MessageEntityType.BotCommand,
             is MessageEntityType.MediaTimestamp,
             -> null
-            // Vlastní emoji nese pole samo, ale úprava zprávy ho dál nebere: bez Premium by ho
-            // server při úpravě mohl tiše zahodit. Koncept ho vrátí do pole.
+            // Vlastní emoji nese pole samo; úprava ho bere jen tam, kde ho uživatel smí poslat
+            // (viz [composedFormatsOf]). Koncept ho vrátí do pole vždycky.
             is MessageEntityType.CustomEmoji -> {
-                if (strict) return null
+                if (strict && !customEmoji) return null
                 if (end > start) spans += FormatSpan(TextFormat.CustomEmoji, start, end, customEmojiId = type.id)
                 null
             }

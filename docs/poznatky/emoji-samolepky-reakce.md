@@ -268,8 +268,10 @@ emoji. Kreslí se jako inline obsah `RichText` (`CustomEmojiImage`, `customEmoji
 - **Formáty jako u samolepky**: `.tgs` hraje (Compottie), `.webp` a rastrový náhled jsou obrázek,
   `.webm` zůstane náhledem (videosamolepky hrají, vlastní emoji zatím ne), bez náhledu
   náhradním znakem.
-- **Zpráva s vlastním emoji nejde upravit** — vlastní emoji pole nenese (`composedFormatsOf`),
-  takže by ho úprava smazala.
+- **Zpráva s vlastním emoji jde upravit jen tam, kde by šla poslat** (`customEmojiAllowed`
+  ve stavu konverzace = `canUseCustomEmoji`: Premium, nebo Uložené zprávy). Jinde „Upravit"
+  chybí: bez Premium by server vlastní emoji při úpravě tiše zahodil, tedy by ho úprava smazala.
+  Viz „Vlastní emoji v poli" v `konverzace-psani.md`.
 - **Bot vlastní emoji poslat nesmí** (Bot API je bez placeného uživatelského jména na Fragmentu
   potichu zahodí, v odpovědi pak `entities` chybí). Ověřuje se proto sondou: skutečná id vydá
   Bot API `getStickerSet` (sady `RestrictedEmoji`, `StatusEmoji`) a dočasně se přidají jako

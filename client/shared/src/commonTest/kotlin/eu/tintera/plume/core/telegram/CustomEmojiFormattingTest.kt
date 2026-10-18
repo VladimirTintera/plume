@@ -63,9 +63,12 @@ class CustomEmojiFormattingTest {
     }
 
     @Test
-    fun konceptVlastniEmojiVratiUpravaNe() {
+    fun konceptVlastniEmojiVratiUpravaJenKdeSeSmi() {
         val entities = listOf(MessageEntity(offset = 0, length = 2, type = MessageEntityType.CustomEmoji(5)))
         assertEquals(listOf(emoji(0, 5)), draftFormatsOf("😀", entities))
+        // Bez Premium mimo Uložené by server vlastní emoji při úpravě zahodil: úprava se nenabídne.
         assertNull(composedFormatsOf("😀", entities))
+        // S Premium (nebo v Uložených) ho pole unese i při úpravě.
+        assertEquals(listOf(emoji(0, 5)), composedFormatsOf("😀", entities, customEmoji = true))
     }
 }

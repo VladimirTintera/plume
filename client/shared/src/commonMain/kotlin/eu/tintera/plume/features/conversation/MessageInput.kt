@@ -766,7 +766,7 @@ internal fun MessageInput(
                                 return@onPreviewKeyEvent false
                             }
                             val sendable = !voiceActive && !attachmentsPreparing &&
-                                (draft.text.isNotBlank() || withAttachments || editing?.composerEdit() == ComposerEdit.Caption)
+                                (draft.text.isNotBlank() || withAttachments || editing?.editKind() == ComposerEdit.Caption)
                             if (event.type == KeyEventType.KeyDown && sendable) {
                                 onSend(composer.composed, SendOptions())
                                 draft = TextFieldValue()
@@ -945,7 +945,7 @@ internal fun MessageInput(
              * Prázdný POPISEK je platná úprava — tím se popisek odebere —, takže tlačítko musí jít
              * zmáčknout i s prázdným polem. U textu zprávy ne: prázdnou zprávu server odmítne.
              */
-            val removableCaption = editing?.composerEdit() == ComposerEdit.Caption
+            val removableCaption = editing?.editKind() == ComposerEdit.Caption
             val kind = when {
                 editing != null -> SendButtonKind.Save
                 voiceActive -> SendButtonKind.SendVoice
@@ -1505,7 +1505,7 @@ private val LINK_HEADER_THUMBNAIL = 36.dp
 @Composable
 private fun EditingHeader(message: ChatMessage, onCancel: () -> Unit, media: EditMediaControls?) = ComposerHeader {
     val accent = composerHeaderAccent()
-    val caption = message.composerEdit() == ComposerEdit.Caption
+    val caption = message.editKind() == ComposerEdit.Caption
     val replacement = media?.replacement
     Column(Modifier.weight(1f).padding(start = 14.dp, top = 8.dp, bottom = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {

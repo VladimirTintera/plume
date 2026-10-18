@@ -512,7 +512,8 @@ text, tlačítko je fajfka a potvrzení volá `editMessageText`.
   Ruční formátování (tučné, kurzíva, podtržení, přeškrtnutí, spoiler, kód i blok kódu s jazykem,
   citace i sbalitelná) i odkaz s vlastním popiskem pole nese (viz „Formátování při psaní");
   odkazy psané v textu, `@jméno`, hashtagy, příkazy a čas v médiu se při uložení dohledají znovu.
-  Zmínka jménem, vlastní emoji a datum by úprava tiše smazala — u nich „Upravit" není. Automatický odkaz se
+  Zmínka jménem a datum by úprava tiše smazala — u nich „Upravit" není. Vlastní emoji pole nese,
+  ale jen tam, kde by šlo i poslat (viz „Vlastní emoji v poli"). Automatický odkaz se
   pozná tak, že jeho text v adrese opravdu stojí.
 - **Popisek přílohy je JINÉ volání** (`editMessageCaption` vedle `editMessageText`), takže
   pravidlo neříká jen „jde to", ale i CO se upravuje (`ComposerEdit.Text` / `Caption`). Jedno
@@ -743,9 +744,21 @@ stojí, a odchází jako `TextEntityTypeCustomEmoji`. Je to ale OBSAH, ne formá
 - **Psaním se neprodlužuje** (jako odkaz) a **dvě stejná vedle sebe se nespojí** (`merged` je
   vynechává) — jinak by z nich byl jeden rozsah přes dva znaky.
 - **„Bez formátování" ho nesmaže** a nepokračuje v něm psaní (`continuingAt`).
-- **Koncept ho nese** (`draftFormatsOf`, uložený stav pole má šesté pole s id), **úprava zprávy
-  ne**: `composedFormatsOf` u vlastního emoji dál vrací `null`, protože bez Premium by ho server
-  při úpravě mohl tiše zahodit.
+- **Koncept ho nese** (`draftFormatsOf`, uložený stav pole má šesté pole s id) **a úprava
+  zprávy jen tam, kde by šlo poslat** (`composedFormatsOf(…, customEmoji = state.customEmojiAllowed)`,
+  právo z `canUseCustomEmoji`: Premium, nebo Uložené zprávy). Bez práva by ho server při úpravě
+  tiše zahodil, takže „Upravit" v nabídce nad zprávou chybí.
+  - **Kde se rozhoduje o právu a kde o DRUHU úpravy, je rozdělené**: nabídka a `startEdit`
+    ptají `composerEdit(customEmoji)` (smí se?), kdežto karta, pole a odeslání už běžící úpravy
+    berou `editKind()` (text, nebo popisek?) bez kontroly obsahu. S jedinou funkcí by karta
+    úpravy zprávy s vlastním emoji zmizela, protože by nevěděla o právu z konverzace.
+  - **Porovnání s původním textem při uložení pouští vlastní emoji vždy** (`customEmoji = true`):
+    úprava se už rozběhla, takže právo bylo; nepovolené by vrátilo `null` a každé uložení by se
+    tvářilo jako změna.
+  - **Ověřeno na emulátoru** (Fold, účet bez Premium, Uložené zprávy): zpráva s vlastním emoji
+    nabízí „Upravit", pole ukazuje obrázek, po připsání textu emoji zůstane a zpráva nese
+    „upraveno". **Úprava s Premium a odmítnutí v cizím chatu bez Premium jsou pokryté testy,
+    ne zařízením.**
 - **Obrázek se kreslí PŘES pole** (`CustomEmojiOverlay`): `BasicTextField` inline obsah neumí,
   takže zástupné emoji se zprůhlední (barva `Transparent` skryje i barevné emoji — písmo emoji
   kreslí s alfou barvy) a na jeho místo z `onTextLayout` se položí `CustomEmojiImage`.

@@ -230,13 +230,23 @@ internal enum class ComposerEdit {
  *
  * **U přílohy se nabízí i prázdný popisek** — tím se popisek přidá, a smazáním zase odebere.
  * Text zprávy prázdný být nesmí: prázdnou zprávu server odmítne.
+ *
+ * [customEmoji] = uživatel smí v chatu posílat vlastní emoji (viz [composedFormatsOf]).
  */
-internal fun ChatMessage.composerEdit(): ComposerEdit? {
+internal fun ChatMessage.composerEdit(customEmoji: Boolean = false): ComposerEdit? {
+    if (composedFormatsOf(text, entities, customEmoji) == null) return null
+    return editKind()
+}
+
+/**
+ * Druh úpravy (text, nebo popisek) bez ohledu na formátování — pro místa, kde úprava už běží
+ * a o tom, jestli ji nabídnout, se rozhodlo při jejím začátku ([composerEdit]).
+ */
+internal fun ChatMessage.editKind(): ComposerEdit? {
     // Text ankety je náš popis, ne obsah zprávy — a `canBeEdited` u ankety znamená „jde
     // ukončit" (viz `stopPoll`), takže by „Upravit" slibovalo úpravu, kterou server odmítne.
     // Seznam úkolů se upravuje celý (`editMessageChecklist`), ne textem v poli.
     if (isService || poll != null || checklist != null) return null
-    if (composedFormatsOf(text, entities) == null) return null
 
     val media = media ?: return ComposerEdit.Text.takeIf { text.isNotBlank() }
     return ComposerEdit.Caption.takeIf { media.carriesCaption }

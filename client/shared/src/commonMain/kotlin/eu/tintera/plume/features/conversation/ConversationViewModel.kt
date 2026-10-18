@@ -834,6 +834,12 @@ class ConversationViewModel(
     }
 
     init {
+        // Vlastní emoji v úpravě zprávy: smí se jen tam, kde se smí poslat (lokální dotaz).
+        viewModelScope.launch {
+            val allowed = runCatching { stickerRepository.canUseCustomEmoji(chatId) }.getOrDefault(false)
+            _state.update { it.copy(customEmojiAllowed = allowed) }
+        }
+
         // Posouzení podvodu: nejnovější příchozí zprávy, jak se načítají a přicházejí. Starší
         // historie ne — model by se pustil do všeho, co uživatel proscrolluje, a varování u
         // zprávy z loňska nikomu nepomůže.

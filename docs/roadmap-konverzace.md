@@ -413,8 +413,8 @@ sada skupiny jako záložka; správa sad v Nastavení (pořadí, archiv); sdíle
 (výsledky inline bota, návrhy k emoji); nastavení sady skupiny v úpravě skupiny; videosamolepky `.webm` na Androidu; vlastní emoji ve výběru emoji; správa sad emoji v Nastavení. Zbývá:
 
 - **Vlastní emoji: zbytky** — ~~hledání vlastních emoji ve výběru, nedávná vlastní emoji~~
-  (hotovo, `feat/vlastni-emoji-hledani-nedavne`), úprava odeslané zprávy s vlastním emoji
-  (`composedFormatsOf` ji dál odmítá). Obrázky v rolujícím poli (víc než 6 řádků).
+  (hotovo, `feat/vlastni-emoji-hledani-nedavne`), ~~úprava odeslané zprávy s vlastním emoji~~
+  (hotovo, `feat/uprava-vlastnich-emoji`). Obrázky v rolujícím poli (víc než 6 řádků).
 - **Náhled bez puštění prstu** — v Telegramu se prstem po mřížce přejíždí mezi náhledy
   a puštěním náhled zmizí. U nás náhled zůstává otevřený, protože nese tlačítka.
 - **Samolepky `.webm` na iOS a vlastní emoji ve `.webm`** — viz „D) Otevření média" výš.
