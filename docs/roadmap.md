@@ -927,7 +927,7 @@ poměru přínosu a práce; každý bod je samostatný PR.
   a omezení člena přes `GroupedColumn`, VladimirTintera/telegram#839).
 - ~~**Hlavičky podstránek profilu**~~ — hotovo (`ProfileSubpageTopBar` s názvem chatu v podtitulku;
   „Uložit", „Přidat", „Vytvořit", „Hotovo" jako `SaveActionButton` i v novém kontaktu, nové skupině
-  a řazení).
+  a řazení; VladimirTintera/telegram#840).
 - **Obrazovka hovoru** (`CallOverlay`): ztlumení a kamera nemění ikonu (chybí `mic_off`,
   `videocam_off`), zavěšení je stejně velké jako přepínače (M3E: široké
   `IconButtonDefaults.IconButtonWidthOption.Wide`), avatar při zvonění stojí (`ShapeMorphs.Live`
