@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.foundation.clickable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -10,9 +11,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
-import androidx.compose.material3.rememberBottomSheetState
 import eu.tintera.plume.core.ui.TextFieldSlot
 import eu.tintera.plume.core.ui.IconSwitch
 import eu.tintera.plume.resources.chat_folder_icon
@@ -583,10 +582,7 @@ private fun FolderIconSheet(
     onDismiss: () -> Unit,
 ) {
     // Celý, bez napůl rozbaleného stavu — mřížka by jinak skončila pod okrajem.
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
+    val sheetState = rememberExpandedSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
             Modifier
@@ -708,10 +704,7 @@ private fun FolderLinkSheet(
     onDismiss: () -> Unit,
 ) {
     // Chatů bývá víc než na půl obrazovky; napůl rozbalený sheet by Uložit schoval pod okraj.
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
+    val sheetState = rememberExpandedSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
             verticalArrangement = Arrangement.spacedBy(8.dp),

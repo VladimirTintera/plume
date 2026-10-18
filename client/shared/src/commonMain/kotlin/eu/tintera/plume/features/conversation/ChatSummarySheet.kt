@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.resources.explain_failed
 import eu.tintera.plume.resources.explain_preparing
 import eu.tintera.plume.resources.explain_title
@@ -21,9 +22,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,7 +65,7 @@ fun ChatSummarySheet(
     onRetry: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    val sheetState = rememberExpandedSheetState()
     // Vysvětlení jedné zprávy (`ChatSummaryViewModel.explain`) jde stejným sheetem, jen s vlastními větami.
     val explain = source?.explain == true
 

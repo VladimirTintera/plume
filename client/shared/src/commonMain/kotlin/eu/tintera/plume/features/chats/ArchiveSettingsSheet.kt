@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -9,9 +10,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -50,10 +49,7 @@ fun ArchiveSettingsSheet(
     onDismiss: () -> Unit,
 ) {
     // Celý, bez napůl rozbaleného stavu — stejně jako ostatní sheety s přepínači.
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
+    val sheetState = rememberExpandedSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.navigationBarsPadding().padding(bottom = 16.dp)) {
             ListItem(

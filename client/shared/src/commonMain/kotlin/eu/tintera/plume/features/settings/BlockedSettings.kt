@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.resources.settings_discreet_reading_summary
 import eu.tintera.plume.resources.settings_discreet_reading
 import eu.tintera.plume.resources.visibility_off_24dp
@@ -15,14 +16,12 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -510,7 +509,7 @@ private fun BlockedActionsSheet(
     onUnblock: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    val sheetState = rememberExpandedSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Row(
             verticalAlignment = Alignment.CenterVertically,

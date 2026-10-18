@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.resources.translation_device_downloading
 import eu.tintera.plume.resources.translation_device_download_text
 import eu.tintera.plume.resources.translation_device_download
@@ -33,11 +34,9 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -98,7 +97,7 @@ fun TranslationSheet(
     onDownload: () -> Unit = {},
     onServer: () -> Unit = {},
 ) {
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    val sheetState = rememberExpandedSheetState()
     var picking by rememberSaveable { mutableStateOf(false) }
 
     if (picking) {
@@ -280,10 +279,7 @@ internal fun TranslationLanguageSheet(
     /** Které jazyky nabídnout (překlad v telefonu jich umí jen část); výchozí všechny. */
     available: (String) -> Boolean = { true },
 ) {
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
+    val sheetState = rememberExpandedSheetState()
     var query by rememberSaveable { mutableStateOf("") }
     val options = remember(query) {
         translationLanguageOptions(platformLanguageCode, query, ::localizedLanguageName).filter { available(it.code) }

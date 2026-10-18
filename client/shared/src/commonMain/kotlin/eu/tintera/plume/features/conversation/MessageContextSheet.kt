@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -16,10 +17,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -174,7 +173,7 @@ internal fun MessageContextSheet(
     onSharePaymentQr: ((ContextFinding.Payment) -> Unit)?,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    val sheetState = rememberExpandedSheetState()
     // Potvrzení zkopírování nese řádek sám (fajfka místo ikony kopírování): snackbar obrazovky
     // leží POD sheetem a vidět není, a na iOS a Androidu do 12 to nepotvrdí ani systém.
     var justCopied by remember { mutableStateOf<String?>(null) }

@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.report
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -17,11 +18,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -72,10 +71,7 @@ fun ReportSheet(
     onSubmitText: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
+    val sheetState = rememberExpandedSheetState()
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         // Výměna kroku je prolnutí, ne posun: jde o jednu otázku za druhou na témž místě.

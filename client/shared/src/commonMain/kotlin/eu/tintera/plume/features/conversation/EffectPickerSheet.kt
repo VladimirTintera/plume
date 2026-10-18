@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Box
@@ -17,9 +18,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -64,7 +63,7 @@ internal fun EffectPickerSheet(
     onPick: (MessageEffect) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    val sheetState = rememberExpandedSheetState()
     /** Přehrávaný náhled: efekt, kolikáté přehrání a střed políčka v souřadnicích sheetu. */
     var preview by remember { mutableStateOf<EffectPreview?>(null) }
     var runs by remember { mutableIntStateOf(0) }

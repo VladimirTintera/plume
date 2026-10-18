@@ -16,9 +16,7 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -66,10 +64,7 @@ fun CountryPickerSheet(
     multiSelect: Boolean = false,
     canPick: (Country) -> Boolean = { true },
 ) {
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
+    val sheetState = rememberExpandedSheetState()
     var query by rememberSaveable { mutableStateOf("") }
 
     // Hledá se bez ohledu na diakritiku, jako všude jinde v aplikaci: „svycarsko" musí najít

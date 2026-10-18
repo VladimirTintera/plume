@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,9 +42,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -208,10 +207,7 @@ fun StickerSetSheet(
      * Rovnou celý, bez napůl rozbaleného stavu. Obsah je vyšší než polovina obrazovky, takže
      * napůl rozbalený sheet schoval spodek pod okraj — tlačítko skončilo pod navigační lištou.
      */
-    val sheetState = rememberBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-    )
+    val sheetState = rememberExpandedSheetState()
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
     val motion = rememberSheetStickerMotion(sheetState)
