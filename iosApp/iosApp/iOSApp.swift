@@ -8,6 +8,8 @@ struct iOSApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     init() {
+        // Model v zařízení se předává Kotlinu dřív než Koin, který podle něj vybere `OnDeviceAi`.
+        registerOnDeviceModel()
         // Koin musí běžet dřív, než se složí první obrazovka — MainViewController hned
         // resolvuje AuthViewModel.
         MainViewControllerKt.doInitKoin()

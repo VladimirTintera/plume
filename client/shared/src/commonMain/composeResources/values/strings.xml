@@ -1954,6 +1954,11 @@
     <string name="summary_details_tokens">Input: %1$s of %2$s tokens</string>
     <string name="summary_details_tokens_no_limit">Input: %1$s tokens</string>
     <string name="summary_details_trimmed">%1$d of %2$d messages fit</string>
+    <string name="ai_failure_language">The on-device model doesn't support the language of this text.</string>
+    <string name="ai_failure_refused">The on-device model declined to process this text.</string>
+    <string name="settings_ai_provider_apple">Apple Intelligence</string>
+    <string name="settings_ai_provider_apple_summary">Built into the system. iOS downloads and updates it.</string>
+    <string name="ai_failure_apple">Apple Intelligence failed. Check that it is turned on in Settings → Apple Intelligence &amp; Siri.</string>
     <string name="settings_ai_provider_nano">Gemini Nano</string>
     <string name="settings_ai_provider_nano_summary">Built into the phone (AICore). The system downloads and updates it.</string>
     <string name="settings_ai_provider_gemma">Gemma 4</string>

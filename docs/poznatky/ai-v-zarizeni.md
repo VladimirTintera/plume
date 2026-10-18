@@ -239,6 +239,46 @@ tedy o poskytovatelích nemusí vědět nic.
   nespadne — viz „Návrhy odpovědí"), vzhled podstrčeným stavem a čisté funkce testy. Na zařízení
   zbývá kvalita výstupu, rychlost, limit tokenů a useknutí.
 
+
+### Apple Intelligence na iOS (Foundation Models)
+
+Na iOS 26+ počítá model v zařízení **Apple Intelligence** (`AiProvider.Apple`,
+`AppleOnDeviceAi` v `iosMain`). Je to systémový model jako Gemini Nano: stahuje a aktualizuje ho
+iOS, aplikace ho jen používá.
+
+- **Kotlin/Native na `FoundationModels` nedosáhne** (čistě Swiftové API bez Objective-C). Kotlin
+  proto vystavuje rozhraní `OnDeviceTextModel` (do frameworku jde jako Objective-C protokol),
+  Swift ho implementuje (`iosApp/iosApp/AppleTextModel.swift`, `LanguageModelSession.streamResponse`)
+  a v `iOSApp.init` ho předá `IosOnDeviceModel.model` **před** `initKoin` — Koin podle něj
+  vybere `AppleOnDeviceAi`, jinak `NoopOnDeviceAi`. Stejný vzor má i hlášení pádů.
+- **Deployment target je iOS 18.2**, takže `@available(iOS 26, *)` a `#if canImport` a framework
+  **slabě linkovaný** — Swift to udělá sám (`otool -l` nad `Plume.debug.dylib`: `LC_LOAD_WEAK_DYLIB`
+  pro FoundationModels). Starší iOS aplikaci spustí, jen bez AI.
+- **Snímek, ne přírůstek**: stream Foundation Models dává celý dosavadní text (`snapshot.content`),
+  přesně jak `OnDeviceAi.generate` slibuje; Kotlin ho bere `callbackFlow` a `conflate`.
+  Zrušení sběru zruší Swiftový `Task`.
+- **Chyby podle JMÉNA případu** (`String(describing:)`): iOS 27 je přejmenoval
+  (`GenerationError` → `LanguageModelError` a spol.), takže `switch` nad typem by na jedné
+  verzi nepoznal nic. Kontext → `TooLarge`, jazyk → `UnsupportedLanguage`, ochranné filtry →
+  `Refused` (oba nové důvody nejsou „reportable"), vytížení → `Busy`, chybějící soubory modelu
+  → `Unavailable`.
+- **Kontext 4 096 tokenů** (dotaz na něj je až od iOS 27), počítání tokenů až od 26.4 a jen
+  asynchronně — délka přepisu se odhaduje z limitu jako u Gemmy.
+- **Vypnutá Apple Intelligence nebo model, který systém teprve stahuje, = `Unsupported`**:
+  sekce AI v Nastavení se pak nenabídne. Stav „zapni si Apple Intelligence v Nastavení" zatím
+  nastavení neumí.
+- **Strukturovaný výstup, přepis řeči a popis obrázků na iOS zatím ne** — Foundation Models
+  je umí (`@Generable`, obrázky), ale každý chce vlastní Swift most.
+- **Simulátor používá model HOSTITELE**: na Macu s vypnutou Apple Intelligence hlásí
+  simulátor model jako dostupný, ale generování spadne na `ModelManagerError` 1026 (chybí
+  soubory modelu) — proto ji `AppleTextModel` řadí jako `Unavailable`. Ověřit generování jde
+  jen na Macu se zapnutou Apple Intelligence, nebo na iPhonu s iOS 26+.
+- **Ověřeno v simulátoru (iOS 26.2)**: Nastavení → On-device AI ukáže „Model ready: Apple
+  Intelligence, Input limit: 4 096 tokens", bez volby poskytovatele (jediný dostupný).
+  Generování ověřené samostatným Swift programem spuštěným v simulátoru (`simctl spawn`):
+  `availability: available`, ale `ModelManagerError` 1026, protože Apple Intelligence je na
+  Macu vypnutá. **Skutečné generování (a čeština) neověřené** — Apple Intelligence češtinu
+  v seznamu jazyků nemá a česká konverzace může skončit `UnsupportedLanguage`.
 ### Termín připomínky
 
 Třetí funkce s modelem: termín pro „Připomenout…" nad zprávou, když ho nenajdou pravidla
