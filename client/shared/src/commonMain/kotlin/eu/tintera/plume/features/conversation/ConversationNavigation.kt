@@ -78,6 +78,12 @@ data class ConversationNavigation(
      */
     val onViewAsTopics: (() -> Unit)? = null,
     /**
+     * Přímé zprávy kanálu, které uživatel spravuje: celý chat se nečte jako konverzace, ale jako
+     * vlákna po odběratelích (psát se dá jen do vlákna). Konverzace se tím sama nahradí, ať do ní
+     * vede kterákoli cesta (seznam, hledání, odkaz). `null` = konverzace zůstane, jak je.
+     */
+    val onViewAsDirectTopics: (() -> Unit)? = null,
+    /**
      * Rychlý přepínač (podržení šipky zpět): vybraný chat místo téhle konverzace. `null` =
      * nenabízet (bublina konverzace).
      */
@@ -107,6 +113,10 @@ internal fun ConversationEvents(
             viewModel.consumeForwardRequest()
         }
     }
+
+    // Spravované přímé zprávy kanálu se čtou po vláknech; celý chat by psaní stejně odmítl.
+    val directAdmin = state.info?.isDirectMessagesAdmin == true && state.directTopicId == null
+    LaunchedEffect(directAdmin) { if (directAdmin) nav.onViewAsDirectTopics?.invoke() }
 
     // Chat se smazal (⋮ v hlavičce, pruh proti spamu) — konverzace nemá co ukazovat.
     val chatGone by viewModel.chatGone.collectAsStateWithLifecycle()

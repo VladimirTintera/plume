@@ -32,6 +32,9 @@ enum class GroupToggle {
     /** Jméno pod příspěvkem vede na profil autora; jen s [SignMessages]. */
     ShowMessageSender,
 
+    /** Odběratelé můžou kanálu napsat (`setChatDirectMessagesGroup`, zdarma). */
+    DirectMessages,
+
     /** Obsah nejde přeposílat, kopírovat ani ukládat (`toggleChatHasProtectedContent`). */
     ProtectedContent,
 }
@@ -83,6 +86,7 @@ data class GroupSettingsOffer(
  * - **Skrýt členy a antispam rozhoduje server** ([canHideMembers], [canToggleAntiSpam] ze
  *   `SupergroupFullInfo`) — závisí na velikosti skupiny, ne jen na právech.
  * - **Podpisy a profily autorů jen v kanálu.**
+ * - **Přímé zprávy jen v kanálu a jen vlastník** („requires owner privileges").
  */
 internal fun groupSettingsOffer(
     kind: MemberGroupKind,
@@ -111,6 +115,7 @@ internal fun groupSettingsOffer(
             add(GroupToggle.SignMessages)
             add(GroupToggle.ShowMessageSender)
         }
+        if (channel && owner) add(GroupToggle.DirectMessages)
         if (owner) add(GroupToggle.ProtectedContent)
     }
     return GroupSettingsOffer(

@@ -175,6 +175,9 @@ import dev.g000sha256.tdl.dto.MessageTopicThread
 import dev.g000sha256.tdl.dto.MessageTopic
 import dev.g000sha256.tdl.dto.MessageTopicForum
 import dev.g000sha256.tdl.dto.MessageTopicSavedMessages
+import dev.g000sha256.tdl.dto.MessageTopicDirectMessages
+import dev.g000sha256.tdl.dto.MessageSourceDirectMessagesChatTopicHistory
+import dev.g000sha256.tdl.dto.DirectMessagesChatTopic
 import dev.g000sha256.tdl.dto.MessageSourceForumTopicHistory
 import dev.g000sha256.tdl.dto.ForumTopic as TdlForumTopic
 import kotlinx.coroutines.flow.flowOf
@@ -250,6 +253,10 @@ class TdlConversationRepository(
     private val savedTopicId: Long? = null,
     /** Odkud vzít hlavičku tématu Uložených zpráv — TDLib jedno téma dotazem nevydá. */
     private val savedTopics: SavedTopicsRepository? = null,
+    /** Vlákno přímých zpráv kanálu (správce s jedním odběratelem), viz [inDirectTopic]. */
+    private val directTopicId: Long? = null,
+    /** Odkud vzít vlákno přímých zpráv — jméno odesílatele, koncept, nepřečtené. */
+    private val directTopics: DirectTopicsRepository? = null,
 ) : ConversationRepository {
 
     /**
@@ -257,6 +264,7 @@ class TdlConversationRepository(
      * nepatří: TDLib do něj odeslat nedovolí a zpráva bez tématu padne do Mých poznámek.
      */
     private val topic: MessageTopic? = forumTopicId?.let { MessageTopicForum(forumTopicId = it) }
+        ?: directTopicId?.let { MessageTopicDirectMessages(directMessagesChatTopicId = it) }
 
     /** Téma pro ČTENÍ — hledání, připnuté, nepřečtené značky. Tady téma Uložených zpráv platí. */
     private val readTopic: MessageTopic? =
@@ -289,10 +297,13 @@ class TdlConversationRepository(
     }.onFailure { logger.w(it) { "Zprávu podle data se nepodařilo najít." } }
 
     override fun inForumTopic(topicId: Int): ConversationRepository =
-        TdlConversationRepository(holder = holder, forumTopicId = topicId, savedTopics = savedTopics)
+        TdlConversationRepository(holder = holder, forumTopicId = topicId, savedTopics = savedTopics, directTopics = directTopics)
 
     override fun inSavedTopic(topicId: Long): ConversationRepository =
-        TdlConversationRepository(holder = holder, savedTopicId = topicId, savedTopics = savedTopics)
+        TdlConversationRepository(holder = holder, savedTopicId = topicId, savedTopics = savedTopics, directTopics = directTopics)
+
+    override fun inDirectTopic(topicId: Long): ConversationRepository =
+        TdlConversationRepository(holder = holder, directTopicId = topicId, savedTopics = savedTopics, directTopics = directTopics)
 
     /**
      * Téma Uložených zpráv, jak ho zná seznam témat. Konverzace obnovená po zabití procesu ho
@@ -306,6 +317,11 @@ class TdlConversationRepository(
         return repository.topics.value?.firstOrNull { it.id == id }
     }
 
+    /** Vlákno přímých zpráv, jak ho TDLib zná teď — koncept a hranice přečtení jsou jeho. */
+    private suspend fun directTopic(chatId: Long): DirectMessagesChatTopic? = directTopicId?.let {
+        client.getDirectMessagesChatTopic(chatId = chatId, topicId = it).toResult().getOrNull()
+    }
+
     /** Téma, jak ho TDLib zná teď — počty, hranice přečtení a koncept jsou jeho, ne skupiny. */
     private suspend fun forumTopic(chatId: Long): TdlForumTopic? = forumTopicId?.let {
         client.getForumTopic(chatId = chatId, forumTopicId = it).toResult().getOrNull()
@@ -315,6 +331,8 @@ class TdlConversationRepository(
     private fun inScope(message: Message): Boolean = when {
         forumTopicId != null -> (message.topicId as? MessageTopicForum)?.forumTopicId == forumTopicId
         savedTopicId != null -> (message.topicId as? MessageTopicSavedMessages)?.savedMessagesTopicId == savedTopicId
+        directTopicId != null ->
+            (message.topicId as? MessageTopicDirectMessages)?.directMessagesChatTopicId == directTopicId
         else -> true
     }
 
@@ -364,6 +382,25 @@ class TdlConversationRepository(
                 fromMessageId = fromMessageId,
                 offset = offset,
                 limit = limit,
+            )
+                .toResult()
+                .map { messages -> messages.messages.filterNotNull().map { it.toChatMessage(isGroup) } }
+        }
+
+        if (directTopicId != null) {
+            /*
+             * Od nejnovější (`fromMessageId = 0`) čekal TDLib na server přes dvacet vteřin, i když
+             * zprávy vlákna měl v lokální databázi (změřeno na emulátoru: 23,7 s proti 0,14 s).
+             * Začíná se proto od poslední zprávy vlákna, kterou TDLib zná, s `offset = -1`:
+             * `fromMessageId` sám ve výsledku není, o jednu novější ho tam vrátí.
+             */
+            val last = if (fromMessageId == 0L) directTopic(chatId)?.lastMessage?.id else null
+            return client.getDirectMessagesChatTopicHistory(
+                chatId = chatId,
+                topicId = directTopicId,
+                fromMessageId = last ?: fromMessageId,
+                offset = if (last != null) offset - 1 else offset,
+                limit = if (last != null) maxOf(limit, 1 - offset) else limit,
             )
                 .toResult()
                 .map { messages -> messages.messages.filterNotNull().map { it.toChatMessage(isGroup) } }
@@ -596,7 +633,9 @@ class TdlConversationRepository(
     }
 
     override suspend fun readAllMarks(chatId: Long, kind: UnreadMarkKind): Result<Unit> =
-        if (forumTopicId != null) {
+        if (directTopicId != null && kind == UnreadMarkKind.Reaction) {
+            client.readAllDirectMessagesChatTopicReactions(chatId = chatId, topicId = directTopicId).toResult().map { }
+        } else if (forumTopicId != null) {
             when (kind) {
                 UnreadMarkKind.Mention -> client.readAllForumTopicMentions(chatId = chatId, forumTopicId = forumTopicId)
                 UnreadMarkKind.Reaction -> client.readAllForumTopicReactions(chatId = chatId, forumTopicId = forumTopicId)
@@ -1866,7 +1905,11 @@ class TdlConversationRepository(
             messageIds = messageIds.toLongArray(),
             // V tématu se čte téma; se zdrojem historie chatu by se přečtení tématu nepohnulo
             // (tatáž past jako u vlákna komentářů).
-            source = if (forumTopicId != null) MessageSourceForumTopicHistory() else MessageSourceChatHistory(),
+            source = when {
+                forumTopicId != null -> MessageSourceForumTopicHistory()
+                directTopicId != null -> MessageSourceDirectMessagesChatTopicHistory()
+                else -> MessageSourceChatHistory()
+            },
             // `forceRead = true`: bez toho TDLib označí za přečtené jen to, o čem si myslí,
             // že to uživatel opravdu viděl na obrazovce. My mu to tvrdíme sami.
             forceRead = true,
@@ -2192,18 +2235,27 @@ class TdlConversationRepository(
             .map { chat ->
                 val forumTopic = forumTopic(chat.id)
                 val savedTopic = savedTopic()
+                val directTopic = directTopic(chat.id)
                 val access = chatAccess(chat, forumTopic)
                 val restriction = client.restrictionInfoOf(chat)
+                val supergroup = (chat.type as? ChatTypeSupergroup)
+                    ?.let { client.getSupergroup(supergroupId = it.supergroupId).toResult().getOrNull() }
                 // V tématu koncept tématu; koncept skupiny do něj nepatří.
-                val draft = (if (forumTopicId != null) forumTopic?.draftMessage else chat.draftMessage)?.toSavedDraft()
+                val draft = when {
+                    forumTopicId != null -> forumTopic?.draftMessage
+                    directTopicId != null -> directTopic?.draftMessage
+                    else -> chat.draftMessage
+                }?.toSavedDraft()
                 val calls = callTarget(chat)
                 ChatInfo(
                     id = chat.id,
                     title = chat.title,
                     avatarFileId = chat.photo?.small?.id,
                     lastReadOutboxMessageId = chat.lastReadOutboxMessageId,
-                    lastReadInboxMessageId = forumTopic?.lastReadInboxMessageId ?: chat.lastReadInboxMessageId,
-                    unreadCount = forumTopic?.unreadCount ?: chat.unreadCount,
+                    lastReadInboxMessageId = forumTopic?.lastReadInboxMessageId
+                        ?: directTopic?.lastReadInboxMessageId
+                        ?: chat.lastReadInboxMessageId,
+                    unreadCount = forumTopic?.unreadCount ?: directTopic?.unreadCount?.toInt() ?: chat.unreadCount,
                     isGroup = chat.type is ChatTypeBasicGroup || chat.type is ChatTypeSupergroup,
                     isChannel = (chat.type as? ChatTypeSupergroup)?.isChannel == true,
                     // Uložené zprávy jsou soukromý chat s vlastním účtem. `getMe` je lokální,
@@ -2244,7 +2296,15 @@ class TdlConversationRepository(
                     savedTopic = savedTopic?.header,
                     callUserId = calls?.first,
                     callSupportsVideo = calls?.second == true,
-                    isForum = client.isForum(chat),
+                    isForum = supergroup?.isForum == true,
+                    directTopic = directTopic?.let { topic -> directTopics?.topic(chat.id, topic.id)?.header },
+                    directMessagesChatId = supergroup
+                        ?.takeIf { it.isChannel && it.hasDirectMessagesGroup }
+                        ?.let { client.getSupergroupFullInfo(supergroupId = it.id).toResult().getOrNull() }
+                        ?.directMessagesChatId
+                        ?.takeIf { it != 0L },
+                    isDirectMessagesAdmin = supergroup?.isAdministeredDirectMessagesGroup == true,
+                    isDirectMessages = supergroup?.isDirectMessagesGroup == true,
                 )
             }
 
@@ -2540,10 +2600,21 @@ class TdlConversationRepository(
     /**
      * Má u zpráv smysl jméno a tvář odesílatele? Jen ve skupině — kanál je pro TDLib taky
      * supergroup (`ChatInfo.isGroup`), jenže píše jediný autor, sám kanál, a jeho jméno nad
-     * každým příspěvkem jen opakovalo hlavičku.
+     * každým příspěvkem jen opakovalo hlavičku. **Přímé zprávy kanálu taky ne**: jsou to
+     * supergroupy, ale baví se v nich dva — odběratel a kanál — jako v soukromém chatu.
+     *
+     * Volá se u každé stránky historie i nové zprávy, proto jen lokální `getChat`
+     * a `getSupergroup`, ne celé [chatInfo].
      */
-    private suspend fun isGroup(chatId: Long): Boolean =
-        chatInfo(chatId).map { it.isGroup && !it.isChannel }.getOrDefault(false)
+    private suspend fun isGroup(chatId: Long): Boolean {
+        val chat = client.getChat(chatId = chatId).toResult().getOrNull() ?: return false
+        return when (val type = chat.type) {
+            is ChatTypeBasicGroup -> true
+            is ChatTypeSupergroup -> !type.isChannel &&
+                client.getSupergroup(supergroupId = type.supergroupId).toResult().getOrNull()?.isDirectMessagesGroup != true
+            else -> false
+        }
+    }
 
     private suspend fun Message.toChatMessage(isGroup: Boolean): ChatMessage {
         val senderId = senderId.plainId()

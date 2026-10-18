@@ -213,7 +213,13 @@ internal fun ConversationBottomBar(
     // Kde se psát nesmí, pole by skončilo chybou až po odeslání. Kanál aspoň nabídne ztlumení.
     when (state.info?.writeAccess) {
         WriteAccess.ChannelReadOnly -> {
-            MuteBar(muted = state.muted, onToggle = viewModel::toggleMute, modifier = barGlass)
+            val directChat = state.info?.directMessagesChatId
+            MuteBar(
+                muted = state.muted,
+                onToggle = viewModel::toggleMute,
+                modifier = barGlass,
+                onMessage = directChat?.let { { navigation.onOpenChat(ChatTarget(it)) } },
+            )
             return@Box
         }
         WriteAccess.Restricted -> {

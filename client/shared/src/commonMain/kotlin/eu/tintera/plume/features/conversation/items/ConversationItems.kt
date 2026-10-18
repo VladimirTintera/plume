@@ -136,10 +136,11 @@ private fun buildItems(state: ConversationState): List<ConversationItem> {
                 continuesBelow = continuesBelow,
                 /*
                  * Tvář odesílatele u POSLEDNÍ zprávy jeho bloku: blok se čte shora a tvář ho
-                 * uzavírá. Kanál (odesílatel = chat sám) tvář nemá — nese ji hlavička.
+                 * uzavírá. Kanál (odesílatel = chat sám) tvář nemá — nese ji hlavička. Přímé
+                 * zprávy kanálu taky ne: baví se v nich dva, jako v soukromém chatu.
                  */
                 avatar = when {
-                    info?.isGroup != true || message.isOutgoing -> SenderAvatar.None
+                    info?.isGroup != true || info.isDirectMessages || message.isOutgoing -> SenderAvatar.None
                     message.senderId == info.id -> SenderAvatar.None
                     continuesBelow -> SenderAvatar.Spacer
                     else -> SenderAvatar.Shown
@@ -149,7 +150,7 @@ private fun buildItems(state: ConversationState): List<ConversationItem> {
                 highlighted = state.highlightedMessageId?.let(row::contains) == true,
                 searchFocused = state.search?.current?.let(row::contains) == true,
                 reactionsOpenable = info?.isChannel != true,
-                namesReactors = info?.isGroup == true && !info.isChannel,
+                namesReactors = info?.isGroup == true && !info.isChannel && !info.isDirectMessages,
                 flight = state.flight?.takeIf { it.itemKey == key },
                 menu = state.messageMenu?.takeIf { it.messageId == message.id },
                 menuActions = menuActions(
@@ -210,7 +211,7 @@ private fun typingItem(state: ConversationState): TypingItem? {
     val typing = state.typing ?: return null
     val info = state.info
     if (info?.isChannel == true) return null
-    val inGroup = info?.isGroup == true
+    val inGroup = info?.isGroup == true && !info.isDirectMessages
     val face = typing.sender?.let { TypingFace(it.id, it.title, it.avatarFileId) }
         // V soukromém chatu píše protějšek, a jeho tvář je tvář chatu.
         ?: info?.takeUnless { inGroup }?.let { TypingFace(it.id, it.title, it.avatarFileId) }

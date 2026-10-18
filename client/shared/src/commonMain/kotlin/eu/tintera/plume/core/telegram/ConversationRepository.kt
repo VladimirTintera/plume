@@ -36,6 +36,12 @@ interface ConversationRepository {
     fun inSavedTopic(topicId: Long): ConversationRepository = this
 
     /**
+     * Konverzace zúžená na jedno vlákno přímých zpráv kanálu (správce s jedním odběratelem):
+     * historie, nové zprávy, přečtení, koncept i odeslání patří vláknu.
+     */
+    fun inDirectTopic(topicId: Long): ConversationRepository = this
+
+    /**
      * Načte [limit] zpráv **starších** než [fromMessageId] (i ji samu, když existuje).
      *
      * `fromMessageId = 0` znamená „od nejnovější". Prázdný výsledek znamená konec historie —
@@ -1268,6 +1274,21 @@ data class ChatInfo(
     val callSupportsVideo: Boolean = false,
     /** Skupina s tématy — celou skupinu otevřenou jako zprávy jde přepnout na seznam témat. */
     val isForum: Boolean = false,
+    /** Vlákno přímých zpráv kanálu, do kterého je konverzace zúžená; hlavička ukazuje odesílatele. */
+    val directTopic: DirectTopicHeader? = null,
+    /**
+     * Kanál má zapnuté přímé zprávy a tohle je chat, do kterého se mu píše
+     * (`SupergroupFullInfo.directMessagesChatId`); `null` jinde. Kanál, kde se jen čte, pak
+     * místo pole nabídne „Napsat kanálu".
+     */
+    val directMessagesChatId: Long? = null,
+    /**
+     * Přímé zprávy kanálu, které uživatel spravuje (`isAdministeredDirectMessagesGroup`): celý
+     * chat jsou vlákna po odběratelích, a psát se dá jen do jednoho z nich.
+     */
+    val isDirectMessagesAdmin: Boolean = false,
+    /** Chat přímých zpráv kanálu (i u odběratele): hlavička ho odliší od kanálu samotného. */
+    val isDirectMessages: Boolean = false,
 )
 
 /**

@@ -80,6 +80,7 @@ import eu.tintera.plume.core.ui.SwipeDirection
 import eu.tintera.plume.core.ui.detectHorizontalSwipe
 import androidx.compose.material3.LocalContentColor
 import eu.tintera.plume.core.ui.SecretChatLock
+import eu.tintera.plume.core.ui.DirectMessagesMark
 import eu.tintera.plume.core.ui.VerificationBadge
 import eu.tintera.plume.core.ui.EmojiStatusBadge
 import eu.tintera.plume.core.ui.appendWithCustomEmoji
@@ -1964,6 +1965,7 @@ private fun ChatRow(
                             fallback = LocalContentColor.current,
                         )
                         if (chat.isSecret) SecretChatLock(tint = badgeAccent)
+                        if (chat.isDirectMessages) DirectMessagesMark(tint = badgeAccent)
                         Text(
                             text = chatTitle(chat.id, chat.title),
                             // `bodyLarge` místo `titleMedium`: stejná velikost, ale běžný řez.

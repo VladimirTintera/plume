@@ -166,6 +166,8 @@ class ConversationViewModel(
      * zpráv zužuje [repository] (`inSavedTopic`), tady jen hlavička.
      */
     private val savedTopicId: Long? = null,
+    /** Vlákno přímých zpráv kanálu; `null` u běžné konverzace. Zdroj zpráv zužuje [repository]. */
+    private val directTopicId: Long? = null,
     private val repository: ConversationRepository,
     /**
      * Jen kvůli „píše…". Činnost v chatu už sleduje repository chatů — i s odpočtem, který ji zhasne,
@@ -281,7 +283,12 @@ class ConversationViewModel(
         .map { it[chatId] }
         .stateIn(viewModelScope, SharingStarted.Eagerly, settings.usedOneTimeKeyboards.value[chatId])
 
-    private val _state = MutableStateFlow(ConversationState(threadRootId = threadRootId, forumTopicId = forumTopicId, savedTopicId = savedTopicId))
+    private val _state = MutableStateFlow(ConversationState(
+            threadRootId = threadRootId,
+            forumTopicId = forumTopicId,
+            savedTopicId = savedTopicId,
+            directTopicId = directTopicId,
+        ))
     val state: StateFlow<ConversationState> = _state.asStateFlow()
 
     /** Průvodce nahlášením — z nabídky nad zprávou i z pruhu proti spamu. */
@@ -526,7 +533,9 @@ class ConversationViewModel(
     private val links: ConversationLinks = ConversationLinks(
         chatId = chatId,
         forumTopicId = forumTopicId,
-        savedTopicId = savedTopicId,
+        // Vlákno přímých zpráv odkaz na zprávu nenese, takže se s ním zachází jako s tématem
+        // Uložených zpráv: odkaz otevře celý chat místo skoku.
+        savedTopicId = savedTopicId ?: directTopicId,
         state = _state,
         scope = viewModelScope,
         repository = repository,
@@ -1073,7 +1082,7 @@ class ConversationViewModel(
         }
         // V tématu jen zprávy tématu — ty přinese hledání a nové zprávy (repository je zužuje),
         // seznam vlastních sdílení o tématech neví.
-        if (forumTopicId == null && savedTopicId == null) viewModelScope.launch {
+        if (forumTopicId == null && savedTopicId == null && directTopicId == null) viewModelScope.launch {
             liveLocations.active.collect { active ->
                 active.filter { it.chatId == chatId && _state.value.liveLocations.none { m -> m.id == it.messageId } }
                     .forEach { live ->
@@ -1238,7 +1247,8 @@ class ConversationViewModel(
      * Skok na datum jde jen v celém chatu: `getChatMessageByDate` zná celý chat, takže ve vlákně
      * komentářů nebo v tématu by trefil zprávu mimo něj.
      */
-    val canJumpToDate: Boolean get() = threadRootId == null && forumTopicId == null && savedTopicId == null
+    val canJumpToDate: Boolean get() =
+        threadRootId == null && forumTopicId == null && savedTopicId == null && directTopicId == null
 
     /**
      * Stránka směrem k PŘÍTOMNOSTI — jen když je načtené okno v historii ([ConversationState.reachedEnd]

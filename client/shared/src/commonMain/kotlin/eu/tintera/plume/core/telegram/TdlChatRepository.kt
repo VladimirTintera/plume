@@ -522,6 +522,7 @@ class TdlChatRepository(
                     it.copy(
                         verification = update.supergroup.verificationStatus.toVerification(),
                         isForum = update.supergroup.isForum,
+                        isDirectMessages = update.supergroup.isDirectMessagesGroup,
                     )
                 }
             }
@@ -1628,9 +1629,12 @@ class TdlChatRepository(
     private suspend fun Chat.fullSummary(): ChatSummary = toSummary().let { summary ->
         // Protějšek tajného chatu si zapamatovat dřív, než se bude dohledávat dostupnost.
         (type as? ChatTypeSecret)?.let { secret -> mutex.withLock { secretPeers[id] = secret.userId } }
+        val supergroup = (type as? ChatTypeSupergroup)
+            ?.let { client.getSupergroup(supergroupId = it.supergroupId).toResult().getOrNull() }
         summary.copy(
             verification = client.verificationOf(this),
-            isForum = client.isForum(this),
+            isForum = supergroup?.isForum == true,
+            isDirectMessages = supergroup?.isDirectMessagesGroup == true,
             lastMessagePreview = lastMessage?.let { message -> message.namedMemberPreview() }
                 ?: summary.lastMessagePreview
                 ?: secretChatPreview(type),

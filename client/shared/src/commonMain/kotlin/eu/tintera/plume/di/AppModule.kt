@@ -136,6 +136,9 @@ import eu.tintera.plume.core.telegram.TdlConversationRepository
 import eu.tintera.plume.core.telegram.TdlForumRepository
 import eu.tintera.plume.core.telegram.TdlSavedTopicsRepository
 import eu.tintera.plume.core.telegram.SavedTopicsRepository
+import eu.tintera.plume.core.telegram.DirectTopicsRepository
+import eu.tintera.plume.core.telegram.TdlDirectTopicsRepository
+import eu.tintera.plume.features.direct.DirectTopicsViewModel
 import eu.tintera.plume.core.telegram.ForumRepository
 import eu.tintera.plume.core.telegram.TdlFileRepository
 import eu.tintera.plume.core.telegram.TdlNotificationRepository
@@ -309,11 +312,15 @@ fun appModule() = module {
 
     // Bezstavová — na rozdíl od seznamu chatů nemusí vznikat dopředu, stránkovací stav
     // drží ConversationViewModel.
-    single<ConversationRepository> { TdlConversationRepository(holder = get(), savedTopics = get()) }
+    single<ConversationRepository> { TdlConversationRepository(holder = get(), savedTopics = get(), directTopics = get()) }
     single<ForumRepository> { TdlForumRepository(holder = get()) }
     // Eagerně: témata Uložených zpráv chodí jen updaty, dotaz na seznam TDLib nemá.
     single<SavedTopicsRepository>(createdAtStart = true) {
         TdlSavedTopicsRepository(holder = get(), scope = get(named(APP_SCOPE)))
+    }
+    // Eagerně: vlákna přímých zpráv kanálu chodí taky jen updaty.
+    single<DirectTopicsRepository>(createdAtStart = true) {
+        TdlDirectTopicsRepository(holder = get(), scope = get(named(APP_SCOPE)))
     }
     single<WebAppRepository> { TdlWebAppRepository(holder = get()) }
 
@@ -580,16 +587,20 @@ fun appModule() = module {
         val forumTopicId = parameters.values.getOrNull(3) as Int?
         // Pátý: téma Uložených zpráv (podle zdrojového chatu); `null` = všechny uložené zprávy.
         val savedTopicId = parameters.values.getOrNull(4) as Long?
+        // Šestý: vlákno přímých zpráv kanálu (správce s jedním odběratelem).
+        val directTopicId = parameters.values.getOrNull(5) as Long?
         ConversationViewModel(
             chatId = parameters.get(),
             initialMessageId = parameters.values.getOrNull(1) as Long?,
             threadRootId = threadRootId,
             forumTopicId = forumTopicId,
             savedTopicId = savedTopicId,
+            directTopicId = directTopicId,
             repository = when {
                 threadRootId != null -> ThreadConversationRepository(delegate = get(), rootMessageId = threadRootId)
                 forumTopicId != null -> get<ConversationRepository>().inForumTopic(forumTopicId)
                 savedTopicId != null -> get<ConversationRepository>().inSavedTopic(savedTopicId)
+                directTopicId != null -> get<ConversationRepository>().inDirectTopic(directTopicId)
                 else -> get()
             },
             chatRepository = get(),
@@ -652,6 +663,10 @@ fun appModule() = module {
 
     viewModel { parameters ->
         SavedTopicsViewModel(chatId = parameters.get(), repository = get(), settings = get())
+    }
+
+    viewModel { parameters ->
+        DirectTopicsViewModel(chatId = parameters.get(), repository = get(), conversations = get())
     }
 
     // Parametry INDEXEM: chat a bot jsou dvě `Long` a podle typu by se zaměnily.
