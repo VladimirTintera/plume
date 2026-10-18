@@ -388,7 +388,7 @@ Konverzační část auditu (celoaplikační body v [roadmap.md](roadmap.md), �
 
 - ~~Pruh proti spamu a oznámení o chatu, přepínač Emoji / Samolepky / GIF, sheety v konverzaci,
   Odeslat ankety jako split button, ztlumení kanálu jako přepínač, Hotovo nad médiem, předěl
-  nepřečtených, prázdná konverzace, typografie, výchozí animace~~ — hotovo (PR_KONVERZACE,
+  nepřečtených, prázdná konverzace, typografie, výchozí animace~~ — hotovo (VladimirTintera/telegram#850,
   dříve #829, #830, #847; `docs/poznatky/konverzace-zobrazeni.md`, „Pruhy a přepínače M3 Expressive").
 - **Zbývá:**
   - Plovoucí tlačítka (`ConversationFloatingButtons`): ručně stavěné `Surface(CircleShape,

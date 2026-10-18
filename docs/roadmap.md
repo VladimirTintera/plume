@@ -889,7 +889,7 @@ Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku, p�
 
 ### Sklouzávání k M2 (audit říjen 2026)
 
-Průchod kódem a obrazovkami na emulátoru. Hlavní plochy (seznam chatů, vstupní pole, nabídky,
+Průchod kódem a obrazovkami na emulátoru. **Hlavní body jsou hotové** (#825–#850); co zbývá, je níž nepřeškrtnuté a v roadmapě konverzace. Hlavní plochy (seznam chatů, vstupní pole, nabídky,
 plovoucí lišty) jsou expressive; do „holého M3" se padá na okrajích — v podstránkách, sheetech,
 dialozích, prázdných stavech a u textových tlačítek. Konverzace má vlastní seznam
 v [roadmap-konverzace.md](roadmap-konverzace.md), „Vzhled podle M3 Expressive". Seřazené podle
