@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.profile
 
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.itemsIndexed
+import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.clickable
@@ -10,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -54,14 +56,16 @@ internal fun BookmarksSheet(
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberExpandedSheetState()) {
         SheetTitle(stringResource(Res.string.profile_bookmarks), modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp))
-        LazyColumn(Modifier.fillMaxWidth().navigationBarsPadding()) {
-            items(bookmarks, key = { "${it.chatId}/${it.messageId}" }) { bookmark ->
+        // Blok zaoblených řádků, jako výsledky hledání: dřív holé řádky na ploše sheetu.
+        LazyColumn(Modifier.fillMaxWidth().navigationBarsPadding(), contentPadding = PaddingValues(bottom = 16.dp)) {
+            itemsIndexed(bookmarks, key = { _, it -> "${it.chatId}/${it.messageId}" }) { index, bookmark ->
                 Row(
                     Modifier
+                        .animateItem()
+                        .groupedItem(index, bookmarks.size, MaterialTheme.colorScheme.surfaceContainerLowest)
                         .fillMaxWidth()
                         .clickable { onOpen(bookmark) }
-                        .padding(start = 24.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)
-                        .animateItem(),
+                        .padding(start = 16.dp, end = 4.dp, top = 12.dp, bottom = 12.dp),
                     verticalAlignment = Alignment.Top,
                 ) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {

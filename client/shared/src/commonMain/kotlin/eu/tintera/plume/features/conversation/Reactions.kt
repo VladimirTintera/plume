@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import androidx.compose.foundation.lazy.itemsIndexed
+import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.core.ui.horizontalScrollWithWheel
@@ -37,7 +39,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ButtonGroupDefaults
@@ -580,11 +581,14 @@ fun ReactionDetailsSheet(
             // Strop výšky: u příspěvku s padesáti reakcemi by sheet jinak zabral celou obrazovku.
             Modifier.heightIn(max = REACTION_DETAILS_MAX_HEIGHT).padding(vertical = 8.dp),
         ) {
-            items(details.items, key = { "${it.sender.id}-${it.emoji}" }) { detail ->
+            // Blok zaoblených řádků jako „Kdo zprávu viděl" v informacích o zprávě; řádek nejde
+            // ťuknout, takže se při stisku nezaobluje.
+            itemsIndexed(details.items, key = { _, it -> "${it.sender.id}-${it.emoji}" }) { index, detail ->
                 Row(
                     Modifier
+                        .groupedItem(index, details.items.size, MaterialTheme.colorScheme.surfaceContainerLowest, pressable = false)
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
