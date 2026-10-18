@@ -884,7 +884,7 @@ poměru přínosu a práce; každý bod je samostatný PR.
   VladimirTintera/telegram#827).
 - ~~**Prázdné a chybové stavy jako `IntroEmptyState`**~~ — hotovo pro prázdný účet a chybu seznamu
   chatů, prázdnou konverzaci, chybu Instant View; podseznamy (pozvánky, moje samolepky, hledání
-  témat) mají `GroupEmptyRow`. Zbývá: chyba načtení passkeys (text a `TextButton` pod nadpisem
+  témat) mají `GroupEmptyRow` (VladimirTintera/telegram#829). Zbývá: chyba načtení passkeys (text a `TextButton` pod nadpisem
   sekce) a odepřený přístup ve sdílení (`ShareToChatScreen` AccessDenied — leží nad galerií,
   takže celoobrazovkový stav se tam nehodí, jen nadpis a tlačítko).
 - **Emphasized typografie.** `Typography.kt` ji má celou, v kódu byla 5× a jen `label*`; nadpis
