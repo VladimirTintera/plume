@@ -388,7 +388,7 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   na zařízení s kanálem nebo anonymním správcem a prémiovou volbu.
 - ~~Přímé zprávy kanálu (monoforum: `loadDirectMessagesChatTopics` a spol.)~~ — hotovo (zapnutí
   vlastníkem, „Napsat" u odběratele, vlákna u správce; `docs/poznatky/prime-zpravy-kanalu.md`).
-  Zbývají placené zprávy, archivní větev, „Napsat" v profilu kanálu a navrhované příspěvky
+  ~~Archivní větev a „Napsat" v profilu kanálu~~ — hotovo. Zbývají placené zprávy a navrhované příspěvky
   (`approveSuggestedPost`).
 - ~~Zobrazení fóra jako jednoho seznamu zpráv (`toggleChatViewAsTopics`)~~ — hotovo, volba se
   ukládá na serveru (`docs/poznatky/typy-zprav.md`, „Témata ve skupinách"). Zbývá ověřit

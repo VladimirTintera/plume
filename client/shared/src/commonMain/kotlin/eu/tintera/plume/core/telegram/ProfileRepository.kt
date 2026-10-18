@@ -453,6 +453,13 @@ data class ChatProfile(
     /** Diskusní skupina kanálu, u skupiny kanál, ke kterému patří; `null` = žádný. */
     val linkedChat: LinkedChat? = null,
     /**
+     * Chat přímých zpráv kanálu (`SupergroupFullInfo.directMessagesChatId`); `null` = kanál je
+     * nemá zapnuté. Profil podle něj nabídne „Napsat", správci „Přímé zprávy".
+     */
+    val directMessagesChatId: Long? = null,
+    /** Přímé zprávy kanálu spravuje uživatel (`isAdministeredDirectMessagesGroup`). */
+    val directMessagesAdmin: Boolean = false,
+    /**
      * První skladba hudby v profilu uživatele (`UserFullInfo.firstProfileAudio`), nebo `null`.
      * Celý seznam se dočítá zvlášť ([ProfileRepository.profileAudios]); podle souboru téhle
      * skladby se pozná, že se seznam změnil.

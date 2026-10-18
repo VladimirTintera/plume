@@ -228,6 +228,9 @@ import eu.tintera.plume.resources.add_subscribers_title
 import eu.tintera.plume.resources.person_add_24dp
 import eu.tintera.plume.resources.profile_open_app
 import eu.tintera.plume.resources.apps_24dp
+import eu.tintera.plume.resources.channel_direct_message
+import eu.tintera.plume.resources.direct_topics_subtitle
+import eu.tintera.plume.resources.mail_24dp
 import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.common_close
@@ -474,6 +477,8 @@ fun ChatProfileScreen(
                         onToggleMute = viewModel::toggleMute,
                         onSearch = onSearch,
                         onOpenApp = onOpenMainWebApp.takeIf { profile.hasMainWebApp },
+                        directMessages = profile.directMessagesChatId?.let { profile.directMessagesAdmin },
+                        onOpenDirectMessages = viewModel::openDirectMessages,
                     )
                     val notifications = state.notifications
                     val showsAutoDelete = profile.canSetAutoDelete || profile.autoDeleteTime > 0
@@ -1225,6 +1230,13 @@ private fun ProfileActions(
      * přišel — oficiální klienti ji mají jako velké tlačítko „Open App".
      */
     onOpenApp: (() -> Unit)?,
+    /**
+     * Kanál má přímé zprávy: `false` = odběratel („Napsat"), `true` = správce („Přímé zprávy",
+     * vlákna po odběratelích); `null` = kanál je nemá. Je první jako aplikace bota — u kanálu
+     * je to jediná akce, která vede někam dál.
+     */
+    directMessages: Boolean? = null,
+    onOpenDirectMessages: () -> Unit = {},
 ) {
     val haptics = LocalHapticFeedback.current
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -1233,6 +1245,14 @@ private fun ProfileActions(
                 icon = Res.drawable.apps_24dp,
                 label = stringResource(Res.string.profile_open_app),
                 onClick = onOpenApp,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        if (directMessages != null) {
+            ProfileAction(
+                icon = Res.drawable.mail_24dp,
+                label = stringResource(if (directMessages) Res.string.direct_topics_subtitle else Res.string.channel_direct_message),
+                onClick = onOpenDirectMessages,
                 modifier = Modifier.weight(1f),
             )
         }

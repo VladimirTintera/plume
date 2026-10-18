@@ -24,6 +24,7 @@ import eu.tintera.plume.core.navigation.ArchiveMemberRightsRoute
 import eu.tintera.plume.core.navigation.ArchiveEditChatRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ArchiveForumTopicsRoute
+import eu.tintera.plume.core.navigation.ArchiveDirectTopicsRoute
 import eu.tintera.plume.core.navigation.ForumTopicsRoute
 import eu.tintera.plume.core.navigation.SavedTopicsRoute
 import eu.tintera.plume.core.navigation.DirectTopicsRoute
@@ -64,7 +65,7 @@ internal fun List<NavKey>.hasOpenConversation(folder: ChatFolder): Boolean = whe
     // Seznam témat stojí na místě konverzace (skupina s tématy se otevírá jím). Složka Telegramu
     // je výběr z hlavního seznamu a sdílí jeho větev.
     ChatFolder.Main, is ChatFolder.Custom -> any { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute || it is DirectTopicsRoute }
-    ChatFolder.Archive -> any { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute }
+    ChatFolder.Archive -> any { it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute || it is ArchiveDirectTopicsRoute }
 }
 
 /**
@@ -75,7 +76,7 @@ internal fun List<NavKey>.hasOpenConversation(folder: ChatFolder): Boolean = whe
 internal fun MutableList<NavKey>.closeArchive() {
     removeAll {
         it is ArchiveRoute || it is ArchiveConversationRoute || it is ArchiveForumTopicsRoute ||
-            it is ArchiveChatProfileRoute
+            it is ArchiveDirectTopicsRoute || it is ArchiveChatProfileRoute
     }
 }
 
@@ -88,9 +89,14 @@ internal fun MutableList<NavKey>.closeArchive() {
 internal fun MutableList<NavKey>.closeConversationOf(change: ArchiveChange) {
     val ids: Set<Long?> = change.chatIds.toSet()
     if (change.archived) {
-        removeAll { ((it as? ConversationRoute)?.chatId ?: (it as? ForumTopicsRoute)?.chatId) in ids }
+        removeAll {
+            ((it as? ConversationRoute)?.chatId ?: (it as? ForumTopicsRoute)?.chatId ?: (it as? DirectTopicsRoute)?.chatId) in ids
+        }
     } else {
-        removeAll { ((it as? ArchiveConversationRoute)?.chatId ?: (it as? ArchiveForumTopicsRoute)?.chatId) in ids }
+        removeAll {
+            ((it as? ArchiveConversationRoute)?.chatId ?: (it as? ArchiveForumTopicsRoute)?.chatId
+                ?: (it as? ArchiveDirectTopicsRoute)?.chatId) in ids
+        }
     }
 }
 
@@ -109,7 +115,8 @@ internal fun MutableList<NavKey>.moveConversationToMain(chatId: Long) {
     removeAll {
         when (it) {
             // Celá archivní větev, i úpravy a práva členů nad profilem.
-            is ArchiveRoute, is ArchiveConversationRoute, is ArchiveForumTopicsRoute, is ArchiveChatProfileRoute,
+            is ArchiveRoute, is ArchiveConversationRoute, is ArchiveForumTopicsRoute, is ArchiveDirectTopicsRoute,
+            is ArchiveChatProfileRoute,
             is ArchiveEditChatRoute, is ArchiveMemberRightsRoute, is ArchiveInviteLinksRoute, is ArchiveJoinRequestsRoute,
             is ArchiveRemovedMembersRoute, is ArchiveEventLogRoute,
             -> true
@@ -136,6 +143,7 @@ internal fun MutableList<NavKey>.closeChat(chatId: Long) {
             is ForumTopicsRoute -> it.chatId == chatId
             is DirectTopicsRoute -> it.chatId == chatId
             is ArchiveForumTopicsRoute -> it.chatId == chatId
+            is ArchiveDirectTopicsRoute -> it.chatId == chatId
             is ChatProfileRoute -> it.chatId == chatId
             is ArchiveChatProfileRoute -> it.chatId == chatId
             is MediaRoute -> it.chatId == chatId
@@ -303,7 +311,7 @@ internal fun MutableList<NavKey>.closeConversation(route: NavKey, list: NavKey, 
     val parent = this[index - 1]
     val keep = when {
         parent is ForumTopicsRoute || parent is ArchiveForumTopicsRoute || parent is SavedTopicsRoute ||
-            parent is DirectTopicsRoute -> index
+            parent is DirectTopicsRoute || parent is ArchiveDirectTopicsRoute -> index
         else -> subList(0, index).lastIndexOf(list).takeIf { it >= 0 }?.plus(1) ?: return pop(route)
     }
     while (size > keep) removeAt(lastIndex)
@@ -352,6 +360,7 @@ private fun NavKey.profileRoute(): NavKey? = when (this) {
     is DirectTopicsRoute -> ChatProfileRoute(chatId)
     is ArchiveConversationRoute -> ArchiveChatProfileRoute(chatId)
     is ArchiveForumTopicsRoute -> ArchiveChatProfileRoute(chatId)
+    is ArchiveDirectTopicsRoute -> ArchiveChatProfileRoute(chatId)
     else -> null
 }
 
