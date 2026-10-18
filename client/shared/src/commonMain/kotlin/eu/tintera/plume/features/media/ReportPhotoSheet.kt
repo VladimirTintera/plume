@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.media
 
+import eu.tintera.plume.core.ui.FormTextField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,7 +12,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -95,7 +95,7 @@ internal fun ReportPhotoSheet(
                     }
                 }
             } else {
-                OutlinedTextField(
+                FormTextField(
                     value = text,
                     onValueChange = { text = it.take(TEXT_MAX) },
                     label = { Text(stringResource(Res.string.report_photo_other_hint)) },

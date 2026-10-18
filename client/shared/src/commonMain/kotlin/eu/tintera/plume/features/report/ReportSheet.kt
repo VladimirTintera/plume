@@ -1,7 +1,7 @@
 package eu.tintera.plume.features.report
 
+import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
-import androidx.compose.material3.ShapeDefaults
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -20,8 +20,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,7 +32,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ReportOption
@@ -133,20 +130,15 @@ private fun OptionsStep(step: ReportStep.ChooseOption, enabled: Boolean, onChoos
 private fun ColumnScope.TextStep(step: ReportStep.EnterText, enabled: Boolean, onSubmit: (String) -> Unit) {
     var text by rememberSaveable { mutableStateOf("") }
     StepTitle(stringResource(Res.string.report_details_title))
-    TextField(
+    // Tentýž tónovaný blok s rámečkem při psaní jako ostatní pole v aplikaci; dřív jeho
+    // napodobenina, která fokus neukázala.
+    FormTextField(
         value = text,
         onValueChange = { text = it.take(REPORT_TEXT_MAX) },
         placeholder = {
             Text(stringResource(if (step.optional) Res.string.report_text_optional_hint else Res.string.report_text_hint))
         },
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-        shape = ShapeDefaults.LargeIncreased,
-        // Tónovaný blok bez podtržení, jako ostatní pole v aplikaci.
-        colors = TextFieldDefaults.colors(
-            focusedIndicatorColor = Color.Transparent,
-            unfocusedIndicatorColor = Color.Transparent,
-            disabledIndicatorColor = Color.Transparent,
-        ),
         enabled = enabled,
         minLines = 3,
         modifier = Modifier.fillMaxWidth().heightIn(min = 120.dp),

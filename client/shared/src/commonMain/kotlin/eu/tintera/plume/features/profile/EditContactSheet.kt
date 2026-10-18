@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.FormTextField
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,7 +11,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -79,7 +79,7 @@ internal fun EditContactSheet(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             SheetTitle(stringResource(Res.string.contact_edit))
-            OutlinedTextField(
+            FormTextField(
                 value = firstName,
                 onValueChange = { firstName = it.take(NAME_MAX) },
                 label = { Text(stringResource(Res.string.edit_profile_first_name)) },
@@ -87,7 +87,7 @@ internal fun EditContactSheet(
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
                 modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
+            FormTextField(
                 value = lastName,
                 onValueChange = { lastName = it.take(NAME_MAX) },
                 label = { Text(stringResource(Res.string.edit_profile_last_name)) },
@@ -97,7 +97,7 @@ internal fun EditContactSheet(
             )
             // Server, který poznámky neumí (limit 0), pole nedostane — uložení by skončilo chybou.
             if (contact.noteMaxLength > 0) {
-                OutlinedTextField(
+                FormTextField(
                     value = note,
                     onValueChange = { note = it.take(contact.noteMaxLength) },
                     label = { Text(stringResource(Res.string.contact_note)) },
