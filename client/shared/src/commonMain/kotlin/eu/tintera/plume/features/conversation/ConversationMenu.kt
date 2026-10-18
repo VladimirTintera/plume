@@ -18,6 +18,8 @@ import eu.tintera.plume.core.ui.MenuAction
 import eu.tintera.plume.features.chats.ChatDeleteSheet
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chats_action_delete
+import eu.tintera.plume.resources.clear_history
+import eu.tintera.plume.resources.delete_sweep_24dp
 import eu.tintera.plume.resources.chats_action_report
 import eu.tintera.plume.resources.chats_delete_report
 import eu.tintera.plume.resources.conversation_search
@@ -83,6 +85,9 @@ internal fun ConversationMenu(
     var expanded by remember { mutableStateOf(false) }
     var confirmCloseSecret by rememberSaveable { mutableStateOf(false) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    var clearHistory by rememberSaveable { mutableStateOf(false) }
+    // Vyprázdnit chat jde jen celý, ne vlákno nebo téma — a jen kde to TDLib dovolí.
+    val clearRights = info?.clearHistory?.takeIf { wholeChat }
 
     val groups = listOf(
         listOfNotNull(
@@ -120,6 +125,14 @@ internal fun ConversationMenu(
             },
         ),
         listOfNotNull(
+            clearRights?.let {
+                MenuAction(
+                    stringResource(Res.string.clear_history),
+                    Res.drawable.delete_sweep_24dp,
+                    destructive = true,
+                    onClick = { clearHistory = true },
+                )
+            },
             if (canCloseSecret) {
                 MenuAction(
                     stringResource(Res.string.secret_chat_close),
@@ -169,6 +182,14 @@ internal fun ConversationMenu(
             onDismiss = { confirmCloseSecret = false },
             icon = Res.drawable.close_24dp,
             destructive = true,
+        )
+    }
+    if (clearHistory && clearRights != null && info != null) {
+        ClearHistorySheet(
+            rights = clearRights,
+            peerName = info.title.takeIf { isPrivate },
+            onConfirm = viewModel::clearHistory,
+            onDismiss = { clearHistory = false },
         )
     }
     // Tentýž sheet s volbami proti spamu jako v seznamu chatů — dvě podoby téhož kroku by se rozešly.

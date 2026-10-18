@@ -14,6 +14,9 @@ import eu.tintera.plume.features.chats.SpamCleanup
 import eu.tintera.plume.features.chats.cleanUpSpam
 import eu.tintera.plume.features.report.ReportFlow
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.clear_history_done
+import eu.tintera.plume.resources.clear_history_failed
+import eu.tintera.plume.resources.clear_history_period_done
 import eu.tintera.plume.resources.forum_view_mode_failed
 import eu.tintera.plume.resources.chat_bar_phone_shared
 import eu.tintera.plume.resources.chats_blocked
@@ -252,6 +255,28 @@ internal class ConversationChatActions(
             chatRepository.setViewAsTopics(chatId, viewAsTopics = true)
                 .onSuccess { onDone() }
                 .onFailure { failure -> state.update { it.copy(error = failure.reported(logger, Res.string.forum_view_mode_failed)) } }
+        }
+    }
+
+    /**
+     * Vymaže historii z nabídky ⋮, celou ([from] `null`), nebo jen zprávy z vybraných dnů
+     * (sekundy epochy, oba konce včetně). Chat zůstane v seznamu; zprávy z konverzace zmizí
+     * updaty o smazání, jako když je smaže kdokoli jiný.
+     */
+    fun clearHistory(from: Int?, to: Int?, forAll: Boolean) {
+        scope.launch {
+            val result = if (from != null && to != null) {
+                repository.clearHistoryBetween(chatId, from, to, forAll)
+            } else {
+                repository.clearHistory(chatId, forAll)
+            }
+            result
+                .onSuccess {
+                    state.update {
+                        it.copy(notice = UiText(if (from != null) Res.string.clear_history_period_done else Res.string.clear_history_done))
+                    }
+                }
+                .onFailure { failure -> state.update { it.copy(error = failure.reported(logger, Res.string.clear_history_failed)) } }
         }
     }
 

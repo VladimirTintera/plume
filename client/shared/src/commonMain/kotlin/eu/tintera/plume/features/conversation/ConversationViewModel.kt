@@ -511,6 +511,7 @@ class ConversationViewModel(
     fun reportChat() = chatActions.reportChat()
     fun deleteOrLeave(cleanup: SpamCleanup) = chatActions.deleteOrLeave(cleanup)
     fun closeSecretChat() = chatActions.closeSecretChat()
+    fun clearHistory(from: Int?, to: Int?, forAll: Boolean) = chatActions.clearHistory(from, to, forAll)
     fun viewAsTopics(onDone: () -> Unit) = chatActions.viewAsTopics(onDone)
 
     /** Napovídání při psaní: zmínky a inline boti — viz [ConversationSuggestions]. */
