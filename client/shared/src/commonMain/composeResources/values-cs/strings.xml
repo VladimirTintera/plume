@@ -1933,6 +1933,7 @@
     <string name="rewrite_server_translate">Přeložit…</string>
     <string name="rewrite_server_translate_to">Přeložit: %1$s</string>
     <string name="rewrite_server_emoji">Přidat emoji</string>
+    <string name="rewrite_translate_disclaimer">Překládá telefon, zpráva nikam neodchází. Před odesláním si překlad přečti.</string>
     <string name="rewrite_server_disclaimer">Text upravuje Telegram na svých serverech. Před odesláním si ho přečti.</string>
     <string name="rewrite_server_failed">Telegram text upravit nedokázal. Zkus to za chvíli.</string>
     <string name="error_ai_compose_premium">Bezplatné AI úpravy jsou vyčerpané. Další nabízí Telegram Premium.</string>

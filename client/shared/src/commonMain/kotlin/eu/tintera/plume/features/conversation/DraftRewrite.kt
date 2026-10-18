@@ -1,5 +1,18 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.translation.OnDeviceTranslator
+import eu.tintera.plume.core.translation.deviceTranslationCode
+import eu.tintera.plume.core.language.LanguageDetector
+import eu.tintera.plume.core.telegram.platformLanguageCode
+import androidx.compose.material3.FilledTonalButton
+import eu.tintera.plume.resources.translation_device_unsupported
+import eu.tintera.plume.resources.translation_device_same
+import eu.tintera.plume.resources.translation_device_download_failed
+import eu.tintera.plume.resources.translation_device_download_text
+import eu.tintera.plume.resources.translation_device_download
+import eu.tintera.plume.resources.translation_device_downloading
+import eu.tintera.plume.resources.translation_failed
+import eu.tintera.plume.resources.rewrite_translate_disclaimer
 import org.jetbrains.compose.resources.painterResource
 import eu.tintera.plume.resources.tone_rude
 import eu.tintera.plume.resources.tone_irritated
@@ -134,6 +147,13 @@ sealed interface ToneState {
 sealed interface RewriteChoice {
     data class Local(val style: RewriteStyle) : RewriteChoice
 
+    /**
+     * Překlad konceptu v telefonu (ML Kit Translation, jako „Překládat v telefonu" u zprávy) do
+     * jazyka [languageCode] (kód z `TRANSLATION_LANGUAGES`). Jazykový model na to není — překlad
+     * je jeho slabé místo a ML Kit je stavěný přímo na to.
+     */
+    data class LocalTranslate(val languageCode: String) : RewriteChoice
+
     data object ServerFix : RewriteChoice
 
     data class ServerStyle(val style: TextStyleOption) : RewriteChoice
@@ -144,7 +164,7 @@ sealed interface RewriteChoice {
     data object ServerEmoji : RewriteChoice
 
     /** Text odchází na server Telegramu (sheet to pod výsledkem říká). */
-    val onServer: Boolean get() = this !is Local
+    val onServer: Boolean get() = this !is Local && this !is LocalTranslate
 }
 
 /** Stav přepisu rozepsané zprávy. */
@@ -163,6 +183,12 @@ sealed interface RewriteState {
 
     data object ModelMissing : RewriteState
 
+    /** Překlad v telefonu potřebuje jazykové balíčky; stáhnou se až na „Stáhnout". */
+    data class NeedsDownload(val choice: RewriteChoice.LocalTranslate) : RewriteState
+
+    /** Jazykové balíčky se stahují. */
+    data class Downloading(val choice: RewriteChoice.LocalTranslate) : RewriteState
+
     data class Failed(val choice: RewriteChoice, val reason: UiText) : RewriteState
 }
 
@@ -178,8 +204,18 @@ class DraftRewriteViewModel(
     private val ai: OnDeviceAi,
     private val settings: AppSettings,
     private val aiText: AiTextRepository,
+    /** Překlad v telefonu; `null` = platforma ho nemá (iOS, desktop). */
+    private val translator: OnDeviceTranslator? = null,
+    private val languageDetector: LanguageDetector = LanguageDetector { null },
 ) : ViewModel() {
     private val logger = Logger.withTag("DraftRewrite")
+
+    /** Nabízí se překlad konceptu v telefonu — nezávisle na AI v zařízení, jen podle platformy. */
+    val translatesOnDevice: Boolean get() = translator != null
+
+    /** Umí telefon překládat do / z jazyka [code] (kód z `TRANSLATION_LANGUAGES`)? */
+    fun translatesTo(code: String): Boolean =
+        translator?.let { t -> deviceTranslationCode(code)?.let(t::supports) } == true
 
     /** Styly psaní od serveru Telegramu; prázdné = nabízí se jen oprava chyb. */
     val serverStyles: StateFlow<List<TextStyleOption>> = aiText.styles
@@ -249,6 +285,7 @@ class DraftRewriteViewModel(
         job = viewModelScope.launch {
             when (choice) {
                 is RewriteChoice.Local -> rewriteLocally(text, choice)
+                is RewriteChoice.LocalTranslate -> translateLocally(text, choice, download = false)
                 RewriteChoice.ServerFix -> aiText.fix(text).fold(
                     onSuccess = { fixed -> _state.value = RewriteState.Done(choice, fixed.text.trim(), fixed.diff) },
                     onFailure = { failure -> serverFailed(choice, failure) },
@@ -259,6 +296,63 @@ class DraftRewriteViewModel(
                 RewriteChoice.ServerEmoji -> composeOnServer(choice) { aiText.compose(text, addEmojis = true) }
             }
         }
+    }
+
+    /** „Stáhnout" u překladu v telefonu: balíčky a hned překlad. */
+    fun downloadModels(text: String) {
+        val choice = (_state.value as? RewriteState.NeedsDownload)?.choice ?: return
+        job?.cancel()
+        job = viewModelScope.launch { translateLocally(text, choice, download = true) }
+    }
+
+    /**
+     * Překlad konceptu v telefonu, stejnou cestou jako překlad zprávy (`ConversationTranslation`):
+     * jazyk rozpozná zařízení, chybějící balíčky se stáhnou až na výslovné „Stáhnout".
+     *
+     * **Nerozpoznaný jazyk se bere jako jazyk aplikace.** Koncept bývá krátký („Ahoj, jak se
+     * máš") a rozpoznání pod prahem jistoty vrátí `null`; u zprávy by se překlad odmítl, ale
+     * koncept píše uživatel a nejspíš v jazyce, ve kterém aplikaci používá. Kdyby to nesedělo,
+     * výsledek uvidí dřív, než ho použije.
+     */
+    private suspend fun translateLocally(text: String, choice: RewriteChoice.LocalTranslate, download: Boolean) {
+        val translator = translator ?: return
+        val source = (languageDetector.detect(text) ?: platformLanguageCode).let(::deviceTranslationCode)
+        val target = deviceTranslationCode(choice.languageCode)
+        val problem = when {
+            source == null || target == null || !translator.supports(source) || !translator.supports(target) ->
+                Res.string.translation_device_unsupported
+            source == target -> Res.string.translation_device_same
+            else -> null
+        }
+        if (problem != null || source == null || target == null) {
+            _state.value = RewriteState.Failed(choice, UiText(problem ?: Res.string.translation_failed))
+            return
+        }
+        if (!translator.hasModels(source, target)) {
+            if (!download) {
+                _state.value = RewriteState.NeedsDownload(choice)
+                return
+            }
+            _state.value = RewriteState.Downloading(choice)
+            if (translator.download(source, target).isFailure) {
+                _state.value = RewriteState.Failed(choice, UiText(Res.string.translation_device_download_failed))
+                return
+            }
+        }
+        _state.value = RewriteState.Working(choice, "")
+        translator.translate(text, source, target).fold(
+            onSuccess = { result ->
+                _state.value = if (result.isBlank()) {
+                    RewriteState.Failed(choice, UiText(Res.string.translation_failed))
+                } else {
+                    RewriteState.Done(choice, result.trim())
+                }
+            },
+            onFailure = { failure ->
+                logger.w(failure) { "Koncept se v telefonu nepodařilo přeložit" }
+                _state.value = RewriteState.Failed(choice, UiText(Res.string.translation_failed))
+            },
+        )
     }
 
     /** Přepis na serveru (`composeTextWithAi`): prázdný výsledek je selhání, ne „nic se nezměnilo". */
@@ -345,12 +439,15 @@ internal class DraftRewrite(
     /** Přepis modelem v zařízení se nabízí (zapnutá AI, podporované zařízení). */
     val localAvailable: Boolean get() = available.value
 
+    /** Překlad v telefonu (ML Kit) — platí i bez AI v zařízení a i v tajném chatu. */
+    val translateAvailable: Boolean get() = viewModel.translatesOnDevice
+
     /**
      * Nabídnout „Zkontrolovat a přepsat…"? Model v zařízení, nebo server — úpravy od serveru
      * tak má i telefon bez AI v zařízení. Jestli je v poli co přepsat ([rewritable]), rozhoduje
      * pole samo.
      */
-    val offered: Boolean get() = available.value || serverAllowed
+    val offered: Boolean get() = available.value || serverAllowed || viewModel.translatesOnDevice
 
     fun open(text: String) {
         source = text
@@ -388,12 +485,15 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
     LaunchedEffect(source) { rewrite.viewModel.checkTone(source) }
     val serverStyles by rewrite.viewModel.serverStyles.collectAsStateWithLifecycle()
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
-    // Výběr jazyka překladu je sheet NAD tímhle, jako u překladu zprávy.
-    var pickingLanguage by remember { mutableStateOf(false) }
+    // Výběr jazyka překladu je sheet NAD tímhle, jako u překladu zprávy. Drží, KTERÝ překlad
+    // se vybírá (v telefonu, nebo na serveru); `null` = výběr zavřený.
+    var pickLanguageFor by remember { mutableStateOf<LanguagePick?>(null) }
     val choice = when (val s = state) {
         is RewriteState.Working -> s.choice
         is RewriteState.Done -> s.choice
         is RewriteState.Failed -> s.choice
+        is RewriteState.NeedsDownload -> s.choice
+        is RewriteState.Downloading -> s.choice
         else -> null
     }
 
@@ -420,15 +520,23 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
              * liší tím podstatným — kam text odchází. Kdo AI v zařízení nemá, vidí jen server;
              * v tajném chatu jen zařízení.
              */
-            val local = rewrite.localAvailable
+            val local = rewrite.localAvailable || rewrite.translateAvailable
             if (local) {
                 ChoiceRow(title = Res.string.rewrite_on_device.takeIf { rewrite.serverAllowed }) {
-                    RewriteStyle.entries.forEach { option ->
-                        val option = RewriteChoice.Local(option)
-                        FilterChip(
-                            selected = option == choice,
-                            onClick = { rewrite.viewModel.rewrite(source, option) },
-                            label = { Text(stringResource(option.style.label)) },
+                    if (rewrite.localAvailable) {
+                        RewriteStyle.entries.forEach { option ->
+                            val option = RewriteChoice.Local(option)
+                            FilterChip(
+                                selected = option == choice,
+                                onClick = { rewrite.viewModel.rewrite(source, option) },
+                                label = { Text(stringResource(option.style.label)) },
+                            )
+                        }
+                    }
+                    if (rewrite.translateAvailable) {
+                        TranslateChip(
+                            selected = (choice as? RewriteChoice.LocalTranslate)?.languageCode,
+                            onClick = { pickLanguageFor = LanguagePick.Device },
                         )
                     }
                 }
@@ -440,18 +548,9 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
                         onClick = { rewrite.viewModel.rewrite(source, RewriteChoice.ServerFix) },
                         label = { Text(stringResource(Res.string.rewrite_server_fix)) },
                     )
-                    // Překlad: čip nese vybraný jazyk; ťuknutí vždy otevře výběr, i k překladu
-                    // do jiného jazyka.
-                    val translate = choice as? RewriteChoice.ServerTranslate
-                    FilterChip(
-                        selected = translate != null,
-                        onClick = { pickingLanguage = true },
-                        label = {
-                            Text(
-                                translate?.let { stringResource(Res.string.rewrite_server_translate_to, languageName(it.languageCode)) }
-                                    ?: stringResource(Res.string.rewrite_server_translate),
-                            )
-                        },
+                    TranslateChip(
+                        selected = (choice as? RewriteChoice.ServerTranslate)?.languageCode,
+                        onClick = { pickLanguageFor = LanguagePick.Server },
                     )
                     FilterChip(
                         selected = choice == RewriteChoice.ServerEmoji,
@@ -490,8 +589,33 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
                     stringResource(Res.string.summary_model_missing),
                     style = MaterialTheme.typography.bodyLarge,
                 )
+                is RewriteState.NeedsDownload -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        stringResource(Res.string.translation_device_download_text),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                    FilledTonalButton(onClick = { rewrite.viewModel.downloadModels(source) }) {
+                        Text(stringResource(Res.string.translation_device_download))
+                    }
+                }
+                is RewriteState.Downloading -> Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    LoadingIndicator(Modifier.size(32.dp))
+                    Text(stringResource(Res.string.translation_device_downloading), style = MaterialTheme.typography.bodyLarge)
+                }
                 is RewriteState.Failed -> {
-                    Text(stringResource(Res.string.rewrite_failed), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(
+                            if (s.choice is RewriteChoice.LocalTranslate || s.choice is RewriteChoice.ServerTranslate) {
+                                Res.string.translation_failed
+                            } else {
+                                Res.string.rewrite_failed
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
                     Text(
                         s.reason.resolve(),
                         style = MaterialTheme.typography.bodyMedium,
@@ -519,22 +643,56 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
             // sheet nabízí (bez AI v zařízení jen server).
             val onServer = choice?.onServer ?: !local
             Text(
-                stringResource(if (onServer) Res.string.rewrite_server_disclaimer else Res.string.rewrite_disclaimer),
+                stringResource(
+                    when {
+                        onServer -> Res.string.rewrite_server_disclaimer
+                        choice is RewriteChoice.LocalTranslate -> Res.string.rewrite_translate_disclaimer
+                        else -> Res.string.rewrite_disclaimer
+                    },
+                ),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
-    if (pickingLanguage) {
+    pickLanguageFor?.let { pick ->
+        val device = pick == LanguagePick.Device
         TranslationLanguageSheet(
-            selected = (choice as? RewriteChoice.ServerTranslate)?.languageCode.orEmpty(),
+            selected = when (val c = choice) {
+                is RewriteChoice.LocalTranslate -> c.languageCode.takeIf { device }
+                is RewriteChoice.ServerTranslate -> c.languageCode.takeIf { !device }
+                else -> null
+            }.orEmpty(),
             onPick = { code ->
-                pickingLanguage = false
-                rewrite.viewModel.rewrite(source, RewriteChoice.ServerTranslate(code))
+                pickLanguageFor = null
+                rewrite.viewModel.rewrite(
+                    source,
+                    if (device) RewriteChoice.LocalTranslate(code) else RewriteChoice.ServerTranslate(code),
+                )
             },
-            onDismiss = { pickingLanguage = false },
+            onDismiss = { pickLanguageFor = null },
+            // Telefon umí jen část jazyků serveru; co neumí, se v jeho výběru neukáže.
+            available = if (device) rewrite.viewModel::translatesTo else { _ -> true },
         )
     }
+}
+
+/** Pro který překlad je otevřený výběr jazyka. */
+private enum class LanguagePick { Device, Server }
+
+/** Čip překladu: nese vybraný jazyk; ťuknutí vždy otevře výběr, i k překladu do jiného jazyka. */
+@Composable
+private fun TranslateChip(selected: String?, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected != null,
+        onClick = onClick,
+        label = {
+            Text(
+                selected?.let { stringResource(Res.string.rewrite_server_translate_to, languageName(it)) }
+                    ?: stringResource(Res.string.rewrite_server_translate),
+            )
+        },
+    )
 }
 
 /** Název jazyka v jazyce aplikace (od systému); co systém nezná, ukáže se kódem. */
