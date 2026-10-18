@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.resources.settings_discreet_reading_summary
@@ -524,7 +525,7 @@ private fun BlockedActionsSheet(
             SheetActionRow(
                 icon = Res.drawable.block_24dp,
                 label = stringResource(Res.string.profile_unblock),
-                shape = RoundedCornerShape(20.dp),
+                shape = ShapeDefaults.LargeIncreased,
                 onClick = onUnblock,
             )
         }

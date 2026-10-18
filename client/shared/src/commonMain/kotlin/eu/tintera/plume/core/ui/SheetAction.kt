@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,7 +31,7 @@ fun SheetActionRow(
     /** `null` = varianta položky nad ní; místo ikony zůstane odsazení, aby popisky lícovaly. */
     icon: DrawableResource?,
     label: String,
-    shape: RoundedCornerShape,
+    shape: CornerBasedShape,
     onClick: () -> Unit,
     color: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
@@ -77,5 +78,5 @@ fun sheetActionShape(index: Int, count: Int) = RoundedCornerShape(
     bottomEnd = if (index == count - 1) SHEET_GROUP_CORNER else SHEET_INNER_CORNER,
 )
 
-private val SHEET_GROUP_CORNER = 20.dp
-private val SHEET_INNER_CORNER = 4.dp
+private val SHEET_GROUP_CORNER = GROUP_CORNER
+private val SHEET_INNER_CORNER = INNER_CORNER

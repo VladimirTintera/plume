@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.resources.campaign_24dp
+import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.resources.suggested_post_send
 import eu.tintera.plume.resources.conversation_edit_new_gif
 import eu.tintera.plume.core.telegram.MediaReplacement
@@ -1505,7 +1506,7 @@ private fun LinkPreviewHeader(
                 placeholder = photo.minithumbnail,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.padding(start = 8.dp).size(LINK_HEADER_THUMBNAIL).clip(RoundedCornerShape(8.dp)),
+                modifier = Modifier.padding(start = 8.dp).size(LINK_HEADER_THUMBNAIL).clip(ShapeDefaults.Small),
             )
         }
     }

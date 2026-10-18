@@ -396,6 +396,11 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   Bubble 560, Sheet 640, Reading 720, Conversation 840), ne konstanty po obrazovkách. Na ploše
   přes dva monitory se bez stropu konverzace i Nastavení natáhly přes tisíce dp. Drobné šířky
   uvnitř bublin (čip, štítek) jsou věc bubliny. Viz `docs/poznatky/navigace.md`, „Standardní šířky".
+- **Zaoblení ze škály M3 je token, ne číslo** (`ShapeDefaults.ExtraSmall` 4, `Small` 8, `Medium`
+  12, `Large` 16, `LargeIncreased` 20, `ExtraLarge` 28, `ExtraLargeIncreased` 32,
+  `ExtraExtraLarge` 48; bloky řádků `GROUP_CORNER` / `INNER_CORNER` z `core/ui/GroupedList.kt`).
+  Kopie téhož čísla se rozcházely (16 vs. 20 u bloků). Hlídá to `verifyShapeTokens`; hodnoty mimo
+  škálu (bubliny, média, soustředné zaoblení uvnitř karty) jsou vlastní tvary a kontrola je pouští.
 - **Vrstvení = surface container role, ne `tonalElevation`.** `surface` < `surfaceContainerLow/…` <
   `surfaceContainerHigh` (overlay) < `surfaceContainerHighest` (menu nad overlayem). `tonalElevation`
   u `surfaceContainer*` barev nic nedělá — M3 `Surface` tónuje jen `color == colorScheme.surface`.

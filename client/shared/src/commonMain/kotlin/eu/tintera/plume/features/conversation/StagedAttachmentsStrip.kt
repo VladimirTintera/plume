@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.resources.music_note_24dp
+import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.telegram.sendableTogether
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
@@ -178,14 +178,14 @@ private fun SinglePhotoPreview(
         Box(
             modifier = Modifier
                 .size(PHOTO_ITEM_WIDTH, PHOTO_ITEM_HEIGHT)
-                .clip(RoundedCornerShape(16.dp))
+                .clip(ShapeDefaults.Large)
                 .clickable(onClick = onOpen),
         ) {
             if (image != null) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(ShapeDefaults.Large)
                         .sharedFlight(attachmentKey(attachment.path), visible = !isPreviewOpen),
                 ) {
                     AsyncImage(
@@ -255,7 +255,7 @@ private fun SinglePhotoPreview(
                 modifier = Modifier
                     .padding(start = 12.dp)
                     .size(48.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = ShapeDefaults.Large,
                 colors = IconButtonDefaults.filledIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -273,7 +273,7 @@ private fun SinglePhotoPreview(
                 modifier = Modifier
                     .padding(start = 12.dp)
                     .size(48.dp),
-                shape = RoundedCornerShape(16.dp),
+                shape = ShapeDefaults.Large,
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -336,7 +336,7 @@ private fun PhotoCarousel(
         Box(
             Modifier
                 .fillMaxSize()
-                .maskClip(RoundedCornerShape(16.dp))
+                .maskClip(ShapeDefaults.Large)
                 .clickable { onOpen(index) },
         ) {
             // Video Coil neotevře; kreslí se jeho náhled, připravený při výběru.
@@ -348,7 +348,7 @@ private fun PhotoCarousel(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(ShapeDefaults.Large)
                         .sharedFlight(attachmentKey(attachment.path), visible = previewingIndex != index),
                 ) {
                     AsyncImage(
@@ -444,7 +444,7 @@ private fun PhotoCarousel(
 private fun TimerBadge(label: String, modifier: Modifier = Modifier) {
     Row(
         modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(ShapeDefaults.Small)
             .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f))
             .padding(horizontal = 6.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -471,7 +471,7 @@ private fun TimerBadge(label: String, modifier: Modifier = Modifier) {
 private fun FileBadge(modifier: Modifier = Modifier) {
     Row(
         modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(ShapeDefaults.Small)
             .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f))
             .padding(horizontal = 6.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -499,7 +499,7 @@ private fun FileBadge(modifier: Modifier = Modifier) {
 private fun VideoBadge(durationSeconds: Int, modifier: Modifier = Modifier) {
     Row(
         modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(ShapeDefaults.Small)
             .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f))
             .padding(start = 2.dp, end = 6.dp, top = 2.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,

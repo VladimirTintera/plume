@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
 import eu.tintera.plume.core.ui.resolve
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -144,7 +145,7 @@ internal fun ServiceMessage(
         CenteredNote(
             text = text,
             modifier = modifier
-                .clip(RoundedCornerShape(12.dp))
+                .clip(ShapeDefaults.Medium)
                 .clickable(role = Role.Button) { onOpen(open) },
         )
         return
@@ -156,7 +157,7 @@ internal fun ServiceMessage(
             text = text,
             // Odsazení dává poznámka sama, takže stojí přesně jako oznámení bez ťuknutí.
             modifier = modifier
-                .clip(RoundedCornerShape(12.dp))
+                .clip(ShapeDefaults.Medium)
                 .clickable(role = Role.Button) { onJumpTo(target) },
         )
         return
@@ -172,7 +173,7 @@ internal fun ServiceMessage(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(ShapeDefaults.Medium)
             .clickable(role = Role.Button) { onOpenChat(link.chatId) }
             .padding(vertical = 4.dp),
     ) {
@@ -204,7 +205,7 @@ private fun SuggestedPhotoNote(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(ShapeDefaults.Medium)
             .then(if (photo.canSet) Modifier.clickable(role = Role.Button) { confirm = true } else Modifier)
             .padding(vertical = 8.dp),
     ) {
@@ -255,7 +256,7 @@ private fun SuggestedBirthdateNote(text: String, birthdate: Birthdate, modifier:
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(ShapeDefaults.Medium)
             .clickable(role = Role.Button) { confirm = true }
             .padding(vertical = 4.dp),
     ) {

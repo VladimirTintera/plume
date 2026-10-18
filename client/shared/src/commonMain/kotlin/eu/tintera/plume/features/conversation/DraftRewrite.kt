@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.resources.rewrite_emoji_changed_text
 import eu.tintera.plume.core.ai.onlyEmojiAdded
@@ -44,7 +45,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -760,7 +760,7 @@ private fun diffText(diff: DraftDiff): AnnotatedString {
 @Composable
 private fun RewriteResult(text: String, working: Boolean, diff: DraftDiff? = null) {
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = ShapeDefaults.Large,
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         modifier = Modifier.fillMaxWidth(),
     ) {

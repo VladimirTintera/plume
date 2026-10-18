@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import androidx.compose.foundation.background
+import eu.tintera.plume.core.ui.GROUP_CORNER
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -146,6 +147,6 @@ private fun tileShape(index: Int, count: Int): Shape = RoundedCornerShape(
 /** Kolik chatů karta ukáže; zbytek je v seznamu pod ní. */
 private const val MAX_ROWS = 4
 
-private val CARD_CORNER = 20.dp
+private val CARD_CORNER = GROUP_CORNER
 private val OUTER_CORNER = 16.dp
 private val INNER_CORNER = 4.dp

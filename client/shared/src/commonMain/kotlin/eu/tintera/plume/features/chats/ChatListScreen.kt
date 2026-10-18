@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.resources.chats_bookmarks_count
+import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
+import eu.tintera.plume.core.ui.INNER_CORNER
+import eu.tintera.plume.core.ui.GROUP_CORNER
 import eu.tintera.plume.resources.bookmark_filled_24dp
 import eu.tintera.plume.resources.profile_bookmarks
 import eu.tintera.plume.features.profile.BookmarksSheet
@@ -2235,14 +2238,6 @@ private fun rememberChatAccents(used: Set<ThemeColor>): Map<ThemeColor, ColorSch
 /** Kolik položek před koncem už spustí dotažení další dávky. */
 private const val LOAD_MORE_THRESHOLD = 5
 
-/** Zaoblení na krajích skupiny. Nese ho i karta s aktualizací — je v seznamu další blok. */
-internal val GROUP_CORNER = 20.dp
-
-/** Zaoblení mezi sousedy uvnitř skupiny — tak akorát, aby byly rozeznatelné, ne oddělené. */
-private val INNER_CORNER = 4.dp
-
-/** Rozestup mezi položkami jedné skupiny. */
-private val GROUP_ITEM_SPACING = 2.dp
 
 /** Mezera mezi skupinami. */
 internal val GROUP_SPACING = 14.dp

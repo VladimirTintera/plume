@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.notices
 
 import androidx.compose.foundation.background
+import eu.tintera.plume.core.ui.GROUP_CORNER
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -163,6 +164,6 @@ private fun tileShape(index: Int, count: Int): Shape = RoundedCornerShape(
     bottomEnd = if (index == count - 1) OUTER_CORNER else INNER_CORNER,
 )
 
-private val CARD_CORNER = 20.dp
+private val CARD_CORNER = GROUP_CORNER
 private val OUTER_CORNER = 16.dp
 private val INNER_CORNER = 4.dp

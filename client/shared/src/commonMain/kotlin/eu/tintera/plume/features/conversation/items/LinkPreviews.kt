@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
 import eu.tintera.plume.core.ui.LocalAutoDownload
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -105,7 +106,7 @@ internal fun LinkPreviewCard(
                         onLongClick = onLongClick,
                         modifier = Modifier
                             .size(LINK_PREVIEW_THUMBNAIL)
-                            .clip(RoundedCornerShape(8.dp)),
+                            .clip(ShapeDefaults.Small),
                     )
                 }
             }
@@ -127,7 +128,7 @@ internal fun LinkPreviewCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height((maxWidth / ratio).coerceAtMost(MAX_PHOTO_HEIGHT))
-                            .clip(RoundedCornerShape(8.dp)),
+                            .clip(ShapeDefaults.Small),
                     )
                 }
             }

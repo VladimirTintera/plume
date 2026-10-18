@@ -935,11 +935,9 @@ poměru přínosu a práce; každý bod je samostatný PR.
 - ~~**Obrazovka hovoru**~~ — hotovo: ikony `mic_off` / `videocam_off` podle stavu, široké zavěšení
   probíhajícího hovoru, dýchající svatozář `ShapeMorphs.Live` za fotkou, dokud hovor čeká
   (`docs/poznatky/hovory.md`, „Vzhled obrazovky hovoru"; VladimirTintera/telegram#843).
-- **Tokeny tvarů místo dp.** `RoundedCornerShape(N.dp)` ~200×, `MaterialTheme.shapes` 21×; kopie
-  `GROUP_CORNER`/`INNER_CORNER` v osmi souborech, někde s jiným číslem (16 místo 20:
-  `AwaitingReplyCard`, `SpamCleanupOptions`, `ChatFolderEditScreen` ~722). Výchozí `Shapes()`
-  v alfě M3E škálu už má (`largeIncreased` = 20 …). Pohlídat kontrolou na `check` po vzoru
-  `verifyExpandedSheets`.
+- ~~**Tokeny tvarů místo dp**~~ — hotovo: 69 zaoblení ze škály na `ShapeDefaults`, kopie
+  `GROUP_CORNER`/`INNER_CORNER` sloučené, `verifyShapeTokens` na `check`. Hodnoty mimo škálu
+  (24, 18, 10 dp u bublin a médií, 16 dp soustředně uvnitř 20dp karty) zůstaly záměrně.
 - **Výchozí animace mimo `AppMotion`:** 54× `fadeIn()`/`fadeOut()` bez specu a ~20×
   `animate*AsState` bez `animationSpec` (hlavně konverzace). `tween` je skoro všude zdůvodněný.
 - **`SegmentedListItem`** (v alfě je, s `ListItemDefaults.segmentedShapes`) místo ručních

@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -11,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -200,7 +200,7 @@ internal data class LinkPreviewMessageItem(
                         messageId = message.id,
                         label = false,
                         onLongClick = ::requestMenu,
-                        modifier = Modifier.size(LINK_PREVIEW_THUMBNAIL).clip(RoundedCornerShape(12.dp)),
+                        modifier = Modifier.size(LINK_PREVIEW_THUMBNAIL).clip(ShapeDefaults.Medium),
                     )
                 }
             }

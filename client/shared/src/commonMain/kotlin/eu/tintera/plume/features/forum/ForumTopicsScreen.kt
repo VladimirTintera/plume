@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.forum
 
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.resources.search_off_24dp
 import eu.tintera.plume.core.ui.GroupEmptyRow
 import androidx.compose.foundation.layout.Spacer
@@ -38,7 +39,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Badge
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -227,7 +227,7 @@ fun ForumTopicsScreen(
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(ShapeDefaults.Medium)
                             .clickable(onClickLabel = stringResource(Res.string.profile_open), onClick = onOpenProfile)
                             .padding(4.dp),
                     ) {

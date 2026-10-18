@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.SheetTitle
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.days
@@ -209,7 +210,7 @@ fun ChatActionsSheet(
                     SheetActionRow(
                         icon = Res.drawable.drag_indicator_24dp,
                         label = stringResource(Res.string.chats_reorder_pinned),
-                        shape = RoundedCornerShape(4.dp),
+                        shape = ShapeDefaults.ExtraSmall,
                         onClick = onReorderPinned,
                     )
                 }
@@ -219,7 +220,7 @@ fun ChatActionsSheet(
                 SheetActionRow(
                     icon = Res.drawable.select_check_box_24dp,
                     label = stringResource(Res.string.menu_select),
-                    shape = RoundedCornerShape(4.dp),
+                    shape = ShapeDefaults.ExtraSmall,
                     onClick = onSelect,
                 )
 
@@ -227,7 +228,7 @@ fun ChatActionsSheet(
                     SheetActionRow(
                         icon = Res.drawable.notifications_24dp,
                         label = stringResource(Res.string.chats_action_unmute),
-                        shape = RoundedCornerShape(4.dp),
+                        shape = ShapeDefaults.ExtraSmall,
                         onClick = onUnmute,
                     )
                 } else {
@@ -245,7 +246,7 @@ fun ChatActionsSheet(
                     SheetActionRow(
                         icon = Res.drawable.notifications_off_24dp,
                         label = stringResource(Res.string.chats_action_mute),
-                        shape = RoundedCornerShape(4.dp),
+                        shape = ShapeDefaults.ExtraSmall,
                         onClick = { expanded = !expanded },
                         trailing = {
                             Icon(
@@ -267,7 +268,7 @@ fun ChatActionsSheet(
                                 SheetActionRow(
                                     icon = null,
                                     label = stringResource(label),
-                                    shape = RoundedCornerShape(4.dp),
+                                    shape = ShapeDefaults.ExtraSmall,
                                     // Tónovaná plocha o stupeň níž: varianty patří k položce nad nimi.
                                     color = MaterialTheme.colorScheme.surfaceContainer,
                                     onClick = { onMute(duration) },
@@ -282,7 +283,7 @@ fun ChatActionsSheet(
                     SheetActionRow(
                         icon = Res.drawable.snooze_24dp,
                         label = stringResource(Res.string.chats_action_unsnooze),
-                        shape = RoundedCornerShape(4.dp),
+                        shape = ShapeDefaults.ExtraSmall,
                         onClick = onUnsnooze,
                         trailing = { SnoozeTime(snoozedUntil) },
                     )
@@ -293,7 +294,7 @@ fun ChatActionsSheet(
                 SheetActionRow(
                     icon = Res.drawable.mark_chat_unread_24dp,
                     label = stringResource(if (chat.hasUnread) Res.string.chats_action_mark_read else Res.string.chats_action_mark_unread),
-                    shape = RoundedCornerShape(4.dp),
+                    shape = ShapeDefaults.ExtraSmall,
                     onClick = onToggleUnread,
                 )
 
@@ -302,7 +303,7 @@ fun ChatActionsSheet(
                     SheetActionRow(
                         icon = if (archived) Res.drawable.unarchive_24dp else Res.drawable.archive_24dp,
                         label = stringResource(if (archived) Res.string.chats_action_unarchive else Res.string.chats_action_archive),
-                        shape = RoundedCornerShape(4.dp),
+                        shape = ShapeDefaults.ExtraSmall,
                         onClick = onClick,
                     )
                 }
@@ -322,7 +323,7 @@ fun ChatActionsSheet(
                     SheetActionRow(
                         icon = Res.drawable.block_24dp,
                         label = stringResource(if (spam.isBlocked) Res.string.profile_unblock else Res.string.profile_block),
-                        shape = RoundedCornerShape(4.dp),
+                        shape = ShapeDefaults.ExtraSmall,
                         onClick = { onSetBlocked(!spam.isBlocked) },
                     )
                 }
@@ -337,7 +338,7 @@ fun ChatActionsSheet(
                         label = stringResource(
                             if (spam.reportsSpamDirectly) Res.string.chats_delete_report else Res.string.chats_action_report,
                         ),
-                        shape = RoundedCornerShape(4.dp),
+                        shape = ShapeDefaults.ExtraSmall,
                         onClick = onReport,
                     )
                 }
@@ -424,7 +425,7 @@ private fun SnoozeChoices(onSnooze: (SnoozeOption) -> Unit) {
     SheetActionRow(
         icon = Res.drawable.snooze_24dp,
         label = stringResource(Res.string.chats_action_snooze),
-        shape = RoundedCornerShape(4.dp),
+        shape = ShapeDefaults.ExtraSmall,
         onClick = { expanded = !expanded },
         trailing = {
             Icon(
@@ -464,7 +465,7 @@ internal fun SnoozeOptionRows(onSnooze: (SnoozeOption) -> Unit, color: Color, re
             SheetActionRow(
                 icon = null,
                 label = stringResource(option.label()),
-                shape = if (reserveIconSpace) RoundedCornerShape(4.dp) else groupRowShape(index, options.size),
+                shape = if (reserveIconSpace) ShapeDefaults.ExtraSmall else groupRowShape(index, options.size),
                 color = color,
                 onClick = { onSnooze(option) },
                 trailing = { SnoozeTime(snoozeUntil(option, now, zone).toEpochMilliseconds()) },
@@ -543,7 +544,7 @@ private fun FolderChoices(folders: List<FolderChoice>, onToggle: (Int) -> Unit) 
     SheetActionRow(
         icon = Res.drawable.folder_24dp,
         label = stringResource(Res.string.chat_action_folders),
-        shape = RoundedCornerShape(4.dp),
+        shape = ShapeDefaults.ExtraSmall,
         onClick = { expanded = !expanded },
         trailing = {
             Icon(
@@ -565,7 +566,7 @@ private fun FolderChoices(folders: List<FolderChoice>, onToggle: (Int) -> Unit) 
                 SheetActionRow(
                     icon = null,
                     label = folder.title,
-                    shape = RoundedCornerShape(4.dp),
+                    shape = ShapeDefaults.ExtraSmall,
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     onClick = { onToggle(folder.id) },
                     trailing = {
@@ -624,7 +625,7 @@ private fun SponsoredChatSheet(
                 SheetActionRow(
                     icon = Res.drawable.mark_chat_unread_24dp,
                     label = stringResource(if (chat.hasUnread) Res.string.chats_action_mark_read else Res.string.chats_action_mark_unread),
-                    shape = RoundedCornerShape(4.dp),
+                    shape = ShapeDefaults.ExtraSmall,
                     onClick = onToggleUnread,
                 )
                 when (sponsor) {

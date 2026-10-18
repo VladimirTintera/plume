@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
 import eu.tintera.plume.features.media.LocalPhotoDescriptions
+import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.LocalAutoDownload
 import androidx.compose.runtime.CompositionLocalProvider
 import eu.tintera.plume.core.telegram.NO_ARTICLE_MEDIA
@@ -20,7 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CornerSize
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -130,7 +130,7 @@ internal fun AlbumGrid(
     shape: Shape? = null,
 ) {
     // Zaoblení nese celá mřížka, ne jednotlivé dlaždice: uvnitř jsou jen tenké spáry.
-    val gridShape = shape ?: RoundedCornerShape(12.dp)
+    val gridShape = shape ?: ShapeDefaults.Medium
     val rowSizes = albumRowSizes(cells.size)
     Column(
         Modifier.clip(gridShape),
@@ -274,7 +274,7 @@ private fun AlbumTile(
                 )
             }
             Surface(
-                shape = RoundedCornerShape(8.dp),
+                shape = ShapeDefaults.Small,
                 color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
                 contentColor = Color.White,
                 modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),

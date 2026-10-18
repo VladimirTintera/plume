@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.devices
 
 import androidx.compose.foundation.background
+import eu.tintera.plume.core.ui.GROUP_CORNER
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -118,4 +119,4 @@ fun UnconfirmedLoginCard(
     }
 }
 
-private val CARD_CORNER = 20.dp
+private val CARD_CORNER = GROUP_CORNER
