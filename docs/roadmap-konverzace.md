@@ -384,38 +384,21 @@ kreslí s úryvkem (`docs/poznatky/konverzace-akce.md`, „Citace z nabídky"). 
 
 ## Vzhled podle M3 Expressive (audit říjen 2026)
 
-Konverzace je z velké části expressive (vstupní pole se sušenkou, nabídka nad zprávou, plovoucí
-lišty výběru a hledání, `FormattingBar`). Zbytky M2 jsou v pruzích nad seznamem, sheetech
-a tlačítkách. Celoaplikační body (tvary tlačítek, `SheetHeader`, `ConfirmDialog`, tokeny tvarů)
-jsou v [roadmap.md](roadmap.md), „Sklouzávání k M2".
+Konverzační část auditu (celoaplikační body v [roadmap.md](roadmap.md), „Sklouzávání k M2").
 
-- **Pruh proti spamu a oznámení o chatu** (`SpamBarCard`, `ChatNoticeBar`): neprůhledná karta
-  se stínem a červenými `TextButton`y posunutými `offset(-12.dp)`. Ostatní pruhy jsou skleněné
-  pilulky; tenhle vidí každý, komu napíše cizí. Tónový blok nebo sklo bez stínu, akce jako malá
-  tlačítka s tvary, destruktivní v `errorContainer`.
-- **Přepínač Emoji / Samolepky / GIF** (`StickerPicker` ~705, `SingleChoiceSegmentedButtonRow`)
-  na spojené `ToggleButton`y (vzor v `Reactions` ~633); pod záložkami samolepek pryč dělicí čára
-  (`StickerTabRow` ~108 — líná řada sama zůstává kvůli výkonu).
-- **Prázdná konverzace** (`ConversationContent` ~144) je holý text — `IntroEmptyState`, u chyby
-  s „Zkusit znovu".
-- **Sheety v hustém rozvržení:** `MessageInfoSheet` (řádky bez plochy, dělicí čára ~126),
-  holé `ListItem`y v `SendAsPicker`, `TranslationSheet` (výběr jazyka jen barvou) a výběru člena
-  v `InChatSearchBar` — na bloky jako kontakty a připnuté. `AttachmentModeSheet` a
-  `LinkPreviewOptionsSheet` mají ručně opsaný `groupItemShape` bez vyčlenění vybraného řádku;
-  `RemindSheet` a `MessageContextSheet` samostatné bloky s mezerou 8 dp místo jedné skupiny.
-- **Tlačítka:** JoinBar a `InviteSheet` s ručními 56 dp; MuteBar „Ztlumit / Zapnout zvuk" je
-  přepínač → `TonalToggleButton`; Odeslat v `PollComposer` / `ChecklistComposer` s nabídkou na
-  dlouhý stisk, kterou nikdo neobjeví → `SplitButton`; „Hotovo" v `StagedAttachmentPreview`
-  a `PhotoMarkupEditor` jako `TextButton`.
-- **Plovoucí tlačítka** (`ConversationFloatingButtons`): ručně stavěné `Surface(CircleShape,
-  shadowElevation = 4.dp)` a vjezdy bez `AppMotion`. Výchozí `fadeIn()` / `expandVertically()`
-  jsou i v `ConversationBars`, `MessageInput`, `FormattingBar`, `RecordControls`,
-  `ReplySuggestionChips`, plovoucím datu.
-- **Typografie:** nadpisy sheetů napůl `titleMedium` a napůl `titleLarge`; otázka ankety
-  (`PollMessageItem` ~164) a procenta (~389, ruční SemiBold) na `*Emphasized`.
-- Drobnosti: neurčitý `CircularProgressIndicator` v `PlayerDockBar` ~200; předěl „Nepřečtené
-  zprávy" (`Notes` ~102) vypadá jako předěl dne; `StickerSearchField` duplikuje `SearchPill`;
-  rozpor u reakcí (`Reactions` ~396: komentář „lem, ne stín", přitom `shadowElevation = 1.dp`).
+- ~~Pruh proti spamu a oznámení o chatu, přepínač Emoji / Samolepky / GIF, sheety v konverzaci,
+  Odeslat ankety jako split button, ztlumení kanálu jako přepínač, Hotovo nad médiem, předěl
+  nepřečtených, prázdná konverzace, typografie, výchozí animace~~ — hotovo (VladimirTintera/telegram#848,
+  dříve #829, #830, #847; `docs/poznatky/konverzace-zobrazeni.md`, „Pruhy a přepínače M3 Expressive").
+- **Zbývá:**
+  - Plovoucí tlačítka (`ConversationFloatingButtons`): ručně stavěné `Surface(CircleShape,
+    shadowElevation = 4.dp)`. Animace už jdou přes `AppMotion`; přestavba na FAB komponenty by
+    chtěla ověřit zarovnání s odznaky zmínek a reakcí.
+  - Čipy kategorií pod hledáním samolepek (srdce, palec…) jsou obrysové — zvážit tónové.
+  - `StickerSearchField` vypadá jako `SearchPill`, ale je řízený zvenku (text drží ViewModel);
+    sloučit až s `SearchPill`, který umí řízený text.
+- **Záměrně ponecháno:** neurčitý kruh v docku přehrávače (čeká na stažení a plynule přejde
+  v průběh, `CLAUDE.md`); stín 1 dp u čipů reakcí (bez něj čip mimo bublinu splývá s pozadím).
 
 ## Tlačítka botů
 
