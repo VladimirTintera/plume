@@ -930,10 +930,9 @@ poměru přínosu a práce; každý bod je samostatný PR.
 - ~~**Hlavičky podstránek profilu**~~ — hotovo (`ProfileSubpageTopBar` s názvem chatu v podtitulku;
   „Uložit", „Přidat", „Vytvořit", „Hotovo" jako `SaveActionButton` i v novém kontaktu, nové skupině
   a řazení; VladimirTintera/telegram#840).
-- **Obrazovka hovoru** (`CallOverlay`): ztlumení a kamera nemění ikonu (chybí `mic_off`,
-  `videocam_off`), zavěšení je stejně velké jako přepínače (M3E: široké
-  `IconButtonDefaults.IconButtonWidthOption.Wide`), avatar při zvonění stojí (`ShapeMorphs.Live`
-  by sedl).
+- ~~**Obrazovka hovoru**~~ — hotovo: ikony `mic_off` / `videocam_off` podle stavu, široké zavěšení
+  probíhajícího hovoru, dýchající svatozář `ShapeMorphs.Live` za fotkou, dokud hovor čeká
+  (`docs/poznatky/hovory.md`, „Vzhled obrazovky hovoru"; VladimirTintera/telegram#843).
 - **Tokeny tvarů místo dp.** `RoundedCornerShape(N.dp)` ~200×, `MaterialTheme.shapes` 21×; kopie
   `GROUP_CORNER`/`INNER_CORNER` v osmi souborech, někde s jiným číslem (16 místo 20:
   `AwaitingReplyCard`, `SpamCleanupOptions`, `ChatFolderEditScreen` ~722). Výchozí `Shapes()`

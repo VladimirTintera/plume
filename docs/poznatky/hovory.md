@@ -141,6 +141,21 @@ notifikace i obrazovka hovoru přišly a přijetí spojilo.
 
 **Co dál chybí**: iOS (desktop viz „Desktop", video „Videohovory").
 
+## Vzhled obrazovky hovoru (M3 Expressive)
+
+- **Přepínače nesou stav i ikonou**: ztlumený = přeškrtnutý mikrofon (`mic_off_24dp`), vypnutá
+  kamera = přeškrtnutá kamera (`videocam_off_24dp`). Dřív nesla stav jen výplň a tvar
+  (`toggleableShapes`), a ikona mikrofonu na plném podkladu se dala číst i jako „mikrofon
+  zapnutý". Ikony jsou Material Symbols Outlined z Google Fonts upravené podle `CLAUDE.md`.
+- **Zavěšení probíhajícího hovoru je široké** (`IconButtonWidthOption.Wide`, `HangUpButton(wide =
+  true)`). Při zvonění a v okénku příchozího hovoru na desktopu ne: tam stojí vedle přijetí
+  a širší odmítnutí by bylo výraznější než přijetí.
+- **Dokud hovor čeká** (zvoní, vytáčí se, spojuje), dýchá za fotkou protějšku svatozář
+  `ShapeMorphs.Live` (kruh ↔ SoftBurst, `tertiaryContainer`, půlperioda 1,4 s). Fotka sama zůstává
+  kulatá — obličej v měnícím se tvaru by se kroutil. Po spojení svatozář zmizí (`slowEffectsSpec`).
+- Ověřeno na Pixelu 7 Pro a Pixelu 5 hovorem mezi testovacími účty (vyzvánění, příchozí hovor,
+  ztlumení); stav po spojení na zařízení neověřený.
+
 ## Videohovory
 
 Videohovor z nabídky profilu, kamera zapnutelná v každém hovoru (i v hlasovém, i u

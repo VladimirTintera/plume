@@ -26,7 +26,8 @@ import androidx.graphics.shapes.star
  * význam, aby se jazyk nerozmělnil:
  * - [ShapeMorphs.Rest] kruh ↔ šestistranná „sušenka": sušenka je klid / připraveno (mikrofon, pozastavené
  *   přehrávání), kruh probíhající akce (odeslat, hraje).
- * - [ShapeMorphs.Live] kruh ↔ SoftBurst: živý signál, tlačítko při nahrávání dýchá.
+ * - [ShapeMorphs.Live] kruh ↔ SoftBurst: živý signál, tlačítko při nahrávání dýchá; za fotkou
+ *   protějšku dýchá, dokud hovor čeká (zvoní, vytáčí se, spojuje) — fotka sama zůstává kulatá.
  * - [ShapeMorphs.Highlight] kruh ↔ dvanáctistranná sušenka: podbarvení podržené samolepky,
  *   vybraný vzorek barvy motivu.
  * - [ShapeMorphs.Intro] kruh → čtyřlístek → pětiúhelník → zaoblená hvězda: uvítání prázdného
