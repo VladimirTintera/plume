@@ -18,6 +18,12 @@ enum class RewriteStyle {
 
     /** Jen pravopis, překlepy a chybějící diakritika. */
     Fix,
+
+    /**
+     * Doplnit emoji, text nechat. Malý model rád „vylepší" i slova, proto výsledek hlídá
+     * [onlyEmojiAdded] — co neprojde, se zahodí.
+     */
+    Emoji,
 }
 
 /**
@@ -39,6 +45,9 @@ fun rewritePrompt(text: String, style: RewriteStyle): String = buildString {
             RewriteStyle.Shorter -> "Make it shorter and more to the point. Drop filler words, keep everything important."
             RewriteStyle.Polite -> "Make it more polite and friendly, without making it much longer."
             RewriteStyle.Fix -> "Fix spelling, typos, grammar, punctuation and missing diacritics. Change nothing else."
+            RewriteStyle.Emoji ->
+                "Add one to three fitting emoji where they feel natural. Only insert emoji: " +
+                    "do not change, fix, add or remove any word, letter or punctuation mark."
         },
     )
     appendLine()
@@ -84,3 +93,35 @@ private val QUOTES = listOf(
     "«" to "»",
     "'" to "'",
 )
+
+/**
+ * Přidal model k [original] jen emoji ([result])? Pojistka stylu [RewriteStyle.Emoji]: po
+ * odebrání emoji (a mezer — model je kolem emoji rád přidá nebo ubere) musí zbýt přesně
+ * původní text. Malý model jinak „mimochodem" opraví překlep nebo přepíše slovo a uživatel by
+ * to v záplavě emoji nepoznal.
+ */
+fun onlyEmojiAdded(original: String, result: String): Boolean =
+    withoutEmoji(result).filterNot(Char::isWhitespace) == withoutEmoji(original).filterNot(Char::isWhitespace)
+
+/** [text] bez emoji: obrázkové znaky, spojovače (ZWJ), voliče variant, odstíny pleti, keycap. */
+internal fun withoutEmoji(text: String): String = buildString {
+    var index = 0
+    while (index < text.length) {
+        val high = text[index]
+        val pair = high.isHighSurrogate() && index + 1 < text.length && text[index + 1].isLowSurrogate()
+        val codePoint = if (pair) (high.code - 0xD800) * 0x400 + (text[index + 1].code - 0xDC00) + 0x10000 else high.code
+        val size = if (pair) 2 else 1
+        if (!isEmojiCodePoint(codePoint)) append(text, index, index + size)
+        index += size
+    }
+}
+
+private fun isEmojiCodePoint(codePoint: Int): Boolean =
+    codePoint >= 0x1F000 ||
+        codePoint in 0x2600..0x27BF ||
+        codePoint in 0x2B00..0x2BFF ||
+        codePoint in 0x2300..0x23FF ||
+        codePoint in 0xFE00..0xFE0F ||
+        codePoint == 0x200D ||
+        codePoint == 0x20E3 ||
+        codePoint == 0x3030 || codePoint == 0x303D || codePoint == 0x3297 || codePoint == 0x3299

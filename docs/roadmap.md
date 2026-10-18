@@ -707,8 +707,8 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
     „Překlad konceptu v telefonu"). Zbývá iOS (s překladem zpráv).
   - ~~**Zvýraznit změny u „Opravit překlepy"**~~ — hotovo (`draftDiff`; `docs/poznatky/ai-v-zarizeni.md`,
     „Přepis před odesláním").
-  - **Přidat emoji modelem s pojistkou**: po odebrání emoji musí zbýt přesně původní text,
-    jinak se výsledek zahodí (malý model rád přepíše i slova).
+  - ~~**Přidat emoji modelem s pojistkou**~~ — hotovo (`onlyEmojiAdded`; `docs/poznatky/ai-v-zarizeni.md`,
+    „Přepis před odesláním"). Zbývá ověřit Gemini Nano.
 
 **Na překlad se Nano nehodí a nemá se používat.** ML Kit má vlastní offline Translation API,
 stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v kvalitě i v čase.

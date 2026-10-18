@@ -381,6 +381,17 @@ funkce liší od návrhů odpovědí: sloh drhne, ale chybu uživatel VIDÍ dř�
     zitra v osm" → „Ahoj**,** jak se ~~mas~~**máš** prijdu ~~zitra~~**zítra** v osm**?**" —
     model sám připsal otazník a „prijdu" neopravil, a obojí je teď vidět.
   - Jen u opravy; u „Kratší" a „Zdvořileji" se mění celé věty a zvýraznění by bylo šum.
+- **„Přidat emoji" v telefonu má pojistku** (`RewriteStyle.Emoji`, `onlyEmojiAdded`, testy
+  `EmojiGuardTest`): po odebrání emoji (obrázkové znaky, ZWJ, voliče variant, odstíny pleti)
+  a všech mezer musí zbýt přesně původní text. Jinak se výsledek zahodí s větou, že model změnil
+  i text — v záplavě emoji by „mimochodem" opravené slovo nikdo nepoznal. Mezery se nepočítají,
+  protože model kolem emoji mezeru rád přidá nebo ubere („kufr 🧳."). Vložená emoji ukáže
+  zvýraznění změn (`draftDiff`), takže je vidět i to, že se nic jiného nezměnilo.
+  - **Ověřeno na Foldu s Gemmou** (koncept v Uložených): „Tomorrow we go hiking in the
+    mountains" → „… ⛰️🌲😊", „zitra jedeme na hory uz se tesim" → „… ⛰️😊" a i „happy birthay my
+    friend i love you" → „… ❤️🎂🥳" — Gemma text pokaždé nechala, i s překlepem. Pojistka tedy
+    v praxi zatím nezasáhla; zarazí to, co testy (změněná slova, doplněná interpunkce).
+    **Gemini Nano neověřené.**
 
 - **Přepisuje se vždy PŮVODNÍ text**, ne předchozí přepis; přepnutí stylu tak nekupí chyby.
 - **Jazyk zprávy, ne aplikace, a tykání zůstává tykáním** — obojí musí v promptu stát výslovně
