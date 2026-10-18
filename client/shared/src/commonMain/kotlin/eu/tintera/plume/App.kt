@@ -27,6 +27,7 @@ import eu.tintera.plume.core.settings.ThemeColor
 import eu.tintera.plume.core.settings.ThemeMode
 import eu.tintera.plume.core.share.rememberReturnToCaller
 import eu.tintera.plume.core.telegram.AuthStage
+import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.core.ui.AppIconBadgeColors
 import eu.tintera.plume.core.ui.PrivacyCover
 import eu.tintera.plume.core.ui.SecureScreen
@@ -123,6 +124,14 @@ fun AppRoot(content: @Composable () -> Unit) {
                     forgetKnownImagePaths()
                     forgetStickerAnimations()
                 }
+            }
+
+            // Jazykový balíček Telegramu podle jazyka aplikace — po přihlášení i po změně jazyka
+            // (proces ji přežije, mění se jen konfigurace a s ní `Locale.current`).
+            val session = koinInject<TelegramSession>()
+            val language = androidx.compose.ui.text.intl.Locale.current.toLanguageTag()
+            LaunchedEffect(stage is AuthStage.Ready, language) {
+                if (stage is AuthStage.Ready) session.syncLanguagePack(language)
             }
 
             AnimatedContent(

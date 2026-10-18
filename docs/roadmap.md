@@ -461,7 +461,8 @@ zprávy (`sendEphemeralMessage`), živé příběhy. ~~AI úpravy textu od serve
 (`composeTextWithAi`, `fixTextWithAi`, styly psaní)~~ — hotovo v sheetu „Zkontrolovat
 a přepsat…" (`docs/poznatky/ai-v-zarizeni.md`, „Úpravy textu od Telegramu"); ~~překlad
 a emoji z `composeTextWithAi`~~ (hotovo, čipy „Přeložit…" a „Přidat emoji"); zbývají vlastní styly (`isCustom`, odkazy na styl), oprava formátované
-zprávy (`fixRichMessageWithAi`) a jazykový balíček, aby názvy stylů byly česky. ~~Hudba v profilu (`getUserProfileAudios`)~~ —
+zprávy (`fixRichMessageWithAi`) a ~~jazykový balíček~~ (hotovo, `syncLanguagePack`; názvy stylů ale přišly anglicky i s ním —
+ověřit s čerstvou instalací, jestli je server česky vůbec má). ~~Hudba v profilu (`getUserProfileAudios`)~~ —
 hotovo (profil, úprava profilu, „Přidat do profilu" nad zprávou, soukromí;
 `docs/poznatky/profil-chatu.md`, „Hudba v profilu"); ~~pořadí skladeb
 (`setProfileAudioPosition`), přidání skladby ze souboru v telefonu~~ (hotovo, úprava profilu;

@@ -20,6 +20,13 @@ import eu.tintera.plume.core.ui.UiText
  */
 interface TelegramSession {
 
+    /**
+     * Jazykový balíček Telegramu podle jazyka aplikace ([languageCode]) — server podle něj
+     * lokalizuje texty, které posílá sám (kategorie emoji, podmínky služby…). Volá se při startu
+     * i po změně jazyka; jazyk bez oficiálního balíčku vrátí výchozí (angličtinu).
+     */
+    suspend fun syncLanguagePack(languageCode: String) {}
+
     /** Aktuální fáze přihlášení. TDLib ji řídí jako stavový automat, my ho jen překládáme do domény. */
     val authStage: StateFlow<AuthStage>
 

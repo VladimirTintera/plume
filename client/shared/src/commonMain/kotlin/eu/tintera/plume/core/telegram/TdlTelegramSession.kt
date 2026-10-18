@@ -35,6 +35,7 @@ import dev.g000sha256.tdl.dto.EmailAddressResetState
 import dev.g000sha256.tdl.dto.EmailAddressResetStateAvailable
 import dev.g000sha256.tdl.dto.EmailAddressResetStatePending
 import dev.g000sha256.tdl.dto.OptionValueInteger
+import dev.g000sha256.tdl.dto.OptionValueString
 import dev.g000sha256.tdl.dto.ResendCodeReasonUserRequest
 import dev.g000sha256.tdl.TdlThrowable
 import dev.g000sha256.tdl.toResult
@@ -430,6 +431,35 @@ class TdlTelegramSession(
         logger.d { "Notifikační API zapnuto." }
     }
 
+    /**
+     * Jazyk, ve kterém server posílá své texty, určuje dvojice voleb: `localization_target`
+     * (která sada řetězců) a `language_pack_id` (který jazyk v ní). **Bez cíle je seznam balíčků
+     * prázdný a server mluví anglicky** — proto Plume dřív dostával kategorie emoji jako „Love".
+     * Cíl je „android" na všech platformách: z balíčku se nečte žádný řetězec, jde jen o jazyk.
+     *
+     * Ověřeno sondou: s „de" přišly kategorie emoji německy (Liebe, Zustimmung…). Čeština
+     * oficiální balíček MÁ, ale zrovna kategorie a styly AI server česky nevrací — přijdou
+     * anglicky i s ním. Volby si TDLib pamatuje; mění se jen, když se jazyk opravdu změnil.
+     */
+    override suspend fun syncLanguagePack(languageCode: String) {
+        client.setOption(name = LOCALIZATION_TARGET_OPTION, value = OptionValueString(value = LOCALIZATION_TARGET))
+            .toResult()
+            .onFailure {
+                logger.w(it) { "Cíl lokalizace se nepodařilo nastavit." }
+                return
+            }
+        val packs = client.getLocalizationTargetInfo(onlyLocal = false).toResult()
+            .onFailure { logger.w(it) { "Seznam jazykových balíčků se nepodařilo načíst." } }
+            .getOrNull()?.languagePacks?.filter { it.isOfficial }?.map { it.id } ?: return
+        val pack = languagePackFor(languageCode, packs)
+        val current = (client.getOption(name = LANGUAGE_PACK_OPTION).toResult().getOrNull() as? OptionValueString)?.value.orEmpty()
+        if (pack == current) return
+        client.setOption(name = LANGUAGE_PACK_OPTION, value = OptionValueString(value = pack))
+            .toResult()
+            .onSuccess { logger.i { "Jazykový balíček Telegramu: „$pack“ (jazyk aplikace $languageCode)." } }
+            .onFailure { logger.w(it) { "Jazykový balíček se nepodařilo nastavit." } }
+    }
+
     override suspend fun submitPhoneNumber(phoneNumber: String): Result<Unit> =
         client.setAuthenticationPhoneNumber(phoneNumber = phoneNumber)
             .toResult()
@@ -602,6 +632,9 @@ class TdlTelegramSession(
             }
 
     private companion object {
+        const val LOCALIZATION_TARGET_OPTION = "localization_target"
+        const val LOCALIZATION_TARGET = "android"
+        const val LANGUAGE_PACK_OPTION = "language_pack_id"
         /** Kolik chatů naráz může mít aktivní notifikace. Povolený rozsah TDLib je 1–25. */
         const val NOTIFICATION_GROUP_COUNT_MAX = 5L
 
