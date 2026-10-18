@@ -1078,6 +1078,29 @@ zkratky" v `navigace.md`).
   eagerně, stejně jako ostatní repository nad jednorázovými updaty.
 - Chování v konverzaci viz „Reakce" v `emoji-samolepky-reakce.md`.
 
+### Jazykový balíček Telegramu
+
+Server posílá část textů sám (kategorie emoji, podmínky služby, doporučené akce, styly AI…)
+v jazyce, který mu klient ohlásí. Plume ho dřív neohlašoval vůbec, takže všechno chodilo
+anglicky. Teď `TelegramSession.syncLanguagePack` nastaví podle jazyka aplikace dvě volby TDLib:
+`localization_target` a `language_pack_id`. Volá se z `AppRoot` po přihlášení a při každé
+změně jazyka (`Locale.current`; proces změnu přežije).
+
+- **Bez `localization_target` je seznam balíčků prázdný** (`getLocalizationTargetInfo`)
+  a `language_pack_id` nemá čeho se chytit. Cíl je „android" na všech platformách — z balíčku
+  se nečte žádný řetězec, jde jen o jazyk, který TDLib pošle serveru.
+- **Jen oficiální balíček** (`languagePackFor`, testy `LanguagePackTest`): přesná shoda,
+  pak základ jazyka („de-AT" → „de"), jazyk bez regionu vezme balíček s regionem („pt" →
+  „pt-br"); jiný region téhož jazyka ne („pt-PT" zůstane anglicky). Bez balíčku prázdná
+  hodnota = angličtina. Norština je v Telegramu „nb".
+- **Čeština oficiální balíček MÁ** (starší komentář u kategorií emoji tvrdil opak — bez cíle
+  lokalizace se to nedalo zjistit). Jenže zrovna kategorie emoji server česky nepřekládá:
+  s „cs" přijdou „Love, Approval…", s „de" „Liebe, Zustimmung…" (sonda na emulátoru).
+- **Volby si TDLib pamatuje**; mění se jen při skutečné změně, jinak by každý start zahodil
+  keše vázané na jazyk.
+- **Ověřeno na emulátoru**: přepnutí jazyka aplikace přes `cmd locale set-app-locales` na
+  de-DE a zpět na cs-CZ v jednom procesu → log „Jazykový balíček Telegramu: „de"", pak „cs".
+
 ### Jazyk aplikace (`AppLanguage`)
 
 - **Volbu drží systém, ne `AppSettings`**: Android 13+ `LocaleManager.applicationLocales`, iOS

@@ -1484,10 +1484,10 @@ private fun LazyGridScope.sectionHeader(title: String) {
  * hledání zruší.
  *
  * Čip nese JEN ikonu, jako v Telegramu. Název od Telegramu je jen pro čtečku obrazovky: server
- * ho lokalizuje podle jazykového balíčku Telegramu (`language_pack_id`), který aplikace
- * nenastavuje — a čeština mezi oficiálními není —, takže v české aplikaci přišlo „Love",
- * „Approval" (ověřeno na emulátoru). Ikony (srdce, palec, úsměv) se čtou bez jazyka a vejde se
- * jich na řádek víc.
+ * ho lokalizuje podle jazykového balíčku Telegramu (`language_pack_id`, nastavuje ho
+ * `syncLanguagePack`), jenže zrovna tyhle názvy česky nemá — v české aplikaci přijde „Love",
+ * „Approval" i s českým balíčkem (německy už „Liebe"; ověřeno sondou). Ikony (srdce, palec,
+ * úsměv) se čtou bez jazyka a vejde se jich na řádek víc.
  *
  * Řádek se objeví až s načtenými kategoriemi; bez nich (bez sítě při prvním otevření) by byl
  * jen prázdný pruh.

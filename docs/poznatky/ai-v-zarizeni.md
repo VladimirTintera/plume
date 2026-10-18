@@ -399,8 +399,10 @@ chyby" (`fixTextWithAi`) a styly psaní od serveru (`composeTextWithAi`; `AiText
   z `ConversationBottomBar` do `MessageInput`).
 - **Styly chodí jen updatem** (`updateTextCompositionStyles`), dotaz na ně TDLib nemá —
   repository je proto eager (`createdAtStart`). Názvy jsou od serveru a **anglicky** (Formal,
-  Short, Tribal, Corp, Biblical, Viking, Zen): server je posílá v jazyce jazykového balíčku
-  a ten Plume TDLib nenastavuje.
+  Short, Tribal, Corp, Biblical, Viking, Zen). Jazykový balíček už Plume nastavuje podle jazyka
+  aplikace (`syncLanguagePack`, viz „Jazykový balíček Telegramu" v `nastaveni.md`), ale styly
+  přišly anglicky i s českým balíčkem — buď je server česky nemá, nebo TDLib drží starý seznam
+  z keše a nový update nepošle. Rozhodnout to šlo by až s čerstvou instalací.
 - **Oprava vrací i rozdíl** (`DiffText`: vložené, smazané, nahrazené; rozsahy v UTF-16).
   Výsledek ukazuje text rozdílu se změnami na podkladu `primaryContainer` a smazanými kusy
   přeškrtnutými chybovou barvou; „Použít" vloží čistý opravený text.
