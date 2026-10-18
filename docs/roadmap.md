@@ -90,9 +90,11 @@ jazyků). Vlastní backend ani GitHub Pages potřeba nejsou. Záloha: Crowdin fo
 
 Android je napřed; tohle je, čím se to dorovnává.
 
-- **AI v zařízení není vůbec** (`NoopOnDeviceAi`), takže shrnutí chatu ani návrhy odpovědí na
-  iOS nejsou. Apple Foundation Models jsou k mání od iOS 26 a dají se zapojit za stávající
-  rozhraní `OnDeviceAi` — implementace musí přijít ze Swiftu, jako u hlásiče pádů.
+- ~~**AI v zařízení není vůbec**~~ — zapojená Apple Intelligence (Foundation Models, iOS 26+)
+  přes Swift most (`docs/poznatky/ai-v-zarizeni.md`, „Apple Intelligence na iOS"). Zbývá:
+  **ověřit generování** na Macu se zapnutou Apple Intelligence nebo na iPhonu (a jestli zvládne
+  češtinu), stav „zapni si Apple Intelligence" v Nastavení, a strukturovaný výstup / přepis
+  řeči / popis obrázků přes `@Generable` a obrazový vstup.
 - **Notifikace** — napojené (APNs, rozšíření notifikací, texty, oprávnění, úklid přečtených
   a odznak; `docs/poznatky/notifikace.md`, „Notifikace na iOS (APNs)"). Zbývá:
   - **Certifikát APNs u Telegramu** (my.telegram.org) a Push Notifications v Apple Developer účtu.

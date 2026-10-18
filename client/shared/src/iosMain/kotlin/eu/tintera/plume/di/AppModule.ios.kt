@@ -5,6 +5,8 @@ import eu.tintera.plume.core.ocr.TextRecognizer
 import eu.tintera.plume.core.ocr.VisionTextRecognizer
 import eu.tintera.plume.core.snooze.IosSnoozeReminders
 import eu.tintera.plume.core.snooze.SnoozeReminders
+import eu.tintera.plume.core.ai.AppleOnDeviceAi
+import eu.tintera.plume.core.ai.IosOnDeviceModel
 import eu.tintera.plume.core.ai.NoopOnDeviceAi
 import eu.tintera.plume.core.ai.OnDeviceAi
 import eu.tintera.plume.core.ui.IosProfileVideo
@@ -53,8 +55,9 @@ import org.koin.core.module.Module
 import org.koin.core.qualifier.named
 
 actual fun Module.platformModule() {
-    // Model v zařízení zatím jen na Androidu; Apple Foundation Models by musely přijít ze Swiftu.
-    single<OnDeviceAi> { NoopOnDeviceAi }
+    // Apple Intelligence (Foundation Models), kterou Swift zaregistruje před `initKoin`; bez ní
+    // (iOS pod 26) model v zařízení na iOS není.
+    single<OnDeviceAi> { IosOnDeviceModel.model?.let(::AppleOnDeviceAi) ?: NoopOnDeviceAi }
     single { TelegramPaths() }
     single<DatabaseKeyStore> {
         object : DatabaseKeyStore, SecretStore by KeychainSecretStore(

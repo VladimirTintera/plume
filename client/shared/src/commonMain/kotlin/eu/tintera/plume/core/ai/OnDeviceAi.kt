@@ -133,7 +133,16 @@ data class ModelVariant(
  * - [Gemma]: otevřený model, který si stáhne aplikace (gigabajty) a počítá ho přes LiteRT-LM.
  *   Běží na každém dost silném telefonu a jde vybrat i větší E4B.
  */
-enum class AiProvider { GeminiNano, Gemma }
+enum class AiProvider {
+    GeminiNano,
+    Gemma,
+
+    /**
+     * Apple Intelligence (Foundation Models) na iOS 26+: systémový model jako Gemini Nano —
+     * stahuje a aktualizuje ho systém, aplikace ho jen používá (`AppleOnDeviceAi`, Swift most).
+     */
+    Apple,
+}
 
 /**
  * Modely Gemma, které si aplikace umí stáhnout.

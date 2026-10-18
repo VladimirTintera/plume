@@ -42,6 +42,8 @@ import eu.tintera.plume.core.ui.grouped
 import eu.tintera.plume.core.ui.tabularNumbers
 import eu.tintera.plume.core.ui.toggle
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.settings_ai_provider_apple
+import eu.tintera.plume.resources.settings_ai_provider_apple_summary
 import eu.tintera.plume.resources.settings_ai_provider_gemma
 import eu.tintera.plume.resources.settings_ai_provider_gemma_summary
 import eu.tintera.plume.resources.settings_ai_provider_nano
@@ -467,6 +469,8 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                         )
                     }
                 }
+                // Systémový model bez voleb: verzi i stahování řídí iOS.
+                AiProvider.Apple -> Unit
             }
             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
             Column(
@@ -635,12 +639,14 @@ private val AiProvider.title: StringResource
     get() = when (this) {
         AiProvider.GeminiNano -> Res.string.settings_ai_provider_nano
         AiProvider.Gemma -> Res.string.settings_ai_provider_gemma
+        AiProvider.Apple -> Res.string.settings_ai_provider_apple
     }
 
 private val AiProvider.summary: StringResource
     get() = when (this) {
         AiProvider.GeminiNano -> Res.string.settings_ai_provider_nano_summary
         AiProvider.Gemma -> Res.string.settings_ai_provider_gemma_summary
+        AiProvider.Apple -> Res.string.settings_ai_provider_apple_summary
     }
 
 private val GemmaModel.summary: StringResource

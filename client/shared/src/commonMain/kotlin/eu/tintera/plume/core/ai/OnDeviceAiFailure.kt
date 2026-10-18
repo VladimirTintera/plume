@@ -4,12 +4,15 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.ai_failure_busy
 import eu.tintera.plume.resources.ai_failure_empty
+import eu.tintera.plume.resources.ai_failure_apple
 import eu.tintera.plume.resources.ai_failure_gemma
 import eu.tintera.plume.resources.ai_failure_nano
 import eu.tintera.plume.resources.ai_failure_nano_code
 import eu.tintera.plume.resources.ai_failure_needs_update
 import eu.tintera.plume.resources.ai_failure_no_space
 import eu.tintera.plume.resources.ai_failure_too_large
+import eu.tintera.plume.resources.ai_failure_language
+import eu.tintera.plume.resources.ai_failure_refused
 import eu.tintera.plume.resources.ai_failure_unavailable
 
 /**
@@ -35,6 +38,12 @@ enum class AiFailureReason {
 
     /** Model teď není k dispozici, i když status tvrdil opak. */
     Unavailable,
+
+    /** Model neumí jazyk textu (Apple Intelligence `unsupportedLanguageOrLocale`). */
+    UnsupportedLanguage,
+
+    /** Model text odmítl zpracovat (ochranné filtry, Apple Intelligence `guardrailViolation`). */
+    Refused,
 
     /** Model selhal sám od sebe — typicky poškozený model v systému. Tohle patří do Crashlytics. */
     ModelError,
@@ -64,11 +73,14 @@ fun OnDeviceAiException.userMessage(): UiText = when (reason) {
     AiFailureReason.NotEnoughSpace -> UiText(Res.string.ai_failure_no_space)
     AiFailureReason.NeedsUpdate -> UiText(Res.string.ai_failure_needs_update)
     AiFailureReason.Unavailable -> UiText(Res.string.ai_failure_unavailable)
+    AiFailureReason.UnsupportedLanguage -> UiText(Res.string.ai_failure_language)
+    AiFailureReason.Refused -> UiText(Res.string.ai_failure_refused)
     AiFailureReason.ModelError -> when (provider) {
         AiProvider.GeminiNano -> code
             ?.let { UiText(Res.string.ai_failure_nano_code, it.toString()) }
             ?: UiText(Res.string.ai_failure_nano)
         AiProvider.Gemma -> UiText(Res.string.ai_failure_gemma)
+        AiProvider.Apple -> UiText(Res.string.ai_failure_apple)
     }
 }
 
