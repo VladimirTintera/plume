@@ -513,6 +513,11 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   a potvrzení. Nevratná akce `destructive = true` — ikona i potvrzení v chybové barvě přes barvy
   tlačítka. Ikona říká, CO se stane (koš, odchod, blokování), ne „pozor". Dialog s volbou nebo
   polem zůstává `AlertDialog`.
+- **Vstupní pole formuláře je `FormTextField`** (`core/ui/BlockField.kt`): tónový blok
+  s velkým zaoblením, fokus a chybu nese rámeček kolem bloku, pomocný text pod ním — tentýž
+  jazyk jako kód a heslo (`BlockTextField`, `PasswordField`). `OutlinedTextField` zůstává jen
+  v `AlertDialog`u, kde je to kanonický M3 vzhled. Parametry má `FormTextField` stejné jako
+  `OutlinedTextField`, výměna je přejmenování.
 - **Tlačítko ve slotu textového pole patří do `TextFieldSlot`** (`core/ui`): `leadingIcon` /
   `trailingIcon` s `IconButton`, avatarem a podobně. `BasicTextField` dává textový kurzor celému
   boxu i s dekorací a ikony ho dědí — na desktopu se nad avatarem účtu v hledání ukazoval

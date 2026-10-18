@@ -918,9 +918,9 @@ poměru přínosu a práce; každý bod je samostatný PR.
   řádek v lazy seznamu přes `Modifier.groupedItem` (`core/ui/GroupedList.kt`, VladimirTintera/telegram#836). **`PhoneField`
   zůstal jedním blokem s čárou** — obrys při psaní zvýrazní celé pole (země i číslo); dva bloky by
   ho rozdělily a přihlášení nešlo na přihlášených telefonech ověřit.
-- **Dvojí vstupní pole.** Přihlášení (`AuthFields`), úprava profilu, úprava skupiny, proxy, úprava
-  složky a pozvánky mají `OutlinedTextField`, zbytek aplikace tónovaný `BlockTextField`
-  (`core/ui/BlockField.kt` sám říká, že na jedné obrazovce nemají být dvě pojetí).
+- ~~**Dvojí vstupní pole**~~ — hotovo (`FormTextField`, VladimirTintera/telegram#837, 21 polí: úprava profilu a skupiny, proxy,
+  složka, pozvánka, téma, nový kontakt, nová skupina/kanál, slovní kód v přihlášení). Pole
+  v `AlertDialog`u zůstala obrysová (odkaz ve formátování, možnost ankety, štítek člena…).
 - **Ruční `Card` bloky v profilu:** `EditChatScreen` (8×), `MemberRightsScreen` (3×),
   `GroupSettingsCard` → `GroupedColumn` jako v Nastavení.
 - **Hlavičky podstránek profilu** (`InviteLinksScreen`, `MemberRightsScreen`, `EditChatScreen`,

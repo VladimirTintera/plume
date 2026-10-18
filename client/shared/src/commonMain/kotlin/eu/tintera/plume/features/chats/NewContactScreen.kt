@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import androidx.compose.foundation.layout.Arrangement
+import eu.tintera.plume.core.ui.FormTextField
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,7 +17,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -107,7 +107,7 @@ fun NewContactScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            OutlinedTextField(
+            FormTextField(
                 value = viewModel.firstName,
                 onValueChange = viewModel::onFirstNameChange,
                 label = { Text(stringResource(Res.string.edit_profile_first_name)) },
@@ -116,7 +116,7 @@ fun NewContactScreen(
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
+            FormTextField(
                 value = viewModel.lastName,
                 onValueChange = viewModel::onLastNameChange,
                 label = { Text(stringResource(Res.string.edit_profile_last_name)) },

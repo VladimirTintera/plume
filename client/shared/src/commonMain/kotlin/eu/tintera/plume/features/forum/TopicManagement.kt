@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.forum
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.core.ui.MediumButton
@@ -23,7 +24,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -227,7 +227,7 @@ internal fun TopicEditorSheet(
                     style = MaterialTheme.typography.headlineSmall,
                 )
             }
-            OutlinedTextField(
+            FormTextField(
                 value = editor.name,
                 onValueChange = { onChange(editor.copy(name = it.take(TOPIC_NAME_MAX))) },
                 label = { Text(stringResource(Res.string.forum_topic_name)) },

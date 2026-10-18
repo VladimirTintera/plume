@@ -16,7 +16,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.Composable
@@ -130,7 +129,7 @@ fun ChatTypeSection(
                 status = status,
                 tooManyPublic = Res.string.create_chat_username_too_many,
             )
-            OutlinedTextField(
+            FormTextField(
                 value = username,
                 // Zavináč a adresa napsané ze zvyku se zahodí — prefix pole je `t.me/`.
                 onValueChange = { onUsernameChange(it.removePrefix("@").removePrefix("t.me/").take(USERNAME_MAX_LENGTH)) },

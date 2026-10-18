@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import androidx.compose.material3.IconButtonDefaults
+import eu.tintera.plume.core.ui.FormTextField
 import androidx.compose.material3.ButtonDefaults
 import eu.tintera.plume.resources.add_members_refused_invite
 import eu.tintera.plume.resources.add_members_refused_text
@@ -27,7 +28,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -192,7 +192,7 @@ fun CreateChatScreen(
                     }
                 }
 
-                OutlinedTextField(
+                FormTextField(
                     value = viewModel.title,
                     onValueChange = { viewModel.title = it.take(TITLE_MAX_LENGTH) },
                     label = { Text(stringResource(Res.string.edit_chat_name)) },
@@ -206,7 +206,7 @@ fun CreateChatScreen(
                 )
 
                 if (channel) {
-                    OutlinedTextField(
+                    FormTextField(
                         value = viewModel.description,
                         onValueChange = { viewModel.description = it.take(DESCRIPTION_MAX_LENGTH) },
                         label = { Text(stringResource(Res.string.edit_chat_description)) },

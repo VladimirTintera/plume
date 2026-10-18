@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.core.ui.GroupEmptyRow
@@ -40,7 +41,6 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -617,7 +617,7 @@ private fun InviteLinkEditorSheet(
                 stringResource(if (editor.isNew) Res.string.invite_editor_new else Res.string.invite_editor_edit),
                 style = MaterialTheme.typography.headlineSmall,
             )
-            OutlinedTextField(
+            FormTextField(
                 value = editor.name,
                 onValueChange = { value -> onChange { it.copy(name = value.take(INVITE_LINK_NAME_MAX)) } },
                 label = { Text(stringResource(Res.string.invite_editor_name)) },

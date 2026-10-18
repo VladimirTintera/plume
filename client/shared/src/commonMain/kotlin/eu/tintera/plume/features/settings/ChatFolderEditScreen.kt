@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.resources.link_off_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
@@ -44,7 +45,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -252,7 +252,7 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
                 .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = padding.calculateBottomPadding() + 24.dp),
             verticalArrangement = Arrangement.spacedBy(GROUP_ITEM_SPACING),
         ) {
-            OutlinedTextField(
+            FormTextField(
                 value = draft.title,
                 onValueChange = viewModel::setTitle,
                 label = { Text(stringResource(Res.string.chat_folder_name)) },
@@ -733,7 +733,7 @@ private fun FolderLinkSheet(
                     colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
                 )
             }
-            OutlinedTextField(
+            FormTextField(
                 value = editor.name,
                 onValueChange = onName,
                 label = { Text(stringResource(Res.string.chat_folder_link_name)) },

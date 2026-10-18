@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.resources.change_phone_row
@@ -37,7 +38,6 @@ import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -207,7 +207,7 @@ fun EditProfileScreen(
                     }
                 }
 
-                OutlinedTextField(
+                FormTextField(
                     value = viewModel.firstName,
                     onValueChange = { viewModel.firstName = it.take(NAME_MAX_LENGTH) },
                     label = { Text(stringResource(Res.string.edit_profile_first_name)) },
@@ -219,7 +219,7 @@ fun EditProfileScreen(
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Next),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                FormTextField(
                     value = viewModel.lastName,
                     onValueChange = { viewModel.lastName = it.take(NAME_MAX_LENGTH) },
                     label = { Text(stringResource(Res.string.edit_profile_last_name)) },
@@ -229,7 +229,7 @@ fun EditProfileScreen(
                 )
 
                 val usernameMessage = usernameMessage(viewModel.username.trim(), profile.username, viewModel.usernameStatus)
-                OutlinedTextField(
+                FormTextField(
                     value = viewModel.username,
                     // Zavináč napsaný ze zvyku se zahodí — je to prefix pole, ne součást jména.
                     onValueChange = { viewModel.username = it.removePrefix("@").take(USERNAME_MAX_LENGTH) },
@@ -251,7 +251,7 @@ fun EditProfileScreen(
                 }
 
                 val bioLength = viewModel.bio.trim().length
-                OutlinedTextField(
+                FormTextField(
                     value = viewModel.bio,
                     onValueChange = { viewModel.bio = it },
                     label = { Text(stringResource(Res.string.edit_profile_bio)) },
