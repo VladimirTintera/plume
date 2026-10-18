@@ -960,7 +960,7 @@ poměru přínosu a práce; každý bod je samostatný PR.
 Po #825–#856 znovu kódem (výskyty komponent) a na Pixelu 7. Hlavní plochy jsou čisté; zbytky
 jsou zase na okrajích — sheety a dialogy, které předchozí kola minula. Seřazené podle přínosu.
 
-- ~~**Potvrzení jako holý `AlertDialog` místo `ConfirmDialog`**~~ — hotovo (VladimirTintera/telegram#PR,
+- ~~**Potvrzení jako holý `AlertDialog` místo `ConfirmDialog`**~~ — hotovo (VladimirTintera/telegram#858,
   20 dialogů včetně připnutí zprávy; zaškrtávací volby přes `DialogCheckRow`, fotka kontaktu
   přes `iconContent`). Holý `AlertDialog` zůstal u čistě informačních (jen „OK": upozornění bota,
   odmítnuté pozvánky, nedostupná obnova) a u žádostí o oprávnění. Byly to: smazání jazykového balíčku
