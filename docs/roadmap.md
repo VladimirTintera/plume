@@ -976,9 +976,9 @@ jsou zase na okrajích — sheety a dialogy, které předchozí kola minula. Se�
   a nahrání jako tři bloky), sada samolepek skupiny a diskuse kanálu (obálka a fotka skupiny
   vlevo, „žádná" se znakem na jejich místě). Vymazání historie bloky s kolečky mělo už dřív
   a doby u člena jsou v dialogu — zůstaly.
-- **Sheet upozornění chatu** (`ChatNotificationSheet`): holé řádky „Ztlumit na…", dělicí čára
-  a přepínače bez bloků — jediný sheet profilu, který vypadá jako M2 seznam (ověřeno na Pixelu 7).
-  Ztlumení jako blok akcí (`SheetActionRow`), přepínače jako druhý blok.
+- ~~**Sheet upozornění chatu**~~ — hotovo (VladimirTintera/telegram#PR): tři bloky přes `GroupedColumn` —
+  ztlumení s ikonami, volby, návrat k výchozímu; hlavička jako u ostatních sheetů
+  (`docs/poznatky/notifikace.md`).
 - **Výběr hodnoty v `AlertDialog`u s kolečky**: automatické smazání účtu (`AccountPrivacyScreen`,
   je to řádek v Nastavení → patří na `ChoiceRow` jako ostatní), jazyk aplikace
   (`LanguageSettings`; dlouhý seznam — sheet nebo vlastní podstránka s hledáním), doba a vzdálenost

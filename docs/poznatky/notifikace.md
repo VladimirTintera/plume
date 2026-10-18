@@ -352,6 +352,10 @@ JEHO kanálu (`ACTION_CHANNEL_NOTIFICATION_SETTINGS`).
   Ztlumit nad ním zůstává rychlým přepínačem. Hodnoty jsou ÚČINNÉ (`chatSettings`): kde chat jede
   podle rozsahu, ukazuje se hodnota rozsahu — a proto se čte znovu i na změnu rozsahu. Změna
   jedné volby zapíše `useDefault… = false` jen u ní, zbytek se přenese.
+  - **Sheet má tři bloky zaoblených řádků** (`GroupedColumn`, říjen 2026): ztlumení s ikonami
+    (akce, sheet zavřou), volby (přepínače, zvuk, systémový kanál) a návrat k výchozímu, který
+    je vidět jen u změněného chatu. Dřív holé řádky s dělicí čárou — jediný sheet profilu, který
+    vypadal jako M2 seznam. Řádky jsou průhledné `ListItem`y, tvar i odezvu na stisk dává sloupec.
 - **`muteFor` je ZBÝVAJÍCÍ čas v sekundách**, ne okamžik konce; konec ztlumení se dopočítá při
   čtení (`muteState`, testy `MuteStateTest`). Nad rok = navždy — my zapisujeme `Int.MAX_VALUE`,
   jiní klienti roky. `asDayLabel` je dělaný na minulost a zítřek vydával za „Dnes"; budoucí čas
