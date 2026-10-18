@@ -54,6 +54,12 @@ interface ChatRepository {
      */
     suspend fun deleteDraft(chatId: Long): Result<DraftRestore?> = Result.failure(UnsupportedOperationException())
 
+    /**
+     * Smaže koncepty ve všech chatech najednou (`clearAllDraftMessages`), i v tajných. Server je
+     * smaže na všech zařízeních účtu; vrátit je nejde.
+     */
+    suspend fun clearAllDrafts(): Result<Unit> = Result.failure(UnsupportedOperationException())
+
     /** Známé skupiny s tématy — pro koncepty v tématech ([TopicDrafts]), které se hledají po skupinách. */
     val forumChats: Flow<List<ChatSummary>> get() = flowOf(emptyList())
 

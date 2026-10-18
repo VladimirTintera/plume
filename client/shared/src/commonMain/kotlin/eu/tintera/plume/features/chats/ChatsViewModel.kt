@@ -431,6 +431,24 @@ class ChatsViewModel(
         }
     }
 
+    /**
+     * „Smazat vše" v přehledu konceptů. Koncepty v tématech se po hromadném smazání dočistí
+     * po jednom — TDLib je vede zvlášť (`ForumTopic.draftMessage`) a dokumentace `clearAllDraftMessages`
+     * mluví jen o chatech. Přehled se zavře sám, až zmizí poslední koncept.
+     */
+    fun deleteAllDrafts(items: List<DraftItem>) {
+        viewModelScope.launch {
+            repository.clearAllDrafts().onFailure {
+                logger.w(it) { "Hromadné smazání konceptů selhalo." }
+                reportFailure(it)
+                return@launch
+            }
+            items.mapNotNull { item -> item.topic?.let { item.chat.id to it.id } }.forEach { (chatId, topicId) ->
+                topicDrafts?.delete(chatId, topicId)?.onFailure { logger.w(it) { "Koncept v tématu $topicId se nesmazal." } }
+            }
+        }
+    }
+
     fun consumeDraftDeleted() {
         _draftDeleted.value = null
     }
