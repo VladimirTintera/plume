@@ -686,8 +686,9 @@ snadno na to uživatel narazí.
   — hotovo, „Shrnout" v nabídce nad zprávou (`docs/poznatky/konverzace-akce.md`, „Shrnutí od serveru"). Samotné shrnutí
   ověřené NENÍ: testovací účet bez Premium dostane hned `SUMMARY_FLOOD_PREMIUM`.
 - ~~**Lokální záložky v konverzaci**~~ — hotovo („Přidat do záložek" v nabídce nad zprávou, seznam
-  v profilu chatu se skokem na zprávu; `docs/poznatky/konverzace-akce.md`, „Záložky zpráv"). Zbývá
-  zobrazit záložky v hledání a případně souhrnný seznam přes všechny chaty.
+  v profilu chatu se skokem na zprávu; `docs/poznatky/konverzace-akce.md`, „Záložky zpráv").
+  ~~Souhrnný seznam přes všechny chaty~~ — hotovo (menu účtu → Záložky). Zbývá zobrazit záložky
+  v hledání.
 - ~~**Kopírování výběru zpráv s časem a jménem a do Markdownu**~~ — hotovo (Kopírovat → „S časem
   a jménem" / „Markdown", `docs/poznatky/konverzace-akce.md`, „Výběr víc zpráv").
 - ~~**Rychlá anotace a začernění fotek před odesláním**~~ — hotovo (pero, zvýrazňovač, začernění

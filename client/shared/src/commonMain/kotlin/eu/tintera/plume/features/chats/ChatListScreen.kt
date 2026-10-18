@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.resources.chats_bookmarks_count
+import eu.tintera.plume.resources.bookmark_filled_24dp
+import eu.tintera.plume.resources.profile_bookmarks
+import eu.tintera.plume.features.profile.BookmarksSheet
 import eu.tintera.plume.core.telegram.canBeArchived
 import eu.tintera.plume.core.telegram.AppScreen
 import eu.tintera.plume.core.telegram.SuggestedAction
@@ -334,6 +338,8 @@ fun ChatListScreen(
     val archiveUnread by viewModel.archiveUnread.collectAsStateWithLifecycle()
     val drafts by viewModel.drafts.collectAsStateWithLifecycle()
     var showDrafts by rememberSaveable { mutableStateOf(false) }
+    var showBookmarks by rememberSaveable { mutableStateOf(false) }
+    val bookmarks by viewModel.allBookmarks.collectAsStateWithLifecycle()
     var showMyQrCode by rememberSaveable { mutableStateOf(false) }
     val folderTabs by viewModel.folderTabs.collectAsStateWithLifecycle()
     val folderSuggestions by viewModel.folderSuggestions.collectAsStateWithLifecycle()
@@ -429,6 +435,20 @@ fun ChatListScreen(
             onDismiss = { showDrafts = false },
         )
     }
+    if (showBookmarks && bookmarks.isNotEmpty()) {
+        val titles by viewModel.bookmarkChatTitles.collectAsStateWithLifecycle()
+        BookmarksSheet(
+            bookmarks = bookmarks,
+            chatTitles = titles,
+            onOpen = { bookmark ->
+                showBookmarks = false
+                // Stejně jako nalezená zpráva v hledání: chat se otevře a skočí na ni.
+                onMessageClick(bookmark.chatId, bookmark.messageId, null)
+            },
+            onRemove = viewModel::removeBookmark,
+            onDismiss = { showBookmarks = false },
+        )
+    }
     if (showMyQrCode) MyQrCodeSheet(onDismiss = { showMyQrCode = false })
     newFolderChats?.takeIf { it.sheetOpen }?.let { folderChats ->
         NewFolderChatsSheet(
@@ -480,6 +500,8 @@ fun ChatListScreen(
             onArchive = onOpenArchive,
             draftCount = drafts?.size ?: 0,
             onDrafts = { showDrafts = true },
+            bookmarkCount = bookmarks.size,
+            onBookmarks = { showBookmarks = true },
             onMyQrCode = { showMyQrCode = true },
             onSettings = onOpenSettings,
         )
@@ -1044,6 +1066,9 @@ private fun AccountMenu(
     /** Kolik chatů má rozepsanou zprávu; bez konceptů položka v menu není. */
     draftCount: Int,
     onDrafts: () -> Unit,
+    /** Kolik je záložek zpráv; bez nich položka v menu není (jako u konceptů). */
+    bookmarkCount: Int,
+    onBookmarks: () -> Unit,
     onMyQrCode: () -> Unit,
     onSettings: () -> Unit,
 ) {
@@ -1124,6 +1149,7 @@ private fun AccountMenu(
         // cíle, vlastní skupina.
         // Koncepty jen když nějaké jsou: prázdný přehled by byl položka, která nikam nevede.
         val draftsLabel = pluralStringResource(Res.plurals.chats_drafts_count, draftCount, draftCount)
+        val bookmarksLabel = pluralStringResource(Res.plurals.chats_bookmarks_count, bookmarkCount, bookmarkCount)
         ExpressiveMenu(
             expanded = open,
             onDismiss = { open = false },
@@ -1155,6 +1181,27 @@ private fun AccountMenu(
                                 }
                             },
                             onClick = onDrafts,
+                        )
+                    } else {
+                        null
+                    },
+                    if (bookmarkCount > 0) {
+                        MenuAction(
+                            label = stringResource(Res.string.profile_bookmarks),
+                            icon = Res.drawable.bookmark_filled_24dp,
+                            trailing = {
+                                Badge(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                ) {
+                                    RollingNumber(
+                                        value = bookmarkCount,
+                                        style = LocalTextStyle.current.tabularNumbers(),
+                                        modifier = Modifier.semantics { contentDescription = bookmarksLabel },
+                                    )
+                                }
+                            },
+                            onClick = onBookmarks,
                         )
                     } else {
                         null

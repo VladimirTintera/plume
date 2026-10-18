@@ -3096,6 +3096,10 @@
     <string name="conversation_bookmark_added">Added to bookmarks</string>
     <string name="conversation_bookmark_removed">Removed from bookmarks</string>
     <string name="profile_bookmarks">Bookmarks</string>
+    <plurals name="chats_bookmarks_count">
+        <item quantity="one">%1$d bookmark</item>
+        <item quantity="other">%1$d bookmarks</item>
+    </plurals>
     <plurals name="profile_bookmarks_count">
         <item quantity="one">%1$d message</item>
         <item quantity="other">%1$d messages</item>
