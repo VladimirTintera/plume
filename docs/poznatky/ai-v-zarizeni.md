@@ -370,6 +370,18 @@ Podržení odesílacího tlačítka → „Zkontrolovat a přepsat…" (dřív �
 a „Použít". Nic se neodesílá a pole se nemění, dokud uživatel neťukne „Použít" — tím se tahle
 funkce liší od návrhů odpovědí: sloh drhne, ale chybu uživatel VIDÍ dřív, než ji podepíše.
 
+- **„Opravit překlepy" ukazuje změny jako oprava od serveru** (`draftDiff`, testy
+  `DraftDiffingTest`): model rozdíl nevrací, spočítá ho aplikace a vyrobí z něj tentýž
+  `DraftDiff`, takže se vykreslí stejně (vložené na `primaryContainer`, smazané přeškrtnuté).
+  - **Po slovech** (nejdelší společná podposloupnost slov, mezer a interpunkce): oprava
+    diakritiky je změna slova, po znacích by se zvýraznila písmena uprostřed. Pár UTF-16
+    (emoji) se nedělí.
+  - **Náhrada = smazané a hned vložené** („~~mas~~máš"), ne jen nový text jako u serveru —
+    smyslem je ukázat, co model změnil. Ověřeno na Foldu s Gemmou: „Ahoj jak se mas prijdu
+    zitra v osm" → „Ahoj**,** jak se ~~mas~~**máš** prijdu ~~zitra~~**zítra** v osm**?**" —
+    model sám připsal otazník a „prijdu" neopravil, a obojí je teď vidět.
+  - Jen u opravy; u „Kratší" a „Zdvořileji" se mění celé věty a zvýraznění by bylo šum.
+
 - **Přepisuje se vždy PŮVODNÍ text**, ne předchozí přepis; přepnutí stylu tak nekupí chyby.
 - **Jazyk zprávy, ne aplikace, a tykání zůstává tykáním** — obojí musí v promptu stát výslovně
   (stejná past jako u návrhů odpovědí, viz `formalityInstruction`). Ověřeno: „Zdvořileji"

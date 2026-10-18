@@ -705,9 +705,8 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
   volné generování, nejslabší kategorie; „Kratší" a „Zdvořileji" už lokálně jsou.
   - ~~**Překlad konceptu**~~ — hotovo ML Kitem, ne jazykovým modelem (`docs/poznatky/ai-v-zarizeni.md`,
     „Překlad konceptu v telefonu"). Zbývá iOS (s překladem zpráv).
-  - **Zvýraznit změny u „Opravit překlepy"** jako u serverové opravy — rozdíl spočítat
-    v aplikaci (čistá funkce s testy), model nic navíc nevrací. Ukáže i to, co model „opravil"
-    a neměl.
+  - ~~**Zvýraznit změny u „Opravit překlepy"**~~ — hotovo (`draftDiff`; `docs/poznatky/ai-v-zarizeni.md`,
+    „Přepis před odesláním").
   - **Přidat emoji modelem s pojistkou**: po odebrání emoji musí zbýt přesně původní text,
     jinak se výsledek zahodí (malý model rád přepíše i slova).
 
