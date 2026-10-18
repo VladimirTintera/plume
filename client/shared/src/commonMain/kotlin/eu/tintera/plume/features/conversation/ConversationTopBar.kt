@@ -175,8 +175,8 @@ internal fun ConversationTopBar(
                 state.info?.takeIf { it.topic == null && it.savedTopic == null && it.directTopic == null }?.let { info ->
                   AnimatedVisibility(
                       visible = headerAvatar,
-                      enter = fadeIn() + expandHorizontally(),
-                      exit = fadeOut() + shrinkHorizontally(),
+                      enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                      exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) + shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()),
                   ) {
                     // Mezera ke jménu je součást avataru, ne řádku: schovaný avatar
                     // by jinak nechal před jménem díru.

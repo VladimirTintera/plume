@@ -214,8 +214,8 @@ internal fun RecordLockHost(visible: Boolean, gesture: RecordGestureState, modif
 private fun RecordLockIndicator(visible: Boolean, progress: () -> Float, modifier: Modifier = Modifier) {
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn() + scaleIn(initialScale = 0.6f),
-        exit = fadeOut() + scaleOut(targetScale = 0.6f),
+        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + scaleIn(MaterialTheme.motionScheme.defaultSpatialSpec(), initialScale = 0.6f),
+        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) + scaleOut(MaterialTheme.motionScheme.fastSpatialSpec(), targetScale = 0.6f),
         modifier = modifier,
     ) {
         Surface(
@@ -293,8 +293,8 @@ internal fun VideoNoteRecordingOverlay(
 ) {
     AnimatedVisibility(
         visible = (visible && camera != null) || preview != null,
-        enter = fadeIn(),
-        exit = fadeOut(),
+        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
         modifier = modifier,
     ) {
         // Při odjezdu (odeslání, koš) je `preview` už `null`; kreslí se poslední známý stav.

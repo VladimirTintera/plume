@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.auth
 
 import eu.tintera.plume.core.adaptive.ContentWidth
+import androidx.compose.material3.MotionScheme
 import eu.tintera.plume.core.ui.BlockTextField
 import eu.tintera.plume.core.ui.MediumButton
 import eu.tintera.plume.core.ui.MediumButtonHeight
@@ -262,9 +263,11 @@ fun AuthScreen(
                     }
                 }
 
+                // `transitionSpec` není @Composable, motionScheme se čte tady.
+                val motion = MaterialTheme.motionScheme
                 AnimatedContent(
                     targetState = view,
-                    transitionSpec = { phaseTransition() },
+                    transitionSpec = { phaseTransition(motion) },
                     contentKey = { it.key },
                     label = "auth-stage",
                 ) { shown ->
@@ -453,9 +456,9 @@ fun AuthScreen(
  * Fáze přijíždějí zdola a odjíždějí nahoru — přihlášení jde dopředu, takže i pohyb jde jedním
  * směrem. Prolnutí samo by nedalo najevo, že se postoupilo o krok dál.
  */
-private fun phaseTransition() =
-    (slideInVertically { it / PHASE_SLIDE_FRACTION } + fadeIn())
-        .togetherWith(slideOutVertically { -it / PHASE_SLIDE_FRACTION } + fadeOut())
+private fun phaseTransition(motion: MotionScheme) =
+    (slideInVertically(motion.defaultSpatialSpec()) { it / PHASE_SLIDE_FRACTION } + fadeIn(motion.defaultEffectsSpec()))
+        .togetherWith(slideOutVertically(motion.fastSpatialSpec()) { -it / PHASE_SLIDE_FRACTION } + fadeOut(motion.fastEffectsSpec()))
 
 /**
  * Krok přihlášení pro uvítací tvar: nese ikonu a zároveň rozhoduje, kdy se tvar proanimuje znovu.

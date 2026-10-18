@@ -106,7 +106,7 @@ fun PhotoCropOverlay(
         isBackEnabled = path != null,
         onBackCompleted = onCancel,
     )
-    AnimatedVisibility(visible = path != null, enter = fadeIn(), exit = fadeOut()) {
+    AnimatedVisibility(visible = path != null, enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()), exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec())) {
         val shown = path ?: last
         if (shown != null) {
             PhotoCrop(

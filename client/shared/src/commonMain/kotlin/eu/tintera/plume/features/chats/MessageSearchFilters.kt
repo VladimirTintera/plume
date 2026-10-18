@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.ui.horizontalScrollWithWheel
+import androidx.compose.material3.MaterialTheme
 import eu.tintera.plume.core.ui.MenuPopupProperties
 import eu.tintera.plume.resources.search_filter_choose_content
 import eu.tintera.plume.resources.search_content_music
@@ -143,7 +144,7 @@ internal fun MessageSearchFilters(filter: MessageSearchFilter, onChange: (Messag
         ContentFilterButton(filter = filter, onChange = onChange)
 
         val active = filter.period != null
-        val rotation by animateFloatAsState(if (periodMenu) 180f else 0f, label = "period-chevron")
+        val rotation by animateFloatAsState(if (periodMenu) 180f else 0f, MaterialTheme.motionScheme.defaultSpatialSpec(), label = "period-chevron")
         Box {
             SplitButtonLayout(
                 leadingButton = {
@@ -255,7 +256,7 @@ private fun ContentFilterButton(filter: MessageSearchFilter, onChange: (MessageS
     var last by remember { mutableStateOf(SearchContent.Photos) }
     filter.content?.let { if (it != last) last = it }
     val active = filter.content != null
-    val rotation by animateFloatAsState(if (menu) 180f else 0f, label = "content-chevron")
+    val rotation by animateFloatAsState(if (menu) 180f else 0f, MaterialTheme.motionScheme.defaultSpatialSpec(), label = "content-chevron")
     Box {
         SplitButtonLayout(
             leadingButton = {

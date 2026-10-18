@@ -127,8 +127,8 @@ internal fun FormattingBar(
             when (button.first) {
                 TextFormat.Code -> AnimatedVisibility(
                     visible = composer.codeBlock != null,
-                    enter = fadeIn() + expandHorizontally(),
-                    exit = fadeOut() + shrinkHorizontally(),
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) + shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()),
                 ) {
                     // Popisek je jazyk sám („kotlin"): ikona by neřekla, co je nastavené.
                     Labelled(stringResource(Res.string.format_code_language)) { text ->
@@ -139,8 +139,8 @@ internal fun FormattingBar(
                 }
                 TextFormat.Quote -> AnimatedVisibility(
                     visible = composer.quote != null,
-                    enter = fadeIn() + expandHorizontally(),
-                    exit = fadeOut() + shrinkHorizontally(),
+                    enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) + expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()),
+                    exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) + shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()),
                 ) {
                     val expandable = composer.quote?.format == TextFormat.ExpandableQuote
                     Labelled(stringResource(Res.string.format_quote_expandable)) { text ->

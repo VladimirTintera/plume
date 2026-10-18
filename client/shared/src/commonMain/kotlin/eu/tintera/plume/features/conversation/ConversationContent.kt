@@ -244,8 +244,8 @@ internal fun BoxScope.ConversationContent(
      */
     AnimatedVisibility(
         visible = listState.isScrollInProgress && floatingDay.isNotEmpty(),
-        enter = fadeIn(),
-        exit = fadeOut(),
+        enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
         modifier = Modifier.align(Alignment.TopCenter),
     ) {
         FloatingDayBadge(

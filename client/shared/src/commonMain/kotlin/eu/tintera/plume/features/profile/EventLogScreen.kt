@@ -233,7 +233,7 @@ private fun AuthorChip(
 ) {
     var menu by remember { mutableStateOf(false) }
     val chosen = filter.userIds
-    val rotation by animateFloatAsState(if (menu) 180f else 0f, label = "author-chevron")
+    val rotation by animateFloatAsState(if (menu) 180f else 0f, MaterialTheme.motionScheme.defaultSpatialSpec(), label = "author-chevron")
     Box {
         FilterChip(
             selected = chosen.isNotEmpty(),

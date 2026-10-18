@@ -126,8 +126,8 @@ internal fun TranscribeButton(
 internal fun TranscriptText(state: TranscriptState, color: Color, modifier: Modifier = Modifier) {
     AnimatedVisibility(
         visible = state.shown,
-        enter = expandVertically() + fadeIn(),
-        exit = shrinkVertically() + fadeOut(),
+        enter = expandVertically(MaterialTheme.motionScheme.defaultSpatialSpec()) + fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+        exit = shrinkVertically(MaterialTheme.motionScheme.fastSpatialSpec()) + fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
         modifier = modifier,
     ) {
         TranscriptBody(state, color)

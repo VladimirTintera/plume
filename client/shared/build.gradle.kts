@@ -1018,6 +1018,45 @@ val verifyShapeTokens = tasks.register("verifyShapeTokens") {
 
 tasks.named("check") { dependsOn(verifyShapeTokens) }
 
+// Přechody bez specu (`fadeIn()`, `expandVertically()`, `slideInVertically { … }`) jedou na
+// výchozí pružinu Compose, ne na `AppMotion` — v konverzaci jich bylo přes devadesát a pohyb
+// pruhů, tlačítek a nabídek tak neladil se zbytkem aplikace. Kontrola chce spec z
+// `MaterialTheme.motionScheme` (příchod `default…`, odchod `fast…`; v `transitionSpec`
+// u `AnimatedContent`, která není @Composable, se motionScheme načte předem).
+val verifyMotionSpecs = tasks.register("verifyMotionSpecs") {
+    group = "verification"
+    description = "Ověří, že přechody AnimatedVisibility/AnimatedContent mají spec z motionScheme."
+
+    val sources = listOf(
+        layout.projectDirectory.dir("src/commonMain/kotlin"),
+        layout.projectDirectory.dir("src/androidMain/kotlin"),
+        layout.projectDirectory.dir("src/iosMain/kotlin"),
+        layout.projectDirectory.dir("src/jvmMain/kotlin"),
+    )
+    sources.forEach { inputs.dir(it) }
+    val roots = sources.map { it.asFile }
+    val projectDir = layout.projectDirectory.asFile
+
+    doLast {
+        val bare = Regex("""(?<![\w.])(fadeIn|fadeOut|expandVertically|shrinkVertically|expandHorizontally|shrinkHorizontally|expandIn|shrinkOut|scaleIn|scaleOut)\(\)|(?<![\w.])slide(In|Out)(Vertically|Horizontally) \{""")
+        val offenders = mutableListOf<String>()
+        roots.flatMap { it.walkTopDown().filter { f -> f.extension == "kt" } }
+            .forEach { file ->
+                val text = file.readText()
+                bare.findAll(text).forEach { match ->
+                    val line = text.substring(0, match.range.first).count { it == '\n' } + 1
+                    offenders += "${file.relativeTo(projectDir)}:$line: ${match.value}"
+                }
+            }
+        check(offenders.isEmpty()) {
+            "Přechod bez specu jede mimo AppMotion: předej MaterialTheme.motionScheme.default…Spec() / fast…Spec().\n" +
+                offenders.joinToString("\n")
+        }
+    }
+}
+
+tasks.named("check") { dependsOn(verifyMotionSpecs) }
+
 // api_id/api_hash z my.telegram.org. Čtou se z local.properties (gitignorovaný), aby se pár
 // nikdy nedostal do repozitáře. Bez nich se projekt přeloží, ale přihlášení skončí chybou
 // od serveru — hlásí se to srozumitelně místo pádu (viz sendTdlibParameters v TdlTelegramSession).

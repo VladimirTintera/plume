@@ -938,8 +938,9 @@ poměru přínosu a práce; každý bod je samostatný PR.
 - ~~**Tokeny tvarů místo dp**~~ — hotovo: 69 zaoblení ze škály na `ShapeDefaults`, kopie
   `GROUP_CORNER`/`INNER_CORNER` sloučené, `verifyShapeTokens` na `check` (VladimirTintera/telegram#845). Hodnoty mimo škálu
   (24, 18, 10 dp u bublin a médií, 16 dp soustředně uvnitř 20dp karty) zůstaly záměrně.
-- **Výchozí animace mimo `AppMotion`:** 54× `fadeIn()`/`fadeOut()` bez specu a ~20×
-  `animate*AsState` bez `animationSpec` (hlavně konverzace). `tween` je skoro všude zdůvodněný.
+- ~~**Výchozí animace mimo `AppMotion`**~~ — hotovo: 94 přechodů a 5 `animate*AsState` se spec
+  z `motionScheme`, `verifyMotionSpecs` na `check`, VladimirTintera/telegram#847. (Audit odhadoval ~20 `animate*AsState` bez specu,
+  ve skutečnosti jich bylo pět — zbytek měl spec na dalším řádku.)
 - **`SegmentedListItem`** (v alfě je, s `ListItemDefaults.segmentedShapes`) místo ručních
   `groupItemShape` — přinese tvar při stisku a fokusu. Napřed rozhodnout, jestli stisk smí měnit
   tvar řádku: `MorphShape.kt` dnes říká, že položky seznamu se nemorfují; a řádek chatu sdílí tvar

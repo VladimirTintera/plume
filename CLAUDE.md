@@ -444,6 +444,11 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
 - **Animace nechávej na `MotionScheme`** (`AppMotion` v `app/root/presentation/theme/Motion.kt`).
   Spatial specy mají jemný bounce (dampingRatio 0.6–0.78), effects specy bounce nemají — overshoot
   u alphy/barvy se ořízne do [0,1] a působí jako bliknutí.
+  **I přechody `AnimatedVisibility` / `AnimatedContent`** — `fadeIn()` nebo `expandVertically()`
+  bez specu jede na výchozí pružinu Compose, ne na `AppMotion`. Příchod `default…Spec()`, odchod
+  `fast…Spec()`; `transitionSpec` u `AnimatedContent` není @Composable, motionScheme se načte
+  předem. Hlídá to `verifyMotionSpecs`. **Animace, která jede k nule, nesmí mít překmit**
+  (roh `RoundedCornerShape` pod nulou spadne) — tam effects spec, ne spatial.
 - **`SharedTransitionLayout` je v kořenovém tématu**, ne uvnitř obrazovek — sdílený prvek musí přežít
   výměnu obrazovky. Scope se bere z `LocalSharedTransitionScope`.
 - **Ikony = Material Symbols** jako vector drawables v `composeResources`, s vyplněnou i nevyplněnou
