@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.resources.error_24dp
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.foundation.clickable
 import eu.tintera.plume.core.ui.ConfirmDialog
 import androidx.compose.foundation.layout.Arrangement
@@ -23,7 +25,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -153,9 +154,23 @@ fun PasskeysScreen(viewModel: PasskeysViewModel, onBack: () -> Unit, modifier: M
                         )
                     }
                 }
-                state.loadFailed -> Column(Modifier.padding(horizontal = 16.dp)) {
-                    Text(stringResource(Res.string.passkeys_load_failed), color = MaterialTheme.colorScheme.error)
-                    TextButton(onClick = viewModel::load, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.passkeys_retry)) }
+                // Chyba na místě seznamu, ve stejné sekci: řádek s ikonou a tónovým „Zkusit znovu"
+                // (pravidlo chybových stavů v CLAUDE.md). Dřív červený text a `TextButton` pod
+                // nadpisem stránky, bez bloku — vypadalo to jako rozbitá obrazovka.
+                state.loadFailed -> SettingsGroup(Res.string.passkeys_section) {
+                    ListItem(
+                        colors = ListItemDefaults.colors(
+                            containerColor = Color.Transparent,
+                            leadingIconColor = MaterialTheme.colorScheme.error,
+                        ),
+                        leadingContent = { Icon(painterResource(Res.drawable.error_24dp), contentDescription = null) },
+                        headlineContent = { Text(stringResource(Res.string.passkeys_load_failed)) },
+                        trailingContent = {
+                            FilledTonalButton(onClick = viewModel::load, shapes = ButtonDefaults.shapes()) {
+                                Text(stringResource(Res.string.passkeys_retry))
+                            }
+                        },
+                    )
                 }
                 else -> Box(Modifier.padding(horizontal = 16.dp)) { LoadingIndicator() }
             }
