@@ -700,6 +700,17 @@ v okamžiku, kdy přijde, narazí na tohle, ne na model.
   („o co jde") — totéž co shrnutí, jen nad jednou zprávou,
   takže se vejde do vstupu a sloh vadí míň, protože to čte jen uživatel.
 
+- **Úpravy textu od Telegramu i v telefonu** (říjen 2026; server je umí v sheetu „Zkontrolovat
+  a přepsat…", tady jde o totéž bez odeslání textu). Styly (Viking, Biblical…) vědomě ne — je to
+  volné generování, nejslabší kategorie; „Kratší" a „Zdvořileji" už lokálně jsou.
+  - ~~**Překlad konceptu**~~ — hotovo ML Kitem, ne jazykovým modelem (`docs/poznatky/ai-v-zarizeni.md`,
+    „Překlad konceptu v telefonu"). Zbývá iOS (s překladem zpráv).
+  - **Zvýraznit změny u „Opravit překlepy"** jako u serverové opravy — rozdíl spočítat
+    v aplikaci (čistá funkce s testy), model nic navíc nevrací. Ukáže i to, co model „opravil"
+    a neměl.
+  - **Přidat emoji modelem s pojistkou**: po odebrání emoji musí zbýt přesně původní text,
+    jinak se výsledek zahodí (malý model rád přepíše i slova).
+
 **Na překlad se Nano nehodí a nemá se používat.** ML Kit má vlastní offline Translation API,
 stavěné přímo na to; pouštět na překlad jazykový model by bylo horší v kvalitě i v čase.
 

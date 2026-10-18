@@ -1885,6 +1885,7 @@
     <string name="rewrite_server_translate">Translate…</string>
     <string name="rewrite_server_translate_to">Translate: %1$s</string>
     <string name="rewrite_server_emoji">Add emoji</string>
+    <string name="rewrite_translate_disclaimer">Translated on your phone, your message stays on it. Read it before sending.</string>
     <string name="rewrite_server_disclaimer">Telegram edits the text on its servers. Read it before sending.</string>
     <string name="rewrite_server_failed">Telegram couldn't edit the text. Try again in a moment.</string>
     <string name="error_ai_compose_premium">You've used up your free AI edits. More are available with Telegram Premium.</string>

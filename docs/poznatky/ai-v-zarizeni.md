@@ -425,6 +425,30 @@ chyby" (`fixTextWithAi`) a styly psaní od serveru (`composeTextWithAi`; `AiText
   Na Foldu (s Gemmou) obě řady a kontrola tónu; serverové volby tam nezkoušené (skutečný účet).
   **Neověřeno:** limit bez Premium, tajný chat, iOS.
 
+### Překlad konceptu v telefonu
+
+Řada „V telefonu" v sheetu „Zkontrolovat a přepsat…" má **Přeložit…** — koncept přeloží ML Kit
+Translation v telefonu, stejný překladač jako „Překládat v telefonu" u zprávy
+(`RewriteChoice.LocalTranslate`, `DraftRewriteViewModel.translateLocally`). Text neodchází
+nikam, takže se nabízí i v tajném chatu, kde serverová řada není.
+
+- **Jazykový model na to není**: překlad je slabé místo Nano i Gemmy a ML Kit je stavěný přímo
+  na něj. Proto se nabízí i bez zapnuté AI v zařízení — řada „V telefonu" se kreslí, když je
+  přepis modelem NEBO překladač (`translateAvailable`; dnes jen Android).
+- **Výběr jazyka je tentýž sheet jako u serveru** (`TranslationLanguageSheet`), jen zúžený na
+  jazyky, které ML Kit umí (`available = translatesTo`). Který překlad se vybírá, drží sheet
+  přepisu (`LanguagePick`).
+- **Balíčky se stahují jen na „Stáhnout"** (`RewriteState.NeedsDownload` → `Downloading`), jako
+  u zprávy.
+- **Nerozpoznaný jazyk konceptu = jazyk aplikace.** Koncept bývá krátký a rozpoznání pod
+  prahem jistoty vrátí `null`; u cizí zprávy by se překlad odmítl, ale koncept píše uživatel,
+  nejspíš v jazyce aplikace. Text bez diakritiky ML Kit ale přeloží špatně: „Ahoj jak se mas"
+  → „Hello both with meat" (z „mas" bylo maso) — výsledek se proto jen nabízí jako vždy.
+- **Ověřeno na emulátoru `Plume_Barvy`** (…527, bez AI v zařízení): řada „V telefonu" jen
+  s „Přeložit…", výběr bez jazyků, které ML Kit neumí, stažení balíčků cs + en (pod minutu),
+  „See you tomorrow at the train station at eight" → „Uvidíme se zítra na vlakovém nádraží
+  v osm". Koncept pak smazaný. **Neověřené:** tajný chat.
+
 ### Varování před podvodem
 
 Karta „Možný podvod" pod příchozí zprávou (`ScamWarnings`, prompt `ScamPrompt.kt`, karta

@@ -574,7 +574,16 @@ fun appModule() = module {
     viewModel { OnDeviceAiSettingsViewModel(settings = get(), ai = get(), appScope = get(named(APP_SCOPE))) }
     viewModelOf(::ChatSummaryViewModel)
     viewModelOf(::ReplySuggestionsViewModel)
-    viewModelOf(::DraftRewriteViewModel)
+    // Překladač v telefonu je jen na Androidu; jinde `null` a sheet překlad v telefonu nenabídne.
+    viewModel {
+        DraftRewriteViewModel(
+            ai = get(),
+            settings = get(),
+            aiText = get(),
+            translator = getOrNull(),
+            languageDetector = get(),
+        )
+    }
     viewModelOf(::EmojiSuggestionsViewModel)
     viewModelOf(::StickerSuggestionsViewModel)
 

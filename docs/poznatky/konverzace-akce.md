@@ -429,6 +429,8 @@ text neodchází na server. Volba se pamatuje pro další překlady, výchozí j
 - **Jen Android.** iOS má Translation framework jen pro SwiftUI; v DI tam překladač není
   a přepínač se nekreslí (`TranslationSheet.onDevice == null`). Shrnutí od serveru ho nemá
   nikdy — shrnutí dělá jen server.
+- **Týž překladač překládá i koncept** v sheetu „Zkontrolovat a přepsat…" (viz
+  `docs/poznatky/ai-v-zarizeni.md`, „Překlad konceptu v telefonu").
 - **Jazykové balíčky se stahují jen na výslovné „Stáhnout"** (~40 MB na jazyk, bez podmínky
   Wi-Fi, protože o stažení uživatel ví). Než je potvrdí, sheet nabízí i „Přeložit na serveru".
   Na emulátoru stažení čeština + angličtina trvalo pod 20 s.

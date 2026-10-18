@@ -277,13 +277,17 @@ internal fun TranslationLanguageSheet(
     selected: String,
     onPick: (String) -> Unit,
     onDismiss: () -> Unit,
+    /** Které jazyky nabídnout (překlad v telefonu jich umí jen část); výchozí všechny. */
+    available: (String) -> Boolean = { true },
 ) {
     val sheetState = rememberBottomSheetState(
         initialValue = SheetValue.Hidden,
         enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
     )
     var query by rememberSaveable { mutableStateOf("") }
-    val options = remember(query) { translationLanguageOptions(platformLanguageCode, query, ::localizedLanguageName) }
+    val options = remember(query) {
+        translationLanguageOptions(platformLanguageCode, query, ::localizedLanguageName).filter { available(it.code) }
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth()) {
