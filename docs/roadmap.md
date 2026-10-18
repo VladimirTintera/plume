@@ -939,7 +939,7 @@ poměru přínosu a práce; každý bod je samostatný PR.
   `GROUP_CORNER`/`INNER_CORNER` sloučené, `verifyShapeTokens` na `check` (VladimirTintera/telegram#845). Hodnoty mimo škálu
   (24, 18, 10 dp u bublin a médií, 16 dp soustředně uvnitř 20dp karty) zůstaly záměrně.
 - ~~**Výchozí animace mimo `AppMotion`**~~ — hotovo: 94 přechodů a 5 `animate*AsState` se spec
-  z `motionScheme`, `verifyMotionSpecs` na `check`. (Audit odhadoval ~20 `animate*AsState` bez specu,
+  z `motionScheme`, `verifyMotionSpecs` na `check`, VladimirTintera/telegram#847. (Audit odhadoval ~20 `animate*AsState` bez specu,
   ve skutečnosti jich bylo pět — zbytek měl spec na dalším řádku.)
 - **`SegmentedListItem`** (v alfě je, s `ListItemDefaults.segmentedShapes`) místo ručních
   `groupItemShape` — přinese tvar při stisku a fokusu. Napřed rozhodnout, jestli stisk smí měnit
