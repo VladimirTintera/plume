@@ -1007,7 +1007,7 @@ zbývají sheety, které se otevírají z podstránek.
 
 - ~~**Sheety s holými řádky s kolečky**~~ — hotovo (VladimirTintera/telegram#865): pomalý režim a reakce skupiny
   přes `ChoiceListItem`; „Uložit" u reakcí je `MediumButton`.
-- ~~**Sheety s holými seznamy**~~ — hotovo (VladimirTintera/telegram#PR): detail zařízení (údaje a přepínače
+- ~~**Sheety s holými seznamy**~~ — hotovo (VladimirTintera/telegram#866): detail zařízení (údaje a přepínače
   jako dva bloky, hlavička ikonou a nadpisem), výjimky upozornění (chaty v bloku, „Obnovit
   výchozí" jako ikonové tlačítko s bublinou), záložky a kdo reagoval (`groupedItem`).
 - **Tlačítka vedle sebe v `Row` místo `ActionButtonGroup`**: schválit / odmítnout žádost o vstup
