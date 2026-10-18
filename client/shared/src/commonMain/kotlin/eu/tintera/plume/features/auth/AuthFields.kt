@@ -1,10 +1,10 @@
 package eu.tintera.plume.features.auth
 
 import androidx.compose.foundation.layout.fillMaxWidth
+import eu.tintera.plume.core.ui.FormTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -30,7 +30,7 @@ internal fun AuthTextField(
     isError: Boolean,
     onSubmit: () -> Unit,
 ) {
-    OutlinedTextField(
+    FormTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(stringResource(label)) },

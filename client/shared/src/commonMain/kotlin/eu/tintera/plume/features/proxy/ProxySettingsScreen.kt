@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.proxy
 
 import eu.tintera.plume.features.settings.SettingsTopBar
+import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.features.settings.settingsScroll
@@ -37,7 +38,6 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -447,7 +447,7 @@ private fun ProxyEditorSheet(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
+                FormTextField(
                     value = server,
                     onValueChange = { server = it; touched = true },
                     label = { Text(stringResource(Res.string.proxy_field_server)) },
@@ -456,7 +456,7 @@ private fun ProxyEditorSheet(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Next, autoCorrectEnabled = false),
                     modifier = Modifier.weight(2f),
                 )
-                OutlinedTextField(
+                FormTextField(
                     value = port,
                     onValueChange = { value -> port = value.filter(Char::isDigit).take(5); touched = true },
                     label = { Text(stringResource(Res.string.proxy_field_port)) },
@@ -467,7 +467,7 @@ private fun ProxyEditorSheet(
                 )
             }
             if (kind == KindChoice.Mtproto) {
-                OutlinedTextField(
+                FormTextField(
                     value = secret,
                     onValueChange = { secret = it; touched = true },
                     label = { Text(stringResource(Res.string.proxy_field_secret)) },
@@ -477,7 +477,7 @@ private fun ProxyEditorSheet(
                     modifier = Modifier.fillMaxWidth(),
                 )
             } else {
-                OutlinedTextField(
+                FormTextField(
                     value = username,
                     onValueChange = { username = it },
                     label = { Text(stringResource(Res.string.proxy_field_username)) },
@@ -485,7 +485,7 @@ private fun ProxyEditorSheet(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next, autoCorrectEnabled = false),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                FormTextField(
                     value = password,
                     onValueChange = { password = it },
                     label = { Text(stringResource(Res.string.proxy_field_password)) },

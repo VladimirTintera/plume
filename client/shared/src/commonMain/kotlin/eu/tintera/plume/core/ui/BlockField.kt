@@ -5,6 +5,12 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
@@ -194,6 +200,96 @@ fun BlockTextField(
                     .semantics { contentType?.let { this.contentType = it } },
             )
             trailing()
+        }
+    }
+}
+
+/**
+ * **Pole formuláře** (jméno, uživatelské jméno, bio, název skupiny, proxy, kontakt…) — tentýž
+ * jazyk jako [BlockTextField]: tónový blok s velkým zaoblením, fokus a chybu nese rámeček kolem
+ * celého bloku. Navíc umí to, co formulář potřebuje: plovoucí popisek, předponu („@"),
+ * víc řádků a pomocný text POD blokem (nápověda, počítadlo znaků, chyba).
+ *
+ * Dřív měly formuláře `OutlinedTextField` a přihlášení s dvoufázovým ověřením tónovaný blok —
+ * na jedné obrazovce úpravy profilu tak vedle sebe stály dva vzhledy vstupu (obrysová pole
+ * nahoře, tónované bloky u e-mailu a hesla o krok dál). Parametry jsou tytéž jako
+ * u `OutlinedTextField`, aby výměna nic neztratila.
+ *
+ * Výplň je `surfaceContainerHighest` (výchozí výplň M3 vyplněného pole): pole leží na ploše
+ * obrazovky, ve sheetu (`surfaceContainerLow`) i v dialogu a na všech je vidět i bez fokusu.
+ */
+@Composable
+fun FormTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    textStyle: TextStyle = LocalTextStyle.current,
+    label: (@Composable () -> Unit)? = null,
+    placeholder: (@Composable () -> Unit)? = null,
+    leadingIcon: (@Composable () -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null,
+    prefix: (@Composable () -> Unit)? = null,
+    suffix: (@Composable () -> Unit)? = null,
+    supportingText: (@Composable () -> Unit)? = null,
+    isError: Boolean = false,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    singleLine: Boolean = false,
+    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE,
+    minLines: Int = 1,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    Column(modifier) {
+        Surface(
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+            border = BorderStroke(BLOCK_OUTLINE, blockOutlineColor(isError = isError, active = focused && enabled)),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            TextField(
+                value = value,
+                onValueChange = onValueChange,
+                enabled = enabled,
+                textStyle = textStyle,
+                label = label,
+                placeholder = placeholder,
+                leadingIcon = leadingIcon,
+                trailingIcon = trailingIcon,
+                prefix = prefix,
+                suffix = suffix,
+                isError = isError,
+                visualTransformation = visualTransformation,
+                keyboardOptions = keyboardOptions,
+                keyboardActions = keyboardActions,
+                singleLine = singleLine,
+                maxLines = maxLines,
+                minLines = minLines,
+                // Výplň i podtržení nese blok kolem, pole samo je průhledné.
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    disabledContainerColor = Color.Transparent,
+                    errorContainerColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                    errorIndicatorColor = Color.Transparent,
+                ),
+                interactionSource = interaction,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        // Pomocný text pod blokem, ne v něm — počítadlo a nápověda nejsou součást vstupu.
+        if (supportingText != null) {
+            CompositionLocalProvider(
+                LocalTextStyle provides MaterialTheme.typography.bodySmall,
+                LocalContentColor provides if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            ) {
+                Box(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp)) { supportingText() }
+            }
         }
     }
 }

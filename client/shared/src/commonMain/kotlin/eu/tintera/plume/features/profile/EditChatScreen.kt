@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.resources.history_24dp
+import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.resources.event_log_row_help
 import eu.tintera.plume.resources.event_log_row
@@ -43,7 +44,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -383,7 +383,7 @@ fun EditChatScreen(
                         }
                     }
 
-                    OutlinedTextField(
+                    FormTextField(
                         value = viewModel.title,
                         onValueChange = { viewModel.title = it.take(TITLE_MAX_LENGTH) },
                         label = { Text(stringResource(Res.string.edit_chat_name)) },
@@ -396,7 +396,7 @@ fun EditChatScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    OutlinedTextField(
+                    FormTextField(
                         value = viewModel.description,
                         onValueChange = { viewModel.description = it.take(DESCRIPTION_MAX_LENGTH) },
                         label = { Text(stringResource(Res.string.edit_chat_description)) },
