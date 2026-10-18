@@ -239,7 +239,7 @@ private fun AccountCard(viewModel: SettingsViewModel, selected: Boolean, onClick
                     Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    Text(current.displayName, style = MaterialTheme.typography.titleLarge)
+                    Text(current.displayName, style = MaterialTheme.typography.titleLargeEmphasized)
                     Text(
                         current.phoneNumber.let { if (it.startsWith("+")) it else "+$it" },
                         style = MaterialTheme.typography.bodyMedium,

@@ -28,7 +28,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.GiftKind
@@ -91,8 +90,7 @@ internal fun GiftCard(gift: MessageMedia.Gift, onAction: (MessageAction) -> Unit
             GiftSticker(gift)
             Text(
                 text = giftTitle(gift.kind),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMediumEmphasized,
                 textAlign = TextAlign.Center,
             )
             val parties = listOfNotNull(

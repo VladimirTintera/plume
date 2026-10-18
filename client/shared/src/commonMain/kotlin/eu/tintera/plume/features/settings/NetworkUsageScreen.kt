@@ -200,7 +200,7 @@ private fun NetworkHeader(traffic: NetworkTraffic) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
         Text(
             fileSizeText(traffic.sentBytes + traffic.receivedBytes),
-            style = MaterialTheme.typography.headlineMedium.tabularNumbers(),
+            style = MaterialTheme.typography.headlineMediumEmphasized.tabularNumbers(),
         )
         Text(
             stringResource(Res.string.network_usage_summary, fileSizeText(traffic.receivedBytes), fileSizeText(traffic.sentBytes)),

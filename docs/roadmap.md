@@ -887,12 +887,10 @@ poměru přínosu a práce; každý bod je samostatný PR.
   témat) mají `GroupEmptyRow` (VladimirTintera/telegram#829). Zbývá: chyba načtení passkeys (text a `TextButton` pod nadpisem
   sekce) a odepřený přístup ve sdílení (`ShareToChatScreen` AccessDenied — leží nad galerií,
   takže celoobrazovkový stav se tam nehodí, jen nadpis a tlačítko).
-- **Emphasized typografie.** `Typography.kt` ji má celou, v kódu byla 5× a jen `label*`; nadpis
-  `IntroEmptyState` už je `headlineSmallEmphasized`. Kandidáti:
-  jméno v profilu (`ChatProfileScreen` ~1120) a v hovoru (`CallOverlay` ~492), nadpis přihlášení
-  (`AuthScreen` ~277), popisek vybrané složky (`ChatFolderToolbar`),
-  počet vybraných, nadpisy sheetů. Nepřečtený chat má ruční SemiBold (`ChatListScreen` ~1974,
-  vědomě „jako Google Messages") — buď `bodyLargeEmphasized` přeladit na SemiBold, nebo nechat.
+- ~~**Emphasized typografie**~~ — hotovo pro jméno v profilu a hovoru, nadpis přihlášení
+  a prázdného stavu, kartu účtu, velká čísla v Úložišti a Využití sítě, počet vybraných, vybranou
+  složku a otázku ankety; ruční SemiBold k rolím `title*`/`label*` převedený (`CLAUDE.md`,
+  Typografie). Nadpisy sheetů dostanou zvýraznění se společným `SheetHeader` (bod níž).
 - **Společný `SheetHeader`.** 64 sheetů, nadpis napůl `titleMedium` a napůl `titleLarge`.
 - **Společný `ConfirmDialog`.** 87 `AlertDialog`, ikonu mají dva. Destruktivní potvrzení (~35×)
   je `TextButton` s červeným textem; obal s ikonou, chybovou barvou a tvary tlačítek je sjednotí.

@@ -67,7 +67,7 @@ internal fun ChatSelectionTopBar(count: Int, onClose: () -> Unit) {
         title = {
             Text(
                 text = pluralStringResource(Res.plurals.chats_selection_count, count, count),
-                style = MaterialTheme.typography.titleLarge.tabularNumbers(),
+                style = MaterialTheme.typography.titleLargeEmphasized.tabularNumbers(),
             )
         },
         navigationIcon = {

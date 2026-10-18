@@ -52,7 +52,7 @@ internal fun SelectionTopBar(selection: MessageSelection, onClose: () -> Unit) {
         title = {
             Text(
                 text = pluralStringResource(Res.plurals.conversation_selection_count, selection.count, selection.count),
-                style = MaterialTheme.typography.titleLarge.tabularNumbers(),
+                style = MaterialTheme.typography.titleLargeEmphasized.tabularNumbers(),
             )
         },
         navigationIcon = {

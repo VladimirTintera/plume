@@ -276,7 +276,7 @@ fun AuthScreen(
                     ) {
                         Text(
                             text = stringResource(shown.headline()),
-                            style = MaterialTheme.typography.displaySmall,
+                            style = MaterialTheme.typography.displaySmallEmphasized,
                             textAlign = TextAlign.Center,
                         )
 

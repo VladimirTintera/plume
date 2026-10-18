@@ -83,8 +83,7 @@ internal fun GiveawayCard(giveaway: MessageMedia.Giveaway, accent: Color, onActi
         GiveawayHeader(giveaway, contentAccent)
         Text(
             text = stringResource(if (results == null) Res.string.giveaway_title else Res.string.giveaway_results_title),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
+            style = MaterialTheme.typography.titleMediumEmphasized,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth(),
         )

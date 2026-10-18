@@ -576,6 +576,12 @@ OFL z Google Fonts, licence v `docs/licenses/`.
   názvem by byly na jednom řádku dvě tučnosti.
 - **Zvýrazněné varianty (`*Emphasized`) jsou tatáž rodina o stupeň tučnější**, ne druhé písmo —
   zvýraznění uvnitř běžného obsahu nesmí vypadat jako cizí prvek.
+  **Kde se používají:** to, co se na obrazovce čte napřed — jméno v profilu a v hovoru, nadpis
+  přihlášení a prázdného stavu, karta účtu, velké číslo v Úložišti, počet vybraných, název
+  vybrané složky, otázka ankety. Ruční `fontWeight = FontWeight.SemiBold` k roli `title*`
+  / `label*` je totéž co její zvýrazněná varianta — patří tam ta, ať zvýraznění jde z typografie.
+  U `body*` to neplatí: jejich zvýraznění je `Medium`, takže SemiBold v náhledu odkazu nebo
+  v kartě polohy zůstává ručně. Nepřečtený chat má ruční SemiBold vědomě (jako Google Messages).
 - **Emoji ve vlastním písmu nejsou**, berou se ze systémového fontu (na Androidu i iOS funguje
   fallback sám). Kostka „🎲 6" má proto číslo v Bricolage — velká emoji jsou `display*`.
 - **Iniciály v avataru mají `lineHeight = Unspecified`.** Výška řádku `headlineSmall` (32 sp) by

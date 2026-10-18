@@ -389,10 +389,12 @@ private fun FolderTooltip(label: String, enabled: Boolean, content: @Composable 
 
 @Composable
 private fun FolderTitle(tab: FolderTab, color: Color, modifier: Modifier = Modifier) {
+    // Vybraná složka zvýrazněným řezem (M3 Expressive): výběr nese i písmo, ne jen plocha.
+    val style = if (tab.selected) MaterialTheme.typography.labelLargeEmphasized else MaterialTheme.typography.labelLarge
     if (tab.id == null) {
         // Popisek krátce, na celé „Všechny chaty" by v kompaktní liště padla skoro polovina místa.
         // Čtečka obrazovky a bublina dostávají celý název (`plainTitle`).
-        Text(stringResource(Res.string.chat_folders_all_short), color = color, style = MaterialTheme.typography.labelLarge, maxLines = 1, modifier = modifier)
+        Text(stringResource(Res.string.chat_folders_all_short), color = color, style = style, maxLines = 1, modifier = modifier)
         return
     }
     val (text, emojiIds) = remember(tab.title, tab.titleEntities) {
@@ -403,7 +405,7 @@ private fun FolderTitle(tab: FolderTab, color: Color, modifier: Modifier = Modif
     Text(
         text,
         color = color,
-        style = MaterialTheme.typography.labelLarge,
+        style = style,
         maxLines = 1,
         inlineContent = customEmojiInlineContent(emojiIds),
         modifier = modifier,
