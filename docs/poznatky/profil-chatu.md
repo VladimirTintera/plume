@@ -481,6 +481,14 @@ a tlačítko Zrušit omezení / Povolit návrat. Ťuknutí na omezeného otevře
   neumí. „Nastavit jako profilovou" se u aktuální fotky nenabízí, smazání se potvrzuje dialogem
   a po smazání poslední fotky se prohlížeč zavře. Nastavená fotka se přesune na konec, takže
   pager na ni dojede sám (`focusMessageId`) — jinak by zůstal na indexu, tedy na jiné fotce.
+- **Cizí profilovku jde v ⋮ nahlásit** („Nahlásit fotku", `reportChatPhoto`), jen kde to TDLib
+  dovolí (`Chat.canBeReported`; `MediaViewerState.reportablePhotos`). Nahlásit jde jen PLNÁ
+  fotka, ne náhled ani animovaná podoba — `ProfilePhoto.reportFileId` je největší ze `sizes`.
+  Důvod je pevný výčet z TDLib (`ReportReason`, doména `PhotoReportReason`), server se na nic
+  neptá, takže průvodce nahlášením chatu (`ReportFlow`) se nehodí: vlastní `ReportPhotoSheet`,
+  ťuknutí na důvod rovnou nahlásí, „Něco jiného" chce popis. Ověřeno na emulátoru (kanál
+  s fotkou) po výběr důvodu a pole popisu; **samotné nahlášení odeslané NENÍ** — šlo by
+  skutečným moderátorům.
 - **Znovu nastavená fotka dostane NOVÉ id** (ověřeno sondou: …131 → …133). Hledat ji po
   nastavení podle id, se kterým se nastavovala, nejde; pager se proto posílá na aktuální
   (poslední) fotku.

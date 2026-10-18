@@ -134,6 +134,8 @@ import eu.tintera.plume.features.conversation.ReactionPickerSheet
 import eu.tintera.plume.resources.menu_reply
 import eu.tintera.plume.resources.reply_24dp
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.flag_24dp
+import eu.tintera.plume.resources.media_profile_photo_report
 import eu.tintera.plume.resources.add_reaction_24dp
 import eu.tintera.plume.resources.close_24dp
 import eu.tintera.plume.resources.common_close
@@ -276,6 +278,7 @@ fun MediaViewerScreen(
                 },
                 onSetMainProfilePhoto = viewModel::setMainProfilePhoto,
                 onDeleteProfilePhoto = viewModel::requestDeleteProfilePhoto,
+                onReportProfilePhoto = viewModel::requestReportProfilePhoto,
                 onRecognizeText = if (viewModel.canRecognizeText) viewModel::recognizeText else null,
                 onToggleTextLine = viewModel::toggleTextLine,
                 onClearTextSelection = viewModel::clearTextSelection,
@@ -318,6 +321,10 @@ fun MediaViewerScreen(
             snackbarHostState,
             Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = BOTTOM_BAR_HEIGHT),
         )
+    }
+
+    if (state.reportingPhoto != null) {
+        ReportPhotoSheet(onReport = viewModel::reportProfilePhoto, onDismiss = viewModel::dismissReportProfilePhoto)
     }
 
     if (state.pendingProfilePhotoDelete != null) {
@@ -364,6 +371,7 @@ private fun ViewerContent(
     onSaveAs: ((messageId: Long) -> Unit)?,
     onSetMainProfilePhoto: (photoId: Long) -> Unit,
     onDeleteProfilePhoto: (photoId: Long) -> Unit,
+    onReportProfilePhoto: (photoId: Long) -> Unit,
     /** Text z fotky; `null` = platforma ho neumí. */
     onRecognizeText: ((messageId: Long) -> Unit)?,
     onToggleTextLine: (index: Int) -> Unit,
@@ -704,6 +712,7 @@ private fun ViewerContent(
                     onSaveAs = onSaveAs?.let { saveAs -> { saveAs(current.messageId) } },
                     onSetMainProfilePhoto = { onSetMainProfilePhoto(current.messageId) },
                     onDeleteProfilePhoto = { onDeleteProfilePhoto(current.messageId) },
+                    onReportProfilePhoto = { onReportProfilePhoto(current.messageId) },
                     // Jen fotka, a jen když jde uložit: u chatu se zakázaným ukládáním by text
                     // z fotky obešel tutéž ochranu jako snímek obrazovky.
                     onRecognizeText = onRecognizeText
@@ -910,6 +919,7 @@ private fun TopBar(
     onSaveAs: (() -> Unit)?,
     onSetMainProfilePhoto: () -> Unit,
     onDeleteProfilePhoto: () -> Unit,
+    onReportProfilePhoto: () -> Unit,
     onRecognizeText: (() -> Unit)?,
     onDescribePhoto: (() -> Unit)?,
 ) {
@@ -987,7 +997,9 @@ private fun TopBar(
         // a každou smazat. Cizí profilovky a fotky skupin tohle nemají — TDLib to neumí.
         val own = state.ownProfilePhotos
         val canSetMain = own && item.messageId != state.items.lastOrNull()?.messageId
-        if (canForward || canDelete || saveAs != null || own || recognizeText != null || describePhoto != null) {
+        // Cizí profilovku jde nahlásit moderátorům, kde to TDLib dovolí.
+        val reportable = item.messageId in state.reportablePhotos
+        if (canForward || canDelete || saveAs != null || own || reportable || recognizeText != null || describePhoto != null) {
             var menuOpen by remember { mutableStateOf(false) }
             BusyOr(busy == MediaTask.SaveAs || busy == MediaTask.Text || busy == MediaTask.Describe) {
                 Box {
@@ -1018,6 +1030,13 @@ private fun TopBar(
                                     Res.drawable.person_24dp,
                                     onClick = onSetMainProfilePhoto,
                                 ).takeIf { canSetMain },
+                            ),
+                            listOfNotNull(
+                                MenuAction(
+                                    stringResource(Res.string.media_profile_photo_report),
+                                    Res.drawable.flag_24dp,
+                                    onClick = onReportProfilePhoto,
+                                ).takeIf { reportable },
                             ),
                             // Smazání zvlášť: nevratné, nemá stát mezi častými akcemi.
                             listOfNotNull(

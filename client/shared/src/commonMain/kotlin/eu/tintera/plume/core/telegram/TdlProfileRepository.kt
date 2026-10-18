@@ -63,6 +63,15 @@ import dev.g000sha256.tdl.dto.InputFileId
 import dev.g000sha256.tdl.dto.InputAudio
 import dev.g000sha256.tdl.dto.InputThumbnail
 import dev.g000sha256.tdl.dto.InputFileLocal
+import dev.g000sha256.tdl.dto.ReportReasonChildAbuse
+import dev.g000sha256.tdl.dto.ReportReasonCopyright
+import dev.g000sha256.tdl.dto.ReportReasonCustom
+import dev.g000sha256.tdl.dto.ReportReasonFake
+import dev.g000sha256.tdl.dto.ReportReasonIllegalDrugs
+import dev.g000sha256.tdl.dto.ReportReasonPersonalDetails
+import dev.g000sha256.tdl.dto.ReportReasonPornography
+import dev.g000sha256.tdl.dto.ReportReasonSpam
+import dev.g000sha256.tdl.dto.ReportReasonViolence
 
 /**
  * [ProfileRepository] nad TDLib: `getChat` + podrobnosti podle druhu chatu (`getUserFullInfo`,
@@ -647,6 +656,27 @@ class TdlProfileRepository(
     override suspend fun isOwnAccount(chatId: Long): Boolean =
         client.getMe().toResult().getOrNull()?.id == chatId
 
+    override suspend fun canReportPhotos(chatId: Long): Boolean =
+        client.getChat(chatId = chatId).toResult().getOrNull()?.canBeReported == true
+
+    override suspend fun reportPhoto(chatId: Long, fileId: Int, reason: PhotoReportReason, text: String): Result<Unit> =
+        client.reportChatPhoto(
+            chatId = chatId,
+            fileId = fileId,
+            reason = when (reason) {
+                PhotoReportReason.Spam -> ReportReasonSpam()
+                PhotoReportReason.Violence -> ReportReasonViolence()
+                PhotoReportReason.Pornography -> ReportReasonPornography()
+                PhotoReportReason.ChildAbuse -> ReportReasonChildAbuse()
+                PhotoReportReason.Copyright -> ReportReasonCopyright()
+                PhotoReportReason.Fake -> ReportReasonFake()
+                PhotoReportReason.IllegalDrugs -> ReportReasonIllegalDrugs()
+                PhotoReportReason.PersonalDetails -> ReportReasonPersonalDetails()
+                PhotoReportReason.Other -> ReportReasonCustom()
+            },
+            text = text.take(REPORT_TEXT_MAX),
+        ).toResult().map { }
+
     override suspend fun setMainProfilePhoto(photoId: Long): Result<Unit> =
         client.setProfilePhoto(photo = InputChatPhotoPrevious(chatPhotoId = photoId), isPublic = false)
             .toResult().map { }
@@ -711,7 +741,9 @@ class TdlProfileRepository(
                 minithumbnail = still.minithumbnail,
             )
         } ?: still
-        return ProfilePhoto(id = id, addedDate = addedDate, media = media)
+        // Plná velikost: největší ze `sizes` — jen tu `reportChatPhoto` vezme.
+        val full = sizes.filterNotNull().maxByOrNull { it.width * it.height }?.photo?.id
+        return ProfilePhoto(id = id, addedDate = addedDate, media = media, reportFileId = full)
     }
 
     override suspend fun commonGroups(userId: Long): Result<List<RelatedChat>> = runCatching {
@@ -1231,3 +1263,6 @@ private const val PROFILE_PHOTOS_PAGE = 100
 
 /** Strop historie profilovek; víc nikdo neprolistuje a každá stránka je dotaz na server. */
 private const val MAX_PROFILE_PHOTOS = 300
+
+/** `reportChatPhoto` bere popis nejvýš 1024 znaků. */
+private const val REPORT_TEXT_MAX = 1024

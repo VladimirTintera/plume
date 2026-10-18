@@ -42,6 +42,9 @@ import eu.tintera.plume.core.ui.UiText
 import eu.tintera.plume.features.conversation.PendingDelete
 import eu.tintera.plume.features.conversation.toggled
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.media_profile_photo_report_failed
+import eu.tintera.plume.resources.media_profile_photo_reported
+import eu.tintera.plume.core.telegram.PhotoReportReason
 import eu.tintera.plume.resources.conversation_delete_failed
 import eu.tintera.plume.resources.conversation_reaction_failed
 import eu.tintera.plume.resources.media_describe_failed
@@ -482,6 +485,8 @@ class MediaViewerViewModel(
      */
     private suspend fun loadProfilePhotos() {
         val own = profileRepository.isOwnAccount(chatId)
+        // Vlastní fotky se nehlásí; cizí jen tam, kde to TDLib dovolí (`canBeReported`).
+        val reportable = !own && profileRepository.canReportPhotos(chatId)
         profileRepository.profilePhotos(chatId)
             .onSuccess { photos ->
                 val items = photos.asReversed().map { photo ->
@@ -501,6 +506,11 @@ class MediaViewerViewModel(
                         initialPosition = items.size.takeIf { size -> size > 0 }?.let { size -> PhotoPosition(size, size) },
                         actions = items.associate { item -> item.messageId to PROFILE_PHOTO_ACTIONS },
                         ownProfilePhotos = own,
+                        reportablePhotos = if (reportable) {
+                            photos.mapNotNull { photo -> photo.reportFileId?.let { photo.id to it } }.toMap()
+                        } else {
+                            emptyMap()
+                        },
                         reachedOldest = true,
                         reachedNewest = true,
                         loading = false,
@@ -1018,6 +1028,28 @@ class MediaViewerViewModel(
         _state.update { it.copy(focusMessageId = null) }
     }
 
+    /** „Nahlásit fotku" v ⋮: napřed výběr důvodu. */
+    fun requestReportProfilePhoto(photoId: Long) {
+        if (photoId in _state.value.reportablePhotos) _state.update { it.copy(reportingPhoto = photoId) }
+    }
+
+    fun dismissReportProfilePhoto() {
+        _state.update { it.copy(reportingPhoto = null) }
+    }
+
+    fun reportProfilePhoto(reason: PhotoReportReason, text: String) {
+        val photoId = _state.value.reportingPhoto ?: return
+        val fileId = _state.value.reportablePhotos[photoId] ?: return
+        _state.update { it.copy(reportingPhoto = null) }
+        viewModelScope.launch {
+            profileRepository.reportPhoto(chatId, fileId, reason, text.trim())
+                .onSuccess { _state.update { it.copy(notice = UiText(Res.string.media_profile_photo_reported)) } }
+                .onFailure { failure ->
+                    _state.update { it.copy(notice = failure.reported(Res.string.media_profile_photo_report_failed)) }
+                }
+        }
+    }
+
     fun requestDeleteProfilePhoto(photoId: Long) {
         if (_state.value.ownProfilePhotos) _state.update { it.copy(pendingProfilePhotoDelete = photoId) }
     }
@@ -1160,6 +1192,10 @@ data class MediaViewerState(
      * `deleteProfilePhoto`). Cizí profilovky a fotky skupin ne: TDLib to umí jen u vlastního účtu.
      */
     val ownProfilePhotos: Boolean = false,
+    /** Cizí profilovky, které jde nahlásit: id fotky → plná velikost (`reportChatPhoto`). */
+    val reportablePhotos: Map<Long, Int> = emptyMap(),
+    /** Profilovka, u které se vybírá důvod nahlášení. */
+    val reportingPhoto: Long? = null,
     /** Vlastní profilovka čekající na potvrzení smazání. */
     val pendingProfilePhotoDelete: Long? = null,
     /**

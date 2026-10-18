@@ -411,8 +411,8 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   konceptů; `docs/poznatky/seznam-chatu.md`, „Přehled konceptů").
 - ~~Doporučené kanály (`getRecommendedChats`)~~ — hotovo (návrhy v hledání;
   `docs/poznatky/hledani-a-zakladani-chatu.md`, „Hledání chatů").
-- Nalezené při druhém porovnání API (18. 10.), zatím bez místa v aplikaci: nahlášení profilové
-  fotky (`reportChatPhoto`).
+- ~~Nahlášení profilové fotky (`reportChatPhoto`)~~ — hotovo (⋮ v prohlížeči profilovek;
+  `docs/poznatky/profil-chatu.md`, „Historie profilových fotek"). Samotné odeslání neověřené.
 
 - ~~Změna telefonního čísla~~ — hotovo (úprava profilu → Telefonní číslo).
 - ~~Smazání účtu a samosmazání po neaktivitě~~ — hotovo (Soukromí účtu → Smazání účtu;
