@@ -338,6 +338,13 @@ internal fun ConversationDialogs(
         LoginLinkWarningDialog(kind = kind, onDismiss = viewModel::dismissLoginWarning)
     }
 
+    if (state.decliningSuggestedPost != null) {
+        DeclineSuggestedPostDialog(
+            onConfirm = viewModel::declineSuggestedPost,
+            onDismiss = viewModel::cancelDeclineSuggestedPost,
+        )
+    }
+
     state.botAlert?.let { text ->
         BotAlertDialog(text = text, onDismiss = viewModel::dismissBotAlert)
     }

@@ -110,6 +110,7 @@ import eu.tintera.plume.resources.service_protected_content_disable_expired
 import eu.tintera.plume.resources.service_protected_content_disable_requested
 import eu.tintera.plume.resources.service_suggested_post_approved
 import eu.tintera.plume.resources.service_suggested_post_declined
+import eu.tintera.plume.resources.service_suggested_post_declined_comment
 import eu.tintera.plume.resources.service_suggested_post_failed
 import eu.tintera.plume.resources.service_suggested_post_paid
 import eu.tintera.plume.resources.service_suggested_post_refunded
@@ -382,7 +383,10 @@ internal fun MessageContent.serviceText(isChannelPost: Boolean): UiText? = when 
     // Navržené příspěvky (TDLib 15). Cena ani komentář správce se nevypisují — oznámení nese
     // hlavně to, jak návrh dopadl, a na komentář se stejně nedá odpovědět.
     is MessageSuggestedPostApproved -> UiText(Res.string.service_suggested_post_approved)
-    is MessageSuggestedPostDeclined -> UiText(Res.string.service_suggested_post_declined)
+    // Komentář správce je důvod odmítnutí — bez něj by autor nevěděl proč.
+    is MessageSuggestedPostDeclined -> comment.trim().takeIf { it.isNotEmpty() }
+        ?.let { UiText(Res.string.service_suggested_post_declined_comment, it) }
+        ?: UiText(Res.string.service_suggested_post_declined)
     is MessageSuggestedPostPaid -> UiText(Res.string.service_suggested_post_paid)
     is MessageSuggestedPostRefunded -> UiText(Res.string.service_suggested_post_refunded)
     is MessageSuggestedPostApprovalFailed -> UiText(Res.string.service_suggested_post_failed)

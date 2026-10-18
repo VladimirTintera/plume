@@ -103,6 +103,14 @@ interface ConversationRepository {
      */
     fun editedMessages(chatId: Long): Flow<ChatMessage>
 
+    /** Schválí navrhovaný příspěvek; kanál ho zveřejní v termínu návrhu, nebo hned. */
+    suspend fun approveSuggestedPost(chatId: Long, messageId: Long): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /** Odmítne navrhovaný příspěvek; [comment] (nejvýš 128 znaků) dostane autor návrhu. */
+    suspend fun declineSuggestedPost(chatId: Long, messageId: Long, comment: String): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
     /**
      * Ťuknutí na tlačítko bota se zpětným voláním ([BotButtonKind.Callback]).
      *
@@ -1485,6 +1493,8 @@ data class ChatMessage(
     val senderVerification: Verification? = null,
     /** Kontrola faktů pod příspěvkem (`Message.factCheck`); `null` = žádná. */
     val factCheck: FactCheck? = null,
+    /** Navrhovaný příspěvek v přímých zprávách kanálu (`Message.suggestedPostInfo`); `null` = běžná zpráva. */
+    val suggestedPost: SuggestedPost? = null,
     /** Tlačítka bota pod zprávou; `null` = žádná. */
     val keyboard: BotKeyboard? = null,
     /** Anketa nebo kvíz; [text] pak nese jen „Anketa: otázka" pro místa, kde se kreslit nedá. */
@@ -1577,7 +1587,31 @@ data class SendOptions(
     val silent: Boolean = false,
     val schedule: MessageSchedule? = null,
     val effectId: Long = 0,
+    /**
+     * Zpráva do přímých zpráv kanálu odejde jako návrh příspěvku — zdarma a bez termínu
+     * (`InputSuggestedPostInfo` bez ceny; placené návrhy aplikace neumí).
+     */
+    val suggestPost: Boolean = false,
 )
+
+/**
+ * Navrhovaný příspěvek: odběratel ho pošle do přímých zpráv kanálu, správce ho schválí
+ * (kanál ho zveřejní) nebo odmítne. Stav se mění updatem, zpráva zůstává.
+ */
+data class SuggestedPost(
+    val state: SuggestedPostState,
+    /** Cena v hvězdách; `null` = zdarma, nebo v TON ([tonCents]). */
+    val stars: Long? = null,
+    /** Cena v setinách TON; `null` = zdarma, nebo ve hvězdách. */
+    val tonCents: Long? = null,
+    /** Kdy se má zveřejnit (Unix); 0 = termín ještě není, zveřejní se po schválení. */
+    val sendDate: Int = 0,
+    /** Smí ho uživatel schválit (`canBeApproved`) — správce kanálu u čekajícího návrhu. */
+    val canApprove: Boolean = false,
+    val canDecline: Boolean = false,
+)
+
+enum class SuggestedPostState { Pending, Approved, Declined }
 
 /**
  * Vlákno komentářů k příspěvku kanálu. Komentáře NEJSOU v kanálu: jsou to zprávy v připojené

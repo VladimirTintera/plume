@@ -69,10 +69,37 @@ Dlaždice v profilu: „Napsat" u …527 otevřela přímé zprávy, „Direct m
 vláken a zpět vedlo do profilu. Archiv: …029 přímé zprávy archivoval, z archivu se otevřel
 seznam vláken i vlákno, pak se chat vrátil mezi chaty.
 
+## Navrhované příspěvky
+
+Odběratel může v přímých zprávách kanálu **navrhnout příspěvek** (podržet Odeslat → „Navrhnout
+jako příspěvek", `SendOptions.suggestPost` → `MessageSendOptions.suggestedPostInfo`). Zpráva pak
+nese `suggestedPostInfo` a pod bublinou kartu „Navrhovaný příspěvek" (`SuggestedPostCard`, jako
+kontrola faktů pod zprávou): stav, cena, termín a správci **Schválit / Odmítnout**
+(`approveSuggestedPost`, `declineSuggestedPost` s nepovinným komentářem v dialogu).
+
+- **Jen zdarma a bez termínu** (`InputSuggestedPostInfo(price = null, sendDate = 0)`): placené
+  návrhy Plume neumí poslat ani zaplatit. Cenu cizího návrhu (hvězdy, TON) karta ukáže.
+- **Schválení s `sendDate = 0`** zveřejní příspěvek hned (návrh termín nemá); karta pak ukáže
+  „Zveřejnit: <čas>", který doplnil server.
+- **Stav se mění updatem `UpdateMessageSuggestedPostInfo`**, obsah zprávy ne — proto je mezi
+  updaty `editedMessages` a zpráva se dočte celá. Server odpovídá pomalu: odmítnutí se
+  u správce projevilo až po ~15 s a schválení do minuty — karta do té doby čeká, chyba to není.
+- **Nabízí se jen odběrateli** (`SendMenuOffer.suggestPost`: přímé zprávy, ne jako správce) —
+  správce kanálu publikuje sám.
+- **Servisní zpráva o odmítnutí nese komentář správce** („Navržený příspěvek byl odmítnut:
+  „…""), dřív se zahazoval a autor nevěděl proč.
+- **„Schválit" je plné tlačítko**: tónové má `secondaryContainer`, tutéž barvu jako karta,
+  a splynulo s ní.
+- **Ověřeno na dvou emulátorech** (…527 odběratel, …029 vlastník „Plume test kanal"): tři návrhy;
+  první schválen (zveřejněn v kanálu, přeposlán do diskuse), druhý odmítnut s komentářem
+  „Tohle se nehodi", třetí bez komentáře. U odběratele se karty přepnuly živě, servisní zprávy
+  s komentářem u obou. **Neověřené:** placený návrh od oficiálního klienta, „addOffer" (změna
+  ceny a termínu).
+
 ## Co chybí
 
-- Placené zprávy (`paidMessageStarCount`) — ani poslat, ani nastavit cenu.
-- Navrhované příspěvky (`approveSuggestedPost` a spol.).
+- Placené zprávy (`paidMessageStarCount`) — ani poslat, ani nastavit cenu; totéž placené
+  návrhy příspěvků a protinávrh ceny či termínu (`addOffer`).
 - Nabídka nad chatem přímých zpráv v seznamu nabízí „Odejít" jako u skupiny; co to správci
   udělá, ověřené není.
 - Bublina konverzace (Android bubbles) přesměrování na vlákna nemá — správce v ní dostane celý

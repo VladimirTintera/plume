@@ -1135,9 +1135,27 @@
     <string name="service_protected_content_disable_expired">The request to turn content protection off expired</string>
     <string name="service_suggested_post_approved">A suggested post was approved</string>
     <string name="service_suggested_post_declined">A suggested post was declined</string>
+    <string name="service_suggested_post_declined_comment">The suggested post was declined: “%1$s”</string>
     <string name="service_suggested_post_paid">Payment for a suggested post arrived</string>
     <string name="service_suggested_post_refunded">Payment for a suggested post was refunded</string>
     <string name="service_suggested_post_failed">A suggested post could not be approved, not enough funds</string>
+    <string name="suggested_post_title">Suggested post</string>
+    <string name="suggested_post_pending">Waiting for approval</string>
+    <string name="suggested_post_approved">Approved</string>
+    <string name="suggested_post_declined">Declined</string>
+    <string name="suggested_post_price_ton">Price: %1$s TON</string>
+    <string name="suggested_post_publish_at">Publish: %1$s</string>
+    <string name="suggested_post_approve">Approve</string>
+    <string name="suggested_post_decline">Decline</string>
+    <string name="suggested_post_decline_title">Decline the suggested post?</string>
+    <string name="suggested_post_decline_text">The author will see that the post was declined, along with your comment.</string>
+    <string name="suggested_post_decline_comment">Comment for the author (optional)</string>
+    <string name="suggested_post_action_failed">Couldn't change the suggested post</string>
+    <string name="suggested_post_send">Suggest as a post</string>
+    <plurals name="suggested_post_price_stars">
+        <item quantity="one">Price: %1$d star</item>
+        <item quantity="other">Price: %1$d stars</item>
+    </plurals>
     <string name="service_gift_named">Gift: %1$s</string>
     <string name="service_gift_premium">Gift: Telegram Premium for %1$s</string>
     <string name="service_gift_code">Telegram Premium gift code</string>
