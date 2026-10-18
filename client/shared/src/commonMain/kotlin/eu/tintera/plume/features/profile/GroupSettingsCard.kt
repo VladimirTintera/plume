@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.MediumButton
+import eu.tintera.plume.core.ui.ChoiceListItem
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.GroupedColumn
 import eu.tintera.plume.core.ui.SheetTitle
@@ -11,19 +13,15 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -198,14 +196,14 @@ internal fun SlowModeSheet(current: Int, onSelect: (Int) -> Unit, onDismiss: () 
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
         )
-        Column(Modifier.selectableGroup().verticalScroll(rememberScrollState()).padding(bottom = 16.dp)) {
-            SLOW_MODE_DELAYS.forEach { seconds ->
-                val selected = seconds == current
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    leadingContent = { RadioButton(selected = selected, onClick = null) },
-                    headlineContent = { Text(slowModeLabel(seconds)) },
-                    modifier = Modifier.selectable(selected = selected, role = Role.RadioButton) { onSelect(seconds) },
+        Column(Modifier.selectableGroup().verticalScroll(rememberScrollState()).padding(top = 8.dp, bottom = 16.dp)) {
+            SLOW_MODE_DELAYS.forEachIndexed { index, seconds ->
+                ChoiceListItem(
+                    label = slowModeLabel(seconds),
+                    selected = seconds == current,
+                    index = index,
+                    count = SLOW_MODE_DELAYS.size,
+                    onClick = { onSelect(seconds) },
                 )
             }
         }
@@ -242,17 +240,19 @@ internal fun ChatReactionsSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
             )
-            Column(Modifier.selectableGroup()) {
-                listOf(
-                    Res.string.edit_chat_reactions_all,
-                    Res.string.edit_chat_reactions_some,
-                    Res.string.edit_chat_reactions_none,
-                ).forEachIndexed { index, label ->
-                    ListItem(
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        leadingContent = { RadioButton(selected = mode == index, onClick = null) },
-                        headlineContent = { Text(stringResource(label)) },
-                        modifier = Modifier.selectable(selected = mode == index, role = Role.RadioButton) { mode = index },
+            val modes = listOf(
+                Res.string.edit_chat_reactions_all,
+                Res.string.edit_chat_reactions_some,
+                Res.string.edit_chat_reactions_none,
+            )
+            Column(Modifier.selectableGroup().padding(top = 8.dp)) {
+                modes.forEachIndexed { index, label ->
+                    ChoiceListItem(
+                        label = stringResource(label),
+                        selected = mode == index,
+                        index = index,
+                        count = modes.size,
+                        onClick = { mode = index },
                     )
                 }
             }
@@ -273,7 +273,7 @@ internal fun ChatReactionsSheet(
                 }
             }
         }
-        Button(
+        MediumButton(
             onClick = {
                 onSave(
                     when (mode) {
@@ -285,7 +285,6 @@ internal fun ChatReactionsSheet(
                 )
             },
             modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 8.dp, bottom = 16.dp),
-            shapes = ButtonDefaults.shapes(),
         ) {
             Text(stringResource(Res.string.edit_chat_reactions_save))
         }
