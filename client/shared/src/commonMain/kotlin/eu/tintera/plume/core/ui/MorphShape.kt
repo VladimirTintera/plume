@@ -36,9 +36,9 @@ import androidx.graphics.shapes.star
  *   pootočí (`PinnedBadge`).
  * - `Gem` (bez morfu): odznak zabezpečení nad nadpisem — zámek aplikace a dvoufázové ověření
  *   (`SecurityBadge`). Štít místo kruhu, který nic neříkal.
- * - Tvar avataru → vlnitý kruh (deset vlnek) s otáčením: výpadek spojení (`ConnectionIndicator`,
- *   fotka účtu v seznamu chatů a avatar v hlavičce konverzace). Jediná výjimka z pravidla
- *   o avatarech níž — tam se stav opravdu mění.
+ * - `LoadingIndicator` (vlastní morf M3E): výpadek spojení (`ConnectionStatusIcon`) místo lupy
+ *   v pilulce hledání a v podtitulu hlavičky konverzace. Dřív se kvůli němu vlnil avatar —
+ *   výjimka z pravidla o avatarech níž, která neobstála: avatar je identita, ne kontrolka.
  *
  * Tam, kde se stav nemění (avatary, položky seznamu, reakce), se morfy nepoužívají — kdyby se
  * hýbalo všechno, přestalo by to cokoli znamenat. Avatary mají jen STATICKÝ tvar podle druhu

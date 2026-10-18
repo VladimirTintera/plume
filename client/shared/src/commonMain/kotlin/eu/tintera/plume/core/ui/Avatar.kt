@@ -25,7 +25,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
-import androidx.graphics.shapes.RoundedPolygon
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.bookmark_filled_24dp
@@ -136,19 +135,8 @@ fun Avatar(
 @Composable
 fun ChatKind.avatarShape(): Shape = when (this) {
     ChatKind.Private -> CircleShape
-    ChatKind.Group -> avatarPolygon().toShape()
-    ChatKind.Channel -> avatarPolygon().toShape()
-}
-
-/**
- * Tentýž tvar jako [avatarShape], jako polygon — z něj se morfuje, když avatar mění stav
- * (výpadek spojení, [rememberConnectionIndicator]). Jeden zdroj, aby morf začínal přesně
- * v tvaru, který avatar má.
- */
-fun ChatKind.avatarPolygon(): RoundedPolygon = when (this) {
-    ChatKind.Private -> MaterialShapes.Circle
-    ChatKind.Group -> MaterialShapes.Cookie4Sided
-    ChatKind.Channel -> MaterialShapes.Square
+    ChatKind.Group -> MaterialShapes.Cookie4Sided.toShape()
+    ChatKind.Channel -> MaterialShapes.Square.toShape()
 }
 
 /**

@@ -54,7 +54,6 @@ import eu.tintera.plume.core.ui.LocalSharedElementClip
 import eu.tintera.plume.core.ui.SharedElementClip
 import eu.tintera.plume.core.ui.SwipeDirection
 import eu.tintera.plume.core.ui.detectHorizontalSwipe
-import eu.tintera.plume.core.ui.label
 import eu.tintera.plume.core.ui.rememberShownConnection
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.sharedElementClipArea
@@ -141,9 +140,7 @@ internal fun BoxScope.ConversationContent(
                 chatId = viewModel.chatId,
                 title = state.info?.title.orEmpty(),
                 avatarFileId = state.info?.avatarFileId,
-                connection = shownConnection,
-                connectionLabel = shownConnection?.label()?.let { stringResource(it) },
-                online = state.presence is Presence.Online,
+                online = shownConnection == null && state.presence is Presence.Online,
                 onAction = { itemScope.onAction(0L, it) },
             )
         }
