@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.SaveActionButton
 import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.resources.link_off_24dp
@@ -712,7 +713,7 @@ private fun FolderLinkSheet(
                 .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
         ) {
             SheetTitle(stringResource(Res.string.chat_folder_link_title), modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
-            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest) {
+            Surface(shape = ShapeDefaults.Large, color = MaterialTheme.colorScheme.surfaceContainerLowest) {
                 ListItem(
                     headlineContent = {
                         Text(editor.link.url.removePrefix("https://"), maxLines = 1, overflow = TextOverflow.Ellipsis)

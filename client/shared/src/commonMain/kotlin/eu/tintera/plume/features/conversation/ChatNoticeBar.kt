@@ -1,11 +1,11 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -58,7 +58,7 @@ internal fun ChatNoticeBarCard(
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(20.dp),
+        shape = ShapeDefaults.LargeIncreased,
         shadowElevation = 2.dp,
         modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
     ) {

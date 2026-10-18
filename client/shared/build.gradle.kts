@@ -975,6 +975,49 @@ val verifyButtonShapes = tasks.register("verifyButtonShapes") {
 
 tasks.named("check") { dependsOn(verifyButtonShapes) }
 
+// Zaoblení ze škály M3 Expressive se píše tokenem (`ShapeDefaults.Large`, `.LargeIncreased`…),
+// ne číslem. V kódu bylo ~200 `RoundedCornerShape(N.dp)` proti 21 tokenům a kopie téhož čísla
+// se rozcházely (16 vs. 20 u bloků). Hodnoty mimo škálu (tvary bublin, médií) kontrola pouští —
+// jsou to vlastní tvary, ne odchylka od tokenu. Bloky zaoblených řádků mají `GROUP_CORNER`.
+val verifyShapeTokens = tasks.register("verifyShapeTokens") {
+    group = "verification"
+    description = "Ověří, že zaoblení ze škály M3 jde přes ShapeDefaults, ne RoundedCornerShape(N.dp)."
+
+    val sources = listOf(
+        layout.projectDirectory.dir("src/commonMain/kotlin"),
+        layout.projectDirectory.dir("src/androidMain/kotlin"),
+        layout.projectDirectory.dir("src/iosMain/kotlin"),
+        layout.projectDirectory.dir("src/jvmMain/kotlin"),
+    )
+    sources.forEach { inputs.dir(it) }
+    val roots = sources.map { it.asFile }
+    val projectDir = layout.projectDirectory.asFile
+
+    doLast {
+        val tokens = mapOf(
+            "4" to "ExtraSmall", "8" to "Small", "12" to "Medium", "16" to "Large",
+            "20" to "LargeIncreased", "28" to "ExtraLarge", "32" to "ExtraLargeIncreased", "48" to "ExtraExtraLarge",
+        )
+        val literal = Regex("""RoundedCornerShape\((\d+)\.dp\)""")
+        val offenders = mutableListOf<String>()
+        roots.flatMap { it.walkTopDown().filter { f -> f.extension == "kt" } }
+            .forEach { file ->
+                val text = file.readText()
+                literal.findAll(text).forEach { match ->
+                    val token = tokens[match.groupValues[1]] ?: return@forEach
+                    val line = text.substring(0, match.range.first).count { it == '\n' } + 1
+                    offenders += "${file.relativeTo(projectDir)}:$line: ${match.value} → ShapeDefaults.$token"
+                }
+            }
+        check(offenders.isEmpty()) {
+            "Zaoblení ze škály M3 patří do tokenu ShapeDefaults (bloky řádků: GROUP_CORNER).\n" +
+                offenders.joinToString("\n")
+        }
+    }
+}
+
+tasks.named("check") { dependsOn(verifyShapeTokens) }
+
 // api_id/api_hash z my.telegram.org. Čtou se z local.properties (gitignorovaný), aby se pár
 // nikdy nedostal do repozitáře. Bez nich se projekt přeloží, ale přihlášení skončí chybou
 // od serveru — hlásí se to srozumitelně místo pádu (viz sendTdlibParameters v TdlTelegramSession).

@@ -1,9 +1,9 @@
 package eu.tintera.plume.features.media
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -80,7 +80,7 @@ internal fun StoryboardThumb(storyboard: LoadedStoryboard, positionMs: Long, mod
     }
     val painter = rememberAsyncImagePainter(request)
     val frame = storyboard.frames.frameAt(positionMs) ?: return
-    val shape = RoundedCornerShape(8.dp)
+    val shape = ShapeDefaults.Small
     Canvas(
         modifier
             .clip(shape)

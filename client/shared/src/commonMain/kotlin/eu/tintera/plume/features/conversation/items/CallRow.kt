@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
 import androidx.compose.foundation.background
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,7 +32,6 @@ import eu.tintera.plume.resources.call_missed_24dp
 import eu.tintera.plume.resources.call_missed_outgoing_24dp
 import eu.tintera.plume.resources.call_received_24dp
 import eu.tintera.plume.core.ui.contextClickable
-import androidx.compose.foundation.shape.RoundedCornerShape
 import eu.tintera.plume.resources.call_back
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -68,7 +68,7 @@ internal fun CallRow(call: MessageMedia.Call, accent: Color, onCallBack: (() -> 
             .then(
                 if (onCallBack != null) {
                     Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(ShapeDefaults.Medium)
                         .contextClickable(onClick = onCallBack, onLongClick = onRequestMenu, onClickLabel = callBackLabel)
                 } else {
                     Modifier

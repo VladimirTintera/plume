@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
@@ -343,7 +343,7 @@ internal fun Waveform(
 
 private const val VOICE_BARS = 40
 
-private val SPEED_CHIP_SHAPE = RoundedCornerShape(8.dp)
+private val SPEED_CHIP_SHAPE = ShapeDefaults.Small
 
 /** Jak sytý je podklad čipu. Plný akcent by z čipu udělal druhé tlačítko vedle přehrání. */
 private const val SPEED_CHIP_ALPHA = 0.85f

@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -44,7 +45,6 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ButtonDefaults
@@ -1321,7 +1321,7 @@ internal fun StickerSearchField(
     val keyboard = LocalSoftwareKeyboardController.current
 
     Surface(
-        shape = RoundedCornerShape(28.dp),
+        shape = ShapeDefaults.ExtraLarge,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = modifier.fillMaxWidth(),
     ) {

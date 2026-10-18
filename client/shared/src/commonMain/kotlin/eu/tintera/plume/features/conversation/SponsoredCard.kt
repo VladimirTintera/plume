@@ -1,10 +1,10 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -40,7 +40,7 @@ fun SponsoredCard(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = ShapeDefaults.Large,
         // `surfaceContainerLow` drží kartu o stupeň pod bublinami, takže nekonkuruje obsahu
         // konverzace, ale zůstává čitelná.
         color = MaterialTheme.colorScheme.surfaceContainerLow,

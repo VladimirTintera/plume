@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -166,7 +167,7 @@ fun AttachmentModeSheet(
                     selected = currentMode is AttachmentMode.Spoiler,
                     // Bez mizejících médií je spoiler poslední položkou skupiny.
                     shape = if (selfDestructAllowed) {
-                        RoundedCornerShape(4.dp)
+                        ShapeDefaults.ExtraSmall
                     } else {
                         RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 20.dp, bottomEnd = 20.dp)
                     },
@@ -182,7 +183,7 @@ fun AttachmentModeSheet(
                     description = stringResource(Res.string.attachment_mode_view_once_desc),
                     icon = Res.drawable.schedule_24dp,
                     selected = currentMode is AttachmentMode.ViewOnce,
-                    shape = RoundedCornerShape(4.dp),
+                    shape = ShapeDefaults.ExtraSmall,
                     onClick = {
                         onSelectMode(AttachmentMode.ViewOnce)
                         onDismiss()
@@ -283,7 +284,7 @@ fun AttachmentModeSheet(
                 description = stringResource(Res.string.attachment_mode_as_file_desc),
                 icon = Res.drawable.description_24dp,
                 selected = currentMode is AttachmentMode.AsFile,
-                shape = RoundedCornerShape(20.dp),
+                shape = ShapeDefaults.LargeIncreased,
                 onClick = {
                     onSelectMode(AttachmentMode.AsFile)
                     onDismiss()

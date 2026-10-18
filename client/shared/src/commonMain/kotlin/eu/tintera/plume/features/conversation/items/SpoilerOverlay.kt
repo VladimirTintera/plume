@@ -1,12 +1,12 @@
 package eu.tintera.plume.features.conversation.items
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -89,7 +89,7 @@ internal fun SpoilerOverlay(
             contentAlignment = Alignment.Center,
         ) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = ShapeDefaults.Large,
                 color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f),
                 contentColor = Color.White,
                 modifier = Modifier.padding(8.dp),

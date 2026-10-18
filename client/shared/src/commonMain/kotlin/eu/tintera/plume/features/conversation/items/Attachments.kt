@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation.items
 
 import eu.tintera.plume.features.media.LocalPhotoDescriptions
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import eu.tintera.plume.core.video.VideoPositions
@@ -146,7 +147,7 @@ internal fun MessageAttachment(
     /** Odchozí zpráva — efekt animovaného emoji letí od ní na druhou stranu. */
     isOutgoing: Boolean = false,
 ) {
-    val shape = RoundedCornerShape(12.dp)
+    val shape = ShapeDefaults.Medium
     // Náhled souboru zůstává malý čtvereček bez ohledu na tvar bubliny — velké zaoblení bubliny
     // by z 48dp náhledu udělalo kolečko.
     val pictureShape = mediaShape ?: shape
@@ -720,7 +721,7 @@ internal fun VideoThumbnail(
         }
         if (!isSelfDestruct && revealed) {
             Surface(
-                shape = RoundedCornerShape(8.dp),
+                shape = ShapeDefaults.Small,
                 color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
                 contentColor = Color.White,
                 modifier = Modifier.align(Alignment.BottomStart).padding(6.dp),
@@ -787,7 +788,7 @@ private fun DocumentContent(
 
     Row(
         Modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(ShapeDefaults.Medium)
             .contextClickable(
                 enabled = !uploading,
                 onClick = onOpen,
@@ -1072,7 +1073,7 @@ internal fun ExpiredMediaRow(
 ) {
     val background = MaterialTheme.colorScheme.surfaceContainerHigh
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = ShapeDefaults.Medium,
         color = background,
         modifier = modifier,
     ) {
@@ -1205,7 +1206,7 @@ private fun PaidPreviewTile(preview: MessageMedia.PaidPreview, modifier: Modifie
         preview.minithumbnail?.let { BlurredThumbnail(it, Modifier.fillMaxSize()) }
         if (preview.durationSeconds > 0) {
             Surface(
-                shape = RoundedCornerShape(8.dp),
+                shape = ShapeDefaults.Small,
                 color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f),
                 contentColor = Color.White,
                 modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),

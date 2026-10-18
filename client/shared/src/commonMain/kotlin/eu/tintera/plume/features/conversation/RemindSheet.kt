@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -8,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -76,7 +76,7 @@ internal fun RemindSheet(
                     SheetActionRow(
                         icon = Res.drawable.auto_awesome_24dp,
                         label = stringResource(Res.string.remind_suggesting),
-                        shape = RoundedCornerShape(20.dp),
+                        shape = ShapeDefaults.LargeIncreased,
                         onClick = {},
                         enabled = false,
                         trailing = { LoadingIndicator(Modifier.size(24.dp)) },
@@ -86,7 +86,7 @@ internal fun RemindSheet(
                     SheetActionRow(
                         icon = if (fromModel) Res.drawable.auto_awesome_24dp else Res.drawable.edit_calendar_24dp,
                         label = stringResource(Res.string.remind_from_message),
-                        shape = RoundedCornerShape(20.dp),
+                        shape = ShapeDefaults.LargeIncreased,
                         onClick = { onRemind(suggested) },
                         trailing = { SnoozeTime(suggested * 1000) },
                     )
@@ -101,7 +101,7 @@ internal fun RemindSheet(
                 SheetActionRow(
                     icon = Res.drawable.schedule_24dp,
                     label = stringResource(Res.string.remind_pick),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = ShapeDefaults.LargeIncreased,
                     onClick = onPickTime,
                 )
             }

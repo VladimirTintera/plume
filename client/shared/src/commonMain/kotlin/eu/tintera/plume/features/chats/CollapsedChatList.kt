@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import androidx.compose.foundation.background
+import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.contextClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,7 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.FilledTonalIconButton
@@ -466,7 +466,7 @@ private fun PendingCardButton(card: PendingCard, onClick: () -> Unit) {
 
 private val COLLAPSED_AVATAR_SIZE = 52.dp
 private val COLLAPSED_ITEM_SIZE = 72.dp
-private val COLLAPSED_ITEM_SHAPE = RoundedCornerShape(20.dp)
+private val COLLAPSED_ITEM_SHAPE = ShapeDefaults.LargeIncreased
 
 /** Za jak dlouho po podržení zavřít bublinu, kterou ukázala kotva (viz [CollapsedChat]). */
 private const val TOOLTIP_AFTER_LONG_PRESS_MS = 100L

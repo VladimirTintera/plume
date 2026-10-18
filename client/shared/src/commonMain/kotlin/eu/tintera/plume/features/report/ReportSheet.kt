@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.report
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -140,7 +140,7 @@ private fun ColumnScope.TextStep(step: ReportStep.EnterText, enabled: Boolean, o
             Text(stringResource(if (step.optional) Res.string.report_text_optional_hint else Res.string.report_text_hint))
         },
         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-        shape = RoundedCornerShape(20.dp),
+        shape = ShapeDefaults.LargeIncreased,
         // Tónovaný blok bez podtržení, jako ostatní pole v aplikaci.
         colors = TextFieldDefaults.colors(
             focusedIndicatorColor = Color.Transparent,

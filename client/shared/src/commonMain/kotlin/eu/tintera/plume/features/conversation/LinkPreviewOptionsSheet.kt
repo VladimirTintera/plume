@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
@@ -157,7 +158,7 @@ fun LinkPreviewOptionsSheet(
                 description = stringResource(Res.string.link_preview_remove_desc),
                 icon = Res.drawable.close_24dp,
                 selected = false,
-                shape = RoundedCornerShape(20.dp),
+                shape = ShapeDefaults.LargeIncreased,
                 onClick = {
                     onChange(options.copy(disabled = true))
                     onDismiss()

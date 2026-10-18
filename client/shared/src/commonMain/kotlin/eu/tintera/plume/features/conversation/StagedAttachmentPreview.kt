@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -20,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
@@ -296,7 +296,7 @@ internal fun StagedAttachmentPreview(
                 val isCustomMode = mode !is AttachmentMode.Standard
                 Surface(
                     onClick = { showModeSheet = true },
-                    shape = RoundedCornerShape(20.dp),
+                    shape = ShapeDefaults.LargeIncreased,
                     color = if (isCustomMode) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.9f)
                             else MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
                 ) {

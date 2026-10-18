@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.instantview
 
 import eu.tintera.plume.core.adaptive.ContentWidth
+import androidx.compose.foundation.shape.CornerBasedShape
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.OutlinedButton
 import eu.tintera.plume.resources.description_24dp
@@ -20,7 +22,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
@@ -200,7 +201,7 @@ fun InstantViewScreen(viewModel: InstantViewViewModel, onBack: () -> Unit, modif
  */
 @Composable
 private fun PageMedia(media: ArticleMedia) {
-    val shape = RoundedCornerShape(12.dp)
+    val shape = ShapeDefaults.Medium
     when (val m = media.media) {
         is MessageMedia.Photo -> RemoteImage(
             fileId = m.fileId,
@@ -216,7 +217,7 @@ private fun PageMedia(media: ArticleMedia) {
 }
 
 @Composable
-private fun VideoThumb(thumbnail: Int?, mini: eu.tintera.plume.core.telegram.Minithumbnail?, width: Int, height: Int, shape: RoundedCornerShape) {
+private fun VideoThumb(thumbnail: Int?, mini: eu.tintera.plume.core.telegram.Minithumbnail?, width: Int, height: Int, shape: CornerBasedShape) {
     Box(Modifier.fillMaxWidth().aspect(width, height).clip(shape), contentAlignment = Alignment.Center) {
         if (thumbnail != null) {
             RemoteImage(fileId = thumbnail, placeholder = mini, modifier = Modifier.fillMaxSize())

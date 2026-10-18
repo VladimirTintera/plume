@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -109,7 +110,7 @@ private fun PreviewBubbles(modifier: Modifier = Modifier) {
     Column(
         modifier
             .fillMaxWidth()
-            .background(colors.surface, RoundedCornerShape(16.dp))
+            .background(colors.surface, ShapeDefaults.Large)
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {

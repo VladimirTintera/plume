@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.wheelScrollsHorizontally
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -430,7 +431,7 @@ private fun EmojiCell(emoji: String, cells: EmojiCells) {
     Box(
         Modifier
             .size(EMOJI_CELL)
-            .clip(RoundedCornerShape(8.dp))
+            .clip(ShapeDefaults.Small)
             .contextClickable(
                 onClick = { cells.onPick(emoji) },
                 // Haptiku u dlouhého stisku dělá `combinedClickable` samo — viz `Haptics`.

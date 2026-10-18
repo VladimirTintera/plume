@@ -1,6 +1,6 @@
 package eu.tintera.plume.features.conversation
 
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.layout
@@ -31,7 +31,7 @@ internal fun Modifier.dockReveal(reveal: () -> Float): Modifier = this
     }
 
 /** Zaoblení docku: u sbaleného řádku ([DOCK_ROW_HEIGHT]) přesně pilulka. */
-internal val DOCK_SHAPE = RoundedCornerShape(28.dp)
+internal val DOCK_SHAPE = ShapeDefaults.ExtraLarge
 internal val DOCK_ROW_HEIGHT = 56.dp
 internal val DOCK_BADGE_SIZE = 40.dp
 internal val DOCK_BADGE_INSET = (DOCK_ROW_HEIGHT - DOCK_BADGE_SIZE) / 2

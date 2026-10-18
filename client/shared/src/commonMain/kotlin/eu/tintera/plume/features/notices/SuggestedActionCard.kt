@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.notices
 
 import androidx.compose.foundation.background
+import eu.tintera.plume.core.ui.GROUP_CORNER
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -214,4 +215,4 @@ private fun SuggestedAction.content(phone: String?): SuggestionContent = when (t
     )
 }
 
-private val CARD_CORNER = 20.dp
+private val CARD_CORNER = GROUP_CORNER
