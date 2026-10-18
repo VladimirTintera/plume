@@ -891,6 +891,10 @@ zprávy, a přitom ani jedno z toho většinou nic neříkalo.
   klikání obsah (`contextClickable` kvůli podržení), takže dostává tentýž `interactionSource`.
   Ověřeno na Pixelu 7 snímkem během `input motionevent DOWN`.
 
+- **Kategorie pod hledáním samolepek jsou tónová přepínací tlačítka** (`FilledTonalIconToggleButton`,
+  `toggleableShapes`, malé široké), ne obrysové `FilterChip`y: výběr jedné ikony z řady je v M3
+  Expressive přepínač, který se vybraný vyplní a zaoblí — jako formátování a hovor.
+
 ## Barva konverzace
 
 Profil chatu → Barva konverzace: „Podle aplikace" a tytéž vzorky jako barva aplikace
