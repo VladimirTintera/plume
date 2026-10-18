@@ -509,7 +509,7 @@ internal fun ConversationBottomBar(
         linkPreview = composerLinkPreview(
             preview = state.linkPreview,
             options = state.linkPreviewOptions,
-            editingCaption = state.editing?.composerEdit() == ComposerEdit.Caption,
+            editingCaption = state.editing?.editKind() == ComposerEdit.Caption,
             hasAttachments = state.attachments.isNotEmpty(),
         ),
         linkPreviewLinks = state.linkPreviewLinks,

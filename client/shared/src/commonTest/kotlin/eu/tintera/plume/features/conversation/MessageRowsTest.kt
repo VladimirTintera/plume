@@ -220,6 +220,19 @@ class MessageRowsTest {
     }
 
     @Test
+    fun zpravaSVlastnimEmojiSeUpravujeJenKdeSeSmiPoslat() {
+        val withEmoji = message(
+            id = 1,
+            text = "Ahoj 😀",
+            entities = listOf(MessageEntity(offset = 5, length = 2, type = MessageEntityType.CustomEmoji(7))),
+        )
+        assertNull(withEmoji.composerEdit())
+        assertEquals(ComposerEdit.Text, withEmoji.composerEdit(customEmoji = true))
+        // Úprava, která už běží, se na vlastní emoji neptá — o tom se rozhodlo na začátku.
+        assertEquals(ComposerEdit.Text, withEmoji.editKind())
+    }
+
+    @Test
     fun velkyGifSeSamNestahuje() {
         // Autoplay by bez ptaní snědl data; nad stropem se čeká na ťuknutí.
         assertTrue(animation().autoPlaysWithin(MEDIUM_BYTES))

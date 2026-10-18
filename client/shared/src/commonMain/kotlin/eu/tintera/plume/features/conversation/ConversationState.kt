@@ -496,6 +496,11 @@ data class ProximityAlertPrompt(val messageId: Long, val currentRadius: Int)
 
 data class ConversationState(
     val info: ChatInfo? = null,
+    /**
+     * Smí uživatel tady posílat vlastní emoji (Premium, nebo Uložené zprávy)? Podle toho jde
+     * upravit zprávu, která ho obsahuje (`composerEdit`) — jinde by ho server tiše zahodil.
+     */
+    val customEmojiAllowed: Boolean = false,
     /** Vlákno komentářů (kořenová zpráva); `null` u běžné konverzace. */
     val threadRootId: Long? = null,
     /** Téma skupiny s tématy; `null` u běžné konverzace. */

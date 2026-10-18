@@ -287,7 +287,7 @@ internal class ConversationComposer(
         // ten odložený, a ohlašovat „píše…" kvůli opravě překlepu by protějšek mátlo.
         state.value.editing?.let { editing ->
             // Náhled odkazu ale patří i k úpravě textu: upravená zpráva odejde s ním.
-            if (editing.composerEdit() == ComposerEdit.Text) refreshLinkPreview(text.text)
+            if (editing.editKind() == ComposerEdit.Text) refreshLinkPreview(text.text)
             return
         }
         // Psaní zavře seznam příkazů otevřený tlačítkem; napovídání „/…" se řídí textem samo.
@@ -442,7 +442,7 @@ internal class ConversationComposer(
      */
     fun startEdit(messageId: Long, canEditMedia: Boolean = false) {
         val message = state.value.messages.firstOrNull { it.id == messageId } ?: return
-        val formats = composedFormatsOf(message.text, message.entities) ?: return
+        val formats = composedFormatsOf(message.text, message.entities, state.value.customEmojiAllowed) ?: return
         enterEdit(
             message,
             ComposedText(message.text, formats),
@@ -517,7 +517,7 @@ internal class ConversationComposer(
                 linkPreviewOptions = linkOptions,
             )
         }
-        if (target.composerEdit() == ComposerEdit.Text) refreshLinkPreview(text.text, delayMs = 0)
+        if (target.editKind() == ComposerEdit.Text) refreshLinkPreview(text.text, delayMs = 0)
     }
 
     /** Zruší úpravu a vrátí do pole odložený koncept. */
@@ -556,7 +556,7 @@ internal class ConversationComposer(
      * jak je — server ji odmítne a uživatel by o obsah přišel.
      */
     private fun sendEdit(target: ChatMessage, text: ComposedText) {
-        val kind = target.composerEdit() ?: return
+        val kind = target.editKind() ?: return
         val sanitized = if (settings.stripTrackingParameters.value) UrlCleaner.cleanComposedText(text) else text
         if (kind == ComposerEdit.Text && sanitized.text.isEmpty()) return
 
@@ -579,7 +579,7 @@ internal class ConversationComposer(
         // formátování (tučné slovo) je ale změna.
         val optionsChanged = kind == ComposerEdit.Text &&
             linkOptions != (target.linkPreviewOptions ?: LinkPreviewOptions())
-        val original = ComposedText(target.text, composedFormatsOf(target.text, target.entities).orEmpty()).trimmed()
+        val original = ComposedText(target.text, composedFormatsOf(target.text, target.entities, customEmoji = true).orEmpty()).trimmed()
         if (sanitized == original && !optionsChanged) return
 
         scope.launch {

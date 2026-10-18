@@ -152,7 +152,11 @@ private fun buildItems(state: ConversationState): List<ConversationItem> {
                 namesReactors = info?.isGroup == true && !info.isChannel,
                 flight = state.flight?.takeIf { it.itemKey == key },
                 menu = state.messageMenu?.takeIf { it.messageId == message.id },
-                menuActions = menuActions(row.primary, isPinned = state.pinned.any { row.contains(it.id) }),
+                menuActions = menuActions(
+                    row.primary,
+                    isPinned = state.pinned.any { row.contains(it.id) },
+                    customEmoji = state.customEmojiAllowed,
+                ),
                 /*
                  * Ťuknutí na VLASTNÍ zprávu si vyžádá odznak přečtení, druhé ho schová. Je to
                  * ubezpečení na vyžádání: automaticky se odznak ukazuje jen u nejnovější zprávy.
@@ -261,14 +265,14 @@ private fun messageItem(
  * vynulovanou (nese ji mřížka), takže by popisek alba vypadal jako text a upravil by se jiným
  * voláním, než kterým se ukládá.
  */
-internal fun menuActions(message: ChatMessage, isPinned: Boolean): List<MessageMenuAction> = buildList {
+internal fun menuActions(message: ChatMessage, isPinned: Boolean, customEmoji: Boolean = false): List<MessageMenuAction> = buildList {
     // Pořadí je pořadí UVNITŘ skupin; do skupin a úrovní je rozdělí `MessageMenuAction.slot`.
     //
     // Neodeslaná zpráva má jedinou akci, která ji spraví, a ta jde první. Kandidát je u každé:
     // u alba nese neodeslanou fotku jiná zpráva než ta, na které nabídka visí.
     add(MessageMenuAction.Resend)
     // Úprava jen u vlastní zprávy, a tam je to důvod, proč se nabídka otevírá — proto před odpovědí.
-    if (message.composerEdit() != null) add(MessageMenuAction.Edit)
+    if (message.composerEdit(customEmoji) != null) add(MessageMenuAction.Edit)
     if (message.checklist != null) add(MessageMenuAction.EditChecklist)
     add(MessageMenuAction.Reply)
     val poll = message.poll
