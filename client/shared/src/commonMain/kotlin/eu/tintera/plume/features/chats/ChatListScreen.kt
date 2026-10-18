@@ -166,9 +166,7 @@ import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import eu.tintera.plume.core.ui.OnlineDot
-import eu.tintera.plume.core.ui.rememberConnectionIndicator
 import eu.tintera.plume.core.ui.rememberShownConnection
-import eu.tintera.plume.core.telegram.ConnectionState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SearchBarDefaults
@@ -510,7 +508,6 @@ fun ChatListScreen(
         AccountMenu(
             account = account,
             archiveUnread = archiveUnread,
-            connection = shownConnection,
             onSavedMessages = { viewModel.openSavedMessages(onChatClick) },
             onArchive = onOpenArchive,
             draftCount = drafts?.size ?: 0,
@@ -586,7 +583,7 @@ fun ChatListScreen(
                 // Hlavička pod otevřeným FAB menu ztlumená a neťukací, stejně jako seznam.
                 Box {
                     ChatSearchBar(
-                        connection = shownConnection?.label(),
+                        connection = shownConnection,
                         search = search,
                         savedMessagesChatId = savedMessagesChatId,
                         scrollBehavior = scrollBehavior,
@@ -1070,15 +1067,13 @@ private fun ToolbarSlotFab(fab: @Composable (containerSize: (Float) -> Dp) -> Un
  * by byla signál, který nikdy nezhasne. Číslo u položky počítá všechny; kdo menu otevřel, chce
  * vědět, kolik toho v archivu čeká.
  *
- * Bez spojení ([connection]) fotka naroste, zvlní se a po jejím okraji vyjede vlnitý
- * prstenec ([ConnectionIndicator]); při připojování se obojí točí. Text stavu je v nápovědě pilulky; čtečce obrazovky
- * ho říká i popis tlačítka, protože nápovědu čte jen u pole.
+ * Stav spojení fotka NENESE — ten je v pilulce, znakem místo lupy a nápovědou
+ * (`ChatSearchBar`). Fotka je identita účtu, ne kontrolka.
  */
 @Composable
 private fun AccountMenu(
     account: AccountInfo?,
     archiveUnread: ArchiveUnread,
-    connection: ConnectionState?,
     onSavedMessages: () -> Unit,
     onArchive: () -> Unit,
     /** Kolik chatů má rozepsanou zprávu; bez konceptů položka v menu není. */
@@ -1091,10 +1086,7 @@ private fun AccountMenu(
     onSettings: () -> Unit,
 ) {
     var open by remember { mutableStateOf(false) }
-    val accountLabel = stringResource(Res.string.chats_account)
-    val connectionLabel = connection?.label()?.let { stringResource(it) }
-    val label = if (connectionLabel == null) accountLabel else "$accountLabel, $connectionLabel"
-    val indicator = rememberConnectionIndicator(connection, ACCOUNT_AVATAR_SIZE, ACCOUNT_AVATAR_GROWN)
+    val label = stringResource(Res.string.chats_account)
     // Odznak je jen číslo — čtečka obrazovky potřebuje větu, ne „3".
     val unreadLabel = pluralStringResource(Res.plurals.chats_archive_unread, archiveUnread.chats, archiveUnread.chats)
     /*
@@ -1124,12 +1116,7 @@ private fun AccountMenu(
             }
         }
     }
-    /*
-     * Vrstvy odspodu: fotka v tlačítku, prstenec po jejím okraji, tečka archivu. Prstenec
-     * i tečka jsou mimo `IconButton`, který obsah ořezává na 40dp kruh; tečka nad prstencem,
-     * jinak by ji přeškrtl. Tečka zůstává v rohu NEZVĚTŠENÉ fotky, takže sedí na prstenci
-     * jako odznak.
-     */
+    // Tečka archivu je mimo `IconButton`, který obsah ořezává na 40dp kruh, v rohu fotky.
     Box(contentAlignment = Alignment.Center) {
         IconButton(
             onClick = { open = true },
@@ -1142,13 +1129,11 @@ private fun AccountMenu(
                     title = account.displayName,
                     avatarFileId = account.photoFileId,
                     size = ACCOUNT_AVATAR_SIZE,
-                    modifier = with(indicator) { Modifier.avatar() },
                 )
             } else {
                 Icon(painterResource(Res.drawable.person_24dp), contentDescription = null)
             }
         }
-        with(indicator) { Spacer(Modifier.size(ACCOUNT_AVATAR_SIZE).ring()) }
         if (archiveUnread.unmutedChats > 0) {
             Box(Modifier.size(ACCOUNT_AVATAR_SIZE)) {
                 Box(
@@ -2257,9 +2242,6 @@ private val AVATAR_SIZE = 52.dp
 
 /** Fotka účtu v pilulce — o kus menší než ikona, ať pilulku nevyboulí. */
 private val ACCOUNT_AVATAR_SIZE = 30.dp
-
-/** Fotka účtu při výpadku spojení: 38 dp + půl tahu prstence se vejde pod 40dp ořez `IconButton` i do pilulky. */
-private val ACCOUNT_AVATAR_GROWN = 38.dp
 
 /** Tečka „v archivu něco je" na fotce účtu, i s obroučkou. Menší než tečka dostupnosti — je jen signál, ne stav. */
 private val ACCOUNT_DOT = 10.dp

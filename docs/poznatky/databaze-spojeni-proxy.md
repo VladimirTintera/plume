@@ -197,30 +197,37 @@ chodit. Dokud se nesledovalo, vypadala nepřipojená aplikace úplně normálně
   tečka pro ostatní — dokud je aplikace na obrazovce, chodí s ní updaty rychleji.
 - **`ConnectionState` se smí použít jen jako popisek pro člověka**, říká to dokumentace u něj.
   Nic se z něj proto neodvozuje, jen se vypisuje.
-- **Stav je v hlavičce, ne ve vlastním pruhu, a všude stejným znakem**: avatar se zvlní, naroste
-  a točí (`ConnectionIndicator` v `core/ui`). V seznamu chatů je to fotka účtu a text je
-  v nápovědě vyhledávací pilulky (viz „Hlavička: vyhledávací pilulka"); v konverzaci avatar
-  chatu v hlavičce, text jen pro čtečku (`stateDescription` řádku hlavičky). Kdo se dívá na
-  prázdný seznam, hledá vysvětlení nahoře.
+- **Stav je v hlavičce, ne ve vlastním pruhu, a všude stejně: znak a věta vedle sebe**
+  (`ConnectionStatusIcon` v `core/ui`, text z `ConnectionState.label()`). Připojování
+  a aktualizace mají `LoadingIndicator` (měnící se tvar), čekání na síť ikonu `cloud_off` bez
+  pohybu. V seznamu chatů znak nahradí lupu a věta nápovědu vyhledávací pilulky (viz „Hlavička:
+  vyhledávací pilulka"); v konverzaci jsou na místě podtitulu. Kdo se dívá na prázdný seznam,
+  hledá vysvětlení nahoře.
+- **Avatar stav nenese.** Dřív se avatar zvlnil, narostl a točil (`ConnectionIndicator`, září
+  2026) — fotka účtu v pilulce i avatar chatu v hlavičce konverzace a v profilu bota. Uživatel
+  to odmítl: avatar je identita, ne kontrolka. Roztočená tvář protějšku vypadala, jako by se
+  něco dělo s NÍM, ne s naším spojením, a stav se přetahoval s tím, co avatar nese sám (tvar
+  podle druhu chatu, tečka online, tečka archivu) — ořez se musel při výpadku měnit na
+  obdélník, řádek hlavičky potřeboval rezervu na zvětšení a tečka se kreslila nad prstencem.
+  Nic z toho už potřeba není — až na rezervu řádku hlavičky (4 dp, `HEADER_ROW_PADDING`):
+  řádek ořezává tvarem vlnky stisku a bez rezervy zaoblený roh ukousl spodek teček „Waiting
+  for network…", když byl podtitul nejširší prvek řádku (ověřeno na emulátoru).
+- **Čekání na síť stojí, připojování se hýbe.** Stojící vlnka na avataru působila jako
+  zamrzlá, a proto se dřív točila aspoň pomalu. Ikona bez sítě zamrzle nepůsobí, čte se jako
+  stav. Klid proti pohybu rozliší oba stavy i bez barvy (ikona je v barvě obsahu, tvar
+  v `primary`).
 - **`Ready` se nehlásí.** V tom stavu aplikace stráví skoro celou dobu; „připojeno" je šum, zatímco
   „nepřipojeno" je jediná informace, která uživateli vysvětlí, proč mu nic nechodí. Proto
   `ConnectionState.label()` vrací u `Ready` `null`.
-- **Hlavička konverzace: spojení nese avatar, „online" tečka, podtitul jen „naposledy…".** Dřív
-  byl stav spojení textem místo podtitulu; dvě podoby téhož stavu (text tady, zvlněná fotka
-  v seznamu) byly jen nekonzistence. Tečka „online" je tatáž jako v seznamu chatů (`OnlineDot`),
-  a proto **podtitul „online" nepíše** — tečka a slovo hned vedle sebe říkaly totéž dvakrát.
-  Podtitul zbyl na „naposledy viděn"; čtečce obrazovky „online" řekne popis stavu hlavičky.
-  **Bez spojení se dostupnost schová** (podtitul i tečka): dokud spojení nestojí, je to jen
-  stará hodnota, kterou nemá co obnovit — a tečka by přeškrtla prstenec. „Píše…" v hlavičce
-  není, viz níž.
-  - **Avatar skupiny a kanálu se zvlní ze SVÉHO tvaru** (`ChatKind.avatarPolygon`, týž zdroj
-    jako `avatarShape`), ne z kruhu — skokem do kruhu by přeskočil. Při výpadku dostane `Avatar`
-    obdélníkový tvar (`isShaping`): ořezává se i vlastním tvarem, a vlnitý ořez by jinak zůstal
-    uvnitř sušenky. Úhel otáčení roste s průběhem morfu, jinak by se čtverec kanálu při zvlnění
-    skokem přetočil.
-  - **Řádek hlavičky ořezává** (tvar vlnky stisku), takže má kolem sebe rezervu
-    (`HEADER_RING_ROOM`) — bez ní byl zvětšený avatar vlevo useknutý. Avatar se tím posunul
-    o ~4 dp doprava.
+- **Hlavička konverzace: spojení nese podtitul, „online" tečka, jinak podtitul „naposledy…".**
+  Bez spojení je v podtitulu znak a věta, s předností i před názvem skupiny ve vlákně nebo
+  tématu — dokud spojení nestojí, je to jediné, co vysvětlí, proč nic nechodí. Mezi stavy
+  výpadku se podtitul nevyměňuje celý (`contentKey` podle druhu), jinak by tvar začínal znovu.
+  Tečka „online" je tatáž jako v seznamu chatů (`OnlineDot`), a proto **podtitul „online"
+  nepíše** — tečka a slovo hned vedle sebe říkaly totéž dvakrát; čtečce obrazovky „online"
+  řekne popis stavu hlavičky. **Bez spojení se dostupnost schová** (podtitul i tečka): dokud
+  spojení nestojí, je to jen stará hodnota, kterou nemá co obnovit. „Píše…" v hlavičce není,
+  viz níž.
 - **Ověřuje se to bez dozu** — chování je stejné: odejít z aplikace a vrátit se (v logu musí být
   „Návrat do popředí, obnovuji spojení"), zapnout a vypnout letový režim (`adb shell cmd
   connectivity airplane-mode enable`), otočit displej (v logu nesmí být NIC).
@@ -246,7 +253,7 @@ a `shareLink()` v `core/telegram/Proxy.kt` (testy `ProxyTest`).
 - **TDLib tajný klíč MTProto PŘEVEDE**: z odkazu s hex klíčem (`ee…`) vrací `getProxies` týž klíč
   v base64url. Editor i odkaz z „Kopírovat odkaz" ukazují tuhle podobu; Telegram ji bere taky.
 - **„Zapnutá", ne „připojeno přes ni"**: zapnutá proxy nemusí fungovat a připojení visí na
-  „Připojování…" (avatar ve vyhledávací pilulce se zvlní). Proto je odezva u každé proxy — kdo
+  „Připojování…" (v pilulce hledání místo lupy tvar). Proto je odezva u každé proxy — kdo
   si zapne mrtvou, vrátí se ťuknutím na „Přímé připojení".
 - **Nově přidaná proxy se rovnou zapne**, upravená si stav nechá. HTTP proxy odkaz Telegramu
   nemá (`shareLink() == null`), „Kopírovat odkaz" se u ní nenabízí.

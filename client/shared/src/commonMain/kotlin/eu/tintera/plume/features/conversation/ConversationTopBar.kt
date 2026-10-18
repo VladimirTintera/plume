@@ -13,9 +13,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -25,7 +23,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,23 +31,22 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import eu.tintera.plume.core.telegram.ChatKind
 import eu.tintera.plume.core.telegram.Presence
 import eu.tintera.plume.core.ui.AutoDeleteBadge
+import eu.tintera.plume.core.ui.ConnectionStatusIcon
+import eu.tintera.plume.core.telegram.ConnectionState
 import eu.tintera.plume.core.ui.Avatar
 import eu.tintera.plume.core.ui.EmojiStatusBadge
 import eu.tintera.plume.core.ui.ForumTopicIcon
 import eu.tintera.plume.core.ui.OnlineDot
-import eu.tintera.plume.core.ui.RING_STROKE
 import eu.tintera.plume.core.ui.SavedTopicAvatar
 import eu.tintera.plume.core.ui.SecretChatLock
 import eu.tintera.plume.core.ui.SecureScreen
 import eu.tintera.plume.core.ui.VerificationBadge
-import eu.tintera.plume.core.ui.avatarPolygon
 import eu.tintera.plume.core.ui.avatarShape
 import eu.tintera.plume.core.ui.chatAvatarKey
 import eu.tintera.plume.core.ui.chatTitle
 import eu.tintera.plume.core.ui.chatTitleKey
 import eu.tintera.plume.core.ui.describe
 import eu.tintera.plume.core.ui.label
-import eu.tintera.plume.core.ui.rememberConnectionIndicator
 import eu.tintera.plume.core.ui.rememberShownConnection
 import eu.tintera.plume.core.ui.savedTopicTitle
 import eu.tintera.plume.core.ui.sharedNavElement
@@ -105,29 +101,19 @@ internal fun ConversationTopBar(
             // Uložené zprávy profil nemají (je to vlastní účet, nic k ukázání).
             val profileLabel = stringResource(Res.string.profile_open)
             /*
-             * Stav spojení nese avatar (zvlní se a točí), stejně jako fotka účtu
-             * v seznamu chatů — ne text pod názvem. Čtečce obrazovky ho řekne popis
-             * stavu hlavičky.
+             * Stav spojení nese podtitul (znak a věta, jako pilulka v seznamu chatů), ne
+             * avatar — tvář protějšku by jinak vypadala, že se něco děje s ním.
              */
             val shownConnection = rememberShownConnection(connection)
-            val connectionLabel = shownConnection?.label()?.let { stringResource(it) }
             // „Online" už v podtitulu není, nese ho jen tečka — čtečce ho proto řekne
-            // popis stavu hlavičky, stejně jako výpadek spojení (ten má přednost: bez
-            // spojení je dostupnost stará hodnota).
+            // popis stavu hlavičky. Bez spojení ne: dostupnost je stará hodnota.
             val onlineLabel = stringResource(Res.string.presence_online)
-                .takeIf { state.presence is Presence.Online && state.info?.isSavedMessages == false }
-            val headerState = connectionLabel ?: onlineLabel
+                .takeIf { shownConnection == null && state.presence is Presence.Online && state.info?.isSavedMessages == false }
             val kind = when {
                 state.info?.isChannel == true -> ChatKind.Channel
                 state.info?.isGroup == true -> ChatKind.Group
                 else -> ChatKind.Private
             }
-            val indicator = rememberConnectionIndicator(
-                connection = shownConnection,
-                avatarSize = HEADER_AVATAR,
-                grownSize = HEADER_AVATAR_GROWN,
-                base = kind.avatarPolygon(),
-            )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -138,13 +124,14 @@ internal fun ConversationTopBar(
                         onClickLabel = profileLabel,
                         onClick = navigation.onOpenProfile,
                     )
-                    .semantics { headerState?.let { stateDescription = it } }
-                    // Místo pro zvětšený avatar s prstencem: řádek ořezává (tvar vlnky
-                    // stisku), takže bez rezervy by prstenec usekl vlevo i nahoře a dole.
-                    .padding(horizontal = HEADER_RING_ROOM, vertical = HEADER_RING_ROOM),
+                    .semantics { onlineLabel?.let { stateDescription = it } }
+                    // Řádek ořezává (tvar vlnky stisku) a zaoblený roh by ukousl, co sahá
+                    // k jeho okraji — spodek teček „Čekání na síť…", když je podtitul
+                    // nejširší.
+                    .padding(HEADER_ROW_PADDING),
             ) {
                 // Nad profilem bota je jeho tvář velká uprostřed obrazovky a nese i tečku
-                // a výpadek spojení (`BotIntroPage`); v hlavičce by byla podruhé.
+                // (`BotIntroPage`); v hlavičce by byla podruhé.
                 val headerAvatar = !showsBotIntro(state)
                 // Téma: jeho ikona místo fotky skupiny. Nic neletí — seznam témat je
                 // jiná obrazovka a fotka skupiny v ní v řádku není.
@@ -187,24 +174,17 @@ internal fun ConversationTopBar(
                             avatarFileId = info.avatarFileId,
                             size = HEADER_AVATAR,
                             isSavedMessages = info.isSavedMessages,
-                            // Stejný tvar jako v seznamu, odkud avatar přiletěl. Při výpadku
-                            // ořezává indikátor — vlastní tvar by vlnky u skupiny schoval.
-                            shape = if (indicator.isShaping) RectangleShape else kind.avatarShape(),
+                            // Stejný tvar jako v seznamu, odkud avatar přiletěl.
+                            shape = kind.avatarShape(),
                             // Vlákno komentářů je jiná obrazovka než chat skupiny; sdílený
                             // klíč by se přetahoval s její hlavičkou i s položkou v seznamu.
-                            modifier = Modifier
-                                .then(
-                                    if (state.threadRootId == null) {
-                                        Modifier.sharedNavElement(chatAvatarKey(info.id))
-                                    } else {
-                                        Modifier
-                                    },
-                                )
-                                .then(with(indicator) { Modifier.avatar() }),
+                            modifier = if (state.threadRootId == null) {
+                                Modifier.sharedNavElement(chatAvatarKey(info.id))
+                            } else {
+                                Modifier
+                            },
                         )
-                        with(indicator) { Spacer(Modifier.matchParentSize().ring()) }
-                        // Jako v seznamu chatů. Bez spojení je dostupnost stará hodnota
-                        // a tečka by přeškrtla prstenec.
+                        // Jako v seznamu chatů. Bez spojení je dostupnost stará hodnota.
                         if (shownConnection == null && state.presence is Presence.Online && !info.isSavedMessages) {
                             OnlineDot(
                                 rim = MaterialTheme.colorScheme.surface,
@@ -266,12 +246,13 @@ internal fun ConversationTopBar(
                     }
 
                     /*
-                     * Podtitul: kdy byl protějšek naposledy vidět. Stav spojení tu NENÍ, ten
-                     * nese avatar — a „online" taky ne, to říká tečka na avataru. Dvakrát
-                     * totéž hned vedle sebe byl jen šum.
+                     * Podtitul: kdy byl protějšek naposledy vidět, a bez spojení místo toho
+                     * stav spojení se svým znakem. „Online" tu NENÍ, to říká tečka na
+                     * avataru. Dvakrát totéž hned vedle sebe byl jen šum.
                      *
-                     * Bez spojení se ale dostupnost schová: dokud spojení nestojí, je
-                     * „naposledy viděn" jen stará hodnota, kterou nemá co obnovit.
+                     * Výpadek má přednost i před názvem skupiny ve vlákně: dokud spojení
+                     * nestojí, je to jediné, co uživateli vysvětlí, proč nic nechodí — a
+                     * „naposledy viděn" je jen stará hodnota, kterou nemá co obnovit.
                      *
                      * „Píše…" tu NENÍ: kreslí se v seznamu zpráv tam, kam zpráva naskočí
                      * (`TypingItem`), jako v Google Zprávách. Výšku hlavičky animuje
@@ -280,18 +261,18 @@ internal fun ConversationTopBar(
                     // Ve vlákně komentářů a v tématu říká podtitul, ve které skupině se diskutuje.
                     val threadSubtitle = state.info
                         ?.takeIf { state.narrowed }
-                        ?.let { HeaderSubtitle(chatTitle(it.id, it.title)) }
+                        ?.let { HeaderSubtitle.Text(chatTitle(it.id, it.title)) }
                     // Přímé zprávy nesou název kanálu; bez podtitulu by vypadaly jako kanál sám.
                     val directSubtitle = stringResource(Res.string.direct_topics_subtitle)
                         .takeIf { state.info?.isDirectMessages == true && !state.narrowed }
-                        ?.let { HeaderSubtitle(it) }
-                    val subtitle = threadSubtitle ?: directSubtitle ?: state.presence
-                        ?.takeIf { shownConnection == null }
+                        ?.let { HeaderSubtitle.Text(it) }
+                    val subtitle = shownConnection?.let { HeaderSubtitle.Connection(it) }
+                        ?: threadSubtitle ?: directSubtitle ?: state.presence
                         // Vlastní dostupnost v Uložených zprávách nic neříká — byl bys
                         // pořád „online", protože se na ně právě díváš.
                         ?.takeUnless { state.info?.isSavedMessages == true }
                         ?.takeUnless { it is Presence.Online }
-                        ?.let { HeaderSubtitle(it.describe()) }
+                        ?.let { HeaderSubtitle.Text(it.describe()) }
                     val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
                     val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
 
@@ -299,15 +280,22 @@ internal fun ConversationTopBar(
                         targetState = subtitle,
                         transitionSpec = { fadeIn(effects) togetherWith fadeOut(fastEffects) },
                         contentAlignment = Alignment.CenterStart,
+                        // Mezi stavy výpadku se podtitul nevyměňuje celý, jinak by znak
+                        // začínal znovu; věta se změní na místě.
+                        contentKey = { it?.let { it::class } },
                         label = "header-subtitle",
                     ) { current ->
-                        current ?: return@AnimatedContent
-                        Text(
-                            text = current.text,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                        )
+                        when (current) {
+                            null -> Unit
+                            is HeaderSubtitle.Text -> SubtitleText(current.text)
+                            is HeaderSubtitle.Connection -> Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                ConnectionStatusIcon(current.state, size = HEADER_STATUS_ICON)
+                                current.state.label()?.let { SubtitleText(stringResource(it)) }
+                            }
+                        }
                     }
                 }
             }
@@ -338,14 +326,28 @@ internal fun ConversationTopBar(
 /** Avatar v hlavičce. */
 private val HEADER_AVATAR = 36.dp
 
-/** Avatar v hlavičce při výpadku spojení (viz `ConnectionIndicator`). */
-private val HEADER_AVATAR_GROWN = 42.dp
+/** Rezerva řádku hlavičky uvnitř ořezu vlnky stisku. */
+private val HEADER_ROW_PADDING = 4.dp
 
-/** Rezerva řádku hlavičky kolem avataru pro jeho zvětšení a půl tahu prstence. */
-private val HEADER_RING_ROOM = (HEADER_AVATAR_GROWN + RING_STROKE - HEADER_AVATAR) / 2
+/** Znak výpadku spojení v podtitulu — na výšku řádku `labelMedium`. */
+private val HEADER_STATUS_ICON = 16.dp
 
 /** Tečka dostupnosti na 36dp avataru — v seznamu chatů je 14 dp na 52dp. */
 private val HEADER_ONLINE_DOT = 11.dp
 
-/** Řádek pod názvem chatu: naposledy viděn, nebo ve vlákně název skupiny. */
-private data class HeaderSubtitle(val text: String)
+/** Řádek pod názvem chatu: naposledy viděn, ve vlákně název skupiny, nebo výpadek spojení. */
+private sealed interface HeaderSubtitle {
+    data class Text(val text: String) : HeaderSubtitle
+
+    data class Connection(val state: ConnectionState) : HeaderSubtitle
+}
+
+@Composable
+private fun SubtitleText(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = 1,
+    )
+}

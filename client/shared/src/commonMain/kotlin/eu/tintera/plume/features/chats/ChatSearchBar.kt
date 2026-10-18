@@ -145,7 +145,9 @@ import eu.tintera.plume.resources.saved_messages
 import eu.tintera.plume.resources.search_24dp
 import eu.tintera.plume.resources.close_24dp
 import kotlinx.coroutines.launch
-import org.jetbrains.compose.resources.StringResource
+import eu.tintera.plume.core.telegram.ConnectionState
+import eu.tintera.plume.core.ui.ConnectionStatusIcon
+import eu.tintera.plume.core.ui.label
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -163,9 +165,10 @@ import org.jetbrains.compose.resources.stringResource
  * zpátky.** Odjetý bar by jinak schoval jediné vysvětlení, proč nic nechodí. Pás pod stavovou
  * lištou kreslí seznam chatů.
  *
- * **Stav spojení je nápověda pilulky** ([connection]) a prstenec kolem fotky účtu (ten dodá
- * [trailing]), ne nadpis ani vlastní prvek. Skoro celou dobu je `null` a pak je vidět jen
- * „Hledat v chatech"; nadpis „Chaty" by jen opakoval, co říká navigace.
+ * **Stav spojení je nápověda pilulky** ([connection]) a místo lupy jeho znak
+ * ([ConnectionStatusIcon]), ne nadpis ani vlastní prvek. Skoro celou dobu je `null` a pak je
+ * vidět jen „Hledat v chatech"; nadpis „Chaty" by jen opakoval, co říká navigace. Fotka účtu
+ * stav nenese — je to identita, ne kontrolka.
  *
  * **Hledá se ve všech známých chatech** ([ChatSearch]): i v archivu a v chatech, které
  * v žádném seznamu nejsou; pod nimi veřejné chaty a zprávy. Pod prázdným dotazem jsou
@@ -174,7 +177,7 @@ import org.jetbrains.compose.resources.stringResource
  */
 @Composable
 internal fun ChatSearchBar(
-    connection: StringResource?,
+    connection: ConnectionState?,
     search: ChatSearchState,
     savedMessagesChatId: Long?,
     scrollBehavior: SearchBarScrollBehavior,
@@ -240,16 +243,16 @@ internal fun ChatSearchBar(
             onSearch = {},
             colors = colors.searchBarColors.inputFieldColors,
             /*
-             * Ve sbalené pilulce nese nápověda stav spojení (prstenec kolem fotky účtu ukazuje,
-             * ŽE něco není v pořádku, text CO). Rozbalené hledání má nápovědu vždycky svoji —
-             * uživatel se tam dívá na výsledky, ne na spojení.
+             * Ve sbalené pilulce nese nápověda stav spojení (znak místo lupy ukazuje, ŽE něco
+             * není v pořádku, text CO). Rozbalené hledání má nápovědu vždycky svoji — uživatel
+             * se tam dívá na výsledky, ne na spojení.
              *
              * Výměna je fade through, ne `Crossfade`: dva texty na témže místě napůl průhledné
              * přes sebe („Čekání na síť" přes „Připojování") se nedají přečíst a vypadají jako
              * chyba vykreslení — tatáž úvaha jako u přechodů mezi obrazovkami.
              */
             placeholder = {
-                val hint = connection.takeUnless { expanded } ?: Res.string.chats_search
+                val hint = connection?.label().takeUnless { expanded } ?: Res.string.chats_search
                 AnimatedContent(
                     targetState = hint,
                     transitionSpec = {
@@ -275,7 +278,27 @@ internal fun ChatSearchBar(
                         }
                     }
                 } else {
-                    Icon(painterResource(Res.drawable.search_24dp), contentDescription = null)
+                    /*
+                     * Lupa, nebo bez spojení jeho znak. Prolnutí, ne fade through jako
+                     * u nápovědy: dvě malé ikony přes sebe se nepletou jako dva texty.
+                     * Klíč je jen „je výpadek": mezi stavy výpadku se přechod nespouští (ten
+                     * si řeší znak sám) a odcházející znak si nechá poslední stav, ne `null`.
+                     */
+                    val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+                    val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+                    AnimatedContent(
+                        targetState = connection,
+                        transitionSpec = { fadeIn(effects) togetherWith fadeOut(fastEffects) },
+                        contentAlignment = Alignment.Center,
+                        contentKey = { it != null },
+                        label = "search-leading",
+                    ) { shown ->
+                        if (shown != null) {
+                            ConnectionStatusIcon(shown)
+                        } else {
+                            Icon(painterResource(Res.drawable.search_24dp), contentDescription = null)
+                        }
+                    }
                 }
             },
             // Avatar účtu, vymazat a AI jsou tlačítka — kurzor jako nad tlačítkem, ne nad textem.
