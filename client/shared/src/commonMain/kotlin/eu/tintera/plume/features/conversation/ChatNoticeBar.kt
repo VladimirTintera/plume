@@ -1,10 +1,9 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.material3.ShapeDefaults
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -12,7 +11,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -54,14 +52,11 @@ internal fun ChatNoticeBarCard(
     onSharePhone: () -> Unit,
     onInviteMembers: () -> Unit,
     onDismiss: () -> Unit,
+    /** Mléčné sklo nad seznamem, jako u ostatních pruhů ([ChatBarSurface]). */
+    glass: Modifier = Modifier,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = ShapeDefaults.LargeIncreased,
-        shadowElevation = 2.dp,
-        modifier = modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-    ) {
+    ChatBarSurface(glass = glass, modifier = modifier) {
         Row(Modifier.padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)) {
             Column(Modifier.weight(1f).padding(top = 12.dp, bottom = 8.dp)) {
                 when (bar) {
@@ -70,9 +65,8 @@ internal fun ChatNoticeBarCard(
                             text = stringResource(Res.string.chat_bar_share_phone_hint),
                             style = MaterialTheme.typography.bodyMedium,
                         )
-                        // Posun o vnitřní odsazení `TextButton`, aby popisek lícoval s textem.
-                        TextButton(onClick = onSharePhone, modifier = Modifier.offset(x = (-12).dp), shapes = ButtonDefaults.shapes()) {
-                            Text(stringResource(Res.string.chat_bar_share_phone))
+                        Box(Modifier.padding(top = 12.dp)) {
+                            ChatBarButton(stringResource(Res.string.chat_bar_share_phone), onSharePhone)
                         }
                     }
                     InviteMembersBar -> {
@@ -80,8 +74,8 @@ internal fun ChatNoticeBarCard(
                             text = stringResource(Res.string.chat_bar_invite_members_hint),
                             style = MaterialTheme.typography.bodyMedium,
                         )
-                        TextButton(onClick = onInviteMembers, modifier = Modifier.offset(x = (-12).dp), shapes = ButtonDefaults.shapes()) {
-                            Text(stringResource(Res.string.chat_bar_invite_members))
+                        Box(Modifier.padding(top = 12.dp)) {
+                            ChatBarButton(stringResource(Res.string.chat_bar_invite_members), onInviteMembers)
                         }
                     }
                     is JoinRequestBar -> {
