@@ -29,11 +29,13 @@ import androidx.graphics.shapes.star
  * - [ShapeMorphs.Live] kruh ↔ SoftBurst: živý signál, tlačítko při nahrávání dýchá; za fotkou
  *   protějšku dýchá, dokud hovor čeká (zvoní, vytáčí se, spojuje) — fotka sama zůstává kulatá.
  * - [ShapeMorphs.Highlight] kruh ↔ dvanáctistranná sušenka: podbarvení podržené samolepky,
- *   vybraný vzorek barvy motivu.
+ *   vybraný vzorek barvy (`ColorSwatch`: barva motivu, chatu, nového tématu ve fóru).
  * - [ShapeMorphs.Intro] kruh → čtyřlístek → pětiúhelník → zaoblená hvězda: uvítání prázdného
  *   stavu (detail bez otevřeného chatu). Jednou při zobrazení, pak tvar stojí.
  * - `Cookie7Sided` (bez morfu): odznak připnutých zpráv; při přechodu na jinou připnutou se
  *   pootočí (`PinnedBadge`).
+ * - `Gem` (bez morfu): odznak zabezpečení nad nadpisem — zámek aplikace a dvoufázové ověření
+ *   (`SecurityBadge`). Štít místo kruhu, který nic neříkal.
  * - Tvar avataru → vlnitý kruh (deset vlnek) s otáčením: výpadek spojení (`ConnectionIndicator`,
  *   fotka účtu v seznamu chatů a avatar v hlavičce konverzace). Jediná výjimka z pravidla
  *   o avatarech níž — tam se stav opravdu mění.

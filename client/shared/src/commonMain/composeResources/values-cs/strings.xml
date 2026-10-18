@@ -93,6 +93,7 @@
     <string name="empty_state_error_title">Něco se nepovedlo</string>
     <string name="chats_empty_title">Zatím žádné chaty</string>
     <string name="saved_messages">Uložené zprávy</string>
+    <string name="common_more_options">Další možnosti</string>
     <string name="chats_menu">Další možnosti</string>
     <string name="chats_search">Hledat v chatech</string>
     <string name="profile_pane_width">Šířka profilu</string>

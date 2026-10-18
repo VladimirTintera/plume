@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.GroupAction
+import eu.tintera.plume.core.ui.ActionButtonGroup
 import androidx.compose.animation.animateContentSize
 import eu.tintera.plume.core.ui.GROUP_CORNER
 import androidx.compose.foundation.background
@@ -122,18 +124,26 @@ fun UpdateCard(
             }
 
             when (state) {
-                is AppUpdateState.Available -> Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                ) {
-                    TextButton(
-                        onClick = { onDismiss(state.versionCode) },
-                        colors = ButtonDefaults.textButtonColors(contentColor = accent),
-                        shapes = ButtonDefaults.shapes(),
-                    ) {
-                        Text(stringResource(Res.string.update_action_later))
-                    }
-                    Button(onClick = onUpdate, colors = buttonColors, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.update_action_update)) }
+                is AppUpdateState.Available -> {
+                    val later = stringResource(Res.string.update_action_later)
+                    val update = stringResource(Res.string.update_action_update)
+                    val laterColors = ButtonDefaults.textButtonColors(contentColor = accent)
+                    val dismiss = { onDismiss(state.versionCode) }
+                    ActionButtonGroup(
+                        listOf(
+                            GroupAction(later, dismiss) { modifier, source ->
+                                TextButton(onClick = dismiss, modifier = modifier, colors = laterColors, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                                    Text(later)
+                                }
+                            },
+                            GroupAction(update, onUpdate) { modifier, source ->
+                                Button(onClick = onUpdate, modifier = modifier, colors = buttonColors, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                                    Text(update)
+                                }
+                            },
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
 
                 // Průběh místo tlačítek: stahování nejde z karty zrušit (to umí jen obchod)

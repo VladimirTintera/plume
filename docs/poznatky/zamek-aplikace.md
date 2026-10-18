@@ -88,6 +88,10 @@ Všechno, co zámek ví, je **jeden záznam v `AppLockStore`** (Keystore / Keych
 - **Zámek se nastaví ještě v `onStart`**: `AppLock` sleduje popředí na
   `Dispatchers.Main.immediate`, takže změna stavu proběhne v tomtéž volání, dřív než se
   vykreslí první snímek. Na `Dispatchers.Default` se mohl stihnout vykreslit starý obsah.
+- **Nad nadpisem je odznak zabezpečení** (`SecurityBadge`, tvar `MaterialShapes.Gem`, říjen
+  2026) — na obrazovce zámku, v nastavení zámku i v dvoufázovém ověření. Dřív tři kruhy ve
+  třech velikostech (56, 64, 72 dp), každý vlastní kopie; kruh je tvar bez výrazu a `Gem` čte
+  jako štít a jinde nic neznamená (seznam významů tvarů v `MorphShape.kt`).
 - **Klávesnice PINu (`PinPad`):** číselník 3x4, tlačítko smazat a biometrická ikona (pokud je
   zapnutá). Haptiku dělá podle slovníku v `core/ui/Haptics.kt` (`confirm` / `reject`).
   - **Material 3 Expressive tvar a morphing:** Tlačítka (`PinDigitButton` s `FilledTonalIconButton`, `PinIconButton` s `IconButton`)

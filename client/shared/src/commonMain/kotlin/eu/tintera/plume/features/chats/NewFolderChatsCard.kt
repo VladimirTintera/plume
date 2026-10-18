@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.GroupAction
+import eu.tintera.plume.core.ui.ActionButtonGroup
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -75,20 +77,25 @@ fun NewFolderChatsCard(
                     )
                 }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
-                TextButton(
-                    onClick = onHide,
-                    enabled = !state.busy,
-                    colors = ButtonDefaults.textButtonColors(contentColor = accent),
-                    shapes = ButtonDefaults.shapes(),
-                ) { Text(stringResource(Res.string.folder_new_chats_hide)) }
-                Button(
-                    onClick = onShow,
-                    enabled = !state.busy,
-                    colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = onAccent),
-                    shapes = ButtonDefaults.shapes(),
-                ) { Text(stringResource(Res.string.folder_new_chats_show)) }
-            }
+            val hide = stringResource(Res.string.folder_new_chats_hide)
+            val show = stringResource(Res.string.folder_new_chats_show)
+            val hideColors = ButtonDefaults.textButtonColors(contentColor = accent)
+            val showColors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = onAccent)
+            ActionButtonGroup(
+                listOf(
+                    GroupAction(hide, onHide, !state.busy) { modifier, source ->
+                        TextButton(onClick = onHide, modifier = modifier, enabled = !state.busy, colors = hideColors, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                            Text(hide)
+                        }
+                    },
+                    GroupAction(show, onShow, !state.busy) { modifier, source ->
+                        Button(onClick = onShow, modifier = modifier, enabled = !state.busy, colors = showColors, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                            Text(show)
+                        }
+                    },
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }

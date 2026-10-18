@@ -473,6 +473,11 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   `heightIn(min = 56.dp)`: tak vznikla 56dp pilulka s písmem, odsazením a tvarem 40dp tlačítka.
   S indikátorem místo popisku pevná výška (`height(MediumButtonHeight)`), jinak tlačítko při
   čekání poskočí.
+- **Tlačítka vedle sebe jsou `ActionButtonGroup`** (`core/ui`, M3E `ButtonGroup`), ne `Row`:
+  stisknuté se roztáhne a sousedé uhnou. Vzhled si nese volající (`GroupAction.button` dostane
+  modifikátor a `interactionSource`, které MUSÍ předat tlačítku — bez nich skupina stisk
+  nepozná a nic se nehne). Holé `ButtonGroup` ne: jeho ukazatel přetečení má holý `TooltipBox`.
+  Dialogová tlačítka (`confirmButton` / `dismissButton`) zůstávají, jak je `AlertDialog` skládá.
 - **Přepínače mají v jezdci ikonu** (`IconSwitch` v `core/ui`): fajfka zapnutý, křížek
   vypnutý. Stav tak nese i tvar, ne jen barva — pozná ho barvoslepý i v paletě se zvýšeným
   kontrastem. **Holý `Switch` se nepoužívá**; kdo přidává přepínač, sáhne po `IconSwitch`,

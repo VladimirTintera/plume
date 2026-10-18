@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.profile
 
+import eu.tintera.plume.core.ui.GroupAction
+import eu.tintera.plume.core.ui.ActionButtonGroup
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.core.ui.ConfirmDialog
@@ -433,22 +435,36 @@ private fun PrimaryLinkCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Button(onClick = onShare, modifier = Modifier.weight(1f), shapes = ButtonDefaults.shapes()) {
-                    Icon(
-                        painterResource(Res.drawable.share_24dp),
-                        contentDescription = null,
-                        modifier = Modifier.padding(end = ButtonDefaults.IconSpacing).size(ButtonDefaults.IconSize),
-                    )
-                    Text(stringResource(Res.string.invite_links_share), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                FilledTonalButton(onClick = onReplace, enabled = !busy, modifier = Modifier.weight(1f), shapes = ButtonDefaults.shapes()) {
-                    Text(stringResource(Res.string.invite_links_replace_primary), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                FilledTonalIconButton(onClick = onCopy, shapes = IconButtonDefaults.shapes()) {
-                    Icon(painterResource(Res.drawable.content_copy_24dp), contentDescription = stringResource(Res.string.invite_links_copy))
-                }
-            }
+            val share = stringResource(Res.string.invite_links_share)
+            val replace = stringResource(Res.string.invite_links_replace_primary)
+            val copy = stringResource(Res.string.invite_links_copy)
+            ActionButtonGroup(
+                listOf(
+                    GroupAction(share, onShare, weight = 1f) { modifier, source ->
+                        Button(onClick = onShare, modifier = modifier, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                            Icon(
+                                painterResource(Res.drawable.share_24dp),
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = ButtonDefaults.IconSpacing).size(ButtonDefaults.IconSize),
+                            )
+                            Text(share, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    },
+                    GroupAction(replace, onReplace, !busy, weight = 1f) { modifier, source ->
+                        FilledTonalButton(onClick = onReplace, modifier = modifier, enabled = !busy, interactionSource = source, shapes = ButtonDefaults.shapes()) {
+                            Text(replace, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    },
+                    // Ikonové tlačítko se smrskne jen o kus kolem ikony, ne o odsazení textového.
+                    GroupAction(copy, onCopy, compressionLimit = PaddingValues(horizontal = 4.dp)) { modifier, source ->
+                        FilledTonalIconButton(onClick = onCopy, modifier = modifier, interactionSource = source, shapes = IconButtonDefaults.shapes()) {
+                            Icon(painterResource(Res.drawable.content_copy_24dp), contentDescription = copy)
+                        }
+                    },
+                ),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            )
             // Hlavním odkazem se přidává nejvíc lidí, a nabídku nad ním (jako u dalších odkazů)
             // karta nemá — proto vlastní tlačítko.
             if (link.memberCount > 0) {

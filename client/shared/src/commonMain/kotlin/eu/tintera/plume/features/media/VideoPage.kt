@@ -50,7 +50,7 @@ import eu.tintera.plume.resources.media_lock_controls
 import eu.tintera.plume.resources.media_rotate_screen
 import eu.tintera.plume.resources.media_unlock_controls
 import eu.tintera.plume.resources.screen_rotation_24dp
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.foundation.layout.width
 import eu.tintera.plume.core.ui.ScreenBrightness
 import eu.tintera.plume.core.ui.rememberScreenBrightness
@@ -1427,7 +1427,12 @@ private fun BoxScope.VideoTopControls(
     }
 }
 
-/** Jas při tahu: ikona slunce a úroveň, bílé na tmavé pilulce jako [VideoHintPill]. */
+/**
+ * Jas při tahu: ikona slunce a úroveň, bílé na tmavé pilulce jako [VideoHintPill]. Úroveň je
+ * tentýž indikátor jako posuvník videa ([VideoSeekTrack]: tloušťka, mezera, zakončení), jen
+ * rovný — vlna tam znamená „hraje", jas se nehýbe. Dřív tu byl tenký hladký pruh z jiné rodiny.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun BrightnessPill(level: () -> Float) {
     Row(
@@ -1443,10 +1448,11 @@ private fun BrightnessPill(level: () -> Float) {
             tint = Color.White,
             modifier = Modifier.size(20.dp),
         )
-        LinearProgressIndicator(
+        LinearWavyProgressIndicator(
             progress = level,
             color = Color.White,
-            trackColor = Color.White.copy(alpha = 0.3f),
+            trackColor = TRACK_COLOR,
+            amplitude = { 0f },
             modifier = Modifier.width(BRIGHTNESS_BAR_WIDTH),
         )
     }

@@ -4,18 +4,17 @@ import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
+import eu.tintera.plume.core.ui.ColorSwatch
+import androidx.compose.foundation.selection.selectableGroup
 import eu.tintera.plume.core.ui.MediumButton
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -24,17 +23,14 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
@@ -48,7 +44,6 @@ import eu.tintera.plume.core.ui.ForumTopicIcon
 import eu.tintera.plume.core.ui.GROUP_ITEM_SPACING
 import eu.tintera.plume.core.ui.groupItemShape
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.edit_24dp
 import eu.tintera.plume.resources.edit_profile_save
@@ -222,10 +217,7 @@ internal fun TopicEditorSheet(
                         size = 44.dp,
                     )
                 }
-                Text(
-                    stringResource(if (editor.isNew) Res.string.forum_topic_new else Res.string.forum_topic_rename_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                )
+                SheetTitle(stringResource(if (editor.isNew) Res.string.forum_topic_new else Res.string.forum_topic_rename_title))
             }
             FormTextField(
                 value = editor.name,
@@ -241,7 +233,7 @@ internal fun TopicEditorSheet(
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth().selectableGroup()) {
                     TOPIC_COLORS.forEachIndexed { index, rgb ->
                         ColorChoice(
                             rgb = rgb,
@@ -259,31 +251,22 @@ internal fun TopicEditorSheet(
 }
 
 /**
- * Kolečko barvy. Vybrané má fajfku a obrys v barvě popředí, takže výběr nese i tvar,
- * nejen barva — žlutá a zelená se jinak na první pohled pletou.
+ * Vzorek barvy tématu — tentýž jako barva motivu ([ColorSwatch]): vybraný se morfne do sušenky
+ * s fajfkou. Fajfka je na ploše aplikace v barvě popředí, ne černá přes barvu: černá na modré
+ * nebo fialové v tmavém motivu skoro zmizela.
  */
 @Composable
 private fun ColorChoice(rgb: Int, name: String, selected: Boolean, onClick: () -> Unit) {
     val color = Color(0xFF000000 or rgb.toLong())
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .size(44.dp)
-            .clip(CircleShape)
-            .then(if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier)
-            .clickable(role = Role.RadioButton, onClick = onClick)
-            .semantics {
-                this.selected = selected
-                contentDescription = name
-            },
+    ColorSwatch(
+        selected = selected,
+        label = name,
+        onClick = onClick,
+        checkBackdrop = MaterialTheme.colorScheme.surface,
+        checkTint = MaterialTheme.colorScheme.onSurface,
+        diameter = 48.dp,
     ) {
-        Surface(shape = CircleShape, color = color, modifier = Modifier.size(34.dp)) {
-            if (selected) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(painterResource(Res.drawable.check_24dp), contentDescription = null, tint = Color.Black.copy(alpha = 0.7f))
-                }
-            }
-        }
+        drawRect(color)
     }
 }
 

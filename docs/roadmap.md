@@ -948,12 +948,11 @@ poměru přínosu a práce; každý bod je samostatný PR.
   zaoblí na 16 dp v seznamu chatů, kořeni i sekcích Nastavení (`GroupedColumn`) a lazy blocích
   (`groupedItem`); `MorphShape.kt` to bere jako odezvu na prst, ne jako stav (VladimirTintera/telegram#855).
   `SegmentedListItem` by přinesl ještě tvar při fokusu klávesnicí — zatím nic.
-- Drobnosti: barva tématu fóra (`TopicManagement` ~266) výběr obrysem místo `ShapeMorphs.Highlight`
-  a `Color.Black` přes vzorek; titulek v `DirectTopicsScreen` bez ořezu vlnky; velké ikony
-  v kruhu v hlavičkách (`AppLockScreen`, `LockScreen`, `TwoStepScreen`) šly by na tvar bez
-  obsazeného významu; tlačítka vedle sebe místo `ButtonGroup` (`MyQrCodeSheet`, `InviteLinksScreen`,
-  `UnconfirmedLoginCard`, `UpdateCard`, `NewFolderChatsCard`); `BrightnessPill` ve videu má
-  hladký průběh vedle vlnitého posuvníku.
+- ~~Drobnosti~~ — hotovo (VladimirTintera/telegram#856): barva nového tématu fóra přes `ColorSwatch`
+  (sušenka s fajfkou jako barva motivu), titulek přímých zpráv s ořezem vlnky, odznak
+  zabezpečení `SecurityBadge` (`Gem`) místo kruhů, `ActionButtonGroup` (M3E `ButtonGroup`)
+  v Mém QR kódu, pozvánkách a kartách aktualizace, nepotvrzeného přihlášení a nových chatů
+  složky, jas ve videu tímtéž (rovným) indikátorem jako posuvník.
 
 ## Vychytávky
 

@@ -3,6 +3,8 @@ package eu.tintera.plume.features.direct
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.SheetTitle
+import eu.tintera.plume.resources.profile_open
+import androidx.compose.material3.ShapeDefaults
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -126,7 +128,11 @@ fun DirectTopicsScreen(
                     val title = state.info?.title.orEmpty()
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable(onClick = onOpenProfile),
+                        // Vlnka po ťuknutí v zaobleném obdélníku, ne přes celou výšku lišty.
+                        modifier = Modifier
+                            .clip(ShapeDefaults.Medium)
+                            .clickable(onClickLabel = stringResource(Res.string.profile_open), onClick = onOpenProfile)
+                            .padding(4.dp),
                     ) {
                         Avatar(
                             chatId = viewModel.chatId,

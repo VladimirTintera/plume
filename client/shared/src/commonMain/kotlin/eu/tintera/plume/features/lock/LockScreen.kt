@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.lock
 
+import eu.tintera.plume.core.ui.SecurityBadge
 import androidx.compose.ui.text.style.TextAlign
 import eu.tintera.plume.resources.app_lock_biometrics_revoked
 import eu.tintera.plume.core.lock.BiometricResult
@@ -140,20 +141,7 @@ fun LockScreen(
                 verticalArrangement = Arrangement.Center,
                 modifier = Modifier.padding(top = 32.dp),
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(64.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(Res.drawable.lock_24dp),
-                        contentDescription = null,
-                        modifier = Modifier.size(32.dp),
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                }
+                SecurityBadge(Res.drawable.lock_24dp)
 
                 Spacer(Modifier.height(24.dp))
 
