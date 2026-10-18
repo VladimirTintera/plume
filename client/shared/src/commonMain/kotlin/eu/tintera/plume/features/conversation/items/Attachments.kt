@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.conversation.items
 
+import eu.tintera.plume.features.media.LocalPhotoDescriptions
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import eu.tintera.plume.core.video.VideoPositions
@@ -206,7 +207,7 @@ internal fun MessageAttachment(
                             thumbnailFileId = media.thumbnailFileId,
                             placeholder = media.minithumbnail,
                             autoDownload = LocalAutoDownload.current.photos,
-                            contentDescription = stringResource(Res.string.media_photo),
+                            contentDescription = LocalPhotoDescriptions.current[messageId] ?: stringResource(Res.string.media_photo),
                             // `Crop` dořeší podlahu šířky (extrémně vysoká fotka, fotka s popiskem):
                             // poměr stran zůstává a vidět je prostředek. Jinak není co ořezávat.
                             contentScale = ContentScale.Crop,

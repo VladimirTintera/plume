@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.settings
 
 import eu.tintera.plume.features.chats.StoredTriageVerdict
+import eu.tintera.plume.features.media.StoredPhotoDescription
 import eu.tintera.plume.features.conversation.StoredTranscript
 import kotlinx.serialization.json.Json
 import eu.tintera.plume.core.bookmarks.MessageBookmark
@@ -228,6 +229,15 @@ interface AppSettings {
 
     /** Uloží přepisy. Neblokuje. */
     fun setStoredTranscripts(transcripts: List<StoredTranscript>)
+
+    /**
+     * Hotové popisy fotek z modelu v telefonu, všech účtů; filtruje a spravuje je
+     * [eu.tintera.plume.features.media.PhotoDescriptions].
+     */
+    val storedPhotoDescriptions: StateFlow<List<StoredPhotoDescription>>
+
+    /** Uloží popisy fotek. Neblokuje. */
+    fun setStoredPhotoDescriptions(descriptions: List<StoredPhotoDescription>)
 
     /**
      * Posudky triáže chatů („čeká na odpověď") všech účtů, aby se po restartu nepřečtené chaty
@@ -748,6 +758,24 @@ class DataStoreAppSettings(
         }
     }
 
+    override val storedPhotoDescriptions: StateFlow<List<StoredPhotoDescription>> = value(emptyList()) { preferences ->
+        preferences[STORED_PHOTO_DESCRIPTIONS]?.let { stored ->
+            runCatching { storedListJson.decodeFromString<List<StoredPhotoDescription>>(stored) }.getOrNull()
+        }.orEmpty()
+    }
+
+    override fun setStoredPhotoDescriptions(descriptions: List<StoredPhotoDescription>) {
+        scope.launch {
+            edit { preferences ->
+                if (descriptions.isEmpty()) {
+                    preferences.remove(STORED_PHOTO_DESCRIPTIONS)
+                } else {
+                    preferences[STORED_PHOTO_DESCRIPTIONS] = storedListJson.encodeToString(descriptions)
+                }
+            }
+        }
+    }
+
     override val storedTriageVerdicts: StateFlow<List<StoredTriageVerdict>> = value(emptyList()) { preferences ->
         preferences[STORED_TRIAGE_VERDICTS]?.let { stored ->
             runCatching { storedListJson.decodeFromString<List<StoredTriageVerdict>>(stored) }.getOrNull()
@@ -1170,6 +1198,7 @@ class DataStoreAppSettings(
         val VIDEO_POSITIONS = stringPreferencesKey("video_positions")
         val CHAT_COLORS = stringPreferencesKey("chat_colors")
         val STORED_TRANSCRIPTS = stringPreferencesKey("stored_transcripts")
+        val STORED_PHOTO_DESCRIPTIONS = stringPreferencesKey("stored_photo_descriptions")
         val STORED_TRIAGE_VERDICTS = stringPreferencesKey("stored_triage_verdicts")
         val QUIET_HOURS_START = intPreferencesKey("quiet_hours_start")
         val QUIET_HOURS_END = intPreferencesKey("quiet_hours_end")
