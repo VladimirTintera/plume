@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -52,11 +53,7 @@ internal fun BookmarksSheet(
     chatTitles: Map<Long, String>? = null,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberExpandedSheetState()) {
-        Text(
-            stringResource(Res.string.profile_bookmarks),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp),
-        )
+        SheetTitle(stringResource(Res.string.profile_bookmarks), modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp))
         LazyColumn(Modifier.fillMaxWidth().navigationBarsPadding()) {
             items(bookmarks, key = { "${it.chatId}/${it.messageId}" }) { bookmark ->
                 Row(

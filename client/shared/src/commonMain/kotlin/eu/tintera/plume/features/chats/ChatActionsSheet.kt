@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration
@@ -188,11 +189,7 @@ fun ChatActionsSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.verticalScroll(scroll)) {
-            Text(
-                text = chatTitle(chat.id, chat.title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-            )
+            SheetTitle(chatTitle(chat.id, chat.title), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
 
             Column(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -492,11 +489,7 @@ private fun groupRowShape(index: Int, count: Int): RoundedCornerShape {
 fun SnoozeSheet(chat: ChatSummary, onSnooze: (SnoozeOption) -> Unit, onDismiss: () -> Unit) {
     ModalBottomSheet(sheetState = rememberExpandedSheetState(), onDismissRequest = onDismiss) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
-            Text(
-                text = chatTitle(chat.id, chat.title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-            )
+            SheetTitle(chatTitle(chat.id, chat.title), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
             Text(
                 text = stringResource(Res.string.chats_snooze_sheet_title),
                 style = MaterialTheme.typography.bodyMedium,
@@ -606,11 +599,7 @@ private fun SponsoredChatSheet(
 ) {
     ModalBottomSheet(sheetState = rememberExpandedSheetState(), onDismissRequest = onDismiss) {
         Column(Modifier.verticalScroll(rememberScrollState())) {
-            Text(
-                text = chatTitle(chat.id, chat.title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-            )
+            SheetTitle(chatTitle(chat.id, chat.title), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
             Text(
                 text = when (sponsor) {
                     ChatSponsor.Proxy -> stringResource(Res.string.chats_sponsor_proxy_explanation)

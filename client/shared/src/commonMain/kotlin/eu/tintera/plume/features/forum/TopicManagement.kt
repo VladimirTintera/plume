@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.forum
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -38,7 +39,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.telegram.ForumTopic
 import eu.tintera.plume.core.telegram.TOPIC_COLORS
@@ -168,7 +168,7 @@ internal fun TopicActionsSheet(
                 modifier = Modifier.padding(start = 16.dp, bottom = 12.dp),
             ) {
                 ForumTopicIcon(icon = topic.icon, name = topic.name, isGeneral = topic.isGeneral, size = 32.dp)
-                Text(topic.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                SheetTitle(topic.name, maxLines = 1)
             }
             items.forEachIndexed { index, item ->
                 val color = if (item.destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface

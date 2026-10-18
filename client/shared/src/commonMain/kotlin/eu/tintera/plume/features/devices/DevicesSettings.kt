@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.devices
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.core.ui.MediumButtonIcon
 import eu.tintera.plume.core.ui.ButtonEmphasis
 import eu.tintera.plume.core.ui.MediumButton
@@ -454,7 +455,7 @@ private fun DeviceDetailSheet(
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 leadingContent = { DeviceIcon(device.kind.icon) },
-                headlineContent = { Text(device.title, style = MaterialTheme.typography.titleLarge) },
+                headlineContent = { SheetTitle(device.title) },
             )
 
             // Odhlášení hned pod hlavičkou, ne až za údaji: je to to, kvůli čemu se sem chodí,

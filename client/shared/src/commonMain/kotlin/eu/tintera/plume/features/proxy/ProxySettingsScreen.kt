@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.proxy
 
 import eu.tintera.plume.features.settings.SettingsTopBar
+import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.features.settings.settingsScroll
 import eu.tintera.plume.features.settings.settingsScrollBehavior
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
@@ -415,10 +416,7 @@ private fun ProxyEditorSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp),
         ) {
-            Text(
-                stringResource(if (initial == null) Res.string.proxy_editor_add_title else Res.string.proxy_editor_edit_title),
-                style = MaterialTheme.typography.titleLarge,
-            )
+            SheetTitle(stringResource(if (initial == null) Res.string.proxy_editor_add_title else Res.string.proxy_editor_edit_title))
             Row(horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
                 KindChoice.entries.forEachIndexed { index, choice ->
                     val checked = choice == kind

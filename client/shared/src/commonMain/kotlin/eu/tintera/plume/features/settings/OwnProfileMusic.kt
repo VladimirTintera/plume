@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,7 +19,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.mutableStateOf
@@ -318,11 +318,7 @@ private fun ProfileMusicReorderSheet(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 12.dp),
             ) {
-                Text(
-                    stringResource(Res.string.profile_music_reorder_title),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                )
+                SheetTitle(stringResource(Res.string.profile_music_reorder_title), modifier = Modifier.weight(1f))
                 TextButton(onClick = { onDone(order.map { it.fileId }) }, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.reorder_done)) }
             }
             LazyColumn(

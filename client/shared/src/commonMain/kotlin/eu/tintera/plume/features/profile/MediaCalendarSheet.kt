@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -69,11 +70,7 @@ internal fun MediaCalendarSheet(
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberExpandedSheetState()) {
-        Text(
-            stringResource(Res.string.profile_calendar),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp),
-        )
+        SheetTitle(stringResource(Res.string.profile_calendar), modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp))
         val months = remember(calendar.days) { calendarMonths(calendar.days) }
         val byDate = remember(calendar.days) { calendar.days.associateBy { it.date } }
         if (months.isEmpty()) {

@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.resources.translation_device_downloading
 import eu.tintera.plume.resources.translation_device_download_text
 import eu.tintera.plume.resources.translation_device_download
@@ -113,10 +114,7 @@ fun TranslationSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 16.dp)) {
-            Text(
-                text = stringResource(if (sheet.summary) Res.string.server_summary_title else Res.string.translation_title),
-                style = MaterialTheme.typography.titleMedium,
-            )
+            SheetTitle(stringResource(if (sheet.summary) Res.string.server_summary_title else Res.string.translation_title))
             // Cílový jazyk je tlačítko, ne popisek: ťuknutí otevře výběr jazyka. Ze šipky je
             // poznat, že se dá změnit — samotný text „Do: Čeština" by vypadal jako informace.
             TextButton(
@@ -288,11 +286,7 @@ internal fun TranslationLanguageSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth()) {
-            Text(
-                text = stringResource(Res.string.translation_language_title),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 24.dp),
-            )
+            SheetTitle(stringResource(Res.string.translation_language_title), modifier = Modifier.padding(horizontal = 24.dp))
             SearchPill(
                 initialQuery = "",
                 onQueryChange = { query = it },

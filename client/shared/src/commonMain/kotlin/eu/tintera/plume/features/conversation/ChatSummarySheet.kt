@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.resources.explain_failed
 import eu.tintera.plume.resources.explain_preparing
 import eu.tintera.plume.resources.explain_title
@@ -84,7 +85,7 @@ fun ChatSummarySheet(
         ) {
             source?.let {
                 val count = it.messages.size
-                Text(
+                SheetTitle(
                     text = if (it.explain) {
                         stringResource(Res.string.explain_title)
                     } else if (it.unread) {
@@ -92,7 +93,6 @@ fun ChatSummarySheet(
                     } else {
                         pluralStringResource(Res.plurals.summary_title_recent, count, count)
                     },
-                    style = MaterialTheme.typography.titleMedium,
                 )
             }
 

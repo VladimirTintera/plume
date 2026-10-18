@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -44,11 +45,7 @@ fun SelectTextSheet(message: ChatMessage, onDismiss: () -> Unit) {
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.padding(horizontal = 24.dp)) {
-            Text(
-                text = stringResource(Res.string.menu_select_text),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 16.dp),
-            )
+            SheetTitle(stringResource(Res.string.menu_select_text), modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 16.dp))
             // Dlouhá zpráva se scrolluje; strop drží sheet v rozumné výšce i u pár set řádků.
             SelectionContainer {
                 Text(

@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.height
 import eu.tintera.plume.core.ui.MediumButtonHeight
 import eu.tintera.plume.core.ui.MediumButton
@@ -590,11 +591,7 @@ private fun FolderIconSheet(
                 .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                stringResource(Res.string.chat_folder_icon),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(start = 8.dp),
-            )
+            SheetTitle(stringResource(Res.string.chat_folder_icon), modifier = Modifier.padding(start = 8.dp))
             ListItem(
                 headlineContent = { Text(stringResource(Res.string.chat_folder_icon_auto)) },
                 supportingContent = { Text(stringResource(Res.string.chat_folder_icon_auto_help)) },
@@ -713,11 +710,7 @@ private fun FolderLinkSheet(
                 .imePadding()
                 .padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
         ) {
-            Text(
-                stringResource(Res.string.chat_folder_link_title),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(start = 8.dp, bottom = 8.dp),
-            )
+            SheetTitle(stringResource(Res.string.chat_folder_link_title), modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
             Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest) {
                 ListItem(
                     headlineContent = {

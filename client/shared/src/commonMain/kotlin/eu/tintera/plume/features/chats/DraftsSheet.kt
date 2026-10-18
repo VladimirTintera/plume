@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.chats
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.resources.tag_24dp
 import eu.tintera.plume.core.ui.accentOn
 import androidx.compose.foundation.layout.size
@@ -140,11 +141,7 @@ internal fun DraftsSheet(
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Text(
-            stringResource(Res.string.chats_drafts),
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp),
-        )
+        SheetTitle(stringResource(Res.string.chats_drafts), modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp))
         // Řádky včetně těch, které právě odjíždějí: smazaný koncept z `drafts` zmizí hned, ale
         // v seznamu má dojet animací, jinak by řádek i výška sheetu skočily v jednom snímku.
         val leaving = remember { LeavingDrafts(drafts) }

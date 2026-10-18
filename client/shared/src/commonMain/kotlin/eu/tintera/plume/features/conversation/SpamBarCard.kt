@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -200,12 +201,11 @@ internal fun SpamBarSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
-            Text(
+            SheetTitle(
                 text = when (action) {
                     SpamBarAction.Block -> stringResource(Res.string.profile_block_title, title)
                     SpamBarAction.Report -> stringResource(Res.string.spam_report_title)
                 },
-                style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(horizontal = 8.dp).padding(bottom = 16.dp),
             )
             CleanupOptions(

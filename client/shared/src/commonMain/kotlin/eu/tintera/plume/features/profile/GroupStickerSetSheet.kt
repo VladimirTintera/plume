@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -56,11 +57,7 @@ internal fun GroupStickerSetSheet(
     val sheetState = rememberExpandedSheetState()
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Text(
-            text = stringResource(Res.string.edit_chat_sticker_set),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-        )
+        SheetTitle(stringResource(Res.string.edit_chat_sticker_set), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
         Text(
             text = stringResource(Res.string.edit_chat_sticker_set_explanation),
             style = MaterialTheme.typography.bodyMedium,

@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -68,10 +69,7 @@ internal fun GiveawayStatusSheet(
             modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = stringResource(Res.string.giveaway_status_title),
-                style = MaterialTheme.typography.titleMedium,
-            )
+            SheetTitle(stringResource(Res.string.giveaway_status_title))
             val status = sheet.status
             when {
                 status != null -> StatusContent(status, sheet.codeCopied, onCopyCode)

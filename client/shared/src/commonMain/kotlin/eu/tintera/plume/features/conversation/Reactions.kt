@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.SheetTitle
 import eu.tintera.plume.core.ui.horizontalScrollWithWheel
 import androidx.compose.animation.AnimatedVisibility
 import kotlinx.coroutines.launch
@@ -555,9 +556,8 @@ fun ReactionDetailsSheet(
     val sheetState = rememberExpandedSheetState()
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Text(
-            text = stringResource(Res.string.reactions_title),
-            style = MaterialTheme.typography.titleMedium,
+        SheetTitle(
+            stringResource(Res.string.reactions_title),
             modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 4.dp),
         )
 
