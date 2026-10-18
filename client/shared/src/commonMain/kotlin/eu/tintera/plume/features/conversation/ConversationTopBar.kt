@@ -59,6 +59,7 @@ import eu.tintera.plume.features.calls.ConversationCallButtons
 import eu.tintera.plume.features.conversation.items.describe
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.comments_title
+import eu.tintera.plume.resources.direct_topics_subtitle
 import eu.tintera.plume.resources.conversation_fallback_title
 import eu.tintera.plume.resources.presence_online
 import eu.tintera.plume.resources.profile_open
@@ -161,7 +162,17 @@ internal fun ConversationTopBar(
                 state.info?.savedTopic?.let { topic ->
                     SavedTopicAvatar(topic = topic, size = HEADER_AVATAR, modifier = Modifier.padding(end = 12.dp))
                 }
-                state.info?.takeIf { it.topic == null && it.savedTopic == null }?.let { info ->
+                // Vlákno přímých zpráv kanálu: tvář toho, kdo kanálu píše.
+                state.info?.directTopic?.let { topic ->
+                    Avatar(
+                        chatId = topic.senderId,
+                        title = topic.title,
+                        avatarFileId = topic.avatarFileId,
+                        size = HEADER_AVATAR,
+                        modifier = Modifier.padding(end = 12.dp),
+                    )
+                }
+                state.info?.takeIf { it.topic == null && it.savedTopic == null && it.directTopic == null }?.let { info ->
                   AnimatedVisibility(
                       visible = headerAvatar,
                       enter = fadeIn() + expandHorizontally(),
@@ -223,6 +234,7 @@ internal fun ConversationTopBar(
                                 state.threadRootId != null -> stringResource(Res.string.comments_title)
                                 state.info?.topic != null -> state.info?.topic?.name.orEmpty()
                                 state.info?.savedTopic != null -> savedTopicTitle(state.info!!.savedTopic!!)
+                                state.info?.directTopic != null -> state.info?.directTopic?.title.orEmpty()
                                 else -> state.info?.let { chatTitle(it.id, it.title) }
                                     ?: stringResource(Res.string.conversation_fallback_title)
                             },
@@ -269,7 +281,11 @@ internal fun ConversationTopBar(
                     val threadSubtitle = state.info
                         ?.takeIf { state.narrowed }
                         ?.let { HeaderSubtitle(chatTitle(it.id, it.title)) }
-                    val subtitle = threadSubtitle ?: state.presence
+                    // Přímé zprávy nesou název kanálu; bez podtitulu by vypadaly jako kanál sám.
+                    val directSubtitle = stringResource(Res.string.direct_topics_subtitle)
+                        .takeIf { state.info?.isDirectMessages == true && !state.narrowed }
+                        ?.let { HeaderSubtitle(it) }
+                    val subtitle = threadSubtitle ?: directSubtitle ?: state.presence
                         ?.takeIf { shownConnection == null }
                         // Vlastní dostupnost v Uložených zprávách nic neříká — byl bys
                         // pořád „online", protože se na ně právě díváš.

@@ -142,6 +142,8 @@ import eu.tintera.plume.core.navigation.ChatsRoute
 import eu.tintera.plume.core.navigation.ConversationRoute
 import eu.tintera.plume.core.navigation.ForumTopicsRoute
 import eu.tintera.plume.core.navigation.SavedTopicsRoute
+import eu.tintera.plume.core.navigation.DirectTopicsRoute
+import eu.tintera.plume.features.direct.DirectTopicsScreen
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.features.saved.SavedTopicsScreen
@@ -666,8 +668,11 @@ private fun shellEntryProvider(
             conversationOpen = chatsStack.lastOrNull { paneOf(it)?.role != PaneRole.Extra } is ConversationRoute,
             // Vybraný řádek jen vedle detailu. Na telefonu by se otevíraný řádek přebarvil
             // uprostřed růstu v konverzaci (viz ChatContainer) a nic by tím neoznačil.
-            selectedChatId = chatsStack.lastOrNull { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute }
-                ?.let { (it as? ConversationRoute)?.chatId ?: (it as? ForumTopicsRoute)?.chatId ?: (it as SavedTopicsRoute).chatId }
+            selectedChatId = chatsStack.lastOrNull { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute || it is DirectTopicsRoute }
+                ?.let {
+                    (it as? ConversationRoute)?.chatId ?: (it as? ForumTopicsRoute)?.chatId
+                        ?: (it as? DirectTopicsRoute)?.chatId ?: (it as SavedTopicsRoute).chatId
+                }
                 ?.takeIf { twoPane },
             onChatClick = { chatId ->
                 // Uložené zprávy po chatech, když si to uživatel zvolil („Zobrazit jako chaty").
@@ -807,8 +812,10 @@ private fun shellEntryProvider(
                 // té první — i se zprávami. Koin navíc u cachované instance ignoruje
                 // nové `parameters`, takže se to neprojeví ani chybou, jen špatným obsahem.
                 viewModel = koinViewModel(
-                    key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}-${route.savedTopicId}",
-                    parameters = { parametersOf(route.chatId, route.messageId, route.threadId, route.topicId, route.savedTopicId) },
+                    key = "conversation-${route.chatId}-${route.messageId}-${route.threadId}-${route.topicId}-${route.savedTopicId}-${route.directTopicId}",
+                    parameters = {
+                        parametersOf(route.chatId, route.messageId, route.threadId, route.topicId, route.savedTopicId, route.directTopicId)
+                    },
                 ),
                 navigation = ConversationNavigation(
                     // Odebírá SVOU položku, ne poslední — viz `pop`. Vedle seznamu zavře celou větev nad ním.
@@ -856,6 +863,8 @@ private fun shellEntryProvider(
                     },
                     // Skupina s tématy otevřená jako zprávy: volbu uloží ViewModel, seznam témat nahradí konverzaci.
                     onViewAsTopics = { chatsStack.openForum(route.chatId) },
+                    // Spravované přímé zprávy kanálu: konverzaci nahradí seznam vláken na TÉMŽE místě.
+                    onViewAsDirectTopics = { chatsStack.replaceRoute(route, DirectTopicsRoute(route.chatId)) },
                     onSwitchChat = rememberSwitchChat(navigation),
                 ),
             )
@@ -877,6 +886,25 @@ private fun shellEntryProvider(
                     }
                 },
                 onViewAsMessages = { chatsStack.openConversation(route.chatId) },
+            )
+        }
+    }
+
+    /*
+     * Přímé zprávy kanálu, jak je vidí správce: vlákna po odběratelích na místě konverzace;
+     * vlákno se otevře jako konverzace nad nimi.
+     */
+    entry<DirectTopicsRoute>(metadata = Panes.detail() + ChatScreenMetadata) { route ->
+        ColoredChatContainer(route.chatId, fromList = remember(route) { chatsStack.liesOnChatList(route) }) {
+            DirectTopicsScreen(
+                viewModel = koinViewModel(key = "direct-topics-${route.chatId}", parameters = { parametersOf(route.chatId) }),
+                onBack = { chatsStack.pop(route) },
+                onOpenTopic = { topicId ->
+                    if ((chatsStack.lastOrNull() as? ConversationRoute)?.directTopicId != topicId) {
+                        chatsStack.add(ConversationRoute(route.chatId, directTopicId = topicId))
+                    }
+                },
+                onOpenProfile = { chatsStack.toggleProfile(route, ChatProfileRoute(route.chatId), sideBySide = wide) },
             )
         }
     }
@@ -1659,19 +1687,19 @@ private fun rememberSwitchChat(navigation: AppNavigation): (ChatSummary) -> Unit
  * jako sekce v Nastavení.
  */
 private fun MutableList<NavKey>.openConversation(chatId: Long, messageId: Long? = null) {
-    removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute }
+    removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute || it is DirectTopicsRoute }
     add(ConversationRoute(chatId, messageId))
 }
 
 /** Skupina s tématy: místo konverzace seznam témat, jinak totéž co [openConversation]. */
 private fun MutableList<NavKey>.openForum(chatId: Long) {
-    removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute }
+    removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute || it is DirectTopicsRoute }
     add(ForumTopicsRoute(chatId))
 }
 
 /** Uložené zprávy po chatech: místo konverzace seznam témat, jinak totéž co [openConversation]. */
 private fun MutableList<NavKey>.openSavedTopics(chatId: Long) {
-    removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute }
+    removeAll { it is ConversationRoute || it is ForumTopicsRoute || it is SavedTopicsRoute || it is DirectTopicsRoute }
     add(SavedTopicsRoute(chatId))
 }
 

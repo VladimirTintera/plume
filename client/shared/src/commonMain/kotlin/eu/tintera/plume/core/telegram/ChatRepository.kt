@@ -657,6 +657,11 @@ data class ChatSummary(
      */
     val isForum: Boolean = false,
     /**
+     * Přímé zprávy kanálu (`Supergroup.isDirectMessagesGroup`): chat nese název kanálu, takže
+     * by v seznamu vypadal jako kanál podruhé. Řádek ho proto odliší ikonou obálky.
+     */
+    val isDirectMessages: Boolean = false,
+    /**
      * Skupina s tématy se má otevírat seznamem témat (`Chat.viewAsTopics`), ne jedním proudem
      * zpráv. Volba „Zobrazit jako zprávy / jako témata" patří účtu, ne zařízení: drží ji server
      * a mění se updatem i z jiného klienta. Sama o sobě nic neříká — rozhoduje [opensAsTopics].

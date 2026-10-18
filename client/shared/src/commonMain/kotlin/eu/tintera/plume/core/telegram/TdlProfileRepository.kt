@@ -353,6 +353,7 @@ class TdlProfileRepository(
             GroupToggle.AggressiveAntiSpam -> info?.hasAggressiveAntiSpamEnabled == true
             GroupToggle.SignMessages -> supergroup?.signMessages == true
             GroupToggle.ShowMessageSender -> supergroup?.showMessageSender == true
+            GroupToggle.DirectMessages -> supergroup?.hasDirectMessagesGroup == true
             GroupToggle.ProtectedContent -> chat.hasProtectedContent
         }
         return GroupSettings(
@@ -433,6 +434,12 @@ class TdlProfileRepository(
             client.toggleChatHasProtectedContent(chatId = chatId, hasProtectedContent = value).toResult().getOrThrow()
             return@runCatching
         }
+        if (toggle == GroupToggle.DirectMessages) {
+            // Placené zprávy aplikace neumí poslat ani nastavit, takže se zapíná zdarma.
+            client.setChatDirectMessagesGroup(chatId = chatId, isEnabled = value, paidMessageStarCount = 0)
+                .toResult().getOrThrow()
+            return@runCatching
+        }
         val type = client.getChat(chatId = chatId).toResult().getOrThrow().type as? ChatTypeSupergroup
             ?: error("Chat $chatId není supergroup ani kanál.")
         val id = type.supergroupId
@@ -456,7 +463,7 @@ class TdlProfileRepository(
                 val show = sign && (if (toggle == GroupToggle.ShowMessageSender) value else current.showMessageSender)
                 client.toggleSupergroupSignMessages(supergroupId = id, signMessages = sign, showMessageSender = show)
             }
-            GroupToggle.ProtectedContent -> error("vyřízeno výš")
+            GroupToggle.ProtectedContent, GroupToggle.DirectMessages -> error("vyřízeno výš")
         }
         result.toResult().getOrThrow()
         Unit

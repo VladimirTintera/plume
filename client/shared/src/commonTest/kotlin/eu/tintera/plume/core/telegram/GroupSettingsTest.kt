@@ -55,7 +55,18 @@ class GroupSettingsTest {
     fun kanalMaPodpisyAleNePomalyRezimAniPrepinaceSkupiny() {
         val offer = offer(kind = MemberGroupKind.Channel, isPublic = true, canHideMembers = true)
         assertFalse(offer.slowMode)
-        assertEquals(setOf(GroupToggle.SignMessages, GroupToggle.ShowMessageSender, GroupToggle.ProtectedContent), offer.toggles)
+        assertEquals(
+            setOf(GroupToggle.SignMessages, GroupToggle.ShowMessageSender, GroupToggle.DirectMessages, GroupToggle.ProtectedContent),
+            offer.toggles,
+        )
+    }
+
+    /** Přímé zprávy kanálu zapíná jen vlastník — správce s právem měnit údaje je nedostane. */
+    @Test
+    fun primeZpravyKanaluJenVlastnik() {
+        val admin = OwnMemberStatus.Admin(canPostMessages = true, canChangeInfo = true)
+        assertFalse(GroupToggle.DirectMessages in offer(kind = MemberGroupKind.Channel, own = admin).toggles)
+        assertFalse(GroupToggle.DirectMessages in offer(kind = MemberGroupKind.Supergroup).toggles)
     }
 
     /** Základní skupina by se kvůli přepínačům supergroupy musela převést; reakce a ochrana jdou i tak. */

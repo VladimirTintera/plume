@@ -68,6 +68,8 @@ import eu.tintera.plume.resources.edit_chat_toggle_join_by_request_help
 import eu.tintera.plume.resources.edit_chat_toggle_join_to_send
 import eu.tintera.plume.resources.edit_chat_toggle_join_to_send_help
 import eu.tintera.plume.resources.edit_chat_toggle_protected_content
+import eu.tintera.plume.resources.edit_chat_toggle_direct_messages
+import eu.tintera.plume.resources.edit_chat_toggle_direct_messages_help
 import eu.tintera.plume.resources.edit_chat_toggle_protected_content_help
 import eu.tintera.plume.resources.edit_chat_toggle_show_message_sender
 import eu.tintera.plume.resources.edit_chat_toggle_show_message_sender_help
@@ -164,6 +166,8 @@ private fun GroupToggle.texts(): Pair<StringResource, StringResource> = when (th
     GroupToggle.SignMessages -> Res.string.edit_chat_toggle_sign_messages to Res.string.edit_chat_toggle_sign_messages_help
     GroupToggle.ShowMessageSender ->
         Res.string.edit_chat_toggle_show_message_sender to Res.string.edit_chat_toggle_show_message_sender_help
+    GroupToggle.DirectMessages ->
+        Res.string.edit_chat_toggle_direct_messages to Res.string.edit_chat_toggle_direct_messages_help
     GroupToggle.ProtectedContent ->
         Res.string.edit_chat_toggle_protected_content to Res.string.edit_chat_toggle_protected_content_help
 }

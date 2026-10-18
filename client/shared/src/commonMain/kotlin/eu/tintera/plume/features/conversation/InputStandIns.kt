@@ -1,6 +1,10 @@
 package eu.tintera.plume.features.conversation
 
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import eu.tintera.plume.resources.mail_24dp
+import eu.tintera.plume.resources.channel_direct_message
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.FilledTonalButton
 import eu.tintera.plume.resources.notifications_24dp
@@ -61,20 +65,29 @@ internal fun JoinBar(
 /**
  * Místo vstupního pole v kanálu, kde uživatel nepublikuje: ztlumit / zapnout zvuk, jako
  * v oficiálním klientu. Popisek říká, co se stane, ne stav (stejně jako v profilu chatu).
+ *
+ * Kanál s přímými zprávami ([onMessage]) nabídne vedle i „Napsat" — do kanálu se nepíše, ale
+ * jemu ano. Dvě tlačítka stejné šíře, žádné není hlavní.
  */
 @Composable
-internal fun MuteBar(muted: Boolean?, onToggle: () -> Unit, modifier: Modifier = Modifier) {
-    Box(
+internal fun MuteBar(
+    muted: Boolean?,
+    onToggle: () -> Unit,
+    modifier: Modifier = Modifier,
+    onMessage: (() -> Unit)? = null,
+) {
+    Row(
         modifier
             .fillMaxWidth()
             .navigationBarsPadding()
             .imePadding()
             .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         FilledTonalButton(
             onClick = onToggle,
             enabled = muted != null,
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            modifier = Modifier.weight(1f).heightIn(min = 56.dp),
         ) {
             Icon(
                 painterResource(if (muted == true) Res.drawable.notifications_24dp else Res.drawable.notifications_off_24dp),
@@ -82,6 +95,13 @@ internal fun MuteBar(muted: Boolean?, onToggle: () -> Unit, modifier: Modifier =
             )
             Spacer(Modifier.width(8.dp))
             Text(stringResource(if (muted == true) Res.string.profile_unmute else Res.string.profile_mute))
+        }
+        if (onMessage != null) {
+            FilledTonalButton(onClick = onMessage, modifier = Modifier.weight(1f).heightIn(min = 56.dp)) {
+                Icon(painterResource(Res.drawable.mail_24dp), contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(Res.string.channel_direct_message))
+            }
         }
     }
 }

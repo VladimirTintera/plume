@@ -507,6 +507,8 @@ data class ConversationState(
     val forumTopicId: Int? = null,
     /** Téma Uložených zpráv; `null` u běžné konverzace. */
     val savedTopicId: Long? = null,
+    /** Vlákno přímých zpráv kanálu; `null` u běžné konverzace. */
+    val directTopicId: Long? = null,
     /**
      * Nepřečtené zmínky a reakce v chatu — tlačítka „@" a „❤" nad tlačítkem dolů. Ve vlákně
      * komentářů zůstávají nulové: počty patří celé diskusní skupině.
@@ -770,7 +772,8 @@ data class ConversationState(
     val error: UiText? = null,
 ) {
     /** Konverzace zúžená na část chatu (vlákno komentářů, téma): hlavička patří jí, ne chatu. */
-    val narrowed: Boolean get() = threadRootId != null || forumTopicId != null || savedTopicId != null
+    val narrowed: Boolean get() =
+        threadRootId != null || forumTopicId != null || savedTopicId != null || directTopicId != null
 
     /**
      * Jestli se u připravené přílohy smí nabídnout mizení — pro [attachmentCount] příloh.

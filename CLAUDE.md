@@ -52,6 +52,7 @@ ne sem. Odkaz „viz …“ míří na nadpis; najde ho `grep -rn '^#.*<nadpis>'
 - [Boti a mini aplikace](docs/poznatky/boti.md) — tlačítka pod zprávou, vlastní klávesnice, příkazy, Start, inline boti, mini aplikace (WebView most)
 - [Ankety a kvízy](docs/poznatky/ankety.md) — hlasování, výsledky, zakládání, média v anketě, místa a poloha, seznamy úkolů
 - [Hledání a zakládání chatů](docs/poznatky/hledani-a-zakladani-chatu.md) — hledání chatů a zpráv s filtry i přirozeným jazykem, nová konverzace, kontakty, synchronizace adresáře, Můj QR kód a odkazy zvenčí, založení skupiny a kanálu, ChatPicker
+- [Přímé zprávy kanálu](docs/poznatky/prime-zpravy-kanalu.md) — zapnutí v nastavení kanálu, „Napsat" u odběratele, vlákna po odběratelích u správce, proč se historie vlákna nečte od nuly
 - [Spam, nahlášení a blokování](docs/poznatky/spam-a-blokovani.md) — průvodce nahlášením, úklid spamu, pruh nad konverzací (ChatActionBar), seznam blokovaných
 - [Seznam chatů](docs/poznatky/seznam-chatu.md) — skupiny řádků, složky a FAB menu, ověření, hlavička s pilulkou, Uložené zprávy, přehled konceptů, archiv a tah do archivu, akce, odložení a výběr víc chatů, čeká na odpověď, widget na ploše
 - [Navigace](docs/poznatky/navigace.md) — Navigation3, list-detail scény, insety, přechody a predictive back, zásobník pro každou sekci

@@ -225,6 +225,8 @@ data class ConversationRoute(
     val topicId: Int? = null,
     /** Téma Uložených zpráv (viz [SavedTopicsRoute]); `null` = všechny uložené zprávy. */
     val savedTopicId: Long? = null,
+    /** Vlákno přímých zpráv kanálu (viz [DirectTopicsRoute]); `null` = celý chat. */
+    val directTopicId: Long? = null,
 ) : Route
 
 /**
@@ -243,6 +245,14 @@ data class SavedTopicsRoute(val chatId: Long) : Route
  */
 @Serializable
 data class ForumTopicsRoute(val chatId: Long) : Route
+
+/**
+ * Přímé zprávy kanálu, jak je vidí správce: vlákno na každého, kdo kanálu napsal. Stojí na místě
+ * konverzace jako [ForumTopicsRoute]; vlákno se otevře jako [ConversationRoute]
+ * s `directTopicId` nad ním.
+ */
+@Serializable
+data class DirectTopicsRoute(val chatId: Long) : Route
 
 /**
  * Profil chatu (ťuknutí na hlavičku konverzace). Třetí panel: na telefonu překryje konverzaci,
@@ -533,6 +543,7 @@ val NavSavedStateConfiguration: SavedStateConfiguration = SavedStateConfiguratio
             subclass(ArchiveForumTopicsRoute::class, ArchiveForumTopicsRoute.serializer())
             subclass(ForumTopicsRoute::class, ForumTopicsRoute.serializer())
             subclass(SavedTopicsRoute::class, SavedTopicsRoute.serializer())
+            subclass(DirectTopicsRoute::class, DirectTopicsRoute.serializer())
             subclass(ArchiveChatProfileRoute::class, ArchiveChatProfileRoute.serializer())
             subclass(ArchiveEditChatRoute::class, ArchiveEditChatRoute.serializer())
             subclass(ArchiveMemberRightsRoute::class, ArchiveMemberRightsRoute.serializer())
