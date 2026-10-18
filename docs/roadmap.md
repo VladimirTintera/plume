@@ -946,7 +946,7 @@ poměru přínosu a práce; každý bod je samostatný PR.
   ve skutečnosti jich bylo pět — zbytek měl spec na dalším řádku.)
 - ~~**Tvar řádku při stisku**~~ — hotovo bez `SegmentedListItem`: stisknutý řádek bloku se
   zaoblí na 16 dp v seznamu chatů, kořeni i sekcích Nastavení (`GroupedColumn`) a lazy blocích
-  (`groupedItem`); `MorphShape.kt` to bere jako odezvu na prst, ne jako stav (VladimirTintera/telegram#PR).
+  (`groupedItem`); `MorphShape.kt` to bere jako odezvu na prst, ne jako stav (VladimirTintera/telegram#855).
   `SegmentedListItem` by přinesl ještě tvar při fokusu klávesnicí — zatím nic.
 - Drobnosti: barva tématu fóra (`TopicManagement` ~266) výběr obrysem místo `ShapeMorphs.Highlight`
   a `Color.Black` přes vzorek; titulek v `DirectTopicsScreen` bez ořezu vlnky; velké ikony
