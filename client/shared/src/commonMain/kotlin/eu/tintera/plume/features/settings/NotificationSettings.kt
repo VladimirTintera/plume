@@ -1,5 +1,12 @@
 package eu.tintera.plume.features.settings
 
+import eu.tintera.plume.resources.undo_24dp
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.IconButton
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.itemsIndexed
+import eu.tintera.plume.core.ui.WithTooltip
+import eu.tintera.plume.core.ui.groupedItem
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import eu.tintera.plume.core.ui.SheetTitle
 import org.koin.compose.viewmodel.koinViewModel
@@ -19,10 +26,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
@@ -30,7 +35,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -460,13 +464,17 @@ private fun ExceptionsSheet(
     val sheetState = rememberExpandedSheetState()
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column {
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                headlineContent = { SheetTitle(stringResource(scope.title)) },
-                supportingContent = { Text(stringResource(Res.string.settings_notif_exceptions_summary)) },
+            SheetTitle(stringResource(scope.title), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp))
+            Text(
+                stringResource(Res.string.settings_notif_exceptions_summary),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(top = 4.dp, bottom = 16.dp),
             )
-            LazyColumn(Modifier.navigationBarsPadding()) {
-                items(exceptions, key = { it.chatId }) { exception ->
+            // Chaty v bloku zaoblených řádků; „Obnovit" je ikonové tlačítko s bublinou — textové
+            // tlačítko v každém řádku dělalo ze seznamu sloupec odkazů.
+            LazyColumn(Modifier.navigationBarsPadding(), contentPadding = PaddingValues(bottom = 16.dp)) {
+                itemsIndexed(exceptions, key = { _, it -> it.chatId }) { index, exception ->
                     ListItem(
                         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                         leadingContent = {
@@ -481,11 +489,16 @@ private fun ExceptionsSheet(
                         headlineContent = { Text(exception.title, maxLines = 1) },
                         supportingContent = { Text(stringResource(exception.state.label)) },
                         trailingContent = {
-                            TextButton(onClick = { onReset(exception.chatId) }, shapes = ButtonDefaults.shapes()) {
-                                Text(stringResource(Res.string.settings_notif_reset))
+                            val reset = stringResource(Res.string.settings_notif_reset)
+                            WithTooltip(reset) {
+                                IconButton(onClick = { onReset(exception.chatId) }, shapes = IconButtonDefaults.shapes()) {
+                                    Icon(painterResource(Res.drawable.undo_24dp), contentDescription = reset)
+                                }
                             }
                         },
-                        modifier = Modifier.animateItem(),
+                        modifier = Modifier
+                            .animateItem()
+                            .groupedItem(index, exceptions.size, MaterialTheme.colorScheme.surfaceContainerLowest, pressable = false),
                     )
                 }
             }

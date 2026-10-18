@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.devices
 
+import androidx.compose.foundation.layout.Row
+import eu.tintera.plume.core.ui.GroupedColumn
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
@@ -443,11 +445,14 @@ private fun DeviceDetailSheet(
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp),
         ) {
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                leadingContent = { DeviceIcon(device.kind.icon) },
-                headlineContent = { SheetTitle(device.title) },
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 8.dp),
+            ) {
+                DeviceIcon(device.kind.icon)
+                SheetTitle(device.title)
+            }
 
             // Odhlášení hned pod hlavičkou, ne až za údaji: je to to, kvůli čemu se sem chodí,
             // a na menším telefonu by pod údaji a přepínači skončilo pod okrajem.
@@ -466,17 +471,21 @@ private fun DeviceDetailSheet(
                 }
             }
 
-            DetailRow(Res.string.devices_detail_app, device.appLine)
-            DetailRow(
-                Res.string.devices_detail_system,
-                listOf(device.platform, device.systemVersion).filter { it.isNotBlank() }.joinToString(" "),
-            )
-            DetailRow(Res.string.devices_detail_login, device.logInDate.asDateTime())
-            if (!device.isCurrent) {
-                DetailRow(Res.string.devices_detail_last_active, device.lastActiveDate.asDateTime())
+            // Údaje jako jeden blok zaoblených řádků (dřív holé řádky na ploše sheetu); prázdný
+            // údaj se nekreslí a `GroupedColumn` krajní zaoblení přesune na sousední.
+            GroupedColumn(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                DetailRow(Res.string.devices_detail_app, device.appLine)
+                DetailRow(
+                    Res.string.devices_detail_system,
+                    listOf(device.platform, device.systemVersion).filter { it.isNotBlank() }.joinToString(" "),
+                )
+                DetailRow(Res.string.devices_detail_login, device.logInDate.asDateTime())
+                if (!device.isCurrent) {
+                    DetailRow(Res.string.devices_detail_last_active, device.lastActiveDate.asDateTime())
+                }
+                DetailRow(Res.string.devices_detail_ip, device.ipAddress)
+                DetailRow(Res.string.devices_detail_location, device.location)
             }
-            DetailRow(Res.string.devices_detail_ip, device.ipAddress)
-            DetailRow(Res.string.devices_detail_location, device.location)
 
             // Přepínače jen u cizího zařízení: o tomhle rozhoduje systémové nastavení.
             if (!device.isCurrent) {
@@ -484,10 +493,12 @@ private fun DeviceDetailSheet(
                     stringResource(Res.string.devices_accept),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp),
+                    modifier = Modifier.padding(start = 32.dp, top = 16.dp, bottom = 8.dp),
                 )
-                SwitchRow(Res.string.devices_accept_calls, device.canAcceptCalls, !busy, onCanAcceptCalls)
-                SwitchRow(Res.string.devices_accept_secret_chats, device.canAcceptSecretChats, !busy, onCanAcceptSecretChats)
+                GroupedColumn(Modifier.padding(horizontal = 16.dp)) {
+                    SwitchRow(Res.string.devices_accept_calls, device.canAcceptCalls, !busy, onCanAcceptCalls)
+                    SwitchRow(Res.string.devices_accept_secret_chats, device.canAcceptSecretChats, !busy, onCanAcceptSecretChats)
+                }
             }
         }
     }

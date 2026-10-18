@@ -1007,11 +1007,9 @@ zbývají sheety, které se otevírají z podstránek.
 
 - ~~**Sheety s holými řádky s kolečky**~~ — hotovo (VladimirTintera/telegram#865): pomalý režim a reakce skupiny
   přes `ChoiceListItem`; „Uložit" u reakcí je `MediumButton`.
-- **Sheety s holými seznamy**: detail zařízení (`DeviceDetailSheet`: údaje jako holé řádky
-  s nadpisem v `ListItem`u, přepínače bez bloku), výjimky upozornění (`ExceptionsSheet`: chaty
-  s `TextButton` „Obnovit" v řádku), záložky (`BookmarksSheet`), kdo reagoval
-  (`ReactionDetailsSheet`; „Kdo zprávu viděl" v informacích o zprávě už blok má). Patří do bloků
-  zaoblených řádků (`groupedItem` v lazy seznamu, `GroupedColumn` jinde).
+- ~~**Sheety s holými seznamy**~~ — hotovo (VladimirTintera/telegram#PR): detail zařízení (údaje a přepínače
+  jako dva bloky, hlavička ikonou a nadpisem), výjimky upozornění (chaty v bloku, „Obnovit
+  výchozí" jako ikonové tlačítko s bublinou), záložky a kdo reagoval (`groupedItem`).
 - **Tlačítka vedle sebe v `Row` místo `ActionButtonGroup`**: schválit / odmítnout žádost o vstup
   (`JoinRequestsScreen`), stáhnout balíček / přeložit na serveru (`TranslationSheet`), přepis
   zprávy (`DraftRewrite`), tlačítka v úpravě fotky (`PhotoMarkupEditor`).
