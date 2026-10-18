@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.GroupedColumn
 import eu.tintera.plume.core.ui.SheetTitle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,7 +17,6 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -105,33 +105,31 @@ internal fun GroupSettingsCard(
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
         )
-        Card(Modifier.fillMaxWidth()) {
-            Column {
-                settings.slowModeDelay?.let { delay ->
-                    ListItem(
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        headlineContent = { Text(stringResource(Res.string.edit_chat_slow_mode)) },
-                        supportingContent = { Text(slowModeLabel(delay)) },
-                        leadingContent = { Icon(painterResource(Res.drawable.timer_24dp), contentDescription = null) },
-                        modifier = Modifier.clickable(onClick = onOpenSlowMode),
-                    )
-                }
-                settings.reactions?.let { reactions ->
-                    ListItem(
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        headlineContent = { Text(stringResource(Res.string.edit_chat_reactions)) },
-                        supportingContent = { Text(reactionsLabel(reactions)) },
-                        leadingContent = { Icon(painterResource(Res.drawable.add_reaction_24dp), contentDescription = null) },
-                        modifier = Modifier.clickable(onClick = onOpenReactions),
-                    )
-                }
-                GroupToggle.entries.forEach { toggle ->
-                    val checked = settings.toggles[toggle] ?: return@forEach
-                    // Profily autorů bez podpisů nedávají smysl — jako u oficiálních klientů.
-                    if (toggle == GroupToggle.ShowMessageSender && settings.toggles[GroupToggle.SignMessages] != true) return@forEach
-                    val (title, help) = toggle.texts()
-                    ToggleRow(title, help, checked, haptics) { onToggle(toggle, it) }
-                }
+        GroupedColumn(Modifier.fillMaxWidth()) {
+            settings.slowModeDelay?.let { delay ->
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    headlineContent = { Text(stringResource(Res.string.edit_chat_slow_mode)) },
+                    supportingContent = { Text(slowModeLabel(delay)) },
+                    leadingContent = { Icon(painterResource(Res.drawable.timer_24dp), contentDescription = null) },
+                    modifier = Modifier.clickable(onClick = onOpenSlowMode),
+                )
+            }
+            settings.reactions?.let { reactions ->
+                ListItem(
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    headlineContent = { Text(stringResource(Res.string.edit_chat_reactions)) },
+                    supportingContent = { Text(reactionsLabel(reactions)) },
+                    leadingContent = { Icon(painterResource(Res.drawable.add_reaction_24dp), contentDescription = null) },
+                    modifier = Modifier.clickable(onClick = onOpenReactions),
+                )
+            }
+            GroupToggle.entries.forEach { toggle ->
+                val checked = settings.toggles[toggle] ?: return@forEach
+                // Profily autorů bez podpisů nedávají smysl — jako u oficiálních klientů.
+                if (toggle == GroupToggle.ShowMessageSender && settings.toggles[GroupToggle.SignMessages] != true) return@forEach
+                val (title, help) = toggle.texts()
+                ToggleRow(title, help, checked, haptics) { onToggle(toggle, it) }
             }
         }
     }

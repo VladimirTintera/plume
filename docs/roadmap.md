@@ -921,8 +921,8 @@ poměru přínosu a práce; každý bod je samostatný PR.
 - ~~**Dvojí vstupní pole**~~ — hotovo (`FormTextField`, VladimirTintera/telegram#837, 21 polí: úprava profilu a skupiny, proxy,
   složka, pozvánka, téma, nový kontakt, nová skupina/kanál, slovní kód v přihlášení). Pole
   v `AlertDialog`u zůstala obrysová (odkaz ve formátování, možnost ankety, štítek člena…).
-- **Ruční `Card` bloky v profilu:** `EditChatScreen` (8×), `MemberRightsScreen` (3×),
-  `GroupSettingsCard` → `GroupedColumn` jako v Nastavení.
+- ~~**Ruční `Card` bloky v profilu**~~ — hotovo (úprava skupiny, `GroupSettingsCard`, práva
+  a omezení člena přes `GroupedColumn`).
 - **Hlavičky podstránek profilu** (`InviteLinksScreen`, `MemberRightsScreen`, `EditChatScreen`,
   `EventLogScreen`, `JoinRequestsScreen`, `RemovedMembersScreen`) jako `MediumFlexibleTopAppBar`
   s podtitulkem = název chatu nebo jméno člena; dnes z hlavičky není poznat, čeho se týká.

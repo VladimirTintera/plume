@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.resources.history_24dp
+import eu.tintera.plume.core.ui.GroupedColumn
 import eu.tintera.plume.core.ui.FormTextField
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.resources.event_log_row_help
@@ -36,7 +37,6 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -447,7 +447,7 @@ fun EditChatScreen(
 
                 // Témata zapíná jen vlastník supergroupy (viz `EditableChat.canToggleForum`).
                 if (chat.canToggleForum) {
-                    Card(Modifier.fillMaxWidth()) {
+                    GroupedColumn(Modifier.fillMaxWidth()) {
                         Column {
                             SwitchRow(Res.string.edit_chat_forum, viewModel.isForum, viewModel::toggleForum)
                             Text(
@@ -490,7 +490,7 @@ fun EditChatScreen(
                 chat.moderation?.let { ModerationGroup(it, onOpenRemoved) }
 
                 if (chat.canViewEventLog) {
-                    Card(Modifier.fillMaxWidth()) {
+                    GroupedColumn(Modifier.fillMaxWidth()) {
                         ListItem(
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                             headlineContent = { Text(stringResource(Res.string.event_log_row)) },
@@ -503,7 +503,7 @@ fun EditChatScreen(
 
                 // Nevratné, proto poslední a v chybové barvě, s potvrzením — jako oficiální klienti.
                 if (chat.canDeleteForAll) {
-                    Card(Modifier.fillMaxWidth()) {
+                    GroupedColumn(Modifier.fillMaxWidth()) {
                         ListItem(
                             colors = ListItemDefaults.colors(
                                 containerColor = Color.Transparent,
@@ -548,59 +548,57 @@ private fun PermissionsGroup(
     onChange: ((GroupPermissions) -> GroupPermissions) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // Nadpis a karta jsou jeden kus, jako skupina v Nastavení — jinak by nadpis visel
-        // stejně daleko od svojí karty jako od pole nad ní.
+        // Nadpis a blok jsou jeden kus, jako skupina v Nastavení — jinak by nadpis visel
+        // stejně daleko od svého bloku jako od pole nad ním.
         Text(
             stringResource(Res.string.edit_chat_permissions),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
         )
-        Card(Modifier.fillMaxWidth()) {
-            Column {
-                SwitchRow(Res.string.edit_chat_perm_send_messages, permissions.sendMessages) { value ->
-                    onChange { it.copy(sendMessages = value) }
-                }
-                SwitchRow(Res.string.edit_chat_perm_send_photos, permissions.sendPhotos) { value ->
-                    onChange { it.copy(sendPhotos = value) }
-                }
-                SwitchRow(Res.string.edit_chat_perm_send_videos, permissions.sendVideos) { value ->
-                    onChange { it.copy(sendVideos = value) }
-                }
-                SwitchRow(Res.string.edit_chat_perm_send_documents, permissions.sendDocuments) { value ->
-                    onChange { it.copy(sendDocuments = value) }
-                }
-                SwitchRow(Res.string.edit_chat_perm_send_voice, permissions.sendVoiceNotes) { value ->
-                    onChange { it.copy(sendVoiceNotes = value) }
-                }
-                SwitchRow(Res.string.edit_chat_perm_send_video_notes, permissions.sendVideoNotes) { value ->
-                    onChange { it.copy(sendVideoNotes = value) }
-                }
-                SwitchRow(Res.string.edit_chat_perm_send_stickers, permissions.sendStickers) { value ->
-                    onChange { it.copy(sendStickers = value) }
-                }
-                SwitchRow(Res.string.edit_chat_perm_send_polls, permissions.sendPolls) { value ->
-                    onChange { it.copy(sendPolls = value) }
-                }
-                SwitchRow(Res.string.edit_chat_perm_react, permissions.react) { value ->
-                    onChange { it.copy(react = value) }
-                }
-                SwitchRow(Res.string.edit_chat_perm_invite, permissions.inviteUsers) { value ->
-                    onChange { it.copy(inviteUsers = value) }
-                }
-                SwitchRow(Res.string.edit_chat_perm_pin, permissions.pinMessages) { value ->
-                    onChange { it.copy(pinMessages = value) }
-                }
-                SwitchRow(Res.string.edit_chat_perm_change_info, permissions.changeInfo) { value ->
-                    onChange { it.copy(changeInfo = value) }
-                }
+        GroupedColumn(Modifier.fillMaxWidth()) {
+            SwitchRow(Res.string.edit_chat_perm_send_messages, permissions.sendMessages) { value ->
+                onChange { it.copy(sendMessages = value) }
+            }
+            SwitchRow(Res.string.edit_chat_perm_send_photos, permissions.sendPhotos) { value ->
+                onChange { it.copy(sendPhotos = value) }
+            }
+            SwitchRow(Res.string.edit_chat_perm_send_videos, permissions.sendVideos) { value ->
+                onChange { it.copy(sendVideos = value) }
+            }
+            SwitchRow(Res.string.edit_chat_perm_send_documents, permissions.sendDocuments) { value ->
+                onChange { it.copy(sendDocuments = value) }
+            }
+            SwitchRow(Res.string.edit_chat_perm_send_voice, permissions.sendVoiceNotes) { value ->
+                onChange { it.copy(sendVoiceNotes = value) }
+            }
+            SwitchRow(Res.string.edit_chat_perm_send_video_notes, permissions.sendVideoNotes) { value ->
+                onChange { it.copy(sendVideoNotes = value) }
+            }
+            SwitchRow(Res.string.edit_chat_perm_send_stickers, permissions.sendStickers) { value ->
+                onChange { it.copy(sendStickers = value) }
+            }
+            SwitchRow(Res.string.edit_chat_perm_send_polls, permissions.sendPolls) { value ->
+                onChange { it.copy(sendPolls = value) }
+            }
+            SwitchRow(Res.string.edit_chat_perm_react, permissions.react) { value ->
+                onChange { it.copy(react = value) }
+            }
+            SwitchRow(Res.string.edit_chat_perm_invite, permissions.inviteUsers) { value ->
+                onChange { it.copy(inviteUsers = value) }
+            }
+            SwitchRow(Res.string.edit_chat_perm_pin, permissions.pinMessages) { value ->
+                onChange { it.copy(pinMessages = value) }
+            }
+            SwitchRow(Res.string.edit_chat_perm_change_info, permissions.changeInfo) { value ->
+                onChange { it.copy(changeInfo = value) }
             }
         }
     }
 }
 
 /**
- * Sada samolepek skupiny: karta s řádkem, který otevře výběr sady. Podtitul říká, k čemu sada je,
+ * Sada samolepek skupiny: blok s řádkem, který otevře výběr sady. Podtitul říká, k čemu sada je,
  * dokud žádná není; jinak počet samolepek.
  */
 @Composable
@@ -612,7 +610,7 @@ private fun StickerSetGroup(set: StickerSetSummary?, busy: Boolean, onClick: () 
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
         )
-        Card(Modifier.fillMaxWidth()) {
+        GroupedColumn(Modifier.fillMaxWidth()) {
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 headlineContent = { Text(set?.title ?: stringResource(Res.string.edit_chat_sticker_set_none)) },
@@ -638,7 +636,7 @@ private fun StickerSetGroup(set: StickerSetSummary?, busy: Boolean, onClick: () 
 }
 
 /**
- * Diskuse ke kanálu: jedna karta s řádkem, který otevře výběr skupiny. Podtitul říká, co platí
+ * Diskuse ke kanálu: jeden blok s řádkem, který otevře výběr skupiny. Podtitul říká, co platí
  * teď — připojená skupina, nebo že komentáře vypnuté.
  */
 @Composable
@@ -650,7 +648,7 @@ private fun DiscussionGroup(linked: LinkedChat?, busy: Boolean, onClick: () -> U
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
         )
-        Card(Modifier.fillMaxWidth()) {
+        GroupedColumn(Modifier.fillMaxWidth()) {
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 headlineContent = {
@@ -688,31 +686,29 @@ private fun InvitesGroup(pending: Int, onOpenInviteLinks: () -> Unit, onOpenJoin
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
         )
-        Card(Modifier.fillMaxWidth()) {
-            Column {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = { Text(stringResource(Res.string.edit_chat_invite_links)) },
-                    supportingContent = { Text(stringResource(Res.string.edit_chat_invite_links_help)) },
-                    leadingContent = { Icon(painterResource(Res.drawable.link_24dp), contentDescription = null) },
-                    modifier = Modifier.clickable(onClick = onOpenInviteLinks),
-                )
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = { Text(stringResource(Res.string.edit_chat_join_requests)) },
-                    supportingContent = {
-                        Text(
-                            if (pending > 0) {
-                                pluralStringResource(Res.plurals.edit_chat_join_requests_count, pending, pending.grouped())
-                            } else {
-                                stringResource(Res.string.edit_chat_join_requests_none)
-                            },
-                        )
-                    },
-                    leadingContent = { Icon(painterResource(Res.drawable.how_to_reg_24dp), contentDescription = null) },
-                    modifier = Modifier.clickable(onClick = onOpenJoinRequests),
-                )
-            }
+        GroupedColumn(Modifier.fillMaxWidth()) {
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                headlineContent = { Text(stringResource(Res.string.edit_chat_invite_links)) },
+                supportingContent = { Text(stringResource(Res.string.edit_chat_invite_links_help)) },
+                leadingContent = { Icon(painterResource(Res.drawable.link_24dp), contentDescription = null) },
+                modifier = Modifier.clickable(onClick = onOpenInviteLinks),
+            )
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                headlineContent = { Text(stringResource(Res.string.edit_chat_join_requests)) },
+                supportingContent = {
+                    Text(
+                        if (pending > 0) {
+                            pluralStringResource(Res.plurals.edit_chat_join_requests_count, pending, pending.grouped())
+                        } else {
+                            stringResource(Res.string.edit_chat_join_requests_none)
+                        },
+                    )
+                },
+                leadingContent = { Icon(painterResource(Res.drawable.how_to_reg_24dp), contentDescription = null) },
+                modifier = Modifier.clickable(onClick = onOpenJoinRequests),
+            )
         }
     }
 }
@@ -736,25 +732,23 @@ private fun ModerationGroup(moderation: MemberModeration, onOpen: (banned: Boole
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.fillMaxWidth().padding(start = 16.dp),
         )
-        Card(Modifier.fillMaxWidth()) {
-            Column {
-                moderation.restrictedCount?.let { restricted ->
-                    ListItem(
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                        headlineContent = { Text(stringResource(Res.string.edit_chat_restricted)) },
-                        supportingContent = { Text(count(restricted)) },
-                        leadingContent = { Icon(painterResource(Res.drawable.lock_24dp), contentDescription = null) },
-                        modifier = Modifier.clickable { onOpen(false) },
-                    )
-                }
+        GroupedColumn(Modifier.fillMaxWidth()) {
+            moderation.restrictedCount?.let { restricted ->
                 ListItem(
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = { Text(stringResource(Res.string.edit_chat_removed)) },
-                    supportingContent = { Text(count(moderation.bannedCount)) },
-                    leadingContent = { Icon(painterResource(Res.drawable.person_remove_24dp), contentDescription = null) },
-                    modifier = Modifier.clickable { onOpen(true) },
+                    headlineContent = { Text(stringResource(Res.string.edit_chat_restricted)) },
+                    supportingContent = { Text(count(restricted)) },
+                    leadingContent = { Icon(painterResource(Res.drawable.lock_24dp), contentDescription = null) },
+                    modifier = Modifier.clickable { onOpen(false) },
                 )
             }
+            ListItem(
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                headlineContent = { Text(stringResource(Res.string.edit_chat_removed)) },
+                supportingContent = { Text(count(moderation.bannedCount)) },
+                leadingContent = { Icon(painterResource(Res.drawable.person_remove_24dp), contentDescription = null) },
+                modifier = Modifier.clickable { onOpen(true) },
+            )
         }
     }
 }
