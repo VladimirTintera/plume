@@ -1,9 +1,12 @@
 package eu.tintera.plume.features.settings
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -19,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import eu.tintera.plume.core.ui.LocalPanesSideBySide
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.arrow_back_24dp
@@ -48,7 +52,9 @@ internal fun Modifier.settingsScroll(behavior: TopAppBarScrollBehavior?): Modifi
     if (behavior == null) this else nestedScroll(behavior.nestedScrollConnection)
 
 /**
- * Velký nadpis sekce nebo seznamu sekcí.
+ * Velký nadpis sekce, seznamu sekcí i podstránek (složky, samolepky, proxy, úprava profilu).
+ * Podstránka s malým barem skákala při přechodu ze sekce o výšku hlavičky a ve třetím panelu
+ * stála 64dp lišta vedle velkého nadpisu sekce.
  *
  * **Sbalený bar NEMĚNÍ barvu** (`scrolledContainerColor = surface`). Výchozí `surfaceContainer`
  * dělá ze sbalené hlavičky tónovaný pruh přes celou šířku — role, která jinde na obrazovce není;
@@ -60,6 +66,7 @@ internal fun SettingsTopBar(
     title: String,
     onBack: (() -> Unit)?,
     scrollBehavior: TopAppBarScrollBehavior?,
+    actions: @Composable RowScope.() -> Unit = {},
 ) {
     LargeFlexibleTopAppBar(
         title = { Text(title) },
@@ -73,6 +80,7 @@ internal fun SettingsTopBar(
                 }
             }
         },
+        actions = actions,
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface,
             scrolledContainerColor = MaterialTheme.colorScheme.surface,
@@ -98,3 +106,24 @@ internal fun Modifier.settingsContentPadding(padding: PaddingValues): Modifier {
 
 /** Spodek scrollovaného obsahu: navigační lišta ze Scaffoldu plus vzduch pod posledním blokem. */
 internal fun settingsContentBottom(padding: PaddingValues, extra: Dp): Dp = padding.calculateBottomPadding() + extra
+
+/**
+ * „Uložit" v hlavičce podstránky. Plné tlačítko, ne `TextButton`: je to hlavní akce obrazovky
+ * a holý text vedle ikon v liště se od nich neodlišil (M3 Expressive dává potvrzení plochu).
+ * Tvar se při stisku mění jako u ostatních tlačítek.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun SaveActionButton(
+    onClick: () -> Unit,
+    enabled: Boolean,
+    content: @Composable RowScope.() -> Unit,
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        shapes = ButtonDefaults.shapes(),
+        modifier = Modifier.padding(horizontal = 8.dp),
+        content = content,
+    )
+}

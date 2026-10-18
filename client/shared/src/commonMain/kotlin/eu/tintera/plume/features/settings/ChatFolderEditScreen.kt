@@ -43,7 +43,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -81,7 +80,6 @@ import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_24dp
 import eu.tintera.plume.resources.archive_24dp
-import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.campaign_24dp
 import eu.tintera.plume.resources.chat_folder_add_chats
 import eu.tintera.plume.resources.chat_folder_delete
@@ -112,7 +110,6 @@ import eu.tintera.plume.resources.chat_folder_title_missing
 import eu.tintera.plume.resources.chat_folder_title_too_long
 import eu.tintera.plume.resources.check_24dp
 import eu.tintera.plume.resources.close_24dp
-import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.delete_24dp
 import eu.tintera.plume.resources.done_all_24dp
@@ -205,17 +202,15 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
     val draft = state.draft
     val problem = state.problem.takeIf { state.showProblem }
 
+    val scrollBehavior = settingsScrollBehavior()
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.settingsScroll(scrollBehavior),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(if (state.isNew) Res.string.chat_folder_new_title else Res.string.chat_folder_edit_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
-                    }
-                },
+            SettingsTopBar(
+                title = stringResource(if (state.isNew) Res.string.chat_folder_new_title else Res.string.chat_folder_edit_title),
+                onBack = onBack,
+                scrollBehavior = scrollBehavior,
                 actions = {
                     if (!state.isNew) {
                         IconButton(
@@ -229,7 +224,7 @@ fun ChatFolderEditScreen(viewModel: ChatFolderEditViewModel, onBack: () -> Unit,
                     if (state.saving) {
                         LoadingIndicator(Modifier.padding(horizontal = 12.dp))
                     } else {
-                        TextButton(onClick = viewModel::save, enabled = state.changed && !state.loading) {
+                        SaveActionButton(onClick = viewModel::save, enabled = state.changed && !state.loading) {
                             Text(stringResource(Res.string.chat_folder_save))
                         }
                     }

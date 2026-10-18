@@ -868,6 +868,76 @@ Hotové jsou FAB menu, vlnitý posuvník videa, tvary tlačítek při stisku, p�
   z profilové fotky: barvu dává uživatel, takže něco znamená. Zbývá: synchronizace mezi
   zařízeními (spolu s ostatním nastavením) a ověřit iOS.
 
+### Sklouzávání k M2 (audit říjen 2026)
+
+Průchod kódem a obrazovkami na emulátoru. Hlavní plochy (seznam chatů, vstupní pole, nabídky,
+plovoucí lišty) jsou expressive; do „holého M3" se padá na okrajích — v podstránkách, sheetech,
+dialozích, prázdných stavech a u textových tlačítek. Konverzace má vlastní seznam
+v [roadmap-konverzace.md](roadmap-konverzace.md), „Vzhled podle M3 Expressive". Seřazené podle
+poměru přínosu a práce; každý bod je samostatný PR.
+
+- ~~**Nastavení: segmentované bloky, motiv jako skupina tlačítek, jednotné hlavičky**~~ — hotovo
+  (`GroupedColumn` v `core/ui/GroupedList.kt`, VladimirTintera/telegram#825; `docs/poznatky/nastaveni.md`, „Skupiny jsou
+  bloky zaoblených řádků").
+- **Tvary textových tlačítek při stisku.** Ikonová tlačítka je mají (171 volání), `TextButton`,
+  `Button`, `FilledTonalButton` a `OutlinedButton` jen dvě z ~350. V jednom sheetu tak jedno
+  tlačítko morfuje a druhé ne. Doplnit skriptem jako u ikonových (`shapes = ButtonDefaults.shapes()`)
+  a rozšířit pravidlo v `CLAUDE.md`. K tomu **velká hlavní tlačítka** z ručního
+  `heightIn(min = 56.dp)` (13×: `AuthScreen` `ContinueButton`, `InputStandIns` JoinBar,
+  `InviteSheet`, `FolderChatsSheet`, `ChatFolderEditScreen`…) na `ButtonDefaults.MediumContainerHeight`
+  + `contentPaddingFor` / `textStyleFor` / `shapesFor` — teď je to malé písmo v 56dp pilulce.
+  Totéž `WebAppBottomButton` (výchozích 40 dp, přitom hlavní akce mini aplikace).
+- **Prázdné a chybové stavy jako `IntroEmptyState`** (už je na 17 místech): prázdný a chybový
+  seznam chatů (`ChatListScreen` ~632 a ~1403), chyba v Instant View, prázdné pozvánky
+  (`InviteLinksScreen`), passkeys, samolepky „Moje", „Nic nenalezeno" v tématech fóra,
+  odepřený přístup ve sdílení (`ShareToChatScreen` AccessDenied).
+- **Emphasized typografie.** `Typography.kt` ji má celou, v kódu je 5× a jen `label*`. Kandidáti:
+  jméno v profilu (`ChatProfileScreen` ~1120) a v hovoru (`CallOverlay` ~492), nadpis přihlášení
+  (`AuthScreen` ~277), nadpis `IntroEmptyState`, popisek vybrané složky (`ChatFolderToolbar`),
+  počet vybraných, nadpisy sheetů. Nepřečtený chat má ruční SemiBold (`ChatListScreen` ~1974,
+  vědomě „jako Google Messages") — buď `bodyLargeEmphasized` přeladit na SemiBold, nebo nechat.
+- **Společný `SheetHeader`.** 64 sheetů, nadpis napůl `titleMedium` a napůl `titleLarge`.
+- **Společný `ConfirmDialog`.** 87 `AlertDialog`, ikonu mají dva. Destruktivní potvrzení (~35×)
+  je `TextButton` s červeným textem; obal s ikonou, chybovou barvou a tvary tlačítek je sjednotí.
+- **Výběr hodnoty v Nastavení jako `ExpressiveMenu`** u řádku místo `AlertDialog` s kolečky
+  (`ChatsSettings` tah, `AutoDownloadGroup`, `StorageSettings`, `AutosaveGroup`, časovač zámku,
+  TTL zařízení) — vzor je u filtrů hledání.
+- **Holé `ListItem`y bez bloku** tam, kde stejný seznam jinde blok má: výsledky globálního
+  hledání (`ChatSearchBar` ~670, ~836), koncepty (`DraftsSheet`), nastavení archivu
+  (`ArchiveSettingsSheet`), výběr země (`CountryPickerSheet` — navíc dělicí čára a obrysové pole;
+  první dojem při přihlášení). Na blok jde i `PhoneField` (dělicí čára uvnitř bloku).
+- **Dvojí vstupní pole.** Přihlášení (`AuthFields`), úprava profilu, úprava skupiny, proxy, úprava
+  složky a pozvánky mají `OutlinedTextField`, zbytek aplikace tónovaný `BlockTextField`
+  (`core/ui/BlockField.kt` sám říká, že na jedné obrazovce nemají být dvě pojetí).
+- **Ruční `Card` bloky v profilu:** `EditChatScreen` (8×), `MemberRightsScreen` (3×),
+  `GroupSettingsCard` → `GroupedColumn` jako v Nastavení.
+- **Hlavičky podstránek profilu** (`InviteLinksScreen`, `MemberRightsScreen`, `EditChatScreen`,
+  `EventLogScreen`, `JoinRequestsScreen`, `RemovedMembersScreen`) jako `MediumFlexibleTopAppBar`
+  s podtitulkem = název chatu nebo jméno člena; dnes z hlavičky není poznat, čeho se týká.
+  „Uložit" / „Přidat" / „Vytvořit" / „Hotovo" jako `TextButton` v liště (`EditChatScreen`,
+  `MemberRightsScreen`, `NewContactScreen`, `CreateChatScreen`, `ReorderRow`) → `SaveActionButton`.
+- **Obrazovka hovoru** (`CallOverlay`): ztlumení a kamera nemění ikonu (chybí `mic_off`,
+  `videocam_off`), zavěšení je stejně velké jako přepínače (M3E: široké
+  `IconButtonDefaults.IconButtonWidthOption.Wide`), avatar při zvonění stojí (`ShapeMorphs.Live`
+  by sedl).
+- **Tokeny tvarů místo dp.** `RoundedCornerShape(N.dp)` ~200×, `MaterialTheme.shapes` 21×; kopie
+  `GROUP_CORNER`/`INNER_CORNER` v osmi souborech, někde s jiným číslem (16 místo 20:
+  `AwaitingReplyCard`, `SpamCleanupOptions`, `ChatFolderEditScreen` ~722). Výchozí `Shapes()`
+  v alfě M3E škálu už má (`largeIncreased` = 20 …). Pohlídat kontrolou na `check` po vzoru
+  `verifyExpandedSheets`.
+- **Výchozí animace mimo `AppMotion`:** 54× `fadeIn()`/`fadeOut()` bez specu a ~20×
+  `animate*AsState` bez `animationSpec` (hlavně konverzace). `tween` je skoro všude zdůvodněný.
+- **`SegmentedListItem`** (v alfě je, s `ListItemDefaults.segmentedShapes`) místo ručních
+  `groupItemShape` — přinese tvar při stisku a fokusu. Napřed rozhodnout, jestli stisk smí měnit
+  tvar řádku: `MorphShape.kt` dnes říká, že položky seznamu se nemorfují; a řádek chatu sdílí tvar
+  s podkladem tahu do strany.
+- Drobnosti: barva tématu fóra (`TopicManagement` ~266) výběr obrysem místo `ShapeMorphs.Highlight`
+  a `Color.Black` přes vzorek; titulek v `DirectTopicsScreen` bez ořezu vlnky; velké ikony
+  v kruhu v hlavičkách (`AppLockScreen`, `LockScreen`, `TwoStepScreen`) šly by na tvar bez
+  obsazeného významu; tlačítka vedle sebe místo `ButtonGroup` (`MyQrCodeSheet`, `InviteLinksScreen`,
+  `UnconfirmedLoginCard`, `UpdateCard`, `NewFolderChatsCard`); `BrightnessPill` ve videu má
+  hladký průběh vedle vlnitého posuvníku.
+
 ## Vychytávky
 
 Nápady z října 2026, nic z toho zatím nikdo nezačal.

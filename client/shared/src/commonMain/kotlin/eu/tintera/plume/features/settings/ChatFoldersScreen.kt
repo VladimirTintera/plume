@@ -15,8 +15,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
@@ -25,7 +23,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -51,7 +48,6 @@ import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.chat_24dp
 import eu.tintera.plume.resources.add_24dp
-import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.chat_folders_add
 import eu.tintera.plume.resources.chat_folders_all
 import eu.tintera.plume.resources.chat_folders_all_fixed
@@ -61,7 +57,6 @@ import eu.tintera.plume.resources.chat_folders_mine
 import eu.tintera.plume.resources.chat_folders_recommended
 import eu.tintera.plume.resources.chat_folders_reorder
 import eu.tintera.plume.resources.chat_folders_title
-import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.drag_indicator_24dp
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
@@ -107,18 +102,12 @@ fun ChatFoldersScreen(
         snapshotFlow { dragState.draggedKey }.drop(1).filter { it == null }.collect { viewModel.commitOrder() }
     }
 
+    val scrollBehavior = settingsScrollBehavior()
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.settingsScroll(scrollBehavior),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(Res.string.chat_folders_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
-                    }
-                },
-            )
+            SettingsTopBar(title = stringResource(Res.string.chat_folders_title), onBack = onBack, scrollBehavior = scrollBehavior)
         },
     ) { padding ->
         val entries = state.entries

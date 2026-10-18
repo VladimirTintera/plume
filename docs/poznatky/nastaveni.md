@@ -148,8 +148,37 @@ a úložiště leželo ve sběrné sekci Obecné (asi 25 řádků). Rozvrh a roz
 - **Seznam sekcí nemá ViewModel.** Obsah (účet, notifikace, motiv) patří sekcím; kdyby si účet
   načítal i seznam, ptali bychom se na něj v dvoupanelu dvakrát. Ze stejného důvodu se ViewModel
   sekce vyrábí až uvnitř `when` nad sekcí — složí se jen jedna větev.
-- **Nadpis skupiny a její karta jsou jeden kus** (`SettingsGroup`). Jako dva sousedi ve sloupci
-  sekce by nadpis visel stejně daleko od svojí karty jako od té předchozí.
+- **Nadpis skupiny a její blok jsou jeden kus** (`SettingsGroup`). Jako dva sousedi ve sloupci
+  sekce by nadpis visel stejně daleko od svého bloku jako od toho předchozího.
+- **Skupiny jsou bloky zaoblených řádků, ne karta** (`GroupedColumn` v `core/ui/GroupedList.kt`,
+  říjen 2026). Do té doby byla skupina holá `Card` (`surfaceContainerHighest`, rohy 12 dp)
+  s řádky natěsno a dělicí čárou, zatímco kořen Nastavení a profil měly bloky 20/4 dp
+  v `surfaceContainerLowest` se spárou 2 dp — po ťuknutí na sekci přišel jiný, tmavší a hranatější
+  vzhled, a s ním dojem M2.
+  - **Tvar dává rozvržení, ne řádek.** `GroupedColumn` každé dítě umístí do vrstvy s tvarem podle
+    pozice (`placeRelativeWithLayer { shape; clip = true }`, ořez drží i vlnku po ťuknutí)
+    a podklad kreslí sám za řádky. Kdyby si tvar nesl řádek (`groupItemShape(index, count)`),
+    musel by každý ze ~40 řádků sekcí znát svoji pozici — a skupiny jsou plné `if`
+    (dostupná biometrie, tapeta, poskytovatel AI), takže by se s každou podmínkou krajní nároží
+    rozjela. Řádky zůstávají průhledné `ListItem`y.
+  - **Počítá se jen to, co je vidět:** dítě s nulovou výškou (skrytý `AnimatedVisibility`, řádek
+    s `return` na začátku) pozici nezabírá a krajní zaoblení nese krajní viditelný řádek.
+  - **Každé dítě je jeden řádek bloku.** Co k sobě patří (vzorky barev a poznámka „výběr barvy
+    vypne tapetu"), musí být v jednom `Column` — jinak z poznámky vznikne vlastní řádek.
+    Proto taky obsah skupiny už NENÍ `ColumnScope`.
+  - **Dělicí čára je `GroupBreak()`**: blok se rozdělí na dva se svými krajními zaobleními
+    (mezera `GROUP_BREAK_SPACING`). Čára mezi zaoblenými řádky by byla pozůstatek karty. Nevratná
+    akce má blok vlastní (vypnutí dvoufázového ověření), stejně jako v nabídkách.
+  - Stejný blok mají i ruční karty mimo `SettingsGroup`: správa zámku aplikace, dvoufázové
+    ověření a údaje pod poli v úpravě profilu.
+- **Motiv je spojená skupina tlačítek** (`ThemeModeSelector`, `ToggleButton` + `connected*Shapes`),
+  ne tři řádky s kolečky. Vybrané si přianimuje ikonu motivu jako záložky profilu; ikony u všech
+  tří by se s popisky na telefon nevešly, a proto je i „Podle systému" zkrácené na „Systém".
+- **Podstránky mají tutéž velkou hlavičku jako sekce** (`SettingsTopBar`: složky a jejich úprava,
+  samolepky a emoji, proxy, úprava profilu). Malý `TopAppBar` skákal při přechodu ze sekce o výšku
+  hlavičky a ve třetím panelu stál vedle velkého nadpisu sekce. „Uložit" v hlavičce je plné
+  tlačítko s tvarem (`SaveActionButton`), ne `TextButton` — hlavní akce obrazovky se mezi ikonami
+  lišty neodlišila.
 - **Řádek nese klikání celý, ovládací prvek má `onClick = null`.** Do přepínače ani kolečka se
   nemá trefovat a čtečka obrazovky má číst jednu položku, ne dvě; semantiku dodá
   `selectable(role = RadioButton)` / `toggleable(role = Switch)`.

@@ -17,7 +17,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import eu.tintera.plume.core.ui.GroupBreak
+import eu.tintera.plume.core.ui.GroupedColumn
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -314,7 +315,8 @@ private fun ColumnScope.StatusContent(viewModel: TwoStepViewModel, state: TwoSte
         return
     }
 
-    Card(Modifier.fillMaxWidth()) {
+    // Bloky zaoblených řádků jako skupiny sekcí Nastavení; vypnutí je nevratné, má blok vlastní.
+    GroupedColumn(Modifier.fillMaxWidth()) {
         if (status.hint.isNotBlank()) {
             InfoRow(stringResource(Res.string.settings_two_step_hint_row, status.hint))
         }
@@ -322,7 +324,7 @@ private fun ColumnScope.StatusContent(viewModel: TwoStepViewModel, state: TwoSte
             stringResource(if (status.hasRecoveryEmail) Res.string.settings_two_step_email_set else Res.string.settings_two_step_email_none),
         )
     }
-    Card(Modifier.fillMaxWidth()) {
+    GroupedColumn(Modifier.fillMaxWidth()) {
         ActionRow(Res.drawable.edit_24dp, Res.string.settings_two_step_change_password, !state.busy) {
             viewModel.start(TwoStepAction.ChangePassword)
         }
@@ -331,6 +333,7 @@ private fun ColumnScope.StatusContent(viewModel: TwoStepViewModel, state: TwoSte
             if (status.hasRecoveryEmail) Res.string.settings_two_step_change_email else Res.string.settings_two_step_set_email,
             !state.busy,
         ) { viewModel.start(TwoStepAction.ChangeEmail) }
+        GroupBreak()
         ActionRow(Res.drawable.lock_open_24dp, Res.string.settings_two_step_disable, !state.busy, destructive = true) {
             viewModel.start(TwoStepAction.Disable)
         }

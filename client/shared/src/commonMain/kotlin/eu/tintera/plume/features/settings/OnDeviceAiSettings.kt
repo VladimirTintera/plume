@@ -8,7 +8,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
+import eu.tintera.plume.core.ui.GroupBreak
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -382,7 +382,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
         )
 
         if (enabled) {
-            HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+            GroupBreak()
             /*
              * Návrhy odpovědí mají vlastní vypínač, shrnutí ne. Není to nedůslednost: shrnutí
              * se otevírá vědomě ťuknutím na ikonu, kdežto návrhy se objeví samy pod rozhovorem,
@@ -424,7 +424,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
              * aplikaci: shrnutí i návrhy odpovědí jedou přes zvoleného.
              */
             if (available.providers.size > 1) {
-                HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+                GroupBreak()
                 available.providers.forEach { provider ->
                     ChoiceRow(
                         title = stringResource(provider.title),
@@ -436,7 +436,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
             }
             when (variant.provider) {
                 AiProvider.GeminiNano -> {
-                    HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+                    GroupBreak()
                     VariantSwitch(
                         title = Res.string.settings_on_device_ai_preview,
                         summary = Res.string.settings_on_device_ai_preview_summary,
@@ -459,7 +459,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                 }
                 // Větší model se nabídne jen tam, kde na něj stačí paměť.
                 AiProvider.Gemma -> if (available.gemmaModels.size > 1) {
-                    HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+                    GroupBreak()
                     available.gemmaModels.forEach { gemma ->
                         ChoiceRow(
                             title = gemma.displayName,
@@ -472,7 +472,7 @@ fun OnDeviceAiSettings(viewModel: OnDeviceAiSettingsViewModel) {
                 // Systémový model bez voleb: verzi i stahování řídí iOS.
                 AiProvider.Apple -> Unit
             }
-            HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+            GroupBreak()
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth().padding(16.dp),

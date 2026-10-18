@@ -7,11 +7,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.ListItem
 import androidx.compose.runtime.produceState
+import eu.tintera.plume.core.ui.GroupedColumn
 import eu.tintera.plume.core.ui.displayPhone
 import eu.tintera.plume.core.telegram.TelegramSession
 import eu.tintera.plume.core.telegram.AccountRepository
 import org.koin.compose.koinInject
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import eu.tintera.plume.resources.profile_photos_open
@@ -34,7 +34,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularWavyProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -43,7 +42,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -64,8 +62,6 @@ import eu.tintera.plume.core.ui.PhotoCropOverlay
 import eu.tintera.plume.core.ui.rememberAttachmentPicker
 import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.resources.Res
-import eu.tintera.plume.resources.arrow_back_24dp
-import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.edit_profile_bio
 import eu.tintera.plume.resources.edit_profile_bio_help
@@ -150,19 +146,17 @@ fun EditProfileScreen(
 
     // Ořez fotky leží přes celou obrazovku, nad Scaffoldem.
     Box(Modifier.fillMaxSize()) {
+        val scrollBehavior = settingsScrollBehavior()
         Scaffold(
-            modifier = modifier,
+            modifier = modifier.settingsScroll(scrollBehavior),
             snackbarHost = { SnackbarHost(snackbarHostState) },
             topBar = {
-                TopAppBar(
-                    title = { Text(stringResource(Res.string.edit_profile_title)) },
-                    navigationIcon = {
-                        if (onBack != null) IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                            Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
-                        }
-                    },
+                SettingsTopBar(
+                    title = stringResource(Res.string.edit_profile_title),
+                    onBack = onBack,
+                    scrollBehavior = scrollBehavior,
                     actions = {
-                        TextButton(onClick = viewModel::save, enabled = viewModel.canSave) {
+                        SaveActionButton(onClick = viewModel::save, enabled = viewModel.canSave) {
                             Text(stringResource(Res.string.edit_profile_save))
                         }
                     },
@@ -279,21 +273,24 @@ fun EditProfileScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                BirthdateRows(
-                    value = viewModel.birthdate,
-                    shown = viewModel.birthdateToSave,
-                    showYear = viewModel.showBirthYear,
-                    onChange = { viewModel.birthdate = it },
-                    onShowYearChange = { viewModel.showBirthYear = it },
-                )
-                PersonalChannelRow(
-                    value = viewModel.personalChannel,
-                    channels = viewModel.suitableChannels,
-                    failed = viewModel.suitableChannelsFailed,
-                    onOpen = viewModel::loadSuitableChannels,
-                    onChange = { viewModel.personalChannel = it },
-                )
-                PhoneNumberRow(onClick = onChangePhone)
+                // Údaje pod poli jsou blok zaoblených řádků jako skupiny sekcí Nastavení.
+                GroupedColumn(Modifier.fillMaxWidth()) {
+                    BirthdateRows(
+                        value = viewModel.birthdate,
+                        shown = viewModel.birthdateToSave,
+                        showYear = viewModel.showBirthYear,
+                        onChange = { viewModel.birthdate = it },
+                        onShowYearChange = { viewModel.showBirthYear = it },
+                    )
+                    PersonalChannelRow(
+                        value = viewModel.personalChannel,
+                        channels = viewModel.suitableChannels,
+                        failed = viewModel.suitableChannelsFailed,
+                        onOpen = viewModel::loadSuitableChannels,
+                        onChange = { viewModel.personalChannel = it },
+                    )
+                    PhoneNumberRow(onClick = onChangePhone)
+                }
                 OwnProfileMusicSection(onNotice = { viewModel.notice = it })
             }
         }

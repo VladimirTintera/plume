@@ -6,14 +6,29 @@ import eu.tintera.plume.resources.settings_chats_widget_summary
 import androidx.compose.foundation.clickable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.padding
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ToggleButton
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,6 +48,7 @@ import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.brightness_medium_24dp
 import eu.tintera.plume.resources.dark_mode_24dp
 import eu.tintera.plume.resources.light_mode_24dp
+import eu.tintera.plume.resources.mark_chat_unread_24dp
 import eu.tintera.plume.resources.palette_24dp
 import eu.tintera.plume.resources.settings_chats
 import eu.tintera.plume.resources.settings_messages
@@ -70,26 +86,11 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
     val dynamicColor = storedDynamic ?: supportsDynamicColor
 
     SettingsGroup(Res.string.settings_theme) {
-        ThemeMode.entries.forEach { mode ->
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                leadingContent = { Icon(painterResource(mode.icon), contentDescription = null) },
-                headlineContent = { Text(stringResource(mode.label)) },
-                // `onClick = null` u kolečka: klikání nese celý řádek, aby se nemuselo trefovat
-                // do něj — a aby čtečka obrazovky četla jednu položku, ne dvě.
-                trailingContent = { RadioButton(selected = mode == selectedTheme, onClick = null) },
-                modifier = Modifier.selectable(
-                    selected = mode == selectedTheme,
-                    role = Role.RadioButton,
-                    onClick = { viewModel.setThemeMode(mode) },
-                ),
-            )
-        }
+        ThemeModeSelector(selected = selectedTheme, onSelect = viewModel::setThemeMode)
 
-        // Barvy z tapety se kombinují s kterýmkoli motivem, proto přepínač, ne čtvrté kolečko.
+        // Barvy z tapety se kombinují s kterýmkoli motivem, proto přepínač, ne čtvrtá volba.
         // Kde systémové barvy nejsou (iOS, Android do 11), by to byla volba, po které se nic nezmění.
         if (supportsDynamicColor) {
-            HorizontalDivider(Modifier.padding(horizontal = 16.dp))
             ListItem(
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 leadingContent = { Icon(painterResource(Res.drawable.palette_24dp), contentDescription = null) },
@@ -112,18 +113,21 @@ fun AppearanceSettings(viewModel: AppearanceViewModel) {
     // tvrdil, že se aplikace kreslí z něj. Řada je vidět i tak: ťuknutí tapetu vypne.
     val dynamicActive = dynamicColor && supportsDynamicColor
     SettingsGroup(Res.string.settings_theme_color) {
-        ThemeColorPicker(
-            selected = if (dynamicActive) null else storedColor ?: ThemeColor.BLUE,
-            isDark = selectedTheme.resolveIsDark(),
-            onSelect = { color -> viewModel.chooseThemeColor(color, dynamicActive) },
-        )
-        AnimatedVisibility(visible = dynamicActive) {
-            Text(
-                stringResource(Res.string.settings_theme_color_dynamic_note),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+        // Vzorky i poznámka pod nimi jsou jeden řádek bloku: poznámka mluví o vzorcích.
+        Column {
+            ThemeColorPicker(
+                selected = if (dynamicActive) null else storedColor ?: ThemeColor.BLUE,
+                isDark = selectedTheme.resolveIsDark(),
+                onSelect = { color -> viewModel.chooseThemeColor(color, dynamicActive) },
             )
+            AnimatedVisibility(visible = dynamicActive) {
+                Text(
+                    stringResource(Res.string.settings_theme_color_dynamic_note),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                )
+            }
         }
     }
 
@@ -143,6 +147,7 @@ internal fun SeparateUnreadRow(viewModel: AppearanceViewModel) {
     val separateUnread by viewModel.separateUnreadChats.collectAsStateWithLifecycle()
     ListItem(
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        leadingContent = { Icon(painterResource(Res.drawable.mark_chat_unread_24dp), contentDescription = null) },
         headlineContent = { Text(stringResource(Res.string.settings_separate_unread)) },
         supportingContent = { Text(stringResource(Res.string.settings_separate_unread_summary)) },
         trailingContent = { IconSwitch(checked = separateUnread, onCheckedChange = null) },
@@ -168,6 +173,53 @@ internal fun ChatsWidgetRow(viewModel: AppearanceViewModel) {
         supportingContent = { Text(stringResource(Res.string.settings_chats_widget_summary)) },
         modifier = Modifier.clickable(onClick = viewModel::pinChatsWidget),
     )
+}
+
+/**
+ * Motiv jako spojená přepínací tlačítka (M3 Expressive connected button group), ne tři řádky
+ * s kolečky: volba jedné ze tří krátkých možností je přesně to, na co skupina je, a kolečka pod
+ * sebou byla vzor M2. Vybrané tlačítko si přianimuje ikonu motivu, stejně jako záložky profilu —
+ * ikony u všech tří by se na telefon s popisky nevešly.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun ThemeModeSelector(selected: ThemeMode, onSelect: (ThemeMode) -> Unit) {
+    val modes = ThemeMode.entries
+    Row(
+        Modifier.fillMaxWidth().padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+    ) {
+        modes.forEachIndexed { index, mode ->
+            val checked = mode == selected
+            ToggleButton(
+                checked = checked,
+                onCheckedChange = { if (!checked) onSelect(mode) },
+                shapes = when (index) {
+                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                    modes.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                },
+                contentPadding = PaddingValues(horizontal = 12.dp),
+                modifier = Modifier.weight(1f).semantics { role = Role.RadioButton },
+            ) {
+                AnimatedVisibility(
+                    visible = checked,
+                    enter = expandHorizontally(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+                        scaleIn(MaterialTheme.motionScheme.defaultSpatialSpec()) +
+                        fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()),
+                    exit = shrinkHorizontally(MaterialTheme.motionScheme.fastSpatialSpec()) +
+                        fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()),
+                ) {
+                    Icon(
+                        painterResource(mode.icon),
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = ButtonDefaults.IconSpacing).size(ButtonDefaults.IconSize),
+                    )
+                }
+                Text(stringResource(mode.label), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
 }
 
 private val ThemeMode.label: StringResource

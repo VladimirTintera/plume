@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.proxy
 
+import eu.tintera.plume.features.settings.SettingsTopBar
+import eu.tintera.plume.features.settings.settingsScroll
+import eu.tintera.plume.features.settings.settingsScrollBehavior
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
@@ -41,7 +44,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.ToggleButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -75,9 +77,7 @@ import eu.tintera.plume.core.ui.resolve
 import eu.tintera.plume.core.ui.resolveNow
 import eu.tintera.plume.resources.Res
 import eu.tintera.plume.resources.add_24dp
-import eu.tintera.plume.resources.arrow_back_24dp
 import eu.tintera.plume.resources.check_24dp
-import eu.tintera.plume.resources.common_back
 import eu.tintera.plume.resources.common_cancel
 import eu.tintera.plume.resources.content_copy_24dp
 import eu.tintera.plume.resources.delete_24dp
@@ -140,17 +140,15 @@ fun ProxySettingsScreen(
         snackbarScope.launch { snackbarHostState.showSnackbar(message) }
     }
 
+    val scrollBehavior = settingsScrollBehavior()
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.settingsScroll(scrollBehavior),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(Res.string.proxy_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack, shapes = IconButtonDefaults.shapes()) {
-                        Icon(painterResource(Res.drawable.arrow_back_24dp), contentDescription = stringResource(Res.string.common_back))
-                    }
-                },
+            SettingsTopBar(
+                title = stringResource(Res.string.proxy_title),
+                onBack = onBack,
+                scrollBehavior = scrollBehavior,
                 actions = {
                     if (!state.proxies.isNullOrEmpty()) {
                         IconButton(onClick = viewModel::measure, shapes = IconButtonDefaults.shapes()) {
