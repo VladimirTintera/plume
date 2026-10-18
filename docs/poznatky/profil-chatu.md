@@ -934,3 +934,33 @@ narození (`docs/poznatky/nastaveni.md`, „Narozeniny").
   vidí „Navrhl(a) jsi profilovou fotku" bez „Nastavit". **Animovaná profilovka jako návrh
   ověřená není.** Testovací účet …527 má od té doby tuhle fotku (výhled na město).
 
+
+### Úprava kontaktu
+
+⋮ v profilu kontaktu → „Upravit kontakt" (`EditContactSheet`): jméno, pod kterým ho má
+uživatel uložené, poznámka a vlastní fotka. Nic z toho kontakt nevidí, ostatní taky ne. Doména
+`ChatProfile.contact` (`ContactDetails`), repository `editContact` a `setPersonalPhoto`.
+
+- **Jméno i poznámka jdou jedním voláním `addContact`** s `ImportedContact.note`. Kontakt
+  podle id se tím přepíše a číslo může zůstat prázdné. `setUserNote` zvlášť potřeba není.
+- **Poznámka se posílá jen změněná** (`note = null` = nechat). Pole upravuje holý text, takže
+  nezměněná poznámka si nechá formátování, které jí dal jiný klient. V profilu se kreslí
+  i s formátováním (`RichText`), hned za bio.
+- **Pole poznámky má jen server, který poznámky umí** (`user_note_text_length_max` > 0). Délka
+  pole se řídí touž volbou.
+- **Vlastní fotka jde stejným výběrem a ořezem jako návrh fotky** (`ProfilePhotoCrop`); ořez
+  pozná podle `cropForPersonalPhoto`, kam výsledek patří (`confirmCrop`). **Fotka sheet zavře**:
+  ořez je překryv nad profilem a modální sheet je okno nad ním, ořez by zůstal schovaný. Fotka
+  se ukládá hned, nečeká na Uložit.
+- **Vlastní fotku TDLib vrací místo té, kterou si kontakt nastavil** (`User.profilePhoto`
+  i `Chat.photo`), takže ji profil, seznam chatů i konverzace ukážou samy. Že nějaká je, říká
+  jen `UserFullInfo.personalPhoto`. Sheet pak nabízí „Změnit" a „Odebrat".
+- **Tlačítko Uložit po otevření klávesnice vyjede nahoru**, přímo pod pole, na které se
+  pak ťuká. Při testu přes `adb` tak druhé ťuknutí trefilo Uložit místo pole příjmení: souřadnice
+  se berou z výpisu PO otevření klávesnice, ne ze snímku před ním.
+- **Ověřeno na emulátoru** (…527, kontakt „Pixel 7 Pro" = …029):
+  - Přejmenování na „Pixel 7 Testovaci" s poznámkou se v profilu hned ukázalo.
+  - Vlastní fotka z výběru a ořezu se nastavila a sheet pak nabízel „Změnit" a „Odebrat".
+  - Odebrání fotky vrátilo iniciály.
+  - Návrat jména a smazání poznámky (prázdná poznámka) vrátily kontakt do původního stavu.
+  - **Neověřené:** iOS a poznámka s formátováním od jiného klienta.

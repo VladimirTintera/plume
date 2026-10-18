@@ -97,6 +97,20 @@ interface ProfileRepository {
     suspend fun suggestBirthdate(userId: Long, birthdate: Birthdate): Result<Unit> =
         Result.failure(UnsupportedOperationException())
 
+    /**
+     * Upraví kontakt: jméno a poznámku, kterou vidí jen uživatel (`addContact`, kontakt podle
+     * id se tím přepíše). [note] `null` = poznámku nechat, jak je (i s formátováním).
+     */
+    suspend fun editContact(userId: Long, firstName: String, lastName: String, note: String?): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
+     * Vlastní fotka kontaktu, kterou vidí jen uživatel (`setUserPersonalProfilePhoto`); `null`
+     * ji odebere a vrátí se fotka, kterou si kontakt nastavil sám.
+     */
+    suspend fun setPersonalPhoto(userId: Long, photo: ProfilePhotoFile?): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
     /** Navrhne uživateli [userId] profilovou fotku (`suggestUserProfilePhoto`), oříznutou jako vlastní. */
     suspend fun suggestPhoto(userId: Long, photo: ProfilePhotoFile): Result<Unit> =
         Result.failure(UnsupportedOperationException())
@@ -477,6 +491,8 @@ data class ChatProfile(
      * skladby se pozná, že se seznam změnil.
      */
     val firstProfileAudio: MessageMedia.Audio? = null,
+    /** Kontakt, jak ho má uživatel uložený — jméno, poznámka a vlastní fotka; `null` = není kontakt. */
+    val contact: ContactDetails? = null,
 ) {
     /** Odkaz ke sdílení: veřejné jméno, jinak pozvánka; `null` = není co sdílet. */
     val link: String?
@@ -602,3 +618,18 @@ private fun longestIncreasing(values: List<Int>): List<Int> {
     }
     return result.toList()
 }
+
+/**
+ * Kontakt v adresáři účtu, jak ho vidí jen uživatel: jméno, pod kterým ho má uložené, poznámka
+ * (`UserFullInfo.note`) a jestli mu nastavil vlastní fotku (`personalPhoto`). Ostatní nic z toho
+ * nevidí — ani kontakt sám.
+ */
+data class ContactDetails(
+    val firstName: String,
+    val lastName: String,
+    val note: String = "",
+    val noteEntities: List<MessageEntity> = emptyList(),
+    /** Nejvyšší délka poznámky (`user_note_text_length_max`); 0 = server poznámky neumí. */
+    val noteMaxLength: Int = 0,
+    val hasPersonalPhoto: Boolean = false,
+)

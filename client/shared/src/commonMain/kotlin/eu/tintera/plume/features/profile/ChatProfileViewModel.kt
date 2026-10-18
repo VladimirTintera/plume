@@ -31,6 +31,11 @@ import eu.tintera.plume.core.audio.VoicePlayer
 import eu.tintera.plume.core.audio.MusicQueue
 import eu.tintera.plume.core.audio.QueueTrack
 import eu.tintera.plume.resources.contact_add_failed
+import eu.tintera.plume.resources.contact_photo_failed
+import eu.tintera.plume.resources.contact_photo_removed
+import eu.tintera.plume.resources.contact_photo_set
+import eu.tintera.plume.resources.contact_save_failed
+import eu.tintera.plume.resources.contact_saved
 import eu.tintera.plume.resources.contact_remove_failed
 import eu.tintera.plume.resources.contact_removed
 import eu.tintera.plume.resources.spam_bar_contact_added
@@ -700,8 +705,22 @@ class ChatProfileViewModel(
 
     val suggestCroppingVideo: VideoCropControl? get() = photoCrop?.video
 
+    /** K čemu je otevřený ořez: návrh fotky člověku, nebo vlastní fotka kontaktu. */
+    private var cropForPersonalPhoto = false
+
     /** Z výběru příloh: první fotka nebo video jde do ořezu, jako u vlastní profilovky. */
     fun suggestPhotoFrom(attachments: List<OutgoingAttachment>) {
+        cropForPersonalPhoto = false
+        openCrop(attachments)
+    }
+
+    /** Vlastní fotka kontaktu: stejný výběr a ořez jako návrh, jen se nikomu neposílá. */
+    fun personalPhotoFrom(attachments: List<OutgoingAttachment>) {
+        cropForPersonalPhoto = true
+        openCrop(attachments)
+    }
+
+    private fun openCrop(attachments: List<OutgoingAttachment>) {
         val crop = photoCrop ?: return
         viewModelScope.launch {
             runCatching { crop.open(attachments) }
@@ -714,8 +733,62 @@ class ChatProfileViewModel(
         photoCrop?.cancel()
     }
 
+    /** Potvrzený ořez: podle toho, k čemu se otevřel, návrh fotky, nebo vlastní fotka kontaktu. */
+    fun confirmCrop(region: CropRegion) =
+        if (cropForPersonalPhoto) setPersonalPhoto(region) else suggestCroppedPhoto(region)
+
+    private fun setPersonalPhoto(region: CropRegion) {
+        val crop = photoCrop ?: return
+        val userId = _state.value.profile?.userId ?: return
+        viewModelScope.launch {
+            runCatching { crop.crop(region) }
+                .mapCatching { prepared -> prepared?.let { profiles.setPersonalPhoto(userId, it.file).getOrThrow() } }
+                .onSuccess {
+                    _state.update { it.copy(error = UiText(Res.string.contact_photo_set)) }
+                    refreshProfile()
+                }
+                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.contact_photo_failed)) } }
+        }
+    }
+
+    /** Odebere vlastní fotku kontaktu; vrátí se ta, kterou si nastavil sám. */
+    fun removePersonalPhoto() {
+        val userId = _state.value.profile?.userId ?: return
+        viewModelScope.launch {
+            profiles.setPersonalPhoto(userId, null)
+                .onSuccess {
+                    _state.update { it.copy(error = UiText(Res.string.contact_photo_removed)) }
+                    refreshProfile()
+                }
+                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.contact_photo_failed)) } }
+        }
+    }
+
+    /**
+     * Uloží jméno a poznámku kontaktu. Poznámka se posílá jen změněná: nezměněná si tak nechá
+     * formátování, které jí dal jiný klient (pole tady upravuje holý text).
+     */
+    fun saveContact(firstName: String, lastName: String, note: String) {
+        val profile = _state.value.profile ?: return
+        val userId = profile.userId ?: return
+        val contact = profile.contact ?: return
+        viewModelScope.launch {
+            profiles.editContact(
+                userId = userId,
+                firstName = firstName.trim(),
+                lastName = lastName.trim(),
+                note = note.trim().takeIf { it != contact.note },
+            )
+                .onSuccess {
+                    _state.update { it.copy(error = UiText(Res.string.contact_saved)) }
+                    refreshProfile()
+                }
+                .onFailure { failure -> _state.update { it.copy(error = failure.reported(Res.string.contact_save_failed)) } }
+        }
+    }
+
     /** Ořízne a pošle návrh; přijde mu jako zpráva s fotkou a „Nastavit". */
-    fun suggestCroppedPhoto(region: CropRegion) {
+    private fun suggestCroppedPhoto(region: CropRegion) {
         val crop = photoCrop ?: return
         val userId = _state.value.profile?.userId ?: return
         viewModelScope.launch {

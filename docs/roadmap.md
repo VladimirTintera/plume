@@ -329,15 +329,17 @@ Sekce jsou dnes dvě: Chaty a Nastavení (z menu účtu, rail ani lišta nejsou)
 
 ## Mezery proti API TDLib
 
-Porovnání API ve wrapperu `tdl-coroutines` 15.0.0 s tím, co volá `core/telegram` (říjen 2026):
-**z 1022 funkcí se volá 294, ze 190 updatů se odebírá 70.** Většinu zbytku tvoří Bot API,
+Porovnání API ve wrapperu `tdl-coroutines` 15.0.0 s tím, co volá `core/telegram` (říjen 2026,
+zopakované 18. 10.): **z 1022 funkcí se volá 395, ze 190 updatů se odebírá 89** (při prvním
+průchodu 294 a 70). Většinu zbytku tvoří Bot API,
 Telegram Business, Passport a testovací volání, které klient nepotřebuje. Sem patří jen to, co
 v jiné sekci roadmapy (nebo v [roadmap-konverzace.md](roadmap-konverzace.md)) zapsané nebylo;
 hovory, příběhy, platby, hvězdy a dárky mají své místo jinde.
 
 Porovnání se dá zopakovat: jména funkcí z `TdlClient.kt` ve zdrojovém jaru wrapperu
 (`grep -oE "suspend fun [a-zA-Z]+"`, updaty `val [a-zA-Z]+Updates`) proti
-`grep -rl "dev.g000sha256.tdl" client` a hledání `\bjméno\(`. Výsledek je hrubé síto:
+`grep -rl "dev.g000sha256.tdl" client` a hledání `\bjméno\(`. **Grep po jednom jménu přes celý
+kód trvá přes dvě minuty**; rychlé je načíst jména i spojený zdroj do Pythonu a porovnat množiny. Výsledek je hrubé síto:
 funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc může dělat jiné volání).
 
 **Co uživatele zablokuje nebo vypadá jako chyba** — přednostně:
@@ -395,6 +397,16 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   synchronizaci s druhým zařízením.
 
 **Účet a nastavení:**
+
+- ~~Úprava kontaktu: jméno, poznámka (`ImportedContact.note`, `UserFullInfo.note`) a vlastní fotka,
+  kterou vidí jen uživatel (`setUserPersonalProfilePhoto`)~~ — hotovo (⋮ v profilu → Upravit
+  kontakt; `docs/poznatky/profil-chatu.md`, „Úprava kontaktu"). Zbývá ověřit iOS a poznámku
+  s formátováním od jiného klienta.
+- Nalezené při druhém porovnání API (18. 10.), zatím bez místa v aplikaci: smazání zpráv
+  za období v soukromém chatu a základní skupině (`deleteChatMessagesByDate`), tiché odesílání
+  jako výchozí pro chat (`toggleChatDefaultDisableNotification`), smazání všech konceptů
+  najednou v přehledu konceptů (`clearAllDraftMessages`), doporučené kanály
+  (`getRecommendedChats`), nahlášení profilové fotky (`reportChatPhoto`).
 
 - ~~Změna telefonního čísla~~ — hotovo (úprava profilu → Telefonní číslo).
 - ~~Smazání účtu a samosmazání po neaktivitě~~ — hotovo (Soukromí účtu → Smazání účtu;
