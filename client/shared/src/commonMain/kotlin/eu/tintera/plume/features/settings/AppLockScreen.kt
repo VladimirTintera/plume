@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.resources.app_lock_biometrics_revoked
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import eu.tintera.plume.core.ui.ChoiceRow
 import eu.tintera.plume.resources.lock_open_24dp
 import eu.tintera.plume.core.ui.ConfirmDialog
 import eu.tintera.plume.core.ui.MediumButton
@@ -11,7 +14,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import eu.tintera.plume.core.ui.GroupedColumn
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,25 +23,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -387,19 +385,8 @@ private fun AppLockManageContent(
     onSetBiometrics: (Boolean) -> Unit,
     onDisable: () -> Unit,
 ) {
-    var showTimeoutDialog by rememberSaveable { mutableStateOf(false) }
     var showDisableConfirm by rememberSaveable { mutableStateOf(false) }
 
-    if (showTimeoutDialog) {
-        TimeoutChooserDialog(
-            currentTimeout = settings.timeoutSeconds,
-            onSelect = {
-                onSetTimeout(it)
-                showTimeoutDialog = false
-            },
-            onDismiss = { showTimeoutDialog = false },
-        )
-    }
 
     if (showDisableConfirm) {
         ConfirmDialog(
@@ -436,14 +423,13 @@ private fun AppLockManageContent(
             )
 
             // Automaticky zamknout
-            ListItem(
-                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                leadingContent = {
-                    Icon(painterResource(Res.drawable.schedule_24dp), contentDescription = null)
-                },
-                headlineContent = { Text(stringResource(Res.string.settings_app_lock_timeout)) },
-                supportingContent = { Text(stringResource(timeoutStringResource(settings.timeoutSeconds))) },
-                modifier = Modifier.clickable { showTimeoutDialog = true },
+            ChoiceRow(
+                headline = stringResource(Res.string.settings_app_lock_timeout),
+                icon = Res.drawable.schedule_24dp,
+                options = APP_LOCK_TIMEOUTS,
+                selected = settings.timeoutSeconds,
+                label = { stringResource(timeoutStringResource(it)) },
+                onSelect = onSetTimeout,
             )
 
             // Biometrie
@@ -478,47 +464,6 @@ private fun AppLockManageContent(
             Text(stringResource(Res.string.settings_app_lock_disable))
         }
     }
-}
-
-@Composable
-private fun TimeoutChooserDialog(
-    currentTimeout: Int,
-    onSelect: (Int) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(Res.string.settings_app_lock_timeout)) },
-        text = {
-            Column {
-                for (timeout in APP_LOCK_TIMEOUTS) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onSelect(timeout) }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(
-                            selected = timeout == currentTimeout,
-                            onClick = { onSelect(timeout) },
-                        )
-                        Text(
-                            text = stringResource(timeoutStringResource(timeout)),
-                            style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(start = 12.dp),
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) {
-                Text(stringResource(Res.string.common_cancel))
-            }
-        },
-    )
 }
 
 private fun timeoutStringResource(seconds: Int): StringResource = when (seconds) {

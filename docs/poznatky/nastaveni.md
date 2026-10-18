@@ -171,6 +171,17 @@ a úložiště leželo ve sběrné sekci Obecné (asi 25 řádků). Rozvrh a roz
     akce má blok vlastní (vypnutí dvoufázového ověření), stejně jako v nabídkách.
   - Stejný blok mají i ruční karty mimo `SettingsGroup`: správa zámku aplikace, dvoufázové
     ověření a údaje pod poli v úpravě profilu.
+- **Výběr jedné hodnoty je nabídka u řádku, ne dialog** (`ChoiceRow` / `ChoiceMenu` v `core/ui`):
+  tah v seznamu chatů, automatické stahování, uchovávání médií, strop mezipaměti, časovač zámku,
+  automatické odhlášení zařízení. Dialog s kolečky otevřel okno přes celou obrazovku kvůli
+  krátké volbě. Řádek má šipku (otočí se, když je nabídka otevřená), vybraná volba je
+  zaškrtnutá a ťuknutí ji rovnou zvolí. Věta, která dřív stála v dialogu nad volbami, je
+  v nabídce jako první skupina (`note`) — stejně široká jako volby (`IntrinsicSize.Max`),
+  užší vypadala jako zbytek.
+  - **Vysoká nabídka se otevře přes svůj řádek**, když se pod něj nevejde (tah doprava na
+    telefonu: věta a šest voleb). Tak se rozbalovací nabídky na telefonu chovají; řádek zůstane
+    pod ní a po zavření je zas vidět.
+  - Ukládání do galerie zůstalo dialogem: je to editor víc hodnot s „Hotovo", ne jedna volba.
 - **Motiv je spojená skupina tlačítek** (`ThemeModeSelector`, `ToggleButton` + `connected*Shapes`),
   ne tři řádky s kolečky. Vybrané si přianimuje ikonu motivu jako záložky profilu; ikony u všech
   tří by se s popisky na telefon nevešly, a proto je i „Podle systému" zkrácené na „Systém".

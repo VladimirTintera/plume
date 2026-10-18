@@ -1,6 +1,9 @@
 package eu.tintera.plume.features.settings
 
 import eu.tintera.plume.resources.data_usage_24dp
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import eu.tintera.plume.core.ui.ChoiceRow
 import eu.tintera.plume.core.ui.MediumButtonIcon
 import eu.tintera.plume.core.ui.ButtonEmphasis
 import eu.tintera.plume.core.ui.MediumButton
@@ -25,7 +28,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -41,18 +43,15 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -146,12 +145,10 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
     val state by viewModel.state.collectAsStateWithLifecycle()
     val keepMedia by viewModel.keepMedia.collectAsStateWithLifecycle()
     val cacheLimit by viewModel.cacheLimit.collectAsStateWithLifecycle()
-    var pickLimit by rememberSaveable { mutableStateOf(false) }
 
     // Dialog mazání nese chat (`OTHER_CHATS`-ne, `null` = všude); obsah se bere ze stavu.
     var clearAll by rememberSaveable { mutableStateOf(false) }
     var clearChatId by rememberSaveable { mutableStateOf<Long?>(null) }
-    var pickKeep by rememberSaveable { mutableStateOf(false) }
     var deleteModel by rememberSaveable { mutableStateOf<GemmaModel?>(null) }
     var deletePack by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -250,17 +247,23 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
             if (autosavesToGallery) AutosaveGroup(viewModel = koinViewModel(), snackbarHostState = snackbarHostState)
 
             SettingsGroup(Res.string.storage_keep_media_title) {
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = { Text(stringResource(Res.string.storage_keep_media)) },
-                    supportingContent = { Text(stringResource(keepMedia.label)) },
-                    modifier = Modifier.clickable(enabled = !state.clearing) { pickKeep = true },
+                ChoiceRow(
+                    headline = stringResource(Res.string.storage_keep_media),
+                    options = KeepMedia.entries,
+                    selected = keepMedia,
+                    label = { stringResource(it.label) },
+                    note = stringResource(Res.string.storage_keep_media_body),
+                    onSelect = viewModel::setKeepMedia,
+                    enabled = !state.clearing,
                 )
-                ListItem(
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
-                    headlineContent = { Text(stringResource(Res.string.storage_cache_limit)) },
-                    supportingContent = { Text(cacheLimit.label()) },
-                    modifier = Modifier.clickable(enabled = !state.clearing) { pickLimit = true },
+                ChoiceRow(
+                    headline = stringResource(Res.string.storage_cache_limit),
+                    options = CacheLimit.entries,
+                    selected = cacheLimit,
+                    label = { it.label() },
+                    note = stringResource(Res.string.storage_cache_limit_body),
+                    onSelect = viewModel::setCacheLimit,
+                    enabled = !state.clearing,
                 )
             }
 
@@ -355,36 +358,6 @@ fun StorageSettings(viewModel: StorageViewModel, snackbarHostState: SnackbarHost
                 viewModel.clear(selected, chat.chatId)
             },
             onDismiss = { clearChatId = null },
-        )
-    }
-
-    if (pickKeep) {
-        ChoiceDialog(
-            title = Res.string.storage_keep_media,
-            body = Res.string.storage_keep_media_body,
-            options = KeepMedia.entries,
-            label = { stringResource(it.label) },
-            selected = keepMedia,
-            onSelect = { keep ->
-                pickKeep = false
-                viewModel.setKeepMedia(keep)
-            },
-            onDismiss = { pickKeep = false },
-        )
-    }
-
-    if (pickLimit) {
-        ChoiceDialog(
-            title = Res.string.storage_cache_limit,
-            body = Res.string.storage_cache_limit_body,
-            options = CacheLimit.entries,
-            label = { it.label() },
-            selected = cacheLimit,
-            onSelect = { limit ->
-                pickLimit = false
-                viewModel.setCacheLimit(limit)
-            },
-            onDismiss = { pickLimit = false },
         )
     }
 
@@ -584,44 +557,6 @@ private fun ClearDialog(
                 Text(stringResource(Res.string.storage_clear_confirm, fileSizeText(selectedBytes)))
             }
         },
-        dismissButton = {
-            TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
-        },
-    )
-}
-
-/** Výběr jedné volby (doba uchování, strop mezipaměti): věta o tom, co volba dělá, a kolečka. */
-@Composable
-private fun <T> ChoiceDialog(
-    title: StringResource,
-    body: StringResource,
-    options: List<T>,
-    label: @Composable (T) -> String,
-    selected: T,
-    onSelect: (T) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(title)) },
-        text = {
-            Column {
-                Text(stringResource(body), modifier = Modifier.padding(bottom = 8.dp))
-                options.forEach { option ->
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .selectable(selected = option == selected, role = Role.RadioButton, onClick = { onSelect(option) })
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        RadioButton(selected = option == selected, onClick = null)
-                        Text(label(option), modifier = Modifier.padding(start = 12.dp))
-                    }
-                }
-            }
-        },
-        confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_cancel)) }
         },
