@@ -1,5 +1,6 @@
 package eu.tintera.plume.core.settings
 
+import eu.tintera.plume.features.chats.StoredTriageVerdict
 import eu.tintera.plume.features.conversation.StoredTranscript
 import kotlinx.serialization.json.Json
 import eu.tintera.plume.core.bookmarks.MessageBookmark
@@ -227,6 +228,15 @@ interface AppSettings {
 
     /** Uloží přepisy. Neblokuje. */
     fun setStoredTranscripts(transcripts: List<StoredTranscript>)
+
+    /**
+     * Posudky triáže chatů („čeká na odpověď") všech účtů, aby se po restartu nepřečtené chaty
+     * neposuzovaly znovu; spravuje je `ChatTriage`.
+     */
+    val storedTriageVerdicts: StateFlow<List<StoredTriageVerdict>>
+
+    /** Uloží posudky triáže. Neblokuje. */
+    fun setStoredTriageVerdicts(verdicts: List<StoredTriageVerdict>)
 
     /** Tiché hodiny notifikací (Nastavení → Notifikace). Jen v zařízení, nesynchronizují se. */
     val quietHours: StateFlow<QuietHours>
@@ -729,6 +739,24 @@ class DataStoreAppSettings(
         }
     }
 
+    override val storedTriageVerdicts: StateFlow<List<StoredTriageVerdict>> = value(emptyList()) { preferences ->
+        preferences[STORED_TRIAGE_VERDICTS]?.let { stored ->
+            runCatching { storedListJson.decodeFromString<List<StoredTriageVerdict>>(stored) }.getOrNull()
+        }.orEmpty()
+    }
+
+    override fun setStoredTriageVerdicts(verdicts: List<StoredTriageVerdict>) {
+        scope.launch {
+            edit { preferences ->
+                if (verdicts.isEmpty()) {
+                    preferences.remove(STORED_TRIAGE_VERDICTS)
+                } else {
+                    preferences[STORED_TRIAGE_VERDICTS] = storedListJson.encodeToString(verdicts)
+                }
+            }
+        }
+    }
+
     override val chatSnoozes: StateFlow<List<ChatSnooze>> = value(emptyList()) { preferences ->
         preferences[CHAT_SNOOZES]?.let { stored ->
             runCatching { storedListJson.decodeFromString<List<ChatSnooze>>(stored) }.getOrNull()
@@ -1123,6 +1151,7 @@ class DataStoreAppSettings(
         val VIDEO_POSITIONS = stringPreferencesKey("video_positions")
         val CHAT_COLORS = stringPreferencesKey("chat_colors")
         val STORED_TRANSCRIPTS = stringPreferencesKey("stored_transcripts")
+        val STORED_TRIAGE_VERDICTS = stringPreferencesKey("stored_triage_verdicts")
         val QUIET_HOURS_START = intPreferencesKey("quiet_hours_start")
         val QUIET_HOURS_END = intPreferencesKey("quiet_hours_end")
         val ON_DEVICE_AI_ENABLED = booleanPreferencesKey("on_device_ai_enabled")

@@ -10,6 +10,7 @@ import eu.tintera.plume.core.ai.triagePrompt
 import eu.tintera.plume.core.ai.triageVerdictOf
 import eu.tintera.plume.core.settings.AppSettings
 import eu.tintera.plume.core.telegram.ChatKind
+import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatSummary
 import eu.tintera.plume.core.telegram.ConversationRepository
 import eu.tintera.plume.core.telegram.Verification
@@ -23,24 +24,45 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.Serializable
+import kotlin.time.Clock
 
 /**
- * Posuzuje se chat vůbec? Jen nepřečtený soukromý chat, ve kterém poslední zprávu poslal
- * protějšek — kde odpověď dluží uživatel. Ne Uložené zprávy ([savedMessagesChatId]), ztlumené
- * chaty (o ty uživatel sám nestojí), ověřené účty (Telegram, služby) a sponzorované chaty.
+ * Posuzuje se chat vůbec? Nepřečtený chat, kde odpověď dluží uživatel:
  *
- * Skupiny vědomě ne: tam se z nepřečtených nepozná, KOHO se otázka týká, a „čeká na odpověď"
- * u skupiny, kde se někdo ptal všech, by byl šum. Zmínku ve skupině nese odznak „@".
+ * - **soukromý**, ve kterém poslední zprávu poslal protějšek (ne ztlumený — o ten uživatel
+ *   sám nestojí),
+ * - **skupina s nepřečtenou zmínkou nebo odpovědí na vlastní zprávu** (`unreadMentionCount`),
+ *   i ztlumená: zmínky Telegram hlásí i ze ztlumené skupiny. Bez zmínky ne — z ostatních
+ *   nepřečtených se nepozná, KOHO se otázka týká, a odznak u skupiny, kde se někdo ptal všech,
+ *   by byl šum.
+ *
+ * Kanály, Uložené zprávy ([savedMessagesChatId]), ověřené účty (Telegram, služby)
+ * a sponzorované chaty nikdy.
  */
-fun isTriageCandidate(chat: ChatSummary, savedMessagesChatId: Long?): Boolean =
-    chat.kind == ChatKind.Private &&
-        chat.unreadCount > 0 &&
-        chat.lastMessageId != null &&
-        !chat.lastMessageOutgoing &&
-        !chat.isMuted &&
-        chat.sponsor == null &&
-        chat.id != savedMessagesChatId &&
-        chat.verification !is Verification.Verified
+fun isTriageCandidate(chat: ChatSummary, savedMessagesChatId: Long?): Boolean {
+    if (chat.unreadCount == 0 || chat.lastMessageId == null || chat.sponsor != null) return false
+    if (chat.id == savedMessagesChatId || chat.verification is Verification.Verified) return false
+    return when (chat.kind) {
+        ChatKind.Private -> !chat.lastMessageOutgoing && !chat.isMuted
+        ChatKind.Group -> chat.unreadMentionCount > 0
+        ChatKind.Channel -> false
+    }
+}
+
+/**
+ * Uložený posudek triáže, aby se po restartu nepřečtené chaty neposuzovaly znovu.
+ * [messageId] je zpráva, ke které posudek patří: u soukromého chatu poslední, u skupiny
+ * nejnovější nepřečtená zmínka. [accountId] drží účty od sebe (id Uložených zpráv).
+ */
+@Serializable
+data class StoredTriageVerdict(
+    val accountId: Long,
+    val chatId: Long,
+    val messageId: Long,
+    val waits: Boolean,
+    val savedAt: Long,
+)
 
 /**
  * Chaty na kartu „Čeká na tvou odpověď", v pořadí seznamu: nepřečtené, u kterých triáž řekla
@@ -60,8 +82,8 @@ fun awaitingReplyChats(
 }
 
 /**
- * Triáž chatů: které nepřečtené soukromé chaty čekají na odpověď uživatele — posouzení modelem
- * v zařízení. V seznamu chatů z toho je odznak.
+ * Triáž chatů: které nepřečtené chaty čekají na odpověď uživatele (soukromé a skupiny se
+ * zmínkou, [isTriageCandidate]) — posouzení modelem v zařízení. V seznamu chatů z toho je odznak.
  *
  * - **Obsah zpráv nikam neodchází**: posuzuje model v telefonu.
  * - **Jen se zapnutou volbou, zapnutou AI a modelem, který je PŘIPRAVENÝ.** Kvůli triáži se nic
@@ -71,7 +93,8 @@ fun awaitingReplyChats(
  *   chatu ho schová samo — nepřečtený chat přestane být kandidátem.
  * - **Model se ptá po jednom chatu**, frontou v [appScope] — jako u [eu.tintera.plume.features.conversation.ScamWarnings].
  *   Seznam se mění při každé zprávě, takže [check] je levný a opakované volání nic nestojí.
- * - **Výsledek se drží v paměti procesu.** Po restartu se nepřečtené posoudí znovu.
+ * - **Posudky se ukládají** ([StoredTriageVerdict] v nastavení, po účtech, nejvýš [MAX_STORED]):
+ *   po restartu se použijí bez modelu a posuzuje se jen to, co přibylo.
  * - **Chyba modelu = žádný odznak.**
  */
 class ChatTriage(
@@ -94,7 +117,11 @@ class ChatTriage(
     private val seen = MutableStateFlow<Set<Pair<Long, Long>>>(emptySet())
     private val queue = Channel<Request>(Channel.UNLIMITED)
 
-    private class Request(val chatId: Long, val lastMessageId: Long, val unreadCount: Int)
+    /** [account] = id Uložených zpráv přihlášeného účtu (klíč uložených posudků). */
+    private class Request(val chatId: Long, val lastMessageId: Long, val unreadCount: Int, val group: Boolean, val account: Long?)
+
+    /** Co se posuzuje: zpráva, ke které posudek patří, a texty pro model. */
+    private class Subject(val messageId: Long, val texts: List<String>)
 
     init {
         appScope.launch {
@@ -102,7 +129,10 @@ class ChatTriage(
         }
     }
 
-    /** Zařadí kandidáty ze seznamu (v jeho pořadí, tedy nejčerstvější první). Levné. */
+    /**
+     * Zařadí kandidáty ze seznamu (v jeho pořadí, tedy nejčerstvější první). Levné. Soukromý
+     * chat s uloženým posudkem poslední zprávy se nezařadí vůbec — posudek se použije rovnou.
+     */
     fun check(chats: List<ChatSummary>, savedMessagesChatId: Long?) {
         if (!enabled()) return
         for (chat in chats) {
@@ -114,7 +144,14 @@ class ChatTriage(
                 added = key !in current
                 current + key
             }
-            if (added) queue.trySend(Request(chat.id, lastMessageId, chat.unreadCount))
+            if (!added) continue
+            val group = chat.kind == ChatKind.Group
+            val stored = if (group) null else storedVerdict(savedMessagesChatId, chat.id, lastMessageId)
+            if (stored != null) {
+                apply(chat.id, lastMessageId, stored)
+            } else {
+                queue.trySend(Request(chat.id, lastMessageId, chat.unreadCount, group, savedMessagesChatId))
+            }
         }
     }
 
@@ -122,6 +159,26 @@ class ChatTriage(
 
     private suspend fun judge(request: Request) {
         val key = request.chatId to request.lastMessageId
+        val subject = try {
+            if (request.group) mentionSubject(request) else privateSubject(request)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            logger.i(e) { "Zprávy chatu ${request.chatId} se nepodařilo načíst" }
+            null
+        }
+        if (subject == null) {
+            // Není z čeho soudit (jen fotky bez popisku), nebo seznam předběhl historii: počet
+            // nepřečtených dorazí dřív než nová poslední zpráva. Další změna seznamu chat zařadí.
+            seen.update { it - key }
+            return
+        }
+        // Ve skupině patří posudek nejnovější zmínce: běžný provoz ve skupině model znovu
+        // nepouští, dokud nepřibude zmínka.
+        storedVerdict(request.account, request.chatId, subject.messageId)?.let { stored ->
+            apply(request.chatId, request.lastMessageId, stored)
+            return
+        }
         val variant = settings.onDeviceAiVariant.value
         val ready = enabled() && runCatching { ai.status(variant) == OnDeviceAiStatus.Ready }.getOrDefault(false)
         if (!ready) {
@@ -131,18 +188,11 @@ class ChatTriage(
             return
         }
         val waits = try {
-            val texts = unreadTexts(request) ?: run {
-                // Není z čeho soudit (jen fotky bez popisku), nebo seznam předběhl historii:
-                // počet nepřečtených dorazí dřív než nová poslední zpráva. Další změna seznamu
-                // chat zařadí znovu.
-                seen.update { it - key }
-                return
-            }
             withTimeoutOrNull(TIMEOUT_MS) {
                 ai.generateAnswer(
                     variant,
                     TriageAnswer::class,
-                    prompt = { structured -> triagePrompt(texts, structured) },
+                    prompt = { structured -> triagePrompt(subject.texts, structured, group = request.group) },
                     fromStructured = ::triageVerdictOf,
                     fromText = ::parseTriageVerdict,
                 )
@@ -154,16 +204,38 @@ class ChatTriage(
             null
         }
         logger.d { "Chat ${request.chatId}: čeká na odpověď = $waits" }
-        _awaiting.update { current ->
-            if (waits == true) current + (request.chatId to request.lastMessageId) else current - request.chatId
-        }
+        // Chyba modelu (null) se neukládá: po restartu se chat zkusí znovu.
+        if (waits != null) store(request.account, request.chatId, subject.messageId, waits)
+        apply(request.chatId, request.lastMessageId, waits == true)
+    }
+
+    private fun apply(chatId: Long, lastMessageId: Long, waits: Boolean) {
+        _awaiting.update { current -> if (waits) current + (chatId to lastMessageId) else current - chatId }
+    }
+
+    private fun storedVerdict(account: Long?, chatId: Long, messageId: Long): Boolean? {
+        account ?: return null
+        return settings.storedTriageVerdicts.value
+            .firstOrNull { it.accountId == account && it.chatId == chatId && it.messageId == messageId }
+            ?.waits
+    }
+
+    private fun store(account: Long?, chatId: Long, messageId: Long, waits: Boolean) {
+        account ?: return
+        val verdict = StoredTriageVerdict(account, chatId, messageId, waits, Clock.System.now().toEpochMilliseconds())
+        settings.setStoredTriageVerdicts(
+            (settings.storedTriageVerdicts.value.filterNot { it.accountId == account && it.chatId == chatId } + verdict)
+                .sortedBy { it.savedAt }
+                .takeLast(MAX_STORED),
+        )
     }
 
     /**
-     * Nepřečtené příchozí zprávy od nejstarší, jako text (popis u zprávy bez textu: „Fotka").
-     * Nejvýš [MAX_MESSAGES] — rozhoduje konec rozhovoru. `null` = není z čeho soudit.
+     * Soukromý chat: nepřečtené příchozí zprávy od nejstarší, jako text (popis u zprávy bez
+     * textu: „Fotka"). Nejvýš [MAX_MESSAGES] — rozhoduje konec rozhovoru. Posudek patří
+     * poslední zprávě. `null` = není z čeho soudit.
      */
-    private suspend fun unreadTexts(request: Request): List<String>? {
+    private suspend fun privateSubject(request: Request): Subject? {
         val limit = request.unreadCount.coerceIn(1, MAX_MESSAGES)
         val messages = conversations.history(request.chatId, fromMessageId = 0, limit = limit).getOrNull() ?: return null
         // TDLib vrací od nejnovější; poslední zpráva musí být ta, kvůli které se posuzuje.
@@ -171,18 +243,41 @@ class ChatTriage(
             logger.d { "Chat ${request.chatId}: poslední zpráva se mezitím změnila" }
             return null
         }
-        return messages.take(limit)
+        val texts = messages.take(limit)
             .takeWhile { !it.isOutgoing }
             .filterNot { it.isService }
             .reversed()
-            .mapNotNull { message -> message.text.ifBlank { message.description?.resolveNow().orEmpty() }.takeIf { it.isNotBlank() } }
-            .takeIf { it.isNotEmpty() }
+            .mapNotNull { message -> message.readableText() }
+            .takeIf { it.isNotEmpty() } ?: return null
+        return Subject(request.lastMessageId, texts)
     }
+
+    /**
+     * Skupina: nepřečtené zmínky a odpovědi na vlastní zprávy (nejvýš [MAX_MESSAGES]), od
+     * nejstarší, se jménem odesílatele. Posudek patří nejnovější z nich.
+     */
+    private suspend fun mentionSubject(request: Request): Subject? {
+        val mentions = conversations.unreadMentions(request.chatId, MAX_MESSAGES).getOrNull()?.takeIf { it.isNotEmpty() } ?: return null
+        val texts = mentions
+            .filterNot { it.isService || it.isOutgoing }
+            .reversed()
+            .mapNotNull { message ->
+                message.readableText()?.let { text -> message.senderName?.ifBlank { null }?.let { "$it: $text" } ?: text }
+            }
+            .takeIf { it.isNotEmpty() } ?: return null
+        return Subject(mentions.first().id, texts)
+    }
+
+    private suspend fun ChatMessage.readableText(): String? =
+        text.ifBlank { description?.resolveNow().orEmpty() }.takeIf { it.isNotBlank() }
 
     private companion object {
         const val TIMEOUT_MS = 60_000L
 
-        /** Kolik posledních nepřečtených zpráv model dostane. */
+        /** Kolik posledních nepřečtených zpráv (zmínek) model dostane. */
         const val MAX_MESSAGES = 6
+
+        /** Kolik posudků se pamatuje přes restart; víc nepřečtených chatů nikdo nemá. */
+        const val MAX_STORED = 300
     }
 }

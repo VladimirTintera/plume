@@ -25,10 +25,16 @@ const val MAX_TRIAGE_CHARS = 1_500
  * - Instrukce anglicky ze stejného důvodu jako u [summaryPrompt].
  * - [structured] = odpověď přijde jako [TriageAnswer] (`generateAnswer`); prompt pak o formátu
  *   mlčí a povolené hodnoty dá modelu schéma.
+ * - **Ve skupině** ([group]) dostane model jen zprávy, které uživatele zmiňují nebo odpovídají
+ *   na jeho zprávu, se jménem odesílatele („Jana: …"); ostatní provoz ve skupině ho nezajímá.
  */
-fun triagePrompt(messages: List<String>, structured: Boolean = false): String = buildString {
+fun triagePrompt(messages: List<String>, structured: Boolean = false, group: Boolean = false): String = buildString {
     appendLine("You help the user of a chat app decide which chats need their answer.")
-    appendLine("Below are the unread messages someone sent to the user in a private chat, oldest first.")
+    if (group) {
+        appendLine("Below are unread messages in a group chat that mention the user or reply to the user's message, oldest first, each with its sender.")
+    } else {
+        appendLine("Below are the unread messages someone sent to the user in a private chat, oldest first.")
+    }
     appendLine()
     appendLine("Messages:")
     appendLine("\"\"\"")

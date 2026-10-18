@@ -66,9 +66,17 @@ class ChatTriageTest {
     }
 
     @Test
-    fun skupinyKanalyAPrecteneNe() {
+    fun skupinaJenSeZminkouITlumena() {
         assertFalse(isTriageCandidate(chat(kind = ChatKind.Group), null))
-        assertFalse(isTriageCandidate(chat(kind = ChatKind.Channel), null))
+        assertTrue(isTriageCandidate(chat(kind = ChatKind.Group).copy(unreadMentionCount = 1), null))
+        // Zmínky Telegram hlásí i ze ztlumené skupiny; poslední zpráva ve skupině bývá vlastní
+        // a na posudku zmínky to nic nemění.
+        assertTrue(isTriageCandidate(chat(kind = ChatKind.Group, muted = true, outgoing = true).copy(unreadMentionCount = 2), null))
+    }
+
+    @Test
+    fun kanalyAPrecteneNe() {
+        assertFalse(isTriageCandidate(chat(kind = ChatKind.Channel).copy(unreadMentionCount = 1), null))
         assertFalse(isTriageCandidate(chat(unread = 0), null))
         assertFalse(isTriageCandidate(chat(lastMessageId = null), null))
     }

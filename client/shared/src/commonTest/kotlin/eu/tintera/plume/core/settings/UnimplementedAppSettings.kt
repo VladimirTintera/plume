@@ -1,6 +1,7 @@
 package eu.tintera.plume.core.settings
 
 import eu.tintera.plume.core.video.VideoPosition
+import eu.tintera.plume.features.chats.StoredTriageVerdict
 import eu.tintera.plume.features.conversation.StoredTranscript
 import kotlinx.serialization.json.Json
 import eu.tintera.plume.core.bookmarks.MessageBookmark
@@ -77,6 +78,8 @@ open class UnimplementedAppSettings : AppSettings {
     override val chatColors: StateFlow<List<StoredChatColor>> get() = error("chatColors")
     override fun setChatColors(colors: List<StoredChatColor>): Unit = error("setChatColors")
     override val storedTranscripts: StateFlow<List<StoredTranscript>> get() = error("storedTranscripts")
+    override val storedTriageVerdicts: StateFlow<List<StoredTriageVerdict>> get() = error("storedTriageVerdicts")
+    override fun setStoredTriageVerdicts(verdicts: List<StoredTriageVerdict>): Unit = error("setStoredTriageVerdicts")
     override fun setStoredTranscripts(transcripts: List<StoredTranscript>): Unit = error("setStoredTranscripts")
     override val quietHours: StateFlow<QuietHours> get() = error("quietHours")
     override fun setQuietHours(quietHours: QuietHours): Unit = error("setQuietHours")
