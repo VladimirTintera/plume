@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.devices
 
+import eu.tintera.plume.core.ui.GroupActionText
 import eu.tintera.plume.core.ui.GroupAction
 import eu.tintera.plume.core.ui.ActionButtonGroup
 import androidx.compose.foundation.background
@@ -102,14 +103,14 @@ fun UnconfirmedLoginCard(
             )
             ActionButtonGroup(
                 listOf(
-                    GroupAction(no, onTerminate, enabled) { modifier, source ->
+                    GroupAction(no, onTerminate, enabled, compressionLimit = ButtonDefaults.TextButtonContentPadding) { modifier, source ->
                         TextButton(onClick = onTerminate, modifier = modifier, enabled = enabled, colors = noColors, interactionSource = source, shapes = ButtonDefaults.shapes()) {
-                            Text(no)
+                            GroupActionText(no)
                         }
                     },
                     GroupAction(yes, onConfirm, enabled) { modifier, source ->
                         Button(onClick = onConfirm, modifier = modifier, enabled = enabled, colors = yesColors, interactionSource = source, shapes = ButtonDefaults.shapes()) {
-                            Text(yes)
+                            GroupActionText(yes)
                         }
                     },
                 ),

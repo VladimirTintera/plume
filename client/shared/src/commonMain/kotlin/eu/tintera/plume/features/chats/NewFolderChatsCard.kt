@@ -1,5 +1,6 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.ui.GroupActionText
 import eu.tintera.plume.core.ui.GroupAction
 import eu.tintera.plume.core.ui.ActionButtonGroup
 import androidx.compose.foundation.background
@@ -83,14 +84,14 @@ fun NewFolderChatsCard(
             val showColors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = onAccent)
             ActionButtonGroup(
                 listOf(
-                    GroupAction(hide, onHide, !state.busy) { modifier, source ->
+                    GroupAction(hide, onHide, !state.busy, compressionLimit = ButtonDefaults.TextButtonContentPadding) { modifier, source ->
                         TextButton(onClick = onHide, modifier = modifier, enabled = !state.busy, colors = hideColors, interactionSource = source, shapes = ButtonDefaults.shapes()) {
-                            Text(hide)
+                            GroupActionText(hide)
                         }
                     },
                     GroupAction(show, onShow, !state.busy) { modifier, source ->
                         Button(onClick = onShow, modifier = modifier, enabled = !state.busy, colors = showColors, interactionSource = source, shapes = ButtonDefaults.shapes()) {
-                            Text(show)
+                            GroupActionText(show)
                         }
                     },
                 ),

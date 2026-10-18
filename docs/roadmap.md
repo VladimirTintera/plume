@@ -1010,9 +1010,9 @@ zbývají sheety, které se otevírají z podstránek.
 - ~~**Sheety s holými seznamy**~~ — hotovo (VladimirTintera/telegram#866): detail zařízení (údaje a přepínače
   jako dva bloky, hlavička ikonou a nadpisem), výjimky upozornění (chaty v bloku, „Obnovit
   výchozí" jako ikonové tlačítko s bublinou), záložky a kdo reagoval (`groupedItem`).
-- **Tlačítka vedle sebe v `Row` místo `ActionButtonGroup`**: schválit / odmítnout žádost o vstup
-  (`JoinRequestsScreen`), stáhnout balíček / přeložit na serveru (`TranslationSheet`), přepis
-  zprávy (`DraftRewrite`), tlačítka v úpravě fotky (`PhotoMarkupEditor`).
+- ~~**Tlačítka vedle sebe v `Row` místo `ActionButtonGroup`**~~ — hotovo (VladimirTintera/telegram#868): žádosti
+  o vstup, překlad, přepis zprávy, úprava fotky. Přitom oprava všech skupin z #856: smrštěný
+  soused zalamoval popisek na dva řádky (`GroupActionText`, limit smrštění u `TextButton`).
 - **Ke zvážení, ne chyba:** kolečka v blocích na obrazovkách (Všichni / Kontakty / Nikdo
   v soukromí, nastavení skupiny, práva člena, poskytovatel AI, rozsah vymazání historie) jsou
   platný M3 seznam; v sheetech je výběr fajfkou (`ChoiceListItem`), na obrazovkách kolečkem.

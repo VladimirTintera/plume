@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.GroupActionText
+import eu.tintera.plume.core.ui.GroupAction
+import eu.tintera.plume.core.ui.ActionButtonGroup
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.material3.ShapeDefaults
 import eu.tintera.plume.core.ui.SheetTitle
@@ -641,21 +644,25 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
                 }
             }
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                TextButton(onClick = rewrite::close, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.common_close)) }
-                val done = state as? RewriteState.Done
-                Button(
-                    onClick = {
-                        done?.let { onUse(it.text) }
-                        rewrite.close()
-                    },
-                    enabled = done != null && done.text != source.trim(),
-                    shapes = ButtonDefaults.shapes(),
-                ) { Text(stringResource(Res.string.rewrite_use)) }
+            val close = stringResource(Res.string.common_close)
+            val use = stringResource(Res.string.rewrite_use)
+            val done = state as? RewriteState.Done
+            val canUse = done != null && done.text != source.trim()
+            val onUseClick = {
+                done?.let { onUse(it.text) }
+                rewrite.close()
             }
+            ActionButtonGroup(
+                listOf(
+                    GroupAction(close, rewrite::close, compressionLimit = ButtonDefaults.TextButtonContentPadding) { modifier, source ->
+                        TextButton(onClick = rewrite::close, modifier = modifier, interactionSource = source, shapes = ButtonDefaults.shapes()) { GroupActionText(close) }
+                    },
+                    GroupAction(use, onUseClick, enabled = canUse) { modifier, source ->
+                        Button(onClick = onUseClick, modifier = modifier, enabled = canUse, interactionSource = source, shapes = ButtonDefaults.shapes()) { GroupActionText(use) }
+                    },
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             // Kam text šel, podle toho, čím se přepisovalo; před první volbou podle toho, co
             // sheet nabízí. Bez modelu v telefonu (jen překlad) je to věta o serveru — o modelu,

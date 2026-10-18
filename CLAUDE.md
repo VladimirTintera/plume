@@ -477,6 +477,9 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
   stisknuté se roztáhne a sousedé uhnou. Vzhled si nese volající (`GroupAction.button` dostane
   modifikátor a `interactionSource`, které MUSÍ předat tlačítku — bez nich skupina stisk
   nepozná a nic se nehne). Holé `ButtonGroup` ne: jeho ukazatel přetečení má holý `TooltipBox`.
+  **Popisek je `GroupActionText`** (jeden řádek, smí přesáhnout do okraje) a `TextButton` má
+  `compressionLimit = ButtonDefaults.TextButtonContentPadding`: smrštěný soused stisknutého
+  tlačítka jinak zalomil popisek na dva řádky a řada poskočila („Celá fotka" v úpravě fotky).
   Dialogová tlačítka (`confirmButton` / `dismissButton`) zůstávají, jak je `AlertDialog` skládá.
 - **Přepínače mají v jezdci ikonu** (`IconSwitch` v `core/ui`): fajfka zapnutý, křížek
   vypnutý. Stav tak nese i tvar, ne jen barva — pozná ho barvoslepý i v paletě se zvýšeným

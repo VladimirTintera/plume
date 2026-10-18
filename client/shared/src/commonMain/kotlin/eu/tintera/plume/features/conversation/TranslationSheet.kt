@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.core.ui.GroupActionText
+import eu.tintera.plume.core.ui.GroupAction
+import eu.tintera.plume.core.ui.ActionButtonGroup
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
 import androidx.compose.foundation.lazy.itemsIndexed
 import eu.tintera.plume.resources.search_off_24dp
@@ -190,13 +193,19 @@ fun TranslationSheet(
                             text = stringResource(Res.string.translation_device_download_text),
                             style = MaterialTheme.typography.bodyLarge,
                         )
-                        Row(
-                            Modifier.fillMaxWidth().padding(top = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                        ) {
-                            TextButton(onClick = onServer, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.translation_on_server)) }
-                            FilledTonalButton(onClick = onDownload, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.translation_device_download)) }
-                        }
+                        val server = stringResource(Res.string.translation_on_server)
+                        val download = stringResource(Res.string.translation_device_download)
+                        ActionButtonGroup(
+                            listOf(
+                                GroupAction(server, onServer, compressionLimit = ButtonDefaults.TextButtonContentPadding) { modifier, source ->
+                                    TextButton(onClick = onServer, modifier = modifier, interactionSource = source, shapes = ButtonDefaults.shapes()) { GroupActionText(server) }
+                                },
+                                GroupAction(download, onDownload) { modifier, source ->
+                                    FilledTonalButton(onClick = onDownload, modifier = modifier, interactionSource = source, shapes = ButtonDefaults.shapes()) { GroupActionText(download) }
+                                },
+                            ),
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        )
                     }
                     else -> Column(
                         Modifier.fillMaxWidth().padding(vertical = 24.dp),
