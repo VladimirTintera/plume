@@ -75,6 +75,15 @@ class NotificationSoundsViewModel(
         }
     }
 
+    /** Zvuk tématu skupiny; `null` = jako skupina. */
+    fun selectForTopic(chatId: Long, topicId: Int, soundId: Long?) {
+        viewModelScope.launch {
+            settings.setTopicSound(chatId, topicId, soundId).onFailure { failure ->
+                _state.update { it.copy(error = failure.userMessage(Res.string.notif_sound_save_failed)) }
+            }
+        }
+    }
+
     /** Nahraje zvukový soubor; strop hlídá server, hláška ho připomene. */
     fun upload(path: String) {
         if (_state.value.uploading) return

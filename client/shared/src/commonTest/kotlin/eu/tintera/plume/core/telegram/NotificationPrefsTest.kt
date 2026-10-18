@@ -116,11 +116,21 @@ class NotificationPrefsTest {
         assertFalse(own.useDefaultMuteFor)
     }
 
-    /** U tématu zvuk „Obnovit" nespouští — vybrat ho tam nejde. */
+    /** Vlastní zvuk tématu je důvod k „Vrátit nastavení skupiny" — vybírá se v seznamu témat. */
     @Test
-    fun zvukTematuNeniDuvodemKObnoveni() {
+    fun zvukTematuJeDuvodemKObnoveni() {
         val prefs = topic(own = inheriting.withSound(7L), group = inheriting)
-        assertTrue(prefs.isDefault)
+        assertFalse(prefs.isDefault)
         assertEquals(7L, prefs.soundId)
+        assertFalse(prefs.soundIsDefault)
+    }
+
+    /** Téma bez vlastního zvuku zní jako skupina — i když ta má zvuk vlastní. */
+    @Test
+    fun tematoBezZvukuZniJakoSkupina() {
+        val prefs = topic(own = inheriting, group = inheriting.withSound(9L))
+        assertTrue(prefs.soundIsDefault)
+        assertEquals(9L, prefs.soundId)
+        assertEquals(9L, prefs.defaultSoundId)
     }
 }

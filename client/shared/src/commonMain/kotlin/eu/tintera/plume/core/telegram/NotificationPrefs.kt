@@ -42,11 +42,10 @@ internal fun notificationPrefs(
             scopeDefaults.disableMentionNotifications,
         ),
         // Stories se nepočítají: nastavit je tu nejde, takže by „Obnovit" slibovalo změnu, kterou
-        // uživatel nevidí. Zvuk jen u chatu — v profilu se vybírá, u tématu (zatím) ne.
-        // Obnovení vrátí obojí taky, to ano.
+        // uživatel nevidí. Zvuk ano — vybírá se u chatu (profil) i u tématu (seznam témat).
         isDefault = own.useDefaultMuteFor && own.useDefaultShowPreview &&
             own.useDefaultDisablePinnedMessageNotifications && own.useDefaultDisableMentionNotifications &&
-            (inherited != null || own.useDefaultSound),
+            own.useDefaultSound,
         scope = scope,
         defaults = if (inherited == null) NotificationDefaults.Scope else NotificationDefaults.Chat,
         soundId = pick({ it.useDefaultSound }, { it.soundId }, scopeDefaults.soundId),

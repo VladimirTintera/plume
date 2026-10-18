@@ -58,6 +58,13 @@ interface NotificationSettingsRepository {
 
     /** Téma se vrátí k nastavení skupiny. */
     suspend fun resetTopic(chatId: Long, topicId: Int): Result<Unit>
+
+    /**
+     * Zvuk tématu: id tónu, [NO_SOUND_ID], výchozí −1, nebo `null` = jako skupina
+     * (`useDefaultSound`). Obdoba [setChatSound] o vrstvu výš.
+     */
+    suspend fun setTopicSound(chatId: Long, topicId: Int, soundId: Long?): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
 }
 
 /**
