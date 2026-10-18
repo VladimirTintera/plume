@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.profile
 
 import eu.tintera.plume.core.ui.rememberExpandedSheetState
+import eu.tintera.plume.core.ui.GroupEmptyRow
 import eu.tintera.plume.core.ui.MediumButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -823,12 +824,7 @@ private fun AdminLinksSheet(
                     }
                 }
                 links.active.isEmpty() && links.revoked.isEmpty() -> item(key = "empty") {
-                    Text(
-                        stringResource(Res.string.invite_links_admin_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(16.dp),
-                    )
+                    GroupEmptyRow(stringResource(Res.string.invite_links_admin_empty), icon = Res.drawable.link_off_24dp)
                 }
                 else -> {
                     itemsIndexed(links.active, key = { _, link -> "active-${link.url}" }) { index, link ->
@@ -888,12 +884,7 @@ private fun LinkMembersSheet(view: LinkMembersView, onDismiss: () -> Unit) {
                     }
                 }
                 members.isEmpty() -> item(key = "empty") {
-                    Text(
-                        stringResource(Res.string.invite_links_members_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(16.dp),
-                    )
+                    GroupEmptyRow(stringResource(Res.string.invite_links_members_empty), icon = Res.drawable.group_24dp)
                 }
                 else -> itemsIndexed(members, key = { _, member -> "member-${member.userId}" }) { index, member ->
                     MemberRow(member, groupItemShape(index, members.size))

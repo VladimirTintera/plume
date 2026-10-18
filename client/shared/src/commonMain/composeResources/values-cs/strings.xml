@@ -89,7 +89,9 @@
     <string name="auth_resend_other">Poslat kód jinak</string>
     <string name="auth_resend_wait">%1$s za %2$s</string>
     <string name="auth_error_resend">Kód se nepodařilo poslat jinak.</string>
-    <string name="chats_empty">Zatím tu nic není.</string>
+    <string name="chats_empty">Konverzace se objeví tady. Novou začnete tlačítkem v rohu.</string>
+    <string name="empty_state_error_title">Něco se nepovedlo</string>
+    <string name="chats_empty_title">Zatím žádné chaty</string>
     <string name="saved_messages">Uložené zprávy</string>
     <string name="chats_menu">Další možnosti</string>
     <string name="chats_search">Hledat v chatech</string>
@@ -582,7 +584,8 @@
     <string name="activity_watching_animation">sleduje animaci…</string>
     <string name="activity_watching_emoji">sleduje %1$s…</string>
     <string name="activity_other">něco chystá…</string>
-    <string name="conversation_empty">Zatím tu nejsou žádné zprávy.</string>
+    <string name="conversation_empty">Zatím žádné zprávy</string>
+    <string name="conversation_empty_text">Zprávy se objeví tady.</string>
     <string name="conversation_pinned_message">Připnutá zpráva</string>
     <string name="conversation_pinned_message_numbered">Připnutá zpráva %1$d z %2$d</string>
     <string name="conversation_all_pinned">Všechny připnuté zprávy</string>

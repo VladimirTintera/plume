@@ -882,13 +882,15 @@ poměru přínosu a práce; každý bod je samostatný PR.
 - ~~**Tvary textových tlačítek při stisku a velká hlavní tlačítka**~~ — hotovo (všech ~350
   volání, `verifyButtonShapes`; hlavní akce přes `MediumButton`, `CLAUDE.md` u ikonových tlačítek;
   VladimirTintera/telegram#827).
-- **Prázdné a chybové stavy jako `IntroEmptyState`** (už je na 17 místech): prázdný a chybový
-  seznam chatů (`ChatListScreen` ~632 a ~1403), chyba v Instant View, prázdné pozvánky
-  (`InviteLinksScreen`), passkeys, samolepky „Moje", „Nic nenalezeno" v tématech fóra,
-  odepřený přístup ve sdílení (`ShareToChatScreen` AccessDenied).
-- **Emphasized typografie.** `Typography.kt` ji má celou, v kódu je 5× a jen `label*`. Kandidáti:
+- ~~**Prázdné a chybové stavy jako `IntroEmptyState`**~~ — hotovo pro prázdný účet a chybu seznamu
+  chatů, prázdnou konverzaci, chybu Instant View; podseznamy (pozvánky, moje samolepky, hledání
+  témat) mají `GroupEmptyRow` (VladimirTintera/telegram#829). Zbývá: chyba načtení passkeys (text a `TextButton` pod nadpisem
+  sekce) a odepřený přístup ve sdílení (`ShareToChatScreen` AccessDenied — leží nad galerií,
+  takže celoobrazovkový stav se tam nehodí, jen nadpis a tlačítko).
+- **Emphasized typografie.** `Typography.kt` ji má celou, v kódu byla 5× a jen `label*`; nadpis
+  `IntroEmptyState` už je `headlineSmallEmphasized`. Kandidáti:
   jméno v profilu (`ChatProfileScreen` ~1120) a v hovoru (`CallOverlay` ~492), nadpis přihlášení
-  (`AuthScreen` ~277), nadpis `IntroEmptyState`, popisek vybrané složky (`ChatFolderToolbar`),
+  (`AuthScreen` ~277), popisek vybrané složky (`ChatFolderToolbar`),
   počet vybraných, nadpisy sheetů. Nepřečtený chat má ruční SemiBold (`ChatListScreen` ~1974,
   vědomě „jako Google Messages") — buď `bodyLargeEmphasized` přeladit na SemiBold, nebo nechat.
 - **Společný `SheetHeader`.** 64 sheetů, nadpis napůl `titleMedium` a napůl `titleLarge`.

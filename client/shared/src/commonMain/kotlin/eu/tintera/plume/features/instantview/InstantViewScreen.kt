@@ -1,6 +1,11 @@
 package eu.tintera.plume.features.instantview
 
 import eu.tintera.plume.core.adaptive.ContentWidth
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.OutlinedButton
+import eu.tintera.plume.resources.description_24dp
+import eu.tintera.plume.resources.empty_state_error_title
+import eu.tintera.plume.core.ui.IntroEmptyState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -162,15 +167,27 @@ fun InstantViewScreen(viewModel: InstantViewViewModel, onBack: () -> Unit, modif
                     }
                 }
             }
-            state.failed -> Column(
-                Modifier.fillMaxSize().padding(padding).padding(24.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text(stringResource(Res.string.instant_view_failed), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                TextButton(onClick = viewModel::load, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.instant_view_retry)) }
-                TextButton(onClick = viewModel::openInBrowser, shapes = ButtonDefaults.shapes()) { Text(stringResource(Res.string.instant_view_open_browser)) }
-            }
+            state.failed -> IntroEmptyState(
+                icon = Res.drawable.description_24dp,
+                title = stringResource(Res.string.empty_state_error_title),
+                text = stringResource(Res.string.instant_view_failed),
+                modifier = Modifier.padding(padding),
+                // Zkusit znovu je hlavní cesta (tónová), prohlížeč náhradní (obrysová).
+                action = {
+                    // Dvě tlačítka se česky na telefon vedle sebe nevejdou, proto se smí zalomit.
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FilledTonalButton(onClick = viewModel::load, shapes = ButtonDefaults.shapes()) {
+                            Text(stringResource(Res.string.instant_view_retry))
+                        }
+                        OutlinedButton(onClick = viewModel::openInBrowser, shapes = ButtonDefaults.shapes()) {
+                            Text(stringResource(Res.string.instant_view_open_browser))
+                        }
+                    }
+                },
+            )
             else -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) { LoadingIndicator() }
         }
     }

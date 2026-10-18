@@ -478,6 +478,12 @@ a splývajících ploch vznikají skoro vždy z ohýbání standardu, ne z jeho 
     `%1$d` čímkoli). Kdyby se to změnilo, ukáže se značka místo čísla.
   - Ověřeno na emulátoru zpomalenými animacemi (`animator_duration_scale 10`) a sérií surových
     snímků odznaku: 1 odjede nahoru, 2 přijede zdola.
+- **„Tady nic není" a chyba celé obrazovky jsou `IntroEmptyState`** (`core/ui`: uvítací tvar,
+  zvýrazněný nadpis, text, případně tlačítko), **prázdný podseznam uprostřed obrazovky je
+  `GroupEmptyRow`** (jeden řádek v barvách a tvaru bloku). Holý šedý text uprostřed byl
+  nejviditelnější zbytek M2: prázdný účet, chyba seznamu chatů, prázdná konverzace, chyba
+  Instant View. Chybový stav má nadpis „Něco se nepovedlo" (`empty_state_error_title`) a konkrétní
+  hlášku jako text; zkusit znovu je tónové tlačítko, ne `TextButton`.
 - **Neurčité čekání je `LoadingIndicator` (měnící se tvar), kolečko jen jako PRŮBĚH.**
   Kolečko (`CircularProgressIndicator`) zůstává tam, kde ukazuje, kolik je hotovo (přehrávání
   kolečka, průběh v docku přehrávače), nebo kde se z čekání v průběh PŘEMĚNÍ: kruh kolem tlačítka

@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.settings
 
 import androidx.compose.foundation.clickable
+import eu.tintera.plume.resources.sticker_24dp
+import eu.tintera.plume.core.ui.GroupEmptyRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -195,11 +197,9 @@ fun StickerSetsScreen(
             item(key = "mine-header") { SetsHeader(stringResource(Res.string.sticker_sets_mine)) }
             if (installed.isEmpty()) {
                 item(key = "empty") {
-                    Text(
+                    GroupEmptyRow(
                         stringResource(if (kind == StickerSetKind.Emoji) Res.string.emoji_sets_empty else Res.string.sticker_sets_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(16.dp),
+                        icon = Res.drawable.sticker_24dp,
                     )
                 }
             }
