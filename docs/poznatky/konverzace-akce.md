@@ -700,6 +700,13 @@ upravená, kdy ji protějšek přečetl, kdo ji zhlédl a odkaz na ni (`MessageI
   nalezená zpráva v hledání (`onMessageClick`): chat se otevře na zprávě. Ověřeno na emulátoru
   (…527): záložka v soukromém chatu a v kanálu, „Záložky 2" v menu, otevření obou, odebrání
   ze sheetu, po posledním sheet i položka zmizí.
+- **V hledání v seznamu chatů mají záložky vlastní blok** („Záložky", mezi veřejnými chaty
+  a zprávami; `foundBookmarks` v `ChatSearchBar`). Hledá se LOKÁLNĚ v textu uloženém se záložkou,
+  bez diakritiky (`foldDiacritics`) a i uprostřed slova — „plumezust" najde záložku, kterou
+  serverové hledání zpráv nenašlo vůbec (hledá celá slova). Filtry období a druhu obsahu
+  i hashtag blok vypnou: míří na zprávy od serveru a záložka by pod nimi zmizela bez
+  vysvětlení. Ikona záložky místo avataru říká, odkud výsledek je. Ověřeno na emulátoru
+  (…527): záložka u zprávy ve skupině, hledání kusu slova, ťuknutí otevřelo chat na zprávě.
 
 ## Připomenutí zprávy
 

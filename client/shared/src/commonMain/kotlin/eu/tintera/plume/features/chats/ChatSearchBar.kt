@@ -1,5 +1,9 @@
 package eu.tintera.plume.features.chats
 
+import eu.tintera.plume.core.bookmarks.MessageBookmark
+import eu.tintera.plume.core.ui.foldDiacritics
+import eu.tintera.plume.resources.profile_bookmarks
+import eu.tintera.plume.resources.bookmark_filled_24dp
 import eu.tintera.plume.resources.chats_search_remove_recent
 import androidx.compose.foundation.lazy.itemsIndexed
 import eu.tintera.plume.core.ui.groupedItem
@@ -187,6 +191,9 @@ internal fun ChatSearchBar(
      * není (vypnutá AI, nestažený model) a ikona se nenabízí.
      */
     aiSearch: (suspend (String) -> NaturalSearch?)? = null,
+    /** Záložky zpráv napříč chaty; ty, jejichž text sedí na dotaz, mají vlastní blok výsledků. */
+    bookmarks: List<MessageBookmark> = emptyList(),
+    bookmarkTitles: Map<Long, String> = emptyMap(),
 ) {
     val searchBarState = rememberSearchBarState()
     val textFieldState = rememberTextFieldState()
@@ -374,6 +381,8 @@ internal fun ChatSearchBar(
             onLoadMoreMessages = onLoadMoreMessages,
             suggestionActions = suggestionActions,
             onFilterChange = onFilterChange,
+            bookmarks = bookmarks,
+            bookmarkTitles = bookmarkTitles,
         )
     }
 
@@ -447,6 +456,8 @@ private fun SearchResults(
     onLoadMoreMessages: () -> Unit,
     suggestionActions: SuggestionActions,
     onFilterChange: (MessageSearchFilter) -> Unit,
+    bookmarks: List<MessageBookmark>,
+    bookmarkTitles: Map<Long, String>,
 ) {
     val trimmed = query.trim()
     val onPickLatest by rememberUpdatedState(onPick)
@@ -478,13 +489,26 @@ private fun SearchResults(
     val global = if (current && chatsShown) search.globalOnly.filter { filter.chatKind == null || it.kind == filter.chatKind } else emptyList()
     val messages = if (current) search.messages else emptyList()
     val settled = current && search.settled
+    /*
+     * Záložky se hledají lokálně, v textu uloženém se záložkou, bez diakritiky — jako zvýraznění.
+     * Filtry ne: období a druh obsahu míří na zprávy od serveru, záložka je vlastní poznámka
+     * „tohle si chci najít", a pod filtrem by se ztratila bez vysvětlení. Hashtag hledá zprávy.
+     */
+    val foundBookmarks = remember(bookmarks, trimmed, filter) {
+        val key = foldDiacritics(trimmed).lowercase()
+        if (key.isEmpty() || !filter.isEmpty || isHashtagQuery(trimmed)) {
+            emptyList()
+        } else {
+            bookmarks.filter { foldDiacritics(it.text).lowercase().contains(key) }
+        }
+    }
 
     /*
      * Jednou ukázaný prázdný stav vydrží i během hledání dalšího znaku. Kdyby ho mezitím
      * vystřídal indikátor, úvodní animace prázdného stavu by se pouštěla při každém znaku.
      */
     var emptyShown by remember { mutableStateOf(false) }
-    val nothing = chats.isEmpty() && global.isEmpty() && messages.isEmpty() && !showSaved
+    val nothing = chats.isEmpty() && global.isEmpty() && messages.isEmpty() && foundBookmarks.isEmpty() && !showSaved
     SideEffect { emptyShown = nothing && (settled || emptyShown) }
 
     Column(Modifier.fillMaxSize()) {
@@ -521,6 +545,7 @@ private fun SearchResults(
         // Rozbalení sekcí patří k dotazu; nový dotaz je zase sbalí.
         var chatsExpanded by rememberSaveable(trimmed) { mutableStateOf(false) }
         var globalExpanded by rememberSaveable(trimmed) { mutableStateOf(false) }
+        var bookmarksExpanded by rememberSaveable(trimmed) { mutableStateOf(false) }
         val listState = rememberLazyListState()
 
         // Další stránka zpráv, jakmile se listuje ke konci.
@@ -606,6 +631,25 @@ private fun SearchResults(
                 }
             }
 
+            if (foundBookmarks.isNotEmpty()) {
+                item(key = "bookmarks-header") {
+                    SectionHeader(stringResource(Res.string.profile_bookmarks)) {
+                        ExpandToggle(foundBookmarks.size, bookmarksExpanded) { bookmarksExpanded = it }
+                    }
+                }
+                val shownBookmarks = if (bookmarksExpanded || messages.isEmpty()) foundBookmarks else foundBookmarks.take(COLLAPSED_ROWS)
+                itemsIndexed(shownBookmarks, key = { _, bookmark -> "bookmark-${bookmark.chatId}-${bookmark.messageId}" }) { index, bookmark ->
+                    BookmarkResultRow(
+                        bookmark = bookmark,
+                        chatTitle = bookmarkTitles[bookmark.chatId],
+                        query = trimmed,
+                        highlight = highlight,
+                        onClick = { onMessageClickLatest(bookmark.chatId, bookmark.messageId, null) },
+                        modifier = Modifier.animateItem().groupedItem(index, shownBookmarks.size, rowColor),
+                    )
+                }
+            }
+
             if (messages.isNotEmpty()) {
                 item(key = "messages-header") {
                     SectionHeader(
@@ -633,6 +677,70 @@ private fun SearchResults(
             }
         }
     }
+}
+
+/**
+ * Nalezená záložka: název chatu (u kanálu bez opakování odesílatele), kdy zpráva přišla a úryvek
+ * se zvýrazněným dotazem. Ikona záložky místo avataru říká, odkud výsledek je — mezi
+ * zprávami od serveru by jinak splynula.
+ */
+@Composable
+private fun BookmarkResultRow(
+    bookmark: MessageBookmark,
+    chatTitle: String?,
+    query: String,
+    highlight: SpanStyle,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val senderColor = MaterialTheme.colorScheme.onSurface
+    val sender = bookmark.sender?.takeIf { it != chatTitle }
+    val text = remember(bookmark.text, query, highlight, sender, senderColor) {
+        val snippet = snippetAround(bookmark.text.replace('\n', ' '), query)
+        buildAnnotatedString {
+            sender?.let {
+                withStyle(SpanStyle(color = senderColor)) { append(it) }
+                append(": ")
+            }
+            val start = length
+            append(snippet)
+            highlightRanges(snippet, query).forEach { addStyle(highlight, start + it.first, start + it.last + 1) }
+        }
+    }
+    ListItem(
+        headlineContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    chatTitle ?: bookmark.sender.orEmpty(),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    bookmark.timestamp.asRelativeTime(),
+                    style = MaterialTheme.typography.labelMedium.tabularNumbers(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
+        },
+        supportingContent = { Text(text, maxLines = 2, overflow = TextOverflow.Ellipsis) },
+        leadingContent = {
+            Box(
+                Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painterResource(Res.drawable.bookmark_filled_24dp),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = modifier.clickable(onClick = onClick),
+    )
 }
 
 /** „Zobrazit vše" / „Zobrazit méně" v nadpisu sekce — jen když se sekce do sbalené podoby nevejde. */
