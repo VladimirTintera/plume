@@ -35,8 +35,20 @@ interface ProfileRepository {
     /** Přidá skladbu na ZAČÁTEK hudby ve vlastním profilu (`addProfileAudio`). */
     suspend fun addProfileAudio(audio: MessageMedia.Audio): Result<Unit>
 
+    /**
+     * Nahraje skladbu [file] ze zařízení (název, interpret, délka a obal ze značek) a přidá ji
+     * na ZAČÁTEK hudby ve vlastním profilu (`addProfileAudio` s místním souborem).
+     */
+    suspend fun addProfileAudioFile(file: OutgoingAttachment.Audio): Result<Unit>
+
     /** Odebere skladbu [fileId] z hudby ve vlastním profilu (`removeProfileAudio`). */
     suspend fun removeProfileAudio(fileId: Int): Result<Unit>
+
+    /**
+     * Přesune skladbu [fileId] ve vlastním profilu hned za [afterFileId]; `0` = na začátek
+     * (`setProfileAudioPosition`). Celé nové pořadí rozloží na tahy [profileAudioMoves].
+     */
+    suspend fun moveProfileAudio(fileId: Int, afterFileId: Int): Result<Unit>
 
     /** Je skladba [fileId] v hudbě vlastního profilu? (`isProfileAudio`; 404 = není). */
     suspend fun isProfileAudio(fileId: Int): Boolean
@@ -550,3 +562,43 @@ data class ProfilePhoto(val id: Long, val addedDate: Int, val media: MessageMedi
 
 /** Kolik skladeb hudby v profilu se načte; víc jich TDLib naráz nevydá. */
 const val PROFILE_AUDIO_LIMIT = 100
+
+/**
+ * Tahy, kterými se hudba v profilu přeskládá z [current] na [target] (obojí id souborů téže
+ * množiny): dvojice „skladba → za kterou" pro `setProfileAudioPosition`, `0` = na začátek.
+ *
+ * **Co nejméně tahů — každý je dotaz na server.** Skladby, které vůči sobě už stojí ve správném
+ * pořadí (nejdelší rostoucí podposloupnost pozic z [current] v pořadí [target]), zůstanou;
+ * ostatní se v pořadí [target] přesunou hned za svého předchůdce. Ten v tu chvíli už stojí
+ * správně (nehýbal se, nebo se přesunul dřív), takže to vyjde. Přetažení jedné skladby kamkoli
+ * je tak jeden tah.
+ */
+fun profileAudioMoves(current: List<Int>, target: List<Int>): List<Pair<Int, Int>> {
+    val positions = target.map { current.indexOf(it) }
+    val stays = longestIncreasing(positions).map { target[it] }.toSet()
+    return target.mapIndexedNotNull { index, fileId ->
+        if (fileId in stays) null else fileId to (if (index == 0) 0 else target[index - 1])
+    }
+}
+
+/** Indexy nejdelší rostoucí podposloupnosti [values] (O(n²) — skladeb je nejvýš sto). */
+private fun longestIncreasing(values: List<Int>): List<Int> {
+    if (values.isEmpty()) return emptyList()
+    val length = IntArray(values.size) { 1 }
+    val previous = IntArray(values.size) { -1 }
+    for (i in values.indices) {
+        for (j in 0 until i) {
+            if (values[j] < values[i] && length[j] + 1 > length[i]) {
+                length[i] = length[j] + 1
+                previous[i] = j
+            }
+        }
+    }
+    var index = length.indices.maxBy { length[it] }
+    val result = ArrayDeque<Int>()
+    while (index >= 0) {
+        result.addFirst(index)
+        index = previous[index]
+    }
+    return result.toList()
+}

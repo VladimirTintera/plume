@@ -899,7 +899,8 @@ Nejvýš tři řádky, pak „Zobrazit všech N skladeb".
   po znovuotevření zmizela).
 - **Profil je jen ke čtení.** Vlastní profil se v aplikaci neotevírá (Uložené zprávy profil
   nemají), takže vlastní hudba se spravuje v úpravě profilu (`docs/poznatky/nastaveni.md`,
-  „Hudba ve vlastním profilu") a přidává z nabídky nad zprávou se skladbou („Přidat do profilu",
+  „Hudba ve vlastním profilu" — i přidání ze souboru a pořadí) a přidává i z nabídky nad
+  zprávou se skladbou („Přidat do profilu",
   `MessageMenuAction.ToggleProfileAudio`; jestli už v profilu je, zjistí `isProfileAudio` při
   otevření nabídky). V tajném chatu se nenabízí. `addProfileAudio` bere `InputFileId` — soubor
   už na serveru je, TDLib ho nenahrává znovu.

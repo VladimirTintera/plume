@@ -19,6 +19,12 @@ interface AttachmentPicker {
     /** Fotky a videa. */
     fun pickMedia()
     fun pickDocument()
+
+    /**
+     * Jen zvukové soubory (hudba do profilu). Kde systémový výběr filtr nemá (desktop), je to
+     * obyčejný výběr souboru — co není skladba, odmítne volající.
+     */
+    fun pickAudio() = pickDocument()
 }
 
 /**

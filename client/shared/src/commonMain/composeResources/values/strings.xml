@@ -1890,9 +1890,15 @@
     <string name="error_ai_compose_premium">You've used up your free AI edits. More are available with Telegram Premium.</string>
     <string name="profile_music">Music in profile</string>
     <string name="privacy_profile_audio">Music in profile</string>
-    <string name="profile_music_empty">Long-press a song in a chat and choose “Add to profile”.</string>
+    <string name="profile_music_empty">Add a song from a file, or long-press a song in a chat and choose “Add to profile”.</string>
     <string name="profile_music_remove">Remove from profile</string>
     <string name="profile_music_remove_failed">Couldn't remove the song from your profile.</string>
+    <string name="profile_music_add">Add song</string>
+    <string name="profile_music_reorder">Reorder</string>
+    <string name="profile_music_reorder_title">Song order</string>
+    <string name="profile_music_not_audio">That file isn't a song</string>
+    <string name="profile_music_add_failed">Couldn't add the song to your profile</string>
+    <string name="profile_music_reorder_failed">Couldn't save the song order</string>
     <plurals name="profile_music_show_all">
         <item quantity="one">Show %1$d song</item>
         <item quantity="other">Show all %1$d songs</item>

@@ -253,9 +253,32 @@ jméno, příjmení, uživatelské jméno a bio.
 Sekce **Hudba v profilu** na konci úpravy profilu (`OwnProfileMusicSection`, vlastní
 `OwnProfileMusicViewModel`, ať úprava profilu nenese frontu hudby a přehrávač): skladby
 z `getUserProfileAudios` pro vlastní id, přehrání a odebrání křížkem (`removeProfileAudio`,
-hned, ne tlačítkem Uložit — jako uživatelská jména). Přidává se z nabídky nad zprávou se
-skladbou, prázdná sekce to říká větou („Podrž skladbu v chatu a vyber „Přidat do profilu“").
-Pořadí (`setProfileAudioPosition`) zatím ne. Viz `docs/poznatky/profil-chatu.md`, „Hudba v profilu".
+hned, ne tlačítkem Uložit — jako uživatelská jména). Přidává se tlačítkem **Přidat skladbu**
+(soubor z telefonu) nebo z nabídky nad zprávou se skladbou; od dvou skladeb je **Uspořádat**.
+Viz `docs/poznatky/profil-chatu.md`, „Hudba v profilu".
+
+- **Soubor jde stejnou cestou jako příloha „Soubor"** (`rememberAttachmentPicker`, nová
+  `pickAudio`): hudbu platforma přečte i se značkami (název, interpret, délka, obal) jako
+  `OutgoingAttachment.Audio` a `addProfileAudioFile` ji nahraje přes `InputFileLocal`. Co
+  skladba není, odmítne ViewModel větou. Bez značky názvu se použije jméno souboru — prázdný
+  název by profil ukázal jako „Audio".
+- **Výběr na Androidu se otevírá v kořeni Audio** (`OpenAudio`, `EXTRA_INITIAL_URI` na
+  `audio_root` poskytovatele médií). S filtrem na zvuk ukazoval systémový výběr v úvodních
+  „Nedávných" prázdno (emulátor, Android 16) a ke skladbám se muselo bočním menu. Kořen Audio
+  řadí podle interpreta a alba, takže skladba bez značek je o tři ťuknutí hlouběji
+  (Unknown → Music). Na iOS filtr `UTTypeAudio`, desktop vybírá jakýkoli soubor.
+- **Uspořádání je sheet s úchyty** (`ProfileMusicReorderSheet`, `ReorderRow` jako u připnutých
+  chatů), pořadí se drží v sheetu a na server jde až „Hotovo". Úprava profilu je obyčejný
+  sloupec, ne `LazyColumn`, a tažení (`DragReorderState`) potřebuje stav seznamu — proto vlastní
+  sheet a ne úchyty přímo v sekci.
+- **Na server jde co nejméně tahů** (`profileAudioMoves`, testy `ProfileAudioMovesTest`):
+  každý `setProfileAudioPosition` je dotaz. Skladby, které vůči sobě stojí správně (nejdelší
+  rostoucí podposloupnost), se nehýbou; přetažení jedné skladby kamkoli je jeden tah. Po tazích
+  se seznam načte znovu od serveru — nepovedený tah zbytek zastaví a ukáže se skutečný stav.
+- **Ověřeno na emulátoru `Plume_Barvy`** (…527): přidání dvou M4A ze souborů (nová nahoře,
+  název ze jména souboru, délka), obrázek odmítnut větou, přetažení druhé skladby nahoru
+  a „Hotovo" → seznam od serveru v novém pořadí; skladby pak odebrané. **Neověřené:** skladba
+  se značkami a obalem, iOS a desktop.
 
 ### Ořez profilové fotky
 
