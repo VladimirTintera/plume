@@ -922,7 +922,7 @@ poměru přínosu a práce; každý bod je samostatný PR.
   složka, pozvánka, téma, nový kontakt, nová skupina/kanál, slovní kód v přihlášení). Pole
   v `AlertDialog`u zůstala obrysová (odkaz ve formátování, možnost ankety, štítek člena…).
 - ~~**Ruční `Card` bloky v profilu**~~ — hotovo (úprava skupiny, `GroupSettingsCard`, práva
-  a omezení člena přes `GroupedColumn`).
+  a omezení člena přes `GroupedColumn`, VladimirTintera/telegram#839).
 - **Hlavičky podstránek profilu** (`InviteLinksScreen`, `MemberRightsScreen`, `EditChatScreen`,
   `EventLogScreen`, `JoinRequestsScreen`, `RemovedMembersScreen`) jako `MediumFlexibleTopAppBar`
   s podtitulkem = název chatu nebo jméno člena; dnes z hlavičky není poznat, čeho se týká.
