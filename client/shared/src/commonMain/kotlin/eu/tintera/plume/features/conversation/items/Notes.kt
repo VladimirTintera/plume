@@ -1,6 +1,8 @@
 package eu.tintera.plume.features.conversation.items
 
 import eu.tintera.plume.core.ui.resolve
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.background
 import androidx.compose.material3.ShapeDefaults
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -98,15 +100,30 @@ internal fun RevealingTime(
 }
 
 /**
- * Předěl „Nepřečtené zprávy".
+ * Předěl „Nepřečtené zprávy" jako tónová pilulka se zvýrazněným písmem.
+ *
+ * Dřív vypadal přesně jako předěl dne (šedý text uprostřed), takže se v historii ztrácel mezi
+ * časy — přitom je to jediná značka „odsud čti". Pilulka `secondaryContainer` ho odliší, aniž by
+ * křičela: je to orientační bod, ne upozornění.
  */
 @Composable
 internal fun UnreadDivider(modifier: Modifier = Modifier) {
-    CenteredNote(
-        text = stringResource(Res.string.conversation_unread_divider),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier.padding(top = DAY_DIVIDER_SPACING, bottom = DIVIDER_BOTTOM_SPACING),
-    )
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = DAY_DIVIDER_SPACING, bottom = DIVIDER_BOTTOM_SPACING),
+    ) {
+        Text(
+            text = stringResource(Res.string.conversation_unread_divider),
+            style = MaterialTheme.typography.labelMediumEmphasized,
+            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.secondaryContainer)
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+        )
+    }
 }
 
 /**
