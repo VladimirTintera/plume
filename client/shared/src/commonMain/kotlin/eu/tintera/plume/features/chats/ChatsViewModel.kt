@@ -1,5 +1,8 @@
 package eu.tintera.plume.features.chats
 
+import kotlinx.coroutines.flow.mapLatest
+import eu.tintera.plume.core.bookmarks.MessageBookmark
+import eu.tintera.plume.core.bookmarks.MessageBookmarks
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import eu.tintera.plume.core.chatcolor.ChatColors
@@ -101,6 +104,8 @@ class ChatsViewModel(
     private val session: TelegramSession? = null,
     /** Odznak „čeká na odpověď" (model v zařízení); bez něj se nepočítá. */
     private val triage: ChatTriage? = null,
+    /** Záložky zpráv přes všechny chaty (menu účtu → Záložky); bez nich položka není. */
+    private val bookmarks: MessageBookmarks? = null,
 ) : ViewModel() {
 
     private val logger = Logger.withTag("Chats")
@@ -380,6 +385,23 @@ class ChatsViewModel(
             topics.map { DraftItem(it.chat, DraftTopic(it.topicId, it.topicName), it.draft) })
             .sortedByDescending { it.draft.timestamp }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** Záložky přihlášeného účtu ze všech chatů, nejnovější první. */
+    val allBookmarks: StateFlow<List<MessageBookmark>> = (bookmarks?.all ?: flowOf(emptyList()))
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * Názvy chatů se záložkami. Dotahují se zvlášť (`summaries`, lokální), protože chat se
+     * záložkou nemusí být v načteném seznamu — archivovaný, opuštěný.
+     */
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val bookmarkChatTitles: StateFlow<Map<Long, String>> = allBookmarks
+        .map { list -> list.map { it.chatId }.distinct() }
+        .distinctUntilChanged()
+        .mapLatest { ids -> repository.summaries(ids).associate { it.id to it.title } }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
+    fun removeBookmark(bookmark: MessageBookmark) = bookmarks?.remove(bookmark.chatId, bookmark.messageId)
 
     private val _draftDeleted = MutableStateFlow<DraftDeleted?>(null)
 

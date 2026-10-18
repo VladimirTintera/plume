@@ -490,6 +490,7 @@ fun appModule() = module {
             accountNotices = get(),
             session = get(),
             triage = get(),
+            bookmarks = get(),
         )
     }
     viewModelOf(::StickerPickerViewModel)

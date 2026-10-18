@@ -661,6 +661,14 @@ upravená, kdy ji protějšek přečetl, kdo ji zhlédl a odkaz na ni (`MessageI
 - **Ověřeno na emulátoru** (Fold rozložený, česky): přidání a odebrání z nabídky nad zprávou,
   řádek „1 zpráva / Záložky" v profilu, sheet, skok na zprávu se zvýrazněním, odebrání ze sheetu.
   Hledání záložek zatím není. **iOS jen přeložené.**
+- **Přehled přes všechny chaty je v menu účtu** (Záložky s počtem, jen když nějaké jsou —
+  jako Koncepty). Tentýž `BookmarksSheet`, jen s názvem chatu nad odesílatelem (`chatTitles`);
+  u příspěvku kanálu, kde je odesílatel kanál sám, se název neopakuje. Názvy se dotahují zvlášť
+  (`ChatRepository.summaries`, lokální), protože chat se záložkou nemusí být v načteném seznamu
+  (archiv, opuštěný) — takový řádek název chatu prostě nemá. Ťuknutí jde touž cestou jako
+  nalezená zpráva v hledání (`onMessageClick`): chat se otevře na zprávě. Ověřeno na emulátoru
+  (…527): záložka v soukromém chatu a v kanálu, „Záložky 2" v menu, otevření obou, odebrání
+  ze sheetu, po posledním sheet i položka zmizí.
 
 ## Připomenutí zprávy
 

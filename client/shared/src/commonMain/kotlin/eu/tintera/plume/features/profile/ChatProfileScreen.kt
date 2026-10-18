@@ -564,11 +564,11 @@ fun ChatProfileScreen(
             if (showBookmarks && bookmarks.isNotEmpty()) {
                 BookmarksSheet(
                     bookmarks = bookmarks,
-                    onOpen = { messageId ->
+                    onOpen = { bookmark ->
                         showBookmarks = false
-                        onOpenMessage(messageId)
+                        onOpenMessage(bookmark.messageId)
                     },
-                    onRemove = viewModel::removeBookmark,
+                    onRemove = { viewModel.removeBookmark(it.messageId) },
                     onDismiss = { showBookmarks = false },
                 )
             }

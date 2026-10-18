@@ -3199,6 +3199,12 @@
     <string name="conversation_bookmark_added">Přidáno do záložek</string>
     <string name="conversation_bookmark_removed">Odebráno ze záložek</string>
     <string name="profile_bookmarks">Záložky</string>
+    <plurals name="chats_bookmarks_count">
+        <item quantity="one">%1$d záložka</item>
+        <item quantity="few">%1$d záložky</item>
+        <item quantity="many">%1$d záložky</item>
+        <item quantity="other">%1$d záložek</item>
+    </plurals>
     <plurals name="profile_bookmarks_count">
         <item quantity="one">%1$d zpráva</item>
         <item quantity="few">%1$d zprávy</item>

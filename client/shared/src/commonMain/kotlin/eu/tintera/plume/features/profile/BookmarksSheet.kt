@@ -36,17 +36,20 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Záložky zpráv v chatu (profil → Záložky). Ťuknutí zavře profil a konverzace skočí na zprávu;
- * plná záložka vpravo ji odebere. Řádek ukazuje otisk zprávy z doby uložení (`MessageBookmark`),
- * takže se nic nenačítá a záložka smazané zprávy pořád říká, co to bylo.
+ * Záložky zpráv v chatu (profil → Záložky), nebo ve všech chatech (menu účtu → Záložky, s názvem
+ * chatu u každé — [chatTitles]). Ťuknutí otevře zprávu; plná záložka vpravo ji odebere. Řádek
+ * ukazuje otisk zprávy z doby uložení (`MessageBookmark`), takže se nic nenačítá a záložka
+ * smazané zprávy pořád říká, co to bylo.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun BookmarksSheet(
     bookmarks: List<MessageBookmark>,
-    onOpen: (messageId: Long) -> Unit,
-    onRemove: (messageId: Long) -> Unit,
+    onOpen: (MessageBookmark) -> Unit,
+    onRemove: (MessageBookmark) -> Unit,
     onDismiss: () -> Unit,
+    /** Názvy chatů podle id — jen v přehledu přes všechny chaty; `null` = záložky jednoho chatu. */
+    chatTitles: Map<Long, String>? = null,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberExpandedSheetState()) {
         Text(
@@ -55,16 +58,29 @@ internal fun BookmarksSheet(
             modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp),
         )
         LazyColumn(Modifier.fillMaxWidth().navigationBarsPadding()) {
-            items(bookmarks, key = { it.messageId }) { bookmark ->
+            items(bookmarks, key = { "${it.chatId}/${it.messageId}" }) { bookmark ->
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .clickable { onOpen(bookmark.messageId) }
+                        .clickable { onOpen(bookmark) }
                         .padding(start = 24.dp, end = 12.dp, top = 12.dp, bottom = 12.dp)
                         .animateItem(),
                     verticalAlignment = Alignment.Top,
                 ) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        // Přes všechny chaty: odkud záložka je, nad odesílatelem. U příspěvku
+                        // kanálu je odesílatel kanál sám — dvakrát týž název by byl šum.
+                        chatTitles?.let { titles -> titles[bookmark.chatId] }
+                            ?.takeIf { it != bookmark.sender }
+                            ?.let { title ->
+                                Text(
+                                    title,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 bookmark.sender ?: stringResource(Res.string.summary_me),
@@ -91,7 +107,7 @@ internal fun BookmarksSheet(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    IconButton(onClick = { onRemove(bookmark.messageId) }, shapes = IconButtonDefaults.shapes()) {
+                    IconButton(onClick = { onRemove(bookmark) }, shapes = IconButtonDefaults.shapes()) {
                         Icon(painterResource(Res.drawable.bookmark_filled_24dp), contentDescription = stringResource(Res.string.menu_bookmark_remove))
                     }
                 }
