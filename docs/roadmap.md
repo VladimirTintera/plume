@@ -407,8 +407,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
   `docs/poznatky/konverzace-akce.md`, „Vymazání historie"). Plume dřív uměl jen smazat celý chat.
 - ~~Tiché odesílání jako výchozí pro chat (`toggleChatDefaultDisableNotification`)~~ — hotovo
   jako zvoneček v kanálu (`docs/poznatky/konverzace-psani.md`, „Výchozí odesílání bez zvuku").
-- Nalezené při druhém porovnání API (18. 10.), zatím bez místa v aplikaci: smazání všech konceptů
-  najednou v přehledu konceptů (`clearAllDraftMessages`), doporučené kanály
+- ~~Smazání všech konceptů najednou (`clearAllDraftMessages`)~~ — hotovo („Smazat vše" v přehledu
+  konceptů; `docs/poznatky/seznam-chatu.md`, „Přehled konceptů").
+- Nalezené při druhém porovnání API (18. 10.), zatím bez místa v aplikaci: doporučené kanály
   (`getRecommendedChats`), nahlášení profilové fotky (`reportChatPhoto`).
 
 - ~~Změna telefonního čísla~~ — hotovo (úprava profilu → Telefonní číslo).

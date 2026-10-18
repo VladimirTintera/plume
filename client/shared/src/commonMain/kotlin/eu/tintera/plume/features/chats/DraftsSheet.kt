@@ -36,6 +36,16 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import eu.tintera.plume.core.ui.ConfirmDialog
+import eu.tintera.plume.resources.chats_drafts_delete_all
+import eu.tintera.plume.resources.chats_drafts_delete_all_text
+import eu.tintera.plume.resources.chats_drafts_delete_all_title
+import eu.tintera.plume.resources.delete_sweep_24dp
+import org.jetbrains.compose.resources.pluralStringResource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -96,6 +106,8 @@ internal fun DraftsSheet(
     deleted: DraftDeleted?,
     onOpen: (DraftItem) -> Unit,
     onDelete: (DraftItem) -> Unit,
+    /** „Smazat vše": hromadně, s potvrzením — vrátit to nejde. */
+    onDeleteAll: () -> Unit,
     onDeletedShown: () -> Unit,
     onUndo: (DraftDeleted) -> Unit,
     onDismiss: () -> Unit,
@@ -144,7 +156,35 @@ internal fun DraftsSheet(
     }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        SheetTitle(stringResource(Res.string.chats_drafts), modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp))
+        var confirmDeleteAll by rememberSaveable { mutableStateOf(false) }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 24.dp, end = 16.dp, bottom = 8.dp),
+        ) {
+            SheetTitle(stringResource(Res.string.chats_drafts), modifier = Modifier.weight(1f))
+            // Od dvou konceptů: jeden se smaže svým křížkem, a to i s „Vrátit".
+            if (drafts.size > 1) {
+                TextButton(
+                    onClick = { confirmDeleteAll = true },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    shapes = ButtonDefaults.shapes(),
+                ) { Text(stringResource(Res.string.chats_drafts_delete_all)) }
+            }
+        }
+        if (confirmDeleteAll) {
+            ConfirmDialog(
+                title = stringResource(Res.string.chats_drafts_delete_all_title),
+                text = pluralStringResource(Res.plurals.chats_drafts_delete_all_text, drafts.size, drafts.size),
+                confirmLabel = stringResource(Res.string.chats_drafts_delete_all),
+                onConfirm = {
+                    confirmDeleteAll = false
+                    onDeleteAll()
+                },
+                onDismiss = { confirmDeleteAll = false },
+                icon = Res.drawable.delete_sweep_24dp,
+                destructive = true,
+            )
+        }
         // Řádky včetně těch, které právě odjíždějí: smazaný koncept z `drafts` zmizí hned, ale
         // v seznamu má dojet animací, jinak by řádek i výška sheetu skočily v jednom snímku.
         val leaving = remember { LeavingDrafts(drafts) }

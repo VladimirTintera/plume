@@ -230,6 +230,13 @@
     <string name="chats_draft_delete">Smazat koncept</string>
     <string name="chats_draft_deleted">Koncept smazán</string>
     <string name="chats_drafts">Koncepty</string>
+    <string name="chats_drafts_delete_all">Smazat vše</string>
+    <string name="chats_drafts_delete_all_title">Smazat všechny koncepty?</string>
+    <plurals name="chats_drafts_delete_all_text">
+        <item quantity="one">%1$d koncept se smaže na všech tvých zařízeních. Vrátit to nepůjde.</item>
+        <item quantity="few">%1$d koncepty se smažou na všech tvých zařízeních. Vrátit to nepůjde.</item>
+        <item quantity="other">%1$d konceptů se smaže na všech tvých zařízeních. Vrátit to nepůjde.</item>
+    </plurals>
     <plurals name="chats_drafts_count">
         <item quantity="one">%1$d chat s rozepsanou zprávou</item>
         <item quantity="few">%1$d chaty s rozepsanou zprávou</item>

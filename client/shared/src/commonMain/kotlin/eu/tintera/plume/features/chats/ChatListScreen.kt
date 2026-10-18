@@ -435,6 +435,7 @@ fun ChatListScreen(
                 }
             },
             onDelete = viewModel::deleteDraft,
+            onDeleteAll = { viewModel.deleteAllDrafts(loadedDrafts) },
             onDeletedShown = viewModel::consumeDraftDeleted,
             onUndo = viewModel::undoDeleteDraft,
             onDismiss = { showDrafts = false },

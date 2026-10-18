@@ -227,6 +227,12 @@
     <string name="chats_draft_delete">Delete draft</string>
     <string name="chats_draft_deleted">Draft deleted</string>
     <string name="chats_drafts">Drafts</string>
+    <string name="chats_drafts_delete_all">Delete all</string>
+    <string name="chats_drafts_delete_all_title">Delete all drafts?</string>
+    <plurals name="chats_drafts_delete_all_text">
+        <item quantity="one">%1$d draft will be deleted on all your devices. This can't be undone.</item>
+        <item quantity="other">%1$d drafts will be deleted on all your devices. This can't be undone.</item>
+    </plurals>
     <plurals name="chats_drafts_count">
         <item quantity="one">%1$d chat with an unsent draft</item>
         <item quantity="other">%1$d chats with an unsent draft</item>

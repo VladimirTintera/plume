@@ -718,6 +718,13 @@ všemi známými chaty (`all` v `TdlChatRepository`), ne nad jednou složkou.
   a „Vrátit" (koncept zpět v přehledu), smazání posledního (přehled otevřený se snackbarem, po
   něm se zavřel). **Pozor při ověřování:** snackbar zmizí po 4 s a koš dalšího konceptu leží
   přesně pod „Vrátit" — ťuknutí se zpožděním smaže další koncept.
+- **„Smazat vše" (od dvou konceptů) jde přes potvrzovací dialog, ne přes „Vrátit"** jako
+  jednotlivé smazání: hromadné smazání (`clearAllDraftMessages`) server rozešle na všechna
+  zařízení a vracet desítky konceptů po jednom by byla nová past. Mažou se i koncepty
+  v tajných chatech. **Koncepty v tématech se po něm dočistí po jednom** (`deleteAllDrafts`):
+  TDLib je vede zvlášť a dokumentace hromadného smazání mluví jen o chatech. Přehled se zavře
+  sám, až zmizí poslední koncept. Ověřeno na emulátoru (…527): tři koncepty (dva chaty a téma
+  skupiny), po „Smazat vše" přehled zmizel a ani po restartu aplikace žádný koncept nezůstal.
 
 ### Archiv
 
