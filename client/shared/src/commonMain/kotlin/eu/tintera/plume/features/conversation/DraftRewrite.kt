@@ -1,5 +1,7 @@
 package eu.tintera.plume.features.conversation
 
+import eu.tintera.plume.resources.rewrite_emoji_changed_text
+import eu.tintera.plume.core.ai.onlyEmojiAdded
 import eu.tintera.plume.core.translation.OnDeviceTranslator
 import eu.tintera.plume.core.translation.deviceTranslationCode
 import eu.tintera.plume.core.language.LanguageDetector
@@ -392,11 +394,21 @@ class DraftRewriteViewModel(
             _state.value = if (result.isBlank()) {
                 logger.w { "Model přepisu nenapsal žádný text" }
                 RewriteState.Failed(choice, UiText(Res.string.rewrite_failed))
+            } else if (style == RewriteStyle.Emoji && !onlyEmojiAdded(text, result)) {
+                // Pojistka: model měl jen vložit emoji, ale sáhl i na text. Takový výsledek se
+                // nenabízí — v záplavě emoji by změněné slovo nikdo nepoznal.
+                logger.i { "Model při přidávání emoji změnil i text — výsledek zahozen" }
+                RewriteState.Failed(choice, UiText(Res.string.rewrite_emoji_changed_text))
             } else {
                 // Oprava překlepů ukazuje, co se změnilo, jako oprava od serveru — rozdíl spočítá
                 // aplikace ([draftDiff]); u „Kratší" a „Zdvořileji" se mění celé věty a zvýraznění
                 // by bylo jen šum.
-                val diff = if (style == RewriteStyle.Fix) draftDiff(text.trim(), result).takeIf { it.changes.isNotEmpty() } else null
+                // U emoji je zvýraznění ukáže a potvrdí, že se nic jiného nezměnilo.
+                val diff = if (style == RewriteStyle.Fix || style == RewriteStyle.Emoji) {
+                    draftDiff(text.trim(), result).takeIf { it.changes.isNotEmpty() }
+                } else {
+                    null
+                }
                 RewriteState.Done(choice, result, diff)
             }
         } catch (e: CancellationException) {
@@ -810,4 +822,5 @@ private val RewriteStyle.label
         RewriteStyle.Shorter -> Res.string.rewrite_shorter
         RewriteStyle.Polite -> Res.string.rewrite_polite
         RewriteStyle.Fix -> Res.string.rewrite_fix
+        RewriteStyle.Emoji -> Res.string.rewrite_server_emoji
     }

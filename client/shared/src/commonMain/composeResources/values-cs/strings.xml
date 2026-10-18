@@ -527,6 +527,7 @@
     <string name="rewrite_unchanged">Model zprávu nechal beze změny.</string>
     <string name="rewrite_use">Použít</string>
     <string name="rewrite_failed">Zprávu se nepodařilo přepsat.</string>
+    <string name="rewrite_emoji_changed_text">Model kromě emoji změnil i text, takový výsledek se proto nenabízí.</string>
     <string name="rewrite_disclaimer">Přepisuje model v telefonu, zpráva nikam neodchází. Před odesláním si ji přečti.</string>
     <string name="effect_picker_title">Efekt zprávy</string>
     <string name="effect_picker_hint">Přehraje se nad zprávou u všech v chatu. Podržením ho uvidíš.</string>
