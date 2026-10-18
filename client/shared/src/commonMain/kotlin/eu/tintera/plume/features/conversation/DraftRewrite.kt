@@ -64,11 +64,15 @@ import eu.tintera.plume.core.telegram.DraftChange
 import eu.tintera.plume.core.telegram.DraftDiff
 import eu.tintera.plume.core.telegram.TextStyleOption
 import eu.tintera.plume.core.telegram.userMessage
+import eu.tintera.plume.core.telegram.localizedLanguageName
 import eu.tintera.plume.resources.rewrite_on_device
 import eu.tintera.plume.resources.rewrite_on_server
 import eu.tintera.plume.resources.rewrite_server_disclaimer
 import eu.tintera.plume.resources.rewrite_server_failed
 import eu.tintera.plume.resources.rewrite_server_fix
+import eu.tintera.plume.resources.rewrite_server_translate
+import eu.tintera.plume.resources.rewrite_server_translate_to
+import eu.tintera.plume.resources.rewrite_server_emoji
 import org.jetbrains.compose.resources.StringResource
 import eu.tintera.plume.core.ai.MAX_REWRITE_CHARS
 import eu.tintera.plume.core.ai.OnDeviceAi
@@ -124,7 +128,8 @@ sealed interface ToneState {
 
 /**
  * Čím se přepisuje: modelem v zařízení ([Local]), nebo na serveru Telegramu — opravou chyb
- * ([ServerFix], `fixTextWithAi`) či jeho stylem psaní ([ServerStyle], `composeTextWithAi`).
+ * ([ServerFix], `fixTextWithAi`), jeho stylem psaní ([ServerStyle]), překladem
+ * ([ServerTranslate]) či doplněním emoji ([ServerEmoji]); poslední tři jsou `composeTextWithAi`.
  */
 sealed interface RewriteChoice {
     data class Local(val style: RewriteStyle) : RewriteChoice
@@ -132,6 +137,11 @@ sealed interface RewriteChoice {
     data object ServerFix : RewriteChoice
 
     data class ServerStyle(val style: TextStyleOption) : RewriteChoice
+
+    /** Překlad konceptu do jazyka [languageCode] (kód z `TRANSLATION_LANGUAGES`). */
+    data class ServerTranslate(val languageCode: String) : RewriteChoice
+
+    data object ServerEmoji : RewriteChoice
 
     /** Text odchází na server Telegramu (sheet to pod výsledkem říká). */
     val onServer: Boolean get() = this !is Local
@@ -243,18 +253,26 @@ class DraftRewriteViewModel(
                     onSuccess = { fixed -> _state.value = RewriteState.Done(choice, fixed.text.trim(), fixed.diff) },
                     onFailure = { failure -> serverFailed(choice, failure) },
                 )
-                is RewriteChoice.ServerStyle -> aiText.compose(text, choice.style.name).fold(
-                    onSuccess = { result ->
-                        _state.value = if (result.isBlank()) {
-                            RewriteState.Failed(choice, UiText(Res.string.rewrite_failed))
-                        } else {
-                            RewriteState.Done(choice, result.trim())
-                        }
-                    },
-                    onFailure = { failure -> serverFailed(choice, failure) },
-                )
+                is RewriteChoice.ServerStyle -> composeOnServer(choice) { aiText.compose(text, styleName = choice.style.name) }
+                is RewriteChoice.ServerTranslate ->
+                    composeOnServer(choice) { aiText.compose(text, translateTo = choice.languageCode) }
+                RewriteChoice.ServerEmoji -> composeOnServer(choice) { aiText.compose(text, addEmojis = true) }
             }
         }
+    }
+
+    /** Přepis na serveru (`composeTextWithAi`): prázdný výsledek je selhání, ne „nic se nezměnilo". */
+    private suspend fun composeOnServer(choice: RewriteChoice, request: suspend () -> Result<String>) {
+        request().fold(
+            onSuccess = { result ->
+                _state.value = if (result.isBlank()) {
+                    RewriteState.Failed(choice, UiText(Res.string.rewrite_failed))
+                } else {
+                    RewriteState.Done(choice, result.trim())
+                }
+            },
+            onFailure = { failure -> serverFailed(choice, failure) },
+        )
     }
 
     /** Selhání serveru: věta pro uživatele (`AICOMPOSE_FLOOD_PREMIUM` = došly bezplatné úpravy). */
@@ -370,6 +388,8 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
     LaunchedEffect(source) { rewrite.viewModel.checkTone(source) }
     val serverStyles by rewrite.viewModel.serverStyles.collectAsStateWithLifecycle()
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
+    // Výběr jazyka překladu je sheet NAD tímhle, jako u překladu zprávy.
+    var pickingLanguage by remember { mutableStateOf(false) }
     val choice = when (val s = state) {
         is RewriteState.Working -> s.choice
         is RewriteState.Done -> s.choice
@@ -419,6 +439,24 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
                         selected = choice == RewriteChoice.ServerFix,
                         onClick = { rewrite.viewModel.rewrite(source, RewriteChoice.ServerFix) },
                         label = { Text(stringResource(Res.string.rewrite_server_fix)) },
+                    )
+                    // Překlad: čip nese vybraný jazyk; ťuknutí vždy otevře výběr, i k překladu
+                    // do jiného jazyka.
+                    val translate = choice as? RewriteChoice.ServerTranslate
+                    FilterChip(
+                        selected = translate != null,
+                        onClick = { pickingLanguage = true },
+                        label = {
+                            Text(
+                                translate?.let { stringResource(Res.string.rewrite_server_translate_to, languageName(it.languageCode)) }
+                                    ?: stringResource(Res.string.rewrite_server_translate),
+                            )
+                        },
+                    )
+                    FilterChip(
+                        selected = choice == RewriteChoice.ServerEmoji,
+                        onClick = { rewrite.viewModel.rewrite(source, RewriteChoice.ServerEmoji) },
+                        label = { Text(stringResource(Res.string.rewrite_server_emoji)) },
                     )
                     serverStyles.forEach { style ->
                         val option = RewriteChoice.ServerStyle(style)
@@ -487,7 +525,20 @@ internal fun DraftRewriteSheet(rewrite: DraftRewrite, onUse: (String) -> Unit) {
             )
         }
     }
+    if (pickingLanguage) {
+        TranslationLanguageSheet(
+            selected = (choice as? RewriteChoice.ServerTranslate)?.languageCode.orEmpty(),
+            onPick = { code ->
+                pickingLanguage = false
+                rewrite.viewModel.rewrite(source, RewriteChoice.ServerTranslate(code))
+            },
+            onDismiss = { pickingLanguage = false },
+        )
+    }
 }
+
+/** Název jazyka v jazyce aplikace (od systému); co systém nezná, ukáže se kódem. */
+private fun languageName(code: String): String = localizedLanguageName(code) ?: code
 
 /** Řada voleb přepisu, nad ní případně nadpis (jen když jsou řady dvě). */
 @Composable

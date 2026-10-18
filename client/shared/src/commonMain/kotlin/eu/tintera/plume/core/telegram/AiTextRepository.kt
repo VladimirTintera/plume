@@ -20,8 +20,17 @@ interface AiTextRepository {
     /** Opraví překlepy, gramatiku a interpunkci; výsledek i s vyznačenými změnami. */
     suspend fun fix(text: String): Result<FixedDraft>
 
-    /** Přepíše text stylem [styleName] ([TextStyleOption.name]). */
-    suspend fun compose(text: String, styleName: String): Result<String>
+    /**
+     * Přepíše text: stylem [styleName] ([TextStyleOption.name]; prázdný = styl nechat), přeloží
+     * ho do jazyka [translateTo] (kód jako u překladu zpráv; prázdný = nepřekládat) a s [addEmojis]
+     * do něj doplní emoji. Volby jdou kombinovat, server je vyřídí jedním dotazem.
+     */
+    suspend fun compose(
+        text: String,
+        styleName: String = "",
+        translateTo: String = "",
+        addEmojis: Boolean = false,
+    ): Result<String>
 }
 
 /** Styl psaní od serveru: [name] se posílá zpátky, [title] je v jazyce aplikace od serveru. */

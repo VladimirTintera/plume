@@ -57,11 +57,11 @@ class TdlAiTextRepository(
                 )
             }
 
-    override suspend fun compose(text: String, styleName: String): Result<String> =
+    override suspend fun compose(text: String, styleName: String, translateTo: String, addEmojis: Boolean): Result<String> =
         client.composeTextWithAi(
             text = FormattedText(text = text, entities = emptyArray()),
-            translateToLanguageCode = "",
+            translateToLanguageCode = translateTo,
             styleName = styleName,
-            addEmojis = false,
+            addEmojis = addEmojis,
         ).toResult().map { it.text }
 }

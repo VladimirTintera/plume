@@ -406,6 +406,14 @@ chyby" (`fixTextWithAi`) a styly psaní od serveru (`composeTextWithAi`; `AiText
   přeškrtnutými chybovou barvou; „Použít" vloží čistý opravený text.
 - **Bez Premium je počet dotazů omezený**; po vyčerpání `AICOMPOSE_FLOOD_PREMIUM` → věta
   o Premium (`errorText`, test `TelegramErrorsTest`).
+- **Překlad a emoji jsou tentýž `composeTextWithAi`** jako styly, jen s `translateToLanguageCode`
+  a `addEmojis` (`RewriteChoice.ServerTranslate` / `ServerEmoji`). Jazyk se vybírá stejným sheetem
+  jako u překladu zprávy (`TranslationLanguageSheet`, sheet nad sheetem — zpět zavře jen výběr);
+  čip pak nese vybraný jazyk („Přeložit: Angličtina") a další ťuknutí výběr otevře znovu.
+  Volby by šlo kombinovat (styl + překlad + emoji jedním dotazem), sheet je ale nabízí zvlášť
+  jako ostatní čipy: každý čip = jeden přepis původního textu. Ověřeno na emulátoru `Plume_Barvy`
+  (…527): „Uvidime se zitra na nadrazi v osm" → s emoji 🚆, do angličtiny „Let's meet at the
+  station tomorrow at eight", „Použít" vložilo překlad do pole.
 - **Text bez diakritiky server čte jako slovenštinu**: „ahoj prijdu pozdejc, protoze mam hodne
   prace" opravil na „prídem neskôr, pretože mám veľa práce" a styl Viking psal slovensky.
   Jazyk se serveru předat nedá (parametr je jen pro překlad), takže to platí, dokud v textu
