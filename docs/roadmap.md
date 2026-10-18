@@ -1005,7 +1005,7 @@ Po #858–#863 znovu kódem, tentokrát po jednotlivých funkcích sheetů (pře
 po souborech, a soubor, který měl bloky aspoň někde, propadl). Hlavní plochy i dialogy jsou čisté;
 zbývají sheety, které se otevírají z podstránek.
 
-- ~~**Sheety s holými řádky s kolečky**~~ — hotovo (VladimirTintera/telegram#PR): pomalý režim a reakce skupiny
+- ~~**Sheety s holými řádky s kolečky**~~ — hotovo (VladimirTintera/telegram#865): pomalý režim a reakce skupiny
   přes `ChoiceListItem`; „Uložit" u reakcí je `MediumButton`.
 - **Sheety s holými seznamy**: detail zařízení (`DeviceDetailSheet`: údaje jako holé řádky
   s nadpisem v `ListItem`u, přepínače bez bloku), výjimky upozornění (`ExceptionsSheet`: chaty
