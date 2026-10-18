@@ -1,6 +1,7 @@
 package eu.tintera.plume.features.conversation
 
 import eu.tintera.plume.resources.suggested_post_action_failed
+import eu.tintera.plume.resources.ephemeral_show_original_failed
 import co.touchlab.kermit.Logger
 import eu.tintera.plume.core.telegram.ChatMessage
 import eu.tintera.plume.core.telegram.ChatRepository
@@ -126,6 +127,15 @@ internal class ConversationMessageActions(
         scope.launch {
             repository.approveSuggestedPost(chatId, messageId).onFailure { failure ->
                 state.update { it.copy(error = failure.reported(logger, Res.string.suggested_post_action_failed)) }
+            }
+        }
+    }
+
+    /** „Zobrazit původní" pod mizejícím obsahem od bota; původní obsah přinese update zprávy. */
+    fun showOriginalContent(messageId: Long) {
+        scope.launch {
+            repository.showOriginalContent(chatId, messageId).onFailure { failure ->
+                state.update { it.copy(error = failure.reported(logger, Res.string.ephemeral_show_original_failed)) }
             }
         }
     }

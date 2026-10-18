@@ -953,6 +953,15 @@ private fun MessageFrame(
                 )
             }
 
+            message.ephemeral?.let { ephemeral ->
+                EphemeralFooter(
+                    ephemeral = ephemeral,
+                    isOutgoing = message.isOutgoing,
+                    onShowOriginal = { bodyScope.act(MessageAction.ShowOriginalContent) },
+                    modifier = Modifier.align(if (message.isOutgoing) Alignment.End else Alignment.Start),
+                )
+            }
+
             DeliveryBadge(
                 delivery = frame.badge,
                 failure = message.sendFailure,

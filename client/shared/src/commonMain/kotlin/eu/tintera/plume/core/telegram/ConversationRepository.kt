@@ -112,6 +112,13 @@ interface ConversationRepository {
         Result.failure(UnsupportedOperationException())
 
     /**
+     * Vrátí zprávě původní obsah, který jí bot nahradil mizejícím ([Ephemeral.replacesOriginal]).
+     * Nový stav přinese update zprávy ([editedMessages]).
+     */
+    suspend fun showOriginalContent(chatId: Long, messageId: Long): Result<Unit> =
+        Result.failure(UnsupportedOperationException())
+
+    /**
      * Ťuknutí na tlačítko bota se zpětným voláním ([BotButtonKind.Callback]).
      *
      * Tlačítko se určuje POZICÍ v klávesnici a data, která bot dostane, si repository dočte ze
@@ -1495,6 +1502,8 @@ data class ChatMessage(
     val factCheck: FactCheck? = null,
     /** Navrhovaný příspěvek v přímých zprávách kanálu (`Message.suggestedPostInfo`); `null` = běžná zpráva. */
     val suggestedPost: SuggestedPost? = null,
+    /** Mizející zpráva, kterou vidí jen jeden člověk a bot ([Ephemeral]); `null` = vidí ji celý chat. */
+    val ephemeral: Ephemeral? = null,
     /** Tlačítka bota pod zprávou; `null` = žádná. */
     val keyboard: BotKeyboard? = null,
     /** Anketa nebo kvíz; [text] pak nese jen „Anketa: otázka" pro místa, kde se kreslit nedá. */

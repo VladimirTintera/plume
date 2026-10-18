@@ -179,6 +179,57 @@ které seznam otevře celý (`BotCommandsPanel`, doména `BotCommandItem`, pravi
 - **Tlačítko nabídky bota (`BotMenuButton`) stojí na místě tlačítka příkazů** — viz „Mini
   aplikace botů". Příkazy pak napovídá jen „/", jako u oficiálních klientů.
 
+## Mizející zprávy botů
+
+Ve skupině může bot poslat zprávu, kterou vidí jen jeden člen (Bot API 10.2, TDLib
+`Message.receiverId`), a člen botovi zpátky taky — jen mizející příkaz a odpověď na mizející
+zprávu (`sendEphemeralMessage`). Ostatní členové ji nevidí vůbec. Doména `Ephemeral`
+(`ChatMessage.ephemeral`), převod `TdlEphemeral.kt`, štítek `EphemeralFooter`, testy
+`EphemeralCommandTest`.
+
+- **Pod zprávou stojí, kdo ji vidí**: „Vidíš to jen ty" u zprávy od bota, „Vidí to jen
+  Notifikator" u vlastní. Bez štítku by vypadala jako běžná zpráva skupiny a uživatel by čekal,
+  že ji čtou všichni. Řádek pod zprávou, ne v bublině (jako počty pod příspěvkem).
+- **Bot umí obsah běžné zprávy nahradit jen pro uživatele** (po ťuknutí na tlačítko,
+  `replace_callback_query_message`). TDLib to pošle jako `Message.ephemeralContent` s pokynem
+  „ukaž místo běžného obsahu" a mění updatem `messageEphemeralContentUpdates` (zapojený do
+  `editedMessages`). Převod si proto napřed udělá kopii zprávy s náhradním obsahem, tlačítky
+  a `canBeSaved` (`withEphemeralContent`) a zbytek převodu o mizejícím obsahu neví. Pod zprávou
+  je čip **„Zobrazit původní"** (`deleteMessageEphemeralContent`).
+- **Kopie zprávy je postavená pojmenovanými argumenty BEZ výchozích hodnot.** Pole, které
+  novější TDLib do `Message` přidá, rozbije překlad tady, místo aby se v kopii tiše ztratilo.
+- **Obal nad převodem, ne větev v něm** (`toChatMessage` volá `toChatMessageContent`): převod
+  je obří suspend funkce a další větev se suspend voláním ji už jednou rozbila v ART (viz
+  `externalReply`).
+- **Mizející cestu volí repository, ne obrazovka** (`sendEphemeralText`): odpověď na zprávu
+  s `receiverId` od cizího odesílatele jde zpátky tomu botovi, příkaz, který bot označil
+  `isEphemeral`, jde tomu botovi (`ephemeralCommandBot`). Se jménem bota (`/cmd@bot`) rozhoduje
+  ten bot. Bez jména jde příkaz mizející cestou, jen když ho zná jediný bot ve skupině, jinak
+  jako běžná zpráva. Platí pro psaní do pole (`send`) i pro seznam příkazů a ťuknutí na příkaz
+  v textu (`sendKeyboardText`). Na to druhé se napoprvé zapomnělo a příkaz ze seznamu odešel
+  celé skupině.
+- **Koncept se po mizejícím odeslání maže zvlášť, ne přes `clearDraft`.** S `clearDraft = true`
+  ho TDLib smazal jen u sebe a na serveru zůstal. Seznam chatů koncept neukazoval, ale po
+  restartu aplikace (i na jiném zařízení) se text vrátil do pole. Smazat ho potom ručně
+  (`setChatDraftMessage(null)`) nepomohlo: TDLib už koncept neměl, změnu neviděl a server se
+  nic nedozvěděl. Proto se posílá s `clearDraft = false` a koncept se maže až po úspěšném
+  odeslání, dokud o něm TDLib ještě ví.
+- **Bot pošle mizející zprávu jen jako správce skupiny** (Bot API `BOT_NOT_ADMIN`). Testovací
+  bot je proto správcem „Plume test triaze".
+- **Příkazy skupiny drží TDLib v plných údajích a změnu `setMyCommands` hned nezjistí.** Nový
+  příkaz se v seznamu ukázal až po restartu aplikace, opětovné otevření chatu nestačilo.
+- **Ověřeno na emulátoru (Fold, hlavní účet, „Plume test triaze")**:
+  - Mizející zpráva od bota se štítkem.
+  - Odpověď na ni: bot ji dostal jako mizející odpověď na svou zprávu (`getUpdates`:
+    `ephemeral_message_id`, `receiver_user`).
+  - Nahrazený obsah po ťuknutí na tlačítko i s novými tlačítky a „Zobrazit původní", které
+    vrátí původní zprávu.
+  - Mizející příkaz `/tajne` ze seznamu příkazů došel botovi jako mizející, příkaz bez
+    `is_ephemeral` jako běžná zpráva.
+  - Koncept po mizející odpovědi zmizel i po restartu.
+  - **Neověřené:** iOS a desktop (jen přeložené), mizející zpráva s médii, odpověď v tématu
+    skupiny.
+
 ## Spuštění bota
 
 Prázdný chat s botem je jeho **profil** (`BotIntroPage`): velká tvář nahoře uprostřed, jméno,

@@ -528,6 +528,9 @@ class TdlConversationRepository(
         client.declineSuggestedPost(chatId = chatId, messageId = messageId, comment = comment.take(DECLINE_COMMENT_MAX))
             .toResult().map { }
 
+    override suspend fun showOriginalContent(chatId: Long, messageId: Long): Result<Unit> =
+        client.deleteMessageEphemeralContent(chatId = chatId, messageId = messageId).toResult().map { }
+
     override fun editedMessages(chatId: Long): Flow<ChatMessage> =
         merge(
             holder.updates { messageContentUpdates }.filter { it.chatId == chatId }.map { it.messageId },
@@ -537,6 +540,8 @@ class TdlConversationRepository(
             holder.updates { messageFactCheckUpdates }.filter { it.chatId == chatId }.map { it.messageId },
             // Schválený nebo odmítnutý návrh příspěvku: mění se jen stav, obsah ne.
             holder.updates { messageSuggestedPostInfoUpdates }.filter { it.chatId == chatId }.map { it.messageId },
+            // Bot nahradil obsah zprávy mizejícím (nebo ho uživatel vrátil) — obsah sám se nezměnil.
+            holder.updates { messageEphemeralContentUpdates }.filter { it.chatId == chatId }.map { it.messageId },
         )
             .map { messageId ->
                 // Update nese jen nový obsah, ne celou zprávu — zbytek se musí dočíst.
@@ -1289,19 +1294,23 @@ class TdlConversationRepository(
         formats: List<FormatSpan>,
     ): Result<ChatMessage> {
         val entities = detectEntities(text, mentions, formats)
+        val content = InputMessageText(
+            text = FormattedText(text = text, entities = entities),
+            linkPreviewOptions = linkPreview?.toTdl(),
+            clearDraft = true,
+        )
+        val replyTo = replyInput(chatId, replyToMessageId, quote)
+
+        sendEphemeralText(chatId, text, replyToMessageId, replyTo, content)?.let { return it }
 
         return client.sendMessage(
             chatId = chatId,
             // Vlákna (fóra) fáze 2 neřeší — null znamená hlavní vlákno chatu.
             topicId = topic,
-            replyTo = replyInput(chatId, replyToMessageId, quote),
+            replyTo = replyTo,
             options = options.toTdl(),
             replyMarkup = null,
-            inputMessageContent = InputMessageText(
-                text = FormattedText(text = text, entities = entities),
-                linkPreviewOptions = linkPreview?.toTdl(),
-                clearDraft = true,
-            ),
+            inputMessageContent = content,
         )
             .toResult()
             // TDLib vrací zprávu okamžitě, s dočasným id a stavem Pending.
@@ -2453,6 +2462,33 @@ class TdlConversationRepository(
             onlyCheck = onlyCheck,
         ).toResult().map { }
 
+    /**
+     * Bot, kterému má zpráva jít jako mizející, nebo `null` (běžná zpráva). Jen ve skupině:
+     * odpověď na mizející zprávu od bota jde zpátky jemu, příkaz s `isEphemeral` botovi, který
+     * ho nabízí ([ephemeralCommandBot]). Plné údaje skupiny jsou po prvním dotazu lokální.
+     */
+    private suspend fun ephemeralReceiver(chatId: Long, text: String, replyToMessageId: Long?): Long? {
+        if (replyToMessageId != null) {
+            val replied = client.getMessage(chatId = chatId, messageId = replyToMessageId).toResult().getOrNull()
+            if (replied != null && replied.receiverId != null && !replied.isOutgoing) {
+                return (replied.senderId as? MessageSenderUser)?.userId
+            }
+        }
+        if (!text.trimStart().startsWith("/")) return null
+        val chat = client.getChat(chatId = chatId).toResult().getOrNull() ?: return null
+        val bots = when (val type = chat.type) {
+            is ChatTypeBasicGroup ->
+                client.getBasicGroupFullInfo(basicGroupId = type.basicGroupId).toResult().getOrNull()?.botCommands
+            is ChatTypeSupergroup -> if (type.isChannel) null else
+                client.getSupergroupFullInfo(supergroupId = type.supergroupId).toResult().getOrNull()?.botCommands
+            else -> null
+        } ?: return null
+        val usernames = bots.associate { bot ->
+            bot.botUserId to client.getUser(userId = bot.botUserId).toResult().getOrNull()?.usernames?.editableUsername
+        }
+        return ephemeralCommandBot(text, bots.toList(), usernames::get)
+    }
+
     /** Příkazy všech botů ve skupině, každý s jménem svého bota (viz [botCommandText]). */
     private suspend fun groupCommands(bots: Array<BotCommands>?): List<BotCommandItem> =
         bots.orEmpty().flatMap { bot ->
@@ -2632,7 +2668,32 @@ class TdlConversationRepository(
         }
     }
 
+    /**
+     * Zpráva pro konverzaci, i s mizejícím obsahem ([Ephemeral]).
+     *
+     * Obsah, který bot nahradil jen pro uživatele (`ephemeralContent`), se kreslí MÍSTO běžného
+     * — tak to TDLib předepisuje. Samostatná funkce nad [toChatMessageContent], ne větev v ní:
+     * ta je obří suspend funkce, kterou další větev se suspend voláním už jednou rozbila v ART
+     * (viz [externalReply]).
+     */
     private suspend fun Message.toChatMessage(isGroup: Boolean): ChatMessage {
+        val overlay = ephemeralContent
+        val message = (if (overlay != null) withEphemeralContent(overlay) else this).toChatMessageContent(isGroup)
+        val receiver = receiverId?.plainId()
+        if (overlay == null && receiver == null) return message
+        return message.copy(ephemeral = ephemeralOf(receiver, replacesOriginal = overlay != null))
+    }
+
+    /** Komu mizející zpráva patří: `receiverName` jen u cizího příjemce (vlastní příkaz botovi). */
+    private suspend fun ephemeralOf(receiver: Long?, replacesOriginal: Boolean): Ephemeral {
+        val other = receiver?.takeIf { it != myId() }
+        return Ephemeral(
+            receiverName = other?.let { resolveSender(it)?.title.orEmpty() },
+            replacesOriginal = replacesOriginal,
+        )
+    }
+
+    private suspend fun Message.toChatMessageContent(isGroup: Boolean): ChatMessage {
         val senderId = senderId.plainId()
         val hideSensitive = client.hidesSensitive(this)
         // Text a jeho entity musí pocházet z jednoho rozhodnutí — rozsahy platí jen pro ten
@@ -2892,23 +2953,66 @@ class TdlConversationRepository(
     override suspend fun dismissReplyMarkup(chatId: Long, messageId: Long): Result<Unit> =
         client.deleteChatReplyMarkup(chatId = chatId, messageId = messageId).toResult().map { }
 
-    override suspend fun sendKeyboardText(chatId: Long, text: String, replyToMessageId: Long?): Result<ChatMessage> =
-        client.sendMessage(
+    override suspend fun sendKeyboardText(chatId: Long, text: String, replyToMessageId: Long?): Result<ChatMessage> {
+        val replyTo = replyInput(chatId, replyToMessageId, quote = null)
+        val content = InputMessageText(
+            // Text tlačítka je příkaz pro bota, ne zpráva s odkazy — entity se nedohledávají.
+            text = FormattedText(text = text, entities = emptyArray()),
+            linkPreviewOptions = null,
+            // Rozepsaný koncept zůstává: ťuknutí na tlačítko není odeslání pole.
+            clearDraft = false,
+        )
+        // Příkaz ze seznamu příkazů jde tudy, ne přes [send] — i on může být mizející.
+        sendEphemeralText(chatId, text, replyToMessageId, replyTo, content)?.let { return it }
+        return client.sendMessage(
             chatId = chatId,
             topicId = topic,
-            replyTo = replyInput(chatId, replyToMessageId, quote = null),
+            replyTo = replyTo,
             options = null,
             replyMarkup = null,
-            inputMessageContent = InputMessageText(
-                // Text tlačítka je příkaz pro bota, ne zpráva s odkazy — entity se nedohledávají.
-                text = FormattedText(text = text, entities = emptyArray()),
-                linkPreviewOptions = null,
-                // Rozepsaný koncept zůstává: ťuknutí na tlačítko není odeslání pole.
-                clearDraft = false,
-            ),
+            inputMessageContent = content,
         )
             .toResult()
             .map { it.toChatMessage(isGroup(chatId)) }
+    }
+
+    /**
+     * Mizející příkaz bota a odpověď na mizející zprávu bota smí jít JEN mizející cestou — běžná
+     * zpráva by příkaz ukázala celé skupině a odpověď TDLib odmítne. `null` = běžná zpráva.
+     */
+    private suspend fun sendEphemeralText(
+        chatId: Long,
+        text: String,
+        replyToMessageId: Long?,
+        replyTo: InputMessageReplyTo?,
+        content: InputMessageText,
+    ): Result<ChatMessage>? {
+        val botUserId = ephemeralReceiver(chatId, text, replyToMessageId) ?: return null
+        return client.sendEphemeralMessage(
+            chatId = chatId,
+            topicId = topic,
+            receiverUserId = botUserId,
+            callbackQueryId = 0,
+            replaceCallbackQueryMessage = false,
+            replyTo = replyTo,
+            protectContent = false,
+            sendingId = 0,
+            onlyPreview = false,
+            replyMarkup = null,
+            /*
+             * Koncept se maže až po odeslání, ne přes `clearDraft`: mizející cesta ho smaže jen
+             * v TDLib, na serveru zůstane a po restartu (i na jiném zařízení) se vrátí do pole.
+             * Smazat ho potom ručně nejde — TDLib ho už nemá, změnu nevidí a server se nic
+             * nedozví. S `clearDraft = false` koncept v TDLib ještě je a smazání dojde i na server.
+             */
+            inputMessageContent = InputMessageText(text = content.text, linkPreviewOptions = content.linkPreviewOptions, clearDraft = false),
+        )
+            .toResult()
+            .onSuccess {
+                if (content.clearDraft) client.setChatDraftMessage(chatId = chatId, topicId = topic, draftMessage = null)
+            }
+            .map { it.toChatMessage(isGroup(chatId)) }
+    }
 
     override suspend fun shareOwnPhone(chatId: Long, replyToMessageId: Long?): Result<ChatMessage> = runCatching {
         val me = client.getMe().toResult().getOrThrow()
