@@ -890,7 +890,7 @@ poměru přínosu a práce; každý bod je samostatný PR.
 - ~~**Emphasized typografie**~~ — hotovo pro jméno v profilu a hovoru, nadpis přihlášení
   a prázdného stavu, kartu účtu, velká čísla v Úložišti a Využití sítě, počet vybraných, vybranou
   složku a otázku ankety; ruční SemiBold k rolím `title*`/`label*` převedený (`CLAUDE.md`,
-  Typografie). Nadpisy sheetů dostanou zvýraznění se společným `SheetHeader` (bod níž).
+  Typografie; VladimirTintera/telegram#830). Nadpisy sheetů dostanou zvýraznění se společným `SheetHeader` (bod níž).
 - **Společný `SheetHeader`.** 64 sheetů, nadpis napůl `titleMedium` a napůl `titleLarge`.
 - **Společný `ConfirmDialog`.** 87 `AlertDialog`, ikonu mají dva. Destruktivní potvrzení (~35×)
   je `TextButton` s červeným textem; obal s ikonou, chybovou barvou a tvary tlačítek je sjednotí.
