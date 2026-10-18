@@ -527,6 +527,11 @@
     <string name="conversation_bot_start_failed">Bota se nepodařilo spustit.</string>
     <string name="conversation_send_options">Možnosti odeslání</string>
     <string name="conversation_send_silent">Odeslat bez zvuku</string>
+    <string name="conversation_default_silent_on">Zprávy budou odcházet bez zvuku</string>
+    <string name="conversation_default_silent_off">Zprávy budou odcházet se zvukem</string>
+    <string name="conversation_default_silent_enable">Výchozí odesílání bez zvuku</string>
+    <string name="conversation_default_silent_disable">Výchozí odesílání se zvukem</string>
+    <string name="conversation_default_silent_failed">Nastavení zvuku se nepodařilo změnit.</string>
     <string name="conversation_send_schedule">Naplánovat zprávu…</string>
     <string name="conversation_send_when_online">Odeslat, až bude online</string>
     <string name="conversation_send_effect">Odeslat s efektem…</string>

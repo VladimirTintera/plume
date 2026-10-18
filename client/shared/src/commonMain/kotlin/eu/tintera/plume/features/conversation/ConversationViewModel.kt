@@ -503,6 +503,7 @@ class ConversationViewModel(
     val unarchived: StateFlow<Boolean> get() = chatActions.unarchived
     fun join() = chatActions.join()
     fun toggleMute() = chatActions.toggleMute()
+    fun toggleDefaultSilent() = chatActions.toggleDefaultSilent()
     fun addSpamBarContact() = chatActions.addSpamBarContact()
     fun unarchiveFromSpamBar() = chatActions.unarchiveFromSpamBar()
     fun sharePhoneNumber() = chatActions.sharePhoneNumber()

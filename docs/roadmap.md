@@ -405,8 +405,9 @@ funkce, která se nevolá, ještě neznamená chybějící funkci (stejnou věc 
 - ~~Vymazání historie chatu, celé i za vybrané dny (`deleteChatHistory` bez odebrání ze
   seznamu, `deleteChatMessagesByDate`)~~ — hotovo (⋮ v konverzaci → Vymazat historii…;
   `docs/poznatky/konverzace-akce.md`, „Vymazání historie"). Plume dřív uměl jen smazat celý chat.
-- Nalezené při druhém porovnání API (18. 10.), zatím bez místa v aplikaci: tiché odesílání
-  jako výchozí pro chat (`toggleChatDefaultDisableNotification`), smazání všech konceptů
+- ~~Tiché odesílání jako výchozí pro chat (`toggleChatDefaultDisableNotification`)~~ — hotovo
+  jako zvoneček v kanálu (`docs/poznatky/konverzace-psani.md`, „Výchozí odesílání bez zvuku").
+- Nalezené při druhém porovnání API (18. 10.), zatím bez místa v aplikaci: smazání všech konceptů
   najednou v přehledu konceptů (`clearAllDraftMessages`), doporučené kanály
   (`getRecommendedChats`), nahlášení profilové fotky (`reportChatPhoto`).
 

@@ -503,6 +503,35 @@ u pole (`ScheduledMessagesSheet`): odeslat hned, změnit čas, smazat.
 - **`StickerPickerSheet` je `internal`** — s parametrem interního `SendMenuOffer` by veřejná
   funkce neprošla překladem (`EXPOSED_PARAMETER_TYPE`).
 
+### Výchozí odesílání bez zvuku (zvoneček v kanálu)
+
+V kanálu, kam uživatel píše, je v poli zprávy zvoneček (`MessageInput.defaultSilent`,
+`IconToggleButton` s `toggleableShapes`): zapnutý = všechny příspěvky odcházejí bez zvuku
+(`toggleChatDefaultDisableNotification`, `ChatInfo.defaultSilent`). Snackbar řekne, co se
+změnilo; přeškrtnutý zvon sám by šel přehlédnout.
+
+- **Tichost přidává TDLib SÁM**, ne klient: `create_message_to_send` dá zprávě
+  `silent_send_message` chatu, kdykoli volby odeslání tichost nežádají (zdroj TDLib,
+  `MessagesManager.cpp`). Napřed ji doplňovalo i repository — zbytečně, a „Odeslat se zvukem"
+  z nabídky odešlo POTICHU (ověřeno logem u odběratele). Přebít to jde jen globální volbou
+  `ignore_default_disable_notification`, jenže pak by výchozí tichost musela doplňovat každá
+  cesta odeslání sama (sdílení, odpověď z notifikace, přeposlání ze seznamu) — proto ne.
+- **V tichém chatu nabídka odeslání „bez zvuku" nenabízí** (`sendMenuOffer`): nic by
+  nezměnila. Příspěvek se zvukem = zvoneček vypnout.
+- **Jen v kanálu** (celém, ne ve vlákně): tam je ticho stav, který se drží; v rozhovoru je to
+  jednorázová volba z nabídky. Nastavení se ukládá na serveru, platí na všech zařízeních.
+- **Stav jde z `getChat` při otevření** a po přepnutí se přepíše lokálně; update
+  `UpdateChatDefaultDisableNotification` (přepnutí na jiném zařízení) se neodebírá, projeví se
+  při dalším otevření.
+- **Ankety a seznamy úkolů** mají vlastní nabídku „bez zvuku" bez znalosti chatu; v tichém
+  kanálu ji nabídnou dál (neškodí — zpráva odejde potichu tak i tak).
+- **Ověřeno na dvou emulátorech** (…029 vlastník „Plume test kanal", …527 odběratel): se
+  zapnutým zvonečkem notifikace u odběratele v tichém kanálu `channels_silent` s příznakem
+  `SILENT` (log `Notifikace potichu: od TDLib=true`), podržení odeslání nabídlo jen
+  naplánování, po vypnutí zvonečku notifikace v kanálu `channels` bez `SILENT`. Odběratel musí
+  mít Plume v popředí nebo čerstvě na pozadí — zmrazená aplikace na emulátoru notifikaci
+  nevydá a vypadá to jako chyba. **Neověřené:** iOS a desktop.
+
 ## Úprava zprávy
 
 „Upravit" v nabídce nad zprávou přepne vstupní pole do úpravy: karta místo citace ukazuje původní

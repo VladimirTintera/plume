@@ -14,6 +14,9 @@ import eu.tintera.plume.features.chats.SpamCleanup
 import eu.tintera.plume.features.chats.cleanUpSpam
 import eu.tintera.plume.features.report.ReportFlow
 import eu.tintera.plume.resources.Res
+import eu.tintera.plume.resources.conversation_default_silent_failed
+import eu.tintera.plume.resources.conversation_default_silent_off
+import eu.tintera.plume.resources.conversation_default_silent_on
 import eu.tintera.plume.resources.clear_history_done
 import eu.tintera.plume.resources.clear_history_failed
 import eu.tintera.plume.resources.clear_history_period_done
@@ -277,6 +280,31 @@ internal class ConversationChatActions(
                     }
                 }
                 .onFailure { failure -> state.update { it.copy(error = failure.reported(logger, Res.string.clear_history_failed)) } }
+        }
+    }
+
+    /**
+     * Zvoneček v kanálu: výchozí odesílání bez zvuku. Stav se přepíše hned (zvoneček nečeká na
+     * server) a hláška řekne, co se změnilo — ikona sama by šla přehlédnout.
+     */
+    fun toggleDefaultSilent() {
+        val info = state.value.info ?: return
+        val silent = !info.defaultSilent
+        state.update {
+            it.copy(
+                info = it.info?.copy(defaultSilent = silent),
+                notice = UiText(if (silent) Res.string.conversation_default_silent_on else Res.string.conversation_default_silent_off),
+            )
+        }
+        scope.launch {
+            repository.setDefaultSilent(chatId, silent).onFailure { failure ->
+                state.update {
+                    it.copy(
+                        info = it.info?.copy(defaultSilent = !silent),
+                        error = failure.reported(logger, Res.string.conversation_default_silent_failed),
+                    )
+                }
+            }
         }
     }
 
